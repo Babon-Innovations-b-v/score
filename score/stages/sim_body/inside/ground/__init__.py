@@ -1,5 +1,5 @@
 """The scene's ground as the sim body stands on it (pure numpy, the person's own frame, Y up): each point's ground (the
-highest drawn triangle under it, at most REACH_UP over it, or over its body's lowest point (`body_reach`), with
+highest drawn triangle under it, at most REACH_UP over it, or over its body's lowest point or middle (`body_reach`), with
 HEADROOM free over it), its height over it, and each triangle's upward normal."""
 import numpy as np
 
@@ -37,8 +37,10 @@ def _crossings(points, ground):
 
 
 def body_reach(points):
-    """The highest a body's ground may lie: REACH_UP over its lowest point, so a roof over its head is never its ground."""
-    return points[:, 1].min() + REACH_UP
+    """The highest a body's ground may lie: REACH_UP over its lowest point, or its middle (the median of its points'
+    heights) where that is higher, so a roof over its head is never its ground and a seat under a seated body is
+    (#98, 2026-11-07: a sit-to-stand's chair 0.40 m up, its feet on the floor, lay past REACH_UP)."""
+    return max(points[:, 1].min() + REACH_UP, float(np.median(points[:, 1])))
 
 
 def standing(points, ground, reach=None):

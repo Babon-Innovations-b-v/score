@@ -148,7 +148,7 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py": 10,
     "score/stages/sim_body/inside/records/test_a_record_keeps_poses_meshes_and_moves_as_worked_by_hand.py": 6,
     "score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py": 14,
-    "score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py": 8,
+    "score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py": 6,
     "score/stages/sim_body/inside/solvers/test_each_solver_meets_a_hand_worked_answer.py": 4,
     "score/stages/sim_body/inside/tuning/_adjoint/test_implicit_columns_equal_re_solved_differences.py": 27,
     "score/stages/sim_body/inside/tuning/_paired/test_a_step_counts_only_past_its_noise_floor_on_a_fixed_case_set.py": 6,

@@ -5,6 +5,8 @@ with the arrays drawn beside
 (each body's and segment's pose, the muscles' paths), the bone meshes (`bones_of`), the arrays by name (`arrays`),
 the person's entry (`entry`, its pushes' measures `push_measures`, judged for a quiet stance by `push_faults`) and RRA's
 `adjusted` record (`adjustment_record`)."""
+import time
+
 import mujoco
 import numpy as np
 from scipy.spatial import ConvexHull, QhullError
@@ -15,6 +17,10 @@ from ground import heights_over
 from model import TO_OWN, own_pose
 from rra import RRA_ROUNDS, turned_off
 from solvers import smoothed
+
+# `frames`' timed steps but the static optimisation's (#98: the paper's per-step timing)
+FRAME_STATES = "inverse dynamics, contacts and muscle paths"  # every frame's state on MuJoCo Warp, its problem set up
+RECORDED = "records and push measures"  # each frame's share read out, the pushes steadied and measured
 
 BONE_CELL = 0.005  # metres: the drawn bones' vertices merged within this
 QUIET = 0.02  # a frame whose movement needs its weight up within 2% of it is quiet stance (`push_measures`)
@@ -204,13 +210,17 @@ def push_faults(measures):
     return [f"{name} {measures[name]} over {most}" for name, most in limits.items() if measures[name] > most]
 
 
-def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids, rate):
+def frames(physics, path, velocities, accelerations, worlds, ground, riders, feet, drawn_ids, rate,
+           seconds=None):
     """Every frame's record and the drawn arrays beside it: its physics shared out (`Physics.problem`, every frame's
     least squares at once, `Physics.solved_all`, and `Physics.share_of`: `Physics.shared` frame by frame), its segments
     riding their bones (`riders`: segments, bodies, riding, parents), the feet (`feet`: {segment: its skin points}), its
     touching parts' pushes steadied over the clip (`steadied`, at the clip's `rate`); returns the records, each drawn
     body's poses, each segment's, the muscles' paths, their point counts and the pushes' measures (`push_measures`).
-    The poses the skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved)."""
+    The poses the skin plays are SOMA's own, written by the stage (#70: SOMA is the truth, never moved). `seconds`,
+    when given, has the wall seconds of each step added: the frames' states (FRAME_STATES), the static optimisation's
+    two stages (`muscles.STAGES`) and the records (RECORDED)."""
+    started = time.perf_counter()
     model = physics.model
     segment_names, bodies, riding, parents = riders
     found, bones, segments, paths, counts, raw, needs, problems, posed_all, lowest = [], [], [], [], [], [], [], [], \
@@ -228,7 +238,9 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
         paths.append(mine @ TO_OWN.T)
     # the frames' static optimisation by `least` on the processor: on the card (`batched.least_all`) the clips' muscles
     # came out 24% more active (pickup, jump; 2026-11-05, #70), the cause not found yet; RRA's balance agrees on it
-    shared = physics.solved_all(problems, card=False)
+    solving = time.perf_counter()
+    shared = physics.solved_all(problems, card=False, seconds=seconds)
+    shared_at = time.perf_counter()
     for frame, (problem, solved) in enumerate(zip(problems, shared)):  # every frame's share
         share = physics.share_of(problem, solved)
         needed, posed, (low, feet_low) = problem["needed"], posed_all[frame], lowest[frame]
@@ -253,7 +265,11 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
     for record, touches in zip(found, steady):
         record["touches"] = touches
     weight = float(sum(model.body_mass) * np.linalg.norm(model.opt.gravity))
-    return found, bones, segments, paths, counts, push_measures(steady, raw, needs, weight, ground)
+    measures = push_measures(steady, raw, needs, weight, ground)
+    if seconds is not None:
+        seconds[FRAME_STATES] = seconds.get(FRAME_STATES, 0.0) + solving - started
+        seconds[RECORDED] = seconds.get(RECORDED, 0.0) + time.perf_counter() - shared_at
+    return found, bones, segments, paths, counts, measures
 
 
 def arrays(name, bones, segments, paths, counts, meshes):

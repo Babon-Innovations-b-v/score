@@ -6,7 +6,7 @@ rounding there (1e-3, MuJoCo's C 1e-11) moves no activation, and a 1e-6 nudge of
 and on the ground too, the ground reaction force solved first (`staged`): two feet on a flat floor asked for a
 moment past their toes (the body cannot be balanced, so the balance sits on the edge of the contacts' cone, its toe
 points' friction pyramids dependent), a 1e-6 nudge of the contact columns moves the activations under 1e-5 and each
-foot carries half the weight.
+foot carries half the weight; and a knee's free turn is carried by its ligaments, not the muscles crossing it.
 It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -26,6 +26,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - staged's steps made the one least squares of before (contacts, stops and muscles together, the pelvis' rows
   BALANCE): a 1e-6 nudge of the contacts moves an ankle muscle by 0.145.
 - share_asked's SHARE_COST made CONTACT_COST: the nudge moves it by 0.0028 (the balance crowded on a few points).
+2026-11-07:
+- problem's `np.concatenate([self.stops(), self.ligaments()], axis=1)` made `self.stops()`: the turn's 5 N m moves
+  the activations (the muscles reach it 1 cm off its axis) and leaves a reserve on it.
 
 Run: .venv/bin/python score/stages/sim_body/inside/muscles/test_a_standing_body_is_carried_by_the_ground.py
 """
@@ -81,6 +84,16 @@ LEG = """<mujoco model="leg">
 </mujoco>
 """
 ROUNDING = 1e-3  # the card's float32 rounding of a moment arm, at its largest (2026-11-05, #70)
+# The leg with a shin turning on its thigh about the thigh's long axis (a knee's free turn, muscles.LIGAMENTS'
+# name), the two muscles crossing it 1 cm off its axis.
+TURNING = LEG.replace('''        <site name="shin front" pos="0.05 0 -0.1"/>
+        <site name="shin back" pos="-0.05 0 -0.1"/>''', '''        <body name="shin" pos="0 0 -0.05">
+          <joint name="knee_angle_rotation3_r" type="hinge" axis="0 0 1" range="-0.26 0.26" limited="true"/>
+          <geom type="capsule" fromto="0 0 0 0 0 -0.3" size="0.04" mass="3"/>
+          <site name="shin front" pos="0.05 0.01 -0.05"/>
+          <site name="shin back" pos="-0.05 0.01 -0.05"/>
+        </body>''')
+TURN_ASKED = 5.0  # N m on the shin's turn
 
 
 def ball_skin(found):
@@ -131,7 +144,8 @@ def the_ground_carries_a_still_body():
 def rounding_moves_no_activation():
     """A body 2 m up (the ground pushes nothing), its hip held bent by two muscles across it: the problem's muscle
     columns are 0 on the root's six rows; with every muscle's moment on the root given the card's rounding (ROUNDING
-    of its largest), the activations move under 1e-9; with every moment nudged by 1e-6 of itself, under 1e-5."""
+    of its largest), the activations move under 1e-9; with every moment nudged by 1e-6 of itself, under 1e-5.
+    A knee's free turn moves no activation either: its ligaments hold it (`ligament_turn_problems`)."""
     import model as built_model
     import mujoco
     import muscles
@@ -176,7 +190,35 @@ def rounding_moves_no_activation():
     nudged = solved(lambda moments: moments.__imul__(1 + 1e-6 * nudge.standard_normal(moments.shape)))[1]
     if np.abs(nudged - before).max() > 1e-5:
         problems.append(f"a 1e-6 nudge of the moments moves the activations {before} to {nudged}")
-    return problems
+    return problems + ligament_turn_problems()
+
+
+def ligament_turn_problems():
+    """The leg with its shin's turn (`TURNING`) 2 m up, its hip held bent: asked TURN_ASKED more on the turn, the
+    activations move under 1e-6 and its reserve stays under 1e-3 N m (the knee's ligaments carry it,
+    `muscles.LIGAMENTS`)."""
+    import model as built_model
+    import muscles
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "turning.xml"
+        path.write_text(TURNING)
+        found = built_model.built(path, GRAVITY)
+    physics = muscles.Physics(found, np.zeros((0, 3, 3)), None)
+    physics.contacts = lambda: []
+    qpos, still = found.qpos0.copy(), np.zeros(found.nv)
+    qpos[7] = 0.5
+    turn = found.jnt_dofadr[2]
+    needed = physics.needed(qpos, still, still)
+    plain = physics.shared(needed)
+    needed[turn] += TURN_ASKED
+    asked = physics.shared(needed)
+    problems = [] if 0.0 < plain["activations"].max() < 1.0 else [f"no muscle holds the hip: {plain['activations']}"]
+    if np.abs(asked["activations"] - plain["activations"]).max() > 1e-6:
+        problems.append(f"the turn's {TURN_ASKED} N m moves the activations {plain['activations']} to "
+                        f"{asked['activations']}")
+    left = asked["reserves"][list(physics.couplings.leads[6:]).index(turn)]
+    return problems + ([] if abs(left) < 1e-3 else [f"{left:.4f} N m left on the turn as reserve"])
 
 
 def feet(lean):

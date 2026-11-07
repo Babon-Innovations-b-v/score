@@ -119,6 +119,25 @@ def soles(rig, local):
     return np.array(heights).T.reshape(len(local), -1), np.array(speeds).T.reshape(len(local), -1), others
 
 
+def standing_of(heights, speeds, others):
+    """Each foot's stance (frames x feet) from `soles`' heights, speeds and other skin: its sole under STANCE_SPEED
+    and STANCE_HIGH and no other skin under it (a body sitting or kneeling on its floor is carried there)."""
+    return (speeds < STANCE_SPEED) & (heights < STANCE_HIGH) & (heights <= others[:, None])
+
+
+def stances(rig, local):
+    """Each foot's stance on every frame of `local` (frames x feet, FEET's order), `stood`'s rule."""
+    return standing_of(*soles(rig, local))
+
+
+def stood_smoothed(values):
+    """A frame by frame move (`values`, m) smoothed as `stood` smooths its own: Whittaker's smoother, the move's squared
+    second differences weighed so it passes up to STOOD_HZ."""
+    bend = np.diff(np.eye(len(values)), 2, axis=0)
+    smooth = (2.0 * np.sin(np.pi * STOOD_HZ / RATE)) ** -4
+    return np.linalg.solve(np.eye(len(values)) + smooth * bend.T @ bend, np.asarray(values, dtype=float))
+
+
 def stood(rig, local):
     """`local` with its travelling joint moved up or down frame by frame so its standing feet's soles rest on the
     bind's floor (y = 0): on every frame a foot stands (`soles` under STANCE_SPEED and STANCE_HIGH, and no other skin
@@ -128,15 +147,12 @@ def stood(rig, local):
     second differences weighed so it passes up to STOOD_HZ), so it never leaves what its standing frames ask.
     A frame's own rotations are never changed; a clip on which no foot stands is as it came."""
     heights, speeds, others = soles(rig, local)
-    standing = (speeds < STANCE_SPEED) & (heights < STANCE_HIGH) & (heights <= others[:, None])
+    standing = standing_of(heights, speeds, others)
     on = standing.any(axis=1)
     if not on.any():
         return np.asarray(local, dtype=float)
     frames = np.arange(len(local))
-    bridged = np.interp(frames, frames[on], np.where(standing, heights, np.inf).min(axis=1)[on])
-    bend = np.diff(np.eye(len(local)), 2, axis=0)
-    smooth = (2.0 * np.sin(np.pi * STOOD_HZ / RATE)) ** -4
-    move = np.linalg.solve(np.eye(len(local)) + smooth * bend.T @ bend, bridged)
+    move = stood_smoothed(np.interp(frames, frames[on], np.where(standing, heights, np.inf).min(axis=1)[on]))
     moved = np.array(local, dtype=float)
     moved[:, played.TRAVELLING_JOINT, 1, 3] -= move
     return moved

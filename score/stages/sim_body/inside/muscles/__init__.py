@@ -5,6 +5,8 @@ stages (`staged`): the ground reaction force first, from the pelvis' six balance
 ground's contacts, `contact.pushes`, then that balance shared over the touching points), then the muscles' activations
 and the joints' stops with that ground reaction force fixed (least squared activation); what they cannot give is the
 pelvis' residual and each joint's reserve, measured and never applied."""
+import time
+
 import mujoco
 import numpy as np
 
@@ -32,7 +34,14 @@ BALANCE = 100.0
 # 0.1 in one round the residual grew by 7.9 N.
 SHARE_COST = 0.03
 SHARE_ROUNDS = 2
+# the static optimisation's two stages, as their wall seconds are named (`staged`'s `seconds`)
+STAGES = ("static optimisation 1, ground reaction", "static optimisation 2, stops and muscles")
 AT_STOP = 1e-4  # radians or metres: a joint this near an end of its range stands against it
+# The joints a knee's ligaments and condyles hold, both ways, at CONTACT_COST a newton metre, as a stop (#98,
+# 2026-11-07): the shin's turn on the femur, freed of the knee's flexion (myo._movable's KNEE), where MyoFullBody's
+# knee extensors reach it by 0.3 to 0.5 cm and no muscle by much more; left to the muscles, its few newton metres
+# decided the vasti's split (subject2_squats1's deepest frame: vastus intermedius 1.0, lateralis 0).
+LIGAMENTS = ("knee_angle_rotation3_r", "knee_angle_rotation3_l")
 
 
 def parts_of(model, bodies):
@@ -82,6 +91,7 @@ class Physics:
         self.chains = Chains(model) if self.card is not None else None
         self.laid = None  # the state `each` laid in `data`: its contacts, worked out with every state's at once
         self.laid_over = None  # ... and its skin points' heights over their ground
+        self.row = 0  # the frame `each` laid in `data` frame by frame on MuJoCo's C (the skin's credit is a frame's)
 
     def each(self, path, velocities, accelerations, contacts=True):
         """Each state's needed forces (`needed`), its state laid in `data` before it is given (for `contacts`,
@@ -89,8 +99,12 @@ class Physics:
         (`batched.Card`), else frame by frame on MuJoCo's C; `contacts` False when the caller reads none (the
         ground's pushes worked out for nothing)."""
         if self.card is None:
-            for qpos, qvel, qacc in zip(path, velocities, accelerations):
-                yield self.needed(qpos, qvel, qacc)
+            try:
+                for row, (qpos, qvel, qacc) in enumerate(zip(path, velocities, accelerations)):
+                    self.row = row
+                    yield self.needed(qpos, qvel, qacc)
+            finally:
+                self.row = 0
             return
         found = self.card.evaluate(path, velocities, accelerations)
         touching, over = pushes_all(self.model, found, self.ground, self.up, self.skin, self.chains) if contacts else \
@@ -125,7 +139,7 @@ class Physics:
         card, the laid state's, worked out with every state's at once: `contact.pushes_all`)."""
         if self.laid is not None:
             return self.laid
-        return pushes(self.model, self.data, self.ground, self.up, self.skin)
+        return pushes(self.model, self.data, self.ground, self.up, self.skin, self.row)
 
     def stops(self):
         """Each leading hinge or slide at an end of its range now, as a one-sided generalised force pushing it back
@@ -145,6 +159,18 @@ class Physics:
                     found.append(column)
         return np.array(found).T if found else np.zeros((model.nv, 0))
 
+    def ligaments(self):
+        """Each leading joint of LIGAMENTS as a two-sided generalised force (nv x 2 per joint): what the knee's
+        ligaments and condyles carry of its shin's turn."""
+        model, found = self.model, []
+        for dof in self.couplings.leads:
+            if (mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_JOINT, model.dof_jntid[dof]) or "").endswith(LIGAMENTS):
+                for sign in (1.0, -1.0):
+                    column = np.zeros(model.nv)
+                    column[dof] = sign
+                    found.append(column)
+        return np.array(found).T if found else np.zeros((model.nv, 0))
+
     def shared(self, needed):
         """The needed forces shared out: each contact's push (N, MuJoCo's frame, by body), each touching body's push
         and its centre of pressure (`touches`: a foot one part), each muscle's activation
@@ -153,10 +179,10 @@ class Physics:
         problem = self.problem(needed)
         return self.share_of(problem, self.solved_all([problem], card=False)[0])
 
-    def solved_all(self, problems, card=True):
-        """Each `problem`'s static optimisation solved in its two stages (`staged`), each stage's least squares every
-        frame's at once (`least_each`)."""
-        return staged(problems, lambda asked: self.least_each(asked, card))
+    def solved_all(self, problems, card=True, seconds=None):
+        """Each `problem`'s static optimisation solved in its two stages (`staged`, each stage's wall seconds added
+        into `seconds` when given), each stage's least squares every frame's at once (`least_each`)."""
+        return staged(problems, lambda asked: self.least_each(asked, card), seconds)
 
     def least_each(self, asked, card=True):
         """Each least squares of `asked` (system, wanted, costs, highest) solved: every one at once on the card
@@ -192,7 +218,7 @@ class Physics:
         for _, along, edges, _ in contacts:
             columns += [along.T @ edge for edge in edges]
         pushes = np.array(columns).T if columns else np.zeros((model.nv, 0))
-        stops = self.stops()
+        stops = np.concatenate([self.stops(), self.ligaments()], axis=1)
         wanted = mapped.T @ (needed - arms @ biases)
         system = mapped.T @ np.concatenate([pushes, stops, arms * gains], axis=1)
         count, held = pushes.shape[1], stops.shape[1]
@@ -245,17 +271,23 @@ def joints_asked(problem, ground):
             problem["highest"][count:])
 
 
-def staged(problems, solve):
+def staged(problems, solve, seconds=None):
     """Each `problem`'s static optimisation as OpenSim's (Hicks et al. 2015): the ground reaction force first, from the
     pelvis' rows alone (`balance_asked`, then `share_asked`), then the stops and muscles with it fixed (`joints_asked`),
     least squared activation; `solve` solves a list of least squares (system, wanted, costs, highest) at once. Each
     problem's x: the contacts' forces, the stops', the activations. Solved as one problem the contacts' columns, at
-    CONTACT_COST, made it ill-posed: a 1e-6 nudge of them moved an activation by up to 0.79 (2026-11-05, #70)."""
+    CONTACT_COST, made it ill-posed: a 1e-6 nudge of them moved an activation by up to 0.79 (2026-11-05, #70).
+    `seconds`, when given, has each stage's wall seconds added (STAGES: the paper's per-step timing, #98)."""
+    started = time.perf_counter()
     pelvis = [BALANCE * problem["system"][:6, :problem["count"]] for problem in problems]
     balanced = [rows @ found for rows, found in zip(pelvis, solve([balance_asked(problem) for problem in problems]))]
     wanted = balanced
     for _ in range(SHARE_ROUNDS):  # each round asks again for what the last one's sharing left of the balance
         ground = solve([share_asked(problem, one) for problem, one in zip(problems, wanted)])
         wanted = [one + target - rows @ found for one, target, rows, found in zip(wanted, balanced, pelvis, ground)]
+    middle = time.perf_counter()
     rest = solve([joints_asked(problem, found) for problem, found in zip(problems, ground)])
+    if seconds is not None:
+        for stage, spent in zip(STAGES, (middle - started, time.perf_counter() - middle)):
+            seconds[stage] = seconds.get(stage, 0.0) + spent
     return [np.concatenate([found, other]) for found, other in zip(ground, rest)]

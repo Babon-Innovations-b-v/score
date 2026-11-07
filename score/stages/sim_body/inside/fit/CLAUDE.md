@@ -268,3 +268,6 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
 - `following` and `riding` read the bone-group and landmark tables of MyoFullBody itself, so the toy test does not
   reach them; they are checked on the walkers' runs (#70's numbers).
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.
+- **The kneecap is not held in the skin** (`_skin.KNEECAP`, #98, 2026-11-07): it rides the quadriceps' tendon where
+  MyoFullBody's couplings put it (sizing keeps them), and SOMA's linear-blend skin caves at a bent knee; held there,
+  the fit turned the knee to keep it in.

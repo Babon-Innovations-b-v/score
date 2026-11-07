@@ -23,6 +23,11 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - touching_all's `speed[:, 3:] + np.cross(...)` made `speed[:, 3:]`: the rolling ball's lowest point read at its
   centre's 1 m/s, so it sticks on a pyramid where its push slides.
 - pyramids' `edges[sliding, 0] = ...` dropped: a sliding point keeps its pyramid's first edge.
+2026-11-07 (#98):
+- pushes' `over = over - skin.credit[...]` dropped: the foot seen standing 20 mm up is not pushed.
+- credited's `<= STANCE_HIGH` made `<= 1.0`: the foot 60 mm up is pushed from its sole.
+- pushes_all's `- credit[state]` dropped: its state differs from `pushes`'.
+- kabsch's `middle_wanted - turn @ middle_given` made `middle_wanted - middle_given`: the registered riding is off.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -116,14 +121,16 @@ def pushed(height, ground, speed=0.0):
 def only_a_point_within_gap_is_pushed():
     """The ball's skin (5 cm) with its bottom 4 mm over the ground: its one lowest point is pushed, along the four
     edges of the friction pyramid (normal up, plus or minus FRICTION across), each a fifth long (1 mm left of GAP's
-    5); 6 mm over it, nothing is pushed."""
+    5); 6 mm over it, nothing is pushed. A foot seen standing is pushed from its sole
+    (`seen_standing_problems`); a registered skin lies on SOMA's (`registered_skin_problems`)."""
     import numpy as np
     near, far = pushed(0.054, flat()), pushed(0.056, flat())
     problems = [] if len(near) == 1 and len(near[0][2]) == 4 else [f"4 mm over: {len(near)} points pushed"]
     if near and not np.allclose(sorted(np.round(edge, 9).tolist() for edge in near[0][2]),
                                 sorted([[0.0, 0.1, 0.2], [0.0, -0.1, 0.2], [0.1, 0.0, 0.2], [-0.1, 0.0, 0.2]])):
         problems.append(f"4 mm over: edges {[edge.tolist() for edge in near[0][2]]}")
-    return problems + ([] if not far else [f"6 mm over: {len(far)} points pushed"])
+    return problems + ([] if not far else [f"6 mm over: {len(far)} points pushed"]) + seen_standing_problems() + \
+        registered_skin_problems()
 
 
 def a_seat_carries_the_skin_on_it():
@@ -241,6 +248,61 @@ def every_state_at_once_is_each_states_own():
                 problems.append(f"state {state}: a point's push differs from its state's alone")
                 break
     return problems + ([] if sum(len(theirs) for theirs in wanted) >= 3 else ["too few points pushed to tell"])
+
+
+def seen_standing_problems():
+    """The ball's skin 20 mm over the ground: unpushed as it is; credited as a foot seen standing with its lowest
+    point 20 mm up (`Skin.credited`), its lowest point is pushed as if on the ground (edges whole: (0, 0, 1) plus or
+    minus FRICTION across), on `pushes` and on `pushes_all`'s state alike; not seen standing, or its lowest point 60
+    mm up (over STANCE_HIGH), nothing is pushed."""
+    import numpy as np
+    import contact
+    import ground as grounds
+    model, data = ball_at(0.07)
+    up = grounds.normals(flat())
+    problems = [] if not pushed(0.07, flat()) else ["20 mm over, uncredited: pushed"]
+    for stance, lowest, wanted in ((True, 0.02, 1), (False, 0.02, 0), (True, 0.06, 0)):
+        skin = skin_of(model, data)
+        skin.credited(np.array([[lowest]]), np.array([[stance]]), [[1]])
+        found = contact.pushes(model, data, flat(), up, skin)
+        if len(found) != wanted:
+            problems.append(f"seen {stance}, lowest {lowest}: {len(found)} points pushed, not {wanted}")
+        elif wanted and not np.allclose(np.mean(found[0][2], axis=0), [0.0, 0.0, 1.0]):
+            problems.append(f"seen standing: edges {np.round(found[0][2], 3).tolist()}, not whole")
+        if stance and lowest == 0.02:
+            states = {name: np.array([getattr(data, name).copy()]) for name in
+                      ("xpos", "xmat", "cdof", "cvel", "subtree_com", "qvel")}
+            every, _ = contact.pushes_all(model, states, flat(), up, skin, contact.Chains(model))
+            if len(every[0]) != len(found) or not np.allclose(every[0][0][2], found[0][2], atol=1e-12):
+                problems.append("seen standing: pushes_all's state differs from pushes'")
+    return problems
+
+
+def registered_skin_problems():
+    """The ball's skin (its segment's frame 22 cm off its middle) carried on three frames whose SOMA frames stand turned 0.1 rad and shifted (1, -2, 3) cm off
+    the carried ones: `Skin.registered` rides it by that turn and shift (to 1e-9), so it lies on SOMA's."""
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    import model as built_model
+    import contact
+    model, data = ball_at(0.3)
+    ball = skin_of(model, data)
+    start = np.linalg.inv(ball.unbound[0])
+    start[:3, 3] += [0.2, 0.0, 0.1]  # its segment's frame off the skin's middle, as a foot's at its ankle
+    skin = contact.Skin(ball.points, ball.weights, [start], ball.bodies, ball.riding)
+    offset = np.eye(4)
+    offset[:3, :3] = Rotation.from_rotvec([0.0, 0.1, 0.05]).as_matrix()
+    offset[:3, 3] = [0.01, -0.02, 0.03]
+    carried = []
+    for height in (0.3, 0.32, 0.35):
+        data.qpos[2] = height
+        data.qpos[3:7] = Rotation.from_rotvec([0.0, height, 0.0]).as_quat(scalar_first=True)
+        import mujoco
+        mujoco.mj_forward(model, data)
+        carried.append([built_model.own_pose(model, data, 1)])
+    carried = np.array(carried)
+    found = skin.registered(carried, carried @ offset)
+    return [] if np.allclose(found.riding[0], offset, atol=1e-9) else [f"riding {np.round(found.riding[0], 4)}"]
 
 
 CHECKS = (only_a_point_within_gap_is_pushed, a_seat_carries_the_skin_on_it, a_fast_point_slides_against_its_slip,

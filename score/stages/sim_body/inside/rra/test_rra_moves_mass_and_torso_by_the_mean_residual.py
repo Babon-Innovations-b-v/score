@@ -30,6 +30,19 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   twist go back to where `before` stood them, a direction no foot sees moved (2026-11-04).
 - Footing.footed's `found[unstopped] = self._mink(...)` dropped: a frame the card did not stop is kept half solved
   (2026-11-05).
+- `_footed_card.Held` finding its directions at every step (`self.found` never set) together with CardFooting's
+  `judged_from=FOOTED_LAM_FIRST` dropped (the card before 2026-11-07): the straight legs' frames 3 and 4 not stopped
+  on the card; Footing.footed's `settled` skip dropped: unmoved frames came back 7.6e-7 off (the card's float32 legs)
+  (2026-11-07, on an L4).
+- FreeHold's `self.free` (its directions found at the frame's own pose) made `self._free(configuration)` (found again
+  at each step): the hold's directions at a leg bent 0.02 rad off straight 0.67 off the straight frame's; Footing's
+  `judged_from=FOOTED_LAM_FIRST` dropped: the straight knees past their stop cycle, 300 steps; FOOTED_LAM_FIRST made
+  the fit's 1e-3: the knees 0.03 past their stop under a pelvis 5 mm up crawl 300 steps (2026-11-07).
+- within_follows' `if off_clip(...path...) > follows: return adjusted, 1.0` dropped: a fit past the limit keeps none
+  of RRA's move (#98, 2026-11-07).
+- fit.judged_solve's `decaying` dropped (the judged damping put back to 0 after each kept step, as before): both legs
+  turning about their long axes, 0.002 rad off straight, under a pelvis turned 0.01 rad, 300 steps; Footing's
+  `gain=FOOTED_GAIN` dropped: the left leg alone turning under a pelvis turned 0.05 rad, 300 steps (2026-11-07).
 - FreeHold._free's `turns[rank:]` made `turns[:rank]` (the directions the feet see held instead): the feet 15 mm off
   (2026-11-04).
 
@@ -187,14 +200,121 @@ def a_legs_free_direction_is_held_where_the_frame_stood():
                        [f"the turn and the twist moved to {put[0][pair].tolist()}"])
 
 
+def straight_leg_problems():
+    """Both knees a hair bent (0.01 rad) or past their 0 stop (-0.03), the pelvis 1 mm and 5 mm up: the feet cannot be
+    reached, the leg is at its longest, and the frame converges with each foot within 0.03 mm (the pelvis' height gives
+    at FOOTED_HEIGHT) instead of cycling; and the hold's directions are the frame's own, the same at a pose bent off
+    its straight leg (#98, 2026-11-07: LabValidation's drop jumps and walks)."""
+    import mink
+    import numpy as np
+    import fit
+    problems = []
+    for knee in (0.01, -0.03):
+        for rise in (0.001, 0.005):
+            footing, standing = legs_footing()
+            for side in "lr":
+                for name, angle in (("hip", -knee / 2), ("knee", knee), ("ankle", -knee / 2)):
+                    standing[footing.model.jnt_qposadr[footing.model.joint(f"{name}_{side}").id]] = angle
+            raised = standing.copy()
+            raised[2] += rise
+            try:
+                off = footing.off(footing.footed(raised[None], standing[None]), standing[None])[0]
+            except fit.NotConverged as error:
+                problems.append(f"knee {knee}, pelvis {rise} m up: {error}")
+                continue
+            if off[0] > 3e-5:
+                problems.append(f"knee {knee}, pelvis {rise} m up: feet {off[0]} m off")
+    footing, straight = legs_footing()
+    for side in "lr":
+        for name in ("hip", "knee", "ankle"):
+            straight[footing.model.jnt_qposadr[footing.model.joint(f"{name}_{side}").id]] = 0.0
+    raised = straight.copy()
+    raised[2] += 0.001  # a frame that moved, so `footed` solves it and sets the hold there
+    footing.footed(raised[None], straight[None])
+    configuration = mink.Configuration(footing.model)
+    bent = straight.copy()
+    for name, angle in (("hip", -0.01), ("knee", 0.02), ("ankle", -0.01)):
+        bent[footing.model.jnt_qposadr[footing.model.joint(f"{name}_l").id]] = angle
+    held = []
+    for pose in (straight, bent):
+        configuration.update(pose)
+        held.append(footing.hold.compute_jacobian(configuration))
+    return problems + ([] if np.allclose(*held, atol=1e-12) else
+                       [f"the hold's directions moved {np.abs(held[0] - held[1]).max()} off the frame's own"])
+
+
+def turning(legs, sides):
+    """The legs toy with each of `sides`' legs turning about its long axis as MyoFullBody's does: the hip's rotation
+    after its flexion, the shin's turn after the knee's and the foot's twist on the shin before the ankle's."""
+    for side in sides:
+        for joint, turn, after in ((f'<joint name="hip_{side}" type="hinge" axis="0 1 0" range="-1.5 1.5"/>',
+                                    f'<joint name="hip_rotation_{side}" type="hinge" axis="0 0 1" range="-0.78 0.78"/>',
+                                    True),
+                                   (f'<joint name="knee_{side}" type="hinge" axis="0 1 0" range="0 2.5"/>',
+                                    f'<joint name="knee_angle_rotation3_{side}" type="hinge" axis="0 0 1" '
+                                    'range="-0.26 0.26"/>', True),
+                                   (f'<joint name="ankle_{side}" type="hinge" axis="0 1 0" range="-1 1"/>',
+                                    f'<joint name="ankle_rotation_{side}" type="hinge" axis="0 0 1" '
+                                    'range="-0.35 0.44"/>',
+                                    False)):
+            legs = legs.replace(joint, joint + turn if after else turn + joint)
+    return legs
+
+
+def turning_leg_problems():
+    """Knees 0.002 rad off straight, both legs turning about their long axes (`turning`) by 0.05 rad at the shin and
+    the pelvis turned 0.01 rad about the vertical and 1 cm forward: the frame converges, the left foot within 0.3 mm of
+    where it stood (0.19 mm, as at 5000 steps: legs with no adduction follow that turn no closer; the hip's rotation,
+    the shin's turn and the ankle's twist all but one axis, the judged steps' damping put back to 0 after each kept
+    step, every other step the undamped one turned back, 300 steps; #98, 2026-11-07, LabValidation's drop jumps). Only the left leg turning, the pelvis turned 0.05 rad: the right foot cannot follow,
+    and the frame converges (FOOTED_GAIN), the left foot within 0.1 mm."""
+    import mujoco
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    import fit
+    import model
+    import rra
+    problems = []
+    for sides, bend, turned, yaw, forward, most in (("lr", 0.002, 0.05, 0.01, 0.01, 3e-4),
+                                                    ("l", 0.01, 0.0, 0.05, 0.0, 1e-4)):
+        found = mujoco.MjModel.from_xml_string(turning(LEGS, sides))
+        feet = [model.body_index(found, f"foot_{side}") for side in "lr"]
+        footing = rra.Footing(found, model.Couplings(found), feet)
+        before = found.qpos0.copy()
+        for side in "lr":
+            for name, angle in (("hip", -bend / 2), ("knee", bend), ("ankle", -bend / 2)):
+                before[found.jnt_qposadr[found.joint(f"{name}_{side}").id]] = angle
+        for side in sides:
+            for name, angle in (("knee_angle_rotation3", turned), ("ankle_rotation", -turned / 2),
+                                ("hip_rotation", turned / 3)):
+                before[found.jnt_qposadr[found.joint(f"{name}_{side}").id]] = angle
+        moved = before.copy()
+        moved[0] += forward
+        turn = Rotation.from_euler("z", yaw).as_quat()
+        moved[3:7] = turn[3], turn[0], turn[1], turn[2]
+        try:
+            put = footing.footed(moved[None], before[None])
+        except fit.NotConverged as error:
+            problems.append(f"legs turning {sides}, pelvis turned {yaw}: {error}")
+            continue
+        here, there = footing._poses(put[0]), footing._poses(before)
+        off = np.linalg.norm(here[0][0] - there[0][0])
+        problems += [] if off < most else [f"legs turning {sides}, pelvis turned {yaw}: left foot {off} m off"]
+    return problems
+
+
 def the_cards_footing_equals_minks():
     """On a CUDA card, `Footing` given the person's file solves every frame at once on the card
     (`_footed_card.CardFooting`): on the legs toy with the shin's turn and the foot's twist (a free direction), Newton's
-    build of it, three frames (the pelvis 2 cm forward and 1 cm down; 1 cm down with the knee 0.05 rad past its stop;
-    the turn and twist at 0.1 and -0.1 rad, 1 cm down), its feet within 0.01 mm and 0.001 degrees of where mink's
-    put them (the knee held at its stop leaves both 0.1 mm off on the second), every coordinate within 1e-4 rad (or
-    m) of mink's, the knee no further past its stop than it stood, and the frozen
-    pelvis bit for bit the frame's; frames the card does not stop (one step allowed) are mink's.
+    build of it, five frames (the pelvis 2 cm forward and 1 cm down; 1 cm down with the knee 0.05 rad past its stop;
+    the turn and twist at 0.1 and -0.1 rad, 1 cm down; both legs straight, 0.01 rad bent or 0.03 past the stop, the
+    pelvis 5 mm past their reach), its feet within 0.01 mm and 0.001 degrees of where mink's put them (the knee held at
+    its stop leaves both 0.1 mm off on the second), the first three's every coordinate within 1e-4 rad (or m) of
+    mink's (a straight leg's bend is all but flat: 1.1e-3 rad of knee apart, its feet as mink's), the straight legs
+    stopped on the card (#98, 2026-11-07: before `Held` kept its first pose's directions and the steps were judged,
+    they went to mink), the knee no further past its stop than it stood, the frozen pelvis bit for bit the frame's, an
+    unmoved frame back bit for bit (not the card's float32 legs: `Footing.settled`) and a model with a body 0.2 mm off
+    the file's refused (`FK_MATCHED`); frames the card does not stop (one step allowed) are mink's.
     Without a card it prints that it was not run."""
     import numpy as np
     import fit
@@ -240,28 +360,49 @@ def the_cards_footing_equals_minks():
         for name, angle in (("hip", -0.3), ("knee", 0.6), ("ankle", -0.3)):
             for side in "lr":
                 standing[coordinate(f"{name}_{side}")] = angle
-        before = np.tile(standing, (3, 1))
+        before = np.tile(standing, (5, 1))
         knee = coordinate("knee_l")
         before[1, knee] = -0.05
+        for row, bend in ((3, 0.01), (4, -0.03)):  # straight legs, a hair bent or past the stop
+            for side in "lr":
+                for name, angle in (("hip", -bend / 2), ("knee", bend), ("ankle", -bend / 2)):
+                    before[row, coordinate(f"{name}_{side}")] = angle
         moved = before.copy()
         moved[0, 0] += 0.02
-        moved[:, 2] -= 0.01
+        moved[:3, 2] -= 0.01
+        moved[3:, 2] += 0.005  # the pelvis 5 mm past what the straight legs reach
         pair = [coordinate("knee_angle_rotation3_l"), coordinate("ankle_rotation_l")]
         moved[2, pair] = 0.1, -0.1
+        straight = card.card.footed(moved, before)[1]
+        unmoved = card.footed(before, before)
         put, reference = card.footed(moved, before), mink.footed(moved, before)
         card.card.most_steps = 1  # no row stops: every frame handed to mink, the reference
         handed = card.footed(moved, before)
+        shifted = model.built(path, GRAVITY)
+        shifted.body_pos[feet[0]] += [2e-4, 0.0, 0.0]  # the file's model with one body 0.2 mm off
+        try:
+            rra.Footing(shifted, model.Couplings(shifted), feet, path).card._check(standing)
+            refused = False
+        except ValueError:
+            refused = True
     off = card.off(put, before) - card.off(reference, before)
     problems = [] if off[:, 0].max() < 1e-5 and np.degrees(off[:, 1].max()) < 1e-3 else [f"feet off {off.tolist()}"]
-    apart = np.abs(put - reference).max()
-    problems += [] if apart < 1e-4 else [f"the card's frames {apart} off mink's"]
+    apart = np.abs(put[:3] - reference[:3]).max()  # the straight legs' frames: their feet (a knee's 1e-3 rad there
+    # moves a foot 0.2 micrometres, under both solves' stop)
+    problems += [] if apart < 1e-4 else [f"the card's frames {apart} off mink's (by frame "
+                                         f"{np.abs(put - reference).max(axis=1).round(6).tolist()}, at coordinates "
+                                         f"{np.abs(put - reference).argmax(axis=1).tolist()})"]
     problems += [] if put[1, knee] >= -0.05 - 1e-6 else [f"knee {put[1, knee]} past where it stood (-0.05)"]
     problems += [] if np.array_equal(handed, reference) else ["frames the card did not stop not mink's"]
+    problems += [] if not len(straight) else [f"frames {straight.tolist()} not stopped on the card"]
+    problems += [] if np.array_equal(unmoved, before) else [
+        f"unmoved frames came back {np.abs(unmoved - before).max()} off (the card's float32 legs)"]
+    problems += [] if refused else ["a model with a body 0.2 mm off the file's taken as the file's"]
     return problems + ([] if np.array_equal(put[:, [0, 1, 3, 4, 5, 6]], moved[:, [0, 1, 3, 4, 5, 6]]) else
                        ["the frozen pelvis moved"])
 
 
-def a_foot_frame_that_does_not_converge_fails():
+def cut_frame_problems():
     """With one step allowed, the same move raises NotConverged instead of keeping a frame half solved."""
     import fit
     from fit import _frames
@@ -276,6 +417,12 @@ def a_foot_frame_that_does_not_converge_fails():
     finally:
         _frames.MOST_STEPS = kept
     return ["a frame cut off after one step was kept"]
+
+
+def the_footing_converges_near_straight_or_fails():
+    """A near-straight leg's footing converges, the pelvis rising off it (`straight_leg_problems`) or the leg turning
+    about its long axis (`turning_leg_problems`); a frame cut off before it converges raises (`cut_frame_problems`)."""
+    return straight_leg_problems() + turning_leg_problems() + cut_frame_problems()
 
 
 def toy_physics():
@@ -357,7 +504,8 @@ def the_torso_moves_under_the_mean_moment_within_its_cap():
 
 
 def a_turn_between_two_paths_is_its_angle():
-    """One segment turned 10 degrees about up between two posed paths, the other not: 10 and 0 degrees."""
+    """One segment turned 10 degrees about up between two posed paths, the other not: 10 and 0 degrees.
+    A fit past the follows limit keeps RRA's whole move (`follows_limit_problems`)."""
     import numpy as np
     import rra
     from scipy.spatial.transform import Rotation
@@ -365,7 +513,33 @@ def a_turn_between_two_paths_is_its_angle():
     after = before.copy()
     after[0, 0, :3, :3] = Rotation.from_euler("y", 10, degrees=True).as_matrix()
     found = rra.turned_off(before, after)
-    return [] if np.allclose(found, [[10.0, 0.0]]) else [f"turns {found}"]
+    return ([] if np.allclose(found, [[10.0, 0.0]]) else [f"turns {found}"]) + follows_limit_problems()
+
+
+def follows_limit_problems():
+    """`within_follows` (its measure `off_clip` and its quarters' paths `moved` stood in for): a fitted path 9.0
+    degrees off its clip, over the 5-degree limit, keeps RRA's whole move (share 1) at 8.9 and at 9.6 alike (the
+    per-frame cap holds it), and a fitted path at 4.0 keeps a move at 5.0 and drops one at 5.5 to its quarter at 4.9
+    (share 0.25)."""
+    import numpy as np
+    from rra import _cap
+    saved = (_cap.off_clip, _cap.moved, _cap.adjusted_leads)
+    found = []
+    try:
+        for fitted, whole, quarters, wanted in ((9.0, 8.9, (9.1, 9.1, 9.1), 1.0), (9.0, 9.6, (9.1, 9.1, 9.1), 1.0),
+                                                (4.0, 5.0, (5.2, 5.1, 4.9), 1.0), (4.0, 5.5, (5.2, 5.1, 4.9), 0.25)):
+            off = {"path": fitted, "whole": whole, **dict(zip((0.75, 0.5, 0.25), quarters))}
+            _cap.off_clip = lambda model, path, *rest: off[path[0]]
+            _cap.moved = lambda physics, path, moves, leads: np.array([float(moves.flat[0])])
+            _cap.adjusted_leads = lambda physics: []
+            physics = type("Physics", (), {"model": None})()
+            _, share = _cap.within_follows(physics, np.array(["path"], dtype=object), np.array(["whole"], dtype=object),
+                                           np.ones((1, 1)), lambda path: path, None, (), 5.0)
+            if share != wanted:
+                found.append(f"fitted {fitted}, the whole move {whole}: share {share}, not {wanted}")
+    finally:
+        _cap.off_clip, _cap.moved, _cap.adjusted_leads = saved
+    return found
 
 
 def the_frame_shares_are_smooth_and_never_above_the_lowered():
@@ -594,7 +768,7 @@ def the_balance_is_the_pushes_wrenches_kept_per_path():
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
           the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
           a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
-          a_foot_frame_that_does_not_converge_fails, the_cards_footing_equals_minks,
+          the_footing_converges_near_straight_or_fails, the_cards_footing_equals_minks,
           a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,
           a_move_that_puts_bones_out_of_the_skin_is_seen_by_region, only_the_move_off_the_fitted_path_is_low_passed,
           the_balance_is_the_pushes_wrenches_kept_per_path, the_linearisation_is_each_nudge_measured_alone)

@@ -14,8 +14,10 @@
 - each foot's width (FOOT_WIDTH) across its forefoot: the forefoot bone's axis across the foot scaled so its
   metatarsal heads stand as far apart across the foot as SOMA's on its skin (`forefoot_width`, `Size.fixed`), never
   by its length or girth;
-- each kneecap's slides' couplings to its knee moved so it lies inside SOMA's skin at every bend of the knee's range,
-  each kept in its slide's range (`kneecaps`, `kneecap_moves`);
+- each kneecap left on MyoFullBody's own couplings to its knee, sized with its femur: refitted to lie inside SOMA's
+  skin at every bend (#70, 2026-11-04 to 2026-11-07), it followed the linear-blend skin's cave at a bent knee and
+  took the quadriceps' lever with it (#98: knee extension arm 1.1 to 1.4 cm at 60 to 75 degrees, MyoFullBody's own
+  2.7 to 3.5; 13 cm at 120);
 - what SOMA does not give marked as assumed with a plausible range (`assumed`).
 A body's scale is three, one per axis of its own frame: its group's length scale along the axis nearest the group's
 stretch at the default pose (`long_axes`), its width scale across (the same as the length's outside GIRTH_GROUPS); a
@@ -31,7 +33,7 @@ import volumes
 from bone_groups import groups, sided
 from calibration import turn
 from landmarks import LANDMARKS, myo_parts, on_skin, soma_point
-from model import TO_OWN, Couplings, default_pose
+from model import Couplings, default_pose
 
 WRAPPER_KG = 0.001  # a split body's wrapper (MuJoCo's boundmass for MyoFullBody, which Newton does not apply)
 # Bodies placed in their parent by their own scale: the torso, welded on lumbar1 with its origin 8.9 cm below
@@ -510,187 +512,3 @@ def kept_bodies(table=None):
     """The bodies named in a scale record: each stretch's frame body."""
     table = table or groups()
     return {table[group][2] for group in stretches(table)}
-
-
-
-# Each kneecap and what places it (#70, 2026-11-04): {its body: (the knee's hinge, its slides, SOMA's shin joint,
-# MyoFullBody's tibia and talus, the femur's landmarks, the tibia's)}. Its slides follow the knee by MyoFullBody's polynomials
-# (couplings), in its femur's frame (the kneecap has no turn of its own in it).
-KNEECAPS = {f"patella_{letter}": (f"knee_angle_{letter}", (f"knee_angle_beta_translation1_{letter}",
-                                                             f"knee_angle_beta_translation2_{letter}"),
-                                  f"{side}Shin", f"tibia_{letter}", f"talus_{letter}",
-                                  (f"greater_trochanter_{letter}", f"femur_lateral_epicondyle_{letter}",
-                                   f"femur_medial_epicondyle_{letter}"),
-                                  (f"fibular_head_{letter}", f"tibial_tuberosity_{letter}",
-                                   f"tibia_medial_condyle_{letter}", f"lateral_malleolus_{letter}",
-                                   f"medial_malleolus_{letter}"))
-            for side, letter in (("Left", "l"), ("Right", "r"))}
-KNEE_STEPS = 25  # the knee's range sampled at this many bends, end to end
-KNEECAP_PASSES = 20  # the most times a kneecap is moved in by its deepest point outside at one bend
-
-
-def _subtree(parents, root):
-    """A rig joint and every joint below it (indices)."""
-    found = [root]
-    for joint, parent in enumerate(parents):
-        if parent in found and joint not in found:
-            found.append(joint)
-    return found
-
-
-def _laid(moving, fixed):
-    """The turn and shift laying `moving` points on `fixed` ones (n x 3 each) by least squares (Kabsch)."""
-    moving_middle, fixed_middle = moving.mean(axis=0), fixed.mean(axis=0)
-    left, _, right = np.linalg.svd((moving - moving_middle).T @ (fixed - fixed_middle))
-    sign = np.sign(np.linalg.det(right.T @ left.T))
-    turn = right.T @ np.diag([1.0, 1.0, sign]) @ left.T
-    return turn, fixed_middle - turn @ moving_middle
-
-
-def _bent(model, couplings, hinge, bend):
-    """The model at its default pose with the knee's hinge at `bend` (rad), the couplings applied."""
-    data = mujoco.MjData(model)
-    qpos = model.qpos0.copy()
-    qpos[model.jnt_qposadr[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, hinge)]] = bend
-    data.qpos[:] = couplings.apply(qpos)
-    mujoco.mj_kinematics(model, data)
-    return data
-
-
-def _in_femur(model, data, kneecap, tibia, talus):
-    """In the kneecap's femur's frame: its bone vertices, the knee's centre (the tibia's origin) and the talus's
-    origin."""
-    femur = model.body_parentid[_body_id(model, kneecap)]
-    turn, origin = data.xmat[femur].reshape(3, 3), data.xpos[femur]
-    verts = []
-    for geom in range(model.ngeom):
-        if model.geom_bodyid[geom] == _body_id(model, kneecap) and model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_MESH:
-            start, count = model.mesh_vertadr[model.geom_dataid[geom]], model.mesh_vertnum[model.geom_dataid[geom]]
-            verts.append(model.mesh_vert[start:start + count] @ data.geom_xmat[geom].reshape(3, 3).T
-                         + data.geom_xpos[geom])
-    return [(np.asarray(points) - origin) @ turn for points in
-            (np.concatenate(verts), data.xpos[_body_id(model, tibia)], data.xpos[_body_id(model, talus)])]
-
-
-def _bend_about(axis, thigh, down):
-    """The shin's bend about the knee's hinge `axis` (rad): its line `down` (the knee's centre to the talus) turned
-    from the thigh's (`thigh`: the hip to the knee) about it."""
-    thigh, down = (line - axis * (line @ axis) for line in (thigh, down))
-    return float(np.arctan2(axis @ np.cross(thigh, down), thigh @ down))
-
-
-def kneecap_moves(model, rig, scale, kneecap, places):
-    """How far the kneecap is moved in at each bend of the knee's range (KNEE_STEPS): (the bends (rad), each bend's
-    move in the femur's frame ([3] m)). SOMA's skin is the truth (#70): the femur laid on SOMA's thigh at its bind by
-    its landmarks (their markers, `landmarks.marker` at the femur's `scale`, on SOMA's skin points: `_laid`); SOMA's
-    shin and foot turned about its knee joint and the knee's hinge as laid by the sized model's own bend from its
-    default pose (the tibia's line from the knee's centre to the talus about the hinge), skinned by linear blend as
-    SOMA skins it; the kneecap's every bone vertex then moved back along the knee's front (the femur's forward turned
-    by half that bend) by its deepest vertex outside the skin (its closest point's distance: the bones' measure's
-    inside test, `fit._skin.marks`) until none is outside (KNEECAP_PASSES at most). A kneecap inside is not moved."""
-    from scipy.spatial.transform import Rotation
-
-    from fit._skin import closed_mesh, envelope, marks_in, skin  # the measure's own skin and inside test (fit imports no sizing)
-    from landmarks import marker
-    hinge, _, shin, tibia, talus, femur_marks, tibia_marks = places
-    names = [str(joint) for joint in rig["names"]]
-    bind = np.asarray(rig["bind"], dtype=float)
-    skin_points = on_skin(rig["points"], rig["faces"], femur_marks + tibia_marks)
-
-    def laid(marks, body):
-        return _laid(np.array([marker(name, scale[body]) for name in marks]),
-                     np.array([skin_points[name] for name in marks]))
-    femur = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, model.body_parentid[_body_id(model, kneecap)])
-    turn, shift = laid(femur_marks, femur)
-    shin_turn, _ = laid(tibia_marks, tibia)
-    couplings, faces = Couplings(model), envelope(rig)
-    joint = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, hinge)
-    straight = _bent(model, couplings, hinge, model.qpos0[model.jnt_qposadr[joint]])
-    femur_turn = straight.xmat[_body_id(model, femur)].reshape(3, 3)
-    tibia_turn = straight.xmat[_body_id(model, tibia)].reshape(3, 3)
-    axis = femur_turn.T @ tibia_turn @ model.jnt_axis[joint]
-    forward = femur_turn.T @ TO_OWN.T @ np.array([0.0, 0.0, 1.0])  # the person faces +z
-    forward = forward - axis * (forward @ axis)
-    _, thigh, ankle = _in_femur(model, straight, kneecap, tibia, talus)  # the femur's origin is its hip joint
-    unbent = _bend_about(axis, thigh, ankle - thigh)
-    at_bind = _bend_about(axis, thigh, turn.T @ shin_turn @ model.body_pos[_body_id(model, talus)])  # SOMA's knee
-    knee, shins = bind[names.index(shin)][:3, 3], _subtree(rig["parents"], names.index(shin))
-    bends = np.linspace(*model.jnt_range[joint], KNEE_STEPS)
-    moves = []
-    for bend in bends:
-        verts, centre, foot = _in_femur(model, _bent(model, couplings, hinge, bend), kneecap, tibia, talus)
-        flexed = _bend_about(axis, thigh, foot - centre) - unbent
-        turned = Rotation.from_rotvec(turn @ axis * (flexed + unbent - at_bind)).as_matrix()
-        worlds = bind.copy()
-        for index in shins:
-            worlds[index][:3, :3] = turned @ bind[index][:3, :3]
-            worlds[index][:3, 3] = knee + turned @ (bind[index][:3, 3] - knee)
-        posed = skin(rig, names, worlds)
-        front = Rotation.from_rotvec(axis * flexed / 2).as_matrix() @ forward
-        front /= np.linalg.norm(front)
-        points, back, mesh = verts @ turn.T + shift, 0.0, closed_mesh(posed, faces)  # one mesh for the bend's passes
-        for _ in range(KNEECAP_PASSES):
-            out, depths = marks_in(points - back * (turn @ front), mesh)
-            if not out.any():
-                break
-            back += float(depths[out].max())
-        moves.append(-back * front)
-    return bends, np.array(moves)
-
-
-RANGE_CHECKS = 200  # the bends a refitted coupling is kept in its slide's range at, over the knee's range
-
-
-IN_RANGE_SLACK = 1e-9  # m: how far past its slide's range a refitted coupling may read at a check (the QP's rounding)
-
-
-def in_range(powers, wanted, kept, bent):
-    """A coupling's polynomial (its powers of the bend at each sample, `powers`) nearest `wanted` by least squares,
-    its value within `kept` (the slide's range) at RANGE_CHECKS bends over `bent` (the knee's range from its rest):
-    the exact convex quadratic program, by daqp (pinned with mink in newton_env.sh). scipy's SLSQP before 2026-11-04
-    failed at the optimum by numerical chance (status 8, 'Positive directional derivative for linesearch': patella_r's
-    slide 65 of 200 times under 1e-9 relative noise on `wanted`, the same 1.156 mm fit as the passes), which failed
-    the mean body's lunge and twist on one machine and not another."""
-    import qpsolvers
-    checks = np.vander(np.linspace(*bent, RANGE_CHECKS), powers.shape[1], increasing=True)
-    scale = float(np.abs(wanted).max()) or 1.0
-    solved = qpsolvers.solve_qp(powers.T @ powers, -powers.T @ (wanted / scale), np.vstack([checks, -checks]),
-                                np.concatenate([np.full(RANGE_CHECKS, kept[1] / scale),
-                                                np.full(RANGE_CHECKS, -kept[0] / scale)]), solver="daqp")
-    if solved is None:
-        raise RuntimeError("a kneecap's coupling found no polynomial in its slide's range: daqp found no solution")
-    solved = solved * scale
-    values = checks @ solved
-    past = max(float(kept[0] - values.min()), float(values.max() - kept[1]))
-    if past > IN_RANGE_SLACK:
-        raise RuntimeError(f"a kneecap's coupling left its slide's range by {past:.3g} m")
-    return solved
-
-
-def kneecaps(spec, rig, scales):
-    """Each kneecap's slides' couplings to its knee moved so the kneecap lies inside SOMA's skin over the knee's range
-    (`kneecap_moves`; #70: SOMA's linear-blend skin caves up to 17 mm in at the front of a bent knee, and
-    MyoFullBody's kneecap, sized with its femur, stood up to 10 mm proud of SOMA's knee even straight): each slide's
-    move along its axis added at each bend, kept in the slide's range, and its polynomial in the knee (its degree)
-    refitted by least squares. A rig without skin weights, or a model without the kneecap, is left alone.
-    {kneecap: the most it moved (mm)}."""
-    if "weights" not in rig:
-        return {}
-    model = spec.compile()
-    equalities = {equality.name1: equality for equality in spec.equalities}
-    found = {}
-    for kneecap, places in KNEECAPS.items():
-        if mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_BODY, kneecap) < 0 or places[2] not in rig["names"]:
-            continue
-        bends, moves = kneecap_moves(model, rig, scales, kneecap, places)
-        hinge = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, places[0])
-        rest = model.qpos0[model.jnt_qposadr[hinge]]
-        powers = np.vander(bends - rest, 5, increasing=True)
-        for slide in places[1]:
-            joint = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, slide)
-            data = np.asarray(equalities[slide].data)
-            wanted = np.clip(powers @ data[:5] + moves @ model.jnt_axis[joint], *model.jnt_range[joint])
-            data[:5] = in_range(powers, wanted, model.jnt_range[joint], model.jnt_range[hinge] - rest)
-            equalities[slide].data = data
-        found[kneecap] = round(1000 * float(np.linalg.norm(moves, axis=1).max()), 1)
-    return found

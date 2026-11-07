@@ -6,8 +6,9 @@
 bone group's stretch on SOMA's bind (`landmarks.soma_point`) and on MyoFullBody at its default pose
 (`landmarks.myo_parts`), each reference axis (`REFERENCES`: a landmark line on SOMA's template skin and between
 MyoFullBody's bone points), then `aligned` (a hinge group's axes `hinged`, the lumbar pair's long axis
-`LONG_LINES`'). The MyoFullBody reference is turned to agree in sign with SOMA's. Then `FINGERS` (`fingers_measured`, on
-the table as it stands in `TABLE`: paste the turns first, then measure again). `calibration.INSIDE_GROUPS`' rows are
+`LONG_LINES`'), the feet `levelled` about their hinge. The MyoFullBody reference is turned to agree in sign with
+SOMA's. Then `FINGERS` (`fingers_measured`, on the table as it stands in `TABLE`: paste the turns first, then measure
+again). `calibration.INSIDE_GROUPS`' rows are
 read in SOMA's skin instead (`inside_measured`, from their rows as they stand; `table_rows`)."""
 import pathlib
 import sys
@@ -66,6 +67,7 @@ def measured(folder, rig_path):
     names = [str(joint) for joint in rig["names"]]
     references = sided_map(REFERENCES)
     hinge_groups = set(sided_map({group: "" for group in calibration.HINGED}))
+    levelled = set(sided_map({group: "" for group in calibration.LEVELLED}))
     found = {}
     for segment, ((start, end), (myo_start, myo_end), frame_body, _) in groups().items():
         (start, end), (myo_start, myo_end) = calibration.LONG_LINES.get(segment, ((start, end), (myo_start, myo_end)))
@@ -80,6 +82,8 @@ def measured(folder, rig_path):
             (segment_turn, soma_point(end, rig) - soma_point(start, rig), soma_axis),
             (body_turn, myo_point(model, data, myo_parts(myo_end)) - myo_point(model, data, myo_parts(myo_start)), myo_axis),
             calibration.hinged if segment in hinge_groups else calibration.frame)
+        if segment in levelled:
+            found[segment] = calibration.levelled(found[segment], segment_turn, body_turn, body_turn.T @ myo_axis)
     from scipy.spatial.transform import Rotation
     return {segment: Rotation.from_matrix(turn).as_quat() for segment, turn in found.items()}
 

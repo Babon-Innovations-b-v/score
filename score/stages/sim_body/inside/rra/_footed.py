@@ -25,6 +25,25 @@ FOOTED_HEIGHT = 0.1  # the weight of a metre of the pelvis' height against one o
 # 6 mm high)
 FOOTED_HOLD = 1.0
 ROOT_HEIGHT = 2  # the free root's vertical dof (MuJoCo's frame is Z up)
+# the footing's steps are judged (`fit.judged_solve`, Levenberg-Marquardt's control: a step that raises the weighted
+# cost is turned back and damped) from this added damping, lowered ten times on every kept step and never put back to
+# 0 (`decaying`): at a straight leg the undamped step bends the knee by 0.7 to 1 rad and is turned back, the fit's own
+# first 1e-3 then takes 3 mm steps, and the two alternated for 300 steps (#98, 2026-11-07: LabValidation's walking3,
+# its knees straight at heel strike); from 1e-6 put back to 0 after each kept step, every other step was the undamped
+# one turned back, and five drop jumps' near-straight legs (the shin's turn, the hip's rotation and the ankle's twist
+# all but one axis) crept 300 steps at 1e-12 to 8e-7 of cost; a damping held at 1e-6 to 1e-4 instead crept on
+# another frame of theirs (subject3_DJ2_Cam0's 42 at 1e-5: steps 9e-5 rad, the cost 0.7% lower a step). Lowered on
+# every kept step, all 397 of their frames converge, their feet as before. Damping shapes a step, never the optimum.
+FOOTED_LAM_FIRST = 1e-5
+# a frame whose feet already stand within this (their places' and turns' squared offsets summed, m and rad) of where
+# they stood is its own answer (`Footing.settled`): a micrometre, under the card's float32 rounding of them
+FOOTED_SETTLED = 1e-12
+# a kept step at no more than FOOTED_LAM_FIRST's damping that lowers the weighted cost by under this share of it ends
+# the frame: a foot that cannot be reached (the legs toy's right foot, its legs turning only about one axis, under a
+# pelvis turned 0.05 rad about the vertical) leaves the cost large, and the other leg's steps along its weakly seen
+# turns went on 300 steps, 1e-4 rad each, its foot 25 micrometres off and the cost falling 7e-10 of itself a step
+# (#98, 2026-11-07); ended, its foot stands 42 micrometres off
+FOOTED_GAIN = 1e-8
 
 
 class Footing:
@@ -73,13 +92,36 @@ class Footing:
         range, or, on a frame where `before` stands past a range end (the low-pass carries the fitted path a little
         past a stop), within where `before` stands there: never further out, and never pulled in when nothing moved (2026-11-03: camp's walking astronaut's knee
         0.38 degrees past its 0 stop, pulled in at no move, turned the hip 18 degrees to keep the foot, past the cap
-        before any of RRA's move)."""
-        if self.card is not None:
-            found, unstopped = self.card.footed(path, before)
-            if len(unstopped):  # the frames the card did not stop: mink's, the reference
-                found[unstopped] = self._mink(np.asarray(path)[unstopped], np.asarray(before)[unstopped])
+        before any of RRA's move). A frame already footed (`settled`) is its own answer, on the card as by mink."""
+        path, before = np.asarray(path, dtype=float), np.asarray(before, dtype=float)
+        found, going = path.copy(), np.flatnonzero(~self.settled(path, before))
+        if not len(going):
             return found
-        return self._mink(path, before)
+        if self.card is not None:
+            solved, unstopped = self.card.footed(path[going], before[going])
+            if len(unstopped):  # the frames the card did not stop: mink's, the reference
+                solved[unstopped] = self._mink(path[going][unstopped], before[going][unstopped])
+            found[going] = solved
+            return found
+        found[going] = self._mink(path[going], before[going])
+        return found
+
+    def settled(self, path, before):
+        """Per frame whether `path` already stands its feet where `before` does: each foot's place (m) and turn (rad)
+        off it, squared and summed (its tasks' weighted cost; the pelvis' height and the hold are zero there), under
+        FOOTED_SETTLED, where mink's judged steps would end at once. The card's float32 legs never come back as the
+        frame's own, so such a frame is not sent there: in RRA's frame check a move lowered to nothing came back from
+        the card a rounding off the fitted path (#98, 2026-11-07)."""
+        return self._squared(path, before) < FOOTED_SETTLED
+
+    def _squared(self, path, before):
+        """Per frame the feet's places' and turns' squared offsets from `before`, summed over the feet."""
+        found = []
+        for qpos, still in zip(path, before):
+            here, there = self._poses(qpos), self._poses(still)
+            found.append(sum(float(np.sum((a[0] - b[0]) ** 2)) + Rotation.from_matrix(a[1].T @ b[1]).magnitude() ** 2
+                             for a, b in zip(here, there)))
+        return np.array(found)
 
     def _mink(self, path, before):
         """`footed` by mink, frame by frame."""
@@ -95,9 +137,9 @@ class Footing:
             self.configuration.update(qpos)
             self.height.set_target(self.configuration.get_transform_frame_to_world(self.model.body(self.root).name,
                                                                                    "body"))
-            self.hold.set_target(qpos)
+            self.hold.set_target(self.configuration)
             found.append(fit.solved(self.configuration, self.tasks + [self.height, self.hold], self.limits,
-                                    self.constraints))
+                                    self.constraints, judged_from=FOOTED_LAM_FIRST, gain=FOOTED_GAIN))
         return np.array(found)
 
     def off(self, path, before):
@@ -120,18 +162,25 @@ class Footing:
 
 class FreeHold(mink.Task):
     """`moving` leading dofs held where a target pose stands them along the directions none of the `primary` tasks
-    sees: the null space, over those dofs carried through the couplings, of the tasks' cost-weighted Jacobian (to
-    numpy's rank tolerance), so a step it shapes moves no primary task's error to first order."""
+    sees there: the null space, over those dofs carried through the couplings, of the tasks' cost-weighted Jacobian at
+    the target pose (to numpy's rank tolerance), so a step it shapes moves no primary task's error to first order. The
+    directions are the target pose's, fixed for its whole solve, never found again at each step: at a straight leg
+    the bend of hip, knee and ankle together (and the twists along the leg) leaves the feet's rank and comes back a
+    hair off it, so a projector found at each step held the bend on one step and let it go on the next, and mink's
+    steps cycled between the two poses for good (#98, 2026-11-07: 56 LabValidation drop jumps, their knees straight
+    at take-off and landing, `fit.NotConverged` with the hold's error 5e-4 and 6.5e-2 on alternate steps)."""
 
     def __init__(self, model, couplings, moving, primary):
         super().__init__(cost=np.full(len(moving), FOOTED_HOLD))
         self.model, self.couplings, self.moving, self.primary = model, couplings, np.array(moving), primary
         self.columns = np.searchsorted(couplings.leads, self.moving)
-        self.target = None
+        self.target, self.free = None, None
 
-    def set_target(self, qpos):
-        """The pose the free directions are held to."""
-        self.target = np.array(qpos, dtype=float)
+    def set_target(self, configuration):
+        """The pose the free directions are held to, `configuration`'s (standing there, the primary tasks' targets
+        set), and those directions, found there."""
+        self.target = configuration.q.copy()
+        self.free = self._free(configuration)
 
     def _free(self, configuration):
         """The projector onto the moving dofs' directions no primary task sees, at `configuration` (moving x moving)."""
@@ -146,10 +195,10 @@ class FreeHold(mink.Task):
         """The moving dofs' offset from the target, along the free directions."""
         offset = np.empty(self.model.nv)
         mujoco.mj_differentiatePos(self.model, offset, 1.0, self.target, configuration.q)
-        return self._free(configuration) @ offset[self.moving]
+        return self.free @ offset[self.moving]
 
     def compute_jacobian(self, configuration):
         """The free directions' projector on the moving dofs' columns (moving x nv)."""
         found = np.zeros((len(self.moving), self.model.nv))
-        found[:, self.moving] = self._free(configuration)
+        found[:, self.moving] = self.free
         return found

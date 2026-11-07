@@ -81,8 +81,15 @@ def off_clip(model, path, worlds, segments, bodies, riding, parents):
 def within_follows(physics, path, adjusted, moves, land, worlds, riders, follows):
     """The adjusted path kept within the clip's `follows` limit (the owner's cap: never further off the clip than the
     `follows` gate allows, degrees on the mean): the whole move, else the largest of its quarters that is, else none;
-    and the share kept."""
+    and the share kept. A fitted path already further off its clip than the limit keeps the whole move, held only by
+    the per-frame cap (`within_frames`: every segment within its turn and the pelvis within its move of the fitted
+    path on every frame): no move meets a limit the fit itself is past, and its excess is the `follows` gate's to fail
+    (#98, 2026-11-07: 73 of 90 LabValidation trials' fitted paths 5.0 to 9.4 degrees off, every one's share 0 and the
+    pelvis' residual 88% of the weight on the median; a limit at the fit's own measure kept none either, RRA's whole
+    move adding 0.36 to 1.04 degrees on the mean)."""
     model = physics.model
+    if off_clip(model, path, worlds, *riders) > follows:
+        return adjusted, 1.0
     for share in (1.0, 0.75, 0.5, 0.25):
         found = adjusted if share == 1.0 else land(moved(physics, path, share * moves, adjusted_leads(physics)))
         if off_clip(model, found, worlds, *riders) <= follows:

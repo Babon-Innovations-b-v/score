@@ -32,7 +32,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   beside the residuals; without it the solve swung the trunk to cancel the pelvis' residual and left up to 340 N m on
   the lumbar's reserves, 2026-10-28), taken only when the measured residual, lumbar and move cost falls (halved up to `RRA_HALVINGS` times, else the rounds end), the feet kept where they stood by the legs (`Footing`, mink as the fit, its largest
   miss recorded as `feet held mm, deg`: a pelvis moved with its feet lifted them off the ground, 600 N of residual, 2026-10-28), and the result kept within the clip's
-  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none), then checked on every frame against the
+  `follows` limit (`within_follows`: the whole move, else a quarter less, down to none; a fit already past the limit
+  keeps the whole move, held by the per-frame cap, #98), then checked on every frame against the
   cap as measured (`within_frames`: a frame the linearisation left over has its share of the move lowered, and a frame
   whose move puts a region's bones over `SKIN_SLACK` further out of SOMA's skin than the fitted path holds them has it
   halved (`fit.FrameSkins`; 2026-11-05, #70: the trunk RRA turns carries the arms and head, and the pickup's hands
@@ -147,7 +148,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   their drawn triangles themselves: the ground reaction force acts only on a point of the person's drawn skin touching it (SOMA's mesh carried by the
   bones each segment rides, `inside/contact` `Skin`; MyoFullBody's colliders are not the contact since 2026-11-01:
   they stood 16 to 27 mm inside a seated astronaut's skin, so his floor carried 0 N of his 121 N), within the
-  inside's `GAP` of the triangle under it or into it, whichever drawn surface that is (a seat, a bed, a ledge as a floor), one moving slower
+  inside's `GAP` of the triangle under it or into it (a foot its job's targets show standing measured from its own
+  sole, at most 5 cm up: `contact` `Skin.credited`, #98), whichever drawn surface that is (a seat, a bed, a ledge as a floor), one moving slower
   than `SLIDE_MOST` (1.2 m/s) inside a friction 0.5 pyramid (Karatsidis et al., arXiv:1801.01668), a faster one
   sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
   A point's force fades in as it comes within `GAP` (`contact.closeness`: its force directions 1 long on or into the

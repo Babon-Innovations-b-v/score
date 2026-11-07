@@ -239,3 +239,11 @@ before that.
   The test (`level_3_on_the_card_reads_minks_own_model_at_the_shoulder`, a toy girdle with MyoFullBody's own places)
   checks the frames equal mj_kinematics' to 1e-12, the hinge twists MuJoCo's to 1e-6, and that every level 3 solve
   reads both.
+- **A clip's rows get CLIP_STEPS (3000), a footing's MOST_STEPS (300)** (#98, 2026-11-07): seven LabValidation squats
+  and jumps failed level 3's chain on `NotConverged` at 300, each one row whose shoulder stood at zero elevation (its
+  range's end), the plane of elevation seen only through the scapula's couplings: under mink's damping at the clip's
+  cost (about 0.02) its steps crawled along elv_angle and its follower, the cost falling 1e-11 a step; given 3000, four
+  stop by the unchanged stop rules (a fit then 455 s, against 50), and subject10_squats1's Cam1, Cam3 and Cam4 still
+  crawl past it and fail: the crawl itself (mink's damping in a direction the targets barely see) is not fixed.
+  `solved(judged_from=...)` judges the steps without the skin too (`rra`'s card footing: the hold's cost in the
+  judged cost, `Held.cost`), its damping lowered on every kept step and never put back to 0.

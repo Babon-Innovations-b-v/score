@@ -12,6 +12,16 @@ from model import TO_OWN, own_pose
 # The ground pushes only a skin point touching it: within GAP of its drawn triangle or into it, the same 5 mm the
 # stage's `lands` gate takes a landed foot within (`_gates.LANDED`).
 GAP = 0.005  # metres
+# A foot the video shows standing (the job's seen stance: on LabValidation GEM-X's static contact or the stage's own
+# stance on the clip, tools/labval `_soma.seen_stance`) is pushed from its own lowest skin point, up to STANCE_HIGH over
+# its ground: the video's feet stand a few millimetres to centimetres off the floor where its legs' lengths and the
+# foot's shape miss (#98, 2026-11-07: the deepest squat's right sole 18 to 28 mm up while GEM-X held it static, so only
+# the left foot was pushed and only its calf worked). A foot higher than that, or not seen standing, is pushed only
+# within GAP as any skin is; nothing moves the body. STANCE_HIGH tuned on LabValidation's subjects 2 to 5 (36 trials,
+# against their plates; never on the reference's angles): 30 mm per-foot vertical force RMSE 28.5/28.1% of the weight,
+# 50 mm 28.1/26.7, 80 mm no better (24 trials); GAP 10 mm and the balance's SHARE_COST 0.1 no better.
+STANCE_HIGH = 0.05  # metres
+REGISTERED_FRAMES = 60  # frames spread over a clip that lay each segment's skin on SOMA's (`Skin.registered`)
 SLIDE_MOST = 1.2  # m/s
 FRICTION = 0.5
 
@@ -31,6 +41,51 @@ class Skin:
         self.unbound = np.linalg.inv(np.asarray(binds, float))
         self.bodies, self.riding = list(bodies), np.asarray(riding, float)
         self.owners = np.asarray(self.bodies)[self.weights.argmax(axis=1)]  # the body a point's force is booked on
+        self.credit = None  # frames x points: how far over its ground each point is pushed from (`credited`)
+
+    def registered(self, carried, soma):
+        """This skin with each segment's riding moved by the one rigid turn and shift that best lays the segment's
+        skin, as the fitted path carries it, on SOMA's own over the clip (Kabsch: the least squares over the points the
+        segment carries most, on REGISTERED_FRAMES frames spread over the clip): `carried` each segment's frame
+        riding its bone (frames x segments x 4 x 4, `model.posed_path`), `soma` SOMA's segment frames standing where
+        `binds` stands each one (frames x segments x 4 x 4). The fit follows SOMA's markers, not its joints: carried
+        from MyoFullBody's ankle, a foot's skin stood 5 to 11 mm over SOMA's on the median, turned 4 to 6 degrees
+        (#98, 2026-11-07, LabValidation's subjects 2, 3 and 5), so the ground missed feet SOMA stood on."""
+        frames = np.unique(np.linspace(0, len(carried) - 1, min(REGISTERED_FRAMES, len(carried))).astype(int))
+        riding = np.array(self.riding)
+        for segment in range(len(self.bodies)):
+            mine = np.flatnonzero(self.weights.argmax(axis=1) == segment)
+            if len(mine) < 3:
+                continue
+            local = self.points[mine] @ self.unbound[segment, :3, :3].T + self.unbound[segment, :3, 3]
+            seen = np.linalg.inv(carried[frames, segment]) @ soma[frames, segment]  # SOMA's frame in the carried one
+            wanted = (np.einsum("fij,pj->fpi", seen[:, :3, :3], local) + seen[:, None, :3, 3]).reshape(-1, 3)
+            given = np.tile(local, (len(frames), 1))
+            riding[segment] = riding[segment] @ kabsch(given, wanted)
+        found = Skin(self.points, self.weights, np.linalg.inv(self.unbound), self.bodies, riding)
+        found.credit = self.credit
+        return found
+
+    def credited(self, lowest, stance, feet):
+        """This skin's `credit` set: on each frame a foot is seen standing (`stance`, frames x feet) and its lowest
+        point stands within STANCE_HIGH over its ground (`lowest`, frames x feet, m, nan where none), each point it
+        carries most (`feet`, each foot's bodies) is pushed from that height, as if the ground stood at its sole."""
+        credit = np.zeros((len(stance), len(self.points)))
+        for foot, bodies in enumerate(feet):
+            mine = np.isin(self.owners, list(bodies))
+            lifted = np.where(np.asarray(stance)[:, foot] & (np.nan_to_num(lowest[:, foot], nan=np.inf) <= STANCE_HIGH),
+                              np.clip(np.nan_to_num(lowest[:, foot]), 0.0, STANCE_HIGH), 0.0)
+            credit[:, mine] = lifted[:, None]
+        self.credit = credit
+
+    def credit_of(self, count):
+        """Each of `count` states' credit (states x points): a state is a frame of the clip, or of a whole copy of it
+        stacked; none when the skin has no credit."""
+        if self.credit is None:
+            return np.zeros((count, len(self.points)))
+        if count % len(self.credit):
+            raise ValueError(f"{count} states: not whole copies of the clip's {len(self.credit)} frames")
+        return self.credit[np.arange(count) % len(self.credit)]
 
     def by_segment(self, model, data):
         """Each skin point as each segment alone carries it now (v x segments x 3, the person's frame)."""
@@ -49,6 +104,17 @@ class Skin:
             mujoco.mj_jac(model, data, along, None, TO_OWN.T @ carried[point, segment], self.bodies[segment])
             found += self.weights[point, segment] * along
         return found
+
+
+def kabsch(given, wanted):
+    """The rigid motion (4 x 4) that best takes the points `given` onto `wanted` (n x 3 each), least squares
+    (Kabsch 1976, its reflection kept out)."""
+    middle_given, middle_wanted = given.mean(axis=0), wanted.mean(axis=0)
+    left, _, right = np.linalg.svd((wanted - middle_wanted).T @ (given - middle_given))
+    turn = left @ np.diag([1.0, 1.0, np.sign(np.linalg.det(left @ right))]) @ right
+    found = np.eye(4)
+    found[:3, :3], found[:3, 3] = turn, middle_wanted - turn @ middle_given
+    return found
 
 
 class Chains:
@@ -110,10 +176,11 @@ def pushes_all(model, states, ground, up, skin, chains):
                                                                                                 skin)
     cdof = states["cdof"].reshape(count, model.nv, 6)
     com = states["subtree_com"].reshape(count, -1, 3)
+    credit = skin.credit_of(count)
     found = []
     for state in range(count):
         mine, heights, triangles = own[state], every_height[state], every_triangle[state]
-        over = mine[:, 1] - np.nan_to_num(heights, nan=np.inf)
+        over = mine[:, 1] - np.nan_to_num(heights, nan=np.inf) - credit[state]
         touching = np.flatnonzero(over <= GAP)
         pairs = np.flatnonzero(np.isin(points, touching))
         at = carried[state, pairs] @ TO_OWN  # MuJoCo's frame (TO_OWN.T applied to each point)
@@ -144,9 +211,10 @@ def touching_all(model, states, ground, up, skin):
     cvel = states["cvel"].reshape(count, -1, 6)
     com = states["subtree_com"].reshape(count, -1, 3)
     roots = np.asarray(model.body_rootid)[bodies]
+    credit = skin.credit_of(count)
     found = []
     for state in range(count):
-        over = own[state, :, 1] - np.nan_to_num(every_height[state], nan=np.inf)
+        over = own[state, :, 1] - np.nan_to_num(every_height[state], nan=np.inf) - credit[state]
         touching = np.flatnonzero(over <= GAP)
         pairs = np.flatnonzero(np.isin(points, touching))
         at = carried[state, pairs] @ TO_OWN  # MuJoCo's frame
@@ -203,7 +271,7 @@ def closeness(over):
     return np.clip((GAP - np.asarray(over, float)) / GAP, 0.0, 1.0)
 
 
-def pushes(model, data, ground, up, skin):
+def pushes(model, data, ground, up, skin, frame=0):
     """The points the ground pushes ([(body, point's Jacobian, the directions it may push along, each `closeness`
     long, the ground's point under it)], MuJoCo's frame):
     the skin's points within GAP of the drawn ground under them (within the body's reach, `body_reach`: a roof over
@@ -211,12 +279,15 @@ def pushes(model, data, ground, up, skin):
     with Coulomb's friction: a point slower than SLIDE_MOST sticks (a friction pyramid, FRICTION), a faster one slides
     (the normal and FRICTION of it against its slip); booked on the body its heaviest segment rides, acting at the
     ground straight under the point (its height there, `standing`: a seat's top under a seated body's skin). Each
-    point's directions are as long as it is near (`closeness`), so a point's push fades to nothing at GAP."""
+    point's directions are as long as it is near (`closeness`), so a point's push fades to nothing at GAP; a point of a
+    foot seen standing is measured from its credit on `frame` (`Skin.credited`)."""
     found = []
     carried = skin.by_segment(model, data)
     own = np.einsum("vs,vsi->vi", skin.weights, carried)
     heights, triangles = standing(own, ground, body_reach(own))
     over = own[:, 1] - np.nan_to_num(heights, nan=np.inf)
+    if skin.credit is not None:
+        over = over - skin.credit[frame % len(skin.credit)]
     for point in np.flatnonzero(over <= GAP):
         found.append(pushed(skin, point, skin.jacobian(model, data, carried, point), up[triangles[point]], data.qvel,
                             over[point], [own[point, 0], heights[point], own[point, 2]]))

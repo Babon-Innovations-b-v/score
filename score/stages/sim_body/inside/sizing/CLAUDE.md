@@ -31,17 +31,13 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
   standing, 20.0 and 16.7 % seated; across alone at 0.85 standing 3.7 and 6.3 %, their height (y) changing nothing,
   the length a little (the heel's back stands 3 mm behind the skin's on the template); seated the share stays 13 % at
   0.85: the seated foot is placement, not shape. The talus (no bone outside) and the toes keep their rule.
-- **A kneecap lies inside SOMA's skin at every bend of its knee** (#70, 2026-11-04, `kneecaps`): SOMA's linear-blend
-  skin caves up to 17 mm in at the front of a bent knee (env1 seated, 88 deg), and MyoFullBody's kneecap, sized with
-  its femur, stood up to 10 mm proud of the mean shape's knee even straight: the thigh's region (femur and patella)
-  read 26 % outside seated, 23 points of it the patella. Each kneecap's two slides' polynomials in the knee are
-  refitted (`in_range`: within the slides' published ranges at every bend, the exact QP by daqp since 2026-11-04;
-  scipy's SLSQP failed at its optimum by chance, the mean body's lunge and twist on one machine) to the source's plus the move that lays
-  its every bone vertex inside SOMA's skin posed at that bend (`kneecap_moves`: the femur laid on SOMA's thigh by its
-  three landmarks, SOMA's shin turned about its knee joint by the model's bend less SOMA's own at its bind, which its
-  tibia's five landmarks give: env1's bind knee stands 15 deg bent, the measure's skin and inside test). env1: moved
-  6.4 mm straight, 26.6 at 90 deg, 33.9 at the range's 120; its forward slide 7.8 mm back straight, 12.4 at 88 deg,
-  within 1 mm of its range's end from 88 deg on.
+- **A kneecap keeps MyoFullBody's own couplings to its knee**, sized with its femur (#98, 2026-11-07). From
+  2026-11-04 (#70) each kneecap's slides were refitted so its bone lay inside SOMA's skin at every bend; SOMA's
+  linear-blend skin caves up to 17 mm in at the front of a bent knee, the kneecap followed it back (31 mm on
+  LabValidation's subject2) and took the quadriceps' lever with it: their knee extension arm, read through the
+  couplings, 1.1 to 1.4 cm at 60 to 75 degrees where MyoFullBody's own is 2.7 to 3.5, and 13 cm at 120 (the refitted
+  polynomial's slope); static optimisation saturated the vasti in a deep squat. The kneecap may stand proud of SOMA's
+  skin at a bent knee (env1 seated: up to 27 mm); the skin is drawn, the lever is physics.
 - The torso is placed in lumbar1 by its own scale (`OWN_PLACED`): its origin sits 8.9 cm below lumbar1's, so by its
   parent's scale a longer lumbar stretch moved T12/L1 down and no scale fit Spine2 (measured 2026-10-28).
 - **The neck hangs on C7/T1** (`JOINT_PLACED`, `joint_placed`; #70, 2026-11-05, the owner: "the neck is

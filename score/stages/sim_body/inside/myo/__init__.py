@@ -15,15 +15,13 @@ model with:
 import pathlib
 
 import mujoco
-import numpy as np
 
 import resting
 from calibration import fingers
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from myo._movable import movable
 from myo._rested import rested
-from sizing import (KNEECAPS, WRAPPER_KG, assumed, balanced, hip_width, kept_bodies, kneecaps, path_lengths,
-                    sized, ungrouped_kg)
+from sizing import WRAPPER_KG, assumed, balanced, hip_width, kept_bodies, path_lengths, sized, ungrouped_kg
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
 
@@ -59,23 +57,9 @@ def inside_moved(spec, joints):
             body.pos = body.pos + joints[filed]
 
 
-def _kneecap_reads(spec):
-    """The bodies `sizing.kneecaps` reads the places of (each kneecap's, tibia's and talus' own and every body above
-    them), as the person's file names them."""
-    found = set()
-    for kneecap, places in KNEECAPS.items():
-        for name in (kneecap, places[3], places[4]):
-            body = spec.body(name)
-            while body is not None and body.name != "world":
-                found.add(_filed(body.name))
-                body = body.parent
-    return found
-
-
 class Sized:
     """One person's MyoFullBody sized (`sized_body`), before the fit's constants: what `written` makes every file of
-    that person from, so a second file (the fitted one) is not sized again (#70: about 1.5 s a person on this PC's
-    CPU, the kneecaps' fit most of it)."""
+    that person from, so a second file (the fitted one) is not sized again (#70)."""
 
     def __init__(self, folder, size, kg):
         self.folder, self.size, self.kg = folder, size, kg
@@ -86,23 +70,14 @@ class Sized:
         self.wrappers = multi_joint_bodies(spec)
         sized(spec, self.model, self.scales, kg, self.wrappers)
         hip_width(spec, size.rig)
-        self.unmoved = spec.copy()  # before the kneecaps: a constant moving a body they read starts here
-        self.reads = _kneecap_reads(spec)
-        self.kneecap_moved = kneecaps(spec, size.rig, self.scales)
-        self.kneed = spec
+        self.sized = spec
         self.rest = path_lengths(_fresh(source).compile())  # the published model's paths at the same rest
 
     def spec(self, joints):
-        """A new spec of the sized body with the inside joints moved by `joints` (`inside_moved`) and its kneecaps
-        fitted, and their record: the kneecaps' fit kept from the sizing when no joint they read moves (adding a
-        zero move changes no place), else fitted again on the moved body, as `person_file` always did."""
-        if any(np.any(np.asarray(move) != 0.0) for name, move in joints.items() if name in self.reads):
-            spec = self.unmoved.copy()
-            inside_moved(spec, joints)
-            return spec, kneecaps(spec, self.size.rig, self.scales)
-        spec = self.kneed.copy()
+        """A new spec of the sized body with the inside joints moved by `joints` (`inside_moved`)."""
+        spec = self.sized.copy()
         inside_moved(spec, joints)
-        return spec, self.kneecap_moved
+        return spec
 
 
 def sized_body(folder, size, kg):
@@ -123,7 +98,7 @@ def written(body, path, constants=None):
     and its length against SOMA's, the inertia scale per group, its muscles' length scale, its total mass and what is
     assumed."""
     size, kg, model, scales, wrappers = body.size, body.kg, body.model, body.scales, body.wrappers
-    spec, kneecap_moved = body.spec(constants.get("joints", {}) if constants else {})
+    spec = body.spec(constants.get("joints", {}) if constants else {})
     grown = spec.compile()
     factors = size.weigh(spec, grown, scales, kg - wrappers * WRAPPER_KG - ungrouped_kg(grown, size.table))
     balanced(spec)
@@ -148,7 +123,7 @@ def written(body, path, constants=None):
                        if name in kept_bodies(size.table)},
             "lengths": size.record(final, scales), "inertia scale": {group: round(factor, 3)
                                                                      for group, factor in factors.items()},
-            "centre of mass moved cm": size.moved, "kneecap moved in mm": kneecap_moved,
+            "centre of mass moved cm": size.moved,
             "muscle length scale": [round(float(stretch.min()), 4), round(float(stretch.max()), 4)],
             "kg": round(float(final.body_subtreemass[0]) + wrappers * WRAPPER_KG, 3),
             "resting": resting.record(stretched, final, moves),
