@@ -329,14 +329,23 @@ def test_a_dome_roof_stands_as_a_dome():
     assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's dome is not the seed's"
 
 
-def test_a_vault_roof_stands_as_an_arc():
+def test_a_vault_roof_stands_as_an_arc_running_between_its_doorways():
     """Round 33 of 2026-10-30: the tube's vault (eave 0 m, top 3.2 m) stood as a gable, so its flat sides came down
     through the room: the cast stood person_mid_left_1 on a 32 degree side 0.27 m up (sim-body: 0.147 m into it) and
     the other two under it at 1.86 and 2.09 m. A vault is a circle's arc from its eave up to its top across its grown
     box, along the longer side: over BOX's 4.3 x 3.3 m from 0 to 2 m, a circle of (1.65^2 + 2^2) / 4 = 1.680625 m, so
     1 m off the ridge it stands sqrt(1.680625^2 - 1) - (1.680625 - 2) = 1.670 m (a gable's 0.788 m); as
     tools/usd/builders' `tube_arc` draws it from the scene record's entry, the box either way round.
-    Break: score/stages/earth_seed/design_shell.py: `entry.get("kind") == "vault"` -> `False`"""
+    Break: score/stages/earth_seed/design_shell.py: `entry.get("kind") == "vault"` -> `False`
+    2026-11-02, round 44: the tube's box is 10.04 m square, its doorways on its north and south ends, and its vault
+    ran east, across its length: its arc came down to 1.3 m at the doorways, spot-1's eye (1.6 m up, 0.74 m in) stood
+    over the roof and its picture was the roof's outer skin (light@tube: 0.810 against the concept's 0.323). A square
+    box's vault runs between the ends its openings stand on: over SQUARE (4 m, grown to 4.3) from 0 to 2 m with its
+    doors north and south, a circle of (2.15^2 + 2^2) / 4 = 2.155625 m across x, so its crown at x = 2 stands the full
+    2 m at y = 0.3 by the north door (run east, it would stand sqrt(2.155625^2 - 1.85^2) - 0.155625 = 0.951 m);
+    with its doors west and east it runs east, its crown at y = 2 the full 2 m by the west door; the scene record's
+    tube_arc is turned a quarter only for the east run.
+    Break: score/stages/earth_seed/design_shell.py: `return ends >= sides` -> `return True`"""
     sys.path.insert(0, str(REPO / "tools" / "usd"))
     import scene
     from score.stages.scene_record import writer
@@ -355,19 +364,7 @@ def test_a_vault_roof_stands_as_an_arc():
         seed = design_shell.placed(roof, vaulted)
         apart = numpy.linalg.norm(seed[:, None] - drawn[None], axis=2)
         assert apart.min(axis=1).max() < 1e-3 and apart.min(axis=0).max() < 1e-3, "the record's vault is not the seed's"
-
-
-def test_a_square_vault_runs_between_its_doorways():
-    """2026-11-02, round 44: the tube's box is 10.04 m square, its doorways on its north and south ends, and its vault
-    ran east, across its length: its arc came down to 1.3 m at the doorways, spot-1's eye (1.6 m up, 0.74 m in) stood
-    over the roof and its picture was the roof's outer skin (light@tube: 0.810 against the concept's 0.323). A square
-    box's vault runs between the ends its openings stand on: over SQUARE (4 m, grown to 4.3) from 0 to 2 m with its
-    doors north and south, a circle of (2.15^2 + 2^2) / 4 = 2.155625 m across x, so its crown at x = 2 stands the full
-    2 m at y = 0.3 by the north door (run east, it would stand sqrt(2.155625^2 - 1.85^2) - 0.155625 = 0.951 m);
-    with its doors west and east it runs east, its crown at y = 2 the full 2 m by the west door; the scene record's
-    tube_arc is turned a quarter only for the east run.
-    Break: score/stages/earth_seed/design_shell.py: `return ends >= sides` -> `return True`"""
-    from score.stages.scene_record import writer
+    # a square vault runs between its doorways
     square = [[0.0, 0.0], [4.0, 0.0], [4.0, 4.0], [0.0, 4.0]]
     doors = {"north and south": [[2.0, 0.0], [2.0, 4.0]], "west and east": [[0.0, 2.0], [4.0, 2.0]]}
     for (ends, (one, two)), lengthwise, crown_at in zip(doors.items(), (False, True), ([2.0, 0.3], [0.3, 2.0])):

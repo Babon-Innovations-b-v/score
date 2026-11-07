@@ -343,8 +343,17 @@ def test_a_sky_s_colour_blue_to_red_and_rise_are_read_on_the_pixels_the_flat_sky
     assert abs(measure.sky_of(near_black, measure.sky_pixels(near_black))["blue_to_red"] - 1.0) < 0.05
 
 
-def test_a_look_s_sky_is_read_where_the_render_met_no_surface_never_its_top_rows_commonest_colour(tmp_path,
-                                                                                                    monkeypatch):
+def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_hue_its_concept_shows(tmp_path,
+                                                                                                       monkeypatch):
+    """A look's sky is read where the render met no surface, never its top rows' commonest colour, and judged
+    against its concept's sky.
+    2026-11-02: base's concept drew the Moon's airless sky dark navy ([11.4, 16.5, 27.6], 18.5 levels off black,
+    blue to red 2.42); the physics' black sky passed the colour gap (16.7) and failed blue to red (1.0) every round.
+    A concept sky within SKY_GAP_MOST of black leaves blue to red unjudged; a lit one still holds it: a sky of
+    [95, 90, 95] under a concept of [80, 90, 110] (93 levels off black) passes the gap at 10 levels and fails on blue
+    to red 1.0 against 1.375.
+    Break: score/stages/light/__init__.py: `hued = dark or abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`
+        -> `hued = abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`"""
     # old_station's lit ground filled its views' top rows and read as its sky, 99.7 levels off its black one
     # (2026-10-30); passes saved before the mask leave the sky unjudged, named
     concept = tmp_path / "concept.png"
@@ -382,16 +391,7 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_never_its_top_rows
     measured = light.sky_measures("yard", tmp_path, tmp_path, light.row_skies("yard", inventory))
     (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
     assert light.judge_sky(tmp_path, {}, {}).answer == checks.FAIL  # its concept's sky lit grey, the look's black
-
-
-def test_a_sky_s_blue_to_red_is_judged_only_where_the_concept_s_sky_shows_a_hue(tmp_path):
-    """2026-11-02: base's concept drew the Moon's airless sky dark navy ([11.4, 16.5, 27.6], 18.5 levels off black,
-    blue to red 2.42); the physics' black sky passed the colour gap (16.7) and failed blue to red (1.0) every round.
-    A concept sky within SKY_GAP_MOST of black leaves blue to red unjudged; a lit one still holds it: a sky of
-    [95, 90, 95] under a concept of [80, 90, 110] (93 levels off black) passes the gap at 10 levels and fails on blue
-    to red 1.0 against 1.375.
-    Break: score/stages/light/__init__.py: `hued = dark or abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`
-        -> `hued = abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`"""
+    # a sky's blue to red is judged only where the concept's sky shows a hue
     def judged(concept_rgb, sky_rgb):
         concept = {"mean_rgb": concept_rgb, "blue_to_red": round(concept_rgb[2] / concept_rgb[0], 4),
                    "rise_to_horizon": 0.0, "pictures": 1}
