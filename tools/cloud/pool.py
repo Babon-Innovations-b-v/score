@@ -81,6 +81,8 @@ SPEND_TICKET = "SCORE_SPEND_TICKET"
 # The pool's folder of rows that used it, a file a row (its node) touched at each ask, take and give-back (touch).
 USES = "uses"
 RUN_PID = "SCORE_RUN_PID"
+# The run registry (score/graph/runs.py): each run's entry keeps its launch's settings (runs.launch_settings).
+RUNS = HOME / "runs"
 
 
 class Run:
@@ -915,7 +917,7 @@ class Collecting:
     asks for cards and beats the idle ones."""
 
     def __init__(self):
-        self.account, self.rounds, self.next_ask, self.next_beat = None, 0, 0.0, 0.0
+        self.account, self.rounds, self.next_ask, self.next_beat, self.refused = None, 0, 0.0, 0.0, None
 
     def wait_more(self):
         """One more round that gave no card: the next ask after stock_wait_minutes (3, 6, 12, 24, then 30 min)."""
@@ -930,7 +932,11 @@ def collect_round(run_id, plan, collecting):
         collecting.account = cloud.account()
         cloud.allow_key(collecting.account, "farm-factory-batch", batch.ssh_key())
     short = shortfall(plan, trim(run_id, plan, tidy(run_id)))
-    if short and time.time() >= collecting.next_ask:
+    refused = cluster_lost(plan) if short else None
+    if refused and refused != collecting.refused:
+        batch.say(f"pool: renting refused: {refused}")
+    collecting.refused = refused
+    if short and not refused and time.time() >= collecting.next_ask:
         if fill(run_id, plan, short, collecting.account):
             collecting.rounds, collecting.next_ask = 0, 0.0
         else:
@@ -941,6 +947,50 @@ def collect_round(run_id, plan, collecting):
         beat(run_id)
         hold(run_id)
         collecting.next_beat = time.time() + BEAT_SECONDS
+
+
+def cluster_lost(plan, folder=None):
+    """Why the collector must not rent for `plan`'s run: its launch's saved settings (its registry entry and those it
+    was resumed from, runs.launch_settings) send kinds to the cluster but this process's environment sends none, so
+    the pool would hold machines for the cluster's rows (2026-11-07: Launch 33, resumed without its SCORE_CLOUD, rented
+    a warm pool of 10 L4s for its cluster kinds); None when they agree or no entry is found."""
+    saved = saved_settings(plan.get("run_pid"), folder)
+    if not sends_to_cluster(saved) or sends_to_cluster(os.environ):
+        return None
+    return (f"the run's launch sends {saved.get(provider.CLUSTER_KINDS) or 'every kind'} to the cluster "
+            f"({provider.CLUSTER_KINDS}), but this environment's SCORE_CLOUD is "
+            f"{os.environ.get('SCORE_CLOUD') or 'unset'}: restart the run with its launch's settings")
+
+
+def sends_to_cluster(environment):
+    """Whether `environment` ({name: value}) sends any job kind to the cluster (provider.on_cluster's settings)."""
+    if environment.get("SCORE_CLOUD") != provider.CLUSTER:
+        return False
+    named = environment.get(provider.CLUSTER_KINDS)
+    return named is None or any(kind.strip() for kind in named.split(","))
+
+
+def saved_settings(run_pid, folder=None):
+    """The launch settings kept in the registry entry of the run with pid `run_pid` and in the entries it was resumed
+    from (an entry's `resumed` pid naming it), merged with the oldest first; {} when none is found."""
+    entries = []
+    for path in sorted(pathlib.Path(folder or RUNS).glob("*.json")):
+        try:
+            entry = json.loads(path.read_text())
+        except ValueError:
+            continue  # a file that is not a whole entry (runs.entries leaves it out too)
+        if isinstance(entry, dict):
+            entries.append(entry)
+    pids, grown = {run_pid}, True
+    while grown:
+        before = len(pids)
+        pids |= {entry.get("pid") for entry in entries if (entry.get("resumed") or {}).get("pid") in pids}
+        grown = len(pids) > before
+    merged = {}
+    for entry in entries:
+        if entry.get("pid") in pids:
+            merged.update(entry.get("settings") or {})
+    return merged
 
 
 def stop_on_signals():

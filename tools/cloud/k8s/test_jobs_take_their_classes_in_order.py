@@ -47,6 +47,9 @@ invariant with the break that turns it red (each applied once and seen red):
   refuses another namespace. Break: drop the namespace check in `stop_score_jobs`.
 - SCORE_CLOUD_KINDS narrows SCORE_CLOUD=k8s to its kinds; a runner naming none is known by its script's name.
   Break: `return True` in place of the kinds check in `provider.on_cluster`.
+  The warm pool's collector refuses to rent, saying why, while the run's launch (its registry entry, or one it was
+  resumed from) sends kinds to the cluster and its own environment sends none. Break: drop the `not refused` check
+  in `pool.collect_round`.
 - The Secrets hold the store and registry values by name; the GPU operator is pointed at the registry's copies
   (the manager with no pull secret of its own) and a mirrored cluster is left alone.
   Break: give the manager `imagePullSecrets` in `policy_patch`.
@@ -593,7 +596,7 @@ def test_a_node_without_zone_labels_takes_the_providers_record():
     assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
 
 
-def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
+def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
     monkeypatch.setenv("SCORE_CLOUD", "k8s")
     monkeypatch.delenv("SCORE_K8S_PROVIDER", raising=False)
     assert submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
@@ -615,6 +618,33 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch):
     assert not submit.provider.on_cluster()  # a kind that cannot be told stays on machines
     monkeypatch.delenv("SCORE_CLOUD_KINDS")
     assert submit.provider.on_cluster("judge")  # unset: every kind
+    # a run launched with cluster kinds and resumed without them (2026-11-07, Launch 33: 10 L4s rented for its
+    # cluster kinds): its pool's collector rents nothing and says why; with the settings back it rents again
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+    import pool
+    launch = {"pid": 11, "state": "resumed", "resumed": {"pid": 22},
+              "settings": {"SCORE_CLOUD": "k8s", "SCORE_CLOUD_KINDS": "pixal,blender"}}
+    (tmp_path / "20261107T100000-11.json").write_text(json.dumps(launch))
+    (tmp_path / "20261107T110000-22.json").write_text(json.dumps({"pid": 22, "state": "running", "settings": {}}))
+    (tmp_path / "active.json").write_text("[]")
+    monkeypatch.setattr(pool, "RUNS", tmp_path)
+    rented, said = [], []
+    for name in ("tidy", "trim", "beat", "hold"):
+        monkeypatch.setattr(pool, name, lambda *args: None)
+    monkeypatch.setattr(pool, "shortfall", lambda plan, alive: [("gpu-24gb", 0, "card-0")])
+    monkeypatch.setattr(pool, "fill", lambda run_id, plan, short, account: rented.append(short) or 1)
+    monkeypatch.setattr(pool.batch, "say", said.append)
+    collecting = pool.Collecting()
+    collecting.account = "account"
+    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
+    pool.collect_round("run", {"run_pid": 22}, collecting)
+    pool.collect_round("run", {"run_pid": 22}, collecting)
+    assert rented == [] and len(said) == 1 and "pixal,blender" in said[0] and "SCORE_CLOUD is scaleway" in said[0]
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    pool.collect_round("run", {"run_pid": 22}, collecting)  # its launch's settings back
+    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
+    pool.collect_round("run", {"run_pid": 33}, collecting)  # another run, launched with no cluster
+    assert len(rented) == 2 and collecting.refused is None
     # a tenant box that cannot read the cluster's project with scw (the conductor, 2026-11-06): its pools as
     # SCORE_K8S_POOLS gives them, its nodes through kubectl, never scw. Break: in tenant.nodes, read
     # `scw("k8s", "node", "list", ...)` again; or in tenant.class_pools, drop the `given is not None` branch
