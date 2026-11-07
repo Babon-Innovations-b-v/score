@@ -42,6 +42,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_the_plan_row_keeps_the_plan_stages_code_version.
 - `plan_as_kit`: the plan not handed over as its kit (`{**arguments[position]}`)  ->
   test_the_plan_row_maps_a_place_with_no_kit.
+- `plan_remade_same`: always True (`return True`)  -> test_the_plan_row_maps_a_place_with_no_kit (its own plan redrawn
+  still carries).
 - the surfaces-check row's `"stance rules"` file dropped  -> test_the_check_reads_every_input_check_step_reads.
 - `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  ->
   test_the_cast_crowds_from_its_plan_never_a_hand_written_record.
@@ -292,6 +294,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import types
 
 import pytest
 
@@ -309,7 +312,7 @@ from score.graph import _code  # noqa: E402
 from score.stages import (batch_gaps, design_layers, gaps, layer_base, moved, natural_grounds,  # noqa: E402
                           people_refresh, people_rows, row_kinds)
 from score.stages.surfaces import route_views  # noqa: E402
-from score.store import PROPS_HOME, Store, file_hash  # noqa: E402
+from score.store import PROPS_HOME, Store, file_hash, tree_hash as store_tree_hash  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
 
 
@@ -576,6 +579,16 @@ def test_the_plan_row_maps_a_place_with_no_kit(tmp_path):
     assert json.loads((root / "out/plan.json").read_text())["place"] == "new_room"
     verdict = stages.PLAN.checks[0].judge(root / "out", inputs, {})
     assert verdict.answer == checks.PASS, verdict.reason
+    # Made again on a moved key (another place's plan redrawn), it is the same output while its own plan stands, so
+    # its readers key as before; its own plan redrawn, it is not.
+    contracts.stamp(stages.PLAN.contract, root / "out")
+    accepted = store_tree_hash(root / "out")
+    runner = types.SimpleNamespace(store=types.SimpleNamespace(accepted=lambda node: accepted),
+                                   input_paths=lambda stage, place, keyed: inputs)
+    keyed = {"seed": 0, "params": {}}
+    assert stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed)
+    (root / "plans/new_room.json").write_text(json.dumps({**plan, "w": 4.0}))
+    assert not stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed)
 
 
 def inputs_read(function):
