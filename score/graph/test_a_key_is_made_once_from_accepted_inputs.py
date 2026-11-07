@@ -68,6 +68,15 @@ def no_cloud_bill_and_no_memory_taken(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def one_openblas_thread_a_node(monkeypatch):
+    """Each toy node's OpenBLAS pool kept at one thread (an owner's smaller count stands, graph.cap_thread_variables):
+    sized to the cores over --jobs, a node forked from this process started that many OpenBLAS threads that spun
+    idle, 26 s of CPU for a 4 s test on 24 cores, and on a loaded box with few CPUs the file ran past its 120 s. The
+    thread tests unset it (thread_note)."""
+    monkeypatch.setenv("OPENBLAS_NUM_THREADS", "1")
+
+
+@pytest.fixture(autouse=True)
 def nodes_print_to_their_file_descriptors(monkeypatch):
     """A node's process prints and writes tracebacks on file descriptors 1 and 2, as in a run, where its log takes
     them over (graph.logged); under pytest its streams would be pytest's own and the log would stay empty."""
@@ -222,9 +231,9 @@ def code_tar(folder):
     return tar
 
 
-def in_a_pod(runner, stage, place, keyed, tree, bucket_root, folder, away=None):
-    """The node's job pushed and made by `python -m score.graph.pod run` from `tree`, in an empty home, the file
-    `away` removed once pushed (the pod places it); its manifest."""
+def a_pod_job(runner, stage, place, keyed, tree, bucket_root, folder, away=None):
+    """The node's job for a pod running `tree`, pushed, the file `away` removed once pushed (the pod places it); its
+    job file."""
     from score.graph import pod
     from score.store import offload
     job = pod.job_of(runner, stage, place, keyed, tree.name, f"{__name__}:POD_TABLE")
@@ -233,11 +242,22 @@ def in_a_pod(runner, stage, place, keyed, tree, bucket_root, folder, away=None):
         away.unlink()
     work = pathlib.Path(tempfile.mkdtemp(dir=folder))
     (work / "job.json").write_text(json.dumps(job))
+    return work / "job.json"
+
+
+def in_pods(jobs, tree, bucket_root, folder):
+    """Each job made by `python -m score.graph.pod run` from `tree`, each in an empty home of its own, the pods side by
+    side (each works its code version out cold, about a second: the file's time budget); their manifests in order."""
     environ = {name: value for name, value in os.environ.items() if name != "SCORE_UV_LOCK"}
-    subprocess.run([sys.executable, "-m", "score.graph.pod", "run", str(work / "job.json"), str(work / "manifest.json"),
-                    "--cache", str(folder / "cache")], cwd=tree, check=True, capture_output=True,
-                   env={**environ, "PROPS_HOME": str(work / "home"), "SCORE_POD_BUCKET": f"folder:{bucket_root}"})
-    return json.loads((work / "manifest.json").read_text())
+
+    def made(job):
+        subprocess.run([sys.executable, "-m", "score.graph.pod", "run", str(job), str(job.parent / "manifest.json"),
+                        "--cache", str(folder / "cache")], cwd=tree, check=True, capture_output=True,
+                       env={**environ, "PROPS_HOME": str(job.parent / "home"),
+                            "SCORE_POD_BUCKET": f"folder:{bucket_root}"})
+        return json.loads((job.parent / "manifest.json").read_text())
+    with concurrent.futures.ThreadPoolExecutor(len(jobs)) as pool:
+        return list(pool.map(made, jobs))
 
 
 def without_times(record):
@@ -270,10 +290,21 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     monkeypatch.setenv("SCORE_UV_LOCK", "0" * 64)
     assert pod.tree_refusal({"code": _code.REPO.name}).startswith("lock: ")
     monkeypatch.delenv("SCORE_UV_LOCK")
+    jobs, made_here = [], []
     for stage, place in ((COUNT, "hangar"), (CLEAN, "dock")):
         keyed, away = runner.key(stage, place), world.roots["data"] / place / "brief.txt"
-        written = away.read_bytes()
-        manifest = in_a_pod(runner, stage, place, keyed, tree, bucket_root, folder, away if stage is CLEAN else None)
+        made_here.append((stage, place, keyed, away, away.read_bytes()))
+        jobs.append(a_pod_job(runner, stage, place, keyed, tree, bucket_root, folder, away if stage is CLEAN else None))
+    station = runner.key(COUNT, "station")
+    jobs.append(a_pod_job(runner, COUNT, "station", {**station, "code": "0" * 64}, tree, bucket_root, folder))
+    jobs.append(a_pod_job(runner, PEEK, "hangar", runner.key(PEEK, "hangar"), tree, bucket_root, folder))
+    plan = pathlib.Path(os.environ["PROPS_HOME"]) / "design" / "plans" / "hangar.json"
+    plan.parent.mkdir(parents=True, exist_ok=True)
+    plan.write_text("{}")
+    designed = [(stage, runner.key(stage, "hangar")) for stage in (KEPT, DESIGNED)]
+    jobs += [a_pod_job(runner, stage, "hangar", keyed, tree, bucket_root, folder) for stage, keyed in designed]
+    manifests = in_pods(jobs, tree, bucket_root, folder)
+    for (stage, place, keyed, away, written), manifest in zip(made_here, manifests):
         assert "listing" in manifest, {name: manifest.get(name) for name in ("refused", "undeclared", "error", "broken")}
         assert away.read_bytes() == written  # the pod placed the declared brief from the bucket
         wrong = {**manifest, "sizes": {sha: size + 1 for sha, size in manifest["sizes"].items()}}
@@ -287,18 +318,11 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
         assert pod.collect(runner, stage, place, keyed, manifest) == made and len(store.records(node)) == 1
         name = "count.txt" if stage is COUNT else "clean.txt"
         assert (store.checkout(made["output"]) / name).read_text() == (twin.checkout(there["output"]) / name).read_text()
-    keyed = runner.key(COUNT, "station")
-    refused = in_a_pod(runner, COUNT, "station", {**keyed, "code": "0" * 64}, tree, bucket_root, folder)
+    refused, peeked = manifests[2:4]
     assert refused["refused"].startswith("code version: "), refused
-    assert "pod" not in pod.collect(runner, COUNT, "station", keyed, refused)  # made here instead
-    peeked = in_a_pod(runner, PEEK, "hangar", runner.key(PEEK, "hangar"), tree, bucket_root, folder)
+    assert "pod" not in pod.collect(runner, COUNT, "station", station, refused)  # made here instead
     assert peeked.get("undeclared") == ["records/clean@hangar/any.json"], peeked
-    plan = pathlib.Path(os.environ["PROPS_HOME"]) / "design" / "plans" / "hangar.json"
-    plan.parent.mkdir(parents=True, exist_ok=True)
-    plan.write_text("{}")
-    for stage in (KEPT, DESIGNED):
-        keyed = runner.key(stage, "hangar")
-        manifest = in_a_pod(runner, stage, "hangar", keyed, tree, bucket_root, folder)
+    for (stage, keyed), manifest in zip(designed, manifests[4:]):
         assert "listing" in manifest, {name: manifest.get(name) for name in ("refused", "undeclared", "error", "broken")}
         assert pod.collect(runner, stage, "hangar", keyed, manifest, record=False) == \
             local.make(stage, "hangar", keyed)["output"]
@@ -1681,6 +1705,7 @@ def thread_note(jobs, monkeypatch, cores=24):
     drive forks (as score.stages loads them); and the runner."""
     import numpy  # noqa: F401
     import scipy.linalg  # noqa: F401
+    monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)  # the pool sized by the cap (one_openblas_thread_a_node)
     runner = a_runner(a_world_of(["hangar"])[1], a_store(), (graph.Stage("threads", "place", make_thread_note, TEXT,
                                                                          MET),))
     with monkeypatch.context() as patched:
@@ -1789,12 +1814,12 @@ def test_a_pass_lists_each_prefix_once_works_out_each_key_once_and_only_the_runs
 
 # --- runs side by side on one store ----------------------------------------------------------------------------------
 
-def made_slowly(data):
-    """A make counting its makes in a file and taking a second: two runs of it at once would overlap."""
+def made_slowly(data, seconds=1):
+    """A make counting its makes in a file and taking `seconds` (a second: two runs of it at once would overlap)."""
     def make(inputs, out, seed, params):
         with (data / "made.txt").open("a") as made:
             made.write("made\n")
-        time.sleep(1)
+        time.sleep(seconds)
         (out / "made.txt").write_text("made")
     return make
 
@@ -1821,7 +1846,7 @@ def test_two_runs_of_one_key_at_once_make_it_once_and_a_lock_held_too_long_makes
     assert (data / "made.txt").read_text() == "made\n", found
     assert sorted(result["slow@hangar"] for result in found) == ["fresh", ACCEPTED], found
     data, world = a_world_of(["hangar"])
-    slow = graph.Stage("slow", "place", made_slowly(data), TEXT, MET)
+    slow = graph.Stage("slow", "place", made_slowly(data, 0), TEXT, MET)  # one make after the other: no overlap needed
     shared = tempfile.mkdtemp()
     runners = [graph.Runner((slow,), world, Store.in_folder(shared), model_record=lambda kind: {}) for _ in range(2)]
     keyed = runners[0].key(slow, "hangar")
@@ -1830,7 +1855,7 @@ def test_two_runs_of_one_key_at_once_make_it_once_and_a_lock_held_too_long_makes
     judged = runners[0].judge(slow, "hangar", first)
     assert runners[1].judge(slow, "hangar", first) == judged
     data, world = a_world_of(["hangar"])
-    runner = graph.Runner((graph.Stage("slow", "place", made_slowly(data), TEXT, MET),), world, a_store(),
+    runner = graph.Runner((graph.Stage("slow", "place", made_slowly(data, 0), TEXT, MET),), world, a_store(),
                           model_record=lambda kind: {})
     monkeypatch.setattr(graph, "LOCK_WAIT", 0.2)
     monkeypatch.setattr(graph, "LOCK_POLL", 0.05)
@@ -1881,7 +1906,7 @@ def test_a_make_that_writes_into_its_input_fails_and_stores_nothing():
     """light@camp, 2026-10-12: its make saved over its read-only input.
     Break: score/graph/__init__.py: '        if changed:\n            raise RuntimeError(f"{node}: its make wrote' -> '        if False:\n            raise RuntimeError(f"{node}: its make wrote'"""
     data, world = a_world_of(["hangar"])
-    slow = graph.Stage("slow", "place", made_slowly(data), TEXT, MET)
+    slow = graph.Stage("slow", "place", made_slowly(data, 0), TEXT, MET)
     writer = graph.Stage("writer", "place", make_writing_into_its_input, TEXT, MET, after={"slow": READS})
     runner = a_runner(world, a_store(), (slow, writer))
     found = runner.drive(["hangar"], say=quiet)
@@ -2738,15 +2763,15 @@ def test_a_detached_run_returns_at_once_and_its_log_always_ends_with_its_result_
     """Fault (2026-10-12): a run whose group was sent SIGTERM ended its log with no line; review of C10: a run another
     run's registration refused after detaching ends with the refusal as its line.
     Break: score/graph/stopped.py: '    if code != REFUSED:\n        return line' -> '    if True:\n        return line'"""
-    _, log = detached(["import time; time.sleep(1); print('the run went on')"])
-    lines = wait_for(log, "detached:")
-    assert lines[0] == "the run went on" and lines[-1].startswith("detached: ok exit=0 "), lines
-    printed, log = detached(["import sys; print('refused: run pid 7 holds the store', file=sys.stderr); "
-                             f"sys.exit({stopped.REFUSED})"])
-    assert "may still be refused" in printed, printed
-    lines = wait_for(log, "detached:")
-    assert lines[-1].startswith(f"detached: refused: run pid 7 holds the store exit={stopped.REFUSED} "), lines
+    _, went_on = detached(["import time; time.sleep(1); print('the run went on')"])  # the three side by side
+    refused, refused_log = detached(["import sys; print('refused: run pid 7 holds the store', file=sys.stderr); "
+                                     f"sys.exit({stopped.REFUSED})"])
     printed, log = detached(["import time; print('working', flush=True); time.sleep(60)"])
+    lines = wait_for(went_on, "detached:")
+    assert lines[0] == "the run went on" and lines[-1].startswith("detached: ok exit=0 "), lines
+    assert "may still be refused" in refused, refused
+    lines = wait_for(refused_log, "detached:")
+    assert lines[-1].startswith(f"detached: refused: run pid 7 holds the store exit={stopped.REFUSED} "), lines
     wait_for(log, "working", 30)
     os.killpg(int(printed.split("pid=")[1].split()[0]), signal.SIGTERM)  # the session detach started
     lines = wait_for(log, "detached:", 30)
@@ -2821,6 +2846,10 @@ def test_a_stopped_or_failed_run_ends_every_process_it_started_and_releases_only
     """Fault (2026-10-17): runs stopped from outside left their nodes and batches running, renting on; review of C7:
     a drive that raised left its reservations held. The one process deaf to SIGTERM gets SIGKILL after the grace.
     Break: score/__main__.py: '        release_once_ended(runner, run_id, mark, pool_ticket[0] if pool_ticket else None)' -> '        pass'"""
+    failed_folder, environment = a_run_home("failed-run-")  # side by side with the stopped run (the file's time budget)
+    failing = subprocess.Popen([sys.executable, "-c", STOPPED_RUN, str(REPO), str(failed_folder), "fails"],
+                               env=environment, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                               start_new_session=True)
     folder, environment = a_run_home("stopped-run-")
     run = subprocess.Popen([sys.executable, "-c", STOPPED_RUN, str(REPO), str(folder), "waits"], env=environment,
                            stdout=subprocess.PIPE, text=True, start_new_session=True)
@@ -2836,11 +2865,10 @@ def test_a_stopped_or_failed_run_ends_every_process_it_started_and_releases_only
     assert run.returncode == 143 and "score run: stopped by signal 15" in output, (run.returncode, output)
     assert "SIGKILL to 1 processes" in output, output
     assert [held["run"] for held in json.loads((folder / "reservations.json").read_text()).values()] == ["other"]
-    folder, environment = a_run_home("failed-run-")
-    run = subprocess.run([sys.executable, "-c", STOPPED_RUN, str(REPO), str(folder), "fails"], env=environment,
-                         capture_output=True, text=True, timeout=60, start_new_session=True)
-    assert run.returncode == 1 and "the drive fell over" in run.stderr, (run.returncode, run.stderr)
-    assert [held["run"] for held in json.loads((folder / "reservations.json").read_text()).values()] == ["other"]
+    _, failed = failing.communicate(timeout=60)
+    assert failing.returncode == 1 and "the drive fell over" in failed, (failing.returncode, failed)
+    assert [held["run"] for held in json.loads((failed_folder / "reservations.json").read_text()).values()] == [
+        "other"]
 
 
 # A cloud batch holding three machines, each deleted through batch.delete_machine taking argv[3] seconds; it writes
@@ -3022,11 +3050,14 @@ def test_a_run_late_in_a_shell_pipeline_keeps_the_terminal_and_gives_it_back_whe
     """Review of C7 (2026-10-17): leading a group of its own took a pipeline's later stage out of the terminal's
     foreground group (Ctrl-C no longer reached it), and the terminal was never given back.
     Break: score/__main__.py: '    if held_before is not None:\n        hand_terminal(terminal, os.getpgrp())' -> '    if False:\n        hand_terminal(terminal, os.getpgrp())'"""
-    for case in ("becomes", "ends"):
+    def piped(case):
         folder, environment = a_run_home("pipeline-")
-        done = subprocess.run([sys.executable, "-c", PIPELINE_RUN, str(REPO), case], capture_output=True, text=True,
+        return subprocess.run([sys.executable, "-c", PIPELINE_RUN, str(REPO), case], capture_output=True, text=True,
                               timeout=60, start_new_session=True, env=environment)
-        assert done.returncode == 0, (case, done.returncode, done.stderr)
+    # each case in a session and a pseudo-terminal of its own: they run side by side (the file's time budget)
+    with concurrent.futures.ThreadPoolExecutor(2) as pool:
+        for case, done in zip(("becomes", "ends"), pool.map(piped, ("becomes", "ends"))):
+            assert done.returncode == 0, (case, done.returncode, done.stderr)
 
 
 def slow_runner(seconds):
