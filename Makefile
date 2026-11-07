@@ -14,10 +14,10 @@ PYTHON := $(CURDIR)/.venv/bin/python
 # home read-only), so no test touches or leans on the real one; conftest.py refuses a pytest run without one (a test
 # unlinked the real cloud ledger, 2026-10-17).
 # First the test rule's guard (tools/test_rule/check.py: one test file a module, named test_<invariant>.py, its
-# docstring naming its break): over every module, or over the named files' modules when TESTS is given.
+# docstring naming its break), always over every module, TESTS given or not (it takes about a second). A file whose
+# output says skipped did not run, and fails, unless the guard's MAY_SKIP names it with the reason.
 SANDBOX := python3 $(CURDIR)/.claude/scripts/sandbox-home.py --
 TESTS ?= $(shell git ls-files 'tools/*_test.py' 'score/*_test.py' 'tools/*/test_*.py' 'score/*/test_*.py')
-RULE_FILES := $(if $(filter file,$(origin TESTS)),,$(TESTS))
 MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 # The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
 # a file's line prints as it ends, a failure's tail with it in one write.
@@ -30,9 +30,9 @@ define ONE_TEST
 test=$$1; log=$$(mktemp); runner="$(PYTHON)";
 if grep -q '^def test_' $$test && ! grep -q '^if __name__' $$test; then runner="$(PYTHON) -m pytest -q -p no:cacheprovider"; fi;
 start=$$(date +%s);
-if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) timeout $(TEST_SECONDS) $$runner $$test > $$log 2>&1; then echo "ok    $$test ($$(( $$(date +%s) - start )) s)";
+if PROPS_PYTHON=$(PYTHON) $(MEMORY_CAP) $(SANDBOX) timeout $(TEST_SECONDS) $$runner $$test > $$log 2>&1 && { ! grep -qi skipped $$log || $(PYTHON) $(CURDIR)/tools/test_rule/check.py --ran $$test $$log > $$log.ran || { cat $$log.ran >> $$log; false; }; }; then echo "ok    $$test ($$(( $$(date +%s) - start )) s)";
 else code=$$?; { if [ $$code = 124 ]; then echo "FAIL  $$test (over $(TEST_SECONDS) s: the module standard's time budget)"; else echo "FAIL  $$test ($$(( $$(date +%s) - start )) s)"; fi; tail -n 15 $$log; } > $$log.fail; cat $$log.fail; rm -f $$log.fail; echo $$test >> $$FAILED; fi;
-rm -f $$log
+rm -f $$log $$log.ran
 endef
 export ONE_TEST
 
@@ -41,7 +41,7 @@ env:
 
 tests: env
 	@FAILED=$$(mktemp); export FAILED; \
-	$(PYTHON) $(CURDIR)/tools/test_rule/check.py $(RULE_FILES) || echo tools/test_rule/check.py >> $$FAILED; \
+	$(PYTHON) $(CURDIR)/tools/test_rule/check.py || echo tools/test_rule/check.py >> $$FAILED; \
 	printf '%s\n' $(TESTS) | xargs -P $(JOBS) -n 1 sh -c "$$ONE_TEST" one; \
 	failed=$$(paste -sd ' ' $$FAILED); rm -f $$FAILED; \
 	if [ -n "$$failed" ]; then echo "failed: $$failed"; exit 1; fi
