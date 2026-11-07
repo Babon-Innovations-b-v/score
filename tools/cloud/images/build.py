@@ -3,6 +3,7 @@ its upload is about 3 MB/s), then delete the machine.
 
     .venv/bin/python tools/cloud/images/build.py base [blender ...] --who "<session>" [--force] [--smoke] [--dry-run]
     .venv/bin/python tools/cloud/images/build.py --all --who "<session>"
+    .venv/bin/python tools/cloud/images/build.py runner --export     # the runner's pins from uv.lock, rents nothing
 
 Each image folder here (`<kind>/`) holds its Dockerfile, models.json and the small files it copies. An image is built
 with docker buildx from a context of its folder plus the job runtime (`runtime/`), for the platforms its Dockerfile
@@ -16,6 +17,12 @@ images.json then holds, for each kind: the image reference pinned by digest (wha
 digest, platforms, compressed size, the build's minutes and when it was built. --smoke runs a job of the runtime in
 each freshly pulled image on the builder (plain docker, a fresh cache, then a second fresh cache that takes the
 weights from the store, then the warm cache) and records the cold-start numbers in images.json under "smoke".
+
+The runner image is the conductor's own Python (uv.lock, the dev group and score itself left out: the run's commit
+comes as each job's code). `--export` writes its folder's requirements.txt (uv's hashed export of the lock),
+lock.sha256 (the lock's sha256, so the tag moves exactly when the lock does) and a link to each wheel the export
+installs from a repository file, at that file's repository path under the folder, so the image installs it at the path
+the requirements name.
 
 The machine is rented through batch.py's claim (the owner's limits, its watchdog, the self-delete, the ledger row and
 the delete), from the processor classes in PROCESSORS, best stocked first.
@@ -59,6 +66,10 @@ SETUP_MINUTES = 5
 MINUTES_EACH = 25
 REMOTE = pathlib.PurePosixPath("/root/build")
 PARENT = "base"
+RUNNER = "runner"
+LOCK_SHA = "lock.sha256"
+LOCK_EXPORT = ("uv", "export", "--frozen", "--no-dev", "--no-emit-project", "--no-header", "--quiet",
+               "--format", "requirements-txt")
 BUILDER_SETUP = """set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -141,6 +152,37 @@ def saved():
 
 def save(built):
     IMAGES_JSON.write_text(json.dumps(dict(sorted(built.items())), indent=1) + "\n")
+
+
+def lock_export(repo=REPO):
+    """The repository's uv.lock as hashed requirements (score itself and the dev group left out), as uv exports it."""
+    return subprocess.run(LOCK_EXPORT, cwd=repo, check=True, capture_output=True, text=True).stdout
+
+
+def lock_sha256(repo=REPO):
+    """The sha256 of the repository's uv.lock, as lock.sha256 holds it."""
+    return hashlib.sha256((repo / "uv.lock").read_bytes()).hexdigest() + "\n"
+
+
+def file_wheels(requirements):
+    """The repository paths of the wheels the requirements install from files (their `./<path>` lines)."""
+    return [line.split()[0].removeprefix("./") for line in requirements.splitlines() if line.startswith("./")]
+
+
+def export_runner(repo=REPO):
+    """Write the runner folder's requirements.txt, lock.sha256 and a link to each file wheel at its repository path
+    (the links of an export before removed first); the folder."""
+    folder = HERE / RUNNER
+    requirements = lock_export(repo)
+    (folder / "requirements.txt").write_text(requirements)
+    (folder / LOCK_SHA).write_text(lock_sha256(repo))
+    for old in sorted(folder.rglob("*.whl")):
+        old.unlink()
+    for name in file_wheels(requirements):
+        link = folder / name
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(os.path.relpath(repo / name, link.parent))
+    return folder
 
 
 def set_up(machine, registry):
@@ -365,11 +407,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("kinds", nargs="*", help="image folders to build")
     parser.add_argument("--all", action="store_true", help="every image folder")
-    parser.add_argument("--who", required=True, help="the session asking")
+    parser.add_argument("--who", help="the session asking (needed for a build)")
     parser.add_argument("--force", action="store_true", help="build even when images.json holds the tag")
     parser.add_argument("--smoke", action="store_true", help="run the smoke jobs in each pushed image")
     parser.add_argument("--dry-run", action="store_true", help="say what would be built and price it, rent nothing")
+    parser.add_argument("--export", action="store_true", help="write the runner's pins from uv.lock, rent nothing")
     options = parser.parse_args()
+    if options.export:
+        if options.kinds != [RUNNER]:
+            parser.error(f"--export writes the {RUNNER} folder alone")
+        batch.say(f"{RUNNER}: pins exported into {export_runner()}")
+        return
+    if not options.who:
+        parser.error("--who is needed for a build")
     asked = image_kinds() if options.all else options.kinds
     unknown = set(asked) - set(image_kinds())
     if unknown or not asked:

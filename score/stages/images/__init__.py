@@ -18,6 +18,11 @@ the folder and its outputs' `to` relative to the proof) has two world nodes:
                          repository's. Gates: every planned job ran, and the kind's own check of what they made
                          (PROOF_CHECKS). Its output's record.json is the kind's new images.json entry.
 
+The runner image (the conductor's own Python) is pinned by its lock: its pins row keys on uv.lock and its gate is
+that requirements.txt and lock.sha256 are a fresh export of it (`pins are the lock's`, for `pins resolve`); its proof
+works out every row's code version in the image and passes only when each equals the conductor's on the same tree
+(`keys as the conductor`).
+
 `publish` writes an accepted proof's record into images.json; until then every reader of images.json (the runners,
 score.adapters.models and the keys of the nodes that pin a kind) sees the build before.
 """
@@ -45,6 +50,10 @@ PINNED_FILES = ("requirements.txt", "Dockerfile", "models.json")
 # folder so the resolve check sees it as chosen; the image installs its pins without resolving (uv pip sync).
 OVERRIDES = "overrides.txt"
 RECORD = "record.json"
+# The runner image: the conductor's own Python, its pins exported from the repository's uv.lock (images/build.py).
+RUNNER = "runner"
+LOCK_SHA = "lock.sha256"
+VERSIONS = "tools/cloud/images/runner/versions.py"
 # The parent image a proof built first when images.json's was stale (its runtime or folder moved), so the kind is
 # built on and proved with the parent it will run on; `publish` writes it beside the kind.
 PARENT = "base"
@@ -77,7 +86,7 @@ def proved_kinds():
 
 def make_pins(inputs, out, seed, params):
     """Copy the folder's pinned files into the output."""
-    for name in (*PINNED_FILES, OVERRIDES):
+    for name in (*PINNED_FILES, OVERRIDES, LOCK_SHA):
         if name in PINNED_FILES or (inputs["folder"] / name).is_file():
             shutil.copy2(inputs["folder"] / name, out / name)
 
@@ -100,9 +109,11 @@ def pinned_lines(requirements):
 
 
 def judge_hashed(output, inputs, evidence):
-    """Pass when every package is pinned to one version with at least one hash."""
+    """Pass when every package is pinned to one version, or to a file of the repository (`./<path>`), with at least
+    one hash."""
     pins = pinned_lines(output / "requirements.txt")
-    loose = sorted(name for name, (version, hashes) in pins.items() if not version or not hashes)
+    loose = sorted(name for name, (version, hashes) in pins.items()
+                   if not (version or name.startswith("./")) or not hashes)
     if not pins:
         return checks.Verdict("pins hashed", checks.FAIL, "requirements.txt pins nothing")
     if loose:
@@ -143,6 +154,24 @@ def judge_resolves(output, inputs, evidence):
         return checks.Verdict("pins resolve", checks.FAIL, "uv cannot resolve the pins together",
                               findings=tuple(done.stderr.strip().splitlines()[-8:]))
     return checks.Verdict("pins resolve", checks.PASS, f"the pins resolve together for Python {python}")
+
+
+def lock_faults(output, repo):
+    """What differs between the output's requirements.txt and lock.sha256 and a fresh export of the repository's
+    uv.lock (images/build.py's, as `build.py runner --export` writes them)."""
+    build, _ = image_tools()
+    wanted = {"requirements.txt": build.lock_export(repo), LOCK_SHA: build.lock_sha256(repo)}
+    return [f"{name} is not the lock's export" for name, text in wanted.items()
+            if not (output / name).is_file() or (output / name).read_text() != text]
+
+
+def judge_lock_export(output, inputs, evidence):
+    """Pass when the runner's pins are a fresh export of the uv.lock its row keys on."""
+    faults = lock_faults(output, pathlib.Path(inputs["lock"]).parent)
+    if faults:
+        return checks.Verdict("pins are the lock's", checks.FAIL, "; ".join(faults),
+                              findings=("write them with `build.py runner --export`",))
+    return checks.Verdict("pins are the lock's", checks.PASS, "requirements.txt and lock.sha256 are uv.lock's export")
 
 
 BUILD_TEST = "test_built_once_and_every_machine_deleted.py"
@@ -226,7 +255,10 @@ def judge_only_packages(kind):
 
 
 def pins_checks(kind):
-    return (checks.Check("pins hashed", judge_hashed), checks.Check("pins resolve", judge_resolves),
+    """The pins row's gates; the runner's pins are checked against the lock they come from, not resolved again."""
+    pinned = checks.Check("pins are the lock's", judge_lock_export) if kind == RUNNER else \
+        checks.Check("pins resolve", judge_resolves)
+    return (checks.Check("pins hashed", judge_hashed), pinned,
             checks.Check("build test", judge_build_test),
             checks.Check("only packages moved", judge_only_packages(kind)))
 
@@ -439,9 +471,45 @@ def judge_newton_smoke(output, inputs, evidence):
     return checks.Verdict("newton runs", checks.PASS, "the env script's pins, a card kernel and MuJoCo's fall right")
 
 
+def version_faults(image, conductor):
+    """What differs between the code versions the image worked out (versions.py's answer) and the conductor's."""
+    faults = [f"{name}: {image['versions'].get(name, 'none')[:12]} in the image, {wanted[:12]} here"
+              for name, wanted in sorted(conductor["versions"].items()) if image["versions"].get(name) != wanted]
+    faults += [f"{name}: a row only the image has"
+               for name in sorted(set(image["versions"]) - set(conductor["versions"]))]
+    if image["python"] != conductor["python"]:
+        faults.append(f"{image['python']} in the image, {conductor['python']} here")
+    return faults
+
+
+def conductor_versions():
+    """versions.py's answer in this Python on this tree."""
+    with tempfile.TemporaryDirectory() as folder:
+        subprocess.run([sys.executable, VERSIONS, f"{folder}/versions.json"], cwd=REPO, check=True,
+                       capture_output=True)
+        return json.loads(pathlib.Path(folder, "versions.json").read_text())
+
+
+def judge_runner_versions(output, inputs, evidence):
+    """Pass when every row's code version, worked out in the image, equals the conductor's on the same tree."""
+    expect = json.loads((output / PLAN).read_text())["expect"]["versions"]
+    found = output / PROOF / "versions" / expect["json"]
+    if not found.is_file():
+        return checks.Verdict("keys as the conductor", checks.FAIL, f"the proof wrote no {expect['json']}")
+    image = json.loads(found.read_text())
+    faults = version_faults(image, conductor_versions())
+    if faults:
+        return checks.Verdict("keys as the conductor", checks.FAIL, f"{len(faults)} rows key otherwise in the image",
+                              {"moved": len(faults)}, {"moved": "lower"}, tuple(faults))
+    return checks.Verdict("keys as the conductor", checks.PASS,
+                          f"all {len(image['versions'])} rows key as on the conductor",
+                          {"rows": len(image["versions"])})
+
+
 PROOF_CHECKS = {"moss": checks.Check("takes sound right", judge_moss_takes),
                 "characters-motion": checks.Check("clip walks", judge_motion_clip),
-                "newton": checks.Check("newton runs", judge_newton_smoke)}
+                "newton": checks.Check("newton runs", judge_newton_smoke),
+                RUNNER: checks.Check("keys as the conductor", judge_runner_versions)}
 
 
 def proof_checks(kind):
@@ -473,8 +541,9 @@ def tag_part(kind):
 def kind_stages(kind):
     """The kind's pins and proof stages."""
     folder = f"{{images}}/{kind}"
+    lock = {"lock": "{repo}/uv.lock"} if kind == RUNNER else {}
     pins = graph.Stage(f"image-pins-{kind}", "world", make_pins, PINS, pins_checks(kind),
-                       files={"folder": folder, "published": ("{images}/images.json", tag_part(kind))})
+                       files={"folder": folder, "published": ("{images}/images.json", tag_part(kind)), **lock})
     proof = graph.Stage(f"image-proof-{kind}", "world", make_proof(kind), PROVED, proof_checks(kind),
                         files={"folder": folder, **plan_code(kind)}, after={pins.name: (PINS.schema, PINS.version)},
                         paid=True, euros=plan_euros(kind))

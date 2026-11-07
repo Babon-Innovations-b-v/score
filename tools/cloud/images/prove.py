@@ -18,7 +18,9 @@ jobs in order:
 
 A job's `cache` names its node cache on the machine (/var/lib/score-cache-<cache>): a new name is a node seeing the
 weights for the first time, a used one a warm node. Every job's done.json timings, its container's seconds and the
-image's pull seconds go into images.json under the kind's "proof", by card; the outputs come back to `to`.
+image's pull seconds go into images.json under the kind's "proof", by card; the outputs come back to `to`. A run's
+`tree` names more repository paths its jobs read (the runner's: the whole tree its rows key on); they go up with its
+`code`, but only `code` is the proof row's input (score/stages/images), so the tree's other edits prove nothing again.
 """
 import argparse
 import json
@@ -98,7 +100,7 @@ def prove_on(machine, plan, store_spec, results):
     for kind_run in plan["runs"]:
         kind = kind_run["kind"]
         image = submit.image(kind)
-        kind_run["code_key"] = submit.upload_code(store, kind_run.get("code", []), kind)
+        kind_run["code_key"] = submit.upload_code(store, [*kind_run.get("code", []), *kind_run.get("tree", [])], kind)
         numbers = {"type": machine["type"], "class": machine["class"], "zone": machine["zone"],
                    "answered_minutes": answered, "docker_setup_minutes": setup,
                    "image": image,
