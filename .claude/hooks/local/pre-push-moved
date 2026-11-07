@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Refuse a push to main that moves the key of a paid row with an accepted output (score moved --pre-push), unless a
-# pushed commit's "Moved-rows: <node> ...: <reason>" trailer names it. Git runs .claude/hooks/pre-push, which hands
+# Refuse a push to main whose commit moves a paid row's key against main's (score moved --pre-push: code, stage table
+# part or a declared file, every world, about a minute), unless a pushed commit's "Moved-rows: <row or node> ...:
+# <reason>" trailer names it. Which rows a run would buy again is asked before a run starts, not here. Git runs .claude/hooks/pre-push, which hands
 # the push to .claude/hooks/local/pre-push (the push gate), which hands its stdin on to this script once its own checks
 # pass. It runs while
 #   git config score.movedCheck true        (score.movedTimeout: seconds before it gives up, default 3600)

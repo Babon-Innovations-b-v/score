@@ -10,8 +10,8 @@ nothing changed, else a temporary worktree of it, removed afterwards):
    by `make tests TESTS=...` (each in its sandbox, at its 120 s budget), at most JOBS at once, the whole run inside
    `score.pushTestSeconds` (default 600), which it prints; a failure or the budget running out refuses the push. A
    test file `MAY_SKIP` marks for the cluster gate (it needs a GPU) is left to that gate and named;
-3. hands the push lines on to .claude/hooks/local/pre-push-moved (the re-buy check, on when `score.movedCheck` is
-   true) and answers with its exit code.
+3. hands the push lines on to .claude/hooks/local/pre-push-moved (a moved paid row needs its Moved-rows trailer, on
+   when `score.movedCheck` is true) and answers with its exit code.
 
 Deletions, tags and other branches pass at once.
 """

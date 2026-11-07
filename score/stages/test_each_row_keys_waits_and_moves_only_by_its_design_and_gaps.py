@@ -244,10 +244,13 @@ Breaks (each applied once, seen red, reverted), in score/stages/batch_gaps.py:
 
 --- push gate names the paid rows it moves ---
 
-The push gate (moved.py, `score moved`, .claude/hooks/local/pre-push-moved) names exactly the paid rows a change would buy
-again, each with its price and why, and refuses a push to main only for the rows that push moves and no Moved-rows
-trailer names with a reason; drift already on main is a warning, a move no file explains (a params, contract or
-model change) is refused like any other, and the hook leaves no process or checkout behind.
+The push gate (moved.py, `score moved --pre-push`, .claude/hooks/local/pre-push-moved) asks only the cheap question, in
+about a minute: the rows the pushed commit moves against main's (code, stage table part, declared files, every world),
+refusing a push to main only for a moved paid row no Moved-rows trailer names with a reason; a move no file explains
+(a params, contract or model change) is refused like any other, and the hook leaves no process or checkout behind.
+`score moved` (no --pre-push) still names the paid rows a change would buy again, each with its price and why: a
+run's question before it starts (owner, 2026-11-07: "shouldnt the rebuy check just be before a buy"; asked at every
+push it took 15 to 20 minutes).
 
 A toy git repository stands in for this one (moved.REPO, _code.REPO): a paid render whose make sits in it and imports
 a framework file, a paid bake, each reading a data file of its own, and a paid film reading an unpaid drawing of a
@@ -257,16 +260,18 @@ Faults it guards (2026-10-17): about EUR 65 of re-buys (view maps, turntables, t
 code and data changes nobody saw would move a paid row's key before they were pushed (8b402226: blender_cloud.py,
 outside every code version but declared by the turntables; 1f90a0fe: new gap files a paid row declares). The first
 hook refused every push over drift already on main, refused branch deletions and took any trailer as leave for every
-row; its second form let a framework-only push through unchecked and only warned of a move no file explains. The two
-tests that worked out the real commits 8b402226 and 1f90a0fe took two minutes (and the first no longer held on
-today's table): the toy's declared data files hold the same rule, a file a row declares moves it.
+row; its second form let a framework-only push through unchecked and only warned of a move no file explains. On
+2026-11-07 cb8b4557 moved a paid images row through images.json, a world the snapshot did not cover.
 
 Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .claude/hooks/local/pre-push-moved:
 - `total`: `sum(row.euros ...)` read as `sum(0 * row.euros ...)`  -> the price-and-why test ("about EUR 3.00").
 - `main_pushes`: `ref == MAIN and` dropped  -> test_only_pushes_to_main_are_checked.
 - `trailer_nodes`: `and why.strip()` dropped  -> test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason.
-- `split`: the pushed rows' `if base is None or row.node not in known...` dropped  -> the drift tests (drift refused).
-- `unexplained`: `not named_in(...)` read as `named_in(...)`  -> test_a_trailer_lets_only_the_rows_it_names_go.
+- `unnamed_paid`: `not row_named(...)` read as `row_named(...)`  -> test_a_trailer_lets_only_the_rows_it_names_go;
+  its `row["paid"] and` dropped  -> test_a_push_is_refused_only_for_the_paid_rows_it_moves (a free row refused).
+- `row_named`: `node.partition("@")[0] in names` read as `node.startswith(row)`  ->
+  test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason (bake2 names bake).
+- `moved_rows`: its `before[name].get("table") != row.get("table")` dropped  -> test_a_move_no_file_explains_is_refused.
 - `edited_into_framework`: `after - before` read as `before - after`  -> the framework-move test.
 - .claude/hooks/local/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the changed-tree hook test
   (the checkout is left behind).
@@ -274,11 +279,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .cl
 - score/graph/_code.py `source_files`: FRAMEWORK not left out  -> test_a_framework_only_edit_lists_nothing.
 - score/graph/rebuy.py `buys`: `if remade[name]` read as `if not remade[name]`  ->
   test_a_row_moved_through_what_it_reads_is_listed.
-- score/graph/__init__.py: `params` left out of a stale row's reasons  -> test_a_move_no_file_explains_is_refused.
-- score/__main__.py `pushed_check`: `if base is None` read as `if base is not None`  ->
-  test_when_mains_commit_cannot_be_worked_out_every_moved_row_counts_as_the_pushes.
+- score/__main__.py `pre_push_check`: `if remote == moved.ZERO` check dropped  ->
+  test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree.
 - `snapshot`: `shutil.rmtree(holder)` made `pass`, or its `worktree remove` made `pass`  ->
-  test_base_rebuys_is_none_for_a_new_ref_an_unknown_commit_or_a_failing_tree_and_leaves_nothing_behind and
+  test_moved_of_an_unknown_commit_or_a_failing_tree_raises_and_leaves_nothing_behind and
   test_a_hook_that_runs_out_of_time_leaves_no_process_or_checkout_behind.
 - `tree_is_at`: the `git status --porcelain` check dropped  ->
   test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree.
@@ -2157,7 +2161,7 @@ def toy():
     for the time of a `with`; the framework's globals and the command's hooks are put back afterwards."""
     main = command()
     kept = (_code.REPO, _code.FRAMEWORK, moved.REPO, list(sys.path), compute.books_refusal,
-            main.every_world_moved, moved.base_rebuys)
+            moved.moved)
     repo = pathlib.Path(tempfile.mkdtemp()).resolve()
     git(repo, "init", "-q")
     (repo / "toy_render.py").write_text(RENDER_MAKE)
@@ -2178,7 +2182,7 @@ def toy():
         yield repo
     finally:
         (_code.REPO, _code.FRAMEWORK, moved.REPO, sys.path[:], compute.books_refusal,
-         main.every_world_moved, moved.base_rebuys) = kept
+         moved.moved) = kept
         _code.search_folders.cache_clear()
 
 
@@ -2205,11 +2209,6 @@ def made(repo):
 def rows(repo, store, **table):
     runner = a_runner(repo, store, **table)
     return {"toy": moved.rebuys(runner, list(runner.nodes(["hangar"])))}
-
-
-def nodes(rows_by_world):
-    """{world: [node]}: what base_rebuys gives for a commit."""
-    return {world: [row.node for row in found] for world, found in rows_by_world.items()}
 
 
 def exit_code(call, *args):
@@ -2275,62 +2274,48 @@ def test_only_pushes_to_main_are_checked():
     assert moved.main_pushes(lines + [f"HEAD {tip} refs/heads/main {base}"]) == [(tip, base)]
 
 
-def test_a_push_is_refused_only_for_the_rows_it_moves_and_drift_is_a_warning():
-    with toy() as repo:
-        store = made(repo)
-        (repo / "toy_render.py").write_text(RENDER_MAKE + "\n# moved before this push\n")
-        committed(repo, "render: already on main")
-        base = nodes(rows(repo, store))
-        pushed(repo, "data: a brighter hall", {"bake.txt": "a hall's brighter light"})
-        found = rows(repo, store)
-        assert base == {"toy": ["render@hangar"]} and [row.node for row in found["toy"]] == ["render@hangar",
-                                                                                              "bake@hangar"]
-        printed, code = exit_code(command().pushed_check, found, base, [])
-        assert code == moved.MOVED_EXIT
-        assert "warning, not refused" in printed and "toy render@hangar: EUR 4.00, code changed" in printed
-        assert "Moved-rows: bake@hangar: <why>" in printed and "render@hangar: <why>" not in printed
-        assert "EUR 0" in printed  # the refusal says a cached Google ask is never refused
+def snap(repo, store, **table):
+    """moved.row_entry of every toy row: the snapshot the toy's working tree gives."""
+    runner = a_runner(repo, store, **table)
+    return {row.name: moved.row_entry(runner, row, ["hangar"], repo) for row in runner.stages.values()}
 
 
-def test_drift_alone_lets_the_push_go():
+def test_a_push_is_refused_only_for_the_paid_rows_it_moves():
+    """A declared file moves its paid row, refused with no trailer; nothing moved, or only a free row, lets the push
+    go (a paid row reading it is a run's re-buy question, before it starts, not the push's)."""
     with toy() as repo:
         store = made(repo)
-        (repo / "toy_render.py").write_text(RENDER_MAKE + "\n# moved before this push\n")
-        committed(repo, "render: already on main")
-        base = nodes(rows(repo, store))
-        pushed(repo, "notes", {"notes.txt": "nothing a row reads"})
-        printed, code = exit_code(command().pushed_check, rows(repo, store), base, [])
-        assert code == 0 and "warning, not refused" in printed
+        before = snap(repo, store)
+        assert moved.moved_rows(before, snap(repo, store)) == {}
+        (repo / "bake.txt").write_text("a hall's brighter light")
+        found = moved.moved_rows(before, snap(repo, store))
+        assert list(found) == ["bake"] and found["bake"]["paid"] and found["bake"]["files"] == {"bake.txt": ["hangar"]}
+        printed, code = exit_code(command().pushed_check, found, [])
+        assert code == moved.MOVED_EXIT and "bake (paid): bake.txt (1 places)" in printed
+        assert "Moved-rows: bake: <why>" in printed
+        (repo / "bake.txt").write_text("a hall's light")
+        (repo / "draw.txt").write_text("a hall's new plan")
+        found = moved.moved_rows(before, snap(repo, store))
+        assert list(found) == ["draw"] and exit_code(command().pushed_check, found, [])[1] == 0
 
 
 def test_a_move_no_file_explains_is_refused():
     """A stage table edit (a row's params here; a contract, a model or an after alike) moves the row with no file of
-    its own changed: refused like any other, never a warning."""
+    its own changed: refused like any other."""
     with toy() as repo:
         store = made(repo)
-        base = nodes(rows(repo, store))
-        found = rows(repo, store, bake_params={"light": 2})
-        assert [(row.node, row.why) for row in found["toy"]] == [("bake@hangar", "params changed")]
-        printed, code = exit_code(command().pushed_check, found, base, [])
-        assert code == moved.MOVED_EXIT and "Moved-rows: bake@hangar: <why>" in printed
-        assert "warning, not refused" not in printed
+        found = moved.moved_rows(snap(repo, store), snap(repo, store, bake_params={"light": 2}))
+        assert list(found) == ["bake"] and found["bake"]["code"] and found["bake"]["files"] == {}
+        printed, code = exit_code(command().pushed_check, found, [])
+        assert code == moved.MOVED_EXIT and "Moved-rows: bake: <why>" in printed
 
 
-def test_when_mains_commit_cannot_be_worked_out_every_moved_row_counts_as_the_pushes():
-    with toy() as repo:
-        store = made(repo)
-        (repo / "bake.txt").write_text("a hall's brighter light")
-        printed, code = exit_code(command().pushed_check, rows(repo, store), None, [])
-        assert code == moved.MOVED_EXIT and "Moved-rows: bake@hangar: <why>" in printed
-        assert "could not be worked out" in printed
-
-
-def test_base_rebuys_is_none_for_a_new_ref_an_unknown_commit_or_a_failing_tree_and_leaves_nothing_behind():
+def test_moved_of_an_unknown_commit_or_a_failing_tree_raises_and_leaves_nothing_behind():
     with toy() as repo:
         left = set(repo.parent.glob("moved-*"))
-        assert moved.base_rebuys(moved.ZERO) is None
-        assert moved.base_rebuys("f" * 40) is None  # no such commit here
-        assert moved.base_rebuys(git(repo, "rev-parse", "HEAD")) is None  # the toy has no score package to run
+        for commit in ("f" * 40, git(repo, "rev-parse", "HEAD")):  # no such commit; the toy has no score to run
+            with pytest.raises(subprocess.CalledProcessError):
+                moved.snapshot(commit)
         assert set(repo.parent.glob("moved-*")) == left
         assert len(git(repo, "worktree", "list").splitlines()) == 1
 
@@ -2338,59 +2323,50 @@ def test_base_rebuys_is_none_for_a_new_ref_an_unknown_commit_or_a_failing_tree_a
 def test_a_trailer_lets_only_the_rows_it_names_go():
     with toy() as repo:
         store = made(repo)
-        base = nodes(rows(repo, store))
-        line, tip = pushed(repo, "data: a brighter hall and a new plan\n\nMoved-rows: bake@hangar: the owner asked",
-                           {"bake.txt": "a hall's brighter light", "draw.txt": "a hall's new plan"})
-        found = rows(repo, store)
+        before = snap(repo, store)
+        line, tip = pushed(repo, "data: a brighter hall and a new make\n\nMoved-rows: bake@hangar: the owner asked",
+                           {"bake.txt": "a hall's brighter light", "toy_render.py": RENDER_MAKE + "\n# moved\n"})
+        sys.modules.pop("toy_render", None)
+        found = moved.moved_rows(before, snap(repo, store))
+        assert sorted(found) == ["bake", "render"], found
         pushes = moved.main_pushes([line])
         reasons = moved.pushed_reasons(pushes)
         assert reasons == ["bake@hangar: the owner asked"]
-        printed, code = exit_code(command().pushed_check, found, base, reasons)
-        assert code == moved.MOVED_EXIT and "Moved-rows: film@hangar: <why>" in printed
+        printed, code = exit_code(command().pushed_check, found, reasons)
+        assert code == moved.MOVED_EXIT and "Moved-rows: render: <why>" in printed
         assert moved.pushed_reasons([(tip, moved.ZERO)]) == reasons  # a new remote ref: commits on no remote yet
-        assert not moved.named_in("bake@hangar", ["x"]) and not moved.named_in("bake@hang", reasons)
-        printed, code = exit_code(command().pushed_check, found, base, reasons + ["film@hangar: a new plan"])
+        printed, code = exit_code(command().pushed_check, found, reasons + ["render: a new make"])
         assert code == 0 and "Moved-rows: bake@hangar: the owner asked" in printed
 
 
 def test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason():
-    """"Moved-rows: <node> ...: <reason>": a node with no reason, or one only in another row's reason, is not named."""
-    assert moved.named_in("bake@hangar", ["bake@hangar film@hangar: the owner asked"])
-    assert moved.named_in("film@hangar", ["bake@hangar, film@hangar: the owner asked"])
-    assert not moved.named_in("bake@hangar", ["bake@hangar"])
-    assert not moved.named_in("bake@hangar", ["bake@hangar:  "])
-    assert not moved.named_in("bake@hangar", ["film@hangar: it reads bake@hangar"])
+    """"Moved-rows: <row or node> ...: <reason>": a row with no reason, or one only in another row's reason, is not
+    named; an environment's prefix may be left off."""
+    assert moved.row_named("bake", ["bake@hangar film@hangar: the owner asked"])
+    assert moved.row_named("film", ["bake, film: the owner asked"])
+    assert moved.row_named("images:image-proof-runner", ["image-proof-runner: a new build"])
+    assert not moved.row_named("bake", ["bake@hangar"])
+    assert not moved.row_named("bake", ["bake@hangar:  "])
+    assert not moved.row_named("bake", ["film@hangar: it reads bake@hangar"])
+    assert not moved.row_named("bake", ["bake2@hangar: another row"])
 
 
 def test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree():
     with toy() as repo:
-        store = made(repo)
         line, tip = pushed(repo, "data: a brighter hall", {"bake.txt": "a hall's brighter light"})
         main = command()
-        worked_out, bases = [], []
-        main.every_world_moved = lambda: worked_out.append(1) or rows(repo, store)
-        moved.base_rebuys = lambda remote: bases.append(remote) or {"toy": []}
+        bases = []
+        found = {"bake": {"paid": True, "code": False, "files": {"bake.txt": ["hangar"]}, "places": ["hangar"]}}
+        moved.moved = lambda base, head=None: bases.append((base, head)) or found
         (repo / "draw.txt").write_text("not committed")
         printed, code = exit_code(main.pre_push_check, [line])
-        assert code != 0 and "clean checkout" in printed and worked_out == []
+        assert code != 0 and "clean checkout" in printed and bases == []
         git(repo, "checkout", "--", "draw.txt")
+        printed, code = exit_code(main.pre_push_check, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
+        assert code != 0 and "not known" in printed and bases == []
         printed, code = exit_code(main.pre_push_check, [line])
-        assert code == moved.MOVED_EXIT and "Moved-rows: bake@hangar: <why>" in printed
-        assert worked_out == [1] and bases == [line.split()[3]]
-
-
-def test_a_framework_only_push_is_still_checked():
-    """The stage table is a framework file left out of every code version, yet it sets every row's params, contract,
-    models and after: a push of it alone is worked out like any other."""
-    with toy() as repo:
-        store = made(repo)
-        line, _ = pushed(repo, "framework", {"toy_frame.py": 'WORD = "made by the framework: "\n'})
-        main = command()
-        worked_out = []
-        main.every_world_moved = lambda: worked_out.append(1) or rows(repo, store, bake_params={"light": 2})
-        moved.base_rebuys = lambda remote: {"toy": []}
-        printed, code = exit_code(main.pre_push_check, [line])
-        assert worked_out == [1] and code == moved.MOVED_EXIT and "Moved-rows: bake@hangar: <why>" in printed
+        assert code == moved.MOVED_EXIT and "Moved-rows: bake: <why>" in printed
+        assert bases == [(line.split()[3], None)]
 
 
 HOOK = REPO / ".claude/hooks/local/pre-push-moved"
@@ -2410,7 +2386,7 @@ from score import __main__ as real
 from score.stages import moved
 moved.REPO = pathlib.Path.cwd()
 sleeper = "import os, pathlib, time; pathlib.Path(%r).write_text(str(os.getpid())); time.sleep(600)"
-real.every_world_moved = lambda: moved.snapshot("HEAD", sleeper % os.environ["HOOK_RECORD"])
+moved.moved = lambda base, head=None: moved.snapshot("HEAD", sleeper % os.environ["HOOK_RECORD"])
 real.main(["moved", "--pre-push"])  # never --pre-push --again
 """
 
@@ -2531,7 +2507,7 @@ def test_a_hook_that_runs_out_of_time_leaves_no_process_or_checkout_behind():
     git(repo, "config", "score.movedCheck", "true")
     git(repo, "config", "score.movedTimeout", "15")
     tip = git(repo, "rev-parse", "HEAD")
-    code, printed, sleeper = hook(repo, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"],
+    code, printed, sleeper = hook(repo, [f"refs/heads/main {tip} refs/heads/main {tip}"],
                                   env={"SCORE_REPO": str(REPO)})  # the sleeper's record is its pid
     assert code != 0 and "ran past 15 s" in printed and isinstance(sleeper, int), printed
     assert gone(sleeper)
