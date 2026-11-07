@@ -18,6 +18,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `judge_jobs_ran`: `"first_result" not in ...marks` read as `False`  -> the jobs test.
 - `publish`: `runner.usable(...)` read as `runner.store.records(...)`, any record  -> the publish test.
 - `publish`: the `built[PARENT] = parent` write left out  -> the publish test.
+- `judge_only_packages`: the first-build pass without `== []` (a first image's models passed unread)  -> test_loose_pins_fail.
 """
 import json
 import pathlib
@@ -90,6 +91,14 @@ def test_loose_pins_fail():
         edited = (output / "requirements.txt").read_text().replace("numpy==", "numpy==0", 1)
         (output / "requirements.txt").write_text(edited)
         assert images.judge_lock_export(output, lock, None).answer == checks.FAIL
+        # a first build (no tag published) passes `only packages moved` only with no models to license
+        published = output / "images.json"
+        published.write_text("{}")
+        (output / "models.json").write_text("[]")
+        judge = images.judge_only_packages("first")
+        assert judge(output, {"published": published}, None).answer == checks.PASS
+        (output / "models.json").write_text('[{"name": "a model", "licence": "unread"}]')
+        assert judge(output, {"published": published}, None).answer == checks.UNKNOWN
 
 
 def test_moss_takes_pass_heard_at_length_and_fail_otherwise():
