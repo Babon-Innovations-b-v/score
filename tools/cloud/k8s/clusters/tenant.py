@@ -169,18 +169,32 @@ def nodes():
     """The nodes of score's pools (class-labelled, tainted for score): name, pool, machine type, zone, status
     (ready, else not_ready) and creation time, read through kubectl (the scoped login reads nodes; no scw read of
     the cluster's project)."""
-    listed = []
+    listed, pools = [], []
     for node in json.loads(kubectl("get", "nodes", "-l", CLASS_LABEL, "-o", "json"))["items"]:
         meta, spec = node["metadata"], node.get("spec") or {}
         if not tainted_for_score(spec):
             continue
         labels = meta.get("labels") or {}
+        if not (labels.get(POOL_LABEL) and labels.get(INSTANCE_LABEL) and labels.get(ZONE_LABEL)):
+            pools = pools or class_pools()
+            labels = {**pool_labels(meta["name"], labels, pools), **labels}
         ready = any(condition["type"] == "Ready" and condition["status"] == "True"
                     for condition in (node.get("status") or {}).get("conditions", []))
         listed.append({"name": meta["name"], "pool": labels.get(POOL_LABEL, "?"),
                        "type": labels.get(INSTANCE_LABEL, "?").upper(), "zone": labels.get(ZONE_LABEL, "?"),
                        "status": "ready" if ready else "not_ready", "created": parse_time(meta["creationTimestamp"])})
     return listed
+
+
+def pool_labels(name, labels, pools):
+    """The pool, machine type and zone labels of a node that has joined before its cloud labels are set (seen
+    2026-11-07: a new L40S node priced "? in ?" for two minutes, every poll of the run failing meanwhile), from its
+    pool: the pool label, else the pool named in the node's name (scw-<cluster>-<pool>-<id>); none when neither."""
+    named = labels.get(POOL_LABEL) or next((pool["name"] for pool in pools if f"-{pool['name']}-" in name), None)
+    pool = next((pool for pool in pools if pool["name"] == named), None)
+    if pool is None:
+        return {}
+    return {POOL_LABEL: pool["name"], INSTANCE_LABEL: pool["type"], ZONE_LABEL: pool["zone"]}
 
 
 def kubectl(*arguments):

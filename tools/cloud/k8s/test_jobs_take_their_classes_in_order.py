@@ -743,6 +743,13 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
     monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
     assert tenant.nodes() == [{"name": "n1", "pool": "score-l4", "type": "L4-1-24G", "zone": "fr-par-2",
                                "status": "ready", "created": 1793959200.0}]  # an untainted node is not score's
+    # a node just joined, its cloud labels not set yet, is priced by its pool (named in its name), never "? in ?".
+    # Break: in tenant.nodes, drop the pool_labels fill
+    listed["items"] = [{"metadata": {"name": "scw-babon-score-l4-0a1b", "creationTimestamp": "2026-11-06T10:00:00Z",
+                                     "labels": {tenant.CLASS_LABEL: "gpu-24gb"}},
+                        "spec": {"taints": [taint]}, "status": {}}]
+    assert tenant.nodes() == [{"name": "scw-babon-score-l4-0a1b", "pool": "score-l4", "type": "L4-1-24G",
+                               "zone": "fr-par-2", "status": "not_ready", "created": 1793959200.0}]
 
 
 # ==== secrets and the GPU operator ==================================================================================
