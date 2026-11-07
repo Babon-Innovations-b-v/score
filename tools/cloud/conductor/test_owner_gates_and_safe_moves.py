@@ -678,6 +678,21 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
                                        (registry / "runs", "c", "ended", ["old@z"])):
         folder.mkdir(parents=True, exist_ok=True)
         (folder / f"{name}.json").write_text(json.dumps({"id": name, "state": state, "running": nodes}))
+    # a launch whose run waited for size and was resumed is read in its resumed log (2026-11-07: the door showed only
+    # Launch 33's first, stopped log). Break: in agent_door.followed, return `log` at once
+    first, then = registry / "logs" / "score-run-1.log", registry / "logs" / "score-run-2.log"
+    first.parent.mkdir(parents=True)
+    first.write_text("score run: waiting for size: 16 jobs, 2 cores; registered as w1; score resume starts it\\n")
+    then.write_text("heartbeat\\n")
+    (registry / "runs" / "w1.json").write_text(json.dumps({"id": "w1", "state": "resumed",
+                                                             "resumed": {"pid": 1, "log": str(then)}}))
+    assert agent_door.followed(str(first), registry / "runs") == str(then)
+    assert agent_door.followed(str(then), registry / "runs") == str(then)  # no entry named: itself
+    # the owner outbox's last lines, a frozen home's too (2026-11-07: was a light-passes SIGTERM the runaway watch's?)
+    # Break: in agent_door.outbox, drop the frozen homes' glob
+    (registry / "frozen" / "c1.home" / "store").mkdir(parents=True)
+    (registry / "frozen" / "c1.home" / "store" / "owner-outbox.txt").write_text("[runaway light-passes@hub k] stopped\n")
+    assert "[runaway light-passes@hub k] stopped" in agent_door.outbox(registry)
     now_running = agent_door.running(registry)
     assert "a (beat" in now_running and "1 running: pixal@hub" in now_running and "2 running: sound@lab, x@y" in now_running, now_running
     assert "old@z" not in now_running
