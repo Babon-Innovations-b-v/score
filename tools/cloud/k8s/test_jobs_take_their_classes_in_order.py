@@ -26,7 +26,9 @@ invariant with the break that turns it red (each applied once and seen red):
   Break: drop `compute.require_cleared` in `prepare`. Under the owner's override a run is stopped once its nodes
   cost what is left of his euros less 10% (ledger.batch_cap). Break: `over_limits` compares with
   `ledger.BATCH_EUROS`.
-- A run holds to its `parallel` jobs at once. Break: drop the `parallel` return in `submit_more`.
+- A run holds to its `parallel` jobs at once. Break: drop the `parallel` return in `submit_more`. A Job is made
+  only while the namespace's quota has room for its pod: 2 cards left and 5 card jobs make 2 and hold 3, which go on
+  once room comes; a quota's FailedCreate is no word to widen. Break: drop the `fits` check in `submit_more`.
 - Inputs go up at their paths (a folder as one key a file), outputs come back where the runner wants them, a job
   that did not finish is reported by its number. Break: report every job as failed in `cluster_jobs.run`.
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
@@ -225,6 +227,19 @@ class LiveKubectl:
         self.jobs.pop(name, None)
 
 
+class QuotaKubectl(LiveKubectl):
+    """A cluster with one ResourceQuota on the jobs' namespace, its hard and used as the test sets them."""
+
+    def __init__(self, hard, used):
+        super().__init__()
+        self.hard, self.used = hard, used
+
+    def json(self, *arguments):
+        if arguments[1] == "resourcequota":
+            return {"items": [{"spec": {"hard": self.hard}, "status": {"hard": self.hard, "used": self.used}}]}
+        return super().json(*arguments)
+
+
 def time_text(seconds):
     return submit.datetime.datetime.fromtimestamp(seconds, submit.datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -296,6 +311,24 @@ def test_resume_takes_up_the_newest_generation_and_a_run_holds_to_its_parallel_j
     assert len(kubectl.jobs) == 3
     submit.submit_more(run, None)
     assert len(kubectl.jobs) == 5
+
+    # quota admission (#76): the tenant's quota by its own names, 2 of its 24 cards left; 5 card jobs make 2, hold 3
+    kubectl = QuotaKubectl({"requests.cpu": "250", "requests.memory": "1200Gi", "requests.nvidia.com/gpu": "24"},
+                           {"requests.cpu": "66070m", "requests.memory": "440Gi", "requests.nvidia.com/gpu": "22"})
+    run = submit.Run("r2", {f"take-{number}": {"kind": "pixal", "image": "image", "minutes": 30}
+                            for number in range(5)}, kubectl, PoolCluster())
+    submit.submit_more(run, None)
+    assert len(kubectl.jobs) == 2 and sum(record["submitted"] is None for record in run.jobs.values()) == 3
+    kubectl.events = [{"reason": "FailedCreate", "involvedObject": {"kind": "Job", "name": name},
+                       "message": "Error creating: pods is forbidden: exceeded quota: score-jobs"}
+                      for name in kubectl.jobs]
+    run.kinds["pixal"]["since"] -= (submit.NODE_MINUTES + 1) * 60
+    _jobs, pods, no_grow = run.read()
+    run.widen(pods, no_grow)
+    assert run.kinds["pixal"]["step"] == 1  # a refused pod is no word that the classes cannot be had
+    kubectl.used["requests.nvidia.com/gpu"] = "23"  # the 2 made counted, one card freed elsewhere
+    submit.submit_more(run, None)
+    assert len(kubectl.jobs) == 3
 
 
 def test_nothing_goes_on_the_cluster_outside_a_cleared_run(monkeypatch):
