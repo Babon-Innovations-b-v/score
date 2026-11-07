@@ -6,7 +6,11 @@ job store, `queue/<box>/assign/<worker>/<seq>.json`, and says where it is in `qu
 `{seq, at, job}`, `seq` the last assignment it took and `job` the one it is on, None while it waits. It never deletes
 an assignment, so a restarted queue reads every one back. `{"go": true}` ends it; it also ends by itself once nothing
 came for a while, and its Job's deadline bounds it if the queue dies.
+
+The loop inside the pod is `worker.py`, mounted from the ConfigMap `configmap()` makes (named by its source's sha256,
+so a changed loop never reaches a worker already running the old one).
 """
+import hashlib
 import json
 import os
 import pathlib
@@ -18,8 +22,8 @@ sys.path.insert(0, str(HERE))
 
 import admission  # noqa: E402
 import manifests  # noqa: E402
+from worker import assignment_key, beat_key, store_prefix  # noqa: E402,F401  (the pod's loop owns the keys)
 
-WORKER_POLL = 3  # seconds between a worker's looks at its folder
 WORKER_IDLE_SECONDS = 120  # a worker with nothing of its chain queued or expected is told to go after this
 WORKER_EXPECTED_SECONDS = 600  # held at most this long while the drives expect work of its image (WARM_MINUTES)
 WORKER_HOURS = 6  # the worker Job's activeDeadlineSeconds, so a worker never outlives a dead queue for long
@@ -29,18 +33,22 @@ BAND_LABEL = "score.dev/band"
 CODE_LABEL = "score.dev/code"
 IMAGE_NOTE = "score.dev/image-ref"
 NO_CODE = "none"
+LOOP_SOURCE = HERE / "worker.py"
+LOOP_MOUNT = "/score-worker"
+LOOP_PYTHON = "/opt/score/venv/bin/python"  # the base image's runtime Python, the one score-job runs on
 
 
-def store_prefix(box):
-    return f"queue/{box}"
+def configmap_name():
+    """The worker loop's ConfigMap: `score-worker-` and the first 12 of its source's sha256."""
+    return "score-worker-" + hashlib.sha256(LOOP_SOURCE.read_bytes()).hexdigest()[:12]
 
 
-def assignment_key(box, worker, seq):
-    return f"{store_prefix(box)}/assign/{worker}/{seq:08d}.json"
-
-
-def beat_key(box, worker):
-    return f"{store_prefix(box)}/beat/{worker}.json"
+def configmap():
+    """The ConfigMap that carries worker.py into every worker's pod (applied with the workers it serves)."""
+    return {"apiVersion": "v1", "kind": "ConfigMap",
+            "metadata": {"name": configmap_name(), "namespace": manifests.NAMESPACE,
+                         "labels": {"app.kubernetes.io/part-of": "score"}},
+            "data": {"worker.py": LOOP_SOURCE.read_text()}}
 
 
 def chain_labels(chain):
@@ -62,23 +70,25 @@ def requests_of(band):
 
 def manifest(box, worker, chain, band, classes, cards, extra_tolerations=()):
     """The Job of one worker of `chain` and `band`, allowed on `classes` (preferred in order), asking `cards`. Its
-    container runs the queue's worker loop (worker.py, mounted from the queue's ConfigMap) in the chain's image."""
+    container runs the queue's worker loop (worker.py, mounted from `configmap()`) in the chain's image."""
     kind, image, code = chain
     tags = {"app.kubernetes.io/part-of": "score", manifests.BOX_LABEL: manifests.label_value(box),
             "score.dev/run": manifests.label_value(f"queue-{box}"), WORKER_LABEL: manifests.label_value(worker),
             BAND_LABEL: manifests.label_value(band), **chain_labels(chain)}
-    container = {"name": "worker", "image": image, "command": ["python3", "/score-worker/worker.py"],
+    container = {"name": "worker", "image": image, "command": [LOOP_PYTHON, f"{LOOP_MOUNT}/worker.py"],
                  "args": [box, worker], "envFrom": [{"secretRef": {"name": manifests.STORE_SECRET}}],
                  "env": [{"name": "SCORE_NODE", "valueFrom": {"fieldRef": {"fieldPath": "spec.nodeName"}}},
                          {"name": "SCORE_IMAGE", "value": image}],
                  "resources": manifests.resources(requests_of(band), cards),
                  "volumeMounts": [{"name": "cache", "mountPath": manifests.CACHE_MOUNT},
-                                  {"name": "shm", "mountPath": "/dev/shm"}]}
+                                  {"name": "shm", "mountPath": "/dev/shm"},
+                                  {"name": "loop", "mountPath": LOOP_MOUNT, "readOnly": True}]}
     pod = {"restartPolicy": "Never", "affinity": manifests.affinity(classes),
            "tolerations": manifests.tolerations(extra_tolerations),
            "imagePullSecrets": [{"name": manifests.REGISTRY_SECRET}], "containers": [container],
            "volumes": [{"name": "cache", "hostPath": {"path": manifests.CACHE_HOST_PATH, "type": "DirectoryOrCreate"}},
-                       {"name": "shm", "emptyDir": {"medium": "Memory", "sizeLimit": manifests.SHM_LIMIT}}]}
+                       {"name": "shm", "emptyDir": {"medium": "Memory", "sizeLimit": manifests.SHM_LIMIT}},
+                       {"name": "loop", "configMap": {"name": configmap_name()}}]}
     return {"apiVersion": "batch/v1", "kind": "Job",
             "metadata": {"name": job_name(box, worker), "namespace": manifests.NAMESPACE, "labels": tags,
                          "annotations": {IMAGE_NOTE: image, "score.dev/kind": kind, "score.dev/code-ref": code,

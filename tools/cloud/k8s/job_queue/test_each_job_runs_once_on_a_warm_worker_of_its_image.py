@@ -2,8 +2,8 @@
 order, and the box's nodes are paid once and stopped at the stop line.
 
 kubectl is a fake cluster (worker Jobs become pods on two-card nodes while the quota's 24 cards allow), the job store
-is a folder and the workers are played by the test (each takes its next assignment, writes the job's done.json and
-its beat): nothing is rented. Five runs of 40 jobs over two images; each invariant with the break that turns it
+is a folder and each running worker pod's loop is worker.py's own (`Worker.step`, one look a tick), its `score-job` a
+shell script that writes the job's done.json: nothing is rented. Five runs of 40 jobs over two images; each invariant with the break that turns it
 red (each applied once, seen red, reverted):
 
 - never more than 24 card pods. Break: drop the `fits` check in `Queue.grow`.
@@ -20,6 +20,9 @@ red (each applied once, seen red, reverted):
 - at the stop line nothing more is made and only this box's Jobs are deleted. Break: delete without the box selector
   in `Queue.stop`.
 - a client's wait returns the run's state once over, and raises Stale once the queue's beat is stale.
+- the worker loop (worker.py, mounted from the ConfigMap applied with the workers) runs each assignment's job once,
+  its beat naming the job while it runs, and ends on go or after IDLE_EXIT_SECONDS with nothing assigned. Break:
+  `serve` returns after its first job (a worker that exits after one job).
 - a run is handed to the queue only when it is cleared: an uncleared one is refused and no inbox file is written.
   Break: drop `require_cleared` in `job_queue.enqueue`.
 """
@@ -43,6 +46,7 @@ import ledger  # noqa: E402
 import manifests  # noqa: E402
 import store as stores  # noqa: E402
 import submitter  # noqa: E402
+import worker as worker_loop  # noqa: E402
 import workers  # noqa: E402
 
 spec = importlib.util.spec_from_file_location("queue_process", HERE / "__main__.py")
@@ -67,7 +71,7 @@ class FakeKube:
     quota's cards allow, else Pending; a foreign box's Job sits beside them."""
 
     def __init__(self, clock):
-        self.clock, self.jobs, self.pods, self.nodes, self.calls = clock, {}, {}, {}, []
+        self.clock, self.jobs, self.pods, self.nodes, self.calls, self.configmaps = clock, {}, {}, {}, [], []
         foreign = {"kind": "Job", "metadata": {"name": "score-other", "labels": {manifests.BOX_LABEL: "box-b",
                                                                     "app.kubernetes.io/part-of": "score"}}}
         self.jobs["score-other"] = foreign
@@ -92,6 +96,9 @@ class FakeKube:
     def apply(self, objects):
         self.calls.append(("apply",))
         for job in objects:
+            if job["kind"] == "ConfigMap":
+                self.configmaps.append(job)
+                continue
             self.jobs[job["metadata"]["name"]] = job
             self.made += 1
             cards = workers.cards_of(job["spec"]["template"]["spec"])
@@ -126,27 +133,35 @@ def time_text(seconds):
     return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def play_workers(kube, store, now, ran, went):
-    """Each running worker takes its next assignment: a job gets its done.json at once, go ends the pod."""
+def fake_job(folder, log):
+    """A `score-job <run> <job>` for the folder store at `folder`: it notes the job in `log` when a worker's beat names
+    it, then writes its done.json."""
+    script = folder.parent / f"{folder.name}-score-job"
+    script.write_text(f"""#!/bin/sh
+grep -qs '"'"$1/$2"'"' {folder}/queue/{BOX}/beat/*.json && echo "$1/$2" >> {log}
+mkdir -p {folder}/runs/$1/$2 && echo '{{}}' > {folder}/runs/$1/$2/done.json
+""")
+    script.chmod(0o755)
+    return [str(script)]
+
+
+def play_workers(kube, store, now, ran, went, loops, command):
+    """Each running worker pod's loop (worker.py) takes one look: its first writes its beat, a job runs `command`,
+    go ends the pod."""
     for worker, pod in kube.pods.items():
         if pod["status"]["phase"] != "Running" or pod["job"] not in kube.jobs:
             continue
-        beat_key = workers.beat_key(BOX, worker)
-        beat = json.loads(store.read_bytes(beat_key)) if store.exists(beat_key) else None
-        if beat is None:
-            store.write_bytes(beat_key, json.dumps({"seq": -1, "at": now, "job": None}).encode())
+        if worker not in loops:
+            loops[worker] = worker_loop.Worker(store, BOX, worker, command, clock=lambda: now)
             continue
-        key = workers.assignment_key(BOX, worker, beat["seq"] + 1)
-        if not store.exists(key):
-            continue
-        given = json.loads(store.read_bytes(key))
-        if given.get("go"):
+        key = workers.assignment_key(BOX, worker, loops[worker].seq + 1)
+        given = json.loads(store.read_bytes(key)) if store.exists(key) else None
+        taken = loops[worker].step()
+        if taken == "go":
             pod["status"]["phase"] = "Succeeded"
             went[worker] = now
-            continue
-        store.write_bytes(f"runs/{given['run']}/{given['job']}/done.json", b"{}")
-        ran.setdefault(worker, []).append((given["run"], given["job"], given["generation"], now))
-        store.write_bytes(beat_key, json.dumps({"seq": beat["seq"] + 1, "at": now, "job": None}).encode())
+        elif taken == "ran":
+            ran.setdefault(worker, []).append((given["run"], given["job"], given["generation"], now))
 
 
 def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch):
@@ -175,7 +190,8 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     expected = root / "expected" / f"{os.getpid()}.json"
     expected.write_text(json.dumps({"pixal": 3}))
     queue = process.Queue(kube, store, Cluster(), root, BOX, clock)
-    ran, went, most_cards, killed, ticks = {}, {}, 0, None, 0
+    ran, went, most_cards, killed, ticks, loops = {}, {}, 0, None, 0, {}
+    command = fake_job(tmp_path / "jobs", tmp_path / "ran.txt")
 
     def kill_one():
         """A worker dies holding an assignment it never took."""
@@ -195,7 +211,7 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
         assert sum(1 for call in calls if call[0] == "get") == 3 and sum(1 for call in calls if call == ("apply",)) <= 1
         most_cards = max(most_cards, kube.cards_used())
         found = between() if between else None
-        play_workers(kube, store, now[0], ran, went)
+        play_workers(kube, store, now[0], ran, went, loops, command)
         now[0] += process.QUEUE_TICK
         return found
 
@@ -226,6 +242,28 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     assert assigned[(killed["run"], killed["job"])] == [0, 1]
     assert all(len(generations) == 1 for key, generations in assigned.items() if key != (killed["run"], killed["job"]))
     assert kube.made <= 60 and sum(len(jobs) for jobs in ran.values()) / len(ran) >= 3  # a pull a worker, many jobs
+    assert sorted((tmp_path / "ran.txt").read_text().split()) == sorted(
+        f"{run}/{job}" for jobs in ran.values() for run, job, _generation, _at in jobs)  # each with its beat on it
+    loop_name = workers.configmap_name()
+    assert kube.configmaps and all(made["metadata"]["name"] == loop_name and made["data"]["worker.py"] == (
+        HERE / "worker.py").read_text() for made in kube.configmaps)
+    assert all({"name": "loop", "configMap": {"name": loop_name}} in job["spec"]["template"]["spec"]["volumes"]
+               for job in kube.jobs.values() if workers.WORKER_LABEL in job["metadata"]["labels"])
+
+    # The loop in one pod: each assignment's job once, ended by go; a worker with nothing assigned ends by itself.
+    lone = stores.FolderStore(tmp_path / "lone")
+    lone_command = fake_job(tmp_path / "lone", tmp_path / "lone-ran.txt")
+    given = [{"run": "r9", "job": f"j{index}", "generation": 0} for index in range(3)] + [{"go": True}]
+    for seq, value in enumerate(given):
+        lone.write_bytes(workers.assignment_key(BOX, "w1", seq), json.dumps(value).encode())
+    assert worker_loop.serve(worker_loop.Worker(lone, BOX, "w1", lone_command), poll=0) == "go"
+    assert (tmp_path / "lone-ran.txt").read_text().split() == ["r9/j0", "r9/j1", "r9/j2"]
+    assert all(lone.exists(f"runs/r9/j{index}/done.json") for index in range(3))
+    assert json.loads(lone.read_bytes(workers.beat_key(BOX, "w1")))["seq"] == 2
+    waited = [0.0]
+    lonely = worker_loop.Worker(lone, BOX, "w2", lone_command, clock=lambda: waited[0])
+    assert worker_loop.serve(lonely, sleep=lambda seconds: waited.__setitem__(0, waited[0] + seconds)) == "idle"
+    assert worker_loop.IDLE_EXIT_SECONDS <= waited[0] and worker_loop.IDLE_EXIT_SECONDS > workers.WORKER_EXPECTED_SECONDS
 
     # Priority first, places round robin within it.
     order = sorted((at, run) for jobs in ran.values() for run, _job, _generation, at in jobs)
