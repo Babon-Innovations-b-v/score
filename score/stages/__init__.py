@@ -26,7 +26,7 @@ import json
 import pathlib
 import tempfile
 
-from score import checks, contracts, graph
+from score import checks, contracts, graph, review
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
@@ -48,7 +48,7 @@ import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
 from score.stages.terrain import fit as ground_fit
 from score.review import concepts, plans
-from score.store import PROPS_HOME, Store, tree_hash
+from score.store import PROPS_HOME, Store, tree_hash, tree_listing
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 
@@ -1211,6 +1211,143 @@ STAGES = tuple(map(scripts_declared, STAGES))
 # row's code moves.
 UNSEEDED = ("likeness", "surfaces-check", "complete", "ground-fit", "light", "motion", "sim-body")
 STAGES = tuple(dataclasses.replace(row, seeded=False) if row.name in UNSEEDED else row for row in STAGES)
+
+
+def place_ground(listing, place):
+    """{path: sha256} of the terrain output's files a place's row reads: its own layer, `<body>/places/<place>.usdc`
+    (assembly.record.take_ground, the cast's and scene record's glob, ground-join's place_layer); {} where terrain
+    made none for the place (a ship's room)."""
+    return {name: sha for name, sha in listing.items()
+            if pathlib.PurePosixPath(name).parts[1:] == ("places", f"{place}.usdc")}
+
+
+def motion_moves(listing, place):
+    """{path: sha256} of the motion output's files the sound row reads: moves.json alone (sound/needs.py design_moves:
+    the things that move, timed, whose sounds it lays)."""
+    return {name: sha for name, sha in listing.items() if name == "moves.json"}
+
+
+# {reading row: {earlier row: the part of its output the reading row reads}}. Every place row reading terrain but
+# ground-fit (it reads its body's whole ground.json) reads its own place's layer alone; the sound reads motion's
+# moves.json alone. A reader whose every moved earlier output holds the same part keeps its accepted output under its
+# new key (part_carries): the square redrawn moved terrain's whole output, and every place's light passes and sound
+# (EUR 78) were listed again, though moon's and mars's places' layers stood as they were (2026-11-07).
+READ_PARTS = {**{name: {"terrain": place_ground} for name in (
+    "settle", "assembly", "scene-record", "ground-join", "cast", "sim-body", "scene-clips", "motion", "light-layer",
+    "light-passes", "light")}, "sound": {"motion": motion_moves}}
+# Earlier rows rebuy makes again in a scratch folder to see the part a reader reads before a drive makes them (free
+# and seconds: terrain@ made in 2.5 s on the conductor); any other moved read is counted as moving its readers.
+FORESEEN = ("terrain",)
+PART_REASON = "same part: every earlier output its key moved by holds the files it reads as when it was made"
+FORESIGHTS = {}  # {(row, key): its output's listing made again in a scratch folder, or None when the make failed}
+
+
+def part_moved(store, row, place, before, then, now):
+    """The part of `before`'s output the row reads, (then, now), when it differs, else None. `now` is an output hash
+    or a listing (foreseen)."""
+    part = READ_PARTS[row][before]
+    listing = store.listing(now) if isinstance(now, str) else now
+    old, new = part(store.listing(then), place), part(listing, place)
+    return None if old == new else (old, new)
+
+
+def part_standing(runner, stage, place, keyed):
+    """(the accepted record, {earlier row: {"from", "to"}} of each moved earlier output that holds the same part)
+    when the node's accepted output carries to `keyed`: every key part but those earlier outputs the same as its
+    record's, each a row of READ_PARTS[stage]. None otherwise."""
+    node = graph.node_name(stage, place)
+    accepted = runner.store.accepted(node)
+    record = review.record_of(runner.store, node, accepted) if accepted else None
+    if record is None or "remake" in keyed:
+        return None
+    if any(record.get(part) != keyed.get(part) for part in ("code", "contract", "expects", "params", "seed", "files",
+                                                             "models", "beside", "again")):
+        return None
+    then, now = record.get("after", {}), keyed.get("after", {})
+    if set(then) != set(now):
+        return None
+    moved = sorted(before for before in now if then[before] != now[before])
+    if not moved or any(before not in READ_PARTS[stage.name] for before in moved):
+        return None
+    if any(part_moved(runner.store, stage.name, place, before, then[before], now[before]) for before in moved):
+        return None
+    return record, {before: {"from": then[before], "to": now[before]} for before in moved}
+
+
+def part_carries(runner, stage, place, keyed):
+    """True when the node's accepted output carries to `keyed` by the parts it reads (part_standing): rebuy counts it
+    kept, and the run keeps it (part_carried)."""
+    return part_standing(runner, stage, place, keyed) is not None
+
+
+def part_carried(runner, stage, place, keyed):
+    """The node's accepted output stored under `keyed` when the earlier outputs its key moved by hold the parts it
+    reads as then (part_standing): its record and judgements copied, the carry named with both keys, what made it and
+    the outputs moved. Its new record, or None (the runner then makes it)."""
+    standing = part_standing(runner, stage, place, keyed)
+    if standing is None:
+        return None
+    record, same = standing
+    node = graph.node_name(stage, place)
+    new = {**record, "key": keyed["key"], "after": keyed["after"],
+           "carried": {"reason": PART_REASON, "from key": record["key"], "to key": keyed["key"],
+                       "made by": graph.made_by(record), "same part": same}}
+    try:
+        runner.store.write_record(node, keyed["key"], new)
+    except FileExistsError:  # another run kept it first
+        return runner.store.record(node, keyed["key"])
+    carry.copy_judgements(runner, node, record, keyed, new["carried"])
+    return new
+
+
+def foreseen(runner, stage):
+    """The listing of the environment row `stage` made again on its key now in a scratch folder (FORESIGHTS, once a
+    process a key), or None when its key is blocked or the make fails (its readers then count as moving)."""
+    try:
+        keyed = runner.key(stage, None)
+    except graph.Blocked:
+        return None
+    if (stage.name, keyed["key"]) not in FORESIGHTS:
+        with tempfile.TemporaryDirectory() as folder:
+            out = pathlib.Path(folder)
+            try:
+                stage.make(runner.input_paths(stage, None, keyed), out, keyed["seed"], keyed["params"])
+                contracts.stamp(stage.contract, out)
+                FORESIGHTS[stage.name, keyed["key"]] = tree_listing(out)
+            except Exception:  # a prediction only: the run makes this node and says its error there
+                FORESIGHTS[stage.name, keyed["key"]] = None
+    return FORESIGHTS[stage.name, keyed["key"]]
+
+
+def part_foreseen(runner, stage, place, before):
+    """True when the earlier node `before` (an environment row of FORESEEN), made again now, holds the part of it the
+    node's accepted output read when it was made: rebuy then counts the read as not moving it."""
+    row = before.partition("@")[0]
+    if row not in FORESEEN or row not in READ_PARTS.get(stage.name, {}) or "@" in before:
+        return False
+    node = graph.node_name(stage, place)
+    accepted = runner.store.accepted(node)
+    record = review.record_of(runner.store, node, accepted) if accepted else None
+    then = (record or {}).get("after", {}).get(row)
+    listing = foreseen(runner, runner.stages[row]) if then else None
+    return listing is not None and part_moved(runner.store, stage.name, place, row, then, listing) is None
+
+
+def part_read(row):
+    """A row of READ_PARTS keeping its accepted output over earlier outputs that moved elsewhere than the part it
+    reads (part_carries, part_carried, part_foreseen). Set here, in the table, so no row's code version moves."""
+    if row.name not in READ_PARTS:
+        return row
+    files = row.files if callable(row.files) else (lambda place: row.files)
+
+    @functools.wraps(files)
+    def declared(place):
+        return files(place)
+    declared.carries, declared.carried, declared.foreseen = part_carries, part_carried, part_foreseen
+    return dataclasses.replace(row, files=declared)
+
+
+STAGES = tuple(map(part_read, STAGES))
 
 
 def pixal_takes_tool():
