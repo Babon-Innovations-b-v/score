@@ -43,11 +43,12 @@ from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
 from score.graph import _code, chain, frozen, rebuy, runs, stopped  # noqa: E402
+from score.graph._toys import (  # noqa: E402
+    CLEAN, COUNT, DESIGNED, KEPT, PASSES, PEEK, POD_TABLE, READS, TEXT, WORDS, judge_shout, make_clean, make_count)
 from score.store import Store, file_hash, partial_of, tree_hash  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PLACES = ("hangar", "station")
-READS = ("toy-text", 1)
 BOOKS_FOLDER = tempfile.mkdtemp()
 
 
@@ -65,6 +66,29 @@ def no_cloud_bill_and_no_memory_taken(monkeypatch):
     compute.ledger().open_books_for_tests(BOOKS_FOLDER)
     monkeypatch.setattr(graph, "AVAILABLE", lambda: 2**50)
     monkeypatch.setattr(graph, "TOTAL", lambda: 2**50)
+
+
+@pytest.fixture(autouse=True)
+def store_writes_land_unsynced(monkeypatch):
+    """The store's writes land whole and moved into place as in a run (score/store/durable.py), opened as there, but
+    not fsynced: nothing here reboots to need it, and on the cluster gate's disk this file took 146 s against 120 s
+    with /tmp in memory. A node forked from this process gets the same."""
+    from score.store import durable
+    monkeypatch.setattr(durable, "synced", lambda path: os.close(os.open(path, os.O_RDONLY)))
+
+
+CHECKOUT = {}  # this checkout's commit and whether it has changes, as _code.git_commit read them once
+
+
+@pytest.fixture(autouse=True)
+def the_checkouts_commit_read_once(monkeypatch):
+    """A finish record's commit (_code.git_commit) read once for this checkout, which no test here commits to or
+    edits: each make read it again, `git rev-parse` and `git status` from the node's process, two thirds of a toy
+    node's time. A repository of a test's own (a_repo_of_its_own) is read each time, as in a run."""
+    read = _code.git_commit
+    if not CHECKOUT:
+        CHECKOUT.update(read())
+    monkeypatch.setattr(_code, "git_commit", lambda: dict(CHECKOUT) if _code.REPO == REPO else read())
 
 
 @pytest.fixture(autouse=True)
@@ -88,49 +112,7 @@ def nodes_print_to_their_file_descriptors(monkeypatch):
     monkeypatch.setattr(graph.Runner, "node_process", on_descriptors)
 
 
-# --- a toy table: clean (a place's brief upper-cased, gated on a word limit given as evidence), count after it -------
-
-def make_clean(inputs, out, seed, params):
-    print("cleaning", inputs["brief"])
-    text = inputs["brief"].read_text()
-    if "explode" in text:
-        raise RuntimeError("the cleaner fell over")
-    if "quit" in text:
-        raise SystemExit("the cleaner quit: no such material")
-    (out / "clean.txt").write_text(text.upper())
-
-
-def judge_words(output, inputs, evidence):
-    words = len((output / "clean.txt").read_text().split())
-    limit = json.loads(evidence.read_text())["limit"]
-    return checks.Verdict("words", checks.PASS if words <= limit else checks.FAIL, f"{words} words, limit {limit}",
-                          {"words": words}, {"words": "lower"},
-                          (f"{words - limit} words too many",) if words > limit else ())
-
-
-def judge_shout(output, inputs, evidence):
-    shouted = "!" in (output / "clean.txt").read_text()
-    return checks.Verdict("shout", checks.FAIL if shouted else checks.PASS, "shouts" if shouted else "no shouting")
-
-
-def make_count(inputs, out, seed, params):
-    (out / "count.txt").write_text(str(len((inputs["clean"] / "clean.txt").read_text())))
-
-
-def judge_passes(output, inputs, evidence):
-    return checks.Verdict("counted", checks.PASS, "written")
-
-
-def text_faults(folder):
-    return [] if any(folder.glob("*.txt")) else ["no text file"]
-
-
-TEXT = contracts.Contract("toy-text", 1, text_faults)
-WORDS = checks.Check("words", judge_words, evidence="a word limit")
-PASSES = (checks.Check("counted", judge_passes),)
-CLEAN = graph.Stage("clean", "place", make_clean, TEXT, (WORDS,), files={"brief": "{data}/{place}/brief.txt"})
-COUNT = graph.Stage("count", "place", make_count, TEXT, PASSES, after={"clean": READS})
-
+# --- the toy table (score/graph/_toys.py): its worlds, store and runner ---------------------------------------------
 
 def a_world(briefs):
     data = pathlib.Path(tempfile.mkdtemp())
@@ -155,7 +137,7 @@ def brief(world, place, text):
 
 def give_evidence(store, runner, place, limit):
     """A word limit as clean@place's evidence; its output."""
-    output = store.record(f"clean@{place}", runner.key(CLEAN, place)["key"])["output"]
+    output = store.record(f"clean@{place}", runner.key(runner.stages["clean"], place)["key"])["output"]
     path = pathlib.Path(tempfile.mkdtemp()) / "limit.json"
     path.write_text(json.dumps({"limit": limit}))
     store.put_evidence("words", output, path)
@@ -192,30 +174,6 @@ def make_logged_count(inputs, out, seed, params):
 LOGGED = (dataclasses.replace(CLEAN, make=make_logged_clean), dataclasses.replace(COUNT, make=make_logged_count))
 
 
-def make_peek(inputs, out, seed, params):
-    record = Store.default().record("clean@hangar", "any")  # a store read its key does not declare
-    (out / "peek.txt").write_text(str(record))
-
-
-PEEK = graph.Stage("peek", "place", make_peek, TEXT, PASSES, after={"clean": READS})
-
-
-def make_kept(inputs, out, seed, params):
-    (out / "kept.txt").write_text((inputs["clean"] / "clean.txt").read_text().lower())
-    Store.default().put_blob(out / "kept.txt", file_hash(out / "kept.txt"))  # a kept take's file: a write, no read
-
-
-def designed_files(place):
-    """The brief where the home holds the place's locked plan, else a seed nothing makes: a row's files as the stage
-    table reads them from the home's designs (score/stages earth_place: an earth place's seed from its plan)."""
-    import score.store
-    plan = score.store.PROPS_HOME / "design" / "plans" / f"{place}.json"
-    return {"brief": "{data}/{place}/brief.txt"} if plan.is_file() else {"seed": "{data}/{place}/seed.txt"}
-
-
-KEPT = graph.Stage("kept", "place", make_kept, TEXT, PASSES, after={"clean": READS})
-DESIGNED = graph.Stage("designed", "place", make_clean, TEXT, PASSES, files=designed_files)
-POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED)
 
 
 def code_tar(folder):
@@ -236,7 +194,7 @@ def a_pod_job(runner, stage, place, keyed, tree, bucket_root, folder, away=None)
     job file."""
     from score.graph import pod
     from score.store import offload
-    job = pod.job_of(runner, stage, place, keyed, tree.name, f"{__name__}:POD_TABLE")
+    job = pod.job_of(runner, stage, place, keyed, tree.name, "score.graph._toys:POD_TABLE")
     pod.pushed(runner, job, offload.FolderBucket(bucket_root), known=folder / "pushed")
     if away:
         away.unlink()
@@ -349,7 +307,7 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     offload.install(lambda: Named(bucket_root))
     monkeypatch.setattr(cluster_jobs, "run", ran_here)
     monkeypatch.setattr(pod, "dispatches", lambda stage: True)
-    monkeypatch.setattr(pod, "TABLE", f"{__name__}:POD_TABLE")
+    monkeypatch.setattr(pod, "TABLE", "score.graph._toys:POD_TABLE")
     monkeypatch.setattr(pod, "code_archive", lambda: folder / "code.tar")
     monkeypatch.setenv(pod.CLASSES_VARIABLE, "cpu-32c-64gb")
     monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)
@@ -2350,8 +2308,18 @@ def make_queued(inputs, out, seed, params):
     (out / "clean.txt").write_text(f"{os.environ.get('SCORE_QUEUE_PRIORITY')} {os.environ.get('SCORE_QUEUE_PLACE')}")
 
 
+# The drive's started nodes (a folder the drive's starts mark, the count of nodes it should hold at once), as a
+# drive in cpus_beside sets them before it forks its nodes.
+STARTED = [None, 0]
+
+
 def make_slow(inputs, out, seed, params):
-    time.sleep(3)  # a remote node's jobs on the cluster: the cpu nodes start meanwhile
+    """A remote node's jobs on the cluster: the cpu nodes start meanwhile. It holds until the drive has started every
+    node it should hold at once, or for 3 s when the drive kept some out."""
+    folder, every = STARTED
+    deadline = time.monotonic() + 3
+    while len(list(folder.iterdir())) < every and time.monotonic() < deadline:
+        time.sleep(0.02)
     (out / "mark.txt").write_text("marked")
 
 
@@ -2406,11 +2374,12 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     at once; 60 cluster waiters excuse 48; a waiter whose mark is gone (its run returned) holds its slot again.
     Break: score/graph/__init__.py: 'min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, remote_excused())' ->
     'min(claim_waiting + cluster_waiting, WAITERS_EXCUSED)' -> at most one cpu node beside the 20 remote ones.
-    #76 build spec S8: under the box's queue up to IN_FLIGHT waiters hold no slot (60 remote nodes and 16 cpu nodes
-    at once at --jobs 16); a node's queue priority is the count of waiting nodes that read it, through any others,
-    handed to its process; the drive writes its expected work by image kind for the queue, and removes it at its end.
+    #76 build spec S8: under the box's queue up to IN_FLIGHT waiters hold no slot (20 remote nodes, REMOTE_EXCUSED
+    scaled from 48 to 16, and 16 cpu nodes at once at --jobs 16); a node's queue priority is the count of waiting
+    nodes that read it, through any others, handed to its process; the drive writes its expected work by image kind
+    for the queue, and removes it at its end.
     Break: score/graph/__init__.py: 'min(cluster_waiting, remote_excused())' -> 'min(cluster_waiting, REMOTE_EXCUSED)'
-    (pod waiters counted as slots past 48) -> 4 cpu nodes beside the 60. Break: 'order.get(node, 0)' -> '0'.
+    (pod waiters counted as slots past 16) -> 12 cpu nodes beside the 20. Break: 'order.get(node, 0)' -> '0'.
     Break: score/graph/__init__.py: 'pod_expect([stage for stage, _ in waiting])' -> 'pass'."""
     briefs = {"hangar": "a ship", "station": "a hub", "dock": "a pier"}
     late = graph.Stage("late", "place", make_late, TEXT, PASSES)
@@ -2471,6 +2440,8 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
                 stage_of[process.pid], both[pipe] = stage.name, stage.name
             if list(both.values()).count("remote") == len(places):
                 beside[0] = max(beside[0], list(both.values()).count("cpu"))
+            for _, _, process in begun.values():
+                (STARTED[0] / str(process.pid)).touch()  # counted: its node may end
             return begun
 
         def counted_wait(connections, timeout=None):
@@ -2481,15 +2452,19 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
         runner.start = counted_start
         monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
         some = [f"cpu@{place}" for place in list(places)[:cpus]]
+        STARTED[:] = [pathlib.Path(tempfile.mkdtemp()), remotes + cpus]
         found = runner.drive(tuple(places), say=quiet, jobs=16, whole=False, only=["remote", *some])
         assert set(found.values()) == {ACCEPTED} and len(found) == remotes + cpus, found
         return beside[0]
     assert cpus_beside(20, 4) == 4
     assert graph.slots_held(70, 0, 60) == 22 and graph.slots_held(70, 8, 60) == 17
     # #76 S8: under the box's queue (SCORE_K8S_QUEUE) it admits within the quota, so up to IN_FLIGHT (400) waiters,
-    # pod makes among them, hold no slot: 60 remote nodes, past REMOTE_EXCUSED's 48, and 16 cpu nodes beside them.
+    # pod makes among them, hold no slot: 20 remote nodes, past REMOTE_EXCUSED (48 scaled to 16: fewer nodes forked),
+    # and 16 cpu nodes beside them.
     monkeypatch.setenv("SCORE_K8S_QUEUE", "1")
-    assert cpus_beside(60, 16) == 16
+    with monkeypatch.context() as scaled:
+        scaled.setattr(graph, "REMOTE_EXCUSED", 16)
+        assert cpus_beside(20, 16) == 16
     assert graph.slots_held(216, 0, 200) == 16 and graph.slots_held(500, 0, 450) == 100
     monkeypatch.delenv("SCORE_K8S_QUEUE")
     # A node's queue priority is how many waiting nodes read it, through any number of others (pod.downstream), handed
@@ -2581,7 +2556,7 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
     was expected at its stage's 8 GB peak on top of the container's reserve, which already counts that idle turn. A
     `client` stage whose nodes ran a container client, its kept peak 2 floors, 1.5 floors available once the first
     node started: on this PC the second node is expected at what the first's own tree held, so it starts at once;
-    off this PC it waits for the room (here a 3 s deadline).
+    off this PC it waits for the room (here a 2 s deadline).
     Break: score/graph/__init__.py: '    return clients[stage] if stage in clients else peaks.get(' ->
     '    return peaks.get(' -> the second node waits for the deadline on this PC.
     Break: score/graph/__init__.py: 'clients = self.keep_client_tree(stage.name, tree)' ->
@@ -2597,7 +2572,7 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
         monkeypatch.setenv(*graph.THIS_PC) if this_pc else monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
         runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (client,))
         runner.keep_peak("client", 2 * FLOOR)
-        started, start, until = [], runner.start, time.monotonic() + 3
+        started, start, until = [], runner.start, time.monotonic() + 2
         runner.start = lambda stage, place, threads, given=None, priority=0: started.append(time.monotonic()) or start(stage, place, threads, given, priority)
         monkeypatch.setattr(graph, "AVAILABLE", lambda: 100 * FLOOR if not started else
                             2.5 * FLOOR if time.monotonic() < until else 100 * FLOOR)
@@ -2922,15 +2897,24 @@ def test_a_run_started_as_a_script_imports_the_tools_library():
     assert done.stdout.strip().endswith("tools/props/library/library.py"), done.stdout + done.stderr[-2000:]
 
 
+# A run in miniature takes score/__main__ for its run machinery alone: score.stages stands as its bare package (its
+# modules importable, its stage tables never loaded, 1.6 s of imports a process); no part of a run's stop reads them.
+MAIN_ALONE = """
+import pathlib, sys, types
+sys.path.insert(0, sys.argv[1])
+import score
+score.stages = sys.modules["score.stages"] = types.ModuleType("score.stages")
+score.stages.__path__ = [str(pathlib.Path(sys.argv[1]) / "score" / "stages")]
+"""
 # A `score run` in miniature: it becomes a run with score/__main__'s stop handling, forks a node that waits, and
 # starts a batch that stops on SIGTERM and one that ignores it; it writes its run id and every pid.
-STOPPED_RUN = """
+STOPPED_RUN = MAIN_ALONE + """
 import json, os, pathlib, signal, subprocess, sys, time, types
 sys.path.insert(0, sys.argv[1])
 from score import __main__ as command
 from score.adapters import compute
 folder = pathlib.Path(sys.argv[2])
-command.STOP_GRACE_SECONDS = 2
+command.STOP_GRACE_SECONDS = 1
 runner = types.SimpleNamespace(store=types.SimpleNamespace(cache=folder / "cache", is_framework_store=lambda: True))
 
 
@@ -3036,7 +3020,7 @@ finally:
 # A `score run` in miniature whose one node runs SLOW_BATCH (argv[5]) from tools/cloud, its output piped to the node
 # as a stage's subprocess.run does; the run's grace is argv[3] seconds, each delete argv[4]; with argv[6], the node's
 # main thread runs no handler for that many seconds after the batch starts (long C code: its signals wait).
-GROUP_RUN = """
+GROUP_RUN = MAIN_ALONE + """
 import json, os, pathlib, signal, subprocess, sys, threading, time, types
 sys.path.insert(0, sys.argv[1])
 from score import __main__ as command, graph
@@ -3105,7 +3089,7 @@ def test_a_stopped_runs_cloud_batch_gets_one_stop_and_deletes_every_machine():
         return deleted_by(folder, run)[0]
 
     def stopped_while_busy():
-        run, folder = group_run(30, 0.8, "3")
+        run, folder = group_run(30, 0.8, "2")
         time.sleep(0.5)  # the node's main thread is in its stretch now
         os.killpg(run.pid, signal.SIGTERM)
         return deleted_by(folder, run)[0]
@@ -3131,7 +3115,7 @@ def test_a_stopped_run_holds_its_reservations_until_its_cloud_tools_have_ended()
     """Review of C7 (2026-10-17): a stopped run released its reservations as it exited, while the cloud tools it
     spared were still deleting machines that billed.
     Break: score/__main__.py: '    if not ending and not cloud_tool("park").parked_by(run_id):' -> '    if True:'"""
-    run, folder = group_run(1, 1.5)
+    run, folder = group_run(1, 0.8)
     run.send_signal(signal.SIGTERM)
     run.wait(timeout=60)
     deletes = folder / "deletes.txt"
@@ -3147,7 +3131,7 @@ def test_a_stopped_run_holds_its_reservations_until_its_cloud_tools_have_ended()
 
 # A shell pipeline's later stage (`... | score run`) in a session of its own, a pseudo-terminal its controlling
 # terminal: argv[2] "becomes" checks it holds the terminal as a run; "ends" checks a whole run gives it back.
-PIPELINE_RUN = """
+PIPELINE_RUN = MAIN_ALONE + """
 import fcntl, os, pathlib, signal, sys, tempfile, termios, time, types
 sys.path.insert(0, sys.argv[1])
 from score import __main__ as command
@@ -3203,20 +3187,20 @@ def slow_runner(seconds):
 
 def test_a_long_node_has_heartbeats_and_a_gauge_that_fails_is_said_without_ending_the_drive(monkeypatch):
     """Fault (2026-10-16): runs failed or sat idle quietly. Review (C8): a gauge that raised ended the drive; a stage's
-    own drive (no gauges) says no beat. The 2-minute beat and 3-minute node scaled to 0.3 s and 1.5 s.
+    own drive (no gauges) says no beat. The 2-minute beat and 3-minute node scaled to 0.2 s and 1 s.
     Break: score/graph/__init__.py: '            beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None' -> '            beat_in = None'"""
-    monkeypatch.setattr(graph, "HEARTBEAT", 0.3)
+    monkeypatch.setattr(graph, "HEARTBEAT", 0.2)
     said = []
-    assert slow_runner(1.5).drive(["hangar"], say=said.append, gauges=lambda: "EUR 0.00 so far") == {
+    assert slow_runner(1).drive(["hangar"], say=said.append, gauges=lambda: "EUR 0.00 so far") == {
         "slow@hangar": ACCEPTED}
     beats = [line for line in said[:said.index(f"slow@hangar: {ACCEPTED}")] if line.startswith("heartbeat ")]
     assert len(beats) >= 3 and beats[0].endswith(": rows done 0, running 1, queued 0; EUR 0.00 so far"), said
     said = []
-    assert slow_runner(1).drive(["hangar"], say=said.append, gauges=lambda: 1 / 0) == {"slow@hangar": ACCEPTED}
+    assert slow_runner(0.6).drive(["hangar"], say=said.append, gauges=lambda: 1 / 0) == {"slow@hangar": ACCEPTED}
     beats = [line for line in said if line.startswith("heartbeat ")]
     assert beats and beats[0].endswith("; gauges unreadable: ZeroDivisionError: division by zero"), said
     said = []
-    slow_runner(0.6).drive(["hangar"], say=said.append)
+    slow_runner(0.4).drive(["hangar"], say=said.append)
     assert not [line for line in said if line.startswith(("heartbeat ", "exit:"))], said
 
 
@@ -4490,12 +4474,12 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     monkeypatch.setattr(command, "card_rows", lambda *args: [("render@hangar", "hangar", 1, False)])
     monkeypatch.setattr(command, "pool_sizes", lambda rows, jobs: {"gpu-24gb": len(rows)})
     options.stage = ["render"]
-    assert command.phase_modules(runner, ["render"]) == [__name__]
+    assert command.phase_modules(runner, ["render"]) == ["score.graph._toys", __name__]  # its check, its make
     assert command.preflight(runner, ["hangar"], True, argparse.Namespace(stage=["render", "concept"]))[1] == [
         "no such stage: concept"]
     summary, failed = command.preflight(runner, ["hangar"], True, options)
     assert failed == [] and "clean" in summary and "guesses only: render@hangar" in summary, (summary, failed)
-    assert "1 of 1 modules import" in summary and "warm pool of {'gpu-24gb': 1} fits" in summary, summary
+    assert "2 of 2 modules import" in summary and "warm pool of {'gpu-24gb': 1} fits" in summary, summary
     (runner.world.roots["data"] / "hangar.txt").unlink()
     monkeypatch.setattr(command, "phase_modules", lambda runner, names: ["json", "score.no_such_module"])
     monkeypatch.setattr(books, "books_refusal", lambda: "the month's books are not known")
@@ -4538,7 +4522,7 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     assert locked == {"phase": "models", "nodes": [(table["pixal"], "hangar")]}, locked
     monkeypatch.setattr(command, "phase_modules", lambda runner, names: [])
     monkeypatch.setattr(books, "books_refusal", lambda: None)
-    monkeypatch.setattr(command, "DRY_SECONDS", 2)
+    monkeypatch.setattr(command, "DRY_SECONDS", 1)
     offers[0].stock_word = "available"
     found = {}
     for make in (make_missing_jobs, make_copy, make_to_the_rent, make_hashing, make_through_the_client):
@@ -4553,4 +4537,4 @@ def test_score_run_refuses_before_it_starts_records_a_given_reason_and_plans_on_
     assert found["make_through_the_client"][1] == [], found
     assert [failed[0].split(" (its log ")[0] for _, failed in [found["make_missing_jobs"], found["make_hashing"]]] == [
         "dry run: render@hangar: FileNotFoundError: no jobs file at render-jobs.json",
-        "dry run: render@hangar: its dry run passed its 2 s box before reaching a paid point"], found
+        "dry run: render@hangar: its dry run passed its 1 s box before reaching a paid point"], found
