@@ -637,27 +637,42 @@ def test_a_film_a_script_shows_waits_on_its_lock(tmp_path, monkeypatch):
     assert demo_film.films()["beta"]["final"] is True
 
 
+# The cut tests' frame: the cut's own steps at a small size, so a gate pod of 2-4 cores encodes them well inside the
+# time budget (at the showcase's 1920x1080 the two tests took 108 s of 110 on two cores); loudness, pacing, sources,
+# exposure and the timeline are measured as at full size.
+SMALL_CUT = (480, 270)
+
+
+@pytest.fixture
+def small_cut(monkeypatch):
+    """The showcase's clips drawn at SMALL_CUT (final.cut_tools' showcase W, H); the script's size to give the cut."""
+    _, showcase, _ = final.cut_tools()
+    monkeypatch.setattr(showcase, "W", SMALL_CUT[0])
+    monkeypatch.setattr(showcase, "H", SMALL_CUT[1])
+    return list(SMALL_CUT)
+
+
 def a_film(folder, tone, volume):
-    """A place film as demo-film keeps one: 9 s at 1280x720, its sound a tone at `volume`."""
+    """A place film as demo-film keeps one: 9 s at SMALL_CUT, its sound a tone at `volume`."""
     folder.mkdir(parents=True)
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    "testsrc2=size=1280x720:rate=24:duration=9", "-f", "lavfi", "-i",
+                    f"testsrc2=size={SMALL_CUT[0]}x{SMALL_CUT[1]}:rate=24:duration=9", "-f", "lavfi", "-i",
                     f"sine=frequency={tone}:duration=9,volume={volume}", "-c:v", "libx264", "-pix_fmt", "yuv420p",
                     "-c:a", "aac", "-shortest", str(folder / "film.mp4")], check=True)
     return folder
 
 
 def a_peel(folder, shot="wide"):
-    """A peel as the peel rows keep one: 5 s at 1280x720, silent, in its shot's folder."""
+    """A peel as the peel rows keep one: 5 s at SMALL_CUT, silent, in its shot's folder."""
     (folder / shot).mkdir(parents=True)
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    "testsrc2=size=1280x720:rate=24:duration=5", "-pix_fmt", "yuv420p",
+                    f"testsrc2=size={SMALL_CUT[0]}x{SMALL_CUT[1]}:rate=24:duration=5", "-pix_fmt", "yuv420p",
                     str(folder / shot / "peel.mp4")],
                    check=True)
     return folder
 
 
-def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch):
+def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch, small_cut):
     """Two place films at very different loudness and two peels cut into one 24 s film (2 + 7 + 7 + 5 + 5 less four
     half-second transitions), each segment from its own film or peel (a peel its row's, read beside, and Blocked by
     name while it is missing); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
@@ -670,7 +685,7 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
     peels = [{"cut": "body-peel", "shows": {"place": "alpha"}, "sound": "place", "seconds": 5.0,
               "captions": [{"from": 0.3, "to": 4.7, "line": "Alpha", "text": "clothed, bare mesh, sim body"}]},
              {"cut": "place-peel", "shows": {"place": "beta"}, "sound": "place", "seconds": 5.0}]
-    script.write_text(json.dumps(a_script([*WALKS, *peels])))
+    script.write_text(json.dumps(dict(a_script([*WALKS, *peels]), size=small_cut)))
     inputs = {"script toy": script, "demo-film@alpha": a_film(tmp_path / "alpha", 330, 0.05),
               "demo-film@beta": a_film(tmp_path / "beta", 440, 0.6),
               "place-peel@beta": a_peel(tmp_path / "beta-peel")}
@@ -693,7 +708,7 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
     assert verdict.answer == checks.FAIL and "toy: alpha: on screen 3.5 s, under 7 s" in verdict.findings, verdict
 
 
-def test_a_recorded_segment_is_cut_from_the_preview_s_take_of_that_very_segment(tmp_path):
+def test_a_recorded_segment_is_cut_from_the_preview_s_take_of_that_very_segment(tmp_path, small_cut):
     """A screen take is the free preview's take only while the preview was recorded from the segment the lock holds
     (a take recorded at 3 s for a segment now 4 s is Blocked); films are matched in exposure (a film at the middle
     keeps gain 1, a dark one is brought up at most GAIN_RANGE's top); the cut is 2 + 3 + 7 + 3 less three half-second
@@ -702,10 +717,11 @@ def test_a_recorded_segment_is_cut_from_the_preview_s_take_of_that_very_segment(
     Break: score/stages/demo_film/final.py: `return round(min(GAIN_RANGE[1], max(GAIN_RANGE[0], (middle - 16.0) /
         max(luma - 16.0, 1.0))), 3)` -> `return 1.0`"""
     take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
-    script = a_script([WALKS[0], take, WALKS[1]])
+    script = dict(a_script([WALKS[0], take, WALKS[1]]), size=small_cut)
     (tmp_path / "toy.json").write_text(json.dumps({"script": script}))
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    "testsrc2=size=1280x720:rate=24:duration=3", "-pix_fmt", "yuv420p", str(tmp_path / "002.mp4")],
+                    f"testsrc2=size={SMALL_CUT[0]}x{SMALL_CUT[1]}:rate=24:duration=3", "-pix_fmt", "yuv420p",
+                    str(tmp_path / "002.mp4")],
                    check=True)
     subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
                     "sine=frequency=220:duration=5", str(tmp_path / "bed.wav")], check=True)
