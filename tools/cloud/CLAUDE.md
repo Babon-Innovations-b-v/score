@@ -339,7 +339,10 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   `due_in`: the rows it reads still to run at their likely minutes, a running one at what is left of them and,
   once it has run past them, as long again as it has overrun: `still_to_run`; Batch 1 try 5 of 2026-10-26 parked 13
   machines idle 30 min while finish lists forecast at 3.7 min waited 18 to 43 min on Google's Batch API queue), so a machine is rented its start-up before its
-  first job and let go while its next job is further away; it opens at what is due then (`pool.sized`), and an
+  first job and let go while its next job is further away; a running row is due only within that lead of its
+  start or of its last use of the pool (`pool.uses`: an ask, a take or a give-back, its spend ticket's node; now while
+  it holds a machine), so a row at local work holds none (checkout 39, 2026-11-07: every running paid row kept the
+  pool's 10 cards parked five hours, EUR 77); it opens at what is due then (`pool.sized`), and an
   idle machine billed by the started hour stays till its paid hour ends (`pool.paid_ahead`) (`pool_tender`,
   `pool.resize`: never above its reserved size; Batch 1 of 2026-10-24 and 2026-10-25 held three processor machines
   idle an hour and ten cards idle while the close-ups ran 2.5 h; fault of 2026-10-24: 10 L4s and 3 POP2s held for 8
