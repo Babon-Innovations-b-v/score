@@ -1,4 +1,4 @@
-"""The conductor in the cluster (#76, the plan of 2026-11-07, steps 2 and 3): what a home on the cluster does
+"""The conductor in the cluster (#76, the plan of 2026-11-07, steps 2, 3 and 5): what a home on the cluster does
 differently from the VM. A home is the cluster's when `$PROPS_HOME/conductor/cluster.json` is there (written at the
 cutover; RECORD); without it nothing here acts and every caller behaves as on the VM and the PC.
 
@@ -16,12 +16,18 @@ cutover; RECORD); without it nothing here acts and every caller behaves as on th
   `max_memory_gb`; its processor request `jobs` x `cpu_per_job`. A run's jobs on such a home are the record's
   (`jobs`), so a price is worked out on the jobs the pod is given, never on the cores of whatever node answers.
   Inside a pod the guard reads the pod's own memory (`pod_memory`, cgroup v2), not the node's.
+- **Health from inside a pod** (step 5): the Machine card's figures from the pod and the volume, never systemd: the
+  units from the cluster's own answer (`pod_view`: the conductor pod's containers, the sync and backup CronJobs'
+  newest Jobs, every unit failed when the cluster does not answer), the memory and cores of the pod's own limits
+  (`pod_memory`, `cores`), each unit's log tail from `kubectl logs` (`pod_log`); the disk is the volume's, read as on
+  the VM.
 """
 import json
 import os
 import pathlib
 import re
 import subprocess
+import sys
 import time
 
 from score import conductor
@@ -168,3 +174,95 @@ def guard_pod_memory(graph_module, root=CGROUP, environment=None):
     graph_module.AVAILABLE = lambda: min(node_available(), pod_memory(root)[1])
     graph_module.TOTAL = lambda: min(node_total(), pod_memory(root)[0])
     return True
+def cores(root=CGROUP):
+    """This pod's processors by its cgroup's quota (cpu.max), else None (no quota: the node's)."""
+    try:
+        quota, period = (pathlib.Path(root) / "cpu.max").read_text().split()
+    except (OSError, ValueError):
+        return None
+    return None if quota == "max" else max(1, round(int(quota) / int(period)))
+
+
+
+
+def in_pod(environment=None):
+    """Whether this process runs in a Kubernetes pod (the API's address in its environment)."""
+    return bool((os.environ if environment is None else environment).get("KUBERNETES_SERVICE_HOST"))
+
+
+def kubectl_json(namespace, *words):
+    """kubectl's JSON answer from inside the pod (its ServiceAccount), or None with why on stderr."""
+    try:
+        done = subprocess.run(["kubectl", "-n", namespace, *words, "-o", "json"], capture_output=True, text=True,
+                              timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"score.conductor: the cluster did not answer: {error}", file=sys.stderr)
+        return None
+    if done.returncode:
+        print(f"score.conductor: the cluster did not answer: {done.stderr.strip()[:200]}", file=sys.stderr)
+        return None
+    return json.loads(done.stdout)
+
+
+def component(item):
+    return item["metadata"].get("labels", {}).get("app.kubernetes.io/component")
+
+
+def newest_job(items, unit):
+    """The newest Job of one CronJob's component (`sync`, `backup`), or None."""
+    runs = sorted((item for item in items if item["kind"] == "Job" and component(item) == unit),
+                  key=lambda item: item["metadata"].get("creationTimestamp", ""))
+    return runs[-1] if runs else None
+
+
+def job_state(job):
+    status = (job or {}).get("status", {})
+    if status.get("failed"):
+        return "failed"
+    return "active" if status.get("active") or status.get("succeeded") else "inactive"
+
+
+def pod_view(namespace="score", answer=None):
+    """{units: {sync, listen, resume, backup: active, failed or inactive}, last_sync: {at, ok} or None} of the
+    conductor's pods and CronJobs as the cluster answers, health's own shapes (health.UNITS, health.last_sync): listen
+    and resume the conductor pod's containers ready (resume is a unit of that pod, units.py), sync and backup their
+    CronJob's newest Job; every unit failed when the cluster does not answer, never read as fine."""
+    found = answer if answer is not None else kubectl_json(namespace, "get", "pods,jobs", "-l",
+                                                           "app.kubernetes.io/name=score-conductor")
+    if found is None:
+        return {"units": dict.fromkeys(("sync", "listen", "resume", "backup"), "failed"), "last_sync": None}
+    items = found.get("items", [])
+    pods = [item for item in items if item["kind"] == "Pod" and component(item) == "conductor"]
+    ready = [status.get("ready") for pod in pods for status in pod.get("status", {}).get("containerStatuses", [])]
+    conductor_state = "active" if ready and all(ready) else "failed" if pods else "inactive"
+    sync = newest_job(items, "sync")
+    ended = [job for job in items if job["kind"] == "Job" and component(job) == "sync"
+             and (job.get("status", {}).get("completionTime") or job.get("status", {}).get("failed"))]
+    last = max(ended, key=lambda job: job["metadata"].get("creationTimestamp", ""), default=None)
+    last_sync = None if last is None else {
+        "at": last["status"].get("completionTime") or last["metadata"].get("creationTimestamp"),
+        "ok": bool(last["status"].get("succeeded"))}
+    return {"units": {"sync": job_state(sync), "listen": conductor_state, "resume": conductor_state,
+                      "backup": job_state(newest_job(items, "backup"))}, "last_sync": last_sync}
+
+
+def pod_log(unit, limit_lines, namespace="score", run=subprocess.run):
+    """A unit's log tail from the cluster in place of its journal: the newest Job's pod for a CronJob's unit
+    (score-sync, score-backup), else the conductor pod's `conductor` container (units.py's log, every unit's lines);
+    why not, when kubectl cannot read it."""
+    name = unit.removesuffix(".service")
+    target = ["pod/score-conductor-0", "-c", "conductor"]
+    if name in ("score-sync", "score-backup"):
+        listed = kubectl_json(namespace, "get", "jobs", "-l", "app.kubernetes.io/name=score-conductor") or {}
+        job = newest_job(listed.get("items", []), name.removeprefix("score-"))
+        if job is None:
+            return ["log not read: no Job of it yet"]
+        target = [f"job/{job['metadata']['name']}"]
+    try:
+        done = run(["kubectl", "-n", namespace, "logs", *target, f"--tail={limit_lines * 2}"], capture_output=True,
+                   text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        return [f"log not read: {error}"]
+    if done.returncode:
+        return [f"log not read: {done.stderr.strip()[:200]}"]
+    return done.stdout.splitlines()

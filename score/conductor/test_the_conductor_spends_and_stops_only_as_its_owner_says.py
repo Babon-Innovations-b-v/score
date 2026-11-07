@@ -8,7 +8,7 @@ conductor's. Only the owner's process pulls the kill switch, which stops every r
 run's frozen copy), closes the pools before it releases every parked machine, and latches every `score` command free
 only; Stop this batch does the same without the latch. A detached run is capped in score-runs.slice at the memory
 less 6 GB, a step's own scope inherits it, and off a conductor nothing changes; on the cluster's home it is a Job of
-its own beside the conductor's pod, carrying no secret's value. Its health names what the Machine card
+its own beside the conductor's pod, carrying no secret's value, and its health there is read from the pods. Its health names what the Machine card
 reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line. No run
 starts under the data disk's floor, the health warns there, and clean-frozen removes only the frozen copies no run
 needs and no process works in, never what their homes link to, and nothing while it cannot tell; clean-cache
@@ -23,7 +23,8 @@ running); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
 ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
 SECRET_NAME test (the sync token's value lands in a drive Job's spec); or in score/__main__.py default_jobs drop the cluster
-record's jobs (a price on the cluster worked out on the node's cores).
+record's jobs (a price on the cluster worked out on the node's cores); or in cluster.pod_view read an unanswered
+cluster as no units (a dead cluster shows the conductor fine).
 """
 import datetime
 import io
@@ -578,6 +579,32 @@ def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(
     assert lagging["matches"] is False and lagging["why"] == said  # the checkout lags the pin, and why
     path = health.write(found, tmp_path / "health.json")
     assert json.loads(path.read_text()) == found and not list(tmp_path.glob("*.partial"))
+    # In the cluster's conductor pod (#76 step 5) the card's units come from the cluster's answer, never systemd, and
+    # a cluster that does not answer is every unit failed; memory and cores are the pod's own limits.
+    labels = {"app.kubernetes.io/name": "score-conductor"}
+
+    def job(unit, stamp, **status):
+        return {"kind": "Job", "metadata": {"name": f"{unit}-{stamp}", "creationTimestamp": f"2026-11-07T{stamp}Z",
+                                            "labels": {**labels, "app.kubernetes.io/component": unit}},
+                "status": status}
+    answer = {"items": [
+        {"kind": "Pod", "metadata": {"labels": {**labels, "app.kubernetes.io/component": "conductor"}},
+         "status": {"containerStatuses": [{"ready": True}, {"ready": True}]}},
+        job("sync", "20:00:00", succeeded=1, completionTime="2026-11-07T20:03:00Z"),
+        job("sync", "20:05:00", active=1), job("backup", "20:00:00", failed=1)]}
+    seen = cluster.pod_view(answer=answer)
+    assert seen["units"] == {"sync": "active", "listen": "active", "resume": "active", "backup": "failed"}
+    assert seen["last_sync"] == {"at": "2026-11-07T20:03:00Z", "ok": True}
+    monkeypatch.setattr(cluster, "kubectl_json", lambda *words: None)
+    assert set(cluster.pod_view()["units"].values()) == {"failed"}
+    (tmp_path / "cpu.max").write_text("400000 100000\n")
+    assert cluster.cores(tmp_path) == 4
+    (tmp_path / "cpu.max").write_text("max 100000\n")
+    assert cluster.cores(tmp_path) is None
+    asked = []
+    lines = cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: asked.append(argv) or
+                            subprocess.CompletedProcess(argv, 0, "[listen] up\n", ""))
+    assert lines == ["[listen] up"] and asked[0][3:7] == ["logs", "pod/score-conductor-0", "-c", "conductor"]
 
 
 def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret(tmp_path, monkeypatch):
