@@ -13,24 +13,21 @@ file the change moves into FRAMEWORK and edits too (the rows that read it are ma
 every moved row as {paid, code, files: {path: [places]}, places: [every place the row is declared at, "None" for a
 world row]}.
 
-The push gate (`python -m score moved [--pre-push]`, .claude/hooks/local/pre-push-moved) asks the dearer question of every world:
-which paid rows with an accepted output a drive would buy again (rebuy.buys), each at its price and why.
+`python -m score moved` asks the dearer question of every world: which paid rows with an accepted output a drive
+would buy again (rebuy.buys, scratch remakes), each at its price and why; a run asks it before it starts (rebuy.py's
+refusal over EUR 5). The push gate asks only the cheap one (owner, 2026-11-07: "shouldnt the rebuy check just be
+before a buy"; the dearer one took 15 to 20 minutes a push): `python -m score moved --pre-push`
+(.claude/hooks/local/pre-push-moved) refuses a push to main whose commit moves a paid row of any world (by its code,
+its stage table part or a declared file, against main's commit, the remote's sha) unless a pushed commit's
+"Moved-rows: <row or node> ...: <reason>" trailer names it; main's commit unknown (a new ref) refuses.
 
     found = moved.rebuys(runner, nodes)          # [rebuy.Buy] of the re-buys, priced
     moved.listing({"world1": found})             # the lines `score moved` prints, with the total
     pushes = moved.main_pushes(push_lines)       # (local sha, remote sha) of each push line to main, deletions left out
-    base = moved.base_rebuys(remote)             # {world: [node]} re-bought at main's commit; None when unknown
-    pushed, drift = moved.split(found_by_world, base)   # rows this push moves; drift already on main
-    moved.unexplained(pushed, moved.pushed_reasons(pushes))   # the paid rows no "Moved-rows:" trailer names
+    found = moved.moved(remote)                  # every row the working tree moves against main's commit
+    moved.unnamed_paid(found, moved.pushed_reasons(pushes))   # the paid rows no "Moved-rows:" trailer names
 
-A push moves a row when the pushed commit would buy it again and main's commit (the remote's sha, worked out in a
-checkout of its own) would not, whatever moved its key: code, a declared file, or the stage table's params,
-contract, models and after, which no file of the row's own names. Rows main already re-buys print as a warning.
-When main's commit cannot be worked out (a new ref, a commit not here, one from before the stage table it runs),
-every moved row counts as the push's: the gate fails closed. A pushed row goes when a pushed commit's "Moved-rows:
-<node> ...: <reason>" trailer lists it before the colon and gives a reason. A row priced EUR 0 (a Google ask its
-cache answers) is listed, never
-refused. The price is the row's estimate (Stage.euros). Why: about EUR 65 of re-buys (view maps, turntables, the
+Why: about EUR 65 of re-buys (view maps, turntables, the
 cockpit library push) came from code and data changes nobody saw would move a paid row's key, 2026-10-17.
 """
 import argparse
@@ -47,56 +44,62 @@ from score.graph import _code
 from score.graph import rebuy
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
-SNAPSHOT = """import contextlib, json, pathlib, sys
-sys.path.insert(0, ".")
-from score import graph, stages
-from score.graph import _code
-from score.store import file_hash, listing_hash, text_hash
-runner = stages.runner(world=stages.WORLDS["world1"]())
-repo = pathlib.Path(".").resolve()
-found = {}
-with getattr(runner, "still", contextlib.nullcontext)():  # each node's files worked out once a run, not once a path
-    # (files_of outside a pass listed them again for every file_path: 19 min, nearly all of it subprocesses, 2026-11-06),
-    # the places too (listed outside it, each place's plan was made again for every question, 2026-11-07)
-    places = stages.places(runner.world)
-    if not places:  # every place row would declare nothing, so none could move by a declared file (2026-10-28)
-        sys.exit(f"moved: the home {stages.PROPS_HOME} holds no place: run it with PROPS_HOME the run's home")
-    for row in stages.STAGES:
-        declared = {}
-        for place in ([None] if row.grain == "world" else places):
-            if row.applies and place is not None and not row.applies(place):
-                continue
-            try:
-                names = runner.files_of(row, place)
-            except Exception:  # a row whose files cannot be listed for a place (its data missing) declares none there
-                continue
-            keys = {}
-            for name, pattern in names.items():
-                path = runner.file_path(row, name, place).resolve()
-                if path.is_relative_to(repo):
-                    keys[path.relative_to(repo).as_posix()] = ("missing" if not path.exists() else
-                        text_hash(pattern[1](path)) if isinstance(pattern, tuple) else graph.source_hash(path))
-            declared[str(place)] = keys
-        found[row.name] = {"paid": bool(row.paid), "declared": declared,
-                           "code": listing_hash(_code.code_version(graph.code_functions(row), file_hash))}
-print(json.dumps(found))"""
-
-
-REBUYS = """import contextlib, json, sys
+SNAPSHOT = """import contextlib, importlib.util, json, pathlib, sys
 sys.path.insert(0, ".")
 from score import stages
-from score.graph import rebuy
+spec = importlib.util.spec_from_file_location("moved_now", %r)  # this tree's row_entry, whichever tree is snapshot
+now = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(now)
+repo = pathlib.Path(".").resolve()
+tables = getattr(stages, "TABLES", {})
 found = {}
-for name, make in sorted(stages.WORLDS.items()):
+for world, make in sorted(getattr(stages, "WORLDS", {"world1": stages.world1}).items()):
     runner = stages.runner(world=make())
-    with getattr(runner, "still", contextlib.nullcontext)():  # places and line nodes listed once (2026-11-07)
-        nodes = runner.line_nodes(stages.places(runner.world), True)
-        found[name] = [buy.node for buy in rebuy.buys(runner, nodes) if buy.again]
-print(json.dumps(found))"""
+    with getattr(runner, "still", contextlib.nullcontext)():  # each node's files worked out once a run, not once a
+        # path (files_of outside a pass listed them again for every file_path: 19 min, 2026-11-06), the places too
+        places = stages.places(runner.world)
+        if world == "world1" and not places:  # no place row could move by a declared file (2026-10-28)
+            sys.exit(f"moved: the home {stages.PROPS_HOME} holds no place: run it with PROPS_HOME the run's home")
+        for row in tables.get(world, stages.STAGES):
+            found[now.row_name(world, row.name)] = now.row_entry(runner, row, places, repo)
+print(json.dumps(found))""" % str(pathlib.Path(__file__).resolve())
 TRAILER = "Moved-rows"
 MOVED_EXIT = 3
 ZERO = "0" * 40
 MAIN = "refs/heads/main"
+
+
+def row_name(world, row):
+    """A row's name in a snapshot: its own in environment 1, `<world>:<row>` in another (the images world)."""
+    return row if world == "world1" else f"{world}:{row}"
+
+
+def row_entry(runner, row, places, repo):
+    """{"paid", "declared": {place: {repository path: its key}}, "code": its code version, "table": the hash of what
+    the stage table gives its key (contract, params, after, beside, models; Runner.own_parts)}: one row of a snapshot.
+    The table part moves a row whose own files did not change (a params edit in the framework's table)."""
+    from score import graph
+    from score.store import file_hash, listing_hash, text_hash
+    declared = {}
+    for place in ([None] if row.grain == "world" else places):
+        if row.applies and place is not None and not row.applies(place):
+            continue
+        try:
+            names = runner.files_of(row, place)
+        except Exception:  # a row whose files cannot be listed for a place (its data missing) declares none there
+            continue
+        keys = {}
+        for name, pattern in names.items():
+            path = runner.file_path(row, name, place).resolve()
+            if path.is_relative_to(repo):
+                keys[path.relative_to(repo).as_posix()] = ("missing" if not path.exists() else
+                    text_hash(pattern[1](path)) if isinstance(pattern, tuple) else graph.source_hash(path))
+        declared[str(place)] = keys
+    table = {"contract": row.contract.stamp_of(), "params": runner.params_of(row), "after": row.after,
+             "beside": row.beside, "models": {kind: runner.model_record(kind) for kind in row.models}}
+    return {"paid": bool(row.paid), "declared": declared, "table": text_hash(json.dumps(table, sort_keys=True,
+                                                                                         default=str)),
+            "code": listing_hash(_code.code_version(graph.code_functions(row), file_hash))}
 
 
 def snapshot_here(folder, script=SNAPSHOT):
@@ -132,10 +135,16 @@ def moved(base, head=None):
     """{row: {"paid", "code": its code version moved, "files": {declared path: [places]}, "places": [every place it
     is declared at]}} of every row the change from `base` to `head` moves, by its code or by a file it declares that
     keys differently (or is newly declared or no longer)."""
-    before, after = snapshot(base), snapshot(head)
+    return moved_rows(snapshot(base), snapshot(head))
+
+
+def moved_rows(before, after):
+    """moved()'s answer from two snapshots: a row moves by its code version, its stage table part or a declared
+    file's key (its code marked for the first two)."""
     found = {}
     for name, row in after.items():
-        code = name not in before or before[name]["code"] != row["code"]
+        code = (name not in before or before[name]["code"] != row["code"]
+                or before[name].get("table") != row.get("table"))
         files = {}
         for place, keys in row["declared"].items():
             earlier = before.get(name, {}).get("declared", {}).get(place, {})
@@ -189,17 +198,6 @@ def main_pushes(push_lines):
     return [(local, remote) for _, local, ref, remote in words if ref == MAIN and local != ZERO]
 
 
-def base_rebuys(remote):
-    """{world: [node]} of the rows main's commit `remote` would buy again, worked out in a checkout of it; None when
-    it cannot be (a new ref, a commit not here, a tree whose stage table does not run the check)."""
-    if remote == ZERO:
-        return None
-    try:
-        return snapshot(remote, REBUYS)
-    except subprocess.CalledProcessError:
-        return None
-
-
 def git_lines(*words):
     """The non-empty output lines of a git command run in this repository."""
     found = subprocess.run(["git", "-C", str(REPO), *words], capture_output=True, text=True, check=True)
@@ -229,27 +227,18 @@ def trailer_nodes(reason):
     return set(listed.replace(",", " ").split()) if colon and why.strip() else set()
 
 
-def named_in(node, reasons):
-    """True when a trailer value lists the node among its nodes, with a reason ("render@hangar: why", not
-    "render@hangar2: why", "render@hangar" alone, nor "film@hangar: it reads render@hangar")."""
-    return any(node in trailer_nodes(reason) for reason in reasons)
+def row_named(row, reasons):
+    """True when a trailer value lists the row, with a reason: by its name (an environment's prefix,
+    "images:", left off or not) or a node of it ("bake@hangar: why" names bake, "bake2@hangar: why", "bake" alone
+    with no reason, nor "film: it reads bake" do not)."""
+    names = {row, row.rpartition(":")[2]}
+    return any(node in names or node.partition("@")[0] in names for reason in reasons
+               for node in trailer_nodes(reason))
 
 
-def split(rows_by_world, base):
-    """({world: rows the push moved}, {world: rows main's commit buys again too}); with `base` None (main's commit
-    not worked out) every row counts as moved by the push."""
-    known = base or {}
-    pushed = {world: [row for row in rows if base is None or row.node not in known.get(world, [])]
-              for world, rows in rows_by_world.items()}
-    drift = {world: [row for row in rows if base is not None and row.node in known.get(world, [])]
-             for world, rows in rows_by_world.items()}
-    return pushed, drift
-
-
-def unexplained(pushed, reasons):
-    """{world: rows} of the pushed rows that cost money and that no Moved-rows trailer names."""
-    return {world: [row for row in rows if row.euros > 0 and not named_in(row.node, reasons)]
-            for world, rows in pushed.items()}
+def unnamed_paid(found, reasons):
+    """The paid rows of `found` (moved's answer) no Moved-rows trailer names, sorted."""
+    return sorted(name for name, row in found.items() if row["paid"] and not row_named(name, reasons))
 
 
 def tree_is_at(commit):
@@ -257,6 +246,17 @@ def tree_is_at(commit):
     is pushed."""
     head = git_lines("rev-parse", "HEAD")
     return head == [git_lines("rev-parse", commit)[0]] and not git_lines("status", "--porcelain")
+
+
+def moved_listing(found):
+    """moved()'s answer as lines: each moved row (paid marked) and why, then the count."""
+    lines = []
+    for name, row in sorted(found.items()):
+        why = (["code"] if row["code"] else []) + [f"{path} ({len(places)} places)" for path, places in
+                                                   sorted(row["files"].items())]
+        lines.append(f"{name}{' (paid)' if row['paid'] else ''}: {', '.join(why)}")
+    lines.append(f"{len(found)} rows moved, {sum(row['paid'] for row in found.values())} of them paid")
+    return "\n".join(lines)
 
 
 def main(argv=None):
@@ -269,11 +269,7 @@ def main(argv=None):
     if options.json:
         print(json.dumps(found))
         return
-    for name, row in sorted(found.items()):
-        why = (["code"] if row["code"] else []) + [f"{path} ({len(places)} places)" for path, places in
-                                                   sorted(row["files"].items())]
-        print(f"{name}{' (paid)' if row['paid'] else ''}: {', '.join(why)}")
-    print(f"{len(found)} rows moved, {sum(row['paid'] for row in found.values())} of them paid")
+    print(moved_listing(found))
     for path in edited_into_framework(options.base, options.head):
         print(f"warning: {path} moves into FRAMEWORK and is edited in the same change: the rows that read it are "
               f"made again")

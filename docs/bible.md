@@ -816,11 +816,13 @@ his words quoted and the time, like a benchmark grant. Locks, accepts, rejects, 
 state is a label (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
 
 **Before you push.** The test of the module you touched when it is quick, and `python3 docs/adr/tools/check_index.py`; the cluster's gate runs the whole suite on the push (`make gate-result` reads it). The repo works on
-`main` only (ADR-0001), so a push is the ship. Before pushing an edit to anything a stage hashes, run `python -m score
-moved`: it lists every paid row the diff would buy again; a commit that moves one on purpose names it in a
-`Moved-rows: <node> ...: <reason>` trailer (`.claude/hooks/local/pre-push-moved` refuses an unnamed move once the owner sets
-`git config score.movedCheck true`). A push to main is refused when the test rule, a touched module's
-test or the re-buy check fails (`.claude/hooks/local/pre-push`).
+`main` only (ADR-0001), so a push is the ship. A push to main is refused when the test rule or a touched module's
+test fails, or when the pushed commit moves a paid row's key (its code, its stage table part or a file it declares,
+`python -m score.stages.moved <main> HEAD`, about a minute) and no pushed commit's `Moved-rows: <row or node> ...:
+<reason>` trailer names it (`.claude/hooks/local/pre-push`, then `pre-push-moved` while `git config score.movedCheck
+true`, which bootstrap sets). Which paid rows a run would buy again (`python -m score moved`, scratch remakes, minutes)
+is asked before a Buy or a run starts, not at the push (owner, 2026-11-07: "shouldnt the rebuy check just be before a
+buy").
 
 **Commits.** Imperative and scoped, `module: description`; a subject that needs "and" is two commits.
 

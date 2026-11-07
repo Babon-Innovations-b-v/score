@@ -76,10 +76,10 @@ would cost over EUR 5, unless given --rebuy-reason, which goes into the run's lo
 
 `moved` lists, read-only, every paid row with an accepted output this working tree would buy again over every
 environment's places, each with its price and why, and the total (score/stages/moved.py); it exits 3 above EUR 0. With --pre-push
-(.claude/hooks/local/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it refuses the paid
-rows that commit would buy again and main's commit would not, unless a pushed commit's "Moved-rows: <node> ...:
-<reason>" trailer names each; rows main already buys again print as a warning, and when main's commit cannot be
-worked out every moved row counts as the push's. The hook runs while `git config score.movedCheck true`
+(.claude/hooks/local/pre-push-moved, the push lines on stdin, run in a checkout of the commit pushed to main) it asks
+only the cheap question, in about a minute: the rows that commit moves against main's (score.stages.moved: code, stage
+table part, declared files), refusing a moved paid row unless a pushed commit's "Moved-rows: <row or node> ...:
+<reason>" trailer names it; main's commit unknown refuses. The re-buy question is a run's, before it starts. The hook runs while `git config score.movedCheck true`
 (.claude/scripts/bootstrap.sh sets it), reading the places from PROPS_HOME or the first home holding a store.
 
 One commit per store (score/graph/runs.py): `run` refuses while a live run from another commit holds the store (naming
@@ -1490,8 +1490,10 @@ def moved_check(rows_by_world):
 
 
 def pre_push_check(push_lines):
-    """The pre-push hook's check of the commit pushed to main (none passes at once): every world's re-buys in this
-    checkout, which must be that commit, against those of main's commit (pushed_check)."""
+    """The pre-push hook's check of the commit pushed to main (none passes at once): the rows this checkout, which
+    must be that commit, moves against main's commit (moved.moved, every world), refused while a paid one is not named
+    in a pushed commit's Moved-rows trailer (pushed_check). The re-buy question (scratch remakes) is a run's, before it
+    starts, not a push's (owner, 2026-11-07: "shouldnt the rebuy check just be before a buy")."""
     pushes = moved.main_pushes(push_lines)
     if not pushes:
         print("moved check: nothing pushed to main, not checked", flush=True)
@@ -1499,30 +1501,27 @@ def pre_push_check(push_lines):
     tip, remote = pushes[-1]
     if not moved.tree_is_at(tip):
         sys.exit(f"refused: the moved check must run in a clean checkout of {tip} (.claude/hooks/local/pre-push-moved makes one)")
-    print(f"moved check: working out which paid rows {tip[:12]} and main's {remote[:12]} would buy again, every world "
-          f"(a few minutes each)...", flush=True)
-    pushed_check(every_world_moved(), moved.base_rebuys(remote), moved.pushed_reasons(pushes))
+    if remote == moved.ZERO:
+        sys.exit("refused: main's commit is not known (a new ref), so the rows this push moves cannot be worked out")
+    print(f"moved check: the rows {tip[:12]} moves against main's {remote[:12]}, every world...", flush=True)
+    try:
+        found = moved.moved(remote)
+    except subprocess.CalledProcessError:
+        sys.exit(f"refused: the rows {tip[:12]} moves could not be worked out (the reason above)")
+    pushed_check(found, moved.pushed_reasons(pushes))
 
 
-def pushed_check(rows_by_world, base, reasons):
-    """Warn of the rows main's commit buys again too (`base`, {world: [node]}, None when not worked out); refuse
-    (exit moved.MOVED_EXIT) when the push moves a paid row that no Moved-rows trailer names."""
-    pushed, drift = moved.split(rows_by_world, base)
-    if base is None:
-        print("moved check: main's commit could not be worked out, so every moved row counts as this push's",
-              flush=True)
-    if any(drift.values()):
-        print("warning, not refused: " + moved.listing(drift, "paid rows main already buys again"), flush=True)
-    print(moved.listing(pushed, "paid rows this push would make the next run buy again"), flush=True)
-    refused = moved.unexplained(pushed, reasons)
-    if not any(refused.values()):
+def pushed_check(found, reasons):
+    """Print the moved rows (moved.moved's answer); refuse (exit moved.MOVED_EXIT) while a paid one is named in no
+    Moved-rows trailer of `reasons`."""
+    print(moved.moved_listing(found), flush=True)
+    refused = moved.unnamed_paid(found, reasons)
+    if not refused:
         if reasons:
             print(f"{moved.TRAILER}: " + "; ".join(reasons), flush=True)
         return
-    names = " ".join(row.node for rows in refused.values() for row in rows)
-    print(f"refused: this push moves paid rows no '{moved.TRAILER}:' trailer names. If they should be bought again, "
-          f"add to a pushed commit: '{moved.TRAILER}: {names}: <why>'. A row priced EUR 0 (a Google ask its cache "
-          f"answers) is listed, never refused.", file=sys.stderr, flush=True)
+    print(f"refused: this push moves paid rows no '{moved.TRAILER}:' trailer names. If the next run should buy them "
+          f"again, add to a pushed commit: '{moved.TRAILER}: {' '.join(refused)}: <why>'.", file=sys.stderr, flush=True)
     sys.exit(moved.MOVED_EXIT)
 
 
