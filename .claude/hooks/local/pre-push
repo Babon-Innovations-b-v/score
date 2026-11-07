@@ -7,7 +7,7 @@ nothing changed, else a temporary worktree of it, removed afterwards):
 
 1. the test rule's guard (tools/test_rule/check.py) over the whole tree; a fault refuses the push;
 2. the one test file of each module the pushed commits touch (`git diff --name-only <remote sha>..<local sha>`), run
-   by `make tests TESTS=...` (each in its sandbox, at its 120 s budget), at most JOBS at once, the whole run inside
+   by `make tests TESTS=...` (each in its sandbox, at the Makefile's TEST_SECONDS), at most JOBS at once, the whole run inside
    `score.pushTestSeconds` (default 600), which it prints; a failure or the budget running out refuses the push. A
    test file `MAY_SKIP` marks for the cluster gate (it needs a GPU) is left to that gate and named;
 3. hands the push lines on to .claude/hooks/local/pre-push-moved (a moved paid row needs its Moved-rows trailer, on
