@@ -180,7 +180,8 @@ def model_checks(path, size, kind, square, thin=False):
 def swept_stray(mesh):
     """The share of a thin model's silhouette, seen across its plane (its two widest principal axes), that strays
     from its swept fit: the silhouette's own skeleton runs (thin_straight.spine, knots joined, only spurs shorter
-    than half a width dropped) swept at one width a piece, its median; outside the fit grown to
+    than half a width dropped) swept at one width a piece, its median, a part stepped from it at its own
+    (thin_straight.stretches, a lamp's head half its width long one too); outside the fit grown to
     thin_straight.FITTING_SHARE of it (an elbow, tee or clamp is a sweep's), plus inside it shrunk by as much but
     not drawn, but within two widths of a free end (a cap is the builder's: flat, round or held across). Drawn so
     its median width is SWEPT_WIDTH pixels, its longest side at most SWEPT_SIDE. A model made of
@@ -206,7 +207,7 @@ def swept_stray(mesh):
         if width >= SWEPT_WIDTH or side >= SWEPT_SIDE:
             break
         side = int(min(SWEPT_SIDE, side * SWEPT_WIDTH / max(width, 1.0)))
-    runs = thin_straight.spine(skeleton, edge, tolerance=1.0, spur=0.5)
+    runs = thin_straight.spine(skeleton, edge, tolerance=1.0, spur=0.5, part=0.5)  # a stepped part's own width
     lines = Image.new("I", picture.size, 0)
     draw = ImageDraw.Draw(lines)
     for number, (run, _) in enumerate(runs, 1):

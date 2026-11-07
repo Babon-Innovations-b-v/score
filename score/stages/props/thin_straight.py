@@ -69,6 +69,11 @@ SEGMENTS = 32
 # A run off a fork with a free end shorter than this many of its widths is a spur of the mask's ragged edge (`spine`):
 # a finger on a hand-like blob, not a run of the thing.
 SPUR_WIDTHS = 2.0
+# A stretch of a run drawn this many times wider or thinner than its piece's width, at least its own width long, is a
+# part of its own at its own width (`stretches`, `step`): a tower's antenna above its mast, the cabinet at its foot
+# (campgrounds' communications tower at one width, an even pole, 0.366; 2026-11-07). At 1.5 a light bar drawn going
+# away (the tube's ceiling lights, 18 to 11.7 pixels) stepped and failed `swept clean`.
+STEP_SHARE = 1.75
 # A railing's run drawn wider than this many of its rails is the band of its posts and what is seen between them, built
 # as posts and rails (`ladder`), never a slab.
 LADDER_WIDTHS = 3.0
@@ -441,7 +446,8 @@ def path_build(row, alpha, turn=0.0):
     _, ball = balls(kept, skeleton, scale, reach)
     if network(row):
         _, ball = balls(kept, skeleton, scale, reach, run_holds(row, skeleton, ball, scale))
-    runs = spine(skeleton, ball)
+    runs = spine(skeleton, ball, part=None if slender_light(row) else 1.0)  # a light's lamp is the light layer's:
+    # stepped, the workshop's wall lights and the street's lamp post failed `swept clean` (2026-11-07)
     if profile(row) == "railing":
         rail = max(sides[0], least_tube()) / 2 / scale
         runs = [part for points, radius in runs for part in
@@ -485,16 +491,19 @@ def filled(kept):
     return kept | np.isin(holes, 1 + np.flatnonzero(areas < (HOLE_WIDTHS * width) ** 2))
 
 
-def spine(skeleton, ball, tolerance=None, spur=SPUR_WIDTHS):
+def spine(skeleton, ball, tolerance=None, spur=SPUR_WIDTHS, part=1.0):
     """[(points, radius)]: the skeleton's runs (`traces`) as the clean tubes a path build sweeps, in pixels (across,
     down), at one radius for each piece of the skeleton, its runs' balls' median along their length (`ball`): a piece
     is one thing of one section, so no joint, knot or ragged stretch swells, while a post's separate foot keeps its
-    own. The skeleton's knots (run ends within its radius of each other: a ragged edge's pixel forks) are one joint
+    own, and so does a part joined to it drawn STEP_SHARE wider or thinner (`stretches`: a mast's antenna, the
+    cabinet at its foot, never a spur; one width a piece made campgrounds' communications tower an even pole, its
+    outline 0.366, 2026-11-07). The skeleton's knots (run ends within its radius of each other: a ragged edge's pixel forks) are one joint
     each (`joints`), the runs inside one dropped; a spur (a run from a free end to a fork, shorter than SPUR_WIDTHS
     of its widths, or `spur`) is a ragged edge's, not a run of the thing, and is dropped; runs meeting two at a joint are one
     run; each run a polyline within `tolerance` pixels of its pixels (approximate_polygon; by default half its
     width, so a ragged edge's wobble is a straight run). A knot's three short runs each took a tee (`fittings`) and
-    swelled the stairwell's conduit every few pixels (2026-11-04)."""
+    swelled the stairwell's conduit every few pixels (2026-11-04). `part`: a stepped stretch's least length in its
+    widths (`step`); None, one width a piece, no part (a light's: path_build)."""
     from scipy import ndimage
     from skimage.measure import approximate_polygon
     runs = [np.asarray(run, dtype=float) for run in traces(skeleton) if len(run) > 1]
@@ -511,9 +520,60 @@ def spine(skeleton, ball, tolerance=None, spur=SPUR_WIDTHS):
                      if piece[number] == label)
         along = np.cumsum([max(length, 1.0) for _, length in own])
         radius[label] = own[int(np.searchsorted(along, along[-1] / 2))][0]
-    found = joints([(run, radius[piece[number]], piece[number]) for number, run in enumerate(runs)], spur)
-    return [(approximate_polygon(run, tolerance=width if tolerance is None else tolerance), width)
-            for run, width in found]
+    if part is None:  # one width a piece
+        found = joints([(run, radius[piece[number]], piece[number]) for number, run in enumerate(runs)], spur)
+        return [(approximate_polygon(run, tolerance=width if tolerance is None else tolerance), width)
+                for run, width in found]
+    wide = [medians[number] if medians[number] >= STEP_SHARE * radius[piece[number]] else radius[piece[number]]
+            for number in range(len(runs))]  # a run wider than its piece (a cabinet off a mast's foot) is no spur
+    found = joints([(run, wide[number], piece[number]) for number, run in enumerate(runs)], spur, radius)
+    return [(approximate_polygon(stretch, tolerance=width if tolerance is None else tolerance), width)
+            for run, along in found for stretch, width in stretches(run, sampled(ball, run), along, part)]
+
+
+def sampled(ball, run):
+    """The balls (`ball`, by pixel) at each point of `run` (pixels, across and down), its nearest pixel's."""
+    down = np.clip(np.rint(run[:, 1]).astype(int), 0, ball.shape[0] - 1)
+    across = np.clip(np.rint(run[:, 0]).astype(int), 0, ball.shape[1] - 1)
+    return ball[down, across]
+
+
+def stretches(run, along, width, part=1.0):
+    """[(points, radius)]: the run `run` (pixels) cut where its balls (`along`, one a point) step to another width
+    (`step`): a stretch whose balls' median is STEP_SHARE or more wider or thinner than `width` (its piece's, or its
+    own when it is wider than its piece) is a part at its own median (an antenna on a mast), every other at `width`,
+    so a ragged stretch or a joint's swell stays the piece's one section (spine); neighbours left at one width are
+    one run again (a cut both sides of which keep the piece's width moved the tube's bends: the tube's pipe
+    bundles 0.516 to 0.386)."""
+    cut = step(along, part)
+    if cut is None:
+        own = float(np.median(along))
+        return [(run, own if max(own / width, width / own) >= STEP_SHARE else width)]
+    parts = stretches(run[:cut + 1], along[:cut + 1], width, part) + stretches(run[cut:], along[cut:], width, part)
+    merged = [parts[0]]
+    for points, radius in parts[1:]:  # stretches stepping to the one width again are one run
+        if radius == merged[-1][1]:
+            merged[-1] = (np.vstack([merged[-1][0], points[1:]]), radius)
+        else:
+            merged.append((points, radius))
+    return merged
+
+
+def step(along, part=1.0):
+    """The point where a run's balls (`along`) step most from one width to another, each side at least its own width
+    (twice its balls' median) of points long and STEP_SHARE or more wider or thinner than the other; None when none
+    does; `part` scales the least length (the swept check's fit finds a lamp's head shorter than it is wide).
+    Of env1's 59 thin builds 55 pass both their outline and `swept clean` so, 52 at one width a piece, the
+    communications tower 0.37 to 0.82, none passing before failing (2026-11-07)."""
+    best, found = STEP_SHARE, None
+    for cut in range(1, len(along) - 1, max(1, len(along) // 200)):
+        before, after = float(np.median(along[:cut + 1])), float(np.median(along[cut:]))
+        if cut + 1 < 2 * part * before or len(along) - cut < 2 * part * after:
+            continue
+        ratio = max(before / after, after / before)
+        if ratio >= best:
+            best, found = ratio, cut
+    return found
 
 
 def run_length(run):
@@ -521,11 +581,13 @@ def run_length(run):
     return float(np.linalg.norm(np.diff(run, axis=0), axis=1).sum())
 
 
-def joints(runs, spur=SPUR_WIDTHS):
+def joints(runs, spur=SPUR_WIDTHS, across=None):
     """[(points, radius)]: `runs` (each (points, radius, its piece), pixels) with each knot of their ends (ends within
     the radius of each other) one joint at its ends' middle, the runs inside a knot dropped, the spurs dropped (a run
     from a free end to a joint of three or more, shorter than `spur` of its widths), and the runs meeting two at
-    a joint joined into one; a piece all knot (a post's foot drawn as wide as it is long) keeps its longest run."""
+    a joint joined into one (two of one width only); a piece all knot (a post's foot drawn as wide as it is long) keeps
+    its longest run. A run STEP_SHARE or more wider than its piece's width (`across`, by piece) is no spur: a ragged
+    edge's finger is never wider than the run it grows from, a cabinet on a mast's foot is."""
     from scipy.spatial import cKDTree
     ends = np.array([end for run, _, _ in runs for end in (run[0], run[-1])])
     reach = np.repeat([width for _, width, _ in runs], 2)
@@ -543,26 +605,27 @@ def joints(runs, spur=SPUR_WIDTHS):
     knot = [root(index) for index in range(len(ends))]
     middle = {label: ends[[index for index in range(len(ends)) if knot[index] == label]].mean(0) for label in set(knot)}
     kept = []
-    for number, (run, width, _) in enumerate(runs):
+    for number, (run, width, piece) in enumerate(runs):
         start, end = knot[2 * number], knot[2 * number + 1]
         if start == end and run_length(run) < 2 * width:
             continue  # inside a knot
-        kept.append([np.vstack([middle[start], run[1:-1], middle[end]]), width, start, end])
+        kept.append([np.vstack([middle[start], run[1:-1], middle[end]]), width, start, end, piece])
     pieces_kept = {runs[number][2] for number in range(len(runs))
                    if knot[2 * number] != knot[2 * number + 1] or run_length(runs[number][0]) >= 2 * runs[number][1]}
     for label in {piece for _, _, piece in runs} - pieces_kept:
         run, width, _ = max((entry for entry in runs if entry[2] == label), key=lambda entry: run_length(entry[0]))
-        kept.append([run, width, ("piece", label, 0), ("piece", label, 1)])
+        kept.append([run, width, ("piece", label, 0), ("piece", label, 1), label])
 
     def degrees():
         count = {}
-        for _, _, start, end in kept:
+        for _, _, start, end, _ in kept:
             count[start] = count.get(start, 0) + 1
             count[end] = count.get(end, 0) + 1
         return count
 
     count = degrees()
-    kept = [entry for entry in kept if not ({count[entry[2]], count[entry[3]]} & {1} and max(
+    wide = (lambda entry: across is not None and entry[1] >= STEP_SHARE * across[entry[4]])
+    kept = [entry for entry in kept if wide(entry) or not ({count[entry[2]], count[entry[3]]} & {1} and max(
         count[entry[2]], count[entry[3]]) >= 3 and run_length(entry[0]) < spur * 2 * entry[1])]
     count = degrees()
     joined = True
@@ -570,18 +633,19 @@ def joints(runs, spur=SPUR_WIDTHS):
         joined = False
         for label, many in count.items():
             meeting = [entry for entry in kept if label in (entry[2], entry[3])]
-            if many != 2 or len(meeting) != 2 or meeting[0] is meeting[1]:
-                continue
+            if many != 2 or len(meeting) != 2 or meeting[0] is meeting[1] or meeting[0][1] != meeting[1][1]:
+                continue  # a run meeting one of another width is a part of its own (stretches)
             first, second = meeting
             ahead = first[0] if first[3] == label else first[0][::-1]
             after = second[0] if second[2] == label else second[0][::-1]
             kept = [entry for entry in kept if entry is not first and entry is not second]
             kept.append([np.vstack([ahead, after[1:]]), first[1],
-                         first[2] if first[3] == label else first[3], second[3] if second[2] == label else second[2]])
+                         first[2] if first[3] == label else first[3], second[3] if second[2] == label else second[2],
+                         first[4]])
             count = degrees()
             joined = True
             break
-    return [(run, width) for run, width, _, _ in kept]
+    return [(run, width) for run, width, *_ in kept]
 
 
 def ladder(points, radius, rail, gap, kept):
