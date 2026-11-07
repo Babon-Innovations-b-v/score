@@ -31,7 +31,8 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   conductor's pod (`pods/portforward` on `score-conductor-0` and `get` on it): never `exec`, which runs any command
   past the door's allow-list.
 - **Secrets by name only**: the one credential, the conductor's scw config (`SCW_SECRET`, key `config.yaml`), is made
-  at the cutover from `score-conductor-key` through kubectl's stdin; everything else the pods read by name through
+  at the cutover from `score-conductor-key` through kubectl's stdin, and the registry's pull Secret
+  (`REGISTRY_SECRET`, k8s/manifests.registry_secret: the image is private) beside it; everything else the pods read by name through
   `score-secret-reader`, as on the VM.
 
 Money: every object carries `score.dev/cost=conductor` (COST_LABEL), apart from a batch's, so the stop line never
@@ -61,6 +62,7 @@ MOUNTS = (("props", f"{HOME}/.farm-factory-props"), ("projects", f"{HOME}/projec
 REPO = f"{HOME}/projects/score"
 ENV_FILE = f"{HOME}/.config/score/dashboard.env"
 SCW_SECRET = "score-conductor-scw"
+REGISTRY_SECRET = "score-registry"  # the job images' pull Secret (k8s/manifests.registry_secret), made at the cutover
 SCW_PATH = f"{HOME}/.config/scw"
 RUNTIME_DIR = "/run/user/1100"  # user score's XDG_RUNTIME_DIR on the VM
 DOOR_PORT = 8780
@@ -148,7 +150,7 @@ def container(name, image, command, resources, read_only=False):
 
 def pod_spec(containers, affinity, restart="Always"):
     return {"serviceAccountName": NAME, "securityContext": security(), "affinity": affinity, "hostPID": True,
-            "tolerations": [TOLERATION], "volumes": volumes(), "containers": containers, "restartPolicy": restart,
+            "imagePullSecrets": [{"name": REGISTRY_SECRET}], "tolerations": [TOLERATION], "volumes": volumes(), "containers": containers, "restartPolicy": restart,
             "terminationGracePeriodSeconds": 120}
 
 

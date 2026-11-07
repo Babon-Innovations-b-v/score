@@ -544,6 +544,15 @@
    }
   }
  },
+ "conductor": {
+  "image": "rg.fr-par.scw.cloud/score-farm-factory/score-conductor:1-cee460778a18@sha256:3472771d88bd8bf8f2175a597a3d93b70e5ab7738a34d17703b5adbab322ea1e",
+  "tag": "1-cee460778a18",
+  "digest": "sha256:3472771d88bd8bf8f2175a597a3d93b70e5ab7738a34d17703b5adbab322ea1e",
+  "platforms": "linux/amd64",
+  "size_mb": 876.6,
+  "build_minutes": 14.1,
+  "built": "2026-11-07T20:55:36Z"
+ },
  "judge": {
   "image": "rg.fr-par.scw.cloud/score-farm-factory/score-judge:1-ac75505b61dc@sha256:ed210cb469371f339b8065759c15fb9b9d2768368eabbd98155ec9f7c2187b49",
   "tag": "1-ac75505b61dc",
