@@ -125,6 +125,9 @@ def to_make(runner, stage, place, pending, remade):
         return {**own, "after": {}}
     if all(record.get(part) == own[part] for part in OWN_PARTS):
         return KEPT  # its reads are kept, re-keyed, or hold the part it reads (stages.part_carried): kept as they are
+    remade = getattr(stage.files, "remade", None)
+    if foreseen and not moving and remade and remade(runner, stage, place, foreseen):
+        return KEPT  # made again over the reads it holds the same part of, it gives its accepted output (free)
     return {**own, "after": record["after"], **({"beside": record["beside"]} if "beside" in record else {})}
 
 
@@ -182,11 +185,12 @@ def evidence_buys(runner, stage, place, parts):
 
 @contextlib.contextmanager
 def kept_for_now(runner):
-    """runner.kept_as and runner.foreseen filled for one buys pass only: the drive itself reads the store."""
+    """runner.kept_as, runner.foreseen and its listings filled for one buys pass only: the drive itself reads the
+    store."""
     try:
         yield
     finally:
-        runner.kept_as, runner.foreseen = {}, {}
+        runner.kept_as, runner.foreseen, runner.foreseen_listing = {}, {}, {}
 
 
 def buys(runner, nodes):

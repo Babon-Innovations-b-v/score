@@ -48,6 +48,13 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_terrain_s_code_version_moves_with_its_own_code_only (hub's light passes made again); `part_standing`: a moved
   read with no part rule let through (`any(...)` dropped)  -> the same test (scene-record moved, still kept);
   score/graph/rebuy.py `to_make`: the foreseen reads not let through (`foreseen = []`)  -> the same test (rebuy's hub).
+- score/graph/rebuy.py `to_make`: the `remade` hook not asked (`if False and ...`), or `remade_over_foreseen` lending no
+  terrain (`runner.kept_as.update(then)` -> `pass`)  -> test_terrain_s_code_version_moves_with_its_own_code_only (the
+  scene record made the same re-bought); `remade_kept.carries`: remade_same dropped  -> the same test (surfaces-parts);
+  `part_foreseen`: a place row's remake not read (`placed = False`)  -> the same test (the sound over moves.json).
+- `stamp_read`: the stamp compared whole (`return found or ...`)  -> the same test (the seed remade elsewhere made
+  again); its inputs' hashes dropped, or `seed_kept` comparing no layer (`any(...)` dropped)  -> the same test (a seed
+  of another inventory or layer kept).
 - the surfaces-check row's `"stance rules"` file dropped  -> test_the_check_reads_every_input_check_step_reads.
 - `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  ->
   test_the_cast_crowds_from_its_plan_never_a_hand_written_record.
@@ -386,6 +393,67 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
     try:
         assert rebuy.to_make(runner, passes, "hub", ["terrain"], {"terrain": True}) is rebuy.KEPT
         assert rebuy.to_make(runner, passes, "base", ["terrain"], {"terrain": True}) == {}
+        # A free row whose code moved (0fcfc2b2's triage.py), made again over the terrain it read (its place's layer
+        # foreseen the same), keeps when it gives its accepted output; a motion made otherwise keeps the sound while
+        # its moves.json stands (883d65f2 listed every place's light passes and sound, 2026-11-07).
+        with tempfile.TemporaryDirectory() as folder:
+            made = pathlib.Path(folder)
+            contracts.stamp(TOY, made)
+            (made / "record.json").write_text("{}")
+            accepted = store_tree_hash(made)
+
+            def make(written):
+                def made_now(inputs, out, seed, params):
+                    (out / "record.json").write_text(written)
+                return made_now
+            lent = {**own, "code": "c2"}
+            same_store = types.SimpleNamespace(accepted=lambda node: accepted, records=lambda node: [
+                {**record, "output": accepted}], listing=listings.get)
+
+            def worked_out(stage, place):
+                if lending.kept_as.get("terrain") != "T0":
+                    raise graph.Blocked("terrain is not made on its key yet")
+                return {**lent, "key": "k2", "after": {**record["after"]}}
+            lending = types.SimpleNamespace(store=same_store, stages=rows, key=key, own_parts=lambda stage, place: lent,
+                                            worked_out_key=worked_out, input_paths=lambda stage, place, keyed: {},
+                                            kept_as={}, foreseen={}, foreseen_listing={})
+            for written, kept in (("{}", True), ('{"moved": 1}', False)):
+                row = dataclasses.replace(rows["scene-record"], make=make(written), contract=TOY)
+                assert (rebuy.to_make(lending, row, "hub", ["terrain"], {"terrain": True}) is rebuy.KEPT) is kept
+                assert lending.kept_as == {}, "the lent terrain is handed back"
+            assert rows["surfaces-parts"].files.carries(lending, dataclasses.replace(
+                rows["surfaces-parts"], make=make("{}"), contract=TOY), "hub", {**lent, "key": "k2", "after": {}})
+        # The earth seed made again keeps where only its inputs.json's stamp of when and where differs (fcc59e40's
+        # seed code moved every place's scene record and light passes); another inventory or layer is made again.
+        def stamp(at, home, sha):
+            return {"at": at, "inventory": f"{home}/inventory/hub.json", "inputs": {f"{home}/inventory/hub.json": sha},
+                    "models": {"crate": {"file": f"{home}/crate.gltf", "sha256": "c", "mtime": at}}}
+
+        def seed_make(layer, written):
+            def made_now(inputs, out, seed, params):
+                (out / "hub").mkdir()
+                (out / "hub/base.usda").write_text(layer)
+                (out / "hub/inputs.json").write_text(json.dumps(written))
+            return made_now
+        with tempfile.TemporaryDirectory() as folder:
+            made = pathlib.Path(folder)
+            seed_make("ground", stamp(1, "/frozen", "i"))({}, made, 0, {})
+            contracts.stamp(TOY, made)
+            accepted = store_tree_hash(made)
+            listed = {name: hashlib.sha256((made / name).read_bytes()).hexdigest() for name in
+                      ("hub/base.usda", "hub/inputs.json", contracts.STAMP)}
+            seed_store = types.SimpleNamespace(accepted=lambda node: accepted, listing=lambda output: listed,
+                                               read_file=lambda output, name: json.loads((made / name).read_text()))
+            seeding = types.SimpleNamespace(store=seed_store, input_paths=lambda stage, place, keyed: {})
+            for number, (layer, written, kept) in enumerate((("ground", stamp(2, "/home/pc", "i"), True),
+                                                             ("ground", stamp(2, "/home/pc", "j"), False),
+                                                             ("decks", stamp(1, "/frozen", "i"), False))):
+                seed = dataclasses.replace(rows["earth-seed"], make=seed_make(layer, written), contract=TOY)
+                assert seed.files.carries(seeding, seed, "hub", {"key": f"s{number}", "seed": 0, "params": {}}) is kept
+        sound = rows["sound"]
+        for moves, kept in (("m", True), ("m2", False)):
+            runner.foreseen_listing = {"motion@hub": {"moves.json": moves, "layer.usda": "l2"}}
+            assert (rebuy.to_make(runner, sound, "hub", ["motion@hub"], {"motion@hub": True}) is rebuy.KEPT) is kept
     finally:
         del stages.FORESIGHTS["terrain", "KT"]
 
