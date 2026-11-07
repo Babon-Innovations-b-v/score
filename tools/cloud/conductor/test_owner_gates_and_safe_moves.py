@@ -96,6 +96,7 @@ The checkout moves (update.py):
   and runs nothing without its token. Break: in door_service.Handler.do_POST drop the `compare_digest` refusal.
 """
 import base64
+import concurrent.futures
 import contextlib
 import datetime
 import fcntl
@@ -109,6 +110,7 @@ import socket
 import stat
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import types
@@ -133,12 +135,27 @@ INSIDE_OWNED = ("instance security-group create-rule", "function function create
                 "account project list")
 
 
+# A test server's shutdown waits out one poll of its serve loop (0.5 s by default): every cockpit and door service a
+# test opens and closes paid it.
+POLL = 0.01
+
+
 def executable(path, text):
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     return path
+
+
+def soon(check, seconds=10):
+    """True once check() holds, asked every 20 ms for at most `seconds` (a detached process's words in its log)."""
+    deadline = time.monotonic() + seconds
+    while not check():
+        if time.monotonic() > deadline:
+            return False
+        time.sleep(0.02)
+    return True
 
 
 def owner_keys(folder):
@@ -241,9 +258,12 @@ def prepare(folder, *arguments, scw_text=None):
 
 
 def test_prepare_dry_makes_nothing_and_a_second_run_creates_nothing(tmp_path):
-    dry = tmp_path / "dry"
+    dry, again = tmp_path / "dry", tmp_path / "again"
     dry.mkdir()
-    done = prepare(dry, "--dry")
+    again.mkdir()
+    with concurrent.futures.ThreadPoolExecutor(2) as pool:  # the two runs side by side
+        runs = pool.submit(prepare, dry, "--dry"), pool.submit(prepare, again, scw_text=HOLDING_SCW)
+        done, second = (run.result() for run in runs)
     assert done.returncode == 0, done.stderr
     assert not (dry / "scw.log").exists()
     for secret in PREPARE_SECRETS:
@@ -252,10 +272,7 @@ def test_prepare_dry_makes_nothing_and_a_second_run_creates_nothing(tmp_path):
     assert "name=score-conductor-key project-id=<new>" in done.stderr
     assert "data=@<a file in /dev/shm>" in done.stderr and "<value>" not in done.stderr  # values only through a file
 
-    again = tmp_path / "again"
-    again.mkdir()
-    done = prepare(again, scw_text=HOLDING_SCW)
-    assert done.returncode == 0, done.stderr
+    assert second.returncode == 0, second.stderr
     calls = (again / "scw.log").read_text().splitlines()
     assert calls and not [call for call in calls if " create" in call], calls
 
@@ -271,19 +288,17 @@ env > "$DOOR_RECORD/env"
 
 @pytest.fixture
 def door(tmp_path):
-    """through(asked, env file text) -> (exit code, stderr, recorded argv or None, recorded environment)."""
+    """through(asked, env file text) -> (exit code, stderr, recorded argv or None, recorded environment);
+    through.many(asks, env file text) -> the same for each ask, the asks run side by side (each its own record)."""
     checkout = tmp_path / "checkout"
     (checkout / "tools" / "cloud" / "conductor").mkdir(parents=True)
     shutil.copy(HERE / "agent_door.py", checkout / "tools" / "cloud" / "conductor" / "agent_door.py")
     (checkout / "score").symlink_to(REPO / "score")
     executable(checkout / ".venv" / "bin" / "python", RECORDER.format(python=sys.executable))
 
-    record = tmp_path / "record"
-
-    def environment(asked, env_file_text):
-        shutil.rmtree(record, ignore_errors=True)
+    def environment(asked, env_file_text, record):
         record.mkdir()
-        env_file = tmp_path / "dashboard.env"
+        env_file = record.parent / f"{record.name}.env"
         env_file.write_text(env_file_text)
         env = {name: value for name, value in os.environ.items() if name not in AGENT_MARKERS}
         env.update({"SCORE_DOOR_REPO": str(checkout), "SCORE_DOOR_ENV": str(env_file), "DOOR_RECORD": str(record),
@@ -291,57 +306,71 @@ def door(tmp_path):
                     "SCORE_OWNERS_GO": "smuggled"})
         return env
 
-    def recorded():
+    def recorded(record):
         argv = (record / "argv").read_text().splitlines() if (record / "argv").exists() else None
         found = dict(line.split("=", 1) for line in (record / "env").read_text().splitlines() if "=" in line) \
             if (record / "env").exists() else {}
         return argv, found
 
+    def fresh_record():
+        return pathlib.Path(tempfile.mkdtemp(prefix="record-", dir=tmp_path)) / "record"
+
     def through(asked, env_file_text=""):
-        done = subprocess.run(["sh", str(HERE / "agent_door.sh")], env=environment(asked, env_file_text),
+        record = fresh_record()
+        done = subprocess.run(["sh", str(HERE / "agent_door.sh")], env=environment(asked, env_file_text, record),
                               capture_output=True, text=True, timeout=60)
-        return (done.returncode, done.stderr, *recorded())
+        return (done.returncode, done.stderr, *recorded(record))
+
+    def many(asks, env_file_text=""):
+        with concurrent.futures.ThreadPoolExecutor(8) as pool:
+            return list(pool.map(lambda asked: through(asked, env_file_text), asks))
 
     def through_service(asked, env_file_text="", token="door-token"):
         """The same door through door_service.py (the pod's, #76 step 4): one request with that token."""
-        server = door_service.serve("door-token", 0, environment=environment(asked, env_file_text))
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        record = fresh_record()
+        server = door_service.serve("door-token", 0, environment=environment(asked, env_file_text, record))
+        threading.Thread(target=server.serve_forever, kwargs={"poll_interval": POLL}, daemon=True).start()
         try:
             code, _, err = door_service.send(f"http://127.0.0.1:{server.server_address[1]}/", token, asked)
         finally:
             server.shutdown()
             server.server_close()
-        return (code, err.decode(), *recorded())
+        return (code, err.decode(), *recorded(record))
+    through.many = many
     through.service = through_service
     return through
 
 
 def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_under_the_latch(door):
-    for asked in ("", "bash", "sh -c id", "bash -i", "status; bash", "python -m score.review accept x",
-                  "spend --google-month 12", "spend --read-back", "run world1", "resume",
-                  "benchmark world1 --detach", "benchmark 'g 1' world1 --detach", "scw instance server list",
-                  "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
-                  "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
-                  "buy a --phase", "buy a --phase 'x y'", "buy a --stage models", "buy a --phase models x",
-                  "buy a --leave-out", "buy a --phase models --phase surfaces", "buy a --leave-out 'sim body'",
-                  "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
-                  "buy-yes --no-film 33 30 'yes' 'q?'", "batch-money --film", "batch-money --no-film x",
-                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "score-lib", "score-lib push",
-                  "score-lib pull --force", "job-log",
-                  "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "offload-pixal x", "sweep --force", "store-gc --all", "store-gc --dry x", "store-evict --all", "job-log",
-                  "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
-                  "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
-                  "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
-                  "store-push --missing x", "preflight", "preflight --phase props", "lock-phase world1",
-                  "lock-phase --place a models", "lock-phase world1 models --stage pixal",
-                  "lock-phase world1 models --place", "lock-phase world1 models --place '../x'", "cluster-check x",
-                  "move-out", "move-out a b", "move-out ' '"):
-        code, why, argv, _ = door(asked)
+    asks = ("", "bash", "sh -c id", "bash -i", "status; bash", "python -m score.review accept x",
+            "spend --google-month 12", "spend --read-back", "run world1", "resume",
+            "benchmark world1 --detach", "benchmark 'g 1' world1 --detach", "scw instance server list",
+            "cat /home/score/.config/scw/config.yaml", "health --write", "gaps", "gaps a b",
+            "gaps ../x", "gaps 'closeup@hub;id'", "predicted x", "buy", "buy a b", "buy 'y 1'",
+            "buy a --phase", "buy a --phase 'x y'", "buy a --stage models", "buy a --phase models x",
+            "buy a --leave-out", "buy a --phase models --phase surfaces", "buy a --leave-out 'sim body'",
+            "buy-yes 30 33 'yes'", "buy-yes 33 30 'yes' 'q?'", "buy-yes --stop 33 30 'yes' 'q?'",
+            "buy-yes --no-film 33 30 'yes' 'q?'", "batch-money --film", "batch-money --no-film x",
+            "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "score-lib", "score-lib push",
+            "score-lib pull --force", "job-log",
+            "batch-money 1", "disk /", "clean-frozen --all", "clean-cache --making-only", "relink-pixal x", "offload-pixal x", "sweep --force", "store-gc --all", "store-gc --dry x", "store-evict --all", "job-log",
+            "job-log a b", "job-log x.home/work/cloud/../../../store/k", "run-log 5", "run-log --lines",
+            "run-log --lines x", "run-log --lines 0", "fault", "fault a b", "fault ../store/k",
+            "fault 'motion@airlock/../../x'", "store-pull cloud", "store-push --delete",
+            "store-push --missing x", "preflight", "preflight --phase props", "lock-phase world1",
+            "lock-phase --place a models", "lock-phase world1 models --stage pixal",
+            "lock-phase world1 models --place", "lock-phase world1 models --place '../x'", "cluster-check x",
+            "move-out", "move-out a b", "move-out ' '")
+    asks = tuple(dict.fromkeys(asks))  # each asked once
+    for asked, (code, why, argv, _) in zip(asks, door.many(asks)):
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     # The pod's door service (#76 step 4) runs the same door: the same refusals, the same allowed command marked as an
     # agent's, and nothing at all without its token.
-    for asked in ("bash", "run world1", "cat /home/score/.config/scw/config.yaml", "store-push --delete"):
-        assert door.service(asked) == door(asked), asked
+    asks = ("bash", "run world1", "cat /home/score/.config/scw/config.yaml", "store-push --delete")
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:  # each through the service and the ssh door, side by side
+        served = list(pool.map(door.service, asks))
+    for asked, through_service, through_ssh in zip(asks, served, door.many(asks)):
+        assert through_service == through_ssh, asked
     code, why, argv, recorded = door.service("status")
     assert code == 0 and argv is not None and "status" in argv and all(recorded.get(name) for name in AGENT_MARKERS)
     with pytest.raises(urllib.error.HTTPError) as refused:
@@ -349,9 +378,9 @@ def test_the_door_refuses_a_shell_a_paid_run_the_owners_commands_and_anything_un
     assert refused.value.code == 403
     with pytest.raises(SystemExit):
         door_service.serve("", 0)  # no token read: the door stays shut
-    for asked in ("benchmark g1 world1 --detach", "buy 20261025T1700000000", "buy 20261025T1700000000 --phase models",
-                  "buy 20261025T1700000000 --phase models,surfaces --leave-out sim-body,body-peel"):
-        code, why, argv, _ = door(asked, "SCORE_FREE_ONLY=1\n")
+    asks = ("benchmark g1 world1 --detach", "buy 20261025T1700000000", "buy 20261025T1700000000 --phase models",
+            "buy 20261025T1700000000 --phase models,surfaces --leave-out sim-body,body-peel")
+    for asked, (code, why, argv, _) in zip(asks, door.many(asks, "SCORE_FREE_ONLY=1\n")):
         assert code == 126 and argv is None and "latch" in why, asked
 
 
@@ -359,14 +388,17 @@ def test_the_doors_decisions_record_his_quoted_yes_then_apply_it_by_its_id_and_a
     """The owner's decision made in chat (owner, 2026-10-27): decide-yes records his yes, decide applies it by its id
     alone, both marked as an agent's (the apply lifts the marks in its own process only); a run's go is his recorded
     go, a smuggled one dropped."""
-    for asked in ("decide", "decide a b", "decide 'y 1'", "decide-yes accept x 'yes'", "decide-yes --output h a x y",
-                  "run world1 --detach --go", "run world1 --detach --go 'g 1'"):
-        code, why, argv, _ = door(asked)
+    asks = ("decide", "decide a b", "decide 'y 1'", "decide-yes accept x 'yes'", "decide-yes --output h a x y",
+            "run world1 --detach --go", "run world1 --detach --go 'g 1'")
+    for asked, (code, why, argv, _) in zip(asks, door.many(asks)):
         assert code == 126 and argv is None and "refused" in why, (asked, code, why)
     # The pod's door service (#76 step 4) runs the same door: the same refusals, the same allowed command marked as an
     # agent's, and nothing at all without its token.
-    for asked in ("bash", "run world1", "cat /home/score/.config/scw/config.yaml", "store-push --delete"):
-        assert door.service(asked) == door(asked), asked
+    asks = ("bash", "run world1", "cat /home/score/.config/scw/config.yaml", "store-push --delete")
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:  # each through the service and the ssh door, side by side
+        served = list(pool.map(door.service, asks))
+    for asked, through_service, through_ssh in zip(asks, served, door.many(asks)):
+        assert through_service == through_ssh, asked
     code, why, argv, recorded = door.service("status")
     assert code == 0 and argv is not None and "status" in argv and all(recorded.get(name) for name in AGENT_MARKERS)
     with pytest.raises(urllib.error.HTTPError) as refused:
@@ -387,72 +419,118 @@ def test_the_doors_decisions_record_his_quoted_yes_then_apply_it_by_its_id_and_a
     assert code == 0 and "SCORE_OWNERS_GO" not in env, env  # a smuggled go is dropped
 
 
+# The allowed asks of test_the_door_runs_the_allowed_commands_marked_as_an_agents, all asked side by side first.
+DISK_VERBS = ("disk", "sweep", "clean-frozen", "clean-cache", "relink-pixal", "offload-pixal")
+BUCKET_VERBS = ("store-gc", "store-evict")
+LIBRARY_ACTIONS = ("status", "pull")
+STORE_FLAGS = (("store-pull", "--store-pull"), ("store-push --missing", "--store-missing"),
+               ("store-push", "--store-push"), ("store-push --differs", "--store-differs"),
+               ("store-push --replace", "--store-replace"))
+CARRY_REFUSED = ("carry --write", "carry --no-op x.py", "carry --no-op ../x.py=why", "carry --rm x")
+DESIGN_REFUSED = ("design-file", "design-file design/../cloud/ssh_key", "design-file cloud/ledger.jsonl",
+                  "design-file design/props/lab.json extra", "design-file design/kit/kit.json")
+ALLOWED_ASKS = (
+    "run world1 --place hangar --detach",
+    "status world1 $(id)",
+    "benchmark g-1 world1 --stage x --detach",
+    "benchmark 20261026T074845.442617+0000 world1 --detach",
+    "grant-benchmark 12 'yes, go' 'may I spend EUR 12 on x?'",
+    "buy-yes --batch-total 333 30 'Yes, buy it' 'Batch 1 total EUR 333?'",
+    "batch-money",
+    "batch-money --no-film",
+    "buy-yes --no-film --batch-total 380 343 'Yes' 'Batch 1 total EUR 380, no film?'",
+    "buy 20261025T170000Z",
+    "buy-log",
+    "resume --dry",
+    "preflight world1 --phase props",
+    "lock-phase world1 surfaces --place hub --place lab",
+    "logs --lines 5",
+    "gaps closeup@hub",
+    "job-log x.home/work/cloud/blender-1/job3.log",
+    "run-log",
+    "run-log --lines 99999",
+    "fault motion@airlock",
+    "stop-batch 'the run holds 13 idle machines'",
+    "move-out 'no u can do the conductor move asap'",
+    "store-push --force",
+    "store-push --replace --missing",
+    'carry --no-op "score/stages/people_bodies/bodies.py=same bytes" --write',
+    "route-log /home/score/.farm-factory-motion/candidates/x/out/chain.log",
+    "route-log /etc/passwd",
+    "design-file design/props/lab.json",
+)
+
+
 def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
-    code, why, argv, env = door("run world1 --place hangar --detach")
+    asks = [*ALLOWED_ASKS, *DISK_VERBS, *(f"{verb} --dry" for verb in BUCKET_VERBS),
+            *(f"score-lib {action}" for action in LIBRARY_ACTIONS), *(asked for asked, _ in STORE_FLAGS),
+            *CARRY_REFUSED, *DESIGN_REFUSED]
+    answer = dict(zip(asks, door.many(asks)))
+    code, why, argv, env = answer["run world1 --place hangar --detach"]
     assert code == 0, why
     assert argv == ["-m", "score", "run", "world1", "--place", "hangar", "--detach", "--free"]
     assert env["SCORE_FREE_ONLY"] == "1" and "SCORE_BENCHMARK_GRANT" not in env  # a smuggled grant is dropped
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
-    code, why, argv, env = door("status world1 $(id)")
+    code, why, argv, env = answer["status world1 $(id)"]
     assert code == 0 and argv == ["-m", "score", "status", "world1", "$(id)"], (why, argv)  # never a shell
-    code, why, argv, env = door("benchmark g-1 world1 --stage x --detach")
+    code, why, argv, env = answer["benchmark g-1 world1 --stage x --detach"]
     assert code == 0 and argv == ["-m", "score", "run", "world1", "--stage", "x", "--detach"], (why, argv)
     assert env["SCORE_BENCHMARK_GRANT"] == "g-1" and "SCORE_FREE_ONLY" not in env
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
-    code, why, argv, env = door("benchmark 20261026T074845.442617+0000 world1 --detach")
+    code, why, argv, env = answer["benchmark 20261026T074845.442617+0000 world1 --detach"]
     assert code == 0 and env["SCORE_BENCHMARK_GRANT"] == "20261026T074845.442617+0000", why
-    code, why, argv, _ = door("grant-benchmark 12 'yes, go' 'may I spend EUR 12 on x?'")
+    code, why, argv, _ = answer["grant-benchmark 12 'yes, go' 'may I spend EUR 12 on x?'"]
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["12", "yes, go", "may I spend EUR 12 on x?"], argv
-    code, why, argv, env = door("buy-yes --batch-total 333 30 'Yes, buy it' 'Batch 1 total EUR 333?'")
+    code, why, argv, env = answer["buy-yes --batch-total 333 30 'Yes, buy it' 'Batch 1 total EUR 333?'"]
     assert code == 0 and argv == ["-m", "score.dashboard", "buy-yes", "--batch-total", "333", "30", "Yes, buy it",
                                   "Batch 1 total EUR 333?"], (why, argv)
     assert env["SCORE_FREE_ONLY"] == "1"  # recording a yes spends nothing
-    code, why, argv, env = door("batch-money")
+    code, why, argv, env = answer["batch-money"]
     assert code == 0 and argv == ["-m", "score.dashboard", "batch-money"] and env["SCORE_FREE_ONLY"] == "1", why
-    code, why, argv, _ = door("batch-money --no-film")
+    code, why, argv, _ = answer["batch-money --no-film"]
     assert code == 0 and argv == ["-m", "score.dashboard", "batch-money", "--no-film"], why
-    code, why, argv, _ = door("buy-yes --no-film --batch-total 380 343 'Yes' 'Batch 1 total EUR 380, no film?'")
+    code, why, argv, _ = answer["buy-yes --no-film --batch-total 380 343 'Yes' 'Batch 1 total EUR 380, no film?'"]
     assert code == 0 and argv[:5] == ["-m", "score.dashboard", "buy-yes", "--no-film", "--batch-total"], why
-    code, why, argv, env = door("buy 20261025T170000Z")
+    code, why, argv, env = answer["buy 20261025T170000Z"]
     assert code == 0 and argv[1:] == ["--buy", "20261025T170000Z"], (why, argv)  # started detached, below
     assert "SCORE_FREE_ONLY" not in env and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
-    code, why, argv, _ = door("buy-log")
+    code, why, argv, _ = answer["buy-log"]
     assert code == 0 and argv[1:] == ["--buy-log"], (why, argv)
-    code, why, argv, _ = door("resume --dry")
+    code, why, argv, _ = answer["resume --dry"]
     assert code == 0 and argv == ["-m", "score", "resume", "--dry"]
-    code, why, argv, env = door("preflight world1 --phase props")  # 2026-11-06: a phase checked free before it is queued
+    code, why, argv, env = answer["preflight world1 --phase props"]  # 2026-11-06: a phase checked free before it is queued
     assert code == 0 and argv == ["-m", "score", "preflight", "world1", "--phase", "props"], (why, argv)
     assert env["SCORE_FREE_ONLY"] == "1"
     # a phase's places locked as they pass (2026-11-06). Break: in agent_door, drop the `lock-phase` verb
-    code, why, argv, _ = door("lock-phase world1 surfaces --place hub --place lab")
+    code, why, argv, _ = answer["lock-phase world1 surfaces --place hub --place lab"]
     assert code == 0 and argv == ["-m", "score", "lock-phase", "world1", "surfaces", "--place", "hub", "--place",
                                   "lab"], (why, argv)
-    code, why, argv, _ = door("logs --lines 5")
+    code, why, argv, _ = answer["logs --lines 5"]
     assert code == 0 and argv == ["-m", "score.conductor", "logs", "--lines", "5"], (why, argv)
-    code, why, argv, _ = door("gaps closeup@hub")
+    code, why, argv, _ = answer["gaps closeup@hub"]
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["closeup@hub"], (why, argv)
-    for verb in ("disk", "sweep", "clean-frozen", "clean-cache", "relink-pixal", "offload-pixal"):  # 2026-10-26: the data disk full, the copies of ended runs on it
-        code, why, argv, env = door(verb)
+    for verb in DISK_VERBS:  # 2026-10-26: the data disk full, the copies of ended runs on it
+        code, why, argv, env = answer[verb]
         assert code == 0 and argv == ["-m", "score.conductor", verb] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
-    for verb in ("store-gc", "store-evict"):  # 2026-10-30: the disk full; 2026-11-04 (#74): blobs into the bucket
-        code, why, argv, env = door(f"{verb} --dry")
+    for verb in BUCKET_VERBS:  # 2026-10-30: the disk full; 2026-11-04 (#74): blobs into the bucket
+        code, why, argv, env = answer[f"{verb} --dry"]
         assert code == 0 and argv == ["-m", "score.conductor", verb, "--dry"] and env["SCORE_FREE_ONLY"] == "1", why
-    for action in ("status", "pull"):  # 2026-10-28: score_lib's checkout, never pulled since boot.sh cloned it
-        code, why, argv, _ = door(f"score-lib {action}")
+    for action in LIBRARY_ACTIONS:  # 2026-10-28: score_lib's checkout, never pulled since boot.sh cloned it
+        code, why, argv, _ = answer[f"score-lib {action}"]
         assert code == 0 and argv == ["-m", "score.conductor", "score-lib", action], (why, argv)
-    code, why, argv, env = door("job-log x.home/work/cloud/blender-1/job3.log")
+    code, why, argv, env = answer["job-log x.home/work/cloud/blender-1/job3.log"]
     assert code == 0 and argv[1:] == ["--job-log", "x.home/work/cloud/blender-1/job3.log"], (why, argv)
     assert argv[0].endswith("agent_door.py") and env["SCORE_FREE_ONLY"] == "1", argv
-    code, why, argv, env = door("run-log")
+    code, why, argv, env = answer["run-log"]
     assert code == 0 and argv[1:] == ["--run-log", "200"] and argv[0].endswith("agent_door.py"), (why, argv)
-    code, why, argv, env = door("run-log --lines 99999")
+    code, why, argv, env = answer["run-log --lines 99999"]
     assert code == 0 and argv[1:] == ["--run-log", "2000"], (why, argv)  # capped
-    code, why, argv, env = door("fault motion@airlock")
+    code, why, argv, env = answer["fault motion@airlock"]
     assert code == 0 and argv[1:] == ["--fault", "motion@airlock"] and env["SCORE_FREE_ONLY"] == "1", (why, argv)
-    code, why, argv, env = door("stop-batch 'the run holds 13 idle machines'")
+    code, why, argv, env = answer["stop-batch 'the run holds 13 idle machines'"]
     assert code == 0 and argv[0] == "-c" and argv[2:] == ["the run holds 13 idle machines"], (why, argv)
     assert all(env.get(marker) == "1" for marker in AGENT_MARKERS)
-    code, why, argv, env = door("move-out 'no u can do the conductor move asap'")
+    code, why, argv, env = answer["move-out 'no u can do the conductor move asap'"]
     assert code == 0 and argv[1:] == ["--move-out", "no u can do the conductor move asap"], (why, argv)
     assert argv[0].endswith("agent_door.py") and all(env.get(marker) == "1" for marker in AGENT_MARKERS)
     # move-out itself (#76 step 7): nothing while a run or a parked machine would be cut; else the latch, the VM's
@@ -481,25 +559,22 @@ def test_the_door_runs_the_allowed_commands_marked_as_an_agents(door):
                                run=lambda argv, **o: calls.append(argv) or types.SimpleNamespace(returncode=5,
                                                                                                   stderr="no bus")) == 5
     assert len(calls) == 1  # the stop failed: no backup
-    for asked, flag in (("store-pull", "--store-pull"), ("store-push --missing", "--store-missing"),
-                        ("store-push", "--store-push"), ("store-push --differs", "--store-differs"),
-                        ("store-push --replace", "--store-replace")):
-        code, why, argv, env = door(asked)
+    for asked, flag in STORE_FLAGS:
+        code, why, argv, env = answer[asked]
         assert code == 0 and argv[1:] == [flag] and argv[0].endswith("agent_door.py"), (why, argv)
-    assert door("store-push --force")[0] != 0 and door("store-push --replace --missing")[0] != 0
-    code, why, argv, _ = door('carry --no-op "score/stages/people_bodies/bodies.py=same bytes" --write')
+    assert answer["store-push --force"][0] != 0 and answer["store-push --replace --missing"][0] != 0
+    code, why, argv, _ = answer['carry --no-op "score/stages/people_bodies/bodies.py=same bytes" --write']
     assert code == 0 and argv[1:] == ["--carry", "--no-op", "score/stages/people_bodies/bodies.py=same bytes",
                                       "--write"], (why, argv)
-    for asked in ("carry --write", "carry --no-op x.py", "carry --no-op ../x.py=why", "carry --rm x"):
-        assert door(asked)[0] != 0, asked  # no reason, a path out, an unknown flag: refused at the door
-    code, why, argv, _ = door("route-log /home/score/.farm-factory-motion/candidates/x/out/chain.log")
+    for asked in CARRY_REFUSED:
+        assert answer[asked][0] != 0, asked  # no reason, a path out, an unknown flag: refused at the door
+    code, why, argv, _ = answer["route-log /home/score/.farm-factory-motion/candidates/x/out/chain.log"]
     assert code == 0 and argv[1] == "--route-log", (why, argv)
-    assert door("route-log /etc/passwd")[0] != 0  # not a .log: refused at the door
-    code, why, argv, _ = door("design-file design/props/lab.json")
+    assert answer["route-log /etc/passwd"][0] != 0  # not a .log: refused at the door
+    code, why, argv, _ = answer["design-file design/props/lab.json"]
     assert code == 0 and argv[1:] == ["--design-file", "design/props/lab.json"], (why, argv)
-    for asked in ("design-file", "design-file design/../cloud/ssh_key", "design-file cloud/ledger.jsonl",
-                  "design-file design/props/lab.json extra", "design-file design/kit/kit.json"):
-        assert door(asked)[0] != 0, asked
+    for asked in DESIGN_REFUSED:
+        assert answer[asked][0] != 0, asked
 
 
 def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch):
@@ -580,8 +655,7 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
     said = agent_door.buy_started("20261104T000000Z", tmp_path, [sys.executable, "-c",
                                   "import time; print('checkout 18: launched', flush=True); time.sleep(5)"])
     assert time.monotonic() - started < 2 and "buy-log" in said, said  # never held for the Buy's own time
-    time.sleep(0.5)
-    assert agent_door.buy_log(tmp_path).endswith("checkout 18: launched\n")
+    assert soon(lambda: agent_door.buy_log(tmp_path).endswith("checkout 18: launched\n"))
     said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('phase')"], "models")
     assert said.startswith("buy 20261106T000000Z --phase models:") and "20261106T000000Z-models.log" in said, said
     said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('phases')"],
@@ -632,8 +706,7 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
         monkeypatch.setenv(name, value)
     said = agent_door.buy_started("20261106T000002Z", tmp_path, shown, "models", cluster="pixal,blender")
     assert said.startswith("buy 20261106T000002Z --phase models --cluster pixal,blender:"), said
-    time.sleep(0.5)
-    assert agent_door.buy_log(tmp_path).endswith("k8s pixal,blender\n")
+    assert soon(lambda: agent_door.buy_log(tmp_path).endswith("k8s pixal,blender\n"))
     # carry (2026-11-03) never runs with a run live
     monkeypatch.setattr(agent_door, "replace_refusal", lambda home: "a run is live (r1)")
     with pytest.raises(agent_door.Refused, match="a run is live"):
@@ -790,8 +863,9 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
             agent_door.stack(os.getpid(), home)  # no run's process
         # a run's process with no SIGUSR1 handler is refused and lives on (2026-11-06: the verb ended a score run).
         # Break: in agent_door.stack, drop the `catches` refusal
-        bare = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)", str(copy)])
-        time.sleep(0.5)
+        bare = subprocess.Popen([sys.executable, "-c", "import time; print('up', flush=True); time.sleep(30)",
+                                 str(copy)], stdout=subprocess.PIPE, text=True)
+        assert bare.stdout.readline().strip() == "up"
         with pytest.raises(agent_door.Refused, match="does not catch SIGUSR1"):
             agent_door.stack(bare.pid, home, wait=0.2)
         assert bare.poll() is None
@@ -1366,7 +1440,7 @@ def cockpit(answer):
             pass
 
     server = http.server.HTTPServer(("127.0.0.1", 0), Health)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
+    threading.Thread(target=server.serve_forever, kwargs={"poll_interval": POLL}, daemon=True).start()
     try:
         yield f"http://127.0.0.1:{server.server_port}"
     finally:
