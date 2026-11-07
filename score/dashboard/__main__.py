@@ -93,8 +93,9 @@ def parse(argv):
     bought.add_argument("--leave-out", help="stages (a comma list) this Buy neither buys nor makes, beside the yes's")
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
-    decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend or the "
-                                                   "books month (score.review.web.BOOKS_MONTH)")
+    decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend, the "
+                                                   "books month (score.review.web.BOOKS_MONTH) or stop (an "
+                                                   "environment's stop line at --euros)")
     decide_yes.add_argument("target", help="the node, place, film, environment, override name or month "
                                                  "(YYYY-MM) it applies to")
     for name in ("output", "check", "sha", "reason", "worse-reason", "euros", "purpose"):

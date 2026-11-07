@@ -205,6 +205,36 @@ def spend_override(user, payload):
             f"SCORE_SPEND_TICKET=\"override {name}\"")
 
 
+def stop_line(user, payload):
+    """The owner's new stop line for one environment (score.review.web.stop, the line `python -m score.review stop`
+    writes), in words: local written, hosted queued; refused for anyone else, in an agent's process, for a name that is
+    not plain, euros that are not an amount above 0 or no reason, or when the environment's newest line is no longer
+    the one it `replaces` (its `at`; None for a first line)."""
+    world, amount = str(payload.get("world") or ""), euro_amount(payload.get("euros"))
+    reason = str(payload.get("reason") or "").strip()
+    if not SCENE_NAME.fullmatch(world):
+        return f"refused: {world!r} is not a plain environment name"
+    if not amount or not reason:
+        return "refused: a stop line names its euros above 0 and says why"
+    if hosted():
+        return queued_for_store("stop-line", user, {"world": world, "euros": amount, "reason": reason,
+                                                    "replaces": payload.get("replaces")},
+                                f"sets {world}'s stop line at EUR {amount:.2f}")
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    try:
+        line = web.stop(state.source().store, world, amount, reason, user, replaces=payload.get("replaces"))
+    except (review.Refused, PermissionError) as refused:
+        return f"refused: {refused}"
+    if line is None:
+        return f"refused: another stop line of {world} was written since"
+    was = f", was EUR {line['before']:.2f}" if line["before"] is not None else ", its first"
+    return f"stop line of {world}: EUR {line['euros']:.2f}{was}"
+
+
 def waive_check(user, place, stage, output, check, reason):
     """The owner's waiver of one check of an output he saw (score.review.web.waived), in words: local written,
     hosted queued."""
