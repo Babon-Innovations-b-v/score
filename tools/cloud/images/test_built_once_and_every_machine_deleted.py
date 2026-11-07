@@ -236,10 +236,9 @@ def test_a_proofs_job_spec_marks_and_results(tmp_path, monkeypatch):
 
     set_ups = []
     monkeypatch.setattr(warm, "set_up", lambda machine, registry, store_spec: set_ups.append("card"))
-    monkeypatch.setattr(build, "set_up", lambda machine, registry: set_ups.append("docker"))
-    monkeypatch.setattr(build, "send_store_environment", lambda machine, store_spec: set_ups.append("store"))
+    monkeypatch.setattr(prove, "processor_set_up", lambda machine, registry, store_spec: set_ups.append("docker"))
     for machine in ({"class": "gpu-24gb"}, {"class": "cpu-16c-64gb"}):
         prove.set_up(machine, {}, {})
-    assert set_ups == ["card", "docker", "store"]
+    assert set_ups == ["card", "docker"] and "nvidia" not in prove.PROCESSOR_SETUP
     assert prove.card_flags({"class": "gpu-24gb"}) == ["--gpus", "all"]
     assert prove.card_flags({"class": "cpu-16c-64gb"}) == []
