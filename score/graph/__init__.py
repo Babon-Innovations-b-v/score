@@ -1458,17 +1458,22 @@ class Runner:
             return self.store.judgement(record["node"], record["key"], judgement["evidence"])
         return judgement
 
-    def run_node(self, stage, place):
+    def run_node(self, stage, place, given=None):
         """Make the node if its key has no record, judge it if its evidence state has no judgement, accept it when it
         passed and got no worse; what it did. It holds the node's key's lock throughout, so of two runs wanting one
-        key the second waits and finds the first's record. Its key is worked out in a fresh `still` pass (a key's reads
-        cost 6-15 min outside one, 2026-10-30), closed before the make writes; a remake's re-key gets a pass of its own."""
+        key the second waits and finds the first's record. Its key is the drive's (`given`, worked out in the drive's
+        pass) when under the lock nothing it read moved since (moved_since), else worked out in a fresh `still` pass (a
+        key's reads cost 6-15 min outside one, 2026-10-30), closed before the make writes; a remake's re-key gets a pass
+        of its own."""
         keyed = None
         try:
-            with self.still():
-                keyed = self.key(stage, place)
-            with self.held(node_name(stage, place), keyed["key"]):
-                did = self.run_held(stage, place, keyed)
+            for drives in ((given, None) if given else (None,)):
+                keyed = drives or self.fresh_key(stage, place)
+                with self.held(node_name(stage, place), keyed["key"]):
+                    if drives and self.moved_since(stage, place, drives):
+                        continue  # an earlier output or a file moved since the drive's pass: re-keyed
+                    did = self.run_held(stage, place, keyed)
+                    break
         except Blocked as block:
             return f"blocked: {block}"
         except Exception as error:  # noqa: BLE001 - only a job too big for this PC's card, the rest goes up as it was
@@ -1477,6 +1482,21 @@ class Runner:
                 raise
             return left
         return self.after_failure(stage, place, keyed, did)
+
+    def fresh_key(self, stage, place):
+        """The node's key worked out in a still pass of its own."""
+        with self.still():
+            return self.key(stage, place)
+
+    def moved_since(self, stage, place, keyed):
+        """What moved since `keyed` was worked out: each earlier output it reads (after, beside) that no longer stands
+        as the one accepted (or kept by a rebuy), and its environment files when one hashes otherwise; [] when
+        nothing did."""
+        outputs = {node_name(self.stages[before], place): output for before, output in keyed["after"].items()}
+        outputs.update(keyed.get("beside", {}))
+        moved = [node for node, output in outputs.items()
+                 if self.kept_as.get(node, self.store.accepted(node)) != output]
+        return moved + (["files"] if self.file_keys(stage, place) != keyed["files"] else [])
 
     def left_cloud_only(self, stage, place, keyed, error):
         """A paid node made free on this PC in a free-only run whose make met a job too big for this PC's card
@@ -2067,15 +2087,16 @@ class Runner:
         finally:
             gone(folder)
 
-    def drive_node(self, stage, place, threads):
-        """Run one node, its thread pools capped at `threads` first, gathering the evidence it lacks and judging it
-        again; what it did. Its output, a raised error's traceback included (a failed cap's too), goes to its log."""
+    def drive_node(self, stage, place, threads, given=None):
+        """Run one node, its thread pools capped at `threads` first, from the drive's key `given` (run_node), gathering
+        the evidence it lacks and judging it again; what it did. Its output, a raised error's traceback included (a
+        failed cap's too), goes to its log."""
         log = self.desk("logs", node_name(stage, place), ".log")
         log.parent.mkdir(parents=True, exist_ok=True)
         with logged(log):
             try:
                 cap_threads(threads)
-                did = self.run_retrying(stage, place)
+                did = self.run_retrying(stage, place, given)
                 wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place)
                 if wanted:
                     self.gather(stage, place, wanted)
@@ -2085,12 +2106,12 @@ class Runner:
                 traceback.print_exc()
                 return f"error: {type(error).__name__}: {error}"
 
-    def run_retrying(self, stage, place):
-        """run_node; a free stage's transient error (`transient`) runs it again up to RETRIES times with growing
-        waits, a paid stage's goes up at once (ADR-0005)."""
+    def run_retrying(self, stage, place, given=None):
+        """run_node (from the drive's key `given`); a free stage's transient error (`transient`) runs it again up to
+        RETRIES times with growing waits, a paid stage's goes up at once (ADR-0005)."""
         for attempt in range(RETRIES + 1):
             try:
-                return self.run_node(stage, place)
+                return self.run_node(stage, place, given)
             except Exception as error:  # noqa: BLE001 - one not transient, or the last try's, goes up as it was
                 if stage.paid or attempt == RETRIES or not transient(error):
                     raise
@@ -2180,20 +2201,21 @@ class Runner:
                       *(f"    - {finding}" for finding in verdict["findings"])]
         return lines + [""]
 
-    def start(self, stage, place, threads):
+    def start(self, stage, place, threads, given=None):
         """Start one node in a process of its own (forked: its output goes to its own log), its thread pools and its
-        children's capped at `threads`; {its result pipe: (stage, place, process)}."""
+        children's capped at `threads`, handed the drive's key `given` (re-checked under its lock, run_node); {its
+        result pipe: (stage, place, process)}."""
         receiving, sending = FORK.Pipe(duplex=False)
         sys.stdout.flush()
         sys.stderr.flush()
-        process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid(), threads),
+        process = FORK.Process(target=self.node_process, args=(stage, place, sending, os.getpid(), threads, given),
                                name=node_name(stage, place))
         process.start()
         self.began[node_name(stage, place)] = time.time()
         sending.close()
         return {receiving: (stage, place, process)}
 
-    def node_process(self, stage, place, sending, runner_pid, threads):
+    def node_process(self, stage, place, sending, runner_pid, threads, given=None):
         """In the node's own process: drive it, its thread pools capped at `threads`, send back what it did and end
         the process at once: a thread its make left running (a library's pool, a read that never returns) would
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
@@ -2203,7 +2225,7 @@ class Runner:
         high = [0, False]  # the most this node's process tree held, and whether it ran a container client
         threading.Thread(target=watch_memory, args=(high,), daemon=True).start()
         try:
-            did = self.drive_node(stage, place, threads)
+            did = self.drive_node(stage, place, threads, given)
         except BaseException as error:  # noqa: BLE001 - raised where its log could not take it (Batch 1, a full disk)
             did = f"error: {type(error).__name__}: {error}; raised outside its log:\n{traceback.format_exc()}"
         sending.send((did, max(high[0], HELD([os.getpid()])[os.getpid()]),
@@ -2467,8 +2489,9 @@ class Runner:
                         waiting.remove((stage, place))
                         ready.append((stage, place))
                         coming.append((expected, 0))
+                given = {node_name(stage, place): self.drive_key(stage, place) for stage, place in ready}
             for stage, place in ready:
-                running.update(self.start(stage, place, threads))
+                running.update(self.start(stage, place, threads, given[node_name(stage, place)]))
             self.driving = (len(running), time.monotonic())
             if held and not told:
                 say(f"memory: {AVAILABLE() / 2**30:.1f} GB available, {len(running)} running; ready nodes wait for "
@@ -2488,6 +2511,15 @@ class Runner:
             finished = FORK_WAIT(list(running), timeout=beat_in)  # concluded at the next turn's start
         return {node_name(stage, place): done[node_name(stage, place)] for stage, place in chosen
                 if node_name(stage, place) in done}
+
+    def drive_key(self, stage, place):
+        """A ready node's key from the drive's pass (its earlier keys remembered there), handed to its process so it
+        need not walk its reads again (#76, with hundreds of nodes in flight); None when it cannot be worked out here
+        (the node's own process says why)."""
+        try:
+            return self.key(stage, place)
+        except Blocked:
+            return None
 
     def claim_waiting(self, running):
         """{stage name: how many of its `running` nodes only wait on a claim (CLAIM_WAITERS)}: of this PC's container,
