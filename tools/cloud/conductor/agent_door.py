@@ -169,6 +169,7 @@ as_owner_under), and `decide` likewise for the one decision his yes covers (as_o
 """
 import datetime
 import hashlib
+import json
 import os
 import signal
 import pathlib
@@ -187,7 +188,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, running, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -243,6 +244,7 @@ RUN_LOG = "--run-log"  # this file's own read of the newest launch's run log (th
 FAULT = "--fault"  # this file's own read of a fault report of the newest launch (the fault verb runs it)
 POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
 PROCESSES = "--ps"  # this file's own read of the busiest processes (the ps verb runs it)
+RUNNING = "--running"  # this file's own read of each live run's nodes now (the running verb runs it)
 STACK = "--stack"  # this file's own ask of a run's process for its Python stacks (the stack verb runs it)
 CLUSTER_CHECK = "--cluster-check"  # this file's own look at the tenant cluster (the cluster-check verb runs it)
 CLUSTER_SETTINGS = ("SCORE_K8S_CONTEXT", "SCORE_K8S_CLUSTER", "SCORE_K8S_PROJECT")  # the box's, never the repo's
@@ -391,6 +393,10 @@ def decide(words, latch):
         if args:
             raise Refused("ps takes no arguments")
         return [str(pathlib.Path(__file__).resolve()), PROCESSES], {}
+    if verb == "running":
+        if args:
+            raise Refused("running takes no arguments")
+        return [str(pathlib.Path(__file__).resolve()), RUNNING], {}
     if verb == "carry":
         return [str(pathlib.Path(__file__).resolve()), CARRY, *carry_args(args)], {}
     if verb == "route-log":
@@ -688,6 +694,8 @@ def own_read(argv, props_home):
         return pool_log(newest_launch_log(), props_home, int(argv[1]))
     if argv[0] == PROCESSES:
         return processes()
+    if argv[0] == RUNNING:
+        return running(props_home)
     if argv[0] == STACK:
         return stack(int(argv[1]), props_home)
     if argv[0] == CLUSTER_CHECK:
@@ -695,6 +703,24 @@ def own_read(argv, props_home):
     if argv[0] == NODE_LOG:
         return node_log(newest_launch_log(), argv[1], props_home)
     return fault(newest_launch_log(), argv[1], props_home)
+
+
+def running(props_home):
+    """Each run entry in a running state (the home's registry and each frozen home's, where a resumed run keeps its
+    own), its id, how long its beat is old and its `running` nodes as the drive last wrote them, read only."""
+    home = pathlib.Path(props_home)
+    lines = []
+    for path in sorted([*home.glob("runs/*.json"), *home.glob("frozen/*.home/runs/*.json")]):
+        try:
+            entry = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if not isinstance(entry, dict) or entry.get("state") != "running":
+            continue
+        age = int(time.time() - path.stat().st_mtime)
+        nodes = entry.get("running") or []
+        lines.append(f"{entry.get('id', path.stem)} (beat {age} s old): {len(nodes)} running: {', '.join(nodes)}")
+    return "\n".join(lines) or "no run in a running state"
 
 
 def processes(lines=PS_LINES):
@@ -1133,7 +1159,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [NODE_LOG], [STACK], [CLUSTER_CHECK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [RUNNING], [NODE_LOG], [STACK], [CLUSTER_CHECK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))

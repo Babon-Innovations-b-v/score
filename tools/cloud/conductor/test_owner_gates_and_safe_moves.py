@@ -670,6 +670,17 @@ def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
         time.sleep(0.01)
     assert agent_door.pool_log(log, home, 1).splitlines()[1:] == ["pool: a heartbeat failed"]
     # the busiest processes, read only (2026-11-06: sim-body rows ground the conductor's processor, unseen)
+    # each live run's nodes now, from its registry entry, a resumed run's in its frozen home too (2026-11-07: 16 slots
+    # held, nothing said which). Break: in agent_door.running, drop the frozen homes' glob
+    registry = tmp_path / "running-home"
+    for folder, name, state, nodes in ((registry / "runs", "a", "running", ["pixal@hub"]),
+                                       (registry / "frozen" / "c1.home" / "runs", "b", "running", ["sound@lab", "x@y"]),
+                                       (registry / "runs", "c", "ended", ["old@z"])):
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{name}.json").write_text(json.dumps({"id": name, "state": state, "running": nodes}))
+    now_running = agent_door.running(registry)
+    assert "a (beat" in now_running and "1 running: pixal@hub" in now_running and "2 running: sound@lab, x@y" in now_running, now_running
+    assert "old@z" not in now_running
     seen = agent_door.processes(5).splitlines()
     assert seen[0].startswith("pid %cpu") and 1 < len(seen) <= 6
     # a run's process tells where it is: SIGUSR1, its stacks to its dump file (2026-11-06: bake calls spun unseen)
