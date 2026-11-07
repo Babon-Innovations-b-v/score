@@ -188,7 +188,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
-         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, running, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
+         "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, running, outbox, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
          "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
          "stop-batch <reason>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
@@ -245,6 +245,8 @@ FAULT = "--fault"  # this file's own read of a fault report of the newest launch
 POOL_LOG = "--pool-log"  # this file's own read of the newest launch's warm pool collector log (the pool-log verb)
 PROCESSES = "--ps"  # this file's own read of the busiest processes (the ps verb runs it)
 RUNNING = "--running"  # this file's own read of each live run's nodes now (the running verb runs it)
+OUTBOX = "--outbox"  # this file's own read of the owner outbox's last lines (the outbox verb runs it)
+OUTBOX_LINES = 40
 STACK = "--stack"  # this file's own ask of a run's process for its Python stacks (the stack verb runs it)
 CLUSTER_CHECK = "--cluster-check"  # this file's own look at the tenant cluster (the cluster-check verb runs it)
 CLUSTER_SETTINGS = ("SCORE_K8S_CONTEXT", "SCORE_K8S_CLUSTER", "SCORE_K8S_PROJECT")  # the box's, never the repo's
@@ -397,6 +399,10 @@ def decide(words, latch):
         if args:
             raise Refused("running takes no arguments")
         return [str(pathlib.Path(__file__).resolve()), RUNNING], {}
+    if verb == "outbox":
+        if args:
+            raise Refused("outbox takes no arguments")
+        return [str(pathlib.Path(__file__).resolve()), OUTBOX], {}
     if verb == "carry":
         return [str(pathlib.Path(__file__).resolve()), CARRY, *carry_args(args)], {}
     if verb == "route-log":
@@ -553,8 +559,32 @@ def newest_launch_log():
     for launch in Launch.objects.order_by("-pk"):
         logs = [handle["log"] for handle in launch.handles if handle.get("log")]
         if logs:
-            return logs[-1]
+            return followed(logs[-1])
     raise Refused("no launch records a run log")
+
+
+REGISTERED = re.compile(r"registered as (\S+?);")  # a waiting run's line naming its registry entry (graph/runs.py)
+
+
+def followed(log, runs=None, hops=5):
+    """The log a run named by `log` goes on in: a run that waited for size and was resumed (its log names its entry,
+    `registered as <id>`, and the entry its `resumed` log) is followed to that log, at most `hops` resumes; `log`
+    itself otherwise (2026-11-07: Launch 33's door read showed only its first, stopped log)."""
+    if runs is None:
+        from score.store import PROPS_HOME
+        runs = PROPS_HOME / "runs"
+    folder = pathlib.Path(runs)
+    for _ in range(hops):
+        try:
+            found = REGISTERED.search(pathlib.Path(log).read_text(errors="replace")[:4000])
+            entry = json.loads((folder / f"{found.group(1)}.json").read_text()) if found else {}
+        except (OSError, ValueError):
+            return log
+        resumed = (entry.get("resumed") or {}).get("log") if isinstance(entry, dict) else None
+        if not resumed:
+            return log
+        log = resumed
+    return log
 
 
 def launch_home(log, props_home):
@@ -696,6 +726,8 @@ def own_read(argv, props_home):
         return processes()
     if argv[0] == RUNNING:
         return running(props_home)
+    if argv[0] == OUTBOX:
+        return outbox(props_home)
     if argv[0] == STACK:
         return stack(int(argv[1]), props_home)
     if argv[0] == CLUSTER_CHECK:
@@ -703,6 +735,21 @@ def own_read(argv, props_home):
     if argv[0] == NODE_LOG:
         return node_log(newest_launch_log(), argv[1], props_home)
     return fault(newest_launch_log(), argv[1], props_home)
+
+
+def outbox(props_home, lines=OUTBOX_LINES):
+    """The last `lines` lines of each owner outbox (score/adapters/compute/guard.py OUTBOX: the stop lines' and the
+    runaway watch's notes) under the home's store and each frozen home's store, secrets left out, read only."""
+    from score.conductor.logs import clean
+    home = pathlib.Path(props_home)
+    said = []
+    for path in sorted([*home.glob("store/owner-outbox.txt"), *home.glob("frozen/*.home/store/owner-outbox.txt")]):
+        try:
+            tail = path.read_text(errors="replace").splitlines()[-lines:]
+        except OSError:
+            continue
+        said += [f"== {path}", *clean(tail)]
+    return "\n".join(said) or "no owner outbox"
 
 
 def running(props_home):
@@ -1159,7 +1206,7 @@ def main():
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
-    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [RUNNING], [NODE_LOG], [STACK], [CLUSTER_CHECK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
+    if sys.argv[1:2] in ([JOB_LOG], [RUN_LOG], [POOL_LOG], [PROCESSES], [RUNNING], [OUTBOX], [NODE_LOG], [STACK], [CLUSTER_CHECK], [FAULT], [DESIGN_FILE], [ROUTE_LOG]):
         from score.store import PROPS_HOME
         try:
             print(own_read(sys.argv[1:], PROPS_HOME))
