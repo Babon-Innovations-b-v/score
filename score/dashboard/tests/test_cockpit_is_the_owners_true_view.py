@@ -45,6 +45,8 @@ from score.dashboard.state import batch_run, local, machine, plain, screens, ver
 from score.dashboard.state.exported import ExportedSource
 from score.dashboard.state.models import CostLine, Spend, WorldState
 from score.dashboard.sync import applying, building, client, listen, one_store
+from score.dashboard.conftest import served
+from score.dashboard.previews import films
 from score.dashboard.tests import fixture
 from score.dashboard.tests.fixture import (MADE, NODE, ORIGIN, SPEND, TOKEN, FakeBackend, hosted_client, opener_of,
                                           outside_details)
@@ -52,6 +54,69 @@ from score.dashboard.tests.fixture import (MADE, NODE, ORIGIN, SPEND, TOKEN, Fak
 pytestmark = pytest.mark.django_db(transaction=True)
 REPO = pathlib.Path(__file__).resolve().parents[3]
 WORD_BUDGET = 40  # a screen's words outside data, hover text and scripts (owner, 2026-10-20: text down about 98%)
+
+
+# --- the fixture environment and the library, built once a file and copied -------------------------------------------
+
+@pytest.fixture(scope="module")
+def built_once(tmp_path_factory):
+    """The fixture environment (tests/fixture.py) built once a file, designed and still in design: each test gets a
+    copy of its own (a copy is a fifth of a build), the same files and outputs."""
+    return {design: fixture.build(tmp_path_factory.mktemp(f"built-{design}"), design) for design in (True, False)}
+
+
+def copy_of(built, tmp_path, monkeypatch):
+    """`built` copied into this test's tmp_path (its file times kept) and served as conftest's world is."""
+    shutil.copytree(built.root, tmp_path, symlinks=True, dirs_exist_ok=True)
+    return served(fixture.opened(tmp_path, dict(built.outputs)), monkeypatch)
+
+
+@pytest.fixture
+def world(built_once, tmp_path, monkeypatch):
+    """conftest's world (both places designed), copied from this file's one build."""
+    return copy_of(built_once[True], tmp_path, monkeypatch)
+
+
+@pytest.fixture
+def drafting(built_once, tmp_path, monkeypatch):
+    """conftest's drafting (alpha drawn, beta not, nothing locked), copied from this file's one build."""
+    return copy_of(built_once[False], tmp_path, monkeypatch)
+
+
+@pytest.fixture(autouse=True)
+def probed_once(monkeypatch):
+    """films.probe asks ffprobe once a file for each film's bytes (the pages ask again on every request while a film
+    cannot be read: the fixture's film.mp4 is 16 bytes); its answer for those bytes is ffprobe's own."""
+    real = films.probe
+
+    def once(film):
+        path = pathlib.Path(film)
+        if not path.is_file():
+            return real(film)
+        sha = hashlib.sha256(path.read_bytes()).hexdigest()
+        if sha not in PROBED:
+            PROBED[sha] = real(film)
+        return PROBED[sha]
+    monkeypatch.setattr(films, "probe", once)
+
+
+PROBED = {}  # film bytes' sha -> films.probe's answer
+
+
+@pytest.fixture(autouse=True)
+def checkout_read_once(monkeypatch):
+    """local.priced_here reads this checkout (git's HEAD, the per-unit prices' sha) once a file: no test moves either,
+    and every page read them again."""
+    real = local.priced_here
+
+    def once():
+        if not CHECKOUT:
+            CHECKOUT.update(real())
+        return dict(CHECKOUT)
+    monkeypatch.setattr(local, "priced_here", once)
+
+
+CHECKOUT = {}  # local.priced_here's answer, read once
 
 
 # --- clients ----------------------------------------------------------------------------------------------------------
@@ -2649,9 +2714,30 @@ def entry(root, blobs, kind, entry_id, state="draft", place="alpha", node="close
     return record
 
 
+@pytest.fixture(scope="module")
+def shelf_once(tmp_path_factory):
+    """The shelf's folders made once a file: each test gets a copy of its own."""
+    folder = tmp_path_factory.mktemp("shelf")
+    shelf_made(folder)
+    return folder
+
+
 @pytest.fixture
-def shelf(tmp_path):
-    """A tiny library of 15 entries in a git folder with a bare remote, and its blob folder."""
+def shelf(shelf_once, tmp_path):
+    """A tiny library of 15 entries in a git folder with a bare remote, and its blob folder: this file's one shelf
+    copied into tmp_path, its clone's origin the copy's own bare remote."""
+    shutil.copytree(shelf_once, tmp_path, symlinks=True, dirs_exist_ok=True)
+    config = tmp_path / "lib" / ".git" / "config"
+    config.write_text(config.read_text().replace(str(shelf_once / "remote.git"), str(tmp_path / "remote.git")))
+    root, blobs, command = tmp_path / "lib", tmp_path / "blobs", tmp_path / "score_lib_command.py"
+    with override_settings(SCORE_LIB_ROOT=str(root), SCORE_LIB_BLOBS_DIR=str(blobs),
+                           SCORE_LIB_COMMAND=f"{sys.executable} {command}"):
+        yield root
+
+
+def shelf_made(tmp_path):
+    """The shelf's library folder (`lib`, a git clone of the bare `remote.git`), blob folder and score_lib command,
+    written under `tmp_path`."""
     root, blobs = tmp_path / "lib", tmp_path / "blobs"
     entry(root, blobs, "model", "lamp_post.alpha",
           files={"web/lamp_post.glb": ("web3d", glb()), "web/lamp_light.glb": ("web3d", glb() + b" " * 4),
@@ -2700,9 +2786,6 @@ def shelf(tmp_path):
     git("commit", "-q", "-m", "entries")
     git("remote", "add", "origin", str(tmp_path / "remote.git"))
     git("push", "-q", "-u", "origin", "HEAD")
-    with override_settings(SCORE_LIB_ROOT=str(root), SCORE_LIB_BLOBS_DIR=str(blobs),
-                           SCORE_LIB_COMMAND=f"{sys.executable} {command}"):
-        yield root
 
 
 def item_data(html):
@@ -2985,17 +3068,45 @@ print(json.dumps({"codes": codes, "branch": branch, "heavy": heavy}))
 """
 
 
-def test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks(world, shelf, tmp_path):
-    """Break: pages/library.py imports score.stages."""
+HOSTED_TEST = "test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def hosted_child(request, built_once, shelf_once, tmp_path_factory, django_db_setup, django_db_blocker):
+    """HOSTED_TEST's fresh hosted process (HOSTED_CHILD) over a copy of this file's world and shelf, exported as that
+    test would (the export reads the empty test database's checkouts), started with the file's first test so it runs
+    beside the others (a fresh Django and its migrate are most of its time); None when that test is not run."""
+    if not any(item.name == HOSTED_TEST for item in request.session.items):
+        yield None
+        return
+    tmp_path = tmp_path_factory.mktemp("hosted-child")
+    shutil.copytree(built_once[True].root, tmp_path, symlinks=True, dirs_exist_ok=True)
+    shutil.copytree(shelf_once, tmp_path, symlinks=True, dirs_exist_ok=True)
+    config = tmp_path / "lib" / ".git" / "config"
+    config.write_text(config.read_text().replace(str(shelf_once / "remote.git"), str(tmp_path / "remote.git")))
+    world = fixture.opened(tmp_path, dict(built_once[True].outputs))
+    world.source.home.mkdir(parents=True, exist_ok=True)
     home = tmp_path / "hosted"
-    building.build(world.source, home / "export" / "one", MADE, 50, SPEND, world.root)
+    with override_settings(SCORE_LIB_ROOT=str(tmp_path / "lib"), SCORE_LIB_BLOBS_DIR=str(tmp_path / "blobs"),
+                           SCORE_LIB_COMMAND=f"{sys.executable} {tmp_path / 'score_lib_command.py'}"), \
+            django_db_blocker.unblock():
+        building.build(world.source, home / "export" / "one", MADE, 50, SPEND, world.root)
     (home / "export" / "current").symlink_to("one")
     env = {**os.environ, "SCORE_DASHBOARD_MODE": "hosted", "SCORE_DASHBOARD_HOME": str(home), "SCORE_LIB_ROOT": "",
            "DJANGO_SETTINGS_MODULE": "score.dashboard.site.settings", "PYTHONPATH": str(REPO)}
-    done = subprocess.run([sys.executable, "-c", HOSTED_CHILD], env=env, cwd=tmp_path, capture_output=True, text=True)
-    assert done.returncode == 0, done.stderr[-3000:]
-    assert json.loads(done.stdout.strip().splitlines()[-1]) == {"codes": [200] * 9, "branch": ["Pieces", "Props"],
-                                                                "heavy": []}
+    child = subprocess.Popen([sys.executable, "-c", HOSTED_CHILD], env=env, cwd=tmp_path, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True)
+    yield child
+    child.kill()
+    child.communicate()
+
+
+def test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks(hosted_child):
+    """Break: pages/library.py imports score.stages."""
+    out, err = hosted_child.communicate(timeout=50)
+    assert hosted_child.returncode == 0, err[-3000:]
+    assert json.loads(out.strip().splitlines()[-1]) == {"codes": [200] * 9, "branch": ["Pieces", "Props"],
+                                                        "heavy": []}
 
 
 def test_a_library_with_no_blob_folder_reads_its_pictures_from_the_store_sides_cache(shelf, tmp_path):

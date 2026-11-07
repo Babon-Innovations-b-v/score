@@ -220,10 +220,17 @@ def build(root, design=True):
     if design:
         designed(store, "alpha", alpha, props)
         designed(store, "beta", "b" * 64, props)
-    world = graph.Environment("world1", 3, {"data": str(data)})
-    source = LocalSource(props, root / "dashboard", root / "web", store_root=root / "store", world=world,
+    return opened(root, outputs)
+
+
+def opened(root, outputs):
+    """The fixture environment already written under `root` (by build, or copied from a build), its node `outputs`
+    those of that build: its store, source and ledger opened over it."""
+    root = pathlib.Path(root)
+    world = graph.Environment("world1", 3, {"data": str(root / "data")})
+    source = LocalSource(root / "props", root / "dashboard", root / "web", store_root=root / "store", world=world,
                          rows=rows())
-    return Built(root, data, store, source, ledger, outputs)
+    return Built(root, root / "data", Store.in_folder(root / "store"), source, root / "ledger.jsonl", outputs)
 
 
 class FakeBackend:
