@@ -91,7 +91,9 @@ def drive_job(found, command, log, folder, environment, memory_bytes):
     from tools.cloud.k8s import conductor as pods  # the repository's tools, at the run's own commit
     cpu = f"{int(1000 * jobs(found) * float(found['cpu_per_job']))}m"
     memory = f"{memory_bytes // 2 ** 20}Mi"
-    shell = 'echo $$ > "$SCORE_DRIVE_LOG.pid" && exec "$@" >> "$SCORE_DRIVE_LOG" 2>&1'
+    # Kubernetes reads `$$` in a command as an escaped `$` (its $(VAR) syntax), so `$$$$` reaches the shell as `$$`,
+    # the shell's pid (the rehearsal of 2026-11-07: `$$` wrote a bare `$`, and the run waited 300 s for a pid).
+    shell = 'echo $$$$ > "$SCORE_DRIVE_LOG.pid" && exec "$@" >> "$SCORE_DRIVE_LOG" 2>&1'
     container = pods.container("drive", found["image"], ["/bin/sh", "-c", shell, "drive", *command],
                                {"requests": {"cpu": cpu, "memory": memory}, "limits": {"memory": memory}})
     container["workingDir"] = str(folder)
