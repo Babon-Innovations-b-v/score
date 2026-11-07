@@ -837,12 +837,29 @@ WAIT_FRESH_SECONDS = 60
 WAITERS_EXCUSED = 5
 
 
-def claim_waiters(pids):
-    """The pids among `pids` whose process tree holds a process with a fresh mark in WAITING_CLAIMS."""
-    now, marks = time.time(), set()
-    for mark in WAITING_CLAIMS.glob("*") if WAITING_CLAIMS.is_dir() else ():
+# A node whose jobs are on the cluster (a mark of submitter.watch in CLUSTER_WAITING, touched every poll, 20 s, so
+# fresh within CLUSTER_FRESH_SECONDS beside a slow look) holds no --jobs slot either, at most REMOTE_EXCUSED such nodes:
+# twice the cluster's card quota (24), so the cluster's queue stays full and the slots go to this box's own work
+# (#76, 2026-11-07: the slots were held by cluster waits, no score pod Running). Kept apart from WAITERS_EXCUSED: a
+# cluster wait takes no claim, so the one-new-node-a-pass rule of the claims does not hold its stage back.
+CLUSTER_WAITING = score_store.PROPS_HOME / "cloud" / "cluster.waiting"
+CLUSTER_FRESH_SECONDS = 120
+REMOTE_EXCUSED = 48
+
+
+def slots_held(running, claim_waiting, cluster_waiting):
+    """The --jobs slots `running` nodes hold, `claim_waiting` of them waiting on a claim and `cluster_waiting` on the
+    cluster: each kind of waiter excused up to its own limit (WAITERS_EXCUSED, REMOTE_EXCUSED)."""
+    return running - min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, REMOTE_EXCUSED)
+
+
+def claim_waiters(pids, folder=None, fresh=WAIT_FRESH_SECONDS):
+    """The pids among `pids` whose process tree holds a process with a mark in `folder` (WAITING_CLAIMS) younger than
+    `fresh` seconds."""
+    folder, now, marks = folder or WAITING_CLAIMS, time.time(), set()
+    for mark in folder.glob("*") if folder.is_dir() else ():
         with contextlib.suppress(OSError):
-            if mark.name.isdigit() and now - mark.stat().st_mtime < WAIT_FRESH_SECONDS:
+            if mark.name.isdigit() and now - mark.stat().st_mtime < fresh:
                 marks.add(int(mark.name))
     if not marks:
         return set()
@@ -860,7 +877,13 @@ def claim_waiters(pids):
     return found
 
 
+def cluster_waiters(pids):
+    """The pids among `pids` whose process tree holds a process waiting on a cluster run (CLUSTER_WAITING)."""
+    return claim_waiters(pids, CLUSTER_WAITING, CLUSTER_FRESH_SECONDS)
+
+
 CLAIM_WAITERS = claim_waiters  # the tests give a fake reading
+CLUSTER_WAITERS = cluster_waiters
 
 
 def unsettled(optional, line, stood, stopped):
@@ -2393,7 +2416,7 @@ class Runner:
                 forget(known, ended)
                 coming = self.coming(running, peaks, seen, clients, grown)  # what the running nodes may still take
                 queued = self.claim_waiting(running)  # the stages whose running nodes wait on a claim, how many
-                busy, full = len(running) - min(sum(queued.values()), WAITERS_EXCUSED), False  # full: a node waited
+                busy, full = slots_held(len(running), sum(queued.values()), self.cluster_waiting(running)), False
                 claimers.update(queued)  # stages seen waiting on a claim this run
                 for stage, place in list(waiting):
                     node = node_name(stage, place)
@@ -2469,6 +2492,11 @@ class Runner:
         has none, so one queued waiter takes each turn that frees and the slots go to other stages' ready nodes."""
         alive = {process.pid: stage.name for stage, _, process in running.values() if process.is_alive()}
         return collections.Counter(alive[pid] for pid in CLAIM_WAITERS(list(alive))) if alive else collections.Counter()
+
+    def cluster_waiting(self, running):
+        """How many of the `running` nodes only wait on their jobs on the cluster (CLUSTER_WAITERS)."""
+        alive = [process.pid for _, _, process in running.values() if process.is_alive()]
+        return len(CLUSTER_WAITERS(alive)) if alive else 0
 
     def measured(self, stage, did, peak, contained, peaks):
         """The stage peaks kept once a node of `stage` ended, having done `did` with its tree holding at most `peak`

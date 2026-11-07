@@ -70,6 +70,7 @@ import capacity  # noqa: E402
 from kube import Kubectl  # noqa: E402
 import ledger  # noqa: E402
 import manifests  # noqa: E402
+from paths import HOME  # noqa: E402
 import provider  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
@@ -98,6 +99,10 @@ IDLE_ESTIMATE_MINUTES = 6.5
 # environment there, so a run's tail and the run that follows it within these minutes take warm nodes
 # (manifests.warm_hold, ended by its own deadline).
 WARM_MINUTES = 10
+# The runner's folder of nodes waiting on a cluster run (score/graph CLUSTER_WAITING): a file named by each watching
+# process's pid, touched each poll and removed when its watch ends, so its node holds no --jobs slot while its jobs
+# are on the cluster (#76: the slots were held by cluster waits, no score pod Running).
+CLUSTER_WAITING = HOME / "cloud" / "cluster.waiting"
 INSTANCE_LABEL = "node.kubernetes.io/instance-type"
 ZONE_LABEL = "topology.kubernetes.io/zone"
 
@@ -675,14 +680,20 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
 
 def watch(run, parallel, wait_scale_down):
     """The run on the cluster to its end: its Jobs taken up and put on, a look every POLL_SECONDS (each retried) while
-    any is unfinished, then its nodes' end waited for or estimated (from what was last seen when the cluster cannot
-    be read)."""
+    any is unfinished, this process marked in CLUSTER_WAITING meanwhile, then its nodes' end waited for or estimated
+    (from what was last seen when the cluster cannot be read)."""
     retried(Run.resume, run)
     retried(lambda found: submit_more(found, parallel), run)
     say(f"{len(run.specs)} jobs for run {run.run_id}" + (f", {parallel} at a time" if parallel else ""))
-    while run.unfinished():
-        time.sleep(POLL_SECONDS)
-        retried(lambda found: look(found, parallel), run)
+    mark = CLUSTER_WAITING / str(os.getpid())
+    try:
+        while run.unfinished():
+            mark.parent.mkdir(parents=True, exist_ok=True)
+            mark.touch()
+            time.sleep(POLL_SECONDS)
+            retried(lambda found: look(found, parallel), run)
+    finally:  # the outputs come back after this: the node counts for a --jobs slot again
+        mark.unlink(missing_ok=True)
     try:
         if wait_scale_down:
             wait_for_scale_down(run)
