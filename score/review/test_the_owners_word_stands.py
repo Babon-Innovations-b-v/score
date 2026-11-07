@@ -148,8 +148,6 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     environment_concept.py: `if named in index and index[named]["key"] != key:` made `if False:`
 - test_an_agents_process_cannot_keep_a_version_or_a_reference:
     environment_concept.py: `if offsite is None and running_under_agent():` made `if False:`
-- test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_it:
-    plans_pass.py: `if plan_checks.inside(numpy.asarray(points, dtype=float), outline).all()]` made `if False]`
 - test_every_real_bodys_value_names_its_source:
     data/physics/bodies.json: `"name": "nasa-sun", "radius_km": "nasa-sun",` made `"name": "nasa-sun",`
 - test_environment_one_takes_its_bodies_from_the_table_and_its_gravity_from_their_mass:
@@ -389,9 +387,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plan_fixes.py: `for spot in spots: added_item(plan, row["id"], spot, size, shape)` made `for spot in spots[:1]:`
 - test_a_correction_is_kept_only_when_it_leaves_fewer_gaps_and_what_is_left_says_why:
     plan_fixes.py: `if len(open_gaps(answer, inventory)) >= len(left): break` made `if False: break`
-- test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_projects:
+- test_a_row_marked_beyond_that_projects_or_stands_inside_is_brought_in_free:
     plan_fixes.py: `plan["beyond"] = [row for row in plan.get("beyond", []) if row in kept]` made `plan["beyond"] =
     plan.get("beyond", [])`
+    plans_pass.py: `if plan_checks.inside(numpy.asarray(points, dtype=float), outline).all()]` made `if False]`
 - test_the_narrow_walk_answers_as_the_whole_walk:
     plans_pass.py: `if path.is_file() and not path.name.endswith(".partial")` made `if path.is_file()`
 - test_the_keep_runs_inside_one_moment:
@@ -421,6 +420,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 import contextlib
 import copy
 import datetime
+import functools
 import hashlib
 import io
 import json
@@ -2786,6 +2786,9 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     a row, a place or sealed stays (the Square's street's door to 'restaurant', 2026-11-07).
     Break: score/review/plans.py: doors_known's `opening["to"] = None` dropped
     Break: score/review/plans.py: doors_known's `or to in rows` dropped"""
+    # the yard's 30 m plan asks plan_fixes.offsets for its 42.4 m reach on every item it brings inside: one grid of the
+    # same nine million offsets each time, 3.6 s apiece, made once here (the function is pure, its answer only read)
+    monkeypatch.setattr(plan_fixes, "offsets", functools.lru_cache(maxsize=2)(plan_fixes.offsets))
     rows = [{"id": "barn", "name": "a barn", "anchor": "floor", "size": [8.0, 6.0, 5.0], "count": 1, "at": []},
             {"id": "cart", "name": "a cart", "anchor": "floor", "size": [1.0, 1.0, 1.0], "count": 1, "at": []}]
     picked(store, "yard", rows)
@@ -3421,9 +3424,26 @@ def test_a_correction_is_kept_only_when_it_leaves_fewer_gaps_and_what_is_left_sa
         f"stool: 1 in the concept, 0 on the plan: {plan_fixes.WHY['placed']}"]
 
 
-def test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_projects():
+def test_a_row_marked_beyond_that_projects_or_stands_inside_is_brought_in_free():
     """2026-10-26: the airlock's sandbags at its picture's foot were marked beyond and had no plan item, and its rows
-    of several things and its rows on the floor plates fitted no projection: now they fit it, and the row is placed."""
+    of several things and its rows on the floor plates fitted no projection: now they fit it, and the row is placed.
+    2026-11-02: lab's writing marked its `person` row beyond while its fixes stood its three people on spots inside
+    the room, so the people rows dropped them and its cast was empty while its design showed people. A row marked
+    beyond whose person spots all stand inside the outline is kept in; one with a spot outside (seen past a window)
+    stays beyond, and a far row with no spot is untouched.
+    2026-11-02: stairwell's writing (2026-10-21) predates stood_people: its man on the stairs stood on no person spot
+    and was marked beyond, so its cast was empty. plans keep finds the unstood row (unsettled) and stands it where its
+    item lies, then brings it in from beyond; a writing whose people all stand is left as it is. A row with no box that
+    projects and no thing laid is spread, its count of them, over the free floor inside the outline.
+    Break: score/review/plans_pass.py: `return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not
+        in have]` -> `return []`
+    Break: score/review/plans_pass.py `stood_again`: `+ spread_people(answer, inventory)` dropped -> the hangar's
+        workers stand on no spot.
+    Break: score/review/plan_fixes.py `items_inside`: `clipped = [min(box[2], outer[2]), min(box[3], outer[3])]` ->
+        `clipped = box[2:]`, or `moved_inside`'s clamp dropped (`x, y = box[:2]`) -> the facade is left past the wall.
+    Break: score/review/plan_fixes.py `people_inside`: `walls_things | ~inside` -> `walls_things` (its footprint past
+        the outline), or `frame_inside`'s `plan.pop("frame")` dropped.
+    Break: score/review/plans_pass.py `unsettled`: the `plan_fixes.kept_inside` line dropped."""
     cube = [1.0, 1.0, 1.0]
     rows = [{"id": "plates", "anchor": "ground", "count": 1, "boxes": [[0, 500, 1000, 1000]]},
             {"id": "barrel", "count": 2, "size": cube, "boxes": [[150, 400, 250, 500], [750, 400, 850, 500]]},
@@ -3441,13 +3461,7 @@ def test_a_row_at_the_concept_s_foot_marked_beyond_is_placed_where_its_box_proje
     assert plan["beyond"] == [] and fixes[0].startswith("sandbags: at the concept's foot")
     sandbags = [item for item in plan["items"] if item[0] == "SANDBAGS 1"]
     assert sandbags and (sandbags[0][1], sandbags[0][2]) == (4.5, 9.5)  # its box's foot projects to y = 10
-
-
-def test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_it():
-    """2026-11-02: lab's writing marked its `person` row beyond while its fixes stood its three people on spots inside
-    the room, so the people rows dropped them and its cast was empty while its design showed people. A row marked
-    beyond whose person spots all stand inside the outline is kept in; one with a spot outside (seen past a window)
-    stays beyond, and a far row with no spot is untouched."""
+    # people the plan stands inside its outline are in the place, not beyond it (lab, 2026-11-02)
     plan = {"w": 10.0, "d": 10.0, "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "items": [],
             "people": [[2.0, 3.0, 0.0, "person"], [7.0, 6.0, 0.0, "person"], [4.0, 12.0, 0.0, "walker"],
                        [5.0, 5.0, 0.0, "walker"]],
@@ -3456,22 +3470,7 @@ def test_people_the_plan_stands_inside_its_outline_are_in_the_place_not_beyond_i
     assert answer["beyond"] == ["walker", "skyline"], answer["beyond"]
     assert fixes == ["person: stands on person spots inside this place, so in it, not beyond it"], fixes
     assert plans_pass.unsettled(plan, {"rows": []}, parts=False)  # plans keep fixes it again, free
-
-
-def test_a_people_row_a_writing_never_stood_is_stood_and_brought_in_free():
-    """2026-11-02: stairwell's writing (2026-10-21) predates stood_people: its man on the stairs stood on no person spot
-    and was marked beyond, so its cast was empty. plans keep finds the unstood row (unsettled) and stands it where its
-    item lies, then brings it in from beyond; a writing whose people all stand is left as it is. A row with no box that
-    projects and no thing laid is spread, its count of them, over the free floor inside the outline.
-    Break: score/review/plans_pass.py: `return [row["id"] for row in plan_checks.person_rows(inventory) if row["id"] not
-        in have]` -> `return []`
-    Break: score/review/plans_pass.py `stood_again`: `+ spread_people(answer, inventory)` dropped -> the hangar's
-        workers stand on no spot.
-    Break: score/review/plan_fixes.py `items_inside`: `clipped = [min(box[2], outer[2]), min(box[3], outer[3])]` ->
-        `clipped = box[2:]`, or `moved_inside`'s clamp dropped (`x, y = box[:2]`) -> the facade is left past the wall.
-    Break: score/review/plan_fixes.py `people_inside`: `walls_things | ~inside` -> `walls_things` (its footprint past
-        the outline), or `frame_inside`'s `plan.pop("frame")` dropped.
-    Break: score/review/plans_pass.py `unsettled`: the `plan_fixes.kept_inside` line dropped."""
+    # a people row a writing never stood is stood and brought in free (stairwell, 2026-11-02)
     inventory = {"rows": [{"id": "person_man", "noun": "man", "name": "man walking up stairs", "count": 1}]}
     plan = {"w": 10.0, "d": 10.0, "outline": [[0, 0], [10, 0], [10, 10], [0, 10]], "people": [[1.5, 3.0]],
             "items": [["PERSON MAN 1", 3.0, 3.0, 0.6, 0.6, None, "item"]], "rows": {"PERSON MAN 1": ["person_man"]},
