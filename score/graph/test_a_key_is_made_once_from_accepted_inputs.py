@@ -562,8 +562,14 @@ def test_a_node_works_out_its_key_in_a_still_of_its_own_the_drive_s_key_and_make
     """2026-10-30: a node's process worked out its key outside a still, every read listed again: 6-15 min before a
     make of seconds (sim-body, characters-layer). run_node works it out in a still of its own, the key the drive's
     still gives, closed before the make writes, so what the make stores is read fresh (a free remake's re-key, below).
-    Break: score/graph/__init__.py: '            with self.still():\n                keyed = self.key(stage, place)'
-    -> '            if True:\n                keyed = self.key(stage, place)'"""
+    Break: score/graph/__init__.py: '        with self.still():\n            return self.key(stage, place)'
+    -> '        if True:\n            return self.key(stage, place)'
+    #76 (build spec S7): with hundreds of nodes in flight each process's key walk would be the bound, so the drive
+    hands the key of its pass to the node's process (start's `given`), which under the node's lock re-checks every
+    earlier output it reads and its files: unmoved, it is made on that key with no walk of its own; an upstream accept
+    that moved between the pass and the lock re-keys it (here: blocked on the moved accept) and no record is written
+    under the stale key. Break: score/graph/__init__.py: 'if drives and self.moved_since(stage, place, drives):' ->
+    'if False:' -> count made on the stale key."""
     marked = make_marked("clean")
     runner = a_runner(a_world({"hangar": "a ship"}), a_store(), (marked, COUNT))
     keyed, made, worked_out, make = [], [], graph.Runner.worked_out_key, graph.Runner.make
@@ -576,6 +582,24 @@ def test_a_node_works_out_its_key_in_a_still_of_its_own_the_drive_s_key_and_make
     with runner.still():  # as the drive works them out
         driven = {stage.name: runner.key(stage, "hangar")["key"] for stage in (marked, COUNT)}
     assert all(runner.store.record(f"{name}@hangar", key) for name, key in driven.items()), driven
+
+    store = a_store()
+    a_runner(a_world({"hangar": "a ship"}), store, (marked,)).run(["hangar"])
+    both = a_runner(a_world({"hangar": "a ship"}), store, (marked, COUNT))
+    with both.still():  # the drive's pass
+        given = both.key(COUNT, "hangar")
+    walks = len(keyed)
+    unmoved = a_runner(a_world({"hangar": "a ship"}), Store.in_folder(tempfile.mkdtemp()), (marked, COUNT))
+    shutil.copytree(store.objects.root, unmoved.store.objects.root, dirs_exist_ok=True)
+    assert unmoved.run_node(COUNT, "hangar", given) == ACCEPTED and len(keyed) == walks  # no walk of its own
+    assert unmoved.store.record("count@hangar", given["key"])
+    moved = pathlib.Path(tempfile.mkdtemp())
+    (moved / "clean.txt").write_text("moved")
+    contracts.stamp(TEXT, moved)
+    output = store.put_tree(moved)
+    store.write_accept("clean@hangar", {"node": "clean@hangar", "output": output, "at": graph.now(), "by": "test"})
+    did = both.run_node(COUNT, "hangar", given)
+    assert did.startswith("blocked: clean@hangar") and store.record("count@hangar", given["key"]) is None, did
 
 
 def test_a_failed_free_output_is_made_once_more_with_a_fresh_seed_noted_and_never_again():
@@ -2001,7 +2025,7 @@ def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jo
     taken = faked(monkeypatch, [2 * FLOOR - 1] * 3 + [100 * FLOOR])
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
     started, start = [], runner.start
-    runner.start = lambda stage, place, threads: started.append(taken[-1]) or start(stage, place, threads)
+    runner.start = lambda stage, place, threads, given=None: started.append(taken[-1]) or start(stage, place, threads, given)
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     said = []
     found = runner.drive(PLACES, say=said.append, jobs=4)
@@ -2012,8 +2036,8 @@ def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jo
     faked(monkeypatch, [100 * FLOOR])
     running, most, start, wait = [], [0], runner.start, graph.FORK_WAIT
 
-    def counted_start(stage, place, threads):
-        begun = start(stage, place, threads)
+    def counted_start(stage, place, threads, given=None):
+        begun = start(stage, place, threads, given)
         running.extend(begun)
         most[0] = max(most[0], len(running))
         return begun
@@ -2042,8 +2066,8 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
     running, most, start, wait = {}, [0], runner.start, graph.FORK_WAIT
 
-    def counted_start(stage, place, threads):
-        begun = start(stage, place, threads)
+    def counted_start(stage, place, threads, given=None):
+        begun = start(stage, place, threads, given)
         running.update(dict.fromkeys(begun, stage.name))
         most[0] = max(most[0], list(running.values()).count("clean"))
         return begun
@@ -2324,8 +2348,8 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     def most_at_once(runner):
         running, most, start = {}, [0, 0], runner.start
 
-        def counted_start(stage, place, threads):
-            begun = start(stage, place, threads)
+        def counted_start(stage, place, threads, given=None):
+            begun = start(stage, place, threads, given)
             for pipe, (_, _, process) in begun.items():
                 stage_of[process.pid], running[pipe] = stage.name, stage.name
             most[0] = max(most[0], len(running))
@@ -2361,8 +2385,8 @@ def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_oth
     runner = a_runner(a_world(places), a_store(), (remote, cpu))
     beside, start, both = [0], runner.start, {}
 
-    def counted_start(stage, place, threads):
-        begun = start(stage, place, threads)
+    def counted_start(stage, place, threads, given=None):
+        begun = start(stage, place, threads, given)
         for pipe, (_, _, process) in begun.items():
             stage_of[process.pid], both[pipe] = stage.name, stage.name
         if list(both.values()).count("remote") == len(places):
@@ -2415,7 +2439,7 @@ def test_a_ready_node_too_large_for_memory_waits_alone_and_the_ones_after_it_tha
     for stage, peak in (("big", 3 * FLOOR), ("late", int(0.1 * FLOOR)), ("small", int(0.1 * FLOOR))):
         runner.keep_peak(stage, peak)
     started, start, until = [], runner.start, time.monotonic() + 3
-    runner.start = lambda stage, place, threads: started.append(stage.name) or start(stage, place, threads)
+    runner.start = lambda stage, place, threads, given=None: started.append(stage.name) or start(stage, place, threads, given)
     monkeypatch.setattr(graph, "AVAILABLE", lambda: 2.5 * FLOOR if started.count("small") < 2 and
                         time.monotonic() < until else 100 * FLOOR)
     found = runner.drive(PLACES, say=quiet, jobs=4)
@@ -2466,7 +2490,7 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
         runner = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), a_store(), (client,))
         runner.keep_peak("client", 2 * FLOOR)
         started, start, until = [], runner.start, time.monotonic() + 3
-        runner.start = lambda stage, place, threads: started.append(time.monotonic()) or start(stage, place, threads)
+        runner.start = lambda stage, place, threads, given=None: started.append(time.monotonic()) or start(stage, place, threads, given)
         monkeypatch.setattr(graph, "AVAILABLE", lambda: 100 * FLOOR if not started else
                             2.5 * FLOOR if time.monotonic() < until else 100 * FLOOR)
         found = runner.drive(("hangar", "station"), say=quiet, jobs=1)
