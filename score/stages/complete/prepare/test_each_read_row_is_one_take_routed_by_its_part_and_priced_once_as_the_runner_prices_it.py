@@ -71,11 +71,16 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
 from score import stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
+from score.store import offload  # noqa: E402
 from score.stages.complete.gaps import price  # noqa: E402
 from score.stages.complete.prepare import (__main__ as prepare, benchmarks, contract, design,  # noqa: E402
                                            estimate, groups, handin, library, machines, predict)
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
+
+# Each Runner installs the blob fetch (score/store/offload) with the store bucket's opener, which reads its key through
+# the cloud backend; here a missing blob is asked of an empty local bucket, so no test reaches a cloud CLI or bucket.
+offload.open_bucket = lambda: offload.FolderBucket(tempfile.mkdtemp())
 
 
 def a_row(row_id, size, **more):
@@ -860,7 +865,8 @@ def test_the_runner_lists_and_prices_a_designed_places_takes_as_prepare_prices_t
         models = sorted(take["take"] for take in bought if take["route"] in groups.MODEL_ROUTES)
         person = estimate.take_stages(route, next(take for take in bought if take["route"] == "people"))
         assert "people-body" in person and "motion" not in person, person  # its body after the model, not rigid motion
-        assert price.design_takes("pixal@wreck") == models and price.design_takes("sound@wreck") is None
+        assert price.design_takes("closeup@wreck") == models and price.design_takes("sound@wreck") is None
+        assert price.design_takes("pixal@wreck") is None  # pixal counts what it sends (pixal_takes), not prepare's
         assert sorted(surface_data.takes("wreck")) == models  # a shell piece's too: the bake bakes what is listed
         for stage in estimate.SCENE_ROWS:  # once a scene, priced from the measured Gemini answer until measured
             assert record["layers"][stage]["units"] == 1, record["layers"][stage]
