@@ -1067,6 +1067,8 @@ class Runner:
         self.model_record = model_record or models.record
         self.code_versions = {}
         self.remembered = None  # inside `still`: {(what, node): its value or its Blocked}
+        self.kept_as = {}  # rebuy.buys only: {node: its accepted output} the drive keeps, re-keyed (rebuy.KEPT)
+        self.foreseen = {}  # rebuy.buys only: {node: {file: JSON}} of a free node's remake in a scratch folder
         self.driving = None  # (nodes running, monotonic time) at the end of drive's last pass: score run's watchdog
         self.began = {}  # {node: epoch seconds its process started} (start): score run's pool forecast (row_due)
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
@@ -1193,6 +1195,8 @@ class Runner:
         and the owner did not reject."""
         stage = self.stages[before]
         node = node_name(stage, place)
+        if node in self.kept_as:  # rebuy: the drive keeps it, re-keyed, so its readers read its accepted output
+            return self.kept_as[node]
         key = self.key(stage, place)["key"]
         record = self.store.record(node, key)
         if record is None:

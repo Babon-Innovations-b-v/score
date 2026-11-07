@@ -42,8 +42,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_the_plan_row_keeps_the_plan_stages_code_version.
 - `plan_as_kit`: the plan not handed over as its kit (`{**arguments[position]}`)  ->
   test_the_plan_row_maps_a_place_with_no_kit.
-- `plan_remade_same`: always True (`return True`)  -> test_the_plan_row_maps_a_place_with_no_kit (its own plan redrawn
-  still carries).
+- `remade_same`: always True (`return True`)  -> test_the_plan_row_maps_a_place_with_no_kit (its own plan redrawn
+  still carries); its `runner.foreseen[...] = ...` dropped  -> the same test (the redrawn plan not foreseen).
 - `part_moved`: the part compared whole (`old, new = store.listing(then), listing`)  ->
   test_terrain_s_code_version_moves_with_its_own_code_only (hub's light passes made again); `part_standing`: a moved
   read with no part rule let through (`any(...)` dropped)  -> the same test (scene-record moved, still kept);
@@ -619,11 +619,16 @@ def test_the_plan_row_maps_a_place_with_no_kit(tmp_path):
     contracts.stamp(stages.PLAN.contract, root / "out")
     accepted = store_tree_hash(root / "out")
     runner = types.SimpleNamespace(store=types.SimpleNamespace(accepted=lambda node: accepted),
-                                   input_paths=lambda stage, place, keyed: inputs)
+                                   input_paths=lambda stage, place, keyed: inputs, foreseen={})
     keyed = {"seed": 0, "params": {}}
-    assert stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed)
+    assert stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed) and runner.foreseen == {}
     (root / "plans/new_room.json").write_text(json.dumps({**plan, "w": 4.0}))
     assert not stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed)
+    # The remake that differs is foreseen, so the rows reading what it kept (the floor, carry.CONTENT_RULES) keep.
+    ROW_OF = {row.name: row for row in stages.STAGES}
+    assert runner.foreseen["plan@new_room"]["plan.json"]["place"] == "new_room"
+    assert all(hasattr(ROW_OF[name].files, "same_reads") for name in ("rough-model", "rough-align"))
+    assert hasattr(ROW_OF["props-inputs"].files, "carries")
 
 
 def inputs_read(function):

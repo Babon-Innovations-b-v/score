@@ -3971,8 +3971,12 @@ def bought(runner):
 def test_a_run_buys_each_paid_node_it_would_make_and_refuses_re_buys_over_five_euros_without_a_reason(committed):
     """Rows never made are buys (EUR 4 + 3) and never refuse; nothing changed buys nothing; a changed brief re-buys
     both (EUR 7: refused without a reason); a bake's code changed re-buys it alone (EUR 3: no reason needed); rows
-    after a node kept by a proof are still buys (fault 2026-10-24: the greenhouse's kept plan hid its prop route).
-    Break: score/graph/rebuy.py: '    if again > LIMIT and not (reason or "").strip():' -> '    if again > 2 * LIMIT and not (reason or "").strip():'"""
+    after a node kept by a proof are still buys (fault 2026-10-24: the greenhouse's kept plan hid its prop route); a
+    row reading a kept node optionally keys on its kept output, never as run without it (fault 2026-11-07: a plan kept
+    by its remake dropped pixal from 27 palettes' keys, EUR 106 of surfaces re-buys listed).
+    Break: score/graph/rebuy.py: '    if again > LIMIT and not (reason or "").strip():' -> '    if again > 2 * LIMIT and not (reason or "").strip():'
+    Break: score/graph/__init__.py: '        if node in self.kept_as:' -> '        if node in ():'
+    Break: score/graph/rebuy.py: 'stage.files.same_reads(runner, stage, place, moving))' -> 'False)'"""
     runner = a_buying_runner()
     assert bought(runner) == [("render@hangar", 4.0, False), ("bake@hangar", 3.0, False)]
     assert rebuy.refusal(rebuy.buys(runner, list(runner.nodes(["hangar"]))), None) is None
@@ -3995,6 +3999,21 @@ def test_a_run_buys_each_paid_node_it_would_make_and_refuses_re_buys_over_five_e
     runner.code_versions["draw"] = "only narrowed"
     runner.narrowing_proof = lambda stage, place, keyed: stage is DRAW
     assert [node for node, _, _ in bought(runner)] == ["render@hangar", "bake@hangar"]
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text("a hall")
+    look = graph.Stage("look", "place", make_copy, TEXT, PASSES, after={"render": READS}, optional=("render",),
+                       paid=True, euros=2.0)
+    runner = made(a_runner(graph.Environment("toy", 1, {"data": data}), a_store(), [DRAW, RENDER, look]))
+    runner.code_versions["draw"] = "only narrowed"
+    runner.narrowing_proof = lambda stage, place, keyed: stage is DRAW
+    assert bought(runner) == [] and runner.kept_as == {}
+    # A row whose content rule says the remade read hands it what it read (carry.foreseen_same) is kept, as are its
+    # readers: the square's plan redrawn without surplus items, its rough model and rough align (2026-11-07).
+    render_files = lambda place: {}  # noqa: E731
+    render_files.same_reads = lambda runner, stage, place, moving: moving == ["draw@hangar"]
+    runner = made(a_buying_runner(dataclasses.replace(RENDER, files=render_files)))
+    (runner.world.roots["data"] / "hangar.txt").write_text("a bigger hall")
+    assert bought(runner) == []
 
 
 def judge_dropped(output, inputs, evidence):
