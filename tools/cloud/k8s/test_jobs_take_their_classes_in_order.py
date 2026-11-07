@@ -38,7 +38,12 @@ invariant with the break that turns it red (each applied once and seen red):
   run sends again). Break: `fetched` then upload in place of `offload.copy_blob` in `send_input`.
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
   before it, or hosting another run, is not; a node without zone labels takes the provider's record.
-  Break: `created = seen["created"]` in `node_machines`.
+  Break: `created = seen["created"]` in `node_machines`. Runs side by side book each node at their part, whole
+  between them: a node shared by the time each run's pods held it (a gap to the run that held it last, before any
+  hold to the first), an unused node by the pods that waited for its class when it came up; a run whose pods came
+  after books none of it. Break: `paid += right - left` (no split) in `held_share`. Break: return the fallback
+  (`1.0 if created >= started`) for every unused node in `Run.share` (the 23 nodes of 2026-11-07). Break: drop the
+  `made > seen["created"]` check in `note_waiting`. Break: drop `* share` from `euros` in `ledger.machine_row`.
 - Warm nodes: once every job of the run is on the cluster, each idle node a job ran on gets one warm hold an idle
   spell (a pause pod pinned to it, not evictable by the autoscaler, no card asked, ended by its own deadline), billed
   to the hold's end; a stop drops the holds. Break: drop the `submitted is None` return in `hold_idle`. Break: drop
@@ -548,6 +553,58 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     run.nodes["side-by-side"] = dict(run.nodes["first"], hosted=True)
     assert sorted((machine["node"], machine["unused"]) for machine in submit.node_machines(run, "judge")) == [
         ("first", False), ("second", True)]
+
+    # runs side by side (2026-11-07: a settle run of one job booked all 23 nodes the cluster grew for 20 runs' pods,
+    # EUR 2.90): each run books its part of a node, by the time its pods held it, or of an unused node by the pods
+    # that waited for it; between them the runs book every node whole, never less
+    class PodsKubectl(FakeKubectl):
+        def json(self, *arguments):
+            return {"items": self.items if arguments[1] == "pods" else []}
+
+    def pod(run_id, name, node=None, start=None, end=None, made=0.0, placed=None, wants="gpu-24gb"):
+        status = {"phase": "Succeeded" if end else ("Running" if node else "Pending"), "conditions": []}
+        if start:
+            status["startTime"] = time_text(start)
+        if end:
+            status["containerStatuses"] = [{"state": {"terminated": {"finishedAt": time_text(end)}}}]
+        if placed:
+            status["conditions"].append({"type": "PodScheduled", "status": "True",
+                                         "lastTransitionTime": time_text(placed)})
+        return {"metadata": {"name": name, "creationTimestamp": time_text(made),
+                             "labels": {"score.dev/run": run_id}},
+                "spec": {"nodeName": node, "affinity": manifests.affinity([wants])}, "status": status}
+
+    def side_by_side(run_id, started, pods):
+        """Run `run_id`'s part of each node, the cluster's pods as `pods`."""
+        found = submit.Run(run_id, {"ask": spec}, PodsKubectl(pods), PricedCluster())
+        found.started = started
+        for name, created, deleted, machine_class in (
+                ("shared", 9_900.0, 10_900.0, "gpu-24gb"), ("grown-0", 10_950.0, 11_500.0, "gpu-24gb"),
+                ("grown-1", 11_000.0, 11_500.0, "gpu-24gb"), ("vain", 11_000.0, 11_500.0, "gpu-48gb")):
+            found.nodes[name] = {"class": machine_class, "type": "L4-1-24G", "zone": "fr-par-2", "cards": 1,
+                                 "created": created, "ready": None, "deleted": deleted, "jobs": set()}
+        found.note_hosts()
+        return {name: found.share(name, seen) for name, seen in found.nodes.items()}
+    pods = [pod("r-a", "a", "shared", 10_000.0, 10_300.0, made=9_990.0, placed=10_000.0),
+            pod("r-b", "b", "shared", 10_200.0, 10_600.0, made=10_150.0, placed=10_200.0),
+            pod("r-c", "c-0", made=10_900.0), pod("r-c", "c-1", made=10_900.0),  # waiting: grown-0, grown-1 for them
+            pod("r-a", "a-late", made=11_100.0),  # made after both came up: grew neither
+            pod("r-b", "b-vain", made=10_950.0, wants="gpu-48gb"),  # both waited for vain, which neither took
+            pod("r-d", "d-vain", made=10_980.0, wants="gpu-48gb")]
+    a_parts, b_parts = side_by_side("r-a", 10_000.0, pods), side_by_side("r-b", 10_150.0, pods)
+    c_parts, d_parts = side_by_side("r-c", 10_850.0, pods), side_by_side("r-d", 10_900.0, pods)
+    assert a_parts["shared"] == pytest.approx(250 / 900)  # alone 200 s, half of 100 s; the tail is b's
+    assert b_parts["shared"] == pytest.approx(650 / 750)  # its window from its start: half of 100 s, then all
+    assert a_parts["shared"] * 900 + b_parts["shared"] * 750 == pytest.approx(900)  # whole between them
+    assert a_parts["grown-0"] == a_parts["grown-1"] == a_parts["vain"] == 0  # grown for others: none of a's
+    assert c_parts["grown-0"] == c_parts["grown-1"] == 1  # its two pods were all that waited for them
+    assert b_parts["vain"] == d_parts["vain"] == 0.5  # two runs' pods waited for it: half each, whole between them
+    assert c_parts["vain"] == b_parts["grown-0"] == d_parts["grown-1"] == 0
+    assert a_parts["vain"] + b_parts["vain"] + c_parts["vain"] + d_parts["vain"] >= 1  # never less than whole
+    rows = [submit.ledger.machine_row(machine) for machine in submit.node_machines(run, "judge")]
+    assert all(row.get("share", 1.0) == 1.0 for row in rows)  # a node of this run alone: booked whole as before
+    machine = dict(run.nodes["first"], created=10_000.0, deleted=10_900.0, price=0.01, unit_minutes=1, share=0.25)
+    assert submit.ledger.machine_row(machine)["euros"] == pytest.approx(15 * 0.01 * 0.25)
 
     # warm nodes (owner, 2026-11-06): once every job is on the cluster, an idle node a job ran on is held WARM_MINUTES
     # by a pause pod the autoscaler may not evict, asking no card; once an idle spell; billed to its hold's end
