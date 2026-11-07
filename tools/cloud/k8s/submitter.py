@@ -56,6 +56,7 @@ import json
 import os
 import pathlib
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -645,11 +646,27 @@ def quantity(text):
     return float(text)
 
 
+FORBIDDEN_QUOTA = []  # said once a process: the login may not read the namespace's quotas (quota_room)
+
+
 def quota_room(kubectl):
     """What the jobs' namespace's ResourceQuotas leave, hard less used, by the quotas' own resource names (the
-    tenant's: requests.cpu, requests.memory, requests.nvidia.com/gpu), the least over its quotas; {} with none."""
+    tenant's: requests.cpu, requests.memory, requests.nvidia.com/gpu), the least over its quotas; {} with none, and
+    {} (said once) when the login may not read them: Jobs then go as before the quota check, the quota still refusing
+    a pod past it (2026-11-07, checkout 43: the conductor's scoped login has no resourcequotas right, and every
+    cluster submit failed its row)."""
+    try:
+        quotas = kubectl.json("get", "resourcequota", "-n", manifests.NAMESPACE)["items"]
+    except subprocess.CalledProcessError as refused:
+        if "forbidden" not in str(refused.stderr or "").lower():
+            raise
+        if not FORBIDDEN_QUOTA:
+            FORBIDDEN_QUOTA.append(True)
+            say(f"the quota of {manifests.NAMESPACE} is not readable by this login (forbidden): Jobs go unchecked "
+                "against it")
+        return {}
     room = {}
-    for quota in kubectl.json("get", "resourcequota", "-n", manifests.NAMESPACE)["items"]:
+    for quota in quotas:
         status = quota.get("status", {})
         used = status.get("used", {})
         for name, hard in (status.get("hard") or quota.get("spec", {}).get("hard", {})).items():
