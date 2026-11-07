@@ -40,7 +40,11 @@ CONTENT_REASON = ("same content: every earlier output its key moved by holds wha
                   "rule, and every other change since it was made is proved a no-op for it")
 # {reading row: the framework module whose RULES are its content rules, {input stage: rule(store, record) -> the
 # content that output hands this row}}: an earlier output that moved by path text alone keeps the row (#75).
-CONTENT_RULES = {"closeup": "score.stages.props.same_content", "rough-model": "score.stages.rough_model.same_content"}
+CONTENT_RULES = {"closeup": "score.stages.props.same_content", "rough-model": "score.stages.rough_model.same_content",
+                 "rough-align": "score.stages.rough_model.same_content:ALIGN_RULES"}
+# The key parts a content carry needs the same as its accepted record's: all but the earlier outputs (`after`).
+CONTENT_SAME = ("code", "contract", "expects", "params", "seed", "files", "models", "beside")
+AUTO_REASON = "same content: every earlier output its key moved by holds what it reads, by its content rule"
 NARROWED = ("library",)
 SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
 TRACKED = {"library": "data/library"}
@@ -126,8 +130,8 @@ def proof_fault(runner, row, record):
 
 def content_rules(stage_name):
     """{input stage: its content rule} the reading row gives (CONTENT_RULES); {} for a row that gives none."""
-    module = CONTENT_RULES.get(stage_name)
-    return importlib.import_module(module).RULES if module else {}
+    module, _, name = CONTENT_RULES.get(stage_name, "").partition(":")
+    return getattr(importlib.import_module(module), name or "RULES") if module else {}
 
 
 def same_content(runner, stage, place, record, keyed):
@@ -159,6 +163,74 @@ def same_content(runner, stage, place, record, keyed):
             return None, f"{before}'s output holds other content ({', '.join(differ)})"
         proof[before] = {"from": then[before], "to": now[before], "rule": f"{rule.__module__}.{rule.__name__}"}
     return proof, None
+
+
+class Foreseen:
+    """A store whose one output is a remake foreseen in a scratch folder ({file: its JSON}), for a content rule."""
+    def __init__(self, files):
+        self.files = files
+
+    def read_file(self, output, name):
+        return self.files.get(name)
+
+
+def foreseen_same(runner, row, place, moving):
+    """True when every node of `moving` (earlier nodes a drive makes again) was foreseen (runner.foreseen: its remake
+    in a scratch folder, stages.remade_same) and hands the row the content its accepted output read, by the row's
+    content rule: rebuy then keeps the row, as content_carried does when the drive makes them."""
+    rules, record = content_rules(row.name), graph_record(runner, row, place)
+    if record is None:
+        return False
+    for node in moving:
+        before = node.partition("@")[0]
+        then = record.get("after", {}).get(before)
+        made = review.record_of(runner.store, node, then) if then else None
+        if before not in rules or node not in runner.foreseen or made is None:
+            return False
+        try:
+            if rules[before](runner.store, made) != rules[before](Foreseen(runner.foreseen[node]), {"output": None}):
+                return False
+        except ValueError:
+            return False
+    return True
+
+
+def graph_record(runner, row, place):
+    """The record of the node's accepted output, or None."""
+    node = graph.node_name(row, place)
+    accepted = runner.store.accepted(node)
+    return review.record_of(runner.store, node, accepted) if accepted else None
+
+
+def content_carries(runner, row, place, keyed):
+    """True when the node's accepted output carries to `keyed` by content alone: every key part but the earlier
+    outputs is its record's (CONTENT_SAME), and each earlier output that moved holds what the row reads of it, by its
+    content rule (same_content)."""
+    record = graph_record(runner, row, place)
+    if record is None or record.get("after") == keyed.get("after"):
+        return False
+    if any(record.get(part) != keyed.get(part) for part in CONTENT_SAME):
+        return False
+    return same_content(runner, row, place, record, keyed)[0] is not None
+
+
+def content_carried(runner, row, place, keyed):
+    """The node's accepted output stored under `keyed` when it carries by content (content_carries): its record and
+    judgements copied, the record naming both keys, what made it and the content proof. Its new record, or None."""
+    if not content_carries(runner, row, place, keyed):
+        return None
+    record = graph_record(runner, row, place)
+    node = graph.node_name(row, place)
+    new = {**record, "key": keyed["key"], "after": keyed["after"],
+           "carried": {"reason": AUTO_REASON, "from key": record["key"], "to key": keyed["key"],
+                       "made by": graph.made_by(record),
+                       "same content": same_content(runner, row, place, record, keyed)[0]}}
+    try:
+        runner.store.write_record(node, keyed["key"], new)
+    except FileExistsError:  # another run kept it first
+        return runner.store.record(node, keyed["key"])
+    copy_judgements(runner, node, record, keyed, new["carried"])
+    return new
 
 
 def why_not(runner, row, place, record, keyed):

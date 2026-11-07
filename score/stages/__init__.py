@@ -183,17 +183,20 @@ def creator_plan(files):
         if (PROPS_HOME / "design" / "concepts" / f"{place}.png").is_file():
             found = {**found, "concept": "{home}/design/concepts/{place}.png"}
         return found
-    declared.carries = plan_remade_same
+    declared.carries = remade_same
     return declared
 
 
-def plan_remade_same(runner, stage, place, keyed):
-    """True when the plan row made again on its new key, into a scratch folder, gives its accepted output, so the nodes
-    reading it key as before (rebuy counts it KEPT; the run makes it, free, to that same output). Its key reads every
-    kept plan (a door leads to another place's door, a holder reads the plans it holds), so one plan redrawn moves
+def remade_same(runner, stage, place, keyed):
+    """True when a free row made again on its new key, into a scratch folder, gives its accepted output, so the nodes
+    reading it key as before (rebuy counts it KEPT; the run makes it, free, to that same output). The plan's key reads
+    every kept plan (a door leads to another place's door, a holder reads the plans it holds), so one plan redrawn moves
     every place's plan key: the square's and stairwell's redrawings of 2026-11-07 listed 81 paid re-buys, closeup and
-    Pixal3D at every place, where a remake gives 24 places' plans byte for byte. False when nothing is accepted or the
-    make fails (the run then makes it and says why). Here, in the table, so no row's code version moves."""
+    Pixal3D at every place, where a remake gives 24 places' plans byte for byte. The parts split's key reads the kept
+    plan for its gate alone; its rows.json reads none of it. A remake that differs is kept as foreseen
+    (runner.foreseen: each JSON file of it), so a reader's content rule can tell it hands that reader what it read
+    (carry.foreseen_same). False when nothing is accepted or the make fails (the run then makes it and says why). Here,
+    in the table, so no row's code version moves."""
     accepted = runner.store.accepted(graph.node_name(stage, place))
     if accepted is None:
         return False
@@ -204,7 +207,33 @@ def plan_remade_same(runner, stage, place, keyed):
         except Exception:  # a prediction only: the run makes this node and says its error there
             return False
         contracts.stamp(stage.contract, out)
-        return tree_hash(out) == accepted
+        if tree_hash(out) == accepted:
+            return True
+        if hasattr(runner, "foreseen"):
+            runner.foreseen[graph.node_name(stage, place)] = {path.name: json.loads(path.read_text())
+                                                              for path in out.glob("*.json")}
+        return False
+
+
+def content_kept(row):
+    """rough-model and rough-align keyed on what they read off the plan, not its whole output (carry.CONTENT_RULES:
+    the place; and its floor and heights): a plan redrawn without surplus items or with a note added (the square and
+    the stairwell, 2026-11-07) remade every model of the place, EUR 37.90 a place. The drive keeps the accepted output
+    (carry.content_carried) and rebuy counts it kept, from the plan's foreseen remake (carry.foreseen_same). Set here,
+    in the table, so no row's code version moves."""
+    if row.name not in ("rough-model", "rough-align"):
+        return row
+    if callable(row.files):
+        declared = functools.wraps(row.files)(lambda place: row.files(place))
+    else:  # a map, not a function, so no file of the table joins the row's code (graph.code_functions)
+        declared = ContentKept(row.files)
+    declared.carries, declared.carried = carry.content_carries, carry.content_carried
+    declared.same_reads = carry.foreseen_same
+    return dataclasses.replace(row, files=declared)
+
+
+class ContentKept(dict):
+    """A row's file map that carries its content rules' hooks (content_kept)."""
 
 
 def plan_written(place):
@@ -502,6 +531,7 @@ def boxed_split(row):
         if not prop_data.designed(place):
             return found
         return {**found, floor_fit.KEPT_PLAN: "{home}/design/plans/" + f"{place}.json"}
+    declared.carries = remade_same  # its gate reads the kept plan, its rows.json none of it
     fit = guarded("fits the plan", floor_fit.judge_rows_fit)
     return dataclasses.replace(row, files=declared,
                                checks=tuple(fit if check.name == fit.name else check for check in row.checks))
@@ -582,7 +612,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(meaning_checked, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(designed_rough, shapes_first.rows()))))))))),
+              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,

@@ -12,6 +12,7 @@ output stays the same, so nothing after it is made for it. Over LIMIT in re-buys
 a reason (`score run ... --rebuy-reason "<text>"`), written to the run's log and the cloud ledger. Why: on 2026-10-12
 one library change re-rendered every place and re-drew every view map, about EUR 50, with nothing saying so first.
 """
+import contextlib
 import datetime
 import subprocess
 from dataclasses import dataclass
@@ -112,8 +113,9 @@ def to_make(runner, stage, place, pending, remade):
             return None
     foreseen = [name for name in pending if remade[name] and hasattr(stage.files, "foreseen") and
                 stage.files.foreseen(runner, stage, place, name)]  # made again, it holds the part this node reads
-    if any(remade[name] for name in pending if name not in foreseen):
-        return {}
+    moving = [name for name in pending if remade[name] and name not in foreseen]
+    if moving and not (hasattr(stage.files, "same_reads") and stage.files.same_reads(runner, stage, place, moving)):
+        return {}  # a read made again may hand it another output (unless its foreseen remake reads the same to it)
     try:
         own = runner.own_parts(stage, place)
     except Blocked:
@@ -122,7 +124,7 @@ def to_make(runner, stage, place, pending, remade):
     if record is None:
         return {**own, "after": {}}
     if all(record.get(part) == own[part] for part in OWN_PARTS):
-        return KEPT if foreseen else None  # the runner keeps it by the part it reads (stages.part_carried)
+        return KEPT  # its reads are kept, re-keyed, or hold the part it reads (stages.part_carried): kept as they are
     return {**own, "after": record["after"], **({"beside": record["beside"]} if "beside" in record else {})}
 
 
@@ -178,11 +180,20 @@ def evidence_buys(runner, stage, place, parts):
     return [Buy(node, float(paid[name]), f"{why}: {name}", False, name) for name in wanted]
 
 
+@contextlib.contextmanager
+def kept_for_now(runner):
+    """runner.kept_as and runner.foreseen filled for one buys pass only: the drive itself reads the store."""
+    try:
+        yield
+    finally:
+        runner.kept_as, runner.foreseen = {}, {}
+
+
 def buys(runner, nodes):
     """[Buy] of every paid node among `nodes` (in table order) a drive would make, running nothing."""
     found, remade = [], {}  # remade: {node made first: True when its output may change}
     rank = {node_name(stage, place): number for number, (stage, place) in enumerate(nodes)}
-    with runner.still():
+    with runner.still(), kept_for_now(runner):
         for stage, place in read_first(runner, nodes):
             node = node_name(stage, place)
             pending = [name for name in (node_name(*before) for before in runner.read_nodes(stage, place, every=True))
@@ -192,7 +203,8 @@ def buys(runner, nodes):
             if parts is None:
                 continue
             if parts is KEPT:  # its readers key on the kept output once the drive keeps it (greenhouse, 2026-10-24)
-                remade[node] = False
+                remade[node] = False  # and read it (Runner.usable), an optional read too: dropped as not run yet,
+                runner.kept_as[node] = runner.store.accepted(node)  # the palette's pixal moved 27 palettes (11-07)
                 continue
             cached = stage.paid and same_requests(runner, stage, node, parts)
             asked_again = uncached_euros(runner, node) if cached else 0.0  # a redrawn answer may change its output

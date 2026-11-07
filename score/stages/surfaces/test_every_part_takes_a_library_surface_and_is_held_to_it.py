@@ -100,6 +100,10 @@ tests it turned red:
 - props/same_content.py: `return files[name]` -> `return str(path)`  -> one whose picture really changed is kept: the
   same test; or its `if not files.get(name): raise` dropped (a record with no hash read by today's bytes on disk)
 - carry.py: `if contents[0] != contents[1]:` -> `if False:`  -> the same test
+- rough_model/same_content.py: `"floor": plan["floor"], ` dropped  -> a plan with another floor keeps rough-align:
+  a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions (a_plan_redrawn_on_the_same_floor_
+  keeps_the_rough_align); carry.py `if any(record.get(part) != keyed.get(part) for part in CONTENT_SAME):` -> `if
+  False:`  -> a key whose seed moved carries: the same test
 - finish_parts.py: `found[reached] = face_label[source[reached]]` -> `found[reached] = 0`  ->
   unvoted_faces_take_the_nearest_voted_label_along_the_surface
 - finish_parts.py: `host = np.flatnonzero(hosts & (face_label == finish))` -> `host = np.flatnonzero(hosts)`  ->
@@ -1336,6 +1340,7 @@ def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_ve
     finally:
         shutil.rmtree(folder)
     content_keeps_only_the_same_pictures()
+    a_plan_redrawn_on_the_same_floor_keeps_the_rough_align()
 
 
 def props_inputs_output(store, concept, picture_sha, key):
@@ -1399,6 +1404,42 @@ def content_keeps_only_the_same_pictures():
         assert "holds no hash" in why, why
     finally:
         shutil.rmtree(folder)
+
+
+def plan_output(store, key, **changes):
+    """A plan@hub output (its plan.json: the hub's floor, one item, `changes` over them) recorded under `key`."""
+    plan = {"place": "hub", "floor": [[0, 0], [6, 4]], "floor_height": 0.0, "walls": {"high": 3.0},
+            "items": [{"name": "LAMP 1", "box": [0, 0, 1, 1]}], **changes}
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "plan.json").write_text(json.dumps(plan))
+    output = store.put_tree(folder)
+    store.write_record("plan@hub", key, {"output": output, "finished": "2026-11-07T00:00"})
+    return output, plan
+
+
+def a_plan_redrawn_on_the_same_floor_keeps_the_rough_align():
+    """rough-align reads its plan's place, floor and heights alone (carry.CONTENT_RULES): its accepted output carries
+    to a key moved by a plan redrawn without an item (the square, 2026-11-07), and rebuy, foreseeing that plan, keeps
+    it; a plan with another floor carries nothing, nor a key whose other parts moved."""
+    store, row = a_store(), ROWS["rough-align"]
+    then, _ = plan_output(store, "k-then")
+    record = {**a_record(), "node": "rough-align@hub", "after": {"plan": then}, "finished": "2026-11-07T00:00"}
+    store.write_record("rough-align@hub", record["key"], record)
+    store.write_accept("rough-align@hub", {"output": record["output"], "key": record["key"], "at": "2026-11-07T00:00"})
+    runner = StubRunner()
+    runner.store = store
+    for changes, same in (({"items": []}, True), ({"floor": [[0, 0], [7, 4]]}, False)):
+        now, plan = plan_output(store, f"k-{same}", **changes)
+        keyed = {**record, "key": f"n-{same}", "after": {"plan": now}}
+        runner.foreseen = {"plan@hub": {"plan.json": plan}}
+        assert row.files.carries(runner, row, "hub", keyed) is same, changes
+        assert row.files.same_reads(runner, row, "hub", ["plan@hub"]) is same, changes
+    now, _ = plan_output(store, "k-same", items=[])
+    keyed = {**record, "key": "n-same", "after": {"plan": now}}
+    assert not row.files.carries(runner, row, "hub", {**keyed, "seed": 1})
+    kept = row.files.carried(runner, row, "hub", keyed)
+    assert store.record("rough-align@hub", "n-same") == kept and kept["output"] == record["output"]
+    assert kept["carried"]["same content"]["plan"]["rule"] == "score.stages.rough_model.same_content.plan_floor"
 
 
 def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
