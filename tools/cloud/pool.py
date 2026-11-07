@@ -78,6 +78,8 @@ BEAT_SECONDS = 60
 # within score run's POOL_RELEASE_SECONDS, so a collector hung in a provider call never holds a pool past its run.
 COLLECTOR_STOP_SECONDS = 10
 SPEND_TICKET = "SCORE_SPEND_TICKET"
+# The pool's folder of rows that used it, a file a row (its node) touched at each ask, take and give-back (touch).
+USES = "uses"
 RUN_PID = "SCORE_RUN_PID"
 
 
@@ -409,6 +411,7 @@ def want(run_id, offers, kind, disk_gb):
     pass the pool's clearance. Asked by a claim before it looks for a warm card (it unmarks once it has one) and by
     Pixal3D's fleet each round it finds none, so the run is marked waiting (preflight.mark_waiting)."""
     preflight.mark_waiting()
+    touch(run_id)
     offered = {offer.machine_class for offer in offers}
     with locked(run_id):
         plan = plan_of(run_id)
@@ -495,6 +498,7 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
                 told = True
             preflight.mark_waiting()  # the runaway watch leaves the wait out of the run's minutes
             mark_waiting(not HOLDING)
+            touch(run_id)  # a row waiting on the pool uses it: its machines stay due (score run's due_rows)
             batch.STOPPING.wait(POLL_SECONDS)
         return None
     finally:
@@ -550,16 +554,43 @@ def joined(run_id, machine):
 
 
 def held_by(run_id, server_id, holder):
-    """Write which process uses the card now (None: back in the pool); this process's own holding kept in HOLDING."""
+    """Write which process uses the card now (None: back in the pool) and the row it works for (`node`, its spend
+    ticket's), the row's use of the pool noted (touch); this process's own holding kept in HOLDING."""
     if holder == os.getpid():
         HOLDING.add(server_id)
         mark_waiting(False)
     elif holder is None:
         HOLDING.discard(server_id)
+    touch(run_id)
     with locked(run_id) as folder:
         path = folder / "cards" / f"{server_id}.json"
         if path.exists():
-            path.write_text(json.dumps({**json.loads(path.read_text()), "holder": holder}))
+            path.write_text(json.dumps({**json.loads(path.read_text()), "holder": holder,
+                                        "node": ticket_node() if holder is not None else None}))
+
+
+def ticket_node():
+    """The row this process works for: its spend ticket's node (SCORE_SPEND_TICKET "<node> <key>"), None without."""
+    return (os.environ.get(SPEND_TICKET) or "").partition(" ")[0] or None
+
+
+def touch(run_id):
+    """Note that this process's row (ticket_node) used the pool now: asked for a card (want), took or gave one back
+    (held_by); `uses` reads it."""
+    node = ticket_node()
+    if not run_id or node is None or not folder_of(run_id).exists():
+        return
+    (folder_of(run_id) / USES).mkdir(exist_ok=True)
+    (folder_of(run_id) / USES / node).touch()
+
+
+def uses(run_id):
+    """{row: epoch seconds it last used the pool} of `run_id`'s rows: its last touch, and now for a row holding a card
+    now; score run's heartbeat holds a running row's machines only while it uses them (score/__main__.py due_rows)."""
+    found = folder_of(run_id) / USES if run_id else None
+    last = {path.name: path.stat().st_mtime for path in found.iterdir()} if found and found.exists() else {}
+    now = time.time()
+    return {**last, **{card["node"]: now for card in members(run_id) if card.get("holder") and card.get("node")}}
 
 
 def left(run_id, server_id):

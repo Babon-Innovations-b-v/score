@@ -2982,12 +2982,17 @@ def test_the_watchdog_stops_a_run_whose_drive_has_not_moved():
         signal.signal(signal.SIGTERM, before)
 
 
-def test_a_row_running_past_its_minutes_keeps_its_readers_off_the_pool(monkeypatch):
+def test_a_row_running_past_its_minutes_keeps_its_readers_off_the_pool(monkeypatch, tmp_path):
     """Batch 1 try 5 (2026-10-26): finish lists forecast at 3.7 min waited 18 to 43 min on Google's Batch API queue,
     and counted at their whole 3.7 min kept every bake reading them due: 13 machines parked idle 30 min. The list's
     likely 4 min, the bake's lead 8: started 1 min ago it has 3 left, the bake due; run 20 min it has overrun 16, as
     long again is past the lead, the bake not due; not started it counts its whole 4.
-    Break: score/__main__.py: '    return abs(likely - ran)' -> '    return likely'"""
+    Checkout 39 (2026-11-07): a running pooled row was due until it ended, its local work included, and the pool
+    held 10 cards parked five hours (EUR 77). The bake running 2 min is due (its first claim is coming); 20 min with
+    no use of the pool it is not; asked for a machine 1 min ago (pool.want, its ticket's node) it is; holding one now
+    it is, whatever its last ask; given back 20 min ago it is not.
+    Break: score/__main__.py: '    return abs(likely - ran)' -> '    return likely'
+    Break: score/__main__.py: 'if began is None or now - max(began, used.get(node, 0.0)) <= leads[on] * 60:' -> 'if True:'"""
     from score import __main__ as command
     reads = {"list@a": [], "bake@a": ["list@a"]}
     runner = types.SimpleNamespace(
@@ -3005,6 +3010,31 @@ def test_a_row_running_past_its_minutes_keeps_its_readers_off_the_pool(monkeypat
     assert command.due_rows(runner, started, leads) == [("a", 1, False)]
     runner.began["list@a"] = time.time() - 20 * 60
     assert command.due_rows(runner, started, leads) == []
+    standing = {"list@a": {"at": datetime.datetime.now(datetime.timezone.utc).isoformat()}}
+    runner.store = types.SimpleNamespace(current_accept=standing.get)
+    pool = command.cloud_tool("pool")
+    monkeypatch.setattr(pool, "POOLS", tmp_path / "pools")
+    monkeypatch.setattr(pool.preflight, "mark_waiting", lambda: None)  # the runaway watch's mark: not this test's
+    run_id = "run-uses"
+    pool.folder_of(run_id).mkdir(parents=True)
+    runner.began["bake@a"] = time.time() - 2 * 60
+    assert command.due_rows(runner, started, leads, pool.uses(run_id)) == [("a", 1, False)]
+    runner.began["bake@a"] = time.time() - 20 * 60
+    assert command.due_rows(runner, started, leads, pool.uses(run_id)) == []
+    monkeypatch.setenv(pool.SPEND_TICKET, "bake@a key-1")
+    pool.want(run_id, [], "blender", 100)  # no plan: nothing asked, the use still noted
+    assert command.due_rows(runner, started, leads, pool.uses(run_id)) == [("a", 1, False)]
+    ago = time.time() - 20 * 60
+    os.utime(pool.folder_of(run_id) / pool.USES / "bake@a", (ago, ago))
+    assert command.due_rows(runner, started, leads, pool.uses(run_id)) == []
+    (pool.folder_of(run_id) / "cards").mkdir()
+    (pool.folder_of(run_id) / "cards" / "card-1.json").write_text(json.dumps({"id": "card-1", "holder": None}))
+    pool.held_by(run_id, "card-1", os.getpid())
+    os.utime(pool.folder_of(run_id) / pool.USES / "bake@a", (ago, ago))
+    assert command.due_rows(runner, started, leads, pool.uses(run_id)) == [("a", 1, False)]
+    pool.held_by(run_id, "card-1", None)
+    os.utime(pool.folder_of(run_id) / pool.USES / "bake@a", (ago, ago))
+    assert command.due_rows(runner, started, leads, pool.uses(run_id)) == []
 
 
 def test_the_pool_rents_each_machine_its_start_up_before_its_first_job_and_says_an_empty_one(monkeypatch):

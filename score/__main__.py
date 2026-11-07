@@ -694,7 +694,7 @@ def pool_tender(runner, jobs, started):
         plan = pool.plan_of(os.environ[RUN_ID])
         if not POOLED_ROWS or plan is None:
             return
-        due = due_rows(runner, started, pool.leads(plan["reserved"]))
+        due = due_rows(runner, started, pool.leads(plan["reserved"]), pool.uses(os.environ[RUN_ID]))
         pool.resize(os.environ[RUN_ID], *pool.counts_for(due, jobs))
         if POOL_TICKET:
             with pool_ticket_env(POOL_TICKET[0]):
@@ -724,12 +724,19 @@ def said_empty_pool(pool, run_id, due, now):
           f"{'s are' if len(due) != 1 else ' is'} due on it; {why}", flush=True)
 
 
-def due_rows(runner, started, leads):
+def due_rows(runner, started, leads, used=None):
     """(line, cards, on processors) of the run's pooled rows not ended since `started` whose first job is due within
-    its machines' lead (`leads`, {on processors: minutes}, pool.leads), on row_due's forecast."""
-    found, due = [], row_due(runner, started)
+    its machines' lead (`leads`, {on processors: minutes}, pool.leads), on row_due's forecast; a running one only
+    while it uses the pool (`used`, pool.uses: {row: when it last asked for, took or gave back a machine, now while it
+    holds one}), its start or its last use within that lead. Checkout 39 (2026-11-07): every running paid row was
+    counted due until it ended, its local work on the conductor's cores included, and the pool held its 10 cards
+    from 05:46 on, 11 machines parked at 10:50 and EUR 76.79 of pool time in five hours."""
+    found, due, now, used = [], row_due(runner, started), time.time(), used or {}
     for node, line, count, on in POOLED_ROWS:
-        if not ended_since(runner, node, started) and due(node) <= leads[on]:
+        if ended_since(runner, node, started) or due(node) > leads[on]:
+            continue
+        began = runner.began.get(node)
+        if began is None or now - max(began, used.get(node, 0.0)) <= leads[on] * 60:
             found.append((line, count, on))
     return found
 
