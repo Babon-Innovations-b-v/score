@@ -26,6 +26,7 @@ import argparse
 import json
 import pathlib
 import shlex
+import subprocess
 import sys
 import time
 
@@ -40,6 +41,12 @@ from provider import cloud  # noqa: E402
 KIND = "prove"
 SETUP_MINUTES = 8
 RETRY_SECONDS = 180
+# A processor machine's set-up (the runner's proof): docker alone, nothing done twice on a parked machine.
+PROCESSOR_SETUP = """set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+if ! command -v docker >/dev/null; then apt-get update -qq; apt-get install -y -qq docker.io >/dev/null; fi
+systemctl start docker
+"""
 
 
 def job_spec(store, run, job_name, image, code, inputs, job):
@@ -95,14 +102,20 @@ def card_flags(machine):
 
 def set_up(machine, registry, store_spec):
     """Docker and the NVIDIA container toolkit on a card machine (warm.set_up), docker alone on a processor one
-    (build.set_up, the store's variables sent as warm's are), timed: when it answered and when it was set up."""
+    (processor_set_up), timed: when it answered and when it was set up."""
     machine["answered"] = time.time()
-    if on_a_card(machine):
-        warm.set_up(machine, registry, store_spec)
-    else:
-        build.set_up(machine, registry)
-        build.send_store_environment(machine, store_spec)
+    (warm.set_up if on_a_card(machine) else processor_set_up)(machine, registry, store_spec)
     machine["set_up"] = time.time()
+
+
+def processor_set_up(machine, registry, store_spec):
+    """Docker on a processor machine (PROCESSOR_SETUP, again on a parked one), the registry login and the store's
+    variables."""
+    folder, host = machine["folder"], machine["host"]
+    with (folder / "setup.log").open("w") as log:
+        batch.remote(folder, host, PROCESSOR_SETUP, check=True, stdout=log, stderr=subprocess.STDOUT)
+    build.log_in(machine, registry)
+    build.send_store_environment(machine, store_spec)
 
 
 def prove_on(machine, plan, store_spec, results):
