@@ -3533,6 +3533,14 @@ def test_only_the_owner_removes_the_copy_ending_every_process_left_in_it_and_res
     assert frozen.OWNER not in frozen.resumed_env(tempfile.mkdtemp())
     frozen.home_of(copy).mkdir(parents=True)
     assert frozen.resumed_env(copy)["PROPS_HOME"] == str(frozen.home_of(copy))
+    # a resumed run keeps its launch's settings (2026-11-07: Launch 33 lost its cluster and caps at its grow's boot).
+    # Break: in runs.restart, drop `entry.get("settings")`; or in runs.new_entry, drop "settings"
+    monkeypatch.setenv("SCORE_CLOUD_KINDS", "pixal,blender")
+    monkeypatch.setenv("SCORE_SYNC_TOKEN", "not a setting")
+    kept = runs.new_entry(["run", "world1"])["settings"]
+    assert kept["SCORE_CLOUD_KINDS"] == "pixal,blender" and "SCORE_SYNC_TOKEN" not in kept
+    monkeypatch.delenv("SCORE_CLOUD_KINDS")
+    assert frozen.resumed_env(copy, kept)["SCORE_CLOUD_KINDS"] == "pixal,blender"
 
 
 def a_home():
