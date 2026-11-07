@@ -1451,14 +1451,15 @@ def a_plan_redrawn_on_the_same_floor_keeps_the_rough_align():
 
 
 def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
-    """codes_at works the rows' code out at a commit: 46d5873 changed place_line.py alone, so the paint's code moved
-    from its parent and the maps' did not (a record carries only when made from the code at the proof's commit). The
-    two checkouts are worked out side by side: each imports its whole stage table, about 27 s apiece."""
+    """codes_at works the rows' code out at a commit: 548ab076 changed place_line.py alone (and its test), so the
+    paint's code moved from its parent and the parts' did not (a record carries only when made from the code at the
+    proof's commit). The two checkouts are worked out side by side: each imports its whole stage table, about 3 s
+    apiece (46d5873's tree, the pair before, took 27 s apiece)."""
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(2) as pool:
-        before, after = pool.map(carry.codes_at, ("46d5873^", "46d5873"))
+        before, after = pool.map(carry.codes_at, ("548ab076^", "548ab076"))
     assert before["surfaces-paint"] != after["surfaces-paint"]
-    assert before["surfaces-maps"] == after["surfaces-maps"]
+    assert before["surfaces-parts"] == after["surfaces-parts"]
 
 
 # --- finish ---
