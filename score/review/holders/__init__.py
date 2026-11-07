@@ -64,6 +64,7 @@ it only while the plan is the same.
     relations(plan, inventory)   the place's relations {place, plan, about, relations, unheld, loose}
     keep(places)                 written for each place with a kept plan and inventory, where the scene record reads it
 """
+import copy
 import hashlib
 import json
 import math
@@ -1400,17 +1401,20 @@ def flat_alongs(alongs, runs, long, clear):
     return [along if along + long / 2 <= total + 1e-9 else max(low, high - long) + long / 2 for along in forward]
 
 
-def chain_along(chain, spot):
-    """Metres down a chain of points to the point of it nearest a plan spot."""
-    best, reach = (math.inf, 0.0), 0.0
+def chain_along(chain, spot, near=None):
+    """Metres down a chain of points to the point of it nearest a plan spot; of several as near (a chain round a
+    closed room passes its walls twice), the one nearest `near` metres down it, else the first."""
+    found, reach = [], 0.0
     for start, end in zip(chain, chain[1:]):
         run = end - start
         length = float(numpy.linalg.norm(run))
         share = float(numpy.clip((spot - start) @ run / max(length ** 2, 1e-9), 0.0, 1.0))
-        off = float(numpy.linalg.norm(spot - (start + run * share)))
-        best = min(best, (off, reach + share * length))
+        found.append((float(numpy.linalg.norm(spot - (start + run * share))), reach + share * length))
         reach += length
-    return best[1]
+    if near is None:
+        return min(found)[1]
+    least = min(off for off, _ in found)
+    return min((along for off, along in found if off <= least + 1e-6), key=lambda along: abs(along - near))
 
 
 def floor_pieces(entry, row, count, plan, inventory):
@@ -1542,11 +1546,13 @@ def wall_top(wall, plan):
 def wall_band(row, height, tall, wall, plan):
     """(lowest, highest) metres over the floor a wall thing of the row standing at `height` may be stood at, its top
     under its wall's (wall_top): one on the floor stays on it, one its words say high or above or a light no lower
-    than HIGH_LEAST or where it stands, the lower (mount_height's band), any other off the floor."""
+    than HIGH_LEAST or where it stands, the lower (mount_height's band), any other off the floor; one taller than its
+    wall on the floor (2026-11-07: the stairwell's 12 m conduits stood 12 and 24 m up its 11.8 m walls)."""
     if height <= 0.0:
         return 0.0, 0.0
     high = where_words(row) & HIGH_WORDS or kind_words(row) & LIGHT_WORDS
-    return (min(height, HIGH_LEAST) if high else PIECE_GAP), wall_top(wall, plan) - tall
+    top = max(wall_top(wall, plan) - tall, 0.0)  # one taller than its wall stands on the floor
+    return min(min(height, HIGH_LEAST) if high else PIECE_GAP, top), top
 
 
 def meets_laid(context, row, plan, height, laid):
@@ -1582,15 +1588,115 @@ def stood_clear(context, row, plan, height, laid):
                  not meets_laid(context, row, plan, stood, laid)), None)
 
 
+def onto_wall(context, wall, plan):
+    """A wall thing's relation (`context`: its wall, side, spot) moved onto another plan `wall`: its spot the point of
+    that wall nearest where it stood, on the side of it inside the plan's outline, else (both inside: an inner wall)
+    the side its old face looked into the room from."""
+    old = context["wall"]
+    start, end = numpy.asarray(old["from"], float), numpy.asarray(old["to"], float)
+    run = (end - start) / max(wall_length(old), 1e-9)
+    room = numpy.asarray(context["spot"], float) + numpy.array([-run[1], run[0]]) * context["side"] * (
+        float(old.get("thick") or 0.0) / 2 + PIECE_GAP)  # a point in the room before its old face
+    start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+    share = float(numpy.clip((room - start) @ (end - start) / max(float((end - start) @ (end - start)), 1e-9), 0, 1))
+    run = (end - start) / max(wall_length(wall), 1e-9)
+    sides = [side for side in (1, -1) if inside_outline((start + end) / 2 + numpy.array([-run[1], run[0]]) * side *
+                                                        (float(wall.get("thick") or 0.0) / 2 + PIECE_GAP), plan)]
+    return {**context, "wall": {key: wall[key] for key in ("from", "to", "thick")},
+            "side": sides[0] if len(sides) == 1 else off_line(room, wall)[1],
+            "spot": [round(float(value), 3) for value in start + (end - start) * share]}
+
+
+def inside_outline(spot, plan):
+    """Whether a plan spot lies inside the plan's outline (True with no outline)."""
+    outline = plan.get("outline") or []
+    return len(outline) < 3 or bool(plan_checks.inside(numpy.asarray([spot], float), outline)[0])
+
+
+# Metres between the spots along a run of walls a wall thing with no room on its own wall is tried at (walled_clear).
+SCAN = 0.1
+
+
+def run_chords(plan, long):
+    """[chord] of each stretch `long` metres long a straight thing lies flat along on a straight run of the plan's
+    walls over more than one wall (a round wall's facets, walls drawn end to end in line: straight_runs of chain_of),
+    every SCAN metres along it: the chord from its one end on the walls to its other, as wall_pieces lays a piece."""
+    walls, found, seen = walls_of(plan), [], set()
+    for wall in walls:
+        chain = chain_of(wall, walls, ROUND_BEND)
+        for low, high in straight_runs(chain) if len(chain) > 2 else []:
+            if chain_point(chain, low + 1e-6)[1] == chain_point(chain, high - 1e-6)[1]:
+                continue  # one wall: tried as itself
+            for step in range(int(max(high - low - long, -1.0) / SCAN) + 1):
+                ends = [chain_point(chain, low + step * SCAN + reach)[0] for reach in (0.0, long)]
+                chord = {"from": [round(float(value), 4) for value in ends[0]],
+                         "to": [round(float(value), 4) for value in ends[1]], "thick": wall.get("thick")}
+                if wall_key(chord) not in seen and wall_key(chord)[::-1] not in seen:
+                    seen.add(wall_key(chord))
+                    found.append(chord)
+    return found
+
+
+def walled_clear(context, row, plan, height, laid):
+    """(relation fields, height) of a wall thing that finds no room on its own wall (slid_clear, stood_clear) moved
+    to the nearest other place on the walls with room for it: another plan wall long enough for it, where it stands
+    there, else slid along it, else stood up or down it, or a stretch of a run of walls (run_chords: round a round
+    wall's facets) where it stands or is stood; None where the walls have no room. 2026-11-07: habitat's 18 pipes each
+    took the wall nearest its plan spot, three on one 3.9 m wall, without counting what was already on it."""
+    own, spot, long = wall_key(context["wall"]), numpy.asarray(context["spot"], float), built_long(row)
+    tries = [(off_line(spot, wall)[0], True, wall) for wall in walls_of(plan)
+             if wall_key(wall) != own and wall_length(wall) >= long] + [
+        (float(numpy.linalg.norm(spot - (numpy.asarray(chord["from"]) + numpy.asarray(chord["to"])) / 2)), False, chord)
+        for chord in run_chords(plan, long)]
+    for _, drawn, wall in sorted(tries, key=lambda tried: tried[0]):
+        moved = onto_wall(context, wall, plan)
+        if not drawn:  # a stretch as long as the thing: it stands in its middle
+            moved["spot"] = [round((float(first) + float(second)) / 2, 3)
+                             for first, second in zip(wall["from"], wall["to"])]
+        if not meets_laid(moved, row, plan, height, laid):
+            return moved, height
+        if drawn and (slid := slid_clear(moved, row, plan, height, laid)) is not None:
+            return {**moved, "spot": slid}, height
+        if (stood := stood_clear(moved, row, plan, height, laid)) is not None:
+            return moved, stood
+    return None
+
+
+def passage(row):
+    """Whether a row is a passage (PASSAGE_WORDS: a tunnel, a tube) meeting its place's wall from outside."""
+    return bool(kind_words(row) & PASSAGE_WORDS)
+
+
 def apart_on_walls(found, rows, plan):
     """Each wall thing laid as an object (a wall relation of a row the plan's shell does not lay, `structure` or arched
     (design_shell.arched: a tube's ribs), or each of its pieces) whose built box (relation_box) meets one laid before it on the walls by more than WALL_TOUCH, of
     any row, round a corner too: slid along its wall to the nearest spot where it meets none (slid_clear), else stood
     the nearest height over or under it inside its band (stood_clear: a thing too long for the wall's free stretches);
     one with neither is left as it is (the scene record's laid-as-designed names it). 2026-11-06: hangar's eight 32 m
-    pipes, four on its 64 m left wall and two on its front wall, at 10 m in one another."""
-    structure, laid = set(plan.get("structure") or []), []
-    for entry in found:
+    pipes, four on its 64 m left wall and two on its front wall, at 10 m in one another. A passage (`passage`) is laid
+    first and never moved: its stretch of wall is its own (2026-11-07: workshop's monitors packed into its glass
+    tunnel's chord). One that finds no room anywhere (walled_clear) while it meets a smaller thing is laid before the
+    others in a second go, the smaller parting round it (`laid_apart`; 2026-11-07: the stairwell's 12 m tall conduit
+    pipes, laid after its lamps and boxes, found no 3 m of wall free of them)."""
+    walled = [entry for entry in found if entry.get("how") == "wall"]
+    first, kept = [], [copy.deepcopy(entry) for entry in walled]
+    while True:
+        stuck = [entry for entry in laid_apart(found, rows, plan, first) if all(entry is not was for was in first)]
+        if not stuck:
+            return
+        for entry, was in zip(walled, kept):
+            entry.clear()
+            entry.update(copy.deepcopy(was))
+        first += stuck
+
+
+def laid_apart(found, rows, plan, first=()):
+    """apart_on_walls' one go, the relations in `first` laid before the rest (each list in found's order); the
+    relations left meeting a smaller wall thing, of a row longer than it, with nowhere to go."""
+    structure, laid, stuck = set(plan.get("structure") or []), [], []  # laid: (box, row long)
+    ahead = {id(entry) for entry in first}
+    order = [entry for entry in found if id(entry) in ahead] + [entry for entry in found if id(entry) not in ahead]
+    for entry in sorted(order, key=lambda entry: not passage(rows[entry["row"]])):
         row = rows[entry["row"]]
         if entry.get("how") != "wall" or entry["row"] in structure or design_shell.arched(row):
             continue
@@ -1599,14 +1705,32 @@ def apart_on_walls(found, rows, plan):
                 continue
             height = float(piece["height"]) if "height" in piece else wall_height(entry, plan)
             context = {**entry, **piece, "item": entry["item"]}
-            if meets_laid(context, row, plan, height, laid):
-                if (spot := slid_clear(context, row, plan, height, laid)) is not None:
+            tall = float(row["size"][2]) if isinstance(row.get("size"), list) and len(row["size"]) == 3 else 0.0
+            if height > (top := wall_band(row, height, tall, context["wall"], plan)[1]) + 1e-9:
+                piece["height"] = height = round(top, 3)
+                piece["why"] += "; brought down to stand under its wall's top"
+            boxes = [box for box, _ in laid]
+            if meets_laid(context, row, plan, height, boxes) and not passage(row):
+                if (spot := slid_clear(context, row, plan, height, boxes)) is not None:
                     piece["spot"] = context["spot"] = spot
                     piece["why"] += "; slid along its wall clear of the wall things laid before it"
-                elif (stood := stood_clear(context, row, plan, height, laid)) is not None:
+                elif (stood := stood_clear(context, row, plan, height, boxes)) is not None:
                     piece["height"] = height = stood
                     piece["why"] += "; stood clear of the wall things laid before it at its spot"
-            laid.append(relation_box(context, row, plan, height))
+                elif (moved := walled_clear(context, row, plan, height, boxes)) is not None:
+                    (context, height), was = moved, context["wall"]
+                    piece.update({key: context[key] for key in ("wall", "side", "spot")})
+                    piece.pop("short", None)
+                    if height != wall_height(entry, plan) or "height" in piece:
+                        piece["height"] = height
+                    piece["why"] += f"; moved to the nearest wall with room for it, its own ({was['from']} to " \
+                                    f"{was['to']}) full"
+                elif all(entry is not was for was in stuck) and any(
+                        long < built_long(row) and boxes_meet(box, relation_box(context, row, plan, height)) > WALL_TOUCH
+                        for box, long in laid):
+                    stuck.append(entry)
+            laid.append((relation_box(context, row, plan, height), built_long(row)))
+    return stuck
 
 
 def parted_on_floor(found, items, plan, inventory):
@@ -1920,11 +2044,35 @@ def stood_under(found, items, rows, plan):
                          "on nothing")
 
 
+def wall_held(row, rows):
+    """Whether a reading row stands against a wall: anchored on one, or on a row that is one (holder_kind)."""
+    anchor = str(row.get("anchor") or "")
+    holder = rows.get(anchor[3:]) if anchor.startswith("on:") else None
+    return anchor == "wall" or (holder is not None and holder_kind(holder) == "wall")
+
+
+def built_rows(rows, plan, inventory):
+    """The reading's rows, each held on a wall at the size it is made at (prepare's groups.made_size, the hand-in's),
+    never its reading's own metres where they measured a whole run: what the holders part on the walls is what the
+    scene record lays (2026-11-07: the stairwell's four 12 m conduit pipes, made 3 m pieces, stood at one spot on its
+    7.4 m wall; the cockpit's red pipes, made 6.6 m pieces of a run read 9.8 m, were stood clear as 9.8 m)."""
+    from score.stages.complete.prepare import groups
+    by_id = {row["id"]: row for row in rows}
+    laid, picture = groups.plan_sizes_of(plan, rows), inventory.get("picture")
+    found = []
+    for row in rows:
+        box = row.get("box") or (plan_checks.gemini_box(row["region"], picture) if row.get("region") and picture
+                                 else None)
+        made = groups.made_size(row, rows, plan, laid, box) if wall_held(row, by_id) else None
+        found.append({**row, "size": made} if made and made != row.get("size") else row)
+    return found
+
+
 def relations(plan, inventory, sha=None, kinds=None):
     """The place's relations (module docstring): one a plan item's row that stands on, against or in something;
     `kinds` the row-kind rules (score/stages/row_kinds.py's table by default)."""
     kinds = row_kinds.table() if kinds is None else kinds
-    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    rows = {row["id"]: row for row in built_rows(inventory.get("rows", []), plan, inventory)}
     items, tied = items_of(plan)
     structure = set(plan.get("structure") or [])
     laid = {row_id: kept for row_id, names in tied.items() if row_id not in structure

@@ -176,7 +176,7 @@ def sized_rows(store, place, record):
     own = plan_parts(shown and shown["plan"])
     shell = plan_structure(shown and shown["plan"], own)
     beyond = beyond_of(shown and shown["plan"], rows, record.get("size"))
-    found = [{**read, "size": walled or row_size(reading_size(row), laid.get(row["id"]), pieces, read.get("box")),
+    found = [{**read, "size": made_size(row, rows, shown and shown["plan"], laid, read.get("box")),
               "read_size": walled or own_size(reading_size(row), laid.get(row["id"]), pieces, read.get("box"))}
              for row in rows for read in [read_row(record, row)] for pieces in [run_pieces(shown and shown["plan"], row)]
              for walled in [walls_piece(row, rows, shown and shown["plan"], pieces or row.get("count") or 1)]]
@@ -184,6 +184,16 @@ def sized_rows(store, place, record):
     found = [{**row, "size": holding[row["id"]]["size"], "read_size": holding[row["id"]]["size"],
               "holds": holding[row["id"]]["span"]} if row["id"] in holding else row for row in found]
     return [routed(row, own, beyond, shell | plan_arches(shown and shown["plan"], found)) for row in found]
+
+
+def made_size(row, rows, plan, laid, box=None):
+    """The size a reading row (of `rows`) is made at (sized_rows' `size`): one piece of a run round its room's walls
+    (walls_piece), else its row_size, its pieces the plan's (run_pieces), `laid` its plan items' (plan_sizes), `box`
+    its picture box. The holders lay a wall thing at it (score/review/holders built_rows), so what they part on the
+    walls is what is made (2026-11-07: the stairwell's 12 m conduit pipes, made 3 m pieces, were laid apart as 12 m)."""
+    pieces = run_pieces(plan, row)
+    return walls_piece(row, rows, plan, pieces or row.get("count") or 1) or row_size(
+        reading_size(row), laid.get(row["id"]), pieces, box)
 
 
 def holding_sizes(plan, rows):
@@ -435,9 +445,12 @@ def plan_sizes(store, place, rows):
     gives it its reading's), has none here."""
     from score.review import plans
     shown = plans.current(store, place)
-    if shown is None:
-        return {}
-    plan, by_id = shown["plan"], {row["id"]: row for row in rows}
+    return {} if shown is None else plan_sizes_of(shown["plan"], rows)
+
+
+def plan_sizes_of(plan, rows):
+    """plan_sizes' answer from a plan itself (the kept plan the holders read: score/review/holders built_rows)."""
+    by_id = {row["id"]: row for row in rows}
     unsized = {gap["item"] for gap in plan.get("gaps", []) if gap.get("kind") == "size"}
     found = {}
     for name, _, _, wide, deep, facing, kind in plan.get("items", []):
