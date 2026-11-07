@@ -3,7 +3,7 @@ through score.review.web.decide and the owner's advance into this machine's mark
 local SCORE_OWNER), a launch basket planned and checked with the same guard as a local launch (the owner's advance
 marks of this machine included) plus SCORE_SYNC_MAX_EUROS, then launched through the configured backend, and the
 owner's buy or not now of a fix on Changes to buy into the checkout's basket here (pages/changes.py), and the
-owner's money figures, waivers and spend overrides (OWNER_FIGURES), and his concept review's draws, Discusses, picks and back to the generated wording (CONCEPT_KINDS), his
+owner's money figures, waivers, spend overrides and stop lines (OWNER_FIGURES), and his concept review's draws, Discusses, picks and back to the generated wording (CONCEPT_KINDS), his
 environment concept's interview answers, versions and reference pictures (ENVIRONMENT_KINDS), his plan review's clicks (PLAN_KINDS) and
 his film script's Lock and Unlock (film-lock) and the Machine card's Stop everything and Allow paid work again
 (MACHINE_KINDS), each through the local cockpit's own owner-only function."""
@@ -179,6 +179,7 @@ OWNER_FIGURES = {
                                                         payload.get("output", ""), payload.get("check", ""),
                                                         payload.get("reason", "")),
     "spend-override": actions.spend_override,  # his override yes, made in chat (sync/chat_decisions.py)
+    "stop-line": actions.stop_line,  # an environment's stop line, made in chat (sync/chat_decisions.py)
 }
 
 

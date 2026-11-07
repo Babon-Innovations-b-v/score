@@ -73,6 +73,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   written since applies anyway) -> test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
 - chat_decisions.request_of: the books month branch dropped (his books month in chat has no request kind) ->
   test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+- applying.OWNER_FIGURES: the "stop-line" line dropped (his stop line in chat has no request kind) ->
+  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+- chat_decisions.stop_state: its `"line"` set to None (a stop line asked before another line was written applies
+  anyway) -> test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
   test_every_module_the_hosted_image_holds_imports_from_it_alone
@@ -383,8 +387,8 @@ def owner_books(world, monkeypatch, settings):
 
 def test_the_owners_figures_and_waiver_are_applied_for_him_and_refused_for_anyone_else(owner_books):
     """Each owner request kind from the cockpit's buttons: someone not the local owner writes nothing; the owner's
-    goes through the same owner-only function as his local cockpit, recorded with his name; no request sets a stop
-    (a batch's stop is written by his checkout's yes)."""
+    goes through the same owner-only function as his local cockpit, recorded with his name; no request but his
+    stop line made in chat (stop-line) sets a stop (a batch's stop is written by his checkout's yes)."""
     from score.review import web
     world = owner_books
     key = world.store.records("closeup@beta")[-1]["key"]
@@ -1285,6 +1289,22 @@ def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_mar
     pytest.raises(chat_decisions.Refused, chat_decisions.record, web.BOOKS_MONTH, month, "Yes", asked, euros="0",
                   purpose="x")  # only a spend names a purpose
     books.unlink()
+    # his stop line in chat (owner, 2026-11-07, asked for an images stop line: "WTF HAVE I SAID ABOUTT"): applied once
+    # through the cockpit's own request (stop-line) by his name, a first line counting from the books as they stand
+    monkeypatch.setattr(web, "books_now", lambda: {"month": "2026-11", "bill": 1.0, "ledger": 1.0})
+    asked = "Set the chat-stop environment's stop line at EUR 10?"
+    stop = chat_decisions.record("stop", "chat-stop", "Yes", asked, euros="10")
+    assert stop["target"] == {"world": "chat-stop", "euros": 10.0, "line": None}
+    applied = chat_decisions.apply(stop["id"])
+    assert applied.state == "done" and "EUR 10.00" in applied.detail, applied.detail
+    assert seen[-1] == ({"kind": "stop-line", "user": "joey", "payload": {
+        "world": "chat-stop", "euros": 10.0, "reason": "his yes in chat: Yes", "replaces": None}}, False)
+    assert os.environ[mark] == "1"
+    line = web.stop_line(world.store, "chat-stop")
+    assert (line["euros"], line["by"], line["baseline"]["bill"]) == (10.0, "joey", 1.0)
+    pytest.raises(chat_decisions.Refused, chat_decisions.apply, stop["id"])
+    for euros in ("0", "-1", "nan", "ten", ""):
+        pytest.raises(chat_decisions.Refused, chat_decisions.record, "stop", "chat-stop", "Yes", asked, euros=euros)
 
 
 def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_reject(world):
@@ -1303,7 +1323,7 @@ def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_rej
                   output=output, takes=["stool_1"])
 
 
-def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question(world, settings):
+def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question(world, settings, monkeypatch):
     """Another accept since the question, or the film's script edited since, refuses it, nothing marked used; a go is carried by its run and never applied here."""
     from score.dashboard.films import script
     from score.dashboard.sync import chat_decisions
@@ -1356,3 +1376,11 @@ def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_qu
     assert json.loads(books.read_text())["google_before"] == 0.0
     assert not web.decision_yes_used(world.store, second["id"])
     books.unlink()
+    monkeypatch.setattr(web, "books_now", lambda: {"month": "2026-11", "bill": 1.0, "ledger": 1.0})
+    first, second = (chat_decisions.record("stop", "chat-stopped", "Yes", f"Stop line EUR {euros}?", euros=euros)
+                     for euros in ("10", "12"))
+    assert chat_decisions.apply(first["id"]).state == "done"
+    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
+                                                            second["id"]).value)  # a line was written since
+    assert web.stop_line(world.store, "chat-stopped")["euros"] == 10.0
+    assert not web.decision_yes_used(world.store, second["id"])

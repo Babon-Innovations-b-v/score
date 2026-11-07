@@ -8,13 +8,13 @@ click makes on the store's machine (applying.apply, so every check of his click 
                         the store (grants/decide/<id>.json, score.review.web): `target` what it applies to as it stands
                         at the question (state_of), `given` his words for it: reason, worse_reason, check, a
                         reject's takes (the takes of that output to remake, the rest kept: graph.Stage.retakes), a
-                        spend's euros and purpose, and a books month's euros
+                        spend's euros and purpose, a books month's euros, and a stop line's euros (and reason)
     apply(yes id, store)
                         his decision under that yes, once: refused when there is no quoted yes, it was used already
                         (grants/decide-used/<id>.json, written before it is applied; a refused or failed apply hands
                         it back, grants/decide-returned/<id>/<n>.json, so the same yes applies after a fix), it is a go (carried by its run, never applied here), or its target changed since the
                         question (another output accepted, another concept locked, the film's script edited, the
-                        month's books written since); then the cockpit's own request kind (request_of) by his name
+                        month's books written since, another stop line written since); then the cockpit's own request kind (request_of) by his name
 
 Decisions and what each names: an accept or a reject names a node and one output, with the node's accepted output
 then; a waiver a node, one output and its check; lock-concept a place and one draw's sha, with its lock then;
@@ -26,7 +26,9 @@ SCORE_SPEND_TICKET="override <name>"), its euros and what it is for, with no yes
 month (score.review.web.BOOKS_MONTH) a month (YYYY-MM, this month: the books take no other) and his provider's figure
 for it (his cockpit's "Enter it in the books", the request kind books-figure), with the month's books as they stand,
 so a figure read back or entered since refuses it (a rent refused on his PC, "the month's spend is unknown", answered
-in chat).
+in chat); stop an environment and the euros of its new stop line (score.review.web.stop, the line his `python -m
+score.review stop` writes), with the environment's newest line as it stands, so a line written since refuses it (owner,
+2026-11-07, asked for an images stop line he had already given: "WTF HAVE I SAID ABOUTT").
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `decide-yes`, `decide`) and, for a run on this PC,
 tools/cloud/this_pc.py's own. The records are the cockpit's own (his accept, reject, waiver or lock by his name), so
@@ -46,7 +48,7 @@ from score.review import web
 from score.dashboard import state
 from score.dashboard.sync import applying
 
-DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", web.BOOKS_MONTH)
+DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", web.BOOKS_MONTH, "stop")
 
 
 class Refused(RuntimeError):
@@ -111,6 +113,20 @@ def books_state(month, euros):
     return {"month": month, "euros": figure, "books": books}
 
 
+def stop_state(store, world, euros):
+    """{world, euros, line}: his stop line as asked, with the environment's newest line as it stands (its time and
+    euros, None for its first); Refused for euros that are not a finite amount above 0."""
+    from score.review import web
+    try:
+        amount = float(euros)
+    except (TypeError, ValueError):
+        raise Refused(f"a stop line names its euros as an amount, not {euros!r}") from None
+    if not math.isfinite(amount) or not amount > 0:
+        raise Refused(f"a stop line is a finite amount above EUR 0, not {euros!r}")
+    line = web.stop_line(store, world)
+    return {"world": world, "euros": amount, "line": {"at": line["at"], "euros": line["euros"]} if line else None}
+
+
 def script_sha(found):
     return hashlib.sha256(json.dumps(found, sort_keys=True).encode()).hexdigest()
 
@@ -131,6 +147,8 @@ def state_of(decision, target, given, store):
         return override_state(store, target, given.get("euros"), given.get("purpose"))
     if decision == web.BOOKS_MONTH:
         return books_state(target, given.get("euros"))
+    if decision == "stop":
+        return stop_state(store, target, given.get("euros"))
     return {"world": target}
 
 
@@ -150,8 +168,8 @@ def record(decision, target, answer, question, store=None, **given):
         raise Refused("only a reject names takes to remake (--takes)")
     if given.get("purpose") and decision != "spend":
         raise Refused("only a spend names a purpose (--purpose)")
-    if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH):
-        raise Refused("only a spend or a books month names euros (--euros)")
+    if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH, "stop"):
+        raise Refused("only a spend, a books month or a stop line names euros (--euros)")
     store = store or state.source().store
     given = {name: value for name, value in given.items() if value not in ("", None, [])}
     moment = datetime.datetime.now(datetime.timezone.utc)
@@ -178,6 +196,11 @@ def request_of(yes):
             "name": target["override"], "euros": target["euros"], "purpose": target["purpose"]}}
     if yes["decision"] == web.BOOKS_MONTH:
         return {"kind": "books-figure", "user": user, "payload": {"euros": target["euros"]}}
+    if yes["decision"] == "stop":
+        return {"kind": "stop-line", "user": user, "payload": {
+            "world": target["world"], "euros": target["euros"],
+            "reason": given.get("reason") or f"his yes in chat: {yes['answer']}",
+            "replaces": (target["line"] or {}).get("at")}}
     if yes["decision"] == "lock-concept":
         return {"kind": "concept-pick", "user": user, "payload": {"place": target["place"], "sha": target["sha"]}}
     return {"kind": "film-lock", "user": user, "payload": {"film": target["film"],
