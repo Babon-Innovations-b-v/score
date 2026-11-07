@@ -68,6 +68,9 @@ RUNTIME_DIR = "/run/user/1100"  # user score's XDG_RUNTIME_DIR on the VM
 DOOR_PORT = 8780
 DOOR_AGENT = "score-door-agent"
 PYTHON = f"{REPO}/.venv/bin/python"
+# The env file's NAME=value lines in a shell's environment, as the VM's units have it (EnvironmentFile): the door reads
+# its token through the secret reader, which names its project from there.
+ENV_LOADED = 'set -a; [ -r "$SCORE_ENV_FILE" ] && . "$SCORE_ENV_FILE"; set +a;'
 # Requests place a pod; limits keep it from taking the drive's room (the quota: 15 CPU / 120 Gi requests, 128 Gi
 # limits in `score`, babon's tenants/score/quota.yaml).
 CONDUCTOR = {"requests": {"cpu": "1", "memory": "4Gi"}, "limits": {"cpu": "4", "memory": "24Gi"}}
@@ -169,8 +172,8 @@ def pod_spec(containers, affinity, restart="Always"):
 
 def statefulset(image):
     """The conductor's one pod: its units, and the agents' door beside them."""
-    door = container("door", image, [PYTHON, "-I", f"{REPO}/tools/cloud/conductor/door_service.py",
-                                     "--port", str(DOOR_PORT)], DOOR)
+    door = container("door", image, ["/bin/sh", "-c", f'{ENV_LOADED} exec {PYTHON} -I '
+                                     f'{REPO}/tools/cloud/conductor/door_service.py --port {DOOR_PORT}'], DOOR)
     door["ports"] = [{"name": "door", "containerPort": DOOR_PORT}]
     door["readinessProbe"] = {"periodSeconds": 20, "exec": {"command": [  # it listens on the pod's loopback only
         "/usr/bin/python3", "-c", f"import socket; socket.create_connection(('127.0.0.1', {DOOR_PORT}), 5)"]}}
@@ -187,7 +190,7 @@ def statefulset(image):
 def cronjob(name, schedule, commands, resources, image):
     """A VM timer as a CronJob beside the conductor: its unit's commands in order, one pass at a time."""
     script = " && ".join(f"( {command} )" if not command.startswith("exec ") else command for command in commands)
-    shell = f'set -a; [ -r "$SCORE_ENV_FILE" ] && . "$SCORE_ENV_FILE"; set +a; cd {REPO} && {script}'
+    shell = f'{ENV_LOADED} cd {REPO} && {script}'
     pod = pod_spec([container(name.removeprefix("score-"), image, ["/bin/sh", "-c", shell], resources)],
                    beside_conductor(), restart="Never")
     return {"apiVersion": "batch/v1", "kind": "CronJob", "metadata": meta(name, name.removeprefix("score-")),

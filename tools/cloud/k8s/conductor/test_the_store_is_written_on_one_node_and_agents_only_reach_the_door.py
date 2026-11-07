@@ -12,7 +12,8 @@ Each invariant with the break that turns it red (each applied once, seen red, re
 - the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder), so no record's path changes.
   Break: `("props", f"{HOME}/props")` in MOUNTS.
 - the agents' account may only get and port-forward to the conductor's one pod: no exec, no other pod, no other
-  verb; the network policy lets nothing in. Break: add `"pods/exec"` to the port-forward rule's resources.
+  verb; the network policy lets nothing in; the door starts with the env file loaded (its token is read by name).
+  Break: add `"pods/exec"` to the port-forward rule's resources, or drop ENV_LOADED from the door's command.
 - the sync pass and the backups run one at a time (Forbid). Break: `"concurrencyPolicy": "Allow"` in `cronjob`.
 - every object carries the conductor's own cost label, apart from a batch's. Break: drop COST_LABEL from `labels`.
 - a timer's commands run in order, a failed one said and the timer going on, the listener started again after it
@@ -87,6 +88,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
     assert all(item["metadata"]["labels"]["score.dev/cost"] == "conductor" for item in found)
     door = next(box for box in pods[0]["containers"] if box["name"] == "door")
     assert door["ports"] == [{"name": "door", "containerPort": conductor.DOOR_PORT}]
+    assert door["command"][-1].startswith(conductor.ENV_LOADED)  # its token's project comes from the env file
 
     started, clock = [], [0.0]
 
