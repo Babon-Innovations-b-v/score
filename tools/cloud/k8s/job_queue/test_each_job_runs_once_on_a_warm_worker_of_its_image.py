@@ -20,6 +20,8 @@ red (each applied once, seen red, reverted):
 - at the stop line nothing more is made and only this box's Jobs are deleted. Break: delete without the box selector
   in `Queue.stop`.
 - a client's wait returns the run's state once over, and raises Stale once the queue's beat is stale.
+- a run is handed to the queue only when it is cleared: an uncleared one is refused and no inbox file is written.
+  Break: drop `require_cleared` in `job_queue.enqueue`.
 """
 import datetime
 import importlib.util
@@ -152,6 +154,12 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     monkeypatch.delenv("SCORE_K8S_SHARES", raising=False)
     monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
     monkeypatch.setattr(submitter, "CLUSTER_WAITING", tmp_path / "waiting")
+    monkeypatch.setenv(submitter.compute.TICKET, "")
+    with pytest.raises(submitter.compute.Refused):
+        job_queue.enqueue("r0", "blender", IMAGES["blender"], ["gpu-24gb"], {"j0": {"kind": "blender"}},
+                          root=tmp_path / "q0")
+    assert not list((tmp_path / "q0").glob("inbox/*.json"))
+    monkeypatch.setattr(submitter.compute, "require_cleared", lambda what: None)  # the runs below are cleared
     now = [1_800_000_000.0]
     clock = lambda: now[0]  # noqa: E731
     root, store = tmp_path / "queue", stores.FolderStore(tmp_path / "jobs")
