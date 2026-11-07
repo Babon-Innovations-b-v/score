@@ -28,7 +28,8 @@ turns test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_th
 test_a_thin_row_whose_mask_is_not_one_straight_run_is_built_along_its_mask_s_path red; so do, for the band test,
 path_build not holding its depth to the row (the depth factor -> `1.0`: the conduit 0.27 m deep on its 0.1 m), and
 balls giving every ball one width (`radius[near_down, near_across]` -> `np.full_like(off, np.median(radius[skeleton]))`:
-the post's foot as thin as its shaft), and drawn_thin taking every mask (`return True`: the blob built). likeness_row.straight_cut turning its cut
+the post's foot as thin as its shaft), spine giving each run one width again (`stretches(run, sampled(ball, run), along, part)` ->
+`[(run, along)]`: the mast's antenna as thick as the mast, 20.0 of 21.1), and drawn_thin taking every mask (`return True`: the blob built). likeness_row.straight_cut turning its cut
 (np.rot90 of the cut) turns test_a_straight_thing_slanted_by_the_concept_s_view_passes_as_prepare_predicts red.
 cut_box giving the row's box always (`if True:`) turns test_the_mask_jobs_ask_each_row_s_own_mask_by_its_words_in_its_box
 and test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (one lantern's box); code_builds never
@@ -422,6 +423,18 @@ def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thin
     high = made.vertices[:, 1] > made.bounds[1][1] - 0.5 * np.ptp(made.vertices[:, 1])
     foot, shaft = np.ptp(made.vertices[low, 2]), np.ptp(made.vertices[high, 2])
     assert np.isclose(foot, 2.5 * 80 / 400, rtol=0.15) and np.isclose(shaft, 2.5 * 20 / 400, rtol=0.25), (foot, shaft)
+    # a part joined to its run keeps its own width too: a mast's thin antenna and the cabinet at its foot (one width a
+    # piece made campgrounds' communications tower an even pole, its outline 0.366, 2026-11-07)
+    mast = {"name": "radio mast", "noun": "mast", "size": [0.5, 0.5, 2.5]}
+    mask = np.zeros((400, 200), dtype=bool)
+    mask[0:100, 98:102] = True  # its antenna, 4 pixels across
+    mask[100:400, 90:110] = True  # the mast, 20 across
+    mask[320:390, 110:170] = True  # a cabinet joined to its foot, 80 across with the mast
+    made = thin_straight.path_build(mast, mask)
+    height = (made.vertices[:, 1] - made.bounds[0][1]) * 400 / 2.5  # in the mask's pixels from its foot
+    across = {part: np.ptp(made.vertices[(height > low) & (height < high), 2]) * 400 / 2.5
+              for part, (low, high) in {"antenna": (320, 390), "mast": (150, 250), "cabinet": (20, 70)}.items()}
+    assert across["antenna"] <= 0.5 * across["mast"] and across["cabinet"] >= 2.5 * across["mast"], across
     # a blob SAM 3 found in a thin row's box (one lantern of a string's eight) is no thin thing: no build, nothing written
     blob = Image.new("RGBA", (300, 300), (0, 0, 0, 0))
     blob.paste((90, 90, 90, 255), (100, 100, 200, 200))
