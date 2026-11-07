@@ -596,6 +596,18 @@ def close_up_laid(row):
     return dataclasses.replace(row, files=surfaces.route_views.files)
 
 
+def baked_colour_checked(row):
+    """surfaces-paint with its gate "colour against the close-up" judging the bake too (baked_colour.judge_colour: each
+    baked surface's colour on the bake's own map against its close-up, the hub's consoles baked half rust on a grey
+    token, 2026-11-05). Set here, as feet_checked is, so no row reading the surfaces package moves."""
+    if row.name != "surfaces-paint":
+        return row
+    import baked_colour  # by its bare name, as route_paint and the prop environment import it: one module
+    return dataclasses.replace(row, checks=tuple(
+        guarded(check.name, baked_colour.judge_colour) if check.name == baked_colour.GATE else check
+        for check in row.checks))
+
+
 def feet_checked(row):
     """surfaces-paint with the gate "feet in one plane" beside its own (place_line.judge_feet: a take's short legs are
     stretched down before its bake, a missing leg fails by name). Set here, as bake_checked is, so the turntable's and
@@ -788,8 +800,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(bake_checked, map(meaning_checked, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))),
+          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(code_marked, map(
+              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))),
           *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
