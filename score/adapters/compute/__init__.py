@@ -176,11 +176,14 @@ def ledger():
 
 
 def cloud_bill():
-    """What the cloud provider has billed this month so far (its own consumption, every product), in euros."""
+    """What the cloud provider has billed this month so far (its own consumption, every product), in euros: the
+    billing backend's (provider.billing), the same bill on this PC as on the cloud, so a stop line's start recorded
+    here is the start the cloud's money guard counts from."""
     ledger()  # puts tools/cloud on the path
     import provider
 
-    return provider.cloud.month_spend(provider.cloud.account())
+    billing = provider.billing()
+    return billing.month_spend(billing.account())
 
 
 def google_bill():

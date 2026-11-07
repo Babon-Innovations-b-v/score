@@ -120,10 +120,19 @@ def cluster_name():
 def load(name=None):
     """The backend module named `name`, else SCORE_CLOUD's (with SCORE_CLOUD=k8s, the cluster's provider's backend,
     SCORE_K8S_PROVIDER before any slash), else Scaleway."""
-    chosen = name or os.environ.get("SCORE_CLOUD", "scaleway")
+    chosen = name or os.environ.get("SCORE_CLOUD", DEFAULT)
     if chosen == CLUSTER:
         chosen = cluster_provider()[0]
     return importlib.import_module(chosen)
 
 
+def billing():
+    """The backend whose bill the books keep: SCORE_CLOUD's, except this PC's (backends/local.py, which rents nothing
+    and bills EUR 0), whose records share the cloud's books: the default backend's. Fault (2026-11-07): the images
+    environment's first stop line, recorded on this PC under SCORE_CLOUD=local, took EUR 0 for its starting bill, so
+    the next cloud run read Scaleway's EUR 388.73 as spend since the line and was refused."""
+    return load(DEFAULT) if cloud.NAME == "local" else cloud
+
+
+DEFAULT = "scaleway"
 cloud = load()

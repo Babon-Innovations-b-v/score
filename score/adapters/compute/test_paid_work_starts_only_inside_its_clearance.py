@@ -36,6 +36,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - runaway ends children: guard.stop_children signals nothing.
 - owner's yes keeps the start: guard.set_line writes the new baseline.
 - stop command: guard.current reads the oldest line (`keys[0]`), not the newest.
+- a line recorded on this PC: tools/cloud/provider.py billing returns `cloud` whatever its NAME (the line's start
+  takes this PC's EUR 0 bill and the cloud's guard reads the cloud's whole bill as spend).
 - spend across months: guard.spent_since takes the baseline as every month's start.
 - credits never negative spend: in guard.spent_parts, `max(0.0, books["google"] - start["google"])` ->
   `books["google"] - start["google"]`.
@@ -95,9 +97,11 @@ MONTH = BOOKS.this_month()
 START = {"month": MONTH, "bill": 100.0, "ledger": 90.0, "google": 0.0}
 import capacity  # noqa: E402  (on the path compute.ledger() set)
 import google_spend  # noqa: E402  (on the path compute.ledger() set)
+import provider  # noqa: E402  (on the path compute.ledger() set)
 
 GOOGLE_LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"  # each test's Google month: empty
 BILL = {"euros": 0.0}
+CLOUD_BILL = compute.cloud_bill  # the real one, before each test's fake
 
 
 def no_cloud_and_books_open(monkeypatch):
@@ -737,10 +741,13 @@ def test_the_owners_yes_writes_the_new_line_and_keeps_the_worlds_start():
         pass
 
 
-def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads():
+def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads(monkeypatch):
     """C22: his money yes and the guard line are one step: `score.review stop` writes the line, and the very next
-    clearance is held to it. Without a terminal, or in an agent's process, it writes nothing."""
+    clearance is held to it. Without a terminal, or in an agent's process, it writes nothing. A first line recorded on
+    this PC (SCORE_CLOUD=local, his yes in chat through this_pc.py) starts from the cloud's bill, so the cloud's guard
+    finds exactly its euros of room."""
     from score.review import __main__ as review_command
+    from score.review import web
     assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     world = "toy-stop"
     try:
@@ -769,6 +776,16 @@ def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads():
     as_owner(lambda: review_command.main(["stop", world, "8", "--reason", "films, raised"]))
     assert compute.clearance(runner, "render@hangar", 6.0)  # the yes is the line: no one copies it anywhere
     BILL["euros"] = 0.0
+    scaleway = types.SimpleNamespace(NAME="scaleway", account=lambda: "ours", month_spend=lambda account: 388.73)
+    this_pc = types.SimpleNamespace(NAME="local", account=lambda: "this-pc", month_spend=lambda account: 0.0)
+    monkeypatch.setattr(compute, "cloud_bill", CLOUD_BILL)
+    monkeypatch.setattr(provider, "load", lambda name=None: scaleway)
+    monkeypatch.setattr(provider, "cloud", this_pc)  # the yes recorded on this PC
+    as_owner(lambda: web.stop(store, "toy-stop-pc", 10.0, "his yes in chat", "joey"))
+    monkeypatch.setattr(provider, "cloud", scaleway)  # checked by the cloud's guard
+    pc_runner = graph.Runner([BRIEF, RENDER], graph.Environment("toy-stop-pc", 1, {"data": data}), store)
+    assert compute.stop_room(pc_runner, store, 10.0, {})[1:] == (0.0, None)
+    assert "pass the EUR 10.00 stop" in compute.stop_room(pc_runner, store, 10.01, {})[2]
 
 
 def test_spend_counts_from_the_worlds_start_across_months():
