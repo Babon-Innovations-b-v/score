@@ -27,7 +27,8 @@ seen red, reverted):
 - test_a_slot_stops_asking_at_its_deadline_and_on_a_signal: in batch.py `still_wanted`, drop `or time.time() >=
   run.deadline`.
 - test_a_wait_for_this_pcs_machine_is_not_the_works_time: in `this_pc_waited`, drop `run.deadline += waited` (the
-  share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up).
+  share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up); or in
+  `on_machines`, drop `raise run.cloud_only` (a claim refused as too big: the spread returns, nothing raised).
 - test_a_share_killed_for_memory_runs_again_once: in `work_slot`, `if shares.again(share):` -> `if False:` (the
   killed share is a gap at once); or in `raise_for`, drop `or killed` (a step killed inside is a plain failure).
 - test_a_share_whose_card_would_not_open_runs_again_once: in `work_slot`, `except (MemoryKilled, CardLost)` ->
@@ -35,8 +36,6 @@ seen red, reverted):
 - test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone: in `work_slot`, drop the
   `provider.cloud.wanted_elsewhere()` check (m1 runs all three); or in `one_machine`, drop `or
   machine.get("yielded")` (two and three stay waiting).
-- test_a_claim_this_pc_refuses_as_too_big_ends_the_spread_on_the_refusal: in `on_machines`, drop `raise
-  run.cloud_only` (the spread returns, nothing raised).
 """
 import pathlib
 import sys
@@ -215,7 +214,8 @@ def test_a_slot_stops_asking_at_its_deadline_and_on_a_signal(stock_after):
 
 def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkeypatch):
     """On this PC's one machine, a claim that waited out the run's deadline behind the run's own jobs asks again,
-    and the deadline moves on by the wait, so the share runs; on a rented backend nothing moves."""
+    and the deadline moves on by the wait, so the share runs; on a rented backend nothing moves. A claim this PC
+    refuses as too big for its card ends the spread on that refusal."""
     run, done, made = fake_machines, [], batch.claim
     run.deadline = time.time() + 0.3
     calls = []
@@ -241,6 +241,19 @@ def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkey
     spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
                        lambda machine, share, card: done.append(share))
     assert done == ["one"] and len(calls) == 1 and run.deadline == before  # a rented backend gives up as before
+    # a claim this PC refuses as too big (park.here's compute.CloudOnly, in any slot's thread) ends the spread on the
+    # refusal once its slots are done; no share ran (round 46, 2026-11-02: meshparts' 24 GB claim died in its thread
+    # and the tool ended "no card could be rented", so its paid row crashed instead of being left for the Buy)
+    refused = []
+
+    def refused_claim(run, account, found, number, kind, disk_gb, wanted=None):
+        raise batch.compute.CloudOnly("a meshparts job needs about 24 GB of card and this PC has 16 GB")
+    monkeypatch.setattr(batch, "claim", refused_claim)
+    shares = spread.Shares(["one", "two"], deadline=run.deadline)
+    with pytest.raises(batch.compute.CloudOnly, match="24 GB"):
+        spread.on_machines(run, None, [], 2, "meshparts", shares, lambda machine: None,
+                           lambda machine, share, card: refused.append(share))
+    assert refused == []
 
 
 def test_a_share_killed_for_memory_runs_again_once(fake_machines):
@@ -294,19 +307,3 @@ def test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone(fake_m
     spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
                        lambda machine, share, card: done.append((machine["folder"].name, share)))
     assert done == [("m1", "one"), ("m2", "two"), ("m2", "three")], done
-
-
-def test_a_claim_this_pc_refuses_as_too_big_ends_the_spread_on_the_refusal(fake_machines, monkeypatch):
-    """Round 46, 2026-11-02: meshparts' 24 GB claim was refused in its slot's thread (park.here, compute.CloudOnly),
-    the thread died, and the tool ended "no card could be rented" (exit 1), so its paid row crashed instead of being
-    left for the Buy. The spread raises the refusal once its slots are done, whichever slot met it; no share ran."""
-    run, done = fake_machines, []
-
-    def claim(run, account, found, number, kind, disk_gb, wanted=None):
-        raise batch.compute.CloudOnly("a meshparts job needs about 24 GB of card and this PC has 16 GB")
-    monkeypatch.setattr(batch, "claim", claim)
-    shares = spread.Shares(["one", "two"], deadline=run.deadline)
-    with pytest.raises(batch.compute.CloudOnly, match="24 GB"):
-        spread.on_machines(run, None, [], 2, "meshparts", shares, lambda machine: None,
-                           lambda machine, share, card: done.append(share))
-    assert done == []

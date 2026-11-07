@@ -13,6 +13,7 @@ here because they drive the runner and graph/stopped.py, graph/runs.py and graph
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/graph/test_a_key_is_made_once_from_accepted_inputs.py
 """
 import argparse
+import concurrent.futures
 import contextlib
 import dataclasses
 import datetime
@@ -2778,17 +2779,31 @@ def test_a_stopped_runs_cloud_batch_gets_one_stop_and_deletes_every_machine():
     main thread was busy in long code showed no stop and got the second signal too; the SIGKILL after the grace cut a
     batch's deletes short.
     Break: score/__main__.py: '    spared = cloud_side(group)' -> '    spared = set()'"""
-    for number in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
+    def stopped_by_its_group(number):
         run, folder = group_run(30, 0.3)
         os.killpg(run.pid, number)
-        assert deleted_by(folder, run)[0] == THREE, number
-    run, folder = group_run(30, 0.8, "3")
-    time.sleep(0.5)  # the node's main thread is in its stretch now
-    os.killpg(run.pid, signal.SIGTERM)
-    assert deleted_by(folder, run)[0] == THREE
-    run, folder = group_run(1, 0.8)
-    run.send_signal(signal.SIGTERM)  # the run alone: it passes its stop on itself
-    deleted, output = deleted_by(folder, run)
+        return deleted_by(folder, run)[0]
+
+    def stopped_while_busy():
+        run, folder = group_run(30, 0.8, "3")
+        time.sleep(0.5)  # the node's main thread is in its stretch now
+        os.killpg(run.pid, signal.SIGTERM)
+        return deleted_by(folder, run)[0]
+
+    def stopped_alone():
+        run, folder = group_run(1, 0.8)
+        run.send_signal(signal.SIGTERM)  # the run alone: it passes its stop on itself
+        return deleted_by(folder, run)
+
+    # each case is a run in a session and folder of its own: they run side by side (the file's time budget)
+    with concurrent.futures.ThreadPoolExecutor(5) as pool:
+        by_group = {number: pool.submit(stopped_by_its_group, number)
+                    for number in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM)}
+        busy, alone = pool.submit(stopped_while_busy), pool.submit(stopped_alone)
+        for number, deleted in by_group.items():
+            assert deleted.result() == THREE, number
+        assert busy.result() == THREE
+        deleted, output = alone.result()
     assert deleted == THREE and "SIGKILL" not in output, (deleted, output)
 
 
@@ -3697,7 +3712,16 @@ def test_a_free_only_run_runs_its_free_nodes_leaves_its_paid_ones_and_ends_ok_wi
 
 
 def test_a_free_only_run_on_this_pcs_card_makes_its_paid_nodes_with_no_ticket(monkeypatch, run_registry):
-    """Break: score/graph/__init__.py: '        if self.free_only and on_this_pc():\n            return contextlib.nullcontext()' -> '        if False:\n            return contextlib.nullcontext()'"""
+    """A free-only run on this PC's card makes its paid nodes with no ticket, and one too big for its card is left for
+    the Buy, priced, never an error.
+    Break: score/graph/__init__.py: '        if self.free_only and on_this_pc():\n            return contextlib.nullcontext()' -> '        if False:\n            return contextlib.nullcontext()'
+    2026-11-02, round 45: people-look-parts-astronaut_spacesuit-made's meshparts needed 24 GB of card on this PC's
+    16 GB; park.here refused it inside the cloud tool's own process, and the row crashed (CalledProcessError) with a
+    fault report. A paid node made free here whose cloud tool ended on that refusal (compute.CLOUD_ONLY_EXIT) is left
+    for the Buy, priced at its estimate, no fault report, its reader waiting on it; the same tool crashing otherwise is
+    still an error with its report.
+    Break: score/graph/__init__.py: `        if refusal is None or not (self.free_only and stage.paid and on_this_pc()):`
+        -> `        if True:`"""
     monkeypatch.setattr(compute, "clearance", refused_clearance)
     monkeypatch.setenv("SCORE_CLOUD", "local")
     monkeypatch.delenv(compute.TICKET, raising=False)
@@ -3712,19 +3736,7 @@ def test_a_free_only_run_on_this_pcs_card_makes_its_paid_nodes_with_no_ticket(mo
     painted = runner.store.checkout(runner.store.accepted("paint@hangar")) / "paint.txt"
     assert painted.read_text() == "ticket None"  # no clearance: a real paid point inside it would refuse
 
-
-def test_on_this_pc_a_paid_node_whose_job_is_too_big_for_its_card_is_left_for_the_buy_priced_never_an_error(
-        monkeypatch, run_registry):
-    """2026-11-02, round 45: people-look-parts-astronaut_spacesuit-made's meshparts needed 24 GB of card on this PC's
-    16 GB; park.here refused it inside the cloud tool's own process, and the row crashed (CalledProcessError) with a
-    fault report. A paid node made free here whose cloud tool ended on that refusal (compute.CLOUD_ONLY_EXIT) is left
-    for the Buy, priced at its estimate, no fault report, its reader waiting on it; the same tool crashing otherwise is
-    still an error with its report.
-    Break: score/graph/__init__.py: `        if refusal is None or not (self.free_only and stage.paid and on_this_pc()):`
-        -> `        if True:`"""
-    import subprocess
-    monkeypatch.setattr(compute, "clearance", refused_clearance)
-    monkeypatch.setenv("SCORE_CLOUD", "local")
+    # a paid node too big for this PC's card: left for the Buy, priced, never an error
     for code in (compute.CLOUD_ONLY_EXIT, 1):
         def make_paint_elsewhere(inputs, out, seed, params, code=code):
             raise subprocess.CalledProcessError(code, ["python", "tools/cloud/meshparts.py", "run", "--who", "x"])
