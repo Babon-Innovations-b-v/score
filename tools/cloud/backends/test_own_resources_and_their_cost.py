@@ -189,6 +189,18 @@ def fake(monkeypatch):
     return stub
 
 
+@pytest.fixture(autouse=True)
+def self_delete_key(monkeypatch, tmp_path):
+    """The runner's self-delete key as a file of the test's own, never this PC's: create's self-delete check reads it
+    as it reads the real one, and the provider's answer to it (a network read) takes only this key."""
+    import batch
+    monkeypatch.setattr(batch, "SELF_DELETE_KEY", tmp_path / "self_delete_key.json")
+    batch.SELF_DELETE_KEY.write_text('{"secret_key": "works"}')
+    monkeypatch.setattr(scaleway, "self_delete_refusal",
+                        lambda secret, zone: None if secret == "works" else "Scaleway's instance API answers it 401")
+    return batch.SELF_DELETE_KEY
+
+
 def ours_key():
     return {("secret", "secret", "list"): [{"name": scaleway.RUNTIME_KEY_SECRET, "project_id": OURS}]}
 
