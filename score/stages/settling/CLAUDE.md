@@ -42,7 +42,7 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   on its foot against its holder's face (held.leaning_rests, its `on`'s `out`), and the `rested` gate measures it on
   the layered stage and fails it where it falls (leans on nothing, its top off its holder, past `LEAN_FALLS`) or floats
   (held.leaning_faults, leaning_wrong).
-- **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands. A
+- **Held on a wall or ceiling row is mounted** (`holders.holder_kind`): never snapped down; its laid pose stands, and the gates judge it by touching as the assembly does (`as_they_rest` gives it that support: settle@storage's wall lights read as floating 2.5 m, 2026-11-07). A
   structure row (a door's window) on a mounted row, never through a shell row, is mounted with it (`assembly/mounted.py`).
 - **Spend.** A drop is bought only when something loose is to be stood up or unstacked or the triage finds a fault on
   it (free, first); a drop already paid for is read back from `DROPS` (the same job, drop script, trial script, Python

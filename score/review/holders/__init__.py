@@ -899,12 +899,40 @@ def kept_on_face(piece, half):
 
 
 def face_spread(found, items, rows, plan, inventory, kinds):
+    """The pieces against each holder's face spread along it (faces_spread); on a face too short for them all, each
+    thing the plan draws on another side of its holder turned to that side (turned_toward) and the faces spread
+    again; a face still too short keeps its things as drawn, named in the [{holder, holder row, face, rows, why}]
+    returned (street's 3 m window, stairwell entrance and roller shutters laid at their built widths on 1.74 m items,
+    its sign over three air conditioners, #36)."""
+    while True:
+        crowded = faces_spread(found, items, rows, plan, inventory, kinds)
+        if not [turned for _, entries in crowded for turned in [turned_toward(entries, items)] if turned]:
+            return [named for named, _ in crowded]
+
+
+def turned_toward(entries, items):
+    """Each face relation of a crowded face (`entries`, but a door's, whose recess is cut at its face) whose item the
+    plan draws outside its holder's box turned to the holder's side toward it (side_toward) where that is another
+    side: whether any turned (one drawn on its holder's spot, or on the walls item: a facade's window, stays).
+    2026-11-07: storage's three pillar pipes, drawn on the pillar's N, S and E sides, all laid on the S side the
+    concept shows, crowded there and laid in one another."""
+    turned = False
+    for entry in entries:
+        item, holder = items[entry["item"]], items[entry["holder"]]
+        side = None if inside(item, holder) or entry.get("recess") or entry["holder"] == plan_checks.WALLS_ITEM \
+            else side_toward(item, holder)
+        if side and side != entry["face"]:
+            entry["why"] += f"; turned to its {side} side, toward it on the plan: its {entry['face']} side too short"
+            entry["face"], turned = side, True
+    return turned
+
+
+def faces_spread(found, items, rows, plan, inventory, kinds):
     """The pieces against each holder's face that would overlap at their built sizes (along it and in height, each
     kept inside the face's ends as the assembly keeps it: kept_on_face) spread
     along it in the order the plan draws them (spread_face), each relation of a piece moved given its pieces' `spots`
-    and a moving door its recess at them; a face too short for them all keeps them as drawn, named in the
-    [{holder, holder row, face, rows, why}] returned (street's 3 m window, stairwell entrance and roller shutters laid
-    at their built widths on 1.74 m items, its sign over three air conditioners, #36)."""
+    and a moving door its recess at them; [({holder, holder row, face, rows, why}, its relations)] of each face too
+    short for them all, its things kept as drawn."""
     faces, crowded = {}, []
     for entry in found:
         if entry["how"] == "face" and LINE in entry:
@@ -925,10 +953,11 @@ def face_spread(found, items, rows, plan, inventory, kinds):
             continue
         lefts = spread_face(pieces, half)
         if lefts is None:
-            crowded.append({"holder": holder, "holder row": holder_row, "face": face,
-                            "rows": sorted({piece["entry"]["row"] for piece in pieces}),
-                            "why": f"the face's {2 * half:.2f} m cannot hold its things at their built widths with "
-                                   f"{OPENING_ROOM:g} m between those that meet in height and at its ends"})
+            crowded.append(({"holder": holder, "holder row": holder_row, "face": face,
+                             "rows": sorted({piece["entry"]["row"] for piece in pieces}),
+                             "why": f"the face's {2 * half:.2f} m cannot hold its things at their built widths with "
+                                    f"{OPENING_ROOM:g} m between those that meet in height and at its ends"},
+                            entries))
             continue
         for piece, left in zip(pieces, lefts):
             piece["at"] = piece["at"] + run * (left + piece["before"] - piece["along"])
@@ -1690,10 +1719,32 @@ def apart_on_walls(found, rows, plan):
         first += stuck
 
 
+def hung_boxes(found, rows, plan):
+    """The box (wall_box's form) each thing hung from the roof (a `ceiling` relation `to roof`, not a structure row)
+    is laid in, as the scene record lays it: each of its pieces at its middle, its model along its way
+    (piece_middles, model_axes), its top ROOF_CLEAR under the roof's underside over it (writer.roof_under).
+    2026-11-07: storage's second wall pipe, stood up clear of the first, went into the ceiling light hung by its wall."""
+    from score.stages.scene_record import writer  # here: the writer imports this module
+    items, structure, boxes = plan_items(plan), set(plan.get("structure") or []), []
+    for entry in found:
+        row = rows.get(entry["row"])
+        if entry.get("how") != "ceiling" or not entry.get("to roof") or entry["row"] in structure or row is None \
+                or entry["item"] not in items or not (isinstance(row.get("size"), list) and len(row["size"]) == 3):
+            continue
+        size = [float(value) for value in row["size"]]
+        for spot, way in piece_middles(items[entry["item"]], row, plan):
+            run, out = model_axes(way, row)
+            top = writer.roof_under(plan, spot) - writer.ROOF_CLEAR
+            boxes.append((numpy.asarray(spot, float), run, out, size[0] / 2, size[1] / 2, top - size[2], top))
+    return boxes
+
+
 def laid_apart(found, rows, plan, first=()):
-    """apart_on_walls' one go, the relations in `first` laid before the rest (each list in found's order); the
-    relations left meeting a smaller wall thing, of a row longer than it, with nowhere to go."""
-    structure, laid, stuck = set(plan.get("structure") or []), [], []  # laid: (box, row long)
+    """apart_on_walls' one go, the relations in `first` laid before the rest (each list in found's order), clear of
+    the things hung from the roof (hung_boxes, never moved: laid as longer than any); the relations left meeting a
+    smaller wall thing, of a row longer than it, with nowhere to go."""
+    structure, stuck = set(plan.get("structure") or []), []
+    laid = [(box, math.inf) for box in hung_boxes(found, rows, plan)]  # laid: (box, row long)
     ahead = {id(entry) for entry in first}
     order = [entry for entry in found if id(entry) in ahead] + [entry for entry in found if id(entry) not in ahead]
     for entry in sorted(order, key=lambda entry: not passage(rows[entry["row"]])):
