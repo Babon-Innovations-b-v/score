@@ -43,7 +43,7 @@ from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
 from score.graph import _code, chain, frozen, rebuy, runs, stopped  # noqa: E402
-from score.store import Store, partial_of, tree_hash  # noqa: E402
+from score.store import Store, file_hash, partial_of, tree_hash  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 PLACES = ("hangar", "station")
@@ -274,6 +274,33 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     assert "pod" not in pod.collect(runner, COUNT, "station", keyed, refused)  # made here instead
     peeked = in_a_pod(runner, PEEK, "hangar", runner.key(PEEK, "hangar"), tree, bucket_root, folder)
     assert peeked.get("undeclared") == ["records/clean@hangar/any.json"], peeked
+    assert fetched_side_by_side(pod, offload, folder, bucket_root) > 1
+
+
+def fetched_side_by_side(pod, offload, folder, bucket_root):
+    """32 blobs prefetched into an empty cache from a bucket that takes 50 ms a fetch; the most fetches at once."""
+    shas, lock, at_once = [], threading.Lock(), {"now": 0, "most": 0}
+    for index in range(32):
+        blob = folder / "many" / f"{index}.bin"
+        blob.parent.mkdir(exist_ok=True)
+        blob.write_bytes(f"blob {index}".encode())
+        shas.append(file_hash(blob))
+        offload.push(blob, shas[-1], offload.FolderBucket(bucket_root))
+
+    class Slow(offload.FolderBucket):
+        def fetch(self, key, destination):
+            with lock:
+                at_once["now"] += 1
+                at_once["most"] = max(at_once["most"], at_once["now"])
+            time.sleep(0.05)
+            super().fetch(key, destination)
+            with lock:
+                at_once["now"] -= 1
+    offload.install(lambda: Slow(bucket_root))
+    pod.prefetched(folder / "cache-many", shas)
+    offload.install(lambda: offload.FolderBucket(bucket_root))
+    assert all((folder / "cache-many" / "objects" / offload.blob_key(sha)).is_file() for sha in shas)
+    return at_once["most"]
 
 
 # --- keys: made once, judged again on new evidence, made again only where a change reaches ----------------------------
@@ -284,7 +311,8 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     A key made in a pod is the same record (a_pod_makes_what_the_runner_makes).
     Break: score/graph/__init__.py: '"files": self.file_keys(stage, place),' -> '"files": {},'
     Break: score/graph/pod.py: '    proven(bucket or offload.bucket_now(), manifest, node)\n' -> '' (the pod's
-    manifest stored without its blobs proven)."""
+    manifest stored without its blobs proven).
+    Break: score/graph/pod.py: 'FETCHES = 16' -> 'FETCHES = 1' (a pod's input blobs fetched one at a time)."""
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), a_store()
     runner = a_runner(world, store, LOGGED)
     runner.run(PLACES)
