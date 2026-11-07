@@ -30,7 +30,12 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   retry, beside the conductor's pod on its node (`tools/cloud/k8s/conductor`); the run's environment goes with it but
   every variable that could hold a secret (`SECRET_NAME`), read by name as on the VM. Every store writer shares the
   node's process ids, so the pid the pod writes beside its log (`started_pid`) is the run's for the cockpit and the
-  registry. Off such a home nothing changes: the VM and the PC detach as before.
+  registry. Its memory request and limit are the guard's own reckoning (`memory_request`: the floor beside the
+  largest kept stage peaks, one a job, at most the record's `max_memory_gb`), its processors `jobs` x `cpu_per_job`;
+  `--jobs` there defaults to the record's `jobs` (`score/__main__.py` `default_jobs`: score.conductor's own module is in
+  rows' code versions), so a price is worked out on what the pod is given,
+  never on the cores of the node that answers; inside a pod `graph.AVAILABLE` and `TOTAL` read the pod's cgroup
+  (`guard_pod_memory`). Off such a home nothing changes: the VM and the PC detach as before.
 - **`health.py`**: `$PROPS_HOME/health.json` for the Machine card (`python -m score.conductor health --write`, AREA 1's
   minute timer). Its `code` is the checkout's commit beside the cockpit's pin score-update last read
   (`conductor/pin.json`), red on the card when they differ. **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming

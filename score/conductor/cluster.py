@@ -1,4 +1,4 @@
-"""The conductor in the cluster (#76, the plan of 2026-11-07, step 2): what a home on the cluster does
+"""The conductor in the cluster (#76, the plan of 2026-11-07, steps 2 and 3): what a home on the cluster does
 differently from the VM. A home is the cluster's when `$PROPS_HOME/conductor/cluster.json` is there (written at the
 cutover; RECORD); without it nothing here acts and every caller behaves as on the VM and the PC.
 
@@ -11,17 +11,23 @@ cutover; RECORD); without it nothing here acts and every caller behaves as on th
   volume (the run's commit), its command and output log the same as the scope's. The run's environment goes with it,
   every variable that could hold a secret left out (SECRET_NAME): those the run reads by name, as on the VM. An OOM or
   a node loss ends that run alone; `score resume` takes it up from the store.
+- **Requests from the plan** (step 3): the pod's memory request is the memory guard's own reckoning
+  (`memory_request`: the floor beside the largest kept stage peaks, one a job at once), its limit the same, at most
+  `max_memory_gb`; its processor request `jobs` x `cpu_per_job`. A run's jobs on such a home are the record's
+  (`jobs`), so a price is worked out on the jobs the pod is given, never on the cores of whatever node answers.
+  Inside a pod the guard reads the pod's own memory (`pod_memory`, cgroup v2), not the node's.
 """
 import json
+import os
 import pathlib
 import re
 import subprocess
-import sys
 import time
 
 from score import conductor
 
 RECORD = conductor.HOME / "cluster.json"
+CGROUP = pathlib.Path("/sys/fs/cgroup")
 GIB = 2 ** 30
 # Variables a Job's spec never carries: the API and its store would hold their values.
 SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSWORD|PASSPHRASE|CREDENTIAL|_KEY$|^AWS_|KUBECONFIG")
@@ -43,6 +49,21 @@ def record(path=None):
 def jobs(found):
     """The jobs a run drives at once on the cluster's home: the record's, so its price and its pod agree."""
     return int(found["jobs"])
+
+
+def memory_request(peaks, jobs_at_once, floor, most_gb):
+    """The drive pod's memory in bytes: the floor the memory guard keeps free beside the `jobs_at_once` largest kept
+    stage peaks (`peaks`: {stage: bytes}, the runner's memory/peaks-made.json), each never under the floor (a stage
+    never measured is given it), at most `most_gb`."""
+    largest = sorted((max(peak, floor) for peak in peaks.values()), reverse=True)[:jobs_at_once]
+    largest += [floor] * (jobs_at_once - len(largest))
+    return min(int(most_gb * GIB), floor + sum(largest))
+
+
+def kept_peaks(store_root):
+    """{stage: bytes} the runner keeps beside the store (graph.Runner.peaks), {} before the first measure."""
+    path = pathlib.Path(store_root) / "memory" / "peaks-made.json"
+    return json.loads(path.read_text()) if path.is_file() else {}
 
 
 def carried_environment(environment):
@@ -85,7 +106,9 @@ def drive_job(found, command, log, folder, environment, memory_bytes):
 def detach(found, command, log, folder, environment, store_root, apply=None, wait=None):
     """Start the run as its Job (kubectl through stdin) and wait for its command's pid (`started_pid`); (the Job's
     name, the pid)."""
-    job = drive_job(found, command, log, folder, environment, int(found["max_memory_gb"] * GIB))
+    from score import graph  # the drive's own guard: its floor is the one the pod's room is reckoned beside
+    request = memory_request(kept_peaks(store_root), jobs(found), graph.memory_floor(), found["max_memory_gb"])
+    job = drive_job(found, command, log, folder, environment, request)
     (apply or kubectl_apply)(job)
     return job["metadata"]["name"], (wait or started_pid)(log)
 
@@ -106,3 +129,42 @@ def started_pid(log, seconds=START_SECONDS, sleep=time.sleep, clock=time.monoton
 def kubectl_apply(job):
     subprocess.run(["kubectl", "apply", "-f", "-"], input=json.dumps(job), text=True, check=True,
                    capture_output=True)
+
+
+def cgroup_number(name, root=CGROUP):
+    """One cgroup v2 file's number, None when it is `max`, missing or unreadable."""
+    try:
+        text = (pathlib.Path(root) / name).read_text().split()[0]
+    except (OSError, IndexError):
+        return None
+    return None if text == "max" else int(text)
+
+
+def pod_memory(root=CGROUP):
+    """(total, available) bytes of this pod's own memory limit, or None outside a limited cgroup: available is the
+    limit less what the cgroup holds, its page cache it may drop (inactive_file) given back."""
+    limit = cgroup_number("memory.max", root)
+    current = cgroup_number("memory.current", root)
+    if limit is None or current is None:
+        return None
+    inactive = 0
+    try:
+        for line in (pathlib.Path(root) / "memory.stat").read_text().splitlines():
+            if line.startswith("inactive_file "):
+                inactive = int(line.split()[1])
+    except OSError:
+        pass
+    return limit, max(0, limit - current + inactive)
+
+
+def guard_pod_memory(graph_module, root=CGROUP, environment=None):
+    """Inside a pod with a memory limit, the runner's memory guard reads the pod's memory, never the node's (the
+    node's MemAvailable holds the other pods' room); whether it does. Outside a pod (no KUBERNETES_SERVICE_HOST)
+    nothing changes."""
+    if not (os.environ if environment is None else environment).get("KUBERNETES_SERVICE_HOST") \
+            or pod_memory(root) is None:
+        return False
+    node_available, node_total = graph_module.AVAILABLE, graph_module.TOTAL
+    graph_module.AVAILABLE = lambda: min(node_available(), pod_memory(root)[1])
+    graph_module.TOTAL = lambda: min(node_total(), pod_memory(root)[0])
+    return True

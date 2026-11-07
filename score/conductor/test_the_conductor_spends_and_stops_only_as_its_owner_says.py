@@ -22,7 +22,8 @@ release the parked machines before closing the pools, or drop its `stop_cluster`
 running); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
 ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
-SECRET_NAME test (the sync token's value lands in a drive Job's spec).
+SECRET_NAME test (the sync token's value lands in a drive Job's spec); or in score/__main__.py default_jobs drop the cluster
+record's jobs (a price on the cluster worked out on the node's cores).
 """
 import datetime
 import io
@@ -31,6 +32,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import tempfile
 import time
 
 import pytest
@@ -434,6 +436,35 @@ def test_the_cap_is_the_memory_less_six_gigabytes_at_both_sizes_and_the_slice_fi
     lines = (REPO / "tools/cloud/conductor/units/score-runs.slice").read_text().splitlines()
     percent = int(next(line for line in lines if line.startswith("MemoryMax=")).partition("=")[2].rstrip("%"))
     assert 16 * percent / 100 <= 16 - slices.HEADROOM_GB  # the unit file's own cap within the idle size's
+    # On the cluster's home (#76 step 3) the drive pod's memory is the guard's own reckoning: the floor beside the
+    # largest kept stage peaks, one a job, each at least the floor, at most the record's cap; inside a pod the guard
+    # reads the pod's limit, never the node's; the run's jobs (so its price) are the record's, not the node's cores.
+    gib = 2 ** 30
+    assert cluster.memory_request({"a": 10 * gib, "b": 2 * gib, "c": 1 * gib}, 2, 6 * gib, 64) == 22 * gib
+    assert cluster.memory_request({}, 3, 6 * gib, 64) == 24 * gib  # never measured: the floor each
+    assert cluster.memory_request({"a": 50 * gib}, 2, 6 * gib, 40) == 40 * gib
+    cgroup = pathlib.Path(tempfile.mkdtemp())
+    (cgroup / "memory.max").write_text(f"{8 * gib}\n")
+    (cgroup / "memory.current").write_text(f"{5 * gib}\n")
+    (cgroup / "memory.stat").write_text(f"anon 1\ninactive_file {gib}\n")
+    assert cluster.pod_memory(cgroup) == (8 * gib, 4 * gib)
+    fake = type("graph", (), {"AVAILABLE": staticmethod(lambda: 100 * gib), "TOTAL": staticmethod(lambda: 128 * gib)})
+    assert not cluster.guard_pod_memory(fake, cgroup, environment={})  # outside a pod nothing changes
+    assert fake.AVAILABLE() == 100 * gib
+    assert cluster.guard_pod_memory(fake, cgroup, environment={"KUBERNETES_SERVICE_HOST": "10.0.0.1"})
+    assert (fake.AVAILABLE(), fake.TOTAL()) == (4 * gib, 8 * gib)
+    (cgroup / "memory.max").write_text("max\n")
+    assert cluster.pod_memory(cgroup) is None
+    from score import __main__ as command, graph
+    record = cgroup / "cluster.json"
+    record.write_text(json.dumps({"image": "x", "jobs": 12}))
+    original = cluster.RECORD
+    cluster.RECORD = record
+    try:
+        assert command.default_jobs() == 12
+    finally:
+        cluster.RECORD = original
+    assert command.default_jobs() == graph.JOBS  # no record, no conductor here
 
 
 def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_none(tmp_path):
