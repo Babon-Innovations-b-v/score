@@ -2030,12 +2030,23 @@ def painted(folder):
     written(baked, "painted.json", {"takes": {"crate-s1": off, "hatch-s1": clean}, "left_out": {}})
     written(baked / "entries", "crate-s1.json", {"crate": {}})
     written(baked / "entries", "hatch-s1.json", {"hatch": {}})
+    written(baked, "baked.json", {"crate": {"parts": "crate-s1"}, "hatch": {"parts": "hatch-s1"}})
+    written(baked, "specs.json", {})
     record = {"missing_maps": [], "surfaces": {}, "triangles": 100, "budget": 1000, "stands": False}
     return baked, {"crate": dict(record, triangles=5000), "hatch": record}
 
 
-def test_a_take_the_paint_or_check_fails_is_a_gap_and_the_table_moves_its_fault_alone():
+def measured_clean(monkeypatch):
+    """The paint's bake measure (baked_colour.py, the prop environment's) run here, every baked model clean."""
+    import baked_colour
+    monkeypatch.setattr(baked_colour, "measure_model", lambda model, entry, bake, specs: {})
+    monkeypatch.setattr(baked_colour, "measured",
+                        lambda inputs, out: baked_colour.measure_step(baked_colour.prop_env.short(inputs), out))
+
+
+def test_a_take_the_paint_or_check_fails_is_a_gap_and_the_table_moves_its_fault_alone(monkeypatch):
     from score.stages.surfaces import route_check
+    measured_clean(monkeypatch)
     folder = pathlib.Path(tempfile.mkdtemp())
     try:
         baked, records = painted(folder)
@@ -2070,7 +2081,8 @@ def test_a_take_the_paint_or_check_fails_is_a_gap_and_the_table_moves_its_fault_
         shutil.rmtree(folder)
 
 
-def test_a_clean_paint_writes_no_gaps_file():
+def test_a_clean_paint_writes_no_gaps_file(monkeypatch):
+    measured_clean(monkeypatch)
     folder = pathlib.Path(tempfile.mkdtemp())
     try:
         baked, _ = painted(folder)

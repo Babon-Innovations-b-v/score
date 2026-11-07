@@ -3,7 +3,8 @@ rented card (route_bake.py, #18, 2026-10-20: this PC's 14 GB cap failed heavy ta
 this row takes the bake's painted takes over as its own output, which every reader of the paint reads (the check, the
 assembly, the machines, the prop makers), and holds its gates: one surface a part, colour against the close-up (a
 accepted gap's gate) and, set in the table, feet in one plane. The parts row's "off colour" measure names the colour
-faults before the bake; the gates fail them here, after it.
+faults before the bake; the gates fail them here, after it, with each baked surface held to its close-up's colour on
+the bake's own map (baked_colour.py: the hub's consoles' grey token passed while they baked half rust, 2026-11-05).
 
 A take a gate fails is a batch gap (the batch rule, owner 2026-10-20: its paint and bake ran once in the batch), named
 in this output's batch-gaps.json with the gaps its inputs carry: the gate still fails it, the table moves the fault
@@ -29,8 +30,11 @@ ROW = "surfaces-paint"
 
 
 def make_paint(inputs, out, seed, params):
-    """The bake's painted takes as this output, each take a gate fails named a batch gap."""
+    """The bake's painted takes as this output, each baked model's colours measured against its close-up
+    (baked_colour.py), each take a gate fails named a batch gap."""
+    import baked_colour
     copy_paint(inputs, out)
+    baked_colour.measured(inputs, out)
     write_gaps(inputs, out, ROW, paint_gates(), "painted.json", lambda found: {"takes": found},
                json.loads((out / "painted.json").read_text())["takes"], lambda take: (take,),
                "the take's paint and bake ran once in the batch and failed this gate")
@@ -49,10 +53,11 @@ def copy_paint(inputs, out):
 
 def paint_gates():
     """Every gate the row holds, guarded as the row's, the table's feet check among them (stages.feet_checked)."""
+    import baked_colour
     import place_line
     return tuple(guarded(name, judge) for name, judge in (
         ("one surface a part", place_line.judge_one_surface),
-        ("colour against the close-up", place_line.judge_concept_colour),
+        ("colour against the close-up", baked_colour.judge_colour),
         ("feet in one plane", place_line.judge_feet)))
 
 

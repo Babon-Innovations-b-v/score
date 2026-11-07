@@ -289,6 +289,13 @@ tests it turned red:
   the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it
 - place_line.py: `turn @ labels.raw_facing(take)` -> `turn` in `finished_frame`  ->
   the_paint_lays_a_raw_still_facing_plus_z_on_its_final_by_the_recovered_turn
+- baked_colour.py: `and entry["off"] > OFF_SHARE` -> `and entry["off"] > 1.0`  ->
+  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- baked_colour.py: `moved &= np.linalg.norm(seen - np.asarray(shade[1:]), axis=1) > OFF_AB` -> `pass`  ->
+  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- route_paint.py: `("colour against the close-up", baked_colour.judge_colour)` -> `("colour against the close-up",
+  place_line.judge_concept_colour)`  ->
+  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
 """
 import inspect
 import io
@@ -323,6 +330,7 @@ from score.store import PROPS_HOME, Store, text_hash  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 
 import bake_job  # noqa: E402  (place_line puts its folder and tools/props/library on the path)
+import baked_colour  # noqa: E402  (as route_paint imports it)
 import library  # noqa: E402
 import place_route  # noqa: E402
 import route  # noqa: E402
@@ -2423,7 +2431,30 @@ def baked(folder, rows):
     return inputs, out, calls
 
 
-def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over():
+# The hub's right console (2026-11-05): its close-up grey, its bake 53% rust (a*b* 30.8 off; likeness's measure),
+# 47% the grey; a console baked right: its grey within a few a*b*, its copper trim 12 off (the light's own shift on a right surface), its
+# hazard label baked its token, airlock's small box's hazard_yellow, 27 a*b* off the label's close-up (the listed
+# check's to judge, finish_parts.COLOUR_DELTA_E, not the bake's).
+CONSOLE_GREY, CONSOLE_RUST, CONSOLE_COPPER = [46.1, 0.8, 2.4], [45.0, 18.0, 28.0], [43.0, 9.0, 10.0]
+HAZARD_TOKEN, HAZARD_CLOSE_UP = [76.2, 1.1, 73.4], [73.3, -2.1, 46.4]
+
+
+def console_bake(rusted):
+    """A console's baked triangles as baked_colour.surface_offs reads them, rusted as the hub's or baked right."""
+    grey = [[CONSOLE_GREY[0], CONSOLE_GREY[1] + (index % 5) - 2, CONSOLE_GREY[2] - (index % 3)] for index in range(100)]
+    colour = np.array(grey[:47] + [CONSOLE_RUST] * 53 if rusted else
+                      grey[:75] + [CONSOLE_COPPER] * 15 + [HAZARD_TOKEN] * 10)
+    named = ["hull"] * 100 if rusted else ["hull"] * 75 + ["trim"] * 15 + ["label"] * 10
+    return baked_colour.surface_offs(colour, np.ones(100), named,
+                                     {"hull": CONSOLE_GREY, "trim": [42.9, 8.9, 14.9], "label": HAZARD_CLOSE_UP},
+                                     {"hull": [CONSOLE_GREY], "trim": [CONSOLE_COPPER], "label": [HAZARD_TOKEN]})
+
+
+def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over(
+        monkeypatch):
+    """... and the paint's colour gate holds what the bake made (baked_colour.py): each baked surface measured on the
+    bake's own map against its close-up, so the hub's console baked 53% rust on a grey token fails there, a batch gap
+    of its take, while one baked right passes; a take the bake made models for with no measure cannot be told."""
     colours = library.token_colours({"tokens": TOKENS})
     finish_parts = route_parts.finish_parts
     kept = finish_parts.COLOUR_DELTA_E
@@ -2459,11 +2490,35 @@ def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_sett
         assert json.loads((out / "baked.json").read_text())["two_boxes"]["parts"] == TAKE
         assert not list(out.glob(".bake-*"))  # the jobs' files are gone
         assert route_bake.bake_faults(out) == [] and route_bake.judge_baked(out, inputs, {}).answer == "pass"
-        paint = folder / "paint"
-        paint.mkdir()
-        route_paint.make_paint({"surfaces-bake": out}, paint, 7, {})
-        assert (paint / "painted.json").read_text() == (out / "painted.json").read_text()
-        assert (paint / "labelled" / TAKE / "labels.json").exists()
+        # the measure runs in the prop environment on the baked .gltf; here in-process on the console's triangles
+        monkeypatch.setattr(baked_colour, "measured",
+                            lambda inputs, made: baked_colour.measure_step(baked_colour.prop_env.short(inputs), made))
+        gate = next(check for check in route_paint.paint_gates() if check.name == baked_colour.GATE)
+        assert inspect.unwrap(next(check for check in ROWS["surfaces-paint"].checks
+                                   if check.name == baked_colour.GATE).judge) is baked_colour.judge_colour
+        found = {}
+        for rusted in (False, True):
+            monkeypatch.setattr(baked_colour, "measure_model", lambda model, entry, bake, specs: console_bake(rusted))
+            paint = folder / f"paint-{rusted}"
+            paint.mkdir()
+            route_paint.make_paint({"surfaces-bake": out}, paint, 7, {})
+            painted = json.loads((paint / "painted.json").read_text())
+            measure = painted["takes"][TAKE].pop(baked_colour.FIELD)
+            assert painted == json.loads((out / "painted.json").read_text())  # the bake's, with its measure beside
+            assert (paint / "labelled" / TAKE / "labels.json").exists()
+            found[rusted] = (measure, gate.judge(paint, {"surfaces-bake": out}, {}),
+                             json.loads((paint / "batch-gaps.json").read_text()) if (paint / "batch-gaps.json").exists()
+                             else None)
+        measure, verdict, gaps = found[False]
+        assert {surface: entry["off"] for surface, entry in measure["two_boxes"].items()} == {
+            "hull": 0.0, "trim": 0.0, "label": 0.0}, measure
+        assert verdict.answer == "pass" and verdict.measures["baked off"] == 0 and gaps is None, (verdict, gaps)
+        measure, verdict, gaps = found[True]
+        assert measure["two_boxes"]["hull"]["off"] == 0.53, measure
+        assert verdict.answer == "fail" and verdict.findings == (
+            f"{TAKE}: two_boxes hull bakes 53% of its area over 20 a*b* off its close-up's {CONSOLE_GREY}",), verdict
+        assert [gap["check"] for gap in gaps["gaps"]] == [baked_colour.GATE], gaps
+        assert gate.judge(out, {"surfaces-bake": out}, {}).answer == "unknown"  # the bake's own, no measure
 
 
 def two_take_parts(rows, folder, rough):

@@ -114,7 +114,13 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   them: `recipes.arguments` takes a spec's own seed and wear over the job's (2026-10-20). Paint (free, after the bake): the
   bake's labelled takes and painted.json copied over, so every reader of the paint stays, with its gates (one
   surface a part, colour against the close-up, feet), which now judge after the bake: the parts' "off colour"
-  measure names the colour faults before it. `place_line.make_paint` (rented) stays the people's. Check:
+  measure names the colour faults before it. The colour gate also holds what the bake made (`baked_colour.py`, the
+  table's `baked_colour_checked`): each baked model measured in the prop environment on the bake's own base colour
+  map, each triangle named by the bake's ray, per surface the share of its area whose a*b* lies over `OFF_AB` from
+  its close-up's (lightness free: the light moves L*), over `OFF_SHARE` a fault of its take, written per take into
+  painted.json (`baked_colours`); a token judged alone passed the hub's consoles grey while the bake laid rust over half of them
+  (recipe rusted_metal's bare at the scene's wear, 2026-11-05), found first at likeness. A take whose models carry
+  no measure is unknown. `place_line.make_paint` (rented) stays the people's. Check:
   `route_check.py`, bake_check's against the bake's specs.json, a surface with its own wear held at that wear
   (`own_wear_checked`). Recheck (paid, one batch, the one-shot sort after the bake): a take the parts left off
   its colour is a gap with no ask; the rest are drawn from every view, each part flat in its library surface's
