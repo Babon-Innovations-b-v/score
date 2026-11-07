@@ -29,8 +29,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `ship_place`: always False  -> the ship place test.
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
   surface_data`)  -> test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line.
-- score/stages/library/checks.py: stage_file imported through the assembly (`from score.stages.assembly import
-  stage_file`)  -> test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly.
+- score/stages/surfaces/scene_library.py judge_library: `from score.stages.assembly import stage_file` added  ->
+  test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly.
 - score/stages/surfaces/route_views.py: `import place_line` added  ->
   test_the_paint_bake_and_check_code_moves_only_their_own_rows.
 - score/stages/assembly/baked.py: `import complete as stage_inputs`  ->
@@ -403,16 +403,18 @@ def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
 
 
 def test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly():
-    """surface-library's traced check finds an assembled place's root stage through root_stage.py alone: an edit to
-    the assembly's fitting leaves every place's key, an edit to its own check moves it (its import through the
-    assembly package re-keyed all 27 rows on each fitting.py edit, 2026-10-30)."""
+    """surface-library's key holds no assembly: an edit to the assembly's fitting leaves every place's key, an edit to
+    its own check (judge_library, scene_library.py) moves it (the library check's import through the assembly package
+    re-keyed all 27 rows on each fitting.py edit, 2026-10-30). The library check (score/stages/library/checks.py) is
+    the library@ rows', not this row's: it was in this key only through score/review and the store, which 68416f67
+    took out."""
     rows = [stage for stage in stages.STAGES if stage.name.startswith("surface-library")]
     assert rows
     for row in rows:
         before = code_after_editing(row, "nothing")
         for unrelated in ("score/stages/assembly/fitting.py", "score/stages/assembly/__init__.py"):
             assert code_after_editing(row, unrelated) == before, (row.name, unrelated)
-        assert code_after_editing(row, "score/stages/library/checks.py") != before, row.name
+        assert code_after_editing(row, "score/stages/surfaces/scene_library.py") != before, row.name
 
 
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
@@ -457,13 +459,17 @@ def test_run_machinery_moves_no_row_and_a_maker_moves_its_own():
 def test_the_completion_gate_s_code_moves_only_complete_and_settle():
     """Editing the completion gate (complete.py, its contents checks, reach and snap, the complete stage) moves the
     complete row and no other: the assembly, neighbours and likeness read the inputs record's helpers from
-    stage_inputs.py, not complete.py (each re-made by a gate edit before 2026-10-12). The settle row snaps held
-    objects with snap.py (score/stages/settling/held.py), so a snap edit moves it too, and only it."""
-    edited = ("tools/usd/complete.py", "tools/usd/contents.py", "tools/usd/reach.py", "tools/usd/snap.py",
-              "score/stages/complete/__init__.py")
-    moved = {stage.name for stage in stages.STAGES for path in edited
-             if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
-    assert moved == {"complete", "settle"}, moved
+    stage_inputs.py, not complete.py (each re-made by a gate edit before 2026-10-12). snap.py is not the gate's alone:
+    the settle row snaps held objects with it (score/stages/settling/held.py) and the light rows read each place's
+    meshes with its read_place (camera_paths.place_scenes, clearing every view since 0655ea38), so a snap edit moves
+    those and no other."""
+    gate = ("tools/usd/complete.py", "tools/usd/contents.py", "tools/usd/reach.py",
+            "score/stages/complete/__init__.py")
+    moved = {path: {stage.name for stage in stages.STAGES
+                    if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
+             for path in (*gate, "tools/usd/snap.py")}
+    assert all(moved[path] == {"complete"} for path in gate), moved
+    assert moved["tools/usd/snap.py"] == {"complete", "settle", "light", "light-layer", "light-passes"}, moved
 
 
 def test_the_light_layer_reads_and_waits_on_every_body_face_row():
