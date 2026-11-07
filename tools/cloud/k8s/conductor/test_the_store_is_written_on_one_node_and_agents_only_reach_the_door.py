@@ -6,7 +6,9 @@ Each invariant with the break that turns it red (each applied once, seen red, re
 - every pod that mounts the store (the conductor's, each CronJob's) is required on the conductor's role and beside the
   conductor's pod on its host, sharing the node's process ids, and the volume is one ReadWriteOnce claim of class
   sbs-5k-retain; each pulls the private image with the registry's Secret. Break: drop `"podAffinity": ...` from
-  `beside_conductor`, or `"hostPID": True` or `"imagePullSecrets"` from `pod_spec`.
+  `beside_conductor`, or `"hostPID": True` or `"imagePullSecrets"` from `pod_spec`. The scw config reaches each
+  container only as the init container's copy (mode 600, user score's), never the Secret's group-readable file.
+  Break: mount `scw-secret` at SCW_PATH in `mounts`.
 - the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder), so no record's path changes.
   Break: `("props", f"{HOME}/props")` in MOUNTS.
 - the agents' account may only get and port-forward to the conductor's one pod: no exec, no other pod, no other
@@ -59,6 +61,9 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         assert terms[0]["matchExpressions"][0]["values"] == ["score-conductor"]
         assert pod["tolerations"] == [conductor.TOLERATION]
         assert pod["imagePullSecrets"] == [{"name": "score-registry"}]  # the image is private (2026-11-07 rehearsal)
+        copy, = pod["initContainers"]
+        assert "chmod 600" in copy["command"][-1]
+        assert all(mount["name"] != "scw-secret" for box in pod["containers"] for mount in box["volumeMounts"])
         assert {volume["persistentVolumeClaim"]["claimName"] for volume in pod["volumes"]
                 if "persistentVolumeClaim" in volume} == {"score-store"}
         for box in pod["containers"]:
