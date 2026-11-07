@@ -68,7 +68,7 @@ def run_job(machine, store, run, kind_run, job, image):
     job_spec(store, run, name, image, kind_run["code_key"], kind_run.get("inputs", []), dict(job, kind=kind_run["kind"]))
     try:
         wall = build.remote_seconds(machine, shlex.join([
-            "docker", "run", "--rm", "--gpus", "all", "--ipc=host", "--env-file", "/root/smoke/store.env",
+            "docker", "run", "--rm", *card_flags(machine), "--ipc=host", "--env-file", "/root/smoke/store.env",
             "-e", f"SCORE_NODE={folder.name}", "-v", f"/var/lib/score-cache-{job['cache']}:/cache", image, run, name]))
     except Exception as error:  # noqa: BLE001 - one job failing is a result: its failure is recorded, the rest run
         failed = submit.failures(store, run, name)
@@ -83,11 +83,25 @@ def run_job(machine, store, run, kind_run, job, image):
     return numbers
 
 
+def on_a_card(machine):
+    """True for a card machine; a processor one (the runner's proof plan) has no NVIDIA driver."""
+    return machine.get("class", "").startswith("gpu")
+
+
+def card_flags(machine):
+    """docker run's card flags: all cards on a card machine, none on a processor one."""
+    return ["--gpus", "all"] if on_a_card(machine) else []
+
+
 def set_up(machine, registry, store_spec):
-    """Docker and the NVIDIA container toolkit on the machine (warm.set_up), timed: when it answered and when it was
-    set up."""
+    """Docker and the NVIDIA container toolkit on a card machine (warm.set_up), docker alone on a processor one
+    (build.set_up, the store's variables sent as warm's are), timed: when it answered and when it was set up."""
     machine["answered"] = time.time()
-    warm.set_up(machine, registry, store_spec)
+    if on_a_card(machine):
+        warm.set_up(machine, registry, store_spec)
+    else:
+        build.set_up(machine, registry)
+        build.send_store_environment(machine, store_spec)
     machine["set_up"] = time.time()
 
 

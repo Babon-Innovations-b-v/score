@@ -1,6 +1,6 @@
 {"classes": ["cpu-16c-64gb", "cpu-32c-64gb"], "minutes": 40, "disk_gb": 100, "euros": 1.0,
  "runs": [{"kind": "runner", "code": ["tools/cloud/images/runner/versions.py"],
-           "tree": ["score", "tools", "pyproject.toml", "uv.lock"],
+           "tree": ["score", "tools", "data", "pyproject.toml", "uv.lock"],
            "jobs": [{"name": "versions", "cache": "a", "models": [], "minutes": 20,
                      "command": ["/opt/score/env/bin/python", "tools/cloud/images/runner/versions.py",
                                  "/root/runner/out/versions.json"],
