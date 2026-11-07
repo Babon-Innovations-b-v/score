@@ -20,6 +20,7 @@ moving rows. Each stage joins the table when it is built in its step (docs/bible
 import concurrent.futures
 import contextlib
 import dataclasses
+import errno
 import fnmatch
 import functools
 import glob
@@ -28,6 +29,7 @@ import json
 import multiprocessing
 import os
 import pathlib
+import shutil
 import sys
 import tempfile
 
@@ -251,13 +253,17 @@ def made_again(runner, stage, place, keyed):
         print(f"rebuy: {node} not made again here: {ROOM() / 2**30:.1f} GB free past the memory floor, a remake is "
               f"given {REMAKE_PEAK / 2**30:.0f} GB; counted as giving another output", file=sys.stderr, flush=True)
         return None
-    with tempfile.TemporaryDirectory() as folder:
-        out = pathlib.Path(folder)
+    with tempfile.TemporaryDirectory(dir=scratch_home(runner.store)) as folder:
+        out = pathlib.Path(folder) / "out"
+        out.mkdir()
         try:
-            stage.make(runner.input_paths(stage, place, keyed), out, keyed["seed"], keyed["params"])
+            inputs = linkable(runner.input_paths(stage, place, keyed), pathlib.Path(folder) / "inputs")
+            stage.make(inputs, out, keyed["seed"], keyed["params"])
             contracts.stamp(stage.contract, out)
-        except Exception:  # a prediction only: the run makes this node and says its error there
+        except Exception as error:  # a prediction only: the run makes this node and says its error there
             FAILED.add((node, key))
+            print(f"rebuy: {node} not made again here: its remake failed ({type(error).__name__}: {error}); counted "
+                  f"as giving another output", file=sys.stderr, flush=True)
             return None
         listing = tree_listing(out)
         made = {"listing": listing, "json": {path.name: json.loads(path.read_text()) for path in out.glob("*.json")},
@@ -269,6 +275,55 @@ def made_again(runner, stage, place, keyed):
         partial.write_text(json.dumps(made))
         partial.replace(kept)
     return made
+
+
+def scratch_home(store):
+    """Where a remake is made: a folder in the store's cache, so a make hard-linking its inputs (the light rows' `cp
+    -al` of their seed, passes.source) links on their filesystem, as in the run's own making folder (Store.making); in
+    /tmp, on another device on the conductor and this PC, every such remake failed (EXDEV) and counted as giving
+    another output, 2026-11-07. The system's tmp for a store with no cache (a test's)."""
+    cache = getattr(store, "cache", None)
+    if cache is None:
+        return None
+    home = pathlib.Path(cache) / "remaking"
+    home.mkdir(parents=True, exist_ok=True)
+    return home
+
+
+def links_to(folder, there):
+    """False when a file of `folder` cannot be hard-linked into `there` (another device, EXDEV); else True."""
+    first = next((path for path in folder.rglob("*") if path.is_file() and not path.is_symlink()), None)
+    if first is None:
+        return True
+    probe = there / f".link-probe-{os.getpid()}"
+    try:
+        os.link(first, probe)
+    except OSError as error:
+        if error.errno == errno.EXDEV:
+            return False
+        raise
+    probe.unlink()
+    return True
+
+
+def linkable(inputs, copies):
+    """`inputs` with each input folder no hard link reaches from `copies`'s filesystem copied into `copies` (said once
+    a remake), so a make linking it works; every other input as it is."""
+    found, copied = dict(inputs), []
+    for name, path in inputs.items():
+        folder = pathlib.Path(path)
+        if not folder.is_dir():
+            continue
+        copies.mkdir(exist_ok=True)
+        if links_to(folder, copies):
+            continue
+        copy = shutil.copytree(folder, copies / str(len(copied)) / folder.name, symlinks=True)
+        found[name] = copy if isinstance(path, pathlib.Path) else str(copy)
+        copied.append(name)
+    if copied:
+        print(f"rebuy: {len(copied)} inputs of a remake are on another device than the store's cache, copied, not "
+              f"linked: {', '.join(copied[:5])}", file=sys.stderr, flush=True)
+    return found
 
 
 def ahead_keys(runner, stage, place):

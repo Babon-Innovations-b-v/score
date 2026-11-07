@@ -57,6 +57,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   of another inventory or layer kept).
 - `made_again`: the store's cache not read (`if False and kept is not None ...`)  -> the same test (a key remade in
   each run).
+- `made_again`: its scratch made in /tmp (`dir=scratch_home(...)` dropped), or `linkable` copying nothing
+  (`return dict(inputs)`)  -> the same test (a remake linking an input of another device).
 - `ahead_workers`: the room not counted (`int(ROOM() // REMAKE_PEAK)` -> `jobs`), or `made_again` starting a remake
   past the floor (`if ROOM() < REMAKE_PEAK` -> `if False`)  -> the same test (the capped remakes side by side, or made
   with no room).
@@ -302,6 +304,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .cl
 import ast
 import contextlib
 import dataclasses
+import errno
 import fnmatch
 import functools
 import hashlib
@@ -317,6 +320,7 @@ import sys
 import tempfile
 import time
 import types
+from unittest import mock
 
 import pytest
 
@@ -505,6 +509,33 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
                     stages.remakes_ahead(ahead, [(seed, "hub"), (seed, "base")])
                     assert (len(makes), stages.FAILED) == (made, set()), room
                     assert len(list(pathlib.Path(cache).rglob("ahead-*.json"))) == made, room
+            # A remake hard-linking an input (the light rows' `cp -al` of their seed) is made beside the store's
+            # cache, and an input no link reaches from there (another device) is copied: made in /tmp, every such
+            # remake failed with EXDEV on the conductor and this PC and counted as moved (2026-11-07).
+            stages.ROOM = lambda: 64 * 2**30
+            real_link = os.link
+            with tempfile.TemporaryDirectory() as cache, tempfile.TemporaryDirectory() as elsewhere:
+                def device_link(source, target):
+                    if str(source).startswith(cache) != str(target).startswith(cache):
+                        raise OSError(errno.EXDEV, "Invalid cross-device link")
+                    real_link(source, target)
+                for there in (cache, elsewhere):
+                    (pathlib.Path(there) / "seed").mkdir()
+                    (pathlib.Path(there) / "seed/base.usda").write_text("ground")
+                    stages.FAILED.clear()
+
+                    def linking(inputs, out, seed, params):
+                        os.link(pathlib.Path(inputs["seed"]) / "base.usda", out / "base.usda")
+                    linked = types.SimpleNamespace(
+                        store=types.SimpleNamespace(cache=cache, record=lambda node, key: None),
+                        input_paths=lambda stage, place, keyed: {"seed": str(pathlib.Path(there) / "seed")})
+                    row = dataclasses.replace(rows["earth-seed"], make=linking, contract=TOY)
+                    with mock.patch.object(os, "link", device_link):
+                        made = stages.made_again(linked, row, "hub", {"key": f"linked-{there == cache}", "seed": 0,
+                                                                     "params": {}})
+                    assert made is not None and "base.usda" in made["listing"], there
+                    assert (pathlib.Path(there) / "seed/base.usda").read_text() == "ground"
+                assert not any((pathlib.Path(cache) / "remaking").iterdir()), "the scratch is cleaned after"
         sound = rows["sound"]
         for moves, kept in (("m", True), ("m2", False)):
             runner.foreseen_listing = {"motion@hub": {"moves.json": moves, "layer.usda": "l2"}}
