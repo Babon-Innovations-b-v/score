@@ -3,7 +3,7 @@ and annotate.py's occlusion boundary): a box on the floor rests and a lifted one
 the ground is a false alarm; a cable sunk a few centimetres may bed in; two boxes deep inside each other overlap for
 real while two only touching do not; a wall piece touching nothing hangs free; a drop that moves an object 0.5 m is
 SAGE-unstable; the real faults group by cause; the collision set finds the pairs that meet; and the occlusion
-boundary lies where a near object hides a far one.
+boundary lies where a near object hides a far one; a crate on the shell's raised deck rests on it.
 
 Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - supports_and_guards: triage.py's support_type `return "kit"` made `return "floor"` (the kit plate sunk for real).
@@ -22,6 +22,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - occlusion_boundaries: annotate.py's `found[tuple(here)] |= apart & (near < far)` made `(near > far)`.
 - the_data_read_is_the_data_given: triage's `data = rules(rules_file)` made `data = rules()`.
 - footing_on_a_slope_is_read_over_the_ground: standing's `plane = ground_plane(...)` made `plane = None`.
+- a_raised_shell_deck_holds_what_stands_on_it: STATIC_GROUPS's `"Shell"` left out (the crate on the deck floats
+  10 cm over the ground under it; seen red 2026-11-07).
 
 Run: .venv/bin/python tools/usd/test_only_real_resting_faults_are_kept.py   (make tests runs it in a sandbox home)
 """
@@ -333,10 +335,35 @@ def the_data_read_is_the_data_given():
                 if said.get(name) != want]
 
 
+def a_raised_shell_deck_holds_what_stands_on_it():
+    """Both ways (settle@camp, 2026-11-07: the domes' 10 cm decks, laid under /<place>/Shell by the design's shell,
+    were no surface to the triage, so their furniture read as floating 30 cm over the ground cut under them and the
+    settle snapped it into the decks): a crate on a shell deck 10 cm up rests; one beside the deck, as high, floats."""
+    from pxr import Usd, UsdGeom
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        stage = place_of(folder, [("crate", "box", (0, 0.1, 0)), ("crate", "box", (5, 0.1, 0))], [row("crate")])
+        opened = Usd.Stage.Open(str(stage))
+        deck = trimesh.creation.box(bounds=((-1.5, -0.1, -1.5), (1.5, 0.1, 1.5)))
+        mesh = UsdGeom.Mesh.Define(opened, f"/{PLACE}/Shell/deck_1")
+        mesh.CreatePointsAttr([tuple(map(float, point)) for point in deck.vertices])
+        mesh.CreateFaceVertexCountsAttr([3] * len(deck.faces))
+        mesh.CreateFaceVertexIndicesAttr([int(index) for index in deck.faces.reshape(-1)])
+        opened.GetRootLayer().Save()
+        said = verdicts(triage.triage(stage))
+        problems = []
+        if any(real for _, real in said.get("crate_1", [])):
+            problems.append(f"a crate on a shell deck 10 cm up reads {said.get('crate_1')}")
+        if ("floats", True) not in said.get("crate_2", []):
+            problems.append(f"a crate 10 cm over the ground beside the deck reads {said.get('crate_2')}")
+        return problems
+
+
 CHECKS = (supports_and_guards, a_drop_started_inside_is_judged_by_the_overlap, a_case_on_a_pallet_is_no_surface_under_the_pallet, overlaps_and_nudge, a_long_drop_is_unstable_and_faults_group,
           a_mounted_piece_is_judged_with_its_host,
           a_foot_off_the_floor_and_a_lean_fail, a_block_tipped_onto_one_edge_of_its_sole_leans, the_collision_set,
-          occlusion_boundaries, the_data_read_is_the_data_given, footing_on_a_slope_is_read_over_the_ground)
+          occlusion_boundaries, the_data_read_is_the_data_given, footing_on_a_slope_is_read_over_the_ground,
+          a_raised_shell_deck_holds_what_stands_on_it)
 
 
 if __name__ == "__main__":
