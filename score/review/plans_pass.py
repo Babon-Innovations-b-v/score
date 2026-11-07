@@ -135,6 +135,15 @@ def unnumbered(plan, inventory):
     return spots, fixes
 
 
+def shell_floored(plan, inventory):
+    """The inventory with each row standing on a floor of the place's shell (anchored on a row of the plan's
+    structure) read as on the floor, so a person spot stands clear of it too: the greenhouse's grow light frame and
+    planter beds on its lower floor blocked no spot, and the cast left astronaut_2 out of the frame (2026-11-07)."""
+    shell = {f"on:{row}" for row in plan.get("structure") or []}
+    return {**inventory, "rows": [dict(row, anchor="floor") if row.get("anchor") in shell else row
+                                  for row in inventory.get("rows", [])]}
+
+
 def spaced_people(plan, inventory):
     """(the plan with no person standing in a wall, a thing or another person, the fixes said): a Correct's echo of a
     stood spot dropped and each other numbered spot given its row back (`unnumbered`), then in order each spot whose footprint overlaps a
@@ -154,7 +163,7 @@ def spaced_people(plan, inventory):
         row = spot[3] if len(spot) >= 4 and isinstance(spot[3], str) and spot[3] in rows else None
         sits_on = plan_checks.anchor_of(rows[row]) if row else None
         if sits_on not in walls_things:
-            walls_things[sits_on] = standing.blocked(plan, inventory, grid, sits_on)
+            walls_things[sits_on] = standing.blocked(plan, shell_floored(plan, inventory), grid, sits_on)
         others = list(zip(kept, sizes))
         free = None if row in left_out or not standing.stands_in(spot, size, walls_things[sits_on], grid, others) \
             else standing.nearest_free(spot, size, walls_things[sits_on], grid, outline, others)
