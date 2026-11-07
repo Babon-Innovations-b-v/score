@@ -7,6 +7,7 @@ blobs (store/objects/blobs/<sha256>, about 99.8% of the bytes) move; every other
     pushed = offload.push(path, sha, bucket)   # one blob into the bucket ("sent" or "there": a 412, the same bytes)
     offload.proven(bucket, sha, size)          # True only when the bucket answers with this size and this sha256
     offload.evict(objects_root, sha, size)     # its mark written, then its local copy removed (the caller proved it)
+    offload.mark_remote(objects_root, sha, size)  # a blob made elsewhere (a pod) marked, never held here
     offload.copy_blob(sha, target, key)        # a blob copied inside the object storage into a job store, never here
 
 The bucket is one of its own in fr-par (the backend's RUN_STORE_BUCKET, `score-<project>-store`; Scaleway's default
@@ -238,12 +239,26 @@ def evict(objects_root, sha, size):
     status = blob.stat()
     if status.st_size != size or status.st_nlink != 1:
         raise ValueError(f"{blob}: changed or linked since it was proven; kept")
+    write_mark(objects_root, sha, size)
+    blob.unlink()
+    synced(blob.parent)
+
+
+def write_mark(objects_root, sha, size):
+    """The blob's mark ({size, at}) written whole and synced."""
     mark = mark_of(objects_root, sha)
     mark.parent.mkdir(parents=True, exist_ok=True)
     at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
     landed(whole_file(mark, json.dumps({"size": size, "at": at}).encode()), mark)
-    blob.unlink()
-    synced(blob.parent)
+
+
+def mark_remote(objects_root, sha, size):
+    """A blob the bucket holds and this machine never had (a pod made it, #76) marked as evicted, so a read here
+    fetches it; nothing for a blob held here or marked already. The caller has proven the bucket holds it."""
+    if PLAIN_PATH(runtime_store.FolderStore(objects_root), blob_key(sha)).is_file() or \
+            mark_of(objects_root, sha).is_file():
+        return
+    write_mark(objects_root, sha, size)
 
 
 def copy_blob(sha, target, key):

@@ -25,6 +25,7 @@ OUTSIDE = (REPO / ".venv", REPO / ".git")
 # scene_palette's `from score.stages.shapes_first import align` put it and the whole prop route behind it into
 # surface-library's, the palette's and body-face's keys (2026-10-28: a likeness_row edit moved body-face-earth).
 FRAMEWORK = {REPO / name for name in ("score/__main__.py", "score/graph/__init__.py", "score/graph/_code.py",
+                                      "score/graph/pod.py",
                                       "score/review/__init__.py", "score/review/__main__.py",
                                       "score/adapters/compute", "score/dashboard", "score/stages/__init__.py",
                                       "score/stages/__main__.py", "score/stages/shapes_first/__init__.py",
