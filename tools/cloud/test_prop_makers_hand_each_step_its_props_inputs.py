@@ -154,7 +154,7 @@ def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_gap(tmp_path, monkeypa
         return {"id": prop["row"], "scene": prop["place"], "words": prop["row"], "size": [1.0, 1.0, 1.0],
                 "concept": str(concept), "box": [100, 100, 200, 150]}
 
-    def draw(key, asks):
+    def draw(asks):  # pro.draw reads its own key since 79df451c
         for path, (_, _, reference, _) in asks.items():  # text, crop, room, seed (ce306fd2)
             drawn.append((path.name, reference is not None))
             Image.new("RGB", (64, 64), (200, 200, 200)).save(path)  # a plain picture: the shape check fails it
