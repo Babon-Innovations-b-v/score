@@ -10,7 +10,8 @@ credited), or in `jobs_for` drop the `brief.get("page") == page` test (another p
 past local.CARD_GB (this PC refuses the claim, as before), or in `make_share` drop the space after
 `PYTHONUNBUFFERED=1` (the shell reads the Python as a variable and finds no moss_generate.py: every take of round 39
 on this PC, 2026-10-31), or in `on_this_pc` return `[]` for its failed shares (a share that exited non-zero
-passes as if it made nothing, and the sound row turns its takes into gaps instead of failing).
+passes as if it made nothing, and the sound row turns its takes into gaps instead of failing), or in `cluster_job`
+run the image's `moss-run` again (its moss_generate.py path is the one before 2026-10-24: every cluster take exits 2).
 """
 import json
 import pathlib
@@ -52,7 +53,9 @@ def test_a_cluster_shares_jobs_file_holds_its_jobs_and_takes_come_back_to_out(tm
     job = moss_sound.cluster_job(2, jobs, tmp_path / "jobs-2.json", tmp_path / "out")
     sent = pathlib.Path(job["inputs"][0]["local"])
     assert json.loads(sent.read_text()) == jobs
-    assert job["inputs"][0]["path"] == job["command"][1]
+    assert job["inputs"][0]["path"] == job["command"][2]
+    # the repo's run.sh goes with the code and is what runs, never the image's moss-run (its old moss_generate path)
+    assert moss_sound.RUN_SCRIPT in job["code"] and job["command"][1] == f"/work/repo/{moss_sound.RUN_SCRIPT}"
     assert [output["local"] for output in job["outputs"]] == [str(tmp_path / "out")]
 
 
