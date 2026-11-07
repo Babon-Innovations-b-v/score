@@ -8,7 +8,8 @@ waits for them, and records what each node cost.
 A run is a set of job specs (`runs/<run>/<job>/job.json`, written by the runtime's helper, `../CLAUDE.md`). The
 submitter is the run's queue: it makes the namespace and the two Secrets (the object store and the image pull
 secret, from the provider's object_store() and registry() at submit time, never written to disk), caps every
-pool's size from the month's euros left, makes one Job a job (`manifests.py`) and then, every POLL_SECONDS, reads
+pool's size from the month's euros left, makes one Job a job (`manifests.py`) while the namespace's ResourceQuota
+has room for its pod (hard less used; a Job past it would only sit with its pod refused), and then, every POLL_SECONDS, reads
 the Jobs, their pods, the autoscaler's events on them and the nodes.
 
 The order of classes. A kind's classes and their order come from `tools/cloud/capacity.py` (KINDS,
@@ -314,6 +315,7 @@ class Run:
         self.jobs = {job_id: {"generation": 0, "state": "waiting", "submitted": None, "ran": None, "node": None}
                      for job_id in specs}
         self.nodes = {}
+        self.held = 0  # jobs submit_more holds for room in the namespace's quota, as last said
 
     def resume(self):
         """Take up the run's Jobs a submitter before this one made: each job's newest generation and each kind's
@@ -630,16 +632,75 @@ def look(run, parallel):
         hold_idle(run)
 
 
+QUANTITY_UNITS = {"m": 1e-3, "k": 1e3, "M": 1e6, "G": 1e9, "T": 1e12, "P": 1e15,
+                  "Ki": 2 ** 10, "Mi": 2 ** 20, "Gi": 2 ** 30, "Ti": 2 ** 40, "Pi": 2 ** 50}
+
+
+def quantity(text):
+    """A Kubernetes quantity ("70m", "1200Gi", "24") as a number."""
+    text = str(text)
+    for unit in sorted(QUANTITY_UNITS, key=len, reverse=True):
+        if text.endswith(unit):
+            return float(text[:-len(unit)]) * QUANTITY_UNITS[unit]
+    return float(text)
+
+
+def quota_room(kubectl):
+    """What the jobs' namespace's ResourceQuotas leave, hard less used, by the quotas' own resource names (the
+    tenant's: requests.cpu, requests.memory, requests.nvidia.com/gpu), the least over its quotas; {} with none."""
+    room = {}
+    for quota in kubectl.json("get", "resourcequota", "-n", manifests.NAMESPACE)["items"]:
+        status = quota.get("status", {})
+        used = status.get("used", {})
+        for name, hard in (status.get("hard") or quota.get("spec", {}).get("hard", {})).items():
+            left = quantity(hard) - quantity(used.get(name, "0"))
+            room[name] = min(room.get(name, left), left)
+    return room
+
+
+def quota_demand(spec, cards):
+    """What one pod of the job takes from a quota, by the names a ResourceQuota counts it under."""
+    asked = manifests.resources(spec, cards)
+    demand = {"pods": 1, "count/pods": 1, "count/jobs.batch": 1}
+    for name, value in asked["requests"].items():
+        demand[f"requests.{name}"] = quantity(value)
+        if name in ("cpu", "memory"):
+            demand[name] = quantity(value)
+    for name, value in asked["limits"].items():
+        demand[f"limits.{name}"] = quantity(value)
+    return demand
+
+
+def fits(demand, room):
+    """Whether a pod asking `demand` fits in the quota's `room` (only what it asks is checked)."""
+    return all(left >= demand[name] for name, left in room.items() if demand.get(name))
+
+
 def submit_more(run, parallel=None):
     """Put the run's next jobs on the cluster while fewer than `parallel` of its jobs are there unfinished (all of
-    them when `parallel` is None): the run's queue, which holds a run to that many nodes of one card each."""
+    them when `parallel` is None): the run's queue, which holds a run to that many nodes of one card each. A Job is
+    made only while the namespace's quota has room for its pod (quota_room, read once a call); the rest wait here,
+    not as Jobs whose pods the quota refuses (a refused pod's Job sat to its deadline and was made again)."""
+    if all(run.jobs[job_id]["submitted"] is not None for job_id in run.unfinished()):
+        return
+    room, held = quota_room(run.kubectl), 0
     for job_id in run.unfinished():
         on_cluster = sum(1 for record in run.jobs.values()
                          if record["submitted"] is not None and record["state"] == "waiting")
         if parallel is not None and on_cluster >= parallel:
-            return
-        if run.jobs[job_id]["submitted"] is None:
-            run.make(job_id)
+            break
+        if run.jobs[job_id]["submitted"] is not None:
+            continue
+        spec = run.specs[job_id]
+        demand = quota_demand(spec, job_cards(spec, run.allowed(job_id)))
+        if not fits(demand, room):
+            held += 1
+            continue
+        run.make(job_id)
+        room = {name: left - demand.get(name, 0) for name, left in room.items()}
+    if held != run.held:
+        say(f"{held} jobs wait for room in the {manifests.NAMESPACE} quota" if held else "the quota has room again")
+        run.held = held
 
 
 def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=True, who=None, parallel=None):
