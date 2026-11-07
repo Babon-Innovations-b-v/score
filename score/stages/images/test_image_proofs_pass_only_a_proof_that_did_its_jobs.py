@@ -1,6 +1,8 @@
 """The images environment proves each job image on its own table and its gates pass only a proof that did its jobs
 (images/__init__.py): each kind with a plan has its free pins row and its paid proof row on an environment with no
-places and none on environment 1's table; loose pins fail `pins hashed`; the moss takes pass only at their length,
+places and none on environment 1's table; loose pins fail `pins hashed` (a repository wheel pinned by its hash is not
+loose); the runner's pins pass only as uv.lock's fresh export, a hand-edited line failing; the runner's proof passes
+only when every row's code version in the image is the conductor's; the moss takes pass only at their length,
 heard, and scoring no more than CLAP_SLACK under the build before; the walking clip fails standing still; `jobs ran`
 fails a planned job that never reached its first result; `publish` refuses a proof that does not stand accepted, and
 writes an accepted one with the parent image it built and ran on.
@@ -8,6 +10,8 @@ Synthetic takes and clips in a temp folder; no cloud.
 
 Breaks that turn it red (each applied once and seen red, then reverted):
 - `judge_hashed`: `not version or not hashes` read as `not version`  -> test_loose_pins_fail.
+- `lock_faults`: the requirements' comparison left out (only lock.sha256 compared)  -> test_loose_pins_fail.
+- `version_faults`: the per-row comparison left out (only the Python compared)  -> the walking clip test.
 - `take_faults`: the `dbfs < SILENT_DBFS` fault, the length fault, or the CLAP fault left out  -> the moss test.
 - `clip_faults`: the travel range left out of the checked pair  -> the walking clip test.
 - `smoke_faults`: the pins' comparison or the fall's range left out  -> the walking clip test (its newton smoke part).
@@ -59,7 +63,10 @@ def test_the_images_world_has_its_own_table_and_no_places():
     runner = stages.runner(world=images.image_world())
     assert stages.places(runner.world) == []
     assert {"image-pins-moss", "image-proof-moss", "image-pins-characters-motion",
-            "image-proof-characters-motion", "image-pins-newton", "image-proof-newton"} <= set(runner.stages)
+            "image-proof-characters-motion", "image-pins-newton", "image-proof-newton", "image-pins-runner",
+            "image-proof-runner"} <= set(runner.stages)
+    assert runner.stages["image-pins-runner"].files["lock"] == "{repo}/uv.lock"  # its pins move with the lock
+    assert "code tools" not in runner.stages["image-proof-runner"].files  # the tree it carries proves nothing again
     assert runner.stages["image-proof-moss"].paid and runner.stages["image-proof-moss"].euros > 0
     assert not runner.stages["image-pins-moss"].paid
     assert "image-pins-moss" not in stages.runner().stages  # environment 1's table has none of them
@@ -71,8 +78,18 @@ def test_loose_pins_fail():
         (output / "requirements.txt").write_text("numpy==1.26.4 \\\n    --hash=sha256:00\nscipy>=1.0\npillow==10.0.0\n")
         verdict = images.judge_hashed(output, {}, None)
         assert verdict.answer == checks.FAIL and verdict.findings == ("pillow", "scipy")
-        (output / "requirements.txt").write_text("numpy==1.26.4 \\\n    --hash=sha256:00\n")
+        (output / "requirements.txt").write_text("numpy==1.26.4 \\\n    --hash=sha256:00\n"
+                                                 "./vendor/w-1.0-py3-none-any.whl ; python_version >= '3.12' \\\n"
+                                                 "    --hash=sha256:01\n")
         assert images.judge_hashed(output, {}, None).answer == checks.PASS
+        build, _ = images.image_tools()
+        lock = {"lock": images.REPO / "uv.lock"}
+        (output / "requirements.txt").write_text(build.lock_export(images.REPO))
+        (output / images.LOCK_SHA).write_text(build.lock_sha256(images.REPO))
+        assert images.judge_lock_export(output, lock, None).answer == checks.PASS
+        edited = (output / "requirements.txt").read_text().replace("numpy==", "numpy==0", 1)
+        (output / "requirements.txt").write_text(edited)
+        assert images.judge_lock_export(output, lock, None).answer == checks.FAIL
 
 
 def test_moss_takes_pass_heard_at_length_and_fail_otherwise():
@@ -108,6 +125,10 @@ def test_the_walking_clip_passes_and_one_standing_still_fails():
             (output / images.PLAN).write_text((images.IMAGES / "newton" / images.PLAN).read_text())
             (output / images.PROOF / "smoke" / "smoke.json").write_text(json.dumps({**smoke, **broken}))
             assert images.judge_newton_smoke(output, {}, None).answer == wanted
+    conductor = {"python": "python 3.12", "versions": {"terrain": "a1", "assembly": "b2"}}
+    assert images.version_faults(conductor, conductor) == []
+    assert images.version_faults({**conductor, "versions": {"terrain": "a1", "assembly": "c3"}}, conductor) == [
+        "assembly: c3 in the image, b2 here"]
 
 
 def test_a_job_that_did_not_finish_fails_jobs_ran():

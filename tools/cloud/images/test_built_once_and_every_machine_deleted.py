@@ -8,6 +8,9 @@ with the break that turns it red (each applied once and seen red):
   left out), and the parent's digest; models.json (the weights list, fetched at run time) is not in it.
   Break: drop `if name != "models.json"` in `tag`. Break: drop the mode from `tag`'s hash.
   Break: drop the parent digest from `tag`. Break: drop either test-name filter in `context_files`.
+- The runner's tag moves when uv.lock moves and stays when it does not: `export_runner` writes the lock's export,
+  its sha256 (lock.sha256) and a link to each file wheel at its repository path, in a scratch repository.
+  Break: leave lock.sha256 out of `tag`'s hash (`if name not in ("models.json", "lock.sha256")`).
 - Only what changed is built: a kind at its tag is skipped, a child is built with its new parent, `force` builds all;
   the parent comes first. Break: drop `parent_new` in `stale`. Break: `image_kinds` returns plain `sorted(kinds)`.
 - The staged context keeps each file's mode (a script the Dockerfile copies stays executable).
@@ -24,6 +27,7 @@ with the break that turns it red (each applied once and seen red):
 """
 import json
 import pathlib
+import shutil
 import sys
 
 import pytest
@@ -75,6 +79,24 @@ def test_the_tag_follows_the_context_its_modes_and_the_parent_but_not_the_weight
     executable = build.tag("child", PARENT_A)
     script.chmod(0o644)
     assert build.tag("child", PARENT_A) != executable
+
+    repo = images / "repo"  # the project, its lock and the file wheels the lock installs
+    (repo / "vendor/kimodo").mkdir(parents=True)
+    shutil.copy2(build.REPO / "pyproject.toml", repo)
+    shutil.copy2(build.REPO / "uv.lock", repo)
+    shutil.copytree(build.REPO / "vendor/kimodo/wheels", repo / "vendor/kimodo/wheels")
+    (images / "runner").mkdir()
+    (images / "runner/Dockerfile").write_text("ARG BASE\nFROM ${BASE}\n")
+    build.export_runner(repo)
+    wheels = build.file_wheels((images / "runner/requirements.txt").read_text())
+    assert wheels and all((images / "runner" / name).resolve() == (repo / name).resolve() for name in wheels)
+    runner = build.tag("runner", PARENT_A)
+    build.export_runner(repo)
+    assert build.tag("runner", PARENT_A) == runner
+    with (repo / "uv.lock").open("a") as lock:
+        lock.write("\n")  # the lock moves; its export does not
+    build.export_runner(repo)
+    assert build.tag("runner", PARENT_A) != runner
 
 
 def test_only_what_changed_is_built_the_parent_first(images):

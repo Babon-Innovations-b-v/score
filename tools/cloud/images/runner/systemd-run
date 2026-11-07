@@ -1,0 +1,13 @@
+#!/bin/sh
+# systemd-run in a pod, which has no systemd: its options dropped (the pod's memory limit stands for a scope's
+# MemoryMax), the command after them run in its place.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --) shift; break ;;
+    -p|-u|-E|-M|--property|--unit|--slice|--setenv|--machine|--description|--uid|--gid|--nice|--working-directory)
+      shift 2 ;;
+    -*) shift ;;
+    *) break ;;
+  esac
+done
+exec "$@"

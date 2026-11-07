@@ -10,6 +10,10 @@ cleared against the stop like any paid row, with no owner override. The module d
 - `image-proof-<kind>` is paid (the plan's `euros`): `build.py` and `prove.py` write into a copy of images.json in the
   output, never the repository's. Its gates: every planned job ran, and the kind's own output check (`PROOF_CHECKS`;
   a kind without one answers unknown, so add its check with its plan).
+- The runner image (`runner/`, the conductor's own Python): its pins come from `build.py runner --export` (uv.lock's
+  hashed export, lock.sha256 and links to the lock's file wheels), its pins row keys on uv.lock and gates on `pins are
+  the lock's`, and its proof gates on `keys as the conductor` (every row's code version in the image equals this
+  Python's on the same tree). Its plan's `tree` is uploaded but not keyed, so other edits prove nothing again.
 - `python -m score images publish <kind>` writes an accepted proof's record into images.json. Before pushing a
   publish, show that no environment 1 node's code, files or models moved (images.json is read per kind, so a kind environment 1
   pins moves its nodes: publish those only between environment runs).
