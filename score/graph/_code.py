@@ -82,6 +82,13 @@ def module_files(name, is_file=pathlib.Path.is_file):
 
 def imported_names(source, path, package):
     """Every module name a source file's text imports, anywhere in it (inside functions too), made absolute."""
+    return list(parsed_names(source, path, package))
+
+
+@functools.lru_cache(maxsize=8192)
+def parsed_names(source, path, package):
+    """imported_names, worked out once a process for each text: the same file at several commits (code_version_at
+    rebuilds each record's commit) was parsed again for every one, 17 of a moved check's 161 s (2026-11-07)."""
     names = []
     for node in ast.walk(ast.parse(source, str(path))):
         if isinstance(node, ast.Import):
@@ -90,7 +97,7 @@ def imported_names(source, path, package):
             base = importlib.util.resolve_name("." * node.level + (node.module or ""), package) if node.level \
                 else node.module
             names += [base] + [f"{base}.{alias.name}" for alias in node.names]
-    return names
+    return tuple(names)
 
 
 def package_of(path, is_file=pathlib.Path.is_file):

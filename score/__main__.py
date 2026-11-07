@@ -1471,11 +1471,14 @@ def status_json(world, lines):
 
 
 def every_world_moved():
-    """{world: [rebuy.Buy]} of every world's re-buys against the framework store."""
+    """{world: [rebuy.Buy]} of every world's re-buys against the framework store, each world's places, line nodes and
+    re-buys worked out in one still pass (Runner.still: it writes nothing to the store; the places and line nodes
+    listed outside it took 84 of the check's 161 s, 2026-11-07)."""
     found = {}
     for name, make in sorted(stages.WORLDS.items()):
         runner = stages.runner(world=make())
-        found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world, runner.store), True))
+        with runner.still():
+            found[name] = moved.rebuys(runner, runner.line_nodes(stages.places(runner.world, runner.store), True))
     return found
 
 
