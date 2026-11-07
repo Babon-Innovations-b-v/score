@@ -49,11 +49,13 @@ tests: env
 
 # The whole suite as module groups, for the cluster's gate (one pod a group, each pod its group's files side by side):
 # every test file `tests` runs plus the harness's and the paper's, grouped by their module's first two path parts (a
-# `tests/` folder counting as its parent), and `rule`, the test rule's guard over every module. `make test-groups` prints
+# `tests/` folder counting as its parent), a group of more than GROUP_FILES files by its first three (score/stages:
+# 66 files on one pod's six cores took nine minutes), and `rule`, the test rule's guard over every module. `make test-groups` prints
 # `<group> <file>` per file and `rule` alone; `make test-group GROUP=<group>` runs that group exactly as `make tests
 # TESTS=<its files>` runs them (the guard over its modules first, each file in its sandbox at TEST_SECONDS).
 ALL_TESTS = $(TESTS) $(shell git ls-files '.claude/*/tests/test_*.py' 'paper/*/test_*.py')
-GROUP_OF = awk -F/ '{n = NF - 1; if ($$n == "tests") n--; if (n > 2) n = 2; group = $$1; for (i = 2; i <= n; i++) group = group "/" $$i; print group, $$0}'
+GROUP_FILES = 12
+GROUP_OF = awk -F/ -v most=$(GROUP_FILES) '{n = NF - 1; if ($$n == "tests") n--; two = $$1; if (n >= 2) two = two "/" $$2; three = two; if (n >= 3) three = two "/" $$3; line[NR] = $$0; short[NR] = two; long[NR] = three; files[two]++} END {for (i = 1; i <= NR; i++) print (files[short[i]] > most ? long[i] : short[i]), line[i]}'
 test-groups:
 	@echo rule; printf '%s\n' $(ALL_TESTS) | $(GROUP_OF)
 
