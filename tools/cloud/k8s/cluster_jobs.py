@@ -35,6 +35,7 @@ machines instead of waiting (blender_cloud runs itself again off the cluster; a 
 """
 import os
 import pathlib
+import shlex
 import sys
 import time
 
@@ -63,10 +64,13 @@ def run_id(kind):
 
 
 def placed(entry, local_key, remote_key):
-    """An input or output as (local path, path up there): a plain path is the same in both places."""
+    """An input or output as (local path, path up there): a plain path is the same in both places, up there as the
+    runner names it, links unresolved, since that is the path its command's arguments give and the pod holds no link
+    (crops-look@greenhouse, 2026-11-07: its views.json named through a frozen run's `<copy>.home/store` link went up at
+    the store's own path, and usd_views.py found no file at the path it was given)."""
     if isinstance(entry, dict):
         return pathlib.Path(entry[local_key]).resolve(), entry[remote_key]
-    return pathlib.Path(entry).resolve(), str(pathlib.Path(entry).resolve())
+    return pathlib.Path(entry).resolve(), os.path.abspath(entry)
 
 
 def framework_store():
@@ -151,13 +155,22 @@ def output_entries(helper, run, job_id, outputs):
     return entries, back
 
 
+def with_output_folders(command, outputs):
+    """The command with the folder of each output made first, at the path as named (placed): the pod holds no link,
+    so a runner that makes them at their resolved paths made other folders than the ones its command writes into."""
+    folders = sorted({os.path.dirname(output["path"]) for output in outputs})
+    if not folders:
+        return command
+    return ["sh", "-c", f"mkdir -p {shlex.join(folders)} && exec \"$@\"", "sh", *command]
+
+
 def spec_of(helper, store, run, job_id, kind, image, classes, job):
     """One job.json from a runner's job; with where its outputs come back."""
     outputs, back = output_entries(helper, run, job_id, job.get("outputs", ()))
     spec = {"kind": image, "capacity_kind": kind, "image": helper.image(image), "classes": list(classes),
             "code": helper.upload_code(store, job.get("code", []), kind=image, repo=REPO),
             "inputs": upload_inputs(store, job.get("inputs", ())),
-            "outputs": outputs, "command": job["command"], "env": job.get("env", {}),
+            "outputs": outputs, "command": with_output_folders(job["command"], outputs), "env": job.get("env", {}),
             "models": job.get("models", []), "minutes": job.get("minutes", 30),
             "attempt_limit": job.get("attempt_limit", ATTEMPTS)}
     spec.update({key: job[key] for key in ("cards", "kernel_cache", "tool_only", "cpu", "memory") if key in job})
