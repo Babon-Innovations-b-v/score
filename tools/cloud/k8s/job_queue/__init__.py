@@ -4,10 +4,12 @@ warm workers of their image (`__main__.py`), and the wait for them.
     enqueue(run, kind, image, classes, specs)   # inbox/<run>.json, written whole
     wait(run)                                   # until state/<run>.json says the run is over; Stale when the queue is
     fresh()                                     # whether the queue's beat is newer than QUEUE_STALE_SECONDS
+    cancel(run)                                 # cancel/<run>: a run its client took back, never assigned again
+    spent()                                     # the box's euros so far as the queue counts them (money.json)
     start()                                     # start the queue process when it is not fresh (detached)
 
 The queue's control files are small and live under `$PROPS_HOME/cloud/queue/`: `beat` (touched every tick), `lock`
-(one queue a box), `inbox/`, `state/`, `expected/<drive pid>.json` and the money figure. Nothing else is staged on
+(one queue a box), `inbox/`, `state/`, `cancel/`, `expected/<drive pid>.json` and the money figure. Nothing else is staged on
 the conductor: the jobs' inputs and outputs are in the job store. A run's `priority` and `place` come from
 SCORE_QUEUE_PRIORITY and SCORE_QUEUE_PLACE, which the drive sets for each node; environment variables are in no key.
 """
@@ -91,6 +93,20 @@ def enqueue(run, kind, image, classes, specs, stop_line=None, who=None, root=Non
              "stop_line": stop_line, "at": time.time()}
     write_whole(root_of(root) / "inbox" / f"{run}.json", entry)
     return entry
+
+
+def cancel(run, root=None):
+    """Take a run back from the queue (its client adopts it, cluster_jobs.through_queue): `cancel/<run>`, which the
+    queue reads before its inbox, so a queue that comes back drops the run and assigns none of its jobs again."""
+    path = root_of(root) / "cancel" / run
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch()
+
+
+def spent(root=None):
+    """The box's euros so far as the queue counts them (its money.json; 0 before its first tick), the base of a run's
+    stop line."""
+    return float((read_json(root_of(root) / "money.json") or {}).get("euros", 0.0))
 
 
 def wait(run, root=None, poll=POLL_SECONDS, clock=time.time, sleep=time.sleep):

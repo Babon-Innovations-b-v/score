@@ -100,8 +100,9 @@ class Queue:
     # The runs.
 
     def take_inbox(self):
-        """New runs from the inbox, their state written before the inbox file goes. A job whose done.json is already
-        in the job store (a resumed run) is done at once."""
+        """New runs from the inbox, their state written before the inbox file goes, after the runs their clients took
+        back (`take_cancels`). A job whose done.json is already in the job store (a resumed run) is done at once."""
+        self.take_cancels()
         for path in sorted((self.root / "inbox").glob("*.json")):
             entry = client.read_json(path)
             if entry is None:
@@ -110,6 +111,20 @@ class Queue:
                 self.runs[entry["run"]] = self.intake(entry)
                 self.write_state(entry["run"])
             path.unlink(missing_ok=True)
+
+    def take_cancels(self):
+        """Each run its client took back (`cancel/<run>`, job_queue.cancel): its inbox file dropped and, when it is
+        open here, its jobs not over stopped and the run over, so none of its jobs is assigned again."""
+        for path in sorted((self.root / "cancel").glob("*")):
+            run = path.name
+            (self.root / "inbox" / f"{run}.json").unlink(missing_ok=True)
+            if run in self.runs:
+                for record in self.runs[run]["jobs"].values():
+                    if record["state"] not in OVER:
+                        record["state"] = "stopped"
+                self.runs[run].update(over=True, stopped="taken back by its client")
+                self.write_state(run)
+            path.unlink()
 
     def intake(self, entry):
         jobs = {}

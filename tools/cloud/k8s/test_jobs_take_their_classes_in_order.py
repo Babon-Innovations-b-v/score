@@ -49,7 +49,10 @@ invariant with the break that turns it red (each applied once and seen red):
   the run, books its row with the unfinished jobs stopped and exits 143; either way the door still brings back what
   the done jobs made. Break: call `look` without `retried` in `watch`. Break: drop `book` from either except in
   `submit`. Break: drop `stop_jobs` in `stop_after_signal`. Break: drop `bring_back` before `raise` in
-  `cluster_jobs.run`. While it watches, the process is marked in CLUSTER_WAITING (its node holds no --jobs slot,
+  `cluster_jobs.run`. Under SCORE_K8S_QUEUE a run goes to the box's queue (job_queue/) when it is fresh, else on
+  today's path with a queue started for later runs; one whose queue went stale while it waited is cancelled there and
+  its jobs not done adopted by `submitter.submit` (#76, S6). Break: `if not job_queue.fresh():` -> `if False:` in
+  `cluster_jobs.through_queue` (no fallback). Break: adopt every spec, not only those not done. While it watches, the process is marked in CLUSTER_WAITING (its node holds no --jobs slot,
   score/graph), the mark gone after an error or a stop. Break: drop the `finally` unlink in `watch`. stop-batch's
   `stop_score_jobs` deletes only Jobs labelled with a run, only in score-jobs, and refuses another namespace.
   Break: drop the namespace check in `stop_score_jobs`.
@@ -421,7 +424,7 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
 
     def submit_run(run, specs, store, wait_scale_down=True, who=None, parallel=None):
         """What the cluster would leave: each output and done.json, except job 1, which fails."""
-        seen.update(specs=specs, wait=wait_scale_down, who=who)
+        seen.update(specs=specs, wait=wait_scale_down, who=who, run=run)
         for job_id, spec in specs.items():
             prefix = f"runs/{run}/{job_id}/"
             if job_id == "1":
@@ -467,6 +470,35 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
         cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"])
     assert out_file.read_text() == "made by 0"  # what finished still came back
     assert len(uploads) == 3 and CountedCopies.copies == 1  # the second run of the same inputs sent nothing
+
+    # Under SCORE_K8S_QUEUE: a queue not fresh at submit time is started for later runs and the run goes on today's
+    # path; a queue gone stale while the run waits gives it back, cancelled there, its jobs not done adopted by
+    # submitter.submit under the run's own name (its Jobs' labels), a job the queue's worker finished not made again.
+    monkeypatch.setenv("SCORE_K8S_QUEUE", "1")
+    root, started = tmp_path / "queue", []
+    monkeypatch.setattr(cluster_jobs.job_queue, "QUEUE", root)
+    monkeypatch.setattr(cluster_jobs.job_queue, "start", lambda root=None: started.append(True))
+    monkeypatch.setattr(cluster_jobs.submitter, "submit", submit_run)
+    monkeypatch.setattr(cluster_jobs.submitter, "prepare", lambda kubectl, cluster: None)
+    monkeypatch.setattr(cluster_jobs.submitter, "cluster_module", lambda: None)
+    monkeypatch.setattr(cluster_jobs.submitter, "cluster_kubectl", lambda cluster: None)
+    monkeypatch.setattr(cluster_jobs.submitter.compute, "require_cleared", lambda what: None)
+
+    def worked_then_stale(run, root=None, **_):
+        """The queue's worker finished job 0 of the run it was handed, then the queue's beat stopped."""
+        handed = json.loads((cluster_jobs.job_queue.QUEUE / "inbox" / f"{run}.json").read_text())["specs"]
+        submit_run(run, {"0": handed["0"]}, helper.store)
+        raise cluster_jobs.job_queue.Stale(f"the queue has been stale 180 s; run {run} taken back")
+    monkeypatch.setattr(cluster_jobs.job_queue, "wait", worked_then_stale)
+    out_file.unlink()
+    assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name="stale-run") == [1]
+    assert started and sorted(seen["specs"]) == ["0", "1"] and not (root / "inbox").exists()
+    root.mkdir(exist_ok=True)
+    (root / "beat").touch()
+    out_file.unlink()
+    assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name="taken-run") == [1]
+    assert sorted(seen["specs"]) == ["1"] and seen["run"] == "taken-run" and (root / "cancel" / "taken-run").exists()
+    assert out_file.read_text() == "made by 0" and len(started) == 1  # job 0's outputs, made on the queue
 
 
 # ==== billing =======================================================================================================

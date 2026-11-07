@@ -110,7 +110,7 @@ def listed(items):
         notes = meta.get("annotations", {})
         found[worker] = {"id": worker, "chain": (notes.get("score.dev/kind"), notes.get(IMAGE_NOTE),
                                                  notes.get("score.dev/code-ref", "")),
-                         "band": meta["labels"].get(BAND_LABEL), "job": meta["name"], "pod": None, "node": None,
+                         "band": band_named(meta["labels"].get(BAND_LABEL)), "job": meta["name"], "pod": None, "node": None,
                          "phase": "Pending", "cards": cards_of(item["spec"]["template"]["spec"])}
     for item in items:
         worker = item["metadata"].get("labels", {}).get(WORKER_LABEL)
@@ -119,6 +119,11 @@ def listed(items):
         found[worker].update({"pod": item, "node": item["spec"].get("nodeName"),
                               "phase": item.get("status", {}).get("phase", "Pending")})
     return found
+
+
+def band_named(label):
+    """The band a worker's label names: label values are lower case ("m"), admission's bands not ("M")."""
+    return next((band for band in (*admission.BANDS, admission.CARD_BAND) if manifests.label_value(band) == label), label)
 
 
 def cards_of(pod_spec):
