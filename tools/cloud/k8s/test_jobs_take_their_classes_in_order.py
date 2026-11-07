@@ -28,7 +28,8 @@ invariant with the break that turns it red (each applied once and seen red):
   `ledger.BATCH_EUROS`.
 - A run holds to its `parallel` jobs at once. Break: drop the `parallel` return in `submit_more`. A Job is made
   only while the namespace's quota has room for its pod: 2 cards left and 5 card jobs make 2 and hold 3, which go on
-  once room comes; a quota's FailedCreate is no word to widen. Break: drop the `fits` check in `submit_more`.
+  once room comes; a quota's FailedCreate is no word to widen; a login that may not read the quota (forbidden)
+  makes every Job as before. Break: drop the `fits` check in `submit_more`, or the forbidden catch in `quota_room`.
 - Inputs go up at their paths (a folder as one key a file), outputs come back where the runner wants them, a job
   that did not finish is reported by its number. Break: report every job as failed in `cluster_jobs.run`. Each
   input file is keyed by its sha256 (a checkout's from its listing) and goes up once: a second run of one input
@@ -235,6 +236,17 @@ class LiveKubectl:
         self.jobs.pop(name, None)
 
 
+class NoQuotaKubectl(LiveKubectl):
+    """A login whose Role has no resourcequotas right: the read is forbidden, as on the tenant's scoped login."""
+
+    def json(self, *arguments):
+        if arguments[1] == "resourcequota":
+            raise submit.subprocess.CalledProcessError(
+                1, ["kubectl", *arguments], stderr='Error from server (Forbidden): resourcequotas is forbidden: User '
+                                                   '"system:serviceaccount:score:score-conductor" cannot list resource')
+        return super().json(*arguments)
+
+
 class QuotaKubectl(LiveKubectl):
     """A cluster with one ResourceQuota on the jobs' namespace, its hard and used as the test sets them."""
 
@@ -337,6 +349,12 @@ def test_resume_takes_up_the_newest_generation_and_a_run_holds_to_its_parallel_j
     kubectl.used["requests.nvidia.com/gpu"] = "23"  # the 2 made counted, one card freed elsewhere
     submit.submit_more(run, None)
     assert len(kubectl.jobs) == 3
+    # a login that may not read the quota (the conductor's scoped one): every Job goes, as before the quota check
+    kubectl = NoQuotaKubectl()
+    run = submit.Run("r3", {f"take-{number}": {"kind": "pixal", "image": "image", "minutes": 30}
+                            for number in range(5)}, kubectl, PoolCluster())
+    submit.submit_more(run, None)
+    assert len(kubectl.jobs) == 5
 
 
 def test_nothing_goes_on_the_cluster_outside_a_cleared_run(monkeypatch):
