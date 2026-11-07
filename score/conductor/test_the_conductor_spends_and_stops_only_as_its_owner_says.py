@@ -24,7 +24,8 @@ tails); or in disk.kept drop the registered-run test (a waiting run's copy is re
 ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
 SECRET_NAME test (the sync token's value lands in a drive Job's spec); or in score/__main__.py default_jobs drop the cluster
 record's jobs (a price on the cluster worked out on the node's cores); or in cluster.pod_view read an unanswered
-cluster as no units (a dead cluster shows the conductor fine).
+cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod_log drop `or own_namespace()` (a
+home whose record names another namespace reads the logs of `score`'s pods).
 """
 import datetime
 import io
@@ -605,6 +606,13 @@ def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(
     lines = cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: asked.append(argv) or
                             subprocess.CompletedProcess(argv, 0, "[listen] up\n", ""))
     assert lines == ["[listen] up"] and asked[0][3:7] == ["logs", "pod/score-conductor-0", "-c", "conductor"]
+    assert asked[0][1:3] == ["-n", "score"]  # no cluster record here: the default namespace
+    record = tmp_path / "cluster.json"
+    record.write_text('{"namespace": "score-rehearsal"}')
+    monkeypatch.setattr(cluster, "RECORD", record)  # the record's namespace, never a fixed one (the 2026-11-07 rehearsal)
+    cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: asked.append(argv) or
+                    subprocess.CompletedProcess(argv, 0, "", ""))
+    assert asked[1][1:3] == ["-n", "score-rehearsal"]
 
 
 def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret(tmp_path, monkeypatch):
