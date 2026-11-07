@@ -35,9 +35,12 @@ The break that turns each test red (applied once each, seen red, reverted):
   `_check_duplicate` returns at once.
 - test_issue_guard_holds_the_projects_body_rules: `_check_dead_paths` returns at once; or `_check_size` returns at
   once; or `_check_edit_size` returns at once (an edit then grows an over-cap body unchecked).
-- test_md_guard_blocks_a_new_md_without_a_yes: the `tee` pattern taken out of `_SHELL_TARGETS`.
+- test_md_guard_blocks_a_new_md_without_a_yes: the `tee` pattern taken out of `_SHELL_TARGETS`; or
+  `_recent_typed_messages` returns `texts` (a yes 21 typed messages back is heard).
 - test_md_guard_allows_the_standing_exceptions: `_approved` returns an empty set at once; or
-  `_user_asked_for_markdown` returns False at once (the user's yes is never heard).
+  `_user_asked_for_markdown` returns False at once (the user's yes is never heard); or in `main`, ask
+  `_user_asked_for_markdown` before `not offenders` (a non-md call reads the transcript: it hangs on the pipe); or
+  `_recent_typed_messages` starts with `chunk = size` (the whole transcript read, over 100 ms).
 - test_commit_guard_refuses_a_session_waiving_a_guard: `bypass_in` returns None at once.
 - test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live: `live_session_worktrees` returns [] at once.
 - test_commit_guard_reads_only_gits_subcommand_as_a_commit: `is_git_commit` returns `"commit" in tokens` (any word).
@@ -51,8 +54,10 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_output_cap_spills_a_long_output_whole_and_summarises_it: `text_excerpt`'s `if matches:` made `if False:`.
 - test_output_cap_leaves_what_the_agent_asked_for_alone: `leave_alone` returns False at once.
 - test_output_cap_caps_only_with_a_real_saving: `capped_output`'s saving check made `if False:`.
-- test_wait_guard_blocks_foreground_waits: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once.
-- test_wait_guard_allows_short_waits_reads_and_background_runs: drop the `_MESSAGE.sub` in `blocked`.
+- test_wait_guard_blocks_foreground_waits: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once;
+  or `tail_follow` returns None at once; or `long_timeout` returns None at once.
+- test_wait_guard_allows_short_waits_reads_and_background_runs: drop the `_MESSAGE.sub` in `blocked`; or drop
+  `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked).
 - test_every_guard_fails_open_on_garbage: accept_guard's `except Exception: return 0` made `return 2`.
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/hooks/tests/
@@ -64,6 +69,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import time
 
 import pytest
 
@@ -78,9 +84,10 @@ def hook(name):
     return shared if shared.exists() else HOOKS / "local" / name
 
 
-def run(script, payload, env=None, cwd=None):
+def run(script, payload, env=None, cwd=None, timeout=None):
     """(exit code, stderr, stdout) of a hook script given this payload (a dict as JSON, or raw text) on stdin."""
     done = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, env=env, cwd=cwd,
+                          timeout=timeout,
                           input=payload if isinstance(payload, str) else json.dumps(payload))
     return done.returncode, done.stderr, done.stdout
 
@@ -548,11 +555,13 @@ def typed_transcript(folder, entries):
 def test_md_guard_blocks_a_new_md_without_a_yes(md_repo, tmp_path):
     guard, repo = md_repo
     never = typed_transcript(tmp_path, ["hello", "run the validation", {"result": "wrote notes.md"}])
+    stale = typed_transcript(repo, ["make a md file for it"] + [f"step {at}" for at in range(20)])
     for payload in (md_write(repo, "docs/never-asked-for.md"), md_write(repo, "docs/no-words.md"),
                     md_write(repo, "docs/never-asked-for.md", never),  # a tool result naming .md is not the person
                     md_bash(repo, "echo hi > notes.md"), md_bash(repo, "echo hi | tee -a docs/summary.md"),
                     md_bash(repo, "touch docs/new.md"), md_bash(repo, "cp docs/existing.md docs/copy.md"),
-                    md_bash(repo, "cd docs && echo x > new.md"), md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md")):
+                    md_bash(repo, "cd docs && echo x > new.md"), md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md"),
+                    md_write(repo, "docs/report.md", stale)):  # the yes is 21 typed messages back
         code, said, _ = run(guard, payload)
         assert code == BLOCK and "go-ahead" in said, payload
 
@@ -571,6 +580,20 @@ def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
                     md_bash(repo, f"cd {tmp_path} && echo x > page.md"),
                     md_bash(repo, "echo x > $UNKNOWN_SOMEWHERE/page.md")):  # unknowable: fail open
         assert run(guard, payload)[0] == ALLOW, payload
+    # A call that creates no .md answers without reading the transcript (a pipe nobody writes: a read never ends), and
+    # a new .md reads only the transcript's end for the yes: a long session's runs to hundreds of MB, read whole it
+    # took seconds a call, so the harness timed the guard out (failing open) 341 times.
+    unread = tmp_path / "unread.jsonl"
+    os.mkfifo(unread)
+    long_session = typed_transcript(repo, ["a line of chat " * 50] * 60000 + ["write a md file for it"])
+    for payload in (dict(md_bash(repo, "ls docs; git status"), transcript_path=str(unread)),
+                    md_write(repo, "docs/report.md", long_session)):
+        timings = []
+        for _ in range(3):
+            started = time.monotonic()
+            assert run(guard, payload, timeout=10)[0] == ALLOW, payload
+            timings.append(time.monotonic() - started)
+        assert min(timings) < 0.1, (payload, timings)
 
 
 # commit_guard: a session may not waive the commit guards, nor commit in the shared checkout while another session
@@ -885,6 +908,13 @@ FOREGROUND_WAITS = [
      "cloud Blender run"),
     (".venv/bin/python tools/usd/settle.py stage.usda --cloud", "cloud Blender run"),
     (".venv/bin/python tools/review/page.py hub --run r --out o --cloud", "cloud Blender run"),
+    ("timeout 118 tail --pid=394341 -f /dev/null; tail -5 run.log", "tail that follows"),
+    ("tail -f run.log", "tail that follows"), ("tail -n 0 -F run.log", "tail that follows"),
+    ("timeout 590 tail -F x | grep -m1 y", "tail that follows"),
+    ("timeout 58 tail -n +1 --follow=name run.log | grep -m1 EXIT; true", "tail that follows"),
+    ("timeout 300 inotifywait -e close_write out.json", "timeout of 300 s around a wait"),
+    ("cd wt && timeout 10m gh run watch 12", "timeout of 600 s around a wait"),
+    ("timeout 120 bash -c 'wait_for_it; sleep 50'", "timeout of 120 s around a wait"),
 ]
 
 SHORT_OR_BACKGROUND = [
@@ -896,6 +926,9 @@ SHORT_OR_BACKGROUND = [
     bash("sed -n 1,60p tools/cloud/blender_cloud.py; grep -n add_argument tools/cloud/blender_cloud.py"),
     bash("grep -n detach tools/cloud/blender_cloud*.py | head -40"), bash("cat tools/usd/settle.py | grep cloud"),
     bash("git diff tools/review/page.py --stat"),
+    bash("tail -n 40 run.log"), bash("tail -5 run.log | grep -c x"), bash("timeout 58 sleep 50; ls"),
+    bash("timeout 600 .venv/bin/python -m pytest -q tools/x"), bash("grep -c tail-f notes.txt; tail -c 200 x.log"),
+    bash("timeout 25 ssh host ls"), bash("timeout 300 bash -c 'make tests'"),
     bash("while true; do sleep 30; done", background=True),
     {"tool_name": "Bash", "tool_input": {"command": "while true; do sleep 60; done", "timeout_ms": 1800000,
                                          "description": "the Monitor tool's watch script"}},
