@@ -4,8 +4,8 @@ reaches only the door; the pod's units run as the VM's systemd ran them. Nothing
 Each invariant with the break that turns it red (each applied once, seen red, reverted):
 
 - every pod that mounts the store (the conductor's, each CronJob's) is required on the conductor's role and beside the
-  conductor's pod on its host, and the volume is one ReadWriteOnce claim of class sbs-5k-retain. Break: drop
-  `"podAffinity": ...` from `beside_conductor`.
+  conductor's pod on its host, sharing the node's process ids, and the volume is one ReadWriteOnce claim of class
+  sbs-5k-retain. Break: drop `"podAffinity": ...` from `beside_conductor`, or `"hostPID": True` from `pod_spec`.
 - the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder), so no record's path changes.
   Break: `("props", f"{HOME}/props")` in MOUNTS.
 - the agents' account may only get and port-forward to the conductor's one pod: no exec, no other pod, no other
@@ -53,6 +53,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"]]
     assert len(pods) == 4
     for pod in pods:
+        assert pod["hostPID"] is True  # one process-id space with the conductor: registry pids read the same
         terms = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]
         assert terms[0]["matchExpressions"][0]["values"] == ["score-conductor"]
         assert pod["tolerations"] == [conductor.TOLERATION]

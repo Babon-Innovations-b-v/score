@@ -23,6 +23,14 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   `systemd-run --user --scope`, so its 14-16 GB scope stays under the cap. An OOM then ends a run, never the listener
   or the sync. The drive's own guard is `graph.memory_room` (a floor per node starting); `SCORE_MIN_FREE_GB` in the
   env file gives the conductor its own floor (the idle size, POP2-2C-8G since 2026-11-03, has 8 GB).
+- **`cluster.py`** (#76, the plan of 2026-11-07): what a home on babon's cluster does differently, only while
+  `conductor/cluster.json` is there (the cutover writes it; its docstring names its fields). `score run --detach`
+  there is one Job (`detach`, from `score/__main__.py` `detached_as_pod`) in place of the slice's scope: the run's
+  frozen copy its working folder on the store's volume, the scope's own command and log, `restartPolicy: Never`, no
+  retry, beside the conductor's pod on its node (`tools/cloud/k8s/conductor`); the run's environment goes with it but
+  every variable that could hold a secret (`SECRET_NAME`), read by name as on the VM. Every store writer shares the
+  node's process ids, so the pid the pod writes beside its log (`started_pid`) is the run's for the cockpit and the
+  registry. Off such a home nothing changes: the VM and the PC detach as before.
 - **`health.py`**: `$PROPS_HOME/health.json` for the Machine card (`python -m score.conductor health --write`, AREA 1's
   minute timer). Its `code` is the checkout's commit beside the cockpit's pin score-update last read
   (`conductor/pin.json`), red on the card when they differ. **`logs.py`**: `tails(limit_lines)`, newest run logs, fault reports and unit journals; a line naming

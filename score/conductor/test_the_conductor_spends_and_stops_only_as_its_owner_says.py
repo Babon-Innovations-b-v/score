@@ -7,7 +7,8 @@ mark back. Its own bill never enters the batch's spend, and every paid point ref
 conductor's. Only the owner's process pulls the kill switch, which stops every run (and the processes left in a gone
 run's frozen copy), closes the pools before it releases every parked machine, and latches every `score` command free
 only; Stop this batch does the same without the latch. A detached run is capped in score-runs.slice at the memory
-less 6 GB, a step's own scope inherits it, and off a conductor nothing changes. Its health names what the Machine card
+less 6 GB, a step's own scope inherits it, and off a conductor nothing changes; on the cluster's home it is a Job of
+its own beside the conductor's pod, carrying no secret's value. Its health names what the Machine card
 reads and its log tails carry no secret. The free end-to-end check (`dry`) passes every step in one line. No run
 starts under the data disk's floor, the health warns there, and clean-frozen removes only the frozen copies no run
 needs and no process works in, never what their homes link to, and nothing while it cannot tell; clean-cache
@@ -20,7 +21,8 @@ leave out the commands ask_grow_for recorded (a Buy on the idle size never grows
 release the parked machines before closing the pools, or drop its `stop_cluster` call (score's cluster Jobs left
 running); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
-ProcessLookupError catch (a process ending mid-read crashes store-evict).
+ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
+SECRET_NAME test (the sync token's value lands in a drive Job's spec).
 """
 import datetime
 import io
@@ -39,7 +41,7 @@ sys.path.insert(0, str(REPO))
 from score import conductor  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.adapters.compute import guard  # noqa: E402
-from score.conductor import disk, health, kill, logs, size, slices  # noqa: E402
+from score.conductor import cluster, disk, health, kill, logs, size, slices  # noqa: E402
 from score.graph import frozen, runs  # noqa: E402
 from score.store import Store, file_hash  # noqa: E402
 
@@ -434,12 +436,44 @@ def test_the_cap_is_the_memory_less_six_gigabytes_at_both_sizes_and_the_slice_fi
     assert 16 * percent / 100 <= 16 - slices.HEADROOM_GB  # the unit file's own cap within the idle size's
 
 
-def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_none():
+def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_none(tmp_path):
     from score import __main__ as command
     prefix = slices.scope_prefix("score-run-x")
     assert prefix[:3] == ["systemd-run", "--user", "--scope"] and "--slice=score-runs.slice" in prefix
     assert "--unit=score-run-x" in prefix and prefix[-1] == "--"
     assert not slices.usable() and command.run_scope(pathlib.Path("/tmp/score-run-x.log")) == []
+    # On the cluster's home (#76) the run is a Job of its own, from its frozen copy, beside the conductor's pod, its
+    # command the scope's, no retry, no secret's value in its spec; the pid its pod writes is the run's; off it, none.
+    assert command.detached_as_pod(["true"], tmp_path / "x.log", {}) is False  # no cluster.json in this home
+    found = cluster.record(_written(tmp_path / "cluster.json", {"image": "registry.example/score-conductor@sha256:0"}))
+    assert found["jobs"] == 16 and found["namespace"] == "score"
+    log, applied = tmp_path / "score-run-20261107T2000Z.log", []
+    (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
+    environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
+                   "KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOME": "/elsewhere"}
+    name, pid = cluster.detach(found, ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"], log,
+                               "/home/score/.farm-factory-props/frozen/abc", environment, tmp_path,
+                               apply=applied.append, wait=lambda log: cluster.started_pid(log, seconds=1))
+    job, = applied
+    assert (name, pid) == ("score-run-20261107t2000z", 4242) and job["spec"]["backoffLimit"] == 0
+    pod = job["spec"]["template"]["spec"]
+    assert pod["restartPolicy"] == "Never" and pod["hostPID"] is True
+    assert pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"][0][
+        "topologyKey"] == "kubernetes.io/hostname"
+    box, = pod["containers"]
+    assert box["command"][-8:] == ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"]
+    assert box["workingDir"] == "/home/score/.farm-factory-props/frozen/abc"
+    carried = {variable["name"]: variable.get("value") for variable in box["env"]}
+    assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
+    assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
+    assert [variable["name"] for variable in box["env"]].count("HOME") == 1
+    with pytest.raises(TimeoutError):
+        cluster.started_pid(tmp_path / "never.log", seconds=0.01, sleep=lambda seconds: None)
+
+
+def _written(path, found):
+    path.write_text(json.dumps(found))
+    return path
 
 
 def test_the_shim_is_used_only_inside_the_slice(tmp_path):
