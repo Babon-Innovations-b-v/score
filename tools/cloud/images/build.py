@@ -68,8 +68,11 @@ REMOTE = pathlib.PurePosixPath("/root/build")
 PARENT = "base"
 RUNNER = "runner"
 LOCK_SHA = "lock.sha256"
-LOCK_EXPORT = ("uv", "export", "--frozen", "--no-dev", "--no-emit-project", "--no-header", "--quiet",
-               "--format", "requirements-txt")
+# The conductor's own environment (`make env`: uv sync --group dashboard): a runner pod's light rows reach Django through
+# score.dashboard (light/sky.py -> films/preview/scenes.py -> pages/setting_picture.py; 2026-11-07, a pod's light row
+# failed ModuleNotFoundError: django).
+LOCK_EXPORT = ("uv", "export", "--frozen", "--no-dev", "--group", "dashboard", "--no-emit-project", "--no-header",
+               "--quiet", "--format", "requirements-txt")
 BUILDER_SETUP = """set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
@@ -155,7 +158,8 @@ def save(built):
 
 
 def lock_export(repo=REPO):
-    """The repository's uv.lock as hashed requirements (score itself and the dev group left out), as uv exports it."""
+    """The repository's uv.lock as hashed requirements (score itself and the dev group left out, the dashboard group
+    in), as uv exports it."""
     return subprocess.run(LOCK_EXPORT, cwd=repo, check=True, capture_output=True, text=True).stdout
 
 
