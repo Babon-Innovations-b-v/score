@@ -22,21 +22,33 @@ proves each blob with offload.proven (the bucket's size and sha256); one missing
 nothing is stored. A blob that is not local is marked (offload.mark_remote), so a later local read fetches it. Of two
 manifests for one key the first record stands.
 
-Framework only (score/graph/_code.py FRAMEWORK lists this file), so it is in no row's key. Which stages go to pods is
-the drive's (a later step); nothing here decides it.
+Which nodes go to pods (#76, build spec S8): `dispatches(stage)` under SCORE_K8S_POD and SCORE_K8S_QUEUE, the box's
+queue fresh and the runner image published, for a free stage without gatherers in POD_STAGES (each entered by a commit
+after its rehearsal gave the same listing hash on the conductor, locally and on the cluster). Runner.make then calls
+`make_remote`: the job's blobs pushed, the job made by a runner worker through the queue (cluster_jobs.run, the
+POD_COMMAND), the manifest collected here; a node the cluster did not make is made by Runner.make itself.
+
+    pod.make_remote(runner, stage, place, keyed)   # in the node's fork, under its key's lock: the record, or None
+    pod.downstream(reads, nodes)                    # the drive's priority: how many waiting nodes read each node
+    pod.expect(waiting)                             # the drive's expected/<pid>.json: {image kind: waiting nodes}
+
+Framework only (score/graph/_code.py FRAMEWORK lists this file), so it is in no row's key.
 """
 import argparse
 import concurrent.futures
 import contextlib
 import importlib
 import json
+import math
 import os
 import pathlib
 import platform
 import resource
 import shutil
+import subprocess
 import sys
 import tarfile
+import tempfile
 import time
 import traceback
 
@@ -54,6 +66,35 @@ IMAGE_VARIABLE = "SCORE_POD_IMAGE"  # set by the worker: the image digest the po
 NOT_PROVEN = "pod output not proven"
 FETCHES = 16  # input blobs fetched at once (one at a time a pod fetched about 15 MB/s, rehearsal 2026-11-07)
 DESIGN = "design"  # the home's locked designs, which the stage table reads to say what each row declares
+# The stages made in pods: each only after its rehearsal (the build spec's section 6) gave the conductor's output, a
+# local pod's and a cluster worker's as one listing hash (tube, 2026-11-07: rough-align, props-inputs and cast; and
+# surfaces-paint once its upload was retried, 4455a781). light-layer (the image lacks django) and finish-route-views
+# (a made take's record key order) stay local until theirs passes; earth-seed writes paths and a time into its output.
+POD_STAGES = frozenset({"rough-align", "props-inputs", "cast", "surfaces-paint"})
+IMAGE_OF = dict.fromkeys(POD_STAGES, "runner")  # the image kind a waiting node of the stage will want (expected/)
+POD_VARIABLE = "SCORE_K8S_POD"
+QUEUE_VARIABLE = "SCORE_K8S_QUEUE"
+CLASSES_VARIABLE = "SCORE_POD_CLASSES"  # the classes a runner worker may take, in order (default capacity.PROCESSORS)
+STORE_VARIABLE = "SCORE_POD_STORE_BUCKET"  # in the job: the store bucket's name, reached with the job store's key
+TABLE = "score.stages:STAGES"
+QUEUE_FOLDER = score_store.PROPS_HOME / "cloud" / "queue"  # the box's queue's control files (job_queue.QUEUE)
+POD_MINUTES = 60
+HEADROOM = 1.25  # a pod's memory request: its stage's measured peak this many times
+POD_COMMAND = r"""set -e
+export SCORE_UV_LOCK=$(cat /opt/score/uv.lock.sha256)
+sha=$(sha256sum /work/in/code.tar | cut -d' ' -f1)
+tree=/cache/code/$sha
+if [ ! -d "$tree" ]; then
+  mkdir -p /cache/code; part=$(mktemp -d /cache/code/.part-XXXXXX)
+  tar -xf /work/in/code.tar -C "$part"; mv -T "$part" "$tree" 2>/dev/null || rm -rf "$part"
+fi
+/opt/score/env/bin/python -c 'import os, json; json.dump({**{k: os.environ["SCORE_STORE_" + v] for k, v in (("endpoint", "ENDPOINT"), ("region", "REGION"), ("access_key", "ACCESS_KEY"), ("secret_key", "SECRET_KEY"))}, "bucket": os.environ["SCORE_POD_STORE_BUCKET"]}, open("/work/bucket.json", "w"))'
+home=$(/opt/score/env/bin/python -c 'import json; print(json.load(open("/work/in/job.json"))["world"]["roots"]["home"])')
+rm -rf "$home"; mkdir -p "$home" /work/out
+cd "$tree"
+PROPS_HOME="$home" SCORE_POD_BUCKET=/work/bucket.json SCORE_POD_IMAGE="$SCORE_IMAGE" /opt/score/env/bin/python -m score.graph.pod run /work/in/job.json /work/out/manifest.json --cache /cache
+rm -rf "$home"
+"""  # the store bucket is reached with the job store's runtime key (the score-store Secret), its name from the job
 
 
 class Undeclared(LookupError):
@@ -141,7 +182,7 @@ def collect(runner, stage, place, keyed, manifest, bucket=None, record=True):
     if "refused" in manifest or "undeclared" in manifest:
         why = manifest.get("refused") or f"undeclared store reads {manifest['undeclared']}"
         print(f"{node}: the pod did not make it ({why}); made here", flush=True)
-        return runner.make(stage, place, keyed) if record else None
+        return runner.make_here(stage, place, keyed) if record else None
     if "broken" in manifest:
         raise contracts.Broken(manifest["broken"])
     if "error" in manifest:
@@ -195,6 +236,157 @@ def judged(runner, stage, record, manifest):
     except FileExistsError:  # another run judged it first: its judgement stands
         return runner.store.judgement(record["node"], record["key"], evidence)
     return judgement
+
+
+def switched_on():
+    """Whether pod makes are asked for: SCORE_K8S_POD and SCORE_K8S_QUEUE both set, neither 0."""
+    return all(os.environ.get(name, "") not in ("", "0") for name in (POD_VARIABLE, QUEUE_VARIABLE))
+
+
+def cluster_door():
+    """tools/cloud/k8s's cluster_jobs (the runners' one door) and job_queue, imported from this tree."""
+    folder = str(_code.REPO / "tools" / "cloud" / "k8s")
+    if folder not in sys.path:
+        sys.path.insert(0, folder)
+    import cluster_jobs
+    import job_queue
+    return cluster_jobs, job_queue
+
+
+def runner_published():
+    """Whether the runner image is in this tree's images.json, the image a pod make runs on."""
+    path = _code.REPO / "tools" / "cloud" / "images" / "images.json"
+    return path.is_file() and "runner" in json.loads(path.read_text())
+
+
+def dispatching(start=False):
+    """Whether this drive sends pod stages to the cluster now: switched on, the runner image published and the box's
+    queue fresh; `start`: a queue not fresh is started (job_queue.start), for a later pass."""
+    if not (switched_on() and runner_published()):
+        return False
+    queue = cluster_door()[1]
+    if queue.fresh():
+        return True
+    if start:
+        queue.start()
+    return False
+
+
+def eligible(stage):
+    """Whether a stage's nodes may be made in pods: in POD_STAGES, free, with no gatherers."""
+    return stage.name in POD_STAGES and not stage.paid and not stage.gatherers
+
+
+def dispatches(stage):
+    """Whether a node of `stage` is made in a pod now (eligible and dispatching)."""
+    return eligible(stage) and dispatching()
+
+
+def code_archive(folder=None):
+    """This tree's commit as a tar (git archive: the same bytes every time for one commit, so its sha256 names the
+    workers' warm tree), written once a commit under the system's temporary folder; an older commit's goes."""
+    commit = subprocess.run(["git", "-C", str(_code.REPO), "rev-parse", "HEAD"], capture_output=True, text=True,
+                            check=True).stdout.strip()
+    folder = pathlib.Path(folder or tempfile.gettempdir()) / "score-pod-code"
+    tar = folder / f"{commit}.tar"
+    if not tar.is_file():
+        folder.mkdir(parents=True, exist_ok=True)
+        partial = folder / f".{commit}.{os.getpid()}.partial"
+        with open(partial, "wb") as target:
+            subprocess.run(["git", "-C", str(_code.REPO), "archive", "--format=tar", commit], stdout=target,
+                           check=True)
+        partial.replace(tar)
+        for old in folder.glob("*.tar"):
+            if old != tar:
+                old.unlink(missing_ok=True)
+    return tar
+
+
+def requests_of(runner, stage):
+    """A pod job's cores and memory: 4 cores, and its stage's measured peak (Runner.peaks) times HEADROOM."""
+    peak = runner.peaks().get(stage.name, 0) * HEADROOM
+    return {"cpu": "4", "memory": f"{max(1, math.ceil(peak / 2**30))}Gi"}
+
+
+def pod_classes(door):
+    """The classes a runner worker may take, in order: SCORE_POD_CLASSES, else capacity's processor classes."""
+    named = os.environ.get(CLASSES_VARIABLE, "")
+    return [name.strip() for name in named.split(",") if name.strip()] or list(door.submitter.capacity.PROCESSORS)
+
+
+def remote_job(tar, folder, bucket, requests):
+    """The cluster job (cluster_jobs.run's form) that makes the job at <folder>/job.json in a runner worker, its
+    manifest coming back to <folder>/manifest.json."""
+    return {"command": ["sh", "-c", POD_COMMAND], "code": [],
+            "inputs": [{"local": str(tar), "path": "/work/in/code.tar"},
+                       {"local": str(folder / "job.json"), "path": "/work/in/job.json"}],
+            "outputs": [{"path": "/work/out/manifest.json", "local": str(folder / "manifest.json")}],
+            "env": {STORE_VARIABLE: bucket.name}, "minutes": POD_MINUTES, "cards": 0, "attempt_limit": 1, **requests}
+
+
+def make_remote(runner, stage, place, keyed, table=None):
+    """The node made by a runner worker through the box's queue, in its fork under its key's lock: its job and every
+    blob it reads pushed to the store bucket, the job run on the cluster (cluster_jobs.run, which waits holding no
+    --jobs slot), its manifest collected here (collect: proven, registered, recorded, judged); the record that
+    stands, or None when the cluster did not make it (refused, or its job did not finish), so Runner.make makes it."""
+    from score.adapters import compute  # here: compute imports score.graph for its tickets
+    node = graph.node_name(stage, place)
+    door = cluster_door()[0]
+    bucket = offload.bucket_now()
+    tar = code_archive()
+    job = job_of(runner, stage, place, keyed, file_hash(tar), table or TABLE)
+    pushed(runner, job, bucket)
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="score-pod-"))
+    try:
+        (folder / "job.json").write_text(json.dumps(job))
+        try:
+            failed = door.run("runner", [remote_job(tar, folder, bucket, requests_of(runner, stage))],
+                              who=f"pod {node}", classes=pod_classes(door), image="runner")
+        except compute.Refused as refused:
+            print(f"{node}: not sent to the cluster ({refused}); made here", flush=True)
+            return None
+        if failed:
+            print(f"{node}: its pod job did not finish; made here", flush=True)
+            return None
+        manifest = json.loads((folder / "manifest.json").read_text())
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    return collect(runner, stage, place, keyed, manifest, bucket)
+
+
+def downstream(reads, nodes):
+    """{node: how many of `reads`' nodes read it, directly or through others of them} for each of `nodes`; `reads` is
+    {waiting node: the nodes it reads}. The queue serves the node most others wait on first."""
+    readers = {}
+    for reader, earlier in reads.items():
+        for node in earlier:
+            readers.setdefault(node, set()).add(reader)
+    counts = {}
+    for node in nodes:
+        seen, todo = set(), list(readers.get(node, ()))
+        while todo:
+            reader = todo.pop()
+            if reader not in seen:
+                seen.add(reader)
+                todo += readers.get(reader, ())
+        counts[node] = len(seen)
+    return counts
+
+
+def expect(waiting, folder=None):
+    """Write this drive's expected/<pid>.json in the queue's folder: {image kind: how many `waiting` stages
+    (one a node) map to it (IMAGE_OF)}, whole; an empty count removes it. The path."""
+    counts = {}
+    for stage in waiting:
+        if stage.name in IMAGE_OF:
+            counts[IMAGE_OF[stage.name]] = counts.get(IMAGE_OF[stage.name], 0) + 1
+    path = pathlib.Path(folder or QUEUE_FOLDER) / "expected" / f"{os.getpid()}.json"
+    if not counts:
+        path.unlink(missing_ok=True)
+        return path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    whole_file(path, json.dumps(counts, sort_keys=True).encode()).replace(path)
+    return path
 
 
 # --- in the pod ------------------------------------------------------------------------------------------------------
