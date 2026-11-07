@@ -442,6 +442,20 @@ def source_hash(path):
     return listing_hash({name: stamped_hash(found) for name, found in tree_files(path).items() if not bytecode(name)})
 
 
+def stacks_on_ask():
+    """In a node's process: at a SIGUSR1, every thread's Python stack written to <home>/logs/stacks/<its pid>.txt, as a
+    batch runner's (tools/cloud/batch.py stacks_on_ask), which the agents' door's stack verb sends and reads; without
+    it a node died of the signal, or a fork of a runner that set one wrote into its runner's file."""
+    path, tools = list(sys.path), str(pathlib.Path(__file__).resolve().parents[2] / "tools" / "cloud")
+    if tools not in sys.path:
+        sys.path.append(tools)
+    try:
+        import batch
+    finally:
+        sys.path[:] = path  # the node's own imports find what they found before
+    batch.stacks_on_ask()
+
+
 def watch_runner(runner_pid, every=None):
     """In a node's process: once its runner (`runner_pid`, its parent) is gone, SIGTERM to the runner's whole process
     group when the runner led one (`score run`: each batch in it deletes its machines). A runner that led no group (any
@@ -2155,7 +2169,8 @@ class Runner:
         """In the node's own process: drive it, its thread pools capped at `threads`, send back what it did and end
         the process at once: a thread its make left running (a library's pool, a read that never returns) would
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
-        death ends it (watch_runner)."""
+        death ends it (watch_runner). A SIGUSR1 writes its stacks to its own file (stacks_on_ask)."""
+        stacks_on_ask()
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
         high = [0, False]  # the most this node's process tree held, and whether it ran a container client
         threading.Thread(target=watch_memory, args=(high,), daemon=True).start()
