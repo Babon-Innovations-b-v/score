@@ -220,7 +220,7 @@ def step_memory(home):
     runner = graph.Runner((held,), dry_world(), Store.in_folder(home / "memory-store"), model_record=lambda kind: {})
     kept, floor, said, started = (graph.AVAILABLE, graph.MEMORY_POLL), os.environ.get(graph.FLOOR_VARIABLE), [], []
     start = runner.start
-    runner.start = lambda stage, place, threads: started.append(time.time()) or start(stage, place, threads)
+    runner.start = lambda *node: started.append(time.time()) or start(*node)
     os.environ[graph.FLOOR_VARIABLE] = "4"
     graph.AVAILABLE, graph.MEMORY_POLL = lambda: 10 * 2**30, 0.2
     try:

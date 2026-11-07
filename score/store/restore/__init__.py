@@ -166,10 +166,10 @@ class FreeRunner(graph.Runner):
             self.notes.add(graph.node_name(stage, place), free_only=str(refused))
             raise graph.Blocked(f"{HEAVY_REFUSED} ({refused})") from refused
 
-    def run_node(self, stage, place):
+    def run_node(self, stage, place, given=None):
         """run_node, a node that reached Blender or a paid point blocked as unknown with nothing written for it."""
         try:
-            return super().run_node(stage, place)
+            return super().run_node(stage, place, given)
         except ledger.FreeOnly as refused:
             self.notes.add(graph.node_name(stage, place), free_only=str(refused))
             return f"blocked: {HEAVY_REFUSED} ({refused})"
