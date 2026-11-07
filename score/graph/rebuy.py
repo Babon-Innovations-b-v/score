@@ -198,6 +198,8 @@ def buys(runner, nodes):
     found, remade = [], {}  # remade: {node made first: True when its output may change}
     rank = {node_name(stage, place): number for number, (stage, place) in enumerate(nodes)}
     with runner.still(), kept_for_now(runner):
+        for ahead in {getattr(stage.files, "ahead", None) for stage, _ in nodes} - {None}:
+            ahead(runner, nodes)  # the table's remakes made side by side first (stages.remakes_ahead), read in order
         for stage, place in read_first(runner, nodes):
             node = node_name(stage, place)
             pending = [name for name in (node_name(*before) for before in runner.read_nodes(stage, place, every=True))
