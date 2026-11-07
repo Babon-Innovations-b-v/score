@@ -52,6 +52,7 @@ BUCKET_VARIABLE = "SCORE_POD_BUCKET"  # in the pod: a bucket spec file (the moun
 LOCK_VARIABLE = "SCORE_UV_LOCK"  # set by the runner image: the sha256 of the uv.lock its venv was synced from
 IMAGE_VARIABLE = "SCORE_POD_IMAGE"  # set by the worker: the image digest the pod runs, for the record
 NOT_PROVEN = "pod output not proven"
+FETCHES = 16  # input blobs fetched at once (one at a time a pod fetched about 15 MB/s, rehearsal 2026-11-07)
 
 
 class Undeclared(LookupError):
@@ -241,9 +242,27 @@ def cached_blob(cache, sha):
     return found
 
 
+def wanted_blobs(store, job):
+    """The sha256s of the input blobs and declared files the sandbox does not hold yet, once each."""
+    listed = {sha for listing in job["listings"].values() for sha in listing.values()
+              if not (store.objects.root / offload.blob_key(sha)).exists()}
+    declared = {sha for declared in job["files"].values() for relative, sha in declared["listing"].items()
+                if not (pathlib.Path(declared["path"]) / relative if declared["folder"]
+                        else pathlib.Path(declared["path"])).exists()}
+    return sorted(listed | declared)
+
+
+def prefetched(cache, shas):
+    """Each blob into the node's cache from the bucket, FETCHES at once (cached_blob; its first failure raised)."""
+    with concurrent.futures.ThreadPoolExecutor(FETCHES) as pool:
+        for _ in pool.map(lambda sha: cached_blob(cache, sha), shas):
+            pass
+
+
 def placed_inputs(store, job, cache):
-    """Each input's listing and blobs into the sandbox store (blobs hard-linked from the cache), each declared file
-    that is not at its path already put there; the store keys the job names."""
+    """Each input's listing and blobs into the sandbox store (blobs hard-linked from the cache, fetched side by side
+    first), each declared file that is not at its path already put there; the store keys the job names."""
+    prefetched(cache, wanted_blobs(store, job))
     allowed = set()
     for listing in job["listings"].values():
         key = f"outputs/{listing_hash(listing)}.json"
