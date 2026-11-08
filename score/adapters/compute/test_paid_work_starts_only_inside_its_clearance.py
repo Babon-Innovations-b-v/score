@@ -11,7 +11,7 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - measured high: run_forecast's measured euros take `run["euros"]` (the median) for `run["high_euros"]`.
 - rent point outside a run: require_cleared's `if found[-1] is None:` becomes `if False:`.
 - override's balance: override_refusal leaves out GRANT_BUFFER; or override_spent counts no open machine; or
-  tools/cloud/ledger.py batch_cap returns BATCH_EUROS under an override.
+  tools/cloud/ledger.py batch_cap returns BATCH_EUROS under an override, or holds an override's room to BATCH_EUROS.
 - judge timeout: judge_timeout ignores SCORE_JUDGE_TIMEOUT.
 - priced on measured runs: run_price's likely euros take `run["high_euros"]`.
 - per unit counted: per_unit drops `or stage in entry["also"]`.
@@ -228,7 +228,8 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monke
     (labval-motor-20261106, 2026-11-06): an override's euros were never held against what was booked under it, so
     a run with EUR 2.47 left could spend EUR 5; now a run under one clears only while what its lines booked (its
     open machines to their deadlines) and the run's high plus 10% fit, and a batch under it may spend only what is
-    left less 10% (ledger.batch_cap, the machines' deadline and the cluster's stop)."""
+    left less 10% (ledger.batch_cap, the machines' deadline and the cluster's stop), past the EUR 60 batch cap too
+    (#98: MOTOR's 720-trial validation is one run)."""
     month_spent(0)
     runner = a_runner("a hall")
     os.environ.pop(compute.TICKET, None)
@@ -264,6 +265,9 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monke
     with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
         assert "EUR 0.00 left" in refused(lambda: compute.require_cleared("a batch", runner.store))
         assert BOOKS.minutes_allowed(0.01) == 0.0
+    runner.store.write_spend_yes(compute.OVERRIDE, "whole-validation", {"euros": 330.0, "at": graph.now()})
+    with compute.spending({"node": compute.OVERRIDE, "key": "whole-validation"}):  # one run past the EUR 60 cap
+        assert round(BOOKS.batch_cap()[0], 4) == 300.0
     assert BOOKS.batch_cap()[0] == BOOKS.BATCH_EUROS  # outside an override the batch cap stands
 
 
