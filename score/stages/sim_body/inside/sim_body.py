@@ -191,7 +191,8 @@ def fitted_person(job, person, rig, worlds, path):
     angles = clip_angles(fitting, rig, person["segments"], worlds, clip)
     motion = None
     if job.get("motor"):
-        angles, record["motor"], motion = motor.solved(fitting, *clip, angles, job["rate"])
+        angles, record["motor"], motion = motor.solved(fitting, *clip, angles, job["rate"],
+                                                       job.get("motor landmarks"))
     record = followed_record(record, fitting, angles, worlds, person["segments"], scales, rig)
     return record, scales, fitting.model, angles, motion
 
@@ -274,7 +275,7 @@ def run_person(job, person, out_path):
         side_points = [int(np.isin(skin.owners, side).sum()) for side in sides]
         angles, record["motor"]["dynamics"] = motor.dynamics_solved(
             motion, physics, own, max(1, int(np.mean(side_points))), sides,
-            (job["residual"]["force"], job["residual"]["moment"]), standing)
+            (job["residual"]["force"], job["residual"]["moment"]), standing, job.get("motor settings"))
         qpath = np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)])
         fitted_poses = posed_path(model, qpath, segments, bodies, riding)
         seconds["MOTOR stage A"] = time.perf_counter() - since

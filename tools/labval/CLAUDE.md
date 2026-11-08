@@ -50,6 +50,10 @@ SOMA body npz, and MoGe-2's point maps of each video.
   it found; EMG is optional per trial. The file layout under `subject<N>/` (`WHERE`) and the EMG and marker names
   (`_score.EMG_MUSCLES`, `MARKERS`) are read from the dataset's documentation, not yet checked against the download:
   the first real run says, and a miss raises rather than scoring the wrong channel.
+- **MOTOR's tuning** (`motor_tune.py`, #98 step 3): one measure folder a variant of stage A's settings (a job's
+  "motor settings", "motor landmarks") from a source folder's trials, subjects 2-5 only (a held-out subject refused
+  unless `--held-out`, the report's run); `own` puts stage A's own contact force in as the pushes so `validate`
+  scores MOTOR's GRF against the plates; `weights` learns the landmarks' weights from the training solves' misses.
 - **The cluster path** (`cluster.py`, SCORE_CLOUD=k8s): a measure folder's trials in jobs of `--per-job` each, in the
   newton image, the model sent once for the run, every trial run on its own (a failure in its run.log, the next trial
   still run) and its folder brought back whole.

@@ -27,7 +27,13 @@ from contact import Chains, on_ground_all
 from model import TO_OWN, carried
 from motor import _spline
 
-# The contact's settings, physical, untuned until MOTOR step 3 (subjects 2-5 against the plates):
+# The contact's settings, physical; MOTOR step 3 tuned them on subjects 2-5 against the plates (`Settings`, a job's
+# "motor settings"; tools/labval/motor_tune.py), 2026-11-08: nine variants on 8 training trials, settled, stage A's
+# own contact scored; 2e6 to 2e7 N/m, 0.01 to 0.5 m/s, friction 0.4 to 1.0 and effort 0.01 to 1 tried. Only these
+# first values and one other (2e6, 0.2 m/s, 1.0, effort 0.01) held the residual on every frame of all 8 (the
+# sit-to-stand on 98% and 99.5%), and these score the plates better (vertical + anterior MAE 30.7 against 32.7
+# %BW). 2e7 N/m, 0.2 m/s, friction 0.6 and effort 0.01 scored 27.8 (anterior 9.6 -> 6.2, joint moments 1.81 -> 1.66
+# %BW*ht) but held the sit-to-stand's residual on 1% of its frames (its worst 47 %BW): not taken.
 # N/m: a whole foot's, spread over its skin points: OpenCap's six contact spheres a foot at 1e6 N/m each (Falisse et
 # al. 2019). 2e5 (a heel pad's own, Aerts et al. 1995) spread so gave a stance foot under 1 N a point at the warm start:
 # the pelvis' residual stood at 93-103 %BW on LabValidation's walks (2026-11-08)
@@ -38,6 +44,37 @@ DISSIPATION = 2.0  # s/m: Hunt-Crossley's (OpenCap's contact spheres', Falisse e
 DISSIPATION_SMOOTH = 0.05  # the damping factor (1 - c v) softplus width: a fast lift-off pushes nothing, never pulls
 FRICTION = 0.8  # OpenCap's contact spheres' static and dynamic friction
 SLIP_SMOOTH = 0.05  # m/s: the smoothed Coulomb's transition speed (|f_t| = mu f_n v / sqrt(v^2 + SLIP_SMOOTH^2))
+EFFORT_SHARE = 0.1  # the joints' effort against the fit's cost at the warm start (`_stage_a`)
+
+
+class Settings:
+    """The contact's physical settings and the solve's effort share (MOTOR step 3's tuned ones): `of(mapping)` takes
+    a job's "motor settings" over these defaults and refuses a name it does not know."""
+    NAMES = ("foot_stiffness", "smooth", "band", "dissipation", "dissipation_smooth", "friction", "slip_smooth",
+             "effort_share")
+
+    def __init__(self, foot_stiffness=FOOT_STIFFNESS, smooth=SMOOTH, band=BAND, dissipation=DISSIPATION,
+                 dissipation_smooth=DISSIPATION_SMOOTH, friction=FRICTION, slip_smooth=SLIP_SMOOTH,
+                 effort_share=EFFORT_SHARE):
+        self.foot_stiffness, self.smooth, self.band = float(foot_stiffness), float(smooth), float(band)
+        self.dissipation, self.dissipation_smooth = float(dissipation), float(dissipation_smooth)
+        self.friction, self.slip_smooth, self.effort_share = float(friction), float(slip_smooth), float(effort_share)
+
+    @classmethod
+    def of(cls, mapping):
+        """The settings of a job's "motor settings" (None: the defaults), refused on a name not in NAMES."""
+        mapping = dict(mapping or {})
+        unknown = sorted(set(mapping) - set(cls.NAMES))
+        if unknown:
+            raise ValueError(f"motor settings {unknown}: not among {list(cls.NAMES)}")
+        return cls(**mapping)
+
+    def record(self):
+        """The settings as the record keeps them."""
+        return {name: getattr(self, name) for name in self.NAMES}
+
+
+DEFAULT = Settings()
 PLACE_STEP = 1e-3  # m, rad: the card's float32 allows (`rra._linear.CARD_STEPS`)
 SHIFT = 0.25  # of the step: the poses either side a node's speed and acceleration are read off
 
@@ -55,26 +92,79 @@ def sigmoid(values):
                     / (1.0 + np.exp(-np.abs(values))))
 
 
-def push(over, speed, up, stiffness):
+def push(over, speed, up, stiffness, settings=DEFAULT):
     """Each point's force (points x 3, MuJoCo's frame), its derivative on the point's height (points x 3) and on its
     speed (points x 3 x 3): `over` its height over its floor (m), `speed` its velocity, `up` its floor's normal."""
-    deep = softplus(-over, SMOOTH)
-    deep_over = -sigmoid(-over / SMOOTH)
+    smooth, dissipation, friction = settings.smooth, settings.dissipation, settings.friction
+    deep = softplus(-over, smooth)
+    deep_over = -sigmoid(-over / smooth)
     along = np.einsum("pi,pi->p", speed, up)
-    damping = softplus(1.0 - DISSIPATION * along, DISSIPATION_SMOOTH)
-    damping_along = -DISSIPATION * sigmoid((1.0 - DISSIPATION * along) / DISSIPATION_SMOOTH)
+    damping = softplus(1.0 - dissipation * along, settings.dissipation_smooth)
+    damping_along = -dissipation * sigmoid((1.0 - dissipation * along) / settings.dissipation_smooth)
     normal = stiffness * deep * damping
     slip = speed - along[:, None] * up
-    length = np.sqrt(np.einsum("pi,pi->p", slip, slip) + SLIP_SMOOTH ** 2)
+    length = np.sqrt(np.einsum("pi,pi->p", slip, slip) + settings.slip_smooth ** 2)
     sliding = slip / length[:, None]
-    force = normal[:, None] * (up - FRICTION * sliding)
-    by_over = (stiffness * deep_over * damping)[:, None] * (up - FRICTION * sliding)
+    force = normal[:, None] * (up - friction * sliding)
+    by_over = (stiffness * deep_over * damping)[:, None] * (up - friction * sliding)
     normal_speed = (stiffness * deep * damping_along)[:, None] * up  # d normal / d speed
     flat = np.eye(3)[None] - np.einsum("pi,pj->pij", up, up)
     turning = (np.eye(3)[None] / length[:, None, None] - np.einsum("pi,pj->pij", slip, slip) / length[:, None, None] ** 3)
-    by_speed = (np.einsum("pi,pj->pij", up - FRICTION * sliding, normal_speed)
-                - FRICTION * normal[:, None, None] * turning @ flat)
+    by_speed = (np.einsum("pi,pj->pij", up - friction * sliding, normal_speed)
+                - friction * normal[:, None, None] * turning @ flat)
     return force, by_over, by_speed
+
+
+class Coupled:
+    """A model's couplings (`model.Couplings`) on many poses at once: `applied` its `apply` and `maps` its `map`, row
+    by row the same arithmetic in the same order (so the same numbers), as array operations over the rows."""
+
+    def __init__(self, couplings):
+        self.couplings, model = couplings, couplings.model
+        self.leads = couplings.leads
+        column = {dof: index for index, dof in enumerate(self.leads)}
+        self.followers = [(int(model.jnt_qposadr[joint]), int(model.jnt_dofadr[joint]),
+                           int(model.jnt_qposadr[leader]) if leader >= 0 else -1,
+                           column.get(int(model.jnt_dofadr[leader])) if leader >= 0 else None, poly)
+                          for joint, leader, poly in couplings.followers]
+
+    def applied(self, qpos):
+        """Poses [K, nq] with every follower set from its leader (a copy)."""
+        qpos, rest = np.array(qpos, dtype=float), self.couplings.model.qpos0
+        for at, _, lead_at, _, poly in self.followers:
+            moved = qpos[:, lead_at] - rest[lead_at] if lead_at >= 0 else 0.0
+            qpos[:, at] = rest[at] + sum(poly[power] * moved ** power for power in range(5))
+        return qpos
+
+    def maps(self, qpos):
+        """d(every dof) / d(leading dof) at poses [K, nq] ([K, nv, leads])."""
+        model, rest = self.couplings.model, self.couplings.model.qpos0
+        found = np.zeros((len(qpos), model.nv, len(self.leads)))
+        found[:, self.leads, np.arange(len(self.leads))] = 1.0
+        for _, dof, lead_at, lead_column, poly in self.followers:
+            if lead_at < 0:
+                continue
+            moved = qpos[:, lead_at] - rest[lead_at]
+            found[:, dof, lead_column] = sum(power * poly[power] * moved ** (power - 1) for power in range(1, 5))
+        return found
+
+
+def integrated(model, qpos, moves):
+    """Poses [K, nq] each moved by its dof vector [K, nv] as MuJoCo's `mj_integratePos` (scale 1): a free joint's
+    place by its first three, its turn and a ball's by the body-frame rotation vector (q exp(w)), a hinge or slide by
+    its one."""
+    qpos = np.array(qpos, dtype=float)
+    for joint in range(model.njnt):
+        kind, at, dof = int(model.jnt_type[joint]), int(model.jnt_qposadr[joint]), int(model.jnt_dofadr[joint])
+        if kind in (int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE)):
+            qpos[:, at] += moves[:, dof]
+            continue
+        if kind == int(mujoco.mjtJoint.mjJNT_FREE):
+            qpos[:, at:at + 3] += moves[:, dof:dof + 3]
+            at, dof = at + 3, dof + 3
+        turns = Rotation.from_quat(qpos[:, at:at + 4][:, [1, 2, 3, 0]]) * Rotation.from_rotvec(moves[:, dof:dof + 3])
+        qpos[:, at:at + 4] = turns.as_quat()[:, [3, 0, 1, 2]]
+    return qpos
 
 
 class Path:
@@ -84,6 +174,7 @@ class Path:
 
     def __init__(self, layout, source, physics, step):
         self.layout, self.model, self.couplings, self.step = layout, physics.model, physics.couplings, step
+        self.coupled = Coupled(physics.couplings)
         self.index = carried(source, self.model, np.arange(source.nq, dtype=float)[None])[0].astype(int)
         if list(self.index[:7]) != list(range(7)):
             raise ValueError(f"the two models' roots are not their first seven coordinates: {self.index[:7]}")
@@ -111,7 +202,7 @@ class Path:
         moved = Rotation.from_rotvec(shift * self.spin + 0.5 * shift ** 2 * self.swing)
         turns = self.layout.reference * moved * Rotation.from_rotvec(values[:, self.layout.root[3:]])
         source[:, 3:7] = turns.as_quat()[:, [3, 0, 1, 2]]
-        return np.array([self.couplings.apply(qpos) for qpos in source[:, self.index]])
+        return self.coupled.applied(source[:, self.index])
 
     def states(self, control):
         """Every node's (qpos, qvel, qacc), the physics model's, of control points `control`."""
@@ -131,10 +222,9 @@ class Path:
         """Each node's d(the physics model's dofs) / d(the unknowns) [N, nv, m]: a joint's its lead's column of the
         couplings' map, the root's place the world's, its rotation vector's through SO(3)'s right Jacobian."""
         from motor import right_jacobian
-        found = np.zeros((len(qpos), self.model.nv, len(self.dofs)))
+        found = self.coupled.maps(qpos)[:, :, self.leads]
         root = self.layout.root
-        for frame, pose in enumerate(qpos):
-            found[frame] = self.couplings.map(pose)[:, self.leads]
+        for frame in range(len(qpos)):
             found[frame, :6, root] = 0.0
             found[frame, :3, root[:3]] = np.eye(3)
             found[frame, 3:6, root[3:]] = right_jacobian(values[frame, root[3:]])
@@ -142,29 +232,54 @@ class Path:
 
 
 class Contact:
-    """The smooth contact of a person's skin on its ground: `stiffness` a point's (FOOT_STIFFNESS over a foot's
-    points), `chains` the bodies' dofs (`contact.Chains`)."""
+    """The smooth contact of a person's skin on its ground: `stiffness` a point's (the settings' foot stiffness over
+    a foot's points), `chains` the bodies' dofs (`contact.Chains`), `sunk` each state's each point's floor lowered
+    (m, states x points; `settle`)."""
 
-    def __init__(self, physics, foot_points):
-        self.physics, self.chains = physics, Chains(physics.model)
-        self.stiffness = FOOT_STIFFNESS / foot_points
+    def __init__(self, physics, foot_points, settings=DEFAULT):
+        self.physics, self.chains, self.settings = physics, Chains(physics.model), settings
+        self.stiffness = settings.foot_stiffness / foot_points
         self.up = TO_OWN.T @ np.array([0.0, 1.0, 0.0])
+        self.sunk = None
+
+    def heights(self, found):
+        """Every state's every point's height over its floor (states x points; inf where it has none), the stance
+        credit and `sunk` taken off, and on_ground_all's pieces."""
+        physics = self.physics
+        count = len(found["qvel"])
+        pieces = on_ground_all(physics.model, found, physics.ground, physics.skin)
+        own, heights = pieces[5], pieces[6]
+        over = own[:, :, 1] - np.nan_to_num(heights, nan=np.inf) - physics.skin.credit_of(count)
+        return over - (0.0 if self.sunk is None else self.sunk), pieces
+
+    def settle(self, found):
+        """`sunk` from the warm start's states (`found`): on each state, a body whose lowest skin point sits under its
+        floor has its points' floor lowered by that depth, so no body starts inside its ground (a seat or a box laid
+        at a known height under a skin the video sat lower: subject5_STS1's warm start pushed 25 times its weight
+        from the seat, 2026-11-08); the stance credit lays the feet so already."""
+        self.sunk = None
+        over = self.heights(found)[0]
+        owners = self.physics.skin.owners
+        sunk = np.zeros_like(over)
+        for body in np.unique(owners):
+            mine = owners == body
+            lowest = np.min(np.where(np.isfinite(over[:, mine]), over[:, mine], np.inf), axis=1)
+            sunk[:, mine] = np.minimum(lowest, 0.0)[:, None]
+        self.sunk = sunk
 
     def pushed(self, found):
         """Every state's touching points (`found`: the card's xpos, xmat, cdof, subtree_com and qvel a state): a list
         a state of (force [p, 3], d force / d height [p, 3], d force / d speed [p, 3, 3], Jacobians [p, 3, nv], their
         floors' normals [p, 3], the points' indices in the skin [p]), MuJoCo's frame."""
         physics, model = self.physics, self.physics.model
-        skin, count = physics.skin, len(found["qvel"])
-        points, _, shares, bodies, carried_at, own, heights, triangles = on_ground_all(model, found, physics.ground,
-                                                                                         skin)
+        count = len(found["qvel"])
+        over_all, (points, _, shares, bodies, carried_at, _, _, triangles) = self.heights(found)
         cdof = found["cdof"].reshape(count, model.nv, 6)
         com = found["subtree_com"].reshape(count, -1, 3)
-        credit = skin.credit_of(count)
         touching_all = []
         for state in range(count):
-            over = own[state, :, 1] - np.nan_to_num(heights[state], nan=np.inf) - credit[state]
-            near = np.flatnonzero(over <= BAND)
+            over = over_all[state]
+            near = np.flatnonzero(over <= self.settings.band)
             pairs = np.flatnonzero(np.isin(points, near))
             at = carried_at[state, pairs] @ TO_OWN
             offset = at - com[state, self.chains.roots[bodies[pairs]]]
@@ -175,7 +290,7 @@ class Contact:
             np.add.at(jacobians, local, shares[pairs, None, None] * np.swapaxes(motion, 1, 2))
             ups = physics.up[triangles[state, near]] @ TO_OWN
             speed = jacobians @ found["qvel"][state]
-            force, by_over, by_speed = push(over[near], speed, ups, self.stiffness)
+            force, by_over, by_speed = push(over[near], speed, ups, self.stiffness, self.settings)
             touching_all.append((force, by_over, by_speed, jacobians, ups, near))
         return touching_all
 
@@ -199,8 +314,7 @@ class Dynamics:
         touching = self.contact.pushed(found)
         given = np.array([np.einsum("pin,pi->n", jacobians, force)
                           for force, _, _, jacobians, _, _ in touching])
-        torques = np.array([self.path.couplings.map(pose).T @ (needed - pushed)
-                            for pose, needed, pushed in zip(qpos, found["needed"], given)])
+        torques = np.einsum("knl,kn->kl", self.path.coupled.maps(qpos), found["needed"] - given)
         torques[:, :6] /= self.scale
         torques[:, 6:] /= self.weight * self.height
         return torques, touching, (qpos, qvel, qacc), found
@@ -212,10 +326,8 @@ class Dynamics:
         values = _spline.nodes(control)
         tangents = path.tangents(values, qpos)
         count, unknowns = len(qpos), tangents.shape[2]
-        nudged = np.repeat(qpos[:, None], unknowns, axis=1).reshape(-1, model.nq)
-        for row, (frame, column) in enumerate(np.ndindex(count, unknowns)):
-            mujoco.mj_integratePos(model, nudged[row], PLACE_STEP * tangents[frame, :, column], 1.0)
-            path.couplings.apply(nudged[row])
+        nudged = path.coupled.applied(integrated(model, np.repeat(qpos, unknowns, axis=0),
+                                                 PLACE_STEP * np.swapaxes(tangents, 1, 2).reshape(-1, model.nv)))
         moved = physics.card.evaluate(nudged, np.repeat(qvel, unknowns, axis=0), np.repeat(qacc, unknowns, axis=0),
                                       ())["needed"].reshape(count, unknowns, model.nv)
         by_place = np.swapaxes(moved - found["needed"][:, None], 1, 2) / PLACE_STEP  # N x nv x m
@@ -234,8 +346,8 @@ class Dynamics:
             by_place[frame] -= stacked.T @ (by_over[:, :, None] * rises[:, None, :]).reshape(-1, unknowns)
             by_speed[frame] -= stacked.T @ np.matmul(by_point_speed, moving).reshape(-1, unknowns)
         scale = np.concatenate([self.scale, np.full(model.nv, self.weight * self.height)])
-        mapped = [np.array([path.couplings.map(pose).T @ kind[frame] for frame, pose in enumerate(qpos)])
-                  for kind in (by_place, by_speed, by_pace)]
+        maps = path.coupled.maps(qpos)
+        mapped = [np.einsum("knl,knm->klm", maps, kind) for kind in (by_place, by_speed, by_pace)]
         leads = mapped[0].shape[1]
         return [kind / scale[:leads][None, :, None] for kind in mapped]
 

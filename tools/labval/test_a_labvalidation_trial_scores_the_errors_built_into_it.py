@@ -12,7 +12,8 @@ bind on the template's frames and the float of 0.3 m taken off; the measure fold
 yet done; a floor MoGe-2 sees 5 degrees off GEM-X's level is found so and levelled onto the world's up; a run's
 generalized forces 1 %BW*ht over a reference ID score MAE 1 on all 19 coordinates, and the moments' peaks give their
 worked answers; a drop jump's box and a sit-to-stand's seat lie under what rests on them and clear of the feet on the
-floor, and the box's push is no plate's. Synthetic inputs only: no number here is a result.
+floor, and the box's push is no plate's; MOTOR's tuning folders carry their settings, refuse a held-out subject and
+learn the landmarks' weights as B3D's EM step. Synthetic inputs only: no number here is a result.
 
 Breaks, each applied once, seen red, reverted (2026-11-06):
 - _score.shift's `times + shift` made `times - shift`: the shift comes out -0.0123 s, the legs' MAE far over 2.
@@ -58,6 +59,10 @@ Breaks, each applied once, seen red, reverted (2026-11-07, the forces as OpenCap
 - _grf.directions' `np.cross(forward, up)` made `np.cross(up, forward)`: forward x reads to the subject's left.
 - _grf.cutoff_of's Nyquist hold dropped: a 30 Hz run's drop jump is filtered at 30 Hz.
 - _grf.stances' finite-neighbour check dropped: a stance begun before the plate's window counts as whole.
+
+Breaks, each applied once, seen red, reverted (2026-11-08, MOTOR step 3's tuning folders, #98):
+- motor_tune.made's held-out refusal dropped: subject7's trial is tuned on.
+- motor_tune.learned's `middle / max(value, 1e-12)` made `max(value, 1e-12) / middle`: the worst landmark weighs most.
 - _grf.stance_measures' centring dropped: the run's centre of pressure 0.3 m off the plate's reads 300 mm.
 - _grf.pooled_group's "r trials" made `len(trials)`: a foot the run never pushes counts as scored.
 - _grf.by_subject's finite filter dropped: a subject without a stance is drawn (squats' impulse CI came out nan).
@@ -884,10 +889,44 @@ def validate_faults(tmp):
     return faults
 
 
+def motor_tune_faults(tmp):
+    """MOTOR step 3's tuning folders: a variant's job carries its settings, a held-out subject is refused, and the
+    landmarks' learned weights are the median's over each one's pooled mean squared miss, inside WEIGHT_RANGE."""
+    from tools.labval import motor_tune
+    faults = []
+    for name in ("subject2_walking1_Cam1", "subject7_walking1_Cam1"):
+        trial = tmp / "source" / "trials" / name
+        trial.mkdir(parents=True)
+        for kept in ("targets.npz", "record.json"):
+            (trial / kept).write_text("x")
+        (trial / "job.json").write_text(json.dumps({"people": [{"targets": str(trial / "targets.npz")}]}))
+    try:
+        motor_tune.made(tmp / "source", tmp / "tuned", [("a", {"friction": 0.6})])
+        faults.append("a held-out subject's trial tuned on")
+    except SystemExit:
+        pass
+    (tmp / "source/trials/subject7_walking1_Cam1/job.json").unlink()
+    folder, = motor_tune.made(tmp / "source", tmp / "tuned", [("a", {"friction": 0.6})])
+    job = json.loads((folder / "trials/subject2_walking1_Cam1/job.json").read_text())
+    if (job.get("motor"), job.get("motor settings")) != ("dynamics", {"friction": 0.6}) or not job["people"][0][
+            "targets"].startswith(str(folder.resolve())):
+        faults.append(f"the variant's job {job}")
+    misses = [{"a": 1.0, "b": 2.0, "c": 4.0, "d": 100.0}, {"a": 1.0, "b": 2.0, "c": 4.0, "d": 100.0}]
+    for index, miss in enumerate(misses):
+        trial = tmp / "runs" / "trials" / f"subject{3 + index}_squats1_Cam1"
+        trial.mkdir(parents=True)
+        (trial / "out.json").write_text(json.dumps({"people": {"p": {"model": {"motor": {"dynamics": {
+            "landmark errors mm": miss}}}}}}))
+    weights = motor_tune.learned([tmp / "runs"])
+    if weights != {"a": 5.0, "b": 2.5, "c": 0.625, "d": 0.2}:
+        faults.append(f"the landmarks' learned weights {weights}")
+    return faults
+
+
 def test_a_labvalidation_trial_scores_the_errors_built_into_it(tmp_path):
     faults = [*scoring_faults(tmp_path / "scoring"), *hand_faults(), *loader_faults(tmp_path / "loaders"),
               *grf_faults(), *soma_faults(), *go_faults(tmp_path / "go"), *unseen_faults(),
               *cluster_faults(tmp_path / "cluster"), *path_name_faults(), *floor_faults(),
               *moment_faults(tmp_path / "moments"), *validate_faults(tmp_path / "validate"),
-              *neutral_faults(tmp_path / "neutral")]
+              *neutral_faults(tmp_path / "neutral"), *motor_tune_faults(tmp_path / "motor_tune")]
     assert not faults, faults

@@ -10,26 +10,28 @@ the dynamics' Jacobians taken again only at a kept step (a refused one costs the
 
 The penalty starts where a frame whose residual force stands at its limit weighs what a frame's fit costs at the warm
 start (started where the warm start's whole residual weighed the fit's, a 100 %BW residual left it at 1e-2 and six
-rounds ended 34 times over the limit, 2026-11-08), and the effort at EFFORT_SHARE of the fit's cost: scales, not weights fitted to anything (step 3 tunes the weights on subjects 2-5, against the
-plates and EMG; never against the lab's angles)."""
+rounds ended 34 times over the limit, 2026-11-08), and the effort at the settings' effort share of the fit's cost:
+scales, not weights fitted to anything (step 3 tunes the share and the contact's settings, `_dynamics.Settings`, on
+subjects 2-5 against the plates; never against the lab's angles). Before the first round the contact is settled at
+the warm start (`Contact.settle`): no body starts inside its ground."""
 import time
 
 import numpy as np
 
-from motor import _spline
-from motor._dynamics import Contact, Dynamics, Path, ground_forces
+from motor import _spline, landmark_errors
+from motor._dynamics import DEFAULT, Contact, Dynamics, Path, ground_forces
 
 OUTER_MOST = 8  # augmented Lagrangian rounds
 INNER_MOST = 12  # Levenberg-Marquardt rounds tried a round
 PENALTY_RAISE = 10.0
 PROGRESS = 0.25  # the worst frame's residual share a round must fall to, else the penalty is raised
-EFFORT_SHARE = 0.1  # the joints' effort against the fit's cost at the warm start
 DAMPING_FIRST, DAMPING_RAISE, DAMPING_MOST = 1e-4, 10.0, 1e6
 RELATIVE_DONE = 1e-6
 METHOD = ("MOTOR step 2 (#98), stage A: step 1's whole-trial spline solve with every node's inverse dynamics on the "
           "card (MuJoCo Warp), a smooth Hunt-Crossley contact with smoothed Coulomb friction of the skin on the seen "
-          "floor (OpenCap's dissipation and friction; untuned), the pelvis' residual by an augmented Lagrangian to the "
-          "stage's limits and the joints' torques as an effort, Levenberg-Marquardt on the banded normal equations")
+          "floor settled at the warm start (its settings as MOTOR step 3's tuning on subjects 2-5 kept them), the "
+          "pelvis' residual by an augmented Lagrangian to the stage's limits and the joints' torques as an effort, "
+          "Levenberg-Marquardt on the banded normal equations")
 
 
 class Weighed:
@@ -105,23 +107,24 @@ def residual_record(torques, limits):
     return measure
 
 
-def solved(motion, physics, source, foot_points, sides, limits, height):
+def solved(motion, physics, source, foot_points, sides, limits, height, settings=DEFAULT):
     """Stage A from step 1's `motion` ((its `motor.Problem`, its control points)): (every frame's angles [N, nq] in
     the fitting model's layout, the record). `physics` the person's (`muscles.Physics`, its skin credited), `source`
     the fitting model, `foot_points` a foot's skin points (the contact's spread), `sides` each side's foot bodies
     (the record's ground force each), `limits` the residual's (force over the weight, moment over weight x
-    `height`, the centre's standing height)."""
+    `height`, the centre's standing height), `settings` the contact's and the effort's (`_dynamics.Settings`)."""
     began = time.perf_counter()
     problem, control = motion
     model = physics.model
     weight = float(np.sum(model.body_mass) * np.linalg.norm(model.opt.gravity))
     path = Path(problem.layout, source, physics, problem.step)
-    dynamics = Dynamics(path, Contact(physics, foot_points), weight, height)
+    dynamics = Dynamics(path, Contact(physics, foot_points, settings), weight, height)
     costs = problem.measured(control)[0]
+    dynamics.contact.settle(dynamics.evaluated(control)[3])
     start = dynamics.evaluated(control)
     fitted = float(np.sum(costs))
     penalty = 2.0 * fitted / (len(costs) * limits[0] ** 2)
-    effort = EFFORT_SHARE * fitted / max(float(np.sum(start[0][:, 6:] ** 2)), 1e-12)
+    effort = settings.effort_share * fitted / max(float(np.sum(start[0][:, 6:] ** 2)), 1e-12)
     weighed = Weighed(dynamics, np.zeros((len(start[0]), 6)), penalty, effort)
     first = control
     rounds, worst_before = [], np.inf
@@ -149,6 +152,11 @@ def solved(motion, physics, source, foot_points, sides, limits, height):
               "off step 1 deg": round(float(np.degrees(np.sqrt(np.mean((values[:, joints] - before[:, joints]) ** 2)))),
                                       4),
               "ground force N": np.round(whole, 1).tolist(), "ground force by side N": np.round(each, 1).tolist(),
-              "settings": {"effort": float(f"{effort:.4g}"), "first penalty": float(f"{penalty:.4g}")},
+              "settings": {**settings.record(), "effort": float(f"{effort:.4g}"),
+                           "first penalty": float(f"{penalty:.4g}")},
+              "settled": {"frames": int(np.any(dynamics.contact.sunk < 0, axis=1).sum()),
+                          "deepest m": round(float(-dynamics.contact.sunk.min()), 4)},
               "seconds": round(time.perf_counter() - began, 2)}
-    return problem.rows.projected(problem.layout.poses(values)), record
+    qpos = problem.rows.projected(problem.layout.poses(values))
+    record["landmark errors mm"] = landmark_errors(problem.rows.clip, qpos, problem.points)
+    return qpos, record
