@@ -1326,7 +1326,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     its gate in a file of its own (K): its own file edited while that unchanged gate would fail it today keeps it (a
     gate not changed since the lock is not judged again: checkout 47, 2026-11-07, pixal and closeup bought again);
     K edited so the gate fails the locked output, or cannot tell (unknown), makes A again (2026-11-07, 796d7a76's paint
-    gate, hub's console: unknown on the paint made before it).
+    gate, hub's console: unknown on the paint made before it). Locked, then dropped from its phase (drop_from_phase):
+    its own file edited makes A again (2026-11-08: campgrounds' tower held by an old lock).
+    Break: score/graph/__init__.py: '        if any(node in lock.get("dropped", ()) and lock["at"] >= locks[-1]["at"] for lock in every):' -> '        if False:'
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
     Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if self.fails_today(stage, place, record):'
@@ -1340,7 +1342,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                                (12, "own file, phase locked", True), (13, "seeds, phase locked", False),
                                (14, "own file, gate fails, phase locked", True),
                                (15, "gate edited, phase locked", False),
-                               (16, "gate edited to unknown, phase locked", False)):
+                               (16, "gate edited to unknown, phase locked", False),
+                               (17, "own file, dropped, phase locked", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
@@ -1361,6 +1364,10 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 assert lock["nodes"] == {"narrow@hangar": {"output": old["output"], "key": old["key"],
                                                            "commit": old["commit"]}} and lock["n"] == 1, lock
                 change = change.removesuffix(", phase locked")
+            if change == "own file, dropped":  # taken out of its phase's locks since: a code change makes it again
+                dropped = a_runner(world, store, (stage,)).drop_from_phase("props", ["narrow@hangar"])
+                assert dropped["dropped"] == ["narrow@hangar"] and dropped["nodes"] == {} and dropped["n"] == 2
+                change = "own file"
             if change == "own file, gate fails":  # the gate's code as at the lock, failing the locked output today
                 (seeds / "rusted").write_text("rust")
                 change = "own file"

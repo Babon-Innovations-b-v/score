@@ -1889,6 +1889,22 @@ class Runner:
                                        {**judgement, "key": keyed["key"], "carried": new["carried"]})
         return new
 
+    def drop_from_phase(self, phase, nodes):
+        """Take `nodes` (names) out of one phase's locks from now on: a lock entry naming them `dropped`, written once
+        as the phase's next lock, so a node locked before is made again once its key moves (2026-11-08: campgrounds'
+        code-built communications tower, held by the models lock of 11-06, never got the builder fix 8dd109f8). The
+        runner's bookkeeping, as lock_phase; ValueError on a phase name that is no path part or no node named."""
+        if not PHASE_NAME.fullmatch(phase):
+            raise ValueError(f"{phase!r}: a phase is named by letters, digits, '.', '_' and '-'")
+        if not nodes:
+            raise ValueError(f"phase {phase}: name the nodes to drop")
+        prefix = f"{PHASE_LOCKS}{self.world.name}/{phase}/"
+        number = len(list(self.store.objects.keys(prefix))) + 1
+        lock = {"environment": self.world.name, "phase": phase, "n": number, "at": now(), "by": score_store.RUNNER,
+                "commit": _code.git_commit(), "nodes": {}, "dropped": sorted(nodes), "not standing": []}
+        self.store.write_once(f"{prefix}{number}.json", lock)
+        return lock
+
     def phase_locks(self):
         """Every phase lock of this run's environment (PHASE_LOCKS), oldest first."""
         prefix = f"{PHASE_LOCKS}{self.world.name}/"
@@ -1944,9 +1960,12 @@ class Runner:
         and closeup at 9 were listed to buy again). None otherwise (the runner then makes the node)."""
         node = node_name(stage, place)
         accepted = self.store.accepted(node)
-        locks = [lock for lock in self.phase_locks() if lock["nodes"].get(node, {}).get("output") == accepted]
+        every = self.phase_locks()
+        locks = [lock for lock in every if lock["nodes"].get(node, {}).get("output") == accepted]
         if accepted is None or not locks:
             return None
+        if any(node in lock.get("dropped", ()) and lock["at"] >= locks[-1]["at"] for lock in every):
+            return None  # dropped from its phase since that lock (drop_from_phase): the runner makes it
         record = self.store.record(node, locks[-1]["nodes"][node]["key"])
         if record is None or record["output"] != accepted:
             return None

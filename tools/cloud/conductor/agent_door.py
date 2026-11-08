@@ -346,10 +346,10 @@ def decide(words, latch):
         return ["-m", "score", "preflight", *args], {}
     if verb == "lock-phase":
         if len(args) < 2 or not PHASE.match(args[1]) or args[0].startswith("-") or \
-                any(flag != "--place" or not NODE.match(place) for flag, place in zip(args[2::2], args[3::2])) or \
-                len(args) % 2:
-            raise Refused("lock-phase <environment> <phase> [--place <place> ...]: a phase of the table, its stages "
-                          "standing accepted now locked")
+                any(flag not in ("--place", "--drop") or not NODE.match(place)
+                    for flag, place in zip(args[2::2], args[3::2])) or len(args) % 2:
+            raise Refused("lock-phase <environment> <phase> [--place <place> ...] [--drop <node> ...]: a phase of the "
+                          "table, its stages standing accepted now locked; --drop takes nodes out of its locks")
         return ["-m", "score", "lock-phase", *args], {}
     if verb == "resume":
         if args != ["--dry"]:
