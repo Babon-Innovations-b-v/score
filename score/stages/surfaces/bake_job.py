@@ -2,7 +2,7 @@
 files under the work folder went with the old disk, and every surface bake blocked on them).
 
     job_head(wear_dirt, specs)            the job's top-level fields: script, density, wear, dirt, seed, faces, specs
-    entry_of(model, inline, labelled)     one model's make_chunky entry
+    entry_of(model, inline, labelled)     one model's make_chunky entry, laid within its row (laid_size)
     measured_turn(labelled, size)         a design entry's turn, measured over its labelled take
     refusal(model, inline)                why entry_of stops on it whatever its labelled take, or None
 
@@ -94,12 +94,11 @@ def turned_size(labelled, size, base):
     return [round(float(side * scale), 3) for side in found]
 
 
-def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=False):
+def entry_of(model, inline, labelled, built=False, person=False):
     """One model's make_chunky entry: `inline` (the surface data's own), turned by measured_turn over `labelled` (its
-    labelled take) when it says no turn (module docstring), a person's by person_turn (his raw take's pose); `built`:
-    its take is a code build (code_built); `box`: its row's SAM 3 box on its concept (drawn_row), which a Pixal3D
-    take's width against its height follows (boxed); `kept`, `person`: the guard list's word on its row
-    (tumble.keeps_pose, tumble.person), which boxed follows."""
+    labelled take) when it says no turn (module docstring), a person's by person_turn (his raw take's pose), laid at
+    laid_size; `built`: its take is a code build (code_built); `person`: its row is a person (drawn_person), whose
+    width follows his take's own for his row's height (person_size)."""
     if isinstance(inline, str):
         raise NoEntry(f"no entry for {model}: the data names a job file ({inline}); write its entry out or drop it")
     if inline is None:
@@ -110,9 +109,9 @@ def entry_of(model, inline, labelled, built=False, box=None, kept=None, person=F
         raise NoTake(f"no entry for {model}: no labelled take to measure its turn over")
     base = person_turn(labelled) if person else \
         measured_turn(labelled, inline["size"], built or slender(inline["size"]))
-    size = inline["size"] if built else boxed(inline["size"], box, own_ratio(labelled, inline["size"], base), kept,
-                                              person)
-    return dict(inline, name=model, base=base, size=laid_size(labelled, size, base, built))
+    size = person_size(inline["size"], own_ratio(labelled, inline["size"], base)) if person and not built \
+        else inline["size"]
+    return dict(inline, name=model, base=base, size=laid_size(labelled, size, base, built, person))
 
 
 def own_ratio(labelled, size, base):
@@ -130,28 +129,12 @@ def person_turn(labelled):
     return [round(float(value), 6) for value in labels.finish_turn(labelled.name).T.reshape(-1)]
 
 
-def boxed(size, box, own, kept=None, person=False):
-    """A Pixal3D take's kit size (x wide, y tall, z deep): where its row's SAM 3 `box` ([left, top, right, bottom]
-    pixels) disagrees with the row's width over height by more than the model gate's SPREAD_LIMIT and its take's `own`
-    width over height agrees with the box within it (the picture and the model both against the row), its width at
-    the take's own ratio to its height; its height and depth, which a picture seen from above cannot show, as the row
-    says. A size wider than tall or deepest, no box, or one source alone against the row, as it is (owner, 2026-10-29,
-    "Yes, land the rule"). Of the 61 rows it changed with the height moving too, 22 were wrong against their pictures,
-    each a height grown from a top seen from above (galley's stove top 0.05 to 0.32 m, the hangar's crane 2 to 6 m,
-    old_station's modules taller than round); with only the width moving, 34 change, 5 of them wrong (3 doors widened
-    by their frames, base's square module, camp's computer tower), 2026-10-29. A row the guard list keeps (`kept`,
-    tumble.keeps_pose: hanging, lying, leaning, cable, ground debris) is left out, as it is; a person (`person`) keeps
-    its take's own width for the row's height, never squeezed to the row's width nor stretched to its box (a seated
-    pilot's box holds his chair: widened 0.5 to 1.205 m, his 6 degree lean read 14; an A-pose officer, his arms out,
-    squeezed into 0.5 m, 2026-10-29)."""
-    wide, tall, deep = (float(side) for side in size)
-    if person and own:
-        return [round(tall * own, 3), tall, deep]
-    if kept or not box or not own or box[2] <= box[0] or box[3] <= box[1]:
-        return size
-    drawn, said, limit = (box[2] - box[0]) / (box[3] - box[1]), wide / tall, model_gate().SPREAD_LIMIT
-    if deep > max(wide, tall) or wide > tall or off(drawn, said) <= limit or off(own, drawn) > limit:
-        return size
+def person_size(size, own):
+    """A person's kit size (x wide, y tall, z deep): his take's `own` width over height for his row's height and its
+    depth, never squeezed to the row's width nor stretched to his SAM 3 box (a seated pilot's box holds his chair:
+    widened 0.5 to 1.205 m, his 6 degree lean read 14; an A-pose officer, his arms out, squeezed into 0.5 m,
+    2026-10-29)."""
+    _, tall, deep = (float(side) for side in size)
     return [round(tall * own, 3), tall, deep]
 
 
@@ -162,7 +145,7 @@ def off(ratio, other):
 
 def drawn_row(take, inventories):
     """(the row whose prop object is `take`, its hand-in's rows) from the hand-ins (`inventories`, prepare's: its rows
-    and objects; the row holds its SAM 3 `box`), or (None, [])."""
+    and objects), or (None, [])."""
     for path in inventories:
         if not pathlib.Path(path).is_file():
             continue
@@ -174,16 +157,12 @@ def drawn_row(take, inventories):
     return None, []
 
 
-def drawn_guard(take, inventories, inputs):
-    """(its row's SAM 3 box, the guard list's word on its row, whether it is a person) for the take's row in the
-    hand-ins (drawn_row; tumble.keeps_pose and tumble.person over the pose rules among `inputs`): what boxed reads."""
+def drawn_person(take, inventories, inputs):
+    """Whether the take's row in the hand-ins (drawn_row) is a person (tumble.person), or its surface data makes the
+    take one (person_take): what entry_of lays at person_size."""
     import tumble
-    row, rows = drawn_row(take, inventories)
-    if tumble.person(row or {}) or person_take(take, inputs):
-        return (row or {}).get("box"), tumble.PERSON, True
-    if row is None:
-        return None, None, False
-    return row.get("box"), tumble.keeps_pose(row, tumble.rules_of(inputs), rows), False
+    row, _ = drawn_row(take, inventories)
+    return tumble.person(row or {}) or person_take(take, inputs)
 
 
 def person_take(take, inputs):
@@ -223,16 +202,50 @@ def model_gate():
     return gate
 
 
-def laid_size(labelled, size, base, built=False):
-    """A design entry's size in the kit frame: its row's, or for a slender row or a code build (`built`) its labelled
-    take's own proportions turned by `base`, scaled as one so its longest side is the row's (place_route.made_size): a
-    thin run's box is its thickness on its two short sides, so fitting a sagging string side by side to its 8 by 0.01
-    by 0.01 crushed its sag flat (2026-10-26); a code build's section is its picture's where its box's cannot show it,
-    so fitting airlock's locker lamp, built 0.046 m across, to its 0.4 by 0.1 by 0.1 row undid it (outline 0.813 built,
-    0.409 baked, 2026-10-29)."""
+def laid_size(labelled, size, base, built=False, person=False):
+    """A design entry's size in the kit frame (2026-11-08, #10: the plan wins on space, the model on shape): a
+    Pixal3D take at its labelled take's own proportions turned by `base`, scaled as one to the largest that fits
+    within its row's `size` (fitted_size), never stretched side by side to it: the bake stretched 264 of 386 takes more
+    than 20% off their own shape so, old_station's connecting tunnel (3 by 0.86 by 1.59 m) to its 3 by 1.5 by 1.5 m
+    row, its outline 0.70 as made and 0.466 stretched. A slender row or a code build (`built`) keeps its take's own
+    proportions with its longest side the row's (turned_size): a thin run's box is its thickness on its two short
+    sides, so fitting a sagging string side by side to its 8 by 0.01 by 0.01 crushed its sag flat (2026-10-26), and a
+    code build's section is its picture's where its box's cannot show it (airlock's locker lamp, built 0.046 m across,
+    fitted to its 0.4 by 0.1 by 0.1 row: outline 0.813 built, 0.409 baked, 2026-10-29). A `person` keeps `size`
+    (person_size: his own width for his row's height)."""
     if built or slender(size):
         return turned_size(labelled, size, base)
-    return size
+    if person:
+        return size
+    return fitted_size(labelled, size, base)
+
+
+def fitted_size(labelled, size, base):
+    """The labelled take's size in the kit frame laid by `base` (nine numbers, rows), scaled as one to the largest
+    that fits within `size` (fit_within)."""
+    return fit_within(np.ptp(take_points(labelled) @ np.array(base, float).reshape(3, 3).T, axis=0), size)
+
+
+def fit_within(found, size):
+    """`found` (a model's sides) scaled as one to the largest that fits within `size`, side for side."""
+    found = np.maximum(np.asarray(found, float), 1e-9)
+    scale = float(np.min(np.asarray(size, float) / found))
+    return [round(float(side * scale), 3) for side in found]
+
+
+def refitted(entries, written, labelled, built=False, person=False):
+    """`entries` with each Pixal3D model the bake's stand measured (its `stood`: route_bake.stood_square and
+    squared_again turn a tumbled take square) laid again within its row (its `written` entry's size) at its turn's
+    own proportions (fitted_size), so a take turned square is never stretched to the size its tumbled pose fitted; a
+    code build's (`built`), a person's (`person`), a slender row's and an entry written with its turn keep theirs."""
+    if built or person:
+        return entries
+    found = {}
+    for model, entry in entries.items():
+        row = written.get(model) if isinstance(written.get(model), dict) else {}
+        fits = "stood" in entry and "base" not in row and row.get("size") and not slender(row["size"])
+        found[model] = dict(entry, size=fitted_size(labelled, row["size"], entry["base"])) if fits else entry
+    return found
 
 
 def refusal(model, inline):

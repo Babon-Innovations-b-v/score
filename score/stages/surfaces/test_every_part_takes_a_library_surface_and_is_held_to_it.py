@@ -250,10 +250,9 @@ tests it turned red:
   an_entry_the_data_writes_out_is_taken_as_written_and_a_model_with_none_stops_the_bake
 - bake_job.py: `return TURNS[min(TURNS, key=misfit)]` -> `return TURNS[0]`  ->
   a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint
-- bake_job.py: `size = inline["size"] if built else boxed(...)` -> `size = inline["size"]` (no correction), `off(drawn,
-  said) <= limit or` dropped from boxed (a box within the row's spread corrects), or `or off(own, drawn) > limit`
-  dropped (the box alone corrects), or `wide > tall or` dropped (a stove top's height grown from above)  -> a_pixal3d_take_keeps_its_own_width_for_height_
-  only_where_its_box_and_take_both_disagree_with_its_row
+- bake_job.py: `return fitted_size(labelled, size, base)` -> `return size` (laid_size: stretched to its row), or
+  `np.min(` -> `np.max(` (fit_within: past its row), or refitted's `if fits else entry` -> `if False else entry`  ->
+  a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row
 - route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`, or tumble.py: `return f"its design lays it
   lying ({said})"` -> `return None`  -> a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose
 - bake_check.py: `and record["square"]["loose"] > tumble.LOOSE]` -> `and False]`  ->
@@ -3473,21 +3472,22 @@ def test_a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s(stand_
     """A code build (its take's code.json route "code") whose section is its picture's, not its box's: airlock's locker
     lamp built 0.046 m across for a 0.4 by 0.1 by 0.1 row (no slender row: its middle side a quarter of its longest).
     The bake lays it as one scale, its longest side the row's, never fitted side by side to the box (outline 0.813
-    built, 0.409 baked so, 2026-10-29); a Pixal3D take of the same row is still fitted to its box."""
+    built, 0.409 baked so, 2026-10-29); a Pixal3D take of the same row is laid within its box (laid_size), a build
+    0.15 m tall for its 0.1 m row shrunk as one to 0.267 by 0.1 by 0.031."""
     folder = a_folder()
     try:
         monkeypatch.setattr(place_line.prop_env, "PROPS_HOME", folder)
-        labelled = a_box_take(folder, "lamp-t1", (0.4, 0.046, 0.046))
+        labelled = a_box_take(folder, "lamp-t1", (0.4, 0.15, 0.046))
         design = {"size": [0.4, 0.1, 0.1], "faces": 5000, "foot": 0.0}
         surfaces = written(folder, "surfaces", {"place": "airlock", "library": "airlock", "bake": {
             "models": {"lamp_1": "lamp-t1"}, "entries": {"lamp_1": design}}})
         _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
-        assert entry["size"] == [0.4, 0.1, 0.1], entry  # a Pixal3D take: its row's box
+        assert entry["size"] == [0.267, 0.1, 0.031], entry  # a Pixal3D take: within its row's box
         mark = bake_job.code_mark("lamp-t1", folder)
         mark.parent.mkdir(parents=True)
         mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
         _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
-        assert entry["base"] == bake_job.TURNS[0] and entry["size"] == [0.4, 0.046, 0.046], entry
+        assert entry["base"] == bake_job.TURNS[0] and entry["size"] == [0.4, 0.15, 0.046], entry
     finally:
         shutil.rmtree(folder)
 
@@ -3512,48 +3512,59 @@ def test_a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_u
         shutil.rmtree(folder)
 
 
-def test_a_pixal3d_take_keeps_its_own_width_for_height_only_where_its_box_and_take_both_disagree_with_its_row(
-        stand_in_library):
-    """garage's stool: its row 0.4 by 0.4 by 0.5 m (0.8 wide for its height), its SAM 3 box 67 by 122 px (0.55), its
-    take 0.57 (a constructed case: the real take is laid on its side by its paint). Box off the row by more than the
-    model gate's spread and the take agreeing with the box within it, so the bake lays it at the take's
-    own width for its height, its height (the longer) and depth the row's (owner, 2026-10-29, "Yes, land the rule").
-    A box alone or a take alone against the row, or a size whose depth is its longest side, keeps the row."""
+def test_a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row(stand_in_library):
+    """2026-11-08 (#10: the plan wins on space, the model on shape): old_station's connecting tunnel, its take 3 by 0.86
+    by 1.59 m for its 3 by 1.5 by 1.5 m row, was stretched to the row side by side (outline 0.70 as made, 0.466
+    stretched). The bake lays a Pixal3D take at its own proportions scaled as one to the largest that fits within its
+    row: the tunnel 2.832 by 0.808 by 1.5, never past its row on any side, a hanging row (the guard list's) so too; a
+    take stood square by the bake (its `stood`, no `kept`) is laid again within its row at its new turn's proportions
+    (bake_job.refitted), one the stand kept, a code build's and a person's as they were.
+    Break: bake_job.py `laid_size`: `return fitted_size(labelled, size, base)` -> `return size` (stretched to its row)
+    Break: bake_job.py `fit_within`: `np.min(` -> `np.max(` (past its row)
+    Break: bake_job.py `refitted`: `if fits else entry` -> `if False else entry` (stretched to its tumbled fit)"""
     folder = a_folder()
     try:
-        def entry_for(take_extents, box):
-            labelled = folder / "labelled" / "stool-t1"
-            if labelled.exists():
-                shutil.rmtree(labelled)
-            a_box_take(folder, "stool-t1", take_extents)
-            handin = written(folder, "handin", {"rows": [{"id": "stool", "size": [0.4, 0.4, 0.5], "box": box}],
-                                                "objects": {"stool": {"route": "prop", "take": "stool-t1"}}})
-            surfaces = written(folder, "surfaces", {"place": "garage", "library": "garage", "bake": {
-                "models": {"stool_1": "stool-t1"}, "entries": {"stool_1": {"size": [0.4, 0.5, 0.4], "faces": 5000,
-                                                                           "foot": 0.0}}}})
-            _, (entry,) = place_line.bake_entries({"surfaces": surfaces, "inventory garage": handin},
-                                                  {"stool-t1": labelled})
+        def entry_for(row, take_extents, kit):
+            take = f"{row['id']}-t1"
+            a_box_take(folder / row["id"], take, take_extents)
+            handin = written(folder, f"handin-{row['id']}", {"rows": [row], "objects": {row["id"]: {
+                "route": "prop", "take": take}}})
+            surfaces = written(folder, f"surfaces-{row['id']}", {"place": "old_station", "library": "old_station",
+                                                                 "bake": {"models": {f"{row['id']}_1": take},
+                                                                          "entries": {f"{row['id']}_1": {
+                                                                              "size": kit, "faces": 19000,
+                                                                              "foot": 0.0}}}})
+            _, (entry,) = place_line.bake_entries({"surfaces": surfaces, "inventory old_station": handin},
+                                                  {take: folder / row["id"] / "labelled" / take})
             return entry["size"]
-        assert entry_for((0.498, 0.868, 0.502), [927, 603, 994, 725]) == [0.287, 0.5, 0.4]  # both: the take's
-        assert entry_for((0.4, 0.5, 0.4), [927, 603, 994, 725]) == [0.4, 0.5, 0.4]  # the box alone
-        assert entry_for((0.498, 0.868, 0.502), [0, 0, 80, 100]) == [0.4, 0.5, 0.4]  # the take alone
-        assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 70, 100], 0.6) == [0.4, 0.5, 0.4]  # the box within the row's
-        assert bake_job.boxed([0.4, 0.5, 0.4], [0, 0, 55, 100], 0.7) == [0.4, 0.5, 0.4]  # the take within the row's
-        assert bake_job.boxed([1.0, 1.0, 4.0], [0, 0, 100, 10], 3.0) == [1.0, 1.0, 4.0]  # its depth its longest side
-        assert bake_job.boxed([4.0, 1.0, 1.0], [0, 0, 100, 50], 2.0) == [4.0, 1.0, 1.0]  # wider than tall: as it is
+        tunnel = {"id": "tunnel", "name": "right connecting tunnel", "anchor": "ground", "size": [3.0, 1.5, 1.5],
+                  "box": [959, 369, 2578, 1038]}
+        assert entry_for(tunnel, (3.0, 0.856, 1.589), [3.0, 1.5, 1.5]) == [2.832, 0.808, 1.5]
+        lamp = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "box": [927, 603, 994, 725]}
+        assert entry_for(lamp, (0.498, 0.868, 0.502), [0.4, 0.5, 0.4]) == [0.287, 0.5, 0.289]  # hanging: within too
+        labelled = a_box_take(folder / "crate", "crate-t1", (1.0, 0.5, 0.5))
+        written_entries = {"crate_1": {"size": [1.0, 1.0, 1.0]}}
+        stood = {"crate_1": {"base": bake_job.TURNS[90], "size": [1.0, 0.5, 0.5], "stood": {"degrees": 9.0}}}
+        assert bake_job.refitted(stood, written_entries, labelled)["crate_1"]["size"] == [0.5, 0.5, 1.0]
+        kept = {"crate_1": dict(stood["crate_1"], base=bake_job.TURNS[0])}
+        assert bake_job.refitted(kept, written_entries, labelled)["crate_1"]["size"] == [1.0, 0.5, 0.5]
+        assert bake_job.refitted(stood, written_entries, labelled, built=True) == stood
+        assert bake_job.refitted(stood, written_entries, labelled, person=True) == stood
+        assert bake_job.fit_within([2.0, 1.0, 4.0], [1.0, 1.0, 1.0]) == [0.5, 0.25, 1.0]
     finally:
         shutil.rmtree(folder)
 
 
-def test_the_width_rule_leaves_a_kept_row_as_its_row_says_and_a_person_keeps_its_own_width_for_its_height(
+def test_a_person_keeps_his_take_s_own_width_for_his_row_s_height_and_a_thing_is_laid_within_its_row(
         stand_in_library):
     """#36 (2026-10-29): cockpit's seated pilot (his row 0.5 by 0.3 by 1.8 m) was widened to his SAM 3 box, which
-    holds his chair, 1.205 m; his A-pose officer squeezed into 0.5 m, his arms out. The width rule reads the guard list
-    (tumble.keeps_pose): a person keeps his take's own width for his row's height whatever his box (a take 0.6 wide
-    for its height: 1.08 m at 1.8 m), never squeezed to the row nor stretched to the box; a hanging lamp whose box and
-    take both disagree with its row keeps its row's size, as a stool on the floor would not.
-    Break: bake_job.py `boxed`: `if person and own:` -> `if False:`
-    Break: bake_job.py `boxed`: `if kept or not box` -> `if not box`"""
+    holds his chair, 1.205 m; his A-pose officer squeezed into 0.5 m, his arms out. A person (tumble.person, read by
+    bake_job.drawn_person) keeps his take's own width for his row's height whatever his box (a take 0.6 wide for its
+    height: 1.08 m at 1.8 m), never squeezed to the row nor stretched to the box; a stool of the same take and row is
+    laid within its row at its own proportions (2026-11-08, laid_size).
+    Break: bake_job.py `entry_of`: `if person and not built` -> `if False`
+    Break: bake_job.py `drawn_person`: `return tumble.person(row or {}) or person_take(take, inputs)` ->
+        `return person_take(take, inputs)`"""
     folder = a_folder()
     try:
         rules = a_pose_world(folder / "rules", {})
@@ -3574,11 +3585,9 @@ def test_the_width_rule_leaves_a_kept_row_as_its_row_says_and_a_person_keeps_its
                  "kit": [0.5, 1.8, 0.3]}
         assert entry_for(pilot, (0.6, 1.0, 0.3)) == [1.08, 1.8, 0.3]  # his take's own width for his height
         assert entry_for(dict(pilot, id="officer", box=[0, 0, 10, 100]), (0.58, 1.0, 0.3)) == [1.044, 1.8, 0.3]
-        lamp = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "route": "prop",
-                "box": [927, 603, 994, 725], "kit": [0.4, 0.5, 0.4]}
-        assert entry_for(lamp, (0.498, 0.868, 0.502)) == [0.4, 0.5, 0.4]  # kept: as its row says
-        stool = dict(lamp, id="stool", name="stool", anchor="floor")
-        assert entry_for(stool, (0.498, 0.868, 0.502)) == [0.287, 0.5, 0.4]  # not kept: the width rule's
+        stool = {"id": "stool", "name": "stool", "anchor": "floor", "route": "prop", "box": [812, 687, 946, 906],
+                 "kit": [0.5, 1.8, 0.3]}
+        assert entry_for(stool, (0.6, 1.0, 0.3)) == [0.5, 0.833, 0.25]  # no person: within its row (laid_size)
     finally:
         shutil.rmtree(folder)
 
@@ -3594,8 +3603,8 @@ def test_a_person_stands_in_his_raw_take_s_pose_at_his_own_width_and_a_people_li
     him square.
     Break: bake_job.py `entry_of`: `base = person_turn(labelled) if person else measured_turn(...)` ->
         `base = measured_turn(...)`
-    Break: bake_job.py `drawn_guard`: `if tumble.person(row or {}) or person_take(take, inputs):` ->
-        `if tumble.person(row or {}):`
+    Break: bake_job.py `drawn_person`: `return tumble.person(row or {}) or person_take(take, inputs)` ->
+        `return tumble.person(row or {})`
     Break: route_bake.py `stood_square`: `kept = tumble.PERSON if person else ...` -> `kept = ...`"""
     import labels
     import tumble

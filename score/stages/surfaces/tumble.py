@@ -12,10 +12,10 @@ hash only this.
 A take is tumbled when its oriented box (of its convex hull) is turned more than DEGREES off the frame (the axis
 nearest up off up, or its long plan axis off the frame's, mod 90, for one not round in plan) and its frame-aligned
 box is more than LOOSE times its own: a round or irregular thing whose box turns freely is never called tumbled.
-The one guard list (keeps_pose), read by the bake's stand-square (route_bake.stood_square), its SAM-box width rule
-(bake_job.boxed, likeness_row.drawn_size) and surfaces-check's `stands square`, decided by row kind, anchor and words,
-never by an object's name: a person (a row of the people route: its pose and its width are its take's own; cockpit
-pilot_1, seated, its picture box holding the chair, was widened 0.5 to 1.205 m, 2026-10-29), a row whose design lays
+The one guard list (keeps_pose), read by the bake's stand-square (route_bake.stood_square), the bake's person width
+(bake_job.drawn_person) and surfaces-check's `stands square`, decided by row kind, anchor and words, never by an
+object's name: a person (a row of the people route: its pose and its width are its take's own; cockpit pilot_1,
+seated, its picture box holding the chair, was widened 0.5 to 1.205 m, 2026-10-29), a row whose design lays
 it leaning (`leans`) or lying (stance.json's lying classes: torn wreckage, a thing on its side), a hanging row (the
 resting rules' hanging words in its id or name, or its anchor the ceiling: garage's ceiling lamp, `on:ceiling_beam`,
 was turned 50 degrees) and a row with no up (the resting rules' ground debris and cable: rocks, rubble, a pile, a limp

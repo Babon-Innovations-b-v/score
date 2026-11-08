@@ -379,8 +379,9 @@ def squared_again(entries, shapes, measured):
 
 def square_again_step(inputs, out):
     """On the rented card, after make_chunky --shapes wrote the pending models' cut-down copies (the `square` of the
-    take's make_chunky job): squared_again over them, its entries and its job written again with the models still to
-    measure."""
+    take's make_chunky job): squared_again over them, each turned one laid again within its row (bake_job.refitted),
+    its entries and its job written again with the models still to measure."""
+    import bake_job
     import numpy as np
     take = inputs[place_line.TAKE].name
     job = json.loads(inputs[CHUNKY].read_text())
@@ -390,9 +391,13 @@ def square_again_step(inputs, out):
               if (folder / f"{model}.npy").exists()}
     written = out / "entries" / f"{take}.json"
     entries, again = squared_again(json.loads(written.read_text()), shapes, square["round"] + 1)
+    entries = bake_job.refitted(entries, place_line.data_of(inputs)["bake"].get("entries", {}), out / "labelled" / take,
+                                bake_job.code_built(take, inputs[place_line.HOME]), bake_job.drawn_person(
+                                    take, [path for name, path in inputs.items() if name.startswith("inventory ")],
+                                    inputs))
     written.write_text(json.dumps(entries, indent=1))
-    job["chunky"] = [dict(entry, base=entries[entry["name"]]["base"], stood=entries[entry["name"]].get("stood"))
-                     for entry in job["chunky"]]
+    job["chunky"] = [dict(entry, base=entries[entry["name"]]["base"], size=entries[entry["name"]]["size"],
+                          stood=entries[entry["name"]].get("stood")) for entry in job["chunky"]]
     job["square"] = dict(square, round=square["round"] + 1, pending=again)
     inputs[CHUNKY].write_text(json.dumps(job, indent=1))
 
@@ -412,21 +417,23 @@ def bake_files(place):
 
 def bake_job_step(inputs, out):
     """On the rented card, after the paint (inside/paint_bake.py hands it here): the take's models' make_chunky
-    entries over its labelled take (bake_job.entry_of), kept in entries/<take>.json, and its make_chunky job (the head
-    with them)."""
+    entries over its labelled take (bake_job.entry_of), each one stood square laid again within its row
+    (bake_job.refitted), kept in entries/<take>.json, and its make_chunky job (the head with them)."""
     import bake_job
     data = place_line.data_of(inputs)
     take = inputs[place_line.TAKE].name
     labelled = out / "labelled" / take
     head = json.loads(inputs[HEAD].read_text())
     built = bake_job.code_built(take, inputs[place_line.HOME])
-    guard = bake_job.drawn_guard(take, [path for name, path in inputs.items() if name.startswith("inventory ")],
-                                 inputs)
-    entries = {model: dict(bake_job.entry_of(model, data["bake"].get("entries", {}).get(model), labelled, built,
-                                             *guard), name=model, parts=str(labelled), regions=[])
+    person = bake_job.drawn_person(take, [path for name, path in inputs.items() if name.startswith("inventory ")],
+                                   inputs)
+    written = data["bake"].get("entries", {})
+    entries = {model: dict(bake_job.entry_of(model, written.get(model), labelled, built, person), name=model,
+                           parts=str(labelled), regions=[])
                for model in head.pop("models")}
     relations = json.loads(inputs["relations"].read_text()) if "relations" in inputs else None
-    entries = recessed(stood_square(entries, labelled, take, inputs, built, guard[2]), relations)
+    entries = recessed(bake_job.refitted(stood_square(entries, labelled, take, inputs, built, person), written,
+                                         labelled, built, person), relations)
     (out / "entries").mkdir(exist_ok=True)
     (out / "entries" / f"{take}.json").write_text(json.dumps(entries, indent=1))
     chunky = [dict(entry, stands=stands(labelled)) for entry in entries.values()]
