@@ -49,6 +49,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import time
 import traceback
 
@@ -117,7 +118,8 @@ def job_of(runner, stage, place, keyed, code, table):
     """The job a pod makes the node from: its whole key, the code's sha256, the stage table (`module:attribute`), the
     repository's folders this process's code versions search (`_code.search_folders`: the stages' imports put them on
     the path, and the pod's code versions must search the same), the environment, every input's listing, every
-    declared file's path and listing, and the home's designs (`designs`). A paid stage is refused."""
+    declared file's path and listing, the home's designs (`designs`) and the store records its file list reads
+    (`store_reads`). A paid stage is refused."""
     if stage.paid:
         raise ValueError(f"{graph.node_name(stage, place)}: a paid stage is never made in a pod")
     files = {}
@@ -135,7 +137,7 @@ def job_of(runner, stage, place, keyed, code, table):
             "world": {"name": runner.world.name, "seed": runner.world.seed,
                       "roots": {root: str(path) for root, path in runner.world.roots.items()}},
             "listings": {name: runner.store.listing(output) for name, output in inputs.items()},
-            "files": files, "design": designs()}
+            "files": files, "design": designs(), **store_reads(runner, stage, place)}
 
 
 def designs():
@@ -148,8 +150,65 @@ def designs():
             if path.is_file()}
 
 
+def store_reads(runner, stage, place):
+    """{"records": {store key: sha256}, "listed": [prefix]}: each store record a row's file list reads here (light's:
+    its own place's accepted scene record, whose places say which neighbours it declares) and each prefix it lists, so
+    the pod's sandbox holds them and works the list out as here (light@campgrounds, 2026-11-08: its make named
+    rejects/scene-record@campgrounds/* undeclared). A blob it reads comes only with an input's listing; nothing for a
+    row whose files are a fixed dict."""
+    if not callable(stage.files):
+        return {"records": {}, "listed": []}
+    reads, listed = [], []
+    remembered, runner.remembered = runner.remembered, None  # worked out again: a still pass's answer read nothing
+    try:
+        with traced(runner.store.objects.root, reads, listed):
+            runner.files_of(stage, place)
+    finally:
+        runner.remembered = remembered
+    root = runner.store.objects.root
+    return {"records": {key: file_hash(root / key) for key in sorted(set(reads))
+                        if not key.startswith(offload.BLOBS) and (root / key).is_file()},
+            "listed": sorted(set(listed))}
+
+
+@contextlib.contextmanager
+def traced(root, reads, listed):
+    """Every key this thread asks a FolderStore under `root` for (path, exists) added to `reads`, and each prefix it
+    lists to `listed` with the keys listed added to `reads`, while the block runs."""
+    folder_store = score_store.runtime_store.FolderStore
+    plain = {name: getattr(folder_store, name) for name in ("path", "exists", "keys")}
+    root, thread = pathlib.Path(root).resolve(), threading.get_ident()
+
+    def ours(store):
+        return threading.get_ident() == thread and pathlib.Path(store.root).resolve().is_relative_to(root)
+
+    def path(self, key):
+        if ours(self):
+            reads.append(key)
+        return plain["path"](self, key)
+
+    def exists(self, key):
+        if ours(self):
+            reads.append(key)
+        return plain["exists"](self, key)
+
+    def keys(self, prefix):
+        found = plain["keys"](self, prefix)
+        if ours(self):
+            listed.append(prefix)
+            reads.extend(found)
+        return found
+    folder_store.path, folder_store.exists, folder_store.keys = path, exists, keys
+    try:
+        yield
+    finally:
+        for name, method in plain.items():
+            setattr(folder_store, name, method)
+
+
 def blob_sources(runner, job):
-    """{sha256: local path} of every blob the job reads: its inputs' stored blobs and its declared files' bytes."""
+    """{sha256: local path} of every blob the job reads: its inputs' stored blobs, its declared files' bytes, the
+    home's designs and the store records its file list reads."""
     found = {sha: offload.PLAIN_PATH(runner.store.objects, offload.blob_key(sha))  # never fetched here
              for listing in job["listings"].values() for sha in listing.values()}
     for declared in job["files"].values():
@@ -158,6 +217,8 @@ def blob_sources(runner, job):
             found[sha] = root / relative if declared["folder"] else root
     for relative, sha in job["design"].items():
         found[sha] = score_store.PROPS_HOME / DESIGN / relative
+    for key, sha in job["records"].items():
+        found[sha] = runner.store.objects.root / key
     return found
 
 
@@ -476,13 +537,14 @@ def cached_blob(cache, sha):
 
 
 def wanted_blobs(store, job):
-    """The sha256s of the input blobs and declared files the sandbox does not hold yet, once each."""
+    """The sha256s of the input blobs, declared files and store records the sandbox does not hold yet, once each."""
     listed = {sha for listing in job["listings"].values() for sha in listing.values()
               if not (store.objects.root / offload.blob_key(sha)).exists()}
     declared = {sha for declared in job["files"].values() for relative, sha in declared["listing"].items()
                 if not (pathlib.Path(declared["path"]) / relative if declared["folder"]
                         else pathlib.Path(declared["path"])).exists()}
-    return sorted(listed | declared)
+    records = {sha for key, sha in job["records"].items() if not (store.objects.root / key).exists()}
+    return sorted(listed | declared | records)
 
 
 def prefetched(cache, shas):
@@ -509,7 +571,8 @@ def placed_designs(job, cache):
 
 def placed_inputs(store, job, cache):
     """Each input's listing and blobs into the sandbox store (blobs hard-linked from the cache, fetched side by side
-    first), each declared file that is not at its path already put there; the store keys the job names."""
+    first), each declared file that is not at its path already put there, each store record its file list reads
+    (`store_reads`) into the sandbox store; the store keys the job names, a listed prefix as `<prefix>*`."""
     prefetched(cache, wanted_blobs(store, job))
     allowed = set()
     for listing in job["listings"].values():
@@ -532,7 +595,13 @@ def placed_inputs(store, job, cache):
             if not target.exists():  # one already there is kept as it is: refusal compares its hash
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(cached_blob(cache, sha), target)
-    return allowed
+    for key, sha in job["records"].items():
+        target = store.objects.root / key
+        if not target.exists():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(cached_blob(cache, sha), target)
+        allowed.add(key)
+    return allowed | {f"{prefix}*" for prefix in job["listed"]}
 
 
 @contextlib.contextmanager

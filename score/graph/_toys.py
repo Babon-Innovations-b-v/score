@@ -73,6 +73,15 @@ def designed_files(place):
     return {"brief": "{data}/{place}/brief.txt"} if plan.is_file() else {"seed": "{data}/{place}/seed.txt"}
 
 
+def recorded_files(place):
+    """The brief once the place's clean output stands accepted, else a seed nothing makes: a row's files as the
+    store's accepts and rejects decide them (score/stages/light light_files: the places its own place's accepted scene
+    record shows)."""
+    accepted = Store.default().accepted(f"clean@{place}")
+    return {"brief": "{data}/{place}/brief.txt"} if accepted else {"seed": "{data}/{place}/seed.txt"}
+
+
 KEPT = graph.Stage("kept", "place", make_kept, TEXT, PASSES, after={"clean": READS})
 DESIGNED = graph.Stage("designed", "place", make_clean, TEXT, PASSES, files=designed_files)
-POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED)
+RECORDED = graph.Stage("recorded", "place", make_clean, TEXT, PASSES, files=recorded_files)
+POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED, RECORDED)
