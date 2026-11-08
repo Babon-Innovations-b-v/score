@@ -11,7 +11,7 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   the paths they have on the VM (`MOUNTS`): the home `/home/score/.farm-factory-props` (PROPS_HOME: no path in any
   record changes), the checkout's folder `/home/score/projects` (a run's frozen copy is a git worktree of it, so a
   drive pod reads it at the same path), the env file's folder `/home/score/.config/score`, `~/.local` (uv's tools,
-  score-lib's link, Claude Code's CLI).
+  score-lib's link, Claude Code's CLI), the people routes' motion home `/home/score/.farm-factory-motion`.
 - **One node** (`NODE_ROLE`: babon's pool `score-conductor-z2`, POP2-HM-16C-128G, min 1 max 1, tainted
   `tenant=score`): every pod that writes the store is placed beside the conductor's pod by pod affinity on the
   hostname, so one kernel and one file system hold the store's locks, links and fsync as on the VM. No network file
@@ -57,8 +57,12 @@ APP_LABEL = "app.kubernetes.io/name"
 WRITER_LABEL = "score.dev/store-writer"  # every pod that writes the store: placed beside the conductor's
 UID = 1100  # user score on the VM
 HOME = "/home/score"
+# `motion`: the people routes' candidate folders (prop_person.CANDIDATES, the door's route-log), on the VM's root disk
+# under ~/.farm-factory-motion and in no backup; copied once off a snapshot of it at the cutover (2026-11-08: the
+# characters rows found no motion home in the cluster).
 MOUNTS = (("props", f"{HOME}/.farm-factory-props"), ("projects", f"{HOME}/projects"),
-          ("config-score", f"{HOME}/.config/score"), ("local", f"{HOME}/.local"))
+          ("config-score", f"{HOME}/.config/score"), ("local", f"{HOME}/.local"),
+          ("motion", f"{HOME}/.farm-factory-motion"))
 REPO = f"{HOME}/projects/score"
 ENV_FILE = f"{HOME}/.config/score/dashboard.env"
 SCW_SECRET = "score-conductor-scw"
