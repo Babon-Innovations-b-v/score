@@ -282,6 +282,33 @@ def quilted(colour, second, dirt_colour, roughness, quilt_size, puff, seam_width
     return Channels(base, rough, 0.0, BLACK, pf.nodes.shader.displacement(height=pillow * puff, midlevel=0.0))
 
 
+def pile(colour, second, dirt_colour, roughness, tuft_size, mottle_size, contrast, bump, dirt_reach, dirt, seed):
+    """A rug's or a mat's pile: its tufts mottled toward a second colour in soft patches, a fine tufted relief, dirt
+    in the cavities (stairwell's door mat and quarters' rug, plain cloth in one colour, could never look like their
+    close-ups' mottled pile, 2026-11-08)."""
+    vector = coordinates()
+    mottle = pf.nodes.texture.noise(vector=vector, scale=1.0 / mottle_size, detail=4.0, noise_dimensions="4D", w=seed)
+    tufts = pf.nodes.texture.noise(vector=vector, scale=1.0 / tuft_size, detail=1.0, noise_dimensions="4D", w=seed)
+    patch = pf.nodes.math.clamp((mottle.fac - 0.5) * 3.0 + 0.5)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=patch * contrast, a=base, b=second)
+    relief = pf.nodes.shader.displacement(height=(tufts.fac - 0.5) * bump, midlevel=0.0)
+    return Channels(base, rough, 0.0, BLACK, relief)
+
+
+def written(colour, second, roughness, line_pitch, stroke, word_size, ink_share, seed):
+    """A note's or a paper's writing or print: rows of ink in a second colour across its face (face_plane), one every
+    `line_pitch`, each `stroke` of the pitch tall, broken into words by a noise along it (about `ink_share` of a row
+    inked); the paper flat and clean (quarters' sticky note, one plain paper colour, could never look like its
+    close-up's handwritten lines, 2026-11-08)."""
+    vector = coordinates()
+    _, upward = face_plane(vector)
+    off_middle = pf.nodes.math.absolute(pf.nodes.math.fraction(upward / line_pitch) - 0.5) * 2.0
+    words = pf.nodes.texture.noise(vector=vector, scale=1.0 / word_size, detail=2.0, noise_dimensions="4D", w=seed)
+    inked = pf.nodes.math.less_than(off_middle, stroke) * pf.nodes.math.less_than(words.fac, ink_share)
+    return Channels(pf.nodes.color.mix_rgb(factor=inked, a=colour, b=second), roughness, 0.0, BLACK, None)
+
+
 def composite(colour, second, roughness, weave, bump):
     """A woven composite panel (glass or carbon fibre): bands one way and the other, a little lighter and darker,
     under a clear coat."""
@@ -561,7 +588,8 @@ def ice(colour, second, roughness, crack_scale, crack_width, frost_share, bump, 
 
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
-           "anodized": anodized, "rubber": rubber, "cloth": cloth, "quilted": quilted, "composite": composite, "glass": glass,
+           "anodized": anodized, "rubber": rubber, "cloth": cloth, "quilted": quilted, "pile": pile,
+           "written": written, "composite": composite, "glass": glass,
            "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
            "painted_plaster": painted_plaster, "weathered_render": weathered_render, "tiles": tiles,
            "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt,
@@ -579,6 +607,8 @@ SOURCES = {
     "rubber": "infinigen2 plastic.py plastic_black_rubberized (relief, BSD-3) + new dirt",
     "cloth": "infinigen2 fabric.py (weave relief, BSD-3) + the library's dirt",
     "quilted": "written new (stitched pillow grid) + the library's dirt",
+    "pile": "written new (noise mottle toward a second colour, fine tuft relief) + the library's dirt",
+    "written": "written new (rows of ink on the surface's plane, broken into words by a noise)",
     "composite": "written new (twill from two wave textures)",
     "glass": "written new (infinigen2 glass_colored needs transmission, which the ink look cannot draw)",
     "glowing": "written new",
@@ -611,6 +641,8 @@ PARTS = {
     "rubber": (rubber, coordinates, dirt_mask, rubber_relief),
     "cloth": (cloth, coordinates, dirty_flat, dirt_mask, cloth_relief),
     "quilted": (quilted, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
+    "pile": (pile, coordinates, dirty_flat, dirt_mask),
+    "written": (written, coordinates, face_plane),
     "composite": (composite, coordinates),
     "glass": (glass,),
     "glowing": (glowing,),
