@@ -375,7 +375,7 @@ def test_a_clips_targets_are_made_once_per_landmark_set_and_never_written_in_pla
         sim_body.Size = lambda rig: None
         sim_body.person_set_up = lambda *args: set_up.append(args[6]) or ({}, None, Fitting())
         sim_body.followed_record = lambda record, *args: record
-        _, _, _, angles = sim_body.fitted_person({}, {"segments": ["pelvis"]}, None, None, None)
+        _, _, _, angles, _ = sim_body.fitted_person({}, {"segments": ["pelvis"]}, None, None, None)
     finally:
         (sim_body.fit.targets, sim_body.fit.angles, sim_body.person_set_up, sim_body.Size,
          sim_body.followed_record) = kept
