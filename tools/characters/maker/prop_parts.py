@@ -20,10 +20,12 @@ close-up is not believed), carries the split from the raw model onto the finishe
 labels.finish_turn and onto_finished) and writes <run>/<take>/parts.npz (each finished face's part, the parts' names,
 roles, materials and linear colours) and parts.json.
 
-The person's materials (`person_materials`, the outfit's palette) are library families with this person's own colours: the outfit's from
+The person's materials (`person_materials`, the outfit's palette) are library families with this person's own colours: a
+made outfit's the library surfaces the people line's bake painted on its take (`painted_palette`), another's from
 people/paint.py's palette for its design (the shipped people's colours), the skin and hair from its look
 (person.json's `skin` and `hair`, take C's where the spec's look gives none), as a place passes its own tokens. No
-colour is read off the picture.
+colour is read off the picture. parts.json records the painted surfaces offered (`painted`), so parts made on another
+palette are not kept (score/stages/people_bodies/bodies.py).
 """
 import argparse
 import json
@@ -74,12 +76,31 @@ def palette_of(outfit):
     return OUTFIT_PALETTES.get(outfit, FALLBACK_PALETTE)
 
 
+def painted_palette(painted):
+    """A made outfit's materials (the people line's looks, #26): each library surface the loop's bake painted on the
+    look's take (people-made@people's `specs`, which the parts row lays in the spec as `painted`), named by its
+    library name's stem (before "__", the settings the bake added), with its family, its role (skin and hair by their
+    family, a surface of the cloth recipe a garment, any other hard: boots, a helmet, a visor) and its linear colour.
+    The work suit's names offered no glass, helmet or brown leather, so the astronaut's visor was judged a black
+    rubber boot and his brown leather boots a steel buckle and navy fabric (env1, 2026-11-08)."""
+    found = {}
+    for surface, settings in sorted(painted.items()):
+        family = settings["family"]
+        role = family if family in ("skin", "hair") else "garment" if settings["recipe"] == "cloth" else "hard"
+        found.setdefault(surface.split("__")[0].replace("_", " "),
+                         {"family": family, "role": role, "colour": list(settings["colour"]), "surface": surface})
+    return found
+
+
 def problems_of(spec, outfit):
     """Why the parts of `outfit` cannot be asked for this spec ([] when they can): checked on the PC before renting."""
     return [] if outfit in spec.get("outfit_words", {}) else [f"the spec has no outfit_words for {outfit!r}"]
-# The materials a part named by them is: boots and mitts are split by side for joins.py (boot_l, mitt_r, ...).
+# The materials a part named by them is: boots and mitts are split by side for joins.py (boot_l, mitt_r, ...). A hard
+# library surface painted on a made look is a boot or a mitt by a word of its name starting so (worn_as).
 BOOTS = ("black rubber boot", "grey moon boot rubber", "black leather shoe")
 MITTS = ("grey mitten rubber",)
+FOOTWEAR_WORDS = ("boot", "shoe")
+MITT_WORDS = ("mitt", "glove")
 # A part's role in the body, by its material's family.
 ROLES = {"skin": "skin", "hair": "hair", "fabric": "garment", "print": "garment", "rubber": "hard", "steel": "hard",
          "plastic": "hard", "glass": "hard"}
@@ -108,12 +129,18 @@ def linear(srgb):
 
 
 def person_materials(spec, outfit):
-    """The person's allowed materials in one outfit: name to {"family", "colour" (linear)}."""
+    """The person's allowed materials in one outfit: name to {"family", "role", "colour" (linear)}: the library
+    surfaces painted on its take where the spec carries them (`painted`, painted_palette), else the outfit's palette;
+    skin and hair from its look where those name none."""
     look = spec.get("look", {})
-    found = {"skin": {"family": "skin", "colour": linear(look.get("skin", TAKE_C_SKIN))},
-             "hair": {"family": "hair", "colour": linear(look.get("hair", TAKE_C_HAIR))}}
+    painted = painted_palette(spec.get("painted", {}))
+    found = {name: {"family": role, "role": role, "colour": linear(look.get(role, colour))}
+             for name, role, colour in (("skin", "skin", TAKE_C_SKIN), ("hair", "hair", TAKE_C_HAIR))
+             if not any(entry["role"] == role for entry in painted.values())}
+    if painted:
+        return {**found, **painted}
     for name, (family, colour) in palette_of(outfit).items():
-        found[name] = {"family": family, "colour": linear(colour)}
+        found[name] = {"family": family, "role": ROLES[family], "colour": linear(colour)}
     return found
 
 
@@ -305,6 +332,11 @@ def onto_final(take, mesh):
     return cKDTree(moved).query(final.triangles_center)[1], final, gap
 
 
+def worn_as(material, words):
+    """Whether a word of the material's name starts with one of `words` ("boots black", "flat shoes taupe")."""
+    return any(word.startswith(words) for word in material.split())
+
+
 def part_names(final, part_of, roles, materials):
     """Each part's name as joins.py and the build know it, from its role, material and place on the body."""
     height = final.bounds[1, 1] - final.bounds[0, 1]
@@ -317,9 +349,9 @@ def part_names(final, part_of, roles, materials):
             names[part] = "hair"
         elif role == "garment":
             names[part] = "cloth"
-        elif materials[part] in BOOTS:
+        elif materials[part] in BOOTS or worn_as(materials[part], FOOTWEAR_WORDS):
             names[part] = "boot"
-        elif materials[part] in MITTS:
+        elif materials[part] in MITTS or worn_as(materials[part], MITT_WORDS):
             names[part] = "mitt"
         else:
             names[part] = materials[part].replace(" ", "_")
@@ -335,9 +367,10 @@ def parts(run, take, spec, outfit):
     raw_of_final, final, gap = onto_final(take, mesh)
     part_of = raw[raw_of_final]
     used = sorted(set(part_of.tolist()))
-    roles = {part: ROLES[materials[chosen[part]]["family"]] for part in used}
+    roles = {part: materials[chosen[part]]["role"] for part in used}
     names = part_names(final, part_of, roles, chosen)
     record = {"take": take, "registration_gap_m": round(float(gap), 4), "faces": len(final.faces),
+              "painted": sorted(spec.get("painted", {})),
               "parts": [{"part": part, "name": names[part], "role": roles[part], "material": chosen[part],
                          "family": materials[chosen[part]]["family"],
                          "share": round(float((part_of == part).mean()), 4)} for part in used]}

@@ -222,23 +222,25 @@ def refused_on_gap(handed, look):
 
 
 def parts_made(look, entry):
-    """The make of one look's parts row: the parts the candidate folder holds where they fit the take's finished model
-    (parts_fit), else bought once (prop_person.parts, the folder's parts work on another model set aside first, so
-    nothing of it is read again), copied into the output."""
+    """The make of one look's parts row: the parts the candidate folder holds where they may be kept (kept_parts: they
+    fit the take's finished model and were judged on the library surfaces painted on it), else bought once
+    (prop_person.parts, on those surfaces as the spec's `painted`; the folder's parts work set aside first, so nothing
+    of it is read again), copied into the output."""
     def make(inputs, out, seed, params):
         handed = pathlib.Path(inputs[f"{MADE}@{LINE}"])
         refused_on_gap(handed, look)
         sys.path.insert(0, str(MAKER))
         import prop_person
         import spec as specs
-        spec = specs.read(pathlib.Path(inputs["spec"]))
+        painted = json.loads((handed / "made.json").read_text())[look].get("specs", {})
+        spec = dict(specs.read(pathlib.Path(inputs["spec"])), painted=painted)
         folder = prop_person.folder_of(spec, entry["outfit"])
         folder.mkdir(parents=True, exist_ok=True)
         laid_take(handed, look, prop_person.PIXAL)
         (folder / "take.txt").write_text(entry["take"])
         made_parts = folder / "parts" / entry["take"]
-        if (made_parts / "parts.npz").exists() and parts_fit(made_parts, take_folder(handed, look),
-                                                             entry["take"]) < PARTS_FIT_LEAST:
+        if (made_parts / "parts.npz").exists() and not kept_parts(made_parts, take_folder(handed, look),
+                                                                  entry["take"], painted):
             set_aside(folder / "parts")
         if not (made_parts / "parts.npz").exists():
             prop_person.parts(spec, entry["outfit"], f"{PARTS}-{look}", None, False)
@@ -247,9 +249,18 @@ def parts_made(look, entry):
     return make
 
 
+def kept_parts(parts, takes, take, painted):
+    """Whether a look's parts in its candidate folder may be kept: they fit its take's finished model (parts_fit) and
+    were judged on the palette of the library surfaces painted on it now (parts.json's `painted`; parts from before
+    the made outfits' painted palettes have none, prop_parts.painted_palette)."""
+    record = parts / "parts.json"
+    recorded = json.loads(record.read_text()).get("painted") if record.exists() else None
+    return recorded == sorted(painted) and parts_fit(parts, takes, take) >= PARTS_FIT_LEAST
+
+
 def set_aside(run):
-    """A look's parts work made on another finished model (its pictures, splits, questions and answers) moved to
-    <run>.misfit, replacing an older one there: a new buy reads none of it, and it stays to look at."""
+    """A look's parts work made on another finished model or palette (its pictures, splits, questions and answers)
+    moved to <run>.misfit, replacing an older one there: a new buy reads none of it, and it stays to look at."""
     aside = run.with_name(run.name + ".misfit")
     shutil.rmtree(aside, ignore_errors=True)
     os.replace(run, aside)
