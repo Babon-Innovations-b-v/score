@@ -405,9 +405,15 @@ def taken(found):
 
 
 def entries():
-    """(folder, entry) of every kept entry whose mark is written."""
+    """(folder, entry) of every kept entry whose mark is written and readable: a mark listed but gone when read (a link
+    to nothing; 2026-11-08, surfaces-parts@base's pod make stopped its line on one) is no kept entry, so its take is
+    made again."""
     for mark in sorted(kept_root().glob(f"*/*/{DONE}")):
-        yield mark.parent, json.loads(mark.read_text())
+        try:
+            text = mark.read_text()
+        except FileNotFoundError:
+            continue
+        yield mark.parent, json.loads(text)
 
 
 def output_blobs():
