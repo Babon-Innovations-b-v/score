@@ -302,6 +302,9 @@ tests it turned red:
 - scene_library.py: `+ (SHEET_WORDS if take["kind"] in sheets else "")` -> `+ ""` (kinds_of), or `"pile": ["second"]`
   dropped from data/library/materials.json's colour_settings  ->
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
+- scene_library.py: `+ (PICTURE_WORDS if shows_picture(...) else "")` -> `+ ""` (kinds_of), or `in DRAWN for name
+  in found["kinds"][kind]` -> `in DRAWN or True for name in found["kinds"][kind]` (library_findings)  ->
+  a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - scene_library.py: `SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25` -> `0.1, 0.25` (the row's sheet rule off the bake's)  ->
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
@@ -2963,6 +2966,23 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
         assert "patches: recipe printed paints a picture, and the library has none" in verdict.findings, verdict
         text = body["contents"][0]["parts"][-1]["text"]
         assert "- pile: " in text and "- written: " in text and "(pile; written" in text, text
+    glazed = {"surfaces": [
+        {"name": "photo_print_glazed", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.1,
+         "metal": 0.0, "sound": "glass", "kinds": ["framed_photo"]},
+        {"name": "window_glass", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.05,
+         "metal": 0.0, "sound": "glass", "kinds": ["window_pane"]}]}
+    printed_photo = {"surfaces": [{**glazed["surfaces"][0], "recipe": "written",
+                                   "colours": [{"setting": "second", "token": "hull-trim"}]}, glazed["surfaces"][1]]}
+    for answer, failing in ((glazed, ["kind framed_photo shows a picture and no surface of it draws one (written)"]),
+                            (printed_photo, [])):  # flat's framed photo as one grey glass sheet, checkout 62
+        with tempfile.TemporaryDirectory() as temporary:
+            out, verdict, asked = library_made(pathlib.Path(temporary), answer, kinds=("framed_photo", "window_pane"))
+            text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
+        assert f"- framed_photo: framed photo{scene_library.PICTURE_WORDS}" in text, text
+        assert "- window_pane: window pane\n" in text and "never its\nglass" in text, text
+        assert [finding for finding in verdict.findings if "picture" in finding] == failing, verdict
+    assert scene_library.shows_picture("Wall posters") and scene_library.shows_picture("oil canvas")
+    assert not scene_library.shows_picture("laser printer") and not scene_library.shows_picture("glass pane")
     method = library.theme_library()
     assert method["colour_settings"]["pile"] == method["colour_settings"]["written"] == ["second"]
     data = {"takes": {"rug-t1": {"kind": "rug", "object": "patterned rug"},
