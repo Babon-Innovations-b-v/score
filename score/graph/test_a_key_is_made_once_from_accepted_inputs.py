@@ -38,6 +38,11 @@ import urllib.error
 import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
+# Each OpenBLAS this process loads (score.stages loads numpy's and scipy's) sized at one thread when it loads, before
+# the imports below: a pool sized at load to every core is what a forked node's resize (graph.cap_threads) starts again
+# in the child, every thread spinning idle before it sleeps, about 1.4 s of CPU a node on 24 cores and 235 s of the
+# file's 246 (2026-11-08: 52-61 s on the gate's pod against its 60). The thread tests resize past it (thread_note).
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 from score import checks, contracts, graph, review  # noqa: E402
 from score.adapters import compute  # noqa: E402
