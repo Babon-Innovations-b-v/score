@@ -1050,9 +1050,11 @@ def test_a_gap_naming_a_take_alone_moves_its_rows_likeness_faults_by_the_hand_in
     """likeness@camp, 2026-10-30: the split's patchy-paint gap named camp_kitchen_counter_5393e7f9 alone, and the
     likeness gates failed the kitchen_counter row as "no model" though the gap was carried. The table ties each carried
     gap's take to the rows the place's hand-in (`props`) says it stands for, so the row's fault moves by name; a fault
-    no gap's take stands for still fails.
+    no gap's take stands for still fails, its reason naming the gap of the fault that is one (likeness@quarters,
+    2026-11-08: "box: no model" named no gap beside the rug's own fault).
     Break: score/stages/__init__.py: 'carried = tied(batch_gaps.of(inputs, output), inputs) if batch else []' ->
-    'carried = batch_gaps.of(inputs, output) if batch else []'"""
+    'carried = batch_gaps.of(inputs, output) if batch else []'
+    Break: score/stages/gaps.py moved: 'if not said:' -> 'if True:'"""
     lean = next(check for row in stages.STAGES if row.name == "likeness" for check in row.checks
                 if check.name == "lean")
     split = tmp_path / "split"
@@ -1069,7 +1071,9 @@ def test_a_gap_naming_a_take_alone_moves_its_rows_likeness_faults_by_the_hand_in
     inputs = {"finish-route-split": split, "props": handin}
     assert lean.judge(out, inputs, None).answer == checks.PASS
     (out / "likeness.json").write_text(json.dumps({"objects": {"counter": missing, "crate": missing}}))
-    assert lean.judge(out, inputs, None).answer == checks.FAIL
+    mixed = lean.judge(out, inputs, None)
+    assert mixed.answer == checks.FAIL and "counter_7: not one finish a face" in mixed.reason, mixed
+    assert len(mixed.findings) == 2, mixed  # the crate's fault and the counter's both still shown
 
 
 def test_motion_names_the_takes_the_surface_line_left_out_from_its_designed_place_s_hand_in(monkeypatch):
@@ -1751,7 +1755,9 @@ def test_only_the_named_faults_move_and_any_other_still_stops_the_line(case):
     assert kept.answer == checks.PASS and kept.findings == named.findings, kept
     assert kept.measures["moved"] == len(gap["faults"]) and gap["name"] in kept.reason
     both = failed(gap["check"], [*gap["faults"], other])
-    assert gaps.moved(both, [gap]) == both
+    still = gaps.moved(both, [gap])  # still failing, the gap of its own faults named beside the other fault
+    assert (still.answer, still.findings, still.measures) == (both.answer, both.findings, both.measures), still
+    assert still.reason.startswith(both.reason) and gap["name"] in still.reason, still
 
 
 def test_the_decision_file_is_read_by_row_and_check_and_a_pass_or_unknown_is_left_alone():
