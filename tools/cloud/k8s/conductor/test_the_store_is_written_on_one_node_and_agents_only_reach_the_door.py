@@ -10,7 +10,11 @@ Each invariant with the break that turns it red (each applied once, seen red, re
   container only as the init container's copy (mode 600, user score's), never the Secret's group-readable file.
   Break: mount `scw-secret` at SCW_PATH in `mounts`. Every container, a run's drive Job's (score/conductor/cluster.py
   drive_job) too, reads the cluster's login read-only at the VM's /home/score/.kube/config, from its Secret (the
-  cluster submits of 2026-11-08 found none). Break: drop the `kubeconfig` mount from `mounts`.
+  cluster submits of 2026-11-08 found none). Break: drop the `kubeconfig` mount from `mounts`. score_lib is a fresh
+  clone on each pod's /tmp, never on the store volume (owner, 2026-11-08: "dont keep score lib on the conductor disk"),
+  its deploy key copied at mode 600 to the path its sshCommand names and GitHub's host keys pinned to the published
+  fingerprints at the path it reads (the handover pushes of 2026-11-08: "No ED25519 host key is known for github.com").
+  Break: LIBRARY under `{HOME}/projects`, drop the `known-hosts` mount from `mounts`, or change a byte of GITHUB_KEYS.
 - the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder, the people routes' motion home),
   so no record's path changes. Break: `("props", f"{HOME}/props")` in MOUNTS, or drop its `motion` entry (the
   characters rows found no ~/.farm-factory-motion in the cluster, 2026-11-08).
@@ -26,6 +30,8 @@ Each invariant with the break that turns it red (each applied once, seen red, re
   ends, the one-shot resume once; a stop ends what still runs. Break: `self.every == 0` -> `False` in `Unit.tick`
   (resume runs again and again).
 """
+import base64
+import hashlib
 import pathlib
 import sys
 
@@ -72,8 +78,12 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         assert terms[0]["matchExpressions"][0]["values"] == ["score-conductor"]
         assert pod["tolerations"] == [conductor.TOLERATION]
         assert pod["imagePullSecrets"] == [{"name": "score-registry"}]  # the image is private (2026-11-07 rehearsal)
-        copy, = pod["initContainers"]
-        assert "chmod 600" in copy["command"][-1]
+        copy, clone = pod["initContainers"]
+        assert f"chmod 600 {conductor.SCW_PATH}" in copy["command"][-1]
+        assert f"cp /library-key/key {conductor.LIBRARY_KEY} && chmod 600 {conductor.LIBRARY_KEY}" in copy["command"][-1]
+        assert f"git clone -q {conductor.LIBRARY_URL} {conductor.LIBRARY}" in clone["command"][-1]
+        assert f"-i {conductor.LIBRARY_KEY} " in conductor.LIBRARY_SSH and "StrictHostKeyChecking=yes" in conductor.LIBRARY_SSH
+        assert all(mount["name"] != "library-key" for box in pod["containers"] for mount in box["volumeMounts"])
         assert all(mount["name"] != "scw-secret" for box in pod["containers"] for mount in box["volumeMounts"])
         assert {volume["persistentVolumeClaim"]["claimName"] for volume in pod["volumes"]
                 if "persistentVolumeClaim" in volume} == {"score-store"}
@@ -86,6 +96,12 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
             assert login["readOnly"] and login["subPath"] == "config"
             secret, = [volume["secret"] for volume in pod["volumes"] if volume["name"] == login["name"]]
             assert secret["secretName"] == "score-conductor-kubeconfig"
+            hosts, = [mount for mount in box["volumeMounts"] if mount["mountPath"] == conductor.KNOWN_HOSTS]
+            assert hosts["readOnly"] and hosts["name"] == "known-hosts"
+            names = {variable["name"]: variable.get("value") for variable in box["env"]}
+            assert names["SCORE_LIB_ROOT"] == conductor.LIBRARY  # the drive Job's too: on its own /tmp
+            assert paths["/tmp"] is None and conductor.LIBRARY.startswith("/tmp/")
+            assert not any(conductor.LIBRARY.startswith(path) for _, path in conductor.MOUNTS)
     for cron_pod in pods[1:]:  # the CronJobs' and the drive Job's
         beside, = cron_pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
         assert beside["topologyKey"] == "kubernetes.io/hostname"
@@ -101,6 +117,11 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
     policy, = by_kind["NetworkPolicy"]
     assert policy["spec"]["ingress"] == [] and policy["spec"]["policyTypes"] == ["Ingress"]
     assert all(item["metadata"]["labels"]["score.dev/cost"] == "conductor" for item in found)
+    hosts_map, = by_kind["ConfigMap"]
+    fingerprints = {line.split()[1]: base64.b64encode(hashlib.sha256(base64.b64decode(line.split()[2])).digest())
+                    .decode().rstrip("=") for line in hosts_map["data"]["known_hosts"].splitlines()}
+    assert fingerprints == {"ssh-ed25519": "+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU",  # docs.github.com's
+                            "ecdsa-sha2-nistp256": "p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM"}
     door = next(box for box in pods[0]["containers"] if box["name"] == "door")
     assert door["ports"] == [{"name": "door", "containerPort": conductor.DOOR_PORT}]
     assert door["command"][-1].startswith(conductor.ENV_LOADED)  # its token's project comes from the env file
