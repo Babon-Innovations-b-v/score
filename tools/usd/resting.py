@@ -15,7 +15,9 @@ record stands, /<place>/Fixtures, is something to stand on or beside, but is not
             outside what it touches (its points within TOLERANCE of the ground, of a support under it, or of another
             object beside it) tips: one end hangs in the air.
     overlap how deep one object lies inside another (two loose ones, or a loose one and a fixed one; fixed pieces may
-            be joined on purpose, a walkway tube into a module): past TOLERANCE both fail.
+            be joined on purpose, a walkway tube into a module): past TOLERANCE both fail. Its surface inside the
+            other, or the inside the two share (two identical objects laid in the same spot: each surface on the
+            other's).
     depth   how far the object's deepest point lies under the ground under it: an object resting on its contact
             points has nothing under the ground past TOLERANCE, so one deeper is sunk (buried below its own contact
             points), however its layout lifted it.
@@ -203,7 +205,8 @@ def judged(name, prim, mesh, ground, others):
 
 
 def overlap_depth(mesh, other):
-    """How deep the deepest of a sample of one object's surface lies inside another object (0 when none is inside)."""
+    """How deep one object lies inside another (0 when none is inside): the deepest of a sample of its surface inside
+    the other, or, where that is no deeper than TOLERANCE, how deep the two share their inside (shared_depth)."""
     points = np.vstack([np.asarray(mesh.vertices), mesh.sample(OVERLAP_SAMPLES, seed=0)])
     low, high = other.bounds
     near = points[np.all((points >= low) & (points <= high), axis=1)]
@@ -212,9 +215,27 @@ def overlap_depth(mesh, other):
     near = near[:: max(1, len(near) // OVERLAP_SAMPLES)]
     # The plain ray tester, not Embree's: Embree crashed the process on one of the square's meshes (2026-10-08).
     inside = near[trimesh.ray.ray_triangle.RayMeshIntersector(other).contains_points(near)]
-    if len(inside) == 0:
+    depth = float(trimesh.proximity.closest_point(other, inside)[1].max()) if len(inside) else 0.0
+    return depth if depth > TOLERANCE else max(depth, shared_depth(mesh, other))
+
+
+def shared_depth(mesh, other):
+    """How deep two objects share their inside: of a seeded sample across their boxes' overlap, the points inside both,
+    the deepest one's distance to the nearer of their two surfaces (0 when none is, or the overlap is too thin for any
+    to lie deeper than TOLERANCE). Two identical objects laid in the same spot have each surface on the other's, which
+    the surface sample reads as touching (box_3 and box_4 on engineroom's shelf_2, 0.0001 m, 2026-11-08); their shared
+    inside is the whole of either."""
+    low = np.maximum(mesh.bounds[0], other.bounds[0])
+    high = np.minimum(mesh.bounds[1], other.bounds[1])
+    if np.any(high - low <= 2 * TOLERANCE):
         return 0.0
-    return float(trimesh.proximity.closest_point(other, inside)[1].max())
+    points = np.random.default_rng(0).uniform(low, high, (OVERLAP_SAMPLES, 3))
+    for each in (mesh, other):
+        points = points[trimesh.ray.ray_triangle.RayMeshIntersector(each).contains_points(points)]
+        if len(points) == 0:
+            return 0.0
+    return float(np.minimum(trimesh.proximity.closest_point(mesh, points)[1],
+                            trimesh.proximity.closest_point(other, points)[1]).max())
 
 
 def overlaps(meshes, prims):

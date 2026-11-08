@@ -1,7 +1,7 @@
 """tools/usd/resting.py tells floating, sunk, tipping and overlapping objects from resting ones, on places made here,
 and ground.py lays them on the planned ground: a box on the ground rests, one lifted floats, one laid into the ground
 is sunk however its layout lifted it, a plank held up at one end tips, a hung object is not checked, a box on a
-structure deck or on the game's furniture rests, two boxes inside each other overlap, a box laid on a sloping planned
+structure deck or on the game's furniture rests, two boxes inside each other overlap (twins laid in one spot too), a box laid on a sloping planned
 ground stands on it, the made ground is read where it turns the old one off, and a room laid flat on its seat has the
 ground dug out under its pit.
 
@@ -16,6 +16,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - the_made_ground_is_read_where_the_old_one_is_off: ground_height's `if not (prim and prim.IsActive()):` before the
   MADE_GROUND read made `if False:`.
 - two_boxes_inside_each_other_overlap: overlaps' `if depth > TOLERANCE:` made `if depth > 1.0:`.
+- two_boxes_inside_each_other_overlap (the twins laid in one spot): overlap_depth's
+  `return depth if depth > TOLERANCE else max(depth, shared_depth(mesh, other))` made `return depth`.
 - a_room_lies_flat_on_its_seat_over_a_dug_pit: ground.py's `dug = -(float(self.dug["deep"]) + DUG_PAST)` made
   `dug = -(float(self.dug["deep"]))`.
 
@@ -139,11 +141,15 @@ def two_boxes_inside_each_other_overlap():
         folder = pathlib.Path(temporary)
         made_models(folder)
         found = results(laid_place(folder, [("crate", "box", (0, 0, 0)), ("crate", "box", (0.6, 0, 0)),
-                                            ("crate", "box", (3, 0, 0))], [("crate", "floor")]))
+                                            ("crate", "box", (3, 0, 0)), ("crate", "box", (6, 0, 0)),
+                                            ("crate", "box", (6, 0, 0))], [("crate", "floor")]))
         problems = []
         for name in ("crate_1", "crate_2"):
             if "overlaps" not in found[name]["result"]:
                 problems.append(f"{name}, 40 cm inside the other box, reads '{found[name]['result']}'")
+        for name in ("crate_4", "crate_5"):
+            if "overlaps" not in found[name]["result"]:
+                problems.append(f"{name}, its twin laid in the same spot, reads '{found[name]['result']}'")
         if found["crate_3"]["result"] != "rests":
             problems.append(f"the box standing apart reads '{found['crate_3']['result']}'")
         return problems
