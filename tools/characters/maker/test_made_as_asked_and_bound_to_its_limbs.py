@@ -35,7 +35,8 @@ unless named):
 - test_any_outfit_with_words_can_be_split_and_one_without_is_refused_on_the_pc: prop_parts.problems_of returns `[]`.
 - test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs: tucks_record's `not all(... > 0 ...)` made
   `not any(...)`; and, apart, tucks_inputs without the people tools' code; and, apart, tucks_inputs' test filter
-  without `or path.name.startswith("test_")` (a test edit then moves the hash).
+  without `or path.name.startswith("test_")` (a test edit then moves the hash); and, apart, tucks_inputs' take_files
+  loop dropped (a take remade under the same name matched the old record, 2026-11-08).
 - test_the_cloth_count_reads_the_routed_bodys_own_node_whatever_its_outfit: counts_by_clips' outfit node taken as the
   first skinned node, the far body's `!= "far"` dropped.
 - test_the_identity_is_read_off_the_takes_close_up: identity's steps `("identity",)` made `("identity", "route")`.
@@ -252,6 +253,10 @@ def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, 
     that passed writes none, and any changed input, the people tools' code included, predicts nothing."""
     import prop_person
     monkeypatch.setattr(prop_person, "CANDIDATES", tmp_path)
+    monkeypatch.setattr(prop_person, "PIXAL", tmp_path / "pixal")
+    (tmp_path / "pixal" / "pp-a_s1.svviews").mkdir(parents=True)
+    (tmp_path / "pixal" / "pp-a_s1-final.glb").write_bytes(b"first model")
+    (tmp_path / "pixal" / "pp-a_s1.svviews" / "input.png").write_bytes(b"first close-up")
     folder = prop_person.folder_of(PERSON, "work")
     (folder / "parts" / "pp-a_s1").mkdir(parents=True)
     (folder / "checks").mkdir()
@@ -269,6 +274,10 @@ def test_a_failed_tucks_record_predicts_a_gap_only_on_the_same_inputs(tmp_path, 
     (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"new parts")
     assert prop_person.predicted_tucks(PERSON, "work") is None
     (folder / "parts" / "pp-a_s1" / "parts.npz").write_bytes(b"first parts")
+    (tmp_path / "pixal" / "pp-a_s1-final.glb").write_bytes(b"the take made again under its name")
+    assert prop_person.predicted_tucks(PERSON, "work") is None, "a take remade under the same name kept the record"
+    (tmp_path / "pixal" / "pp-a_s1-final.glb").write_bytes(b"first model")
+    assert prop_person.predicted_tucks(PERSON, "work") == record
     people = tmp_path / "tools" / "people"
     people.mkdir(parents=True)
     (people / "joins.py").write_text("# joins")
