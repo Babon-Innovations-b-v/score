@@ -8,7 +8,9 @@ Each invariant with the break that turns it red (each applied once, seen red, re
   sbs-5k-retain; each pulls the private image with the registry's Secret. Break: drop `"podAffinity": ...` from
   `beside_conductor`, or `"hostPID": True` or `"imagePullSecrets"` from `pod_spec`. The scw config reaches each
   container only as the init container's copy (mode 600, user score's), never the Secret's group-readable file.
-  Break: mount `scw-secret` at SCW_PATH in `mounts`.
+  Break: mount `scw-secret` at SCW_PATH in `mounts`. Every container, a run's drive Job's (score/conductor/cluster.py
+  drive_job) too, reads the cluster's login read-only at the VM's /home/score/.kube/config, from its Secret (the
+  cluster submits of 2026-11-08 found none). Break: drop the `kubeconfig` mount from `mounts`.
 - the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder), so no record's path changes.
   Break: `("props", f"{HOME}/props")` in MOUNTS.
 - the agents' account may only get and port-forward to the conductor's one pod: no exec, no other pod, no other
@@ -30,6 +32,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
 from tools.cloud.k8s import conductor  # noqa: E402
 from tools.cloud.k8s.conductor import units  # noqa: E402
+from score.conductor import cluster  # noqa: E402
 
 
 class FakeProcess:
@@ -58,7 +61,10 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
     assert claim["spec"]["accessModes"] == ["ReadWriteOnce"] and claim["spec"]["storageClassName"] == "sbs-5k-retain"
     pods = [by_kind["StatefulSet"][0]["spec"]["template"]["spec"]] + [
         cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"]]
-    assert len(pods) == 4
+    drive = cluster.drive_job({**cluster.DEFAULTS, "image": "registry.example/score-conductor:1"}, ["score", "run"],
+                              "/tmp/score-run-1.log", "/home/score/projects/score", {}, 2 ** 30)
+    pods.append(drive["spec"]["template"]["spec"])
+    assert len(pods) == 5
     for pod in pods:
         assert pod["hostPID"] is True  # one process-id space with the conductor: registry pids read the same
         terms = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]["nodeSelectorTerms"]
@@ -74,7 +80,11 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
             paths = {mount["mountPath"]: mount.get("subPath") for mount in box["volumeMounts"]}
             assert paths["/home/score/.farm-factory-props"] == "props"
             assert paths["/home/score/projects"] == "projects"
-    for cron_pod in pods[1:]:
+            login, = [mount for mount in box["volumeMounts"] if mount["mountPath"] == "/home/score/.kube/config"]
+            assert login["readOnly"] and login["subPath"] == "config"
+            secret, = [volume["secret"] for volume in pod["volumes"] if volume["name"] == login["name"]]
+            assert secret["secretName"] == "score-conductor-kubeconfig"
+    for cron_pod in pods[1:]:  # the CronJobs' and the drive Job's
         beside, = cron_pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
         assert beside["topologyKey"] == "kubernetes.io/hostname"
         assert beside["labelSelector"]["matchLabels"]["app.kubernetes.io/component"] == "conductor"

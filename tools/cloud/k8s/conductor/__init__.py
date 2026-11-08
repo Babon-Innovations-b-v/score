@@ -62,6 +62,11 @@ MOUNTS = (("props", f"{HOME}/.farm-factory-props"), ("projects", f"{HOME}/projec
 REPO = f"{HOME}/projects/score"
 ENV_FILE = f"{HOME}/.config/score/dashboard.env"
 SCW_SECRET = "score-conductor-scw"
+# The VM's login for the cluster's Jobs (score-jobs:score-conductor's token, context score-conductor), made at the
+# cutover from that account's service-account-token Secret through kubectl's stdin, key `config`; every pod reads it at
+# the VM's path (2026-11-08: the cluster submits failed, "stat /home/score/.kube/config: no such file or directory").
+KUBECONFIG_SECRET = "score-conductor-kubeconfig"
+KUBECONFIG = f"{HOME}/.kube/config"
 REGISTRY_SECRET = "score-registry"  # the job images' pull Secret (k8s/manifests.registry_secret), made at the cutover
 CONFIG = f"{HOME}/.config"
 SCW_PATH = f"{CONFIG}/scw"
@@ -113,6 +118,7 @@ def image_of(kind="conductor", images=IMAGES_JSON):
 def volumes():
     return [{"name": "store", "persistentVolumeClaim": {"claimName": CLAIM}},
             {"name": "scw-secret", "secret": {"secretName": SCW_SECRET, "defaultMode": 0o400}},
+            {"name": "kubeconfig", "secret": {"secretName": KUBECONFIG_SECRET, "defaultMode": 0o400}},
             {"name": "scw", "emptyDir": {"medium": "Memory", "sizeLimit": "1Mi"}},
             {"name": "tmp", "emptyDir": {}}, {"name": "config", "emptyDir": {"sizeLimit": "64Mi"}},
             {"name": "run", "emptyDir": {"medium": "Memory", "sizeLimit": "64Mi"}}]
@@ -122,11 +128,12 @@ def mounts(read_only=False):
     """The store volume's folders at their VM paths, the scw config, a scratch /tmp, the secrets' tmpfs (secrets.sh
     writes the file-shaped secrets under $XDG_RUNTIME_DIR/score, memory only, as on the VM), and ~/.config as an
     emptyDir of the pods' group under them (the rehearsal of 2026-11-07: the runtime made it root's for the nested
-    mounts, and matplotlib found no folder it could write)."""
+    mounts, and matplotlib found no folder it could write), and the cluster's login at the VM's ~/.kube/config."""
     return [{"name": "config", "mountPath": CONFIG},  # ~/.config user score's, never the runtime's root-owned folder
             *({"name": "store", "subPath": folder, "mountPath": path, "readOnly": read_only}
               for folder, path in MOUNTS),
             {"name": "scw", "mountPath": SCW_PATH, "readOnly": True}, {"name": "tmp", "mountPath": "/tmp"},
+            {"name": "kubeconfig", "subPath": "config", "mountPath": KUBECONFIG, "readOnly": True},
             {"name": "run", "mountPath": RUNTIME_DIR}]
 
 
