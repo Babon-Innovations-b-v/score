@@ -1,13 +1,13 @@
 """MOTOR step 3 (#98): the tuning of stage A's settings on LabValidation's training subjects, as measure folders.
 
     .venv/bin/python -m tools.labval.motor_tune make <source> <root> --variant NAME='{"foot_stiffness": 2e7}' ... \
-        [--landmarks weights.json] [--held-out]
+        [--landmarks weights.json] [--held-out] [--stage muscles]
     .venv/bin/python -m tools.labval.motor_tune own <folder> <out>
     .venv/bin/python -m tools.labval.motor_tune weights <folder> ... --out weights.json
 
 `make` writes one measure folder a variant under <root> (<root>/<NAME>/trials/<trial>/: the source's targets and
-record, its job.json with "motor": "dynamics", the variant's "motor settings" and, with --landmarks, the learned
-"motor landmarks"), each run on the cluster by `cluster.py` and scored by `validate --no-run`. Only the training
+record, its job.json with "motor": "dynamics" (--stage muscles: MOTOR step 4's stage B after it), the variant's
+"motor settings" and, with --landmarks, the learned "motor landmarks"), each run on the cluster by `cluster.py` and scored by `validate --no-run`. Only the training
 subjects (TRAINING) are tuned on: a held-out subject's trial is refused unless --held-out (the report's run, its
 settings already chosen). `own` writes the folder whose pushes are stage A's own contact forces (its record's ground
 force by side), so `validate` scores MOTOR's own GRF against the plates. `weights` is B3D's EM step for the landmarks
@@ -45,8 +45,9 @@ def stage_a(out):
     return found
 
 
-def made(source, root, variants, landmarks=None, held_out=False):
-    """One measure folder a variant (name, settings) under `root` from the source's trials; their paths."""
+def made(source, root, variants, landmarks=None, held_out=False, stage="dynamics"):
+    """One measure folder a variant (name, settings) under `root` from the source's trials, each job's "motor"
+    `stage`; their paths."""
     trials = sorted(path.parent for path in pathlib.Path(source).glob("trials/*/job.json"))
     refused = [trial.name for trial in trials if subject(trial.name) not in TRAINING]
     if refused and not held_out:
@@ -61,7 +62,7 @@ def made(source, root, variants, landmarks=None, held_out=False):
                 shutil.copy2(trial / kept, out / kept)
             job = json.loads((trial / "job.json").read_text().replace(str(pathlib.Path(source).resolve()),
                                                                        str(folder.resolve())))
-            job["motor"], job["motor settings"] = "dynamics", settings
+            job["motor"], job["motor settings"] = stage, settings
             if landmarks:
                 job["motor landmarks"] = landmarks
             for person in job["people"]:
@@ -125,6 +126,8 @@ def main():
     making.add_argument("--variant", type=variant, action="append", required=True)
     making.add_argument("--landmarks", type=pathlib.Path, help="`weights`' file: the learned landmark weights")
     making.add_argument("--held-out", action="store_true", help="the report's run: held-out trials allowed")
+    making.add_argument("--stage", choices=("dynamics", "muscles"), default="dynamics",
+                        help="the jobs' MOTOR stage: stage A, or stage B (the muscles) after it")
     owning = commands.add_parser("own")
     owning.add_argument("folder", type=pathlib.Path)
     owning.add_argument("out", type=pathlib.Path)
@@ -134,7 +137,7 @@ def main():
     options = parser.parse_args()
     if options.command == "make":
         landmarks = json.loads(options.landmarks.read_text()) if options.landmarks else None
-        folders = made(options.source, options.root, options.variant, landmarks, options.held_out)
+        folders = made(options.source, options.root, options.variant, landmarks, options.held_out, options.stage)
         print(f"{len(folders)} variant folders under {options.root}: {', '.join(folder.name for folder in folders)}")
     elif options.command == "own":
         owned(options.folder, options.out)

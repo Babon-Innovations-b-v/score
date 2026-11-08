@@ -15,7 +15,8 @@ the chain's Butterworth run forward and back is half too.
 
 `solved(fitting, turns, points, skins, angles, rate)` gives (every frame's angles [N, nq] in the fitting model's
 layout, the record, the motion: its problem and control points, step 2's warm start). `dynamics_solved` is step 2's
-stage A on it (`_stage_a`: inverse dynamics, contact and the pelvis' residual as rows of the same solve). Card only: it raises where Warp sees no CUDA card."""
+stage A on it (`_stage_a`: inverse dynamics, contact and the pelvis' residual as rows of the same solve);
+`muscles_solved` step 4's stage B on stage A's answer (`_stage_b`: the muscles' activations solved with the movement). Card only: it raises where Warp sees no CUDA card."""
 import time
 
 import numpy as np
@@ -276,7 +277,15 @@ def solved_on(clip, turns, points, skins, angles, rate, trusts=None):
 def dynamics_solved(motion, physics, source, foot_points, sides, limits, height, settings=None):
     """MOTOR step 2's stage A (`_stage_a.solved`) from `solved`'s motion: the trial's movement made dynamically
     consistent with the smooth contact on the seen floor, the pelvis' residual held to `limits`; `settings` a job's
-    "motor settings" (`_dynamics.Settings.of`, None: the defaults)."""
+    "motor settings" (`_dynamics.Settings.of`, None: the defaults): (angles, record, its motion, stage B's start)."""
     from motor._dynamics import Settings
     from motor._stage_a import solved as stage_a
     return stage_a(motion, physics, source, foot_points, sides, limits, height, Settings.of(settings))
+
+
+def muscles_solved(motion, physics, limits, height):
+    """MOTOR step 4's stage B (`_stage_b.solved`) from `dynamics_solved`'s motion: the movement, contact and the
+    muscles' activations solved together, every joint's reserve penalised: (angles, activations [N, muscles] in
+    `physics.muscles`' order, record)."""
+    from motor._stage_b import solved as stage_b
+    return stage_b(motion, physics, limits, height)

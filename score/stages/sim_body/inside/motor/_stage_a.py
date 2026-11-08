@@ -109,7 +109,8 @@ def residual_record(torques, limits):
 
 def solved(motion, physics, source, foot_points, sides, limits, height, settings=DEFAULT):
     """Stage A from step 1's `motion` ((its `motor.Problem`, its control points)): (every frame's angles [N, nq] in
-    the fitting model's layout, the record). `physics` the person's (`muscles.Physics`, its skin credited), `source`
+    the fitting model's layout, the record, its motion: the problem, its control points and its `Weighed`, stage
+    B's warm start). `physics` the person's (`muscles.Physics`, its skin credited), `source`
     the fitting model, `foot_points` a foot's skin points (the contact's spread), `sides` each side's foot bodies
     (the record's ground force each), `limits` the residual's (force over the weight, moment over weight x
     `height`, the centre's standing height), `settings` the contact's and the effort's (`_dynamics.Settings`)."""
@@ -159,4 +160,4 @@ def solved(motion, physics, source, foot_points, sides, limits, height, settings
               "seconds": round(time.perf_counter() - began, 2)}
     qpos = problem.rows.projected(problem.layout.poses(values))
     record["landmark errors mm"] = landmark_errors(problem.rows.clip, qpos, problem.points)
-    return qpos, record
+    return qpos, record, (problem, control, weighed)

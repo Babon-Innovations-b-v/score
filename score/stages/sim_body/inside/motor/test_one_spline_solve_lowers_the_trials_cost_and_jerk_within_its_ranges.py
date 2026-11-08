@@ -36,6 +36,22 @@ weight keeping the markers' goal, a settings name not known refused, every landm
 - `_dynamics.Contact.settle`'s sunk made 0: the lowered skin stays 2.8 cm inside its floor.
 - `motor.retrusted`'s `costs ** 2 * weights` made `costs ** 2`: the weight 4 changes nothing.
 
+Step 4 (stage B) on the same toy with five muscles (`muscled`): MuJoCo's muscle curves in Warp against
+`mju_muscleGain` / `mju_muscleBias` and their tape derivatives against differences, the muscles' torques against
+MuJoCo's own actuator forces, the excitations against `mju_muscleDynamics`, the speed Jacobian of the muscle torques,
+the activations' elimination against the dense normal equations, the cost's slope along the activations' step, the
+reserves' stop weights' slope, the pelvis' rows along a short step within 0.3 of their linear model, and the solve
+lowering its cost from its warm start, its worst reserve and residual no higher. Breaks, 2026-11-08, each seen red
+and reverted:
+- `_muscles._curves`' force-velocity `(speed + one) * (speed + one)` made `(speed + one)`: the gain and the torques
+  are off MuJoCo's.
+- `_stage_b.Muscled.muscle_part`'s forces without the passive bias: the torques 0.37 off MuJoCo's.
+- `_muscles.excitations`' `- constant / step` made `+`: the first node's derivative 3.5 off.
+- `_stage_b.Solve.eliminated`'s Woodbury `first - ...` made `first + ...`: the step's solve raises.
+- `_dynamics.Dynamics.jacobians` on the damping alone for stage B: the pelvis' rows 1.26 off their model, and the
+  worst residual over stage A's.
+- `_stage_b.stop_shares`' slope's sign flipped: the stop weights' slope off its differences.
+
 Run: .venv/bin/python -m pytest score/stages/sim_body/inside/motor/
 """
 import os
@@ -218,16 +234,49 @@ def named(toy):
     return toy.replace("<freejoint/>", '<freejoint name="root"/>')
 
 
+def muscled(toy, mjm):
+    """The toy with five muscles (MuJoCo's own muscle model as a person's file writes it, `general` actuators): a
+    pair across h0, a pair across h1 and one across both, each laid over the lengths the toy's clip gives it (2 cm
+    either side)."""
+    import mujoco
+    import numpy as np
+    sites = {'<freejoint name="root"/>': [("rp", "0 0.08 0.15"), ("rm", "0 -0.08 0.15")],
+             '<joint name="h0" axis="1 0 0" range="-1.2 1.2"/>': [("ap", "0 0.08 0.15"), ("am", "0 -0.08 0.15"),
+                                                                    ("axp", "0.08 0 0.15"), ("axm", "-0.08 0 0.15")],
+             '<joint name="h1" axis="0 1 0" range="-1.2 1.2"/>': [("bxp", "0.08 0 0.15"), ("bxm", "-0.08 0 0.15")]}
+    text = named(toy)
+    for after, placed in sites.items():
+        text = text.replace(after, after + "".join(f'<site name="{name}" pos="{pos}"/>' for name, pos in placed))
+    paths = [("rp", "ap"), ("rm", "am"), ("axp", "bxp"), ("axm", "bxm"), ("rm", "am", "axm", "bxm")]
+    tendons = "".join(f'<spatial name="t{number}">' + "".join(f'<site site="{site}"/>' for site in path) + "</spatial>"
+                      for number, path in enumerate(paths))
+    curves = "0.75 1.05 1000 1 0.5 1.6 10 1.3 1.4"
+    actuator = ('<general name="m{0}" tendon="t{0}" dyntype="muscle" gaintype="muscle" biastype="muscle" '
+                f'dynprm="0.01 0.04 0" ctrlrange="0 1" ctrllimited="true" gainprm="{curves}" biasprm="{curves}" '
+                'lengthrange="{1}"/>')
+    probe = mujoco.MjModel.from_xml_string(text.replace("</worldbody>", f"</worldbody><tendon>{tendons}</tendon>"))
+    data, seen = mujoco.MjData(probe), []
+    for qpos in toy_targets(mjm)[0]:
+        data.qpos[:] = qpos
+        mujoco.mj_fwdPosition(probe, data)
+        seen.append(data.ten_length.copy())
+    seen = np.array(seen)
+    actuators = "".join(actuator.format(number, f"{seen[:, number].min() - 0.02:.4f} {seen[:, number].max() + 0.02:.4f}")
+                        for number in range(len(paths)))
+    return text.replace("</worldbody>", f"</worldbody><tendon>{tendons}</tendon><actuator>{actuators}</actuator>")
+
+
 def toy_physics(mjm, folder):
-    """The toy built as the run builds a person (`model.built`, on the card), a 5 x 5 skin grid riding its root 5 cm
-    under it, a flat floor 5.2 cm under the root's first place: (the physics, the fitting model's root body)."""
+    """The muscled toy (`muscled`) built as the run builds a person (`model.built`, on the card), a 5 x 5 skin grid
+    riding its root 5 cm under it, a flat floor 5.2 cm under the root's first place: (the physics, the fitting model's
+    root body)."""
     import numpy as np
     from contact import Skin
     from model import built
     from muscles import Physics
     from card_toy import TOY
     path = pathlib.Path(folder) / "toy.xml"
-    path.write_text(named(TOY))
+    path.write_text(muscled(TOY, mjm))
     model = built(path, 9.81)
     grid = np.array([[x, y, -0.05] for x in np.linspace(-0.1, 0.1, 5) for y in np.linspace(-0.1, 0.1, 5)])
     root = int(model.jnt_bodyid[0])
@@ -276,8 +325,8 @@ def stage_a_faults(mjm, motion):
         miss = np.linalg.norm(differences - jacobian[node]) / max(np.linalg.norm(differences), 1e-9)
         if miss > 0.1:
             faults.append(f"node {node}'s dynamics Jacobian {miss:.3f} of its central differences off")
-        angles, record = motor.dynamics_solved(motion, physics, mjm, len(physics.skin.points), [[root]],
-                                               (0.02, 0.01), 0.3)
+        angles, record, stage_a_motion = motor.dynamics_solved(motion, physics, mjm, len(physics.skin.points), [[root]],
+                                                      (0.02, 0.01), 0.3)
         before, after = record["residual before"], record["residual after"]
         worst_before = max(before["force %BW p50/p95/max"][2] / 2, before["moment %BW*ht p50/p95/max"][2])
         worst_after = max(after["force %BW p50/p95/max"][2] / 2, after["moment %BW*ht p50/p95/max"][2])
@@ -287,6 +336,7 @@ def stage_a_faults(mjm, motion):
         if angles.shape != qpos.shape[:1] + (mjm.nq,):
             faults.append(f"stage A's angles {angles.shape}, not a fitting model's pose a frame")
         faults += step_3_faults(problem, control, dynamics, record)
+        faults += stage_b_faults(stage_a_motion, physics, record)
     return faults
 
 
@@ -340,6 +390,223 @@ def step_3_faults(problem, control, dynamics, record):
     errors = record.get("landmark errors mm", {})
     if sorted(errors) != sorted(names) or not all(np.isfinite(list(errors.values()))):
         faults.append(f"stage A's landmark misses {errors} for the landmarks {names}")
+    return faults
+
+
+def curves_faults(model, muscles):
+    """MuJoCo's muscle curves in Warp (`_muscles.Curves`) against `mju_muscleGain` and `mju_muscleBias` at lengths
+    and speeds across and past every muscle's range, their tape derivatives against central differences."""
+    import mujoco
+    import numpy as np
+    from motor._muscles import Curves
+    generator, faults = np.random.default_rng(13), []
+    ranges = model.actuator_lengthrange[muscles]
+    lengths = ranges[:, 0] + (ranges[:, 1] - ranges[:, 0]) * generator.uniform(-0.3, 1.3, (60, len(muscles)))
+    speeds = generator.normal(0.0, 0.6, lengths.shape)
+    curves = Curves(model, muscles)
+    gains, biases, by_length, by_speed, bias_length = curves.evaluated(lengths, speeds)
+    wanted = [np.array([[call(node, muscle, actuator) for muscle, actuator in enumerate(muscles)]
+                        for node in range(len(lengths))])
+              for call in (lambda node, muscle, actuator: mujoco.mju_muscleGain(
+                               lengths[node, muscle], speeds[node, muscle], ranges[muscle],
+                               model.actuator_acc0[actuator], model.actuator_gainprm[actuator, :9]),
+                           lambda node, muscle, actuator: mujoco.mju_muscleBias(
+                               lengths[node, muscle], ranges[muscle], model.actuator_acc0[actuator],
+                               model.actuator_biasprm[actuator, :9]))]
+    for name, found, want in (("gain", gains, wanted[0]), ("bias", biases, wanted[1])):
+        if not np.allclose(found, want, rtol=1e-12, atol=1e-9):
+            faults.append(f"the card's muscle {name} {np.abs(found - want).max():.3e} off MuJoCo's")
+    step = 1e-7
+    differences = [(curves.evaluated(lengths + step, speeds)[0] - curves.evaluated(lengths - step, speeds)[0]),
+                   (curves.evaluated(lengths, speeds + step)[0] - curves.evaluated(lengths, speeds - step)[0]),
+                   (curves.evaluated(lengths + step, speeds)[1] - curves.evaluated(lengths - step, speeds)[1])]
+    for name, found, difference in zip(("gain on length", "gain on speed", "bias on length"),
+                                       (by_length, by_speed, bias_length), differences):
+        difference = difference / (2 * step)
+        if np.abs(found - difference).max() > 1e-5 * max(np.abs(difference).max(), 1.0):
+            faults.append(f"the {name} {np.abs(found - difference).max():.3e} off its central differences")
+    return faults
+
+
+def paths_faults(physics, muscled_rows, qpos, qvel, activations):
+    """The muscles' torques on the leading joints (`Muscled.muscle_part`) against MuJoCo's own actuator forces
+    (`mj_fwdActuation`, the activations as the muscles' act) carried onto the leading joints by the couplings."""
+    import mujoco
+    import numpy as np
+    model, data = physics.model, mujoco.MjData(physics.model)
+    given = muscled_rows.muscle_part(qpos, qvel, activations)["given"] * muscled_rows.scale
+    maps = muscled_rows.dynamics.path.coupled.maps(qpos)
+    worst = 0.0
+    for node in range(len(qpos)):
+        data.qpos[:], data.qvel[:] = qpos[node], qvel[node]
+        data.act[physics.muscles] = activations[node]
+        mujoco.mj_fwdPosition(model, data)
+        mujoco.mj_fwdVelocity(model, data)
+        mujoco.mj_fwdActuation(model, data)
+        wanted = (maps[node].T @ data.qfrc_actuator)[6:]
+        worst = max(worst, float(np.abs(given[node] - wanted).max() / max(np.abs(wanted).max(), 1.0)))
+    return [f"the muscles' torques {worst:.3e} of the largest off MuJoCo's actuator forces"] if worst > 1e-9 else []
+
+
+def excitation_faults(dynamics):
+    """The excitations a span needs (`_muscles.excitations`) give MuJoCo's own activation rate
+    (`mju_muscleDynamics`) at the span's midpoint, and their derivatives on both nodes are their central
+    differences."""
+    import mujoco
+    import numpy as np
+    from motor._muscles import excitations
+    generator, faults, step = np.random.default_rng(19), [], 1 / 30
+    activations = generator.uniform(0.05, 0.95, (12, len(dynamics)))
+    found, first, second = excitations(activations, step, dynamics)
+    middle = 0.5 * (activations[:-1] + activations[1:])
+    rates = np.array([[mujoco.mju_muscleDynamics(found[span, muscle], middle[span, muscle], dynamics[muscle])
+                       for muscle in range(len(dynamics))] for span in range(len(found))])
+    inside = (found > 0.0) & (found < 1.0)
+    pace = (activations[1:] - activations[:-1]) / step
+    if not np.allclose(rates[inside], pace[inside], rtol=1e-9, atol=1e-9):
+        faults.append(f"the excitations' rates {np.abs(rates - pace)[inside].max():.3e} off MuJoCo's")
+    moved = 1e-7
+    for name, parity, derivative in (("first", 0, first), ("second", 1, second)):
+        # every other node nudged: span k's first node (k even) or its second (k + 1 even), not both
+        ahead, behind = activations.copy(), activations.copy()
+        ahead[::2] += moved
+        behind[::2] -= moved
+        difference = (excitations(ahead, step, dynamics)[0] - excitations(behind, step, dynamics)[0]) / (2 * moved)
+        spans = np.arange(len(found)) % 2 == parity
+        miss = np.abs(difference[spans] - derivative[spans]).max()
+        if miss > 1e-5 * max(np.abs(difference[spans]).max(), 1.0):
+            faults.append(f"the excitation's derivative on the {name} node {miss:.3e} off its central differences")
+    return faults
+
+
+def dense_step(solve, control, activations, pieces, rows, damping):
+    """Stage B's whole normal equations written densely (the movement's control points, then every node's
+    activations), the damping as the solve places it (the activations' on their block, the movement's on its
+    eliminated diagonal): (the dense step, the unknowns `steps` held)."""
+    import numpy as np
+    from motor import _spline
+    step, activation_step, held, held_activations = solve.steps(control, activations, pieces, damping, rows)
+    _, hessians, gradients, _ = pieces["motion"]
+    stopping = 0.5 * pieces["weights by value"] * pieces["reserves"] ** 2 @ solve.muscled.selection
+    system = _spline.Banded(len(control), control.shape[1])
+    system.add_nodes(hessians, gradients + stopping)
+    system.add_rows(*rows)
+    system.add_jerk(control, solve.problem.step, solve.problem.weights)
+    points, _, size, _ = system.blocks.shape
+    count, muscles = activations.shape
+    moving = points * size
+    hessian, gradient = np.zeros((moving + count * muscles,) * 2), np.zeros(moving + count * muscles)
+    for first in range(points):
+        for offset in range(min(4, points - first)):
+            block = system.blocks[first, offset]
+            hessian[(first + offset) * size:(first + offset + 1) * size, first * size:(first + 1) * size] += block
+            if offset:
+                hessian[first * size:(first + 1) * size, (first + offset) * size:(first + offset + 1) * size] += block.T
+    gradient[:moving] = system.gradient.reshape(-1)
+    diagonal, on_activations, activation_gradient = solve.activation_system(activations, pieces, damping)
+    jacobians = rows[0]
+    for node in range(count):
+        at = moving + node * muscles
+        hessian[at:at + muscles, at:at + muscles] += np.diag(diagonal[node]) + on_activations[node].T @ on_activations[node]
+        moved = np.swapaxes(jacobians[node], 0, 1).reshape(jacobians.shape[2], -1)[6:]
+        cross = on_activations[node].T @ moved
+        hessian[at:at + muscles, node * size:(node + 3) * size] += cross
+        hessian[node * size:(node + 3) * size, at:at + muscles] += cross.T
+        gradient[at:at + muscles] = activation_gradient[node]
+    free = np.concatenate([~held.reshape(-1), ~held_activations.reshape(-1)])
+    shown, eliminated = np.flatnonzero(free[:moving]), moving + np.flatnonzero(free[moving:])
+    schur = hessian[np.ix_(shown, shown)] - hessian[np.ix_(shown, eliminated)] @ np.linalg.solve(
+        hessian[np.ix_(eliminated, eliminated)], hessian[np.ix_(eliminated, shown)])
+    hessian[shown, shown] += damping * (np.diag(schur) + 1.0)
+    wanted = np.zeros(len(gradient))
+    wanted[free] = np.linalg.solve(hessian[np.ix_(free, free)], -gradient[free])
+    return wanted, np.concatenate([step.reshape(-1), activation_step.reshape(-1)])
+
+
+def stage_b_faults(after, physics, stage_a):
+    """Stage B on the muscled toy (`_stage_b`): MuJoCo's curves on the card, the muscles' torques against MuJoCo's own
+    actuator forces, the excitations, the muscle torques' Jacobian on the joints' speed against central differences
+    (on the place a Gauss-Newton model: the arms' own change left out), the step
+    with every node's activations eliminated against the dense normal equations, the cost's slope along the
+    activations' own step and the reserves' weights' slope on the joints against their differences, the pelvis'
+    rows' change along a short step within 0.3 of their linear model (the speed's velocity products in), and the
+    solve lowering its whole cost from its warm start (both at the end's weights), its worst actuated reserve no higher and its pelvis' residual no
+    higher than stage A's, the activations inside [0, 1]."""
+    import numpy as np
+    import motor
+    from motor import _stage_b
+    faults = curves_faults(physics.model, physics.muscles)
+    solve = _stage_b.prepared(after, physics, 0.3)
+    muscled_rows, (problem, control, _) = solve.muscled, after
+    count = len(problem.measured(control)[0])
+    qpos = muscled_rows.dynamics.path.states(control)[0]
+    faults += excitation_faults(muscled_rows.dynamics_prm)
+    activations = np.full((count, len(physics.muscles)), 0.05)
+    control, activations, _, _ = _stage_b.inner(solve, control, activations, move=False, most=40)
+    activations = np.clip(activations, 0.02, 0.98)
+    total, pieces = solve.measured(control, activations)
+    _, qvel = pieces["motion"][3][2][:2]
+    faults += paths_faults(physics, muscled_rows, qpos, qvel, activations)
+    _, by_speed = muscled_rows.muscle_jacobians(pieces["part"])
+    for joint in range(len(muscled_rows.leads)):
+        for kind, found in (("speed", by_speed),):
+            places, speeds = [qpos.copy(), qpos.copy()], [qvel.copy(), qvel.copy()]
+            for sign, (place, speed) in zip((1.0, -1.0), zip(places, speeds)):
+                if kind == "place":
+                    place[:, muscled_rows.lead_at[joint]] += sign * 1e-6
+                else:
+                    speed[:, muscled_rows.leads[joint]] += sign * 1e-6
+            difference = (muscled_rows.muscle_part(places[0], speeds[0], activations)["given"]
+                          - muscled_rows.muscle_part(places[1], speeds[1], activations)["given"]) / 2e-6
+            if np.abs(difference - found[:, :, joint]).max() > 1e-5 * max(np.abs(difference).max(), 1e-9):
+                faults.append(f"the muscle torques' Jacobian on joint {joint}'s {kind} "
+                              f"{np.abs(difference - found[:, :, joint]).max():.3e} off its differences")
+    rows = solve.motion_rows(control, pieces)
+    wanted, found = dense_step(solve, control, activations, pieces, rows, 1e-6)
+    if np.abs(found - wanted).max() > 1e-4 * np.abs(wanted).max():
+        faults.append(f"the eliminated step {np.abs(found - wanted).max() / np.abs(wanted).max():.3e} of its largest "
+                      "off the dense normal equations'")
+    _, activation_step, _, _ = solve.steps(control, activations, pieces, 1e-6, rows, move=False)
+    moved = 1e-6
+    ahead = solve.measured(control, activations + moved * activation_step, pieces["motion"])[0]
+    behind = solve.measured(control, activations - moved * activation_step, pieces["motion"])[0]
+    slope = 2.0 * float(np.sum(solve.activation_system(activations, pieces, 0.0)[2] * activation_step))
+    if abs((ahead - behind) / (2 * moved) - slope) > 1e-3 * abs(slope):
+        faults.append(f"the cost's slope along the activations' step {(ahead - behind) / (2 * moved):.6g}, its "
+                      f"gradient's {slope:.6g}")
+    values = muscled_rows.lead_values(qpos)
+    reserves = pieces["reserves"]
+    _, by_value = muscled_rows.weights(reserves, qpos, 1.0)
+    for joint in range(len(muscled_rows.leads)):
+        nudged = [qpos.copy(), qpos.copy()]
+        nudged[0][:, muscled_rows.lead_at[joint]] += 1e-7
+        nudged[1][:, muscled_rows.lead_at[joint]] -= 1e-7
+        difference = (muscled_rows.weights(reserves, nudged[0], 1.0)[0]
+                      - muscled_rows.weights(reserves, nudged[1], 1.0)[0])[:, joint] / 2e-7
+        if np.abs(difference - by_value[:, joint]).max() > 1e-4 * max(np.abs(difference).max(), 1.0):
+            faults.append(f"the reserves' weights' slope on joint {joint} (at {values[:, joint].round(3).max()}) "
+                          f"{np.abs(difference - by_value[:, joint]).max():.3e} off its differences")
+    step, activation_step, _, _ = solve.steps(control, activations, pieces, 1e4, rows)
+    linear = np.einsum("nprm,npm->nr", rows[0][:, :, :6], np.stack([step[node:node + 3] for node in range(count)]))
+    changed = (solve.measured(control + step, activations + activation_step)[1]["motion"][3][0][:, :6]
+               - pieces["motion"][3][0][:, :6]) * np.sqrt(solve.weighed.penalty / 2.0)
+    miss = np.abs(changed - linear).max() / max(np.abs(linear).max(), 1e-12)
+    if miss > 0.3:
+        faults.append(f"the pelvis' rows change {miss:.3f} of their linear model off along stage B's step")
+    angles, found_activations, record = motor.muscles_solved(after, physics, (0.02, 0.01), 0.3)
+    warm = record["warm start (movement held)"]
+    costs = record["cost"]
+    if not costs["end"] < costs["warm start at the end's weights"]:
+        faults.append(f"stage B's cost {costs}: the end not under its warm start's")
+    if record["reserves after"]["actuated %BW*ht p50/p95/max"][2] > warm["reserves"]["actuated %BW*ht p50/p95/max"][2]:
+        faults.append(f"stage B's worst reserve {record['reserves after']} over its warm start's {warm['reserves']}")
+    worst = [max(one["force %BW p50/p95/max"][2] / 2, one["moment %BW*ht p50/p95/max"][2])
+             for one in (stage_a["residual after"], record["residual after"])]
+    if worst[1] > worst[0]:
+        faults.append(f"stage B's worst residual {worst[1]:.3f} of its limit's percent over stage A's {worst[0]:.3f}")
+    if found_activations.shape != (count, len(physics.muscles)) or found_activations.min() < 0 \
+            or found_activations.max() > 1 or angles.shape != (count, problem.rows.clip.mjm.nq):
+        faults.append(f"stage B's activations {found_activations.shape} or angles {angles.shape} not as laid")
     return faults
 
 

@@ -120,6 +120,7 @@ CHECKED = "checks: RRA's record, feet held, following on MuJoCo's compile"
 
 FEET_SIDES = (("LeftFoot", "LeftToeBase"), ("RightFoot", "RightToeBase"))  # a seen stance's columns, left then right
 DYNAMICS = "dynamics"  # a job's "motor" for MOTOR's step 1 and step 2's stage A (#98); true for step 1 alone
+MUSCLES = "muscles"  # ... and step 4's stage B on stage A's answer: the frames' activations stage B's
 
 
 def arguments():
@@ -266,20 +267,29 @@ def run_person(job, person, out_path):
     feet = {segment: np.flatnonzero(skin.owners == bodies[segment]) for segment in segments if segment.endswith(FEET)}
     weight = sum(model.body_mass) * job["gravity"]
     standing = com_height(model, qpath[0], ground)
-    if job.get("motor") == DYNAMICS:
+    activations = None
+    if job.get("motor") in (DYNAMICS, MUSCLES):
         # MOTOR step 2 (#98): stage A makes the path dynamically consistent on the seen floor; the chain (RRA, the
         # static optimisation) then runs on it as it ran on the fit's, and measures it as it does any path
         seconds["set up before MOTOR"] = time.perf_counter() - since
         since = time.perf_counter()
         sides = [[bodies[segment] for segment in side] for side in FEET_SIDES]
         side_points = [int(np.isin(skin.owners, side).sum()) for side in sides]
-        angles, record["motor"]["dynamics"] = motor.dynamics_solved(
-            motion, physics, own, max(1, int(np.mean(side_points))), sides,
-            (job["residual"]["force"], job["residual"]["moment"]), standing, job.get("motor settings"))
-        qpath = np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)])
-        fitted_poses = posed_path(model, qpath, segments, bodies, riding)
+        residual = (job["residual"]["force"], job["residual"]["moment"])
+        angles, record["motor"]["dynamics"], motion = motor.dynamics_solved(
+            motion, physics, own, max(1, int(np.mean(side_points))), sides, residual, standing,
+            job.get("motor settings"))
         seconds["MOTOR stage A"] = time.perf_counter() - since
         since = said(person["name"], "MOTOR's stage A", since)
+        if job["motor"] == MUSCLES:
+            # MOTOR step 4: stage B solves the muscles with the movement and contact; the frames' activations are
+            # its, the chain's static optimisation runs on its path beside it
+            angles, activations, record["motor"]["muscles"] = motor.muscles_solved(motion, physics, residual,
+                                                                                   standing)
+            seconds["MOTOR stage B"] = time.perf_counter() - since
+            since = said(person["name"], "MOTOR's stage B", since)
+        qpath = np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)])
+        fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     names = [str(name) for name in person["rig"]["names"]]
     parents = [segments.index(names[parent]) if parent >= 0 and names[parent] in segments else -1
                for parent in (person["rig"]["parents"][names.index(segment)] for segment in segments)]
@@ -346,6 +356,11 @@ def run_person(job, person, out_path):
     records, bones, posed, paths, counts, pushed = frames(physics, qpath, velocities, accelerations, worlds, ground,
                                                           riders, feet, drawn_ids, job["rate"], seconds)
     since = said(person["name"], "the physics frame by frame", since)
+    if activations is not None:  # MOTOR's stage B: its activations the frames', the static optimisation's mean kept
+        record["motor"]["muscles"]["static optimisation activations mean"] = round(float(np.mean(
+            [frame["activations"] for frame in records])), 4)
+        for frame, mine in zip(records, activations, strict=True):
+            frame["activations"] = np.round(mine, 4).tolist()
     mine = arrays(person["name"], bones, posed, paths, counts, meshes)
     # every hinge's angle on the path the physics takes, by joint name (#98: LabValidation reads the coordinates)
     hinges = [joint for joint in range(model.njnt) if model.jnt_type[joint] == mujoco.mjtJoint.mjJNT_HINGE]
