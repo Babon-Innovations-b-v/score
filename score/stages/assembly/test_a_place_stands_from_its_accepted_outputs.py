@@ -971,7 +971,9 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: `if not held_in(on) and not climbs(entry):` -> `if True:`
     Break: score/stages/assembly/fitting.py: `back[1] = np.inf` -> `pass`
     Break: score/stages/assembly/fitting.py: `<= WALL_THICKEST)]` -> `<= 99.0)]`
-    Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`"""
+    Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`
+    Break: score/stages/assembly/fitting.py: free_spot's `clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]],
+        size[[0, 2]] / 2, outline) <= HELD_MOST` -> `pass` (its free spot found in the slanted corner, the parting is refused: left in the fixture)"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1057,6 +1059,30 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     bunks = {name: fitting.world_box(split, f"/{TOY}/Objects/{name}") for name in across}
     assert np.allclose(bunks["bunk_bed_2"][0], (3.1, 0.0, 2.5)), bunks  # its own room's free spot, not 1.2 m through
     assert np.allclose(bunks["bunk_bed_3"][0], across["bunk_bed_3"][0]), bunks  # 3.5 m in a 3 m room: left, named
+    # engineroom (2026-11-08): its slanted corner walls, which the parting knew only by the box of the walls, took
+    # core_1 5.48 m into one. A crate laid in a kit fixture beside a slanted corner wall (4, 0) to (6, 2) goes to a
+    # free spot clear of the wall's outline and on the room's side of it, never the 0.6 m out of the fixture
+    # along the wall it stands by into the corner.
+    corner = Usd.Stage.CreateInMemory()
+    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 4.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 4.0)),
+                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0)), ("wall_4", (0.0, 0.0, 4.0), (6.0, 3.0, 4.1))):
+        a_built_box(corner, f"/{TOY}/Structure/{name}", low, high)
+    from pxr import Gf, UsdGeom
+    UsdGeom.Xform.Define(corner, f"/{TOY}/Structure/wall_5").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    slab = UsdGeom.Mesh.Define(corner, f"/{TOY}/Structure/wall_5/geo")
+    side = 0.1 / np.sqrt(2.0)
+    slab.CreatePointsAttr([(x + way * side, y, z - way * side) for x, z in ((4.0, 0.0), (6.0, 2.0)) for way in (1, -1)
+                           for y in (0.0, 3.0)])
+    slab.CreateExtentAttr([(4.0 - side, 0.0, -side), (6.0 + side, 3.0, 2.0 + side)])
+    a_built_box(corner, f"/{TOY}/Fixtures/kit_1", (2.0, 0.0, 0.0), (3.5, 1.0, 1.5))
+    a_built_box(corner, f"/{TOY}/Objects/crate_4", (2.9, 0.0, 0.0), (3.5, 0.5, 0.6))
+    fitting.fitted(corner, TOY, [{"name": "crate_4", "row": "crate"}], {"crate_4"})
+    crate = fitting.world_box(corner, f"/{TOY}/Objects/crate_4")
+    [(outline, _)] = fitting.slants(corner, TOY)
+    assert not np.allclose(crate[0], (2.9, 0.0, 0.0)), crate  # out of the fixture
+    assert fitting.slant_depth(fitting.foot_middle(*crate)[[0, 2]], (0.3, 0.3), outline)[0] <= 0.0, crate
+    assert crate[1][0] - crate[0][2] <= 4.0, crate  # on the room's side of the wall's line
+    assert fitting.crossing({"crate_4": crate}, [], fitting.slants(corner, TOY)) == 0, crate
     record = {"objects": [{"name": name, "row": name[:-2]} for name in ("bed_1", "crate_3", "rug_1", "table_1")]}
     laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)} for name, (low, high) in
                                      {**floor, "crate_3": ((2.5, 0.0, 1.0), (3.1, 0.5, 1.6))}.items()]}

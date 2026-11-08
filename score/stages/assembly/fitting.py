@@ -1206,13 +1206,14 @@ def tall_together(box, other):
     return min(box[1][1], other[1][1]) - max(box[0][1], other[0][1]) > HELD_MOST
 
 
-def crossing(boxes, statics_built):
+def crossing(boxes, statics_built, slanted=()):
     """How many of the boxes {name: (low, high)} stand inside each other or inside a static, by more than HELD_MOST
-    every way (inside_of's rule)."""
+    every way (inside_of's rule), or inside a slanted wall (in_slants)."""
     names = sorted(boxes)
     return sum(depths(*boxes[first], boxes[second]).min() > HELD_MOST
                for number, first in enumerate(names) for second in names[number + 1:]) \
-        + sum(len(inside_of(*box, statics_built)) for box in boxes.values())
+        + sum(len(inside_of(*box, statics_built)) for box in boxes.values()) \
+        + sum(in_slants(box, slanted) for box in boxes.values())
 
 
 def through(start, end, others):
@@ -1234,31 +1235,109 @@ def stacked(boxes):
             np.array([box[1] for box in boxes], float).reshape(-1, 3))
 
 
-def flush_moves(box, others, inside, axis, side):
+def flush_moves(box, others, inside, axis, side, slants=()):
     """The moves along one floor axis (0: x, 2: z; `side` that axis's in `inside`: 0 or 1) that set a box (low,
     high) flush against a side of one of `others` (low (M, 3), high (M, 3)) or of `inside` [low x, low z, high x,
-    high z], and no move: the only moves a least move clear of boxes needs."""
+    high z], or against a slanted wall's outline (`slants`, slant_flush), and no move: the only moves a least move
+    clear of boxes needs."""
     bounds = [bound for bound in (inside[side] - box[0][axis], inside[side + 2] - box[1][axis]) if np.isfinite(bound)]
     return np.unique(np.concatenate([[0.0], others[1][:, axis] - box[0][axis], others[0][:, axis] - box[1][axis],
-                                     bounds]))
+                                     bounds, *(slant_flush(box, outline, side) for outline, _ in slants)]))
+
+
+# --- slanted walls: a wall whose box holds the room beside it (WALL_THICKEST), read by its outline on the floor ----
+
+def slants(stage, place):
+    """[(outline [k, 2] (x, z), box (low, high))] of each built wall statics leaves out for its slant: the convex
+    outline of its mesh on the floor, where that outline is no thicker than WALL_THICKEST (a straight slanted wall;
+    a round one's would hold the room), its box for its height. 2026-11-08: engineroom's corner walls, which the
+    parting knew only by the box of the walls, took core_1 5.48 m into wall_12 and railings 7 and 8 through walls 2
+    and 10, out of the room."""
+    from scipy.spatial import ConvexHull, QhullError
+    found = []
+    for scope in ("Structure", "Shell"):
+        for name, box in walls_in(stage, place, scope):
+            if name.split("_")[0] != "wall" or min(box[1][0] - box[0][0], box[1][2] - box[0][2]) <= WALL_THICKEST:
+                continue
+            points = surface_points(stage, f"/{place}/{scope}/{name}")[:, [0, 2]]
+            try:
+                outline = points[ConvexHull(points).vertices]
+            except (QhullError, ValueError):
+                continue
+            if min(np.ptp(outline @ way) for way in outline_ways(outline)) <= WALL_THICKEST:
+                found.append((outline, box))
+    return found
+
+
+def outline_ways(outline):
+    """The unit normals [k, 2] of a convex outline's edges [k, 2] (x, z)."""
+    edges = np.roll(outline, -1, axis=0) - outline
+    ways = np.stack([-edges[:, 1], edges[:, 0]], axis=1)
+    return ways / np.maximum(np.linalg.norm(ways, axis=1, keepdims=True), 1e-12)
+
+
+def slant_depth(middles, half, outline):
+    """How far each floor rectangle (its middle (N, 2) (x, z), its `half` sides [x, z]) reaches into a convex outline
+    (N,): the least overlap over the outline's edge normals and the two floor axes (0 or less: apart)."""
+    ways = np.vstack([[[1.0, 0.0], [0.0, 1.0]], outline_ways(outline)])
+    reach = np.abs(ways) @ np.asarray(half, float)
+    along = np.asarray(middles, float).reshape(-1, 2) @ ways.T
+    ends = outline @ ways.T
+    return (np.minimum(along + reach, ends.max(axis=0)) - np.maximum(along - reach, ends.min(axis=0))).min(axis=1)
+
+
+def slant_flush(box, outline, side):
+    """The moves along one floor axis (`side` 0: x, 1: z) that set a box (low, high) flush against a convex outline
+    on one of its separating ways (slant_depth's)."""
+    middle, half = foot_middle(*box)[[0, 2]], (box[1] - box[0])[[0, 2]] / 2
+    ways = np.vstack([[[1.0, 0.0], [0.0, 1.0]], outline_ways(outline)])
+    ways = ways[np.abs(ways[:, side]) > 1e-6]
+    reach, along, ends = np.abs(ways) @ half, ways @ middle, outline @ ways.T
+    return np.concatenate([(ends.max(axis=0) - (along - reach)) / ways[:, side],
+                           (ends.min(axis=0) - (along + reach)) / ways[:, side]])
+
+
+def slant_crossed(start, ends, outline):
+    """Which floor paths from `start` to each of `ends` (N, 3) pass through a convex outline (N,) booleans (the
+    outline's edge normals and each path's own normal separate the ones that do not)."""
+    first, last = np.asarray(start, float)[[0, 2]], np.asarray(ends, float).reshape(-1, 3)[:, [0, 2]]
+    ways = outline_ways(outline)
+    path = last - first
+    own = np.stack([-path[:, 1], path[:, 0]], axis=1)
+    apart = ((np.minimum(first @ ways.T, last @ ways.T) >= (outline @ ways.T).max(axis=0))
+             | (np.maximum(first @ ways.T, last @ ways.T) <= (outline @ ways.T).min(axis=0))).any(axis=1)
+    side = outline @ own.T
+    lined = (own * first).sum(axis=1)
+    return ~apart & ~((side.min(axis=0) >= lined) | (side.max(axis=0) <= lined))
+
+
+def in_slants(box, slanted):
+    """Whether a box (low, high) reaches into one of the slanted walls `slanted` (slants') it shares height with by
+    more than HELD_MOST."""
+    middle, half = foot_middle(*box)[[0, 2]], (box[1] - box[0])[[0, 2]] / 2
+    return any(tall_together(box, wall) and float(slant_depth(middle, half, outline)[0]) > HELD_MOST
+               for outline, wall in slanted)
 
 
 # How many moves free_spot judges at once (memory: each against every other box).
 FREE_CHUNK = 2048
 
 
-def free_spot(box, others, pieces, inside):
+def free_spot(box, others, pieces, inside, slanted=()):
     """The least move [x, y, z] on the floor that takes a box (low, high) clear of every box of `others` and of the
-    wall `pieces` (each [(low, high)], those it shares height with: tall_together) and keeps it in `inside` [low x,
-    low z, high x, high z], its middle passing through no wall piece it did not start in (it stays in its room); None
-    where no move does. Only flush moves are judged (flush_moves), so the move found is exact. The solver's overlap
+    wall `pieces` (each [(low, high)], those it shares height with: tall_together) and of the slanted walls
+    (`slanted`, slants': by their outlines) and keeps it in `inside` [low x, low z, high x, high z], its middle
+    passing through no wall piece or slanted wall it did not start in (it stays in its room); None where no move
+    does. Only flush moves are judged (flush_moves), so the move found is exact. The solver's overlap
     gives a box laid across a wall no way out (it holds the wall's piece inside its own on both axes, so the
     overlap's gradient is 0): habitat's bunk beds, 2.1 m long, laid across its slanted inner wall."""
     near = stacked([other for other in [*others, *pieces] if tall_together(box, other)])
     walls_near = stacked([piece for piece in pieces if tall_together(box, piece)])
     middle, size = foot_middle(*box), box[1] - box[0]
     started = through(middle, middle, walls_near)
-    along, across = np.meshgrid(flush_moves(box, near, inside, 0, 0), flush_moves(box, near, inside, 2, 1))
+    sloped = [(outline, wall) for outline, wall in slanted if tall_together(box, wall)]
+    along, across = np.meshgrid(flush_moves(box, near, inside, 0, 0, sloped),
+                                flush_moves(box, near, inside, 2, 1, sloped))
     moves = np.stack([along.ravel(), np.zeros(along.size), across.ravel()], axis=1)
     moves = moves[np.lexsort((moves[:, 2], moves[:, 0], np.hypot(moves[:, 0], moves[:, 2])))]
     spots = box[0][[0, 2]] + moves[:, [0, 2]]
@@ -1268,7 +1347,13 @@ def free_spot(box, others, pieces, inside):
         chunk = moves[first:first + FREE_CHUNK]
         reach = (np.minimum(box[1] + chunk[:, None], near[1][None]) - np.maximum(box[0] + chunk[:, None],
                                                                                  near[0][None])).min(axis=2)
-        for move in chunk[~(reach > HELD_MOST).any(axis=1)]:
+        clear = ~(reach > HELD_MOST).any(axis=1)
+        for outline, _ in sloped:
+            begun = slant_depth(middle[[0, 2]], size[[0, 2]] / 2 * 0.0, outline)[0] > 0.0
+            clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]], size[[0, 2]] / 2, outline) <= HELD_MOST
+            if not begun:
+                clear &= ~slant_crossed(middle, middle + chunk, outline)
+        for move in chunk[clear]:
             if not (through(middle, middle + move, walls_near) & ~started).any():
                 return move
     return None
@@ -1295,13 +1380,14 @@ def parted_spots(boxes, movers, fixed, inside):
             for name, spot in zip(order, spots)}
 
 
-def crowded(boxes, fixed):
+def crowded(boxes, fixed, slanted=()):
     """The names of the boxes {name: (low, high)} standing inside another of them or inside one of `fixed` [(low,
-    high)] by more than HELD_MOST every way, sharing height (tall_together: a rug under a table never does)."""
+    high)] by more than HELD_MOST every way, sharing height (tall_together: a rug under a table never does), or
+    inside a slanted wall (in_slants)."""
     return {name for name, box in boxes.items()
             if any(tall_together(box, other) and depths(*box, other).min() > HELD_MOST for other in fixed)
             or any(tall_together(box, found) and depths(*box, found).min() > HELD_MOST
-                   for other_name, found in boxes.items() if other_name != name)}
+                   for other_name, found in boxes.items() if other_name != name) or in_slants(box, slanted)}
 
 
 def moved_box(box, shift):
@@ -1327,7 +1413,7 @@ def bound_of_all(boxes, inside):
             max([inside[2], *(box[1][0] for box in outside)]), max([inside[3], *(box[1][2] for box in outside)])]
 
 
-def parted_boxes(boxes, still, pieces, inside):
+def parted_boxes(boxes, still, pieces, inside, slanted=()):
     """{name: box (low, high)} of the boxes {name: (low, high)} of the things nothing holds, the crowded ones parted
     at their built size, kept in `inside` [low x, low z, high x, high z], clear of the `still` boxes (fixtures and held
     things) and the wall `pieces` [(low, high)]: each laid across a still box or a wall moved to the free spot
@@ -1335,14 +1421,16 @@ def parted_boxes(boxes, still, pieces, inside):
     then inside each other parted by the relation solver (parted_spots); then each one still inside another, a still
     box or a wall piece, or
     whose middle the solver took through a wall into the next room, the biggest first, at the free spot nearest its
-    laid one among everything (free_spot); one with none left as laid (the held gate names it)."""
+    laid one among everything (free_spot); one with none left as laid (the held gate names it). The slanted walls
+    (`slanted`, slants') are judged by their outlines throughout: the solver knows only boxes, so one it leaves in
+    or takes through a slanted wall goes to its free spot too."""
     fixed = [*still, *pieces]
-    movers = crowded(boxes, fixed)
+    movers = crowded(boxes, fixed, slanted)
     if not movers:
         return boxes
     after = {**boxes, **{name: moved_box(boxes[name], free_spot(boxes[name], still, pieces,
-                                                                 bound_of(boxes[name], inside)))
-                         for name in movers if crowded({name: boxes[name]}, fixed)}}
+                                                                 bound_of(boxes[name], inside), slanted))
+                         for name in movers if crowded({name: boxes[name]}, fixed, slanted)}}
     crowd = crowded(after, []) & movers
     if crowd:
         after.update(parted_spots(after, {name: after[name] for name in crowd}, fixed,
@@ -1350,16 +1438,19 @@ def parted_boxes(boxes, still, pieces, inside):
     walls_all = stacked(pieces)
     crossed = {name for name in movers if (through(foot_middle(*boxes[name]), foot_middle(*after[name]), walls_all)
                                            & ~through(foot_middle(*boxes[name]), foot_middle(*boxes[name]),
-                                                      walls_all)).any()}
+                                                      walls_all)).any()
+               or any(slant_crossed(foot_middle(*boxes[name]), foot_middle(*after[name]), outline)[0]
+                      and not slant_crossed(foot_middle(*boxes[name]), foot_middle(*boxes[name]), outline)[0]
+                      for outline, _ in slanted)}
     tried = set()
-    while pending := sorted((crowded(after, fixed) & movers | crossed) - tried,
+    while pending := sorted((crowded(after, fixed, slanted) & movers | crossed) - tried,
                             key=lambda name: (-float(np.prod((boxes[name][1] - boxes[name][0])[[0, 2]])), name)):
         name = pending[0]
         tried.add(name)
         others = [*still, *(box for other, box in after.items() if other != name)]
-        if name in crossed or crowded({name: after[name]}, [*others, *pieces]):
+        if name in crossed or crowded({name: after[name]}, [*others, *pieces], slanted):
             after[name] = moved_box(boxes[name], free_spot(boxes[name], others, pieces,
-                                                           bound_of(boxes[name], inside)))
+                                                           bound_of(boxes[name], inside), slanted))
     return after
 
 
@@ -1370,7 +1461,8 @@ def parted(stage, place, entries, holding=()):
     solver, score/review/relation_solver/_solver, for those inside each other, each pulled softly back to where it
     starts, then the nearest free spot again for one the solver left crossing; each kept inside the box of the place's
     walls where its middle stands in it (bound_of), clear of every fixture, still thing and wall piece it shares
-    height with), never shrunk; the fixtures, the structure and the things nothing crowds never move, and the held
+    height with, and of each slanted wall by its outline on the floor (slants), never through one), never shrunk; the
+    fixtures, the structure and the things nothing crowds never move, and the held
     things (`holding`, their names) are left out: fitted after, onto where their holders stand. Kept only when fewer
     stand inside each other or a static after (#72, settle@flat: its bed in its bedside table and wardrobe, laid
     bigger than the plan's estimates); the fits [{name, how "parted", ...}]."""
@@ -1384,8 +1476,9 @@ def parted(stage, place, entries, holding=()):
     room = [box for name, box in built if name.split("_")[0] == "wall"]
     inside = ([min(box[0][0] for box in room), min(box[0][2] for box in room), max(box[1][0] for box in room),
                max(box[1][2] for box in room)] if room else [-np.inf, -np.inf, np.inf, np.inf])
-    after = parted_boxes(boxes, list(held.values()), pieces, inside)
-    if crossing({**held, **after}, thin) >= crossing({**held, **boxes}, thin):
+    slanted = slants(stage, place)
+    after = parted_boxes(boxes, list(held.values()), pieces, inside, slanted)
+    if crossing({**held, **after}, thin, slanted) >= crossing({**held, **boxes}, thin, slanted):
         return []
     fits = []
     for entry in entries:
