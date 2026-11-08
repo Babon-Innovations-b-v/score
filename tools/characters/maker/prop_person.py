@@ -428,13 +428,23 @@ def bodycloth_rows(folder):
     return rows
 
 
+def take_files(take):
+    """The take's files the maker builds from, as the body row lays them from the store (PIXAL; pixal_row.SUFFIXES):
+    its raw and finished Pixal3D models and its close-up folder's files in name order."""
+    found = [PIXAL / f"{take}.glb", PIXAL / f"{take}-final.glb"]
+    return found + sorted(path for path in (PIXAL / f"{take}.svviews").rglob("*") if path.is_file())
+
+
 def tucks_inputs(spec, folder, take):
-    """The hash of what a look's tucks are made from: its take, its spec, its parts and the maker's and the people
-    tools' code (the rig, the shell's binding, the build, the route, the tucks and their measure; their tests left
-    out): a failed tucks record on the same hash predicts the same failure (#21)."""
+    """The hash of what a look's tucks are made from: its take's files (take_files: a take made again under the same
+    name is another take), its spec, its parts and the maker's and the people tools' code (the rig, the shell's
+    binding, the build, the route, the tucks and their measure; their tests left out): a failed tucks record on the
+    same hash predicts the same failure (#21)."""
     digest = hashlib.sha256(json.dumps([take, spec], sort_keys=True).encode())
     code = sorted(path for path in (*HERE.glob("*.py"), *(HERE.parent / "people").glob("*.py"))
                   if not (path.name.endswith("_test.py") or path.name.startswith("test_")))
+    for path in take_files(take):
+        digest.update(f"{path.name}:".encode() + (path.read_bytes() if path.is_file() else b"missing"))
     for path in (folder / "parts" / take / "parts.npz", *code):
         digest.update(path.read_bytes())
     return digest.hexdigest()

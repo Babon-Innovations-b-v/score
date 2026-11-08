@@ -14,10 +14,10 @@ rules.
   `__init__`; in the people package that pulled in the whole surface stage, so every surface edit re-keyed (and
   re-bought) every body (2026-10-13). Import nothing here from `score.stages.people`.
 - Tests: `../people/test_looks_dressed_from_the_library_and_judged_by_measure.py`.
-- **One batch a body, no buy on a known failure (#21).** The build, route and checks run once. When the paid
-  checks find a tuck over the gate in every clip of the route's body (`pokes.json`), the look's record
-  (`checks/failed_tucks.json`, `prop_person.tucks_record`) carries the hash of its inputs (`prop_person.tucks_inputs`:
-  take, spec, parts, the maker's and people tools' code); while that hash stands the row is Blocked before any
-  machine is rented, so the same failure is never bought twice. Not a bind-pose check on the build: the
-  route moves cloth over a tuck, so only the measure on the route's body predicts. A new body is a new batch once the
-  take, its parts or the code changed.
+- **One batch a body, no buy on a known failure (#21).** The build, route and checks run once. When the paid checks find
+  a tuck over the gate in every clip of the route's body (`pokes.json`), the look's record (`checks/failed_tucks.json`,
+  `prop_person.tucks_record`) carries the hash of its inputs (`prop_person.tucks_inputs`: the take's files
+  (`take_files`, its bytes, not its name), spec, parts, the maker's and people tools' code); while that hash stands the
+  row is Blocked before any machine is rented, so the same failure is never bought twice. Not a bind-pose check on the
+  build: the route moves cloth over a tuck, so only the measure on the route's body predicts. A new body is a new batch
+  once the take, its parts or the code changed.
