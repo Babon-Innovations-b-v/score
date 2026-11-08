@@ -6,7 +6,10 @@ shrunk where it does not fit (never grown past its own model), so it sits
     top     on its holder's top, within its footprint (a monitor on its console, a lamp on its desk)
     within  inside its holder's box (plants in their greenhouse, a door in its frame); one that hangs in it (its
             relation's `hangs`: a spacesuit in its locker) moved back onto the holder's built inside back face,
-            touching it (on_back)
+            touching it (on_back); one on its holder's shelves (on_shelves_of) that crosses its holder's built
+            surface standing where it is laid (a box on a shelf unit at the plan's base, through its board) or meets
+            one laid in it before, laid on the nearest of the holder's built boards under it it fits on clear of both,
+            else on its top (on_boards)
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
             door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
@@ -189,6 +192,118 @@ def on_holder(low, high, how, on, box):
     target[1] = hold_high[1] if how == "top" else hold_low[1] if on.get("under") else \
         float(np.clip(foot[1], hold_low[1], hold_high[1] - size[1] * scale))
     return scale, target
+
+
+# A thing laid on its holder's boards (on_boards) finds them by rays straight down this many a side over its
+# footprint, and the boxes they stand among keep BOARD_CLEAR clear, metres.
+BOARD_RAYS = 5
+BOARD_CLEAR = 0.01
+# A surface of its holder this far over a thing's foot is the board it stands on, bedded in it (an uneven board's top),
+# never one it goes through: the resting check's own TOLERANCE, metres.
+BOARD_BED = 0.03
+
+
+# The words a within relation's `why` starts with where the holders put it on its holder's shelves (score/review/holders
+# held: its reading's placement word), the one the scene record carries of it.
+SHELVES = "on the shelves of "
+
+
+def on_shelves_of(on):
+    """Whether a within relation lays its thing on its holder's shelves (SHELVES), not in it as the plan draws (a sink
+    in its counter) or at its foot."""
+    return str(on.get("why") or "").startswith(SHELVES)
+
+
+def board_hits(mesh, low, high):
+    """The heights at which rays straight down meet a holder's built surface (`mesh`, surface_mesh's) over a
+    footprint (low, high): [the middle ray's, then BOARD_RAYS a side across the footprint's], each an array."""
+    import trimesh
+    across = [np.linspace(low[axis], high[axis], BOARD_RAYS) for axis in (0, 2)]
+    spots = [((low[0] + high[0]) / 2, (low[2] + high[2]) / 2), *((x, z) for x in across[0] for z in across[1])]
+    origins = np.array([[x, float(mesh.bounds[1][1]) + 1.0, z] for x, z in spots], float)
+    found, rays, _ = trimesh.ray.ray_triangle.RayMeshIntersector(mesh).intersects_location(
+        origins, np.tile([0.0, -1.0, 0.0], (len(origins), 1)), multiple_hits=True)
+    return [np.asarray(found, float).reshape(-1, 3)[np.asarray(rays) == index, 1] for index in range(len(spots))]
+
+
+def clear_of(hits, foot, tall):
+    """Whether a thing `tall` with its foot at `foot` stands clear of every surface the rays met (`hits`,
+    board_hits'): none over BOARD_BED above its foot and under its top."""
+    every = np.concatenate(hits)
+    return not np.any((every > foot + BOARD_BED) & (every < foot + tall))
+
+
+# How many points of a holder's surface on_boards samples to find a part of it inside a thing (a side panel the rays
+# straight down never meet), besides its corners.
+BOARD_SAMPLES = 20000
+
+
+def crosses(points, low, high):
+    """Whether any of a holder's surface `points` [n, 3] lies inside a box (low, high) by more than BOARD_CLEAR (over
+    its foot: BOARD_BED): the board under its foot, bedded in it, and one over its top, touching, never do."""
+    inner_low = np.asarray(low, float) + [BOARD_CLEAR, BOARD_BED, BOARD_CLEAR]
+    inner_high = np.asarray(high, float) - BOARD_CLEAR
+    return bool(np.any(np.all((points > inner_low) & (points < inner_high), axis=1)))
+
+
+def meets_any(low, high, boxes):
+    """Whether a box (low, high) reaches into any of `boxes` [(low, high)] by more than BOARD_CLEAR every way."""
+    return any(float(depths(low, high, box).min()) > BOARD_CLEAR for box in boxes)
+
+
+def on_boards(low, high, scale, target, box, mesh, taken=()):
+    """The foot middle of a thing laid within its holder (on_holder's `target`, its box (low, high) shrunk by
+    `scale`) on the holder's built boards (`mesh`, its surface): where it stands at `target` on a board crossing no
+    surface of the holder (crosses: a side the rays straight down miss too) and meeting none of the boxes laid in it
+    before (`taken`), `target`; else the nearest spot
+    to it on a board (a surface the middle ray meets) with no surface of the holder inside it and none of `taken`,
+    slid along the holder's longer side where its own spot is taken; else on the holder's top there (the highest
+    surface under it). 2026-11-08: engineroom's 40 cm boxes laid at the plan's 0.5 m base in shelf units with 39 cm
+    between boards, through the second board, and two at one spot, which the settle's snap does not lift; galley's
+    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board."""
+    size = (np.asarray(high, float) - np.asarray(low, float)) * scale
+    half, tall = size / 2, float(size[1])
+    hold_low, hold_high = box
+
+    def footprint(spot):
+        return np.array([spot[0] - half[0], spot[1], spot[2] - half[2]]), \
+            np.array([spot[0] + half[0], spot[1] + tall, spot[2] + half[2]])
+
+    points = np.vstack([np.asarray(mesh.vertices, float), mesh.sample(BOARD_SAMPLES, seed=0)])
+
+    def clear(hits, spot):
+        return clear_of(hits, float(spot[1]), tall) and not crosses(points, *footprint(spot)) \
+            and not meets_any(*footprint(spot), taken)
+
+    hits = board_hits(mesh, *footprint(target))
+    standing = bool(np.any(np.abs(hits[0] - float(target[1])) <= BOARD_CLEAR))  # on a board as laid
+    if not len(hits[0]) or (standing and clear(hits, target)):
+        return target
+    axis = 0 if hold_high[0] - hold_low[0] >= hold_high[2] - hold_low[2] else 2
+    step, spots = float(size[axis]) + BOARD_CLEAR, {}
+    for count in range(int((hold_high[axis] - hold_low[axis]) / max(step, 1e-9)) + 1):
+        for way in (1, -1):
+            spot = np.array(target, float)
+            spot[axis] = kept_within(spot[axis] + way * count * step, hold_low[axis], hold_high[axis], half[axis])
+            spots.setdefault(round(float(spot[axis]), 4), spot)
+    rests, tops = [], []
+    for spot in spots.values():
+        hits = board_hits(mesh, *footprint(spot))
+        if not len(hits[0]):
+            continue
+        for foot in sorted(set(np.round(hits[0], 4).tolist())):
+            if np.any((hits[0] > foot + 1e-4) & (hits[0] <= foot + BOARD_BED)):
+                continue  # a board's underside or a step in its top: its top is the rest
+            placed = np.array([spot[0], foot, spot[2]])
+            if clear(hits, placed):
+                rests.append(placed)
+        top = np.array([spot[0], float(np.concatenate(hits).max()), spot[2]])
+        if not meets_any(*footprint(top), taken) and not crosses(points, *footprint(top)):
+            tops.append(top)
+    found = rests or tops
+    if not found:
+        return target
+    return min(found, key=lambda spot: float(np.linalg.norm(spot - target)))
 
 
 def stretches(start, run, out, length, deep, band, clear):
@@ -377,10 +492,12 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
-    `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, one array a wall, slanted_face) and the `recesses` the bake cut in it
+    `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, one array a wall, slanted_face; a within
+    one's: its holder's, on_boards) and the `recesses` the bake cut in it
     (on_face), an opening's object's own left way (`left`,
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
-    of (`clear`, on_wall, face_stretch); None when it already sits (or
+    of (`clear`, on_wall, face_stretch; a within one's: the boxes laid in its holder before it); None when it already
+    sits (or
     holds to nothing laid)."""
     low, high = np.asarray(low, float), np.asarray(high, float)
     how, face = on["how"], None
@@ -393,6 +510,8 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
             scale, target, face = on_face(low, high, on, box, surface, recesses, clear)
         else:
             scale, target = on_holder(low, high, how, on, box)
+            if how == "within" and surface is not None:
+                target = on_boards(low, high, scale, target, box, surface, clear)
     elif how == "wall":
         scale, target = on_wall(low, high, on, clear)
     else:
@@ -450,13 +569,14 @@ def overhang(low, high, hold_low, hold_high, axes):
 
 def off_holder(low, high, how, on, box):
     """Metres a box stands off its holder box: top (its foot off the top, its footprint past it), within (past it any
-    way), face (its back off the face it was laid on, `face at`, else the side `out` points from, it and its recess's
-    room past that side's span, or above its top)."""
+    way, but over its top when it stands on it: on_boards), face (its back off the face it was laid on, `face at`,
+    else the side `out` points from, it and its recess's room past that side's span, or above its top)."""
     hold_low, hold_high = box
     if how == "top":
         return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
     if how == "within":
-        return max(overhang(low, high, hold_low, hold_high, (0, 1, 2)),
+        above = min(max(0.0, high[1] - hold_high[1]), abs(low[1] - hold_high[1]))  # on its top it stands over it
+        return max(overhang(low, high, hold_low, hold_high, (0, 2)), max(0.0, hold_low[1] - low[1]), above,
                    abs(low[1] - hold_low[1]) if on.get("under") else 0.0)
     axis, side, sign = face_axes(on)
     below, above = beside(on, side)
@@ -1023,19 +1143,28 @@ def fitted(stage, place, entries, laid, cuts=None):
             recesses = recess_boxes(stage, f"/{place}/{scope}/{holder}", (cuts or {}).get(bakes.get(holder)))
         if how == "in" and name in leaves and slanted(entry["on"]):
             surface = wall_points(stage, place)
+        on_shelves = how == "within" and held and on_shelves_of(entry["on"]) and not hangs_in(entry)
+        if on_shelves:
+            box = nearest([box for _, box in held], low, high)
+            holder = next(holder for holder, found in held if found is box)
+            surface = surface_mesh(stage, f"/{place}/{scope}/{holder}")
         clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] \
-            if how in ("wall", "face") and name not in leaves else ()
+            if how in ("wall", "face") and name not in leaves else taken.get(holder, []) if on_shelves else ()
         found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface, recesses,
                     own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is None:
+            if on_shelves:
+                taken.setdefault(holder, []).append((low, high))
             return
         scale, target, words, face = found
         moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), scale, target)
         from pxr import Sdf
         stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
         after = world_box(stage, path)
+        if on_shelves:
+            taken.setdefault(holder, []).append(after)
         fits.append({"name": name, "row": entry["row"], "how": how,
                      "holder": entry["on"].get("holder"), "moved": round(float(np.linalg.norm(
                          target - foot_middle(low, high))), 3), "scale": round(float(np.min(scale)), 4),
@@ -1050,6 +1179,7 @@ def fitted(stage, place, entries, laid, cuts=None):
         return swing_box(stage, path), passage_box(*world_box(stage, path), by_name[leaf]["on"], built)
 
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
+    taken = {}  # {holder: the boxes laid within it so far}, on_boards
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
     return fits + moved_down(stage, place, loose)

@@ -46,8 +46,9 @@ ceiling) and how each is read.
   inner one, design_shell.on_a_wall) is listed in the file's `loose`, the plan-side check (camp's airlock door in its
   dome's gap, street's stairwell opening, 2026-10-31).
 - **A placement word past `on` is kept** (`placement`, 2026-11-04): a row its reading's `where` says is under its
-  holder is `within` it with `under` (the assembly lays it at the holder's foot), one on its shelves `within` it (the
-  settle lets it down onto the shelf under it), one on its holder's side never on its top; the assembly's held gate
+  holder is `within` it with `under` (the assembly lays it at the holder's foot), one on its shelves `within` it, its `why`
+  starting "on the shelves of" (the assembly lays it on its holder's built boards, `fitting.on_boards`, which reads
+  those words: keep them), one on its holder's side never on its top; the assembly's held gate
   fails a relation that disagrees (`fitting.placement_faults`). One anchor for a row whose `where` names several
   holders (quarters' books on "desk, window sill, top bunk") is the reading's limit, not mended here.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
