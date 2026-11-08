@@ -79,3 +79,9 @@ SOMA body npz, and MoGe-2's point maps of each video.
   check only, put it 0.33 to 0.36 m up, the clips 0.07 to 0.30), each footprint clear of the feet on the floor; they go
   into the targets' ground with the floor. A foot's push whose centre of pressure stands off the floor (`_run.OFF_FLOOR`)
   is no plate's: the box stands off the plates, which read 0 before the drop.
+- **The subject's standing pose, tried and not used** (#98, 2026-11-08): `score --static <folder>` (and validate's)
+  reads each trial's pelvis tilt, lumbar extension and elbows from its subject's own static trial's run on the same
+  camera (`labval.neutral`; gemx and moge clusters' `--static` make those runs), as a static calibration does. On the
+  held-out subjects it made every one worse (pelvis tilt bias +5.4 to +7.8, elbows -23 to -30, matched MAE 5.13 to
+  5.29): the lab's IK does not stand a subject at the model's zero. The validation is scored without it
+  (paper/evidence/sim-body/static-neutral-2026-11-08.txt).
