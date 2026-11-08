@@ -139,11 +139,12 @@ def path_jerk(values, joints, rate):
 
 
 class Problem:
-    """The whole trial on the card: `rows` (`_rows.Rows`), `layout`, the jerk weights and the frame step."""
+    """The whole trial on the card: `rows` (`_rows.Rows`), `layout`, the jerk weights, the frame step and the
+    landmarks' targets `points` [N, markers, 3] (`landmark_errors`)."""
 
     def __init__(self, rows, layout, step):
         self.rows, self.layout, self.step = rows, layout, step
-        self.weights = None
+        self.weights = self.points = None
 
     def measured(self, control):
         """(the frames' cost [N], H, g on the unknowns, the poses) at control points `control`."""
@@ -199,24 +200,54 @@ def solve(problem, control):
     return control, kept, tried, total
 
 
-def solved(fitting, turns, points, skins, angles, rate):
-    """Every frame's angles [N, nq] of the whole trial's solve, its record and its motion, warm started from the fit's `angles`
-    [N, nq] (MuJoCo's own compile of `fitting`'s file): `turns`, `points`, `skins` the clip's `fit.targets`."""
+def landmark_errors(clip, qpos, points):
+    """Each landmark's root mean square miss over the frames (mm, by its site's name): its site on MuJoCo's model at
+    poses qpos [N, nq] against its target `points` [N, markers, 3]; a landmark no frame targets left out."""
+    import mujoco
+    data, misses = mujoco.MjData(clip.mjm), []
+    for pose in qpos:
+        data.qpos[:] = pose
+        mujoco.mj_kinematics(clip.mjm, data)
+        misses.append(data.site_xpos[clip.place_sites] - points[len(misses)])
+    squared = np.sum(np.asarray(misses) ** 2, axis=2)
+    return {clip.mjm.site(int(site)).name: round(1000.0 * float(np.sqrt(np.nanmean(squared[:, mark]))), 3)
+            for mark, site in enumerate(clip.place_sites) if np.isfinite(squared[:, mark]).any()}
+
+
+def retrusted(clip, trusts):
+    """The clip's markers' costs with each landmark's trust times its learned weight (`trusts`, by site name; one
+    where not named), the markers' goal (the costs' squared sum) kept: cost_k^2 = goal t_k w_k / sum(t w), t_k the
+    clip's own cost_k^2 / goal (`fit._frames.weights`)."""
+    costs = np.asarray(clip.place_costs, dtype=float)
+    weights = np.array([float(trusts.get(clip.mjm.site(int(site)).name, 1.0)) for site in clip.place_sites])
+    if np.any(weights <= 0) or not np.all(np.isfinite(weights)):
+        raise ValueError(f"landmark weights {weights}: each must be a positive number")
+    goal, weighed = float(np.sum(costs ** 2)), costs ** 2 * weights
+    return np.sqrt(goal * weighed / max(float(np.sum(weighed)), 1e-12))
+
+
+def solved(fitting, turns, points, skins, angles, rate, trusts=None):
+    """Every frame's angles [N, nq] of the whole trial's solve, its record and its motion, warm started from the fit's
+    `angles` [N, nq] (MuJoCo's own compile of `fitting`'s file): `turns`, `points`, `skins` the clip's `fit.targets`,
+    `trusts` each landmark's learned weight (`retrusted`; a job's "motor landmarks", None: the fit's own trusts)."""
     from fit._card import _clip
     from fit._skin import card_device
     if card_device() == "cpu":
         raise RuntimeError("MOTOR solves on the card: Warp sees no CUDA card")
-    return solved_on(_clip.for_fitting(fitting, fitting.path), turns, points, skins, angles, rate)
+    return solved_on(_clip.for_fitting(fitting, fitting.path), turns, points, skins, angles, rate, trusts)
 
 
-def solved_on(clip, turns, points, skins, angles, rate):
+def solved_on(clip, turns, points, skins, angles, rate, trusts=None):
     """`solved` on a fitted model's `fit._card._clip.Clip`."""
     from motor._rows import Rows
     began = time.perf_counter()
+    if trusts:
+        clip.place_costs = retrusted(clip, trusts)
     angles = np.asarray(angles, dtype=float)
     step = 1.0 / rate
     layout = Layout(clip.reduction, angles, smooth_turns(angles[:, 3:7], rate))
     problem = Problem(Rows(clip, turns, points, skins, angles), layout, step)
+    problem.points = np.asarray(points)
     fitted_values = layout.values(problem.rows.projected(angles))
     control = np.clip(_spline.fitted(fitted_values, step), layout.lower[None], layout.upper[None])
     _, hessians, _, _ = problem.measured(control)
@@ -236,12 +267,16 @@ def solved_on(clip, turns, points, skins, angles, rate):
                   (values[:, layout.joints] - fitted_values[:, layout.joints]) ** 2)))), 4),
               "off its spline deg": round(float(np.degrees(np.abs(
                   layout.values(qpos)[:, layout.joints] - values[:, layout.joints]).max())), 6),
+              "landmark weights": "learned (motor landmarks)" if trusts else "the fit's trusts",
+              "landmark errors mm": landmark_errors(clip, qpos, np.asarray(points)),
               "seconds": round(time.perf_counter() - began, 2)}
     return qpos, record, (problem, control)
 
 
-def dynamics_solved(motion, physics, source, foot_points, sides, limits, height):
+def dynamics_solved(motion, physics, source, foot_points, sides, limits, height, settings=None):
     """MOTOR step 2's stage A (`_stage_a.solved`) from `solved`'s motion: the trial's movement made dynamically
-    consistent with the smooth contact on the seen floor, the pelvis' residual held to `limits`."""
+    consistent with the smooth contact on the seen floor, the pelvis' residual held to `limits`; `settings` a job's
+    "motor settings" (`_dynamics.Settings.of`, None: the defaults)."""
+    from motor._dynamics import Settings
     from motor._stage_a import solved as stage_a
-    return stage_a(motion, physics, source, foot_points, sides, limits, height)
+    return stage_a(motion, physics, source, foot_points, sides, limits, height, Settings.of(settings))

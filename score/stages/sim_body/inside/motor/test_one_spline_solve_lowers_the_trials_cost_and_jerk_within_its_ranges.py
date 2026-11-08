@@ -27,6 +27,15 @@ half of step 1's. Breaks, 2026-11-08, each seen red and reverted:
 - `_spline.Banded.add_rows`' blocks J_b^T J_a made J_a^T J_b: the spread rows' step is red.
 - `_stage_a.Weighed.residuals` negated: no step is kept and the residual stays at step 1's.
 
+Step 3's pieces on the same toy: the couplings and the place nudge on all rows at once against `model.Couplings` and
+MuJoCo's `mj_integratePos` row by row, the warm start lowered 1 cm settled out of its floor, a learned landmark
+weight keeping the markers' goal, a settings name not known refused, every landmark's miss recorded. Breaks,
+2026-11-08, each seen red and reverted:
+- `_dynamics.integrated`'s turn `q * exp(w)` made `exp(w) * q`: the nudge 3.3e-2 off mj_integratePos.
+- `_dynamics.Coupled.maps`' `moved ** (power - 1)` made `moved ** power`: not the couplings' map.
+- `_dynamics.Contact.settle`'s sunk made 0: the lowered skin stays 2.8 cm inside its floor.
+- `motor.retrusted`'s `costs ** 2 * weights` made `costs ** 2`: the weight 4 changes nothing.
+
 Run: .venv/bin/python -m pytest score/stages/sim_body/inside/motor/
 """
 import os
@@ -277,6 +286,60 @@ def stage_a_faults(mjm, motion):
                           f"{record['rounds']}")
         if angles.shape != qpos.shape[:1] + (mjm.nq,):
             faults.append(f"stage A's angles {angles.shape}, not a fitting model's pose a frame")
+        faults += step_3_faults(problem, control, dynamics, record)
+    return faults
+
+
+def step_3_faults(problem, control, dynamics, record):
+    """Step 3's pieces on the toy: the couplings and the place nudge on all rows at once the same as MuJoCo's and
+    `model.Couplings`' row by row; the warm start settled (sunk 1 cm into its floor, no body starts inside it); the
+    learned landmark weights keeping the markers' goal and weighing each as asked; a settings name not known refused;
+    every landmark's miss recorded."""
+    import mujoco
+    import numpy as np
+    import motor
+    from motor._dynamics import Settings, integrated
+    faults, path = [], dynamics.path
+    model, couplings = path.model, path.couplings
+    qpos = path.states(control)[0]
+    generator = np.random.default_rng(5)
+    poses = np.array([couplings.apply(pose + np.r_[np.zeros(7), generator.normal(0, 0.3, model.nq - 7)])
+                      for pose in qpos[:6]])
+    if not (np.array_equal(path.coupled.applied(poses), np.array([couplings.apply(pose.copy()) for pose in poses]))
+            and np.array_equal(path.coupled.maps(poses), np.array([couplings.map(pose) for pose in poses]))):
+        faults.append("the couplings on all rows are not `model.Couplings`' row by row")
+    moves = generator.normal(0.0, 0.2, (len(poses), model.nv))
+    expected = poses.copy()
+    for pose, move in zip(expected, moves):
+        mujoco.mj_integratePos(model, pose, move, 1.0)
+    miss = np.abs(integrated(model, poses, moves) - expected).max()
+    if miss > 1e-12:
+        faults.append(f"the place nudge on all rows {miss:.2e} off MuJoCo's mj_integratePos")
+    lowered = control.copy()
+    lowered[:, problem.layout.root[2]] -= 0.01
+    contact = dynamics.contact
+    found = dynamics.evaluated(lowered)[3]
+    contact.sunk = None
+    inside = float(np.min(contact.heights(found)[0]))
+    contact.settle(found)
+    settled = float(np.min(contact.heights(found)[0]))
+    if not (inside < -0.005 and settled > -1e-9):
+        faults.append(f"lowered 1 cm the skin's deepest {inside:.4f} m, settled {settled:.4f} m: not settled")
+    clip = problem.rows.clip
+    names = [clip.mjm.site(int(site)).name for site in clip.place_sites]
+    weighed = motor.retrusted(clip, {names[0]: 4.0})
+    costs = np.asarray(clip.place_costs)
+    if not (np.isclose(np.sum(weighed ** 2), np.sum(costs ** 2))
+            and np.isclose((weighed[0] / weighed[1]) ** 2, 4.0 * (costs[0] / costs[1]) ** 2)):
+        faults.append(f"the learned weight 4 on {names[0]}: costs {costs} made {weighed}")
+    try:
+        Settings.of({"stifness": 1.0})
+        faults.append("a settings name not known taken")
+    except ValueError:
+        pass
+    errors = record.get("landmark errors mm", {})
+    if sorted(errors) != sorted(names) or not all(np.isfinite(list(errors.values()))):
+        faults.append(f"stage A's landmark misses {errors} for the landmarks {names}")
     return faults
 
 
