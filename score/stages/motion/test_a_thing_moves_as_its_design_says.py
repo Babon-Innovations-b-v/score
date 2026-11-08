@@ -225,14 +225,31 @@ def test_the_make_never_reads_its_seed_so_a_failure_is_noted_never_remade(tmp_pa
 
 
 def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
-    """A crane row moves and no object of it stands on the stage: `designed` fails naming it.
-    Break: score/stages/motion/__init__.py: `faults += list(record.get("missing", []))` -> `pass`"""
+    """A crane row moves and no object of it stands on the stage: `designed` fails naming it. Standing on a camp's
+    terrain (the place's Terrain scope, no thing under it: motion@campgrounds, 2026-11-08), the crane slewing about its
+    middle is mounted on that ground and `grounded` passes it; lifted 0.5 m off it, it fails touching nothing.
+    Break: score/stages/motion/__init__.py: `faults += list(record.get("missing", []))` -> `pass`
+    Break: score/stages/motion/__init__.py: `found = rail_faults(entry, shape, surfaces["ground"], others, rate,
+        seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`"""
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
     out, _ = made(inputs, tmp_path)
     verdict = judge("designed", out, inputs)
     assert verdict.answer == checks.FAIL
     assert verdict.findings == ("crane: moves (swing), and no object of it stands on the stage",), verdict.findings
     assert table_judge("designed", out, inputs).answer == checks.FAIL, "no batch gap names the crane, so its fault stays"
+    for rises, answer in ((0.0, checks.PASS), (0.5, checks.FAIL)):
+        folder = tmp_path / f"camp_{rises:g}"
+        folder.mkdir()
+        inputs = toy_inputs(folder, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}],
+                            extra=(("crane_1", (9.5, rises, 0.0), (-1.0, 0.0, -0.5), (1.0, 3.0, 0.5)),))
+        stage = Usd.Stage.Open(str(inputs["seed"] / "layers/base.usda"))
+        box(stage, f"/{PLACE}/Terrain/ground", (7.0, -0.1, -4.0), (12.0, 0.0, 4.0))
+        stage.GetRootLayer().Save()
+        out, record = made(inputs, folder)
+        assert "crane_1" in {entry["name"] for entry in record["moves"]}, record
+        verdict = judge("grounded", out, inputs)
+        assert verdict.answer == answer and all(line.startswith("crane_1: on a rail, yet it touches nothing")
+                                                for line in verdict.findings), (rises, verdict.reason, verdict.findings)
 
 
 def table_judge(name, out, inputs):
