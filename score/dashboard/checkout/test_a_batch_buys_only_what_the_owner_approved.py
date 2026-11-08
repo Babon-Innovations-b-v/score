@@ -27,6 +27,8 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.plan_refusals: `if extra:` -> `if False:` -> test_a_run_that_would_buy_more_than_was_priced_...
 - flow.run: the buys-nothing check -> `if False:` -> test_a_run_that_buys_nothing_now_writes_no_line_...
 - flow.room_refusals: the room check -> `if False:` -> test_a_basket_that_cannot_fit_under_the_runners_spend_...
+- flow.room_refusals: drop the `spend.ceiling >= line["euros"]` return -> a try the line caps is refused over spend
+  that grew after its line was written -> test_an_ended_batch_takes_its_line_back_once
 - flow.run: `write_line` wrapped in `except PermissionError: pass` -> test_an_agents_process_writes_no_line_...
 - flow.batch_groups: one RunGroup per node -> test_two_items_sharing_an_upstream_node_are_planned_once_...
 - flow.stale_basket: the other-checkout check -> `if False:` -> test_a_basket_made_in_another_checkout_...
@@ -400,6 +402,10 @@ def test_an_ended_batch_takes_its_line_back_once(shop, tmp_path, monkeypatch):
     assert newest["at"] == next_try[0].stop_line["at"] and ended_try.stop_line["closed"]["superseded"], newest
     monkeypatch.setattr(FakeBackend, "ceiling", newest["euros"])  # the runner's ceiling: the store's newest line
     assert flow.room_refusals(next_try[0], FakeBackend()) == ""  # its own line's room, EUR 200 less 110
+    # spend that grew after the line was written (a stopped try's nodes still billing) is the guard's to hold, never
+    # a refusal of a try the line caps (2026-11-08, checkout 60: EUR 0.99)
+    monkeypatch.setattr(FakeBackend, "spent", newest["euros"] - FakeBackend.reserved - 5.0)  # room EUR 5 < its high
+    assert flow.room_refusals(next_try[0], FakeBackend()) == ""
 
 
 def test_a_batch_stopped_by_the_grow_and_resumed_keeps_its_stop_line_till_the_resumed_run_ends(shop, tmp_path,
