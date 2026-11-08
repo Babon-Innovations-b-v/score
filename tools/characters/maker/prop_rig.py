@@ -14,7 +14,8 @@ weights). The steps:
 2. Both bodies are measured the same way (`landmarks`): horizontal slices 1 cm apart, each cut into its separate
    pieces on a 1.5 cm grid; the crotch is where the two legs meet, the armpit where the arms leave the torso; each
    arm's and leg's axis is a line through its slices' centres; the torso's centre at every height. A mesh whose legs
-   or arms never separate is refused. Clothes move the crotch and the armpit (a suit's crotch hangs low, its full
+   or arms never separate is refused; legs a skirt or a dress joins from under a quarter of the height up are found
+   under its hem (`crotch_of`). Clothes move the crotch and the armpit (a suit's crotch hangs low, its full
    sleeves leave the torso low: on the player's work suit 35 % and 62 % of his height against the mean body's 40 % and
    72 %), so they only find the limbs; they never set a joint's height.
 3. Every joint is placed (`placed`): the trunk's at the mean body's height times `--size`, centred in the torso's
@@ -62,6 +63,11 @@ CENTRE_SLICES = 9
 # The torso's slices start this far over the crotch.
 TORSO_ABOVE = 0.03
 SIDES = {"Left": 1.0, "Right": -1.0}
+# The legs' run is looked for from this share of the height up; where a skirt or a dress hangs over it, from SHIN_LOW
+# (the legs' axes are laid from there up), the run at least LEG_RUN_LEAST of the height long.
+CROTCH_LOW = 0.25
+SHIN_LOW = 0.12
+LEG_RUN_LEAST = 0.04
 # A slice's two largest pieces are the legs when the smaller has at least this share of the larger's points.
 LEG_LIKENESS = 0.4
 # Where the figure is centred: its chest, this share of the way up (above the hands, the arms held out either side).
@@ -198,18 +204,33 @@ def arms_of(cut):
     return torso, max(left, key=lambda piece: len(piece[0])), max(right, key=lambda piece: len(piece[0]))
 
 
-def crotch_of(cuts, height):
-    """The highest slice of the run of slices from a quarter of the height up whose legs stand apart."""
+def legs_run_top(cuts, height, low):
+    """The highest slice of the run of slices from `low` of the height up whose legs stand apart, or None when they do
+    not stand apart at its first slice."""
     found = None
     for level, cut in cuts:
-        if level < 0.25 * height:
+        if level < low * height:
             continue
         if legs_of(cut, height) is None:
             break
         found = level
-    if found is None:
-        raise RigError("the legs never stand apart: refused before the split")
     return found
+
+
+def crotch_of(cuts, height):
+    """The top of the legs: the highest slice of the run of slices from a quarter of the height up whose legs stand
+    apart; where a skirt or a dress hangs over them there (woman_stair's skirt to a fifth of her height, 2026-11-08),
+    the top of the run from SHIN_LOW up, its hem, when that run is at least LEG_RUN_LEAST of the height long. The legs'
+    axes are their slices' under it, and no joint's height is set by it (the header's step 2)."""
+    found = legs_run_top(cuts, height, CROTCH_LOW)
+    if found is not None:
+        return found
+    hem = legs_run_top(cuts, height, SHIN_LOW)
+    if hem is not None and hem - SHIN_LOW * height >= LEG_RUN_LEAST * height:
+        return hem
+    raise RigError("the legs never stand apart: refused before the split" + (
+        "" if hem is None else f" (under a skirt or dress only from {SHIN_LOW:.0%} to {hem / height:.0%} of the "
+                               f"height, under {LEG_RUN_LEAST:.0%} of it to lay their axes by)"))
 
 
 def armpit_of(cuts, crotch, height):
@@ -286,7 +307,7 @@ def landmarks(points):
              "limbs": limb_labels(points, cuts, crotch, armpit, height)}
     for side, sign in SIDES.items():
         index = 0 if sign > 0 else 1
-        centres, members = limb_slices(cuts, 0.12 * height, crotch,
+        centres, members = limb_slices(cuts, SHIN_LOW * height, crotch,
                                        lambda cut, index=index: (legs_of(cut, height) or (None, None))[index])
         found[side + "Leg"] = limb(points, centres, members, crotch)
         centres, members = limb_slices(cuts, 0.0, armpit,
