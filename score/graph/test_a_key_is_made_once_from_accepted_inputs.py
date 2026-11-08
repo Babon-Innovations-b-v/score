@@ -4094,11 +4094,14 @@ def test_only_the_owner_removes_the_copy_ending_every_process_left_in_it_and_res
     frozen.home_of(copy).mkdir(parents=True)
     assert frozen.resumed_env(copy)["PROPS_HOME"] == str(frozen.home_of(copy))
     # a resumed run keeps its launch's settings (2026-11-07: Launch 33 lost its cluster and caps at its grow's boot).
-    # Break: in runs.restart, drop `entry.get("settings")`; or in runs.new_entry, drop "settings"
+    # Break: in runs.restart, drop `entry.get("settings")`; or in runs.new_entry, drop "settings"; or in
+    # runs.LAUNCH_SETTINGS, drop "SCORE_POD_" (a resumed run's pod makes waited on processor classes no pool holds)
     monkeypatch.setenv("SCORE_CLOUD_KINDS", "pixal,blender")
+    monkeypatch.setenv("SCORE_POD_CLASSES", "gpu-24gb")
     monkeypatch.setenv("SCORE_SYNC_TOKEN", "not a setting")
     kept = runs.new_entry(["run", "world1"])["settings"]
     assert kept["SCORE_CLOUD_KINDS"] == "pixal,blender" and "SCORE_SYNC_TOKEN" not in kept
+    assert kept["SCORE_POD_CLASSES"] == "gpu-24gb"
     monkeypatch.delenv("SCORE_CLOUD_KINDS")
     assert frozen.resumed_env(copy, kept)["SCORE_CLOUD_KINDS"] == "pixal,blender"
 
