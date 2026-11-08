@@ -91,26 +91,6 @@ def check_step(inputs, out):
     library.wear_of = lambda name: palette_library.wear(palette)
     bake_check.check_model = layout_measured(own_wear_checked(bake_check.check_model))
     bake_check.check_step(inputs, out)
-    unsigned(out / "checks.json")
-
-
-def unsigned(path):
-    """The JSON file at `path` written again with every -0.0 as 0.0: a measure rounded to zero keeps the sign its
-    float steps left it, and another processor's vector loops leave another (surfaces-check@campgrounds, 2026-11-08:
-    a black's b* -0.0 on the conductor's and a runner worker's EPYC, 0.0 on this PC's AVX-512), so the check's bytes
-    are the same on every machine."""
-    path.write_text(json.dumps(unsigned_zeros(json.loads(path.read_text())), indent=1))
-
-
-def unsigned_zeros(value):
-    """`value` (parsed JSON) with each -0.0 in it 0.0."""
-    if isinstance(value, float):
-        return value + 0.0  # -0.0 + 0.0 is 0.0; every other float is itself
-    if isinstance(value, dict):
-        return {key: unsigned_zeros(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [unsigned_zeros(item) for item in value]
-    return value
 
 
 STEPS = {"check": check_step}

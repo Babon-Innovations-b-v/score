@@ -76,13 +76,10 @@ def linear_to_srgb(value):
 def write(path, entry, toward, width=1024):
     """The picture as an 8-bit sRGB PNG over its 98th percentile (the glow within a few degrees of the sun, under its
     disc, clips white, so the rest of the sky keeps the PNG's steps fine), which is returned with the path: a renderer
-    gives the picture off at that strength (score:sky_strength) to get the linear light back. The steps are worked
-    out in float64: float32's power, as numpy's AVX-512 loops round it, put 8 texels a step off the AVX2 loops' (this
-    PC's light-layer@campgrounds against a runner worker's, 2026-11-08), so the PNG's bytes were the machine's."""
+    gives the picture off at that strength (score:sky_strength) to get the linear light back."""
     light = picture(entry, toward, width)
     strength = float(np.percentile(light, 98.0))
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    steps = np.clip(linear_to_srgb(light.astype(np.float64) / strength), 0.0, 1.0) * 255.0 + 0.5
-    Image.fromarray(steps.astype(np.uint8)).save(path)
+    Image.fromarray((np.clip(linear_to_srgb(light / strength), 0.0, 1.0) * 255.0 + 0.5).astype(np.uint8)).save(path)
     return path, strength

@@ -22,8 +22,6 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27):
 - check_metal_map: glb_asset.py's metallic `texture.CreateOutput("b", ...)` made `texture.CreateOutput("r", ...)`.
 - check_sky: scene.py write_places' shared prims without "Sky" (a shown place's sky kept).
 - check_shafts_and_dome: scene.py write_shafts' `float(entry["angle"])` made `2 * float(entry["angle"])`.
-- check_shafts_and_dome: mars_sky.py write's `light.astype(np.float64) / strength` made `light / strength` (on an
-  AVX-512 machine).
 - check_light_pieces: scene.py write_places' leave_out `.SetActive(False)` made `.SetActive(True)`.
 - check_labels_and_glow: scene.py glow_material's `channel * float(glow.get("strength", 1.0))` made `channel`.
 - check_shared_paint: scene.py's shared-paint `if name:` made `if False:`.
@@ -43,9 +41,7 @@ Run: .venv/bin/python tools/usd/test_a_scene_record_builds_what_it_names.py
 """
 import json
 import math
-import os
 import pathlib
-import subprocess
 import sys
 import tempfile
 
@@ -613,18 +609,6 @@ def check_shafts_and_dome(folder):
     sun_bearing = 0.0  # the sun's way back, -toward, is (0, 0.5, -0.866): bearing 0 as mars_sky.ways lays them
     assert at(5.0, sun_bearing + 180.0) > at(70.0, sun_bearing + 180.0)
     assert at(30.0, sun_bearing) > at(30.0, sun_bearing + 90.0)
-    # the dome's picture (Mars's record's gain) is the same bytes with numpy's vector loops past its baseline turned
-    # off, as another processor runs them (red on a machine whose numpy takes AVX-512, as this PC's: the float32
-    # steps were its own)
-    from numpy._core._multiarray_umath import __cpu_dispatch__, __cpu_features__
-    marsy = {**dome, "gain": [11.76, 7.56, 5.04]}
-    here, plain = mars_sky.write(folder / "here_dome.png", marsy, sun["toward"], 256)[0], folder / "plain_dome.png"
-    subprocess.run([sys.executable, "-c", "import json, sys; sys.path.insert(0, sys.argv[1]); import mars_sky; "
-                    "mars_sky.write(sys.argv[2], json.loads(sys.argv[3]), json.loads(sys.argv[4]), 256)",
-                    str(HERE), str(plain), json.dumps(marsy), json.dumps(sun["toward"])], check=True,
-                   env={**os.environ, "NPY_DISABLE_CPU_FEATURES": " ".join(
-                       name for name in __cpu_dispatch__ if __cpu_features__.get(name))})
-    assert plain.read_bytes() == here.read_bytes()
 
 
 CHECKS = (check_builders, check_sky_builders, check_lights_and_structure, check_night_glow, check_stretched_fixture,

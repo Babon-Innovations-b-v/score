@@ -208,8 +208,6 @@ tests it turned red:
   `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
 - route_check.py: `library.by_library = lambda name: {**palette_library.specs(palette), **baked}` -> `library.by_library
   = lambda name: {**palette_library.specs(palette)}`  -> the_check_holds_each_surface_against_the_spec_the_bake_baked
-- route_check.py: `return value + 0.0  # -0.0 + 0.0 is 0.0` -> `return value`  ->
-  the_check_holds_each_surface_against_the_spec_the_bake_baked
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
   the_recheck_words_a_finish_in_the_token_it_is_drawn_and_baked_in
 - route_recheck.py: `wrong = failed(finishes, answers)` -> `wrong = []`  ->
@@ -2603,10 +2601,8 @@ def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
         seen = {}
         kept = (route_check.bake_check.check_step, library.by_library, library.resolved, library.wear_of,
                 route_check.bake_check.check_model)
-        written = {"m": {"surfaces": {"cable": {"surface_lab": [2.1, 0.0, -0.0], "delta_e": -0.0, "share": 0.25}}}}
-        route_check.bake_check.check_step = lambda inputs, out: (seen.update(
-            library=library.by_library("cockpit"), resolved=library.resolved("cockpit"), wear=library.wear_of("cockpit")),
-            (out / "checks.json").write_text(json.dumps(written, indent=1)))
+        route_check.bake_check.check_step = lambda inputs, out: seen.update(
+            library=library.by_library("cockpit"), resolved=library.resolved("cockpit"), wear=library.wear_of("cockpit"))
         try:
             route_check.check_step({"bake": bake, "finish-route-palette": paletted(bake),
                                     "surface-library": libraried(bake)}, bake)
@@ -2618,9 +2614,6 @@ def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
         # the scene's wear, dirt and dirt colour are its scene palette's, nothing of place.json's
         assert seen["wear"] == (0.4, 0.3) and seen["resolved"] == {}, seen["wear"]
         assert seen["library"]["painted_panel"]["dirt_colour"] == library.token_colours({"tokens": TOKENS})["regolith"]
-        # a measure rounded to zero is written 0.0 whatever sign this machine's float steps left it
-        text = (bake / "checks.json").read_text()
-        assert "-0.0" not in text and json.loads(text) == written, text
     # a surface with its own wear is measured at it, the others at the place's
     measured = lambda name, entry, labelled, made, materials, dirt=0.0, wear=0.0: {
         "surfaces": {surface: {"wear": wear} for surface in materials}}
