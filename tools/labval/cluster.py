@@ -6,7 +6,7 @@ here is no job. The cluster's twin of the measure folder's scripts/go.sh through
 the machine path and the fallback when the cluster's cards are short.
 
     .venv/bin/python -m tools.labval.cluster <folder> --who "<session>" [--per-job 15] [--classes gpu-24gb,...] \
-        [--gpus 24] [--name <run>] [--dry-run]
+        [--gpus 24] [--name <run>] [--clip-minutes 2.5] [--dry-run]
 
 In the pod each trial runs inside/sim_body.py on its own (`newton-run`), one after another; a trial that fails says so
 in its run.log and the next one still runs. Spending: as every cluster run, only inside a cleared run
@@ -63,15 +63,16 @@ def clips(trial):
     return max(1.0, frames / CLIP_FRAMES)
 
 
-def job(trials):
-    """One job: its trials' runs in turn, each trial folder sent up and brought back, its minutes by their frames."""
+def job(trials, clip_minutes=CLIP_MINUTES):
+    """One job: its trials' runs in turn, each trial folder sent up and brought back, its minutes by their frames
+    (`clip_minutes` a measured clip's: more for a run that does more, MOTOR's stage A)."""
     targets = {pathlib.Path(person["targets"]).parent for trial in trials
                for person in json.loads((trial / "job.json").read_text())["people"]}
     if not targets <= set(trials):
         raise SystemExit(f"a trial's targets lie outside its folder: {sorted(map(str, targets - set(trials)))}")
     return {"command": ["sh", "-c", "; ".join(line(trial) for trial in trials)], "code": CODE,
             "inputs": [str(trial) for trial in trials], "outputs": [str(trial) for trial in trials],
-            "minutes": START_MINUTES + CLIP_MINUTES * sum(clips(trial) for trial in trials)}
+            "minutes": START_MINUTES + clip_minutes * sum(clips(trial) for trial in trials)}
 
 
 def model_of(trials):
@@ -90,6 +91,8 @@ def main():
     parser.add_argument("--classes", default=",".join(CLASSES))
     parser.add_argument("--gpus", type=int, default=GPUS, help="at most this many cards (jobs) at once")
     parser.add_argument("--name", help="the cluster run's name: the same name resumes it")
+    parser.add_argument("--clip-minutes", type=float, default=CLIP_MINUTES,
+                        help="a measured clip's minutes at its high (MOTOR's stage A takes more)")
     parser.add_argument("--dry-run", action="store_true")
     options = parser.parse_args()
     trials = waiting(options.folder.resolve())
@@ -99,7 +102,7 @@ def main():
         return 0
     import keyed_jobs
 
-    failed = keyed_jobs.run(KIND, IMAGE, [job(part) for part in jobs], options.who, options.classes.split(","),
+    failed = keyed_jobs.run(KIND, IMAGE, [job(part, options.clip_minutes) for part in jobs], options.who, options.classes.split(","),
                             shared=[model_of(trials)], name=options.name, parallel=options.gpus)
     made = [trial for trial in trials if (trial / "out.json").exists()]
     print(f"sim body: {len(made)} of {len(trials)} trials ran, {len(failed)} jobs did not finish", flush=True)

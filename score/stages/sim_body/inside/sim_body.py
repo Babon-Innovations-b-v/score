@@ -103,6 +103,7 @@ import numpy as np  # noqa: E402
 import warp  # noqa: E402
 
 import fit  # noqa: E402
+import motor  # noqa: E402
 import myo  # noqa: E402
 from bone_groups import FEET, groups  # noqa: E402
 from contact import Skin, lowests  # noqa: E402
@@ -118,6 +119,7 @@ from sizing import Size  # noqa: E402
 CHECKED = "checks: RRA's record, feet held, following on MuJoCo's compile"
 
 FEET_SIDES = (("LeftFoot", "LeftToeBase"), ("RightFoot", "RightToeBase"))  # a seen stance's columns, left then right
+DYNAMICS = "dynamics"  # a job's "motor" for MOTOR's step 1 and step 2's stage A (#98); true for step 1 alone
 
 
 def arguments():
@@ -180,13 +182,18 @@ def fitted_person(job, person, rig, worlds, path):
     """The person's file at `path` with the fit's constants, its record (the fit and its following of SOMA in it),
     each body's scale, the fitted model and the clip's fitted path: set up, angles, record. The clip's targets are
     made once: with no `recordings` the clip is level 2's one recording too (#70: SOMA's skin was posed on every frame
-    twice, about 11 s a clip)."""
+    twice, about 11 s a clip). With the job's "motor" (#98, MOTOR step 1) the path is the whole trial's solve
+    warm started from the fit's (`motor.solved`), its record under "motor", and its motion (step 2's warm start,
+    `motor.dynamics_solved`) the fifth value (None without)."""
     clip = fit.targets(rig, person["segments"], worlds, fit.followed(person["segments"]))
     made = None if person.get("recordings") else [clip]
     record, scales, fitting = person_set_up(job, person, rig, worlds, path, Size(rig), made)
     angles = clip_angles(fitting, rig, person["segments"], worlds, clip)
+    motion = None
+    if job.get("motor"):
+        angles, record["motor"], motion = motor.solved(fitting, *clip, angles, job["rate"])
     record = followed_record(record, fitting, angles, worlds, person["segments"], scales, rig)
-    return record, scales, fitting.model, angles
+    return record, scales, fitting.model, angles, motion
 
 
 def skin_of(rig, segments, bodies, riding, fitted, worlds):
@@ -241,7 +248,7 @@ def run_person(job, person, out_path):
     segments = person["segments"]
     path = out_path.parent / f"{person['name']}.xml"
     rig = {**person["rig"], "points": targets["points"], "faces": targets["faces"], "weights": targets["weights"]}
-    record, scales, own, angles = fitted_person(job, person, rig, worlds, path)
+    record, scales, own, angles, motion = fitted_person(job, person, rig, worlds, path)
     seconds["fit"] = time.perf_counter() - since
     since = said(person["name"], f"sized and fitted, {len(worlds)} frames", since)
     model = built(path, job["gravity"])
@@ -249,21 +256,39 @@ def run_person(job, person, out_path):
     bodies = {segment: body_index(model, rides[segment]) for segment in segments}
     riding = fit.riding(model, scales, segments)
     physics = Physics(model, ground, None, parts_of(model, bodies))
-    qpath = filtered(model, physics.couplings, carried(own, model, angles), job["rate"])
+    # MOTOR's path is smooth already: its jerk is the chain's low-pass (`motor.jerk_weights`)
+    qpath = (np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)]) if job.get("motor")
+             else filtered(model, physics.couplings, carried(own, model, angles), job["rate"]))
     fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     skin = skin_of(rig, segments, bodies, riding, fitted_poses, worlds)
     physics.skin = credited(physics, skin, qpath, targets["stance"] if "stance" in targets.files else None, bodies)
     feet = {segment: np.flatnonzero(skin.owners == bodies[segment]) for segment in segments if segment.endswith(FEET)}
+    weight = sum(model.body_mass) * job["gravity"]
+    standing = com_height(model, qpath[0], ground)
+    if job.get("motor") == DYNAMICS:
+        # MOTOR step 2 (#98): stage A makes the path dynamically consistent on the seen floor; the chain (RRA, the
+        # static optimisation) then runs on it as it ran on the fit's, and measures it as it does any path
+        seconds["set up before MOTOR"] = time.perf_counter() - since
+        since = time.perf_counter()
+        sides = [[bodies[segment] for segment in side] for side in FEET_SIDES]
+        side_points = [int(np.isin(skin.owners, side).sum()) for side in sides]
+        angles, record["motor"]["dynamics"] = motor.dynamics_solved(
+            motion, physics, own, max(1, int(np.mean(side_points))), sides,
+            (job["residual"]["force"], job["residual"]["moment"]), standing)
+        qpath = np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)])
+        fitted_poses = posed_path(model, qpath, segments, bodies, riding)
+        seconds["MOTOR stage A"] = time.perf_counter() - since
+        since = said(person["name"], "MOTOR's stage A", since)
     names = [str(name) for name in person["rig"]["names"]]
     parents = [segments.index(names[parent]) if parent >= 0 and names[parent] in segments else -1
                for parent in (person["rig"]["parents"][names.index(segment)] for segment in segments)]
-    weight = sum(model.body_mass) * job["gravity"]
-    limits = (job["residual"]["force"] * weight, job["residual"]["moment"] * weight * com_height(model, qpath[0], ground))
+    limits = (job["residual"]["force"] * weight, job["residual"]["moment"] * weight * standing)
     most = (job["adjust"]["move most m"], np.radians(job["adjust"]["turn most deg"]))
 
     kept_feet = job["adjust"].get("feet kept", True)
     footing = Footing(model, physics.couplings, [bodies[segment] for segment in feet], path if kept_feet else None)
-    seconds["set up: Newton's model, its card, the filtered path"] = time.perf_counter() - since
+    seconds["set up: Newton's model, its card, the filtered path"] = (time.perf_counter() - since
+                                                                       + seconds.pop("set up before MOTOR", 0.0))
     since = time.perf_counter()
 
     def land(path):
