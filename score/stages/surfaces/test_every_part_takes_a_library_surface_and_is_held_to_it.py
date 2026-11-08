@@ -298,6 +298,8 @@ tests it turned red:
 - scene_library.py: `+ (SHEET_WORDS if take["kind"] in sheets else "")` -> `+ ""` (kinds_of), or `"pile": ["second"]`
   dropped from data/library/materials.json's colour_settings  ->
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
+- scene_library.py: `SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25` -> `0.1, 0.25` (the row's sheet rule off the bake's)  ->
+  a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
   a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
 """
@@ -2952,6 +2954,12 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
         kinds = scene_library.kinds_of({"surfaces": pathlib.Path(temporary) / "place.json"})
     assert kinds == {"crate": "crate", "note": "sticky note" + scene_library.SHEET_WORDS,
                      "rug": "patterned rug" + scene_library.SHEET_WORDS}, kinds
+    from score.stages.props import flat_sheet, prop_data  # the row reads the sheet rule; it is held to the bake's here
+    with prop_data.tools("props/closeup", "props"):
+        import check
+    assert (scene_library.SHEET_FLAT, scene_library.SHEET_MIDDLE) == (flat_sheet.SHEET_SHARE, check.SLENDER_SHARE)
+    for size in ([2.0, 0.02, 3.0], [0.08, 0.001, 0.08], [0.6, 0.4, 0.5], [0.4, 0.01, 4.0], [0.2, 0.517, 0.02]):
+        assert scene_library.sheet_sized(size) == flat_sheet.sheet({"size": size, "name": "rug"}), size
 
 
 def test_a_scene_s_ground_rows_take_their_natural_ground_by_rule():

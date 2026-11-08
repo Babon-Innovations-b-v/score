@@ -71,6 +71,8 @@ takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face
 mottle on it, or writing or print, give it the recipe that draws that (pile; written, its ink the second colour)."""
 # A kind's words in the question when a take of it is laid as a flat sheet (sheet_kinds).
 SHEET_WORDS = " (a flat sheet: its face is what shows)"
+# flat_sheet.SHEET_SHARE (thin_straight.FLAT_SHARE) and tools/props/closeup/check.SLENDER_SHARE, held equal by the test.
+SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25
 
 
 def files(place):
@@ -167,13 +169,22 @@ def kinds_of(inputs):
 
 
 def sheet_kinds(data):
-    """The kinds of the surface data's takes a model of which its bake lays as a flat sheet (its bake entry's size by
-    score/stages/props/flat_sheet.py's sheet rule): a rug, a mat, a note, whose face is all that shows."""
-    from score.stages.props import flat_sheet
+    """The kinds of the surface data's takes a model of which its bake lays as a flat sheet: a rug, a mat, a note,
+    whose face is all that shows. The bake entry's size by `sheet_sized`."""
     takes, bake = data.get("takes", {}), data.get("bake", {})
     return {takes[take].get("kind") for model, take in bake.get("models", {}).items()
-            if take in takes and "size" in (bake.get("entries", {}).get(model) or {})
-            and flat_sheet.sheet({"size": bake["entries"][model]["size"], "name": takes[take].get("kind") or ""})}
+            if take in takes and sheet_sized((bake.get("entries", {}).get(model) or {}).get("size"))}
+
+
+def sheet_sized(size):
+    """Whether a size is a flat sheet's by score/stages/props/flat_sheet.py's size rule: its thinnest side under
+    SHEET_FLAT of its longest, its middle one at least SHEET_MIDDLE of it. The rule is read here, not imported: that
+    module's file imports the prop route's scene tools (thin_straight's lamps), which put the review pages and the
+    store in this paid row's key (main red on 1d330dcf, 2026-11-08); the surfaces test holds the two rules equal."""
+    if not size:
+        return False
+    smallest, middle, largest = sorted(float(value) for value in size)
+    return smallest < SHEET_FLAT * largest and middle >= SHEET_MIDDLE * largest
 
 
 def schema(recipes, tokens, kinds, sounds):
