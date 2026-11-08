@@ -70,14 +70,16 @@ DESIGN = "design"  # the home's locked designs, which the stage table reads to s
 # The stages made in pods: each only after its rehearsal (the build spec's section 6) gave the conductor's output, a
 # local pod's and a cluster worker's as one listing hash (tube, 2026-11-07: rough-align, props-inputs and cast; and
 # surfaces-paint once its upload was retried, 4455a781; campgrounds, 2026-11-08: finish-route-split, 9.0 min in a pod
-# against 2.1 here, its 1006 input blobs fetched, and surfaces-parts, 1.3 min against 0.6). Kept here, each for its
+# against 2.1 here, its 1006 input blobs fetched, and surfaces-parts, 1.3 min against 0.6; motion, 15.5 min in a
+# local pod and 19.9 on a cluster worker against 1.1 here for the make alone: a pod's minutes are the make and its
+# eleven checks, each building the scene again with its bakes' maps (about 80 s a check here, 2026-11-08), which
+# the drive pays after its own make). Kept here, each for its
 # rehearsal's fault: finish-route-views (a take the conductor kept was made again in the pod, 25 min against 0.06, its
 # record's key order another), surfaces-check and light-layer (a cluster worker's -0.0 for 0.0 in checks.json, other
 # sky_dome.png bytes: this PC's numbers against the image's, so the conductor's own make decides), light (it reads
-# rejects/scene-record@<place>/*, which its job does not name), motion (the same hash, but 14 to 20 min in a pod
-# against 1 min here); earth-seed writes paths and a time into its output.
+# rejects/scene-record@<place>/*, which its job does not name); earth-seed writes paths and a time into its output.
 POD_STAGES = frozenset({"rough-align", "props-inputs", "cast", "surfaces-paint", "finish-route-split",
-                        "surfaces-parts"})
+                        "surfaces-parts", "motion"})
 IMAGE_OF = dict.fromkeys(POD_STAGES, "runner")  # the image kind a waiting node of the stage will want (expected/)
 POD_VARIABLE = "SCORE_K8S_POD"
 QUEUE_VARIABLE = "SCORE_K8S_QUEUE"
