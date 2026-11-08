@@ -106,7 +106,9 @@ Breaks (each applied once, seen red, reverted, 2026-10-27), in this file's lint:
 - `ALLOWED` without tools/cloud/google_spend.py -> test_the_repository_makes_paid_calls_only_through_the_ledgered_clients.
 """
 import ast
+import concurrent.futures
 import json
+import multiprocessing
 import pathlib
 import re
 import subprocess
@@ -787,11 +789,11 @@ def paid_module(name):
             or (name.startswith("google.") and name.split(".")[-1] in GEMINI_NAMES))
 
 
-def imported_paid_modules(tree):
+def imported_paid_modules(nodes):
     """(line, what) for each import of Google's Gemini clients or Scaleway's SDK, by an import statement or by
-    importlib.import_module or __import__ given the module's name as a string."""
+    importlib.import_module or __import__ given the module's name as a string, in `nodes` (a tree's ast.walk)."""
     found = []
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, ast.Import):
             names = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom) and node.module:
@@ -843,11 +845,11 @@ def joined_text(node, assigned):
     return string_text(node)
 
 
-def paid_strings(tree):
-    """(line, what) for each string, f-string or joined string that names a paid host, key header or order."""
-    states = variable_states(tree)
+def paid_strings(nodes, states):
+    """(line, what) for each string, f-string or joined string in `nodes` (a tree's ast.walk) that names a paid host,
+    key header or order, its variables read from `states` (variable_states of the tree)."""
     found = []
-    for node in ast.walk(tree):
+    for node in nodes:
         if not isinstance(node, (ast.Constant, ast.JoinedStr, ast.BinOp)):
             continue
         text = joined_text(node, states.get(id(node), {}))
@@ -906,12 +908,14 @@ def scope_members(scope):
 
 
 def scopes(tree):
-    """(scope, the scope around it) for the module (None around it) and each function in it, outer before inner."""
+    """(scope, the scope around it, its scope_members) for the module (None around it) and each function in it,
+    outer before inner."""
     found, waiting = [], [(tree, None)]
     while waiting:
         scope, outer = waiting.pop(0)
-        found.append((scope, outer))
-        waiting += [(node, scope) for node in scope_members(scope) if isinstance(node, FUNCTIONS)]
+        members = scope_members(scope)
+        found.append((scope, outer, members))
+        waiting += [(node, scope) for node in members if isinstance(node, FUNCTIONS)]
     return found
 
 
@@ -921,10 +925,10 @@ def variable_states(tree):
     effect where it ends. So a name two functions both use is read from the function the node is in (review of C1,
     2026-10-17: one module-wide table read one function's call with another's words)."""
     states, left = {}, {None: {}}
-    for scope, outer in scopes(tree):
+    for scope, outer, members in scopes(tree):
         assigned = left[outer]
         events = []
-        for node in scope_members(scope):
+        for node in members:
             if not hasattr(node, "lineno"):
                 continue
             events.append(((node.lineno, node.col_offset, 1), node))
@@ -962,15 +966,15 @@ def orders_in(words):
                                                  or (words[index] in SCW_PRODUCTS and words[index + 1] is None))]
 
 
-def scw_orders(tree):
+def scw_orders(nodes, states):
     """(line, what) for each call given, list built with, or variable set or grown to scw words that order a billed
-    resource: the words read through variables (as the node's own function set them), joined and starred lists,
-    .append, .extend and .insert (sequence_words, setting)."""
-    states = variable_states(tree)
-    compared = {id(side) for node in ast.walk(tree) if isinstance(node, ast.Compare)
+    resource, in `nodes` (a tree's ast.walk): the words read through variables (`states`, variable_states of the
+    tree: as the node's own function set them), joined and starred lists, .append, .extend and .insert
+    (sequence_words, setting)."""
+    compared = {id(side) for node in nodes if isinstance(node, ast.Compare)
                 for side in [node.left, *node.comparators]}
     found = set()
-    for node in ast.walk(tree):
+    for node in nodes:
         if id(node) in compared or id(node) not in states:  # a test's check (`command[:4] == [...]`) orders nothing
             continue
         assigned = states[id(node)]
@@ -989,7 +993,8 @@ def scw_orders(tree):
 def python_paid_calls(text):
     """(line, what) for each paid call a Python source makes outside the ledgered clients."""
     tree = ast.parse(text)
-    return sorted(set(imported_paid_modules(tree) + paid_strings(tree) + scw_orders(tree)))
+    nodes, states = list(ast.walk(tree)), variable_states(tree)
+    return sorted(set(imported_paid_modules(nodes) + paid_strings(nodes, states) + scw_orders(nodes, states)))
 
 
 def logical_lines(text):
@@ -1230,9 +1235,15 @@ def test_reading_and_deleting_are_not_paid_calls():
     assert paid_calls(path) == []
 
 
+def repository_calls(path):
+    """(line, what) for each paid call one tracked file (repository-relative) makes outside its ALLOWED parts."""
+    return outside_allowed(REPO / path, ALLOWED.get(path, ("", set()))[1])
+
+
 def test_the_repository_makes_paid_calls_only_through_the_ledgered_clients():
-    found = {path: calls for path in tracked_sources()
-             for calls in [outside_allowed(REPO / path, ALLOWED.get(path, ("", set()))[1])] if calls}
+    paths = tracked_sources()
+    with concurrent.futures.ProcessPoolExecutor(mp_context=multiprocessing.get_context("fork")) as pool:
+        found = {path: calls for path, calls in zip(paths, pool.map(repository_calls, paths, chunksize=16)) if calls}
     assert not found, ("call Gemini through google_spend.generate and rent through batch.rent, not directly: "
                        f"{found}")
 
