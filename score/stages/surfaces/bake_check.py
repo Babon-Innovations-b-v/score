@@ -77,14 +77,16 @@ ORDER_L, ORDER_BAKED = 10.0, 3.0
 SEEN_THROUGH = ("glass", "screen", "light", "water")
 PART_POINTS = 60000  # labelled points kept per model to name each baked triangle (export.PART_POINTS)
 # The bake names a baked triangle's colour by a ray (make_chunky's bake_from: Blender's selected-to-active, its cage
-# BAKE_REACH_VOXELS of its solid copy's voxels out (BAKE_VOXEL_SHARE of the piece's largest side, no finer than
-# BAKE_VOXEL_FINEST), at least BAKE_REACH_LEAST, as make_chunky's bake_reach), so the check names its surface the same way: from its middle that far out along its normal, inward,
+# BAKE_REACH_VOXELS of its solid copy's voxels out (bake_voxel, make_chunky's voxel_of), at least BAKE_REACH_LEAST, as
+# make_chunky's bake_reach), so the check names its surface the same way: from its middle that far out along its
+# normal, inward,
 # the first labelled face hit. The nearest labelled point named the wrong part: the bake's cut-down copy stands a wall
 # proud of the model (0.6 m on far_city's 140 m pencil tower, 2026-10-13), and from there a thin post's side lies
 # nearer than the facade the bake's ray meets, so half of what the check called post_dark baked the facade and its
 # median failed at dE 45 while every triangle the bake's ray gave the post baked its library colour exactly.
 BAKE_REACH_VOXELS, BAKE_REACH_LEAST = 4, 0.01
 BAKE_VOXEL_SHARE, BAKE_VOXEL_FINEST = 1 / 300, 0.0012
+BAKE_THIN_VOXELS, BAKE_SURFACE_VOXELS = 4, 2_000_000  # make_chunky's THIN_VOXELS, SURFACE_VOXELS (bake_voxel)
 # The wear stretch (on_surface) is tried at this many shares from clean to the place's wear, each dirtied exactly.
 WEAR_STEPS = 41
 
@@ -137,9 +139,19 @@ def ray_surfaces(geometry, laid, codes, size, sampled=None):
     normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
     normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
     points, owners = sampled if sampled is not None else (corners.mean(axis=1), np.arange(len(corners)))
-    reach = max(BAKE_REACH_VOXELS * max(BAKE_VOXEL_FINEST, max(size) * BAKE_VOXEL_SHARE), BAKE_REACH_LEAST)
+    reach = max(BAKE_REACH_VOXELS * bake_voxel(size), BAKE_REACH_LEAST)
     hit = laid.ray.intersects_first(points + normals[owners] * reach, -normals[owners])
     return np.where(hit >= 0, codes[np.maximum(hit, 0)], -1)
+
+
+
+def bake_voxel(size):
+    """The bake's solid copy's voxel as make_chunky's voxel_of gives it: BAKE_VOXEL_SHARE of the largest side, or a
+    thin piece's thinnest side over BAKE_THIN_VOXELS where finer, no finer than its box's surface over
+    BAKE_SURFACE_VOXELS nor than BAKE_VOXEL_FINEST."""
+    wide, tall, deep = (float(side) for side in size)
+    surface = (2 * (wide * tall + tall * deep + deep * wide) / BAKE_SURFACE_VOXELS) ** 0.5
+    return max(BAKE_VOXEL_FINEST, min(max(size) * BAKE_VOXEL_SHARE, max(min(size) / BAKE_THIN_VOXELS, surface)))
 
 
 def sampled_points(geometry, rows, columns, sizes):

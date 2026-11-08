@@ -19,6 +19,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - library `main`: `if True:` print the whole list -> test_the_command_line_prints_one_summary_line.
 - make_chunky `default_wall`: `return WALL_VOXELS * voxel_of(size)` ->
   test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm.
+- make_chunky `voxel_of`: `min(max(size) * VOXEL_SHARE, ...)` -> `max(size) * VOXEL_SHARE` (a thin piece remeshed
+  at its longest side's share, the lantern string's 1 cm wire baked 9 cm thick) ->
+  test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm.
 - make_chunky `full_model`: `bpy.ops.wm.ply_import` again; and, apart, `kept_triangles`: `once[:] = True` ->
   test_a_part_reads_the_same_every_run (2026-10-28).
 - make_chunky `system_refusal`: `return None` -> test_a_bake_refuses_a_machine_of_another_system (2026-10-29).
@@ -252,11 +255,17 @@ def chunky_functions(functions, constants=()):
 def chunky_default_wall():
     """make_chunky's default_wall with the constants it reads."""
     return chunky_functions(("default_wall", "voxel_of"),
-                            {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST"})["default_wall"]
+                            {"WALL", "WALL_VOXELS", "VOXEL_SHARE", "VOXEL_FINEST", "THIN_VOXELS",
+                             "SURFACE_VOXELS"})["default_wall"]
 
 
 def test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm():
     default_wall = chunky_default_wall()
+    voxel_of = default_wall.__globals__["voxel_of"]
+    # street's 8 m lantern string, its wire 1 cm: four voxels across the wire, not 1/300 of its 8 m (9 cm baked)
+    assert abs(voxel_of([8.0, 0.058, 0.01]) - 0.0025) < 1e-9
+    assert abs(voxel_of([0.4, 0.3, 0.2]) - 0.4 / 300) < 1e-12  # a prop: its largest side's share, as before
+    assert abs(voxel_of([8.0, 8.0, 0.01]) - 0.008) < 1e-4  # a big sheet: held to its surface's voxel budget
     assert default_wall([0.4, 0.3, 0.2]) == 0.005  # a prop: its two voxels are under 5 mm
     assert abs(default_wall([8.0, 8.0, 60.0]) - 0.4) < 1e-9  # the launch rocket: two 0.2 m voxels, not lace
 

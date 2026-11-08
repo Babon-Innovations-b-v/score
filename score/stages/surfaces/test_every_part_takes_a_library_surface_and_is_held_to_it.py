@@ -296,6 +296,8 @@ tests it turned red:
 - route_paint.py: `("colour against the close-up", baked_colour.judge_colour)` -> `("colour against the close-up",
   place_line.judge_concept_colour)`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
+  a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
 """
 import inspect
 import io
@@ -1068,10 +1070,14 @@ def test_a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_
     found = {node.targets[0].id: eval(compile(ast.Expression(node.value), "make_chunky", "eval")) for node in ast.parse(
         (REPO / "tools/props/library/inside/make_chunky.py").read_text()).body
         if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
-        and node.targets[0].id in ("REACH_VOXELS", "REACH_LEAST", "VOXEL_SHARE", "VOXEL_FINEST")}
-    assert (found["REACH_VOXELS"], found["REACH_LEAST"], found["VOXEL_SHARE"], found["VOXEL_FINEST"]) == (
+        and node.targets[0].id in ("REACH_VOXELS", "REACH_LEAST", "VOXEL_SHARE", "VOXEL_FINEST", "THIN_VOXELS",
+                                   "SURFACE_VOXELS")}
+    assert (found["REACH_VOXELS"], found["REACH_LEAST"], found["VOXEL_SHARE"], found["VOXEL_FINEST"],
+            found["THIN_VOXELS"], found["SURFACE_VOXELS"]) == (
         bake_check.BAKE_REACH_VOXELS, bake_check.BAKE_REACH_LEAST, bake_check.BAKE_VOXEL_SHARE,
-        bake_check.BAKE_VOXEL_FINEST)
+        bake_check.BAKE_VOXEL_FINEST, bake_check.BAKE_THIN_VOXELS, bake_check.BAKE_SURFACE_VOXELS)
+    # street's lantern string (8 m, its wire 1 cm): its voxel follows its wire, as make_chunky's voxel_of
+    assert abs(bake_check.bake_voxel([8.0, 0.058, 0.01]) - 0.0025) < 1e-9
 
 
 def test_a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out():
