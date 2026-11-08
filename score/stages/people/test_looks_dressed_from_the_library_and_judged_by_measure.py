@@ -21,7 +21,9 @@ Breaks that turn it red (each applied once and seen red, then reverted):
   the parts test (the fitting parts read under PARTS_FIT_LEAST); `bodies.judge_parts`: `and fit >= PARTS_FIT_LEAST`
   dropped  -> the parts test (the parts of another finished model pass); `bodies.refused_on_misfit`: `fit <` read as
   `False and fit <`  -> the parts test (a body built on scattered parts); `bodies.laid_parts`: the `filecmp.cmp`
-  test dropped  -> the parts test (the candidate's older parts left under the accepted ones, env1 2026-11-08).
+  test dropped  -> the parts test (the candidate's older parts left under the accepted ones, env1 2026-11-08);
+  `bodies.kept_parts`: `recorded == sorted(painted) and` dropped  -> the parts test (parts judged on the work suit's
+  names kept for a made look, the astronaut's boots "steel buckle", 2026-11-08).
 - `dress.outer_labels`: every point kept at its nearest sample (`if not near` read as `if True`)  -> the outer
   surface test (the suit inside is nearer).
 - `dress.without_strays`: `rounds=0`  -> the stray blotch test.
@@ -672,6 +674,11 @@ def test_parts_pass_only_when_every_part_is_named():
             assert "do not fit" in str(blocked), blocked
         bodies.laid_parts(folder, laid)
         assert (laid / "parts.npz").read_bytes() == (folder / "parts.npz").read_bytes(), "the older parts stayed"
+        painted = {"boots_brown__boot_brown_r065": {}, "helmet_visor__visor_black_r005": {}}
+        assert not bodies.kept_parts(folder, takes, "pp-a_s1", painted), "parts judged on the work suit's names kept"
+        (folder / "parts.json").write_text(json.dumps({"take": "pp-a_s1", "parts": found, "painted": sorted(painted)}))
+        assert bodies.kept_parts(folder, takes, "pp-a_s1", painted)
+        assert not bodies.kept_parts(laid, takes, "pp-a_s1", {}), "parts of another finished model kept"
 
 
 def test_a_failed_tucks_record_refuses_the_body_before_any_machine():

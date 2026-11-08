@@ -53,7 +53,9 @@ unless named):
 - test_most_usable_answers_decide: judged_by_most's `max(picks, ...)` made `min(picks, ...)`.
 - test_an_unanswered_part_takes_its_mirror_images_answers: mirrored's `mirror_of[following] = int(mirror)` made
   `int(part)`.
-- test_each_outfit_has_its_palette: palette_of returns FALLBACK_PALETTE always.
+- test_each_outfit_has_its_palette: palette_of returns FALLBACK_PALETTE always; person_materials' `if painted:`
+  read as `if False:` (a made look offered the work suit's names, 2026-11-08); part_names without the worn_as test
+  (a made look's boots named by their material, no boot for joins.py).
 - test_skeleton_into_itself_comes_back: prop_rig.placed's bone `length` made `* 1.1` longer; prop_rig.crotch_of's
   `hem = legs_run_top(...)` made `hem = None` (a body in a skirt refused, woman_stair 2026-11-08); its
   `hem - SHIN_LOW * height >= LEG_RUN_LEAST * height` made `hem is not None` (legs joined nearly to the feet rigged).
@@ -502,6 +504,20 @@ def test_each_outfit_has_its_palette():
     work, space = prop_parts.person_materials({}, "work"), prop_parts.person_materials({}, "space")
     assert "navy fabric" in work and "white suit fabric" in space and "skin" in work and "hair" in space
     assert all(prop_parts.ROLES[entry["family"]] for entry in space.values())
+    painted = {"boots_black__boot_black_r060_m000_s1": {"recipe": "rubber", "family": "leather", "colour": [0.02] * 3},
+               "helmet_visor__visor_black_r005_m000_s2": {"recipe": "glass", "family": "glass", "colour": [0.01] * 3},
+               "spacesuit_leather_brown__suit_r075_m000_s3": {"recipe": "cloth", "family": "leather",
+                                                              "colour": [0.19, 0.13, 0.08]},
+               "skin_light__skin_light_r055_m000_s4": {"recipe": "rubber", "family": "skin", "colour": [0.7, 0.4, 0.3]}}
+    made = prop_parts.person_materials({"painted": painted}, "made")
+    assert {name: entry["role"] for name, entry in made.items()} == {
+        "boots black": "hard", "helmet visor": "hard", "spacesuit leather brown": "garment", "skin light": "skin",
+        "hair": "hair"}, made
+    assert "navy fabric" not in made and "steel buckle" not in made
+    final = trimesh.creation.box(extents=(0.4, 1.8, 0.3)).apply_translation((0, 0.9, 0))
+    low = (final.triangles_center[:, 1] < 0.3).astype(int)
+    assert prop_parts.part_names(final, low, {0: "hard", 1: "hard"}, {0: "helmet visor", 1: "boots black"}) == \
+        {0: "helmet_visor", 1: "boot"}
 
 
 # --- the prop route's rig, tucks, pokes, piping and build on a body of tubes ---------------------------------------
