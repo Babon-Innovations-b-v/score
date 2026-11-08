@@ -379,24 +379,24 @@ def row_openings(plan, rows):
 
 def relation_cuts(relations):
     """The openings the place's relations cut for doors and windows the plan's own openings do not hold
-    (score/review/holders `cut`), as {at, wide, sill, head}."""
-    return [{key: found["opening"][key] for key in ("at", "wide", "sill", "head")}
+    (score/review/holders `cut`), as (its row, {at, wide, sill, head})."""
+    return [(entry.get("row"), {key: found["opening"][key] for key in ("at", "wide", "sill", "head")})
             for entry in (relations or {}).get("relations", []) for found in entry.get("pieces") or [entry]
             if (found.get("opening") or {}).get("cut")]
 
 
 def cut_for(plan, rows, relations=None):
     """The plan with the openings its door and window rows fill (row_openings) and those its relations cut
-    (relation_cuts, each but where one a wall cuts stands within their half widths, which it replaces where none of
-    its outline's walls cuts it: cockpit's rear door, its item's middle 0.75 m off its slanted wall's line, left the
-    wall uncut and its door swung into it, #36 2026-10-30) for its walls to cut."""
+    (relation_cuts) for its walls to cut. Each relation's cut is cut where the scene record lays its door or window
+    (writer.related: at its opening's middle) and replaces its row's own openings standing within their half widths:
+    one filler, moved to its relation's spot (engineroom's window, its item's opening kept on its wall 0.66 m from where
+    holders cut it beside door 3, stood half in the wall, and door 3's cut, left out beside the window's row opening,
+    stood against an uncut wall, settle@engineroom 2026-11-08; cockpit's rear door, its item's middle 0.75 m off its
+    slanted wall's line, left the wall uncut and its door swung into it, #36 2026-10-30)."""
     own = row_openings(plan, rows)
-    for cut in relation_cuts(relations):
-        near = [other for other in own
-                if np.linalg.norm(np.subtract(cut["at"], other["at"])) < (cut["wide"] + other["wide"]) / 2]
-        kept = [other for other in near if on_a_wall(plan, other)]
-        if not kept:
-            own = [other for other in own if all(other is not found for found in near)] + [cut]
+    for row, cut in relation_cuts(relations):
+        own = [other for other in own if other.get("row") != row
+               or np.linalg.norm(np.subtract(cut["at"], other["at"])) >= (cut["wide"] + other["wide"]) / 2] + [cut]
     return {**plan, "row_openings": own}
 
 
