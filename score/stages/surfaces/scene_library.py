@@ -66,7 +66,11 @@ word for what it is made of: steel, paint, rubber, glass, wood, fabric, plastic,
 from the palette, its roughness and metal from 0 to 1, a token of the palette for each colour setting its recipe
 needs, the surface it sounds like, and the kinds it is for. Choose each recipe by what the surface is and how it is
 made, its token by its colour in the picture. A recipe that draws a pattern of its own (a quilt, tiles, a grid,
-boards) is only for a surface the picture shows with that pattern; a plain surface takes a plain recipe."""
+boards, a mottled pile, rows of writing) is only for a surface the picture shows with that pattern; a plain surface
+takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face: where the picture shows a pile or a
+mottle on it, or writing or print, give it the recipe that draws that (pile; written, its ink the second colour)."""
+# A kind's words in the question when a take of it is laid as a flat sheet (sheet_kinds).
+SHEET_WORDS = " (a flat sheet: its face is what shows)"
 
 
 def files(place):
@@ -150,13 +154,26 @@ def kinds_of(inputs):
     """{kind: the words for it} of every take in the scene's surface data, every ground row (grounds_of) of its
     inventory and every part of the shell its locked plan lays (shell_kinds; first words kept)."""
     found = {kind: ground["words"] for kind, ground in grounds_of(inputs).items()}
-    for take in json.loads(pathlib.Path(inputs["surfaces"]).read_text()).get("takes", {}).values():
+    data = json.loads(pathlib.Path(inputs["surfaces"]).read_text())
+    sheets = sheet_kinds(data)
+    for take in data.get("takes", {}).values():
         if take.get("kind"):
-            found.setdefault(take["kind"], take.get("object") or take["kind"])
+            found.setdefault(take["kind"], (take.get("object") or take["kind"])
+                             + (SHEET_WORDS if take["kind"] in sheets else ""))
     if "plan" in inputs:
         for kind, words in shell_kinds(json.loads(pathlib.Path(inputs["plan"]).read_text())).items():
             found.setdefault(kind, words)
     return dict(sorted(found.items()))
+
+
+def sheet_kinds(data):
+    """The kinds of the surface data's takes a model of which its bake lays as a flat sheet (its bake entry's size by
+    score/stages/props/flat_sheet.py's sheet rule): a rug, a mat, a note, whose face is all that shows."""
+    from score.stages.props import flat_sheet
+    takes, bake = data.get("takes", {}), data.get("bake", {})
+    return {takes[take].get("kind") for model, take in bake.get("models", {}).items()
+            if take in takes and "size" in (bake.get("entries", {}).get(model) or {})
+            and flat_sheet.sheet({"size": bake["entries"][model]["size"], "name": takes[take].get("kind") or ""})}
 
 
 def schema(recipes, tokens, kinds, sounds):

@@ -16,6 +16,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   test_an_unknown_surface_or_a_place_s_own_wear_is_a_named_missing_input.
 - library `linear`: `value / 12.92 if True` -> test_a_token_colour_is_linear.
 - recipes.py `cloth`: drop its `thread` argument -> test_every_recipe_s_settings_are_in_the_method.
+- recipes.py: `"pile": pile, "written": written,` dropped from RECIPES -> test_every_recipe_s_settings_are_in_the_method.
 - library `main`: `if True:` print the whole list -> test_the_command_line_prints_one_summary_line.
 - make_chunky `default_wall`: `return WALL_VOXELS * voxel_of(size)` ->
   test_a_job_naming_no_wall_takes_two_voxels_not_under_5_mm.
@@ -208,6 +209,10 @@ def test_every_recipe_s_settings_are_in_the_method():
     assert {name: arguments[function] - given - set(method[name]) for name, function in recipes.items()
             if arguments[function] - given - set(method[name])} == {}
     assert arguments[recipes["cloth"]] - given == {"roughness", "thread", "bump", "dirt_reach"}
+    # a flat sheet's print (2026-11-08): a mat's or rug's mottled pile and a note's rows of writing, ink its second
+    assert arguments[recipes["pile"]] - given == {"roughness", "tuft_size", "mottle_size", "contrast", "bump",
+                                                  "dirt_reach"}
+    assert arguments[recipes["written"]] - given == {"roughness", "line_pitch", "stroke", "word_size", "ink_share"}
 
 
 def command_output(arguments, folder):

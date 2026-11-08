@@ -296,6 +296,9 @@ tests it turned red:
 - route_paint.py: `("colour against the close-up", baked_colour.judge_colour)` -> `("colour against the close-up",
   place_line.judge_concept_colour)`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+- scene_library.py: `+ (SHEET_WORDS if take["kind"] in sheets else "")` -> `+ ""` (kinds_of), or `"pile": ["second"]`
+  dropped from data/library/materials.json's colour_settings  ->
+  a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
   a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
 """
@@ -2922,7 +2925,10 @@ def test_the_shell_a_locked_plan_lays_is_a_kind_the_scene_library_must_cover():
 
 
 def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
-    """surface-library@people (2026-10-22): suit_patches as `printed`, with no picture, stopped the bake."""
+    """surface-library@people (2026-10-22): suit_patches as `printed`, with no picture, stopped the bake. A flat sheet
+    (stairwell's door mat, quarters' rug and sticky note, 2026-11-08) is offered recipes that draw a pile and writing
+    in the library's own colours, and is marked a sheet in the question, so its print is asked for, not one plain
+    colour."""
     answer = {"surfaces": [{"name": "patches", "family": "fabric", "recipe": "printed", "token": "hull-trim",
                             "roughness": 0.4, "metal": 0.0, "kinds": ["two_boxes"]}]}
     with tempfile.TemporaryDirectory() as temporary:
@@ -2930,7 +2936,23 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
         body = asked[0]["cockpit"]
         enum = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]["recipe"]
         assert not set(scene_library.PICTURED) & set(enum["enum"]), enum
+        assert {"pile", "written"} <= set(enum["enum"]), enum
         assert "patches: recipe printed paints a picture, and the library has none" in verdict.findings, verdict
+        text = body["contents"][0]["parts"][-1]["text"]
+        assert "- pile: " in text and "- written: " in text and "(pile; written" in text, text
+    method = library.theme_library()
+    assert method["colour_settings"]["pile"] == method["colour_settings"]["written"] == ["second"]
+    data = {"takes": {"rug-t1": {"kind": "rug", "object": "patterned rug"},
+                      "note-t1": {"kind": "note", "object": "sticky note"},
+                      "crate-t1": {"kind": "crate", "object": "crate"}},
+            "bake": {"models": {"rug_1": "rug-t1", "note_1": "note-t1", "crate_1": "crate-t1"},
+                     "entries": {"rug_1": {"size": [2.0, 0.02, 3.0]}, "note_1": {"size": [0.08, 0.001, 0.08]},
+                                 "crate_1": {"size": [0.6, 0.4, 0.5]}}}}
+    with tempfile.TemporaryDirectory() as temporary:
+        (pathlib.Path(temporary) / "place.json").write_text(json.dumps(data))
+        kinds = scene_library.kinds_of({"surfaces": pathlib.Path(temporary) / "place.json"})
+    assert kinds == {"crate": "crate", "note": "sticky note" + scene_library.SHEET_WORDS,
+                     "rug": "patterned rug" + scene_library.SHEET_WORDS}, kinds
 
 
 def test_a_scene_s_ground_rows_take_their_natural_ground_by_rule():

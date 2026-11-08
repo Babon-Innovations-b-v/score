@@ -77,6 +77,21 @@
    "seam_width": 0.06,
    "dirt_reach": 0.05
   },
+  "pile": {
+   "roughness": 0.95,
+   "tuft_size": 0.004,
+   "mottle_size": 0.08,
+   "contrast": 0.6,
+   "bump": 0.0015,
+   "dirt_reach": 0.05
+  },
+  "written": {
+   "roughness": 0.8,
+   "line_pitch": 0.012,
+   "stroke": 0.35,
+   "word_size": 0.008,
+   "ink_share": 0.55
+  },
   "composite": {
    "roughness": 0.35,
    "weave": 0.006,
@@ -214,6 +229,12 @@
    "second"
   ],
   "quilted": [
+   "second"
+  ],
+  "pile": [
+   "second"
+  ],
+  "written": [
    "second"
   ],
   "composite": [
