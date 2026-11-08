@@ -643,8 +643,9 @@ def surface_faults(entry, shape, meshes, rate, seconds):
 
 
 def rail_faults(entry, shape, stills, others, rate, seconds):
-    """A moving thing on a rail: the reads where it touches none of what it starts mounted on, still things or other moving things
-    (a hatch's wheel rides its leaf)."""
+    """A moving thing on a rail: the reads where it touches none of what it starts mounted on, still things (the ground
+    under it among them: a crane slewing where it stands on a camp's terrain, motion@campgrounds 2026-11-08) or other
+    moving things (a hatch's wheel rides its leaf)."""
     codes = [moment * rate for moment in moments(seconds)]
     spacing = spacing_of(shape)
     near = space.still_points_near(stills, space.swept_box(shape, codes, 0.1), 0.0, spacing)
@@ -704,7 +705,7 @@ def judge_grounded(output, inputs, evidence):
             measures[f"{entry['name']} height drift"] = round(drift, 3)
         elif entry["on"] == "rail":
             others = [shaped(stage, path) for path in moving if path != entry["prim"]]
-            found = rail_faults(entry, shape, stills, others, rate, seconds)
+            found = rail_faults(entry, shape, surfaces["ground"], others, rate, seconds)
         else:
             found = air_faults(entry, shape, surfaces["ground"], rate, seconds)
         faults += found
