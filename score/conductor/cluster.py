@@ -9,7 +9,8 @@ cutover; RECORD); without it nothing here acts and every caller behaves as on th
   `detach`) in place of the systemd scope: no retries, `restartPolicy: Never`, the store's volume at the VM's paths
   beside the conductor's pod on its node (tools/cloud/k8s/conductor), its working folder the run's frozen copy on that
   volume (the run's commit), its command and output log the same as the scope's. The run's environment goes with it,
-  every variable that could hold a secret left out (SECRET_NAME): those the run reads by name, as on the VM. An OOM or
+  every variable that could hold a secret left out (SECRET_NAME): those the run reads by name, as on the VM; its
+  PROPS_HOME (its frozen home, the design as the run started) over the pods' own (RUN_OWN). An OOM or
   a node loss ends that run alone; `score resume` takes it up from the store.
 - **Requests from the plan** (step 3): the pod's memory request is the memory guard's own reckoning
   (`memory_request`: the floor beside the largest kept stage peaks, one a job at once), its limit the same, at most
@@ -41,6 +42,12 @@ SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSWORD|PASSPHRASE|CREDENTIAL|_KEY$|^AW
 POD_OWN = re.compile(r"^(KUBERNETES_|HOSTNAME$|PWD$|SHLVL$|_$|OLDPWD$)")
 DRIVE_LABEL = "score.dev/drive"
 START_SECONDS = 300  # the drive pod's start on the conductor's node, its image already there
+# The run's variables its Job keeps over the pods' own: PROPS_HOME, the run's frozen home (graph/frozen.py home_copy:
+# its design copied as it started). With the pods' PROPS_HOME the drive read the live design, and the sync pass's
+# plans keep rewrote six plans under env1's try of 2026-11-08: every plan key moved, pixal@ stopped standing, the
+# palette keyed without it, and 27 of 28 lines stopped on "finish-route-palette@<place> has not run on its current
+# inputs".
+RUN_OWN = ("PROPS_HOME",)
 DEFAULTS = {"namespace": "score", "jobs": 16, "cpu_per_job": 0.5, "max_memory_gb": 64}
 
 
@@ -97,9 +104,10 @@ def drive_job(found, command, log, folder, environment, memory_bytes):
     container = pods.container("drive", found["image"], ["/bin/sh", "-c", shell, "drive", *command],
                                {"requests": {"cpu": cpu, "memory": memory}, "limits": {"cpu": cpu, "memory": memory}})
     container["workingDir"] = str(folder)
-    own = {variable["name"] for variable in container["env"]}
+    kept = {name for name in RUN_OWN if name in environment}  # the run's own, over the pods' defaults
+    own = {variable["name"] for variable in container["env"]} - kept
     container["env"] = [*(variable for variable in carried_environment(environment) if variable["name"] not in own),
-                        *container["env"],
+                        *(variable for variable in container["env"] if variable["name"] not in kept),
                         {"name": "SCORE_DRIVE_LOG", "value": str(log)},
                         {"name": "SCORE_DRIVE_POD", "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}}]
     labels = {**pods.labels("drive"), pods.WRITER_LABEL: "true", DRIVE_LABEL: job_name(log)}

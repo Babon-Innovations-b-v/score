@@ -28,7 +28,9 @@ cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod
 home whose record names another namespace reads the logs of `score`'s pods); or in cluster.drive_job write `echo $$`
 (Kubernetes hands the shell `echo $`, and a detached run on the cluster waits for a pid that never comes); or in
 cluster.drive_job drop the cpu limit (the namespace's default limit of 1 under a request of 8 makes every drive pod
-invalid); or in cluster.detach drop the delete on TimeoutError (a Job whose pod never starts keeps making it again).
+invalid); or in cluster.detach drop the delete on TimeoutError (a Job whose pod never starts keeps making it again);
+or in cluster.drive_job let the pods' PROPS_HOME win over the run's (the drive reads the live design, not its frozen
+copy, and a sync pass's plan rewrite stops every line mid-run, env1 2026-11-08).
 """
 import datetime
 import io
@@ -486,7 +488,8 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     log, applied = tmp_path / "score-run-20261107T2000Z.log", []
     (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
     environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
-                   "KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOME": "/elsewhere"}
+                   "KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOME": "/elsewhere",
+                   "PROPS_HOME": "/home/score/.farm-factory-props/frozen/abc.home"}
     name, pid = cluster.detach(found, ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"], log,
                                "/home/score/.farm-factory-props/frozen/abc", environment, tmp_path,
                                apply=applied.append, wait=lambda log: cluster.started_pid(log, seconds=1))
@@ -504,6 +507,9 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
     assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
     assert [variable["name"] for variable in box["env"]].count("HOME") == 1
+    # its home is the run's frozen one (its design as it started), never the pods' live home a sync pass rewrites
+    assert carried["PROPS_HOME"] == "/home/score/.farm-factory-props/frozen/abc.home"
+    assert [variable["name"] for variable in box["env"]].count("PROPS_HOME") == 1
     # its processor limit is its request, so a namespace's default limit never makes the pod invalid
     assert box["resources"]["limits"]["cpu"] == box["resources"]["requests"]["cpu"] == "8000m"
     with pytest.raises(TimeoutError):
