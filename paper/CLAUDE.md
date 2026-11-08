@@ -25,11 +25,13 @@ python3 score/build/build.py --check   # exit 1 when a committed output is stale
   `figures/`, the built `main.pdf` and `main.bbl` (`tectonic -X compile main.tex`), and `evidence/`, the sim-body run
   records its numbers are read from. Same class, margins and natbib style as SCORE's; gap boxes are `\gapbox`,
   numbers still moving are `\interim`. Its story is the one agreed with the owner (#98 comment 6723992362). The
-  main body is **at most 4 pages**: it ends at `\label{endofmain}` after a `\FloatBarrier`, and its page in
-  `main.aux` is at most 4. It follows the structure and register of the owner's published paper (arXiv:2607.17639:
-  abstract, introduction to a "what is new" paragraph, method in two parts (calibration once, the solver per
-  recording), why GPU, validation protocol, results, discussion, conclusion; full academic prose, no project jargon);
-  method detail and full tables go to the appendices. Every result of MOTOR is a gap box until the whole-trial solver's full run (#98); numbers of the
+  main body after the abstract is four sections, related work, method, results, discussion (owner, 2026-11-08: "it
+  needs a related work, method, results, discussion, done"), about 3 pages of text in connected prose (related work
+  carries the motivation and closes on what MOTOR adds; method has at most three run-in heads and no subsections; the
+  discussion's last paragraph does the conclusion's work). With its figures and table the main body is **at most 4
+  pages**: it ends at `\label{endofmain}` after a `\FloatBarrier`, and its page in `main.aux` is at most 4. Its
+  register is the owner's published paper (arXiv:2607.17639): full academic prose, no project jargon.
+  Method detail and full tables go to the appendices. Every result of MOTOR is a gap box until the whole-trial solver's full run (#98); numbers of the
   per-frame chain, its warm start, appear only in their own appendix, labelled as the chain's, never as MOTOR's.
   Build with `--keep-intermediates`, then delete `main.aux`, `main.out` and `main.log`.
 - `evidence/`: the shared run records that code reads as well as the papers, left at this path because paid rows'
