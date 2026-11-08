@@ -106,14 +106,15 @@ def correlation(first, second):
 
 
 def angle_measures(predicted, reference):
-    """RMSE, MAE, centred MAE (degrees), r and its † flag (the reference's range under SMALL_RANGE) of one
-    coordinate on the frames both give."""
+    """RMSE, MAE, centred MAE, the bias (the mean error; degrees), r and its † flag (the reference's range under
+    SMALL_RANGE) of one coordinate on the frames both give."""
     inside = np.isfinite(predicted) & np.isfinite(reference)
     mine, theirs = predicted[inside], reference[inside]
     error = mine - theirs
     span = float(theirs.max() - theirs.min())
     return {"rmse": float(np.sqrt(np.mean(error ** 2))), "mae": float(np.mean(np.abs(error))),
-            "cmae": float(np.mean(np.abs(error - error.mean()))), "r": correlation(mine, theirs),
+            "cmae": float(np.mean(np.abs(error - error.mean()))), "bias": float(error.mean()),
+            "r": correlation(mine, theirs),
             "range": span, "dagger": span < SMALL_RANGE, "frames": int(inside.sum())}
 
 

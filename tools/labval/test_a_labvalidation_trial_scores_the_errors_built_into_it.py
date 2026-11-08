@@ -97,6 +97,7 @@ Breaks, each applied once, seen red, reverted (2026-11-08, the subject's own sta
 - _run.angles' standing tilt `-standing.get(...)` made `+`: the standing pelvis reads 14 degrees, not 0.
 - the pelvis turned about its own z made its tilt less the standing tilt: the standing pelvis heading the lab's other
   way reads -14 degrees (the tilt's sign flips with the heading).
+- _score.angle_measures' bias `error.mean()` made `-error.mean()`: the legs, 2 degrees over, read 2 under.
 - `labval.scored`'s `standing` not given to `_run.angles`: the trial's pelvis, lumbar and elbows read as without it.
 """
 import ast
@@ -274,11 +275,11 @@ def scoring_faults(tmp):
         faults.append(f"the IK's window's shift {windowed['shift s']}")
     for name in (*_run.LEGS, *_run.ELBOWS):
         row = found["angles"][name]
-        if abs(row["mae"] - 2.0) > 0.05 or row["cmae"] > 0.05 or row["r"] < 0.999:
+        if abs(row["mae"] - 2.0) > 0.05 or abs(row["bias"] - 2.0) > 0.05 or row["cmae"] > 0.05 or row["r"] < 0.999:
             faults.append(f"{name} {row}")
     for name in _run.FOREARMS:
         row = found["angles"].get(name, {})
-        if "mae" in row or "rmse" in row or row.get("cmae", 1) > 0.05 or row.get("r", 0) < 0.999:
+        if "mae" in row or "rmse" in row or "bias" in row or row.get("cmae", 1) > 0.05 or row.get("r", 0) < 0.999:
             faults.append(f"{name} {row}")
     shoulders = [name for _, names, _ in _run.SHOULDERS.values() for name in names]
     for name in (*_run.PELVIS, *_run.LUMBAR, *shoulders):

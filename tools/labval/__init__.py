@@ -77,12 +77,13 @@ def reference_heading(columns):
 
 def angle_scores(times, predicted, ik_times, ik_columns, lag):
     """{coordinate: `_score.angle_measures`} of every predicted coordinate the IK holds, the IK moved by `lag`; a
-    coordinate whose zero differs between the models (`_run.OWN_ZERO`) keeps only its offset-free measures."""
+    coordinate whose zero differs between the models (`_run.OWN_ZERO`) keeps only its offset-free measures (no MAE,
+    RMSE or bias)."""
     found = {}
     for name, series in predicted.items():
         if name in ik_columns:
             measures = _score.angle_measures(series, _score.resampled(ik_times, ik_columns[name], times + lag))
-            found[name] = ({key: value for key, value in measures.items() if key not in ("mae", "rmse")}
+            found[name] = ({key: value for key, value in measures.items() if key not in ("mae", "rmse", "bias")}
                            if name in _run.OWN_ZERO else measures)
     return found
 
