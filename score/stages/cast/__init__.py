@@ -2,9 +2,9 @@
 shows, each placed in the place with a clip, and measured against the concept and the place's geometry.
 
     make     the place's cast from its picked design (data/people/rows.json, score/stages/people_rows.py: its scene
-             inventory's people rows, each person a look of the shared people line, at its row's own plan people
-             spot (people_rows.dealt_spots) and stood clear round it, one whose spot lies off the plan refused by
-             name (off_the_plan), one its words stand on stairs on its flight's first tread: on_stairs; a crowd one
+             inventory's people rows, each person a look of the shared people line, at its row's own people spot
+             of the place's plan (planned, people_rows.dealt_spots; never a copy in rows.json: #76) and stood clear round
+             it, one whose spot lies off the plan refused by name (off_the_plan), one its words stand on stairs on its flight's first tread: on_stairs; a crowd one
              far look in its palettes, #26), never the old game records
              or the lost concept pictures, dealt by cast.py's own rules, each with its
              spot, clip, look and whether it is made: its look's dress row (people-dress-<look>, `-in-<surface>`
@@ -92,9 +92,21 @@ def read_json(path):
     return json.loads(pathlib.Path(path).read_text())
 
 
+def planned(design, place, plan):
+    """The design (rows.json) with the place's entry given its plan's people spots and middle in the place's frame
+    (people_rows.placed_spots), the entry people_rows.cast_record deals each person's spot from. rows.json keeps no
+    copy of them: a copy drifted whenever a plan changed (#76: every place's had on 2026-11-08, airlock's astronaut
+    outside its outline). A place with no entry: the design as it is."""
+    entry = people_rows.place_entry(place, design)
+    if entry is None:
+        return design
+    spots, middle = people_rows.placed_spots(plan)
+    return {**design, "places": {**design["places"], place: {**entry, "spots": spots, "middle": middle}}}
+
+
 def on_levels(record, plan):
     """The record with each person's spot raised to the plan level it lies in (the lowest whose outline holds it;
-    none: the floor). rows.json's spots are the plan's people spots on its floor (people_rows.placed_spots), so the
+    none: the floor). A person's spot is the plan's people spot on its floor (people_rows.placed_spots), so the
     stairwell's walkway people, drawn on its 3 m landing, stood under it on nothing (Batch 1, 2026-10-25)."""
     outlines = [(float(level["height"]), [place_plan.placed(plan, *point[:2])[[0, 2]].tolist()
                                           for point in level["points"]])
@@ -341,7 +353,8 @@ def make(inputs, out, seed, params):
     place = pathlib.Path(inputs["seed"]).name
     design = read_json(inputs["design"])
     plan = read_json(inputs["design plan"])
-    record = on_made_ground(on_levels(with_stairs(people_rows.cast_record(place, design), place, design), plan),
+    record = on_made_ground(on_levels(with_stairs(people_rows.cast_record(place, planned(design, place, plan)), place,
+                                                  design), plan),
                             writer.ground_under(inputs, place))
     refused = off_the_plan(record, plan)
     record = on_stairs(dict(record, people=[person for person in record.get("people", [])

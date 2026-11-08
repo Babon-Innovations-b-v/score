@@ -48,6 +48,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.off_ground`: the no-seat branch dropped  -> the toy place test (a seated one with no seat stands).
 - `people_rows.doing_of`: `"seated" if seat_of(row) else` dropped  -> the toy place test (a stool's sitter sits on
   the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the toy place test (nobody supported).
+- `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the toy place test
+  (the climber at the plan's middle, off its spot (0, 0, -3)).
 """
 import json
 import pathlib
@@ -117,11 +119,18 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_pat
     from score.stages import people_rows
     row = {"name": "astronaut", "where": "sitting at dining table", "anchor": "on:stool_1", "looks": ["astro-made"] * 2}
     assert people_rows.doing_of(row) == "seated" and people_rows.doing_of(dict(row, anchor="on:floor")) == "sitting"
-    design = {"places": {"camp": {"concept": "a" * 64, "spots": [[0.0, 0.0, -3.0]], "middle": [0.0, 0.0, 0.0],
+    # where each stands is the plan's (its people spot (5, 2) of a 10 m plan cornered at (-5, -5): (0, 0, -3)),
+    # never a copy in rows.json that drifts from it (#76: airlock's astronaut outside its outline, 2026-11-08)
+    plan = {"w": 10.0, "d": 10.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [-5.0, 0.0, -5.0]}},
+            "people": [[5.0, 2.0, 0]]}
+    design = {"places": {"camp": {"concept": "a" * 64,
                                   "rows": {"sitter": row, "unlaid": dict(row, anchor="on:chair", looks=["astro-made"]),
                                            "climber": dict(row, anchor="on:crate", where="standing",
                                                            looks=["astro-made"])}}}}
-    record = cast.on_support(people_rows.cast_record("camp", design), seats)
+    assert "spots" not in design["places"]["camp"] and cast.planned(design, "wreck", plan) == design
+    planned = people_rows.cast_record("camp", cast.planned(design, "camp", plan))
+    assert {tuple(person["facing_to"]) for person in planned["people"]} == {(0.0, 0.0, 0.0)}  # the plan's middle
+    record = cast.on_support(planned, seats)
     people = {person["name"]: person for person in record["people"]}
     assert (people["sitter_1"]["at"], people["sitter_1"]["seat"], people["sitter_1"]["seat_on"]) == (
         [3.2, 0.0, 3.2], 0.45, "Objects/stool_1_1"), people["sitter_1"]
