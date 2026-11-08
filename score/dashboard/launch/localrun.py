@@ -52,12 +52,24 @@ def plan_command(group):
     return [sys.executable, "-m", "score", "plan", group.world, *selection(group), "--json"]
 
 
+# On a home whose conductor is in the cluster (score/conductor/cluster.py RECORD), a run's free CPU makes go to the
+# cluster too unless its environment says otherwise (#76; 2026-11-08: env1's Buy ran without them, and its drive pod
+# made almost every row in its own 16 forks while the cluster ran 2 job pods): the box's queue, pod makes, and the
+# runner workers' class. gpu-24gb: score's processor pools in Paris hold no node (their most is 0, 2026-11-08), so a
+# processor-only chain waits a start window and is made on the drive (the queue's `elsewhere`); an L4 node's spare
+# cores take runner workers, as in the tube rehearsal of 2026-11-07.
+CLUSTER_DEFAULTS = {"SCORE_K8S_QUEUE": "1", "SCORE_K8S_POD": "1", "SCORE_POD_CLASSES": "gpu-24gb"}
+
+
 def run_env():
     """The runner's environment: the dashboard's secrets and any run's own tags left out; a Buy's own machine caps
-    (LAUNCH_CAPS) given as the run's SCORE_MAX_MACHINES."""
+    (LAUNCH_CAPS) given as the run's SCORE_MAX_MACHINES; on the cluster's home, CLUSTER_DEFAULTS under its own."""
+    from score.conductor import cluster  # here: the dashboard's own imports stay light
     found = {name: value for name, value in os.environ.items() if name not in (*SECRETS, *RUN_TAGS, LAUNCH_CAPS)}
     if os.environ.get(LAUNCH_CAPS):
         found["SCORE_MAX_MACHINES"] = os.environ[LAUNCH_CAPS]
+    if cluster.record() is not None:
+        found = {**CLUSTER_DEFAULTS, **found}
     return found
 
 

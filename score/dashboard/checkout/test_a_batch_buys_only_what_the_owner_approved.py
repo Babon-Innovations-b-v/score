@@ -58,6 +58,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - guard.plan_body: high `totals["high_euros"]` -> test_an_unmeasured_buy_is_held_at_its_estimate_in_the_high_only
 - guard.launch: `record.state = "refused"` always -> test_a_launch_through_the_confirm_page
 - localrun.run_env: `SECRETS + RUN_TAGS` -> `SECRETS` -> test_the_local_backends_command_line_and_environment
+- localrun.run_env: drop the CLUSTER_DEFAULTS lines -> test_the_local_backends_command_line_and_environment
 - localrun.LocalBackend.ledgered: drop the `>= since` filter -> test_the_local_backend_prices_through_score_price_...
 - localrun.LocalBackend.poll: `if handle.refused is not None:` -> `if False:` -> test_a_runner_refusal_before_...
 - localrun.RESULT_STATES "stopped" -> "failed" -> test_the_result_line_gives_the_state
@@ -855,7 +856,7 @@ def test_a_launch_through_the_confirm_page(world, settings, tmp_path):
     assert ("launch", RunGroup(places=("alpha",), stages=("closeup",)), 8, None) in FakeBackend.calls
 
 
-def test_the_local_backends_command_line_and_environment(monkeypatch, settings):
+def test_the_local_backends_command_line_and_environment(monkeypatch, settings, tmp_path):
     monkeypatch.setenv("SCORE_DASHBOARD_SECRET_KEY", "secret")
     monkeypatch.setenv("SCORE_SYNC_TOKEN", "token")
     for tag in localrun.RUN_TAGS:  # a grant or cap in the sync service's environment never reaches the owner's batch
@@ -876,6 +877,18 @@ def test_the_local_backends_command_line_and_environment(monkeypatch, settings):
     monkeypatch.setenv(localrun.LAUNCH_CAPS, "cpu-64c-128gb=10")
     assert localrun.run_env()["SCORE_MAX_MACHINES"] == "cpu-64c-128gb=10"
     assert localrun.LAUNCH_CAPS not in localrun.run_env()
+    # on the cluster's home a run's CPU makes go to the cluster (the box's queue, pod makes, the runner workers'
+    # class) unless its own environment says otherwise; elsewhere none of it. Break: in localrun.run_env, drop the
+    # CLUSTER_DEFAULTS lines
+    from score.conductor import cluster
+    monkeypatch.setattr(cluster, "RECORD", tmp_path / "no-cluster.json")
+    assert not set(localrun.CLUSTER_DEFAULTS) & set(localrun.run_env())
+    monkeypatch.setattr(cluster, "RECORD", tmp_path / "cluster.json")
+    cluster.RECORD.write_text("{}")
+    monkeypatch.setenv("SCORE_K8S_POD", "0")
+    on_cluster = localrun.run_env()
+    assert (on_cluster["SCORE_K8S_QUEUE"], on_cluster["SCORE_K8S_POD"], on_cluster["SCORE_POD_CLASSES"]) == \
+        ("1", "0", "gpu-24gb")
     assert handle.pid == 4242 and handle.log == "/tmp/x.log" and handle.refused is None
 
 
