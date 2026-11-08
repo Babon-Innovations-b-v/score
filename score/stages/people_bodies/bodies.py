@@ -494,13 +494,17 @@ def judge_shell(output, inputs, evidence):
 
 def judge_clips(output, inputs, evidence):
     """The body judged clip by clip (captain, 2026-10-13; clips.py): tucks, rigid, cloth through cloth and body
-    through cloth per clip. It passes once every clip is judged; each failing clip is named with its numbers, and a
-    cast may use only the passing ones (people-clips holds the casts to it)."""
+    through cloth per clip. Each failing clip is named with its numbers, and a cast may use only the passing ones
+    (people-clips holds the casts to it); it fails when no clip passes, an outfit whose tucks stand over the gate in
+    every clip among them (env1 2026-11-08: the astronaut's at 52.81 mm, accepted while this gate only counted)."""
     from score.stages.people_bodies import clips
     passing, failing = clips.usable(output)
     findings = [f"{clip}: {'; '.join(faults)}" for clip, faults in sorted(failing.items())]
-    return Verdict("clips", PASS, f"{len(passing)} of {len(passing) + len(failing)} clips usable"
-                   + (f"; failing {', '.join(sorted(failing))}" if failing else ""),
+    tucked = sorted(clip for clip, faults in failing.items() if any(fault.startswith("tucks:") for fault in faults))
+    every_clip_tucked = bool(failing) and not passing and len(tucked) == len(failing)
+    return Verdict("clips", PASS if passing else FAIL, f"{len(passing)} of {len(passing) + len(failing)} clips usable"
+                   + (f"; failing {', '.join(sorted(failing))}" if failing else "")
+                   + ("; the outfit's tucks stand over the gate in every clip" if every_clip_tucked else ""),
                    {"usable": len(passing), "failing": len(failing)}, {"usable": "higher"}, tuple(findings))
 
 

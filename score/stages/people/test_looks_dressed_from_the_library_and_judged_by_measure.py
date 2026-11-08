@@ -28,6 +28,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `dress.flat_materials`: the normal map left out of the maps it asks for  -> the flat factors test.
 - `dress.worn_name`: `role in KEPT_ROLES` read as `False`  -> the variants test (the visor changes in variant 1).
 - `clips.usable`: `if not passes` read as `if False`  -> the clip by clip test.
+- `bodies.judge_clips`: `PASS if passing else FAIL` read as `PASS`  -> the clip by clip test (tucks over the gate in
+  every clip accepted, the astronaut 2026-11-08).
 - `clips.per_clip`: the flexible check's `<= FLEX_MOST` read as `<= float("inf")`  -> the clip by clip test (the 2.4x shaft).
 - `full.full_looks`: `>= FAR_SHARE` read as `>= 0.0`  -> the full-or-far tests.
 - `bodies.laid_take`: the `filecmp.cmp(...)` skip and the rename dropped (copied over in place)  -> the loop's
@@ -203,6 +205,11 @@ def test_a_body_is_judged_clip_by_clip():
         assert passing == ["standing"] and len(failing["walking"]) == 2, failing
         verdict = bodies.judge_clips(folder, {}, {})
         assert verdict.answer == "pass" and verdict.measures["failing"] == 1 and "walking" in verdict.findings[0]
+        pokes = json.loads((folder / "checks" / "pokes.json").read_text())
+        pokes["clips"]["standing"].update(worst_tuck_out_mm=52.81, frames_tuck_over=40)  # the astronaut's, 2026-11-08
+        (folder / "checks" / "pokes.json").write_text(json.dumps(pokes))
+        verdict = bodies.judge_clips(folder, {}, {})
+        assert verdict.answer == "fail" and "every clip" in verdict.reason, verdict
     with tempfile.TemporaryDirectory() as held:
         folder = pathlib.Path(held)
         write_checks(folder, deep=13, bind_deep=13, flex=2.4)  # the boot shaft's sharp blend, sitting
