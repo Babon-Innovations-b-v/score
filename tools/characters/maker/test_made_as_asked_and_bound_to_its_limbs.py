@@ -53,7 +53,9 @@ unless named):
 - test_an_unanswered_part_takes_its_mirror_images_answers: mirrored's `mirror_of[following] = int(mirror)` made
   `int(part)`.
 - test_each_outfit_has_its_palette: palette_of returns FALLBACK_PALETTE always.
-- test_skeleton_into_itself_comes_back: prop_rig.placed's bone `length` made `* 1.1` longer.
+- test_skeleton_into_itself_comes_back: prop_rig.placed's bone `length` made `* 1.1` longer; prop_rig.crotch_of's
+  `hem = legs_run_top(...)` made `hem = None` (a body in a skirt refused, woman_stair 2026-11-08); its
+  `hem - SHIN_LOW * height >= LEG_RUN_LEAST * height` made `hem is not None` (legs joined nearly to the feet rigged).
 - test_weights_into_itself_come_back: prop_rig.matched's `good = (squared <= distance ** 2)` made
   `(squared < 0)` (nothing matched).
 - test_lowered_arms_turn_the_arm_bones: placed's `along_axis(places[parent], fit[chain], length)` made `mean[chain]`.
@@ -515,14 +517,17 @@ def tube(start, end, radius, sections=24):
     return trimesh.creation.cylinder(radius=radius, segment=[start, end], sections=sections)
 
 
-def body(arm_reach=1.0, hand_at=(0.55, 1.05)):
-    """The tube body, its arms reaching from the shoulders towards `hand_at` (x, height), `arm_reach` times as far."""
+def body(arm_reach=1.0, hand_at=(0.55, 1.05), hem=None):
+    """The tube body, its arms reaching from the shoulders towards `hand_at` (x, height), `arm_reach` times as far; with
+    `hem`, its legs shown only under a skirt hanging from the hips to that height."""
     parts = [tube((0, 0.85, 0), (0, 1.45, 0), 0.15), trimesh.creation.icosphere(3, 0.1).apply_translation((0, 1.6, 0)),
              tube((0, 1.42, 0), (0, 1.52, 0), 0.05)]
     for sign in (1.0, -1.0):
         shoulder = np.array([sign * 0.2, 1.4, 0])
         hand = shoulder + arm_reach * (np.array([sign * hand_at[0], hand_at[1], 0]) - shoulder)
-        parts += [tube(shoulder, hand, 0.04), tube((sign * 0.1, 0.0, 0), (sign * 0.1, 0.9, 0), 0.07)]
+        parts += [tube(shoulder, hand, 0.04), tube((sign * 0.1, 0.0, 0), (sign * 0.1, hem or 0.9, 0), 0.07)]
+    if hem is not None:
+        parts.append(tube((0, hem, 0), (0, 0.9, 0), 0.2))
     mesh = trimesh.util.concatenate(parts)
     return trimesh.Trimesh(*trimesh.remesh.subdivide_to_size(mesh.vertices, mesh.faces, 0.02), process=False)
 
@@ -568,6 +573,15 @@ def test_skeleton_into_itself_comes_back():
     assert np.abs(out[:, :3, 3] - bind()[:, :3, 3]).max() < 0.005
     assert np.allclose(offsets[NAMES.index("LeftForeArm")], np.subtract(JOINTS["LeftForeArm"], JOINTS["LeftArm"]),
                        atol=0.005)
+    _, mean, skirted = fitted(body(hem=0.32))
+    assert abs(skirted["crotch"] - 0.32) < 0.02, skirted["crotch"]
+    out, _ = prop_rig.fitted_bind(bind(), NAMES, parents(), mean, skirted)
+    assert np.abs(out[:, :3, 3] - bind()[:, :3, 3]).max() < 0.03  # the legs' axes from 11 cm of shin under the hem
+    try:
+        prop_rig.landmarks(prop_rig.sampled(body(hem=0.24), 60000))
+        raise AssertionError("legs a skirt joins nearly to the feet were rigged")
+    except prop_rig.RigError as refused:
+        assert "never stand apart" in str(refused), refused
 
 
 def test_weights_into_itself_come_back():
