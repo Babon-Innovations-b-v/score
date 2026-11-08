@@ -846,7 +846,9 @@ def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
     Break: score/stages/assembly/fitting.py: `if entry.get("fills") and not (on and on["how"] in ("in", "face",
         "within", "top")):` -> `if False:`
     Break: score/stages/assembly/fitting.py: placement_faults' `if wrong:` -> `if False:`; on_holder's
-        `hold_low[1] if on.get("under") else` dropped (cables under a desk left up in it)"""
+        `hold_low[1] if on.get("under") else` dropped (cables under a desk left up in it)
+    Break: score/stages/assembly/fitting.py: off_holder's `above = min(max(0.0, high[1] - hold_high[1]), abs(low[1] -
+        hold_high[1]))` -> `above = max(0.0, high[1] - hold_high[1])` (a box on its shelf unit's top off it)"""
     from score.stages.assembly import fitting
     face = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
     narrow = {"how": "face", "holder": ["shed_1"], "out": [0.0, 1.0], "room": 0.55, "room_way": [1.0, 0.0]}
@@ -878,6 +880,12 @@ def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
     scale, foot = fitting.on_holder(np.array([0.2, 0.5, 0.1]), np.array([0.6, 0.6, 0.3]), "within", under, desk)
     assert scale == 1.0 and abs(foot[1]) < 1e-9, foot  # at the desk's foot, never left 0.5 m up in it
     assert fitting.off_holder(np.array([0.2, 0.5, 0.1]), np.array([0.6, 0.6, 0.3]), "within", under, desk) == 0.5
+    # one within its shelf unit laid on its top stands off nothing (on_boards); one through the top, its foot inside
+    # 0.2 m under it, stands off it
+    unit = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
+    assert fitting.off_holder(np.array([0.3, 2.0, 0.1]), np.array([0.7, 2.404, 0.5]), "within", {}, unit) == 0.0
+    assert abs(fitting.off_holder(np.array([0.3, 1.8, 0.1]), np.array([0.7, 2.204, 0.5]), "within", {}, unit)
+               - 0.2) < 1e-9
 
 
 def test_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):
@@ -1368,7 +1376,19 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     """A 0.5 x 0.4 x 0.1 m monitor laid 2 m off its 3 x 1 x 0.8 m console (x 0 to 3, top at 1 m) stands on its top,
     moved in to x 3 - 0.25 = 2.75, z kept at 0.4, its foot at 1 m; a console narrower than it shrinks it to fit.
     Break: score/stages/assembly/fitting.py: `target[1] = hold_high[1] if how == "top" else` -> `target[1] = foot[1]
-        if how == "top" else`"""
+        if how == "top" else`
+    Break: score/stages/assembly/fitting.py: on_boards' `if clear_of(hits, foot, tall) and not meets_any(...)` ->
+        `if not meets_any(...)` (the box at 0.7 laid on the board under it, 0.42, through the next)
+    Break: score/stages/assembly/fitting.py: on_boards' `return target` after `if not found:` reached first (`found =
+        rests or tops` -> `found = []`): the box through the board left where it is
+    Break: score/stages/assembly/fitting.py: on_boards' `meets_any(*footprint(placed), taken)` -> `False` (the twin on
+        its first)
+    Break: score/stages/assembly/fitting.py: on_boards' `if not len(hits[0]) or (standing and clear_of(` -> `if not
+        len(hits[0]) or (clear_of(` (the box laid between boards left over the board under it)
+    Break: score/stages/assembly/fitting.py: crosses' `return bool(np.any(...))` -> `return False` (the box left
+        across the divider)
+    Break: score/stages/assembly/fitting.py: on_shelves_of's `return str(on.get("why") or "").startswith(SHELVES)` ->
+        `return True`"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -1377,6 +1397,40 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     narrow = (np.array([0.0, 0.0, 0.0]), np.array([0.4, 1.0, 0.8]))
     scale, target, _, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [narrow])
     assert abs(scale - 0.8) < 1e-9 and np.allclose(target, (0.2, 1.0, 0.4)), (scale, target)
+    # engineroom (2026-11-08): boxes laid within their shelf unit at the plan's base, through its boards. A shelf
+    # unit 1 x 2 x 0.5 m, its 2 cm boards 0.4 m apart (tops at 0.02, 0.42 ... 1.62) and its top at 2.0: a 0.3 m box
+    # laid at 0.7 through the board at 0.8 goes onto the nearest board it fits on, 0.82; its twin laid at the same
+    # spot onto the board under, 0.42, and a third, both taken, slid along the unit (0.3 m and BOARD_CLEAR) onto the
+    # board at 0.82; a 0.404 m box fits between no boards and
+    # goes on the top; one laid between them over no board goes down onto the board under it, one on a board is left.
+    unit = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.4 * level, 0.0),
+                                                                  (1.0, 0.4 * level + 0.02, 0.5)])
+                                     for level in range(5)] + [trimesh.creation.box(bounds=[(0.0, 1.98, 0.0),
+                                                                                            (1.0, 2.0, 0.5)])])
+    shelf = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
+    within = {"how": "within", "holder": ["shelf_1"]}
+    _, target, _, _ = fitting.fit((0.35, 0.7, 0.1), (0.65, 1.0, 0.4), within, [shelf], unit)
+    assert np.allclose(target, (0.5, 0.82, 0.25)), target
+    first = ((0.35, 0.82, 0.1), (0.65, 1.12, 0.4))
+    _, twin, _, _ = fitting.fit((0.35, 0.7, 0.1), (0.65, 1.0, 0.4), within, [shelf], unit, clear=[first])
+    assert np.allclose(twin, (0.5, 0.42, 0.25)), twin
+    _, third, _, _ = fitting.fit((0.35, 0.7, 0.1), (0.65, 1.0, 0.4), within, [shelf], unit,
+                                 clear=[first, ((0.35, 0.42, 0.1), (0.65, 0.72, 0.4))])
+    assert np.allclose(third, (0.81, 0.82, 0.25)), third
+    _, target, _, _ = fitting.fit((0.3, 0.5, 0.05), (0.7, 0.904, 0.45), within, [shelf], unit)
+    assert np.allclose(target, (0.5, 2.0, 0.25)), target
+    _, target, _, _ = fitting.fit((0.35, 0.45, 0.1), (0.65, 0.75, 0.4), within, [shelf], unit)
+    assert np.allclose(target, (0.5, 0.42, 0.25)), target
+    assert fitting.fit((0.35, 0.42, 0.1), (0.65, 0.72, 0.4), within, [shelf], unit) is None
+    # galley (2026-11-08): jars laid on a board through a side the rays straight down never meet; a box on the board
+    # at 0.42 across an upright 4 cm divider at the unit's middle is slid along clear of it
+    divided = trimesh.util.concatenate([unit, trimesh.creation.box(bounds=[(0.48, 0.0, 0.0), (0.52, 1.98, 0.5)])])
+    _, target, _, _ = fitting.fit((0.35, 0.42, 0.1), (0.65, 0.72, 0.4), within, [shelf], divided)
+    assert np.allclose(target, (0.81, 0.42, 0.25)), target
+    # only a thing on its holder's shelves is laid on its boards (galley's sink in its counter, its stove top on it,
+    # are laid as the plan draws them)
+    assert fitting.on_shelves_of({"how": "within", "why": "on the shelves of shelf: its reading says 'on shelves'"})
+    assert not fitting.on_shelves_of({"how": "within", "why": "within kitchen_counter: the plan lays it inside"})
 
 
 def test_a_wall_item_stands_on_its_named_face():
