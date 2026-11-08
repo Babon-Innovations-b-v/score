@@ -22,7 +22,8 @@ python3 score/build/build.py --check   # exit 1 when a committed output is stale
     `unsrtnat`, and `main.bbl` because arXiv does not run BibTeX. `main.tex` compiles with pdflatex
     and with xelatex/tectonic.
 - `motor/`: the MOTOR paper (#98), a second paper written directly in LaTeX: `main.tex`, `references.bib`,
-  `figures/`, the built `main.pdf` and `main.bbl` (`tectonic -X compile main.tex`), and `evidence/`, the sim-body run
+  `figures/` (with `figures/teaser/`, the scripts that make Figure 1 again from a run folder: `prepare.py`, Blender's
+  `render.py`, `compose.py`), the built `main.pdf` and `main.bbl` (`tectonic -X compile main.tex`), and `evidence/`, the sim-body run
   records its numbers are read from. Same class, margins and natbib style as SCORE's; gap boxes are `\gapbox`,
   numbers still moving are `\interim`. Its story is the one agreed with the owner (#98 comment 6723992362): SOMA is
   physical AI's standard body, MyoFullBody a candidate standard musculoskeletal model, MOTOR the solver between the two
