@@ -305,6 +305,9 @@ def make_library(inputs, out, seed, params):
         if isinstance(answer, Exception):
             raise answer
         found = library_of(place, answer, palette, method)
+        # The kinds this ask marked as pictures (PICTURE_WORDS): the picture rule judges only a library asked with it,
+        # so a library accepted before the marking existed is not failed by a rule its question never stated.
+        found["picture_kinds"] = sorted(kind for kind, words in kinds.items() if PICTURE_WORDS in words)
     except route_ask.UNANSWERED as error:
         (out / "unanswered.json").write_text(json.dumps({"place": place, "why": f"{error!r}"[:300]}, indent=1))
         return
@@ -317,8 +320,9 @@ def library_faults(folder):
 
 
 def library_findings(found, kinds, sounds, grounds=None):
-    """What is off in a scene library: no surface, a kind no surface is for, a kind that shows a picture (its words
-    PICTURE_WORDS) no surface of which draws one (DRAWN), a ground kind no surface of its ruled
+    """What is off in a scene library: no surface, a kind no surface is for, a kind its ask marked as showing a picture
+    (`picture_kinds`, written by make_library; none in a library asked before the marking) no surface of which draws
+    one (DRAWN), a ground kind no surface of its ruled
     recipe is for (`grounds`, grounds_of), a recipe not the method's, a token or colour setting off the palette, a
     setting outside 0 to 1, a colour setting its recipe needs left out, a sound surface not known."""
     variants = {name: variant for family in found["families"].values() for name, variant in family["variants"].items()}
@@ -326,7 +330,7 @@ def library_findings(found, kinds, sounds, grounds=None):
     failing = ["no surface"] * (not variants)
     failing += [f"kind {kind} has no surface" for kind in kinds if not found.get("kinds", {}).get(kind)]
     failing += [f"kind {kind} shows a picture and no surface of it draws one ({', '.join(DRAWN)})"
-                for kind, words in kinds.items() if PICTURE_WORDS in words and found.get("kinds", {}).get(kind)
+                for kind in found.get("picture_kinds", []) if found.get("kinds", {}).get(kind)
                 and not any(variants.get(name, {}).get("recipe") in DRAWN for name in found["kinds"][kind])]
     failing += [f"ground {kind} has no surface of its recipe {ground['recipe']}"
                 for kind, ground in (grounds or {}).items()

@@ -304,7 +304,9 @@ tests it turned red:
   dropped from data/library/materials.json's colour_settings  ->
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - scene_library.py: `+ (PICTURE_WORDS if shows_picture(...) else "")` -> `+ ""` (kinds_of), or `in DRAWN for name
-  in found["kinds"][kind]` -> `in DRAWN or True for name in found["kinds"][kind]` (library_findings)  ->
+  in found["kinds"][kind]` -> `in DRAWN or True for name in found["kinds"][kind]` (library_findings), or
+  `for kind in found.get("picture_kinds", [])` -> `for kind, words in kinds.items() if PICTURE_WORDS in words` (a
+  library accepted before the marking failed by it)  ->
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - scene_library.py: `SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25` -> `0.1, 0.25` (the row's sheet rule off the bake's)  ->
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
@@ -2988,6 +2990,11 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
         with tempfile.TemporaryDirectory() as temporary:
             out, verdict, asked = library_made(pathlib.Path(temporary), answer, kinds=("framed_photo", "window_pane"))
             text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
+            old = json.loads((out / "materials.json").read_text())  # accepted before the marking: never failed by it
+        assert old.pop("picture_kinds") == ["framed_photo"], old
+        marked = {"framed_photo": "framed photo" + scene_library.PICTURE_WORDS, "window_pane": "window pane"}
+        sounds = {variant.get("surface") for family in old["families"].values() for variant in family["variants"].values()}
+        assert not [finding for finding in scene_library.library_findings(old, marked, sounds) if "picture" in finding]
         assert f"- framed_photo: framed photo{scene_library.PICTURE_WORDS}" in text, text
         assert "- window_pane: window pane\n" in text and "never its\nglass" in text, text
         assert [finding for finding in verdict.findings if "picture" in finding] == failing, verdict
