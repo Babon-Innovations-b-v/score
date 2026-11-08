@@ -808,7 +808,7 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     assert code == 0 and "note" in said, said
     # The push gate: a grown debt file and a failing touched test are refused, a clean push goes on to the moved check.
     # The four pushes are independent, each in a clone of its own with its own marker, so they run side by side.
-    debt = "paper/build/test_paper_build_matches_its_source.py"
+    debt = "paper/score/build/test_paper_build_matches_its_source.py"
     inside = "score/stages/sim_body/inside/rra/note.txt"
     pushes = {"grown": (lambda clone: {debt: (clone / debt).read_text() + "\n\ndef test_grown():\n    pass\n"}, False),
               "failing": (lambda clone: {"tools/zz_gate/holds.py": "VALUE = 2\n"}, False),

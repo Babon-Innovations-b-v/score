@@ -88,4 +88,4 @@ SOMA body npz, and MoGe-2's point maps of each video.
   camera (`labval.neutral`; gemx and moge clusters' `--static` make those runs), as a static calibration does. On the
   held-out subjects it made every one worse (pelvis tilt bias +5.4 to +7.8, elbows -23 to -30, matched MAE 5.13 to
   5.29): the lab's IK does not stand a subject at the model's zero. The validation is scored without it
-  (paper/evidence/sim-body/static-neutral-2026-11-08.txt).
+  (paper/motor/evidence/static-neutral-2026-11-08.txt).

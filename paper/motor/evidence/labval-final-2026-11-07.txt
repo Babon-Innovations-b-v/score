@@ -825,4 +825,4 @@ elbow_flex_r 89 trials: mean -21.12 deg, negative in 89 of 89
 elbow_flex_l 89 trials: mean -23.66 deg, negative in 89 of 89
 pelvis_tilt  89 trials: mean +5.26 deg, positive in 82 of 89
 mtp_angle_r  89 trials: mean +15.22 deg, positive in 89 of 89
-The elbow offset is GEM-X's arm estimate, not the sim body's: paper/evidence/sim-body/elbow-2026-11-07.txt.
+The elbow offset is GEM-X's arm estimate, not the sim body's: paper/motor/evidence/elbow-2026-11-07.txt.

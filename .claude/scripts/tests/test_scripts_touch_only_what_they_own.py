@@ -198,7 +198,7 @@ gate_scope = module(SCRIPTS / "gate-scope.py", "gate_scope")
 @pytest.mark.parametrize("changed,mode", [
     ({"CONTEXT.md", "docs/bible.md", "src/CLAUDE.md", ".claude/skills/grill/SKILL.md"}, "none"),
     ({"docs/bible.md", "src/app.py"}, "full"),
-    ({"paper/source/score.md"}, "full"),  # the paper's draft is a build input
+    ({"paper/score/source/score.md"}, "full"),  # the paper's draft is a build input
     ({".claude/hooks/md_guard.py"}, "full"), ({".claude/scripts/gate-scope.py"}, "full"),
     ({".claude/settings.json"}, "full"),
     (None, "full"),  # nothing to compare with
