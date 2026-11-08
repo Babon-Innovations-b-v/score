@@ -48,6 +48,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - override in flight: stop_refusal leaves the open overrides out of in flight.
 - unreadable pre-flights: Watch.forecast_minutes lets ValueError through.
 - waiting for a pool card: Watch.check adds no waited time.
+- free work before the paid: Watch.check counts the time `paying()` said no paid work went (`if self.waits():` alone);
+  or guard.runs_cloud_runner counts any process below the make (`return bool(arguments)`: a CoACD split too).
 - grant at most EUR 20: grant_benchmark drops `figure > GRANT_EUROS`.
 - grant's google month: grant_benchmark never writes the Google month.
 - grant holds its balance: settle_grant draws the hold's reserve instead of the real spend.
@@ -905,6 +907,30 @@ def test_a_run_waiting_for_a_warm_pool_card_is_no_runaway():
     assert not watch.check()
     clock[0] = 90 * 60 + 25 * 60
     assert watch.check() and stopped == [1]
+    # 2026-11-08: settle@garage (8 measured minutes, its drops') worked 15 free minutes before its drop's one cluster
+    # job, and was stopped a minute into it; only the minutes a cloud runner runs count
+    paying = [False]
+    free = guard.Watch("settle@garage u", 8.0, pathlib.Path(tempfile.mkdtemp()), stop=lambda: stopped.append(2),
+                       clock=lambda: clock[0], paying=lambda: paying[0])
+    for minute in range(1, 21):  # past twice its 8 minutes before any paid work
+        clock[0] = free.started + minute * 60
+        assert not free.check()
+    paying[0] = True
+    clock[0] = free.started + 36 * 60
+    assert not free.check() and stopped == [1]
+    clock[0] = free.started + 37 * 60
+    assert free.check() and stopped == [1, 2]
+    asleep = [sys.executable, "-c", "import time; time.sleep(60)"]
+    plain = subprocess.Popen(asleep)
+    try:
+        assert not guard.cloud_work_below()
+        runner = subprocess.Popen([*asleep, str(compute.REPO / "tools/cloud/blender_cloud.py")])
+        try:
+            assert guard.cloud_work_below() and not guard.cloud_work_below(plain.pid)
+        finally:
+            runner.kill()
+    finally:
+        plain.kill()
 
 
 QUESTION = "Approve one benchmark batch, P1, of at most EUR 10?"

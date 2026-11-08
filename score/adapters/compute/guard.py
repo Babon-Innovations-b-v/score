@@ -24,8 +24,10 @@ A job that would pass the stop is refused before it starts, with one line in the
 work goes on, since only paid jobs are cleared. A job once started runs to its end: the only stop halfway is a runaway,
 a run still going past RUNAWAY times its high forecast minutes (at its forecast's cards, its cost grows with its time):
 the sum of its batches' pre-flights once it has any (tools/cloud/preflight.py, sized on their jobs), else its
-stage's measured runs. `Watch` ends it by signalling the make's own child processes (the cloud runners delete their
-machines on a signal).
+stage's measured runs. Its minutes are those of its paid work, as its forecast's are (a batch's wall minutes in the
+ledger): a minute counts only while a cloud runner (a script of tools/cloud) runs below the make, never while the make
+works free on its own or waits for a warm pool card. `Watch` ends it by signalling the make's own child processes (the
+cloud runners delete their machines on a signal).
 
 Imported only from score.adapters.compute, outside every stage's code key, so a change here moves no row.
 """
@@ -152,17 +154,20 @@ def runaway(forecast_minutes, elapsed_minutes):
     return bool(forecast_minutes) and elapsed_minutes > RUNAWAY * forecast_minutes
 
 
-def children(pid):
-    """The pids of the processes `pid` started (read from /proc)."""
-    found = []
+def process_parents():
+    """{pid: parent pid} of every process (read from /proc once)."""
+    found = {}
     for stat in pathlib.Path("/proc").glob("[0-9]*/stat"):
         try:
-            fields = stat.read_text().rpartition(")")[2].split()
-        except OSError:  # a process that ended while the table was read
+            found[int(stat.parent.name)] = int(stat.read_text().rpartition(")")[2].split()[1])
+        except (OSError, IndexError, ValueError):  # a process that ended while the table was read
             continue
-        if int(fields[1]) == pid:
-            found.append(int(stat.parent.name))
     return found
+
+
+def children(pid):
+    """The pids of the processes `pid` started (read from /proc)."""
+    return [child for child, parent in process_parents().items() if parent == pid]
 
 
 def started_at(pid):
@@ -184,6 +189,32 @@ def alive(mark):
     return pid.isdigit() and str(started_at(int(pid))) == ticks
 
 
+def runs_cloud_runner(pid):
+    """Whether process `pid` runs a script of tools/cloud (its command line names one)."""
+    try:
+        arguments = pathlib.Path(f"/proc/{pid}/cmdline").read_bytes().decode(errors="replace").split("\0")
+    except OSError:
+        return False
+    return any("/tools/cloud/" in argument and argument.endswith(".py") for argument in arguments)
+
+
+def cloud_work_below(pid=None, parents=process_parents, runner=runs_cloud_runner):
+    """Whether a cloud runner runs among the processes `pid` (this one) started, theirs too: the run's paid work is
+    going. 2026-11-08: settle@garage worked 15 free minutes (its grounded seed, its convex parts) before its drop's
+    one cluster job and was stopped a minute into that job as a runaway over twice its 8 measured minutes, which are
+    its drops' alone."""
+    below = {}
+    for child, parent in parents().items():
+        below.setdefault(parent, []).append(child)
+    tree = list(below.get(pid or os.getpid(), ()))
+    while tree:
+        child = tree.pop()
+        if runner(child):
+            return True
+        tree += below.get(child, ())
+    return False
+
+
 def stop_children(pid=None):
     """Signal every process this one started to stop (the cloud runners delete their machines on it)."""
     for child in children(pid or os.getpid()):
@@ -203,12 +234,14 @@ class Watch:
     high forecast's (`batches()`: its batches' pre-flights, whose high minutes add up; else `forecast_minutes`), and
     past RUNAWAY times them tells the owner once and calls `stop` (the make's children signalled). The time between
     two checks at which `waiting()` said the run waits for a warm pool card is left out of its minutes (benchmark of
-    2026-10-23: a rough model waiting on the pool's first card was a runaway at twice its 12 measured minutes)."""
+    2026-10-23: a rough model waiting on the pool's first card was a runaway at twice its 12 measured minutes), and so
+    is the time at which `paying()` said no paid work was going (cloud_work_below, as spending gives it), since the
+    forecast's minutes are its paid batches' alone."""
 
     def __init__(self, ticket, forecast_minutes, folder, batches=no_batches, stop=stop_children, every=WATCH_SECONDS,
-                 clock=time.monotonic, waiting=lambda: False):
+                 clock=time.monotonic, waiting=lambda: False, paying=lambda: True):
         self.ticket, self.forecast, self.folder, self.batches = ticket, forecast_minutes, folder, batches
-        self.stop, self.every, self.clock, self.waiting = stop, every, clock, waiting
+        self.stop, self.every, self.clock, self.waiting, self.paying = stop, every, clock, waiting, paying
         self.started, self.ended, self.ran_away = clock(), threading.Event(), False
         self.looked, self.waited = self.started, 0.0
         self.thread = threading.Thread(target=self.watch, daemon=True)
@@ -236,10 +269,17 @@ class Watch:
         except (OSError, ValueError):
             return False
 
+    def pays(self):
+        """Whether the run's paid work is going now (True when that cannot be read, so the watch never goes blind)."""
+        try:
+            return bool(self.paying())
+        except (OSError, ValueError):
+            return True
+
     def check(self):
         """Stop the run once it is a runaway; True when it is one."""
         now = self.clock()
-        if self.waits():
+        if self.waits() or not self.pays():
             self.waited += now - self.looked
         self.looked = now
         minutes, forecast = (now - self.started - self.waited) / 60, self.forecast_minutes()
