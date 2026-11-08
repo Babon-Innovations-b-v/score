@@ -76,7 +76,9 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   `FIT_STEP` degrees less either way down to `FIT_LEAST` (60), the first that `clear` passes kept and said in its
   `from`; one that strikes every way stands with the strike as its `still` reason, so a door against a wall or a
   crane over a neighbour never stops the line. A thing lying lower than it is wide both ways (a floor hatch, a crane
-  spanning a hall) never swings: a swing turns about an upright line (`from_design.LYING`).
+  spanning a hall) never swings: a swing turns about an upright line (`from_design.LYING`). One in one piece whose words say open
+  (wreck's open hatch, 2026-11-08) stands open as its model is built (`LYING_OPEN`), and `rests` passes it standing
+  still, never asking a swing to pose it.
 - **A thing it starts inside is its mount** (a boom's rail, a hatch's frame), named in `clear`'s findings and not
   judged; a moving thing on a `rail` must keep touching one of them.
 - **Over the place's accepted scene record, the place alone.** Where the place has a scene-record row the layer is

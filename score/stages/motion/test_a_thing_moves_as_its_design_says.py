@@ -408,7 +408,9 @@ def parted(folder, name, at, row, turn=0.0):
 
 
 def test_a_hatch_lying_flat_stands_and_a_parted_build_moves_its_parts(tmp_path):
-    """A floor hatch 0.6 m across and 0.1 m tall would turn about a level line: it stands, said so. Built with its
+    """A floor hatch 0.6 m across and 0.1 m tall would turn about a level line: it stands, said so, and one in one
+    piece whose words say open stands open as its model is built (wreck's open hatch, 2026-11-08: `rests` failed it
+    as shut, a pose no swing could give it), which `rests` passes, and fails by name once it is written moving. Built with its
     parts apart (#19, score/stages/props/moving_parts), a double door 1.6 m wide turned a quarter about up at (3, 0,
     -2), across the walker's route, swings its two leaves on their own pivots (its outer edges) the opposite ways, so
     both open to its own +x (the world's -z), for the walker passing it from 4.5 s (within a metre of a leaf, read
@@ -418,6 +420,11 @@ def test_a_hatch_lying_flat_stands_and_a_parted_build_moves_its_parts(tmp_path):
     it after, turning about its own x axis only.
     Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif
         False:`
+    Break: score/stages/motion/from_design.py: `still[path] = LYING_OPEN if rule.get("rests") == "open" else LYING`
+        -> `still[path] = LYING`
+    Break: score/stages/motion/__init__.py: `under(path, posed) or (opened and built)` -> `under(path, posed)`
+    Break: score/stages/motion/__init__.py: `if opened and (not off or under(path, moving)):` -> `if opened and not
+        off:` (the open hatch written moving passes)
     Break: score/stages/motion/from_design.py: `if rule["move"] in ("swing", "split") and hinged(stage, path):` ->
         `if False:` (the double door is unmade, covered fails)
     Break: tools/usd/motion_layer.py: `return own_pivot(stage, move)` -> `return own_side(stage, move, [0.0, 0.0,
@@ -431,10 +438,24 @@ def test_a_hatch_lying_flat_stands_and_a_parted_build_moves_its_parts(tmp_path):
         `moves += [[round(opens, 3), "open"], [round(shuts, 3), "shut"]]` (the walked lid's shut rounds to before its
         opening ends, and its layer is refused)"""
     flat = ("hatch_1", (-1.0, 0.0, -1.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
-    _, record = made(toy_inputs(tmp_path, ROWS + [{"id": "hatch", "name": "floor hatch", "noun": "hatch"}],
-                                extra=(flat,)), tmp_path)
+    flat_open = ("open_flat_1", (1.0, 0.0, -4.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
+    inputs = toy_inputs(tmp_path, ROWS + [{"id": "hatch", "name": "floor hatch", "noun": "hatch"},
+                                          {"id": "open_flat", "name": "open hatch", "noun": "hatch"}],
+                        extra=(flat, flat_open))
+    out, record = made(inputs, tmp_path)
     assert sorted(entry["name"] for entry in record["moves"]) == ["door_1", "fan_1"]
     assert record["still"][f"/{PLACE}/Objects/hatch_1"] == from_design.LYING
+    assert record["still"][f"/{PLACE}/Objects/open_flat_1"] == from_design.LYING_OPEN
+    verdict = judge("rests", out, inputs)
+    assert verdict.answer == checks.PASS, (verdict.reason, verdict.findings)
+    lifted = {"name": "open_flat_1", "prim": f"/{PLACE}/Objects/open_flat_1", "row": "open_flat", "kind": "hatch",
+              "on": "rail", "start": 0.0, "length": 20.0, "loop": True,
+              "slide": {"by": [0.0, 0.5, 0.0], "speed": 0.5, "starts": "shut", "moves": [[2.0, "open"]]}}
+    (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*record["moves"], lifted])))
+    verdict = judge("rests", out, inputs)
+    assert verdict.answer == checks.FAIL and verdict.findings == (
+        f"/{PLACE}/Objects/open_flat_1: its row says open (\"open hatch\"), yet it stands shut or moves",), \
+        verdict.findings
     folder = tmp_path / "parted"
     folder.mkdir()
     double = {"id": "double_door", "name": "double door", "noun": "door", "size": [1.6, 0.1, 2.1]}
