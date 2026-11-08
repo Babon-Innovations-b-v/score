@@ -21,7 +21,9 @@ invariant with the break that turns it red (each applied once and seen red):
   a Job that waited past its deadline with no node is made again, not failed; resuming takes up the newest
   generation. Break: drop `since_step >= NO_GROW_GRACE_MINUTES * 60` in `wants_widening`.
   Break: count every NotTriggerScaleUp in `no_grow_times`. Break: `record["state"] = "failed"` for every expired Job.
-  Break: drop the `late` check in `may_widen`.
+  Break: drop the `late` check in `may_widen`. A run none of whose jobs ran yet is marked waiting, so its runaway
+  watch leaves the wait for a node out, and unmarked once one runs (2026-11-08: light-passes, settle and sound
+  rows stopped at twice their forecast while their pods waited). Break: `return True` in `none_ran`.
 - Nothing goes on the cluster outside a cleared run (design of 2026-10-11, section 6).
   Break: drop `compute.require_cleared` in `prepare`. Under the owner's override a run is stopped once its nodes
   cost what is left of his euros less 10% (ledger.batch_cap). Break: `over_limits` compares with
@@ -305,6 +307,11 @@ def test_a_run_widens_one_class_at_a_time_remakes_an_expired_wait_and_takes_stoc
 
     poll_with_no_stock(2)
     assert run.allowed("part") == ["gpu-24gb", "gpu-48gb"] and run.jobs["part"]["generation"] == 1
+    marks = []
+    monkeypatch.setattr(submit.preflight, "mark_waiting", lambda: marks.append("waiting"))
+    monkeypatch.setattr(submit.preflight, "unmark_waiting", lambda: marks.append("ran"))
+    submit.note_wait(run)  # no job ran yet: its runaway watch leaves the wait out
+    assert marks == ["waiting"]
     poll_with_no_stock(2)
     assert run.allowed("part") == order and run.jobs["part"]["generation"] == 2
     poll_with_no_stock(2)
@@ -321,6 +328,10 @@ def test_a_run_widens_one_class_at_a_time_remakes_an_expired_wait_and_takes_stoc
     kubectl.pods = [{"kind": "Pod", "metadata": {"name": "p", "labels": {"score.dev/job": "part"}},
                      "spec": {"nodeName": "node-80gb"},
                      "status": {"containerStatuses": [{"state": {"running": {"startedAt": time_text(clock[0])}}}]}}]
+    jobs, pods, _no_grow = run.read()
+    run.update_job("part", run.current("part", jobs), pods["part"])
+    submit.note_wait(run)  # its job runs on a node now: its minutes count
+    assert marks == ["waiting", "ran"]
     remade["status"] = {"conditions": [{"type": "Complete", "status": "True"}]}
     jobs, pods, _no_grow = run.read()
     run.update_job("part", run.current("part", jobs), pods["part"])

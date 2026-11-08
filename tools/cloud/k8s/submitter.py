@@ -73,6 +73,7 @@ from kube import Kubectl  # noqa: E402
 import ledger  # noqa: E402
 import manifests  # noqa: E402
 from paths import HOME  # noqa: E402
+import preflight  # noqa: E402
 import provider  # noqa: E402
 from score.adapters import compute  # noqa: E402
 
@@ -879,6 +880,22 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
         return book(run, store, helper, who)
 
 
+def none_ran(run):
+    """Whether the run has jobs to finish and none of them has run on a node yet: it waits for the cluster."""
+    unfinished = run.unfinished()
+    return bool(unfinished) and all(run.jobs[job_id]["ran"] is None for job_id in unfinished)
+
+
+def note_wait(run):
+    """Mark the run waiting while none of its jobs has run yet (preflight.mark_waiting), so its runaway watch leaves
+    the wait for a node out of its minutes, as it does a warm pool's; unmarked once one runs. 2026-11-08: light-passes,
+    settle and sound rows were stopped as runaways at twice their forecast while their pods waited for a node."""
+    if none_ran(run):
+        preflight.mark_waiting()
+    else:
+        preflight.unmark_waiting()
+
+
 def watch(run, parallel, wait_scale_down):
     """The run on the cluster to its end: its Jobs taken up and put on, a look every POLL_SECONDS (each retried) while
     any is unfinished, this process marked in CLUSTER_WAITING meanwhile, then its nodes' end waited for or estimated
@@ -891,10 +908,12 @@ def watch(run, parallel, wait_scale_down):
         while run.unfinished():
             mark.parent.mkdir(parents=True, exist_ok=True)
             mark.touch()
+            note_wait(run)
             time.sleep(POLL_SECONDS)
             retried(lambda found: look(found, parallel), run)
     finally:  # the outputs come back after this: the node counts for a --jobs slot again
         mark.unlink(missing_ok=True)
+        preflight.unmark_waiting()
     try:
         if wait_scale_down:
             wait_for_scale_down(run)
