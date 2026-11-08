@@ -38,6 +38,7 @@ import argparse
 import concurrent.futures
 import contextlib
 import importlib
+import importlib.util
 import json
 import math
 import os
@@ -120,8 +121,9 @@ def job_of(runner, stage, place, keyed, code, table):
     """The job a pod makes the node from: its whole key, the code's sha256, the stage table (`module:attribute`), the
     repository's folders this process's code versions search (`_code.search_folders`: the stages' imports put them on
     the path, and the pod's code versions must search the same), the environment, every input's listing, every
-    declared file's path and listing, the home's designs (`designs`) and the store records its file list reads
-    (`store_reads`). A paid stage is refused."""
+    declared file's path and listing, the home's designs (`designs`), the store records its file list reads
+    (`store_reads`) and the per-take calls kept under the node's code (tools/cloud/kept.py `calls_of`). A paid
+    stage is refused."""
     if stage.paid:
         raise ValueError(f"{graph.node_name(stage, place)}: a paid stage is never made in a pod")
     files = {}
@@ -139,7 +141,22 @@ def job_of(runner, stage, place, keyed, code, table):
             "world": {"name": runner.world.name, "seed": runner.world.seed,
                       "roots": {root: str(path) for root, path in runner.world.roots.items()}},
             "listings": {name: runner.store.listing(output) for name, output in inputs.items()},
-            "files": files, "design": designs(), **store_reads(runner, stage, place)}
+            "files": files, "design": designs(), **store_reads(runner, stage, place),
+            "kept": kept_module().calls_of(runner.making_code(stage, place, keyed))}
+
+
+def kept_module():
+    """tools/cloud/kept.py as the stage table loads it (score/stages kept_module: by its path, one module)."""
+    if "kept" not in sys.modules:
+        spec = importlib.util.spec_from_file_location("kept", _code.REPO / "tools/cloud/kept.py")
+        sys.modules["kept"] = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(sys.modules["kept"])
+    return sys.modules["kept"]
+
+
+def kept_blobs(found):
+    """The sha256s of the files the kept entries `found` (kept.calls_of's form) hold."""
+    return {sha for entry in found.values() for sha, _ in entry["files"].values()}
 
 
 def designs():
@@ -221,6 +238,9 @@ def blob_sources(runner, job):
         found[sha] = score_store.PROPS_HOME / DESIGN / relative
     for key, sha in job["records"].items():
         found[sha] = runner.store.objects.root / key
+    kept_objects = kept_module().store().objects
+    for sha in kept_blobs(job.get("kept", {})):
+        found.setdefault(sha, offload.PLAIN_PATH(kept_objects, offload.blob_key(sha)))
     return found
 
 
@@ -267,12 +287,21 @@ def collect(runner, stage, place, keyed, manifest, bucket=None, record=True):
     registered(runner.store, manifest)
     if not record:
         return output
+    kept_back(manifest)
     made = {**graph.finish_record(node, keyed, output, stage.name, manifest["started"], time.monotonic()),
             "minutes": manifest["minutes"], "pod": {"node": manifest["node"], "image": manifest["image"]}}
     stands = runner.write_finish(node, keyed, made)
     if stands is made:
         judged(runner, stage, stands, manifest)
     return stands
+
+
+def kept_back(manifest):
+    """The per-take calls the pod made and kept, kept here too (kept.taken), each only when every file it holds is a
+    blob of the output's listing (proven in the bucket), so the next make of a take, here or in a pod, finds it."""
+    blobs = set(manifest["listing"].values())
+    kept_module().taken({name: entry for name, entry in manifest.get("kept", {}).items()
+                         if kept_blobs({name: entry}) <= blobs})
 
 
 def proven(bucket, manifest, node):
@@ -606,6 +635,28 @@ def placed_inputs(store, job, cache):
     return allowed | {f"{prefix}*" for prefix in job["listed"]}
 
 
+def placed_kept(store, job, cache):
+    """The job's kept per-take calls written in this home's kept folder, their files' blobs fetched side by side and
+    linked into the sandbox store; the store keys they read. An entry a blob of which the bucket lacks is left out:
+    its take is made again."""
+    found, keys = {}, set()
+    for name, entry in job.get("kept", {}).items():
+        try:
+            prefetched(cache, sorted(kept_blobs({name: entry})))
+        except FileNotFoundError:
+            continue
+        for sha in kept_blobs({name: entry}):
+            blob = store.objects.root / offload.blob_key(sha)
+            blob.parent.mkdir(parents=True, exist_ok=True)
+            if not blob.exists() and not score_store.linked_read_only(cached_blob(cache, sha), blob):
+                shutil.copyfile(cached_blob(cache, sha), blob)
+                blob.chmod(0o444)
+            keys.add(offload.blob_key(sha))
+        found[name] = entry
+    kept_module().taken(found)
+    return keys
+
+
 @contextlib.contextmanager
 def sandboxed(root, allowed, reads):
     """Every FolderStore under `root` refuses a key not in `allowed` (Undeclared, the key added to `reads`) and every
@@ -669,12 +720,14 @@ def made_listing(runner, stage, job, cache, bucket):
     if why:
         return {"refused": why}
     keyed, place, node = job["keyed"], job["place"], job["node"]
-    inputs = runner.input_paths(stage, place, keyed)
+    allowed |= placed_kept(runner.store, job, cache)
+    inputs, code = runner.input_paths(stage, place, keyed), runner.making_code(stage, place, keyed)
+    before = set(kept_module().calls_of(code))
     out, reads = runner.store.making(keyed["key"]), []
+    os.environ[kept_module().REPOSITORY_AS] = job["world"]["roots"].get("repo", str(_code.REPO))
     try:
         try:
-            with sandboxed(runner.store.objects.root, allowed, reads), \
-                    graph.making_in(out, runner.making_code(stage, place, keyed)):
+            with sandboxed(runner.store.objects.root, allowed, reads), graph.making_in(out, code):
                 stage.make(inputs, out, keyed["seed"], keyed["params"])
         except Exception:
             if reads:
@@ -689,8 +742,11 @@ def made_listing(runner, stage, job, cache, bucket):
             contracts.stamp(stage.contract, out)
         except contracts.Broken as broken:
             return {"broken": str(broken)}
-        return {**sent(out, bucket), **pod_verdicts(stage, out, inputs)}
+        made = kept_module().calls_of(code)
+        return {**sent(out, bucket), **pod_verdicts(stage, out, inputs),
+                "kept": {name: entry for name, entry in made.items() if name not in before}}
     finally:
+        os.environ.pop(kept_module().REPOSITORY_AS, None)
         graph.gone(out)
 
 

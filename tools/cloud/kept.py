@@ -56,6 +56,7 @@ from score.store import Store, file_hash as blob_hash  # noqa: E402  (the store'
 STORE = "SCORE_SPEND_STORE"
 MAKING = "SCORE_MAKING"
 CODE = "SCORE_MAKING_CODE"
+REPOSITORY_AS = "SCORE_KEPT_REPOSITORY"  # in a pod: the conductor's tree, written {repo} as this tree is (stand_ins)
 DONE = "done"
 LEFT_TO_CODE = (".py", ".pyc", ".md")
 HASHES = {}  # (path, its stat, the stand-ins): the sha256 of its bytes with the stand-ins written in
@@ -85,10 +86,12 @@ def framework():
 
 
 def stand_ins():
-    """(this attempt's own folder, the stand-in written for it), longest first: the making folder lies in the home."""
+    """(this attempt's own folder, the stand-in written for it), longest first: the making folder lies in the home.
+    In a pod (score/graph/pod.py) the repository its job's files were declared under (REPOSITORY_AS, the conductor's
+    tree, whose files the pod places at their paths) is {repo} too, as the pod's own tree is."""
     found = {}
     for path, stand_in in ((os.environ.get(MAKING), "{making}"), (str(REPO), "{repo}"),
-                           (os.environ.get("PROPS_HOME"), "{home}")):
+                           (os.environ.get(REPOSITORY_AS), "{repo}"), (os.environ.get("PROPS_HOME"), "{home}")):
         if path:
             found.setdefault(path, stand_in)
             found.setdefault(str(pathlib.Path(path).resolve()), stand_in)
@@ -380,6 +383,25 @@ def call(function, arguments, output):
                                  "system": digest(python_system()), "inputs": inputs,
                                  "files": stored(files_under(output), folder)})
     return record
+
+
+def calls_of(code):
+    """{"<slot>/<content>": entry} of every per-take call kept under a row's code (`call`'s CODE, Runner.making_code:
+    the node and its code's hash): what a pod making that node is handed, so a take kept here is found there
+    (finish-route-views@campgrounds, 2026-11-08: its pod's home held no kept takes and made them all again)."""
+    return {f"{folder.parent.name}/{folder.name}": entry for folder, entry in entries()
+            if "record" in entry and entry.get("code") == code}
+
+
+def taken(found):
+    """Each entry of `found` (calls_of's form) written at its slot and content here, beside any other content of its
+    slot: what `call` finds before it runs a take."""
+    for name, entry in found.items():
+        slot, content = name.split("/")
+        place = kept_root() / slot / content
+        if not (place / DONE).exists():
+            place.mkdir(parents=True, exist_ok=True)
+            (place / DONE).write_text(json.dumps(entry, sort_keys=True))
 
 
 def entries():
