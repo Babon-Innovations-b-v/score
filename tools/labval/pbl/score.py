@@ -176,7 +176,7 @@ def main():
                 failed[futures[future].name] = "MoGe-2 saw too little floor (scored on the camera's up only)"
             else:
                 floor.append(on_floor)
-    chain = list(json.loads(options.chain.read_text()).values())
+    chain = json.loads(options.chain.read_text())["trials"]
     names = {trial["name"] for trial in floor}
     common_chain = [trial for trial in chain if trial["name"] in names]
     common_pbl = [trial for trial in floor if trial["name"] in {trial["name"] for trial in chain}]
