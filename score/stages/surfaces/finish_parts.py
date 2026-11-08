@@ -459,11 +459,8 @@ MEANING_EXEMPT = ("its light, built in code", "off its colour")
 
 def meaning_faults(take, record):
     """The gate "kept the list's meaning" on one take's parts.json record: each finish moved off its listed surface
-    whose painted look loses the listed one's recipe or hue (look_kept), and a take whose largest painted part's
-    finish moved to a surface not the colour its row's name names (`object`: the hangar's thick red cables as
-    black_hose), unless a finish of its own words names that colour (colour_claimed): that finish is what the row's
-    colour describes and look_kept holds it there (2026-11-06: base's 'green plants' take is a greenhouse dome, its
-    frame 52% of the area and its leaves, 'green plants inside the dome', 0.3%)."""
+    whose painted look loses the listed one's recipe or hue (look_kept), and a take whose row's name names a colour
+    (`object`) none of the finishes that row's colour describes keeps (row_colour_fault)."""
     faults = []
     for finish in record["finishes"]:
         if (finish["surface"] == finish.get("listed_surface", finish["surface"]) or "looks" not in finish
@@ -473,15 +470,56 @@ def meaning_faults(take, record):
             faults.append(f"{take}: {finish['finish']} listed {finish['listed_surface']} "
                           f"{finish['looks']['listed']}, painted {finish['surface']} {finish['looks']['painted']} "
                           f"({finish.get('by')})")
-    largest = largest_finish(record)
+    fault = row_colour_fault(record)
+    return [*faults, f"{take}: {fault}"] if fault else faults
+
+
+def row_colour_fault(record):
+    """Why a take's row colour (its `object`'s colour words) is lost, or None. Nothing is lost when a finish of its
+    own words names that colour (colour_claimed: look_kept holds it there). Else the finishes whose words carry the
+    row's other words (word_carriers: base's 'green plants' as 'plant leaves', 2026-11-08) are what the colour
+    describes, else the take's largest finish (the hangar's thick red cables as black_hose); the colour is lost when
+    none of them keeps it (keeps_row_colour). Judged by the largest alone, base's greenhouse dome failed on its frame,
+    52% of the area, while its leaves, 0.3%, painted the green of plant_leaves."""
     named = colour_words(record.get("object") or "")
-    if (largest is not None and named and "looks" in largest and largest.get("by") not in MEANING_EXEMPT
-            and not colour_claimed(named, record["finishes"])
-            and largest["surface"] != largest.get("listed_surface", largest["surface"])
-            and not in_named_colour(named, largest["looks"]["painted"]["lab"], largest["looks"]["painted"]["recipe"])):
-        faults.append(f"{take}: its row '{record['object']}' names {', '.join(named)}, its largest finish "
-                      f"{largest['finish']} paints {largest['surface']} {largest['looks']['painted']}")
-    return faults
+    if not named or colour_claimed(named, record["finishes"]):
+        return None
+    carriers = word_carriers(record)
+    judged = carriers or [finish for finish in [largest_finish(record)] if finish is not None]
+    if not judged or any(keeps_row_colour(named, finish) for finish in judged):
+        return None
+    which = "its finishes of its words" if carriers else "its largest finish"
+    painted = "; ".join(f"{finish['finish']} paints {finish['surface']} {finish['looks']['painted']}"
+                        for finish in judged)
+    return f"its row '{record['object']}' names {', '.join(named)}, {which} {painted}"
+
+
+def keeps_row_colour(named, finish):
+    """True when `finish` leaves the `named` row colours as the list gave them: it keeps its listed surface, has no
+    looks to judge, came by a way the meaning check leaves alone (MEANING_EXEMPT), or paints one of them."""
+    return (finish["surface"] == finish.get("listed_surface", finish["surface"]) or "looks" not in finish
+            or finish.get("by") in MEANING_EXEMPT
+            or in_named_colour(named, finish["looks"]["painted"]["lab"], finish["looks"]["painted"]["recipe"]))
+
+
+# Words of a row's name that carry no thing of their own.
+NAME_FILLER = {"a", "an", "the", "of", "in", "on", "at", "with", "and", "or", "to", "for", "by", "its", "inside",
+               "small", "large", "big", "thick", "thin", "tall", "short", "long", "old", "new", "dark", "light",
+               "pale", "bright"}
+
+
+def thing_words(text):
+    """The words of `text` that name a thing: not colour words (COLOUR_WORDS), not NAME_FILLER, a plural's s off."""
+    import re
+    words = (word for word in re.findall(r"[a-z]+", text.lower()) if word not in COLOUR_WORDS and word not in NAME_FILLER)
+    return {word[:-1] if len(word) > 3 and word.endswith("s") and not word.endswith("ss") else word for word in words}
+
+
+def word_carriers(record):
+    """The finishes of a take record whose own words (finish and parts) share a thing word with its row's name."""
+    named = thing_words(record.get("object") or "")
+    return [finish for finish in record["finishes"]
+            if named & thing_words(f"{finish['finish']} {finish.get('parts') or ''}")]
 
 
 def colour_claimed(named, finishes):
