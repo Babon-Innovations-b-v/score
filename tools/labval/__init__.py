@@ -5,7 +5,9 @@ tools/cloud/sim_measure), and its record is scored against the lab's own IK, for
 `pooled`).
 
     prepared(soma, template, root, name, model, folder)   a run's job in a measure folder (subject<N>_<trial>_<Cam>)
-    scored(run_folder, root)                               a run's measures (`_score`'s), root LabValidation's folder
+    scored(run_folder, root, static)                       a run's measures (`_score`'s), root LabValidation's folder,
+                                                           static the measure folder of the subjects' static runs
+    neutral(run_folder)                                    a static run's standing pose (`_run.NEUTRAL`)
     pooled(trials)                                         the measures over runs, per activity, per-subject CIs
 
 Never the owner's patented joint-angle method (arXiv:2607.17639, NL4001444: no swing-twist split, no calibration
@@ -26,7 +28,8 @@ MATCHED = ("ankle_angle_r", "ankle_angle_l", "knee_angle_r", "knee_angle_l", "hi
            "hip_adduction_r", "hip_adduction_l", "hip_rotation_r", "hip_rotation_l", "pelvis_tilt", "pelvis_list",
            "lumbar_extension", "lumbar_bending", "lumbar_rotation")
 ACTIVITIES = (("walkingTS", "walking (trunk sway)"), ("walking", "walking"), ("squats", "squats"),
-              ("STS", "sit-to-stand"), ("DJ", "drop jump"))
+              ("STS", "sit-to-stand"), ("DJ", "drop jump"), ("static", "standing"))
+STATIC = "static1"  # each subject's static standing trial: its videos only (no IK), its run the subject's neutral
 # The knee's and ankle's markers in a LabValidation TRC ({s}: r or l): the epicondyles and malleoli.
 # LabValidation's .trc carries the medial epicondyles and malleoli only in its `_study` set (side letters r and L).
 MARKERS = {"knee": "{s}_knee_study", "mknee": "{s}_mknee_study", "ankle": "{s}_ankle_study", "mankle": "{s}_mankle_study"}
@@ -138,12 +141,32 @@ def emg_scores(entry, emg_file, at, times):
     return {**found, "not matched": unmatched}
 
 
-def scored(run_folder, root):
+def neutral(run_folder):
+    """{`_run.NEUTRAL` coordinate: degrees} of a static trial's run: the median over its frames of the subject
+    standing, its pelvis read on its own heading."""
+    entry, arrays, _ = _run.read(run_folder)
+    found = _run.angles(entry, arrays, 0.0)
+    return {name: float(np.median(found[name])) for name in _run.NEUTRAL}
+
+
+def standing_of(static, subject_name, camera):
+    """The subject's neutral (`neutral`) from its static trial's run on the same camera under the measure folder
+    `static`; None without `static` or when that run did not come back (the trial is then scored as it is)."""
+    if static is None:
+        return None
+    folder = pathlib.Path(static) / "trials" / f"{subject_name}_{STATIC}_{camera}"
+    return neutral(folder) if (folder / "out.json").exists() else None
+
+
+def scored(run_folder, root, static=None):
     """One run's measures: the run in `run_folder` (out.json, out.npz, and record.json, `prepared`'s: its name and
     its GEM-X clip's start in the video, s) against its subject's IK, forces, markers and EMG under LabValidation's
-    `root`. The shift is found on the angles once and used for every measure."""
+    `root`. The shift is found on the angles once and used for every measure. With `static` (the measure folder of
+    the subjects' static runs) the angles are read from the subject's own standing pose on the same camera
+    (`standing_of`, recorded as "neutral")."""
     record = json.loads((pathlib.Path(run_folder) / "record.json").read_text())
     subject_name, trial, camera = subject_of(record["name"])
+    standing = standing_of(static, subject_name, camera)
     subject_folder, start = pathlib.Path(root) / subject_name, float(record["start"])
     entry, arrays, rate = _run.read(run_folder)
     subject = _files.metadata(_files.found(subject_folder, "metadata", trial))
@@ -153,7 +176,7 @@ def scored(run_folder, root):
     lag = _score.shift(times, _run.angles(entry, arrays, 0.0), ik_times, ik_columns)  # on the legs alone
     at = times + lag
     lab_heading = reference_heading({name: _score.resampled(ik_times, ik_columns[name], at) for name in _run.PELVIS})
-    predicted = _run.angles(entry, arrays, lab_heading)
+    predicted = _run.angles(entry, arrays, lab_heading, standing)
     force_times, raw_plates = _files.forces(_files.found(subject_folder, "forces", trial))
     plates = plate_at(force_times, raw_plates, at)
     if np.nanmean(plates["right"][0][:, 1] + plates["left"][0][:, 1]) <= 0:
@@ -163,7 +186,7 @@ def scored(run_folder, root):
     passed, frames_passed = _score.residual_passes(*_run.residuals(entry), entry["weight N"], entry["com height"],
                                                    (sim_body.RESIDUAL_FORCE, sim_body.RESIDUAL_MOMENT))
     found = {"name": record["name"], "subject": subject_name, "trial": trial, "camera": camera,
-             "activity": activity_of(trial), "shift s": lag, "kg": subject["kg"],
+             "activity": activity_of(trial), "shift s": lag, "kg": subject["kg"], "neutral": standing,
              "height": subject["height"], "angles": angle_scores(times, predicted, ik_times, ik_columns, lag),
              "forces": force_scores(pushes, plates, own_heading, lab_heading, weight),
              "residual": {"passes": passed, "frames passing": frames_passed},

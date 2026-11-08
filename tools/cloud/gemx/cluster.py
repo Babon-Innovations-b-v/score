@@ -5,14 +5,14 @@ twin of cloud.py, which stays the machine path and the fallback when the cluster
 
     .venv/bin/python tools/cloud/gemx/cluster.py <out> --who "<session>" [--subjects subject2,...] \
         [--trials 'walking*,...'] [--cameras Cam0,...,Cam4] [--classes gpu-24gb,...] [--fov-from <moge out>] \
-        [--name <run>] [--dry-run] [--detach]
+        [--static] [--gpus N] [--name <run>] [--dry-run] [--detach]
 
 Each video comes back to <out>/<subject>/<trial>/<camera>/ as on_machine.py writes it (motion.pt, raw.npz,
 contact_ik.npz, done.json) and soma.npz beside them (tools/labval/on_gemx.py: the SOMA body tools/labval prepares
 from), and a copy of that soma.npz as <out>/soma/<subject>_<trial>_<camera>.npz, the name `python -m tools.labval
 prepare` reads. A video whose soma.npz is there is no job. --fetch-to <root> instead downloads the videos still to make
 into <root>/<subject>/<Cam>/<trial>.mp4, for cloud.py's machine path (the fallback) to read, and runs nothing. Only trials with the lab's IK (LabValidation's 144
-non-static trials; the manifest's `ik`) are asked.
+non-static trials; the manifest's `ik`) are asked, and with --static each subject's static standing trial.
 
 On the card (the base image: CUDA's base, uv and Python 3.12): gemx_env.sh builds GEM-X's Python, weights and SOMA
 assets into the node's cache (/cache, a folder every pod on the node mounts) once a node under its lock, then
@@ -43,17 +43,20 @@ CODE = ["tools/cloud/gemx", "tools/labval/on_gemx.py"]
 # A pod's minutes: the node's first builds GEM-X's folder (torch, about 7.5 GB of weights), then the video, about
 # cloud.VIDEO_MINUTES unmeasured.
 MINUTES = 30
+STATIC = "static"  # LabValidation's static standing trial (static1): videos only, asked only with --static
 
 
-def videos(manifest, subjects, patterns, cameras):
-    """[(subject, trial, camera, store key)] of the asked trials that have the lab's IK."""
+def videos(manifest, subjects, patterns, cameras, static=False):
+    """[(subject, trial, camera, store key)] of the asked trials that have the lab's IK; with `static` each subject's
+    static standing trial too (its STATIC name, no IK: tools/labval reads the subject's own neutral pose from it)."""
     found = []
     for detail in manifest["subjects_detail"]:
         if subjects and detail["subject"] not in subjects:
             continue
         for trial in detail["trials"]:
-            if not trial["files"].get("ik") or not any(fnmatch.fnmatch(trial["trial"], pattern)
-                                                        for pattern in patterns):
+            standing = static and trial["trial"].startswith(STATIC)
+            if not (trial["files"].get("ik") or standing) or not any(fnmatch.fnmatch(trial["trial"], pattern)
+                                                                      for pattern in patterns):
                 continue
             found += [(detail["subject"], trial["trial"], camera, PREFIX + trial["files"][camera])
                       for camera in cameras if camera in trial["files"]]
@@ -172,6 +175,8 @@ def main():
     parser.add_argument("--classes", default=",".join(CLASSES))
     parser.add_argument("--fov-from", type=pathlib.Path,
                         help="MoGe-2's out folder (tools/labval/moge_cluster.py): each video at its field of view")
+    parser.add_argument("--gpus", type=int, help="at most this many cards (jobs) at once (default: every job)")
+    parser.add_argument("--static", action="store_true", help="each subject's static standing trial too (no IK)")
     parser.add_argument("--name", help="the cluster run's name: the same name resumes it")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--fetch-to", type=pathlib.Path, help="download the videos still to make here; run nothing")
@@ -181,7 +186,7 @@ def main():
     if options.detach:
         detached.relaunch(sys.argv, "gemx-cluster", [out])
     found = videos(manifest_of(), [name for name in options.subjects.split(",") if name],
-                   options.trials.split(","), options.cameras.split(","))
+                   options.trials.split(","), options.cameras.split(","), options.static)
     left = still_to_make(found, out)
     print(f"gemx on the cluster: {len(found)} videos asked, {len(left)} still to make", flush=True)
     if not left or options.dry_run:
@@ -194,7 +199,7 @@ def main():
     store = keyed_jobs.submitter.runtime().cloud_store()
     print(f"gemx: {copied(store, [video[3] for video in left])} videos copied into the job store", flush=True)
     failed = keyed_jobs.run(KIND, IMAGE, [job(out, *video, moge=options.fov_from) for video in left], options.who,
-                            options.classes.split(","), name=options.name)
+                            options.classes.split(","), name=options.name, parallel=options.gpus)
     named_copies(out, left)
     print(f"gemx: {len(left) - len(failed)} of {len(left)} videos made", flush=True)
     return 1 if failed else 0

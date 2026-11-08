@@ -12,6 +12,7 @@ Breaks, each applied once and seen red (2026-11-06):
 - `shape`'s mean over frames dropped -> identity_coeffs is (T, 128), not the clip's one person.
 - a weight's sha256 in gemx_env.sh cut short -> the pin check names it.
 - cluster.py's `ik` check dropped -> the static trial, with no lab IK to score against, is bought.
+- cluster.py's `or standing` dropped -> --static asks no static trial: no subject's neutral pose is made (2026-11-08).
 - cluster.py's soma.npz test dropped -> a video made already is bought again on the cluster.
 - cluster.py's `made_from` test dropped -> a folder holding another video's result is kept as this video's.
 - cluster.py's video input made a local path -> every video goes through this PC's upload.
@@ -105,6 +106,8 @@ def test_each_trial_is_one_pinned_job_whose_cameras_come_back_as_soma_on_their_f
     asked = cluster.videos(manifest, [], ["*"], ["Cam1", "Cam2"])
     assert asked == [("subject2", "walking1", "Cam1", "labvalidation/subject2/Cam1/walking1.mp4"),
                      ("subject2", "walking1", "Cam2", "labvalidation/subject2/Cam2/walking1.mp4")]
+    assert cluster.videos(manifest, [], ["static*"], ["Cam1"], static=True) == [
+        ("subject2", "static1", "Cam1", "labvalidation/subject2/Cam1/static1.mp4")]  # asked only with --static
     (out / "subject2" / "walking1" / "Cam2").mkdir(parents=True)
     (out / "subject2" / "walking1" / "Cam2" / "soma.npz").write_bytes(b"")
     assert cluster.still_to_make(asked, out) == asked[:1]

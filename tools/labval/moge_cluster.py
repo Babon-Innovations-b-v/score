@@ -4,7 +4,7 @@ video's GEM-X result), in jobs of --per-job videos, each video read from the job
 (tools/cloud/gemx/cluster.py), never through this PC.
 
     .venv/bin/python tools/labval/moge_cluster.py <out> --gemx <gemx out> --who "<session>" [--subjects ...] \
-        [--trials 'squats*,...'] [--cameras Cam1,...] [--per-job 40] [--name <run>] [--dry-run] [--detach]
+        [--trials 'squats*,...'] [--cameras Cam1,...] [--per-job 40] [--static] [--name <run>] [--dry-run] [--detach]
 
 Each video comes back as <out>/<subject>_<trial>_<camera>/moge.npz (on_moge.py's) with its done file; a video whose
 done file is there is no job, and one with no GEM-X result is not asked. Spending as every cluster run: only inside a
@@ -82,6 +82,7 @@ def main():
     parser.add_argument("--cameras", default="Cam0,Cam1,Cam2,Cam3,Cam4")
     parser.add_argument("--per-job", type=int, default=40)
     parser.add_argument("--classes", default=",".join(gemx.CLASSES))
+    parser.add_argument("--static", action="store_true", help="each subject's static standing trial too (no IK)")
     parser.add_argument("--name", help="the cluster run's name: the same name resumes it")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(detached.FLAG, action="store_true", help="progress to a log, one result line at the end")
@@ -90,7 +91,7 @@ def main():
     if options.detach:
         detached.relaunch(sys.argv, "moge-cluster", [out])
     found = gemx.videos(gemx.manifest_of(), [name for name in options.subjects.split(",") if name],
-                        options.trials.split(","), options.cameras.split(","))
+                        options.trials.split(","), options.cameras.split(","), options.static)
     left = asked(found, out, options.gemx.resolve())
     count = math.ceil(len(left) / options.per_job) if left else 0
     jobs = [job(left[start::count]) for start in range(count)]

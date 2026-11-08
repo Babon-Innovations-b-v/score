@@ -93,6 +93,11 @@ Breaks, each applied once, seen red, reverted (2026-11-07, the chair and the box
 Breaks, each applied once, seen red, reverted (2026-11-06, the floor seen, #98):
 - _floor.seen's `if normal[1] > 0:` flip dropped: the floor's normal may point down.
 - _floor.levelled's `least_turn(mean, ...)` given `-mean`: the floor's normal laid on the world's down.
+Breaks, each applied once, seen red, reverted (2026-11-08, the subject's own standing pose, #98):
+- _run.angles' standing tilt `-standing.get(...)` made `+`: the standing pelvis reads 14 degrees, not 0.
+- the pelvis turned about its own z made its tilt less the standing tilt: the standing pelvis heading the lab's other
+  way reads -14 degrees (the tilt's sign flips with the heading).
+- `labval.scored`'s `standing` not given to `_run.angles`: the trial's pelvis, lumbar and elbows read as without it.
 """
 import ast
 import json
@@ -317,6 +322,56 @@ def scoring_faults(tmp):
     if grf["all"]["left vertical"]["r trials"] != 1 or set(grf) != {"all", "walking", "Cam1", "Cam2",
                                                                     "walking | Cam1", "walking | Cam2"}:
         faults.append(f"grf pooled as {sorted(grf)} {grf['all']['left vertical']}")
+    return faults
+
+
+def write_static(folder, tilt, lumbar, elbow, facing):
+    """subject2's static standing run on Cam1: the pelvis tilted `tilt` about its own z and facing `facing` (degrees
+    about up), the torso `lumbar` over it, the elbows at `elbow`, every other coordinate 0."""
+    folder.mkdir(parents=True)
+    pelvis = Rotation.from_euler("y", facing, degrees=True).as_matrix() @ zxy_turns([tilt, 0.0, 0.0])
+    torso = pelvis @ zxy_turns([lumbar, 0.0, 0.0])
+    row = [np.r_[place, Rotation.from_matrix(turn).as_quat()]
+           for turn, place in ((pelvis, [0, 1, 0]), (torso, [0, 1.3, 0]), (torso, [0, 1.4, .2]), (torso, [0, 1.4, -.2]))]
+    name = "subject2_static1_Cam1"
+    entry = {"bones": ["pelvis", "torso", "humerus_r", "humerus_l"], "frames": [{}] * 20}
+    (folder / "out.json").write_text(json.dumps({"rate": RATE, "people": {name: entry}}))
+    own = [*_run.LEGS, *_run.ELBOWS, *_run.FOREARMS]
+    coordinates = np.radians([[elbow if stem in _run.ELBOWS else 0.0 for stem in own]] * 20)
+    np.savez(folder / "out.npz", **{f"{name}/bones": np.array([row] * 20), f"{name}/coordinates": coordinates,
+                                    f"{name}/coordinate names": np.array(own)})
+
+
+def neutral_faults(tmp):
+    """The subject's own standing pose from its static run: read on its own heading, it is the model's zero whichever
+    way along the lab a trial heads, and a trial scored with it is read from it (the synthetic trial's pelvis, lumbar
+    and elbows, exact without it, then off by the standing pose); no static run, no neutral."""
+    faults = []
+    tilt, lumbar, elbow = 7.0, 4.0, 12.0
+    write_static(tmp / "static" / "trials" / "subject2_static1_Cam1", tilt, lumbar, elbow, 130.0)
+    standing = labval.neutral(tmp / "static" / "trials" / "subject2_static1_Cam1")
+    expected = {"pelvis_tilt": tilt, "lumbar_extension": lumbar, "elbow_flex_r": elbow, "elbow_flex_l": elbow}
+    if any(abs(standing[name] - value) > 1e-6 for name, value in expected.items()):
+        faults.append(f"the static run's neutral {standing}")
+    entry, arrays, _ = _run.read(tmp / "static" / "trials" / "subject2_static1_Cam1")
+    for heading in (0.0, np.pi):
+        upright = _run.angles(entry, arrays, heading, standing)
+        if any(abs(upright[name][0]) > 1e-6 for name in _run.NEUTRAL):
+            faults.append(f"standing, read from its own neutral heading {heading:.2f}: "
+                          f"{ {name: upright[name][0] for name in _run.NEUTRAL} }")
+    if labval.standing_of(None, "subject2", "Cam1") or labval.standing_of(tmp / "static", "subject2", "Cam2"):
+        faults.append("a neutral without its static run")
+    root = tmp / "LabValidation"
+    write_labval(root)
+    write_run(tmp / "run")
+    found = labval.scored(tmp / "run", root, tmp / "static")
+    if found["neutral"] != standing:
+        faults.append(f"the trial scored on neutral {found['neutral']}")
+    # the pelvis is turned about its own z, which the trial's steady 30 degree pelvis_rotation turns off the lab's
+    off = {"pelvis_tilt": tilt * np.cos(np.radians(30.0)), "lumbar_extension": lumbar, "elbow_flex_r": elbow - 2.0, "elbow_flex_l": elbow - 2.0}
+    for name, value in off.items():
+        if abs(found["angles"][name]["mae"] - value) > 0.3:
+            faults.append(f"{name} read from the standing pose: MAE {found['angles'][name]['mae']:.3f}, not {value}")
     return faults
 
 
@@ -832,5 +887,6 @@ def test_a_labvalidation_trial_scores_the_errors_built_into_it(tmp_path):
     faults = [*scoring_faults(tmp_path / "scoring"), *hand_faults(), *loader_faults(tmp_path / "loaders"),
               *grf_faults(), *soma_faults(), *go_faults(tmp_path / "go"), *unseen_faults(),
               *cluster_faults(tmp_path / "cluster"), *path_name_faults(), *floor_faults(),
-              *moment_faults(tmp_path / "moments"), *validate_faults(tmp_path / "validate")]
+              *moment_faults(tmp_path / "moments"), *validate_faults(tmp_path / "validate"),
+              *neutral_faults(tmp_path / "neutral")]
     assert not faults, faults
