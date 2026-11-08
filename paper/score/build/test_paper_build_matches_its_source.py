@@ -2,16 +2,16 @@
 
 The PDF and the LaTeX trees are committed so a reader never has to build them, which only works while they are
 current (paper/CLAUDE.md: a change to the draft is rebuilt and committed in the same commit). The stamp
-(paper/out/stamp.json) records a hash of every input and output; a draft edited without a rebuild, a generated file
+(paper/score/out/stamp.json) records a hash of every input and output; a draft edited without a rebuild, a generated file
 edited by hand, a file added or removed, all fail.
 
 The break that turns each test red (applied once each, seen red, reverted):
 
-- test_the_committed_build_matches_its_source: a space added to paper/source/score.md (or any input or committed
+- test_the_committed_build_matches_its_source: a space added to paper/score/source/score.md (or any input or committed
   output changed) without `make paper`.
 - test_the_check_catches_every_drift: `stale_reasons` returns [] once a stamp exists.
 
-Run: PROPS_HOME=$(mktemp -d) python3 -m pytest paper/build/
+Run: PROPS_HOME=$(mktemp -d) python3 -m pytest paper/score/build/
 """
 
 import shutil
@@ -33,7 +33,7 @@ def test_the_committed_build_matches_its_source():
 @pytest.fixture
 def paper_copy(tmp_path, monkeypatch):
     """A copy of the paper's tree, with the build module pointed at it: draft, bibliography, figures, outputs, stamp."""
-    paper = tmp_path / "paper"
+    paper = tmp_path / "paper" / "score"
     for part in ("source", "figures", "out", "arxiv"):
         if (build.PAPER / part).exists():  # figures/ is optional, as in the build
             shutil.copytree(build.PAPER / part, paper / part)
@@ -52,14 +52,14 @@ def test_the_check_catches_every_drift(paper_copy):
     assert build.stale_reasons() == []  # the copy is as current as the repository's
     with (paper_copy / "source/score.md").open("a") as draft:
         draft.write("\nA sentence added without a rebuild.\n")
-    assert build.stale_reasons() == ["input changed since the last build: paper/source/score.md"]
+    assert build.stale_reasons() == ["input changed since the last build: paper/score/source/score.md"]
     (paper_copy / "out/score.tex").write_text((paper_copy / "out/score.tex").read_text() + "% by hand\n")
     (paper_copy / "arxiv/notes.tex").write_text("left over\n")
     pdf = paper_copy / "out/score.pdf"
     pdf.unlink()
-    assert build.stale_reasons() == ["input changed since the last build: paper/source/score.md",
-                                     "output added since the last build: paper/arxiv/notes.tex",
-                                     "output removed since the last build: paper/out/score.pdf",
-                                     "output changed since the last build: paper/out/score.tex"]  # by path
+    assert build.stale_reasons() == ["input changed since the last build: paper/score/source/score.md",
+                                     "output added since the last build: paper/score/arxiv/notes.tex",
+                                     "output removed since the last build: paper/score/out/score.pdf",
+                                     "output changed since the last build: paper/score/out/score.tex"]  # by path
     (paper_copy / "out/stamp.json").unlink()
     assert build.stale_reasons() == ["no stamp: the paper has never been built here"]

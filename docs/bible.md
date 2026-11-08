@@ -748,8 +748,8 @@ GitHub Actions; every command runs locally.
 - `make check`: the gate. `.claude/scripts/gate-scope.py` prints `MODE none` for a change that touches only documents
   and working notes, else `full`; unknown paths, a change to the gate itself, `--full` or `GATE_FULL=1` run everything.
   Then `docs/adr/tools/check_index.py`.
-- `make paper`: `paper/source/score.md` through pandoc into `paper/out/` (`score.tex`, `score.pdf`) and the arXiv tree
-  `paper/arxiv/`, with `paper/out/stamp.json` hashing every input and output; `paper/build/test_paper_build_matches_its_source.py`
+- `make paper`: `paper/score/source/score.md` through pandoc into `paper/score/out/` (`score.tex`, `score.pdf`) and the arXiv tree
+  `paper/score/arxiv/`, with `paper/score/out/stamp.json` hashing every input and output; `paper/score/build/test_paper_build_matches_its_source.py`
   fails when they no longer match. `.claude/hooks/local/pre-commit` runs it on any commit touching `paper/`.
 - **The hosted cockpit** runs the dashboard at the commit its host repository pins (`SCORE_COMMIT` in the host's
   Dockerfile). After pushes that change `score/dashboard`, the coordinating session releases once for the group:

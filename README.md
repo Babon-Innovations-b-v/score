@@ -37,9 +37,9 @@ done and what is a goal.
 
 ## What is here
 
-- **The paper**, a working draft: [`paper/out/score.pdf`](paper/out/score.pdf). Its one source is
-  [`paper/source/score.md`](paper/source/score.md); an arXiv-ready LaTeX tree is generated from it in
-  [`paper/arxiv/`](paper/arxiv/).
+- **The paper**, a working draft: [`paper/score/out/score.pdf`](paper/score/out/score.pdf). Its one source is
+  [`paper/score/source/score.md`](paper/score/source/score.md); an arXiv-ready LaTeX tree is generated from it in
+  [`paper/score/arxiv/`](paper/score/arxiv/).
 - **The framework**: `score/` (the runner, stages, gates, store, review pages and the creator cockpit),
   `tools/` (the prop pipeline, Blender and OpenUSD tools, sound, cloud runners), `data/` (environment 1's
   designs and the library's records) and `vendor/` (vendored tools, as released). The bible's
@@ -76,7 +76,7 @@ images work is in [`tools/cloud/CLAUDE.md`](tools/cloud/CLAUDE.md); how to add a
 
 ## Licence
 
-MIT, see [`LICENSE`](LICENSE). The IEEE citation style in `paper/source/ieee.csl` is from the
+MIT, see [`LICENSE`](LICENSE). The IEEE citation style in `paper/score/source/ieee.csl` is from the
 Citation Style Language project under CC BY-SA 3.0. The scene export uses usd-core (Pixar's OpenUSD)
 under the Tomorrow Open Source Technology License 1.0, which is Apache 2.0 with a different trademark
 clause. Every model the framework uses must allow commercial use of what it makes; the paper lists

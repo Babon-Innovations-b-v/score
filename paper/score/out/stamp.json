@@ -1,0 +1,24 @@
+{
+  "inputs": {
+    "paper/score/build/build.py": "17398a2ddfda4b2dd2836f5f188b9168c81dde5485773aa4ff117c8d645a0367",
+    "paper/score/source/ieee.csl": "b4c7619fc16c45a31e4cc3271eab94ffe83192d3b4c7fc729470a3b459448de3",
+    "paper/score/source/markers.lua": "5c7ee052f652b1ad8079441d7e9bac35c9380fac13a77baed501e6f3a998cfc9",
+    "paper/score/source/refs.bib": "6a684b769f1bf91045d87988102d5dd8cf2cf6906c1b2dc2867155be455b531d",
+    "paper/score/source/score.md": "595a4688507b9e3f7b45a2e13f1b17da0d5feac8380ccfb2f60bf13946de02a9"
+  },
+  "outputs": {
+    "paper/score/arxiv/content/abstract.tex": "bb0b602f5e2d08259184afc43f14c8a27e03a04870ece5d0105f7466fba571b7",
+    "paper/score/arxiv/content/evidence_environment_1.tex": "3e68277065722b84298581b3f1e9bbd8443cec1037a5d05966c87321380e7ae3",
+    "paper/score/arxiv/content/future_work_people_true_to_the_person.tex": "500228527c1561bfa9eeb403ac283824d99722915b7e418708ee336a40ac721f",
+    "paper/score/arxiv/content/introduction.tex": "4ec4a0535df21f510aed7908793fce8f10c89b554902ab17c7ab7c017c3deda8",
+    "paper/score/arxiv/content/limitations_and_conclusion.tex": "0a68e0eca5b9e92df4ada74b40a63594c9059f0273adc0b2ab92c0a62246ce2b",
+    "paper/score/arxiv/content/method_building_an_environment.tex": "b5fd551bbdfe013f34e98294919a9960b7e3470966ae760f779f7be0858e9d1f",
+    "paper/score/arxiv/content/teaser.tex": "52c442ed1d2222c32238b49c8483edf106aee8081b287ab0abe9d363f8c9bf4b",
+    "paper/score/arxiv/main.bbl": "a0e5b4a89be5a29b6333b812e1c9f36b462cfc4b61f0259e9b2fef6f25e43125",
+    "paper/score/arxiv/main.pdf": "7995b3de388e7d31b54d60f383aa2e92a48f6cf20c97a96b25b220c2a03e08b8",
+    "paper/score/arxiv/main.tex": "21c184d5dbc4cb81901336b973ec767c262b64e62463940213f0069be29c6650",
+    "paper/score/arxiv/refs.bib": "6a684b769f1bf91045d87988102d5dd8cf2cf6906c1b2dc2867155be455b531d",
+    "paper/score/out/score.pdf": "2ba2d4c03cafd08a7b28e3f1c3c0f61ca78f451a8c51d15a04ef4a9379218dac",
+    "paper/score/out/score.tex": "c16423f5988fdee8c2bc4c04540ad2b8444c2c4cfc035c46d110fd286dd19e4b"
+  }
+}

@@ -5,7 +5,7 @@
 set -euo pipefail
 repo="$(git rev-parse --show-toplevel)"
 if git diff --cached --name-only | grep -q '^paper/'; then
-  if ! python3 "$repo/paper/build/build.py" --check; then
+  if ! python3 "$repo/paper/score/build/build.py" --check; then
     echo "pre-commit: the paper build is stale. Run 'make paper', stage paper/, commit again." >&2
     exit 1
   fi

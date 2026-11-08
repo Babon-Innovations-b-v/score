@@ -86,14 +86,14 @@ gate-result:
 	echo "$${sha%????????????????????????????}  $${answer#*	}$$took" && \
 	gh api repos/$(REPO_SLUG)/commits/$$sha/comments --jq '[.[] | select(.body | startswith("cluster/gate"))][-1].body // empty'
 
-# Rebuild the paper's PDF and LaTeX from paper/source/score.md (pandoc + xelatex or tectonic).
+# Rebuild the paper's PDF and LaTeX from paper/score/source/score.md (pandoc + xelatex or tectonic).
 paper:
-	python3 paper/build/build.py
+	python3 paper/score/build/build.py
 
 # The gate: what gate-scope says the change needs, then the ADR index check.
 check:
 	@python3 .claude/scripts/gate-scope.py | tee /tmp/score-gate-scope.txt
 	@if grep -q '^MODE full' /tmp/score-gate-scope.txt; then \
-		$(SANDBOX) $(PYTEST) paper/build .claude/scripts/tests .claude/hooks/tests .claude/index/tests && $(MAKE) --no-print-directory tests; \
+		$(SANDBOX) $(PYTEST) paper/score/build .claude/scripts/tests .claude/hooks/tests .claude/index/tests && $(MAKE) --no-print-directory tests; \
 	fi
 	python3 docs/adr/tools/check_index.py
