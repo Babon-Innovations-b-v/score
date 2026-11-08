@@ -150,8 +150,12 @@ tests it turned red:
   a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
 - finish_parts.py: `return painted["recipe"] == listed["recipe"] and hue_kept(` -> `return True and hue_kept(`  ->
   a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
-- finish_parts.py: `if not look_kept(finish["finish"], ...):` -> `if False:`, and `and not in_named_colour(named,
-  largest[...])` -> `and False` -> a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- finish_parts.py: `if not look_kept(finish["finish"], ...):` -> `if False:`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- finish_parts.py: `judged = carriers or [finish ...]` -> `judged = [finish ...]` (the largest alone)  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged (base's 'green plants' dome)
+- finish_parts.py: `or in_named_colour(named, finish["looks"]["painted"]["lab"], ...)` -> `or True`  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
 - score/stages/__init__.py meaning_checked: `if row.name != "surfaces-parts":` -> `if True:`  ->
   a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
 - finish_ask.py: `entry = dict(entry, surface=names[codes.index(entry["surface"])])` -> `entry = dict(entry)`  ->
@@ -1737,7 +1741,9 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
     steel never clean hull paint), its glow, and its hue (gold foil never silver, a blue decal never grey frame
     paint); and the gate "kept the list's meaning" fails a finish moved off them and a take whose largest finish moved
     off its row name's colour (the hangar's thick red cables as black_hose), unless another finish's own words name
-    that colour (base's 'green plants' dome, its frame the largest part, its leaves 'green plants inside the dome')."""
+    that colour; where the finishes of the row's own thing word exist they, not the largest, hold its colour (base's
+    'green plants' dome, its frame the largest part, its 'plant leaves' green: passes; with no plant finish, or its
+    plants painted grey: fails)."""
     navy, grey, black = [0.03, 0.06, 0.10], [0.35, 0.35, 0.35], [0.01, 0.01, 0.01]
     library = {"vinyl_seat": {"family": "plastic", "colour": navy},
                "grey_plastic": {"family": "plastic", "colour": grey},
@@ -1801,6 +1807,22 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
         "finish": "cable sheath", "parts": "the red cables on the floor", "surface": "seam_paint"}])
     faults = finish_parts.meaning_faults("walkway-t1", claimed)
     assert len(faults) == 1 and "steel handrail" in faults[0], faults
+    paint = {"recipe": "painted_metal", "lab": [60.9, 0.6, 10.9]}
+    frame = {"finish": "greenhouse frame lattice", "parts": "dome lattice ribs", "surface": "seam_trim_dark",
+             "listed_surface": "greenhouse_lattice", "by": "the room's kit surface by colour",
+             "looks": {"listed": paint, "painted": dict(paint, lab=[36.4, 0.5, 5.4])}}
+    leaf = {"recipe": "rubber", "lab": [40.9, -26.8, 25.5]}
+    leaves = {"finish": "plant leaves", "parts": "plants growing inside the dome", "surface": "plant_leaves",
+              "listed_surface": "plant_leaves", "by": "the list", "looks": {"listed": leaf, "painted": leaf}}
+    dome = {"object": "green plants", "finishes": [frame, leaves],
+            "parts": [{"judge": "seam_trim_dark", "words": "greenhouse frame lattice", "share": 0.53},
+                      {"judge": "plant_leaves", "words": "plant leaves", "share": 0.003}]}
+    assert finish_parts.meaning_faults("dome-t1", dome) == []  # its plants, not its frame, carry the row's green
+    greyed = dict(leaves, surface="seam_trim_dark", by="the room's kit surface by colour",
+                  looks={"listed": leaf, "painted": dict(paint, lab=[36.4, 0.5, 5.4])})
+    for finishes in ([frame], [frame, greyed]):  # no plant part, or its plants painted grey: the frame never holds it
+        faults = finish_parts.meaning_faults("dome-t1", dict(dome, finishes=finishes))
+        assert "'green plants' names green" in faults[-1] and len(faults) == len(finishes), faults
     folder = pathlib.Path(tempfile.mkdtemp())
     (folder / "parts.json").write_text(json.dumps({"takes": {"walkway-t1": record}}))
     assert route_parts.judge_meaning(folder, {}, None).answer == checks.FAIL
