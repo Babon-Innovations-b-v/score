@@ -15,7 +15,7 @@ red (each applied once, seen red, reverted):
   expected. Break: drop `not expected.get(...)` in `Queue.send_home`.
 - each job is assigned once across a queue restart, and a job whose worker died without its done.json once more, one
   generation on. Break: skip `read_assignments` in `Queue.__init__`.
-- 3 looks at the cluster a tick and at most one apply. Break: one `apply` a new worker in `Queue.grow`.
+- 4 looks at the cluster a tick and at most one apply. Break: one `apply` a new worker in `Queue.grow`.
 - a node two workers share is counted once, and booked once when gone, a node whose `score.dev/class` names no
   capability class (the conductor's) booked with no class, never a crash (break: read the label raw in
   `Queue.count_money`). Break: sum node cost per run (or per pod) in `Queue.count_money`.
@@ -40,6 +40,9 @@ The tube rehearsal's faults (2026-11-07, issue #76):
 - processor classes still without a node a start window after the last widening send the chain's queued jobs back
   for rented machines (`elsewhere`, `job_queue.unhad`); card work stays. Break: drop `self.send_elsewhere(listed, now)`
   in `Queue.grow`.
+- the autoscaler's "cannot grow" on a pending worker's pod widens its chain at its word, so a processor chain on
+  pools whose most is 0 is given back within minutes, not a start window a class (score's Paris processor pools,
+  2026-11-08). Break: `self.no_grow.get(...)` -> `None` in `Queue.waiting`.
 - a finished worker's pod, kept with its Job, holds no node, so the node is booked after its idle tail. Break: drop
   the phase test from `hosting` in `Queue.count_money`.
 - the queue ends only once every node is booked. Break: drop `queue.nodes` from `active` in `serve`.
@@ -94,6 +97,7 @@ class FakeKube:
                                                                     "app.kubernetes.io/part-of": "score"}}}
         self.jobs["score-other"] = foreign
         self.made, self.stock = 0, None  # stock: the classes a node can be had of (None: every class)
+        self.events = []  # the autoscaler's: a pod none of whose classes can be had hears "cannot grow" at once
 
     def json(self, *arguments):
         self.calls.append(arguments[:2])
@@ -101,6 +105,8 @@ class FakeKube:
             box = arguments[-1].split("=")[1]
             mine = [job for job in self.jobs.values() if job["metadata"]["labels"].get(manifests.BOX_LABEL) == box]
             return {"items": mine + [pod for pod in self.pods.values() if pod["job"] in self.jobs]}
+        if arguments[1] == "events":
+            return {"items": self.events}
         if arguments[1] == "nodes":
             return {"items": [{"metadata": {"name": name, "creationTimestamp": stamp, "labels": {
                 manifests.CLASS_LABEL: "gpu-24gb-x2"}}} for name, stamp in self.nodes.items()]}
@@ -123,10 +129,15 @@ class FakeKube:
             node = self.free_node() if self.cards_used() + cards <= CARDS else None
             worker = job["metadata"]["labels"][workers.WORKER_LABEL]
             classes = set(job["metadata"]["annotations"]["score.dev/classes"].split(","))
+            pod_name = f"{job['metadata']['name']}-pod"
             if self.stock is not None and not classes & self.stock:
                 node = None  # none of its classes can be had: unscheduled
+                self.events.append({"reason": "NotTriggerScaleUp", "involvedObject": {"name": pod_name},
+                                    "lastTimestamp": time_text(self.clock()),
+                                    "message": "pod didn't trigger scale-up: 2 max node group size reached"})
             self.pods[worker] = {"kind": "Pod", "job": job["metadata"]["name"], "cards": cards,
-                                 "metadata": {"labels": job["spec"]["template"]["metadata"]["labels"]},
+                                 "metadata": {"name": pod_name,
+                                              "labels": job["spec"]["template"]["metadata"]["labels"]},
                                  "spec": {"nodeName": node}, "status": {"phase": "Running" if node else "Pending",
                                                                         "conditions": [] if node else [{
                                                                             "type": "PodScheduled", "status": "False",
@@ -233,7 +244,7 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
         before = len(kube.calls)
         queue.tick(now[0])
         calls = kube.calls[before:]
-        assert sum(1 for call in calls if call[0] == "get") == 3 and sum(1 for call in calls if call == ("apply",)) <= 1
+        assert sum(1 for call in calls if call[0] == "get") == 4 and sum(1 for call in calls if call == ("apply",)) <= 1
         most_cards = max(most_cards, kube.cards_used())
         found = between() if between else None
         play_workers(kube, store, now[0], ran, went, loops, command)
@@ -378,29 +389,40 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
         refused["jobs"] == {"j0": {"state": "failed"}}
     assert "good" in after_bad.runs and not list(bad_root.glob("inbox/*.json")) and bad_kube.made == 1
 
-    # A chain whose worker is pending on classes that cannot be had widens while it waits: the pending worker deleted,
-    # one made again on the wider classes.
+    # A chain whose worker is pending on classes that cannot be had widens while it waits, at the autoscaler's word
+    # ("max node group size reached"), well inside a start window: the pending worker deleted, one made again on the
+    # wider classes.
     wide_kube = FakeKube(clock)
     wide_kube.stock = set()  # no class of it can be had
     wide_root = tmp_path / "q5"
     job_queue.enqueue("wide", "runner", IMAGES["blender"], ["cpu-64c-128gb", "cpu-32c-64gb"],
                       {"j0": {"kind": "runner", "cards": 0}}, root=wide_root)
     widening = process.Queue(wide_kube, stores.FolderStore(tmp_path / "wide"), Cluster(), wide_root, BOX, clock)
-    for _ in range(int(submitter.NODE_MINUTES * 60 / process.QUEUE_TICK) + 3):
-        widening.tick(now[0])
-        now[0] += process.QUEUE_TICK
-    made_on = [job["metadata"]["annotations"]["score.dev/classes"] for job in wide_kube.jobs.values()
-               if workers.WORKER_LABEL in job["metadata"]["labels"]]
-    assert made_on == ["cpu-64c-128gb,cpu-32c-64gb"] and wide_kube.made == 2, (made_on, wide_kube.made)
 
-    # Processor classes still without a node a start window after the last widening: the chain's queued jobs given
-    # back for rented machines, its pending worker deleted, the classes noted, a new run of them not waited on.
-    # Card work stays on the cluster.
+    def made_on():
+        return [job["metadata"]["annotations"]["score.dev/classes"] for job in wide_kube.jobs.values()
+                if workers.WORKER_LABEL in job["metadata"]["labels"]]
+
+    def ticks_until(done):
+        """Tick the widening queue until done(), within a start window: the seconds it took, else None."""
+        began = now[0]
+        for _ in range(int(submitter.NODE_MINUTES * 60 / process.QUEUE_TICK)):
+            widening.tick(now[0])
+            now[0] += process.QUEUE_TICK
+            if done():
+                return now[0] - began
+        return None
+    took = ticks_until(lambda: made_on() == ["cpu-64c-128gb,cpu-32c-64gb"])
+    assert took is not None and took <= (submitter.NO_GROW_GRACE_MINUTES * 60 + 3 * process.QUEUE_TICK) and \
+        wide_kube.made == 2, (took, made_on(), wide_kube.made)
+
+    # Processor classes that still cannot be had after the last widening: the chain's queued jobs given back for
+    # rented machines, its pending worker deleted, the classes noted, a new run of them not waited on. Card work stays
+    # on the cluster.
     job_queue.enqueue("cards", "blender", IMAGES["blender"], ["gpu-24gb"], {"j0": {"kind": "blender"}},
                       root=wide_root)
-    for _ in range(int(submitter.NODE_MINUTES * 60 / process.QUEUE_TICK) + 3):
-        widening.tick(now[0])
-        now[0] += process.QUEUE_TICK
+    took = ticks_until(lambda: json.loads((wide_root / "state" / "wide.json").read_text()).get("over"))
+    assert took is not None, "a processor chain the autoscaler cannot grow waited a start window"
     gave_back = json.loads((wide_root / "state" / "wide.json").read_text())
     assert gave_back["over"] and gave_back["jobs"]["j0"]["state"] == job_queue.ELSEWHERE, gave_back
     assert not [job for job in wide_kube.jobs.values() if workers.WORKER_LABEL in job["metadata"]["labels"]

@@ -7,8 +7,8 @@ sends its runs through it (S6), the runner's pod makes among them (S8, `score/gr
 - `__init__.py` is the client: `enqueue` (inbox file written whole), `wait` (state file; the CLUSTER_WAITING mark;
   `Stale` after `QUEUE_TAKEOVER_SECONDS`), `cancel` (a run its client took back, never assigned again), `spent` (the
   box's euros, a stop line's base), `fresh`, `start` (the process through `detached.py`, one a box by its lock).
-- `__main__.py` is the process (`Queue.tick`): three looks at the cluster a tick (the box's Jobs and pods, the nodes,
-  the quota's room) and at most one apply; runs from `state/`, assignments from the job store, so a restart assigns
+- `__main__.py` is the process (`Queue.tick`): four looks at the cluster a tick (the box's Jobs and pods, the nodes,
+  the quota's room, the autoscaler's events) and at most one apply; runs from `state/`, assignments from the job store, so a restart assigns
   nothing twice.
 - `admission.py` is pure: priority first, places round robin within it, a job only to a worker of its chain (image
   kind, image, commit) and band (or the next larger), the same place's worker first; room is the quota's less this
@@ -34,8 +34,10 @@ sends its runs through it (S6), the runner's pod makes among them (S8, `score/gr
   runs nothing more is assigned or made and only this box's Jobs are deleted (`score.dev/box`).
 - **Nothing one run brings stops the box's queue**: an inbox entry the queue cannot take is refused (its state over,
   each job failed, `refused` saying why) and the tick goes on.
-- **A pending worker never waits for good**: its chain widens every tick its waiting shows the classes cannot be had;
-  a chain of processor classes alone still without a node a start window (NODE_MINUTES) after its last class gives its
+- **A pending worker never waits for good**: its chain widens every tick its waiting shows the classes cannot be had
+  (the autoscaler's "cannot grow" for its pod held NO_GROW_GRACE_MINUTES, else no node in NODE_MINUTES: submitter's
+  rule; 2026-11-08, score's Paris processor pools at a most of 0 cost a processor chain 15 min a class before);
+  a chain of processor classes alone that still cannot be had after its last class gives its
   queued jobs back as `elsewhere` and notes the classes in `unhad.json` for UNHAD_MINUTES, so `cluster_jobs.run`
   raises `Elsewhere` and the runner sends that work to rented machines (blender_cloud runs itself again off the
   cluster; a pod make is made here). Card work stays on the cluster.
