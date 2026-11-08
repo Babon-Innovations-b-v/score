@@ -24,7 +24,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-26):
   then measures as no number at all, which no gate fails).
 - test_the_stance_is_ankles_across_over_hips_across: stance_ratio's `abs(float(ankles @ hips))` made
   `float(np.linalg.norm(ankles)) * hip_spacing` (a step forward counted as width).
-- test_the_verdict_holds_each_measure_to_its_range: verdict's `overlap_value >= LEAST_OVERLAP` made `>= -1`.
+- test_the_verdict_holds_each_measure_to_its_range: verdict's `overlap_value >= LEAST_OVERLAP` made `>= -1`; its
+  `None if opening_value is None else` dropped (a join with no opening measured crashed the build, man_stair
+  2026-11-08).
 - test_a_hand_pressed_into_other_clothes_is_hidden: unburied returns `points` always.
 - test_cloth_is_measured_over_its_triangles: SAMPLES_A_SIDE = 1 (corners only).
 - test_wide_feet_are_brought_in_to_hip_width: moves_in's `max(0.0, out - allowed)` made `max(0.0, out - 2 * allowed)`.
@@ -185,6 +187,10 @@ def test_the_verdict_holds_each_measure_to_its_range():
               "stance": {"mean": 2.1}}
     found = joins.verdict(record)
     assert found["wrist"]["pass"] and not found["ankle"]["pass"] and not found["stance"]["pass"]
+    record["outfits"]["work"]["standing"] = {"ankle_Left": joins.NO_SLEEVE}  # no trouser leg found: no opening
+    found = joins.verdict(record)
+    assert found["ankle"]["worstOpeningMetres"] is None and "notMeasured" in found["ankle"], found
+    assert not found["ankle"]["pass"] and found["wrist"] is None, found
 
 
 def test_a_hand_pressed_into_other_clothes_is_hidden():
