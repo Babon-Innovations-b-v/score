@@ -76,9 +76,14 @@ ENV_LOADED = 'set -a; [ -r "$SCORE_ENV_FILE" ] && . "$SCORE_ENV_FILE"; set +a;'
 # Requests place a pod; limits keep it from taking the drive's room (the quota: 15 CPU / 120 Gi requests, 128 Gi
 # limits in `score`, babon's tenants/score/quota.yaml).
 CONDUCTOR = {"requests": {"cpu": "1", "memory": "4Gi"}, "limits": {"cpu": "4", "memory": "24Gi"}}
-DOOR = {"requests": {"cpu": "100m", "memory": "256Mi"}, "limits": {"cpu": "1", "memory": "2Gi"}}
+# The door runs the agents' commands (moved, tests, a store pull): 8 CPU / 48 Gi, set live 2026-11-08.
+DOOR = {"requests": {"cpu": "500m", "memory": "2Gi"}, "limits": {"cpu": "8", "memory": "48Gi"}}
 SYNC = {"requests": {"cpu": "1", "memory": "4Gi"}, "limits": {"cpu": "4", "memory": "16Gi"}}
 BACKUP = {"requests": {"cpu": "500m", "memory": "1Gi"}, "limits": {"cpu": "2", "memory": "8Gi"}}
+# score's namespace defaults for a container that names none (LimitRange `score-defaults`): a default cpu limit of 1
+# made every drive pod of 8 cores invalid until 2026-11-08, when it was set to 16 live.
+LIMIT_DEFAULTS = {"default": {"cpu": "16", "memory": "1Gi"}, "defaultRequest": {"cpu": "100m", "memory": "256Mi"}}
+IMAGE_VARIABLE = "SCORE_CONDUCTOR_IMAGE"  # the pod's own image by digest, which the cutover writes in cluster.json
 CRONJOBS = (  # name, schedule, the VM unit's commands in order, resources
     ("score-sync", "*/5 * * * *",
      (f"/usr/bin/python3 -I {REPO}/tools/cloud/conductor/update.py --repo {REPO}",
@@ -152,7 +157,8 @@ def on_conductor_node():
 
 
 def container(name, image, command, resources, read_only=False):
-    return {"name": name, "image": image, "command": command, "env": environment(), "resources": resources,
+    return {"name": name, "image": image, "command": command,
+            "env": [*environment(), {"name": IMAGE_VARIABLE, "value": image}], "resources": resources,
             "workingDir": HOME, "volumeMounts": mounts(read_only),
             "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
 
@@ -209,6 +215,11 @@ def cronjob(name, schedule, commands, resources, image):
                          "spec": pod}}}}}
 
 
+def limit_range():
+    return {"apiVersion": "v1", "kind": "LimitRange", "metadata": meta("score-defaults", "rights"),
+            "spec": {"limits": [{"type": "Container", **LIMIT_DEFAULTS}]}}
+
+
 def claim():
     return {"apiVersion": "v1", "kind": "PersistentVolumeClaim", "metadata": meta(CLAIM, "store"),
             "spec": {"accessModes": ["ReadWriteOnce"], "storageClassName": VOLUME_CLASS,
@@ -255,7 +266,7 @@ def objects(image):
     """Every object of the conductor in the cluster, in the order they are applied."""
     if not image:
         raise ValueError("no conductor image: build tools/cloud/images/conductor first, or pass --image")
-    return [service_account(NAME, "rights"), service_account(DOOR_AGENT, "door"),
+    return [limit_range(), service_account(NAME, "rights"), service_account(DOOR_AGENT, "door"),
             binding(NAMESPACE), binding(JOBS_NAMESPACE), *door_role(), closed(), claim(), headless(),
             statefulset(image), *(cronjob(*row, image) for row in CRONJOBS)]
 
