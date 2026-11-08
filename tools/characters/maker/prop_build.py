@@ -17,7 +17,8 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   colour for this person (no picture colour), its family and material in `extras`; the two printed plates
   (prop_prints.py: the face from the close-up, the flag patch drawn) are the only pictures. A skin part, a boot and a
   mitt get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
-  hard part elsewhere (a pack) sits on the cloth and needs none. A belt and its buckle are cloth (`worn_as_cloth`).
+  hard part elsewhere (a pack) sits on the cloth and needs none. A part judged a boot's material is a boot only at the
+  feet (`placed_names`): higher up (a dark visor) it is named by its material. A belt and its buckle are cloth (`worn_as_cloth`).
   Every other hard part, the hair and the bare hands ride one joint rigidly (`rigid_joint`: a boot its foot, a mitt
   or a hand its hand, the hair the head, a helmet or pack the joint its weights favour), and a garment within
   EASE_REACH of a hard part is eased onto that part's joint, so the trouser hem goes with the boot it covers.
@@ -216,6 +217,24 @@ def point_normals(points, faces):
 
 
 SIDED = ("boot", "mitt")
+# A part judged a boot's material is a boot only where its middle lies below this share of the person's height (the
+# fit stands the soles at 0); above it, it is named by its material, as prop_parts names any other hard part. The
+# astronaut's dark visor, judged black rubber boot (his palette, the work suit's, holds no glass), was split into
+# boot_l and boot_r at 0.9 of his height, rode his feet and shins, and its tucks stood 5 cm out of his helmet in every
+# clip (env1, 2026-11-08). The shipped and made boots' tops lie under a third of the height.
+BOOT_TOP_SHARE = 0.5
+
+
+def placed_names(names_of, materials_of, pieces, heights):
+    """Each part's name, with a part named boot whose middle (its triangles' mean, `pieces` split_parts') lies above
+    BOOT_TOP_SHARE of the person (`heights`: every point's height) named by its material instead."""
+    low, high = float(heights.min()), float(heights.max())
+    placed = dict(names_of)
+    for part, name in names_of.items():
+        points, faces = pieces[part][0], pieces[part][1]
+        if name == "boot" and points[faces].mean(1)[:, 1].mean() - low > BOOT_TOP_SHARE * (high - low):
+            placed[part] = materials_of[part].replace(" ", "_")
+    return placed
 
 
 def boot_names(pieces, names_of):
@@ -270,9 +289,11 @@ def surfaces(fit_rig, parts, prints=None):
     (PNG bytes) for a printed part (prop_prints.py), else None."""
     names = list(fit_rig["names"])
     index = {int(part): number for number, part in enumerate(parts["parts"])}
-    names_of = {part: str(parts["names"][number]) for part, number in index.items()}
-    pieces = boot_names(split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"],
-                                    face_parts(fit_rig, parts)), names_of)
+    split = split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"], face_parts(fit_rig, parts))
+    names_of = placed_names({part: str(parts["names"][number]) for part, number in index.items()},
+                            {part: str(parts["materials"][number]) for part, number in index.items()}, split,
+                            fit_rig["points"][:, 1])
+    pieces = boot_names(split, names_of)
     role_of = {key: "garment" if worn_as_cloth(key[1]) else str(parts["roles"][index[key[0]]]) for key in pieces}
     hard_points, hard_joints = [np.zeros((0, 3))], [np.zeros(0, dtype=object)]
     rigid = [key for key in pieces if role_of[key] == "hard" or key[1] in RIGID_NAMES]

@@ -71,6 +71,8 @@ unless named):
   Its shell case (2026-11-04, each seen red): prop_shell.bind's `if fitted_share < REACH_SHARE:` made `if False:`
   (a bulky suit stays 12 cm off its body); soft_points' `~np.isin(part_of, sorted(rigid))` made all True (the hard
   cap counted as cloth); suit_rounds' `SUIT_STEP * along` made `0 * along` (the body never drawn to the suit).
+  Its boot place case (env1, 2026-11-08: the astronaut's dark visor judged a boot rode his feet): prop_build.placed_names'
+  `> BOOT_TOP_SHARE * (high - low)` made `> high - low` (the visor stays a boot).
 - test_pokes_read_a_hard_parts_stretch: pokes.stretch's `max(worst, ...)` made `min(worst, ...)`.
 - test_piping_is_cut_down_the_outside_of_a_limb: piping.across_outer_line's outer half `> 0` made `< 0`.
 - test_a_flat_sheet_crosses_nothing: pokes.crossing_pairs' shared-corner filter and `usable &` both dropped (either
@@ -716,6 +718,14 @@ def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows(tmp_path):
     names = ["Hips", "LeftShin", "LeftFoot"]
     boot = np.array([[0.1, 0.05, 0.0], [0.1, 0.2, 0.0]])
     assert prop_build.rigid_joint("boot_l", boot, np.ones((2, 3)), names) == "LeftFoot"
+    triangle = np.array([[0, 1, 2]])
+    heights = np.array([0.0, 1.75])
+    split = {0: (boot, triangle.clip(0, 1), None, None), 1: (np.array([[0.05, 1.6, 0.1], [-0.05, 1.6, 0.1],
+                                                                       [0.0, 1.65, 0.1]]), triangle, None, None)}
+    placed = prop_build.placed_names({0: "boot", 1: "boot"}, {0: "black rubber boot", 1: "black rubber boot"}, split,
+                                     heights)
+    assert placed == {0: "boot", 1: "black_rubber_boot"}, placed
+    assert prop_build.rigid_joint(placed[1], split[1][0], np.array([[1.0, 0, 0]] * 3), names) == "Hips"
     cloth = np.array([[0.1, 0.21, 0.0], [0.1, 0.5, 0.0]])
     eased = prop_build.eased_to_hard(cloth, np.array([[0, 1.0, 0], [0, 1.0, 0]]), boot,
                                      np.array(["LeftFoot", "LeftFoot"], dtype=object), names, np.array([-1, 0, 1]))
