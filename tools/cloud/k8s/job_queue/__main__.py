@@ -5,7 +5,8 @@ set-up are paid once a chain, not once a job.
     python3 tools/cloud/k8s/job_queue/__main__.py [--root <queue folder>]
 
 One tick every QUEUE_TICK seconds:
-1. three looks at the cluster: the box's Jobs and pods (by `score.dev/box`), the nodes, and the quota's room;
+1. four looks at the cluster: the box's Jobs and pods (by `score.dev/box`), the nodes, the quota's room, and the
+   autoscaler's events (a pending worker's "cannot grow", so a chain widens at its word, not after a start window);
 2. the inbox (new runs) and each worker's beat in the job store;
 3. finished jobs noted (a worker gone without its job's done.json gives the job back, one generation on), then
    assign (admission.py: priority, places round robin, a worker of the job's chain and band, the same place's worker
@@ -58,6 +59,7 @@ class Queue:
         self.runs = {run: state for run, state in self.runs.items() if not state.get("over")}
         self.seqs, self.last_place, self.told_go, self.idle_since = {}, {}, set(), {}
         self.after, self.widening, self.made = {}, {}, 0
+        self.no_grow = {}  # pod name: when the autoscaler last said none of its pools can grow for it
         money = client.read_json(self.root / "money.json") or {}
         self.nodes, self.booked = money.get("nodes", {}), money.get("booked", 0.0)
         self.read_assignments()
@@ -237,9 +239,7 @@ class Queue:
         kind = chain[0]
         widening = self.widening.setdefault(chain, {"step": 1, "since": now, "first": now})
         late = set(submitter.capacity.late_for(kind)) & set(order)
-        waiting = [(submitter.unscheduled_since(worker["pod"]), None) for worker in listed.values()
-                   if worker["chain"] == chain and worker["pod"] and worker["phase"] == "Pending"
-                   and submitter.unscheduled_since(worker["pod"]) is not None]
+        waiting = self.waiting(chain, listed)
         if submitter.may_widen(widening, order, late, now) and submitter.wants_widening(widening, waiting, now):
             widening.update(step=widening["step"] + 1, since=now)
             for worker in listed.values():
@@ -247,6 +247,15 @@ class Queue:
                     self.kubectl.delete_job(worker["job"])
                     worker["phase"] = "Failed"
         return order[:widening["step"]]
+
+    def waiting(self, chain, listed):
+        """The chain's unscheduled worker pods as submitter.wants_widening reads them: (unscheduled since, the
+        autoscaler's last "cannot grow" for the pod or None). Without that word a chain on pools whose most is 0 (score's
+        Paris processor pools, 2026-11-08) waited a start window a class before it was given back."""
+        return [(submitter.unscheduled_since(worker["pod"]),
+                 self.no_grow.get((worker["pod"].get("metadata") or {}).get("name")))
+                for worker in listed.values() if worker["chain"] == chain and worker["pod"]
+                and worker["phase"] == "Pending" and submitter.unscheduled_since(worker["pod"]) is not None]
 
     def widen_pending(self, listed, now):
         """Each open chain with a worker pending asks its widening every tick (classes_of), not only when a new worker
@@ -271,9 +280,7 @@ class Queue:
                 continue
             pending = [worker for worker in listed.values() if worker["chain"] == chain
                        and worker["phase"] == "Pending" and worker["pod"]]
-            waiting = [(submitter.unscheduled_since(worker["pod"]), None) for worker in pending
-                       if submitter.unscheduled_since(worker["pod"]) is not None]
-            if not submitter.wants_widening(widening, waiting, now):
+            if not submitter.wants_widening(widening, self.waiting(chain, listed), now):
                 continue
             say(f"{', '.join(order)}: no node in {submitter.NODE_MINUTES} min; the chain's work goes to rented machines")
             client.write_whole(self.root / client.UNHAD, {**(client.read_json(self.root / client.UNHAD) or {}),
@@ -390,11 +397,13 @@ class Queue:
     # The tick.
 
     def look(self):
-        """The tick's three looks at the cluster."""
+        """The tick's four looks at the cluster; the autoscaler's "cannot grow" times kept in `no_grow`."""
         items = self.kubectl.json("get", "jobs,pods", "-n", manifests.NAMESPACE, "-l",
                                   f"{manifests.BOX_LABEL}={self.box}")["items"]
         nodes = self.kubectl.json("get", "nodes")["items"]
-        return items, nodes, submitter.quota_room(self.kubectl)
+        room = submitter.quota_room(self.kubectl)
+        self.no_grow = submitter.no_grow_times(self.kubectl.json("get", "events", "-n", manifests.NAMESPACE)["items"])
+        return items, nodes, room
 
     def tick(self, now=None):
         now = self.clock() if now is None else now
