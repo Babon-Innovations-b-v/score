@@ -426,7 +426,8 @@ def test_the_walls_cut_an_opening_the_relations_cut_for_a_door_the_plan_s_openin
     opening for a door or window the plan's own openings each hold another of; the walls cut it, once where a row's
     own stands within their half widths. A 1 x 1 m window opening cut at (4, 1.5) from 1 m up takes 1.0 x 0.2 x 1.0
     out of the east wall. Relations derived from another plan than the kept one are left out, with why.
-    Break: score/stages/earth_seed/design_shell.py: `for cut in relation_cuts(relations):` -> `for cut in []:`"""
+    Break: score/stages/earth_seed/design_shell.py: `for row, cut in relation_cuts(relations):` -> `for row, cut in
+        []:`"""
     relations = {"relations": [{"item": "ON THE WALLS AND CEILING", "row": "window", "how": "in", "opening": {
         "at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0, "cut": True}}]}
     cut = {name: triangles for name, triangles, _ in design_shell.shell(design_shell.cut_for(ROOM, [], relations))}
@@ -440,21 +441,36 @@ def test_the_walls_cut_an_opening_the_relations_cut_for_a_door_the_plan_s_openin
 def test_a_relation_s_cut_replaces_a_row_s_opening_no_wall_cuts():
     """#36, cockpit 2026-10-30: its rear door's row opening stood at its plan item's middle, 0.75 m off its slanted
     wall's line, so no wall cut it, and the relation's opening on the wall's line was left out as standing within
-    their half widths: the wall stood uncut and the door swung into it. A window row's item 0.6 m inside the east wall
-    (past its 0.2 m and ON_WALL) gives way to the relation's cut at (4, 1.5), which takes its 1.0 x 0.2 x 1.0 m out of
-    the wall; an item on the wall keeps its own opening and the relation's cuts none more.
-    Break: score/stages/earth_seed/design_shell.py: `if not kept:` -> `if not near:`"""
+    their half widths: the wall stood uncut and the door swung into it. settle@engineroom 2026-11-08: its window's
+    item stood on its wall, so its row's opening was kept 0.66 m from where holders cut it (and the scene record laid
+    it), and door 3's cut, within their half widths of that window opening, was left out: the window stood half in the
+    wall, the door against an uncut one. A window row's item 0.6 m inside the east wall (past its 0.2 m and ON_WALL),
+    or on it, gives way to the relation's cut at (4, 1.5), which takes its 1.0 x 0.2 x 1.0 m out of the wall; an item
+    on the wall at (4, 1.3) whose relation cuts it at (4, 2.0) is cut there alone, and a door's cut at (4, 0.6) beside
+    it (another row's) is cut too: 1.0 x 0.2 x 1.0 m and 1.0 x 0.2 x 2.0 m out of the wall.
+    Break: score/stages/earth_seed/design_shell.py: `other.get("row") != row` -> `on_a_wall(plan, other)`
+    Break: score/stages/earth_seed/design_shell.py: `for row, cut in relation_cuts(relations):` -> `for row, cut in
+        relation_cuts(relations)[:1]:`"""
     rows = [{"id": "window", "name": "porthole window", "noun": "window", "size": [1.0, 0.1, 1.0]}]
     cut = {"at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0}
     relations = {"relations": [{"item": "ON THE WALLS AND CEILING", "row": "window", "how": "in",
                                 "opening": {**cut, "cut": True}}]}
     whole = {name: triangles for name, triangles, _ in design_shell.shell(ROOM)}
-    for x, found in ((3.35, [cut]), (3.95, [{"at": [4.0, 1.5], "wide": 1.0, "sill": 1.0, "head": 2.0, "row": "window"}])):
+    for x in (3.35, 3.95):
         plan = dict(ROOM, items=[["WINDOW 1", x, 1.0, 0.1, 1.0, None, "item"]], rows={"WINDOW 1": ["window"]},
                     shapes={"WINDOW 1": {"base": 1.0, "tall": 1.0}})
-        assert design_shell.cut_for(plan, rows, relations)["row_openings"] == found, x
+        assert design_shell.cut_for(plan, rows, relations)["row_openings"] == [cut], x
         laid = {name: triangles for name, triangles, _ in design_shell.shell(design_shell.cut_for(plan, rows, relations))}
         assert abs(volume(whole["wall_2"]) - volume(laid["wall_2"]) - 1.0 * 0.2 * 1.0) < 1e-6, x
+    moved, door = {"at": [4.0, 2.0], "wide": 1.0, "sill": 1.0, "head": 2.0}, {"at": [4.0, 0.6], "wide": 1.0,
+                                                                              "sill": 0.0, "head": 2.0}
+    beside = {"relations": [{"item": "WINDOW 1", "row": "window", "how": "in", "opening": {**moved, "cut": True}},
+                            {"item": "DOOR 1", "row": "door", "how": "in", "opening": {**door, "cut": True}}]}
+    plan = dict(ROOM, items=[["WINDOW 1", 3.95, 0.8, 0.1, 1.0, None, "item"]], rows={"WINDOW 1": ["window"]},
+                shapes={"WINDOW 1": {"base": 1.0, "tall": 1.0}})
+    assert design_shell.cut_for(plan, rows, beside)["row_openings"] == [moved, door]
+    laid = {name: triangles for name, triangles, _ in design_shell.shell(design_shell.cut_for(plan, rows, beside))}
+    assert abs(volume(whole["wall_2"]) - volume(laid["wall_2"]) - (1.0 * 0.2 * 1.0 + 1.0 * 0.2 * 2.0)) < 1e-6
 
 
 def test_a_room_is_a_kit_shell_inside_or_one_that_writes_walls():
