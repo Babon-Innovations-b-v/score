@@ -27,7 +27,8 @@ gate passes it), else
   score.stages.props.prop_data as prop_data`), never `from score.stages.props import ...`: that hashes `__init__.py`,
   and a table or check edit would re-buy every close-up and model. `props_test.py` holds both.
 - **The likeness gate** (`likeness.py`, `likeness_row.py`) is `tools/usd/compare.py`'s candidate check on the model
-  alone: silhouettes from eight ways round, no renderer. `OUTLINE_LEAST` was set on the hub's twelve accepted
+  alone: silhouettes from eight ways round, the best searched finer in 5 degree steps (`likeness_row.fine_way`: eight
+  alone moved a verdict by the model's turn, 2026-11-08), no renderer. `OUTLINE_LEAST` was set on the hub's twelve accepted
   round-six generated models with a 0.05 margin (`likeness.py measure`). DINOv2's least is set the same way by the
   paid row `likeness-calibration@<place>` (`calibration_row.py`, about EUR 0.43) on the accepted models the prop data
   names (`accepted`); without it the `likeness` check answers unknown and blocks. A designed place's hand-in names
