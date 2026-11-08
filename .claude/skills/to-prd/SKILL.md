@@ -155,6 +155,13 @@ gh api graphql -f query='query($o:String!,$n:String!,$i:Int!){repository(owner:$
 
 This must return exactly the parent number from `## Parent`. If it is `null` or a different number, the sub-issue POST did not succeed or you pointed at the wrong parent: fix it now, do not let it float as a loose card.
 
+**A full parent.** GitHub caps a parent at 100 sub-issues and the POST then answers HTTP 422, "cannot have more than 100 sub-issues". A long-lived backlog PRD reaches that with mostly closed children. Ask the owner in one line whether to unlink the closed ones (they stay closed with their history; only the link goes), and on a yes unlink them, link the new issue, and say so in a comment on the parent:
+
+```bash
+gh api "repos/$REPO/issues/<parent-PRD>/sub_issues?per_page=100" --jq '.[] | select(.state=="closed") | .id' |
+  while read -r id; do gh api --method DELETE repos/$REPO/issues/<parent-PRD>/sub_issue -F sub_issue_id="$id" >/dev/null; done
+```
+
 ### 5. Track under the PRD
 
 If you continue building in the same session (the normal flow), put the PRD on `In Progress` right away: `python3 .claude/scripts/board-status.py <N> "In Progress"`. Do not wait for [`close`](../close/SKILL.md); an issue being worked on is never on `Not started`.
