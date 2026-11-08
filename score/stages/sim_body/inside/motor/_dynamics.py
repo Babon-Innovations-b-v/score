@@ -76,6 +76,7 @@ class Settings:
 
 DEFAULT = Settings()
 PLACE_STEP = 1e-3  # m, rad: the card's float32 allows (`rra._linear.CARD_STEPS`)
+SPEED_STEP = 1e-2  # m/s, rad/s: stage B's speed differences (the velocity products' share is quadratic in it)
 SHIFT = 0.25  # of the step: the poses either side a node's speed and acceleration are read off
 
 
@@ -295,13 +296,41 @@ class Contact:
         return touching_all
 
 
+class Exact:
+    """Every state's needed forces and the bodies' frames on MuJoCo's C (float64), as `batched.Card.evaluate` gives
+    them on the card (float32): the cost of a solve whose weights reach past the card's rounding (stage B: a step
+    lowering the reserves by less than the card's 1e-6 of the pelvis' constraint force was lost in it, 2026-11-08)."""
+
+    def __init__(self, model):
+        self.model, self.data = model, mujoco.MjData(model)
+
+    def evaluate(self, qpos, qvel, qacc, names):
+        """`batched.Card.evaluate`'s dict (`needed` and `names`, one row a state) on MuJoCo's C."""
+        model, data = self.model, self.data
+        found = {name: [] for name in (*names, "needed")}
+        rne = np.zeros(model.nv)
+        for pose, speed, pace in zip(qpos, qvel, qacc):
+            data.qpos[:], data.qvel[:], data.qacc[:] = pose, speed, pace
+            mujoco.mj_fwdPosition(model, data)
+            mujoco.mj_fwdVelocity(model, data)
+            mujoco.mj_rne(model, data, 1, rne)
+            found["needed"].append(rne + model.dof_armature * pace - data.qfrc_passive)
+            for name in names:
+                found[name].append(getattr(data, name).copy())
+        found = {name: np.array(values) for name, values in found.items()}
+        found["qpos"], found["qvel"], found["qacc"] = np.asarray(qpos), np.asarray(qvel), np.asarray(qacc)
+        return found
+
+
 class Dynamics:
     """The whole trial's dynamics rows: `path` (`Path`), `contact` (`Contact`), the body's weight (N) and its centre's
     standing height (m), the rows' scales: the root's force over the weight, its moment over weight x height, a
-    joint's torque over weight x height."""
+    joint's torque over weight x height; `exact` (`Exact`) the rows' own evaluation when given, else the card's (the
+    Jacobians always the card's, on the speed then every velocity product by differences: at stage A's answer the
+    damping alone left the pelvis' rows 1.3 of their change off along stage B's step, and no step was kept)."""
 
-    def __init__(self, path, contact, weight, height):
-        self.path, self.contact, self.weight, self.height = path, contact, weight, height
+    def __init__(self, path, contact, weight, height, exact=None):
+        self.path, self.contact, self.weight, self.height, self.exact = path, contact, weight, height, exact
         self.scale = np.array([weight] * 3 + [weight * height] * 3)
 
     def evaluated(self, control):
@@ -310,7 +339,7 @@ class Dynamics:
         found)."""
         physics = self.contact.physics
         qpos, qvel, qacc = self.path.states(control)
-        found = physics.card.evaluate(qpos, qvel, qacc, ("xpos", "xmat", "cdof", "subtree_com"))
+        found = (self.exact or physics.card).evaluate(qpos, qvel, qacc, ("xpos", "xmat", "cdof", "subtree_com"))
         touching = self.contact.pushed(found)
         given = np.array([np.einsum("pin,pi->n", jacobians, force)
                           for force, _, _, jacobians, _, _ in touching])
@@ -330,7 +359,8 @@ class Dynamics:
                                                  PLACE_STEP * np.swapaxes(tangents, 1, 2).reshape(-1, model.nv)))
         moved = physics.card.evaluate(nudged, np.repeat(qvel, unknowns, axis=0), np.repeat(qacc, unknowns, axis=0),
                                       ())["needed"].reshape(count, unknowns, model.nv)
-        by_place = np.swapaxes(moved - found["needed"][:, None], 1, 2) / PLACE_STEP  # N x nv x m
+        base = found["needed"] if self.exact is None else physics.card.evaluate(qpos, qvel, qacc, ())["needed"]
+        by_place = np.swapaxes(moved - base[:, None], 1, 2) / PLACE_STEP  # N x nv x m
         data, by_pace = mujoco.MjData(model), np.zeros((count, model.nv, unknowns))
         inertia = np.zeros((model.nv, model.nv))
         for frame in range(count):
@@ -338,7 +368,13 @@ class Dynamics:
             mujoco.mj_fwdPosition(model, data)
             mujoco.mj_fullM(model, data, inertia)
             by_pace[frame] = inertia @ tangents[frame]
-        by_speed = model.dof_damping[None, :, None] * tangents
+        if self.exact is None:  # stage A's model: the joints' damping alone
+            by_speed = model.dof_damping[None, :, None] * tangents
+        else:  # stage B's: every velocity product term by one-sided differences on the card
+            speeding = physics.card.evaluate(np.repeat(qpos, unknowns, axis=0), np.repeat(qvel, unknowns, axis=0)
+                                             + SPEED_STEP * np.swapaxes(tangents, 1, 2).reshape(-1, model.nv),
+                                             np.repeat(qacc, unknowns, axis=0), ())["needed"]
+            by_speed = np.swapaxes(speeding.reshape(count, unknowns, model.nv) - base[:, None], 1, 2) / SPEED_STEP
         for frame, (force, by_over, by_point_speed, jacobians, ups, _) in enumerate(touching):
             stacked = jacobians.reshape(-1, model.nv)  # (p x 3) x nv
             rises = np.einsum("pi,pin->pn", ups, jacobians) @ tangents[frame]  # d height / d unknowns, p x m

@@ -2,11 +2,12 @@
 
 MOTOR (#98): the whole trial as one solve on the card, built step by step from the design on #98 (comment
 6721156999): 0 feasibility, 1 whole-trial movement, 2 inverse dynamics, contact and the pelvis residual,
-3 tuning (here now), 4 muscles, 5 batching, 6 into the stage. `__init__.py` is the interface (`solved`, `solved_on`, `METHOD`);
+3 tuning, 4 muscles (here now), 5 batching, 6 into the stage. `__init__.py` is the interface (`solved`, `solved_on`, `METHOD`);
 `_spline.py` the uniform cubic B-spline and its banded normal equations (pure numpy and scipy); `_rows.py` every
 frame's Gauss-Newton block of the fit's own cost from level 3's card pieces (`fit._card`), all frames as rows at once;
 `_dynamics.py` step 2's rows (the nodes' states, the card's inverse dynamics, the smooth contact, the torques and their
-Jacobians); `_stage_a.py` step 2's solve (`dynamics_solved`).
+Jacobians); `_stage_a.py` step 2's solve (`dynamics_solved`); `_muscles.py` step 4's muscle paths (MuJoCo's C), MuJoCo's muscle
+curves in Warp and the activation dynamics; `_stage_b.py` step 4's solve (`muscles_solved`).
 
 - **Step 1 is the fit's cost over the whole trial, nothing new in it**: the groups' turns, the landmarks' markers and
   the bones inside SOMA's posed skin, exactly as level 3 weighs them, plus the spline's jerk; the leading joints
@@ -62,7 +63,30 @@ Jacobians); `_stage_a.py` step 2's solve (`dynamics_solved`).
   sit-to-stand's residual (1% of its frames within). The landmarks' EM weights (learned on that run) gave angles
   8.00 deg, moments 1.64, own contact 21.8 / 6.4 and the same sit-to-stand loss: a job's "motor landmarks" when
   wanted, not the default. Not yet run on the held-out subjects 7-11 or all 715 trials.
+- **Step 4, stage B** (`_stage_b`, job `"motor": "muscles"`, after stage A in `sim_body.run_person`): stage A's
+  spline and every node's 416 activations solved together; each joint's reserve (stage A's torque less the muscles'
+  moment arms x MuJoCo's own force, gain a + bias) squared at a weight raised until the actuated ones are within 1
+  %BW*ht, the pelvis' rows by stage A's augmented Lagrangian carried on, the activations' effort cubed, MuJoCo's
+  activation dynamics as a hinge on each span's excitation. Ligament-held turns, unspanned joints (the neck) and a
+  joint pushed back in near an end of its range (STOP_REACH, smooth) carry their torque at STOP_SHARE. Each step
+  eliminates the activations node by node (Woodbury) onto the movement's banded system. The muscles' lengths and
+  moment arms are MuJoCo's own at every node (`_muscles.Paths`): the design's polynomials of the joints were refused
+  on MyoFullBody (61 of 416 muscles, the trunk's and the supraspinatus, past 1 mm / 2 mm on held-out poses, up to
+  85 mm of arm, 11 minutes a trial); the Gauss-Newton model leaves the arms' own change with the pose out. The cost is evaluated on
+  MuJoCo's C (`_dynamics.Exact`: the card's float32 hid the steps), and the speed Jacobian takes every velocity
+  product by card differences (stage A's damping-only model left the pelvis' rows 1.3 off along stage B's step and no
+  step was kept). The frames' activations are stage B's; the chain still runs on its path and measures it.
+- **Measured 2026-11-08, step 4** (the 8 training trials, cluster L4s, EUR 6.1 of the override motor-step4-muscles;
+  stage A / stage B, the chain measuring each path): the pelvis' residual within 2 %BW and 1 %BW*ht on every frame of
+  8 of 8 trials (stage A 7, the sit-to-stand 98%), worst under 0.13 %BW; joint moments 1.84 / 1.77 %BW*ht, anterior
+  GRF 5.5 / 5.4 %BW, vertical 14.7 / 14.8, angles MAE 8.09 / 8.25 deg (this table's mean over the coordinates); EMG
+  on/off agreement 0.62 / 0.61, r 0.21 / 0.20 (the static optimisation's on stage A's path / stage B's). The reserves
+  fell (worst 30-420 %BW*ht at the warm start to 16-183) but are not within 1 %BW*ht on any trial; excitations stay
+  0.7 outside [0, 1] on a span of every trial. Stage B takes about as long as stage A (80 s a walk, 7-13 min a squat
+  or sit-to-stand). The first batch, the reserves' weight raised alone: reserves lower (7-58) but the residual within
+  on 2 of 8 trials.
 - Card only: `solved` raises where Warp sees no CUDA card. The banded solve runs on the host (scipy's
   `solveh_banded`, 5,000-25,000 unknowns, three control points either side).
 - Test: `test_one_spline_solve_lowers_the_trials_cost_and_jerk_within_its_ranges.py` (the card's toy, 40 frames;
-  step 2 on the same toy built as a person is, a skin grid under its root on a flat floor).
+  step 2 on the same toy built as a person is, a skin grid under its root on a flat floor; step 4 on it with five
+  muscles).

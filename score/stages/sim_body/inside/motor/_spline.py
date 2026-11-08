@@ -75,6 +75,15 @@ class Banded:
                 self.blocks[first:first + count, second - first] += np.einsum(
                     "nrs,nrm->nsm", jacobians[:, second], jacobians[:, first])
 
+    def add_dense(self, hessians, gradients):
+        """Each node's own normal equations on its three control points (H [N, 3, 3, m, m], H[n, b, a] point b's rows
+        against point a's; g [N, 3, m]): stage B's, its activations eliminated."""
+        count = len(hessians)
+        for first in range(3):
+            self.gradient[first:first + count] += gradients[:, first]
+            for second in range(first, 3):
+                self.blocks[first:first + count, second - first] += hessians[:, second, first]
+
     def add_jerk(self, control, step, weights):
         """The jerk cost's (half) Hessian and gradient: each span's four control points, `weights` [m] a coordinate."""
         spans = len(control) - 3
