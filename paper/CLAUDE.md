@@ -26,10 +26,10 @@ python3 score/build/build.py --check   # exit 1 when a committed output is stale
   records its numbers are read from. Same class, margins and natbib style as SCORE's; gap boxes are `\gapbox`,
   numbers still moving are `\interim`. Its story is the one agreed with the owner (#98 comment 6723992362). The
   main body is **at most 4 pages**: it ends at `\label{endofmain}` after a `\FloatBarrier`, and its page in
-  `main.aux` is at most 4. It follows the structure and plainness of the owner's published paper (arXiv:2607.17639:
-  abstract, introduction to a "what is new" paragraph, method in two parts, why GPU, validation protocol, results,
-  discussion, conclusion; short plain sentences, no project jargon); method detail and full tables go to the
-  appendices. Every result of MOTOR is a gap box until the whole-trial solver's full run (#98); numbers of the
+  `main.aux` is at most 4. It follows the structure and register of the owner's published paper (arXiv:2607.17639:
+  abstract, introduction to a "what is new" paragraph, method in two parts (calibration once, the solver per
+  recording), why GPU, validation protocol, results, discussion, conclusion; full academic prose, no project jargon);
+  method detail and full tables go to the appendices. Every result of MOTOR is a gap box until the whole-trial solver's full run (#98); numbers of the
   per-frame chain, its warm start, appear only in their own appendix, labelled as the chain's, never as MOTOR's.
   Build with `--keep-intermediates`, then delete `main.aux`, `main.out` and `main.log`.
 - `evidence/`: the shared run records that code reads as well as the papers, left at this path because paid rows'
@@ -50,5 +50,11 @@ python3 score/build/build.py --check   # exit 1 when a committed output is stale
 - **Disclose** what was automatic, what a coding agent wrote, what was a hand fix and what was a human pick.
 - **Pictures:** our own outputs only, no real person's likeness, models whose licence allows commercial use.
 - Top-level headings are `#`; a new heading becomes a new `content/` file by itself.
-- Write plain and direct, claims no stronger than the record; quote the owner only where the
-  paper records what he said, and turn offhand remarks into proper wording.
+- **Write in the register of the owner's published paper** (arXiv:2607.17639; owner, 2026-11-08): full, connected
+  academic sentences that argue and motivate; an introduction that builds from the broad field to the specific gap,
+  its citations carrying the argument; methods that say why each choice is made; a discussion that draws out
+  implications; a conclusion that restates the finding in context, says what the work removes or makes possible and
+  ends on what it opens for the field. Not chat style: no staccato slogan lines, no stacked colon lists in running
+  text, no run of short sentences; the chat style rules of `.claude/soul.md` do not apply to paper prose. Plain means
+  clear and precise, not childish. Claims no stronger than the record; quote the owner only where the paper records
+  what he said, and turn offhand remarks into proper wording.
