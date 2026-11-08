@@ -21,7 +21,8 @@ turns each red (applied once, seen red, reverted):
   LEFT_TO_CODE or ...` -> `return False` (a Python edit no row reads bakes again); or -> `return True` (a changed
   data table is taken as kept).
 - test_a_copy_cut_short_before_its_done_mark_is_not_taken: in `mark_of`, `if mark.exists() else None` -> `if
-  mark.parent.exists() else None` (an entry without its mark is read).
+  mark.parent.exists() else None` (an entry without its mark is read); in `entries`, drop the `except
+  FileNotFoundError: continue` (a mark listed but gone when read, a dangling link, stops the whole make).
 - test_outside_a_make_or_the_making_folder_nothing_is_kept: in `relative_outputs`, `return None` -> `continue` (a
   job writing outside the making folder is kept with no outputs); or in `identity`, `code is None or ` dropped.
 - test_at_the_runner_a_failed_make_reruns_only_its_lacking_jobs_and_keeps_them_for_the_next_key: in
@@ -225,6 +226,9 @@ def test_a_copy_cut_short_before_its_done_mark_is_not_taken(monkeypatch, tmp_pat
     [mark] = (tmp_path / "store" / "kept").rglob(kept.DONE)
     mark.unlink()  # the copy was cut before its mark
     again = attempt(monkeypatch, tmp_path, "again")
+    assert kept.missing([frames(again, 0)], SYSTEM) == [frames(again, 0)]
+    mark.symlink_to(tmp_path / "gone")  # a mark listed but gone when read
+    assert list(kept.entries()) == []
     assert kept.missing([frames(again, 0)], SYSTEM) == [frames(again, 0)]
 
 
