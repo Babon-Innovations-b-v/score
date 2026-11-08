@@ -565,11 +565,14 @@ def finish_turn(take):
     for path in sorted(PIXAL.glob(f"{take}-[0-9]*.glb")):
         if np.array_equal(glb_file.positions(*glb_file.read(path)), stood):
             return raw_facing(take)  # never stood: a code build is made in its own pose (thin_straight.py)
-        for long, feet, flat in ((False, False, False), (True, False, False), (False, True, False), (True, True, False),
-                                 (False, False, True)):
+        for options in ((False, False, False), (True, False, False), (False, True, False), (True, True, False),
+                        (False, False, True), None):
+            long, feet, flat = options or (None, False, False)
             document, views = glb_file.read(path)
             points = glb_file.positions(document, views)
-            turn = glb_file.upright_turn(points, long=long, feet=feet, flat=flat)
+            # None: the picture's up kept, only squared (pixal.py stood_turn, for a shape its box would tip; 2026-11-08)
+            turn = glb_file.squared(points) if long is None else glb_file.upright_turn(points, long=long, feet=feet,
+                                                                                         flat=flat)
             glb_file.turned(document, views, turn)
             whole = glb_file.level_turn(*glb_file.faces(document, views)) @ turn
             moved = points @ whole.T

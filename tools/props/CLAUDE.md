@@ -45,4 +45,5 @@ that brings it into a place. The heavy runtime lives outside the repo, under `~/
   in it) in a sandbox home; each file's docstring names the break that turns each test red. Here: `card.py`
   `test_one_run_on_the_card.py`, `local_models.py` and `heavy.py` `test_refused_on_this_pc.py`, `pixal.py`
   `test_raw_model_faces_minus_z.py`, `clean_finish.py` `test_crop_as_pixal3d_does.py`, `glb_file.py`
-  `test_stood_up_and_kept_intact.py`.
+  `test_stood_up_and_kept_intact.py`, `stand.py` (the finish's stand: a shape its tightest box would tip keeps the
+  picture's up) `test_a_shape_its_box_would_tip_keeps_its_up.py`.
