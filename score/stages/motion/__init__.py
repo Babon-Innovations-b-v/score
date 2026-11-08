@@ -820,8 +820,9 @@ def swing_at(stage, path, code):
 
 def judge_rests(output, inputs, evidence):
     """Pass when every door stands and moves as its row's words say: one whose name says open stands open at the
-    layer's start and does not move, one that says closed (or nothing) stands shut there, and one whose name says
-    sliding, garage, roller, shutter or double never swings as a single leaf."""
+    layer's start and does not move (one lying in one piece, which no swing can pose, stands as its model is built:
+    from_design.LYING_OPEN), one that says closed (or nothing) stands shut there, and one whose name says sliding,
+    garage, roller, shutter or double never swings as a single leaf."""
     stage, place = composed(output, inputs), place_of(inputs)
     record = read_json(inputs["moves"])
     swings = {entry["prim"] for entry in [*record.get("moves", []), *record.get("posed", [])] if "swing" in entry}
@@ -833,7 +834,8 @@ def judge_rests(output, inputs, evidence):
         opened = bool(said & set(rule.get("open_words", ())))
         for path in row_kinds.objects_of(stage, place, row["id"]):
             judged += 1
-            off = swing_at(stage, path, 0.0) > 1e-6 or under(path, posed)
+            built = not from_design.upright(stage, path) and not from_design.hinged(stage, path)
+            off = swing_at(stage, path, 0.0) > 1e-6 or under(path, posed) or (opened and built)
             if opened and (not off or under(path, moving)):
                 faults.append(f"{path}: its row says open (\"{row.get('name')}\"), yet it stands shut or moves")
             if not opened and off:

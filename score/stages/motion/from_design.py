@@ -13,7 +13,8 @@ rule says (data/checks/row-kinds.json `motion`), at the speed its motion kind's 
             kind's cited speeds, so the layer loops
     still   standing, with the rule's reason
     lying   a swing turns about an upright line, so only a thing standing upright swings: one whose own box is lower
-            than it is wide both ways (a hatch in a floor, a crane spanning a hall on its rails) stands, with LYING
+            than it is wide both ways (a hatch in a floor, a crane spanning a hall on its rails) stands, with LYING;
+            one whose words say open stands open as its one-piece model is built, with LYING_OPEN
     needs   "passes": a rule that moves only for a walker of the scene's accepted cast whose route (the cast's path,
             else its walk the way it faces: scene_clips.legs_of) comes within NEAR of the object at rest, its moves
             timed off each crossing: open by when the walker comes that near, shut once it is that far past, played
@@ -65,6 +66,10 @@ NEEDS = {"passes": "acts"}
 READ_STEP = 0.1
 LYING = ("it lies lower than it is wide both ways (its own box), so it would turn about a level line or travel on "
          "rails, never about the upright line a swing turns on: it stands as the plan lays it")
+# A lying one-piece thing whose words say open (wreck's open hatch, 2026-11-08): no swing can pose it, so the open its
+# words say is its model's own built shape, and it stands as made.
+LYING_OPEN = (LYING + "; its row's words say open, and in one piece its open lid is its model's own built shape, so it "
+              "stands open as made")
 
 
 def middle_speed(rule, measure):
@@ -382,7 +387,7 @@ def record(place, inventory, kinds, motion_kinds, stage, carried=(), cast=None, 
             elif rule["move"] == "launch":
                 unmade += launched(path, row, rule, motion_kinds[rule["kind"]], body, moves, still)
             elif rule["move"] == "swing" and not upright(stage, path):
-                still[path] = LYING
+                still[path] = LYING_OPEN if rule.get("rests") == "open" else LYING
             elif rule.get("rests") == "open" and made:
                 posed.append(made(path, row["id"], rule, motion_kinds[rule["kind"]], stage, posed=True))
                 still[path] = f"it stands open, as its row's words say (\"{row.get('name')}\")"
