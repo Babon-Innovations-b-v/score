@@ -6,7 +6,8 @@ where it is laid with a box on its floor, and a body of 100 parts drops with roo
 trial Python under PROPS_HOME (bash score/stages/physics/inside/newton_env.sh $PROPS_HOME/envs/newton_env), as in
 `make tests`' sandbox home, those two drop checks print `skipped` and pass nothing.
 
-Breaks that turn each test red (each applied once and seen red):
+Breaks that turn each test red (each applied once and seen red; all five again on 2026-11-08, with the crate
+one closed surface and its kept parts read by the laid crate's checks: 24 s for the file fixed on this PC's card):
 - a_hollow_keeps_its_hollow_and_a_box_is_one_hull (2026-10-27): convex_parts.decomposed's `chosen = [whole.vertices]
   if ONE_HULL[0] <= share <= ONE_HULL[1] else parts` made `chosen = [whole.vertices]`.
 - a_laid_hollow_object_gets_its_parts_in_its_own_frame (2026-10-27): convex_parts.hollow_parts's `if len(parts) > 1`
@@ -25,6 +26,7 @@ Run: .venv/bin/python tools/usd/test_a_hollow_body_keeps_its_hollow.py   (make t
 import json
 import math
 import pathlib
+import shutil
 import sys
 import tempfile
 
@@ -37,12 +39,27 @@ import convex_parts  # noqa: E402
 
 
 def open_crate():
-    """A 1 m crate with no lid: a floor and four walls 0.6 m high, 4 cm thick."""
-    move = trimesh.transformations.translation_matrix
-    sides = [trimesh.creation.box(extents=(1.0, 0.04, 0.8), transform=move((0, 0.02, 0)))]
-    sides += [trimesh.creation.box(extents=(0.04, 0.6, 0.8), transform=move((x, 0.3, 0))) for x in (-0.48, 0.48)]
-    sides += [trimesh.creation.box(extents=(1.0, 0.6, 0.04), transform=move((0, 0.3, z))) for z in (-0.38, 0.38)]
-    return trimesh.util.concatenate(sides)
+    """A 1 m crate with no lid: a floor and four walls 0.6 m high, 4 cm thick, as one closed surface (outside, rim,
+    inside), so CoACD takes it as it is (about 3 s of one core) and does not remesh it into 113k triangles first, as
+    it did five overlapping boxes (15 s); its corners unwelded as a made model's export draws it, so the crate laid on
+    a stage is the same mesh (the same kept parts) as the crate given alone."""
+    square = [(-1, -1), (1, -1), (1, 1), (-1, 1)]
+    outer, inner = [(sx * 0.5, sz * 0.4) for sx, sz in square], [(sx * 0.46, sz * 0.36) for sx, sz in square]
+    rings = [[(x, 0.0, z) for x, z in outer], [(x, 0.6, z) for x, z in outer],
+             [(x, 0.6, z) for x, z in inner], [(x, 0.04, z) for x, z in inner]]
+    quads = [[0, 3, 2, 1], [12, 13, 14, 15]]
+    quads += [[ring * 4 + side, ring * 4 + (side + 1) % 4, ring * 4 + 4 + (side + 1) % 4, ring * 4 + 4 + side]
+              for ring in range(3) for side in range(4)]
+    triangles = [[a, b, c] for a, b, c, _ in quads] + [[a, c, d] for a, _, c, d in quads]
+    crate = trimesh.Trimesh([corner for ring in rings for corner in ring], triangles)
+    trimesh.repair.fix_normals(crate)
+    crate.unmerge_vertices()
+    return crate
+
+
+# The parts kept of the crate by the first check, which the laid crate's checks read instead of running CoACD again
+# (seconds of one core each): their breaks are in hollow_parts and the drop, never in the decomposition.
+KEPT = tempfile.TemporaryDirectory(prefix="convex-parts-")
 
 
 def a_hollow_keeps_its_hollow_and_a_box_is_one_hull():
@@ -58,6 +75,7 @@ def a_hollow_keeps_its_hollow_and_a_box_is_one_hull():
             again, _ = convex_parts.convex_parts(meshes, temporary)
         finally:
             convex_parts.decomposed = real
+        shutil.copytree(temporary, KEPT.name, dirs_exist_ok=True)
     problems = [] if again == found else ["the kept parts read back differently"]
     problems += [f"CoACD failed: {unsplit}"] if unsplit else []
     if len(found["box"]) != 1 or len(found["box"][0]) != 8:
@@ -82,7 +100,7 @@ def a_laid_hollow_object_gets_its_parts_in_its_own_frame():
         path = resting_test.laid_place(folder, [("crate", "crate", (2, 0, 1)), ("block", "box", (5, 0, 0))],
                                        [("crate", "floor"), ("block", "floor")])
         stage = Usd.Stage.Open(str(path))
-        found, _ = convex_parts.hollow_parts(stage, resting_test.PLACE, ["crate_1", "block_1"], folder / "cache")
+        found, _ = convex_parts.hollow_parts(stage, resting_test.PLACE, ["crate_1", "block_1"], KEPT.name)
     problems = [] if set(found) == {"crate_1"} else [f"parts were given to {sorted(found)}, not the crate alone"]
     corners = np.concatenate([np.asarray(part) for part in found.get("crate_1", [[[0, 0, 0]]])])
     if np.any(corners.min(axis=0) < [-0.51, -0.01, -0.41]) or np.any(corners.max(axis=0) > [0.51, 0.61, 0.41]):
@@ -148,7 +166,7 @@ def dropped(folder):
     path = resting_test.laid_place(folder, [("crate", "crate", FAR), ("block", "small", (FAR[0], 0.62, FAR[2]))],
                                    [("crate", "floor"), ("block", "floor")])
     stage = Usd.Stage.Open(str(path))
-    hollow, _ = convex_parts.hollow_parts(stage, resting_test.PLACE, ["crate_1", "block_1"], folder / "cache")
+    hollow, _ = convex_parts.hollow_parts(stage, resting_test.PLACE, ["crate_1", "block_1"], KEPT.name)
     (path.parent / convex_parts.FILE).write_text(json.dumps(hollow))
     found = drop.simulate(path, {"crate_1": 0.0, "block_1": 0.0}, folder / "drop", under={"block_1": ["crate_1"]})
     return found, stage, sorted(hollow)
