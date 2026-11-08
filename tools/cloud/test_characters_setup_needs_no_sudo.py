@@ -7,8 +7,10 @@ The break that turns it red: drop `python3-pip` from characters_setup.sh's apt-g
 
 second test: characters.py's cluster path (SCORE_CLOUD=k8s) is another invariant of the same runner: a clip make
 goes to the cluster as one job in the characters-motion image, its in/ up and its out/ back at the make folder, its
-program in the motion environment with its models named; a make with a step the image cannot run (a look's shell) is
-refused before anything is sent. Breaks that turn it red: drop the `provider.on_cluster()` branch in `main`; drop the
+program in the motion environment with its models named; a make with a step the image cannot run (a look's shell) or a
+held machine (--hold) rents machines as without the cluster, nothing sent to it, and `cluster_job` refuses such a make
+(env1's try of 2026-11-08: refused, the looks' bodies had no route). Breaks that turn it red: drop the
+`provider.on_cluster()` branch in `main`; drop `not options.hold` or `on_the_image` from it; drop the
 `steps <= CLUSTER_STEPS` refusal in `cluster_job`; drop `"models"` from `cluster_job`'s job.
 """
 import json
@@ -29,7 +31,7 @@ def test_every_package_sam3dbody_checks_for_is_installed_before_it_runs():
     assert checked <= set(install.replace("\\\n", " ").split()), checked - set(install.replace("\\\n", " ").split())
 
 
-def test_a_clip_make_goes_to_the_cluster_and_a_look_make_is_refused(tmp_path, monkeypatch):
+def test_a_clip_make_goes_to_the_cluster_and_a_look_make_to_machines(tmp_path, monkeypatch):
     sys.path.insert(0, str(REPO / "tools/cloud"))
     sys.path.insert(0, str(REPO / "tools/cloud/k8s"))
     import characters
@@ -52,7 +54,13 @@ def test_a_clip_make_goes_to_the_cluster_and_a_look_make_is_refused(tmp_path, mo
     assert job["outputs"] == [{"path": "/root/make/people-clips-make/out", "local": str(clips / "out")}]
     assert "tools/characters/maker/prop_chain.py /root/make/people-clips-make" in job["command"][-1]
     assert job["code"] == ["tools/characters"] and "kimodo-soma-rp-v1.1" in job["models"]
-    monkeypatch.setattr(sys, "argv", ["characters.py", str(look), "--who", "test"])
+    def machines():
+        raise SystemExit("to machines")
+    monkeypatch.setattr(characters.cloud, "account", machines)
+    for argv in ([str(look)], [str(clips), "--hold"]):
+        monkeypatch.setattr(sys, "argv", ["characters.py", *argv, "--who", "test"])
+        with pytest.raises(SystemExit, match="to machines"):
+            characters.main()
     with pytest.raises(SystemExit, match="shell"):
-        characters.main()
+        characters.cluster_job(look)
     assert len(sent) == 1
