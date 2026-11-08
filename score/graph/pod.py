@@ -589,12 +589,12 @@ def placed_inputs(store, job, cache):
                 blob.chmod(0o444)
             allowed.add(offload.blob_key(sha))
     for declared in job["files"].values():
-        root = pathlib.Path(declared["path"])
-        for relative, sha in declared["listing"].items():
-            target = root / relative if declared["folder"] else root
-            if not target.exists():  # one already there is kept as it is: refusal compares its hash
-                target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copyfile(cached_blob(cache, sha), target)
+        for root in declared_roots(job, declared):
+            for relative, sha in declared["listing"].items():
+                target = root / relative if declared["folder"] else root
+                if not target.exists():  # one already there is kept as it is: refusal compares its hash
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copyfile(cached_blob(cache, sha), target)
     for key, sha in job["records"].items():
         target = store.objects.root / key
         if not target.exists():
@@ -602,6 +602,18 @@ def placed_inputs(store, job, cache):
             shutil.copyfile(cached_blob(cache, sha), target)
         allowed.add(key)
     return allowed | {f"{prefix}*" for prefix in job["listed"]}
+
+
+def declared_roots(job, declared):
+    """Where a declared file goes in the pod: its path, and for one under the conductor's home (the world's `home`
+    root) the same place under this pod's home too, where a make that reads it from PROPS_HOME finds it
+    (light@campgrounds, 2026-11-08: concept_pictures opens <home>/design/concepts/<place>.png, declared as
+    {home}/design/concepts/<place>.png, and the pod's home held only the designs' JSONs)."""
+    path = pathlib.Path(declared["path"])
+    home = job["world"]["roots"].get("home")
+    if home is None or not path.is_relative_to(home) or pathlib.Path(home) == score_store.PROPS_HOME:
+        return [path]
+    return [path, score_store.PROPS_HOME / path.relative_to(home)]
 
 
 @contextlib.contextmanager
