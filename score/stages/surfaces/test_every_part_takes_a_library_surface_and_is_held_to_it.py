@@ -169,7 +169,8 @@ tests it turned red:
 - route_list.py: `return (level, cause) if level in levels and cause else (None, None)` -> `return (level, cause) if
   level in levels else (None, None)`  ->
   one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish
-- route_split.py: `if found["unassigned"] > 0:` -> `if False:`  ->
+- route_split.py: `if found["unassigned"] > UNASSIGNED_MOST:` -> `if False:`, and apart -> `if found["unassigned"]
+  > 0:` (no tolerance) and -> `if found["unassigned"] > 2 * UNASSIGNED_MOST:` (loosened past the measure)  ->
   an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view
 - route_split.py: `own = np.where((votes.sum(1) > 0) & ~tied, votes.argmax(1), -1)` -> `own = np.where(votes.sum(1) >
   0, votes.argmax(1), -1)`; and, apart, `votes[seen, label[seen]] += square * (` -> `votes[seen, label[seen]] += 1.0 * (`
@@ -2159,7 +2160,8 @@ def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face
 
 def test_an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view():
     """Owner, 2026-10-28: views disagreeing on 1.2 to 5.8% of eleven takes is a split decision, never a gap. A face
-    takes the finish the views that see it most squarely give; a tie takes the finish round it."""
+    takes the finish the views that see it most squarely give; a tie takes the finish round it. Unassigned area up to
+    route_split.UNASSIGNED_MOST (quarters box's 0.01%, 2026-11-08) walks to its nearest label; over it is a gap."""
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         blue_left_out = lambda views, take: two_finish_answer(views, lambda view, colour: 1 if colour == RED else None)
@@ -2172,6 +2174,14 @@ def test_an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_
     votes = route_split.squared_votes(mesh, apart, route_split.cast.BASE, 2)
     found = route_split.shares(mesh, apart, route_split.finish_parts.voted(apart, 2))
     assert found["disagree"] == 1.0 and route_split.split_fault(found) is None, found  # recorded, no gap
+    sliver = {"unseen": 0.5, "disagree": 0.0, "unassigned": route_split.UNASSIGNED_MOST}
+    assert route_split.split_fault(sliver) is None, sliver  # quarters box's share: walked, no gap
+    over = dict(sliver, unassigned=round(route_split.UNASSIGNED_MOST + 0.0001, 4))
+    assert "unassigned" in route_split.split_fault(over), over  # just over what a real take showed: still a gap
+    unvoted = np.zeros((len(mesh.faces), 2))
+    unvoted[:, 1] = 1.0
+    unvoted[7] = 0.0  # seen in a region no label reaches: no vote
+    assert route_split.voted_finishes(mesh, unvoted, 2)[1][7] == 1  # its nearest label's finish
     normals = mesh.face_normals
     side, up = np.abs(normals[:, 0]) > 0.9, np.abs(normals[:, 1]) > 0.9
     assert (votes[side].argmax(1) == 0).all() and (votes[up].argmax(1) == 1).all()  # the squarer view wins

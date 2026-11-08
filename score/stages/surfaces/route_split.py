@@ -6,7 +6,8 @@ The close-up laid on the model (route_views.CLOSE_UP, where the views row laid i
 finish only it labels, one no view of the texture shows, takes the faces it labels it on (close_up_only).
 
 Every face gets exactly one finish, or its take is a gap, named (owner, 2026-10-20): a face some view sees whose
-regions no view labelled is unassigned, a gap. Faces whose views disagree (no finish over half their votes) are a
+regions no view labelled is unassigned, a gap once its share of the area passes UNASSIGNED_MOST; under it each takes
+its nearest labelled face's finish, as an unseen face does (walked), its share still recorded. Faces whose views disagree (no finish over half their votes) are a
 split decision, never a gap (owner, 2026-10-28: the views disagreed on 1.2 to 5.8% of eleven takes, one colour region
 over several finishes, and the old 1% limit was never measured): each takes the finish its views weigh most, a tie
 the finish of the part round it (walked); their share is still recorded. A face no view can see (the inside of a raw
@@ -48,6 +49,11 @@ import surface_gates as gates  # noqa: E402
 import score.stages.batch_gaps as batch_gaps  # noqa: E402
 
 EDGE_ON = 1e-3  # the least weight of a view's vote on a face it sees (squared_votes)
+# The most of a take's area (as split.json records it, to four places) left unassigned that walks to its nearest
+# label, not a gap: of 779 takes split in the store (2026-11-08) 778 recorded 0 and one 0.0001, quarters box (48 of
+# its 969,698 faces, which only the laid close-up sees, in a small region the list left unlabelled there). Measured,
+# never loosened past what a real take showed.
+UNASSIGNED_MOST = 0.0001
 
 
 def model_of(folder):
@@ -102,11 +108,13 @@ def shares(mesh, per_map, votes):
 
 def split_fault(found):
     """The gap a take's shares make (None when every face has one finish): faces some view sees that no label
-    reaches, or no face any view sees (no finish to settle any face by)."""
+    reaches over UNASSIGNED_MOST of its area (under it they walk to their nearest label), or no face any view sees
+    (no finish to settle any face by)."""
     if found["unseen"] >= 1.0:
         return "no view sees any of its faces: no finish can be settled"
-    if found["unassigned"] > 0:
-        return f"faces no label reaches ({found['unassigned']:.2%} of its area): unassigned"
+    if found["unassigned"] > UNASSIGNED_MOST:
+        return (f"faces no label reaches ({found['unassigned']:.2%} of its area, over {UNASSIGNED_MOST:.2%}): "
+                "unassigned")
     return None
 
 

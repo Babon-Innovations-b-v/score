@@ -62,8 +62,9 @@ def covers(entry, finding):
 def moved(verdict, gaps):
     """The gate's verdict with the faults of the named objects moved to the completion gate: a fail whose every
     finding is a named object's passes, its findings and measures kept and each accepted gap said; any other fault
-    keeps the fail. An unknown whose reason holds an entry's `unknown` phrase passes the same way. Another answer is
-    as given."""
+    keeps the fail, its reason naming the gaps of the findings that are theirs (likeness@quarters, 2026-11-08: the
+    box's split gap was carried, but the rug's own fault kept the likeness gate failing, and "box: no model" named no
+    gap). An unknown whose reason holds an entry's `unknown` phrase passes the same way. Another answer is as given."""
     named = [entry for entry in gaps if entry.get("unknown") and entry["unknown"] in verdict.reason]
     if verdict.answer == checks.UNKNOWN and named:
         said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in named)
@@ -71,10 +72,13 @@ def moved(verdict, gaps):
                               {**verdict.measures, "moved": 1}, verdict.better, verdict.findings)
     if verdict.answer != checks.FAIL or not verdict.findings or not gaps:
         return verdict
-    if not all(any(covers(entry, finding) for entry in gaps) for finding in verdict.findings):
-        return verdict
     said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in gaps
                      if any(covers(entry, finding) for finding in verdict.findings))
+    if not all(any(covers(entry, finding) for entry in gaps) for finding in verdict.findings):
+        if not said:
+            return verdict
+        return checks.Verdict(verdict.check, verdict.answer, f"{verdict.reason}; of them, gaps for complete: {said}",
+                              verdict.measures, verdict.better, verdict.findings)
     return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as accepted gaps: {said}",
                           {**verdict.measures, "moved": len(verdict.findings)}, verdict.better, verdict.findings)
 
