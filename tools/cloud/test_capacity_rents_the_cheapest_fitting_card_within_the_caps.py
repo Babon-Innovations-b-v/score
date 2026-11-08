@@ -248,24 +248,33 @@ def in_a_run(home, cap, run="test-run"):
 
 
 # A batch process of a `score run`: it rents fake machines as fast as next_offer gives offers and lets some go,
-# writing how many the run's processes hold together into one file.
+# writing how many the run's processes hold together into one file. It runs a number of asks, never a span of time
+# (a 4 s span on a loaded gate pod gave a few asks, too few to reach the cap): it starts once every renter has, asks
+# until the run has held its cap and it has asked AT_CAP_ASKS times since, and lets its machines go at its end, so a
+# renter that ends first leaves no machines on the count that the others no longer see.
 RENTER = """
 import fcntl, json, pathlib, random, sys, time
 sys.path.insert(0, sys.argv[1])
 import capacity, provider
-held = pathlib.Path(sys.argv[2])
+held, renters, cap = pathlib.Path(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4])
 offers = [provider.Offer(0.01, 2, "gpu-24gb-type0", "zone-a", 0.01, "gpu-24gb", 0, "available")]
+AT_CAP_ASKS = 30
 
-def together(change):
+def together(change, started=0):
     with held.open("r+") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
-        counts = json.loads(handle.read() or '{"now": 0, "most": 0}')
+        counts = json.loads(handle.read() or '{"now": 0, "most": 0, "started": 0}')
         counts["now"] += change
         counts["most"] = max(counts["most"], counts["now"])
+        counts["started"] += started
         handle.seek(0), handle.truncate(), handle.write(json.dumps(counts))
+        return counts
 
-machines, until = [], time.time() + 4
-while time.time() < until:
+together(0, started=1)
+while together(0)["started"] < renters:
+    time.sleep(0.01)
+machines, asked_at_cap = [], 0
+while asked_at_cap < AT_CAP_ASKS:
     if capacity.next_offer(offers, machines, "pixal") is not None:
         machines.append({"zone": "zone-a", "class": "gpu-24gb", "deleted": None})
         together(1)
@@ -273,7 +282,9 @@ while time.time() < until:
     if live and random.random() < 0.3:
         live[0]["deleted"] = time.time()
         together(-1)  # off the count first: the process's count lets it go at its next ask
+    asked_at_cap += together(0)["most"] >= cap
     time.sleep(random.random() * 0.02)
+together(-sum(not machine["deleted"] for machine in machines))
 """
 
 
@@ -281,7 +292,7 @@ def test_two_batches_of_one_run_hold_the_runs_cap_together(tmp_path):
     """Fault (2026-10-17): every --jobs node and parallel batch held run_cap machines of its own."""
     held = tmp_path / "held.json"
     held.write_text("")
-    renters = [subprocess.Popen([sys.executable, "-c", RENTER, HERE, str(held)], env=in_a_run(tmp_path, 4))
+    renters = [subprocess.Popen([sys.executable, "-c", RENTER, HERE, str(held), "2", "4"], env=in_a_run(tmp_path, 4))
                for _ in range(2)]
     assert [renter.wait(timeout=60) for renter in renters] == [0, 0]
     assert json.loads(held.read_text())["most"] == 4  # reached, never passed: 8 with a cap each
