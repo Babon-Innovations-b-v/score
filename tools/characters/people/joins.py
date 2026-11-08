@@ -452,7 +452,9 @@ def measure_body(path):
 
 def verdict(record):
     """The record's worst wrist and ankle over every outfit and clip (the least overlap, the widest opening), whether
-    each overlap and the stance pass."""
+    each overlap and the stance pass. A join with no overlap measured is None (not measured, never a pass); an opening
+    measured in no frame (no sleeve or trouser leg round the open end anywhere, man_stair 2026-11-08) is None with
+    `notMeasured` saying so: the opening is recorded, never judged."""
     worst = {}
     for clips in record["outfits"].values():
         for joins in clips.values():
@@ -463,8 +465,11 @@ def verdict(record):
     for kind in ("wrist", "ankle"):
         overlap_value, opening_value = worst.get(kind + "Overlap"), worst.get(kind + "Opening")
         found[kind] = None if overlap_value is None else {
-            "worstOverlapMetres": round(overlap_value, 4), "worstOpeningMetres": round(opening_value, 4),
-            "pass": overlap_value >= LEAST_OVERLAP}
+            "worstOverlapMetres": round(overlap_value, 4),
+            "worstOpeningMetres": None if opening_value is None else round(opening_value, 4),
+            "pass": overlap_value >= LEAST_OVERLAP,
+            **({} if opening_value is not None else {
+                "notMeasured": "the opening: no outer piece round the open end in any frame"})}
     stance = record["stance"]
     found["stance"] = None if stance is None else {
         "ratio": stance["mean"], "pass": RELAXED_STANCE[0] <= stance["mean"] <= RELAXED_STANCE[1]}
