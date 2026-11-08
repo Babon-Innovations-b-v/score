@@ -779,6 +779,9 @@ def running(props_home):
             continue
         age = int(time.time() - path.stat().st_mtime)
         nodes = entry.get("running") or []
+        if isinstance(nodes, int):  # the drive's gauge writes a count of its running nodes (score/__main__.py)
+            lines.append(f"{entry.get('id', path.stem)} (beat {age} s old): {nodes} running")
+            continue
         lines.append(f"{entry.get('id', path.stem)} (beat {age} s old): {len(nodes)} running: {', '.join(nodes)}")
     return "\n".join(lines) or "no run in a running state"
 
