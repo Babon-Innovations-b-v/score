@@ -3274,7 +3274,8 @@ def a_closeup(path, mask):
 
 def test_the_bake_s_outline_is_the_likeness_gate_s(tmp_path):
     """The bake scores a take's outline on the card, where likeness.py cannot load (tools/usd/compare.py pulls in pxr):
-    take_outline's best outline is likeness_row.whole_best_way's over pixal_cut's cut, for a row seen at its look-down
+    take_outline's best outline is likeness_row.whole_best_way's best of its YAWS ways (before the gate's fine search
+    round it) over pixal_cut's cut, for a row seen at its look-down
     and one lying flat seen from above, and its cut fills the cut-out's holes and drops its specks as pixal_cut does."""
     from score.stages.props import likeness, likeness_row
     import take_outline
@@ -3293,7 +3294,7 @@ def test_the_bake_s_outline_is_the_likeness_gate_s(tmp_path):
         downs = take_outline.look_downs(size, take_outline.cut(closeup))
         assert gate["look_down"] in downs, (size, gate, downs)
         assert max(take_outline.best(points, triangles, take_outline.cut(closeup), down) for down in downs) == \
-            gate["outline"], (size, gate)
+            max(gate["ways"]), (size, gate)
 
 
 def test_a_pixal_take_is_turned_only_when_its_turn_outlines_its_close_up_at_least_as_well(tmp_path):

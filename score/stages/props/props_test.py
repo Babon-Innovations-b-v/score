@@ -23,7 +23,9 @@ test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_
 `hold[:3, :3] = ...` made `pass` (the bake's turn kept) turns
 test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it red; pixal_cut held to its largest
 piece (`bridged` returning its last line at once), or `bridged` closing pieces at any gap (its `== 1` test dropped),
-turns test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled red.
+turns test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled red; likeness_row.FINE_DEGREES emptied (the ring's
+eight ways alone), fine_way's outlines raised a fifth (`score + 0.2`), or whole_best_way's "way" made the fine one
+(`fine[finest][0]`: DINOv2's pair would move with it), turns test_a_box_s_silhouette_matches_itself_and_not_a_rod red.
 """
 import contextlib
 import importlib.util
@@ -425,6 +427,24 @@ def test_a_box_s_silhouette_matches_itself_and_not_a_rod():
     assert cube.sum() > 1000
     assert ring.outline(cube, cube) == 1.0
     assert ring.outline(cube, rod) < likeness.OUTLINE_LEAST
+    # a model turned between two of the ring's ways is held at its own turn (the fine search round the ring's best):
+    # an L-shaped slab whose close-up was drawn 15 degrees past a way scores itself, a post against it still fails
+    import trimesh
+    from PIL import Image
+    tmp_path = pathlib.Path(tempfile.mkdtemp())
+    slab = trimesh.util.concatenate([trimesh.creation.box([1.6, 0.6, 0.3]).apply_translation([0, 0, 0]),
+                                     trimesh.creation.box([0.3, 0.6, 1.2]).apply_translation([0.65, 0, 0.45])])
+    slab.export(tmp_path / "slab.glb")
+    trimesh.creation.box([0.3, 1.5, 0.3]).export(tmp_path / "post.glb")  # 0.27 at every way, the search no help
+    pixels = np.zeros((likeness.SIDE, likeness.SIDE, 4), dtype=np.uint8)
+    pixels[likeness.silhouette(*likeness.gltf_mesh(tmp_path / "slab.glb"), 1 + 15 / 45, likeness.look_down())] = 255
+    Image.fromarray(pixels).save(tmp_path / "between.png")
+    seen = likeness_row.whole_best_way(tmp_path / "slab.glb", tmp_path / "between.png", [1.6, 1.2, 0.6])
+    assert seen["outline"] > 0.97 > max(seen["ways"]) and abs(seen["fine_way"][1] - (1 + 15 / 45)) < 1e-5, seen
+    assert seen["way"] == 1, seen  # DINOv2's pair is still drawn from the ring's best way
+    post_seen = likeness_row.whole_best_way(tmp_path / "post.glb", tmp_path / "between.png", [1.6, 1.2, 0.6])
+    assert post_seen["outline"] < likeness.OUTLINE_LEAST - 0.2, post_seen
+    shutil.rmtree(tmp_path)
 
 
 def test_the_outline_is_held_to_the_close_up_s_one_look_down():

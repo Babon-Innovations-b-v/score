@@ -68,6 +68,7 @@ DESIGNED_LEAST = 0.14
 TEXTURED_SIDE = 256
 PEOPLE_LAYER = "people"  # a person's object in the prop data (the people line's looks, a design's people)
 BACK = "@back"
+FINE_DEGREES = (-20, -15, -10, -5, 5, 10, 15, 20)  # round the ring's best way: whole_best_way's fine search
 # A thin row's model strays from its swept fit (`swept_stray`) by at most this share of its silhouette: a clean sweep
 # along its centreline, its fittings within FITTING_SHARE of it, reads at most 0.023 (env1's 26 thin rows rebuilt,
 # 2026-11-04: the stairwell's conduit, the hub's cable bundle), the ball-built blobs the eyes-on review saw
@@ -353,7 +354,12 @@ def whole_best_way(model, closeup, size, turn=None):
     above against its close-up's ellipse, 0.128), and that angle is read off the close-up, never searched per model.
     Here, not in likeness.best_way: likeness.py is in the code of the paid body rows (#36 outline study). A code
     build is seen by `turn` (4 by 4, thin_straight.view: in its picture's slant, leaned to its look-down), its own
-    pose its row's (round 32's docking airlock: built in the picture's slant, its rails were laid leaning)."""
+    pose its row's (round 32's docking airlock: built in the picture's slant, its rails were laid leaning).
+    The outline is the ring's best searched finer (fine_way, "fine_way" its look-down and way): at the eight ways
+    alone a turn of the model between two of them moved its outline by up to 0.19 (env1's robotic arm 0.505, 0.316
+    after a yaw-only stand; on the live store's 767 models a turn's spread median 0.094, fine 0.017), so a verdict
+    near OUTLINE_LEAST was the turn's. "way", "look_down" and "ways" stay the ring's (the bake's take_outline
+    score), so DINOv2's pairs are drawn as before: cast from the fine way, stairwell's door_mat fell 0.148 to 0.101."""
     from scipy import ndimage
     with prop_data.tools("props/closeup", "props"):
         import check
@@ -363,11 +369,24 @@ def whole_best_way(model, closeup, size, turn=None):
     target = ndimage.binary_fill_holes(likeness.closeup_object(closeup))
     ring, stated = likeness.candidate(), likeness.look_down(size)
     downs = [stated, shown_look_down(target, size)] if size and check.lies_flat(size) else [stated]
-    ways = {down: [round(ring.outline(ndimage.binary_fill_holes(likeness.silhouette(points, triangles, step, down)),
-                                      target), 4) for step in range(ring.YAWS)] for down in downs}
+    def scored(step, down):
+        return round(ring.outline(ndimage.binary_fill_holes(likeness.silhouette(points, triangles, step, down)),
+                                  target), 4)
+    ways = {down: [scored(step, down) for step in range(ring.YAWS)] for down in downs}
     down = max(downs, key=lambda angle: max(ways[angle]))
-    best = int(np.argmax(ways[down]))
-    return {"way": best, "look_down": down, "outline": ways[down][best], "ways": ways[down]}
+    fine = {angle: fine_way(ways[angle], lambda step, angle=angle: scored(step, angle), ring.YAWS) for angle in downs}
+    finest = max(downs, key=lambda angle: fine[angle][1])
+    return {"way": int(np.argmax(ways[down])), "look_down": down, "outline": fine[finest][1], "ways": ways[down],
+            "fine_way": [finest, fine[finest][0]]}
+
+
+def fine_way(ways, scored, yaws):
+    """(way, outline) of the best of `ways` (the YAWS ring's outlines) and FINE_DEGREES round it, the way in steps of
+    the ring (a fraction between two of its ways)."""
+    best = int(np.argmax(ways))
+    found = [(best, ways[best])] + [(round(best + offset * yaws / 360.0, 6), scored(best + offset * yaws / 360.0))
+                                    for offset in FINE_DEGREES]
+    return max(found, key=lambda pair: pair[1])
 
 
 def textured_view(path, way, down, turn=None):
