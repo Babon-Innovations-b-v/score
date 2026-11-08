@@ -252,6 +252,8 @@ def parse(argv):
     lock_phase.add_argument("--stage", action="append", help="one stage of the phase, at every place (repeat it)")
     lock_phase.add_argument("--place", action="append", help="one place (repeat it); default: every place")
     lock_phase.add_argument("--object", action="append", help="only this object, in the stages that select")
+    lock_phase.add_argument("--drop", action="append", help="a node taken out of the phase's locks from now on, so a "
+                                                            "code change makes it again (repeat it)")
     for command in (run, status, plan, check):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
@@ -1625,7 +1627,15 @@ def closing_lines(runner, places, whole, options):
 def phase_locked_line(runner, places, options):
     """`score lock-phase`: the phase's nodes (its --stage stages and --node nodes, at the places; none named, every
     stage the phase table gives the phase, stages.phases) locked as they stand accepted now (Runner.lock_phase), as
-    one line; exits plainly when none is named or none stands."""
+    one line; exits plainly when none is named or none stands. With --drop, those nodes are taken out of the phase's
+    locks instead (Runner.drop_from_phase)."""
+    if getattr(options, "drop", None):
+        try:
+            lock = runner.drop_from_phase(options.phase, options.drop)
+        except (ValueError, FileExistsError) as refused:
+            sys.exit(f"score lock-phase: {refused}")
+        return (f"phase {lock['phase']}: {', '.join(lock['dropped'])} dropped from its locks (lock {lock['n']}, "
+                f"{lock['at']})")
     named = set(options.stage or ()) | set(options.node or ())
     if not named and options.phase in phases.NAMES:
         named = set(phases.stages_of(options.phase, list(runner.stages)))
