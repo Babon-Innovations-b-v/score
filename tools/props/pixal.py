@@ -176,11 +176,11 @@ def finish(raw, picture, finished, faces, paint_from=None):
 
 
 def stand_and_pad(finished, final, long, feet, tube, flat):
-    """The finished model stood upright, its maps padded, written to `final`."""
+    """The finished model stood upright (stood_turn), its maps padded, written to `final`."""
     import glb_file
+    import stand
     document, views = glb_file.read(finished)
-    turn = glb_file.upright_turn(glb_file.positions(document, views), long=long, feet=feet, tube=tube,
-                                   flat=flat)
+    turn = stand.stood_turn(glb_file.positions(document, views), long, feet, tube, flat)
     glb_file.turned(document, views, turn)
     glb_file.turned(document, views, glb_file.level_turn(*glb_file.faces(document, views)))
     glb_file.padded(document, views)

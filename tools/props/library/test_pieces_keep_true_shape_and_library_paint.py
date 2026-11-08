@@ -72,7 +72,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   test_the_spread_matches_regions_and_counts_only_counted_finishes.
 - straight `side_fit`: `tilt = 0.0` -> test_a_square_piece_must_come_out_straight.
 - labels `finish_turn`: `return best[0]` (no `@ raw_facing(take)`) ->
-  test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands (2026-10-29).
+  test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands (2026-10-29); its `None` option (the
+  picture's up kept, only squared) dropped -> the same test, a kept-up take unmatched (2026-11-08).
 
 The Blender build (test_every_body_builds_with_walls_the_model_check_passes) runs only where Blender and Xvfb are; on
 a box without them it skips, and its break (a body wall 2 mm thick) is unproven there.
@@ -607,6 +608,21 @@ def test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands(tmp_
     final.export(tmp_path / "stool_1-final.glb")
     laid = np.asarray(raw.vertices) @ labels.finish_turn("stool_1").T
     assert np.allclose([laid.min(0), laid.max(0)], final.bounds, atol=1e-3), (laid.min(0), laid.max(0), final.bounds)
+    # a take its box would tip keeps the picture's up, only squared (tools/props/stand.py): replayed too (2026-11-08)
+    raw.export(tmp_path / "lamp_1.glb")
+    document, views = glb_file.read(tmp_path / "lamp_1.glb")
+    document["asset"]["extras"] = {labels.FACING_KEY: "+Z"}
+    glb_file.write(document, views, tmp_path / "lamp_1.glb")
+    slimmed.export(tmp_path / "lamp_1-5000.glb")
+    document, views = glb_file.read(tmp_path / "lamp_1-5000.glb")
+    turn = glb_file.squared(glb_file.positions(document, views))
+    glb_file.turned(document, views, turn)
+    whole = glb_file.level_turn(*glb_file.faces(document, views)) @ turn
+    kept = slimmed.copy()
+    kept.vertices = kept.vertices @ whole.T
+    kept.export(tmp_path / "lamp_1-final.glb")
+    laid = np.asarray(raw.vertices) @ labels.finish_turn("lamp_1").T
+    assert np.allclose([laid.min(0), laid.max(0)], kept.bounds, atol=1e-3), (laid.min(0), laid.max(0), kept.bounds)
 
 
 def test_place_route_reads_a_turn_as_its_yaw_and_splits_a_long_take(tmp_path):
