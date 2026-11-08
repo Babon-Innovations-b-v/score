@@ -31,7 +31,7 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   every variable that could hold a secret (`SECRET_NAME`), read by name as on the VM. Every store writer shares the
   node's process ids, so the pid the pod writes beside its log (`started_pid`) is the run's for the cockpit and the
   registry. Its memory request and limit are the guard's own reckoning (`memory_request`: the floor beside the
-  largest kept stage peaks, one a job, at most the record's `max_memory_gb`), its processors `jobs` x `cpu_per_job`;
+  largest kept stage peaks, one a job, at most the record's `max_memory_gb`), its processors `jobs` x `cpu_per_job`, request and limit alike (2026-11-08: the namespace's default limit of 1 under a request of 8 made every drive pod invalid), and a pod that writes no pid in `START_SECONDS` has its Job deleted before the error goes on;
   `--jobs` there defaults to the record's `jobs` (`score/__main__.py` `default_jobs`: score.conductor's own module is in
   rows' code versions), so a price is worked out on what the pod is given,
   never on the cores of the node that answers; inside a pod `graph.AVAILABLE` and `TOTAL` read the pod's cgroup

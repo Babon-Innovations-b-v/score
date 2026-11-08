@@ -8,7 +8,9 @@ Each test's break (applied once, seen red, reverted), in score/store/backup/:
 - live database whole: _core.excludes leaves the live database and its side files in.
 - refused before machine.json: backup's machine.json check becomes `if False:`.
 - the move names the machine: _migrate.write_identity drops the sizes record. Break: _migrate.vm_refusal's `if units:`
-  becomes `if False:` (the VM's home copied while its sync runs); move_refusal's MOVE_WORDS check dropped.
+  becomes `if False:` (the VM's home copied while its sync runs); move_refusal's MOVE_WORDS check dropped;
+  onto_cluster's record drops `**DRIVE` or image_refusal answers None (a cluster.json without the drive's image and
+  size, filled in by hand at the cutover of 2026-11-08).
 - each difference named: _manifest.differences never reports a changed file.
 - a file not back stops the move: _migrate.onto_conductor's Mismatch check becomes `if False:`.
 - a unit active: _migrate.pc_refusal's `if units:` becomes `if False:`.
@@ -183,11 +185,17 @@ def test_the_move_lands_the_pc_home_whole_and_names_the_machine(setting, monkeyp
         backups.migrate("from-vm", conductor)
     monkeypatch.setenv(_migrate.MOVE_WORDS, "no u can do the conductor move asap")
     out = backups.migrate("from-vm", conductor)
+    with pytest.raises(backups.Refused, match="by digest"):  # a record without the pod's image is refused
+        backups.migrate("onto-cluster", cluster)
+    image = "registry.example/score-conductor:1@sha256:" + "0" * 64
+    monkeypatch.setenv(_migrate.IMAGE_VARIABLE, image)
     with pytest.raises(backups.Refused, match="not empty"):
         backups.migrate("onto-cluster", pc)
     landed = backups.migrate("onto-cluster", cluster)
     assert landed["snapshot"] == out["snapshot"] != moved["snapshot"]  # the newest vm-final, never the pc-final
-    assert json.loads((cluster / _migrate.CLUSTER_RECORD).read_text())["namespace"] == "score"
+    record = json.loads((cluster / _migrate.CLUSTER_RECORD).read_text())
+    assert (record["namespace"], record["image"], record["jobs"], record["cpu_per_job"], record["max_memory_gb"]) == (
+        "score", image, 16, 0.5, 64)  # the drive's size and image as the cluster runs them, never filled in by hand
     assert backups.compare(backups.read_manifest(conductor), backups.read_manifest(cluster)) == []
     with pytest.raises(backups.Refused, match="cluster's home already"):
         backups.migrate("from-vm", cluster)

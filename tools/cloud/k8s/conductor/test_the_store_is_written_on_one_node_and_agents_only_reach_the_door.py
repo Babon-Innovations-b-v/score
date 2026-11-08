@@ -16,6 +16,9 @@ Each invariant with the break that turns it red (each applied once, seen red, re
   Break: add `"pods/exec"` to the port-forward rule's resources, or drop ENV_LOADED from the door's command.
 - the sync pass and the backups run one at a time (Forbid). Break: `"concurrencyPolicy": "Allow"` in `cronjob`.
 - every object carries the conductor's own cost label, apart from a batch's. Break: drop COST_LABEL from `labels`.
+- score's namespace gives a container that names no cpu limit 16 (a default of 1 made every drive pod of 8 cores
+  invalid, 2026-11-08), and every container knows its own image (the cutover's cluster.json names it). Break:
+  `"cpu": "1"` in LIMIT_DEFAULTS' default, or drop IMAGE_VARIABLE from `container`.
 - a timer's commands run in order, a failed one said and the timer going on, the listener started again after it
   ends, the one-shot resume once; a stop ends what still runs. Break: `self.every == 0` -> `False` in `Unit.tick`
   (resume runs again and again).
@@ -89,6 +92,10 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
     door = next(box for box in pods[0]["containers"] if box["name"] == "door")
     assert door["ports"] == [{"name": "door", "containerPort": conductor.DOOR_PORT}]
     assert door["command"][-1].startswith(conductor.ENV_LOADED)  # its token's project comes from the env file
+    limits, = by_kind["LimitRange"]  # a default cpu limit under a drive pod's 8 cores makes that pod invalid
+    assert limits["metadata"]["namespace"] == "score" and limits["spec"]["limits"][0]["default"]["cpu"] == "16"
+    assert all({"name": "SCORE_CONDUCTOR_IMAGE", "value": box["image"]} in box["env"]
+               for pod in pods for box in pod["containers"])  # the cutover writes the pod's own image in cluster.json
 
     started, clock = [], [0.0]
 

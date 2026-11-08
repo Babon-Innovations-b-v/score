@@ -17,7 +17,9 @@ conductor move asap"):
                                          manifest inside
     cluster:   migrate --onto-cluster    refuses a home that is not empty; restores the newest vm-final snapshot,
                                          compares the manifest and stops on any difference; writes
-                                         conductor/cluster.json, which makes the home the cluster's
+                                         conductor/cluster.json, which makes the home the cluster's: the
+                                         pod's own image by digest (SCORE_CONDUCTOR_IMAGE, refused without
+                                         one) and the drive's jobs, cpu_per_job and max_memory_gb
 
 Every mode is the owner's own: refused in an agent's process (the store's AGENT_MARKERS), unless the process names his
 recorded yes to the switch, open for the move (conductor_yes.move_allowed: SCORE_CONDUCTOR_YES).
@@ -43,6 +45,10 @@ VM_UNITS = ("score-sync.timer", "score-sync.service", "score-listen.service", "s
             "score-sweep.timer", "score-sweep.service", "score-backup.timer", "score-backup.service",
             "score-backup-check.timer", "score-backup-check.service", "score-health.timer", "score-health.service")
 CLUSTER_RECORD = "conductor/cluster.json"  # score.conductor.cluster.RECORD under the home
+IMAGE_VARIABLE = "SCORE_CONDUCTOR_IMAGE"  # the conductor pod's image (tools/cloud/k8s/conductor IMAGE_VARIABLE)
+# The drive pod's size in the record (score.conductor.cluster's DEFAULTS, written out so the record names it;
+# 2026-11-08: a record without them was filled in by hand after the cutover).
+DRIVE = {"jobs": 16, "cpu_per_job": 0.5, "max_memory_gb": 64}
 # The PC's units that act as the store's machine: none may run while its home is copied.
 PC_UNITS = ("score-sync.service", "score-sync.timer", "score-listen.service", "score-resume.service")
 RUNNING_STATES = ("active", "activating", "reloading", "deactivating")
@@ -163,7 +169,14 @@ def from_vm(restic, home):
 
 def cluster_refusal(home):
     """Why the move may not land in the cluster's `home`, or None."""
-    return move_refusal() or _core.emptiness_refusal(home)
+    return move_refusal() or image_refusal() or _core.emptiness_refusal(home)
+
+
+def image_refusal():
+    """Why the cluster record could not name the conductor's image by digest, or None."""
+    if "@sha256:" not in os.environ.get(IMAGE_VARIABLE, ""):
+        return f"{IMAGE_VARIABLE} names no image by digest: run the move in the conductor's pod"
+    return None
 
 
 def onto_cluster(restic, home):
@@ -181,7 +194,7 @@ def onto_cluster(restic, home):
     if differences:
         raise Mismatch(differences)
     record = {"namespace": os.environ.get("SCORE_CLUSTER_NAMESPACE", "score"), "from": snapshot_id,
-              "since": _core.utc_now().isoformat(timespec="seconds")}
+              "since": _core.utc_now().isoformat(timespec="seconds"), "image": os.environ[IMAGE_VARIABLE], **DRIVE}
     path = pathlib.Path(home) / CLUSTER_RECORD
     path.parent.mkdir(parents=True, exist_ok=True)
     whole_file(path, json.dumps(record, indent=1).encode()).replace(path)

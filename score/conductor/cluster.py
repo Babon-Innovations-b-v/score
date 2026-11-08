@@ -95,7 +95,7 @@ def drive_job(found, command, log, folder, environment, memory_bytes):
     # the shell's pid (the rehearsal of 2026-11-07: `$$` wrote a bare `$`, and the run waited 300 s for a pid).
     shell = 'echo $$$$ > "$SCORE_DRIVE_LOG.pid" && exec "$@" >> "$SCORE_DRIVE_LOG" 2>&1'
     container = pods.container("drive", found["image"], ["/bin/sh", "-c", shell, "drive", *command],
-                               {"requests": {"cpu": cpu, "memory": memory}, "limits": {"memory": memory}})
+                               {"requests": {"cpu": cpu, "memory": memory}, "limits": {"cpu": cpu, "memory": memory}})
     container["workingDir"] = str(folder)
     own = {variable["name"] for variable in container["env"]}
     container["env"] = [*(variable for variable in carried_environment(environment) if variable["name"] not in own),
@@ -111,14 +111,19 @@ def drive_job(found, command, log, folder, environment, memory_bytes):
                      "template": {"metadata": {"labels": labels}, "spec": spec}}}
 
 
-def detach(found, command, log, folder, environment, store_root, apply=None, wait=None):
+def detach(found, command, log, folder, environment, store_root, apply=None, wait=None, delete=None):
     """Start the run as its Job (kubectl through stdin) and wait for its command's pid (`started_pid`); (the Job's
-    name, the pid)."""
+    name, the pid). No pid in time deletes the Job before the error goes on (2026-11-08: a pod the namespace refused
+    was made again 52 times in 52 minutes after its Buy had given up on it)."""
     from score import graph  # the drive's own guard: its floor is the one the pod's room is reckoned beside
     request = memory_request(kept_peaks(store_root), jobs(found), graph.memory_floor(), found["max_memory_gb"])
     job = drive_job(found, command, log, folder, environment, request)
     (apply or kubectl_apply)(job)
-    return job["metadata"]["name"], (wait or started_pid)(log)
+    try:
+        return job["metadata"]["name"], (wait or started_pid)(log)
+    except TimeoutError:
+        (delete or kubectl_delete)(job)
+        raise
 
 
 def started_pid(log, seconds=START_SECONDS, sleep=time.sleep, clock=time.monotonic):
@@ -137,6 +142,12 @@ def started_pid(log, seconds=START_SECONDS, sleep=time.sleep, clock=time.monoton
 def kubectl_apply(job):
     subprocess.run(["kubectl", "apply", "-f", "-"], input=json.dumps(job), text=True, check=True,
                    capture_output=True)
+
+
+def kubectl_delete(job):
+    """Delete the Job and its pods (background cascade), gone already counting as deleted."""
+    subprocess.run(["kubectl", "delete", "job", job["metadata"]["name"], "-n", job["metadata"]["namespace"],
+                    "--ignore-not-found", "--cascade=background", "--wait=false"], check=True, capture_output=True)
 
 
 def cgroup_number(name, root=CGROUP):

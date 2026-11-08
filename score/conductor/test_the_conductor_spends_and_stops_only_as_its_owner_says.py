@@ -26,7 +26,9 @@ SECRET_NAME test (the sync token's value lands in a drive Job's spec); or in sco
 record's jobs (a price on the cluster worked out on the node's cores); or in cluster.pod_view read an unanswered
 cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod_log drop `or own_namespace()` (a
 home whose record names another namespace reads the logs of `score`'s pods); or in cluster.drive_job write `echo $$`
-(Kubernetes hands the shell `echo $`, and a detached run on the cluster waits for a pid that never comes).
+(Kubernetes hands the shell `echo $`, and a detached run on the cluster waits for a pid that never comes); or in
+cluster.drive_job drop the cpu limit (the namespace's default limit of 1 under a request of 8 makes every drive pod
+invalid); or in cluster.detach drop the delete on TimeoutError (a Job whose pod never starts keeps making it again).
 """
 import datetime
 import io
@@ -502,8 +504,16 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
     assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
     assert [variable["name"] for variable in box["env"]].count("HOME") == 1
+    # its processor limit is its request, so a namespace's default limit never makes the pod invalid
+    assert box["resources"]["limits"]["cpu"] == box["resources"]["requests"]["cpu"] == "8000m"
     with pytest.raises(TimeoutError):
         cluster.started_pid(tmp_path / "never.log", seconds=0.01, sleep=lambda seconds: None)
+    deleted = []  # a Job whose pod wrote no pid in time is deleted before the error goes on, never left retrying
+    with pytest.raises(TimeoutError):
+        cluster.detach(found, ["/py", "-m", "score", "run", "world1"], tmp_path / "score-run-stuck.log", tmp_path,
+                       {}, tmp_path, apply=applied.append, delete=deleted.append,
+                       wait=lambda log: cluster.started_pid(log, seconds=0.01, sleep=lambda seconds: None))
+    assert [job["metadata"]["name"] for job in deleted] == ["score-run-stuck"]
 
 
 def _written(path, found):
