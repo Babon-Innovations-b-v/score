@@ -17,8 +17,12 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 - `out/`: pandoc's standalone `.tex` and `.pdf` (citeproc, IEEE), and `stamp.json`, the hashes the check compares.
 - `motor/`: the MOTOR paper (#98), a second paper written directly in LaTeX: `main.tex`, `references.bib`, and the
   built `main.pdf` and `main.bbl` (`tectonic -X compile main.tex`). Same class, margins and natbib style as SCORE's;
-  gap boxes are `\gapbox`, numbers still moving are `\interim`. The main body stops at `\label{endofmain}` after a
-  `\FloatBarrier`, and its page (in `main.aux`) is at most 4.
+  gap boxes are `\gapbox`, numbers still moving are `\interim`. Laid out like the owner's published paper
+  (arXiv:2607.17639: abstract, introduction to a "what is new" paragraph, methods, validation protocol, results,
+  discussion, conclusion, full tables in the appendices); no page cap, the main body may run as long as that paper's
+  (owner, 2026-11-08, asking for its readability). Results of the whole-trial solver are gap boxes until its full run
+  (#98); numbers of the per-frame chain, its warm start, are labelled as the chain's, never as MOTOR's. Build with
+  `--keep-intermediates`, then delete `main.aux`, `main.out` and `main.log`.
 - `arxiv/`: upload this folder as is. One `content/<section>.tex` per top-level heading, natbib with
   `unsrtnat`, and `main.bbl` because arXiv does not run BibTeX. `main.tex` compiles with pdflatex
   and with xelatex/tectonic.
@@ -27,7 +31,7 @@ python3 build/build.py --check  # exit 1 when a committed output is stale (also 
 
 - **Every number is read from a file**, named in an HTML comment beside it. No number from memory. A new or rewritten source is public: a file in the repository (a run record goes into `evidence/`), a commit or an issue comment, never a personal path, a memory note or a private page. Gap: older comments still name run logs that are not published (git-ignored `tmp/` logs, handoffs, R&D progress logs); when a claim they carry is touched, its record moves into `evidence/` or the comment cites a commit or an issue comment.
 - **The draft has the final paper's structure.** Settled content (problem, method) is written fully, tight, without hedging. Wherever final content will go (a figure, a results table, an evaluation), a gap box stands in its place: `::: gap` ... `:::`, starting `**Gap: <what>.**`, one or two sentences on what goes there and what it waits on. A gap is filled by replacing the box. `[text]{.todo}` (prints red) is only for a number still being checked, and does not reach a shared draft.
-- **Short:** about 4 to 5 pages plus references while gaps are open; it grows as they fill. No filler: no disclaimers, no repeated hedges, related work only where it positions SCORE.
+- **Short:** about 4 to 5 pages plus references while gaps are open; it grows as they fill (SCORE's paper; the MOTOR paper has no cap, above). No filler: no disclaimers, no repeated hedges, related work only where it positions SCORE.
 - **A change to the draft is rebuilt and committed in the same commit** as the PDF and LaTeX.
 - **The walkable reference** (World Labs Marble in our runs) is one optional step of the method. Never
   compare it with another model or judge it on its own (World Labs ToS §2.8(d)); results are
