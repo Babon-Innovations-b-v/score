@@ -11,8 +11,9 @@ Each invariant with the break that turns it red (each applied once, seen red, re
   Break: mount `scw-secret` at SCW_PATH in `mounts`. Every container, a run's drive Job's (score/conductor/cluster.py
   drive_job) too, reads the cluster's login read-only at the VM's /home/score/.kube/config, from its Secret (the
   cluster submits of 2026-11-08 found none). Break: drop the `kubeconfig` mount from `mounts`.
-- the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder), so no record's path changes.
-  Break: `("props", f"{HOME}/props")` in MOUNTS.
+- the store's folders mount at the VM's paths (PROPS_HOME, the checkout's folder, the people routes' motion home),
+  so no record's path changes. Break: `("props", f"{HOME}/props")` in MOUNTS, or drop its `motion` entry (the
+  characters rows found no ~/.farm-factory-motion in the cluster, 2026-11-08).
 - the agents' account may only get and port-forward to the conductor's one pod: no exec, no other pod, no other
   verb; the network policy lets nothing in; the door starts with the env file loaded (its token is read by name).
   Break: add `"pods/exec"` to the port-forward rule's resources, or drop ENV_LOADED from the door's command.
@@ -80,6 +81,7 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
             paths = {mount["mountPath"]: mount.get("subPath") for mount in box["volumeMounts"]}
             assert paths["/home/score/.farm-factory-props"] == "props"
             assert paths["/home/score/projects"] == "projects"
+            assert paths["/home/score/.farm-factory-motion"] == "motion"
             login, = [mount for mount in box["volumeMounts"] if mount["mountPath"] == "/home/score/.kube/config"]
             assert login["readOnly"] and login["subPath"] == "config"
             secret, = [volume["secret"] for volume in pod["volumes"] if volume["name"] == login["name"]]
