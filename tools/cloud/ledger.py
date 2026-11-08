@@ -1,7 +1,8 @@
 """What cloud batches have cost, and whether the next one fits the owner's limits.
 
 The owner's limits (2026-09-29): a batch runs at most four hours and spends at most €60 (raised
-from €50 for the worldfill batches); there is no month's ceiling (owner, 2026-10-20). The provider's own bill lags by
+from €50 for the worldfill batches), except a run under his override, held to the override's own euros (batch_cap);
+there is no month's ceiling (owner, 2026-10-20). The provider's own bill lags by
 hours, so the month's spend is whichever is higher, its bill or this ledger's sum. A batch that would pass any limit is
 refused before it starts.
 """
@@ -294,15 +295,17 @@ def rent_fees(names):
 
 def batch_cap():
     """(euros, words): the most a batch may spend and what sets it. The batch cap, BATCH_EUROS; under the owner's
-    override (SCORE_SPEND_TICKET="override <name>") never more than what is left of his euros less 10%
-    (compute.override_room, GRANT_BUFFER), so the batch with its tail fits them (labval-motor-20261106, 2026-11-06:
-    EUR 2.47 left and nothing held a run to it)."""
+    override (SCORE_SPEND_TICKET="override <name>") what is left of his euros less 10% (compute.override_room,
+    GRANT_BUFFER), so the batch with its tail fits them (labval-motor-20261106, 2026-11-06: EUR 2.47 left and nothing
+    held a run to it), more than BATCH_EUROS too: the override's euros are the run's own budget, drawn from the month's
+    total (owner, 2026-11-05: "its a total budget, just use it from that"; MOTOR's 720-trial validation, #98, is one
+    run of about EUR 300). Outside an override the cap stands."""
     if not os.environ.get("SCORE_SPEND_TICKET", "").startswith("override "):
         return BATCH_EUROS, f"the €{BATCH_EUROS:.0f} batch cap"
     from score.adapters import compute
     room = compute.override_room()
     left = None if room is None else max(0.0, room["left"] / compute.GRANT_BUFFER)
-    if left is None or left >= BATCH_EUROS:
+    if left is None:
         return BATCH_EUROS, f"the €{BATCH_EUROS:.0f} batch cap"
     return left, (f"override {room['name']}'s €{left:.2f} left (€{room['spent']:.2f} of its €{room['euros']:.2f} "
                   "booked, less 10%)")
