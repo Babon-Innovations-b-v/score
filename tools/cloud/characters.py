@@ -227,6 +227,13 @@ def record(run, makes):
     return entry
 
 
+def on_the_image(make):
+    """Whether the characters-motion image runs every step of the make (the clip makes); a look's shell, build and
+    route, and a held machine's make (no steps), stay on machines."""
+    spec = json.loads((make / "in" / "spec.json").read_text())
+    return set(spec.get("steps") or HELD_STEPS) <= CLUSTER_STEPS
+
+
 def cluster_job(make):
     """One make as the cluster runs it in the characters-motion image: its in/ up at the machine path, its program in
     the motion environment with its log in out/chain.log (as the machine's chain.log comes back), out/ back."""
@@ -252,8 +259,6 @@ def main_on_cluster(options, makes):
     sys.path.insert(0, str(HERE / "k8s"))
     import cluster_jobs
 
-    if options.hold:
-        raise SystemExit("--hold keeps a machine for ssh work; the cluster has none to hold")
     jobs = [cluster_job(make) for make in makes]
     if options.dry_run:
         batch.say(f"{len(jobs)} characters jobs for the cluster")
@@ -279,7 +284,9 @@ def main():
         if not (make / "in" / "spec.json").exists():
             raise SystemExit(f"{make} holds no in/spec.json (tools/characters/maker/make.py writes it)")
         program_of(make)
-    if provider.on_cluster():
+    # A held machine, or a make the image cannot run, rents machines under the cluster too: refused there, the looks'
+    # bodies of env1's try of 2026-11-08 (people-body-*-made, prop_person.machine_held) had no route at all.
+    if provider.on_cluster() and not options.hold and all(map(on_the_image, makes)):
         main_on_cluster(options, makes)
         return
     classes = options.classes.split(",") if options.classes else None
