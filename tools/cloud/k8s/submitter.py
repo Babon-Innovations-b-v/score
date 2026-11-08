@@ -504,6 +504,11 @@ class Run:
                 "created": provider_record.get("created") or parse_time(meta["creationTimestamp"]),
                 "hostname": meta["labels"].get(manifests.HOSTNAME_LABEL, meta["name"]),
                 "ready": None, "deleted": None, "jobs": set()})
+            # a node seen before its labels came (motor-labval, 2026-11-08): its type and zone filled in once known
+            if seen["type"] == "?":
+                seen["type"] = (meta["labels"].get(INSTANCE_LABEL) or provider_record.get("type", "?")).upper()
+            if seen["zone"] == "?":
+                seen["zone"] = meta["labels"].get(ZONE_LABEL) or provider_record.get("zone", "?")
             ready = [condition for condition in node["status"].get("conditions", [])
                      if condition["type"] == "Ready" and condition["status"] == "True"]
             if ready and seen["ready"] is None:
