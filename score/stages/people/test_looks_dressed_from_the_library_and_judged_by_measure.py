@@ -17,6 +17,11 @@ Breaks that turn it red (each applied once and seen red, then reverted):
   `(offsets[soft] > 0) &` dropped  -> the shell test (the body standing out through the look passes).
 - `bodies.rigid_part`: the CLOTH_WORDS test made `if False`  -> the belt test.
 - `bodies.refused_on_record`: `if foretold:` read as `if False:`  -> the tucks record test.
+- `bodies.parts_fit`: its pairs faces seven apart in the file instead of neighbouring ones (`face_adjacency`)  ->
+  the parts test (the fitting parts read under PARTS_FIT_LEAST); `bodies.judge_parts`: `and fit >= PARTS_FIT_LEAST`
+  dropped  -> the parts test (the parts of another finished model pass); `bodies.refused_on_misfit`: `fit <` read as
+  `False and fit <`  -> the parts test (a body built on scattered parts); `bodies.laid_parts`: the `filecmp.cmp`
+  test dropped  -> the parts test (the candidate's older parts left under the accepted ones, env1 2026-11-08).
 - `dress.outer_labels`: every point kept at its nearest sample (`if not near` read as `if True`)  -> the outer
   surface test (the suit inside is nearer).
 - `dress.without_strays`: `rounds=0`  -> the stray blotch test.
@@ -624,13 +629,42 @@ def test_the_triangles_are_counted_on_the_route_body_as_drawn():
 
 
 def test_parts_pass_only_when_every_part_is_named():
+    """A look's parts pass only when every part is named with a role and a material and the split fits the take's
+    finished model as the loop hands it on (env1, 2026-11-08: the astronaut's parts, made on an older finished model
+    of its take, scattered over the new one, 0.604 of neighbouring faces in one part, and its tucks stood 52.81 mm
+    out); a body is refused on parts that do not fit, and the accepted parts replace older ones in the candidate."""
+    import trimesh
+    from score import graph
     with tempfile.TemporaryDirectory() as held:
+        folder, handed = pathlib.Path(held) / "parts", pathlib.Path(held) / "made"
+        takes = handed / "takes" / "pp-a_s1"
+        takes.mkdir(parents=True)
+        folder.mkdir()
+        sphere = trimesh.creation.icosphere(subdivisions=3)
+        sphere.export(takes / "pp-a_s1-final.glb")
+        halves = (sphere.triangles_center[:, 0] > 0).astype(int) + 2 * (sphere.triangles_center[:, 1] > 0)
+        np.savez(folder / "parts.npz", part_of=halves)
         found = [{"name": "coat", "role": "garment", "material": "FABRIC"}, {"name": "boot_r", "role": "hard"}]
-        (pathlib.Path(held) / "parts.json").write_text(json.dumps({"parts": found}))
-        assert bodies.judge_parts(pathlib.Path(held), {}, {}).answer == "fail"
+        (folder / "parts.json").write_text(json.dumps({"take": "pp-a_s1", "parts": found}))
+        inputs = {"people-made@people": str(handed)}
+        assert bodies.judge_parts(folder, inputs, {}).answer == "fail"
         found[1]["material"] = "LEATHER"
-        (pathlib.Path(held) / "parts.json").write_text(json.dumps({"parts": found}))
-        assert bodies.judge_parts(pathlib.Path(held), {}, {}).answer == "pass"
+        (folder / "parts.json").write_text(json.dumps({"take": "pp-a_s1", "parts": found}))
+        judged = bodies.judge_parts(folder, inputs, {})
+        assert judged.answer == "pass" and judged.measures["fit"] >= bodies.PARTS_FIT_LEAST, judged
+        bodies.refused_on_misfit(folder, takes, "pp-a_s1", "people-body-x")
+        laid = pathlib.Path(held) / "candidate"
+        laid.mkdir()
+        np.savez(laid / "parts.npz", part_of=np.random.default_rng(1).permutation(halves))
+        (laid / "parts.json").write_text((folder / "parts.json").read_text())
+        assert bodies.judge_parts(laid, inputs, {}).answer == "fail", "parts of another finished model passed"
+        try:
+            bodies.refused_on_misfit(laid, takes, "pp-a_s1", "people-body-x")
+            raise AssertionError("a body was built on parts that do not fit its take")
+        except graph.Blocked as blocked:
+            assert "do not fit" in str(blocked), blocked
+        bodies.laid_parts(folder, laid)
+        assert (laid / "parts.npz").read_bytes() == (folder / "parts.npz").read_bytes(), "the older parts stayed"
 
 
 def test_a_failed_tucks_record_refuses_the_body_before_any_machine():

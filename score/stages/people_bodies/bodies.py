@@ -53,6 +53,12 @@ EUROS = 2.0
 # 2026-10-10): free where its candidate folder already holds them.
 PARTS = "people-look-parts"
 PARTS_EUROS = 1.0
+# A look's parts fit its take's finished model when at least this share of the model's neighbouring faces lie in one
+# part (`parts_fit`): the astronaut's parts on the finished model they were made on, 0.972; the same parts laid on
+# the finished model of its take made again under the same name (as many faces, 19,000, in another order), 0.604:
+# skin in 177 pieces over the legs, the boots in 300 each, a tuck run under every speck of skin, and the settled
+# tucks over the gate in every clip, 52.81 mm at the worst (env1's try of 2026-11-08).
+PARTS_FIT_LEAST = 0.9
 # A far-crowd look: its build alone on an L4 with its setup, about 20 minutes.
 FAR_EUROS = 0.5
 SHIPPED_TRIANGLES = 29849
@@ -115,6 +121,7 @@ def made(look, entry):
         laid_take(handed, look, prop_person.PIXAL)
         (folder / "take.txt").write_text(entry["take"])
         laid_parts(pathlib.Path(inputs[f"{PARTS}-{look}"]), folder / "parts" / entry["take"])
+        refused_on_misfit(folder / "parts" / entry["take"], take_folder(handed, look), entry["take"], who)
         shutil.copyfile(pathlib.Path(inputs[made_clips.ROW]) / "rig.npz", folder.parent / "rig.npz")
         if not entry.get("far_only"):
             refused_on_record(prop_person.predicted_tucks(spec, outfit), who)
@@ -167,11 +174,39 @@ def refused_on_record(foretold, who):
 
 
 def laid_parts(accepted, target):
-    """The look's accepted parts (its PARTS row's output) laid where the maker reads them, unless already there."""
+    """The look's accepted parts (its PARTS row's output) laid where the maker reads them, unless the same bytes are
+    already there: parts left in the candidate folder by an older make were built on in their place."""
     target.mkdir(parents=True, exist_ok=True)
     for name in ("parts.npz", "parts.json"):
-        if not (target / name).exists():
+        if not ((target / name).exists() and filecmp.cmp(accepted / name, target / name, shallow=False)):
             shutil.copyfile(accepted / name, target / name)  # not the checkout's read-only mode
+
+
+def parts_fit(parts, takes, take):
+    """The share of the take's finished model's neighbouring faces (`takes`/<take>-final.glb, its coinciding points
+    joined as prop_rig.welded joins them, the faces the rig and the build read) that the parts (`parts`/parts.npz,
+    each face's part) put in one part; 0.0 when the parts name another count of faces. Parts made on another
+    finished model scatter over this one."""
+    import trimesh
+    with np.load(parts / "parts.npz") as found:
+        part_of = found["part_of"]
+    mesh = trimesh.load(takes / f"{take}-final.glb", force="mesh", process=False)
+    _, first, inverse = np.unique(np.round(mesh.vertices, 6), axis=0, return_index=True, return_inverse=True)
+    welded = trimesh.Trimesh(mesh.vertices[first], inverse.reshape(-1)[mesh.faces], process=False)
+    if len(welded.faces) != len(part_of):
+        return 0.0
+    pairs = welded.face_adjacency
+    return float((part_of[pairs[:, 0]] == part_of[pairs[:, 1]]).mean()) if len(pairs) else 0.0
+
+
+def refused_on_misfit(parts, takes, take, who):
+    """Blocked, before any machine is rented, when the look's parts do not fit its take's finished model
+    (PARTS_FIT_LEAST, parts_fit): a body built on them is cut into specks."""
+    fit = parts_fit(parts, takes, take)
+    if fit < PARTS_FIT_LEAST:
+        raise graph.Blocked(f"{who}: its parts do not fit its take's finished model ({fit:.3f} of neighbouring faces "
+                            f"in one part, at least {PARTS_FIT_LEAST}): they were made on another; make its parts "
+                            "row again")
 
 
 def the_line(place):
@@ -187,8 +222,9 @@ def refused_on_gap(handed, look):
 
 
 def parts_made(look, entry):
-    """The make of one look's parts row: the parts the candidate folder holds, else bought once
-    (prop_person.parts), copied into the output."""
+    """The make of one look's parts row: the parts the candidate folder holds where they fit the take's finished model
+    (parts_fit), else bought once (prop_person.parts, the folder's parts work on another model set aside first, so
+    nothing of it is read again), copied into the output."""
     def make(inputs, out, seed, params):
         handed = pathlib.Path(inputs[f"{MADE}@{LINE}"])
         refused_on_gap(handed, look)
@@ -201,6 +237,9 @@ def parts_made(look, entry):
         laid_take(handed, look, prop_person.PIXAL)
         (folder / "take.txt").write_text(entry["take"])
         made_parts = folder / "parts" / entry["take"]
+        if (made_parts / "parts.npz").exists() and parts_fit(made_parts, take_folder(handed, look),
+                                                             entry["take"]) < PARTS_FIT_LEAST:
+            set_aside(folder / "parts")
         if not (made_parts / "parts.npz").exists():
             prop_person.parts(spec, entry["outfit"], f"{PARTS}-{look}", None, False)
         for name in ("parts.npz", "parts.json"):
@@ -208,17 +247,30 @@ def parts_made(look, entry):
     return make
 
 
+def set_aside(run):
+    """A look's parts work made on another finished model (its pictures, splits, questions and answers) moved to
+    <run>.misfit, replacing an older one there: a new buy reads none of it, and it stays to look at."""
+    aside = run.with_name(run.name + ".misfit")
+    shutil.rmtree(aside, ignore_errors=True)
+    os.replace(run, aside)
+
+
 def parts_faults(folder):
     return [f"no {name}" for name in ("parts.npz", "parts.json") if not (pathlib.Path(folder) / name).exists()]
 
 
 def judge_parts(output, inputs, evidence):
-    """Pass when the take is split into named parts, each with its role and material."""
-    found = json.loads((pathlib.Path(output) / "parts.json").read_text())["parts"]
+    """Pass when the take is split into named parts, each with its role and material, and the split fits the take's
+    finished model as people-made@people hands it on (parts_fit, PARTS_FIT_LEAST)."""
+    record = json.loads((pathlib.Path(output) / "parts.json").read_text())
+    found = record["parts"]
     named = [part for part in found if part.get("name") and part.get("role") and part.get("material")]
-    return Verdict("parts", PASS if found and len(named) == len(found) else FAIL,
-                   f"{len(named)} of {len(found)} parts named with a role and a material",
-                   {"parts": len(found), "named": len(named)})
+    fit = parts_fit(pathlib.Path(output), pathlib.Path(inputs[f"{MADE}@{LINE}"]) / "takes" / record["take"],
+                    record["take"])
+    return Verdict("parts", PASS if found and len(named) == len(found) and fit >= PARTS_FIT_LEAST else FAIL,
+                   f"{len(named)} of {len(found)} parts named with a role and a material; {fit:.3f} of the finished "
+                   f"model's neighbouring faces in one part (at least {PARTS_FIT_LEAST})",
+                   {"parts": len(found), "named": len(named), "fit": round(fit, 4)})
 
 
 def timed(stage, spec, outfit, who, held):
