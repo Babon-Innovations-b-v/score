@@ -38,6 +38,10 @@ CGROUP = pathlib.Path("/sys/fs/cgroup")
 GIB = 2 ** 30
 # Variables a Job's spec never carries: the API and its store would hold their values.
 SECRET_NAME = re.compile(r"TOKEN|SECRET|PASSWORD|PASSPHRASE|CREDENTIAL|_KEY$|^AWS_|KUBECONFIG")
+# Names SECRET_NAME matches that hold no secret: the reader's path and its project's and region's names, which a drive
+# needs to read any secret by name (env1's try of 2026-11-08: without them `claude` had no login in the drive pod, and
+# effects-layer@campgrounds stopped on "no result line: ''").
+READER_NAMES = ("SCORE_SECRET_READER", "SCORE_SECRETS_PROJECT", "SCORE_SECRETS_REGION")
 # The pod's own variables, set again by Kubernetes in each pod.
 POD_OWN = re.compile(r"^(KUBERNETES_|HOSTNAME$|PWD$|SHLVL$|_$|OLDPWD$)")
 DRIVE_LABEL = "score.dev/drive"
@@ -80,9 +84,10 @@ def kept_peaks(store_root):
 
 
 def carried_environment(environment):
-    """The run's variables a Job carries: no secret's, none Kubernetes sets in the pod itself."""
+    """The run's variables a Job carries: no secret's (the secret reader's names are none), none Kubernetes sets in the
+    pod itself."""
     return [{"name": name, "value": value} for name, value in sorted(environment.items())
-            if not SECRET_NAME.search(name) and not POD_OWN.match(name)]
+            if (name in READER_NAMES or not SECRET_NAME.search(name)) and not POD_OWN.match(name)]
 
 
 def job_name(log):

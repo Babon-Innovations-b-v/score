@@ -22,7 +22,8 @@ release the parked machines before closing the pools, or drop its `stop_cluster`
 running); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
 ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
-SECRET_NAME test (the sync token's value lands in a drive Job's spec); or in score/__main__.py default_jobs drop the cluster
+SECRET_NAME test (the sync token's value lands in a drive Job's spec), or drop its READER_NAMES (the drive pod reads no
+secret by name: `claude` has no login, env1 2026-11-08); or in score/__main__.py default_jobs drop the cluster
 record's jobs (a price on the cluster worked out on the node's cores); or in cluster.pod_view read an unanswered
 cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod_log drop `or own_namespace()` (a
 home whose record names another namespace reads the logs of `score`'s pods); or in cluster.drive_job write `echo $$`
@@ -489,7 +490,8 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
     environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
                    "KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOME": "/elsewhere",
-                   "PROPS_HOME": "/home/score/.farm-factory-props/frozen/abc.home"}
+                   "PROPS_HOME": "/home/score/.farm-factory-props/frozen/abc.home",
+                   "SCORE_SECRET_READER": "/usr/local/bin/score-secret-reader", "SCORE_SECRETS_PROJECT": "a-project"}
     name, pid = cluster.detach(found, ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"], log,
                                "/home/score/.farm-factory-props/frozen/abc", environment, tmp_path,
                                apply=applied.append, wait=lambda log: cluster.started_pid(log, seconds=1))
@@ -506,6 +508,8 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     carried = {variable["name"]: variable.get("value") for variable in box["env"]}
     assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
     assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
+    assert carried["SCORE_SECRET_READER"] == "/usr/local/bin/score-secret-reader"  # a secret read by name, in the pod
+    assert carried["SCORE_SECRETS_PROJECT"] == "a-project"
     assert [variable["name"] for variable in box["env"]].count("HOME") == 1
     # its home is the run's frozen one (its design as it started), never the pods' live home a sync pass rewrites
     assert carried["PROPS_HOME"] == "/home/score/.farm-factory-props/frozen/abc.home"
