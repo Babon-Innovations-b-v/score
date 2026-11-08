@@ -1365,8 +1365,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                                                            "commit": old["commit"]}} and lock["n"] == 1, lock
                 change = change.removesuffix(", phase locked")
             if change == "own file, dropped":  # taken out of its phase's locks since: a code change makes it again
-                dropped = a_runner(world, store, (stage,)).drop_from_phase("props", ["narrow@hangar"])
-                assert dropped["dropped"] == ["narrow@hangar"] and dropped["nodes"] == {} and dropped["n"] == 2
+                dropped = a_runner(world, store, (stage,)).drop_from_phase("props", ["narrow"])  # by its stage
+                assert dropped["dropped"] == ["narrow", "narrow@hangar"] and dropped["nodes"] == {} and \
+                    dropped["n"] == 2, dropped
                 change = "own file"
             if change == "own file, gate fails":  # the gate's code as at the lock, failing the locked output today
                 (seeds / "rusted").write_text("rust")
