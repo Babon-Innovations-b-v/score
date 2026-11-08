@@ -3,6 +3,7 @@ upper-cased, gated on a word limit given as evidence; count after it; and the ro
 importing only what the rows use, so a pod that imports the table and works its code version out cold reads a few
 files, not the test file and every module it imports."""
 import json
+import pathlib
 
 from score import checks, contracts, graph
 from score.store import Store, file_hash
@@ -81,7 +82,24 @@ def recorded_files(place):
     return {"brief": "{data}/{place}/brief.txt"} if accepted else {"seed": "{data}/{place}/seed.txt"}
 
 
+def take_one(clean, folder):
+    """One take: its folder's text and its record, as a per-take function gives them (score/stages PER_TAKE)."""
+    folder.mkdir(parents=True)
+    (folder / "take.txt").write_text(pathlib.Path(clean).read_text()[::-1])
+    return {"z": folder.name, "a": len(pathlib.Path(clean).read_text())}
+
+
+def make_takes(inputs, out, seed, params):
+    """Two takes, each through kept.call (score/stages per_take_kept), so a take kept at its content is put back."""
+    from score.graph import pod
+    kept = pod.kept_module()
+    records = {take: kept.call(take_one, (str(inputs["clean"] / "clean.txt"), out / take), out / take)
+               for take in ("one", "two")}
+    (out / "takes.txt").write_text(json.dumps(records))
+
+
 KEPT = graph.Stage("kept", "place", make_kept, TEXT, PASSES, after={"clean": READS})
+TAKES = graph.Stage("takes", "place", make_takes, TEXT, PASSES, after={"clean": READS})
 DESIGNED = graph.Stage("designed", "place", make_clean, TEXT, PASSES, files=designed_files)
 RECORDED = graph.Stage("recorded", "place", make_clean, TEXT, PASSES, files=recorded_files)
-POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED, RECORDED)
+POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED, RECORDED, TAKES)

@@ -44,8 +44,8 @@ from score.adapters import compute  # noqa: E402
 
 from score.graph import _code, chain, frozen, rebuy, runs, stopped  # noqa: E402
 from score.graph._toys import (  # noqa: E402
-    CLEAN, COUNT, DESIGNED, KEPT, PASSES, PEEK, POD_TABLE, READS, RECORDED, TEXT, WORDS, judge_shout, make_clean,
-    make_count)
+    CLEAN, COUNT, DESIGNED, KEPT, PASSES, PEEK, POD_TABLE, READS, RECORDED, TAKES, TEXT, WORDS, judge_shout,
+    make_clean, make_count)
 from score.store import Store, file_hash, partial_of, tree_hash  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -284,7 +284,9 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
     answer for refuses the manifest and stores nothing; a tree, lock or code version not the key's refuses and the
     node is made here; an undeclared store read is named, a blob written (a kept take's) is none; a row whose files
     the home's locked designs decide declares in the pod what it declares here, and so does one whose files the
-    store's accepts decide; of two manifests for one key the first record stands."""
+    store's accepts decide; of two manifests for one key the first record stands; the takes a pod made and kept
+    are kept here, and the next pod making the node puts them back instead of making them again, the same
+    listing."""
     from score.graph import pod
     from score.store import offload
     folder = pathlib.Path(tempfile.mkdtemp())
@@ -345,6 +347,14 @@ def a_pod_makes_what_the_runner_makes(monkeypatch):
         assert pod.collect(maker, stage, "hangar", keyed, manifest, record=False) == \
             local.make(stage, "hangar", keyed)["output"]
     plan.unlink()
+    keyed = runner.key(TAKES, "hangar")
+    first = in_pods([a_pod_job(runner, TAKES, "hangar", keyed, tree, bucket_root, folder)], tree, bucket_root, folder)[0]
+    assert len(first.get("kept", ())) == 2, first
+    pod.collect(runner, TAKES, "hangar", keyed, first)
+    again = a_pod_job(runner, TAKES, "hangar", keyed, tree, bucket_root, folder)
+    assert set(json.loads(again.read_text())["kept"]) == set(first["kept"])
+    second = in_pods([again], tree, bucket_root, folder)[0]
+    assert second.get("kept") == {} and second.get("listing") == first["listing"], second
     assert fetched_side_by_side(pod, offload, folder, bucket_root) > 1
 
     # Runner.make of a stage made in pods (pod.dispatches): its job run on the cluster (cluster_jobs.run, here the
@@ -420,9 +430,16 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     read, finish-route-views@tube 2026-11-07).
     Break: score/graph/pod.py: '"design": designs()}' -> '"design": {}}' (the pod's table, without the home's
     designs, declares a seed nothing makes, light-layer@tube 2026-11-07).
-    Break: score/graph/pod.py: '**store_reads(runner, stage, place)}' -> '"records": {}, "listed": []}' (the pod's
+    Break: score/graph/pod.py: '**store_reads(runner, stage, place),' ->
+    '"records": {}, "listed": [],' (the pod's
     sandbox, without the accepts and rejects a row's file list reads, works another list out, light@campgrounds
     2026-11-08).
+    Break: score/graph/pod.py: '"kept": kept_module().calls_of(runner.making_code(stage, place, keyed))}' ->
+    '"kept": {}}' (a pod's home holds no kept take, so it makes every take again, finish-route-views@campgrounds
+    2026-11-08: 25 min against 0.06).
+    Break: score/graph/pod.py: '    kept_back(manifest)\n' -> '' (the takes a pod made are never kept here).
+    Break: score/graph/pod.py: '    kept_module().taken(found)\n' -> '' (the job's kept takes never written in the
+    pod's home).
     Break: score/graph/__init__.py: '        if pod.dispatches(stage):' -> '        if False:' (Runner.make never sends
     a pod stage's node to the cluster, #76 S8).
     Break: score/graph/pod.py: '"HEAD^{tree}"' -> '"HEAD"' (each run's frozen commit a new code archive, tube
