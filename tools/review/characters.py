@@ -41,10 +41,25 @@ GROUP_HIGH = 3.0
 
 
 def cast_of(place):
-    """The place's cast record from its design (people_rows.cast_record), or None for a place with no picked design
-    read."""
+    """The place's cast record from its design (people_rows.cast_record), its people at its kept plan's spots (the
+    plan the cast row reads, kept_plan; cast.planned), or None for a place with no picked design read. With no kept
+    plan it says who only, `unplaced` naming the missing plan (plan refuses it)."""
+    import json
+
     from score.stages import people_rows
-    return people_rows.cast_record(place) if people_rows.place_entry(place) else None
+    if not people_rows.place_entry(place):
+        return None
+    path = kept_plan(place)
+    if not path.is_file():
+        return dict(people_rows.cast_record(place), unplaced=str(path))
+    from score.stages import cast
+    return people_rows.cast_record(place, cast.planned(people_rows.read(), place, json.loads(path.read_text())))
+
+
+def kept_plan(place):
+    """The place's kept plan, the one its cast row reads ({home}/design/plans/<place>.json)."""
+    from score.store import PROPS_HOME
+    return PROPS_HOME / "design" / "plans" / f"{place}.json"
 
 
 def ahead(at, turn, distance, round_by=0.0):
@@ -107,6 +122,8 @@ def plan(place, stage):
     found = cast_of(place)
     if found is None:
         return None
+    if found.get("unplaced"):
+        raise SystemExit(f"{place}: no kept plan ({found['unplaced']}), so its people have no spot to be seen at")
     rate = renders.stage_rate(stage)
     frame = round(STILL_SECONDS * rate)
     step = max(1, round(rate / MOVE_RATE))
