@@ -47,6 +47,15 @@ import submitter  # noqa: E402
 
 REPO = HERE.parents[2]
 ATTEMPTS = 2
+# A job that reads a take's faces (a `<take>/parts.npy` among its inputs: the surfaces-parts contract, one row a welded
+# face) gets these minutes more a million of them on top of what its runner declared (allowed_minutes). Measured on
+# 1,716 cluster attempts of the bake's paint and bake job (2026-11-08, L4, all declared 3.5 min): 189 takes under 100k
+# faces took at most 0.89 min; the 983 attempts at 0.90 to 1.01 million faces took 2.3 min at the median, 3.4 at the
+# 99th percentile of those done, and 114 of them were cut at 3.5 (wreck crashed_rocket_front, 953,008 faces, three
+# seconds into its glTF export), so a big take gets twice the declared time and a hung one is still stopped. Here, in
+# the renting code, not in the job's own minutes: the job's JSON and its row's code stay as kept (tools/cloud/kept.py),
+# so no finished bake is bought again for it.
+FACE_MINUTES = 3.5
 
 
 class Elsewhere(RuntimeError):
@@ -164,6 +173,25 @@ def with_output_folders(command, outputs):
     return ["sh", "-c", f"mkdir -p {shlex.join(folders)} && exec \"$@\"", "sh", *command]
 
 
+def take_faces(job):
+    """The most faces any take the job reads has: the rows of each `parts.npy` among its inputs (a file, or one a
+    folder of them holds a take deep); 0 for a job that reads none."""
+    found = []
+    for entry in job.get("inputs", ()):
+        local = placed(entry, "local", "path")[0]
+        found += [local] if local.name == "parts.npy" else sorted(local.glob("*/parts.npy")) if local.is_dir() else []
+    if not found:
+        return 0
+    import numpy as np
+    return max(int(np.load(path, mmap_mode="r").shape[0]) for path in found)
+
+
+def allowed_minutes(job):
+    """The minutes a job may run up there: its runner's, and FACE_MINUTES more a million faces of the takes it reads
+    (take_faces)."""
+    return float(job.get("minutes", 30)) + FACE_MINUTES * take_faces(job) / 1e6
+
+
 def spec_of(helper, store, run, job_id, kind, image, classes, job):
     """One job.json from a runner's job; with where its outputs come back."""
     outputs, back = output_entries(helper, run, job_id, job.get("outputs", ()))
@@ -171,7 +199,7 @@ def spec_of(helper, store, run, job_id, kind, image, classes, job):
             "code": helper.upload_code(store, job.get("code", []), kind=image, repo=REPO),
             "inputs": upload_inputs(store, job.get("inputs", ())),
             "outputs": outputs, "command": with_output_folders(job["command"], outputs), "env": job.get("env", {}),
-            "models": job.get("models", []), "minutes": job.get("minutes", 30),
+            "models": job.get("models", []), "minutes": allowed_minutes(job),
             "attempt_limit": job.get("attempt_limit", ATTEMPTS)}
     spec.update({key: job[key] for key in ("cards", "kernel_cache", "tool_only", "cpu", "memory") if key in job})
     return spec, back

@@ -43,6 +43,9 @@ invariant with the break that turns it red (each applied once and seen red):
   `.resolve()` the path up there in `placed`. Break: return `command` unchanged in `with_output_folders`.
   A named run resumed with fewer jobs brings each job its own outputs (2026-11-06: 148 of 720 GEM-X videos came
   back as another video's). Break: `ids = [str(number) for number in range(len(jobs))]` in `keyed_jobs.run`.
+  A job that reads a take's faces (a `<take>/parts.npy` input) gets FACE_MINUTES more a million of them; one that
+  reads none keeps its runner's minutes. Break: `"minutes": job.get("minutes", 30)` in `spec_of`. Break: `return 0`
+  first in `take_faces`.
 - Billing: a warm node counts from the run's start; an unused node made during the run is the run's; a node made
   before it, or hosting another run, is not; a node without zone labels takes the provider's record;
   a node whose `score.dev/class` names no capability class (the conductor's) is no class node, never a crash.
@@ -572,6 +575,16 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
                           name="resumed") == [1]
     assert keyed_jobs.run("gemx", "base", [keyed("b", "made b")], "test", ["gpu-24gb"], name="resumed") == []
     assert videos["b"].read_text() == "made b"  # its own job, never the earlier run's first
+
+    # A job reading a take's faces may run FACE_MINUTES more a million of them (wreck crashed_rocket_front, 953,008
+    # faces, cut at its declared 3.5 min, 2026-11-08); one reading none keeps its runner's minutes (job 0's 3 above).
+    import numpy as np
+    take = tmp_path / "in" / ".bake-take-parts" / "take"
+    take.mkdir(parents=True)
+    np.save(take / "parts.npy", np.zeros(200_000, dtype=np.int8))
+    bake = {"command": ["true"], "code": [], "inputs": [str(take.parent)], "outputs": [], "minutes": 3.5}
+    spec = cluster_jobs.spec_of(helper, helper.store, "faces", "0", "blender", "blender", ["gpu-24gb"], bake)[0]
+    assert spec["minutes"] == pytest.approx(3.5 + cluster_jobs.FACE_MINUTES * 0.2), spec["minutes"]
 
 
 # ==== billing =======================================================================================================
