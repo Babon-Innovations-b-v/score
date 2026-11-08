@@ -449,6 +449,9 @@ def room_refusals(record, chosen):
     room = round(spend.ceiling - spend.spent - spend.reserved, 2)
     line = record.stop_line
     gave = min(pricing.cleared_high(record.totals), round(line["euros"] - line["spent"] - line["reserved"], 2))
+    if spend.ceiling >= line["euros"] and room > 0:
+        return ""  # the runner reads this line; spend since it was written is the guard's to hold (2026-11-08,
+        # checkout 60: refused over EUR 0.99 a stopped try's cluster nodes billed while the next one priced)
     if gave > room:
         return f"cannot finish under the stop: the line gave EUR {gave:.2f}, the runner reads room EUR {room:.2f}"
     return ""
