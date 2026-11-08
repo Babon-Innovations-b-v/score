@@ -75,6 +75,30 @@ REGISTRY_SECRET = "score-registry"  # the job images' pull Secret (k8s/manifests
 CONFIG = f"{HOME}/.config"
 SCW_PATH = f"{CONFIG}/scw"
 RUNTIME_DIR = "/run/user/1100"  # user score's XDG_RUNTIME_DIR on the VM
+# score_lib, the library (owner, 2026-11-08: "dont keep score lib on the conductor disk"): a throwaway clone at LIBRARY
+# on each pod's own /tmp, made fresh from GitHub at the pod's start (`library_clone`); a handover pushes at once
+# (score_lib's handover rebases and pushes), and one whose push fails fails its row (score/stages/library/checks.py
+# saved), never leaving commits on a disk. Its blobs are in the bucket, its command a tool on the volume (LIBRARY_ENV,
+# the venv of the clone's uv.lock; its editable install names LIBRARY, the same path in every pod).
+LIBRARY = "/tmp/score_lib"
+LIBRARY_URL = "git@github.com:Babon-Innovations-b-v/score_lib.git"
+LIBRARY_ENV = f"{HOME}/.local/share/score-lib/venv"
+# score_lib's deploy key (secret score-lib-deploy-key, write access), made at the cutover as this Secret through
+# kubectl's stdin, key `key`; the init container copies it to the secrets' tmpfs at mode 600, where secrets.sh puts
+# it on the VM and score_lib's core.sshCommand reads it.
+LIBRARY_KEY_SECRET = "score-lib-deploy-key"
+LIBRARY_KEY = f"{RUNTIME_DIR}/score/score-lib-deploy-key"
+# GitHub's published host keys (api.github.com/meta, checked 2026-11-08 against docs.github.com's fingerprints:
+# ED25519 SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU, ECDSA SHA256:p2QAMXNIC1TJYWeIOttrVc98/R1BUFWu3/LiyKgUfQM),
+# the only hosts score_lib's ssh accepts (StrictHostKeyChecking=yes), as boot.sh pins them on the VM.
+GITHUB_KEYS = (
+    "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl\n"
+    "github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYM"
+    "jNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=\n")
+KNOWN_HOSTS_MAP = "score-github-known-hosts"
+KNOWN_HOSTS = f"{HOME}/.ssh/known_hosts_github"
+LIBRARY_SSH = (f"ssh -i {LIBRARY_KEY} -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes "
+               f"-o UserKnownHostsFile={KNOWN_HOSTS}")
 DOOR_PORT = 8780
 DOOR_AGENT = "score-door-agent"
 HEALTH_WRITTEN = "SCORE_HEALTH_WRITTEN"  # score.conductor health prints the written health.json (the door's)
@@ -123,6 +147,8 @@ def volumes():
     return [{"name": "store", "persistentVolumeClaim": {"claimName": CLAIM}},
             {"name": "scw-secret", "secret": {"secretName": SCW_SECRET, "defaultMode": 0o400}},
             {"name": "kubeconfig", "secret": {"secretName": KUBECONFIG_SECRET, "defaultMode": 0o400}},
+            {"name": "library-key", "secret": {"secretName": LIBRARY_KEY_SECRET, "defaultMode": 0o400}},
+            {"name": "known-hosts", "configMap": {"name": KNOWN_HOSTS_MAP, "defaultMode": 0o444}},
             {"name": "scw", "emptyDir": {"medium": "Memory", "sizeLimit": "1Mi"}},
             {"name": "tmp", "emptyDir": {}}, {"name": "config", "emptyDir": {"sizeLimit": "64Mi"}},
             {"name": "run", "emptyDir": {"medium": "Memory", "sizeLimit": "64Mi"}}]
@@ -138,6 +164,7 @@ def mounts(read_only=False):
               for folder, path in MOUNTS),
             {"name": "scw", "mountPath": SCW_PATH, "readOnly": True}, {"name": "tmp", "mountPath": "/tmp"},
             {"name": "kubeconfig", "subPath": "config", "mountPath": KUBECONFIG, "readOnly": True},
+            {"name": "known-hosts", "subPath": "known_hosts", "mountPath": KNOWN_HOSTS, "readOnly": True},
             {"name": "run", "mountPath": RUNTIME_DIR}]
 
 
@@ -146,6 +173,8 @@ def environment():
     return [{"name": "HOME", "value": HOME}, {"name": "PROPS_HOME", "value": MOUNTS[0][1]},
             {"name": "SCORE_ENV_FILE", "value": ENV_FILE}, {"name": "XDG_RUNTIME_DIR", "value": RUNTIME_DIR},
             {"name": "SCORE_DOOR_REPO", "value": REPO},
+            {"name": "SCORE_LIB_ROOT", "value": LIBRARY},
+            {"name": "SCORE_LIB_COMMAND", "value": f"{LIBRARY_ENV}/bin/score-lib"},
             {"name": "PYTHONUNBUFFERED", "value": "1"}]
 
 
@@ -177,17 +206,43 @@ def container(name, image, command, resources, read_only=False):
 def scw_copy(image):
     """The init container that puts the scw config where the VM has it, owned by user score at mode 600 in memory: the
     Secret's own files are group-readable under the pods' fsGroup, and the scw CLI then prints a warning on stdout,
-    ahead of the JSON the secret reader parses (the rehearsal of 2026-11-07)."""
-    return {"name": "scw-config", "image": image, "command": ["/bin/sh", "-c",
-            f"umask 077 && cp /secret/config.yaml {SCW_PATH}/config.yaml && chmod 600 {SCW_PATH}/config.yaml"],
+    ahead of the JSON the secret reader parses (the rehearsal of 2026-11-07). score_lib's deploy key the same way, onto
+    the secrets' tmpfs (ssh refuses a group-readable key)."""
+    script = (f"umask 077 && cp /secret/config.yaml {SCW_PATH}/config.yaml && chmod 600 {SCW_PATH}/config.yaml && "
+              f"mkdir -p {RUNTIME_DIR}/score && chmod 700 {RUNTIME_DIR}/score && "
+              f"cp /library-key/key {LIBRARY_KEY} && chmod 600 {LIBRARY_KEY}")
+    return {"name": "scw-config", "image": image, "command": ["/bin/sh", "-c", script],
             "resources": {"requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"cpu": "100m", "memory": "64Mi"}},
             "volumeMounts": [{"name": "scw-secret", "mountPath": "/secret", "readOnly": True},
-                             {"name": "scw", "mountPath": SCW_PATH}],
+                             {"name": "scw", "mountPath": SCW_PATH},
+                             {"name": "library-key", "mountPath": "/library-key", "readOnly": True},
+                             {"name": "run", "mountPath": RUNTIME_DIR}],
             "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
 
 
+def library_clone(image):
+    """The init container that clones score_lib fresh from GitHub into the pod's /tmp (LIBRARY) with its deploy key,
+    then brings the command's venv on the volume to the clone's uv.lock (one pod at a time: flock) and links score-lib
+    on the PATH. A clone that fails stops the pod: no library is better than a stale one."""
+    lock = f"{LIBRARY_ENV}.lock"
+    script = (f"rm -rf {LIBRARY} && GIT_SSH_COMMAND='{LIBRARY_SSH}' git clone -q {LIBRARY_URL} {LIBRARY} && "
+              f"git -C {LIBRARY} config core.sshCommand '{LIBRARY_SSH}' && mkdir -p {LIBRARY_ENV.rsplit('/', 1)[0]} && "
+              f"UV_PROJECT_ENVIRONMENT={LIBRARY_ENV} flock {lock} uv sync -q --frozen --project {LIBRARY} && "
+              f"mkdir -p {HOME}/.local/bin && ln -sfn {LIBRARY_ENV}/bin/score-lib {HOME}/.local/bin/score-lib")
+    return {"name": "score-lib", "image": image, "command": ["/bin/sh", "-c", script], "env": environment(),
+            "resources": {"requests": {"cpu": "100m", "memory": "256Mi"}, "limits": {"cpu": "2", "memory": "2Gi"}},
+            "workingDir": HOME, "volumeMounts": mounts(),
+            "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
+
+
+def known_hosts():
+    """GitHub's pinned host keys as a ConfigMap (public keys: no Secret)."""
+    return {"apiVersion": "v1", "kind": "ConfigMap", "metadata": meta(KNOWN_HOSTS_MAP, "rights"),
+            "data": {"known_hosts": GITHUB_KEYS}}
+
+
 def pod_spec(containers, affinity, restart="Always"):
-    return {"initContainers": [scw_copy(containers[0]["image"])], "serviceAccountName": NAME, "securityContext": security(), "affinity": affinity, "hostPID": True,
+    return {"initContainers": [scw_copy(containers[0]["image"]), library_clone(containers[0]["image"])], "serviceAccountName": NAME, "securityContext": security(), "affinity": affinity, "hostPID": True,
             "imagePullSecrets": [{"name": REGISTRY_SECRET}], "tolerations": [TOLERATION], "volumes": volumes(), "containers": containers, "restartPolicy": restart,
             "terminationGracePeriodSeconds": 120}
 
@@ -278,7 +333,7 @@ def objects(image):
     if not image:
         raise ValueError("no conductor image: build tools/cloud/images/conductor first, or pass --image")
     return [limit_range(), service_account(NAME, "rights"), service_account(DOOR_AGENT, "door"),
-            binding(NAMESPACE), binding(JOBS_NAMESPACE), *door_role(), closed(), claim(), headless(),
+            binding(NAMESPACE), binding(JOBS_NAMESPACE), *door_role(), closed(), claim(), known_hosts(), headless(),
             statefulset(image), *(cronjob(*row, image) for row in CRONJOBS)]
 
 
