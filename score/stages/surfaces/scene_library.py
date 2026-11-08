@@ -27,6 +27,7 @@ drafts is the library handover's (score/stages/library), not this row's.
 import hashlib
 import json
 import pathlib
+import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -68,9 +69,18 @@ needs, the surface it sounds like, and the kinds it is for. Choose each recipe b
 made, its token by its colour in the picture. A recipe that draws a pattern of its own (a quilt, tiles, a grid,
 boards, a mottled pile, rows of writing) is only for a surface the picture shows with that pattern; a plain surface
 takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face: where the picture shows a pile or a
-mottle on it, or writing or print, give it the recipe that draws that (pile; written, its ink the second colour)."""
+mottle on it, or writing or print, give it the recipe that draws that (pile; written, its ink the second colour). A
+thing that shows a picture (a kind marked so: a photo, a print, a painting) is painted with its picture, never its
+glass or one plain colour: give the picture the recipe that draws print (written), its token the picture's main colour
+and its ink the second; its frame, if any, takes its own surface."""
 # A kind's words in the question when a take of it is laid as a flat sheet (sheet_kinds).
 SHEET_WORDS = " (a flat sheet: its face is what shows)"
+# A kind's words in the question when its take's words name a picture (shows_picture), and the recipes that draw one in
+# the palette's colours: flat's framed family photo, a flat sheet, took plain `glass` in photo-grey and baked one grey
+# sheet, so its likeness failed, while its poster and calendar, `written`, passed (checkout 62, 2026-11-08).
+PICTURE_WORDS = " (shows a picture: draw it, never its glass)"
+PICTURES = ("photo", "photograph", "picture", "painting", "poster", "print", "portrait", "artwork", "canvas")
+DRAWN = ("written",)
 # flat_sheet.SHEET_SHARE (thin_straight.FLAT_SHARE) and tools/props/closeup/check.SLENDER_SHARE, held equal by the test.
 SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25
 
@@ -160,12 +170,18 @@ def kinds_of(inputs):
     sheets = sheet_kinds(data)
     for take in data.get("takes", {}).values():
         if take.get("kind"):
-            found.setdefault(take["kind"], (take.get("object") or take["kind"])
-                             + (SHEET_WORDS if take["kind"] in sheets else ""))
+            words = take.get("object") or take["kind"]
+            found.setdefault(take["kind"], words + (SHEET_WORDS if take["kind"] in sheets else "")
+                             + (PICTURE_WORDS if shows_picture(f"{take['kind']} {words}") else ""))
     if "plan" in inputs:
         for kind, words in shell_kinds(json.loads(pathlib.Path(inputs["plan"]).read_text())).items():
             found.setdefault(kind, words)
     return dict(sorted(found.items()))
+
+
+def shows_picture(words):
+    """Whether a take's words name a thing that shows a picture (PICTURES, a word of them whole, its plural too)."""
+    return any(word in PICTURES or word.removesuffix("s") in PICTURES for word in re.split(r"[^a-z]+", words.lower()))
 
 
 def sheet_kinds(data):
@@ -301,13 +317,17 @@ def library_faults(folder):
 
 
 def library_findings(found, kinds, sounds, grounds=None):
-    """What is off in a scene library: no surface, a kind no surface is for, a ground kind no surface of its ruled
+    """What is off in a scene library: no surface, a kind no surface is for, a kind that shows a picture (its words
+    PICTURE_WORDS) no surface of which draws one (DRAWN), a ground kind no surface of its ruled
     recipe is for (`grounds`, grounds_of), a recipe not the method's, a token or colour setting off the palette, a
     setting outside 0 to 1, a colour setting its recipe needs left out, a sound surface not known."""
     variants = {name: variant for family in found["families"].values() for name, variant in family["variants"].items()}
     tokens, needs = set(found["tokens"]), found.get("colour_settings", {})
     failing = ["no surface"] * (not variants)
     failing += [f"kind {kind} has no surface" for kind in kinds if not found.get("kinds", {}).get(kind)]
+    failing += [f"kind {kind} shows a picture and no surface of it draws one ({', '.join(DRAWN)})"
+                for kind, words in kinds.items() if PICTURE_WORDS in words and found.get("kinds", {}).get(kind)
+                and not any(variants.get(name, {}).get("recipe") in DRAWN for name in found["kinds"][kind])]
     failing += [f"ground {kind} has no surface of its recipe {ground['recipe']}"
                 for kind, ground in (grounds or {}).items()
                 if not any(variants.get(name, {}).get("recipe") == ground["recipe"]
