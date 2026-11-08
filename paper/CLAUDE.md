@@ -24,8 +24,10 @@ python3 score/build/build.py --check   # exit 1 when a committed output is stale
 - `motor/`: the MOTOR paper (#98), a second paper written directly in LaTeX: `main.tex`, `references.bib`,
   `figures/`, the built `main.pdf` and `main.bbl` (`tectonic -X compile main.tex`), and `evidence/`, the sim-body run
   records its numbers are read from. Same class, margins and natbib style as SCORE's; gap boxes are `\gapbox`,
-  numbers still moving are `\interim`. Its story is the one agreed with the owner (#98 comment 6723992362). The
-  main body after the abstract is four sections, related work, method, results, discussion (owner, 2026-11-08: "it
+  numbers still moving are `\interim`. Its story is the one agreed with the owner (#98 comment 6723992362): SOMA is
+  physical AI's standard body, MyoFullBody a candidate standard musculoskeletal model, MOTOR the solver between the two
+  standards (owner, 2026-11-08). Each paragraph makes one point and leads into the next; no asides, setting lists or
+  hedges in running text. The main body after the abstract is four sections, related work, method, results, discussion (owner, 2026-11-08: "it
   needs a related work, method, results, discussion, done"), about 3 pages of text in connected prose (related work
   carries the motivation and closes on what MOTOR adds; method has at most three run-in heads and no subsections; the
   discussion's last paragraph does the conclusion's work). With its figures and table the main body is **at most 4
