@@ -1057,7 +1057,8 @@ def pool_waiting(ticket):
 @contextlib.contextmanager
 def spending(ticket):
     """Name a cleared ticket's run in this process and the processes it starts, for the rent points to find, its
-    runaway watch beside it (guard.Watch, at its high forecast minutes); its reservation ends with the block."""
+    runaway watch beside it (guard.Watch, at its high forecast minutes, counting the minutes a cloud runner runs below
+    this process); its reservation ends with the block."""
     before = {name: os.environ.get(name) for name in (TICKET, STORE)}
     os.environ[TICKET] = f"{ticket['node']} {ticket['key']}"
     if "reservations" in ticket:  # the store the clearance is in: a trial's own store (Store.in_folder) too
@@ -1067,7 +1068,7 @@ def spending(ticket):
               pathlib.Path(os.environ[STORE]) if os.environ.get(STORE) else Store.default().cache.parent)
     watch = guard.Watch(os.environ[TICKET], ticket.get("clearance", {}).get("high_minutes"), folder,
                         batches=lambda: batch_preflights(os.environ[TICKET]),
-                        waiting=lambda: pool_waiting(os.environ[TICKET]))
+                        waiting=lambda: pool_waiting(os.environ[TICKET]), paying=guard.cloud_work_below)
     try:
         with watch:
             yield
