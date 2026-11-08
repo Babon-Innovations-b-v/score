@@ -147,7 +147,9 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
     """likeness_row.model_checks lays a row's wide and deep on the model's own ground sides, longer to longer (the
     finish lays a long footprint along z: glb_file.squared; the scene turns it about up to its place). A 2 by 1 by
     0.5 m crate made right passes and one made square fails its spread; a 0.6 by 0.6 by 2 m locker passes. Laid x wide,
-    z deep, as before f2ccd22c, the right crate read spread 1.0 and failed."""
+    z deep, as before f2ccd22c, the right crate read spread 1.0 and failed. A Pixal3D take is laid within its row at its
+    own proportions (the case's comment).
+    Break: likeness_row.py `drawn_size`: `bake_job.fit_within(extents, ...)` -> the row's own size (stretched)"""
     tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
     import trimesh
     rows = {"crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 2.0], True), "square crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 1.0], False),
@@ -157,6 +159,16 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
         trimesh.creation.box(extents=extents).export(path)
         found = likeness_row.model_checks(path, size, f"p_{name}", False)["model_check"]
         assert found["pass"] is passes, (name, found)
+    # 2026-11-08 (#10): the bake lays a Pixal3D take at its own proportions within its row, so the check lays it so
+    # (drawn_size): old_station's tunnel, 3 by 0.86 by 1.59 m for its 3 by 1.5 by 1.5 m row, laid 2.832 by 0.808 by 1.5
+    # and its wall judged there, never stretched to its row (its spread then 0.75: failed).
+    tunnel = tmp_path / "tunnel.glb"
+    trimesh.creation.box(extents=[3.0, 0.856, 1.589]).export(tunnel)
+    row = {"id": "tunnel", "name": "right connecting tunnel", "anchor": "ground", "size": [3.0, 1.5, 1.5]}
+    laid = likeness_row.drawn_size(row, tunnel, [row], {})
+    assert laid == [2.832, 1.5, 0.808], laid
+    found = likeness_row.model_checks(tunnel, laid, "p_tunnel", False)["model_check"]
+    assert found["pass"] and found["spread"] == 0.0, found
 
 
 def test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided_sheet_still_fails():
@@ -633,7 +645,7 @@ def test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_
 
 
 def test_a_people_look_is_held_at_its_own_width_for_its_height_as_the_bake_lays_it():
-    """#36 (2026-10-31): the bake lays a person at his take's own width for his row's height (bake_job.boxed), the
+    """#36 (2026-10-31): the bake lays a person at his take's own width for his row's height (bake_job.person_size), the
     people line's looks known by their take (bake_job.person_take), their rows carrying no route. likeness@people's
     model check lays an object of the people layer so too: an A-pose body 1.08 m wide at 1.8 m, his row 0.5 m wide,
     passes, never squeezed into 0.5 m by axis (its spread then fails).

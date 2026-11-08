@@ -16,7 +16,8 @@ The gates, each failing an object by name:
 - `close-up parts present`: a prop model's parts (surfaces-parts) own every finish its close-up's list names, but a
   code-built light's lit finishes, its lamp the light layer's (`finishes_missing`); a code object's is unknown
   (nothing measures its parts: the fittings' parts check went with the code fallback, 2026-10-22).
-- `thin and in proportion`: tools/props/gates/model.py's check (thinnest wall, spread against the row's size).
+- `thin and in proportion`: tools/props/gates/model.py's check (thinnest wall, spread against the size the bake lays it
+  at: a Pixal3D take's own proportions within its row, drawn_size; its shape is the outline's to hold).
 - `lean`: tools/props/library/straight.py on a generated model of a kind that stands square, as it exists: code
   builds are not held to it. No rule names such a kind since the old kinds' details (data/library/details.json)
   retired with the old models (owner, 2026-10-21), so no model is held to it until one does.
@@ -51,8 +52,8 @@ LIKENESS_EUROS = 1.0
 LIT_FAMILIES = ("glass", "screen", "light")
 # A sheet's words (`sheet`): a paper, a note, a card, a poster, a label.
 SHEET_WORDS = ("paper", "note", "card", "poster", "label")
-# The pose rules the bake's guard list reads (score/stages/surfaces/tumble.py rules_of), so drawn_size lays a model
-# as the bake laid it.
+# The pose rules the likeness row hands its inputs (the bake's guard list reads them: score/stages/surfaces/tumble.py
+# rules_of).
 POSE_RULES = {"stance rules": "{data}/checks/stance.json", "resting rules": "{data}/checks/resting.json"}
 # A designed place's DINOv2 judge (owner, 2026-10-30: likeness needs both the outline and textured DINOv2): the model
 # in its baked finishes against the close-up in its colours (textured study, #36: among outline-passing pairs AUC 0.92
@@ -254,25 +255,33 @@ def through(mesh, laid, samples):
 
 
 def drawn_size(row, model, rows, inputs, person=False):
-    """A Pixal3D take's row size (wide, deep, tall) as the bake lays it: its width against its height its baked
-    `model`'s own (x wide, y tall) where both its SAM 3 box and that model disagree with the row, or for a person (its
-    row's route, or `person`: an object of the people layer, as the bake reads the people line's looks by their take,
-    bake_job.person_take); a row the guard list keeps as the row says (score/stages/surfaces/bake_job.py boxed, loaded
-    by its path, with tumble.keeps_pose over the pose rules among `inputs` and its inventory's `rows`)."""
+    """A Pixal3D take's row size (wide, deep, tall) as the bake lays it (score/stages/surfaces/bake_job.py laid_size,
+    loaded by its path): its baked `model`'s own proportions scaled as one to the largest within its row (fit_within,
+    its ground sides on the row's longer to longer, as model_checks lays them), or for a person (its row's route, or
+    `person`: an object of the people layer, as the bake reads the people line's looks by their take,
+    bake_job.person_take) his model's own width for his row's height (person_size)."""
     import score.stages.surfaces.tumble as tumble
+    bake_job = bake_job_module()
+    points, _ = likeness.gltf_mesh(model)
+    extents = points.max(0) - points.min(0)
+    wide, deep, tall = (float(side) for side in row["size"])
+    if person or tumble.person(row):
+        wide, tall, deep = bake_job.person_size([wide, tall, deep], extents[0] / max(extents[1], 1e-9))
+        return [wide, deep, tall]
+    ground = sorted((wide, deep), reverse=extents[0] >= extents[2])
+    across, tall, along = bake_job.fit_within(extents, [ground[0], tall, ground[1]])
+    return [across, along, tall]
+
+
+def bake_job_module():
+    """score/stages/surfaces/bake_job.py, loaded by its path with the prop tools it imports."""
     import importlib.util
     with prop_data.tools("props/library", "props"):
         spec = importlib.util.spec_from_file_location(
             "bake_job", prop_data.REPO / "score/stages/surfaces/bake_job.py")
         bake_job = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(bake_job)
-    points, _ = likeness.gltf_mesh(model)
-    extents = points.max(0) - points.min(0)
-    wide, deep, tall = row["size"]
-    wide, tall, deep = bake_job.boxed([wide, tall, deep], row.get("box"), extents[0] / max(extents[1], 1e-9),
-                                      tumble.keeps_pose(row, tumble.rules_of(inputs), rows),
-                                      person or tumble.person(row))
-    return [wide, deep, tall]
+    return bake_job
 
 
 def pixal_cut(path, folder, row):
