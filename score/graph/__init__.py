@@ -1900,8 +1900,11 @@ class Runner:
             raise ValueError(f"phase {phase}: name the nodes to drop")
         prefix = f"{PHASE_LOCKS}{self.world.name}/{phase}/"
         number = len(list(self.store.objects.keys(prefix))) + 1
+        held = {node for lock in self.phase_locks() if lock["phase"] == phase for node in lock["nodes"]}
+        named = set(nodes)  # a stage's name takes every node of that stage its phase's locks hold (2026-11-08)
+        dropped = sorted(named | {node for node in held if node.split("@")[0] in named})
         lock = {"environment": self.world.name, "phase": phase, "n": number, "at": now(), "by": score_store.RUNNER,
-                "commit": _code.git_commit(), "nodes": {}, "dropped": sorted(nodes), "not standing": []}
+                "commit": _code.git_commit(), "nodes": {}, "dropped": dropped, "not standing": []}
         self.store.write_once(f"{prefix}{number}.json", lock)
         return lock
 
