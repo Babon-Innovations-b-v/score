@@ -8,7 +8,7 @@ group (all, each activity, each camera, each activity and camera), and the sim b
     SCORE_CLOUD=k8s SCORE_SPEND_TICKET=... .venv/bin/python -m tools.labval.validate <folder> \
         --labval <LabValidation root> --out <folder> --who "<session>" [--name <run>] [--per-job 15] [--gpus 24] \
         [--soma <folder of SOMA npz> --template <clips rig.npz> [--gemx <GEM-X out> [--moge <MoGe-2 out>]]] \
-        [--reference <opensim_reference.py's folder>] [--processes 2] [--no-run]
+        [--reference <opensim_reference.py's folder>] [--static <static runs' folder>] [--processes 2] [--no-run]
 
 Out: report.json (`score`'s, all trials), groups.json (`labval.pooled`'s measures per group), angles, forces, emg,
 grf, moments (when --reference) and timing, each as .csv and an aligned .txt. Trials that did not come back are left
@@ -123,7 +123,7 @@ def scored_runs(options):
     """Every trial whose run came back, scored (`labval.scored`), and their run folders."""
     runs = sorted(path.parent for path in options.folder.glob("trials/*/out.json"))
     with concurrent.futures.ProcessPoolExecutor(options.processes) as pool:
-        trials = list(pool.map(functools.partial(labval.scored, root=options.labval), runs))
+        trials = list(pool.map(functools.partial(labval.scored, root=options.labval, static=options.static), runs))
     return trials, runs
 
 
@@ -169,6 +169,7 @@ def main():
     parser.add_argument("--moge", type=pathlib.Path, help="MoGe-2's out folder (`prepare --moge`)")
     parser.add_argument("--reference", type=pathlib.Path, help="opensim_reference.py's folder: the moments' reference")
     parser.add_argument("--processes", type=int, default=2)
+    parser.add_argument("--static", type=pathlib.Path, help="the static runs' measure folder (`score --static`)")
     parser.add_argument("--no-run", action="store_true", help="score and tabulate what came back, run nothing")
     options = parser.parse_args()
     options.folder = options.folder.resolve()

@@ -4,14 +4,15 @@ rented cards).
     .venv/bin/python -m tools.labval prepare <folder> --labval <LabValidation root> --template <clips rig.npz> \
         [--gemx <GEM-X out> [--moge <MoGe-2 out>]] <soma.npz> [<soma.npz> ...]
     .venv/bin/python -m tools.labval score <folder> [<folder> ...] --labval <LabValidation root> --out <report.json> \
-        [--processes N]
+        [--processes N] [--static <folder>]
     .venv/bin/python -m tools.labval grf-tables <report.json> --out <folder>
     .venv/bin/python -m tools.labval moments <folder> [<folder> ...] --labval <root> --reference <made> --out <json>
 
 prepare: each on_gemx.py npz, named subject<N>_<trial>_<Cam>.npz, as a trial of measure folder <folder> (its job
 names the fetched MyoFullBody, sim_body.fetched: a free download once). score: every trial of <folder> whose run came
 back (its out.json) scored against LabValidation and pooled (a trial in a later folder replaces its namesake in an
-earlier one); one line said, the report written. grf-tables: the report's ground reaction forces as OpenCap scored
+earlier one), with --static each trial's angles read from its subject's standing pose (`labval.neutral`, the static
+trial's run on the same camera); one line said, the report written. grf-tables: the report's ground reaction forces as OpenCap scored
 them (`_grf`), grf.csv and grf.txt per group (all, activity, camera, activity and camera) under <folder>. moments: the
 same runs' joint moments against the reference ID opensim_reference.py made (`_moments`), pooled the same way."""
 import argparse
@@ -52,7 +53,7 @@ def score(options):
     runs = {path.parent.name: path.parent for folder in options.folder
             for path in sorted(pathlib.Path(folder).glob("trials/*/out.json"))}
     with concurrent.futures.ProcessPoolExecutor(options.processes) as pool:
-        trials = list(pool.map(functools.partial(labval.scored, root=options.labval),
+        trials = list(pool.map(functools.partial(labval.scored, root=options.labval, static=options.static),
                                [runs[name] for name in sorted(runs)]))
     report = {"trials": trials, "pooled": labval.pooled(trials) if trials else None,
               "grf": _grf.pooled(trials) if trials else None}
@@ -104,6 +105,8 @@ def main():
     scoring.add_argument("--labval", required=True, type=pathlib.Path)
     scoring.add_argument("--out", required=True, type=pathlib.Path)
     scoring.add_argument("--processes", type=int, default=1)
+    scoring.add_argument("--static", type=pathlib.Path, help="the measure folder of the subjects' static runs: each "
+                         "trial's angles read from its subject's own standing pose on its camera")
     tables = commands.add_parser("grf-tables")
     tables.add_argument("report", type=pathlib.Path)
     tables.add_argument("--out", required=True, type=pathlib.Path)

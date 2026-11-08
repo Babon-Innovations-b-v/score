@@ -34,6 +34,10 @@ LUMBAR = ("lumbar_extension", "lumbar_bending", "lumbar_rotation")  # intrinsic 
 ELBOWS = ("elbow_flex_r", "elbow_flex_l")  # MyoFullBody's own, as they are (module docstring)
 FOREARMS = ("pro_sup_r", "pro_sup_l")  # MyoFullBody's own, its zero neutral where LaiUhlrich2022's is supinated
 OWN_ZERO = FOREARMS  # coordinates whose zero differs between the models: cMAE and r only, never MAE or RMSE
+# The subject's own standing pose (its static trial's run, `labval.neutral`) taken as the model's neutral, as a static
+# calibration does in motion capture: the pelvis turned about its own z axis by its standing tilt, the lumbar's
+# extension and the elbows less their standing values. The subject's own video only, never the lab's angles.
+NEUTRAL = ("pelvis_tilt", "lumbar_extension", *ELBOWS)
 # side -> (humerus, LaiUhlrich2022's shoulder coordinates, the signs of its intrinsic Z, X, Y on the torso)
 SHOULDERS = {"r": ("humerus_r", ("arm_flex_r", "arm_add_r", "arm_rot_r"), np.array([1.0, 1.0, 1.0])),
              "l": ("humerus_l", ("arm_flex_l", "arm_add_l", "arm_rot_l"), np.array([1.0, -1.0, -1.0]))}
@@ -96,11 +100,14 @@ def coordinate_column(names, name):
     return ending[0] if len(ending) == 1 else None
 
 
-def angles(entry, arrays, lab_heading):
+def angles(entry, arrays, lab_heading, neutral=None):
     """{LaiUhlrich2022 coordinate: degrees every frame}: the legs', elbows' and forearms' MyoFullBody coordinates as
     they are, the pelvis' angles once its mean heading is turned onto `lab_heading` (radians: the reference's,
-    `heading`), the lumbar's of the torso on the pelvis, the shoulders' of each humerus on the torso. A run without
-    `coordinates` raises: the run must save them (inside/sim_body.py)."""
+    `heading`), the lumbar's of the torso on the pelvis, the shoulders' of each humerus on the torso. With `neutral`
+    ({NEUTRAL coordinate: degrees}, the subject's standing pose) each is taken from its standing value: the pelvis
+    turned about its own z by its standing tilt before its angles are read (so a heading either way along the lab
+    keeps the tilt's sign), the lumbar's extension and the elbows less theirs. A run without `coordinates` raises: the
+    run must save them (inside/sim_body.py)."""
     if "coordinates" not in arrays:
         raise ValueError("the run saved no coordinates (inside/sim_body.py's <name>/coordinates)")
     names = [str(name) for name in arrays["coordinate names"]]
@@ -109,13 +116,17 @@ def angles(entry, arrays, lab_heading):
     if lacking:
         raise ValueError(f"the run's coordinates lack {lacking}")
     found = {name: np.degrees(arrays["coordinates"][:, column].astype(float)) for name, column in columns.items()}
+    standing = neutral or {}
     pelvis = body_turns(entry, arrays, "pelvis")
-    turned = about_up(lab_heading - heading(pelvis)) @ pelvis
+    upright = pelvis @ Rotation.from_euler("z", -standing.get("pelvis_tilt", 0.0), degrees=True).as_matrix()
+    turned = about_up(lab_heading - heading(upright)) @ upright
     found.update(zip(PELVIS, zxy(turned).T))
     torso = body_turns(entry, arrays, "torso")
     found.update(zip(LUMBAR, zxy(np.swapaxes(pelvis, 1, 2) @ torso).T))
     for humerus, coordinates, signs in SHOULDERS.values():
         found.update(zip(coordinates, (zxy(np.swapaxes(torso, 1, 2) @ body_turns(entry, arrays, humerus)) * signs).T))
+    for name in ("lumbar_extension", *ELBOWS):
+        found[name] = found[name] - standing.get(name, 0.0)
     return found
 
 
