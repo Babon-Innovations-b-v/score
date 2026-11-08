@@ -3,6 +3,8 @@ upper-cased, gated on a word limit given as evidence; count after it; and the ro
 importing only what the rows use, so a pod that imports the table and works its code version out cold reads a few
 files, not the test file and every module it imports."""
 import json
+import os
+import pathlib
 
 from score import checks, contracts, graph
 from score.store import Store, file_hash
@@ -81,7 +83,15 @@ def recorded_files(place):
     return {"brief": "{data}/{place}/brief.txt"} if accepted else {"seed": "{data}/{place}/seed.txt"}
 
 
+def make_homed(inputs, out, seed, params):
+    """The note under the home's design, opened by its path under PROPS_HOME as a row opens its picked concept
+    (score/stages/light concept_pictures), not through its inputs."""
+    home = pathlib.Path(os.environ["PROPS_HOME"])  # score.store's PROPS_HOME, read as it is
+    (out / "homed.txt").write_text((home / "design" / "notes" / "hangar.txt").read_text())
+
+
 KEPT = graph.Stage("kept", "place", make_kept, TEXT, PASSES, after={"clean": READS})
 DESIGNED = graph.Stage("designed", "place", make_clean, TEXT, PASSES, files=designed_files)
 RECORDED = graph.Stage("recorded", "place", make_clean, TEXT, PASSES, files=recorded_files)
-POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED, RECORDED)
+HOMED = graph.Stage("homed", "place", make_homed, TEXT, PASSES, files={"note": "{home}/design/notes/{place}.txt"})
+POD_TABLE = (CLEAN, COUNT, PEEK, KEPT, DESIGNED, RECORDED, HOMED)
