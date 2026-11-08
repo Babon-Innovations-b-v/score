@@ -62,7 +62,7 @@ REACH_LEAST = 0.01
 # How far a decal plate stands in front of the solid copy's face: the bake's rays meet it before the face.
 DECAL_PROUD = 0.002
 # The solid copy: every surface thickened inward by WALL, then the whole rebuilt as one closed surface on a voxel grid
-# of VOXEL_SHARE of the piece's largest side (no finer than VOXEL_FINEST), so no wall is thinner than the model check's
+# of voxel_of's size (VOXEL_SHARE of the piece's largest side, a thin piece's finer), so no wall is thinner than the model check's
 # 3 mm and no hole is left open.
 WALL = 0.005
 VOXEL_SHARE = 1 / 300
@@ -78,6 +78,12 @@ WALL_VOXELS = 2
 # copy's real edges went soft.
 SHARP_FOLD = math.radians(60.0)
 VOXEL_FINEST = 0.0012
+# A thin piece's voxel follows its thinnest side too, THIN_VOXELS across it: at VOXEL_SHARE of the longest side alone,
+# street's 8 m lantern string (its wire 1 cm) remeshed on 2.7 cm voxels and baked 9 cm thick, its take alone read
+# 0.53 (2026-11-08). No finer than its box's surface over SURFACE_VOXELS (an 8 by 8 m sheet stays near 8 mm), so a big
+# thin piece's remesh stays the size a 1 m prop's is now, a few times over at most.
+THIN_VOXELS = 4
+SURFACE_VOXELS = 2_000_000
 # How far the solid copy's box may grow past the full model's on any side: a share of the piece's largest side, plus
 # the wall. Thickening a noisy shell with even offset threw spikes tens of metres long (2026-10-06, a 0.6 m roof apex
 # came back 64 m tall and took 14 minutes), so the step thickens by the plain normal and checks its own box.
@@ -256,8 +262,11 @@ def sharp_folds(mesh):
 
 
 def voxel_of(size):
-    """The solid copy's voxel: VOXEL_SHARE of the piece's largest side, no finer than VOXEL_FINEST."""
-    return max(VOXEL_FINEST, max(size) * VOXEL_SHARE)
+    """The solid copy's voxel: VOXEL_SHARE of the piece's largest side, or a thin piece's thinnest side over
+    THIN_VOXELS where that is finer, no finer than its box's surface over SURFACE_VOXELS nor than VOXEL_FINEST."""
+    wide, tall, deep = (float(side) for side in size)
+    surface = (2 * (wide * tall + tall * deep + deep * wide) / SURFACE_VOXELS) ** 0.5
+    return max(VOXEL_FINEST, min(max(size) * VOXEL_SHARE, max(min(size) / THIN_VOXELS, surface)))
 
 
 def default_wall(size):
