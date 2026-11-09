@@ -3421,7 +3421,12 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         3 m up moved off the north wall)
     Break: score/review/plan_fixes.py `wall_runs`: `int(shape.get("count") or 1) > 1 or` dropped (the counted run
         moved), or `holders.spans(rows[row]) or` dropped (the crane moved)
-    Break: score/review/plan_fixes.py `open_gaps`: `+ stack_gaps(plan, inventory)` dropped (PIPE 5 left with no gap)
+    Break: score/review/plan_fixes.py `open_gaps`: `+ stack_gaps(plan, inventory)` dropped (the stacked pipes with
+        no gap)
+    Break: score/review/plan_fixes.py `wall_runs_spread`: `surplus.append(run[0])` -> `pass` (PIPE 5 left in PIPE 1),
+        or `continue` after it dropped (PIPE 5 kept beside its drop), or `fixes += surplus_dropped(...)` dropped
+    Break: score/review/plan_fixes.py `off_flights`: `if laid_of(plan, row) - len(surplus.get(row, [])) > 1:` ->
+        `if True:` (a row's last bed taken off), or `-> if False:` (BED 1 left on the stairs beside BED 2)
     Break: score/review/plan_fixes.py `eaves_raised`: `>= plan_checks.LOW` -> `>= 0.0` (the tube's vault on its
         floor raised), or `roof["top"] = round(...)` dropped (the dome's rise lost)
     Break: score/review/plan_fixes.py `stair_rows_dropped`: the `any(other.get("anchor") == ...)` test dropped (the
@@ -3669,19 +3674,22 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     garage_rows = {"rows": [{"id": "pipe", "anchor": "wall", "where": "walls", "size": [10.0, 0.1, 0.1], "count": 8},
                             {"id": "crane", "anchor": "wall", "where": "top, spanning left to right",
                              "size": [10.0, 1.0, 1.0], "count": 2}]}
-    assert len(plan_fixes.stack_gaps(garage, garage_rows)) == 6  # 1, 2, 3 and 5 in one another
+    left = [gap for gap in plan_fixes.why_left(plan_fixes.open_gaps(garage, garage_rows)) if gap["kind"] == "stacked"]
+    assert len(left) == 6 and left[0]["words"].endswith(plan_fixes.WHY["stacked"]), left  # 1, 2, 3, 5 in one another
     said = plan_fixes.wall_runs_spread(garage, garage_rows)
     laid = {item[0]: item[1:5] for item in garage["items"]}
     assert laid["PIPE 2"] == [0.0, 1.0, 0.1, 10.0] and laid["PIPE 3"] == [11.9, 1.0, 0.1, 10.0], (laid, said)
     assert laid["PIPE 1"] == laid["PIPE 6"] == [0.0, 0.0, 10.0, 0.1] and laid["PIPE 4"] == [1.0, 11.9, 10.0, 0.1]
-    assert laid["PIPE 5"] == [0.5, 0.0, 10.0, 0.1] and laid["DUCT 1"] == [1.0, 0.0, 8.0, 0.2] and \
-        laid["CRANE 2"] == [1.0, 3.0, 10.0, 1.0], laid
+    assert laid["DUCT 1"] == [1.0, 0.0, 8.0, 0.2] and laid["CRANE 2"] == [1.0, 3.0, 10.0, 1.0], laid
+    # garage's live plan (2026-11-09): seven 10 m pipes for four walls, its concept's boxes two long runs and three
+    # short stubs boxed in pieces. A pipe with no free wall left is more than the walls hold: taken off, said in
+    # `dropped`, so its count is no gap and the scene record lays no more; nothing is left in another.
+    assert "PIPE 5" not in laid and garage["dropped"] == [{"item": "pipe", "laid": 7, "why": "1 more of it than the "
+                                                           "place's wall room holds (10 x 0.1 m each): 7 laid"}], garage
     assert said == ["pipe 2: laid along the west wall, out of its row's others on its own",
-                    "pipe 3: laid along the east wall, out of its row's others on its own"], said
-    left = [gap for gap in plan_fixes.why_left(plan_fixes.open_gaps(garage, garage_rows)) if gap["kind"] == "stacked"]
-    assert [(gap["item"], gap["with"]) for gap in left] == [("PIPE 1", "PIPE 5")] and \
-        left[0]["words"].endswith(plan_fixes.WHY["stacked"]), left
-    assert plan_fixes.wall_runs_spread(garage, garage_rows) == []
+                    "pipe 3: laid along the east wall, out of its row's others on its own",
+                    "pipe: pipe 5 taken off, 1 more of it than the place's wall room holds (10 x 0.1 m each): 7 laid"]
+    assert plan_fixes.stack_gaps(garage, garage_rows) == [] and plan_fixes.wall_runs_spread(garage, garage_rows) == []
     # settle@greenhouse, checkout 68: its upper floor at 3 m stood over its dome's 2.8 m eave, its reading's stairs row
     # laid two stairs objects on the shell's three flights, and planter beds made 2.5 m stood on the flights' feet. The
     # eave is raised a storey over that floor, its rise kept, a floor at 0.1 m or a vault on its floor left; the stairs
@@ -3733,6 +3741,16 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         laid["HALL 1"] == [1.25, 1.0, 0.5, 0.5]
     left = plan_fixes.why_left(plan_fixes.flight_gaps(beds, bed_rows))
     assert [gap["item"] for gap in left] == ["BED 1"] and left[0]["words"].endswith(plan_fixes.WHY["flight"]), left
+    # greenhouse's live plan (2026-11-09): eleven planter beds made up to 2.5 m on a lower floor that holds six clear
+    # of the stairs. A bed with no such floor whose row lays another is taken off, said in `dropped`; a row's last
+    # (BED 1 alone, above) stays a gap.
+    rowed = copy.deepcopy(beds)
+    rowed["items"].append(["BED 2", 3.6, 0.1, 0.5, 0.5, None, "item"])
+    rowed["rows"]["BED 2"] = ["bed"]
+    assert plan_fixes.off_flights(rowed, bed_rows) == ["bed: bed 1 taken off, 1 more of it than its level's floor "
+                                                       "clear of the stairs holds (up to 5 x 5 m as made each): 1 laid"]
+    assert [item[0] for item in rowed["items"]] == ["CHAIR 1", "CART 1", "HALL 1", "BED 2"] and \
+        plan_fixes.flight_gaps(rowed, bed_rows) == [] and rowed["dropped"][0]["laid"] == 1, rowed
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():

@@ -472,19 +472,19 @@ def unpiled(plan, inventory):
     return fixes + surplus_dropped(plan, surplus)
 
 
-def surplus_dropped(plan, surplus):
-    """The things of `surplus` (items no free floor of the place holds) taken off the plan, each row's in the plan's
-    `dropped` with its reason and the number it lays, so its count is no gap, no fix places them again
-    (plan_checks.count_gaps) and the scene record lays no more (scene_record/writer.counted); the fixes said, one a
-    row."""
+def surplus_dropped(plan, surplus, room="the place's free floor", size=None):
+    """The things of `surplus` (items no free floor of the place holds, or what `room` names) taken off the plan, each
+    row's in the plan's `dropped` with its reason (`size` the words of one as made, else its drawn box) and the number
+    it lays, so its count is no gap, no fix places them again (plan_checks.count_gaps) and the scene record lays no
+    more (scene_record/writer.counted); the fixes said, one a row."""
     fixes, by_row = [], {}
     for item in surplus:
         by_row.setdefault((plan.get("rows", {}).get(item[0]) or [None])[0], []).append(item)
     for row, items in by_row.items():
         for item in items:
             dropped_item(plan, item)
-        size = f"{items[0][3]:g} x {items[0][4]:g} m"
-        why = count_said(plan, row, f"{len(items)} more of it than the place's free floor holds ({size} each)")
+        said = size or f"{items[0][3]:g} x {items[0][4]:g} m"
+        why = count_said(plan, row, f"{len(items)} more of it than {room} holds ({said} each)")
         fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
                      f"taken off, {why}")
     return fixes
@@ -735,17 +735,24 @@ def wall_runs_spread(plan, inventory):
     a wall none of its row's runs lie on (onto_free_wall); one with no such wall left as laid, a gap (stack_gaps); the
     fixes said. 2026-11-09, settle@garage in env1 checkout 68: split_runs laid its seven pipes at the reading's one
     10 m size, each along x at its concept box's projection, three of them past its north edge, and items_inside
-    clamped those three into one corner at [0, 0]; the holders stood them over one another on that wall."""
+    clamped those three into one corner at [0, 0]; the holders stood them over one another on that wall. A run still
+    in one laid before it, with no such wall left, is more of its row than the place's walls hold: taken off
+    (surplus_dropped), its row's `dropped` saying why, so the scene record lays only the runs that fit (garage's
+    seven 10 m pipes, read from SAM 3 boxes of two long runs and of three short stubs boxed in pieces, 2026-11-09:
+    pipes 5, 6 and 7 off, four laid on its four walls)."""
     ways, fixes = wall_ways(plan), []
     rows = built_by_id(plan, inventory) if ways else {}
     for row, runs in wall_runs(plan, inventory).items():
-        kept = []
+        kept, surplus = [], []
         for run in runs:
-            if any(in_each_other(run, other) for other in kept) and onto_free_wall(
-                    plan, inventory, run, rows[row], ways, {other[1] for other in runs}) is not None:
+            if any(in_each_other(run, other) for other in kept):
+                if onto_free_wall(plan, inventory, run, rows[row], ways, {other[1] for other in runs}) is None:
+                    surplus.append(run[0])
+                    continue
                 fixes.append(f"{plan_checks.said_name(run[0][0])}: laid along the {side_of(ways[run[1]])} wall, out "
                              "of its row's others on its own")
             kept.append(run)
+        fixes += surplus_dropped(plan, surplus, "the place's wall room")
     return fixes
 
 
@@ -867,9 +874,14 @@ def on_flights(plan, inventory):
 def off_flights(plan, inventory):
     """Each thing in a stair or ramp as made though clear of it as drawn (on_flights) moved to the nearest floor of its
     own level (level_cells) where it stands as made, MARGIN clear, in no flight, wall, floor thing or thing standing
-    low (taken_floor); left as laid with none, a gap (flight_gaps); the fixes said. 2026-11-09, settle@greenhouse in
-    env1 checkout 68: planter beds 8, 10 and 11, drawn 0.63 m and read 2.5 m, stood on the feet of its flights."""
-    grid, fixes = plan_checks.Grid(plan), []
+    low (taken_floor). One with none whose row lays others is more of its row than the place's floor holds as made:
+    taken off (surplus_dropped), its row's `dropped` saying why, so the scene record lays only what fits; a row's last
+    is left as laid, a gap (flight_gaps). The fixes said. 2026-11-09, settle@greenhouse in env1 checkout 68: planter
+    beds 8, 10 and 11 stood on the feet of its flights. Its reading's one planter row is its four central beds, its
+    rim's troughs and its crates, read 2.5 m square and made at the bake's fit within that (its take 1 by 0.24 by 1, so
+    2.1 m square), drawn 0.47 to 2.05 m: no floor of the lower floor holds beds 2, 7, 8, 10 and 11 so, and they go."""
+    grid, fixes, surplus = plan_checks.Grid(plan), [], {}
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
     for item, made in on_flights(plan, inventory):
         middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
         level = level_cells(plan, grid, item)
@@ -877,11 +889,18 @@ def off_flights(plan, inventory):
         free = standing.nearest_free(middle, span.tolist(), taken_floor(plan, inventory, item, grid) | ~level, grid,
                                      level, [])
         if free is None:
+            row = (plan.get("rows", {}).get(item[0]) or [None])[0]
+            if laid_of(plan, row) - len(surplus.get(row, [])) > 1:
+                surplus.setdefault(row, []).append(item)
             continue
         item[1], item[2] = round(free[0] - item[3] / 2, 3), round(free[1] - item[4] / 2, 3)
         fixes.append(f"{plan_checks.said_name(item[0])}: moved {math.dist(middle, free):.2f} m off the stairs, clear "
                      f"of them as made ({numpy.ptp(made, axis=0).max():.1f} m across, drawn "
                      f"{max(item[3], item[4]):.2f} m)")
+    for row, items in surplus.items():
+        size = rows[row]["size"]  # on_flights finds only things of a row with a read size
+        fixes += surplus_dropped(plan, items, "its level's floor clear of the stairs",
+                                 f"up to {size[0]:g} x {size[1]:g} m as made")
     return fixes
 
 
@@ -900,9 +919,9 @@ def kept_apart(plan, inventory):
     the shell builds the flights (`stair_rows_dropped`), runs kept out of the walls and stairs (`runs_kept_clear`), a
     single thing laid again in its own row's run taken off (`run_doubles_dropped`), things piled on their own row's
     though it does not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid
-    along walls free of them (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and ramps moved
-    out of what is made larger than drawn (`flights_cleared`), things made larger than drawn moved off the stairs
-    (`off_flights`); the fixes said. A writing fixed before them gets them in the pass (plans_pass.unsettled), an edit
+    along walls free of them or taken off (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and
+    ramps moved out of what is made larger than drawn (`flights_cleared`), things made larger than drawn moved off the
+    stairs or taken off (`off_flights`); the fixes said. A writing fixed before them gets them in the pass (plans_pass.unsettled), an edit
     or a redrawing when shown (plans.edit_inside)."""
     return eaves_raised(plan) + stair_rows_dropped(plan, inventory) + runs_kept_clear(plan, inventory) \
         + run_doubles_dropped(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
