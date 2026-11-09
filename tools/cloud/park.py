@@ -391,7 +391,7 @@ def adopt(run, offers, number, kind, disk_gb, classes=None):
     pool_of = os.environ.get(capacity.RUN_ID) if pool.current() else None
     if (kind not in CLEANUPS and not pool_of) or not getattr(run, "deadline", None):
         return None
-    batch.compute.require_cleared(f"a parked machine of {kind}")
+    batch.compute.require_cloud(f"a parked machine of {kind}")
     places = {(offer.type, offer.zone) for offer in offers}
     classes = set(classes or {offer.machine_class for offer in offers})
     while True:

@@ -293,6 +293,33 @@ def override_yes(store, name):
     return store.spend_yes(compute.OVERRIDE, name)
 
 
+def cap_now(name):
+    """The newest record of the cap `name` (env1's, guard.current_cap in the SCORE object store), or None."""
+    from score.adapters.compute import guard
+    return guard.current_cap(guard.cap_book(), name)
+
+
+def cap(name, figures, by, replaces=None, baseline=None):
+    """Write the owner's cap `name` by his signed-in name (`figures`: euros, line, start, month_cap, finish,
+    standing_per_day, open; a close keeps the current cap's figures, open False); the record, or None once the newest
+    cap is no longer the one it `replaces` (its `at`; None for a first). Its baseline is the whole bill's counted lines
+    as read now (compute.cap_baseline; `baseline` given in tests). review.Refused for an empty or the runner's name;
+    PermissionError in a process an agent started (guard.set_cap)."""
+    from score.adapters import compute
+    from score.adapters.compute import guard
+    name_by = checked_by(by)
+    book = guard.cap_book()
+    current = guard.current_cap(book, name)
+    if (current or {}).get("at") != replaces:
+        return None
+    if figures.get("open") is False:
+        record = {**{field: value for field, value in current.items() if field not in ("at", "by", "open")},
+                  "open": False}
+    else:
+        record = {**figures, "baseline": baseline or compute.cap_baseline()}
+    return guard.set_cap(book, {**record, "by": name_by, "at": graph.now()}, name)
+
+
 def stop_line(store, world):
     """The environment's newest stop line, or None when it has none."""
     from score.adapters.compute import guard

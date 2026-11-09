@@ -34,6 +34,12 @@ The world's stop line (guard.py, owner 2026-10-18) is checked under the same loc
 starts when its forecast, with the world's spend since its first line and every run in flight, would pass the line;
 a started job is never stopped as the bill nears it, only a runaway past twice its forecast minutes.
 
+The env1 cap (the plan of 2026-11-09; guard.py's cap records in the SCORE object store, its watcher
+tools/cloud/cap_watch): while the owner's cap is open, every clearance, every cloud rent point (require_cloud: a
+Scaleway machine, pool or cluster; never a Google call, never this PC's card) and every cluster poll (cap_stop) reads its watcher's newest reading of the whole bill and refuses past its stop line, while the bill
+has not been read for 15 minutes (fails closed), and for any run not env1's (an override, a benchmark grant); a
+start counts its high plus 10%, both homes' holds and the standing to the finish.
+
 The owner's override, an extra route he may use and never a requirement, is his yes for a run outside the runner:
 he gives it from his own terminal for a name of his choosing (the review command's spend, node `override`, key
 <name>, at his euros), and the run carries SCORE_SPEND_TICKET="override <name>"; an override yes counts in flight for
@@ -184,6 +190,36 @@ def cloud_bill():
 
     billing = provider.billing()
     return billing.month_spend(billing.account())
+
+
+def cloud_bill_all():
+    """{bill_all, bill_all_unread}: the provider's whole bill this month, every project (the env1 cap's measure, the
+    plan of 2026-11-09), beside the books' `bill`, which keeps its batch project's meaning for every stop line, batch
+    start, grant and books figure written before (K9). None with why when the backend has no whole bill or it cannot
+    be read (its key's rights): the books stay as they were."""
+    import subprocess
+
+    ledger()
+    import provider
+
+    billing = provider.billing()
+    if not hasattr(billing, "bill_all"):
+        return {"bill_all": None, "bill_all_unread": f"the {billing.NAME} backend reads no whole bill"}
+    try:
+        return {"bill_all": round(billing.bill_all()["whole"], 2), "bill_all_unread": None}
+    except (billing.Unread, subprocess.CalledProcessError) as unread:
+        return {"bill_all": None, "bill_all_unread": str(unread)[:300]}
+
+
+def cap_baseline():
+    """The env1 cap's start figures: the provider's whole bill read now, {at, whole, lines} (its counted lines by
+    project and product, the backend's bill_all), the counter's zero. Raises when it cannot be read: a cap is never
+    set on a guessed start."""
+    ledger()
+    import provider
+
+    read = provider.billing().bill_all()
+    return {"at": graph.now(), "whole": read["whole"], "lines": read["lines"]}
 
 
 def google_bill():
@@ -508,7 +544,7 @@ def read_back_books():
     state = "known" if google["google_unread"] is None else held.get("state", "lost")
     source = "scaleway consumption" + ("" if google["google_unread"] else " + google billing export (bigquery)")
     read = {**held, "month": month, "state": state, "bill": round(cloud_bill(), 2), "bill_at": graph.now(),
-            "source": source, "vat_in_bill": "unknown", **google}
+            "source": source, "vat_in_bill": "unknown", **google, **cloud_bill_all()}
     books.write_books(read)
     return read
 
@@ -801,7 +837,8 @@ def clearance(runner, node, euros, own=None):
         held = open_reservations(reservations)
         over = (books_refusal()
                 or (grant_refusal(covering_store(runner.store), grant_id, forecast["euros"], held) if grant_id else
-                    stop_refusal(runner, node, forecast["euros"], held)))
+                    stop_refusal(runner, node, forecast["euros"], held))
+                or cap_refusal(runner.store, forecast["euros"], env1=not grant_id, own=(node, ticket["key"])))
         if over:
             raise Refused(f"{node}: {over}")
         cleared = {"node": node, "key": ticket["key"], "euros": forecast["euros"], "minutes": forecast["minutes"],
@@ -811,6 +848,7 @@ def clearance(runner, node, euros, own=None):
             hold_grant(covering_store(runner.store), grant_id, cleared, held)
         runner.store.write_clearance(node, ticket["key"], cleared)
         keep_reservations(reservations, {**held, cleared["at"]: {**cleared, "run": os.environ.get(RUN_ID)}})
+        cap_hold(runner.store, cleared)
     return {**ticket, "clearance": cleared, "reservations": str(reservations),
             "store": str(runner.store.cache.parent)}
 
@@ -1162,7 +1200,8 @@ def require_cleared(what, store=None, high=0.0):
     labval-motor-20261106, 2026-11-06: EUR 37.53 of 40 booked and nothing checked the next run against it). `what`
     says what was about to be rented. Every paid point asks this first (batch.rent, park, the cluster, the Google and
     World Labs callers), so it also refuses while the month's books are unknown, and raises ledger.FreeOnly in a
-    process that runs free only (require_books)."""
+    process that runs free only (require_books). A cloud rent point asks require_cloud instead, which adds the env1
+    cap."""
     named = os.environ.get(TICKET, "").split()
     if len(named) != 2:
         raise Refused(f"{what}: nothing rents outside a cleared run. Run it through the runner (score.adapters "
@@ -1183,3 +1222,80 @@ def require_cleared(what, store=None, high=0.0):
         raise Refused(f"{what}: {why}")
     require_books(what)
     return found[-1]
+
+
+def require_cloud(what):
+    """require_cleared at a cloud rent point (a Scaleway machine, pool or cluster: park, pool, the cluster's
+    submitter, queue and Kapsule; batch.rent's machine through scaleway.create's cap_check), then the env1 cap (cap_refusal: past its line, its bill unread past 15
+    minutes, or a run not env1's while it is open); the clearance or yes. A Google or World Labs call asks
+    require_cleared alone: the cap counts the Scaleway bill. Nothing is held to the cap on this PC's card."""
+    found = require_cleared(what)
+    cap_check(what)
+    return found
+
+
+def cap_check(what):
+    """The env1 cap at a cloud rent point (cap_refusal for the run SCORE_SPEND_TICKET names); Refused when it refuses.
+    Asked by require_cloud, and by the backend's own order (scaleway.create) for batch.rent, whose file the pixal and
+    rough-model rows declare."""
+    named = os.environ.get(TICKET, "").split()  # two words wherever require_cleared passed
+    node, key = named if len(named) == 2 else (None, None)
+    cleared = ticket_store().clearances(node, key) if node else []
+    env1 = bool(cleared) and not os.environ.get(GRANT) and not cleared[-1].get("grant")
+    why = cap_refusal(None, 0.0, env1=env1, own=(node, key))
+    if why:
+        raise Refused(f"{what}: {why}")
+
+
+def cap_applies(store):
+    """Whether the env1 cap guards this store's paid work: the framework's store (a trial's inside the home too), or
+    any while SCORE_CAP_BOOK names the cap's records (a test's own store is its own); never in a process that rents
+    on this PC's card (SCORE_CLOUD=local: EUR 0, env1's GPU work until its film)."""
+    ledger()
+    import provider
+
+    if provider.cloud.NAME == "local":
+        return False
+    return bool(os.environ.get(guard.CAP_BOOK)) or covering_store(store).is_framework_store()
+
+
+def cap_refusal(store=None, high=0.0, env1=True, own=None):
+    """Why the env1 cap (guard.cap_refusal: the owner's cap record and its watcher's newest reading in the SCORE object
+    store, both homes' holds) refuses paid work now, or None; `high` a start's high (0 at a rent point inside a cleared
+    run, whose start was checked), `own` its (node, key), whose own hold is not counted twice. Fails closed: a cap that
+    cannot be read refuses."""
+    store = ticket_store(store)
+    if not cap_applies(store):
+        return None
+    now = time.time()
+    try:
+        book = guard.cap_book()
+        cap = guard.current_cap(book)
+        if not cap or not cap.get("open"):
+            return None
+        reading = guard.cap_newest(book, "readings")
+        held = sum(float(hold["euros"]) for hold in guard.open_holds(book, now)
+                   if (hold.get("node"), hold.get("key")) != tuple(own or ()))
+    except Exception as error:  # noqa: BLE001 - any failure to read the cap refuses: it fails closed
+        return f"the env1 cap could not be read ({type(error).__name__}: {error}): no paid work while it cannot"
+    return guard.cap_refusal(cap, reading, now, high, held, env1)
+
+
+def cap_stop(store=None):
+    """Why a running paid run stops now under the env1 cap (cap_refusal with no start asked for: the counter at the
+    line, the bill unread past 15 minutes, or a run not env1's while the cap is open), or None."""
+    named = os.environ.get(TICKET, "").split()
+    env1 = not (named and named[0] == OVERRIDE) and not os.environ.get(GRANT)
+    return cap_refusal(store, 0.0, env1=env1)
+
+
+def cap_hold(store, cleared):
+    """Hold a clearance's high under the open cap in the SCORE object store, so the other home's starts count it (K3);
+    nothing when the cap does not guard this store or none is open."""
+    if not cap_applies(store):
+        return
+    book = guard.cap_book()
+    cap = guard.current_cap(book)
+    if cap and cap.get("open"):
+        guard.cap_write(book, "holds", {"at": cleared["at"], "node": cleared["node"], "key": cleared["key"],
+                                        "euros": cleared["euros"], "home": str(PROPS_HOME)})

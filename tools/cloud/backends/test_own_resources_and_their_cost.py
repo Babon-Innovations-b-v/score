@@ -9,6 +9,10 @@ The invariants, each with the break that turns its test red (each applied once a
   are taken only when their own record names our project (and the runner's tag, for a machine).
   Break: drop `and space.get("project_id") == project` in `registry_namespace` -> another project's namespace is used.
   Break: drop `if line.get("project_id") != project: continue` in `consumption` -> the bill reads EUR 100.5.
+- The env1 cap's whole bill reads every project: SCORE's whole, the shared one but babon's own services, a machine
+  of the shared project SCORE's only in a score or gate pool; an empty bill or a lower one raises.
+  Break: `counted` returns True for every line -> the database line counts. Break: drop the `whole < last_whole`
+  raise in `bill_all`. Break: `owner_of` returns "score" for any shared machine -> batch-l4 is SCORE's.
   Break: drop `server.get("project") == project and` in `delete_left_by_refusal` -> srv-other is deleted.
   Break: drop `and QUARANTINED not in ...` in `leftover_addresses` -> the quarantined address is a leftover.
 - A machine whose state cannot be read is a refusal its waiter waits out and deletes, never a crash. Break: in
@@ -268,6 +272,38 @@ def test_the_bill_keeps_only_the_projects_own_lines(fake):
          "value": {"units": 1, "nanos": 500000000}},
         {"project_id": OTHER, "product_name": "L4", "sku": "x", "value": {"units": 99}}]}
     assert scaleway.month_spend(OURS) == 1.5
+    # the env1 cap's whole bill (the plan of 2026-11-09): every project read, SCORE's projects whole, the shared one
+    # but babon's own services, any other project left out; an empty bill or one below the last kept read raises
+    shared = "babon-platform"
+    fake.answers = {("billing", "consumption", "list"): [
+        {"project_id": "ff", "project_name": "farm-factory", "category_name": "Compute", "product_name": "L4",
+         "sku": "/instance/server/l4_1_24g/fr-par-2", "value": {"units": 10}},
+        {"project_id": "sc", "project_name": "score-conductor", "category_name": "Storage", "sku": "/storage/b",
+         "product_name": "Block Storage Volume", "value": {"units": 2, "nanos": 500000000}},
+        {"project_id": "bp", "project_name": shared, "category_name": "Compute", "product_name": "L4",
+         "sku": "/instance/server/l4_1_24g/fr-par-2", "value": {"units": 40}},
+        {"project_id": "bp", "project_name": shared, "category_name": "Managed Databases", "product_name": "DB",
+         "sku": "/storage/rdb", "value": {"units": 30}},
+        {"project_id": "bp", "project_name": shared, "category_name": "Network", "product_name": "Loadbalancer IP",
+         "sku": "/network/loadbalancer/ip/par1", "value": {"units": 1}},
+        {"project_id": "bw", "project_name": "babon-worker", "category_name": "Security and Identity",
+         "product_name": "Secret Manager", "sku": "/paas/secret", "value": {"units": 3}}]}
+    read = scaleway.bill_all()
+    assert read["whole"] == 86.5 and read["lines"] == {
+        "farm-factory|/instance/server/l4_1_24g/fr-par-2": 10.0, "score-conductor|/storage/b": 2.5,
+        f"{shared}|/instance/server/l4_1_24g/fr-par-2": 40.0}
+    assert read["projects"] == {"farm-factory": "ff", "score-conductor": "sc", shared: "bp", "babon-worker": "bw"}
+    with pytest.raises(scaleway.Unread, match="below"):
+        scaleway.bill_all(last_whole=90.0)
+    fake.answers = {("billing", "consumption", "list"): []}
+    with pytest.raises(scaleway.Unread, match="no line"):
+        scaleway.bill_all()
+    # split by pool tag: the shared project's machine in a score or gate pool is SCORE's, any other babon's
+    names = {"ff": "farm-factory", "bp": shared, "xx": "babon-worker"}
+    assert [scaleway.owner_of({"project": project, "tags": tags}, names) for project, tags in (
+        ("ff", []), ("bp", ["pool-name=score-l4-1-z2"]), ("bp", ["pool-name=gate-cpu"]),
+        ("bp", ["pool-name=batch-l4"]), ("bp", []), ("xx", ["pool-name=score-x"]))] == [
+        "score", "score", "score", "babon", "babon", None]
 
 
 def test_a_quarantined_or_foreign_address_is_never_a_leftover(monkeypatch):

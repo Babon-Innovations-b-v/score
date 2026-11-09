@@ -14,7 +14,7 @@ click makes on the store's machine (applying.apply, so every check of his click 
                         (grants/decide-used/<id>.json, written before it is applied; a refused or failed apply hands
                         it back, grants/decide-returned/<id>/<n>.json, so the same yes applies after a fix), it is a go (carried by its run, never applied here), or its target changed since the
                         question (another output accepted, another concept locked, the film's script edited, the
-                        month's books written since, another stop line written since); then the cockpit's own request kind (request_of) by his name
+                        month's books written since, another stop line or cap written since); then the cockpit's own request kind (request_of) by his name
 
 Decisions and what each names: an accept or a reject names a node and one output, with the node's accepted output
 then; a waiver a node, one output and its check; lock-concept a place and one draw's sha, with its lock then;
@@ -28,7 +28,9 @@ for it (his cockpit's "Enter it in the books", the request kind books-figure), w
 so a figure read back or entered since refuses it (a rent refused on his PC, "the month's spend is unknown", answered
 in chat); stop an environment and the euros of its new stop line (score.review.web.stop, the line his `python -m
 score.review stop` writes), with the environment's newest line as it stands, so a line written since refuses it (owner,
-2026-11-07, asked for an images stop line he had already given: "WTF HAVE I SAID ABOUTT").
+2026-11-07, asked for an images stop line he had already given: "WTF HAVE I SAID ABOUTT"); cap env1's cap on the whole
+bill (the plan of 2026-11-09, K10: a stop line keeps its batch project's baseline, so "stop" cannot say it), its euros,
+stop line, start, November cap, finish and standing a day (cap_state), or its close once the film is accepted.
 
 Reached from the agents' door (tools/cloud/conductor/agent_door.py `decide-yes`, `decide`) and, for a run on this PC,
 tools/cloud/this_pc.py's own. The records are the cockpit's own (his accept, reject, waiver or lock by his name), so
@@ -48,7 +50,8 @@ from score.review import web
 from score.dashboard import state
 from score.dashboard.sync import applying
 
-DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", web.BOOKS_MONTH, "stop")
+DECISIONS = ("accept", "reject", "waive", "lock-concept", "lock-film", "go", "spend", web.BOOKS_MONTH, "stop", "cap")
+CAP_FIGURES = ("euros", "line", "month_cap", "standing")  # a cap's amounts; its `start` and `finish` are times
 
 
 class Refused(RuntimeError):
@@ -127,6 +130,46 @@ def stop_state(store, world, euros):
     return {"world": world, "euros": amount, "line": {"at": line["at"], "euros": line["euros"]} if line else None}
 
 
+def cap_state(name, given):
+    """{cap, euros, line, start, month_cap, finish, standing_per_day, open, current}: his cap as asked (the plan of
+    2026-11-09: what the 300 counts, its 255 stop line, the November cap), with the newest cap record as it stands (its
+    time, None for a first), so a cap written since refuses it; `close` ends it (its film accepted) with the current
+    one's figures. Refused for amounts that are not finite and above 0, a line above the euros, or a start or finish
+    that is no ISO time."""
+    from score.review import web
+    current = web.cap_now(name)
+    since = {"current": current["at"] if current else None}
+    if given.get("close"):
+        if not current:
+            raise Refused(f"no {name} cap to close")
+        return {"cap": name, "open": False, **since}
+    figures = {}
+    for field in CAP_FIGURES:
+        if given.get(field) in ("", None) and field in ("month_cap", "standing"):
+            figures[field] = None
+            continue
+        try:
+            figures[field] = float(given.get(field))
+        except (TypeError, ValueError):
+            raise Refused(f"a cap names its {field} as an amount, not {given.get(field)!r}") from None
+        if not math.isfinite(figures[field]) or not figures[field] > 0:
+            raise Refused(f"a cap's {field} is a finite amount above EUR 0, not {given.get(field)!r}")
+    if figures["line"] > figures["euros"]:
+        raise Refused(f"a cap's stop line EUR {figures['line']:.2f} is within its EUR {figures['euros']:.2f}")
+    times = {}
+    for field in ("start", "finish"):
+        try:
+            times[field] = (datetime.datetime.fromisoformat(str(given[field])).isoformat() if given.get(field)
+                            else None)
+        except ValueError:
+            raise Refused(f"a cap's {field} is an ISO time, not {given.get(field)!r}") from None
+    if not times["start"]:
+        raise Refused("a cap names the time its count starts (--start)")
+    return {"cap": name, "euros": figures["euros"], "line": figures["line"], "start": times["start"],
+            "month_cap": figures["month_cap"], "finish": times["finish"], "standing_per_day": figures["standing"],
+            "open": True, **since}
+
+
 def script_sha(found):
     return hashlib.sha256(json.dumps(found, sort_keys=True).encode()).hexdigest()
 
@@ -149,6 +192,8 @@ def state_of(decision, target, given, store):
         return books_state(target, given.get("euros"))
     if decision == "stop":
         return stop_state(store, target, given.get("euros"))
+    if decision == "cap":
+        return cap_state(target, given)
     return {"world": target}
 
 
@@ -168,8 +213,11 @@ def record(decision, target, answer, question, store=None, **given):
         raise Refused("only a reject names takes to remake (--takes)")
     if given.get("purpose") and decision != "spend":
         raise Refused("only a spend names a purpose (--purpose)")
-    if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH, "stop"):
-        raise Refused("only a spend, a books month or a stop line names euros (--euros)")
+    if given.get("euros") not in ("", None) and decision not in ("spend", web.BOOKS_MONTH, "stop", "cap"):
+        raise Refused("only a spend, a books month, a stop line or a cap names euros (--euros)")
+    if decision != "cap" and any(given.get(field) not in ("", None) for field in (
+            "line", "start", "month_cap", "finish", "standing", "close")):
+        raise Refused("only a cap names a line, start, month cap, finish, standing or close")
     store = store or state.source().store
     given = {name: value for name, value in given.items() if value not in ("", None, [])}
     moment = datetime.datetime.now(datetime.timezone.utc)
@@ -201,6 +249,11 @@ def request_of(yes):
             "world": target["world"], "euros": target["euros"],
             "reason": given.get("reason") or f"his yes in chat: {yes['answer']}",
             "replaces": (target["line"] or {}).get("at")}}
+    if yes["decision"] == "cap":
+        return {"kind": "cap-line", "user": user, "payload": {
+            **{field: target.get(field) for field in ("cap", "euros", "line", "start", "month_cap", "finish",
+                                                      "standing_per_day", "open")},
+            "replaces": target["current"], "words": f"his yes in chat: {yes['answer']}", "yes": yes["id"]}}
     if yes["decision"] == "lock-concept":
         return {"kind": "concept-pick", "user": user, "payload": {"place": target["place"], "sha": target["sha"]}}
     return {"kind": "film-lock", "user": user, "payload": {"film": target["film"],
@@ -210,7 +263,7 @@ def request_of(yes):
 def target_name(yes):
     target = yes["target"]
     return (target.get("node") or target.get("place") or target.get("film") or target.get("override")
-            or target.get("month") or target.get("world"))
+            or target.get("month") or target.get("world") or target.get("cap"))
 
 
 def refusal(yes, yes_id, store):

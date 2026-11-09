@@ -95,13 +95,17 @@ def parse(argv):
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
     decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend, the "
-                                                   "books month (score.review.web.BOOKS_MONTH) or stop (an "
-                                                   "environment's stop line at --euros)")
+                                                   "books month (score.review.web.BOOKS_MONTH), stop (an "
+                                                   "environment's stop line at --euros) or cap (env1's cap: --euros "
+                                                   "--line --start [--month-cap --finish --standing], or --close)")
     decide_yes.add_argument("target", help="the node, place, film, environment, override name or month "
                                                  "(YYYY-MM) it applies to")
     for name in ("output", "check", "sha", "reason", "worse-reason", "euros", "purpose"):
         decide_yes.add_argument(f"--{name}", default="")
     decide_yes.add_argument("--takes", default="", help="a reject's takes to remake, comma-separated")
+    for name in ("line", "start", "month-cap", "finish", "standing"):  # a cap's (chat_decisions.cap_state)
+        decide_yes.add_argument(f"--{name}", default="")
+    decide_yes.add_argument("--close", action="store_true", help="a cap closed (its film accepted)")
     for name in ("answer", "question"):
         decide_yes.add_argument(name)
     commands.add_parser("decide", help="his decision under a yes from decide-yes, once "
@@ -117,7 +121,9 @@ def decide_yes(options):
                                     output=options.output, check=options.check, sha=options.sha,
                                     reason=options.reason, worse_reason=options.worse_reason,
                                     euros=options.euros, purpose=options.purpose,
-                                    takes=sorted(filter(None, options.takes.split(","))))
+                                    takes=sorted(filter(None, options.takes.split(","))), line=options.line,
+                                    start=options.start, month_cap=options.month_cap, finish=options.finish,
+                                    standing=options.standing, close=options.close or None)
     except chat_decisions.Refused as refused:
         sys.exit(f"decide-yes: refused: {refused}")
     print(f"decide-yes {yes['id']}: {yes['decision']} {json.dumps(yes['target'])}")

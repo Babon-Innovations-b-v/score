@@ -75,6 +75,8 @@ def own_temp():
     os.environ[SYSTEM_TEMP_VARIABLE] = str(SYSTEM_TEMP[0])
     folder = tempfile.mkdtemp(prefix="score-test-own-")
     tempfile.tempdir = os.environ["TMPDIR"] = folder
+    # the env1 cap's records (score/adapters/compute/guard.py) in a folder of the sandbox, never the object store
+    os.environ.setdefault("SCORE_CAP_BOOK", os.path.join(folder, "caps"))
     home = pathlib.Path(os.environ["PROPS_HOME"])
     removed = [folder] + ([home] if home.is_dir() and not any(home.iterdir()) else [])
     owner = os.getpid()

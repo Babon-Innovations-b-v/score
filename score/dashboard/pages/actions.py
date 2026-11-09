@@ -235,6 +235,34 @@ def stop_line(user, payload):
     return f"stop line of {world}: EUR {line['euros']:.2f}{was}"
 
 
+def cap_line(user, payload):
+    """The owner's env1 cap on the whole bill (score.review.web.cap; made in chat, sync/chat_decisions.py), in words:
+    local written, hosted queued; refused for anyone else, in an agent's process, for a name that is not plain, or
+    when the newest cap is no longer the one it `replaces`."""
+    name = str(payload.get("cap") or "")
+    if not SCENE_NAME.fullmatch(name):
+        return f"refused: {name!r} is not a plain cap name"
+    if hosted():
+        return queued_for_store("cap-line", user, payload, f"sets the {name} cap")
+    why = owner_figure_off_why(user)
+    if why:
+        return why
+    from score import review
+    from score.review import web
+    figures = {field: payload.get(field) for field in ("euros", "line", "start", "month_cap", "finish",
+                                                       "standing_per_day", "open")}
+    try:
+        record = web.cap(name, figures, user, replaces=payload.get("replaces"))
+    except (review.Refused, PermissionError, ValueError) as refused:
+        return f"refused: {refused}"
+    if record is None:
+        return f"refused: another {name} cap was written since"
+    if not record["open"]:
+        return f"{name} cap closed"
+    return (f"{name} cap: EUR {record['euros']:.2f}, paid work stops at EUR {record['line']:.2f}, counted from "
+            f"{record['start'][:16]} on the whole bill (EUR {record['baseline']['whole']:.2f} then)")
+
+
 def waive_check(user, place, stage, output, check, reason):
     """The owner's waiver of one check of an output he saw (score.review.web.waived), in words: local written,
     hosted queued."""

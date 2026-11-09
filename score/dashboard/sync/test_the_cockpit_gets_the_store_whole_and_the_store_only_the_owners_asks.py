@@ -75,12 +75,15 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
 - applying.OWNER_FIGURES: the "stop-line" line dropped (his stop line in chat has no request kind) ->
   test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+- applying.OWNER_FIGURES: the "cap-line" line dropped, or chat_decisions.cap_state's `"current"` set to None (a cap
+  written since applies anyway) -> test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
 - chat_decisions.stop_state: its `"line"` set to None (a stop line asked before another line was written applies
   anyway) -> test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
   test_every_module_the_hosted_image_holds_imports_from_it_alone
 """
+import datetime
 import gzip
 import hashlib
 import io
@@ -1305,6 +1308,35 @@ def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_mar
     pytest.raises(chat_decisions.Refused, chat_decisions.apply, stop["id"])
     for euros in ("0", "-1", "nan", "ten", ""):
         pytest.raises(chat_decisions.Refused, chat_decisions.record, "stop", "chat-stop", "Yes", asked, euros=euros)
+    # his env1 cap on the whole bill (the plan of 2026-11-09, K10): applied once through the cockpit's own request
+    # (cap-line) by his name, counted from the whole bill as read then; a cap written since refuses the yes; closed later
+    monkeypatch.setattr("score.adapters.compute.cap_baseline",
+                        lambda: {"at": "t", "whole": 2127.39, "lines": {"ff|l4": 169.0}})
+    asked = "Cap env1 at EUR 300, paid work stopping at EUR 255, counted from 2026-11-09 18:40 UTC?"
+    cap = chat_decisions.record("cap", "env1", "Yes", asked, euros="300", line="255", start="2026-11-09T18:40:00+00:00",
+                                month_cap="2970", finish="2026-11-21T23:59:00+00:00", standing="15")
+    assert cap["target"] == {"cap": "env1", "euros": 300.0, "line": 255.0, "start": "2026-11-09T18:40:00+00:00",
+                             "month_cap": 2970.0, "finish": "2026-11-21T23:59:00+00:00", "standing_per_day": 15.0,
+                             "open": True, "current": None}
+    applied = chat_decisions.apply(cap["id"])
+    assert applied.state == "done" and "paid work stops at EUR 255.00" in applied.detail, applied.detail
+    assert seen[-1][0]["kind"] == "cap-line" and seen[-1][0]["user"] == "joey"
+    written = web.cap_now("env1")
+    assert (written["by"], written["open"], written["baseline"]["whole"], written["line"]) == ("joey", True, 2127.39,
+                                                                                               255.0)
+    pytest.raises(chat_decisions.Refused, chat_decisions.apply, cap["id"])
+    again = chat_decisions.record("cap", "env1", "Yes", asked, euros="300", line="200", start="2026-11-09T18:40")
+    since = (datetime.datetime.fromisoformat(written["at"]) + datetime.timedelta(microseconds=1)).isoformat()
+    lines = pathlib.Path(os.environ["SCORE_CAP_BOOK"]) / "caps" / "env1" / "lines"  # the conftest's folder book
+    (lines / f"{since.replace(':', '').replace('-', '')}-0.json").write_text(json.dumps({**written, "at": since}))
+    pytest.raises(chat_decisions.Refused, chat_decisions.apply, again["id"])  # a cap written since
+    closed = chat_decisions.record("cap", "env1", "Yes", "Close env1's cap: its film is accepted?", close=True)
+    assert chat_decisions.apply(closed["id"]).state == "done" and web.cap_now("env1")["open"] is False
+    for given in ({"euros": "300", "line": "400", "start": "2026-11-09T18:40"}, {"euros": "300", "line": "255"},
+                  {"euros": "nan", "line": "255", "start": "2026-11-09T18:40"}):
+        pytest.raises(chat_decisions.Refused, chat_decisions.record, "cap", "env1", "Yes", asked, **given)
+    pytest.raises(chat_decisions.Refused, chat_decisions.record, "stop", "chat-stop", "Yes", asked, euros="10",
+                  line="5")  # only a cap names a line
 
 
 def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_reject(world):

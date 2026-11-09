@@ -66,6 +66,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - reading allowance: reading_clearance drops the per-place euros limit.
 - unquoted or too dear grant: grant_refusal drops `<= GRANT_EUROS`.
 - restored grant: restore_grant skips settle_grant.
+- the env1 cap: require_cloud's `why = cap_refusal(None, 0.0, env1=env1, own=(node, key))` becomes `why = None`;
+  or guard.cap_refusal's stale check compares only the reading's own time; or cap_stop's env1 ignores GRANT.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py
 """
@@ -271,6 +273,54 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monke
     with compute.spending({"node": compute.OVERRIDE, "key": "whole-validation"}):  # one run past the EUR 60 cap
         assert round(BOOKS.batch_cap()[0], 4) == 300.0
     assert BOOKS.batch_cap()[0] == BOOKS.BATCH_EUROS  # outside an override the batch cap stands
+    # the env1 cap (the plan of 2026-11-09, B2): the whole bill's counter past the line refuses every rent point, an
+    # override or a grant with euros left is refused while the cap is open, a start whose high (plus 10% and the
+    # standing to the finish) would pass the line is refused, an unread or stale bill refuses (fails closed), and the
+    # stop lines keep their batch project's baseline beside the whole bill
+    book, now, written = guard.FolderBook(os.environ[guard.CAP_BOOK]), time.time(), []
+    monkeypatch.setattr(guard, "running_under_agent", lambda: False)
+
+    def iso(seconds):
+        return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).isoformat()
+
+    def reading(counter, **more):
+        written.append(1)  # each newer than the last, so it is the newest
+        guard.cap_write(book, "readings", {"at": iso(now - 60 + len(written) / 100), "unread": None,
+                                           "counter": counter, "whole": 2500.0, **more})
+    guard.set_cap(book, {"euros": 300.0, "line": 255.0, "start": iso(now - 3600), "by": "joey",
+                         "at": iso(now - 3600), "baseline": {"whole": 2000.0, "lines": {}},
+                         "finish": iso(now + 86400), "standing_per_day": 10.0, "month_cap": 2970.0})
+    try:
+        assert "has no reading" in refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
+        reading(100.0)
+        with compute.spending(compute.clearance(runner, "render@hangar", 1.0)):
+            assert compute.require_cloud("a batch")["euros"] == 1.0
+            reading(256.0)  # a babon-platform SCORE line grew past the cap
+            assert "255.00 stop line" in refused(lambda: compute.require_cloud("a batch"))
+            assert "255.00 stop line" in compute.cap_stop()  # the cluster's poll stops too
+            reading(100.0)
+            with monkeypatch.context() as later:  # no pass for 20 minutes
+                later.setattr(time, "time", lambda: now + 20 * 60)
+                assert "fails closed" in refused(lambda: compute.require_cloud("a batch"))
+            reading(100.0, unread="Unread: no line", good_at=iso(now - 20 * 60))
+            assert "fails closed" in refused(lambda: compute.require_cloud("a batch"))
+            reading(100.0, whole=2970.0)
+            assert "November cap" in refused(lambda: compute.require_cloud("a batch"))
+        reading(200.0)
+        assert "this start's high EUR 50.00" in refused(lambda: compute.clearance(runner, "render@hangar", 50.0))
+        with compute.spending({"node": compute.OVERRIDE, "key": "whole-validation"}):  # euros left, cap open: C10
+            assert "no other paid run" in refused(lambda: compute.require_cloud("a batch"))
+            assert "no other paid run" in compute.cap_stop()
+        monkeypatch.setenv(compute.GRANT, "grant-1")  # a benchmark grant's run with its balance left: C10 too
+        assert "no other paid run" in compute.cap_stop()
+        monkeypatch.delenv(compute.GRANT)
+        assert guard.spent_since(START, {MONTH: {"bill": 150.0, "ledger": 90.0, "google": 0.0, "bill_all": 9e3}}) \
+            == 50.0  # a stop line's spend: its batch project's bill, never the whole bill beside it
+        monkeypatch.setattr(provider, "billing", lambda: types.SimpleNamespace(NAME="plain"))
+        assert compute.cloud_bill_all() == {"bill_all": None, "bill_all_unread": "the plain backend reads no whole bill"}
+    finally:
+        guard.set_cap(book, {**guard.current_cap(book), "open": False, "at": iso(time.time() + 1)})
+    assert compute.cap_refusal(runner.store, 1e6) is None  # a closed cap refuses nothing
 
 
 def test_the_judge_timeout_is_an_operational_setting_outside_every_key():

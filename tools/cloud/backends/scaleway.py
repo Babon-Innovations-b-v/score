@@ -306,6 +306,179 @@ def month_spend(project):
     return sum(line["euros"] for line in consumption(project))
 
 
+# The env1 cap's whole bill (the plan of 2026-11-09, B2): SCORE's usage on every project of the organisation. The
+# projects SCORE owns count whole; babon's shared project counts but for babon's own services (its products below),
+# and its machine, disk and address lines are split by the pool tag of what the watcher saw running there
+# (tools/cloud/cap_watch): only what is proven babon's is taken off, so a line that cannot be split counts whole.
+SCORE_PROJECTS = ("farm-factory", "score-conductor")
+SHARED_PROJECT = "babon-platform"
+# babon's own services in the shared project, by the bill's category (and Network's load balancers by product).
+SHARED_OWN_CATEGORIES = ("Managed Databases", "Serverless", "BareMetal", "Observability", "Security and Identity",
+                         "Containers")
+SHARED_OWN_PRODUCTS = ("Loadbalancer", "Block Snapshot")
+# Kapsule's tag on a node's machine naming its pool; pools named so are SCORE's (its card pools, the conductor's node,
+# and every gate pool: the plan counts all gate lines as env1's, babon's own gate pushes too).
+POOL_TAG = "pool-name="
+SCORE_POOLS = ("score", "gate")
+# Every zone a machine, disk or address of the organisation may stand in (the cap's read, every project).
+ALL_ZONES = ("fr-par-1", "fr-par-2", "fr-par-3", "nl-ams-1", "nl-ams-2", "nl-ams-3", "pl-waw-1", "pl-waw-2",
+             "pl-waw-3", "it-mil-1")
+KAPSULE_REGIONS = ("fr-par", "nl-ams", "pl-waw")
+
+
+class Unread(RuntimeError):
+    """The whole bill or the live machines could not be read as they must be: the cap's watch fails closed on it."""
+
+
+def euros_of(value):
+    return (value or {}).get("units", 0) + (value or {}).get("nanos", 0) / 1e9
+
+
+def consumption_all():
+    """Scaleway's month-to-date bill of the whole organisation, no project filter: a line per project, product and
+    zone, {project, project_id, category, product, sku, euros}. Unread when it answers nothing (an empty bill is a
+    read that failed, never EUR 0)."""
+    lines = [{"project": line.get("project_name") or line.get("project_id"), "project_id": line.get("project_id"),
+              "category": line.get("category_name"), "product": line.get("product_name"), "sku": line.get("sku"),
+              "euros": euros_of(line.get("value"))}
+             for line in scw("billing", "consumption", "list") or []]
+    if not lines:
+        raise Unread("Scaleway's bill answered no line")
+    return lines
+
+
+def counted(line):
+    """True for a bill line SCORE's usage is on: a SCORE project's every line, the shared project's but babon's own
+    services; no other project's."""
+    if line["project"] in SCORE_PROJECTS:
+        return True
+    if line["project"] != SHARED_PROJECT:
+        return False
+    return (line["category"] not in SHARED_OWN_CATEGORIES
+            and not any(str(line["product"] or "").startswith(own) for own in SHARED_OWN_PRODUCTS))
+
+
+def line_key(line):
+    return f"{line['project']}|{line['sku']}"
+
+
+def bill_all(last_whole=None):
+    """The whole bill as the cap reads it: {whole (every line of every project), lines ({project|sku: euros} of the
+    counted lines), projects ({name: id})}. Unread when it is empty or its whole is below `last_whole`, the whole the
+    last kept read had: a bill only grows within its month, so a lower one is a read gone wrong (or a new month) and
+    never a smaller spend."""
+    lines = consumption_all()
+    whole = sum(line["euros"] for line in lines)
+    if last_whole is not None and whole < last_whole - 0.005:
+        raise Unread(f"Scaleway's bill reads EUR {whole:.2f}, below the EUR {last_whole:.2f} last kept")
+    found = {}
+    for line in lines:
+        if counted(line):
+            found[line_key(line)] = found.get(line_key(line), 0.0) + line["euros"]
+    return {"whole": round(whole, 4), "lines": {key: round(euros, 4) for key, euros in found.items()},
+            "projects": {line["project"]: line["project_id"] for line in lines}}
+
+
+def created_at(item):
+    """When a machine or disk was made (seconds); 0 for one whose record says not (an address): counted from the
+    cap's start then, never less."""
+    stamp = item.get("creation_date") or item.get("created_at")
+    return datetime.datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp() if stamp else 0.0
+
+
+def euros_since(per_minute, unit_minutes, created, start, now):
+    """What a thing priced `per_minute` (billed by `unit_minutes`) has cost from the later of its creation and `start`
+    to `now`, each started billing unit counted whole (a processor machine's started hour)."""
+    minutes = max(0.0, now - max(created, start)) / 60
+    return math.ceil(minutes / unit_minutes) * unit_minutes * per_minute if minutes else 0.0
+
+
+def owner_of(server, names):
+    """'score' or 'babon' for a machine: a SCORE project's, or the shared project's in a pool SCORE_POOLS names, is
+    SCORE's; any other machine of the shared project is babon's; None for any other project's."""
+    project = names.get(server.get("project"))
+    if project in SCORE_PROJECTS:
+        return "score"
+    if project != SHARED_PROJECT:
+        return None
+    pool = next((tag[len(POOL_TAG):] for tag in server.get("tags") or [] if tag.startswith(POOL_TAG)), "")
+    return "score" if pool.startswith(SCORE_POOLS) else "babon"
+
+
+def node_ids():
+    """The machine id of every node of every Kubernetes cluster the organisation holds (Kapsule's provider id
+    scaleway://instance/<zone>/<id>). Unread when a region cannot be read."""
+    found = set()
+    for region in KAPSULE_REGIONS:
+        try:
+            nodes = [node for cluster in scw("k8s", "cluster", "list", f"region={region}") or []
+                     for node in scw("k8s", "node", "list", f"cluster-id={cluster['id']}", f"region={region}") or []]
+        except subprocess.CalledProcessError as error:
+            raise Unread(f"the clusters' nodes in {region} could not be read: {(error.stderr or '').strip()[-200:]}")
+        found |= {node["provider_id"].rsplit("/", 1)[-1] for node in nodes if node.get("provider_id")}
+    return found
+
+
+def live_rate(start, now, names, nodes=None):
+    """Every machine, disk and address standing now in every project the bill names (`names`: {project id: name}),
+    each SCORE's or babon's (owner_of; a disk or address by the machine it is on, a loose one of a SCORE project
+    SCORE's and one of the shared project counted SCORE's: it fails closed): {id: {owner, kind, line (the bill line it
+    is billed on), euros (from the later of its creation and `start` to `now`), per_hour}}. Unread when a list cannot
+    be read or a cluster node (node_ids, or `nodes` given) is missing from the machines listed: a meter blind to a
+    running machine would let its cost pass unseen."""
+    found, servers = {}, {}
+    try:
+        for zone in ALL_ZONES:
+            for server in scw("instance", "server", "list", f"zone={zone}") or []:
+                servers[server["id"]] = (server, zone)
+    except subprocess.CalledProcessError as error:
+        raise Unread(f"the machines could not be read: {(error.stderr or '').strip()[-200:]}")
+    missing = (node_ids() if nodes is None else set(nodes)) - set(servers)
+    if missing:
+        raise Unread(f"{len(missing)} cluster node(s) are not among the machines listed ({sorted(missing)[:3]}): the "
+                     "key reads too little to meter what runs")
+    owners = {}
+    for server_id, (server, zone) in servers.items():
+        owner = owner_of(server, names)
+        if owner is None:
+            continue
+        owners[server_id] = owner
+        if server.get("state") == "stopped":
+            continue  # a machine stopped off its host bills no machine time, only its disks ("stopped in place" bills)
+        per_minute, unit = price(server["commercial_type"], zone)
+        project = names[server["project"]]
+        found[server_id] = {"owner": owner, "kind": "machine", "per_hour": round(per_minute * 60, 4),
+                            "line": f"{project}|/instance/server/{server['commercial_type'].lower().replace('-', '_')}"
+                                    f"/{zone}",
+                            "euros": round(euros_since(per_minute, unit, created_at(server), start, now), 4)}
+    for zone in ALL_ZONES:
+        try:
+            disks = scw("block", "volume", "list", f"zone={zone}") or []
+            addresses = scw("instance", "ip", "list", f"zone={zone}") or []
+        except subprocess.CalledProcessError as error:
+            raise Unread(f"the disks or addresses in {zone} could not be read: {(error.stderr or '').strip()[-200:]}")
+        for disk in disks:
+            project = names.get(disk.get("project_id"))
+            if project is None:
+                continue
+            held = [ref.get("product_resource_id") for ref in disk.get("references") or []]
+            owner = next((owners[server] for server in held if server in owners), "score")
+            per_hour = (disk.get("size") or 0) / 1e9 * DISK_EUROS_A_GB_HOUR
+            found[disk["id"]] = {"owner": owner, "kind": "disk", "per_hour": round(per_hour, 5),
+                                 "line": f"{project}|/storage/block/volume-low-latency-5k/{zone}",
+                                 "euros": round(euros_since(per_hour / 60, 60, created_at(disk), start, now), 4)}
+        for address in addresses:
+            project = names.get(address.get("project"))
+            if project is None:
+                continue
+            owner = owners.get((address.get("server") or {}).get("id"), "score")
+            found[address["id"]] = {"owner": owner, "kind": "address", "per_hour": ADDRESS_EUROS_AN_HOUR,
+                                    "line": f"{project}|/network/ipam/ipv4/{zone}",
+                                    "euros": round(euros_since(ADDRESS_EUROS_AN_HOUR / 60, 60,
+                                                               created_at(address), start, now), 4)}
+    return found
+
+
 def server_record(server_id, zone):
     """The machine's record as Scaleway holds it, or None when it is gone."""
     done = subprocess.run(["scw", "instance", "server", "get", server_id, f"zone={zone}", "-o", "json"],
@@ -374,6 +547,9 @@ def create(project, offer, name, tags, disk_gb):
 
         raise batch.compute.Refused(f"a {machine_type} in {zone}: no machine is rented that could not delete itself; "
                                     f"the self-delete key {refused_key}; owner: a working self-delete key there")
+    import batch
+
+    batch.compute.cap_check(f"a {machine_type} in {zone}")  # the env1 cap, here and not in batch.rent (its rows' file)
     image = IMAGES["gpu" if cards(offer.machine_class) else "cpu"]
     import ledger
 
