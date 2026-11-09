@@ -469,15 +469,21 @@ def unpiled(plan, inventory):
             continue
         fixes.append(f"{plan_checks.said_name(item[0])}: stood on the floor, not piled on its own row's"
                      + (f", moved {moved:.1f} m out of what it stood in" if moved else ""))
-    return fixes + surplus_dropped(plan, surplus)
+    return fixes + surplus_dropped(plan, inventory, surplus)
 
 
-def surplus_dropped(plan, surplus, room="the place's free floor", size=None):
+def surplus_dropped(plan, inventory, surplus, room="the place's free floor", size=None):
     """The things of `surplus` (items no free floor of the place holds, or what `room` names) taken off the plan, each
     row's in the plan's `dropped` with its reason (`size` the words of one as made, else its drawn box) and the number
     it lays, so its count is no gap, no fix places them again (plan_checks.count_gaps) and the scene record lays no
-    more (scene_record/writer.counted); the fixes said, one a row."""
-    fixes, by_row = [], {}
+    more (scene_record/writer.counted); what the plan places on or in them stood on the floor they stood on or taken
+    off too (`reseated`); the fixes said, one a row."""
+    if not surplus:
+        return []
+    fixes, by_row, grid = [], {}, plan_checks.Grid(plan)
+    resting = [(thing, item, float((plan.get("shapes", {}).get(item[0]) or {}).get("base") or 0.0),
+                level_cells(plan, grid, item)) for item in surplus for thing in resting_on(plan, inventory, item)
+               if thing not in surplus]
     for item in surplus:
         by_row.setdefault((plan.get("rows", {}).get(item[0]) or [None])[0], []).append(item)
     for row, items in by_row.items():
@@ -487,7 +493,46 @@ def surplus_dropped(plan, surplus, room="the place's free floor", size=None):
         why = count_said(plan, row, f"{len(items)} more of it than {room} holds ({said} each)")
         fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
                      f"taken off, {why}")
-    return fixes
+    return fixes + reseated(plan, inventory, resting, grid)
+
+
+def resting_on(plan, inventory, item):
+    """[thing] of the plan's things it places on or in `item`: of a row its reading stands on `item`'s row (`on:<row>`),
+    their middle within `item`'s footprint (greenhouse's plants 2 on its planter bed 2)."""
+    held_on, holder = {row["id"]: plan_checks.anchor_of(row) for row in inventory.get("rows", [])}, \
+        (plan.get("rows", {}).get(item[0]) or [None])[0]
+    footprint = plan_checks.polygon_of(item, plan.get("shapes", {}).get(item[0]))
+    return [thing for thing, row, _ in plan_checks.placed_items(plan) if thing is not item
+            and holder is not None and held_on.get(row) == holder
+            and plan_checks.inside(numpy.array([[thing[1] + thing[3] / 2, thing[2] + thing[4] / 2]]), footprint).all()]
+
+
+def reseated(plan, inventory, resting, grid):
+    """Each thing of `resting` [(thing, the holder taken off under it, the holder's base, its level's cells)] stood on
+    the floor its holder stood on (its base the holder's), at the nearest spot of that level clear of the floor
+    things, walls, stairs and things standing low (taken_floor) and of those stood before it, MARGIN clear; one with
+    none whose row lays others taken off too (surplus_dropped, said in `dropped`), a row's last left as laid. Without
+    it a thing on a holder taken off stood in the air over the bare floor (2026-11-09: greenhouse's plants 2, 0.5 m
+    up where its planter bed 2 went off its flights' feet)."""
+    fixes, stood, surplus = [], numpy.zeros(grid.shape, dtype=bool), []
+    for thing, holder, base, level in resting:
+        if thing not in plan["items"]:
+            continue
+        middle = [thing[1] + thing[3] / 2, thing[2] + thing[4] / 2]
+        span = [side + 2 * (MARGIN + grid.size) for side in thing[3:5]]
+        free = standing.nearest_free(middle, span, taken_floor(plan, inventory, thing, grid) | stood | ~level, grid,
+                                     level, [])
+        if free is None:
+            row = (plan.get("rows", {}).get(thing[0]) or [None])[0]
+            if laid_of(plan, row) - sum(1 for other in surplus if plan["rows"][other[0]][0] == row) > 1:
+                surplus.append(thing)
+            continue
+        thing[1], thing[2] = round(free[0] - thing[3] / 2, 3), round(free[1] - thing[4] / 2, 3)
+        plan["shapes"][thing[0]]["base"] = round(base, 3)
+        stood |= grid.covered(plan_checks.polygon_of(thing, plan["shapes"][thing[0]]))
+        fixes.append(f"{plan_checks.said_name(thing[0])}: stood on the floor {math.dist(middle, free):.1f} m off, "
+                     f"{plan_checks.said_name(holder[0])} under it taken off")
+    return fixes + surplus_dropped(plan, inventory, surplus, "the floor its holder stood on")
 
 
 def laid_of(plan, row):
@@ -752,7 +797,7 @@ def wall_runs_spread(plan, inventory):
                 fixes.append(f"{plan_checks.said_name(run[0][0])}: laid along the {side_of(ways[run[1]])} wall, out "
                              "of its row's others on its own")
             kept.append(run)
-        fixes += surplus_dropped(plan, surplus, "the place's wall room")
+        fixes += surplus_dropped(plan, inventory, surplus, "the place's wall room")
     return fixes
 
 
@@ -899,7 +944,7 @@ def off_flights(plan, inventory):
                      f"{max(item[3], item[4]):.2f} m)")
     for row, items in surplus.items():
         size = rows[row]["size"]  # on_flights finds only things of a row with a read size
-        fixes += surplus_dropped(plan, items, "its level's floor clear of the stairs",
+        fixes += surplus_dropped(plan, inventory, items, "its level's floor clear of the stairs",
                                  f"up to {size[0]:g} x {size[1]:g} m as made")
     return fixes
 
