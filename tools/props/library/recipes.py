@@ -296,6 +296,43 @@ def pile(colour, second, dirt_colour, roughness, tuft_size, mottle_size, contras
     return Channels(base, rough, 0.0, BLACK, relief)
 
 
+def rug_pattern(across, upward, border, line, medallion):
+    """A woven rug's pattern on its face (`across`, `upward` from 0 to 1 over it): how far each point is drawn toward
+    the second colour. A border band `border` in from every edge, half way, framed by two lines `line` wide; a diamond
+    medallion reaching `medallion` of the way to the edges, the field's colour, outlined twice, its core half way."""
+    edge = pf.nodes.math.minimum(pf.nodes.math.minimum(across, 1.0 - across),
+                                 pf.nodes.math.minimum(upward, 1.0 - upward))
+    diamond = (pf.nodes.math.absolute(across - 0.5) + pf.nodes.math.absolute(upward - 0.5)) * 2.0
+    band = pf.nodes.math.less_than(edge, border) * 0.5
+    framed = pf.nodes.math.maximum(pf.nodes.math.less_than(pf.nodes.math.absolute(edge - border * 0.25), line),
+                                   pf.nodes.math.less_than(pf.nodes.math.absolute(edge - border), line))
+    inside = pf.nodes.math.less_than(diamond, medallion)
+    outlined = pf.nodes.math.maximum(
+        pf.nodes.math.less_than(pf.nodes.math.absolute(diamond - medallion), line * 2.0),
+        pf.nodes.math.less_than(pf.nodes.math.absolute(diamond - medallion * 0.55), line * 2.0))
+    core = pf.nodes.math.less_than(diamond, medallion * 0.25) * 0.5
+    drawn = pf.nodes.math.maximum(band, framed) * (1.0 - inside) + core
+    return pf.nodes.math.maximum(drawn, outlined)
+
+
+def patterned_pile(colour, second, dirt_colour, roughness, tuft_size, mottle_size, contrast, bump, border, line,
+                   medallion, dirt_reach, dirt, seed):
+    """A patterned rug's pile: a woven border and middle medallion (rug_pattern) over the whole face in the second
+    colour, mottled in soft patches, a fine tufted relief, dirt in the cavities. The pattern is laid over the piece's
+    own box (its generated coordinates), so it fits the rug whatever its size. quarters' patterned rug, a bordered
+    medallion in its close-up, took `pile` and scored DINOv2 0.047 against it (pass 0.14); the same rug drawn with this
+    pattern in its own two palette colours scored 0.35 to 0.40 (2026-11-09)."""
+    vector = coordinates()
+    across, upward = face_plane(pf.nodes.shader.coord().generated)
+    mottle = pf.nodes.texture.noise(vector=vector, scale=1.0 / mottle_size, detail=4.0, noise_dimensions="4D", w=seed)
+    tufts = pf.nodes.texture.noise(vector=vector, scale=1.0 / tuft_size, detail=1.0, noise_dimensions="4D", w=seed)
+    drawn = rug_pattern(across, upward, border, line, medallion)
+    base, rough = dirty_flat(colour, roughness, dirt_colour, vector, dirt, dirt_reach, seed)
+    base = pf.nodes.color.mix_rgb(factor=pf.nodes.math.clamp(drawn + (mottle.fac - 0.5) * contrast), a=base, b=second)
+    relief = pf.nodes.shader.displacement(height=(tufts.fac - 0.5) * bump, midlevel=0.0)
+    return Channels(base, rough, 0.0, BLACK, relief)
+
+
 def written(colour, second, roughness, line_pitch, stroke, word_size, ink_share, seed):
     """A note's or a paper's writing or print: rows of ink in a second colour across its face (face_plane), one every
     `line_pitch`, each `stroke` of the pitch tall, broken into words by a noise along it (about `ink_share` of a row
@@ -589,7 +626,7 @@ def ice(colour, second, roughness, crack_scale, crack_width, frost_share, bump, 
 RECIPES = {"painted_metal": painted_metal, "bare_metal": bare_metal, "cast_metal": cast_metal,
            "perforated_metal": perforated_metal, "chequer_plate": chequer_plate, "galvanized": galvanized,
            "anodized": anodized, "rubber": rubber, "cloth": cloth, "quilted": quilted, "pile": pile,
-           "written": written, "composite": composite, "glass": glass,
+           "patterned_pile": patterned_pile, "written": written, "composite": composite, "glass": glass,
            "glowing": glowing, "screen": screen, "printed": printed, "wood": wood,
            "painted_plaster": painted_plaster, "weathered_render": weathered_render, "tiles": tiles,
            "terrazzo": terrazzo, "boards": boards, "rusted_metal": rusted_metal, "wet_asphalt": wet_asphalt,
@@ -608,6 +645,7 @@ SOURCES = {
     "cloth": "infinigen2 fabric.py (weave relief, BSD-3) + the library's dirt",
     "quilted": "written new (stitched pillow grid) + the library's dirt",
     "pile": "written new (noise mottle toward a second colour, fine tuft relief) + the library's dirt",
+    "patterned_pile": "written new (pile with a woven border and medallion over the piece's box) + the library's dirt",
     "written": "written new (rows of ink on the surface's plane, broken into words by a noise)",
     "composite": "written new (twill from two wave textures)",
     "glass": "written new (infinigen2 glass_colored needs transmission, which the ink look cannot draw)",
@@ -642,6 +680,7 @@ PARTS = {
     "cloth": (cloth, coordinates, dirty_flat, dirt_mask, cloth_relief),
     "quilted": (quilted, coordinates, face_plane, face_grid, dirty_flat, dirt_mask),
     "pile": (pile, coordinates, dirty_flat, dirt_mask),
+    "patterned_pile": (patterned_pile, coordinates, face_plane, rug_pattern, dirty_flat, dirt_mask),
     "written": (written, coordinates, face_plane),
     "composite": (composite, coordinates),
     "glass": (glass,),

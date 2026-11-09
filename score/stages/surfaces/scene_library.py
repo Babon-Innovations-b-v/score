@@ -67,9 +67,10 @@ word for what it is made of: steel, paint, rubber, glass, wood, fabric, plastic,
 from the palette, its roughness and metal from 0 to 1, a token of the palette for each colour setting its recipe
 needs, the surface it sounds like, and the kinds it is for. Choose each recipe by what the surface is and how it is
 made, its token by its colour in the picture. A recipe that draws a pattern of its own (a quilt, tiles, a grid,
-boards, a mottled pile, rows of writing) is only for a surface the picture shows with that pattern; a plain surface
-takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face: where the picture shows a pile or a
-mottle on it, or writing or print, give it the recipe that draws that (pile; written, its ink the second colour). A
+boards, a mottled pile, a rug's woven border and medallion, rows of writing) is only for a surface the picture shows
+with that pattern; a plain surface takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face:
+where the picture shows a pile or a mottle on it, a woven pattern, or writing or print, give it the recipe that draws
+that (pile; patterned_pile, its pattern the second colour; written, its ink the second colour). A
 thing that shows a picture (a kind marked so: a photo, a print, a painting) is painted with its picture, never its
 glass or one plain colour: give the picture the recipe that draws print (written), its token the picture's main colour
 and its ink the second; its frame, if any, takes its own surface."""

@@ -17,8 +17,9 @@ close-up failed and whose row is thin and straight is built in code instead (thi
 take's files written here from its concept crop cut out by its SAM 3 mask, so it is made and no gap. So is every
 other thin straight row, its close-up passed or not (thin_straight.coded: Pixal3D's takes of them failed their
 outline), and none of them goes to Pixal3D; a code build of a row no longer thin and straight is removed.
-An object that lies flat as a sheet whose take Pixal3D or its finish made no model of is built in code from its own
-top-down close-up (flat_sheet.py), so it is made and no gap; that build is kept.
+An object that lies flat as a sheet whose take Pixal3D or its finish made no model of, or a model that is no sheet
+(flat_sheet.flat_model), is built in code from its own top-down close-up (flat_sheet.py), so it is made and no gap;
+that build is kept.
 """
 import hashlib
 import json
@@ -192,8 +193,7 @@ def make_pixal(inputs, out, seed, params):
     if unfinished:
         finish_all([finish_job(entry["take"], closeups / f"{row}.png", faces[row], lies_flat(rows[row]))
                     for row, entry in unfinished.items()], prop_data.record_at(inputs["props"])["place"], out)
-    sheet_builds({row: entry for row, entry in objects.items() if not finished(entry["take"], faces[row])}, rows,
-                 closeups, faces, out)
+    sheet_builds(objects, rows, closeups, faces, out)
     takes = {row: {"take": entry["take"],
                    **{path.name: file_hash(path) for path in take_files(entry["take"]) if path.exists()}}
              for row, entry in {**objects, **built}.items()}
@@ -245,12 +245,13 @@ def code_builds(failed, rows, inputs, out):
     return dict(sorted(built.items()))
 
 
-def sheet_builds(unmade, rows, closeups, faces, out):
-    """Each object of `unmade` (its take has no finished model) that lies flat as a sheet, built in code from its
-    close-up (flat_sheet.py) in place of its Pixal3D take."""
+def sheet_builds(objects, rows, closeups, faces, out):
+    """Each of `objects` that lies flat as a sheet and whose take has no finished model, or a finished one that is no
+    sheet (flat_sheet.flat_model), built in code from its close-up (flat_sheet.py) in place of its Pixal3D take."""
     pixal = take_files("-")[0].parent
-    for row, entry in sorted(unmade.items()):
-        if row in rows and flat_sheet.sheet(rows[row]):
+    for row, entry in sorted(objects.items()):
+        if row in rows and flat_sheet.sheet(rows[row]) and not (
+                finished(entry["take"], faces[row]) and flat_sheet.flat_model(take_files(entry["take"])[1])):
             flat_sheet.write_take(entry["take"], rows[row], closeups / f"{row}.png", faces[row], pixal, out / "cut")
 
 

@@ -2,7 +2,8 @@
 (`sheet`: lying flat, its close-up drawn from straight above, tools/props/closeup/check.py lies_flat, or standing on
 its edge on a wall) and whose close-up passed, but
 whose Pixal3D take came back with no usable model (no raw model, or its finish made none: Batch of 2026-10-26,
-quarters' poster, rug and sticky note, every one "its finish made no model"), is built here by the Pixal3D row
+quarters' poster, rug and sticky note, every one "its finish made no model"; or a finished model that is no sheet,
+`flat_model`), is built here by the Pixal3D row
 (pixal_row.py) as its take's files instead of left a gap, so the finish route paints it with a library surface and the
 likeness row holds it to its close-up like any take. The prop route first (owner, 2026-10-12): only a take the
 picture route failed is built.
@@ -50,6 +51,17 @@ def upright(row):
     """Whether a sheet stands on its edge: its height is not its thinnest side."""
     wide, deep, tall = (float(value) for value in row["size"])
     return tall > min(wide, deep)
+
+
+def flat_model(path):
+    """Whether a finished model lies flat as a sheet, whatever its turn: its thinnest side under SHEET_SHARE of its
+    longest. quarters' sheet of paper (0.2 by 0.3 by 0.001) came back from Pixal3D a lump, 0.25 its thinnest of its
+    longest, baked 1.2 cm across; its likeness 0.111 and its paint's colour gate failed on it (checkout 68, 2026-11-09),
+    while its flat sheet build from the same close-up, its hull drawn from above in paper-cream with rows of ink,
+    scored DINOv2 0.22 against it (pass 0.14)."""
+    import trimesh
+    smallest, _, largest = sorted(trimesh.load(path, force="mesh").extents)
+    return smallest < SHEET_SHARE * largest
 
 
 def built(take, pixal):

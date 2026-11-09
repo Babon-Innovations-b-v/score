@@ -2974,10 +2974,11 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
         body = asked[0]["cockpit"]
         enum = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]["recipe"]
         assert not set(scene_library.PICTURED) & set(enum["enum"]), enum
-        assert {"pile", "written"} <= set(enum["enum"]), enum
+        assert {"pile", "patterned_pile", "written"} <= set(enum["enum"]), enum
         assert "patches: recipe printed paints a picture, and the library has none" in verdict.findings, verdict
         text = body["contents"][0]["parts"][-1]["text"]
-        assert "- pile: " in text and "- written: " in text and "(pile; written" in text, text
+        assert "- pile: " in text and "- patterned_pile: " in text and "- written: " in text, text
+        assert "(pile; patterned_pile, its pattern the second colour; written" in text, text
     glazed = {"surfaces": [
         {"name": "photo_print_glazed", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.1,
          "metal": 0.0, "sound": "glass", "kinds": ["framed_photo"]},
@@ -3001,7 +3002,8 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
     assert scene_library.shows_picture("Wall posters") and scene_library.shows_picture("oil canvas")
     assert not scene_library.shows_picture("laser printer") and not scene_library.shows_picture("glass pane")
     method = library.theme_library()
-    assert method["colour_settings"]["pile"] == method["colour_settings"]["written"] == ["second"]
+    assert (method["colour_settings"]["pile"] == method["colour_settings"]["patterned_pile"]
+            == method["colour_settings"]["written"] == ["second"])
     data = {"takes": {"rug-t1": {"kind": "rug", "object": "patterned rug"},
                       "note-t1": {"kind": "note", "object": "sticky note"},
                       "crate-t1": {"kind": "crate", "object": "crate"}},
