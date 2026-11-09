@@ -736,17 +736,19 @@ def doors_led(store, place, shown):
 def edit_inside(store, place, shown):
     """`shown` with what his edit (or a redrawing, `redrawn`) lays past its own outline brought inside it
     (plan_fixes.kept_inside), each doorway its own door rows say its row's width (plan_fixes.doors_sized, where it
-    stands kept) and each person spot standing in something moved out of it (`people_moved_out`, his things kept), each
-    fix added to its `fixes`, as holds_fitted fits his edit's holds: no writing carries a fix over his edit (the
-    hangar's edit of 2026-10-21 kept the 55.7 m writing's person spots and pipes past its 32 x 64 m; its redrawing of
-    2026-11-05 too; habitat's edit its writing's 0.237 m hatches; greenhouse's redrawing of 2026-11-05 its astronaut_2
-    in its grow light frame, 2026-11-08); a writing is fixed as a writing (plans_pass)."""
+    stands kept), nothing laid in a wall or its own row's (plan_fixes.kept_apart: flat's redrawing of 2026-11-05 its
+    second stove piled on its first) and each person spot standing in something moved out of it (`people_moved_out`, his
+    things kept), each fix added to its `fixes`, as holds_fitted fits his edit's holds: no writing carries a fix over
+    his edit (the hangar's edit of 2026-10-21 kept the 55.7 m writing's person spots and pipes past its 32 x 64 m; its
+    redrawing of 2026-11-05 too; habitat's edit its writing's 0.237 m hatches; greenhouse's redrawing of 2026-11-05 its
+    astronaut_2 in its grow light frame, 2026-11-08); a writing is fixed as a writing (plans_pass)."""
     if shown is None or shown["how"] not in ("edited", "revised", "redrawn"):
         return shown
     from score.review import plan_fixes
     plan = copy.deepcopy(shown["plan"])
     inventory = inventory_of(store, place)
     fixes = plan_fixes.kept_inside(plan, inventory) + plan_fixes.doors_sized(plan)
+    fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})
     plan, moved = people_moved_out(plan, inventory or {"rows": []})
     fixes += moved
     return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown

@@ -213,20 +213,22 @@ def stood_again(plan, inventory):
 
 def unsettled(plan, inventory, parts=True):
     """Whether a written plan wants fixing again: `placing_more`, a Correct's copy of a person spot or one standing in
-    something (`spaced_people`), a row marked beyond standing inside (`brought_inside`), or (when it `parts`) the
+    something (`spaced_people`), a row marked beyond standing inside (`brought_inside`), a run in a wall or a stair, a
+    thing piled on its own row's or two runs in each other on a wall (plan_fixes.kept_apart), or (when it `parts`) the
     relation solver parts things the fixes left in each other (relation_solver.parted)."""
     return (placing_more(plan, inventory) or bool(spaced_people(plan, inventory)[1]) or bool(brought_inside(plan)[1])
             or bool(unstood(plan, inventory)) or bool(plan_fixes.doors_kept(copy.deepcopy(plan), inventory))
             or bool(plan_fixes.kept_inside(copy.deepcopy(plan), inventory))
+            or bool(plan_fixes.kept_apart(copy.deepcopy(plan), inventory))
             or (parts and bool(relation_solver.parted(plan, inventory)[1])))
 
 
 def settled_again(store, place, plan, inventory, ask, parts=True):
     """(the plan fixed again, the Correct calls made): plan_fixes.settled when it is `placing_more`, else as written
     (no Correct asked again for overlaps alone); then, when it `parts`, the things still in each other parted by the
-    relation solver, no person left standing in anything (`spaced_people`) and nothing past its own outline
-    (plan_fixes.kept_inside), their fixes added and its gaps
-    checked again, each left saying why."""
+    relation solver, no person left standing in anything (`spaced_people`), nothing past its own outline
+    (plan_fixes.kept_inside) and nothing in a wall or its own row's (plan_fixes.kept_apart), their fixes added and
+    its gaps checked again, each left saying why."""
     calls = []
     if placing_more(plan, inventory):
         plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
@@ -240,8 +242,9 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     answer = copy.deepcopy(answer)
     doors = plan_fixes.doors_kept(answer, inventory)  # its doorways the design's door rows (a fix added 2026-11-04)
     within = plan_fixes.kept_inside(answer, inventory)  # nothing past its own outline (a fix added 2026-11-05)
-    if more or spaced or stood or inside or doors or within:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors, *within]}
+    apart = plan_fixes.kept_apart(answer, inventory)  # nothing laid in a wall or its own row's (2026-11-09)
+    if more or spaced or stood or inside or doors or within or apart:
+        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors, *within, *apart]}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 
