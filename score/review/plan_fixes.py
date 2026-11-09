@@ -424,14 +424,36 @@ def piled_on_own(plan, inventory):
     return found
 
 
+def ramp_footprint(item, row, plan):
+    """The footprint polygon of a ramp row's `item` where the holders lay it (holders.up_to_level: its long side run
+    straight up to a raised level's nearest edge, however far that is from its item), else None."""
+    relation = holders.up_to_level(item, row, plan) if row else None
+    if relation is None:
+        return None
+    size = row["size"] if isinstance(row.get("size"), list) and len(row["size"]) == 3 else item[3:5]
+    length, wide = max(float(size[0]), float(size[1])), min(float(size[0]), float(size[1]))
+    way = numpy.asarray(relation["way"], float)
+    across, spot = numpy.array([-way[1], way[0]]), numpy.asarray(relation["spot"], float)
+    return [(spot + way * ends * length / 2 + across * side * wide / 2).tolist()
+            for ends, side in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+
+
+def laid_polygon(item, row, shape, plan, inventory):
+    """The footprint polygon of a floor thing where the scene record lays it: a ramp's where the holders run it up
+    (`ramp_footprint`), any other's as drawn."""
+    found = next((entry for entry in inventory.get("rows", []) if entry["id"] == row), None)
+    return ramp_footprint(item, found, plan) or plan_checks.polygon_of(item, shape)
+
+
 def taken_floor(plan, inventory, item, grid):
     """The grid cells `item` may not stand on: under another floor thing (on the floor, or on a floor the place lays:
-    `floored`), a wall, a stair or a thing standing low by a wall (`standing_low`)."""
+    `floored`) where it is laid (`laid_polygon`), a wall, a stair or a thing standing low by a wall
+    (`standing_low`)."""
     on_floor = floored(plan, inventory)
     taken = numpy.zeros(grid.shape, dtype=bool)
-    for other, _, shape in plan_checks.blocking(plan, on_floor):
+    for other, row, shape in plan_checks.blocking(plan, on_floor):
         if other is not item:
-            taken |= grid.covered(plan_checks.polygon_of(other, shape))
+            taken |= grid.covered(laid_polygon(other, row, shape, plan, on_floor))
     for box in walls_and_stairs(plan) + standing_low(plan, on_floor, item):
         taken |= standing.under(grid, [box[0] + box[2] / 2, box[1] + box[3] / 2], box[2:4])
     return taken
@@ -940,18 +962,125 @@ def flight_gaps(plan, inventory):
             for item, made in on_flights(plan, inventory)]
 
 
+def ramps_walled(plan, inventory):
+    """Each ramp the holders lay up to a raised level through a wall (its footprint where they lay it,
+    `ramp_footprint`, inset MARGIN, past the plan's outline, which the shell walls, or in one of its walls:
+    plan_checks.past_walls) taken off (`surplus_dropped`, said in `dropped`): no spot of it climbs to that level. A
+    place with no walls is left. settle@airlock, env1 checkout 71: its ramp, drawn at the front, laid 1.5 m off up to
+    its locker floor's east edge, through that edge's wall and the porch's, 1 m past the outline."""
+    if not plan.get("walls"):
+        return []
+    rows, outline, walled = {row["id"]: row for row in inventory.get("rows", [])}, plan_checks.outline_of(plan), []
+    for item, row, _ in plan_checks.blocking(plan, inventory):
+        footprint = ramp_footprint(item, rows.get(row), plan)
+        if footprint is None:
+            continue
+        corners = numpy.asarray(footprint, float)
+        side, end = corners[1] - corners[0], corners[3] - corners[0]
+        inset = [MARGIN / max(float(numpy.linalg.norm(way)), 1e-9) for way in (side, end)]
+        samples = numpy.array([corners[0] + side * along + end * across
+                               for along in numpy.linspace(inset[0], 1 - inset[0], 9)
+                               for across in numpy.linspace(inset[1], 1 - inset[1], 9)])
+        if plan_checks.past_walls(samples, outline, plan["walls"]):
+            walled.append(item)
+    return surplus_dropped(plan, inventory, walled, why=f"{len(walled)} laid up to a raised level through a wall") \
+        if walled else []
+
+
+RUN_REACH = 1.0  # metres a run is moved at most to lay its pieces end to end as made, clear of what stands round it
+
+
+def made_sizes(plan, inventory):
+    """{row id: [wide, deep, tall]} of each reading row at the size it is made at (prepare's groups.made_size, the
+    hand-in's: one repeating piece of a run its reading measured whole), as the holders size a wall thing
+    (holders.built_rows)."""
+    from score.stages.complete.prepare import groups
+    rows, picture = inventory.get("rows", []), inventory.get("picture")
+    laid, found = groups.plan_sizes_of(plan, rows), {}
+    for row in rows:
+        box = row.get("box") or (plan_checks.gemini_box(row["region"], picture) if row.get("region") and picture
+                                 else None)
+        found[row["id"]] = groups.made_size(row, rows, plan, laid, box)
+    return found
+
+
+def run_room(plan, inventory, item, grid, outline):
+    """(the cells a run `item` may stand on: its level's (level_cells); where its middle is drawn off the outline, off
+    it, on a level holding its middle or anywhere off it; the cells taken round it: taken_floor's and the cells off
+    that room)."""
+    room, inside = level_cells(plan, grid, item), grid.covered(outline)
+    if not plan_checks.inside(numpy.array([[item[1] + item[3] / 2, item[2] + item[4] / 2]]), outline).all():
+        room = (numpy.ones_like(room) if (room == inside).all() else room) & ~inside
+    return room, taken_floor(plan, inventory, item, grid) | ~room
+
+
+def runs_laid_out(plan, inventory):
+    """Each run on the floor (a counted box of several floor things, plan_checks.blocking, of a row with a read size)
+    laid as the scene record lays it: its pieces as made (the row's read size, its long side along the run's,
+    scene_record/writer.spots_of) end to end along its box, clear of every wall, stair, floor thing where it is laid
+    and thing standing low by a wall (taken_floor), on its own level (`run_room`). One whose box does not hold its
+    pieces so is laid, within RUN_REACH of its middle, as long as the most of its pieces a free spot there holds
+    (standing.nearest_free, MARGIN clear), its count cut to them and said in the plan's `dropped` (`count_said`);
+    one with no spot even for one taken off (`surplus_dropped`) where its row lays others, else left; the fixes said.
+    settle@airlock, env1 checkout 71: its sandbags 0.6 x 0.4 m as made, 6 on a 0.4 x 1.23 m box, 5 on 1.39 m and 3 on
+    0.64 m, were parted out of their boxes by the assembly into one another, its locker's suit and its entrance
+    flight."""
+    grid, outline = plan_checks.Grid(plan), plan_checks.outline_of(plan)
+    sizes, fixes, cut, surplus = made_sizes(plan, inventory), [], {}, []
+    for item, row, shape in plan_checks.blocking(plan, inventory):
+        count, size = int((shape or {}).get("count") or 1), sizes.get(row)
+        if count < 2 or not (isinstance(size, list) and len(size) >= 2 and all(
+                isinstance(side, (int, float)) and side > 0 for side in size[:2])):
+            continue
+        along = 0 if item[3] >= item[4] else 1
+        long_side, short_side = max(float(size[0]), float(size[1])), min(float(size[0]), float(size[1]))
+        middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
+        room, taken = run_room(plan, inventory, item, grid, outline)
+        if item[3 + along] >= count * long_side - MARGIN and item[4 - along] >= short_side - MARGIN and not (
+                taken & standing.under(grid, middle, item[3:5])).any():
+            continue
+        placed = None
+        for kept in range(count, 0, -1):
+            box = [0.0, 0.0]
+            box[along], box[1 - along] = kept * long_side, short_side
+            free = standing.nearest_free(middle, [side + 2 * (MARGIN + grid.size) for side in box], taken, grid,
+                                         room, [])
+            if free is not None and math.dist(free, middle) <= RUN_REACH:
+                placed = kept, box, free
+                break
+        if placed is None:
+            if laid_of(plan, row) - sum(int(plan["shapes"][other[0]].get("count") or 1) for other in surplus
+                                         if plan["rows"][other[0]][0] == row) > count:
+                surplus.append(item)
+            continue
+        kept, box, free = placed
+        item[1:5] = [round(free[0] - box[0] / 2, 3), round(free[1] - box[1] / 2, 3), round(box[0], 3),
+                     round(box[1], 3)]
+        shape["count"] = kept
+        cut[row] = cut.get(row, 0) + count - kept
+        fixes.append(f"{plan_checks.said_name(item[0])}: laid {kept} of {count} end to end as made "
+                     f"({long_side:g} x {short_side:g} m each), moved {math.dist(free, middle):.2f} m clear")
+    for row, fewer in cut.items():
+        if fewer:
+            count_said(plan, row, f"{fewer} fewer of it laid, its runs as long as their free floor holds as made")
+    return fixes + (surplus_dropped(plan, inventory, surplus, "its runs' free floor") if surplus else [])
+
+
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
     order: a roof's eave raised a storey over a level standing under it (`eaves_raised`), a stairs row taken off where
     the shell builds the flights (`stair_rows_dropped`), runs kept out of the walls and stairs (`runs_kept_clear`), a
-    single thing laid again in its own row's run taken off (`run_doubles_dropped`), things piled on their own row's
+    single thing laid again in its own row's run taken off (`run_doubles_dropped`), a ramp the holders lay up through
+    a wall taken off (`ramps_walled`), runs laid as long as their pieces as made, clear of what stands round them
+    (`runs_laid_out`), things piled on their own row's
     though it does not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid
     along walls free of them or taken off (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and
     ramps moved out of what is made larger than drawn (`flights_cleared`), things made larger than drawn moved off the
     stairs or taken off (`off_flights`); the fixes said. A writing fixed before them gets them in the pass (plans_pass.unsettled), an edit
     or a redrawing when shown (plans.edit_inside)."""
     return eaves_raised(plan) + stair_rows_dropped(plan, inventory) + runs_kept_clear(plan, inventory) \
-        + run_doubles_dropped(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
+        + run_doubles_dropped(plan, inventory) + ramps_walled(plan, inventory) + runs_laid_out(plan, inventory) \
+        + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
         + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory) + off_flights(plan, inventory)
 
 
