@@ -670,8 +670,23 @@ def once(what, store, key, make, shared=False):
 def current(store, place):
     """{plan, how, at, by} of the plan shown: his newest edit made on the current pick (how: edited or revised), else
     the plan made without him (`made_plan`: written, else derived); None while its inventory does not count."""
-    return once("plan", store, place, lambda: holds_fitted(store, doors_led(store, place, doors_known(
-        store, place, edit_inside(store, place, shown_plan(store, place))))))
+    return once("plan", store, place, lambda: fixes_once(holds_fitted(store, doors_led(store, place, doors_known(
+        store, place, edit_inside(store, place, shown_plan(store, place)))))))
+
+
+def said_once(fixes):
+    """`fixes` with each said once, in the order first said: a writing fixed again kept its fixes and added the pass's,
+    so a fix every pass made again was said once a pass (workshop's writing re-fixed 294 times on 2026-11-03, each
+    adding the same three "moved 0.00 m" fixes, and his redrawings of it carried the 892 over); the same plan in gives
+    the same fixes out."""
+    return list(dict.fromkeys(fixes))
+
+
+def fixes_once(shown):
+    """`shown` with its plan's fixes said once (`said_once`); as it is with none."""
+    if shown is None or "fixes" not in shown["plan"]:
+        return shown
+    return {**shown, "plan": {**shown["plan"], "fixes": said_once(shown["plan"]["fixes"])}}
 
 
 def doors_known(store, place, shown):
@@ -698,7 +713,7 @@ def doors_known(store, place, shown):
         opening["to"] = None
         fixes.append(f"the {opening['kind']} at {opening['at']} to {to!r} leads nowhere: no place of the design nor a "
                      "row of its inventory")
-    return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown
+    return {**shown, "plan": {**plan, "fixes": said_once([*plan.get("fixes", []), *fixes])}} if fixes else shown
 
 
 def doors_led(store, place, shown):
@@ -730,7 +745,7 @@ def doors_led(store, place, shown):
         opening["to"] = None
         fixes.append(f"the {opening['kind']} at {opening['at']} to {sibling} leads nowhere: no door of {sibling}'s "
                      f"own plan leads back to {place}")
-    return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown
+    return {**shown, "plan": {**plan, "fixes": said_once([*plan.get("fixes", []), *fixes])}} if fixes else shown
 
 
 def edit_inside(store, place, shown):
@@ -751,7 +766,7 @@ def edit_inside(store, place, shown):
     fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})
     plan, moved = people_moved_out(plan, inventory or {"rows": []})
     fixes += moved
-    return {**shown, "plan": {**plan, "fixes": [*plan.get("fixes", []), *fixes]}} if fixes else shown
+    return {**shown, "plan": {**plan, "fixes": said_once([*plan.get("fixes", []), *fixes])}} if fixes else shown
 
 
 def shell_floored(plan, inventory):
@@ -1246,11 +1261,32 @@ def plan_sha(plan):
     return hashlib.sha256(json.dumps(plan, sort_keys=True).encode()).hexdigest()
 
 
+# What a plan says of itself rather than lays (its fixes, its gaps, the writer's notes, a dropped row's reason): a
+# change to it alone leaves the kept plan as it is, so no row that declares it as an input (pixal, closeups, bakes,
+# light, sound: each keyed on the file's bytes) is made again for words (2026-11-09: env1 priced a re-buy of EUR 1,376
+# at 20 places, its kept plans rewritten with notes alone changed).
+NOTES = ("fixes", "gaps", "notes")
+
+
+def laid_of(plan):
+    """`plan`'s laid content as one text: every field but NOTES, each dropped row without its `why`, keys in order."""
+    laid = {key: value for key, value in plan.items() if key not in NOTES}
+    if isinstance(laid.get("dropped"), list):
+        laid["dropped"] = [{key: value for key, value in entry.items() if key != "why"} if isinstance(entry, dict)
+                           else entry for entry in laid["dropped"]]
+    return json.dumps(laid, sort_keys=True)
+
+
+def lays_the_same(path, plan):
+    """Whether the kept plan at `path` lays what `plan` lays (`laid_of`): they differ, if at all, in notes alone."""
+    return path.is_file() and laid_of(json.loads(path.read_text())) == laid_of(plan)
+
+
 def kept_for_stage(store, place, plan):
     """The plan, the scene inventory it was made from, the picked concept both were made from and that concept's light
     once read (reading.concept_light: the scene record's lamps and the light layer's fill read it) where the stages
     read them (stages.creator_plan; the plan names that picture as its concept), each unless it stands there
-    already."""
+    already; the plan not while the one kept lays the same (`lays_the_same`: its notes alone changed)."""
     from score.review import reading
     pick = pick_of(store, place)
     plan = {**plan, "concept": {"pick": pick, "picture": f"{{home}}/design/concepts/{place}.png",
@@ -1260,6 +1296,8 @@ def kept_for_stage(store, place, plan):
                         (KEPT_CONCEPT / f"{place}.png", store.objects.read_bytes(f"blobs/{pick}")),
                         *[(KEPT_LIGHT / f"{place}.json", json.dumps(light, indent=1).encode())
                           for light in [reading.concept_light(store, place)] if light]):
+        if path == KEPT / f"{place}.json" and lays_the_same(path, plan):
+            continue
         if not path.is_file() or path.read_bytes() != found:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(found)
