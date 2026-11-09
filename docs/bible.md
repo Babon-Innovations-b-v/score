@@ -824,7 +824,9 @@ test fails, or when the pushed commit moves a paid row's key (its code, its stag
 <reason>` trailer names it (`.claude/hooks/local/pre-push`, then `pre-push-moved` while `git config score.movedCheck
 true`, which bootstrap sets). Which paid rows a run would buy again (`python -m score moved`, scratch remakes, minutes)
 is asked before a Buy or a run starts, not at the push (owner, 2026-11-07: "shouldnt the rebuy check just be before a
-buy").
+buy"). Every gated push costs a gate run, so pushes to main are capped per UTC day over every repository on the box
+(`.claude/hooks/push_cap.py`, run by the shared pre-push; limits in `~/.config/harness/push-cap.json`, for env1's
+window 6 a day to 11-12 and 4 after): past the day's limit a push is refused, so work is batched into fewer pushes.
 
 **Commits.** Imperative and scoped, `module: description`; a subject that needs "and" is two commits.
 
