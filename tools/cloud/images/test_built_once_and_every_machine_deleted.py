@@ -21,6 +21,10 @@ with the break that turns it red (each applied once and seen red):
   Break: move `batch.delete_machine` out of `rent_one`'s `finally`. Break: drop the `shares.failed` check in `build`.
 - A proof or a warm-up with no offer rents nothing; with one, its single machine is deleted and recorded by kind.
   Break: `return True` at the top of `one_attempt`. Break: drop `if refused: ... return` in `measure_class`.
+  Under a runner's ticket the proof keeps its pre-flight, its jobs on one card for the minutes the card is held, where
+  the runaway watch reads it; outside one it keeps none (2026-11-09: every sound row stopped at twice a one-take
+  forecast). Break: drop `keep_preflight(plan, held)` in `one_attempt`. Break: drop the ticket check in
+  `keep_preflight`.
 - A proof's job is a job.json with its inputs uploaded and outputs keyed under the run; its marks are seconds from
   the container's start; its numbers land in images.json under the kind's proof, by card.
   Break: drop the kernel cache in `job_spec`. Break: key the proof by `numbers["type"]` always in `save_results`.
@@ -187,8 +191,10 @@ def test_a_failed_build_still_deletes_its_machine_and_records_the_run(images, re
     assert len(seen["deleted"]) == 2 and len(seen["ledger"]) == 2
 
 
-def test_a_proof_or_warm_up_with_no_offer_rents_nothing_and_with_one_its_machine_goes(renting, monkeypatch):
+def test_a_proof_or_warm_up_with_no_offer_rents_nothing_and_with_one_its_machine_goes(renting, monkeypatch, tmp_path):
     seen = renting("gpu-80gb")
+    monkeypatch.setenv(prove.preflight.STORE, str(tmp_path / "store"))
+    monkeypatch.delenv(prove.preflight.TICKET, raising=False)
     offers = build.batch.offers
     plan = {"classes": ["gpu-80gb"], "minutes": 30, "runs": [{"kind": "judge", "jobs": []}]}
     proved, measured = [], []
@@ -207,6 +213,14 @@ def test_a_proof_or_warm_up_with_no_offer_rents_nothing_and_with_one_its_machine
     assert proved == measured == ["gpu-80gb"] and len(seen["deleted"]) == 2
     assert [entry["kind"] for entry in seen["ledger"]] == ["prove", "warm"]
     assert seen["ledger"][0]["runs"] == ["judge"] and seen["ledger"][1]["class"] == "gpu-80gb"
+    assert not (tmp_path / "store").exists()  # no ticket, no pre-flight
+    ticket = "sound@lab abc"
+    monkeypatch.setenv(prove.preflight.TICKET, ticket)
+    plan["runs"][0]["jobs"] = [{"name": "takes"}]
+    monkeypatch.setattr(build.batch, "BATCHES", tmp_path / "batches-ticket")  # the run folder is named by the second
+    assert prove.one_attempt(plan, "account", {}, {}, "tester", {}) is True
+    assert [(flight["jobs"], flight["cards"], flight["high_minutes"]) for flight in prove.preflight.kept(ticket)] == [
+        (1, 1, 30)]
 
 
 def test_a_proofs_job_spec_marks_and_results(tmp_path, monkeypatch):
