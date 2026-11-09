@@ -255,10 +255,98 @@ def way_out(mover, still, plan, others):
     return None
 
 
+def walls_and_stairs(plan):
+    """[x, y, w, d] of each straight wall the plan draws along an axis and of each stair or ramp's footprint: what no
+    run is laid through and nothing is nudged into (settle@airlock, checkout 67: a run of sandbags through its east
+    wall, another into its entrance ramp's stairs)."""
+    found = []
+    for wall in plan.get("walls") or []:
+        if "arc" in wall or not wall.get("from") or not wall.get("to"):
+            continue
+        (x1, y1), (x2, y2) = wall["from"], wall["to"]
+        if abs(x2 - x1) > 1e-3 and abs(y2 - y1) > 1e-3:
+            continue
+        corners = numpy.asarray(plan_checks.wall_polygon(wall), float)
+        found.append([*corners.min(axis=0).tolist(), *numpy.ptp(corners, axis=0).tolist()])
+    for stair in plan.get("stairs") or []:
+        corners = numpy.asarray(stair.get("points") or [], float).reshape(-1, 2)
+        if len(corners) >= 3:
+            found.append([*corners.min(axis=0).tolist(), *numpy.ptp(corners, axis=0).tolist()])
+    return found
+
+
+def standing_low(plan, inventory, mover):
+    """[x, y, w, d] of every thing whose shape stands it low on the floor though no floor holds it (a suit hung on the
+    back wall stands on the floor in front of it: plan_checks.blocking reads only floor anchors, so the airlock's
+    sandbags were nudged into its empty suit, checkout 67), but `mover` and what stands on it; a thing with no base
+    written (a ceiling lamp the fixes placed) is left out."""
+    anchored, left_out = plan_checks.anchors(inventory), plan_checks.people(inventory) | plan_checks.afar(inventory)
+    mover_row = (plan.get("rows", {}).get(mover[0]) or [None])[0]
+    return [item[1:5] for item, row, shape in plan_checks.placed_items(plan)
+            if item[0] != mover[0] and row not in left_out and anchored.get(row) != f"on:{mover_row}"
+            and "base" in (shape or {}) and float(shape["base"] or 0.0) < plan_checks.LOW
+            and float(shape.get("tall") or 1.0) > plan_checks.FLAT]
+
+
+def trimmed(box, blocker, along):
+    """`box` [x, y, w, d] cut along its long axis (`along`: 0 for x, 1 for y) to the longer part on either side of
+    `blocker`, MARGIN off it; None when no part is left."""
+    start, end = box[along], box[along] + box[2 + along]
+    low, high = blocker[along] - MARGIN, blocker[along] + blocker[2 + along] + MARGIN
+    first, second = (start, min(end, low)), (max(start, high), end)
+    keep = max(first, second, key=lambda part: part[1] - part[0])
+    if keep[1] - keep[0] <= 0:
+        return None
+    cut = list(box)
+    cut[along], cut[2 + along] = keep[0], keep[1] - keep[0]
+    return cut
+
+
+def shifted(box, blocker, along):
+    """`box` moved across its long axis the shortest way out of `blocker`, MARGIN off it."""
+    across = 1 - along
+    steps = [blocker[across] + blocker[2 + across] + MARGIN - box[across],
+             blocker[across] - MARGIN - box[across] - box[2 + across]]
+    moved = list(box)
+    moved[across] += min(steps, key=abs)
+    return moved
+
+
+def runs_kept_clear(plan, inventory):
+    """Each run on the floor (a counted box of several floor things, plan_checks.blocking, laid along its long side)
+    kept out of the walls and stairs: one a wall or stair crosses cut to its longer part on one side, its count cut
+    with its length; one a wall or stair only runs along moved off it across; the fixes said. A run held by a wall
+    (pipes along it) is left on it."""
+    blockers, fixes = walls_and_stairs(plan), []
+    for item, row, shape in plan_checks.blocking(plan, inventory):
+        count = int((shape or {}).get("count") or 1)
+        if count < 2:
+            continue
+        box, along = list(item[1:5]), 0 if item[3] >= item[4] else 1
+        for _ in range(NUDGE_ROUNDS):
+            blocker = next((other for other in blockers if overlapping(box, other)), None)
+            if blocker is None:
+                break
+            across = 1 - along
+            crosses = blocker[across] <= box[across] and \
+                blocker[across] + blocker[2 + across] >= box[across] + box[2 + across]
+            box = trimmed(box, blocker, along) if crosses else shifted(box, blocker, along)
+            if box is None:
+                break
+        if box is None or box == list(item[1:5]):
+            continue
+        kept = max(1, round(count * box[2 + along] / item[3 + along]))
+        item[1:5] = [round(value, 3) for value in box]
+        shape["count"] = kept
+        fixes.append(f"{plan_checks.said_name(item[0])}: kept out of the walls and stairs, {kept} of {count} things")
+    return fixes
+
+
 def nudged(plan, inventory):
     """Two floor things standing in each other (plan_checks.overlap_gaps) parted: the smaller moved the shortest way
-    out, inside the walls and into nothing else; the fixes said."""
-    fixes = []
+    out, inside the walls and into nothing else (no floor thing, no thing standing low by a wall, no wall, no stair);
+    the fixes said."""
+    fixes, clear = [], walls_and_stairs(plan)
     for _ in range(NUDGE_ROUNDS):
         found = plan_checks.overlap_gaps(plan, inventory, plan_checks.Grid(plan))
         moved_any = False
@@ -270,6 +358,7 @@ def nudged(plan, inventory):
             mover, still = sorted(pair, key=lambda item: item[3] * item[4])
             floor = {item[0] for item, *_ in plan_checks.blocking(plan, inventory)}
             others = [item[1:5] for item in plan["items"] if item[0] in floor and item[0] not in (mover[0], still[0])]
+            others += [box for box in standing_low(plan, inventory, mover) if box != still[1:5]] + clear
             step = way_out(mover, still, plan, others)
             if step:
                 mover[1], mover[2] = round(mover[1] + step[0], 3), round(mover[2] + step[1], 3)
@@ -551,13 +640,14 @@ def kept_inside(plan, inventory):
 
 def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
-    stood, runs split, missing things placed, facings turned, overlaps parted, in that order (each later one on the
-    earlier's plan), then what lies past its own outline brought inside it."""
+    stood, runs split, missing things placed, facings turned, runs kept out of walls and stairs, overlaps parted, in
+    that order (each later one on the earlier's plan), then what lies past its own outline brought inside it."""
     plan = copy.deepcopy(plan)
     fixes = brought_in(plan, inventory)
     project = projector(plan, inventory)
     fixes += stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
-    fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + nudged(plan, inventory)
+    fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + runs_kept_clear(plan, inventory)
+    fixes += nudged(plan, inventory)
     fixes += doors_kept(plan, inventory) + kept_inside(plan, inventory)
     return plan, fixes
 

@@ -3352,7 +3352,13 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     Break: score/review/plan_fixes.py: `float(pair[1]["at"][0 if place in ("N", "S") else 1]) - float(along)))` ->
         `0.0))` (a wall's first doorway taken by its first door row, wherever along it stands)
     Break: score/review/plan_checks.py: `for item in plan.get("items", []):  # every row tied to an item` loop ->
-        placed_items' floor rows alone"""
+        placed_items' floor rows alone
+    Break: score/review/plan_fixes.py `runs_kept_clear`: `box = trimmed(box, blocker, along) if crosses else
+        shifted(box, blocker, along)` -> `box = shifted(box, blocker, along)`, or `shape["count"] = kept` dropped
+    Break: score/review/plan_fixes.py `walls_and_stairs`: `for stair in plan.get("stairs") or []:` ->
+        `for stair in []:` (BAGS 3 left on the ramp)
+    Break: score/review/plan_fixes.py `nudged`: `others += [box for box in standing_low(plan, inventory, mover) if
+        box != still[1:5]] + clear` -> `others += clear` (the box nudged into the suit)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3388,6 +3394,33 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     wall_row = {"rows": [{"id": "pipe", "anchor": "wall", "count": 3, "size": [0.2, 3.0, 0.2]}]}
     assert [gap["words"] for gap in plan_checks.count_gaps(doored, wall_row, set())] == [
         "pipe: 3 in the concept, 1 on the plan"]
+    # settle@airlock, checkout 67: a run of sandbags through its east wall, one into its ramp's stairs, one nudged
+    # into the empty suit hung on its back wall. A run a wall or stair crosses keeps its longer side, its count cut
+    # with its length; one a wall runs along moves off it; a run on a wall is left there; a nudge lands in no suit.
+    bags = {"id": "bags", "anchor": "ground", "count": 1, "size": [0.6, 0.5, 0.2]}
+    runs = {"w": 10.0, "d": 10.0, "items": [["BAGS 1", 1.0, 2.0, 7.0, 0.5, None, "item"],
+                                            ["BAGS 2", 1.0, 8.8, 3.0, 0.5, None, "item"],
+                                            ["BAGS 3", 6.5, 6.0, 3.0, 0.5, None, "item"],
+                                            ["PIPE 1", 5.9, 1.0, 0.2, 3.0, None, "item"]],
+            "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "PIPE 1": ["pipe"]},
+            "shapes": {**{f"BAGS {number}": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": count}
+                          for number, count in ((1, 7), (2, 3), (3, 3))},
+                       "PIPE 1": {"shape": "rect", "tall": 0.2, "count": 2}},
+            "walls": [{"from": [6.0, 0.0], "to": [6.0, 5.0], "thick": 0.2}, {"from": [0.0, 9.0], "to": [5.0, 9.0],
+                                                                              "thick": 0.2}],
+            "stairs": [{"kind": "ramp", "points": [[7.0, 5.0], [8.0, 5.0], [8.0, 7.0], [7.0, 7.0]]}]}
+    said = plan_fixes.runs_kept_clear(runs, {"rows": [bags, {**wall_row["rows"][0], "anchor": "on:wall"}]})
+    assert [(item[1:5], runs["shapes"][item[0]]["count"]) for item in runs["items"]] == [
+        ([1.0, 2.0, 4.85, 0.5], 5), ([1.0, 9.15, 3.0, 0.5], 3), ([8.05, 6.0, 1.45, 0.5], 1),
+        ([5.9, 1.0, 0.2, 3.0], 2)] and len(said) == 3, runs["items"]
+    crowded = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 2.0, 4.0, 2.0, 2.0, None, "item"],
+                                               ["BOX 1", 3.6, 4.5, 0.8, 0.5, None, "item"],
+                                               ["SUIT 1", 4.5, 4.4, 0.5, 0.7, "W", "item"]],
+               "rows": {"CRATE 1": ["crate"], "BOX 1": ["box"], "SUIT 1": ["suit"]},
+               "shapes": {"SUIT 1": {"shape": "rect", "tall": 1.8, "base": 0.1}}}
+    hung = {"rows": [{"id": "crate"}, {"id": "box"}, {"id": "suit", "anchor": "on:wall"}]}
+    plan_fixes.nudged(crowded, hung)
+    assert crowded["items"][1][1:3] == [3.6, 3.45], crowded["items"]  # not 0.45 m east, into the suit
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
