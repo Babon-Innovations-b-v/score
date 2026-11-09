@@ -3389,7 +3389,15 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     Break: score/review/plan_fixes.py `wall_runs_parted`: the height band test dropped (PIPE 3 cut into PIPE 1's), or
         `other_row != row` dropped (the panel cut off the pipes), or `continue  # no run` dropped (the panel cut)
     Break: score/review/plan_fixes.py `standing_low`: `left_out |= {... holders.holder_kind(row) is not None}`
-        dropped (the room-sized wall panel blocks every nudge)"""
+        dropped (the room-sized wall panel blocks every nudge)
+    Break: score/review/plan_fixes.py `wall_runs_spread`: `{other[1] for other in runs}` -> `set()` (PIPE 2 laid on
+        PIPE 1's own north wall, still in it), or `any(in_each_other(run, other) for other in kept) and` dropped
+        (PIPE 1 and the lone south pipe moved too)
+    Break: score/review/plan_fixes.py `in_each_other`: `and run[4] < other[5] and other[4] < run[5]` dropped (the pipe
+        3 m up moved off the north wall)
+    Break: score/review/plan_fixes.py `wall_runs`: `int(shape.get("count") or 1) > 1 or` dropped (the counted run
+        moved), or `holders.spans(rows[row]) or` dropped (the crane moved)
+    Break: score/review/plan_fixes.py `open_gaps`: `+ stack_gaps(plan, inventory)` dropped (PIPE 5 left with no gap)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3574,6 +3582,43 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     panelled["items"][1][1:3] = [3.6, 4.5]
     plan_fixes.nudged(panelled, {"rows": [*hung["rows"], {"id": "wall_panel", "anchor": "on:hull"}]})
     assert panelled["items"][1][1:3] == [3.6, 3.45], panelled["items"]
+    # settle@garage, checkout 68: split_runs laid seven 10 m pipes along x, items_inside clamped three into one
+    # corner at [0, 0] and the holders stood them over one another on the north wall. Each pipe in one of its row's on
+    # a wall is laid along a wall none of its row lies on, the nearest first; one with no such wall left, a gap. The
+    # first on its wall, a pipe 3 m up, a counted run of pipes and a crane spanning the hall stay as laid.
+    garage = {"w": 12.0, "d": 12.0, "outline": [[0.0, 0.0], [12.0, 0.0], [12.0, 12.0], [0.0, 12.0]],
+              "walls": [{"from": [0.0, 0.0], "to": [12.0, 0.0], "thick": 0.3},
+                        {"from": [12.0, 0.0], "to": [12.0, 12.0], "thick": 0.3},
+                        {"from": [12.0, 12.0], "to": [0.0, 12.0], "thick": 0.3},
+                        {"from": [0.0, 12.0], "to": [0.0, 0.0], "thick": 0.3}],
+              "items": [["PIPE 1", 0.0, 0.0, 10.0, 0.1, None, "item"], ["PIPE 2", 0.0, 0.0, 10.0, 0.1, None, "item"],
+                        ["PIPE 3", 0.0, 0.0, 10.0, 0.1, None, "item"], ["PIPE 4", 1.0, 11.9, 10.0, 0.1, None, "item"],
+                        ["PIPE 5", 0.5, 0.0, 10.0, 0.1, None, "item"], ["PIPE 6", 0.0, 0.0, 10.0, 0.1, None, "item"],
+                        ["DUCT 1", 1.0, 0.0, 8.0, 0.2, None, "item"], ["CRANE 1", 1.0, 0.5, 10.0, 1.0, None, "item"],
+                        ["CRANE 2", 1.0, 3.0, 10.0, 1.0, None, "item"]],
+              "rows": {**{f"PIPE {number}": ["pipe"] for number in range(1, 7)}, "DUCT 1": ["pipe"],
+                       "CRANE 1": ["crane"], "CRANE 2": ["crane"]},
+              "shapes": {**{f"PIPE {number}": {"shape": "rect", "tall": 0.1, "base": 0.0} for number in range(1, 7)},
+                         "PIPE 6": {"shape": "rect", "tall": 0.1, "base": 3.0},
+                         "DUCT 1": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2},
+                         "CRANE 1": {"shape": "rect", "tall": 1.0, "base": 6.0},
+                         "CRANE 2": {"shape": "rect", "tall": 1.0, "base": 6.0}}}
+    garage_rows = {"rows": [{"id": "pipe", "anchor": "wall", "where": "walls", "size": [10.0, 0.1, 0.1], "count": 8},
+                            {"id": "crane", "anchor": "wall", "where": "top, spanning left to right",
+                             "size": [10.0, 1.0, 1.0], "count": 2}]}
+    assert len(plan_fixes.stack_gaps(garage, garage_rows)) == 6  # 1, 2, 3 and 5 in one another
+    said = plan_fixes.wall_runs_spread(garage, garage_rows)
+    laid = {item[0]: item[1:5] for item in garage["items"]}
+    assert laid["PIPE 2"] == [0.0, 1.0, 0.1, 10.0] and laid["PIPE 3"] == [11.9, 1.0, 0.1, 10.0], (laid, said)
+    assert laid["PIPE 1"] == laid["PIPE 6"] == [0.0, 0.0, 10.0, 0.1] and laid["PIPE 4"] == [1.0, 11.9, 10.0, 0.1]
+    assert laid["PIPE 5"] == [0.5, 0.0, 10.0, 0.1] and laid["DUCT 1"] == [1.0, 0.0, 8.0, 0.2] and \
+        laid["CRANE 2"] == [1.0, 3.0, 10.0, 1.0], laid
+    assert said == ["pipe 2: laid along the west wall, out of its row's others on its own",
+                    "pipe 3: laid along the east wall, out of its row's others on its own"], said
+    left = [gap for gap in plan_fixes.why_left(plan_fixes.open_gaps(garage, garage_rows)) if gap["kind"] == "stacked"]
+    assert [(gap["item"], gap["with"]) for gap in left] == [("PIPE 1", "PIPE 5")] and \
+        left[0]["words"].endswith(plan_fixes.WHY["stacked"]), left
+    assert plan_fixes.wall_runs_spread(garage, garage_rows) == []
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
