@@ -311,6 +311,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     row_items(rows)`
 - test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes:
     plans.py: `elif path.is_file(): path.unlink()` made `elif False: path.unlink()`
+    plans.py (2026-11-09): kept_for_stage's `if path == KEPT / f"{place}.json" and lays_the_same(path, plan):
+    continue` dropped, or laid_of's `if key not in NOTES` made `if True` (a notes-only change rewrites the kept plan);
+    lays_the_same's `return path.is_file() and ...` made `return path.is_file()` (a moved thing kept as it was);
+    said_once's `list(dict.fromkeys(fixes))` made `list(fixes)` (a fix said twice shown twice)
 - test_a_correction_runs_only_inside_his_yes_and_keeps_the_answer_as_his_edit:
     plans.py: `yes = compute.require_cleared("a plan correction", store)` made `yes = {"euros": 0.0, "key":
     "never-cleared"}`
@@ -2677,9 +2681,18 @@ def test_items_are_sized_by_their_reading_and_ordered_by_their_boxes_and_what_ha
 def test_the_plan_stage_reads_his_plan_and_drops_it_once_the_pick_goes(store, data, tmp_path):
     picked(store, "yard")
     picked(store, "shed")
-    written(store, "shed", plans.current(store, "shed")["plan"])  # its plan written: its design done
+    fixed_twice = ["bench: stood", "bench: moved 0.00 m", "bench: stood"]  # a writing re-fixed: a fix said again
+    written(store, "shed", {**plans.current(store, "shed")["plan"], "fixes": fixed_twice})  # its design done
+    assert plans.current(store, "shed")["plan"]["fixes"] == fixed_twice[:2]  # each fix said once
     assert plans.keep(store, ["shed", "yard"]) == (["shed"], ["shed"])  # the yard's plan only derived: none kept
     kept = tmp_path / "kept/shed.json"
+    before, shown = kept.read_bytes(), plans.current(store, "shed")["plan"]
+    plans.kept_for_stage(store, "shed", {**dict(reversed(shown.items())), "fixes": fixed_twice, "notes": ["words"],
+                                         "gaps": [{"kind": "size", "item": "BENCH 1", "words": "other words"}]})
+    assert kept.read_bytes() == before  # notes alone, in another key order: the kept plan as it was, no row re-keyed
+    plans.kept_for_stage(store, "shed", {**shown, "people": [[3.5, 2.0]]})
+    assert json.loads(kept.read_text())["people"] == [[3.5, 2.0]]  # a thing moved: kept anew
+    plans.kept_for_stage(store, "shed", shown)
     kept_plan = json.loads(kept.read_text())
     assert kept_plan == {**plans.current(store, "shed")["plan"], "concept": {**kept_plan["concept"], "pick": PICK}}
     assert kept_plan["concept"]["picture"] == "{home}/design/concepts/shed.png"  # the picked concept, its input

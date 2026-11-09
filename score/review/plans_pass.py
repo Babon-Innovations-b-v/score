@@ -244,7 +244,8 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     within = plan_fixes.kept_inside(answer, inventory)  # nothing past its own outline (a fix added 2026-11-05)
     apart = plan_fixes.kept_apart(answer, inventory)  # nothing laid in a wall or its own row's (2026-11-09)
     if more or spaced or stood or inside or doors or within or apart:
-        plan = {**answer, "fixes": [*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors, *within, *apart]}
+        plan = {**answer, "fixes": plans.said_once([*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors,
+                                                     *within, *apart])}
         plan["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(plan, inventory))
     return plan, calls
 
@@ -323,7 +324,7 @@ def laid_again(plan, inventory, shape):
         said = [*said, f"{len(stairs)} flights built from their rises and laid inside the walls apart ({steep} were "
                        f"steeper than {plan_checks.STEEPEST:g} degrees), {len(levels) - len(plan.get('levels') or [])} "
                        f"landings added"]
-    answer = {**answer, "fixes": [*plan.get("fixes", []), *said]}
+    answer = {**answer, "fixes": plans.said_once([*plan.get("fixes", []), *said])}
     answer["gaps"] = plan_fixes.why_left(plan_fixes.open_gaps(answer, inventory))
     return answer, said
 
