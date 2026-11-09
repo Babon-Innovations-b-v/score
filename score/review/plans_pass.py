@@ -24,8 +24,10 @@ free and whether or not its plan row stands accepted: a person in a wall is a pl
 honour, not an overlap to leave. Each re-fix leaves fewer missing or fewer in each other, so a plan is fixed
 again only while that improves it. The solver parts only a place whose plan row (plan@<place>) stands unaccepted
 (`parting`: a parted writing would re-key an accepted row and every row after it, review of 2026-10-26), and a plan
-it alone re-fixes (free) is parted before the keep in the pass itself (`parted_first`), so its plan row is made
-once, from the parted writing, never from the unparted one a pass earlier. Here, not in plan_fixes.py, which is in the code version of every stage that
+any free re-fix settles (parted, people spaced, kept inside, kept apart: every one but `placing_more`) is re-fixed
+before the keep in the pass itself (`parted_first`), so its plan row is made once, from the re-fixed writing, never
+from the unfixed one a pass earlier (settle@airlock, 2026-11-09: plan@airlock stands accepted, so its sandbags 5 to 9
+laid again in their run were taken off only in the background fix and kept a pass later). Here, not in plan_fixes.py, which is in the code version of every stage that
 reads plans.py (an edit to it re-keyed 74 paid rows, `score.stages.moved`, 2026-10-26).
 
 `python -m score.review.plans_pass refit <place> [--from <at>]` makes a place's writing (in force, or the one made at
@@ -227,8 +229,8 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     """(the plan fixed again, the Correct calls made): plan_fixes.settled when it is `placing_more`, else as written
     (no Correct asked again for overlaps alone); then, when it `parts`, the things still in each other parted by the
     relation solver, no person left standing in anything (`spaced_people`), nothing past its own outline
-    (plan_fixes.kept_inside) and nothing in a wall or its own row's (plan_fixes.kept_apart), their fixes added and
-    its gaps checked again, each left saying why."""
+    (plan_fixes.kept_inside) and nothing in a wall or its own row's (plan_fixes.kept_apart), people spaced again
+    after what those changed, their fixes added and its gaps checked again, each left saying why."""
     calls = []
     if placing_more(plan, inventory):
         plan, calls = plan_fixes.settled(store, place, plan, inventory, ask)
@@ -243,6 +245,9 @@ def settled_again(store, place, plan, inventory, ask, parts=True):
     doors = plan_fixes.doors_kept(answer, inventory)  # its doorways the design's door rows (a fix added 2026-11-04)
     within = plan_fixes.kept_inside(answer, inventory)  # nothing past its own outline (a fix added 2026-11-05)
     apart = plan_fixes.kept_apart(answer, inventory)  # nothing laid in a wall or its own row's (2026-11-09)
+    if doors or within or apart:  # what they changed may stand a person in something (airlock's sandbags, 2026-11-09)
+        answer, again = spaced_people(answer, inventory)
+        spaced = [*spaced, *again]
     if more or spaced or stood or inside or doors or within or apart:
         plan = {**answer, "fixes": plans.said_once([*plan.get("fixes", []), *more, *spaced, *stood, *inside, *doors,
                                                      *within, *apart])}
@@ -266,18 +271,19 @@ def unasked(body):
 
 
 def parted_first(store, places):
-    """The places of `places` whose writing only the relation solver (`parting`) or `spaced_people` re-fixes
-    (`unsettled`, not `placing_more`: free), fixed again here and now, so the keep after it makes their plan rows from
-    the re-fixed writing in the same pass (a re-fix in a process of its own reached them a pass later); the places
-    fixed."""
+    """The places of `places` whose writing a free re-fix settles (`unsettled`, not `placing_more`: the relation
+    solver where `parting`, people spaced, things kept inside, apart and off their doors), fixed again here and now, so
+    the keep after it makes their plan rows from the re-fixed writing in the same pass (a re-fix in a process of its
+    own reached them a pass later: airlock's sandbags 5 to 9, 2026-11-09, its plan row accepted); the places fixed. A
+    settled place's writing lock is not waited on."""
     found = []
     for place in places:
         writing = plan_writing.written_of(store, place)
         inventory = plans.inventory_of(store, place) if writing else None
-        if not writing or placing_more(writing["plan"], inventory) or not (
-                parting(store, place) or spaced_people(writing["plan"], inventory)[1]):
+        if not writing or placing_more(writing["plan"], inventory) or not unsettled(
+                writing["plan"], inventory, parting(store, place)):
             continue
-        if refixed(store, place, "the relation solver", unasked, free=True):
+        if refixed(store, place, "the free re-fix (plans_pass)", unasked, free=True):
             found.append(place)
     return found
 
@@ -364,7 +370,7 @@ def fix_main(places):
 
 
 def main():
-    """The plans only the relation solver re-fixes parted first (`parted_first`, outside the moment: it writes), then
+    """The plans a free re-fix settles fixed first (`parted_first`, outside the moment: it writes), then
     plans.main(["keep"]) with narrow_keys inside one moment, after `restored`, then the other `unsettled` plans
     started being fixed, then each kept plan's relations derived again where they changed (holders.keep: what the
     scene record lays each object by); its exit code, keep's line with what was parted, fixed and derived."""
