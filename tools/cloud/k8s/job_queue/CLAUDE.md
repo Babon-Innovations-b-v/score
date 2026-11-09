@@ -33,7 +33,9 @@ sends its runs through it (S6), the runner's pod makes among them (S8, `score/gr
   removal or the autoscaler's idle tail; one ledger row a node, kind `queue-node`. At the lowest stop line of the open
   runs nothing more is assigned or made and only this box's Jobs are deleted (`score.dev/box`).
 - **Nothing one run brings stops the box's queue**: an inbox entry the queue cannot take is refused (its state over,
-  each job failed, `refused` saying why) and the tick goes on.
+  each job failed, `refused` saying why) and the tick goes on; a tick whose kubectl call fails is said with kubectl's
+  words and the next tick tries again, and only QUEUE_STALE_SECONDS of failing ticks end the queue (2026-11-09: a
+  failed worker apply ended it three times in six minutes, no cause said).
 - **A pending worker never waits for good**: its chain widens every tick its waiting shows the classes cannot be had
   (the autoscaler's "cannot grow" for its pod held NO_GROW_GRACE_MINUTES, else no node in NODE_MINUTES: submitter's
   rule; 2026-11-08, score's Paris processor pools at a most of 0 cost a processor chain 15 min a class before);

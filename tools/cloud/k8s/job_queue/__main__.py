@@ -23,6 +23,7 @@ import argparse
 import fcntl
 import json
 import pathlib
+import subprocess
 import sys
 import time
 
@@ -439,10 +440,21 @@ class Queue:
 def serve(queue, idle_exit=QUEUE_IDLE_EXIT_SECONDS):
     """Tick until the queue has had no open run, no worker and no node left to book (its idle tail counted to the
     ledger; tube rehearsal 2026-11-07: the queue ended first and an L4 node's EUR 0.21 never reached it) for
-    `idle_exit` seconds."""
-    quiet_since = None
+    `idle_exit` seconds. A tick whose call to the cluster fails is said with kubectl's own words and tried again next
+    tick, and only failing ticks for QUEUE_STALE_SECONDS end the queue (2026-11-09: a failed worker apply ended it
+    three times in six minutes, with no cause said, and a client in the gap sent its run beside the queue)."""
+    quiet_since = failing_since = None
     while True:
-        listed = queue.tick()
+        try:
+            listed = queue.tick()
+        except subprocess.CalledProcessError as error:
+            failing_since = failing_since or time.time()
+            say(f"the cluster refused the tick's {' '.join(map(str, error.cmd[-3:]))}: {(error.stderr or '').strip()}")
+            if time.time() - failing_since >= client.QUEUE_STALE_SECONDS:
+                raise
+            time.sleep(QUEUE_TICK)
+            continue
+        failing_since = None
         active = queue.runs or queue.nodes or any(not workers.gone(worker) for worker in listed.values())
         quiet_since = None if active else (quiet_since or time.time())
         if quiet_since and time.time() - quiet_since >= idle_exit:

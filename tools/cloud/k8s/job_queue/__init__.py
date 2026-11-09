@@ -8,6 +8,7 @@ warm workers of their image (`__main__.py`), and the wait for them.
     spent()                                     # the box's euros so far as the queue counts them (money.json)
     unhad(classes)                              # whether the queue found these processor classes not to be had
     start()                                     # start the queue process when it is not fresh (detached)
+    come_up()                                   # start it and wait up to QUEUE_START_SECONDS for its first beat
 
 The queue's control files are small and live under `$PROPS_HOME/cloud/queue/`: `beat` (touched every tick), `lock`
 (one queue a box), `inbox/`, `state/`, `cancel/`, `expected/<drive pid>.json` and the money figure. Nothing else is staged on
@@ -32,6 +33,9 @@ QUEUE = HOME / "cloud" / "queue"
 QUEUE_STALE_SECONDS = 60
 QUEUE_TAKEOVER_SECONDS = 180  # a waiting client whose queue is this stale takes its run back (S6: adopt or local)
 POLL_SECONDS = 5
+# A queue just started beats after its first tick (four looks at the cluster, a few seconds); a client waits this long
+# for it before its run goes on by itself (2026-11-09: settle@airlock went beside the queue 5 s after its restart).
+QUEUE_START_SECONDS = 45
 UNHAD = "unhad.json"  # {class: when the queue last found no node of it in its start window}
 UNHAD_MINUTES = 60  # a class not had is tried on the cluster again after this
 ELSEWHERE = "elsewhere"  # a job's state when the queue gave it back for rented machines
@@ -83,6 +87,17 @@ def start(root=None):
                sys.executable, str(HERE / "__main__.py"), "--root", str(folder)]
     subprocess.Popen(command, start_new_session=True, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                      stderr=subprocess.DEVNULL)
+    return True
+
+
+def come_up(root=None, clock=time.time, sleep=time.sleep):
+    """Start the queue when it is not fresh and wait for its beat: whether it is fresh within QUEUE_START_SECONDS."""
+    start(root)
+    since = clock()
+    while not fresh(root):
+        if clock() - since >= QUEUE_START_SECONDS:
+            return False
+        sleep(1)
     return True
 
 

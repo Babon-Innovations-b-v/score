@@ -46,6 +46,11 @@ The tube rehearsal's faults (2026-11-07, issue #76):
 - a finished worker's pod, kept with its Job, holds no node, so the node is booked after its idle tail. Break: drop
   the phase test from `hosting` in `Queue.count_money`.
 - the queue ends only once every node is booked. Break: drop `queue.nodes` from `active` in `serve`.
+The env1 checkout 67 fault (2026-11-09): a failed worker apply ended the queue three times in six minutes, no cause
+said, and a client in the gap went beside it:
+- a tick whose kubectl call fails is said with kubectl's words and the queue ticks on; only failing ticks for
+  QUEUE_STALE_SECONDS end it. Break: drop the `except subprocess.CalledProcessError` in `serve`; break: drop its
+  `raise` (a queue that never stops failing holds the box's lock for ever).
 """
 import datetime
 import importlib.util
@@ -459,3 +464,31 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     unbooked = Unbooked()
     process.serve(unbooked, idle_exit=0)
     assert unbooked.ticks == 3
+
+    # A failed apply is said and ticked past; a cluster that refuses every tick ends the queue after the stale window.
+    import subprocess
+    clock, said = [0.0], []
+    monkeypatch.setattr(process.time, "time", lambda: clock[0])
+    monkeypatch.setattr(process.time, "sleep", lambda seconds: clock.__setitem__(0, clock[0] + seconds))
+    monkeypatch.setattr(process, "say", said.append)
+
+    class Refused:
+        runs, nodes = {}, {}
+
+        def __init__(self, failing):
+            self.failing, self.ticks = failing, 0
+
+        def tick(self):
+            self.ticks += 1
+            if self.ticks <= self.failing:
+                raise subprocess.CalledProcessError(1, ["kubectl", "apply", "-f", "-"],
+                                                    stderr="Error from server (Timeout): etcd timed out\n")
+            return {}
+    once = Refused(1)
+    process.serve(once, idle_exit=0)
+    assert once.ticks == 2 and said[0] == "the cluster refused the tick's apply -f -: Error from server (Timeout): " \
+        "etcd timed out", said
+    for_ever = Refused(10 ** 6)
+    with pytest.raises(subprocess.CalledProcessError):
+        process.serve(for_ever, idle_exit=0)
+    assert for_ever.ticks == job_queue.QUEUE_STALE_SECONDS // process.QUEUE_TICK + 1

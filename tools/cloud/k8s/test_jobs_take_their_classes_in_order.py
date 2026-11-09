@@ -71,7 +71,12 @@ invariant with the break that turns it red (each applied once and seen red):
   `cluster_jobs.run`. Under SCORE_K8S_QUEUE a run goes to the box's queue (job_queue/) when it is fresh, else on
   today's path with a queue started for later runs; one whose queue went stale while it waited is cancelled there and
   its jobs not done adopted by `submitter.submit` (#76, S6). Break: `if not job_queue.fresh():` -> `if False:` in
-  `cluster_jobs.through_queue` (no fallback). Break: adopt every spec, not only those not done. While it watches, the process is marked in CLUSTER_WAITING (its node holds no --jobs slot,
+  `cluster_jobs.through_queue` (no fallback). Break: adopt every spec, not only those not done. A queue not fresh
+  is started and waited for, and the run goes on it, never beside it as a Job of its own (settle@airlock,
+  2026-11-09). Break: `job_queue.come_up()` -> `job_queue.start()` in `through_queue`. A finish's card-then-processor
+  classes go on the cluster as their first class's kind, so the queue does not refuse them (pixal@galley and
+  pixal@camp, 2026-11-09). Break: drop `one_kind` in `cluster_jobs.run`. A job not finished is said with the queue's
+  word for its run (refused, stopped), never a bare "never finished". Break: drop the `why` in `report_failure`. While it watches, the process is marked in CLUSTER_WAITING (its node holds no --jobs slot,
   score/graph), the mark gone after an error or a stop. Break: drop the `finally` unlink in `watch`. stop-batch's
   `stop_score_jobs` deletes only Jobs labelled with a run, only in score-jobs, and refuses another namespace.
   Break: drop the namespace check in `stop_score_jobs`.
@@ -537,6 +542,7 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     root, started = tmp_path / "queue", []
     monkeypatch.setattr(cluster_jobs.job_queue, "QUEUE", root)
     monkeypatch.setattr(cluster_jobs.job_queue, "start", lambda root=None: started.append(True))
+    monkeypatch.setattr(cluster_jobs.job_queue, "QUEUE_START_SECONDS", 0)  # a queue that does not come up
     monkeypatch.setattr(cluster_jobs.submitter, "submit", submit_run)
     monkeypatch.setattr(cluster_jobs.submitter, "prepare", lambda kubectl, cluster: None)
     monkeypatch.setattr(cluster_jobs.submitter, "cluster_module", lambda: None)
@@ -558,6 +564,44 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name="taken-run") == [1]
     assert sorted(seen["specs"]) == ["1"] and seen["run"] == "taken-run" and (root / "cancel" / "taken-run").exists()
     assert out_file.read_text() == "made by 0" and len(started) == 1  # job 0's outputs, made on the queue
+
+    # A queue just started is waited for, not gone around (settle@airlock, 2026-11-09, a Job of its own beside the
+    # queue's workers); a finish's card-then-processor classes reach it as one kind, the cards (pixal@galley and
+    # pixal@camp, 2026-11-09: the whole mix refused, "job 0 never finished"); a job not finished is said with the
+    # queue's word for its run.
+    def beats(root=None):
+        started.append(True)
+        (root or cluster_jobs.job_queue.QUEUE).joinpath("beat").touch()
+    monkeypatch.setattr(cluster_jobs.job_queue, "start", beats)
+    monkeypatch.setattr(cluster_jobs.job_queue, "QUEUE_START_SECONDS", 45)
+    said, words = [], {}
+    monkeypatch.setattr(cluster_jobs.submitter, "say", said.append)
+
+    def queue_takes(run, root=None, **_):
+        """The queue's intake (job_cards refuses a mix whole, as refuse_entry writes it), then its worker's job 0."""
+        entry = json.loads((cluster_jobs.job_queue.QUEUE / "inbox" / f"{run}.json").read_text())
+        words.update(classes=entry["classes"])
+        try:
+            [cluster_jobs.submitter.job_cards(spec, entry["classes"]) for spec in entry["specs"].values()]
+        except SystemExit as error:
+            return {"run": run, "over": True, "refused": f"refused by the queue: SystemExit: {error}",
+                    "jobs": {job_id: {"state": "failed"} for job_id in entry["specs"]}}
+        submit_run(run, {"0": entry["specs"]["0"]}, helper.store)
+        return {"run": run, "over": True, "stopped": "stop line EUR 1.00 reached at EUR 1.02",
+                "jobs": {"0": {"state": "done"}, "1": {"state": "stopped"}}}
+    monkeypatch.setattr(cluster_jobs.job_queue, "wait", queue_takes)
+    direct = []
+    monkeypatch.setattr(cluster_jobs.submitter, "submit", lambda run, *args, **kwargs: direct.append(run))
+    (root / "beat").unlink()
+    finish = ["gpu-24gb", "gpu-48gb", "cpu-16c-64gb", "cpu-32c-128gb"]  # pixal_row.FINISH_CLASSES
+    for case in ("galley", "camp"):
+        out_file.unlink()
+        assert cluster_jobs.run("blender", jobs, who="test", classes=finish, name=f"finish-{case}") == [1], said
+        assert words["classes"] == ["gpu-24gb", "gpu-48gb"] and not direct  # on the queue, never beside it
+        assert out_file.read_text() == "made by 0" and said[-1] == (
+            "job 1 never finished: stop line EUR 1.00 reached at EUR 1.02"), said
+        (root / "beat").unlink()
+    assert len(started) == 3 and cluster_jobs.one_kind(["cpu-16c-64gb", "gpu-24gb"]) == ["cpu-16c-64gb"]
 
     def resumable(run, specs, store, wait_scale_down=True, who=None, parallel=None):
         """A named run: a job whose done.json is there is not run again; each job writes its own command."""

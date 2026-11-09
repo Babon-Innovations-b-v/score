@@ -26,12 +26,19 @@ books its rows first) still brings back what its done jobs made before the error
 Under SCORE_K8S_QUEUE (#76, build spec step S6) a run goes to the box's queue (`job_queue/`), which chains it on warm
 workers of its image beside every other run of the box: the namespace and Secrets made (`submitter.prepare`), the
 run enqueued with its stop line (the queue's euros so far and the batch cap), then waited on. A queue that is not
-fresh at submit time is started for later runs and this run goes on today's path (`submitter.submit`); a queue that
+fresh at submit time is started and waited for (`job_queue.come_up`), and only one that does not come up within
+QUEUE_START_SECONDS leaves this run on today's path (`submitter.submit`; 2026-11-09, settle@airlock: a queue
+restarted five seconds earlier, not yet beating, sent the run beside its workers as a Job of its own); a queue that
 goes stale while the run waits (`job_queue.Stale`) gives the run back: it is cancelled there, so a restarted queue never
 assigns it, and its jobs not done are adopted by `submitter.submit`, which resumes from their Jobs' labels.
 A run on processor classes the queue found not to be had (`job_queue.unhad`), or whose queued jobs it gave back
 (`elsewhere`), raises Elsewhere, its done jobs' outputs brought back first: its runner sends that work to rented
 machines instead of waiting (blender_cloud runs itself again off the cluster; a pod make is made here).
+A runner's classes that mix card and processor machines (the finish's card first, a processor machine when no card is
+in stock, the rented path's order) run on the cluster on those of their first class's kind (`one_kind`): a run
+holds one kind of machine (`submitter.job_cards`), so the queue refused the mix whole (2026-11-09, pixal@galley and
+pixal@camp: "job 0 never finished"), and the cluster's fallback is Elsewhere's rented machines, which take them all.
+A job that did not finish is reported with the queue's word for its run when it has one (refused, stopped).
 """
 import os
 import pathlib
@@ -205,14 +212,22 @@ def spec_of(helper, store, run, job_id, kind, image, classes, job):
     return spec, back
 
 
-def report_failure(helper, store, run, job_id):
-    """Print a failed job's last failure (its stage, error and log tail)."""
+def report_failure(helper, store, run, job_id, state=None):
+    """Print a failed job's last failure (its stage, error and log tail), else that it never finished and the queue's
+    word for its run (`state`, as the queue left it: refused or stopped) when there is one."""
     failures = helper.failures(store, run, job_id)
     if failures:
         last = failures[-1]
         submitter.say(f"job {job_id} failed at {last.get('stage')}: {last.get('error')}\n{last.get('log_tail', '')}")
     else:
-        submitter.say(f"job {job_id} never finished")
+        why = (state or {}).get("refused") or (state or {}).get("stopped")
+        submitter.say(f"job {job_id} never finished" + (f": {why}" if why else ""))
+
+
+def one_kind(classes):
+    """The classes of the first class's kind (card or processor machines), in order: what the cluster runs a run on."""
+    cards = submitter.provider.cards(classes[0]) > 0
+    return [name for name in classes if (submitter.provider.cards(name) > 0) == cards]
 
 
 def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
@@ -221,7 +236,7 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
     helper = submitter.runtime()
     store = helper.cloud_store()
     image = image or kind
-    classes = classes or submitter.kind_classes(kind)
+    classes = one_kind(classes or submitter.kind_classes(kind))
     run_name = name or run_id(kind)
     if queued() and job_queue.unhad(classes):
         raise Elsewhere(f"classes {', '.join(classes)} cannot be had on the cluster now (the box's queue)",
@@ -240,7 +255,7 @@ def run(kind, jobs, who, classes=None, image=None, parallel=None, name=None):
     except BaseException:  # a watch that failed or a stop: what finished still comes back, then the error goes on
         bring_back(helper, store, run_name, specs, backs)
         raise
-    failed = bring_back(helper, store, run_name, specs, backs)
+    failed = bring_back(helper, store, run_name, specs, backs, state)
     given_back = sorted(int(job_id) for job_id, record in ((state or {}).get("jobs") or {}).items()
                         if record.get("state") == job_queue.ELSEWHERE)
     if given_back:
@@ -256,11 +271,11 @@ def queued():
 
 def through_queue(helper, store, run_name, image, classes, specs, who, parallel):
     """The run on the box's queue to its end, its state as the queue left it (None off the queue); on today's path
-    (submitter.submit) when the queue is not fresh, the queue started for later runs; its jobs not done adopted by
+    (submitter.submit) when the queue, started, is not fresh within QUEUE_START_SECONDS; its jobs not done adopted by
     submitter.submit when the queue went stale while it waited."""
-    if not job_queue.fresh():
-        job_queue.start()
-        submitter.say("the box's queue is not running (one is started for later runs): this run goes on by itself")
+    if not job_queue.fresh() and not job_queue.come_up():
+        submitter.say(f"the box's queue did not come up within {job_queue.QUEUE_START_SECONDS} s (one is started for "
+                      "later runs): this run goes on by itself")
         submitter.submit(run_name, specs, store, wait_scale_down=False, who=who, parallel=parallel)
         return
     cluster = submitter.cluster_module()
@@ -277,14 +292,14 @@ def through_queue(helper, store, run_name, image, classes, specs, who, parallel)
         submitter.submit(run_name, left, store, wait_scale_down=False, who=who, parallel=parallel)
 
 
-def bring_back(helper, store, run_name, specs, backs):
+def bring_back(helper, store, run_name, specs, backs, state=None):
     """The outputs of every done job of the run put where the runner wants them; the numbers of the jobs not done,
-    each one's failure said."""
+    each one's failure said (with the queue's word for the run, `state`)."""
     failed = []
     for job_id in specs:
         if helper.state(store, run_name, job_id) == "done":
             helper.fetch_outputs(store, run_name, job_id, backs[job_id])
         else:
-            report_failure(helper, store, run_name, job_id)
+            report_failure(helper, store, run_name, job_id, state)
             failed.append(int(job_id))
     return failed

@@ -10,8 +10,10 @@ runners in `tools/cloud/` stay as they are.
   Each input file goes to the job store once, as `inputs/<sha256>` (asked first; a store checkout's sha256 from its
   listing); a blob evicted from the conductor is copied there inside the object storage (`offload.copy_blob`).
 - `job_queue/` is the box's one queue (#76, behind SCORE_K8S_QUEUE): `cluster_jobs.run` hands its runs to it when it
-  is fresh (else today's path, a queue started for later runs; a queue gone stale mid-wait gives the run back to
-  `submitter.submit`); they chain on warm workers of their image, admitted by priority within the quota and the box's
+  is fresh (else it is started and waited for, `job_queue.come_up`, and only one that does not beat within
+  QUEUE_START_SECONDS leaves the run on today's path; a queue gone stale mid-wait gives the run back to
+  `submitter.submit`), a mix of card and processor classes narrowed to its first class's kind, and a job not finished
+  said with the queue's word for its run; they chain on warm workers of their image, admitted by priority within the quota and the box's
   share (its overlay).
 - `conductor/` is the conductor itself in the cluster (#76, its overlay): the store's volume, the StatefulSet, the
   CronJobs and the door's rights, as manifests checked by a server-side dry run.
