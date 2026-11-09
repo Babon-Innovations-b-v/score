@@ -639,7 +639,9 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
         -> `return [along(path, 0.5) for number in range(pieces)]`
     2026-11-04: the lab's 10 pipes on 6 plan items laid 6. A row counting 5 on two items lays 3 and 2.
     Break: score/stages/scene_record/writer.py pieces_of: `for turn in range(max(short, 0)):` -> `for turn in
-        range(0):` (two pipes laid for five)"""
+        range(0):` (two pipes laid for five)
+    Break: score/stages/scene_record/writer.py design_objects: `pieces_of(counted(row, design), laid)` ->
+        `pieces_of(row, laid)` (the five laid again where the plan dropped three)"""
     from score.stages.scene_record import writer
     design = {**WRITTEN, "items": [*WRITTEN["items"], ["RAIL", 1.0, 4.0, 3.0, 1.0, None, "item"]],
               "rows": {**WRITTEN["rows"], "RAIL": ["rail"]},
@@ -675,6 +677,11 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
     laid = writer.design_objects(pipes, piped)
     assert [entry["from"].split(",")[0] for entry in laid if entry["row"] == "pipe"] == \
         ["plan item 'PIPE 1'"] * 3 + ["plan item 'PIPE 2'"] * 2, laid
+    # settle@engineroom, 2026-11-09: a plan that took pieces off where its floor holds no more says how many it lays
+    dropped = {**pipes, "dropped": [{"item": "pipe", "why": "3 more of it than the place's free floor holds",
+                                     "laid": 2}]}
+    assert [entry["from"].split(",")[0] for entry in writer.design_objects(dropped, piped)
+            if entry["row"] == "pipe"] == ["plan item 'PIPE 1'", "plan item 'PIPE 2'"]
 
 
 def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():

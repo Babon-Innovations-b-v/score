@@ -3526,7 +3526,8 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     said = plan_fixes.unpiled(boxed_in, {"rows": [*kitchen_rows["rows"], {"id": "crate"}]})
     assert "STOVE 2" not in {item[0] for item in boxed_in["items"]} and "STOVE 1" in {
         item[0] for item in boxed_in["items"]} and boxed_in["dropped"] == [
-        {"item": "stove", "why": "1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid"}] and \
+        {"item": "stove", "why": "1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid",
+         "laid": 1}] and \
         said == ["stove: stove 2 taken off, 1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid"]
     assert not plan_checks.count_gaps(boxed_in, {"rows": [{"id": "stove", "count": 2}]}, set()), said
     # settle@engineroom, checkout 68: its grating, doors and windows each laid round the room's middle, so the fit
