@@ -48,6 +48,14 @@ its 0.095 across). thin_straight leaving networks out (`or network(row)` dropped
 test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_across_never_a_flat_sheet red (the pipes a
 sheet); run_holds holding nothing (`return np.ones(skeleton.shape)` first) turns it red too (its thick branch 0.84 m
 across on 0.2 m), and as_built never laying it down (`if False:`) too (stood, its model check read spread 16.99).
+path_build never straightening a straight run (`runs = straight or runs` -> `runs = runs`) turns
+test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep red (the wavy wall pipe's
+tube 0.030 m on its 0.1 m); held_across holding a straight build by its tube's width again (`if
+made.metadata.get("straight"):` -> `if False:`) turns it red too (the pipe and its clamps 0.142 m across on 0.1 m), and
+holding a curved one whole (`-> if True:`) and straightened taking curves (its STRAIGHT_SHARE test -> `if False:`) each
+too (the curving pipe squashed to 0.1 m across). straightened taking networks (`or network(row)` dropped) turns
+test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_across_never_a_flat_sheet red (its wavy run
+0.193 m across, straight).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
@@ -520,6 +528,25 @@ def test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thin
     cut = np.asarray(Image.open(folder / "conduit/pixal/take.svviews/input.png").convert("RGBA"))[..., 3] > 127
     drawn = made_conduit.vertices @ np.linalg.inv(thin_straight.held_across(conduit, cut))[:3, :3].T  # as view sees it
     assert np.isclose(np.ptp(drawn[:, 1]), 12.0 * 13 / 573, rtol=0.2), np.ptp(drawn, axis=0)
+    # a straight wall pipe whose mask's skeleton bends slightly is built straight and held whole, its clamps in it, to
+    # its row's section across its run, its tube no hairline (the garage's 10 m pipe on 0.1 m stood 0.975 m, storage's
+    # with its clamps 0.243 m on 0.15 m, 2026-11-09)
+    from PIL import ImageDraw
+    pipe = {"name": "wall pipe", "noun": "pipe", "size": [10.0, 0.1, 0.1], "anchor": "wall"}
+    wavy = Image.new("L", (600, 200), 0)
+    ImageDraw.Draw(wavy).line([(x, 100 + 8 * np.sin(x / 95)) for x in range(20, 581, 10)], fill=255, width=9,
+                              joint="curve")
+    made = thin_straight.build(pipe, np.asarray(wavy) > 127)
+    assert made.extents[1] <= 0.1 * 1.02 and made.extents[0] <= 0.1 * 1.05, made.extents  # across, deep
+    between = np.abs(made.vertices[:, 2] - (made.bounds[0][2] + thin_straight.BRACKET_GAP)) < 0.05  # off its clamps
+    tube = float(np.ptp(made.vertices[between, 1]))
+    assert tube >= 0.6 * 0.1, tube
+    # a straight kind's run drawn curving on purpose keeps its curve and its tube's width (never squashed to its row)
+    arc = Image.new("L", (600, 200), 0)
+    ImageDraw.Draw(arc).line([(x, 100 + 50 * np.sin(x / 90)) for x in range(20, 581, 10)], fill=255, width=9,
+                             joint="curve")
+    curved = thin_straight.build(pipe, np.asarray(arc) > 127)
+    assert curved.extents[1] > 1.0, curved.extents
     # a post's flared foot keeps its own width: the build is as wide as its mask at each point of its centreline (a
     # tube of one width lost the airlock porch post's foot, 0.75 to 0.46, #36 2026-10-30)
     post = {"name": "wooden post", "noun": "post", "size": [0.5, 0.5, 2.5]}
@@ -735,3 +762,10 @@ def test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_a
     assert np.isclose(made.extents[1], 0.2, rtol=0.05) and np.isclose(made.extents[2], 10.9, rtol=0.02), made.extents
     end = made.vertices[made.vertices[:, 0] > made.bounds[1][0] - 0.4]  # the branch's far end, past its tee
     assert np.ptp(end[:, 2]) <= 0.2 * 1.15, np.ptp(end[:, 2])
+    # a network's run is never straightened: its slight bend stays (thin_straight.straightened is a single run's)
+    wavy = Image.new("L", (600, 200), 0)
+    ImageDraw.Draw(wavy).line([(x, 100 + 8 * np.sin(x / 95)) for x in range(20, 581, 10)], fill=255, width=9,
+                              joint="curve")
+    bent = thin_straight.path_build(row, np.asarray(wavy) > 127).vertices[:, 1:]  # in its picture's plane
+    way = np.linalg.svd(bent - bent.mean(0), full_matrices=False)[2][1]  # square to its run
+    assert np.ptp(bent @ way) > 1.5 * 9 * 10.9 / 561, np.ptp(bent @ way)  # its wave, not one tube's width
