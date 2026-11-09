@@ -13,9 +13,13 @@ temperature: an answer is asked once and kept (`CACHE`, by the hash of the model
 back rather than drawing again. Every call is written down before it starts and when it ends (`LEDGER`: model,
 caller, the body's hash, minutes, tokens, EUR 0 against the subscription, the run's id as `tag`). An ask with no
 usable answer (a time-out, an error result, no structured answer) is Unanswered and never kept, so the next try asks
-it fresh. Asks of one call run side by side, at most PARALLEL at once. With no `claude` on the machine `asked` raises
-NotHere before anything is asked, saying the step runs on this PC: a set-up fault that stops the row, never a gap a
-take and never a fall-back to Gemini.
+it fresh. A refusal for the account rather than the question (a usage, rate or weekly limit, a login, billing or
+account refusal, an overload: `unavailable`, read from the call's structured fields first, its words last) is no
+answer at all: Unavailable, raised out of the make, so the row errors with nothing recorded and a later try asks
+again (env1 checkout 70, 2026-11-09: the conductor's weekly limit was kept as nine rows' "no usable answer", each then
+noted "same question, same answer" and never asked again). Asks of one call run side by side, at most PARALLEL at
+once. With no `claude` on the machine `asked` raises NotHere before anything is asked, saying the step runs on this
+PC: a set-up fault that stops the row, never a gap a take and never a fall-back to Gemini.
 
 The finish route's palette, library, list and recheck ask here (their `ask`, owner via the coordinator, 2026-10-27,
 after the side-by-side on the backlog PRD #36): environment 1 runs on the owner's PC (tools/cloud/this_pc.py), where
@@ -28,6 +32,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import tempfile
@@ -48,6 +53,18 @@ TIMEOUT = 900  # seconds an ask may take: the side-by-side's nine asks took 0.06
 class Unanswered(ValueError):
     """An ask Claude gave no usable answer to: a time-out, an error result or no structured answer. A ValueError, so
     the finish route's UNANSWERED (finish_ask.py) makes it its take's gap, as a Gemini ask with no answer."""
+
+
+class Unavailable(Exception):
+    """Claude Code refused the account, not the question: a usage, rate or weekly limit, a login, billing or account
+    refusal, or an overload; it names which and when the limit resets. Neither an answer nor an Unanswered (not a
+    ValueError): never kept and never a take's gap, it goes up out of the make, so the row errors with no output
+    recorded and a later try, once the limit resets or the login is replaced, asks again."""
+
+
+class Overloaded(ConnectionError, Unavailable):
+    """An overload or a server error behind Claude Code: a ConnectionError too, so the runner's transient retries
+    (score/graph transient) ask a free row again within the run."""
 
 
 class NotHere(RuntimeError):
@@ -116,14 +133,64 @@ def command(body):
             "--setting-sources", "", "--no-session-persistence"]
 
 
-def result_of(stdout):
-    """The answer's JSON text from the call's result line; Unanswered when it has none."""
-    results = [found for found in map(json.loads, filter(str.strip, stdout.splitlines()))
-               if found.get("type") == "result"]
+# The call's own refusal kinds (an assistant line's `error`, Claude Code's SDK): the account's, and the service's.
+ACCOUNT_ERRORS = {"rate_limit", "authentication_failed", "oauth_org_not_allowed", "account_on_hold",
+                  "verification_required", "billing_error", "cloud_credential_error"}
+BUSY_ERRORS = {"overloaded", "server_error"}
+# A result's `api_error_status` that refuses the account (401, 402, 403, 429), or says the service is busy (5xx).
+ACCOUNT_STATUSES = {401, 402, 403, 429}
+# The words of a refusal for the account, read only when no structured field said it (an older CLI's result text, its
+# stderr): a limit hit or reached, a login or key refused, an overload.
+REFUSAL_WORDS = re.compile(r"hit your (?:\w+ )*limit|(?:usage|rate|weekly|session) limit (?:reached|exceeded)"
+                           r"|limit reached|please run /login|invalid api key|oauth token (?:has )?expired"
+                           r"|credit balance is too low|overloaded_error|\boverloaded\b", re.IGNORECASE)
+RESETS = re.compile(r"\bresets? ([^\n]+)", re.IGNORECASE)
+
+
+def unavailable(lines, text):
+    """The Unavailable a call's stream-json `lines` (and its result or stderr `text`) say, when Claude Code refused the
+    account rather than answer; None otherwise. Its structured fields first: a rate_limit_event "rejected" (its
+    resetsAt), an assistant line's `error`, the result's api_error_status; the words of `text` only when none did."""
+    kind, resets = None, None
+    for line in lines:
+        info = line.get("rate_limit_info") or {}
+        if line.get("type") == "rate_limit_event" and info.get("status") == "rejected":
+            kind = f"{info.get('rateLimitType') or 'usage'} limit"
+            if info.get("resetsAt"):
+                resets = datetime.datetime.fromtimestamp(info["resetsAt"], datetime.timezone.utc).isoformat(
+                    timespec="minutes")
+        if line.get("type") == "assistant" and line.get("error") in ACCOUNT_ERRORS | BUSY_ERRORS:
+            kind = kind or line["error"]
+        status = line.get("api_error_status") if line.get("type") == "result" else None
+        if isinstance(status, int) and (status in ACCOUNT_STATUSES or status >= 500):
+            kind = kind or f"HTTP {status}"
+    worded = REFUSAL_WORDS.search(text or "")
+    if kind is None and worded is None:
+        return None
+    kind = kind or worded.group(0)
+    resets = resets or next((found.strip(" .") for found in RESETS.findall(text or "")), None)
+    busy = kind in BUSY_ERRORS or kind.startswith("HTTP 5") or "overloaded" in kind.lower()
+    when = f", resets {resets}" if resets else ""
+    return (Overloaded if busy else Unavailable)(
+        f"Claude Code refused the account, not the question ({kind}{when}): no answer, asked again on a later try "
+        f"once it resets or the login is replaced: {(text or '')[:200]!r}")
+
+
+def result_of(stdout, stderr=""):
+    """The answer's JSON text from the call's result line; Unavailable when Claude Code refused the account
+    (`unavailable`), else Unanswered when it has none."""
+    lines = [found for found in map(json.loads, filter(str.strip, stdout.splitlines())) if isinstance(found, dict)]
+    results = [found for found in lines if found.get("type") == "result"]
     if not results:
+        refusal = unavailable(lines, stderr)
+        if refusal:
+            raise refusal
         raise Unanswered(f"no result line: {stdout[-200:]!r}")
     result = results[-1]
     if result.get("is_error") or result.get("structured_output") is None:
+        refusal = unavailable(lines, str(result.get("result") or ""))
+        if refusal:
+            raise refusal
         raise Unanswered(f"no structured answer: {result.get('subtype')} {str(result.get('result'))[:200]}")
     return json.dumps(result["structured_output"]), result
 
@@ -144,7 +211,11 @@ def ask(body, caller):
         with tempfile.TemporaryDirectory() as folder:  # no project's CLAUDE.md or settings reach the call
             done = subprocess.run(command(body), input=message(body) + "\n", capture_output=True, text=True,
                                   timeout=TIMEOUT, cwd=folder, env=environment)
-        answer, result = result_of(done.stdout)
+        answer, result = result_of(done.stdout, done.stderr)
+    except Unavailable as error:  # not an answer and not a gap: the row errors, asked again on a later try
+        write({**line, "state": "failed", "minutes": round((time.monotonic() - start) / 60, 2), "euros": 0,
+               "error": repr(error)[:300]})
+        raise
     except (subprocess.TimeoutExpired, Unanswered, ValueError) as error:
         write({**line, "state": "failed", "minutes": round((time.monotonic() - start) / 60, 2), "euros": 0,
                "error": repr(error)[:300]})
@@ -162,7 +233,8 @@ def ask(body, caller):
 
 def asked(bodies, caller):
     """{key: the answer's JSON text, or the Unanswered saying why there is none} of {key: generateContent body},
-    asked side by side; NotHere on a machine with no Claude Code."""
+    asked side by side; NotHere on a machine with no Claude Code; Unavailable, raised, when Claude Code refused the
+    account for any of them (a limit, a login, an overload), so nothing of the call is taken as an answer."""
     if shutil.which("claude") is None:
         raise NotHere(f"{caller}: runs on this PC (tools/cloud/this_pc.py): this machine has no Claude Code "
                       f"(`claude`), and the step never asks Gemini in its place")
