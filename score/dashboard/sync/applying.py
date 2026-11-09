@@ -180,6 +180,7 @@ OWNER_FIGURES = {
                                                         payload.get("reason", "")),
     "spend-override": actions.spend_override,  # his override yes, made in chat (sync/chat_decisions.py)
     "stop-line": actions.stop_line,  # an environment's stop line, made in chat (sync/chat_decisions.py)
+    "cap-line": actions.cap_line,  # env1's cap on the whole bill, made in chat (sync/chat_decisions.py)
 }
 
 

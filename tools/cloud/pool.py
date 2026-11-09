@@ -334,7 +334,7 @@ def start(run_id, sizes, deadline, disk_gb=batch.DISK_GB, euros=None, reserved=N
     (resize), `sizes` when not given. `euros`: what its clearance reserved for `reserved` (compute.pool_clearance),
     what its stand-ins must fit in (stand_in); without it the pool rents no stand-in."""
     reserved = dict(sizes if reserved is None else reserved)
-    batch.compute.require_cleared(f"a pool of {sum(reserved.values())} cards")
+    batch.compute.require_cloud(f"a pool of {sum(reserved.values())} cards")
     with locked(run_id) as folder:
         (folder / "closed").unlink(missing_ok=True)
         plan = {"sizes": dict(sizes), "deadline": deadline, "disk_gb": disk_gb, "reserved": reserved,

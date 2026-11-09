@@ -22,6 +22,8 @@ Each invariant with the break that turns it red (each applied once, seen red, re
   verb; the network policy lets nothing in; the door starts with the env file loaded (its token is read by name).
   Break: add `"pods/exec"` to the port-forward rule's resources, or drop ENV_LOADED from the door's command.
 - the sync pass and the backups run one at a time (Forbid). Break: `"concurrencyPolicy": "Allow"` in `cronjob`.
+- the env1 cap's watcher runs every 5 minutes for at most 240 s on babon's system pool, no store volume, its scw
+  config the init's copy. Break: drop `"nodeSelector"` from `cap_watch`, or `"activeDeadlineSeconds"`.
 - every object carries the conductor's own cost label, apart from a batch's. Break: drop COST_LABEL from `labels`.
 - score's namespace gives a container that names no cpu limit 16 (a default of 1 made every drive pod of 8 cores
   invalid, 2026-11-08), and every container knows its own image (the cutover's cluster.json names it). Break:
@@ -66,8 +68,19 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         by_kind.setdefault(item["kind"], []).append(item)
     claim, = by_kind["PersistentVolumeClaim"]
     assert claim["spec"]["accessModes"] == ["ReadWriteOnce"] and claim["spec"]["storageClassName"] == "sbs-5k-retain"
+    watcher, = [cron for cron in by_kind["CronJob"] if cron["metadata"]["name"] == conductor.CAP_WATCH]
     pods = [by_kind["StatefulSet"][0]["spec"]["template"]["spec"]] + [
-        cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"]]
+        cron["spec"]["jobTemplate"]["spec"]["template"]["spec"] for cron in by_kind["CronJob"] if cron is not watcher]
+    # the env1 cap's watcher: every 5 min, 240 s, a late pass replaced, on babon's system pool apart from the
+    # conductor (it watches with the conductor's node off), no store volume, the scw config only as the init's copy
+    job = watcher["spec"]["jobTemplate"]["spec"]
+    assert (watcher["spec"]["schedule"], watcher["spec"]["concurrencyPolicy"], job["activeDeadlineSeconds"]) == (
+        "*/5 * * * *", "Replace", 240)
+    spec = job["template"]["spec"]
+    assert spec["nodeSelector"] == {"k8s.scaleway.com/pool-name": "system-z1"} and "affinity" not in spec
+    assert not any("persistentVolumeClaim" in volume for volume in spec["volumes"]) and not spec.get("hostPID")
+    assert all(mount["name"] != "scw-secret" for box in spec["containers"] for mount in box["volumeMounts"])
+    assert "tools/cloud/cap_watch/watch.py pass" in spec["containers"][0]["command"][-1]
     drive = cluster.drive_job({**cluster.DEFAULTS, "image": "registry.example/score-conductor:1"}, ["score", "run"],
                               "/tmp/score-run-1.log", "/home/score/projects/score", {}, 2 ** 30)
     pods.append(drive["spec"]["template"]["spec"])
@@ -106,9 +119,9 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
         beside, = cron_pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
         assert beside["topologyKey"] == "kubernetes.io/hostname"
         assert beside["labelSelector"]["matchLabels"]["app.kubernetes.io/component"] == "conductor"
-    assert all(cron["spec"]["concurrencyPolicy"] == "Forbid" for cron in by_kind["CronJob"])
+    assert all(cron["spec"]["concurrencyPolicy"] == "Forbid" for cron in by_kind["CronJob"] if cron is not watcher)
     assert [cron["metadata"]["name"] for cron in by_kind["CronJob"]] == ["score-sync", "score-backup",
-                                                                          "score-backup-check"]
+                                                                          "score-backup-check", "score-cap-watch"]
     door_role = next(role for role in by_kind["Role"] if role["metadata"]["name"] == "score-door-agent")
     granted = {(resource, verb) for rule in door_role["rules"] for resource in rule["resources"]
                for verb in rule["verbs"]}

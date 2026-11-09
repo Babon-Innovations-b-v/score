@@ -32,3 +32,7 @@ script `local.take` copies into the container so the Blender jobs a claim runs s
   its machines booted but the GPU image's driver did not see the card (2026-10-08).
 - A machine's self-delete for the backend lives in `../self_delete.py`'s `BACKENDS`, standard library
   only, since that file goes onto the machine alone.
+- **The env1 cap reads the whole organisation** (the plan of 2026-11-09, `scaleway.py` `bill_all`, `live_rate`): the
+  one place a read spans every project. It only reads, never rents or deletes; SCORE's projects count whole, the
+  shared one but babon's own services, a shared machine SCORE's only in a `score*` or `gate*` pool. An empty or lower
+  bill and a cluster node missing from the machines listed raise `Unread`: the watcher (`../cap_watch`) fails closed.

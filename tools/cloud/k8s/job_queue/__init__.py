@@ -105,7 +105,7 @@ def enqueue(run, kind, image, classes, specs, stop_line=None, who=None, root=Non
     """Hand a run's jobs ({job id: job.json}) to the queue: `image` is the digest its workers run, `classes` the
     kind's classes in order, `stop_line` the euros this box's nodes may reach. The inbox file is written whole, and
     only for a cleared run (compute.require_cleared raises Refused): the queue rents the run's nodes for it."""
-    submitter.compute.require_cleared(f"run {run} on the box's queue")
+    submitter.compute.require_cloud(f"run {run} on the box's queue")
     entry = {"run": run, "kind": kind, "image": image, "classes": list(classes), "specs": specs,
              "priority": int(os.environ.get("SCORE_QUEUE_PRIORITY") or 0),
              "place": os.environ.get("SCORE_QUEUE_PLACE") or "", "box": manifests.box(), "who": who,

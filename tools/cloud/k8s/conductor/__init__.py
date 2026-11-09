@@ -23,7 +23,9 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   door as a service (port `DOOR_PORT`, `tools/cloud/conductor/door_service.py`), reached only by `kubectl
   port-forward` to this pod: the NetworkPolicy refuses every other way in.
 - **CronJobs**: the sync pass (`score-sync`, every 5 min, Forbid: one pass at a time, the update first as the VM's
-  sync unit does), the backup (`score-backup`, every 30 min) and its check (`score-backup-check`, 04:15). The backup
+  sync unit does), the backup (`score-backup`, every 30 min) and its check (`score-backup-check`, 04:15); the env1
+  cap's watcher (`score-cap-watch`, every 5 min, 240 s, Replace) on babon's system pool, apart from the conductor's
+  node and with no store volume (`cap_watch`, tools/cloud/cap_watch). The backup
   writes its record (logs/backup-*.json, read by health) into the home, so it mounts the volume writable.
 - **Rights**: the pods' ServiceAccount `score-conductor` is bound to score's existing Roles `score-conductor` in
   `score` and `score-jobs` (jobs, pods, logs, events, secrets: what the tenant login has), so a drive pod's Job and the
@@ -281,6 +283,51 @@ def cronjob(name, schedule, commands, resources, image):
                          "spec": pod}}}}}
 
 
+# The env1 cap's watcher (tools/cloud/cap_watch, the plan of 2026-11-09 B3): its own CronJob on babon's system pool,
+# never beside the conductor, so it watches with the conductor's node off; no store volume (its records are in the
+# object store), the code a fresh shallow clone of main each pass, the conductor's scw key (read rights on the whole
+# bill, machines, disks, clusters) and ServiceAccount (it deletes score Jobs in score-jobs).
+CAP_WATCH = "score-cap-watch"
+CAP_WATCH_SCHEDULE = "*/5 * * * *"
+CAP_WATCH_DEADLINE = 240  # seconds: a pass never overlaps the next (concurrencyPolicy Replace too)
+CAP_WATCH_RESOURCES = {"requests": {"cpu": "100m", "memory": "256Mi"}, "limits": {"cpu": "1", "memory": "1Gi"}}
+SYSTEM_POOL = ("k8s.scaleway.com/pool-name", "system-z1")
+CAP_WATCH_CODE = "https://github.com/Babon-Innovations-b-v/score.git"
+RUNNER_PYTHON = "/opt/score/env/bin/python"  # the runner image's environment (uv.lock), under the conductor image
+
+
+def cap_watch(image):
+    """The cap watcher's CronJob: every 5 minutes, at most 240 s a pass, a newer pass replacing a late one."""
+    code = "/tmp/score"
+    copy = {"name": "scw-config", "image": image, "command": ["/bin/sh", "-c", (
+                f"umask 077 && cp /secret/config.yaml {SCW_PATH}/config.yaml && chmod 600 {SCW_PATH}/config.yaml")],
+            "resources": {"requests": {"cpu": "10m", "memory": "16Mi"}, "limits": {"cpu": "100m", "memory": "64Mi"}},
+            "volumeMounts": [{"name": "scw-secret", "mountPath": "/secret", "readOnly": True},
+                             {"name": "scw", "mountPath": SCW_PATH}],
+            "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
+    script = (f"rm -rf {code} && git clone -q --depth 1 --filter=blob:none --sparse {CAP_WATCH_CODE} {code} && "
+              f"git -C {code} sparse-checkout set score tools && cd {code} && "
+              f"exec {RUNNER_PYTHON} -I tools/cloud/cap_watch/watch.py pass")
+    watcher = {"name": "cap-watch", "image": image, "command": ["/bin/sh", "-c", script],
+               "env": [{"name": "HOME", "value": HOME}, {"name": "PYTHONUNBUFFERED", "value": "1"},
+                       {"name": "SCORE_CLOUD", "value": "scaleway"}],
+               "resources": CAP_WATCH_RESOURCES, "workingDir": HOME,
+               "volumeMounts": [{"name": "scw", "mountPath": SCW_PATH}, {"name": "tmp", "mountPath": "/tmp"}],
+               "securityContext": {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}}
+    pod = {"serviceAccountName": NAME, "securityContext": security(), "restartPolicy": "Never",
+           "nodeSelector": {SYSTEM_POOL[0]: SYSTEM_POOL[1]}, "imagePullSecrets": [{"name": REGISTRY_SECRET}],
+           "volumes": [{"name": "scw-secret", "secret": {"secretName": SCW_SECRET, "defaultMode": 0o400}},
+                       {"name": "scw", "emptyDir": {"medium": "Memory", "sizeLimit": "1Mi"}},
+                       {"name": "tmp", "emptyDir": {"sizeLimit": "2Gi"}}],
+           "initContainers": [copy], "containers": [watcher]}
+    return {"apiVersion": "batch/v1", "kind": "CronJob", "metadata": meta(CAP_WATCH, "cap-watch"),
+            "spec": {"schedule": CAP_WATCH_SCHEDULE, "concurrencyPolicy": "Replace", "startingDeadlineSeconds": 120,
+                     "successfulJobsHistoryLimit": 2, "failedJobsHistoryLimit": 3,
+                     "jobTemplate": {"spec": {"backoffLimit": 0, "activeDeadlineSeconds": CAP_WATCH_DEADLINE,
+                                              "template": {"metadata": {"labels": labels("cap-watch")},
+                                                           "spec": pod}}}}}
+
+
 def limit_range():
     return {"apiVersion": "v1", "kind": "LimitRange", "metadata": meta("score-defaults", "rights"),
             "spec": {"limits": [{"type": "Container", **LIMIT_DEFAULTS}]}}
@@ -334,7 +381,7 @@ def objects(image):
         raise ValueError("no conductor image: build tools/cloud/images/conductor first, or pass --image")
     return [limit_range(), service_account(NAME, "rights"), service_account(DOOR_AGENT, "door"),
             binding(NAMESPACE), binding(JOBS_NAMESPACE), *door_role(), closed(), claim(), known_hosts(), headless(),
-            statefulset(image), *(cronjob(*row, image) for row in CRONJOBS)]
+            statefulset(image), *(cronjob(*row, image) for row in CRONJOBS), cap_watch(image)]
 
 
 def as_list(found):

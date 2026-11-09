@@ -277,7 +277,7 @@ def up():
     """Make the cluster if missing (else keep its autoscaler settings), add its class pools, fetch its kubeconfig
     and point the GPU operator at the registry's copies of its images (gpu_operator.py); the kubeconfig's path.
     Refused outside a cleared run (compute.require_cleared): the cluster and its system pool are billed by the hour."""
-    compute.require_cleared("the Kapsule cluster")
+    compute.require_cloud("the Kapsule cluster")
     project = backend.account()
     found = cluster(project) or create_cluster(project)
     if found.get("status") != "creating":

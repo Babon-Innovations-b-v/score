@@ -143,6 +143,170 @@ def refusal(line, spent, flight, forecast):
             "stop with Move the stop on the cockpit's money card")
 
 
+# The env1 cap (the plan of 2026-11-09, B2/B3): the owner's euros for env1 to its film, counted on the whole bill of
+# every project from his start, kept in the SCORE object store so both homes and the watcher read one record. The
+# watcher (tools/cloud/cap_watch) writes a reading every 5 minutes; every rent point and every cluster poll reads the
+# newest. Records, each written once: caps/<name>/lines/<time>.json (the cap: euros, the stop `line`, `start`, the
+# `baseline` bill lines, the November `month_cap`, `standing_per_day` and `finish`, `open`), caps/<name>/readings/
+# <time>.json (counter, bill, meter, whole, or `unread` with why), caps/<name>/holds/<time>.json (a clearance's high,
+# from either home), caps/<name>/stops/<time>.json (each stop the watcher made).
+CAPS = "caps"
+CAP = "env1"
+CAP_BOOK = "SCORE_CAP_BOOK"  # a folder standing in for the object store (tests, a dry pass)
+CAP_STALE_SECONDS = 15 * 60  # a reading older than this is no reading: paid work is refused (fails closed)
+CAP_BUFFER = 1.10  # a start holds its high plus 10% (C7)
+CAP_HOLD_HOURS = 4.0  # a clearance's hold counts this long (the ledger's BATCH_HOURS)
+
+
+class FolderBook:
+    """The cap's records in a folder (tests; SCORE_CAP_BOOK)."""
+
+    def __init__(self, root):
+        self.root = pathlib.Path(root)
+
+    def keys(self, prefix):
+        folder = self.root / prefix
+        return sorted(f"{prefix}{path.name}" for path in folder.iterdir()) if folder.is_dir() else []
+
+    def read(self, key):
+        import json
+        return json.loads((self.root / key).read_text())
+
+    def write_once(self, key, record):
+        import json
+        path = self.root / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("x") as written:
+            json.dump(record, written, indent=1)
+
+
+class BucketBook:
+    """The cap's records in the SCORE object store (score.store.offload's bucket), reached from both homes and the
+    watcher's pod alike."""
+
+    def __init__(self, bucket):
+        self.bucket = bucket
+
+    def keys(self, prefix):
+        found, token = [], None
+        while True:
+            page = self.bucket.client.list_objects_v2(Bucket=self.bucket.name, Prefix=prefix,
+                                                      **({"ContinuationToken": token} if token else {}))
+            found += [item["Key"] for item in page.get("Contents") or []]
+            token = page.get("NextContinuationToken")
+            if not token:
+                return sorted(found)
+
+    def read(self, key):
+        import json
+        return json.loads(self.bucket.client.get_object(Bucket=self.bucket.name, Key=key)["Body"].read())
+
+    def write_once(self, key, record):
+        import json
+        self.bucket.client.put_object(Bucket=self.bucket.name, Key=key, Body=json.dumps(record, indent=1).encode(),
+                                      IfNoneMatch="*", ContentType="application/json")
+
+
+def cap_book():
+    """Where the cap's records are: the folder SCORE_CAP_BOOK names, else the SCORE object store, the cloud's bucket
+    reached with its runtime key whichever backend this process rents on (this PC's included)."""
+    if os.environ.get(CAP_BOOK):
+        return FolderBook(os.environ[CAP_BOOK])
+    import json
+    from score.adapters import compute
+    from score.store import offload
+    compute.ledger()  # puts tools/cloud on the path
+    import provider
+
+    backend = provider.billing()
+    key = json.loads(backend.secret(backend.RUNTIME_KEY_SECRET))
+    return BucketBook(offload.Bucket({"endpoint": f"https://s3.{backend.REGION}.scw.cloud", "region": backend.REGION,
+                                      "bucket": backend.RUN_STORE_BUCKET, "access_key": key["access_key"],
+                                      "secret_key": key["secret_key"]}))
+
+
+def cap_newest(book, part, name=CAP):
+    """The newest record under caps/<name>/<part>/, or None."""
+    keys = book.keys(f"{CAPS}/{name}/{part}/")
+    return book.read(keys[-1]) if keys else None
+
+
+def cap_write(book, part, record, name=CAP):
+    """Write one record under caps/<name>/<part>/<its time>; the record."""
+    book.write_once(f"{CAPS}/{name}/{part}/{stamp_key(record['at'])}-{os.getpid()}.json", record)
+    return record
+
+
+def current_cap(book, name=CAP):
+    """The newest cap record, or None when none was ever set."""
+    return cap_newest(book, "lines", name)
+
+
+def set_cap(book, record, name=CAP):
+    """Write the owner's cap (his yes, chat_decisions' "cap" kind, applied as his click); the record. PermissionError
+    in a process an agent started, as a stop line (set_line)."""
+    if running_under_agent():
+        raise PermissionError(f"{CAPS}/{name}: only the owner sets the cap; an agent's process cannot write it")
+    for field in ("euros", "line", "start", "baseline", "at", "by"):
+        if record.get(field) in (None, ""):
+            raise ValueError(f"a cap names its {field}")
+    if not 0 < float(record["line"]) <= float(record["euros"]):
+        raise ValueError(f"a cap's stop line is above EUR 0 and within its EUR {record['euros']}")
+    return cap_write(book, "lines", {"name": name, "open": True, **record}, name)
+
+
+def open_holds(book, now, name=CAP, hours=CAP_HOLD_HOURS):
+    """The holds written within `hours` of `now` (epoch seconds), each {at, node, key, euros, home}."""
+    oldest = now - hours * 3600
+    found = []
+    for key in book.keys(f"{CAPS}/{name}/holds/"):
+        hold = book.read(key)
+        if datetime.datetime.fromisoformat(hold["at"]).timestamp() >= oldest:
+            found.append(hold)
+    return found
+
+
+def standing_left(cap, now):
+    """The standing cost still to come to the cap's finish at its high daily rate (C7's forward-looking line)."""
+    finish = cap.get("finish")
+    if not finish or not cap.get("standing_per_day"):
+        return 0.0
+    days = (datetime.datetime.fromisoformat(finish).timestamp() - now) / 86400
+    return max(0.0, days) * float(cap["standing_per_day"])
+
+
+def cap_refusal(cap, reading, now, high=0.0, held=0.0, env1=True):
+    """Why paid work may not start or go on under the cap, or None: no open cap, nothing to say. A run that is not
+    env1's while the cap is open (C10); no reading, an unread one or one older than CAP_STALE_SECONDS (fails closed:
+    the bill or the meter could not be read); the counter at the line, or the November cap reached; or the counter,
+    the other runs' holds (`held`), this start's `high` plus 10% and the standing to the finish past the line."""
+    if not cap or not cap.get("open"):
+        return None
+    name = cap.get("name", CAP)
+    if not env1:
+        return f"the {name} cap is open: no other paid run (MOTOR, benchmarks, overrides) until its film (C10)"
+    if reading is None:
+        return f"the {name} cap has no reading: no paid work until its watcher has read the bill"
+    good = reading.get("good_at") if reading.get("unread") else reading["at"]  # an unread pass carries the last
+    # good read's time and counter, None before any
+    if good is None or max(now - datetime.datetime.fromisoformat(stamp).timestamp()
+                           for stamp in (reading["at"], good)) > CAP_STALE_SECONDS:
+        return (f"the {name} cap's bill was last read at {(good or 'never')[:16]} "
+                f"({reading.get('unread') or 'no pass since'}): paid work stops until it is read again (fails closed)")
+    counter, line = float(reading["counter"]), float(cap["line"])
+    if cap.get("month_cap") and float(reading.get("whole") or 0.0) >= float(cap["month_cap"]):
+        return (f"the month's whole bill EUR {reading['whole']:.2f} has reached the November cap of EUR "
+                f"{cap['month_cap']:.2f}")
+    if counter >= line:
+        return f"the {name} cap: EUR {counter:.2f} counted, at its EUR {line:.2f} stop line; every paid run stops"
+    ahead = counter + held + high * CAP_BUFFER + standing_left(cap, now)
+    if high and ahead > line:
+        return (f"the {name} cap: EUR {counter:.2f} counted, EUR {held:.2f} held by other runs, this start's high EUR "
+                f"{high:.2f} plus 10% and EUR {standing_left(cap, now):.2f} standing to its finish would pass its "
+                f"EUR {line:.2f} stop line")
+    return None
+
+
 def tell_owner(folder, tag, text):
     """One line in the owner's outbox beside the store, once per `tag` (a stop line, a run)."""
     path = pathlib.Path(folder) / OUTBOX

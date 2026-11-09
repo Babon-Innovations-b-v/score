@@ -640,12 +640,12 @@ def drop_holds(run):
 
 def over_limits(run):
     """Why the run must stop now (ledger.batch_cap: the batch cap, or under the owner's override what is left of his
-    euros, read again each look), or None."""
+    euros, read again each look; or the env1 cap's newest reading, compute.cap_stop, which fails closed), or None."""
     live = run.live_euros()
     cap, words = ledger.batch_cap()
     if live >= cap:
         return f"the run's nodes have cost €{live:.2f}, at {words}"
-    return None
+    return compute.cap_stop()
 
 
 def stop_run(run, why):
@@ -661,7 +661,7 @@ def stop_run(run, why):
 def prepare(kubectl, cluster):
     """Make the namespace and the Secrets, and cap the pools from the batch cap; refused outside a cleared run
     (compute.require_cleared raises Refused)."""
-    compute.require_cleared("the cluster's pools")
+    compute.require_cloud("the cluster's pools")
     if not getattr(cluster, "NAMESPACE_GIVEN", False):
         kubectl.apply([manifests.namespace()])
     kubectl.apply([manifests.store_secret(provider.cloud.object_store()),
