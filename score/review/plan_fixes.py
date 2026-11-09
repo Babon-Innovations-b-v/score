@@ -30,6 +30,7 @@ import sys
 import numpy
 
 from score.review import concepts, holders, plan_checks, plans, standing
+from score.stages.earth_seed import design_shell
 
 CORRECTIONS = 2  # automatic Correct calls at most, each kept only when it leaves fewer gaps
 NUDGE_ROUNDS = 4  # passes over the overlaps, each moving the smaller thing of a pair
@@ -53,6 +54,7 @@ WHY = {  # what a gap left after the fixes says: why no fix of it took
     "reach": "the correction did not clear a way to it",
     "tiling": "inside places are never moved by the fixes",
     "joined": "the correction did not join it",
+    "stacked": "no wall the holders would lay it against is free of its row's runs",
 }
 
 
@@ -559,14 +561,159 @@ def flights_cleared(plan, inventory):
     return fixes
 
 
+SIDES = {(0, 1): "north", (0, -1): "south", (1, 0): "west", (-1, 0): "east"}  # a wall by the way into the plan off it
+
+
+def wall_ways(plan):
+    """[(wall, run, out, length)] of each straight plan wall along an axis (holders.walls_of): its line's unit step,
+    the unit step off it into the plan (toward the plan's middle) and its length."""
+    centre = numpy.array([float(plan["w"]) / 2, float(plan["d"]) / 2])
+    found = []
+    for wall in holders.walls_of(plan):
+        start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+        length = float(numpy.linalg.norm(end - start))
+        run = (end - start) / max(length, 1e-9)
+        if length > 1e-6 and float(numpy.max(numpy.abs(run))) > 0.999:
+            found.append((wall, run, numpy.array([-run[1], run[0]]) * holders.off_line(centre, wall)[1], length))
+    return found
+
+
+def in_plan_box(box, plan):
+    """`box` [x, y, w, d] clipped to the plan's w x d box and moved the least way into it (as items_inside lays it)."""
+    wide, deep = min(box[2], float(plan["w"])), min(box[3], float(plan["d"]))
+    return [min(max(box[0], 0.0), float(plan["w"]) - wide), min(max(box[1], 0.0), float(plan["d"]) - deep), wide, deep]
+
+
+def held_wall(item, row, plan, inventory, ways):
+    """The number in `ways` (wall_ways) of the wall the holders lay `item` of `row` against (holders.on_wall: the nearest
+    long enough for it), its box taken inside the plan's box first (in_plan_box: a writing's fixes bring it in after
+    these); None on no axis wall."""
+    laid = [*item[:1], *in_plan_box([float(value) for value in item[1:5]], plan), *item[5:]]
+    found = holders.on_wall(laid, row, plan, inventory)
+    key = found and holders.wall_key(found["wall"])
+    return next((number for number, way in enumerate(ways) if holders.wall_key(way[0]) == key), None)
+
+
+def built_by_id(plan, inventory):
+    """{row id: row} of the reading's rows at the size each is made at (holders.built_rows: what the holders lay)."""
+    return {row["id"]: row for row in holders.built_rows(inventory.get("rows", []), plan, inventory)}
+
+
+def wall_runs(plan, inventory):
+    """{row id: [[item, wall number, start, end, low, high]]} of each run (RUN_SHARE) of one thing of a row held on a
+    wall (holders.wall_held; one of the shell, one that piles, spans the room or fills an opening left out), in the
+    plan's order: on the axis wall (wall_ways) the holders lay it against along its long side (held_wall, the row at
+    its built size), start to end its metres along that wall's line, low to high its height band."""
+    ways, found = wall_ways(plan), {}
+    rows = built_by_id(plan, inventory) if ways else {}
+    for item, row, shape in plan_checks.placed_items(plan):
+        if row not in rows or shape is None or int(shape.get("count") or 1) > 1 or piles(rows[row]) \
+                or not holders.wall_held(rows[row], rows) or holders.holder_kind(rows[row]) is not None \
+                or holders.spans(rows[row]) or design_shell.fills_opening(rows[row]):
+            continue
+        along = 0 if item[3] >= item[4] else 1
+        if item[3 + along] < RUN_SHARE * item[4 - along]:
+            continue  # no run: a lamp, a clock
+        number = held_wall(item, rows[row], plan, inventory, ways)
+        if number is None or abs(ways[number][1][along]) < 0.5:
+            continue  # held across its long side: its box says nothing of its span there
+        box = in_plan_box([float(value) for value in item[1:5]], plan)
+        start = numpy.asarray(ways[number][0]["from"], float)
+        ends = sorted(min(max(float((numpy.array(point) - start) @ ways[number][1]), 0.0), ways[number][3])
+                      for point in ([box[0], box[1]], [box[0] + box[2], box[1] + box[3]]))
+        low = float(shape.get("base") or 0.0)
+        found.setdefault(row, []).append([item, number, *ends, low, low + float(shape.get("tall") or 0.0)])
+    return found
+
+
+def in_each_other(run, other):
+    """Whether two runs of wall_runs lie in each other: on one wall, their metres along it and heights crossing."""
+    return run[1] == other[1] and run[2] < other[3] and other[2] < run[3] and run[4] < other[5] and other[4] < run[5]
+
+
+def laid_along(plan, way, deep, start, end):
+    """[x, y, w, d] of a run `deep` metres deep laid against axis wall `way` (wall_ways) from `start` to `end` metres
+    along its line, on the plan's side; None where that lies past the plan's outline."""
+    wall, run, out, _ = way
+    origin = numpy.asarray(wall["from"], float)
+    corners = numpy.array([origin + run * start, origin + run * end, origin + run * end + out * deep,
+                           origin + run * start + out * deep])
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    tested = numpy.array([[low[0], low[1]], [high[0], low[1]], [high[0], high[1]], [low[0], high[1]]]) + \
+        numpy.array([[1, 1], [-1, 1], [-1, -1], [1, -1]]) * INSIDE_SLACK
+    if not plan_checks.inside(tested, plan_checks.outline_of(plan)).all():
+        return None
+    return [round(float(value), 3) for value in (*low, *(high - low))]
+
+
+def side_of(way):
+    """The compass word of an axis wall (wall_ways), by the way into the plan off it (y runs south)."""
+    return SIDES[tuple(int(round(float(value))) for value in way[2])]
+
+
+def onto_free_wall(plan, inventory, run, row, ways, used):
+    """`run` (wall_runs) of `row` laid along the axis wall nearest its middle that no run of its row lies on (`used`,
+    wall numbers) and the holders would lay it against there (held_wall: one long enough for it), at the wall's middle;
+    its new wall number, None (left as laid) with none."""
+    item = run[0]
+    box = in_plan_box([float(value) for value in item[1:5]], plan)
+    middle = numpy.array([box[0] + box[2] / 2, box[1] + box[3] / 2])
+    long, deep = max(item[3], item[4]), min(item[3], item[4])
+    for number in sorted((number for number in range(len(ways)) if number not in used),
+                         key=lambda number: holders.off_line(middle, ways[number][0])[0]):
+        length = ways[number][3]
+        span = min(long, length)
+        laid = laid_along(plan, ways[number], deep, (length - span) / 2, (length + span) / 2)
+        if laid is not None and held_wall([item[0], *laid, *item[5:]], row, plan, inventory, ways) == number:
+            item[1:5] = laid
+            run[1:4] = [number, (length - span) / 2, (length + span) / 2]
+            return number
+    return None
+
+
+def wall_runs_spread(plan, inventory):
+    """Each run on a wall (wall_runs) lying in one of its row's laid before it on that wall (in_each_other) laid along
+    a wall none of its row's runs lie on (onto_free_wall); one with no such wall left as laid, a gap (stack_gaps); the
+    fixes said. 2026-11-09, settle@garage in env1 checkout 68: split_runs laid its seven pipes at the reading's one
+    10 m size, each along x at its concept box's projection, three of them past its north edge, and items_inside
+    clamped those three into one corner at [0, 0]; the holders stood them over one another on that wall."""
+    ways, fixes = wall_ways(plan), []
+    rows = built_by_id(plan, inventory) if ways else {}
+    for row, runs in wall_runs(plan, inventory).items():
+        kept = []
+        for run in runs:
+            if any(in_each_other(run, other) for other in kept) and onto_free_wall(
+                    plan, inventory, run, rows[row], ways, {other[1] for other in runs}) is not None:
+                fixes.append(f"{plan_checks.said_name(run[0][0])}: laid along the {side_of(ways[run[1]])} wall, out "
+                             "of its row's others on its own")
+            kept.append(run)
+    return fixes
+
+
+def stack_gaps(plan, inventory):
+    """A gap for each two runs of one row lying in each other on one wall (wall_runs, in_each_other)."""
+    gaps = []
+    for row, runs in wall_runs(plan, inventory).items():
+        for number, run in enumerate(runs):
+            for other in runs[number + 1:]:
+                if in_each_other(run, other):
+                    box = run[0][1:5]
+                    gaps.append({"kind": "stacked", "item": run[0][0], "row": row, "with": other[0][0],
+                                 "at": [round(box[0] + box[2] / 2, 2), round(box[1] + box[3] / 2, 2)],
+                                 "words": f"{plan_checks.said_name(run[0][0])} and {plan_checks.said_name(other[0][0])} "
+                                          "run along one stretch of one wall at one height"})
+    return gaps
+
+
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
     order: runs kept out of the walls and stairs (`runs_kept_clear`), things piled on their own row's though it does
-    not pile stood on the floor or taken off (`unpiled`), runs on a wall parted (`wall_runs_parted`), stairs and ramps
-    moved out of what is made larger than drawn (`flights_cleared`); the fixes said. A writing fixed before them gets
-    them in the pass (plans_pass.unsettled), an edit or a redrawing when shown (plans.edit_inside)."""
-    return runs_kept_clear(plan, inventory) + unpiled(plan, inventory) + wall_runs_parted(plan, inventory) \
-        + flights_cleared(plan, inventory)
+    not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid along walls free
+    of them (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and ramps moved out of what is made
+    larger than drawn (`flights_cleared`); the fixes said. A writing fixed before them gets them in the pass
+    (plans_pass.unsettled), an edit or a redrawing when shown (plans.edit_inside)."""
+    return runs_kept_clear(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
+        + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory)
 
 
 def nudged(plan, inventory):
@@ -868,8 +1015,8 @@ def kept_inside(plan, inventory):
 def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
     stood, runs split, missing things placed, facings turned, runs kept out of walls and stairs, things piled on their
-    own row's though it does not pile stood on the floor or taken off, runs on a wall parted, stairs and ramps moved
-    out of what is made larger than drawn, overlaps parted, in
+    own row's though it does not pile stood on the floor or taken off, one row's runs in each other on a wall laid along
+    free walls, runs on a wall parted, stairs and ramps moved out of what is made larger than drawn, overlaps parted, in
     that order (each later one on the earlier's plan), then what lies past its own outline brought inside it."""
     plan = copy.deepcopy(plan)
     fixes = brought_in(plan, inventory)
@@ -884,9 +1031,10 @@ def fixed(plan, inventory):
 # --- what is left: the automatic Correct --------------------------------------------------------------------------
 
 def open_gaps(plan, inventory):
-    """The plan's gaps by today's free checks, its inside places not laid out kept as written."""
+    """The plan's gaps by today's free checks and runs left in each other on a wall (stack_gaps), its inside places not
+    laid out kept as written."""
     return [gap for gap in plan.get("gaps", []) if gap["kind"] == "place"] + plan_checks.checked(
-        plan, inventory, plan.get("structure", []))
+        plan, inventory, plan.get("structure", [])) + stack_gaps(plan, inventory)
 
 
 def tied(plan, answered):
