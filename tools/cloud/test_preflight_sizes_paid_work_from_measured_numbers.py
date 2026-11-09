@@ -8,7 +8,8 @@ Every expected number is worked out by hand in the test from the ledger lines it
 red (applied once, seen red, reverted):
 
 - test_a_measured_stage_picks_its_cards_whatever_the_runner_guessed: in capacity.py `machines_for`, `if flight:` ->
-  `if False:` (the runner's guess sizes the batch).
+  `if False:` (the runner's guess sizes the batch); or `deadlines` reads another run's file (the runaway watch would
+  judge the run by deadlines it never declared).
 - test_a_set_up_longer_than_a_job_shares_a_card: in `cards_for`, `span = max(numbers["setup_minutes"], job_minutes)`
   -> `span = job_minutes` (a card a job, each mostly setting up).
 - test_the_high_forecast_takes_the_slow_jobs: in `batch`, `numbers["high_job_seconds"], numbers["setup_minutes"]` ->
@@ -74,6 +75,9 @@ def test_a_measured_stage_picks_its_cards_whatever_the_runner_guessed(monkeypatc
     assert kept[0]["minutes"] == 11.5  # 1.5 set-up and one 10-minute job
     assert abs(kept[0]["euros"] - 11.5 * 8 * CARD_EUROS / CARD_MINUTES) < 1e-3
     assert (tmp_path / "forecasts" / "demo-film@garage" / "0123abcd.jsonl").exists()
+    preflight.declare_deadline(1_700_000_000.4)  # a run's paid work declares its deadlines for its runaway watch
+    preflight.declare_deadline(1_700_003_600)
+    assert preflight.deadlines(TICKET) == [1_700_000_000, 1_700_003_600] and preflight.deadlines("x@y 1") == []
 
 
 def test_a_set_up_longer_than_a_job_shares_a_card(monkeypatch, tmp_path):
@@ -100,6 +104,7 @@ def test_outside_a_ticket_or_unmeasured_the_runners_rule_stands(monkeypatch, tmp
     under(monkeypatch, tmp_path, TICKET, [films()])
     monkeypatch.delenv(preflight.TICKET)
     assert capacity.machines_for(8, 0.5, 8) == 1  # the runner's rule: 4 job-minutes, less than one set-up
+    assert preflight.declare_deadline(1_700_000_000) is None
     under(monkeypatch, tmp_path, "terrain@world 9", [films()])  # a stage the ledger has no machines for
     assert capacity.machines_for(8, 0.5, 8) == 1 and preflight.kept("terrain@world 9") == []
     under(monkeypatch, tmp_path, TICKET, [line("demo-film@hub 1", [card([600])])])  # one machine: not measured

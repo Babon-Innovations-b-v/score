@@ -53,6 +53,7 @@ import contextlib
 import datetime
 import importlib.util
 import json
+import math
 import os
 import pathlib
 import signal
@@ -896,11 +897,21 @@ def note_wait(run):
         preflight.unmark_waiting()
 
 
+def declared_seconds(specs, parallel):
+    """The seconds a run's Jobs may take by their own deadlines (manifests.deadline_seconds): the longest Job's once
+    for each round of `parallel` Jobs (one round when all go at once)."""
+    rounds = math.ceil(len(specs) / parallel) if parallel else 1
+    return rounds * max(manifests.deadline_seconds(spec) for spec in specs.values())
+
+
 def watch(run, parallel, wait_scale_down):
     """The run on the cluster to its end: its Jobs taken up and put on, a look every POLL_SECONDS (each retried) while
     any is unfinished, this process marked in CLUSTER_WAITING meanwhile, then its nodes' end waited for or estimated
     (from what was last seen when the cluster cannot be read)."""
     retried(Run.resume, run)
+    # its runaway watch never stops it before its Jobs' own deadlines (2026-11-09: light-passes@campgrounds, a big
+    # place's render, was stopped twice at twice an average forecast while well inside them)
+    preflight.declare_deadline(time.time() + declared_seconds(run.specs, parallel))
     retried(lambda found: submit_more(found, parallel), run)
     say(f"{len(run.specs)} jobs for run {run.run_id}" + (f", {parallel} at a time" if parallel else ""))
     mark = CLUSTER_WAITING / str(os.getpid())

@@ -1047,6 +1047,13 @@ def batch_preflights(ticket):
     return preflight.kept(ticket)
 
 
+def declared_deadlines(ticket):
+    """The deadlines (epoch seconds) the run's paid work declared so far (tools/cloud/preflight.py deadlines)."""
+    ledger()  # puts tools/cloud on the path
+    import preflight
+    return preflight.deadlines(ticket)
+
+
 def pool_waiting(ticket):
     """Whether the run's processes wait for a warm pool card now (tools/cloud/preflight.py is_waiting)."""
     ledger()  # puts tools/cloud on the path
@@ -1068,7 +1075,8 @@ def spending(ticket):
               pathlib.Path(os.environ[STORE]) if os.environ.get(STORE) else Store.default().cache.parent)
     watch = guard.Watch(os.environ[TICKET], ticket.get("clearance", {}).get("high_minutes"), folder,
                         batches=lambda: batch_preflights(os.environ[TICKET]),
-                        waiting=lambda: pool_waiting(os.environ[TICKET]), paying=guard.cloud_work_below)
+                        waiting=lambda: pool_waiting(os.environ[TICKET]), paying=guard.cloud_work_below,
+                        deadlines=lambda: declared_deadlines(os.environ[TICKET]))
     try:
         with watch:
             yield
