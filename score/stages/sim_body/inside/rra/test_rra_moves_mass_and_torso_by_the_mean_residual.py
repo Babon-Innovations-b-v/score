@@ -24,6 +24,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   last step is kept silently (2026-10-29).
 - reweighed's `np.clip(model.body_ipos[torso] + shift - home, -COM_MOST, COM_MOST)` made `model.body_ipos[torso] +
   shift - home`: the torso's centre of mass moves past RRA's 0.1 m.
+- reweighed's `across.T @ lstsq(rows @ across.T, ...)` made `lstsq(rows, ...)` (2026-11-09, #98): the torso's centre of
+  mass moves 5 cm up its own axis on moments its small tilts alone carry.
 - Footing.footed's `limit.lower, limit.upper = np.minimum(lower, still), np.maximum(upper, still)` dropped: a knee
   the fitted path carries past its stop is pulled in with no move (camp, 2026-11-03).
 - Footing.footed's `self.hold.set_target(qpos)` made `self.hold.set_target(still)`: the shin's turn and the ankle's
@@ -503,6 +505,36 @@ def the_torso_moves_under_the_mean_moment_within_its_cap():
                        [f"50 cm lever: moved {moved[1]}"])
 
 
+def the_torso_moves_only_across_its_up():
+    """The torso tilted -0.1, 0 and 0.1 rad on three frames, each frame's residual moment the one its weight moved 5 cm
+    up its own axis gives: a move along a weight's own line is no moment's, so the centre of mass stays (RRATool moves
+    it in its body's x and z only); a 2 cm move across it with the same tilts is found whole."""
+    import model
+    import mujoco
+    import numpy as np
+    import rra
+    problems = []
+    for move, kept in (([0.0, 0.0, 0.05], [0.0, 0.0, 0.0]), ([0.0, 0.02, 0.0], [0.0, 0.02, 0.0])):
+        physics = toy_physics()
+        found = physics.model
+        torso = model.body_index(found, "torso")
+        home = found.body_ipos[torso].copy()
+        path = np.tile(found.qpos0, (3, 1))
+        path[:, 7] = (-0.1, 0.0, 0.1)
+        residuals = np.zeros((3, 6))
+        for frame, qpos in enumerate(path):
+            physics.data.qpos[:] = qpos
+            mujoco.mj_kinematics(found, physics.data)
+            turn = physics.data.xmat[torso].reshape(3, 3)
+            residuals[frame, 3] = -TORSO_KG * GRAVITY * turn[1] @ move
+            residuals[frame, 4] = TORSO_KG * GRAVITY * turn[0] @ move
+        rra.reweighed(physics, path, residuals, home, made_of(found))
+        moved = found.body_ipos[torso] - home
+        if not np.allclose(moved, kept, atol=1e-6):
+            problems.append(f"a weight's move {move}: its centre of mass moved {moved.round(4).tolist()}, not {kept}")
+    return problems
+
+
 def a_turn_between_two_paths_is_its_angle():
     """One segment turned 10 degrees about up between two posed paths, the other not: 10 and 0 degrees.
     A fit past the follows limit keeps RRA's whole move (`follows_limit_problems`)."""
@@ -766,7 +798,7 @@ def the_balance_is_the_pushes_wrenches_kept_per_path():
 
 
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
-          the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
+          the_torso_moves_under_the_mean_moment_within_its_cap, the_torso_moves_only_across_its_up, the_feet_stay_where_they_stood_when_the_pelvis_moves,
           a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
           the_footing_converges_near_straight_or_fails, the_cards_footing_equals_minks,
           a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,
