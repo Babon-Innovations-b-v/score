@@ -472,28 +472,24 @@ def unpiled(plan, inventory):
     return fixes + surplus_dropped(plan, inventory, surplus)
 
 
-def surplus_dropped(plan, inventory, surplus, room="the place's free floor", size=None):
+def surplus_dropped(plan, inventory, surplus, room="the place's free floor", size=None, why=None):
     """The things of `surplus` (items no free floor of the place holds, or what `room` names) taken off the plan, each
-    row's in the plan's `dropped` with its reason (`size` the words of one as made, else its drawn box) and the number
-    it lays, so its count is no gap, no fix places them again (plan_checks.count_gaps) and the scene record lays no
-    more (scene_record/writer.counted); what the plan places on or in them stood on the floor they stood on or taken
-    off too (`reseated`); the fixes said, one a row."""
-    if not surplus:
-        return []
-    fixes, by_row, grid = [], {}, plan_checks.Grid(plan)
-    resting = [(thing, item, float((plan.get("shapes", {}).get(item[0]) or {}).get("base") or 0.0),
-                level_cells(plan, grid, item)) for item in surplus for thing in resting_on(plan, inventory, item)
-               if thing not in surplus]
+    row's in the plan's `dropped` with its reason (`why`, else that it is more than `room` holds, `size` the words of
+    one as made, else its drawn box) and the number it lays, so its count is no gap, no fix places them again
+    (plan_checks.count_gaps) and the scene record lays no more (scene_record/writer.counted); what the plan places on
+    or in them taken off too (`resting_dropped`); the fixes said, one a row."""
+    fixes, by_row = [], {}
+    resting = [thing for item in surplus for thing in resting_on(plan, inventory, item) if thing not in surplus]
     for item in surplus:
         by_row.setdefault((plan.get("rows", {}).get(item[0]) or [None])[0], []).append(item)
     for row, items in by_row.items():
         for item in items:
             dropped_item(plan, item)
         said = size or f"{items[0][3]:g} x {items[0][4]:g} m"
-        why = count_said(plan, row, f"{len(items)} more of it than {room} holds ({said} each)")
+        words = count_said(plan, row, why or f"{len(items)} more of it than {room} holds ({said} each)")
         fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
-                     f"taken off, {why}")
-    return fixes + reseated(plan, inventory, resting, grid)
+                     f"taken off, {words}")
+    return fixes + resting_dropped(plan, inventory, resting)
 
 
 def resting_on(plan, inventory, item):
@@ -507,32 +503,18 @@ def resting_on(plan, inventory, item):
             and plan_checks.inside(numpy.array([[thing[1] + thing[3] / 2, thing[2] + thing[4] / 2]]), footprint).all()]
 
 
-def reseated(plan, inventory, resting, grid):
-    """Each thing of `resting` [(thing, the holder taken off under it, the holder's base, its level's cells)] stood on
-    the floor its holder stood on (its base the holder's), at the nearest spot of that level clear of the floor
-    things, walls, stairs and things standing low (taken_floor) and of those stood before it, MARGIN clear; one with
-    none whose row lays others taken off too (surplus_dropped, said in `dropped`), a row's last left as laid. Without
-    it a thing on a holder taken off stood in the air over the bare floor (2026-11-09: greenhouse's plants 2, 0.5 m
-    up where its planter bed 2 went off its flights' feet)."""
-    fixes, stood, surplus = [], numpy.zeros(grid.shape, dtype=bool), []
-    for thing, holder, base, level in resting:
-        if thing not in plan["items"]:
-            continue
-        middle = [thing[1] + thing[3] / 2, thing[2] + thing[4] / 2]
-        span = [side + 2 * (MARGIN + grid.size) for side in thing[3:5]]
-        free = standing.nearest_free(middle, span, taken_floor(plan, inventory, thing, grid) | stood | ~level, grid,
-                                     level, [])
-        if free is None:
-            row = (plan.get("rows", {}).get(thing[0]) or [None])[0]
-            if laid_of(plan, row) - sum(1 for other in surplus if plan["rows"][other[0]][0] == row) > 1:
-                surplus.append(thing)
-            continue
-        thing[1], thing[2] = round(free[0] - thing[3] / 2, 3), round(free[1] - thing[4] / 2, 3)
-        plan["shapes"][thing[0]]["base"] = round(base, 3)
-        stood |= grid.covered(plan_checks.polygon_of(thing, plan["shapes"][thing[0]]))
-        fixes.append(f"{plan_checks.said_name(thing[0])}: stood on the floor {math.dist(middle, free):.1f} m off, "
-                     f"{plan_checks.said_name(holder[0])} under it taken off")
-    return fixes + surplus_dropped(plan, inventory, surplus, "the floor its holder stood on")
+def resting_dropped(plan, inventory, resting):
+    """The things of `resting` (on or in a thing taken off) taken off too (surplus_dropped, said in `dropped`: its
+    holder was dropped), but a row's last, left as laid: the plan cannot stand one thing of a row on the floor while
+    its row's reading stands it on its holder (holders.held ties it to the nearest one left). Without it greenhouse's
+    plants 2 stood 0.5 m up where its planter bed 2 went off its flights' feet (2026-11-09)."""
+    surplus = []
+    for thing in resting:
+        row = (plan.get("rows", {}).get(thing[0]) or [None])[0]
+        if thing in plan["items"] and laid_of(plan, row) - sum(
+                1 for other in surplus if plan["rows"][other[0]][0] == row) > 1:
+            surplus.append(thing)
+    return surplus_dropped(plan, inventory, surplus, why="its holder was dropped") if surplus else []
 
 
 def laid_of(plan, row):
