@@ -6,6 +6,10 @@ turns test_a_light_sheet_on_a_light_backdrop_is_cut_as_itself_not_its_shadow red
 square). sheet taking only rows lying flat again (`and check.lies_flat(...)`) turns
 test_only_rows_lying_flat_as_a_sheet_are_taken red (the wall note); build laying a standing sheet flat (`if False:`
 for `if upright(row):`) turns test_a_sheet_on_a_wall_stands_as_its_close_up_s_face_at_the_row_s_size red.
+pixal_row.sheet_builds building only takes with no finished model again (`and not (finished(...) and
+flat_sheet.flat_model(...))` -> `and not finished(...)`) turns
+test_the_pixal_row_builds_a_sheet_whose_finish_made_no_model_and_keeps_it red (the paper's lump kept); flat_model
+always False turns it red too (the flat mat rebuilt).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/flat_sheet_test.py
 """
@@ -133,34 +137,45 @@ def test_the_take_replaces_the_pixal3d_one_where_the_finish_route_and_the_likene
 
 
 def test_the_pixal_row_builds_a_sheet_whose_finish_made_no_model_and_keeps_it(tmp_path, monkeypatch):
+    """Also a sheet whose finished Pixal3D model is a lump (quarters' paper, 0.25 its thinnest of its longest, 2026-11-09)
+    is built as its flat sheet, while a sheet Pixal3D made flat keeps its take."""
+    import trimesh
     pixal = tmp_path / "pixal"
     pixal.mkdir()
     monkeypatch.setattr(pixal_row, "take_files",
                         lambda take: [pixal / f"{take}{suffix}" for suffix in pixal_row.SUFFIXES])
     finishes = []
     monkeypatch.setattr(pixal_row, "finish_all", lambda jobs, place, out: finishes.append(len(jobs)))  # none back
-    for take in ("q_rug", "q_book"):  # both raw takes came back from the batch
+    for take in ("q_rug", "q_book", "q_paper", "q_mat"):  # every raw take came back from the batch
         (pixal / f"{take}.svviews").mkdir()
         (pixal / f"{take}.glb").write_text("raw")
+    for take, faces, extents in (("q_paper", 800, [0.6, 0.25, 0.99]), ("q_mat", 900, [0.5, 0.02, 0.8])):
+        for suffix in ("-final.glb", f"-{faces}.glb"):  # finished: a lump, and a flat mat
+            trimesh.creation.box(extents=extents).export(pixal / f"{take}{suffix}")
     closeups = tmp_path / "closeup/closeups"
     closeups.mkdir(parents=True)
-    closeup(closeups / "rug.png")
-    closeup(closeups / "book.png")
+    for name in ("rug", "book", "paper", "mat"):
+        closeup(closeups / f"{name}.png")
     book = {"id": "book", "name": "book", "size": [0.355, 0.375, 0.03], "view": "v1", "box": [0, 0, 9, 9]}
-    objects = {"rug": {"route": "prop", "take": "q_rug"}, "book": {"route": "prop", "take": "q_book"}}
+    paper = {"id": "paper", "name": "sheet of paper", "size": [0.2, 0.3, 0.001], "view": "v1", "box": [0, 0, 9, 9]}
+    mat = {"id": "mat", "name": "door mat", "size": [0.5, 0.8, 0.02], "view": "v1", "box": [0, 0, 9, 9]}
+    objects = {name: {"route": "prop", "take": f"q_{name}"} for name in ("rug", "book", "paper", "mat")}
     (tmp_path / "props.json").write_text(json.dumps({"place": "quarters", "objects": objects}))
-    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [RUG, book]}))
-    (tmp_path / "surfaces.json").write_text(json.dumps({"takes": {"q_rug": {}, "q_book": {}}, "bake": {
-        "models": {"quarters_rug": "q_rug", "quarters_book": "q_book"},
-        "entries": {"quarters_rug": {"faces": 19000}, "quarters_book": {"faces": 5000}}}}))
+    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [RUG, book, paper, mat]}))
+    (tmp_path / "surfaces.json").write_text(json.dumps({"takes": {f"q_{name}": {} for name in objects}, "bake": {
+        "models": {f"quarters_{name}": f"q_{name}" for name in objects},
+        "entries": {"quarters_rug": {"faces": 19000}, "quarters_book": {"faces": 5000},
+                    "quarters_paper": {"faces": 800}, "quarters_mat": {"faces": 900}}}}))
     inputs = {"props": tmp_path / "props.json", "inventory": tmp_path / "inventory.json",
               "surfaces": tmp_path / "surfaces.json", "closeup": tmp_path / "closeup"}
     out = tmp_path / "out"
     out.mkdir()
     pixal_row.make_pixal(inputs, out, 0, {})
     assert finishes == [2] and flat_sheet.built("q_rug", pixal)
+    assert flat_sheet.built("q_paper", pixal) and not flat_sheet.built("q_mat", pixal)
+    assert flat_sheet.flat_model(pixal / "q_paper-final.glb")  # its build lies flat
     gaps = [entry["name"] for entry in json.loads((out / batch_gaps.FILE).read_text())["gaps"]]
     assert gaps == ["book: its finish made no model"], gaps  # a book has relief: still a gap
-    assert sorted(json.loads((out / "takes.json").read_text())) == ["book", "rug"]
+    assert sorted(json.loads((out / "takes.json").read_text())) == ["book", "mat", "paper", "rug"]
     pixal_row.make_pixal(inputs, out, 0, {})  # the build is kept: its close-up passed, yet it is not unbuilt
-    assert finishes == [2, 1] and flat_sheet.built("q_rug", pixal)
+    assert finishes == [2, 1] and flat_sheet.built("q_rug", pixal) and flat_sheet.built("q_paper", pixal)

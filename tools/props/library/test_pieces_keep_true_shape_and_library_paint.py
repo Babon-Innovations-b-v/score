@@ -214,6 +214,9 @@ def test_every_recipe_s_settings_are_in_the_method():
     assert arguments[recipes["pile"]] - given == {"roughness", "tuft_size", "mottle_size", "contrast", "bump",
                                                   "dirt_reach"}
     assert arguments[recipes["written"]] - given == {"roughness", "line_pitch", "stroke", "word_size", "ink_share"}
+    # a patterned rug (2026-11-09): quarters' bordered medallion rug, plain `pile`, scored DINOv2 0.047 (pass 0.14)
+    assert arguments[recipes["patterned_pile"]] - given == {"roughness", "tuft_size", "mottle_size", "contrast", "bump",
+                                                            "border", "line", "medallion", "dirt_reach"}
 
 
 def command_output(arguments, folder):

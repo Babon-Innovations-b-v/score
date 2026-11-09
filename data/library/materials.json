@@ -85,6 +85,17 @@
    "bump": 0.0015,
    "dirt_reach": 0.05
   },
+  "patterned_pile": {
+   "roughness": 0.95,
+   "tuft_size": 0.004,
+   "mottle_size": 0.08,
+   "contrast": 0.3,
+   "bump": 0.0015,
+   "border": 0.16,
+   "line": 0.012,
+   "medallion": 0.6,
+   "dirt_reach": 0.05
+  },
   "written": {
    "roughness": 0.8,
    "line_pitch": 0.012,
@@ -232,6 +243,9 @@
    "second"
   ],
   "pile": [
+   "second"
+  ],
+  "patterned_pile": [
    "second"
   ],
   "written": [
