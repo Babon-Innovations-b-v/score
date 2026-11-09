@@ -72,6 +72,9 @@ HOLDING = set()
 KIND = "pool"
 # How often a waiting claim looks for a warm card, and the collector for work.
 POLL_SECONDS = 10
+# A pool card idle (parked, taken by no claim) this long is released and its place given up (idle_down; the plan of
+# 2026-11-09 B5: no idle machine, K13).
+IDLE_MINUTES = 10
 # How often the collector touches every idle card's heartbeat (self_delete.py deletes a card 15 min quiet).
 BEAT_SECONDS = 60
 # How long a release lets the pool's collector end on its SIGTERM (close) before it is sent SIGKILL (end_collector):
@@ -673,6 +676,42 @@ def trim(run_id, plan, alive):
     return alive
 
 
+def idle_down(run_id, plan, alive, now=None):
+    """Release each pool card parked idle over IDLE_MINUTES that serves no live ask (the plan of 2026-11-09 B5: no idle
+    machine inside a Buy), a processor machine kept while its paid hour has time left (paid_ahead: letting it go
+    saves nothing), and lower its class's size and reserved size by one (lowered), so the collector does not rent it
+    again; a claim that later wants one asks for it (want). The cards still alive."""
+    import park
+
+    now = time.time() if now is None else now
+    spare, _ = matched(plan, alive)
+    serving = {card["id"]: card for cards in spare.values() for card in cards}
+    for record in park.pool_records(run_id):
+        card = serving.get(record["id"])
+        if card is None or now - record["parked_at"] < IDLE_MINUTES * 60 or paid_ahead(record, now):
+            continue
+        batch.say(f"pool: {card['id']} ({card['class']}) idle {(now - record['parked_at']) / 60:.0f} min goes; the pool "
+                  f"holds one {slot_of(card)} less from now on")
+        release_idle(record)
+        lowered(run_id, plan, slot_of(card))
+        alive = [kept for kept in alive if kept["id"] != card["id"]]
+    return alive
+
+
+def lowered(run_id, plan, machine_class):
+    """One `machine_class` card less in the run's pool, its size and reserved size both (so the run's resize does not
+    raise it again), written and in `plan`."""
+    with locked(run_id):
+        written = plan_of(run_id)
+        if written is None:
+            return
+        for field in ("sizes", "reserved"):
+            if written.get(field, {}).get(machine_class):
+                written[field][machine_class] -= 1
+        write_plan(run_id, written)
+    plan["sizes"], plan["reserved"] = written["sizes"], written.get("reserved", {})
+
+
 def paid_ahead(record, now):
     """Whether an idle machine billed by the started hour has more than park.MARGIN_MINUTES of its paid hour left:
     kept till then, as letting it go saves nothing (a processor machine)."""
@@ -927,11 +966,12 @@ class Collecting:
 
 def collect_round(run_id, plan, collecting):
     """One round of the collector: the cards whose taker died struck off, the idle ones a bigger disk replaced let go,
-    what the pool lacks rented when its ask is due, the idle cards beaten when their beat is due."""
+    the ones idle over IDLE_MINUTES let go with their places (idle_down), what the pool lacks rented when its ask is
+    due, the idle cards beaten when their beat is due."""
     if collecting.account is None:
         collecting.account = cloud.account()
         cloud.allow_key(collecting.account, "farm-factory-batch", batch.ssh_key())
-    short = shortfall(plan, trim(run_id, plan, tidy(run_id)))
+    short = shortfall(plan, idle_down(run_id, plan, trim(run_id, plan, tidy(run_id))))
     refused = cluster_lost(plan) if short else None
     if refused and refused != collecting.refused:
         batch.say(f"pool: renting refused: {refused}")

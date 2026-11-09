@@ -236,7 +236,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   the next `batch.claim` of that kind on this PC (else of another kind that cleans up) takes it, set-up done, and the ledger charges it only what it adds.
   It is gone 5 min before its paid hour ends, never idle into the next: its `--expire` process deletes it, its own
   `self_delete.py` is re-armed to that time, and its tags hold that time for any run's sweep. Failed machines and runs
-  stopped by a signal are deleted as before.
+  stopped by a signal are deleted as before. Only inside a `score run` (`park.in_a_run`: SCORE_RUN_ID, a Buy's or a
+  benchmark grant's run, its parked machines released at its end by `outlive`): a machine rented outside one is
+  deleted at its end (the plan of 2026-11-09 B5, no idle machine).
 - **Outside a warm pool, a card is parked for its kind's measured cold start, at most 10 min, and only while a claim waits for one**
   (`park.idle_minutes`, 2026-10-11; `park.queued`, 2026-10-22, after an H100 sat parked unused after a one-model
   Pixal3D batch: a card with no queued work is released at once): every
@@ -295,6 +297,9 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   claiming process, never a change of the pool's sizes or disk; the collector rents that one card beside the pool
   while the asker lives and `pool.trim` lets it go once idle after; fault of 2026-10-24: a sound row's 200 GB raised
   every later L4's disk and threw a warm one away);
+  A card parked idle `pool.IDLE_MINUTES` (10) is let go with its place (`pool.idle_down`, the plan of 2026-11-09 B5:
+  its class's size and reserved size one less, so neither the collector nor the run's resize rents it again; a claim
+  that wants one later asks for it); a processor machine stays while its paid hour has time left (`paid_ahead`).
   `batch.delete_machine` gives a healthy card back (parked until the pool's end, its self-delete on
   the usual 15-minute quiet limit, the collector beating it) and deletes a broken one, which the collector replaces;
   a card whose taker died is deleted by the collector. A card goes back only from a kind with a clean-up in

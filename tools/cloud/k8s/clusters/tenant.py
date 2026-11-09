@@ -35,6 +35,7 @@ import os
 import pathlib
 import subprocess
 import sys
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 CLOUD = HERE.parents[1]
@@ -202,6 +203,93 @@ def kubectl(*arguments):
     done = subprocess.run(["kubectl", "--kubeconfig", str(KUBECONFIG), "--context", context(), *arguments],
                           check=True, capture_output=True, text=True)
     return done.stdout
+
+
+# The env1 cap's stop and its leftover cleanup (the plan of 2026-11-09 B4, K4, K13): what a stop or a watch pass
+# deletes across the organisation's projects, with the delete rights the owner gave the conductor's key (Instances and
+# Block Storage in babon-platform, 2026-11-09). Never a babon machine, never a disk that holds data.
+NODE_GRACE_SECONDS = 3600  # a pool's new machine joins as a node in minutes; one not a node an hour on is left over
+LOOSE_DISK_SECONDS = 86400  # a disk attached to nothing this long is left over
+NODE_ROOT_DISK = "k8s_base_node_instance_sbs_volume_0"  # Kapsule's name for a node's root disk: never data
+
+
+def project_names():
+    """{project id: name} of every project the key reads."""
+    return {project["id"]: project["name"] for project in backend.scw("account", "project", "list") or []}
+
+
+def runner_servers():
+    """Every machine the runner rented (its tag, backend.TAG) in the batch project, in every zone the organisation may
+    hold one (not only the zones it rents in): (id, zone, name, tags), each machine's own project checked."""
+    project, found = backend.account(), []
+    for zone in backend.ALL_ZONES:
+        found += [(server["id"], zone, server["name"], server.get("tags") or [])
+                  for server in backend.scw("instance", "server", "list", f"project-id={project}", f"zone={zone}",
+                                            f"tags.0={backend.TAG}") or []
+                  if backend.TAG in (server.get("tags") or []) and server.get("project") == project]
+    return found
+
+
+def stop_runner_servers():
+    """The cap stop's machines: every runner-tagged machine of the batch project deleted with its disk and address,
+    whatever run or box rented it; the names deleted."""
+    return [name for server_id, zone, name, _tags in runner_servers() if backend.delete(server_id, zone)]
+
+
+def deadline_of(tags):
+    """A runner machine's `deadline=` tag (seconds), or None."""
+    return next((float(tag.split("=", 1)[1]) for tag in tags if tag.startswith("deadline=")), None)
+
+
+def stale_nodes(servers, names, nodes, now):
+    """The machines of SCORE's cluster pools (backend.owner_of: a pool-name tag of SCORE's) that are no cluster's node
+    and were made over NODE_GRACE_SECONDS ago: (id, zone, name, why)."""
+    return [(server["id"], zone, server["name"], "a SCORE pool's machine that is no node")
+            for server, zone in servers
+            if any(tag.startswith(backend.POOL_TAG) for tag in server.get("tags") or [])
+            and backend.owner_of(server, names) == "score" and server["id"] not in nodes
+            and now - backend.created_at(server) > NODE_GRACE_SECONDS]
+
+
+def past_deadline(servers, project, now):
+    """The batch project's runner machines past their deadline tag: (id, zone, name, why)."""
+    return [(server["id"], zone, server["name"], "past its deadline")
+            for server, zone in servers
+            if server.get("project") == project and backend.TAG in (server.get("tags") or [])
+            and (deadline_of(server.get("tags") or []) or now) < now]
+
+
+def loose_disks(names, now):
+    """The disks attached to nothing for over LOOSE_DISK_SECONDS: any of a SCORE project's, and a node's root disk
+    (NODE_ROOT_DISK) of the shared project; never another disk there (a volume claim's holds data): (id, zone, name)."""
+    found = []
+    for zone in backend.ALL_ZONES:
+        for disk in backend.scw("block", "volume", "list", f"zone={zone}") or []:
+            project = names.get(disk.get("project_id"))
+            ours = project in backend.SCORE_PROJECTS or (project == backend.SHARED_PROJECT
+                                                         and disk.get("name") == NODE_ROOT_DISK)
+            if ours and not disk.get("references") and now - backend.created_at(disk) > LOOSE_DISK_SECONDS:
+                found.append((disk["id"], zone, disk.get("name")))
+    return found
+
+
+def clean_leftovers(now=None, nodes=None):
+    """Delete what SCORE left standing (every cap stop and every watch pass): its pools' machines that are no node,
+    the runner's machines past their deadline, and loose disks over a day old; {"machines": [(name, why)], "disks":
+    [name]}. Nothing is deleted while the clusters' nodes cannot be read (backend.node_ids raises)."""
+    now = time.time() if now is None else now
+    names, project = project_names(), backend.account()
+    nodes = backend.node_ids() if nodes is None else set(nodes)
+    servers = [(server, zone) for zone in backend.ALL_ZONES
+               for server in backend.scw("instance", "server", "list", f"zone={zone}") or []]
+    done = {"machines": [], "disks": []}
+    for server_id, zone, name, why in stale_nodes(servers, names, nodes, now) + past_deadline(servers, project, now):
+        if backend.delete(server_id, zone):
+            done["machines"].append((name, why))
+    for disk_id, zone, name in loose_disks(names, now):
+        backend.delete_disk(disk_id, zone)
+        done["disks"].append(name)
+    return done
 
 
 def up():

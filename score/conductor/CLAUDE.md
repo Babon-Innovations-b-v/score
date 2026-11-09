@@ -51,6 +51,11 @@ is what the code does differently on it. A machine is a conductor when `$PROPS_H
   Then it ends every process still working in the frozen copy of a run no longer live (`frozen.users`/`frozen.end`,
   the report's `leftovers` with each command line; 2026-10-26: six processes of a stopped run held the checkout for an
   hour), and a stopped run ends its own copy's processes as it removes the copy (`frozen.remove_owned`).
+  `cap_stop(words)` (`python -m score.conductor cap-stop <reason>`, the env1 cap's stop, plan of 2026-11-09 B4) is the
+  same stop with no latch and open to any process (stopping only ends spending), reaching every box's score Jobs
+  (`submitter.stop_score_jobs(every_box=True)`; Stop this batch keeps its own box's), every runner-tagged machine of
+  the batch project in every zone and the leftovers (`tools/cloud/k8s/clusters/tenant.py` `stop_runner_servers`,
+  `clean_leftovers`); its report `cap-stop-<time>.json`.
 - **`disk.py`** (2026-10-26: the data disk filled to 0.24 GB free and Batch 1 died with ENOSPC, the copies of the
   day's ended runs still on it): `FLOOR_GB` (10): `score run` is refused before it makes its copy while PROPS_HOME's
   disk has less free (`launch_refusal`), and health's `disk.floor_gb` and a note on the Machine card say it.

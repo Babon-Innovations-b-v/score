@@ -11,6 +11,11 @@ turns it red (each applied once and seen red):
   Break: drop `tainted_for_score(pool) and` in `score_pools`. A pool or node of score's labelled with no capability
   class (the conductor's own) is no job pool. Break: drop the `provider.capability_class` test in `score_pools` or `nodes`. Scaleway's `class_pools` lists no
   pool so labelled either. Break: read the label raw in `class_pools`.
+- Leftovers go and nothing else (plan of 2026-11-09 B4): a SCORE pool's machine that is no node an hour on, a runner
+  machine past its deadline, a SCORE project's loose disk or a loose node root disk over a day; never a live node, a
+  machine still joining, babon's, a claim's disk. Break: drop `server["id"] not in nodes` in `stale_nodes`. Break:
+  drop the NODE_ROOT_DISK name test in `loose_disks`. The cap stop deletes every runner machine. Break: filter
+  `stop_runner_servers` by deadline.
 - `up` makes nothing outside a cleared run (the cluster and its system pool bill by the hour).
   Break: drop `compute.require_cleared(...)` in `up`.
 - A cluster or pool order writes its `order-started` line before it is sent (review of C1, 2026-10-17).
@@ -102,6 +107,44 @@ def test_down_deletes_only_this_projects_cluster_and_two_of_one_name_stop(monkey
     monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
     assert [node["name"] for node in tenant.nodes()] == ["n-p1"]
     assert not any("update" in call or "delete" in call for call in asked)
+
+    # leftovers (plan B4): a SCORE pool's machine that is no node an hour on, a runner machine past its deadline and a
+    # loose disk over a day go; a live node, a new machine, babon's machine, a claim's disk and a fresh disk stay
+    now = 1_800_000_000.0
+    old, new = "2026-11-01T00:00:00Z", tenant.datetime.datetime.fromtimestamp(now - 60, tenant.datetime.timezone.utc
+                                                                               ).isoformat()
+    servers = [{"id": "s-node", "name": "live", "project": "bp", "tags": ["pool-name=score-l4-1-z2"], "creation_date": old},
+               {"id": "s-gone", "name": "orphan", "project": "bp", "tags": ["pool-name=score-l4-1-z2"], "creation_date": old},
+               {"id": "s-new", "name": "joining", "project": "bp", "tags": ["pool-name=score-l4-1-z2"], "creation_date": new},
+               {"id": "s-babon", "name": "theirs", "project": "bp", "tags": ["pool-name=batch-l4"], "creation_date": old},
+               {"id": "s-late", "name": "late", "project": "ff", "creation_date": old,
+                "tags": [tenant.backend.TAG, f"deadline={now - 10}"]},
+               {"id": "s-due", "name": "due", "project": "ff", "creation_date": old,
+                "tags": [tenant.backend.TAG, f"deadline={now + 600}"]}]
+    disks = [{"id": "d-root", "name": tenant.NODE_ROOT_DISK, "project_id": "bp", "references": [], "created_at": old},
+             {"id": "d-claim", "name": "c_pvc-1", "project_id": "bp", "references": [], "created_at": old},
+             {"id": "d-ff", "name": "x", "project_id": "ff", "references": [], "created_at": new},
+             {"id": "d-held", "name": "y", "project_id": "ff", "references": [{"id": "s"}], "created_at": old}]
+    gone = []
+
+    def cloud_scw(*words):
+        if words[:3] == ("account", "project", "list"):
+            return [{"id": "bp", "name": "babon-platform"}, {"id": "ff", "name": "farm-factory"}]
+        zone = next(word for word in words if word.startswith("zone="))
+        if zone != "zone=fr-par-2":
+            return []
+        if words[:3] == ("instance", "server", "list"):
+            return [server for server in servers if "project-id=ff" not in words or server["project"] == "ff"]
+        return disks if words[:3] == ("block", "volume", "list") else []
+    monkeypatch.setattr(tenant.backend, "scw", cloud_scw)
+    monkeypatch.setattr(tenant.backend, "account", lambda: "ff")
+    monkeypatch.setattr(tenant.backend, "delete", lambda server_id, zone: gone.append(server_id) or True)
+    monkeypatch.setattr(tenant.backend, "delete_disk", lambda disk_id, zone: gone.append(disk_id))
+    done = tenant.clean_leftovers(now, nodes={"s-node"})
+    assert gone == ["s-gone", "s-late", "d-root"] and done["disks"] == [tenant.NODE_ROOT_DISK]
+    # the cap's stop: every runner machine of the batch project, whatever its deadline
+    gone.clear()
+    assert tenant.stop_runner_servers() == ["late", "due"] and gone == ["s-late", "s-due"]
 
     twins = [{"id": f"c{number}", "name": cluster.CLUSTER_NAME, "project_id": OURS} for number in range(2)]
     monkeypatch.setattr(cluster, "scw", fake_scw(twins, []))
