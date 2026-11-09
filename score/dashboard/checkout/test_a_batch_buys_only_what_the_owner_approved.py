@@ -52,6 +52,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.yes_refusals: the stop check -> `if False:` -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - flow.batch_budget: a yes's `if used + need > total:` -> `if False:` -> test_a_batch_budget_counts_from_an_older_...
 - flow.batch_budget: a retry's `return start, before` -> `before + need` -> test_a_batch_has_one_budget_across_its_tries
+- watched.batch_of: `batch_ended(..., nodes)` -> `batch_ended(...)` -> every checkout's rows read again for each later
+  one (the door's batch-money 283 s) -> test_a_batch_has_one_budget_across_its_tries
+- flow.remade_out: `count > PAID_REMAKES` -> `>=` -> test_a_batch_budget_counts_from_an_older_first_try_line
+- flow.free_first: drop `free_route(node) and` -> test_a_batch_budget_counts_from_an_older_first_try_line
+- web.cap_figure: counter from the cap's `line` -> test_a_batch_budget_counts_from_an_older_first_try_line
+- flow.remade_out: `if one.at >= REMAKES_FROM` -> `if True` -> a row failed before the cap's start is a gap ->
+  test_a_batch_budget_counts_from_an_older_first_try_line
 - flow.batch_start: `return None` for a line without batch_from -> test_a_batch_budget_counts_from_an_older_...
 - guard.run_groups: the group key also takes the place -> test_groups_join_places_with_the_same_stages
 - guard.refusals: the age check `> timedelta(minutes=PLAN_MINUTES)` -> `>= timedelta(0)` -> test_a_good_plan_has_...
@@ -722,6 +729,11 @@ def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
     assert "the batch budget is spent: EUR 100.00" in said and record.state == "refused", said
     assert stop_line(chat)["euros"] == 210.0  # never above the total he approved
     assert flow.batch_budget([first, again, third, record], 200.0, 33.0, None) == (110.0, 123.0)  # a click raises it
+    # each checkout's rows are read once a pass over the checkouts (2026-11-09: 51 tries, 4,549 plan reads, 283 s)
+    read, nodes_of = [], watched.checkout_nodes
+    monkeypatch.setattr(watched, "checkout_nodes", lambda one: read.append(one.pk) or nodes_of(one))
+    assert watched.batch_of(list(Checkout.objects.order_by("at")), lambda node: None)[0] == 1
+    assert sorted(read) == sorted({first.pk, again.pk, third.pk}), read
     # 2026-11-03: his yes's first checkout was refused before its line (books unknown); the next try under it sets
     # the total he approved, never the batch's older, larger budget, and a retry never goes above that total
     older = types.SimpleNamespace(chat_yes={}, stop_line={"euros": 665.18, "batch_from": 0.0, "batch_budget": 665.18})
@@ -734,10 +746,14 @@ def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):
     assert flow.batch_budget([older, lined, now], 289.6, 180.52, his) == (0.0, 462.0)
 
 
-def test_a_batch_budget_counts_from_an_older_first_try_line():
+def test_a_batch_budget_counts_from_an_older_first_try_line(tmp_path, monkeypatch):
     """A batch whose first try wrote its line before budgets (Batch 1) counts from what that line was written over;
-    his new yes is the batch total, refused only when the batch's spend so far leaves nothing of it. Break:
-    checkout/flow.py `batch_budget` and checkout/watched.py `batch_money` take a line's `batch_budget` as written."""
+    his new yes is the batch total, refused only when the batch's spend so far leaves nothing of it; env1's cap
+    figure is the watcher's reading of the bill, shown as read; a result gets one paid remake in its batch, then is a
+    gap, and a try stopped on a stage this PC runs free waits for that free pass. Break: checkout/flow.py
+    `batch_budget` and checkout/watched.py `batch_money` take a line's `batch_budget` as written; web.cap_figure reads
+    the cap's `line` as its counter; flow.remade_out `count > PAID_REMAKES` -> `>=`; flow.free_first drops its
+    free_route test."""
     older = Checkout(stop_line={"euros": 596.76, "spent": 300.0, "reserved": 0.0, "high": 100.0})
     this = Checkout(stop_line={})
     assert flow.batch_budget([older, this], 710.0, 250.0, {"batch_total_euros": 740.0}) == (300.0, 740.0)
@@ -755,6 +771,38 @@ def test_a_batch_budget_counts_from_an_older_first_try_line():
     from score.dashboard.checkout import watched
     reading = types.SimpleNamespace(spent=300.0, reserved=0.0, parts={}, as_of="now")
     assert watched.batch_money([first, split], reading)["budget"] == 665.18
+    # env1's cap shows the bill's figure the watcher read (the plan of 2026-11-09, B7): the cap record's, on the door
+    import json
+    from score.dashboard import __main__ as commands
+    from score.review import web
+    monkeypatch.setenv("SCORE_CAP_BOOK", str(tmp_path / "caps"))  # the guard's folder book, never the object store
+    assert web.cap_figure() is None  # no cap set: none shown
+    for part, record in (("lines", {"at": "2026-11-09T18:40:00+00:00", "name": "env1", "open": True, "euros": 300.0,
+                                    "line": 255.0, "start": "2026-11-09T18:40:00+00:00", "baseline": {}}),
+                         ("readings", {"at": "2026-11-10T08:00:00+00:00", "unread": None, "counter": 41.237})):
+        (tmp_path / "caps" / "caps" / "env1" / part).mkdir(parents=True)
+        (tmp_path / "caps" / "caps" / "env1" / part / "20261110T080000-1.json").write_text(json.dumps(record))
+    cap = web.cap_figure()
+    assert (cap["counter"], cap["euros"], cap["line"], cap["unread"]) == (41.24, 300.0, 255.0, None)
+    assert watched.batch_money([first, split], reading, cap)["cap"] == cap
+    assert commands.cap_words(cap).startswith("env1: EUR 41.24 of 300 (bill, all projects), stop line EUR 255")
+    # one paid remake per result, then a gap; a try stopped on a stage this PC runs free waits for that pass (B6)
+    tries = [Checkout(pk=1, at=flow.REMAKES_FROM + datetime.timedelta(hours=1)),
+             Checkout(pk=2, at=flow.REMAKES_FROM + datetime.timedelta(hours=3))]
+    failed = {1: {"sound@alpha", "settle@alpha"}, 2: {"sound@alpha", "settle@alpha", "closeup@beta"}}
+    assert flow.remade_out(tries, failed) == ["settle@alpha", "sound@alpha"]
+    assert flow.remade_out(tries[:1], failed) == []  # one failure: its one paid remake is still to come
+    before = Checkout(pk=3, at=flow.REMAKES_FROM - datetime.timedelta(days=1))
+    assert flow.remade_out([before, tries[1]], {3: {"settle@alpha"}, 2: {"settle@alpha"}}) == []  # before the cap
+    assert [flow.free_route(node) for node in ("settle@alpha", "sound@alpha", "people-body-pilot-made")] == \
+        [True, False, False]
+    waits = flow.free_first(tries, failed, lambda node: None)
+    assert len(waits) == 1 and "checkout 2 stopped on settle@alpha, which this PC runs free" in waits[0]
+    passed = (flow.REMAKES_FROM + datetime.timedelta(hours=4)).isoformat()
+    assert flow.free_first(tries, failed, lambda node: passed if node == "settle@alpha" else None) == []
+    assert flow.free_first(tries, {1: set(), 2: {"closeup@beta"}}, lambda node: None) == []  # cloud only: no wait
+    items = [{"id": "a", "nodes": {"settle@alpha": {}, "pixal@alpha": {}}}, {"id": "b", "nodes": {"sound@alpha": {}}}]
+    assert flow.nodes_left(items, {"settle@alpha", "sound@alpha"}) == [{"id": "a", "nodes": {"pixal@alpha": {}}}]
 
 
 # --- the launch guard and the local backend ----------------------------------------------------------------------

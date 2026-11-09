@@ -57,13 +57,15 @@ def record_nodes(record):
     return planned or sorted({node for item in record.items for node in item["nodes"]})
 
 
-def batch_ended(tries, record, accepted_at):
+def batch_ended(tries, record, accepted_at, nodes=None):
     """Whether `record` begins a new batch after the checkouts `tries` (owner, 2026-10-25: "its the same batch, ur
     just retrying a failed part of it; it will become a mess if we split after fail"): every row they planned made
     since the first of them by the time it was made. A design edit between tries ends nothing: the fixes made to
-    finish a batch are part of it (2026-10-26, Batch 1's readings and plans fixed before its fifth try)."""
+    finish a batch are part of it (2026-10-26, Batch 1's readings and plans fixed before its fifth try). `nodes` the
+    rows they planned when the caller holds them already (batch_of), else read."""
     start = tries[0].at
-    nodes = {node for one in tries if one.launch for node in checkout_nodes(one)}
+    if nodes is None:
+        nodes = {node for one in tries if one.launch for node in checkout_nodes(one)}
     return bool(nodes) and all(start < (moment(accepted_at(node)) or start) <= record.at for node in nodes)
 
 
@@ -91,12 +93,21 @@ def moment(text):
 
 def batch_of(records, accepted_at):
     """(batch number, its checkouts oldest first) of the newest of `records` (oldest first): a checkout is another
-    try of the batch before it until batch_ended."""
-    number, tries = 0, []
+    try of the batch before it until batch_ended. Each checkout's rows and each row's accept are read once: read
+    again for every later checkout, a batch of 51 tries made the door's batch-money take 283 s, 220 of them in
+    4,549 queries of the plans' bodies (2026-11-09)."""
+    number, tries, nodes, accepts = 0, [], set(), {}
+
+    def accepted_once(node):
+        if node not in accepts:
+            accepts[node] = accepted_at(node)
+        return accepts[node]
     for record in records:
-        if not tries or batch_ended(tries, record, accepted_at):
-            number, tries = number + 1, []
+        if not tries or batch_ended(tries, record, accepted_once, nodes):
+            number, tries, nodes = number + 1, [], set()
         tries.append(record)
+        if record.launch:
+            nodes.update(checkout_nodes(record))
     return number, tries
 
 
@@ -116,7 +127,7 @@ def batch_start(line):
     return None if line.get("spent") is None else line["spent"] + (line.get("reserved") or 0.0)
 
 
-def batch_money(tries, spend):
+def batch_money(tries, spend, cap=None):
     """The batch's money by the money guard's own measure (score.adapters.compute.guard: the environment's spend since
     its first stop line, each month the higher of the cloud bill's and the ledger's growth, plus the model calls'),
     the one spent figure the door, the Buy page and the monitor show (owner, 2026-10-26: "the stop should be a total
@@ -124,8 +135,10 @@ def batch_money(tries, spend):
     then: every try, its pools and model calls, and whatever else was billed meanwhile: benchmarks, design calls,
     what the bill holds over the ledger), in_flight (cleared runs' forecasts not yet ledgered), budget (the batch
     total), left (budget less spent and in flight: what the guard still clears), parts (the environment's books since
-    its first line, guard.spent_parts), as_of}; None before a try wrote its line or while the spend is unread.
-    `tries` the batch's checkouts, oldest first; `spend` the backend's Spend."""
+    its first line, guard.spent_parts), as_of, cap}; None before a try wrote its line or while the spend is unread.
+    `tries` the batch's checkouts, oldest first; `spend` the backend's Spend; `cap` env1's cap figure beside it
+    (score.review.web.cap_figure: its spend from the whole bill, every project, against its EUR 300; the plan of
+    2026-11-09, B7), as given."""
     lined = [one.stop_line for one in tries if "euros" in (one.stop_line or {})]
     start = batch_start(lined[0]) if lined else None
     if start is None or spend is None or spend.spent is None or spend.reserved is None:
@@ -133,14 +146,14 @@ def batch_money(tries, spend):
     budget = round(lined[-1]["euros"] - start, 2)  # the newest line less the batch's start: what the guard holds
     spent = round(spend.spent - start, 2)
     return {"start": round(start, 2), "spent": spent, "in_flight": round(spend.reserved, 2), "budget": budget,
-            "left": round(budget - spent - spend.reserved, 2), "parts": spend.parts, "as_of": spend.as_of}
+            "left": round(budget - spent - spend.reserved, 2), "parts": spend.parts, "as_of": spend.as_of, "cap": cap}
 
 
-def newest(accepted_at=lambda node: None, reading=lambda: None):
+def newest(accepted_at=lambda node: None, reading=lambda: None, capped=lambda: None):
     """The newest checkout as a try of its batch (batch_of): its record and launch, every launch of every try's runs
     (checkout_runs) and the rows they plan, the rows this try makes (try_nodes), the batch's number, its tries and when its first try was made, as plain
     data for batch_run.gathered; None before one. `accepted_at(node)` the time of its standing accept; `reading()` the
-    backend's Spend, for the batch's money (batch_money)."""
+    backend's Spend, for the batch's money (batch_money); `capped()` env1's cap figure beside it."""
     records = list(Checkout.objects.select_related("launch__plan").order_by("at"))
     if not records:
         return None
@@ -157,4 +170,4 @@ def newest(accepted_at=lambda node: None, reading=lambda: None):
             "runs": [run for one in tries if one.launch for run in checkout_runs(one)],
             "try_runs": checkout_runs(record) if record.launch else [], "nodes": list(nodes),
             "try_nodes": record_nodes(record),
-            "money": batch_money(tries, reading())}
+            "money": batch_money(tries, reading(), capped())}

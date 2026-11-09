@@ -11,7 +11,9 @@ his Buy button makes (flow.start, every refusal of his click), once.
                                           {likely, high, stop: high with guesses plus 10%}, fits (the smallest batch
                                           total holding this try), click (the total his Buy click would set),
                                           may_stop (a retry under the yes already used would stop at the batch
-                                          limit before every step is made: what is left is under this try's stop)}
+                                          limit before every step is made: what is left is under this try's stop),
+                                          cap (env1's spend from the whole bill against its EUR 300, the plan of
+                                          2026-11-09 B7: score.review.web.cap_figure)}
     record(total, high, answer, question, leave_out)
                                           his yes {id, purpose, batch_total_euros, high_euros, answer, question, at, by,
                                           basket {commit, made_at, items [{id, version}]}, leave_out}, the basket the
@@ -143,7 +145,9 @@ def figures(reading, leave_out=()):
     number, tries = watched.batch_of(records, accepted_at) if records else (0, [])
     ahead = Checkout(at=datetime.datetime.now(datetime.timezone.utc))
     retry = bool(tries) and not watched.batch_ended(tries, ahead, accepted_at)
-    money = watched.batch_money(tries, spend) if retry else None
+    from score.review import web
+    cap = web.cap_figure()
+    money = watched.batch_money(tries, spend, cap) if retry else None
     totals = basket_totals(current_basket(), leave_out)
     need = round(pricing.cleared_high(totals) * flow.BUFFER, 2)
     run = state.source().batch_run(reading=lambda: spend) if retry else None
@@ -152,7 +156,7 @@ def figures(reading, leave_out=()):
             "try": {"likely": totals["likely_euros"], "high": pricing.cleared_high(totals), "stop": need},
             "fits": need if money is None else round(money["spent"] + money["in_flight"] + need, 2),
             "click": need if money is None else batch_run.batch_total(money, need),
-            "may_stop": money is not None and money["left"] < need}
+            "may_stop": money is not None and money["left"] < need, "cap": cap}
 
 
 def accepted_at(node):

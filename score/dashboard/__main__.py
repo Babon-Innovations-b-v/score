@@ -161,6 +161,7 @@ def batch_money(no_film=False):
     from score.dashboard.launch import guard
     found = chat_yes.figures(guard.backend().spend, chat_yes.NO_FILM if no_film else ())
     money, now = found["money"], found["try"]
+    print(cap_words(found["cap"]))
     if money is None:
         print(f"Batch {found['batch']}: a new batch, nothing spent of it yet")
     else:
@@ -183,6 +184,19 @@ def batch_money(no_film=False):
         print(f"Under the yes already used (buy <its id>): this try may stop at the batch limit before every step is "
               f"made, EUR {money['left']:.2f} left of the budget against its stop EUR {now['stop']:.2f}")
     print(json.dumps(found))
+
+
+def cap_words(cap):
+    """env1's cap in one line (score.review.web.cap_figure): "env1: EUR X of 300 (bill, all projects)", its stop and
+    reading time, or why it is unread."""
+    if cap is None:
+        return "env1: no cap set"
+    if cap.get("counter") is None:
+        return f"env1: spend unread ({cap.get('unread')})"
+    said = (f"{cap['name']}: EUR {cap['counter']:.2f} of {cap['euros']:g} (bill, all projects), stop line EUR "
+            f"{cap['line']:g}, read {(cap.get('at') or '')[:16]}")
+    return said + (f"; the last pass could not read: {cap['unread']}" if cap.get("unread") else "") + \
+        ("" if cap.get("open") else "; closed")
 
 
 def buy(options):
