@@ -3427,10 +3427,9 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         or `continue` after it dropped (PIPE 5 kept beside its drop), or `fixes += surplus_dropped(...)` dropped
     Break: score/review/plan_fixes.py `off_flights`: `if laid_of(plan, row) - len(surplus.get(row, [])) > 1:` ->
         `if True:` (a row's last bed taken off), or `-> if False:` (BED 1 left on the stairs beside BED 2)
-    Break: score/review/plan_fixes.py `surplus_dropped`: `return fixes + reseated(...)` -> `return fixes` (POT 1 left
-        0.5 m up where BED 1 went); `reseated`: `| ~level` dropped (POT 1 stood on the gallery), `surplus.append(thing)`
-        -> `pass` (the 4 m POT 1 left over bare floor), or its `if laid_of(...) > 1:` -> `if True:` (the pot row's last
-        taken off)
+    Break: score/review/plan_fixes.py `surplus_dropped`: `return fixes + resting_dropped(...)` -> `return fixes` (POT
+        1 left 0.5 m up where BED 1 went); `resting_dropped`: its `laid_of(...) - ... > 1` -> `True` (the pot row's
+        last taken off)
     Break: score/review/plan_fixes.py `eaves_raised`: `>= plan_checks.LOW` -> `>= 0.0` (the tube's vault on its
         floor raised), or `roof["top"] = round(...)` dropped (the dome's rise lost)
     Break: score/review/plan_fixes.py `stair_rows_dropped`: the `any(other.get("anchor") == ...)` test dropped (the
@@ -3756,31 +3755,26 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     assert [item[0] for item in rowed["items"]] == ["CHAIR 1", "CART 1", "HALL 1", "BED 2"] and \
         plan_fixes.flight_gaps(rowed, bed_rows) == [] and rowed["dropped"][0]["laid"] == 1, rowed
     # greenhouse's live plan (2026-11-09): its plants 2 stood on planter bed 2, taken off its flights' feet, so 0.5 m
-    # up over bare floor. What the plan places on or in a thing taken off stands on the floor that thing stood on, at
-    # a clear spot; with none, and its row laying another, it goes too, said in `dropped`; a row's last stays.
+    # up over bare floor. What the plan places on or in a thing taken off goes too, its row laying another, said in
+    # `dropped`; a row's last stays (the plan cannot stand it on the floor while its reading stands it on a bed).
     potted_rows = {"rows": [*bed_rows["rows"], {"id": "pot", "anchor": "on:bed", "size": [0.3, 0.3, 0.3]}]}
-    for pot, room in ((0.3, True), (4.0, False), (4.0, None)):
+    for others in (True, False):
         potted = copy.deepcopy(beds)
-        potted["items"].append(["POT 1", 2.75 - pot / 2, 2.75 - pot / 2, pot, pot, None, "item"])
-        if room is not None:  # BED 2 with POT 2 on it: neither row's last
+        potted["items"].append(["POT 1", 2.6, 2.6, 0.3, 0.3, None, "item"])
+        if others:  # BED 2 with POT 2 on it: neither row's last
             potted["items"] += [["BED 2", 3.6, 0.1, 0.5, 0.5, None, "item"], ["POT 2", 3.7, 0.2, 0.3, 0.3, None, "item"]]
         potted["rows"].update({"BED 2": ["bed"], "POT 1": ["pot"], "POT 2": ["pot"]})
         potted["shapes"].update({name: {"shape": "rect", "tall": 0.3, "base": 0.5} for name in ("POT 1", "POT 2")})
-        said = plan_fixes.off_flights(potted, potted_rows) if room is not None else \
+        said = plan_fixes.off_flights(potted, potted_rows) if others else \
             plan_fixes.surplus_dropped(potted, potted_rows, [potted["items"][1]])
         laid = {item[0]: item[1:5] for item in potted["items"]}
-        if room:
-            spot = [laid["POT 1"][0] + 0.15, laid["POT 1"][1] + 0.15]
-            assert said[-1].startswith("pot 1: stood on the floor") and potted["shapes"]["POT 1"]["base"] == 0.0 and \
-                spot[1] + 0.2 <= 4.6 and not any(plan_checks.inside(numpy.array([spot]), plan_checks.polygon_of(
-                    [None, *laid[name], None], None)).all() for name in ("CHAIR 1", "CART 1", "HALL 1", "BED 2")) \
-                and laid["POT 2"] == [3.7, 0.2, 0.3, 0.3], (laid, said)
-        elif room is False:
-            assert "POT 1" not in laid and said[-1] == "pot: pot 1 taken off, 1 more of it than the floor its holder " \
-                "stood on holds (4 x 4 m each): 1 laid" and potted["dropped"][-1]["laid"] == 1, (laid, said)
+        if others:
+            assert "POT 1" not in laid and laid["POT 2"] == [3.7, 0.2, 0.3, 0.3] and \
+                said[-1] == "pot: pot 1 taken off, its holder was dropped: 1 laid" and \
+                potted["dropped"][-1] == {"item": "pot", "why": "its holder was dropped: 1 laid", "laid": 1}, said
         else:  # BED 1 alone under POT 1, its row's last
-            assert laid["POT 1"] == [0.75, 0.75, 4.0, 4.0] and potted["shapes"]["POT 1"]["base"] == 0.5 and \
-                said[-1].startswith("bed: bed 1 taken off"), (laid, said)
+            assert laid["POT 1"] == [2.6, 2.6, 0.3, 0.3] and said[-1].startswith("bed: bed 1 taken off") and \
+                [entry["item"] for entry in potted["dropped"]] == ["bed"], (laid, said)
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
