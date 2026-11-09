@@ -11,7 +11,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_drop_gate_fails_a_broken_drop_and_names_what_was_kept: judge_rested's `if "still moving" in entry["said"]`
   made `if False`; and its `if laid_wrong(entry)]` made `if False]` (one left as laid inside another, inside a wall
   or floating passes, as galley's chairs in its table did on 2026-11-03 and the hangar's ship 72 cm up); and
-  worse_faults' `or fault["kind"] == "overlaps"` dropped (an overlap there as laid excused).
+  worse_faults' `or fault["kind"] == "overlaps"` dropped (an overlap there as laid excused); planned_within's
+  `return other in contained.get(one, ()) or one in contained.get(other, ())` made `return False` (plants laid within
+  their bed fail, greenhouse 2026-11-09), or made `return True` (a laptop on its desk excused).
 - only_what_lies_on_the_object_resting_worse_is_kept_with_it: kept_where_worse's `resting_on(name) & worse` made
   `True` (every case of the row kept).
 - a_flush_pose_resting_worse_falls_back_to_the_drops_rest: fallen_back's `back = {...}` made `back = set()`.
@@ -179,6 +181,13 @@ def the_drop_gate_fails_a_broken_drop_and_names_what_was_kept():
     lean = {"object": "/galley/Objects/dining_chair_2", "kind": "leans"}
     if settle.worse_faults([overlap], [overlap, lean]) != [overlap] or settle.worse_faults([], [lean]) != [lean]:
         problems.append("the resting gate excused an overlap there as laid, or failed another fault kept as laid")
+    record = {"objects": [{"name": "plants_1", "on": {"how": "within", "holder": ["planter_bed_1"]}},
+                          {"name": "laptop_1", "on": {"how": "top", "holder": ["desk_1"]}}]}
+    contained = settle.within_of(record)
+    planted = {"object": "/greenhouse/Objects/planter_bed_1", "kind": "overlaps", "partner": "plants_1"}
+    sunk = {"object": "/greenhouse/Objects/laptop_1", "kind": "overlaps", "partner": "desk_1"}
+    if not settle.planned_within(planted, contained) or settle.planned_within(sunk, contained):
+        problems.append("plants laid within their bed failed as an overlap, or a laptop on its desk was excused")
     return problems
 
 
