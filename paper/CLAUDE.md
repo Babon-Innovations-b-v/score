@@ -34,8 +34,11 @@ python3 score/build/build.py --check   # exit 1 when a committed output is stale
   discussion's last paragraph does the conclusion's work). With its figures and table the main body is **at most 4
   pages**: it ends at `\label{endofmain}` after a `\FloatBarrier`, and its page in `main.aux` is at most 4. Its
   register is the owner's published paper (arXiv:2607.17639): full academic prose, no project jargon.
-  Method detail and full tables go to the appendices. Every result of MOTOR is a gap box until the whole-trial solver's full run (#98); numbers of the
-  per-frame chain, its warm start, appear only in their own appendix, labelled as the chain's, never as MOTOR's.
+  Method detail and full tables go to the appendices. MOTOR is the per-frame solver (owner, 2026-11-09, on #98: "report
+  the fast per-frame solver as the result and make the whole-trial solve future work"): its results are the run of
+  `evidence/labval-final-2026-11-07.txt`, and the whole-trial solve appears only as future work in the discussion, its
+  numbers from `evidence/motor-labval-2026-11-09.txt`, labelled as the whole-trial solve's. OpenCap's numbers are its
+  published ones; PBL is not rerun (owner, 2026-11-09: licence, its MeTRAbs models are non-commercial).
   Build with `--keep-intermediates`, then delete `main.aux`, `main.out` and `main.log`.
 - `evidence/`: the shared run records that code reads as well as the papers, left at this path because paid rows'
   code names it: `cloud/` (the scrubbed cloud ledger, bill, capacity and cost tables; read by `tools/cloud/`,
