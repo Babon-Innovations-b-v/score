@@ -528,15 +528,18 @@ def judge_resting(output, inputs, evidence):
     assembly's own drop and triage judge it on the baked models."""
     record = read_json(pathlib.Path(output) / RECORD)
     for_paint = {name for name, entry in record["objects"].items() if for_the_paint(entry)}
-    found = {}
+    found, contained = {}, {}
     for state, layered in (("before", False), ("after", True)):
         with tempfile.TemporaryDirectory(dir=SCRATCH) as scratch:  # on disk: a seed copy is too big for /tmp
             root = rested_root(output, inputs, pathlib.Path(scratch), layered)
-            rested = rested_inputs(inputs, root, as_they_rest(read_json(inputs["inventory"]), scene_record(root)))
+            laid = scene_record(root)
+            contained = within_of(laid) if layered else contained
+            rested = rested_inputs(inputs, root, as_they_rest(read_json(inputs["inventory"]), laid))
             found[state] = triage.triage(root, rules_file=inputs["resting rules"], kit_file=inputs["kit"],
                                          inventory_file=rested["inventory"])
     real = {state: [fault for fault in found[state]["faults"] if fault["real"]
-                    and not (fault["object"].rsplit("/", 1)[-1] in for_paint and fault["kind"] in FOR_THE_PAINT)]
+                    and not (fault["object"].rsplit("/", 1)[-1] in for_paint and fault["kind"] in FOR_THE_PAINT)
+                    and not planned_within(fault, contained)]
             for state in found}
     worse = worse_faults(real["before"], real["after"])
     objects = {state: len({fault["object"] for fault in real[state]}) for state in real}
@@ -548,6 +551,23 @@ def judge_resting(output, inputs, evidence):
     return checks.Verdict("resting", checks.FAIL if worse else checks.PASS, reason,
                           {"objects with faults": objects["after"], "as laid": objects["before"], "worse": len(worse)},
                           {"objects with faults": "lower", "worse": "lower"}, findings)
+
+
+def within_of(record):
+    """{object: the objects its plan lays it within} of the scene record's objects (`on` how "within": plants in their
+    planter bed, a suit in its locker); {} without a record."""
+    return {entry["name"]: set((entry.get("on") or {}).get("holder") or []) for entry in (record or {}).get("objects")
+            or [] if (entry.get("on") or {}).get("how") == "within"}
+
+
+def planned_within(fault, contained):
+    """Whether an overlap is one thing laid within the other by its plan: the plan's own placement, not a fault
+    (2026-11-09: greenhouse's plants in their planter beds failed settle as ten overlaps). A thing on another, or two
+    unrelated things, still fail inside each other, as worse_faults says."""
+    if fault["kind"] != "overlaps" or not fault.get("partner"):
+        return False
+    one, other = fault["object"].rsplit("/", 1)[-1], str(fault["partner"]).rsplit("/", 1)[-1]
+    return other in contained.get(one, ()) or one in contained.get(other, ())
 
 
 def worse_faults(before, after):
