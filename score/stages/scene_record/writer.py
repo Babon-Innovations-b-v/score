@@ -477,7 +477,7 @@ def lights(design, inputs, relations=None):
                 laid.setdefault(row_id, []).append((item, shapes.get(item[0]) or {}))
     found = []
     for row_id, items in laid.items():
-        for (item, _), pieces in zip(items, lamp_count(glowing[row_id], items)):
+        for (item, _), pieces in zip(items, lamp_count(counted(glowing[row_id], design), items)):
             found += item_lamps(item, glowing[row_id], inventory["rows"], design, library, inputs["lamp library"],
                                 shown.get(row_id), holding.get((item[0], row_id)), pieces)
     return found
@@ -990,6 +990,15 @@ def pieces_of(row, items):
     return counts
 
 
+def counted(row, design):
+    """`row` with the count the scene record lays at least (pieces_of): its own, or the number its plan's `dropped`
+    says it lays where the place's floor holds no more (plan_fixes.surplus_dropped: the engine room's 4 railings of the
+    8 its concept's boxes count, 2026-11-09), so no piece taken off is laid again on the items left."""
+    laid = [entry["laid"] for entry in design.get("dropped") or [] if isinstance(entry, dict)
+            and entry.get("item") == row["id"] and isinstance(entry.get("laid"), int)]
+    return {**row, "count": min(laid)} if laid else row
+
+
 def sized(row):
     return isinstance(row.get("size"), list) and len(row["size"]) == 3 and all(
         isinstance(side, (int, float)) and side > 0 for side in row["size"])
@@ -1216,7 +1225,7 @@ def design_objects(design, handin, relations=None):
         row, model = by_id[row_id], models.get(row_id)
         size = by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
         number = 0
-        for (item, shape), pieces in zip(laid, pieces_of(row, laid)):
+        for (item, shape), pieces in zip(laid, pieces_of(counted(row, design), laid)):
             base = float(shape.get("base") or 0.0)
             relation, on = holding.get((item[0], row_id)), None
             marked = marks(item, row, relation, unheld.get((item[0], row_id)))

@@ -618,6 +618,8 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     string "above plaza" 6 m up hangs between the two towers that reach it (hung_between), and with no towers stays
     on the floor; a screen the plan stands at its deck's 3.3 m just behind it stands on the floor, one on the deck
     keeps the deck's height, and a crowd under it holds nothing up (stood_under).
+    Break: score/review/holders/__init__.py: `writer.counted(row, plan).get("count")` -> `row.get("count")` (the
+        dropped railings laid again on those left)
     Break: score/review/holders/__init__.py: `return counts[names.index(name)]` -> `return counts[0] if
         len(names) == 1 else int((shapes.get(name) or {}).get("count") or 1)`
     Break: score/review/holders/__init__.py: `if row is None or name not in tied.get(row_id, []):` -> `if row is None:`
@@ -930,6 +932,14 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     assert (moved["spot"], height) == ([5.5, 5.0], 1.0), moved
     moved, height = holders.walled_clear(context, pipe, walled, 1.0, [], [("pipe", [5.5, 5.0], 1.0)])
     assert moved["spot"] != [5.5, 5.0] or abs(height - 1.0) >= holders.ONE_SPOT, (moved, height)
+    # settle@engineroom, 2026-11-09: its plan took railings 5 to 8 off (no free floor), saying it lays 4 of the 8 its
+    # concept counts; the relations lay one at each item left, as the scene record does, never two
+    railed = {"items": [[f"RAIL {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "item"] for number in (1, 2, 3, 4)],
+              "rows": {f"RAIL {number}": ["railing"] for number in (1, 2, 3, 4)}}
+    railing, tied = {"id": "railing", "count": 8}, {"railing": [f"RAIL {number}" for number in (1, 2, 3, 4)]}
+    assert holders.pieces_at("RAIL 1", railing, railed, tied) == 2
+    railed["dropped"] = [{"item": "railing", "why": "4 more of it than the place's free floor holds", "laid": 4}]
+    assert [holders.pieces_at(f"RAIL {number}", railing, railed, tied) for number in (1, 2, 3, 4)] == [1, 1, 1, 1]
 
 
 def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):

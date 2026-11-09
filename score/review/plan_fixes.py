@@ -431,8 +431,9 @@ def unpiled(plan, inventory):
 
 def surplus_dropped(plan, surplus):
     """The things of `surplus` (items no free floor of the place holds) taken off the plan, each row's in the plan's
-    `dropped` with its reason, so its count is no gap and no fix places them again (plan_checks.count_gaps); the fixes
-    said, one a row."""
+    `dropped` with its reason and the number it lays, so its count is no gap, no fix places them again
+    (plan_checks.count_gaps) and the scene record lays no more (scene_record/writer.counted); the fixes said, one a
+    row."""
     fixes, by_row = [], {}
     for item in surplus:
         by_row.setdefault((plan.get("rows", {}).get(item[0]) or [None])[0], []).append(item)
@@ -442,7 +443,7 @@ def surplus_dropped(plan, surplus):
         kept = sum(1 for found in plan["items"] if row in (plan.get("rows", {}).get(found[0]) or []))
         size = f"{items[0][3]:g} x {items[0][4]:g} m"
         why = f"{len(items)} more of it than the place's free floor holds ({size} each): {kept} laid"
-        plan.setdefault("dropped", []).append({"item": row, "why": why})
+        plan.setdefault("dropped", []).append({"item": row, "why": why, "laid": kept})
         fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
                      f"taken off, {why}")
     return fixes

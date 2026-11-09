@@ -323,7 +323,8 @@ def piece_middles(item, row, plan):
     shapes, tied = plan.get("shapes") or {}, plan.get("rows") or {}
     items = [(other, shapes.get(other[0]) or {}) for other in plan.get("items") or []
              if row["id"] in (tied.get(other[0]) or [])]
-    counts = dict(zip((other[0] for other, _ in items), writer.pieces_of(row, items))) if items else {}
+    counts = dict(zip((other[0] for other, _ in items), writer.pieces_of(writer.counted(row, plan), items))) \
+        if items else {}
     return writer.spots_of(item, shapes.get(item[0]) or {}, counts.get(item[0], 1), row)
 
 
@@ -1238,13 +1239,15 @@ def plan_items(plan):
 
 def pieces_at(name, row, plan, tied):
     """How many pieces the scene record lays at a plan item of the row (its writer.pieces_of): its shape's count, and
-    what the row's items fall short of its own count laid one more an item in turn from the first in the plan's order
-    (2026-11-06: hangar's 8 pipes on 7 items, its first laying 2, both at its one wall spot)."""
+    what the row's items fall short of its own count (writer.counted: the plan's own where it dropped the rest) laid
+    one more an item in turn from the first in the plan's order (2026-11-06: hangar's 8 pipes on 7 items, its first
+    laying 2, both at its one wall spot)."""
     shapes, names = plan.get("shapes") or {}, tied.get(row["id"]) or []
     if name not in names:
         return int((shapes.get(name) or {}).get("count") or 1)
     counts = [int((shapes.get(each) or {}).get("count") or 1) for each in names]
-    for turn in range(max(int(row.get("count") or 1) - sum(counts), 0)):
+    from score.stages.scene_record import writer
+    for turn in range(max(int(writer.counted(row, plan).get("count") or 1) - sum(counts), 0)):
         counts[turn % len(counts)] += 1
     return counts[names.index(name)]
 
