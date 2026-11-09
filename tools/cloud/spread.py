@@ -187,6 +187,16 @@ def work_turn(machine, shares, do, card, broken):
             provider.cloud.let_go_turn(machine["id"])
 
 
+def arm_for_run(folder, host, deadline):
+    """batch.arm_self_delete for a machine a run works on, `deadline` also declared to the run's runaway watch, which
+    never stops the run before its machines' own deadline (preflight.declare_deadline). A parked machine's is no
+    run's. Here, not in batch.py, which the paid pixal and rough-model rows read as a file."""
+    import preflight
+
+    preflight.declare_deadline(deadline)
+    batch.arm_self_delete(folder, host, deadline)
+
+
 @contextlib.contextmanager
 def tended(run, machine):
     """A machine a runner works itself, armed to delete itself if this PC goes quiet and hearing its heartbeat while
@@ -199,7 +209,7 @@ def tended(run, machine):
         for _ in range(machine.get("turns", 1) - 1):
             provider.cloud.let_go_turn(machine["id"])
         host = machine["host"]
-        batch.arm_self_delete(machine["folder"], host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        arm_for_run(machine["folder"], host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(machine["folder"], host, stop), daemon=True).start()
         yield host
         machine["healthy"] = True  # the block ended well: the machine may be parked (park.py)
@@ -217,7 +227,7 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
     ready = False
     try:
         host = machine["host"]
-        batch.arm_self_delete(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        arm_for_run(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         prepare(machine)
         machine["set_up"] = time.time()  # the ledger's setup_minutes, which park.idle_minutes measures

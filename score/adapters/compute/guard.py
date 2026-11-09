@@ -24,7 +24,11 @@ A job that would pass the stop is refused before it starts, with one line in the
 work goes on, since only paid jobs are cleared. A job once started runs to its end: the only stop halfway is a runaway,
 a run still going past RUNAWAY times its high forecast minutes (at its forecast's cards, its cost grows with its time):
 the sum of its batches' pre-flights once it has any (tools/cloud/preflight.py, sized on their jobs), else its
-stage's measured runs. Its minutes are those of its paid work, as its forecast's are (a batch's wall minutes in the
+stage's measured runs, and past the latest deadline its paid work declared (preflight.declare_deadline: a cluster
+run's Jobs' own deadlines, a rented machine's self-delete). A forecast is an average and does not grow with the work
+(2026-11-09: light-passes@campgrounds, a big outdoor place of many lamps, was stopped twice at 7 min over twice a
+3 min forecast while its render ran inside its Jobs' own deadlines); the declared deadline is what the work itself
+was given, and the cluster or the machine ends it there whatever the watch does, so it bounds the money as before. Its minutes are those of its paid work, as its forecast's are (a batch's wall minutes in the
 ledger): a minute counts only while a cloud runner (a script of tools/cloud) runs below the make, never while the make
 works free on its own or waits for a warm pool card. `Watch` ends it by signalling the make's own child processes (the
 cloud runners delete their machines on a signal).
@@ -229,18 +233,26 @@ def no_batches():
     return []
 
 
+def no_deadlines():
+    """No declared deadlines: a run whose paid work declares none."""
+    return []
+
+
 class Watch:
     """A cleared run's runaway watch, beside its make: every `every` seconds it compares the run's minutes with its
     high forecast's (`batches()`: its batches' pre-flights, whose high minutes add up; else `forecast_minutes`), and
-    past RUNAWAY times them tells the owner once and calls `stop` (the make's children signalled). The time between
+    past RUNAWAY times them and past the latest deadline its paid work declared (`deadlines()`, epoch seconds read on
+    `wall`) tells the owner once and calls `stop` (the make's children signalled). The time between
     two checks at which `waiting()` said the run waits for a warm pool card is left out of its minutes (benchmark of
     2026-10-23: a rough model waiting on the pool's first card was a runaway at twice its 12 measured minutes), and so
     is the time at which `paying()` said no paid work was going (cloud_work_below, as spending gives it), since the
     forecast's minutes are its paid batches' alone."""
 
     def __init__(self, ticket, forecast_minutes, folder, batches=no_batches, stop=stop_children, every=WATCH_SECONDS,
-                 clock=time.monotonic, waiting=lambda: False, paying=lambda: True):
+                 clock=time.monotonic, waiting=lambda: False, paying=lambda: True, deadlines=no_deadlines,
+                 wall=time.time):
         self.ticket, self.forecast, self.folder, self.batches = ticket, forecast_minutes, folder, batches
+        self.deadlines, self.wall = deadlines, wall
         self.stop, self.every, self.clock, self.waiting, self.paying = stop, every, clock, waiting, paying
         self.started, self.ended, self.ran_away = clock(), threading.Event(), False
         self.looked, self.waited = self.started, 0.0
@@ -261,6 +273,14 @@ class Watch:
             return sum(flight["high_minutes"] for flight in self.batches()) or self.forecast
         except (OSError, ValueError, KeyError, TypeError):
             return self.forecast
+
+    def within_deadline(self):
+        """Whether the run's paid work is still inside the latest deadline it declared (False when none was declared
+        or the declarations cannot be read: the forecast alone judges then, so the watch never goes blind)."""
+        try:
+            return self.wall() < max(self.deadlines(), default=0.0)
+        except (OSError, ValueError, TypeError):
+            return False
 
     def waits(self):
         """Whether the run waits for a warm pool card now (False when that cannot be read, so the watch never dies)."""
@@ -283,11 +303,11 @@ class Watch:
             self.waited += now - self.looked
         self.looked = now
         minutes, forecast = (now - self.started - self.waited) / 60, self.forecast_minutes()
-        if not self.ran_away and runaway(forecast, minutes):
+        if not self.ran_away and runaway(forecast, minutes) and not self.within_deadline():
             self.ran_away = True
             tell_owner(self.folder, f"runaway {self.ticket}", f"stopped after {minutes:.0f} min, over {RUNAWAY:g} "
-                       f"times its {forecast:.0f} min forecast. The cloud runners do not keep finished work on a "
-                       "stop yet, so a rerun starts over")
+                       f"times its {forecast:.0f} min forecast and past every deadline its jobs declared. The cloud "
+                       "runners do not keep finished work on a stop yet, so a rerun starts over")
             self.stop()
         return self.ran_away
 

@@ -212,6 +212,28 @@ def keep(ticket, flight):
     return path
 
 
+def declare_deadline(deadline):
+    """Under a runner's ticket, keep a deadline (epoch seconds) its paid work was given (a cluster run's Jobs' own,
+    a rented machine's self-delete), so the run's runaway watch never stops it before then (guard.Watch); the file,
+    None outside a ticket."""
+    ticket = os.environ.get(TICKET, "")
+    if len(ticket.split()) != 2:
+        return None
+    node, key = ticket.split()
+    path = forecasts_folder() / node / f"{key}.deadlines"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as kept_deadlines:
+        kept_deadlines.write(f"{deadline:.0f}\n")
+    return path
+
+
+def deadlines(ticket):
+    """Every deadline (epoch seconds) a run's paid work declared (declare_deadline), oldest first."""
+    node, key = ticket.split()
+    path = forecasts_folder() / node / f"{key}.deadlines"
+    return [float(line) for line in path.read_text().split()] if path.exists() else []
+
+
 def waiting_mark():
     """This thread's mark that the running ticket's run waits for a warm pool card (`forecasts/<node>/<key>.waiting/
     <pid>-<thread>`); None outside a ticket."""

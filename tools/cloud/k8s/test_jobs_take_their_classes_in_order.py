@@ -23,7 +23,9 @@ invariant with the break that turns it red (each applied once and seen red):
   Break: count every NotTriggerScaleUp in `no_grow_times`. Break: `record["state"] = "failed"` for every expired Job.
   Break: drop the `late` check in `may_widen`. A run none of whose jobs ran yet is marked waiting, so its runaway
   watch leaves the wait for a node out, and unmarked once one runs (2026-11-08: light-passes, settle and sound
-  rows stopped at twice their forecast while their pods waited). Break: `return True` in `none_ran`.
+  rows stopped at twice their forecast while their pods waited). Break: `return True` in `none_ran`. Its runaway
+  watch is told the Jobs' own deadlines, the longest once a round of `parallel` (2026-11-09: light-passes@campgrounds
+  stopped at twice an average forecast inside them). Break: `rounds = 1` in `declared_seconds`.
 - Nothing goes on the cluster outside a cleared run (design of 2026-10-11, section 6).
   Break: drop `compute.require_cleared` in `prepare`. Under the owner's override a run is stopped once its nodes
   cost what is left of his euros less 10% (ledger.batch_cap). Break: `over_limits` compares with
@@ -364,6 +366,9 @@ def test_resume_takes_up_the_newest_generation_and_a_run_holds_to_its_parallel_j
     assert len(kubectl.jobs) == 3
     submit.submit_more(run, None)
     assert len(kubectl.jobs) == 5
+    longest = manifests.deadline_seconds({**spec, "minutes": 90})
+    takes = {**run.specs, "take-4": {**spec, "minutes": 90}}
+    assert submit.declared_seconds(takes, 2) == 3 * longest and submit.declared_seconds(takes, None) == longest
 
     # quota admission (#76): the tenant's quota by its own names, 2 of its 24 cards left; 5 card jobs make 2, hold 3
     kubectl = QuotaKubectl({"requests.cpu": "250", "requests.memory": "1200Gi", "requests.nvidia.com/gpu": "24"},

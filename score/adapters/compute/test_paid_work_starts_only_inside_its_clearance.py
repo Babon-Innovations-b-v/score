@@ -34,6 +34,8 @@ Each test's break (applied once, seen red, reverted), in score/adapters/compute/
 - in flight less ledgered: guard.in_flight counts the whole clearance, not less what it ledgered.
 - runs on, stops as a runaway: guard.runaway at once its forecast minutes, not RUNAWAY times.
 - runaway ends children: guard.stop_children signals nothing.
+- long but inside its deadline: Watch.check drops `and not self.within_deadline()` (light-passes@campgrounds stopped
+  at 7 min of its Jobs' 150); past its deadline: Watch.within_deadline returns True whatever the time.
 - owner's yes keeps the start: guard.set_line writes the new baseline.
 - stop command: guard.current reads the oldest line (`keys[0]`), not the newest.
 - a line recorded on this PC: tools/cloud/provider.py billing returns `cloud` whatever its NAME (the line's start
@@ -718,6 +720,16 @@ def test_a_started_job_runs_on_as_the_bill_nears_the_stop_and_stops_only_as_a_ru
                         stop=lambda: stopped.append(3), clock=lambda: clock[0])
     clock[0] = 81 * 60 + sized.started  # its batches' pre-flights say 40 min high: past 80 it is a runaway
     assert sized.check() and stopped == [1, 3]
+    # 2026-11-09: light-passes@campgrounds (many lamps) rendered past twice its 3 min average forecast, well inside
+    # its Jobs' own deadlines, and was stopped twice; a run is never stopped before its work's declared deadline
+    wall, declared = [1000.0], [1000.0 + 150 * 60]
+    long = guard.Watch("light-passes@campgrounds k", 3.0, folder, stop=lambda: stopped.append(4),
+                       clock=lambda: clock[0], deadlines=lambda: declared, wall=lambda: wall[0])
+    clock[0], wall[0] = long.started + 120 * 60, 1000.0 + 120 * 60  # forty times its forecast, inside its deadline
+    assert not long.check() and stopped == [1, 3]
+    wall[0] = 1000.0 + 151 * 60  # past its own deadline and its forecast: a runaway
+    assert long.check() and stopped == [1, 3, 4]
+    assert "past every deadline its jobs declared" in (folder / guard.OUTBOX).read_text()
     BILL["euros"] = 0.0
 
 
