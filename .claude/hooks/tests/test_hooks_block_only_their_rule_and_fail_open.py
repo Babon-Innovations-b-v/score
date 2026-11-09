@@ -50,7 +50,10 @@ The break that turns each test red (applied once each, seen red, reverted):
   pushes); `touched_tests`'s `cluster` made [] (a GPU module is run, not left to the cluster gate); `main` returns 0
   instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the clean push's test
   file, a git-driving one here, then runs against the pushing repository's GIT_DIR); `checked`'s `.venv` link
-  dropped (the push from a clone moved off it, checked in a copy, has no environment for its test).
+  dropped (the push from a clone moved off it, checked in a copy, has no environment for its test). Its push-cap
+  half (.claude/hooks/pre-push and push_cap.py, in scratch repos): `claim`'s `len(today) >= cap` made `>` (a 7th push
+  of a 6-a-day cap goes); `limit_for` takes the first entry instead of the latest started one (the later, lower limit
+  never applies); the pre-push's `release` call dropped (a refused push keeps its slot).
 - test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
   [] at once.
 - test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
@@ -833,6 +836,57 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     assert marker.read_text().startswith("refs/heads/main "), marker.read_text()
     code, said, out, marker = answers["away"]
     assert code == 0 and "1 test file" in out and marker.exists(), (said, out)
+    push_cap_holds_the_days_limit_over_every_repository(tmp_path / "cap")
+
+
+def capped_repo(folder, origin):
+    """A scratch repo at `folder` (remote origin `origin`) holding the shared pre-push and push_cap.py, its own
+    pre-push a stand-in that refuses when LOCAL_REFUSES is 1; its pre-push hook's path."""
+    hooks = folder / ".claude/hooks"
+    (hooks / "local").mkdir(parents=True)
+    git(folder, "init", "-q")
+    git(folder, "remote", "add", "origin", origin)
+    for name in ("pre-push", "push_cap.py"):
+        shutil.copy(HOOKS / name, hooks / name)
+    own = hooks / "local/pre-push"
+    own.write_text('#!/usr/bin/env bash\ncat >/dev/null\n[ "${LOCAL_REFUSES:-0}" != 1 ]\n')
+    own.chmod(0o755)
+    return hooks / "pre-push"
+
+
+def push_cap_holds_the_days_limit_over_every_repository(folder):
+    """The push cap: a day's pushes to main over every repository sharing one config stop at its limit, the latest
+    limit started wins, a push the repository's own hook refused gives its slot back, other branches are not
+    counted, no config is no cap and an unreadable one refuses."""
+    first, second = capped_repo(folder / "one", "git@example.com:a/one.git"), capped_repo(folder / "two", "x/two")
+    config = folder / "cap.json"
+
+    def push(hook, branch="main", refuses=False, cap=config):
+        line = f"refs/heads/{branch} {'1' * 40} refs/heads/{branch} {'2' * 40}\n"
+        done = subprocess.run(["bash", str(hook), "origin", "x"], input=line, capture_output=True, text=True,
+                              cwd=hook.parents[2], env=dict(GIT_ENV, HARNESS_PUSH_CAP=str(cap),
+                                                             LOCAL_REFUSES="1" if refuses else "0"))
+        return done.returncode, done.stderr
+
+    # 6 a day from long ago, 4 from a day that has not come: 6 holds, over both repositories.
+    config.write_text(json.dumps({"limits": [{"from": "2000-01-01", "per_day": 6}, {"from": "2999-01-01", "per_day": 4}],
+                                  "ledger": str(folder / "ledger.json")}))
+    answers = [push(hook) for hook in (first, second, first, second, first)]
+    assert all(code == 0 for code, _ in answers), answers
+    assert push(first, refuses=True)[0] == 1, "the repository's own hook still refuses"
+    assert push(second, branch="feature")[0] == 0, "another branch is no push to main"
+    assert push(second)[0] == 0, "the refused push gave its slot back: this is the 6th"
+    code, said = push(first)
+    assert code == 1 and "reached today's limit of 6" in said and "a/one.git" in said and "x/two" in said, said
+    # the latest started limit wins: 4 from today on
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    config.write_text(json.dumps({"limits": [{"from": "2000-01-01", "per_day": 6}, {"from": today, "per_day": 4}],
+                                  "ledger": str(folder / "later.json")}))
+    assert [push(first)[0] for _ in range(5)] == [0, 0, 0, 0, 1]
+    assert push(first, cap=folder / "none.json")[0] == 0, "no config, no cap"
+    config.write_text("{not json")
+    code, said = push(first)
+    assert code == 1 and "cannot be read" in said, said
 
 
 def test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract(tmp_path):
