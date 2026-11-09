@@ -246,7 +246,8 @@ class LocalSource:
     def batch_run(self, read_at=None, reading=None):
         """The newest Buy's batch now (state/batch_run.py), read live from its checkout, its run's log, its rows'
         logs and batch gaps and its warm pool, its money by the guard's measure at the Spend `reading()` gives (else
-        the cockpit's cached one, pages/actions); None before one. `read_at` the ISO time it is stamped with."""
+        the cockpit's cached one, pages/actions) with env1's cap from the bill beside it (web.cap_figure); None
+        before one. `read_at` the ISO time it is stamped with."""
         from score.dashboard.checkout import watched
         from score.dashboard.pages import actions
         from score.dashboard.state import batch_run
@@ -254,7 +255,8 @@ class LocalSource:
 
         def accepted_at(node):
             return (self.store.current_accept(node) or {}).get("at")
-        return batch_run.gathered(watched.newest(accepted_at, reading or actions.spend), self.props_home,
+        from score.review import web
+        return batch_run.gathered(watched.newest(accepted_at, reading or actions.spend, web.cap_figure), self.props_home,
                                   self.store_root, self.batch_gaps, now, accepted_at)
 
     def batch_gaps(self, node):

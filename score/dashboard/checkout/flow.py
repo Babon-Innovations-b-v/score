@@ -30,7 +30,7 @@ from score.dashboard.pages import actions
 from score.dashboard.pages.basket import basket_root
 from score.dashboard.pages.models import Checkout, Launch, Plan, is_owner
 from score.dashboard.proposals import records
-from score.dashboard.state import screens
+from score.dashboard.state import batch_run, screens
 
 ACTIVE = ("launching",)
 BUFFER = 1.10  # a batch's stop is its high plus 10%, set by the owner's yes, never a figure he sets (owner, 2026-10-20)
@@ -38,6 +38,15 @@ BUFFER = 1.10  # a batch's stop is its high plus 10%, set by the owner's yes, ne
 # environment's plan and concept); a lock or unlock is a record under concepts/<place>/picks/.
 DESIGN_AREAS = ("plans", "plan-writings", "inventory-readings", "environment-plans", "environment-concept")
 ENDED_RUNS = ("done", "failed", "stopped", "refused")
+# The paid stages with no free route on this PC: their jobs need more card than its 16 GB (the close-up judge 30 GB,
+# the people's bodies and dresses, their mesh parts 24 GB, the MOSS sound takes), so a try that stopped on one is
+# retried in the cloud under its one paid remake (the plan of 2026-11-09, A3, C8); a stage named with a closing "-"
+# is every stage it begins.
+NO_FREE_ROUTE = ("closeup", "sound", "people-body-", "people-dress-", "people-look-parts-")
+PAID_REMAKES = 1  # a result's paid remakes inside its batch; after them it is a gap (C8, K11)
+# The tries counted for it: those from the env1 cap's start on (the plan's counter), so a row that failed before
+# then, on code fixed since, is no gap.
+REMAKES_FROM = datetime.datetime(2026, 11, 9, 18, 40, tzinfo=datetime.timezone.utc)
 _checking_out = threading.Lock()
 
 
@@ -104,6 +113,71 @@ def nodes_kept(items, keeps):
         if nodes:
             found.append({**item, "nodes": nodes})
     return found
+
+
+def nodes_left(items, nodes):
+    """The `items` with the nodes `nodes` taken out of each, an item left with none dropped."""
+    found = []
+    for item in items:
+        kept = {node: price for node, price in item["nodes"].items() if node not in nodes}
+        if kept:
+            found.append({**item, "nodes": kept})
+    return found
+
+
+def free_route(node):
+    """Whether this PC runs the node's stage free (NO_FREE_ROUTE names those it cannot)."""
+    stage = node.partition("@")[0]
+    return not any(stage.startswith(name) if name.endswith("-") else stage == name for name in NO_FREE_ROUTE)
+
+
+def failed_rows(record):
+    """The rows a checkout's runs stopped on: a row whose line in their logs names a fault report."""
+    if not record.launch:
+        return set()
+    planned = set(watched.checkout_nodes(record))
+    rows = batch_run.tried_rows(watched.checkout_runs(record), {}, planned)
+    return {node for node, (state, _, _) in rows.items() if state == "failed"}
+
+
+def remade_out(earlier, failed):
+    """The rows that have had their one paid remake inside the batch (C8, owner 2026-11-08: one paid remake without
+    asking): failed in more than PAID_REMAKES of the `earlier` tries made from REMAKES_FROM on (`failed` {checkout pk:
+    rows}). A gap now, not bought again by this batch."""
+    counts = {}
+    for one in earlier:
+        for node in failed.get(one.pk, ()) if one.at >= REMAKES_FROM else ():
+            counts[node] = counts.get(node, 0) + 1
+    return sorted(node for node, count in counts.items() if count > PAID_REMAKES)
+
+
+def free_first(earlier, failed, accepted_at):
+    """Why the next try waits, in words: the newest of the `earlier` tries that stopped on rows (`failed` {checkout
+    pk: rows}) stopped on one whose stage this PC runs free, and it has not passed there since (no accept newer than
+    that try: `accepted_at(node)`, ISO). A cloud retry of it waits for that free pass (C8: no cloud retry loop)."""
+    stopped = [one for one in earlier if failed.get(one.pk)]
+    if not stopped:
+        return []
+    last = stopped[-1]
+    waiting = sorted(node for node in failed[last.pk] if free_route(node)
+                     and not (watched.moment(accepted_at(node)) or last.at) > last.at)
+    if not waiting:
+        return []
+    return [f"checkout {last.pk} stopped on {', '.join(waiting[:6])}{' and more' if len(waiting) > 6 else ''}, "
+            "which this PC runs free: run it there until it passes (this_pc.py env1), then buy again"]
+
+
+def retry_of(items, accepted_at):
+    """(the `items` less the rows remade_out, those rows, the free_first refusals) for a Buy now: the batch's earlier
+    tries read from the checkouts so far, as watched.batch_of counts them; the items as they are for a new batch."""
+    records = list(Checkout.objects.order_by("at"))
+    if not records:
+        return items, [], []
+    ahead = Checkout(at=datetime.datetime.now(datetime.timezone.utc))
+    tries = watched.batch_of([*records, ahead], accepted_at)[1][:-1]
+    failed = {one.pk: failed_rows(one) for one in tries}
+    gaps = remade_out(tries, failed)
+    return nodes_left(items, set(gaps)), gaps, free_first(tries, failed, accepted_at)
 
 
 def item_refusals(items):
@@ -218,6 +292,11 @@ def yes_refusals(yes, totals):
     return []
 
 
+def accepted_at(node):
+    """When the node's standing accept in the store was given (ISO), or None."""
+    return (state.source().store.current_accept(node) or {}).get("at")
+
+
 def by_of(user, yes):
     """Who the checkout is by: his name, and when he approved it in chat for a Buy approved in a session."""
     return f"{user.username}, approved in chat at {yes['at']}" if yes else user.username
@@ -234,9 +313,10 @@ def start(user, key, confirmed, seen, at_once=False, yes=None):
             return found, f"checkout {found.pk} was already made with this key: {found.state}"
         items, changed = bought_items(seen)
         items = phase_kept(left_out(items, (yes or {}).get("leave_out", ())), (yes or {}).get("phase"))
+        items, gaps, waits = retry_of(items, accepted_at)
         bought = snapshot(items)
-        totals = pricing.totals(pricing.basket_prices(bought))
-        refused = refusals(user, seen, items, changed, confirmed) + yes_refusals(yes, totals)
+        totals = {**pricing.totals(pricing.basket_prices(bought)), "gaps": gaps}
+        refused = refusals(user, seen, items, changed, confirmed) + waits + yes_refusals(yes, totals)
         if refused:
             return None, "refused: " + "; ".join(refused)
         try:
@@ -345,6 +425,11 @@ def plan_refusals(record, planned):
         if plan.missing:
             found.append(f"inputs are missing: {', '.join(plan.missing[:5])}")
     extra = sorted({buy["node"] for _, plan in planned for buy in plan.buys} - bought)
+    gaps = sorted(set(extra) & set(record.totals.get("gaps") or ())) if extra else []
+    if gaps:
+        found.append(f"{', '.join(gaps[:6])} had {'their' if len(gaps) > 1 else 'its'} one paid remake in this batch "
+                     "and is a gap now, but a row bought reads it: leave that row out (buy --phase) or fix it free")
+        extra = sorted(set(extra) - set(gaps))
     if extra:
         found.append(f"the run would also buy {', '.join(extra[:6])}, which the basket's price leaves out: look at "
                      "the basket again and check out again")
@@ -569,7 +654,15 @@ def launch(record, planned, chosen):
         return closed(ended(record, "refused", f"the runner refused: {started.result}"), chosen,
                       "the runner refused its run")
     return ended(record, "launched", f"launched one batch of {len(nodes_of(record))} paid nodes, stop line EUR "
-                                     f"{record.stop_line['euros']:.2f}{may_stop_words(record)}")
+                                     f"{record.stop_line['euros']:.2f}{may_stop_words(record)}{gap_words(record)}")
+
+
+def gap_words(record):
+    """The rows this try left out as gaps after their one paid remake (retry_of), in words; "" for none."""
+    gaps = record.totals.get("gaps") or []
+    if not gaps:
+        return ""
+    return f"; left out as gaps after their one paid remake: {', '.join(gaps[:6])}{' and more' if len(gaps) > 6 else ''}"
 
 
 def may_stop_words(record):

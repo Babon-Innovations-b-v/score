@@ -299,6 +299,27 @@ def cap_now(name):
     return guard.current_cap(guard.cap_book(), name)
 
 
+def cap_figure(name="env1"):
+    """The cap `name`'s spend for the pages, from the same records its guard reads (guard.current_cap and the
+    watcher's newest reading in the SCORE object store): {name, euros (the owner's cap), line (its stop), counter (the
+    newest reading's: the whole bill, every project, less babon's own services, or the watcher's own meter when
+    higher), at (that reading's time), unread (why the newest pass could not read, else None), open}; None while no
+    cap was ever set. {unread: why} when the records cannot be read (the page says so, never a figure)."""
+    from score.adapters.compute import guard
+    try:
+        book = guard.cap_book()
+        cap_record, reading = guard.current_cap(book, name), guard.cap_newest(book, "readings", name)
+    except Exception as error:  # noqa: BLE001 - shown as unread on the money card, never a crash of the page
+        return {"name": name, "unread": f"{type(error).__name__}: {error}"}
+    if cap_record is None:
+        return None
+    reading = reading or {}
+    return {"name": name, "euros": float(cap_record["euros"]), "line": float(cap_record["line"]),
+            "counter": None if reading.get("counter") is None else round(float(reading["counter"]), 2),
+            "at": reading.get("good_at") if reading.get("unread") else reading.get("at"),
+            "unread": reading.get("unread") if reading else "no reading yet", "open": bool(cap_record.get("open"))}
+
+
 def cap(name, figures, by, replaces=None, baseline=None):
     """Write the owner's cap `name` by his signed-in name (`figures`: euros, line, start, month_cap, finish,
     standing_per_day, open; a close keeps the current cap's figures, open False); the record, or None once the newest

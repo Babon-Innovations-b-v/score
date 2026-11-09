@@ -21,7 +21,8 @@ the files the batch writes, read live locally and carried in the export as batch
                 (its runs' own: the last heartbeat of each of its runs, each the euros its rows, its warm pool (every
                 minute of its machines) and its model calls cost; None before any), other (spent less runs:
                 benchmarks, design calls and what the bill holds over the ledger meanwhile), in_flight, parts,
-                try_spent (this try's runs' heartbeats alone), open
+                try_spent (this try's runs' heartbeats alone), cap (env1's cap from the whole bill, every project:
+                {name, euros, line, counter, at, unread, open}, score.review.web.cap_figure; None without one), open
                 (paid runs open), likely, high (pricing.cleared_high: the high with the guessed steps, what the
                 runner clears), guessed, stop (this batch's own room under the stop line the Buy wrote: the line
                 less the spend and the reservations it was written over, on the same scale as spent; None for a
@@ -433,7 +434,8 @@ def money_of(totals, stop_line, beat, runs, launching=False, guarded=None, try_s
             "open": beat["open"] if beat else None,
             "likely": totals.get("likely_euros"), "high": high,
             "guessed": totals.get("guessed_euros"), "stop": stop, "line": stop_line.get("euros"),
-            "closed": bool(stop_line.get("closed")), "budget": guarded.get("budget"), "left": guarded.get("left")}
+            "closed": bool(stop_line.get("closed")), "budget": guarded.get("budget"), "left": guarded.get("left"),
+            "cap": guarded.get("cap")}
 
 
 def batch_total(money, need):

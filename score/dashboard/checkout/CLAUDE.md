@@ -64,6 +64,18 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   parts beside it) and the door's `batch-money`, the monitor and the Buy page all show it, the runs' own heartbeats
   beside it as `runs` with the difference as `other` (benchmarks, design calls and the bill over the ledger
   meanwhile). The Buy page names the batch total its Buy sets (`views.next_total`).
+- **One paid remake per result, then a gap; no cloud retry loop** (the plan of 2026-11-09, C8; owner 2026-11-08: one
+  paid remake without asking). `flow.retry_of` in `flow.start`: a row that stopped (its line names a fault report,
+  `flow.failed_rows`) in more than `PAID_REMAKES` of the batch's earlier tries is left out of the basket
+  (`flow.remade_out`, tries from `REMAKES_FROM`, the cap's start, on; kept as the checkout's `totals["gaps"]` and said in its words); a run that would still buy it
+  through a row that reads it is refused naming it. A try is refused while the newest earlier try that stopped
+  stopped on a row whose stage this PC runs free (`flow.free_route`: every paid stage but `NO_FREE_ROUTE`'s) and that
+  row has no accept since: it is run free there first (`flow.free_first`).
+- **env1's cap beside the batch's money** (the plan of 2026-11-09, B7): `score.review.web.cap_figure` reads the cap
+  record and the watcher's newest reading (the whole bill, every project, less babon's own services, or the meter
+  when higher); `watched.batch_money`'s `cap`, the door's `batch-money` first line ("env1: EUR X of 300 (bill, all
+  projects)"), the run monitor's money block. `watched.batch_of` reads each checkout's rows and each row's accept once
+  a pass (51 tries made batch-money take 283 s in 4,549 plan-body queries, 2026-11-09).
 - **Tests never launch.** `checkout/test_a_batch_buys_only_what_the_owner_approved.py` uses `FakeBackend`, a temp basket and a temp store.
 - One function, one purpose; no provider names; no imports of `tools.*` or `score.adapters` (`score.review.web` reaches
   the guard for us).
