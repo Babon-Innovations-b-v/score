@@ -327,9 +327,10 @@ def shifted(box, blocker, along):
 def runs_kept_clear(plan, inventory):
     """Each run on the floor (a counted box of several floor things, plan_checks.blocking, laid along its long side)
     kept out of the walls and stairs: one a wall or stair crosses cut to its longer part on one side, its count cut
-    with its length; one a wall or stair only runs along moved off it across; the fixes said. A run held by a wall
+    with its length, the pieces it lays said in the plan's `dropped` (`count_said`: no later pass lays the cut ones
+    again as missing); one a wall or stair only runs along moved off it across; the fixes said. A run held by a wall
     (pipes along it) is left on it."""
-    blockers, fixes = walls_and_stairs(plan), []
+    blockers, fixes, cut = walls_and_stairs(plan), [], {}
     for item, row, shape in plan_checks.blocking(plan, inventory):
         count = int((shape or {}).get("count") or 1)
         if count < 2:
@@ -350,8 +351,47 @@ def runs_kept_clear(plan, inventory):
         kept = max(1, round(count * box[2 + along] / item[3 + along]))
         item[1:5] = [round(value, 3) for value in box]
         shape["count"] = kept
+        cut[row] = cut.get(row, 0) + count - kept
         fixes.append(f"{plan_checks.said_name(item[0])}: kept out of the walls and stairs, {kept} of {count} things")
+    for row, fewer in cut.items():
+        if fewer:
+            count_said(plan, row, f"{fewer} fewer of it laid, its runs cut clear of the walls and stairs")
     return fixes
+
+
+def run_doubles_dropped(plan, inventory):
+    """Each single thing on the floor (plan_checks.blocking) standing in a run of its own row (a counted box of
+    several) at the run's base, more than plan_checks.OVERLAP of it, taken off: the run lays its own pieces there, so
+    it is one of them laid twice; each row's in the plan's `dropped` with the count it lays (`count_said`); the fixes
+    said, one a row. settle@airlock, 2026-11-09: runs_kept_clear cut sandbags 1 to 3 from 10, 6 and 5 to 8, 5 and 3
+    clear of the walls and stairs, said nowhere, so the next pass's placed_missing laid the five back as sandbags 5 to
+    9 where the cut took them off, in sandbags 1 and past the west wall."""
+    floor = plan_checks.blocking(plan, inventory)
+    runs = [(item, row, shape) for item, row, shape in floor if int((shape or {}).get("count") or 1) > 1]
+    doubles = {}
+    for item, row, shape in floor:
+        if int((shape or {}).get("count") or 1) > 1:
+            continue
+        base = float((shape or {}).get("base") or 0.0)
+        if any(run_row == row and abs(float((run_shape or {}).get("base") or 0.0) - base) < 1e-3
+               and shared(item[1:5], run[1:5]) > plan_checks.OVERLAP * item[3] * item[4]
+               for run, run_row, run_shape in runs):
+            doubles.setdefault(row, []).append(item)
+    fixes = []
+    for row, items in doubles.items():
+        for item in items:
+            dropped_item(plan, item)
+        why = count_said(plan, row, f"{len(items)} laid again in its own row's run, which lays its pieces there")
+        fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
+                     f"taken off, {why}")
+    return fixes
+
+
+def shared(box, other):
+    """The floor (square metres) two boxes [x, y, w, d] share."""
+    wide = min(box[0] + box[2], other[0] + other[2]) - max(box[0], other[0])
+    deep = min(box[1] + box[3], other[1] + other[3]) - max(box[1], other[1])
+    return max(wide, 0.0) * max(deep, 0.0)
 
 
 def floored(plan, inventory):
@@ -443,22 +483,37 @@ def surplus_dropped(plan, surplus):
     for row, items in by_row.items():
         for item in items:
             dropped_item(plan, item)
-        kept = sum(1 for found in plan["items"] if row in (plan.get("rows", {}).get(found[0]) or []))
         size = f"{items[0][3]:g} x {items[0][4]:g} m"
-        why = f"{len(items)} more of it than the place's free floor holds ({size} each): {kept} laid"
-        plan.setdefault("dropped", []).append({"item": row, "why": why, "laid": kept})
+        why = count_said(plan, row, f"{len(items)} more of it than the place's free floor holds ({size} each)")
         fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
                      f"taken off, {why}")
     return fixes
 
 
+def laid_of(plan, row):
+    """How many pieces of `row` the plan lays: each item tied to it its shape's `count` (as plan_checks.count_gaps
+    counts them)."""
+    return sum(int((plan.get("shapes", {}).get(item[0]) or {}).get("count") or 1) for item in plan.get("items", [])
+               if item[6] == "item" and row in (plan.get("rows", {}).get(item[0]) or []))
+
+
+def count_said(plan, row, why):
+    """`why` a fix lays fewer of `row` than before, said in the plan's `dropped` with the pieces it lays now
+    (`laid_of`), so its count is no gap, no fix places the rest again (plan_checks.count_gaps) and the scene record
+    lays no more (scene_record/writer.counted); the words said."""
+    laid = laid_of(plan, row)
+    said = f"{why}: {laid} laid"
+    plan.setdefault("dropped", []).append({"item": row, "why": said, "laid": laid})
+    return said
+
+
 def wall_runs_parted(plan, inventory):
     """Each run (RUN_SHARE) held on a wall (holders.wall_held) whose end runs into another of its row at the same
     height, reaching past that end (a piece on the next wall at the corner), cut back off it along its long side,
-    MARGIN off (`trimmed`), its count cut with its length as runs_kept_clear cuts, while it keeps at least half its
-    length; the fixes said. The holders part one wall's pieces, never two walls' at their corner: the engine
-    room's pipe 1 along its north wall ran into its corner pipes 2 and 3 (env1 checkout 68: settle@engineroom, pipe_1
-    and pipe_2 inside each other by 0.072 m)."""
+    MARGIN off (`trimmed`), its count cut with its length as runs_kept_clear cuts (and said, `count_said`), while it
+    keeps at least half its length; the fixes said. The holders part one wall's pieces, never two walls' at their
+    corner: the engine room's pipe 1 along its north wall ran into its corner pipes 2 and 3 (env1 checkout 68:
+    settle@engineroom, pipe_1 and pipe_2 inside each other by 0.072 m)."""
     rows = {row["id"]: row for row in inventory.get("rows", [])}
     held = [(item, row, shape) for item, row, shape in plan_checks.placed_items(plan)
             if row in rows and shape is not None and holders.wall_held(rows[row], rows)]
@@ -486,6 +541,9 @@ def wall_runs_parted(plan, inventory):
         item[1:5] = [round(value, 3) for value in box]
         if count > 1:
             shape["count"] = kept
+        if kept < count:
+            count_said(plan, row, f"{count - kept} fewer of it laid, {plan_checks.said_name(item[0])} cut clear of the "
+                                  "piece at its corner")
         fixes.append(f"{plan_checks.said_name(item[0])}: cut to {item[3 + along]:.2f} m along its wall, clear of the "
                      "piece at its corner")
     return fixes
@@ -839,15 +897,16 @@ def flight_gaps(plan, inventory):
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
     order: a roof's eave raised a storey over a level standing under it (`eaves_raised`), a stairs row taken off where
-    the shell builds the flights (`stair_rows_dropped`), runs kept out of the walls and stairs (`runs_kept_clear`),
-    things piled on their own row's though it does not pile stood on the floor or taken off (`unpiled`), runs of one
-    row in each other on a wall laid along walls free of them (`wall_runs_spread`), runs on a wall parted
-    (`wall_runs_parted`), stairs and ramps moved out of what is made larger than drawn (`flights_cleared`), things
-    made larger than drawn moved off the stairs (`off_flights`); the fixes said. A writing fixed before them gets them
-    in the pass (plans_pass.unsettled), an edit or a redrawing when shown (plans.edit_inside)."""
+    the shell builds the flights (`stair_rows_dropped`), runs kept out of the walls and stairs (`runs_kept_clear`), a
+    single thing laid again in its own row's run taken off (`run_doubles_dropped`), things piled on their own row's
+    though it does not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid
+    along walls free of them (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and ramps moved
+    out of what is made larger than drawn (`flights_cleared`), things made larger than drawn moved off the stairs
+    (`off_flights`); the fixes said. A writing fixed before them gets them in the pass (plans_pass.unsettled), an edit
+    or a redrawing when shown (plans.edit_inside)."""
     return eaves_raised(plan) + stair_rows_dropped(plan, inventory) + runs_kept_clear(plan, inventory) \
-        + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) + wall_runs_parted(plan, inventory) \
-        + flights_cleared(plan, inventory) + off_flights(plan, inventory)
+        + run_doubles_dropped(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
+        + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory) + off_flights(plan, inventory)
 
 
 def nudged(plan, inventory):

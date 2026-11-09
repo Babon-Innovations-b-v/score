@@ -3366,7 +3366,14 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     Break: score/review/plan_checks.py: `for item in plan.get("items", []):  # every row tied to an item` loop ->
         placed_items' floor rows alone
     Break: score/review/plan_fixes.py `runs_kept_clear`: `box = trimmed(box, blocker, along) if crosses else
-        shifted(box, blocker, along)` -> `box = shifted(box, blocker, along)`, or `shape["count"] = kept` dropped
+        shifted(box, blocker, along)` -> `box = shifted(box, blocker, along)`, or `shape["count"] = kept` dropped,
+        or its `count_said(plan, row, ...)` dropped (the cut bags a count gap again, placed back as missing)
+    Break: score/review/plan_fixes.py `run_doubles_dropped`: `abs(float((run_shape or {}).get("base") or 0.0) - base) <
+        1e-3 and` dropped (the bag piled on the run taken off), or `> plan_checks.OVERLAP * item[3] * item[4]` ->
+        `> 0` (the bag touching the run's end taken off)
+    Break: score/review/plan_fixes.py `wall_runs_parted`: `if kept < count:` -> `if False:` (the cut pipe unsaid)
+    Break: score/review/plan_fixes.py `laid_of`: `int((plan.get("shapes", {}).get(item[0]) or {}).get("count") or 1)`
+        -> `1` (the record lays one bag a run)
     Break: score/review/plan_fixes.py `walls_and_stairs`: `for stair in plan.get("stairs") or []:` ->
         `for stair in []:` (BAGS 3 left on the ramp)
     Break: score/review/plan_fixes.py `nudged`: `others += [box for box in standing_low(plan, inventory, mover) if
@@ -3457,10 +3464,36 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
             "walls": [{"from": [6.0, 0.0], "to": [6.0, 5.0], "thick": 0.2}, {"from": [0.0, 9.0], "to": [5.0, 9.0],
                                                                               "thick": 0.2}],
             "stairs": [{"kind": "ramp", "points": [[7.0, 5.0], [8.0, 5.0], [8.0, 7.0], [7.0, 7.0]]}]}
-    said = plan_fixes.runs_kept_clear(runs, {"rows": [bags, {**wall_row["rows"][0], "anchor": "on:wall"}]})
+    run_rows = {"rows": [bags, {**wall_row["rows"][0], "anchor": "on:wall"}]}
+    said = plan_fixes.runs_kept_clear(runs, run_rows)
     assert [(item[1:5], runs["shapes"][item[0]]["count"]) for item in runs["items"]] == [
         ([1.0, 2.0, 4.85, 0.5], 5), ([1.0, 9.15, 3.0, 0.5], 3), ([8.05, 6.0, 1.45, 0.5], 1),
         ([5.9, 1.0, 0.2, 3.0], 2)] and len(said) == 3, runs["items"]
+    # settle@airlock, 2026-11-09: the cut said nowhere, the next pass's placed_missing laid the five cut bags back as
+    # sandbags 5 to 9 in the corner the cut cleared, in sandbags 1 and past the west wall. The cut is said with what it
+    # lays, so the row's count is no gap; a plan cut nowhere says nothing; a single bag laid in its own row's run at its
+    # base is taken off, one piled on it, one touching its end and another row's left.
+    assert runs["dropped"] == [{"item": "bags", "why": "4 fewer of it laid, its runs cut clear of the walls and "
+                                                       "stairs: 9 laid", "laid": 9}], runs["dropped"]
+    assert plan_checks.count_gaps(runs, {"rows": [{**bags, "count": 13}]}, set()) == []
+    assert plan_fixes.runs_kept_clear(runs, run_rows) == [] and len(runs["dropped"]) == 1
+    doubled = {"w": 10.0, "d": 10.0, "items": [["BAGS 1", 1.0, 1.0, 3.0, 0.5, None, "item"],
+                                               ["BAGS 2", 1.2, 1.1, 0.6, 0.4, None, "item"],
+                                               ["BAGS 3", 1.2, 1.1, 0.6, 0.4, None, "item"],
+                                               ["BAGS 4", 3.9, 1.4, 0.6, 0.4, None, "item"],
+                                               ["CRATE 1", 2.0, 1.0, 0.6, 0.4, None, "item"]],
+               "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "BAGS 4": ["bags"],
+                        "CRATE 1": ["crate"]},
+               "shapes": {"BAGS 1": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": 5},
+                          "BAGS 2": {"shape": "rect", "tall": 0.2, "base": -0.2},
+                          "BAGS 3": {"shape": "rect", "tall": 0.2, "base": 0.0},
+                          "BAGS 4": {"shape": "rect", "tall": 0.2, "base": -0.2},
+                          "CRATE 1": {"shape": "rect", "tall": 0.5, "base": -0.2}}}
+    said = plan_fixes.run_doubles_dropped(doubled, {"rows": [bags, {"id": "crate"}]})
+    assert [item[0] for item in doubled["items"]] == ["BAGS 1", "BAGS 3", "BAGS 4", "CRATE 1"] and said == [
+        "bags: bags 2 taken off, 1 laid again in its own row's run, which lays its pieces there: 7 laid"] and \
+        doubled["dropped"][0]["laid"] == 7, (doubled["items"], said)
+    assert plan_fixes.run_doubles_dropped(doubled, {"rows": [bags, {"id": "crate"}]}) == []
     crowded = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 2.0, 4.0, 2.0, 2.0, None, "item"],
                                                ["BOX 1", 3.6, 4.5, 0.8, 0.5, None, "item"],
                                                ["SUIT 1", 4.5, 4.4, 0.5, 0.7, "W", "item"]],
@@ -3530,7 +3563,12 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     assert kitchen["shapes"]["FRAME 2"]["base"] == 1.2 and laid["FRAME 2"] == [3.1, 4.8, 0.5, 0.1]
     assert laid["PIPE 1"] == [1.45, 0.0, 3.55, 0.3] and laid["PIPE 3"] == [4.6, 0.0, 0.6, 0.3], laid
     assert laid["PANEL 1"] == [0.0, 0.0, 6.0, 5.0] and len(said) == 3, said
-    assert plan_fixes.kept_apart(kitchen, kitchen_rows) == []
+    assert plan_fixes.kept_apart(kitchen, kitchen_rows) == [] and "dropped" not in kitchen
+    piped = copy.deepcopy(written)
+    piped["shapes"]["PIPE 1"]["count"] = 8
+    plan_fixes.wall_runs_parted(piped, kitchen_rows)
+    assert piped["shapes"]["PIPE 1"]["count"] == 7 and piped["dropped"] == [
+        {"item": "pipe", "why": "1 fewer of it laid, pipe 1 cut clear of the piece at its corner: 9 laid", "laid": 9}]
     assert plans_pass.unsettled(written, kitchen_rows, parts=False)
     again, _ = plans_pass.settled_again(None, "kitchen", written, kitchen_rows, None, parts=False)
     assert again["items"] == kitchen["items"] and again["fixes"] == said, again["fixes"]
