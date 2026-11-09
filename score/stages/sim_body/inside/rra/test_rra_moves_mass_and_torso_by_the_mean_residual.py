@@ -486,7 +486,8 @@ def a_floating_body_keeps_its_mass_within_the_bound():
 
 def the_torso_moves_under_the_mean_moment_within_its_cap():
     """A residual moment about x of the torso's weight times 2 cm (the torso upright): its centre of mass moves 2 cm
-    along y; of its weight times 50 cm, it stops at COM_MOST (10 cm)."""
+    along y; of its weight times 50 cm, it stops at COM_MOST (10 cm); and only across its up
+    (`torso_across_up_problems`)."""
     import model
     import numpy as np
     import rra
@@ -502,10 +503,10 @@ def the_torso_moves_under_the_mean_moment_within_its_cap():
         moved.append(found.body_ipos[torso] - home)
     problems = [] if np.allclose(moved[0], [0.0, 0.02, 0.0], atol=1e-6) else [f"2 cm lever: moved {moved[0]}"]
     return problems + ([] if np.allclose(moved[1], [0.0, rra.COM_MOST, 0.0], atol=1e-6) else
-                       [f"50 cm lever: moved {moved[1]}"])
+                       [f"50 cm lever: moved {moved[1]}"]) + torso_across_up_problems()
 
 
-def the_torso_moves_only_across_its_up():
+def torso_across_up_problems():
     """The torso tilted -0.1, 0 and 0.1 rad on three frames, each frame's residual moment the one its weight moved 5 cm
     up its own axis gives: a move along a weight's own line is no moment's, so the centre of mass stays (RRATool moves
     it in its body's x and z only); a 2 cm move across it with the same tilts is found whole."""
@@ -798,7 +799,7 @@ def the_balance_is_the_pushes_wrenches_kept_per_path():
 
 
 CHECKS = (the_mass_follows_the_mean_upward_residual, a_floating_body_keeps_its_mass_within_the_bound,
-          the_torso_moves_under_the_mean_moment_within_its_cap, the_torso_moves_only_across_its_up, the_feet_stay_where_they_stood_when_the_pelvis_moves,
+          the_torso_moves_under_the_mean_moment_within_its_cap, the_feet_stay_where_they_stood_when_the_pelvis_moves,
           a_leg_past_its_stop_is_left_where_it_stood, a_legs_free_direction_is_held_where_the_frame_stood,
           the_footing_converges_near_straight_or_fails, the_cards_footing_equals_minks,
           a_turn_between_two_paths_is_its_angle, the_frame_shares_are_smooth_and_never_above_the_lowered,

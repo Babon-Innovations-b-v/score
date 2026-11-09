@@ -194,7 +194,7 @@ def rounding_moves_no_activation():
     nudged = solved(lambda moments: moments.__imul__(1 + 1e-6 * nudge.standard_normal(moments.shape)))[1]
     if np.abs(nudged - before).max() > 1e-5:
         problems.append(f"a 1e-6 nudge of the moments moves the activations {before} to {nudged}")
-    return problems + ligament_turn_problems()
+    return problems + ligament_turn_problems() + own_moment_problems()
 
 
 def ligament_turn_problems():
@@ -305,7 +305,7 @@ SPINE = """<mujoco model="spine">
 """
 
 
-def a_leaders_own_moment_is_its_joint_alone():
+def own_moment_problems():
     """A spine of two levels, the upper following the lower at half its turn, the body 2 m up and turning: the leader's
     net moment is its own joint's and half its follower's (the couplings' map), its own moment its joint's alone (the
     moment across that one joint, as a single back joint's inverse dynamics gives it)."""
@@ -338,8 +338,7 @@ def a_leaders_own_moment_is_its_joint_alone():
     return problems
 
 
-CHECKS = (the_ground_carries_a_still_body, rounding_moves_no_activation, ground_frames_are_well_posed,
-          a_leaders_own_moment_is_its_joint_alone)
+CHECKS = (the_ground_carries_a_still_body, rounding_moves_no_activation, ground_frames_are_well_posed)
 
 
 def in_newton():
