@@ -11,6 +11,12 @@ And in score/adapters/models/claude_code.py:
 - asked once: ask's `if kept.exists():` becomes `if False:` (the second ask calls Claude again).
 - subscription only: the environment filter `if name != "ANTHROPIC_API_KEY"` becomes `if True` (the key reaches it).
 - a failed answer kept: ask's `raise Unanswered(...)` becomes `answer, result = repr(error), {}` (cached, read back).
+- a limit taken for an answer: result_of's `if refusal:` becomes `if False:` (the weekly limit is an Unanswered,
+  a take's gap, and never asked again by the runner).
+- a limit read from words only: unavailable's `kind = f"{info.get(...)} limit"` line becomes `pass` (the structured
+  limit with no words is an Unanswered).
+- a real refusal taken for a limit: REFUSAL_WORDS gains `|help` (the refusal "I can't help with that" is Unavailable).
+- an overload not retried: Overloaded's `ConnectionError, ` base is dropped (not transient to the runner).
 - runs on this PC: asked's `if shutil.which("claude") is None:` becomes `if False:` (no NotHere off the PC).
 - the schema as Gemini wrote it: json_schema's `value.lower()` becomes `value` (OBJECT reaches --json-schema).
 
@@ -76,20 +82,33 @@ def test_an_api_model_is_keyed_on_its_id_and_settings():
 
 
 # A stand-in `claude` on PATH: counts its calls, keeps what it was given, answers the colour it was asked, or an error
-# result when the text says "fail".
+# result when the text says "fail"; "refuse" a refusal with no answer; "limit" the account's weekly limit in structured
+# fields alone (a rejected rate_limit_event, an assistant `error`), "worded" in the result's words alone (checkout 70's
+# conductor); "busy" an overload.
 FAKE_CLAUDE = """#!/usr/bin/env python3
 import json, os, pathlib, sys
 here = pathlib.Path(__file__).parent
 calls = here / "calls"
-calls.write_text(str(int(calls.read_text() or 0) + 1) if calls.exists() else "1")
+with calls.open("a") as counted:  # one character a call, appended: calls side by side each counted
+    counted.write(".")
 line = json.loads(sys.stdin.readline())
 (here / "last.json").write_text(json.dumps({"argv": sys.argv[1:], "line": line,
                                             "key": os.environ.get("ANTHROPIC_API_KEY")}))
 text = line["message"]["content"][-1]["text"]
-result = {"type": "result", "subtype": "success", "is_error": "fail" in text, "result": "",
-          "structured_output": None if "fail" in text else {"colour": "red"},
+refused = any(word in text for word in ("fail", "refuse", "limit", "worded", "busy"))
+said = {"refuse": "I can't help with that.", "worded": "You've hit your weekly limit \u00b7 resets Nov 12, 5am (UTC)",
+        "busy": "API Error: Repeated 529 Overloaded errors"}
+result = {"type": "result", "subtype": "success", "is_error": refused and "refuse" not in text,
+          "result": next((words for word, words in said.items() if word in text), ""),
+          "structured_output": None if refused else {"colour": "red"},
           "usage": {"input_tokens": 5, "output_tokens": 3}}
 print(json.dumps({"type": "system", "subtype": "init"}))
+if "limit" in text:
+    print(json.dumps({"type": "rate_limit_event", "rate_limit_info": {"status": "rejected", "resetsAt": 1794459600,
+                                                                      "rateLimitType": "seven_day"}}))
+if "limit" in text or "busy" in text:
+    print(json.dumps({"type": "assistant", "error": "rate_limit" if "limit" in text else "overloaded",
+                      "message": {"role": "assistant", "content": [{"type": "text", "text": ""}]}}))
 print(json.dumps(result, separators=(",", ":")))
 """
 
@@ -122,7 +141,7 @@ def test_a_claude_code_ask_is_asked_of_its_pinned_model_once_on_the_subscription
     first = claude_code.asked({"a": a_body("what colour?")}, "body-face")
     again = claude_code.asked({"a": a_body("what colour?")}, "body-face")
     assert json.loads(first["a"]) == {"colour": "red"} and again == first
-    assert (folder / "calls").read_text() == "1"
+    assert len((folder / "calls").read_text()) == 1
     sent = json.loads((folder / "last.json").read_text())
     assert sent["key"] is None
     assert sent["argv"][sent["argv"].index("--model") + 1] == "claude-opus-5-5"
@@ -138,13 +157,33 @@ def test_a_claude_code_ask_is_asked_of_its_pinned_model_once_on_the_subscription
 
 
 def test_a_claude_code_ask_with_no_answer_is_unanswered_and_asked_fresh_next_time(monkeypatch):
+    """A refusal of the account (a limit, an overload) is no answer and no gap: raised, never kept, asked again."""
+    from score import graph
     folder = fake_claude(monkeypatch)
     first = claude_code.asked({"a": a_body("fail")}, "body-face")["a"]
     second = claude_code.asked({"a": a_body("fail")}, "body-face")["a"]
     assert isinstance(first, claude_code.Unanswered) and isinstance(second, claude_code.Unanswered)
-    assert (folder / "calls").read_text() == "2"
-    assert [json.loads(line)["state"] for line in claude_code.LEDGER.read_text().splitlines()] == \
-        ["started", "failed", "started", "failed"]
+    assert isinstance(claude_code.asked({"a": a_body("refuse")}, "body-face")["a"], claude_code.Unanswered)
+    for text, said in (("limit", "seven_day limit, resets 2026-11-12T05:00+00:00"),
+                       ("worded", "hit your weekly limit, resets Nov 12, 5am (UTC)"), ("limit", "seven_day")):
+        try:
+            claude_code.asked({"a": a_body(text), "b": a_body("what colour?")}, "surface-library")
+        except claude_code.Unavailable as refusal:
+            assert said in str(refusal) and not isinstance(refusal, ValueError), refusal
+            assert not graph.transient(refusal)
+        else:
+            raise AssertionError(f"{text}: the account's limit taken as an answer")
+    try:
+        claude_code.asked({"a": a_body("busy")}, "surface-library")
+    except claude_code.Overloaded as refusal:
+        assert "overloaded" in str(refusal) and graph.transient(refusal)
+    else:
+        raise AssertionError("an overload taken as an answer")
+    assert sorted(path.name for path in claude_code.CACHE.iterdir()) == [
+        f"{claude_code.body_hash(a_body('what colour?'))}.json"]
+    assert len((folder / "calls").read_text()) == 8  # each refusal asked again, "b" asked once
+    states = [json.loads(line)["state"] for line in claude_code.LEDGER.read_text().splitlines()]
+    assert states.count("failed") == 7 and states.count("finished") == 1
 
 
 def test_a_machine_with_no_claude_code_refuses_the_step_and_asks_nothing(monkeypatch):
