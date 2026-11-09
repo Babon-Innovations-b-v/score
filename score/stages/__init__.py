@@ -1323,11 +1323,14 @@ def set_aside(retake, objects, pixal):
     import score.stages.props.thin_straight as thin_straight
     ours = {entry["take"] for entry in objects.values()
             if not (thin_straight.code_built(entry["take"], pixal) and not flat_sheet.built(entry["take"], pixal))}
-    unknown = sorted(set(retake["takes"]) - ours)
+    # a reject may name the object (its row, "laptop") or its take ("camp_laptop_5393e7f9"): both mean the take
+    # (2026-11-09: retakes named by object were refused as no take of their place, checkout 66)
+    takes = sorted({objects[name]["take"] if name in objects else name for name in retake["takes"]})
+    unknown = sorted(set(takes) - ours)
     if unknown:
         raise ValueError(f"retake of {', '.join(unknown)}: no Pixal3D take of this place (a code build's fix is its "
                          "builder's)")
-    for take in retake["takes"]:
+    for take in takes:
         aside = pixal / RETAKEN / f"{take}-r{retake['attempt']}"
         if not aside.exists():
             staging = aside.with_name(f"{aside.name}.partial")
@@ -1335,7 +1338,7 @@ def set_aside(retake, objects, pixal):
             for path in pixal.glob(f"{glob.escape(take)}[.-]*"):
                 path.rename(staging / path.name)
             staging.rename(aside)
-    return {take: pixal_row.seed_of(take) + retake["attempt"] for take in retake["takes"]}
+    return {take: pixal_row.seed_of(take) + retake["attempt"] for take in takes}
 
 
 def sheet_remakes(takes, inputs, out):

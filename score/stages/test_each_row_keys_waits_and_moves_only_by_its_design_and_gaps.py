@@ -962,7 +962,8 @@ def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_
     the library's newest record holding another raw model than the one set aside: checkout 18, 2026-11-04, four made
     retakes with no mark left out on the cloud machine); a code build's take is refused.
     Break: score/stages/__init__.py: '        if not aside.exists():' -> '        if True:'; retake_pending without
-    `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`."""
+    `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`; or set_aside's `objects[name]["take"] if
+    name in objects else name` made `name` (a reject naming the object, checkout 66, 2026-11-09)."""
     row = next(row for row in stages.STAGES if row.name == "pixal")
     assert row.retakes and graph.stage_code(row) == graph.stage_code(dataclasses.replace(row,
                                                                                           make=inspect.unwrap(row.make)))
@@ -991,6 +992,7 @@ def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_
     assert not stages.retake_pending("stool_1", tmp_path)
     with pytest.raises(ValueError, match="pipe_1"):
         stages.set_aside({**retake, "takes": ["pipe_1"]}, objects, tmp_path)
+    assert stages.set_aside({**retake, "takes": ["stool"]}, objects, tmp_path) == {"stool_1": 2}  # named by its object
 
 
 def test_the_retaking_make_asks_a_retake_at_its_new_seed_and_marks_it_made(tmp_path):
