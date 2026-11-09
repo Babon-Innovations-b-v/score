@@ -435,6 +435,7 @@ import subprocess
 import sys
 import tempfile
 
+import numpy
 import pytest
 from PIL import Image
 
@@ -3397,7 +3398,15 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         3 m up moved off the north wall)
     Break: score/review/plan_fixes.py `wall_runs`: `int(shape.get("count") or 1) > 1 or` dropped (the counted run
         moved), or `holders.spans(rows[row]) or` dropped (the crane moved)
-    Break: score/review/plan_fixes.py `open_gaps`: `+ stack_gaps(plan, inventory)` dropped (PIPE 5 left with no gap)"""
+    Break: score/review/plan_fixes.py `open_gaps`: `+ stack_gaps(plan, inventory)` dropped (PIPE 5 left with no gap)
+    Break: score/review/plan_fixes.py `eaves_raised`: `>= plan_checks.LOW` -> `>= 0.0` (the tube's vault on its
+        floor raised), or `roof["top"] = round(...)` dropped (the dome's rise lost)
+    Break: score/review/plan_fixes.py `stair_rows_dropped`: the `any(other.get("anchor") == ...)` test dropped (the
+        staircase its railing stands on taken off), or `if not flights: return []` -> `if False:` (stairs taken off a
+        plan with no flights)
+    Break: score/review/plan_fixes.py `on_flights`: `and not any(crossing(drawn, points) ...)` dropped (the ramp's
+        cart moved), or `plan_checks.inside(made, outline).all() and` dropped (the hall made past the plan moved)
+    Break: score/review/plan_fixes.py `off_flights`: `| ~level` dropped (the chair laid off its level)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3619,6 +3628,57 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     assert [(gap["item"], gap["with"]) for gap in left] == [("PIPE 1", "PIPE 5")] and \
         left[0]["words"].endswith(plan_fixes.WHY["stacked"]), left
     assert plan_fixes.wall_runs_spread(garage, garage_rows) == []
+    # settle@greenhouse, checkout 68: its upper floor at 3 m stood over its dome's 2.8 m eave, its reading's stairs row
+    # laid two stairs objects on the shell's three flights, and planter beds made 2.5 m stood on the flights' feet. The
+    # eave is raised a storey over that floor, its rise kept, a floor at 0.1 m or a vault on its floor left; the stairs
+    # row taken off where the plan draws flights, a staircase its railing stands on and a railing kept; a thing on a
+    # flight as made moved off it on its own level, one with no such floor left a gap, one drawn on the flight (a cart
+    # on its ramp) and one made past the plan (a hall's face) left.
+    dome = {"w": 10.0, "d": 10.0, "walls": [{"from": [0.0, 0.0], "to": [10.0, 0.0], "tall": 2.8}],
+            "levels": [{"name": "lower floor", "height": 0.0, "points": [[3, 3], [7, 3], [7, 7], [3, 7]]},
+                       {"name": "upper floor", "height": 3.0, "points": [[0, 0], [10, 0], [10, 10], [0, 10]]}],
+            "roofs": [{"kind": "dome", "points": [[0, 0], [10, 0], [10, 10], [0, 10]], "eave": 2.8, "top": 6.2}]}
+    assert plan_fixes.eaves_raised(dome) == ["dome roof 1: its eave raised from 2.8 m to 5.8 m, a storey (2.8 m) "
+                                             "over its upper floor at 3 m"] and dome["roofs"][0]["top"] == 9.2
+    for low, roof in ((0.1, {"kind": "dome", "eave": 2.5, "top": 3.5}),
+                      (0.0, {"kind": "vault", "eave": 0.0, "top": 3.2})):
+        kept = {**dome, "levels": [{**dome["levels"][1], "height": low}], "roofs": [{**dome["roofs"][0], **roof}]}
+        assert plan_fixes.eaves_raised(kept) == [] and kept["roofs"][0]["eave"] == roof["eave"], kept["roofs"]
+    flights = [{"kind": "stair", "points": [[0.2, 2.0], [1.2, 2.0], [1.2, 4.0], [0.2, 4.0]], "from": 0.0, "to": 3.0,
+                "angle": 270.0, "steps": 8}]
+    walled = {"stairs": flights, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 6.0, None, "item"],
+                                           ["STAIRCASE 1", 4.0, 0.0, 1.0, 3.0, None, "item"]],
+              "rows": {"ON THE WALLS AND CEILING": ["outer_wall", "stairs"], "STAIRCASE 1": ["staircase"]},
+              "shapes": {}}
+    stair_rows = {"rows": [{"id": "outer_wall", "noun": "wall"}, {"id": "stairs", "noun": "stairs"},
+                           {"id": "staircase", "noun": "stairs"}, {"id": "stair_railing", "noun": "railing",
+                                                                   "anchor": "on:staircase"}]}
+    assert plan_fixes.stair_rows_dropped({**copy.deepcopy(walled), "stairs": []}, stair_rows) == []
+    assert plan_fixes.stair_rows_dropped(walled, stair_rows) == ["stairs: taken off, the shell builds the plan's 1 "
+                                                                 "flights"], walled
+    assert walled["rows"] == {"ON THE WALLS AND CEILING": ["outer_wall"], "STAIRCASE 1": ["staircase"]} and \
+        walled["dropped"] == [{"item": "stairs", "why": "the shell builds the plan's 1 flights"}]
+    beds = {"w": 6.0, "d": 6.0, "stairs": flights,
+            "levels": [{"name": "floor", "height": 0.0, "points": [[0, 0], [6, 0], [6, 4.6], [0, 4.6]]},
+                       {"name": "gallery", "height": 3.0, "points": [[0, 4.6], [6, 4.6], [6, 6], [0, 6]]}],
+            "items": [["CHAIR 1", 1.3, 4.3, 0.3, 0.3, None, "item"], ["BED 1", 2.5, 2.5, 0.5, 0.5, None, "item"],
+                      ["CART 1", 0.5, 3.8, 0.4, 0.4, None, "item"], ["HALL 1", 1.25, 1.0, 0.5, 0.5, None, "item"]],
+            "rows": {"CHAIR 1": ["chair"], "BED 1": ["bed"], "CART 1": ["cart"], "HALL 1": ["hall"]},
+            "shapes": {name: {"shape": "rect", "tall": 0.5, "base": 0.0} for name in ("CHAIR 1", "BED 1", "CART 1",
+                                                                                    "HALL 1")}}
+    bed_rows = {"rows": [{"id": "chair", "size": [1.0, 1.0, 0.9]}, {"id": "bed", "size": [5.0, 5.0, 0.5]},
+                         {"id": "cart", "size": [0.6, 0.6, 0.8]}, {"id": "hall", "size": [9.0, 9.0, 9.0]}]}
+    moved = plan_fixes.off_flights(beds, bed_rows)
+    laid = {item[0]: item[1:5] for item in beds["items"]}
+    chair = [laid["CHAIR 1"][0] + 0.15, laid["CHAIR 1"][1] + 0.15]
+    assert len(moved) == 1 and moved[0].startswith("chair 1: moved") and chair[1] + 0.5 <= 4.6 and not \
+        plan_fixes.crossing(numpy.array([[chair[0] - 0.5, chair[1] - 0.5], [chair[0] + 0.5, chair[1] - 0.5],
+                                         [chair[0] + 0.5, chair[1] + 0.5], [chair[0] - 0.5, chair[1] + 0.5]]),
+                            numpy.asarray(flights[0]["points"])), (laid, moved)
+    assert laid["BED 1"] == [2.5, 2.5, 0.5, 0.5] and laid["CART 1"] == [0.5, 3.8, 0.4, 0.4] and \
+        laid["HALL 1"] == [1.25, 1.0, 0.5, 0.5]
+    left = plan_fixes.why_left(plan_fixes.flight_gaps(beds, bed_rows))
+    assert [gap["item"] for gap in left] == ["BED 1"] and left[0]["words"].endswith(plan_fixes.WHY["flight"]), left
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
