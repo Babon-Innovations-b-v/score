@@ -11,7 +11,8 @@ the cockpit.
 
 Pull and push go through the agents' door (tools/cloud/conductor/agent_door.py, the agents' key
 ~/.ssh/score_conductor_agents; owner, 2026-10-27: the door route, not his own key on the conductor, agents never get a
-shell): its `store-pull` and `store-push` verbs, a tar stream each way over ssh.
+shell): its `store-pull` and `store-push` verbs, a tar stream each way through the cluster conductor's door (door_service.py
+ask, since 2026-11-08), or over ssh to `--host`.
 
 - **Pull** copies what a run reads (the door's PULLED: the store's objects, the design, the work folder, the Google
   answer cache, score_lib's file cache) into HOME, a home of its own (default ~/.score-this-pc): never the PC's old
@@ -84,7 +85,7 @@ HOME = pathlib.Path(os.environ.get("SCORE_THIS_PC_HOME", pathlib.Path.home() / "
 DASHBOARD_ENV = pathlib.Path.home() / ".config" / "score" / "dashboard.env"  # this PC's cockpit's, its SCORE_OWNER
 OWNERS_GO = "SCORE_OWNERS_GO"  # score.review.web.OWNERS_GO: the run's go, the owner's recorded in a session
 PC_ENV = pathlib.Path.home() / ".farm-factory-props" / "env"  # the prop environment bootstrap.sh builds here
-CONDUCTOR = ("score-conductor", "fr-par-2")  # its server's name and zone (tools/cloud/conductor/machine.py)
+DOOR_SERVICE = pathlib.Path(__file__).resolve().parent / "conductor" / "door_service.py"  # the cluster's door
 ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1",
                "SCORE_MAX_MACHINES": "all=1"}  # one machine: this PC
 MACHINE = "score-this-pc"  # backends/local.py's first container; each other kind's is MACHINE-<kind>
@@ -103,19 +104,13 @@ BLOBS = "store/objects/"  # the store's objects, written once by content and key
 NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing, with the reason it was given
 
 
-def conductor_host():
-    """The conductor's public address, read from Scaleway by its name and zone (read only)."""
-    name, zone = CONDUCTOR
-    found = json.loads(subprocess.run(["scw", "instance", "server", "list", f"zone={zone}", f"name={name}", "-o",
-                                       "json"], check=True, capture_output=True, text=True).stdout)
-    servers = [server for server in found if server.get("name") == name]
-    if len(servers) != 1:
-        raise SystemExit(f"{len(servers)} servers named {name} in {zone}: name the conductor with --host")
-    return servers[0]["public_ip"]["address"]
-
-
 def door_command(host, key, verb):
-    """The ssh that asks the conductor's agents' door for `verb` (the door decides; no shell)."""
+    """The command that asks the conductor's agents' door for `verb` (the door decides; no shell): with no `host`, the
+    door in the cluster's conductor pod (door_service.py ask, through kubectl port-forward, its token read by name by
+    SCORE_SECRET_READER; the conductor runs in the cluster since 2026-11-08 and its old machine is off), else the ssh
+    door at `host` with the agents' key."""
+    if host is None:
+        return [sys.executable, str(DOOR_SERVICE), "ask", verb]
     return ["ssh", "-i", str(pathlib.Path(key).expanduser()), "-o", "IdentitiesOnly=yes", "-o",
             "StrictHostKeyChecking=accept-new", f"score@{host}", verb]
 
@@ -488,7 +483,7 @@ def main(argv=None):
                                                         "pause", "resume", "status"))
     parser.add_argument("arguments", nargs=argparse.REMAINDER, help="run: score run's arguments (default world1), "
                         "--go <go id> and --no-push <reason> among them; decide-yes and decide: the door's verbs' arguments")
-    parser.add_argument("--host", help="the conductor's address (default: read from Scaleway by its name)")
+    parser.add_argument("--host", help="an ssh door's address (default: the cluster conductor's door)")
     parser.add_argument("--key", default="~/.ssh/score_conductor_agents", help="the agents' ssh key to the door")
     options = parser.parse_args(argv)
     home = prepared(HOME)
@@ -504,12 +499,12 @@ def main(argv=None):
         print(push_stated(home, reason, arguments or ["world1"]), flush=True)
     host = None
     if options.command in ("env1", "pull"):
-        host = options.host or conductor_host()
+        host = options.host
         files, size = pull(home, door_command(host, options.key, "store-pull"))
         print(f"pulled {files} files ({size / 1e9:.2f} GB) into {home}")
     status = run(home, arguments or ["world1"], go) if running else 0
     if options.command == "push" or (running and reason is None):
-        host = host or options.host or conductor_host()
+        host = host or options.host
         files, size = push(home, door_command(host, options.key, "store-push --missing"),
                            door_command(host, options.key, "store-push"))
         print(f"pushed {files} files ({size / 1e9:.2f} GB)")
