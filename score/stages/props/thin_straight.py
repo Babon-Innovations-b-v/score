@@ -94,6 +94,11 @@ PATH_FACES = 20000
 FITTED = frozenset(("pipe", "conduit", "duct", "tube", "handrail"))
 # A bend over this many degrees takes an elbow; a slighter one is the run's own curve (a sag's polygon turns by less).
 ELBOW_TURN = 30.0
+# A straight kind's single run whose centreline strays across its chord by at most this share of its length is drawn
+# straight, its wobble the mask's (`straightened`): the garage's 10 m pipe, its skeleton bending about 0.8 m up and
+# back, was built 0.975 m across on its 0.1 m section. A sag or an arc drawn on purpose strays more (the string
+# lights' 0.19, the ground cables' 0.21).
+STRAIGHT_SHARE = 0.125
 # A fitting's thickness over its tube's: a socket elbow, tee or clamp stands proud of its pipe by about a wall's
 # thickness each side (a DN25 steel pipe 33.7 mm across, its fittings about 42).
 FITTING_SHARE = 1.25
@@ -189,8 +194,8 @@ def build(row, alpha=None):
     straight along its longest side."""
     import trimesh
     if alpha is not None and alpha.any():
-        return path_build(row, alpha, axis_turn(row, alpha)).apply_transform(
-            as_built(row, alpha) @ np.linalg.inv(slanted(row, alpha)))
+        made = path_build(row, alpha, axis_turn(row, alpha))
+        return made.apply_transform(as_built(row, alpha, made) @ np.linalg.inv(slanted(row, alpha)))
     wide, deep, tall = (float(value) for value in row["size"])
     extents = np.array([min(wide, deep), tall, max(wide, deep)])
     along = int(np.argmax(extents))
@@ -312,15 +317,18 @@ def slanted(row, alpha):
     return turn
 
 
-def held_across(row, alpha):
+def held_across(row, alpha, made=None):
     """The scale (4 by 4) holding a slender row's build, laid along its row (`slanted` undone), to its row's section
     across its run: its reach across the run (y, or z where axis_turn stands it) times the row's thinnest side over
-    its tube's drawn width at the picture's scale along it (`path_build`: twice its balls' median radius), at most
-    one. A picture's scale is its length's, and a run going away from the camera is foreshortened along its length
-    but not across it: the walkway's 12 m wall pipes, on a 0.1 m section, were built 2.9 m tall, its ceiling duct
-    (0.3 m) 3.4 m (#36, 2026-10-31). Its bends and sag across keep their share of its tube. A row that is not
-    slender keeps its picture's metres (the bake fits it to its row side by side); nor does a railing, its section its
-    rails' (`ladder`), its band across its posts' height."""
+    what it measures across. A run built straight (`straightened`) is measured whole, its fittings and wider stretches
+    in it (`made`, its path_build, built here when not given). Held by its tube's width alone, the storage's pipe with
+    its clamps stood 0.243 m on its 0.15 m and the engineroom's 0.451 m on its 0.2 m, and stacked on a wall they
+    overlapped (2026-11-09). Any other run by its tube's drawn width at the picture's scale along it (twice its balls'
+    median radius), at most one. A picture's scale is its length's, and a run going away from the camera is
+    foreshortened along its length but not across it: the walkway's 12 m wall pipes, on a 0.1 m section, were built
+    2.9 m tall, its ceiling duct (0.3 m) 3.4 m (#36, 2026-10-31). A curved run's bends and sag across keep their share
+    of its tube. A row that is not slender keeps its picture's metres (the bake fits it to its row side by side); nor
+    does a railing, its section its rails' (`ladder`), its band across its posts' height."""
     from skimage.morphology import skeletonize
     hold = np.eye(4)
     if alpha is None or not alpha.any() or not slender(row["size"]) or profile(row) == "railing":
@@ -329,21 +337,26 @@ def held_across(row, alpha):
     skeleton = skeletonize(kept)
     turn = axis_turn(row, alpha)
     scale, reach = picture_scale(row, kept, turn)
-    tube = float(np.median(2 * balls(kept, skeleton, scale, reach)[1][skeleton])) * scale
     across = 2 if turn != slant(kept) else 1  # stood upright by axis_turn's quarter turn: across is z
-    hold[across, across] = min(1.0, min(float(value) for value in row["size"]) / max(tube, 1e-9))
+    made = path_build(row, alpha, turn) if made is None else made
+    if made.metadata.get("straight"):
+        laid = made.vertices @ np.linalg.inv(slanted(row, alpha))[:3, :3].T
+        drawn = float(np.ptp(laid[:, across]))
+    else:
+        drawn = float(np.median(2 * balls(kept, skeleton, scale, reach)[1][skeleton])) * scale
+    hold[across, across] = min(1.0, min(float(value) for value in row["size"]) / max(drawn, 1e-9))
     return hold
 
 
-def as_built(row, alpha):
+def as_built(row, alpha, made=None):
     """The turn (4 by 4) from a build laid along its row in its picture's plane to the pose it is built in: held across
-    its run (`held_across`), and a network lying on a floor or under a ceiling (`network`, its height its thinnest
-    side) laid down, its picture's plane level and its normal up (the engineroom's pipes, 0.2 m tall over 9.3 by
-    10.9, would stand 3 m up a wall)."""
+    its run (`held_across`, measuring `made` when given), and a network lying on a floor or under a ceiling
+    (`network`, its height its thinnest side) laid down, its picture's plane level and its normal up (the
+    engineroom's pipes, 0.2 m tall over 9.3 by 10.9, would stand 3 m up a wall)."""
     lay = np.eye(4)
     if network(row) and float(row["size"][2]) <= min(float(value) for value in row["size"]):
         lay[:2, :2] = [[0.0, -1.0], [1.0, 0.0]]  # x, the picture's normal, up; its up across the ground
-    return lay @ held_across(row, alpha)
+    return lay @ held_across(row, alpha, made)
 
 
 def view(row, alpha):
@@ -453,6 +466,8 @@ def path_build(row, alpha, turn=0.0):
         runs = [part for points, radius in runs for part in
                 (ladder(points, radius, rail, POST_GAP / scale, kept) if 2 * radius > LADDER_WIDTHS * 2 * rail
                  else [(points, radius)])]
+    straight = straightened(row, skeleton, runs, slant(pieces(alpha)))
+    runs = straight or runs
     lengths = np.array([max(float(np.linalg.norm(np.diff(points, axis=0), axis=1).sum()), 1.0) for points, _ in runs])
     radii = np.array([radius for _, radius in runs])
     width = 2 * float(radii[np.argsort(radii)][np.searchsorted(np.cumsum(lengths[np.argsort(radii)]),
@@ -472,7 +487,33 @@ def path_build(row, alpha, turn=0.0):
                    scale)
     deep = max(sides[0], least_tube())
     mesh.apply_transform(np.diag([min(1.0, deep / max(float(np.ptp(mesh.vertices[:, 0])), 1e-9)), 1.0, 1.0, 1.0]))
+    mesh.metadata["straight"] = straight is not None  # held_across measures a straight build whole
     return mesh.apply_translation(-mesh.bounds.mean(0))
+
+
+def straightened(row, skeleton, runs, rise):
+    """`runs` ([(points, radius)], spine's) laid on their one straight line, `rise` degrees from level in the picture
+    (the mask's `slant`, so `slanted` undone lays it exactly along its row: a line half a degree off it stood 0.09 m
+    across a 10 m run), or None when the row is not one straight run: its kind a straight one (never a railing or a
+    network), its skeleton one piece with no fork, and its centreline straying across its chord by at most
+    STRAIGHT_SHARE of its length. Each point keeps its place along the line and each stretch its width; only the
+    mask's wobble across goes, so a slight bend is no bend across the run that held_across would then squash the tube
+    into (the garage's 10 m pipe on 0.1 m, 2026-11-09)."""
+    from scipy import ndimage
+    if not kind_words(row) & STRAIGHT or profile(row) == "railing" or network(row):
+        return None
+    if ndimage.label(skeleton, structure=np.ones((3, 3)))[1] != 1:
+        return None
+    ends = [tuple(np.round(points[index]).astype(int)) for points, _ in runs for index in (0, -1)]
+    if max(ends.count(end) for end in ends) > 2:  # a fork
+        return None
+    every = np.vstack([points for points, _ in runs])
+    middle = every.mean(0)
+    way = np.array([np.cos(np.radians(rise)), np.sin(np.radians(rise))])  # across and down the picture
+    along, off = (every - middle) @ way, (every - middle) @ np.array([-way[1], way[0]])
+    if np.ptp(off) > STRAIGHT_SHARE * max(float(np.ptp(along)), 1.0):
+        return None
+    return [(middle + np.outer((points - middle) @ way, way), radius) for points, radius in runs]
 
 
 def filled(kept):
