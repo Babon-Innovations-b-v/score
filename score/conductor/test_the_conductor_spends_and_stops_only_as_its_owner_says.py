@@ -19,7 +19,8 @@ with no run live, and the sweep frees room itself, asking the owner only for a b
 Break that turns it red: in size.decide grow while a run is live (drop the claims/running wait); in size.busy
 leave out the commands ask_grow_for recorded (a Buy on the idle size never grows it); in kill.stop_everything
 release the parked machines before closing the pools, or drop its `stop_cluster` call (score's cluster Jobs left
-running); or in logs drop the secret-shape test (an AIza key reaches the
+running), or pass no `every_box` to cluster_stopper (a cap stop leaves another box's Jobs running), or drop the
+`every_box_stops` call (the runner's machines keep billing past the cap); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
 ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
 SECRET_NAME test (the sync token's value lands in a drive Job's spec), or drop its READER_NAMES (the drive pod reads no
@@ -362,6 +363,35 @@ def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed
     assert report["free_only"] is None and not conductor.free_only()
     assert list(conductor.HOME.glob("batch-stop-*.json")) and not list(conductor.HOME.glob("kill-*.json"))
     assert report["cluster_jobs"] == 'job.batch "score-r-a-g0" deleted'  # score's cluster Jobs too (#95)
+    # the env1 cap's stop (plan B4): two boxes' Jobs, Stop this batch deletes its own box's, the cap's stop both, and
+    # every runner machine and leftover with them
+    jobs = {"score-r-a-g0": "conductor", "score-r-b-g0": "pc"}
+
+    def stopper(every_box=False):
+        def stop():
+            gone = sorted(name for name, box in jobs.items() if every_box or box == "conductor")
+            for name in gone:
+                del jobs[name]
+            return gone
+        return stop
+
+    class Cloud:
+        def stop_runner_servers(self):
+            return ["r-1"]
+
+        def clean_leftovers(self):
+            return {"machines": [("scw-score-l4", "a SCORE pool's machine that is no node")], "disks": []}
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(kill, "cluster_stopper", stopper)
+        patch.setenv("SCORE_CLOUD", "k8s")
+        kill.stop_everything("owner", "this batch", folder=home / "runs", parked=home / "empty", latched=False)
+        assert jobs == {"score-r-b-g0": "pc"}  # another box's run is not this stop's
+        with pytest.raises(ValueError):
+            kill.cap_stop(" ")
+        report = kill.cap_stop("past the stop line", folder=home / "runs", parked=home / "empty", cloud=Cloud())
+    assert jobs == {} and report["cluster_jobs"] == ["score-r-b-g0"] and report["machines"] == ["r-1"]
+    assert report["leftovers_cleaned"]["machines"] and report["free_only"] is None and not conductor.free_only()
+    assert list(conductor.HOME.glob("cap-stop-*.json"))
 
 
 def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it(home, monkeypatch):

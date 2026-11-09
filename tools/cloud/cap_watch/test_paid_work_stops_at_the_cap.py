@@ -8,6 +8,8 @@ Breaks (each applied once, seen red, reverted), in tools/cloud/cap_watch/watch.p
 - the meter: counter_of returns `billed` for the counter (the bill's card lag hides 10 L4 for 3 h).
 - under the line: guard.cap_refusal's `if counter >= line:` becomes `if counter >= 0:`.
 - babon's share: babon_proven ignores LAG_HOURS (`>= 0`), or counter_of takes the proven euros off uncapped.
+- the stop (plan B4): stop_paid_work drops its `stop_runner_servers()` call (the runner's machines keep billing), or
+  one_pass drops its `cleaner` call (leftovers never cleaned).
 """
 import datetime
 import sys
@@ -42,7 +44,8 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     monkeypatch.setattr(guard, "running_under_agent", lambda: False)
     guard.set_cap(book, {"euros": 300.0, "line": 255.0, "start": watch.iso(START), "by": "joey",
                          "at": watch.iso(START), "baseline": {"whole": 2000.0, "lines": {L4: 400.0, CPU: 100.0}}})
-    stops = []
+    stops, cleaned = [], []
+    monkeypatch.setattr(watch, "clean", lambda: cleaned.append(1) or {"machines": [], "disks": []})
 
     def stop(book_, name, why, now):
         stops.append(why)
@@ -58,6 +61,7 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     # under the line: nothing stops, the counter the bill's growth
     first = passes(1, bill({L4: 400.0, CPU: 140.0}))
     assert (first["counter"], first["stopped"], stops) == (40.0, None, [])
+    assert cleaned == [1] and first["cleaned"] == {"machines": [], "disks": []}  # every pass cleans leftovers
     # unreadable bill: 5 minutes after a good read still the good counter, past 15 minutes paid work stops
     assert passes(1 + 5 / 60, None, unread=True)["stopped"] is None
     assert "fails closed" in passes(1 + 20 / 60, None, unread=True)["stopped"] and len(stops) == 1
@@ -89,3 +93,21 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     reading = watch.one_pass(blind, lambda last: bill({}), lambda start, now, names: scaleway.live_rate(
         start, now, names, nodes={"n1", "n2", "n3"}), stop, now=START + 60)
     assert reading["unread"].startswith("Unread") and "fails closed" in reading["stopped"] and len(stops) == 3
+    # the stop itself: every box's Jobs and every runner machine, a failed machine stop named, never swallowed
+    class Done:
+        returncode, stdout, stderr = 0, 'job.batch "score-r-a-g0" deleted', ""
+
+    class Cloud:
+        def stop_runner_servers(self):
+            return ["r-1", "r-2"]
+    asked = []
+    record = watch.stop_paid_work(book, guard.CAP, "past the stop line", START, run=lambda words, **_: asked.append(
+        words) or Done(), cloud=Cloud())
+    assert asked[0][-5:] == ["-l", "score.dev/run", "--ignore-not-found", "--wait=false", "--cascade=background"]
+    assert record["machines"] == ["r-1", "r-2"] and "score-r-a-g0" in record["jobs"]
+
+    class Refused:
+        def stop_runner_servers(self):
+            raise RuntimeError("no right")
+    assert "no right" in watch.stop_paid_work(book, guard.CAP, "x", START + 1, run=lambda words, **_: Done(),
+                                              cloud=Refused())["machines_error"]

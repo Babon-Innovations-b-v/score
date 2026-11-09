@@ -12,3 +12,8 @@ its class pools, its nodes with their billed times, prices, the month's bill). T
 - A module here shares its name with the provider's backend (`tools/cloud/backends/`); load it by path
   (`../submitter.py` `cluster_module`), never by `import <provider>`.
 - Pools start at max 0; `cap_pools` sets each max from the batch cap's euros, and `idle` sets all to 0.
+- `tenant.py` also holds the env1 cap's cloud cleanup (plan of 2026-11-09 B4): `stop_runner_servers` (every
+  runner-tagged machine of the batch project, every zone) and `clean_leftovers` (a SCORE pool's machine that is no
+  node an hour on, a runner machine past its deadline, a SCORE project's loose disk or a loose node root disk over a
+  day). It deletes across projects with the rights the owner gave the conductor's key; never babon's machines, never
+  a disk a claim holds.

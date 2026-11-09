@@ -32,6 +32,8 @@ break that turns each red (applied once, seen red, reverted):
   card whose tag update failed is deleted as unanswering, card after card: 2026-11-03).
 - test_a_card_waits_its_kinds_measured_cold_start_at_most_the_cap: in `idle_minutes`, `min(IDLE_CAP_MINUTES,
   statistics.median(starts))` -> `statistics.median(starts)`.
+- test_only_a_healthy_machine_of_a_cleaned_kind_with_time_left_is_parked, outside a run: in `parkable`, drop
+  `in_a_run() and`.
 - test_a_card_with_no_claim_waiting_is_released_not_parked: in `parkable`, `(not card or queued())` -> `True`.
 - test_a_card_nobody_took_is_deleted_at_its_time_and_its_idle_minutes_charged: in `release`, `if
   record["unit_minutes"] == 1:` -> `if False:`.
@@ -112,9 +114,10 @@ class Calls:
 
 @pytest.fixture
 def calls(monkeypatch):
-    """A sandbox with nothing parked, an empty ledger and no run; the recorded calls."""
-    for name in ("SCORE_RUN_ID", "SCORE_MAX_MACHINES", "SCORE_SPEND_TICKET"):
+    """A sandbox with nothing parked, an empty ledger, inside a run; the recorded calls."""
+    for name in ("SCORE_MAX_MACHINES", "SCORE_SPEND_TICKET"):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SCORE_RUN_ID", "run-park")  # machines are parked only inside a run (in_a_run)
     found = Calls(monkeypatch)
     for path in park.PARKED.glob("*.json") if park.PARKED.exists() else ():
         path.unlink()
@@ -163,9 +166,12 @@ def cold_card_runs(*cold_starts):
              "setup_minutes": minutes - 0.5, "work_minutes": 5.0, "minutes": minutes + 4.5, "euros": 0.1}]})
 
 
-def test_only_a_healthy_machine_of_a_cleaned_kind_with_time_left_is_parked(calls):
+def test_only_a_healthy_machine_of_a_cleaned_kind_with_time_left_is_parked(calls, monkeypatch):
     now = time.time()
     assert park.parkable(machine(20), now)  # 35 min of its paid hour left
+    with monkeypatch.context() as outside:  # no parked machine outside a run (the plan of 2026-11-09 B5)
+        outside.delenv("SCORE_RUN_ID")
+        assert not park.parkable(machine(20), now)
     assert not park.parkable(machine(20, healthy=False), now)
     assert not park.parkable(machine(20, kind="unregistered"), now)
     assert not park.parkable(machine(53), now)  # 2 min before it must go

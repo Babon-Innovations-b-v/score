@@ -12,6 +12,9 @@ paid work at the cap's line or the November cap (its docstring has the counter).
   paid work. Never turn an unread pass into a zero.
 - **Only what is proven babon's is taken off** the shared project's lines: a babon machine, or a disk or address on
   one, seen by a pass; anything else on a counted line is env1's.
+- **A stop reaches everything** (plan B4): every box's score Jobs and every runner-tagged machine of the batch
+  project in every zone (`tenant.stop_runner_servers`), a failure named in the stop's record; every pass also cleans
+  what SCORE left standing (`tenant.clean_leftovers`), its answer in the reading's `cleaned`.
 - **A stop is no latch**: the reading itself refuses, so the first pass back under the line lets paid work start.
 - The cap record itself is the owner's (`decide-yes cap env1 ...`, `score/dashboard/sync/chat_decisions.py`), written
   through `score.review.web.cap`; the watcher never writes or moves it.

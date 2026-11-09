@@ -4,6 +4,7 @@ conductor free only until his second click clears it.
     report = kill.stop_all(asked_by, words)      # the owner's process only
     kill.allow_paid(asked_by, words)             # his second click
     report = kill.stop_batch(asked_by, words)    # the run monitor's Stop this batch: the same, with no latch
+    report = kill.cap_stop(words)                # the env1 cap's stop: no latch, every box's Jobs and machines
 
 stop_all writes the latch first (FREE_ONLY_LATCH holding SCORE_FREE_ONLY=1: every `score` command reads it at its
 start, and a unit may read it as an EnvironmentFile), so nothing started meanwhile can spend, and takes back a resize's
@@ -94,13 +95,23 @@ def cluster_configured():
     return os.environ.get("SCORE_CLOUD") == "k8s" or bool(os.environ.get("SCORE_K8S_PROVIDER"))
 
 
-def cluster_stopper():
-    """tools/cloud/k8s/submitter.py's stop_score_jobs, imported from the cloud tools."""
+def cluster_stopper(every_box=False):
+    """tools/cloud/k8s/submitter.py's stop_score_jobs, imported from the cloud tools; with `every_box` (the cap's stop)
+    it deletes every box's score Jobs, not only this box's."""
     folder = str(CLOUD_TOOLS / "k8s")
     if folder not in sys.path:
         sys.path.insert(0, folder)
     import submitter
-    return submitter.stop_score_jobs
+    return (lambda: submitter.stop_score_jobs(every_box=True)) if every_box else submitter.stop_score_jobs
+
+
+def tenant_module():
+    """tools/cloud/k8s/clusters/tenant.py, loaded by its path (its folder's scaleway.py shares the backend's name)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cluster_tenant", CLOUD_TOOLS / "k8s/clusters/tenant.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def open_pools(folder):
@@ -137,12 +148,33 @@ def agent_stop_batch(words):
     return stop_everything("agent", words, latched=False)
 
 
+def cap_stop(words, **given):
+    """The env1 cap's stop (the plan of 2026-11-09 B4): stop_everything with no latch, reaching every box's score Jobs
+    on the cluster, every runner-tagged machine of the batch project in every zone and what SCORE left standing
+    (tenant.py), whoever's process asks: stopping only ends spending. Its report."""
+    if not str(words or "").strip():
+        raise ValueError("a cap stop names its reason")
+    return stop_everything("cap", words, latched=False, every_box=True, **given)
+
+
+def every_box_stops(report, cloud):
+    """A cap stop's cloud part beside the cluster's: every runner machine deleted and the leftovers cleaned
+    (`cloud`, tenant.py), each failure named in the report."""
+    for key, step in (("machines", cloud.stop_runner_servers), ("leftovers_cleaned", cloud.clean_leftovers)):
+        try:
+            report[key] = step()
+        except (Exception, SystemExit) as error:  # noqa: BLE001 - the rest is stopped; the report names it
+            report["errors"].append(f"{key}: {type(error).__name__}: {error}")
+
+
 def stop_everything(asked_by, words, folder=None, parked=None, release=None, report_folder=None, pools=None,
-                    close_pools=None, latched=True, frozen_folder=None, stop_cluster=None, checkout=None):
+                    close_pools=None, latched=True, frozen_folder=None, stop_cluster=None, checkout=None,
+                    every_box=False, cloud=None):
     """The kill switch's work, with no barrier of its own (stop_all's is the agents' refusal): the latch (unless not
     `latched`: Stop this batch), every live run, every waiting run, every open warm pool, every parked machine, score's
-    cluster Jobs (`stop_cluster`, else submitter's when a cluster is configured), every process left in the copy of a
-    run gone; its report."""
+    cluster Jobs (`stop_cluster`, else submitter's when a cluster is configured: this box's, or with `every_box`, the
+    cap's stop, every box's, and then every runner machine and leftover through `cloud`, else tenant.py), every
+    process left in the copy of a run gone; its report."""
     folder = pathlib.Path(folder or runs.RUNS)
     at = now()
     report = {"at": at, "by": asked_by, "words": words,
@@ -174,14 +206,17 @@ def stop_everything(asked_by, words, folder=None, parked=None, release=None, rep
             report["parked"].append(record["id"])
         except Exception as error:  # noqa: BLE001 - each machine is tried; the report names what failed
             report["errors"].append(f"parked {record['id']}: {type(error).__name__}: {error}")
-    stop_cluster = stop_cluster or (cluster_stopper() if cluster_configured() else None)
+    stop_cluster = stop_cluster or (cluster_stopper(every_box) if every_box or cluster_configured() else None)
     if stop_cluster:
         try:
             report["cluster_jobs"] = stop_cluster()
         except (Exception, SystemExit) as error:  # noqa: BLE001 - the rest is stopped; the report names it
             report["errors"].append(f"cluster jobs: {type(error).__name__}: {error}")
+    if every_box:
+        every_box_stops(report, cloud or tenant_module())
     report["leftovers"] = frozen.end(leftovers(frozen_folder, stopping))
-    keep(report, f"{'kill' if latched else 'batch-stop'}-{at.replace(':', '')}.json", report_folder)
+    kind = "kill" if latched else "cap-stop" if every_box else "batch-stop"
+    keep(report, f"{kind}-{at.replace(':', '')}.json", report_folder)
     return report
 
 

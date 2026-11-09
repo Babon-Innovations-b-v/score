@@ -222,16 +222,24 @@ def queued():
 
 
 def parkable(machine, now):
-    """Whether the machine is worth parking: its run ended well, its kind cleans up, it has LEAST_MINUTES (a card
+    """Whether the machine is worth parking: inside a `score run` (in_a_run), its run ended well, its kind cleans up, it has LEAST_MINUTES (a card
     CARD_LEAST_MINUTES) or more before it must go, and, for a card, a claim waits for it (queued): a card billed by
     the minute with no queued work is released (2026-10-22: an H100 sat parked unused after a one-model batch)."""
     if machine.get("pool"):
         return pool_parkable(machine, now)
     card = machine.get("unit_minutes", 1) == 1
     least = CARD_LEAST_MINUTES if card else LEAST_MINUTES
-    return (bool(machine.get("healthy")) and machine.get("kind") in CLEANUPS and machine.get("host") is not None
+    return (in_a_run() and bool(machine.get("healthy")) and machine.get("kind") in CLEANUPS
+            and machine.get("host") is not None
             and not batch.STOPPING.is_set() and (not card or queued())
             and leaves_at(machine, now) - now >= least * 60)
+
+
+def in_a_run():
+    """Whether this process works for a `score run` (SCORE_RUN_ID): a Buy's (or a benchmark grant's) paid run, the only
+    place a machine is parked (the plan of 2026-11-09 B5: no parked machine outside a live Buy); its parked machines
+    go at its end (outlive). A rent outside one (a tool run by hand) deletes its machine at its end."""
+    return bool(os.environ.get(capacity.RUN_ID))
 
 
 def pool_parkable(machine, now):

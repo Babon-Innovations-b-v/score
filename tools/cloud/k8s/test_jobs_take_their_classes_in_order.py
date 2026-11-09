@@ -825,6 +825,11 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     assert submit.stop_score_jobs(kubectl, PoolCluster()) == 'job.batch "score-r-a-g0" deleted'
     assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run,score.dev/box=conductor",
                                 "--ignore-not-found", "--wait=false", "--cascade=background")]
+    # the env1 cap's stop reaches every box's (the plan of 2026-11-09 B4). Break: ignore `every_box`
+    kubectl.deleted.clear()
+    submit.stop_score_jobs(kubectl, PoolCluster(), every_box=True)
+    assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run",
+                                "--ignore-not-found", "--wait=false", "--cascade=background")]
     assert manifests.labels("r", "a", "pixal")[manifests.BOX_LABEL] == "conductor"
     assert manifests.warm_hold("r", "node-1", "host-1", 10, 0)["metadata"]["labels"][manifests.BOX_LABEL] == "conductor"
     monkeypatch.setattr(manifests, "NAMESPACE", "score")
@@ -932,7 +937,7 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
     (tmp_path / "active.json").write_text("[]")
     monkeypatch.setattr(pool, "RUNS", tmp_path)
     rented, said = [], []
-    for name in ("tidy", "trim", "beat", "hold"):
+    for name in ("tidy", "trim", "idle_down", "beat", "hold"):
         monkeypatch.setattr(pool, name, lambda *args: None)
     monkeypatch.setattr(pool, "shortfall", lambda plan, alive: [("gpu-24gb", 0, "card-0")])
     monkeypatch.setattr(pool, "fill", lambda run_id, plan, short, account: rented.append(short) or 1)

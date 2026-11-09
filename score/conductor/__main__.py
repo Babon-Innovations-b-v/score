@@ -15,6 +15,7 @@
     python -m score.conductor store-gc [--dry]   # disk.store_gc: with no run live, the blobs nothing names removed
     python -m score.conductor store-evict [--dry]  # disk.store_evict: blobs into the store bucket, proven ones evicted
     python -m score.conductor sweep [--force]    # disk.sweep: the routine steps, every step under the warning line
+    python -m score.conductor cap-stop <reason>  # kill.cap_stop: the env1 cap's stop, every box's Jobs and machines
 """
 import argparse
 import json
@@ -44,6 +45,7 @@ def main(argv=None):
     commands.add_parser("store-evict").add_argument("--dry", action="store_true", help="count only, send nothing")
     commands.add_parser("sweep").add_argument("--force", action="store_true",
                                               help="every step, even above the warning line")
+    commands.add_parser("cap-stop").add_argument("reason", help="why the cap stops paid work")
     options = parser.parse_args(argv)
     conductor.apply_free_only()
     if options.command == "health":
@@ -84,12 +86,24 @@ def main(argv=None):
     elif options.command == "size":
         from score.conductor import size
         size.tick()
+    elif options.command == "cap-stop":
+        cap_stop(options.reason)
     else:
         from score.conductor import dry
         with conductor.holding("dry"):
             line, code = dry.start()
         print(line, flush=True)
         sys.exit(code)
+
+
+def cap_stop(reason):
+    """kill.cap_stop, one summary line; exit 1 when any part of it failed (named in the line)."""
+    from score.conductor import kill
+    report = kill.cap_stop(reason)
+    print(f"cap-stop: {len(report['runs'])} run(s), {len(report['parked'])} parked, machines "
+          f"{report.get('machines', [])}, cleaned {report.get('leftovers_cleaned')}; errors {report['errors'] or 'none'}",
+          flush=True)
+    sys.exit(1 if report["errors"] else 0)
 
 
 def clean_frozen():

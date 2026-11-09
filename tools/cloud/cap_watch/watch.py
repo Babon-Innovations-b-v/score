@@ -17,7 +17,8 @@ The counter is the larger of two measures, both counted from the cap's start:
   machine that runs.
 
 A stop (stop_paid_work) writes its record under the cap (caps/<name>/stops/), the owner's line in it, and deletes
-every score Job in the cluster's jobs namespace whatever box launched it; no latch: every cloud rent point
+every score Job in the cluster's jobs namespace whatever box launched it and every runner-tagged machine of the
+batch project in every zone; every pass also deletes what SCORE left standing (tenant.clean_leftovers); no latch: every cloud rent point
 (compute.require_cloud) and every cluster poll (tools/cloud/k8s/submitter.over_limits) reads the same reading and
 refuses while it stands, so the next pass under the line lets paid work start again.
 """
@@ -106,20 +107,45 @@ def unread_kinds():
     return (scaleway.Unread, subprocess.CalledProcessError, OSError, ValueError, KeyError)
 
 
-def stop_paid_work(book, name, why, now, run=subprocess.run):
-    """Stop every paid run: the stop's record under the cap (the owner's line) and every score Job in the jobs
-    namespace deleted, whatever box launched it; the record."""
+def tenant():
+    """tools/cloud/k8s/clusters/tenant.py, loaded by its path (it shares its name with nothing, but its folder's
+    scaleway.py shares the backend's)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("cluster_tenant", REPO / "tools/cloud/k8s/clusters/tenant.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def stop_paid_work(book, name, why, now, run=subprocess.run, cloud=None):
+    """Stop every paid run: the stop's record under the cap (the owner's line), every score Job in the jobs
+    namespace deleted, whatever box launched it, and every runner-tagged machine of the batch project in every zone
+    (`cloud`: tenant.py's stop_runner_servers; plan B4); the record, each failure named in it."""
     done = run(["kubectl", "delete", "jobs", "-n", JOBS_NAMESPACE, "-l", RUN_LABEL, "--ignore-not-found",
                 "--wait=false", "--cascade=background"], capture_output=True, text=True)
     record = {"at": iso(now), "why": why, "jobs": (done.stdout or "").strip()[-2000:],
               "jobs_error": (done.stderr or "").strip()[-500:] if done.returncode else None,
               "owner_line": f"env1 cap: paid work stopped: {why}"}
+    try:
+        record["machines"] = (cloud or tenant()).stop_runner_servers()
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - the Jobs are stopped; the record names what was not
+        record["machines_error"] = f"{type(error).__name__}: {error}"[:500]
     return guard.cap_write(book, "stops", record, name)
 
 
+def clean(cloud=None):
+    """Every pass's leftover cleanup (tenant.py's clean_leftovers: SCORE's pools' machines that are no node, runner
+    machines past their deadline, loose disks over a day); what it deleted, or its error named."""
+    try:
+        return (cloud or tenant()).clean_leftovers()
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - a failed cleanup never stops the watch; it is named
+        return {"error": f"{type(error).__name__}: {error}"[:500]}
+
+
 def one_pass(book, bill_reader=read_bill, live_reader=read_live, stop=stop_paid_work, now=None,
-             unread=None, name=guard.CAP):
-    """One watch pass (the module's docstring); its reading, or None when no cap is open."""
+             unread=None, name=guard.CAP, cleaner=None):
+    """One watch pass (the module's docstring), the leftovers cleaned (`cleaner`) whatever it reads; its reading, or
+    None when no cap is open."""
     now = time.time() if now is None else now
     cap = guard.current_cap(book, name)
     if not cap or not cap.get("open"):
@@ -143,6 +169,7 @@ def one_pass(book, bill_reader=read_bill, live_reader=read_live, stop=stop_paid_
                    "whole": bill["whole"], "rate": round(sum(item["per_hour"] for item in live.values()
                                                              if item["owner"] == "score"), 3),
                    "score": score_seen, "babon": babon_seen}
+    reading["cleaned"] = (cleaner or clean)()
     guard.cap_write(book, "readings", reading, name)
     why = over(cap, reading)
     if why:

@@ -47,7 +47,8 @@ park.py and spread.py are the pool's own call sites):
 - test_a_pool_held_longer_stays_open_past_its_first_end_and_prices_its_whole_hours: in `extend`,
   `plan.update({"deadline": deadline, "euros": euros})` -> `plan.update({"euros": euros})`.
 - test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go: in `resize`, `sizes = sized(plan["reserved"], cards,
-  processors)` -> `sizes = dict(plan["reserved"])`.
+  processors)` -> `sizes = dict(plan["reserved"])`. Or, the plan of 2026-11-09 B5, in `idle_down` drop the
+  `lowered(...)` call (the idle card's place is rented again), or the `IDLE_MINUTES` test (no card is ever let go).
 - test_a_stopped_takers_card_stays_on_the_pool_until_its_delete_went_through: in park.py `park`, the delete and
   `pool.left` swapped.
 - test_a_release_deletes_the_cards_side_by_side: in `at_once`, the threads -> one call after another.
@@ -213,7 +214,8 @@ def fresh(stock, sizes=None, run_id=None, euros=None, reserved=None):
 def grow(run_id):
     """One round of the collector: rent what the pool lacks; the cards that came up."""
     plan = pool.current(run_id)
-    return pool.fill(run_id, plan, pool.shortfall(plan, pool.trim(run_id, plan, pool.tidy(run_id))), "account")
+    return pool.fill(run_id, plan, pool.shortfall(plan, pool.idle_down(run_id, plan, pool.trim(
+        run_id, plan, pool.tidy(run_id)))), "account")
 
 
 def a_run(name):
@@ -592,6 +594,16 @@ def test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go():
     assert grow(run_id) == 0 and len(calls.deleted) == 2
     pool.resize(run_id, 5, 0)  # never above its opening size
     assert pool.current(run_id)["sizes"] == {"gpu-24gb": 3}
+    # no idle machine (the plan of 2026-11-09 B5): a card parked idle past IDLE_MINUTES goes with its place, so the
+    # collector does not rent it again and the run's resize does not raise it back
+    assert grow(run_id) == 2 and len(calls.deleted) == 2
+    path = next(park.PARKED.glob("*.json"))
+    path.write_text(json.dumps({**json.loads(path.read_text()),
+                                "parked_at": time.time() - (pool.IDLE_MINUTES + 1) * 60}))
+    assert grow(run_id) == 0 and len(calls.deleted) == 3
+    pool.resize(run_id, 5, 0)
+    assert pool.current(run_id)["sizes"] == pool.current(run_id)["reserved"] == {"gpu-24gb": 2}
+    assert grow(run_id) == 0 and len(calls.deleted) == 3
     pool.release(run_id)
 
 
