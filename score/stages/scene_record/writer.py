@@ -1179,6 +1179,17 @@ def deck_height(design, spot):
                         design_shell.inside(spot, level["points"])])
 
 
+def floor_lift(design, spot, base):
+    """The height a piece with its shape's `base` stands at on a plan spot: its base, lifted onto the highest level
+    lying on the floor (a deck at most a slab and its gap high, the ground under the place too) whose outline holds
+    the spot where its base is below that level's top (settle@airlock, checkout 67: its sandbags' -0.2 m ground base
+    laid them inside the 0 m floor and 0.1 m locker decks, buried with their faces flush), else its base."""
+    return max([base] + [float(level.get("height") or 0.0) for level in design.get("levels") or []
+                         if len(level.get("points") or []) >= 3 and
+                         float(level.get("height") or 0.0) <= design_shell.SLAB + DECK_BELOW and
+                         design_shell.inside(spot, level["points"])])
+
+
 def design_objects(design, handin, relations=None):
     """Every object of the design: one at each plan item (more where the item counts several, or a run the plan
     draws once) for each prop or shell row the item names, `<row>_<n>` the n-th of its row, standing on its plan spot
@@ -1212,7 +1223,7 @@ def design_objects(design, handin, relations=None):
             for piece, (spot, way) in enumerate(spots_of(item, shape, pieces, row)):
                 if row_id in edged:
                     spot, way = past_edge_spot(item, design, spot, size)
-                height = base or deck_height(design, spot)
+                height = floor_lift(design, spot, base) if base else deck_height(design, spot)
                 if relation:
                     spot, way, height, on = related(design, relation, spot, way, height, size, piece)
                 number += 1
