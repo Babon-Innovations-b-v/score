@@ -62,7 +62,7 @@ SOMA body npz, and MoGe-2's point maps of each video.
   IK, plates and ID setup read from the store, OpenSim's ID tool on the lab's settings (it reproduces the dataset's own
   ID .sto), and the knee adduction moment both OpenCap's way (computeKAM's joint reaction, muscles removed, the ID's
   forces on coordinate actuators) and as the plates' external moment about the model's knee. `_moments` scores the
-  run's generalized forces against it by OpenCap's protocol (%BW*ht MAE of its 15 degrees of freedom, with the elbows
+  run's generalized forces (the lumbar's from its lowest joint's own moment, `own torques`, 2026-11-09) against it by OpenCap's protocol (%BW*ht MAE of its 15 degrees of freedom, with the elbows
   and forearms; early-stance KAM, peak knee extension, sit-to-stand's rising means); `moments` is its command.
 - **The final validation is one command** (`validate.py`): `cluster.py` over the measure folder (a named run
   resumes), then every trial that came back scored and every table written into one folder, per group (all, each

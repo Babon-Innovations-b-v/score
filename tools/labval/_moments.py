@@ -9,9 +9,10 @@ forearms' pronation (the same coordinates on both models); MAE, with RMSE and Pe
   and arms carry LaiArnoldModified2017's coordinate names, axes and signs (`_run`'s docstring), so a generalized force
   on a coordinate is the same quantity on both sides. The pelvis' lumbar is the run's sacrum-lumbar5 joint (its
   coordinates `flex_extension`, `lat_bending`, `axial_rotation`, the first about z with extension positive as the
-  lab's): MyoFullBody spreads the lumbar over five levels,
-  and the lowest level's generalized force is the moment the whole trunk above puts on the pelvis, as the lab's one
-  back joint's is.
+  lab's): MyoFullBody spreads the lumbar over five levels, and the lowest level's own moment (`own torques`: that one
+  joint's, OWN) is the moment the whole trunk above puts on the pelvis, as the lab's one back joint's is. Its `torques`
+  is not: a leader's carries its followers' (L4/L5 at 0.185 of L5/S1's turn, the abdomen at 0.643), and with the lab's
+  own kinematics and plates it scored the three 0.2 to 0.7 %BW*ht further from the lab's (#98, 2026-11-09).
 - The shoulders (LaiArnoldModified2017's arm_flex, arm_add, arm_rot on one ball joint) have no matching coordinates
   in MyoFullBody (its shoulder is a scapula, clavicle and humerus chain with elevation-plane coordinates): a named gap.
 - The knee adduction moment (walking): OpenCap's (computeKAM's joint reaction, the reference's `kam_*`) is held
@@ -38,6 +39,7 @@ MOMENTS = {**{f"{stem}_{side}": None for side in "rl" for stem in (
     "lumbar_rotation": "axial_rotation", "elbow_flex_r": None, "elbow_flex_l": None,
     "pro_sup_r": None, "pro_sup_l": None}
 OPENCAP = tuple(name for name in MOMENTS if not name.startswith(("elbow", "pro_sup")))  # its 15
+OWN = ("lumbar_extension", "lumbar_bending", "lumbar_rotation")  # read from the joint's own moment (`own torques`)
 GAPS = {"arm_flex, arm_add, arm_rot (both sides)": "no matching MyoFullBody coordinates (its shoulder is a "
                                                   "scapula-clavicle-humerus chain, elevation-plane coordinates)"}
 RISE_SHARE = 0.1
@@ -57,16 +59,20 @@ def reference(path):
 
 
 def predicted(entry):
-    """{coordinate: N m every frame} of the run's generalized forces on MOMENTS' coordinates; a coordinate the run's
-    joints do not name once raises."""
+    """{coordinate: N m every frame} of the run's generalized forces on MOMENTS' coordinates, OWN's from the joint's own
+    moment; a coordinate the run's joints do not name once, or a run without its joints' own moments, raises."""
     names = list(entry["joints"])
+    if any("own torques" not in frame for frame in entry["frames"]):
+        raise ValueError("the run's frames carry no `own torques` (a run before 2026-11-09): its back moment is not the "
+                         "one joint's")
     rows = np.array([frame["torques"] for frame in entry["frames"]], dtype=float)
+    own = np.array([frame["own torques"] for frame in entry["frames"]], dtype=float)
     found = {}
     for coordinate, ending in MOMENTS.items():
         column = _run.coordinate_column(names, ending or coordinate)
         if column is None:
             raise ValueError(f"the run's joints name {ending or coordinate} not once")
-        found[coordinate] = rows[:, column]
+        found[coordinate] = (own if coordinate in OWN else rows)[:, column]
     return found
 
 

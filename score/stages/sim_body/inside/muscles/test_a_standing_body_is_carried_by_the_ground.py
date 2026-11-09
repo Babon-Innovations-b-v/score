@@ -6,7 +6,8 @@ rounding there (1e-3, MuJoCo's C 1e-11) moves no activation, and a 1e-6 nudge of
 and on the ground too, the ground reaction force solved first (`staged`): two feet on a flat floor asked for a
 moment past their toes (the body cannot be balanced, so the balance sits on the edge of the contacts' cone, its toe
 points' friction pyramids dependent), a 1e-6 nudge of the contact columns moves the activations under 1e-5 and each
-foot carries half the weight; and a knee's free turn is carried by its ligaments, not the muscles crossing it.
+foot carries half the weight; and a knee's free turn is carried by its ligaments, not the muscles crossing it; and a
+leader's own moment is its joint's alone, its net moment its followers' with it.
 It runs in Newton's own Python (on a model Newton builds; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -23,6 +24,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - problem's `arms[root dofs] = 0.0` made `pass`: the muscles' columns stand on the root's rows, and given the card's
   1e-3 of moment there the airborne leg's holding muscle goes from 0.150 to 0.0, pulled to cancel the pelvis'
   residual it cannot touch (2026-11-05, #70: the jump's frame 30, mean 0.115 on MuJoCo's C, 0.206 on the card).
+2026-11-09:
+- share_of's `whole[self.couplings.leads[6:]]` made `net[6:]`: a lumbar leader's own moment carries its followers'
+  (#98: LabValidation's back moment is the one joint's).
 - staged's steps made the one least squares of before (contacts, stops and muscles together, the pelvis' rows
   BALANCE): a 1e-6 nudge of the contacts moves an ankle muscle by 0.145.
 - share_asked's SHARE_COST made CONTACT_COST: the nudge moves it by 0.0028 (the balance crowded on a few points).
@@ -278,7 +282,64 @@ def ground_frames_are_well_posed():
     return problems + ([] if moved < 1e-5 else [f"a 1e-6 nudge of the contacts moves an activation by {moved:.3g}"])
 
 
-CHECKS = (the_ground_carries_a_still_body, rounding_moves_no_activation, ground_frames_are_well_posed)
+SPINE = """<mujoco model="spine">
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="pelvis" pos="0 0 2">
+      <freejoint name="root"/>
+      <geom type="box" size="0.15 0.1 0.1" mass="8"/>
+      <body name="low" pos="0 0 0.1">
+        <joint name="low_flex" type="hinge" axis="1 0 0"/>
+        <geom type="box" pos="0 0 0.05" size="0.05 0.05 0.05" mass="1"/>
+        <body name="high" pos="0 0 0.1">
+          <joint name="high_flex" type="hinge" axis="1 0 0"/>
+          <geom type="box" pos="0.02 0 0.2" size="0.1 0.1 0.2" mass="20"/>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <equality>
+    <joint joint1="high_flex" joint2="low_flex" polycoef="0 0.5 0 0 0"/>
+  </equality>
+</mujoco>
+"""
+
+
+def a_leaders_own_moment_is_its_joint_alone():
+    """A spine of two levels, the upper following the lower at half its turn, the body 2 m up and turning: the leader's
+    net moment is its own joint's and half its follower's (the couplings' map), its own moment its joint's alone (the
+    moment across that one joint, as a single back joint's inverse dynamics gives it)."""
+    import contact
+    import model
+    import muscles
+    import numpy as np
+    with tempfile.TemporaryDirectory() as folder:
+        path = pathlib.Path(folder) / "spine.xml"
+        path.write_text(SPINE)
+        found = model.built(path, 9.81)
+    ground = np.array([[[-5.0, 0.0, -5.0], [5.0, 0.0, 5.0], [5.0, 0.0, -5.0]]])
+    aloft = contact.Skin(np.zeros((1, 3)), np.ones((1, 1)), [np.eye(4)], [model.body_index(found, "pelvis")],
+                         [np.eye(4)])  # one skin point at the pelvis, 2 m over the ground: nothing touches
+    physics = muscles.Physics(found, ground, aloft)
+    qpos = found.qpos0.copy()
+    qpos[7] = 0.3
+    qpos = physics.couplings.apply(qpos)
+    qvel, qacc = np.zeros(found.nv), np.zeros(found.nv)
+    qvel[6], qvel[7] = 1.0, 0.5
+    qacc[6], qacc[7] = 4.0, 2.0
+    needed = physics.needed(qpos, qvel, qacc)
+    problem = physics.problem(needed)
+    share = physics.share_of(problem, np.zeros(len(problem["costs"])))
+    problems = []
+    if not np.allclose(share["moments"], [needed[6] + 0.5 * needed[7]], atol=1e-6):
+        problems.append(f"the leader's net moment {share['moments']}, not {needed[6] + 0.5 * needed[7]}")
+    if not np.allclose(share["own moments"], [needed[6]], atol=1e-6):
+        problems.append(f"the leader's own moment {share['own moments']}, not its joint's {needed[6]}")
+    return problems
+
+
+CHECKS = (the_ground_carries_a_still_body, rounding_moves_no_activation, ground_frames_are_well_posed,
+          a_leaders_own_moment_is_its_joint_alone)
 
 
 def in_newton():

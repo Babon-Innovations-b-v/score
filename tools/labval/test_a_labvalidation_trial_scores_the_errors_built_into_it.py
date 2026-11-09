@@ -104,6 +104,10 @@ Breaks, each applied once, seen red, reverted (2026-11-08, the subject's own sta
   way reads -14 degrees (the tilt's sign flips with the heading).
 - _score.angle_measures' bias `error.mean()` made `-error.mean()`: the legs, 2 degrees over, read 2 under.
 - `labval.scored`'s `standing` not given to `_run.angles`: the trial's pelvis, lumbar and elbows read as without it.
+Breaks, each applied once, seen red, reverted (2026-11-09, the back's own moment, #98):
+- _moments.predicted's `own if coordinate in OWN else rows` made `rows`: the lumbar's three score MAE 6, the leader's
+  moment with its followers'.
+- _moments.predicted's "own torques" check dropped: a run without them raises KeyError, not its reason.
 """
 import ast
 import json
@@ -812,8 +816,9 @@ def moment_curve(index, times):
 
 def moment_faults(tmp):
     """The synthetic trial's moments scored end to end (the run's every coordinate 1 % of body weight times height
-    over a reference npz in on_opensim's layout, its lumbar on the sacrum's joint beside a decoy lumbar level), then
-    the peaks' hand cases."""
+    over a reference npz in on_opensim's layout, its lumbar on the sacrum's joint beside a decoy lumbar level, read
+    from the joint's own moment where its leader's, followers with it, is 5 % off; a run without own moments
+    refused), then the peaks' hand cases."""
     root = tmp / "LabValidation"
     write_labval(root)
     write_run(tmp / "run")
@@ -832,11 +837,20 @@ def moment_faults(tmp):
     entry["joints"] = ["lumbar4_lumbar3__j0_L3_L4_FE", "lumbar3__j1_L3_L4_LB", "lumbar3__j1_lumbar3_L3_L4_AR",
                        *(lumbar.get(name, f"Full_Body_pelvis__j0_{name}") for name in names)]
     at = START + np.arange(len(entry["frames"])) / RATE + TAU
-    for frame, time in zip(entry["frames"], at):
-        frame["torques"] = [9.9e3, 9.9e3, 9.9e3, *(moment_curve(index, time) + 0.01 * scale for index in range(len(names)))]
+    lumbar_columns = [names.index(name) for name in lumbar]
+    for frame, time in zip(entry["frames"], at):  # the lumbar's own moment right, its leader's with followers 5 % off
+        own = [9.9e3, 9.9e3, 9.9e3, *(moment_curve(index, time) + 0.01 * scale for index in range(len(names)))]
+        frame["own torques"] = own
+        frame["torques"] = [value + (0.05 * scale if column - 3 in lumbar_columns else 0.0)
+                            for column, value in enumerate(own)]
+    faults = []
+    try:
+        _moments.predicted({"joints": entry["joints"], "frames": [{"torques": entry["frames"][0]["torques"]}]})
+        faults.append("a run without its joints' own moments scored")
+    except ValueError:
+        pass
     out.write_text(json.dumps(run))
     found = labval.moments_scored(tmp / "run", root, tmp)
-    faults = []
     for name in names:
         row = found["moments"]["moments"][name]
         if abs(row["mae %bw.ht"] - 1.0) > 0.02 or row["r"] < 0.999:
