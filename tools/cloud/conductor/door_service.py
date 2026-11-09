@@ -90,12 +90,18 @@ def read_token(reader=None):
     return subprocess.run([reader, TOKEN_SECRET], capture_output=True, text=True, check=True).stdout.strip()
 
 
-def send(url, token, command, stdin=b""):
-    """(exit code, stdout bytes, stderr bytes) of one command through the door at url."""
+def send(url, token, command, stdin=b"", out=None):
+    """(exit code, stdout bytes, stderr bytes) of one command through the door at url; with `out`, a binary file, the
+    body is copied into it as it comes and the bytes are b"" (a store-pull's tar of many GB never held in memory)."""
     request = urllib.request.Request(url, data=stdin, method="POST",
                                      headers={TOKEN_HEADER: token, COMMAND_HEADER: command})
     with urllib.request.urlopen(request, timeout=3600) as answer:
-        body = answer.read()
+        if out is None:
+            body = answer.read()
+        else:
+            shutil.copyfileobj(answer, out, 1 << 20)
+            out.flush()
+            body = b""
         return (int(answer.headers[EXIT_HEADER]), body, base64.b64decode(answer.headers.get(STDERR_HEADER, "")))
 
 
@@ -118,11 +124,10 @@ def ask(command, context=None, token=None):
     stdin = b"" if sys.stdin is None or sys.stdin.isatty() else sys.stdin.buffer.read()
     forward, port = forwarded(context)
     try:
-        code, out, err = send(f"http://127.0.0.1:{port}/", token or read_token(), command, stdin)
+        code, _, err = send(f"http://127.0.0.1:{port}/", token or read_token(), command, stdin, sys.stdout.buffer)
     finally:
         forward.terminate()
         forward.wait()
-    sys.stdout.buffer.write(out)
     sys.stderr.buffer.write(err)
     return code
 
