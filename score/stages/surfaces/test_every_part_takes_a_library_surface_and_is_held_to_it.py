@@ -208,6 +208,8 @@ tests it turned red:
   == largest` in `cut`; or in `look_down`, `closeup_check().look_down(size)` -> `15.0`; or in `look_downs`,
   `[stated, shown_look_down(target, size)] if` -> `[stated] if`  ->
   the_bake_s_outline_is_the_likeness_gate_s
+- route_bake.py: laid_shell's `if key != "route"` -> `if True`  ->
+  a_take_another_place_lays_standing_is_levelled_by_its_rows
 - route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
   records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
   `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
@@ -780,10 +782,21 @@ def test_a_tall_take_s_leg_ending_over_the_narrow_band_is_still_levelled():
 def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
     """A hangar laid an old station's parts rack (its `elsewhere`, parts_rack_1 to parts_rack_4) on the floor; the
     old station laid none of its kind, so the rack was never levelled (2026-10-15). Its paint counts the claiming
-    place's standing rows: the claimed rack row, never another of its rows. On surface data of the test's own."""
+    place's standing rows: the claimed rack row, never another of its rows. A made shell piece of its own place (route
+    "shell", laid in Objects) standing on the floor or ground is levelled the same way, through the bake's claimed
+    rows (route_bake.laid_shell): the engineroom's railing and the campgrounds' dome (checkout 68); one on a wall is
+    not. On surface data of the test's own."""
     folder, kept = pathlib.Path(tempfile.mkdtemp()), surfaces.data.FOLDER
     surfaces.data.FOLDER = folder  # the bare surface_data place_line reads (the table's own import)
-    (folder / "station.json").write_text(json.dumps({"place": "station", "takes": {"parts_rack-r1": {}}}))
+    shell = ("railing", "dome", "window")
+    (folder / "station.json").write_text(json.dumps({"place": "station", "takes": {
+        "parts_rack-r1": {}, **{f"{piece}-r1": {"place": "station"} for piece in shell}}}))
+    (folder / "station-inventory.json").write_text(json.dumps({"rows": [
+        {"id": "floor_plates", "anchor": "ground", "group": "kit: floor", "route": "plan", "size": [9.0, 9.0, 0.1]},
+        {"id": "wall", "anchor": "on:floor_plates", "route": "plan", "part": "wall"},
+        {"id": "railing", "anchor": "on:floor_plates", "route": "shell", "thing": "prop:railing-r1"},
+        {"id": "dome", "name": "habitat dome", "anchor": "ground", "route": "shell", "thing": "prop:dome-r1"},
+        {"id": "window", "anchor": "on:wall", "route": "shell", "thing": "prop:window-r1"}]}))
     (folder / "bay.json").write_text(json.dumps({"place": "bay", "takes": {}, "elsewhere": {
         f"parts_rack_{number}": {"take": "parts_rack-r1", "place": "station"} for number in range(1, 5)}}))
     (folder / "inventory.json").write_text(json.dumps({"rows": [
@@ -794,6 +807,10 @@ def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
         rows = place_line.claimed_rows("parts_rack-r1", inputs)
         assert rows and {row["id"] for row in rows} == {"parts_rack"}, rows
         assert place_line.claimed_rows("parts_rack-r1", dict(inputs, **{"inventory bay": None})) == []
+        inputs["inventory station"] = folder / "station-inventory.json"
+        laid = {piece: [row["id"] for row in route_bake.laid_shell(f"{piece}-r1", inputs)] for piece in shell}
+        assert laid == {"railing": ["railing"], "dome": ["dome"], "window": []}, laid
+        assert route_bake.laid_shell("parts_rack-r1", inputs) == []  # no place of its own: as made
     finally:
         surfaces.data.FOLDER = kept
         shutil.rmtree(folder)
