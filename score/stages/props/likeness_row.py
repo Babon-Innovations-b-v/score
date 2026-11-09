@@ -86,15 +86,31 @@ GAP_SHARE = 0.03
 def files(place):
     """prop_data.likeness_files with each prop object's take's Pixal3D input (its close-up as Pixal3D cut it out,
     object_record) that is there: a take the batch made no model of has none, and its gate names the object (a batch
-    gap the table moves). Here, not in prop_data.py, whose edits move the paid prop rows' code versions."""
+    gap the table moves). Here, not in prop_data.py, whose edits move the paid prop rows' code versions. A code take is
+    one the rule still builds in code (`still_coded`): a mark the rule no longer takes is left over on a home where the
+    Pixal3D row did not run again (2026-11-10, this PC: base's connecting_tube, a Pixal3D take since its row grew, kept
+    a thin-straight mark of 2026-11-03 and was judged as a code build)."""
     record = prop_data.record_at(prop_data.path_of(place)) if prop_data.applies(place) else {"objects": {}}
+    coded = still_coded(place, record)
     return {**prop_data.likeness_files(place), **POSE_RULES,
             **{f"pixal input {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/input.png"
                for row, entry in record["objects"].items() if entry["route"] == "prop"
                and (PROPS_HOME / "work/pixal" / f"{entry['take']}.svviews/input.png").exists()},
             **{f"code take {row}": "{home}/work/pixal/" + f"{entry['take']}.svviews/{thin_straight.MARK}"
-               for row, entry in record["objects"].items() if entry["route"] == "prop"
-               and thin_straight.code_built(entry["take"], PROPS_HOME / "work/pixal")}}
+               for row, entry in record["objects"].items() if entry["route"] == "prop" and row in coded}}
+
+
+def still_coded(place, record):
+    """The prop objects of `record` whose take is a code build the rule still takes, as the Pixal3D row keeps one
+    (pixal_row.make_pixal): a thin straight row (thin_straight.coded, from the place's inventory rows) or a flat sheet
+    built so (flat_sheet.built), its mark there."""
+    pixal = PROPS_HOME / "work/pixal"
+    inventory = prop_data.path_of(place) if prop_data.designed(place) else (
+        prop_data.FOLDER.parent / "inventory" / f"{place}.json")
+    rows = {row["id"]: row for row in prop_data.record_at(inventory).get("rows", [])} if inventory.exists() else {}
+    thin = thin_straight.coded({row: rows[row] for row in record["objects"] if row in rows})
+    return {row for row, entry in record["objects"].items() if thin_straight.code_built(entry["take"], pixal)
+            and (row in thin or flat_sheet.built(entry["take"], pixal))}
 
 
 def route_of(row, record):

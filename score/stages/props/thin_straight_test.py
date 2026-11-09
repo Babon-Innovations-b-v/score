@@ -57,6 +57,10 @@ too (the curving pipe squashed to 0.1 m across). straightened taking networks (`
 test_a_flat_network_of_straight_runs_is_built_along_its_mask_each_run_held_across_never_a_flat_sheet red (its wavy run
 0.193 m across, straight).
 
+likeness_row.still_coded taking every mark (`and (row in thin or flat_sheet.built(...))` -> `and True`) turns
+test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it red (a stale mark of a row grown out of the
+rule listed as a code take).
+
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/props/thin_straight_test.py
 """
 import json
@@ -208,6 +212,20 @@ def test_the_take_is_written_where_the_finish_route_and_the_likeness_row_read_it
     post = post.extents
     assert np.argmax(post) == 1 and np.isclose(post[1], 2.5, rtol=0.02), post  # it stands, as its picture shows
     labels.finish_turn("post_1")
+    # the likeness row lists a code take only while the rule still builds it: a mark left by a row that grew out of
+    # the rule is no code take (base's connecting_tube, 2026-11-10, on a home where the Pixal3D row did not run again)
+    import score.stages.props.likeness_row as likeness_row
+    home = tmp_path / "home"
+    (home / "work").mkdir(parents=True)
+    (home / "work/pixal").symlink_to(pixal)
+    handin = tmp_path / "handin.json"
+    handin.write_text(json.dumps({"rows": [PIPE, {**POST, "size": [7.9, 7.9, 3.2]}]}))
+    monkeypatch.setattr(likeness_row, "PROPS_HOME", home)
+    monkeypatch.setattr(prop_data, "designed", lambda place: True)
+    monkeypatch.setattr(prop_data, "path_of", lambda place: handin)
+    record = {"objects": {"pipe": {"route": "prop", "take": "garage_pipe_1"},
+                          "porch_post": {"route": "prop", "take": "post_1"}}}
+    assert likeness_row.still_coded("p", record) == {"pipe"}
     thin_straight.unbuild("post_1", pixal)
     thin_straight.unbuild("garage_pipe_1", pixal)
     assert not list(pixal.iterdir())
