@@ -24,6 +24,7 @@ image's pull seconds go into images.json under the kind's "proof", by card; the 
 """
 import argparse
 import json
+import os
 import pathlib
 import shlex
 import subprocess
@@ -36,6 +37,7 @@ sys.path.insert(0, str(HERE))
 import build  # noqa: E402
 import warm  # noqa: E402
 from build import batch, ledger, stores, submit  # noqa: E402
+import preflight  # noqa: E402  (beside ledger.py, on the path build put there)
 from provider import cloud  # noqa: E402
 
 KIND = "prove"
@@ -144,6 +146,21 @@ def offers_for(plan):
     return found
 
 
+def keep_preflight(plan, minutes):
+    """Under a runner's ticket, the batch's pre-flight: the plan's jobs on its one card for the `minutes` the card is
+    held for, kept where the run's runaway watch reads it (preflight.keep), so the watch judges the batch the make
+    sends, not the clearance's forecast; None outside a ticket. 2026-11-09, env1 checkouts 66-67: sound@lab sent its
+    five takes and every take its line's earlier sound rows had not made, one card, its clearance forecasting one
+    take on spread cards (1.16 min); the watch stopped it at twice that, its ssh ended with 255 while the takes
+    went up, and every sound row after failed the same way."""
+    ticket = os.environ.get(preflight.TICKET, "")
+    if len(ticket.split()) != 2:
+        return None
+    jobs = sum(len(kind_run.get("jobs", [])) for kind_run in plan["runs"])
+    return preflight.keep(ticket, {"jobs": jobs, "cards": 1, "minutes": round(minutes, 2),
+                                   "high_minutes": round(minutes, 2), "from": "the plan's minutes on its one card"})
+
+
 def one_attempt(plan, account, registry, store_spec, who, results):
     """Claim one machine from the plan's classes and prove on it; True when a machine was had."""
     found = offers_for(plan)
@@ -154,8 +171,10 @@ def one_attempt(plan, account, registry, store_spec, who, results):
     refused = ledger.refusal(minutes, dearest)
     if refused:
         raise SystemExit(f"refused: {refused}")
+    held = min(minutes, ledger.minutes_allowed(dearest))
+    keep_preflight(plan, held)
     run, _shares, _entry = build.rent_one(
-        account, found, KIND, "prove-%Y%m%d-%H%M%S", min(minutes, ledger.minutes_allowed(dearest)),
+        account, found, KIND, "prove-%Y%m%d-%H%M%S", held,
         plan, lambda machine: set_up(machine, registry, store_spec),
         lambda machine, _share, _card: prove_on(machine, plan, store_spec, results), plan.get("disk_gb", 300),
         {"who": who, "runs": [kind_run["kind"] for kind_run in plan["runs"]], **plan.get("ledger", {})})
