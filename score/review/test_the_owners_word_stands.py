@@ -2771,6 +2771,8 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     Break: score/review/plans.py: `if unknown:` -> `if False:`
     Break: score/review/plans.py: edit_inside's `plan, moved = people_moved_out(plan, inventory or {"rows": []})` dropped
         (greenhouse's redrawn astronaut_2 kept in its grow light frame, 2026-11-08)
+    Break: score/review/plans.py: edit_inside's `fixes += plan_fixes.kept_apart(plan, inventory or {"rows": []})`
+        dropped (the bay's redrawn second stove kept 0.9 m up on its first)
     Break: score/review/plans.py: `if not (asked or {}).get("words") or not asked.get("at") or not asked.get("reason"):` ->
         `if False:`
     A hold fitted to its plan's size takes its row's drawn item with it and moves, its item too, so its door meets its
@@ -2957,15 +2959,24 @@ def test_a_spot_takes_its_child_scenes_own_plan_size_centred_where_it_sat_and_sa
     # and a person spot standing in a thing on a floor of its shell moved out of it, the thing kept where drawn
     # (greenhouse's redrawing of 2026-11-05 kept astronaut_2 in its grow light frame on its lower floor, 2026-11-08)
     framed = [{"id": "frame", "anchor": "on:deck", "size": [2.0, 2.0, 2.0], "count": 1, "at": []},
-              {"id": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.6, 1.8], "at": []}]
+              {"id": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.6, 1.8], "at": []},
+              {"id": "stove", "count": 2, "size": [0.6, 0.6, 0.9], "at": []}]
     picked(store, "bay", framed)
     redrawn = {**plans.current(store, "bay")["plan"], "w": 6.0, "d": 6.0, "structure": ["deck"], "holds": [],
-               "items": [["FRAME 1", 2.0, 2.0, 2.0, 2.0, None, "item"]], "people": [[3.0, 3.0, 0.0, "astronaut"]]}
+               "items": [["FRAME 1", 2.0, 2.0, 2.0, 2.0, None, "item"], ["STOVE 1", 5.0, 0.5, 0.6, 0.6, None, "item"],
+                         ["STOVE 2", 5.2, 0.6, 0.6, 0.6, None, "item"]], "people": [[3.0, 3.0, 0.0, "astronaut"]],
+               "rows": {"FRAME 1": ["frame"], "STOVE 1": ["stove"], "STOVE 2": ["stove"]},
+               "shapes": {"STOVE 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
+                          "STOVE 2": {"shape": "rect", "tall": 0.9, "base": 0.9}}}
     written(store, "bay", {**redrawn, "people": []})
     plans.edited(store, "bay", redrawn, "joey")
     shown = plans.current(store, "bay")["plan"]
     assert not (1.75 < shown["people"][0][0] < 4.25 and 1.75 < shown["people"][0][1] < 4.25) and shown["items"][0][1:5] == [
         2.0, 2.0, 2.0, 2.0] and plans.newest_edit(store, "bay")["plan"]["people"][0][:2] == [3.0, 3.0], shown["people"]
+    # and its second stove piled on its first stood on the floor beside it (flat's redrawing of 2026-11-05, settle@flat
+    # in env1 checkout 68), the edit kept as made
+    assert shown["shapes"]["STOVE 2"]["base"] == 0.0 and shown["items"][2][1:3] != [5.2, 0.6] and \
+        plans.newest_edit(store, "bay")["plan"]["shapes"]["STOVE 2"]["base"] == 0.9, shown["items"]
     # a writing's doorway to a sibling held once whose own plan leads none back leads nowhere, said; one the sibling's
     # door meets, or a lead of its own names, stays (the Square's street, written again with an opening to the
     # stairwell, whose own street gate leads outside since its edit: plan@square's held gate, 2026-11-06)
@@ -3358,7 +3369,20 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     Break: score/review/plan_fixes.py `walls_and_stairs`: `for stair in plan.get("stairs") or []:` ->
         `for stair in []:` (BAGS 3 left on the ramp)
     Break: score/review/plan_fixes.py `nudged`: `others += [box for box in standing_low(plan, inventory, mover) if
-        box != still[1:5]] + clear` -> `others += clear` (the box nudged into the suit)"""
+        box != still[1:5]] + clear` -> `others += clear` (the box nudged into the suit)
+    Break: score/review/plan_fixes.py `piled_on_own`: `piles(rows[row])` -> `False` (the sandbag pile stood on the
+        floor), or `on_floor[row] not in plan_checks.FLOOR_ANCHORS` dropped (frame 2 taken off its wall)
+    Break: score/review/plan_fixes.py `floored`: `dict(row, anchor="floor")` -> `row` (RAIL 2 left 1 m up)
+    Break: score/review/plan_fixes.py `unpiled`: `shape["base"] = laid_base` dropped (the boxed-in stove grounded in
+        its first), or `size = [side + 2 * (MARGIN + grid.size) ...]` -> `item[3:5]` (STOVE 2 touching the fridge)
+    Break: score/review/plans_pass.py `unsettled`: `or bool(plan_fixes.kept_apart(copy.deepcopy(plan), inventory))`
+        dropped, or settled_again's `apart = plan_fixes.kept_apart(answer, inventory)` -> `apart = []`
+    Break: score/review/plan_fixes.py `piled_on_own`: `if under and min(under) < plan_checks.LOW:` -> `if under:`
+        (the overhead string 2 brought down to string 1's 6 m and moved)
+    Break: score/review/plan_fixes.py `wall_runs_parted`: the height band test dropped (PIPE 3 cut into PIPE 1's), or
+        `other_row != row` dropped (the panel cut off the pipes), or `continue  # no run` dropped (the panel cut)
+    Break: score/review/plan_fixes.py `standing_low`: `left_out |= {... holders.holder_kind(row) is not None}`
+        dropped (the room-sized wall panel blocks every nudge)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3421,6 +3445,85 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     hung = {"rows": [{"id": "crate"}, {"id": "box"}, {"id": "suit", "anchor": "on:wall"}]}
     plan_fixes.nudged(crowded, hung)
     assert crowded["items"][1][1:3] == [3.6, 3.45], crowded["items"]  # not 0.45 m east, into the suit
+    # settle@flat and settle@engineroom, checkout 68: a plan fixed before piled() asked the row's words kept flat's
+    # second stove 0.9 m up on its first, in its fridge, and the engine room's pipe 1 ran into its corner pipes. A
+    # stove is stood on the floor clear of both; a railing on a floor grating too, a sandbag pile stays piled, one
+    # with no free floor stays as laid; the longer pipe is cut off the corner one, a wall panel and a pipe at another
+    # height left, strings overhead and frames hung over each other on a wall left; the room-sized wall panel blocks
+    # no nudge. Fixed once, the plan says nothing more.
+    kitchen = {"w": 6.0, "d": 5.0, "items": [["FRIDGE 1", 4.95, 1.95, 0.6, 0.6, "W", "item"],
+                                             ["STOVE 1", 4.94, 2.59, 0.54, 1.0, "W", "item"],
+                                             ["STOVE 2", 4.58, 2.13, 0.8, 0.6, None, "item"],
+                                             ["BAGS 1", 1.0, 1.0, 1.0, 0.5, None, "item"],
+                                             ["BAGS 2", 1.2, 1.1, 1.0, 0.5, None, "item"],
+                                             ["RAIL 1", 0.5, 3.0, 1.0, 1.0, None, "item"],
+                                             ["RAIL 2", 0.6, 3.1, 1.0, 1.0, None, "item"],
+                                             ["PANEL 1", 0.0, 0.0, 6.0, 5.0, None, "item"],
+                                             ["PIPE 1", 1.0, 0.0, 4.0, 0.3, None, "item"],
+                                             ["PIPE 2", 0.8, 0.0, 0.6, 0.3, None, "item"],
+                                             ["PIPE 3", 4.6, 0.0, 0.6, 0.3, None, "item"],
+                                             ["STRING 1", 0.0, 4.0, 6.0, 0.2, None, "item"],
+                                             ["STRING 2", 0.0, 4.1, 6.0, 0.2, None, "item"],
+                                             ["FRAME 1", 3.0, 4.8, 0.5, 0.1, None, "item"],
+                                             ["FRAME 2", 3.1, 4.8, 0.5, 0.1, None, "item"]],
+               "rows": {"FRIDGE 1": ["fridge"], "STOVE 1": ["stove"], "STOVE 2": ["stove"], "BAGS 1": ["sandbags"],
+                        "BAGS 2": ["sandbags"], "RAIL 1": ["railing"], "RAIL 2": ["railing"],
+                        "PANEL 1": ["wall_panel"], "PIPE 1": ["pipe"], "PIPE 2": ["pipe"], "PIPE 3": ["pipe"],
+                        "STRING 1": ["lantern_string"], "STRING 2": ["lantern_string"], "FRAME 1": ["frame"],
+                        "FRAME 2": ["frame"]},
+               "shapes": {"FRIDGE 1": {"shape": "rect", "tall": 1.8, "base": 0.0},
+                          "STOVE 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
+                          "STOVE 2": {"shape": "rect", "tall": 0.9, "base": 0.9},
+                          "BAGS 1": {"shape": "rect", "tall": 0.3, "base": 0.0},
+                          "BAGS 2": {"shape": "rect", "tall": 0.3, "base": 0.3},
+                          "RAIL 1": {"shape": "rect", "tall": 1.0, "base": 0.0},
+                          "RAIL 2": {"shape": "rect", "tall": 1.0, "base": 1.0},
+                          "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0},
+                          "PIPE 1": {"shape": "rect", "tall": 0.2, "base": 2.5},
+                          "PIPE 2": {"shape": "rect", "tall": 0.2, "base": 2.5},
+                          "PIPE 3": {"shape": "rect", "tall": 0.2, "base": 1.0},
+                          "STRING 1": {"shape": "rect", "tall": 0.5, "base": 6.0},
+                          "STRING 2": {"shape": "rect", "tall": 0.5, "base": 6.5},
+                          "FRAME 1": {"shape": "rect", "tall": 0.6, "base": 0.2},
+                          "FRAME 2": {"shape": "rect", "tall": 0.6, "base": 1.2}}}
+    kitchen_rows = {"rows": [{"id": "fridge"}, {"id": "stove"}, {"id": "sandbags", "where": "a pile by the door"},
+                             {"id": "grating", "anchor": "ground"}, {"id": "railing", "anchor": "on:grating"},
+                             {"id": "hull", "anchor": "ground", "part": "wall"},
+                             {"id": "wall_panel", "anchor": "on:hull", "part": "wall"},
+                             {"id": "pipe", "anchor": "on:wall_panel"},
+                             {"id": "lantern_string", "anchor": "on:grating"},
+                             {"id": "frame", "anchor": "on:wall_panel"}]}
+    written = {**copy.deepcopy(kitchen), "fixes": []}  # a writing fixed before kept_apart: the pass fixes it again
+    said = plan_fixes.kept_apart(kitchen, kitchen_rows)
+    laid = {item[0]: item[1:5] for item in kitchen["items"]}
+    stove = laid["STOVE 2"]
+    assert kitchen["shapes"]["STOVE 2"]["base"] == 0.0 and stove[2:] == [0.8, 0.6] and not any(
+        plan_fixes.overlapping([stove[0] - 0.04, stove[1] - 0.04, 0.88, 0.68], laid[other])
+        for other in ("FRIDGE 1", "STOVE 1")), (stove, said)
+    assert kitchen["shapes"]["RAIL 2"]["base"] == 0.0 and not plan_fixes.overlapping(laid["RAIL 2"], laid["RAIL 1"])
+    assert kitchen["shapes"]["BAGS 2"]["base"] == 0.3 and laid["BAGS 2"] == [1.2, 1.1, 1.0, 0.5]
+    assert kitchen["shapes"]["STRING 2"]["base"] == 6.5 and laid["STRING 2"] == [0.0, 4.1, 6.0, 0.2]
+    assert kitchen["shapes"]["FRAME 2"]["base"] == 1.2 and laid["FRAME 2"] == [3.1, 4.8, 0.5, 0.1]
+    assert laid["PIPE 1"] == [1.45, 0.0, 3.55, 0.3] and laid["PIPE 3"] == [4.6, 0.0, 0.6, 0.3], laid
+    assert laid["PANEL 1"] == [0.0, 0.0, 6.0, 5.0] and len(said) == 3, said
+    assert plan_fixes.kept_apart(kitchen, kitchen_rows) == []
+    assert plans_pass.unsettled(written, kitchen_rows, parts=False)
+    again, _ = plans_pass.settled_again(None, "kitchen", written, kitchen_rows, None, parts=False)
+    assert again["items"] == kitchen["items"] and again["fixes"] == said, again["fixes"]
+    assert not plans_pass.unsettled(again, kitchen_rows, parts=False)
+    boxed_in = copy.deepcopy(kitchen)
+    boxed_in["shapes"]["STOVE 2"]["base"] = 0.9
+    next(item for item in boxed_in["items"] if item[0] == "STOVE 2")[1:3] = [4.58, 2.13]
+    boxed_in["items"].append(["CRATE 9", 0.0, 0.0, 6.0, 5.0, None, "item"])  # the whole floor taken
+    boxed_in["rows"]["CRATE 9"] = ["crate"]
+    assert plan_fixes.unpiled(boxed_in, {"rows": [*kitchen_rows["rows"], {"id": "crate"}]}) == [] and \
+        boxed_in["shapes"]["STOVE 2"]["base"] == 0.9
+    panelled = {**crowded, "items": [*crowded["items"], ["PANEL 1", 0.0, 0.0, 10.0, 10.0, None, "item"]],
+                "rows": {**crowded["rows"], "PANEL 1": ["wall_panel"]},
+                "shapes": {**crowded["shapes"], "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0}}}
+    panelled["items"][1][1:3] = [3.6, 4.5]
+    plan_fixes.nudged(panelled, {"rows": [*hung["rows"], {"id": "wall_panel", "anchor": "on:hull"}]})
+    assert panelled["items"][1][1:3] == [3.6, 3.45], panelled["items"]
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():

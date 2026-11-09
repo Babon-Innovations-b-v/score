@@ -29,11 +29,12 @@ import sys
 
 import numpy
 
-from score.review import concepts, plan_checks, plans
+from score.review import concepts, holders, plan_checks, plans, standing
 
 CORRECTIONS = 2  # automatic Correct calls at most, each kept only when it leaves fewer gaps
 NUDGE_ROUNDS = 4  # passes over the overlaps, each moving the smaller thing of a pair
 MARGIN = 0.05  # metres left between two things nudged apart
+RUN_SHARE = 3  # a thing on a wall this many times longer than it is deep is a run (a pipe), cut at a corner
 FACINGS = ("N", "E", "S", "W")
 # The corrected plan's schema, the keys `corrected` reads: its items, each [name, x, y, w, d, facing, kind] (a name or
 # word, else a number), and its standing spots [x, y]; the API holds the answer to it (ai.google.dev structured output).
@@ -279,8 +280,10 @@ def standing_low(plan, inventory, mover):
     """[x, y, w, d] of every thing whose shape stands it low on the floor though no floor holds it (a suit hung on the
     back wall stands on the floor in front of it: plan_checks.blocking reads only floor anchors, so the airlock's
     sandbags were nudged into its empty suit, checkout 67), but `mover` and what stands on it; a thing with no base
-    written (a ceiling lamp the fixes placed) is left out."""
+    written (a ceiling lamp the fixes placed) and the place's own shell (a wall, floor or ceiling row,
+    holders.holder_kind: the engine room's wall panels, laid as the whole room's box) are left out."""
     anchored, left_out = plan_checks.anchors(inventory), plan_checks.people(inventory) | plan_checks.afar(inventory)
+    left_out |= {row["id"] for row in inventory.get("rows", []) if holders.holder_kind(row) is not None}
     mover_row = (plan.get("rows", {}).get(mover[0]) or [None])[0]
     return [item[1:5] for item, row, shape in plan_checks.placed_items(plan)
             if item[0] != mover[0] and row not in left_out and anchored.get(row) != f"on:{mover_row}"
@@ -340,6 +343,131 @@ def runs_kept_clear(plan, inventory):
         shape["count"] = kept
         fixes.append(f"{plan_checks.said_name(item[0])}: kept out of the walls and stairs, {kept} of {count} things")
     return fixes
+
+
+def floored(plan, inventory):
+    """The inventory with each row standing on a row that is a floor (holders.holder_kind: the engine room's floor
+    grating) read as on the floor: its railings, engines and core stand on the floor as flat's stove does. A floor,
+    wall or ceiling row itself is left on its holder."""
+    rows = inventory.get("rows", [])
+    floors = {row["id"] for row in rows if holders.holder_kind(row) == "floor"}
+    return {**inventory, "rows": [dict(row, anchor="floor") if plan_checks.anchor_of(row) in floors
+                                  and holders.holder_kind(row) is None else row for row in rows]}
+
+
+def piled_on_own(plan, inventory):
+    """[(item, the base it stands at on the floor)] of each thing standing on the floor (`floored`) of a row that does
+    not pile (piles) laid over one of
+    its own row's things whose footprint it crosses: a pile made before plan_fixes.piled asked the row's words
+    (2026-11-06), flat's second stove 0.9 m up on its first, the engine room's railings 5 to 8 at 1 to 4 m (env1
+    checkout 68: settle@flat, "stove_1 and stove_2 came to rest inside each other")."""
+    rows, found = {row["id"]: row for row in inventory.get("rows", [])}, []
+    on_floor, laid = plan_checks.anchors(floored(plan, inventory)), plan_checks.placed_items(plan)
+    for item, row, shape in laid:
+        base = float((shape or {}).get("base") or 0.0)
+        if row not in rows or piles(rows[row]) or base <= 0.0 or on_floor[row] not in plan_checks.FLOOR_ANCHORS:
+            continue
+        under = [float((other_shape or {}).get("base") or 0.0) for other, other_row, other_shape in laid
+                 if other is not item and other_row == row and overlapping(item[1:5], other[1:5])
+                 and float((other_shape or {}).get("base") or 0.0) < base]
+        if under and min(under) < plan_checks.LOW:  # its own row's stand on the floor: not strings overhead
+            found.append((item, min(under)))
+    return found
+
+
+def taken_floor(plan, inventory, item, grid):
+    """The grid cells `item` may not stand on: under another floor thing (on the floor, or on a floor the place lays:
+    `floored`), a wall, a stair or a thing standing low by a wall (`standing_low`)."""
+    on_floor = floored(plan, inventory)
+    taken = numpy.zeros(grid.shape, dtype=bool)
+    for other, _, shape in plan_checks.blocking(plan, on_floor):
+        if other is not item:
+            taken |= grid.covered(plan_checks.polygon_of(other, shape))
+    for box in walls_and_stairs(plan) + standing_low(plan, on_floor, item):
+        taken |= standing.under(grid, [box[0] + box[2] / 2, box[1] + box[3] / 2], box[2:4])
+    return taken
+
+
+def freed(plan, inventory, item, grid, outline):
+    """`item` moved to the nearest floor inside the outline (`outline`'s cells) where it stands in nothing
+    (`taken_floor`), MARGIN clear (standing.nearest_free, its footprint for a person's); how far, 0.0 where it stands in
+    nothing already, None (and left where it is) when there is no such floor."""
+    middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
+    taken = taken_floor(plan, inventory, item, grid)
+    if not (taken & standing.under(grid, middle, item[3:5])).any():
+        return 0.0
+    size = [side + 2 * (MARGIN + grid.size) for side in item[3:5]]  # MARGIN clear, whatever cell it lands in
+    free = standing.nearest_free(middle, size, taken, grid, outline, [])
+    if free is None:
+        return None
+    item[1], item[2] = round(free[0] - item[3] / 2, 3), round(free[1] - item[4] / 2, 3)
+    return math.dist(middle, free)
+
+
+def unpiled(plan, inventory):
+    """Each thing piled on its own row's though its row does not pile (`piled_on_own`) stood at its own row's base and
+    moved clear of what it then stands in (`freed`); one with no free floor left as laid, piled (stood in the others at
+    one spot it would be worse: the engine room's railings 5 to 8, 3.5 x 2 m each, have none); the fixes said."""
+    fixes, grid = [], plan_checks.Grid(plan)
+    outline = grid.covered(plan_checks.outline_of(plan))
+    for item, base in piled_on_own(plan, inventory):
+        shape, laid_base = plan["shapes"][item[0]], plan["shapes"][item[0]]["base"]
+        shape["base"] = round(base, 3)
+        moved = freed(plan, inventory, item, grid, outline)
+        if moved is None:
+            shape["base"] = laid_base
+            continue
+        fixes.append(f"{plan_checks.said_name(item[0])}: stood on the floor, not piled on its own row's"
+                     + (f", moved {moved:.1f} m out of what it stood in" if moved else ""))
+    return fixes
+
+
+def wall_runs_parted(plan, inventory):
+    """Each run (RUN_SHARE) held on a wall (holders.wall_held) whose end runs into another of its row at the same
+    height, reaching past that end (a piece on the next wall at the corner), cut back off it along its long side,
+    MARGIN off (`trimmed`), its count cut with its length as runs_kept_clear cuts, while it keeps at least half its
+    length; the fixes said. The holders part one wall's pieces, never two walls' at their corner: the engine
+    room's pipe 1 along its north wall ran into its corner pipes 2 and 3 (env1 checkout 68: settle@engineroom, pipe_1
+    and pipe_2 inside each other by 0.072 m)."""
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    held = [(item, row, shape) for item, row, shape in plan_checks.placed_items(plan)
+            if row in rows and shape is not None and holders.wall_held(rows[row], rows)]
+    fixes = []
+    for item, row, shape in sorted(held, key=lambda found: -max(found[0][3], found[0][4])):
+        box, along = list(item[1:5]), 0 if item[3] >= item[4] else 1
+        if box[2 + along] < RUN_SHARE * box[3 - along]:
+            continue  # no run: a door, a seat, a corner piece
+        low = float(shape.get("base") or 0.0)
+        for other, other_row, other_shape in held:
+            start, end = other[1 + along], other[1 + along] + other[3 + along]
+            other_low = float(other_shape.get("base") or 0.0)
+            if other is item or other_row != row or not overlapping(box, other[1:5]) \
+                    or not (start <= box[along] or end >= box[along] + box[2 + along]) \
+                    or not (other_low < low + float(shape.get("tall") or 0.0)
+                            and low < other_low + float(other_shape.get("tall") or 0.0)):
+                continue
+            box = trimmed(box, other[1:5], along)
+            if box is None:
+                break
+        if box is None or box == list(item[1:5]) or box[2 + along] < item[3 + along] / 2:
+            continue
+        count = int(shape.get("count") or 1)
+        kept = max(1, round(count * box[2 + along] / item[3 + along]))
+        item[1:5] = [round(value, 3) for value in box]
+        if count > 1:
+            shape["count"] = kept
+        fixes.append(f"{plan_checks.said_name(item[0])}: cut to {item[3 + along]:.2f} m along its wall, clear of the "
+                     "piece at its corner")
+    return fixes
+
+
+def kept_apart(plan, inventory):
+    """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
+    order: runs kept out of the walls and stairs (`runs_kept_clear`), things piled on their own row's though it does
+    not pile stood on the floor (`unpiled`), runs on a wall parted (`wall_runs_parted`); the fixes said. A writing
+    fixed before them gets them in the pass (plans_pass.unsettled), an edit or a redrawing when shown
+    (plans.edit_inside)."""
+    return runs_kept_clear(plan, inventory) + unpiled(plan, inventory) + wall_runs_parted(plan, inventory)
 
 
 def nudged(plan, inventory):
@@ -640,13 +768,14 @@ def kept_inside(plan, inventory):
 
 def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
-    stood, runs split, missing things placed, facings turned, runs kept out of walls and stairs, overlaps parted, in
+    stood, runs split, missing things placed, facings turned, runs kept out of walls and stairs, things piled on their
+    own row's though it does not pile stood on the floor, runs on a wall parted, overlaps parted, in
     that order (each later one on the earlier's plan), then what lies past its own outline brought inside it."""
     plan = copy.deepcopy(plan)
     fixes = brought_in(plan, inventory)
     project = projector(plan, inventory)
     fixes += stood_people(plan, inventory, project) + split_runs(plan, inventory, project)
-    fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + runs_kept_clear(plan, inventory)
+    fixes += placed_missing(plan, inventory, project) + faced(plan, inventory) + kept_apart(plan, inventory)
     fixes += nudged(plan, inventory)
     fixes += doors_kept(plan, inventory) + kept_inside(plan, inventory)
     return plan, fixes
