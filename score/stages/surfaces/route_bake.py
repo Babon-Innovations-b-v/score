@@ -105,9 +105,25 @@ def job_files(short, out, records, heads, method):
         found[take] = (*(out / f".bake-{take}-{what}.json" for what in ("records", "claimed", "head")),
                        own_parts(short, out, take, method))
         found[take][0].write_text(json.dumps(records[take]))
-        found[take][1].write_text(json.dumps({take: place_line.claimed_rows(take, short)}))
+        found[take][1].write_text(json.dumps({take: place_line.claimed_rows(take, short) + laid_shell(take, short)}))
         found[take][2].write_text(json.dumps(head))
     return found
+
+
+def laid_shell(take, short):
+    """The rows of the take's own place that lay it as a made shell piece (route "shell") standing on the floor or
+    ground, which its paint levels the feet of as any floor row's (place_line.feet_rows reads them with the claimed
+    rows). place_line.stands leaves every shell row as made, but the plan's own shell is route "plan" and never a
+    take: a shell row's take is laid in Objects and the settle's triage judges it as any floor object. Unlevelled,
+    the engineroom's railing kept its posts 0 to 9 cm up and failed the settle (checkout 68). Here, not in
+    place_line.py, which is in 84 paid rows' code (people, pixal, settle among them)."""
+    place = place_line.data_of(short)["takes"].get(take, {}).get("place")
+    inventory = short.get(f"inventory {place}")
+    rows = json.loads(pathlib.Path(inventory).read_text())["rows"] \
+        if inventory and pathlib.Path(inventory).exists() else []
+    return [row for row in rows if row.get("thing") == f"prop:{take}" and row.get("route") == "shell"
+            and place_line.stands({key: value for key, value in row.items() if key != "route"},
+                                  short["resting rules"], rows)]
 
 
 def made_of(out, take):
