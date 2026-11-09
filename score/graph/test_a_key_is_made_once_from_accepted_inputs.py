@@ -587,8 +587,10 @@ def test_a_reject_naming_takes_gives_a_row_that_retakes_a_key_that_remakes_them(
     Break: score/graph/__init__.py: '        if stage.retakes:  # only' -> '        if False:  # only'; or
     again_parts' `return parts, text_hash(...)` -> `return parts, key` (a rejected record still reads as fresh); or
     retake_parts' `if record is None and (pending := self.pending_retake(node)):` -> `if False:` (a retake lost when
-    the key moves by code before it runs, workshop's arm 2026-11-09); or pending_retake's accept check left out
-    (a retake made again after it was accepted)."""
+    the key moves by code before it runs, workshop's arm 2026-11-09); or retake_parts'
+    `if self.store.record(node, followed[1]) or` -> `if` (a retake made and kept under a moved key lost again, its
+    line stopped: checkout 71); or `or not self.retake_answered(node, pending)` left out (a retake made again after
+    it was kept)."""
     takes = graph.Stage("takes", "place", make_takes, TEXT, PASSES, retakes=True)
     world, store = a_world({"hangar": "a ship"}), a_store()
     runner = a_runner(world, store, (takes,))
@@ -601,8 +603,12 @@ def test_a_reject_naming_takes_gives_a_row_that_retakes_a_key_that_remakes_them(
     moved = dataclasses.replace(takes, params={"moved": "by code"})  # its key moved before the retake ran
     shifted = a_runner(world, store, (moved,)).key(moved, "hangar")
     assert shifted["params"].get("retake", {}).get("takes") == ["seat-s1"], shifted["params"]  # the retake follows it
+    assert a_runner(world, store, (moved,)).run(["hangar"])["takes@hangar"].endswith("accepted automatically")
+    kept = a_runner(world, store, (moved,)).key(moved, "hangar")  # made and kept there: its key stays (checkout 71)
+    assert kept["key"] == shifted["key"] and store.record("takes@hangar", kept["key"]), kept["params"]
     assert runner.run(["hangar"])["takes@hangar"].endswith("accepted automatically")
-    assert "retake" not in a_runner(world, store, (moved,)).key(moved, "hangar")["params"]  # retaken: never again
+    later = dataclasses.replace(takes, params={"moved": "by code again"})  # a later move leaves no record there
+    assert "retake" not in a_runner(world, store, (later,)).key(later, "hangar")["params"]  # retaken: never again
     retaken = store.accepted("takes@hangar")
     assert json.loads((store.checkout(retaken) / "takes.txt").read_text())["takes"] == ["seat-s1"]
     review.reject(store, "takes@hangar", retaken, "owner", "no")
