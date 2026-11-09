@@ -55,6 +55,7 @@ WHY = {  # what a gap left after the fixes says: why no fix of it took
     "tiling": "inside places are never moved by the fixes",
     "joined": "the correction did not join it",
     "stacked": "no wall the holders would lay it against is free of its row's runs",
+    "flight": "no floor of its level holds it as made clear of the stairs",
 }
 
 
@@ -705,15 +706,148 @@ def stack_gaps(plan, inventory):
     return gaps
 
 
+STAIR_ROWS = {"stair", "stairs", "staircase", "staircases"}  # a row's words naming the flights the shell builds
+
+
+def eaves_raised(plan):
+    """Each roof whose eave stands less than a doorway's head (design_shell.DOOR_HEAD) over a raised level under it
+    (plan_checks.LOW or more over the floor: an upper floor, a gallery) raised to
+    a storey over that level (the walls' written height, else the height words' ceiling, else design_shell.STOREY),
+    its rise kept; the shell raises its walls to the eave (design_shell.wall_height); the fixes said. 2026-11-09,
+    settle@greenhouse in env1 checkout 68: its upper floor at 3 m stood over its dome's 2.8 m eave, the dome's
+    underside 3.5 to 4.7 m over the ring, and nine things on it (its 2.5 m tanks) stood in the roof."""
+    storey = max([float(wall.get("tall") or 0.0) for wall in plan.get("walls") or []], default=0.0) or \
+        design_shell.measured_ceiling(plan) or design_shell.STOREY
+    fixes = []
+    for number, roof in enumerate(plan.get("roofs") or [], 1):
+        if len(roof.get("points") or []) < 3 or roof.get("eave") is None:
+            continue
+        under = [level for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3
+                 and float(level.get("height") or 0.0) >= plan_checks.LOW  # a storey up, not the floor or a step
+                 and plan_checks.inside(numpy.asarray(level["points"], float), roof["points"]).any()]
+        level = max(under, key=lambda level: float(level.get("height") or 0.0), default=None)
+        eave = float(roof["eave"])
+        if level is None or eave >= float(level.get("height") or 0.0) + design_shell.DOOR_HEAD:
+            continue
+        raised = round(float(level.get("height") or 0.0) + storey, 3)
+        roof["eave"] = raised
+        if roof.get("top") is not None:
+            roof["top"] = round(float(roof["top"]) + raised - eave, 3)
+        height = float(level.get("height") or 0.0)
+        fixes.append(f"{roof.get('kind', 'flat')} roof {number}: its eave raised from {eave:g} m to {raised:g} m, a "
+                     f"storey ({storey:g} m) over its {level.get('name', 'level')} at {height:g} m")
+    return fixes
+
+
+def stair_rows_dropped(plan, inventory):
+    """Each row whose noun names stairs (STAIR_ROWS; a ramp or steps is a thing of its own) and that holds nothing (no
+    row stands on it) taken off the plan where the plan draws flights the shell builds (its `stairs`, a ramp's too):
+    off every item that ties it and any item of its own, said in the plan's `dropped`; the fixes said. 2026-11-09,
+    settle@greenhouse in env1 checkout 68: its reading's stairs row, tied to the walls item, laid two stairs objects on
+    the shell's three flights."""
+    flights = [stair for stair in plan.get("stairs") or [] if len(stair.get("points") or []) >= 3]
+    if not flights:
+        return []
+    fixes = []
+    for row in inventory.get("rows", []):
+        if not set(re.findall(r"[a-z]+", str(row.get("noun") or "").lower())) & STAIR_ROWS or \
+                any(other.get("anchor") == f"on:{row['id']}" for other in inventory.get("rows", [])):
+            continue  # no stairs, or one its railings or people stand on
+        tied = [name for name, rows in (plan.get("rows") or {}).items() if row["id"] in (rows or [])]
+        if not tied:
+            continue
+        for name in tied:
+            plan["rows"][name] = [found for found in plan["rows"][name] if found != row["id"]]
+            if not plan["rows"][name]:
+                item = next((item for item in plan["items"] if item[0] == name), None)
+                if item is not None:
+                    dropped_item(plan, item)
+        why = f"the shell builds the plan's {len(flights)} flights"
+        plan.setdefault("dropped", []).append({"item": row["id"], "why": why})
+        fixes.append(f"{plan_checks.said_name(row['id'])}: taken off, {why}")
+    return fixes
+
+
+def level_cells(plan, grid, item):
+    """The grid cells of the level `item`'s middle stands on (the highest holding it; its base the level's height),
+    else the plan's outline's."""
+    middle = numpy.array([[item[1] + item[3] / 2, item[2] + item[4] / 2]])
+    base = float(((plan.get("shapes") or {}).get(item[0]) or {}).get("base") or 0.0)
+    holding = [level for level in plan.get("levels") or [] if len(level.get("points") or []) >= 3
+               and abs(float(level.get("height") or 0.0) - base) < plan_checks.LOW
+               and plan_checks.inside(middle, level["points"]).all()]
+    return grid.covered(holding[0]["points"] if holding else plan_checks.outline_of(plan))
+
+
+def crossing(first, second):
+    """Whether two polygons (N x 2 arrays) cross: a corner of either inside the other."""
+    return bool(plan_checks.inside(first, second).any() or plan_checks.inside(second, first).any())
+
+
+def on_flights(plan, inventory):
+    """[(item, its made outline)] of each thing on the floor (or on a floor the place lays: `floored`) clear of every
+    stair or ramp as drawn but in one's footprint as made (made_outline: its read size about its middle), its made box
+    inside the plan's outline (one made past it stands past the plan's edge, made_things)."""
+    flights = [numpy.asarray(stair["points"], float) for stair in plan.get("stairs") or []
+               if len(stair.get("points") or []) >= 3]
+    on_floor, outline, found = floored(plan, inventory), plan_checks.outline_of(plan), []
+    rows = {row["id"]: row for row in on_floor.get("rows", [])}
+    for item, row, shape in plan_checks.blocking(plan, on_floor) if flights else []:
+        size = (rows.get(row) or {}).get("size")
+        if not (isinstance(size, list) and len(size) >= 2) or int((shape or {}).get("count") or 1) > 1:
+            continue
+        inset = [item[0], item[1] + MARGIN, item[2] + MARGIN, max(item[3] - 2 * MARGIN, MARGIN),
+                 max(item[4] - 2 * MARGIN, MARGIN), *item[5:]]  # drawn touching a flight is clear of it
+        made, drawn = (numpy.asarray(polygon, float) for polygon in (made_outline(item, rows[row]),
+                                                                   plan_checks.polygon_of(inset, shape)))
+        if plan_checks.inside(made, outline).all() and any(crossing(made, points) for points in flights) and \
+                not any(crossing(drawn, points) for points in flights):
+            found.append((item, made))
+    return found
+
+
+def off_flights(plan, inventory):
+    """Each thing in a stair or ramp as made though clear of it as drawn (on_flights) moved to the nearest floor of its
+    own level (level_cells) where it stands as made, MARGIN clear, in no flight, wall, floor thing or thing standing
+    low (taken_floor); left as laid with none, a gap (flight_gaps); the fixes said. 2026-11-09, settle@greenhouse in
+    env1 checkout 68: planter beds 8, 10 and 11, drawn 0.63 m and read 2.5 m, stood on the feet of its flights."""
+    grid, fixes = plan_checks.Grid(plan), []
+    for item, made in on_flights(plan, inventory):
+        middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
+        level = level_cells(plan, grid, item)
+        span = numpy.ptp(made, axis=0) + 2 * (MARGIN + grid.size)
+        free = standing.nearest_free(middle, span.tolist(), taken_floor(plan, inventory, item, grid) | ~level, grid,
+                                     level, [])
+        if free is None:
+            continue
+        item[1], item[2] = round(free[0] - item[3] / 2, 3), round(free[1] - item[4] / 2, 3)
+        fixes.append(f"{plan_checks.said_name(item[0])}: moved {math.dist(middle, free):.2f} m off the stairs, clear "
+                     f"of them as made ({numpy.ptp(made, axis=0).max():.1f} m across, drawn "
+                     f"{max(item[3], item[4]):.2f} m)")
+    return fixes
+
+
+def flight_gaps(plan, inventory):
+    """A gap for each thing left in a stair or ramp as made (on_flights)."""
+    return [{"kind": "flight", "item": item[0], "row": (plan.get("rows", {}).get(item[0]) or [None])[0],
+             "at": plan_checks.middle_of(made.tolist()),
+             "words": f"{plan_checks.said_name(item[0])} stands on the stairs as made "
+                      f"({numpy.ptp(made, axis=0).max():.1f} m across, drawn {max(item[3], item[4]):.2f} m)"}
+            for item, made in on_flights(plan, inventory)]
+
+
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
-    order: runs kept out of the walls and stairs (`runs_kept_clear`), things piled on their own row's though it does
-    not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid along walls free
-    of them (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and ramps moved out of what is made
-    larger than drawn (`flights_cleared`); the fixes said. A writing fixed before them gets them in the pass
-    (plans_pass.unsettled), an edit or a redrawing when shown (plans.edit_inside)."""
-    return runs_kept_clear(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
-        + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory)
+    order: a roof's eave raised a storey over a level standing under it (`eaves_raised`), a stairs row taken off where
+    the shell builds the flights (`stair_rows_dropped`), runs kept out of the walls and stairs (`runs_kept_clear`),
+    things piled on their own row's though it does not pile stood on the floor or taken off (`unpiled`), runs of one
+    row in each other on a wall laid along walls free of them (`wall_runs_spread`), runs on a wall parted
+    (`wall_runs_parted`), stairs and ramps moved out of what is made larger than drawn (`flights_cleared`), things
+    made larger than drawn moved off the stairs (`off_flights`); the fixes said. A writing fixed before them gets them
+    in the pass (plans_pass.unsettled), an edit or a redrawing when shown (plans.edit_inside)."""
+    return eaves_raised(plan) + stair_rows_dropped(plan, inventory) + runs_kept_clear(plan, inventory) \
+        + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) + wall_runs_parted(plan, inventory) \
+        + flights_cleared(plan, inventory) + off_flights(plan, inventory)
 
 
 def nudged(plan, inventory):
@@ -1031,10 +1165,10 @@ def fixed(plan, inventory):
 # --- what is left: the automatic Correct --------------------------------------------------------------------------
 
 def open_gaps(plan, inventory):
-    """The plan's gaps by today's free checks and runs left in each other on a wall (stack_gaps), its inside places not
-    laid out kept as written."""
+    """The plan's gaps by today's free checks, runs left in each other on a wall (stack_gaps) and things left on the
+    stairs as made (flight_gaps), its inside places not laid out kept as written."""
     return [gap for gap in plan.get("gaps", []) if gap["kind"] == "place"] + plan_checks.checked(
-        plan, inventory, plan.get("structure", [])) + stack_gaps(plan, inventory)
+        plan, inventory, plan.get("structure", [])) + stack_gaps(plan, inventory) + flight_gaps(plan, inventory)
 
 
 def tied(plan, answered):
