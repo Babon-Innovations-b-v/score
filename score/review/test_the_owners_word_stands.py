@@ -3437,7 +3437,14 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         plan with no flights)
     Break: score/review/plan_fixes.py `on_flights`: `and not any(crossing(drawn, points) ...)` dropped (the ramp's
         cart moved), or `plan_checks.inside(made, outline).all() and` dropped (the hall made past the plan moved)
-    Break: score/review/plan_fixes.py `off_flights`: `| ~level` dropped (the chair laid off its level)"""
+    Break: score/review/plan_fixes.py `off_flights`: `| ~level` dropped (the chair laid off its level)
+    Break: score/review/plan_fixes.py `ramps_walled`: `if plan_checks.past_walls(...)` -> `if True:` (the ramp clear of
+        the walls taken off) or `if False:` (the ramp laid through the wall kept)
+    Break: score/review/plan_fixes.py `runs_laid_out`: `range(count, 0, -1)` -> `range(1, 0, -1)` (BAGS 1 cut to one),
+        the drawn box's `taken & standing.under(...)` test -> `False` (BAGS 1 left in the suit), or its
+        `count_said(...)` dropped (the cut bags unsaid); `run_room`'s off-outline room -> `pass` (BAGS 4 pulled
+        inside); `taken_floor`'s `laid_polygon(...)` -> `plan_checks.polygon_of(other, shape)` (the bags left where
+        the holders lay the ramp)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3775,6 +3782,56 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         else:  # BED 1 alone under POT 1, its row's last
             assert laid["POT 1"] == [2.6, 2.6, 0.3, 0.3] and said[-1].startswith("bed: bed 1 taken off") and \
                 [entry["item"] for entry in potted["dropped"]] == ["bed"], (laid, said)
+    # settle@airlock, env1 checkout 71: sandbags made 0.6 x 0.4 m, 6 on a 0.4 x 1.23 m box, parted by the assembly into
+    # one another and its locker's suit; its ramp, laid by the holders up to its locker floor's edge, through a wall. A
+    # run is laid as long as its pieces as made, clear of a suit standing low by a wall, its count what a free floor
+    # within reach holds, said in `dropped`; a run that holds its pieces is left; a ramp laid through a wall is taken
+    # off, one laid clear of the walls left.
+    sacks = {"w": 6.0, "d": 4.0, "walls": [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.1}],
+             "items": [["BAGS 1", 0.5, 0.5, 1.2, 0.5, None, "item"], ["BAGS 2", 3.5, 3.0, 1.3, 0.5, None, "item"],
+                       ["BAGS 3", 0.2, 2.6, 0.6, 1.2, None, "item"], ["SUIT 1", 2.0, 0.3, 0.5, 0.5, "S", "item"],
+                       ["BAGS 4", 3.0, 4.3, 1.2, 0.8, None, "item"]],
+             "rows": {"BAGS 1": ["bags"], "BAGS 2": ["bags"], "BAGS 3": ["bags"], "SUIT 1": ["suit"],
+                      "BAGS 4": ["bags"]},
+             "shapes": {"BAGS 1": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 4},
+                        "BAGS 2": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2},
+                        "BAGS 3": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 9},
+                        "SUIT 1": {"shape": "rect", "tall": 1.8, "base": 0.0},
+                        "BAGS 4": {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 3}}}
+    sack_rows = {"rows": [{"id": "bags", "anchor": "ground", "count": 18, "size": [0.6, 0.4, 0.2]},
+                          {"id": "suit", "anchor": "on:back_wall", "count": 1, "size": [0.6, 0.4, 1.8]}]}
+    said = plan_fixes.runs_laid_out(sacks, sack_rows)
+    laid = {item[0]: item[1:5] for item in sacks["items"]}
+    counts = {name: shape.get("count") for name, shape in sacks["shapes"].items()}
+    assert laid["BAGS 2"] == [3.5, 3.0, 1.3, 0.5] and counts["BAGS 2"] == 2, (laid, said)  # it holds its two
+    assert counts["BAGS 1"] == 4 and laid["BAGS 1"][2:] == [2.4, 0.4] and not plan_fixes.overlapping(
+        laid["BAGS 1"], laid["SUIT 1"]), (laid, said)  # moved off the suit, as long as its four as made
+    kept = counts["BAGS 3"]  # the 4 m room holds fewer than nine, end to end, inside it
+    assert kept < 9 and laid["BAGS 3"][2:] == [0.4, round(0.6 * kept, 3)] and 0.0 <= laid["BAGS 3"][1] and \
+        laid["BAGS 3"][1] + laid["BAGS 3"][3] <= 4.0 and sacks["dropped"] == [
+            {"item": "bags", "why": f"{9 - kept} fewer of it laid, its runs as long as their free floor holds as "
+                                    f"made: {9 + kept} laid", "laid": 9 + kept}] and len(said) == 3, (laid, said)
+    assert counts["BAGS 4"] == 3 and laid["BAGS 4"][1] >= 4.0, laid  # drawn past the outline, kept past it
+    assert plan_fixes.runs_laid_out(sacks, sack_rows) == []
+    ramp_row = {"id": "ramp", "name": "metal ramp", "noun": "ramp", "anchor": "ground", "count": 1,
+                "size": [1.2, 2.0, 0.2]}
+    for walled_off in (True, False):
+        loft = {"w": 6.0, "d": 6.0, "walls": [{"from": [0.0, 0.0], "to": [6.0, 0.0], "thick": 0.1}] + (
+                    [{"from": [3.0, 0.0], "to": [3.0, 6.0], "thick": 0.1}] if walled_off else []),
+                "levels": [{"name": "loft", "height": 0.5, "points": [[4, 0], [6, 0], [6, 6], [4, 6]]}],
+                "items": [["RAMP 1", 1.0, 2.5, 1.0, 1.0, None, "item"]], "rows": {"RAMP 1": ["ramp"]},
+                "shapes": {"RAMP 1": {"shape": "rect", "tall": 0.3, "base": 0.0}}}
+        said = plan_fixes.ramps_walled(loft, {"rows": [ramp_row]})
+        if not walled_off:  # a run clear of the ramp as drawn, in it where the holders lay it, moved out of it
+            loft["items"].append(["BAGS 1", 2.2, 2.8, 1.2, 0.4, None, "item"])
+            loft["rows"]["BAGS 1"] = ["bags"]
+            loft["shapes"]["BAGS 1"] = {"shape": "rect", "tall": 0.2, "base": 0.0, "count": 2}
+            assert len(plan_fixes.runs_laid_out(loft, {"rows": [ramp_row, sack_rows["rows"][0]]})) == 1 and not \
+                plan_fixes.overlapping(loft["items"][1][1:5], [2.0, 2.4, 2.0, 1.2]), loft["items"]
+            loft["items"].pop()
+        assert (said == ["ramp: ramp 1 taken off, 1 laid up to a raised level through a wall: 0 laid"]
+                and loft["items"] == []) if walled_off else (said == [] and len(loft["items"]) == 1), (walled_off,
+                                                                                                         said)
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():
