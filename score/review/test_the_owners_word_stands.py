@@ -405,7 +405,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 - test_a_fixed_plan_with_a_pile_is_parted_again_free_and_then_settled:
     plans_pass.py (settled_again): `if more:` made `if False:`
 - test_an_accepted_plan_row_is_never_parted_and_an_unaccepted_one_is_parted_before_the_keep:
-    plans_pass.py: `return store.accepted(f"plan@{place}") is None` made `return True`
+    plans_pass.py: `return store.accepted(f"plan@{place}") is None` made `return True`; (parted_first)
+    `or not unsettled(` made `or not parting(store, place) or not unsettled(` (an accepted row's free re-fix kept a
+    pass later);
+    (settled_again) `if doors or within or apart:` made `if False:` (a person left in what kept_apart moved)
 - test_a_plan_that_places_more_is_left_to_its_own_process_not_parted_first:
     plans_pass.py: `if not parts: return plan, calls` made `if False: return plan, calls`
 - test_a_correct_s_copy_of_a_person_is_dropped_and_only_a_person_standing_in_something_moves (each seen red,
@@ -3988,6 +3991,42 @@ def test_an_accepted_plan_row_is_never_parted_and_an_unaccepted_one_is_parted_be
             plan_writing.written_of, plans.inventory_of, plan_writing.kept = before
     assert [record["place"] for record in kept] == ["airlock"] and kept[0]["euros"] == 0.0 and kept[0]["calls"] == []
     assert not plans_pass.unsettled(kept[0]["plan"], inventory)
+    # settle@airlock, 2026-11-09: plan@airlock stands accepted, so a bag laid again in its own row's run was taken off
+    # (plan_fixes.kept_apart) only in the background fix and kept a pass later. Any free re-fix is made before the
+    # keep, accepted row or not; a settled accepted place (habitat above) is still left.
+    doubled = {"w": 6.0, "d": 6.0, "doors": [], "people": [], "fixes": ["earlier fix"], "gaps": [],
+               "items": [["SANDBAGS 1", 1.0, 1.0, 3.0, 0.5, None, "item"],
+                         ["SANDBAGS 2", 1.2, 1.1, 0.6, 0.4, None, "item"]],
+               "rows": {"SANDBAGS 1": ["sandbags"], "SANDBAGS 2": ["sandbags"]},
+               "shapes": {"SANDBAGS 1": {"shape": "rect", "tall": 0.2, "base": -0.2, "count": 5},
+                          "SANDBAGS 2": {"shape": "rect", "tall": 0.2, "base": -0.2}}}
+    bags = {"rows": [{"id": "sandbags", "anchor": "ground", "count": 6, "size": [0.6, 0.4, 0.2]}]}
+    kept.clear()
+    with tempfile.TemporaryDirectory() as folder:
+        store = Store.in_folder(folder)
+        store.accepted = {"plan@airlock": "the accepted output"}.get
+        plan_writing.written_of = lambda store, place: {"place": place, "at": "then", "plan": doubled}
+        plans.inventory_of = lambda store, place: bags
+        plan_writing.kept = lambda store, record: kept.append(record) or record
+        try:
+            assert not plans_pass.placing_more(doubled, bags) and plans_pass.unsettled(doubled, bags, False)
+            assert plans_pass.parted_first(store, ["airlock"]) == ["airlock"]
+        finally:
+            plan_writing.written_of, plans.inventory_of, plan_writing.kept = before
+    assert [item[0] for item in kept[0]["plan"]["items"]] == ["SANDBAGS 1"] and kept[0]["calls"] == [], kept
+    # and the people are spaced after what kept_apart changed, so the writing it keeps is settled, not one more re-fix
+    # (airlock's astronaut stood 0.02 m in something once its sandbags were off, re-fixed a pass later)
+    shoved = {"w": 6.0, "d": 6.0, "doors": [], "people": [[3.0, 3.0]], "fixes": ["earlier fix"], "gaps": [],
+              "items": [["CRATE 1", 0.5, 0.5, 1.0, 1.0, None, "item"]], "rows": {"CRATE 1": ["crate"]}}
+    crates = {"rows": [{"id": "crate", "anchor": "ground", "count": 1, "size": [1.0, 1.0, 1.0]}]}
+    apart = plan_fixes.kept_apart
+    plan_fixes.kept_apart = lambda plan, inventory: plan["items"][0].__setitem__(slice(1, 3), [2.5, 2.5]) or ["moved"]
+    try:
+        fixed, calls = plans_pass.settled_again(None, "airlock", shoved, crates, plans_pass.unasked, parts=False)
+    finally:
+        plan_fixes.kept_apart = apart
+    assert fixed["items"][0][1:3] == [2.5, 2.5] and not (2.5 < fixed["people"][0][0] < 3.5 and
+                                                         2.5 < fixed["people"][0][1] < 3.5), fixed["people"]
 
 
 def test_a_plan_that_places_more_is_left_to_its_own_process_not_parted_first():
