@@ -251,6 +251,7 @@ def frames(physics, path, velocities, accelerations, worlds, ground, riders, fee
             "angles": np.round(local_turns(posed, parents), 3).tolist(),  # the body's segments' turns
             "targets": np.round(local_turns(worlds[frame], parents), 3).tolist(),
             "torques": np.round(share["moments"], 3).tolist(),
+            "own torques": np.round(share["own moments"], 3).tolist(),
             "ground": np.round(pushes.sum(axis=0), 3).tolist(),
             "lowest": rounded(low),
             "touches": None,  # steadied over the clip below

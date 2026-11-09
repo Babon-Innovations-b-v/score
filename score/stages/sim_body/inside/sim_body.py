@@ -57,7 +57,8 @@ out.json: {"engine", "card" (the CUDA card's name, null on the CPU), "rate", "pe
 model record), "muscles" ([name]), "joints" ([name]
 of each driven dof), "com height" (m, frame 0, over its ground), "frames":
 [{"angles": [[x, y, z] degrees, rotation vector, per SOMA segment but the first, against its parent, as the body's
-segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint], "ground": [x, y, z] N
+segment riding its bone turns], "targets": [...the clip's...], "torques": [N m per joint, its
+followers' with it], "own torques": [N m per joint, across that joint alone], "ground": [x, y, z] N
 (the ground's push), "lowest": m (the lowest skin
 point's height over the ground, null off it), "touches": {part: [the ground's push on it, xyz N, and its centre of
 pressure on the ground, xyz m]} (every part the ground pushes: each foot, its calcaneus and toes as one, by its Foot

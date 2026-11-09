@@ -175,7 +175,9 @@ class Physics:
         """The needed forces shared out: each contact's push (N, MuJoCo's frame, by body), each touching body's push
         and its centre of pressure (`touches`: a foot one part), each muscle's activation
         and force (N, tension), the residual on the pelvis (force N and moment N m, MuJoCo's frame) and each leading
-        joint's reserve and net moment (N m)."""
+        joint's reserve and net moment (N m): the net moment its coordinate needs with its followers' (the couplings'
+        map), and its own joint's alone ("own moments": the moment across that one joint, as a single joint's inverse
+        dynamics gives it; the two differ only on a leader with followers, a lumbar level spread over the others)."""
         problem = self.problem(needed)
         return self.share_of(problem, self.solved_all([problem], card=False)[0])
 
@@ -240,11 +242,12 @@ class Physics:
         for (number, body, edge), weight in zip(edges, pushed):
             forces[body] += weight * edge
             each[number] += weight * edge
-        net = problem["mapped"].T @ (problem["needed"] - problem["pushes"] @ pushed)
+        whole = problem["needed"] - problem["pushes"] @ pushed
+        net = problem["mapped"].T @ whole
         return {"pushes": forces, "touches": touches(contacts, each, self.parts), "activations": activations,
                 "forces": -(problem["gains"] * activations + problem["biases"]),
                 "residual": np.concatenate([left[:3], problem["root"] @ left[3:6]]), "reserves": left[6:],
-                "moments": net[6:]}
+                "moments": net[6:], "own moments": whole[self.couplings.leads[6:]]}
 
 
 def balance_asked(problem):
