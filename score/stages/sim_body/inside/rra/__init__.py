@@ -35,8 +35,8 @@ def reweighed(physics, path, residuals, home, made):
     """RRA's model step (opensim-core RRATool::adjustCOMToReduceResiduals): the whole body's mass changed by the mean
     upward residual over gravity, spread over the bodies by their masses (their inertias with them), at most
     MASS_MOST from its masses and inertias as made (`made`: (masses, inertias)) over every round, and the torso's
-    centre of mass moved under the mean horizontal residual moment, at most RRA's 0.1 m from where it was made
-    (`home`) over every round; returns the change from the made mass as made and as RRA recommends it (shares)."""
+    centre of mass moved under the mean horizontal residual moment across the torso's mean up (`level`), at most RRA's
+    0.1 m from where it was made (`home`) over every round; returns the change from the made mass as made and as RRA recommends it (shares)."""
     model, data = physics.model, physics.data
     gravity = -model.opt.gravity[2]
     recommended = (float(model.body_mass.sum()) - float(np.mean(residuals[:, 2])) / gravity) / float(made[0].sum()) - 1
@@ -45,16 +45,26 @@ def reweighed(physics, path, residuals, home, made):
     model.body_inertia[:] = made[1] * (1 + share)
     torso = body_index(model, "torso")
     weight = model.body_mass[torso] * gravity
-    rows, wanted = [], []
+    rows, wanted, ups = [], [], []
     for qpos, residual in zip(path, residuals):  # the torso's weight moved by d gives the pelvis (w d_y, -w d_x)
         data.qpos[:] = qpos
         mujoco.mj_kinematics(model, data)
         turn = data.xmat[torso].reshape(3, 3)
         rows += [weight * turn[1], -weight * turn[0]]
         wanted += [-residual[3], -residual[4]]
-    shift = np.linalg.lstsq(np.array(rows), np.array(wanted), rcond=None)[0]
+        ups.append(turn[2].copy())  # up in the torso's frame
+    across = level(np.mean(ups, axis=0))
+    shift = across.T @ np.linalg.lstsq(np.array(rows) @ across.T, np.array(wanted), rcond=None)[0]
     model.body_ipos[torso] = home + np.clip(model.body_ipos[torso] + shift - home, -COM_MOST, COM_MOST)
     return share, recommended
+
+
+def level(up):
+    """The two directions across `up` (2 x 3, orthonormal): the torso's centre of mass moves only across its own up,
+    as RRATool moves it (its body's x and z, never y): a weight's moment about the pelvis does not see a move along its
+    own line, so a move up or down is read off the frames' small tilts alone (#98, 2026-11-09: unbounded there, 98% of
+    LabValidation's 715 runs took the torso's centre of mass to the 10 cm cap)."""
+    return np.linalg.svd(np.asarray(up, dtype=float)[None, :])[2][1:]
 
 
 def residuals_kept(physics, states, kept):

@@ -8,7 +8,9 @@ set up as the fit's and through its `fit.solved`, a frame not converged fails th
 squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: one solver in sim_body).
 
 - Moved unchanged in #70's split; changed since by #70 only where its review asked (2026-10-29): the mass step bounded
-  (`MASS_MOST`) and `Footing` on mink.
+  (`MASS_MOST`) and `Footing` on mink; the torso's centre of mass moved only across its own mean up (`level`,
+  2026-11-09, #98), as RRATool moves it in its body's x and z: fitted in all three axes, the vertical one read off the
+  frames' small tilts alone and 98% of LabValidation's 715 runs took it to the 10 cm cap (median move 15.5 cm).
 - `Footing` holds each moving leg joint in its range, or where the frame it puts the feet back to (`before`, the
   fitted path) already stands past a stop, within where it stands (2026-11-03, #70): camp's walking astronaut_1, its
   right knee carried 0.38 degrees past its 0 stop by the path's low-pass on 27 of 150 frames, had that knee pulled
