@@ -734,6 +734,12 @@ def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it
     Break: score/stages/scene_record/writer.py: `height = base or deck_height(design, spot)` -> `height = base`
     Break: score/stages/scene_record/writer.py: `0.0 < float(level.get("height") or 0.0) <= design_shell.SLAB +
         DECK_BELOW and` -> `0.0 < float(level.get("height") or 0.0) and`
+    A piece whose plan base lies below the floor-lying level at its spot stands on that level (settle@airlock,
+    checkout 67: its sandbags' -0.2 m ground base buried them in the 0 m floor deck): -0.2 m bags on the 0.2 m deck
+    stand at 0.2, under the loft on the floor at 0, off every deck on the ground at -0.2.
+    Break: score/stages/scene_record/writer.py: `height = floor_lift(design, spot, base) if base else` ->
+        `height = base if base else`
+    Break: score/stages/scene_record/writer.py floor_lift: `return max([base] + [` -> `return max([0.0] + [`
     An opening row with no plan item of its own (2026-11-05) is named by its words on a free piece at an opening the
     shell cuts: the lab's corridor openings on the lintel over the plan's own door (wall_1_3), the hangar's floor
     hatch on the flight going down through its deck's hatch (stair_2), its roof opening on a roof cut round its
@@ -770,8 +776,14 @@ def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it
     assert writer.row_entries({**WRITTEN, "shell": "kit", "inside": True}, "shed", None, pillars) == []
     design = {**WRITTEN, "items": [*WRITTEN["items"], ["DOORWAY 1", 3.4, 0.0, 1.2, 0.2, None, "item"],
                                    ["CRATE 1", 6.0, 4.0, 1.0, 1.0, None, "item"],
-                                   ["BOX 1", 1.0, 4.0, 1.0, 1.0, None, "item"]],
-              "rows": {**WRITTEN["rows"], "DOORWAY 1": ["doorway"], "CRATE 1": ["crate"], "BOX 1": ["box"]},
+                                   ["BOX 1", 1.0, 4.0, 1.0, 1.0, None, "item"],
+                                   ["BAGS 1", 6.0, 4.0, 1.0, 1.0, None, "item"],
+                                   ["BAGS 2", 1.0, 4.0, 1.0, 1.0, None, "item"],
+                                   ["BAGS 3", 9.0, 4.0, 1.0, 1.0, None, "item"]],
+              "shapes": {**WRITTEN["shapes"], **{f"BAGS {number}": {"shape": "rect", "tall": 0.2, "base": -0.2}
+                                                 for number in (1, 2, 3)}},
+              "rows": {**WRITTEN["rows"], "DOORWAY 1": ["doorway"], "CRATE 1": ["crate"], "BOX 1": ["box"],
+                       "BAGS 1": ["bag_deck"], "BAGS 2": ["bag_floor"], "BAGS 3": ["bag_ground"]},
               "levels": [*WRITTEN["levels"],
                          {"name": "porch deck", "height": 0.2, "points": [[5.0, 3.0], [8.0, 3.0], [8.0, 6.0], [5.0, 6.0]]},
                          {"name": "loft", "height": 2.5, "points": [[0.0, 3.0], [4.0, 3.0], [4.0, 6.0], [0.0, 6.0]]}]}
@@ -779,9 +791,11 @@ def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it
              writer.shell(design, "shed", None, {"wall": ["wall_panels"], "opening": ["doorway", "hatch"]})}
     assert named["wall_1_3"] == "doorway" and named["wall_1"] == "wall_panels", named
     assert "hatch" not in named.values() and list(named.values()).count("doorway") == 1, named
-    rows = [{"id": name, "route": "prop", "size": [1.0, 1.0, 0.5]} for name in ("crate", "box")]
+    rows = [{"id": name, "route": "prop", "size": [1.0, 1.0, 0.5]}
+            for name in ("crate", "box", "bag_deck", "bag_floor", "bag_ground")]
     found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}})}
     assert found["crate"]["at"] == [2.5, 0.2, 1.5] and found["box"]["at"] == [-2.5, 0.0, 1.5], found
+    assert [found[row]["at"][1] for row in ("bag_deck", "bag_floor", "bag_ground")] == [0.2, 0.0, -0.2], found
 
 
 def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
