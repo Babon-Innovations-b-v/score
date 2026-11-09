@@ -3373,8 +3373,15 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     Break: score/review/plan_fixes.py `piled_on_own`: `piles(rows[row])` -> `False` (the sandbag pile stood on the
         floor), or `on_floor[row] not in plan_checks.FLOOR_ANCHORS` dropped (frame 2 taken off its wall)
     Break: score/review/plan_fixes.py `floored`: `dict(row, anchor="floor")` -> `row` (RAIL 2 left 1 m up)
-    Break: score/review/plan_fixes.py `unpiled`: `shape["base"] = laid_base` dropped (the boxed-in stove grounded in
+    Break: score/review/plan_fixes.py `unpiled`: `surplus.append(item)` -> `pass` (the boxed-in stove grounded in
         its first), or `size = [side + 2 * (MARGIN + grid.size) ...]` -> `item[3:5]` (STOVE 2 touching the fridge)
+    Break: score/review/plan_fixes.py `surplus_dropped`: `plan.setdefault("dropped", []).append(...)` dropped (the
+        stove row's count a gap again)
+    Break: score/review/plan_fixes.py `projector`: `if matrix is None or float(numpy.linalg.norm(...).max()) <
+        SPREAD_LEAST:` -> `if matrix is None:` (every box sent to the room's middle)
+    Break: score/review/plan_fixes.py `flights_cleared`: `if into is None or plan_checks.inside(corners, ...` ->
+        `if into is None:` (the lander's ramp moved off its lander), or `made_things`' outline test dropped (the
+        stair moved for the 30 m tower), or `made_outline`'s `max(float(wide), item[3])` -> `item[3]` (no ramp moved)
     Break: score/review/plans_pass.py `unsettled`: `or bool(plan_fixes.kept_apart(copy.deepcopy(plan), inventory))`
         dropped, or settled_again's `apart = plan_fixes.kept_apart(answer, inventory)` -> `apart = []`
     Break: score/review/plan_fixes.py `piled_on_own`: `if under and min(under) < plan_checks.LOW:` -> `if under:`
@@ -3516,8 +3523,50 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
     next(item for item in boxed_in["items"] if item[0] == "STOVE 2")[1:3] = [4.58, 2.13]
     boxed_in["items"].append(["CRATE 9", 0.0, 0.0, 6.0, 5.0, None, "item"])  # the whole floor taken
     boxed_in["rows"]["CRATE 9"] = ["crate"]
-    assert plan_fixes.unpiled(boxed_in, {"rows": [*kitchen_rows["rows"], {"id": "crate"}]}) == [] and \
-        boxed_in["shapes"]["STOVE 2"]["base"] == 0.9
+    said = plan_fixes.unpiled(boxed_in, {"rows": [*kitchen_rows["rows"], {"id": "crate"}]})
+    assert "STOVE 2" not in {item[0] for item in boxed_in["items"]} and "STOVE 1" in {
+        item[0] for item in boxed_in["items"]} and boxed_in["dropped"] == [
+        {"item": "stove", "why": "1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid"}] and \
+        said == ["stove: stove 2 taken off, 1 more of it than the place's free floor holds (0.8 x 0.6 m each): 1 laid"]
+    assert not plan_checks.count_gaps(boxed_in, {"rows": [{"id": "stove", "count": 2}]}, set()), said
+    # settle@engineroom, checkout 68: its grating, doors and windows each laid round the room's middle, so the fit
+    # sent every concept box to it and its four missing railings were laid on one spot. Such a fit is none.
+    symmetric = {"w": 10.0, "d": 10.0, "items": [], "rows": {}}
+    rows = []
+    for number, (row, near, far) in enumerate((("grate", [2.0, 5.0], [8.0, 5.0]), ("door", [5.0, 1.0], [5.0, 9.0]),
+                                               ("lamp", [3.0, 3.0], [7.0, 7.0]))):
+        rows.append({"id": row, "count": 2, "boxes": [[100 + 300 * number, 400, 200 + 300 * number, 500 + 100 * side]
+                                                      for side in (0, 1)]})
+        for side, (x, y) in enumerate((near, far)):
+            symmetric["items"].append([f"{row.upper()} {side + 1}", x - 0.5, y - 0.5, 1.0, 1.0, None, "item"])
+            symmetric["rows"][f"{row.upper()} {side + 1}"] = [row]
+    assert len(plan_checks.projection_anchors(symmetric, {"picture": [1000, 1000], "rows": rows})) == 3
+    assert plan_fixes.projector(symmetric, {"picture": [1000, 1000], "rows": rows}) is None
+    # settle@campgrounds, checkout 68: habitat dome 2 drawn a 6.37 m circle, made 10 m across (its read size), its
+    # ramp laid 0.62 m off the circle and so inside the dome. The ramp moves out of the dome as made; the lander's
+    # ramp up into its lander as drawn stays; a building made past the plan's edge moves no ramp.
+    domed = {"w": 24.0, "d": 24.0, "items": [["DOME 1", 3.0, 3.0, 6.0, 6.0, None, "item"],
+                                             ["LANDER 1", 14.0, 2.0, 6.0, 6.0, None, "item"],
+                                             ["TOWER 1", 2.0, 16.0, 4.0, 4.0, None, "item"]],
+             "rows": {"DOME 1": ["dome"], "LANDER 1": ["lander"], "TOWER 1": ["tower"]},
+             "shapes": {"DOME 1": {"shape": "circle", "tall": 6.0}, "LANDER 1": {"shape": "circle", "tall": 8.0},
+                        "TOWER 1": {"shape": "rect", "tall": 30.0}},
+             "stairs": [{"kind": "ramp", "points": [[5.5, 9.6], [6.5, 9.6], [6.5, 11.6], [5.5, 11.6]], "from": 0.0,
+                         "to": 0.5, "angle": 90.0},
+                        {"kind": "ramp", "points": [[16.5, 7.0], [17.5, 7.0], [17.5, 9.0], [16.5, 9.0]], "from": 0.0,
+                         "to": 2.0, "angle": 270.0},
+                        {"kind": "stair", "points": [[7.0, 17.0], [8.0, 17.0], [8.0, 19.0], [7.0, 19.0]], "from": 0.0,
+                         "to": 3.0, "angle": 0.0}]}
+    made_rows = {"rows": [{"id": "dome", "anchor": "ground", "size": [10.0, 10.0, 6.0]},
+                          {"id": "lander", "anchor": "ground", "size": [8.0, 8.0, 8.0]},
+                          {"id": "tower", "anchor": "ground", "size": [30.0, 30.0, 30.0]}]}
+    said = plan_fixes.kept_apart(domed, made_rows)
+    ramp = domed["stairs"][0]["points"]
+    assert min(point[1] for point in ramp) >= 11.05 and [point[0] for point in ramp] == [5.5, 6.5, 6.5, 5.5] and said == [
+        "ramp 1: moved 1.48 m out of dome 1 as it is made (10.0 m across, drawn 6.00 m)"], (ramp, said)
+    assert domed["stairs"][1]["points"] == [[16.5, 7.0], [17.5, 7.0], [17.5, 9.0], [16.5, 9.0]]
+    assert domed["stairs"][2]["points"] == [[7.0, 17.0], [8.0, 17.0], [8.0, 19.0], [7.0, 19.0]]
+    assert plan_fixes.kept_apart(domed, made_rows) == []
     panelled = {**crowded, "items": [*crowded["items"], ["PANEL 1", 0.0, 0.0, 10.0, 10.0, None, "item"]],
                 "rows": {**crowded["rows"], "PANEL 1": ["wall_panel"]},
                 "shapes": {**crowded["shapes"], "PANEL 1": {"shape": "rect", "tall": 2.8, "base": 0.0}}}

@@ -35,6 +35,8 @@ CORRECTIONS = 2  # automatic Correct calls at most, each kept only when it leave
 NUDGE_ROUNDS = 4  # passes over the overlaps, each moving the smaller thing of a pair
 MARGIN = 0.05  # metres left between two things nudged apart
 RUN_SHARE = 3  # a thing on a wall this many times longer than it is deep is a run (a pipe), cut at a corner
+FLIGHT_REACH = 3.0  # metres a stair or ramp is moved out of a thing made larger than drawn at most
+SPREAD_LEAST = 0.5  # metres the rows a projection is fitted on must lay their things' middles apart at least
 FACINGS = ("N", "E", "S", "W")
 # The corrected plan's schema, the keys `corrected` reads: its items, each [name, x, y, w, d, facing, kind] (a name or
 # word, else a number), and its standing spots [x, y]; the API holds the answer to it (ai.google.dev structured output).
@@ -58,9 +60,13 @@ WHY = {  # what a gap left after the fixes says: why no fix of it took
 
 def projector(plan, inventory):
     """A function from a SAM box (pixels of the concept) to its spot [x, y] on the plan, inside its outline box
-    (`projection`); None with fewer than three rows to fit it on."""
+    (`projection`); None with fewer than three rows to fit it on, or when their spots on the plan all lie within
+    SPREAD_LEAST of their middle: such a fit sends every box to that one spot (the engine room's grating, doors and
+    windows, each laid round the room's middle, so all three at it: its four missing railings were laid on one spot
+    and piled 1 to 4 m, 2026-11-06)."""
     matrix = plan_checks.projection(plan, inventory)
-    if matrix is None:
+    spots = numpy.array([spot for _, spot in plan_checks.projection_anchors(plan, inventory)], dtype=float)
+    if matrix is None or float(numpy.linalg.norm(spots - spots.mean(axis=0), axis=1).max()) < SPREAD_LEAST:
         return None
     wide, high = inventory["picture"]
 
@@ -406,19 +412,39 @@ def freed(plan, inventory, item, grid, outline):
 
 def unpiled(plan, inventory):
     """Each thing piled on its own row's though its row does not pile (`piled_on_own`) stood at its own row's base and
-    moved clear of what it then stands in (`freed`); one with no free floor left as laid, piled (stood in the others at
-    one spot it would be worse: the engine room's railings 5 to 8, 3.5 x 2 m each, have none); the fixes said."""
-    fixes, grid = [], plan_checks.Grid(plan)
+    moved clear of what it then stands in (`freed`); one with no free floor is more of its row than the place holds,
+    taken off the plan (`surplus_dropped`: the engine room's railings 5 to 8, 3.5 x 2 m each, piled 1 to 4 m on one
+    spot, have none, 2026-11-09); the fixes said."""
+    fixes, grid, surplus = [], plan_checks.Grid(plan), []
     outline = grid.covered(plan_checks.outline_of(plan))
     for item, base in piled_on_own(plan, inventory):
-        shape, laid_base = plan["shapes"][item[0]], plan["shapes"][item[0]]["base"]
+        shape = plan["shapes"][item[0]]
         shape["base"] = round(base, 3)
         moved = freed(plan, inventory, item, grid, outline)
         if moved is None:
-            shape["base"] = laid_base
+            surplus.append(item)
             continue
         fixes.append(f"{plan_checks.said_name(item[0])}: stood on the floor, not piled on its own row's"
                      + (f", moved {moved:.1f} m out of what it stood in" if moved else ""))
+    return fixes + surplus_dropped(plan, surplus)
+
+
+def surplus_dropped(plan, surplus):
+    """The things of `surplus` (items no free floor of the place holds) taken off the plan, each row's in the plan's
+    `dropped` with its reason, so its count is no gap and no fix places them again (plan_checks.count_gaps); the fixes
+    said, one a row."""
+    fixes, by_row = [], {}
+    for item in surplus:
+        by_row.setdefault((plan.get("rows", {}).get(item[0]) or [None])[0], []).append(item)
+    for row, items in by_row.items():
+        for item in items:
+            dropped_item(plan, item)
+        kept = sum(1 for found in plan["items"] if row in (plan.get("rows", {}).get(found[0]) or []))
+        size = f"{items[0][3]:g} x {items[0][4]:g} m"
+        why = f"{len(items)} more of it than the place's free floor holds ({size} each): {kept} laid"
+        plan.setdefault("dropped", []).append({"item": row, "why": why})
+        fixes.append(f"{plan_checks.said_name(row)}: {', '.join(plan_checks.said_name(item[0]) for item in items)} "
+                     f"taken off, {why}")
     return fixes
 
 
@@ -461,13 +487,85 @@ def wall_runs_parted(plan, inventory):
     return fixes
 
 
+def made_outline(item, row, margin=0.0):
+    """The footprint box (a polygon) of a plan `item` as its model is made: its row's read wide and deep (turned for a
+    thing facing east or west), never less than the item's own, about the item's middle, `margin` more each way. The
+    bake lays a take within its row's read size, never the plan's (prepare/groups.row_size, the surfaces'
+    bake_job.laid_size), anywhere in that box whatever the plan's shape: campgrounds' habitat dome 2, drawn a 6.37 m
+    circle, is made 10 by 9.9 m, its body reaching 5.03 m from its middle and a guy stake 5.16 m."""
+    wide, deep = (row["size"][1], row["size"][0]) if item[5] in ("E", "W") else row["size"][:2]
+    wide, deep = max(float(wide), item[3]) + 2 * margin, max(float(deep), item[4]) + 2 * margin
+    middle = [item[1] + item[3] / 2, item[2] + item[4] / 2]
+    return plan_checks.polygon_of([item[0], middle[0] - wide / 2, middle[1] - deep / 2, wide, deep, *item[5:]], None)
+
+
+def made_things(plan, inventory):
+    """[(item, made_outline MARGIN clear, made_outline)] of each thing on the floor or ground made larger than the
+    plan draws it (a read size, one of its own: no run of pieces), its made box inside the plan's outline (a thing
+    made past it stands past the plan's edge, its item only its face: the square's 30 m buildings)."""
+    rows, outline, found = {row["id"]: row for row in inventory.get("rows", [])}, plan_checks.outline_of(plan), []
+    for item, row, shape in plan_checks.blocking(plan, inventory):
+        size = (rows.get(row) or {}).get("size")
+        if not (isinstance(size, list) and len(size) >= 2) or int((shape or {}).get("count") or 1) > 1:
+            continue
+        made = made_outline(item, rows[row])
+        if (numpy.ptp(numpy.asarray(made, float), axis=0) > numpy.asarray(item[3:5]) + MARGIN).any() and \
+                plan_checks.inside(numpy.asarray(made, float), outline).all():
+            found.append((item, made_outline(item, rows[row], MARGIN), made))
+    return found
+
+
+def flight_clear(stair, points, plan, things, others):
+    """Whether `stair` laid at footprint `points` stands inside the plan's outline and out of its walls (stair_gaps'
+    test), of every made thing of `things` (made_things) and of the other flights' footprints `others`."""
+    samples, _ = plan_checks.flight_samples(*plan_checks.flight({**stair, "points": points})[:5])
+    samples = numpy.vstack([samples, numpy.asarray(points, float)])
+    return not plan_checks.past_walls(samples, plan_checks.outline_of(plan), plan.get("walls") or []) and not any(
+        plan_checks.inside(samples, polygon).any() for polygon in [*(clear for _, clear, _ in things), *others])
+
+
+def flights_cleared(plan, inventory):
+    """Each stair or ramp the plan lays clear of a thing as drawn but inside it as made (made_things: campgrounds'
+    ramp 2, laid 0.62 m off habitat dome 2's drawn 6.37 m circle, 1.2 m inside the dome as made 10 m across; settle@campgrounds,
+    2026-11-09: the dome laid inside the ramp) moved straight away from that thing's middle, INSIDE_STEP at a
+    time and FLIGHT_REACH at most, to the first spot clear of it and every made thing by MARGIN, inside the outline,
+    out of the walls and the other flights (`flight_clear`); left where it is with no such spot. A flight inside the
+    thing as drawn too is its own (the lander's ramp up into it); the fixes said."""
+    things, fixes = made_things(plan, inventory), []
+    stairs = [stair for stair in plan.get("stairs") or [] if len(stair.get("points") or []) >= 3]
+    for number, stair in enumerate(stairs, 1):
+        corners = numpy.asarray(stair["points"], float)
+        middle = corners.mean(axis=0)
+        into = next(((item, made) for item, _, made in things
+                     if plan_checks.inside(corners, made).any() or plan_checks.inside(
+                         numpy.asarray(made, float), corners).any()), None)
+        if into is None or plan_checks.inside(corners, plan_checks.polygon_of(
+                into[0], plan.get("shapes", {}).get(into[0][0]))).any():
+            continue
+        item = into[0]
+        away = middle - [item[1] + item[3] / 2, item[2] + item[4] / 2]
+        away = away / max(float(numpy.linalg.norm(away)), 1e-9)
+        others = [other["points"] for other in stairs if other is not stair]
+        step = next((step for step in numpy.arange(INSIDE_STEP, FLIGHT_REACH + INSIDE_STEP / 2, INSIDE_STEP)
+                     if flight_clear(stair, (corners + away * step).tolist(), plan, things, others)), None)
+        if step is None:
+            continue
+        stair["points"] = [[round(float(value), 3) for value in point] for point in corners + away * step]
+        fixes.append(f"{stair.get('kind', 'stair')} {number}: moved {step:.2f} m out of "
+                     f"{plan_checks.said_name(item[0])} as it is made "
+                     f"({numpy.ptp(numpy.asarray(into[1], float), axis=0).max():.1f} m across, drawn "
+                     f"{max(item[3], item[4]):.2f} m)")
+    return fixes
+
+
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
     order: runs kept out of the walls and stairs (`runs_kept_clear`), things piled on their own row's though it does
-    not pile stood on the floor (`unpiled`), runs on a wall parted (`wall_runs_parted`); the fixes said. A writing
-    fixed before them gets them in the pass (plans_pass.unsettled), an edit or a redrawing when shown
-    (plans.edit_inside)."""
-    return runs_kept_clear(plan, inventory) + unpiled(plan, inventory) + wall_runs_parted(plan, inventory)
+    not pile stood on the floor or taken off (`unpiled`), runs on a wall parted (`wall_runs_parted`), stairs and ramps
+    moved out of what is made larger than drawn (`flights_cleared`); the fixes said. A writing fixed before them gets
+    them in the pass (plans_pass.unsettled), an edit or a redrawing when shown (plans.edit_inside)."""
+    return runs_kept_clear(plan, inventory) + unpiled(plan, inventory) + wall_runs_parted(plan, inventory) \
+        + flights_cleared(plan, inventory)
 
 
 def nudged(plan, inventory):
@@ -769,7 +867,8 @@ def kept_inside(plan, inventory):
 def fixed(plan, inventory):
     """(the plan with every free fix made, the fixes said): rows at the concept's foot brought in from beyond, people
     stood, runs split, missing things placed, facings turned, runs kept out of walls and stairs, things piled on their
-    own row's though it does not pile stood on the floor, runs on a wall parted, overlaps parted, in
+    own row's though it does not pile stood on the floor or taken off, runs on a wall parted, stairs and ramps moved
+    out of what is made larger than drawn, overlaps parted, in
     that order (each later one on the earlier's plan), then what lies past its own outline brought inside it."""
     plan = copy.deepcopy(plan)
     fixes = brought_in(plan, inventory)
