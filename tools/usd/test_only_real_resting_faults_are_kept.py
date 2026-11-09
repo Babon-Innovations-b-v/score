@@ -15,7 +15,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_drop_started_inside_is_judged_by_the_overlap: overlap_faults' `if depth <= TOLERANCE:` made `if depth <= 0.06:`.
 - a_case_on_a_pallet_is_no_surface_under_the_pallet: Surfaces.gaps_below's `keep = ~np.isin(owners, list(left_out))
   & ((gaps_found >= 0) | inside | ...)` made `keep = ~np.isin(owners, list(left_out))`.
-- a_foot_off_the_floor_and_a_lean_fail: feet_faults' `if gap > TOLERANCE:` made `if gap > 0.1:`.
+- a_foot_off_the_floor_and_a_lean_fail: feet_faults' `if gap > TOLERANCE:` made `if gap > 0.1:`; and, apart,
+  feet_gaps' `or not within_a_foot(members, down)` left out (a lip 9 cm up inside a plinth's base reads as a foot off;
+  seen red 2026-11-09).
 - a_block_tipped_onto_one_edge_of_its_sole_leans: feet_faults' `if found["lean"] > LEAN_MOST:` made
   `if found["lean"] > 10.0:`.
 - the_collision_set: collide.py's intersection_test `... fcl.CollisionResult()) > 0` made `>= 0`.
@@ -180,6 +182,17 @@ def legged_tank(ends):
     return trimesh.util.concatenate([body, *legs])
 
 
+def plinth_with_lip():
+    """An engine on a 1.8 m by 1.2 m plinth whose skirt stands flat on the floor all round, with a small lip 9 cm up
+    under its deck, inside the skirt and over 5 cm from it (engineroom's engines, 2026-11-09)."""
+    skirt = [trimesh.creation.box(bounds=bounds) for bounds in (
+        ((-0.9, 0.0, -0.6), (0.9, 0.3, -0.55)), ((-0.9, 0.0, 0.55), (0.9, 0.3, 0.6)),
+        ((-0.9, 0.0, -0.55), (-0.85, 0.3, 0.55)), ((0.85, 0.0, -0.55), (0.9, 0.3, 0.55)))]
+    deck = trimesh.creation.box(bounds=((-0.85, 0.25, -0.55), (0.85, 0.3, 0.55)))
+    lip = trimesh.creation.box(bounds=((0.25, 0.09, -0.3), (0.46, 0.12, -0.24)))
+    return trimesh.util.concatenate([*skirt, deck, lip])
+
+
 def wedge(degrees):
     """A 1 m block whose base is cut at `degrees` across its depth: laid tilted by as much, its base lies flat."""
     rise = np.tan(np.radians(degrees))
@@ -198,17 +211,21 @@ def a_foot_off_the_floor_and_a_lean_fail():
         export_test.box_gltf(folder / "models", "tank", legged_tank((0.0, 0.0, 0.0, 0.07)))
         export_test.box_gltf(folder / "models", "level_tank", legged_tank((0.0, 0.0, 0.0, 0.0)))
         export_test.box_gltf(folder / "models", "wedge", wedge(7.5))
+        export_test.box_gltf(folder / "models", "plinth", plinth_with_lip())
         stage = place_of(folder, [("tank", "tank", (0, 0, 0)), ("level", "level_tank", (4, 0, 0)),
-                                  ("wedge", "wedge", (8, 0, 0)), ("leaning", "wedge", (11, 0, 0))],
-                         [row("tank"), row("level"), row("wedge"), row("leaning", leans="a ramp, cut to lean")])
+                                  ("wedge", "wedge", (8, 0, 0)), ("leaning", "wedge", (11, 0, 0)),
+                                  ("plinth", "plinth", (15, 0, 0))],
+                         [row("tank"), row("level"), row("wedge"), row("leaning", leans="a ramp, cut to lean"),
+                          row("plinth")])
         kit = json.loads((folder / "kit.json").read_text())
-        for piece in kit["pieces"][2:]:
+        for piece in kit["pieces"][2:4]:
             piece.update(tilt=7.5, at=[piece["at"][0], -0.5 * np.sin(np.radians(7.5)), 0.0])
         (folder / "kit.json").write_text(json.dumps(kit))
         stage = export.export(PLACE, folder / "models", folder / "stage", kit_path=folder / "kit.json",
                               inventory_path=folder / "inventory.json")
         said = verdicts(triage.triage(stage))
-        expected = {"tank_1": [("foot off", True)], "level_1": None, "wedge_1": [("leans", True)], "leaning_1": None}
+        expected = {"tank_1": [("foot off", True)], "level_1": None, "wedge_1": [("leans", True)], "leaning_1": None,
+                    "plinth_1": None}
         return [f"{name} reads {said.get(name)}, not {want}" for name, want in expected.items()
                 if said.get(name) != want]
 

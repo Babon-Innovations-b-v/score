@@ -378,8 +378,23 @@ def feet_gaps(mesh, gaps_of, plane=None):
         low = np.vstack([members[np.argsort(members[:, 1])[:FOOT_LOWEST]], sole])
         low[:, 1] += plane_under(low, plane)  # back in the stage's frame
         gaps = gaps_of(low)
-        found.append((low[np.argmin(gaps)], float(gaps.min())))
-    return found
+        found.append((members, low[np.argmin(gaps)], float(gaps.min())))
+    down = [members for members, _, gap in found if gap <= TOLERANCE]
+    return [(point, gap) for members, point, gap in found if gap <= TOLERANCE or not within_a_foot(members, down)]
+
+
+def within_a_foot(members, down):
+    """Whether a foot's points lie, seen from above, inside the outline of one foot that touches: a lip or ledge over
+    a plinth's own base, not a foot of its own (2026-11-09: engineroom's engines, a 48-point lip 9.1 cm up inside the
+    plinth they stand on, read as a foot off). A lifted leg beside or between touching legs lies in none of them."""
+    from scipy.spatial import Delaunay
+    for touching in down:
+        across = touching[:, [0, 2]]
+        if len(across) < 3 or np.linalg.matrix_rank(across - across.mean(axis=0), tol=1e-6) < 2:
+            continue
+        if (Delaunay(across).find_simplex(members[:, [0, 2]]) >= 0).all():
+            return True
+    return False
 
 
 def lean(matrix, touching, gaps):
