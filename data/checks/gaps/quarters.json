@@ -1,0 +1,17 @@
+{
+  "gaps": [
+    {
+      "name": "rug: no patterned library surface",
+      "row": "likeness",
+      "check": "likeness",
+      "objects": [
+        "rug"
+      ],
+      "reason": "The rug is a flat-sheet code build (score/stages/props/flat_sheet.py) finished with the library surface rug_pile, a plain tan pile, while its close-up shows a strongly patterned medallion rug; its outline passes (0.881) but DINOv2 likeness cannot reach 0.14 with any surface the library holds, so a retake would fail the same way (checkout 71, 2026-11-09). A patterned rug surface scores 0.35-0.37 locally but moves about 47 paid rows across every place (the recipes file and library folders key every surfaces-bake, surface-tiles and people-dress row), so it lands after the demo, batched with the flat_sheet drop-shadow cut fix and a narrower keying of the bake and dress rows.",
+      "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the score session for this try and the demo, 2026-11-09 ~18:30 UTC",
+      "faults": [
+        "rug: likeness 0.047 under 0.14 (prop route)"
+      ]
+    }
+  ]
+}
