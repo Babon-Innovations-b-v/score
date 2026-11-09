@@ -1308,6 +1308,8 @@ class Runner:
         one attempt on the last: the key whose record's output is so rejected moves on to one that remakes them."""
         attempt = 0
         record = self.store.record(node, key)
+        if record is None and (pending := self.pending_retake(node)):
+            record = {"output": pending}  # a key moved by code alone since his reject: his takes follow the node
         while record and self.retaken(node, record["output"]):
             attempt += 1
             retake = {"takes": self.retaken(node, record["output"]), "attempt": attempt, "after": key}
@@ -1315,6 +1317,21 @@ class Runner:
             key = text_hash(json.dumps(parts, sort_keys=True))
             record = self.store.record(node, key)
         return parts, key
+
+    def pending_retake(self, node):
+        """The output of the owner's newest reject naming takes that still stands and that no accept of the node has
+        followed, else None: his retake waits on the node whatever its key (2026-11-09: workshop's arm, rejected for a
+        retake, was never remade when pixal's key moved by code before the retake ran). Once a retake is accepted, the
+        reject is past and nothing is retaken again."""
+        rejects = [reject for reject in self.store.rejects(node) if reject.get("takes")]
+        if not rejects:
+            return None
+        newest = rejects[-1]
+        if not self.store.rejected(node, newest["output"]):
+            return None
+        if any(accept["at"] > newest["at"] for accept in self.store.accepts(node)):
+            return None
+        return newest["output"]
 
     def again_parts(self, stage, node, parts, key):
         """(parts, key) made once more when the owner rejected the output this key's record holds (a row that does not
