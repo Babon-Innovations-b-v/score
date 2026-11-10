@@ -10,6 +10,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_crate_shut_in_a_pen_fails: steps_between's `climbable = np.abs(...) <= KNEE` made `<= 2.0` (the pen's walls
   stepped over).
 - a_raised_crate_is_reached_by_its_stair_only: the same `climbable = np.abs(...) <= KNEE` made `<= 0.1`.
+  And (2026-11-10, every assembled place read with no floor and no views) record_of's `for record in
+  (pathlib.Path(stage_path).parent / ASSEMBLED_SCENE, SCENES / f"{place}.json"):` made `for record in (SCENES /
+  f"{place}.json",):`.
 - a_row_with_no_object_is_unknown_and_a_dropped_one_not_walked: walked_rows' `if not str(row.get("dropped",
   "")).strip() and row["id"] not in held_back]` made `if row["id"] not in held_back]`.
 - the_gate_runs_it: complete.py's recorded `return (PASS, f"recorded, {verdict}: {why}") ...` made
@@ -99,7 +102,10 @@ def a_crate_shut_in_a_pen_fails():
                                       triage_test.row("crate")])
         overall, rows = verdicts(stage, folder / "inventory.json")
         want = {"pen": reach.PASS, "shut": reach.FAIL, "crate": reach.PASS}
-        return [] if overall == reach.FAIL and rows == want else [f"the pen reads {overall}: {rows}, not {want}"]
+        problems = [] if overall == reach.FAIL and rows == want else [f"the pen reads {overall}: {rows}, not {want}"]
+        (stage.parent / reach.ASSEMBLED_SCENE).write_text(json.dumps({"views": [{"name": "door", "eye": [2.5, 1.6, 0]}]}))
+        _, _, note = reach.check(stage, resting_test.PLACE, json.loads((folder / "inventory.json").read_text()))
+        return problems + ([] if "1 of 1 views" in note else [f"the record beside the stage was not read: {note}"])
 
 
 def a_raised_crate_is_reached_by_its_stair_only():

@@ -354,9 +354,14 @@ def handin_path(place):
 
 def reach_check(place, stage):
     """The reach check (reach.py) on the inventory the stage was laid from: every row a walker on the floor cannot
-    reach is a fault; a row with no object is unknown."""
+    reach is a fault; a row with no object is unknown. A row the place draws itself (drawn_rows: its shell, its sky,
+    its people) has no object to walk to and is left out, as the rows check counts it laid."""
     import reach
-    overall, rows, note = reach.check(stage, place, json.loads(laid_inventory(place, stage).read_text()))
+    from pxr import Usd
+    inventory = json.loads(laid_inventory(place, stage).read_text())
+    drawn = drawn_rows(Usd.Stage.Open(str(stage)), place, handin_routes(place))
+    walked = {**inventory, "rows": [row for row in inventory["rows"] if row["id"] not in drawn]}
+    overall, rows, note = reach.check(stage, place, walked)
     return result("reach", overall, stage, [row for row in rows if row["result"] != PASS], note)
 
 
