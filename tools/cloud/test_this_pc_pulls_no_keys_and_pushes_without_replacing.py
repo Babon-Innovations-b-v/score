@@ -34,7 +34,9 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `pull`: drop the `OWN_DESIGN` skip -> the conductor's hand-in comes back over the one written here;
   or drop the `BLOBS` skip -> a read-only blob held here, sent again for its other mtime, stops the pull; or
   `linked_anew` always True -> a hard link over its own path stops the pull (seeking backwards); or drop
-  `cleared` -> a changed work file held here as a read-only link stops the pull, or is written through.
+  `cleared` -> a changed work file held here as a read-only link stops the pull, or is written through; or drop
+  `cut_blobs_cleared(home)` (or `held_whole`'s hash) -> a blob held here cut short is kept and never pulled whole;
+  or `landed_whole` writes straight at its path -> a pull killed midway leaves a cut blob under its name.
 - agent_door.py `store_differs`: `file_sha(target) != sha` -> `False` -> a take remade here at the same size keeps
   the conductor's old bytes (2026-11-03: 22 places' palette rows due).
 - agent_door.py `replaced`: drop `os.link(target, keep)` -> the conductor's old file is lost, not kept.
@@ -44,11 +46,13 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `disk`: `free < FREE_WARN_GB` -> `False` -> status says 76 GB free with no warning; or drop the MACHINE
   name filter -> postgres is listed as a SCORE container.
 """
+import hashlib
 import io
 import os
 import pathlib
 import subprocess
 import sys
+import tarfile
 
 import pytest
 
@@ -107,7 +111,8 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
                                "cloud/google-cache/q.json", "cache/library/swatch.png",
                                "dashboard/films/locked/env1_demo.json",
                                "dashboard/films/previews/env1_demo-takes/002.mp4")))
-    pulled = sorted(str(path.relative_to(home)) for path in home.rglob("*") if path.is_file())
+    pulled = sorted(str(path.relative_to(home)) for path in home.rglob("*")
+                    if path.is_file() and path.name != this_pc.BLOBS_CHECKED)
     assert pulled == ["cache/library/swatch.png", "cloud/google-cache/q.json",
                       "dashboard/films/locked/env1_demo.json", "dashboard/films/previews/env1_demo-takes/002.mp4",
                       "design/plans/hub.json", "store/objects/blobs/aa", "work/pixal/take.glb"]
@@ -133,6 +138,26 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     assert (home / "work/pixal/scene.json").read_text() == "the scene, changed"
     assert (home / "store/objects/blobs/aa").read_text() == "store/objects/blobs/aa"
     assert (home / "design/plans/hub.json").read_text() == "the hub, changed"
+    # a blob named by its bytes: one held here cut short is not kept but pulled whole; one held whole is not sent again
+    body = b"a blob's whole bytes" * 4096
+    blob = f"store/objects/blobs/{hashlib.sha256(body).hexdigest()}"
+    (conductor / blob).write_bytes(body)
+    (home / blob).write_bytes(body[:65536])
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len(body))
+    assert (home / blob).read_bytes() == body
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0)
+    # a pull killed midway through a blob: nothing under its name, and the next pull brings it whole
+    (home / blob).unlink()
+    stream = io.BytesIO()
+    agent_door.store_pull(conductor, agent_door.held(agent_door.manifest(home, agent_door.PULLED)), stream)
+    killed = tmp_path / "killed-stream"
+    killed.write_bytes(stream.getvalue()[:-len(body) // 2 - 1024])
+    with pytest.raises((tarfile.ReadError, SystemExit, EOFError)):
+        this_pc.pull(home, [sys.executable, "-c", "import shutil, sys; sys.stdin.buffer.read(); "
+                            f"shutil.copyfileobj(open({str(killed)!r}, 'rb'), sys.stdout.buffer); sys.exit(1)"])
+    assert not (home / blob).exists()
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len(body))
+    assert (home / blob).read_bytes() == body
 
 
 def test_a_pull_never_brings_a_hand_in_over_the_one_written_here(tmp_path):
