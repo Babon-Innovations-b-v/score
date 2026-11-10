@@ -929,6 +929,10 @@ MOTION_LAYER = {"rigid": ("motion",),  # joints and paths: hinge, rail, lane, sp
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
+             # the people a place's cast names with no body of their look (cast/driven.judge_bodies): they ship as named
+             # fails at complete's people check, never stopping the place's line (the owner, 2026-10-13: nothing waits
+             # on people; 2026-11-10: a place not ready goes into the film with what it has)
+             "characters-layer": ("bodies",),
              # a moving row no maker builds yet (#88: a flag's cloth, a rocket's launch, a body of water's ripple),
              # shipped as a gap by the env1 EUR 300 plan (C6, 2026-11-09): its row with no object (`designed`) and
              # its objects' move no writer makes (`covered`)

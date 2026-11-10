@@ -52,6 +52,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.judge_standing`: the unseated findings dropped  -> the toy place test (stood for want of a seat unnamed).
 - `cast.on_stairs`: `not clear[flight["name"]]` dropped from the flight's order  -> the levels test (the man under
   the deck).
+- `stages.GAP_GATES`: `"characters-layer": ("bodies",)` dropped, or `driven.judge_bodies`'s finding not starting
+  "<name>: "  -> the no-dressed-body test (a gap naming both people no longer moves the fail).
 - `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the toy place test
   (the climber at the plan's middle, off its spot (0, 0, -3)).
 """
@@ -63,8 +65,8 @@ import numpy as np
 import pytest
 from pxr import Usd, UsdGeom
 
-from score import checks
-from score.stages import cast
+from score import checks, stages
+from score.stages import cast, gaps
 from score.stages.cast import driven, layer, measure, spread
 from score.stages.scene_record import writer
 
@@ -428,7 +430,12 @@ def test_a_person_with_no_dressed_body_is_left_out_and_named_never_laid_in_a_sta
     assert verdict.answer == checks.PASS and verdict.measures["missing"] == 2, verdict
     bodies = driven.judge_bodies(out, inputs, None)
     assert bodies.answer == checks.FAIL and bodies.measures["no body"] == 2, bodies
-    assert bodies.findings[0] == "bram (bram/work): no accepted body of its look (people-dress-bram-work)"
+    # a recorded gap of the place naming both moves the fail to complete; one naming only bram keeps it
+    assert "bodies" in stages.GAP_GATES["characters-layer"]
+    gap = {"name": "people with no body", "row": "characters-layer", "check": "bodies", "decided": "a test"}
+    assert gaps.moved(bodies, [dict(gap, objects=["bram", "nev"])]).answer == checks.PASS
+    assert gaps.moved(bodies, [dict(gap, objects=["bram"])]).answer == checks.FAIL
+    assert bodies.findings[0] == "bram: bram/work, no accepted body of its look (people-dress-bram-work)"
     assert verdict.findings[0] == "bram (bram/work): no accepted body of its look (people-dress-bram-work)"
     sys.path.insert(0, str(REPO / "tools/usd"))
     import contents

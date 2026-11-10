@@ -119,6 +119,15 @@
         "/square/Objects/red_flag_40: cloth, which no writer makes",
         "/square/Objects/red_flag_41: cloth, which no writer makes"
       ]
-    }
-  ]
+    },
+  {
+   "name": "6 people with no body of their look (crowd/made)",
+   "row": "characters-layer",
+   "check": "bodies",
+   "objects": ["crowd", "crowd-v0", "crowd-v1", "crowd-v2", "crowd-v3", "crowd-v4"],
+   "reason": "The cast names these people, and the people line has no accepted dressed body of their look yet: the named bodies (astronaut, person, person_uniform, pilot, officer, man_stair, woman_stair) fail their clips gate after their retake (0 usable clips since af917635, 2026-11-08), and the hangar's and square's bodies are remade tonight. The characters layer's bodies gate named each and stopped the place's assembly, scene tree and film. By the owner's rules the people ship as named fails and nothing waits on them (2026-10-13: a place whose people fail ships with the people as a named fail; 2026-11-09: a second fail is a gap; 2026-11-10: a place that is not ready by about 16 hours in goes into the film with what it has). Only these people's no-body findings move to complete, which fails them by name; any person who gets a body is laid and no longer a finding.",
+   "decided": "owner (@JoeyKardolus), 2026-11-10, his standing rules of 2026-10-13, 2026-11-09 and 2026-11-10 (env1 film)",
+   "faults": ["crowd: crowd/made, no variant of its look has an accepted body", "crowd-v0: crowd/made, no accepted body of its look (people-dress-crowd-made)", "crowd-v1: crowd/made, no accepted body of its look (people-dress-crowd-made-v1)", "crowd-v2: crowd/made, no accepted body of its look (people-dress-crowd-made-v2)", "crowd-v3: crowd/made, no accepted body of its look (people-dress-crowd-made-v3)", "crowd-v4: crowd/made, no accepted body of its look (people-dress-crowd-made-v4)"]
+  }
+ ]
 }
