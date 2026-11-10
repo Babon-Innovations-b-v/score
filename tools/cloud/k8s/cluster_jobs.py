@@ -284,12 +284,16 @@ def through_queue(helper, store, run_name, image, classes, specs, who, parallel)
     job_queue.enqueue(run_name, image, first["image"], classes, specs,
                       stop_line=job_queue.spent() + submitter.ledger.batch_cap()[0], who=who)
     try:
-        return job_queue.wait(run_name)
+        with submitter.stopped_on_signal():  # a SIGTERM (stop-batch, a stopped run) raises Stopped here
+            return job_queue.wait(run_name)
     except job_queue.Stale as stale:
         job_queue.cancel(run_name)
         left = {job_id: spec for job_id, spec in specs.items() if helper.state(store, run_name, job_id) != "done"}
         submitter.say(f"{stale}: its {len(left)} jobs not done are adopted here")
         submitter.submit(run_name, left, store, wait_scale_down=False, who=who, parallel=parallel)
+    except BaseException:  # a stop or a failure: the queue stops the run and deletes the workers on its jobs
+        job_queue.cancel(run_name)
+        raise
 
 
 def bring_back(helper, store, run_name, specs, backs, state=None):

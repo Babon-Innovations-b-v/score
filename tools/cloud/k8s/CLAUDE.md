@@ -56,7 +56,10 @@ runners in `tools/cloud/` stay as they are.
   pool takes the nearest pool that holds it (`submitter.nearest_pools`), never a class its kind may not take.
 - **Never a lost row** (#95): a failed look at the cluster is tried `POLL_RETRIES` (15) more times a poll apart, then
   the run's rows are booked from what was last seen and the door brings back what finished before the error goes
-  on; a SIGTERM deletes the run's Jobs (every generation, by its label), books its rows and exits 143. stop-batch
+  on; a SIGTERM or a failed watch deletes the run's Jobs (every generation, by its label), books its rows and exits
+  143 on the SIGTERM. While it watches, a run marks its Jobs alive each minute (`submitter.beat_alive`,
+  `score.dev/alive`), and the cap watcher's 5-minute pass deletes every unfinished score Job whose mark is past
+  `ALIVE_STALE_MINUTES` (15): a dead run's or a dead queue's (`tools/cloud/cap_watch` `sweep`). stop-batch
   (`score/conductor/kill.py`) also deletes every Job labelled with a score run in `score-jobs`, never elsewhere.
 - **Idempotent jobs.** The runtime writes `done.json` last and exits 0 when it exists; the submitter remakes a Job
   freely (new generation) and resumes a run from its labels.

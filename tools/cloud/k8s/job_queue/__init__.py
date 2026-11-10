@@ -5,6 +5,7 @@ warm workers of their image (`__main__.py`), and the wait for them.
     wait(run)                                   # until state/<run>.json says the run is over; Stale when the queue is
     fresh()                                     # whether the queue's beat is newer than QUEUE_STALE_SECONDS
     cancel(run)                                 # cancel/<run>: a run its client took back, never assigned again
+    client_alive(mark)                          # whether the client that enqueued a run (client_mark) still lives
     spent()                                     # the box's euros so far as the queue counts them (money.json)
     unhad(classes)                              # whether the queue found these processor classes not to be had
     start()                                     # start the queue process when it is not fresh (detached)
@@ -109,9 +110,33 @@ def enqueue(run, kind, image, classes, specs, stop_line=None, who=None, root=Non
     entry = {"run": run, "kind": kind, "image": image, "classes": list(classes), "specs": specs,
              "priority": int(os.environ.get("SCORE_QUEUE_PRIORITY") or 0),
              "place": os.environ.get("SCORE_QUEUE_PLACE") or "", "box": manifests.box(), "who": who,
-             "stop_line": stop_line, "at": time.time()}
+             "stop_line": stop_line, "at": time.time(), "client": client_mark()}
     write_whole(root_of(root) / "inbox" / f"{run}.json", entry)
     return entry
+
+
+def process_start(pid):
+    """The process's start time in clock ticks since boot (/proc/<pid>/stat), or None when it is gone: a pid used
+    again by another process starts at another time."""
+    try:
+        return pathlib.Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+    except (OSError, IndexError):
+        return None
+
+
+def client_mark(pid=None):
+    """The client process that hands a run in, as the queue checks it lives: its pid and start time."""
+    pid = pid or os.getpid()
+    return {"pid": pid, "started": process_start(pid)}
+
+
+def client_alive(mark):
+    """Whether the client a run's `client` mark names still lives (the queue and its clients share one box); a run
+    handed in with no mark counts as alive."""
+    if not mark:
+        return True
+    started = process_start(mark["pid"])
+    return started is not None and (mark.get("started") is None or started == mark["started"])
 
 
 def cancel(run, root=None):

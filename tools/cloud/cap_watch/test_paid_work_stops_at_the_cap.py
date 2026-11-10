@@ -10,6 +10,9 @@ Breaks (each applied once, seen red, reverted), in tools/cloud/cap_watch/watch.p
 - babon's share: babon_proven ignores LAG_HOURS (`>= 0`), or counter_of takes the proven euros off uncapped.
 - the stop (plan B4): stop_paid_work drops its `stop_runner_servers()` call (the runner's machines keep billing), or
   one_pass drops its `cleaner` call (leftovers never cleaned).
+- the sweep (2026-11-10: checkout 75's stopped runs kept 4 L4 workers for hours): dead_jobs ignores the mark's age
+  (a live run's Jobs deleted), or takes a Job with no mark, or a finished one; or one_pass drops its `sweeper` call,
+  or makes it only under an open cap.
 """
 import datetime
 import sys
@@ -46,6 +49,8 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
                          "at": watch.iso(START), "baseline": {"whole": 2000.0, "lines": {L4: 400.0, CPU: 100.0}}})
     stops, cleaned = [], []
     monkeypatch.setattr(watch, "clean", lambda: cleaned.append(1) or {"machines": [], "disks": []})
+    swept, sweep = [], watch.sweep  # the real one is checked at the end
+    monkeypatch.setattr(watch, "sweep", lambda now: swept.append(now) or {"deleted": []})
 
     def stop(book_, name, why, now):
         stops.append(why)
@@ -62,6 +67,8 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     first = passes(1, bill({L4: 400.0, CPU: 140.0}))
     assert (first["counter"], first["stopped"], stops) == (40.0, None, [])
     assert cleaned == [1] and first["cleaned"] == {"machines": [], "disks": []}  # every pass cleans leftovers
+    assert swept == [START + 3600] and first["swept"] == {"deleted": []}  # and sweeps dead runs' Jobs
+    assert watch.one_pass(guard.FolderBook(tmp_path / "no-cap"), now=START) is None and swept[-1] == START  # cap or none
     # unreadable bill: 5 minutes after a good read still the good counter, past 15 minutes paid work stops
     assert passes(1 + 5 / 60, None, unread=True)["stopped"] is None
     assert "fails closed" in passes(1 + 20 / 60, None, unread=True)["stopped"] and len(stops) == 1
@@ -111,3 +118,27 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
             raise RuntimeError("no right")
     assert "no right" in watch.stop_paid_work(book, guard.CAP, "x", START + 1, run=lambda words, **_: Done(),
                                               cloud=Refused())["machines_error"]
+    # the sweep: an unfinished score Job whose owner's alive mark is past ALIVE_STALE_MINUTES is deleted, whatever box
+    # made it; a fresh mark, no mark (made before the beat, or its beat refused) or a finished Job is left
+    stale, fresh_mark = str(int(START - watch.ALIVE_STALE_MINUTES * 60 - 1)), str(int(START - 60))
+
+    def job(name, mark=None, finished=False):
+        return {"metadata": {"name": name, "annotations": {watch.ALIVE_NOTE: mark} if mark else {}},
+                "status": {"conditions": [{"type": "Complete", "status": "True"}]} if finished else {"active": 1}}
+    items = [job("score-w-conductor-meshparts-card-1", stale), job("score-r-live-0-g0", fresh_mark),
+             job("score-r-old-0-g0"), job("score-r-done-0-g0", stale, finished=True), job("score-r-dead-1-g0", stale)]
+    assert watch.dead_jobs(items, START) == ["score-r-dead-1-g0", "score-w-conductor-meshparts-card-1"]
+    import json
+
+    class Answer:
+        def __init__(self, stdout="", returncode=0, stderr=""):
+            self.stdout, self.returncode, self.stderr = stdout, returncode, stderr
+    calls = []
+
+    def kubectl(words, **_):
+        calls.append(words)
+        return Answer(json.dumps({"items": items})) if words[1] == "get" else Answer("deleted")
+    assert sweep(START, run=kubectl) == {"deleted": ["score-r-dead-1-g0", "score-w-conductor-meshparts-card-1"]}
+    assert calls[0][:6] == ["kubectl", "get", "jobs", "-n", "score-jobs", "-l"] and calls[1][:6] == [
+        "kubectl", "delete", "jobs", "-n", "score-jobs", "score-r-dead-1-g0"]
+    assert "error" in sweep(START, run=lambda words, **_: Answer(returncode=1, stderr="forbidden"))

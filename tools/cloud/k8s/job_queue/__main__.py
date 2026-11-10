@@ -59,7 +59,7 @@ class Queue:
         self.runs = {path.stem: json.loads(path.read_text()) for path in sorted((self.root / "state").glob("*.json"))}
         self.runs = {run: state for run, state in self.runs.items() if not state.get("over")}
         self.seqs, self.last_place, self.told_go, self.idle_since = {}, {}, set(), {}
-        self.after, self.widening, self.made = {}, {}, 0
+        self.after, self.widening, self.made, self.alive_at = {}, {}, 0, 0.0
         self.no_grow = {}  # pod name: when the autoscaler last said none of its pools can grow for it
         money = client.read_json(self.root / "money.json") or {}
         self.nodes, self.booked = money.get("nodes", {}), money.get("booked", 0.0)
@@ -136,12 +136,47 @@ class Queue:
             run = path.name
             (self.root / "inbox" / f"{run}.json").unlink(missing_ok=True)
             if run in self.runs:
-                for record in self.runs[run]["jobs"].values():
-                    if record["state"] not in OVER:
-                        record["state"] = "stopped"
-                self.runs[run].update(over=True, stopped="taken back by its client")
-                self.write_state(run)
+                self.stop_run(run, "taken back by its client")
             path.unlink()
+
+    def drop_gone_clients(self):
+        """Each open run whose client process is gone (killed, its pod ended: nothing waits for its outputs) stopped
+        as a cancel is (2026-11-10: checkout 75's stopped runs kept 4 L4 workers on their meshparts jobs for hours)."""
+        for run in [run for run, state in self.runs.items() if not state["over"]]:
+            if not client.client_alive(self.runs[run].get("client")):
+                self.stop_run(run, "its client is gone")
+
+    def stop_run(self, run, why):
+        """A run over before its jobs are: the workers on its jobs deleted first (a worker runs a job to its end, so
+        only its Job's delete ends that work; a refused delete leaves the run open for the next tick), never one its
+        beat shows past the job, on another run's; then its jobs not over stopped, none assigned again."""
+        beats = self.read_beats()
+
+        def on_it(job_id, record):
+            beat = beats.get(record["worker"])
+            return not beat or beat["seq"] < record["seq"] or beat.get("job") == f"{run}/{job_id}"
+        busy = sorted({record["worker"] for job_id, record in self.runs[run]["jobs"].items()
+                       if record["state"] == "assigned" and record["worker"] and on_it(job_id, record)})
+        if busy:
+            say(f"{run} {why}: deleting the workers on its jobs, {', '.join(busy)}")
+            self.kubectl.run("delete", "jobs", "-n", manifests.NAMESPACE,
+                             *[workers.job_name(self.box, worker) for worker in busy],
+                             "--ignore-not-found", "--wait=false", "--cascade=background")
+            self.told_go.update(busy)
+        for record in self.runs[run]["jobs"].values():
+            if record["state"] not in OVER:
+                record["state"] = "stopped"
+        self.runs[run].update(over=True, stopped=why)
+        self.write_state(run)
+
+    def beat(self, listed, now):
+        """Mark this box's live workers alive (submitter.beat_alive) every ALIVE_SECONDS, so cap_watch's sweep
+        deletes them only once this queue is gone."""
+        if now - self.alive_at < submitter.ALIVE_SECONDS:
+            return
+        names = sorted(worker["job"] for worker in listed.values() if not workers.gone(worker))
+        if names:
+            self.alive_at = submitter.beat_alive(self.kubectl, names, now)
 
     def intake(self, entry):
         jobs = {}
@@ -152,7 +187,8 @@ class Queue:
                             "node": None}
         return {"run": entry["run"], "chain": [entry["kind"], entry["image"], entry.get("code") or ""],
                 "classes": entry["classes"], "priority": entry["priority"], "place": entry["place"],
-                "stop_line": entry.get("stop_line"), "who": entry.get("who"), "jobs": jobs, "over": False}
+                "stop_line": entry.get("stop_line"), "who": entry.get("who"), "client": entry.get("client"),
+                "jobs": jobs, "over": False}
 
     def queued(self):
         """The queued jobs as admission sees them."""
@@ -410,7 +446,9 @@ class Queue:
         now = self.clock() if now is None else now
         items, nodes, room = self.look()
         self.take_inbox()
+        self.drop_gone_clients()
         listed, beats = workers.listed(items), self.read_beats()
+        self.beat(listed, now)
         self.note_finished(listed, beats)
         euros = self.count_money(items, nodes, now)
         line = self.stop_line()

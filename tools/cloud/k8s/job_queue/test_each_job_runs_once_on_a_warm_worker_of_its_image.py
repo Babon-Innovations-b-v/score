@@ -46,6 +46,10 @@ The tube rehearsal's faults (2026-11-07, issue #76):
 - a finished worker's pod, kept with its Job, holds no node, so the node is booked after its idle tail. Break: drop
   the phase test from `hosting` in `Queue.count_money`.
 - the queue ends only once every node is booked. Break: drop `queue.nodes` from `active` in `serve`.
+The checkout 75 fault (2026-11-10: stopped runs kept 4 L4 workers on their meshparts jobs for hours):
+- a run whose client is gone is stopped and the worker on its job deleted; a live client's worker is marked alive.
+  Break: drop the delete in `Queue.stop_run`; drop `self.drop_gone_clients()` or `self.beat(listed, now)` in
+  `Queue.tick`.
 The env1 checkout 67 fault (2026-11-09): a failed worker apply ended the queue three times in six minutes, no cause
 said, and a client in the gap went beside it:
 - a tick whose kubectl call fails is said with kubectl's words and the queue ticks on; only failing ticks for
@@ -103,6 +107,7 @@ class FakeKube:
         self.jobs["score-other"] = foreign
         self.made, self.stock = 0, None  # stock: the classes a node can be had of (None: every class)
         self.events = []  # the autoscaler's: a pod none of whose classes can be had hears "cannot grow" at once
+        self.annotated = []  # the queue's alive marks on its workers
 
     def json(self, *arguments):
         self.calls.append(arguments[:2])
@@ -160,6 +165,14 @@ class FakeKube:
 
     def run(self, *arguments):
         self.calls.append(arguments[:2])
+        if arguments[0] == "annotate":
+            self.annotated.append(arguments)
+            return ""
+        if "-l" not in arguments:  # delete jobs -n <namespace> <name> ...
+            for name in arguments[4:]:
+                if not name.startswith("--"):
+                    self.jobs.pop(name, None)
+            return ""
         selector = arguments[arguments.index("-l") + 1]
         label, value = selector.split("=")
         for name in [name for name, job in self.jobs.items() if job["metadata"]["labels"].get(label) == value]:
@@ -352,6 +365,33 @@ def test_each_job_runs_once_on_a_warm_worker_of_its_image(tmp_path, monkeypatch)
     back.take_inbox()
     assert not [job for job in back.queued() if job["run"] in ("r7", "r10")] and "r10" not in back.runs
     assert back.runs["r7"]["over"] and back.runs["r7"]["jobs"]["j0"]["state"] == "stopped"
+    # A run whose client is gone (killed with its pod, or its pid now another process's) is stopped and the worker on
+    # its job deleted; a live client's run goes on, its worker marked alive each ALIVE_SECONDS for cap_watch's sweep
+    # (2026-11-10: checkout 75's stopped runs kept 4 L4 workers on their meshparts jobs for hours).
+    gone_root, gone_kube = tmp_path / "q7", FakeKube(clock)
+    for run, kind in (("dead", "blender"), ("live", "pixal")):
+        job_queue.enqueue(run, kind, IMAGES[kind], ["gpu-24gb"], {"j0": {"kind": kind}}, root=gone_root)
+    gone_store = stores.FolderStore(tmp_path / "gone")
+    gone = process.Queue(gone_kube, gone_store, Cluster(), gone_root, BOX, clock)
+    gone_loops = {}
+    gone.tick(now[0])  # the workers made
+    play_workers(gone_kube, gone_store, now[0], {}, {}, gone_loops, command)  # and up, waiting
+    gone.tick(now[0] + process.QUEUE_TICK)  # each run's job assigned to its worker
+    on_dead = gone.runs["dead"]["jobs"]["j0"]["worker"]
+    assert on_dead and gone.runs["live"]["jobs"]["j0"]["state"] == "assigned"
+    gone.runs["dead"]["client"] = {"pid": os.getpid(), "started": "1"}  # its pid now another process's
+    gone.tick(now[0] + 2 * process.QUEUE_TICK)
+    dead_state = json.loads((gone_root / "state" / "dead.json").read_text())
+    assert dead_state["over"] and dead_state["stopped"] == "its client is gone" and \
+        dead_state["jobs"]["j0"]["state"] == "stopped"
+    assert workers.job_name(BOX, on_dead) not in gone_kube.jobs and "live" in gone.runs  # Break: drop the delete
+    # in `Queue.stop_run`; break: drop `self.drop_gone_clients()` in `Queue.tick`; break: `return True` in
+    # `job_queue.client_alive`.
+    on_live = workers.job_name(BOX, gone.runs["live"]["jobs"]["j0"]["worker"])
+    assert on_live in gone_kube.jobs and job_queue.client_alive(job_queue.client_mark())
+    assert any(on_live in call and call[-1].startswith(submitter.ALIVE_NOTE + "=") for call in gone_kube.annotated)
+    # Break: drop `self.beat(listed, now)` in `Queue.tick`.
+
     # A worker's band comes back from its label as admission names it (a label is lower case).
     made = workers.manifest(BOX, "wm", ("runner", IMAGES["blender"], "abc"), "M", ["cpu-32c-128gb"], 0)
     assert workers.listed([made])["wm"]["band"] == "M" and admission.serves(workers.listed([made])["wm"]["band"], "S")

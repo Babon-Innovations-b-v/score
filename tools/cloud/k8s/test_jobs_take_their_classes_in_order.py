@@ -608,6 +608,24 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
         (root / "beat").unlink()
     assert len(started) == 3 and cluster_jobs.one_kind(["cpu-16c-64gb", "gpu-24gb"]) == ["cpu-16c-64gb"]
 
+    # A client stopped while it waits on the queue (SIGTERM: stop-batch, a stopped run) cancels its run there, so the
+    # queue deletes the workers on its jobs and assigns none again (2026-11-10: checkout 75's stopped runs kept 4 L4
+    # workers on their meshparts jobs for hours); what finished still comes back. Break: drop the
+    # `except BaseException` cancel in `through_queue`; break: drop its `stopped_on_signal()`.
+    def stopped_wait(run, root=None, **_):
+        submit_run(run, {"0": json.loads((root_of_queue() / "inbox" / f"{run}.json").read_text())["specs"]["0"]},
+                   helper.store)
+        os.kill(os.getpid(), signal.SIGTERM)
+        raise AssertionError("the SIGTERM did not stop the wait")
+    root_of_queue = lambda: cluster_jobs.job_queue.QUEUE  # noqa: E731
+    monkeypatch.setattr(cluster_jobs.job_queue, "wait", stopped_wait)
+    handler = signal.getsignal(signal.SIGTERM)
+    out_file.unlink()
+    with pytest.raises(cluster_jobs.submitter.Stopped):
+        cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name="stopped-run")
+    assert (root / "cancel" / "stopped-run").exists() and out_file.read_text() == "made by 0"
+    assert signal.getsignal(signal.SIGTERM) is handler
+
     def resumable(run, specs, store, wait_scale_down=True, who=None, parallel=None):
         """A named run: a job whose done.json is there is not run again; each job writes its own command."""
         for job_id, spec in specs.items():
@@ -795,8 +813,16 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     # never a lost row (#95): a look that keeps failing is retried, then the row is booked from the last look
     def unreachable():
         raise subprocess.CalledProcessError(1, ["kubectl"], stderr="kubectl get jobs,pods: connection refused")
-    booked, error, _deleted, looks = a_watched_run(tmp_path, monkeypatch, unreachable)
+    booked, error, deleted, looks = a_watched_run(tmp_path, monkeypatch, unreachable)
     assert isinstance(error, subprocess.CalledProcessError) and len(looks) == 1 + submit.POLL_RETRIES + 1
+    # its own failure deletes its Jobs too (nothing brings their outputs back now), and while it watched it marked
+    # them alive for cap_watch's sweep (2026-11-10: a stopped Buy's Jobs ran on for hours). Break: drop
+    # `delete_run_jobs(run)` from submit's `except BaseException`; break: drop the `beat_alive` in `watch`.
+    assert ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-lost", "--ignore-not-found",
+            "--wait=false", "--cascade=background") in deleted
+    beaten = [call for call in deleted if call[0] == "annotate"]
+    assert beaten and beaten[0][:6] == ("annotate", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-lost") \
+        and beaten[0][-1].startswith(submit.ALIVE_NOTE + "=")
     entry, = booked
     assert entry["batch"] == "r-lost" and entry["who"] == "test" and entry["jobs"]["ask"]["state"] == "unwatched"
     assert [row["node"] for row in entry["machines"]] == ["n1"] and entry["machines"][0]["end_estimated"]

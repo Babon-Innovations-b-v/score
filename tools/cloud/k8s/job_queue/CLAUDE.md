@@ -43,6 +43,11 @@ sends its runs through it (S6), the runner's pod makes among them (S8, `score/gr
   queued jobs back as `elsewhere` and notes the classes in `unhad.json` for UNHAD_MINUTES, so `cluster_jobs.run`
   raises `Elsewhere` and the runner sends that work to rented machines (blender_cloud runs itself again off the
   cluster; a pod make is made here). Card work stays on the cluster.
+- **A run ends with its client** (2026-11-10, checkout 75: stopped runs kept 4 L4 workers on their meshparts jobs for
+  hours): `cluster_jobs.through_queue` cancels its run on any end of its wait (SIGTERM raised as `Stopped`, a
+  failure), and each tick stops an open run whose client process is gone (`client` mark: pid and start time,
+  `job_queue.client_alive`); a stopped run's workers still on its jobs are deleted (`Queue.stop_run`). Each live
+  worker is marked alive every minute (`submitter.beat_alive`) for cap_watch's sweep.
 - **A node is booked before the queue ends**: a finished worker's pod (kept with its Job an hour) hosts nothing, and
   the process keeps ticking while a node is unbooked.
 - Test: `test_each_job_runs_once_on_a_warm_worker_of_its_image.py`, a fake cluster and a folder job store.
