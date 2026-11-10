@@ -54,14 +54,20 @@ def upright(row):
 
 
 def flat_model(path):
-    """Whether a finished model lies flat as a sheet, whatever its turn: its thinnest side under SHEET_SHARE of its
-    longest. quarters' sheet of paper (0.2 by 0.3 by 0.001) came back from Pixal3D a lump, 0.25 its thinnest of its
-    longest, baked 1.2 cm across; its likeness 0.111 and its paint's colour gate failed on it (checkout 68, 2026-11-09),
-    while its flat sheet build from the same close-up, its hull drawn from above in paper-cream with rows of ink,
-    scored DINOv2 0.22 against it (pass 0.14)."""
+    """Whether a finished model is flat, no lump, whatever its turn: its thinnest side under the model gate's flat
+    share of its longest (its shape class "flat", tools/props/closeup/check.py FLAT_SHARE, as tools/props/gates/model.py
+    judges a flat model). quarters' sheet of paper (0.2 by 0.3 by 0.001) came back from Pixal3D a lump, 0.25 its
+    thinnest of its longest, baked 1.2 cm across; its likeness 0.111 and its paint's colour gate failed on it (checkout
+    68, 2026-11-09), while its flat sheet build from the same close-up, its hull drawn from above in paper-cream with
+    rows of ink, scored DINOv2 0.22 against it (pass 0.14). A row's own SHEET_SHARE is no lump test: the flat's
+    balcony door (1.8 by 0.1 by 2.2) came back a framed glazed door 0.099 its thinnest of its longest, and built as a
+    sheet in its one median colour (pink) its frame could own no finish, so likeness's close-up parts present failed
+    on "dark grey painted frame" (2026-11-10)."""
     import trimesh
+    with prop_data.tools("props/closeup", "props"):
+        import check
     smallest, _, largest = sorted(trimesh.load(path, force="mesh").extents)
-    return smallest < SHEET_SHARE * largest
+    return smallest < check.FLAT_SHARE * largest
 
 
 def built(take, pixal):
