@@ -253,7 +253,9 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     refuse_short(name, json.loads((work / "views" / f"{name}.json").read_text())["moves"], film)
     with_deadlines(jobs, planned["high_frame_minutes"])
     motion_blurred(jobs, json.loads((work / "views" / f"{name}.json").read_text())["views"], SIZE[0])
+    own_folders(jobs)
     render(jobs, log_folder)
+    gathered(jobs)
     out.mkdir(parents=True, exist_ok=True)
     shutil.copy(work / "frames" / name / "shot0-000-look.png", out / "concept.png")
     demo.cut(work, [name])
@@ -393,6 +395,28 @@ def with_deadlines(jobs, frame_minutes):
         views = json.loads(pathlib.Path(job["args"][1]).read_text())["views"]
         job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))
         pathlib.Path(job_path).write_text(json.dumps(job, indent=1))
+
+
+def own_folders(jobs):
+    """Each frame job drawing into a folder of its own inside its film's frames folder (`job-<n>`): blender_cloud.py
+    refuses jobs that share an output (shared_outputs), so a film dealt over more than one card failed before its
+    frames were rented (2026-11-10)."""
+    for number, job_path in enumerate(jobs):
+        job = json.loads(pathlib.Path(job_path).read_text())
+        own = pathlib.Path(job["args"][2]) / f"job-{number}"
+        job["args"][2] = str(own)
+        job["outputs"] = [str(own)]
+        pathlib.Path(job_path).write_text(json.dumps(job, indent=1))
+
+
+def gathered(jobs):
+    """Each job's frames moved from its own folder (own_folders) into its film's frames folder, where the cut reads
+    them; the folder and the job's report go."""
+    for job_path in jobs:
+        own = pathlib.Path(json.loads(pathlib.Path(job_path).read_text())["args"][2])
+        for frame in own.glob("*.png"):
+            frame.rename(own.parent / frame.name)
+        shutil.rmtree(own)
 
 
 def picture_speed(view, later, wide):
