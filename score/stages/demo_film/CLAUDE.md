@@ -58,16 +58,11 @@ own sound; paid and cleared by the runner like any paid row.
   (`<film>-takes/` beside the preview; one recorded from another script is Blocked until the preview is rendered
   again), a layer or place peel from its place's accepted peel (body-peel, place-peel, read beside: its `close` shot
   where the segment names one, under its first caption as a lower third, over the script's bed; `final.peels`, Blocked
-  naming one whose row stands without its shot), else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards,
+  naming a missing one), else the node is Blocked naming each segment (exploded, isolate, layer cuts, step cards,
   before and after need frames no row makes yet). Cards and lower thirds are in the cockpit's type (`lettering.py`), the films are
   matched in exposure, the whole graded as the preview is (`GRADE`), cards and takes over the script's bed. The whole film's sound is moved by one gain to `TARGET_LUFS`; its gate holds the pace
   (`PLACE_SECONDS` a place, `SHOT_SECONDS` a walk-through) and the loudness. Its needs (`needs.py`) are the gaps
   check's film gaps: a film a script shows that no locked script shows waits on his lock.
-  **A place not ready goes in with what it has** (owner, 2026-11-10: "A place that isn't ready by about 16 hours in
-  goes into the film with what it has"): its beside reads are optional (`graph.Stage.optional`), waited on while the
-  drive still makes them and at most `final.WAIT_HOURS` from the drive's start (`Stage.waits_hours`); a segment whose
-  film or peel does not stand then is a card naming its place (`final.stand_in`, the timeline's `stands_in`), and a
-  script with no film nor peel standing at all is Blocked (`missing_sources`). A later run cuts it again as more stand.
   A locked script that peels no place whose design shows people (design_layers.has_layer, every kept design an input)
   is Blocked naming each (`plan_faults`, owner 2026-10-27), so it cannot drift from the designs.
 - **A layer peel** (`peel.py`, the script's `body-peel` cut, CONTEXT.md "layer peel"; owner 2026-10-27) is drawn free on

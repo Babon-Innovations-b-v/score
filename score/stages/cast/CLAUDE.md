@@ -64,7 +64,7 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   scene-clips rows import); a crowd with no copy stood is the cast's `counted` gate's. Each finding starts
   "<name>: ", so a place's recorded gap (`stages.GAP_GATES["characters-layer"]`, `data/checks/gaps/<place>.json`)
   moves its bodiless people to complete's people check by name and the place's line goes on (2026-11-10: the people
-  ship as named fails; a place not ready goes into the film with what it has). Never lay a stand-in body.
+  ship as named fails). Never lay a stand-in body.
 - **A person moves by its sim body** (`driven.py`, #65, PRD #56): where the place's `sim-body` row stands (an
   optional read of the characters layer, with `people-clips-made`'s rig), each person's skeleton plays its sim body's
   joints and root path and the sim body is laid beside it; one without keeps its clip, named. Gate `on its sim body`:
