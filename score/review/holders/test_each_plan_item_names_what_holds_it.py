@@ -690,7 +690,13 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     wall, moved to a 3 m inner wall where one of its row already stands at the spot it would take, on the wall's other
     face, takes another spot or height (habitat's pipes 12 and 17 stood back to back in one inner wall stretch's middle).
     Break: score/review/holders/__init__.py: `row_id == context["row"] and math.dist(spot, context["spot"]) <
-        ONE_SPOT` -> `False and math.dist(spot, context["spot"]) < ONE_SPOT`"""
+        ONE_SPOT` -> `False and math.dist(spot, context["spot"]) < ONE_SPOT`
+    2026-11-10 (laid-as-designed@habitat: kitchen cabinets 1 and 2, 4 and 5 0.10 and 0.12 m in each other): a wall
+    thing is parted on its wall's face as the scene record lays it, ended at the walls meeting it at a corner
+    (corner_trims), not on its wall's line: a 0.8 m cabinet drawn at the end of a 3.2 m line whose corner walls are
+    0.4 m thick is kept 0.2 m further in, so the one drawn 0.05 m clear of it on the line slides clear of it.
+    Break: score/review/holders/__init__.py: `first, last = corner_trims(plan, start, end)  # its face's ends` ->
+        `first, last = 0.0, 0.0  # its face's ends`"""
     rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
             {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
             {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
@@ -824,6 +830,17 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
         assert pipe["wall"]["from"][1] == pipe["wall"]["to"][1] == pipe["spot"][1] == 2.0 and pipe["side"] == 1, pipe
         assert abs(holders.wall_length(pipe["wall"]) - 3.0) < 1e-3 and "nearest wall with room" in pipe["why"], pipe
     assert clear(found, rows, plan), found
+    thick = [{"from": [0.0, 3.2], "to": [0.0, 0.0], "thick": 0.4}, {"from": [0.0, 0.0], "to": [3.0, 0.0], "thick": 0.4},
+             {"from": [3.0, 0.0], "to": [3.0, 3.2], "thick": 0.4}, {"from": [3.0, 3.2], "to": [0.0, 3.2], "thick": 0.4}]
+    rows = [{"id": "kitchen_cabinet", "noun": "cabinet", "anchor": "wall", "size": [0.8, 0.4, 0.8]}]
+    plan = plan_of([["CABINET 1", 0.0, 0.0, 0.4, 0.8, None, "item"], ["CABINET 2", 0.0, 0.85, 0.4, 0.8, None, "item"]],
+                   {"CABINET 1": ["kitchen_cabinet"], "CABINET 2": ["kitchen_cabinet"]}, walls=thick, w=3.0, d=3.2,
+                   outline=[[0.0, 0.0], [3.0, 0.0], [3.0, 3.2], [0.0, 3.2]],
+                   shapes={f"CABINET {number}": {"base": 1.5} for number in (1, 2)})
+    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
+    cabinets = by_item_of(found)
+    assert cabinets["CABINET 2"]["spot"][1] >= 1.0 + 0.4 - holders.WALL_TOUCH, cabinets  # its face starts at 0.2 m
+    assert "slid" in cabinets["CABINET 2"]["why"] and clear(found, rows, plan), cabinets
     rows = [{"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [5.0, 3.0, 3.0]},
             {"id": "monitor", "noun": "monitor", "anchor": "wall", "size": [0.4, 0.1, 0.3]}]
     plan = plan_of([["MONITOR 1", 9.8, 0.1, 0.4, 0.1, None, "item"],
