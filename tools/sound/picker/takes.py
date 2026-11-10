@@ -35,6 +35,8 @@ STEP_APART = 35
 STEP_LONGEST_SECONDS = 0.6
 ## A loop keeps this much of its middle, in seconds, and crossfades this much of its end into its start.
 LOOP_SECONDS = 16.0
+## The categories whose take is looped (`looped`).
+LOOPED = ("loop", "room")
 LOOP_JOIN_SECONDS = 1.5
 ## What a loop leaves off each end before it is joined, in seconds: a generated take swells in and dies away there.
 LOOP_EDGE_SECONDS = 1.0
@@ -132,13 +134,23 @@ def steps_in(samples):
     return found[:STEPS_KEPT]
 
 
+def loop_cut(frames):
+    """How `looped` cuts a take of `frames`: (each edge left off, the middle kept, the crossfaded join), in frames."""
+    edge = min(int(LOOP_EDGE_SECONDS * RATE), frames // 10)
+    return edge, min(frames - 2 * edge, int(LOOP_SECONDS * RATE)), int(LOOP_JOIN_SECONDS * RATE)
+
+
+def looped_seconds(seconds):
+    """The seconds `looped` keeps of a take of `seconds` with no silence at its ends."""
+    _edge, keep, join = loop_cut(int(seconds * RATE))
+    return seconds if keep < 2 * join else (keep - join) / RATE
+
+
 def looped(samples, channels):
     """A stretch of a take's steady middle with its end crossfaded into its start: played over and over, it joins
     with no click and no jump. A take shorter than two joins is kept as it is."""
     frames = len(samples) // channels
-    edge = min(int(LOOP_EDGE_SECONDS * RATE), frames // 10)
-    keep = min(frames - 2 * edge, int(LOOP_SECONDS * RATE))
-    join = int(LOOP_JOIN_SECONDS * RATE)
+    edge, keep, join = loop_cut(frames)
     if keep < 2 * join:
         return samples
     start = (frames - keep) // 2
@@ -176,7 +188,7 @@ def prepare(source, folder, category, seconds=SHOT_SECONDS):
         return None
     if category == "steps":
         return _prepare_steps(steps_in(samples), folder)
-    shaped = looped(samples, channels) if category in ("loop", "room") else samples[:int(max(seconds, 1.0) * RATE) * channels]
+    shaped = looped(samples, channels) if category in LOOPED else samples[:int(max(seconds, 1.0) * RATE) * channels]
     return _prepare_whole(shaped, channels, folder, category)
 
 

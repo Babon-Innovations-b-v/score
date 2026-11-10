@@ -29,6 +29,10 @@ import time
 from score import graph
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "tools/sound/picker"))
+import choose  # noqa: E402
+import takes as picker_takes  # noqa: E402
+
 TAKES = pathlib.Path.home() / ".cache/farm-factory/sound-picker/moss/stage"
 SCORES = "scores.json"
 TIMINGS = "timings"  # each batch's moss_generate timings (its takes' work seconds on the card), kept beside the takes
@@ -59,9 +63,23 @@ def take_file(name, prompt, seconds, seed, weights):
     return f"{name}__{made_of}__s{seed}.wav"
 
 
+def asked_seconds(brief):
+    """The whole seconds a brief's take is made at: its brief's, and for a loop (its category's take is looped, picker
+    takes.looped, its edges and crossfaded join left off) as many more as keep choose.KEPT_SHARE of the brief, the
+    least the level gate passes. Fault, 2026-11-10: workshop's 6 s robot_arm_servo, made at 6 s, looped to 3.28 s,
+    under the gate's 3.6 s, on both tries: a loop brief under 7.5 s made at its length could never pass."""
+    seconds = int(brief.get("seconds", 8))
+    if brief.get("category") not in picker_takes.LOOPED:
+        return seconds
+    least = choose.KEPT_SHARE[brief["category"]] * float(brief.get("seconds", 8))
+    while picker_takes.looped_seconds(seconds) < least:
+        seconds += 1
+    return seconds
+
+
 def jobs_for(name, brief, weights):
-    """The one take a brief asks for: its first prompt at SEED, its length."""
-    seconds, prompt = int(brief.get("seconds", 8)), brief["prompts"][0]
+    """The one take a brief asks for: its first prompt at SEED, at asked_seconds."""
+    seconds, prompt = asked_seconds(brief), brief["prompts"][0]
     return [{"file": take_file(name, prompt, seconds, SEED, weights), "sound": name, "prompt": prompt,
              "seconds": seconds, "seed": SEED}]
 

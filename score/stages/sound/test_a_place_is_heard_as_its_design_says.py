@@ -731,8 +731,22 @@ def test_a_brief_is_one_batch_of_its_takes_and_a_lost_take_is_a_gap():
     Break: score/stages/sound/takes.py: `round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted))`
         -> `round(FIRST_RESULT_MINUTES + MINUTES_A_TAKE * len(wanted) * 2)`
     Break: score/stages/sound/takes.py:
-        `shutil.copy2(back / "timings-0.json", TAKES / TIMINGS / f"{time.strftime('%Y%m%dT%H%M%S')}.json")` -> `pass`"""
+        `shutil.copy2(back / "timings-0.json", TAKES / TIMINGS / f"{time.strftime('%Y%m%dT%H%M%S')}.json")` -> `pass`
+    A loop brief's take is made long enough that its loop keeps what the level gate asks (workshop's 6 s
+    robot_arm_servo, made at 6 s, looped to 3.28 s under 3.6 s, 2026-11-10); a one-shot and a loop that already
+    keeps it are made at their brief's length.
+    Break: score/stages/sound/takes.py: `while picker_takes.looped_seconds(seconds) < least:` -> `while False:`"""
     from score.stages.sound import takes
+    servo = {"prompts": ["a servo"], "seconds": 6, "category": "loop"}
+    made_at = takes.asked_seconds(servo)
+    kept_share = takes.choose.KEPT_SHARE["loop"] * 6
+    assert takes.picker_takes.looped_seconds(6) < kept_share <= takes.picker_takes.looped_seconds(made_at), made_at
+    heard = {"category": "loop", "brief_seconds": 6}
+    assert gates.length_fault(heard, takes.picker_takes.looped_seconds(made_at), 1) is None, made_at
+    assert gates.length_fault(heard, takes.picker_takes.looped_seconds(6), 1) is not None
+    assert made_at == 7 and takes.jobs_for("servo", servo, "rev")[0]["seconds"] == 7
+    assert takes.asked_seconds({"seconds": 6, "category": "shot"}) == 6
+    assert takes.asked_seconds({"seconds": 15, "category": "room"}) == 15
     jobs = [job for name in ("pump", "fan") for job in
             takes.jobs_for(name, {"prompts": [f"a {name}", f"a {name}, closer"], "seconds": 6, "seeds": 4}, "rev")]
     assert [(job["prompt"], job["seed"]) for job in jobs] == [("a pump", 1), ("a fan", 1)], jobs
