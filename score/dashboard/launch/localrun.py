@@ -40,10 +40,13 @@ def selection(group):
     return words
 
 
-def run_command(group, jobs, rebuy_reason):
-    """The runner command that launches a group, detached: the benchmarks' own batch for the Benchmarks item."""
+def run_command(group, jobs, rebuy_reason, cores=None):
+    """The runner command that launches a group, detached: the benchmarks' own batch for the Benchmarks item. Its
+    --jobs are at most this machine's cores (`cores`, os.cpu_count() when None): `score run` refuses more jobs than
+    cores, and the cluster's 8-core conductor refused every Buy of 16 (2026-11-10)."""
     if group.benchmarks:
         return [sys.executable, "-m", BENCHMARKS, "run", "--detach"]
+    jobs = max(1, min(int(jobs), cores or os.cpu_count() or 1))
     return [sys.executable, "-m", "score", "run", group.world, *selection(group), "--jobs", str(jobs), "--detach",
             *(["--rebuy-reason", rebuy_reason] if rebuy_reason else [])]
 
