@@ -72,11 +72,12 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
   knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
   test, 2026-10-30).
-- mix.tint: return ones (a lamp's light carries no colour into the mix), or the rest of the light left out; light.look_at:
-  `colours` ignored; mix.lamp_light: the paint's own hue always, or the black body for every colour; mix.white_fit:
-  the distance read in (x, y) for (u, v); mix.balance: the held class swept too, `most` ignored, or kept with any gain (the float
-  look test, 2026-11-10); light.shipped_colours: the record colour's luminance left out, light.colours_written: the
-  colour written unscaled, light.group_colours: `emitters` ignored (the layer test, 2026-11-10).
+- mix.tint: return ones (a lamp's light carries no colour into the mix), or the rest of the light left out;
+  light.look_at: `colours` ignored; mix.lamp_light: the paint's own hue always, or the black body for every colour;
+  mix.white_fit: the distance read in (x, y) for (u, v); mix.balance: the held class swept too, `most` ignored, or kept
+  with any gain; mix.capped: `caps` ignored (the float look test, 2026-11-10); light.shipped_colours: the record
+  colour's luminance left out, light.colours_written: the colour written unscaled, light.group_colours: `emitters`
+  ignored (the layer test, 2026-11-10).
 """
 import json
 import math
@@ -676,8 +677,8 @@ def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_sp
     # concept (inside, no daylight) has its suns at the floor while its lamps are swept, never past SUN_MOST after
     held_at = []
     swept = mix.sweep
-    monkeypatch.setattr(mix, "sweep", lambda views, groups, target, held=None, most=None: held_at.append(
-        (list(groups), dict(held or {}), most)) or swept(views, groups, target, held, most))
+    monkeypatch.setattr(mix, "sweep", lambda views, groups, target, held=None, most=None, **kept: held_at.append(
+        (list(groups), dict(held or {}), most)) or swept(views, groups, target, held, most, **kept))
     _, night = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record,
                                {"scene": {"daylight": False}})
     assert held_at[0][1] == {"lamp_3": float(mix.SCALES[0])} and all(
@@ -883,7 +884,9 @@ def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_trans
     assert chosen == {"panels": 1.0, "grow": 8.0} and before == 3.0 and after == 0.0
     assert mix.balance(["panels", "grow"], "panels", lambda found: 0.5 * abs(np.log2(found["grow"]) - 1.0))[0] == \
         {"panels": 1.0, "grow": 1.0}
-    # a screen (a faint emitter) or a sun at SUN_MOST is never raised past its `most`
+    # a screen swept with the lamps never passes its own share (camp, 2026-11-10: its screens at x32 lit it cool)
+    assert mix.capped(["panels", "screen"], 8.0, {"panels": 0.5}, {"screen": 1.0}) == {"panels": 4.0, "screen": 1.0}
+    # a screen (a faint emitter) or a sun is never raised past its `most`
     assert mix.balance(["panels", "screen"], "panels", lambda found: abs(np.log2(found["screen"]) - 3.0),
                        {"screen": 1.0})[0] == {"panels": 1.0, "screen": 1.0}
 
