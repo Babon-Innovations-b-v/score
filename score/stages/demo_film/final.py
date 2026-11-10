@@ -609,16 +609,17 @@ def film_faults(folder):
     loudness = integrated_loudness(folder / "film.mp4")
     loud = [] if loudness is not None and abs(loudness - TARGET_LUFS) <= LOUDNESS_SLACK else [
         f"loudness {loudness} LUFS, not {TARGET_LUFS:g} within {LOUDNESS_SLACK:g}"]
-    black = unplanned_black(video["black"], timeline["segments"])
-    found = [fault for fault in video["failures"] if not fault.startswith("black ")] + (
-        [f"black {black}"] if black else [])
+    black, frozen = (outside_cards(video[kind], timeline["segments"]) for kind in ("black", "frozen"))
+    found = [fault for fault in video["failures"] if not fault.startswith(("black ", "frozen "))] + (
+        [f"black {black}"] if black else []) + ([f"frozen {frozen}"] if frozen else [])
     return [f"{folder.name}: {fault}" for fault in found + pacing_faults(timeline["segments"]) + loud]
 
 
-def unplanned_black(stretches, segments):
-    """The black stretches ([[start, end]], seconds) not lying within a title or text card: a card's words rise in on
-    its dark ground by plan, so only black elsewhere is a fault; cards cut one after another (a title, then a card
-    standing in for a place not ready) are one dark stretch."""
+def outside_cards(stretches, segments):
+    """The black or frozen stretches ([[start, end]], seconds) not lying within a title or text card: a card's words
+    rise in on its dark ground and hold still by plan (its slow grow reads as frozen past film_checks.FROZEN_SECONDS:
+    2026-11-10, a 7 s card standing in for a place not ready), so only one elsewhere is a fault; cards cut one after
+    another (a title, then a stand-in card) are one stretch."""
     cards = []
     for start, end in sorted((segment["start"], segment["start"] + segment["seconds"]) for segment in segments
                              if segment.get("cut") in WORDS):
