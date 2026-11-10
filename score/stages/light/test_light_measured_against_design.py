@@ -19,6 +19,8 @@ stages made here, each answer worked out by hand:
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - sky.py: the light's direction negated in `write_light` (the house sun test).
+- sky.through_dust: the forward peak left out of the beam (depth not delta-scaled), or `dust` not passed on in
+  `write`, or the share written on the airless Moon's sun too (the Moon base test, 2026-11-10).
 - measure.where: `x = size[0] / 2 + ...` off by its focal; its look-along-its-up refusal dropped (the where test;
   round 33's spot-1 at shiplock looked straight down, up (0, 1, 0), and every measure was NaN, 2026-10-30).
 - measure.veil: the lower rows read as the upper (the veil test).
@@ -178,6 +180,17 @@ def test_the_earth_over_the_moon_base_is_a_ball_about_two_degrees_across_and_the
     assert earth.GetAttribute("score:surface").Get() == "earth_face"
     assert "body-face-earth" in earth.GetAttribute("score:surface:missing").Get()  # its face waits: named, never grey
     assert sky.faults(seen, sky.held(stage, "base")) == []
+    # the airless Moon's sun shines at its top-of-air white; on Mars at campgrounds' scene time (9.8 degrees up) its
+    # beam comes through 0.6 of dust: red e^(-(1 - 0.975 * 0.67^2) * 0.6 / sin 9.8) = 0.137, blue (albedo 0.86) 0.114
+    assert not UsdLux.DistantLight(stage.GetPrimAtPath("/base/Lights/sky_sun")).GetColorAttr().HasAuthoredValue()
+    campgrounds = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "campgrounds")
+    on_mars = overhead.seen(ENVIRONMENT_1, campgrounds, "2099-10-01T16:00:00Z")
+    dust = json.loads((REPO / "data/physics/dust.json").read_text())["bodies"]["mars"]
+    stage = stage_of("campgrounds")
+    sky.write(stage, "campgrounds", on_mars, dust=dust)
+    beam = UsdLux.DistantLight(stage.GetPrimAtPath("/campgrounds/Lights/sky_sun"))
+    assert np.allclose(beam.GetColorAttr().Get(), [0.1372, 0.1278, 0.1143], atol=2e-3)
+    assert beam.GetIntensityAttr().Get() == pytest.approx(on_mars["lights"][0]["lux"] / 683.0 / 4.0, rel=1e-4)
 
 
 def test_a_body_is_painted_with_the_face_its_row_made(tmp_path):

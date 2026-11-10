@@ -144,6 +144,8 @@ gates.
   (the far city) is left out of the render (`passes.neighbours`); the neighbours row names it a gap.
 - **The sky is the environment concept's physics** (the owner, 2026-10-21: no fixed sky; CONTEXT.md "physics"):
   `sky.py` writes what overhead.py says is overhead at the scene's site at its scene time (each light over the horizon a distant light, one under it none,
+  a shining body's beam coloured by its share through the site's dusty air, the record's `sky_dome` dust,
+  delta-Eddington, `sky.through_dust`: 2026-11-10, campgrounds' sun 9.8 degrees up shone at its top-of-air white;
   a shining body's disc and every other body a ball at its true direction and size, each backdrop), from the scene's
   kept sky inputs (`{home}/design/sky/<scene>.json`, `score/review/scene_sky.py`, kept by `python -m
   score.review.plans keep`; a room takes its top scene's site), and turns the seed's and the record's old sky off. The

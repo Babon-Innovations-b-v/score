@@ -5,7 +5,7 @@ scene time (score/review/overhead.py on the inputs score/review/scene_sky.py kee
     lights     each light over the level horizon (a shining body's, a far light's; one under it lights nothing here,
                the ground between: overhead.risen) a distant light shining from its direction,
                /<scene>/Lights/sky_<key>: its colour its kelvin, its strength its lux (W/m² at LUMENS_PER_WATT); a
-               shining body's also its disc, a ball at its true size, /<scene>/Sky/Discs/<body>
+               shining body's beam its share through the site's dusty air (through_dust), and its disc, a ball at its true size, /<scene>/Sky/Discs/<body>
     bodies     every other body a ball at its true direction and size SKY_DISTANCE out, /<scene>/Sky/Bodies/<body>;
                the light of its star lights its phase as it lights the scene
     backdrops  a dome a dome light of its lux and kelvin, a skyline its record (its look is a library item to come),
@@ -28,7 +28,8 @@ site: the light layer's gate "sky bodies".
     kept_input(place) -> {name: path pattern}      the scene's kept sky, declared when it exists
     seen_of(kept) -> overhead.seen(...) | None
     faces_of(inputs) -> {body: its face.json}      the accepted body faces among a node's inputs
-    write(stage, place, seen, faces=None, library=None) -> {lights, bodies, backdrops}
+    write(stage, place, seen, faces=None, library=None, dust=None) -> {lights, bodies, backdrops}
+    through_dust(altitude, dust) -> [red, green, blue] share of a beam reaching the ground
     held(stage, place) -> {lights, bodies, backdrops}
     faults(seen, held) -> [str]
 """
@@ -44,6 +45,7 @@ from score.review import overhead, scene_sky, setting as settings
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "tools/usd"))
 import builders  # noqa: E402
+import mars_sky  # noqa: E402
 import scene  # noqa: E402
 
 KEPT = "{home}/design/sky/{place}.json"
@@ -60,6 +62,15 @@ WAY_WITHIN = 0.05
 ACROSS_SHARE = 0.02
 ACROSS_LEAST = 1e-4
 BALL_RINGS, BALL_SEGMENTS = 24, 48
+# A shining body's beam through a body's dusty air (data/physics/dust.json, as the scene record's `sky_dome` carries
+# it): its share in each channel the delta-Eddington direct transmission, e^(-(1 - albedo * forward^2) * depth / mu),
+# mu the sine of the light's height (at least mars_sky.LOWEST, the dome's own floor). Joseph, Wiscombe and Weinman
+# 1976 (J. Atmos. Sci. 33, 2452: the forward peak's share f = g^2 of the scattered light taken back into the beam):
+# the dome (mars_sky.py) shows the light the dust throws forward round the sun but lights nothing, so that light
+# reaches the ground with the beam, and the dust's lower albedo in blue takes more blue out (2026-11-10:
+# campgrounds' sun 9.8 degrees up shone through 0.6 of dust at its top-of-air white, 64760 lux, and its ground's
+# cast read 18.8 levels off its concept's, too blue).
+DUST_FORWARD_POWER = 2.0
 DISC_RECIPE = "glowing"  # a shining body's disc: the library's recipe for a colour given off as light
 FROM = "the environment concept's physics overhead at the scene's site at its scene time (score/review/overhead.py)"
 
@@ -191,8 +202,19 @@ def ball(stage, path, azimuth, altitude, across):
                                                         BALL_SEGMENTS)).GetPrim()
 
 
-def write_light(stage, place, light, library=None):
-    """A light overhead as a distant light shining from its direction, and a shining body's disc."""
+def through_dust(altitude, dust):
+    """Each channel's share (red, green, blue) of a beam from `altitude` degrees that reaches the ground through the
+    dusty air `dust` (its depth, albedo and forward throw; DUST_FORWARD_POWER's rule)."""
+    rise = max(math.sin(math.radians(altitude)), mars_sky.LOWEST)
+    albedo = np.asarray(dust["albedo"], dtype=np.float64)
+    depth = (1.0 - albedo * float(dust["forward"]) ** DUST_FORWARD_POWER) * float(dust["depth"])
+    return np.exp(-depth / rise)
+
+
+def write_light(stage, place, light, library=None, dust=None):
+    """A light overhead as a distant light shining from its direction (its strength its top-of-air lux), a shining
+    body's beam coloured by its share through the site's dusty air (`dust`, through_dust), and a shining body's
+    disc."""
     from pxr import Gf, UsdGeom, UsdLux
     path = f"/{place}/Lights/sky_{settings.key_of(light['name'])}"
     UsdGeom.Scope.Define(stage, f"/{place}/Lights")
@@ -200,6 +222,11 @@ def write_light(stage, place, light, library=None):
     distant.CreateIntensityAttr(light["lux"] / LUMENS_PER_WATT / scene.DISTANT_STRENGTH_PER_INTENSITY)
     distant.CreateEnableColorTemperatureAttr(True)
     distant.CreateColorTemperatureAttr(float(light["kelvin"]))
+    if dust and light.get("of"):
+        share = through_dust(light["altitude"], dust)
+        distant.CreateColorAttr(Gf.Vec3f(*(float(value) for value in share)))
+        tagged(distant.GetPrim(), {"sky:dust": f"its beam through {float(dust['depth']):g} of dust: "
+                                               f"{', '.join(f'{value:.4f}' for value in share)} of red, green, blue"})
     if light.get("across"):
         distant.CreateAngleAttr(float(light["across"]))
     distant.AddOrientOp().Set(Gf.Quatf(scene.aim_turn([0.0, 0.0, 0.0], -way(light["azimuth"], light["altitude"]))))
@@ -242,16 +269,17 @@ def write_backdrop(stage, place, backdrop):
     return {"name": backdrop["name"], "path": path, "shape": backdrop["shape"]}
 
 
-def write(stage, place, seen, faces=None, library=None):
+def write(stage, place, seen, faces=None, library=None, dust=None):
     """The scene's sky from what is overhead (overhead.seen's answer; its lights the risen ones) into the stage's edit
     target, each body painted with its face (`faces`: faces_of's), each disc on the surface library's method
-    (`library`: data/library/materials.json); what was written."""
+    (`library`: data/library/materials.json), each shining body's beam through the site's dusty air (`dust`: the
+    record's sky_dome, None where its air holds none); what was written."""
     from pxr import UsdGeom
     seen = overhead.risen(seen)
     UsdGeom.Scope.Define(stage, f"/{place}/Sky")
     for group in ("Bodies", "Backdrops"):
         UsdGeom.Scope.Define(stage, f"/{place}/Sky/{group}")
-    return {"lights": [write_light(stage, place, light, library) for light in seen["lights"]],
+    return {"lights": [write_light(stage, place, light, library, dust) for light in seen["lights"]],
             "bodies": [write_body(stage, place, body, (faces or {}).get(body["body"]))
                        for body in seen["bodies"]],
             "backdrops": [write_backdrop(stage, place, backdrop) for backdrop in seen["backdrops"]]}
