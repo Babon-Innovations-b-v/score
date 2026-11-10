@@ -381,11 +381,18 @@ def wall_lamp_spot(relation, pieces=1, piece=0):
     return start + face + run * along + out * LAMP_OUT, [start + face, end + face]
 
 
+# Glowing parts that show light rather than throw it which lamps.json's `emitter` words do not name yet: a keypad's
+# backlit keys (2026-11-10: shiplock's door keypad was read as a whole lamp, its three cyan lamps gave 50-80% of the
+# room's light and failed its colour check). Kept here, not in lamps.json, which is in about 91 paid rows' keys.
+CONTROL_FACES = {"keypad", "keypads", "touchpad", "touchpads", "touchscreen", "touchscreens"}
+
+
 def glow_share(row, glow, path):
     """(share, kind) of the library's lamp a glowing part throws as room light (data/library/lamps.json `glowing`):
-    a faint emitter (a screen, an indicator, a keyboard, a flame: its `emitter` words in what glows, else in the row's
-    noun or name) its `emitter` share, any other glowing part (a lamp, a strip, a grow light) a light source at 1
-    (2026-11-04: screens and indicator lamps threw room light as lamps did, and the lab came out green and red)."""
+    a faint emitter (a screen, an indicator, a keyboard, a keypad, a flame: its `emitter` words or CONTROL_FACES in
+    what glows, else in the row's noun or name) its `emitter` share, any other glowing part (a lamp, a strip, a grow
+    light) a light source at 1 (2026-11-04: screens and indicator lamps threw room light as lamps did, and the lab
+    came out green and red)."""
     entry = json.loads(pathlib.Path(path).read_text()).get("glowing") or {}
     emitter = entry.get("emitter")
     if not emitter:
@@ -393,7 +400,8 @@ def glow_share(row, glow, path):
     said = set(row_kinds.words(" ".join(str(text) for text in (
         (glow or {}).get("glowing") or "", row.get("noun") or "", row.get("name") or "", row.get("id") or ""
     ))).split())
-    return (float(emitter["share"]), "emitter") if said & set(emitter["words"]) else (1.0, "source")
+    return (float(emitter["share"]), "emitter") if said & (set(emitter["words"]) | CONTROL_FACES) \
+        else (1.0, "source")
 
 
 def lamp_count(row, laid):

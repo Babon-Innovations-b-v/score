@@ -1154,7 +1154,9 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
     Break: score/stages/scene_record/writer.py: `counts[number % len(counts)] += 1` -> `pass` (four counted screens
         on two items lay two lamps)
     Break: score/stages/scene_record/writer.py: `return (float(emitter["share"]), "emitter") if said & set(emitter[
-        "words"]) else (1.0, "source")` -> `return 1.0, "source"` (a screen throws a lamp's light)"""
+        "words"]) else (1.0, "source")` -> `return 1.0, "source"` (a screen throws a lamp's light)
+    Break: score/stages/scene_record/writer.py: `set(emitter["words"]) | CONTROL_FACES` -> `set(emitter["words"])`
+        (a door's keypad throws a lamp's light: shiplock, 2026-11-10)"""
     from score.review import plans
     from score.stages.scene_record import concept_light, writer
     assert concept_light.KEPT_LIGHT == plans.KEPT_LIGHT
@@ -1197,6 +1199,10 @@ def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
     assert [screen["at"][0] for screen in screens] == [-2.25, -0.75, 1.5, 2.5], screens
     assert all(screen["row"] == "screens" and "faint emitter" in screen["from"] and
                abs(screen["energy"] - bulb["energy"] * 0.1) <= 1e-4 for screen in screens), (screens, bulb)
+    # a door whose concept shows its keypad glowing is a faint emitter, its light a lamp still
+    door = {"id": "sliding_door", "name": "sliding door", "noun": "door"}
+    assert writer.glow_share(door, {"glowing": "keypad"}, inputs["lamp library"]) == (0.1, "emitter")
+    assert writer.glow_share(door, {"glowing": "light panel"}, inputs["lamp library"]) == (1.0, "source")
 
 
 def test_a_glowing_panel_drawn_as_the_whole_room_has_its_lamp_on_its_wall():
