@@ -679,18 +679,7 @@ def a_peel(folder, shot="wide"):
 def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch, small_cut):
     """Two place films at very different loudness and two peels cut into one 24 s film (2 + 7 + 7 + 5 + 5 less four
     half-second transitions), each segment from its own film or peel (a peel its row's, read beside, and Blocked by
-    name while the row stands without its shot); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails. A place
-    whose film and peel do not stand goes in with what it has (owner, 2026-11-10: "A place that isn't ready by about
-    16 hours in goes into the film with what it has"): each of its segments a card naming it, and the film passes;
-    with no film or peel standing at all nothing is cut.
-    Break: score/stages/demo_film/final.py: `if node not in inputs:\n            continue\n        film =` -> `film =`
-        -> a place whose film does not stand stops the whole film (KeyError).
-    Break: score/stages/demo_film/final.py: `            segment = stand_in(segment)` -> `            pass` -> the
-        place's walk-through is cut from its neighbour's film.
-    Break: score/stages/demo_film/final.py: `        missing_sources(script, films[film], recorded_takes[film])` ->
-        `        pass` -> a film of cards alone is cut.
-    Break: score/stages/demo_film/final.py: `if cards and start <= cards[-1][1] + 1e-3:` -> `if False:` -> the title
-        and the stand-in card after it are one black stretch the gate fails.
+    name while it is missing); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
     Break: score/stages/demo_film/final.py: `for kind in ("black", "frozen"))` -> `for kind in ("black", "black"))`
         -> a still card fails the gate as frozen; or `            if not any(start - 1e-3` -> `            if True or not
         any(start - 1e-3` -> a still card's stretch is kept as a fault.
@@ -707,28 +696,8 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
     inputs = {"script toy": script, "demo-film@alpha": a_film(tmp_path / "alpha", 330, 0.05),
               "demo-film@beta": a_film(tmp_path / "beta", 440, 0.6),
               "place-peel@beta": a_peel(tmp_path / "beta-peel")}
-    (tmp_path / "alpha-shotless").mkdir()
     with pytest.raises(graph.Blocked, match="segment 4: no accepted peel body-peel@alpha/wide"):
-        final.peels(a_script([*WALKS, *peels]), {**inputs, "body-peel@alpha": tmp_path / "alpha-shotless"})
-    stood = {name: path for name, path in inputs.items() if not name.endswith("@alpha")}  # alpha not ready in time
-    (tmp_path / "with-what-it-has").mkdir()
-    final.make(stood, tmp_path / "with-what-it-has", 0, {})
-    timeline = json.loads((tmp_path / "with-what-it-has" / "toy" / "timeline.json").read_text())
-    assert [(segment["cut"], segment["place"], segment.get("stands_in")) for segment in timeline["segments"]] == [
-        ("title", None, None), ("text", "alpha", "walk-through"), ("walk-through", "beta", None),
-        ("text", "alpha", "body-peel"), ("place-peel", "beta", None)], timeline
-    verdict = final.judge(tmp_path / "with-what-it-has", stood, {})
-    assert verdict.answer == checks.PASS, verdict
-    # a card held still is planned (env1's 7 s stand-in read frozen at 1280x720); a walk-through held still is not
-    _, _, film_checks = final.cut_tools()
-    measured = film_checks.video_checks
-    for stretch, faults in (([3.0, 8.0], []), ([9.0, 13.0], ["toy: frozen [[9.0, 13.0]]"])):
-        monkeypatch.setattr(film_checks, "video_checks", lambda *given, stretch=stretch: {  # the cut measured above
-            "black": [], "frozen": [stretch], "failures": [f"frozen {[stretch]}"]})
-        assert final.film_faults(tmp_path / "with-what-it-has" / "toy") == faults
-    monkeypatch.setattr(film_checks, "video_checks", measured)
-    with pytest.raises(graph.Blocked, match="toy: no place film or peel it shows stands yet"):
-        final.make({"script toy": script}, tmp_path, 0, {})
+        final.peels(a_script([*WALKS, *peels]), inputs)
     inputs["body-peel@alpha"] = a_peel(tmp_path / "alpha-peel")
     out = tmp_path / "out"
     out.mkdir()
@@ -740,6 +709,14 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
     assert timeline["seconds"] == 24.0
     verdict = final.judge(out, inputs, {})
     assert verdict.answer == checks.PASS, verdict
+    # a card held still is planned (a 7 s card read frozen at 1280x720); a walk-through held still is not
+    _, _, film_checks = final.cut_tools()
+    measured = film_checks.video_checks
+    for stretch, faults in (([0.0, 2.0], []), ([9.0, 13.0], ["toy: frozen [[9.0, 13.0]]"])):
+        monkeypatch.setattr(film_checks, "video_checks", lambda *given, stretch=stretch: {  # the cut measured above
+            "black": [], "frozen": [stretch], "failures": [f"frozen {[stretch]}"]})
+        assert final.film_faults(out / "toy") == faults
+    monkeypatch.setattr(film_checks, "video_checks", measured)
     timeline["segments"][1]["seconds"] = 3.5  # the 18 Oct cut's pace, written into the record
     (out / "toy" / "timeline.json").write_text(json.dumps(timeline))
     verdict = final.judge(out, inputs, {})

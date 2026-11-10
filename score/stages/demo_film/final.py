@@ -11,10 +11,7 @@ data/films/ and his unlocked edits are read by nothing here.
                (`$SCORE_DASHBOARD_HOME/films/previews/<film>.json`, `<film>-takes/<NNN>.mp4`)
     beside     demo-film@<place> and demo-film-extra@<place> for each place a script's walk-through or hero still
                shows (shown_places), body-peel@<place> and place-peel@<place> for each place it peels
-               (peeled_places), each where that row applies; each optional, waited on at most WAIT_HOURS of the
-               drive (Stage.waits_hours): a place not ready by then goes into the film with what it has, each
-               segment whose film or peel does not stand a card naming its place (stand_in; owner, 2026-11-10: "A
-               place that isn't ready by about 16 hours in goes into the film with what it has")
+               (peeled_places), each where that row applies
 
 A script is cut only after the creator's yes, his lock: with none locked the node stands Blocked, and the free
 preview is the FILM page's (score/dashboard/films). Before anything is cut every segment must say its `seconds` (a
@@ -85,9 +82,6 @@ LOUDNESS_SLACK = 1.0
 LENGTH_SLACK = 1.0
 TRANSITION_SECONDS = 0.5  # demo.FADE_SECONDS, every join's cross-fade
 OUTPUTS = ("film.mp4", "timeline.json")
-# The owner, 2026-11-10: "A place that isn't ready by about 16 hours in goes into the film with what it has."
-WAIT_HOURS = 16
-STAND_IN_LINE = "still being made"  # a stand-in card's line under its place's name
 
 
 def scripts():
@@ -221,17 +215,14 @@ def peel_node(segment):
 
 
 def peels(script, inputs):
-    """{segment number: its peel.mp4} for every peel the script shows whose node the inputs hold (one not standing
-    is left out: its segment a stand-in card), read from the node's beside checkouts; Blocked naming each that does
-    not hold its shot or that is shorter than its segment."""
+    """{segment number: its peel.mp4} for every peel the script shows, read from the node's beside checkouts;
+    Blocked naming each the node does not hold or that is shorter than its segment."""
     _, showcase, _ = cut_tools()
     found, missing = {}, []
     for number, segment in peeled(script):
         node, shot = peel_node(segment)
-        if node not in inputs:
-            continue
-        clip = pathlib.Path(inputs[node]) / shot / "peel.mp4"
-        if not clip.exists():
+        clip = pathlib.Path(inputs[node]) / shot / "peel.mp4" if node in inputs else None
+        if clip is None or not clip.exists():
             missing.append(f"segment {number}: no accepted peel {node}/{shot}")
         elif showcase.length(clip) < segment["seconds"] - 1e-3:
             missing.append(f"segment {number}: {node}/{shot} shows {showcase.length(clip):.2f} s, the segment wants "
@@ -349,17 +340,14 @@ def cut_tools():
 
 
 def sources(script, inputs):
-    """{segment number: its film.mp4} for every segment showing a film whose node the inputs hold (one not standing
-    is left out: its segment a stand-in card), read from the node's beside checkouts; Blocked naming each film the
-    node does not hold or that is too short for its segment."""
+    """{segment number: its film.mp4} for every segment showing a film, read from the node's beside checkouts;
+    Blocked naming each film the node does not hold or that is too short for its segment."""
     demo, showcase, _ = cut_tools()
     found, missing = {}, []
     for number, segment in shown(script):
         node, folder = film_node(segment)
-        if node not in inputs:
-            continue
-        film = pathlib.Path(inputs[node]) / folder / "film.mp4"
-        if not film.exists():
+        film = pathlib.Path(inputs[node]) / folder / "film.mp4" if node in inputs else None
+        if film is None or not film.exists():
             missing.append(f"segment {number}: no accepted film {node}{'/' + folder if folder else ''}")
         elif segment["cut"] == WALK and showcase.length(film) - demo.TITLE_SECONDS < segment["seconds"] - 1e-3:
             missing.append(f"segment {number}: {node} shows {showcase.length(film) - demo.TITLE_SECONDS:.2f} s, "
@@ -369,23 +357,6 @@ def sources(script, inputs):
     if missing:
         raise graph.Blocked("; ".join(missing))
     return found
-
-
-def stand_in(segment):
-    """The text card standing in for a segment whose place's film or peel does not stand (WAIT_HOURS): its place's
-    name (its own words, else the place's) over STAND_IN_LINE, for its seconds."""
-    place = (segment.get("shows") or {}).get("place") or ""
-    return {"cut": "text", "text": words_of(segment)[1] or place.replace("_", " ").title(), "line": STAND_IN_LINE,
-            "seconds": segment["seconds"], "shows": {"place": place}, "stands_in": segment["cut"]}
-
-
-def missing_sources(script, films, recorded_takes):
-    """Blocked when the script has nothing standing to cut from: no place film nor peel, or no film and no bed to
-    carry its cards' sound (a film of cards alone is no film)."""
-    if not films and not any(number in recorded_takes for number, _ in peeled(script)):
-        raise graph.Blocked(f"{script.get('film')}: no place film or peel it shows stands yet")
-    if not films and not script.get("bed"):
-        raise graph.Blocked(f"{script.get('film')}: no place film stands yet and it names no bed to carry its sound")
 
 
 def nearest(films, number):
@@ -544,9 +515,6 @@ def cut_one(script, films, out, recorded_takes=None, bed=None):
     exposure = gains(script, films)
     clips, lengths, timeline, clock = [], [], [], 0.0
     for number, segment in enumerate(script["segments"], 1):
-        if segment.get("cut") in (WALK, STILL, *PEELS) and number not in films and \
-                number not in (recorded_takes or {}):
-            segment = stand_in(segment)
         clip = parts / f"segment-{number:03d}.mp4"
         near = nearest(films, number) if films else None
         source = (recorded_takes or {}).get(number) or (
@@ -560,8 +528,7 @@ def cut_one(script, films, out, recorded_takes=None, bed=None):
             peel_node(segment)[0] if segment["cut"] in PEELS else None)
         timeline.append({"segment": number, "cut": segment["cut"], "place": (segment.get("shows") or {}).get("place"),
                          "film": node, "start": round(clock, 3), "seconds": lengths[-1],
-                         "exposure_gain": exposure.get(number, 1.0),
-                         **({"stands_in": segment["stands_in"]} if "stands_in" in segment else {})})
+                         "exposure_gain": exposure.get(number, 1.0)})
         clock += lengths[-1] - TRANSITION_SECONDS
     showcase.joined_in_groups(clips, lengths, parts / "joined.mp4", parts)
     size = script.get("size", [1280, 720])
@@ -584,8 +551,6 @@ def make(inputs, out, seed, params):
     films = {film: sources(script, inputs) for film, script in sorted(named.items())}  # every film found first
     recorded_takes = {film: {**takes(film, script, inputs), **peels(script, inputs)}
                       for film, script in sorted(named.items())}
-    for film, script in sorted(named.items()):
-        missing_sources(script, films[film], recorded_takes[film])
     for film, script in sorted(named.items()):
         bed = inputs.get(f"bed {film}")
         cut_one(script, films[film], pathlib.Path(out) / film, recorded_takes[film], pathlib.Path(bed) if bed else None)
@@ -618,8 +583,8 @@ def film_faults(folder):
 def outside_cards(stretches, segments):
     """The black or frozen stretches ([[start, end]], seconds) not lying within a title or text card: a card's words
     rise in on its dark ground and hold still by plan (its slow grow reads as frozen past film_checks.FROZEN_SECONDS:
-    2026-11-10, a 7 s card standing in for a place not ready), so only one elsewhere is a fault; cards cut one after
-    another (a title, then a stand-in card) are one stretch."""
+    2026-11-10, a 7 s card), so only one elsewhere is a fault; cards cut one after another (a title, then a text card)
+    are one stretch."""
     cards = []
     for start, end in sorted((segment["start"], segment["start"] + segment["seconds"]) for segment in segments
                              if segment.get("cut") in WORDS):
