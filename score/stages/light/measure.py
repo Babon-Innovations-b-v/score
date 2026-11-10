@@ -7,12 +7,14 @@ judged by eye.
     beam(before, after, points)    how much a lamp's beam brightens the air along its axis, after against before
     body(picture, x, y, radius, toward, usable)   a sky body's disc: how much of it shows, its sunward and far halves
     sky_of(picture, sky_pixels(picture))   a day sky's colour and its rise toward the horizon
+    backdrop(picture)              a cutaway concept's flat backdrop round the place, never its surfaces
     veil(before, after)            how much lighter the picture's lower part got: lamps' haze laid over the whole place
 """
 import math
 
 import numpy as np
 from PIL import Image
+from scipy import ndimage
 
 # The sky's pixels in the frame before: the top share of the picture, within this many levels of its commonest colour.
 # A colour cast is read on the mid-tones (lightness 0 to 255) and needs this many of them (set 2026-11-04, the light
@@ -21,6 +23,13 @@ CAST_TONES = (25.0, 230.0)
 CAST_PIXELS = 500
 SKY_ROWS = 0.45
 SKY_NEAR = 14
+# A concept drawn as a cutaway stands on one flat colour (2026-11-10: quarters' warm room on a mid grey, 98 levels, 73%
+# of the picture, read its cast neutral, [133.8, 126.4, 123.9], and failed its own warm render): the backdrop is the
+# picture's pixels within BACKDROP_NEAR levels (any channel) of its border's commonest colour joined to its border,
+# where that colour holds at least BACKDROP_SHARE of the border. A painted sky or ground at the border is never one
+# colour (2% to 3% of the border in env1's concepts, the cutaways' 10% to 34%), so it is never taken for a backdrop.
+BACKDROP_NEAR = 6
+BACKDROP_SHARE = 0.1
 # Both channels of a sky's blue to red floored alike at one level, so a black sky reads as no hue (1), as a grey one
 # does; until 2026-10-25 only red was floored and a black sky read 0, redder than any red sky (light@old_station failed
 # black against its own near-black concept).
@@ -129,14 +138,31 @@ def body(rgb, x, y, radius, toward, usable):
 def sky_pixels(before):
     """A concept picture's sky pixels: its top SKY_ROWS within SKY_NEAR levels of the commonest colour there (a look's
     sky is its passes' mask, where the render met no surface: lit ground read as old_station's sky, 2026-10-30)."""
-    top = before[: int(before.shape[0] * SKY_ROWS)]
-    codes = (top.astype(np.int64) // 4) @ np.array([4096, 64, 1])
+    top = np.zeros(before.shape[:2], dtype=bool)
+    top[: int(before.shape[0] * SKY_ROWS)] = True
+    return commonest_near(before, top)
+
+
+def commonest_near(rgb, within):
+    """The pixels of `within` (a mask) within SKY_NEAR levels of the commonest colour there (in steps of 4 levels): a
+    painted sky's flat ground, never the structure or bodies drawn over it."""
+    codes = (rgb[within].astype(np.int64) // 4) @ np.array([4096, 64, 1])
     common = np.bincount(codes.ravel()).argmax()
     colour = np.array([common // 4096, (common // 64) % 64, common % 64]) * 4 + 2
-    near = np.abs(top - colour).max(axis=-1) <= SKY_NEAR
-    mask = np.zeros(before.shape[:2], dtype=bool)
-    mask[: top.shape[0]] = near
-    return mask
+    return within & (np.abs(rgb - colour).max(axis=-1) <= SKY_NEAR)
+
+
+def backdrop(rgb):
+    """A cutaway concept's flat backdrop (BACKDROP_NEAR, BACKDROP_SHARE): the pixels near its border's commonest colour
+    joined to the border; None where the border holds no one colour."""
+    pixels = rgb.astype(np.int16)
+    border = np.concatenate([pixels[0], pixels[-1], pixels[:, 0], pixels[:, -1]])
+    colours, counts = np.unique(border, axis=0, return_counts=True)
+    if counts.max() < BACKDROP_SHARE * len(border):
+        return None
+    labels, _ = ndimage.label(np.abs(pixels - colours[counts.argmax()]).max(axis=-1) <= BACKDROP_NEAR)
+    edge = np.unique(np.concatenate([labels[0], labels[-1], labels[:, 0], labels[:, -1]]))
+    return np.isin(labels, edge[edge > 0])
 
 
 def sky_of(rgb, mask):

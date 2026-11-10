@@ -44,7 +44,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the sun-swept test, 2026-11-04).
 - measure.surface_cast: brightness left in (`* 128.0 / ...` dropped); light.judge_colour: `gap <= CAST_MOST` ->
   `True` (the exposure test, 2026-11-04).
+- measure.backdrop: every near pixel taken, not only those joined to the border, or the border's share rule dropped;
+  light.concept_cast: the backdrop not left out (the exposure test, 2026-11-10).
 - light.row_skies: the rows' boxes read as [top, left, bottom, right] (the look's sky test, 2026-11-04).
+- light.row_skies: the boxes read whole, not on measure.commonest_near (the look's sky test, 2026-11-10).
 - light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
 - passes.neighbours: keep a planless shown place (the neighbours test).
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
@@ -391,6 +394,12 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_
     measured = light.sky_measures("yard", tmp_path, tmp_path, light.row_skies("yard", inventory))
     (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
     assert light.judge_sky(tmp_path, {}, {}).answer == checks.FAIL  # its concept's sky lit grey, the look's black
+    # a sky row's box holding the place's lit roof under its black sky (2026-11-10: greenhouse's starry band read
+    # 58.6 levels grey) is read on the sky's own flat colour, so the look's black sky passes
+    inventory.write_text(json.dumps({"rows": [{"id": "stars", "anchor": "sky", "boxes": [[0, 0, 100, 60]]}]}))
+    measured = light.sky_measures("yard", tmp_path, tmp_path, light.row_skies("yard", inventory))
+    (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
+    assert light.judge_sky(tmp_path, {}, {}).answer == checks.PASS, measured["concept"]
     # a sky's blue to red is judged only where the concept's sky shows a hue
     def judged(concept_rgb, sky_rgb):
         concept = {"mean_rgb": concept_rgb, "blue_to_red": round(concept_rgb[2] / concept_rgb[0], 4),
@@ -427,7 +436,7 @@ def test_a_point_straight_ahead_falls_in_the_pictures_middle_and_one_behind_nowh
                       (200, 100), [0, 0, 0])
 
 
-def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_concept_is_unknown(tmp_path):
+def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_concept_is_unknown(tmp_path, monkeypatch):
     half_black = np.concatenate([np.zeros((10, 20)), np.full((10, 20), 0.5)])
     assert light.extremes(half_black) == {"black": 0.5, "blown": 0.0}
     for concept, views, answer in (({"black": 0.45, "blown": 0.0}, {"wide": {"black": 0.5, "blown": 0.01}}, checks.PASS),
@@ -446,6 +455,20 @@ def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_con
         (tmp_path / "measures.json").write_text(json.dumps({"colour": {"concept": [128.0, 128.0, 128.0],
                                                                        "views": views}}))
         assert light.judge_colour(tmp_path, {}, {}).answer == answer, views
+    # a cutaway concept's flat backdrop is no surface of the place (2026-11-10: quarters' warm room on a grey 73% of
+    # its picture read neutral): a warm room on grey reads warm, the grey left out; a room filling its picture, its
+    # border painted in many colours, keeps every pixel, a warm patch inside the room that touches no border too
+    cutaway = np.full((60, 80, 3), 98.0)
+    cutaway[15:45, 20:60] = [150.0, 110.0, 80.0]
+    cutaway[25:35, 30:50] = 98.0  # the room's own grey floor, joined to no border
+    left = light.not_place(cutaway, outdoor=False)
+    assert left is not None and left[0, 0] and not left[30, 40] and not left[20, 25]
+    Image.fromarray(cutaway.astype(np.uint8)).save(tmp_path / "cutaway.png")
+    monkeypatch.setattr(light, "concept_pictures", lambda place: [tmp_path / "cutaway.png"])
+    warm = light.concept_cast("cutaway", outdoor=False)
+    assert warm[0] > warm[2] + 20, warm
+    painted = np.random.default_rng(3).uniform(40.0, 200.0, (60, 80, 3))
+    assert light.measure.backdrop(painted) is None and light.not_place(painted, outdoor=False) is None
 
 
 def test_exposure_judges_the_places_surfaces_and_leaves_its_sky_to_the_sky_check(tmp_path, monkeypatch):
