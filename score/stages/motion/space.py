@@ -1,6 +1,9 @@
 """The motion stage's measures of space, read off the composed stage: each moving thing's own shape (the convex hull
 of its meshes in its own frame) and where it stands at a moment, the still things round it as points on their surfaces, and
 how deep one thing reaches into a moving thing's hull."""
+import functools
+import pathlib
+
 import numpy as np
 from pxr import Usd, UsdGeom
 
@@ -10,6 +13,9 @@ NOT_THINGS = ("Sky", "Lights", "Sound", "Library", "Environment", "Looks", "Wate
               "Effects")
 GROUNDS = ("Ground", "Terrain")
 WATERS = ("Water",)
+# Where the terrain row's made ground of a place lies (score/stages/terrain/outside.py: `near`, `far`, its `water`),
+# a layer of its own (places/<place>.usdc) the assembly sublayers, never in the place's own stage.
+MADE_GROUND = "Outside"
 # What a code-built mesh says it plainly is (tools/usd/placeholders.py's `score:plain`) when it is a surface, not a
 # thing: a neighbour's harbour (the far city's) is water wherever it stands in the stage.
 PLAIN_SURFACES = {"water": "water", "ground": "ground", "sky": "sky"}
@@ -207,6 +213,23 @@ def still_points_near(meshes, box, code, spacing):
         if len(spots):
             found[str(mesh.GetPath())] = spots
     return found
+
+
+@functools.lru_cache(maxsize=8)
+def made_ground_stage(path):
+    """The made ground's layer opened once, held open while its meshes are read."""
+    return Usd.Stage.Open(path)
+
+
+def made_ground_meshes(grounds, place):
+    """The drawn meshes of the place's made ground (the terrain row's output `grounds`, its places/<place>.usdc under
+    /<place>/Outside), its water left out; [] where the terrain row made none (a room). Fault, 2026-11-10: the
+    campgrounds' crane stands on the Mars ground only this layer holds, so `grounded` found it touching nothing."""
+    made = sorted(pathlib.Path(grounds).glob(f"*/places/{place}.usdc")) if grounds else []
+    root = made_ground_stage(str(made[0])).GetPrimAtPath(f"/{place}/{MADE_GROUND}") if made else None
+    if not root:
+        return []
+    return [mesh for mesh in shown_meshes(root) if mesh.GetName() != "water" and plainly(mesh) != "water"]
 
 
 def surface_meshes(stage, place, surface):
