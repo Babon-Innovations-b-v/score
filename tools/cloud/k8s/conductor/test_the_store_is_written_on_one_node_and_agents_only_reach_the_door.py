@@ -24,6 +24,7 @@ Each invariant with the break that turns it red (each applied once, seen red, re
 - the sync pass and the backups run one at a time (Forbid). Break: `"concurrencyPolicy": "Allow"` in `cronjob`.
 - the env1 cap's watcher runs every 5 minutes for at most 240 s on babon's system pool, no store volume, its scw
   config the init's copy. Break: drop `"nodeSelector"` from `cap_watch`, or `"activeDeadlineSeconds"`.
+  `apply --only` applies only the objects named. Break: `picked` returns `found` whole.
 - every object carries the conductor's own cost label, apart from a batch's. Break: drop COST_LABEL from `labels`.
 - score's namespace gives a container that names no cpu limit 16 (a default of 1 made every drive pod of 8 cores
   invalid, 2026-11-08), and every container knows its own image (the cutover's cluster.json names it). Break:
@@ -36,6 +37,7 @@ import base64
 import hashlib
 import pathlib
 import sys
+import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[4]))
 
@@ -81,6 +83,10 @@ def test_the_store_is_written_on_one_node_and_agents_only_reach_the_door():
     assert not any("persistentVolumeClaim" in volume for volume in spec["volumes"]) and not spec.get("hostPID")
     assert all(mount["name"] != "scw-secret" for box in spec["containers"] for mount in box["volumeMounts"])
     assert "tools/cloud/cap_watch/watch.py pass" in spec["containers"][0]["command"][-1]
+    # `apply --only` applies the objects named alone, never the whole set; a name no object has is refused
+    assert conductor.picked(found, [conductor.CAP_WATCH]) == [watcher]
+    with pytest.raises(ValueError, match="score-cap-wach"):
+        conductor.picked(found, [conductor.CAP_WATCH, "score-cap-wach"])
     drive = cluster.drive_job({**cluster.DEFAULTS, "image": "registry.example/score-conductor:1"}, ["score", "run"],
                               "/tmp/score-run-1.log", "/home/score/projects/score", {}, 2 ** 30)
     pods.append(drive["spec"]["template"]["spec"])
