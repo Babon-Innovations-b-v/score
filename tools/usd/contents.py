@@ -488,8 +488,12 @@ def held_beside(stage, outputs):
 
 
 def judge_likeness(stage, place, inventory, outputs):
-    """Every generated row's object held to its close-up by the place's accepted likeness output."""
-    generated = sorted(generated_rows(inventory, place) & laid_rows(stage, place))
+    """Every generated row's object laying a made model (model_prims: a shell or ground piece the plan or terrain
+    draws lays none) held to its close-up by the place's accepted likeness output: its row held there, or the model it
+    lays one a held row's object lays (rows of one model share a take, and the likeness holds the take's row;
+    2026-11-10: walkway's ceiling_light_3 on ceiling_light_1's bake failed)."""
+    prims = model_prims(stage, place, generated_rows(inventory, place))
+    generated = sorted({prim.GetAttribute("score:row").Get() for prim in prims})
     if not generated:
         return PASS, [], "no generated model on the stage"
     if outputs.get("likeness") is None:
@@ -497,7 +501,11 @@ def judge_likeness(stage, place, inventory, outputs):
                              f"only with data/props/{place}.json): none is held to its close-up")
     held = set(json.loads((pathlib.Path(outputs["likeness"]) / "likeness.json").read_text())["objects"])
     held |= held_beside(stage, outputs)
-    faults = [f"{row}: generated, not held to its close-up by likeness@{place}" for row in generated if row not in held]
+    models = {prim.GetAttribute("score:model").Get() for prim in prims if prim.GetAttribute("score:row").Get() in held}
+    unheld = sorted({prim.GetAttribute("score:row").Get() for prim in prims
+                     if prim.GetAttribute("score:row").Get() not in held
+                     and prim.GetAttribute("score:model").Get() not in models})
+    faults = [f"{row}: generated, not held to its close-up by likeness@{place}" for row in unheld]
     return outcome(faults, f"{len(generated)} generated rows held to their close-ups")
 
 

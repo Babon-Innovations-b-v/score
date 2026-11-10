@@ -7,7 +7,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - effects_and_motion_both_ways: contents.unmet's `return [need for need in needs if not any(need in name for name in
   names)]` made `return []`.
 - crops_both_ways: contents.judge_crops' `faults = [] if share >= least else` made `if share >= 0 else`.
-- likeness_and_paint_both_ways: contents.judge_likeness' `for row in generated if row not in held]` made `if False]`.
+- likeness_and_paint_both_ways: contents.judge_likeness' `if prim.GetAttribute("score:row").Get() not in held` made
+  `if False`; and (2026-11-10) its `and prim.GetAttribute("score:model").Get() not in models` dropped (a row on a
+  held row's model fails).
 - light_sound_neighbours_and_game_both_ways: contents.judge_game's `if sources:` made `if False:`; and (2026-11-10,
   the scene time 2099-10-01 read as the game) contents.GAME's `\b2099\b(?!-\d{2}-\d{2})` made `\b2099\b`.
 - the_assembled_record_and_a_waiting_entry_both_ways: contents.judge_waiting's `waiting = list(...)` made
@@ -242,6 +244,29 @@ def crops_both_ways():
                             ("a place with no design", judged("crops", path, place="elsewhere"), contents.UNKNOWN)])
 
 
+def shared_take_cases(stage, path, likeness):
+    """The likeness holding the chair: a stool laid on the chair's model is held by it, one on a model of its own is
+    not, and a floor the shell draws (a row, no model) is not judged (2026-11-10: walkway's ceiling lights on one
+    bake, hub's floor plate)."""
+    inventory = {"rows": [{"id": "chair", "kind": "generate"}, {"id": "stool", "kind": "generate"},
+                          {"id": "floor", "kind": "code"}]}
+    stool = stage.DefinePrim(f"/{PLACE}/Objects/stool_1")
+    stool.CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("stool")
+    stool.CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set("chair-b")
+    stage.DefinePrim(f"/{PLACE}/Structure/deck_1").CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("floor")
+    stage.GetRootLayer().Save()
+    outputs = {**NONE, "likeness": likeness}
+    cases = [("a row laid on a held row's model", judged("likeness", path, inventory, outputs), contents.PASS)]
+    stool.GetAttribute("score:model").Set("stool-b")
+    stage.GetRootLayer().Save()
+    cases.append(("a row laid on a model of its own, not held", judged("likeness", path, inventory, outputs),
+                  contents.FAIL))
+    stage.RemovePrim(stool.GetPath())
+    stage.RemovePrim(f"/{PLACE}/Structure")
+    stage.GetRootLayer().Save()
+    return cases
+
+
 def likeness_and_paint_both_ways():
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
@@ -296,6 +321,7 @@ def likeness_and_paint_both_ways():
         cases += [("the row held to its close-up", judged("likeness", path, inventory,
                                                           {**NONE, "likeness": likeness}), contents.PASS),
                   ("repainted with no surfaces-check", judged("painted", path, inventory), contents.UNKNOWN),
+                  *shared_take_cases(stage, path, likeness),
                   ("repainted and checked", judged("painted", path, inventory, {**NONE, "surfaces-check": check}),
                    contents.PASS),
                   # #19: a row's own kind routes nothing; a `code` row is the loop's
