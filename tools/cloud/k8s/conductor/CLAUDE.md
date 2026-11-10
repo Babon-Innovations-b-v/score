@@ -8,10 +8,11 @@ set), with the owner's login from his PC: the conductor's own Role holds jobs, p
 (`score-cap-watch`, the env1 cap's watcher, 2026-11-10).
 
 - **One node, one file system.** The store's volume (`score-store`, ReadWriteOnce, `sbs-5k-retain`, 250 Gi) and every
-  pod that writes it sit on babon's pool `score-conductor-z2` (role `score-conductor`, one POP2-HM-16C-128G in
+  pod that writes it sit on babon's pool `score-conductor-8c-z2` (role `score-conductor`, one POP2-HM-8C-64G in
   fr-par-2, min 1 max 1; babon's `engine/infra/ops/pool_fallbacks`, made by its sizing script), the CronJobs and the
   drive pods beside the conductor's pod by pod affinity on the hostname: the store's flock, hard links and fsync mean
-  what they mean on the VM. Never a network file system.
+  what they mean on the VM. Never a network file system. A drive pod's requests stop at `drive_room` (the node's
+  allocatable, `NODE_TYPE`, less what runs beside it); a node type changed in babon's pool is changed there too.
 - **The VM's paths.** The volume's folders mount where the VM has them (`MOUNTS`): no record's path changes, a frozen
   copy (a git worktree of `~/projects/score`) reads the same in every pod.
 - **The units.** `units.py` runs the VM's always-on units in the conductor container (listener, health, update,

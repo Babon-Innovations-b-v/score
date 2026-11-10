@@ -14,7 +14,7 @@ The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card 
   record changes), the checkout's folder `/home/score/projects` (a run's frozen copy is a git worktree of it, so a
   drive pod reads it at the same path), the env file's folder `/home/score/.config/score`, `~/.local` (uv's tools,
   score-lib's link, Claude Code's CLI), the people routes' motion home `/home/score/.farm-factory-motion`.
-- **One node** (`NODE_ROLE`: babon's pool `score-conductor-z2`, POP2-HM-16C-128G, min 1 max 1, tainted
+- **One node** (`NODE_ROLE`: babon's pool `score-conductor-8c-z2`, `NODE_TYPE`, min 1 max 1, tainted
   `tenant=score`): every pod that writes the store is placed beside the conductor's pod by pod affinity on the
   hostname, so one kernel and one file system hold the store's locks, links and fsync as on the VM. No network file
   system. Each such pod shares the node's process ids (`hostPID`): a run's registry entry, a hold's or a frozen
@@ -55,6 +55,13 @@ CLAIM = "score-store"
 VOLUME_CLASS = "sbs-5k-retain"
 VOLUME_SIZE = "400Gi"
 NODE_ROLE = ("babon/role", "score-conductor")
+# The conductor's node: POP2-HM-8C-64G since 2026-11-10 (it was a POP2-HM-16C-128G at the cutover), its allocatable as
+# the cluster reported it that day, and the requests of the node's own DaemonSets (node feature discovery 5m / 64Mi,
+# node-exporter 10m / 32Mi). A drive pod asking for more than `drive_room` leaves never schedules (2026-11-10: the
+# record's 16 x 0.5 CPU and 64 GB on this node, and every Buy failed).
+NODE_TYPE = "POP2-HM-8C-64G"
+NODE_ALLOCATABLE = {"cpu": "7800m", "memory": "62592876Ki"}
+NODE_DAEMONS = {"cpu": "15m", "memory": "96Mi"}
 TOLERATION = {"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}
 COST_LABEL = ("score.dev/cost", "conductor")
 APP_LABEL = "app.kubernetes.io/name"
@@ -130,6 +137,29 @@ CRONJOBS = (  # name, schedule, the VM unit's commands in order, resources
     ("score-backup-check", "15 4 * * *",
      (f"{PYTHON} -m score.store.backup forget", f"exec {PYTHON} -m score.store.backup check"), BACKUP),
 )
+
+
+BYTES = {"Ki": 2 ** 10, "Mi": 2 ** 20, "Gi": 2 ** 30, "Ti": 2 ** 40}
+
+
+def millicores(text):
+    """A cpu quantity ("500m", "1", "7.8") in millicores."""
+    text = str(text)
+    return int(text[:-1]) if text.endswith("m") else int(float(text) * 1000)
+
+
+def memory_bytes(text):
+    """A memory quantity in the binary units these manifests use ("4Gi", "62592876Ki") in bytes."""
+    text = str(text)
+    return int(text[:-2]) * BYTES[text[-2:]] if text[-2:] in BYTES else int(text)
+
+
+def drive_room():
+    """(millicores, bytes) a drive pod may request on the conductor's node: its allocatable less the node's DaemonSets,
+    the conductor pod's containers and every CronJob that runs there beside a drive."""
+    beside = [NODE_DAEMONS, CONDUCTOR["requests"], DOOR["requests"], *(row[-1]["requests"] for row in CRONJOBS)]
+    return (millicores(NODE_ALLOCATABLE["cpu"]) - sum(millicores(taken["cpu"]) for taken in beside),
+            memory_bytes(NODE_ALLOCATABLE["memory"]) - sum(memory_bytes(taken["memory"]) for taken in beside))
 
 
 def labels(component):

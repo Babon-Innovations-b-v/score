@@ -30,7 +30,8 @@ cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod
 home whose record names another namespace reads the logs of `score`'s pods); or in cluster.drive_job write `echo $$`
 (Kubernetes hands the shell `echo $`, and a detached run on the cluster waits for a pid that never comes); or in
 cluster.drive_job drop the cpu limit (the namespace's default limit of 1 under a request of 8 makes every drive pod
-invalid); or in cluster.detach drop the delete on TimeoutError (a Job whose pod never starts keeps making it again);
+invalid), or drop its cap at drive_room, or raise DEFAULTS past it (a drive pod asking more than the conductor's
+node leaves never schedules, every Buy failed 2026-11-10); or in cluster.detach drop the delete on TimeoutError (a Job whose pod never starts keeps making it again);
 or in cluster.drive_job let the pods' PROPS_HOME win over the run's (the drive reads the live design, not its frozen
 copy, and a sync pass's plan rewrite stops every line mid-run, env1 2026-11-08).
 """
@@ -515,7 +516,7 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     # command the scope's, no retry, no secret's value in its spec; the pid its pod writes is the run's; off it, none.
     assert command.detached_as_pod(["true"], tmp_path / "x.log", {}) is False  # no cluster.json in this home
     found = cluster.record(_written(tmp_path / "cluster.json", {"image": "registry.example/score-conductor@sha256:0"}))
-    assert found["jobs"] == 16 and found["namespace"] == "score"
+    assert found["jobs"] == 8 and found["namespace"] == "score"
     log, applied = tmp_path / "score-run-20261107T2000Z.log", []
     (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
     environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
@@ -545,7 +546,20 @@ def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_non
     assert carried["PROPS_HOME"] == "/home/score/.farm-factory-props/frozen/abc.home"
     assert [variable["name"] for variable in box["env"]].count("PROPS_HOME") == 1
     # its processor limit is its request, so a namespace's default limit never makes the pod invalid
-    assert box["resources"]["limits"]["cpu"] == box["resources"]["requests"]["cpu"] == "8000m"
+    assert box["resources"]["limits"]["cpu"] == box["resources"]["requests"]["cpu"] == "4000m"
+    # DEFAULTS fit the conductor's node beside its own pods and CronJobs, and a record asking more is cut to that room,
+    # never a pod that cannot schedule (2026-11-10: 16 x 0.5 CPU and 64 GB on the 8-core node, every Buy failed)
+    from tools.cloud.k8s import conductor as pods
+    room_cpu, room_memory = pods.drive_room()
+    assert pods.NODE_TYPE == "POP2-HM-8C-64G" and 0 < room_cpu < pods.millicores(pods.NODE_ALLOCATABLE["cpu"])
+    assert 1000 * cluster.DEFAULTS["jobs"] * cluster.DEFAULTS["cpu_per_job"] <= room_cpu
+    assert cluster.DEFAULTS["max_memory_gb"] * cluster.GIB <= room_memory
+    assert pods.memory_bytes(box["resources"]["requests"]["memory"]) <= room_memory
+    greedy = {**found, "jobs": 16, "cpu_per_job": 0.5}
+    asked = cluster.drive_job(greedy, ["true"], log, tmp_path, {}, 64 * cluster.GIB)
+    wants, = asked["spec"]["template"]["spec"]["containers"]
+    assert pods.millicores(wants["resources"]["requests"]["cpu"]) == room_cpu
+    assert pods.memory_bytes(wants["resources"]["requests"]["memory"]) <= room_memory
     with pytest.raises(TimeoutError):
         cluster.started_pid(tmp_path / "never.log", seconds=0.01, sleep=lambda seconds: None)
     deleted = []  # a Job whose pod wrote no pid in time is deleted before the error goes on, never left retrying
