@@ -48,7 +48,7 @@ import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.final as demo_film_final
 import score.stages.demo_film.peel_rows as peel_rows
 from score.stages.surfaces.surface_gates import guarded
-from score.stages.assembly import held_apart, neighbours
+from score.stages.assembly import held_apart, neighbours, wired
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.prop_data as prop_data
@@ -135,8 +135,9 @@ def assembly_neighbours(place):
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
 # Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves; its
 # make lays each screen row's picture over its baked asset after it (screens.assembled, #88), wrapped here for the same
-# reason.
-ASSEMBLY = graph.Stage("assembly", "place", screens.assembled(assembly.make_from_seed), contracts.OPENUSD_STAGE,
+# reason, over assembly/wired's make (a floor thing a wall's thing was laid into parted, its cycles released before
+# that take, a voice on a person not laid a gap).
+ASSEMBLY = graph.Stage("assembly", "place", screens.assembled(wired.make), contracts.OPENUSD_STAGE,
                        tuple(dataclasses.replace(check, judge=held_apart.judge_held) if check.name == "held" else check
                              for check in assembly.CHECKS),
                        files=assembly.files, gatherers=assembly.GATHERERS,
