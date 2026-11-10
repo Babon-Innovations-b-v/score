@@ -277,7 +277,8 @@ def write_sky(stage, place, record, out, kept=None, faces=None, library=None):
     environment = {key: value for key, value in (record.get("environment") or {}).items() if key != "stars"}
     seen = sky.seen_of(kept)
     done = {"retired": sky.retired(stage, place),
-            "physics": sky.write(stage, place, seen, faces, library) if seen else None}
+            "physics": sky.write(stage, place, seen, faces, library, environment.get("sky_dome"))
+            if seen else None}
     if environment and not stage.GetPrimAtPath(f"/{place}/Environment"):
         scene.write_environment(stage, place, environment)
         scene.write_sky(stage, place, environment, out, planned_ground(place))
