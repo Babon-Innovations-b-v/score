@@ -1138,21 +1138,63 @@ def row_skies(place, inventory):
     return None if sky is None else {**sky, "pictures": 1, "from": "its sky rows' boxes"}
 
 
-def sees_sky(place, out, passes_folder):
-    """Whether any view's render met no surface over enough of its picture to read a sky (measure.sky_of's least)."""
+def through_doorways(view, shape, doorways):
+    """The pixels of a view's picture (`shape`, rows by columns) whose rays pass through one of the place's doorways
+    (its scene record's `doorways`: middle on the floor, inward, wide, sill and head over the floor), in front of the
+    eye: what they see is the place the door leads to, never the sky."""
+    eye, aim, up = (np.asarray(view[key], dtype=np.float64) for key in ("eye", "aim", "up"))
+    forward = (aim - eye) / np.linalg.norm(aim - eye)
+    right = np.cross(forward, up)
+    right /= np.linalg.norm(right)
+    upward = np.cross(right, forward)
+    focal = shape[1] / 2 / np.tan(np.radians(view["fov"]) / 2)
+    rows, columns = np.mgrid[0:shape[0], 0:shape[1]]
+    rays = (forward + ((columns + 0.5 - shape[1] / 2) / focal)[..., None] * right
+            + ((shape[0] / 2 - rows - 0.5) / focal)[..., None] * upward)
+    found = np.zeros(shape, dtype=bool)
+    for door in doorways:
+        middle, inward = np.asarray(door["middle"], dtype=np.float64), np.asarray(door["inward"], dtype=np.float64)
+        across = np.cross([0.0, 1.0, 0.0], inward)
+        facing = rays @ inward
+        with np.errstate(divide="ignore", invalid="ignore"):
+            reach = ((middle - eye) @ inward) / facing
+        hit = eye + np.where(np.isfinite(reach), reach, -1.0)[..., None] * rays
+        height = hit[..., 1] - middle[1]
+        found |= ((reach > 0) & (np.abs((hit - middle) @ across) <= door["wide"] / 2)
+                  & (height >= door.get("sill", 0.0)) & (height <= door["head"]))
+    return found
+
+
+def open_sky(passes_folder, place, view, doorways):
+    """A view's sky: where its render met no surface (sky_of), less what it sees through the place's doorways
+    (through_doorways, on the view as its passes rendered it; 2026-11-10: hub's door openings, met by no surface down
+    its tubes, read as its sky, 4-9 levels and red against its navy concept, and hangar's the same, 17-40 levels grey);
+    None from passes rendered before the mask."""
+    mask = sky_of(passes_folder, place, view)
+    if mask is None or not doorways or not mask.any():
+        return mask
+    shown = {entry["name"]: entry for spec in sorted(passes_folder.glob(f"passes/{place}-*.views.json"))
+             for entry in json.loads(spec.read_text())["views"]}
+    return mask & ~through_doorways(shown[view], mask.shape, doorways) if view in shown else mask
+
+
+def sees_sky(place, out, passes_folder, doorways=()):
+    """Whether any view's render met no surface over enough of its picture to read a sky (measure.sky_of's least),
+    its doorways left out (open_sky)."""
     return any(mask is not None and measure.sky_of(np.zeros((*mask.shape, 3)), mask) is not None
-               for mask in (sky_of(passes_folder, place, view) for view in rendered(out, place)))
+               for mask in (open_sky(passes_folder, place, view, doorways) for view in rendered(out, place)))
 
 
-def sky_measures(place, out, passes_folder, concept=None):
-    """An outdoor place's sky in every view, read where the render met no surface (its passes' `sky`), against its
-    concept pictures' (concept_skies; an inside place's `concept`, row_skies). Never the top rows' commonest colour on
-    a look: old_station's lit ground read as its sky, 99.7 levels off its black one (2026-10-30). A view whose passes
-    hold no mask (rendered before 2026-10-30) has no sky measured and says so (`masked` false)."""
+def sky_measures(place, out, passes_folder, concept=None, doorways=()):
+    """An outdoor place's sky in every view, read where the render met no surface (its passes' `sky`) and not through
+    one of its doorways (open_sky), against its concept pictures' (concept_skies; an inside place's `concept`,
+    row_skies). Never the top rows' commonest colour on a look: old_station's lit ground read as its sky, 99.7 levels
+    off its black one (2026-10-30). A view whose passes hold no mask (rendered before 2026-10-30) has no sky measured
+    and says so (`masked` false)."""
     concept = concept or concept_skies(place)
     found = []
     for view, path in sorted(rendered(out, place).items()):
-        mask = sky_of(passes_folder, place, view)
+        mask = open_sky(passes_folder, place, view, doorways)
         sky = None if mask is None else measure.sky_of(measure.picture(path), mask)
         if sky is not None and concept is not None:
             sky["gap_to_concept"] = measure.colour_gap(sky["mean_rgb"], concept["mean_rgb"])
@@ -1171,11 +1213,12 @@ def fault_measures(place, out, passes_folder, inputs):
     balls = faced_balls(out)
     if balls:
         found["bodies"] = body_measures(place, out, passes_folder, balls, sun_way(out))
+    doorways = record.get("doorways") or ()
     if needs.outdoor(record, None):
-        found["sky"] = sky_measures(place, out, passes_folder)
-    elif sees_sky(place, out, passes_folder):  # an inside place's sky through its glass and openings (2026-11-04: camp)
+        found["sky"] = sky_measures(place, out, passes_folder, doorways=doorways)
+    elif sees_sky(place, out, passes_folder, doorways):  # an inside place's sky through its glass (2026-11-04: camp)
         concept = row_skies(place, inputs.get("inventory"))
-        found["sky"] = sky_measures(place, out, passes_folder, concept) if concept else \
+        found["sky"] = sky_measures(place, out, passes_folder, concept, doorways) if concept else \
             {"concept": None, "views": [], "inside": "its concept shows no sky (no sky row with a box)"}
     found["exposure"] = exposure_measures(place, out, passes_folder)
     found["colour"] = colour_measures(place, out, passes_folder, needs.outdoor(record, None))

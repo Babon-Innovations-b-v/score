@@ -58,6 +58,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   light.concept_cast: the backdrop not left out (the exposure test, 2026-11-10).
 - light.row_skies: the rows' boxes read as [top, left, bottom, right] (the look's sky test, 2026-11-04).
 - light.row_skies: the boxes read whole, not on measure.commonest_near (the look's sky test, 2026-11-10).
+- light.open_sky: the doorways not left out (`return mask` first), or light.through_doorways' `reach > 0` dropped
+  (the look's sky test, 2026-11-10: hub's door openings read as its sky).
 - light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
 - passes.neighbours: keep a planless shown place (the neighbours test).
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
@@ -487,6 +489,21 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_
     lit = judged([80.0, 90.0, 110.0], [95.0, 90.0, 95.0])
     assert lit.answer == checks.FAIL and "gap to the concept 10.0 levels" in lit.reason and "within 0.15" in \
         lit.reason, lit.reason
+    # what a view sees through one of the place's doorways is the place the door leads to, never its sky (2026-11-10:
+    # hub's door openings, met by no surface down its tubes, read as its sky, 4-9 levels and red against its navy
+    # concept): a level view 5 m from a door 4 m wide and 3 m high sees it over columns 26 to 74 and rows 33 to 69 of
+    # 100 (focal 50 / tan 40 = 59.6 px); the door's opening is no sky, the sky over the door still is
+    door = [{"middle": [0.0, 0.0, -5.0], "inward": [0.0, 0.0, 1.0], "wide": 4.0, "sill": 0.0, "head": 3.0}]
+    (tmp_path / "passes/yard-0.views.json").write_text(json.dumps({"size": [100, 100], "views": [
+        {"name": "v", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -10.0], "up": [0.0, 1.0, 0.0], "fov": 80}]}))
+    opening = np.zeros((100, 100), bool)
+    opening[36:66, 30:70] = True
+    np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=opening)
+    assert light.sees_sky("yard", tmp_path, tmp_path) and not light.sees_sky("yard", tmp_path, tmp_path, door)
+    behind = [{**door[0], "middle": [0.0, 0.0, 5.0], "inward": [0.0, 0.0, -1.0]}]  # a door behind the eye hides none
+    assert light.sees_sky("yard", tmp_path, tmp_path, behind)
+    np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=sky | opening)
+    assert (light.open_sky(tmp_path, "yard", "v", door) == sky).all()
 
 
 def test_haze_over_the_lower_part_reads_as_a_veil_and_glow_in_the_sky_does_not():
