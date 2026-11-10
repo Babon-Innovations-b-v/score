@@ -89,7 +89,9 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   `agent_door.sh` as sshd does, the asked command in SSH_ORIGINAL_COMMAND and the body on stdin, so its verbs and
   refusals are agent_door.py's; it listens on the pod's loopback only and refuses (403, nothing run) without the token
   `score-agent-door-token`, read by name at its start (it does not start without one). An agent asks through it with
-  `python3 tools/cloud/conductor/door_service.py ask "<command>"`. The ssh door stays until the cutover.
+  `python3 tools/cloud/conductor/door_service.py ask "<command>"`, which reads the token through this folder's
+  `secret_reader.sh` by the secrets project's name (`SCORE_SECRETS_PROJECT`, else farm-factory), never the box's own
+  reader (2026-11-10: this PC's looked in another project). The ssh door stays until the cutover.
 - **`units/`**: `score-resume.service` (the one template for every machine; the PC copies it), `score-secrets`,
   `score-update` (the checkout follows the hosted cockpit's pinned commit from `/api/sync/pin` `commit` with the sync
   token, never `/healthz`, whose body babon's Caddy writes itself; a pin it cannot read moves nothing, a cockpit
