@@ -237,26 +237,32 @@ def tint(passes, scales, colours, guide):
 # The lamps' balance (2026-11-10, after the look took each lamp's colour: greenhouse's warm wall panels outshone its
 # magenta grow light, which its concept shows the brightest, and read 30 levels warmer than the concept): the lamps of
 # one colour (a class) are swept together against the others, each sun and the concept's fill a class of its own,
-# each class over the sweep's own range (SCALES' ends) by half octaves, the lamps' class giving the most light held,
-# to bring the place's colour cast nearest its concept's (camp, 2026-11-10: its screens and laptop swept 32 times up
-# lit it cool, its sun and its warm fill under them). A sun is never raised past SUN_MOST. A
-# lamp's strength is measured against the concept as its brightness is; its colour stays what it throws. A faint
-# emitter's class (a screen: its share of a lamp an estimate, lamps.json `glowing`) is only ever turned down: no
-# screen lights a room. Kept only where it brings the cast at least BALANCE_GAIN levels nearer, so a place already in
-# its concept's colour keeps one scale.
-BALANCE = 2.0 ** np.arange(-5.0, 5.0 + 1e-9, 0.5)
+# each class by half octaves over twice the sweep's own range either way, every light kept within SCALES (its
+# `most`), none held (the brightness is set after), to bring the place's colour cast nearest its concept's (camp,
+# 2026-11-10: its screens and laptop swept 32 times up lit it cool, its sun and its warm fill under them; hub's fill
+# at the floor). A lamp's strength is measured against the concept as its brightness is; its colour stays what it
+# throws. A sun is only turned down; a faint emitter (a screen: its share of a lamp an estimate, lamps.json
+# `glowing`) is a class of its own, raised past its share only where its concept's colour asks it (hub's cyan
+# screens). Kept only where it brings the cast at least BALANCE_GAIN levels nearer, so a place already in its
+# concept's colour keeps one scale.
+BALANCE = 2.0 ** np.arange(-10.0, 10.0 + 1e-9, 0.5)
 BALANCE_ROUNDS = 3
 BALANCE_GAIN = 1.0
+# Each octave a class moves costs this many levels of cast, so of balances that read alike the least is taken
+# (2026-11-10: airlock's white lamps put out x1/1024 for its orange beacon, its cast 0.1 levels off on the balance's
+# estimate and 15.2 on its looks).
+BALANCE_COST = 0.25
 
 
 def balance(classes, held, gap_of, most=None):
     """{class: multiplier} (each from BALANCE, at most its `most` entry where given, `held` at 1) bringing
-    gap_of(multipliers) least, one class at a time for BALANCE_ROUNDS rounds; all 1 unless that brings the gap at
-    least BALANCE_GAIN lower. (multipliers, gap at all 1, gap at the multipliers)."""
+    gap_of(multipliers) least, each octave a class moves costing BALANCE_COST levels, one class at a time for
+    BALANCE_ROUNDS rounds; all 1 unless that brings the gap at least BALANCE_GAIN lower. (multipliers, gap at all 1,
+    gap at the multipliers)."""
     most = most or {}
     ones = dict.fromkeys(classes, 1.0)
     found, start = dict(ones), gap_of(ones)
-    best = start
+    best, gap_found = start, start
     for _ in range(BALANCE_ROUNDS):
         moved = False
         for name in classes:
@@ -265,11 +271,12 @@ def balance(classes, held, gap_of, most=None):
             for value in BALANCE[BALANCE <= most.get(name, BALANCE[-1]) + 1e-9]:
                 tried = {**found, name: float(value)}
                 gap = gap_of(tried)
-                if gap < best - 1e-9:
-                    found, best, moved = tried, gap, True
+                cost = gap + BALANCE_COST * sum(abs(np.log2(each)) for each in tried.values())
+                if cost < best - 1e-9:
+                    found, best, gap_found, moved = tried, cost, gap, True
         if not moved:
             break
-    return (found, start, best) if best <= start - BALANCE_GAIN else (ones, start, start)
+    return (found, start, gap_found) if gap_found <= start - BALANCE_GAIN else (ones, start, start)
 
 
 def mixed(passes, scales):
@@ -290,17 +297,21 @@ def place_brightness(views, scales):
     return float(np.median(list(brightness(views, scales).values())))
 
 
-def sweep(views, swept, target, held=None, most=None, factors=None):
+def capped(swept, scale, factors=None, caps=None):
+    """{group: scale} of the swept groups at `scale` times each one's `factors` entry, at most its `caps` entry."""
+    return {group: min(scale * (factors or {}).get(group, 1.0), (caps or {}).get(group, float("inf")))
+            for group in swept}
+
+
+def sweep(views, swept, target, held=None, most=None, factors=None, caps=None):
     """The scale (from SCALES, at most `most` where given) of every swept lamp, each times its `factors` entry (its
-    balance, else 1), that brings the place's brightness nearest `target`, the other groups at their `held` scales;
-    1.0 when no lamp is swept."""
+    balance, else 1) and at most its `caps` entry (a faint emitter: x1), that brings the place's brightness nearest
+    `target`, the other groups at their `held` scales; 1.0 when no lamp is swept."""
     if not swept:
         return 1.0
-    factors = factors or {}
     tried = [scale for scale in SCALES if most is None or scale <= most + 1e-9]
-    gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **{group: scale * factors.get(group, 1.0)
-                                                                         for group in swept})), FLOOR) / target))
-            for scale in tried]
+    gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **capped(swept, scale, factors, caps))), FLOOR)
+                       / target)) for scale in tried]
     return float(tried[int(np.argmin(gaps))])
 
 

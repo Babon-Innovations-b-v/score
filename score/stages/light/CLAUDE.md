@@ -57,9 +57,12 @@ gates.
   a saturated glow (within `mix.WHITE_DUV` of the Planckian locus) throws its black body's light at the colour
   temperature nearest its paint (`mix.lamp_light`), a faint emitter or a coloured part (a grow light, a screen) its
   own hue, written into the layer by the light row (`light.colours_written`, never layer.py, which the paid passes
-  row's key holds; the strength kept); after the suns and the fill, the lamps of each colour, each sun and the fill are balanced against
-  each other to the concept's cast at the brightness the sweep gave (`light.colour_balance`, `mix.balance`; the faint
-  emitters only turned down), never a lamp recoloured to the concept. An inside place whose
+  row's key holds; the strength kept); after the suns and the fill, the lamps of each colour, each sun and the fill
+  are balanced against each other to the concept's cast at the brightness the sweep gave (`light.colour_balance`,
+  `mix.balance`; every light within SCALES, the suns only turned down; a faint emitter, held at x1 by the sweep
+  (`mix.capped`), a class of its own, never past a whole lamp of its mount, `light.emitter_most`), kept only where
+  its looks read nearer the concept and no rule the sweep kept breaks (`light.look_gap`), never a lamp recoloured to
+  the concept. An inside place whose
   views see sky has its sky judged too, against its sky rows' boxes on its concept, on the sky's own flat colour there (`row_skies`; camp's domes).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes

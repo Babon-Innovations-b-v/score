@@ -472,7 +472,8 @@ def lamp_lit(light, record):
     return inside and not light["scene"]["daylight"]
 
 
-def strengths(place, passes_folder, lamps, layer_folder, record, light=None, colours=None, fixed=()):
+def strengths(place, passes_folder, lamps, layer_folder, record, light=None, colours=None, fixed=(),
+              emitter_most=None):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
     measures). Only a lamp those passes hold a group of is swept, in mix.py's order: the lamps; the suns (the fill
     with them) where the lamps cannot bring the place within its concept's brightness or their sweep stops at an end
@@ -480,10 +481,11 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     the least that brings every view within and none more black or blown than its concept (mix.fill_sweep,
     exposed_within); given the groups' `colours` (group_colours), the lamps of each colour, each sun and the fill
     balanced against each other to the concept's cast (colour_balance, mix.balance; the faint emitters, `fixed`,
-    only turned down) at the brightness the sweep gave them, kept only where no rule the sweep kept
-    breaks; each blown lamp turned down. A sun is never swept past mix.SUN_MOST, and a lamp-lit place's
-    (lamp_lit: inside, its concept `light` showing no daylight) stands at the floor of mix.SCALES while its lamps are
-    swept (2026-11-04: hangar's sun at x19 in a night hangar)."""
+    a class of their own, held at x1 in the sweep; the suns only turned down) at the brightness the sweep gave them,
+    kept only where its looks read nearer the concept and no rule the sweep kept breaks; each blown lamp turned down.
+    A sun is never swept past mix.SUN_MOST, and a lamp-lit place's (lamp_lit: inside, its concept `light` showing no
+    daylight) stands at the floor of mix.SCALES while its lamps are swept (2026-11-04: hangar's sun at x19 in a night
+    hangar)."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     rendered_views = view_passes(passes_folder, place)
@@ -496,8 +498,11 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     suns = [group for group, path in groups.items() if by_path[path].get("sun") and group in held]
     lit_by_lamps = lamp_lit(light, record)
     first = {group: float(mix.SCALES[0]) for group in suns} if lit_by_lamps and swept else {}
-    scale = mix.sweep(views, swept, target, first)
-    scales = {group: (scale if group in swept else first.get(group, 1.0)) for group in groups}
+    # a faint emitter (a screen) swept with the lamps but never past its own share of a lamp: no screen lights a room
+    # (2026-11-10: camp's screens and laptop at x32 gave 62% of its light, cool, under its warm daylight concept)
+    caps = {group: 1.0 for group in fixed}
+    scale = mix.sweep(views, swept, target, first, caps=caps)
+    scales = {**{group: first.get(group, 1.0) for group in groups}, **mix.capped(swept, scale, caps=caps)}
     sun_scale = first[suns[0]] if first else 1.0
     if suns and (mix.pinned(scale) or not mix.within(views, scales, target)):  # the lamps cannot: the sky's light can
         sun_scale = mix.sweep(views, suns, target, scales, mix.SUN_MOST)
@@ -512,10 +517,17 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
         scales.update(dict.fromkeys(lit, sun_scale))
     if fill:
         scales[fill] = mix.fill_sweep(views, fill, target, scales, lambda tried: exposed_within(looks, concept, tried))
-    # the lights' colours balanced to the concept's cast: the lamps' classes, each sun and the fill; a faint emitter
-    # only turned down, a sun never past SUN_MOST (a lamp-lit place's never above its floor)
-    most = {**{group: 1.0 for group in fixed},
-            **{group: (1.0 if lit_by_lamps else mix.SUN_MOST / max(scales[group], mix.FLOOR)) for group in lit}}
+    # the lights' colours balanced to the concept's cast: the lamps' classes (the faint emitters' apart), each sun
+    # and the fill; a sun only turned down (a sun stands at the most its sweep, its step down or its floor allowed:
+    # camp's, stepped down to x0.77 for spot-15's blown wall, raised back to x1 by a balance, blew it again,
+    # 2026-11-10) and every other light within the sweep's range, SCALES (hub, 2026-11-10: its fill at the floor
+    # needed x1000); a screen measured against the concept as any lamp is, past its share only where its concept's
+    # colour asks it (hub's cyan screens), never past a whole lamp of its mount (`emitter_most`, one over its share:
+    # 2026-11-10, stairwell's two blue screens swept to x90 stood in for the night sky its render lacks)
+    most = {**{group: float(mix.SCALES[-1]) / max(scales[group], mix.FLOOR) for group in swept + suns},
+            **{group: min(float(mix.SCALES[-1]), emitter_most or float(mix.SCALES[-1])) / max(scales[group], mix.FLOOR)
+               for group in fixed if group in scales},
+            **{group: 1.0 for group in lit}}
     factors, balanced = colour_balance(place, passes_folder, rendered_views, scales, swept + suns, colours, record,
                                        fixed, most, suns)
     if factors:
@@ -526,12 +538,18 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
                     exposed_within(looks, concept, tried))
         kept, broken = rules(scales), []
         swept_to = mix.place_brightness(views, scales)  # a balance moves the colour, never the brightness swept
+        cast_concept = concept_cast(place, needs.outdoor(record, None))
+        gap_before = look_gap(passes_folder, place, rendered_views, scales, colours, cast_concept)
         for part in BALANCE_PARTS:  # the whole balance, else a part of it in log scale, never one breaking a rule
             tried, joint = balanced_scales(views, swept_to, scales, {group: value ** part for group, value in
-                                                                     factors.items()}, swept + suns, lit, most)
+                                                                     factors.items()}, swept + suns, most)
             broken = [name for name, was, now in zip(("the place's brightness", "every view's brightness",
                                                       "its own lamps' share", "its exposure"), kept, rules(tried))
                       if was and not now]
+            # judged on the looks as the row mixes them, never only on the balance's estimate (2026-11-10: airlock's
+            # estimate read 0.1 levels where its looks read 15.2)
+            gap = look_gap(passes_folder, place, rendered_views, tried, colours, cast_concept)
+            broken += [] if gap <= gap_before - mix.BALANCE_GAIN else [f"no nearer its concept's colour ({gap:.1f})"]
             if not broken:
                 scale, scales = joint * scale, tried
                 sun_scale = max((scales[group] for group in lit), default=sun_scale)
@@ -577,14 +595,28 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
 BALANCE_PARTS = (1.0, 0.75, 0.5, 0.25)
 
 
-def balanced_scales(views, target, scales, factors, balanced, lit, most):
+def look_gap(passes_folder, place, rendered_views, scales, colours, concept):
+    """How far (measure.cast_gap) the median cast of the views' looks as the light row mixes them (look_at, at the
+    scales in the groups' `colours`, each view's sky left out) stands from the `concept` cast; infinite where no view
+    reads one."""
+    casts = [measure.surface_cast(np.asarray(look_at(held, look, scales, colours), dtype=np.float64),
+                                  sky_of(passes_folder, place, view))
+             for view, (held, _, look) in rendered_views.items()]
+    casts = [cast for cast in casts if cast is not None]
+    if not casts or concept is None:
+        return float("inf")
+    return measure.cast_gap([float(np.median([cast[channel] for cast in casts])) for channel in range(3)], concept)
+
+
+def balanced_scales(views, target, scales, factors, balanced, most):
     """(scales, joint) of the `balanced` groups at their `factors` brought to `target` brightness together (one
-    joint scale from mix.SCALES on all of them), each sun of `lit` capped at its `most` of its scale."""
+    joint scale from mix.SCALES on all of them, never so high that a group of `most` passes its `most` of its scale:
+    the balance's ratios are what it judged, so a cap lowers the brightness rather than the ratios)."""
     within = {group: scales[group] * factors.get(group, 1.0) for group in balanced}
-    joint = mix.sweep(views, balanced, target, scales, factors=within)
-    tried = dict(scales, **{group: joint * value for group, value in within.items()})
-    tried.update({group: min(tried[group], scales[group] * most[group]) for group in lit})
-    return tried, joint
+    room = min((scales[group] * most[group] / max(within[group], mix.FLOOR) for group in balanced if group in most),
+               default=float("inf"))
+    joint = min(mix.sweep(views, balanced, target, scales, factors=within), room)
+    return dict(scales, **{group: joint * within[group] for group in balanced}), joint
 
 
 def full_size(values, shape):
@@ -623,14 +655,23 @@ def balance_views(passes_folder, place, rendered_views, colours):
     return prepared
 
 
-def balanced_cast(prepared, colours, scales):
+def group_light(prepared, colours, scales):
+    """Each prepared view's (balance_views) light of its groups at the scales, in their shipped colours."""
+    return [sum((found[group][..., None] * colours[group][1] * scales.get(group, 1.0) for group in found),
+                np.zeros(rest.shape[:2] + (3,))) for _, _, _, found, rest, _ in prepared]
+
+
+def balanced_cast(prepared, colours, scales, keep=None):
     """The median cast (measure.surface_cast) of the prepared views (balance_views) at the scales, each group's light
-    in its shipped colour; None where no view reads one."""
+    in its shipped colour, the groups' light scaled together to `keep` (the views' summed groups' luminance) where
+    given, as balanced_scales brings them back to the brightness swept; None where no view reads one."""
+    lit = group_light(prepared, colours, scales)
+    if keep is not None:
+        total = sum(float((light @ mix.LUMA).sum()) for light in lit)
+        lit = [light * (keep / max(total, mix.FLOOR)) for light in lit]
     casts = []
-    for colour, transform, sky, found, rest, made in prepared:
-        shipped = rest + sum((found[group][..., None] * colours[group][1] * scales.get(group, 1.0) for group in found),
-                             np.zeros(rest.shape[:2] + (3,)))
-        change = shipped / made
+    for (colour, transform, sky, found, rest, made), light in zip(prepared, lit):
+        change = (rest + light) / made
         tall, wide = min(colour.shape[0], change.shape[0]), min(colour.shape[1], change.shape[1])
         rgb = mix.displayed(transform, colour[:tall, :wide] * change[:tall, :wide]) * 255.0
         cast = measure.surface_cast(rgb, None if sky is None else sky[:tall, :wide])
@@ -643,10 +684,9 @@ def colour_balance(place, passes_folder, rendered_views, scales, swept, colours,
                    alone=()):
     """({group: factor}, what was found) of the `swept` lights balanced by their colour (mix.balance): each class of
     lights of one shipped colour (`colours`, group_colours) its multiplier, the faint emitters' (`emitting`) apart and
-    each of `alone` (a sun, the fill) a class of its own, a class at most the least `most` of its groups, the lamps'
-    class giving the most light at the `scales` held, so the views' median cast (balanced_cast) stands nearest its
-    concept's (concept_cast). No factor where fewer than two classes light it, its concept has no cast or nothing
-    brings it BALANCE_GAIN nearer."""
+    each of `alone` (a sun, the fill) a class of its own, a class at most the least `most` of its groups, so the
+    views' median cast (balanced_cast) stands nearest its concept's (concept_cast). No factor where fewer than two
+    classes light it, its concept has no cast or nothing brings it BALANCE_GAIN nearer."""
     concept = concept_cast(place, needs.outdoor(record, None)) if colours else None
     classes = {group: (*(round(float(value), 3) for value in colours[group][1]),
                        group if group in alone else "emitter" if group in emitting else "lamp")
@@ -655,18 +695,18 @@ def colour_balance(place, passes_folder, rendered_views, scales, swept, colours,
         return {}, {}
     prepared = balance_views(passes_folder, place, rendered_views, colours)
     names = sorted(set(classes.values()))
-    light_of = {name: sum(float(view[3][group].sum()) * scales.get(group, 1.0) for view in prepared
-                          for group, key in classes.items() if key == name and group in view[3]) for name in names}
+    keep = sum(float((light @ mix.LUMA).sum()) for light in group_light(prepared, colours, scales))
 
     def gap_of(multipliers):
         cast = balanced_cast(prepared, colours, {group: value * (multipliers[classes[group]] if group in classes
-                                                                 else 1.0) for group, value in scales.items()})
+                                                                 else 1.0) for group, value in scales.items()}, keep)
         return float("inf") if cast is None else measure.cast_gap(cast, concept)
 
-    sources = [name for name in names if name[3] == "lamp"] or names
     limits = {name: min((most or {}).get(group, float(mix.BALANCE[-1])) for group, key in classes.items()
                         if key == name) for name in names}
-    chosen, before, after = mix.balance(names, max(sources, key=lambda name: light_of[name]), gap_of, limits)
+    # no class held: each within its `most`, the brightness set after (balanced_scales); greenhouse's panels at
+    # x24.7 left its grow light room to rise only x1.3 against them (2026-11-10)
+    chosen, before, after = mix.balance(names, None, gap_of, limits)
     moved = any(value != 1.0 for value in chosen.values())
     return ({group: chosen[key] for group, key in classes.items()} if moved else {}), {
         "classes": [{"colour": list(name[:3]), "kind": name[3], "factor": chosen[name],
@@ -774,6 +814,16 @@ def emitter_rows(inputs):
             if writer.glow_share(row, glows.get(row["id"]), inputs["lamp library"])[1] == "emitter"}
 
 
+def emitter_most(inputs):
+    """The most a faint emitter is swept to: a whole lamp of its mount, one over its share (lamps.json `glowing`);
+    None with no share in the library."""
+    if "lamp library" not in inputs:
+        return None
+    share = ((json.loads(pathlib.Path(inputs["lamp library"]).read_text()).get("glowing") or {}).get("emitter")
+             or {}).get("share")
+    return 1.0 / float(share) if share else None
+
+
 def row_groups(passes_folder, found, record, rows):
     """The groups whose record lamp is of one of `rows` (inventory row ids)."""
     entries = dict(layer.record_lamps(record))
@@ -830,7 +880,7 @@ def make_light(inputs, out, seed, params):
     emitters = emitter_rows(inputs)
     colours = group_colours(passes_folder, found, record, layer_folder / layer.LAYER, emitters)
     scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder, record, light, colours,
-                              row_groups(passes_folder, found, record, emitters))
+                              row_groups(passes_folder, found, record, emitters), emitter_most(inputs))
     own = {lamp["path"] for lamp in found["lamps"]}
     by_group = {group: path for group, path in groups_of(passes_folder).items() if path in own}
     intensity = {lamp["path"]: lamp["intensity"] for lamp in found["lamps"]}
