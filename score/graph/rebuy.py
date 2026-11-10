@@ -193,8 +193,10 @@ def kept_for_now(runner):
         runner.kept_as, runner.foreseen, runner.foreseen_listing = {}, {}, {}
 
 
-def buys(runner, nodes):
-    """[Buy] of every paid node among `nodes` (in table order) a drive would make, running nothing."""
+def buys(runner, nodes, kept=None):
+    """[Buy] of every paid node among `nodes` (in table order) a drive would make, running nothing; `kept`, a set
+    given, gets each node the drive keeps under its new key instead of making it (KEPT: a phase lock, a proof), so a
+    plan lists as to run only what the runner makes (2026-11-10: `score plan` showed 559 rows to run, about 8 made)."""
     found, remade = [], {}  # remade: {node made first: True when its output may change}
     rank = {node_name(stage, place): number for number, (stage, place) in enumerate(nodes)}
     with runner.still(), kept_for_now(runner):
@@ -211,6 +213,8 @@ def buys(runner, nodes):
             if parts is KEPT:  # its readers key on the kept output once the drive keeps it (greenhouse, 2026-10-24)
                 remade[node] = False  # and read it (Runner.usable), an optional read too: dropped as not run yet,
                 runner.kept_as[node] = runner.store.accepted(node)  # the palette's pixal moved 27 palettes (11-07)
+                if kept is not None:
+                    kept.add(node)
                 continue
             cached = stage.paid and same_requests(runner, stage, node, parts)
             asked_again = uncached_euros(runner, node) if cached else 0.0  # a redrawn answer may change its output
