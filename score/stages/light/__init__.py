@@ -583,6 +583,14 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
                                          "on_screen": seen}
             if group != unit[0]:
                 lamp_found[groups[group]]["one_with"] = groups[unit[0]]
+    exposed = lambda tried: exposed_within(looks, concept, tried)  # noqa: E731
+    if fill and not (mix.views_within(views, scales, target) and mix.within(views, scales, target)
+                     and exposed(scales)):
+        # a blown lamp turned down takes its light from what it lit: the fill swept again on the lamps as they now
+        # stand (2026-11-10: hangar's light_1 halved for its glare left spot-2, the floor in the ship's shadow, at
+        # 0.120 against its concept's 0.304, under x2.5, its fill still at the floor its sweep set before)
+        scales[fill] = mix.fill_sweep(views, fill, target, scales, exposed)
+        lamp_found[groups[fill]]["scale"] = scales[fill]
     for unit in units:  # at the final scales: another lamp turned down after it moves its share
         entry = lamp_found[groups[unit[0]]]
         entry["fault"] = mix.lamp_faults(mix.lamp_measures(views, scales, unit), entry["on_screen"])
