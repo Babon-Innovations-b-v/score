@@ -14,6 +14,32 @@
         "restaurant_door: likeness 0.084 under 0.14 (prop route)",
         "restaurant_window: likeness 0.037 under 0.14 (prop route)"
       ]
+    },
+    {
+      "name": "distant_red_flag: moves (cloth), no maker builds it yet (#88)",
+      "row": "motion",
+      "check": "designed",
+      "objects": [
+        "distant_red_flag"
+      ],
+      "reason": "Its row moves (cloth) but no object of it stands on the stage: a flag's cloth in the air waits on the effects overlay's Newton VBD cloth maker (#88), not built under the env1 EUR 300 plan, so it ships as a named gap. As motion@street measured it on the PC run (output 4ba39f7fce28, 2026-11-10 04:11 UTC).",
+      "decided": "the env1 EUR 300 plan's cut-off C6 (\"The #88 makers: gaps, not built\"), from the owner's answers of 2026-11-09 to its questions, applied by the env1 run session, 2026-11-10",
+      "faults": [
+        "distant_red_flag: moves (cloth), and no object of it stands on the stage"
+      ]
+    },
+    {
+      "name": "distant_rocket: moves (launch), no maker builds it yet (#88)",
+      "row": "motion",
+      "check": "designed",
+      "objects": [
+        "distant_rocket"
+      ],
+      "reason": "Its row moves (launch) but no object of it stands on the stage: a launching rocket in the sky is a row whose take the env1 plan does not build, its exhaust waiting on an effect kind (#88), not built under the env1 EUR 300 plan, so it ships as a named gap. As motion@street measured it on the PC run (output 4ba39f7fce28, 2026-11-10 04:11 UTC).",
+      "decided": "the env1 EUR 300 plan's cut-off C6 (\"The #88 makers: gaps, not built\"), from the owner's answers of 2026-11-09 to its questions, applied by the env1 run session, 2026-11-10",
+      "faults": [
+        "distant_rocket: moves (launch), and no object of it stands on the stage"
+      ]
     }
   ]
 }
