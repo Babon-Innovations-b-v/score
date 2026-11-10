@@ -92,10 +92,13 @@ TURN_STEP = 15
 # is their cross product: round 33's spot-1 at shiplock looked straight down and every measure was NaN), so it is
 # given the floor's long axis as its up (`upright`).
 STEEP = 10.0
-# The day sky's picture (sky_dome): its brightness and colour balance in red, green and blue, measured 2026-10-11 by
-# the light stage's sweep of the rendered sky against the camp's old concept K05 (4 times the first guess, colour gap
-# 10.7 levels; the old data/scene records' sky_dome), and the picture's width in texels.
-SKY_GAIN = (11.76, 7.56, 5.04)
+# The day sky's picture (sky_dome): its brightness and colour balance in red, green and blue, and the picture's width
+# in texels. Fitted 2026-11-10 on campgrounds' light passes (10 views, the sky where the render met no surface, put
+# through their own AgX table) against its concept's sky (mean [231.7, 195.5, 159.2], blue to red 0.687), the one
+# Mars concept that shows its sky: the gain of 2026-10-11 (11.76, 7.56, 5.04, fitted on the camp's old concept K05)
+# read pale grey through AgX, gap 22.8 levels and blue to red 0.845 (median); this one 9.1 and 0.708, and 11.8 and
+# 0.722 in a CPU preview render of the dome. The dome lights nothing (usd_views.sky_domes), so it moves the sky alone.
+SKY_GAIN = (38.58, 7.55, 4.36)
 SKY_WIDTH = 1024
 # What a door may lead to that is no place.
 NOT_PLACES = ("outside", "sealed")
@@ -522,8 +525,8 @@ def sky_dome(design, kept, dust):
     return {**{key: value for key, value in found.items() if key != "cited"}, "gain": list(SKY_GAIN),
             "width": SKY_WIDTH,
             "from": f"{body['name']}'s dusty air (data/physics/dust.json: {dust['sources'][found['cited']]}); its "
-                    f"gain {list(SKY_GAIN)} the light stage's sweep of the rendered sky against the camp's old concept "
-                    f"K05 (2026-10-11, colour gap 10.7 levels), never against this place's own concept"}
+                    f"gain {list(SKY_GAIN)} fitted on campgrounds' rendered sky against its concept's sky "
+                    f"(2026-11-10, colour gap 9.1 levels)"}
 
 
 def environment(design, kept, dust=None):
