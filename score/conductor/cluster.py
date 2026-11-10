@@ -2,8 +2,8 @@
 differently from the VM. A home is the cluster's when `$PROPS_HOME/conductor/cluster.json` is there (written at the
 cutover; RECORD); without it nothing here acts and every caller behaves as on the VM and the PC.
 
-    {"namespace": "score", "image": "<the conductor image by digest>", "jobs": 16, "cpu_per_job": 0.5,
-     "max_memory_gb": 64}
+    {"namespace": "score", "image": "<the conductor image by digest>", "jobs": 8, "cpu_per_job": 0.5,
+     "max_memory_gb": 40}
 
 - **The drive as a pod** (step 2): `score run --detach` on such a home creates one Job for the run (`drive_job`,
   `detach`) in place of the systemd scope: no retries, `restartPolicy: Never`, the store's volume at the VM's paths
@@ -14,7 +14,8 @@ cutover; RECORD); without it nothing here acts and every caller behaves as on th
   a node loss ends that run alone; `score resume` takes it up from the store.
 - **Requests from the plan** (step 3): the pod's memory request is the memory guard's own reckoning
   (`memory_request`: the floor beside the largest kept stage peaks, one a job at once), its limit the same, at most
-  `max_memory_gb`; its processor request `jobs` x `cpu_per_job`. A run's jobs on such a home are the record's
+  `max_memory_gb`; its processor request `jobs` x `cpu_per_job`. Both stop at what the conductor's node leaves a drive
+  (`drive_room` in tools/cloud/k8s/conductor), so a record asking more still makes a pod that schedules. A run's jobs on such a home are the record's
   (`jobs`), so a price is worked out on the jobs the pod is given, never on the cores of whatever node answers.
   Inside a pod the guard reads the pod's own memory (`pod_memory`, cgroup v2), not the node's.
 - **Health from inside a pod** (step 5): the Machine card's figures from the pod and the volume, never systemd: the
@@ -52,7 +53,9 @@ START_SECONDS = 300  # the drive pod's start on the conductor's node, its image 
 # palette keyed without it, and 27 of 28 lines stopped on "finish-route-palette@<place> has not run on its current
 # inputs".
 RUN_OWN = ("PROPS_HOME",)
-DEFAULTS = {"namespace": "score", "jobs": 16, "cpu_per_job": 0.5, "max_memory_gb": 64}
+# What fits the conductor's node beside its own pods (tools/cloud/k8s/conductor drive_room): 16 jobs and 64 GB did not
+# on the 8-core node of 2026-11-10, and every Buy failed on a drive pod that never scheduled.
+DEFAULTS = {"namespace": "score", "jobs": 8, "cpu_per_job": 0.5, "max_memory_gb": 40}
 
 
 def record(path=None):
@@ -99,10 +102,12 @@ def job_name(log):
 
 
 def drive_job(found, command, log, folder, environment, memory_bytes):
-    """The run's one Job: its command into its log from its folder, on the conductor's node beside its pod."""
+    """The run's one Job: its command into its log from its folder, on the conductor's node beside its pod, its
+    requests at most what that node leaves a drive."""
     from tools.cloud.k8s import conductor as pods  # the repository's tools, at the run's own commit
-    cpu = f"{int(1000 * jobs(found) * float(found['cpu_per_job']))}m"
-    memory = f"{memory_bytes // 2 ** 20}Mi"
+    room_cpu, room_memory = pods.drive_room()
+    cpu = f"{min(int(1000 * jobs(found) * float(found['cpu_per_job'])), room_cpu)}m"
+    memory = f"{min(memory_bytes, room_memory) // 2 ** 20}Mi"
     # Kubernetes reads `$$` in a command as an escaped `$` (its $(VAR) syntax), so `$$$$` reaches the shell as `$$`,
     # the shell's pid (the rehearsal of 2026-11-07: `$$` wrote a bare `$`, and the run waited 300 s for a pid).
     shell = 'echo $$$$ > "$SCORE_DRIVE_LOG.pid" && exec "$@" >> "$SCORE_DRIVE_LOG" 2>&1'
