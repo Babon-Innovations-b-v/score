@@ -25,8 +25,12 @@ import gc
 import json
 import pathlib
 
-from score.stages import assembly, gaps
+from score.stages import assembly
 from score.stages.assembly.wired import parting
+
+# gaps.WRITTEN, the file complete's accepted gaps gate reads; named here, not imported, so score/stages/gaps.py stays
+# out of the assembly's code version (a gap's verdict moves complete alone; the test reads it back through gaps.py)
+WRITTEN = "gaps.json"
 
 ORIGIN = "origin.json"
 SILENT = "silent voices"
@@ -96,6 +100,6 @@ def silence(inputs, out):
     origin["unplaced sounds"] = [words for words in origin["unplaced sounds"] if words not in found]
     origin[SILENT] = sorted(found)
     origin_path.write_text(json.dumps(origin, indent=1))
-    path = pathlib.Path(out) / gaps.WRITTEN
+    path = pathlib.Path(out) / WRITTEN
     kept = json.loads(path.read_text())["gaps"] if path.is_file() else []
     path.write_text(json.dumps({"gaps": kept + list(found.values())}, indent=1))
