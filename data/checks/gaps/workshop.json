@@ -1,0 +1,30 @@
+{
+  "gaps": [
+    {
+      "name": "lamp: outline under the line after its one paid retake",
+      "row": "likeness",
+      "check": "outline",
+      "objects": [
+        "lamp"
+      ],
+      "reason": "The workshop lamp's Pixal3D take failed its outline in checkout 67 (0.423), was retaken once paid, and failed again; a second retake is not bought (the owner's rule of 2026-11-09). A re-finish from its raw model under the stand fix (90c152fc) measured 0.706 off the batch, so a later free fix of its finish may close the gap. Noted on #10.",
+      "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-10 ~02:30 UTC",
+      "faults": [
+        "lamp: outline 0.423 under 0.5 (prop route)"
+      ]
+    },
+    {
+      "name": "robotic_arm: outline under the line after its one paid retake",
+      "row": "likeness",
+      "check": "outline",
+      "objects": [
+        "robotic_arm"
+      ],
+      "reason": "The workshop robotic arm's Pixal3D take failed its outline at every turn (0.374, checkout 67), had its one paid retake (accepted in checkout 71), and the retake fails its outline again on this PC (0.364); a second retake is not bought (the owner's rule of 2026-11-09).",
+      "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-10 ~02:30 UTC",
+      "faults": [
+        "robotic_arm: outline 0.364 under 0.5 (prop route)"
+      ]
+    }
+  ]
+}
