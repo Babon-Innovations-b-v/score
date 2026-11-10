@@ -4,7 +4,11 @@ repository on this machine that reads the same cap config.
 
 Each push to main starts a gate run somewhere, and a gate run costs money; a day's limit keeps work batched into few
 pushes. The shared pre-push hook runs `claim` before the repository's own pre-push and `release` when that one refused
-the push, so a refused push holds no slot.
+the push, so a refused push holds no slot. A push the remote refused (git has no hook after the transfer) gives its
+slot back at the next claim from this repository: an earlier push of this repository, at least SETTLE_SECONDS old,
+whose commit git holds and which origin's main (refs/remotes/origin/main, moved by every push the remote took) does
+not contain, never reached main (2026-11-09: a push the remote refused as not a fast-forward held its slot). A push
+git cannot judge (its commit not here, no origin/main) keeps its slot.
 
     push_cap.py claim     push lines on stdin; exit 1 (and why on stderr) when today's limit is reached, else 0
                           with the push recorded in the ledger
@@ -33,6 +37,8 @@ import sys
 
 ZERO = "0" * 40
 KEEP_DAYS = 14
+SETTLE_SECONDS = 300  # a push claimed this recently may still be on its way to the remote: never judged refused
+REMOTE_MAIN = "refs/remotes/origin/main"
 
 
 def config_path():
@@ -89,19 +95,39 @@ def refused(why):
     return 1
 
 
+def git_answer(*args):
+    """git's exit code for `args` in this repository."""
+    return subprocess.run(["git", *args], capture_output=True, text=True).returncode
+
+
+def never_reached_main(push, here, now):
+    """True when `push` is this repository's, settled, and git proves origin's main does not hold its commit."""
+    if push.get("repo") != here:
+        return False
+    waited = datetime.datetime.fromisoformat(now) - datetime.datetime.fromisoformat(push["at"])
+    if waited.total_seconds() < SETTLE_SECONDS:
+        return False
+    if git_answer("cat-file", "-e", f"{push['sha']}^{{commit}}") or git_answer("rev-parse", "-q", "--verify",
+                                                                                 REMOTE_MAIN):
+        return False
+    return git_answer("merge-base", "--is-ancestor", push["sha"], REMOTE_MAIN) == 1
+
+
 def claim(sha, limits, ledger, day, now):
-    """Record this push in the ledger when today's count is under the limit; the exit code."""
+    """Record this push in the ledger when today's count is under the limit, after giving back the slots of this
+    repository's pushes the remote refused; the exit code."""
+    here = repository()
     with open(ledger, "a+") as handle:
         fcntl.flock(handle, fcntl.LOCK_EX)
         days = read_ledger(handle)
-        today = days.get(day, [])
+        today = [push for push in days.get(day, []) if not never_reached_main(push, here, now)]
         cap = limit_for(limits, day)
         if cap is not None and len(today) >= cap:
             pushes = "; ".join(f"{push['at'][11:16]} {push['repo']} {push['sha'][:12]}" for push in today)
             return refused(f"{len(today)} pushes to main today ({day} UTC) reached today's limit of {cap}, counted over "
                            f"every repository sharing {ledger} ({pushes}). Gather the work into one push after "
                            f"00:00 UTC, or change the limit in {config_path()} with the owner's yes.")
-        days[day] = today + [{"repo": repository(), "sha": sha, "at": now}]
+        days[day] = today + [{"repo": here, "sha": sha, "at": now}]
         write_ledger(handle, days)
     print(f"push cap: push {len(today) + 1} of {cap if cap is not None else 'no limit'} today ({day} UTC)",
           file=sys.stderr)
