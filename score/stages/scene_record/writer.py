@@ -388,14 +388,18 @@ def wall_lamp_spot(relation, pieces=1, piece=0):
 # backlit keys (2026-11-10: shiplock's door keypad was read as a whole lamp, its three cyan lamps gave 50-80% of the
 # room's light and failed its colour check). Kept here, not in lamps.json, which is in about 91 paid rows' keys.
 CONTROL_FACES = {"keypad", "keypads", "touchpad", "touchpads", "touchscreen", "touchscreens"}
+# A warning light or beacon is a signal, made to be seen rather than to light a room, as an indicator is (2026-11-10:
+# garage's four amber warning bulbs and docking_airlock's red door warning lights threw room light as lamps, at
+# about 3100 K and in red, and both rooms read warmer than their concepts).
+SIGNAL_LIGHTS = {"warning", "beacon", "beacons"}
 
 
 def glow_share(row, glow, path):
     """(share, kind) of the library's lamp a glowing part throws as room light (data/library/lamps.json `glowing`):
-    a faint emitter (a screen, an indicator, a keyboard, a keypad, a flame: its `emitter` words or CONTROL_FACES in
-    what glows, else in the row's noun or name) its `emitter` share, any other glowing part (a lamp, a strip, a grow
-    light) a light source at 1 (2026-11-04: screens and indicator lamps threw room light as lamps did, and the lab
-    came out green and red)."""
+    a faint emitter (a screen, an indicator, a keyboard, a keypad, a flame, a warning light: its `emitter` words,
+    CONTROL_FACES or SIGNAL_LIGHTS in what glows, else in the row's noun or name) its `emitter` share, any other
+    glowing part (a lamp, a strip, a grow light) a light source at 1 (2026-11-04: screens and indicator lamps threw
+    room light as lamps did, and the lab came out green and red)."""
     entry = json.loads(pathlib.Path(path).read_text()).get("glowing") or {}
     emitter = entry.get("emitter")
     if not emitter:
@@ -403,7 +407,7 @@ def glow_share(row, glow, path):
     said = set(row_kinds.words(" ".join(str(text) for text in (
         (glow or {}).get("glowing") or "", row.get("noun") or "", row.get("name") or "", row.get("id") or ""
     ))).split())
-    return (float(emitter["share"]), "emitter") if said & (set(emitter["words"]) | CONTROL_FACES) \
+    return (float(emitter["share"]), "emitter") if said & (set(emitter["words"]) | CONTROL_FACES | SIGNAL_LIGHTS) \
         else (1.0, "source")
 
 

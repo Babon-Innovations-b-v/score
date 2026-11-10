@@ -90,6 +90,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white: the light no
   group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
   out, light.environment_adapted: the background left as it was (the layer test, 2026-11-10).
+- light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
+  the emitter words (the float look test, 2026-11-10).
 """
 import json
 import math
@@ -948,6 +950,22 @@ def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_trans
     # a screen (a faint emitter) or a sun is never raised past its `most`
     assert mix.balance(["panels", "screen"], "panels", lambda found: abs(np.log2(found["screen"]) - 3.0),
                        {"screen": 1.0})[0] == {"panels": 1.0, "screen": 1.0}
+    # the balance's estimate brings its lights back to the swept brightness no further than their caps let the looks
+    # (2026-11-10: greenhouse's estimate read 1.2 levels on its screens brought back past their cap, its looks 32.5):
+    # a cool lamp in a grey room beside light no group holds: brought back x4 it reads bluer, at `room` 1 as it stands
+    grey = np.full((32, 32, 3), 0.02)
+    lamp = np.full((32, 32), 0.05)
+    view = (grey, transform, None, {"lamp_0": lamp}, np.full((32, 32, 1), 0.1),
+            np.full((32, 32, 1), 0.1) + lamp[..., None] * cool)
+    lamps = {"lamp_0": (cool, cool)}
+    plain = light.balanced_cast([view], lamps, {"lamp_0": 1.0})
+    assert plain is not None and light.balanced_cast([view], lamps, {"lamp_0": 1.0}, keep=204.8, room=1.0) == plain
+    assert light.balanced_cast([view], lamps, {"lamp_0": 1.0}, keep=204.8)[2] > plain[2] + 3.0
+    # a warning light or beacon is a signal, a faint emitter, never a room's lamp (garage's amber bulbs, 2026-11-10)
+    from score.stages.scene_record import writer
+    library = pathlib.Path(__file__).resolve().parents[3] / "data/library/lamps.json"
+    assert writer.glow_share({"id": "warning_light", "noun": "light"}, {"glowing": "bulb"}, library)[1] == "emitter"
+    assert writer.glow_share({"id": "ceiling_lamp", "noun": "lamp"}, {"glowing": "bulb"}, library)[1] == "source"
 
 
 def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp_path):

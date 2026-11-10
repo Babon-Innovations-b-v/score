@@ -63,7 +63,9 @@ gates.
   row's key holds; the strength kept); after the suns and the fill, the lamps of each colour, each sun and the fill
   are balanced against each other to the concept's cast at the brightness the sweep gave (`light.colour_balance`,
   `mix.balance`; every light within SCALES, the suns only turned down; a faint emitter, held at x1 by the sweep
-  (`mix.capped`), a class of its own, never past a whole lamp of its mount, `light.emitter_most`), kept only where
+  (`mix.capped`), a class of its own, never past a whole lamp of its mount, `light.emitter_most`; its estimate
+  brought back to the swept brightness only as far as those caps let the looks, `balanced_cast`'s `room`, 2026-11-10:
+  greenhouse's estimate lit it with its screens past their cap and never tried its grow light up), kept only where
   its looks read nearer the concept and no rule the sweep kept breaks (`light.look_gap`), never a lamp recoloured to
   the concept. An inside place whose
   views see sky has its sky judged too, against its sky rows' boxes on its concept, on the sky's own flat colour there (`row_skies`; camp's domes).

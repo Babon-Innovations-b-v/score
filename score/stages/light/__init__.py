@@ -668,14 +668,15 @@ def group_light(prepared, colours, scales):
                 np.zeros(rest.shape[:2] + (3,))) for _, _, _, found, rest, _ in prepared]
 
 
-def balanced_cast(prepared, colours, scales, keep=None):
+def balanced_cast(prepared, colours, scales, keep=None, room=float("inf")):
     """The median cast (measure.surface_cast) of the prepared views (balance_views) at the scales, each group's light
     in its shipped colour, the groups' light scaled together to `keep` (the views' summed groups' luminance) where
-    given, as balanced_scales brings them back to the brightness swept; None where no view reads one."""
+    given, never past `room`, as balanced_scales brings them back to the brightness swept and stops where a group's
+    cap would bind; None where no view reads one."""
     lit = group_light(prepared, colours, scales)
     if keep is not None:
         total = sum(float((light @ mix.LUMA).sum()) for light in lit)
-        lit = [light * (keep / max(total, mix.FLOOR)) for light in lit]
+        lit = [light * min(keep / max(total, mix.FLOOR), room) for light in lit]
     casts = []
     for (colour, transform, sky, found, rest, made), light in zip(prepared, lit):
         change = (rest * mix.rest_colour(colours) + light) / made
@@ -705,8 +706,14 @@ def colour_balance(place, passes_folder, rendered_views, scales, swept, colours,
     keep = sum(float((light @ mix.LUMA).sum()) for light in group_light(prepared, colours, scales))
 
     def gap_of(multipliers):
+        # the joint scale brought back no further than the caps let it (balanced_scales' room): greenhouse's balance
+        # read 1.2 levels on its screens x8 brought back together past their cap, and 32.5 on its looks, and
+        # never tried its grow light up, which reads 8.4 (2026-11-10)
+        room = min((most[group] / multipliers[key] for group, key in classes.items() if group in (most or {})),
+                   default=float("inf"))
         cast = balanced_cast(prepared, colours, {group: value * (multipliers[classes[group]] if group in classes
-                                                                 else 1.0) for group, value in scales.items()}, keep)
+                                                                 else 1.0) for group, value in scales.items()}, keep,
+                             room)
         return float("inf") if cast is None else measure.cast_gap(cast, concept)
 
     limits = {name: min((most or {}).get(group, float(mix.BALANCE[-1])) for group, key in classes.items()
