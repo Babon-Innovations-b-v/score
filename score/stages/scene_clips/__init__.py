@@ -277,7 +277,10 @@ def plan_of(single, found):
     roots, headings = roots[:kept], headings[:kept]
     falls = footfalls(roots, headings, grounds, found)
     origin = np.array([roots[0][0], grounds[0], roots[0][2]])
-    heights = [fall["ground"] for fall in falls] or [grounds[0]]
+    # the start's ground counts too: post-processing holds a toe at the start's floor (the canonical origin), so a walk
+    # stepping off a 0.2 m kerb before its first stance kept its soles 0.05 m over the street below (the street's
+    # scene_pedestrian_umbrella_7, env1 2026-11-10)
+    heights = [grounds[0]] + [fall["ground"] for fall in falls]
     relief = float(max(heights) - min(heights))
     return {"name": single["name"], "clip": f"scene_{single['name']}", "pace": pace, "sentence": sentence_of(single),
             "stairs": single.get("stairs"),

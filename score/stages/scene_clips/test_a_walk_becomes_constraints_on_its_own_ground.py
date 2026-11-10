@@ -22,7 +22,9 @@ Breaks that turn each test red (each applied once and seen red, reverted, 2026-1
 - the_route_climbs_the_steps: checked's `feet -= under["gap"]` dropped (every frame read from the start's feet);
   pace_of's climber `float(single["stairs"]["run"]) * RATE / STEP_FRAMES` made the cast's pace (2026-11-04: its
   feet land three treads apart, and its 1.5 m flight walks under two seconds).
-- each_foot_stands_on_the_ground_under_it: footfalls' `max(ground_at(...))` made `min(ground_at(...))`.
+- each_foot_stands_on_the_ground_under_it: footfalls' `max(ground_at(...))` made `min(ground_at(...))`; plan_of's
+  `[grounds[0]] +` dropped from the relief's heights (a walk off a kerb post-processed onto the kerb's floor,
+  2026-11-10).
 - the_constraints_start_at_the_canonical_origin_heading_plus_z: canonical's `offset[:, 0] * sin + offset[:, 2] * cos`
   made `-offset[:, 0] * sin + offset[:, 2] * cos`.
 - the_soles_are_asked_on_their_ground: constraints_of's `fall["ground"] + HIP_OVER_SOLE` made `fall["ground"]`.
@@ -133,6 +135,13 @@ def test_each_foot_stands_on_the_ground_under_it(plan):
         heel, toe = fall["hips"][0] - 0.0169, fall["hips"][0] + 0.1806
         assert fall["ground"] == pytest.approx(max(step_top(heel), step_top(toe)), abs=1e-6)
     assert plan["relief"] == pytest.approx(0.45) and plan["postprocess"] is False
+    # a walk off a 0.2 m kerb before its first stance: every stance on the street, its start's floor not
+    kerb = {"Structure/street": tris(box([-1.0, -0.2, -2.0], [8.0, 0.0, 2.0])),
+            "Structure/kerb": tris(box([-1.0, -0.2, -2.0], [0.3, 0.2, 2.0]))}
+    walker = {"name": "man", "doing": "walking", "at": [0.0, 0.2, 0.0], "turn": -90.0, "pace": 1.333}
+    stepped, why = scene_clips.plan_of(walker, kerb)
+    assert why is None and {fall["ground"] for fall in stepped["footfalls"]} == {0.0}, (why, stepped)
+    assert stepped["relief"] == pytest.approx(0.2) and stepped["postprocess"] is False
 
 
 def test_the_constraints_start_at_the_canonical_origin_heading_plus_z(plan):
