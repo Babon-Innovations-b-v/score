@@ -140,7 +140,8 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 changed since the question
     store-pull                                  a tar stream on stdout of what a run reads (PULLED: the store's
                                                 objects, the design, the work folder, the Google answer cache,
-                                                score_lib's file cache), leaving out every file whose path, size
+                                                score_lib's file cache, the cockpit's film scripts and previews),
+                                                leaving out every file whose path, size
                                                 and whole-second mtime the manifest on stdin already names
                                                 (`size<TAB>mtime<TAB>path` lines); never keys, ledgers, run records
                                                 or frozen copies (owner, 2026-10-27: the door route for this_pc.py).
@@ -286,7 +287,9 @@ STORE_OBJECTS = "store/objects/"  # written once by content and key: a pull send
 STORE_DIFFERS, STORE_REPLACE = "--store-differs", "--store-replace"
 REPLACEABLE = "work/pixal/"  # the one folder a push replaces in: the PC remakes takes there in place
 REPLACED = "work/pixal/replaced"  # where each replaced file is kept, under the push's time
-PULLED = ("store/objects", "design", "work", "cloud/google-cache", "cache/library")
+# dashboard/films: the locked film scripts and the free preview's record and takes the environment-film row cuts
+# from (2026-11-10: the PC held a 57-segment lock and none of the 68-segment preview's takes, its film Blocked)
+PULLED = ("store/objects", "design", "work", "cloud/google-cache", "cache/library", "dashboard/films")
 PUSHED = ("store/objects", "work")
 
 

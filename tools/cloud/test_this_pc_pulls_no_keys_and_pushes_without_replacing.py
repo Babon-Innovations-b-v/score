@@ -4,7 +4,8 @@ files, never replacing one the conductor has. The agents' door itself (agent_doo
 it) stands in for ssh, a folder for the conductor's home; nothing reaches the conductor.
 
 Breaks (each applied once, seen red, reverted):
-- agent_door.py `PULLED`: add "cloud" -> the runner's ssh key comes down with the store.
+- agent_door.py `PULLED`: add "cloud" -> the runner's ssh key comes down with the store; or drop "dashboard/films"
+  -> the locked film script and the preview's takes stay on the conductor, environment-film Blocked here.
 - agent_door.py `store_pull`: drop the `continue` after `kept += 1` -> a second pull sends every file again; or
   drop `name.startswith(STORE_OBJECTS)` -> a store object held here is sent again for its other mtime.
 - agent_door.py `listed`: drop the gunzip -> this PC's gzipped manifest is read as text and the pull fails (the
@@ -97,15 +98,19 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     conductor, home = tmp_path / "conductor", tmp_path / "home"
     for name in ("store/objects/blobs/aa", "design/plans/hub.json", "work/pixal/take.glb", "cloud/google-cache/q.json",
                  "cache/library/swatch.png", "cloud/ssh_key", "cloud/self_delete_key.json", "cloud/ledger.jsonl",
-                 "runs/active.json", "store/cache/checkouts/x", "frozen/copy/file", "dashboard/db.sqlite3"):
+                 "runs/active.json", "store/cache/checkouts/x", "frozen/copy/file", "dashboard/db.sqlite3",
+                 "dashboard/films/locked/env1_demo.json", "dashboard/films/previews/env1_demo-takes/002.mp4"):
         write(conductor / name, name)
     home.mkdir()
-    assert this_pc.pull(home, door(conductor, "store-pull")) == (5, sum(
+    assert this_pc.pull(home, door(conductor, "store-pull")) == (7, sum(
         len(name) for name in ("store/objects/blobs/aa", "design/plans/hub.json", "work/pixal/take.glb",
-                               "cloud/google-cache/q.json", "cache/library/swatch.png")))
+                               "cloud/google-cache/q.json", "cache/library/swatch.png",
+                               "dashboard/films/locked/env1_demo.json",
+                               "dashboard/films/previews/env1_demo-takes/002.mp4")))
     pulled = sorted(str(path.relative_to(home)) for path in home.rglob("*") if path.is_file())
-    assert pulled == ["cache/library/swatch.png", "cloud/google-cache/q.json", "design/plans/hub.json",
-                      "store/objects/blobs/aa", "work/pixal/take.glb"]
+    assert pulled == ["cache/library/swatch.png", "cloud/google-cache/q.json",
+                      "dashboard/films/locked/env1_demo.json", "dashboard/films/previews/env1_demo-takes/002.mp4",
+                      "design/plans/hub.json", "store/objects/blobs/aa", "work/pixal/take.glb"]
     write(conductor / "design/plans/hub.json", "the hub, changed")
     (home / "store/objects/blobs/aa").chmod(0o444)  # a blob is read-only here, and its mtime differs there
     os.utime(conductor / "store/objects/blobs/aa", (1, 1))
@@ -113,7 +118,7 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     sys.path.insert(0, str(HERE / "conductor"))
     import agent_door
     sent, _, kept = agent_door.store_pull(conductor, {"store/objects/blobs/aa": (0, 0)}, io.BytesIO())
-    assert kept == 1 and sent == 4  # the store object the PC names goes by name, whatever its size and mtime
+    assert kept == 1 and sent == 6  # the store object the PC names goes by name, whatever its size and mtime
     # a listing linked to its blob there, already linked here: the stream's hard link is left as it is
     for side in (conductor, home):
         (side / "store/objects/records").mkdir(parents=True)
