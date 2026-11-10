@@ -38,7 +38,9 @@ others in score.graph.THREAD_VARIABLES, and the OpenBLAS pools already loaded), 
 still gets only its share (--jobs 1 gives it every core); more jobs than cores is refused unless given --oversubscribe;
 with --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone);
 --phase (run, status and plan) adds every stage of that phase of the environment's table (score/stages/phases) to
---stage, refused for an unknown phase or one holding no stage of the table. It
+--stage, refused for an unknown phase or one holding no stage of the table; --leave-out (a comma list of stages, or
+SCORE_LEAVE_OUT read the same way when it is not given) makes none of those stages' rows not already standing, and
+each row reading one waits on it as on any unmade input (graph.LEFT_OUT), refused for a stage the table does not hold. It
 starts
 each node the moment the nodes it reads stand accepted, gathers a gate's missing evidence itself (a paid step cleared by
 the runner, waited on by the runner), and stops a line whose node fails, errors or is blocked, with a plain fault report
@@ -143,6 +145,7 @@ from score.store import Store  # noqa: E402
 DETACH = "--detach"
 RUN_ID = "SCORE_RUN_ID"
 RUN_PID = "SCORE_RUN_PID"
+LEAVE_OUT = "SCORE_LEAVE_OUT"  # the stages a run leaves out when --leave-out is not given (left_out_stages)
 # Every ledger line a run's processes write carries its tag (tag_ledgers, score/stages/props/ledger_tag).
 LEDGER_TAG = "SCORE_LEDGER_TAG"
 TAGGING = REPO / "score/stages/props/ledger_tag"
@@ -206,6 +209,7 @@ def parse(argv):
     run.add_argument(DETACH, action="store_true", help="progress to a log, one result line at the end")
     run.add_argument("--jobs", type=jobs_count, help=f"nodes at once (default {graph.JOBS}; a conductor's cores)")
     run.add_argument("--oversubscribe", action="store_true", help="allow more jobs than this PC has cores")
+    run.add_argument("--leave-out", help=f"stages (a comma list) this run does not make; default {LEAVE_OUT}")
     run.add_argument("--rebuy-reason", help="why outputs already standing are bought again (needed over EUR 5)")
     run.add_argument("--uncommitted", action="store_true", help="run this worktree's changes not committed")
     run.add_argument("--free", action="store_true", help="free steps only, paid nodes left for the Buy (default "
@@ -277,6 +281,17 @@ def phase_stages(options, table):
     if not held:
         sys.exit(f"score: the phase {options.phase} holds no stage of this environment's table")
     return [*(options.stage or []), *[name for name in held if name not in (options.stage or [])]]
+
+
+def left_out_stages(options, table):
+    """The stage names this run leaves out: --leave-out, else SCORE_LEAVE_OUT (LEAVE_OUT), a comma list either way;
+    none when neither is given. Exits naming a stage `table` does not hold, so a typo never runs what it meant to skip."""
+    given = getattr(options, "leave_out", None) or os.environ.get(LEAVE_OUT, "")
+    names = [name.strip() for name in given.split(",") if name.strip()]
+    unknown = [name for name in names if name not in table]
+    if unknown:
+        sys.exit(f"score: {', '.join(unknown)} is no stage of this environment's table (--leave-out, {LEAVE_OUT})")
+    return frozenset(names)
 
 
 def default_jobs():
@@ -1681,11 +1696,15 @@ def free_closing(found):
     free node failed."""
     left = [node for node, did in found.items() if did.startswith(graph.PAID_LEFT)]
     waiting = [node for node, did in found.items() if did.startswith(graph.FREE_WAITS.split("{")[0])]
-    after = [node for node, did in found.items() if did.startswith("not run:") and node not in left + waiting]
+    skipped = [node for node, did in found.items()
+               if did == graph.LEFT_OUT or did.startswith(graph.LEFT_WAITS.split("{")[0])]
+    after = [node for node, did in found.items()
+             if did.startswith("not run:") and node not in left + waiting + skipped]
     failed = {node: did for node, did in found.items() if "fault report" in did}
-    stand = len(found) - len(left) - len(waiting) - len(after) - len(failed)
+    stand = len(found) - len(left) - len(waiting) - len(skipped) - len(after) - len(failed)
     print(f"free-only run: {stand} free rows stand, {len(failed)} failed, {len(after)} not run after a failure; "
-          f"{len(left)} paid rows left for the Buy, {len(waiting)} rows wait on them")
+          f"{len(left)} paid rows left for the Buy, {len(waiting)} rows wait on them"
+          + (f"; {len(skipped)} rows left out of this run or waiting on one" if skipped else ""))
     for listed in [*(f"  failed {node}: {did}" for node, did in failed.items()),
                    *(f"  left for the Buy: {node}" for node in left),
                    *(f"  waits on a paid row: {node}" for node in waiting)]:
@@ -1886,6 +1905,8 @@ def main(argv=None):
     runner = stages.runner(world=stages.WORLDS[options.world]())
     runner.objects = frozenset(options.object) if options.object else None
     options.stage = phase_stages(options, runner.stages)
+    if options.command == "run":
+        runner.left_out = left_out_stages(options, runner.stages)
     if options.command == "run":
         options.free = runner.free_only = options.free or os.environ.get(conductor.FREE_ONLY) == "1"
         from score.adapters import compute
