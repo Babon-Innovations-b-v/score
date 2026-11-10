@@ -397,7 +397,9 @@ def with_deadlines(jobs, frame_minutes):
 
 def picture_speed(view, later, wide):
     """How far the picture moves from `view` to `later` (the next frame's), pixels across a picture `wide` pixels: the
-    line of sight's turn and the eye's move across it at the aim's distance, at the view's focal length."""
+    line of sight's turn and the eye's move across it at the aim's distance, at the view's focal length, plus the
+    eye's move along it as it shows at the frame's edge (half the width times the move over the aim's distance: a
+    straight walk measured 0.001-0.2 px a frame by turn and sideways move alone, so a walk-through got no blur)."""
     eye, aim = np.asarray(view["eye"], dtype=float), np.asarray(view["aim"], dtype=float)
     then_eye, then_aim = np.asarray(later["eye"], dtype=float), np.asarray(later["aim"], dtype=float)
     look, then_look = aim - eye, then_aim - then_eye
@@ -405,9 +407,10 @@ def picture_speed(view, later, wide):
     look, then_look = look / distance, then_look / float(np.linalg.norm(then_look))
     turn = float(np.arccos(np.clip(look @ then_look, -1.0, 1.0)))
     move = then_eye - eye
-    across = float(np.linalg.norm(move - (move @ look) * look))
+    along = float(move @ look)
+    across = float(np.linalg.norm(move - along * look))
     focal = wide / 2.0 / np.tan(np.radians(float(view["fov"])) / 2.0)
-    return float(focal * (turn + across / distance))
+    return float(focal * (turn + across / distance) + wide / 2.0 * abs(along) / distance)
 
 
 def shutter_for(speed, wide):

@@ -194,13 +194,17 @@ def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_i
     Break: score/stages/demo_film/__init__.py: `return 0.0 if speed < STILL_PIXELS else round(min(SHUTTER, MOST_STREAK *
         wide / speed), 3)` -> `return 0.0 if speed < STILL_PIXELS else SHUTTER`
     Break: score/stages/demo_film/__init__.py: `(later if demo.shot_of(later) == demo.shot_of(view) else None)` ->
-        `later`"""
+        `later`
+    Break: score/stages/demo_film/__init__.py: `+ wide / 2.0 * abs(along) / distance)` -> `)` (a straight walk
+        forward, 4 cm a frame as walkway's walk-through, unblurred)"""
     wide = demo_film.SIZE[0]
     first = {"name": "shot0-000", "eye": [0, 1.6, 5], "aim": [0, 1.2, 0], "up": [0, 1, 0], "fov": 75, "frame": 0}
     walked = dict(first, name="shot0-001", eye=[0.02, 1.6, 4.98], frame=1)
     turned = dict(first, name="shot0-001", aim=[0.6, 1.2, 0], frame=1)
     assert demo_film.blur_of(first, dict(first, name="shot0-001", frame=1), wide) is None, "a camera standing still"
     assert demo_film.blur_of(first, None, wide) is None, "a shot's last frame"
+    forward = dict(first, name="shot0-001", eye=[0, 1.6 - 0.04 * 0.4 / 5.016, 5 - 0.04 * 5 / 5.016], frame=1)
+    assert demo_film.blur_of(first, forward, wide)["shutter"] == demo_film.SHUTTER, "a straight walk forward"
     slow = demo_film.blur_of(first, walked, wide)
     assert slow["shutter"] == demo_film.SHUTTER and slow["codes"] == 1 and slow["eye"] == walked["eye"], slow
     fast = demo_film.blur_of(first, turned, wide)
