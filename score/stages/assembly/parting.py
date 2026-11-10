@@ -1,4 +1,6 @@
-"""A thing on the floor that a wall's thing was laid into, parted from it after the fitting (wired.make's `parted`).
+"""A thing on the floor that a wall's thing was laid into, parted from it after the fitting (wired.make's `parted`,
+and grounded.grounded_seed's, so the settle drops what the assembly lays: settle@airlock failed on that very
+pair while only the assembly parted it, 2026-11-10).
 
 fitting.fitted parts the things nothing holds first and lays each wall's and face's things after, so a wall thing laid
 along its wall can land on a floor thing parted before it, and fitting.parted keeps its parting only when the place's

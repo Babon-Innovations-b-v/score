@@ -5,9 +5,9 @@ characters layer did not lay is a named gap for complete, never an unplaced soun
 voice on a person who was laid, and any other sound, still fails it. Toy folders made here; no store, no machine.
 
 Breaks (each applied once, seen red, reverted):
-Break: score/stages/assembly/wired/parting.py: `if not loose(entry, holding):` -> `if False:` (the console holding its
+Break: score/stages/assembly/parting.py: `if not loose(entry, holding):` -> `if False:` (the console holding its
     screen is moved too)
-Break: score/stages/assembly/wired/parting.py: `fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + move)`
+Break: score/stages/assembly/parting.py: `fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + move)`
     -> `pass` (laid.json says parted, the stage still holds it in the pipe)
 Break: score/stages/assembly/wired/__init__.py: `gc.collect()` -> `pass` (the cycle's stage keeps the asset loaded)
 Break: score/stages/assembly/wired/__init__.py: `if use.get("voice") and use["on"] not in laid` -> `if use["on"] not in
@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO))
 from score import checks, stages  # noqa: E402
 from score.stages import assembly, gaps  # noqa: E402
 from score.stages.assembly import fitting, made_waiting, sounds, wired  # noqa: E402
-from score.stages.assembly.wired import parting  # noqa: E402
+from score.stages.assembly import parting  # noqa: E402
 
 VOICE = {"sound": "crew_talk", "role": "object", "on": "person_1", "voice": True, "from": "voices"}
 HUM = {"sound": "pump_hum", "role": "object", "on": "pump_1", "from": "objects"}

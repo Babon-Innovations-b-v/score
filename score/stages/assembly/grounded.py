@@ -8,6 +8,8 @@ import os
 import pathlib
 import shutil
 
+from score.stages.assembly import parting
+
 # The seed's own files copied beside its root (its assets are copied or linked apart).
 SEED_PARTS = ("layers", "inputs.json")
 
@@ -41,6 +43,7 @@ def grounded_seed(inputs, folder):
     record.take_record({key: inputs[key] for key in ("kit", "scene", "scene-record") if key in inputs}, folder,
                        seed.name)
     take_bakes(inputs, folder, seed.name)
+    parting.parted(folder, seed.name)  # as the assembly's make parts them (wired.make)
     record.take_ground(inputs["terrain"], seed.name, root)
     return root
 

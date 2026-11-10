@@ -5,7 +5,8 @@ this one, so it moves the assembly's key alone (as held_apart.py does for the he
 
     make     assembly.make_from_seed, then
              parted         each floor thing a wall's or face's thing was laid into moved to its nearest free spot
-                            (parting.py: airlock's control_pedestals_2 under its wall_pipes_1, 2026-11-10)
+                            (assembly/parting.py, which the settle's grounded seed parts too: airlock's
+                            control_pedestals_2 under its wall_pipes_1, 2026-11-10)
              released       every stage the make left in a reference cycle collected (release): fitting.fitted's
                             recursive closure `one` holds the stage the design objects were laid on, so until a
                             collection ran its asset layers stayed loaded and screens.take's Sdf.Layer.CreateNew of
@@ -26,7 +27,7 @@ import json
 import pathlib
 
 from score.stages import assembly
-from score.stages.assembly.wired import parting
+from score.stages.assembly import parting
 
 # gaps.WRITTEN, the file complete's accepted gaps gate reads; named here, not imported, so score/stages/gaps.py stays
 # out of the assembly's code version (a gap's verdict moves complete alone; the test reads it back through gaps.py)
