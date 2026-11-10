@@ -676,6 +676,23 @@ def stop_jobs(kubectl, run_id):
                 "--ignore-not-found", "--wait=false", "--cascade=background")
 
 
+ALIVE_NOTE = "score.dev/alive"  # epoch seconds its owner last said it lives: cap_watch's sweep deletes stale ones
+ALIVE_SECONDS = 60  # a live owner marks its unfinished Jobs this often (watch, the queue's tick)
+ALIVE_STALE_MINUTES = 15  # cap_watch.watch's copy: a mark this old is a dead owner's (past a warm hold's 10 minutes)
+
+
+def beat_alive(kubectl, targets, now):
+    """Mark Jobs alive at `now` (ALIVE_NOTE): `targets` are Job names, or ("-l", a selector). A refused beat is said,
+    never raised, so the run goes on; a Job never marked is one cap_watch's sweep leaves to its own deadline. `now`."""
+    try:
+        kubectl.run("annotate", "jobs", "-n", manifests.NAMESPACE, *targets, "--overwrite",
+                    f"{ALIVE_NOTE}={int(now)}")
+    except subprocess.CalledProcessError as error:
+        if "no objects passed" not in (error.stderr or ""):  # a selector that matches nothing yet
+            say(f"the Jobs could not be marked alive: {(error.stderr or '').strip()}")
+    return now
+
+
 def stop_score_jobs(kubectl=None, cluster=None, every_box=False):
     """stop-batch's part on the cluster: delete every Job of score's (labelled with a run) in the score-jobs namespace
     that this box launched (manifests.BOX_LABEL), and nothing else: another box's runs share the namespace (2026-11-06:
@@ -873,7 +890,9 @@ def submit(run_id, specs, store, kubectl=None, cluster=None, wait_scale_down=Tru
             raise
         except BaseException as error:
             booking.append(True)
-            say(f"the run's watch ended ({type(error).__name__}: {error}): booking its rows from what was last seen")
+            say(f"the run's watch ended ({type(error).__name__}: {error}): deleting its Jobs (nothing brings their "
+                "outputs back now) and booking its rows from what was last seen")
+            delete_run_jobs(run)
             lost_watch(run)
             book(run, store, helper, who)
             raise
@@ -915,11 +934,15 @@ def watch(run, parallel, wait_scale_down):
     retried(lambda found: submit_more(found, parallel), run)
     say(f"{len(run.specs)} jobs for run {run.run_id}" + (f", {parallel} at a time" if parallel else ""))
     mark = CLUSTER_WAITING / str(os.getpid())
+    alive_at = 0.0
     try:
         while run.unfinished():
             mark.parent.mkdir(parents=True, exist_ok=True)
             mark.touch()
             note_wait(run)
+            if time.time() - alive_at >= ALIVE_SECONDS:  # cap_watch sweeps them once it dies
+                alive_at = beat_alive(run.kubectl, ("-l", f"{RUN_LABEL}={manifests.label_value(run.run_id)}"),
+                                      time.time())
             time.sleep(POLL_SECONDS)
             retried(lambda found: look(found, parallel), run)
     finally:  # the outputs come back after this: the node counts for a --jobs slot again
@@ -941,11 +964,7 @@ def stop_after_signal(run):
     """A stopped run: every Job of it deleted (said, not raised, when kubectl fails: the rows are booked still), its
     jobs not done marked stopped, its nodes taken as gone after the autoscaler's idle time from one more look, else
     from what was last seen."""
-    try:
-        stop_jobs(run.kubectl, run.run_id)
-    except (Exception, SystemExit) as error:  # noqa: BLE001 - the rows are booked whatever kubectl said
-        say(f"the run's Jobs could not be deleted ({type(error).__name__}: {error}); delete them by the label "
-            f"{RUN_LABEL}={manifests.label_value(run.run_id)}")
+    delete_run_jobs(run)
     for job_id in run.unfinished():
         run.jobs[job_id]["state"] = "stopped"
     for seen in run.nodes.values():
@@ -955,6 +974,16 @@ def stop_after_signal(run):
     except (Exception, SystemExit) as error:  # noqa: BLE001 - booked from the last look instead
         say(f"the run's nodes could not be read ({type(error).__name__}: {error}); booked as last seen")
         last_seen_scale_down(run)
+
+
+def delete_run_jobs(run):
+    """Every Job of the run deleted (stop_jobs); a kubectl that fails is said, not raised: the rows are booked still,
+    and cap_watch's sweep deletes Jobs whose alive mark went stale."""
+    try:
+        stop_jobs(run.kubectl, run.run_id)
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - the rows are booked whatever kubectl said
+        say(f"the run's Jobs could not be deleted ({type(error).__name__}: {error}); delete them by the label "
+            f"{RUN_LABEL}={manifests.label_value(run.run_id)}")
 
 
 def lost_watch(run):

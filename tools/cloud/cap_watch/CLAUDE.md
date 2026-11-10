@@ -15,6 +15,10 @@ paid work at the cap's line or the November cap (its docstring has the counter).
 - **A stop reaches everything** (plan B4): every box's score Jobs and every runner-tagged machine of the batch
   project in every zone (`tenant.stop_runner_servers`), a failure named in the stop's record; every pass also cleans
   what SCORE left standing (`tenant.clean_leftovers`), its answer in the reading's `cleaned`.
+- **Every pass sweeps dead runs' Jobs**, cap or none (`sweep`, 2026-11-10: checkout 75's stopped runs kept 4 L4
+  workers for hours): an unfinished score Job whose `score.dev/alive` mark (its run's watch or its box's queue marks
+  it each minute) is past 15 minutes is deleted; a Job with no mark is left to its own deadline, so a live run's
+  never goes. Its answer is the reading's `swept`.
 - **A stop is no latch**: the reading itself refuses, so the first pass back under the line lets paid work start.
 - The cap record itself is the owner's (`decide-yes cap env1 ...`, `score/dashboard/sync/chat_decisions.py`), written
   through `score.review.web.cap`; the watcher never writes or moves it.

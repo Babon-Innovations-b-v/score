@@ -18,7 +18,8 @@ The counter is the larger of two measures, both counted from the cap's start:
 
 A stop (stop_paid_work) writes its record under the cap (caps/<name>/stops/), the owner's line in it, and deletes
 every score Job in the cluster's jobs namespace whatever box launched it and every runner-tagged machine of the
-batch project in every zone; every pass also deletes what SCORE left standing (tenant.clean_leftovers); no latch: every cloud rent point
+batch project in every zone; every pass also deletes what SCORE left standing (tenant.clean_leftovers) and, cap
+or none, every unfinished score Job whose owner stopped marking it alive (sweep: a dead run's or queue's); no latch: every cloud rent point
 (compute.require_cloud) and every cluster poll (tools/cloud/k8s/submitter.over_limits) reads the same reading and
 refuses while it stands, so the next pass under the line lets paid work start again.
 """
@@ -40,6 +41,8 @@ from score.adapters.compute import guard  # noqa: E402
 LAG_HOURS = 6.0  # babon's proven usage is taken off the shared lines only once this old: the bill lags by hours
 JOBS_NAMESPACE = "score-jobs"
 RUN_LABEL = "score.dev/run"  # tools/cloud/k8s/submitter.RUN_LABEL: every score Job carries it
+ALIVE_NOTE = "score.dev/alive"  # submitter.ALIVE_NOTE: when the Job's owner (a run's watch, the box's queue) last lived
+ALIVE_STALE_MINUTES = 15  # submitter.ALIVE_STALE_MINUTES: its owner beats every minute, a warm hold ends in 10
 
 
 def iso(seconds):
@@ -133,6 +136,41 @@ def stop_paid_work(book, name, why, now, run=subprocess.run, cloud=None):
     return guard.cap_write(book, "stops", record, name)
 
 
+def unfinished(job):
+    """Whether a Job still runs or waits: no Complete or Failed condition."""
+    return not any(condition.get("type") in ("Complete", "Failed") and condition.get("status") == "True"
+                   for condition in (job.get("status") or {}).get("conditions") or [])
+
+
+def dead_jobs(items, now):
+    """The names of the unfinished score Jobs whose owner's alive mark (ALIVE_NOTE) is older than ALIVE_STALE_MINUTES:
+    its run or its box's queue is gone. A Job with no mark (made before the beat, or its owner's beat refused) is left
+    to its own deadline, so no live run's Job is ever taken."""
+    dead = []
+    for job in items:
+        mark = (job["metadata"].get("annotations") or {}).get(ALIVE_NOTE)
+        if unfinished(job) and mark and mark.isdigit() and now - int(mark) > ALIVE_STALE_MINUTES * 60:
+            dead.append(job["metadata"]["name"])
+    return sorted(dead)
+
+
+def sweep(now, run=subprocess.run):
+    """Every pass, cap or none: the score Jobs of dead runs deleted (dead_jobs), whatever box launched them
+    (2026-11-10: checkout 75's stopped runs kept 4 L4 workers on meshparts jobs for hours); what it deleted, or its
+    error named. A failed sweep never stops the watch."""
+    import json
+    listed = run(["kubectl", "get", "jobs", "-n", JOBS_NAMESPACE, "-l", RUN_LABEL, "-o", "json"],
+                 capture_output=True, text=True)
+    if listed.returncode:
+        return {"error": (listed.stderr or "").strip()[-500:]}
+    dead = dead_jobs(json.loads(listed.stdout)["items"], now)
+    if not dead:
+        return {"deleted": []}
+    done = run(["kubectl", "delete", "jobs", "-n", JOBS_NAMESPACE, *dead, "--ignore-not-found", "--wait=false",
+                "--cascade=background"], capture_output=True, text=True)
+    return {"deleted": dead, **({"error": (done.stderr or "").strip()[-500:]} if done.returncode else {})}
+
+
 def clean(cloud=None):
     """Every pass's leftover cleanup (tenant.py's clean_leftovers: SCORE's pools' machines that are no node, runner
     machines past their deadline, loose disks over a day); what it deleted, or its error named."""
@@ -143,10 +181,14 @@ def clean(cloud=None):
 
 
 def one_pass(book, bill_reader=read_bill, live_reader=read_live, stop=stop_paid_work, now=None,
-             unread=None, name=guard.CAP, cleaner=None):
-    """One watch pass (the module's docstring), the leftovers cleaned (`cleaner`) whatever it reads; its reading, or
-    None when no cap is open."""
+             unread=None, name=guard.CAP, cleaner=None, sweeper=None):
+    """One watch pass (the module's docstring): the Jobs of dead runs swept (`sweeper`) whether a cap is open or not,
+    the leftovers cleaned (`cleaner`) whatever it reads; its reading, or None when no cap is open."""
     now = time.time() if now is None else now
+    try:
+        swept = (sweeper or sweep)(now)
+    except (Exception, SystemExit) as error:  # noqa: BLE001 - a failed sweep never stops the watch; it is named
+        swept = {"error": f"{type(error).__name__}: {error}"[:500]}
     cap = guard.current_cap(book, name)
     if not cap or not cap.get("open"):
         return None
@@ -169,7 +211,7 @@ def one_pass(book, bill_reader=read_bill, live_reader=read_live, stop=stop_paid_
                    "whole": bill["whole"], "rate": round(sum(item["per_hour"] for item in live.values()
                                                              if item["owner"] == "score"), 3),
                    "score": score_seen, "babon": babon_seen}
-    reading["cleaned"] = (cleaner or clean)()
+    reading["cleaned"], reading["swept"] = (cleaner or clean)(), swept
     guard.cap_write(book, "readings", reading, name)
     why = over(cap, reading)
     if why:
