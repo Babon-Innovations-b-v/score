@@ -14,6 +14,10 @@ own tone curve, fitted on the render's look against its light.
                                            (white_fit, black_body), a coloured part's its own hue; luminance 1
     tint(passes, scales, colours, guide)   each pixel's change of colour when the groups take the scales and their
                                            shipped colours, its luminance's change taken out
+    adaptation_degree(lux) -> D            CIECAM02's degree of adaptation of an eye standing in `lux`
+    adaptation(white, degree) -> matrix    the eye's adaptation (CAT02 von Kries) from `white` to the render's white
+    adapting_white(views, scales,          the colour of the light the views take from the groups at the scales
+                   colours) -> rgb
     sweep(views, swept, target, held,      the scale of the swept lamps (from LAMP_SCALES, at most `most`) that
           most) -> scale                   brings the place's brightness nearest its concept's
     own_share(views, scales, groups)       the share of the views' light the place's own lamps give (median), on
@@ -218,11 +222,59 @@ def lamp_light(rgb):
     return black_body(kelvin) if duv <= WHITE_DUV else unit_light(rgb)
 
 
+# The eye adapted to the light it stands in (CIE 159:2004, CIECAM02's chromatic adaptation): von Kries gains in the
+# CAT02 cone space from the adapting light's white to the render's (equal linear sRGB, D65), to the degree
+# D = F (1 - e^((-L_A - 42) / 92) / 3.6); F 1.0, the average surround of an eye inside the lit place; L_A, the
+# adapting luminance, a fifth of a white surface's under the light the eye stands in (E / pi / 5, CIE 159's
+# 20% grey world).
+CAT02 = np.array([[0.7328, 0.4296, -0.1624], [-0.7036, 1.6975, 0.0061], [0.0030, 0.0136, 0.9834]])
+SURROUND = 1.0
+ADAPTING_SHARE = 0.2
+
+
+def adaptation_degree(lux):
+    """CIECAM02's degree of adaptation D for an eye standing in `lux` (an average surround)."""
+    adapting = float(lux) / np.pi * ADAPTING_SHARE
+    return SURROUND * (1.0 - np.exp((-adapting - 42.0) / 92.0) / 3.6)
+
+
+def adaptation(white, degree):
+    """The 3 x 3 linear sRGB matrix that takes colours seen under the adapting light `white` (linear sRGB) as the eye
+    adapted to it to `degree` takes them, onto the render's white (CAT02 von Kries)."""
+    cones = CAT02 @ SRGB_XYZ
+    gains = degree * (cones @ np.ones(3)) / (cones @ unit_light(white)) + 1.0 - degree
+    return np.linalg.inv(cones) @ np.diag(gains) @ cones
+
+
+def adapting_white(views, scales, colours):
+    """The colour (linear sRGB, luminance 1) of the light the views take from the groups at the scales: each group's
+    whole-view sum in its shipped colour (`colours` {group: (rendered, shipped)}). The light no group holds is taken
+    in the same colour (light.night_adapted): at a night place it is its shown places' lamps (2026-11-10: the
+    stairwell's warm lamps through flat's door, 30 to 46% of its views' light, its night air's glow under 2%)."""
+    total = np.zeros(3)
+    for held, _ in views.values():
+        for group, (_, sent) in colours.items():
+            if group in held:
+                total += scales.get(group, 1.0) * float(held[group].astype(np.float64).sum()) * \
+                    np.asarray(sent, dtype=np.float64)
+    return unit_light(total)
+
+
+# `colours`' entry for the light no group holds: (as rendered, as shipped), its shipped colour the change of each
+# channel the eye's adaptation makes to it (light.night_adapted); with none it stays as rendered.
+REST = "rest"
+
+
+def rest_colour(colours):
+    """The colour the light no group holds is shipped in (colours' REST entry), neutral where it has none."""
+    return np.asarray((colours or {}).get(REST, (None, np.ones(3)))[1], dtype=np.float64)
+
+
 def tint(passes, scales, colours, guide):
     """Each pixel's change of colour (h x w x 3, at the passes' size, its luminance's change taken out) when the
     groups take the scales and their shipped colours (`colours` {group: (rendered, shipped)}, each at luminance 1):
     every group's light carries its colour over the surfaces it lights, the light no group holds (the sky's dome, a
-    shown place's lamps, glow) stays as rendered and neutral; each channel smoothed on the guide as gain is. All 1 at
+    shown place's lamps, glow) stays as rendered, taken as neutral (its REST entry's change, where given); each channel smoothed on the guide as gain is. All 1 at
     scale 1 in the colours rendered. The look kept the render's colour under any scales until 2026-11-10: greenhouse's
     lamps swept 25 times up, its sun 32 times down, read its sunlit render's colour."""
     def mean(field):
@@ -238,7 +290,7 @@ def tint(passes, scales, colours, guide):
         rendered += lit[..., None] * np.asarray(made, dtype=np.float64)
         shipped += (scales.get(group, 1.0) * lit)[..., None] * np.asarray(sent, dtype=np.float64)
     rest = np.maximum(rest, 0.0)[..., None]
-    rendered, shipped = rendered + rest, shipped + rest
+    rendered, shipped = rendered + rest, shipped + rest * rest_colour(colours)
     before = np.stack([smoothed(rendered[..., channel], guide) for channel in range(3)], axis=-1)
     after = np.stack([smoothed(shipped[..., channel], guide) for channel in range(3)], axis=-1)
     plain = np.stack([mean(shipped[..., channel]) / np.maximum(mean(rendered[..., channel]), FLOOR)
