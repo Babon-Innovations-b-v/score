@@ -14,7 +14,8 @@ own tone curve, fitted on the render's look against its light.
                                            (white_fit, black_body), a coloured part's its own hue; luminance 1
     tint(passes, scales, colours, guide)   each pixel's change of colour when the groups take the scales and their
                                            shipped colours, its luminance's change taken out
-    adaptation_degree(lux) -> D            CIECAM02's degree of adaptation of an eye standing in `lux`
+    adaptation_degree(lux, surround) -> D  CIECAM02's degree of adaptation of an eye standing in `lux`
+    surround_factor(ratio) -> F            CIECAM02's surround factor at a surround ratio
     adaptation(white, degree) -> matrix    the eye's adaptation (CAT02 von Kries) from `white` to the render's white
     adapting_white(views, scales,          the colour of the light the views take from the groups at the scales
                    colours) -> rgb
@@ -230,12 +231,26 @@ def lamp_light(rgb):
 CAT02 = np.array([[0.7328, 0.4296, -0.1624], [-0.7036, 1.6975, 0.0061], [0.0030, 0.0136, 0.9834]])
 SURROUND = 1.0
 ADAPTING_SHARE = 0.2
+# CIE 159:2004's surrounds by their ratio SR, the surround's luminance over the adapting white's: dark (SR 0) F 0.8, dim
+# (0 to 0.2) 0.9, average (0.2 and over) 1.0; between, F linear in SR through all three (0.8 + SR: dim's 0.9 at the
+# middle of its range), as CIECAM02 lets its surround factors be interpolated (Moroney et al. 2002). An eye standing
+# outside by night has the night sky round its lit place (night.py's zenith luminance; 2026-11-10: the square at 10
+# lux, its sky 0.11 cd/m^2, SR 0.035, F 0.835, its sky read 2.4 blue to red against its concept's 2.06 with the
+# average surround's adaptation); one inside has its room round it (average).
+SURROUND_DARK, SURROUND_AVERAGE_RATIO = 0.8, 0.2
 
 
-def adaptation_degree(lux):
-    """CIECAM02's degree of adaptation D for an eye standing in `lux` (an average surround)."""
+def surround_factor(ratio):
+    """CIECAM02's F for a surround ratio SR (SURROUND_DARK to SURROUND, linear in SR up to SURROUND_AVERAGE_RATIO)."""
+    across = min(max(float(ratio), 0.0), SURROUND_AVERAGE_RATIO) / SURROUND_AVERAGE_RATIO
+    return SURROUND_DARK + (SURROUND - SURROUND_DARK) * across
+
+
+def adaptation_degree(lux, surround=SURROUND):
+    """CIECAM02's degree of adaptation D for an eye standing in `lux` with a surround factor F (`surround`, average
+    by default)."""
     adapting = float(lux) / np.pi * ADAPTING_SHARE
-    return SURROUND * (1.0 - np.exp((-adapting - 42.0) / 92.0) / 3.6)
+    return surround * (1.0 - np.exp((-adapting - 42.0) / 92.0) / 3.6)
 
 
 def adaptation(white, degree):

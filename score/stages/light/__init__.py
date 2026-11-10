@@ -127,6 +127,11 @@ BLACK = 4.0 / 255.0
 BLOWN = 251.0 / 255.0
 BLACK_OVER = 0.05
 BLOWN_OVER = 0.02
+# A finish darker than the photographer's 18% grey card (Kodak's R-27 card, the mid-grey a light meter reads to) is
+# judged black on the light it stands in, read on that card, never on its own darkness (2026-11-10: the street's
+# police car's black paint filled 5.8 to 10.9% of its close views under 4 levels, its concept's 0.5%, under lamps that
+# light the street to its concept's brightness).
+CARD = 0.18
 # A lit place's colour (2026-11-04, the light audit, set before any look it judges was made): the median over its views
 # of its surfaces' cast (measure.surface_cast: the mid-tones' balance of red, green and blue, brightness taken out)
 # within CAST_MOST levels, in its furthest channel, of its concept pictures' (their sky left out where the place is
@@ -733,7 +738,10 @@ def look_at(held, look, scales, colours=None):
     times its gain (mix.gain, smoothed on the rendered look) and, given the groups' `colours` ({group: (rendered,
     shipped)}, group_colours), its change of colour (mix.tint), then Blender's view transform (its
     view-transform.npz beside the look) and 8 bits once, at the end (2026-10-30: the 8-bit look scaled 32 times made
-    every level step a speck)."""
+    every level step a speck). The sky, where the render met no surface (`sky`), is light no group holds: it keeps its
+    rendered light, in the colour the light no group is shipped in (mix.rest_colour at luminance 1), never its
+    neighbours' gain the smoothing reaches it with (2026-11-10: campgrounds' sky read x0.52 to x0.97 by its ground's
+    sun turned down, the square's x1.24 to x1.58 by its lamps turned up)."""
     light = held["combined"]
     guide = luminance_of(look)[:light.shape[0], :light.shape[1]]
     gain = mix.gain(held, scales, guide)
@@ -741,6 +749,10 @@ def look_at(held, look, scales, colours=None):
     factor = full_size(gain, colour.shape)[..., None]
     if colours:
         factor = factor * full_size(mix.tint(held, scales, colours, guide), colour.shape)
+    sky = held.get("sky")
+    if sky is not None and sky.shape == colour.shape[:2]:
+        rest = mix.rest_colour(colours)
+        factor = np.where(sky[..., None], rest / max(float(mix.LUMA @ rest), mix.FLOOR), factor)
     shown = mix.displayed(np.load(look.with_name(passes.VIEW_TRANSFORM)), colour * factor)
     return Image.fromarray(np.round(np.clip(shown, 0.0, 1.0) * 255.0).astype(np.uint8))
 
@@ -833,20 +845,25 @@ def night_adapted(passes_folder, place, scales, colours, dark):
     """(colours, matrix, what was found): the groups' shipped `colours` as the eye at the lit place by night takes
     them, adapted (mix.adaptation, CIECAM02) to the light the views take at the scales (mix.adapting_white) to the
     degree its adapting light gives (`dark`, the layer's night: its scale is VIEW_LUX over the lux the eye stands in),
-    each kept at luminance 1, and the change the same eye makes to the light no group holds (mix.REST). 2026-11-10: square, street, stairwell and flat, their concepts' surfaces about neutral
+    each kept at luminance 1, and the change the same eye makes to the light no group holds (mix.REST); an eye
+    outside has the night sky round it (mix.surround_factor on the air's zenith luminance over the white's), one
+    inside its room (average). 2026-11-10: square, street, stairwell and flat, their concepts' surfaces about neutral
     under warm lamps (cast 128-136 levels in every channel), rendered as a camera set to daylight sees a tungsten room
     (flat [162, 128, 93]); an eye in the room takes its lamps' light nearly as white."""
     views = {view: (held, curve) for view, (held, curve, _) in view_passes(passes_folder, place).items()}
     white = mix.adapting_white(views, scales, colours)
     lux = night.VIEW_LUX / float(dark["scale"])
-    degree = mix.adaptation_degree(lux)
+    outside = bool(dark.get("outside_scale")) and float(dark["scale"]) == float(dark["outside_scale"])
+    ratio = float((dark.get("zenith_cd") or {}).get("all", 0.0)) / (lux / np.pi) if outside else None
+    degree = mix.adaptation_degree(lux, mix.SURROUND if ratio is None else mix.surround_factor(ratio))
     matrix = mix.adaptation(white, degree)
     adapted = {group: (made, mix.unit_light(np.maximum(matrix @ np.asarray(sent, dtype=np.float64), 0.0)))
                for group, (made, sent) in colours.items()}
     # the light no group holds (a shown place's lamps, the air's glow), taken in the white's colour, by the same eye
     adapted[mix.REST] = (np.ones(3), np.maximum(matrix @ white, 0.0) / np.maximum(white, mix.FLOOR))
     return adapted, matrix, {"white": [round(float(value), 4) for value in white], "lux": round(lux, 2),
-                             "degree": round(float(degree), 4)}
+                             "degree": round(float(degree), 4),
+                             "surround": "average (inside)" if ratio is None else round(ratio, 4)}
 
 
 def environment_adapted(layer_path, place, matrix):
@@ -1145,6 +1162,30 @@ def row_skies(place, inventory):
     return None if sky is None else {**sky, "pictures": 1, "from": "its sky rows' boxes"}
 
 
+def encoded(value):
+    """Linear light (0 to 1) as an sRGB channel (sky.linear's inverse)."""
+    return value * 12.92 if value <= 0.0031308 else 1.055 * value ** (1.0 / 2.4) - 0.055
+
+
+def seen_inside(concept, dark):
+    """An inside place's concept sky (row_skies) as the eye in the place sees it by night: the concept, a cutaway, is
+    seen from outside the place (its sky rows are the sky over it), by the eye night.py adapts to a lit street or square,
+    the views by the eye adapted to the room's light; the sky's light on the views' scale is the room's eye's over the
+    outside eye's (the layer's night `scale` over its `outside_scale`: 10 over 100 lux, EN 13201-2 over EN 12464-1).
+    2026-11-10: the stairwell's sky through its windows read [3.5, 7.3, 15.1] against its cutaway concept's navy
+    [29.8, 33.3, 54.7], the eye in its 100 lux stair taken for the one over the square. Unchanged by day, outdoors or
+    from a layer with no outside scale."""
+    if concept is None or not dark or not dark.get("outside_scale"):
+        return concept
+    share = float(dark["scale"]) / float(dark["outside_scale"])
+    if share == 1.0:
+        return concept
+    mean = [round(255.0 * encoded(sky.linear(value / 255.0) * share), 1) for value in concept["mean_rgb"]]
+    return {**concept, "mean_rgb": mean,
+            "blue_to_red": round(max(mean[2], measure.HUE_FLOOR) / max(mean[0], measure.HUE_FLOOR), 4),
+            "seen": f"by the eye inside, {share:.4g} of the outside eye's light", "painted": concept["mean_rgb"]}
+
+
 def through_doorways(view, shape, doorways):
     """The pixels of a view's picture (`shape`, rows by columns) whose rays pass through one of the place's doorways
     (its scene record's `doorways`: middle on the floor, inward, wide, sill and head over the floor), in front of the
@@ -1224,7 +1265,8 @@ def fault_measures(place, out, passes_folder, inputs):
     if needs.outdoor(record, None):
         found["sky"] = sky_measures(place, out, passes_folder, doorways=doorways)
     elif sees_sky(place, out, passes_folder, doorways):  # an inside place's sky through its glass (2026-11-04: camp)
-        concept = row_skies(place, inputs.get("inventory"))
+        dark = (json.loads((out / "lamps.json").read_text()).get("sky") or {}).get("night")
+        concept = seen_inside(row_skies(place, inputs.get("inventory")), dark)
         found["sky"] = sky_measures(place, out, passes_folder, concept, doorways) if concept else \
             {"concept": None, "views": [], "inside": "its concept shows no sky (no sky row with a box)"}
     found["exposure"] = exposure_measures(place, out, passes_folder)
@@ -1283,10 +1325,38 @@ def exposed_within(looks, concept, scales, kinds=("black", "blown")):
         return True
     for held, look in looks.values():
         shown = np.asarray(look_at(held, look, scales), dtype=np.float64) / 255.0
-        found = extremes(shown @ np.array([0.2126, 0.7152, 0.0722]), held.get("sky"))
+        transform = np.load(look.with_name(passes.VIEW_TRANSFORM)) if "surface" in held else None
+        found = extremes(on_card(shown @ np.array([0.2126, 0.7152, 0.0722]), held.get("surface"), transform),
+                         held.get("sky"))
         if any(found[kind] > concept[kind] + {"black": BLACK_OVER, "blown": BLOWN_OVER}[kind] for kind in kinds):
             return False
     return True
+
+
+def on_card(luminance, surface, transform):
+    """A look's luminance (0 to 1) where its surface (the passes' `surface`, its reflectance) is darker than CARD, as
+    the grey card would read under the same light: through the neutral axis of the view transform's table (`transform`,
+    view-transform.npz) back to linear light, times CARD over the surface, and forward again; the look as it is
+    elsewhere, and everywhere without a surface (passes rendered before 2026-11-10)."""
+    if surface is None or transform is None or np.shape(surface) != np.shape(luminance):
+        return luminance
+    table = np.asarray(transform["table"], dtype=np.float64)
+    knots = 2.0 ** np.linspace(float(transform["low"]), float(transform["high"]), table.shape[0])
+    shown = np.maximum.accumulate(np.array([table[at, at, at] for at in range(table.shape[0])]) @ mix.LUMA)
+    surface = np.asarray(surface, dtype=np.float64)
+    light = np.interp(luminance, shown, knots)
+    carded = np.interp(light * CARD / np.maximum(surface, mix.FLOOR), knots, shown)
+    return np.where(surface < CARD, np.maximum(luminance, carded), luminance)
+
+
+def surface_of(passes_folder, place, view):
+    """A view's surface reflectance as its passes hold it (inside/light_passes.py `surface`) and its view transform,
+    (None, None) from passes rendered before it."""
+    found = sorted(passes_folder.glob(f"passes/{place}-*/{view}-passes.npz"))
+    held = np.load(found[0]) if found else {}
+    if "surface" not in held:
+        return None, None
+    return held["surface"], np.load(found[0].with_name(passes.VIEW_TRANSFORM))
 
 
 def sky_of(passes_folder, place, view):
@@ -1302,9 +1372,11 @@ def picture_luminance(path):
 
 def exposure_measures(place, out, passes_folder):
     """Each view's black and blown shares of its surfaces at the measured strengths (its sky is the sky check's: the
-    Moon's black sky through garage's doors read 9.4% black, 2026-10-30), and its concept pictures' mean."""
+    Moon's black sky through garage's doors read 9.4% black, 2026-10-30; a finish darker than CARD read on the card,
+    on_card), and its concept pictures' mean."""
     return {"concept": concept_extremes(place),
-            "views": {view: extremes(picture_luminance(path), sky_of(passes_folder, place, view))
+            "views": {view: extremes(on_card(picture_luminance(path), *surface_of(passes_folder, place, view)),
+                                     sky_of(passes_folder, place, view))
                       for view, path in sorted(rendered(out, place).items())}}
 
 

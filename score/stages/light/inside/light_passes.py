@@ -19,7 +19,8 @@ other render. The npz also holds `missing`: the share of
 the view's pixels whose surface colour (Cycles' diffuse or glossy colour pass) is Blender's missing-picture magenta
 (1, 0, 1), which passes.judge_magenta reads; and `sky`: at full size, where the eye's ray met no surface but the sky's
 own (the world's background or the day dome, Cycles' object index pass), which light's exposure leaves to the sky
-check.
+check; and `surface`: each pixel's surface reflectance at full size (the diffuse and glossy colour passes' luminance),
+so the exposure judges a dark finish on its light.
 """
 import json
 import pathlib
@@ -113,7 +114,21 @@ def passes_of(exr):
             weight = LUMINANCE["RGB".index(match.group(2))]
             found[match.group(1)] = found.get(match.group(1), 0.0) + weight * values
     held = {name: numpy.minimum(halved(values), FLOAT16_MOST).astype(numpy.float16) for name, values in found.items()}
-    return dict(held, colour=colour_of(channels), missing=missing_share(channels), sky=sky_mask(channels))
+    return dict(held, colour=colour_of(channels), surface=surface_of(channels), missing=missing_share(channels),
+                sky=sky_mask(channels))
+
+
+def surface_of(channels):
+    """Each pixel's surface reflectance, full size, as float16: the Rec. 709 luminance of Cycles' diffuse and glossy
+    colour passes together (what its finish gives back of the light it stands in), so the light stage tells a dark
+    finish from a dark light (light.on_card)."""
+    import numpy
+    total = 0.0
+    for colour_pass in ("Diffuse Color", "Glossy Color"):
+        for weight, axis in zip(LUMINANCE, "RGB"):
+            total = total + weight * next(values for name, values in channels.items()
+                                          if name.endswith(f"{colour_pass}.{axis}"))
+    return numpy.minimum(numpy.maximum(total, 0.0), FLOAT16_MOST).astype(numpy.float16)
 
 
 def colour_of(channels):

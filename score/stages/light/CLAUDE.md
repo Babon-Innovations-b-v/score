@@ -164,13 +164,18 @@ gates.
   `night_<body>`, held at x1 by the sweep as the glow beside it is, never floored as a sun: `strengths`'
   `night_lights`) and the air's glow as the scene's environment (the moonlit air, Krisciunas and
   Schaefer 1991; a measured city skyglow where the site stands in one; the setting's backdrops), colours from spectra
-  through the CIE observer, as the dark-adapted eye takes them (Jensen et al. 2001's rod blue shift by the sky's own
-  luminance), on the views' scale by the light an eye at the lit place stands in (EN 13201 / EN 12464). Every number
+  through the CIE observer, as the eye adapted to the lit place takes them (Jensen et al. 2001's rod blue shift
+  by its adapting luminance, CIE 191:2010, never the sky's own: 2026-11-10, the square's sky read too blue), on the views' scale by the light an eye at the lit place stands in (EN 13201 / EN 12464). Every number
   is a cited measurement or standard: never fit one on a concept. `make_layer` writes it (night.write_layer). The
   light row sees a night place with that eye's colour too (`night_adapted`, 2026-11-10: flat rendered [162, 128, 93]
   as a daylight camera sees a tungsten room, its concept about neutral): CIECAM02's adaptation (CAT02 von Kries, its
   degree D from the lux the eye stands in) to the light its views take from its groups as swept, before any balance,
   applied to every group's shipped colour, to the light no group holds (`mix.REST`) and to the night air's dome and
-  background in the layer (`environment_adapted`).
+  background in the layer (`environment_adapted`); an eye outside with the night sky as its surround (CIE 159's F by the
+  surround ratio, `mix.surround_factor`), one inside with its room's. The sky keeps its rendered light in the mixed look
+  (`look_at`), never its neighbours' gain. An inside place's cutaway concept sky is judged as its room's eye sees it
+  (`seen_inside`, the layer's night `scale` over `outside_scale`: the stairwell's windows, 2026-11-10). A finish darker
+  than the 18% grey card is judged black on its light read on the card (`on_card`, the passes' `surface`: the
+  street's black police car, 2026-11-10).
 - `test_light_measured_against_design.py` checks the sky against skies worked out by hand, and the measures, the
   sweep and the layer on pictures, passes and a stage made in the test.
