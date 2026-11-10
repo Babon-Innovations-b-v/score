@@ -36,8 +36,8 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   ground; a plan spot looking at no plan item (the camp's, at its kit's objects) is refused by name.
 - **A person its design stands on stairs walks its flight** (`stairs_of`, `on_stairs`, 2026-11-04): put
   on the plan's flight nearest its spot over its height whose every tread a body walks clear of the laid solids
-  (`clear_walk`; none clear: the nearest, for `clear` to name) (writer.stair's, as the scene record lays it), on its first
-  tread the way it walks, facing its last, with `stairs` (its way, flight, last tread, rise and run) for the
+  (`clear_run`; none clear: the nearest, on its longest run of clear treads, else whole for `clear` to name)
+  (writer.stair's, as the scene record lays it), on its first (clear) tread the way it walks, facing its last (clear) one, with `stairs` (its way, flight, last tread, rise and run) for the
   scene-made clip; never nudged onto level ground (`climbers_of`), judged where it stands.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
   the seed's base layer (FCL); a point instancer's prototypes are left out (they stand only where it copies them).

@@ -160,32 +160,46 @@ def off_flight(at, flight):
     return float(np.linalg.norm(at - (foot + (top - foot) * share)))
 
 
-def clear_walk(flight, found):
-    """Whether a body on every tread of a flight runs into none of the place's solids (`found`, measure.solids; none
-    given: nothing to run into): a deck or another flight over it within a head's height is no walk."""
+def clear_run(flight, found):
+    """The first and last tread of a flight's longest run of at least two treads a body walks clear of the place's
+    solids (`found`, measure.solids; none given: nothing to run into, the whole flight): a deck or another flight over
+    a tread within a head's height is no walk. None when no such run (the stairwell's stacked flights, 1.5 m apart at
+    their ends, clear in their middles only, 2026-11-10)."""
     if not found:
-        return True
-    return not any(measure.run_into([tread(flight, step) for step in range(flight["steps"])], found))
+        return 0, flight["steps"] - 1
+    hit = measure.run_into([tread(flight, step) for step in range(flight["steps"])], found)
+    runs, start = [], None
+    for step, into in enumerate([*hit, ["the flight's end"]]):
+        if not into and start is None:
+            start = step
+        elif into and start is not None:
+            runs.append((start, step - 1))
+            start = None
+    longest = max(runs, key=lambda run: run[1] - run[0], default=None)
+    return longest if longest and longest[1] > longest[0] else None
 
 
 def on_stairs(record, plan, found=None):
     """The record with each person its design stands on stairs (stairs_of: `stairs`, the way it walks them) on the plan's
-    flight nearest its spot whose every tread a body walks clear of the place's solids (clear_walk; none clear: the
-    nearest, for the clear gate to name; the stairwell's man under its 3 m deck on the flight up from the 1.5 m landing,
-    2026-11-10) (its line, foot to top, in the place's frame and over its height, the
+    flight nearest its spot whose every tread a body walks clear of the place's solids (clear_run; none clear: the
+    nearest, on its longest clear run of treads, else its whole flight for the clear gate to name; the stairwell's man
+    under its 3 m deck on the flight up from the 1.5 m landing, 2026-11-10) (its line, foot to top, in the place's
+    frame and over its height, the
     spot raised to its level first: on_levels; the stairwell's man up its middle flight off the 3 m landing beside it,
     the woman down its bottom one, 2026-11-04): at the middle of its first tread the way it walks (the lowest walking
     up, the highest walking down), facing its last, and `stairs` its walk: the way, the flight, the last tread's middle
     (`to`) and each step's rise and run (metres), which the scene-made clip walks (score/stages/scene_clips). A plan
     with no flight leaves it where it stands."""
     flights = flights_of(plan)
-    clear = {flight["name"]: clear_walk(flight, found) for flight in flights} if record.get("people") else {}
+    runs = {flight["name"]: clear_run(flight, found) for flight in flights} if record.get("people") else {}
 
     def stood(person):
         if not person.get("stairs") or not flights:
             return person
-        flight = min(flights, key=lambda flight: (not clear[flight["name"]], off_flight(person["at"], flight)))
-        lowest, highest = tread(flight, 0), tread(flight, flight["steps"] - 1)
+        flight = min(flights, key=lambda flight: (runs[flight["name"]] != (0, flight["steps"] - 1),
+                                                  off_flight(person["at"], flight)))
+        first, last = runs[flight["name"]] or (0, flight["steps"] - 1)
+        lowest, highest = tread(flight, first), tread(flight, last)
         start, end = (lowest, highest) if person["stairs"] == "up" else (highest, lowest)
         foot, top = np.asarray(flight["foot"], dtype=float), np.asarray(flight["top"], dtype=float)
         walk = {"way": person["stairs"], "flight": flight["name"], "to": end,

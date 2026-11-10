@@ -50,8 +50,10 @@ Breaks that turn it red (each applied once and seen red, then reverted):
   the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the toy place test (nobody supported).
 - `cast.unseated`: `doing="standing"` dropped  -> the toy place test (one with no seat stays seated, off members).
 - `cast.judge_standing`: the unseated findings dropped  -> the toy place test (stood for want of a seat unnamed).
-- `cast.on_stairs`: `not clear[flight["name"]]` dropped from the flight's order  -> the levels test (the man under
-  the deck).
+- `cast.on_stairs`: `runs[flight["name"]] != (0, ...)` dropped from the flight's order  -> the levels test (the man
+  under the deck).
+- `cast.on_stairs`: `runs[flight["name"]] or` dropped (the whole flight walked, its clear run unread)  -> the levels
+  test (the woman on the tread under the slab).
 - `stages.GAP_GATES`: `"characters-layer": ("bodies",)` dropped, or `driven.judge_bodies`'s finding not starting
   "<name>: "  -> the no-dressed-body test (a gap naming both people no longer moves the fail).
 - `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the toy place test
@@ -381,6 +383,14 @@ def test_a_spot_on_a_raised_level_stands_at_its_height():
     man, woman, _ = cast.on_stairs(cast.on_levels(record, stairs), stairs, deck)["people"]
     assert (man["stairs"]["flight"], man["at"], woman["stairs"]["flight"]) == ("stair_2", [12.1, 0.5, -1.3333],
                                                                                "stair_2"), man
+    # a slab over the low flight's top tread too (the stairwell's stacked flights, no flight clear end to end,
+    # 2026-11-10): the woman walks its clear treads, the man the nearest flight whole, for the clear gate to name
+    slab = trimesh.creation.box(extents=[1.2, 0.2, 0.5], transform=trimesh.transformations
+                                .translation_matrix([12.1, 3.1, -2.67])).triangles
+    man, woman, _ = cast.on_stairs(cast.on_levels(record, stairs), stairs, {**deck, "Shell/deck_4": slab})["people"]
+    assert (man["stairs"]["flight"], man["at"]) == ("stair_1", [12.5, 3.5, -3.3333]), man
+    assert (woman["stairs"]["flight"], woman["at"], woman["stairs"]["to"]) == ("stair_2", [12.1, 1.0, -2.0],
+                                                                               [12.1, 0.5, -1.3333]), woman
     # a spot off the 4 m plan and off its level is refused by name (the hangar's workers on Outside/near, 2026-11-04)
     record["people"].append({"name": "off", "at": [15.0, 0.0, -4.0]})
     refused = cast.off_the_plan(record, plan)
