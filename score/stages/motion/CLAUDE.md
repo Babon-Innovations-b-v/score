@@ -48,7 +48,9 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   2026-10-28: the lift's bake job failed in the batch). The accepted plan's `placed` gap on a row counts as such a
   gap (`from_design.plan_gaps`: hangar's floor hatch, placed none of, 2026-10-29), its name pointing at where the
   source fix waits; a take the surface line left out is named by the table's `leaving_out` from the hand-in
-  (hangar's overhead crane). A row with no object and no gap still stops the line. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
+  (hangar's overhead crane). A row with no object and no gap still stops the line. A moving row no maker builds yet (#88: a flag's cloth, a rocket, a body of water) ships as an accepted gap in
+  `data/checks/gaps/<place>.json` (`stages.GAP_GATES["motion"]`: `designed` for a row with no object, `covered` for
+  its objects' unmade move), failed by name at complete. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
   typed by hand.
 - **The old records are retired** (`data/motion/<place>.json`, the game's timed motions, `data/motion/rigid/` and
   `data/motion/models/`, written for the old concepts; owner, 2026-10-21: all old stuff is retired). The sound row

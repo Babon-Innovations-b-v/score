@@ -926,6 +926,10 @@ MOTION_LAYER = {"rigid": ("motion",),  # joints and paths: hinge, rail, lane, sp
 # and the completion gate that fails it by name. Only these: any other gate's fault still stops its line.
 GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands level", "baked matches its surfaces"),
              "surfaces-paint": ("colour against the close-up",),
+             # a moving row no maker builds yet (#88: a flag's cloth, a rocket's launch, a body of water's ripple),
+             # shipped as a gap by the env1 EUR 300 plan (C6, 2026-11-09): its row with no object (`designed`) and
+             # its objects' move no writer makes (`covered`)
+             "motion": ("designed", "covered"),
              # complete's own: the people the cast names and no accepted body of its look lays (the owner's rule: they
              # ship as named fails until the people work lands), a likeness no props file answers, a motion not built,
              # a row no stage makes yet (the launch's two far towers), a layout still taken from the source game (the

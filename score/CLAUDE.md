@@ -405,7 +405,8 @@ Rules:
   written for of each stage it reads. A schema change is a new version, never an edit of the old one.
 - **An accepted gap moves a fault, never loosens a gate** (`stages/gaps.py`): an owner's dated decision in
   `data/checks/gaps/<place>.json` names the objects whose faults in one gate (`stages.GAP_GATES`: assembly's
-  placeholders and resting, surfaces-check's stands level, the paint's colour against the close-up) go down the
+  placeholders and resting, surfaces-check's stands level, the paint's colour against the close-up, motion's
+  designed and covered: a #88 maker not built) go down the
   line, and complete's `accepted gaps` fails each
   by name with its measured faults; any other fault still stops the line. The wrappers live in the table and unwrap
   to each gate's own judge, so moving a verdict re-keys no paid row. Write one only on the owner's decision.
