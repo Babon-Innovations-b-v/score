@@ -213,7 +213,7 @@ def shown_rows(place):
 
 def rows_check(place, stage):
     """Every inventory row made or dropped with a reason."""
-    faults = rows_faults(stage, json.loads(recorded_inventory(place, stage).read_text()), place, shown_rows(place))
+    faults = rows_faults(stage, json.loads(laid_inventory(place, stage).read_text()), place, shown_rows(place))
     return result("rows", FAIL if faults else PASS, stage, faults)
 
 
@@ -253,7 +253,7 @@ def loose_count(place, stage):
     """How many of the stage's objects lie loose on the ground, as the settle drops them (settle.loose_objects)."""
     import settle
     from pxr import Usd
-    inventory = json.loads(recorded_inventory(place, stage).read_text())
+    inventory = json.loads(laid_inventory(place, stage).read_text())
     return len(settle.loose_objects(Usd.Stage.Open(str(stage)), place, inventory))
 
 
@@ -278,7 +278,7 @@ def assembly_resting(place, stage):
 def picks_check(place, stage):
     """The pick lock (picks.py): every object of a picked row still the model the owner picked."""
     import picks
-    faults, locked = picks.check(stage, json.loads(recorded_inventory(place, stage).read_text()))
+    faults, locked = picks.check(stage, json.loads(laid_inventory(place, stage).read_text()))
     return result("picks", FAIL if faults else PASS, stage, faults, f"{locked} rows locked to an owner's pick")
 
 
@@ -291,7 +291,7 @@ def boxes_check(place, stage):
     sys.path.insert(0, str(REPO / "tools/props/scene"))
     import box_check
     handin = handin_path(place)
-    found = json.loads((handin if handin.is_file() else recorded_inventory(place, stage)).read_text())
+    found = json.loads((handin if handin.is_file() else laid_inventory(place, stage)).read_text())
     verdict = box_check.gate(found["scene"], found, box_check.UNBOXED)
     faults = [{"row": row, "result": entry["result"], "why": entry["why"]}
               for row, entry in verdict["rows"].items() if entry["result"] != box_check.PASS]
@@ -304,6 +304,15 @@ def boxes_check(place, stage):
                   "plan or terrain)")
 
 
+def laid_inventory(place, stage):
+    """The inventory the stage was laid from (stage_inputs.recorded_inventory); the place's own under this home when
+    that record names a file that is not here: a stage made on another machine or in a run's frozen home records the
+    inventory by that machine's full path (walkway's assembly of 2026-11-10 named /home/score/..., and every check
+    reading it was unknown)."""
+    recorded = recorded_inventory(place, stage)
+    return recorded if recorded.exists() else inventory_path(place)
+
+
 def handin_path(place):
     """A designed place's hand-in (score/stages/complete/prepare/handin.py)."""
     return HOME / HANDIN.format(place=place)
@@ -313,7 +322,7 @@ def reach_check(place, stage):
     """The reach check (reach.py) on the inventory the stage was laid from: every row a walker on the floor cannot
     reach is a fault; a row with no object is unknown."""
     import reach
-    overall, rows, note = reach.check(stage, place, json.loads(recorded_inventory(place, stage).read_text()))
+    overall, rows, note = reach.check(stage, place, json.loads(laid_inventory(place, stage).read_text()))
     return result("reach", overall, stage, [row for row in rows if row["result"] != PASS], note)
 
 
@@ -341,7 +350,7 @@ def contents_check(check, place, stage, outputs=None):
     """A contents check (contents.py) on the stage, reading the given stage outputs or else the store's accepted."""
     from pxr import Usd
     opened = Usd.Stage.Open(str(stage))
-    inventory = json.loads(recorded_inventory(place, stage).read_text())
+    inventory = json.loads(laid_inventory(place, stage).read_text())
     verdict, faults, note = contents.JUDGES[check](opened, place, inventory,
                                                    stored_outputs(place) if outputs is None else outputs)
     return result(check, verdict, stage, faults, note)
