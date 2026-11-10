@@ -299,11 +299,15 @@ def fault_size(finding):
 
 
 def accepted_card(store, node, output):
-    """The accepted output's scorecard; {} when nothing is accepted or `output` is the accepted one."""
+    """The accepted output's scorecard; {} when nothing is accepted, `output` is the accepted one, or this home holds
+    no record of the accepted one (an accept pulled before its record): no known measure to be worse than."""
     accepted = store.accepted(node)
     if accepted is None or accepted == output:
         return {}
-    accepted_judgement = newest_judgement(store, record_of(store, node, accepted))
+    accepted_record = record_of(store, node, accepted)
+    if accepted_record is None:
+        return {}
+    accepted_judgement = newest_judgement(store, accepted_record)
     return accepted_judgement["verdicts"] if accepted_judgement else {}
 
 
