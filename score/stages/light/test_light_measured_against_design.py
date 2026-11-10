@@ -91,6 +91,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
   out, light.environment_adapted: the background left as it was (the layer test, 2026-11-10).
 - light.strengths: the fill not swept again after a blown lamp is turned down (the shadow view test, 2026-11-10).
+- light.room_eye: None always, or for a room its concept shows in daylight an eye too (the layer test, 2026-11-10).
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
   the emitter words (the float look test, 2026-11-10).
 - night.air_glow: the rods' share read on the sky's own luminance (`seen_dark(at_zenith)`), not the adapted eye's
@@ -1238,6 +1239,19 @@ def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_streng
     held = Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Environment")
     assert np.allclose(np.array(held.attributes["inputs:color"].default), whole @ np.full(3, 0.2), atol=1e-6)
     assert np.allclose(np.array(held.attributes["score:background"].default), whole @ np.full(3, 0.1), atol=1e-6)
+    # the eye adapts to the light it stands in whatever the hour outside (2026-11-10: greenhouse, a dome lit by its
+    # lamps under the Sun, read [175, 105, 101] against its concept's [146, 115, 123], its 2700 K panels seen as a
+    # daylight camera sees them): a lamp-lit room (inside, its concept showing no daylight) by day has the eye in its
+    # 100 lux (EN 12464-1), pi x 683 / 100 = 21.46 on the views' scale, its room round it; a room its concept shows
+    # in daylight, or an outdoor place, has none
+    table = tmp_path / "night.json"
+    table.write_text(json.dumps({"adapted_lux": {"outside": 10.0, "inside": 100.0}}))
+    unlit = {"scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
+    eye = light.room_eye({"night": str(table)}, unlit, {"inside": True})
+    assert eye == {"scale": pytest.approx(math.pi * 683.0 / 100.0, rel=1e-3)}, eye
+    assert light.room_eye({"night": str(table)}, {"scene": dict(unlit["scene"], daylight=True)}, {"inside": True}) \
+        is None
+    assert light.room_eye({"night": str(table)}, unlit, {"inside": False}) is None
 
 
 def box_mesh(stage, path, low, high):

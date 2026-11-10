@@ -168,7 +168,9 @@ gates.
   by its adapting luminance, CIE 191:2010, never the sky's own: 2026-11-10, the square's sky read too blue), on the views' scale by the light an eye at the lit place stands in (EN 13201 / EN 12464). Every number
   is a cited measurement or standard: never fit one on a concept. `make_layer` writes it (night.write_layer). The
   light row sees a night place with that eye's colour too (`night_adapted`, 2026-11-10: flat rendered [162, 128, 93]
-  as a daylight camera sees a tungsten room, its concept about neutral): CIECAM02's adaptation (CAT02 von Kries, its
+  as a daylight camera sees a tungsten room, its concept about neutral), and a lamp-lit place by day too, its eye in
+  night.json's 100 lux inside (`room_eye`, 2026-11-10: greenhouse, lamp-lit with its Sun up, read [175, 105,
+  101] against its concept's [146, 115, 123], 7.4 levels apart with the eye): CIECAM02's adaptation (CAT02 von Kries, its
   degree D from the lux the eye stands in) to the light its views take from its groups as swept, before any balance,
   applied to every group's shipped colour, to the light no group holds (`mix.REST`) and to the night air's dome and
   background in the layer (`environment_adapted`); an eye outside with the night sky as its surround (CIE 159's F by the
