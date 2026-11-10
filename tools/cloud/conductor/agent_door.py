@@ -143,7 +143,10 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 score_lib's file cache), leaving out every file whose path, size
                                                 and whole-second mtime the manifest on stdin already names
                                                 (`size<TAB>mtime<TAB>path` lines); never keys, ledgers, run records
-                                                or frozen copies (owner, 2026-10-27: the door route for this_pc.py)
+                                                or frozen copies (owner, 2026-10-27: the door route for this_pc.py).
+                                                Every list on stdin (this one, --missing's, --differs') may come
+                                                gzipped (`listed`; 2026-11-10: the PC's 98 MB manifest reset the
+                                                kubectl port-forward)
     carry --no-op <file>=<why> ... [--skip <node>] [--only <prefix>] [--since <commit>] [--write]
                                                 python -m score.stages.surfaces.carry on the conductor's store: the
                                                 accepted outputs whose key moved only by a file proved a no-op kept
@@ -175,6 +178,7 @@ as_owner_under), and `decide` likewise for the one decision his yes covers (as_o
 126. The env file (~/.config/score/dashboard.env) is read as data, NAME=value lines, never run.
 """
 import datetime
+import gzip
 import hashlib
 import json
 import os
@@ -189,6 +193,7 @@ import tarfile
 import time
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
+GZIP_MAGIC = b"\x1f\x8b"  # a gzipped list on stdin (`listed`): this_pc.py sends its manifests so
 sys.path.insert(0, str(REPO))
 
 from score.store import AGENT_MARKERS  # noqa: E402
@@ -962,6 +967,11 @@ def walked(home, folders):
                     yield path
 
 
+def listed(raw):
+    """A list's text from the bytes on stdin, gunzipped when they are gzip's (its magic bytes; no list starts so)."""
+    return (gzip.decompress(raw) if raw[:2] == GZIP_MAGIC else raw).decode()
+
+
 def held(text):
     """{path: (size, mtime)} of a manifest's lines."""
     found = {}
@@ -1177,13 +1187,13 @@ def landed(parts):
 def store_move(flag, home):
     """One of the store's copies (store-pull, store-push --missing, store-push) over stdin and stdout; its summary."""
     if flag == STORE_MISSING:
-        sys.stdout.write(store_missing(home, sys.stdin.read()))
+        sys.stdout.write(store_missing(home, listed(sys.stdin.buffer.read())))
         return "store-push --missing: listed"
     if flag == STORE_PULL:
-        sent, size, kept = store_pull(home, held(sys.stdin.read()), sys.stdout.buffer)
+        sent, size, kept = store_pull(home, held(listed(sys.stdin.buffer.read())), sys.stdout.buffer)
         return f"store-pull: sent {sent} files ({size / 1e9:.2f} GB), {kept} already on the PC"
     if flag == STORE_DIFFERS:
-        sys.stdout.write(store_differs(home, sys.stdin.read()))
+        sys.stdout.write(store_differs(home, listed(sys.stdin.buffer.read())))
         return "store-push --differs: listed"
     if flag == STORE_REPLACE:
         stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")

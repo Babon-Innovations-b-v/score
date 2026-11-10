@@ -7,6 +7,8 @@ Breaks (each applied once, seen red, reverted):
 - agent_door.py `PULLED`: add "cloud" -> the runner's ssh key comes down with the store.
 - agent_door.py `store_pull`: drop the `continue` after `kept += 1` -> a second pull sends every file again; or
   drop `name.startswith(STORE_OBJECTS)` -> a store object held here is sent again for its other mtime.
+- agent_door.py `listed`: drop the gunzip -> this PC's gzipped manifest is read as text and the pull fails (the
+  plain lines the --differs check sends still read: the ssh door's old callers).
 - agent_door.py `store_missing`: name every path, not only those missing -> the push carries files the conductor
   holds (its own add-only refusal is the door's test).
 - this_pc.py `ENVIRONMENT`: drop "SCORE_FREE_ONLY": "1" -> a run here may buy (its runs are not free only).
