@@ -818,7 +818,7 @@ or remove child scenes, move and resize things on a plan, or edit an inventory r
 his words quoted and the time, like a benchmark grant. Locks, accepts, rejects, waivers and spend stay his own clicks.
 
 **Estimates** (owner, 2026-11-10). When work will land is computed from measured history, the stage times and the
-failure and fix cycles of past runs, never from a plan; a date given to the owner says which it is.
+failure and fix cycles of past runs, never from a plan; a date given to the owner names the runs it was measured from.
 
 **The board.** One GitHub project (`.claude/scripts/setup-github.py --board`). Status is a column (`LowPriority`,
 `Not started`, `In Progress`, `Review`, `Done`), set with `.claude/scripts/board-status.py <issue> "<column>"`; triage
