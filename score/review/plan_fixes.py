@@ -1066,13 +1066,93 @@ def runs_laid_out(plan, inventory):
     return fixes + (surplus_dropped(plan, inventory, surplus, "its runs' free floor") if surplus else [])
 
 
+def hung_runs(plan, inventory):
+    """[(item, row id, shape, long, short)] of each counted item of a row hung from the roof (holders.under_roof), its
+    pieces runs (RUN_SHARE times as long as across: a cable, never a lamp), whose pieces as made (made_sizes: `long`
+    along the run, `short` across) are longer end to end than its box: the scene record lays them evenly along its
+    box's long line (writer.spots_of), in one another."""
+    rows, sizes, found = {row["id"]: row for row in inventory.get("rows", [])}, made_sizes(plan, inventory), []
+    for item, row, shape in plan_checks.placed_items(plan):
+        count, size = int((shape or {}).get("count") or 1), sizes.get(row)
+        if count < 2 or row not in rows or not holders.under_roof(rows[row]) or not (
+                isinstance(size, list) and len(size) >= 2 and all(
+                    isinstance(side, (int, float)) and side > 0 for side in size[:2])):
+            continue
+        long, short = max(float(size[0]), float(size[1])), min(float(size[0]), float(size[1]))
+        if long >= RUN_SHARE * short and max(item[3], item[4]) < count * long - MARGIN:
+            found.append((item, row, shape, long, short))
+    return found
+
+
+def under_wall(way, short, start, end):
+    """[x, y, w, d] of a run `short` deep hung along axis wall `way` (wall_ways) from `start` to `end` metres along its
+    line, off the wall's room face."""
+    wall, run, out, _ = way
+    face = numpy.asarray(wall["from"], float) + out * float(wall.get("thick") or 0.0) / 2
+    corners = numpy.array([face + run * start, face + run * end, face + run * end + out * short,
+                           face + run * start + out * short])
+    low, high = corners.min(axis=0), corners.max(axis=0)
+    return [round(float(value), 3) for value in (*low, *(high - low))]
+
+
+def hung_runs_laid_out(plan, inventory):
+    """Each run hung from the roof whose pieces as made do not fit its box end to end (hung_runs) laid along the
+    room's walls under the roof instead, nearest its middle first: on each axis wall (wall_ways) as many as its face
+    holds end to end, clear of every other hung thing, the first wall's on its own item, each further wall's an item
+    of its row; what no wall holds is laid no more, said in `dropped` (count_said); the fixes said. settle@storage,
+    2026-11-10: its six 2 m cable bundles "round the ceiling edges" on one 2.68 m box, laid 0.45 m apart in one another
+    (0.09 to 0.107 m deep)."""
+    ways, fixes = wall_ways(plan), []
+    outline = plan_checks.outline_of(plan)
+    rows = {row["id"]: row for row in inventory.get("rows", [])}
+    for item, row, shape, long, short in hung_runs(plan, inventory) if ways else []:
+        count, left = int(shape["count"]), int(shape["count"])
+        middle = numpy.array([item[1] + item[3] / 2, item[2] + item[4] / 2])
+        hung = [other[1:5] for other, other_row, _ in plan_checks.placed_items(plan)
+                if other is not item and other_row in rows and holders.under_roof(rows[other_row])]
+        laid = []
+        for way in sorted(ways, key=lambda way: holders.off_line(middle, way[0])[0]):
+            inset = float(way[0].get("thick") or 0.0) / 2 + MARGIN
+            pieces = min(left, int((way[3] - 2 * inset + MARGIN) // long))
+            if pieces < 1:
+                continue
+            span = pieces * long
+            box = under_wall(way, short, (way[3] - span) / 2, (way[3] + span) / 2)
+            corners = numpy.array([[box[0], box[1]], [box[0] + box[2], box[1]], [box[0] + box[2], box[1] + box[3]],
+                                   [box[0], box[1] + box[3]]])
+            if any(overlapping(box, other) for other in hung + [found for found, _ in laid]) or not plan_checks.inside(
+                    corners + numpy.array([[1, 1], [-1, 1], [-1, -1], [1, -1]]) * INSIDE_SLACK, outline).all():
+                continue
+            laid.append((box, pieces))
+            left -= pieces
+            if not left:
+                break
+        if not laid:
+            continue
+        (first, pieces), *more = laid
+        item[1:5] = first
+        shape["count"] = pieces
+        names = [item[0]]
+        for box, pieces in more:
+            name = added_item(plan, row, [box[0] + box[2] / 2, box[1] + box[3] / 2], box[2:], like=shape)
+            plan["shapes"][name]["count"] = pieces
+            names.append(name)
+        fixes.append(f"{plan_checks.said_name(item[0])}: its {count} pieces ({long:g} m each as made) hung end to end "
+                     f"along {len(laid)} wall{'s' if len(laid) > 1 else ''} under the roof, as "
+                     f"{', '.join(plan_checks.said_name(name) for name in names)}")
+        if left:
+            count_said(plan, row, f"{left} fewer of it laid, no wall under the roof holding more as made")
+    return fixes
+
+
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
     order: a roof's eave raised a storey over a level standing under it (`eaves_raised`), a stairs row taken off where
     the shell builds the flights (`stair_rows_dropped`), runs kept out of the walls and stairs (`runs_kept_clear`), a
     single thing laid again in its own row's run taken off (`run_doubles_dropped`), a ramp the holders lay up through
     a wall taken off (`ramps_walled`), runs laid as long as their pieces as made, clear of what stands round them
-    (`runs_laid_out`), things piled on their own row's
+    (`runs_laid_out`), runs hung from the roof longer as made than their box hung along the walls under it
+    (`hung_runs_laid_out`), things piled on their own row's
     though it does not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid
     along walls free of them or taken off (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and
     ramps moved out of what is made larger than drawn (`flights_cleared`), things made larger than drawn moved off the
@@ -1080,7 +1160,7 @@ def kept_apart(plan, inventory):
     or a redrawing when shown (plans.edit_inside)."""
     return eaves_raised(plan) + stair_rows_dropped(plan, inventory) + runs_kept_clear(plan, inventory) \
         + run_doubles_dropped(plan, inventory) + ramps_walled(plan, inventory) + runs_laid_out(plan, inventory) \
-        + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
+        + hung_runs_laid_out(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
         + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory) + off_flights(plan, inventory)
 
 
