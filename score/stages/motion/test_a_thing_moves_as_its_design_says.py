@@ -228,7 +228,10 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     """A crane row moves and no object of it stands on the stage: `designed` fails naming it. Standing on a camp's
     terrain (the place's Terrain scope, no thing under it: motion@campgrounds, 2026-11-08), the crane slewing about its
     middle is mounted on that ground and `grounded` passes it; lifted 0.5 m off it, it fails touching nothing.
+    A recorded gap of the crane (data/checks/gaps, the env1 plan's C6: a #88 maker not built) moves `designed`'s fault.
     Break: score/stages/motion/__init__.py: `faults += list(record.get("missing", []))` -> `pass`
+    Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` in GAP_GATES dropped, and BATCH_GATES'
+        `"motion": ("designed",)` -> `"motion": ()` (the gap moves nothing)
     Break: score/stages/motion/__init__.py: `found = rail_faults(entry, shape, surfaces["ground"], others, rate,
         seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`"""
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
@@ -237,6 +240,8 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     assert verdict.answer == checks.FAIL
     assert verdict.findings == ("crane: moves (swing), and no object of it stands on the stage",), verdict.findings
     assert table_judge("designed", out, inputs).answer == checks.FAIL, "no batch gap names the crane, so its fault stays"
+    gapped = dict(inputs, gaps=a_gap(tmp_path / "gaps.json", "designed", ["crane"]))
+    assert table_judge("designed", out, gapped).answer == checks.PASS, "a recorded gap of the crane moves its fault"
     for rises, answer in ((0.0, checks.PASS), (0.5, checks.FAIL)):
         folder = tmp_path / f"camp_{rises:g}"
         folder.mkdir()
@@ -250,6 +255,13 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
         verdict = judge("grounded", out, inputs)
         assert verdict.answer == answer and all(line.startswith("crane_1: on a rail, yet it touches nothing")
                                                 for line in verdict.findings), (rises, verdict.reason, verdict.findings)
+
+
+def a_gap(path, check, objects):
+    """A place's gaps file (score/stages/gaps.py) with one accepted gap moving `check`'s faults of `objects`."""
+    path.write_text(json.dumps({"gaps": [{"name": "not built yet", "row": "motion", "check": check, "objects": objects,
+                                          "reason": "no maker builds it (#88)", "decided": "test", "faults": []}]}))
+    return path
 
 
 def table_judge(name, out, inputs):
@@ -534,6 +546,9 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     Break: score/stages/motion/from_design.py: `return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust")
         else []` -> `return []`
     Break: score/stages/motion/from_design.py: `elif rule.get("airless") and airless(body):` -> `elif False:`
+    A recorded gap naming the exhaust's rocket and the turbine moves `covered`'s faults; one naming the turbine alone
+    leaves the rocket's fault failing it.
+    Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` -> `"motion": ("designed",),`
     Break: score/stages/motion/__init__.py: `for moment in np.arange(np.ceil(climbed_from(entry)), seconds + 1e-9,
         1.0):` ->
         `for moment in np.arange(0.0, seconds + 1e-9, 1.0):`"""
@@ -568,6 +583,9 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
         [f"/{PLACE}/Objects/rocket_1", " exhaust, its exhaust's flame and smoke under it, which no effect kind makes "
          "yet (data/checks/effects.json measures no rocket exhaust on footage)"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"]], verdict.findings
     assert "motion" in design_layers.kinds_of({"rows": [unmade[1]]})
+    for objects, answer in (([f"/{PLACE}/Objects/rocket_1", "turbine"], checks.PASS), (["turbine"], checks.FAIL)):
+        gapped = dict(inputs, gaps=a_gap(tmp_path / "unmade" / "gaps.json", "covered", objects))
+        assert table_judge("covered", out, gapped).answer == answer, (objects, table_judge("covered", out, gapped))
     unpulled = dict(record, moves=[dict(entry, climb=dict(entry["climb"], pull=0.0)) if "climb" in entry else entry
                                    for entry in record["moves"]])
     (tmp_path / "unpulled").mkdir()
