@@ -1370,13 +1370,17 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     gate not changed since the lock is not judged again: checkout 47, 2026-11-07, pixal and closeup bought again);
     K edited so the gate fails the locked output, or cannot tell (unknown), makes A again (2026-11-07, 796d7a76's paint
     gate, hub's console: unknown on the paint made before it). Locked, then dropped from its phase (drop_from_phase):
-    its own file edited makes A again (2026-11-08: campgrounds' tower held by an old lock).
+    its own file edited makes A again (2026-11-08: campgrounds' tower held by an old lock). `score plan`'s to_run
+    (buy_check) lists A exactly when the runner makes it, never when it keeps it (2026-11-10: 559 shown, about 8 made).
     Break: score/graph/__init__.py: '        if any(node in lock.get("dropped", ()) and lock["at"] >= locks[-1]["at"] for lock in every):' -> '        if False:'
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
     Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if self.fails_today(stage, place, record):'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if False:'
-    Break: score/graph/__init__.py: 'if checks.blocks(verdict["answer"]) and name not in waived]' -> 'if verdict["answer"] == checks.FAIL and name not in waived]'"""
+    Break: score/graph/__init__.py: 'if checks.blocks(verdict["answer"]) and name not in waived]' -> 'if verdict["answer"] == checks.FAIL and name not in waived]'
+    Break: score/__main__.py: 'if state.startswith("to run") and node not in kept}' -> 'if state.startswith("to run")}'
+    Break: score/graph/rebuy.py: '                    kept.add(node)' -> '                    pass'"""
+    from score import __main__ as command
     for case, change, kept in ((0, None, True), (1, "own file", False), (2, "seeds", False),
                                (3, "make swapped", False), (4, "python", False), (5, "helper edited", False),
                                (6, "read through helper edited", False), (7, "second narrowing", True),
@@ -1448,6 +1452,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 keyed = runner.key(stage, "hangar")
                 assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
                 assert (rebuy.to_make(runner, stage, "hangar", [], {}) is rebuy.KEPT) == kept, change
+                planned = command.buy_check(runner, ["hangar"], True, None, None)  # `score plan`'s to_run: the same
+                assert ("narrow@hangar" in planned["to_run"]) != kept, (change, planned["to_run"])  # rows the drive makes
                 done = runner.run(["hangar"])["narrow@hangar"]
             finally:
                 _code.sys = python
