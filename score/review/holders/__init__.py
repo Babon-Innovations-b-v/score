@@ -1559,11 +1559,46 @@ def boxes_meet(first, second):
     return min(ground, min(first[6], second[6]) - max(first[5], second[5]))
 
 
+# Two walls meet at a corner when their lines turn at least this much there, degrees: an arc's facets turn less.
+CORNER_TURN = 30.0
+# A wall meets another's end when its line passes this near it, metres.
+CORNER_REACH = 0.01
+
+
+def corner_trims(plan, start, end):
+    """(metres off the start, metres off the end) of a plan wall's line [start, end] where another plan wall meets it
+    at a corner (CORNER_TURN or more, its line within CORNER_REACH of the end): that wall's half thickness across this
+    line, so the face ends at the other wall's face, never inside it. The lines meet at the walls' middles, so a face
+    as long as its line ran into both walls at its ends: storage's 7.7 m pipes on its 7.52 m east line went 0.084 m
+    into its north and south walls, engine room's 7.35 m pipes into its back wall (settle, 2026-11-10). The scene
+    record's face (writer.wall_face) and the box a wall thing is parted in (relation_box) both end there."""
+    length = float(numpy.linalg.norm(end - start))
+    run = (end - start) / max(length, 1e-9)
+    trims = [0.0, 0.0]
+    for other in walls_of(plan):
+        other_start, other_end = numpy.asarray(other["from"], float), numpy.asarray(other["to"], float)
+        span = float(numpy.linalg.norm(other_end - other_start))
+        if span < 1e-9 or (numpy.allclose(other_start, start) and numpy.allclose(other_end, end)):
+            continue
+        other_run = (other_end - other_start) / span
+        turn = abs(float(run[0] * other_run[1] - run[1] * other_run[0]))
+        if turn < math.sin(math.radians(CORNER_TURN)):
+            continue
+        for number, point in enumerate((start, end)):
+            if off_line(point, other)[0] <= CORNER_REACH:
+                trims[number] = max(trims[number], float(other.get("thick") or 0.0) / 2 / turn)
+    most = length / 2 - 1e-3
+    return min(trims[0], most), min(trims[1], most)
+
+
 def relation_box(entry, row, plan, height=None):
     """The wall box (wall_box) of a wall relation or one of its pieces at its `height` (its own by default)."""
     tall = float(row["size"][2]) if isinstance(row.get("size"), list) and len(row["size"]) == 3 else 0.0
     height = wall_height(entry, plan) if height is None else height
-    return wall_box((entry["wall"]["from"], entry["wall"]["to"], float(entry["wall"].get("thick") or 0.0)),
+    start, end = numpy.asarray(entry["wall"]["from"], float), numpy.asarray(entry["wall"]["to"], float)
+    run = (end - start) / max(float(numpy.linalg.norm(end - start)), 1e-9)
+    first, last = corner_trims(plan, start, end)  # its face's ends, as the scene record lays it (writer.wall_face)
+    return wall_box((start + run * first, end - run * last, float(entry["wall"].get("thick") or 0.0)),
                     entry["side"], entry["spot"], built_long(row), built_deep(row), height, height + tall)
 
 

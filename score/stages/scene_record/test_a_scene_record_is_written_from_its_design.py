@@ -831,8 +831,8 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     A wall's face ends at the faces of the walls meeting its ends, never at their middle lines (storage's 7.7 m pipes
     on its 7.52 m east line went 0.084 m into its north and south walls, 2026-11-10): the east wall of a 20 m square
     of 0.2 m walls holds its things from z -9.9 to 9.9, and a facet meeting it straight on trims nothing.
-    Break: score/stages/scene_record/writer.py: `first, last = corner_trims(design, start, end)` -> `first, last = 0.0,
-        0.0`
+    Break: score/stages/scene_record/writer.py: `first, last = holders.corner_trims(design, start, end)` ->
+        `first, last = 0.0, 0.0`
     Break: score/stages/scene_record/gates.py: `found.append(f"{one['name']} and {other['name']} of row {row} stand
         at one spot")` -> `pass`
     Break: score/stages/scene_record/gates.py: `if abs(height + size[2] - under) > TOLERANCE:` -> `if False:`
