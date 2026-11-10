@@ -10,6 +10,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `loop.take_faults`: the `file_hash(path) != recorded...` test dropped  -> the take bytes test.
 - `loop.judge_made`: `PASS if through else FAIL` read as `PASS`  -> the take bytes test (no look came through).
 - `loop.handed`: the missing labelled take's gap made a `pass`  -> the labelled take test.
+- `stages.BATCH_GATES`: its `people-made` entry dropped  -> the take bytes test (a look a batch gap left out
+  fails the place's people-made, camp's astronaut_1 2026-11-10).
 - `bodies.laid_take`: the `filecmp.cmp` skip dropped  -> the loop test (a file of the same bytes written again);
   `os.replace(partial, laid)` made `shutil.copyfile(path, laid)`  -> the loop test (another take's file
   rewritten in place).
@@ -147,6 +149,17 @@ def test_a_take_whose_files_are_not_the_ones_pixal_made_is_a_gap():
         found = json.loads((out / "made.json").read_text())
         assert found["player-work"] == {"gap": "pp-player-final.glb not the bytes pixal made"}, found
         assert loop.judge_made(out, ends, {}).answer == "fail"  # no look came through
+        # a look whose take a paid step left out in the batch (a batch gap the likeness carries) moves by name in the
+        # table's gate (stages.BATCH_GATES), camp's astronaut_1 2026-11-10; a gap naming another look moves nothing
+        from score import stages
+        from score.stages import batch_gaps
+        made = next(check for check in next(row for row in stages.STAGES if row.name == loop.ROW).checks
+                    if check.name == "made")
+        for named, answer in ((["nev-space"], "fail"), (["nev-space", "player-work"], "pass")):
+            batch_gaps.write(ends["likeness"], [batch_gaps.gap(f"{look}: no finish list", "finish-route-list",
+                                                                "library first", [look], ["no answer"], "left out")
+                                                 for look in named])
+            assert made.judge(out, ends, {}).answer == answer, named
 
 
 def test_a_take_the_bake_painted_no_labelled_take_of_is_a_gap():

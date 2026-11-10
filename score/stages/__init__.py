@@ -957,7 +957,11 @@ BATCH_GATES = {"pixal": ("takes",), "finish-route-list": ("library first",),
                                   "texture layout sound"),
                "finish-route-recheck": ("library surface fits",), "likeness": ALL, "complete": ALL,
                "sound": ("likeness", "events", "voices"), "crops-layer": ("on beds", "spacing"),
-               "crops-look": ("density",), "motion": ("designed",), "screens": ("pictured",)}
+               "crops-look": ("density",), "motion": ("designed",), "screens": ("pictured",),
+               # a place's people-made hands on its people rows' looks: one whose take a paid step left out (camp's
+               # astronaut_1, no finish list in the batch, 2026-11-10) is that gap, carried in by the likeness, and its
+               # `made` fault on the look moves by name, never failing a place whose only look it is
+               "people-made": ("made",)}
 
 
 def with_gap_files(files, row=None):
