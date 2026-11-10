@@ -691,6 +691,9 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
         `        pass` -> a film of cards alone is cut.
     Break: score/stages/demo_film/final.py: `if cards and start <= cards[-1][1] + 1e-3:` -> `if False:` -> the title
         and the stand-in card after it are one black stretch the gate fails.
+    Break: score/stages/demo_film/final.py: `for kind in ("black", "frozen"))` -> `for kind in ("black", "black"))`
+        -> a still card fails the gate as frozen; or `            if not any(start - 1e-3` -> `            if True or not
+        any(start - 1e-3` -> a still card's stretch is kept as a fault.
     Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`
     Break: score/stages/demo_film/final.py: `return f"{segment['cut']}@{segment['shows']['place']}", "close" if
         segment.get("close") else "wide"` -> `return f"demo-film@{segment['shows']['place']}", "wide"`"""
@@ -716,6 +719,14 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
         ("text", "alpha", "body-peel"), ("place-peel", "beta", None)], timeline
     verdict = final.judge(tmp_path / "with-what-it-has", stood, {})
     assert verdict.answer == checks.PASS, verdict
+    # a card held still is planned (env1's 7 s stand-in read frozen at 1280x720); a walk-through held still is not
+    _, _, film_checks = final.cut_tools()
+    measured = film_checks.video_checks
+    for stretch, faults in (([3.0, 8.0], []), ([9.0, 13.0], ["toy: frozen [[9.0, 13.0]]"])):
+        monkeypatch.setattr(film_checks, "video_checks", lambda *given, stretch=stretch: {  # the cut measured above
+            "black": [], "frozen": [stretch], "failures": [f"frozen {[stretch]}"]})
+        assert final.film_faults(tmp_path / "with-what-it-has" / "toy") == faults
+    monkeypatch.setattr(film_checks, "video_checks", measured)
     with pytest.raises(graph.Blocked, match="toy: no place film or peel it shows stands yet"):
         final.make({"script toy": script}, tmp_path, 0, {})
     inputs["body-peel@alpha"] = a_peel(tmp_path / "alpha-peel")
