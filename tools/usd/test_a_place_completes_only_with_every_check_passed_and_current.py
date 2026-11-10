@@ -25,6 +25,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   int(row.get("count") or 1) and not` made `if False and not` (a row laid short of its count passes).
   And (2026-11-10, walkway's assembly recorded its inventory as /home/score/... and every check was unknown)
   complete.laid_inventory's `return recorded if recorded.exists() else inventory_path(place)` made `return recorded`.
+  And (2026-11-10, walkway's plan-routed walls failed with their shell standing) complete.rows_faults'
+  `| drawn_rows(opened, place, routes or {})` dropped; drawn_routes' `if kinds & set(drawn)` made `if True`.
 - a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object: complete.rows_faults'
   `| contents.shown_laid(opened, place, shown or {})` dropped.
 - an_edit_after_the_checks_makes_them_stale: complete.check_requirement's `if found["fingerprint"] != current:` made
@@ -172,6 +174,7 @@ def a_row_with_no_object_needs_a_drop_reason():
         if elsewhere["result"] != complete.FAIL or [fault["row"] for fault in elsewhere["faults"]] != ["rocket"]:
             problems.append(f"a stage whose inventory was recorded on another machine reads {elsewhere['result']} "
                             f"({elsewhere['note'] or elsewhere['faults']}), not the place's own inventory's rocket")
+        problems += plan_routed_rows_are_laid_by_the_shell(folder, stage)
         inventory = json.loads((folder / "inventory.json").read_text())
         inventory["rows"][2]["dropped"] = "owner, 2026-10-09: the rocket stands in the launch place, not here"
         (folder / "inventory.json").write_text(json.dumps(inventory))
@@ -185,6 +188,31 @@ def a_row_with_no_object_needs_a_drop_reason():
         if complete.stage_requirement(stage)[0] != complete.FAIL:
             problems.append("the inventory changed after the export, and the stage still reads current")
         return problems
+
+
+def plan_routed_rows_are_laid_by_the_shell(folder, stage):
+    """The rocket routed plan in a hand-in: unlaid while no shell piece stands, laid once one does (2026-11-10:
+    walkway's floor grating and walls failed the rows check with their shell standing)."""
+    handin = folder / "home" / complete.HANDIN.format(place=resting_test.PLACE)
+    handin.parent.mkdir(parents=True)
+    handin.write_text(json.dumps({"rows": [{"id": "rocket", "route": "plan"}]}))
+    kept, complete.HOME = complete.HOME, folder / "home"
+    try:
+        unshelled = complete.rows_check(resting_test.PLACE, stage)
+        edit = Usd.Stage.Open(str(stage))
+        edit.SetEditTarget(Usd.EditTarget(Sdf.Layer.FindOrOpen(str(stage.parent / "layers/edit.usda"))))
+        wall = UsdGeom.Mesh.Define(edit, f"/{resting_test.PLACE}/Shell/wall_1").GetPrim()
+        wall.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
+        edit.GetEditTarget().GetLayer().Save()
+        shelled = complete.rows_check(resting_test.PLACE, stage)
+    finally:
+        complete.HOME = kept
+    problems = []
+    if [fault["row"] for fault in unshelled["faults"]] != ["rocket"]:
+        problems.append(f"a plan-routed row with no shell standing reads {unshelled['result']}: {unshelled['faults']}")
+    if shelled["result"] != complete.PASS:
+        problems.append(f"a plan-routed row with its shell standing reads {shelled['result']}: {shelled['faults']}")
+    return problems
 
 
 def an_edit_after_the_checks_makes_them_stale():

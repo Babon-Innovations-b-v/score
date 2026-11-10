@@ -25,7 +25,9 @@ agent finishing while validations are stale). The requirements:
     rows          every inventory row has its made model on the stage (an object of that row), as many of its objects
                   under /<place>/Objects as its reading counts where it stands there, or a written drop reason
                   (the row's `dropped`, or the row listed in the inventory's `held_back`); a backdrop row its hand-in
-                  shows from another place of its scene (`shown`) has that place's object stood under its Places
+                  shows from another place of its scene (`shown`) has that place's object stood under its Places; a
+                  row its hand-in routes to the plan's shell or the sky has that drawing standing (DRAWN_BY), and one
+                  routed people is the people check's
     made_only     every visible mesh on the stage was made by the framework: a made model, a code builder's mesh or a
                   world's own model, each saying so (score:model, score:builder or score:kind), and every object's model
                   loaded
@@ -88,6 +90,13 @@ NOT_COMPLETE = "NOT complete"
 # What of a stage's folder is the stage: its root file, its layers and its assets (not the checks, the manifest, the
 # inputs record or a settle run kept beside it).
 STAGE_PARTS = ("layers", "assets")
+# The hand-in routes (score/stages/complete/prepare/groups.py ROUTES) a place draws itself rather than laying a row's
+# object (score:row): the plan's own pieces in the shell built from the plan (design_shell, the scene record's
+# Structure), the sky the light layer draws; each by the kinds (score:kind) of what draws it. 2026-11-10: walkway's
+# floor grating and walls, hub's doorways and starry sky, cockpit's hull failed the rows check with their shell and
+# sky standing. People rows are the people check's (PEOPLE_ROUTE), judged there by name.
+DRAWN_BY = {"plan": ("structure",), "sky": ("sky body", "sky backdrop", "sky disc")}
+PEOPLE_ROUTE = "people"
 REVIEW_STAMP = "review.json"
 # The owner reviews a place in the browser viewer from its store page (tools/review/store_page.py, owner 2026-10-11:
 # no renders); page.py's rendered page is for films and figures. Either page's stamp answers the review requirement.
@@ -192,15 +201,39 @@ def short_rows(inventory, counts):
             and row["id"] not in held_back]
 
 
-def rows_faults(stage_file, inventory, place, shown=None):
+def rows_faults(stage_file, inventory, place, shown=None, routes=None):
     """Each inventory row with no object of the place's own on the stage (a shown place's never counts), or fewer of
     its objects than its count (short_rows), and no written drop reason: [{row, why}]. A backdrop row shown from
     another place of its scene (`shown`, shown_rows) is made by the skyline when an object of that place's row stands
-    in the place's Places (contents.shown_laid)."""
+    in the place's Places (contents.shown_laid); a row its hand-in routes to a drawing of the place's own (`routes`,
+    {row: route}, handin_routes) is laid when that drawing stands (drawn_rows)."""
     from pxr import Usd
     opened = Usd.Stage.Open(str(stage_file))
-    return unlaid_rows(inventory, contents.laid_rows(opened, place) | contents.shown_laid(opened, place, shown or {})) + \
-        short_rows(inventory, contents.object_counts(opened, place))
+    laid = contents.laid_rows(opened, place) | contents.shown_laid(opened, place, shown or {}) | \
+        drawn_rows(opened, place, routes or {})
+    return unlaid_rows(inventory, laid) + short_rows(inventory, contents.object_counts(opened, place))
+
+
+def drawn_routes(stage, place):
+    """The routes of DRAWN_BY whose drawing stands on the stage: a prim of the place's own (not a shown place's) of one
+    of the route's kinds (score:kind)."""
+    kinds = {prim.GetAttribute("score:kind").Get() for prim in stage.Traverse() if prim.HasAttribute("score:kind")
+             and not str(prim.GetPath()).startswith(f"/{place}/Places/")}
+    return {route for route, drawn in DRAWN_BY.items() if kinds & set(drawn)}
+
+
+def drawn_rows(stage, place, routes):
+    """The rows routed (`routes`, {row: route}) to a drawing of the place that stands on the stage (drawn_routes), and
+    the rows routed people, which the people check judges by name."""
+    standing = drawn_routes(stage, place) | {PEOPLE_ROUTE}
+    return {row for row, route in routes.items() if route in standing}
+
+
+def handin_routes(place):
+    """{row: route} of a designed place's hand-in rows (prepare/groups.route_of); {} without a hand-in."""
+    handin = handin_path(place)
+    rows = json.loads(handin.read_text()).get("rows", []) if handin.is_file() else []
+    return {row["id"]: row["route"] for row in rows if row.get("route")}
 
 
 def shown_rows(place):
@@ -213,7 +246,8 @@ def shown_rows(place):
 
 def rows_check(place, stage):
     """Every inventory row made or dropped with a reason."""
-    faults = rows_faults(stage, json.loads(laid_inventory(place, stage).read_text()), place, shown_rows(place))
+    faults = rows_faults(stage, json.loads(laid_inventory(place, stage).read_text()), place, shown_rows(place),
+                         handin_routes(place))
     return result("rows", FAIL if faults else PASS, stage, faults)
 
 
