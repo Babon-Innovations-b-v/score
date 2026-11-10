@@ -58,7 +58,7 @@ gates.
   temperature nearest its paint (`mix.lamp_light`), a faint emitter or a coloured part (a grow light, a screen) its
   own hue, written into the layer by the light row (`light.colours_written`, never layer.py, which the paid passes
   row's key holds; the strength kept); after the suns and the fill, the lamps of each colour, each sun and the fill are balanced against
-  each other to the concept's cast and brought to its brightness together (`light.colour_balance`, `mix.balance`; the faint
+  each other to the concept's cast at the brightness the sweep gave (`light.colour_balance`, `mix.balance`; the faint
   emitters only turned down), never a lamp recoloured to the concept. An inside place whose
   views see sky has its sky judged too, against its sky rows' boxes on its concept, on the sky's own flat colour there (`row_skies`; camp's domes).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
