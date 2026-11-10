@@ -334,11 +334,15 @@ def test_the_frames_ask_cards_only_so_no_card_in_stock_is_a_gap():
 
 def test_a_film_is_one_batch_dealt_over_the_forecast_s_cards_with_its_high_deadline(tmp_path, monkeypatch):
     """#21: the frames are planned at SIZE over the jobs the forecast sizes, no review frames, each job's deadline its
-    frames at the forecast's high: the fogged hall's 2 frames a job at 17 minutes plus 10 to set up, 44; its first
-    frame kept as concept.png.
+    frames at the forecast's high: the fogged hall's 2 frames a job at 17 minutes plus 10 to set up, 44; each job
+    drawing into a folder of its own, which blender_cloud.py takes (shared_outputs), its frames gathered for the cut;
+    its first frame kept as concept.png.
     Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))`
-        -> `job["minutes"] = JOB_LEAD_MINUTES`"""
+        -> `job["minutes"] = JOB_LEAD_MINUTES`
+    Break: score/stages/demo_film/__init__.py: drop `own_folders(jobs)` in film_one"""
     demo, _ = demo_film.film_tools()
+    sys.path.insert(0, str(REPO / "tools/cloud"))
+    import blender_cloud
     planned, deadlines = [], []
 
     def plan(work, stages, given, jobs_each, size, ink, shots, seconds, start):
@@ -356,9 +360,13 @@ def test_a_film_is_one_batch_dealt_over_the_forecast_s_cards_with_its_high_deadl
         deadlines.extend(json.loads(path.read_text())["minutes"] for path in jobs)
         assert not any(view.get("review") for job in asked for view in job["views"])
         assert all(view["look_only"] for job in asked for view in job["views"])
-        frames = log_folder / ".work/frames/hall"
-        frames.mkdir(parents=True)
-        Image.new("RGB", tuple(asked[0]["size"]), (90, 90, 90)).save(frames / "shot0-000-look.png")
+        loaded = [json.loads(path.read_text()) for path in jobs]
+        assert blender_cloud.shared_outputs(loaded) is None, blender_cloud.shared_outputs(loaded)
+        for job, listing in zip(loaded, asked):
+            frames = pathlib.Path(job["args"][2])
+            frames.mkdir(parents=True)
+            for view in listing["views"]:
+                Image.new("RGB", tuple(listing["size"]), (90, 90, 90)).save(frames / f"{view['name']}-look.png")
 
     def cut(work, names):
         (work / "videos").mkdir()
