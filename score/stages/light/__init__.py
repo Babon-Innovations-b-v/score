@@ -473,7 +473,7 @@ def lamp_lit(light, record):
 
 
 def strengths(place, passes_folder, lamps, layer_folder, record, light=None, colours=None, fixed=(),
-              emitter_most=None):
+              emitter_most=None, night_lights=()):
     """The sweep on the place's views (its passes, rendered on its light layer's views): (scales {group: scale},
     measures). Only a lamp those passes hold a group of is swept, in mix.py's order: the lamps; the suns (the fill
     with them) where the lamps cannot bring the place within its concept's brightness or their sweep stops at an end
@@ -486,7 +486,10 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     A sun is never swept past mix.SUN_MOST, and a lamp-lit place's (lamp_lit: inside, its concept `light` showing no
     daylight) stands at the floor of mix.SCALES while its lamps are swept (2026-11-04: hangar's sun at x19 in a night
     hangar), up to the top of mix.LAMP_SCALES (2026-11-10: its lamps stopped at x32, the top of mix.SCALES, every
-    other place's lamps' top)."""
+    other place's lamps' top). The night's lights (`night_lights`, their paths: night.py's reflecting bodies) stand at
+    x1, never swept: their strength is the night's physics on the scale of the eye at the lit place, as the air's glow
+    beside them, which no group holds (2026-11-10: a lamp-lit night place swept its Moon to the floor as a sun, so
+    only its warm lamps lit it)."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     rendered_views = view_passes(passes_folder, place)
@@ -496,7 +499,8 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     held = {group for passes_held, _ in views.values() for group in passes_held}
     swept = [group for group, path in groups.items()
              if not by_path[path]["shaft"] and not by_path[path].get("sun") and group in held]
-    suns = [group for group, path in groups.items() if by_path[path].get("sun") and group in held]
+    suns = [group for group, path in groups.items()
+            if by_path[path].get("sun") and group in held and path not in night_lights]
     lit_by_lamps = lamp_lit(light, record)
     first = {group: float(mix.SCALES[0]) for group in suns} if lit_by_lamps and swept else {}
     top = float(mix.LAMP_SCALES[-1] if lit_by_lamps else mix.SCALES[-1])  # 2026-11-10: hangar's lamps stopped at x32
@@ -674,7 +678,7 @@ def balanced_cast(prepared, colours, scales, keep=None):
         lit = [light * (keep / max(total, mix.FLOOR)) for light in lit]
     casts = []
     for (colour, transform, sky, found, rest, made), light in zip(prepared, lit):
-        change = (rest + light) / made
+        change = (rest * mix.rest_colour(colours) + light) / made
         tall, wide = min(colour.shape[0], change.shape[0]), min(colour.shape[1], change.shape[1])
         rgb = mix.displayed(transform, colour[:tall, :wide] * change[:tall, :wide]) * 255.0
         cast = measure.surface_cast(rgb, None if sky is None else sky[:tall, :wide])
@@ -792,18 +796,66 @@ def colours_written(layer_path, wanted):
     return found
 
 
-def shipped_colours(colours, by_group, found, record):
-    """{path: linear colour} of each record lamp whose shipped light (group_colours) is not its record colour's, at
-    the luminance its record colour was rendered with, so the sweep's strength holds."""
+def shipped_colours(colours, by_group, found, record, layer_path):
+    """{path: linear colour} of each own light whose shipped light (group_colours, night_adapted) is not the colour it
+    was rendered in, at the luminance it was rendered with, so the sweep's strength holds: a record lamp's its record
+    colour's, any other light's (a sun, the fill, a night light) its colour in the light layer at `layer_path`."""
+    from pxr import Sdf
     entries = dict(layer.record_lamps(record))
     by_path = {entry["path"]: entries.get(entry["record"]) for entry in found.get("placed", [])}
+    held = Sdf.Layer.FindOrOpen(str(layer_path))
     painted = {}
     for group, (made, sent) in colours.items():
-        entry = by_path.get(by_group.get(group))
-        if entry is not None and not np.allclose(made, sent):
-            luma = float(mix.LUMA @ np.asarray(layer.scene.colour(entry.get("colour", "#ffffff")), dtype=np.float64))
-            painted[by_group[group]] = np.asarray(sent, dtype=np.float64) * luma
+        path = by_group.get(group)
+        if path is None or np.allclose(made, sent):
+            continue
+        entry = by_path.get(path)
+        if entry is not None:
+            rendered_in = layer.scene.colour(entry.get("colour", "#ffffff"))
+        else:
+            spec = held.GetPrimAtPath(path) if held else None
+            attribute = spec.attributes.get("inputs:color") if spec else None
+            rendered_in = list(attribute.default) if attribute is not None and attribute.default is not None \
+                else [1.0, 1.0, 1.0]
+        luma = float(mix.LUMA @ np.asarray(rendered_in, dtype=np.float64))
+        painted[path] = np.asarray(sent, dtype=np.float64) * luma
     return painted
+
+
+def night_adapted(passes_folder, place, scales, colours, dark):
+    """(colours, matrix, what was found): the groups' shipped `colours` as the eye at the lit place by night takes
+    them, adapted (mix.adaptation, CIECAM02) to the light the views take at the scales (mix.adapting_white) to the
+    degree its adapting light gives (`dark`, the layer's night: its scale is VIEW_LUX over the lux the eye stands in),
+    each kept at luminance 1, and the change the same eye makes to the light no group holds (mix.REST). 2026-11-10: square, street, stairwell and flat, their concepts' surfaces about neutral
+    under warm lamps (cast 128-136 levels in every channel), rendered as a camera set to daylight sees a tungsten room
+    (flat [162, 128, 93]); an eye in the room takes its lamps' light nearly as white."""
+    views = {view: (held, curve) for view, (held, curve, _) in view_passes(passes_folder, place).items()}
+    white = mix.adapting_white(views, scales, colours)
+    lux = night.VIEW_LUX / float(dark["scale"])
+    degree = mix.adaptation_degree(lux)
+    matrix = mix.adaptation(white, degree)
+    adapted = {group: (made, mix.unit_light(np.maximum(matrix @ np.asarray(sent, dtype=np.float64), 0.0)))
+               for group, (made, sent) in colours.items()}
+    # the light no group holds (a shown place's lamps, the air's glow), taken in the white's colour, by the same eye
+    adapted[mix.REST] = (np.ones(3), np.maximum(matrix @ white, 0.0) / np.maximum(white, mix.FLOOR))
+    return adapted, matrix, {"white": [round(float(value), 4) for value in white], "lux": round(lux, 2),
+                             "degree": round(float(degree), 4)}
+
+
+def environment_adapted(layer_path, place, matrix):
+    """The night air's light in the light layer (its dome's colour and the background the views see,
+    /<place>/Environment, night.write) taken through the eye's adaptation `matrix` (night_adapted)."""
+    from pxr import Gf, Sdf
+    held = Sdf.Layer.FindOrOpen(str(layer_path))
+    spec = held.GetPrimAtPath(f"/{place}/Environment")
+    if not spec:
+        return
+    for name in ("inputs:color", "score:background"):
+        attribute = spec.attributes.get(name)
+        if attribute is not None and attribute.default is not None:
+            seen = np.maximum(matrix @ np.asarray(list(attribute.default), dtype=np.float64), 0.0)
+            attribute.default = Gf.Vec3f(*(float(value) for value in seen))
+    held.Save()
 
 
 def emitter_rows(inputs):
@@ -882,16 +934,28 @@ def make_light(inputs, out, seed, params):
     light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
     emitters = emitter_rows(inputs)
     colours = group_colours(passes_folder, found, record, layer_folder / layer.LAYER, emitters)
+    dark = (found.get("sky") or {}).get("night")
+    night_lights = (dark or {}).get("lights") or []
+    matrix, adapted = None, None
+    if dark:  # the eye at a lit place by night adapted to the light it stands in as swept, before any balance
+        lit_as_swept = strengths(place, passes_folder, found["lamps"], layer_folder, record, light, None,
+                                 row_groups(passes_folder, found, record, emitters), emitter_most(inputs),
+                                 night_lights)[0]
+        colours, matrix, adapted = night_adapted(passes_folder, place, lit_as_swept, colours, dark)
     scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder, record, light, colours,
-                              row_groups(passes_folder, found, record, emitters), emitter_most(inputs))
+                              row_groups(passes_folder, found, record, emitters), emitter_most(inputs), night_lights)
+    if adapted:
+        swept["adaptation"] = adapted
     own = {lamp["path"] for lamp in found["lamps"]}
     by_group = {group: path for group, path in groups_of(passes_folder).items() if path in own}
     intensity = {lamp["path"]: lamp["intensity"] for lamp in found["lamps"]}
     shafted = [group for group, path in by_group.items()
                if next(lamp for lamp in found["lamps"] if lamp["path"] == path)["shaft"]]
     swept["floodlights"] = floodlight_sweep(place, passes_folder, scales, shafted, out, inputs, colours)
-    painted = shipped_colours(colours, by_group, found, record)
+    painted = shipped_colours(colours, by_group, found, record, layer_folder / layer.LAYER)
     boosts = colours_written(out / layer.LAYER, painted)
+    if matrix is not None:
+        environment_adapted(out / layer.LAYER, place, matrix)
     for lamp in found["lamps"]:
         group = next((name for name, path in by_group.items() if path == lamp["path"]), None)
         lamp["scale"] = scales.get(group, 1.0)

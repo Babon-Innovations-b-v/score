@@ -154,10 +154,16 @@ gates.
 - **The night is physics too** (2026-11-10: square, street, stairwell and flat rendered under a black sky with only
   their warm lamps). Past its star's astronomical twilight on a body whose air `data/physics/night.json` has,
   `night.py` adds the Moon's light (its star's lux, albedo, distance and phase law through the air: a distant light
-  `night_<body>`, swept as a sun) and the air's glow as the scene's environment (the moonlit air, Krisciunas and
+  `night_<body>`, held at x1 by the sweep as the glow beside it is, never floored as a sun: `strengths`'
+  `night_lights`) and the air's glow as the scene's environment (the moonlit air, Krisciunas and
   Schaefer 1991; a measured city skyglow where the site stands in one; the setting's backdrops), colours from spectra
   through the CIE observer, as the dark-adapted eye takes them (Jensen et al. 2001's rod blue shift by the sky's own
   luminance), on the views' scale by the light an eye at the lit place stands in (EN 13201 / EN 12464). Every number
-  is a cited measurement or standard: never fit one on a concept. `make_layer` writes it (night.write_layer).
+  is a cited measurement or standard: never fit one on a concept. `make_layer` writes it (night.write_layer). The
+  light row sees a night place with that eye's colour too (`night_adapted`, 2026-11-10: flat rendered [162, 128, 93]
+  as a daylight camera sees a tungsten room, its concept about neutral): CIECAM02's adaptation (CAT02 von Kries, its
+  degree D from the lux the eye stands in) to the light its views take from its groups as swept, before any balance,
+  applied to every group's shipped colour, to the light no group holds (`mix.REST`) and to the night air's dome and
+  background in the layer (`environment_adapted`).
 - `test_light_measured_against_design.py` checks the sky against skies worked out by hand, and the measures, the
   sweep and the layer on pictures, passes and a stage made in the test.

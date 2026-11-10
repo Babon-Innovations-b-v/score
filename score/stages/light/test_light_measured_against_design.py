@@ -82,6 +82,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   with any gain; mix.capped: `caps` ignored (the float look test, 2026-11-10); light.shipped_colours: the record
   colour's luminance left out, light.colours_written: the colour written unscaled, light.group_colours: `emitters`
   ignored (the layer test, 2026-11-10).
+- light.strengths: a night light swept as a sun (`path not in night_lights` dropped; the sun-swept test, 2026-11-10);
+  mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white: the light no
+  group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
+  out, light.environment_adapted: the background left as it was (the layer test, 2026-11-10).
 """
 import json
 import math
@@ -704,6 +708,11 @@ def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_sp
     light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record, {"scene": {"daylight": True}})
     assert held_at[0][2] == float(mix.SCALES[-1]), held_at
     assert night["source"]["lamp_lit"] is True and night["source"]["sun_most"] <= mix.SUN_MOST, night["source"]
+    # 2026-11-10: a lamp-lit night place swept its Moon to the floor as a sun; a night light stands at x1, never swept
+    held_at.clear()
+    moonlit, _ = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record,
+                                 {"scene": {"daylight": False}}, night_lights=["/p/Lights/sky_sun"])
+    assert moonlit["lamp_3"] == 1.0 and not any("lamp_3" in groups for groups, _, _ in held_at), (moonlit, held_at)
     for source, answer, said in (({"lamp_lit": True, "lamp_share": 0.05, "sun_most": 0.5}, checks.FAIL, "5.0%"),
                                  ({"lamp_lit": False, "lamp_share": 0.05, "sun_most": 0.5}, checks.PASS, "daylight"),
                                  ({"lamp_lit": True, "lamp_share": 0.6, "sun_most": 0.5}, checks.PASS, "lamp-lit"),
@@ -1039,13 +1048,49 @@ def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_streng
     colours = light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER)
     assert np.allclose(colours["lamp_0"][1], mix.lamp_light(layer.scene.colour("#ffcc00")))
     assert np.allclose(*light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER, {"bulb"})["lamp_0"])
-    painted = light.shipped_colours(colours, {"lamp_0": "/tiny/Lights/light_1"}, found, record)
+    painted = light.shipped_colours(colours, {"lamp_0": "/tiny/Lights/light_1"}, found, record, out / layer.LAYER)
     boosts = light.colours_written(out / layer.LAYER, painted)
     written = np.array(Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Lights/light_1")
                        .attributes["inputs:color"].default)
     assert written.max() <= 1.0 + 1e-6 and boosts["/tiny/Lights/light_1"] >= 1.0
     assert math.isclose(float(mix.LUMA @ written) * boosts["/tiny/Lights/light_1"],
                         float(mix.LUMA @ np.array(layer.scene.colour("#ffcc00"))), rel_tol=1e-4)
+    # 2026-11-10: flat, under its warm lamps, rendered as a daylight camera sees a tungsten room (cast [162, 128, 93])
+    # where its concept's surfaces read about neutral; the eye at a lit place by night adapts to the light it stands
+    # in. CIECAM02's D by hand: 100 lx, L_A = 100 / pi / 5 = 6.366 cd/m^2, 1 - e^(-48.366 / 92) / 3.6 = 0.8357.
+    assert math.isclose(mix.adaptation_degree(100.0), 0.8357, abs_tol=1e-4)
+    tungsten = mix.black_body(2856.0)
+    whole, none = mix.adaptation(tungsten, 1.0), mix.adaptation(tungsten, 0.0)
+    assert np.allclose(none, np.eye(3)) and np.allclose(whole @ tungsten / float(mix.LUMA @ (whole @ tungsten)),
+                                                        np.ones(3), atol=1e-6)
+    seen = mix.unit_light(mix.adaptation(tungsten, 0.8357) @ tungsten)
+    assert 1.0 < seen[0] / seen[2] < tungsten[0] / tungsten[2], seen  # nearer white, a trace of its warmth kept
+    views = {"v": ({"combined": np.full((2, 2), 9.0), "lamp_0": np.full((2, 2), 2.0), "lamp_1": np.ones((2, 2))},
+                   None)}
+    assert np.allclose(mix.adapting_white(views, {"lamp_0": 0.5}, {"lamp_0": (np.ones(3), tungsten),
+                                                                  "lamp_1": (np.ones(3), np.ones(3))}),
+                       mix.unit_light(tungsten + np.ones(3)))  # its lamps at their scales, the light no group holds out
+    # the light no group holds (a shown place's lamps) takes the eye's change of each channel (mix.REST), luminance out
+    change = mix.tint({"combined": np.ones((8, 8))}, {}, {mix.REST: (np.ones(3), np.array([2.0, 1.0, 0.5]))},
+                      np.ones((8, 8)))
+    assert np.allclose(change, mix.unit_light([2.0, 1.0, 0.5]), atol=1e-6), change[0, 0]
+    # a night light (no record lamp) ships its adapted colour at the luminance its layer colour was rendered in, and
+    # the night air's dome and background are taken through the same adaptation
+    stage = Usd.Stage.Open(str(out / layer.LAYER))
+    moon = UsdLux.DistantLight.Define(stage, "/tiny/Lights/night_moon")
+    moon.CreateColorAttr(Gf.Vec3f(0.5, 0.5, 0.5))
+    dome = UsdLux.DomeLight.Define(stage, "/tiny/Environment")
+    dome.CreateColorAttr(Gf.Vec3f(0.2, 0.2, 0.2))
+    dome.GetPrim().CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.1, 0.1, 0.1))
+    stage.Save()
+    sent = mix.unit_light([0.8, 1.0, 1.3])
+    painted = light.shipped_colours({"lamp_1": (np.ones(3), sent)}, {"lamp_1": "/tiny/Lights/night_moon"}, found,
+                                    record, out / layer.LAYER)
+    assert np.allclose(painted["/tiny/Lights/night_moon"], sent * 0.5), painted
+    light.environment_adapted(out / layer.LAYER, "tiny", whole)
+    held = Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Environment")
+    assert np.allclose(np.array(held.attributes["inputs:color"].default), whole @ np.full(3, 0.2), atol=1e-6)
+    assert np.allclose(np.array(held.attributes["score:background"].default), whole @ np.full(3, 0.1), atol=1e-6)
 
 
 def box_mesh(stage, path, low, high):
