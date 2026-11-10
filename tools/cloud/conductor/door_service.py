@@ -32,6 +32,7 @@ import urllib.request
 HERE = pathlib.Path(__file__).resolve().parent
 DOOR = ["/bin/sh", str(HERE / "agent_door.sh")]
 TOKEN_SECRET = "score-agent-door-token"
+SECRETS_PROJECT = "farm-factory"  # the project whose Secret Manager the conductor reads (machine.SECRETS_PROJECT_NAME)
 TOKEN_HEADER, COMMAND_HEADER = "X-Score-Door-Token", "X-Score-Command"
 EXIT_HEADER, STDERR_HEADER = "X-Score-Exit", "X-Score-Stderr"
 STDERR_BYTES = 32_000
@@ -90,6 +91,23 @@ def read_token(reader=None):
     return subprocess.run([reader, TOKEN_SECRET], capture_output=True, text=True, check=True).stdout.strip()
 
 
+def asker_reader(environment):
+    """(command, environment) that reads the door's token on an agent's side: this folder's secret_reader.sh, the one
+    the conductor installs, by the secrets project's name (SCORE_SECRETS_PROJECT, else SECRETS_PROJECT) with the scw on
+    PATH, never the box's own SCORE_SECRET_READER (2026-11-10: this PC's reader looked only in babon-ops, while the
+    token is in the conductor's secrets project, so `ask` stayed shut)."""
+    found = {**environment, "SCORE_SECRETS_PROJECT": environment.get("SCORE_SECRETS_PROJECT") or SECRETS_PROJECT}
+    found.setdefault("SCORE_SCW", shutil.which("scw", path=environment.get("PATH")) or "scw")
+    found.setdefault("SCORE_READER_PYTHON", sys.executable)
+    return ["/bin/sh", str(HERE / "secret_reader.sh"), TOKEN_SECRET], found
+
+
+def asker_token(environment=None):
+    """The door's token read on an agent's side (`asker_reader`); never printed or logged."""
+    command, found = asker_reader(os.environ if environment is None else environment)
+    return subprocess.run(command, env=found, capture_output=True, text=True, check=True).stdout.strip()
+
+
 def send(url, token, command, stdin=b"", out=None):
     """(exit code, stdout bytes, stderr bytes) of one command through the door at url; with `out`, a binary file, the
     body is copied into it as it comes and the bytes are b"" (a store-pull's tar of many GB never held in memory)."""
@@ -124,7 +142,7 @@ def ask(command, context=None, token=None):
     stdin = b"" if sys.stdin is None or sys.stdin.isatty() else sys.stdin.buffer.read()
     forward, port = forwarded(context)
     try:
-        code, _, err = send(f"http://127.0.0.1:{port}/", token or read_token(), command, stdin, sys.stdout.buffer)
+        code, _, err = send(f"http://127.0.0.1:{port}/", token or asker_token(), command, stdin, sys.stdout.buffer)
     finally:
         forward.terminate()
         forward.wait()

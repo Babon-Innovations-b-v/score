@@ -1314,6 +1314,13 @@ def test_the_secret_reader_finds_the_secrets_project_by_name(tmp_path):
     absent = read("--if-present", "google-billing-reader")
     assert absent.returncode == 0 and absent.stdout == "", absent.stderr
     assert read("--if-present", "gemini-api-key").stdout == "the value"
+    # An agent's `ask` reads the door's token through this reader by the secrets project's name, never the box's own
+    # SCORE_SECRET_READER (2026-11-10: this PC's looked only in babon-ops). Break: `asker_reader` hands back
+    # `[environment["SCORE_SECRET_READER"], TOKEN_SECRET]`.
+    command, found = door_service.asker_reader({**env, "SCORE_SECRET_READER": str(tmp_path / "another-projects")})
+    assert command[-2:] == [str(HERE / "secret_reader.sh"), door_service.TOKEN_SECRET]
+    assert door_service.asker_token({**env, "SCORE_SECRET_READER": str(tmp_path / "another-projects")}) == "the value"
+    assert door_service.asker_reader({"PATH": ""})[1]["SCORE_SECRETS_PROJECT"] == door_service.SECRETS_PROJECT
     env["SCORE_SECRETS_PROJECT"] = "missing"
     refused = read("x")
     assert refused.returncode != 0 and "found 0" in refused.stderr
