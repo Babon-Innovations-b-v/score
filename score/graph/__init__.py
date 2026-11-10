@@ -627,7 +627,10 @@ HELD = trees_held  # the tests give a fake reading
 
 def trees_high(pids):
     """{each of `pids`: the most its process and every descendant held resident in their lives, summed (high_water)}
-    (0 once it is gone): a spike between two readings of trees_held is still counted."""
+    (0 once it is gone): a spike between two readings of trees_held is still counted. A descendant forked from its
+    parent that never ran a program of its own (forked_only) counts its share now (proportional_bytes): its VmHWM
+    starts at its parent's, so summing it counted the parent's pages once more for each such worker (2026-11-10: a
+    settle tree kept at 25.8 GB against its 15.4 GB measured by share held every other node back, 6 of 16 running)."""
     table, children = process_table(), {}
     for pid, (parent, _) in table.items():
         children.setdefault(parent, []).append(pid)
@@ -636,10 +639,22 @@ def trees_high(pids):
         tree, total = [root], 0
         while tree:
             pid = tree.pop()
-            total += high_water(pid) if pid in table else 0
+            if pid in table:
+                parent, resident = table[pid]
+                total += proportional_bytes(pid, resident) if pid != root and forked_only(pid, parent) \
+                    else high_water(pid)
             tree += children.get(pid, [])
         high[root] = total
     return high
+
+
+def forked_only(pid, parent):
+    """Whether process `pid` runs its `parent`'s program still, forked and never exec'd: the same command line
+    (PROC/<pid>/cmdline); False when either cannot be read."""
+    with contextlib.suppress(OSError):
+        mine = pathlib.Path(PROC, str(pid), "cmdline").read_bytes()
+        return bool(mine) and mine == pathlib.Path(PROC, str(parent), "cmdline").read_bytes()
+    return False
 
 
 HIGH = trees_high  # the tests give a fake reading

@@ -2324,7 +2324,12 @@ def test_on_this_pc_a_container_clients_tree_peak_is_kept_while_it_runs_so_a_sto
     Break: score/graph/__init__.py: '                clients.update(self.keep_client_tree(stage.name, high))' ->
     '                pass' -> nothing kept until the node ends.
     Break: score/graph/__init__.py: 'max(seen[node], highs.get(process.pid, 0))' -> 'seen[node]' -> nothing kept (1 GB
-    is under the floor)."""
+    is under the floor).
+    A worker forked from the node and never exec'd (the node's command line) counts its share now, not the VmHWM it
+    inherited (2026-11-10: settle's tree kept at 25.8 GB against 15.4 GB by share); an exec'd child keeps its VmHWM.
+    Break: score/graph/__init__.py: 'if pid != root and forked_only(pid, parent)' -> 'if False' -> 7 GB, not 6.
+    Break: score/graph/__init__.py: 'return bool(mine) and mine ==' -> 'return bool(mine) or mine ==' -> the exec'd
+    child counted by its share (rss), not its 3 GB VmHWM."""
     monkeypatch.setenv(*graph.THIS_PC)
     runner = a_driven_runner({"hangar": "a ship"})
     settle = types.SimpleNamespace(name="settle", grain="place")
@@ -2345,7 +2350,14 @@ def test_on_this_pc_a_container_clients_tree_peak_is_kept_while_it_runs_so_a_sto
     a_process(tmp_path, 101, 100, 10)
     for pid, kilobytes in ((100, 2 * GIGA // 1024), (101, 3 * GIGA // 1024)):
         (tmp_path / str(pid) / "status").write_text(f"Name:\tnode\nVmHWM:\t{kilobytes} kB\n")
+    (tmp_path / "100" / "cmdline").write_bytes(b"python\0score\0run\0")
+    (tmp_path / "101" / "cmdline").write_bytes(b"python\0blender_cloud.py\0")  # exec'd: its own VmHWM
     assert graph.trees_high([100]) == {100: 2 * GIGA // 1024 * 1024 + 3 * GIGA // 1024 * 1024}
+    # a worker forked from the node and never exec'd starts at the node's VmHWM: its share now (1 GB) counts instead
+    a_process(tmp_path, 102, 100, 10, pss_kb=GIGA // 1024)
+    (tmp_path / "102" / "status").write_text(f"Name:\tnode\nVmHWM:\t{2 * GIGA // 1024} kB\n")
+    (tmp_path / "102" / "cmdline").write_bytes(b"python\0score\0run\0")
+    assert graph.trees_high([100]) == {100: 2 * GIGA // 1024 * 1024 + 3 * GIGA // 1024 * 1024 + GIGA // 1024 * 1024}
 
 
 def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monkeypatch):
