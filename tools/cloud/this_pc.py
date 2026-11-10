@@ -17,7 +17,8 @@ ask, since 2026-11-08), or over ssh to `--host`.
 - **Pull** copies what a run reads (the door's PULLED: the store's objects, the design, the work folder, the Google
   answer cache, score_lib's file cache) into HOME, a home of its own (default ~/.score-this-pc): never the PC's old
   home, and never the conductor's keys, ledgers, run registry or frozen copies. It sends the door a manifest of what
-  HOME holds, so only new and changed files come down. The prop environment is the PC's (`env` linked), and the
+  HOME holds, so only new and changed files come down, gzipped as every list it sends the door (2026-11-10: 98 MB
+  of plain manifest reset the kubectl port-forward). The prop environment is the PC's (`env` linked), and the
   runner's ssh key here is one of its own, let into this PC's container only.
 - **Run** is `score run <environment> --free` under SCORE_CLOUD=local, SCORE_FREE_ONLY=1 and SCORE_INPUTS_DIRECT=1:
   every free row and every paid row whose machine work this PC's card does runs for real; a row that would buy
@@ -64,6 +65,7 @@ ask, since 2026-11-08), or over ssh to `--host`.
   each SCORE container's own size and this PC's free disk (a warning under FREE_WARN_GB).
 """
 import argparse
+import gzip
 import hashlib
 import json
 import os
@@ -121,7 +123,7 @@ def pull(home, command):
     by its content or key, so the same name is the same bytes, and it is read-only here (2026-11-04: a blob sent again for
     its other mtime stopped the pull on PermissionError); (files, bytes)."""
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    process.stdin.write(manifest(home, PULLED).encode())
+    process.stdin.write(gzip.compress(manifest(home, PULLED).encode()))
     process.stdin.close()
     files, size = 0, 0
     with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
@@ -159,8 +161,8 @@ def push(home, missing_command, push_command):
     """Adds `home`'s regular files under PUSHED that the conductor lacks (the door's store-push --missing, then
     store-push); (files, bytes)."""
     names = [path.relative_to(home).as_posix() for path in walked(home, PUSHED) if not path.is_symlink()]
-    asked = subprocess.run(missing_command, input="".join(f"{name}\n" for name in names), capture_output=True,
-                           text=True, check=True).stdout.split()
+    asked = subprocess.run(missing_command, input=gzip.compress("".join(f"{name}\n" for name in names).encode()),
+                           capture_output=True, check=True).stdout.decode().split()
     process = subprocess.Popen(push_command, stdin=subprocess.PIPE)
     sent = []
     with tarfile.open(fileobj=process.stdin, mode="w|", dereference=True) as archive:
@@ -288,8 +290,8 @@ def replace_changed(home, differs_command, replace_command):
         if path.is_symlink() or not path.is_file() or name.startswith(SET_ASIDE):
             continue
         lines.append(f"{path.stat().st_size}\t{file_sha(path)}\t{name}\n")
-    asked = subprocess.run(differs_command, input="".join(lines), capture_output=True, text=True,
-                           check=True).stdout.split()
+    asked = subprocess.run(differs_command, input=gzip.compress("".join(lines).encode()), capture_output=True,
+                           check=True).stdout.decode().split()
     if not asked:
         return 0, 0
     process = subprocess.Popen(replace_command, stdin=subprocess.PIPE)
