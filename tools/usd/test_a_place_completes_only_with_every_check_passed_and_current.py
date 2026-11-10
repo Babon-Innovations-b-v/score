@@ -23,6 +23,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_row_with_no_object_needs_a_drop_reason: complete.unlaid_rows' `and not str(row.get("dropped", "")).strip()` dropped;
   and (2026-11-04, the lab's 10 pipes stood as 6) complete.short_rows' `if 0 < counts.get(row["id"], 0) <
   int(row.get("count") or 1) and not` made `if False and not` (a row laid short of its count passes).
+  And (2026-11-10, walkway's assembly recorded its inventory as /home/score/... and every check was unknown)
+  complete.laid_inventory's `return recorded if recorded.exists() else inventory_path(place)` made `return recorded`.
 - a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object: complete.rows_faults'
   `| contents.shown_laid(opened, place, shown or {})` dropped.
 - an_edit_after_the_checks_makes_them_stale: complete.check_requirement's `if found["fingerprint"] != current:` made
@@ -158,6 +160,18 @@ def a_row_with_no_object_needs_a_drop_reason():
         problems = []
         if complete.rows_check(resting_test.PLACE, stage)["result"] != complete.FAIL:
             problems.append("a row with no object and no drop reason passed")
+        record = json.loads((stage.parent / complete.INPUTS).read_text())
+        moved = {**record, "inventory": "/home/elsewhere/frozen/run.home/design/inventory/wreck.json"}
+        (stage.parent / complete.INPUTS).write_text(json.dumps(moved))  # made on another machine (walkway, 2026-11-10)
+        kept, complete.inventory_path = complete.inventory_path, lambda place: folder / "inventory.json"
+        try:
+            elsewhere = complete.rows_check(resting_test.PLACE, stage)
+        finally:
+            complete.inventory_path = kept
+            (stage.parent / complete.INPUTS).write_text(json.dumps(record))
+        if elsewhere["result"] != complete.FAIL or [fault["row"] for fault in elsewhere["faults"]] != ["rocket"]:
+            problems.append(f"a stage whose inventory was recorded on another machine reads {elsewhere['result']} "
+                            f"({elsewhere['note'] or elsewhere['faults']}), not the place's own inventory's rocket")
         inventory = json.loads((folder / "inventory.json").read_text())
         inventory["rows"][2]["dropped"] = "owner, 2026-10-09: the rocket stands in the launch place, not here"
         (folder / "inventory.json").write_text(json.dumps(inventory))
