@@ -137,5 +137,13 @@ gates.
   scene time on the environment's plan. Every body's ball is drawn from its face as its `body-face-<body>` row made it (the layer reads and waits on each, so a place's line makes its sky's faces first, `sky.faces_of`; never by a library name or a picture of its own: the Earth's NASA picture was retired 2026-10-22), a shining body's disc `<body>_disc`, the library's glowing recipe
   in the black body's colour at its light's kelvin (`sky.disc_material`; it had no surface until 2026-10-25 and
   failed `stage_no_worse` in 21 places), or named missing, never grey.
+- **The night is physics too** (2026-11-10: square, street, stairwell and flat rendered under a black sky with only
+  their warm lamps). Past its star's astronomical twilight on a body whose air `data/physics/night.json` has,
+  `night.py` adds the Moon's light (its star's lux, albedo, distance and phase law through the air: a distant light
+  `night_<body>`, swept as a sun) and the air's glow as the scene's environment (the moonlit air, Krisciunas and
+  Schaefer 1991; a measured city skyglow where the site stands in one; the setting's backdrops), colours from spectra
+  through the CIE observer, as the dark-adapted eye takes them (Jensen et al. 2001's rod blue shift by the sky's own
+  luminance), on the views' scale by the light an eye at the lit place stands in (EN 13201 / EN 12464). Every number
+  is a cited measurement or standard: never fit one on a concept. `make_layer` writes it (night.write_layer).
 - `test_light_measured_against_design.py` checks the sky against skies worked out by hand, and the measures, the
   sweep and the layer on pictures, passes and a stage made in the test.

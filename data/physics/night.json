@@ -1,0 +1,22 @@
+{
+ "about": "The night's light over a place on a body with air once its star stands past astronomical twilight (score/stages/light/night.py): the air's scattering (`air`, by the site body's reference), the light a body throws back from its star (`reflecting`), the light a city sends up into the air over the sites where it was measured (`skyglow`, each with the place it was measured, how far round it holds and that air's haze), and the light an eye adapted to the lit place stands in (`adapted_lux`), which sets the night's light on the views' scale. Every number is a measurement or a standard, each with its source; none is fitted on a concept.",
+ "sources": {
+  "rayleigh": "Rayleigh optical depth of Earth's air at sea level, tau(lambda) = 0.0088 lambda^-4.05 (lambda in micrometres): Frohlich and Shaw (1980), Applied Optics 19(11), 1773-1775, as in Iqbal, An Introduction to Solar Radiation (1983), 0.099 at 550 nm.",
+  "angstrom": "A haze's optical depth tau_a(lambda) = tau_a(550 nm) (lambda / 550 nm)^-alpha with alpha 1.3, Angstrom's (1929) mean for continental haze, Geografiska Annaler 11, 156-166.",
+  "moon": "The Moon's geometric albedo 0.12 (NASA Moon Fact Sheet, nssdc.gsfc.nasa.gov), which with the Sun's 128 000 lux gives 0.31 lux at full Moon outside the air at its mean distance, as Krisciunas and Schaefer (1991) measured; its phase law 10^(-0.4 (0.026 |alpha| + 4e-9 alpha^4)), alpha the phase angle in degrees, and its sky brightness model, Krisciunas and Schaefer (1991), 'A model of the brightness of moonlight', PASP 103, 1033-1039; moonlight's colour 4100 K, Ciocca and Wang (2013), 'By the light of the moon: the moonlight correlated colour temperature', Ophthalmic and Physiological Optics 33(5).",
+  "hong-kong": "Hong Kong's urban night sky at the zenith 15.0 mag/arcsec^2 on average (Pun and So 2012, 'Night-sky brightness monitoring in Hong Kong', Environmental Monitoring and Assessment 184(4), 2537-2557: 1957 readings at 199 sites, urban ones about 100 times the darkest), 10.8e4 x 10^(-0.4 m) = 0.108 cd/m^2; the city's light mostly LED and metal halide before midnight (So, Pun and Liu 2026, 'Spectroscopic study of the light-polluted night sky in Hong Kong', JQSRT 348, 109696), white light of about 4000 K; its haze's optical depth at 550 nm 0.42, the Hong_Kong_PolyU AERONET station's 2006-2013 mean (Bilal et al. 2016, Remote Sensing 8(4), 328, table of stations).",
+  "adapted": "The light the eye stands in at a lit place by night: outside, a pedestrian street or square of lighting class P2, 10 lux average (EN 13201-2:2015, table 3); inside, corridors and circulation areas, 100 lux (EN 12464-1:2021)."
+ },
+ "air": {
+  "earth": {"rayleigh_depth": 0.0088, "rayleigh_power": 4.05, "angstrom": 1.3, "cited": ["rayleigh", "angstrom"]}
+ },
+ "reflecting": {
+  "moon": {"albedo": 0.12, "kelvin": 4100.0, "mean_distance_km": 384400.0, "phase_linear": 0.026,
+           "phase_quartic": 4e-9, "cited": "moon"}
+ },
+ "skyglow": [
+  {"name": "Hong Kong, urban", "on": "earth", "latitude": 22.3, "longitude": 114.17, "within_km": 25.0,
+   "zenith_mag": 15.0, "kelvin": 4000.0, "haze_depth": 0.42, "cited": "hong-kong"}
+ ],
+ "adapted_lux": {"outside": 10.0, "inside": 100.0, "cited": "adapted"}
+}

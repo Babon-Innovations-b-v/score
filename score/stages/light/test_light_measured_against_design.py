@@ -29,6 +29,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the post baked
   as one mesh test, 2026-10-31: kept, every way out stopped).
 - light.unlit_why: an inside place lit by a sun alone counted lit (the unlit test).
+- night.is_night: always true; night.scale_of: inside and outside swapped; night.skyglow_of: `within_km` ignored;
+  night.roofed: `>= ROOFED_LEAST` -> `> 0`; night.write_layer: `layer.Save()` dropped;
+  night.colour: `dark` ignored; night.body_lux: the radius over the distance not squared (the sun under the horizon
+  test, 2026-11-10).
 - light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the discs test).
 - light.judge_exposure: pass with no concept (the exposure test).
@@ -87,7 +91,7 @@ from score import checks
 from score.checks import grain
 from score.review import overhead, setting
 from score.stages import light
-from score.stages.light import haze, layer, measure, mix, needs, passes, sky
+from score.stages.light import haze, layer, measure, mix, needs, night, passes, sky
 from score.stages.terrain import needs as ground_needs
 from score.store import Store
 
@@ -103,6 +107,7 @@ HOUSE = setting.checked({
     "sites": [{"place": "house", "on": "meadow", "x": 0, "y": 0}]})
 ENVIRONMENT_1 = setting.now()
 BASE = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "base")
+SQUARE = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "square")
 WHEN = "2099-10-01T14:00:00Z"  # environment 1's scene time: the Sun 33 degrees over the base
 
 
@@ -215,7 +220,7 @@ def test_the_old_sky_is_turned_off_and_the_physics_sky_left_on():
     assert sky.retired(stage, "wreck") == []  # the physics' own sky is never the old one
 
 
-def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_fault():
+def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_fault(tmp_path):
     # the house's equinox midnight: the sun as far under the horizon as it stands over it at noon, 90 - 52 = 38 degrees
     seen = overhead.seen(HOUSE, HOUSE["sites"][0], "2024-03-20T00:00:00Z")
     assert seen["lights"][0]["altitude"] == pytest.approx(-38.0, abs=0.5)
@@ -226,6 +231,46 @@ def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_f
     assert sky.faults(seen, sky.held(stage, "house")) == []
     sky.write_light(stage, "house", seen["lights"][0])  # a sky that shines it up through the ground anyway
     assert "the light sun: in the sky, but not overhead" in sky.faults(seen, sky.held(stage, "house"))
+    # the night's light (night.py), worked out by hand: the full Moon outside the air at its mean distance gives
+    # 128 000 x 0.12 x (1737.4 / 384 400)^2 = 0.314 lux; a 15.0 mag/arcsec^2 sky 10.8e4 x 10^-6 = 0.108 cd/m^2; an
+    # eye at a lit square (10 lux) sees the night pi x 683 / 10 = 214.6 times its physical light, inside (100 lux) 21.5
+    table = json.loads((REPO / "data/physics/night.json").read_text())
+    moon = {"body": "moon", "across": math.degrees(2 * math.asin(1737.4 / 384400.0)), "lit": 1.0}
+    kept = {"setting": ENVIRONMENT_1, "site": SQUARE, "time": WHEN}
+    assert night.body_lux(kept, {"lux": 128000.0}, moon, table["reflecting"]["moon"]) == pytest.approx(0.314, abs=0.001)
+    assert night.ZERO_MAG * 10 ** (-0.4 * 15.0) == pytest.approx(0.108)
+    assert night.scale_of(table, False) == pytest.approx(214.6, abs=0.1)
+    assert night.scale_of(table, True) == pytest.approx(21.46, abs=0.01)
+    assert night.seen_dark(0.001) == 1.0 and night.seen_dark(10.0) == 0.0
+    assert night.skyglow_of(table, SQUARE)["name"] == "Hong Kong, urban"
+    assert night.skyglow_of(table, {**SQUARE, "latitude": 23.5}) is None  # 135 km up the coast: not the city's sky
+    city = night.colour(night.black_body(4000.0))
+    assert city[2] < city[0] < night.colour(night.black_body(4000.0), 1.0)[2]  # the rods see the warm light blue
+    seen = overhead.seen(ENVIRONMENT_1, SQUARE, WHEN)  # 22:00 at the square: the Sun 52.7 under, the Moon 38 up
+    assert night.is_night(seen) and not night.is_night(overhead.seen(ENVIRONMENT_1, SQUARE, "2099-10-01T04:00:00Z"))
+    stage = stage_of("square")
+    sky.write(stage, "square", seen)
+    found = night.write(stage, "square", seen, kept, table, False)
+    moonlight = stage.GetPrimAtPath("/square/Lights/night_moon")
+    lux = moonlight.GetAttribute("score:sky:lux").Get() / found["scale"]  # its 96% phase through 1.6 airmasses
+    assert 0.05 < lux < 0.314 and sky.faults(seen, sky.held(stage, "square")) == []
+    ambient = UsdLux.DomeLight(stage.GetPrimAtPath("/square/Environment")).GetColorAttr().Get()
+    assert ambient[2] > ambient[0] > 0.0 and found["zenith_cd"]["skyglow"] == pytest.approx(0.108)
+    assert night.write(stage_of("square"), "square", overhead.seen(ENVIRONMENT_1, SQUARE, "2099-10-01T04:00:00Z"),
+                       kept, table, False) is None  # by day: nothing
+    for name, (high_x, high_z), under in (("roof_1", (10.0, 10.0), True), ("roof_2", (2.0, 3.0), False)):
+        roofs = stage_of("street")  # a room's ceiling over its 10 x 10 m floor; a 2 x 3 m awning over a street
+        roof = UsdGeom.Mesh.Define(roofs, f"/street/Structure/{name}")
+        roof.CreatePointsAttr([(0.0, 3.5, 0.0), (high_x, 3.5, 0.0), (high_x, 3.7, high_z), (0.0, 3.7, high_z)])
+        roof.GetPrim().CreateAttribute("score:plain", text_type()).Set("shell")
+        assert night.roofed(roofs, "street", [[0.0, 0.0], [10.0, 10.0]]) is under
+    root = Usd.Stage.CreateNew(str(tmp_path / "square.usda"))  # written into a light layer file over the stage
+    root.SetDefaultPrim(UsdGeom.Xform.Define(root, "/square").GetPrim())
+    root.Save()
+    Sdf.Layer.CreateNew(str(tmp_path / "light.usda")).Save()
+    written = night.write_layer(tmp_path / "light.usda", tmp_path / "square.usda", "square", kept, table, None)
+    held = Usd.Stage.Open(str(tmp_path / "light.usda"))
+    assert written["scale"] == pytest.approx(214.6, abs=0.1) and held.GetPrimAtPath("/square/Lights/night_moon")
 
 
 def seed_with_old_sky(folder):

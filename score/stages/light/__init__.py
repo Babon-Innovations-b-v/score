@@ -6,7 +6,8 @@ holds, as three rows of the stage table.
                   ground), with tools/usd/scene.py's own writers (layer.py): each lamp where the record puts it,
                   the floodlights' shafts; its sky from the environment concept's physics overhead at its site at its scene time
                   (sky.py: each light, shining body's disc, other body drawn with its face as its body-face-<body>
-                  row made it, and backdrop, the old sky turned off), the day dome its air scatters; lamps.json
+                  row made it, and backdrop, the old sky turned off), the day dome its air scatters, past its
+                  star's twilight the night's light (night.py: the Moon's, the air's glow); lamps.json
     light-passes  (paid) the seed with that layer rendered on the views of the place's own scene record (the
                   layer's views.json, passes.record_views), once, at passes.CHECK_SIZE, on one card class, each of
                   the place's own lamps in a Cycles light group of its own (inside/light_passes.py): per view the
@@ -72,7 +73,7 @@ import numpy as np
 from PIL import Image
 
 from score import checks, contracts, graph
-from score.stages.light import bare, haze, layer, measure, mix, needs, passes, sky
+from score.stages.light import bare, haze, layer, measure, mix, needs, night, passes, sky
 from score.stages.light.passes import groups_of, neighbours, views_of
 from score.stages.scene_record import concept_light
 from score.store import PROPS_HOME
@@ -147,13 +148,18 @@ def applies(place):
 def make_layer(inputs, out, seed, params):
     """The place's light layer over its stage as the assembly lays it before its layers (passes.source: the seed with
     its accepted scene record), its sky from the physics over its site (its kept sky, `sky` input) with each body's
-    face its `body-face-<body>` row made (read while it stands), and lamps.json (each lamp, its strength there,
-    whether it has a shaft)."""
+    face its `body-face-<body>` row made (read while it stands), past its star's twilight the night's light (night.py,
+    from `night`, data/physics/night.json), and lamps.json (each lamp, its strength there, whether it has a shaft)."""
     place = place_of(inputs)
     stage = passes.source(place, inputs, out / "source")
-    found = layer.write(place, passes.record_of(place, inputs), stage, out, sky.read(inputs["sky"]) if "sky" in inputs
-                        else None, sky.faces_of(inputs), sky.read(inputs["library"]))
+    kept = sky.read(inputs["sky"]) if "sky" in inputs else None
+    found = layer.write(place, passes.record_of(place, inputs), stage, out, kept, sky.faces_of(inputs),
+                        sky.read(inputs["library"]))
     record = passes.record_of(place, inputs)
+    dark = night.write_layer(out / layer.LAYER, stage / f"{place}.usda", place, kept,
+                             sky.read(inputs["night"]) if "night" in inputs else None, record.get("floor"))
+    if dark:
+        found["sky"]["night"] = dark
     inside = bool((record.get("environment") or {}).get("inside"))
     found["lamps"] += sun_lamps(place, out, stage)
     light = sky.read(inputs["concept light"]) if "concept light" in inputs else None
@@ -366,12 +372,13 @@ LAYERED = contracts.Contract("light-layer", 1, layer_faults, {"length": "metre",
 
 def layer_files(place):
     """The kit (its seat, its lenses: passes.place_files), the seed, the surface library's method (a shining body's
-    disc is its glowing recipe), the library's lamp (its concept's fill), the scene's kept sky (sky.kept_input) and its
-    concept's light (scene_record.concept_light) when it has them; the record is the scene-record row's output."""
+    disc is its glowing recipe), the library's lamp (its concept's fill), the night's physics (night.py), the scene's
+    kept sky (sky.kept_input) and its concept's light (scene_record.concept_light) when it has them; the record is the
+    scene-record row's output."""
     return {"seed": "{seeds}/usd-r3/{place}", "kit": "{data}/kit/{place}.json", **passes.SURFACES,
             "library": "{data}/library/materials.json", "lamp library": "{data}/library/lamps.json",
-            **passes.place_files(place), **sky.kept_input(place), **concept_light.concept_light_input(place),
-            **passes.ground_files(place)}
+            "night": "{data}/physics/night.json", **passes.place_files(place), **sky.kept_input(place),
+            **concept_light.concept_light_input(place), **passes.ground_files(place)}
 
 
 # --- light: the sweep, the strengths and the measures ------------------------------------------------------------
