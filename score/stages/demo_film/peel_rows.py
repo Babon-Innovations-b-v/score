@@ -5,7 +5,8 @@ blender/body_peel.py from the jobs peel.py writes); the environment film cuts th
     a locked film script's body-peel or place-peel   its `shows` {"place"}, its `seconds`, and for a body peel
                                                      optionally "close": the close-up following one walker
 
-A place no locked script peels has no node (`applies_body`, `applies_place`); the row's key is the locked scripts
+A place no locked script peels has no node (`applies_body`, `applies_place`), nor has a layer peel of a place whose
+cast is a crowd alone (no sim body to peel); the row's key is the locked scripts
 that peel the place (`script <name>`), so a lock moves only those places' peels.
 
     body-peel   reads cast, sim-body, people-clips-made (the clips rig), scene-clips (a climber's clip and the
@@ -67,7 +68,10 @@ def peeled(cut):
 
 
 def applies_body(place):
-    return place in peeled(final.PEEL)
+    """A place a locked script layer peels whose cast gives sim bodies: a crowd alone has none (final.crowd_only),
+    so its layer peel is no node, never a paid node that cannot draw; the environment film names that script's fault
+    (final.plan_faults: a place peel shows a crowd)."""
+    return place in peeled(final.PEEL) and not final.crowd_only(place)
 
 
 def applies_place(place):

@@ -974,8 +974,10 @@ def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, m
     Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people")]` -> `]`
     Break: score/stages/demo_film/final.py: `all("crowd" in fields` -> `any("crowd" in fields`
     Break: score/stages/demo_film/final.py: `for place in crowds if place in peeled or place not in placed]` -> `if False]`
+    Break: score/stages/demo_film/peel_rows.py: `and not final.crowd_only(place)` -> `` (a crowd's layer peel a node)
     And a place whose cast is a crowd alone (no sim body) is place peeled, never layer peeled."""
     from score.stages import design_layers, people_rows
+    from score.stages.demo_film import peel_rows
     monkeypatch.setattr(design_layers, "KEPT", tmp_path)
     for place in ("lab", "stairwell", "hangar", "square"):
         (tmp_path / f"{place}.json").write_text("{}")
@@ -991,6 +993,8 @@ def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, m
     assert faults == ["the cast of square is a crowd with no sim body and no place peel shows it"]  # walked or not
     faults = final.plan_faults(dict(a_script([*WALKS, dict(crowd, cut="place-peel")])), (), (), final.crowded())
     assert not any("square" in fault for fault in faults)
+    locked_in(tmp_path / "home", monkeypatch, ("toy", a_script([*WALKS, crowd, dict(crowd, shows={"place": "lab"})])))
+    assert not peel_rows.applies_body("square") and peel_rows.applies_body("lab")  # no node that cannot draw
     assert {"design lab", "design stairwell", "design hangar"} <= set(final.files())
     peel = {"cut": "body-peel", "shows": {"place": "lab"}, "seconds": 5.0}
     faults = final.plan_faults(dict(a_script([*WALKS, peel])), final.peopled())
