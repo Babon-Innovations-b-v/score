@@ -15,7 +15,7 @@ shell): its `store-pull` and `store-push` verbs, a tar stream each way through t
 ask, since 2026-11-08), or over ssh to `--host`.
 
 - **Pull** copies what a run reads (the door's PULLED: the store's objects, the design, the work folder, the Google
-  answer cache, score_lib's file cache) into HOME, a home of its own (default ~/.score-this-pc): never the PC's old
+  answer cache, score_lib's file cache, the cockpit's locked film scripts and free previews) into HOME, a home of its own (default ~/.score-this-pc): never the PC's old
   home, and never the conductor's keys, ledgers, run registry or frozen copies. It sends the door a manifest of what
   HOME holds, so only new and changed files come down, gzipped as every list it sends the door (2026-11-10: 98 MB
   of plain manifest reset the kubectl port-forward). The prop environment is the PC's (`env` linked), and the
