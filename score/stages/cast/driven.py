@@ -274,9 +274,10 @@ def bodiless(look):
 
 
 def judge_bodies(output, inputs, evidence):
-    """Fail on every person with no body of its look, named (the owner's GAP rule); pass when each has one."""
+    """Fail on every person with no body of its look, named (the owner's GAP rule), each finding "<name>: ..." so a
+    recorded gap of the place moves it to complete by name (stages.GAP_GATES); pass when each has one."""
     looks = json.loads((pathlib.Path(output) / layer.RECORD).read_text())["looks"]
-    without = tuple(f"{name} ({look['look']}): {look['missing']}" for name, look in looks.items() if bodiless(look))
+    without = tuple(f"{name}: {look['look']}, {look['missing']}" for name, look in looks.items() if bodiless(look))
     reason = (f"{len(without)} of {len(looks)} people have no body of their look: " + "; ".join(without[:3])
               if without else f"each of {len(looks)} people has a body of its look")
     return checks.Verdict("bodies", checks.FAIL if without else checks.PASS, reason, {"no body": len(without)},

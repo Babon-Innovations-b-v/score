@@ -40,6 +40,15 @@
       "faults": [
         "distant_rocket: moves (launch), and no object of it stands on the stage"
       ]
-    }
-  ]
+    },
+  {
+   "name": "8 people with no body of their look (person/made)",
+   "row": "characters-layer",
+   "check": "bodies",
+   "objects": ["diner_seated", "pedestrian_umbrella_1", "pedestrian_umbrella_2", "pedestrian_umbrella_3", "pedestrian_umbrella_4", "pedestrian_umbrella_5", "pedestrian_umbrella_6", "pedestrian_umbrella_7"],
+   "reason": "The cast names these people, and the people line has no accepted dressed body of their look yet: the named bodies (astronaut, person, person_uniform, pilot, officer, man_stair, woman_stair) fail their clips gate after their retake (0 usable clips since af917635, 2026-11-08), and the hangar's and square's bodies are remade tonight. The characters layer's bodies gate named each and stopped the place's assembly, scene tree and film. By the owner's rules the people ship as named fails and nothing waits on them (2026-10-13: a place whose people fail ships with the people as a named fail; 2026-11-09: a second fail is a gap; 2026-11-10: a place that is not ready by about 16 hours in goes into the film with what it has). Only these people's no-body findings move to complete, which fails them by name; any person who gets a body is laid and no longer a finding.",
+   "decided": "owner (@JoeyKardolus), 2026-11-10, his standing rules of 2026-10-13, 2026-11-09 and 2026-11-10 (env1 film)",
+   "faults": ["diner_seated: person/made, no accepted body of its look (people-dress-person-made)", "pedestrian_umbrella_1: person/made, no accepted body of its look (people-dress-person-made-v1)", "pedestrian_umbrella_2: person/made, no accepted body of its look (people-dress-person-made-v2)", "pedestrian_umbrella_3: person/made, no accepted body of its look (people-dress-person-made-v3)", "pedestrian_umbrella_4: person/made, no accepted body of its look (people-dress-person-made-v4)", "pedestrian_umbrella_5: person/made, no accepted body of its look (people-dress-person-made-v5)", "pedestrian_umbrella_6: person/made, no accepted body of its look (people-dress-person-made-v6)", "pedestrian_umbrella_7: person/made, no accepted body of its look (people-dress-person-made-v7)"]
+  }
+ ]
 }
