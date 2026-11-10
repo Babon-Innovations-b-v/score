@@ -207,7 +207,7 @@ def cloud_bill_all():
         return {"bill_all": None, "bill_all_unread": f"the {billing.NAME} backend reads no whole bill"}
     try:
         return {"bill_all": round(billing.bill_all()["whole"], 2), "bill_all_unread": None}
-    except (billing.Unread, subprocess.CalledProcessError) as unread:
+    except (billing.Unread, subprocess.CalledProcessError, OSError) as unread:  # OSError: no scw here (the gate)
         return {"bill_all": None, "bill_all_unread": str(unread)[:300]}
 
 

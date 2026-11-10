@@ -13,7 +13,8 @@ made a new key for the account beside the stale one. Review of #13: `--google-mo
 Break that turns it red: in ledger.books_refusal accept one ledger from before the month (`or` for `and`); in
 compute.read_back_books make the books `known` from the Scaleway bill alone; or in batch.rent order before checking
 the self-delete key, or in scaleway.create skip self_delete_key_refusal (a key the provider answers 401 rents a
-machine that cannot delete itself: 2026-11-02, an H100 idle 12.8 h).
+machine that cannot delete itself: 2026-11-02, an H100 idle 12.8 h); or in compute.cloud_bill_all drop `OSError`
+(a box with no scw, the gate's pod, fails every read-back instead of leaving the whole bill unread: be04aa4f's gate).
 """
 import io
 import json
@@ -46,8 +47,13 @@ NAMED = types.SimpleNamespace(clearances=lambda node, key: [], spend_yes=lambda 
 
 @pytest.fixture(autouse=True)
 def no_cloud(tmp_path, monkeypatch):
-    """No provider bill read, no billing export table set, the ledgers and the books in the test's folder."""
+    """No provider bill read (no scw, as in the gate's pod: the whole bill reads as unread), no billing export table
+    set, the ledgers and the books in the test's folder."""
+
+    def no_scw(*words):
+        raise FileNotFoundError(2, "No such file or directory", "scw")
     monkeypatch.setattr(compute, "cloud_bill", lambda: 0.0)
+    monkeypatch.setattr(provider.billing(), "scw", no_scw)
     monkeypatch.delenv(google_bill.TABLE, raising=False)
     monkeypatch.delenv(compute.TICKET, raising=False)
     monkeypatch.delenv(ledger.FREE_ONLY, raising=False)
@@ -214,6 +220,7 @@ def test_a_read_back_without_googles_bill_leaves_the_books_lost_and_says_why(mon
     books_of([cloud_line(last_month())], [google_line(last_month())])
     books = read_back_with(monkeypatch, unread_google_bill)
     assert (books["state"], books["bill"], books["vat_in_bill"]) == ("lost", 1234.5, "unknown")
+    assert books["bill_all"] is None and "scw" in books["bill_all_unread"], books
     said = refusals(monkeypatch)
     assert said["cleared"] and "does not match any table" in said["month"]
 
