@@ -13,6 +13,11 @@ body by body; `path_lengths` reads each muscle's path for OpenSim's muscle scali
   after sizing, against 15 of 22 within 1 cm with the old sizing (limbs by joint distance, the rest by standing
   height). The joints' widths are not sized: the hip joints stand 65 mm narrower than SOMA's, the shoulders 35 mm wider
   (recorded in `assumed`'s bone shape); placing the joint centres is #70's solver's.
+- **The hip joints stand in the pelvis by its scale** (#98, 2026-11-10), as the pelvis' muscle attachments do: from
+  2026-10-29 (9cca1f06, `hip_width`) the femurs were moved to SOMA's hip joints apart (213 to 227 mm on LabValidation's
+  subjects, 136 at the pelvis' scale) while the pelvis' muscle points stayed at its scale; the hip muscles' arms fell
+  25 to 38% and the gluteus medius, minimus and TFL saturated on 47 to 57% of a walk's frames. Never place the hips
+  apart from the pelvis' own attachments; the test's `hips_off` judges it.
 - **A limb's bones are as wide as its girth asks** (#70, 2026-11-01, the coordinator's decision): a body's scale is
   three, one per axis of its frame; in `GIRTH_GROUPS` (upper arm, forearm, hand, thigh, shin, foot) the axis nearest
   the group's stretch (`long_axes`) takes the length's scale and the two across it that times the person's girth for

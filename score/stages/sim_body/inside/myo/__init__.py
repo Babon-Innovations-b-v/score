@@ -21,7 +21,7 @@ from calibration import fingers
 from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
 from myo._movable import movable
 from myo._rested import rested
-from sizing import WRAPPER_KG, assumed, balanced, hip_width, kept_bodies, path_lengths, sized, ungrouped_kg
+from sizing import WRAPPER_KG, assumed, balanced, kept_bodies, path_lengths, sized, ungrouped_kg
 
 SOURCE = "musclemimic_models/model/body/myofullbody.xml"
 
@@ -69,7 +69,6 @@ class Sized:
         spec = _fresh(source)
         self.wrappers = multi_joint_bodies(spec)
         sized(spec, self.model, self.scales, kg, self.wrappers)
-        hip_width(spec, size.rig)
         self.sized = spec
         self.rest = path_lengths(_fresh(source).compile())  # the published model's paths at the same rest
 

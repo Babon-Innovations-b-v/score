@@ -3,7 +3,9 @@
   sized with the one before it on its chain: `stretches`) scaled evenly so its stretch (its two end joints: SOMA's
   rig joints at its bind, MyoFullBody's child bodies' joint anchors at its default pose) is SOMA's
   (`soma_lengths`, `myo_lengths`); all scales solved together (`Size.scales`), as a group's end may sit on another
-  group's body; the pelvis, spanning two directions, also gets its width (`hip_width`: the hip joints apart);
+  group's body; the hip joints stand in the pelvis by its scale, as its muscles' attachments do (#98: placed at
+  SOMA's hip joints apart, 213 to 227 mm against 136 at the pelvis' scale, they cut the hip muscles' arms 25 to
+  38% and saturated the abductors walking);
 - each group's mass, centre of mass and inertia's trace from SOMA's segment volumes (`volumes`: Dempster's densities),
   laid on the group's bodies (frames under FRAME_KG left out) in the model's own proportions, the centre carried
   into the group's frame by the calibration table and the inertias scaled together to the trace (`weigh`); the
@@ -323,22 +325,6 @@ def sized(spec, model, scales, kg, wrappers):
             holder = joint.parent
             data[:5] *= _slide_scale(scales.get(holder.parent.name, np.ones(3)), holder.quat, joint.axis)
             equality.data = data
-
-
-HIPS = ("femur_l", "femur_r")  # the bodies whose anchors are the hip joints
-
-
-def hip_width(spec, rig):
-    """The sized spec's hip joints set SOMA's hip joints apart (LeftLeg to RightLeg at its bind), each femur's place
-    in the pelvis moved along the line between them; the factor applied."""
-    soma = float(np.linalg.norm(soma_point("LeftLeg", rig) - soma_point("RightLeg", rig)))
-    heads = {name: np.asarray(spec.body(name).pos, dtype=float) for name in HIPS}
-    across = heads[HIPS[0]] - heads[HIPS[1]]
-    factor = soma / float(np.linalg.norm(across))
-    across /= np.linalg.norm(across)
-    for name, place in heads.items():
-        spec.body(name).pos = place + (factor - 1.0) * (place @ across) * across
-    return factor
 
 
 FILLED = {}  # {the mesh's bytes' digest: `volumes.filled`'s cells, read-only}: a person's mesh is filled once
