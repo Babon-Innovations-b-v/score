@@ -1249,7 +1249,9 @@ def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
         surface="deck_plate")`
     Break: score/stages/earth_seed/design_shell.py: `return f"{place}: the scene's surface library is not made (run
         surface-library first): its {kind} has none"`
-        -> `return f"{place}: no surface"`"""
+        -> `return f"{place}: no surface"`
+    Break: score/stages/earth_seed/design_shell.py: `return next((name for name in found if set(name.split("_")) &
+        set(words)), found[0])` -> `return found[0]` (docking_airlock's floor painted with its ochre edging)"""
     from pxr import Usd
     from score.stages.scene_record import writer
     sys.path.insert(0, str(REPO / "tools/usd"))
@@ -1268,6 +1270,12 @@ def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
     assert {surfaces["wall_1"]["surface"], surfaces["deck_1"]["surface"], surfaces["stair_1"]["surface"]} == \
         {"painted_panel", "deck_plate"} and surfaces["stair_1"]["surface"] == "deck_plate", surfaces
     roof = surfaces["roof_1"]
+    from score.stages.earth_seed import design_shell
+    edged = {"kinds": {"floor": ["hazard_frame_paint", "deck_floor_plate", "floor_vent_grate"],
+                       "wall": ["hull_panel", "hull_recess"]}}
+    assert design_shell.surface_for("deck", edged) == "deck_floor_plate"  # the floor's own, never its edging
+    assert design_shell.surface_for("wall", edged) == "hull_panel"  # none named after it: its first
+    assert design_shell.surface_for("roof", edged) is None
     assert roof["surface"] is None and "names no surface for the kinds a roof takes" in roof["surface_missing"], roof
     assert all(entry["surface"] is None and "not made" in entry["surface_missing"] for entry in painted.values()), \
         painted  # no library row read: every part named missing, none painted another way

@@ -1047,9 +1047,18 @@ def library_of(path):
 
 
 def surface_for(kind, library):
-    """The variant the scene library gives a part of `kind` (the first of its PART_KINDS it names one for), else
-    None."""
-    return palette_library.shell_surface(kind, library)
+    """The variant the scene library gives a part of `kind`, from the first of its SHELL_KINDS it names one for (else
+    None): its first variant named after the part (a word of those kinds in its name), else its first. The shell
+    paints a part whole with one surface, and the library's ask lists a kind's surfaces in no order: docking_airlock's
+    floor took hazard_frame_paint, its ochre edging, before deck_floor_plate (light@docking_airlock's cast 28.5 levels
+    warm), galley's its cushion bumper, hub's its dark trim, walkway's its shadow recess (2026-11-10). Chosen here, not
+    in palette_library.shell_surface, whose code keys the paid finish route that offers the shell's surfaces as fits."""
+    words = palette_library.SHELL_KINDS[kind]
+    kinds = (library or {}).get("kinds") or {}
+    found = next((kinds[wanted] for wanted in words if kinds.get(wanted)), None)
+    if not found:
+        return None
+    return next((name for name in found if set(name.split("_")) & set(words)), found[0])
 
 
 def missing_why(place, kind, library):
