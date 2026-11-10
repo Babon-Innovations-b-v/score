@@ -772,8 +772,10 @@ def concept_skies(place):
 
 def row_skies(place, inventory):
     """The sky an inside place's concept shows through its openings: read on the boxes of its scene inventory's rows
-    anchored to the sky (a starry sky, a planet: `boxes`, the concept's pixels), as concept_skies reads one; None
-    where no such row has a box (its concept shows no sky to judge against)."""
+    anchored to the sky (a starry sky, a planet: `boxes`, the concept's pixels) where they hold the sky's own flat
+    colour (measure.commonest_near, as concept_skies reads one: 2026-11-10, greenhouse's and hub's starry bands held
+    their roofs and read grey, 58.6 and 68.2 levels, against black and navy skies); None where no such row has a box
+    (its concept shows no sky to judge against)."""
     rows = [row for row in (json.loads(pathlib.Path(inventory).read_text())["rows"] if inventory else [])
             if row.get("anchor") == "sky" and row.get("boxes")]
     pictures = concept_pictures(place)
@@ -784,7 +786,7 @@ def row_skies(place, inventory):
     for row in rows:
         for left, top, right, bottom in row["boxes"]:
             mask[max(int(top), 0):int(bottom), max(int(left), 0):int(right)] = True
-    sky = measure.sky_of(rgb, mask)
+    sky = measure.sky_of(rgb, measure.commonest_near(rgb, mask)) if mask.any() else None
     return None if sky is None else {**sky, "pictures": 1, "from": "its sky rows' boxes"}
 
 
@@ -833,15 +835,23 @@ def fault_measures(place, out, passes_folder, inputs):
 
 
 def concept_cast(place, outdoor):
-    """The median cast (measure.surface_cast) of the place's concept pictures, their sky (measure.sky_pixels) left
-    out where the place stands outdoor (an inside concept's top rows are its ceiling); None with none read."""
+    """The median cast (measure.surface_cast) of the place's concept pictures, a cutaway's flat backdrop
+    (measure.backdrop) and their sky (measure.sky_pixels) left out where the place stands outdoor (an inside concept's
+    top rows are its ceiling); None with none read."""
     casts = []
     for path in concept_pictures(place):
         rgb = measure.picture(path)
-        cast = measure.surface_cast(rgb, measure.sky_pixels(rgb) if outdoor else None)
+        cast = measure.surface_cast(rgb, not_place(rgb, outdoor))
         if cast is not None:
             casts.append(cast)
     return [round(float(np.median([cast[channel] for cast in casts])), 1) for channel in range(3)] if casts else None
+
+
+def not_place(rgb, outdoor):
+    """A concept picture's pixels that are not the place's surfaces: its cutaway backdrop, and its sky where the place
+    stands outdoor; None where it has neither."""
+    masks = [mask for mask in (measure.backdrop(rgb), measure.sky_pixels(rgb) if outdoor else None) if mask is not None]
+    return np.logical_or.reduce(masks) if masks else None
 
 
 def colour_measures(place, out, passes_folder, outdoor):

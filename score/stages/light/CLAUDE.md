@@ -50,8 +50,9 @@ gates.
   `mix.LAMP_SHARE_LEAST` of the light (2026-11-04, the light audit: hangar's sun at x19 in a night hangar, its
   lamps 8%; airlock's, garage's, tube's and hub's lamps at the 1/32 floor). The gate `colour` holds the lit
   surfaces' cast (`measure.surface_cast`: the mid-tones' balance, brightness taken out) within `CAST_MOST` levels of
-  the concept's (2026-11-04: the lab lit green by its screens, quarters' warm room cool). An inside place whose
-  views see sky has its sky judged too, against its sky rows' boxes on its concept (`row_skies`; camp's domes).
+  the concept's (2026-11-04: the lab lit green by its screens, quarters' warm room cool), a cutaway concept's flat
+  backdrop left out (`measure.backdrop`; 2026-11-10: quarters' grey backdrop read its warm room neutral). An inside place whose
+  views see sky has its sky judged too, against its sky rows' boxes on its concept, on the sky's own flat colour there (`row_skies`; camp's domes).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes
   `views.json` from the record it reads (its accepted scene-record output where it has one), and the passes and the
