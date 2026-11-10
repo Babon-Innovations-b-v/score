@@ -3444,7 +3444,9 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         the drawn box's `taken & standing.under(...)` test -> `False` (BAGS 1 left in the suit), or its
         `count_said(...)` dropped (the cut bags unsaid); `run_room`'s off-outline room -> `pass` (BAGS 4 pulled
         inside); `taken_floor`'s `laid_polygon(...)` -> `plan_checks.polygon_of(other, shape)` (the bags left where
-        the holders lay the ramp)"""
+        the holders lay the ramp)
+    Break: score/review/plan_fixes.py `hung_runs`: `long >= RUN_SHARE * short and` dropped (the hung lamps moved to a
+        wall), or `hung_runs_laid_out`'s `item[1:5] = first` -> `pass` (the cables left in one another)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3813,6 +3815,24 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
                                     f"made: {9 + kept} laid", "laid": 9 + kept}] and len(said) == 3, (laid, said)
     assert counts["BAGS 4"] == 3 and laid["BAGS 4"][1] >= 4.0, laid  # drawn past the outline, kept past it
     assert plan_fixes.runs_laid_out(sacks, sack_rows) == []
+    # settle@storage, 2026-11-10: six 2 m cable bundles "round the ceiling edges" on one 2.68 m box, laid 0.45 m apart
+    # in one another. A run hung from the roof is hung end to end along the walls under it, nearest first, as many a
+    # wall as its face holds; lamps hung in a cluster are no run and stay.
+    square = [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]]
+    hall = {"w": 6.0, "d": 4.0, "outline": square,
+            "walls": [{"from": start, "to": end, "thick": 0.2} for start, end in zip(square, square[1:] + square[:1])],
+            "items": [["CABLES 1", 1.0, 0.1, 2.6, 0.1, None, "item"], ["LAMPS 1", 2.5, 1.5, 0.5, 0.5, None, "item"]],
+            "rows": {"CABLES 1": ["cables"], "LAMPS 1": ["lamps"]},
+            "shapes": {"CABLES 1": {"shape": "rect", "tall": 0.1, "base": 3.0, "count": 6},
+                       "LAMPS 1": {"shape": "rect", "tall": 0.2, "base": 2.8, "count": 3}}}
+    hung_rows = {"rows": [{"id": "cables", "anchor": "ceiling", "count": 6, "size": [2.0, 0.1, 0.1]},
+                          {"id": "lamps", "anchor": "ceiling", "count": 3, "size": [0.4, 0.4, 0.2]}]}
+    said = plan_fixes.hung_runs_laid_out(hall, hung_rows)
+    hung = {item[0]: (item[1:5], hall["shapes"][item[0]].get("count")) for item in hall["items"]}
+    assert hung == {"CABLES 1": ([1.0, 0.1, 4.0, 0.1], 2), "LAMPS 1": ([2.5, 1.5, 0.5, 0.5], 3),
+                    "CABLES 2": ([0.1, 1.0, 0.1, 2.0], 1), "CABLES 3": ([5.8, 1.0, 0.1, 2.0], 1),
+                    "CABLES 4": ([1.0, 3.8, 4.0, 0.1], 2)} and len(said) == 1 and "dropped" not in hall, (hung, said)
+    assert plan_fixes.hung_runs_laid_out(hall, hung_rows) == []
     ramp_row = {"id": "ramp", "name": "metal ramp", "noun": "ramp", "anchor": "ground", "count": 1,
                 "size": [1.2, 2.0, 0.2]}
     for walled_off in (True, False):
