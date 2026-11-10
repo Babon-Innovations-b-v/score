@@ -1130,8 +1130,10 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     up through it at its corner is left as laid (more than 1 m), and the held gate names it and a pipe its wall
     relation laid against its wall at the eave, 6 m up through the roof, by name and how far; a crate wholly above the
     roof is not through it, and a box on a loft deck under the eave, 0.42 m through, is left and named, never sunk
-    into its deck.
+    into its deck. A light hung from the roof, built shorter than its reading (its top 0.4 m under the roof's 4.6 m over
+    its corner, settle@airlock's roof light 0.13 m under its dome), is moved up to 0.01 m under it.
     Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
+    Break: score/stages/assembly/fitting.py: `+ hung_up(stage, place, loose)` -> `+ []`
     Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
         len(reach) else 0.0`
     Break: score/stages/assembly/fitting.py: `lowest = height.min(axis=1)` -> `lowest = np.where(np.isfinite(height),
@@ -1155,15 +1157,19 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
                             ("crate_1", (0.5, 2.6, 1.0), (1.5, 3.6, 2.0)),
                             ("ship_1", (1.0, 0.0, 6.0), (3.0, 6.0, 8.0)),
                             ("crate_2", (2.0, 5.0, 2.0), (2.5, 5.5, 2.5)),
-                            ("pipes_1", (8.0, 0.0, 4.0), (8.4, 9.0, 4.4))):
+                            ("pipes_1", (8.0, 0.0, 4.0), (8.4, 9.0, 4.4)),
+                            ("light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))):
         a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
     wall = {"how": "wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
     entries = [*[{"name": name, "row": name[:-2]} for name in ("lamp_1", "crate_1", "ship_1", "crate_2",
                                                                  "box_1")],
-               {"name": "pipes_1", "row": "pipes", "on": wall}]
+               {"name": "pipes_1", "row": "pipes", "on": wall}, {"name": "light_1", "row": "light", "under roof": True}]
     names = {entry["name"] for entry in entries}
-    fits = [fit for fit in fitting.fitted(stage, TOY, entries, names) if fit["how"] == "down"]
+    fitted = fitting.fitted(stage, TOY, entries, names)
+    fits = [fit for fit in fitted if fit["how"] == "down"]
     assert [(fit["name"], fit["moved"], fit["holder"]) for fit in fits] == [("crate_1", 0.4, ["roof_1"])], fits
+    assert [(fit["name"], fit["moved"]) for fit in fitted if fit["how"] == "up"] == [("light_1", 0.39)], fitted
+    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/light_1")[1], (4.4, 4.59, 6.4)), fitted
     assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/crate_1")[1], (1.5, 3.2, 2.0)), fits
     assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/ship_1")[0], (1.0, 0.0, 6.0))
     through = fitting.through_roofs(stage, TOY, sorted(names))
