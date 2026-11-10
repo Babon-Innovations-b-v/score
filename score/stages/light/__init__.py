@@ -874,6 +874,19 @@ def night_adapted(passes_folder, place, scales, colours, dark):
                              "surround": "average (inside)" if ratio is None else round(ratio, 4)}
 
 
+def room_eye(inputs, light, record):
+    """The eye in a lamp-lit place (lamp_lit) by day, as night_adapted takes it: standing in the room's light at
+    data/physics/night.json's `adapted_lux` inside (EN 12464-1:2021, 100 lux), its room round it (an average
+    surround); None for any other place or with no night table. The eye adapts to the light it stands in whatever the
+    hour outside: 2026-11-10, greenhouse, a dome lit by its lamps under the Sun, read [175, 105, 101] against its
+    concept's [146, 115, 123] with its eight 2700 K wall panels taken as a daylight camera sees them, as flat's
+    tungsten room was before the eye by night took them."""
+    if not lamp_lit(light, record) or "night" not in inputs:
+        return None
+    table = sky.read(inputs["night"])
+    return {"scale": night.scale_of(table, True)} if table and table.get("adapted_lux") else None
+
+
 def environment_adapted(layer_path, place, matrix):
     """The night air's light in the light layer (its dome's colour and the background the views see,
     /<place>/Environment, night.write) taken through the eye's adaptation `matrix` (night_adapted)."""
@@ -968,12 +981,13 @@ def make_light(inputs, out, seed, params):
     colours = group_colours(passes_folder, found, record, layer_folder / layer.LAYER, emitters)
     dark = (found.get("sky") or {}).get("night")
     night_lights = (dark or {}).get("lights") or []
+    eye = dark or room_eye(inputs, light, record)
     matrix, adapted = None, None
-    if dark:  # the eye at a lit place by night adapted to the light it stands in as swept, before any balance
+    if eye:  # the eye at a lit place adapted to the light it stands in as swept, before any balance
         lit_as_swept = strengths(place, passes_folder, found["lamps"], layer_folder, record, light, None,
                                  row_groups(passes_folder, found, record, emitters), emitter_most(inputs),
                                  night_lights)[0]
-        colours, matrix, adapted = night_adapted(passes_folder, place, lit_as_swept, colours, dark)
+        colours, matrix, adapted = night_adapted(passes_folder, place, lit_as_swept, colours, eye)
     scales, swept = strengths(place, passes_folder, found["lamps"], layer_folder, record, light, colours,
                               row_groups(passes_folder, found, record, emitters), emitter_most(inputs), night_lights)
     if adapted:
@@ -1658,7 +1672,8 @@ def light_files(place):
              **passes.place_files(place), "inventory": stage_inputs.inventory_pattern(place),
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
-             **aimed_files(place), **concept_light.concept_light_input(place), **passes.ground_files(place)}
+             # the light the eye in a lamp-lit room stands in (room_eye)
+             "night": "{data}/physics/night.json", **aimed_files(place), **concept_light.concept_light_input(place), **passes.ground_files(place)}
     if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
