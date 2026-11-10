@@ -25,14 +25,18 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   `people_rows.seat_of`) plays the `seated` clip and is put on the nearest seat of that row not taken, measured on the
   laid objects (the cast and sim-body read the surface line's bakes, so `layer_base.built` lays them): its feet on the
   seat's floor under its middle, `seat` its height (`measure.seat_top`), measured from the seat's top and clear of
-  all but its own seat; a row laying no seat it sits on is named by `standing`. Any other anchored person is raised
+  all but its own seat; one whose row lays no free seat (none laid, all taken, or no surface `SEAT_LOW` to
+  `SEAT_REACH` over its floor) stands on clear floor by its spot instead (`unseated`, nudged like a group member),
+  named as a finding of `standing` (2026-11-10: camp's office chairs never laid, airlock's bench top 0.19 m); the
+  seat's fault is its row's to fix. Any other anchored person is raised
   onto the top of its anchor's item under it, never lowered.
 - **A crowd keeps clear of its plan's views** (`plan_views`: the plan row's output, an `after`, its views as the
   scene record writes them), never a hand-written record's (data/scene's game shots) or kit: the cast reads only
   the design, the seed, the environment's eye height and the rules (2026-10-21). They are read only for a crowd with
   ground; a plan spot looking at no plan item (the camp's, at its kit's objects) is refused by name.
 - **A person its design stands on stairs walks its flight** (`stairs_of`, `on_stairs`, 2026-11-04): put
-  on the plan's flight nearest its spot over its height (writer.stair's, as the scene record lays it), on its first
+  on the plan's flight nearest its spot over its height whose every tread a body walks clear of the laid solids
+  (`clear_walk`; none clear: the nearest, for `clear` to name) (writer.stair's, as the scene record lays it), on its first
   tread the way it walks, facing its last, with `stairs` (its way, flight, last tread, rise and run) for the
   scene-made clip; never nudged onto level ground (`climbers_of`), judged where it stands.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
