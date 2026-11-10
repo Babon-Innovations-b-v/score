@@ -25,7 +25,8 @@ observer (Wyman, Sloan and Shirley 2013's fit, JCGT 2(2)) into linear Rec. 709, 
     is_night(seen) -> bool
     skyglow_of(table, site) -> its skyglow entry or None
     reflected(seen, kept, table, scale, dark) -> [{name, of, azimuth, altitude, across, lux, colour}]
-    air_glow(seen, kept, table, scale) -> {"ambient": [r, g, b], "background": [r, g, b]}   linear radiance
+    eye_dark(table, inside) -> the rods' share of the eye adapted to the lit place
+    air_glow(seen, kept, table, scale, dark) -> {"ambient": [r, g, b], "background": [r, g, b]}   linear radiance
     roofed(stage, place, floor) -> bool                     a roof over most of the floor: the eye stands inside
     write(stage, place, seen, kept, table, inside) -> what was written, or None by day or with no air
     write_layer(layer_path, root, place, kept, table, floor) -> the same, written into a light layer file
@@ -59,6 +60,13 @@ LUMINANCE = np.array([0.2126, 0.7152, 0.0722])
 # and the colour the rods see in, chromaticity (0.25, 0.25) as XYZ over Y (Jensen et al. 2001).
 MESOPIC_BOTTOM, MESOPIC_TOP = -2.0, 0.6
 BLUE_SHIFT = (1.0, 1.0, 2.0)
+# The eye's adapting luminance, a fifth of a white surface's under the light it stands in (E / pi / 5: CIE 159:2004's
+# 20% grey world, as mix.ADAPTING_SHARE). The rods' share is the adapted eye's, never the sky's own luminance: the
+# mesopic state is set by the luminance of the field the eye is adapted to (CIE 191:2010, the adaptation luminance),
+# and the eye at a lit place by night is adapted to its lamps (2026-11-10: the square's sky, 0.11 cd/m^2, seen with
+# 64% rods as if the eye stood in the dark sky alone, read 2.4 to 2.8 blue to red against its concept's 2.06; an eye
+# at the square's 10 lux, 0.64 cd/m^2, sees with 22%, one in a 100 lux room with none).
+ADAPTING_SHARE = 0.2
 # A place stands under a roof (the eye adapted to a room's light) when its roofs cover at least this share of its floor.
 ROOFED_LEAST = 0.5
 # The sky's ways the glow is summed over: zenith angles and azimuths, degrees.
@@ -245,10 +253,17 @@ def moonlit_air(seen, kept, table, haze):
     return rayleigh, hazy
 
 
-def air_glow(seen, kept, table, scale):
-    """The sky's light from every way over the horizon in the views' units (radiance, linear Rec. 709) times `scale`:
-    `ambient` its cosine-weighted mean (what lights a level surface, over pi), `background` its mean over the sky's
-    ways (what the eye sees of it), with the luminance (cd/m^2) of each part at the zenith."""
+def eye_dark(table, inside):
+    """The share of seeing the rods take in the eye adapted to the lit place (seen_dark at its adapting luminance,
+    `adapted_lux` / pi x ADAPTING_SHARE)."""
+    return seen_dark(table["adapted_lux"]["inside" if inside else "outside"] / math.pi * ADAPTING_SHARE)
+
+
+def air_glow(seen, kept, table, scale, dark):
+    """The sky's light from every way over the horizon in the views' units (radiance, linear Rec. 709) times `scale`,
+    as an eye whose rods take `dark` of its seeing takes it (eye_dark): `ambient` its cosine-weighted mean (what lights
+    a level surface, over pi), `background` its mean over the sky's ways (what the eye sees of it), with the luminance
+    (cd/m^2) of each part at the zenith."""
     air = air_of(kept, table)
     glow = skyglow_of(table, kept["site"])
     haze = glow["haze_depth"] if glow else 0.0
@@ -268,7 +283,6 @@ def air_glow(seen, kept, table, scale):
             parts.append((np.full_like(zenith, backdrop["lux"] / math.pi),
                           black_body(backdrop.get("kelvin") or 5772.0)))
     at_zenith = float(sum(value[0].mean() for value, _ in parts))
-    dark = seen_dark(at_zenith)
     parts = [(value, colour(spectrum, dark)) for value, spectrum in parts]
     cosine = np.cos(np.radians(zenith))
     ambient = sum(np.sum(value * solid * cosine) / math.pi * tint for value, tint in parts)
@@ -335,9 +349,10 @@ def write(stage, place, seen, kept, table, inside):
     if not table or not seen or not kept or not is_night(seen) or air_of(kept, table) is None:
         return None
     scale = scale_of(table, inside)
-    glow = air_glow(seen, kept, table, scale)
+    glow = air_glow(seen, kept, table, scale, eye_dark(table, inside))
     lights = [write_light(stage, place, light) for light in reflected(seen, kept, table, scale, glow["dark"])]
-    found = {"lights": lights, "scale": round(scale, 3), "zenith_cd": glow["zenith_cd"], "dark": glow["dark"],
+    found = {"lights": lights, "scale": round(scale, 3), "outside_scale": round(scale_of(table, False), 3),
+             "zenith_cd": glow["zenith_cd"], "dark": glow["dark"],
              "environment": {"ambient": [round(value, 6) for value in glow["ambient"]],
                              "background": [round(value, 6) for value in glow["background"]]}}
     held = stage.GetPrimAtPath(f"/{place}/Environment")

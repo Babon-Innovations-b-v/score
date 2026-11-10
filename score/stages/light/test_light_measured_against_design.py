@@ -92,6 +92,13 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   out, light.environment_adapted: the background left as it was (the layer test, 2026-11-10).
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
   the emitter words (the float look test, 2026-11-10).
+- night.air_glow: the rods' share read on the sky's own luminance (`seen_dark(at_zenith)`), not the adapted eye's
+  (night.eye_dark); mix.surround_factor: SURROUND always (the sun under the horizon test and the layer test,
+  2026-11-10: the square's sky too blue).
+- light.look_at: the sky's factor left to the smoothing (the float look test, 2026-11-10: the square's sky lit by its
+  lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test, 2026-11-10: the stairwell);
+  light.on_card: the look as it is (the exposure test, 2026-11-10: the street's black police car);
+  light_passes.surface_of: the glossy colour left out (the missing picture test).
 """
 import json
 import math
@@ -302,6 +309,13 @@ def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_f
     written = night.write_layer(tmp_path / "light.usda", tmp_path / "square.usda", "square", kept, table, None)
     held = Usd.Stage.Open(str(tmp_path / "light.usda"))
     assert written["scale"] == pytest.approx(214.6, abs=0.1) and held.GetPrimAtPath("/square/Lights/night_moon")
+    # the rods' share is the adapted eye's, never the sky's own (2026-11-10: the square's sky seen with 64% rods read
+    # 2.4 to 2.8 blue to red against its concept's 2.06): at the square's 10 lux, 10 / pi / 5 = 0.64 cd/m^2, a
+    # smooth step at (0.6 + 0.20) / 2.6 = 0.31 of its way, 0.224; in a 100 lux room, 6.4 cd/m^2, none
+    assert night.eye_dark(table, False) == pytest.approx(0.224, abs=0.001) and night.eye_dark(table, True) == 0.0
+    assert written["dark"] == pytest.approx(0.224, abs=0.001) and written["outside_scale"] == written["scale"]
+    assert night.write(stage_of("stairwell"), "stairwell", seen, kept, table, True)["outside_scale"] == \
+        pytest.approx(214.6, abs=0.1)
 
 
 def seed_with_old_sky(folder):
@@ -486,6 +500,17 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_
             {"view": "spot-1", "after": after, "masked": True}]}}))
         return light.judge_sky(tmp_path, {}, {})
 
+    # an inside place's cutaway concept is seen from outside it, its views by the room's eye (2026-11-10: the
+    # stairwell's sky through its windows, [3.5, 7.3, 15.1], against its concept's navy [29.8, 33.3, 54.7]): the
+    # room's eye at 100 lux takes 21.457 / 214.571 = 0.1 of the light the eye over the square does; the concept's
+    # sRGB 29.8, 33.3, 54.7 is linear 0.0128, 0.0152, 0.0373, a tenth of it 4.2, 5.0, 12.2 levels
+    painted = {"mean_rgb": [29.8, 33.3, 54.7], "blue_to_red": 1.8356, "rise_to_horizon": 0.0, "pictures": 1}
+    inside = light.seen_inside(painted, {"scale": 21.457, "outside_scale": 214.571})
+    assert inside["mean_rgb"] == pytest.approx([4.2, 5.0, 12.2], abs=0.15) and inside["painted"] == [29.8, 33.3, 54.7]
+    assert judged(inside["mean_rgb"], [3.5, 7.3, 15.1]).answer == checks.PASS
+    assert judged(painted["mean_rgb"], [3.5, 7.3, 15.1]).answer == checks.FAIL  # the outside eye's sky: 30.4 levels
+    for dark in (None, {"scale": 214.571, "outside_scale": 214.571}, {"scale": 21.457}):  # by day, outside, older
+        assert light.seen_inside(painted, dark) == painted
     dark = judged([11.4, 16.5, 27.6], [2.5, 2.6, 2.6])
     assert dark.answer == checks.PASS and "not judged" in dark.reason, dark.reason
     lit = judged([80.0, 90.0, 110.0], [95.0, 90.0, 95.0])
@@ -579,6 +604,28 @@ def test_exposure_judges_the_places_surfaces_and_leaves_its_sky_to_the_sky_check
         (tmp_path / "measures.json").write_text(json.dumps({"exposure": light.exposure_measures("hall", tmp_path,
                                                                                                 tmp_path)}))
         assert light.judge_exposure(tmp_path, {}, {}).answer == answer, name
+    # a finish darker than the grey card is judged on its light, read on the card (2026-11-10: the street's police
+    # car's black paint, 5.8 to 10.9% of its close views under 4 levels): a view half black paint (4% reflectance,
+    # Munsell N2.5's) at 3 levels beside a grey wall, under a tone curve known by hand (look = linear ^ (1 / 2.2)):
+    # on the card it reads 3 x (0.18 / 0.04) ^ (1 / 2.2) = 5.9 levels; the same paint in no light (0 levels) still
+    # black, and a grey finish (0.5) at 3 levels black on its own
+    low, high = -16.0, 4.0
+    axis = 2.0 ** np.linspace(low, high, 65)
+    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    np.savez(tmp_path / "passes/hall-0/view-transform.npz", table=np.minimum(knots, 1.0) ** (1 / 2.2), low=low,
+             high=high)
+    half = np.zeros((20, 20), bool)
+    half[:, :10] = True
+    for name, level, finish, answer in (("paint lit", 3, 0.04, checks.PASS), ("paint unlit", 0, 0.04, checks.FAIL),
+                                        ("grey", 3, 0.5, checks.FAIL), ("no surface pass", 3, None, checks.FAIL)):
+        look = np.where(half, level, 128)
+        Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(tmp_path / "looks/hall/v-look.png")
+        surface = {} if finish is None else {"surface": np.where(half, finish, 0.5)}
+        np.savez(tmp_path / "passes/hall-0/v-passes.npz", combined=np.ones((10, 10)), sky=np.zeros((20, 20), bool),
+                 **surface)
+        (tmp_path / "measures.json").write_text(json.dumps({"exposure": light.exposure_measures("hall", tmp_path,
+                                                                                                tmp_path)}))
+        assert light.judge_exposure(tmp_path, {}, {}).answer == answer, name
 
 
 def inside_functions(*names):
@@ -602,6 +649,12 @@ def test_a_missing_picture_counts_on_plain_and_metal_finishes_and_a_grey_under_a
     channels = {f"ViewLayer.{kind}.{axis}": values[..., index] for kind, values in
                 (("Diffuse Color", diffuse), ("Glossy Color", glossy)) for index, axis in enumerate("RGB")}
     assert share(channels) == 0.75
+    # each pixel's surface reflectance, the diffuse and glossy colours' luminance together (light.on_card): the grey
+    # 0.765 + 0.044 = 0.809, the metal's magenta 0.2126 + 0.0722 = 0.285
+    found = inside_functions("surface_of")
+    found["LUMINANCE"] = (0.2126, 0.7152, 0.0722)  # a tuple, which inside_functions leaves out
+    surface = found["surface_of"](channels)
+    assert surface.dtype == np.float16 and np.allclose(surface[0, [1, 3]], [0.285, 0.809], atol=0.002)
 
 
 def test_the_sky_mask_is_where_the_object_index_pass_met_no_object_but_the_day_dome():
@@ -928,6 +981,18 @@ def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_trans
     halves = {"combined": combined, "lamp_0": combined / 2, "lamp_1": combined / 2, "colour": colour}
     assert np.abs(np.asarray(light.look_at(halves, look, {}, both), float) -
                   np.asarray(light.look_at(halves, look, {}), float)).max() <= 1
+    # the sky (where the render met no surface) is light no group holds: a lamp swept 32 times up beside it never
+    # brightens it through the smoothing (2026-11-10: the square's sky x1.24 to x1.58 by its lamps turned up)
+    open_sky = np.zeros(colour.shape[:2], bool)
+    open_sky[:, 80:] = True
+    lamp = np.ones_like(combined)
+    lamp[:, 40:] = 0.0  # the lamp lights the left half only; the sky stands right of it
+    sided = {"combined": combined, "lamp_0": combined * lamp, "colour": colour, "sky": open_sky}
+    swept = np.asarray(light.look_at(sided, look, {"lamp_0": 32.0}), float)
+    rendered = np.asarray(light.look_at(sided, look, {}), float)
+    assert np.abs(swept - rendered)[:, 80:].max() <= 1 and np.abs(swept - rendered)[:, :70].max() > 20
+    unmasked = np.asarray(light.look_at({**sided, "sky": np.zeros_like(open_sky)}, look, {"lamp_0": 32.0}), float)
+    assert np.abs(unmasked - rendered)[:, 80:84].max() > 1  # without the mask the smoothing reaches it
     change = mix.tint(halves, {"lamp_0": 0.0}, both, light.luminance_of(look)[:combined.shape[0], :combined.shape[1]])
     assert np.allclose(change, cool / ((warm + cool) / 2) / float(mix.LUMA @ (cool / ((warm + cool) / 2))), atol=1e-3)
     # a white lamp painted in its glow's saturated tint throws its black body's light: #ffcc88 is about 3570 K, close
@@ -1107,6 +1172,11 @@ def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_streng
     # where its concept's surfaces read about neutral; the eye at a lit place by night adapts to the light it stands
     # in. CIECAM02's D by hand: 100 lx, L_A = 100 / pi / 5 = 6.366 cd/m^2, 1 - e^(-48.366 / 92) / 3.6 = 0.8357.
     assert math.isclose(mix.adaptation_degree(100.0), 0.8357, abs_tol=1e-4)
+    # CIE 159's surrounds: dark (SR 0) F 0.8, dim 0.9 at SR 0.1, average 1.0 from 0.2; an eye in the square at 10 lux
+    # under its 0.1116 cd/m^2 night sky, SR 0.1116 / (10 / pi) = 0.035, F 0.835, D 0.835 x 0.8252 = 0.689
+    assert [mix.surround_factor(ratio) for ratio in (0.0, 0.1, 0.2, 0.5)] == pytest.approx([0.8, 0.9, 1.0, 1.0])
+    assert mix.adaptation_degree(10.0, mix.surround_factor(0.1116 / (10.0 / math.pi))) == pytest.approx(0.689,
+                                                                                                         abs=0.001)
     tungsten = mix.black_body(2856.0)
     whole, none = mix.adaptation(tungsten, 1.0), mix.adaptation(tungsten, 0.0)
     assert np.allclose(none, np.eye(3)) and np.allclose(whole @ tungsten / float(mix.LUMA @ (whole @ tungsten)),
