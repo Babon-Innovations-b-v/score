@@ -40,14 +40,10 @@ PART_COLOURS = np.array([(78, 121, 167), (242, 142, 43), (89, 161, 79), (225, 87
                         dtype=float)
 
 
-def camera_of(take):
-    return json.loads((labels.PIXAL / f"{take}.svviews" / "transforms.json").read_text())
-
-
-def surface_points(mesh):
-    """Dense points on the model in the camera's frame (labels.VIEW_TURN) with each one's face."""
+def surface_points(mesh, turn):
+    """Dense points on the model in the camera's frame (`turn`, labels.view_turn) with each one's face."""
     points, faces = mesh.sample(SAMPLES, return_index=True, seed=0)
-    points = np.vstack([points, mesh.triangles_center]) @ labels.VIEW_TURN.T
+    points = np.vstack([points, mesh.triangles_center]) @ turn.T
     return points, np.r_[faces, np.arange(len(mesh.faces))]
 
 
@@ -99,9 +95,10 @@ def coloured(face_image, part_of, normals, areas):
 
 def views(take, mesh):
     """The model's faces as the close-up's camera draws them, straight and turned."""
-    camera, shape = camera_of(take), np.asarray(split_compare.picture(take)).shape[:2]
-    points, faces = surface_points(mesh)
-    normals = mesh.face_normals @ labels.VIEW_TURN.T
+    camera, shape = labels.camera_of(take), np.asarray(split_compare.picture(take)).shape[:2]
+    view = labels.view_turn(take)
+    points, faces = surface_points(mesh, view)
+    normals = mesh.face_normals @ view.T
     turn = turn_about_up(TURN_DEGREES)
     centre = (points.min(0) + points.max(0)) / 2
     moved = (points - centre) @ turn.T + centre

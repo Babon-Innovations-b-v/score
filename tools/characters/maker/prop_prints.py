@@ -17,7 +17,6 @@ part's points the camera does not see and its tucks) and `image_<part>` (the PNG
 """
 import argparse
 import io
-import json
 import pathlib
 import sys
 
@@ -48,23 +47,23 @@ def camera_of(take):
     """The close-up's camera (the batch's transforms.json) and its picture (RGB)."""
     views = labels.PIXAL / f"{take}.svviews"
     picture = np.asarray(Image.open(views / "input.png").convert("RGB"))
-    return json.loads((views / "transforms.json").read_text()), picture
+    return labels.camera_of(take), picture
 
 
-def projected(points, camera, shape):
-    """Each raw-frame point's (row, column) in the close-up, as labels.seen_faces projects."""
+def projected(points, camera, shape, turn):
+    """Each raw-frame point's (row, column) in the close-up, as labels.seen_faces projects (`turn` labels.view_turn)."""
     height, width = shape
-    turned = points @ labels.VIEW_TURN.T
+    turned = points @ turn.T
     focal = 1 / np.tan(camera["camera_angle_x"] / 2)
     depth = -camera["frames"][0]["transform_matrix"][1][3] - turned[:, 2]
     return (0.5 - 0.5 * turned[:, 1] * focal / depth) * height, (0.5 + 0.5 * turned[:, 0] * focal / depth) * width
 
 
-def seen_points(on_raw, faces, part_faces, camera, shape):
+def seen_points(on_raw, faces, part_faces, camera, shape, turn):
     """The faces of `part_faces` the camera sees head on (facing it past FACING, not hidden) and their points."""
     mesh = trimesh.Trimesh(on_raw, faces, process=False)
-    seen, _, _ = labels.seen_faces(mesh, camera, shape)
-    facing = (mesh.face_normals @ labels.VIEW_TURN.T)[:, 2] > FACING
+    seen, _, _ = labels.seen_faces(mesh, camera, shape, turn)
+    facing = (mesh.face_normals @ turn.T)[:, 2] > FACING
     good = np.zeros(len(faces), bool)
     good[part_faces] = seen[part_faces] & facing[part_faces]
     found = np.zeros(len(on_raw), bool)
@@ -126,16 +125,18 @@ def prints(take, fit_path, parts_path):
     fit_rig, parts = np.load(fit_path), np.load(parts_path)
     part_of = fit_rig["part_of"] if "part_of" in fit_rig.files else parts["part_of"]
     camera, picture = camera_of(take)
+    turn = labels.view_turn(take)
     on_raw, _ = outline.built_on_raw(take, fit_rig, fit_rig["points"])
     faces = fit_rig["faces"]
-    rows, columns = projected(on_raw, camera, picture.shape[:2])
+    rows, columns = projected(on_raw, camera, picture.shape[:2], turn)
     found = {}
     for number, part in enumerate(parts["parts"]):
         material = str(parts["materials"][number]) if "materials" in parts.files else ""
         name = str(parts["names"][number])
         if name != "skin_head" and material != "printed flag patch":
             continue
-        seen, triangles = seen_points(on_raw, faces, np.flatnonzero(part_of == part), camera, picture.shape[:2])
+        seen, triangles = seen_points(on_raw, faces, np.flatnonzero(part_of == part), camera,
+                                       picture.shape[:2], turn)
         if seen.sum() < 3:
             continue
         uv = np.full((len(on_raw), 2), np.nan)

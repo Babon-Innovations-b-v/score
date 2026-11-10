@@ -73,7 +73,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - straight `side_fit`: `tilt = 0.0` -> test_a_square_piece_must_come_out_straight.
 - labels `finish_turn`: `return best[0]` (no `@ raw_facing(take)`) ->
   test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands (2026-10-29); its `None` option (the
-  picture's up kept, only squared) dropped -> the same test, a kept-up take unmatched (2026-11-08).
+  picture's up kept, only squared) dropped -> the same test, a kept-up take unmatched (2026-11-08); `camera_of`'s
+  turn back (`CAMERA_TURN @`) dropped, or `view_turn` returning VIEW_TURN alone -> the same test, a stamped person seen
+  upside down or from behind (2026-11-10).
 
 The Blender build (test_every_body_builds_with_walls_the_model_check_passes) runs only where Blender and Xvfb are; on
 a box without them it skips, and its break (a body wall 2 mm thick) is unproven there.
@@ -623,6 +625,24 @@ def test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands(tmp_
     kept.export(tmp_path / "lamp_1-final.glb")
     laid = np.asarray(raw.vertices) @ labels.finish_turn("lamp_1").T
     assert np.allclose([laid.min(0), laid.max(0)], kept.bounds, atol=1e-3), (laid.min(0), laid.max(0), kept.bounds)
+    # its close-up's camera, turned with it (image-to-3dlab's stamp), sees it upright and from the front (2026-11-10):
+    # read as turned, env1's made people were seen upside down from behind and their parts judged at mirror height
+    figure = trimesh.creation.box([0.4, 1.8, 0.2])
+    figure.export(tmp_path / "person_1.glb")
+    document, views = glb_file.read(tmp_path / "person_1.glb")
+    document["asset"]["extras"] = {labels.FACING_KEY: "+Z"}
+    glb_file.write(document, views, tmp_path / "person_1.glb")
+    (tmp_path / "person_1.svviews").mkdir()
+    pixal3d_camera = [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, -1.0, -2.8], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]
+    turned_camera = (np.diag([-1.0, -1.0, 1.0, 1.0]) @ pixal3d_camera).tolist()  # glb_turn.turn_cameras
+    (tmp_path / "person_1.svviews" / "transforms.json").write_text(json.dumps(
+        {"camera_angle_x": 0.35, "frames": [{"transform_matrix": turned_camera}], labels.CAMERA_KEY: True}))
+    seen, row, _ = labels.seen_faces(figure, labels.camera_of("person_1"), (100, 100), labels.view_turn("person_1"))
+    normals = figure.face_normals
+    assert seen.any() and (normals[seen, 2] > 0.99).all(), normals[seen]  # the +Z front, never the back
+    middles = figure.triangles_center
+    head, feet = row[np.argmax(middles[:, 1])], row[np.argmin(middles[:, 1])]
+    assert head < 30 < 70 < feet, (head, feet)  # the top in the picture's top rows
 
 
 def test_place_route_reads_a_turn_as_its_yaw_and_splits_a_long_take(tmp_path):
