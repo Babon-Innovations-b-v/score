@@ -293,9 +293,13 @@ class Stage:
     an environment stage's neighbours(None) names the places it reads, each stage only where it applies.
     The table refuses a stage that reads itself through what it reads, after or beside (Runner.reached); two places
     that show each other read a stage that reads nothing back, so they make no cycle.
-    optional: names in `after` the node reads only while usable (passed, accepted, on its current key); one that is
-    not is left out of its reads and its key, so the node runs with what has passed and runs again once it is (the
-    characters layer's dress rows: a place lays the people whose look is accepted and names the rest, 2026-10-13).
+    optional: names in `after` or `beside` the node reads only while usable (passed, accepted, on its current key);
+    one that is not is left out of its reads and its key, so the node runs with what has passed and runs again once it
+    is (the characters layer's dress rows: a place lays the people whose look is accepted and names the rest,
+    2026-10-13; the environment's film, a place not ready going in with what it has, owner 2026-11-10).
+    waits_hours: for a stage with optional reads, the most hours from the drive's start it waits on those the drive
+    still makes (unsettled); past them it runs with what stands (owner, 2026-11-10: "A place that isn't ready by
+    about 16 hours in goes into the film with what it has"). None: it waits until each has stood or stopped.
     gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's accepted gaps
     (a dated decision): the output on its current key, which the runner never accepts as it fails, unless the owner
     rejected it; any other fault still stops the node (demo-film on complete, the overseer, 2026-10-15).
@@ -337,6 +341,7 @@ class Stage:
     beside: dict = field(default_factory=dict)
     neighbours: Callable = None
     optional: tuple = ()
+    waits_hours: float = None
     gapped: tuple = ()
     upward: bool = False
     downward: bool = False
@@ -356,8 +361,8 @@ class Stage:
             raise TypeError(f"stage {self.name}: its output needs a contract (score.contracts), not {self.contract!r}")
         if not isinstance(self.after, dict):
             raise TypeError(f"stage {self.name}: after maps each earlier stage to the (schema, version) it expects")
-        if set(self.optional) - set(self.after):
-            raise ValueError(f"stage {self.name}: optional names a stage it does not read after")
+        if set(self.optional) - set(self.after) - set(self.beside):
+            raise ValueError(f"stage {self.name}: optional names a stage it does not read after or beside")
         if set(self.gapped) - set(self.after):
             raise ValueError(f"stage {self.name}: gapped names a stage it does not read after")
 
@@ -921,6 +926,12 @@ CLAIM_WAITERS = claim_waiters  # the tests give a fake reading
 CLUSTER_WAITERS = cluster_waiters
 
 
+def waited_out(stage, began):
+    """Whether the stage's node has waited on its optional reads its `waits_hours` since the drive `began`
+    (time.monotonic()), so it runs with what stands."""
+    return stage.waits_hours is not None and time.monotonic() - began >= stage.waits_hours * 3600
+
+
 def unsettled(optional, line, stood, stopped):
     """A waiting node's `optional` reads (Runner.optional_nodes) the drive still makes (in its `line`, neither stood
     nor stopped): the node waits on them, then reads each that stood and runs without each that stopped
@@ -1356,15 +1367,18 @@ class Runner:
                      key=lambda reject: reject["at"])
         return sorted(newest.get("takes", ()))
 
-    def besides(self, stage, place):
+    def besides(self, stage, place, every=False):
         """{node: (earlier stage, other place, (schema, version))} the node reads of other places (its `beside`, for
-        each of its neighbours). An environment stage's neighbours(None) names the places it reads (the environment's
-        film reads the films its script shows), each only for an earlier stage that applies there."""
+        each of its neighbours), less an optional one not usable now (`every`: with it). An environment stage's
+        neighbours(None) names the places it reads (the environment's film reads the films its script shows), each
+        only for an earlier stage that applies there."""
         if not stage.beside or (place is None and stage.grain != "world"):
             return {}
-        return {node_name(self.stages[before], other): (before, other, wanted)
-                for other in stage.neighbours(place) for before, wanted in stage.beside.items()
-                if place is not None or self.stages[before].applies is None or self.stages[before].applies(other)}
+        found = {node_name(self.stages[before], other): (before, other, wanted)
+                 for other in stage.neighbours(place) for before, wanted in stage.beside.items()
+                 if place is not None or self.stages[before].applies is None or self.stages[before].applies(other)}
+        return {node: read for node, read in found.items()
+                if every or read[0] not in stage.optional or self.usable_now(*read)}
 
     def reads(self, stage, place, every=False):
         """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
@@ -1376,9 +1390,11 @@ class Runner:
                 if every or before not in stage.optional or self.usable_now(before, place, wanted)}
 
     def optional_nodes(self, stage, place):
-        """The nodes of the node's optional reads (every one that applies, usable or not)."""
+        """The nodes of the node's optional reads, after and beside (every one that applies, usable or not)."""
         return [node_name(self.stages[before], place) for before in self.reads(stage, place, every=True)
-                if before in stage.optional]
+                if before in stage.optional] + [node for node, (before, _, _) in
+                                                self.besides(stage, place, every=True).items()
+                                                if before in stage.optional]
 
     def usable_now(self, before, place, wanted):
         """True when an earlier node's output is usable (`usable`) now."""
@@ -2154,7 +2170,8 @@ class Runner:
         def worked_out():
             own = [(self.stages[before], place if self.stages[before].grain == "place" else None)
                    for before in self.reads(stage, place, every)]
-            return own + [(self.stages[before], other) for before, other, _ in self.besides(stage, place).values()]
+            return own + [(self.stages[before], other)
+                          for before, other, _ in self.besides(stage, place, every).values()]
         return list(self.remember(("read nodes", every), node_name(stage, place), worked_out))
 
     def run(self, places):
@@ -2536,6 +2553,7 @@ class Runner:
         clients = self.client_trees() if on_this_pc() else {}
         grown = self.client_grown() if on_this_pc() else set()  # its stages' trees real sizes: client_reserve
         self.driving = (0, time.monotonic())
+        began = time.monotonic()  # a stage's waits_hours run from here (waited_out)
         remote = False  # this pass sends pod stages to the cluster: its expected work is written for the queue
         while waiting or running:
             if time.monotonic() - known_at >= HEARTBEAT:
@@ -2590,8 +2608,8 @@ class Runner:
                         waiting.remove((stage, place))
                         stopped[node], done[node] = node, PAID_LEFT
                         say(f"{node}: {done[node]}")
-                    elif stood.union(passes).issuperset(earlier) and not unsettled(
-                            kept(known, node, "optional", self.optional_nodes, stage, place), line, stood, stopped):
+                    elif stood.union(passes).issuperset(earlier) and (waited_out(stage, began) or not unsettled(
+                            kept(known, node, "optional", self.optional_nodes, stage, place), line, stood, stopped)):
                         if busy + len(ready) >= jobs or queued[stage.name] or (
                                 stage.name in claimers and any(began.name == stage.name for began, _ in ready)):
                             full = True  # a stage with a node queued on a claim starts no other: other stages first

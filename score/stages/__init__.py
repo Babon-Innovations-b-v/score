@@ -823,8 +823,8 @@ PLACE_PEEL = graph.Stage("place-peel", "place", peel_rows.make_place, peel_rows.
 def filmed_places(place=None):
     """The places the locked scripts' films show or peel (demo_film_final.shown_places, peeled_places) that are
     places of the batch (`places`): a part of another scene's outside (the launch) or a merged scene has no film row,
-    so the environment's film never waits on one; a segment showing it is named missing by the cut (final.sources,
-    final.peels). Here in the table, as it lists the environment's places."""
+    so the environment's film never waits on one; a segment showing it is a stand-in card in the cut
+    (final.stand_in). Here in the table, as it lists the environment's places."""
     shown = sorted({*demo_film_final.shown_places(place), *demo_film_final.peeled_places(place)})
     batch = set(places(world1())) if shown else set()
     return [other for other in shown if other in batch]
@@ -836,7 +836,9 @@ ENVIRONMENT_FILM = graph.Stage("environment-film", "world", demo_film_final.make
                                demo_film_final.CHECKS, files=demo_film_final.files,
                                beside={"demo-film": ("demo-film", 1), "demo-film-extra": ("demo-film-extra", 1),
                                        "body-peel": ("body-peel", 1), "place-peel": ("place-peel", 1)},
-                               neighbours=filmed_places)
+                               neighbours=filmed_places,
+                               optional=("demo-film", "demo-film-extra", "body-peel", "place-peel"),
+                               waits_hours=demo_film_final.WAIT_HOURS)
 
 
 # Each screen row's picture (score/stages/screens, #88, free): its take's display parts given the library's screen

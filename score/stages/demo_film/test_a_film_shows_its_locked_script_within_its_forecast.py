@@ -679,7 +679,18 @@ def a_peel(folder, shot="wide"):
 def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch, small_cut):
     """Two place films at very different loudness and two peels cut into one 24 s film (2 + 7 + 7 + 5 + 5 less four
     half-second transitions), each segment from its own film or peel (a peel its row's, read beside, and Blocked by
-    name while it is missing); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
+    name while the row stands without its shot); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails. A place
+    whose film and peel do not stand goes in with what it has (owner, 2026-11-10: "A place that isn't ready by about
+    16 hours in goes into the film with what it has"): each of its segments a card naming it, and the film passes;
+    with no film or peel standing at all nothing is cut.
+    Break: score/stages/demo_film/final.py: `if node not in inputs:\n            continue\n        film =` -> `film =`
+        -> a place whose film does not stand stops the whole film (KeyError).
+    Break: score/stages/demo_film/final.py: `            segment = stand_in(segment)` -> `            pass` -> the
+        place's walk-through is cut from its neighbour's film.
+    Break: score/stages/demo_film/final.py: `        missing_sources(script, films[film], recorded_takes[film])` ->
+        `        pass` -> a film of cards alone is cut.
+    Break: score/stages/demo_film/final.py: `if cards and start <= cards[-1][1] + 1e-3:` -> `if False:` -> the title
+        and the stand-in card after it are one black stretch the gate fails.
     Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`
     Break: score/stages/demo_film/final.py: `return f"{segment['cut']}@{segment['shows']['place']}", "close" if
         segment.get("close") else "wide"` -> `return f"demo-film@{segment['shows']['place']}", "wide"`"""
@@ -693,8 +704,20 @@ def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monk
     inputs = {"script toy": script, "demo-film@alpha": a_film(tmp_path / "alpha", 330, 0.05),
               "demo-film@beta": a_film(tmp_path / "beta", 440, 0.6),
               "place-peel@beta": a_peel(tmp_path / "beta-peel")}
+    (tmp_path / "alpha-shotless").mkdir()
     with pytest.raises(graph.Blocked, match="segment 4: no accepted peel body-peel@alpha/wide"):
-        final.peels(a_script([*WALKS, *peels]), inputs)
+        final.peels(a_script([*WALKS, *peels]), {**inputs, "body-peel@alpha": tmp_path / "alpha-shotless"})
+    stood = {name: path for name, path in inputs.items() if not name.endswith("@alpha")}  # alpha not ready in time
+    (tmp_path / "with-what-it-has").mkdir()
+    final.make(stood, tmp_path / "with-what-it-has", 0, {})
+    timeline = json.loads((tmp_path / "with-what-it-has" / "toy" / "timeline.json").read_text())
+    assert [(segment["cut"], segment["place"], segment.get("stands_in")) for segment in timeline["segments"]] == [
+        ("title", None, None), ("text", "alpha", "walk-through"), ("walk-through", "beta", None),
+        ("text", "alpha", "body-peel"), ("place-peel", "beta", None)], timeline
+    verdict = final.judge(tmp_path / "with-what-it-has", stood, {})
+    assert verdict.answer == checks.PASS, verdict
+    with pytest.raises(graph.Blocked, match="toy: no place film or peel it shows stands yet"):
+        final.make({"script toy": script}, tmp_path, 0, {})
     inputs["body-peel@alpha"] = a_peel(tmp_path / "alpha-peel")
     out = tmp_path / "out"
     out.mkdir()
