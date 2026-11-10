@@ -202,6 +202,11 @@ MAKING, MAKING_CODE = "SCORE_MAKING", "SCORE_MAKING_CODE"
 # waits on a block: not cleared, not an error. A node reading one waits on it (FREE_WAITS).
 PAID_LEFT = "not run: paid, left for the Buy"
 FREE_WAITS = "not run: waits on {node}, paid, left for the Buy"
+# A run's left-out stages (`score run --leave-out`, or SCORE_LEAVE_OUT: env1's PC run leaves sim-body to the cloud
+# cards, 2026-11-10): a node of one that does not already stand accepted is not made by this run, and a node reading
+# it waits on it as on any unmade input (LEFT_WAITS), not cleared, not an error.
+LEFT_OUT = "not run: left out of this run"
+LEFT_WAITS = "not run: reads {node}, left out of this run"
 # A free-only run on this PC's card (SCORE_CLOUD=local, tools/cloud/backends/local.py; owner, 2026-10-27) runs its
 # paid nodes too, with no clearance: their machine work costs nothing there, and every real paid point (Google, a
 # rent, the cluster) refuses with no ticket and under SCORE_FREE_ONLY, so such a node fails, saying what it would buy.
@@ -1125,6 +1130,7 @@ class Runner:
         self.began = {}  # {node: epoch seconds its process started} (start): score run's pool forecast (row_due)
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
+        self.left_out = frozenset()  # the stages this run leaves out (LEFT_OUT): `score run --leave-out`
         self.bought = False  # a bought batch (his checkout or benchmark grant): a passing worse output is accepted
         self.hand_on_accept = False  # `score run`: each automatic accept starts the library handover (hand_accepted)
         self.handed_job = None  # (commit, route) the handover is told, worked out once (hand_accepted)
@@ -2598,7 +2604,13 @@ class Runner:
                         waiting.remove((stage, place))
                         stopped[node] = waits[0]
                         done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0], "").startswith(PAID_LEFT)
+                                      else LEFT_WAITS.format(node=waits[0]) if done.get(waits[0], "") == LEFT_OUT
                                       else f"not run: its line stopped at {waits[0]}")
+                        say(f"{node}: {done[node]}")
+                    elif stood.union(passes).issuperset(earlier) and \
+                            kept(known, node, "left out", self.left_out_here, stage, place):
+                        waiting.remove((stage, place))
+                        stopped[node], done[node] = node, LEFT_OUT
                         say(f"{node}: {done[node]}")
                     elif stood.union(passes).issuperset(earlier) and \
                             kept(known, node, "left", self.left_for_buy, stage, place):
@@ -2712,6 +2724,14 @@ class Runner:
         """In a free-only run, whether a paid node is left for the Buy: it does not already stand accepted (one that
         does is run as any, which finds its record and pays nothing)."""
         if not (self.free_only and stage.paid) or on_this_pc():
+            return False
+        with self.still():
+            return self.standing(stage, place) is not None
+
+    def left_out_here(self, stage, place):
+        """Whether this run leaves the node out (LEFT_OUT): its stage is left out and it does not already stand
+        accepted (one that does is run as any, which finds its record and makes nothing)."""
+        if stage.name not in self.left_out:
             return False
         with self.still():
             return self.standing(stage, place) is not None

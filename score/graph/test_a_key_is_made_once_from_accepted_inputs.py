@@ -4244,7 +4244,11 @@ def free_runner():
 
 def test_a_free_only_run_runs_its_free_nodes_leaves_its_paid_ones_and_ends_ok_with_its_list(monkeypatch,
                                                                                            run_registry):
-    """Break: score/graph/__init__.py: '        if not (self.free_only and stage.paid) or on_this_pc():\n            return False' -> '        if True:\n            return False'"""
+    """Break: score/graph/__init__.py: '        if not (self.free_only and stage.paid) or on_this_pc():\n            return False' -> '        if True:\n            return False'
+    A run's left-out stage (`score run --leave-out`, SCORE_LEAVE_OUT; 2026-11-10: env1's PC run must not start
+    sim-body rows) is not made and its reader waits on it; the other stages are made, and a stage the table does not
+    hold is refused. Break: score/graph/__init__.py: `        if stage.name not in self.left_out:` -> `        if True:`
+    (paint is never left out: it runs and asks its refused clearance)."""
     from score import __main__ as command
     monkeypatch.setattr(compute, "clearance", refused_clearance)
     monkeypatch.setattr(command, "opened_pool", refused_clearance)
@@ -4259,6 +4263,16 @@ def test_a_free_only_run_runs_its_free_nodes_leaves_its_paid_ones_and_ends_ok_wi
     said, _, status = run_printing(free_runner(), ["hangar"], free=True)
     assert status.startswith("ok, free-only, 1 free rows stand, 0 failed, 1 paid rows left for the Buy"), said
     assert "  left for the Buy: paint@hangar" in said and "  waits on a paid row: count@hangar" in said, said
+    leaving = free_runner()
+    leaving.free_only = False
+    monkeypatch.setenv(command.LEAVE_OUT, "paint")
+    leaving.left_out = command.left_out_stages(argparse.Namespace(leave_out=None), leaving.stages)
+    found = leaving.drive(["hangar"], say=quiet)
+    assert found == {"clean@hangar": ACCEPTED, "paint@hangar": graph.LEFT_OUT,
+                     "count@hangar": "not run: reads paint@hangar, left out of this run"}, found
+    assert command.left_out_stages(argparse.Namespace(leave_out="count"), leaving.stages) == {"count"}
+    with pytest.raises(SystemExit, match="pain is no stage"):
+        command.left_out_stages(argparse.Namespace(leave_out="pain"), leaving.stages)
 
 
 def test_a_free_only_run_on_this_pcs_card_makes_its_paid_nodes_with_no_ticket(monkeypatch, run_registry):
