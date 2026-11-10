@@ -104,6 +104,9 @@ REPLACEABLE = "work/pixal"  # the takes, remade here in place; the one folder a 
 SET_ASIDE = ("work/pixal/retaken/", "work/pixal/replaced/")  # a retake's and a replace's kept old files, never replaced
 BLOBS = "store/objects/"  # the store's objects, written once by content and key: one held here is never pulled again
 NO_PUSH = "no-push.json"  # under HOME: the newest run here that pushed nothing, with the reason it was given
+CONTENT_BLOB = re.compile(r"store/objects/blobs/([0-9a-f]{64})")  # a blob named by its bytes' sha256
+BLOBS_CHECKED = "blobs-checked"  # under HOME: when the held blobs were last hashed; one changed since is hashed again
+PULLING = "tmp/this-pc-pull"  # under HOME: each pulled file written here whole, then renamed into place
 
 
 def door_command(host, key, verb):
@@ -117,28 +120,70 @@ def door_command(host, key, verb):
             "StrictHostKeyChecking=accept-new", f"score@{host}", verb]
 
 
+def cut_blobs_cleared(home):
+    """Removes each blob held here whose inode changed (ctime) since the last check and whose bytes do not hash to its
+    name, so the pull's manifest lacks it and the door sends it whole (2026-11-10: a pull killed at 21:25 UTC left blob
+    ffd5a34f at 65,536 bytes under its name, and a paint failed reading it); the check's start kept in BLOBS_CHECKED;
+    the names removed."""
+    stamp, started = home / BLOBS_CHECKED, time.time()
+    since = float(stamp.read_text()) if stamp.exists() else 0.0
+    removed = []
+    for path in walked(home, ("store/objects/blobs",)):
+        name = path.relative_to(home).as_posix()
+        found = CONTENT_BLOB.fullmatch(name)
+        if found and not path.is_symlink() and path.stat().st_ctime >= since and file_sha(path) != found.group(1):
+            path.unlink()
+            removed.append(name)
+    stamp.write_text(f"{started}\n")
+    return removed
+
+
+def held_whole(home, name):
+    """Whether the store object `name` is held here whole: present, and a content blob's bytes hash to its name."""
+    path, found = home / name, CONTENT_BLOB.fullmatch(name)
+    return path.exists() and (found is None or file_sha(path) == found.group(1))
+
+
 def pull(home, command):
     """Copies PULLED down through the door's store-pull (`command`) into `home`, only what `home` lacks or holds
     changed, never the hand-ins written here (OWN_DESIGN) and never a store object `home` holds already: an object is named
     by its content or key, so the same name is the same bytes, and it is read-only here (2026-11-04: a blob sent again for
-    its other mtime stopped the pull on PermissionError); (files, bytes)."""
+    its other mtime stopped the pull on PermissionError). A held blob whose bytes do not hash to its name is not kept
+    (cut_blobs_cleared, held_whole), and each file lands under PULLING first, renamed into place only once whole: a
+    pull killed midway leaves no cut file under its name; (files, bytes)."""
+    cut_blobs_cleared(home)
+    parts = home / PULLING
+    shutil.rmtree(parts, ignore_errors=True)  # a killed pull's part
+    parts.mkdir(parents=True)
     process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
     process.stdin.write(gzip.compress(manifest(home, PULLED).encode()))
     process.stdin.close()
     files, size = 0, 0
     with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
         for member in archive:
-            if member.name.startswith(OWN_DESIGN) or (member.name.startswith(BLOBS) and (home / member.name).exists()):
+            if member.name.startswith(OWN_DESIGN) or (member.name.startswith(BLOBS) and held_whole(home, member.name)):
                 continue
             if member.islnk() and not linked_anew(home, member):
                 continue
-            if not member.isdir():
-                cleared(home / member.name)
-            archive.extract(member, home, filter="tar")
+            if member.isfile():
+                landed_whole(archive, member, home, parts / f"{os.getpid()}-{files}")
+            else:
+                if not member.isdir():
+                    cleared(home / member.name)
+                archive.extract(member, home, filter="tar")
             files, size = files + 1, size + member.size
     if process.wait():
         raise SystemExit(f"store-pull failed (exit {process.returncode}) after {files} files")
     return files, size
+
+
+def landed_whole(archive, member, home, part):
+    """The regular file `member` written whole at `part` (under home's PULLING), then renamed over its path: the rename
+    replaces a read-only link there without writing through it."""
+    archive.extract(member.replace(name=part.relative_to(home).as_posix(), deep=False), home, filter="tar")
+    target = home / member.name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(part, target)
 
 
 def cleared(path):
