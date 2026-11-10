@@ -4312,9 +4312,14 @@ def make_cast(inputs, out, seed, params):
     (out / "cast.txt").write_text("dressed" if "dress" in inputs else "undressed")
 
 
-def people_runner(text):
+def make_reel(inputs, out, seed, params):
+    (out / "reel.txt").write_text("with the look" if "look@people" in inputs else "without the look")
+
+
+def people_runner(text, waits_hours=None):
     """A look on the people line, a paid dress row of the environment reading it beside, a cast at each place reading
-    the dress as optional."""
+    the dress as optional, and an environment reel reading the look beside as optional (the environment's film:
+    owner, 2026-11-10), waiting on it at most `waits_hours`."""
     data, world = a_world_of(["people"])
     (data / "people" / "brief.txt").write_text(text)
     look = graph.Stage("look", "place", make_look, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"},
@@ -4323,12 +4328,21 @@ def people_runner(text):
                         neighbours=lambda place: ["people"])
     cast = graph.Stage("cast", "place", make_cast, TEXT, PASSES, after={"dress": READS}, optional=("dress",),
                        applies=lambda place: place != "people")
-    return a_runner(world, a_store(), (look, dress, cast))
+    reel = graph.Stage("reel", "world", make_reel, TEXT, PASSES, beside={"look": READS},
+                       neighbours=lambda place: ["people"], optional=("look",), waits_hours=waits_hours)
+    return a_runner(world, a_store(), (look, dress, cast, reel))
 
 
 def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_without_one_that_stopped():
     """The people line's nodes are in the run whole or not, priced, and held for each place that reads them; the cast
-    waits on its dress and takes it, and runs without it once its line stopped.
+    waits on its dress and takes it, and runs without it once its line stopped. A reel reading the look beside as
+    optional waits on it and takes it, runs without it once it stopped, and past its waits_hours runs with what stands.
+    Break: score/graph/__init__.py: `if every or read[0] not in stage.optional or self.usable_now(*read)}` -> `}` ->
+        the reel's line stops at the failed look.
+    Break: score/graph/__init__.py: `if before in stage.optional]` (the beside one) -> `if False]` -> the reel runs
+        before the look it could read is made.
+    Break: score/graph/__init__.py: `(waited_out(stage, began) or not unsettled(` -> `(not unsettled(` -> the reel
+        waits past its hours.
     Break: score/graph/__init__.py: '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
     runner = people_runner("a suit")
     for whole in (True, False):
@@ -4337,14 +4351,20 @@ def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_wi
     assert [buy.node for buy in rebuy.buys(runner, runner.line_nodes(PLACES, False))] == ["dress"]
     held = rebuy.held_for(runner, runner.line_nodes(PLACES, True), set(PLACES))
     assert held["dress"] == held["look@people"] == set(PLACES) and held["cast@hangar"] == {"hangar"}, held
-    found = runner.drive(PLACES, say=quiet, whole=False)
+    found = runner.drive(PLACES, say=quiet)
     assert found["dress"].startswith("made: pass"), found
     assert accepted_text(runner.store, "cast@hangar", "cast.txt") == "dressed"
     assert accepted_text(runner.store, "cast@station", "cast.txt") == "dressed"
+    assert accepted_text(runner.store, "reel", "reel.txt") == "with the look"
     runner = people_runner("explode")
-    found = runner.drive(PLACES, say=quiet, whole=False)
+    found = runner.drive(PLACES, say=quiet)
     assert found["dress"] == "not run: its line stopped at look@people", found
     assert accepted_text(runner.store, "cast@hangar", "cast.txt") == "undressed"
+    assert accepted_text(runner.store, "reel", "reel.txt") == "without the look"
+    runner = people_runner("a suit", waits_hours=0)  # waited out at once: the look not made yet
+    found = runner.drive(PLACES, say=quiet)
+    assert found["look@people"].startswith("made: pass"), found
+    assert accepted_text(runner.store, "reel", "reel.txt") == "without the look"
 
 
 def make_rung(inputs, out, seed, params):
