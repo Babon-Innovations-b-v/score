@@ -71,7 +71,9 @@ gates.
   views see sky has its sky judged too, against its sky rows' boxes on its concept, on the sky's own flat colour there (`row_skies`; camp's domes).
   A view's sky is where its render met no surface less what it sees through the place's doorways (`open_sky`, on the
   views its passes rendered): a door leads to a place, never the sky (2026-11-10: hub's and hangar's door openings
-  read as their sky).
+  read as their sky). On an airless body (no air in the night table, no dusty air in the record) the sky is judged
+  black, the physics', whatever the concept paints (`airless_sky`; 2026-11-10: hangar's roof opening on the Moon
+  against its concept's navy).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes
   `views.json` from the record it reads (its accepted scene-record output where it has one), and the passes and the
