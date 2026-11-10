@@ -10,6 +10,10 @@ own tone curve, fitted on the render's look against its light.
     gain(passes, scales, guide) -> gain    a view's mixed light over its rendered light, smoothed on the guide
     displayed(transform, colour) -> look   linear colour through Blender's view transform (light_passes'
                                            view-transform.npz), 0 to 1
+    lamp_light(rgb) -> rgb                 the light a lamp painted `rgb` throws: a white lamp's its black body's
+                                           (white_fit, black_body), a coloured part's its own hue; luminance 1
+    tint(passes, scales, colours, guide)   each pixel's change of colour when the groups take the scales and their
+                                           shipped colours, its luminance's change taken out
     sweep(views, swept, target, held,      the scale of the swept lamps (at most `most`) that brings the place's
           most) -> scale                   brightness nearest its concept's
     own_share(views, scales, groups)       the share of the views' light the place's own lamps give (median)
@@ -142,6 +146,132 @@ def displayed(transform, colour):
     return np.stack(shown, axis=-1).reshape(np.shape(colour))
 
 
+# A lamp's colour as light (2026-11-10, light@hub, garage, habitat, greenhouse: rooms warmer than their concepts).
+# Linear sRGB (D65) to CIE XYZ, and the Planckian locus in CIE 1960 (u, v) by Krystek's rational fit (1985: within
+# 1e-4 of the locus from 1000 K to 15000 K). A glowing part the concept paints within WHITE_DUV of the locus is a white
+# lamp: the paint's saturation is the painter's (a bulb drawn #ffcc00 is no sodium lamp), so its light is the black
+# body's at the colour temperature nearest its paint. One further off (a magenta grow light, a cyan screen) throws its
+# own hue. WHITE_DUV is three times the 0.006 a white lamp may stand off the locus (ANSI C78.377), so the bulbs the
+# concepts paint (#ffdd88 at 0.012, #ffcc00 at 0.022) are white and env1's coloured parts (grow light #ff55ff at 0.108,
+# screens #44ccff at 0.037 and #44ffcc at 0.061) are not.
+SRGB_XYZ = np.array([[0.4124, 0.3576, 0.1805], [0.2126, 0.7152, 0.0722], [0.0193, 0.1192, 0.9505]])
+LUMA = SRGB_XYZ[1]
+KELVINS = np.geomspace(1000.0, 15000.0, 4000)
+WHITE_DUV = 0.03
+
+
+def locus_uv(kelvin):
+    """The black body's (u, v) at `kelvin` (Krystek's fit)."""
+    kelvin = np.asarray(kelvin, dtype=np.float64)
+    u = (0.860117757 + 1.54118254e-4 * kelvin + 1.28641212e-7 * kelvin ** 2) / \
+        (1.0 + 8.42420235e-4 * kelvin + 7.08145163e-7 * kelvin ** 2)
+    v = (0.317398726 + 4.22806245e-5 * kelvin + 4.20481691e-8 * kelvin ** 2) / \
+        (1.0 - 2.89741816e-5 * kelvin + 1.61456053e-7 * kelvin ** 2)
+    return u, v
+
+
+def unit_light(rgb):
+    """A linear colour scaled to luminance 1 (black as white)."""
+    rgb = np.asarray(rgb, dtype=np.float64)
+    luma = float(LUMA @ rgb)
+    return rgb / luma if luma > FLOOR else np.ones(3)
+
+
+def black_body(kelvin):
+    """The black body's light at `kelvin` as linear sRGB at luminance 1."""
+    u, v = locus_uv(kelvin)
+    x, y = 3.0 * u / (2.0 * u - 8.0 * v + 4.0), 2.0 * v / (2.0 * u - 8.0 * v + 4.0)
+    return unit_light(np.maximum(np.linalg.solve(SRGB_XYZ, np.array([x / y, 1.0, (1.0 - x - y) / y])), 0.0))
+
+
+def white_fit(rgb):
+    """(kelvin, duv) of a linear colour: the colour temperature on KELVINS whose black body stands nearest its (u, v),
+    and how far off the locus it stands."""
+    big_x, big_y, big_z = SRGB_XYZ @ np.asarray(rgb, dtype=np.float64)
+    under = big_x + 15.0 * big_y + 3.0 * big_z
+    if under <= FLOOR:
+        return None, float("inf")
+    u, v = 4.0 * big_x / under, 6.0 * big_y / under
+    locus_u, locus_v = locus_uv(KELVINS)
+    nearest = int(np.argmin((locus_u - u) ** 2 + (locus_v - v) ** 2))
+    return float(KELVINS[nearest]), float(np.hypot(locus_u[nearest] - u, locus_v[nearest] - v))
+
+
+def lamp_light(rgb):
+    """The light a lamp painted in linear `rgb` throws, at luminance 1: a white lamp's (within WHITE_DUV of the locus)
+    the black body's at its nearest colour temperature, any other its own hue."""
+    kelvin, duv = white_fit(rgb)
+    return black_body(kelvin) if duv <= WHITE_DUV else unit_light(rgb)
+
+
+def tint(passes, scales, colours, guide):
+    """Each pixel's change of colour (h x w x 3, at the passes' size, its luminance's change taken out) when the
+    groups take the scales and their shipped colours (`colours` {group: (rendered, shipped)}, each at luminance 1):
+    every group's light carries its colour over the surfaces it lights, the light no group holds (the sky's dome, a
+    shown place's lamps, glow) stays as rendered and neutral; each channel smoothed on the guide as gain is. All 1 at
+    scale 1 in the colours rendered. The look kept the render's colour under any scales until 2026-11-10: greenhouse's
+    lamps swept 25 times up, its sun 32 times down, read its sunlit render's colour."""
+    def mean(field):
+        return ndimage.uniform_filter(field, 2 * GUIDED_REACH + 1, mode="nearest")
+    light = passes["combined"].astype(np.float64)
+    rest = light.copy()
+    rendered, shipped = np.zeros(light.shape + (3,)), np.zeros(light.shape + (3,))
+    for group, (made, sent) in colours.items():
+        if group not in passes:
+            continue
+        lit = passes[group].astype(np.float64)
+        rest -= lit
+        rendered += lit[..., None] * np.asarray(made, dtype=np.float64)
+        shipped += (scales.get(group, 1.0) * lit)[..., None] * np.asarray(sent, dtype=np.float64)
+    rest = np.maximum(rest, 0.0)[..., None]
+    rendered, shipped = rendered + rest, shipped + rest
+    before = np.stack([smoothed(rendered[..., channel], guide) for channel in range(3)], axis=-1)
+    after = np.stack([smoothed(shipped[..., channel], guide) for channel in range(3)], axis=-1)
+    plain = np.stack([mean(shipped[..., channel]) / np.maximum(mean(rendered[..., channel]), FLOOR)
+                      for channel in range(3)], axis=-1)
+    change = np.where(before > FLOOR, np.maximum(after, 0.0) / np.maximum(before, FLOOR), plain)
+    luma = change @ LUMA
+    return np.where(luma[..., None] > FLOOR, change / np.maximum(luma, FLOOR)[..., None], 1.0)
+
+
+# The lamps' balance (2026-11-10, after the look took each lamp's colour: greenhouse's warm wall panels outshone its
+# magenta grow light, which its concept shows the brightest, and read 30 levels warmer than the concept): the lamps of
+# one colour (a class) are swept together against the others, each sun and the concept's fill a class of its own,
+# each class over the sweep's own range (SCALES' ends) by half octaves, the lamps' class giving the most light held,
+# to bring the place's colour cast nearest its concept's (camp, 2026-11-10: its screens and laptop swept 32 times up
+# lit it cool, its sun and its warm fill under them). A sun is never raised past SUN_MOST. A
+# lamp's strength is measured against the concept as its brightness is; its colour stays what it throws. A faint
+# emitter's class (a screen: its share of a lamp an estimate, lamps.json `glowing`) is only ever turned down: no
+# screen lights a room. Kept only where it brings the cast at least BALANCE_GAIN levels nearer, so a place already in
+# its concept's colour keeps one scale.
+BALANCE = 2.0 ** np.arange(-5.0, 5.0 + 1e-9, 0.5)
+BALANCE_ROUNDS = 3
+BALANCE_GAIN = 1.0
+
+
+def balance(classes, held, gap_of, most=None):
+    """{class: multiplier} (each from BALANCE, at most its `most` entry where given, `held` at 1) bringing
+    gap_of(multipliers) least, one class at a time for BALANCE_ROUNDS rounds; all 1 unless that brings the gap at
+    least BALANCE_GAIN lower. (multipliers, gap at all 1, gap at the multipliers)."""
+    most = most or {}
+    ones = dict.fromkeys(classes, 1.0)
+    found, start = dict(ones), gap_of(ones)
+    best = start
+    for _ in range(BALANCE_ROUNDS):
+        moved = False
+        for name in classes:
+            if name == held:
+                continue
+            for value in BALANCE[BALANCE <= most.get(name, BALANCE[-1]) + 1e-9]:
+                tried = {**found, name: float(value)}
+                gap = gap_of(tried)
+                if gap < best - 1e-9:
+                    found, best, moved = tried, gap, True
+        if not moved:
+            break
+    return (found, start, best) if best <= start - BALANCE_GAIN else (ones, start, start)
+
+
 def mixed(passes, scales):
     """A view's light with each group (lamp_<n>) at its scale ({group: scale}; others at 1)."""
     light = passes["combined"].astype(np.float64)
@@ -160,13 +290,16 @@ def place_brightness(views, scales):
     return float(np.median(list(brightness(views, scales).values())))
 
 
-def sweep(views, swept, target, held=None, most=None):
-    """The scale (from SCALES, at most `most` where given) of every swept lamp that brings the place's brightness
-    nearest `target`, the other groups at their `held` scales; 1.0 when no lamp is swept."""
+def sweep(views, swept, target, held=None, most=None, factors=None):
+    """The scale (from SCALES, at most `most` where given) of every swept lamp, each times its `factors` entry (its
+    balance, else 1), that brings the place's brightness nearest `target`, the other groups at their `held` scales;
+    1.0 when no lamp is swept."""
     if not swept:
         return 1.0
+    factors = factors or {}
     tried = [scale for scale in SCALES if most is None or scale <= most + 1e-9]
-    gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **dict.fromkeys(swept, scale))), FLOOR) / target))
+    gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **{group: scale * factors.get(group, 1.0)
+                                                                         for group in swept})), FLOOR) / target))
             for scale in tried]
     return float(tried[int(np.argmin(gaps))])
 

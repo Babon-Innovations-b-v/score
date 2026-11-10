@@ -51,7 +51,15 @@ gates.
   lamps 8%; airlock's, garage's, tube's and hub's lamps at the 1/32 floor). The gate `colour` holds the lit
   surfaces' cast (`measure.surface_cast`: the mid-tones' balance, brightness taken out) within `CAST_MOST` levels of
   the concept's (2026-11-04: the lab lit green by its screens, quarters' warm room cool), a cutaway concept's flat
-  backdrop left out (`measure.backdrop`; 2026-11-10: quarters' grey backdrop read its warm room neutral). An inside place whose
+  backdrop left out (`measure.backdrop`; 2026-11-10: quarters' grey backdrop read its warm room neutral). A lamp's
+  light carries its colour into the mixed look (`mix.tint`, 2026-11-10: the look kept the render's colour under any
+  scales, so greenhouse's lamps x25 and sun x1/32 read its sunlit render's colour): a white lamp the concept paints in
+  a saturated glow (within `mix.WHITE_DUV` of the Planckian locus) throws its black body's light at the colour
+  temperature nearest its paint (`mix.lamp_light`), a faint emitter or a coloured part (a grow light, a screen) its
+  own hue, written into the layer by the light row (`light.colours_written`, never layer.py, which the paid passes
+  row's key holds; the strength kept); after the suns and the fill, the lamps of each colour, each sun and the fill are balanced against
+  each other to the concept's cast and brought to its brightness together (`light.colour_balance`, `mix.balance`; the faint
+  emitters only turned down), never a lamp recoloured to the concept. An inside place whose
   views see sky has its sky judged too, against its sky rows' boxes on its concept, on the sky's own flat colour there (`row_skies`; camp's domes).
 - **The views come from the place's own scene record, never a copy** (#27, 2026-10-20: the demo's copies under
   `work/demo` were lost with the old disk and left eight ship places with no views): the light layer writes

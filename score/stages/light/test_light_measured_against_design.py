@@ -72,6 +72,11 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
   knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
   test, 2026-10-30).
+- mix.tint: return ones (a lamp's light carries no colour into the mix), or the rest of the light left out; light.look_at:
+  `colours` ignored; mix.lamp_light: the paint's own hue always, or the black body for every colour; mix.white_fit:
+  the distance read in (x, y) for (u, v); mix.balance: the held class swept too, `most` ignored, or kept with any gain (the float
+  look test, 2026-11-10); light.shipped_colours: the record colour's luminance left out, light.colours_written: the
+  colour written unscaled, light.group_colours: `emitters` ignored (the layer test, 2026-11-10).
 """
 import json
 import math
@@ -853,6 +858,34 @@ def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_trans
     up = np.asarray(Image.open(tmp_path / "up.png"), float)
     assert np.abs(up - mix.displayed(transform, 32.0 * colour) * 255).max() < 6  # as if rendered 32 times as bright
     assert grain.specks(tmp_path / "up.png") < grain.GRAINY_PER_MILLE
+    # a lamp's light carries its colour into the mixed look (2026-11-10: greenhouse's lamps swept 25 times up and its
+    # sun 32 times down kept its sunlit render's colour): two lamps, a warm and a cool, each half the light; the warm
+    # one off, the look is the cool one's colour; in the colours rendered at scale 1 the look is the render's
+    warm, cool = mix.unit_light([1.0, 0.6, 0.3]), mix.unit_light([0.5, 0.7, 1.0])
+    both = {"lamp_0": (warm, warm), "lamp_1": (cool, cool)}
+    halves = {"combined": combined, "lamp_0": combined / 2, "lamp_1": combined / 2, "colour": colour}
+    assert np.abs(np.asarray(light.look_at(halves, look, {}, both), float) -
+                  np.asarray(light.look_at(halves, look, {}), float)).max() <= 1
+    change = mix.tint(halves, {"lamp_0": 0.0}, both, light.luminance_of(look)[:combined.shape[0], :combined.shape[1]])
+    assert np.allclose(change, cool / ((warm + cool) / 2) / float(mix.LUMA @ (cool / ((warm + cool) / 2))), atol=1e-3)
+    # a white lamp painted in its glow's saturated tint throws its black body's light: #ffcc88 is about 3570 K, close
+    # to the locus, and its light has more blue than its paint; a magenta grow light keeps its hue; D65 is near white
+    painted = np.array(layer.scene.colour("#ffcc88"))
+    kelvin, duv = mix.white_fit(painted)
+    assert 3400 < kelvin < 3700 and duv < 0.01
+    assert mix.lamp_light(layer.scene.colour("#ffcc00"))[2] > mix.unit_light(layer.scene.colour("#ffcc00"))[2] + 0.1
+    assert np.allclose(mix.lamp_light(layer.scene.colour("#ff55ff")), mix.unit_light(layer.scene.colour("#ff55ff")))
+    assert np.allclose(mix.black_body(6504.0) / mix.black_body(6504.0).max(), 1.0, atol=0.07)
+    # the lamps' balance by colour (2026-11-10, greenhouse's warm panels outshining the magenta grow light its concept
+    # shows brightest): the class giving the most light held, another swept to the cast's least gap, kept only where
+    # it brings the cast BALANCE_GAIN nearer
+    chosen, before, after = mix.balance(["panels", "grow"], "panels", lambda found: abs(np.log2(found["grow"]) - 3.0))
+    assert chosen == {"panels": 1.0, "grow": 8.0} and before == 3.0 and after == 0.0
+    assert mix.balance(["panels", "grow"], "panels", lambda found: 0.5 * abs(np.log2(found["grow"]) - 1.0))[0] == \
+        {"panels": 1.0, "grow": 1.0}
+    # a screen (a faint emitter) or a sun at SUN_MOST is never raised past its `most`
+    assert mix.balance(["panels", "screen"], "panels", lambda found: abs(np.log2(found["screen"]) - 3.0),
+                       {"screen": 1.0})[0] == {"panels": 1.0, "screen": 1.0}
 
 
 def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp_path):
@@ -965,9 +998,9 @@ def tiny_seed(seed):
 def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_strengths_land(tmp_path):
     seed, out = tmp_path / "seed", tmp_path / "out"
     tiny_seed(seed)
-    record = {"lights": [{"type": "omni", "at": [1.0, 2.0, 0.0], "energy": 1.0, "colour": "#ffffff"},
+    record = {"lights": [{"type": "omni", "at": [1.0, 2.0, 0.0], "energy": 1.0, "colour": "#ffcc00", "row": "bulb"},
                          {"type": "spot", "at": [20.0, 2.0, 0.0], "aim": [20.0, 0.0, 0.0], "angle": 30.0,
-                          "energy": 1.0, "colour": "#ffffff"}]}
+                          "energy": 1.0, "colour": "#ffffff", "row": "panel"}]}
     found = layer.write("tiny", record, seed, out)
     assert [entry["done"] for entry in found["placed"]] == ["moved 1.00 m", "added"], found["placed"]
     moved = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
@@ -975,6 +1008,21 @@ def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_streng
     layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 0.5)})
     held = Usd.Stage.Open(str(out / layer.LAYER))
     assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0
+    # the bulb painted #ffcc00 ships its black body's light at the luminance it was rendered with, its brightest
+    # channel at most 1 and its intensity raised for the rest; as a faint emitter it keeps its paint
+    job = tmp_path / "passes/passes/tiny-0"
+    job.mkdir(parents=True)
+    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/tiny/Lights/light_1"}}))
+    colours = light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER)
+    assert np.allclose(colours["lamp_0"][1], mix.lamp_light(layer.scene.colour("#ffcc00")))
+    assert np.allclose(*light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER, {"bulb"})["lamp_0"])
+    painted = light.shipped_colours(colours, {"lamp_0": "/tiny/Lights/light_1"}, found, record)
+    boosts = light.colours_written(out / layer.LAYER, painted)
+    written = np.array(Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Lights/light_1")
+                       .attributes["inputs:color"].default)
+    assert written.max() <= 1.0 + 1e-6 and boosts["/tiny/Lights/light_1"] >= 1.0
+    assert math.isclose(float(mix.LUMA @ written) * boosts["/tiny/Lights/light_1"],
+                        float(mix.LUMA @ np.array(layer.scene.colour("#ffcc00"))), rel_tol=1e-4)
 
 
 def box_mesh(stage, path, low, high):
