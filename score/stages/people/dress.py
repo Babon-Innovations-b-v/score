@@ -290,7 +290,13 @@ class Painted:
 def worn_name(painted_name, surfaces, params, role=None):
     """The library surface a part of `role` painted `painted_name` wears: `params["surface"]` (a worn row,
     `-in-<surface>`: score/stages/people_clothes.py) on every fabric, else the paint's; then the person's variant of
-    it (`params["variant"]`, varied), a rigid part's (KEPT_ROLES) kept as it is."""
+    it (`params["variant"]`, varied), a rigid part's (KEPT_ROLES) kept as it is. A worn surface the library does not
+    hold is refused by name: data/people/rows.json still named denim_coverall_blue after surface-library@people was
+    made again as denim_coverall, and the hangar's workers stopped at the bake on "a material of the body names no
+    library surface" (env1, 2026-11-10)."""
+    if params.get("surface") and params["surface"] not in surfaces:
+        raise RuntimeError(f"the row wears {params['surface']}, which the people line's library does not hold: "
+                           "refresh the people rows (python -m score.stages.people_refresh)")
     name = painted_name
     if params.get("surface") and surfaces.get(painted_name, {}).get("family") == "fabric":
         name = params["surface"]

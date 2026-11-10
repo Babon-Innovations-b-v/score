@@ -450,8 +450,7 @@
      "dress": {
       "words": "worker in blue jumpsuit",
       "named": [
-       "denim_coverall_blue",
-       "jumpsuit_bluegrey"
+       "jumpsuit_bluegrey_fabric"
       ],
       "torso_lab": [
        34.8,
@@ -459,9 +458,9 @@
        -19.0
       ],
       "figures": 8,
-      "surface": "denim_coverall_blue",
-      "de": 7.0,
-      "why": "the words name denim_coverall_blue, jumpsuit_bluegrey; denim_coverall_blue the nearest to the torso by dE (a, b: the words name its colour)"
+      "surface": "jumpsuit_bluegrey_fabric",
+      "de": 12.9,
+      "why": "the words name jumpsuit_bluegrey_fabric; jumpsuit_bluegrey_fabric the nearest to the torso by dE"
      }
     }
    }

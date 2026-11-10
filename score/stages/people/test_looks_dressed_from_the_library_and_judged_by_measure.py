@@ -29,6 +29,8 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `dress.without_strays`: `rounds=0`  -> the stray blotch test.
 - `dress.flat_materials`: the normal map left out of the maps it asks for  -> the flat factors test.
 - `dress.worn_name`: `role in KEPT_ROLES` read as `False`  -> the variants test (the visor changes in variant 1).
+- `dress.worn_name`: its refusal of a worn surface the library lacks dropped  -> the variants test (suit_blue worn
+  unnamed, the bake's "names no library surface" after the work, 2026-11-10).
 - `clips.usable`: `if not passes` read as `if False`  -> the clip by clip test.
 - `bodies.judge_clips`: `PASS if passing else FAIL` read as `PASS`  -> the clip by clip test (tucks over the gate in
   every clip accepted, the astronaut 2026-11-08).
@@ -523,6 +525,12 @@ def test_each_person_of_a_look_wears_a_variant_of_its_own():
         "skin_a", "skin_b", "skin_c", "skin_a"]
     assert dress.worn_name("visor", surfaces, {"variant": 1}, "hard") == "visor"
     assert dress.worn_name("suit_white", surfaces, {"surface": "suit_grey", "variant": 1}, "cloth") == "suit_white"
+    try:  # a worn surface the library no longer holds (a library made again under new names) is refused by name
+        dress.worn_name("suit_white", surfaces, {"surface": "suit_blue"}, "cloth")
+        refused = ""
+    except RuntimeError as error:
+        refused = str(error)
+    assert "suit_blue" in refused and "people_refresh" in refused, refused
     record = {"skin#0": {"painted": "skin_a", "role": "skin"}, "suit#1": {"painted": "suit_white", "role": "cloth"},
               "visor#2": {"painted": "visor", "role": "hard"}}
     assert [dress.variant_gap(record, surfaces, {"variant": number}) for number in range(6)] == [None] * 6
