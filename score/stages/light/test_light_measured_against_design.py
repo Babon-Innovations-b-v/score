@@ -99,6 +99,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   2026-11-10: the square's sky too blue).
 - light.look_at: the sky's factor left to the smoothing (the float look test, 2026-11-10: the square's sky lit by its
   lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test, 2026-11-10: the stairwell);
+  light.airless_sky: the concept's sky as painted on an airless body (the look's sky test, 2026-11-10: hangar);
   light.on_card: the look as it is (the exposure test, 2026-11-10: the street's black police car);
   light_passes.surface_of: the glossy colour left out (the missing picture test).
 """
@@ -513,6 +514,26 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_
     assert judged(painted["mean_rgb"], [3.5, 7.3, 15.1]).answer == checks.FAIL  # the outside eye's sky: 30.4 levels
     for dark in (None, {"scale": 214.571, "outside_scale": 214.571}, {"scale": 21.457}):  # by day, outside, older
         assert light.seen_inside(painted, dark) == painted
+    # on an airless body no air scatters light, so the sky is black whatever the concept paints (2026-11-10: hangar's
+    # roof opening on the Moon, [1.1, 1.1, 1.2] against its concept's navy [35.5, 41.9, 69.2], 46.9 levels): judged
+    # against black, a black sky passes and a grey one fails; on the Earth (the night table's air) or a dusty body
+    # (the record's sky_dome) the concept's sky stands
+    navy = {"mean_rgb": [35.5, 41.9, 69.2], "blue_to_red": 1.9516, "rise_to_horizon": 0.0, "pictures": 1}
+    table = {"air": {"earth": {"rayleigh_depth": 0.0088}}}
+    moon = {"site": {"on": "moon"}, "setting": {"bodies": [{"body": "moon", "reference": "moon"}]}}
+    earth = {"site": {"on": "earth"}, "setting": {"bodies": [{"body": "earth", "reference": "earth"}]}}
+    airless = light.airless_sky(navy, {}, moon, table)
+    assert airless["mean_rgb"] == [0.0, 0.0, 0.0] and airless["painted"] == navy["mean_rgb"]
+    for sky_rgb, answer in (([1.1, 1.1, 1.2], checks.PASS), ([30.0, 30.0, 30.0], checks.FAIL)):
+        after = {"mean_rgb": sky_rgb, "rise_to_horizon": 0.0, "blue_to_red": round(sky_rgb[2] / sky_rgb[0], 4),
+                 "gap_to_concept": measure.colour_gap(sky_rgb, airless["mean_rgb"])}
+        (tmp_path / "measures.json").write_text(json.dumps({"sky": {"concept": airless, "views": [
+            {"view": "spot-1", "after": after, "masked": True}]}}))
+        assert light.judge_sky(tmp_path, {}, {}).answer == answer
+    assert judged(navy["mean_rgb"], [1.1, 1.1, 1.2]).answer == checks.FAIL
+    assert light.airless_sky(navy, {}, earth, table) == navy
+    assert light.airless_sky(navy, {"environment": {"sky_dome": {"depth": 0.6}}}, moon, table) == navy
+    assert light.airless_sky(None, {}, moon, table) is None and light.airless_sky(navy, {}, None, table) == navy
     dark = judged([11.4, 16.5, 27.6], [2.5, 2.6, 2.6])
     assert dark.answer == checks.PASS and "not judged" in dark.reason, dark.reason
     lit = judged([80.0, 90.0, 110.0], [95.0, 90.0, 95.0])

@@ -1208,6 +1208,22 @@ def seen_inside(concept, dark):
             "seen": f"by the eye inside, {share:.4g} of the outside eye's light", "painted": concept["mean_rgb"]}
 
 
+def airless_sky(concept, record, kept, table):
+    """A place's concept sky (concept_skies, row_skies or seen_inside's) as the physics gives it on an airless body:
+    one whose air neither the night table has (data/physics/night.json `air`, night.air_of) nor the record's dusty air
+    (its environment's `sky_dome`, data/physics/dust.json) scatters no light, so its sky is its stars' backdrop alone,
+    black at any hour to any eye (sky.py's dome of the setting's starlight lux), whatever the concept paints. Judged
+    against black, the concept's colour kept as `painted`; unchanged on a body with air or with no kept sky.
+    2026-11-10: hangar's roof opening on the Moon showed the physics' black sky, 46.9 levels off its concept's navy
+    [35.5, 41.9, 69.2] painted round its stars; base's navy [11, 17, 28] passed only by standing within the gap of
+    black (BLUE_TO_RED_WITHIN)."""
+    if concept is None or not kept or (record.get("environment") or {}).get("sky_dome") or \
+            night.air_of(kept, table or {}) is not None:
+        return concept
+    return {**concept, "mean_rgb": [0.0, 0.0, 0.0], "blue_to_red": 1.0, "painted": concept["mean_rgb"],
+            "seen": f"black: no air over its site on {kept['site'].get('on')} scatters light"}
+
+
 def through_doorways(view, shape, doorways):
     """The pixels of a view's picture (`shape`, rows by columns) whose rays pass through one of the place's doorways
     (its scene record's `doorways`: middle on the floor, inward, wide, sill and head over the floor), in front of the
@@ -1284,11 +1300,14 @@ def fault_measures(place, out, passes_folder, inputs):
     if balls:
         found["bodies"] = body_measures(place, out, passes_folder, balls, sun_way(out))
     doorways = record.get("doorways") or ()
+    kept = sky.read(inputs["sky"]) if "sky" in inputs else None
+    table = sky.read(inputs["night"]) if "night" in inputs else None
     if needs.outdoor(record, None):
-        found["sky"] = sky_measures(place, out, passes_folder, doorways=doorways)
+        concept = airless_sky(concept_skies(place), record, kept, table)
+        found["sky"] = sky_measures(place, out, passes_folder, concept, doorways=doorways)
     elif sees_sky(place, out, passes_folder, doorways):  # an inside place's sky through its glass (2026-11-04: camp)
         dark = (json.loads((out / "lamps.json").read_text()).get("sky") or {}).get("night")
-        concept = seen_inside(row_skies(place, inputs.get("inventory")), dark)
+        concept = airless_sky(seen_inside(row_skies(place, inputs.get("inventory")), dark), record, kept, table)
         found["sky"] = sky_measures(place, out, passes_folder, concept, doorways) if concept else \
             {"concept": None, "views": [], "inside": "its concept shows no sky (no sky row with a box)"}
     found["exposure"] = exposure_measures(place, out, passes_folder)
@@ -1673,7 +1692,8 @@ def light_files(place):
              # which lamps light a shaft (haze.shafted_kinds): the glowing rows each place's plan aims
              "row kinds": "{data}/checks/row-kinds.json", "lamp library": "{data}/library/lamps.json",
              # the light the eye in a lamp-lit room stands in (room_eye)
-             "night": "{data}/physics/night.json", **aimed_files(place), **concept_light.concept_light_input(place), **passes.ground_files(place)}
+             "night": "{data}/physics/night.json", **aimed_files(place), **concept_light.concept_light_input(place), **passes.ground_files(place),
+             **sky.kept_input(place)}  # its site's body, whose air the sky is judged by (airless_sky)
     if designed(place):  # its picked concept
         found["concepts"] = "{home}/design/concepts/" + f"{place}.png"
     else:
