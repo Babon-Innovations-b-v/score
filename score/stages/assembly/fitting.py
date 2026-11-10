@@ -29,7 +29,8 @@ a thin rug under a table is no overlap; one with no free spot is named, crowded_
 wall (statics) is moved the least way out of it
 (moved_out: airlock's sandbags in its porch deck, its porch post in its wall), and one whose built surface passes up
 through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
-under it (moved_down, through_roofs). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
+under it (moved_down, through_roofs), and one hung from the roof (`under roof`) built shorter than its reading moved up
+to the roof's built underside over it (hung_up). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
 estimates, the built ones are laid (the module's 12 m, not the plan's 17.2). Kept apart from record.py: the light and
 settle stages hash it.
 
@@ -1182,7 +1183,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
-    return fits + moved_down(stage, place, loose)
+    return fits + moved_down(stage, place, loose) + hung_up(stage, place, loose)
 
 
 def laid_fit(stage, path, entry, how, holder, moved, scale, words):
@@ -1603,6 +1604,46 @@ def through_roofs(stage, place, names, built=None):
             if metres > HELD_MOST:
                 found.append({"name": name, "roof": roof, "metres": metres})
     return found
+
+
+# A thing hung from the roof stands this far under its built underside, metres (the scene record's ROOF_CLEAR).
+ROOF_CLEAR = 0.01
+
+
+def under_roof_gap(points, built):
+    """Metres the lowest built roof face over a surface's points stands over its highest point there (the least gap
+    over any of them), None where no roof face stands over any."""
+    gaps = [roof_under(points, triangles) - points[:, 1] for _, triangles in built]
+    gaps = [gap[np.isfinite(gap)] for gap in gaps]
+    found = [float(gap.min()) for gap in gaps if len(gap)]
+    return min(found) if found else None
+
+
+def hung_up(stage, place, entries):
+    """Each entry hung from the roof (the scene record's `under roof`: laid with its top at the roof's underside by its
+    reading's tall) whose built top stands more than ROOF_CLEAR under the built roof over it moved straight up to it,
+    where that is OUT_MOST at most: its model is made at its own tall, so the record's hang leaves a shorter one
+    touching nothing (settle@airlock, 2026-11-10: its roof light read 0.4 m tall, built 0.27, 0.13 m under its dome);
+    the fits [{name, how, ...}]."""
+    built, fits = roofs(stage, place), []
+    for entry in entries if built else []:
+        if not entry.get("under roof"):
+            continue
+        path = f"/{place}/Objects/{entry['name']}"
+        gap = under_roof_gap(surface_points(stage, path), built)
+        if gap is None or not ROOF_CLEAR + MOVE_LEAST < gap <= OUT_MOST + ROOF_CLEAR:
+            continue
+        lift = gap - ROOF_CLEAR
+        low, high = world_box(stage, path)
+        moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) + [0.0, lift, 0.0])
+        words = f"moved {lift:.2f} m up to the roof it hangs from: built shorter than its reading"
+        from pxr import Sdf
+        stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+        after = world_box(stage, path)
+        fits.append({"name": entry["name"], "row": entry["row"], "how": "up", "holder": [name for name, _ in built],
+                     "moved": round(lift, 3), "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
+                     "high": [round(float(value), 4) for value in after[1]], "words": words})
+    return fits
 
 
 def moved_down(stage, place, entries):
