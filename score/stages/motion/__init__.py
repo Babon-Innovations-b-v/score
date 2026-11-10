@@ -693,7 +693,8 @@ def judge_grounded(output, inputs, evidence):
     moving = sorted({entry["prim"] for entry in bodies(inputs, output)})
     stills = space.still_meshes(stage, place, moving)
     surfaces = {"water": space.surface_meshes(stage, place, "water"),
-                "ground": [*space.surface_meshes(stage, place, "ground"), *stills]}
+                "ground": [*space.surface_meshes(stage, place, "ground"),
+                           *space.made_ground_meshes(inputs.get("terrain"), place), *stills]}
     faults, measures = [], {}
     for entry in moves:
         if entry.get("on") not in ON:

@@ -233,7 +233,10 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` in GAP_GATES dropped, and BATCH_GATES'
         `"motion": ("designed",)` -> `"motion": ()` (the gap moves nothing)
     Break: score/stages/motion/__init__.py: `found = rail_faults(entry, shape, surfaces["ground"], others, rate,
-        seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`"""
+        seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`
+    The camp's ground is the terrain row's made ground, its own layer (places/camp.usdc under /<place>/Outside), not
+    in the place's stage (motion@campgrounds, 2026-11-10): standing on it the crane passes, lifted off it it fails.
+    Break: score/stages/motion/__init__.py: `*space.made_ground_meshes(inputs.get("terrain"), place), ` -> ``"""
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
     out, _ = made(inputs, tmp_path)
     verdict = judge("designed", out, inputs)
@@ -255,6 +258,18 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
         verdict = judge("grounded", out, inputs)
         assert verdict.answer == answer and all(line.startswith("crane_1: on a rail, yet it touches nothing")
                                                 for line in verdict.findings), (rises, verdict.reason, verdict.findings)
+    for rises, answer in ((0.0, checks.PASS), (0.5, checks.FAIL)):
+        folder = tmp_path / f"made_{rises:g}"
+        folder.mkdir()
+        inputs = toy_inputs(folder, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}],
+                            extra=(("crane_1", (9.5, rises, 0.0), (-1.0, 0.0, -0.5), (1.0, 3.0, 0.5)),))
+        (folder / "terrain/mars/places").mkdir(parents=True)
+        ground = Usd.Stage.CreateNew(str(folder / f"terrain/mars/places/{PLACE}.usdc"))
+        box(ground, f"/{PLACE}/Outside/near", (7.0, -0.1, -4.0), (12.0, 0.0, 4.0))
+        ground.GetRootLayer().Save()
+        out, _ = made(inputs, folder)
+        verdict = judge("grounded", out, dict(inputs, terrain=folder / "terrain"))
+        assert verdict.answer == answer, (rises, verdict.reason, verdict.findings)
 
 
 def a_gap(path, check, objects):
