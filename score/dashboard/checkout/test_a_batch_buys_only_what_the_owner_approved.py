@@ -323,8 +323,11 @@ def test_two_items_sharing_an_upstream_node_are_planned_once_and_launched_as_one
     (planned,) = [call[1] for call in FakeBackend.calls if call[0] == "plan"]
     (launched,) = launches()
     assert launched[1] == planned == RunGroup(("alpha",), ("closeup@alpha", "pixal@alpha"))
-    assert localrun.run_command(launched[1], 8, None)[4:] == [
+    assert localrun.run_command(launched[1], 8, None, cores=16)[4:] == [
         "world1", "--place", "alpha", "--stage", "closeup@alpha", "--stage", "pixal@alpha", "--jobs", "8", "--detach"]
+    # a Buy's 16 jobs on an 8-core conductor run as 8, never refused (2026-11-10). Break: localrun.run_command's
+    # `min(int(jobs), cores ...)` -> `int(jobs)`
+    assert localrun.run_command(launched[1], 16, None, cores=8)[-3:-1] == ["--jobs", "8"]
 
 
 def test_a_basket_made_in_another_checkout_or_before_the_design_changed_is_refused(shop, settings):
