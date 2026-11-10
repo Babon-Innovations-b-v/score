@@ -1,8 +1,10 @@
 """The conductor in the cluster (#76, the plan of 2026-11-07, step 1): its objects as plain manifests (JSON for
-kubectl), rendered here and checked with `kubectl apply --dry-run=server`; nothing here applies them.
+kubectl), rendered here and checked with `kubectl apply --dry-run=server`; the cutover applied them, and an object
+added since is applied by name (`apply --only`, after the same dry run), never the whole set.
 
     python -m tools.cloud.k8s.conductor render --image <ref>    # the objects as one List on stdout
     python -m tools.cloud.k8s.conductor check --image <ref>     # the same through kubectl's server-side dry run
+    python -m tools.cloud.k8s.conductor apply --only <name>     # those objects applied (the owner's login)
 
 The shape (namespace `score` in babon's cluster, zone fr-par-2, beside the card pools):
 
@@ -382,6 +384,14 @@ def objects(image):
     return [limit_range(), service_account(NAME, "rights"), service_account(DOOR_AGENT, "door"),
             binding(NAMESPACE), binding(JOBS_NAMESPACE), *door_role(), closed(), claim(), known_hosts(), headless(),
             statefulset(image), *(cronjob(*row, image) for row in CRONJOBS), cap_watch(image)]
+
+
+def picked(found, names):
+    """The objects of `found` named `names`, in their order; ValueError naming any name no object has."""
+    unknown = sorted(set(names) - {item["metadata"]["name"] for item in found})
+    if unknown:
+        raise ValueError(f"no conductor object named {', '.join(unknown)}")
+    return [item for item in found if item["metadata"]["name"] in names]
 
 
 def as_list(found):

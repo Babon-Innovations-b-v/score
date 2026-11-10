@@ -2,8 +2,10 @@
 
 The conductor in babon's cluster (#76, the plan of 2026-11-07: issue #76's comment "Plan: the conductor moves into the
 cluster"): its objects as plain manifests, rendered by `__init__.py` (its docstring is the shape) and checked with
-`python -m tools.cloud.k8s.conductor check --image <ref>` (kubectl's server-side dry run; nothing is applied here:
-the cutover applies them, step 7).
+`python -m tools.cloud.k8s.conductor check --image <ref>` (kubectl's server-side dry run; the cutover applied them,
+step 7). An object added since is applied by name, `apply --only <name>` (the same dry run first, never the whole
+set), with the owner's login from his PC: the conductor's own Role holds jobs, pods and secrets, not CronJobs
+(`score-cap-watch`, the env1 cap's watcher, 2026-11-10).
 
 - **One node, one file system.** The store's volume (`score-store`, ReadWriteOnce, `sbs-5k-retain`, 250 Gi) and every
   pod that writes it sit on babon's pool `score-conductor-z2` (role `score-conductor`, one POP2-HM-16C-128G in
