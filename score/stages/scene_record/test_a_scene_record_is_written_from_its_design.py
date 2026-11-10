@@ -828,6 +828,11 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     Break: score/stages/scene_record/writer.py: `base = roof_under(design, spot) - float(size[2]) - ROOF_CLEAR` -> `pass`
     Break: score/stages/scene_record/gates.py: `found.append(f"{entry['name']} faces its wall, its back to the room")`
         -> `pass`
+    A wall's face ends at the faces of the walls meeting its ends, never at their middle lines (storage's 7.7 m pipes
+    on its 7.52 m east line went 0.084 m into its north and south walls, 2026-11-10): the east wall of a 20 m square
+    of 0.2 m walls holds its things from z -9.9 to 9.9, and a facet meeting it straight on trims nothing.
+    Break: score/stages/scene_record/writer.py: `first, last = corner_trims(design, start, end)` -> `first, last = 0.0,
+        0.0`
     Break: score/stages/scene_record/gates.py: `found.append(f"{one['name']} and {other['name']} of row {row} stand
         at one spot")` -> `pass`
     Break: score/stages/scene_record/gates.py: `if abs(height + size[2] - under) > TOLERANCE:` -> `if False:`
@@ -978,6 +983,15 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert writer.related(design, {"how": "floor", "height": 0.0, "why": "on what is under it"}, [1.0, 1.0],
                           [1.0, 0.0], 3.3, [1.0, 1.0, 1.0])[2] == 0.0
     assert found["suit"]["on"]["hangs"] is True and found["suit"]["on"]["holder"] == ["module_1"], found["suit"]
+    square = [[0.0, 0.0], [20.0, 0.0], [20.0, 20.0], [0.0, 20.0]]
+    boxed = {**design, "walls": [{"from": start, "to": end, "thick": 0.2}
+                                 for start, end in zip(square, square[1:] + square[:1])]}
+    ends, out = writer.wall_face(boxed, {"from": [20.0, 0.0], "to": [20.0, 20.0], "thick": 0.2}, 1)
+    assert np.allclose(sorted(map(list, ends)), [[9.9, -9.9], [9.9, 9.9]]) and np.allclose(out, [-1.0, 0.0]), ends
+    straight = {**design, "walls": [{"from": [20.0, 0.0], "to": [20.0, 20.0], "thick": 0.2},
+                                    {"from": [20.0, 20.0], "to": [20.0, 30.0], "thick": 0.2}]}
+    assert np.allclose(sorted(map(list, writer.wall_face(straight, straight["walls"][0], 1)[0])),
+                       [[9.9, -10.0], [9.9, 10.0]])
     (tmp_path / "plans").mkdir()
     (tmp_path / "plans/hut.json").write_text(json.dumps(design))
     (tmp_path / "relations.json").write_text(json.dumps({**relations, "plan": "another plan's sha"}))
