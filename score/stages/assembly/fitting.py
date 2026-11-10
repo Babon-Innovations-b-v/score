@@ -30,9 +30,11 @@ wall (statics) is moved the least way out of it
 (moved_out: airlock's sandbags in its porch deck, its porch post in its wall), and one whose built surface passes up
 through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
 under it (moved_down, through_roofs), and one hung from the roof (`under roof`) built shorter than its reading moved up
-to the roof's built underside over it (hung_up). Boxes are the place's axis-aligned ones (Y up), so a face is the box side nearest `out`; the plan's sizes are
-estimates, the built ones are laid (the module's 12 m, not the plan's 17.2). Kept apart from record.py: the light and
-settle stages hash it.
+to the roof's built underside over it (hung_up); a wall thing standing outside its place's walls (a passage) moved out
+past the walls and decks it reaches into (moved_past); and a row's pieces on the tops of the same holders that meet
+there spread evenly along the run their tops make (spread_on_tops). Boxes are the place's axis-aligned ones (Y up),
+so a face is the box side nearest `out`; the plan's sizes are estimates, the built ones are laid (the module's 12 m,
+not the plan's 17.2). Kept apart from record.py: the light and settle stages hash it.
 
     fit(low, high, on, holders, surface, recesses, left, opens, clear)   (scale, the new middle of its foot, words,
                                   its face or None) of one object, or None when it sits
@@ -1183,7 +1185,10 @@ def fitted(stage, place, entries, laid, cuts=None):
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
-    return fits + moved_down(stage, place, loose) + hung_up(stage, place, loose)
+    walled = [entry for entry in by_name.values() if entry["on"]["how"] == "wall"]
+    topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
+    return fits + spread_on_tops(stage, place, topped) + moved_past(stage, place, walled) + \
+        moved_down(stage, place, loose) + hung_up(stage, place, loose)
 
 
 def laid_fit(stage, path, entry, how, holder, moved, scale, words):
@@ -1524,13 +1529,120 @@ def moved_out(stage, place, entries):
     return fits
 
 
+def top_run(holds):
+    """(axis, from, to, top) of the one run along x (0) or z (2) the tops of holder boxes [(low, high)] make, each
+    meeting the next within BOARD_CLEAR at one height (BOARD_BED): two shelf units side by side; None where they make
+    no one run."""
+    lows, highs = np.array([box[0] for box in holds], float), np.array([box[1] for box in holds], float)
+    if float(np.ptp(highs[:, 1])) > BOARD_BED:
+        return None
+    axis = 0 if highs[:, 0].max() - lows[:, 0].min() >= highs[:, 2].max() - lows[:, 2].min() else 2
+    order = np.argsort(lows[:, axis])
+    if any(lows[after, axis] > highs[before, axis] + BOARD_CLEAR for before, after in zip(order, order[1:])):
+        return None
+    return axis, float(lows[:, axis].min()), float(highs[:, axis].max()), float(highs[:, 1].max())
+
+
+def spread_on_tops(stage, place, entries):
+    """The pieces of one row laid on the tops of the same holders (`entries`, their `on` how "top"), where two of them
+    meet by more than BOARD_CLEAR, spread evenly along the run their holders' tops make (top_run), in their order
+    along it, each its built length and as many even gaps apart, where they all fit there: each was kept within its
+    nearest holder's top alone, so the pieces past one unit's end were pushed into the one before (settle@workshop's
+    storage boxes 6 and 7 on their two shelf units, 2026-11-10). Pieces that do not fit are left for the held gate to
+    name; the fits [{name, how, ...}]."""
+    groups = {}
+    for entry in entries:
+        groups.setdefault((entry["row"], tuple(entry["on"].get("holder") or [])), []).append(entry)
+    fits = []
+    for (_, holders), pieces in groups.items():
+        scope = pieces[0]["on"].get("holder scope", "Objects")
+        holds = [world_box(stage, f"/{place}/{scope}/{name}") for name in holders
+                 if stage.GetPrimAtPath(f"/{place}/{scope}/{name}")]
+        boxes = {entry["name"]: world_box(stage, f"/{place}/Objects/{entry['name']}") for entry in pieces}
+        run = top_run(holds) if holds and len(pieces) > 1 else None
+        if run is None or not any(float(depths(*boxes[one], boxes[other]).min()) > BOARD_CLEAR
+                                  for one in boxes for other in boxes if one < other):
+            continue
+        axis, start, end, top = run
+        longs = {name: float(high[axis] - low[axis]) for name, (low, high) in boxes.items()}
+        gap = (end - start - sum(longs.values())) / (len(boxes) + 1)
+        if gap < BOARD_CLEAR:
+            continue
+        at = start
+        for entry in sorted(pieces, key=lambda entry: float(sum(boxes[entry["name"]])[axis])):
+            name, (low, high) = entry["name"], boxes[entry["name"]]
+            target = foot_middle(low, high)
+            target[axis], target[1] = at + gap + longs[name] / 2, top
+            at += gap + longs[name]
+            moved = float(np.linalg.norm(target - foot_middle(low, high)))
+            if moved < MOVE_LEAST:
+                continue
+            path = f"/{place}/Objects/{name}"
+            moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, target)
+            fits.append(laid_fit(stage, path, entry, "spread", list(holders), moved, 1.0,
+                                 f"spread {moved:.2f} m along its holders' tops: its row's pieces met there"))
+    return fits
+
+
+def room_box(built):
+    """[low x, low z, high x, high z] of the place's built walls [(name, (low, high))] (each named wall...), OPEN
+    where it has none (an open place)."""
+    room = [box for name, box in built if name.split("_")[0] == "wall"]
+    return ([min(box[0][0] for box in room), min(box[0][2] for box in room), max(box[1][0] for box in room),
+             max(box[1][2] for box in room)] if room else OPEN)
+
+
+def past_walls(low, high, out, built):
+    """The move [x, y, z] along a wall thing's `out` ([x, z]) that takes its box (low, high) clear of every static of
+    the built structure (`built`: [(name, (low, high))]) it reaches into by more than HELD_MOST every way, past each
+    one's far side in turn; and their names."""
+    way = np.array([float(out[0]), 0.0, float(out[1])])
+    shift, left = np.zeros(3), []
+    for _ in built:  # a move past one can reach into another farther out: until none is left
+        into = [(name, box) for name, box in built if depths(low + shift, high + shift, box).min() > HELD_MOST]
+        if not into:
+            break
+        for name, box in into:  # clear of it on any one axis the way runs along: the least move that does
+            ends = np.where(way > 0, np.asarray(box[1], float) - (low + shift),
+                            np.asarray(box[0], float) - (high + shift))
+            shift += way * min(max(0.0, float(ends[axis] / way[axis])) for axis in (0, 2) if abs(way[axis]) > 1e-9)
+            left.append(name)
+    return shift, list(dict.fromkeys(left))
+
+
+def moved_past(stage, place, entries):
+    """Each wall thing (`entries`, their `on` how "wall") standing outside its place's walls (its middle outside their
+    box: a passage meeting its module from outside) that reaches into a built wall or deck moved straight out along
+    its `out` past it, where that is OUT_MOST or its own depth that way at most: its relation's face is a chord
+    inside a round room's facets, so its body stood through the facets and its hatch alcove's walls (settle@workshop's
+    front glass tunnel, 3 m deep, 0.08 to 0.15 m inside four walls, 1.48 m in from the alcove's end, 2026-11-10).
+    One in the room is left as fitted; the fits [{name, how, ...}]."""
+    built = statics(walls(stage, place))
+    room, fits = room_box(built), []
+    for entry in entries:
+        path = f"/{place}/Objects/{entry['name']}"
+        low, high = world_box(stage, path)
+        middle = foot_middle(low, high)
+        if room[0] <= middle[0] <= room[2] and room[1] <= middle[2] <= room[3]:
+            continue
+        shift, left = past_walls(low, high, entry["on"]["out"], built)
+        moved = float(np.linalg.norm(shift))
+        if not left or moved > max(OUT_MOST, across(entry["on"]["out"], high - low)):
+            continue
+        moved_by(stage.GetPrimAtPath(path), middle, 1.0, middle + shift)
+        fits.append(laid_fit(stage, path, entry, "past", left, moved, 1.0,
+                             f"moved {moved:.2f} m out past {', '.join(left)}: laid outside its place, into them"))
+    return fits
+
+
 def roofs(stage, place):
-    """[(name, triangles [n, 3, 3] in the world)] of the place's built roofs (its Structure prims named ROOF...): each
-    drawn mesh's faces, fanned into triangles."""
+    """[(name, triangles [n, 3, 3] in the world)] of the place's built roofs (its Structure prims named ROOF..., and an
+    inside place's Shell's, design_shell.py: airlock's dome, which hung_up never saw, its roof light left 0.13 m under
+    it touching nothing, 2026-11-10): each drawn mesh's faces, fanned into triangles."""
     from pxr import Usd, UsdGeom
-    root = stage.GetPrimAtPath(f"/{place}/Structure")
+    scopes = [stage.GetPrimAtPath(f"/{place}/{scope}") for scope in ("Structure", "Shell")]
     found = []
-    for child in root.GetChildren() if root else []:
+    for child in [child for root in scopes if root for child in root.GetChildren()]:
         if child.GetName().startswith(ROOF):
             found.append((child.GetName(), np.concatenate([np.zeros((0, 3, 3))] + [
                 mesh_triangles(prim) for prim in Usd.PrimRange(child) if prim.IsA(UsdGeom.Mesh)

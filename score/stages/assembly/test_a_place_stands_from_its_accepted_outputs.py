@@ -1109,7 +1109,13 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     the same wall that reaches into it is still named.
     Break: score/stages/assembly/fitting.py: `if not (passes(entry) and static.split("_")[0] == "wall")]` -> `]`
     Break: score/stages/assembly/fitting.py: `set(str(entry.get("row") or "").split("_")) & set(PASSING))` ->
-        `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`"""
+        `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`
+    Break: score/stages/assembly/fitting.py: moved_past's `if room[0] <= middle[0] <= room[2] and room[1] <=
+        middle[2] <= room[3]:` -> `if False:` (the cabinet in the room is pushed through its wall)
+    Break: score/stages/assembly/fitting.py: past_walls' `for _ in built:` -> `for _ in built[:1]:` (the second
+        tunnel is moved 1.5 m into deck_2)
+    Break: score/stages/assembly/fitting.py: moved_past's `max(OUT_MOST, across(entry["on"]["out"], high - low))` ->
+        `OUT_MOST` (the tunnel, 1.5 m in, is left)"""
     from score.stages.assembly import fitting
     against = {"how": "wall", "span": [[0.0, 6.4685], [7.0, 6.4685]], "out": [0.0, 1.0], "why": "against the wall"}
     record = {"objects": [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": against},
@@ -1120,6 +1126,31 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
                         {"name": "pipe_1", "low": [5.5, 0.0, 6.4685], "high": [6.0, 2.5, 6.9685]}]}
     assert fitting.held_faults(record, laid) == [
         ("pipe_1", "laid 0.28 m inside wall_3, nothing holding it there", 0.276)], fitting.held_faults(record, laid)
+    # workshop (settle@workshop, 2026-11-10): its front glass tunnel, laid out from a chord 1.48 m inside its round
+    # wall's hatch alcove, stood through the alcove's walls. A tunnel laid outside its room (its middle past the
+    # walls' box) reaching into a wall is moved out along its `out` past each wall it reaches into, up to its own
+    # depth (3.3 m, moved 1.5 m); a cabinet in the room reaching into the same wall is left as fitted.
+    from pxr import Usd
+    stage = Usd.Stage.CreateInMemory()
+    a_built_box(stage, f"/{TOY}/Structure/wall_1", (-1.0, 0.0, -6.2), (1.0, 3.0, -5.9))
+    a_built_box(stage, f"/{TOY}/Structure/wall_2", (0.8, 0.0, -6.2), (1.0, 3.0, -5.6))
+    a_built_box(stage, f"/{TOY}/Structure/wall_3", (-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))
+    out = {"how": "wall", "span": [[-2.5, -4.7], [2.5, -4.7]], "out": [0.0, -1.0], "why": "against the wall"}
+    for name, low, high in (("glass_tunnel_1", (-2.0, 0.0, -8.0), (2.0, 2.5, -4.7)),
+                            ("cabinet_1", (-0.5, 0.0, -6.0), (0.5, 2.0, -5.0))):
+        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
+    entries = [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": out},
+               {"name": "cabinet_1", "row": "cabinet", "on": {**out, "out": [0.0, 1.0]}}]
+    fits = fitting.moved_past(stage, TOY, entries)
+    assert [(fit["name"], fit["how"], fit["moved"], fit["holder"]) for fit in fits] == [
+        ("glass_tunnel_1", "past", 1.5, ["wall_1", "wall_2"])], fits
+    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/glass_tunnel_1")[1], (2.0, 2.5, -6.2))
+    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/cabinet_1")[0], (-0.5, 0.0, -6.0))
+    # past the walls 1.5 m out it would reach into a deck's raised edge farther out, 4.5 m in all: more than its
+    # depth, left
+    a_built_box(stage, f"/{TOY}/Structure/deck_2", (-1.0, -0.2, -9.2), (1.0, 0.1, -9.0))
+    a_built_box(stage, f"/{TOY}/Objects/glass_tunnel_2", (-2.0, 0.0, -8.0), (2.0, 2.5, -4.7))
+    assert fitting.moved_past(stage, TOY, [{**entries[0], "name": "glass_tunnel_2"}]) == []
 
 
 def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
@@ -1134,6 +1165,8 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     its corner, settle@airlock's roof light 0.13 m under its dome), is moved up to 0.01 m under it.
     Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
     Break: score/stages/assembly/fitting.py: `+ hung_up(stage, place, loose)` -> `+ []`
+    Break: score/stages/assembly/fitting.py: roofs' `for scope in ("Structure", "Shell")]` -> `for scope in
+        ("Structure",)]` (the Shell's dome is no roof: its light left under it)
     Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
         len(reach) else 0.0`
     Break: score/stages/assembly/fitting.py: `lowest = height.min(axis=1)` -> `lowest = np.where(np.isfinite(height),
@@ -1180,6 +1213,18 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     assert [fault for fault in faults if "through" in fault[1]] == [
         ("ship_1", "laid 2.60 m up through roof_1, nothing holding it there", 2.6),
         ("pipes_1", "laid 6.00 m up through roof_1, nothing holding it there", 6.0)], faults
+    # an inside place's roof under its Shell (design_shell.py) is a roof too: airlock's dome, its roof light left
+    # 0.13 m under it (settle@airlock, 2026-11-10); a Shell wall is none
+    shelled = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(shelled, f"/{TOY}/Shell/roof_1")
+    dome = UsdGeom.Mesh.Define(shelled, f"/{TOY}/Shell/roof_1/geo")
+    dome.CreatePointsAttr([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10)])
+    dome.CreateFaceVertexCountsAttr([4])
+    dome.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    a_built_box(shelled, f"/{TOY}/Shell/wall_1", (0.0, 0.0, 0.0), (0.2, 3.0, 10.0))
+    a_built_box(shelled, f"/{TOY}/Objects/light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))
+    assert [name for name, _ in fitting.roofs(shelled, TOY)] == ["roof_1"]
+    assert [(fit["name"], fit["moved"]) for fit in fitting.hung_up(shelled, TOY, entries[-1:])] == [("light_1", 0.39)]
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
@@ -1420,7 +1465,13 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     Break: score/stages/assembly/fitting.py: crosses' `return bool(np.any(...))` -> `return False` (the box left
         across the divider)
     Break: score/stages/assembly/fitting.py: on_shelves_of's `return str(on.get("why") or "").startswith(SHELVES)` ->
-        `return True`"""
+        `return True`
+    Break: score/stages/assembly/fitting.py: spread_on_tops' `target[axis], target[1] = at + gap + longs[name] / 2,
+        top` -> `target[1] = top` (the boxes left in each other)
+    Break: score/stages/assembly/fitting.py: spread_on_tops' `if gap < BOARD_CLEAR:` -> `if False:` (four boxes
+        spread one in the next)
+    Break: score/stages/assembly/fitting.py: top_run's `if any(lows[after, axis] > highs[before, axis] +
+        BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -1461,6 +1512,27 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert np.allclose(target, (0.81, 0.42, 0.25)), target
     # only a thing on its holder's shelves is laid on its boards (galley's sink in its counter, its stove top on it,
     # are laid as the plan draws them)
+    # workshop (settle@workshop, 2026-11-10): seven 0.408 m storage boxes on two 1.5 m shelf units side by side, each
+    # kept within its nearest unit, boxes 6 and 7 one in the other. Three 0.3 m boxes on two 0.5 m units (tops at 1 m,
+    # x 0 to 1), two meeting, are spread evenly along the 1 m run in their order: gaps of 0.025 m; a fourth would not
+    # fit and leaves them as laid; a unit standing 0.2 m apart makes no one run.
+    from pxr import Usd
+    stage = Usd.Stage.CreateInMemory()
+    a_built_box(stage, f"/{TOY}/Objects/unit_1", (0.0, 0.0, 0.0), (0.5, 1.0, 0.4))
+    a_built_box(stage, f"/{TOY}/Objects/unit_2", (0.5, 0.0, 0.0), (1.0, 1.0, 0.4))
+    for name, start in (("box_1", 0.0), ("box_2", 0.5), ("box_3", 0.55)):
+        a_built_box(stage, f"/{TOY}/Objects/{name}", (start, 1.0, 0.0), (start + 0.3, 1.2, 0.4))
+    top = {"how": "top", "holder": ["unit_1", "unit_2"]}
+    boxes = [{"name": f"box_{number}", "row": "box", "on": top} for number in (1, 2, 3)]
+    fits = fitting.spread_on_tops(stage, TOY, boxes)
+    assert sorted(fit["name"] for fit in fits) == ["box_1", "box_2", "box_3"], fits
+    lows = [float(fitting.world_box(stage, f"/{TOY}/Objects/box_{number}")[0][0]) for number in (1, 2, 3)]
+    assert np.allclose(lows, (0.025, 0.35, 0.675)), lows
+    assert fitting.spread_on_tops(stage, TOY, boxes) == []  # spread: none meets another
+    a_built_box(stage, f"/{TOY}/Objects/box_4", (0.6, 1.0, 0.0), (0.9, 1.2, 0.4))
+    assert fitting.spread_on_tops(stage, TOY, [*boxes, {"name": "box_4", "row": "box", "on": top}]) == []
+    assert fitting.top_run([(np.zeros(3), np.array([0.5, 1.0, 0.4])),
+                            (np.array([0.7, 0.0, 0.0]), np.array([1.2, 1.0, 0.4]))]) is None
     assert fitting.on_shelves_of({"how": "within", "why": "on the shelves of shelf: its reading says 'on shelves'"})
     assert not fitting.on_shelves_of({"how": "within", "why": "within kitchen_counter: the plan lays it inside"})
 
@@ -1672,15 +1744,21 @@ def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp
     assert placeholders.check(out / f"{TOY}.usda") == []
 
 
-def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path):
+def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path, monkeypatch):
     """The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
     settle) is laid with its record written over the copied base and an assets folder of its own.
-    Break: score/stages/assembly/grounded.py: `(folder / "assets").mkdir()` -> `pass`"""
-    from score.stages.assembly.grounded import grounded_seed
+    Break: score/stages/assembly/grounded.py: `(folder / "assets").mkdir()` -> `pass`
+    Break: score/stages/assembly/grounded.py: `parting.parted(folder, seed.name)` -> `pass` (the settle dropped
+        airlock's control pedestal in its wall pipes, which the assembly parts: settle@airlock, 2026-11-10)"""
+    from score.stages.assembly import grounded, parting
     read_only_toy(tmp_path / "store" / TOY)
-    root = grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)}, tmp_path / "settle")
+    parted = []
+    monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
+    root = grounded.grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)},
+                                  tmp_path / "settle")
     stage = opened(root)
     assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
+    assert parted == [(tmp_path / "settle", TOY)], parted  # parted as the assembly's make parts (wired.make)
 
 
 # --- the layers gate ------------------------------------------------------------------------------------------------
