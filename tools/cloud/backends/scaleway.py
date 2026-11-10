@@ -420,12 +420,15 @@ def node_ids():
 
 
 def live_rate(start, now, names, nodes=None):
-    """Every machine, disk and address standing now in every project the bill names (`names`: {project id: name}),
-    each SCORE's or babon's (owner_of; a disk or address by the machine it is on, a loose one of a SCORE project
-    SCORE's and one of the shared project counted SCORE's: it fails closed): {id: {owner, kind, line (the bill line it
-    is billed on), euros (from the later of its creation and `start` to `now`), per_hour}}. Unread when a list cannot
-    be read or a cluster node (node_ids, or `nodes` given) is missing from the machines listed: a meter blind to a
-    running machine would let its cost pass unseen."""
+    """Every machine, disk and IPv4 address standing now in every project the bill names (`names`: {project id:
+    name}), each SCORE's or babon's (owner_of; a disk or address by the machine it is on, a loose one of a SCORE
+    project SCORE's and one of the shared project counted SCORE's: it fails closed): {id: {owner, kind, line (the bill
+    line it is billed on), euros (from the later of its creation and `start` to `now`), per_hour}}. An address is
+    billed apart from its machine (its own ipv4 line) but lives with it: it is counted from its machine's creation,
+    a loose one (its record holds no creation) from `start`; a routed IPv6 is free and not metered (the bill's ipv6
+    lines are EUR 0; 2026-11-10, the meter counted 1,027 node addresses, half of them IPv6, each from the cap's start:
+    EUR 111 against the bill's EUR 4). Unread when a list cannot be read or a cluster node (node_ids, or `nodes`
+    given) is missing from the machines listed: a meter blind to a running machine would let its cost pass unseen."""
     found, servers = {}, {}
     try:
         for zone in ALL_ZONES:
@@ -469,13 +472,14 @@ def live_rate(start, now, names, nodes=None):
                                  "euros": round(euros_since(per_hour / 60, 60, created_at(disk), start, now), 4)}
         for address in addresses:
             project = names.get(address.get("project"))
-            if project is None:
+            if project is None or "ipv6" in str(address.get("type") or ""):
                 continue
             owner = owners.get((address.get("server") or {}).get("id"), "score")
+            machine = servers.get((address.get("server") or {}).get("id"))
+            born = created_at(machine[0]) if machine else 0.0
             found[address["id"]] = {"owner": owner, "kind": "address", "per_hour": ADDRESS_EUROS_AN_HOUR,
                                     "line": f"{project}|/network/ipam/ipv4/{zone}",
-                                    "euros": round(euros_since(ADDRESS_EUROS_AN_HOUR / 60, 60,
-                                                               created_at(address), start, now), 4)}
+                                    "euros": round(euros_since(ADDRESS_EUROS_AN_HOUR / 60, 60, born, start, now), 4)}
     return found
 
 

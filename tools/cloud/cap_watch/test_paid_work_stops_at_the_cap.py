@@ -8,6 +8,9 @@ Breaks (each applied once, seen red, reverted), in tools/cloud/cap_watch/watch.p
 - the meter: counter_of returns `billed` for the counter (the bill's card lag hides 10 L4 for 3 h).
 - under the line: guard.cap_refusal's `if counter >= line:` becomes `if counter >= 0:`.
 - babon's share: babon_proven ignores LAG_HOURS (`>= 0`), or counter_of takes the proven euros off uncapped.
+- the meter's addresses (2026-11-10: 1,027 node addresses, half IPv6, each counted from the cap's start, EUR 111
+  against the bill's EUR 4): scaleway.live_rate's `born = created_at(machine[0]) ...` becomes `born = 0.0`, or its skip of
+  `"ipv6"` types is dropped.
 - the stop (plan B4): stop_paid_work drops its `stop_runner_servers()` call (the runner's machines keep billing), or
   one_pass drops its `cleaner` call (leftovers never cleaned).
 - the sweep (2026-11-10: checkout 75's stopped runs kept 4 L4 workers for hours): dead_jobs ignores the mark's age
@@ -100,6 +103,22 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     reading = watch.one_pass(blind, lambda last: bill({}), lambda start, now, names: scaleway.live_rate(
         start, now, names, nodes={"n1", "n2", "n3"}), stop, now=START + 60)
     assert reading["unread"].startswith("Unread") and "fails closed" in reading["stopped"] and len(stops) == 3
+    # the meter's addresses: an IPv4 by its machine's life (a node's made 20 h after the start costs one started hour
+    # at 20 h 20 min), never the free IPv6 beside it; a loose one from the cap's start (it fails closed)
+    born = watch.iso(START + 20 * 3600).replace("+00:00", "Z")
+    node = {"id": "n1", "project": "bp-id", "tags": ["pool-name=gate-pro2"], "state": "running",
+            "commercial_type": "PRO2-S", "creation_date": born}
+    cloud = {("instance", "server", "list", "zone=fr-par-1"): [node],
+             ("instance", "ip", "list", "zone=fr-par-1"): [
+                 {"id": "v4", "type": "routed_ipv4", "project": "bp-id", "server": {"id": "n1"}},
+                 {"id": "v6", "type": "routed_ipv6", "project": "bp-id", "server": {"id": "n1"}},
+                 {"id": "lost", "type": "routed_ipv4", "project": "bp-id", "server": None}]}
+    monkeypatch.setattr(scaleway, "scw", lambda *words: cloud.get(words, []))
+    monkeypatch.setattr(scaleway, "price", lambda kind, zone: (0.001, 1))
+    metered = scaleway.live_rate(START, START + 20 * 3600 + 20 * 60, {"bp-id": "babon-platform"}, nodes={"n1"})
+    addresses = {key: item["euros"] for key, item in metered.items() if item["kind"] == "address"}
+    assert addresses == {"v4": 0.005, "lost": 21 * 0.005}
+    assert metered["v4"]["line"] == "babon-platform|/network/ipam/ipv4/fr-par-1" and metered["v4"]["owner"] == "score"
     # the stop itself: every box's Jobs and every runner machine, a failed machine stop named, never swallowed
     class Done:
         returncode, stdout, stderr = 0, 'job.batch "score-r-a-g0" deleted', ""
