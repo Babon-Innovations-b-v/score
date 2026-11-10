@@ -153,7 +153,10 @@ stage as each stage is built; nothing moves before.
   output again and makes it when those gates fail it or cannot tell (unknown) beyond its accepted and batch gaps,
   `fails_today`; a gate unchanged since the lock is never judged again there); `status` prints each lock and the nodes kept by it. `python -m score moved` lists the paid rows a tree would buy again;
   `.claude/hooks/local/pre-push-moved` refuses a push whose commit moves a paid row's key (`score.stages.moved`: code,
-  table part, declared files; about a minute) without a `Moved-rows:` reason (the push gate,
+  table part, declared files; about a minute) without a `Moved-rows:` reason, prints "this push re-makes N accepted
+  rows (P paid, EUR X)" (`moved.remade_accepted`, free ones too) and, while a push freeze stands
+  (`.claude/hooks/local/remake_freeze.py`, its file outside the repository), refuses remade accepted rows no
+  `Remakes: <row or node> ...: <reason>` trailer names (#107 is the root fix) (the push gate,
   .claude/hooks/local/pre-push, hands it every push to main while `git config score.movedCheck true`, which
   bootstrap sets). Before `run` starts, `rebuy.py` lists every paid row it would buy with its
   estimate (a Google ask google_spend's cache answers at EUR 0) and refuses, over EUR 5 of rows that already have an
