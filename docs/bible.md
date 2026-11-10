@@ -285,6 +285,10 @@ one). A phase is:
 
 A phase starts from the locked outputs of the phases it reads, so phases whose inputs stand run side by side.
 
+**Rehearse before breadth** (owner, 2026-11-10). Before a full run, every stage that has never passed anywhere is
+rehearsed on one place end to end, so its faults show before every place reaches it; one place goes all the way to
+its film before the run widens to the rest.
+
 **One scene's line** (stage rows in `score/stages`, each with its overlay):
 
 1. Materials: `finish-route-palette` coins the scene palette from the locked concept, `surface-library` makes its
@@ -812,6 +816,9 @@ returns data to its parent.
 **Design edits by an agent** (owner, 2026-10-21). When the owner asks for one in chat, an agent may rename, merge, add
 or remove child scenes, move and resize things on a plan, or edit an inventory row. Each is recorded as his edit with
 his words quoted and the time, like a benchmark grant. Locks, accepts, rejects, waivers and spend stay his own clicks.
+
+**Estimates** (owner, 2026-11-10). When work will land is computed from measured history, the stage times and the
+failure and fix cycles of past runs, never from a plan; a date given to the owner says which it is.
 
 **The board.** One GitHub project (`.claude/scripts/setup-github.py --board`). Status is a column (`LowPriority`,
 `Not started`, `In Progress`, `Review`, `Done`), set with `.claude/scripts/board-status.py <issue> "<column>"`; triage
