@@ -44,6 +44,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - passes.judge_magenta: the share read times 0 (the magenta view test, 2026-10-30).
 - mix.sweep: `most` ignored; mix.own_share: the lamp's light left unscaled (`scales.get(group, 1.0) *` dropped) (the
   sweep test, 2026-11-04).
+- mix.own_share: the share read on the pixels' mixed light (`mixed(passes, scales).sum()`), the light no group holds
+  scaled, or left out (the sweep test, 2026-11-10: tube's denoiser noise read as half its light).
+- light.strengths: a lamp-lit place's lamps swept only to the top of mix.SCALES, or a daylit place's to the top of
+  mix.LAMP_SCALES (the sun-swept test, 2026-11-10: hangar's lamps stopped at x32).
 - light.strengths: `first` always {} (a lamp-lit place's suns not at the floor), or the suns' sweep without
   `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the sun-swept test, 2026-11-04).
 - measure.surface_cast: brightness left in (`* 128.0 / ...` dropped); light.judge_colour: `gap <= CAST_MOST` ->
@@ -626,6 +630,16 @@ def test_the_sweep_finds_the_lamps_scale_turns_a_blown_lamp_down_and_names_an_un
     share = float(2.0 * lamp.sum() / (views_passes["combined"] + lamp).sum())  # the lamp at twice its strength
     assert abs(mix.own_share(views, {"lamp_0": 2.0}, ["lamp_0"]) - share) < 1e-9, share
     assert mix.own_share(views, {}, ["lamp_2"]) is None
+    # 2026-11-10, tube: the combined light is denoised, the groups are not; their pixels' difference is noise that no
+    # scale turns, which at a sun turned down 32 times read as half the light. On the sums it cancels; the light no
+    # group holds (here `rest`) stays at its rendered strength.
+    sun = np.full((40, 60), 2.0)
+    noise = np.where(np.indices((40, 60)).sum(axis=0) % 2 == 0, 3.0, -3.0)
+    noisy = {"combined": rest + lamp + sun, "lamp_0": lamp + noise, "lamp_1": sun - noise}
+    floor = {"lamp_0": 1.0, "lamp_1": 1.0 / 32.0}
+    truth = float(lamp.sum() / (lamp.sum() + sun.sum() / 32.0 + rest.sum()))
+    found = mix.own_share({"v": (noisy, None)}, floor, ["lamp_0"])
+    assert abs(found - truth) < 1e-9, (found, truth)
     assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), ["v"]) == "unlit"
     assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), []) == "unseen"
     bright = {"combined": rest + 50.0 * lamp, "lamp_0": 50.0 * lamp}
@@ -683,6 +697,12 @@ def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_sp
                                {"scene": {"daylight": False}})
     assert held_at[0][1] == {"lamp_3": float(mix.SCALES[0])} and all(
         most == mix.SUN_MOST for groups, _, most in held_at if "lamp_3" in groups), held_at
+    # 2026-11-10: hangar's lamps (a lamp-lit place's) stopped at x32 with 14% of its light; they reach the top of
+    # LAMP_SCALES, a daylit place's lamps only the top of SCALES, where its sun takes over.
+    assert held_at[0][2] == float(mix.LAMP_SCALES[-1]) > float(mix.SCALES[-1]), held_at
+    held_at.clear()
+    light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record, {"scene": {"daylight": True}})
+    assert held_at[0][2] == float(mix.SCALES[-1]), held_at
     assert night["source"]["lamp_lit"] is True and night["source"]["sun_most"] <= mix.SUN_MOST, night["source"]
     for source, answer, said in (({"lamp_lit": True, "lamp_share": 0.05, "sun_most": 0.5}, checks.FAIL, "5.0%"),
                                  ({"lamp_lit": False, "lamp_share": 0.05, "sun_most": 0.5}, checks.PASS, "daylight"),
