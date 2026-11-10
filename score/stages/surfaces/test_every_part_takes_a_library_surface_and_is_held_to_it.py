@@ -229,8 +229,10 @@ tests it turned red:
   colours only the people in it wear. ",`  -> a_line_no_scene_owns_is_asked_over_every_concept
 - scene_palette.py: `close_ups=CLOSE_UPS.format(count=len(close_ups)) if close_ups else "",` -> `close_ups="",`  ->
   the_palette_sees_every_take_s_close_up_after_the_concepts
-- scene_library.py: `for colour in surface.get("colours") or [] if colour["setting"] in needs})` -> `for colour in
-  surface.get("colours") or []})`  -> the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_ask
+- scene_library.py: `in (surface.get("colours") or {}).items() if setting in needs})` -> `in (surface.get("colours")
+  or {}).items()})`, or `"required": list(settings),` -> `"required": [],` (schema; surface-library@tube's
+  rusted_door_steel left its bare out, 2026-11-09)  -> the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_ask
+- body_faces.py: `"required": needs,` -> `"required": [],`  -> the_face_is_made_from_one_ask_in_the_methods_recipes
 - scene_library.py: `for kind in kinds if not found.get("kinds", {}).get(kind)]` -> `for kind in kinds if False]`  ->
   a_scene_library_missing_a_kind_or_unanswered_fails_by_name
 - scene_library.py: `parts.add("stair")` -> `pass`  ->
@@ -2905,7 +2907,7 @@ def library_made(folder, answer, kinds=("two_boxes",), grounds=None, plan=None):
 def test_the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_ask():
     answer = {"surfaces": [
         {"name": "Hull Panel", "family": "Paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
-         "metal": 0.0, "colours": [{"setting": "bare", "token": "steel"}, {"setting": "second", "token": "glass"}],
+         "metal": 0.0, "colours": {"bare": "steel", "second": "glass"},
          "sound": "steel_plate", "kinds": ["two_boxes"]},
         {"name": "window", "family": "glass", "recipe": "glass", "token": "glass", "roughness": 1.6, "metal": 0.0,
          "sound": "glass", "kinds": []}]}
@@ -2919,6 +2921,12 @@ def test_the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_a
         assert "steel_grating" in text  # the sound surfaces it may sound like
         schema = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]
         assert schema["token"]["enum"] == list(PALETTE["tokens"]) and "glass" in schema["recipe"]["enum"], schema
+        # every surface answers a palette token for every colour setting, so no recipe's setting is left bare
+        surface = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]
+        assert "colours" in surface["required"], surface
+        assert schema["colours"]["required"] == ["bare", "second"] == sorted(schema["colours"]["properties"]), schema
+        assert schema["colours"]["properties"]["bare"]["enum"] == list(PALETTE["tokens"]), schema
+        assert "- bare: the bare stuff under its paint" in text, text
         made = json.loads((out / "materials.json").read_text())
         panel = made["families"]["paint"]["variants"]["hull_panel"]
         # its recipe's colour settings in its own tokens; a setting the recipe does not name is not taken
@@ -2955,7 +2963,7 @@ def test_the_shell_a_locked_plan_lays_is_a_kind_the_scene_library_must_cover():
             "roofs": [{"kind": "flat", "points": box, "eave": 2.5, "top": 2.5}],
             "stairs": [{"kind": "stair", "points": [[4.0, 2.0], [5.0, 2.0], [5.0, 4.0], [4.0, 4.0]]}]}
     panel = {"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
-             "metal": 0.0, "colours": [{"setting": "bare", "token": "steel"}], "sound": "steel_plate",
+             "metal": 0.0, "colours": {"bare": "steel"}, "sound": "steel_plate",
              "kinds": ["two_boxes"]}
     with tempfile.TemporaryDirectory() as temporary:
         out, verdict, asked = library_made(pathlib.Path(temporary), {"surfaces": [panel]}, plan=room)
@@ -3001,7 +3009,7 @@ def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
         {"name": "window_glass", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.05,
          "metal": 0.0, "sound": "glass", "kinds": ["window_pane"]}]}
     printed_photo = {"surfaces": [{**glazed["surfaces"][0], "recipe": "written",
-                                   "colours": [{"setting": "second", "token": "hull-trim"}]}, glazed["surfaces"][1]]}
+                                   "colours": {"second": "hull-trim"}}, glazed["surfaces"][1]]}
     for answer, failing in ((glazed, ["kind framed_photo shows a picture and no surface of it draws one (written)"]),
                             (printed_photo, [])):  # flat's framed photo as one grey glass sheet, checkout 62
         with tempfile.TemporaryDirectory() as temporary:
@@ -3046,7 +3054,7 @@ def test_a_scene_s_ground_rows_take_their_natural_ground_by_rule():
             {"id": "hut", "noun": "hut", "name": "hut"}]
     answer = {"surfaces": [
         {"name": "moon_dust", "family": "regolith", "recipe": "regolith", "token": "hull-trim", "roughness": 0.9,
-         "metal": 0.0, "colours": [{"setting": "second", "token": "steel"}], "sound": "stone",
+         "metal": 0.0, "colours": {"second": "steel"}, "sound": "stone",
          "kinds": ["two_boxes", "crater"]},
         {"name": "drift_paint", "family": "paint", "recipe": "cast_metal", "token": "steel", "roughness": 0.5,
          "metal": 0.0, "sound": "stone", "kinds": ["drift"]}]}
@@ -3741,7 +3749,7 @@ METHOD = pathlib.Path(__file__).resolve().parents[3] / "data/library/materials.j
 
 ANSWER = {"palette": [{"token": "regolith-grey", "colour": "#8a8580"}, {"token": "crater-dark", "colour": "#3b3a38"}],
           "face": {"family": "Regolith", "recipe": "regolith", "token": "regolith-grey", "roughness": 0.95,
-                   "metal": 0.0, "colours": [{"setting": "second", "token": "crater-dark"}]}}
+                   "metal": 0.0, "colours": {"second": "crater-dark"}}}
 
 
 GROUND = ["regolith", "Moon: airless, its dust ground by impacts"]
@@ -3771,6 +3779,8 @@ def test_the_face_is_made_from_one_ask_in_the_methods_recipes(tmp_path, monkeypa
     assert caller == "body-face" and "worn NASA-punk" in json.dumps(bodies["moon"])
     schema = bodies["moon"]["generationConfig"]["responseSchema"]["properties"]["face"]["properties"]
     assert schema["recipe"]["enum"] == ["regolith"] and "airless" in json.dumps(bodies["moon"])
+    assert schema["colours"]["required"] == ["second"] and "colours" in \
+        bodies["moon"]["generationConfig"]["responseSchema"]["properties"]["face"]["required"], schema
     face = json.loads((tmp_path / "face.json").read_text())
     assert face["surface"] == "moon_face" and face["family"] == "regolith" and face["hex"] == "#8a8580"
     assert abs(face["colour"][0] - 0.2541) < 1e-3  # #8a = 138: sRGB to linear
