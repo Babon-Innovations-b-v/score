@@ -38,10 +38,11 @@ BAND_SHARE = 0.01
 BANDS = {"head": 0.06, "chest": 0.25, "waist": 0.38, "hips": 0.47, "knees": 0.72}
 
 
-def mask(points, faces, camera, shape):
-    """The mesh's silhouette from the close-up's camera (labels.seen_faces' projection), filled triangle by triangle."""
+def mask(points, faces, camera, shape, turn):
+    """The mesh's silhouette from the close-up's camera (labels.seen_faces' projection, `turn` labels.view_turn), filled
+    triangle by triangle."""
     height, width = shape
-    turned = points @ labels.VIEW_TURN.T
+    turned = points @ turn.T
     focal = 1 / np.tan(camera["camera_angle_x"] / 2)
     distance = -camera["frames"][0]["transform_matrix"][1][3]
     depth = distance - turned[:, 2]
@@ -96,16 +97,16 @@ def measure(take, fit_path, body_path):
     take it starts from (captain, 2026-10-13: a fault belongs to the stage that makes it); the finished take's own
     drop against the raw model is recorded (`finish_drop`), never gated here."""
     views = labels.PIXAL / f"{take}.svviews"
-    camera = json.loads((views / "transforms.json").read_text())
+    camera, turn = labels.camera_of(take), labels.view_turn(take)
     cut_out = np.asarray(Image.open(views / "input.png").convert("RGBA"))[..., 3] > 127
     fit_rig = np.load(fit_path)
     points, faces = built_mesh(body_path)
     final = trimesh.load(labels.PIXAL / f"{take}-final.glb", force="mesh", process=False)
     final_on_fit = final.vertices @ fit_rig["turn"].T * fit_rig["scale"] + fit_rig["shift"]
     on_raw, raw = built_on_raw(take, fit_rig, np.concatenate([points, final_on_fit]))
-    raw_mask = mask(raw.vertices, raw.faces, camera, cut_out.shape)
-    finished_mask = mask(on_raw[len(points):], final.faces, camera, cut_out.shape)
-    built_mask = mask(on_raw[:len(points)], faces, camera, cut_out.shape)
+    raw_mask = mask(raw.vertices, raw.faces, camera, cut_out.shape, turn)
+    finished_mask = mask(on_raw[len(points):], final.faces, camera, cut_out.shape, turn)
+    built_mask = mask(on_raw[:len(points)], faces, camera, cut_out.shape, turn)
     finished_bands, built_bands = bands(finished_mask), bands(built_mask)
     moved = {name: round(abs(built_bands[name] - finished_bands[name]), 4) for name in BANDS}
     record = {"take": take, "iou_raw": round(iou(raw_mask, cut_out), 4),

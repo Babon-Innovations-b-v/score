@@ -61,6 +61,10 @@ PIXAL = WORK / "pixal"
 # finish turns it back (HALF_TURN) on the machine it runs on, and only its slimmed and final files come back here.
 FACING_KEY = "image_to_3dlab_facing"
 HALF_TURN = np.diag([-1.0, 1.0, -1.0])
+# Its stamp on the camera folder it turned with that raw model (glb_turn CAMERA_KEY), and that turn in the camera's
+# frame (glb_turn.VIEW_TURN: half round about the view's Z), which pixal.py's cameras_turned_back undoes.
+CAMERA_KEY = "image_to_3dlab_turned"
+CAMERA_TURN = np.diag([-1.0, -1.0, 1.0, 1.0])
 DETAILS = REPO / "data/library/details.json"
 DEPTH_SLACK = 0.01
 SAMPLED = 20000
@@ -143,11 +147,33 @@ def srgb(linear):
     return np.where(linear <= 0.0031308, linear * 12.92, 1.055 * np.power(linear, 1 / 2.4) - 0.055)
 
 
-def seen_faces(mesh, camera, shape):
+def camera_of(take):
+    """The close-up's camera (<take>.svviews/transforms.json) in Pixal3D's own frame, the one seen_faces projects
+    through: a camera image-to-3dlab turned with its raw model (CAMERA_KEY) turned back, as pixal.py's
+    cameras_turned_back does. Read as turned, its distance came out negative and every person still stamped as facing
+    +Z was seen upside down: the judge was shown the boots outlined over the helmet and the helmet over the boots, and
+    env1's made people's parts were all judged at their mirror height (their tucks 44 to 106 mm out, 2026-11-10)."""
+    camera = json.loads((PIXAL / f"{take}.svviews" / "transforms.json").read_text())
+    if not camera.pop(CAMERA_KEY, False):
+        return camera
+    camera["frames"] = [dict(frame, transform_matrix=(CAMERA_TURN @ np.asarray(frame["transform_matrix"],
+                                                                              dtype=float)).tolist())
+                        for frame in camera["frames"]]
+    return camera
+
+
+def view_turn(take):
+    """The turn laying the take's raw model, as it lies here, as the close-up's camera sees it: turned back to
+    Pixal3D's -Z where still stamped as facing +Z (raw_facing), then VIEW_TURN."""
+    return VIEW_TURN @ raw_facing(take)
+
+
+def seen_faces(mesh, camera, shape, turn=VIEW_TURN):
     """Which faces the picture's camera sees, and the pixel each lands on (a depth test on face middles). The raw
-    model faces the picture's camera turned half round about its up axis (VIEW_TURN)."""
+    model faces the picture's camera turned half round about its up axis (VIEW_TURN; `turn`, view_turn of its take,
+    for a raw model still stamped as facing +Z)."""
     height, width = shape
-    middles = mesh.triangles_center @ VIEW_TURN.T
+    middles = mesh.triangles_center @ turn.T
     focal = 1 / np.tan(camera["camera_angle_x"] / 2)
     distance = -camera["frames"][0]["transform_matrix"][1][3]
     depth = distance - middles[:, 2]
@@ -156,7 +182,7 @@ def seen_faces(mesh, camera, shape):
     pixel = row * width + column
     nearest = np.full(height * width, np.inf)
     np.minimum.at(nearest, pixel, depth)
-    facing = (mesh.face_normals @ VIEW_TURN.T @ np.array([0.0, 0.0, 1.0])) > 0.05
+    facing = (mesh.face_normals @ turn.T @ np.array([0.0, 0.0, 1.0])) > 0.05
     return (depth <= nearest[pixel] + DEPTH_SLACK) & facing, row, column
 
 
@@ -166,7 +192,7 @@ def picture_view(mesh, take):
     views = PIXAL / f"{take}.svviews"
     picture = Image.open(views / "input.png").convert("RGBA")
     rgba = np.asarray(picture, dtype=np.float64) / 255
-    seen, row, column = seen_faces(mesh, json.loads((views / "transforms.json").read_text()), rgba.shape[:2])
+    seen, row, column = seen_faces(mesh, camera_of(take), rgba.shape[:2], view_turn(take))
     return picture, seen & (rgba[row, column, 3] > 0.5), row, column
 
 
