@@ -480,7 +480,7 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     the least that brings every view within and none more black or blown than its concept (mix.fill_sweep,
     exposed_within); given the groups' `colours` (group_colours), the lamps of each colour, each sun and the fill
     balanced against each other to the concept's cast (colour_balance, mix.balance; the faint emitters, `fixed`,
-    only turned down) and brought to the concept's brightness together, kept only where no rule the sweep kept
+    only turned down) at the brightness the sweep gave them, kept only where no rule the sweep kept
     breaks; each blown lamp turned down. A sun is never swept past mix.SUN_MOST, and a lamp-lit place's
     (lamp_lit: inside, its concept `light` showing no daylight) stands at the floor of mix.SCALES while its lamps are
     swept (2026-11-04: hangar's sun at x19 in a night hangar)."""
@@ -524,20 +524,21 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
             return (mix.within(views, tried, target), mix.views_within(views, tried, target),
                     not lit_by_lamps or (share is not None and share >= mix.LAMP_SHARE_LEAST),
                     exposed_within(looks, concept, tried))
-        # the balanced lights brought to the concept's brightness together, each sun capped as `most` caps it
-        within_sky = {group: scales[group] * factors.get(group, 1.0) for group in swept + suns}
-        joint = mix.sweep(views, swept + suns, target, scales, factors=within_sky)
-        tried = dict(scales, **{group: joint * value for group, value in within_sky.items()})
-        tried.update({group: min(tried[group], scales[group] * most[group]) for group in lit})
-        balanced_scale = joint * scale
-        broken = [name for name, was, now in zip(("the place's brightness", "every view's brightness",
-                                                  "its own lamps' share", "its exposure"), rules(scales), rules(tried))
-                  if was and not now]
-        if broken:  # a balance never breaks a rule the one scale kept (2026-11-10: hangar's lamps at the top of SCALES)
+        kept, broken = rules(scales), []
+        swept_to = mix.place_brightness(views, scales)  # a balance moves the colour, never the brightness swept
+        for part in BALANCE_PARTS:  # the whole balance, else a part of it in log scale, never one breaking a rule
+            tried, joint = balanced_scales(views, swept_to, scales, {group: value ** part for group, value in
+                                                                     factors.items()}, swept + suns, lit, most)
+            broken = [name for name, was, now in zip(("the place's brightness", "every view's brightness",
+                                                      "its own lamps' share", "its exposure"), kept, rules(tried))
+                      if was and not now]
+            if not broken:
+                scale, scales = joint * scale, tried
+                sun_scale = max((scales[group] for group in lit), default=sun_scale)
+                balanced = dict(balanced, part=part)
+                break
+        if broken:  # 2026-11-10: hangar's lamps at the top of SCALES, camp's exposure
             balanced = dict(balanced, classes=[], dropped=f"it would break {' and '.join(broken)}")
-        else:
-            scale, scales = balanced_scale, tried
-            sun_scale = max((scales[group] for group in lit), default=sun_scale)
     lamp_found = {}
     sky_lit = [group for group, path in groups.items() if by_path[path].get("sun")]
     for group in sky_lit:  # a sun is not turned down for its own glare: its light is the whole sky's
@@ -570,6 +571,20 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
                     "before": {name: round(value, 4) for name, value in mix.brightness(views, {}).items()},
                     "after": {name: round(value, 4) for name, value in mix.brightness(views, scales).items()},
                     "lamps": dict(sorted(lamp_found.items(), key=lambda item: item[1]["group"]))}
+
+
+# A balance that would break a rule the sweep kept is tried again at these parts of itself, its factors' logs scaled.
+BALANCE_PARTS = (1.0, 0.75, 0.5, 0.25)
+
+
+def balanced_scales(views, target, scales, factors, balanced, lit, most):
+    """(scales, joint) of the `balanced` groups at their `factors` brought to `target` brightness together (one
+    joint scale from mix.SCALES on all of them), each sun of `lit` capped at its `most` of its scale."""
+    within = {group: scales[group] * factors.get(group, 1.0) for group in balanced}
+    joint = mix.sweep(views, balanced, target, scales, factors=within)
+    tried = dict(scales, **{group: joint * value for group, value in within.items()})
+    tried.update({group: min(tried[group], scales[group] * most[group]) for group in lit})
+    return tried, joint
 
 
 def full_size(values, shape):
