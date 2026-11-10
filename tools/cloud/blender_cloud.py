@@ -397,8 +397,8 @@ def alone_need(jobs):
     while it runs; None off this PC."""
     if cloud.NAME != "local" or not jobs:
         return None
-    cards = [CARD_NEEDS[pathlib.PurePosixPath(job["script"]).name] for job in jobs
-             if pathlib.PurePosixPath(job["script"]).name in CARD_NEEDS]
+    names = [pathlib.PurePosixPath(job.get("script", "")).name for job in jobs]  # a --serve chain's job has none yet
+    cards = [CARD_NEEDS[name] for name in names if name in CARD_NEEDS]
     return {"memory_gb": max(map(predicted_bytes, jobs)) / 2**30, **({"card_gb": max(cards)} if cards else {})}
 
 

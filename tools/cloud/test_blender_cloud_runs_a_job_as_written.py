@@ -48,7 +48,8 @@ No machine is rented: each test reads the command, job or offers the module buil
   room alone, is refused too); or `max(map(predicted_bytes, jobs))` -> `min(...)` in `alone_need` (the claim asks
   the small job's room).
   Or in `alone_need`, `**({"card_gb": max(cards)} if cards else {})` -> `**{}` (a light-passes claim
-  books only the bakes' Blender card share; round 45's flat failed to make its CUDA context).
+  books only the bakes' Blender card share; round 45's flat failed to make its CUDA context); or `job.get("script",
+  "")` -> `job["script"]` in `alone_need` (a --serve chain's job: KeyError).
 """
 import json
 import os
@@ -438,6 +439,9 @@ def test_a_job_whose_pictures_sum_past_this_pcs_machine_is_refused_by_name_befor
                                                       "card_gb": blender_cloud.CARD_NEEDS["light_passes.py"]}
     bake = {**small, "script": "tools/library/inside/bake_surface.py"}  # its claim keeps the Blender share
     assert blender_cloud.alone_need([bake]) == {"memory_gb": blender_cloud.predicted_bytes(bake) / 2**30}
+    # a held machine's chain (--serve) names no script until its jobs come: its need is the base alone, never the
+    # KeyError that ended the serve before 1.json ran (2026-11-10: settle@garage and sim-body@base)
+    assert blender_cloud.alone_need([{"minutes": 30}]) == {"memory_gb": blender_cloud.PREDICTED_BASE / 2**30}
     paths = []
     for number, job in enumerate([small, big]):
         paths.append(tmp_path / f"job-{number}.json")
