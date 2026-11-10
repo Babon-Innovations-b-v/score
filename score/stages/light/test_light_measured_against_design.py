@@ -90,6 +90,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white: the light no
   group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
   out, light.environment_adapted: the background left as it was (the layer test, 2026-11-10).
+- light.strengths: the fill not swept again after a blown lamp is turned down (the shadow view test, 2026-11-10).
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
   the emitter words (the float look test, 2026-11-10).
 - night.air_glow: the rods' share read on the sky's own luminance (`seen_dark(at_zenith)`), not the adapted eye's
@@ -812,7 +813,7 @@ def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_tha
     """Fault of 2026-10-30 (#36): at hangar the sun carried 84-94% of every view and was swept with the fill, so
     spot-2, the floor in the parked ship's shadow, stayed at 0.120 against the concept's 0.304 (outside x2.5) with the
     place at x1.00. After the lamps and the suns the fill alone is swept: the least raise that brings every view within
-    VIEW_WITHIN with the place kept within BRIGHT_WITHIN."""
+    VIEW_WITHIN with the place kept within BRIGHT_WITHIN; and again once a blown lamp is turned down (2026-11-10)."""
     ramp = np.tile(np.linspace(0.2, 1.8, 30), (20, 1))  # a light that varies, so each view's tone curve has a slope
     held_views = {"lit": {"lamp_0": 1e-4 * ramp, "lamp_1": 0.2 * ramp, "lamp_2": 0.02 * ramp},
                   "shade": {"lamp_0": 1e-4 * ramp, "lamp_1": 0.01 * ramp, "lamp_2": 0.02 * ramp}}
@@ -849,6 +850,34 @@ def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_tha
         crowded[name] = (held, mix.tone_curve(held["combined"], toned_look(held["combined"])))
     assert mix.within(crowded, {}, 0.12) and not mix.views_within(crowded, {}, 0.12)
     assert mix.views_within(crowded, {"lamp_2": 4.0}, 0.12) and mix.fill_sweep(crowded, "lamp_2", 0.12, {}) == 1.0
+    # a blown lamp turned down after the fill's sweep takes its light from the floor it lit: the fill is swept again
+    # on the lamps as they then stand (2026-11-10: hangar's light_1 halved for its glare left spot-2 at 0.120 against
+    # its concept's 0.304, its fill still at the floor its sweep had set)
+    left = (np.arange(30) < 10)[None, :]
+    glaring = {"glare": {"lamp_0": np.where(left, 60.0, 0.0) * np.ones((20, 1)), "lamp_1": 0.2 * ramp},
+               "lit": {"lamp_0": 0.1 * ramp, "lamp_1": 0.2 * ramp}, "pool": {"lamp_0": 0.06 * ramp, "lamp_1": 0.0 * ramp}}
+    for view, held in glaring.items():
+        held["lamp_2"] = 0.01 * ramp
+        held["combined"] = sum(held.values())
+        np.savez(job / f"{view}-passes.npz", **{name: values.astype(np.float16) for name, values in held.items()})
+        look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
+        Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(job / f"{view}-look.png")
+    for view in held_views:
+        if view not in glaring:
+            (job / f"{view}-passes.npz").unlink()
+            (job / f"{view}-look.png").unlink()
+    target = float(toned_look(np.full((20, 30), 0.3)).mean())
+    monkeypatch.setattr(light, "concept_brightness", lambda place: target)
+    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": True},
+                                    {"scene": {"daylight": False}})
+    views = {view: (held, curve) for view, (held, curve, _) in light.view_passes(tmp_path / "passes", "p").items()}
+    floor = float(mix.SCALES[0])
+    assert scales["lamp_0"] < found["swept_scale"] and found["lamps"]["/p/Lights/light_1"]["fault"] is None, found
+    assert mix.views_within(views, dict(scales, lamp_0=found["swept_scale"], lamp_2=floor), target)  # before it
+    assert not mix.views_within(views, dict(scales, lamp_2=floor), target)  # turned down, the pool too dark
+    assert scales["lamp_2"] > floor and found["fill_scale"] == scales["lamp_2"] \
+        and found["lamps"]["/p/Lights/concept_fill"]["scale"] == scales["lamp_2"], found
+    assert mix.views_within(views, scales, target) and mix.within(views, scales, target), found["after"]
 
 
 def test_a_fill_the_views_do_not_need_stays_at_the_floor_and_rises_only_as_far_as_their_black_needs(tmp_path):
