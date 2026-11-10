@@ -14,16 +14,17 @@ own tone curve, fitted on the render's look against its light.
                                            (white_fit, black_body), a coloured part's its own hue; luminance 1
     tint(passes, scales, colours, guide)   each pixel's change of colour when the groups take the scales and their
                                            shipped colours, its luminance's change taken out
-    sweep(views, swept, target, held,      the scale of the swept lamps (at most `most`) that brings the place's
-          most) -> scale                   brightness nearest its concept's
-    own_share(views, scales, groups)       the share of the views' light the place's own lamps give (median)
+    sweep(views, swept, target, held,      the scale of the swept lamps (from LAMP_SCALES, at most `most`) that
+          most) -> scale                   brings the place's brightness nearest its concept's
+    own_share(views, scales, groups)       the share of the views' light the place's own lamps give (median), on
+                                           each group's whole-view sum
     sun_down(views, suns, target, scales,  the suns' greatest scale (from theirs down SCALES) at which `unblown`
              unblown)                      holds (no view more blown than its concept), the place and every view kept
                                            within
     fill_sweep(views, fill, target, scales, the concept fill's least scale (from the floor of SCALES up) at which
                exposed)                    every view is within VIEW_WITHIN, the place within BRIGHT_WITHIN and
                                            `exposed` holds (no view more black or blown than its concept)
-    pinned(scale)                          whether a sweep stopped at an end of its range
+    pinned(scale, top)                     whether a sweep stopped at an end of its range (SCALES' floor, `top`)
     lamp_faults(views, scales, seen)       each lamp unlit (on screen, lighting nothing) or blown out (where it is the
                                            light, its look at white)
 
@@ -52,6 +53,18 @@ The rules were set on 2026-10-12, before any light pass was rendered:
   in a night hangar, its lamps 8% of its light; airlock's, garage's, tube's and hub's lamps at the 1/32 floor, 0.5 to
   5% of the light, their concepts' lamp pools gone. LAMP_SHARE_LEAST is the audit's own figure, set before any look
   it judges is made.
+- A lamp-lit place's lamps are swept up to the top of LAMP_SCALES (x1024), every other place's to the top of SCALES
+  (x32), where the suns take over. Added on 2026-11-10, after the rules: the library's lamp strength is an estimate
+  that grows with its reach, while the floor a lamp lights grows with the square of it, so a big room's lamps start
+  far under its concept; hangar's (wall lamps 7.5 m up, 12.75 m reach, in a 60 m hall) stopped at x32 with 14% of its
+  light, the sun raised to SUN_MOST and the fill to x25 in a night hangar, and reached its concept at x512 alone on
+  its passes of 2026-11-02. A lamp has no physical strength to stop at, as a sun has; a place lit by daylight keeps
+  the old top, so its sun, not a blazing lamp, lights it.
+- A share of the light is read on each group's sum over the whole view, the light no group holds (the combined less
+  every group, over the view) at its rendered strength (own_share). Changed on 2026-11-10, after the rules: on the
+  pixels it was mixed(): the combined light is denoised and the groups are not, so their pixel-by-pixel difference is
+  noise of either sign that no scale turns; at tube's lamps x0.096 and its suns x1/32 that noise, clipped at black,
+  read as half the light (own lamps 21%, 39% on the sums).
 - A lamp is unlit when it stands in some view's picture and its light reaches under UNLIT_SHARE of every view's
   light; one in no view's picture lighting nothing is unseen and said, not judged. UNLIT_SHARE was 0.0005 until the
   first fan-out (2026-10-12): the stairwell's landing light, behind its landing's ceiling from shot1 (standing in the
@@ -65,6 +78,7 @@ from scipy import ndimage
 
 BINS = 48
 SCALES = 2.0 ** np.arange(-5.0, 5.0 + 1e-9, 0.125)
+LAMP_SCALES = 2.0 ** np.arange(-5.0, 10.0 + 1e-9, 0.125)
 BRIGHT_WITHIN = 1.5
 VIEW_WITHIN = 2.5
 UNLIT_SHARE = 0.00001
@@ -304,12 +318,12 @@ def capped(swept, scale, factors=None, caps=None):
 
 
 def sweep(views, swept, target, held=None, most=None, factors=None, caps=None):
-    """The scale (from SCALES, at most `most` where given) of every swept lamp, each times its `factors` entry (its
+    """The scale (from LAMP_SCALES, at most `most` where given) of every swept lamp, each times its `factors` entry (its
     balance, else 1) and at most its `caps` entry (a faint emitter: x1), that brings the place's brightness nearest
     `target`, the other groups at their `held` scales; 1.0 when no lamp is swept."""
     if not swept:
         return 1.0
-    tried = [scale for scale in SCALES if most is None or scale <= most + 1e-9]
+    tried = [scale for scale in LAMP_SCALES if most is None or scale <= most + 1e-9]
     gaps = [abs(np.log(max(place_brightness(views, dict(held or {}, **capped(swept, scale, factors, caps))), FLOOR)
                        / target)) for scale in tried]
     return float(tried[int(np.argmin(gaps))])
@@ -317,14 +331,19 @@ def sweep(views, swept, target, held=None, most=None, factors=None, caps=None):
 
 def own_share(views, scales, groups):
     """The median over the views of the share of each view's light (all its pixels' light summed) that `groups` (the
-    place's own lamps) give at the scales; None with no view or no group."""
+    place's own lamps) give at the scales; None with no view or no group. Each group (lamp_<n>) is summed over the
+    view before it is scaled, and the light no group holds is the view's combined sum less theirs, at its rendered
+    strength: the pixels' differences are the denoiser's noise, which cancels in the sum."""
     shares = []
     for passes, _ in views.values():
         held = [group for group in groups if group in passes]
         if not held:
             continue
-        own = sum(float(scales.get(group, 1.0) * passes[group].astype(np.float64).sum()) for group in held)
-        shares.append(own / max(float(mixed(passes, scales).sum()), FLOOR))
+        sums = {group: float(values.astype(np.float64).sum()) for group, values in passes.items()
+                if group.startswith("lamp_")}
+        rest = max(float(passes["combined"].astype(np.float64).sum()) - sum(sums.values()), 0.0)
+        total = sum(scales.get(group, 1.0) * value for group, value in sums.items()) + rest
+        shares.append(sum(scales.get(group, 1.0) * sums[group] for group in held) / max(total, FLOOR))
     return float(np.median(shares)) if shares else None
 
 
@@ -364,11 +383,11 @@ def fill_sweep(views, fill, target, scales, exposed=lambda scales: True):
     return scales.get(fill, 1.0)
 
 
-def pinned(scale):
-    """Whether a sweep's scale stands at either end of SCALES: the lamps went as far as the sweep goes and may not
-    have reached (2026-10-30: airlock's lamps at the floor, its brightness x1.44 its concept's, carried by the sun and
-    the fill the sweep never turned)."""
-    return scale in (float(SCALES[0]), float(SCALES[-1]))
+def pinned(scale, top=SCALES[-1]):
+    """Whether a sweep's scale stands at either end of its range (the floor of SCALES, `top`): the lamps went as far
+    as the sweep goes and may not have reached (2026-10-30: airlock's lamps at the floor, its brightness x1.44 its
+    concept's, carried by the sun and the fill the sweep never turned)."""
+    return scale in (float(SCALES[0]), float(top))
 
 
 def lamp_measures(views, scales, groups):

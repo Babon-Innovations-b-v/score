@@ -485,7 +485,8 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     kept only where its looks read nearer the concept and no rule the sweep kept breaks; each blown lamp turned down.
     A sun is never swept past mix.SUN_MOST, and a lamp-lit place's (lamp_lit: inside, its concept `light` showing no
     daylight) stands at the floor of mix.SCALES while its lamps are swept (2026-11-04: hangar's sun at x19 in a night
-    hangar)."""
+    hangar), up to the top of mix.LAMP_SCALES (2026-11-10: its lamps stopped at x32, the top of mix.SCALES, every
+    other place's lamps' top)."""
     by_path = {lamp["path"]: lamp for lamp in lamps}
     groups = {group: path for group, path in groups_of(passes_folder).items() if path in by_path}
     rendered_views = view_passes(passes_folder, place)
@@ -498,13 +499,14 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     suns = [group for group, path in groups.items() if by_path[path].get("sun") and group in held]
     lit_by_lamps = lamp_lit(light, record)
     first = {group: float(mix.SCALES[0]) for group in suns} if lit_by_lamps and swept else {}
+    top = float(mix.LAMP_SCALES[-1] if lit_by_lamps else mix.SCALES[-1])  # 2026-11-10: hangar's lamps stopped at x32
     # a faint emitter (a screen) swept with the lamps but never past its own share of a lamp: no screen lights a room
     # (2026-11-10: camp's screens and laptop at x32 gave 62% of its light, cool, under its warm daylight concept)
     caps = {group: 1.0 for group in fixed}
-    scale = mix.sweep(views, swept, target, first, caps=caps)
+    scale = mix.sweep(views, swept, target, first, top, caps=caps)
     scales = {**{group: first.get(group, 1.0) for group in groups}, **mix.capped(swept, scale, caps=caps)}
     sun_scale = first[suns[0]] if first else 1.0
-    if suns and (mix.pinned(scale) or not mix.within(views, scales, target)):  # the lamps cannot: the sky's light can
+    if suns and (mix.pinned(scale, top) or not mix.within(views, scales, target)):  # the lamps cannot: the sky can
         sun_scale = mix.sweep(views, suns, target, scales, mix.SUN_MOST)
         scales.update(dict.fromkeys(suns, sun_scale))
     fill = next((group for group in suns if by_path[groups[group]].get("fill")), None)
@@ -520,11 +522,12 @@ def strengths(place, passes_folder, lamps, layer_folder, record, light=None, col
     # the lights' colours balanced to the concept's cast: the lamps' classes (the faint emitters' apart), each sun
     # and the fill; a sun only turned down (a sun stands at the most its sweep, its step down or its floor allowed:
     # camp's, stepped down to x0.77 for spot-15's blown wall, raised back to x1 by a balance, blew it again,
-    # 2026-11-10) and every other light within the sweep's range, SCALES (hub, 2026-11-10: its fill at the floor
-    # needed x1000); a screen measured against the concept as any lamp is, past its share only where its concept's
-    # colour asks it (hub's cyan screens), never past a whole lamp of its mount (`emitter_most`, one over its share:
+    # 2026-11-10) and every other light within the sweep's range, the lamps' `top`, SCALES for the rest (hub,
+    # 2026-11-10: its fill at the floor needed x1000); a screen measured against the concept as any lamp is, past
+    # its share only where its concept's colour asks it (hub's cyan screens), never past a whole lamp of its mount (`emitter_most`, one over its share:
     # 2026-11-10, stairwell's two blue screens swept to x90 stood in for the night sky its render lacks)
-    most = {**{group: float(mix.SCALES[-1]) / max(scales[group], mix.FLOOR) for group in swept + suns},
+    most = {**{group: top / max(scales[group], mix.FLOOR) for group in swept},
+            **{group: float(mix.SCALES[-1]) / max(scales[group], mix.FLOOR) for group in suns},
             **{group: min(float(mix.SCALES[-1]), emitter_most or float(mix.SCALES[-1])) / max(scales[group], mix.FLOOR)
                for group in fixed if group in scales},
             **{group: 1.0 for group in lit}}

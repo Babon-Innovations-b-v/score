@@ -48,7 +48,10 @@ gates.
   concept's light showing no daylight: `light.lamp_lit`) has its suns at the sweep's floor while its lamps are swept;
   the gate `light source` fails a sun past SUN_MOST and a lamp-lit place its own lamps give under
   `mix.LAMP_SHARE_LEAST` of the light (2026-11-04, the light audit: hangar's sun at x19 in a night hangar, its
-  lamps 8%; airlock's, garage's, tube's and hub's lamps at the 1/32 floor). The gate `colour` holds the lit
+  lamps 8%; airlock's, garage's, tube's and hub's lamps at the 1/32 floor). A lamp-lit place's lamps are swept up to `mix.LAMP_SCALES`' top (x1024), every
+  other's to `mix.SCALES`' (x32); a share is read on each group's whole-view sum, never on the pixels, where the
+  denoised combined less the undenoised groups is noise (2026-11-10: hangar's lamps stopped at x32 at 14%, tube's
+  noise read as half its light). The gate `colour` holds the lit
   surfaces' cast (`measure.surface_cast`: the mid-tones' balance, brightness taken out) within `CAST_MOST` levels of
   the concept's (2026-11-04: the lab lit green by its screens, quarters' warm room cool), a cutaway concept's flat
   backdrop left out (`measure.backdrop`; 2026-11-10: quarters' grey backdrop read its warm room neutral). A lamp's
