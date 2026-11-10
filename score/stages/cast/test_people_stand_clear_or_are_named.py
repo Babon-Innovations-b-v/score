@@ -48,6 +48,10 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.off_ground`: the no-seat branch dropped  -> the toy place test (a seated one with no seat stands).
 - `people_rows.doing_of`: `"seated" if seat_of(row) else` dropped  -> the toy place test (a stool's sitter sits on
   the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the toy place test (nobody supported).
+- `cast.unseated`: `doing="standing"` dropped  -> the toy place test (one with no seat stays seated, off members).
+- `cast.judge_standing`: the unseated findings dropped  -> the toy place test (stood for want of a seat unnamed).
+- `cast.on_stairs`: `not clear[flight["name"]]` dropped from the flight's order  -> the levels test (the man under
+  the deck).
 - `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the toy place test
   (the climber at the plan's middle, off its spot (0, 0, -3)).
 """
@@ -135,7 +139,19 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_pat
     assert (people["sitter_1"]["at"], people["sitter_1"]["seat"], people["sitter_1"]["seat_on"]) == (
         [3.2, 0.0, 3.2], 0.45, "Objects/stool_1_1"), people["sitter_1"]
     assert people["sitter_2"]["seat"] is None and people["unlaid"]["seat"] is None  # the stool taken; no chair laid
-    assert people["unlaid"]["doing"] == "seated" and people["climber"]["at"] == [0.0, 0.0, -3.0]  # off the crate
+    # one with no free seat stands on clear floor by its spot, named why (camp's office chairs never laid, airlock's
+    # bench top 0.19 m, 2026-11-10), for the standing gate to name and members_of to nudge clear
+    assert (people["unlaid"]["doing"], people["sitter_2"]["doing"]) == ("standing", "standing")
+    assert "chair lays no piece" in people["unlaid"]["unseated"] and "taken" in people["sitter_2"]["unseated"]
+    low = cast.on_support({"people": [dict(people["climber"], doing="seated", anchor="on:crate")]}, seats)["people"][0]
+    assert "none of crate's 1 pieces holds a seat" in low["unseated"], low
+    assert {"unlaid", "sitter_2"} <= cast.members_of(record) and "sitter_1" not in cast.members_of(record)
+    (tmp_path / "cast.json").write_text(json.dumps({"characters": [people["unlaid"], people["sitter_1"]]}))
+    (tmp_path / "measures.json").write_text(json.dumps({"bodies": [
+        {"name": "unlaid", "gap": 0.0, "on": "Ground/floor", "water": False}]}))
+    standing = cast.judge_standing(tmp_path, {}, {})
+    assert standing.answer == checks.PASS and standing.findings == (f"unlaid: {people['unlaid']['unseated']}",)
+    assert people["climber"]["at"] == [0.0, 0.0, -3.0]  # off the crate
     over = cast.on_support({"people": [dict(people["climber"], at=[0.5, 0.0, 0.5])]}, seats)["people"][0]
     assert over["at"] == [0.5, 1.0, 0.5]
     high = cast.on_support({"people": [dict(people["climber"], at=[0.5, 2.0, 0.5])]}, seats)["people"][0]
@@ -355,6 +371,14 @@ def test_a_spot_on_a_raised_level_stands_at_its_height():
                                                                         [12.1, 0.5, -1.3333]), woman
     assert (woman["stairs"]["way"], woman["stairs"]["rise"], woman["stairs"]["run"]) == ("down", 0.5, 0.6667), woman
     assert still == record["people"][2] and cast.climbers_of(cast.on_stairs(record, stairs)) == {"man", "woman"}
+    # a deck 1.5 m over the man's flight (the stairwell's 3 m deck over its flight from the 1.5 m landing, 2026-11-10):
+    # he walks up the nearest flight he walks clear, the low one; the woman's flight is clear and stays hers
+    import trimesh
+    deck = {"Shell/deck_2": trimesh.creation.box(extents=[1.2, 0.2, 2.0], transform=trimesh.transformations
+                                                 .translation_matrix([12.5, 5.1, -4.0])).triangles}
+    man, woman, _ = cast.on_stairs(cast.on_levels(record, stairs), stairs, deck)["people"]
+    assert (man["stairs"]["flight"], man["at"], woman["stairs"]["flight"]) == ("stair_2", [12.1, 0.5, -1.3333],
+                                                                               "stair_2"), man
     # a spot off the 4 m plan and off its level is refused by name (the hangar's workers on Outside/near, 2026-11-04)
     record["people"].append({"name": "off", "at": [15.0, 0.0, -4.0]})
     refused = cast.off_the_plan(record, plan)

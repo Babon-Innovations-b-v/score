@@ -17,7 +17,8 @@ shows, each placed in the place with a clip, and measured against the concept an
                        ground holds packed; a crowd row with no plan item is named short)
              standing  everyone stands on something solid: the first solid under their knee within STAND_SLACK of
                        their feet, not in water; a seated person (the "seated" clip, its anchor a seat: on_support) on
-                       its seat the same way, measured from its seat's top, and one whose anchor lays no seat fails
+                       its seat the same way, measured from its seat's top; one whose anchor lays no free seat
+                       stands on clear floor instead (unseated), named as a finding
              clear     no person's body (knee to head, cast_check's BODY_RADIUS) runs into any solid of the place,
                        no two bodies overlap, and cast_check's own rules hold (nobody twice, walks clear)
              made      which looks have a usable dressed body of the SOMA-shell route (its dress row passed and stands
@@ -159,19 +160,31 @@ def off_flight(at, flight):
     return float(np.linalg.norm(at - (foot + (top - foot) * share)))
 
 
-def on_stairs(record, plan):
-    """The record with each person its design stands on stairs (stairs_of: `stairs`, the way it walks them) on the plan's flight nearest its spot (its line, foot to top, in the place's frame and over its height, the
+def clear_walk(flight, found):
+    """Whether a body on every tread of a flight runs into none of the place's solids (`found`, measure.solids; none
+    given: nothing to run into): a deck or another flight over it within a head's height is no walk."""
+    if not found:
+        return True
+    return not any(measure.run_into([tread(flight, step) for step in range(flight["steps"])], found))
+
+
+def on_stairs(record, plan, found=None):
+    """The record with each person its design stands on stairs (stairs_of: `stairs`, the way it walks them) on the plan's
+    flight nearest its spot whose every tread a body walks clear of the place's solids (clear_walk; none clear: the
+    nearest, for the clear gate to name; the stairwell's man under its 3 m deck on the flight up from the 1.5 m landing,
+    2026-11-10) (its line, foot to top, in the place's frame and over its height, the
     spot raised to its level first: on_levels; the stairwell's man up its middle flight off the 3 m landing beside it,
     the woman down its bottom one, 2026-11-04): at the middle of its first tread the way it walks (the lowest walking
     up, the highest walking down), facing its last, and `stairs` its walk: the way, the flight, the last tread's middle
     (`to`) and each step's rise and run (metres), which the scene-made clip walks (score/stages/scene_clips). A plan
     with no flight leaves it where it stands."""
     flights = flights_of(plan)
+    clear = {flight["name"]: clear_walk(flight, found) for flight in flights} if record.get("people") else {}
 
     def stood(person):
         if not person.get("stairs") or not flights:
             return person
-        flight = min(flights, key=lambda flight: off_flight(person["at"], flight))
+        flight = min(flights, key=lambda flight: (not clear[flight["name"]], off_flight(person["at"], flight)))
         lowest, highest = tread(flight, 0), tread(flight, flight["steps"] - 1)
         start, end = (lowest, highest) if person["stairs"] == "up" else (highest, lowest)
         foot, top = np.asarray(flight["foot"], dtype=float), np.asarray(flight["top"], dtype=float)
@@ -233,7 +246,7 @@ def on_support(record, found):
             seats = [(name, seated) for name in held if name not in taken
                      for seated in [measure.seat_top(found[name])] if seated]
             if not seats:
-                return dict(person, seat=None, seat_on=None)
+                return unseated(person, anchor.removeprefix("on:"), {name: found[name] for name in held})
             name, (at, height) = min(seats, key=lambda seat: np.hypot(seat[1][0][0] - person["at"][0],
                                                                        seat[1][0][2] - person["at"][2]))
             taken.add(name)
@@ -243,6 +256,22 @@ def on_support(record, found):
             if tops and max(tops) > person["at"][1] else person
 
     return dict(record, people=[supported(person) for person in record.get("people", [])])
+
+
+def unseated(person, row, held):
+    """A seated person whose anchor's row lays no free seat, stood instead on clear floor round its spot (members_of
+    nudges it: spread.nudged) and `unseated` saying why, for the standing gate to name: the row laid nothing (camp's
+    office chairs, their bake not made, 2026-11-10), every seat of it taken, or none of its pieces holds a surface
+    measure.SEAT_LOW to SEAT_REACH over its floor (airlock's bench, its top 0.19 m)."""
+    if not held:
+        why = f"{row} lays no piece"
+    elif any(measure.seat_top(found_seat) for found_seat in held.values()):
+        why = f"every seat of {row} is taken"
+    else:
+        why = (f"none of {row}'s {len(held)} pieces holds a seat {measure.SEAT_LOW} to {measure.SEAT_REACH} m "
+               f"over its floor")
+    return dict(person, doing="standing", seat=None, seat_on=None,
+                unseated=f"seated on {row} in its design, but {why}: stood on clear floor by its spot")
 
 
 def seated_spot(single):
@@ -288,7 +317,7 @@ def dealt(record, inputs):
     for single in cast_rules.characters_of(record):
         person = people.get(single["name"], {})
         single = dict(single, look=person.get("look"), surface=person.get("surface"), stairs=person.get("stairs"),
-                      **{key: person[key] for key in ("anchor", "seat", "seat_on") if key in person})
+                      **{key: person[key] for key in ("anchor", "seat", "seat_on", "unseated") if key in person})
         look = look_of(single)
         found.append({**single, "look": "/".join(look) if look else None,
                       "made": made_row(look, single["surface"], single.get("variant") or 0, inputs)})
@@ -357,13 +386,12 @@ def make(inputs, out, seed, params):
                                                   design), plan),
                             writer.ground_under(inputs, place))
     refused = off_the_plan(record, plan)
-    record = on_stairs(dict(record, people=[person for person in record.get("people", [])
-                                            if person["name"] not in refused]), plan)
+    record = dict(record, people=[person for person in record.get("people", []) if person["name"] not in refused])
     with layer_base.built(inputs) as folder:
         base = folder / "layers/base.usda"
         found = (measure.solids(base, place, made_ground(inputs, place))
                  if record.get("people") or record.get("groups") or record.get("crowd") else {})
-    record = on_support(record, found)
+    record = on_support(on_stairs(record, plan, found), found)
     singles = dealt(record, inputs)
     crowd = crowd_of(record, singles, inputs)
     if found:
@@ -525,10 +553,17 @@ def off_ground(body):
 
 
 def judge_standing(output, inputs, evidence):
-    """Everyone stands on something solid."""
+    """Everyone stands on something solid; a seated person stood on the floor for want of a seat (unseated) is named
+    as a finding of a pass, the seat's fault its row's, never hidden."""
     bodies = read_json(output / "measures.json")["bodies"]
-    return verdict_of("standing", counted_faults(bodies, off_ground), len(bodies),
-                      f"all {len(bodies)} body spots stand on something solid within {STAND_SLACK} m")
+    verdict = verdict_of("standing", counted_faults(bodies, off_ground), len(bodies),
+                         f"all {len(bodies)} body spots stand on something solid within {STAND_SLACK} m")
+    stood = tuple(f"{single['name']}: {single['unseated']}" for single in read_json(output / "cast.json")["characters"]
+                  if single.get("unseated"))
+    if verdict.answer != checks.PASS or not stood:
+        return verdict
+    return checks.Verdict("standing", checks.PASS, f"{verdict.reason}; {len(stood)} stood for want of a seat",
+                          verdict.measures, {"faults": "lower"}, stood)
 
 
 def judge_clear(output, inputs, evidence):
