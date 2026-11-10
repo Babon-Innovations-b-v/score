@@ -19,6 +19,7 @@ half the body's radius (Recast's advice for the cell size):
   walker) and, in a room whose scene record gives its `ceiling`, its HEAD stays under the ceiling (a roof's top is
   not a floor of the room); it is a standing spot when its middle lies no nearer than BODY_RADIUS to a cell it cannot
   step into (a wall, an obstacle or a drop beside it), counted in cells through the climbable steps;
+- the scene record is the one the stage was assembled from (scene.json beside its root), else data/scene's;
 - inside a place whose scene record has a `floor` (a room: its rectangle) the grid is that floor; elsewhere it runs
   REACH plus a cell past every row's objects;
 - the walker's floor is the set of standing spots joined by four-way steps no higher than KNEE that most of the scene
@@ -61,6 +62,7 @@ SPAN_GAP = 0.1
 TOUCH = 0.01
 EDGE_STEP = CELL / 4
 SCENES = REPO / "data/scene"
+ASSEMBLED_SCENE = "scene.json"  # the record the assembly stage built the stage from, beside its root (contents.py's)
 PASS, FAIL, UNKNOWN = "pass", "fail", "unknown"
 
 
@@ -99,10 +101,14 @@ def walked_rows(inventory):
 
 # --- the grid -----------------------------------------------------------------------------------------------------
 
-def record_of(place):
-    """The place's scene record, or {} when it has none."""
-    record = SCENES / f"{place}.json"
-    return json.loads(record.read_text()) if record.exists() else {}
+def record_of(stage_path, place):
+    """The scene record the stage was assembled from (ASSEMBLED_SCENE beside its root, as contents.py reads it), else
+    the place's retired one under SCENES, else {}. 2026-11-10: reading only SCENES, every assembled place had no
+    floor and no views, and hub's grid ran round every object, 103,335 cells a side."""
+    for record in (pathlib.Path(stage_path).parent / ASSEMBLED_SCENE, SCENES / f"{place}.json"):
+        if record.exists():
+            return json.loads(record.read_text())
+    return {}
 
 
 def grid_bounds(record, targets):
@@ -388,7 +394,7 @@ def check(stage_path, place, inventory):
         return UNKNOWN, [{"row": row["id"], "result": UNKNOWN, "why": "no object of this row on the stage"}
                          for row in rows], \
             "no object on the stage carries a row"
-    grid, span_cells, span_heights, floor, at = walker_floor(snap.read_place(stage_path), record_of(place), targets)
+    grid, span_cells, span_heights, floor, at = walker_floor(snap.read_place(stage_path), record_of(stage_path, place), targets)
     middles = grid.middles()[span_cells[floor]]
     spots = np.column_stack([middles, span_heights[floor]])
     off = [name for name, spot in at.items() if spot is None or not floor[spot]]

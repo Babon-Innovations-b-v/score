@@ -26,7 +26,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   And (2026-11-10, walkway's assembly recorded its inventory as /home/score/... and every check was unknown)
   complete.laid_inventory's `return recorded if recorded.exists() else inventory_path(place)` made `return recorded`.
   And (2026-11-10, walkway's plan-routed walls failed with their shell standing) complete.rows_faults'
-  `| drawn_rows(opened, place, routes or {})` dropped; drawn_routes' `if kinds & set(drawn)` made `if True`.
+  `| drawn_rows(opened, place, routes or {})` dropped; drawn_routes' `if kinds & set(drawn)` made `if True`;
+  complete.reach_check's `if row["id"] not in drawn` made `if True`.
 - a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object: complete.rows_faults'
   `| contents.shown_laid(opened, place, shown or {})` dropped.
 - an_edit_after_the_checks_makes_them_stale: complete.check_requirement's `if found["fingerprint"] != current:` made
@@ -201,10 +202,15 @@ def plan_routed_rows_are_laid_by_the_shell(folder, stage):
         unshelled = complete.rows_check(resting_test.PLACE, stage)
         edit = Usd.Stage.Open(str(stage))
         edit.SetEditTarget(Usd.EditTarget(Sdf.Layer.FindOrOpen(str(stage.parent / "layers/edit.usda"))))
-        wall = UsdGeom.Mesh.Define(edit, f"/{resting_test.PLACE}/Shell/wall_1").GetPrim()
+        mesh = UsdGeom.Mesh.Define(edit, f"/{resting_test.PLACE}/Shell/wall_1")
+        mesh.CreatePointsAttr([(20.0, 0.0, 0.0), (21.0, 0.0, 0.0), (20.0, 1.0, 0.0)])
+        mesh.CreateFaceVertexCountsAttr([3])
+        mesh.CreateFaceVertexIndicesAttr([0, 1, 2])
+        wall = mesh.GetPrim()
         wall.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
         edit.GetEditTarget().GetLayer().Save()
         shelled = complete.rows_check(resting_test.PLACE, stage)
+        walked = complete.reach_check(resting_test.PLACE, stage)
     finally:
         complete.HOME = kept
     problems = []
@@ -212,6 +218,8 @@ def plan_routed_rows_are_laid_by_the_shell(folder, stage):
         problems.append(f"a plan-routed row with no shell standing reads {unshelled['result']}: {unshelled['faults']}")
     if shelled["result"] != complete.PASS:
         problems.append(f"a plan-routed row with its shell standing reads {shelled['result']}: {shelled['faults']}")
+    if "rocket" in {fault["row"] for fault in walked["faults"]}:
+        problems.append(f"the reach check walks to a row the shell draws: {walked['faults']}")
     return problems
 
 
