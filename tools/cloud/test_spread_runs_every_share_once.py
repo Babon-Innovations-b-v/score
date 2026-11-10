@@ -28,7 +28,8 @@ seen red, reverted):
   run.deadline`.
 - test_a_wait_for_this_pcs_machine_is_not_the_works_time: in `this_pc_waited`, drop `run.deadline += waited` (the
   share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up); or in
-  `on_machines`, drop `raise run.cloud_only` (a claim refused as too big: the spread returns, nothing raised).
+  `on_machines`, drop `raise run.cloud_only` (a claim refused as too big: the spread returns, nothing raised); or in
+  `tend`, drop the `this_pc_set_up(...)` call (this PC's set-up past the deadline: the share is never taken).
 - test_a_share_killed_for_memory_runs_again_once: in `work_slot`, `if shares.again(share):` -> `if False:` (the
   killed share is a gap at once); or in `raise_for`, drop `or killed` (a step killed inside is a plain failure).
 - test_a_share_whose_card_would_not_open_runs_again_once: in `work_slot`, `except (MemoryKilled, CardLost)` ->
@@ -241,6 +242,19 @@ def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkey
     spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
                        lambda machine, share, card: done.append(share))
     assert done == ["one"] and len(calls) == 1 and run.deadline == before  # a rented backend gives up as before
+    # a set-up on this PC's machine (its `here`) that runs past the share's deadline is not the work's time either:
+    # the share still runs (2026-11-10, sound@habitat: 10.2 min of MOSS set-up past a 9-min limit, the take never
+    # asked); a rented machine's set-up is paid and stays in its minutes, so there the share is a gap
+    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)  # preflight.declare_deadline keeps nothing outside one
+    for here, ran in ((True, ["three"]), (False, [])):
+        monkeypatch.setattr(batch, "claim", lambda run, account, found, number, kind, disk_gb, wanted=None, here=here:
+                            {**made(run, account, found, number, kind, disk_gb, wanted), "here": here})
+        made_here = []
+        run.deadline = time.time() + 0.2
+        shares = spread.Shares(["three"], deadline=run.deadline)
+        spread.on_machines(run, None, [], 1, "moss-sound", shares, lambda machine: time.sleep(0.4),
+                           lambda machine, share, card: made_here.append(share))
+        assert made_here == ran, (here, made_here)
     # a claim this PC refuses as too big (park.here's compute.CloudOnly, in any slot's thread) ends the spread on the
     # refusal once its slots are done; no share ran (round 46, 2026-11-02: meshparts' 24 GB claim died in its thread
     # and the tool ended "no card could be rented", so its paid row crashed instead of being left for the Buy)
