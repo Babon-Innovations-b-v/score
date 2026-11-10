@@ -17,13 +17,16 @@ git cannot judge (its commit not here, no origin/main) keeps its slot.
 THE CONFIG is JSON at $HARNESS_PUSH_CAP, else ~/.config/harness/push-cap.json; with no file there is no cap:
 
     {"limits": [{"from": "2026-11-09", "per_day": 6}, {"from": "2026-11-13", "per_day": 4}],
-     "ledger": "~/.config/harness/push-cap-ledger.json"}
+     "ledger": "~/.config/harness/push-cap-ledger.json", "uncounted": ["releases"]}
 
 Days are UTC. Today's limit is the `per_day` of the latest entry whose `from` is today or earlier; none, or a
 `per_day` of null, is no cap. `ledger` defaults to push-cap-ledger.json beside the config; every repository naming
 the same ledger shares one count. The ledger keeps 14 days of pushes: {"<day>": [{"repo", "sha", "at"}]}.
 
-Deletions and pushes to other branches pass at once and are not counted. FAILURE POLICY: a config or ledger that
+`uncounted` lists release-only repositories, each by its name (the last part of its origin url or top folder, without
+.git) or its whole url: a release push there starts no gate run, so it passes and is not counted (2026-11-10: release
+pushes were counted as gate pushes and blocked a release on a deadline day). Deletions and pushes to tags or other
+branches (a release tag or branch included) pass at once and are not counted. FAILURE POLICY: a config or ledger that
 exists but cannot be read is a refusal naming the file (a cap someone set is never skipped silently); a push line
 that cannot be read is no push to main.
 """
@@ -68,6 +71,12 @@ def repository():
         if done.returncode == 0 and done.stdout.strip():
             return done.stdout.strip()
     return os.getcwd()
+
+
+def uncounted(here, names):
+    """True when the repository `here` (url or folder) is listed in `names` by its name or in full."""
+    name = here.rstrip("/").replace(":", "/").rsplit("/", 1)[-1].removesuffix(".git")
+    return here in names or name in names
 
 
 def read_ledger(handle):
@@ -161,8 +170,11 @@ def main():
         config = json.loads(path.read_text())
         limits = config["limits"]
         ledger = pathlib.Path(os.path.expanduser(config.get("ledger") or path.parent / "push-cap-ledger.json"))
+        release_only = list(config.get("uncounted") or [])
     except (OSError, ValueError, KeyError, TypeError) as error:
         return refused(f"the push cap config {path} cannot be read ({error!r}); fix it or move it away")
+    if uncounted(repository(), release_only):
+        return 0
     moment = datetime.datetime.now(datetime.timezone.utc)
     day = moment.date().isoformat()
     try:

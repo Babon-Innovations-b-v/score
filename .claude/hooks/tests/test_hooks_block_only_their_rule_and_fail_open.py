@@ -54,8 +54,9 @@ The break that turns each test red (applied once each, seen red, reverted):
   half (.claude/hooks/pre-push and push_cap.py, in scratch repos): `claim`'s `len(today) >= cap` made `>` (a 7th push
   of a 6-a-day cap goes); `limit_for` takes the first entry instead of the latest started one (the later, lower limit
   never applies); the pre-push's `release` call dropped (a refused push keeps its slot); `never_reached_main` returns
-  False at once (a push the remote refused keeps its slot). Its redo-guard half (score.stages.moved and
-  local/remake_freeze.py, in a scratch repo): `remade_accepted` takes `row["places"]` for a file-moved row too (a
+  False at once (a push the remote refused keeps its slot); `main`'s `uncounted` check dropped (a release-only
+  repository's push takes a slot), or `uncounted` returns True at once (every push passes uncounted). Its redo-guard half
+  (score.stages.moved and local/remake_freeze.py, in a scratch repo): `remade_accepted` takes `row["places"]` for a file-moved row too (a
   place the file does not move in counts); `remakes_line` sums every row's euros, not the paid ones'; `main` returns
   0 when `freeze` stands (an unnamed remade row pushes); `named` drops its `why.strip()` (a bare list names rows);
   `standing_freeze` returns None on an unreadable file (a broken freeze pushes).
@@ -921,12 +922,13 @@ def capped_repo(folder, origin):
 def push_cap_holds_the_days_limit_over_every_repository(folder):
     """The push cap: a day's pushes to main over every repository sharing one config stop at its limit, the latest
     limit started wins, a push the repository's own hook refused gives its slot back, other branches are not
-    counted, no config is no cap and an unreadable one refuses."""
+    counted, a release-only repository's pushes and a release tag pass uncounted, no config is no cap and an
+    unreadable one refuses."""
     first, second = capped_repo(folder / "one", "git@example.com:a/one.git"), capped_repo(folder / "two", "x/two")
     config = folder / "cap.json"
 
-    def push(hook, branch="main", refuses=False, cap=config):
-        line = f"refs/heads/{branch} {'1' * 40} refs/heads/{branch} {'2' * 40}\n"
+    def push(hook, branch="main", refuses=False, cap=config, ref="refs/heads/"):
+        line = f"{ref}{branch} {'1' * 40} {ref}{branch} {'2' * 40}\n"
         done = subprocess.run(["bash", str(hook), "origin", "x"], input=line, capture_output=True, text=True,
                               cwd=hook.parents[2], env=dict(GIT_ENV, HARNESS_PUSH_CAP=str(cap),
                                                              LOCAL_REFUSES="1" if refuses else "0"))
@@ -947,6 +949,15 @@ def push_cap_holds_the_days_limit_over_every_repository(folder):
     config.write_text(json.dumps({"limits": [{"from": "2000-01-01", "per_day": 6}, {"from": today, "per_day": 4}],
                                   "ledger": str(folder / "later.json")}))
     assert [push(first)[0] for _ in range(5)] == [0, 0, 0, 0, 1]
+    # releases: a release-only repository (by its name or whole url) and a release tag pass uncounted, both ways
+    assert push(second, ref="refs/tags/", branch="v1")[0] == 0, "a release tag is no push to main"
+    later = {"limits": [{"from": "2000-01-01", "per_day": 4}], "ledger": str(folder / "later.json")}
+    config.write_text(json.dumps(dict(later, uncounted=["one"])))
+    assert [push(first)[0] for _ in range(3)] == [0, 0, 0], "one is release-only: its pushes pass"
+    code, said = push(second)
+    assert code == 1 and "reached today's limit of 4" in said and said.count("a/one.git") == 4, said
+    config.write_text(json.dumps(dict(later, uncounted=["x/two"])))
+    assert push(second)[0] == 0 and push(first)[0] == 1, "two by its whole url passes; one is counted again"
     assert push(first, cap=folder / "none.json")[0] == 0, "no config, no cap"
     # a push the remote refused (its commit not on origin's main) gives its slot back at the next claim from its
     # repository; one the remote took, one still on its way and another repository's keep theirs
