@@ -105,16 +105,17 @@ def face_body(body, style, method, ground):
     own = {**method, "recipes": {recipe: method["recipes"][recipe]}}
     text = QUESTION.format(style=style or "(no style line)", name=body["name"], facts=facts_of(body), why=why,
                            recipes=scene_library.recipe_lines(own))
-    colour = {"type": "OBJECT", "properties": {"setting": {"type": "STRING"}, "token": {"type": "STRING"}},
-              "required": ["setting", "token"]}
+    needs = list(method.get("colour_settings", {}).get(recipe, []))
+    colour = {"type": "OBJECT", "properties": {setting: {"type": "STRING"} for setting in needs},
+              "required": needs, "propertyOrdering": needs}
     token = {"type": "OBJECT", "properties": {"token": {"type": "STRING"}, "colour": {"type": "STRING"}},
              "required": ["token", "colour"], "propertyOrdering": ["token", "colour"]}
     face = {"type": "OBJECT",
             "properties": {"family": {"type": "STRING"}, "recipe": {"type": "STRING", "enum": [recipe]},
                            "token": {"type": "STRING"}, "roughness": {"type": "NUMBER"}, "metal": {"type": "NUMBER"},
-                           "colours": {"type": "ARRAY", "items": colour}},
-            "required": ["family", "recipe", "token", "roughness", "metal"],
-            "propertyOrdering": ["family", "recipe", "token", "roughness", "metal", "colours"]}
+                           **({"colours": colour} if needs else {})},
+            "required": ["family", "recipe", "token", "roughness", "metal", *(["colours"] if needs else [])],
+            "propertyOrdering": ["family", "recipe", "token", "roughness", "metal", *(["colours"] if needs else [])]}
     schema = {"type": "OBJECT", "properties": {"palette": {"type": "ARRAY", "items": token}, "face": face},
               "required": ["palette", "face"], "propertyOrdering": ["palette", "face"]}
     return {"contents": [{"role": "user", "parts": [{"text": text}]}],

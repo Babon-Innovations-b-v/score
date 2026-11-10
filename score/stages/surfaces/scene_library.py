@@ -60,12 +60,14 @@ The kinds of object in it, each with what it is:
 {kinds}
 {grounds}The recipes (name: default settings; colour settings it needs in a token of the palette):
 {recipes}
+The colour settings (every surface's colours give each a token of the palette; a recipe draws only those it names):
+{settings}
 The surfaces a thing can sound like (a boot on it, a thing dropped on it): {sounds}.
 Answer every surface the scene needs, enough that each kind above is made of surfaces you list (a kind made of
 several materials names each of them). For each give a short name in lower case and underscores, its family (one
 word for what it is made of: steel, paint, rubber, glass, wood, fabric, plastic, concrete...), its recipe, its token
-from the palette, its roughness and metal from 0 to 1, a token of the palette for each colour setting its recipe
-needs, the surface it sounds like, and the kinds it is for. Choose each recipe by what the surface is and how it is
+from the palette, its roughness and metal from 0 to 1, its colours (a token of the palette for every colour setting
+above, the colour that setting draws on this surface), the surface it sounds like, and the kinds it is for. Choose each recipe by what the surface is and how it is
 made, its token by its colour in the picture. A recipe that draws a pattern of its own (a quilt, tiles, a grid,
 boards, a mottled pile, rows of writing) is only for a surface the picture shows with that pattern; a plain surface
 takes a plain recipe. A flat sheet (a kind marked so) shows nothing but its face: where the picture shows a pile or a
@@ -73,6 +75,12 @@ mottle on it, or writing or print, give it the recipe that draws that (pile; wri
 thing that shows a picture (a kind marked so: a photo, a print, a painting) is painted with its picture, never its
 glass or one plain colour: give the picture the recipe that draws print (written), its token the picture's main colour
 and its ink the second; its frame, if any, takes its own surface."""
+# What each colour setting a recipe names (data/library/materials.json `colour_settings`) draws, in the question's
+# words. Every surface answers a token for every setting, required by the schema: asked for one "for each colour
+# setting its recipe needs" with `colours` optional, Claude left rusted_door_steel's (rusted_metal) bare out, and
+# surface-library@tube failed with the same answer to the same question (2026-11-09, output 1e0d43bc5956).
+SETTING_WORDS = {"bare": "the bare stuff under its paint, coat or rust, showing where it wears through",
+                 "second": "its pattern's second colour (holes, seams, grout, gaps between boards, ink, a mottle)"}
 # A kind's words in the question when a take of it is laid as a flat sheet (sheet_kinds).
 SHEET_WORDS = " (a flat sheet: its face is what shows)"
 # A kind's words in the question when its take's words name a picture (shows_picture), and the recipes that draw one in
@@ -203,19 +211,24 @@ def sheet_sized(size):
     return smallest < SHEET_FLAT * largest and middle >= SHEET_MIDDLE * largest
 
 
-def schema(recipes, tokens, kinds, sounds):
-    colour = {"type": "OBJECT", "properties": {"setting": {"type": "STRING"},
-                                              "token": {"type": "STRING", "enum": list(tokens)}},
-              "required": ["setting", "token"]}
+def colour_settings(method):
+    """Every colour setting the method's recipes name (`colour_settings`), sorted."""
+    return sorted({setting for needs in method.get("colour_settings", {}).values() for setting in needs})
+
+
+def schema(recipes, tokens, kinds, sounds, settings):
+    """The answer's schema: each surface's `colours` a palette token for every colour setting, each required."""
+    colour = {"type": "OBJECT", "properties": {setting: {"type": "STRING", "enum": list(tokens)} for setting in settings},
+              "required": list(settings), "propertyOrdering": list(settings)}
     surface = {"type": "OBJECT",
                "properties": {"name": {"type": "STRING"}, "family": {"type": "STRING"},
                               "recipe": {"type": "STRING", "enum": list(recipes)},
                               "token": {"type": "STRING", "enum": list(tokens)},
                               "roughness": {"type": "NUMBER"}, "metal": {"type": "NUMBER"},
-                              "colours": {"type": "ARRAY", "items": colour},
+                              "colours": colour,
                               "sound": {"type": "STRING", "enum": list(sounds)},
                               "kinds": {"type": "ARRAY", "items": {"type": "STRING", "enum": list(kinds) or [""]}}},
-               "required": ["name", "family", "recipe", "token", "roughness", "metal", "sound", "kinds"],
+               "required": ["name", "family", "recipe", "token", "roughness", "metal", "colours", "sound", "kinds"],
                "propertyOrdering": ["name", "family", "recipe", "token", "roughness", "metal", "colours", "sound",
                                     "kinds"]}
     return {"type": "OBJECT", "properties": {"surfaces": {"type": "ARRAY", "items": surface}},
@@ -245,13 +258,15 @@ def library_body(pictures, palette, kinds, method, sounds, grounds=None):
         pictures=said, wear=wear["level"], cause=wear.get("cause", ""), dirt=wear["dirt"],
         dirt_token=wear["dirt_token"], recipes=recipe_lines(method), sounds=", ".join(sounds),
         grounds=ground_lines(grounds),
+        settings="\n".join(f"- {setting}: {SETTING_WORDS.get(setting, setting)}" for setting in colour_settings(method)),
         tokens="\n".join(f"- {token}: {colour}, {said_of.get(token, '')}"
                          for token, colour in palette["tokens"].items()),
         kinds="\n".join(f"- {kind}: {words}" for kind, words in kinds.items()) or "- (none listed)")
     parts = [finish_ask.picture_part(picture, longest) for picture, longest in pictures]
     return {"contents": [{"role": "user", "parts": [*parts, {"text": text}]}],
             "generationConfig": {"temperature": 0, "responseMimeType": "application/json",
-                                 "responseSchema": schema(offered(method), palette["tokens"], kinds, sounds)}}
+                                 "responseSchema": schema(offered(method), palette["tokens"], kinds, sounds,
+                                                         colour_settings(method))}}
 
 
 def seed_of(place, name):
@@ -265,8 +280,7 @@ def variant_of(place, surface, method):
     variant = {"recipe": surface["recipe"], "token": surface["token"], "seed": seed_of(place, surface["name"]),
                "surface": surface.get("sound"),
                **{setting: round(min(max(float(surface[setting]), 0.0), 1.0), 3) for setting in SETTINGS}}
-    variant.update({colour["setting"]: colour["token"] for colour in surface.get("colours") or []
-                    if colour["setting"] in needs})
+    variant.update({setting: token for setting, token in (surface.get("colours") or {}).items() if setting in needs})
     return variant
 
 
