@@ -1,0 +1,43 @@
+{
+  "gaps": [
+    {
+      "name": "red_flags: moves (cloth), no maker builds it yet (#88)",
+      "row": "motion",
+      "check": "designed",
+      "objects": [
+        "red_flags"
+      ],
+      "reason": "Its row moves (cloth) but no object of it stands on the stage: a flag's cloth in the air waits on the effects overlay's Newton VBD cloth maker (#88), not built under the env1 EUR 300 plan, so it ships as a named gap. Its plan (2026-11-09) lays none of it, so motion@stairwell names it when it runs on this design; it has not run on this design yet.",
+      "decided": "the env1 EUR 300 plan's cut-off C6 (\"The #88 makers: gaps, not built\"), from the owner's answers of 2026-11-09 to its questions, applied by the env1 run session, 2026-11-10",
+      "faults": [
+        "red_flags: moves (cloth), and no object of it stands on the stage"
+      ]
+    },
+    {
+      "name": "rocket_launch: moves (launch), no maker builds it yet (#88)",
+      "row": "motion",
+      "check": "designed",
+      "objects": [
+        "rocket_launch"
+      ],
+      "reason": "Its row moves (launch) but no object of it stands on the stage: a launching rocket in the sky is a row whose take the env1 plan does not build, its exhaust waiting on an effect kind (#88), not built under the env1 EUR 300 plan, so it ships as a named gap. Its plan (2026-11-09) lays none of it, so motion@stairwell names it when it runs on this design; it has not run on this design yet.",
+      "decided": "the env1 EUR 300 plan's cut-off C6 (\"The #88 makers: gaps, not built\"), from the owner's answers of 2026-11-09 to its questions, applied by the env1 run session, 2026-11-10",
+      "faults": [
+        "rocket_launch: moves (launch), and no object of it stands on the stage"
+      ]
+    },
+    {
+      "name": "water: moves (ripple), no maker builds it yet (#88)",
+      "row": "motion",
+      "check": "designed",
+      "objects": [
+        "water"
+      ],
+      "reason": "Its row moves (ripple) but no object of it stands on the stage: a body of water's ripple waits on a water maker (#88), not built under the env1 EUR 300 plan, so it ships as a named gap. Its plan (2026-11-09) lays none of it, so motion@stairwell names it when it runs on this design; it has not run on this design yet.",
+      "decided": "the env1 EUR 300 plan's cut-off C6 (\"The #88 makers: gaps, not built\"), from the owner's answers of 2026-11-09 to its questions, applied by the env1 run session, 2026-11-10",
+      "faults": [
+        "water: moves (ripple), and no object of it stands on the stage"
+      ]
+    }
+  ]
+}
