@@ -8,7 +8,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   names)]` made `return []`.
 - crops_both_ways: contents.judge_crops' `faults = [] if share >= least else` made `if share >= 0 else`.
 - likeness_and_paint_both_ways: contents.judge_likeness' `for row in generated if row not in held]` made `if False]`.
-- light_sound_neighbours_and_game_both_ways: contents.judge_game's `if sources:` made `if False:`.
+- light_sound_neighbours_and_game_both_ways: contents.judge_game's `if sources:` made `if False:`; and (2026-11-10,
+  the scene time 2099-10-01 read as the game) contents.GAME's `\b2099\b(?!-\d{2}-\d{2})` made `\b2099\b`.
 - the_assembled_record_and_a_waiting_entry_both_ways: contents.judge_waiting's `waiting = list(...)` made
   `waiting = []`.
 - a_far_look_near_a_view_both_ways: contents.far_only's `return f"{character}-{outfit}" not in full` made
@@ -327,6 +328,7 @@ def light_sound_neighbours_and_game_both_ways():
         shown.DefinePrim("/other/thing")
         shown.GetRootLayer().Save()
         scene["lights"][0]["from"] = "the light stage's sweep against concept K04"
+        scene["environment"] = {"from": "the environment concept's physics at its scene time 2099-10-01T14:00:00Z"}
         (data / "scene" / f"{PLACE}.json").write_text(json.dumps(scene))
         cases += [("the light layer and the lamp", judged("light", path), contents.PASS),
                   ("the sound layer and its bed", judged("sound", path), contents.PASS),

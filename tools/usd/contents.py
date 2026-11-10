@@ -77,7 +77,9 @@ WAITING = "score:waiting"  # the root prim's entries of that record laid nothing
 SOUND_LAYER = "./layers/sound.usda"
 MADE_ROUTE = "prop"
 EFFECT_KIND = "score:effect:kind"  # what an effect is, on every emitter the effects layer lays (tools/usd/effects.py)
-GAME = re.compile(r"\b2099\b|\bthe game\b|\.gd\b|\.tscn\b", re.IGNORECASE)
+# The game, 2099, is named by itself; a date in its year is a scene time (the environment concept's "at its scene time
+# 2099-10-01T14:00:00Z", 2026-11-10: every assembled place failed on it).
+GAME = re.compile(r"\b2099\b(?!-\d{2}-\d{2})|\bthe game\b|\.gd\b|\.tscn\b", re.IGNORECASE)
 # A far-only look may fill at most this share of a view's frame height (a person HEIGHT tall, the frame ASPECT wide, the
 # view's fov vertical): the cast stage's own rule (score/stages/cast/spread.py, the captain's cut of 2026-10-13).
 FAR_SHARE = 0.10
