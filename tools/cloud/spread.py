@@ -229,8 +229,10 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
         host = machine["host"]
         arm_for_run(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
+        began = time.time()
         prepare(machine)
         machine["set_up"] = time.time()  # the ledger's setup_minutes, which park.idle_minutes measures
+        this_pc_set_up(run, machine, shares, machine["set_up"] - began)
         machine["taking"] = ready = True
         cards = slots(kind, machine, at_once)
         batch.say(f"{folder.name} ({machine['type']}, {machine['zone']}) ready after "
@@ -299,6 +301,22 @@ def this_pc_waited(run, shares, waited):
     if shares.deadline:
         shares.deadline += waited
     return waited >= THIS_PC_WAIT_SECONDS
+
+
+def this_pc_set_up(run, machine, shares, seconds):
+    """On this PC's machine (its `here`) the `seconds` its set-up took are not the work's either: free, and a kind's
+    first set-up there fetches its models (moss: 11 GB), so the run's and the shares' deadlines move on by them, the
+    runaway watch told. A rented machine's set-up is paid and stays in its minutes. Fault, 2026-11-10: sound@habitat's
+    claim waited 51 min for the PC (its deadlines moved on by the wait, this_pc_waited), then its set-up fetched the
+    MOSS weights for 10.2 min, past its 9-min limit, and its one share was never taken ("no take came back")."""
+    import preflight
+
+    if not machine.get("here"):
+        return
+    run.deadline += seconds
+    if shares.deadline:
+        shares.deadline += seconds
+    preflight.declare_deadline(run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
 
 
 def start_machine(run, account, found, number, kind, shares, prepare, do, disk_gb=batch.DISK_GB, at_once=None):
