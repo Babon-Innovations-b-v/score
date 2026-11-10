@@ -26,6 +26,7 @@ its stage table part or a declared file, against main's commit, the remote's sha
     pushes = moved.main_pushes(push_lines)       # (local sha, remote sha) of each push line to main, deletions left out
     found = moved.moved(remote)                  # every row the working tree moves against main's commit
     moved.unnamed_paid(found, moved.pushed_reasons(pushes))   # the paid rows no "Moved-rows:" trailer names
+    remade = moved.remade_accepted(found, store.accepted)       # the accepted nodes it makes again, free ones too
 
 Why: about EUR 65 of re-buys (view maps, turntables, the
 cockpit library push) came from code and data changes nobody saw would move a paid row's key, 2026-10-17.
@@ -75,7 +76,7 @@ def row_name(world, row):
 
 
 def row_entry(runner, row, places, repo):
-    """{"paid", "declared": {place: {repository path: its key}}, "code": its code version, "table": the hash of what
+    """{"paid", "euros": its estimate (0 for a free row), "declared": {place: {repository path: its key}}, "code": its code version, "table": the hash of what
     the stage table gives its key (contract, params, after, beside, models; Runner.own_parts)}: one row of a snapshot.
     The table part moves a row whose own files did not change (a params edit in the framework's table)."""
     from score import graph
@@ -97,7 +98,8 @@ def row_entry(runner, row, places, repo):
         declared[str(place)] = keys
     table = {"contract": row.contract.stamp_of(), "params": runner.params_of(row), "after": row.after,
              "beside": row.beside, "models": {kind: runner.model_record(kind) for kind in row.models}}
-    return {"paid": bool(row.paid), "declared": declared, "table": text_hash(json.dumps(table, sort_keys=True,
+    euros = row.euros if row.paid and isinstance(row.euros, (int, float)) else 0
+    return {"paid": bool(row.paid), "euros": euros, "declared": declared, "table": text_hash(json.dumps(table, sort_keys=True,
                                                                                          default=str)),
             "code": listing_hash(_code.code_version(graph.code_functions(row), file_hash))}
 
@@ -152,8 +154,33 @@ def moved_rows(before, after):
                 if keys.get(path) != earlier.get(path):
                     files.setdefault(path, []).append(place)
         if code or files:
-            found[name] = {"paid": row["paid"], "code": code, "files": files, "places": sorted(row["declared"])}
+            found[name] = {"paid": row["paid"], "euros": row.get("euros", 0), "code": code, "files": files,
+                           "places": sorted(row["declared"])}
     return found
+
+
+def remade_accepted(found, accepted):
+    """[{"node", "paid", "euros"}] of every node of a moved row (moved's answer) that stands accepted (`accepted`: a
+    node's accepted output or None, the store's): a row moved by its code or table part at each place it is declared
+    at, one moved by a declared file at the places that file moves in. The next run makes these again, free ones too:
+    the redo loop of 2026-11-10 (655 rows queued by a few fixes; #107 is the root fix) counted only the paid ones."""
+    remade = []
+    for name, row in sorted(found.items()):
+        stage = name.rpartition(":")[2]
+        places = row["places"] if row["code"] else sorted({place for places in row["files"].values()
+                                                           for place in places})
+        for place in places:
+            node = stage if place == "None" else f"{stage}@{place}"
+            if accepted(node):
+                remade.append({"node": node, "paid": row["paid"], "euros": row.get("euros", 0)})
+    return remade
+
+
+def remakes_line(remade):
+    """The push's one summary line of remade_accepted's answer."""
+    paid = [row for row in remade if row["paid"]]
+    return (f"this push re-makes {len(remade)} accepted rows ({len(paid)} paid, "
+            f"EUR {sum(row['euros'] for row in paid):.2f})")
 
 
 def edited_into_framework(base, head=None):

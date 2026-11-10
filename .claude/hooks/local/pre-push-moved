@@ -12,6 +12,10 @@
 # The places and accepted rows are read from a home with a store: PROPS_HOME when set, else `git config score.movedHome`,
 # else the default home (~/.farm-factory-props) when it holds a store, else this PC's run home (tools/cloud/this_pc.py's,
 # SCORE_THIS_PC_HOME, default ~/.score-this-pc: its pull of the conductor's store). With none the push goes on, said.
+# It also prints how many accepted rows the push makes again, free ones too ("this push re-makes N accepted rows (P
+# paid, EUR X)"), and while a push freeze stands (remake_freeze.py beside it: a file outside the repository) refuses
+# a push that makes accepted rows again unless a pushed commit's "Remakes: <row or node> ...: <reason>" trailer names
+# them. #107 is the root fix (a key moves only when the row's output would).
 # git's push lines come on stdin and pass straight through.
 set -euo pipefail
 [ "$(git config --bool score.movedCheck || true)" = true ] || exit 0
@@ -54,10 +58,16 @@ if ! grep -qs -- "--pre-push" "$checkout/score/__main__.py"; then
   exit 0
 fi
 limit="$(git config score.movedTimeout || echo 3600)"
+remakes="$(mktemp)"
+freeze="$repo/.claude/hooks/local/remake_freeze.py"
 cd "$checkout"
 status=0
-printf '%s\n' "$lines" | timeout "$limit" "$python" -m score moved --pre-push || status=$?
+printf '%s\n' "$lines" | SCORE_REMAKES_FILE="$remakes" timeout "$limit" "$python" -m score moved --pre-push || status=$?
 if [ "$status" -eq 124 ]; then
   echo "refused: the moved check ran past $limit s (score.movedTimeout); push again, or raise it" >&2
 fi
+if [ "$status" -eq 0 ] && [ -s "$remakes" ]; then
+  printf '%s\n' "$lines" | python3 "$freeze" "$remakes" || status=$?
+fi
+rm -f "$remakes"
 exit "$status"

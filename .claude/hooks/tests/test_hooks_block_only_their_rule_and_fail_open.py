@@ -54,7 +54,11 @@ The break that turns each test red (applied once each, seen red, reverted):
   half (.claude/hooks/pre-push and push_cap.py, in scratch repos): `claim`'s `len(today) >= cap` made `>` (a 7th push
   of a 6-a-day cap goes); `limit_for` takes the first entry instead of the latest started one (the later, lower limit
   never applies); the pre-push's `release` call dropped (a refused push keeps its slot); `never_reached_main` returns
-  False at once (a push the remote refused keeps its slot).
+  False at once (a push the remote refused keeps its slot). Its redo-guard half (score.stages.moved and
+  local/remake_freeze.py, in a scratch repo): `remade_accepted` takes `row["places"]` for a file-moved row too (a
+  place the file does not move in counts); `remakes_line` sums every row's euros, not the paid ones'; `main` returns
+  0 when `freeze` stands (an unnamed remade row pushes); `named` drops its `why.strip()` (a bare list names rows);
+  `standing_freeze` returns None on an unreadable file (a broken freeze pushes).
 - test_torn_commit_guard_refuses_conflict_markers_and_a_broken_sourced_shell_contract: `sourced_shell_dirs` returns
   [] at once.
 - test_leftover_guard_says_once_that_a_worktree_holds_uncommitted_work: `session_worktree` returns None at once.
@@ -838,6 +842,65 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     code, said, out, marker = answers["away"]
     assert code == 0 and "1 test file" in out and marker.exists(), (said, out)
     push_cap_holds_the_days_limit_over_every_repository(tmp_path / "cap")
+    freeze_refuses_remade_accepted_rows_no_trailer_names(tmp_path / "freeze")
+
+
+REMADE_COUNT = """import json, sys
+from score.stages import moved
+found = {"light": {"paid": True, "euros": 2.5, "code": True, "files": {}, "places": ["hub", "camp"]},
+         "images:pins": {"paid": False, "euros": 0, "code": True, "files": {}, "places": ["None"]},
+         "settle": {"paid": False, "euros": 0, "code": False, "files": {"a.py": ["hub"]}, "places": ["hub", "camp"]}}
+accepted = {"light@hub", "light@camp", "pins", "settle@camp"}
+remade = moved.remade_accepted(found, lambda node: "out" if node in accepted else None)
+print(json.dumps([row["node"] for row in remade]))
+print(moved.remakes_line(remade))"""
+
+
+def freeze_refuses_remade_accepted_rows_no_trailer_names(folder):
+    """The redo guard (pre-push-moved, score.stages.moved, remake_freeze.py): the push counts every accepted node it
+    makes again, free ones too, in one line; while a freeze stands a push remaking accepted rows is refused unless a
+    pushed commit's Remakes trailer names them with a reason; no freeze, a freeze past its day or nothing remade passes,
+    and a freeze file that cannot be read refuses."""
+    own = REPO / ".venv/bin/python"
+    common = pathlib.Path(git(REPO, "rev-parse", "--path-format=absolute", "--git-common-dir")).parent / ".venv/bin/python"
+    counted = subprocess.run([str(own if own.exists() else common), "-c", REMADE_COUNT], cwd=REPO, capture_output=True,
+                             text=True, env=dict(GIT_ENV, PYTHONDONTWRITEBYTECODE="1"))
+    nodes, line = counted.stdout.strip().splitlines()[-2:]
+    # settle moved only by a file at hub, accepted only at camp: not remade
+    assert sorted(json.loads(nodes)) == ["light@camp", "light@hub", "pins"], counted.stderr
+    assert line == "this push re-makes 3 accepted rows (2 paid, EUR 5.00)", line
+    repo = folder / "repo"
+    repo.mkdir(parents=True)
+    git(repo, "init", "-q")
+    git(repo, "commit", "-q", "--allow-empty", "-m", "base")
+    base = git(repo, "rev-parse", "HEAD")
+    remakes = folder / "remakes.json"
+    freeze = folder / "freeze.json"
+
+    def push(message, remade=("light@hub", "pins"), freeze_text='{"until": "2999-01-01", "reason": "the film"}'):
+        git(repo, "reset", "-q", "--hard", base)
+        git(repo, "commit", "-q", "--allow-empty", "-m", message)
+        remakes.write_text(json.dumps({"remade": [{"node": node, "paid": False, "euros": 0} for node in remade]}))
+        if freeze_text is None:
+            freeze.unlink(missing_ok=True)
+        else:
+            freeze.write_text(freeze_text)
+        line = f"refs/heads/main {git(repo, 'rev-parse', 'HEAD')} refs/heads/main {base}\n"
+        done = subprocess.run([sys.executable, str(HOOKS / "local/remake_freeze.py"), str(remakes)], input=line,
+                              capture_output=True, text=True, cwd=repo,
+                              env=dict(GIT_ENV, SCORE_PUSH_FREEZE=str(freeze)))
+        return done.returncode, done.stderr
+    code, said = push("fix")
+    assert code == 1 and "light@hub pins" in said and "Remakes: light pins: <why>" in said, said
+    code, said = push("fix\n\nRemakes: light: the hub's lamp was wrong")
+    assert code == 1 and "pins" in said and "light@hub" not in said, "a row left unnamed still refuses"
+    assert push("fix\n\nRemakes: light@hub, pins: both wrong")[0] == 0
+    assert push("fix\n\nRemakes: light pins:")[0] == 1, "a trailer with no reason names nothing"
+    assert push("fix", remade=())[0] == 0, "nothing remade passes the freeze"
+    assert push("fix", freeze_text=None)[0] == 0, "no freeze file, no freeze"
+    assert push("fix", freeze_text='{"until": "2000-01-01", "reason": "old"}')[0] == 0, "a freeze past its day"
+    code, said = push("fix", freeze_text="{not json")
+    assert code == 1 and "cannot be read" in said, said
 
 
 def capped_repo(folder, origin):

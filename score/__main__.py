@@ -1537,7 +1537,17 @@ def pre_push_check(push_lines):
         found = moved.moved(remote)
     except subprocess.CalledProcessError:
         sys.exit(f"refused: the rows {tip[:12]} moves could not be worked out (the reason above)")
+    remakes_told(moved.remade_accepted(found, Store.default().accepted))
     pushed_check(found, moved.pushed_reasons(pushes))
+
+
+def remakes_told(remade):
+    """Print the push's one line of the accepted nodes it makes again (free ones too), and write them as JSON to
+    SCORE_REMAKES_FILE when set: the pre-push hook's freeze check (.claude/hooks/local/remake_freeze.py) reads them."""
+    print(moved.remakes_line(remade), flush=True)
+    target = os.environ.get("SCORE_REMAKES_FILE")
+    if target:
+        pathlib.Path(target).write_text(json.dumps({"remade": remade}))
 
 
 def pushed_check(found, reasons):
