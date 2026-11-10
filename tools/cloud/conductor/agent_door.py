@@ -247,7 +247,7 @@ NODE = re.compile(r"^[a-z0-9][a-z0-9_.-]*(@[a-z0-9_.-]+)?$")
 GRANT_ID = re.compile(r"^[A-Za-z0-9._:+-]+$")
 PHASE = re.compile(r"^[a-z][a-z-]*$")
 CAPS = re.compile(r"^[a-z0-9-]+=[0-9]{1,3}(,[a-z0-9-]+=[0-9]{1,3})*$")  # a Buy's machine caps, capacity's form
-STAGE_LIST = re.compile(r"^[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*$")  # a Buy's phases or stages to leave out  # a phase's name (score/stages/phases); the Buy refuses one that is no phase
+STAGE_LIST = re.compile(r"^[a-z0-9][a-z0-9_-]*(,[a-z0-9][a-z0-9_-]*)*$")  # a Buy's phases or stages to leave out  # a phase's name (score/stages/phases); the Buy refuses one that is no phase
 GRANT_CODE = ("import sys; from score.adapters.compute import grant_benchmark; "
               "print(grant_benchmark(answer=sys.argv[2], question=sys.argv[3], euros=sys.argv[1])['id'])")
 REFUSED_EXIT = 126
