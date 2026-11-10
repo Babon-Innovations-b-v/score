@@ -19,7 +19,8 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     __init__.py: `if judgement is None or (checks.standing(judgement["verdicts"], waived) != checks.PASS and status
     is None):` made `if judgement is None:`
 - test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_owner_with_a_reason:
-    __init__.py: `if worse and not worse_reason:` made `if False:`
+    __init__.py: `if worse and not worse_reason:` made `if False:`; or `if accepted_record is None: return {}` removed
+    (accepted_card: an accepted output with no record here crashes the accept)
 - test_the_runner_accepts_within_what_the_owner_allowed_and_no_further:
     __init__.py: `if allowed_judgement is None or regressions(judgement["verdicts"],
     allowed_judgement["verdicts"]):` made `if allowed_judgement is None:`
@@ -555,6 +556,10 @@ def test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_
     written = review.accept(tally.store, NODE, second, "owner", worse_reason="the second fault is a false alarm")
     assert written["worse"] == ["faults: faults 1 became 2 (lower is better; worse from 1)"]
     assert tally.store.accepted(NODE) == second
+    pulled = tally.store.records  # an accept pulled before its record: nothing known to be worse than, so it is taken
+    tally.store.records = lambda node: [record for record in pulled(node) if record["output"] != second]
+    third = tally(3)
+    assert tally.store.accepted(NODE) == third and tally.store.current_accept(NODE)["by"] == RUNNER
 
 
 def test_the_runner_accepts_within_what_the_owner_allowed_and_no_further(tally):
