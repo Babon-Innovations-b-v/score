@@ -6,7 +6,9 @@ mass its box's volume at Dempster's density (all brought to the person's mass wi
 group's centre of mass on its stretch's middle and each one-body group's inertia its box's, each limb body as wide
 across its long axis as its length scale times its box's width over its length over SOMA's mean shape's, each foot
 across its forefoot as SOMA's metatarsal heads stand apart across it over the model's (0.06 over 0.08 m), and a box's
-inertia under an uneven scale the scaled box's (all worked out by hand from the boxes); a toy neck placed by its centre on a scaled toy torso, that centre where the torso's scale puts it; and a body on its inertia's triangle edge (MyoFullBody's lumbar2) kept off it through a float32 round trip. It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
+inertia under an uneven scale the scaled box's (all worked out by hand from the boxes); the hip joints as far apart
+as the pelvis' scale puts the model's (0.15 m), not SOMA's hip joints (0.2 m), and a body with its femurs at SOMA's
+width judged off; a toy neck placed by its centre on a scaled toy torso, that centre where the torso's scale puts it; and a body on its inertia's triangle edge (MyoFullBody's lumbar2) kept off it through a float32 round trip. It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh,
 built at $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
 Breaks (each applied once with the env linked into a sandbox home, seen red, reverted):
@@ -33,6 +35,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - (2026-11-04) balanced's `inertia[largest] = most` dropped: lumbar2's A + B - C stays at 0 after float32.
 - (2026-11-05) joint_placed's `parent_scale * in_parent` made `in_parent`: the neck's centre stays the source's place on
   a shrunk torso (the mean body's cervical bones 35 mm over its T1 at rest).
+- (2026-11-10, #98) sized's femur places moved to SOMA's hip joints apart after sizing (9cca1f06's `hip_width`): the
+  hips 0.2 m apart, not the pelvis' 0.15.
 
 Run: .venv/bin/python score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py
 """
@@ -59,6 +63,7 @@ JOINTS = {"Hips": (0, 1.0, 0), "Spine1": (0, 1.15, 0), "Spine2": (0, 1.25, 0), "
           "LeftShin": (0.1, 0.55, 0), "LeftFoot": (0.1, 0.1, 0), "LeftToeBase": (0.1, 0.1, 0.15)}
 LENGTHS = {"Hips": 0.15, "Spine1": 0.1, "Leg": 0.45, "Shin": 0.45, "Foot": 0.15}
 TOE_LIFT = 0.02  # the toe landmark over its joint on SOMA (own y) and its link over the bone point (MuJoCo z)
+HIPS_APART = 0.15  # the toy's hips (0.2 m apart) by the pelvis' scale, SOMA's Hips 0.15 over the toy's 0.2
 FOOT_SCALE = 1.5  # the toy's foot: 0.15 m on SOMA over 0.1 m on the model
 # Each landmark's MyoFullBody body and bone point (the toy's joints: MuJoCo's frame, the model's left +x).
 ON_BODY = {"j_hipmid": ("pelvis", (0, 0, -0.1)), "j_Spine1": ("lumbar5", (0, 0, 0)), "j_Spine2": ("lumbar3", (0, 0, 0)),
@@ -182,7 +187,8 @@ def every_group_is_somas_length_mass_and_centre():
     """Each stretch between its landmarks SOMA's length within 1 mm, the foot FOOT_SCALE times the model's within
     0.001; each group's mass KG less the bodies of no group (lumbar3, the toes)
     shared by box volume times density within 0.1%; the whole body KG; each group's centre of mass on its stretch's
-    middle within 1 mm; each group's inertia's trace its box's, m (a2 + b2 + c2) / 6, within 0.5%."""
+    middle within 1 mm; each group's inertia's trace its box's, m (a2 + b2 + c2) / 6, within 0.5%; the hips where the
+    pelvis' scale puts them (`the_hips_stand_where_the_pelvis_scale_puts_them`)."""
     import mujoco
     import numpy as np
     import sizing
@@ -209,6 +215,7 @@ def every_group_is_somas_length_mass_and_centre():
         trace = final.body_mass[body] * float(np.sum(sizes[group] ** 2)) / 6
         if abs(final.body_inertia[body].sum() - trace) > 0.005 * trace:
             problems.append(f"{group}'s inertia trace {final.body_inertia[body].sum():.6f}, not {trace:.6f}")
+    problems += the_hips_stand_where_the_pelvis_scale_puts_them()
     return problems + ([] if abs(final.body_mass.sum() - KG) < 1e-6 else [f"mass {final.body_mass.sum()} kg"])
 
 
@@ -319,6 +326,36 @@ def a_joint_placed_body_keeps_its_centre_where_its_parent_puts_it():
     wanted = 0.8 * centre - 1.25 * (centre - [0.01, 0, 0])
     found = sizing.joint_placed(spec.compile(), scales)["neck"]
     return [] if np.allclose(found, wanted, atol=1e-9) else [f"the neck placed at {found.round(5).tolist()}, not {wanted.round(5).tolist()}"]
+
+
+def hips_off(model, source, scales):
+    """How far the sized `model`'s hip joints (the femurs' places) stand apart off the pelvis' scale times the
+    `source` model's ([] within 0.1 mm): the pelvis' muscles are attached by that scale, so must its hips be."""
+    import mujoco
+    import numpy as np
+    def apart(found):
+        places = [found.body_pos[mujoco.mj_name2id(found, mujoco.mjtObj.mjOBJ_BODY, name)] for name in ("femur_l", "femur_r")]
+        return float(np.linalg.norm(places[0] - places[1]))
+    wanted = apart(source) * float(scales["pelvis"][0])
+    found = apart(model)
+    return [] if abs(found - wanted) < 1e-4 else [f"the hips {found:.4f} m apart, the pelvis' scale puts them {wanted:.4f}"]
+
+
+def the_hips_stand_where_the_pelvis_scale_puts_them():
+    """The sized toy's hip joints HIPS_APART apart (the toy's 0.2 m by the pelvis' 0.75), judged so by `hips_off`; the
+    same body with its femurs at SOMA's hip joints apart (0.2 m, the rule 9cca1f06 brought) judged off."""
+    import mujoco
+    import numpy as np
+    final, scales, _, _ = sized_toy()
+    source = mujoco.MjModel.from_xml_string(toy_body())
+    problems = hips_off(final, source, scales)
+    if abs(float(scales["pelvis"][0]) * 0.2 - HIPS_APART) > 1e-6:
+        problems.append(f"the pelvis scaled {np.round(scales['pelvis'], 4).tolist()}, not {HIPS_APART / 0.2}")
+    wide = mujoco.MjModel.from_xml_string(toy_body())
+    for name, mirror in (("femur_l", 1), ("femur_r", -1)):
+        wide.body_pos[mujoco.mj_name2id(wide, mujoco.mjtObj.mjOBJ_BODY, name)] = final.body_pos[
+            mujoco.mj_name2id(final, mujoco.mjtObj.mjOBJ_BODY, name)] * [0, 1, 1] + [mirror * 0.1, 0, 0]
+    return problems + ([] if hips_off(wide, source, scales) else ["femurs at SOMA's hip joints apart judged in place"])
 
 
 CHECKS = (every_group_is_somas_length_mass_and_centre, a_joint_placed_body_keeps_its_centre_where_its_parent_puts_it, a_mesh_is_filled_once_and_sizes_alike,
