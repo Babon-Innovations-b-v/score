@@ -694,6 +694,10 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
                                                    "SCORE_K8S_KUBECONFIG": str(tmp_path / "k8s-kubeconfig")}
     assert agent_door.buy_options(["--phase", "models", "--cluster", "pixal,blender"])
     assert not agent_door.buy_options(["--cluster", "pixal", "--cluster", "blender"])
+    # a stage named with an underscore is left out by name (2026-11-10: people-body-person_uniform-made refused the
+    # Buy of the people looks' parts alone). Break: STAGE_LIST's `[a-z0-9_-]` -> `[a-z0-9-]`
+    assert agent_door.buy_options(["--phase", "people", "--leave-out", "people-body-person_uniform-made,settle"])
+    assert not agent_door.buy_options(["--leave-out", "people;rm"])
     # a Buy's machine caps (2026-11-06). Break: in agent_door.buy_options, drop "--max-machines"
     assert agent_door.buy_options(["--max-machines", "cpu-64c-128gb=10,all=30"])
     assert not agent_door.buy_options(["--max-machines", "cpu=x"]) and not agent_door.buy_options(["--max-machines", "a;b=1"])
