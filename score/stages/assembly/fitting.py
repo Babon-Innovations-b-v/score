@@ -2241,8 +2241,11 @@ def moved_past(stage, place, entries):
         if not left or moved > max(OUT_MOST, across(entry["on"]["out"], high - low)):
             continue
         moved_by(stage.GetPrimAtPath(path), middle, 1.0, middle + shift)
-        fits.append(laid_fit(stage, path, entry, "past", left, moved, 1.0,
-                             f"moved {moved:.2f} m out past {', '.join(left)}: laid outside its place, into them"))
+        fits.append({**laid_fit(stage, path, entry, "past", left, moved, 1.0,
+                                f"moved {moved:.2f} m out past {', '.join(left)}: laid outside its place, into them"),
+                     **laid_face({**entry["on"], "span": [np.asarray(point, float) + shift[[0, 2]]
+                                                          for point in entry["on"]["span"]]},
+                                 oriented_corners(stage, path))})  # the face it now stands on, for the held gate
     return fits
 
 

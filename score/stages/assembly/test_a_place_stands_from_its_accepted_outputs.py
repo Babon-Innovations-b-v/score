@@ -1218,6 +1218,8 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     Break: score/stages/assembly/fitting.py: `if not (passes(entry) and static.split("_")[0] == "wall")]` -> `]`
     Break: score/stages/assembly/fitting.py: `set(str(entry.get("row") or "").split("_")) & set(PASSING))` ->
         `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`
+    Break: score/stages/assembly/fitting.py: moved_past's `**laid_face({**entry["on"], ...` -> `**{}` (workshop's
+        front tunnel named 1.48 m off the wall it was moved out past)
     Break: score/stages/assembly/fitting.py: in_room's `return room[0] <= point[0] <= room[2] and room[1] <=
         point[2] <= room[3]` -> `return False` (the cabinet in the room is pushed through its wall), or its `if
         len(decks):` -> `if False:` (workshop's tunnel past its round room's floor left in its wall)
@@ -1254,6 +1256,10 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     assert [(fit["name"], fit["how"], fit["moved"], fit["holder"]) for fit in fits] == [
         ("glass_tunnel_1", "past", 1.5, ["wall_1", "wall_2"])], fits
     assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/glass_tunnel_1")[1], (2.0, 2.5, -6.2))
+    walled = {"objects": [{"name": "glass_tunnel_1", **dict(zip(("low", "high"), fitting.world_box(
+        stage, f"/{TOY}/Objects/glass_tunnel_1")))}], "fitted": fits}  # held off the face it was moved out to
+    assert fitting.held_faults({"objects": entries[:1]}, walled) == [], fitting.held_faults({"objects": entries[:1]},
+                                                                                            walled)
     assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/cabinet_1")[0], (-0.5, 0.0, -6.0))
     # past the walls 1.5 m out it would reach into a deck's raised edge farther out, 4.5 m in all: more than its
     # depth, left
