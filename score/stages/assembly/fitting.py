@@ -181,6 +181,9 @@ def on_face(low, high, on, box, surface=None, recesses=(), clear=()):
             begin, end = face_stretch(foot, size, on, box, band, clear, face)  # box's side (wreck's solar panels on
             scale = min(scale, (end - begin) / size[side]) if end - begin < whole - 1e-9 else scale  # its lander's
             target[side] = kept_within(foot[side], begin, end, size[side] * scale / 2)  # frame, 2026-11-11)
+        if surface is not None:  # where its back meets nothing of its holder: slid to where it does (lab's valve)
+            from score.stages.assembly import face_spots
+            target = face_spots.met(surface, on, box, size * scale, target, clear)
     half = size * scale / 2
     span = (target[side] - half[side] - below - FACE_REACH, target[side] + half[side] + above + FACE_REACH)
     face = front_face(surface, axis, sign, side, span, (target[1], target[1] + size[1] * scale))
