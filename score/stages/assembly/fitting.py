@@ -388,18 +388,10 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None, built=()):
     running along x or z it stands on the front of the built pieces standing out of the face across its reach
     (`built`, their boxes; stood_off)."""
     size, foot = high - low, foot_middle(low, high)
-    start, end = (np.array([point[0], point[1]], float) for point in on["span"])
-    length = float(np.linalg.norm(end - start))
-    run, out = (end - start) / max(length, 1e-9), np.asarray(on["out"], float)
-    if corners is None:
-        reach, deep = across(run, size), across(out, size)
-    else:
-        floor = np.asarray(corners, float)[:, [0, 2]]
-        reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @ out))
+    on = stood_face(low, high, on, corners, built)
+    start, run, out, length = wall_line(on)
+    reach, deep = wall_reach(low, high, run, out, corners)
     along = float((foot[[0, 2]] - start) @ run)
-    if not slanted_wall(on):
-        start = start + out * stood_off(start, run, out, (along - reach / 2, along + reach / 2), deep,
-                                        (low[1], high[1]), built)
     height = mounted_height(start, run, out, length, size, low[1], reach, deep, clear, mounted)
     begin, end = stretch_for(stretches(start, run, out, length, deep, (height, height + size[1]),
                                        [*clear, *mounted]), along, reach)
@@ -409,17 +401,52 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None, built=()):
     return scale, np.array([spot[0], height, spot[1]])
 
 
+def wall_line(on):
+    """(start, run, out, length) of a wall relation's face: its span's start [x, z], the unit way along it, the way
+    `out` into the room, and its length in metres."""
+    start, end = (np.array([point[0], point[1]], float) for point in on["span"])
+    length = float(np.linalg.norm(end - start))
+    return start, (end - start) / max(length, 1e-9), np.asarray(on["out"], float), length
+
+
+def wall_reach(low, high, run, out, corners=None):
+    """(reach along `run`, depth along `out`) metres of a wall thing: its own turned box's (`corners`,
+    oriented_corners) where given, else its world box's (low, high)."""
+    if corners is None:
+        size = np.asarray(high, float) - np.asarray(low, float)
+        return across(run, size), across(out, size)
+    floor = np.asarray(corners, float)[:, [0, 2]]
+    return float(np.ptp(floor @ run)), float(np.ptp(floor @ out))
+
+
+def stood_face(low, high, on, corners=None, built=()):
+    """A wall relation `on` with its span moved out of its face onto the front of the built pieces standing out of it
+    across a wall thing's reach (its box (low, high), its turned `corners`; stood_off), the face the thing is laid
+    on (on_wall) and the held gate measures it off; as it is on a slanted wall or with no such piece."""
+    if slanted_wall(on):
+        return on
+    start, run, out, length = wall_line(on)
+    reach, deep = wall_reach(low, high, run, out, corners)
+    along = float((foot_middle(np.asarray(low, float), np.asarray(high, float))[[0, 2]] - start) @ run)
+    stood = stood_off(start, run, out, length, (along - reach / 2, along + reach / 2), deep, (low[1], high[1]), built)
+    if stood <= 0.0:
+        return on
+    return {**on, "span": [[float(value) for value in np.asarray(point, float) + out * stood] for point in on["span"]]}
+
+
 # The furthest a built piece stands out of a wall's face for a wall thing to stand on its front (stood_off), metres:
 # hangar's ribs stand 1.5 m out; a deck or a wall across the room, further, is no piece of the wall.
 STAND_OFF_MOST = 2.0
 
 
-def stood_off(start, run, out, reach, deep, band, built):
-    """How far out of a wall's face (start, run, out) a wall thing `deep` across the stretch `reach` (from, to)
-    metres along it and the height `band` (low, high) stands: the front of the furthest built piece (`built`, its
-    boxes) standing out of the face into it, at most STAND_OFF_MOST out and no thicker across than WALL_THICKEST (a
-    slanted wall's or a deck's box holds the room), there; 0 where none does. Hangar's 32 m pipes ran through the ribs
-    and pillars standing 1.5 and 0.5 m out of its long walls, 0.33 m deep in each (2026-11-11)."""
+def stood_off(start, run, out, length, reach, deep, band, built):
+    """How far out of a wall's face (start, run, out, `length` metres long) a wall thing `deep` across the stretch
+    `reach` (from, to) metres along it and the height `band` (low, high) stands: the front of the furthest built piece
+    (`built`, its boxes) standing out of the face into it, its middle within the face's length, at most STAND_OFF_MOST
+    out and no thicker across than WALL_THICKEST (a slanted wall's or a deck's box holds the room), there; 0 where none
+    does. Hangar's 32 m pipes ran through the ribs and pillars standing 1.5 and 0.5 m out of its long walls, 0.33 m
+    deep in each (2026-11-11). The walls meeting the face at its ends are no ribs: walkway's 12 m pipe along its whole
+    1.37 m wide corridor was stood on the end walls' 1.5 m front, against the wall across (2026-11-11)."""
     found = [0.0]
     for low, high in built:
         if min(high[0] - low[0], high[2] - low[2]) > WALL_THICKEST:
@@ -427,7 +454,8 @@ def stood_off(start, run, out, reach, deep, band, built):
         corners = np.array([[x, z] for x in (low[0], high[0]) for z in (low[2], high[2])], float) - start
         off, along = corners @ out, corners @ run
         if off.min() < deep and 0.0 < off.max() <= STAND_OFF_MOST and along.min() < reach[1] \
-                and along.max() > reach[0] and low[1] < band[1] and high[1] > band[0]:
+                and along.max() > reach[0] and 0.0 < float(along.min() + along.max()) / 2 < length \
+                and low[1] < band[1] and high[1] > band[0]:
             found.append(float(off.max()))
     return max(found)
 
@@ -706,8 +734,16 @@ def too_narrow(low, high, on, box):
     return max(0.0, (high[side] - low[side]) + below + above - (box[1][side] - box[0][side]))
 
 
-def off_wall(low, high, on):
-    """Metres a box stands off a wall's face: its back off the face's line, or past the face's ends."""
+def off_wall(low, high, on, corners=None):
+    """Metres a box stands off a wall's face: its back off the face's line, or past the face's ends; by its turned
+    box's floor `corners` [[x, z]] where given (laid_face: hub's pipes turned onto its slanted walls stood 0.10 m off
+    them by their world boxes, flush by their own, 2026-11-11)."""
+    if corners is not None:
+        start, run, out, length = wall_line(on)
+        floor = np.asarray(corners, float) - start
+        alongs = floor @ run
+        return max(abs(float((floor @ out).min())), max(0.0, -float(alongs.min())),
+                   max(0.0, float(alongs.max()) - length))
     size, middle = high - low, (low + high) / 2
     start, end = (np.array(point, float) for point in on["span"])
     length = float(np.linalg.norm(end - start))
@@ -833,10 +869,11 @@ def off_ramp(low, high, on, built):
 
 def off(low, high, on, holders=()):
     """Metres an object's box (low, high) stands off where its relation `on` puts it (an opening's and a ramp's: by
-    the built walls, `holders`); None when its holder lays no box to measure against."""
+    the built walls, `holders`; a wall's by its turned box's floor `corners`, where the fit gave them); None when its
+    holder lays no box to measure against."""
     low, high = np.asarray(low, float), np.asarray(high, float)
     if on["how"] == "wall":
-        return off_wall(low, high, on)
+        return off_wall(low, high, on, on.get("corners"))
     boxes = [tuple(np.asarray(end, float) for end in found) for found in holders]
     if on["how"] == "in":
         return off_opening(low, high, on, boxes)
@@ -856,6 +893,7 @@ def held_faults(record, laid):
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
+    walled = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("span") is not None}
     named_walls = [(wall["name"], (np.asarray(wall["low"], float), np.asarray(wall["high"], float)))
                    for wall in laid.get("walls", [])]
     walls = [box for _, box in named_walls]
@@ -871,6 +909,8 @@ def held_faults(record, laid):
             fitted_on = faced.get(entry["name"])
             if fitted_on:  # laid on that face; one hung in its recess keeps no room beside it on the face
                 on = dict(on, **{"face at": fitted_on["face"]}, **({"room": 0.0} if fitted_on.get("hung") else {}))
+            if on["how"] == "wall" and entry["name"] in walled:  # on the face it was laid on, by its own box
+                on = dict(on, **{key: walled[entry["name"]][key] for key in ("span", "out", "corners")})
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
             held = walls if on["how"] in ("in", "ramp") else [boxes[name] for name in on.get("holder") or []
                                                               if name in boxes]
@@ -1374,9 +1414,12 @@ def fitted(stage, place, entries, laid, cuts=None):
             clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
             others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
                 if walled else ()
+            corners = oriented_corners(stage, path) if turned else None
             found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
                         recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear,
-                        others, oriented_corners(stage, path) if turned else None, () if passes(entry) else built)
+                        others, corners, () if passes(entry) else built)
+            if turned:  # the face it is laid on, which the held gate measures it off (held_faults)
+                faced_on[name] = stood_face(low, high, entry["on"], corners, built)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
@@ -1405,7 +1448,8 @@ def fitted(stage, place, entries, laid, cuts=None):
                      "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words,
                      **({"face": round(face[0], 4), **({"hung": True} if face[1] else {})} if face is not None
-                        else {})})
+                        else {}), **(laid_face(faced_on[name], oriented_corners(stage, path)) if name in faced_on
+                                     else {})})
 
     def rooms(leaf):
         """The swing box and the passage box of a leaf as laid."""
@@ -1421,6 +1465,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     built_mesh = {}
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
+    faced_on = {}  # {wall thing: the relation it is laid by: on its built face (on_built_face), stood (stood_face)}
     mounted = {}  # {wall or face thing: its box as laid}, which each laid after it on a wall or face keeps clear of
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
@@ -1428,6 +1473,15 @@ def fitted(stage, place, entries, laid, cuts=None):
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
     return fits + spread_on_tops(stage, place, topped) + moved_past(stage, place, walled) + \
         moved_down(stage, place, loose) + hung_up(stage, place, loose)
+
+
+def laid_face(on, corners):
+    """The fit's words for the held gate of a wall thing laid: the face's `span` and `out` it is laid on, and its
+    turned box's floor corners as laid (`corners`, oriented_corners: a pipe turned along a slanted wall is as deep as
+    its own box, never its world box)."""
+    return {"span": [[round(float(value), 4) for value in point] for point in on["span"]],
+            "out": [round(float(value), 6) for value in on["out"]],
+            "corners": [[round(float(point[0]), 4), round(float(point[2]), 4)] for point in np.asarray(corners, float)]}
 
 
 def shelved(low, high, on, held, surface_of, taken):
