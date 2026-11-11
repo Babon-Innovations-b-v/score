@@ -1935,11 +1935,26 @@ def test_a_wall_item_stands_on_its_named_face():
     """A 1 x 0.6 x 0.2 m wall lamp laid at the room's middle (the walls item) stands with its back on its wall's face
     (z 0.1 to 6.1 at x 2, the room to +x), 0.1 m out from it, slid along to the face's nearest point.
     Break: score/stages/assembly/fitting.py: `spot = start + run * along + out * across(out, size) * scale / 2` ->
-        `spot = start + run * along`"""
+        `spot = start + run * along`
+    Break: score/stages/assembly/fitting.py: fitted's `clear = [*clear, *wall_holes(faces(), entry["on"], ...)]` ->
+        `pass` is caught by the sweep's walkway only; wall_holes' `open_at = ~near...` -> `open_at = near...` (walkway's
+        and shiplock's screens hung in the holes cut through their walls)"""
     from score.stages.assembly import fitting
     on = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}
     scale, target, _, _ = fitting.fit((4.4, 0.0, 2.9), (4.6, 0.6, 3.9), on)
     assert scale == 1.0 and np.allclose(target, (2.1, 0.0, 3.4)), target
+    # walkway and shiplock (2026-11-11): screens hung in holes cut through their walls. A wall with a 1 m hole (z 2 to
+    # 3) at the thing's height: the hole is found and a 0.5 m screen laid in it goes beside it; with nothing to keep
+    # out of it stays.
+    import trimesh
+    holed = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (0.1, 3.0, 2.0)]),
+                                      trimesh.creation.box(bounds=[(0.0, 0.0, 3.0), (0.1, 3.0, 6.0)])])
+    along = {"how": "wall", "span": [[0.1, 0.0], [0.1, 6.0]], "out": [1.0, 0.0]}
+    holes = fitting.wall_holes(holed, along, (1.0, 1.5))
+    assert [(round(float(hole[:, 2].min()), 2), round(float(hole[:, 2].max()), 2)) for hole in holes] == [(2.0, 3.0)]
+    screen = (np.array([0.1, 1.0, 2.25]), np.array([0.2, 1.5, 2.75]))
+    assert np.allclose(fitting.on_wall(*screen, along, holes)[1], (0.15, 1.0, 1.75))
+    assert np.allclose(fitting.on_wall(*screen, along, ())[1], (0.15, 1.0, 2.5))
 
 
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):

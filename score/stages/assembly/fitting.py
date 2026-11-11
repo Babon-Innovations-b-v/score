@@ -412,6 +412,44 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None, built=()):
     return scale, np.array([spot[0], height, spot[1]])
 
 
+# A wall's face is probed for openings this far in front of its line, and met within this far behind it, metres.
+HOLE_FRONT = 0.3
+HOLE_DEEP = 1.0
+
+
+def wall_holes(mesh, on, band):
+    """The boxes (corners [8, 3]) of the openings cut through a wall relation's face (`on`, its span and out) within
+    a height `band` (low, high): each run of the face where rays every RAY_STEP along it at the band's low, middle and
+    high, cast from HOLE_FRONT in front of its line straight at it, meet no built wall (`mesh`, built_walls) within
+    HOLE_DEEP, as deep as HOLE_FRONT before the line to HOLE_DEEP behind it; none with no mesh. A wall thing keeps out
+    of them as it keeps out of a door's swing (on_wall's `clear`): walkway's and shiplock's screens hung in holes
+    cut through their walls (2026-11-11)."""
+    if mesh is None or not len(mesh.faces):
+        return []
+    start, run, out, length = wall_line(on)
+    alongs = np.arange(RAY_STEP / 2, length, RAY_STEP)
+    if not len(alongs):
+        return []
+    heights = np.linspace(band[0], band[1], 3)
+    floor = start[None, :] + run[None, :] * alongs[:, None] + out[None, :] * HOLE_FRONT
+    origins = np.array([[x, height, z] for x, z in floor for height in heights])
+    way = np.array([-out[0], 0.0, -out[1]])
+    hits, met, _ = mesh.ray.intersects_location(origins, np.tile(way, (len(origins), 1)), multiple_hits=False)
+    near = np.zeros(len(origins), bool)
+    near[met[np.linalg.norm(hits - origins[met], axis=1) <= HOLE_FRONT + HOLE_DEEP]] = True
+    open_at = ~near.reshape(len(alongs), len(heights)).any(axis=1)
+    found, begin = [], None
+    for number, opened in enumerate([*open_at, False]):
+        if opened and begin is None:
+            begin = number
+        elif not opened and begin is not None:
+            ends = (alongs[begin] - RAY_STEP / 2, alongs[number - 1] + RAY_STEP / 2)
+            found.append(np.array([[*(start + run * along + out * off)[[0]], height, *(start + run * along + out * off)[[1]]]
+                                   for along in ends for height in band for off in (-HOLE_DEEP, HOLE_FRONT)]))
+            begin = None
+    return found
+
+
 def wall_line(on):
     """(start, run, out, length) of a wall relation's face: its span's start [x, z], the unit way along it, the way
     `out` into the room, and its length in metres."""
@@ -1542,6 +1580,8 @@ def fitted(stage, place, entries, laid, cuts=None):
                 entry = {**entry, "on": built_on}
             walled = how in ("wall", "face") and name not in leaves
             clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
+            if turned:  # and out of the openings cut through its wall (wall_holes)
+                clear = [*clear, *wall_holes(faces(), entry["on"], (float(low[1]), float(high[1])))]
             others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
                 if walled else ()
             corners = oriented_corners(stage, path) if turned else None
