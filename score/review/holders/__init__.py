@@ -73,6 +73,7 @@ import re
 import numpy
 
 from score.review import plan_checks
+from score.review.holders import named_top
 from score.stages import row_kinds
 from score.stages import shell_parts
 from score.stages.earth_seed import design_shell
@@ -2320,6 +2321,7 @@ def relations(plan, inventory, sha=None, kinds=None):
             got, why = relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, kinds,
                                 pieces_at(name, row, plan, tied), found)
             if got:
+                got = named_top.named_top(got, item, row, rows, plan, items, laid, tied)
                 found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
             elif why:
                 unheld.append({"item": name, "row": row_id, "why": why})

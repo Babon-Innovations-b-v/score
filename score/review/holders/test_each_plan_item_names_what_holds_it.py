@@ -727,6 +727,12 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
         STAND_REACH` -> `if found[0] <= base + STAND_REACH` (the lamp over the rug on the rug) or -> `if True` (the lamp
         over the shelf on its top, inside it), or its `if named:` -> `if False:` (the TV on the floor), or its `if base
         <= max(STAND_REACH, tall / 2): return None` dropped (the lamp on the floor given a relation)
+    Break: score/review/holders/__init__.py: relations' `got = named_top.named_top(got, item, row, rows, plan, items,
+        laid, tied)` dropped (airlock's case on its floor plates 'on bench' left on the floor), or
+        score/review/holders/named_top.py: `if base <= max(holders.STAND_REACH, tall / 2) or not
+        holders.where_words(row) & ON_WORDS:` -> `if not holders.where_words(row) & ON_WORDS:` (the box drawn on the
+        floor 'on bench' laid on the bench) or -> `if base <= max(holders.STAND_REACH, tall / 2):` (the engine room's
+        railings drawn up 'around engines' laid on an engine's top)
     2026-11-06 (hangar's eight 32 m pipes at 10 m in one another, four on its 64 m left wall): three 8 m ducts on
     three items 4 m apart along the 20 m front wall, 2 m up: the second slides along it clear of the first, the third,
     with no room left along it, stands its tall and PIECE_GAP over its height, under the wall's top (the ducts stood
@@ -854,6 +860,21 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
         ("floor", 0.0), ("floor", 0.0), ("floor", 0.02)], found  # on the floor, the one over the rug on its top
     assert "LAMP 4" not in found, found["LAMP 4"]
     assert (found["TV 1"]["how"], found["TV 1"]["holder"]) == ("top", "TV STAND 1"), found["TV 1"]
+    # settle@airlock, 2026-11-11: its open case, anchored on its floor plates but 'on bench', drawn 0.49 m up beside
+    # the bench's top, was read as on the floor and floated 0.42 m: it stands on the bench's top; a box 'on bench' its
+    # plan draws on the floor stays there
+    rows = [{"id": "floor_plates", "noun": "floor plates", "part": "floor", "anchor": "ground"},
+            {"id": "bench", "noun": "bench", "anchor": "on:floor_plates", "size": [0.6, 0.6, 0.49]},
+            {"id": "case", "noun": "case", "anchor": "on:floor_plates", "where": "on bench", "size": [0.5, 0.4, 0.3]},
+            {"id": "box", "noun": "box", "anchor": "on:floor_plates", "where": "on bench", "size": [0.3, 0.3, 0.3]}]
+    items = [["BENCH 1", 2.0, 2.0, 1.0, 0.35, None, "item"], ["CASE 1", 3.1, 2.0, 0.35, 0.35, None, "item"],
+             ["BOX 1", 5.0, 5.0, 0.3, 0.3, None, "item"]]
+    benched = plan_of(items, {"BENCH 1": ["bench"], "CASE 1": ["case"], "BOX 1": ["box"]}, structure=["floor_plates"])
+    benched["shapes"] = {"CASE 1": {"base": 0.49, "tall": 0.3}, "BOX 1": {"base": 0.0, "tall": 0.3}}
+    found = by_item_of(holders.relations(benched, {"rows": rows, "picture": PICTURE}))
+    assert (found["CASE 1"]["how"], found["CASE 1"]["holder"], found["CASE 1"]["holder row"]) == (
+        "top", "BENCH 1", "bench"), found["CASE 1"]
+    assert found["BOX 1"]["how"] == "floor", found["BOX 1"]
     rows = [{"id": "floor_grating", "noun": "grating", "part": "floor", "anchor": "floor"},
             {"id": "railing", "noun": "railing", "anchor": "on:floor_grating", "size": [3.0, 2.0, 1.0], "count": 2},
             {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0]}]
