@@ -1824,7 +1824,19 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
         `if True:` (the lantern left under its string's end), or off_faces' `if behind < -MOVE_LEAST:` -> `if False:`
         (the clothes left in the wall)
     Break: score/stages/assembly/fitting.py: on_face's `if face is not None and clear:` -> `if False:` (the second
-        panel laid on the first)"""
+        panel laid on the first)
+    settle@street (2026-11-11): its 0.4 m red paper lanterns, laid against the side of their 1 cm lantern string,
+    were shrunk to 16% and 2% to fit its height. A 0.4 m lantern the plan stood 15 m off, which the record hangs
+    `below` an 8 m string 1 cm thick and sagging 6 cm a quarter of the way along it, keeps its size, its middle under
+    the string 2 m along it (6 m at three quarters), its top on the string's underside there, and is held there; the
+    rack against the facade is laid as before.
+    Break: score/stages/assembly/fitting.py: `if how == "face" and on.get("below"):` -> `if False:` (the lantern
+        shrunk against the string's side)
+    Break: score/stages/assembly/fitting.py: hung_under's `target[[0, 2]], top = met[0][[0, 2]], float(met[0][1])` ->
+        `pass` (hung under the box's foot, beside the string), or `target[[0, 2]] = foot[[0, 2]] if share is None else
+        hung_run(points, float(share))` -> `target[[0, 2]] = foot[[0, 2]]` (every lantern at the string's end)
+    Break: score/stages/assembly/fitting.py: off_holder's `return hung_off(low, high, box)` -> `pass` (the hung
+        lantern judged off the string's side)"""
     import trimesh
     from score.stages.assembly import fitting
     points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
@@ -1835,6 +1847,25 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     scale, target, (back, hung) = fitting.on_face(np.array([-0.75, 6.0, 0.5]), np.array([0.75, 6.1, 1.0]), on, box,
                                                   facade)
     assert back == 0.0 and np.allclose(target, (0.0, 6.0, 0.25)) and scale == 1.0 and not hung, (back, target)
+    walled = fitting.fit(np.array([-0.75, 6.0, 0.5]), np.array([0.75, 6.1, 1.0]), on, [box], facade)
+    assert walled[0] == 1.0 and np.allclose(walled[1], target) and walled[3] == (0.0, False), walled
+    sag = np.array([[x, 24.06 - 0.06 * (1.0 - (x / 4.0 - 1.0) ** 2), 0.0] for x in np.linspace(0.0, 8.0, 33)])
+    string = trimesh.util.concatenate([trimesh.creation.box(bounds=[(first[0], min(first[1], second[1]), -0.005),
+                                                                    (second[0], max(first[1], second[1]) + 0.01,
+                                                                     0.005)]) for first, second in zip(sag, sag[1:])])
+    strung = (np.asarray(string.bounds[0], float), np.asarray(string.bounds[1], float))
+    lantern = (np.array([9.8, 6.0, -15.2]), np.array([10.2, 6.4, -14.8]))  # where the plan stood it, far off
+    below = {"how": "face", "holder": ["lantern_string_1"], "out": [0.0, 1.0], "below": True, "along": 0.25}
+    scale, target, _, face = fitting.fit(*lantern, below, [strung], string)
+    under = string.vertices[np.abs(string.vertices[:, 0] - 2.0) < 0.13][:, 1].min()
+    assert scale == 1.0 and face is None and abs(target[2]) <= 0.005 and abs(target[0] - 2.0) < 0.13, target
+    assert abs(target[1] + 0.4 - under) < 0.01, (target, under)
+    assert abs(fitting.fit(*lantern, dict(below, along=0.75), [strung], string)[1][0] - 6.0) < 0.13
+    hung_low, hung_high = np.asarray(lantern[0]) - fitting.foot_middle(*lantern) + target, \
+        np.asarray(lantern[1]) - fitting.foot_middle(*lantern) + target
+    assert fitting.off(hung_low, hung_high, below, [strung]) <= fitting.HELD_MOST
+    assert fitting.off(*lantern, below, [strung]) > fitting.HELD_MOST  # left where the plan stood it, 6 m up
+    assert fitting.fit(*lantern, dict(below, below=False), [strung], string)[0] < 0.5  # against its side: shrunk
     # wreck (2026-11-11): three solar panels on their lander's N face laid at one spot, its built surface 1.5 m
     # inside its box's side, where the panels laid before it were never measured. A 0.3 m panel at a 2 m holder's
     # left end, the surface at z 0.9 inside its box (z 0 to 2) and one panel standing on it there, goes beside it.

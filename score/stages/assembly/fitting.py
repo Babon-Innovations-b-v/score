@@ -15,7 +15,9 @@ shrunk where it does not fit (never grown past its own model), so it sits
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
             door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
-            each swinging leaf turns through and of its passage (swing_box, passage_box) like a wall's
+            each swinging leaf turns through and of its passage (swing_box, passage_box) like a wall's; one the
+            record hangs `below` a holder much thinner than it (a lantern on its string) hung under the holder's
+            built surface at its built size, its top on it (hung_under)
     wall    with its back on a wall's face (`span`, `out` into the room), within the face's length, out of the room
             each swinging leaf turns through and of its doorway's passage (swing_box, passage_box, on_wall), on the
             front of the built ribs and pillars standing out of the face across it (stood_off)
@@ -198,6 +200,50 @@ def face_stretch(foot, size, on, box, band, clear=(), face=None):
     begin, end = stretch_for(stretches(start, run, out, length, size[axis], band, clear),
                              float(foot[side] - start[side // 2]), size[side])
     return start[side // 2] + begin, start[side // 2] + end
+
+
+def hung_under(low, high, box, surface=None, share=None):
+    """(1.0, foot middle) of a thing the scene record hangs under a holder much thinner than it (its relation's
+    `below`, scene_record/writer.thin_holder: a lantern on its 1 cm string), at its built size: its middle under the
+    point of the holder's built surface (`surface`) nearest where it would hang, its top on that point, which touching
+    then meets. Where it would hang: its own height under the holder box's foot, at `share` (its relation's `along`)
+    of the way along the holder's long run across the floor (hung_run), else at its own place across; with no
+    surface, under the box's foot there, kept within the box across. Laid against the string's side, settle@street's
+    red paper lanterns were shrunk to 16% and 2% of their size to fit its 1 cm height (2026-11-11)."""
+    import trimesh
+    size, foot, (hold_low, hold_high) = high - low, foot_middle(low, high), box
+    points = np.asarray(surface.vertices, float) if surface is not None and len(surface.faces) else \
+        np.array([[x, 0.0, z] for x in (hold_low[0], hold_high[0]) for z in (hold_low[2], hold_high[2])])
+    target = foot.copy()
+    target[[0, 2]] = foot[[0, 2]] if share is None else hung_run(points, float(share))
+    target[[0, 2]] = np.clip(target[[0, 2]], hold_low[[0, 2]], hold_high[[0, 2]])
+    top = float(hold_low[1])
+    if surface is not None and len(surface.faces):
+        hanging = np.array([[target[0], hold_low[1] - size[1], target[2]]])
+        met, _, _ = trimesh.proximity.closest_point(surface, hanging)
+        target[[0, 2]], top = met[0][[0, 2]], float(met[0][1])
+    target[1] = top - size[1]
+    return 1.0, target
+
+
+def hung_run(points, share):
+    """The floor point (x, z) `share` of the way along the long run across the floor of a holder's built `points`
+    ([n, 3]): their main line across the floor (its way's largest part positive), from their least reach along it to
+    their most."""
+    across = points[:, [0, 2]]
+    middle = across.mean(axis=0)
+    way = np.linalg.svd(across - middle, full_matrices=False)[2][0]
+    way = way if way[int(np.argmax(np.abs(way)))] > 0 else -way
+    reach = (across - middle) @ way
+    return middle + way * (reach.min() + (reach.max() - reach.min()) * share)
+
+
+def hung_off(low, high, box):
+    """Metres a thing hung under its thin holder (hung_under) stands off it: its top under the holder box's foot or
+    over its top, its middle past the box across."""
+    (hold_low, hold_high), middle = box, (np.asarray(low, float) + np.asarray(high, float)) / 2
+    return max(float(hold_low[1] - high[1]), float(high[1] - hold_high[1]),
+               overhang(middle, middle, hold_low, hold_high, (0, 2)), 0.0)
 
 
 def on_holder(low, high, how, on, box):
@@ -956,7 +1002,9 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
         if not boxes:
             return None
         box = nearest(boxes, low, high)
-        if how == "face":
+        if how == "face" and on.get("below"):  # under a holder much thinner than it, at its built size
+            scale, target = hung_under(low, high, box, surface, on.get("along"))
+        elif how == "face":
             scale, target, face = on_face(low, high, on, box, surface, recesses, [*clear, *mounted])
         else:
             scale, target = on_holder(low, high, how, on, box)
@@ -1025,7 +1073,8 @@ def off_holder(low, high, how, on, box):
     """Metres a box stands off its holder box: top (its foot off the top, its footprint past it), within (past it any
     way, but over its top when it stands on it: on_boards; one on its shelves may reach over its top from its top
     board, whose room over it the fitting found clear: storage's bags on their units' open top boards, 2026-11-11), face (its back off the face it was laid on, `face at`,
-    else the side `out` points from, it and its recess's room past that side's span, or above its top)."""
+    else the side `out` points from, it and its recess's room past that side's span, or above its top; one hung
+    `below` a thin holder as hung_off measures it)."""
     hold_low, hold_high = box
     if how == "top":
         return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
@@ -1034,6 +1083,8 @@ def off_holder(low, high, how, on, box):
             min(max(0.0, high[1] - hold_high[1]), abs(low[1] - hold_high[1]))  # on its top it stands over it
         return max(overhang(low, high, hold_low, hold_high, (0, 2)), max(0.0, hold_low[1] - low[1]), above,
                    abs(low[1] - hold_low[1]) if on.get("under") else 0.0)
+    if on.get("below"):  # hung under its thin holder (hung_under)
+        return hung_off(low, high, box)
     axis, side, sign = face_axes(on)
     below, above = beside(on, side)
     face = on.get("face at")

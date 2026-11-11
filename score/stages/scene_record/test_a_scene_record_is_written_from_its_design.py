@@ -889,7 +889,15 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     #94: the garage door its relation says rests leaning carries `rests` leaning for the settle to lean it by; the
     door, resting as the others lay it, carries none.
     Break: score/stages/scene_record/writer.py: `**({"rests": relation["rests"]} if relation and relation.get("rests")
-        else {})` -> `**{}`"""
+        else {})` -> `**{}`
+    settle@street (2026-11-11): its 0.4 m red paper lanterns, against the side of their 1 cm lantern string, were
+    shrunk to 16% and 2% to fit its height. Two lanterns against an 8 m string 1 cm thick are marked `below` (hung
+    under it at their own size), a quarter and three quarters of the way along it; the garage door against its 6 m
+    module is not.
+    Break: score/stages/scene_record/writer.py: `on["along"] = round((number + 0.5) / len(hung), 4)` -> `pass`
+    Break: score/stages/scene_record/writer.py: `return thick <= THIN_SHARE * min(float(side) for side in size)` ->
+        `return False` (the lantern laid against the string's side), or `-> return True` (the garage door hung under
+        its module)"""
     from score.stages.scene_record import gates, writer
     design = {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"],
                                               ["MODULE 1", 8.0, 2.0, 6.0, 6.0, None, "item"],
@@ -917,8 +925,9 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
         {"item": "CHAIR 1", "row": "chair", "how": "floor", "beside": "MODULE 1", "holder row": "module",
          "pieces": [{"how": "floor", "spot": [11.0, 8.4], "way": [1.0, 0.0], "why": "before module's S side"}],
          "why": "before module"},
-        {"item": "GARAGE DOOR 1", "row": "garage_door", "how": "face", "holder": "MODULE 1", "face": "S",
-         "why": "against module's side", "recess": {"room": 0.55, "room_way": [-1.0, 0.0]}, "rests": "leaning"},
+        {"item": "GARAGE DOOR 1", "row": "garage_door", "how": "face", "holder": "MODULE 1", "holder row": "module",
+         "face": "S", "why": "against module's side", "recess": {"room": 0.55, "room_way": [-1.0, 0.0]},
+         "rests": "leaning"},
         {"item": "SUIT 1", "row": "suit", "how": "within", "holder": "MODULE 1", "why": "within module", "hangs": True}]}
     found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)}
     door, lamp, garage = found["door"], found["lamp"], found["garage_door"]
@@ -927,6 +936,19 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert door["rotation"] == writer.yaw_turn(design, (1.0, 0.0), rows[0]["size"]), door
     assert garage["on"]["holder"] == ["module_1"] and garage["on"]["out"] == [0.0, 1.0], garage
     assert garage["rests"] == "leaning" and "rests" not in door, (garage, door)
+    assert "below" not in garage["on"], garage  # against its thick module's side, never under it
+    string_plan = {**design, "items": [["STRING 1", 4.0, 4.0, 8.0, 0.1, None, "item"],
+                                       ["LANTERN 1", 6.0, 14.0, 0.4, 0.4, None, "item"],
+                                       ["LANTERN 2", 7.0, 14.0, 0.4, 0.4, None, "item"]],
+                   "rows": {"STRING 1": ["string"], "LANTERN 1": ["lantern"], "LANTERN 2": ["lantern"]}}
+    hung = writer.design_objects(string_plan, {"rows": [
+        {"id": "string", "anchor": "floor", "route": "prop", "size": [8.0, 0.01, 0.01]},
+        {"id": "lantern", "anchor": "floor", "route": "prop", "size": [0.4, 0.4, 0.4]}], "objects": {}}, {"relations": [
+            {"item": f"LANTERN {number}", "row": "lantern", "how": "face", "holder": "STRING 1",
+             "holder row": "string", "face": "S", "why": "against string's side"} for number in (1, 2)]})
+    lanterns = [entry["on"] for entry in hung if entry["row"] == "lantern"]
+    assert [(on["below"], on["along"], on["holder"]) for on in lanterns] == [
+        (True, 0.25, ["string_1"]), (True, 0.75, ["string_1"])], lanterns
     assert (garage["on"]["room"], garage["on"]["room_way"]) == (0.55, [-1.0, 0.0]), garage  # kept within the face
     assert lamp["on"]["span"] == [[-9.9, 10.0], [-9.9, -10.0]] and lamp["on"]["out"] == [1.0, 0.0], lamp
     assert lamp["rotation"] == writer.yaw_turn(design, (0.0, 1.0), rows[1]["size"]) and lamp["at"][1] == 2.0, lamp
