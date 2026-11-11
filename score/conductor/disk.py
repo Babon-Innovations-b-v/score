@@ -1120,12 +1120,33 @@ def old_logs(home, runs_folder, now=None):
     return {"removed": removed, "refused": refused and f"tmp/ kept: {refused}"}
 
 
+def score_commands():
+    """The pids of every `python -m score ...` process but this one and its ancestors: a plan, a price, a preflight or
+    a moved check registers no run, yet builds layer_base's copies in work/motion-scratch while it judges gates."""
+    spare, found = frozen.ancestors(), []
+    for entry in pathlib.Path("/proc").iterdir():
+        if not entry.name.isdigit() or int(entry.name) in spare:
+            continue
+        try:
+            words = (entry / "cmdline").read_bytes().split(b"\0")
+        except (FileNotFoundError, ProcessLookupError):
+            continue  # it ended meanwhile
+        if any(words[at:at + 2] == [b"-m", b"score"] for at in range(len(words) - 1)):
+            found.append(int(entry.name))
+    return sorted(found)
+
+
 def clean_scratch(home=None, runs_folder=None):
-    """With no run live (cache_refusal), every entry of work/motion-scratch removed: layer_base's copies of a seed,
-    each a make's own and removed as that make ends, left there only by a make killed mid-way (2026-11-04: 3.3 GB,
-    the disk at 7.3 GB free and no run could start); {removed, refused}."""
+    """With no run live (cache_refusal) and no `score` command live (score_commands), every entry of
+    work/motion-scratch removed: layer_base's copies of a seed, each a make's own and removed as that make ends, left
+    there only by a make killed mid-way (2026-11-04: 3.3 GB, the disk at 7.3 GB free and no run could start). A
+    command registers no run: on 2026-11-11 the sync pass's sweep cleared the copies a Buy's whole-world `score plan`
+    was judging campgrounds' motion gates on (FileNotFoundError writing a texture), and every Buy was refused;
+    {removed, refused}."""
     home = pathlib.Path(home or PROPS_HOME)
     refused = cache_refusal(home, pathlib.Path(runs_folder or home / "runs"), home / "store" / "cache", [])
+    live = [] if refused else score_commands()
+    refused = refused or (live and f"score commands are live: {live}") or None
     scratch = home / MOTION_SCRATCH
     if refused or not scratch.is_dir():
         return {"removed": 0, "refused": refused}
