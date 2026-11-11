@@ -74,9 +74,17 @@ def laid_by_relations(stage, out, place, record, objects, baked=None):
                                                                     stage, f"/{place}/Objects/{name}")])
                     for name, box in boxes],
         "holders": [listed(name, *fitting.world_box(stage, f"/{place}/{scope}/{name}")) for scope, name in held],
-        "walls": [listed(name, *box) for name, box in fitting.walls(stage, place)],
+        "walls": [listed(name, *box, corners=[[round(float(value), 4) for value in point] for point in
+                                              fitting.wall_corners(stage, built_path(stage, place, name))])
+                  for name, box in fitting.walls(stage, place)],
         "roofs": fitting.through_roofs(stage, place, objects),
         "fitted": fits}, indent=1))
+
+
+def built_path(stage, place, name):
+    """The path of a built piece of the place (fitting.walls: under its Structure, else its Shell)."""
+    return f"/{place}/Structure/{name}" if stage.GetPrimAtPath(f"/{place}/Structure/{name}") else \
+        f"/{place}/Shell/{name}"
 
 
 def joined_rows(inputs):

@@ -952,8 +952,11 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         -> `if True:`
     Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes, shapes)` -> `return faults`
     Break: score/stages/assembly/fitting.py: held_faults' `and not fills_holder(entry):` -> `:` (the door's window in
-        the wall), or inside_of's `reach_into(corners, box_corners(box))` -> `float(depths(low, high, box).min())`
-        (the turned pipe past the wall's end named inside it)
+        the wall), or inside_of's `reach_into(corners, shapes.get(name, box_corners(box)))` -> `float(depths(low,
+        high, box).min())` (the turned pipe past the wall's end named inside it), or its `shapes.get(name,
+        box_corners(box))` -> `box_corners(box)` (lab's crate by its slanted wall named in it)
+    Break: score/stages/assembly/fitting.py: held_faults' `distance = min(distance, stacked_off(...` -> `distance =
+        min(distance, np.inf` (garage's stacked box named off its shelf)
     Break: score/stages/assembly/fitting.py: crowded_faults' `if entry["name"] in boxes` -> `if entry["name"] in
         boxes and not entry.get("on")` (two jars held at one spot on their shelf pass, galley 2026-11-03)
     Break: score/stages/assembly/fitting.py: holders_of's `more = {holder for one in more ...} - seen` -> `more =
@@ -1062,6 +1065,33 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     loose = [fault[0] for fault in fitting.held_faults({"objects": [record["objects"][1], {**window, "fills": False}]},
                                                        framed)]
     assert "window_1" in loose, loose
+    # garage (2026-11-11): boxes stacked on the boxes on its shelf units' tops were named 0.33 m off their shelves.
+    # A box standing on one within the same shelf stands on it; one floating over it is still named.
+    shelf = {"how": "within", "holder": ["shelf_1"]}
+    stack = {"objects": [{"name": "shelf_1", "low": [0.0, 0.0, 0.0], "high": [1.0, 1.0, 0.5]},
+                         {"name": "box_1", "low": [0.1, 1.0, 0.1], "high": [0.4, 1.3, 0.4]},
+                         {"name": "box_2", "low": [0.1, 1.3, 0.1], "high": [0.4, 1.6, 0.4]}]}
+    piled = {"objects": [{"name": "shelf_1"}, {"name": "box_1", "on": shelf}, {"name": "box_2", "on": shelf}]}
+    assert fitting.held_faults(piled, stack) == [], fitting.held_faults(piled, stack)
+    stack["objects"][2] = {"name": "box_2", "low": [0.1, 1.5, 0.1], "high": [0.4, 1.8, 0.4]}
+    assert [fault[0] for fault in fitting.held_faults(piled, stack)] == ["box_2"]
+    # lab (2026-11-11): things by its short slanted walls named in them by the walls' world boxes. A slab 1 m long
+    # and 0.1 m thick at 45 degrees: its own box (wall_corners) is that thin slab; a crate in its world box's corner,
+    # clear of the slab, is in no wall by it, and in the wall by the world box alone.
+    from pxr import Usd as _Usd, UsdGeom as _UsdGeom
+    slanted = _Usd.Stage.CreateInMemory()
+    run, out = np.array([1.0, 0.0, 1.0]) / 2 ** 0.5, np.array([-1.0, 0.0, 1.0]) / 2 ** 0.5
+    points = [tuple(float(value) for value in run * along + out * across + [0.0, height, 0.0])
+              for along in (0.0, 1.0) for height in (0.0, 3.0) for across in (0.0, 0.1)]
+    _UsdGeom.Xform.Define(slanted, f"/{TOY}/Structure/wall_1")
+    _UsdGeom.Mesh.Define(slanted, f"/{TOY}/Structure/wall_1/geo").CreatePointsAttr(points)
+    own = fitting.wall_corners(slanted, f"/{TOY}/Structure/wall_1")
+    crate = fitting.box_corners((np.array([0.55, 0.0, 0.0]), np.array([0.7, 1.0, 0.15])))
+    wall_box = (np.min(points, axis=0), np.max(points, axis=0))
+    assert fitting.inside_of(crate.min(axis=0), crate.max(axis=0), [("wall_1", wall_box)], crate,
+                             {"wall_1": own}) == []
+    assert [name for name, _ in fitting.inside_of(crate.min(axis=0), crate.max(axis=0), [("wall_1", wall_box)],
+                                                  crate)] == ["wall_1"]
     # lab and greenhouse (2026-11-11): pipes and railings turned along slanted walls and stairs failed as inside walls
     # and each other by their world boxes. A 2.83 m pipe at 45 degrees passing 0.09 m clear of a wall's end stands in
     # no wall by its turned box (its world box is 0.2 m in it); moved 0.5 m back along the wall it is in it.

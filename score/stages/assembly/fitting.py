@@ -743,6 +743,23 @@ def off_holder(low, high, how, on, box):
     return max(back, overhang(low, high, spared_low, spared_high, (side,)), max(0.0, high[1] - hold_high[1]))
 
 
+def stacked_off(low, high, on, holders, others):
+    """Metres a thing laid within its holders (`holders`, their boxes) stands off the top of one laid there before
+    (`others`, the boxes of the things the same holders hold) it is stacked on (on_boards' `stack`): its foot off that
+    one's top, its footprint past the holder it stands over; inf where it stands on none. Garage's boxes 8 to 13,
+    stacked on the boxes on its shelf units' tops, were named 0.33 m off their shelves (2026-11-11)."""
+    low, high = np.asarray(low, float), np.asarray(high, float)
+    under = [np.asarray(box[1], float) for box in others
+             if abs(float(box[1][1]) - float(low[1])) <= HELD_MOST and min(high[0], box[1][0]) - max(low[0], box[0][0])
+             > HELD_MOST and min(high[2], box[1][2]) - max(low[2], box[0][2]) > HELD_MOST]
+    if not under or not holders:
+        return np.inf
+    hold_low, hold_high = (np.asarray(end, float) for end in nearest(
+        [tuple(np.asarray(end, float) for end in box) for box in holders], low, high))
+    return max(min(abs(float(top[1]) - float(low[1])) for top in under),
+               overhang(low, high, hold_low, hold_high, (0, 2)))
+
+
 def too_narrow(low, high, on, box):
     """Metres a face is too narrow for an object and its recess's room beside it (0 where they fit)."""
     _, side, _ = face_axes(on)
@@ -854,13 +871,42 @@ def held_in(on):
     return bool(on) and (on["how"] == "in" or on.get("holder scope") == "Structure")
 
 
-def inside_of(low, high, built, corners=None):
+def inside_of(low, high, built, corners=None, shapes=None):
     """[(name, metres)] of the statics of the built structure a box reaches into by more than HELD_MOST every way: by
-    its turned box (`corners`, oriented_corners: reach_into) where given (lab's pipes along its slanted walls, their
-    world boxes in the walls at the corners, 2026-11-11)."""
-    found = [(name, float(depths(low, high, box).min()) if corners is None else reach_into(corners, box_corners(box)))
-             for name, box in statics(built)]
+    its turned box (`corners`, oriented_corners: reach_into) where given, against each static's own (`shapes`,
+    {name: corners}, wall_corners) where it has one (lab's pipes along its slanted walls, their world boxes in the
+    walls' world boxes at the corners, 2026-11-11)."""
+    shapes = shapes or {}
+    found = [(name, float(depths(low, high, box).min()) if corners is None else
+              reach_into(corners, shapes.get(name, box_corners(box)))) for name, box in statics(built)]
     return [(name, round(depth, 3)) for name, depth in found if depth > HELD_MOST]
+
+
+def wall_corners(stage, path):
+    """The 8 corners [8, 3] of a built piece's own box: the least-area rectangle round its drawn points on the floor
+    (a slanted wall's turned slab, never its world box, which holds the room beside it), its height theirs; its world
+    box's where it draws fewer than three points."""
+    points = surface_points(stage, path)
+    if len(points) < 3:
+        return box_corners(world_box(stage, path))
+    floor = points[:, [0, 2]]
+    from scipy.spatial import ConvexHull, QhullError
+    try:
+        floor = floor[ConvexHull(floor, qhull_options="QJ").vertices]
+    except (QhullError, ValueError):
+        return box_corners(world_box(stage, path))
+    best = None
+    for start, end in zip(floor, np.roll(floor, -1, axis=0)):
+        run = (end - start) / max(float(np.linalg.norm(end - start)), 1e-12)
+        across = np.array([-run[1], run[0]])
+        along, out = floor @ run, floor @ across
+        area = float(np.ptp(along) * np.ptp(out))
+        if best is None or area < best[0]:
+            best = (area, run, across, (along.min(), along.max()), (out.min(), out.max()))
+    _, run, across, alongs, outs = best
+    low, high = float(points[:, 1].min()), float(points[:, 1].max())
+    return np.array([[*(run * along + across * out)[[0]], height, *(run * along + across * out)[[1]]]
+                     for along in alongs for height in (low, high) for out in outs])
 
 
 def box_corners(box):
@@ -949,6 +995,8 @@ def held_faults(record, laid):
                                                                          *laid.get("holders", [])]}
     shapes = {entry["name"]: np.asarray(entry["corners"], float) for entry in laid.get("objects", [])
               if len(entry.get("corners") or ()) == 8}
+    built_shapes = {wall["name"]: np.asarray(wall["corners"], float) for wall in laid.get("walls", [])
+                    if len(wall.get("corners") or ()) == 8}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
     walled = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("span") is not None}
     stacked = {fit["name"]: fit["holder"] for fit in laid.get("fitted", []) if fit["how"] == "stacked"}
@@ -979,6 +1027,11 @@ def held_faults(record, laid):
                 faults.append((entry["name"], f"its holder's face is {narrow:.2f} m too narrow for it and its recess",
                                round(narrow, 3)))
             distance = off(*boxes[entry["name"]], on, held)
+            if distance is not None and distance > HELD_MOST and on["how"] == "within":
+                distance = min(distance, stacked_off(low, high, on, held, [
+                    boxes[other["name"]] for other in record.get("objects") or [] if other["name"] != entry["name"]
+                    and other["name"] in boxes and set((other.get("on") or {}).get("holder") or [])
+                    & set(on.get("holder") or [])]))
             if distance is None:
                 faults.append((entry["name"], f"its holder {', '.join(on.get('holder') or [])} is not laid", None))
             elif distance > HELD_MOST:
@@ -987,7 +1040,7 @@ def held_faults(record, laid):
         if not held_in(on) and not climbs(entry) and not fills_holder(entry):
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
             faults += [(entry["name"], f"laid {depth:.2f} m inside {static}, nothing holding it there", depth)
-                       for static, depth in inside_of(low, high, named_walls, shapes.get(entry["name"]))
+                       for static, depth in inside_of(low, high, named_walls, shapes.get(entry["name"]), built_shapes)
                        if not (passes(entry) and static.split("_")[0] == "wall")]
         if not held_in(on) and not climbs(entry):
             faults += [(entry["name"], f"laid {found['metres']:.2f} m up through {found['roof']}, nothing holding it "
