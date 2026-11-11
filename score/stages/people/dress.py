@@ -147,12 +147,16 @@ def triangle_labels(labels, faces):
 def surfaces_of(labels, faces, role, points):
     """Each triangle's painted surface: one for a hard or skin part (the one most of its area wears), else its own."""
     if role in ONE_SURFACE:
-        per_triangle = triangle_labels(labels, faces)
-        corners = points[faces]
-        areas = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
-        names, numbers = np.unique(per_triangle, return_inverse=True)
-        return np.full(len(faces), names[np.bincount(numbers, weights=areas).argmax()])
+        return np.full(len(faces), most_area(triangle_labels(labels, faces), faces, points))
     return triangle_labels(smoothed_labels(labels, faces), faces)
+
+
+def most_area(per_triangle, faces, points):
+    """The surface most of the triangles' area wears."""
+    corners = points[faces]
+    areas = np.linalg.norm(np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0]), axis=1)
+    names, numbers = np.unique(per_triangle, return_inverse=True)
+    return names[np.bincount(numbers, weights=areas).argmax()]
 
 
 def islands_of(points, faces, labels):
@@ -346,8 +350,14 @@ def named(material, name, spec):
 
 def painted_primitives(document, rest, primitives, painted, roles):
     """Per primitive (its faces, each triangle's painted surface, each point's distance to the take): surfaces_of on
-    each, then the mesh's strays merged over all of them (without_strays), a one-surface part kept as it is."""
-    found, corners, kept, labels = [], [], [], []
+    each, then the mesh's strays merged over all of them (without_strays), a one-surface part kept as it is. A
+    primitive drawn in a material an earlier one draws is the route's under layer (route_build.under_layer: the base
+    body in its garment's cloth, at least UNDER_INSET under it, closing the cut webs' gaps with cloth colour): it
+    lies off the take's outer surface, so it reads none of its own but wears the one surface most of its garment's
+    area wears, kept, and is measured with it. Read on its own, the pilot's under layer took the skin of the open
+    collar 1.8 cm above it and, measured with the jumpsuit's 25 points of that skin, failed aligned at 1.38 cm
+    (2026-11-11)."""
+    found, corners, kept, labels, garments = [], [], [], [], {}
     for primitive, role in zip(primitives, roles):
         attributes = primitive["attributes"]
         points = positions(document, rest, attributes["POSITION"])
@@ -356,8 +366,11 @@ def painted_primitives(document, rest, primitives, painted, roles):
         faces = accessor(document, rest, primitive["indices"]).reshape(-1, 3).astype(np.int64)
         found.append((faces, apart))
         corners.append(points[faces].reshape(-1, 3))
-        kept.append(np.full(len(faces), role in ONE_SURFACE))
-        labels.append(surfaces_of(laid, faces, role, points))
+        under = primitive["material"] in garments
+        kept.append(np.full(len(faces), under or role in ONE_SURFACE))
+        labels.append(np.full(len(faces), garments[primitive["material"]]) if under else
+                      surfaces_of(laid, faces, role, points))
+        garments.setdefault(primitive["material"], most_area(labels[-1], faces, points))
     sizes = np.cumsum([0] + [len(faces) for faces, _ in found])
     merged = without_strays(np.vstack(corners), np.arange(sizes[-1] * 3).reshape(-1, 3), np.concatenate(labels),
                             np.concatenate(kept))
