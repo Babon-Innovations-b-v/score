@@ -11,7 +11,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
 - the_drop_gate_fails_a_broken_drop_and_names_what_was_kept: judge_rested's `if "still moving" in entry["said"]`
   made `if False`; and its `if laid_wrong(entry)]` made `if False]` (one left as laid inside another, inside a wall
   or floating passes, as galley's chairs in its table did on 2026-11-03 and the hangar's ship 72 cm up); and
-  worse_faults' `or fault["kind"] == "overlaps"` dropped (an overlap there as laid excused); planned_within's
+  worse_faults' `or fault["kind"] == "overlaps"` dropped (an overlap there as laid not named worse);
+  resting_verdict's `checks.FAIL if real["after"]` made `checks.FAIL if new` (galley's jar floating 1.5 m as laid
+  passes, 2026-11-11), or made `checks.FAIL` (a layer resting everything fails); planned_within's
   `return other in contained.get(one, ()) or one in contained.get(other, ())` made `return False` (plants laid within
   their bed fail, greenhouse 2026-11-09), or made `return True` (a laptop on its desk excused).
 - only_what_lies_on_the_object_resting_worse_is_kept_with_it: kept_where_worse's `resting_on(name) & worse` made
@@ -183,7 +185,14 @@ def the_drop_gate_fails_a_broken_drop_and_names_what_was_kept():
     overlap = {"object": "/galley/Objects/dining_chair_2", "kind": "overlaps"}
     lean = {"object": "/galley/Objects/dining_chair_2", "kind": "leans"}
     if settle.worse_faults([overlap], [overlap, lean]) != [overlap] or settle.worse_faults([], [lean]) != [lean]:
-        problems.append("the resting gate excused an overlap there as laid, or failed another fault kept as laid")
+        problems.append("an overlap there as laid, or a fault new with the layer, was not named worse")
+    floats = {"object": "/galley/Objects/jars_2", "kind": "floats", "measure": 1.5075, "why": "nothing under it"}
+    as_laid = settle.resting_verdict({"before": [floats], "after": [floats]}, 19)
+    clean = settle.resting_verdict({"before": [floats], "after": []}, 19)
+    if as_laid.answer != checks.FAIL or not as_laid.findings[0].startswith("as laid: /galley/Objects/jars_2"):
+        problems.append(f"a jar floating 1.5 m as laid passed the resting gate (galley, 2026-11-11): {as_laid}")
+    if clean.answer != checks.PASS:
+        problems.append(f"a layer that rests everything failed the resting gate: {clean}")
     record = {"objects": [{"name": "plants_1", "on": {"how": "within", "holder": ["planter_bed_1"]}},
                           {"name": "laptop_1", "on": {"how": "top", "holder": ["desk_1"]}}]}
     contained = settle.within_of(record)
