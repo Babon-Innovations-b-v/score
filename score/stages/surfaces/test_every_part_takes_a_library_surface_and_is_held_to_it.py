@@ -104,6 +104,9 @@ tests it turned red:
   a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions (a_plan_redrawn_on_the_same_floor_
   keeps_the_rough_align); carry.py `if any(record.get(part) != keyed.get(part) for part in CONTENT_SAME):` -> `if
   False:`  -> a key whose seed moved carries: the same test
+- people/same_content.py: `entry["model"] = in_output(entry["model"])` -> `pass`  -> a look's parts whose people-made
+  moved by its model path alone is not kept: the same test (a_look_s_parts_keep_a_people_made_moved_by_its_model_
+  path_alone); carry.py `CONTENT_SAME = (...)` -> `()`  -> a key whose params moved carries: the same test
 - finish_parts.py: `found[reached] = face_label[source[reached]]` -> `found[reached] = 0`  ->
   unvoted_faces_take_the_nearest_voted_label_along_the_surface
 - finish_parts.py: `host = np.flatnonzero(hosts & (face_label == finish))` -> `host = np.flatnonzero(hosts)`  ->
@@ -1388,6 +1391,7 @@ def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_ve
         shutil.rmtree(folder)
     content_keeps_only_the_same_pictures()
     a_plan_redrawn_on_the_same_floor_keeps_the_rough_align()
+    a_look_s_parts_keep_a_people_made_moved_by_its_model_path_alone()
 
 
 def props_inputs_output(store, concept, picture_sha, key):
@@ -1487,6 +1491,48 @@ def a_plan_redrawn_on_the_same_floor_keeps_the_rough_align():
     kept = row.files.carried(runner, row, "hub", keyed)
     assert store.record("rough-align@hub", "n-same") == kept and kept["output"] == record["output"]
     assert kept["carried"]["same content"]["plan"]["rule"] == "score.stages.rough_model.same_content.plan_floor"
+
+
+def people_made_output(store, key, model, labelled=b"the painted take"):
+    """A people-made@people output handing on one look baked as `model`, its labelled take `labelled`, recorded
+    under `key`; its output."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "labelled").mkdir()
+    (folder / "labelled" / "astronaut-made-s1.npz").write_bytes(labelled)
+    (folder / "made.json").write_text(json.dumps({"astronaut-made": {
+        "take": "astronaut-made-s1", "model": model, "labelled": "labelled/astronaut-made-s1.npz"}}))
+    output = store.put_tree(folder)
+    store.write_record("people-made@people", key, {"output": output, "finished": "2026-11-10T00:00"})
+    return output
+
+
+def a_look_s_parts_keep_a_people_made_moved_by_its_model_path_alone():
+    """A look's parts read people-made beside, by its content (people/same_content.py): its accepted output carries to
+    a key moved by a people-made whose model is written in its bake output where it was an absolute path into a run's
+    frozen home (2026-11-10: the 9 accepted look-parts, about EUR 15); one whose labelled take is other bytes, or a
+    key whose other parts moved, carries nothing."""
+    store = a_store()
+    row = next(row for name, row in ROWS.items() if name.startswith("people-look-parts-"))
+    frozen = ("/home/someone/.score/frozen/20261110-101556-1.home/store/cache/checkouts/" + "b" * 64
+              + "/made/astronaut-made.gltf")
+    then = people_made_output(store, "k-then", frozen)
+    record = {**a_record(), "node": row.name, "beside": {"people-made@people": then}, "finished": "2026-11-10T00:00"}
+    store.write_record(row.name, record["key"], record)
+    store.write_accept(row.name, {"output": record["output"], "key": record["key"], "at": "2026-11-10T00:00"})
+    runner = StubRunner()
+    runner.store = store
+    for labelled, same in ((b"the painted take", True), (b"another painted take", False)):
+        now = people_made_output(store, f"k-{same}", "made/astronaut-made.gltf", labelled)
+        keyed = {**record, "key": f"n-{same}", "beside": {"people-made@people": now}}
+        assert row.files.carries(runner, row, None, keyed) is same, labelled
+    now = people_made_output(store, "k-same", "made/astronaut-made.gltf")
+    keyed = {**record, "key": "n-same", "beside": {"people-made@people": now}}
+    assert not row.files.carries(runner, row, None, {**keyed, "params": {"take": "another"}})
+    kept = row.files.carried(runner, row, None, keyed)
+    assert store.record(row.name, "n-same") == kept and kept["output"] == record["output"]
+    assert kept["beside"] == keyed["beside"], kept
+    assert kept["carried"]["same content"]["people-made@people"]["rule"] == \
+        "score.stages.people.same_content.people_made", kept
 
 
 def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():

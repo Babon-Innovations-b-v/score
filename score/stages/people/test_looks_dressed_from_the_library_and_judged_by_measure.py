@@ -9,7 +9,8 @@ check, the clips' clearance easing, and the full-or-far rule on the design.
 Breaks that turn it red (each applied once and seen red, then reverted):
 - `loop.take_faults`: the `file_hash(path) != recorded...` test dropped  -> the take bytes test.
 - `loop.judge_made`: `PASS if through else FAIL` read as `PASS`  -> the take bytes test (no look came through).
-- `loop.handed`: the missing labelled take's gap made a `pass`  -> the labelled take test.
+- `loop.handed`: the missing labelled take's gap made a `pass`  -> the labelled take test; `in_bake(found["model"],
+  bake)` read as `found["model"]`  -> the loop test (a home's absolute path handed on, 2026-11-10).
 - `stages.BATCH_GATES`: its `people-made` entry dropped  -> the take bytes test (a look a batch gap left out
   fails the place's people-made, camp's astronaut_1 2026-11-10).
 - `bodies.laid_take`: the `filecmp.cmp` skip dropped  -> the loop test (a file of the same bytes written again);
@@ -104,7 +105,8 @@ def test_the_loop_hands_each_look_on_and_names_its_gap():
         assert found["player-work"]["finishes"] == [{"part": 0, "surface": "navy_twill"}], found
         assert (out / found["player-work"]["labelled"]).exists() and "no baked model" in found["nev-space"]["gap"]
         assert found["player-work"]["failures"] == {"take": "made before the loop"}, found  # named, never silent
-        assert found["player-work"]["model"].endswith("made/player-work.gltf"), found
+        # its place in the bake output, never a home's absolute path (it moved with every frozen home, 2026-11-10)
+        assert found["player-work"]["model"] == "made/player-work.gltf", found
         # the surfaces with the list's settings the bake painted, resolved from its specs.json for the dress
         assert found["player-work"]["specs"] == {"navy_twill__navy_r080_m000_s7": {"library": "navy_twill",
                                                                                    "metal": 0.0}}, found

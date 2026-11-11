@@ -3,7 +3,8 @@ line `people`, which no place owns (shapes_first/align.NO_PLACE). Every look is 
 (data/props/people.json), made like every model: its close-up, its Pixal3D take, the finish route and its bake, the
 likeness gate; a step made outside the loop is a named failure in the row's record (`failures`), handed on with it.
 This row reads the loop's ends (made.ENDS) and pixal@people, and hands each look on: made.json, {look: {"take",
-"model" (the loop's baked model), "finishes" (its surfaces-parts part rows), "labelled" (its painted samples,
+"model" (the loop's baked model, its path in the surfaces-bake output it was baked in: never a home's absolute
+path, which moved with every frozen run home and re-keyed every look's paid rows, 2026-11-10), "finishes" (its surfaces-parts part rows), "labelled" (its painted samples,
 labelled/<take>.npz), "specs" (each library surface the bake painted on it, with its settings, as the bake's
 specs.json holds it), "files" (takes/<take>/: its raw and finished Pixal3D model and its close-up, the bytes
 pixal@people's takes.json names), "failures"} or {"gap": <why>}}, and each labelled take the bake painted, so the dress
@@ -52,8 +53,13 @@ def handed(found, bake, made_takes, out):
     files.mkdir(parents=True)
     for path in pixal_row.take_files(take):
         (shutil.copytree if path.is_dir() else shutil.copyfile)(path, files / path.name)
-    return {"take": take, "model": found["model"], "finishes": found["finishes"], "labelled": f"labelled/{take}.npz",
+    return {"take": take, "model": in_bake(found["model"], bake), "finishes": found["finishes"], "labelled": f"labelled/{take}.npz",
             "specs": painted_specs(bake, labelled), "files": f"{TAKES}/{take}", "failures": found["failures"]}
+
+
+def in_bake(model, bake):
+    """The baked model's path in its surfaces-bake output (made/<model>.gltf), the same in every home."""
+    return pathlib.Path(model).relative_to(bake).as_posix()
 
 
 def painted_specs(bake, labelled):
