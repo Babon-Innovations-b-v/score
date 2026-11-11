@@ -461,11 +461,12 @@ def on_run(row, holder_row):
     return all(longest >= RUN_SHARE * other for other in sorted(holder)[:2]) and float(size[2]) > float(holder[2])
 
 
-def held(item, row, holder_row, holder_items, items, turn, room=None):
+def held(item, row, holder_row, holder_items, items, turn, room=None, plan_top=False):
     """A relation to a holder the plan lays, its nearest item: within it, at its foot, where its reading says it is
     under it, and within it where on its shelves (placement: the settle lets it down onto the shelf under it); top
     (where it fits under the place's height `room`, never one said on its holder's side), within it where the plan
-    lays it inside (on its top where it is a fitting on a run: on_run), else against the face the concept shows it
+    lays it inside (on its top where it is a fitting on a run: on_run), on its top where it lies flat and the plan
+    stands it at its holder's top (`plan_top`: lies_flat, stands_on_top), else against the face the concept shows it
     on, the plan's side toward it, its facing, its holder's, or S."""
     nearest = min(holder_items, key=lambda name: float(numpy.linalg.norm(middle(items[name]) - middle(item))))
     said = "side" if rests(row) == LEANING else placement(row, holder_row)  # a leaning thing stands against a side
@@ -481,6 +482,8 @@ def held(item, row, holder_row, holder_items, items, turn, room=None):
             return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}: the plan lays it inside a run "
                                                             "lower than it is tall"}
         return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}
+    if plan_top and said != "side" and fits_over(row, holder_row, room) and not design_shell.fills_opening(row):
+        return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top: the plan stands it there"}
     for face, why in ((seen_side(row, holder_row, turn), "side the concept shows it on"),
                       (side_toward(item, items[nearest]), "side toward it on the plan"),
                       (item[5], "side its own facing names: the plan lays it on its holder's spot"),
@@ -488,6 +491,31 @@ def held(item, row, holder_row, holder_items, items, turn, room=None):
                       ("S", "S side: the plan lays it on its holder's spot, facing nowhere")):
         if face:
             return {"how": "face", "holder": nearest, "face": face, "why": f"against {holder_row['id']}'s {why}"}
+
+
+def stands_on_top(item, holder_item, plan):
+    """Whether the plan stands an item at its holder item's top: its shape's base within STAND_REACH of the holder's
+    base plus tall, the holder of some height. Galley's stove top and sink, anchored on its 0.9 m counter at 0.9 m,
+    drawn half past its front edge: the concept's boxes did not read as on its top, and they were laid against its
+    side, the stove floating 0.76 m and the sink tipping (2026-11-11)."""
+    shape, under = shape_of(item[0], plan), shape_of(holder_item[0], plan)
+    tall = float(under.get("tall") or 0.0)
+    return tall > 0.0 and abs(float(shape.get("base") or 0.0) - float(under.get("base") or 0.0) - tall) <= STAND_REACH
+
+
+# A row at most this share of its least footprint side tall lies flat (a stove top, a sink): it has no side to stand
+# against its holder's with, so where the plan stands it at its holder's top it is on that top (lies_flat).
+FLAT_SHARE = 0.5
+
+
+def lies_flat(row):
+    """Whether a row lies flat: its read height (size[2]) at most FLAT_SHARE of its least footprint side. Galley's
+    0.05 m stove top and 0.2 m sink do; a monitor on its console's front (0.4 m on a 0.1 m foot), a 5 m mast and a
+    poster do not, and keep the face the concept shows them against."""
+    size = row.get("size")
+    if not (isinstance(size, list) and len(size) == 3) or min(float(size[0]), float(size[1])) <= 0.0:
+        return False
+    return float(size[2]) <= FLAT_SHARE * min(float(size[0]), float(size[1]))
 
 
 def walls_of(plan):
@@ -1213,7 +1241,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
             pairs = [(other, name) for other in alike_holders(row, holder, rows, laid) for name in laid[other["id"]]
                      if inside(item, items[name])] or pairs
         nearest = min(pairs, key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
-        found = {**held(item, row, nearest[0], [nearest[1]], items, turn, room_height(plan)),
+        found = {**held(item, row, nearest[0], [nearest[1]], items, turn, room_height(plan),
+                        lies_flat(row) and stands_on_top(item, items[nearest[1]], plan)),
                  "holder row": nearest[0]["id"]}
         holder_item = items[nearest[1]]
         if found["how"] == "within" and hangs(item, holder_item, plan):

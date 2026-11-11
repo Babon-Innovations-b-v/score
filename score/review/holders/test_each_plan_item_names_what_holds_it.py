@@ -119,7 +119,14 @@ def test_a_monitor_stands_on_its_console_s_top():
     Break: score/review/holders/__init__.py: `return under[3] - seen[3] > TOP_SHARE * tall and seen[1] < under[1] +
         TOP_SHARE * tall` -> `return False`
     Break: score/review/holders/__init__.py: held's `if said in ("under", "shelf"):` -> `if False:`, or placement's
-        `(?<!left )(?<!right )` dropped (a monitor on the left of its console laid on its side)"""
+        `(?<!left )(?<!right )` dropped (a monitor on the left of its console laid on its side)
+    Galley (settle@galley, 2026-11-11): its stove top and sink, flat, anchored on its 0.9 m counter at 0.9 m but drawn
+    half past its front edge with boxes the concept does not show on its top, were laid against its side, the stove
+    floating 0.76 m: a flat thing the plan stands at its holder's top is on it; one standing on the floor, and a
+    monitor (not flat) there, keep the side.
+    Break: score/review/holders/__init__.py: held's `if plan_top and said != "side"` -> `if False and said != "side"`
+    Break: score/review/holders/__init__.py: lies_flat's `<= FLAT_SHARE * min(` -> `<= 9.0 * min(` (the monitor on
+        the top), or stands_on_top's `<= STAND_REACH` -> `<= 9.0` (the stove on the floor on the top)"""
     rows = [{"id": "console", "noun": "console", "anchor": "floor", "box": [300, 300, 700, 500]},
             {"id": "monitor", "noun": "monitor", "anchor": "on:console", "box": [400, 220, 480, 330]}]
     plan = plan_of([["CONSOLE 1", 2.0, 2.0, 3.0, 0.8, "S", "item"], ["CONSOLE 2", 12.0, 2.0, 3.0, 0.8, "S", "item"],
@@ -133,6 +140,19 @@ def test_a_monitor_stands_on_its_console_s_top():
                           ("console side", ("face", None)), ("left side of console", ("top", None))):
         said = by_row(holders.relations(plan, {"rows": [rows[0], {**rows[1], "where": where}], "picture": PICTURE}))
         assert (said["monitor"]["how"], said["monitor"].get("under")) == wanted, (where, said["monitor"])
+    counter = {"id": "kitchen_counter", "noun": "counter", "anchor": "floor", "size": [3.5, 0.6, 0.9],
+               "box": [1692, 603, 1949, 779]}
+    for size, base, wanted in (([0.6, 0.6, 0.05], 0.9, "top"), ([0.6, 0.6, 0.05], 0.0, "face"),
+                               ([0.5, 0.1, 0.4], 0.9, "face")):
+        stove = {"id": "stove_top", "noun": "stove", "anchor": "on:kitchen_counter", "where": "right wall, on counter",
+                 "size": size, "box": [1500, 700, 1680, 779]}
+        plan = plan_of([["KITCHEN COUNTER 1", 3.625, 0.775, 0.6, 3.5, "E", "item"],
+                        ["STOVE TOP 1", 4.017, 1.544, 0.566, 0.878, "E", "item"]],
+                       {"KITCHEN COUNTER 1": ["kitchen_counter"], "STOVE TOP 1": ["stove_top"]},
+                       shapes={"KITCHEN COUNTER 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
+                               "STOVE TOP 1": {"shape": "rect", "tall": 0.05, "base": base}})
+        found = by_row(holders.relations(plan, {"rows": [counter, stove], "picture": [3000, 1200]}))["stove_top"]
+        assert (found["how"], found["holder"]) == (wanted, "KITCHEN COUNTER 1"), (size, base, found)
 
 
 def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
