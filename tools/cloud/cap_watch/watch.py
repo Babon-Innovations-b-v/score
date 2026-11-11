@@ -64,6 +64,15 @@ def seen(previous, live, owner):
     return found
 
 
+def of_this_cap(reading, cap):
+    """The newest reading when it was taken under this cap (its record time kept as `cap_at`), else None: a cap set
+    again starts its meter and good-read clock afresh, never carrying a former cap's machines (2026-11-11: a cap
+    re-set at 08:24 still read EUR 242 from the meter the former cap had grown)."""
+    if reading and reading.get("cap_at") == cap.get("at"):
+        return reading
+    return None
+
+
 def growth(cap, lines):
     """{line: euros} each counted line has grown by since the cap's baseline, never below 0."""
     base = cap["baseline"]["lines"]
@@ -192,7 +201,7 @@ def one_pass(book, bill_reader=read_bill, live_reader=read_live, stop=stop_paid_
     cap = guard.current_cap(book, name)
     if not cap or not cap.get("open"):
         return None
-    previous = guard.cap_newest(book, "readings", name)
+    previous = of_this_cap(guard.cap_newest(book, "readings", name), cap)
     good = previous if previous and not previous.get("unread") else None
     good_at = good["at"] if good else (previous or {}).get("good_at")
     try:
@@ -211,6 +220,7 @@ def one_pass(book, bill_reader=read_bill, live_reader=read_live, stop=stop_paid_
                    "whole": bill["whole"], "rate": round(sum(item["per_hour"] for item in live.values()
                                                              if item["owner"] == "score"), 3),
                    "score": score_seen, "babon": babon_seen}
+    reading["cap_at"] = cap.get("at")
     reading["cleaned"], reading["swept"] = (cleaner or clean)(), swept
     guard.cap_write(book, "readings", reading, name)
     why = over(cap, reading)
