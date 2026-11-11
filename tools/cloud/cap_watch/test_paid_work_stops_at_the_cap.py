@@ -81,6 +81,11 @@ def test_paid_work_stops_at_the_line_or_when_the_bill_is_blind_and_never_under_i
     assert (metered["bill"], metered["meter"]) == (60.0, 23.7) and metered["counter"] == 60.0
     later = passes(36, bill({L4: 400.0, CPU: 160.0}), live=l4s(10, 34.5))
     assert later["counter"] == later["meter"] == 272.55 and "stop line" in later["stopped"] and len(stops) == 2
+    # a cap set again starts its meter afresh: the former cap's machines are not carried into the new one
+    guard.set_cap(book, {"euros": 155.0, "line": 155.0, "start": watch.iso(START + 36 * 3600), "by": "joey",
+                         "at": watch.iso(START + 36 * 3600), "baseline": {"whole": 2300.0, "lines": {L4: 400.0, CPU: 160.0}}})
+    again = passes(36.1, bill({L4: 400.0, CPU: 160.0}))
+    assert (again["meter"], again["counter"], again["stopped"]) == (0.0, 0.0, None)
     # babon's share: a babon L4 seen 8 h is taken off the shared line once its reading is LAG_HOURS old, capped there
     fresh = guard.FolderBook(tmp_path / "split")
     guard.set_cap(fresh, {"euros": 300.0, "line": 255.0, "start": watch.iso(START), "by": "joey",
