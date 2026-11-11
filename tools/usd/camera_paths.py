@@ -234,12 +234,24 @@ def place_scenes(stage_path, times=None):
     (`solid`: the meshes as one tree and each person's and moving thing's box), the ground's height under any (x, z), and the
     place's extent (x, z) without the ground."""
     laid = snap.read_place(stage_path)
-    shown = {**laid["objects"], **laid["statics"]}
-    still = trimesh.util.concatenate([*shown.values(), laid["ground"]])
-    corners = np.vstack([mesh.bounds for mesh in shown.values()]) if shown else np.zeros((2, 3))
+    return scenes_of({**laid["objects"], **laid["statics"]}, laid["ground"], laid["height"],
+                     moving_boxes(stage_path, times))
+
+
+def scenes_of(shown, ground, height, boxes):
+    """A place for the camera (place_scenes) from its models ({name: mesh in the place's frame}), its ground's mesh,
+    the ground's height under any (x, z) and the people's and moving things' boxes; `owners` numbers the model each
+    face of the mesh the rays meet comes from (-1 the ground's): models_round."""
+    meshes = list(shown.values())
+    still = trimesh.util.concatenate([*meshes, ground])
+    owners = np.concatenate([np.full(len(mesh.faces), number) for number, mesh in enumerate(meshes)] +
+                            [np.full(len(ground.faces), -1)]).astype(np.int64)
+    if len(owners) != len(still.faces):
+        raise ValueError(f"the place's mesh has {len(still.faces)} faces, its models {len(owners)}")
+    corners = np.vstack([mesh.bounds for mesh in meshes]) if meshes else np.zeros((2, 3))
     extent = (corners[:, 0].min(), corners[:, 2].min(), corners[:, 0].max(), corners[:, 2].max())
-    scenes = {"still": still, "tree": mesh_tree(still), "height": laid["height"], "extent": extent}
-    return with_people(scenes, moving_boxes(stage_path, times))
+    scenes = {"still": still, "tree": mesh_tree(still), "owners": owners, "height": height, "extent": extent}
+    return with_people(scenes, boxes)
 
 
 def with_people(scenes, boxes):
@@ -387,6 +399,30 @@ def inside_solid(mesh, eye):
     return int(behind.sum()) >= INSIDE_SHARE * len(INSIDE_WAYS)
 
 
+def models_round(scenes, eye):
+    """The models (their numbers in the scenes' `owners`) an eye stands within, open or closed: at least INSIDE_SHARE
+    of the ways round it (INSIDE_WAYS) meet that one model first, from either side. An eye in an open tunnel stands
+    within it though no face is behind it (inside_solid); an eye in a room meets its walls, floor and things by
+    turns (2026-11-11: workshop's from-door-2 moved out through its door into glass_tunnel_left_1)."""
+    origins = np.tile(np.asarray(eye, dtype=float), (len(INSIDE_WAYS), 1))
+    _, _, faces = scenes["still"].ray.intersects_location(origins, INSIDE_WAYS, multiple_hits=False)
+    met = scenes["owners"][faces]
+    counts = np.bincount(met[met >= 0])
+    return set(np.flatnonzero(counts >= INSIDE_SHARE * len(INSIDE_WAYS)).tolist())
+
+
+def steps_in(scenes, view, spot, inside, within):
+    """Whether a still view's eye may move to the spot: a straight line reaches it (reached), into no model the eye
+    did not already stand within (models_round: `within`, the eye's own), and an eye `inside` a solid steps no way
+    back from its look, into the room it looks across, never out through the door behind it (2026-11-11: workshop's
+    from-door-2 moved 1.25 m back out of its desk into the tunnel outside its door, its picture the desk's unlit
+    back)."""
+    eye = np.asarray(view["eye"], dtype=float)
+    look = np.asarray(view["aim"], dtype=float) - eye
+    backward = inside and float(np.dot((np.asarray(spot) - eye)[[0, 2]], look[[0, 2]])) < -KEPT_TO
+    return not backward and reached(scenes, eye, spot, inside) and models_round(scenes, spot) <= within
+
+
 def view_faults(scenes, view, size):
     """Why a still view would not see the place, [] when it does: its eye inside a solid, nearer than CLEARANCE to a
     mesh, a person or a moving thing, its middle meeting a surface nearer than LOOK_CLEAR, or more than NEAR_MOST of
@@ -429,10 +465,10 @@ def reached(scenes, eye, spot, inside):
 
 def cleared_view(scenes, view, size):
     """(view, why): the view as it is when it sees the place (view_faults); else the nearest change that does, a turn
-    about its eye of TURN_STEP or a move of its eye MOVE_STEP out (along a line meeting no surface, its aim moved with
-    it) weighing one step each, up to all the way round and MOVE_MOST out: a door's view keeps looking into the room
-    where a short move clears it rather than turning to a wall; the change said in its `cleared`. (None, why) when
-    nothing within reach clears it."""
+    about its eye of TURN_STEP or a move of its eye MOVE_STEP out (to a spot it steps in to: steps_in, its aim moved
+    with it) weighing one step each, up to all the way round and MOVE_MOST out: a door's view keeps looking into the
+    room where a short move clears it rather than turning to a wall; the change said in its `cleared`. (None, why)
+    when nothing within reach clears it."""
     faults = view_faults(scenes, view, size)
     if not faults:
         return view, None
@@ -442,7 +478,8 @@ def cleared_view(scenes, view, size):
     rings = np.arange(1, int(round(MOVE_MOST / MOVE_STEP)) + 1)
     spots = [(0, eye)] + [(ring, eye + ring * MOVE_STEP * np.array([np.cos(heading), 0.0, np.sin(heading)]))
                           for ring in rings for heading in headings]
-    spots = [(ring, spot) for ring, spot in spots if ring == 0 or reached(scenes, eye, spot, inside)]
+    within = models_round(scenes, eye)
+    spots = [(ring, spot) for ring, spot in spots if ring == 0 or steps_in(scenes, view, spot, inside, within)]
     turns = [0] + [side * step for step in range(TURN_STEP, 181, TURN_STEP) for side in (1, -1)]
     tries = sorted(((ring + abs(degrees) // TURN_STEP, number, degrees) for number, (ring, _) in enumerate(spots)
                     for degrees in turns), key=lambda tried: tried[0])

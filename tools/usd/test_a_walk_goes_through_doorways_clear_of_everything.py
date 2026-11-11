@@ -6,7 +6,7 @@ alone and a crowd's instances, stand in the way as boxes where they stand, and o
 moment; a thing the stage moves stands in the way where it is at each moment, its particles and its people aside;
 and an eye's clearance is its true distance from walls and people; a still view (a look the light is rendered on)
 stands in free air, outside every solid with its picture not filled by a near surface, or is turned or moved till it
-does, or left out.
+does (into the room it looks across, never back out of it or into an open model like a tunnel), or left out.
 
 Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_path_between_rooms_goes_through_the_doorway: camera_paths.leg's
@@ -25,6 +25,9 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   eye in the crate stands outside it); view_faults' `near > NEAR_MOST` made `near > 1.0` (the view off the wall
   passes); cleared_view's `if not view_faults(scenes, tried, size)` made `if True` (a blocked view kept as it is); its sort
   key `tried[0]` made `tried[1]` (every turn where it stands before any move: the wall's view turned along the wall).
+- clearance_is_measured_on_every_side (a moved eye steps into its room, 2026-11-11): camera_paths.steps_in's
+  `backward = inside and ...` made `backward = False` (the lamp's eye moved 0.46 m back from its look);
+  `models_round(scenes, spot) <= within` made `True` (the doorway's eye moved out into the open tunnel).
 
 Run: .venv/bin/python tools/usd/test_a_walk_goes_through_doorways_clear_of_everything.py
 """
@@ -280,10 +283,48 @@ def still_views_stand_in_free_air(scenes):
     box = trimesh.creation.box(extents=(0.8, 0.8, 0.8))
     closet = trimesh.Trimesh(box.vertices, box.faces[:, ::-1], process=False)  # seen from inside: faces inward
     shut, why = camera_paths.cleared_view(dict(scenes, still=closet, blocking=closet, boxes=np.zeros((0, 8, 3)),
-                                               tree=camera_paths.mesh_tree(closet)),
+                                               tree=camera_paths.mesh_tree(closet),
+                                               owners=np.zeros(len(closet.faces), dtype=np.int64)),
                                           view([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]), size)
     if shut is not None or not why:
         problems.append(f"a view shut in a closet 0.8 m across is kept: {shut}")
+    return problems + a_moved_eye_steps_into_its_room(view, size)
+
+
+def a_moved_eye_steps_into_its_room(view, size):
+    """A room 8 m by 6 m with a doorway east (x = 4, z from -0.6 to 0.6), an open glass tunnel beyond it (x from 4.2
+    to 8, 1.6 m wide) and two lamp globes 0.3 m across at eye height: the eye inside the middle lamp, looking west,
+    steps out sideways or ahead, never back from its look; the eye in the doorway, 0.35 m behind the other lamp, steps
+    aside in the doorway, not out into the tunnel; an eye already clear stays where it is (2026-11-11: workshop's
+    from-door-2 moved 1.25 m back out of its desk into the tunnel outside its door)."""
+    def slab(low, high):
+        return trimesh.creation.box(bounds=(low, high))
+
+    def lamp(at):
+        return trimesh.creation.icosphere(subdivisions=2, radius=0.15).apply_translation(at)
+    room = trimesh.util.concatenate([slab(*bounds) for bounds in (
+        ((-4.2, 0, -3.2), (4.2, 3, -3.0)), ((-4.2, 0, 3.0), (4.2, 3, 3.2)), ((-4.2, 0, -3.0), (-4.0, 3, 3.0)),
+        ((4.0, 0, -3.0), (4.2, 3, -DOOR_HALF)), ((4.0, 0, DOOR_HALF), (4.2, 3, 3.0)),
+        ((4.0, DOOR_HIGH, -DOOR_HALF), (4.2, 3, DOOR_HALF)))])
+    tunnel = trimesh.util.concatenate([slab(*bounds) for bounds in (
+        ((4.2, 0, -0.9), (8.0, 0.05, 0.9)), ((4.2, 2.4, -0.9), (8.0, 2.5, 0.9)),
+        ((4.2, 0, -0.9), (8.0, 2.4, -0.8)), ((4.2, 0, 0.8), (8.0, 2.4, 0.9)))])
+    scenes = camera_paths.scenes_of({"room": room, "tunnel": tunnel, "lamp": lamp((0.0, 1.6, 0.0)),
+                                     "shade": lamp((3.75, 1.6, 0.0))}, slab((-10, -0.1, -10), (10, 0, 10)),
+                                    lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    problems = []
+    lit, _ = camera_paths.cleared_view(scenes, view([0.0, 1.6, 0.0], [-3.0, 1.0, 0.0]), size)
+    if lit is None or lit["eye"][0] > 1e-3 or camera_paths.view_faults(scenes, lit, size):
+        problems.append(f"the lamp's eye does not step clear into the room it looks across: {lit}")
+    door, _ = camera_paths.cleared_view(scenes, view([4.1, 1.6, 0.0], [-3.0, 1.0, 0.0]), size)
+    if door is None or door["eye"][0] > 4.2 or camera_paths.models_round(scenes, door["eye"]) or \
+            camera_paths.view_faults(scenes, door, size):
+        problems.append(f"the doorway's eye does not step clear in the room but into the tunnel: {door}")
+    if camera_paths.models_round(scenes, [4.5, 1.6, 0.2]) != {1}:
+        problems.append("an eye in the open tunnel does not stand within it")
+    across = view([-2.0, 1.6, 1.5], [-3.5, 1.0, -1.0])
+    if camera_paths.cleared_view(scenes, across, size) != (across, None):
+        problems.append(f"a clear view across the room is moved: {camera_paths.cleared_view(scenes, across, size)}")
     return problems
 
 
