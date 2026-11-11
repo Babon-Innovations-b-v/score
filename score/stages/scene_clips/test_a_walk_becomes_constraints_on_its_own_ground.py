@@ -25,6 +25,9 @@ Breaks that turn each test red (each applied once and seen red, reverted, 2026-1
 - each_foot_stands_on_the_ground_under_it: footfalls' `max(ground_at(...))` made `min(ground_at(...))`; plan_of's
   `[grounds[0]] +` dropped from the relief's heights (a walk off a kerb post-processed onto the kerb's floor,
   2026-11-10).
+- the_soles_are_asked_on_their_ground (Kimodo's floor, 2026-11-11): constraints_of's `+ [0.0, lift, 0.0]` dropped
+  (the descender's soles asked down to -0.6 m, under Kimodo's floor: the stairwell's woman, 0.36 m off); the machine's `lowered`
+  `arrays[key][..., 1] -= lift` made `+= lift`; make_folder's `"lift": plan["lift"]` made `"lift": 0.0`.
 - the_constraints_start_at_the_canonical_origin_heading_plus_z: canonical's `offset[:, 0] * sin + offset[:, 2] * cos`
   made `-offset[:, 0] * sin + offset[:, 2] * cos`.
 - the_soles_are_asked_on_their_ground: constraints_of's `fall["ground"] + HIP_OVER_SOLE` made `fall["ground"]`.
@@ -40,6 +43,7 @@ Breaks that turn each test red (each applied once and seen red, reverted, 2026-1
 Run: .venv/bin/python -m pytest score/stages/scene_clips/test_a_walk_becomes_constraints_on_its_own_ground.py
 """
 import contextlib
+import importlib
 import json
 import math
 import pathlib
@@ -153,7 +157,7 @@ def test_the_constraints_start_at_the_canonical_origin_heading_plus_z(plan):
     assert np.asarray(root2d["global_root_heading"]) == pytest.approx(np.tile([1.0, 0.0], (151, 1)))
 
 
-def test_the_soles_are_asked_on_their_ground(plan):
+def test_the_soles_are_asked_on_their_ground(plan, tmp_path):
     for constraint in plan["constraints"][1:]:
         side = constraint["type"].removesuffix("-foot")
         falls = [fall for fall in plan["footfalls"] if fall["side"] == side]
@@ -163,6 +167,35 @@ def test_the_soles_are_asked_on_their_ground(plan):
         assert hips[:, 2] == pytest.approx([fall["hips"][0] for fall in falls], abs=1e-4)
         poses = np.asarray(constraint["local_joints_rot"])
         assert poses.shape == (len(falls), 77, 3) and not poses.any()  # rest pose, no turn: the walk heads +Z
+    assert plan["lift"] == 0.0  # it climbs: its start is its lowest ground
+    # down the flight of six 0.15 m treads: the lowest ground it walks (0.15, its last tread) is Kimodo's floor, so no
+    # sole is asked under it, and the clip Kimodo makes is lowered back onto its start's ground (0.9) on the machine
+    flight = {f"Structure/step_{step}": tris(box([0.3 * step, -0.2, -2.0], [0.3 * (step + 1), 0.15 * (step + 1), 2.0]))
+              for step in range(6)}
+    descender = {"name": "woman", "doing": "walking", "at": [1.65, 0.9, 0.0], "turn": 90.0,
+                 "stairs": {"way": "down", "flight": "stair_1", "to": [0.15, 0.15, 0.0], "rise": 0.15, "run": 0.3}}
+    down, why = scene_clips.plan_of(descender, flight)
+    assert why is None and down["lift"] == pytest.approx(0.75), (why, down and down["lift"])
+    falls = [fall["ground"] for fall in down["footfalls"]]
+    assert falls == pytest.approx([0.75, 0.6, 0.45, 0.3])
+    asked = {fall["frame"]: fall["ground"] for fall in down["footfalls"]}
+    for constraint in down["constraints"][1:]:
+        soles = np.asarray(constraint["root_positions"])[:, 1] - 1.0052
+        assert soles == pytest.approx([asked[frame] - 0.15 for frame in constraint["frame_indices"]], abs=1e-4)
+        assert soles.min() >= 0.0
+    folder = scene_clips.make_folder(pathlib.Path(tmp_path) / "make", [down], "toy")
+    lift = json.loads((folder / "in/spec.json").read_text())["scene clips"]["scene_woman"]["lift"]
+    sys.path.insert(0, str(REPO / "tools/characters/clips"))
+    machine = importlib.import_module("scene_clips")
+    motion = pathlib.Path(tmp_path) / "woman.npz"  # Kimodo's first stance as asked: its sole 0.6 over its floor
+    np.savez(motion, root_positions=np.array([[0.0, 1.6052, 0.0]]), smooth_root_pos=np.array([[0.0, 1.6052, 0.0]]),
+             posed_joints=np.full((1, 77, 3), 0.6), foot_contacts=np.ones((1, 6), dtype=bool))
+    machine.lowered(motion, lift)
+    with np.load(motion) as held:
+        assert held["root_positions"][0, 1] == pytest.approx(0.8552) and held["foot_contacts"].all()
+        assert held["smooth_root_pos"][0, 1] == pytest.approx(0.8552)
+        first = dict(down, footfalls=[dict(down["footfalls"][0], frame=0)])  # asked 0.15 under her start's ground
+        assert scene_clips.feet_off(first, {"posed_joints": held["posed_joints"]}) == pytest.approx(0.0, abs=1e-6)
 
 
 def test_a_walk_into_the_wall_is_cut_before_it(found):

@@ -11,7 +11,9 @@ through the scene, not a walk on a flat floor played over it.
              cast/measure.py's knee-down ray for the ground under each frame, its body cylinder for what it runs
              into): the route ends where it runs into a solid, finds no ground or would step over KNEE. The route
              becomes Kimodo constraints (constraints_of) in Kimodo's canonical frame (its start at the origin, its
-             first heading +Z, its start's ground y = 0; the placement back into the scene recorded):
+             first heading +Z, its start's ground y = 0; the placement back into the scene recorded), raised by the
+             walk's `lift` (its start's ground over the lowest ground it walks or is asked on) so that lowest ground
+             is Kimodo's floor, y = 0, and the machine lowers the clip it makes by the same `lift` (see Not held):
                root2d      the route's root path and heading at every frame (dense: Kimodo is trained on dense
                            root paths)
                left-foot,  each foot at its stance's middle, every STEP_FRAMES from FIRST_STANCE, right foot first
@@ -42,6 +44,15 @@ end-effector constraint also pins the hips' height and heading at its frame (con
 EndEffectorConstraintSet.update_constraints), which is why the keyframe is a stance's middle, where Kimodo's own walk
 stands within 5 mm of the rest pose's hip height (people-clips-made's walking clip: hips 0.998 to 1.004 m at its
 stances' middles, the rest pose 1.005). The CLI takes no first heading (it is 0, +Z), so the route is turned to it.
+Nor does it put a foot under its floor: every foot asked below its y = 0 was held near it, not where asked (env1,
+2026-11-11, with post-processing off: the stairwell's scene_person_woman, down stair_2 from her start, asked -0.167
+to -0.833 m, her toes at -0.07 to -0.26 and her hips pinned down to the asked heights, so her legs folded, soles 0.36
+m off on the mean, both attempts; the street's scene_pedestrian_umbrella_7 off a 0.2 m kerb, asked -0.2, toes at
+-0.05 to -0.07; the camp's scene_astronaut_1 asked -0.058, toes at -0.018 and -0.031; every foot asked at 0 held to
+under 1 cm), while Kimodo's own unconstrained first frame stood the woman with her toes 0.846 m over its floor, about
+her flight's 0.833 m drop: it walks down onto its floor, never under it. So the constraints are asked in a frame whose
+floor is the walk's lowest ground and the clip is lowered back to its start's ground on the machine
+(tools/characters/clips/scene_clips.py `lowered`), before the rig is made from it.
 A walk longer than MOST_SECONDS is cut there (Kimodo makes at most 10 s a prompt, docs key_concepts/limitations.md).
 
 Price: no scene-made clip was ever made; EUROS is a guess kept apart by the runner, from people-clips-made's measured
@@ -233,10 +244,11 @@ def footfalls(roots, headings, grounds, found):
     return falls
 
 
-def constraints_of(roots, headings, falls, origin):
-    """Kimodo's constraints JSON (docs/source/user_guide/constraints.md) in its canonical frame: the dense root2d
-    path with its heading, and each foot's stance middles as SOMA77's rest pose turned to the heading, its hips
-    HIP_OVER_SOLE over the ground asked (its FK puts the sole there)."""
+def constraints_of(roots, headings, falls, origin, lift):
+    """Kimodo's constraints JSON (docs/source/user_guide/constraints.md) in its canonical frame raised by `lift` (the
+    walk's lowest ground on Kimodo's floor): the dense root2d path with its heading, and each foot's stance middles as
+    SOMA77's rest pose turned to the heading, its hips HIP_OVER_SOLE over the ground asked (its FK puts the sole
+    there)."""
     start = headings[0]
     path = canonical(roots, origin, start)
     turned = np.asarray(headings) - start
@@ -250,7 +262,7 @@ def constraints_of(roots, headings, falls, origin):
         if len(mine) > MOST_KEYFRAMES:
             raise ValueError(f"{len(mine)} {side} foot stances: Kimodo holds fewer than 20 a constraint type")
         hips = canonical([[fall["hips"][0], fall["ground"] + HIP_OVER_SOLE, fall["hips"][1]] for fall in mine],
-                         origin, start)
+                         origin, start) + [0.0, lift, 0.0]
         poses = np.zeros((len(mine), 77, 3))
         poses[:, 0, 1] = [fall["heading"] - start for fall in mine]
         found.append({"type": f"{side}-foot", "frame_indices": [fall["frame"] for fall in mine],
@@ -282,13 +294,15 @@ def plan_of(single, found):
     # scene_pedestrian_umbrella_7, env1 2026-11-10)
     heights = [grounds[0]] + [fall["ground"] for fall in falls]
     relief = float(max(heights) - min(heights))
+    # Kimodo never puts a foot under its floor (see Not held): the walk's lowest ground is its floor
+    lift = float(grounds[0] - min(min(grounds), min(heights)))
     return {"name": single["name"], "clip": f"scene_{single['name']}", "pace": pace, "sentence": sentence_of(single),
             "stairs": single.get("stairs"),
             "seconds": seconds_of(kept), "frames": kept, "cut": cut,
             "placement": {"origin": np.round(origin, 5).tolist(), "turn": round(math.degrees(headings[0]), 4)},
             "route": np.round(np.column_stack([roots[:, 0], grounds, roots[:, 2]]), 4).tolist(),
             "footfalls": falls, "relief": round(relief, 4), "postprocess": relief <= FLAT_RELIEF,
-            "constraints": constraints_of(roots, headings, falls, origin)}, None
+            "lift": round(lift, 5), "constraints": constraints_of(roots, headings, falls, origin, lift)}, None
 
 
 # --- the make ------------------------------------------------------------------------------------------------------
@@ -300,7 +314,8 @@ def make_folder(place, plans, name):
     for plan in plans:
         (place / "in" / "files" / f"{plan['clip']}.json").write_text(json.dumps(plan["constraints"]))
         scene[plan["clip"]] = {"sentence": plan["sentence"], "seconds": plan["seconds"],
-                               "constraints": f"in/files/{plan['clip']}.json", "postprocess": plan["postprocess"]}
+                               "constraints": f"in/files/{plan['clip']}.json", "postprocess": plan["postprocess"],
+                               "lift": plan["lift"]}
     spec = {"name": f"{ROW}-{name}", "program": "scene_clips.py", "steps": ["scene clips", "rig"], "references": [],
             "clips": list(scene), "scene clips": scene, "approved": f"the batch's {ROW}@{name} row"}
     (place / "in" / "spec.json").write_text(json.dumps(spec, indent=1))
