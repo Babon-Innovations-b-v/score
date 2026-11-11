@@ -2170,7 +2170,7 @@ def split(folder, rows):
 def parted(folder, rows):
     out = folder / "parts"
     out.mkdir()
-    route_parts.make_parts(rows, out, 7, {"objects": [TAKE]})
+    parts_kept.make_parts(rows, out, 7, {"objects": [TAKE]})
     return {**rows, "surfaces-parts": out}
 
 
