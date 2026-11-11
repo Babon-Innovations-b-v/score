@@ -1021,6 +1021,9 @@ def off(low, high, on, holders=()):
         return off_ramp(low, high, on, boxes)
     if not boxes:
         return None
+    if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not None:  # one run of tops (spread_on_tops):
+        return off_holder(low, high, "top", on, (np.min([box[0] for box in boxes], axis=0),  # workshop's box over
+                                                 np.max([box[1] for box in boxes], axis=0)))  # two units' meeting
     return off_holder(low, high, on["how"], on, nearest(boxes, low, high))
 
 
