@@ -1456,8 +1456,11 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         if how == "top" else`
     Break: score/stages/assembly/fitting.py: on_boards' `if clear_of(hits, foot, tall) and not meets_any(...)` ->
         `if not meets_any(...)` (the box at 0.7 laid on the board under it, 0.42, through the next)
-    Break: score/stages/assembly/fitting.py: on_boards' `return target` after `if not found:` reached first (`found =
-        rests or tops` -> `found = []`): the box through the board left where it is
+    Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` reached first (`found =
+        rests or tops` -> `found = []`): the box through the board named crowded
+    Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` -> `return target` (the
+        box on a full unit piled at its target, garage 2026-11-10), or shelved's `for holder, box in sorted(held,
+        key=distance)` -> `for holder, box in held[:1]` (the far unit never tried)
     Break: score/stages/assembly/fitting.py: on_boards' `meets_any(*footprint(placed), taken)` -> `False` (the twin on
         its first)
     Break: score/stages/assembly/fitting.py: on_boards' `if not len(hits[0]) or (standing and clear_of(` -> `if not
@@ -1510,6 +1513,25 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     divided = trimesh.util.concatenate([unit, trimesh.creation.box(bounds=[(0.48, 0.0, 0.0), (0.52, 1.98, 0.5)])])
     _, target, _, _ = fitting.fit((0.35, 0.42, 0.1), (0.65, 0.72, 0.4), within, [shelf], divided)
     assert np.allclose(target, (0.81, 0.42, 0.25)), target
+    # garage (settle@garage, 2026-11-10): 14 boxes within three shelf units all went to the nearest, 12 piled at two
+    # spots of it. A unit 0.4 x 0.5 x 0.5 m with one board (top at 0.02) and its top at 0.5 takes a 0.3 m box on its
+    # board, then on its top; with both taken the box goes onto the board of the next unit out (x 1 to 1.4), and with
+    # that one full too it is crowded, never piled at its target.
+    one_board = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (0.4, 0.02, 0.5)]),
+                                          trimesh.creation.box(bounds=[(0.0, 0.48, 0.0), (0.4, 0.5, 0.5)])])
+    near, far = one_board, one_board.copy().apply_translation((1.0, 0.0, 0.0))
+    held = [("unit_far", (np.array([1.0, 0.0, 0.0]), np.array([1.4, 0.5, 0.5]))),
+            ("unit_near", (np.array([0.0, 0.0, 0.0]), np.array([0.4, 0.5, 0.5])))]
+    surfaces = {"unit_near": near, "unit_far": far}
+    laid = ((0.025, 0.1, 0.05), (0.375, 0.4, 0.45))
+    full = [((0.025, 0.02, 0.05), (0.375, 0.32, 0.45)), ((0.025, 0.5, 0.05), (0.375, 0.8, 0.45))]
+    holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get, {})
+    assert holder == "unit_near" and np.allclose(target, (0.2, 0.02, 0.25)), (holder, target)
+    holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": full})
+    assert holder == "unit_far" and np.allclose(target, (1.175, 0.02, 0.25)), (holder, target)  # its near end
+    far_full = [((low[0] + 1.0, *low[1:]), (high[0] + 1.0, *high[1:])) for low, high in full]
+    assert fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": full, "unit_far": far_full}) == \
+        (None, fitting.CROWDED)
     # only a thing on its holder's shelves is laid on its boards (galley's sink in its counter, its stove top on it,
     # are laid as the plan draws them)
     # workshop (settle@workshop, 2026-11-10): seven 0.408 m storage boxes on two 1.5 m shelf units side by side, each

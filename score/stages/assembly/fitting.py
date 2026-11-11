@@ -9,7 +9,8 @@ shrunk where it does not fit (never grown past its own model), so it sits
             touching it (on_back); one on its holder's shelves (on_shelves_of) that crosses its holder's built
             surface standing where it is laid (a box on a shelf unit at the plan's base, through its board) or meets
             one laid in it before, laid on the nearest of the holder's built boards under it it fits on clear of both,
-            else on its top (on_boards)
+            else on its top (on_boards); of several holders the nearest with such a spot, tried in order of distance,
+            and with none on any of them left as laid and named crowded (shelved)
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
             door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
@@ -263,7 +264,9 @@ def on_boards(low, high, scale, target, box, mesh, taken=()):
     slid along the holder's longer side where its own spot is taken; else on the holder's top there (the highest
     surface under it). 2026-11-08: engineroom's 40 cm boxes laid at the plan's 0.5 m base in shelf units with 39 cm
     between boards, through the second board, and two at one spot, which the settle's snap does not lift; galley's
-    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board."""
+    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board; None
+    where no board or top of the holder has a clear spot left (crowded: garage's 12 boxes piled at two spots of one of
+    its three shelf units, 2026-11-10)."""
     size = (np.asarray(high, float) - np.asarray(low, float)) * scale
     half, tall = size / 2, float(size[1])
     hold_low, hold_high = box
@@ -305,7 +308,7 @@ def on_boards(low, high, scale, target, box, mesh, taken=()):
             tops.append(top)
     found = rests or tops
     if not found:
-        return target
+        return None
     return min(found, key=lambda spot: float(np.linalg.norm(spot - target)))
 
 
@@ -492,6 +495,10 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
     return scale, opening_spot(on, walls, wide, left, opens, points)
 
 
+# What fit says of a thing laid on its holder's boards when no clear spot is left on them (on_boards' None).
+CROWDED = "crowded"
+
+
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
@@ -501,7 +508,7 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
     of (`clear`, on_wall, face_stretch; a within one's: the boxes laid in its holder before it); None when it already
     sits (or
-    holds to nothing laid)."""
+    holds to nothing laid); CROWDED when it is laid on its holder's boards and none has a clear spot left."""
     low, high = np.asarray(low, float), np.asarray(high, float)
     how, face = on["how"], None
     boxes = [tuple(np.asarray(end, float) for end in found) for found in holders]
@@ -515,6 +522,8 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
             scale, target = on_holder(low, high, how, on, box)
             if how == "within" and surface is not None:
                 target = on_boards(low, high, scale, target, box, surface, clear)
+                if target is None:
+                    return CROWDED
     elif how == "wall":
         scale, target = on_wall(low, high, on, clear)
     else:
@@ -1148,15 +1157,20 @@ def fitted(stage, place, entries, laid, cuts=None):
             surface = wall_points(stage, place)
         on_shelves = how == "within" and held and on_shelves_of(entry["on"]) and not hangs_in(entry)
         if on_shelves:
-            box = nearest([box for _, box in held], low, high)
-            holder = next(holder for holder, found in held if found is box)
-            surface = surface_mesh(stage, f"/{place}/{scope}/{holder}")
-        clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] \
-            if how in ("wall", "face") and name not in leaves else taken.get(holder, []) if on_shelves else ()
-        found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface, recesses,
-                    own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear)
+            holder, found = shelved(low, high, entry["on"], held,
+                                    lambda holder: surface_mesh(stage, f"/{place}/{scope}/{holder}"), taken)
+        else:
+            clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] \
+                if how in ("wall", "face") and name not in leaves else ()
+            found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
+                        recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
+        if found is CROWDED:
+            fits.append(laid_fit(stage, path, entry, how, entry["on"].get("holder"), 0.0, 1.0,
+                                 f"crowded: no clear spot left on the boards of {', '.join(name for name, _ in held)}"
+                                 f"; left as laid"))
+            return
         if found is None:
             if on_shelves:
                 taken.setdefault(holder, []).append((low, high))
@@ -1189,6 +1203,25 @@ def fitted(stage, place, entries, laid, cuts=None):
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
     return fits + spread_on_tops(stage, place, topped) + moved_past(stage, place, walled) + \
         moved_down(stage, place, loose) + hung_up(stage, place, loose)
+
+
+def shelved(low, high, on, held, surface_of, taken):
+    """(holder, fit) of a thing laid on its holders' boards (on_shelves_of) from its box (low, high): each of `held`
+    [(name, box)] tried nearest first on the floor plan, on its built surface (`surface_of(name)`, surface_mesh's),
+    clear of the boxes laid in it before (`taken`, {name: [(low, high)]}), the first that is not CROWDED; (None,
+    CROWDED) when none has a clear spot left. Garage's 14 boxes on three shelf units all went to the nearest, 12 piled
+    at two spots of it (2026-11-10)."""
+    here = (np.asarray(low, float) + np.asarray(high, float)) / 2
+
+    def distance(item):
+        return float(np.linalg.norm(((np.asarray(item[1][0], float) + np.asarray(item[1][1], float)) / 2
+                                     - here)[[0, 2]]))
+
+    for holder, box in sorted(held, key=distance):
+        found = fit(low, high, on, [box], surface_of(holder), clear=taken.get(holder, []))
+        if found is not CROWDED:
+            return holder, found
+    return None, CROWDED
 
 
 def laid_fit(stage, path, entry, how, holder, moved, scale, words):
