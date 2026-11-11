@@ -969,6 +969,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: `return [(name, box) for name, box in built if name.split("_")[0] in
         STATICS]` -> `return built`
     Break: score/stages/assembly/fitting.py: `if not held_in(on) and not climbs(entry):` -> `if True:`
+    Break: score/stages/assembly/fitting.py: climbs' `return "_".join(words) in CLIMBING or words[0] in CLIMBING` ->
+        `return bool(set(words) & set(CLIMBING))` (the step ladder climbs)
+    Break: score/stages/assembly/fitting.py: statics' `or floor_piece(name, box)]` -> `]` (the ladder left inside its
+        landing pad), or floor_piece's `float(box[0][1]) <= HELD_MOST and` dropped (the ceiling beam a static)
     Break: score/stages/assembly/fitting.py: `back[1] = np.inf` -> `pass`
     Break: score/stages/assembly/fitting.py: `<= WALL_THICKEST)]` -> `<= 99.0)]`
     Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`
@@ -1010,6 +1014,23 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert np.allclose(boxes["locker_1"][0], (16.0, 0.0, 12.0)), boxes  # out across, never sunk under the floor
     assert abs(boxes["cable_bundles_1"][0][0] - 30.14) < 1e-6, boxes  # clear past the thin wall's near side
     boxes.update({name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("stairs_1", "crate_2")})
+    # settle@hangar (2026-11-10): its step ladder, a free-standing object, read as a climbing row and never moved out
+    # of the 0.1 m landing pad it was laid in; a stair, a ladder and a stair's railing still climb
+    assert [fitting.climbs({"row": row}) for row in ("stairs", "ladder", "stair_railing", "step_ladder")] == [
+        True, True, True, False]
+    # ... and the 0.1 m landing pad, a piece laid on the floor (design_shell.floor_pieces), was no static: the ladder
+    # laid at the floor inside it is moved up onto it; 2 cm floor grates hold nothing, and a 0.2 m ceiling beam is
+    # none
+    from pxr import Usd
+    padded = Usd.Stage.CreateInMemory()
+    a_built_box(padded, f"/{TOY}/Structure/landing_pad_1", (0.0, 0.0, 0.0), (4.0, 0.1, 4.0))
+    a_built_box(padded, f"/{TOY}/Objects/step_ladder_1", (1.0, 0.0, 1.0), (1.6, 2.0, 1.4))
+    [moved] = fitting.moved_out(padded, TOY, [{"name": "step_ladder_1", "row": "step_ladder"}])
+    assert moved["holder"] == ["landing_pad_1"] and np.isclose(moved["low"][1], 0.1), moved
+    pieces = [("landing_pad_1", (np.zeros(3), np.array([4.0, 0.1, 4.0]))),
+              ("floor_grates_1", (np.zeros(3), np.array([4.0, 0.02, 4.0]))),
+              ("ceiling_beam_1", (np.array([0.0, 4.4, 0.0]), np.array([4.0, 4.6, 0.3])))]
+    assert [name for name, _ in fitting.statics(pieces)] == ["landing_pad_1", "floor_grates_1"]
     ship = fitting.world_box(stage, f"/{TOY}/Objects/spaceship_1")
     assert np.allclose(ship[0], (-1.0, 0.0, 30.5)), ship  # no spot clear of the wall in the place: left as laid, named
     walls = [{"name": name, "low": list(found[0]), "high": list(found[1])}
