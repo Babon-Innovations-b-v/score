@@ -62,7 +62,7 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import board_spots
+from score.stages.assembly import board_spots, passages
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -2111,6 +2111,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     fits += spread_on_tops(stage, place, topped)
     fits += moved_past(stage, place, walled)
     moved_in(stage, place, walled, fits)
+    fits += passages.drawn_in(stage, place, walled)
     return fits + stacked_on_runs(stage, place, topped, walled) + moved_down(stage, place, loose) + \
         hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)
 

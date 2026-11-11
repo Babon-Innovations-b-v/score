@@ -1313,7 +1313,13 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     Break: score/stages/assembly/fitting.py: past_walls' `for _ in built:` -> `for _ in built[:1]:` (the second
         tunnel is moved 1.5 m into deck_2)
     Break: score/stages/assembly/fitting.py: moved_past's `max(OUT_MOST, across(entry["on"]["out"], high - low))` ->
-        `OUT_MOST` (the tunnel, 1.5 m in, is left)"""
+        `OUT_MOST` (the tunnel, 1.5 m in, is left)
+    Break: score/stages/assembly/fitting.py: fitted's `fits += passages.drawn_in(stage, place, walled)` dropped
+        (workshop's tunnel left 0.2 m off its wall, touching nothing)
+    Break: score/stages/assembly/passages.py: drawn_back's `moved += distance - GAP / 2` -> `moved += distance` (the
+        tunnel drawn onto the wall's face, 0 m off it), or drawn_in's `**stood_on(...)` -> `**{}` (the drawn tunnel
+        named 0.2 m off the face it was laid on), or drawn_in's `if fitting.passes(entry)` -> `if True` (the pipe
+        drawn back onto the wall too)"""
     from score.stages.assembly import fitting
     against = {"how": "wall", "span": [[0.0, 6.4685], [7.0, 6.4685]], "out": [0.0, 1.0], "why": "against the wall"}
     record = {"objects": [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": against},
@@ -1369,6 +1375,43 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
         a_built_box(room, f"/{TOY}/Objects/glass_tunnel_1", (-1.0, 0.0, -7.0), (1.0, 2.5, -5.0))
         moved = fitting.moved_past(room, TOY, entries[:1])
         assert [fit["name"] for fit in moved] == (["glass_tunnel_1"] if decked else []), (decked, moved)
+    # workshop (settle@workshop, 2026-11-11): its glass tunnels stood outside its twelve built walls on its plan's
+    # eight facets, 0.06 to 0.19 m off the nearest, touching nothing. Laid with its back on its span 0.2 m out of
+    # wall_1's outer face, a tunnel is drawn back along its `out` until it stands within GAP of the wall, never in it,
+    # and the held gate judges it on the face it now stands on; a pipe laid so is no passage and is left; a tunnel
+    # 1.2 m off (past OUT_MOST) is left, as is one already within GAP.
+    from pxr import Gf
+    from score.stages.assembly import passages
+
+    def solid(stage, path, low, high):
+        """A box mesh from `low` to `high` with its faces, under an Xform at `path`."""
+        box = trimesh.creation.box(bounds=[low, high])
+        UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
+        mesh = UsdGeom.Mesh.Define(stage, f"{path}/geo")
+        mesh.CreatePointsAttr([tuple(map(float, point)) for point in box.vertices])
+        mesh.CreateFaceVertexCountsAttr([3] * len(box.faces))
+        mesh.CreateFaceVertexIndicesAttr([int(index) for index in box.faces.reshape(-1)])
+        mesh.CreateExtentAttr([low, high])
+
+    for off, name, row, moved in ((0.2, "glass_tunnel_1", "glass_tunnel", 0.2), (0.2, "pipe_1", "pipe", None),
+                                  (1.2, "glass_tunnel_2", "glass_tunnel", None),
+                                  (0.004, "glass_tunnel_3", "glass_tunnel", None)):
+        room = Usd.Stage.CreateInMemory()
+        solid(room, f"/{TOY}/Structure/wall_1", (-5.0, 0.0, -6.2), (5.0, 3.0, -5.9))
+        solid(room, f"/{TOY}/Structure/wall_3", (-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))
+        solid(room, f"/{TOY}/Objects/{name}", (-2.0, 0.0, -9.2 - off), (2.0, 2.5, -6.2 - off))
+        entry = {"name": name, "row": row, "on": {"how": "wall", "span": [[-2.5, -6.2 - off], [2.5, -6.2 - off]],
+                                                  "out": [0.0, -1.0], "why": "against the wall"}}
+        fits = [fit for fit in fitting.fitted(room, TOY, [entry], {name}) if fit["how"] == "drawn"]
+        far = -6.2 - float(fitting.world_box(room, f"/{TOY}/Objects/{name}")[1][2])
+        if moved is None:
+            assert not fits and abs(far - off) < 1e-6, (name, fits, far)
+            continue
+        assert [(fit["name"], round(fit["moved"], 2)) for fit in fits] == [(name, moved)] and \
+            0.0 < far <= passages.GAP, (fits, far)
+        laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(
+            room, f"/{TOY}/Objects/{name}")))}], "fitted": fits}
+        assert fitting.held_faults({"objects": [entry]}, laid) == [], fitting.held_faults({"objects": [entry]}, laid)
 
 
 def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
