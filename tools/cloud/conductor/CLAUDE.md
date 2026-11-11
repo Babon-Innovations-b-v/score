@@ -94,7 +94,7 @@ makes, the rights of the two keys, and what is still unchecked until the first `
   reader (2026-11-10: this PC's looked in another project). The ssh door stays until the cutover.
 - **`units/`**: `score-resume.service` (the one template for every machine; the PC copies it), `score-secrets`,
   `score-update` (the checkout follows the hosted cockpit's pinned commit from `/api/sync/pin` `commit` with the sync
-  token, never `/healthz`, whose body babon's Caddy writes itself; a pin it cannot read moves nothing, a cockpit
+  token, never `/healthz`, whose body babon's Caddy writes itself; while the cockpit still pins the commit a release replaced, the released commit that `score.dashboard release` noted through the door's `release-pin` (`conductor/released.json`, update run at once) is followed instead, 2026-11-11; a pin it cannot read moves nothing, a cockpit
   reporting none falls back to origin/main forward only; never while a run starts from the checkout or a process
   works in a frozen copy (a live run: the move goes on at the first tick after it ends; its line names each
   holding process with its command line), nor a uv.lock change while a

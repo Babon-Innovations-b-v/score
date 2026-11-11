@@ -12,7 +12,7 @@
         [--file F ...] [--ask Q --recommend A ...]   # a department's basket item, its words and questions
     .venv/bin/python -m score.dashboard basket-answers   # the owner's answers to the basket's questions, as JSON
     .venv/bin/python -m score.dashboard release --host REPO --dockerfile PATH --subject S [--commit SHA] [--trailer T]
-        # move the hosted cockpit's pinned SCORE_COMMIT to a pushed commit (sync/release.py)
+        # move the hosted cockpit's pinned SCORE_COMMIT to a pushed commit, and the conductor's checkout (sync/release.py)
     .venv/bin/python -m score.dashboard install-sync --env-file F [--host REPO --dockerfile PATH] [--secret NAME]
         [--no-pull]  # the owner's one command: the sync's systemd user units, once the cockpit runs this dashboard
                      # (sync/timer.py); on the conductor without --host (the cockpit's /api/sync/pin) and with --no-pull
@@ -337,7 +337,7 @@ def release(options):
     from score.dashboard.sync import release as releasing
     try:
         print(releasing.release(settings.SCORE_REPO, pathlib.Path(options.host), options.dockerfile, options.subject,
-                                options.commit, options.trailer))
+                                options.commit, options.trailer, door=releasing.door_asked))
     except releasing.Refused as refused:
         sys.exit(f"refused: {refused}")
 

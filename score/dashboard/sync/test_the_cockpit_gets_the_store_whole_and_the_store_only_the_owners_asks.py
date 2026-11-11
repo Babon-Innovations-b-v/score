@@ -53,6 +53,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - endpoints.note: a claimed request noted too -> test_the_hosted_side_notes_skips_and_serves_the_newer_batch_record
 - state/exported.store_batch: the machine check -> `if False:` -> test_a_moved_or_reset_store_shows_no_old_batch
 - release.message: the subject not cut -> test_a_release_pins_the_pushed_head_in_one_commit_of_the_hosts_style
+- release.release: `moved = ""` (the conductor's checkout left on the old pin, its door running old code) -> the same
 - release.score_commit: the refusal not raised -> test_a_release_refuses_a_commit_not_pushed_or_a_checkout_...
 - release.inside: the ".." check dropped -> test_a_release_refuses_a_dockerfile_path_outside_the_host_...
 - release.pinned: `if not found:` -> test_a_dockerfile_must_pin_exactly_one_commit
@@ -971,8 +972,12 @@ def repositories(tmp_path):
 def test_a_release_pins_the_pushed_head_in_one_commit_of_the_hosts_style(repositories, tmp_path):
     score, host, first = repositories
     head = git(score, "git", "rev-parse", "HEAD")
-    said = release.release(score, host, DOCKERFILE, SUBJECT, trailers=[TRAILER])
+    asked = []
+    said = release.release(score, host, DOCKERFILE, SUBJECT, trailers=[TRAILER],
+                           door=lambda repo, command: asked.append((repo, command)) or (0, "update: moved"))
     assert f"moved from score {first[:8]} to {head[:8]}" in said, said
+    assert asked == [(score, f"release-pin {head} {first}")] and said.endswith("; the conductor: update: moved"), said
+    assert "NOT moved (door exit 1: no door)" in release.conductor_moved(score, head, first, lambda *_: (1, "no door"))
     git(host, "git", "fetch", "-q", "origin", "main")
     pinned = git(host, "git", "show", f"FETCH_HEAD:{DOCKERFILE}")
     assert pinned == f"FROM x\nARG SCORE_COMMIT={head}\nRUN y"

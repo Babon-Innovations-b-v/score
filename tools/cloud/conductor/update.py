@@ -35,6 +35,11 @@ never moved). Two calls at once take turns on a lock in the checkout's .git fold
    on that change or whenever it is missing (left out of every backup; nothing runs boot.sh at a reboot).
 6. A move that changed tools/cloud/conductor/units runs `boot.sh units` (every unit there installed and enabled, its
    timers started), so a new unit is live without a boot; a failed install is said in the line.
+2a. A release (score/dashboard/sync/release.py) notes the commit it released and the pin it replaced in
+   $PROPS_HOME/conductor/released.json through the agents' door (`release-pin`), and runs this update at once. While the
+   cockpit still pins the replaced commit (its image not built yet) the released commit is followed in its place, so
+   the door runs the released code from the release on (2026-11-11: it ran old code until the host's build); a
+   cockpit pin that moved on is followed as before.
 7. Whatever moved, score_lib's checkout beside it gets a machine's git identity when git knows no user.email there
    (2026-10-28: boot.sh's clone had none, so every take-in, handover, concept lock and cockpit lock failed its commit,
    "unable to auto-detect email address"). Set in its own config, every process committing there has it.
@@ -60,6 +65,7 @@ UNITS = "tools/cloud/conductor/units"  # a move that changes it installs them ag
 UV = os.environ.get("SCORE_UV", "/usr/local/bin/uv")
 PROC = pathlib.Path(os.environ.get("SCORE_PROC", "/proc"))
 HOME = pathlib.Path(os.environ.get("PROPS_HOME", pathlib.Path.home() / ".farm-factory-props"))
+RELEASED = pathlib.Path("conductor") / "released.json"  # under home: {commit, replaced, at}, the door's release-pin
 SECRET = "score-cockpit-sync-token"  # score/dashboard/sync/timer.py SECRET
 PIN_PATH = "/api/sync/pin"  # score/dashboard/sync/endpoints.py pin
 # score_lib's commits from the conductor: a machine's name, never a person's or an account's (a public repository).
@@ -139,6 +145,23 @@ def said_noted(home, line):
     os.replace(partial, path)
 
 
+def same_commit(one, other):
+    """Whether two shas (either may be short) name the same commit."""
+    return bool(one and other) and (one.startswith(other) or other.startswith(one))
+
+
+def released_over(home, pin):
+    """(commit to follow, how it was chosen): the commit a release noted in home/RELEASED while the cockpit still pins
+    the commit that release replaced, else the cockpit's `pin` as read."""
+    try:
+        noted = json.loads((home / RELEASED).read_text())
+    except (OSError, ValueError):
+        return pin, "the cockpit's pin"
+    if same_commit(pin, noted.get("replaced")) and noted.get("commit") and not same_commit(pin, noted["commit"]):
+        return noted["commit"], f"the release's commit (the cockpit still pins {pin[:12]})"
+    return pin, "the cockpit's pin"
+
+
 def pass_updates_first(sync_unit=SYNC_UNIT):
     """Whether the installed sync unit runs this update before each pass (its ExecStartPre names update.py)."""
     try:
@@ -204,12 +227,12 @@ def named(proc, pid):
     return f"pid {pid}: {words[:120]}"
 
 
-def target(repo, pin):
-    """(commit to check out, how it was chosen); RuntimeError when the pin is off origin/main."""
+def target(repo, pin, named="the cockpit's pin"):
+    """(commit to check out, how it was chosen); RuntimeError when the pin (`named` so) is off origin/main."""
     if pin:
         if git(repo, "merge-base", "--is-ancestor", pin, "origin/main", check=False).returncode != 0:
-            raise RuntimeError(f"the cockpit's pin {pin[:12]} is not on origin/main")
-        return git(repo, "rev-parse", f"{pin}^{{commit}}").stdout.strip(), "the cockpit's pin"
+            raise RuntimeError(f"{named} {pin[:12]} is not on origin/main")
+        return git(repo, "rev-parse", f"{pin}^{{commit}}").stdout.strip(), named
     main = git(repo, "rev-parse", "origin/main").stdout.strip()
     if git(repo, "merge-base", "--is-ancestor", "HEAD", main, check=False).returncode != 0:
         raise RuntimeError("HEAD is not behind origin/main, and no pin says where to go")
@@ -260,9 +283,10 @@ def moved(repo, sync_url, uv, opener, proc, token, home, sync_unit):
         pin = pinned_commit(sync_url, token, opener)
     except RuntimeError as unread:
         return f"update: not now, {unread}"
+    pin, chosen = released_over(home, pin)
     pin_noted(home, pin)
     try:
-        commit, why = target(repo, pin)
+        commit, why = target(repo, pin, chosen)
     except RuntimeError as refused:
         return f"update: refused, {refused}"
     old = git(repo, "rev-parse", "HEAD").stdout.strip()
