@@ -1031,10 +1031,18 @@ def batch_moves(row, check):
     return gates is ALL or check in gates
 
 
+# The rows that read the place's bodies gaps (characters-layer's, demo_film.gapped_people): the films and the layer peel
+# leave the people with no body of their look out, and the sound lays no voice on one (cockpit, 2026-11-11: its film
+# failed on them after its frames were bought, its peel refused them by name; stairwell's voice played at nothing).
+BODIES_GAP_READERS = ("demo-film", "demo-film-extra", "body-peel", "sound")
+
+
 def accepted_gaps(row):
     """The rows the owner's accepted gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
     crane ship today as named fails), and the batch gaps (BATCH_GATES): a moving gate's faults on the named objects go
     down the line, and complete fails each gap by name with its numbers. Set here, in the table."""
+    if row.name in BODIES_GAP_READERS:
+        row = dataclasses.replace(row, files=with_gap_files(row.files, "characters-layer"))
     if row.name not in GAP_GATES and row.name not in BATCH_GATES:
         return row
     kept = tuple(gap_moved(row.name, check) if check.name in GAP_GATES.get(row.name, ()) or

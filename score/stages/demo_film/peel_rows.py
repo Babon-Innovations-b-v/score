@@ -192,14 +192,21 @@ def within_clearance(node, planned):
 def people_of(inputs):
     """person_of(single, body) for peel.job_of: a cast person's rig at its own build as the sim body ran it
     (sim_body.person_rig; a climber's scene-made clip along its route, sim_body.route_clip), its look's dressed
-    body (people-dress, refused by name when not taken) and the clip its sim body played."""
+    body (people-dress, refused by name when not taken) and the clip its sim body played; None for a person with no
+    dressed body whom an accepted bodies gap names (demo_film.gapped_people: cockpit's officer and pilot, 2026-11-11), whom the
+    peel leaves out."""
     from score.stages import sim_body
     from score.stages.cast import layer
     clips_rig = dict(np.load(pathlib.Path(inputs[sim_body.CLIPS_ROW]) / "rig.npz"))
     scene = sim_body.scene_clips_of(inputs)
-    builds = {}
+    builds, gapped = {}, demo_film.gapped_people(inputs)
 
     def person_of(single, body):
+        dress = layer.body_row(single.get("look"), single.get("surface"), single.get("variant", 0))
+        if dress not in inputs:
+            if single["name"] in gapped:
+                return None
+            raise ValueError(f"{single['name']}: no accepted dressed body ({dress}) to clothe it")
         row = sim_body.body_row(single)
         if row not in builds:
             built = dict(np.load(pathlib.Path(inputs[row]) / "rig.npz")) if row in inputs else None
@@ -211,9 +218,6 @@ def people_of(inputs):
                 raise ValueError(f"{single['name']}: its sim body played {clip}, a scene-made clip not taken here")
             plan, scene_rig = scene[single["name"]]
             rig = dict(rig, **{f"clip_{clip}": sim_body.route_clip(clips_rig, built, scene_rig, plan)})
-        dress = layer.body_row(single.get("look"), single.get("surface"), single.get("variant", 0))
-        if dress not in inputs:
-            raise ValueError(f"{single['name']}: no accepted dressed body ({dress}) to clothe it")
         return rig, pathlib.Path(inputs[dress]) / "body.glb", clip
     return person_of
 

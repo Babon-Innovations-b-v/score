@@ -235,8 +235,9 @@ def film_start(film):
     return float(film.get("start", 0.0))
 
 
-def film_one(stage_folder, name, film, out, log_folder, start=0.0):
-    """One film of the place's final stage, its files written into `out` (module docstring)."""
+def film_one(stage_folder, name, film, out, log_folder, start=0.0, people=0):
+    """One film of the place's final stage, its files written into `out` (module docstring); `people` the design's
+    people no accepted gap leaves out (cast_people), whom its stage must hold before anything is rented."""
     demo, _ = film_tools()
     place = place_of(stage_folder)
     work = log_folder / ".work"
@@ -251,6 +252,8 @@ def film_one(stage_folder, name, film, out, log_folder, start=0.0):
     jobs = demo.plan(work, work / "stages", [given], jobs_each=planned["jobs"], size=SIZE, ink=False,
                      shots=len(cameras), seconds=SECONDS, start=start)
     refuse_short(name, json.loads((work / "views" / f"{name}.json").read_text())["moves"], film)
+    refuse_peopleless(name, work / "stages" / place / f"{place}.usda",
+                      json.loads((work / "views" / f"{name}.json").read_text())["views"], people)
     with_deadlines(jobs, planned["high_frame_minutes"])
     motion_blurred(jobs, json.loads((work / "views" / f"{name}.json").read_text())["views"], SIZE[0])
     own_folders(jobs)
@@ -556,7 +559,8 @@ def make(inputs, out, seed, params):
     place = place_of(stage_folder)
     film = named_films(inputs, place, True)[place]
     require_yes({place: film})
-    film_one(stage_folder, place, film, out, out, film_start(film))
+    film_one(stage_folder, place, film, out, out, film_start(film),
+             cast_people(place, inputs.get("people"), gapped_people(inputs)))
 
 
 def make_extra(inputs, out, seed, params):
@@ -564,8 +568,9 @@ def make_extra(inputs, out, seed, params):
     stage_folder = final_stage(inputs)
     named = named_films(inputs, place_of(stage_folder), False)
     require_yes(named)
+    people = cast_people(place_of(stage_folder), inputs.get("people"), gapped_people(inputs))
     for name, film in sorted(named.items()):
-        film_one(stage_folder, name, film, out / name, out, film_start(film))
+        film_one(stage_folder, name, film, out / name, out, film_start(film), people)
 
 
 def film_faults(folder):
@@ -627,18 +632,41 @@ def seen_faults(stage, views, people=0):
     return found
 
 
-def cast_people(place, rows):
+def cast_people(place, rows, gapped=frozenset()):
     """How many people the place's design stands (data/people/rows.json at `rows`): its people and its crowd's count
-    (one at least where SAM 3 could not part the crowd); 0 with none, or no rows read."""
+    (one at least where SAM 3 could not part the crowd), less those an accepted bodies gap names (`gapped`,
+    gapped_people: no body of their look, so the stage stands none); 0 with none, or no rows read."""
     found = json.loads(pathlib.Path(rows).read_text()) if rows else {"places": {}}
     crowd = people_rows.crowd_row(place, found)
-    return len(people_rows.persons(place, found)) + ((people_rows.crowd_count(crowd[1]) or 1) if crowd else 0)
+    return len([person for person in people_rows.persons(place, found) if person["name"] not in gapped]) + (
+        (people_rows.crowd_count(crowd[1]) or 1) if crowd and crowd[0] not in gapped else 0)
+
+
+# The accepted gaps of the characters layer naming the people with no body of their look (score/stages/gaps.py's file,
+# read here as data so the film rows' code never takes in gaps.py): the films and peels leave them out.
+BODIES_GAP = ("characters-layer", "bodies")
+
+
+def gapped_people(inputs):
+    """The people an accepted bodies gap of the place names (BODIES_GAP; its gaps file among the inputs)."""
+    path = inputs.get("gaps")
+    found = json.loads(pathlib.Path(path).read_text())["gaps"] if path else []
+    return {name for entry in found if (entry["row"], entry["check"]) == BODIES_GAP for name in entry["objects"]}
+
+
+def refuse_peopleless(name, stage_path, views, people):
+    """Fail the film before its frames are bought when the place's design stands people no accepted gap leaves out
+    (`people`, cast_people) and its stage holds none at any planned frame (shots.people_seen): the gate would fail it
+    only after the frames were rented (cockpit's film, its two people gaps, 2026-11-11)."""
+    if people and shots.people_seen(stage_path, views) is None:
+        raise RuntimeError(f"{name}: the place's design stands {people} people no accepted gap leaves out and its "
+                           "stage holds none; nothing rented")
 
 
 def film_verdict(folders, inputs):
     """The `film` verdict over the given films' folders (module docstring)."""
     stage_folder = final_stage(inputs)
-    people = cast_people(place_of(stage_folder), inputs.get("people"))
+    people = cast_people(place_of(stage_folder), inputs.get("people"), gapped_people(inputs))
     measured = {folder.name: film_measures(folder, stage_folder, people) for folder in folders}
     faults = [fault for _, _, _, found in measured.values() for fault in found]
     reason = "; ".join(faults[:3]) if faults else "; ".join(

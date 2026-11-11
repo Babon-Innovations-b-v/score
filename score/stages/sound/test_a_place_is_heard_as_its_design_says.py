@@ -252,7 +252,9 @@ def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices
     Break: score/stages/sound/__init__.py: `if not people or not voice:` -> `if not people:`
     Break: score/stages/sound/__init__.py: `if bed["facts"].get("heard") == "suit":` -> `if False:`
     Break: score/stages/sound/gates.py: `if facts.get(key) not in values]` -> `if False]`
-    Break: score/stages/sound/__init__.py: `for entry in voices.get("by_hearing", []):` -> `for entry in []:`"""
+    Break: score/stages/sound/__init__.py: `for entry in voices.get("by_hearing", []):` -> `for entry in []:`
+    Break: score/stages/sound/gates.py: people_of's `if name not in gapped]` -> `]` (cockpit's gapped pilot wanted a
+        voice)"""
     with tempfile.TemporaryDirectory() as folder:
         inputs = heard_on_the_moon(folder)
         out = recorded(inputs, folder)
@@ -290,8 +292,12 @@ def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices
     with tempfile.TemporaryDirectory() as folder:
         inputs, out = toy_recorded(folder, ("/toy/Objects/hatch_1", "pilot"))
         events, voices = gates.judge_events(out, inputs, None), gates.judge_voices(out, inputs, None)
+        gaps = pathlib.Path(folder) / "gaps.json"  # cockpit (2026-11-11): its pilot a bodies gap, no voice wanted
+        gaps.write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies", "objects": ["pilot"]}]}))
+        gapped = gates.judge_voices(out, {**inputs, "gaps": str(gaps)}, None)
     assert events.answer == checks.FAIL and any("hatch_1" in line for line in events.findings), events
     assert voices.answer == checks.FAIL, voices
+    assert gapped.answer == checks.PASS, gapped
     with tempfile.TemporaryDirectory() as folder:
         inputs = toy_design(folder)
         inputs["voices"].write_text(json.dumps({"people": None}))
@@ -617,7 +623,9 @@ def test_a_new_scene_sounds_from_its_design_alone():
     a ceiling light its buzz; a lantern, a noun its kind leaves silent, nothing), its first person the people's voice;
     every target stands in its design, and its voice need reads the same records.
     Break: score/stages/sound/__init__.py: `return [{"sound": voice, "role": "object", "on": people[0],`
-        -> `return [{"sound": voice, "role": "object", "on": people[-1],`"""
+        -> `return [{"sound": voice, "role": "object", "on": people[-1],`
+    Break: score/stages/sound/__init__.py: object_uses' `if row["id"] in beyond: continue` -> `if False: continue`,
+        or voice_uses' `if name not in gapped]` -> `]`"""
     from score.stages.sound import needs
     rows = [{"id": "main_desk", "name": "main desk", "noun": "console"}, {"id": "roof_duct", "noun": "duct"},
             {"id": "buggy", "noun": "rover"}, {"id": "panel_light", "noun": "light"},
@@ -639,6 +647,16 @@ def test_a_new_scene_sounds_from_its_design_alone():
         assert heard == [("console_hum", "main_desk"), ("crew_talk", "officer"), ("lamp_buzz", "panel_light"),
                          ("rover_idle", "buggy"), ("vent_air", "roof_duct")], heard
         assert {use["on"] for use in uses if use["role"] == "object"} <= gates.standing(inputs)
+        # street and stairwell (2026-11-11): a row the plan sees beyond the place (the street's distant floodlight)
+        # and a person an accepted bodies gap leaves unlaid (the stairwell's man) were played at nothing
+        inputs["plan"].write_text(json.dumps({"leads": {}, "rows": {"DESK": ["main_desk"]}, "beyond": ["buggy"]}))
+        (folder / "gaps.json").write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies",
+                                                               "objects": ["officer"]}]}))
+        gapped = sorted((use["sound"], use["on"]) for use in sound.uses_of("new_scene", {**inputs, "gaps": str(
+            folder / "gaps.json")}) if use["role"] == "object")
+        assert gapped == [("console_hum", "main_desk"), ("crew_talk", "pilot"), ("lamp_buzz", "panel_light"),
+                          ("vent_air", "roof_duct")], gapped
+        inputs["plan"].write_text(json.dumps({"leads": {}, "rows": {"DESK": ["main_desk"]}}))
         data = folder / "data"
         (data / "sound").mkdir(parents=True)
         for name in ("sounds", "catalogue"):
