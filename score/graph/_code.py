@@ -74,13 +74,20 @@ def module_files(name, is_file=pathlib.Path.is_file):
     from the files alone, never from what is imported; `is_file` says which files the tree holds (this checkout's by
     default). Hashing all of them keeps the code version the same whatever order a process put the path's folders in
     (judge.py puts tools/props first when imported; a row's key moved with no file changed)."""
-    found = set()
+    return {resolved for path, resolved in repository_candidates(name, search_folders(), REPO, OUTSIDE)
+            if is_file(path)}
+
+
+@functools.cache
+def repository_candidates(name, folders, repo, outside):
+    """(path, its resolved path) of each file in the repository an import name could be found as in a folder of the
+    path (`search_folders`), whether or not the file is there: worked out once a process, as module_files asks it of
+    every import of every file at every commit a record was made at (its paths' resolving was 104 of a camp plan's
+    370 s, 2026-11-11)."""
     parts = name.split(".")
-    for folder in search_folders():
-        for path in (folder.joinpath(*parts).with_suffix(".py"), folder.joinpath(*parts, "__init__.py")):
-            if is_file(path) and in_repo(path):  # the cheap test first: most candidates are not there
-                found.add(path.resolve())
-    return found
+    return tuple((path, path.resolve()) for folder in folders
+                 for path in (folder.joinpath(*parts).with_suffix(".py"), folder.joinpath(*parts, "__init__.py"))
+                 if under_repo(path, repo, outside))
 
 
 def imported_names(source, path, package):
@@ -359,7 +366,14 @@ def unchanged(entries, hash_file):
 
 def relative(path):
     """A repository file's path as git names it."""
-    return pathlib.Path(path).resolve().relative_to(REPO).as_posix()
+    return relative_in(path, REPO)
+
+
+@functools.cache
+def relative_in(path, repo):
+    """relative's answer, once a path a process: rebuilt_at asks it of every candidate of every import at every commit
+    a record was made at."""
+    return pathlib.Path(path).resolve().relative_to(repo).as_posix()
 
 
 def holds(commit):

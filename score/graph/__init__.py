@@ -1988,7 +1988,12 @@ class Runner:
         return lock
 
     def phase_locks(self):
-        """Every phase lock of this run's environment (PHASE_LOCKS), oldest first."""
+        """Every phase lock of this run's environment (PHASE_LOCKS), oldest first: read once a `still` pass, as every
+        key and phase check asks them (a plan read and parsed all 685 of this PC's, 10 MB, again for each, 2026-11-11)."""
+        return list(self.remember("phase locks", self.world.name, self.read_phase_locks))
+
+    def read_phase_locks(self):
+        """Every phase lock of this run's environment (PHASE_LOCKS) read from the store, oldest first."""
         prefix = f"{PHASE_LOCKS}{self.world.name}/"
         return sorted((self.store.read(key) for key in self.store.objects.keys(prefix)), key=lambda lock: lock["at"])
 
