@@ -463,7 +463,7 @@ def content_kept(row):
     else:  # a map, not a function, so no file of the table joins the row's code (graph.code_functions)
         declared = ContentKept(row.files)
     declared.carries, declared.carried = carry.content_carries, carry.content_carried
-    declared.same_reads = carry.foreseen_same
+    declared.same_reads, declared.same_earlier = carry.foreseen_same, carry.same_earlier
     return dataclasses.replace(row, files=declared)
 
 

@@ -221,6 +221,12 @@ def foreseen_same(runner, row, place, moving):
     return True
 
 
+def same_earlier(runner, row, place, record, keyed):
+    """True when every earlier output the key moved by since `record` hands the row what it read then, by its content
+    rule (same_content): the phase lock then holds the row over code and those moves together (Runner.same_earlier)."""
+    return same_content(runner, row, place, record, keyed)[0] is not None
+
+
 def earlier_parts(keyed):
     """The key's parts that name earlier outputs (EARLIER), those it has."""
     return {part: keyed[part] for part in EARLIER if part in keyed}

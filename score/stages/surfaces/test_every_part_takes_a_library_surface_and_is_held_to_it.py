@@ -1471,7 +1471,11 @@ def plan_output(store, key, **changes):
 def a_plan_redrawn_on_the_same_floor_keeps_the_rough_align():
     """rough-align reads its plan's place, floor and heights alone (carry.CONTENT_RULES): its accepted output carries
     to a key moved by a plan redrawn without an item (the square, 2026-11-07), and rebuy, foreseeing that plan, keeps
-    it; a plan with another floor carries nothing, nor a key whose other parts moved."""
+    it; a plan with another floor carries nothing, nor a key whose other parts moved. Under a phase lock its code may
+    have moved too: the lock holds it over the same plan content (Runner.same_earlier, the row's same_earlier: 516021df
+    cut surplus screens off lab's, hub's and camp's plans, and their rough models, held by the models lock, were made
+    again), never over another floor; a row with no content rule is held only while its earlier outputs stand.
+    Break: score/graph/__init__.py: '        return hasattr(stage.files, "same_earlier") and stage.files.same_earlier(self, stage, place, record, keyed)' -> '        return True'"""
     store, row = a_store(), ROWS["rough-align"]
     then, _ = plan_output(store, "k-then")
     record = {**a_record(), "node": "rough-align@hub", "after": {"plan": then}, "finished": "2026-11-07T00:00"}
@@ -1485,6 +1489,9 @@ def a_plan_redrawn_on_the_same_floor_keeps_the_rough_align():
         runner.foreseen = {"plan@hub": {"plan.json": plan}}
         assert row.files.carries(runner, row, "hub", keyed) is same, changes
         assert row.files.same_reads(runner, row, "hub", ["plan@hub"]) is same, changes
+        assert graph.Runner.same_earlier(runner, row, "hub", record, keyed) is same, changes  # the phase lock's
+        assert graph.Runner.same_earlier(runner, ROWS["surfaces-paint"], "hub", record, keyed) is False  # no rule
+    assert graph.Runner.same_earlier(runner, ROWS["surfaces-paint"], "hub", record, record) is True  # nothing moved
     now, _ = plan_output(store, "k-same", items=[])
     keyed = {**record, "key": "n-same", "after": {"plan": now}}
     assert not row.files.carries(runner, row, "hub", {**keyed, "seed": 1})
