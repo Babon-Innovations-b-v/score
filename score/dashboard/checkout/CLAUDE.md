@@ -50,7 +50,10 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   <name>` (owner, 2026-11-06: "lets start treating it as phases") keeps only that phase's rows of the basket
   (`flow.phase_kept`, the phases of `score/stages/phases`, an item left with none dropped) under the same yes and
   batch total, the checkout's `chat_yes` naming the phase; a phase whose run would also buy an earlier phase's row
-  not standing is refused as any "would also buy" is. His click is unchanged.
+  not standing is refused as any "would also buy" is. `buy <id> --place P,...` buys only those places' rows and the
+  environment rows they need, `--leave-place P,...` every row but those places' (`chat_yes.place_left`,
+  `flow.places_left`, `score run --place` the model): a row needing a left-out place's row not standing waits, so
+  a left-out place is never a "would also buy". His click is unchanged.
 - **One budget a batch, across its tries** (root CLAUDE.md, owner 2026-10-26: "those budget asks should become per
   batch tho, not per try"). `flow.batch_budget` (in `write_line`): the batch's start is what its first try's line was
   written over (`watched.batch_start`: `batch_from`, else that line's spent plus reserved); its budget the newest
