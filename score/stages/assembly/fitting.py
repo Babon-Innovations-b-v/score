@@ -421,7 +421,9 @@ def wall_holes(mesh, on, band):
     """The boxes (corners [8, 3]) of the openings cut through a wall relation's face (`on`, its span and out) within
     a height `band` (low, high): each run of the face where rays every RAY_STEP along it at the band's low, middle and
     high, cast from HOLE_FRONT in front of its line straight at it, meet no built wall (`mesh`, built_walls) within
-    HOLE_DEEP, as deep as HOLE_FRONT before the line to HOLE_DEEP behind it; none with no mesh. A wall thing keeps out
+    HOLE_DEEP, a RAY_STEP past its outermost open rays either way (its edge lies between rays: shiplock's screen
+    laid against its hole's measured edge hung 0.02 m over it), as deep as HOLE_FRONT before the line to HOLE_DEEP
+    behind it; none with no mesh. A wall thing keeps out
     of them as it keeps out of a door's swing (on_wall's `clear`): walkway's and shiplock's screens hung in holes
     cut through their walls (2026-11-11)."""
     if mesh is None or not len(mesh.faces):
@@ -443,7 +445,7 @@ def wall_holes(mesh, on, band):
         if opened and begin is None:
             begin = number
         elif not opened and begin is not None:
-            ends = (alongs[begin] - RAY_STEP / 2, alongs[number - 1] + RAY_STEP / 2)
+            ends = (alongs[begin] - RAY_STEP, alongs[number - 1] + RAY_STEP)  # its edge within a step either way
             found.append(np.array([[*(start + run * along + out * off)[[0]], height, *(start + run * along + out * off)[[1]]]
                                    for along in ends for height in band for off in (-HOLE_DEEP, HOLE_FRONT)]))
             begin = None
