@@ -13,6 +13,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
 score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py
 """
 import hashlib
+import inspect
 import json
 import pathlib
 import shutil
@@ -30,7 +31,8 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import baked, fitting, made_waiting, neighbours, record, scene_tree, sounds  # noqa: E402
+from score.stages.assembly import (baked, fitting, made_waiting, neighbours, record, resting_within,  # noqa: E402
+                                     scene_tree, sounds)
 
 TOY = "toy"
 PLACE = "wreck"  # a place the environment knows (export lays its ground); its layout and inventory here are the test's
@@ -185,6 +187,22 @@ def opened(root):
 
 # --- the resting gate reads the world's declared files --------------------------------------------------------------
 
+def a_window_in_its_door(root):
+    """A place of a door and a window laid 30 cm into it, both 1 m boxes on the floor, as the stage's output, its
+    inventory of the two rows in the world's declared folder; the output and that folder's world data."""
+    (root / "made").mkdir(parents=True)
+    rows = [row("door"), row("window")]
+    stage = place_of(root / "made", [("door", "box", (6, 0, 0)), ("window", "box", (6.3, 0, 0))], rows)
+    output = root / "output"
+    shutil.copytree(stage.parent, output)
+    inputs_record = json.loads((output / "inputs.json").read_text())
+    (output / "inputs.json").write_text(json.dumps(
+        {**inputs_record, "inventory": str(root / f"home/design/inventory/{stage.stem}.json")}))
+    inputs = world_data(root / "world", stage.stem, [])
+    (inputs["inventories"] / f"{stage.stem}.json").write_text(json.dumps({"rows": rows}))
+    return output, inputs
+
+
 def a_sunk_plate(root):
     """A place holding one floor plate sunk 40 cm (a kit piece's false alarm under the repository's rules), as the
     stage's output, its inputs record naming the design inventory by full path as earth-seed lays it."""
@@ -214,17 +232,35 @@ def world_data(root, place, fixed_in_kit):
 def resting(output, inputs):
     evidence = output.parent / "settled.json"
     evidence.write_text(json.dumps({"objects": {}}))
-    return assembly.judge_resting(output, inputs, evidence)
+    return resting_within.judge_resting(output, inputs, evidence)
 
 
 def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
     """Fault (review of step 0, 2026-10-11): the judge read the repository's resting.json, so a world whose rules were
     elsewhere was judged on files its key did not cover. The sunk plate passes where the world's rules name its kit
     group, fails by name where they name none, and a seed naming no inventory in the folder is unknown.
-    Break: score/stages/assembly/__init__.py: `rules_file=inputs["resting rules"]` -> `rules_file=REPO /
-        "data/checks/resting.json"`"""
+    Break: score/stages/assembly/resting_within.py: `rules_file=inputs["resting rules"]` -> `rules_file=assembly.REPO /
+        "data/checks/resting.json"`
+    Round 32's docking airlock (2026-11-11): its door's window and its suit in its locker, laid within their holders by
+    the plan, failed as overlaps "still inside after the nudge". A window the record lays within its door passes; the
+    same pair with no planned relation, or laid on it, still fails as overlapping; the table's assembly row judges
+    resting so.
+    Break: score/stages/__init__.py: `"resting": resting_within.judge_resting` -> `"resting": assembly.judge_resting`
+    Break: score/stages/assembly/resting_within.py: `and not planned_overlap(fault, within)]` -> `]`
+    Break: score/stages/assembly/resting_within.py: laid_within's `== "within"}` -> `in ("within", "top")}`"""
     output, place = a_sunk_plate(tmp_path)
     kit_floor = world_data(tmp_path / "kept", place, ["kit: floor"])
+    pair, pair_world = a_window_in_its_door(tmp_path / "pair")
+    (pair / record.RECORD).write_text(json.dumps({"objects": [{"name": "door_1", "row": "door"}]}))
+    alone = resting(pair, pair_world)
+    assert alone.answer == checks.FAIL and any("overlaps" in finding for finding in alone.findings), alone
+    for how, answer in (("within", checks.PASS), ("top", checks.FAIL)):
+        laid = {"name": "window_1", "row": "window", "on": {"how": how, "holder": ["door_1"]}}
+        (pair / record.RECORD).write_text(json.dumps({"objects": [{"name": "door_1", "row": "door"}, laid]}))
+        assert resting(pair, pair_world).answer == answer, (how, resting(pair, pair_world))
+    from score import stages
+    judges = {check.name: inspect.unwrap(check.judge) for check in stages.ASSEMBLY.checks}
+    assert judges["resting"] is resting_within.judge_resting, judges
     assert resting(output, kit_floor).answer == checks.PASS
     verdict = resting(output, world_data(tmp_path / "changed", place, []))
     assert verdict.answer == checks.FAIL and "plate" in " ".join(verdict.findings), verdict

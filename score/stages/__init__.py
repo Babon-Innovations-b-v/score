@@ -48,7 +48,7 @@ import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.final as demo_film_final
 import score.stages.demo_film.peel_rows as peel_rows
 from score.stages.surfaces.surface_gates import guarded
-from score.stages.assembly import held_apart, neighbours, wired
+from score.stages.assembly import held_apart, neighbours, resting_within, wired
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.people_rows as people_rows
@@ -134,13 +134,15 @@ def assembly_neighbours(place):
 
 # The place's final assembly: its seed with every accepted layer it reads in place of the seed's part (assembly.READS,
 # joined in `layered` for each layer stage the table holds), its layers gate unknown while one it needs is missing.
-# Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves; its
+# Its held gate takes held_apart's face rule here, in the table, so no maker hashing the assembly's package moves, and
+# its resting gate resting_within's read of the plan's "within" (a door's window, a suit in its locker) the same way; its
 # make lays each screen row's picture over its baked asset after it (screens.assembled, #88), wrapped here for the same
 # reason, over assembly/wired's make (a floor thing a wall's thing was laid into parted, its cycles released before
 # that take, a voice on a person not laid a gap).
 ASSEMBLY = graph.Stage("assembly", "place", screens.assembled(wired.make), contracts.OPENUSD_STAGE,
-                       tuple(dataclasses.replace(check, judge=held_apart.judge_held) if check.name == "held" else check
-                             for check in assembly.CHECKS),
+                       tuple(dataclasses.replace(check, judge={"held": held_apart.judge_held,
+                                                               "resting": resting_within.judge_resting}[check.name])
+                             if check.name in ("held", "resting") else check for check in assembly.CHECKS),
                        files=assembly.files, gatherers=assembly.GATHERERS,
                        after={"terrain": ("grounds", 2),
                               "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
