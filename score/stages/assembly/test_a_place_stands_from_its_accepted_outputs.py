@@ -1362,7 +1362,10 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     Break: score/stages/assembly/fitting.py: stood_off's `0.0 < float(along.min() + along.max()) / 2 < length`
         dropped (walkway's whole-wall pipe stood on its end walls' front, against the wall across), or off_wall's
         `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
-        rib's front named off its wall)"""
+        rib's front named off its wall)
+    Break: score/stages/assembly/fitting.py: fit's `if scale < SCALE_LEAST: return CROWDED` dropped (a wall thing with
+        no stretch left shrunk to nothing), or oriented_corners' `or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12`
+        dropped (a prim scaled flat: LinAlgError, Singular matrix)"""
     from pxr import Gf, Usd, UsdGeom
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -1499,6 +1502,18 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
     scale, target = fitting.on_wall(np.array([-3.0, 1.5, 0.1]), np.array([-2.0, 2.2, 0.5]), wall, (), corner)
     assert scale == 1.0 and np.allclose(target, (-2.1, 1.5, 0.3)), (scale, target)
+    # habitat's third kitchen cabinet (2026-11-11): its wall taken, floor to top, by those laid before it but for a
+    # stretch of no length at its end ((2.9064, 2.9064)), it was shrunk to 0% and its flat frame broke
+    # oriented_corners' inverse. With no stretch of its wall left it is CROWDED (left as laid); with the wall free it
+    # is laid; a prim scaled flat gives its world box's corners
+    cabinet, whole = (np.array([-0.5, 1.5, 0.1]), np.array([0.5, 2.2, 0.5])), \
+        [(np.array([-3.0, 0.0, 0.1]), np.array([3.0 - 1e-12, 3.0, 0.6]))]
+    assert fitting.fit(*cabinet, wall, mounted=whole) is fitting.CROWDED
+    assert fitting.fit(*cabinet, wall) is None
+    xform.AddScaleOp().Set(Gf.Vec3f(0.0, 0.0, 0.0))
+    low, high = fitting.world_box(turned, f"/{TOY}/Objects/pipe_9")
+    assert np.allclose(fitting.oriented_corners(turned, f"/{TOY}/Objects/pipe_9"),
+                       [[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
 
 
 def test_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
