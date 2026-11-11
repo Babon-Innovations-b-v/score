@@ -403,7 +403,7 @@
      "dress": {
       "words": "astronaut in spacesuit",
       "named": [
-       "spacesuit_fabric_grey"
+       "spacesuit_fabric"
       ],
       "torso_lab": [
        37.1,
@@ -411,9 +411,9 @@
        -0.5
       ],
       "figures": 5,
-      "surface": "spacesuit_fabric_grey",
+      "surface": "spacesuit_fabric",
       "de": 22.8,
-      "why": "the words name spacesuit_fabric_grey; spacesuit_fabric_grey the nearest to the torso by dE"
+      "why": "the words name spacesuit_fabric; spacesuit_fabric the nearest to the torso by dE"
      }
     }
    }
@@ -450,7 +450,7 @@
      "dress": {
       "words": "worker in blue jumpsuit",
       "named": [
-       "jumpsuit_bluegrey_fabric"
+       "jumpsuit_bluegrey_cloth"
       ],
       "torso_lab": [
        34.8,
@@ -458,9 +458,9 @@
        -19.0
       ],
       "figures": 8,
-      "surface": "jumpsuit_bluegrey_fabric",
+      "surface": "jumpsuit_bluegrey_cloth",
       "de": 12.9,
-      "why": "the words name jumpsuit_bluegrey_fabric; jumpsuit_bluegrey_fabric the nearest to the torso by dE"
+      "why": "the words name jumpsuit_bluegrey_cloth; jumpsuit_bluegrey_cloth the nearest to the torso by dE"
      }
     }
    }
@@ -492,7 +492,7 @@
      "dress": {
       "words": "person in spacesuit",
       "named": [
-       "spacesuit_fabric_grey"
+       "spacesuit_fabric"
       ],
       "torso_lab": [
        39.6,
@@ -500,9 +500,9 @@
        4.3
       ],
       "figures": 3,
-      "surface": "spacesuit_fabric_grey",
+      "surface": "spacesuit_fabric",
       "de": 19.9,
-      "why": "the words name spacesuit_fabric_grey; spacesuit_fabric_grey the nearest to the torso by dE"
+      "why": "the words name spacesuit_fabric; spacesuit_fabric the nearest to the torso by dE"
      }
     }
    }
