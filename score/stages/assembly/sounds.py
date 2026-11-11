@@ -113,7 +113,7 @@ def motion_sounds(stage, uses, entries, out):
     unplaced, counted = [], {}
     for use in uses:
         target = stage.GetPrimAtPath(use["on"]) if use["on"] else None
-        if not target:
+        if not target or not target.IsActive():  # one the fitting left out (hangar's second crane, 2026-11-11)
             unplaced.append(f"{use['sound']} (motion): no moving prim {use['on']} on the stage")
             continue
         number = counted[use["on"]] = counted.get(use["on"], -1) + 1

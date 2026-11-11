@@ -1971,6 +1971,7 @@ def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said
     door's sound at its own second (2.5 s, 2.5 x the stage's rate in frames), each file under its world name, the layer
     in the sound's slot of ORDER; a hum on a row the stage lacks is named.
     Break: score/stages/assembly/sounds.py: `start=float(use["at"]) * rate` -> `start=float(use["at"])`
+    Break: score/stages/assembly/sounds.py: `if not target or not target.IsActive():` -> `if not target:`
     Break: score/stages/assembly/sounds.py: `unplaced.append(f"{use['sound']} (object): no prim of the row or name
         {use['on']} on the stage")` -> `pass`"""
     from pxr import UsdMedia
@@ -1990,6 +1991,14 @@ def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said
     door = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Objects/door_1/Sound_0"))
     assert door.GetStartTimeAttr().Get().GetValue() == 2.5 * stage.GetTimeCodesPerSecond()
     assert stage.GetRootLayer().subLayerPaths[2] == "./layers/sound.usda"
+    # hangar (2026-11-11): its second crane, left out by the fitting (inactive), crashed the assembly defining its
+    # motion's sound under it; it is a sound placed nowhere, named
+    left = a_toy(tmp_path / "left")
+    held = opened(left)
+    held.GetPrimAtPath(f"/{TOY}/Objects/door_1").SetActive(False)
+    held.GetRootLayer().Save()
+    unplaced = sounds.take(a_sound_output(tmp_path / "left-sound", uses[2:3]), left, {"sounds": tmp_path / "none.json"})
+    assert unplaced == [f"hum (motion): no moving prim /{TOY}/Objects/door_1 on the stage"], unplaced
 
 
 def test_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer(tmp_path):
