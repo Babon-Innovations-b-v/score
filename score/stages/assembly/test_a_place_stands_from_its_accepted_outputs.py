@@ -1281,7 +1281,10 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         = []` (lamp_2 left in lamp_1), or on_wall's `[*clear, *mounted]` -> `clear` (the cabinet left in the corner)
     Break: score/stages/assembly/fitting.py: mounted_height's `return next((at for at in lower ...), height)` ->
         `return height` (the pipe shrunk beside the one over it), or its `wanted = min(reach, longest(height, clear))`
-        -> `wanted = reach` (the pipe longer than its wall left in the one over it)"""
+        -> `wanted = reach` (the pipe longer than its wall left in the one over it)
+    Break: score/stages/assembly/fitting.py: on_wall's `reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @
+        out))` -> `reach, deep = across(run, size), across(out, size)` (the turned pipe 1.1 m off its slanted wall), or
+        oriented_corners' `return box @ own[:3, :3] + own[3, :3]` -> its world box's corners"""
     from pxr import Gf, Usd, UsdGeom
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -1340,6 +1343,19 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     long_pipe = (np.array([-3.5, 2.35, 0.1]), np.array([3.5, 2.8, 0.3]))
     scale, target = fitting.on_wall(*long_pipe, wall, (), [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))])
     assert abs(scale - 6 / 7) < 1e-9 and np.allclose(target, (0.0, 2.1, 0.1 + 0.1 * 6 / 7)), (scale, target)
+    # habitat's 3 m pipes on its 45 degree walls were laid 1.5 m off them, as deep as their world box: a 3 x 0.45 x
+    # 0.2 m pipe turned along a slanted wall (its face from (0, 0) to (4, 4), out to +x -z) stands with its own box's
+    # back on the face, its middle 0.1 m out; its turned corners read off the stage (oriented_corners)
+    slant = {"how": "wall", "span": [[0.0, 0.0], [4.0, 4.0]], "out": [0.7071068, -0.7071068]}
+    turned = Usd.Stage.CreateInMemory()
+    xform = UsdGeom.Xform.Define(turned, f"/{TOY}/Objects/pipe_9")
+    UsdGeom.Cube.Define(turned, f"/{TOY}/Objects/pipe_9/geo").AddScaleOp().Set(Gf.Vec3f(1.5, 0.225, 0.1))
+    xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -45.0))
+                               * Gf.Matrix4d().SetTranslate(Gf.Vec3d(2.0, 2.0, 2.0)))
+    corners = fitting.oriented_corners(turned, f"/{TOY}/Objects/pipe_9")
+    low, high = fitting.world_box(turned, f"/{TOY}/Objects/pipe_9")
+    scale, target = fitting.on_wall(low, high, slant, (), (), corners)
+    assert scale == 1.0 and np.allclose(target, (2.0 + 0.1 * 0.7071068, low[1], 2.0 - 0.1 * 0.7071068)), target
     corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
     scale, target = fitting.on_wall(np.array([-3.0, 1.5, 0.1]), np.array([-2.0, 2.2, 0.5]), wall, (), corner)
     assert scale == 1.0 and np.allclose(target, (-2.1, 1.5, 0.3)), (scale, target)
