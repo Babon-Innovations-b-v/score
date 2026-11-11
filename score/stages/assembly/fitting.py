@@ -1584,23 +1584,36 @@ def flush_moves(box, others, inside, axis, side, slants=()):
 def slants(stage, place):
     """[(outline [k, 2] (x, z), box (low, high))] of each built wall statics leaves out for its slant: the convex
     outline of its mesh on the floor, where that outline is no thicker than WALL_THICKEST (a straight slanted wall;
-    a round one's would hold the room), its box for its height. 2026-11-08: engineroom's corner walls, which the
-    parting knew only by the box of the walls, took core_1 5.48 m into wall_12 and railings 7 and 8 through walls 2
-    and 10, out of the room."""
+    a round one's would hold the room), its box for its height; and of each built flight (flight: a stair or ramp the
+    scene record builds as steps, its outline a straight flight's at any width and turn). 2026-11-08: engineroom's
+    corner walls, which the parting knew only by the box of the walls, took core_1 5.48 m into wall_12 and railings 7
+    and 8 through walls 2 and 10, out of the room."""
     from scipy.spatial import ConvexHull, QhullError
     found = []
     for scope in ("Structure", "Shell"):
         for name, box in walls_in(stage, place, scope):
-            if name.split("_")[0] != "wall" or min(box[1][0] - box[0][0], box[1][2] - box[0][2]) <= WALL_THICKEST:
+            if not flight(name) and (name.split("_")[0] != "wall"
+                                     or min(box[1][0] - box[0][0], box[1][2] - box[0][2]) <= WALL_THICKEST):
                 continue
             points = surface_points(stage, f"/{place}/{scope}/{name}")[:, [0, 2]]
             try:
                 outline = points[ConvexHull(points).vertices]
             except (QhullError, ValueError):
                 continue
-            if min(np.ptp(outline @ way) for way in outline_ways(outline)) <= WALL_THICKEST:
+            if flight(name) or min(np.ptp(outline @ way) for way in outline_ways(outline)) <= WALL_THICKEST:
                 found.append((outline, box))
     return found
+
+
+# The built flights' names' first words (scene_record/writer.stair: the plan's stair or ramp kind, `<kind>_<n>`).
+FLIGHTS = ("stair", "ramp")
+
+
+def flight(name):
+    """Whether a built structure piece is a flight of steps (FLIGHTS), which statics leaves out (its box holds the
+    floor beside a turned flight) and slants judges by its outline: settle@campgrounds, 2026-11-11, found its lander
+    and a dome laid 0.65 and 0.76 m into ramp_1 and ramp_2, built as steps, which nothing parted them from."""
+    return name.split("_")[0] in FLIGHTS
 
 
 def outline_ways(outline):
@@ -1683,7 +1696,7 @@ def free_spot(box, others, pieces, inside, slanted=()):
                                                                                  near[0][None])).min(axis=2)
         clear = ~(reach > HELD_MOST).any(axis=1)
         for outline, _ in sloped:
-            begun = slant_depth(middle[[0, 2]], size[[0, 2]] / 2 * 0.0, outline)[0] > 0.0
+            begun = slant_depth(middle[[0, 2]], np.zeros(2), outline)[0] >= 0.0  # a point's depth: 0 in it
             clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]], size[[0, 2]] / 2, outline) <= HELD_MOST
             if not begun:
                 clear &= ~slant_crossed(middle, middle + chunk, outline)
