@@ -3,7 +3,8 @@ states the relations, the assembly lays by them): its scene record entry's `on` 
 score/review/holders) says what holds it, and once its baked model and its holder's stand on the stage it is moved, and
 shrunk where it does not fit (never grown past its own model), so it sits
 
-    top     on its holder's top, within its footprint (a monitor on its console, a lamp on its desk)
+    top     on its holder's top, within its footprint (a monitor on its console, a lamp on its desk), then let down
+            onto the built surface under it, as is one within it off its shelves (built_tops.let_down)
     within  inside its holder's box (plants in their greenhouse, a door in its frame); one that hangs in it (its
             relation's `hangs`: a spacesuit in its locker) moved back onto the holder's built inside back face,
             touching it (on_back); one on its holder's shelves (on_shelves_of) that crosses its holder's built
@@ -1080,8 +1081,9 @@ def off_holder(low, high, how, on, box):
     else the side `out` points from, it and its recess's room past that side's span, or above its top; one hung
     `below` a thin holder as hung_off measures it)."""
     hold_low, hold_high = box
-    if how == "top":
-        return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
+    if how == "top":  # off its built top where it was let down onto it (built_tops), else its box's top
+        return max(abs(low[1] - float(on.get("top at", hold_high[1]))),
+                   overhang(low, high, hold_low, hold_high, (0, 2)))
     if how == "within":
         above = 0.0 if on_shelves_of(on) else \
             min(max(0.0, high[1] - hold_high[1]), abs(low[1] - hold_high[1]))  # on its top it stands over it
@@ -1360,6 +1362,7 @@ def held_faults(record, laid):
     walled = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("span") is not None}
     holed = {fit["name"]: fit["opening"] for fit in laid.get("fitted", []) if fit.get("opening") is not None}
     stacked = {fit["name"]: fit["holder"] for fit in laid.get("fitted", []) if fit["how"] == "stacked"}
+    topped = {fit["name"]: fit.get("top at") for fit in laid.get("fitted", [])}  # its last fit's: stacked after
     named_walls = [(wall["name"], (np.asarray(wall["low"], float), np.asarray(wall["high"], float)))
                    for wall in laid.get("walls", [])]
     walls = [box for _, box in named_walls]
@@ -1375,6 +1378,8 @@ def held_faults(record, laid):
             fitted_on = faced.get(entry["name"])
             if fitted_on:  # laid on that face; one hung in its recess keeps no room beside it on the face
                 on = dict(on, **{"face at": fitted_on["face"]}, **({"room": 0.0} if fitted_on.get("hung") else {}))
+            if topped.get(entry["name"]) is not None:  # let down onto its holder's built top (built_tops)
+                on = dict(on, **{"top at": topped[entry["name"]]})
             if on["how"] == "wall" and entry["name"] in walled:  # on the face it was laid on, by its own box
                 on = dict(on, **{key: walled[entry["name"]][key] for key in ("span", "out", "corners")})
             if on["how"] == "in" and entry["name"] in holed:  # in the straight wall its hole was cut in (hole_wall)
@@ -2117,11 +2122,15 @@ def fitted(stage, place, entries, laid, cuts=None):
     walled = [entry for entry in by_name.values() if entry["on"]["how"] == "wall"]
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
     fits += spread_on_tops(stage, place, topped)
+    from score.stages.assembly import built_tops  # onto the built surface under them
+    fits += built_tops.let_down(stage, place, [entry for entry in by_name.values() if built_tops.held_on(entry)])
     fits += moved_past(stage, place, walled)
     moved_in(stage, place, walled, fits)
     fits += passages.drawn_in(stage, place, walled)
     wall_clear.under_roofs(stage, place, walled, fits)
-    return fits + stacked_on_runs(stage, place, topped, walled) + moved_down(stage, place, loose) + \
+    stacked = stacked_on_runs(stage, place, topped, walled)
+    fits += stacked + built_tops.stacked_down(stage, place, stacked)  # onto the runs' built surface
+    return fits + moved_down(stage, place, loose) + \
         hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)
 
 

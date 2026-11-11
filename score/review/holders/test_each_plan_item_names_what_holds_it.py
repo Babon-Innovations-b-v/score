@@ -167,9 +167,21 @@ def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
     A fitting on a run lower than it is tall (hangar's 0.6 m valve laid inside its 0.4 x 32 m pipe) is on the run,
     never within it; a sitter taller than its seat, clothes on a 1.5 x 0.5 m drying rack (no run) and a valve no taller
     than its pipe stay within (the 7 within relations of airlock, camp, quarters and street).
+    Hangar (2026-11-11): its valve let down onto the round top of its pipe leaned 12.5 degrees on it; a fitting on a
+    run is attached to it (the settle and the resting check take it as laid, mounted.resting_as_laid).
+    Break: score/review/holders/__init__.py: on_run's relation's `"rests": ATTACHED,` dropped
     Break: score/review/holders/__init__.py: `if on_run(row, holder_row):` -> `if False:`
     Break: score/review/holders/__init__.py: on_run's `all(longest >= RUN_SHARE * other` -> `all(longest >= other`
-        (the drying rack a run)"""
+        (the drying rack a run)
+    Lab (settle@lab, 2026-11-11): its 0.2 m valves laid within their 0.1 x 0.1 x 2.5 m standing pipes floated 1.5 m:
+    a fitting wider than a standing run is thick is against its side, the one away from the wall nearest the run
+    (they went against the wall side the concept showed, 0.1 m into the wall); one on a lying run, one no wider than
+    its standing run and one on a stub no run, keep their relation.
+    Break: score/review/holders/__init__.py: held's `if not across_run(row, holder_row):` -> `if True:`, or
+        across_run's `tall >= RUN_SHARE * thick and` dropped (the valve on the stub laid against it)
+    Break: score/review/holders/__init__.py: held's `if off_wall:` -> `if False:` (the valve on the side the concept
+        shows), or side_off_wall's `away * (numpy.abs(away) == numpy.abs(away).max())` -> `-away * (...)` (toward the
+        wall)"""
     pipe, valve = {"size": [0.4, 32.0, 0.4]}, {"size": [0.6, 0.2, 0.6]}
     assert holders.on_run(valve, pipe) and not holders.on_run({"size": [0.6, 0.2, 0.3]}, pipe)
     assert not holders.on_run({"size": [0.5, 0.1, 0.8]}, {"size": [1.5, 0.5, 0.1]})
@@ -180,7 +192,22 @@ def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
         found = holders.held(runs["VALVE 1"], {"id": "pipe_valves", "noun": "valve", "anchor": "on:large_pipes",
                                                "size": size}, {"id": "large_pipes", "noun": "pipe", "anchor": "wall",
                                                                **pipe}, ["PIPE 1"], runs, 0.0)
-        assert (found["how"], found["holder"]) == (how, "PIPE 1"), found
+        assert (found["how"], found["holder"], found.get("rests")) == (how, "PIPE 1", how == "top" and "attached"
+                                                                       or None), found
+    standing = {"id": "pipe", "noun": "pipe", "anchor": "wall", "size": [0.1, 0.1, 2.5]}
+    walled = plan_of([], {}, walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
+                                    {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2}])
+    assert holders.side_off_wall(["PIPE 9", 5.0, 0.2, 0.2, 0.2, None, "item"], walled) == "S"
+    assert holders.side_off_wall(["PIPE 9", 0.2, 6.0, 0.2, 0.2, None, "item"], walled) == "E"
+    valve = {"id": "valve", "noun": "valve", "anchor": "on:pipe", "size": [0.2, 0.1, 0.2]}
+    found = holders.held(runs["VALVE 1"], valve, standing, ["PIPE 1"], runs, 0.0, off_wall="S")
+    assert (found["how"], found["face"]) == ("face", "S"), found
+    for size, holder, how in (([0.2, 0.1, 0.2], standing, "face"), ([0.08, 0.08, 0.2], standing, "within"),
+                              ([0.6, 0.2, 0.3], {**standing, "size": [0.4, 32.0, 0.4]}, "within"),
+                              ([0.2, 0.1, 0.2], {**standing, "size": [0.1, 0.1, 0.15]}, "within")):
+        found = holders.held(runs["VALVE 1"], {"id": "valve", "noun": "valve", "anchor": "on:pipe", "size": size},
+                             holder, ["PIPE 1"], runs, 0.0)
+        assert (found["how"], found["holder"]) == (how, "PIPE 1"), (size, found)
     rows = [{"id": "locker", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0], "box": [681, 565, 813, 1062]},
             {"id": "suit", "noun": "spacesuit", "anchor": "on:locker", "size": [0.6, 0.4, 1.8],
              "box": [687, 565, 812, 789]}]
