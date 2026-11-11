@@ -1968,15 +1968,19 @@ def fitted(stage, place, entries, laid, cuts=None):
     (its box as laid after), the stage left unsaved. A thing hung from the roof built taller than its reading is first
     hung down under it (moved_down), so it is parted at the height it hangs at. The things nothing holds are parted
     first (parted, one hung from the roof with no room left under it left out) and what is
-    still in a deck or wall pulled out of it (moved_out), so what they hold is fitted where they stand."""
+    still in a deck or wall pulled out of it (moved_out), and what is laid on or within one of them moved with it
+    (held_along.carried), so what they hold is fitted where they stand."""
     by_name = {entry["name"]: entry for entry in entries if entry.get("on") and entry["name"] in laid}
     bakes = {entry["name"]: entry.get("bake") for entry in entries}
     loose = [entry for entry in entries if entry["name"] in laid and not entry.get("on") and not climbs(entry)]
+    from score.stages.assembly import held_along
+    before = held_along.boxes(stage, place, loose)  # what each holder's things move with (held_along.carried)
     fits = moved_down(stage, place, [entry for entry in loose if entry.get("under roof")])
     done, fits = set(), fits + parted(stage, place, loose, set(by_name))
     loose = [entry for entry in loose if stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}").IsActive()]
     fits += moved_out(stage, place, loose)
     fits += floor_clear.off_edges(stage, place, loose) + floor_clear.apart(stage, place, loose)
+    fits += held_along.carried(stage, place, list(by_name.values()), before)
     built = [box for _, box in walls(stage, place)]
 
     def one(name, seen=()):

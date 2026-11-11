@@ -1040,7 +1040,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: free_spot's `clear &= on_deck(box[0] + chunk, size, deck)` -> `pass` and
         parted_boxes' `if (deck := deck_at(boxes[name], floors)) is not None` -> `if False and ...` (greenhouse's desk
         parted past its deck's edge), or parted's `outlines = {name: outline ...}` -> `outlines = {}` (the desk clear
-        of the railing, in its box, parted)"""
+        of the railing, in its box, parted)
+    Break: score/stages/assembly/fitting.py: `fits += held_along.carried(stage, place, list(by_name.values()), before)`
+        -> `fits += []` (greenhouse's computer left at its parted desk's edge), or held_along.py's carried `if
+        float(np.linalg.norm(shift)) <= fitting.MOVE_LEAST:` -> `if True:`"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1317,6 +1320,21 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         ("lamp_1", "apart", 0.047), ("plant_1", "off edge", 0.11)], fits
     assert np.allclose(fitting.world_box(rugged, f"/{TOY}/Objects/plant_1")[0], (2.01, 0.0, 0.5)), fits
     assert np.allclose(fitting.world_box(rugged, f"/{TOY}/Objects/lamp_1")[0], (4.5, 0.0, 0.874)), fits
+    # settle@greenhouse (2026-11-11): desk_6 was parted 1.07 m and computer_4, laid on its top, stayed at its plan spot,
+    # at the desk's edge. A desk laid 0.6 m into a kit fixture is parted 1 m along x; the computer on its top moves
+    # the same 1 m with it, 0.9 m from the desk's near side as laid, never left at that side.
+    desked = Usd.Stage.CreateInMemory()
+    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 6.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 6.0)),
+                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0)), ("wall_4", (0.0, 0.0, 6.0), (6.0, 3.0, 6.1))):
+        a_built_box(desked, f"/{TOY}/Structure/{name}", low, high)
+    a_built_box(desked, f"/{TOY}/Fixtures/kit_1", (2.0, 0.0, 2.0), (4.0, 1.0, 4.0))
+    a_built_box(desked, f"/{TOY}/Objects/desk_6", (3.0, 0.0, 2.5), (4.6, 0.75, 3.3))
+    a_built_box(desked, f"/{TOY}/Objects/computer_4", (3.9, 0.75, 2.7), (4.3, 1.15, 3.0))
+    fits = fitting.fitted(desked, TOY, [{"name": "desk_6", "row": "desk"}, {
+        "name": "computer_4", "row": "computer", "on": {"how": "top", "holder": ["desk_6"]}}], {"desk_6", "computer_4"})
+    desk, computer = (fitting.world_box(desked, f"/{TOY}/Objects/{name}") for name in ("desk_6", "computer_4"))
+    assert np.allclose(desk[0], (4.0, 0.0, 2.5), atol=1e-6), fits
+    assert np.allclose(computer[0], (4.9, 0.75, 2.7), atol=1e-6), fits
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
