@@ -1456,6 +1456,40 @@ STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)
 # Pixal3D's takes the owner's reject names are made again, the rest kept (retaking).
 STAGES = tuple(dataclasses.replace(row, retakes=True, make=retaking(row.make)) if row.name in RETAKES else row
                for row in STAGES)
+PARTS_SEED = "seed.txt"  # in a look's candidate parts folder: the seed of the make its work is for (parts_reseeded)
+
+
+def parts_reseeded(make):
+    """A look's parts make (people_bodies/bodies.py parts_made) whose candidate parts folder is set aside first when its
+    work was made for another seed (its PARTS_SEED, none in a folder from before it): a make at a new seed (the owner's
+    reject, `again`; a free remake) buys the parts again on the current split code, instead of copying out the parts
+    it was asked to replace. people-look-parts-man_stair-made, rejected at bdb60d93 (one part 93% of the body), was
+    remade at a fresh seed in checkout 89 and gave bdb60d93 again: the candidate's parts of 2026-11-10 still fit and
+    held its palette (bodies.kept_parts), so GeoSAM2's turn fix (9d5f95d9) never ran. Wired here, in the framework's
+    table, so no look's parts or body row re-keys; a make at its own seed keeps its folder's work (a retry after a
+    failed buy goes on from it)."""
+    @functools.wraps(make)
+    def made(inputs, out, seed, params):
+        from score.stages.people_bodies import bodies
+        if str(bodies.MAKER) not in sys.path:
+            sys.path.insert(0, str(bodies.MAKER))
+        import prop_person
+        name = json.loads(pathlib.Path(inputs["spec"]).read_text())["name"]
+        parts = prop_person.folder_of({"name": name}, params["outfit"]) / "parts"
+        stamp = parts / PARTS_SEED
+        if parts.exists() and not (stamp.is_file() and stamp.read_text() == str(seed)):
+            bodies.set_aside(parts)
+        parts.mkdir(parents=True, exist_ok=True)
+        stamp.write_text(str(seed))
+        make(inputs, out, seed, params)
+        parts.mkdir(parents=True, exist_ok=True)  # the make sets its folder aside itself when its parts no longer fit
+        stamp.write_text(str(seed))
+    return made
+
+
+# A look's parts are bought again when made at a new seed (parts_reseeded).
+STAGES = tuple(dataclasses.replace(row, make=parts_reseeded(row.make))
+               if row.name.startswith(f"{people.bodies.PARTS}-") else row for row in STAGES)
 # The rows a take the surface line left out reaches by name (left_out_gaps; owner, 2026-10-29, through score: a take
 # the surfaces-parts row leaves out "must never vanish silently").
 LEFT_OUT = ("likeness", "motion")
