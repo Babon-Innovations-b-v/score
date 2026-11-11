@@ -1183,7 +1183,22 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     relation laid against its wall at the eave, 6 m up through the roof, by name and how far; a crate wholly above the
     roof is not through it, and a box on a loft deck under the eave, 0.42 m through, is left and named, never sunk
     into its deck. A light hung from the roof, built shorter than its reading (its top 0.4 m under the roof's 4.6 m over
-    its corner, settle@airlock's roof light 0.13 m under its dome), is moved up to 0.01 m under it.
+    its corner, settle@airlock's roof light 0.13 m under its dome), is moved up to 0.01 m under it. A crane hung from
+    the roof built taller than its reading, its box's top 2.1 m over the roof at its x 9 end, is hung down 2.11 m
+    (more than 1 m: its hang sets its height) so its box's top stands 0.01 m under the roof. Of two cranes hung from
+    the roof where a 10 m room holds one, the later is left out, never left in the other; two things on the floor
+    are left as laid (the held gate names them). A valve on its pipe's top inside the pipe run packed over it is
+    stacked onto that run, and the held gate judges it there.
+    Break: score/stages/assembly/fitting.py: `fits = moved_down(stage, place, [entry for entry in loose if
+        entry.get("under roof")])` -> `fits = []` (the crane left 2.1 m through the roof), or moved_down's
+        `(drop > OUT_MOST and not hung)` -> `drop > OUT_MOST`
+    Break: score/stages/assembly/fitting.py: hung_up's `under_roof_gap(box_topped(surface_points(` ->
+        `under_roof_gap((surface_points(` is caught by settle9's hangar only: a box's corners are its points
+    Break: score/stages/assembly/fitting.py: parted_boxes' `if shift is None and name in hung:` -> `if False:` (both
+        cranes left as laid in each other), or its `tried -= later` -> `pass` (the later never left out)
+    Break: score/stages/assembly/fitting.py: `fits += stacked_on_runs(stage, place, topped, walled)` dropped, or
+        held_faults' `stacked.get(entry["name"], on.get("holder") or [])` -> `on.get("holder") or []` (the stacked
+        valve named off its holder's top)
     Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
     Break: score/stages/assembly/fitting.py: `+ hung_up(stage, place, loose)` -> `+ []`
     Break: score/stages/assembly/fitting.py: roofs' `for scope in ("Structure", "Shell")]` -> `for scope in
@@ -1212,16 +1227,20 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
                             ("ship_1", (1.0, 0.0, 6.0), (3.0, 6.0, 8.0)),
                             ("crate_2", (2.0, 5.0, 2.0), (2.5, 5.5, 2.5)),
                             ("pipes_1", (8.0, 0.0, 4.0), (8.4, 9.0, 4.4)),
+                            ("crane_1", (6.0, 3.5, 1.0), (9.0, 5.5, 3.0)),
                             ("light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))):
         a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
     wall = {"how": "wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
     entries = [*[{"name": name, "row": name[:-2]} for name in ("lamp_1", "crate_1", "ship_1", "crate_2",
                                                                  "box_1")],
-               {"name": "pipes_1", "row": "pipes", "on": wall}, {"name": "light_1", "row": "light", "under roof": True}]
+               {"name": "pipes_1", "row": "pipes", "on": wall}, {"name": "crane_1", "row": "crane", "under roof": True},
+               {"name": "light_1", "row": "light", "under roof": True}]
     names = {entry["name"] for entry in entries}
     fitted = fitting.fitted(stage, TOY, entries, names)
     fits = [fit for fit in fitted if fit["how"] == "down"]
-    assert [(fit["name"], fit["moved"], fit["holder"]) for fit in fits] == [("crate_1", 0.4, ["roof_1"])], fits
+    assert [(fit["name"], fit["moved"], fit["holder"]) for fit in fits] == [("crane_1", 2.11, ["roof_1"]),
+                                                                            ("crate_1", 0.4, ["roof_1"])], fits
+    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/crane_1")[1], (9.0, 3.39, 3.0)), fits
     assert [(fit["name"], fit["moved"]) for fit in fitted if fit["how"] == "up"] == [("light_1", 0.39)], fitted
     assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/light_1")[1], (4.4, 4.59, 6.4)), fitted
     assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/crate_1")[1], (1.5, 3.2, 2.0)), fits
@@ -1246,6 +1265,30 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     a_built_box(shelled, f"/{TOY}/Objects/light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))
     assert [name for name, _ in fitting.roofs(shelled, TOY)] == ["roof_1"]
     assert [(fit["name"], fit["moved"]) for fit in fitting.hung_up(shelled, TOY, entries[-1:])] == [("light_1", 0.39)]
+    cranes = {name: (np.array([0.0, 3.0, z]), np.array([10.0, 5.0, z + 6.0])) for name, z in (("crane_1", 0.0),
+                                                                                                ("crane_2", 3.0))}
+    sides = [(np.array(low, float), np.array(high, float)) for low, high in (
+        ((-0.5, 0.0, -0.5), (10.5, 6.0, 0.0)), ((-0.5, 0.0, 10.0), (10.5, 6.0, 10.5)),
+        ((-0.5, 0.0, 0.0), (0.0, 6.0, 10.0)), ((10.0, 0.0, 0.0), (10.5, 6.0, 10.0)))]
+    after, left = fitting.parted_boxes(cranes, [], sides, [-0.5, -0.5, 10.5, 10.5], (), {"crane_1", "crane_2"})
+    assert left == {"crane_2"} and list(after) == ["crane_1"], (after, left)
+    assert -0.01 <= after["crane_1"][0][2] and after["crane_1"][1][2] <= 10.01, after
+    after, left = fitting.parted_boxes(cranes, [], sides, [-0.5, -0.5, 10.5, 10.5])
+    assert not left and sorted(after) == ["crane_1", "crane_2"], (after, left)
+    runs = Usd.Stage.CreateInMemory()
+    for name, low, high in (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),
+                            ("pipe_1", (0.0, 1.45, 0.0), (4.0, 1.85, 0.4)),
+                            ("valve_1", (1.0, 1.4, 0.1), (1.2, 1.7, 0.3)), ("valve_2", (3.0, 1.85, 0.1),
+                                                                            (3.2, 2.15, 0.3))):
+        a_built_box(runs, f"/{TOY}/Objects/{name}", low, high)
+    topped = [{"name": name, "row": "valve", "on": {"how": "top", "holder": [holder]}}
+              for name, holder in (("valve_1", "pipe_3"), ("valve_2", "pipe_1"))]
+    stacked = fitting.stacked_on_runs(runs, TOY, topped, [{"name": "pipe_1"}, {"name": "pipe_3"}])
+    assert [(fit["name"], fit["moved"], fit["holder"]) for fit in stacked] == [("valve_1", 0.45, ["pipe_1"])], stacked
+    laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(runs, f"/{TOY}/Objects/{name}")))}
+                        for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": stacked}
+    assert not fitting.held_faults({"objects": topped[:1]}, laid), laid
+    assert fitting.held_faults({"objects": topped[:1]}, {**laid, "fitted": []})
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():

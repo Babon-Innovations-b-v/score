@@ -85,6 +85,8 @@ KEPT = PROPS_HOME / "design" / "relations"
 WINDOW_SILL = 0.9
 # An item stands on its holder's top when its concept box's foot is over the holder's by this share of its box's height.
 TOP_SHARE = 0.25
+# A holder is a run (a pipe, a rail, a cable run) where its longest side is at least this many times each other side.
+RUN_SHARE = 10.0
 FACES = {"N": (0.0, -1.0), "S": (0.0, 1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
 WALL_WORDS = {"wall", "walls", "facade", "panel", "partition", "side", "bulkhead"}
 FLOOR_WORDS = {"floor", "deck", "plates", "plate", "grating", "plaza", "ground", "platform", "terrain", "regolith",
@@ -446,12 +448,25 @@ def placement(row, holder_row):
     return None
 
 
+def on_run(row, holder_row):
+    """Whether a row is a fitting on a run (a valve on a pipe): its holder's longest side at least RUN_SHARE times each
+    of its others, and the row taller than the run is high, so it cannot sit within it (hangar's 0.6 m valves within
+    their 0.4 m pipes, raised onto them by the settle's snap, 2026-11-11). Never a sitter in its seat or clothes on a
+    drying rack (1.5 x 0.5 m: no run)."""
+    size, holder = (found.get("size") if isinstance(found.get("size"), list) and len(found["size"]) == 3 else None
+                    for found in (row, holder_row))
+    if size is None or holder is None or min(holder) <= 0.0:
+        return False
+    longest = max(holder)
+    return all(longest >= RUN_SHARE * other for other in sorted(holder)[:2]) and float(size[2]) > float(holder[2])
+
+
 def held(item, row, holder_row, holder_items, items, turn, room=None):
     """A relation to a holder the plan lays, its nearest item: within it, at its foot, where its reading says it is
     under it, and within it where on its shelves (placement: the settle lets it down onto the shelf under it); top
     (where it fits under the place's height `room`, never one said on its holder's side), within it where the plan
-    lays it inside, else against the face the concept shows it on, the plan's side toward it, its facing, its
-    holder's, or S."""
+    lays it inside (on its top where it is a fitting on a run: on_run), else against the face the concept shows it
+    on, the plan's side toward it, its facing, its holder's, or S."""
     nearest = min(holder_items, key=lambda name: float(numpy.linalg.norm(middle(items[name]) - middle(item))))
     said = "side" if rests(row) == LEANING else placement(row, holder_row)  # a leaning thing stands against a side
     if said in ("under", "shelf"):
@@ -462,6 +477,9 @@ def held(item, row, holder_row, holder_items, items, turn, room=None):
             and not design_shell.fills_opening(row):
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top in the concept"}
     if rests(row) != LEANING and inside(item, items[nearest]):
+        if on_run(row, holder_row):
+            return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}: the plan lays it inside a run "
+                                                            "lower than it is tall"}
         return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}
     for face, why in ((seen_side(row, holder_row, turn), "side the concept shows it on"),
                       (side_toward(item, items[nearest]), "side toward it on the plan"),

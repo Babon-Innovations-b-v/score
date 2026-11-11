@@ -889,11 +889,13 @@ def held_faults(record, laid):
     made_waiting.LAID): off where their relation puts them (more than HELD_MOST; a face one off the face it was laid
     on, an opening's by the built walls), a door whose holder's face is too narrow for it and its recess (the
     shortfall), a door or window in no opening and on no holder, held by nothing (`unheld`), left at the room's
-    middle (`unplaced`), or two things left inside each other, held or not (crowded_faults)."""
+    middle (`unplaced`), or two things left inside each other, held or not (crowded_faults). One stacked on the run
+    packed over its holder (stacked_on_runs: its fit's how "stacked") is judged on that run."""
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
     walled = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("span") is not None}
+    stacked = {fit["name"]: fit["holder"] for fit in laid.get("fitted", []) if fit["how"] == "stacked"}
     named_walls = [(wall["name"], (np.asarray(wall["low"], float), np.asarray(wall["high"], float)))
                    for wall in laid.get("walls", [])]
     walls = [box for _, box in named_walls]
@@ -912,8 +914,8 @@ def held_faults(record, laid):
             if on["how"] == "wall" and entry["name"] in walled:  # on the face it was laid on, by its own box
                 on = dict(on, **{key: walled[entry["name"]][key] for key in ("span", "out", "corners")})
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
-            held = walls if on["how"] in ("in", "ramp") else [boxes[name] for name in on.get("holder") or []
-                                                              if name in boxes]
+            held = walls if on["how"] in ("in", "ramp") else [boxes[name] for name in stacked.get(
+                entry["name"], on.get("holder") or []) if name in boxes]
             narrow = too_narrow(low, high, on, nearest([tuple(np.asarray(end, float) for end in box) for box in held],
                                                        low, high)) \
                 if on["how"] == "face" and on.get("room") and held else 0.0
@@ -1365,12 +1367,16 @@ def fitted(stage, place, entries, laid, cuts=None):
     one against its nearest holder's surface and in the recess the bake cut there (`cuts`, {model: baked.json's cuts}),
     an opening's against the built walls, each swinging one in an opening or on a face (swings) on the face it swings
     to and before any on a wall or face, which keeps out of its swing and its passage; the fits [{name, how, holder, moved, scale, low, high, words, face}]
-    (its box as laid after), the stage left unsaved. The things nothing holds are parted first (parted) and what is
+    (its box as laid after), the stage left unsaved. A thing hung from the roof built taller than its reading is first
+    hung down under it (moved_down), so it is parted at the height it hangs at. The things nothing holds are parted
+    first (parted, one hung from the roof with no room left under it left out) and what is
     still in a deck or wall pulled out of it (moved_out), so what they hold is fitted where they stand."""
     by_name = {entry["name"]: entry for entry in entries if entry.get("on") and entry["name"] in laid}
     bakes = {entry["name"]: entry.get("bake") for entry in entries}
     loose = [entry for entry in entries if entry["name"] in laid and not entry.get("on") and not climbs(entry)]
-    done, fits = set(), parted(stage, place, loose, set(by_name))
+    fits = moved_down(stage, place, [entry for entry in loose if entry.get("under roof")])
+    done, fits = set(), fits + parted(stage, place, loose, set(by_name))
+    loose = [entry for entry in loose if stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}").IsActive()]
     fits += moved_out(stage, place, loose)
     built = [box for _, box in walls(stage, place)]
 
@@ -1471,8 +1477,10 @@ def fitted(stage, place, entries, laid, cuts=None):
         one(name)
     walled = [entry for entry in by_name.values() if entry["on"]["how"] == "wall"]
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
-    return fits + spread_on_tops(stage, place, topped) + moved_past(stage, place, walled) + \
-        moved_down(stage, place, loose) + hung_up(stage, place, loose)
+    fits += spread_on_tops(stage, place, topped)
+    fits += moved_past(stage, place, walled)
+    return fits + stacked_on_runs(stage, place, topped, walled) + moved_down(stage, place, loose) + \
+        hung_up(stage, place, loose)
 
 
 def laid_face(on, corners):
@@ -1733,21 +1741,26 @@ def bound_of_all(boxes, inside):
             max([inside[2], *(box[1][0] for box in outside)]), max([inside[3], *(box[1][2] for box in outside)])]
 
 
-def parted_boxes(boxes, still, pieces, inside, slanted=()):
-    """{name: box (low, high)} of the boxes {name: (low, high)} of the things nothing holds, the crowded ones parted
+def parted_boxes(boxes, still, pieces, inside, slanted=(), hung=()):
+    """({name: box (low, high)}, {name left out}) of the boxes {name: (low, high)} of the things nothing holds, the
+    crowded ones parted
     at their built size, kept in `inside` [low x, low z, high x, high z], clear of the `still` boxes (fixtures and held
     things) and the wall `pieces` [(low, high)]: each laid across a still box or a wall moved to the free spot
     nearest it among those alone (free_spot: the solver's overlap gives one laid across a wall no way out), those
     then inside each other parted by the relation solver (parted_spots); then each one still inside another, a still
     box or a wall piece, or
     whose middle the solver took through a wall into the next room, the biggest first, at the free spot nearest its
-    laid one among everything (free_spot); one with none left as laid (the held gate names it). The slanted walls
-    (`slanted`, slants') are judged by their outlines throughout: the solver knows only boxes, so one it leaves in
-    or takes through a slanted wall goes to its free spot too."""
+    laid one among everything (free_spot); one with none left as laid (the held gate names it). One hung from the
+    roof (`hung`, their names) with none has the spot it would have clear of the hung ones after it by name, which
+    are parted again around it, and is left out where it has none even so: of two things a roof holds where room is
+    left for one, the plan's later one is left out (hangar's two 30 x 13 m cranes and its one 20.2 m bay between its
+    ribs, 2026-11-11), never left in the other. The slanted walls (`slanted`, slants') are judged by their outlines
+    throughout: the solver knows only boxes, so one it leaves in or takes through a slanted wall goes to its free
+    spot too."""
     fixed = [*still, *pieces]
     movers = crowded(boxes, fixed, slanted)
     if not movers:
-        return boxes
+        return boxes, set()
     after = {**boxes, **{name: moved_box(boxes[name], free_spot(boxes[name], still, pieces,
                                                                  bound_of(boxes[name], inside), slanted))
                          for name in movers if crowded({name: boxes[name]}, fixed, slanted)}}
@@ -1762,16 +1775,27 @@ def parted_boxes(boxes, still, pieces, inside, slanted=()):
                or any(slant_crossed(foot_middle(*boxes[name]), foot_middle(*after[name]), outline)[0]
                       and not slant_crossed(foot_middle(*boxes[name]), foot_middle(*boxes[name]), outline)[0]
                       for outline, _ in slanted)}
-    tried = set()
-    while pending := sorted((crowded(after, fixed, slanted) & movers | crossed) - tried,
+    tried, left = set(), set()
+    while pending := sorted((crowded(after, fixed, slanted) & movers | crossed) - tried - left,
                             key=lambda name: (-float(np.prod((boxes[name][1] - boxes[name][0])[[0, 2]])), name)):
         name = pending[0]
         tried.add(name)
         others = [*still, *(box for other, box in after.items() if other != name)]
-        if name in crossed or crowded({name: after[name]}, [*others, *pieces], slanted):
-            after[name] = moved_box(boxes[name], free_spot(boxes[name], others, pieces,
-                                                           bound_of(boxes[name], inside), slanted))
-    return after
+        if not (name in crossed or crowded({name: after[name]}, [*others, *pieces], slanted)):
+            continue
+        shift = free_spot(boxes[name], others, pieces, bound_of(boxes[name], inside), slanted)
+        if shift is None and name in hung:
+            later = {other for other in set(hung) & movers if other > name and other in after}
+            shift = free_spot(boxes[name], [*still, *(box for other, box in after.items()
+                                                      if other != name and other not in later)],
+                              pieces, bound_of(boxes[name], inside), slanted)
+            if shift is None:
+                left.add(name)
+                del after[name]
+                continue
+            tried -= later
+        after[name] = moved_box(boxes[name], shift)
+    return after, left
 
 
 def parted(stage, place, entries, holding=()):
@@ -1785,7 +1809,9 @@ def parted(stage, place, entries, holding=()):
     fixtures, the structure and the things nothing crowds never move, and the held
     things (`holding`, their names) are left out: fitted after, onto where their holders stand. Kept only when fewer
     stand inside each other or a static after (#72, settle@flat: its bed in its bedside table and wardrobe, laid
-    bigger than the plan's estimates); the fits [{name, how "parted", ...}]."""
+    bigger than the plan's estimates). One hung from the roof (the scene record's `under roof`) with no free spot is
+    left out (parted_boxes): its prim made inactive, so nothing lays, drops or judges it, and its fit says why (how
+    "left out"), a gap of its own; the fits [{name, how "parted" or "left out", ...}]."""
     paths = {entry["name"]: f"/{place}/Objects/{entry['name']}" for entry in entries}
     boxes = {name: world_box(stage, path) for name, path in paths.items()}
     held = {f"{scope}/{name}": box for scope in ("Objects", "Fixtures") for name, box in walls_in(stage, place, scope)
@@ -1797,11 +1823,15 @@ def parted(stage, place, entries, holding=()):
     inside = ([min(box[0][0] for box in room), min(box[0][2] for box in room), max(box[1][0] for box in room),
                max(box[1][2] for box in room)] if room else [-np.inf, -np.inf, np.inf, np.inf])
     slanted = slants(stage, place)
-    after = parted_boxes(boxes, list(held.values()), pieces, inside, slanted)
+    after, left = parted_boxes(boxes, list(held.values()), pieces, inside, slanted,
+                               {entry["name"] for entry in entries if entry.get("under roof")})
     if crossing({**held, **after}, thin, slanted) >= crossing({**held, **boxes}, thin, slanted):
         return []
     fits = []
     for entry in entries:
+        if entry["name"] in left:
+            fits.append(left_out(stage, paths[entry["name"]], entry, boxes[entry["name"]]))
+            continue
         shift = after[entry["name"]][0] - boxes[entry["name"]][0]
         if float(np.linalg.norm(shift)) < MOVE_LEAST:
             continue
@@ -1811,6 +1841,20 @@ def parted(stage, place, entries, holding=()):
                              f"parted {float(np.linalg.norm(shift)):.2f} m on the floor at its built size: laid "
                              f"inside another thing, nothing holding it there"))
     return fits
+
+
+def left_out(stage, path, entry, box):
+    """The fit {name, how "left out", ...} of a thing hung from the roof that has no free spot under it (parted_boxes):
+    its prim made inactive, its box (low, high) as it was laid."""
+    from pxr import Sdf
+    words = ("left out: hung from the roof with no free spot under it at its built size, the room there taken by the "
+             "things hung before it")
+    prim = stage.GetPrimAtPath(path)
+    prim.CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+    prim.SetActive(False)
+    return {"name": entry["name"], "row": entry["row"], "how": "left out", "holder": None, "moved": 0.0, "scale": 1.0,
+            "low": [round(float(value), 4) for value in box[0]], "high": [round(float(value), 4) for value in box[1]],
+            "words": words}
 
 
 def moved_out(stage, place, entries):
@@ -1922,6 +1966,33 @@ def past_walls(low, high, out, built):
             shift += way * min(max(0.0, float(ends[axis] / way[axis])) for axis in (0, 2) if abs(way[axis]) > 1e-9)
             left.append(name)
     return shift, list(dict.fromkeys(left))
+
+
+def stacked_on_runs(stage, place, entries, walled):
+    """Each thing on its holder's top (`entries`, their `on` how "top") laid inside a wall thing (`walled`, their `on`
+    how "wall") its holder's top runs under (a pipe run packed PIECE_GAP over the one it stands on) moved straight up
+    onto that one's top, then onto the next's, where that is OUT_MOST at most all told: hangar's valve on its pipe,
+    the next pipe up its wall 5 cm over it, laid 0.25 m inside that one (2026-11-11); one further up is left for the
+    held gate to name; the fits [{name, how "stacked", ...}]."""
+    runs = [entry["name"] for entry in walled]
+    fits = []
+    for entry in entries:
+        path, holders = f"/{place}/Objects/{entry['name']}", set(entry["on"].get("holder") or [])
+        low, high = world_box(stage, path)
+        lift, over = 0.0, []
+        while found := [(name, box) for name in runs if name not in holders and name not in over
+                        and depths(low + [0.0, lift, 0.0], high + [0.0, lift, 0.0],
+                                   box := world_box(stage, f"/{place}/Objects/{name}")).min() > HELD_MOST]:
+            lift = max(float(box[1][1]) for _, box in found) - float(low[1])
+            over += [name for name, _ in found]
+        if not over or lift > OUT_MOST:
+            continue
+        foot = foot_middle(low, high)
+        moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + [0.0, lift, 0.0])
+        fits.append(laid_fit(stage, path, entry, "stacked", over, lift, 1.0,
+                             f"moved {lift:.2f} m up onto {', '.join(over)}: laid on its holder's top inside the run "
+                             "packed over it"))
+    return fits
 
 
 def moved_past(stage, place, entries):
@@ -2045,9 +2116,17 @@ def under_roof_gap(points, built):
     return min(found) if found else None
 
 
+def box_topped(points):
+    """A thing's surface points [n, 3] each raised to its top: its box's top over its footprint, which a thing hung
+    from the roof keeps under the roof (hangar's crane, its top in the roof's open middle, 0.34 m higher than its parts
+    under the roof's edge strips, stood up through them, 2026-11-11)."""
+    return np.c_[points[:, 0], np.full(len(points), points[:, 1].max() if len(points) else 0.0), points[:, 2]]
+
+
 def hung_up(stage, place, entries):
     """Each entry hung from the roof (the scene record's `under roof`: laid with its top at the roof's underside by its
-    reading's tall) whose built top stands more than ROOF_CLEAR under the built roof over it moved straight up to it,
+    reading's tall) whose built top (box_topped: its box's, over its footprint) stands more than ROOF_CLEAR under the
+    built roof over it moved straight up to it,
     where that is OUT_MOST at most: its model is made at its own tall, so the record's hang leaves a shorter one
     touching nothing (settle@airlock, 2026-11-10: its roof light read 0.4 m tall, built 0.27, 0.13 m under its dome);
     the fits [{name, how, ...}]."""
@@ -2056,7 +2135,7 @@ def hung_up(stage, place, entries):
         if not entry.get("under roof"):
             continue
         path = f"/{place}/Objects/{entry['name']}"
-        gap = under_roof_gap(surface_points(stage, path), built)
+        gap = under_roof_gap(box_topped(surface_points(stage, path)), built)
         if gap is None or not ROOF_CLEAR + MOVE_LEAST < gap <= OUT_MOST + ROOF_CLEAR:
             continue
         lift = gap - ROOF_CLEAR
@@ -2077,24 +2156,36 @@ def moved_down(stage, place, entries):
     by its mesh, never its box) moved straight down under it, where that is OUT_MOST at most and sinks it into no deck,
     level or wall it was not in (greenhouse's cabinet and tanks on its upper floor under its low roof would have gone
     0.8 to 0.96 m into that floor); one further through or with no room under it is left as laid, for the held gate
-    to name; the fits [{name, how, ...}]."""
+    to name. One hung from the roof (`under roof`) whose box's top (box_topped) reaches over the roof's underside over
+    it is hung ROOF_CLEAR under it however far that is, as its relation lays it, and only kept out of a deck or level:
+    parted takes it out of a wall across the floor (hangar's 6.5 m tall cranes laid by their 2 m reading, 4.5 m up
+    through its roof's edges, 2026-11-11); the fits [{name, how, ...}]."""
     built, fits, under = roofs(stage, place), [], statics(walls(stage, place))
     for entry in entries if built else []:
-        path = f"/{place}/Objects/{entry['name']}"
-        through = through_roofs(stage, place, [entry["name"]], built)
-        drop = max([found["metres"] for found in through], default=0.0)
+        path, hung = f"/{place}/Objects/{entry['name']}", bool(entry.get("under roof"))
+        if hung:
+            top = box_topped(surface_points(stage, path))
+            through = [{"roof": roof, "metres": round(-float(np.nanmin(gaps)), 3)} for roof, triangles in built
+                       if len(gaps := roof_under(top, triangles) - top[:, 1]) and np.isfinite(gaps).any()
+                       and np.nanmin(gaps) < ROOF_CLEAR - MOVE_LEAST]
+            drop = max([found["metres"] for found in through], default=0.0) + ROOF_CLEAR
+        else:
+            through = through_roofs(stage, place, [entry["name"]], built)
+            drop = max([found["metres"] for found in through], default=0.0)
         low, high = world_box(stage, path)
         lowered = (low - [0.0, drop, 0.0], high - [0.0, drop, 0.0])
-        if not through or drop > OUT_MOST or {name for name, _ in inside_of(*lowered, under)} - {
-                name for name, _ in inside_of(low, high, under)}:
+        sinks = [(name, box) for name, box in under if not (hung and name.split("_")[0] == "wall")]
+        if not through or (drop > OUT_MOST and not hung) or {name for name, _ in inside_of(*lowered, sinks)} - {
+                name for name, _ in inside_of(low, high, sinks)}:
             continue
         moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) - [0.0, drop, 0.0])
         left = [found["roof"] for found in through]
-        words = f"moved {drop:.2f} m down out of {', '.join(left)}: laid up through it, nothing holding it there"
+        words = (f"moved {drop:.2f} m down under {', '.join(left)}: hung from it, built taller than its reading" if hung
+                 else f"moved {drop:.2f} m down out of {', '.join(left)}: laid up through it, nothing holding it there")
         from pxr import Sdf
         stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
         after = world_box(stage, path)
-        fits.append({"name": entry["name"], "row": entry["row"], "how": "down", "holder": left, "moved": drop,
+        fits.append({"name": entry["name"], "row": entry["row"], "how": "down", "holder": left, "moved": round(drop, 3),
                      "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words})
     return fits

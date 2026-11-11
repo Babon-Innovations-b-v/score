@@ -143,7 +143,24 @@ def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
     Break: score/review/holders/__init__.py: `if on_top(row, holder_row) and fits_over(row, holder_row, room) and` ->
         `if on_top(row, holder_row) and`
     Break: score/review/holders/__init__.py: room_height's `+ [float(roof["top"]) for roof in plan.get("roofs") or []
-        if roof.get("top")]` -> `+ []`"""
+        if roof.get("top")]` -> `+ []`
+    A fitting on a run lower than it is tall (hangar's 0.6 m valve laid inside its 0.4 x 32 m pipe) is on the run,
+    never within it; a sitter taller than its seat, clothes on a 1.5 x 0.5 m drying rack (no run) and a valve no taller
+    than its pipe stay within (the 7 within relations of airlock, camp, quarters and street).
+    Break: score/review/holders/__init__.py: `if on_run(row, holder_row):` -> `if False:`
+    Break: score/review/holders/__init__.py: on_run's `all(longest >= RUN_SHARE * other` -> `all(longest >= other`
+        (the drying rack a run)"""
+    pipe, valve = {"size": [0.4, 32.0, 0.4]}, {"size": [0.6, 0.2, 0.6]}
+    assert holders.on_run(valve, pipe) and not holders.on_run({"size": [0.6, 0.2, 0.3]}, pipe)
+    assert not holders.on_run({"size": [0.5, 0.1, 0.8]}, {"size": [1.5, 0.5, 0.1]})
+    assert not holders.on_run({"size": [0.6, 0.4, 1.8]}, {"size": [0.4, 0.4, 0.5]}) and not holders.on_run({}, pipe)
+    runs = {"PIPE 1": ["PIPE 1", 0.0, 0.0, 32.0, 0.4, "S", "item"],
+            "VALVE 1": ["VALVE 1", 1.0, 0.0, 0.6, 0.2, "S", "item"]}
+    for size, how in (([0.6, 0.2, 0.6], "top"), ([0.6, 0.2, 0.3], "within")):
+        found = holders.held(runs["VALVE 1"], {"id": "pipe_valves", "noun": "valve", "anchor": "on:large_pipes",
+                                               "size": size}, {"id": "large_pipes", "noun": "pipe", "anchor": "wall",
+                                                               **pipe}, ["PIPE 1"], runs, 0.0)
+        assert (found["how"], found["holder"]) == (how, "PIPE 1"), found
     rows = [{"id": "locker", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0], "box": [681, 565, 813, 1062]},
             {"id": "suit", "noun": "spacesuit", "anchor": "on:locker", "size": [0.6, 0.4, 1.8],
              "box": [687, 565, 812, 789]}]
