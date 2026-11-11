@@ -34,8 +34,9 @@ wall (statics) is moved the least way out of it
 through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
 under it (moved_down, through_roofs), and one hung from the roof (`under roof`) built shorter than its reading moved up
 to the roof's built underside over it (hung_up); a wall thing standing outside its place's walls (a passage) moved out
-past the walls and decks it reaches into (moved_past); and a row's pieces on the tops of the same holders that meet
-there spread evenly along the run their tops make (spread_on_tops). Boxes are the place's axis-aligned ones (Y up),
+past the walls and decks it reaches into (moved_past); and the things on the tops of the same holders that meet
+there spread evenly along the run their tops make, in rows across it where one line does not hold them
+(spread_on_tops). Boxes are the place's axis-aligned ones (Y up),
 so a face is the box side nearest `out`; the plan's sizes are estimates, the built ones are laid (the module's 12 m,
 not the plan's 17.2). Kept apart from record.py: the light and settle stages hash it.
 
@@ -159,10 +160,17 @@ def on_face(low, high, on, box, surface=None, recesses=(), clear=()):
         target[1] = float(cut[0][1])
     else:
         target[1] = float(np.clip(foot[1], hold_low[1], hold_high[1] - size[1] * scale))
-        begin, end = face_stretch(foot, size, on, box, (target[1], target[1] + size[1] * scale), clear)
-        if end - begin < hold_high[side] - above - hold_low[side] - below - 1e-9:  # a stretch short of the whole face
+        band, whole = (target[1], target[1] + size[1] * scale), hold_high[side] - above - hold_low[side] - below
+        begin, end = face_stretch(foot, size, on, box, band, clear)
+        if end - begin < whole - 1e-9:  # a stretch short of the whole face
             scale = min(scale, (end - begin) / size[side])
         target[side] = kept_within(foot[side], begin, end, size[side] * scale / 2)
+        face = front_face(surface, axis, sign, side, (target[side] - size[side] * scale / 2 - below - FACE_REACH,
+                                                      target[side] + size[side] * scale / 2 + above + FACE_REACH), band)
+        if face is not None and clear:  # the things laid before it measured off the surface it stands on, not the
+            begin, end = face_stretch(foot, size, on, box, band, clear, face)  # box's side (wreck's solar panels on
+            scale = min(scale, (end - begin) / size[side]) if end - begin < whole - 1e-9 else scale  # its lander's
+            target[side] = kept_within(foot[side], begin, end, size[side] * scale / 2)  # frame, 2026-11-11)
     half = size * scale / 2
     span = (target[side] - half[side] - below - FACE_REACH, target[side] + half[side] + above + FACE_REACH)
     face = front_face(surface, axis, sign, side, span, (target[1], target[1] + size[1] * scale))
@@ -171,14 +179,17 @@ def on_face(low, high, on, box, surface=None, recesses=(), clear=()):
     return scale, target, (float(target[axis] - sign * half[axis]), cut is not None)
 
 
-def face_stretch(foot, size, on, box, band, clear=()):
-    """(from, to) along the face of a holder box `out` points from, less its recess's room beside the object, that an
-    object of `size` at `foot` stands in out of the swing and passage boxes `clear` within its depth of the face and
-    its height `band` (stretches, stretch_for): the whole face where none does."""
+def face_stretch(foot, size, on, box, band, clear=(), face=None):
+    """(from, to) along the face of a holder box `out` points from (at `face`, its built surface's plane, where given:
+    else the box's side), less its recess's room beside the object, that an object of `size` at `foot` stands in out
+    of the swing and passage boxes `clear` within its depth of the face and its height `band` (stretches,
+    stretch_for): the whole face where none does."""
     (hold_low, hold_high), (axis, side, sign) = box, face_axes(on)
     below, above = beside(on, side)
     start, run, out = np.zeros(2), np.zeros(2), np.zeros(2)
     start[side // 2], start[axis // 2] = hold_low[side] + below, hold_high[axis] if sign > 0 else hold_low[axis]
+    if face is not None:
+        start[axis // 2] = float(face)
     run[side // 2], out[axis // 2] = 1.0, sign
     length = float(hold_high[side] - above - start[side // 2])
     begin, end = stretch_for(stretches(start, run, out, length, size[axis], band, clear),
@@ -1538,6 +1549,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
     fits += spread_on_tops(stage, place, topped)
     fits += moved_past(stage, place, walled)
+    moved_in(stage, place, walled, fits)
     return fits + stacked_on_runs(stage, place, topped, walled) + moved_down(stage, place, loose) + \
         hung_up(stage, place, loose)
 
@@ -1974,17 +1986,19 @@ def top_run(holds):
 
 
 def spread_on_tops(stage, place, entries):
-    """The pieces of one row laid on the tops of the same holders (`entries`, their `on` how "top"), where two of them
-    meet by more than BOARD_CLEAR, spread evenly along the run their holders' tops make (top_run), in their order
-    along it, each its built length and as many even gaps apart, where they all fit there: each was kept within its
-    nearest holder's top alone, so the pieces past one unit's end were pushed into the one before (settle@workshop's
-    storage boxes 6 and 7 on their two shelf units, 2026-11-10). Pieces that do not fit are left for the held gate to
+    """The things laid on the tops of the same holders (`entries`, their `on` how "top", of any row), where two of them
+    meet by more than BOARD_CLEAR, spread evenly over the run their holders' tops make (top_run): in one line along
+    it, each its built length and as many even gaps apart, where they all fit so, else in rows across the top
+    (packed_rows: hub's 16 monitors on a 1.75 x 0.81 m console laid at one spot, lab's desk carrying its monitors,
+    lamps and microscope one in the next, 2026-11-11), in their order along it. Each was kept within its nearest
+    holder's top alone, so the pieces past one unit's end were pushed into the one before (settle@workshop's storage
+    boxes 6 and 7 on their two shelf units, 2026-11-10). Things that fit neither way are left for the held gate to
     name; the fits [{name, how, ...}]."""
     groups = {}
     for entry in entries:
-        groups.setdefault((entry["row"], tuple(entry["on"].get("holder") or [])), []).append(entry)
+        groups.setdefault(tuple(entry["on"].get("holder") or []), []).append(entry)
     fits = []
-    for (_, holders), pieces in groups.items():
+    for holders, pieces in groups.items():
         scope = pieces[0]["on"].get("holder scope", "Objects")
         holds = [world_box(stage, f"/{place}/{scope}/{name}") for name in holders
                  if stage.GetPrimAtPath(f"/{place}/{scope}/{name}")]
@@ -1994,24 +2008,68 @@ def spread_on_tops(stage, place, entries):
                                   for one in boxes for other in boxes if one < other):
             continue
         axis, start, end, top = run
-        longs = {name: float(high[axis] - low[axis]) for name, (low, high) in boxes.items()}
-        gap = (end - start - sum(longs.values())) / (len(boxes) + 1)
-        if gap < BOARD_CLEAR:
+        side = 2 - axis
+        across_from = max(float(low[side]) for low, _ in holds)
+        across_to = min(float(high[side]) for _, high in holds)
+        order = sorted(pieces, key=lambda entry: float(sum(boxes[entry["name"]])[axis]))
+        longs = [float(boxes[entry["name"]][1][axis] - boxes[entry["name"]][0][axis]) for entry in order]
+        deeps = [float(boxes[entry["name"]][1][side] - boxes[entry["name"]][0][side]) for entry in order]
+        rows = packed_rows(longs, deeps, end - start, across_to - across_from)
+        if rows is None:
             continue
-        at = start
-        for entry in sorted(pieces, key=lambda entry: float(sum(boxes[entry["name"]])[axis])):
+        spots = row_spots(rows, longs, deeps, (start, end), (across_from, across_to))
+        for entry, (along, across_at) in zip(order, spots):
             name, (low, high) = entry["name"], boxes[entry["name"]]
             target = foot_middle(low, high)
-            target[axis], target[1] = at + gap + longs[name] / 2, top
-            at += gap + longs[name]
+            target[axis], target[1] = along, top
+            if len(rows) > 1:
+                target[side] = across_at
             moved = float(np.linalg.norm(target - foot_middle(low, high)))
             if moved < MOVE_LEAST:
                 continue
             path = f"/{place}/Objects/{name}"
             moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, target)
             fits.append(laid_fit(stage, path, entry, "spread", list(holders), moved, 1.0,
-                                 f"spread {moved:.2f} m along its holders' tops: its row's pieces met there"))
+                                 f"spread {moved:.2f} m over its holders' tops: the things on them met there"))
     return fits
+
+
+def packed_rows(longs, deeps, length, depth):
+    """[[piece, ...]] of things `longs` long and `deeps` deep (in their order) laid in rows across a top `length` long
+    and `depth` deep, BOARD_CLEAR from each other and its edges: all in one row where they fit so, else each row
+    filled in turn as far as it holds; None where a thing is longer than the top or the rows are deeper than it."""
+    rows, row, used = [], [], BOARD_CLEAR
+    for number, long in enumerate(longs):
+        if row and used + long + BOARD_CLEAR > length:
+            rows.append(row)
+            row, used = [], BOARD_CLEAR
+        if used + long + BOARD_CLEAR > length:
+            return None
+        row.append(number)
+        used += long + BOARD_CLEAR
+    rows.append(row)
+    if len(rows) > 1 and sum(max(deeps[number] for number in row) for row in rows) + \
+            BOARD_CLEAR * (len(rows) + 1) > depth:
+        return None
+    return rows
+
+
+def row_spots(rows, longs, deeps, run, across):
+    """[(along, across)] the middle of each piece of `rows` (packed_rows) on a top running `run` (from, to) along and
+    `across` (from, to) deep: each row's pieces their lengths and as many even gaps apart along it, the rows their
+    depths and as many even gaps apart across it, in order."""
+    spots = {}
+    sizes = [max(deeps[number] for number in row) for row in rows]
+    gap_across = (across[1] - across[0] - sum(sizes)) / (len(rows) + 1)
+    at_across = across[0]
+    for row, size in zip(rows, sizes):
+        gap = (run[1] - run[0] - sum(longs[number] for number in row)) / (len(row) + 1)
+        at, middle = run[0], at_across + gap_across + size / 2
+        for number in row:
+            spots[number] = (at + gap + longs[number] / 2, middle)
+            at += gap + longs[number]
+        at_across += gap_across + size
+    return [spots[number] for number in range(len(longs))]
 
 
 def room_box(built):
@@ -2068,19 +2126,19 @@ def stacked_on_runs(stage, place, entries, walled):
 
 
 def moved_past(stage, place, entries):
-    """Each wall thing (`entries`, their `on` how "wall") standing outside its place's walls (its middle outside their
-    box: a passage meeting its module from outside) that reaches into a built wall or deck moved straight out along
+    """Each wall thing (`entries`, their `on` how "wall") standing outside its place's room (its middle over none of
+    its decks, in_room: a passage meeting its module from outside) that reaches into a built wall or deck moved straight out along
     its `out` past it, where that is OUT_MOST or its own depth that way at most: its relation's face is a chord
     inside a round room's facets, so its body stood through the facets and its hatch alcove's walls (settle@workshop's
     front glass tunnel, 3 m deep, 0.08 to 0.15 m inside four walls, 1.48 m in from the alcove's end, 2026-11-10).
     One in the room is left as fitted; the fits [{name, how, ...}]."""
     built = statics(walls(stage, place))
-    room, fits = room_box(built), []
+    room, decks, fits = room_box(built), deck_triangles(stage, place), []
     for entry in entries:
         path = f"/{place}/Objects/{entry['name']}"
         low, high = world_box(stage, path)
         middle = foot_middle(low, high)
-        if room[0] <= middle[0] <= room[2] and room[1] <= middle[2] <= room[3]:
+        if in_room(middle, room, decks):
             continue
         shift, left = past_walls(low, high, entry["on"]["out"], built)
         moved = float(np.linalg.norm(shift))
@@ -2090,6 +2148,80 @@ def moved_past(stage, place, entries):
         fits.append(laid_fit(stage, path, entry, "past", left, moved, 1.0,
                              f"moved {moved:.2f} m out past {', '.join(left)}: laid outside its place, into them"))
     return fits
+
+
+# A wall thing passing up through a vault's roof is stepped this far at a time into the room, up to IN_MOST, metres.
+IN_STEP = 0.05
+IN_MOST = 2.0
+
+
+def moved_in(stage, place, entries, fits):
+    """Each wall thing (`entries`, their `on` how "wall") whose built surface passes up through a roof's (through_roofs)
+    moved into the room along its `out` by the least of IN_STEP steps that takes it clear (IN_MOST at most, its middle
+    kept over the room's decks, in_room, and into no static it was not in), its fit's face (`span`), turned box and
+    box moved with it, so the held gate measures it off the face it now stands on (`fits`, changed in place): a
+    vault's sides curve in over its plan's straight walls (tube's screens, panels and pipe bundles laid on its walls'
+    lines stood 0.5 to 2 m up through its vault, 2026-11-11). One no step clears is left for the held gate to name."""
+    built = roofs(stage, place)
+    if not built:
+        return
+    under, room, decks = statics(walls(stage, place)), room_box(statics(walls(stage, place))), deck_triangles(stage, place)
+    by_fit = {fit["name"]: fit for fit in fits}
+    for entry in entries:
+        name, path = entry["name"], f"/{place}/Objects/{entry['name']}"
+        if not through_roofs(stage, place, [name], built):
+            continue
+        out = np.array([float(entry["on"]["out"][0]), 0.0, float(entry["on"]["out"][1])])
+        points, (low, high) = surface_points(stage, path), world_box(stage, path)
+        before = {found for found, _ in inside_of(low, high, under)}
+        step = next((count * IN_STEP for count in range(1, int(round(IN_MOST / IN_STEP)) + 1)
+                     if in_room(foot_middle(low, high) + out * count * IN_STEP, room, decks)
+                     and all(through_roof(points + out * count * IN_STEP, triangles) <= HELD_MOST
+                             for _, triangles in built)
+                     and not {found for found, _ in inside_of(low + out * count * IN_STEP, high + out * count * IN_STEP,
+                                                              under)} - before), None)
+        if step is None:
+            continue
+        middle = foot_middle(low, high)
+        moved_by(stage.GetPrimAtPath(path), middle, 1.0, middle + out * step)
+        words = f"moved {step:.2f} m into the room from its wall: its wall's line stands outside the roof there"
+        from pxr import Sdf
+        stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+        after = world_box(stage, path)
+        fit = by_fit.get(name)
+        if fit is None:
+            fit = {"name": name, "row": entry["row"], "how": "wall", "holder": None, "moved": 0.0, "scale": 1.0}
+            fits.append(fit)
+        shift = (out * step)[[0, 2]]
+        fit.update({"moved": round(float(fit["moved"]) + step, 3), "words": f"{fit.get('words', '')}; {words}",
+                    "low": [round(float(value), 4) for value in after[0]],
+                    "high": [round(float(value), 4) for value in after[1]],
+                    **{key: [[round(float(value), 4) for value in np.asarray(point, float) + shift]
+                             for point in fit[key]] for key in ("span", "corners") if key in fit}})
+        if "span" not in fit:
+            fit.update(laid_face({**entry["on"], "span": [np.asarray(point, float) + shift
+                                                          for point in entry["on"]["span"]]},
+                                 oriented_corners(stage, path)))
+
+
+def deck_triangles(stage, place):
+    """[n, 3, 3] world triangles of the place's built decks (its Structure and Shell prims named deck...), the floor
+    its room stands on; empty with none (an open place)."""
+    from pxr import Usd, UsdGeom
+    found = [mesh_triangles(prim) for scope in ("Structure", "Shell")
+             for name, _ in walls_in(stage, place, scope) if name.split("_")[0] == "deck"
+             for prim in Usd.PrimRange(stage.GetPrimAtPath(f"/{place}/{scope}/{name}")) if prim.IsA(UsdGeom.Mesh)]
+    found = [triangles for triangles in found if len(triangles)]
+    return np.concatenate(found) if found else np.zeros((0, 3, 3))
+
+
+def in_room(point, room, decks):
+    """Whether a point [x, y, z] stands in its place's room: over its built decks' faces (`decks`, deck_triangles)
+    where it has any, else within its walls' box (`room`, room_box). By the box alone, workshop's round room held its
+    glass tunnels outside it, so they were left across its door 2 and door 3 (2026-11-11)."""
+    if len(decks):
+        return bool(np.isfinite(roof_under(np.asarray(point, float)[None, :], decks))[0])
+    return room[0] <= point[0] <= room[2] and room[1] <= point[2] <= room[3]
 
 
 def roofs(stage, place):

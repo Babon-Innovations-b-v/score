@@ -1179,8 +1179,9 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     Break: score/stages/assembly/fitting.py: `if not (passes(entry) and static.split("_")[0] == "wall")]` -> `]`
     Break: score/stages/assembly/fitting.py: `set(str(entry.get("row") or "").split("_")) & set(PASSING))` ->
         `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`
-    Break: score/stages/assembly/fitting.py: moved_past's `if room[0] <= middle[0] <= room[2] and room[1] <=
-        middle[2] <= room[3]:` -> `if False:` (the cabinet in the room is pushed through its wall)
+    Break: score/stages/assembly/fitting.py: in_room's `return room[0] <= point[0] <= room[2] and room[1] <=
+        point[2] <= room[3]` -> `return False` (the cabinet in the room is pushed through its wall), or its `if
+        len(decks):` -> `if False:` (workshop's tunnel past its round room's floor left in its wall)
     Break: score/stages/assembly/fitting.py: past_walls' `for _ in built:` -> `for _ in built[:1]:` (the second
         tunnel is moved 1.5 m into deck_2)
     Break: score/stages/assembly/fitting.py: moved_past's `max(OUT_MOST, across(entry["on"]["out"], high - low))` ->
@@ -1220,6 +1221,22 @@ def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     a_built_box(stage, f"/{TOY}/Structure/deck_2", (-1.0, -0.2, -9.2), (1.0, 0.1, -9.0))
     a_built_box(stage, f"/{TOY}/Objects/glass_tunnel_2", (-2.0, 0.0, -8.0), (2.0, 2.5, -4.7))
     assert fitting.moved_past(stage, TOY, [{**entries[0], "name": "glass_tunnel_2"}]) == []
+    # workshop (2026-11-11): its round room's walls' box held its tunnels outside it, so they were left across its
+    # doors. A tunnel past the room's floor (deck_1, z -5 to 5) inside the walls' box (z -6.2 to 5.2) reaching into
+    # wall_1 is outside the room and moved out past it; on a stage with no deck it reads in the room and is left.
+    from pxr import UsdGeom
+    for decked in (True, False):
+        room = Usd.Stage.CreateInMemory()
+        a_built_box(room, f"/{TOY}/Structure/wall_1", (-5.0, 0.0, -6.2), (5.0, 3.0, -5.9))
+        a_built_box(room, f"/{TOY}/Structure/wall_3", (-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))
+        if decked:
+            a_built_box(room, f"/{TOY}/Structure/deck_1", (-5.0, -0.2, -5.0), (5.0, 0.0, 5.0))
+            floor = UsdGeom.Mesh(room.GetPrimAtPath(f"/{TOY}/Structure/deck_1/geo"))
+            floor.CreateFaceVertexCountsAttr([4])
+            floor.CreateFaceVertexIndicesAttr([2, 3, 7, 6])  # its top
+        a_built_box(room, f"/{TOY}/Objects/glass_tunnel_1", (-1.0, 0.0, -7.0), (1.0, 2.5, -5.0))
+        moved = fitting.moved_past(room, TOY, entries[:1])
+        assert [fit["name"] for fit in moved] == (["glass_tunnel_1"] if decked else []), (decked, moved)
 
 
 def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
@@ -1258,7 +1275,11 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     Break: score/stages/assembly/fitting.py: `faults += [(entry["name"], f"laid {found['metres']:.2f} m up through`
         -> `faults += [] and [(entry["name"], ...`
     Break: score/stages/assembly/fitting.py: `if not through or drop > OUT_MOST or {name` -> `if not through or drop >
-        OUT_MOST or False and {name`"""
+        OUT_MOST or False and {name`
+    Break: score/stages/assembly/fitting.py: moved_in's `for _, triangles in built)` -> `for _, triangles in
+        built) and False` (tube's screen left up through its vault), or its `for point in fit[key]] for key in
+        ("span", "corners") if key in fit}})` -> `for point in fit[key]] for key in () if key in fit}})` (its face
+        left on the wall's line, the held gate naming it 0.65 m off)"""
     from pxr import Usd, UsdGeom
     from score.stages.assembly import fitting
     stage = Usd.Stage.CreateInMemory()
@@ -1337,6 +1358,34 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
                         for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": stacked}
     assert not fitting.held_faults({"objects": topped[:1]}, laid), laid
     assert fitting.held_faults({"objects": topped[:1]}, {**laid, "fitted": []})
+    # tube (2026-11-11): its screens and panels laid on its plan walls' lines stood up through its vault, whose sides
+    # curve in over them. Under the gable (3 m at x 10, rising 0.4 m a metre in) a screen on the x 10 wall, its top
+    # 3.3 m, 0.3 m through, is moved 0.65 m into the room, its fit's face with it, and the held gate passes it; the
+    # 9 m pipes no step clears are left, named.
+    vault = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(vault, f"/{TOY}/Structure/roof_1")
+    arch = UsdGeom.Mesh.Define(vault, f"/{TOY}/Structure/roof_1/geo")
+    arch.CreatePointsAttr([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10), (10, 3, 0), (10, 3, 10)])
+    arch.CreateFaceVertexCountsAttr([4, 4])
+    arch.CreateFaceVertexIndicesAttr([0, 1, 2, 3, 1, 4, 5, 2])
+    a_built_box(vault, f"/{TOY}/Structure/deck_1", (0.0, -0.2, 0.0), (10.0, 0.0, 10.0))
+    floor = UsdGeom.Mesh(vault.GetPrimAtPath(f"/{TOY}/Structure/deck_1/geo"))
+    floor.CreateFaceVertexCountsAttr([4])
+    floor.CreateFaceVertexIndicesAttr([2, 3, 7, 6])
+    a_built_box(vault, f"/{TOY}/Objects/screen_1", (9.8, 2.8, 4.0), (10.0, 3.3, 5.0))
+    a_built_box(vault, f"/{TOY}/Objects/pipes_1", (9.6, 0.0, 6.0), (10.0, 9.0, 6.4))
+    screens = [{"name": name, "row": name[:-2], "on": wall} for name in ("screen_1", "pipes_1")]
+    moved = [{"name": "screen_1", "row": "screen", "how": "wall", "holder": None, "moved": 0.0, "scale": 1.0,
+              "words": "laid wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0],
+              "corners": [[9.8, 4.0], [9.8, 5.0], [10.0, 4.0], [10.0, 5.0]]}]  # as fitted laid it
+    fitting.moved_in(vault, TOY, screens, moved)
+    assert [(fit["name"], fit["moved"]) for fit in moved] == [("screen_1", 0.65)], moved
+    assert np.allclose(moved[0]["span"], [[9.35, 0.0], [9.35, 10.0]]), moved
+    assert np.allclose(fitting.world_box(vault, f"/{TOY}/Objects/screen_1")[1], (9.35, 3.3, 5.0)), moved
+    walled = {"objects": [{"name": "screen_1", **dict(zip(("low", "high"), fitting.world_box(
+        vault, f"/{TOY}/Objects/screen_1")))}], "fitted": moved}
+    assert fitting.held_faults({"objects": screens[:1]}, walled) == [], fitting.held_faults({"objects": screens[:1]},
+                                                                                            walled)
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
@@ -1640,7 +1689,9 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     stands on the front, z 0, never on the window's back.
     Break: score/stages/assembly/fitting.py: `hits, _, _ = mesh.ray.intersects_location(origins, directions,
         multiple_hits=False)` -> `hits = mesh.vertices[(mesh.vertices[:, 1] >= band[0]) & (mesh.vertices[:, 1] <=
-        band[1])]`"""
+        band[1])]`
+    Break: score/stages/assembly/fitting.py: on_face's `if face is not None and clear:` -> `if False:` (the second
+        panel laid on the first)"""
     import trimesh
     from score.stages.assembly import fitting
     points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
@@ -1651,6 +1702,16 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     scale, target, (back, hung) = fitting.on_face(np.array([-0.75, 6.0, 0.5]), np.array([0.75, 6.1, 1.0]), on, box,
                                                   facade)
     assert back == 0.0 and np.allclose(target, (0.0, 6.0, 0.25)) and scale == 1.0 and not hung, (back, target)
+    # wreck (2026-11-11): three solar panels on their lander's N face laid at one spot, its built surface 1.5 m
+    # inside its box's side, where the panels laid before it were never measured. A 0.3 m panel at a 2 m holder's
+    # left end, the surface at z 0.9 inside its box (z 0 to 2) and one panel standing on it there, goes beside it.
+    lander = (np.array([0.0, 0.0, 0.0]), np.array([2.0, 1.0, 2.0]))
+    frame = trimesh.creation.box(bounds=[(0.0, 0.0, 0.9), (2.0, 1.0, 1.1)])
+    north = {"how": "face", "holder": ["lander_1"], "out": [0.0, -1.0]}
+    first = np.array([[x, y, z] for x in (0.0, 0.3) for y in (0.0, 0.13) for z in (0.79, 0.9)])
+    _, beside, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame, mounted=[first])
+    _, alone, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame)
+    assert np.allclose(beside, (0.45, 0.0, 0.845)) and np.allclose(alone, (0.15, 0.0, 0.845)), (beside, alone)
 
 
 def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
@@ -1721,7 +1782,10 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     Break: score/stages/assembly/fitting.py: spread_on_tops' `if gap < BOARD_CLEAR:` -> `if False:` (four boxes
         spread one in the next)
     Break: score/stages/assembly/fitting.py: top_run's `if any(lows[after, axis] > highs[before, axis] +
-        BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)"""
+        BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)
+    Break: score/stages/assembly/fitting.py: spread_on_tops' `if len(rows) > 1: target[side] = across_at` -> `if False:`
+        (hub's screens left in one another across the desk), or packed_rows' `BOARD_CLEAR * (len(rows) + 1) > depth:`
+        -> `> 9.0:` (seven boxes in rows deeper than the top)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -1810,6 +1874,20 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert fitting.spread_on_tops(stage, TOY, [*boxes, {"name": "box_4", "row": "box", "on": top}]) == []
     assert fitting.top_run([(np.zeros(3), np.array([0.5, 1.0, 0.4])),
                             (np.array([0.7, 0.0, 0.0]), np.array([1.2, 1.0, 0.4]))]) is None
+    # hub (2026-11-11): 16 monitors on its 1.75 x 0.81 m console laid at one spot. Six 0.3 x 0.1 m screens at one
+    # spot of a 1 x 0.4 m desk top are spread in two rows of three, none meeting another; seven 0.3 x 0.3 m boxes
+    # need three rows 0.9 m deep and are left for the held gate.
+    a_built_box(stage, f"/{TOY}/Objects/desk_1", (3.0, 0.0, 0.0), (4.0, 0.8, 0.4))
+    on_desk = {"how": "top", "holder": ["desk_1"]}
+    for number in range(6):
+        a_built_box(stage, f"/{TOY}/Objects/screen_{number}", (3.3, 0.8, 0.1), (3.6, 1.1, 0.2))
+    screens = [{"name": f"screen_{number}", "row": "screen", "on": on_desk} for number in range(6)]
+    assert len(fitting.spread_on_tops(stage, TOY, screens)) == 6
+    laid = [fitting.world_box(stage, f"/{TOY}/Objects/screen_{number}") for number in range(6)]
+    assert all(float(fitting.depths(*laid[one], laid[other]).min()) <= 0.0 for one in range(6)
+               for other in range(one + 1, 6)), laid
+    assert all(3.0 <= low[0] and high[0] <= 4.0 and 0.0 <= low[2] and high[2] <= 0.4 for low, high in laid), laid
+    assert fitting.packed_rows([0.3] * 7, [0.3] * 7, 1.0, 0.4) is None
     assert fitting.on_shelves_of({"how": "within", "why": "on the shelves of shelf: its reading says 'on shelves'"})
     assert not fitting.on_shelves_of({"how": "within", "why": "within kitchen_counter: the plan lays it inside"})
 
