@@ -977,7 +977,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: `<= WALL_THICKEST)]` -> `<= 99.0)]`
     Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`
     Break: score/stages/assembly/fitting.py: free_spot's `clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]],
-        size[[0, 2]] / 2, outline) <= HELD_MOST` -> `pass` (its free spot found in the slanted corner, the parting is refused: left in the fixture)"""
+        size[[0, 2]] / 2, outline) <= HELD_MOST` -> `pass` (its free spot found in the slanted corner, the parting is refused: left in the fixture)
+    Break: score/stages/assembly/fitting.py: slants' `if not flight(name) and (name.split("_")[0] != "wall"` -> `if
+        (name.split("_")[0] != "wall"` (the crate left on the flight), or free_spot's `outline)[0] >= 0.0` -> `outline)[0]
+        > 0.0` (a point's depth is never over 0: a crate whose middle stands on the flight found no way off it)"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1104,6 +1107,26 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert fitting.slant_depth(fitting.foot_middle(*crate)[[0, 2]], (0.3, 0.3), outline)[0] <= 0.0, crate
     assert crate[1][0] - crate[0][2] <= 4.0, crate  # on the room's side of the wall's line
     assert fitting.crossing({"crate_4": crate}, [], fitting.slants(corner, TOY)) == 0, crate
+    # settle@campgrounds (2026-11-11): its lander and a dome laid 0.65 and 0.76 m into ramp_1 and ramp_2, flights the
+    # record builds as steps, which statics leaves out. A flight turned 45 degrees from (1, 1) up to (3, 3), 0.8 m
+    # wide: a crate laid on its middle is parted clear of its outline; one in its box's corner, 1.2 m off its line,
+    # is clear of it and stays.
+    import builders
+    flown = Usd.Stage.CreateInMemory()
+    steps = builders.stairs((1.0, 0.0, 1.0), (3.0, 1.0, 3.0), 0.8, 5, "s")
+    UsdGeom.Xform.Define(flown, f"/{TOY}/Structure/ramp_6").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    flight = UsdGeom.Mesh.Define(flown, f"/{TOY}/Structure/ramp_6/geo")
+    flight.CreatePointsAttr([tuple(map(float, point)) for point in steps["points"]])
+    flight.CreateExtentAttr([tuple(map(float, steps["points"].min(axis=0))),
+                             tuple(map(float, steps["points"].max(axis=0)))])
+    laid_by = {"crate_5": ((2.3, 0.0, 2.3), (2.9, 0.5, 2.9)), "crate_6": ((2.7, 0.0, 1.0), (3.0, 0.3, 1.3))}
+    for name, (low, high) in laid_by.items():
+        a_built_box(flown, f"/{TOY}/Objects/{name}", low, high)
+    fitting.fitted(flown, TOY, [{"name": name, "row": "crate"} for name in laid_by], set(laid_by))
+    crates = {name: fitting.world_box(flown, f"/{TOY}/Objects/{name}") for name in laid_by}
+    assert not np.allclose(crates["crate_5"][0], laid_by["crate_5"][0]), crates  # parted off the flight
+    assert fitting.crossing(crates, [], fitting.slants(flown, TOY)) == 0, crates
+    assert np.allclose(crates["crate_6"][0], laid_by["crate_6"][0]), crates  # by the outline, never the box
     record = {"objects": [{"name": name, "row": name[:-2]} for name in ("bed_1", "crate_3", "rug_1", "table_1")]}
     laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)} for name, (low, high) in
                                      {**floor, "crate_3": ((2.5, 0.0, 1.0), (3.1, 0.5, 1.6))}.items()]}
