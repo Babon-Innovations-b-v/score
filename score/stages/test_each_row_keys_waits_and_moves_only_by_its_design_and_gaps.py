@@ -963,7 +963,32 @@ def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_
     retakes with no mark left out on the cloud machine); a code build's take is refused.
     Break: score/stages/__init__.py: '        if not aside.exists():' -> '        if True:'; retake_pending without
     `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`; or set_aside's `objects[name]["take"] if
-    name in objects else name` made `name` (a reject naming the object, checkout 66, 2026-11-09)."""
+    name in objects else name` made `name` (a reject naming the object, checkout 66, 2026-11-09).
+    So is a look's parts made at a new seed (the owner's reject, a free remake): its candidate parts folder is set aside
+    and bought again, never copied out as it was (people-look-parts-man_stair-made gave its rejected bdb60d93 again,
+    checkout 89, 2026-11-11), a make at its own seed keeps it, and no parts row's code version moves.
+    Break: parts_reseeded's `stamp.read_text() == str(seed)` made `True`, or its folder kept without a stamp."""
+    parts_row = next(row for row in stages.STAGES if row.name.startswith("people-look-parts-"))
+    assert graph.stage_code(parts_row) == graph.stage_code(dataclasses.replace(parts_row,
+                                                                               make=inspect.unwrap(parts_row.make)))
+    bought = []
+    def parts_make(inputs, out, seed, params):
+        made = tmp_path / "candidates" / "man" / params["outfit"] / "parts" / "take"
+        if not (made / "parts.npz").exists():
+            made.mkdir(parents=True, exist_ok=True)
+            (made / "parts.npz").write_text(f"seed {seed}")
+            bought.append(seed)
+    (tmp_path / "man.json").write_text(json.dumps({"name": "man"}))
+    old_parts = tmp_path / "candidates" / "man" / "made" / "parts" / "take"
+    old_parts.mkdir(parents=True)
+    (old_parts / "parts.npz").write_text("rejected")
+    sys.path.insert(0, str(stages.people.bodies.MAKER))
+    import prop_person
+    with mock.patch.object(prop_person, "CANDIDATES", tmp_path / "candidates"):
+        for seed in (5, 5, 6):
+            stages.parts_reseeded(parts_make)({"spec": str(tmp_path / "man.json")}, tmp_path, seed, {"outfit": "made"})
+    assert bought == [5, 6] and (old_parts / "parts.npz").read_text() == "seed 6"
+    assert (old_parts.parent.with_name("parts.misfit") / "take" / "parts.npz").read_text() == "seed 5"
     row = next(row for row in stages.STAGES if row.name == "pixal")
     assert row.retakes and graph.stage_code(row) == graph.stage_code(dataclasses.replace(row,
                                                                                           make=inspect.unwrap(row.make)))
