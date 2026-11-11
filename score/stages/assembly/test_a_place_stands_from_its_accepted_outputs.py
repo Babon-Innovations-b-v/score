@@ -2084,7 +2084,14 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
         `pass` (hung under the box's foot, beside the string), or `target[[0, 2]] = foot[[0, 2]] if share is None else
         hung_run(points, float(share))` -> `target[[0, 2]] = foot[[0, 2]]` (every lantern at the string's end)
     Break: score/stages/assembly/fitting.py: off_holder's `return hung_off(low, high, box)` -> `pass` (the hung
-        lantern judged off the string's side)"""
+        lantern judged off the string's side)
+    settle@lab (2026-11-11): valve_3, laid on pipe_3's room side, hung free 0.41 m off it: the pipe model zig-zags
+    across its 0.9 m box and at the valve's height its tube runs 0.5 m along the face. A 0.2 m valve against a 1 m
+    box's E side whose one tube stands 0.8 m along it and 0.1 m inside is slid along onto the tube's middle, its back on it;
+    one already in front of the tube stays.
+    Break: score/stages/assembly/face_spots.py: met's `if face is None:` -> `if True:` (the valve left on the box's
+        side, touching nothing), or fitting.py's `target = face_spots.met(surface, on, box, size * scale, target,
+        clear)` dropped"""
     import trimesh
     from score.stages.assembly import fitting
     points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
@@ -2124,6 +2131,15 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     _, beside, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame, mounted=[first])
     _, alone, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame)
     assert np.allclose(beside, (0.45, 0.0, 0.845)) and np.allclose(alone, (0.15, 0.0, 0.845)), (beside, alone)
+    pipe = trimesh.creation.box(bounds=[(-0.2, 0.0, -0.92), (-0.1, 2.5, -0.78)])
+    piped = (np.array([-0.5, 0.0, -1.0]), np.array([0.0, 2.5, 0.0]))
+    east = {"how": "face", "holder": ["pipe_3"], "out": [1.0, 0.0]}
+    _, valve, (valve_back, _) = fitting.on_face(np.array([0.0, 1.5, -0.2]), np.array([0.05, 1.7, 0.0]), east, piped,
+                                                pipe)
+    assert abs(valve_back + 0.1) < 1e-9 and np.allclose(valve, (-0.075, 1.5, -0.8)), (valve, valve_back)
+    _, kept, (kept_back, _) = fitting.on_face(np.array([0.0, 1.5, -0.95]), np.array([0.05, 1.7, -0.75]), east, piped,
+                                              pipe)
+    assert abs(kept_back + 0.1) < 1e-9 and np.allclose(kept, (-0.075, 1.5, -0.85)), kept
     # settle@street (2026-11-11): lantern 11, on the 1 cm end of its sagging string, stood 0.045 m under it; hanging
     # clothes 3 and 4, within a drying rack turned along slanted wall_7, stood 0.05 m behind its face. A 0.1 m cube
     # 0.04 m under a holder's surface is moved up onto it, one 0.5 m away is left; one 0.05 m behind a wall face along
