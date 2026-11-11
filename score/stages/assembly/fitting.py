@@ -35,7 +35,8 @@ wall (statics) is moved the least way out of it
 (moved_out: airlock's sandbags in its porch deck, its porch post in its wall), and one whose built surface passes up
 through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
 under it (moved_down, through_roofs), and one hung from the roof (`under roof`) built shorter than its reading moved up
-to the roof's built underside over it (hung_up); a wall thing standing outside its place's walls (a passage) moved out
+to the roof's built underside over it (hung_up), and one whose parts under the roof still touch none of it (its tallest
+part up in the roof's opening) moved up until they do (hung_by_parts); a wall thing standing outside its place's walls (a passage) moved out
 past the walls and decks it reaches into (moved_past); and the things on the tops of the same holders that meet
 there spread evenly along the run their tops make, in rows across it where one line does not hold them
 (spread_on_tops). Boxes are the place's axis-aligned ones (Y up),
@@ -2023,7 +2024,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     fits += moved_past(stage, place, walled)
     moved_in(stage, place, walled, fits)
     return fits + stacked_on_runs(stage, place, topped, walled) + moved_down(stage, place, loose) + \
-        hung_up(stage, place, loose)
+        hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)
 
 
 def laid_face(on, corners):
@@ -2882,6 +2883,81 @@ def hung_up(stage, place, entries):
                      "moved": round(lift, 3), "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words})
     return fits
+
+
+def hung_by_parts(stage, place, entries):
+    """Each entry hung from the roof (`under roof`) whose built surface touches no roof over it after hung_up (its box's
+    top hung under the roof where its tallest part stands in the roof's opening: hangar's crane, hung by its box, its
+    trolley up in the open middle and its ends 0.63 m and more under the edge strips its runs ride, touching nothing,
+    motion@hangar 2026-11-11) moved straight up until a part under a roof stands ROOF_CLEAR under it, its taller parts
+    standing up in the opening, and moved out from under a roof edge a part overhangs by HELD_MOST at most (part_hang),
+    where that is OUT_MOST at most and takes it into no deck or level it was not in; the fits [{name, how "hung", ...}]."""
+    built, fits, under = roofs(stage, place), [], statics(walls(stage, place))
+    sinks = [(name, box) for name, box in under if name.split("_")[0] != "wall"]
+    for entry in entries if built else []:
+        path = f"/{place}/Objects/{entry['name']}"
+        if not entry.get("under roof") or not stage.GetPrimAtPath(path).IsActive():
+            continue
+        hang = part_hang(surface_points(stage, path), built)
+        if hang is None:
+            continue
+        low, high = world_box(stage, path)
+        move = np.array([hang[1][0], hang[0], hang[1][1]])
+        if {name for name, _ in inside_of(low + move, high + move, sinks)} - {name for name, _ in inside_of(low, high,
+                                                                                                         sinks)}:
+            continue
+        moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) + move)
+        words = (f"moved {hang[0]:.2f} m up to the roof over its parts, its taller ones standing in the roof's opening"
+                 + (f", {float(np.linalg.norm(hang[1])):.3f} m out from under a roof edge" if np.any(hang[1]) else ""))
+        from pxr import Sdf
+        stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
+        after = world_box(stage, path)
+        fits.append({"name": entry["name"], "row": entry["row"], "how": "hung", "holder": [name for name, _ in built],
+                     "moved": round(float(np.linalg.norm(move)), 3), "scale": 1.0,
+                     "low": [round(float(value), 4) for value in after[0]],
+                     "high": [round(float(value), 4) for value in after[1]], "words": words})
+    return fits
+
+
+def part_hang(points, built):
+    """(lift, [x, z] shift) that hangs a surface's points [n, 3] from the roofs `built` by its parts: straight up until
+    one under a roof stands ROOF_CLEAR under it, none through any, the highest such hang first (its parts under the
+    roof it stands highest under); a part that would go up through another roof's edge it overhangs is taken out from
+    under it by the least shift along x or z, HELD_MOST at most. None where a part already stands ROOF_CLEAR (and
+    MOVE_LEAST) under a roof, where no roof is over it, or where no hang of OUT_MOST at most is left."""
+    heights = np.array([roof_under(points, triangles) for _, triangles in built]).reshape(len(built), len(points))
+    gaps = heights - points[:, 1]
+    if not np.isfinite(gaps).any() or np.nanmin(gaps) <= ROOF_CLEAR + MOVE_LEAST:
+        return None
+    lifts = sorted({float(np.nanmin(gap)) - ROOF_CLEAR for gap in gaps if np.isfinite(gap).any()}, reverse=True)
+    for lift in [lift for lift in lifts if lift <= OUT_MOST]:
+        through = np.isfinite(gaps) & (gaps < lift + ROOF_CLEAR - 1e-6)
+        shift = out_from_under(points, through, built)
+        if shift is None or float(np.linalg.norm(shift)) > HELD_MOST:
+            continue
+        moved = points + [shift[0], 0.0, shift[1]]
+        after = np.array([roof_under(moved, triangles) for _, triangles in built]).reshape(gaps.shape) - moved[:, 1]
+        if not (np.isfinite(after) & (after < lift + ROOF_CLEAR - 1e-6)).any():
+            return lift, shift
+    return None
+
+
+def out_from_under(points, through, built):
+    """The least [x, z] shift along one axis taking each point [n, 3] off every roof (`built`) it would go up through
+    (`through` [roofs, n]), MOVE_LEAST past the roof's box; [0, 0] where none would."""
+    if not through.any():
+        return np.zeros(2)
+    needs = []
+    for axis, sign in ((0, 1.0), (0, -1.0), (2, 1.0), (2, -1.0)):
+        need = 0.0
+        for (_, triangles), over in zip(built, through):
+            if over.any():
+                corners = triangles.reshape(-1, 3)
+                edge = corners[:, axis].max() if sign > 0 else corners[:, axis].min()
+                need = max(need, float(np.max(sign * (edge - points[over, axis]))) + MOVE_LEAST)
+        needs.append((need, axis, sign))
+    need, axis, sign = min(needs)
+    return np.array([sign * need, 0.0]) if axis == 0 else np.array([0.0, sign * need])
 
 
 def moved_down(stage, place, entries):
