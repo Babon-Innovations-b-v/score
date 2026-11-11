@@ -76,9 +76,11 @@ unless named):
   Its shell case (2026-11-04, each seen red): prop_shell.bind's `if fitted_share < REACH_SHARE:` made `if False:`
   (a bulky suit stays 12 cm off its body); soft_points' `~np.isin(part_of, sorted(rigid))` made all True (the hard
   cap counted as cloth); suit_rounds' `SUIT_STEP * along` made `0 * along` (the body never drawn to the suit).
-  Its boot place case (env1, 2026-11-08: the astronaut's dark visor judged a boot rode his feet): prop_build.placed_names'
+  Its boot place case (env1, 2026-11-08: the astronaut's dark visor judged a boot rode his feet): prop_build.placed_pieces'
   `> BOOT_TOP_SHARE * (high - low)` made `> high - low` (the visor stays a boot); unsided's
-  `words = words[1:]` made `break` (the officer's waist leather, "boot black leather", rides his foot, env1 2026-11-11).
+  `words = words[1:]` made `break` (the officer's waist leather, "boot black leather", rides his foot, env1 2026-11-11);
+  placed_pieces' `tops[piece] for piece in label` made the whole part's middle (the astronaut's chest leather in his
+  boot part stays a boot and its tuck stands 67 mm out, env1 2026-11-11).
 - test_pokes_read_a_hard_parts_stretch: pokes.stretch's `max(worst, ...)` made `min(worst, ...)`.
 - test_piping_is_cut_down_the_outside_of_a_limb: piping.across_outer_line's outer half `> 0` made `< 0`.
 - test_a_flat_sheet_crosses_nothing: pokes.crossing_pairs' shared-corner filter and `usable &` both dropped (either
@@ -760,15 +762,24 @@ def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows(tmp_path):
     assert prop_build.rigid_joint("boot_l", boot, np.ones((2, 3)), names) == "LeftFoot"
     triangle = np.array([[0, 1, 2]])
     heights = np.array([0.0, 1.75])
-    split = {0: (boot, triangle.clip(0, 1), None, None), 1: (np.array([[0.05, 1.6, 0.1], [-0.05, 1.6, 0.1],
-                                                                       [0.0, 1.65, 0.1]]), triangle, None, None)}
-    placed = prop_build.placed_names({0: "boot", 1: "boot"}, {0: "black rubber boot", 1: "black rubber boot"}, split,
-                                     heights)
-    assert placed == {0: "boot", 1: "black_rubber_boot"}, placed
-    assert prop_build.rigid_joint(placed[1], split[1][0], np.array([[1.0, 0, 0]] * 3), names) == "Hips"
-    waist = prop_build.placed_names({1: "boot"}, {1: "boot black leather"}, split, heights)[1]
-    assert waist == "black_leather" and not waist.startswith(prop_build.SIDED), waist
-    assert prop_build.rigid_joint(waist, split[1][0], np.array([[1.0, 0, 0]] * 3), names) == "Hips"
+    high = np.array([[0.05, 1.6, 0.1], [-0.05, 1.6, 0.1], [0.0, 1.65, 0.1]])
+    split = {0: (boot, triangle.clip(0, 1), np.ones((2, 3)), np.arange(2)),
+             1: (high, triangle, np.ones((3, 3)), np.arange(2, 5))}
+    placed = prop_build.placed_pieces(split, {0: "boot", 1: "boot"}, {0: "black rubber boot", 1: "black rubber boot"},
+                                      heights)
+    assert sorted(placed) == [(0, "boot"), (1, "black_rubber_boot")], sorted(placed)
+    assert prop_build.rigid_joint("black_rubber_boot", high, np.array([[1.0, 0, 0]] * 3), names) == "Hips"
+    waist = [name for _, name in prop_build.placed_pieces({1: split[1]}, {1: "boot"}, {1: "boot black leather"},
+                                                          heights)]
+    assert waist == ["black_leather"] and not waist[0].startswith(prop_build.SIDED), waist
+    # One part holding a boot at the foot and a piece at the chest (the astronaut's brown leather, 2026-11-11): the
+    # high piece is named by its material, the boot stays a boot.
+    both = (np.concatenate([np.array([[0.1, 0.05, 0.0], [0.1, 0.2, 0.0], [0.15, 0.1, 0.0]]), high]),
+            np.array([[0, 1, 2], [3, 4, 5]]), np.ones((6, 3)), np.arange(6))
+    mixed = prop_build.placed_pieces({0: both}, {0: "boot"}, {0: "boot brown leather"}, heights)
+    assert sorted(mixed) == [(0, "boot"), (0, "brown_leather")], sorted(mixed)
+    assert mixed[(0, "boot")][0][:, 1].max() < 0.5 and mixed[(0, "brown_leather")][0][:, 1].min() > 1.5
+    assert sorted(prop_build.boot_names(mixed)) == [(0, "boot_l"), (0, "brown_leather")]
     cloth = np.array([[0.1, 0.21, 0.0], [0.1, 0.5, 0.0]])
     eased = prop_build.eased_to_hard(cloth, np.array([[0, 1.0, 0], [0, 1.0, 0]]), boot,
                                      np.array(["LeftFoot", "LeftFoot"], dtype=object), names, np.array([-1, 0, 1]))
