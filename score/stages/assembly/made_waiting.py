@@ -53,7 +53,8 @@ def placement(entry, low, high):
 def laid_by_relations(stage, out, place, record, objects, baked=None):
     """The laid design objects (`objects`, their names) fitted by their relations (fitting.fitted, a door in the recess
     its holder's bake cut: `baked`, baked.json), and LAID written: each one's box as laid after, the built walls, the
-    objects passing up through a roof (fitting.through_roofs), and the fits. One the fitting left out (its prim made
+    objects passing up through a roof (fitting.through_roofs), and the fits; each object's turned box's corners too
+    (fitting.oriented_corners), which the held gate measures it by. One the fitting left out (its prim made
     inactive: a thing hung from the roof with no room left under it) is listed by its fit alone."""
     fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects),
                           {model: entry.get("cuts") for model, entry in (baked or {}).items()})
@@ -68,7 +69,10 @@ def laid_by_relations(stage, out, place, record, objects, baked=None):
         return {"name": name, **more, "low": [round(float(value), 4) for value in low],
                 "high": [round(float(value), 4) for value in high]}
     (out / LAID).write_text(json.dumps({
-        "objects": [listed(name, *box, row=rows[name]) for name, box in boxes],
+        "objects": [listed(name, *box, row=rows[name], corners=[[round(float(value), 4) for value in point]
+                                                                for point in fitting.oriented_corners(
+                                                                    stage, f"/{place}/Objects/{name}")])
+                    for name, box in boxes],
         "holders": [listed(name, *fitting.world_box(stage, f"/{place}/{scope}/{name}")) for scope, name in held],
         "walls": [listed(name, *box) for name, box in fitting.walls(stage, place)],
         "roofs": fitting.through_roofs(stage, place, objects),

@@ -843,10 +843,48 @@ def held_in(on):
     return bool(on) and (on["how"] == "in" or on.get("holder scope") == "Structure")
 
 
-def inside_of(low, high, built):
-    """[(name, metres)] of the statics of the built structure a box reaches into by more than HELD_MOST every way."""
-    return [(name, round(float(depths(low, high, box).min()), 3)) for name, box in statics(built)
-            if depths(low, high, box).min() > HELD_MOST]
+def inside_of(low, high, built, corners=None):
+    """[(name, metres)] of the statics of the built structure a box reaches into by more than HELD_MOST every way: by
+    its turned box (`corners`, oriented_corners: reach_into) where given (lab's pipes along its slanted walls, their
+    world boxes in the walls at the corners, 2026-11-11)."""
+    found = [(name, float(depths(low, high, box).min()) if corners is None else reach_into(corners, box_corners(box)))
+             for name, box in statics(built)]
+    return [(name, round(depth, 3)) for name, depth in found if depth > HELD_MOST]
+
+
+def box_corners(box):
+    """The 8 corners [8, 3] of an axis-aligned box (low, high), in oriented_corners' order."""
+    low, high = (np.asarray(end, float) for end in box)
+    return np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+
+
+def box_axes(corners):
+    """The three unit edge ways of a turned box's corners (oriented_corners' order: x, then y, then z of its own
+    frame); a flat edge's left out."""
+    found = []
+    for edge in (corners[4] - corners[0], corners[2] - corners[0], corners[1] - corners[0]):
+        length = float(np.linalg.norm(edge))
+        if length > 1e-9:
+            found.append(edge / length)
+    return found
+
+
+def reach_into(corners, other):
+    """Metres a turned box (its 8 `corners`) reaches into another (its 8): the least overlap of their shadows on the
+    world's axes, each box's own edge ways and the level ways across both of their upright faces (separating axes;
+    at most 0 when they are apart). Of two boxes square to the world it is depths' least."""
+    first, second = np.asarray(corners, float), np.asarray(other, float)
+    ways = [np.eye(3)[axis] for axis in range(3)] + box_axes(first) + box_axes(second)
+    for one in box_axes(first):
+        for two in box_axes(second):
+            across = np.cross(one, two)
+            if float(np.linalg.norm(across)) > 1e-6:
+                ways.append(across / float(np.linalg.norm(across)))
+    least = np.inf
+    for way in ways:
+        mine, theirs = first @ way, second @ way
+        least = min(least, float(min(mine.max(), theirs.max()) - max(mine.min(), theirs.min())))
+    return least
 
 
 def out_of(low, high, box):
@@ -898,6 +936,8 @@ def held_faults(record, laid):
     packed over its holder (stacked_on_runs: its fit's how "stacked") is judged on that run."""
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
                                                                          *laid.get("holders", [])]}
+    shapes = {entry["name"]: np.asarray(entry["corners"], float) for entry in laid.get("objects", [])
+              if len(entry.get("corners") or ()) == 8}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
     walled = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("span") is not None}
     stacked = {fit["name"]: fit["holder"] for fit in laid.get("fitted", []) if fit["how"] == "stacked"}
@@ -933,10 +973,10 @@ def held_faults(record, laid):
             elif distance > HELD_MOST:
                 faults.append((entry["name"], f"{distance:.2f} m off where it is laid {on['how']} ({on.get('why', '')})",
                                round(distance, 3)))
-        if not held_in(on) and not climbs(entry):
+        if not held_in(on) and not climbs(entry) and not fills_holder(entry):
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
             faults += [(entry["name"], f"laid {depth:.2f} m inside {static}, nothing holding it there", depth)
-                       for static, depth in inside_of(low, high, named_walls)
+                       for static, depth in inside_of(low, high, named_walls, shapes.get(entry["name"]))
                        if not (passes(entry) and static.split("_")[0] == "wall")]
         if not held_in(on) and not climbs(entry):
             faults += [(entry["name"], f"laid {found['metres']:.2f} m up through {found['roof']}, nothing holding it "
@@ -947,22 +987,35 @@ def held_faults(record, laid):
             if entry.get(mark):
                 faults.append((entry["name"], f"{'held by nothing' if mark == 'unheld' else 'at the room middle'}: "
                                               f"{entry[mark]}", None))
-    return faults + crowded_faults(record, boxes)
+    return faults + crowded_faults(record, boxes, shapes)
 
 
-def crowded_faults(record, boxes):
+def fills_holder(entry):
+    """Whether an object fills the holder it is laid on (`fills`: a door's window), which stands in its opening, so
+    it is in the wall as its holder is (docking_airlock's door window 0.10 m in the wall its door hangs in,
+    2026-11-11); crowded_faults leaves it out as well."""
+    return bool(entry.get("fills")) and bool(entry.get("on")) and entry["on"]["how"] in ("face", "within", "top")
+
+
+def crowded_faults(record, boxes, shapes=None):
     """[(object, what is wrong, metres)] of each pair of the record's objects laid inside each other by more than
     HELD_MOST every way (boxes {name: (low, high)} as laid), held or not: two things on the floor parting could not fit
     at their built size (parted: habitat's bunk beds laid across its slanted inner wall, 2026-11-04), two held at one
     spot (galley's seven jars on its corner shelves, quarters' lockers in each other, 2026-11-03), named, never shrunk
-    or forced. A pair one of which holds the other (its relation's `holder`, down a chain: a book on a shelf on a
-    desk) is the relation's to judge, and so is one laid into the structure (held_in), a climbing row or one filling
+    or forced; by their turned boxes (`shapes`, {name: corners}) where both have them. A pair one of which holds the
+    other (its relation's `holder`, down a chain: a book on a shelf on a desk) is the relation's to judge, and so is one laid into the structure (held_in), a climbing row or one filling
     its holder (`fills`: a door's window)."""
     entries = [entry for entry in record.get("objects") or [] if entry["name"] in boxes
                and not held_in(entry.get("on")) and not climbs(entry) and not entry.get("fills")]
     holding = holders_of(record)
     names = sorted(entry["name"] for entry in entries)
-    found = [(first, second, float(depths(*boxes[first], [np.asarray(end, float) for end in boxes[second]]).min()))
+    shapes = shapes or {}
+
+    def reach(first, second):  # by their turned boxes where both have them (the greenhouse's railings up its stairs)
+        if first in shapes and second in shapes:
+            return reach_into(shapes[first], shapes[second])
+        return float(depths(*boxes[first], [np.asarray(end, float) for end in boxes[second]]).min())
+    found = [(first, second, reach(first, second))
              for number, first in enumerate(names) for second in names[number + 1:]
              if second not in holding.get(first, ()) and first not in holding.get(second, ())]
     return [(first, f"laid {depth:.2f} m inside {second} at its built size" +

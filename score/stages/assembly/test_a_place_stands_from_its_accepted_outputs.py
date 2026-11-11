@@ -950,7 +950,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     are named by the held gate (a bed in a crate, never a table on its rug).
     Break: score/stages/assembly/fitting.py: `if not (through(middle, middle + move, walls_near) & ~started).any():`
         -> `if True:`
-    Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes)` -> `return faults`
+    Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes, shapes)` -> `return faults`
+    Break: score/stages/assembly/fitting.py: held_faults' `and not fills_holder(entry):` -> `:` (the door's window in
+        the wall), or inside_of's `reach_into(corners, box_corners(box))` -> `float(depths(low, high, box).min())`
+        (the turned pipe past the wall's end named inside it)
     Break: score/stages/assembly/fitting.py: crowded_faults' `if entry["name"] in boxes` -> `if entry["name"] in
         boxes and not entry.get("on")` (two jars held at one spot on their shelf pass, galley 2026-11-03)
     Break: score/stages/assembly/fitting.py: holders_of's `more = {holder for one in more ...} - seen` -> `more =
@@ -1050,6 +1053,28 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
                                         {"name": "door_1", "low": [0.0, 0.0, 6.799], "high": [1.0, 2.0, 6.899]}]}
     assert fitting.held_faults(record, laid) == [
         ("crate_1", "laid 0.16 m inside deck_2, nothing holding it there", 0.158)], fitting.held_faults(record, laid)
+    # docking_airlock (2026-11-11): its door's window, filling the door hung in its opening, failed as 0.10 m in the
+    # wall; a window on no door it fills is in the wall all the same
+    window = {"name": "window_1", "on": {"how": "within", "holder": ["door_1"]}, "fills": True}
+    framed = {**laid, "objects": [*laid["objects"][1:],
+                                  {"name": "window_1", "low": [0.3, 1.0, 6.8], "high": [0.7, 1.5, 6.89]}]}
+    assert fitting.held_faults({"objects": [record["objects"][1], window]}, framed) == []
+    loose = [fault[0] for fault in fitting.held_faults({"objects": [record["objects"][1], {**window, "fills": False}]},
+                                                       framed)]
+    assert "window_1" in loose, loose
+    # lab and greenhouse (2026-11-11): pipes and railings turned along slanted walls and stairs failed as inside walls
+    # and each other by their world boxes. A 2.83 m pipe at 45 degrees passing 0.09 m clear of a wall's end stands in
+    # no wall by its turned box (its world box is 0.2 m in it); moved 0.5 m back along the wall it is in it.
+    def pipe(middle):
+        along, up, out = np.array([1.0, 0.0, 1.0]), np.array([0.0, 0.05, 0.0]), np.array([-1.0, 0.0, 1.0]) * 0.05 / 2 ** 0.5
+        corners = [np.asarray(middle, float) + one * along + two * up + three * out
+                   for one in (-1, 1) for two in (-1, 1) for three in (-1, 1)]
+        return {"name": "pipe_1", "low": list(np.min(corners, axis=0)), "high": list(np.max(corners, axis=0)),
+                "corners": [list(point) for point in corners]}
+    end = {"walls": [{"name": "wall_9", "low": [0.0, 0.0, 0.0], "high": [0.2, 3.0, 5.0]}]}
+    assert fitting.held_faults({"objects": [{"name": "pipe_1"}]}, {**end, "objects": [pipe((0.0, 1.0, 5.0))]}) == []
+    through = fitting.held_faults({"objects": [{"name": "pipe_1"}]}, {**end, "objects": [pipe((0.0, 1.0, 4.5))]})
+    assert [fault[0] for fault in through] == ["pipe_1"], through
     room = Usd.Stage.CreateInMemory()
     for name, low, high in (("deck_1", (0.0, -0.2, 0.0), (6.0, 0.0, 4.0)), ("wall_1", (6.0, 0.0, 0.0), (6.2, 3.0, 4.0)),
                             ("wall_2", (-0.2, 0.0, 0.0), (0.0, 3.0, 4.0))):
