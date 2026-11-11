@@ -39,7 +39,8 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           scene_clips, screens, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
-from score.stages.surfaces import bake_check, body_faces, carry, claude_asks, library_reads, route_check, uv_layout
+from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, library_reads, parts_kept, \
+    route_check, uv_layout
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -702,13 +703,14 @@ PHYSICS_TRIAL = graph.Stage("physics-trial", "place", physics.make_trial, physic
 
 def bake_checked(row):
     """surfaces-check on bake_check.py, the check's own module (a border triangle a blotch only when off every surface
-    within its reach), made through route_check.py (against the bake's specs: the finish list's settings, #18). Set
+    within its reach), made through route_check.py (against the bake's specs: the finish list's settings, #18) by
+    check_seen.py (a ship model's view distance from its own scene record). Set
     here, in the table, not in surfaces/__init__.py, which is in the turntable's and SegviGen's code version: an edit
     there re-buys them. Moves into surfaces/__init__.py, and the old check leaves place_line.py, once their fan-out of
     2026-10-12 is done."""
     if row.name != "surfaces-check":
         return row
-    return dataclasses.replace(row, make=route_check.make_check,
+    return dataclasses.replace(row, make=check_seen.make_check,
                                contract=contracts.Contract("surfaces-check", 1, bake_check.check_faults),
                                checks=(guarded("baked matches its surfaces", bake_check.judge_lit),
                                        guarded("triangles within budget", bake_check.judge_triangles),
@@ -745,6 +747,15 @@ def code_marked(row):
     if row.name != "surfaces-parts":
         return row
     return dataclasses.replace(row, files=surfaces.route_parts.files)
+
+
+def kit_and_lit_kept(row):
+    """surfaces-parts made by parts_kept.make_parts: a shell surface further from the close-up than the finish's own
+    never takes it over, and a code-built light's finish listed on a glowing surface is its lit one (shiplock,
+    2026-11-11). Set here, as code_marked is, so no row reading finish_parts.py or route_parts.py moves."""
+    if row.name != "surfaces-parts":
+        return row
+    return dataclasses.replace(row, make=parts_kept.make_parts)
 
 
 def meaning_checked(row):
@@ -971,8 +982,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))),
+          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
+              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,

@@ -319,6 +319,12 @@ tests it turned red:
   a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
 - bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
   a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
+- parts_kept.py: `return found if found["delta_e"] <= record["delta_e"] else record` -> `return found` (kit_kept)  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- parts_kept.py: `finish.get("surface") in glowing and` -> `False and` (lit_kept)  ->
+  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
+- check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
+  one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance
 """
 import inspect
 import io
@@ -344,8 +350,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 from score import checks, graph, stages  # noqa: E402
 from score.review import setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
-from score.stages.surfaces import (bake_check, body_faces, carry, claude_asks, finish_ask, finish_parts, library_reads,  # noqa: E402
-                                   palette_library, place_line, registry, route_ask, route_bake, route_cast,
+from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, finish_ask, finish_parts,  # noqa: E402
+                                   library_reads, palette_library, parts_kept, place_line, registry, route_ask,
+                                   route_bake, route_cast,
                                    route_check, route_data, route_list, route_paint, route_parts, route_recheck,
                                    route_settings, route_split, route_views, scene_library, scene_palette,
                                    surface_data, surface_gates)
@@ -606,9 +613,9 @@ def test_a_clean_label_border_passes_and_a_black_smudge_along_it_fails():
     faults = bake_check.surface_faults("seed_tray_1", paper_record(smudge))
     assert len(faults) == 1 and "printed_paper" in faults[0] and "near black" in faults[0], faults
     # the table wraps the make (stages/gaps.py: an accepted gap moves a fault, the wrapper unwraps to the judge); the
-    # finish route's check is bake_check's against the bake's specs (route_check.py)
+    # finish route's check is bake_check's against the bake's specs (route_check.py), through check_seen.py
     assert inspect.unwrap({stage.name: stage for stage in stages.STAGES}["surfaces-check"].make) \
-        is route_check.make_check
+        is check_seen.make_check
 
 
 # The flat's quilt_cotton as the library resolves it (linear RGB): red cotton, ink-line seams as its second.
@@ -739,6 +746,20 @@ def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view
     spots = list(bake_check.object_spots(desk, {"headset_1": {"size": [0.2, 0.2, 0.1]}}))
     assert [model for model, _, _ in spots] == ["headset_1"], "a model laid on a desk the kit does not size is found"
     assert [round(value, 6) for value in spots[0][1]] == [2.0, 0.5, -1.0], spots  # turned by the desk's yaw
+    # no kit (retired 2026-10-21): a ship place's kit laid from its scene record's objects, sized by their bakes
+    record = {"views": [{"eye": [0.0, 1.6, 0.0]}], "objects": [
+        {"name": "sliding_door_1", "bake": "sliding_door_1", "at": [0.0, 1.6, 2.0]},
+        {"name": "sliding_door_2", "bake": "sliding_door_1", "at": [0.0, 1.6, 4.0]},
+        {"name": "vault_door_1", "bake": "vault_door_1", "at": [0.0, 0.0, 1.0]}]}
+    kit = check_seen.laid_kit(record, {"sliding_door_1": {"size": [1.0, 2.0, 0.2]}})
+    with tempfile.TemporaryDirectory() as temporary:
+        scene, laid = pathlib.Path(temporary) / "record.json", pathlib.Path(temporary) / "kit.json"
+        scene.write_text(json.dumps(record))
+        laid.write_text(json.dumps(kit))
+        degrees = bake_check.seen_degrees({"scene record": scene, "kit": laid})
+        assert degrees == {"sliding_door_1": 28.07}, degrees  # its 1.0 m middle side, 2 m from the eye; unbaked: none
+        laid.write_text(json.dumps(check_seen.laid_kit(record, {})))
+        assert bake_check.seen_degrees({"scene record": scene, "kit": laid}) == {}, "no bake, no size, no distance"
 
 
 def tank_mesh(ends, height=1.6):
@@ -1867,6 +1888,16 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
     plate, foil = (finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finish], [colour], every,
                                                  kit)[0] for finish, colour in zip(finishes[3:], measured[3:]))
     assert plate["surface"] == "deck_plate" and plate["by"] == "the room's kit surface by colour", plate
+    # as the row makes it (parts_kept), a kit surface further from the close-up than the list's own never takes it
+    # over (shiplock's dark locker interior, 2026-11-11: frame-charcoal at dE 12.9 painted as the hull panel at 27.6)
+    near_listed = [seen["bare_steel"] + [-3.0, 0.0, 0.0]]
+    with parts_kept.held():
+        kept = finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finishes[3]], near_listed,
+                                             every, kit)[0]
+        plate = finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finishes[3]],
+                                              [seen["deck_plate"]], every, kit)[0]
+    assert kept["surface"] == "bare_steel" and kept["by"] == "the list", kept
+    assert plate["surface"] == "deck_plate" and plate["by"] == "the room's kit surface by colour", plate
     assert foil["surface"] == "gold_foil" and foil["by"] == "off its colour", foil  # never silver_foil
     lit = {"reactor_glow": {"family": "glass", "recipe": "glowing", "colour": [0.10, 0.45, 1.0]},
            "side_glazing": {"family": "glass", "recipe": "glass", "colour": [0.005, 0.0225, 0.05]}}
@@ -2512,6 +2543,17 @@ def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
     tube, caps = dict(finish, family="glass"), dict(finish, finish="metal end caps", family="steel")
     (glows, kept) = route_parts.lit_finishes([tube, caps], every)
     assert glows["surface"] == "cold" and kept == caps, (glows, kept)
+    # a strip lamp's diffuser listed in plastic on a glowing surface, its housing in steel: as the row makes it
+    # (parts_kept), the diffuser glows and the housing keeps its steel (shiplock's lights, 2026-11-11: housings painted
+    # as the blue screen)
+    diffuser = dict(finish, finish="white diffuser", family="plastic", surface="warm")
+    housing = dict(finish, finish="dark metal housing", family="steel")
+    with parts_kept.held():
+        (glows, kept) = route_parts.lit_finishes([diffuser, housing], every)
+    assert glows["surface"] == "cold" and glows["family"] == "plastic" and kept == housing, (glows, kept)
+    assert route_parts.lit_finishes([diffuser, housing], every)[1]["surface"] == "cold", "held only while it runs"
+    made = next(row for row in stages.STAGES if row.name == "surfaces-parts").make
+    assert inspect.unwrap(made) is parts_kept.make_parts, made
 
 
 def baked(folder, rows):
