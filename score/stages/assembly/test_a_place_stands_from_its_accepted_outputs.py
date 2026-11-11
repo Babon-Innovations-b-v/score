@@ -1858,6 +1858,10 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         across the divider)
     Break: score/stages/assembly/fitting.py: on_boards' `if not any(float(spot[1]) < inside for spot in rests):` ->
         `if False:` (the box on the packed unit's top, its board's clear stretch stepped over: garage 2026-11-11)
+    Break: score/stages/assembly/fitting.py: supported's `return all(` -> `return True or all(` (galley's jars left on
+        the strut and over the board's edge), or on_boards' `and float(target[1]) <= hold_low[1] + BOARD_BED` dropped
+        (the jar left at 1.5 m over no board), or slid_spots' `for axis in (0, 2):` -> `for axis in (2,):` (the jar
+        past the boards never slid across onto one)
     Break: score/stages/assembly/fitting.py: on_shelves_of's `return str(on.get("why") or "").startswith(SHELVES)` ->
         `return True`
     Break: score/stages/assembly/fitting.py: spread_on_tops' `target[axis], target[1] = at + gap + longs[name] / 2,
@@ -1920,6 +1924,20 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     low_unit = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 0.42, 0.5]))
     _, target, _, _ = fitting.fit((0.35, 0.1, 0.1), (0.65, 0.4, 0.4), within, [low_unit], packed)
     assert 0.63 < target[0] < 0.68 and np.allclose(target[1:], (0.02, 0.25)), target
+    # galley (settle@galley, 2026-11-11): corner shelves whose boards fill 0.6 m of its 1 m box. A jar laid at 1.5 m
+    # past the boards, over none, one on a 3 cm strut and one half over a board's edge each go onto a board under the
+    # inner half of their footprint; one at the unit's foot over none, and one on a board, are left.
+    corner = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, level, 0.0), (0.6, level + 0.02, 0.5)])
+                                       for level in (0.6, 1.6, 1.98)]
+                                      + [trimesh.creation.box(bounds=[(0.81, 0.98, 0.0), (0.84, 1.0, 0.5)])])
+    corners = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
+    for foot, wanted in (((0.85, 1.5), (0.57, 1.62)), ((0.775, 1.0), (0.495, 0.62)), ((0.55, 0.62), (0.49, 0.62))):
+        _, target, _, _ = fitting.fit((foot[0], foot[1], 0.2), (foot[0] + 0.1, foot[1] + 0.15, 0.3), within, [corners],
+                                      corner)
+        assert np.allclose(target, (*wanted, 0.25)), (foot, target)
+    for foot in ((0.85, 0.0), (0.2, 1.62)):
+        assert fitting.fit((foot[0], foot[1], 0.2), (foot[0] + 0.1, foot[1] + 0.15, 0.3), within, [corners],
+                           corner) is None, foot
     # garage (settle@garage, 2026-11-10): 14 boxes within three shelf units all went to the nearest, 12 piled at two
     # spots of it. A unit 0.4 x 0.5 x 0.5 m with one board (top at 0.02) and its top at 0.5 takes a 0.3 m box on its
     # board, then on its top; with both taken the box goes onto the board of the next unit out (x 1 to 1.4); with

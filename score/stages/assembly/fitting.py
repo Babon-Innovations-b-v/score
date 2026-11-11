@@ -51,6 +51,7 @@ not the plan's 17.2). Kept apart from record.py: the light and settle stages has
     through_roofs(stage, place, names)   [{name, roof, metres}] of the objects passing up through a roof's surface
     short_doors(record, laid)     [(object, what is wrong, metres)]: doors short of their openings, named, not failed
 """
+import itertools
 import math
 
 import numpy as np
@@ -270,17 +271,49 @@ def meets_any(low, high, boxes):
     return any(float(depths(low, high, box).min()) > BOARD_CLEAR for box in boxes)
 
 
+def supported(hits, foot):
+    """Whether a thing's foot at `foot` stands on a board over the inner half of its footprint: the middle ray's and
+    each inner ray's of board_hits' grid (all but its outer ring) meet a surface within BOARD_BED of it. Galley's jars
+    (settle@galley, 2026-11-11): one snapped onto a 5 cm strut that slopes 31 degrees, one over its unit's top edge,
+    10 degrees, each met by the middle ray alone."""
+    inner = [1 + across * BOARD_RAYS + along for across in range(1, BOARD_RAYS - 1)
+             for along in range(1, BOARD_RAYS - 1)]
+    return all(np.any(np.abs(hits[index] - foot) <= BOARD_BED) for index in (0, *inner))
+
+
+def slid_spots(target, box, size, half):
+    """{rounded spot: foot middle} of the spots on_boards tries for a thing of `size` (`half` of it) laid at `target`
+    within its holder's `box`: from it a step its size and BOARD_CLEAR at a time each way along x and z, each
+    combination, kept within the box. Along the holder's longer side alone left galley's jars beside its corner
+    shelves' boards, a jar at 1.5 m over none and three on its top (2026-11-11)."""
+    hold_low, hold_high = box
+    ways = []
+    for axis in (0, 2):
+        step = float(size[axis]) + BOARD_CLEAR
+        ways.append([(axis, way * count * step) for count in
+                     range(int((hold_high[axis] - hold_low[axis]) / max(step, 1e-9)) + 1) for way in (1, -1)])
+    spots = {}
+    for moves in itertools.product(*ways):
+        spot = np.array(target, float)
+        for axis, move in moves:
+            spot[axis] = kept_within(spot[axis] + move, hold_low[axis], hold_high[axis], half[axis])
+        spots.setdefault((round(float(spot[0]), 4), round(float(spot[2]), 4)), spot)
+    return spots
+
+
 def on_boards(low, high, scale, target, box, mesh, taken=(), stack=False):
     """The foot middle of a thing laid within its holder (on_holder's `target`, its box (low, high) shrunk by
-    `scale`) on the holder's built boards (`mesh`, its surface): where it stands at `target` on a board crossing no
-    surface of the holder (crosses: a side the rays straight down miss too) and meeting none of the boxes laid in it
-    before (`taken`), `target`; else the nearest spot
-    to it on a board (a surface the middle ray meets) with no surface of the holder inside it and none of `taken`,
-    slid along the holder's longer side where its own spot is taken, then at every board_spots.BOARD_PITCH along it
-    where that slide finds none; else on the holder's top there (the highest
-    surface under it). 2026-11-08: engineroom's 40 cm boxes laid at the plan's 0.5 m base in shelf units with 39 cm
+    `scale`) on the holder's built boards (`mesh`, its surface): where it stands at `target` on a board under the
+    inner half of its footprint (supported) crossing no surface of the holder (crosses: a side the rays straight down
+    miss too) and meeting none of the boxes laid in it before (`taken`), `target`; else the nearest spot
+    to it on such a board (a surface the middle ray meets) with no surface of the holder inside it and none of `taken`,
+    slid along and across the holder where its own spot is taken (slid_spots), then at every board_spots.BOARD_PITCH
+    along its longer side where that slide finds none; else on the holder's top there (the highest surface under it,
+    supported). 2026-11-08: engineroom's 40 cm boxes laid at the plan's 0.5 m base in shelf units with 39 cm
     between boards, through the second board, and two at one spot, which the settle's snap does not lift; galley's
-    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board; else, `stack`ing,
+    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board and it
+    stands at its holder's foot; one over no board above it is laid on a board like the rest (galley's jar left at
+    1.5 m over none, 2026-11-11); else, `stack`ing,
     on top of one laid there before (stacked_spots); None where none of those has a clear spot left (crowded: garage's 12
     boxes piled at two spots of one of its three shelf units, 2026-11-10)."""
     size = (np.asarray(high, float) - np.asarray(low, float)) * scale
@@ -299,15 +332,10 @@ def on_boards(low, high, scale, target, box, mesh, taken=(), stack=False):
 
     hits = board_hits(mesh, *footprint(target))
     standing = bool(np.any(np.abs(hits[0] - float(target[1])) <= BOARD_CLEAR))  # on a board as laid
-    if not len(hits[0]) or (standing and clear(hits, target)):
+    if (not len(hits[0]) and float(target[1]) <= hold_low[1] + BOARD_BED) or \
+            (standing and clear(hits, target) and supported(hits, float(target[1]))):
         return target
     axis = 0 if hold_high[0] - hold_low[0] >= hold_high[2] - hold_low[2] else 2
-    step, spots = float(size[axis]) + BOARD_CLEAR, {}
-    for count in range(int((hold_high[axis] - hold_low[axis]) / max(step, 1e-9)) + 1):
-        for way in (1, -1):
-            spot = np.array(target, float)
-            spot[axis] = kept_within(spot[axis] + way * count * step, hold_low[axis], hold_high[axis], half[axis])
-            spots.setdefault(round(float(spot[axis]), 4), spot)
 
     def rests_and_tops(tried):
         """([foot middle] on a board clear, [foot middle] on the top clear) over the `tried` spots."""
@@ -320,13 +348,14 @@ def on_boards(low, high, scale, target, box, mesh, taken=(), stack=False):
                 if np.any((hits[0] > foot + 1e-4) & (hits[0] <= foot + BOARD_BED)):
                     continue  # a board's underside or a step in its top: its top is the rest
                 placed = np.array([spot[0], foot, spot[2]])
-                if clear(hits, placed):
+                if clear(hits, placed) and supported(hits, foot):
                     rests.append(placed)
             top = np.array([spot[0], float(np.concatenate(hits).max()), spot[2]])
-            if not meets_any(*footprint(top), taken) and not crosses(points, *footprint(top)):
+            if not meets_any(*footprint(top), taken) and not crosses(points, *footprint(top)) \
+                    and supported(hits, float(top[1])):
                 tops.append(top)
         return rests, tops
-    rests, tops = rests_and_tops(spots.values())
+    rests, tops = rests_and_tops(slid_spots(target, box, size, half).values())
     inside = float(hold_high[1]) - BOARD_BED  # a rest under this is on a board within the holder, not on its top
     if not any(float(spot[1]) < inside for spot in rests):  # a board stretch the slide stepped over (board_spots)
         rests += [spot for spot in rests_and_tops(board_spots.along(target, axis, hold_low, hold_high, half))[0]
