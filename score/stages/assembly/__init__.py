@@ -54,7 +54,7 @@ import sys
 from score import checks
 from score.stages import design_layers
 from score.stages.root_stage import stage_file  # noqa: F401  (its callers read it here)
-from score.stages.assembly import made_waiting, sounds
+from score.stages.assembly import even_feet, made_waiting, sounds
 from score.stages.assembly.ground_finish import (  # noqa: F401  (the tests read ground_surface here)
     finish_ground, ground_scenes, ground_surface)
 from score.stages.assembly.baked import (  # noqa: F401  (the table and the tests read them here)
@@ -135,6 +135,8 @@ def make_from_seed(inputs, out, seed, params):
             stamp_baked_hash(out / BASE_LAYER, row, bake / "made" / f"{row}.gltf")
     for claimed in claimed_bakes(inputs, out):
         take_bake(*claimed)
+    if "surfaces-bake" in inputs:
+        even_feet.evened(out, folder.name)  # as the settle's grounded seed lays them (grounded.take_bakes)
     take_ground(inputs["terrain"], folder.name, out / root.name)
     finish_ground(inputs, out / root.name, folder.name)
     unplaced = sounds.take(pathlib.Path(inputs["sound"]), out / root.name, inputs) if "sound" in inputs else []

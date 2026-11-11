@@ -23,7 +23,10 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   stood upright on its lowest foot and named for the paint, which levels a take's feet before its bake; the
   assembly's own drop and triage judge the baked model. A model whose base is one sloping or uneven piece (the
   hangar's racks: legs ending 22 cm over a part under their middle) is no tip onto uneven feet: its tilted rest stays
-  the triage's fault, the model's to fix.
+  the triage's fault, the model's to fix. A floor thing's own asset copy is laid with every foot the triage reads off
+  (5 cm apart, 3 cm up) brought down onto its lowest (`assembly/even_feet.py`, in grounded.take_bakes and the
+  assembly's make): the paint links feet within 3% of the footprint's diagonal, so campgrounds' habitat domes and
+  communications towers passed its "feet in one plane" with feet 3 to 9 cm up (2026-11-11).
 - **The gates block what this stage breaks, and a layout it cannot mend**: a broken drop (`rested`) or an object
   resting worse with the layer than without it (`resting`). Two loose objects inside each other are judged at the
   poses the layer lays (the drop's loose-to-loose collision is off): a pair already crossing as laid is kept as laid,

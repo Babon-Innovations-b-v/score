@@ -52,8 +52,11 @@ def take_bakes(inputs, folder, place):
     """The surface line's bakes over the seed's models, as the assembly lays them (baked.py: the place's own bake, a
     waiting entry its bake made, each model another place bakes for it), so the drop rests the very models the
     assembly lays: the seed's, rested and laid under the repainted bakes, tilted the hangar's control desk 2 degrees
-    and left its keyboards on its sloping front (2026-10-15). The assets are copied, not linked, for it."""
+    and left its keyboards on its sloping front (2026-10-15). The assets are copied, not linked, for it. Each floor
+    thing's model then stands on every foot by the resting check's measure (even_feet: campgrounds' domes,
+    2026-11-11)."""
     import score.stages.assembly.baked as baked
+    import score.stages.assembly.even_feet as even_feet
     from score.stages.assembly import made_waiting
     from score.stages.assembly.record import BASE_LAYER
     if "surfaces-bake" not in inputs:
@@ -64,6 +67,7 @@ def take_bakes(inputs, folder, place):
         baked.stamp_baked_hash(folder / BASE_LAYER, row, bake / "made" / f"{row}.gltf")
     for claimed in baked.claimed_bakes(inputs, folder):
         baked.take_bake(*claimed)
+    even_feet.evened(folder, place)  # every foot down by the resting check's own measure, as the assembly lays it
 
 
 def linked(source, target):
