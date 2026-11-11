@@ -73,8 +73,8 @@ def moved(verdict, gaps):
         said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in named)
         return checks.Verdict(verdict.check, checks.PASS, f"{verdict.reason}; moved to complete as accepted gaps: {said}",
                               {**verdict.measures, "moved": 1}, verdict.better, verdict.findings)
-    if verdict.answer != checks.FAIL or not verdict.findings or not gaps:
-        return verdict
+    if verdict.answer not in (checks.FAIL, checks.UNKNOWN) or not verdict.findings or not gaps:
+        return verdict  # an unknown every finding of which is a gap's moves too (shiplock's reach to its unbaked rows)
     said = "; ".join(f"{entry['name']} ({entry['decided']})" for entry in gaps
                      if any(covers(entry, finding) for finding in verdict.findings))
     if not all(any(covers(entry, finding) for entry in gaps) for finding in verdict.findings):
