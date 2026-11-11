@@ -1315,7 +1315,11 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         0.0 else -normal` -> `pass` with the turned face's normal flipped (out into the wall), or slanted_wall's `> 1e-6`
         -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall), or its `share in
         (FACE_INSET, 1.0 - FACE_INSET)` -> `share in (0.0, 1.0)` (a span ending past its wall's corner turned onto
-        the wall behind, habitat's wall_9)"""
+        the wall behind, habitat's wall_9)
+    Break: score/stages/assembly/fitting.py: stood_off's `0.0 < float(along.min() + along.max()) / 2 < length`
+        dropped (walkway's whole-wall pipe stood on its end walls' front, against the wall across), or off_wall's
+        `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
+        rib's front named off its wall)"""
     from pxr import Gf, Usd, UsdGeom
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -1378,6 +1382,32 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     deck = (np.array([-3.0, 2.0, 0.0]), np.array([3.0, 2.5, 10.0]))
     scale, target = fitting.on_wall(*pipe, wall, built=[rib, past, deck])
     assert scale == 1.0 and np.allclose(target, (0.0, 2.35, 1.1)), (scale, target)
+    # walkway (2026-11-11): a pipe along its whole wall was stood on the 1.5 m front of the walls meeting it at its
+    # ends, onto the wall across; the walls at the face's ends are no ribs, and the held gate measures a stood pipe
+    # off the rib's front it was laid on (stood_face), by its own turned box (laid_face)
+    ends = [(np.array([-3.13, 0.0, 0.1]), np.array([-3.0, 2.5, 1.6])), (np.array([3.0, 0.0, 0.1]),
+                                                                        np.array([3.13, 2.5, 1.6]))]
+    whole = (np.array([-3.05, 2.35, 0.1]), np.array([3.05, 2.8, 0.3]))
+    scale, target = fitting.on_wall(*whole, wall, built=ends)
+    assert abs(scale - 6 / 6.1) < 1e-9 and np.allclose(target, (0.0, 2.35, 0.1 + 0.1 * 6 / 6.1)), (scale, target)
+    stood = fitting.stood_face(*pipe, wall, None, [rib])
+    assert np.allclose(stood["span"], [[-3.0, 1.0], [3.0, 1.0]]) and fitting.stood_face(*whole, wall, None, ends) \
+        is wall, stood
+    floor = [[x, z] for x in (-2.0, 2.0) for z in (1.0, 1.2)]
+    laid_on = {"objects": [{"name": "pipe_1", "low": [-2.0, 2.35, 1.0], "high": [2.0, 2.8, 1.2]}],
+               "fitted": [{"name": "pipe_1", "how": "wall",
+                           **fitting.laid_face(stood, [[x, 2.35, z] for x, z in floor])}]}
+    assert fitting.held_faults({"objects": [{"name": "pipe_1", "on": wall}]}, laid_on) == []
+    assert fitting.held_faults({"objects": [{"name": "pipe_1", "on": wall}]}, dict(laid_on, fitted=[])) == [
+        ("pipe_1", "0.90 m off where it is laid wall ()", 0.9)]
+    # hub (2026-11-11): a 0.4 m deep pipe turned 45 degrees flush on its slanted wall stands off it by its world box,
+    # never by its own turned box's corners
+    slanted = {"how": "wall", "span": [[0.0, 0.0], [4.0, 4.0]], "out": [0.7071068, -0.7071068]}
+    turned_floor = [[2.0 + along * 0.7071068 + off * 0.7071068, 2.0 + along * 0.7071068 - off * 0.7071068]
+                    for along in (-1.5, 1.5) for off in (0.0, 0.4)]
+    xs, zs = [x for x, _ in turned_floor], [z for _, z in turned_floor]
+    low, high = np.array([min(xs), 0.0, min(zs)]), np.array([max(xs), 0.5, max(zs)])
+    assert fitting.off_wall(low, high, slanted, turned_floor) < 1e-6 < fitting.off_wall(low, high, slanted) - 0.1
     # hangar's 32 m pipes on its 31.3 m walls: one longer than its wall stands under the one laid before it too
     long_pipe = (np.array([-3.5, 2.35, 0.1]), np.array([3.5, 2.8, 0.3]))
     scale, target = fitting.on_wall(*long_pipe, wall, (), [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))])
