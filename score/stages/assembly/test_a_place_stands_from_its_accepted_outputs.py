@@ -956,7 +956,8 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         high, box).min())` (the turned pipe past the wall's end named inside it), or its `shapes.get(name,
         box_corners(box))` -> `box_corners(box)` (lab's crate by its slanted wall named in it)
     Break: score/stages/assembly/fitting.py: held_faults' `distance = min(distance, stacked_off(...` -> `distance =
-        min(distance, np.inf` (garage's stacked box named off its shelf)
+        min(distance, np.inf` (garage's stacked box named off its shelf), or off_holder's `above = 0.0 if
+        on_shelves_of(on) else` dropped (storage's bag on its top board named over its unit)
     Break: score/stages/assembly/fitting.py: crowded_faults' `if entry["name"] in boxes` -> `if entry["name"] in
         boxes and not entry.get("on")` (two jars held at one spot on their shelf pass, galley 2026-11-03)
     Break: score/stages/assembly/fitting.py: holders_of's `more = {holder for one in more ...} - seen` -> `more =
@@ -1075,6 +1076,14 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert fitting.held_faults(piled, stack) == [], fitting.held_faults(piled, stack)
     stack["objects"][2] = {"name": "box_2", "low": [0.1, 1.5, 0.1], "high": [0.4, 1.8, 0.4]}
     assert [fault[0] for fault in fitting.held_faults(piled, stack)] == ["box_2"]
+    # storage (2026-11-11): bags on their units' top boards reach 0.07 m over the units' frames; on its shelves that
+    # is no fault, a thing within its holder otherwise is
+    bag = {"objects": [{"name": "shelf_1", "low": [0.0, 0.0, 0.0], "high": [1.0, 1.0, 0.5]},
+                       {"name": "bag_1", "low": [0.1, 0.8, 0.1], "high": [0.4, 1.07, 0.4]}]}
+    shelved = {"how": "within", "holder": ["shelf_1"], "why": f"{fitting.SHELVES}shelf: its reading says 'top shelves'"}
+    assert fitting.held_faults({"objects": [{"name": "shelf_1"}, {"name": "bag_1", "on": shelved}]}, bag) == []
+    assert [fault[0] for fault in fitting.held_faults({"objects": [{"name": "shelf_1"}, {"name": "bag_1", "on": shelf}]},
+                                                      bag)] == ["bag_1"]
     # lab (2026-11-11): things by its short slanted walls named in them by the walls' world boxes. A slab 1 m long
     # and 0.1 m thick at 45 degrees: its own box (wall_corners) is that thin slab; a crate in its world box's corner,
     # clear of the slab, is in no wall by it, and in the wall by the world box alone.
