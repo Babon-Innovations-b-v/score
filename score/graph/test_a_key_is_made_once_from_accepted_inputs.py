@@ -4367,9 +4367,9 @@ def make_cast(inputs, out, seed, params):
     (out / "cast.txt").write_text("dressed" if "dress" in inputs else "undressed")
 
 
-def people_runner(text):
+def people_runner(text, unread=None):
     """A look on the people line, a paid dress row of the environment reading it beside, a cast at each place reading
-    the dress as optional."""
+    the dress as optional (but at a place `unread` leaves it out)."""
     data, world = a_world_of(["people"])
     (data / "people" / "brief.txt").write_text(text)
     look = graph.Stage("look", "place", make_look, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"},
@@ -4377,14 +4377,17 @@ def people_runner(text):
     dress = graph.Stage("dress", "world", make_dress, TEXT, PASSES, paid=True, euros=0.0, beside={"look": READS},
                         neighbours=lambda place: ["people"])
     cast = graph.Stage("cast", "place", make_cast, TEXT, PASSES, after={"dress": READS}, optional=("dress",),
-                       applies=lambda place: place != "people")
+                       applies=lambda place: place != "people", unread=unread)
     return a_runner(world, a_store(), (look, dress, cast))
 
 
 def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_without_one_that_stopped():
     """The people line's nodes are in the run whole or not, priced, and held for each place that reads them; the cast
-    waits on its dress and takes it, and runs without it once its line stopped.
-    Break: score/graph/__init__.py: '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
+    waits on its dress and takes it, and runs without it once its line stopped; a place whose cast leaves the dress
+    unread (sim-body at a place whose cast wears no pilot: 2026-11-11) neither waits on it nor reads it.
+    Breaks (each applied once, seen red, reverted), in score/graph/__init__.py:
+    'if before not in unread and (' -> 'if True and (';
+    '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
     runner = people_runner("a suit")
     for whole in (True, False):
         names = {graph.node_name(*node) for node in runner.line_nodes(PLACES, whole)}
@@ -4400,6 +4403,12 @@ def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_wi
     found = runner.drive(PLACES, say=quiet, whole=False)
     assert found["dress"] == "not run: its line stopped at look@people", found
     assert accepted_text(runner.store, "cast@hangar", "cast.txt") == "undressed"
+    runner = people_runner("a suit", unread=lambda place: {"dress"} if place == "station" else ())
+    assert runner.optional_nodes(runner.stages["cast"], "station") == [], "station's cast waits on the dress"
+    found = runner.drive(PLACES, say=quiet, whole=False)
+    assert found["dress"].startswith("made: pass"), found
+    assert accepted_text(runner.store, "cast@hangar", "cast.txt") == "dressed"
+    assert accepted_text(runner.store, "cast@station", "cast.txt") == "undressed"
 
 
 def make_rung(inputs, out, seed, params):
