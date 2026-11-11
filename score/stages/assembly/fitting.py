@@ -2094,9 +2094,11 @@ def spread_on_tops(stage, place, entries):
     holder's top alone, so the pieces past one unit's end were pushed into the one before (settle@workshop's storage
     boxes 6 and 7 on their two shelf units, 2026-11-10). Things that fit neither way are left for the held gate to
     name; the fits [{name, how, ...}]."""
-    groups = {}
+    groups, carried = {}, {}
     for entry in entries:
         groups.setdefault(tuple(entry["on"].get("holder") or []), []).append(entry)
+        for holder in entry["on"].get("holder") or []:
+            carried.setdefault(holder, []).append(entry["name"])
     fits = []
     for holders, pieces in groups.items():
         scope = pieces[0]["on"].get("holder scope", "Objects")
@@ -2129,9 +2131,22 @@ def spread_on_tops(stage, place, entries):
                 continue
             path = f"/{place}/Objects/{name}"
             moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, target)
+            carry(stage, place, carried, name, target - foot_middle(low, high))
             fits.append(laid_fit(stage, path, entry, "spread", list(holders), moved, 1.0,
                                  f"spread {moved:.2f} m over its holders' tops: the things on them met there"))
     return fits
+
+
+def carry(stage, place, carried, name, shift, seen=()):
+    """The things laid on the top of a thing moved by `shift` (`carried`, {holder: [names]}), and theirs, moved with
+    it: quarters' papers on a book were left where the book stood before its desk's things were spread (2026-11-11)."""
+    for other in carried.get(name, []):
+        if other in seen:
+            continue
+        path = f"/{place}/Objects/{other}"
+        foot = foot_middle(*world_box(stage, path))
+        moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + shift)
+        carry(stage, place, carried, other, shift, (*seen, name))
 
 
 def packed_rows(longs, deeps, length, depth):

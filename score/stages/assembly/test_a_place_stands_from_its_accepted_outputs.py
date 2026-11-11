@@ -1830,7 +1830,8 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)
     Break: score/stages/assembly/fitting.py: spread_on_tops' `if len(rows) > 1: target[side] = across_at` -> `if False:`
         (hub's screens left in one another across the desk), or packed_rows' `BOARD_CLEAR * (len(rows) + 1) > depth:`
-        -> `> 9.0:` (seven boxes in rows deeper than the top)
+        -> `> 9.0:` (seven boxes in rows deeper than the top), or `carry(stage, place, carried, name, ...)` dropped
+        (quarters' papers left where their book stood)
     Break: score/stages/assembly/fitting.py: off's `if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not
         None:` -> `if False:` (workshop's box spread over two units' meeting named 0.2 m off one)"""
     from score.stages.assembly import fitting
@@ -1937,6 +1938,19 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert all(float(fitting.depths(*laid[one], laid[other]).min()) <= 0.0 for one in range(6)
                for other in range(one + 1, 6)), laid
     assert all(3.0 <= low[0] and high[0] <= 4.0 and 0.0 <= low[2] and high[2] <= 0.4 for low, high in laid), laid
+    # quarters (2026-11-11): papers on a book stayed where the book stood before the desk's things were spread
+    a_built_box(stage, f"/{TOY}/Objects/desk_2", (6.0, 0.0, 0.0), (7.0, 0.8, 0.4))
+    on_second = {"how": "top", "holder": ["desk_2"]}
+    a_built_box(stage, f"/{TOY}/Objects/paper_1", (6.3, 1.1, 0.1), (6.4, 1.11, 0.2))  # on tray_2, which is spread
+    paper = {"name": "paper_1", "row": "paper", "on": {"how": "top", "holder": ["tray_2"]}}
+    for name in ("tray_1", "tray_2"):
+        a_built_box(stage, f"/{TOY}/Objects/{name}", (6.3, 0.8, 0.1), (6.6, 1.1, 0.2))
+    before = fitting.world_box(stage, f"/{TOY}/Objects/tray_2")[0]
+    fitting.spread_on_tops(stage, TOY, [{"name": "tray_1", "row": "tray", "on": on_second},
+                                        {"name": "tray_2", "row": "tray", "on": on_second}, paper])
+    shift = fitting.world_box(stage, f"/{TOY}/Objects/tray_2")[0] - before
+    assert float(np.linalg.norm(shift)) > 0.01 and np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/paper_1")[0],
+                                                               np.array([6.3, 1.1, 0.1]) + shift), shift
     assert fitting.packed_rows([0.3] * 7, [0.3] * 7, 1.0, 0.4) is None
     assert fitting.on_shelves_of({"how": "within", "why": "on the shelves of shelf: its reading says 'on shelves'"})
     assert not fitting.on_shelves_of({"how": "within", "why": "within kitchen_counter: the plan lays it inside"})
