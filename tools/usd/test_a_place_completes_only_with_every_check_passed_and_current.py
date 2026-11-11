@@ -31,6 +31,8 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   And (2026-11-11, galley's one kitchen counter its plan laid as its floor holds failed) complete.short_rows'
   `if row["id"] not in planned: return count` made `if True: return count`, and unlaid_rows'
   `and (row["id"] not in planned or planned[row["id"]])` dropped.
+- an_accepted_gap_moves_only_the_faults_it_names, 2026-11-11 (shiplock's reach unknown on its batch-gapped rows):
+  gaps.moved's `if verdict.answer not in (checks.FAIL, checks.UNKNOWN)` -> `if verdict.answer != checks.FAIL`.
 - an_accepted_gap_moves_only_the_faults_it_names, 2026-11-11 (the bodies gaps filed at characters-layer failed
   complete's people at every place): stages.reaching's `return [entry for entry in` made `return [] and [`, and
   gaps.covers' `or named.split(" (", 1)[0] in entry["objects"]` dropped.
@@ -363,7 +365,8 @@ def an_accepted_gap_moves_only_the_faults_it_names():
             {**named, "name": "no player", "check": "people", "objects": ["player"]},
             {**named, "name": "not a gap gate", "check": "light", "objects": ["crate"]},
             {**named, "name": "astronaut_1 has no body", "row": "characters-layer", "check": "bodies",
-             "objects": ["astronaut_1"]}]}))
+             "objects": ["astronaut_1"]},
+            {**named, "name": "no player to walk to", "check": "reach", "objects": ["player"]}]}))
         problems = []
         try:
             def answer(check, faults):
@@ -380,6 +383,13 @@ def an_accepted_gap_moves_only_the_faults_it_names():
             if answer("people", [body, "pilot (pilot): not a made model: no accepted body of its look"])[0] != \
                     complete.FAIL:
                 problems.append("a person no body gap names passed with the gapped one")
+            def unknown(check, faults):
+                complete.save(complete.result(check, complete.UNKNOWN, stage, faults), stage)
+                return complete.check_requirement(check, stage, complete.fingerprint(stage), resting_test.PLACE)
+            if unknown("reach", [json.dumps({"row": "player", "result": "unknown"})])[0] != complete.PASS:
+                problems.append("an unknown reach whose only finding is a gap's row did not move")
+            if unknown("reach", [json.dumps({"row": "guard", "result": "unknown"})])[0] != complete.UNKNOWN:
+                problems.append("an unknown reach no gap names moved")
             if answer("light", ["crate: no lamp"])[0] != complete.FAIL:
                 problems.append("a gap moved a check that is not one of complete's gap gates")
             if complete.accepted_gaps_requirement(resting_test.PLACE)[0] != complete.FAIL:
