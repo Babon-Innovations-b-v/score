@@ -254,17 +254,23 @@ def place_left(items, places=None, leave_places=None, runner=None):
     return sorted(flow.places_left(items, chosen, left, upstream))
 
 
-def buy(yes_id, store=None, phase=None, leave_out=None, places=None, leave_places=None):
+def buy(yes_id, store=None, phase=None, leave_out=None, places=None, leave_places=None, take_cheap=None):
     """His Buy under the yes `yes_id`, once: every check of the module docstring, the yes marked used, then flow.start
     as his click, in this thread; (Checkout or None, words). With `phase` (score/stages/phases, the door's `--phase`)
     only that phase's rows of the basket are bought (flow.phase_kept), under the same yes and batch total, the
     checkout's chat_yes naming it; with `places` or `leave_places` (comma lists, the door's `--place` and
-    `--leave-place`) only the rows place_left keeps. Refused before the yes is marked used, nothing written."""
+    `--leave-place`) only the rows place_left keeps; with `take_cheap` (euros, the door's `--take-cheap`) a row the
+    run would also buy, priced under it, is taken into the basket in place of a refusal (flow.cheap_taken). Refused
+    before the yes is marked used, nothing written."""
     from score.review import web
     store = store or state.source().store
     yes = yes_found(store, yes_id)
     if phase:
         yes = {**yes, "phase": known_phase(phase)}
+    if take_cheap is not None:
+        if take_cheap <= 0:
+            raise Refused(f"--take-cheap {take_cheap:g}: give the euros a row may cost each, above 0")
+        yes = {**yes, "take_cheap": take_cheap}
     if leave_out:  # stages this Buy leaves out beside the yes's own (2026-11-06: sim-body until its fixes land)
         yes = {**yes, "leave_out": [*yes.get("leave_out", ()), *known_stages(leave_out)]}
     approved = approved_now()  # the design's approval now, as the basket below is the runner's plan now

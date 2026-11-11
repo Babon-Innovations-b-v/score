@@ -25,6 +25,7 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.start: the same-key early return -> `if False:` -> test_the_same_key_is_the_same_checkout
 - flow.checking_out: the home's `fcntl.flock` -> `pass` -> test_a_checkout_waits_while_another_process_...
 - flow.plan_refusals: `if extra:` -> `if False:` -> test_a_run_that_would_buy_more_than_was_priced_...
+- flow.cheap_taken: `if not taken:` -> `if True:` -> the same (--take-cheap's rows still refuse the Buy)
 - flow.run: the buys-nothing check -> `if False:` -> test_a_run_that_buys_nothing_now_writes_no_line_...
 - flow.room_refusals: the room check -> `if False:` -> test_a_basket_that_cannot_fit_under_the_runners_spend_...
 - flow.room_refusals: drop the `spend.ceiling >= line["euros"]` return -> a try the line caps is refused over spend
@@ -267,13 +268,29 @@ def test_a_checkout_waits_while_another_process_of_this_home_is_checking_out(sho
         holder.wait(timeout=10)
 
 
-def test_a_run_that_would_buy_more_than_was_priced_is_refused_before_the_line(shop):
+def test_a_run_that_would_buy_more_than_was_priced_is_refused_before_the_line(shop, monkeypatch):
+    """Every row the run would also buy is named in the one refusal (2026-11-11: one a refusal, a re-plan each); with
+    the yes's take_cheap (the door's --take-cheap) those priced under it are taken into the basket and launched.
+    Break: in flow.extra_buys, `sorted(set(extra) - set(gaps))[:1]` -> only the first named.
+    Break: in flow.cheap_taken, `if not taken:` -> `if True:` -> the cheap rows still refuse the Buy."""
     client = api()
     bought(shop, "alpha-pieces")
-    FakeBackend.plan_buys = ["closeup@alpha", "closeup@beta"]
+    upstream = [f"terrain@{place}" for place in "pqrstuvw"]
+    FakeBackend.plan_buys = ["closeup@alpha", "closeup@beta", *upstream]
     found = Checkout.objects.get(pk=checked_out(client, "g")["checkout"]["id"])
-    assert found.state == "refused" and "would also buy closeup@beta" in found.detail
+    assert found.state == "refused" and "would also buy 9 rows" in found.detail, found.detail
+    assert all(node in found.detail for node in ["closeup@beta", *upstream]), found.detail
     assert stop_line(shop) is None and not launches()
+    yes = {"id": "y", "batch_total_euros": 500.0}  # flow.yes_refusals: a batch total
+    found.chat_yes, found.state = {**yes, "take_cheap": FakeBackend.euros - 1}, "launching"  # none cheap enough
+    flow.run(found, FakeBackend())
+    assert found.state == "refused" and f"none under EUR {FakeBackend.euros - 1:g}" in found.detail, found.detail
+    monkeypatch.setattr(FakeBackend, "ceiling", 1000.0)  # the runner's room for the rows taken in
+    found.chat_yes, found.state = {**yes, "take_cheap": FakeBackend.euros + 1}, "launching"
+    flow.run(found, FakeBackend())
+    taken = next(item for item in found.items if item["id"] == "take-cheap")
+    assert sorted(taken["nodes"]) == sorted(["closeup@beta", *upstream]) and found.totals["nodes"] == 10, found.items
+    assert found.state != "refused" and len(launches()) == 1, found.detail
 
 
 def test_a_run_that_buys_nothing_now_writes_no_line_and_launches_nothing(shop):
