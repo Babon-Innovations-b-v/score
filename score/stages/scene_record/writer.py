@@ -1225,7 +1225,8 @@ def design_objects(design, handin, relations=None):
     row on the ground the plan lays only against its edge (floor_fit.past_edge) stands past it (past_edge_spot), never
     centred on its edge strip over the floor (2026-10-26: the square's 30 m buildings on 2 to 7 m strips). An item's
     relation (`relations`, score/review/holders: in an opening, against a wall, on, within or against a holder) is
-    carried as the object's `on`, which the assembly lays it by at its built size (assembly/made_waiting.fitted), and
+    carried as the object's `on`, which the assembly lays it by at its built size (assembly/made_waiting.fitted), one
+    against a holder much thinner than it marked `below`, hung under it (thin_holder: a lantern on its string), and
     how it rests there as its `rests` (leaning, attached: holders.rests), which the settle leans it or holds it by."""
     by_id = {row["id"]: row for row in handin.get("rows", [])}
     models, shapes, tied = models_of(handin), design.get("shapes") or {}, item_rows(design)
@@ -1252,6 +1253,8 @@ def design_objects(design, handin, relations=None):
                 height = floor_lift(design, spot, base) if base else deck_height(design, spot)
                 if relation:
                     spot, way, height, on = related(design, relation, spot, way, height, size, piece)
+                if on and on["how"] == "face" and thin_holder(size, row_size(by_id, models, on.get("holder row"))):
+                    on = {**on, "below": True}  # hung under it (fitting.hung_under), never against its side
                 number += 1
                 (point,), floor = in_frame(design, [spot], height)
                 found.append({"name": f"{row_id}_{number}", "row": row_id, "bake": model, "kind": "object",
@@ -1265,7 +1268,47 @@ def design_objects(design, handin, relations=None):
                                   {"size": size}) else {}),
                               **({"rests": relation["rests"]} if relation and relation.get("rests") else {})})
                 laid_at.setdefault(item[0], []).append(found[-1]["name"])
+    hung_along(found)
     return holder_names(found, laid_at, arch_names(design, handin))
+
+
+def hung_along(found):
+    """Each object of `found` hung `below` a thin holder (thin_holder) given its `along`, (k + 0.5) / n: the share of
+    the way along its holder's run it hangs at (fitting.hung_under), the k-th of the n the record hangs under the same
+    holder item, in its order, so they hang spread along it. Street's lanterns stand 13 to 20 m from their string on
+    the plan, so where on the string each hangs is the record's to say (2026-11-11)."""
+    under = {}
+    for entry in found:
+        if (entry.get("on") or {}).get("below"):
+            under.setdefault(entry["on"]["holder item"], []).append(entry["on"])
+    for hung in under.values():
+        for number, on in enumerate(hung):
+            on["along"] = round((number + 0.5) / len(hung), 4)
+
+
+# A holder whose height and narrower side across the floor are each at most this share of the smallest side of a thing
+# laid against it is much thinner than the thing, which hangs under it (thin_holder).
+THIN_SHARE = 0.25
+
+
+def row_size(by_id, models, row_id):
+    """A hand-in row's size as its objects are laid at: its model's row's (`models`, models_of), else its own; None
+    for a row the hand-in has not."""
+    row, model = by_id.get(row_id), models.get(row_id)
+    if row is None:
+        return None
+    return by_id.get(model.removesuffix("_1"), row).get("size") if model else row.get("size")
+
+
+def thin_holder(size, holder_size):
+    """Whether a holder of `holder_size` ([across, deep, tall]) is much thinner than a thing of `size` laid against its
+    side: its height and its narrower side across the floor each at most THIN_SHARE of the thing's smallest side (a
+    0.4 m lantern on its 1 cm string). Such a thing hangs under it at its own size; laid against the string's side,
+    street's red paper lanterns were shrunk to 16% and 2% of their size to fit its 1 cm height (2026-11-11)."""
+    if not (sized({"size": size}) and sized({"size": holder_size})):
+        return False
+    thick = max(float(holder_size[2]), min(float(holder_size[0]), float(holder_size[1])))
+    return thick <= THIN_SHARE * min(float(side) for side in size)
 
 
 def far_objects(design, handin, inventory_path):
