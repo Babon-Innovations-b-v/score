@@ -1962,9 +1962,10 @@ def test_a_wall_item_stands_on_its_named_face():
                                       trimesh.creation.box(bounds=[(0.0, 0.0, 3.0), (0.1, 3.0, 6.0)])])
     along = {"how": "wall", "span": [[0.1, 0.0], [0.1, 6.0]], "out": [1.0, 0.0]}
     holes = fitting.wall_holes(holed, along, (1.0, 1.5))
-    assert [(round(float(hole[:, 2].min()), 2), round(float(hole[:, 2].max()), 2)) for hole in holes] == [(2.0, 3.0)]
+    assert [(round(float(hole[:, 2].min()), 3), round(float(hole[:, 2].max()), 3)) for hole in holes] == [
+        (1.975, 3.025)]  # a step's margin past its outermost open rays
     screen = (np.array([0.1, 1.0, 2.25]), np.array([0.2, 1.5, 2.75]))
-    assert np.allclose(fitting.on_wall(*screen, along, holes)[1], (0.15, 1.0, 1.75))
+    assert np.allclose(fitting.on_wall(*screen, along, holes)[1], (0.15, 1.0, 1.725))
     assert np.allclose(fitting.on_wall(*screen, along, ())[1], (0.15, 1.0, 2.5))
 
 
