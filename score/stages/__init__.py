@@ -844,9 +844,10 @@ def filmed_places(place=None):
     """The places the locked scripts' films show or peel (demo_film_final.shown_places, peeled_places) that are
     places of the batch (`places`): a part of another scene's outside (the launch) or a merged scene has no film row,
     so the environment's film never waits on one; a segment showing it is named missing by the cut (final.sources,
-    final.peels). Here in the table, as it lists the environment's places."""
+    final.peels). Here in the table, as it lists the environment's places, the batch's places worked out once a moment
+    as held_scenes does (2026-11-11: each call built all 81 plans again, 67 s, twice a drive pass for the film's reads)."""
     shown = sorted({*demo_film_final.shown_places(place), *demo_film_final.peeled_places(place)})
-    batch = set(places(world1())) if shown else set()
+    batch = plans.once("batch", None, "world1", lambda: set(places(world1())), shared=True) if shown else set()
     return [other for other in shown if other in batch]
 
 

@@ -25,6 +25,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - the light layer no longer given the body faces' reads (`FACE_READS`)  -> the light layer test.
 - `worn`: `applies` true at every place  -> the two dress row tests.
 - `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
+- `filmed_places`: the batch's places listed with `places(world1())` again, not `plans.once`  -> the scene tree
+  test (two listings a moment; a drive pass rebuilt all 81 plans per call, 2026-11-11).
 - `places`: the `merged` scenes not taken out  -> the place test.
 - `ship_place`: always False  -> the ship place test.
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
@@ -696,13 +698,22 @@ def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch(
     assert row.downward and row.after == {"assembly": ("openusd-stage", 1)}
     assert row.beside == {"scene-tree": ("openusd-stage", 1)} and row.neighbours is stages.held_scenes
     assert not row.applies("people") and row.applies("hangar") and "scene-tree" in table["library"].after
-    held, listed = stages.scene_tree.held, stages.places
+    held, listed, world = stages.scene_tree.held, stages.places, stages.world1
+    film = stages.demo_film_final.shown_places, stages.demo_film_final.peeled_places
+    listings = []  # each listing of the batch's places: once a moment, however many rows' reads ask (filmed_places)
     try:
         stages.scene_tree.held = lambda place: {"base": ["hangar", "lab", "dome"]}.get(place, [])
-        stages.places = lambda world, store=None: ["base", "hangar", "lab"]
+        stages.places = lambda world, store=None: listings.append(1) or ["base", "hangar", "lab"]
+        stages.world1 = lambda: None
+        stages.demo_film_final.shown_places = lambda place=None: ["lab", "dome"]
+        stages.demo_film_final.peeled_places = lambda place=None: ["hangar"]
         assert stages.held_scenes("base") == ["hangar", "lab"] and stages.held_scenes("lab") == []
+        with stages.plans.one_moment():
+            assert stages.filmed_places() == ["hangar", "lab"] and stages.filmed_places() == ["hangar", "lab"]
+            assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
     finally:
-        stages.scene_tree.held, stages.places = held, listed
+        stages.scene_tree.held, stages.places, stages.world1 = held, listed, world
+        stages.demo_film_final.shown_places, stages.demo_film_final.peeled_places = film
     assert stages.parent_first({"cockpit", "hangar", "base", "hub", "wreck", "camp"},
                                {"cockpit": "hangar", "hangar": "base", "hub": "base", "camp": "campgrounds"}) == [
         "base", "hangar", "cockpit", "hub", "camp", "wreck"]
