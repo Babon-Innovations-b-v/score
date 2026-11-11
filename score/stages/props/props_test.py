@@ -23,8 +23,8 @@ test_a_take_the_cache_misses_is_read_back_from_the_accepted_output_only_for_the_
 `hold[:3, :3] = ...` made `pass` (the bake's turn kept) turns
 test_a_code_build_is_seen_back_in_its_own_frame_whatever_the_bake_turned_it red; pixal_cut held to its largest
 piece (`bridged` returning its last line at once), or `bridged` closing pieces at any gap (its `== 1` test dropped),
-turns test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled red; likeness_row.FINE_DEGREES emptied (the ring's
-eight ways alone), fine_way's outlines raised a fifth (`score + 0.2`), or whole_best_way's "way" made the fine one
+turns test_a_prop_close_up_is_pixal3d_s_cut_one_piece_and_filled red; likeness_row.SWEEP_DEGREES cut to (45,) (the ring's
+eight ways alone), fine_way searching round the ring's best way only (not the whole turn) or by 5 degrees at finest, fine_way's outlines raised a fifth (`score + 0.2`), or whole_best_way's "way" made the fine one
 (`fine[finest][0]`: DINOv2's pair would move with it), turns test_a_box_s_silhouette_matches_itself_and_not_a_rod red.
 """
 import contextlib
@@ -442,6 +442,13 @@ def test_a_box_s_silhouette_matches_itself_and_not_a_rod():
     seen = likeness_row.whole_best_way(tmp_path / "slab.glb", tmp_path / "between.png", [1.6, 1.2, 0.6])
     assert seen["outline"] > 0.97 > max(seen["ways"]) and abs(seen["fine_way"][1] - (1 + 15 / 45)) < 1e-5, seen
     assert seen["way"] == 1, seen  # DINOv2's pair is still drawn from the ring's best way
+    # drawn 22 degrees past a way, off every 5-degree step and beyond 20 of the ring's best (camp's laptop, 2026-11-11:
+    # its ring best at 270 degrees, its own turn at 352): the whole turn is searched, then by single degrees
+    pixels[...] = 0
+    pixels[likeness.silhouette(*likeness.gltf_mesh(tmp_path / "slab.glb"), 1 + 22 / 45, likeness.look_down())] = 255
+    Image.fromarray(pixels).save(tmp_path / "far.png")
+    far = likeness_row.whole_best_way(tmp_path / "slab.glb", tmp_path / "far.png", [1.6, 1.2, 0.6])
+    assert far["outline"] > 0.97 and abs(far["fine_way"][1] % 8 - (1 + 22 / 45)) < 1e-5, far
     post_seen = likeness_row.whole_best_way(tmp_path / "post.glb", tmp_path / "between.png", [1.6, 1.2, 0.6])
     assert post_seen["outline"] < likeness.OUTLINE_LEAST - 0.2, post_seen
     shutil.rmtree(tmp_path)
