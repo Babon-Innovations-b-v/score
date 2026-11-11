@@ -1856,6 +1856,8 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         len(hits[0]) or (clear_of(` (the box laid between boards left over the board under it)
     Break: score/stages/assembly/fitting.py: crosses' `return bool(np.any(...))` -> `return False` (the box left
         across the divider)
+    Break: score/stages/assembly/fitting.py: on_boards' `if not any(float(spot[1]) < inside for spot in rests):` ->
+        `if False:` (the box on the packed unit's top, its board's clear stretch stepped over: garage 2026-11-11)
     Break: score/stages/assembly/fitting.py: on_shelves_of's `return str(on.get("why") or "").startswith(SHELVES)` ->
         `return True`
     Break: score/stages/assembly/fitting.py: spread_on_tops' `target[axis], target[1] = at + gap + longs[name] / 2,
@@ -1908,6 +1910,16 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     divided = trimesh.util.concatenate([unit, trimesh.creation.box(bounds=[(0.48, 0.0, 0.0), (0.52, 1.98, 0.5)])])
     _, target, _, _ = fitting.fit((0.35, 0.42, 0.1), (0.65, 0.72, 0.4), within, [shelf], divided)
     assert np.allclose(target, (0.81, 0.42, 0.25)), target
+    # garage (2026-11-11): its shelf units carry their own boxes on their boards, a clear stretch beside them the
+    # slide's 0.31 m steps from the box's spot step over. A unit 1 x 0.42 x 0.5 m (its board's top at 0.02, its top
+    # at 0.42) whose own 0.25 m blocks fill its board but for x 0.49 to 0.82 lays a 0.3 m box laid at x 0.5 on that
+    # stretch of its board, not on its top.
+    packed = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
+        [(0.0, 0.0, 0.0), (1.0, 0.02, 0.5)], [(0.0, 0.40, 0.0), (1.0, 0.42, 0.5)],
+        [(0.0, 0.02, 0.0), (0.49, 0.27, 0.5)], [(0.82, 0.02, 0.0), (1.0, 0.27, 0.5)])])
+    low_unit = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 0.42, 0.5]))
+    _, target, _, _ = fitting.fit((0.35, 0.1, 0.1), (0.65, 0.4, 0.4), within, [low_unit], packed)
+    assert 0.63 < target[0] < 0.68 and np.allclose(target[1:], (0.02, 0.25)), target
     # garage (settle@garage, 2026-11-10): 14 boxes within three shelf units all went to the nearest, 12 piled at two
     # spots of it. A unit 0.4 x 0.5 x 0.5 m with one board (top at 0.02) and its top at 0.5 takes a 0.3 m box on its
     # board, then on its top; with both taken the box goes onto the board of the next unit out (x 1 to 1.4); with
