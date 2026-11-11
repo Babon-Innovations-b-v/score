@@ -700,6 +700,8 @@ ROOF = "roof"
 # A wall's box is the wall only where it runs along x or z: no thicker than this across, metres (a slanted wall's box
 # holds the room beside it: habitat's, hub's and workshop's walls, 2 to 390 m across).
 WALL_THICKEST = 1.0
+# The thickest piece laid on the floor (a landing pad, floor grates) a thing nothing holds is moved up out of, metres.
+FLOOR_PIECE = 0.3
 # The furthest a thing nothing holds is moved out of the structure it starts inside, metres.
 OUT_MOST = 1.0
 # The rows that climb into the level they reach (a stair at the plan's stair, a ladder): never moved out of its deck.
@@ -710,14 +712,25 @@ PASSING = ("tunnel", "tunnels", "tube", "tubes", "corridor", "corridors")
 
 def statics(built):
     """[(name, (low, high))] of the built structure [(name, (low, high))] that is a deck, a level or a wall running
-    along x or z (WALL_THICKEST)."""
-    return [(name, box) for name, box in built if name.split("_")[0] in STATICS
-            and (name.split("_")[0] != "wall" or min(box[1][0] - box[0][0], box[1][2] - box[0][2]) <= WALL_THICKEST)]
+    along x or z (WALL_THICKEST), or a piece laid on the floor no thicker than FLOOR_PIECE (floor_piece: hangar's
+    0.1 m landing pad, a step ladder laid inside it, 2026-11-10)."""
+    return [(name, box) for name, box in built if (name.split("_")[0] in STATICS and (
+        name.split("_")[0] != "wall" or min(box[1][0] - box[0][0], box[1][2] - box[0][2]) <= WALL_THICKEST))
+        or floor_piece(name, box)]
+
+
+def floor_piece(name, box):
+    """Whether a built piece (name, (low, high)) is one laid on the floor (design_shell.floor_pieces: a landing pad,
+    floor grates): starting at the floor (within HELD_MOST of 0) and no thicker than FLOOR_PIECE, never a roof's."""
+    return name.split("_")[0] != ROOF and float(box[0][1]) <= HELD_MOST and float(box[1][1] - box[0][1]) <= FLOOR_PIECE
 
 
 def climbs(entry):
-    """Whether an entry's row climbs into the level it reaches (CLIMBING: a stair, a ladder)."""
-    return bool(set(str(entry.get("row") or "").split("_")) & set(CLIMBING))
+    """Whether an entry's row climbs into the level it reaches (CLIMBING: a stair, a ladder): its whole name one, or
+    a part of one named first by it (stair_railing); never a thing only named for one (hangar's step_ladder, a
+    free-standing object read as a ladder and left inside the 0.1 m landing pad it was laid in, 2026-11-10)."""
+    words = str(entry.get("row") or "").split("_")
+    return "_".join(words) in CLIMBING or words[0] in CLIMBING
 
 
 def passes(entry):
