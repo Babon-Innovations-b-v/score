@@ -24,10 +24,21 @@ import finish_parts  # noqa: E402
 import route_parts  # noqa: E402
 
 
+# The per-take function the table answers through kept.call (stages.PER_TAKE, which sets it in this module's
+# namespace while the row runs): route_parts.make_parts calls whatever this name holds then.
+parts_take = route_parts.parts_take
+
+
 def make_parts(inputs, out, seed, params):
-    """route_parts.make_parts with kit_taken and lit_finishes held as this module's."""
-    with held():
-        return route_parts.make_parts(inputs, out, seed, params)
+    """route_parts.make_parts with kit_taken and lit_finishes held as this module's, and its per-take calls through
+    this module's parts_take."""
+    take = route_parts.parts_take
+    route_parts.parts_take = parts_take
+    try:
+        with held():
+            return route_parts.make_parts(inputs, out, seed, params)
+    finally:
+        route_parts.parts_take = take
 
 
 @contextlib.contextmanager
