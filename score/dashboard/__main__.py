@@ -21,7 +21,7 @@
     .venv/bin/python -m score.dashboard buy-yes --batch-total <euros> <high euros> <answer> <question>
         # the owner's Buy approved in a session: the batch total he approved, this try's high, his answer and the
         # question quoted (checkout/chat_yes.py); its id
-    .venv/bin/python -m score.dashboard buy <yes id> [--phase F]   # his Buy under that yes, once, as his click
+    .venv/bin/python -m score.dashboard buy <yes id> [--phase F] [--take-cheap EUR]   # his Buy under that yes, once
         # (checkout/chat_yes.py); with --phase only that phase's rows of the basket (score/stages/phases)
 """
 import argparse
@@ -94,6 +94,9 @@ def parse(argv):
     bought.add_argument("--leave-out", help="stages (a comma list) this Buy neither buys nor makes, beside the yes's")
     bought.add_argument("--place", help="only these places' rows (a comma list) and the environment rows they need")
     bought.add_argument("--leave-place", help="every row but these places' (a comma list); a row needing one waits")
+    bought.add_argument("--take-cheap", type=float, metavar="EUR",
+                        help="take into the basket every row the run would also buy priced under EUR each, in place "
+                             "of refusing for it (checkout/flow.cheap_taken)")
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
     decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend, the "
@@ -213,7 +216,8 @@ def buy(options):
     try:
         with conductor.holding("buy"):  # the batch size is held while it prices and launches, never shrunk under it
             record, said = chat_yes.buy(options.yes, phase=options.phase, leave_out=options.leave_out,
-                                        places=options.place, leave_places=options.leave_place)
+                                        places=options.place, leave_places=options.leave_place,
+                                        take_cheap=options.take_cheap)
     except chat_yes.Refused as refused:
         sys.exit(f"buy {options.yes}{phase_words(options.phase)}: refused: {refused}")
     print(f"buy {options.yes}{phase_words(options.phase)}: {said}")
@@ -231,7 +235,8 @@ def grown_first(options, waits):
     asked = [options.yes, *(["--phase", options.phase] if options.phase else []),
              *(["--leave-out", options.leave_out] if options.leave_out else []),
              *(["--place", options.place] if options.place else []),
-             *(["--leave-place", options.leave_place] if options.leave_place else [])]
+             *(["--leave-place", options.leave_place] if options.leave_place else []),
+             *(["--take-cheap", f"{options.take_cheap:g}"] if options.take_cheap is not None else [])]
     log = PROPS_HOME / "logs" / "buys" / f"buy-{time.strftime('%Y%m%d-%H%M%S')}-{options.yes}-grown.log"
     path = size.ask_grow_for([sys.executable, "-m", "score.dashboard", "buy", *asked], runs.launch_settings(), log,
                              conductor.machine()["batch_cores"])

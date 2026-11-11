@@ -385,6 +385,7 @@ def run(record, chosen=None):
     chosen = chosen or guard.backend()
     try:
         planned = planned_items(record, chosen)
+        cheap_taken(record, planned, chosen)
         refused = plan_refusals(record, planned)
         if refused:
             return ended(record, "refused", "nothing launched: " + "; ".join(refused))
@@ -439,22 +440,50 @@ def planned_items(record, chosen):
             for group in batch_groups(record.items)]
 
 
+def extra_buys(record, planned):
+    """(the nodes the runner's plans buy that the basket's price leaves out, those of them that are gaps now): every
+    one, so one refusal names them all (2026-11-11: one a refusal cost a re-plan of 20 to 30 minutes each)."""
+    extra = sorted({buy["node"] for _, plan in planned for buy in plan.buys} - set(nodes_of(record)))
+    gaps = sorted(set(extra) & set(record.totals.get("gaps") or ())) if extra else []
+    return sorted(set(extra) - set(gaps)), gaps
+
+
 def plan_refusals(record, planned):
-    """Why the runner's own plans are not what was priced, in words."""
-    found, bought = [], set(nodes_of(record))
+    """Why the runner's own plans are not what was priced, in words, every node named."""
+    found = []
     for _, plan in planned:
         if plan.missing:
             found.append(f"inputs are missing: {', '.join(plan.missing[:5])}")
-    extra = sorted({buy["node"] for _, plan in planned for buy in plan.buys} - bought)
-    gaps = sorted(set(extra) & set(record.totals.get("gaps") or ())) if extra else []
+    extra, gaps = extra_buys(record, planned)
     if gaps:
-        found.append(f"{', '.join(gaps[:6])} had {'their' if len(gaps) > 1 else 'its'} one paid remake in this batch "
+        found.append(f"{', '.join(gaps)} had {'their' if len(gaps) > 1 else 'its'} one paid remake in this batch "
                      "and is a gap now, but a row bought reads it: leave that row out (buy --phase) or fix it free")
-        extra = sorted(set(extra) - set(gaps))
     if extra:
-        found.append(f"the run would also buy {', '.join(extra[:6])}, which the basket's price leaves out: look at "
-                     "the basket again and check out again")
+        cheap = (record.chat_yes or {}).get("take_cheap")
+        found.append(f"the run would also buy {len(extra)} row{'s' if len(extra) != 1 else ''} the basket's price "
+                     f"leaves out: {', '.join(extra)}{f' (none under EUR {cheap:g} each)' if cheap else ''}: look "
+                     "at the basket again and check out again, or buy --take-cheap <euros> to take the cheap ones in")
     return found
+
+
+def cheap_taken(record, planned, chosen):
+    """With the yes's `take_cheap` euros (the door's `buy <yes id> --take-cheap EUR`), the extra nodes the runner's
+    plans buy (extra_buys, never a gap) each priced under it taken into the basket as one item, priced by the runner
+    (`score price`) and the totals made again, instead of refused; the nodes taken."""
+    limit = (record.chat_yes or {}).get("take_cheap")
+    extra, _ = extra_buys(record, planned) if limit else ([], [])
+    euros = {buy["node"]: buy.get("euros") for _, plan in planned for buy in plan.buys}
+    taken = sorted(node for node in extra if euros.get(node) is not None and euros[node] < limit)
+    if not taken:
+        return []
+    prices = chosen.price(WORLD, taken)
+    record.items = [*record.items, {
+        "id": "take-cheap", "version": 0, "title": f"upstream rows under EUR {limit:g} each, taken in",
+        "place": None, "places": sorted({node.partition("@")[2] for node in taken} - {""}), "layers": [],
+        "nodes": prices, "why": {}, "benchmarks": False, "totals": pricing.totals(prices)}]
+    record.totals = {**pricing.totals(pricing.basket_prices(record.items)), "gaps": record.totals.get("gaps") or []}
+    record.save()
+    return taken
 
 
 class Refused(RuntimeError):

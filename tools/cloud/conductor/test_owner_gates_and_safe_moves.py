@@ -709,6 +709,9 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
     # a Buy's machine caps (2026-11-06). Break: in agent_door.buy_options, drop "--max-machines"
     assert agent_door.buy_options(["--max-machines", "cpu-64c-128gb=10,all=30"])
     assert not agent_door.buy_options(["--max-machines", "cpu=x"]) and not agent_door.buy_options(["--max-machines", "a;b=1"])
+    # --take-cheap's euros (2026-11-11). Break: in agent_door.buy_options, drop "--take-cheap" from BUY_OPTIONS
+    assert agent_door.buy_options(["--take-cheap", "2.5", "--phase", "models"])
+    assert not agent_door.buy_options(["--take-cheap", "cheap"]) and not agent_door.buy_options(["--take-cheap", "-1"])
     shown = [sys.executable, "-c", "import os; print(os.environ.get('SCORE_CLOUD'), os.environ.get('SCORE_CLOUD_KINDS'))"]
     for name in [name for name in box if name.startswith("SCORE_K8S")]:
         monkeypatch.delenv(name, raising=False)
