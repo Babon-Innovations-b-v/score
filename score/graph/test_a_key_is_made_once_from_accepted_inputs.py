@@ -1383,6 +1383,11 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     carried it onto a moved key, its key moves on and A is made again, then stays on that key (2026-11-11:
     earth-seed@docking_airlock kept its ochre deck after its drop). `score plan`'s to_run
     (buy_check) lists A exactly when the runner makes it, never when it keeps it (2026-11-10: 559 shown, about 8 made).
+    A's code version rebuilt at a commit a second time resolves no path again (2026-11-11: resolving was 104 of a
+    camp plan's 370 s, rebuilt at every commit a record was made at); a pass that writes nothing reads each phase lock
+    once (2026-11-11: a plan read and parsed all 685 of them again for every key).
+    Break: score/graph/_code.py: '@functools.cache\ndef relative_in(' -> 'def relative_in('
+    Break: score/graph/__init__.py: 'return list(self.remember("phase locks", self.world.name, self.read_phase_locks))' -> 'return self.read_phase_locks()'
     Break: score/graph/__init__.py: '        if any(node in lock.get("dropped", ()) and lock["at"] >= locks[-1]["at"] for lock in every):' -> '        if False:'
     Break: score/graph/__init__.py: '        if not drops:' -> '        if True:'
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
@@ -1422,6 +1427,15 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 lock = a_runner(world, store, (stage,)).lock_phase("props", [(stage, "hangar")])
                 assert lock["nodes"] == {"narrow@hangar": {"output": old["output"], "key": old["key"],
                                                            "commit": old["commit"]}} and lock["n"] == 1, lock
+                reads, read = [], store.read  # a pass that writes nothing reads the locks once, not once a node
+                store.read = lambda key: reads.append(key) or read(key)
+                try:
+                    with (locking := a_runner(world, store, (stage,))).still():
+                        assert locking.phase_locks() == locking.phase_locks() == [lock], lock
+                finally:
+                    del store.read
+                assert [key for key in reads if key.startswith(graph.PHASE_LOCKS)] == ["phase-locks/toy/props/1.json"], \
+                    reads
                 change = change.removesuffix(", phase locked")
             if change == "own file, dropped":  # taken out of its phase's locks since: a code change makes it again
                 dropped = a_runner(world, store, (stage,)).drop_from_phase("props", ["narrow"])  # by its stage
@@ -1464,6 +1478,16 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 keyed = runner.key(stage, "hangar")
                 assert keyed["key"] != old["key"] and store.record("narrow@hangar", keyed["key"]) is None
                 assert (rebuy.to_make(runner, stage, "hangar", [], {}) is rebuy.KEPT) == kept, change
+                if case == 0:  # rebuilt again at that commit, no path is resolved again (a camp plan: 104 of 370 s)
+                    starts = tuple(_code.start_files(graph.code_functions(stage)))
+                    then, resolved, resolve = _code.rebuilt_at(old["commit"], starts), [], pathlib.Path.resolve
+                    pathlib.Path.resolve = lambda path, *given, **named: resolved.append(path) or resolve(
+                        path, *given, **named)
+                    try:
+                        again = _code.rebuilt_at(old["commit"], starts)
+                    finally:
+                        pathlib.Path.resolve = resolve
+                    assert then and again == then and not resolved, resolved
                 planned = command.buy_check(runner, ["hangar"], True, None, None)  # `score plan`'s to_run: the same
                 assert ("narrow@hangar" in planned["to_run"]) != kept, (change, planned["to_run"])  # rows the drive makes
                 done = runner.run(["hangar"])["narrow@hangar"]
