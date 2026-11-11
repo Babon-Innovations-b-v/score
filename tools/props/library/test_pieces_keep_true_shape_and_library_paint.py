@@ -75,7 +75,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands (2026-10-29); its `None` option (the
   picture's up kept, only squared) dropped -> the same test, a kept-up take unmatched (2026-11-08); `camera_of`'s
   turn back (`CAMERA_TURN @`) dropped, or `view_turn` returning VIEW_TURN alone -> the same test, a stamped person seen
-  upside down or from behind (2026-11-10).
+  upside down or from behind (2026-11-10); split_compare `geosam2_frame`: `GEOSAM2_TURN` alone (no `@
+  labels.raw_facing(take)`) -> the same test, the stamped person's seeds on the side GeoSAM2's first view does not see
+  (2026-11-11).
 
 The Blender build (test_every_body_builds_with_walls_the_model_check_passes) runs only where Blender and Xvfb are; on
 a box without them it skips, and its break (a body wall 2 mm thick) is unproven there.
@@ -643,6 +645,13 @@ def test_the_finish_turn_lays_a_raw_still_facing_plus_z_as_its_final_stands(tmp_
     middles = figure.triangles_center
     head, feet = row[np.argmax(middles[:, 1])], row[np.argmin(middles[:, 1])]
     assert head < 30 < 70 < feet, (head, feet)  # the top in the picture's top rows
+    # GeoSAM2 is seeded on its first view (normals -X in its frame) with the faces this camera sees: the stamped
+    # person's front, never his back (man_stair's tee, trousers, boots and face one part judged boot, 2026-11-10);
+    # a raw not stamped keeps GEOSAM2_TURN
+    _, _, turn = split_compare.geosam2_frame(figure, "person_1")
+    assert (normals[seen] @ turn.T)[:, 0].max() < -0.99, normals[seen] @ turn.T
+    figure.export(tmp_path / "person_2.glb")
+    assert np.array_equal(split_compare.geosam2_frame(figure, "person_2")[2], split_compare.GEOSAM2_TURN)
 
 
 def test_place_route_reads_a_turn_as_its_yaw_and_splits_a_long_take(tmp_path):

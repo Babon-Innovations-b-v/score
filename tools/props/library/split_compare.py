@@ -141,15 +141,19 @@ def palette_colour(number):
     return tuple(int(channel) for channel in PALETTE[number])
 
 
-def geosam2_frame(mesh):
+def geosam2_frame(mesh, take):
     """The raw model's frame for GeoSAM2: its box centred, its longest side 1, turned so its close-up side faces
-    GeoSAM2's first view; (centre, scale)."""
+    GeoSAM2's first view (GEOSAM2_TURN after labels.raw_facing: a raw still stamped as facing +Z is seen by its
+    close-up from +Z, labels.view_turn); (centre, scale, turn). Turned by GEOSAM2_TURN alone, such a raw showed
+    GeoSAM2's first view its back, where no face holds a seed: man_stair's seeds lay only on the faces turned away
+    from that view, and GeoSAM2 gave his tee, trousers, boots and face one part, judged boot leather (checkout 80,
+    2026-11-10)."""
     low, high = mesh.bounds
-    return (low + high) / 2, 1.0 / float((high - low).max())
+    return (low + high) / 2, 1.0 / float((high - low).max()), GEOSAM2_TURN @ labels.raw_facing(take)
 
 
-def to_geosam2(points, centre, scale):
-    return ((points - centre) * scale) @ GEOSAM2_TURN.T
+def to_geosam2(points, centre, scale, turn):
+    return ((points - centre) * scale) @ turn.T
 
 
 def write_inputs(run, take, masks_folder, seeds_folder=None):
@@ -165,13 +169,13 @@ def write_inputs(run, take, masks_folder, seeds_folder=None):
     on_faces = face_regions(mesh, take, seeds)
     shutil.copyfile(labels.PIXAL / f"{take}.glb", folder / "raw.glb")
     guide_map(seeds).save(folder / "map.png")
-    centre, scale = geosam2_frame(mesh)
-    turned = trimesh.Trimesh(to_geosam2(mesh.vertices, centre, scale), mesh.faces, process=False)
+    centre, scale, turn = geosam2_frame(mesh, take)
+    turned = trimesh.Trimesh(to_geosam2(mesh.vertices, centre, scale, turn), mesh.faces, process=False)
     turned.simplify_quadric_decimation(face_count=GEOSAM2_FACES).export(folder / "mesh.glb")
-    np.savez_compressed(folder / "seed_points.npz", middles=to_geosam2(mesh.triangles_center, centre, scale)
+    np.savez_compressed(folder / "seed_points.npz", middles=to_geosam2(mesh.triangles_center, centre, scale, turn)
                         .astype(np.float32), regions=(on_faces + 1).astype(np.int32))  # 0: no region seen there
     np.savez_compressed(run / take / "view.npz", pixels=pixels, on_faces=face_regions(mesh, take, pixels),
-                        centre=centre, scale=scale)
+                        centre=centre, scale=scale, turn=turn)
     return {"take": take, "faces": len(mesh.faces), "regions": int(pixels.max()) + 1,
             "seen_faces": int((on_faces >= 0).sum())}
 
@@ -207,11 +211,11 @@ def voxel_parts_on_faces(mesh, coords, voxel_part, centre, scale):
     return np.where(agree, corner[:, 1], corner[:, 0])
 
 
-def face_parts_by_nearest(mesh, centre, scale, their_middles, their_labels):
+def face_parts_by_nearest(mesh, centre, scale, turn, their_middles, their_labels):
     """Each face's part from GeoSAM2's per-face labels on its own copy of the model: the label of the nearest of its
     faces (label 0, faces it left unlabelled, is not taken)."""
     labelled = their_labels > 0
-    mine = to_geosam2(mesh.triangles_center, centre, scale)
+    mine = to_geosam2(mesh.triangles_center, centre, scale, turn)
     return their_labels[labelled][cKDTree(their_middles[labelled]).query(mine)[1]]
 
 
@@ -251,9 +255,11 @@ def segvigen_parts(mesh, folder, mode):
 
 
 def geosam2_parts(mesh, folder, view):
-    """GeoSAM2's split from its per-face labels (<take>/down/geosam2.npz)."""
+    """GeoSAM2's split from its per-face labels (<take>/down/geosam2.npz), back through the turn its upload was made
+    in (view.npz's; one written before it was kept there was turned by GEOSAM2_TURN alone)."""
     stored = np.load(folder / "down" / "geosam2.npz")
-    return face_parts_by_nearest(mesh, view["centre"], view["scale"], stored["middles"], stored["labels"])
+    return face_parts_by_nearest(mesh, view["centre"], view["scale"], view.get("turn", GEOSAM2_TURN),
+                                 stored["middles"], stored["labels"])
 
 
 def lay_all(run, take):
