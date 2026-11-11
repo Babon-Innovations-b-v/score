@@ -146,7 +146,9 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   solid, read by rays meeting faces from behind, and CLEARANCE from every mesh; its middle meeting no surface within
   LOOK_CLEAR, 1 m, nor more than NEAR_MOST of its picture doing so), else `cleared_view` gives it the least change that clears it
   (a 15 degree turn about its eye or a 0.25 m move out along a line through no surface weighing one step each, up to
-  all the way round and 1.5 m out), or leaves it out with why (2026-11-02: flat's
+  all the way round and 1.5 m out; `steps_in`: into no model the eye was not already within, an open tunnel too, and an
+  eye inside a solid never back from its look, out through its door: workshop's from-door-2, 2026-11-11), or leaves
+  it out with why (2026-11-02: flat's
   wardrobe, street's police car, square's blob filled their views). `test_a_walk_goes_through_doorways_clear_of_everything.py` checks a path between two rooms goes through the doorway only, a walking person
   and a moving thing are followed, and the clearance is measured on every side.
 - `reach.py` is the gate's reach check, the automatic playtest (owner, 2026-10-05; the interact press waits for
