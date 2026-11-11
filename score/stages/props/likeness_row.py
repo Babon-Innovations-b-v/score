@@ -68,7 +68,7 @@ DESIGNED_LEAST = 0.14
 TEXTURED_SIDE = 256
 PEOPLE_LAYER = "people"  # a person's object in the prop data (the people line's looks, a design's people)
 BACK = "@back"
-FINE_DEGREES = (-20, -15, -10, -5, 5, 10, 15, 20)  # round the ring's best way: whole_best_way's fine search
+SWEEP_DEGREES = (15, 5, 1)  # whole_best_way's fine search: the whole turn at the first, then each finer round the best
 # A thin row's model strays from its swept fit (`swept_stray`) by at most this share of its silhouette: a clean sweep
 # along its centreline, its fittings within FITTING_SHARE of it, reads at most 0.023 (env1's 26 thin rows rebuilt,
 # 2026-11-04: the stairwell's conduit, the hub's cable bundle), the ball-built blobs the eyes-on review saw
@@ -397,12 +397,24 @@ def whole_best_way(model, closeup, size, turn=None):
 
 
 def fine_way(ways, scored, yaws):
-    """(way, outline) of the best of `ways` (the YAWS ring's outlines) and FINE_DEGREES round it, the way in steps of
-    the ring (a fraction between two of its ways)."""
-    best = int(np.argmax(ways))
-    found = [(best, ways[best])] + [(round(best + offset * yaws / 360.0, 6), scored(best + offset * yaws / 360.0))
-                                    for offset in FINE_DEGREES]
-    return max(found, key=lambda pair: pair[1])
+    """(way, outline) of the best of `ways` (the YAWS ring's outlines) and of the whole turn searched coarse to fine:
+    every SWEEP_DEGREES[0], then each finer step round the best so far (out to the coarser step), the way in steps of
+    the ring (a fraction between two of its ways). The whole turn, not only round the ring's best: camp's laptop's
+    ring best was 270 degrees (0.480, 0.494 searched round it), its own turn 352 (0.502), beside a way whose ring
+    score was lower (0.469 at 0; 2026-11-11)."""
+    def way(degrees):
+        return round((degrees % 360) * yaws / 360.0, 6)
+    found = {way(step * 360 / yaws): ways[step] for step in range(yaws)}
+    coarse = SWEEP_DEGREES[0]
+    for degrees in range(0, 360, coarse):
+        found.setdefault(way(degrees), scored(way(degrees)))
+    for finer in SWEEP_DEGREES[1:]:
+        best = max(found, key=found.get) * 360.0 / yaws
+        for offset in range(-coarse + finer, coarse, finer):
+            found.setdefault(way(best + offset), scored(way(best + offset)))
+        coarse = finer
+    best = max(found, key=found.get)
+    return best, found[best]
 
 
 def textured_view(path, way, down, turn=None):
