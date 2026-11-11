@@ -10,13 +10,15 @@ shrunk where it does not fit (never grown past its own model), so it sits
             surface standing where it is laid (a box on a shelf unit at the plan's base, through its board) or meets
             one laid in it before, laid on the nearest of the holder's built boards under it it fits on clear of both,
             else on its top (on_boards); of several holders the nearest with such a spot, tried in order of distance,
-            and with none on any of them left as laid and named crowded (shelved)
+            then on top of one laid there before (stacked_spots) the same way, and with none on any of them left as laid
+            and named crowded (shelved)
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
             door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
             each swinging leaf turns through and of its passage (swing_box, passage_box) like a wall's
     wall    with its back on a wall's face (`span`, `out` into the room), within the face's length, out of the room
-            each swinging leaf turns through and of its doorway's passage (swing_box, passage_box, on_wall)
+            each swinging leaf turns through and of its doorway's passage (swing_box, passage_box, on_wall), on the
+            front of the built ribs and pillars standing out of the face across it (stood_off)
     in      in its opening: its middle on the opening's middle at its sill, as wide and tall as the opening at most,
             its middle on the face of its built wall it swings to (its own -z way), else on the wall's room face
             where that wall stands behind the plan's line (opening_spot: hangar's and garage's shell walls stand
@@ -255,7 +257,7 @@ def meets_any(low, high, boxes):
     return any(float(depths(low, high, box).min()) > BOARD_CLEAR for box in boxes)
 
 
-def on_boards(low, high, scale, target, box, mesh, taken=()):
+def on_boards(low, high, scale, target, box, mesh, taken=(), stack=False):
     """The foot middle of a thing laid within its holder (on_holder's `target`, its box (low, high) shrunk by
     `scale`) on the holder's built boards (`mesh`, its surface): where it stands at `target` on a board crossing no
     surface of the holder (crosses: a side the rays straight down miss too) and meeting none of the boxes laid in it
@@ -264,9 +266,9 @@ def on_boards(low, high, scale, target, box, mesh, taken=()):
     slid along the holder's longer side where its own spot is taken; else on the holder's top there (the highest
     surface under it). 2026-11-08: engineroom's 40 cm boxes laid at the plan's 0.5 m base in shelf units with 39 cm
     between boards, through the second board, and two at one spot, which the settle's snap does not lift; galley's
-    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board; None
-    where no board or top of the holder has a clear spot left (crowded: garage's 12 boxes piled at two spots of one of
-    its three shelf units, 2026-11-10)."""
+    seven jars at one spot in their corner shelves, over no board. `target` too where its middle meets no board; else, `stack`ing,
+    on top of one laid there before (stacked_spots); None where none of those has a clear spot left (crowded: garage's 12
+    boxes piled at two spots of one of its three shelf units, 2026-11-10)."""
     size = (np.asarray(high, float) - np.asarray(low, float)) * scale
     half, tall = size / 2, float(size[1])
     hold_low, hold_high = box
@@ -306,10 +308,29 @@ def on_boards(low, high, scale, target, box, mesh, taken=()):
         top = np.array([spot[0], float(np.concatenate(hits).max()), spot[2]])
         if not meets_any(*footprint(top), taken) and not crosses(points, *footprint(top)):
             tops.append(top)
-    found = rests or tops
+    found = rests or tops or (stacked_spots(footprint, points, taken, box) if stack else [])
     if not found:
         return None
     return min(found, key=lambda spot: float(np.linalg.norm(spot - target)))
+
+
+def stacked_spots(footprint, points, taken, box):
+    """[foot middle] of each spot on top of a thing laid on a holder's board or top (`taken`, their boxes; the
+    holder's `box`), never on one stacked itself, where a thing of `footprint` (spot -> its box) stands meeting none of
+    them and crossing no surface (`points`) of the holder: the last place a thing on a holder's boards is laid, where
+    every board and top is taken (garage's 14 storage boxes, 7 board and top spots on its three shelf units,
+    2026-11-11)."""
+    hold_low, hold_high = (np.asarray(end, float) for end in box)
+    found = []
+    for low, high in taken:
+        middle = (np.asarray(low, float) + np.asarray(high, float)) / 2
+        if not (np.all(middle[[0, 2]] >= hold_low[[0, 2]]) and np.all(middle[[0, 2]] <= hold_high[[0, 2]])) \
+                or float(low[1]) > hold_high[1] + BOARD_BED:
+            continue
+        spot = np.array([middle[0], float(high[1]), middle[2]])
+        if not meets_any(*footprint(spot), taken) and not crosses(points, *footprint(spot)):
+            found.append(spot)
+    return found
 
 
 def stretches(start, run, out, length, deep, band, clear):
@@ -353,7 +374,7 @@ def stretch_for(free, along, reach):
 MOUNT_GAP = 0.05
 
 
-def on_wall(low, high, on, clear=(), mounted=(), corners=None):
+def on_wall(low, high, on, clear=(), mounted=(), corners=None, built=()):
     """(scale, foot middle) of an object with its back on a wall's face, within its length, out of the room a leaf in
     an opening turns through and of the wall and face things laid before it (`clear`, swing_box; `mounted`, their
     boxes): in the nearest stretch of the face that holds it, shrunk to the longest where none does (#36, garage
@@ -363,7 +384,9 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None):
     apart at 0.45 m tall, its kitchen cabinets and hangar's 32 m pipes across each other at its corners, 2026-11-10).
     Its reach along the wall and its depth out of it are its own box's (`corners`, oriented_corners), turned with it,
     where given: a pipe laid along a slanted wall is as deep as its box across, not as its world box (habitat's 3 m
-    pipes on its 45 degree walls were laid 1.5 m off them, into each other at the corners, 2026-11-10)."""
+    pipes on its 45 degree walls were laid 1.5 m off them, into each other at the corners, 2026-11-10). On a wall
+    running along x or z it stands on the front of the built pieces standing out of the face across its reach
+    (`built`, their boxes; stood_off)."""
     size, foot = high - low, foot_middle(low, high)
     start, end = (np.array([point[0], point[1]], float) for point in on["span"])
     length = float(np.linalg.norm(end - start))
@@ -374,6 +397,9 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None):
         floor = np.asarray(corners, float)[:, [0, 2]]
         reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @ out))
     along = float((foot[[0, 2]] - start) @ run)
+    if not slanted_wall(on):
+        start = start + out * stood_off(start, run, out, (along - reach / 2, along + reach / 2), deep,
+                                        (low[1], high[1]), built)
     height = mounted_height(start, run, out, length, size, low[1], reach, deep, clear, mounted)
     begin, end = stretch_for(stretches(start, run, out, length, deep, (height, height + size[1]),
                                        [*clear, *mounted]), along, reach)
@@ -381,6 +407,29 @@ def on_wall(low, high, on, clear=(), mounted=(), corners=None):
     along = kept_within(along, begin, end, reach * scale / 2)
     spot = start + run * along + out * deep * scale / 2
     return scale, np.array([spot[0], height, spot[1]])
+
+
+# The furthest a built piece stands out of a wall's face for a wall thing to stand on its front (stood_off), metres:
+# hangar's ribs stand 1.5 m out; a deck or a wall across the room, further, is no piece of the wall.
+STAND_OFF_MOST = 2.0
+
+
+def stood_off(start, run, out, reach, deep, band, built):
+    """How far out of a wall's face (start, run, out) a wall thing `deep` across the stretch `reach` (from, to)
+    metres along it and the height `band` (low, high) stands: the front of the furthest built piece (`built`, its
+    boxes) standing out of the face into it, at most STAND_OFF_MOST out and no thicker across than WALL_THICKEST (a
+    slanted wall's or a deck's box holds the room), there; 0 where none does. Hangar's 32 m pipes ran through the ribs
+    and pillars standing 1.5 and 0.5 m out of its long walls, 0.33 m deep in each (2026-11-11)."""
+    found = [0.0]
+    for low, high in built:
+        if min(high[0] - low[0], high[2] - low[2]) > WALL_THICKEST:
+            continue
+        corners = np.array([[x, z] for x in (low[0], high[0]) for z in (low[2], high[2])], float) - start
+        off, along = corners @ out, corners @ run
+        if off.min() < deep and 0.0 < off.max() <= STAND_OFF_MOST and along.min() < reach[1] \
+                and along.max() > reach[0] and low[1] < band[1] and high[1] > band[0]:
+            found.append(float(off.max()))
+    return max(found)
 
 
 def mounted_height(start, run, out, length, size, height, reach, deep, clear, mounted):
@@ -546,7 +595,7 @@ CROWDED = "crowded"
 
 
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=(), mounted=(),
-        corners=None):
+        corners=None, built=(), stack=False):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
     `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, one array a wall, slanted_face; a within
@@ -555,7 +604,8 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
     of (`clear`, on_wall, face_stretch; a within one's: the boxes laid in its holder before it), and a wall's or face's
     the boxes of the wall and face things laid before it (`mounted`, on_wall, on_face), and a wall one's own turned
-    box (`corners`, oriented_corners, on_wall); None when it already
+    box (`corners`, oriented_corners, on_wall) and the built pieces' boxes it stands in front of (`built`, on_wall);
+    a within one's whether it may stand on one laid before it (`stack`, on_boards); None when it already
     sits (or
     holds to nothing laid); CROWDED when it is laid on its holder's boards and none has a clear spot left."""
     low, high = np.asarray(low, float), np.asarray(high, float)
@@ -570,11 +620,11 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
         else:
             scale, target = on_holder(low, high, how, on, box)
             if how == "within" and surface is not None:
-                target = on_boards(low, high, scale, target, box, surface, clear)
+                target = on_boards(low, high, scale, target, box, surface, clear, stack)
                 if target is None:
                     return CROWDED
     elif how == "wall":
-        scale, target = on_wall(low, high, on, clear, mounted, corners)
+        scale, target = on_wall(low, high, on, clear, mounted, corners, built)
     else:
         scale, target = in_opening(low, high, on, boxes, left, opens, surface)
     moved, least = float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale))
@@ -948,6 +998,9 @@ def walls_in(stage, place, scope):
 
 # A turn onto a built wall's face smaller than this, degrees, is none (on_built_face).
 TURN_LEAST = 0.05
+# How far in from each end of a wall thing's span, a share of its length, the rays that find its built face are cast
+# (on_built_face): a ray from the very end grazes past its wall's corner onto the wall behind.
+FACE_INSET = 0.1
 
 
 def slanted_wall(on):
@@ -966,17 +1019,21 @@ def built_walls(stage, place):
 
 def on_built_face(on, height, mesh):
     """(the wall relation laid on the room face of the built wall behind its span, the degrees about +y that turn its
-    `out` to that face's): its span's two ends each moved back along its `out` onto the first surface of `mesh`
-    (built_walls) a ray from WALL_REACH out in front of the end at `height` meets going back, within 2 WALL_REACH, and
-    its `out` the face's normal on the room's side; (as it is, 0) where either ray meets none. Workshop's slanted walls
-    were built 3 cm off and 6.5 degrees turned from the faces their things' spans give, so a thing laid flush on its
-    span stood up to 4.6 cm in its wall at one end (2026-11-10)."""
+    `out` to that face's): two points of its span FACE_INSET in from its ends each moved back along its `out` onto the
+    first surface of `mesh` (built_walls) a ray from WALL_REACH out in front of the point at `height` meets going back,
+    within 2 WALL_REACH, its ends laid square onto the line through the two, and its `out` that line's normal on the
+    room's side; (as it is, 0) where either ray meets none. Workshop's slanted walls were built 3 cm off and 6.5
+    degrees turned from the faces their things' spans give, so a thing laid flush on its span stood up to 4.6 cm in its
+    wall at one end (2026-11-10). A ray from a span's very end grazes past its wall's corner onto the next wall behind
+    it: habitat's kitchen cabinets and control panel on its wall_9 were turned 3 degrees into it, 9 cm deep
+    (2026-11-11)."""
     if mesh is None:
         return on, 0.0
     import trimesh
     ends = [np.asarray(point, float) for point in on["span"]]
     out = np.asarray(on["out"], float)
-    origins = np.array([[end[0] + out[0] * WALL_REACH, height, end[1] + out[1] * WALL_REACH] for end in ends])
+    inner = [ends[0] + (ends[1] - ends[0]) * share for share in (FACE_INSET, 1.0 - FACE_INSET)]
+    origins = np.array([[point[0] + out[0] * WALL_REACH, height, point[1] + out[1] * WALL_REACH] for point in inner])
     back = np.array([-out[0], 0.0, -out[1]])
     hits, rays, _ = trimesh.ray.ray_triangle.RayMeshIntersector(mesh).intersects_location(
         origins, np.tile(back, (2, 1)))
@@ -994,7 +1051,8 @@ def on_built_face(on, height, mesh):
     normal = np.array([-run[1], run[0]]) / float(np.linalg.norm(run))
     normal = normal if normal @ out >= 0.0 else -normal
     degrees = math.degrees(math.atan2(out[1] * normal[0] - out[0] * normal[1], out @ normal))
-    return {**on, "span": [[float(value) for value in face] for face in faces],
+    laid = [end - normal * float((end - faces[0]) @ normal) for end in ends]
+    return {**on, "span": [[float(value) for value in end] for end in laid],
             "out": [float(value) for value in normal]}, degrees
 
 
@@ -1318,7 +1376,7 @@ def fitted(stage, place, entries, laid, cuts=None):
                 if walled else ()
             found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
                         recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear,
-                        others, oriented_corners(stage, path) if turned else None)
+                        others, oriented_corners(stage, path) if turned else None, () if passes(entry) else built)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
@@ -1375,19 +1433,21 @@ def fitted(stage, place, entries, laid, cuts=None):
 def shelved(low, high, on, held, surface_of, taken):
     """(holder, fit) of a thing laid on its holders' boards (on_shelves_of) from its box (low, high): each of `held`
     [(name, box)] tried nearest first on the floor plan, on its built surface (`surface_of(name)`, surface_mesh's),
-    clear of the boxes laid in it before (`taken`, {name: [(low, high)]}), the first that is not CROWDED; (None,
-    CROWDED) when none has a clear spot left. Garage's 14 boxes on three shelf units all went to the nearest, 12 piled
-    at two spots of it (2026-11-10)."""
+    clear of the boxes laid in it before (`taken`, {name: [(low, high)]}), the first that is not CROWDED, then each
+    again stacking on one laid before (on_boards' `stack`); (None, CROWDED) when none has a clear spot left. Garage's
+    14 boxes on three shelf units all went to the nearest, 12 piled at two spots of it (2026-11-10); its three units
+    hold 7 on their boards and tops, the rest stacked on those (2026-11-11)."""
     here = (np.asarray(low, float) + np.asarray(high, float)) / 2
 
     def distance(item):
         return float(np.linalg.norm(((np.asarray(item[1][0], float) + np.asarray(item[1][1], float)) / 2
                                      - here)[[0, 2]]))
 
-    for holder, box in sorted(held, key=distance):
-        found = fit(low, high, on, [box], surface_of(holder), clear=taken.get(holder, []))
-        if found is not CROWDED:
-            return holder, found
+    for stack in (False, True):
+        for holder, box in sorted(held, key=distance):
+            found = fit(low, high, on, [box], surface_of(holder), clear=taken.get(holder, []), stack=stack)
+            if found is not CROWDED:
+                return holder, found
     return None, CROWDED
 
 

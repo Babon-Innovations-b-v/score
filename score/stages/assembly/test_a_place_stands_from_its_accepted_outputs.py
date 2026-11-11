@@ -1300,6 +1300,9 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         `for name in by_name:`
     Break: score/stages/assembly/fitting.py: fitted's `others = [box for other, box in mounted.items() ...]` -> `others
         = []` (lamp_2 left in lamp_1), or on_wall's `[*clear, *mounted]` -> `clear` (the cabinet left in the corner)
+    Break: score/stages/assembly/fitting.py: on_wall's `start = start + out * stood_off(...)` dropped (the pipe through
+        hangar's rib), or stood_off's `0.0 < off.max() <= STAND_OFF_MOST` -> `0.0 < off.max()` (stood on the deck's
+        far side), or its `along.min() < reach[1]` dropped (stood on the rib past its reach)
     Break: score/stages/assembly/fitting.py: mounted_height's `return next((at for at in lower ...), height)` ->
         `return height` (the pipe shrunk beside the one over it), or its `wanted = min(reach, longest(height, clear))`
         -> `wanted = reach` (the pipe longer than its wall left in the one over it)
@@ -1310,7 +1313,9 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         float(reach.min()))` -> `faces.append(ends[ray])` (the span left 3 cm in front of its wall), or its `reach <= 2
         * WALL_REACH` dropped (the span pulled 3 m back onto a far wall), or its `normal = normal if normal @ out >=
         0.0 else -normal` -> `pass` with the turned face's normal flipped (out into the wall), or slanted_wall's `> 1e-6`
-        -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall)"""
+        -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall), or its `share in
+        (FACE_INSET, 1.0 - FACE_INSET)` -> `share in (0.0, 1.0)` (a span ending past its wall's corner turned onto
+        the wall behind, habitat's wall_9)"""
     from pxr import Gf, Usd, UsdGeom
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -1365,6 +1370,14 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     assert scale == 1.0 and np.allclose(target, (0.0, 2.1, 0.2)), (scale, target)
     scale, target = fitting.on_wall(*pipe, wall)
     assert scale == 1.0 and np.allclose(target, (0.0, 2.35, 0.2)), (scale, target)
+    # hangar (2026-11-11): its 32 m pipes ran through the ribs standing 1.5 m out of its walls. A rib standing 0.9 m
+    # out of the face across the pipe's reach stands it on the rib's front; one past its reach, and a deck across the
+    # room, do not
+    rib, past = (np.array([1.0, 0.0, 0.0]), np.array([1.3, 5.0, 1.0])), (np.array([2.5, 0.0, 0.0]), np.array([2.8, 5.0,
+                                                                                                             2.0]))
+    deck = (np.array([-3.0, 2.0, 0.0]), np.array([3.0, 2.5, 10.0]))
+    scale, target = fitting.on_wall(*pipe, wall, built=[rib, past, deck])
+    assert scale == 1.0 and np.allclose(target, (0.0, 2.35, 1.1)), (scale, target)
     # hangar's 32 m pipes on its 31.3 m walls: one longer than its wall stands under the one laid before it too
     long_pipe = (np.array([-3.5, 2.35, 0.1]), np.array([3.5, 2.8, 0.3]))
     scale, target = fitting.on_wall(*long_pipe, wall, (), [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))])
@@ -1399,6 +1412,15 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     assert abs(abs(degrees) - 6.5) < 1e-3 and abs(float(run @ moved["out"])) < 1e-6 and float(
         np.dot(moved["out"], slant["out"])) > 0.99, (moved, degrees)
     assert fitting.on_built_face(slant, 1.5, face.copy().apply_translation((-2.1213, 0.0, 2.1213))) == (slant, 0.0)
+    # habitat's wall_9 (2026-11-11): its span ends 5 mm past its wall's corner, a wall 0.2 m behind: the face found
+    # is its own wall's, not turned onto the one behind
+    deep = np.array([0.7071068, -0.7071068]) * -0.2
+    corner = trimesh.util.concatenate([trimesh.Trimesh(
+        [[start + way[0], 0.0, start + way[1]], [5.0 + way[0], 0.0, 5.0 + way[1]], [5.0 + way[0], 3.0, 5.0 + way[1]],
+         [start + way[0], 3.0, start + way[1]]], [[0, 1, 2], [0, 2, 3]], process=False)
+        for start, way in ((0.0035, (0.0, 0.0)), (-1.0, deep))])
+    moved, degrees = fitting.on_built_face(slant, 1.5, corner)
+    assert np.allclose(moved["span"], slant["span"], atol=1e-6) and abs(degrees) < 1e-6, (moved, degrees)
     assert fitting.slanted_wall(slant) and fitting.slanted_wall({"out": [0.991393, -0.13092]}) and not \
         fitting.slanted_wall(wall)
     corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
@@ -1547,7 +1569,9 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         rests or tops` -> `found = []`): the box through the board named crowded
     Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` -> `return target` (the
         box on a full unit piled at its target, garage 2026-11-10), or shelved's `for holder, box in sorted(held,
-        key=distance)` -> `for holder, box in held[:1]` (the far unit never tried)
+        key=distance)` -> `for holder, box in held[:1]` (the far unit never tried), or its `for stack in (False, True)`
+        -> `for stack in (False,)` (the box on two full units crowded, not stacked), or stacked_spots' `or float(low[1]) >
+        hold_high[1] + BOARD_BED` dropped (a box stacked on a stacked one)
     Break: score/stages/assembly/fitting.py: on_boards' `meets_any(*footprint(placed), taken)` -> `False` (the twin on
         its first)
     Break: score/stages/assembly/fitting.py: on_boards' `if not len(hits[0]) or (standing and clear_of(` -> `if not
@@ -1602,8 +1626,9 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert np.allclose(target, (0.81, 0.42, 0.25)), target
     # garage (settle@garage, 2026-11-10): 14 boxes within three shelf units all went to the nearest, 12 piled at two
     # spots of it. A unit 0.4 x 0.5 x 0.5 m with one board (top at 0.02) and its top at 0.5 takes a 0.3 m box on its
-    # board, then on its top; with both taken the box goes onto the board of the next unit out (x 1 to 1.4), and with
-    # that one full too it is crowded, never piled at its target.
+    # board, then on its top; with both taken the box goes onto the board of the next unit out (x 1 to 1.4); with
+    # that one full too it is stacked on the box on the nearest unit's top (garage's three units hold 7 of its 14,
+    # 2026-11-11), and with a box stacked on each top too it is crowded, never piled at its target.
     one_board = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (0.4, 0.02, 0.5)]),
                                           trimesh.creation.box(bounds=[(0.0, 0.48, 0.0), (0.4, 0.5, 0.5)])])
     near, far = one_board, one_board.copy().apply_translation((1.0, 0.0, 0.0))
@@ -1617,8 +1642,15 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": full})
     assert holder == "unit_far" and np.allclose(target, (1.175, 0.02, 0.25)), (holder, target)  # its near end
     far_full = [((low[0] + 1.0, *low[1:]), (high[0] + 1.0, *high[1:])) for low, high in full]
-    assert fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": full, "unit_far": far_full}) == \
-        (None, fitting.CROWDED)
+    holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get,
+                                                {"unit_near": full, "unit_far": far_full})
+    assert holder == "unit_near" and np.allclose(target, (0.2, 0.8, 0.25)), (holder, target)
+
+    def piled(boxes):
+        return [*boxes, ((boxes[1][0][0], 0.8, boxes[1][0][2]), (boxes[1][1][0], 1.1, boxes[1][1][2]))]
+
+    assert fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": piled(full), "unit_far": piled(far_full)}) \
+        == (None, fitting.CROWDED)
     # only a thing on its holder's shelves is laid on its boards (galley's sink in its counter, its stove top on it,
     # are laid as the plan draws them)
     # workshop (settle@workshop, 2026-11-10): seven 0.408 m storage boxes on two 1.5 m shelf units side by side, each
