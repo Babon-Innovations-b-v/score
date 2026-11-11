@@ -1,13 +1,17 @@
 """The assembly as the table runs it stands with what it has: a floor thing a wall's thing was laid into is parted to
-its nearest free spot (one holding another, or only touching, is left); a stage the make left in a reference cycle holds
+its nearest free spot, one holding another with what it holds (galley's corner shelves left 0.30 m in its upper
+cabinets as they hold its jars, 2026-11-10), one only touching left; a stage the make left in a reference cycle holds
 no asset layer once it is made (so the screens take can write its stack over the asset); and a voice on a person the
 characters layer did not lay is a named gap for complete, never an unplaced sound failing the layers gate, while a
 voice on a person who was laid, and any other sound, still fails it. Toy folders made here; no store, no machine.
 
 Breaks (each applied once, seen red, reverted):
-Break: score/stages/assembly/parting.py: `if not loose(entry, holding):` -> `if False:` (the console holding its
-    screen is moved too)
-Break: score/stages/assembly/parting.py: `fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + move)`
+Break: score/stages/assembly/parting.py: `if not loose(entry):` -> `if True:` (none moved), or loose's `return not
+    entry.get("on") and ...` -> `return not entry.get("on") and not any(entry["name"] in held for held in ...)` (the
+    console holding its screen left in the pipe)
+Break: score/stages/assembly/parting.py: `for one in (name, *held):` -> `for one in (name,):` (the console parted
+    from under its screen)
+Break: score/stages/assembly/parting.py: `fitting.moved_by(stage.GetPrimAtPath(one_path), foot, 1.0, foot + move)`
     -> `pass` (laid.json says parted, the stage still holds it in the pipe)
 Break: score/stages/assembly/wired/__init__.py: `gc.collect()` -> `pass` (the cycle's stage keeps the asset loaded)
 Break: score/stages/assembly/wired/__init__.py: `if use.get("voice") and use["on"] not in laid` -> `if use["on"] not in
@@ -107,13 +111,17 @@ def test_the_assembly_stands_with_what_it_has(tmp_path):
 
     room = a_laid_room(tmp_path / "room")
     fits = parting.parted(room, "toy")
-    assert [(fit["name"], fit["how"], fit["moved"]) for fit in fits] == [("pedestal_1", "parted", 0.2)], fits
+    assert [(fit["name"], fit["how"], fit["moved"]) for fit in fits] == [
+        ("console_1", "parted", 0.2), ("screen_1", "parted", 0.2), ("pedestal_1", "parted", 0.2)], fits
     stage = Usd.Stage.Open(str(room / assembly.BASE_LAYER))
     low, high = fitting.world_box(stage, "/toy/Objects/pedestal_1")
     assert np.allclose(low, (-2.2, 0.0, 0.0)) and np.allclose(high, (-1.8, 0.7, 0.4)), (low, high)
+    for name in ("console_1", "screen_1"):  # the console out of the pipe, its screen on it as before
+        assert np.allclose(fitting.world_box(stage, f"/toy/Objects/{name}")[0],
+                           np.add(THINGS[name][0], (0.2, 0.0, 0.0))), name
     laid = json.loads((room / made_waiting.LAID).read_text())
     assert [entry["low"] for entry in laid["objects"] if entry["name"] == "pedestal_1"] == [[-2.2, 0.0, 0.0]]
-    for name in ("console_1", "crate_1", "pipe_1"):
+    for name in ("crate_1", "pipe_1"):
         assert np.allclose(fitting.world_box(stage, f"/toy/Objects/{name}")[0], THINGS[name][0]), name
     assert parting.parted(room, "toy") == []
     del stage

@@ -314,7 +314,13 @@ def on_boards(low, high, scale, target, box, mesh, taken=()):
 
 def stretches(start, run, out, length, deep, band, clear):
     """[(from, to)] metres along a wall's face from its start that none of the swing boxes `clear` (swing_box) takes
-    within `deep` of the face and the height `band` (low, high); the whole face where none does."""
+    within `deep` of the face and the height `band` (low, high) (free_stretches); the whole face where none does."""
+    return free_stretches(start, run, out, length, deep, band, clear) or [(0.0, length)]
+
+
+def free_stretches(start, run, out, length, deep, band, clear):
+    """[(from, to)] metres along a wall's face from its start that none of the boxes `clear` takes within `deep` of
+    the face and the height `band` (low, high); none where they take it all."""
     taken = []
     for low, high in clear:
         corners = np.array([[x, z] for x in (low[0], high[0]) for z in (low[2], high[2])], float) - start
@@ -326,7 +332,7 @@ def stretches(start, run, out, length, deep, band, clear):
         if begin > at:
             found.append((at, min(begin, length)))
         at = max(at, end)
-    return [*found, *([(at, length)] if at < length else [])] or [(0.0, length)]
+    return [*found, *([(at, length)] if at < length else [])]
 
 
 def stretch_for(free, along, reach):
@@ -338,22 +344,49 @@ def stretch_for(free, along, reach):
     return min(whole, key=lambda part: abs(kept_within(along, part[0], part[1], reach / 2) - along))
 
 
-def on_wall(low, high, on, clear=()):
+# A wall thing that meets one laid before it on its wall where no stretch at its height holds it is stood this far
+# under it (as the holders' PIECE_GAP stands one over another), metres.
+MOUNT_GAP = 0.05
+
+
+def on_wall(low, high, on, clear=(), mounted=()):
     """(scale, foot middle) of an object with its back on a wall's face, within its length, out of the room a leaf in
-    an opening turns through (`clear`, swing_box): in the nearest stretch of the face that holds it, shrunk to the
-    longest where none does (#36, garage 2026-10-30: 10 m pipes laid along its walls across both doorways stood in
-    the doors' swing, so neither door swung)."""
+    an opening turns through and of the wall and face things laid before it (`clear`, swing_box; `mounted`, their
+    boxes): in the nearest stretch of the face that holds it, shrunk to the longest where none does (#36, garage
+    2026-10-30: 10 m pipes laid along its walls across both doorways stood in the doors' swing, so neither door swung).
+    Where only a thing laid before it leaves no stretch at its height whole, it is stood the nearest height lower,
+    MOUNT_GAP under one of them and never under the floor, where one does (mounted_height: habitat's pipes stood 0.25 m
+    apart at 0.45 m tall, its kitchen cabinets and hangar's 32 m pipes across each other at its corners, 2026-11-10)."""
     size, foot = high - low, foot_middle(low, high)
     start, end = (np.array([point[0], point[1]], float) for point in on["span"])
     length = float(np.linalg.norm(end - start))
     run, out = (end - start) / max(length, 1e-9), np.asarray(on["out"], float)
     reach, along = across(run, size), float((foot[[0, 2]] - start) @ run)
-    begin, end = stretch_for(stretches(start, run, out, length, across(out, size), (low[1], high[1]), clear), along,
-                             reach)
+    height = mounted_height(start, run, out, length, size, low[1], reach, clear, mounted)
+    begin, end = stretch_for(stretches(start, run, out, length, across(out, size), (height, height + size[1]),
+                                       [*clear, *mounted]), along, reach)
     scale = min(1.0, (end - begin) / max(reach, 1e-9))
     along = kept_within(along, begin, end, reach * scale / 2)
     spot = start + run * along + out * across(out, size) * scale / 2
-    return scale, np.array([spot[0], foot[1], spot[1]])
+    return scale, np.array([spot[0], height, spot[1]])
+
+
+def mounted_height(start, run, out, length, size, height, reach, clear, mounted):
+    """The height a wall thing of `size` laid at `height` stands at on its wall's face (start, run, out, length): its
+    own where its longest free stretch there (stretches) among `clear` and `mounted` is as long as among `clear` alone
+    (its whole `reach` at most: one longer than its wall is shrunk to the wall all the same); else the nearest lower
+    one MOUNT_GAP under one of `mounted`, its foot never under the floor, where it is; else its own."""
+    deep = across(out, size)
+
+    def longest(at, boxes):
+        return max((part[1] - part[0] for part in free_stretches(start, run, out, length, deep, (at, at + size[1]),
+                                                                  boxes)), default=0.0)
+
+    wanted = min(reach, longest(height, clear)) - 1e-9
+    if longest(height, [*clear, *mounted]) >= wanted:
+        return height
+    lower = sorted({float(other[0][1]) - size[1] - MOUNT_GAP for other in mounted} - {height}, reverse=True)
+    return next((at for at in lower if 0.0 <= at < height and longest(at, [*clear, *mounted]) >= wanted), height)
 
 
 # A built wall an opening's door is sunk into stands within this of the opening's middle, metres: hangar's and
@@ -499,14 +532,15 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
 CROWDED = "crowded"
 
 
-def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=()):
+def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=(), mounted=()):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
     `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, one array a wall, slanted_face; a within
     one's: its holder's, on_boards) and the `recesses` the bake cut in it
     (on_face), an opening's object's own left way (`left`,
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
-    of (`clear`, on_wall, face_stretch; a within one's: the boxes laid in its holder before it); None when it already
+    of (`clear`, on_wall, face_stretch; a within one's: the boxes laid in its holder before it), and a wall's or face's
+    the boxes of the wall and face things laid before it (`mounted`, on_wall, on_face); None when it already
     sits (or
     holds to nothing laid); CROWDED when it is laid on its holder's boards and none has a clear spot left."""
     low, high = np.asarray(low, float), np.asarray(high, float)
@@ -517,7 +551,7 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
             return None
         box = nearest(boxes, low, high)
         if how == "face":
-            scale, target, face = on_face(low, high, on, box, surface, recesses, clear)
+            scale, target, face = on_face(low, high, on, box, surface, recesses, [*clear, *mounted])
         else:
             scale, target = on_holder(low, high, how, on, box)
             if how == "within" and surface is not None:
@@ -525,7 +559,7 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
                 if target is None:
                     return CROWDED
     elif how == "wall":
-        scale, target = on_wall(low, high, on, clear)
+        scale, target = on_wall(low, high, on, clear, mounted)
     else:
         scale, target = in_opening(low, high, on, boxes, left, opens, surface)
     moved, least = float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale))
@@ -1160,10 +1194,13 @@ def fitted(stage, place, entries, laid, cuts=None):
             holder, found = shelved(low, high, entry["on"], held,
                                     lambda holder: surface_mesh(stage, f"/{place}/{scope}/{holder}"), taken)
         else:
-            clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] \
-                if how in ("wall", "face") and name not in leaves else ()
+            walled = how in ("wall", "face") and name not in leaves
+            clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
+            others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
+                if walled else ()
             found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
-                        recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear)
+                        recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear,
+                        others)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
@@ -1174,6 +1211,8 @@ def fitted(stage, place, entries, laid, cuts=None):
         if found is None:
             if on_shelves:
                 taken.setdefault(holder, []).append((low, high))
+            if how in ("wall", "face"):
+                mounted[name] = (low, high)
             return
         scale, target, words, face = found
         moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), scale, target)
@@ -1182,6 +1221,8 @@ def fitted(stage, place, entries, laid, cuts=None):
         after = world_box(stage, path)
         if on_shelves:
             taken.setdefault(holder, []).append(after)
+        if how in ("wall", "face"):
+            mounted[name] = after
         fits.append({"name": name, "row": entry["row"], "how": how,
                      "holder": entry["on"].get("holder"), "moved": round(float(np.linalg.norm(
                          target - foot_middle(low, high))), 3), "scale": round(float(np.min(scale)), 4),
@@ -1197,6 +1238,7 @@ def fitted(stage, place, entries, laid, cuts=None):
 
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
+    mounted = {}  # {wall or face thing: its box as laid}, which each laid after it on a wall or face keeps clear of
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
     walled = [entry for entry in by_name.values() if entry["on"]["how"] == "wall"]
