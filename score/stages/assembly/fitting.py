@@ -946,6 +946,58 @@ def walls_in(stage, place, scope):
     return [(child.GetName(), world_box(stage, child.GetPath())) for child in root.GetChildren()] if root else []
 
 
+# A turn onto a built wall's face smaller than this, degrees, is none (on_built_face).
+TURN_LEAST = 0.05
+
+
+def slanted_wall(on):
+    """Whether a wall relation's face runs along neither axis (its `out`), by any angle (workshop's tools 7.5 degrees
+    off x on a wall built 16 degrees off it)."""
+    return min(abs(float(way)) for way in on["out"]) > 1e-6
+
+
+def built_walls(stage, place):
+    """The place's built walls (walls: its Structure and Shell pieces) as one mesh; None with none."""
+    import trimesh
+    found = [mesh for scope in ("Structure", "Shell") for name, _ in walls_in(stage, place, scope)
+             if (mesh := surface_mesh(stage, f"/{place}/{scope}/{name}")) is not None]
+    return trimesh.util.concatenate(found) if found else None
+
+
+def on_built_face(on, height, mesh):
+    """(the wall relation laid on the room face of the built wall behind its span, the degrees about +y that turn its
+    `out` to that face's): its span's two ends each moved back along its `out` onto the first surface of `mesh`
+    (built_walls) a ray from WALL_REACH out in front of the end at `height` meets going back, within 2 WALL_REACH, and
+    its `out` the face's normal on the room's side; (as it is, 0) where either ray meets none. Workshop's slanted walls
+    were built 3 cm off and 6.5 degrees turned from the faces their things' spans give, so a thing laid flush on its
+    span stood up to 4.6 cm in its wall at one end (2026-11-10)."""
+    if mesh is None:
+        return on, 0.0
+    import trimesh
+    ends = [np.asarray(point, float) for point in on["span"]]
+    out = np.asarray(on["out"], float)
+    origins = np.array([[end[0] + out[0] * WALL_REACH, height, end[1] + out[1] * WALL_REACH] for end in ends])
+    back = np.array([-out[0], 0.0, -out[1]])
+    hits, rays, _ = trimesh.ray.ray_triangle.RayMeshIntersector(mesh).intersects_location(
+        origins, np.tile(back, (2, 1)))
+    hits, rays = np.asarray(hits, float).reshape(-1, 3), np.asarray(rays)
+    faces = []
+    for ray in (0, 1):
+        reach = (hits[rays == ray] - origins[ray]) @ back
+        reach = reach[(reach > 0.0) & (reach <= 2 * WALL_REACH)]
+        if not len(reach):
+            return on, 0.0
+        faces.append(origins[ray][[0, 2]] + back[[0, 2]] * float(reach.min()))
+    run = faces[1] - faces[0]
+    if float(np.linalg.norm(run)) < 1e-6:
+        return on, 0.0
+    normal = np.array([-run[1], run[0]]) / float(np.linalg.norm(run))
+    normal = normal if normal @ out >= 0.0 else -normal
+    degrees = math.degrees(math.atan2(out[1] * normal[0] - out[0] * normal[1], out @ normal))
+    return {**on, "span": [[float(value) for value in face] for face in faces],
+            "out": [float(value) for value in normal]}, degrees
+
+
 def oriented_corners(stage, path):
     """The 8 corners [8, 3] in the stage's frame of a prim's own bounding box, turned with it (a pipe laid along a
     slanted wall: its world box would hold the triangle it spans): every drawn point under it (a mesh's points, any
@@ -1252,13 +1304,21 @@ def fitted(stage, place, entries, laid, cuts=None):
             holder, found = shelved(low, high, entry["on"], held,
                                     lambda holder: surface_mesh(stage, f"/{place}/{scope}/{holder}"), taken)
         else:
+            turned = how == "wall" and not passes(entry)  # a passage meets its place through its wall, as laid
+            if turned and slanted_wall(entry["on"]):  # laid on its built wall's face, turned to it
+                built_on, degrees = on_built_face(entry["on"], (low[1] + high[1]) / 2, faces())
+                if abs(degrees) > TURN_LEAST:
+                    pivot = foot_middle(low, high)
+                    pitched_by(stage.GetPrimAtPath(path), pivot, (0.0, 1.0, 0.0), degrees, pivot)
+                    low, high = world_box(stage, path)
+                entry = {**entry, "on": built_on}
             walled = how in ("wall", "face") and name not in leaves
             clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
             others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
                 if walled else ()
             found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
                         recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear,
-                        others, oriented_corners(stage, path) if how == "wall" else None)
+                        others, oriented_corners(stage, path) if turned else None)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
@@ -1294,6 +1354,13 @@ def fitted(stage, place, entries, laid, cuts=None):
         path = f"/{place}/Objects/{leaf}"
         return swing_box(stage, path), passage_box(*world_box(stage, path), by_name[leaf]["on"], built)
 
+    def faces():
+        """The place's built walls as one mesh (built_walls), made once."""
+        if "mesh" not in built_mesh:
+            built_mesh["mesh"] = built_walls(stage, place)
+        return built_mesh["mesh"]
+
+    built_mesh = {}
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
     mounted = {}  # {wall or face thing: its box as laid}, which each laid after it on a wall or face keeps clear of
