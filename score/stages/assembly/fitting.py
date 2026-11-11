@@ -2179,8 +2179,9 @@ def stacked_on_runs(stage, place, entries, walled):
 
 
 def moved_past(stage, place, entries):
-    """Each wall thing (`entries`, their `on` how "wall") standing outside its place's room (its middle over none of
-    its decks, in_room: a passage meeting its module from outside) that reaches into a built wall or deck moved straight out along
+    """Each wall thing (`entries`, their `on` how "wall") standing outside its place's room (in_room: a passage's middle
+    over none of its decks, a passage meeting its module from outside; any other's outside its walls' box: the
+    greenhouse's pipe in its corner past its upper floor was pushed out through its wall, 2026-11-11) that reaches into a built wall or deck moved straight out along
     its `out` past it, where that is OUT_MOST or its own depth that way at most: its relation's face is a chord
     inside a round room's facets, so its body stood through the facets and its hatch alcove's walls (settle@workshop's
     front glass tunnel, 3 m deep, 0.08 to 0.15 m inside four walls, 1.48 m in from the alcove's end, 2026-11-10).
@@ -2191,7 +2192,7 @@ def moved_past(stage, place, entries):
         path = f"/{place}/Objects/{entry['name']}"
         low, high = world_box(stage, path)
         middle = foot_middle(low, high)
-        if in_room(middle, room, decks):
+        if in_room(middle, room, decks if passes(entry) else ()):  # a passage by the floor; any other by the walls
             continue
         shift, left = past_walls(low, high, entry["on"]["out"], built)
         moved = float(np.linalg.norm(shift))
