@@ -1830,7 +1830,9 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)
     Break: score/stages/assembly/fitting.py: spread_on_tops' `if len(rows) > 1: target[side] = across_at` -> `if False:`
         (hub's screens left in one another across the desk), or packed_rows' `BOARD_CLEAR * (len(rows) + 1) > depth:`
-        -> `> 9.0:` (seven boxes in rows deeper than the top)"""
+        -> `> 9.0:` (seven boxes in rows deeper than the top)
+    Break: score/stages/assembly/fitting.py: off's `if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not
+        None:` -> `if False:` (workshop's box spread over two units' meeting named 0.2 m off one)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -1914,6 +1916,9 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert sorted(fit["name"] for fit in fits) == ["box_1", "box_2", "box_3"], fits
     lows = [float(fitting.world_box(stage, f"/{TOY}/Objects/box_{number}")[0][0]) for number in (1, 2, 3)]
     assert np.allclose(lows, (0.025, 0.35, 0.675)), lows
+    spread = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(stage, f"/{TOY}/Objects/{name}")))}
+                          for name in ("unit_1", "unit_2", "box_1", "box_2", "box_3")]}
+    assert fitting.held_faults({"objects": boxes}, spread) == [], fitting.held_faults({"objects": boxes}, spread)
     assert fitting.spread_on_tops(stage, TOY, boxes) == []  # spread: none meets another
     a_built_box(stage, f"/{TOY}/Objects/box_4", (0.6, 1.0, 0.0), (0.9, 1.2, 0.4))
     assert fitting.spread_on_tops(stage, TOY, [*boxes, {"name": "box_4", "row": "box", "on": top}]) == []
