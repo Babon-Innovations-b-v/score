@@ -881,7 +881,8 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     Break: score/conductor/disk.py sweep: 'escalated = force or (record is not None and start < WARN_GB)' ->
     'escalated = force' (under the warning line the sweep runs its routine only), or warning: drop
     '{last['bigger']}' (the owner is never told the price), or steps: drop the clean-scratch step (a killed make's
-    work/motion-scratch copies stay, 2026-11-04)."""
+    work/motion-scratch copies stay, 2026-11-04), or clean_scratch: drop the score_commands refusal (a live `score
+    plan`'s copies are cleared under it, 2026-11-11)."""
     home, blobs, named = gc_home(tmp_path)
     monkeypatch.setattr(disk, "REPO", tmp_path)
     monkeypatch.setattr(disk, "mount_of", lambda path: home)
@@ -897,6 +898,14 @@ def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path
     monkeypatch.setattr(disk, "free_gb", lambda path=None: free["gb"])
     said = []
     (home / disk.MOTION_SCRATCH / "layer-camp-x1" / "camp").mkdir(parents=True)  # a killed make's seed copy
+    plan = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "-m", "score", "plan"])
+    try:  # a live `score plan` (no registered run) judging gates on its copies: they stay
+        assert str(plan.pid) in disk.clean_scratch(home)["refused"] and plan.pid in disk.score_commands()
+        assert (home / disk.MOTION_SCRATCH / "layer-camp-x1").is_dir()
+    finally:
+        plan.kill()
+        plan.wait()
+    monkeypatch.setattr(disk, "score_commands", lambda: [])  # this PC's own runs aside
     done = disk.sweep(home, say=said.append)  # no machine.json: off a conductor, the routine only
     assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
         "clean-frozen", "clean-cache", "clean-kept", "laid-plain", "clean-scratch"], done
