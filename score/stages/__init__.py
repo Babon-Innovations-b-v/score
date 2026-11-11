@@ -157,12 +157,105 @@ NEIGHBOURS = graph.Stage("neighbours", "place", neighbours.make, contracts.OPENU
                          applies=neighbours.applies)
 
 
+KEPT_LISTINGS = {}  # {what: (answer, {path read: its stat then})}: answers kept across moments while their reads stand
+READING = []  # the read sets being recorded now (`read_set`), each {path: its stat when read}
+HOOKED = []  # the audit hook, added once a process (an audit hook cannot be removed)
+
+
+def stat_of(path):
+    """(mtime_ns, size, inode) of `path`, None when it is not there."""
+    try:
+        found = os.stat(path)
+    except OSError:
+        return None
+    return found.st_mtime_ns, found.st_size, found.st_ino
+
+
+def bounded_folders(folder):
+    """`folder` and each folder above it up to the repository or the props home it lies in (a new folder of records
+    beside it changes its parent's stat), none above those: the home's own stat changes with every file made there."""
+    folder = pathlib.Path(folder)
+    roots = [root for root in (REPO, PROPS_HOME) if folder == root or root in folder.parents]
+    if not roots:
+        return [folder]
+    return [folder, *(above for above in folder.parents if roots[0] == above or roots[0] in above.parents)]
+
+
+def heard(event, arguments):
+    """The audit hook `read_set` records through: each file opened for reading and each folder listed while one is
+    recorded, its stat taken before it is read. A read it cannot place marks every set recorded now unknowable (an
+    audit hook that raised would fail the open it heard)."""
+    if not READING or event not in ("open", "os.scandir", "os.listdir"):
+        return
+    try:
+        found = read_paths(event, arguments)
+    except Exception:  # noqa: BLE001  never fail the read heard: its sets are made again next time instead
+        found = None
+    for reads in list(READING):
+        if found is None:
+            reads[UNKNOWABLE] = "unknowable"
+        for each in found or []:
+            reads.setdefault(each, stat_of(each))
+
+
+UNKNOWABLE = ""  # the path a read set holds when a read went unplaced: never stat-able, so the set never stands
+
+
+def read_paths(event, arguments):
+    """The paths an audited read reaches: the file an open for reading names, or the folder listed and those above
+    it (`bounded_folders`); none for a write or a read by descriptor."""
+    path = arguments[0]
+    if not isinstance(path, (str, bytes, os.PathLike)):
+        return []
+    path = os.path.abspath(os.fsdecode(path))
+    if event != "open":
+        return [str(folder) for folder in bounded_folders(path)]
+    mode, flags = arguments[1], arguments[2]
+    writing = any(letter in mode for letter in "wax+") if isinstance(mode, str) else bool(flags & 3)
+    return [] if writing else [path]
+
+
+@contextlib.contextmanager
+def read_set():
+    """{path: stat} of every file opened for reading and every folder listed (with the folders above it in the
+    repository or the props home) inside it, from any thread."""
+    if heard not in HOOKED:
+        sys.addaudithook(heard)
+        HOOKED.append(heard)
+    reads = {}
+    READING.append(reads)
+    try:
+        yield reads
+    finally:
+        READING.remove(reads)
+
+
+def kept_while_read_stands(what, make):
+    """make(), kept across moments while every file and folder it read stands as it was (`read_set`): a drive pass
+    asks the batch's places again each moment, and listing them builds all 81 plans (35 s a pass on the PC home,
+    2026-11-11) though no plan changed; a new or changed record, plan or within.json makes it again."""
+    kept = KEPT_LISTINGS.get(what)
+    if kept is not None and all(stat_of(path) == then for path, then in kept[1].items()):
+        return kept[0]
+    with read_set() as reads:
+        answer = make()
+    KEPT_LISTINGS[what] = answer, reads
+    return answer
+
+
+def batch_places():
+    """The batch's places (`places` of environment 1), worked out once a moment and kept across moments while nothing
+    the listing read changed (`kept_while_read_stands`); shared: every caller only reads it."""
+    return plans.once("batch", None, "world1", lambda: kept_while_read_stands("batch", lambda: set(places(world1()))),
+                      shared=True)
+
+
 def held_scenes(place):
     """The child scenes the place's plan lays out that are scenes of the batch (`places`), each read beside as its own
     tree; one in design is no scene of the batch, and the tree's gate names it. Here in the table, as it lists the
     environment's places."""
     children = scene_tree.held(place)
-    batch = plans.once("batch", None, "world1", lambda: set(places(world1())), shared=True) if children else set()
+    batch = batch_places() if children else set()
     return [child for child in children if child in batch]
 
 
@@ -847,7 +940,7 @@ def filmed_places(place=None):
     final.peels). Here in the table, as it lists the environment's places, the batch's places worked out once a moment
     as held_scenes does (2026-11-11: each call built all 81 plans again, 67 s, twice a drive pass for the film's reads)."""
     shown = sorted({*demo_film_final.shown_places(place), *demo_film_final.peeled_places(place)})
-    batch = plans.once("batch", None, "world1", lambda: set(places(world1())), shared=True) if shown else set()
+    batch = batch_places() if shown else set()
     return [other for other in shown if other in batch]
 
 

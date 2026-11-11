@@ -27,6 +27,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
 - `filmed_places`: the batch's places listed with `places(world1())` again, not `plans.once`  -> the scene tree
   test (two listings a moment; a drive pass rebuilt all 81 plans per call, 2026-11-11).
+- `batch_places`: the listing not kept across moments (`kept_while_read_stands` -> `make()`), or kept whatever it read
+  (`all(...)` -> `True`), or `heard` hearing no folder listed (`os.scandir` dropped)  -> the scene tree test (each
+  drive pass listed all 81 plans again, 35 s, 2026-11-11; a new record kept the old listing).
 - `places`: the `merged` scenes not taken out  -> the place test.
 - `ship_place`: always False  -> the ship place test.
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
@@ -689,10 +692,11 @@ def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
     assert worn_row.params == {"surface": "jacket_blue"} and second.params == {"variant": 1}
 
 
-def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch():
+def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch(tmp_path):
     """scene-tree@<scene> reads its own assembly and, beside, the tree of each child scene its plan lays out that is a
     scene of the batch (one in design is none: the tree's gate names it); a place of every scene but a line no place
-    owns; the library reads it, so a scene is complete once its tree stands."""
+    owns; the library reads it, so a scene is complete once its tree stands. The batch's places are listed once a
+    moment and kept across moments until a file or folder the listing read changes."""
     table = {stage.name: stage for stage in stages.STAGES}
     row = table["scene-tree"]
     assert row.downward and row.after == {"assembly": ("openusd-stage", 1)}
@@ -708,12 +712,33 @@ def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch(
         stages.demo_film_final.shown_places = lambda place=None: ["lab", "dome"]
         stages.demo_film_final.peeled_places = lambda place=None: ["hangar"]
         assert stages.held_scenes("base") == ["hangar", "lab"] and stages.held_scenes("lab") == []
+        stages.KEPT_LISTINGS.clear()
         with stages.plans.one_moment():
             assert stages.filmed_places() == ["hangar", "lab"] and stages.filmed_places() == ["hangar", "lab"]
+            assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
+        with stages.plans.one_moment():  # the next moment: nothing the listing read changed (it read nothing here)
             assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
     finally:
         stages.scene_tree.held, stages.places, stages.world1 = held, listed, world
         stages.demo_film_final.shown_places, stages.demo_film_final.peeled_places = film
+        stages.KEPT_LISTINGS.clear()
+    plan, records, made = tmp_path / "within.json", tmp_path / "plans" / "base" / "edits", []
+    records.mkdir(parents=True)
+    plan.write_text("{}")
+
+    def listing():  # a listing reading a file and a folder of records, as places() reads within.json and plans
+        made.append(1)
+        return plan.read_text() if plan.exists() else None, sorted(path.name for path in records.parent.parent.rglob("*"))
+    first = stages.kept_while_read_stands("toy", listing)
+    (tmp_path / "unread.txt").write_text("a write beside, never read")
+    assert stages.kept_while_read_stands("toy", listing) is first and len(made) == 1, "read again though nothing changed"
+    for change in (lambda: plan.write_text('{"merged": {}}'), lambda: (records / "e1.json").write_text("{}"),
+                   lambda: (tmp_path / "plans" / "lab").mkdir(), plan.unlink):
+        change()
+        stages.kept_while_read_stands("toy", listing)
+    assert len(made) == 5, f"a changed file, a new record, a new place's folder or a gone file kept the listing: {made}"
+    assert stages.kept_while_read_stands("toy", listing) == (None, ["base", "e1.json", "edits", "lab"]) and len(made) == 5
+    stages.KEPT_LISTINGS.clear()
     assert stages.parent_first({"cockpit", "hangar", "base", "hub", "wreck", "camp"},
                                {"cockpit": "hangar", "hangar": "base", "hub": "base", "camp": "campgrounds"}) == [
         "base", "hangar", "cockpit", "hub", "camp", "wreck"]
