@@ -620,6 +620,8 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
 
 # What fit says of a thing laid on its holder's boards when no clear spot is left on them (on_boards' None).
 CROWDED = "crowded"
+# A wall thing shrunk below this to fit its stretch is shrunk to nothing: CROWDED, left as laid (fit).
+SCALE_LEAST = 1e-6
 
 
 def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=(), mounted=(),
@@ -635,7 +637,8 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
     box (`corners`, oriented_corners, on_wall) and the built pieces' boxes it stands in front of (`built`, on_wall);
     a within one's whether it may stand on one laid before it (`stack`, on_boards); None when it already
     sits (or
-    holds to nothing laid); CROWDED when it is laid on its holder's boards and none has a clear spot left."""
+    holds to nothing laid); CROWDED when it is laid on its holder's boards and none has a clear spot left, or on a
+    wall with no stretch of it left."""
     low, high = np.asarray(low, float), np.asarray(high, float)
     how, face = on["how"], None
     boxes = [tuple(np.asarray(end, float) for end in found) for found in holders]
@@ -653,6 +656,8 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
                     return CROWDED
     elif how == "wall":
         scale, target = on_wall(low, high, on, clear, mounted, corners, built)
+        if scale < SCALE_LEAST:  # no stretch of its wall left: shrunk to nothing, it would vanish (habitat's third
+            return CROWDED       # kitchen cabinet, 2026-11-11: its turned box then had no frame, oriented_corners)
     else:
         scale, target = in_opening(low, high, on, boxes, left, opens, surface)
     moved, least = float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale))
@@ -1118,7 +1123,7 @@ def oriented_corners(stage, path):
             local = np.array([[x, y, z] for x in local[:, 0] for y in local[:, 1] for z in local[:, 2]])
         matrix = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(time))
         points.append(local @ matrix[:3, :3] + matrix[3, :3])
-    if not points:
+    if not points or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12:  # a frame shrunk flat has no own box
         low, high = world_box(stage, path)
         return np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
     inverse = np.linalg.inv(own)
@@ -1430,6 +1435,7 @@ def fitted(stage, place, entries, laid, cuts=None):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
             fits.append(laid_fit(stage, path, entry, how, entry["on"].get("holder"), 0.0, 1.0,
+                                 f"crowded: no clear stretch left on its wall; left as laid" if how == "wall" else
                                  f"crowded: no clear spot left on the boards of {', '.join(name for name, _ in held)}"
                                  f"; left as laid"))
             return
