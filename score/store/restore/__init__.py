@@ -153,9 +153,9 @@ class FreeRunner(graph.Runner):
         """Never cleared: a paid make or a paid gatherer is refused before compute is reached."""
         raise graph.Blocked(PAID_REFUSED)
 
-    def gatherable(self, stage, place):
+    def gatherable(self, stage, place, keyed=None):
         """The free gatherers only: a check whose gatherer carries euros keeps its evidence missing (unknown)."""
-        return [name for name in super().gatherable(stage, place) if not stage.gatherers[name][1]]
+        return [name for name in super().gatherable(stage, place, keyed) if not stage.gatherers[name][1]]
 
     def gather_one(self, stage, place, keyed, name, output):
         """gather_one, a gatherer declared free that still reached Blender or a paid point (ledger.FreeOnly) leaving

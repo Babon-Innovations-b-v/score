@@ -711,6 +711,10 @@ def test_a_node_works_out_its_key_in_a_still_of_its_own_the_drive_s_key_and_make
     shutil.copytree(store.objects.root, unmoved.store.objects.root, dirs_exist_ok=True)
     assert unmoved.run_node(COUNT, "hangar", given) == ACCEPTED and len(keyed) == walks  # no walk of its own
     assert unmoved.store.record("count@hangar", given["key"])
+    # 2026-11-11: a fresh node's process then walked its whole reads again outside a pass for its gatherable checks,
+    # holding its job slot 1-8 min. Break: 'self.gatherable(stage, place, self.ran)' -> 'self.gatherable(stage, place)'
+    monkeypatch.setattr(graph, "cap_threads", lambda threads: None)  # in this process: the tests' pools stay theirs
+    assert unmoved.drive_node(COUNT, "hangar", 1, given) == "fresh" and len(keyed) == walks, keyed
     moved = pathlib.Path(tempfile.mkdtemp())
     (moved / "clean.txt").write_text("moved")
     contracts.stamp(TEXT, moved)
@@ -1601,7 +1605,7 @@ ACCEPTED = "made: pass, accepted automatically"
 
 
 def test_a_line_runs_to_its_end_gathering_its_evidence_itself():
-    """Break: score/graph/__init__.py: '                wanted = [] if did.startswith(("blocked", "broken")) else self.gatherable(stage, place)' -> '                wanted = []'"""
+    """Break: score/graph/__init__.py: '                wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place, self.ran)' -> '                wanted = []'"""
     runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
     found = runner.drive(PLACES, say=quiet)
     assert found["clean@hangar"] == ("made: unknown; gathered words: judged again, output kept: pass, accepted "
@@ -2219,7 +2223,11 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     time (a second would leave 0.9 floor), the next started once the one before ended; each stage's peak is kept
     beside the store, a measured one never lowering it.
     Break: score/graph/__init__.py: '            found.append((peaks.get(stage.name, memory_floor()), held[process.pid]))'
-    -> '            found.append((held[process.pid], held[process.pid]))' -> two clean nodes run at once."""
+    -> '            found.append((held[process.pid], held[process.pid]))' -> two clean nodes run at once.
+    Once both stand fresh, each only confirms its record (2026-11-11: 16 fresh checks held card rows back at their
+    stages' make peaks): CHECK_PEAK while its flag says so, its stage peak once it makes. Break:
+    'expected = CHECK_PEAK if confirming else' -> 'expected = 0 * CHECK_PEAK if False else' -> the second waits;
+    'not making.value' -> 'False' -> the confirming node reserves its stage peak."""
     runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
     runner.keep_peak("clean", int(1.5 * FLOOR))
     faked(monkeypatch, [2.8 * FLOOR])
@@ -2245,6 +2253,16 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     assert most[0] == 1, most
     peaks = runner.peaks()
     assert peaks["clean"] == int(1.5 * FLOOR) and peaks["count"] >= int(0.1 * FLOOR), peaks
+    most[0] = 0  # all fresh now: each clean node only confirms its record, at CHECK_PEAK, so both run at once
+    said = []
+    assert set(runner.drive(PLACES, say=said.append, jobs=4).values()) == {"fresh"} and most[0] == 2, most
+    assert not [line for line in said if line.startswith("memory: ")], said  # neither waited for the other's peak
+    flag = types.SimpleNamespace(value=0)  # a running clean node, its process's flag: confirming, then making
+    alive = {0: (types.SimpleNamespace(name="clean", grain="place"), "hangar",
+                 types.SimpleNamespace(pid=11, is_alive=lambda: True, making=flag))}
+    assert runner.coming(alive, peaks, {}, {}) == [(graph.CHECK_PEAK, int(0.1 * FLOOR))]
+    flag.value = 1
+    assert runner.coming(alive, peaks, {}, {}) == [(int(1.5 * FLOOR), int(0.1 * FLOOR))]
 
 
 def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserve_only_their_trees(monkeypatch):
