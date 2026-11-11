@@ -53,9 +53,11 @@ def placement(entry, low, high):
 def laid_by_relations(stage, out, place, record, objects, baked=None):
     """The laid design objects (`objects`, their names) fitted by their relations (fitting.fitted, a door in the recess
     its holder's bake cut: `baked`, baked.json), and LAID written: each one's box as laid after, the built walls, the
-    objects passing up through a roof (fitting.through_roofs), and the fits."""
+    objects passing up through a roof (fitting.through_roofs), and the fits. One the fitting left out (its prim made
+    inactive: a thing hung from the roof with no room left under it) is listed by its fit alone."""
     fits = fitting.fitted(stage, place, record.get("objects") or [], set(objects),
                           {model: entry.get("cuts") for model, entry in (baked or {}).items()})
+    objects = [name for name in objects if stage.GetPrimAtPath(f"/{place}/Objects/{name}").IsActive()]
     rows = {entry["name"]: entry["row"] for entry in record.get("objects") or []}
     boxes = [(name, fitting.world_box(stage, f"/{place}/Objects/{name}")) for name in objects]
     held = sorted({(on.get("holder scope"), name) for entry in record.get("objects") or [] if (on := entry.get("on"))
