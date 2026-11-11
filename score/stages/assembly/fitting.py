@@ -320,12 +320,16 @@ def stretches(start, run, out, length, deep, band, clear):
 
 def free_stretches(start, run, out, length, deep, band, clear):
     """[(from, to)] metres along a wall's face from its start that none of the boxes `clear` takes within `deep` of
-    the face and the height `band` (low, high); none where they take it all."""
+    the face and the height `band` (low, high); none where they take it all. A box is (low, high), or the corners
+    [n, 3] of one turned (oriented_corners: a thing laid along a slanted wall)."""
     taken = []
-    for low, high in clear:
-        corners = np.array([[x, z] for x in (low[0], high[0]) for z in (low[2], high[2])], float) - start
+    for box in clear:
+        points = np.asarray(box, float)
+        if len(points) == 2:
+            points = np.array([[x, y, z] for x in points[:, 0] for y in points[:, 1] for z in points[:, 2]])
+        corners = points[:, [0, 2]] - start
         off = corners @ out
-        if off.max() > 0.0 and off.min() < deep and low[1] < band[1] and high[1] > band[0]:
+        if off.max() > 0.0 and off.min() < deep and points[:, 1].min() < band[1] and points[:, 1].max() > band[0]:
             taken.append((float((corners @ run).min()), float((corners @ run).max())))
     found, at = [], 0.0
     for begin, end in sorted(taken):
@@ -349,34 +353,42 @@ def stretch_for(free, along, reach):
 MOUNT_GAP = 0.05
 
 
-def on_wall(low, high, on, clear=(), mounted=()):
+def on_wall(low, high, on, clear=(), mounted=(), corners=None):
     """(scale, foot middle) of an object with its back on a wall's face, within its length, out of the room a leaf in
     an opening turns through and of the wall and face things laid before it (`clear`, swing_box; `mounted`, their
     boxes): in the nearest stretch of the face that holds it, shrunk to the longest where none does (#36, garage
     2026-10-30: 10 m pipes laid along its walls across both doorways stood in the doors' swing, so neither door swung).
     Where only a thing laid before it leaves no stretch at its height whole, it is stood the nearest height lower,
     MOUNT_GAP under one of them and never under the floor, where one does (mounted_height: habitat's pipes stood 0.25 m
-    apart at 0.45 m tall, its kitchen cabinets and hangar's 32 m pipes across each other at its corners, 2026-11-10)."""
+    apart at 0.45 m tall, its kitchen cabinets and hangar's 32 m pipes across each other at its corners, 2026-11-10).
+    Its reach along the wall and its depth out of it are its own box's (`corners`, oriented_corners), turned with it,
+    where given: a pipe laid along a slanted wall is as deep as its box across, not as its world box (habitat's 3 m
+    pipes on its 45 degree walls were laid 1.5 m off them, into each other at the corners, 2026-11-10)."""
     size, foot = high - low, foot_middle(low, high)
     start, end = (np.array([point[0], point[1]], float) for point in on["span"])
     length = float(np.linalg.norm(end - start))
     run, out = (end - start) / max(length, 1e-9), np.asarray(on["out"], float)
-    reach, along = across(run, size), float((foot[[0, 2]] - start) @ run)
-    height = mounted_height(start, run, out, length, size, low[1], reach, clear, mounted)
-    begin, end = stretch_for(stretches(start, run, out, length, across(out, size), (height, height + size[1]),
+    if corners is None:
+        reach, deep = across(run, size), across(out, size)
+    else:
+        floor = np.asarray(corners, float)[:, [0, 2]]
+        reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @ out))
+    along = float((foot[[0, 2]] - start) @ run)
+    height = mounted_height(start, run, out, length, size, low[1], reach, deep, clear, mounted)
+    begin, end = stretch_for(stretches(start, run, out, length, deep, (height, height + size[1]),
                                        [*clear, *mounted]), along, reach)
     scale = min(1.0, (end - begin) / max(reach, 1e-9))
     along = kept_within(along, begin, end, reach * scale / 2)
-    spot = start + run * along + out * across(out, size) * scale / 2
+    spot = start + run * along + out * deep * scale / 2
     return scale, np.array([spot[0], height, spot[1]])
 
 
-def mounted_height(start, run, out, length, size, height, reach, clear, mounted):
+def mounted_height(start, run, out, length, size, height, reach, deep, clear, mounted):
     """The height a wall thing of `size` laid at `height` stands at on its wall's face (start, run, out, length): its
     own where its longest free stretch there (stretches) among `clear` and `mounted` is as long as among `clear` alone
     (its whole `reach` at most: one longer than its wall is shrunk to the wall all the same); else the nearest lower
-    one MOUNT_GAP under one of `mounted`, its foot never under the floor, where it is; else its own."""
-    deep = across(out, size)
+    one MOUNT_GAP under one of `mounted`, its foot never under the floor, where it is; else its own. `deep` its depth
+    out of the wall."""
 
     def longest(at, boxes):
         return max((part[1] - part[0] for part in free_stretches(start, run, out, length, deep, (at, at + size[1]),
@@ -385,7 +397,8 @@ def mounted_height(start, run, out, length, size, height, reach, clear, mounted)
     wanted = min(reach, longest(height, clear)) - 1e-9
     if longest(height, [*clear, *mounted]) >= wanted:
         return height
-    lower = sorted({float(other[0][1]) - size[1] - MOUNT_GAP for other in mounted} - {height}, reverse=True)
+    lower = sorted({float(np.asarray(other, float)[:, 1].min()) - size[1] - MOUNT_GAP for other in mounted} - {height},
+                   reverse=True)
     return next((at for at in lower if 0.0 <= at < height and longest(at, [*clear, *mounted]) >= wanted), height)
 
 
@@ -532,7 +545,8 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
 CROWDED = "crowded"
 
 
-def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=(), mounted=()):
+def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=None, clear=(), mounted=(),
+        corners=None):
     """(scale, the new middle of its foot, words, its face (on_face's) or None) of an object laid by its relation `on`
     (module docstring), from its box (low, high) and its holders' boxes (an opening's: the built walls), a face's holder's
     `surface` mesh (surface_mesh; an opening's: its built walls' mesh points, one array a wall, slanted_face; a within
@@ -540,7 +554,8 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
     (on_face), an opening's object's own left way (`left`,
     and the way it swings to (`opens`, opening_spot), the swing and passage boxes a wall's or face's object keeps out
     of (`clear`, on_wall, face_stretch; a within one's: the boxes laid in its holder before it), and a wall's or face's
-    the boxes of the wall and face things laid before it (`mounted`, on_wall, on_face); None when it already
+    the boxes of the wall and face things laid before it (`mounted`, on_wall, on_face), and a wall one's own turned
+    box (`corners`, oriented_corners, on_wall); None when it already
     sits (or
     holds to nothing laid); CROWDED when it is laid on its holder's boards and none has a clear spot left."""
     low, high = np.asarray(low, float), np.asarray(high, float)
@@ -559,7 +574,7 @@ def fit(low, high, on, holders=(), surface=None, recesses=(), left=None, opens=N
                 if target is None:
                     return CROWDED
     elif how == "wall":
-        scale, target = on_wall(low, high, on, clear, mounted)
+        scale, target = on_wall(low, high, on, clear, mounted, corners)
     else:
         scale, target = in_opening(low, high, on, boxes, left, opens, surface)
     moved, least = float(np.linalg.norm(target - foot_middle(low, high))), float(np.min(scale))
@@ -918,6 +933,36 @@ def walls_in(stage, place, scope):
     return [(child.GetName(), world_box(stage, child.GetPath())) for child in root.GetChildren()] if root else []
 
 
+def oriented_corners(stage, path):
+    """The 8 corners [8, 3] in the stage's frame of a prim's own bounding box, turned with it (a pipe laid along a
+    slanted wall: its world box would hold the triangle it spans): every drawn point under it (a mesh's points, any
+    other shape's extent corners) in its own frame, boxed, and the box's corners back in the stage's."""
+    from pxr import Usd, UsdGeom
+    time = Usd.TimeCode.Default()
+    own = np.asarray(UsdGeom.Xformable(stage.GetPrimAtPath(path)).ComputeLocalToWorldTransform(time))
+    points = []
+    for prim in Usd.PrimRange(stage.GetPrimAtPath(path)):
+        if not prim.IsA(UsdGeom.Boundable) or UsdGeom.Imageable(prim).ComputePurpose() == UsdGeom.Tokens.guide:
+            continue
+        found = UsdGeom.Mesh(prim).GetPointsAttr().Get() if prim.IsA(UsdGeom.Mesh) else \
+            UsdGeom.Boundable.ComputeExtentFromPlugins(UsdGeom.Boundable(prim), time)
+        if not found:
+            continue
+        local = np.asarray(found, float).reshape(-1, 3)
+        if not prim.IsA(UsdGeom.Mesh):  # an extent's two corners: all eight
+            local = np.array([[x, y, z] for x in local[:, 0] for y in local[:, 1] for z in local[:, 2]])
+        matrix = np.asarray(UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(time))
+        points.append(local @ matrix[:3, :3] + matrix[3, :3])
+    if not points:
+        low, high = world_box(stage, path)
+        return np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    inverse = np.linalg.inv(own)
+    mine = np.concatenate(points) @ inverse[:3, :3] + inverse[3, :3]
+    low, high = mine.min(axis=0), mine.max(axis=0)
+    box = np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
+    return box @ own[:3, :3] + own[3, :3]
+
+
 def world_box(stage, path):
     from pxr import Usd, UsdGeom
     box = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render]) \
@@ -1200,7 +1245,7 @@ def fitted(stage, place, entries, laid, cuts=None):
                 if walled else ()
             found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
                         recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear,
-                        others)
+                        others, oriented_corners(stage, path) if how == "wall" else None)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
@@ -1212,7 +1257,7 @@ def fitted(stage, place, entries, laid, cuts=None):
             if on_shelves:
                 taken.setdefault(holder, []).append((low, high))
             if how in ("wall", "face"):
-                mounted[name] = (low, high)
+                mounted[name] = oriented_corners(stage, path)
             return
         scale, target, words, face = found
         moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), scale, target)
@@ -1222,7 +1267,7 @@ def fitted(stage, place, entries, laid, cuts=None):
         if on_shelves:
             taken.setdefault(holder, []).append(after)
         if how in ("wall", "face"):
-            mounted[name] = after
+            mounted[name] = oriented_corners(stage, path)
         fits.append({"name": name, "row": entry["row"], "how": how,
                      "holder": entry["on"].get("holder"), "moved": round(float(np.linalg.norm(
                          target - foot_middle(low, high))), 3), "scale": round(float(np.min(scale)), 4),
