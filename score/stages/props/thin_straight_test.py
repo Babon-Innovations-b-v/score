@@ -36,6 +36,12 @@ and test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (
 masking a kept build again (`if row not in kept}`) turns the latter red too (the counted pipe kept one instance's
 crop). code_builds keeping a build already made as it is (`thin_straight.rebuilt(...)` under `if False:`) turns
 test_the_pixal_row_builds_a_failed_thin_row_and_drops_its_close_up_gap red (the older builder's box kept).
+railing_hold leaving every railing unheld again (`install()` at its end dropped) or holding it to its thinnest side
+(`float(row["size"][2])` -> `min(float(value) for value in row["size"])`) turns
+test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view red (the floor railing drawn from above 1.69 m
+tall on its 1 m row; held to 0.1 m), and so does holding one that climbs (`climbs` -> `return False`: the stair
+railing's rise pressed to 1 m); the table leaving pixal's and likeness's files without it (`ROWS = ("pixal",
+"likeness")` -> `ROWS = ()`) turns it red too (their keys blind to the hold).
 held_across holding nothing (`hold[across, across] = min(...)` -> `hold[across, across] = 1.0`) turns
 test_a_band_is_its_drawn_width_across_its_picture_and_at_most_its_row_s_thinnest_side_deep red (the conduit 0.3 m
 across on its 0.1 m); view not undoing it (`@ np.linalg.inv(as_built(row, alpha))` dropped) turns that test,
@@ -78,6 +84,7 @@ import score.stages.batch_gaps as batch_gaps  # noqa: E402
 import score.stages.props.likeness as likeness  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
+import score.stages.props.railing_hold as railing_hold  # noqa: E402
 import score.stages.props.thin_straight as thin_straight  # noqa: E402
 
 @pytest.fixture(autouse=True, scope="module")
@@ -701,12 +708,13 @@ def test_a_thin_run_is_held_to_its_path_s_own_size_never_crushed_to_its_box(buil
 
 
 def test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view(built):
-    """A railing curving round a floor drawn from above (the greenhouse's, 9.4 by 0.1 by 1 m: its curve held to its
-    1 m height, outline 0.023, 2026-10-28) keeps its picture's curve, and cables lying on the ground (the old
-    station's, 10 by 0.1 by 0.1: laid on the ground, outline 0.068) are laid in their picture's plane, turned so
-    their long axis lies level as their row, seen back in their picture's slant and leaned to face the outline's
-    look-down (thin_straight.view), its longest reach the row's, both passing the outline; a diagonal line's tube is its
-    drawn width, its steps measured as lengths."""
+    """A railing curving round a floor drawn from above (the greenhouse's, 9.4 by 0.1 by 1 m) stands its row's 1 m
+    tall, never its picture's floor depth (4.5 m, 2026-11-11), while one on a staircase keeps its flight's rise; cables lying on the ground (the old station's, 10
+    by 0.1 by 0.1: laid on the ground, outline 0.068) keep their path's reach across; both are laid in their
+    picture's plane, turned so their long axis lies level as their row, seen back in their picture's slant, unheld,
+    and leaned to face the outline's look-down (thin_straight.view: the railing seen held to its 1 m read 0.023,
+    2026-10-28), its longest reach the row's, both passing the outline; a diagonal line's tube is its drawn width, its
+    steps measured as lengths."""
     import trimesh
     tmp_path, answers = held_answers(built, "in plane")
     for (name, (row, lines)), (found, faults) in zip(IN_PLANE.items(), answers):
@@ -714,7 +722,21 @@ def test_a_path_is_built_in_its_picture_s_plane_facing_the_outline_s_view(built)
         made = trimesh.load(tmp_path / name / "pixal" / "take-final.glb", force="mesh")
         plane = made.extents
         assert np.isclose(plane[2], row["size"][0], rtol=0.02), (name, plane)
-        assert plane[1] > 1.1 and plane[0] <= 0.1 * 1.05, (name, plane)  # its path's reach, never its row's 1 m
+        assert plane[0] <= 0.1 * 1.05, (name, plane)
+        if name == "railing":  # its posts' height the row's, whatever its picture draws
+            assert np.isclose(plane[1], row["size"][2], rtol=0.02), (name, plane)
+        else:  # a cable's sag across its path's own, never its box's thickness
+            assert plane[1] > 1.1, (name, plane)
+    from PIL import ImageDraw
+    arc = Image.new("L", (600, 200), 0)
+    for line in IN_PLANE["railing"][1]:
+        ImageDraw.Draw(arc).line(line, fill=255, width=9, joint="curve")
+    climbing = {**IN_PLANE["railing"][0], "anchor": "on:staircase"}
+    assert thin_straight.build(climbing, np.asarray(arc) > 127).extents[1] > 1.1  # its flight's rise, as drawn
+    import score.stages as stages
+    table = {row.name: row for row in stages.STAGES}  # pixal and likeness key on the hold, a file of theirs
+    assert all(table[name].files("greenhouse")["railing hold"] == railing_hold.FILES["railing hold"]
+               for name in ("pixal", "likeness"))
     diagonal = {"name": "wire", "noun": "wire", "size": [6.0, 0.5, 0.5]}
     down, across = np.mgrid[0:400, 0:400]
     mask = np.abs(down - across) <= 10  # 21 pixels along a row, 14.8 square to its way

@@ -52,6 +52,7 @@ from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import held_apart, neighbours, resting_within, wired
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
+import score.stages.props.railing_hold as railing_hold
 import score.stages.people_rows as people_rows
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
@@ -1947,6 +1948,22 @@ def remade_kept(row):
 
 
 STAGES = tuple(map(seed_stamped, map(remade_kept, STAGES)))
+
+
+def railing_held(row):
+    """pixal and likeness (props/railing_hold.py ROWS) declaring railing_hold.py as a file of theirs, so their keys move
+    with how a railing is held: here, in the table, not in pixal_row or likeness_row (the crops' look reads them through
+    the prop route's table), and as a file, not a make wrapper (the table's wrappers keep a row's code version)."""
+    if row.name not in railing_hold.ROWS:
+        return row
+
+    @functools.wraps(row.files)
+    def declared(place):
+        return {**row.files(place), **railing_hold.FILES}
+    return dataclasses.replace(row, files=declared)
+
+
+STAGES = tuple(map(railing_held, STAGES))
 
 
 def pixal_takes_tool():

@@ -37,6 +37,7 @@ from PIL import Image
 import score.stages.props.prop_data as prop_data
 from score.stages.complete.prepare import groups
 from score.stages.props import thin_straight
+import score.stages.props.railing_hold  # noqa: F401,E402  (holds a railing to its row's height: railing_hold.py)
 import score.stages.props.flat_sheet as flat_sheet
 
 REPO = pathlib.Path(__file__).resolve().parents[4]
