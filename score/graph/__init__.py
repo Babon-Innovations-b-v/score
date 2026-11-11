@@ -122,6 +122,11 @@ HEARTBEAT = 120
 # GB (a node waiting on a rented machine not measured). 6 GB is far over those, for the nodes not measured yet.
 MEMORY_FLOOR = 6 * 2**30
 MEMORY_POLL = 30
+# A node the drive's pass finds with a record and a judgement at its key only confirms it is fresh: it reserves
+# CHECK_PEAK, not its stage's make peak, until it makes, judges or gathers (making_now), then its stage peak as any
+# (2026-11-11, env1's free run: 16 fresh checks of characters-layer and scene-clips, beside a settle check at its
+# 16.5 GB tree, held light-passes and likeness back with 35-39 GB available; each check's tree measured 48-75 MB Pss).
+CHECK_PEAK = 256 * 2**20
 # A ready node whose peak does not fit waits and the nodes after it that fit start (2026-10-28: one 6 GB node at the
 # head held 122 small ready nodes and five of eight slots empty for 29 min; then, once it had waited ten turns, it held
 # every node after it again: 108 ready nodes, 2 running, 2026-10-29). Each pass reads the waiting nodes in order, so the
@@ -1128,6 +1133,9 @@ class Runner:
         self.foreseen_listing = {}  # rebuy.buys only: {node: {path: sha256}} of that remake, for a part reader
         self.driving = None  # (nodes running, monotonic time) at the end of drive's last pass: score run's watchdog
         self.began = {}  # {node: epoch seconds its process started} (start): score run's pool forecast (row_due)
+        self.confirming = set()  # ready nodes the drive's pass found only confirming they are fresh (only_confirms)
+        self.making = None  # in a node's process: its flag the drive reads, set once it makes (making_now)
+        self.ran = None  # in a node's process: the key its last run_node ran at (gatherable reads it)
         self.objects = None  # the object filter (`score run --object`): the names a selecting stage keeps, or None
         self.free_only = False  # a free-only run (PAID_LEFT): nothing cleared, paid nodes left for the Buy
         self.left_out = frozenset()  # the stages this run leaves out (LEFT_OUT): `score run --leave-out`
@@ -1476,6 +1484,7 @@ class Runner:
         this key first: it is taken as made). A node of a stage made in pods (score/graph/pod.py `dispatches`) is
         made by a runner worker on the cluster and collected here; one the cluster did not make is made here."""
         from score.graph import pod  # here: pod imports this module
+        self.making_now()
         if pod.dispatches(stage):
             made = pod.make_remote(self, stage, place, keyed)
             if made is not None:
@@ -1532,6 +1541,7 @@ class Runner:
 
     def judge(self, stage, place, record):
         """Judge a stored output with the stage's gates on their current evidence and keep the judgement."""
+        self.making_now()
         output = self.store.checkout(record["output"])
         inputs = self.input_paths(stage, place, record)
         verdicts = [checks.judge(check, output, inputs, self.store.evidence_file(check.name, record["output"]))
@@ -1561,6 +1571,7 @@ class Runner:
                         continue  # an earlier output or a file moved since the drive's pass: re-keyed
                     did = self.run_held(stage, place, keyed)
                     break
+            self.ran = keyed
         except Blocked as block:
             return f"blocked: {block}"
         except Exception as error:  # noqa: BLE001 - only a job too big for this PC's card, the rest goes up as it was
@@ -2193,11 +2204,13 @@ class Runner:
         return [node_name(self.stages[before], place) for before in self.reads(stage, place)] + list(
             self.besides(stage, place))
 
-    def gatherable(self, stage, place):
+    def gatherable(self, stage, place, keyed=None):
         """The checks whose missing evidence the runner can gather, when they alone keep the node from passing (none
-        when another check blocks, or the node has no judgement on its current key)."""
+        when another check blocks, or the node has no judgement on its current key: `keyed`, the key the node just ran
+        at, else worked out in a still pass of its own; 2026-11-11: fresh checks held their job slots 1-8 min walking
+        their whole reads again outside a pass here)."""
         node = node_name(stage, place)
-        keyed = self.key(stage, place)
+        keyed = keyed or self.fresh_key(stage, place)
         record = self.store.record(node, keyed["key"])
         judgement = record and self.store.judgement(node, keyed["key"], self.evidence_state(stage, record["output"]))
         if not judgement:
@@ -2221,6 +2234,7 @@ class Runner:
     def gather_one(self, stage, place, keyed, name, output):
         """Make one check's evidence on the node's output and store it (another run's, stored first, stands)."""
         gather, euros = stage.gatherers[name]
+        self.making_now()
         folder = self.store.making(f"evidence-{name}-{output}")
         try:
             with self.cleared(node_name(stage, place), euros) if euros else contextlib.nullcontext():
@@ -2240,7 +2254,7 @@ class Runner:
             try:
                 cap_threads(threads)
                 did = self.run_retrying(stage, place, given)
-                wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place)
+                wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place, self.ran)
                 if wanted:
                     self.gather(stage, place, wanted)
                     did = f"{did}; gathered {', '.join(wanted)}: {self.run_retrying(stage, place)}"
@@ -2349,23 +2363,28 @@ class Runner:
         children's capped at `threads`, handed the drive's key `given` (re-checked under its lock, run_node) and its
         queue priority (the waiting nodes that read it, pod.downstream); {its result pipe: (stage, place, process)}."""
         receiving, sending = FORK.Pipe(duplex=False)
+        making = FORK.Value("b", node_name(stage, place) not in self.confirming, lock=False)
+        self.confirming.discard(node_name(stage, place))
         sys.stdout.flush()
         sys.stderr.flush()
         process = FORK.Process(target=self.node_process,
-                               args=(stage, place, sending, os.getpid(), threads, given, priority),
+                               args=(stage, place, sending, os.getpid(), threads, given, priority, making),
                                name=node_name(stage, place))
+        process.making = making  # read by the drive (coming): 0 while the node only confirms it is fresh
         process.start()
         self.began[node_name(stage, place)] = time.time()
         sending.close()
         return {receiving: (stage, place, process)}
 
-    def node_process(self, stage, place, sending, runner_pid, threads, given=None, priority=0):
+    def node_process(self, stage, place, sending, runner_pid, threads, given=None, priority=0, making=None):
         """In the node's own process: drive it, its thread pools capped at `threads`, send back what it did and end
         the process at once: a thread its make left running (a library's pool, a read that never returns) would
         otherwise hold the process at its exit, and the drive's join with it, after the node is done. Its runner's
         death ends it (watch_runner). A SIGUSR1 writes its stacks to its own file (stacks_on_ask). Its cluster runs
-        go to the box's queue at its `priority`, its place's turn (SCORE_QUEUE_PRIORITY, SCORE_QUEUE_PLACE)."""
+        go to the box's queue at its `priority`, its place's turn (SCORE_QUEUE_PRIORITY, SCORE_QUEUE_PLACE); `making`
+        is the flag it sets once it makes (making_now)."""
         os.environ.update(SCORE_QUEUE_PRIORITY=str(priority), SCORE_QUEUE_PLACE=place or "")
+        self.making = making
         stacks_on_ask()
         threading.Thread(target=watch_runner, args=(runner_pid,), daemon=True).start()
         high = [0, False]  # the most this node's process tree held, and whether it ran a container client
@@ -2380,6 +2399,22 @@ class Runner:
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(0)
+
+    def making_now(self):
+        """In a node's process: tell the drive the node makes, judges or gathers now, so its stage peak is reserved."""
+        if self.making is not None:
+            self.making.value = 1
+
+    def only_confirms(self, stage, place):
+        """Whether the node, by the drive's pass, only confirms it is fresh: a record and a judgement at its key on its
+        output's current evidence, no remake due (in a still pass: its key is remembered for drive_key)."""
+        keyed = self.drive_key(stage, place)
+        if keyed is None or "remake" in keyed:
+            return False
+        node = node_name(stage, place)
+        record = self.store.record(node, keyed["key"])
+        return record is not None and self.store.judgement(
+            node, keyed["key"], self.evidence_state(stage, record["output"])) is not None
 
     def outcome(self, receiving, process):
         """(What a node's process did, once it ended: an error when it ended without saying; the most bytes its
@@ -2486,8 +2521,8 @@ class Runner:
         most each was seen to hold kept in `seen` ({node: bytes}) and, for a container client's node on this PC, at
         once in `clients` and beside the store when it is past its stage's client_peak (keep_client_tree: the larger
         of that and its tree's VmHWM sum, trees_high), so a node stopped, paused or killed before it ends still leaves
-        its peak; a node whose process
-        has ended is reaped (is_alive: waitpid, WNOHANG) and holds none, though its outcome is not read yet."""
+        its peak; a node that only confirms it is fresh (its `making` flag 0: start, making_now) CHECK_PEAK; a node
+        whose process has ended is reaped (is_alive: waitpid, WNOHANG) and holds none, though its outcome is not read yet."""
         alive = [(stage, place, process) for stage, place, process in running.values() if process.is_alive()]
         held = HELD([process.pid for _, _, process in alive])
         # a stage whose nodes ran a container client (`clients`) stays one between and without its jobs: settle's
@@ -2508,7 +2543,9 @@ class Runner:
                 clients.update(self.keep_client_tree(stage.name, high))
             mine = process.pid in users and (reading is not None or process.pid not in calling)
             name = named(stage) if named else stage.name  # a pod node's waiter peak (peak_name)
-            found.append((client_reserve(name, peaks, clients, grown) if mine
+            making = getattr(process, "making", None)  # start's flag: 0 while the node only confirms it is fresh
+            confirming = making is not None and not making.value and process.pid not in calling
+            found.append((CHECK_PEAK if confirming else client_reserve(name, peaks, clients, grown) if mine
                           else peaks.get(name, memory_floor()), held[process.pid]))
         if reading is not None:  # the container, once, whichever of its users holds the claim
             found.append((self.container_growth(reading), 0))
@@ -2626,8 +2663,9 @@ class Runner:
                         # a container client's take is in the container's reserve already (container_growth: its
                         # idle slots at a take peak), so only its own tree is expected; counting its stage peak too
                         # held a third bake back beside two with a turn free and 37 GB available (2026-10-29)
-                        expected = client_reserve(named(stage), peaks, clients, grown)
-                        refused = never_fits(expected)
+                        confirming = self.only_confirms(stage, place)  # its make peak only once it makes (coming)
+                        expected = CHECK_PEAK if confirming else client_reserve(named(stage), peaks, clients, grown)
+                        refused = None if confirming else never_fits(expected)
                         if refused and named(stage) not in peaks:  # a guess, not a measure (2026-11-03: the conductor
                             # refused plan rows of 0.16 GB at the 6 GB default): it runs alone, and is measured then
                             if running or ready:
@@ -2642,6 +2680,8 @@ class Runner:
                         if not memory_room(coming, expected):
                             held = True  # this node waits; the nodes after it that fit still start
                             continue
+                        if confirming:
+                            self.confirming.add(node)
                         waiting.remove((stage, place))
                         ready.append((stage, place))
                         coming.append((expected, 0))
