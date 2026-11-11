@@ -9,16 +9,24 @@ It refuses a score commit that origin's main does not hold, or this checkout wit
 commit is its HEAD (tree_refusal: what the cockpit runs is what was pushed). It works in a worktree of its own off the
 host's origin/main (a shared checkout is never written), commits the one line with the subject, a body of the score
 commits since the old pin (short sha and subject, as the host's earlier moves did) and the trailers given, rebases on
-the host's main and pushes HEAD to it, then removes its worktree. It prints what it did. Never run by a test against
-a real host: its own test uses repositories made in the test.
+the host's main and pushes HEAD to it, then removes its worktree. Then it moves the conductor's own checkout (the one
+the agents' door runs from) to the same commit through the door's `release-pin` (door_asked): the conductor follows
+the cockpit's pin, which moves only once the host has built its image, so the door ran old code after a release
+(2026-11-11). A door that cannot be reached fails nothing already pushed: the line says so, and the checkout follows
+the pin once the host has built. It prints what it did. Never run by a test against a real host or door: its own test
+uses repositories made in the test and a door of its own.
 """
 import pathlib
 import re
+import subprocess
+import sys
 import tempfile
 
 from score.dashboard.sync.client import git, tree_refusal
 
 PIN = re.compile(r"^(ARG SCORE_COMMIT=)([0-9a-f]{40})[ \t]*$", re.M)
+DOOR = pathlib.Path("tools") / "cloud" / "conductor" / "door_service.py"  # in the score checkout: `ask`
+DOOR_SECONDS = 1200  # the conductor's update: a checkout, perhaps a uv sync and the units
 SUBJECT_WIDTH = 80  # a score commit's subject in the body, cut as the host's earlier moves were
 
 
@@ -91,8 +99,30 @@ def inside(dockerfile):
     return str(path)
 
 
-def release(repo, host, dockerfile, subject, commit=None, trailers=()):
-    """Pin the host's Dockerfile to a pushed score commit and push it to the host's main; what it did, in words."""
+def door_asked(repo, command):
+    """(exit code, its words) of one command through the agents' door (door_service.py ask, from the score checkout
+    `repo`); a door that cannot be reached is a non-zero code with why."""
+    try:
+        done = subprocess.run([sys.executable, str(pathlib.Path(repo) / DOOR), "ask", command], capture_output=True,
+                              text=True, timeout=DOOR_SECONDS)
+    except (OSError, subprocess.TimeoutExpired) as unreached:
+        return 1, f"the door could not be asked ({unreached})"
+    words = done.stdout.strip() or (done.stderr.strip().splitlines() or ["no output"])[-1]
+    return done.returncode, words
+
+
+def conductor_moved(repo, new, old, door):
+    """The conductor's checkout moved to `new` through the door's release-pin (`door(repo, command)`, door_asked);
+    what the release's line adds."""
+    code, said = door(repo, f"release-pin {new} {old}")
+    if code != 0:
+        return f"; the conductor's checkout NOT moved (door exit {code}: {said}): it follows once the host has built"
+    return f"; the conductor: {said}"
+
+
+def release(repo, host, dockerfile, subject, commit=None, trailers=(), door=None):
+    """Pin the host's Dockerfile to a pushed score commit and push it to the host's main, then (with `door`,
+    door_asked) move the conductor's checkout to it; what it did, in words."""
     dockerfile = inside(dockerfile)
     new = score_commit(repo, commit)
     ran(host, "fetch", "-q", "origin", "main")
@@ -108,5 +138,6 @@ def release(repo, host, dockerfile, subject, commit=None, trailers=()):
                                           message(repo, old, new, subject, trailers))
         finally:
             git(host, "worktree", "remove", "--force", str(work))
+    moved = conductor_moved(repo, new, old, door) if door else ""
     return (f"release: {dockerfile} moved from score {old[:8]} to {new[:8]}; {pushed} pushed to the host's main; "
-            f"the host builds the cockpit from it on its own")
+            f"the host builds the cockpit from it on its own{moved}")

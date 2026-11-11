@@ -1506,6 +1506,25 @@ def world(tmp_path):
 
 
 def test_the_checkout_follows_the_pin_and_syncs_only_when_the_lock_moved(world):
+    """A release's commit, noted through the door's release-pin, is followed while the cockpit still pins the commit
+    it replaced, so the door runs released code before the host has built; a pin that moved on is followed again.
+    Break: in update.released_over, `return pin, "the cockpit's pin"` first (the door runs old code after a release).
+    Break: in agent_door.release_pinned, drop the `run(...)` of update.py (the move waits for the next tick)."""
+    import agent_door
+    with pytest.raises(agent_door.Refused, match="two full shas"):
+        agent_door.decide(["release-pin", world.commits[1][:12], world.commits[0]], False)
+    argv, _ = agent_door.decide(["release-pin", world.commits[1], world.commits[0]], False)
+    assert argv[1:] == [agent_door.RELEASE_PIN, world.commits[1], world.commits[0]], argv
+    ran = []
+
+    def update_now(command, **_):
+        ran.append(command)
+        with cockpit({"ok": True, "commit": world.commits[0]}) as url:  # the host not built yet: the old pin
+            return types.SimpleNamespace(returncode=0, stdout=world.move(url) + "\n", stderr="")
+    code, said = agent_door.release_pinned(world.commits[1], world.commits[0], world.home, run=update_now, values={})
+    assert code == 0 and ran and ran[0][-3:] == [str(agent_door.REPO / "tools/cloud/conductor/update.py"), "--repo",
+                                                 str(agent_door.REPO)], ran
+    assert world.at() == world.commits[1] and "the release's commit" in said, said
     with cockpit({"ok": True, "commit": world.commits[1]}) as url:
         line = world.move(url)
     assert world.at() == world.commits[1] and not world.log.exists(), line  # a.txt only: no sync

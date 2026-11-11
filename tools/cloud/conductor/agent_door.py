@@ -110,6 +110,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 high within that batch total, every try's spend in it (owner,
                                                 2026-10-26: "the stop should be a total of the batch, not per try")
                                                 (score/dashboard/checkout/chat_yes.py); prints its id
+    release-pin <commit> <replaced pin>         the release's commit noted for update.py (followed while the
+                                                cockpit still pins the replaced one), then the update run once:
+                                                `score.dashboard release` asks it, so the door runs the released code
     buy <yes id> [--phase <phase>]              python -m score.dashboard buy: his Buy under that yes, once, as his
                                                 click (the same checkout, stop line and refusals); again, a retry
                                                 of its batch inside the batch's budget, no new ask (owner,
@@ -204,7 +207,7 @@ from score.store import AGENT_MARKERS  # noqa: E402
 ENV_FILE = pathlib.Path(os.environ.get("SCORE_DOOR_ENV", "/home/score/.config/score/dashboard.env"))
 VERBS = ("status, plan, price, preflight <environment> [--phase P], resume --dry, run <environment> ... --detach, logs, health, disk, sweep, store-gc [--dry], store-evict [--dry], clean-frozen, clean-cache, clean-scratch, relink-pixal, score-lib status|pull, offload-pixal, checkouts, gaps <node>, job-log <path>, design-file <path>, route-log <path>, carry --no-op <file>=<why> ..., "
          "run-log [--lines N], pool-log [--lines N], ps, node-log <node>, stack <pid>, running, outbox, cluster-check, lock-phase <environment> <phase> [--place P], fault <node>, predicted, store-pull, store-push [--missing | --differs | --replace], "
-         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, decide-yes, decide <yes id>, "
+         "grant-benchmark, benchmark, batch-money, buy-yes --batch-total, buy <yes id> [--phase <phase>], buy-log, release-pin <commit> <replaced pin>, decide-yes, decide <yes id>, "
          "stop-batch <reason>, move-out <the owner's go>")
 # The cockpit's newest checkouts, launches and requests with their answers, read only (2026-10-24: a Buy the conductor
 # applied launched nothing and nothing outside said why).
@@ -276,6 +279,9 @@ ROUTE_LOG = "--route-log"  # this file's own read of a people route's log (the r
 CARRY = "--carry"  # this file's own carry, refused while a run is live (the carry verb runs it)
 BUY = "--buy"  # this file's own start of a Buy in a session of its own (the buy verb runs it)
 BUY_LOG = "--buy-log"  # this file's own read of the newest Buy's log (the buy-log verb runs it)
+RELEASE_PIN = "--release-pin"  # this file's own note of a release's commit, then the update (the release-pin verb)
+SHA = re.compile(r"^[0-9a-f]{40}$")
+UPDATE_SECONDS = 900  # the update's own move: a checkout, a uv sync, the units
 MOVE_OUT = "--move-out"  # this file's own move of the VM conductor's home into the cluster (the move-out verb runs it)
 MOVE_UNIT_SECONDS = 180  # the VM's units' stop, at most
 BUY_LOGS = "logs/buys"  # under PROPS_HOME: one log a Buy the door started
@@ -478,6 +484,10 @@ def decide(words, latch):
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
         return [str(pathlib.Path(__file__).resolve()), BUY, *args], {"SCORE_FREE_ONLY": None}
+    if verb == "release-pin":
+        if len(args) != 2 or not all(SHA.match(arg) for arg in args):
+            raise Refused("release-pin <released commit> <the pin it replaced>: two full shas, as the release gives")
+        return [str(pathlib.Path(__file__).resolve()), RELEASE_PIN, *args], {}
     if verb == "buy-log":
         if args:
             raise Refused("buy-log takes no arguments: the newest Buy's log")
@@ -1214,6 +1224,23 @@ def store_move(flag, home):
     return f"store-push: added {added} files ({size / 1e9:.2f} GB), kept {kept} already there"
 
 
+def release_pinned(commit, replaced, home, run=subprocess.run, values=None):
+    """A release's commit and the pin it replaced noted in home/conductor/released.json (update.py RELEASED), then
+    update.py run once as score-update runs it, so the checkout follows the release before the cockpit's image is
+    built; (exit code, the update's line)."""
+    path = home / "conductor" / "released.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    partial = path.with_name(f"released.json.{os.getpid()}.partial")
+    at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    partial.write_text(json.dumps({"commit": commit, "replaced": replaced, "at": at}))
+    os.replace(partial, path)
+    environment = {**os.environ, **(env_file_values(ENV_FILE) if values is None else values)}
+    done = run(["/usr/bin/python3", "-I", str(REPO / "tools" / "cloud" / "conductor" / "update.py"), "--repo",
+                str(REPO)], capture_output=True, text=True, env=environment, timeout=UPDATE_SECONDS)
+    said = done.stdout.strip() or (done.stderr.strip().splitlines() or ["no output"])[-1]
+    return done.returncode, f"release-pin: {commit[:12]} noted (replacing {replaced[:12]}); {said}"
+
+
 def move_out_refusal(view):
     """Why the VM's home may not move now (size.busy's view), or None: a live or waiting run, a parked paid machine
     or work a hold names would be cut by the stop (a sync pass's hold is not: the stop ends the pass)."""
@@ -1278,6 +1305,11 @@ def main():
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)
             return REFUSED_EXIT
         return 0
+    if sys.argv[1:2] == [RELEASE_PIN]:
+        from score.store import PROPS_HOME
+        code, said = release_pinned(sys.argv[2], sys.argv[3], PROPS_HOME)
+        print(said)
+        return code
     if sys.argv[1:2] == [CARRY]:
         from score.store import PROPS_HOME
         try:
