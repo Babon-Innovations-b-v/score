@@ -453,8 +453,10 @@ def content_kept(row):
     the place; and its floor and heights): a plan redrawn without surplus items or with a note added (the square and
     the stairwell, 2026-11-07) remade every model of the place, EUR 37.90 a place. The drive keeps the accepted output
     (carry.content_carried) and rebuy counts it kept, from the plan's foreseen remake (carry.foreseen_same). Set here,
-    in the table, so no row's code version moves."""
-    if row.name not in ("rough-model", "rough-align"):
+    in the table, so no row's code version moves. Each people row reading people-made beside (a look's parts, body and
+    dress) likewise, on what it reads of it (people/same_content.py): a remake that moved only each look's model path
+    re-keyed the 9 accepted look-parts, about EUR 15 (2026-11-10)."""
+    if row.name not in ("rough-model", "rough-align") and people.bodies.MADE not in row.beside:
         return row
     if callable(row.files):
         declared = functools.wraps(row.files)(lambda place: row.files(place))
@@ -858,7 +860,7 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
           SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(code_marked, map(
               close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))),
-          *(library_narrowed(far_judged(row)) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
+          *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
           surface_tiles.STAGE,

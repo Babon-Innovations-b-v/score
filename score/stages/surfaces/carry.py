@@ -19,11 +19,13 @@ A key follows content, never a path's text: an earlier output a key moved by car
 content rule for that input (CONTENT_RULES: a framework module beside the row, its RULES {input stage: rule}) and the
 old and new outputs hand it the same content under it (`same_content`: closeup's props-inputs rows.json with each
 picture path resolved and replaced by the picture's sha256, #75; rough-model's plan, of which it reads the place
-alone). By hand: `carry --no-op FILE=WHY ... --only PREFIX [--write]` (a FILE the node's key does not read is
+alone; a look's parts, body and dress, the people-made they read beside with each look's model as its place in
+its bake output, people/same_content.py). By hand: `carry --no-op FILE=WHY ... --only PREFIX [--write]` (a FILE the node's key does not read is
 never asked for); the record names the content proof ("same content").
 """
 import argparse
 import dataclasses
+import fnmatch
 import importlib
 import json
 import os
@@ -40,10 +42,18 @@ CONTENT_REASON = ("same content: every earlier output its key moved by holds wha
                   "rule, and every other change since it was made is proved a no-op for it")
 # {reading row: the framework module whose RULES are its content rules, {input stage: rule(store, record) -> the
 # content that output hands this row}}: an earlier output that moved by path text alone keeps the row (#75).
+# A key is an fnmatch pattern of row names (each people row reading people-made beside, #26).
 CONTENT_RULES = {"closeup": "score.stages.props.same_content", "rough-model": "score.stages.rough_model.same_content",
-                 "rough-align": "score.stages.rough_model.same_content:ALIGN_RULES"}
-# The key parts a content carry needs the same as its accepted record's: all but the earlier outputs (`after`).
-CONTENT_SAME = ("code", "contract", "expects", "params", "seed", "files", "models", "beside")
+                 "rough-align": "score.stages.rough_model.same_content:ALIGN_RULES",
+                 "people-look-parts-*": "score.stages.people.same_content", "people-body-*":
+                     "score.stages.people.same_content", "people-dress-*": "score.stages.people.same_content"}
+# The key parts a content carry needs the same as its accepted record's: all but the earlier outputs (`after`, and
+# `beside`: what it reads of other places' nodes).
+CONTENT_SAME = ("code", "contract", "expects", "params", "seed", "files", "models")
+# The key parts that name earlier outputs, {part: (the reading row, its key there) -> (its stage, its node)}: an
+# after read is keyed by stage, in the row's place; a beside read by its node.
+EARLIER = {"after": lambda runner, place, name: (name, graph.node_name(runner.stages[name], place)),
+           "beside": lambda runner, place, name: (name.partition("@")[0], name)}
 AUTO_REASON = "same content: every earlier output its key moved by holds what it reads, by its content rule"
 NARROWED = ("library",)
 SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
@@ -130,39 +140,55 @@ def proof_fault(runner, row, record):
 
 def content_rules(stage_name):
     """{input stage: its content rule} the reading row gives (CONTENT_RULES); {} for a row that gives none."""
-    module, _, name = CONTENT_RULES.get(stage_name, "").partition(":")
+    found = next((rule for pattern, rule in CONTENT_RULES.items() if fnmatch.fnmatchcase(stage_name, pattern)), "")
+    module, _, name = found.partition(":")
     return getattr(importlib.import_module(module), name or "RULES") if module else {}
 
 
+def moved_earlier(record, keyed):
+    """True when an earlier output the key reads (its after or beside part) is not the record's."""
+    return any(record.get(part, {}) != keyed.get(part, {}) for part in EARLIER)
+
+
 def same_content(runner, stage, place, record, keyed):
-    """({input stage: {"from": its output then, "to": its output now, "rule": the rule}} for every earlier output the
-    key's after part moved by, None) when each holds the same content under the reading row's content rule; (None,
-    why) when one does not, or has no rule, or a picture it names resolves to no file."""
+    """({input: {"from": its output then, "to": its output now, "rule": the rule}} for every earlier output the key's
+    after or beside part moved by (an after input named by its stage, a beside one by its node), None) when each holds
+    the same content under the reading row's content rule; (None, why) when one does not, or has no rule, or a
+    picture it names resolves to no file."""
     rules = content_rules(stage.name)
-    then, now = record.get("after", {}), keyed.get("after", {})
     proof = {}
-    for before in sorted(set(then) | set(now)):
-        if then.get(before) == now.get(before):
-            continue
-        rule = rules.get(before)
-        if rule is None or before not in then or before not in now:
-            return None, f"{before}'s output moved, and {stage.name} gives no content rule for it"
-        node = graph.node_name(runner.stages[before], place)
-        contents = []
-        for output in (then[before], now[before]):
-            made = review.record_of(runner.store, node, output)
-            if made is None:
-                return None, f"{before}'s output {output[:12]} has no record"
-            try:
-                contents.append(rule(runner.store, made))
-            except ValueError as unresolved:
-                return None, f"{before}'s output {output[:12]}: {unresolved}"
-        if contents[0] != contents[1]:
-            differ = sorted(part for part in set(contents[0]) | set(contents[1])
-                            if contents[0].get(part) != contents[1].get(part))
-            return None, f"{before}'s output holds other content ({', '.join(differ)})"
-        proof[before] = {"from": then[before], "to": now[before], "rule": f"{rule.__module__}.{rule.__name__}"}
+    for part, named in EARLIER.items():
+        then, now = record.get(part, {}), keyed.get(part, {})
+        for name in sorted(set(then) | set(now)):
+            if then.get(name) == now.get(name):
+                continue
+            before, node = named(runner, place, name)
+            rule = rules.get(before)
+            if rule is None or name not in then or name not in now:
+                return None, f"{name}'s output moved, and {stage.name} gives no content rule for it"
+            why = same_output_content(runner, node, rule, then[name], now[name])
+            if why:
+                return None, f"{name}'s output {why}"
+            proof[name] = {"from": then[name], "to": now[name], "rule": f"{rule.__module__}.{rule.__name__}"}
     return proof, None
+
+
+def same_output_content(runner, node, rule, then, now):
+    """Why the node's two outputs hand the reader other content under its rule, or None when the same."""
+    contents = []
+    for output in (then, now):
+        made = review.record_of(runner.store, node, output)
+        if made is None:
+            return f"{output[:12]} has no record"
+        try:
+            contents.append(rule(runner.store, made))
+        except ValueError as unresolved:
+            return f"{output[:12]}: {unresolved}"
+    if contents[0] != contents[1]:
+        differ = sorted(part for part in set(contents[0]) | set(contents[1])
+                        if contents[0].get(part) != contents[1].get(part))
+        return f"holds other content ({', '.join(differ)})"
+    return None
 
 
 class Foreseen:
@@ -183,7 +209,7 @@ def foreseen_same(runner, row, place, moving):
         return False
     for node in moving:
         before = node.partition("@")[0]
-        then = record.get("after", {}).get(before)
+        then = record.get("beside", {}).get(node) or record.get("after", {}).get(before)  # a beside read by node
         made = review.record_of(runner.store, node, then) if then else None
         if before not in rules or node not in runner.foreseen or made is None:
             return False
@@ -193,6 +219,11 @@ def foreseen_same(runner, row, place, moving):
         except ValueError:
             return False
     return True
+
+
+def earlier_parts(keyed):
+    """The key's parts that name earlier outputs (EARLIER), those it has."""
+    return {part: keyed[part] for part in EARLIER if part in keyed}
 
 
 def graph_record(runner, row, place):
@@ -207,7 +238,7 @@ def content_carries(runner, row, place, keyed):
     outputs is its record's (CONTENT_SAME), and each earlier output that moved holds what the row reads of it, by its
     content rule (same_content)."""
     record = graph_record(runner, row, place)
-    if record is None or record.get("after") == keyed.get("after"):
+    if record is None or not moved_earlier(record, keyed):
         return False
     if any(record.get(part) != keyed.get(part) for part in CONTENT_SAME):
         return False
@@ -221,7 +252,7 @@ def content_carried(runner, row, place, keyed):
         return None
     record = graph_record(runner, row, place)
     node = graph.node_name(row, place)
-    new = {**record, "key": keyed["key"], "after": keyed["after"],
+    new = {**record, "key": keyed["key"], **earlier_parts(keyed),
            "carried": {"reason": AUTO_REASON, "from key": record["key"], "to key": keyed["key"],
                        "made by": graph.made_by(record),
                        "same content": same_content(runner, row, place, record, keyed)[0]}}
@@ -242,8 +273,8 @@ def why_not(runner, row, place, record, keyed):
         if fault:
             return fault
     moved = [part for part in SAME if record.get(part) != keyed.get(part)]
-    if "after" in moved and same_content(runner, row, place, record, keyed)[0] is not None:
-        moved.remove("after")
+    if set(EARLIER) & set(moved) and same_content(runner, row, place, record, keyed)[0] is not None:
+        moved = [part for part in moved if part not in EARLIER]
     moved += [f"file {name}" for name in sorted(set(record["files"]) | set(keyed["files"]))
               if name not in NARROWED and record["files"].get(name) != keyed["files"].get(name)]
     if moved:
@@ -276,8 +307,8 @@ def carried(runner, row, place, keyed):
         return None
     node = graph.node_name(row, place)
     proved = record["code"] != wide_code(row)
-    content = same_content(runner, row, place, record, keyed)[0] if record.get("after") != keyed["after"] else None
-    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"], "after": keyed["after"],
+    content = same_content(runner, row, place, record, keyed)[0] if moved_earlier(record, keyed) else None
+    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"], **earlier_parts(keyed),
            "carried": {"reason": REASON + (", its code change proved a no-op" if proved else "")
                        + (", its moved inputs the same content" if content else ""),
                        "from key": record["key"], "to key": keyed["key"],
@@ -303,12 +334,12 @@ def changes_by_content(runner, stage, place, keyed):
     node = graph.node_name(stage, place)
     record = review.record_of(runner.store, node, runner.store.accepted(node))
     if record is None or record.get("uncommitted", True) or not record.get("commit") or \
-            record.get("after") == keyed.get("after"):
+            not moved_earlier(record, keyed):
         return None, None, "other key parts moved"
     content, why = same_content(runner, stage, place, record, keyed)
     if why:
         return None, None, why
-    as_then = {**keyed, "after": record["after"]}
+    as_then = {**keyed, **earlier_parts(record)}
     found = runner.changes_since(stage, place, as_then)
     if found is not None:
         return found, content, None
@@ -322,7 +353,7 @@ def kept_by_content(runner, stage, place, keyed, record, check, proof):
     and every other change is proved a no-op (`proof`, stored as evidence `check` on the output): its record and
     judgements copied, the record naming both keys, what made it, the content proof and the no-ops. Its new record."""
     node = graph.node_name(stage, place)
-    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"], "after": keyed["after"],
+    new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"], **earlier_parts(keyed),
            "carried": {"reason": CONTENT_REASON, "from key": record["key"], "to key": keyed["key"],
                        "made by": graph.made_by(record),
                        "proof": runner.store.evidence_key(check, record["output"]),
