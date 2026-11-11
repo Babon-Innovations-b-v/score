@@ -493,6 +493,54 @@ def wall_holes(mesh, on, band):
     return found
 
 
+# The rays walls_ahead casts start this far in front of the face and stand this far inside the height band, metres:
+# off the face's own triangles and off a deck's top or a roof's underside lying in the band's plane.
+AHEAD_OFF = 0.01
+
+
+def walls_ahead(mesh, on, band, deep):
+    """The boxes (corners [8, 3]) of the runs of a wall relation's face (`on`, laid on its built face) where a built
+    wall (`mesh`, built_walls) stands in front of it within `deep`, within a height `band` (low, high): each run where
+    rays every RAY_STEP along it at the band's low, middle and high, cast from the face straight out, meet a built
+    surface within `deep`, or lie past where a built surface crosses the face itself (a ray along it from its middle
+    meets one), a RAY_STEP past its outermost met rays either way, `deep` out from the face; none with no mesh. A
+    wall thing keeps out of them as it keeps out of a hole cut through its wall (wall_holes): settle@street's drying
+    rack 3 was laid on its slanted wall_7 in the sharp corner where wall_8 folds back in front of it, 0.05 m inside
+    wall_8 (2026-11-11)."""
+    if mesh is None or not len(mesh.faces):
+        return []
+    start, run, out, length = wall_line(on)
+    alongs = np.arange(RAY_STEP / 2, length, RAY_STEP)
+    if not len(alongs):
+        return []
+    heights = np.linspace(band[0] + AHEAD_OFF, band[1] - AHEAD_OFF, 3)
+    floor = start[None, :] + run[None, :] * alongs[:, None] + out[None, :] * AHEAD_OFF
+    origins = np.array([[x, height, z] for x, z in floor for height in heights])
+    way = np.array([out[0], 0.0, out[1]])
+    hits, met, _ = mesh.ray.intersects_location(origins, np.tile(way, (len(origins), 1)), multiple_hits=False)
+    near = np.zeros(len(origins), bool)
+    near[met[np.linalg.norm(hits - origins[met], axis=1) <= deep]] = True
+    taken = near.reshape(len(alongs), len(heights)).any(axis=1)
+    middle = start + run * length / 2 + out * AHEAD_OFF  # and past where a wall crosses the face itself, outside
+    for sign in (1.0, -1.0):
+        line = np.array([[middle[0], height, middle[1]] for height in heights])
+        hits, met, _ = mesh.ray.intersects_location(line, np.tile([run[0] * sign, 0.0, run[1] * sign], (3, 1)),
+                                                    multiple_hits=False)
+        if len(met):
+            past = length / 2 + sign * float(np.linalg.norm(hits - line[met], axis=1).min())
+            taken |= alongs >= past if sign > 0 else alongs <= past
+    found, begin = [], None
+    for number, blocked in enumerate([*taken, False]):
+        if blocked and begin is None:
+            begin = number
+        elif not blocked and begin is not None:
+            ends = (alongs[begin] - RAY_STEP, alongs[number - 1] + RAY_STEP)
+            corners = [start + run * along + out * off for along in ends for off in (0.0, deep)]
+            found.append(np.array([[corner[0], height, corner[1]] for corner in corners for height in band]))
+            begin = None
+    return found
+
+
 def wall_line(on):
     """(start, run, out, length) of a wall relation's face: its span's start [x, z], the unit way along it, the way
     `out` into the room, and its length in metres."""
@@ -708,6 +756,176 @@ def in_opening(low, high, on, walls=(), left=None, opens=None, points=None):
         scale *= (end - start) / wide
         wide = end - start
     return scale, opening_spot(on, walls, wide, left, opens, points)
+
+
+def hole_wall(on, pieces, mesh):
+    """(the relation of an opening along neither axis laid along the straight built wall it was cut in, the degrees
+    about +y that turn its `along` that way): of the wall pieces (`pieces`, boxes running along x or z: straight) whose
+    run holds the opening's middle and height, within two WALL_REACH of it across, the nearest, where a ray across it
+    at the opening's middle height meets no surface (`mesh`, built_walls) inside the wall (a hole is cut through it
+    there); its middle on the wall's line, its `along` that run's way; (on, 0) where none is, or where a built wall
+    stands at the opening's own ends (own_jambs: it is cut in its own slanted wall). settle@street's
+    restaurant door 2: its plan's opening on a slanted plan wall, cut by the kit's shell through the straight wall_2
+    0.67 m beside it, was laid slanted across that hole, 0.15 m inside wall_2 (2026-11-11)."""
+    if not slanted(on) or mesh is None:
+        return on, 0.0
+    middle, run = np.asarray(on["middle"], float), np.asarray(on["along"], float)
+    height = middle[1] + float(on["tall"]) / 2
+    if own_jambs(on, mesh, height):
+        return on, 0.0
+    found = []
+    for low, high in pieces:
+        axis = 0 if high[0] - low[0] >= high[2] - low[2] else 2  # the way the wall runs
+        cross = 2 - axis
+        centre = (low[cross] + high[cross]) / 2
+        if not (low[axis] <= middle[axis] <= high[axis] and low[1] <= height <= high[1]) \
+                or abs(middle[cross] - centre) > 2 * WALL_REACH:
+            continue
+        spot, way = middle.copy(), np.zeros(3)
+        spot[cross], way[cross] = centre, 1.0
+        origin = spot + np.array([0.0, height - spot[1], 0.0]) - way * (high[cross] - low[cross] + WALL_REACH)
+        hits, _, _ = mesh.ray.intersects_location(origin[None], way[None])
+        inside = [hit for hit in np.asarray(hits, float).reshape(-1, 3)
+                  if low[cross] - 1e-6 <= hit[cross] <= high[cross] + 1e-6]
+        if not inside:
+            found.append((abs(middle[cross] - centre), spot, axis))
+    if not found:
+        return on, 0.0
+    _, spot, axis = min(found, key=lambda one: one[0])
+    along = np.zeros(2)
+    along[axis // 2] = 1.0 if run[axis // 2] >= 0.0 else -1.0
+    unit = run / max(float(np.linalg.norm(run)), 1e-9)
+    degrees = math.degrees(math.atan2(unit[1] * along[0] - unit[0] * along[1], float(unit @ along)))
+    return {**on, "middle": [float(value) for value in spot], "along": [float(value) for value in along]}, degrees
+
+
+def own_jambs(on, mesh, height):
+    """Whether a built wall (`mesh`) stands on an opening's own line just past either of its ends (2 RAY_STEP), at
+    `height`, within WALL_REACH across it: the opening is cut in its own wall (shutter 1 in street's slanted wall_9,
+    never moved to wall_8 standing 0.54 m off its middle)."""
+    run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
+    way = np.array([-run[1], 0.0, run[0]])
+    middle = np.asarray(on["middle"], float)
+    ends = [middle + np.array([run[0], 0.0, run[1]]) * sign * (float(on["wide"]) / 2 + 2 * RAY_STEP)
+            for sign in (1.0, -1.0)]
+    origins = np.array([[end[0], height, end[2]] for end in ends]) - way * WALL_REACH
+    hits, rays, _ = mesh.ray.intersects_location(origins, np.tile(way, (2, 1)), multiple_hits=False)
+    met = np.linalg.norm(np.asarray(hits, float).reshape(-1, 3) - origins[np.asarray(rays, int)], axis=1)
+    return bool((met <= 2 * WALL_REACH).any())
+
+
+# An opening thing's clear run is measured on this many lines across its depth, and its floor under this many points
+# a side of its foot (opening_clear).
+CLEAR_LINES = 7
+
+
+def opening_clear(points, on, mesh):
+    """(its foot's height, from, to metres along its relation's `along` from its middle) an opening thing (its world
+    mesh `points`) has clear of `mesh` (the built walls and the opening things laid before it): the highest surface
+    under its foot, and along lines across its depth (CLEAR_LINES) at its foot stood on that, middle and head, the
+    nearest surface either way from its middle. settle@street's roller shutters, 0.35 m deep in a 0.1 m wall:
+    shutter 1 reached 0.05 m into wall_8 where the street's facade folds back past its opening's end, shutter 2, cut
+    into that fold's back wall, into wall_9 before it and 0.1 m into the pavement its sill was cut under
+    (2026-11-11)."""
+    run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
+    normal = np.array([-run[1], run[0]])
+    flat = points[:, [0, 2]]
+    alongs, acrosses = flat @ run, flat @ normal
+    middle = float(alongs.min() + alongs.max()) / 2
+    low, high = float(points[:, 1].min()), float(points[:, 1].max())
+    inset = min(AHEAD_OFF, (float(np.ptp(acrosses)) / 4))
+    lines = np.linspace(acrosses.min() + inset, acrosses.max() - inset, CLEAR_LINES)
+    feet = [run * along + normal * across for along in np.linspace(alongs.min(), alongs.max(), CLEAR_LINES)
+            for across in lines]
+    downs = np.array([[x, (low + high) / 2, z] for x, z in feet])
+    hits, rays, _ = mesh.ray.intersects_location(downs, np.tile((0.0, -1.0, 0.0), (len(downs), 1)),
+                                                 multiple_hits=False)
+    floor = max([float(hit[1]) for hit in np.asarray(hits, float).reshape(-1, 3)], default=low)
+    heights = np.linspace(max(low, floor) + AHEAD_OFF, high - AHEAD_OFF, 3)  # at the foot as it is stood up
+    origins = np.array([[*(run * middle + normal * across)[[0]], height, *(run * middle + normal * across)[[1]]]
+                        for across in lines for height in heights])
+    reach = []
+    for sign in (1.0, -1.0):
+        way = np.array([run[0], 0.0, run[1]]) * sign
+        hits, rays, _ = mesh.ray.intersects_location(origins, np.tile(way, (len(origins), 1)), multiple_hits=False)
+        met = np.linalg.norm(np.asarray(hits, float).reshape(-1, 3) - origins[np.asarray(rays, int)], axis=1)
+        reach.append(float(met.min()) if len(met) else np.inf)
+    return floor, -reach[1], reach[0]
+
+
+def held_clear(stage, path, on, mesh):
+    """An opening thing laid in its opening (`on`) held on the stage to what it has clear of `mesh` (opening_clear):
+    its foot stood up onto the floor under it, its head kept, and its width held to its clear run, across its width
+    alone in an opening along x or z, whole in a slanted one (in_opening's way), moved to that run's middle; the words
+    said ("" where it stands clear)."""
+    own = surface_mesh(stage, path)
+    if own is None or mesh is None:
+        return ""
+    points = np.asarray(own.vertices, float)
+    floor, start, end = opening_clear(points, on, mesh)
+    run = np.asarray(on["along"], float) / max(float(np.linalg.norm(on["along"])), 1e-9)
+    half = float(np.ptp(points[:, [0, 2]] @ run)) / 2
+    bottom, top = float(points[:, 1].min()), float(points[:, 1].max())
+    lift = floor - bottom if MOVE_LEAST < floor - bottom < top - bottom else 0.0
+    narrow = start > -half + MOVE_LEAST or end < half - MOVE_LEAST
+    if (not lift and not narrow) or end - start <= MOVE_LEAST:  # one with no clear run left as laid, for the gate
+        return ""
+    start, end = (max(start, -half), min(end, half)) if narrow else (-half, half)
+    share = (end - start) / (2 * half)
+    scale = np.full(3, share) if slanted(on) else np.ones(3)
+    if not slanted(on):
+        scale[0 if abs(run[0]) >= abs(run[1]) else 2] = share
+    scale[1] = min(scale[1], (top - bottom - lift) / (top - bottom))
+    foot = foot_middle(*world_box(stage, path))
+    target = foot + np.array([run[0], 0.0, run[1]]) * (start + end) / 2 + np.array([0.0, lift, 0.0])
+    moved_by(stage.GetPrimAtPath(path), foot, scale, target)
+    return "; " + ", ".join(([f"stood up {lift:.2f} m onto the floor under it"] if lift else [])
+                            + ([f"held to its clear {end - start:.2f} m"] if narrow else []))
+
+
+def touching(stage, path, surface):
+    """A thing laid on its holder's side moved the least that puts its nearest point on the holder's surface
+    (`surface`, its world triangles), where that is more than MOVE_LEAST and FACE_REACH at most; the words said (""
+    where it touches, or is too far to be moved so). settle@street's red paper lantern 11, on the 1 cm end of its
+    sagging lantern string, stood 0.045 m under the string's end, touching nothing (2026-11-11)."""
+    import trimesh
+    own = surface_mesh(stage, path)
+    if own is None:
+        return ""
+    met, gaps, _ = trimesh.proximity.closest_point(surface, np.asarray(own.vertices, float))
+    nearest = int(np.argmin(gaps))
+    if not MOVE_LEAST < float(gaps[nearest]) <= FACE_REACH:
+        return ""
+    foot = foot_middle(*world_box(stage, path))
+    moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + met[nearest] - np.asarray(own.vertices, float)[nearest])
+    return f"; moved {float(gaps[nearest]):.2f} m onto its holder's surface"
+
+
+def off_faces(stage, path, faces):
+    """A thing laid within a holder on a wall (`faces`, the wall relations its holders are laid on: fitted's
+    faced_on) moved out along each face's `out` until no point of it beside the face stands behind it; the words said
+    ("" where none does). A holder turned along a slanted wall holds the things within it in its world box, which
+    reaches behind the wall: settle@street's hanging clothes 3 and 4, within drying rack 2 on wall_7, stood 0.05 m in
+    it (2026-11-11)."""
+    own = surface_mesh(stage, path)
+    if own is None or not faces:
+        return ""
+    points = np.asarray(own.vertices, float)[:, [0, 2]]
+    shift = np.zeros(2)
+    for on in faces:
+        start, run, out, length = wall_line(on)
+        along = (points - start) @ run
+        beside = points[(along >= 0.0) & (along <= length)]  # behind the face itself, never past its ends
+        if not len(beside):
+            continue
+        behind = float(((beside + shift - start) @ out).min())
+        if behind < -MOVE_LEAST:
+            shift = shift - out * behind
+    if not shift.any():
+        return ""
+    foot = foot_middle(*world_box(stage, path))
+    moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + np.array([shift[0], 0.0, shift[1]]))
+    return f"; moved {float(np.linalg.norm(shift)):.2f} m out of the wall its holder is laid on"
 
 
 # What fit says of a thing laid on its holder's boards when no clear spot is left on them (on_boards' None).
@@ -1085,6 +1303,7 @@ def held_faults(record, laid):
                     if len(wall.get("corners") or ()) == 8}
     faced = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("face") is not None}
     walled = {fit["name"]: fit for fit in laid.get("fitted", []) if fit.get("span") is not None}
+    holed = {fit["name"]: fit["opening"] for fit in laid.get("fitted", []) if fit.get("opening") is not None}
     stacked = {fit["name"]: fit["holder"] for fit in laid.get("fitted", []) if fit["how"] == "stacked"}
     named_walls = [(wall["name"], (np.asarray(wall["low"], float), np.asarray(wall["high"], float)))
                    for wall in laid.get("walls", [])]
@@ -1103,6 +1322,8 @@ def held_faults(record, laid):
                 on = dict(on, **{"face at": fitted_on["face"]}, **({"room": 0.0} if fitted_on.get("hung") else {}))
             if on["how"] == "wall" and entry["name"] in walled:  # on the face it was laid on, by its own box
                 on = dict(on, **{key: walled[entry["name"]][key] for key in ("span", "out", "corners")})
+            if on["how"] == "in" and entry["name"] in holed:  # in the straight wall its hole was cut in (hole_wall)
+                on = dict(on, **holed[entry["name"]])
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])
             held = walls if on["how"] in ("in", "ramp") else [boxes[name] for name in stacked.get(
                 entry["name"], on.get("holder") or []) if name in boxes]
@@ -1282,7 +1503,9 @@ def on_built_face(on, height, mesh):
     import trimesh
     ends = [np.asarray(point, float) for point in on["span"]]
     out = np.asarray(on["out"], float)
-    inner = [ends[0] + (ends[1] - ends[0]) * share for share in (FACE_INSET, 1.0 - FACE_INSET)]
+    first, last = face_run(ends, out, height, mesh)
+    inner = [ends[0] + (ends[1] - ends[0]) * (first + (last - first) * share)
+             for share in (FACE_INSET, 1.0 - FACE_INSET)]
     origins = np.array([[point[0] + out[0] * WALL_REACH, height, point[1] + out[1] * WALL_REACH] for point in inner])
     back = np.array([-out[0], 0.0, -out[1]])
     hits, rays, _ = trimesh.ray.ray_triangle.RayMeshIntersector(mesh).intersects_location(
@@ -1304,6 +1527,31 @@ def on_built_face(on, height, mesh):
     laid = [end - normal * float((end - faces[0]) @ normal) for end in ends]
     return {**on, "span": [[float(value) for value in end] for end in laid],
             "out": [float(value) for value in normal]}, degrees
+
+
+def face_run(ends, out, height, mesh):
+    """(from, to) shares of a wall relation's span (`ends` [x, z], its `out`) clear of a built surface (`mesh`)
+    crossing in front of it inside its inner run (past FACE_INSET of its length from its middle either way): a ray
+    from its middle WALL_REACH out along it each way at `height` (where on_built_face's rays start) meets the first
+    such, and the run ends WALL_REACH before it, so no face ray starts behind it; (0, 1) where none does. Street's
+    wall_7 runs on behind wall_8 folding back across its end: the face's far ray met wall_8 and laid its air
+    conditioners 1 and 4 turned off wall_7, touching nothing (settle@street, 2026-11-11)."""
+    run = ends[1] - ends[0]
+    length = float(np.linalg.norm(run))
+    if length < 1e-6:
+        return 0.0, 1.0
+    way = run / length
+    middle = (ends[0] + ends[1]) / 2 + out * WALL_REACH
+    origin = np.array([[middle[0], height, middle[1]]] * 2)
+    ways = np.array([[way[0], 0.0, way[1]], [-way[0], 0.0, -way[1]]])
+    hits, rays, _ = mesh.ray.intersects_location(origin, ways, multiple_hits=False)
+    shares = [0.0, 1.0]
+    for hit, ray in zip(np.asarray(hits, float).reshape(-1, 3), np.asarray(rays, int)):
+        reach = float(np.linalg.norm(hit - origin[ray]))
+        if reach < (0.5 - FACE_INSET) * length:
+            kept = max(reach - WALL_REACH, 0.0)
+            shares[1 - ray] = 0.5 + (kept if ray == 0 else -kept) / length
+    return shares[0], shares[1]
 
 
 def oriented_corners(stage, path):
@@ -1609,6 +1857,16 @@ def fitted(stage, place, entries, laid, cuts=None):
             holder = next(holder for holder, found in held if found is box)
             surface = surface_mesh(stage, f"/{place}/{scope}/{holder}")
             recesses = recess_boxes(stage, f"/{place}/{scope}/{holder}", (cuts or {}).get(bakes.get(holder)))
+        if how == "in":  # laid along the straight built wall its hole was cut in (hole_wall)
+            walled_in, degrees = hole_wall(entry["on"], [box for wall, box in statics(walls(stage, place))
+                                                         if wall.split("_")[0] == "wall" and straight(box)], faces())
+            if walled_in is not entry["on"]:
+                if abs(degrees) > TURN_LEAST:
+                    pivot = foot_middle(low, high)
+                    pitched_by(stage.GetPrimAtPath(path), pivot, (0.0, 1.0, 0.0), degrees, pivot)
+                    low, high = world_box(stage, path)
+                entry = {**entry, "on": walled_in}
+                laid_in[name] = walled_in
         if how == "in" and name in leaves and slanted(entry["on"]):
             surface = wall_points(stage, place)
         on_shelves = how == "within" and held and on_shelves_of(entry["on"]) and not hangs_in(entry)
@@ -1617,8 +1875,10 @@ def fitted(stage, place, entries, laid, cuts=None):
                                     lambda holder: surface_mesh(stage, f"/{place}/{scope}/{holder}"), taken)
         else:
             turned = how == "wall" and not passes(entry)  # a passage meets its place through its wall, as laid
+            on_face = False  # laid on its slanted wall's built face (on_built_face found it)
             if turned and slanted_wall(entry["on"]):  # laid on its built wall's face, turned to it
                 built_on, degrees = on_built_face(entry["on"], (low[1] + high[1]) / 2, faces())
+                on_face = built_on is not entry["on"]
                 if abs(degrees) > TURN_LEAST:
                     pivot = foot_middle(low, high)
                     pitched_by(stage.GetPrimAtPath(path), pivot, (0.0, 1.0, 0.0), degrees, pivot)
@@ -1628,6 +1888,9 @@ def fitted(stage, place, entries, laid, cuts=None):
             clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
             if turned:  # and out of the openings cut through its wall (wall_holes)
                 clear = [*clear, *wall_holes(faces(), entry["on"], (float(low[1]), float(high[1])))]
+            if on_face:  # and out of the built walls standing in front of its face (walls_ahead)
+                deep = wall_reach(low, high, *wall_line(entry["on"])[1:3], oriented_corners(stage, path))[1]
+                clear = [*clear, *walls_ahead(faces(), entry["on"], (float(low[1]), float(high[1])), deep)]
             others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
                 if walled else ()
             corners = oriented_corners(stage, path) if turned else None
@@ -1652,6 +1915,13 @@ def fitted(stage, place, entries, laid, cuts=None):
             return
         scale, target, words, face = found
         moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), scale, target)
+        if how == "in":  # held to what it has clear of the built walls and the opening things laid before it
+            words += held_clear(stage, path, entry["on"], opened_around())
+            opened.append(path)
+        if how == "face" and surface is not None:  # its back met on its holder's surface
+            words += touching(stage, path, surface)
+        if how == "within" and not on_shelves:  # in front of the wall its holder is laid on
+            words += off_faces(stage, path, [faced_on[holder] for holder, _ in held if holder in faced_on])
         from pxr import Sdf
         stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
         after = world_box(stage, path)
@@ -1666,12 +1936,20 @@ def fitted(stage, place, entries, laid, cuts=None):
                      "high": [round(float(value), 4) for value in after[1]], "words": words,
                      **({"face": round(face[0], 4), **({"hung": True} if face[1] else {})} if face is not None
                         else {}), **(laid_face(faced_on[name], oriented_corners(stage, path)) if name in faced_on
-                                     else {})})
+                                     else {}),
+                     **({"opening": {key: laid_in[name][key] for key in ("middle", "along")}} if name in laid_in
+                        else {})})
 
     def rooms(leaf):
         """The swing box and the passage box of a leaf as laid."""
         path = f"/{place}/Objects/{leaf}"
         return swing_box(stage, path), passage_box(*world_box(stage, path), by_name[leaf]["on"], built)
+
+    def opened_around():
+        """The place's built walls and the opening things laid so far (`opened`) as one mesh; None with none."""
+        import trimesh
+        found = [mesh for mesh in [faces(), *(surface_mesh(stage, other) for other in opened)] if mesh is not None]
+        return trimesh.util.concatenate(found) if found else None
 
     def faces():
         """The place's built walls as one mesh (built_walls), made once."""
@@ -1683,6 +1961,8 @@ def fitted(stage, place, entries, laid, cuts=None):
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
     faced_on = {}  # {wall thing: the relation it is laid by: on its built face (on_built_face), stood (stood_face)}
+    laid_in = {}  # {opening thing: its relation laid along the straight wall its hole was cut in (hole_wall)}
+    opened = []  # the paths of the opening things laid so far, which each laid after keeps clear of (held_clear)
     mounted = {}  # {wall or face thing: its box as laid}, which each laid after it on a wall or face keeps clear of
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
@@ -2088,8 +2368,12 @@ def moved_out(stage, place, entries):
     way out of each in turn (out_of), on the stage, where that is OUT_MOST at most; the fits [{name, how, ...}]. A
     climbing row (climbs: a stair into its level) is left to its stair. One in a wall is parted's, which keeps it in
     its room (the least way out of a wall can be through it: habitat's bunk bed, 2026-11-04), and leaves one that fits
-    nowhere there as laid for the held gate to name (hangar's 46 m ship in its 32 m room)."""
-    built, fits = [(name, box) for name, box in statics(walls(stage, place)) if name.split("_")[0] != "wall"], []
+    nowhere there as laid for the held gate to name (hangar's 46 m ship in its 32 m room). One reaching into a wall
+    piece by HELD_MOST at most across it, too little for parted to take it (crowded), is moved back out of it the way
+    it came in, along the floor (shallow_out): settle@street's police car stood 0.044 m into wall_12 (2026-11-11)."""
+    pieces = statics(walls(stage, place))
+    built, fits = [(name, box) for name, box in pieces if name.split("_")[0] != "wall"], []
+    thin = [(name, box) for name, box in pieces if name.split("_")[0] == "wall" and straight(box)]
     for entry in entries:
         path = f"/{place}/Objects/{entry['name']}"
         low, high = world_box(stage, path)
@@ -2097,6 +2381,11 @@ def moved_out(stage, place, entries):
         for static, box in built:
             if depths(low + shift, high + shift, box).min() > HELD_MOST:
                 shift += out_of(low + shift, high + shift, box)
+                left.append(static)
+        for static, box in thin:
+            move = shallow_out(low + shift, high + shift, box)
+            if move is not None:
+                shift += move
                 left.append(static)
         moved = float(np.linalg.norm(shift))
         if not left or moved > OUT_MOST:
@@ -2110,6 +2399,35 @@ def moved_out(stage, place, entries):
                      "moved": round(moved, 3), "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words})
     return fits
+
+
+# A wall piece whose box is this many times as long as it is thick runs along x or z, its box its own shape (a
+# slanted wall's box holds the room beside it).
+STRAIGHT_LEAST = 4.0
+
+
+def straight(box):
+    """Whether a wall piece's box (low, high) is its own shape: STRAIGHT_LEAST times as long as thick on the floor."""
+    size = sorted(float(value) for value in (np.asarray(box[1], float) - np.asarray(box[0], float))[[0, 2]])
+    return size[1] >= STRAIGHT_LEAST * max(size[0], 1e-9)
+
+
+def shallow_out(low, high, box):
+    """The move [x, 0, z] that takes a box (low, high) reaching into a wall piece's box by more than MOVE_LEAST and
+    at most HELD_MOST along the floor out of it the shorter way on that axis; None where it reaches in less, or more
+    (one in the wall is parted's)."""
+    reach = depths(low, high, box)
+    if reach.min() <= MOVE_LEAST:
+        return None
+    ahead = np.asarray(box[1], float) - np.asarray(low, float)
+    back = np.asarray(high, float) - np.asarray(box[0], float)
+    moves = np.where(ahead <= back, ahead, -back)
+    axis = 0 if abs(moves[0]) <= abs(moves[2]) else 2
+    if abs(moves[axis]) > HELD_MOST:
+        return None
+    move = np.zeros(3)
+    move[axis] = moves[axis]
+    return move
 
 
 def top_run(holds):

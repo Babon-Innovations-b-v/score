@@ -33,3 +33,14 @@ def resting_as_laid(record):
     there itself (held.leaning_faults)."""
     return {entry["row"]: "fixed" for entry in record.get("objects") or []
             if entry.get("rests") in ("leaning", "attached")}
+
+
+def on_faces(record):
+    """{row id: "hanging"} of the scene `record`'s rows whose every object is laid with its back on its holder's side
+    (its relation `face`: the fitting lays it on that side, front_face, and the settle leaves it there, held.faced):
+    held by touching its holder, never standing on what is under it. settle@street's red paper lanterns, laid on the
+    side of their lantern string hung 24 m up, were judged floating 23.8 m over the street (2026-11-11)."""
+    rows = {}
+    for entry in record.get("objects") or []:
+        rows.setdefault(entry["row"], []).append((entry.get("on") or {}).get("how") == "face")
+    return {row_id: "hanging" for row_id, faced in rows.items() if all(faced)}
