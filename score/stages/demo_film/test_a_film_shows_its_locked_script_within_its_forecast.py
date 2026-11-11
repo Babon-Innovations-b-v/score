@@ -99,7 +99,7 @@ def test_only_the_places_a_locked_script_shows_have_the_row_and_it_declares_its_
     assert not any(name.startswith("film ") for name in found), "no per-place film record"
     assert all((REPO / path).exists() for path in demo_film.TOOLS)
     monkeypatch.setattr(demo_film, "film_one",
-                        lambda stage, name, film, out, log, start: made.append((name, film["camera"], start)))
+                        lambda stage, name, film, out, log, start, people=0: made.append((name, film["camera"], start)))
     (tmp_path / "stage").mkdir()
     (tmp_path / "stage/yard.usda").write_text("#usda 1.0\n")
     demo_film.make({"assembly": tmp_path / "stage", "script k9": tmp_path / "k9.json"}, tmp_path / "out", 0, {})
@@ -119,7 +119,7 @@ def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alon
     assert not demo_film.applies_extra("hub") and not demo_film.applies("hull")
     assert demo_film.extra_files("hangar")["script k9"] == "{dashboard}/films/locked/k9.json"
     monkeypatch.setattr(demo_film, "film_one",
-                        lambda stage, name, film, out, log, start: made.append((name, film["camera"], out.name)))
+                        lambda stage, name, film, out, log, start, people=0: made.append((name, film["camera"], out.name)))
     (tmp_path / "stage").mkdir()
     (tmp_path / "stage/hangar.usda").write_text("#usda 1.0\n")
     demo_film.make_extra({"assembly": tmp_path / "stage", "script k9": tmp_path / "k9.json"}, tmp_path / "out", 0, {})
@@ -512,8 +512,10 @@ def test_a_design_that_stands_people_fails_a_stage_that_holds_none(tmp_path):
 def test_a_design_s_people_and_crowd_count_its_people(tmp_path):
     """The square stands one speaker and a far crowd of 10000: 10001 people; a crowd SAM 3 could not part counts one
     at least (2); a place with no rows, or no rows read, none.
-    Break: score/stages/demo_film/__init__.py: `((people_rows.crowd_count(crowd[1]) or 1) if crowd else 0)` -> `(1 if
-        crowd else 0)`"""
+    Break: score/stages/demo_film/__init__.py: `((people_rows.crowd_count(crowd[1]) or 1) if crowd and crowd[0] not in
+        gapped else 0)` -> `(1 if crowd else 0)`
+    Break: score/stages/demo_film/__init__.py: cast_people's `if person["name"] not in gapped` dropped, or
+        refuse_peopleless' `if people and shots.people_seen(...) is None:` -> `if False:`"""
     rows = tmp_path / "rows.json"
     square = {"rows": {"leader": {"looks": ["leader-drawn"]}, "crowd": {"crowd": "far-coat", "count": 10000}}}
     rows.write_text(json.dumps({"places": {"square": square}}))
@@ -523,6 +525,19 @@ def test_a_design_s_people_and_crowd_count_its_people(tmp_path):
     assert demo_film.cast_people("square", rows) == 2
     assert demo_film.cast_people("hub", rows) == 0
     assert demo_film.cast_people("square", None) == 0
+    # cockpit (2026-11-11): its officer and pilot, accepted gaps with no body of their look, failed its film only
+    # once its frames were bought. Gapped people are not counted; a stage with none of the rest fails before renting.
+    assert demo_film.cast_people("square", rows, {"leader"}) == 1
+    assert demo_film.cast_people("square", rows, {"leader", "crowd"}) == 0
+    gaps = tmp_path / "gaps.json"
+    gaps.write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies", "objects": ["leader"]},
+                                         {"row": "likeness", "check": "outline", "objects": ["crowd"]}]}))
+    assert demo_film.gapped_people({"gaps": str(gaps)}) == {"leader"} and demo_film.gapped_people({}) == set()
+    empty, held = a_stage(tmp_path / "empty"), a_stage(tmp_path / "held", person_at=(0, 0.5, -6))
+    demo_film.refuse_peopleless("cockpit", empty, views(), 0)
+    demo_film.refuse_peopleless("cockpit", held, views(), 2)
+    with pytest.raises(RuntimeError, match="nothing rented"):
+        demo_film.refuse_peopleless("cockpit", empty, views(), 2)
 
 
 def test_a_thing_seen_moving_needs_a_sound_of_its_own(tmp_path):
@@ -810,10 +825,24 @@ def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
         `arrows = pushes(frames, [body for body in touching(frames) if body.startswith("calcn")])`
     Break: score/stages/demo_film/peel.py: `arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]` ->
         `arrows[index, number] = [*centre, 0.0, np.linalg.norm(force) * METRES_PER_NEWTON, 0.0]`
-    Break: score/stages/demo_film/peel.py: `begins = (len(PASSES) - 1) * third - wipe / 2` -> `begins = 0`"""
+    Break: score/stages/demo_film/peel.py: `begins = (len(PASSES) - 1) * third - wipe / 2` -> `begins = 0`
+    And cockpit (2026-11-11): its officer and pilot, accepted gaps with no body of their look, refused the peel by
+    name. One a bodies gap names is left out (None); one no gap names is still refused.
+    Break: score/stages/demo_film/peel_rows.py: `if single["name"] in gapped: return None` -> `if False: return None`"""
+    import tempfile
     import numpy as np
     from score.stages import sim_body
-    from score.stages.demo_film import lettering, peel
+    from score.stages.demo_film import lettering, peel, peel_rows
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "clips").mkdir()
+    np.savez(folder / "clips" / "rig.npz", names=np.array(["hips"]))
+    (folder / "gaps.json").write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies",
+                                                            "objects": ["officer"]}]}))
+    person_of = peel_rows.people_of({sim_body.CLIPS_ROW: str(folder / "clips"), "gaps": str(folder / "gaps.json")})
+    assert person_of({"name": "officer", "look": "officer"}, {"clip": "idle"}) is None
+    with pytest.raises(ValueError, match="pilot: no accepted dressed body"):
+        person_of({"name": "pilot", "look": "pilot"}, {"clip": "idle"})
+    shutil.rmtree(folder)
     rig = toy_rig()
     assert np.allclose(peel.skinned(rig, "still")[0], rig["points"])
     assert np.allclose(peel.skinned(rig, "step")[0], rig["points"] + [0.0, 0.0, 1.0])

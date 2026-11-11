@@ -111,12 +111,21 @@ def row_sound(row, kind, kinds):
     return named
 
 
+def beyond_rows(inputs):
+    """The rows the place's plan sees beyond it (its `beyond`: the backdrop another place of its scene stands), which
+    lay no object of the place's own to play a sound at."""
+    return set(read_json(inputs["plan"]).get("beyond") or []) if inputs.get("plan") else set()
+
+
 def object_uses(inputs):
     """The sounds of the scene inventory's objects: each row whose kind sounds (data/checks/row-kinds.json), its
-    kind's sound at the row."""
+    kind's sound at the row; never a row its plan sees beyond the place (beyond_rows: street's distant floodlight,
+    stairwell's air conditioner seen across the street, placed nowhere, failed the assembly's layers, 2026-11-11)."""
     kinds = row_kinds.table(inputs["row kinds"])
-    uses = []
+    uses, beyond = [], beyond_rows(inputs)
     for row in row_kinds.rows_that({"rows": inventory_rows(inputs)}, "sounds", kinds):
+        if row["id"] in beyond:
+            continue
         name = row_sound(row, row["row_kind"], kinds)
         if name:
             uses.append({"sound": name, "role": "object", "on": row["id"],
@@ -134,9 +143,12 @@ def voice_of(voices, facts):
 
 
 def voice_uses(place, inputs, facts=None):
-    """The voice of the place's people as the scene is heard (voice_of), on the first person its design stands; none
+    """The voice of the place's people as the scene is heard (voice_of), on the first person its design stands that
+    no accepted bodies gap leaves unlaid (gates.gapped_people: stairwell's man, 2026-11-11, voiced at nothing); none
     with no one, or while no voice is named (the voices gate fails it then)."""
-    people = needs.people(place, inputs["people"]) if "people" in inputs else []
+    gapped = gates.gapped_people(inputs)
+    people = [name for name in (needs.people(place, inputs["people"]) if "people" in inputs else [])
+              if name not in gapped]
     facts = beds.of_place(place, inputs)["facts"] if facts is None else facts
     voice, said = voice_of(read_json(inputs["voices"]), facts)
     if not people or not voice:

@@ -232,7 +232,8 @@ def job_of(folder, cast, sim, person_of, seconds, size, samples, close=None, gro
     """Write the Blender job (job.json and one npz a person) into `folder` and return its path: the wide shot of
     everyone, or, `close` naming one of them, the close-up following that person alone (no one else between it and
     the camera). `person_of(single, body)`: a cast person and its sim body record's entry give (its rig at its own
-    build, sim_body.person_rig, holding the clip it played; its dressed body's .glb; that clip's name). `ground`: the
+    build, sim_body.person_rig, holding the clip it played; its dressed body's .glb; that clip's name), or None for
+    one left out as an accepted gap. `ground`: the
     scene's ground under them (n x 3 x 3 triangles, the place's frame, Y up; else a flat floor at 0), drawn where it
     is underfoot (`underfoot`)."""
     record = json.loads((sim / "sim_bodies.json").read_text())
@@ -241,7 +242,10 @@ def job_of(folder, cast, sim, person_of, seconds, size, samples, close=None, gro
         name = single["name"]
         if name not in record["bodies"] or close not in (None, name):
             continue  # the sim body stage left it out and said why in its record, or the close-up follows another
-        rig, dressed, clip = person_of(single, record["bodies"][name])
+        found = person_of(single, record["bodies"][name])
+        if found is None:
+            continue  # an accepted gap: no body of its look (peel_rows.people_of)
+        rig, dressed, clip = found
         frames = json.loads((sim / "measures" / f"{name}.json").read_text())
         shown = source_frames(seconds, record["rate"], len(frames))
         layer, root = sim / sim_body.LAYER, sim_root(record["place"], name)

@@ -56,8 +56,22 @@ def place_of(inputs):
 
 
 def people_of(inputs):
-    """The people the place's design stands (needs.people), none without its people input."""
-    return needs.people(place_of(inputs), inputs["people"]) if "people" in inputs else []
+    """The people the place's design stands (needs.people) that no accepted bodies gap leaves unlaid
+    (gapped_people), none without its people input."""
+    gapped = gapped_people(inputs)
+    return [name for name in (needs.people(place_of(inputs), inputs["people"]) if "people" in inputs else [])
+            if name not in gapped]
+
+
+# The accepted gaps of the characters layer naming the people with no body of their look (score/stages/gaps.py's file,
+# read as data so this row's code never takes in gaps.py): no voice is laid on one, nor wanted of it.
+BODIES_GAP = ("characters-layer", "bodies")
+
+
+def gapped_people(inputs):
+    """The people an accepted bodies gap of the place names (BODIES_GAP; its gaps file among the inputs)."""
+    found = read_json(inputs["gaps"])["gaps"] if inputs.get("gaps") else []
+    return {name for entry in found if (entry["row"], entry["check"]) == BODIES_GAP for name in entry["objects"]}
 
 
 def judge_sources(output, inputs, evidence):
