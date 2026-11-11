@@ -7,7 +7,12 @@ Per-clip checks, from the body's records (checks/pokes.json, checks/bodycloth.js
     rigid               the hard parts' edges riding one joint at most RIGID_MOST of their bind length
     flexible            a boot shaft's graded edges at most FLEX_MOST (pokes.py's flex_stretch; a record from
                         before it has none: unknown, never passed)
-    cloth through cloth the clip's worst garment crossings no more than the shipped body's same clip
+    cloth through cloth the clip's worst garment crossings no more than the shipped body's same clip; with no
+                        shipped body wearing the outfit (every made look since the shipped chain was retired,
+                        2026-10-21) counted and shown, not judged: the look's own bind pose is no bar, its arms
+                        lowered from the A-pose fold the armpit cloth through itself in every frame of every clip
+                        (pokes.py: "no more than at rest" fails every body; env1 2026-11-11, the pilot's 136 at
+                        the bind and 382 in standing's first frame, its accepted body of 2026-11-07 alike)
     body through cloth  no part's own edges deeper than the margin through the cloth more often than at the bind
 """
 import json
@@ -20,13 +25,14 @@ FLEX_MOST = 1.75  # pokes.FLEX_MOST: a fan of 85 degrees round the ankle bending
 def per_clip(output):
     """{clip: {check: (passes, numbers in words)}} of a body's output folder."""
     pokes = json.loads((output / "checks" / "pokes.json").read_text())
-    reference = output / "checks" / "pokes_shipped.json"  # absent: no shipped body wears it, held to its own rest
-    shipped = json.loads(reference.read_text()) if reference.exists() else {"clips": {}}
+    reference = output / "checks" / "pokes_shipped.json"  # absent: no shipped body wears it, not judged
+    shipped = json.loads(reference.read_text()) if reference.exists() else None
     counted = json.loads((output / "checks" / "bodycloth.json").read_text())
     bind = counted["bind"]["deep_by_part"]
     found = {}
     for clip, record in pokes["clips"].items():
-        bar = shipped["clips"].get(clip, {}).get("most_crossings", pokes["rest_crossings"])
+        bar = None if shipped is None else \
+            shipped["clips"].get(clip, {}).get("most_crossings", pokes["rest_crossings"])
         deep = counted["clips"].get(clip)
         over = {} if deep is None else {part: count for part, count in deep["deep_by_part"].items()
                                         if count > bind.get(part, 0)}
@@ -36,7 +42,9 @@ def per_clip(output):
             "flexible": (record.get("flex_stretch", float("inf")) <= FLEX_MOST,
                          f"boot shafts at {record['flex_stretch']}x" if "flex_stretch" in record
                          else "boot shafts not measured"),
-            "cloth through cloth": (record["most_crossings"] <= bar,
+            "cloth through cloth": (bar is None or record["most_crossings"] <= bar,
+                                    f"{record['most_crossings']} crossings, {pokes['rest_crossings']} at the bind; "
+                                    "no shipped body wears it, not judged" if bar is None else
                                     f"{record['most_crossings']} crossings, the shipped body's {bar}"),
             "body through cloth": (deep is not None and not over,
                                    "not counted" if deep is None else

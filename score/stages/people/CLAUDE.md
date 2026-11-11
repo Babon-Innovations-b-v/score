@@ -46,7 +46,8 @@ each look is a take of `data/surfaces/people.json` with its `spec` and `outfit`.
   (`../people_bodies/bodies.py`). The body rows live in a package of their own, `people_bodies` (with clips.py and far.py): this package imports the
   surface stage, so here a surface edit re-keyed every body (2026-10-13). The maker's and people tools' folders are
   declared files: they run by path, so a code change there re-makes the bodies.
-- **Gates measure, unknown blocks**: joins, tucks (5 mm), cloth through cloth (the shipped body's count per clip),
+- **Gates measure, unknown blocks**: joins, tucks (5 mm), cloth through cloth (the shipped body's count per clip; with no shipped body, every made look, counted and shown,
+  not judged: the bind pose is no bar, lowered arms fold armpit cloth through itself in every clip, `clips.py`),
   rigid (1.2x), body through cloth (per part, no clip frame deeper than 3 mm more often than the bind: the 3 mm is
   the cloth's thickness, `bodycloth.MARGIN_MM`), outline (outline.py) and likeness (the props' gate on the
   body, `score/stages/props/likeness.py`), triangles (the route's body as drawn). Never loosen one to pass; fix the

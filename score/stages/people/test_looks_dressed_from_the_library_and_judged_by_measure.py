@@ -37,7 +37,9 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `clips.usable`: `if not passes` read as `if False`  -> the clip by clip test.
 - `bodies.judge_clips`: `PASS if passing else FAIL` read as `PASS`  -> the clip by clip test (tucks over the gate in
   every clip accepted, the astronaut 2026-11-08).
-- `clips.per_clip`: the flexible check's `<= FLEX_MOST` read as `<= float("inf")`  -> the clip by clip test (the 2.4x shaft).
+- `clips.per_clip`: the flexible check's `<= FLEX_MOST` read as `<= float("inf")`  -> the clip by clip test (the 2.4x shaft);
+  `bar is None or` dropped (a body with no shipped record held to its own bind pose)  -> the clip by clip test (the
+  pilot's 2026-11-11); the shipped bar read as None always  -> the clip by clip test (30 crossings over 20 passes).
 - `full.full_looks`: `>= FAR_SHARE` read as `>= 0.0`  -> the full-or-far tests.
 - `bodies.laid_take`: the `filecmp.cmp(...)` skip and the rename dropped (copied over in place)  -> the loop's
   hand-on test (the same bytes written again over the people line's own inputs).
@@ -234,6 +236,18 @@ def test_a_body_is_judged_clip_by_clip():
         write_checks(folder, deep=13, bind_deep=13, flex=2.4)  # the boot shaft's sharp blend, sitting
         passing, failing = clips.usable(folder)
         assert passing == ["standing"] and failing["walking"] == ["flexible: boot shafts at 2.4x"], failing
+    with tempfile.TemporaryDirectory() as held:  # the pilot of 2026-11-11: 136 crossings at the bind, 401 standing
+        folder = pathlib.Path(held)
+        write_checks(folder, deep=13, bind_deep=13)
+        pokes = json.loads((folder / "checks" / "pokes.json").read_text())
+        pokes["clips"]["walking"]["most_crossings"] = 30
+        (folder / "checks" / "pokes.json").write_text(json.dumps(pokes))
+        passing, failing = clips.usable(folder)
+        assert passing == ["standing"] and failing["walking"] == [
+            "cloth through cloth: 30 crossings, the shipped body's 20"], failing
+        (folder / "checks" / "pokes_shipped.json").unlink()
+        assert clips.usable(folder) == (["standing", "walking"], {})
+        assert "not judged" in clips.per_clip(folder)["walking"]["cloth through cloth"][1]
 
 
 def test_a_far_only_look_is_judged_on_its_far_body():
