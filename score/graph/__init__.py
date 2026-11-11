@@ -309,6 +309,9 @@ class Stage:
     gapped: names in `after` the node also reads when their only blocking check is GAPPED, the place's accepted gaps
     (a dated decision): the output on its current key, which the runner never accepts as it fails, unless the owner
     rejected it; any other fault still stops the node (demo-film on complete, the overseer, 2026-10-15).
+    unread: for a place stage whose reads differ by place, unread(place) gives the names in `after` this place's node
+    does not read, read as a stage that does not apply there: neither waited on nor in its key (sim-body reads only
+    the bodies its own cast wears, so a failing body of another place's look never holds it, 2026-11-11).
     upward: its `beside` reads go up to the outside shells that hold this place (an inside place reads its outside shell's
     split, CONTEXT.md "shapes first"), never back down, so a loop through them in the table is the same route one scale
     down: the table's loop check leaves those reads out, and `neighbours` must refuse a place that holds itself.
@@ -348,6 +351,7 @@ class Stage:
     neighbours: Callable = None
     optional: tuple = ()
     gapped: tuple = ()
+    unread: Callable = None
     upward: bool = False
     downward: bool = False
     selects: bool = False
@@ -1399,10 +1403,12 @@ class Runner:
 
     def reads(self, stage, place, every=False):
         """{earlier stage: (schema, version)} the node reads: its `after`, less a place stage that has nothing to do
-        for this place (its `applies`), which the node then reads without, and less an optional read not usable now
-        (`every`: with it, every read it takes once all it may read is made)."""
-        found = {before: wanted for before, wanted in stage.after.items()
-                 if place is None or self.stages[before].applies is None or self.stages[before].applies(place)}
+        for this place (its `applies`) or one the stage leaves unread there (its `unread`), which the node then reads
+        without, and less an optional read not usable now (`every`: with it, every read it takes once all it may read
+        is made)."""
+        unread = stage.unread(place) if stage.unread and place is not None else ()
+        found = {before: wanted for before, wanted in stage.after.items() if before not in unread and (
+                 place is None or self.stages[before].applies is None or self.stages[before].applies(place))}
         return {before: wanted for before, wanted in found.items()
                 if every or before not in stage.optional or self.usable_now(before, place, wanted)}
 

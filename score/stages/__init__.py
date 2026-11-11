@@ -51,6 +51,7 @@ from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import held_apart, neighbours, wired
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
+import score.stages.people_rows as people_rows
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
 from score.stages.terrain import fit as ground_fit
@@ -532,6 +533,22 @@ CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cas
 # sim-body, a warm pool card first, cleared at its forecast (sim_body.forecast: its cast's clips at measured minutes).
 # people-cloth and the characters layer read it: its people move by it.
 BODY_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{sim_body.BODY}-"))
+
+
+def other_bodies(place):
+    """The body rows a place's sim body and body peel leave unread (Stage.unread): every look's but those its own cast
+    wears (people_rows.looks_of, its people's and its crowd's), so a failing body of another place's look (the pilot,
+    the officer) never holds them (2026-11-11: one failing body held sim-body at all 16 people places)."""
+    return frozenset(BODY_ROWS) - cast_bodies(people_rows.ROWS.stat().st_mtime_ns, place)
+
+
+@functools.lru_cache(maxsize=256)
+def cast_bodies(stamp, place):
+    """{people-body-<look>} of every look a place's design names, read once while rows.json stands (`stamp`, its
+    time, the cache's key only: the table asks a row's reads many times a status)."""
+    return frozenset(f"{sim_body.BODY}-{look}" for look in people_rows.looks_of(place))
+
+
 SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, sim_body.CHECKS, files=sim_body.files,
                        after={"cast": ("cast", 1), sim_body.CLIPS_ROW: (sim_body.CLIPS_ROW, 1),
                               "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
@@ -540,7 +557,7 @@ SIM_BODY = graph.Stage("sim-body", "place", sim_body.make, sim_body.CONTRACT, si
                               **{name: ("people-body", 1) for name in BODY_ROWS}},
                        beside={"surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1)},
                        neighbours=assembly.claiming_places, optional=(*BODY_ROWS, sim_body.SCENE_CLIPS_ROW),
-                       paid=True, euros=sim_body.EUROS, forecast=sim_body.forecast, applies=designed("people"))
+                       unread=other_bodies, paid=True, euros=sim_body.EUROS, forecast=sim_body.forecast, applies=designed("people"))
 # Experimental (owner, 2026-10-27, "bring back"): each character's loose garment parts as cloth on Newton's VBD against
 # its sim body's moving segments (score/stages/people_cloth), its dressed and built bodies optional reads as the
 # characters layer's are, its cloth values the part's library recipe's (data/physics/cloth.json). Nothing reads it yet,
@@ -812,7 +829,7 @@ BODY_PEEL = graph.Stage("body-peel", "place", peel_rows.make_body, peel_rows.BOD
                                **{name: ("people-dress", 1) for name in DRESS_ROWS},
                                **{name: ("people-body", 1) for name in BODY_ROWS},
                                "assembly": ("openusd-stage", 1), "neighbours": ("openusd-stage", 1)},
-                        optional=(*DRESS_ROWS, *BODY_ROWS, sim_body.SCENE_CLIPS_ROW),
+                        optional=(*DRESS_ROWS, *BODY_ROWS, sim_body.SCENE_CLIPS_ROW), unread=other_bodies,
                         paid=True, euros=demo_film.EUROS, forecast=peel_rows.body_forecast,
                         applies=peel_rows.applies_body)
 PLACE_PEEL = graph.Stage("place-peel", "place", peel_rows.make_place, peel_rows.PLACE_CONTRACT, peel_rows.CHECKS,
