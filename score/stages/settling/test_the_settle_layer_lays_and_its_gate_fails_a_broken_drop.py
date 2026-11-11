@@ -25,7 +25,10 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   poses read back through the settle layer laid over it).
 - a_row_the_reading_gave_no_anchor_reads_as_none: with_anchors' `row.get("anchor") or ""` made `row.get("anchor")`
   (held_on_loose meets None).
-- a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30).
+- a_pair_crossing_as_laid_is_kept_not_broken: laid_inside_each_other returning `poses` unchanged (2026-10-30);
+  crossing's `and inside_past_the_triage(...)` dropped (crates touching or 17 mm in read as laid inside: quarters'
+  lockers, habitat's beds on their rugs, 2026-11-10), or inside_past_the_triage's `+ beds.get(name, 0.0)` dropped (a
+  rug 5 cm on a rug counted).
 - a_row_on_a_wall_or_ceiling_row_is_mounted_there: assembly/mounted.py's `if kind in ("wall", "ceiling"):` made
   `if kind in ("wall",):` (the ceiling rails left out, 2026-10-30).
 - a_structure_row_on_a_mounted_row_is_mounted_with_it: assembly/mounted.py's `while more := {...}` loop made `while False:`
@@ -342,12 +345,22 @@ def a_pair_crossing_as_laid_is_kept_not_broken():
         poses = {"crate_1": {"before": laid(stage, "crate_1"), "after": moved, "rested": True, "said": "drifts 2 cm"},
                  "crate_2": {"before": laid(stage, "crate_2"), "after": laid(stage, "crate_2"), "rested": True,
                              "said": "drifts 0 cm"}}
-        as_laid = settle.crossing(meshes, pairs, {})
+        as_laid = settle.crossing(meshes, pairs, {}, {})
         kept = settle.laid_inside_each_other(poses, as_laid)
-        left = settle.crossing(meshes, [pair for pair in pairs if pair not in as_laid], settle.motions(kept))
+        left = settle.crossing(meshes, [pair for pair in pairs if pair not in as_laid], settle.motions(kept), {})
         problems = []
         if as_laid != pairs or left:
             problems.append(f"crossing as laid {as_laid}, left to break {left}")
+        rugs = {"crate_1": 0.08, "crate_2": 0.08}
+        for apart, beds, wanted in ((1.0, {}, []), (0.983, {}, []), (0.95, {}, pairs), (0.95, rugs, []),
+                                    (0.95, {"crate_2": 0.08}, pairs)):
+            # touching, 17 mm in (habitat's bed on its rug), 5 cm in, a rug 5 cm on a rug (each may bed 8 cm), a
+            # crate 5 cm in a rug (the crate's own allowance is none, as the triage judges it)
+            folder = pathlib.Path(temporary) / f"{apart}-{len(beds)}"
+            folder.mkdir()
+            found = settle.crossing(two_boxes(folder, apart)[1], pairs, {}, beds)
+            if found != wanted:
+                problems.append(f"crates {apart} m apart (beds {beds}) cross {found}, not {wanted}")
         for name, other in (("crate_1", "crate_2"), ("crate_2", "crate_1")):
             pose = kept[name]
             if pose["rested"] or pose["after"] is not pose["before"] or not pose["said"].startswith(
@@ -392,9 +405,9 @@ def a_pair_crossing_only_after_the_drop_still_breaks():
         motion = np.eye(4)
         motion[0, 3] = -2.5
         problems = []
-        if settle.crossing(meshes, pairs, {}):
+        if settle.crossing(meshes, pairs, {}, {}):
             problems.append("two crates 3 m apart cross as laid")
-        found = settle.crossing(meshes, pairs, {"crate_2": motion})
+        found = settle.crossing(meshes, pairs, {"crate_2": motion}, {})
         if found != pairs:
             problems.append(f"the crates the layer lays into each other cross {found}")
         output = pathlib.Path(temporary)

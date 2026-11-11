@@ -162,7 +162,8 @@ def make(inputs, out, seed, params):
                                   room="room" in read_json(inputs["kit"]))
         poses = landed_in_hollows(stage, place, poses, simulated, under, hollow)
         meshes = snap.read_place(root) if simulated["overlaps"] else None  # as laid: no layer is over the root yet
-        as_laid = crossing(meshes, simulated["overlaps"], {})
+        bedding = beds(stage, place, inputs)
+        as_laid = crossing(meshes, simulated["overlaps"], {}, bedding)
         poses = laid_inside_each_other(poses, as_laid)
         poses = kept_with_their_supports(poses, under)
         laid_over(root, seed, place, poses, scratch / "dropped.usda")
@@ -182,7 +183,8 @@ def make(inputs, out, seed, params):
         poses = kept_where_worse(poses, worse | supports_of(rested_stage, place, worse), inventory,
                                  lambda name: supports_of(rested_stage, place, {name}))
         write_layer(seed, place, moved(poses), out / LAYER)
-        overlaps = crossing(meshes, [pair for pair in simulated["overlaps"] if pair not in as_laid], motions(poses))
+        overlaps = crossing(meshes, [pair for pair in simulated["overlaps"] if pair not in as_laid], motions(poses),
+                            bedding)
         del stage, seed
     finally:
         shutil.rmtree(scratch, ignore_errors=True)
@@ -240,17 +242,49 @@ def laid_where_it_lands(pose, rest, middle, supports, hollow, support_pose, corn
                     f"({pose['said'].removeprefix(PAST_LIMITS).strip()})"}
 
 
-def crossing(laid, pairs, motions):
-    """The pairs of objects (names) whose drawn triangles cross, each moved from as laid by its motion ({name: 4 x 4
-    in the stage's frame}, none: as laid), on the meshes of snap.read_place(`laid`). The drop's own overlaps are
-    its poses', which the layer never writes for one it keeps as laid."""
+def crossing(laid, pairs, motions, beds):
+    """The pairs of objects (names) one of which lies inside the other by the resting triage's own rule
+    (triage.overlap_faults): their drawn triangles cross, one lies deeper inside the other than TOLERANCE plus its own
+    bedding allowance (`beds`, {name: metres}, triage.bedding), and it still meets the other once nudged NUDGE away
+    from it; each moved from as laid by its motion ({name: 4 x 4 in the stage's frame}, none: as laid), on the meshes
+    of snap.read_place(`laid`). A touch or a thin crossing is no pair inside each other: quarters' lockers touching
+    and habitat's beds on their 1.7 cm rugs read as ten and sixteen broken drops the triage found nothing on
+    (checkout 83, 2026-11-10). The drop's own overlaps are its poses', which the layer never writes for one it keeps
+    as laid."""
     import collide
     import numpy as np
     scene = collide.Scene()
+    meshes = {}
     for name in {name for pair in pairs for name in pair}:
-        scene.add(name, name, laid["objects"][name].vertices, laid["objects"][name].faces,
-                  motions.get(name, np.eye(4)))
-    return [pair for pair in pairs if scene.intersection_test(*pair)]
+        motion = motions.get(name, np.eye(4))
+        scene.add(name, name, laid["objects"][name].vertices, laid["objects"][name].faces, motion)
+        meshes[name] = laid["objects"][name].copy().apply_transform(motion)
+    return [pair for pair in pairs
+            if scene.intersection_test(*pair) and inside_past_the_triage(pair, meshes, scene, beds)]
+
+
+def inside_past_the_triage(pair, meshes, scene, beds):
+    """Whether one of a crossing pair lies inside the other as the resting triage counts an overlap: deeper than
+    TOLERANCE plus its bedding allowance, and still meeting the other after the NUDGE away from it."""
+    import resting
+    first, second = pair
+    depth = max(resting.overlap_depth(meshes[first], meshes[second]),
+                resting.overlap_depth(meshes[second], meshes[first]))
+    return any(depth > triage.TOLERANCE + beds.get(name, 0.0)
+               and scene.intersection_test(name, other, triage.nudge_way({"mesh": meshes[name]}, meshes[other])
+                                           * triage.NUDGE)
+               for name, other in ((first, second), (second, first)))
+
+
+def beds(stage, place, inputs):
+    """{object: how deep its class may bed into what it lies on} (triage.bedding) of each object laid on the stage,
+    by its inventory row (`inputs`' inventory) and the declared resting rules."""
+    import resting
+    data = triage.rules(inputs["resting rules"])
+    rows = triage.inventory_rows(place, None, inputs["inventory"])
+    return {path.removeprefix(f"/{place}/Objects/"): triage.bedding(rows.get(prim.GetAttribute("score:row").Get(), {}),
+                                                                    data)[0]
+            for path, prim in resting.objects_of(stage, place).items()}
 
 
 def laid_inside_each_other(poses, pairs):
