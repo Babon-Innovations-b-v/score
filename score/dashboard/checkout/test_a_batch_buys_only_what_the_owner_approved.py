@@ -19,6 +19,9 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   pixal@alpha too -> test_a_buy_approved_in_chat_is_refused_outside_what_he_approved
 - chat_yes.buy: drop `flow.basket_made()` -> a Buy in chat buys the basket an older pass saved and the run "would
   also buy" the row the runner's plan grew by -> test_a_buy_approved_in_chat_launches_his_checkout_once
+- chat_yes.buy: `flow.basket_made(phase=..., places=...)` -> `flow.basket_made()`, or flow.basket_made's group
+  without its phases or places, or localrun.selection without --phase -> a Buy by phase and place plans the whole
+  environment -> test_a_buy_approved_in_chat_launches_his_checkout_once, test_a_buy_approved_in_chat_is_refused_...
 - flow.BUFFER = 1.10 -> 1.0 -> test_the_checkout_plans_the_batch_once_writes_the_line_and_launches_one_run
 - flow.refusals: `if actions.running_launch():` -> `if False:` -> test_a_press_while_a_batch_runs_is_refused_...
 - guard.polled: drop "refused" from the states it reads -> test_a_checkout_whose_run_the_runner_refused_shows_...
@@ -630,6 +633,16 @@ def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monke
     assert watched.newest()["yes"]["answer"] == "Yes, buy it"
     # the same yes again is a retry of its batch (test_a_batch_has_one_budget_across_its_tries), never while it runs
     assert "still running" in chat_buy(yes["id"])[1] and len(launches()) == 1 and Checkout.objects.count() == 1
+    # a Buy without --phase or --place plans the whole environment; with them, only those (2026-11-11: a phase's Buy
+    # planned every place for over 50 minutes), the runner's own --phase and --place
+    from score.dashboard.launch import localrun
+    planned = [call[1] for call in FakeBackend.calls if call[0] == "plan"]
+    assert planned[0].places == () and planned[0].phases == () and planned[0].stages == (), planned
+    flow.basket_made(phase="models,surfaces", places="alpha")
+    asked = [call[1] for call in FakeBackend.calls if call[0] == "plan"][-1]
+    assert asked.places == ("alpha",) and asked.phases == ("models", "surfaces") and asked.stages == (), asked
+    assert localrun.plan_command(asked)[4:] == ["world1", "--place", "alpha", "--phase", "models", "--phase",
+                                                "surfaces", "--json"]
 
 
 def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settings, monkeypatch, tmp_path):
@@ -703,7 +716,8 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     with pytest.raises(chat_yes.Refused):
         chat_yes.known_phase("models,no-such-phase")
     chat.items = a_basket(settings, ["closeup@alpha", "pixal@alpha"])  # the basket of two phases' rows
-    monkeypatch.setattr(flow, "basket_made", lambda: None)
+    made = []  # the plan's selection each Buy asks for
+    monkeypatch.setattr(flow, "basket_made", lambda **given: made.append(given))
     monkeypatch.setattr(FakeBackend, "plan_buys", None)  # the run's plan buys the close-ups its --stage names
     monkeypatch.setattr(phases, "PHASES", (("models", ("closeup",)), ("surfaces", ("pixal",))))
     monkeypatch.setattr(phases, "NAMES", ("models", "surfaces"))
@@ -714,6 +728,7 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     record, said = chat_yes.buy(yes["id"], phase="models")
     assert record is not None and record.state == "launched", said
     assert launches()[-1][1].stages == ("closeup@alpha",) and record.chat_yes["phase"] == "models", launches()
+    assert made[-1] == {"phase": "models", "places": None}, made
     # by place (the door's buy --place / --leave-place; `score run --place` its model): a left-out place's rows are
     # neither bought nor a "would also buy" refusal, a row needing one waits, and --place keeps the environment rows
     # its places need and no other. Break: in flow.places_left, drop the `upstream` wait -> pixal@beta is kept;
@@ -746,6 +761,7 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     record, said = chat_yes.buy(a_yes()["id"], places="alpha")
     assert record is not None and record.state == "launched", said
     assert launches()[-1][1].stages == ("closeup@alpha",) and record.chat_yes["places"] == "alpha", launches()
+    assert made[-1] == {"phase": None, "places": "alpha"}, made
 
 
 def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):

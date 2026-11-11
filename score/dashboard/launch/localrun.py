@@ -31,12 +31,14 @@ BENCHMARKS = "score.stages.complete.prepare.benchmarks"  # the Benchmarks item's
 
 
 def selection(group):
-    """The --place and --stage words of a group."""
+    """The --place, --stage and --phase words of a group."""
     words = []
     for place in group.places:
         words += ["--place", place]
     for stage in group.stages:
         words += ["--stage", stage]
+    for phase in group.phases:
+        words += ["--phase", phase]
     return words
 
 

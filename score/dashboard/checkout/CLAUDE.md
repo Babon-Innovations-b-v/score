@@ -38,7 +38,8 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   code off the pin, the latch or a live run; a changed basket (fewer, more or other items, other versions) or a
   higher high is never a refusal (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL
   ENV1 DONE IS COMPELTED"): only a higher batch total needs a new yes. `buy <id>` first makes the basket again
-  from the runner's plan now (`flow.basket_made`, make.py plan only, free, as a sync pass does), so it buys what the
+  from the runner's plan now (`flow.basket_made`, make.py plan only, free, as a sync pass does; a Buy's `--phase` and
+  `--place` are the plan's own, so it plans only those, 2026-11-11), so it buys what the
   plan buys at the approved places (`screens.now_items`' filters, `--no-film`'s `left_out`), never an older pass's
   basket the run "would also buy" beyond (2026-11-05), and at the places approved now (`chat_yes.approved_now`: prepare's own `design.designs` run at launch over the store and the code running, never its saved design record, which a fix to the design rule leaves stale until the next pass; refused with its cause, the yes unused, when it fails); his click still buys the items he chose. A try whose stop needs more than is left still launches, the line at
   his total, and stops there (owner, 2026-10-27: "not just stop when u got to the limit, like ur supposed to"); the
