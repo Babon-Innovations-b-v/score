@@ -22,11 +22,11 @@ ground, laid as an OpenUSD settle layer that the assembly stage puts into the pl
                        fault, failed, back to the assembly's parting (laid_wrong); one kept as laid (it would turn or
                        drift past the settle's limits: its layout's or its model's fault) or stood upright on uneven
                        feet for the paint is named, not failed
-             resting   the settle layer makes nothing rest worse: no object the resting triage finds a real fault on
-                       on the seed with its made ground and the layer that it found none on without it (the feet
-                       and lean of one stood upright for the paint aside), and no real overlap with it at all, as laid
-                       or not; what is left is named, for the assembly's own drop and triage to judge on the baked
-                       models
+             resting   nothing rests wrong with the layer: no real fault the resting triage finds on the seed with its
+                       made ground and the layer (the feet and lean of one stood upright for the paint aside), new
+                       with the layer or there as laid: a layout the settle cannot mend fails here, back to the
+                       assembly's parting or its maker, never on to the assembly's resting gate that fails it on the
+                       same faults (galley, 2026-11-11); what the layer made worse is named so
 
 Only a place whose design shows a loose object has the row (score/stages/design_layers.py, physics), and its
 assembly waits on it; any other place's assembly lays the seed's poses. The surface
@@ -555,11 +555,10 @@ def for_the_paint(entry):
 
 
 def judge_resting(output, inputs, evidence):
-    """Fail when the settle layer makes any object rest worse: an object the resting triage finds a real fault on, on
-    the seed with its made ground and the settle layer, that it found none on without the layer (the feet and lean of
-    an object stood upright for the paint aside), and on every real overlap the triage finds with the layer, whether
-    or not it was there as laid (one overlap gate over the final layout, held or not). What is left is named; the
-    assembly's own drop and triage judge it on the baked models."""
+    """Fail on every real fault the resting triage finds on the seed with its made ground and the settle layer (the
+    feet and lean of an object stood upright for the paint aside, and a thing the plan lays within another not an
+    overlap): resting_verdict. The triage without the layer tells which faults are new with it and which were there
+    as laid."""
     record = read_json(pathlib.Path(output) / RECORD)
     for_paint = {name for name, entry in record["objects"].items() if for_the_paint(entry)}
     found, contained = {}, {}
@@ -575,15 +574,25 @@ def judge_resting(output, inputs, evidence):
                     and not (fault["object"].rsplit("/", 1)[-1] in for_paint and fault["kind"] in FOR_THE_PAINT)
                     and not planned_within(fault, contained)]
             for state in found}
-    worse = worse_faults(real["before"], real["after"])
+    return resting_verdict(real, found["after"]["objects"])
+
+
+def resting_verdict(real, objects_judged):
+    """The `resting` verdict of the real faults the triage found `before` (as laid) and `after` (with the settle
+    layer) on `objects_judged` objects: a fail on every fault after, new with the layer or there as laid, each named
+    which. The settle stops a layout it cannot mend, never hands it on: galley's stove top floating 0.76 m, its jars
+    floating 1.5 m and leaning 10 and 31 degrees on their shelves were all there as laid, passed here as "left" and
+    failed the assembly's resting gate twice on the same faults (2026-11-11)."""
+    new = worse_faults(real["before"], real["after"])
     objects = {state: len({fault["object"] for fault in real[state]}) for state in real}
-    findings = tuple(f"{'worse' if fault in worse else 'left'}: {fault['object']}: {fault['kind']} {fault['measure']}: "
-                     f"{fault['why']}" for fault in sorted(real["after"], key=lambda fault: fault not in worse))
-    reason = (f"{objects['after']} of {found['after']['objects']} objects with real resting faults rested, "
-              f"{objects['before']} as laid" + (f"; {len(worse)} faults new with the settle layer or overlapping"
-                                                if worse else ""))
-    return checks.Verdict("resting", checks.FAIL if worse else checks.PASS, reason,
-                          {"objects with faults": objects["after"], "as laid": objects["before"], "worse": len(worse)},
+    ordered = sorted(real["after"], key=lambda fault: fault not in new)
+    findings = tuple(f"{'worse' if fault in new else 'as laid'}: {fault['object']}: {fault['kind']} "
+                     f"{fault['measure']}: {fault['why']}" for fault in ordered)
+    reason = (f"{objects['after']} of {objects_judged} objects with real resting faults rested, "
+              f"{objects['before']} as laid" + (f"; {len(new)} faults new with the settle layer or overlapping"
+                                                if new else ""))
+    return checks.Verdict("resting", checks.FAIL if real["after"] else checks.PASS, reason,
+                          {"objects with faults": objects["after"], "as laid": objects["before"], "worse": len(new)},
                           {"objects with faults": "lower", "worse": "lower"}, findings)
 
 
@@ -597,7 +606,7 @@ def within_of(record):
 def planned_within(fault, contained):
     """Whether an overlap is one thing laid within the other by its plan: the plan's own placement, not a fault
     (2026-11-09: greenhouse's plants in their planter beds failed settle as ten overlaps). A thing on another, or two
-    unrelated things, still fail inside each other, as worse_faults says."""
+    unrelated things, still fail inside each other, as resting_verdict says."""
     if fault["kind"] != "overlaps" or not fault.get("partner"):
         return False
     one, other = fault["object"].rsplit("/", 1)[-1], str(fault["partner"]).rsplit("/", 1)[-1]
@@ -605,10 +614,10 @@ def planned_within(fault, contained):
 
 
 def worse_faults(before, after):
-    """The real faults `after` (the triage's with the settle layer) that fail the resting gate: each on an object with
-    none `before` (as laid; an object at fault as laid is no worse for another kind), and every overlap, which being
-    one as laid never excuses: two things inside each other fail, held or not, as laid or not (galley's chairs in its
-    table, quarters' lockers in each other, accepted on 2026-11-03)."""
+    """The real faults `after` (the triage's with the settle layer) the layer made worse: each on an object with none
+    `before` (as laid), and every overlap, which being one as laid never excuses (galley's chairs in its table,
+    quarters' lockers in each other, accepted on 2026-11-03). Every fault after fails the gate (resting_verdict);
+    these are the ones named worse."""
     was = {fault["object"] for fault in before}
     return [fault for fault in after if fault["object"] not in was or fault["kind"] == "overlaps"]
 

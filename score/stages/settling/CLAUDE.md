@@ -29,11 +29,13 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   poses the layer lays (the drop's loose-to-loose collision is off): a pair already crossing as laid is kept as laid,
   "laid inside" the other, as one laid inside a static is, and a pair the layer brings to cross is a broken drop
   (settle@airlock's sandbags, 2026-10-30). Kept as laid is no pass: one left laid inside another or a static, or
-  floating over what is under it, fails `rested` (`laid_wrong`), and every real overlap the triage finds with the
-  layer fails `resting`, as laid or not, held or not (`worse_faults`): galley's chairs in its table and quarters'
-  lockers in each other were accepted on 2026-11-03 with an empty overlap list. The fix is the assembly's parting
-  (`assembly/fitting.parted`) or the maker's, never a settle. What else is left is named on the page; the
-  assembly's resting gate is the final judge. One stacked on a
+  floating over what is under it, fails `rested` (`laid_wrong`), and every real fault the triage finds with the
+  layer (an overlap, a float, a lean, a tip) fails `resting`, as laid or not, held or not (`resting_verdict`; what
+  the layer made worse is named so, `worse_faults`): galley's chairs in its table and quarters' lockers in each other
+  were accepted on 2026-11-03 with an empty overlap list, and galley's stove top floating 0.76 m and its jars
+  floating and leaning on their shelves passed as "left" on 2026-11-11, then failed the assembly's resting gate twice
+  on the very same faults. The fix is the assembly's parting (`assembly/fitting.parted`) or the maker's, never a
+  settle. The assembly's resting gate judges again on the baked models. One stacked on a
   loose support the layer leaves unrested is left as laid with it (`kept_with_their_supports`): its rest was found
   on the support where the drop left it (settle@airlock's sandbags_18, 52 cm down a ramp kept as laid, 2026-10-30).
 - **Leaning and attached (#94)**: a row the scene record says rests `leaning` or `attached` (its objects' `rests`,
