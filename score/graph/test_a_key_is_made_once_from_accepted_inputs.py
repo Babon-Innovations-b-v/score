@@ -1374,7 +1374,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     reworded only (comments, blank lines, layout, docstrings) keep it, the record naming them; a docstring changed in
     a file that reads `__doc__`, or a type hint, makes A again. A's phase locked (Runner.lock_phase): its own file
     edited keeps it, the record "kept by the phase lock of <time>", status naming the lock and A kept by it; its
-    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1). Locked, with
+    {seeds} file changed (an input) makes A again; unlocked, its own file edited makes A again (case 1). Locked, a
+    code file of the repository declared as A's since keeps it, a data file so declared makes it again (2026-11-11:
+    70c87a4a declared props/railing_hold.py for pixal and likeness, made again at 18 locked places). Locked, with
     its gate in a file of its own (K): its own file edited while that unchanged gate would fail it today keeps it (a
     gate not changed since the lock is not judged again: checkout 47, 2026-11-07, pixal and closeup bought again);
     K edited so the gate fails the locked output, or cannot tell (unknown), makes A again (2026-11-07, 796d7a76's paint
@@ -1392,6 +1394,8 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     Break: score/graph/__init__.py: '        if not drops:' -> '        if True:'
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
     Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
+    Break: score/graph/__init__.py: 'not set(record["files"]) <= set(keyed["files"]):' -> 'set(record["files"]) != set(keyed["files"]):'
+    Break: score/graph/__init__.py: 'if record["files"].get(name) != keyed["files"][name]):' -> 'if name in record["files"] and record["files"][name] != keyed["files"][name]):'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if self.fails_today(stage, place, record):'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if False:'
     Break: score/graph/__init__.py: 'if checks.blocks(verdict["answer"]) and name not in waived]' -> 'if verdict["answer"] == checks.FAIL and name not in waived]'
@@ -1407,7 +1411,9 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                                (14, "own file, gate fails, phase locked", True),
                                (15, "gate edited, phase locked", False),
                                (16, "gate edited to unknown, phase locked", False),
-                               (17, "own file, dropped, phase locked", False)):
+                               (17, "own file, dropped, phase locked", False),
+                               (18, "code file declared, phase locked", True),
+                               (19, "data file declared, phase locked", False)):
         seeds = pathlib.Path(tempfile.mkdtemp())
         (seeds / "hangar.txt").write_text("a seed")
         world = graph.Environment("toy", 7, {"seeds": str(seeds)})
@@ -1442,6 +1448,11 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 assert dropped["dropped"] == ["narrow", "narrow@hangar"] and dropped["nodes"] == {} and \
                     dropped["n"] == 2, dropped
                 change = "own file"
+            if change in ("code file declared", "data file declared"):  # a file of its own since: code or data
+                held = repo / ("data/hold.txt" if change == "data file declared" else f"narrow_g{case}.py")
+                held.parent.mkdir(exist_ok=True)
+                held.exists() or held.write_text("held\n")
+                stage = dataclasses.replace(stage, files={**stage.files, "hold": str(held)})
             if change == "own file, gate fails":  # the gate's code as at the lock, failing the locked output today
                 (seeds / "rusted").write_text("rust")
                 change = "own file"

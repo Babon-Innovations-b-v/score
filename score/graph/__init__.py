@@ -2039,12 +2039,14 @@ class Runner:
     def phase_locked(self, stage, place, keyed):
         """(the newest phase lock holding the node's accepted output, the record it was locked under) when only code
         moved the node's key since: every key part but the code version the same as that record's (its inputs'
-        accepted outputs above all, or handing it the same content: same_earlier), each declared file that moved one
-        of the repository's code files, and, where the stage's gate code changed since the lock (gates_moved), the
-        locked output not failing those gates as they judge today (fails_today: a changed gate catches what the old one let through; 2026-11-07, 796d7a76's paint gate and
-        hub's rusted console, held by the surfaces lock). A gate whose code is as at the lock is not judged again: its
-        locked output stands as judged (checkout 47, 2026-11-07: judged again with no gate changed, pixal at 17 places
-        and closeup at 9 were listed to buy again). None otherwise (the runner then makes the node)."""
+        accepted outputs above all, or handing it the same content: same_earlier), each declared file that moved or
+        was declared since one of the repository's code files (70c87a4a declared props/railing_hold.py for pixal and
+        likeness, and the models lock kept neither at 18 places, 2026-11-11), none of the record's declared since
+        dropped, and, where the stage's gate code changed since the lock (gates_moved), the locked output not failing
+        those gates as they judge today (fails_today: a changed gate catches what the old one let through; 2026-11-07,
+        796d7a76's paint gate and hub's rusted console, held by the surfaces lock). A gate whose code is as at the
+        lock is not judged again: its locked output stands as judged (checkout 47, 2026-11-07: judged again with no
+        gate changed, pixal at 17 places and closeup at 9 were listed to buy again). None otherwise (the runner then makes the node)."""
         node = node_name(stage, place)
         accepted = self.store.accepted(node)
         every = self.phase_locks()
@@ -2057,12 +2059,12 @@ class Runner:
         if record is None or record["output"] != accepted:
             return None
         if any(record.get(part) != keyed.get(part) for part in PHASE_SAME if part not in EARLIER_PARTS) or \
-                set(record["files"]) != set(keyed["files"]):
+                not set(record["files"]) <= set(keyed["files"]):
             return None
         if not self.same_earlier(stage, place, record, keyed):
             return None
         if not all(self.code_file(stage, name, place) for name in keyed["files"]
-                   if record["files"][name] != keyed["files"][name]):
+                   if record["files"].get(name) != keyed["files"][name]):
             return None
         if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):
             return None
