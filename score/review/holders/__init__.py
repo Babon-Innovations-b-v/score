@@ -1146,9 +1146,10 @@ def up_to_level(item, row, plan):
 
 def stair_sides(plan, count):
     """[{spot, way}] of `count` pieces along the plan's stairs' sides (a railing on a staircase): each stair's two
-    sides in turn, each way the stair's way up (0 east, 90 south); the pieces one side takes spread evenly along it,
-    each the middle of its share (stairwell's 12 railings on 4 stairs stood three at each side's middle, 2026-11-04
-    audit)."""
+    sides in turn, each way the stair's way up (0 east, 90 south), at the `height` of the stair's foot; the pieces one
+    side takes spread evenly along it, each the middle of its share (stairwell's 12 railings on 4 stairs stood three at
+    each side's middle, 2026-11-04 audit; laid at their plan items' heights, 0.5 to 3 m off their flights' feet,
+    2026-11-10)."""
     stairs = plan.get("stairs") or []
     sides = 2 * len(stairs)
     found = []
@@ -1165,6 +1166,7 @@ def stair_sides(plan, count):
         spot = middle_point + across * half * (1 if left else -1) + way * run * ((share + 0.5) / on_side - 0.5)
         found.append({"how": "floor", "spot": [round(float(value), 3) for value in spot],
                       "way": [round(float(value), 6) + 0.0 for value in way],
+                      **({"height": float(stair["from"])} if "from" in stair else {}),
                       "why": f"along the {'left' if left else 'right'} side of the plan's stair {side // 2 + 1}"})
     return found
 
@@ -1213,8 +1215,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
     if holder is not None and holder["id"] not in laid and words_of(holder) & STAIR_WORDS and plan.get("stairs"):
         count = max(1, int(((plan.get("shapes") or {}).get(item[0]) or {}).get("count") or 1),
                     int(row.get("count") or 1) if item[0] == plan_checks.WALLS_ITEM else 1)
-        return {"how": "floor", "pieces": stair_sides(plan, count), "stairs": count,
-                "why": f"along {holder['id']}'s stairs"}, None
+        return {"how": "floor", "pieces": stair_sides(plan, count), "stairs": count, "rests": ATTACHED,
+                "why": f"along {holder['id']}'s stairs, attached to its flights"}, None
     if kind is None and holder is not None and design_shell.fills_opening(row):
         kind = "wall"  # a door or window of a structure the plan's shell lays (camp's airlock entrance): in its wall
     spanning = kind == "wall" and spans(row)
@@ -2140,6 +2142,42 @@ def stood_under(found, items, rows, plan):
                          "on nothing")
 
 
+def stood_on(item, row, rows, plan, items, laid, tied):
+    """The relation of a floor row's own item its plan stands more than half its height (and STAND_REACH) up, its row
+    naming no holder by its anchor: `top` of the highest thing laid under its box on the plan whose top is over half
+    its base and no higher than it (STAND_REACH over at most; its own row's only where that row piles, people never),
+    else of the nearest item of a row its where words name (named_holders: a TV 'on tv stand'), which the assembly lays
+    on that thing's built top; else on the floor, which stood_under stands on what is under it. None for one on the
+    floor. 2026-11-10: habitat's table lamps drawn 0.8 m up 'in living areas, bedrooms', hangar's bench tools 1 m up
+    'on the work bench' and quarters' papers 0.8 m up 'on the floor, desk' had no relation, so the scene record laid
+    them where drawn, held by nothing, and the settle's drop let them fall."""
+    shape = shape_of(item[0], plan)
+    base, tall = float(shape.get("base") or 0.0), tall_of(item[0], row, plan)
+    if base <= max(STAND_REACH, tall / 2):
+        return None
+    people = plan_checks.people({"rows": list(rows.values())})
+    box = [float(value) for value in item[1:5]]
+    under = [(float(shape_of(name, plan).get("base") or 0.0) + tall_of(name, rows.get(row_id) or {}, plan), name,
+              row_id)
+             for name, other in items.items() if name not in (item[0], plan_checks.WALLS_ITEM)
+             for row_id in ((plan.get("rows") or {}).get(name) or [])[:1]
+             if name in laid.get(row_id, ()) and (row_id != row["id"] or piles(row)) and row_id not in people
+             and box[0] < other[1] + other[3] and other[1] < box[0] + box[2]
+             and box[1] < other[2] + other[4] and other[2] < box[1] + box[3]]
+    under = [found for found in under if base / 2 < found[0] <= base + STAND_REACH]
+    if under:
+        _, name, row_id = max(under)
+        return {"how": "top", "holder": name, "holder row": row_id,
+                "why": f"on {row_id}'s top: its plan stands it {base:g} m up over it, its row naming no holder"}
+    named = [(float(numpy.linalg.norm(middle(items[name]) - middle(item))), name, other["id"])
+             for other in named_holders(row, rows, tied) for name in laid.get(other["id"], ()) if name in items]
+    if named:
+        _, name, row_id = min(named)
+        return {"how": "top", "holder": name, "holder row": row_id,
+                "why": f"on {row_id}'s top: its words say {row.get('where')!r}, its plan stands it {base:g} m up"}
+    return {"how": "floor", "why": "on the place's floor: its plan stands it up over nothing its row names"}
+
+
 def wall_held(row, rows):
     """Whether a reading row stands against a wall: anchored on one, or on a row that is one (holder_kind)."""
     anchor = str(row.get("anchor") or "")
@@ -2191,7 +2229,7 @@ def relations(plan, inventory, sha=None, kinds=None):
             if (row.get("anchor") or "floor") in plan_checks.FLOOR_ANCHORS:
                 got = (at_edge(row, plan, inventory, turn) if item[0] == plan_checks.WALLS_ITEM else None) or (
                     {"how": "floor", **spot} if (spot := floor_spot(item, row, plan, inventory, taken_stairs)) else
-                    None) or up_to_level(item, row, plan)
+                    None) or up_to_level(item, row, plan) or stood_on(item, row, rows, plan, items, laid, tied)
                 if got:
                     found.append({"item": name, "row": row_id, **got, **rests_entry(row)})
                 continue
