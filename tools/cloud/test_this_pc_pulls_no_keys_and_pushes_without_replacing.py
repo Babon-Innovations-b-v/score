@@ -21,6 +21,9 @@ Breaks (each applied once, seen red, reverted):
 - this_pc.py `stop_containers`: `names or [MACHINE]` -> `[MACHINE]` -> a kind's own container keeps the card.
 - this_pc.py `RUN_OWN`: drop "SCORE_FROZEN" -> a resumed run would carry the paused run's frozen copy.
 - this_pc.py `resume`: drop its `live_run` refusal -> a second run starts beside the live one.
+- this_pc.py `stop`: drop the `os.killpg` -> a run still draining after its wait is left beside the next (#111).
+- this_pc.py `start_refusal`: drop its `live_run` test -> a run starts beside a live one; or drop the `reason is
+  None` test -> a restart within RESTART_HOURS goes without a reason (#112).
 - this_pc.py `resume`: drop `**record["env"]` -> the resumed run loses its go and SCORE_MIN_FREE_GB.
 - this_pc.py `newest_beat`: `found[-1]` -> `found[0]` -> status says the oldest heartbeat's rows.
 - this_pc.py `DESIGN_STEPS`: drop "score.stages.complete.prepare" -> `score run` reads the stale hand-in, its
@@ -371,6 +374,12 @@ def test_pause_records_the_run_stops_it_and_only_then_the_container(tmp_path, mo
     monkeypatch.setattr(this_pc.shutil, "disk_usage", lambda path: this_pc.shutil._ntuple_diskusage(1007e9, 931e9, 76e9))
     assert this_pc.status_line(home).endswith("containers score-this-pc 379GB, score-this-pc-segment 24GB; "
                                               "disk 76 GB free WARNING: under 100 GB free")  # 2026-11-03's disk
+    # stop (#111): a run still draining after STOP_SECONDS has its whole group killed, never left beside the next
+    process, entry = stand_in_run(home, tmp_path)
+    monkeypatch.setattr(this_pc, "STOP_SECONDS", 0.2)
+    assert this_pc.stop(home) == f"stopped run {entry['id']} (pid {process.pid}) by SIGKILL after 0.2 s"
+    assert process.wait(timeout=5) == -this_pc.signal.SIGKILL and not this_pc.group_alive(process.pid)
+    assert this_pc.stop(home) == "stop: no run was live"
 
 
 def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_as_it_ran(tmp_path, monkeypatch):
@@ -381,6 +390,8 @@ def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_a
     try:
         with pytest.raises(SystemExit, match="refused, run .* is live"):
             this_pc.resume(home)
+        # a new run never starts beside a live one (#111), whatever reason it is given
+        assert this_pc.start_refusal(home, "a fix").startswith(f"run {entry['id']} is live")
         assert this_pc.status_line(home).startswith(f"running {entry['id']}")
     finally:
         process.kill()
@@ -411,3 +422,15 @@ def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_a
                                                                   "SCORE_FREE_ONLY": "1", "PROPS_HOME": str(home)}
     assert not (home / this_pc.PAUSED).exists()
     assert this_pc.status_line(home).startswith("neither running nor paused")
+    # a start within RESTART_HOURS of the last is refused without a reason (#112), and one is taken off the arguments
+    started = this_pc.datetime.datetime(2026, 11, 11, 9, 0, tzinfo=this_pc.datetime.timezone.utc)
+    write(home / "runs" / "20261111T090000-2.json", this_pc.json.dumps({"id": "2", "state": "ended", "pid": 1,
+                                                                         "started": started.isoformat()}))
+    soon, later = started + this_pc.datetime.timedelta(hours=1), started + this_pc.datetime.timedelta(hours=3)
+    assert "--restart-reason" in this_pc.start_refusal(home, None, now=soon)
+    assert this_pc.start_refusal(home, "the people chain is stopped", now=soon) is None
+    assert this_pc.start_refusal(home, None, now=later) is None
+    assert this_pc.restart_taken(["world1", "--restart-reason", "why", "--jobs", "16"]) == (["world1", "--jobs", "16"],
+                                                                                          "why")
+    with pytest.raises(SystemExit, match="needs its reason"):
+        this_pc.restart_taken(["world1", "--restart-reason"])
