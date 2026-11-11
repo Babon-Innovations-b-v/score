@@ -724,13 +724,15 @@ def overhang(low, high, hold_low, hold_high, axes):
 
 def off_holder(low, high, how, on, box):
     """Metres a box stands off its holder box: top (its foot off the top, its footprint past it), within (past it any
-    way, but over its top when it stands on it: on_boards), face (its back off the face it was laid on, `face at`,
+    way, but over its top when it stands on it: on_boards; one on its shelves may reach over its top from its top
+    board, whose room over it the fitting found clear: storage's bags on their units' open top boards, 2026-11-11), face (its back off the face it was laid on, `face at`,
     else the side `out` points from, it and its recess's room past that side's span, or above its top)."""
     hold_low, hold_high = box
     if how == "top":
         return max(abs(low[1] - hold_high[1]), overhang(low, high, hold_low, hold_high, (0, 2)))
     if how == "within":
-        above = min(max(0.0, high[1] - hold_high[1]), abs(low[1] - hold_high[1]))  # on its top it stands over it
+        above = 0.0 if on_shelves_of(on) else \
+            min(max(0.0, high[1] - hold_high[1]), abs(low[1] - hold_high[1]))  # on its top it stands over it
         return max(overhang(low, high, hold_low, hold_high, (0, 2)), max(0.0, hold_low[1] - low[1]), above,
                    abs(low[1] - hold_low[1]) if on.get("under") else 0.0)
     axis, side, sign = face_axes(on)
