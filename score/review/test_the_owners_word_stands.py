@@ -3451,7 +3451,9 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         inside); `taken_floor`'s `laid_polygon(...)` -> `plan_checks.polygon_of(other, shape)` (the bags left where
         the holders lay the ramp)
     Break: score/review/plan_fixes.py `hung_runs`: `long >= RUN_SHARE * short and` dropped (the hung lamps moved to a
-        wall), or `hung_runs_laid_out`'s `item[1:5] = first` -> `pass` (the cables left in one another)"""
+        wall), or `hung_runs_laid_out`'s `item[1:5] = first` -> `pass` (the cables left in one another)
+    Break: score/review/plan_fixes.py `tops_cut`: `if used + needs <= long + 1e-9 or not kept:` -> `if True:` (five
+        0.5 m monitors kept on a 2 m desk), or -> `if not kept:` (three that fit cut to one)"""
     inventory = {"picture": [1000, 1000], "rows": ROWS}
     plan = stand_in_plan()
     before = [gap["kind"] for gap in plan_checks.checked(plan, inventory)]
@@ -3857,6 +3859,23 @@ def test_the_free_fixes_stand_people_place_the_missing_turn_and_part_and_leave_t
         assert (said == ["ramp: ramp 1 taken off, 1 laid up to a raised level through a wall: 0 laid"]
                 and loft["items"] == []) if walled_off else (said == [] and len(loft["items"]) == 1), (walled_off,
                                                                                                          said)
+    # hub, 2026-11-11: 16 monitor screens on a 1.75 m console top, 19 on a 2.73 m bank, laid in one another. The
+    # things of a row stood on a top are cut to those that stand side by side along it as made, the nearest its middle
+    # kept, the rest said in `dropped`; as many as fit are all kept.
+    monitor_rows = {"rows": [{"id": "desk", "anchor": "floor", "count": 1, "size": [2.0, 0.8, 0.8]},
+                             {"id": "monitor", "anchor": "floor", "count": 5, "size": [0.5, 0.1, 0.4]}]}
+    for count, kept in ((5, ["MONITOR 2", "MONITOR 3", "MONITOR 4"]), (3, ["MONITOR 1", "MONITOR 2", "MONITOR 3"])):
+        console = {"w": 6.0, "d": 4.0, "items": [["DESK 1", 1.0, 1.0, 2.0, 0.8, "S", "item"]],
+                   "rows": {"DESK 1": ["desk"]}, "shapes": {"DESK 1": {"shape": "rect", "tall": 0.8, "base": 0.0}}}
+        for number in range(1, count + 1):  # drawn 0.4 m apart over the desk, 0.8 m up: on its top
+            console["items"].append([f"MONITOR {number}", 0.6 + 0.4 * number, 1.3, 0.5, 0.1, "S", "item"])
+            console["rows"][f"MONITOR {number}"] = ["monitor"]
+            console["shapes"][f"MONITOR {number}"] = {"shape": "rect", "tall": 0.4, "base": 0.8}
+        said = plan_fixes.tops_cut(console, monitor_rows)
+        assert [item[0] for item in console["items"]][1:] == kept and (console.get("dropped") == [
+            {"item": "monitor", "why": "2 more of it than its holders' tops hold side by side as made: 3 laid",
+             "laid": 3}] if count == 5 else said == [] and "dropped" not in console), (count, said, console)
+        assert plan_fixes.tops_cut(console, monitor_rows) == []
 
 
 def test_a_missing_thing_crossing_one_of_its_row_is_piled_on_it():

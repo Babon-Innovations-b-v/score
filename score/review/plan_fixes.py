@@ -1145,6 +1145,66 @@ def hung_runs_laid_out(plan, inventory):
     return fixes
 
 
+TOP_CLEAR = 0.01  # metres between things side by side on a top and from its ends (assembly fitting.BOARD_CLEAR)
+
+
+def made_footprint(item, size):
+    """[x, y] metres of a plan item's footprint at its made `size` [wide, deep, tall]: its long side along the way the
+    scene record lays it (writer.item_way: its facing's, turned onto a slender box's long side)."""
+    from score.stages.scene_record import writer
+    way = writer.item_way(item, {"size": list(size)})
+    long, short = max(float(size[0]), float(size[1])), min(float(size[0]), float(size[1]))
+    return [long, short] if abs(float(way[0])) >= abs(float(way[1])) else [short, long]
+
+
+def sized(size):
+    """Whether a made size has a positive wide and deep."""
+    return isinstance(size, list) and len(size) >= 2 and all(
+        isinstance(side, (int, float)) and side > 0 for side in size[:2])
+
+
+def tops_cut(plan, inventory):
+    """The things of one row the holders stand on a holder's top (holders.relations, `top`; a row that piles left out)
+    cut to those that stand side by side in one row along its long side at their made size (made_sizes, made_footprint),
+    TOP_CLEAR apart and from its ends, as the assembly spreads them there (fitting.spread_on_tops), each of the holder
+    item's pieces one top: the nearest its holder's middle kept, never fewer than one; the rest taken off
+    (`surplus_dropped`, said in `dropped`), so the scene record lays only what fits. hub, 2026-11-11: 16 monitor
+    screens on a 1.75 m console top and 19 on a 2.73 m bank were laid in one another (held: 22 of them); the plan
+    fixes cut runs on the floor, the walls and under the roof so (runs_laid_out, wall_runs_spread,
+    hung_runs_laid_out), its tops not."""
+    sizes, items = made_sizes(plan, inventory), {item[0]: item for item in plan.get("items", [])}
+    rows, shapes = {row["id"]: row for row in inventory.get("rows", [])}, plan.get("shapes", {})
+    on = {}
+    for entry in holders.relations(plan, inventory)["relations"]:
+        if entry.get("how") == "top" and entry.get("holder") in items and entry["item"] in items \
+                and entry["row"] in rows and not piles(rows[entry["row"]]) and sized(sizes.get(entry["row"])):
+            on.setdefault((entry["row"], entry["holder"]), []).append(items[entry["item"]])
+    fixes, surplus = [], {}
+    for (row, holder), things in on.items():
+        held_size = sizes.get((plan.get("rows", {}).get(holder) or [None])[0])
+        if not sized(held_size):
+            continue
+        top = made_footprint(items[holder], held_size)
+        axis = 0 if top[0] >= top[1] else 1
+        long = top[axis] * int((shapes.get(holder) or {}).get("count") or 1)
+        middle = numpy.array([items[holder][1] + items[holder][3] / 2, items[holder][2] + items[holder][4] / 2])
+        used, kept, cut = TOP_CLEAR, 0, []
+        for thing in sorted(things, key=lambda thing: float(numpy.linalg.norm(
+                numpy.array([thing[1] + thing[3] / 2, thing[2] + thing[4] / 2]) - middle))):
+            needs = int((shapes.get(thing[0]) or {}).get("count") or 1) * (
+                made_footprint(thing, sizes[row])[axis] + TOP_CLEAR)
+            if used + needs <= long + 1e-9 or not kept:
+                used, kept = used + needs, kept + 1
+            else:
+                cut.append(thing)
+        if cut:
+            surplus.setdefault(row, []).extend(cut)
+            fixes.append(f"{plan_checks.said_name(holder)}: its top, {top[axis]:g} m long as made, holds {kept} of the "
+                         f"{len(things)} {plan_checks.said_name(row)} the holders stand on it side by side as made")
+    return fixes + [said for row, cut in surplus.items() for said in surplus_dropped(
+        plan, inventory, cut, why=f"{len(cut)} more of it than its holders' tops hold side by side as made")]
+
+
 def kept_apart(plan, inventory):
     """The fixes that keep what settle drops out of each other and out of the shell (env1 checkouts 67 and 68), in
     order: a roof's eave raised a storey over a level standing under it (`eaves_raised`), a stairs row taken off where
@@ -1156,12 +1216,14 @@ def kept_apart(plan, inventory):
     though it does not pile stood on the floor or taken off (`unpiled`), runs of one row in each other on a wall laid
     along walls free of them or taken off (`wall_runs_spread`), runs on a wall parted (`wall_runs_parted`), stairs and
     ramps moved out of what is made larger than drawn (`flights_cleared`), things made larger than drawn moved off the
-    stairs or taken off (`off_flights`); the fixes said. A writing fixed before them gets them in the pass (plans_pass.unsettled), an edit
+    stairs or taken off (`off_flights`), things on a holder's top cut to what stands side by side on it as made
+    (`tops_cut`); the fixes said. A writing fixed before them gets them in the pass (plans_pass.unsettled), an edit
     or a redrawing when shown (plans.edit_inside)."""
     return eaves_raised(plan) + stair_rows_dropped(plan, inventory) + runs_kept_clear(plan, inventory) \
         + run_doubles_dropped(plan, inventory) + ramps_walled(plan, inventory) + runs_laid_out(plan, inventory) \
         + hung_runs_laid_out(plan, inventory) + unpiled(plan, inventory) + wall_runs_spread(plan, inventory) \
-        + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory) + off_flights(plan, inventory)
+        + wall_runs_parted(plan, inventory) + flights_cleared(plan, inventory) + off_flights(plan, inventory) \
+        + tops_cut(plan, inventory)
 
 
 def nudged(plan, inventory):
