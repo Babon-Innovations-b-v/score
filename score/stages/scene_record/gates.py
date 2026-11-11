@@ -143,8 +143,11 @@ def lamp_faults(record, design):
 def count_faults(record, design, inputs):
     """Each glowing row (writer.glowing_rows) the plan lays at an item that has fewer lamps in the record than its
     reading counts (its `count`; 2026-11-04: garage's three ceiling lamps, workshop's thirteen monitors and hangar's
-    row of wall lamps each laid as one, and no gate compared a lamp with the inventory)."""
+    row of wall lamps each laid as one, and no gate compared a lamp with the inventory), less what the plan's
+    `dropped` says it no longer lays (writer.counted; 2026-11-11: camp's and lab's monitors cut off their desks' tops
+    by plan_fixes.tops_cut were still counted)."""
     glowing, _ = writer.glowing_rows(inputs)
+    glowing = {row_id: writer.counted(row, design) for row_id, row in glowing.items()}
     tied = {row for item in design.get("items") or [] if not (len(item) > 6 and item[6] == "zone")
             for row in (design.get("rows") or {}).get(item[0]) or []}
     made = {}

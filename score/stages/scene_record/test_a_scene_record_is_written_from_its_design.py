@@ -316,6 +316,8 @@ def test_the_record_is_written_from_the_design():
         -> `pass`
     Break: score/stages/scene_record/gates.py: `if row_id in tied and made.get(row_id, 0) < int(row.get("count") or
         1)]` -> `if False]` (a glowing row with fewer lamps than its reading counts passes)
+    Break: score/stages/scene_record/gates.py: count_faults' `glowing = {row_id: writer.counted(row, design) ...}`
+        dropped (a monitor the plan's `dropped` cut off its desk is counted missing: camp and lab, 2026-11-11)
     Break: score/stages/scene_record/gates.py:
         `found.append(f"opening {number} leads to {to!r}, no place of the design nor a row of its inventory")`
         -> `pass`
@@ -391,6 +393,18 @@ def test_the_record_is_written_from_the_design():
         assert verdict.answer == checks.FAIL and "glowing row ceiling_lamp has 0 lamps, its reading counts 1" in \
             verdict.findings, verdict.findings
         path.write_text(json.dumps(record))
+        read = json.loads(pathlib.Path(inputs["inventory"]).read_text())
+        pathlib.Path(inputs["inventory"]).write_text(json.dumps({**read, "rows": [
+            row if row["id"] != "ceiling_lamp" else {**row, "count": 2} for row in read["rows"]]}))
+        verdict = gates.judge_plan_matched(output, inputs, {})  # one lamp missing for no recorded reason
+        assert "glowing row ceiling_lamp has 1 lamps, its reading counts 2" in verdict.findings, verdict.findings
+        kept = pathlib.Path(inputs["plans"]) / "shed.json"
+        drawn = json.loads(kept.read_text())
+        kept.write_text(json.dumps({**drawn, "dropped": [{"item": "ceiling_lamp", "why": "cut: 1 laid", "laid": 1}]}))
+        verdict = gates.judge_plan_matched(output, inputs, {})  # the plan dropped one (camp's monitors, 2026-11-11)
+        assert not [found for found in verdict.findings if "ceiling_lamp" in found], verdict.findings
+        kept.write_text(json.dumps(drawn))
+        pathlib.Path(inputs["inventory"]).write_text(json.dumps(read))
         handin = json.loads(pathlib.Path(inputs["hand-in"]).read_text())
         pathlib.Path(inputs["hand-in"]).write_text(json.dumps({**handin, "rows": [
             *handin["rows"], {"id": "landing_pad", "part": "floor", "route": "plan"}]}))
