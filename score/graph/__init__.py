@@ -412,8 +412,10 @@ NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "b
 PHASE_LOCKS = "phase-locks/"
 PHASE_REASON = "kept by the phase lock of {at}"
 PHASE_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*")
-# The key parts a phase lock keeps the same: all but the code version and the repository's code files.
+# The key parts a phase lock keeps the same: all but the code version and the repository's code files; of them the
+# earlier outputs (EARLIER_PARTS) may move where the row's content rule reads the same off them (Runner.same_earlier).
 PHASE_SAME = NARROWING_SAME
+EARLIER_PARTS = ("after", "beside")
 
 
 def made_by(record):
@@ -2007,9 +2009,9 @@ class Runner:
     def phase_locked(self, stage, place, keyed):
         """(the newest phase lock holding the node's accepted output, the record it was locked under) when only code
         moved the node's key since: every key part but the code version the same as that record's (its inputs'
-        accepted outputs above all), each declared file that moved one of the repository's code files, and, where the
-        stage's gate code changed since the lock (gates_moved), the locked output not failing those gates as they judge
-        today (fails_today: a changed gate catches what the old one let through; 2026-11-07, 796d7a76's paint gate and
+        accepted outputs above all, or handing it the same content: same_earlier), each declared file that moved one
+        of the repository's code files, and, where the stage's gate code changed since the lock (gates_moved), the
+        locked output not failing those gates as they judge today (fails_today: a changed gate catches what the old one let through; 2026-11-07, 796d7a76's paint gate and
         hub's rusted console, held by the surfaces lock). A gate whose code is as at the lock is not judged again: its
         locked output stands as judged (checkout 47, 2026-11-07: judged again with no gate changed, pixal at 17 places
         and closeup at 9 were listed to buy again). None otherwise (the runner then makes the node)."""
@@ -2024,8 +2026,10 @@ class Runner:
         record = self.store.record(node, locks[-1]["nodes"][node]["key"])
         if record is None or record["output"] != accepted:
             return None
-        if any(record.get(part) != keyed.get(part) for part in PHASE_SAME) or \
+        if any(record.get(part) != keyed.get(part) for part in PHASE_SAME if part not in EARLIER_PARTS) or \
                 set(record["files"]) != set(keyed["files"]):
+            return None
+        if not self.same_earlier(stage, place, record, keyed):
             return None
         if not all(self.code_file(stage, name, place) for name in keyed["files"]
                    if record["files"][name] != keyed["files"][name]):
@@ -2033,6 +2037,15 @@ class Runner:
         if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):
             return None
         return locks[-1], record
+
+    def same_earlier(self, stage, place, record, keyed):
+        """Whether the earlier outputs the key reads (EARLIER_PARTS) are the record's, or, where one moved, hand the
+        node what it read then by its row's content rule (stage.files.same_earlier: rough-model reads its plan's
+        place alone). 516021df cut surplus screens off lab's, hub's and camp's plans: their plan outputs moved with
+        the models lock's rows' code, and rough-model@lab, which reads none of it, was made again."""
+        if all(record.get(part) == keyed.get(part) for part in EARLIER_PARTS):
+            return True
+        return hasattr(stage.files, "same_earlier") and stage.files.same_earlier(self, stage, place, record, keyed)
 
     def gates_moved(self, stage, lock):
         """Whether the stage's gate code (its checks' judges and every repository file they import) differs from what
@@ -2073,6 +2086,7 @@ class Runner:
         lock, record = found
         node = node_name(stage, place)
         new = {**record, "key": keyed["key"], "code": keyed["code"], "files": keyed["files"],
+               **{part: keyed[part] for part in EARLIER_PARTS if part in keyed},
                "carried": {"reason": PHASE_REASON.format(at=lock["at"]), "phase": lock["phase"], "lock": lock["n"],
                            "from key": record["key"], "to key": keyed["key"], "made by": made_by(record)}}
         try:
