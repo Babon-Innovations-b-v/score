@@ -62,7 +62,7 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import board_spots, passages
+from score.stages.assembly import board_spots, floor_clear, passages, wall_clear
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -1968,6 +1968,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     done, fits = set(), fits + parted(stage, place, loose, set(by_name))
     loose = [entry for entry in loose if stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}").IsActive()]
     fits += moved_out(stage, place, loose)
+    fits += floor_clear.off_edges(stage, place, loose) + floor_clear.apart(stage, place, loose)
     built = [box for _, box in walls(stage, place)]
 
     def one(name, seen=()):
@@ -2012,7 +2013,7 @@ def fitted(stage, place, entries, laid, cuts=None):
             turned = how == "wall" and not passes(entry)  # a passage meets its place through its wall, as laid
             on_face = False  # laid on its slanted wall's built face (on_built_face found it)
             if turned and slanted_wall(entry["on"]):  # laid on its built wall's face, turned to it
-                built_on, degrees = on_built_face(entry["on"], (low[1] + high[1]) / 2, faces())
+                built_on, degrees = on_built_face(entry["on"], (low[1] + high[1]) / 2, faced())
                 on_face = built_on is not entry["on"]
                 if abs(degrees) > TURN_LEAST:
                     pivot = foot_middle(low, high)
@@ -2023,7 +2024,7 @@ def fitted(stage, place, entries, laid, cuts=None):
                 along = True
                 low, high = world_box(stage, path)
             walled = how in ("wall", "face") and name not in leaves
-            clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
+            clear = [*(box for leaf in sorted(done & leaves) for box in rooms(leaf)), *climbing] if walled else ()
             if turned:  # and out of the openings cut through its wall (wall_holes)
                 clear = [*clear, *wall_holes(faces(), entry["on"], (float(low[1]), float(high[1])))]
             if on_face:  # and out of the built walls standing in front of its face (walls_ahead)
@@ -2097,7 +2098,14 @@ def fitted(stage, place, entries, laid, cuts=None):
             built_mesh["mesh"] = built_walls(stage, place)
         return built_mesh["mesh"]
 
+    def faced():
+        """The place's built walls without its roofs as one mesh (wall_clear.face_walls), made once."""
+        if "faced" not in built_mesh:
+            built_mesh["faced"] = wall_clear.face_walls(stage, place)
+        return built_mesh["faced"]
+
     built_mesh = {}
+    climbing = wall_clear.climbing(stage, place, entries)  # the climbing rows' things, which no wall thing stands in
     leaves = {name for name, entry in by_name.items() if entry["on"]["how"] in ("in", "face") and swings(entry["row"])}
     taken = {}  # {holder: the boxes laid within it so far}, on_boards
     faced_on = {}  # {wall thing: the relation it is laid by: on its built face (on_built_face), stood (stood_face)}
@@ -2112,6 +2120,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     fits += moved_past(stage, place, walled)
     moved_in(stage, place, walled, fits)
     fits += passages.drawn_in(stage, place, walled)
+    wall_clear.under_roofs(stage, place, walled, fits)
     return fits + stacked_on_runs(stage, place, topped, walled) + moved_down(stage, place, loose) + \
         hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)
 
