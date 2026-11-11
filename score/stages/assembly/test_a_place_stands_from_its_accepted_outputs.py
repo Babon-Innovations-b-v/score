@@ -2467,13 +2467,90 @@ def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp
     assert placeholders.check(out / f"{TOY}.usda") == []
 
 
+def a_thing_on_legs(folder, name, short, linked_to=None):
+    """A place `toy` in `folder` laying one floor thing `name` from its own asset assets/<name>.usdc: a
+    2 m square top on four 10 cm square legs 0.6 m long, the leg at (+0.9, +0.9) ending `short` metres over the
+    others, with its collision hull; the asset a hard link to `linked_to`'s when given. The root's path."""
+    from pxr import Sdf, Usd, UsdGeom, Vt
+    import colliders
+    parts = [trimesh.creation.box((2.0, 0.1, 2.0), trimesh.transformations.translation_matrix((0, 0.65, 0)))]
+    for x in (-0.9, 0.9):
+        for z in (-0.9, 0.9):
+            lift = short if (x, z) == (0.9, 0.9) else 0.0
+            parts.append(trimesh.creation.box((0.1, 0.6 - lift, 0.1), trimesh.transformations.translation_matrix(
+                (x, 0.3 + lift / 2, z))))
+    mesh = trimesh.util.concatenate(parts)
+    asset = folder / "assets" / f"{name}.usdc"
+    asset.parent.mkdir(parents=True, exist_ok=True)
+    if linked_to is not None:
+        asset.hardlink_to(linked_to)
+    else:
+        stage = Usd.Stage.CreateNew(str(asset))
+        stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{name}").GetPrim())
+        geo = UsdGeom.Mesh.Define(stage, f"/{name}/geo")
+        geo.CreatePointsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(mesh.vertices, dtype=np.float32)))
+        geo.CreateFaceVertexCountsAttr(Vt.IntArray.FromNumpy(np.full(len(mesh.faces), 3, dtype=np.int32)))
+        geo.CreateFaceVertexIndicesAttr(Vt.IntArray.FromNumpy(np.asarray(mesh.faces, dtype=np.int32).reshape(-1)))
+        geo.CreateExtentAttr([tuple(mesh.bounds[0]), tuple(mesh.bounds[1])])
+        colliders.hull(stage, f"/{name}/collision", np.asarray(mesh.vertices))
+        stage.GetRootLayer().Save()
+    root = folder / f"{TOY}.usda"
+    stage = Usd.Stage.CreateNew(str(root))
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{TOY}").GetPrim())
+    thing = UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/{name}_1")
+    thing.AddTranslateOp().Set((3.0, 0.0, -2.0))
+    thing.GetPrim().GetReferences().AddReference(f"./assets/{name}.usdc")
+    thing.GetPrim().CreateAttribute("score:anchor", Sdf.ValueTypeNames.String).Set("floor")
+    stage.GetRootLayer().Save()
+    return root
+
+
+def lowest_legs(asset):
+    """The lowest point of each leg of a thing_on_legs asset (its drawn mesh) and of its collision hull, metres."""
+    from pxr import Usd, UsdGeom
+    stage = Usd.Stage.Open(str(asset))
+    points = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{asset.stem}/geo")).GetPointsAttr().Get())
+    hull = np.asarray(UsdGeom.Mesh(stage.GetPrimAtPath(f"/{asset.stem}/collision")).GetPointsAttr().Get())
+    legs = [round(float(points[(np.sign(points[:, 0]) == x) & (np.sign(points[:, 2]) == z), 1].min()), 4)
+            for x in (-1, 1) for z in (-1, 1)]
+    return legs, round(float(hull[(hull[:, 0] > 0.5) & (hull[:, 2] > 0.5), 1].min()), 4)
+
+
 def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path, monkeypatch):
     """The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
     settle) is laid with its record written over the copied base and an assets folder of its own.
     Break: score/stages/assembly/grounded.py: `(folder / "assets").mkdir()` -> `pass`
     Break: score/stages/assembly/grounded.py: `parting.parted(folder, seed.name)` -> `pass` (the settle dropped
-        airlock's control pedestal in its wall pipes, which the assembly parts: settle@airlock, 2026-11-10)"""
-    from score.stages.assembly import grounded, parting
+        airlock's control pedestal in its wall pipes, which the assembly parts: settle@airlock, 2026-11-10)
+    Campgrounds' habitat domes (2026-11-11) stood on flat ground with eleven rim feet 3.1 to 8.8 cm up and its
+    communications towers with a leg 3.4 cm up, feet the paint links into one (3% of the footprint's diagonal) and
+    the resting check reads apart (5 cm): a floor thing's own asset is laid with a leg 5 cm short brought down onto
+    its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's and an asset linked
+    from elsewhere are left as they are.
+    Break: score/stages/assembly/even_feet.py: `if foot - lowest > triage.TOLERANCE and not` -> `if False and not`
+    Break: score/stages/assembly/even_feet.py: `or os.stat(path).st_nlink != 1` -> `` (a write through a link)
+    Break: score/stages/assembly/even_feet.py: `and not said("score:fixed")` -> ``
+    Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`"""
+    from pxr import Sdf
+    from score.stages.assembly import grounded, made_waiting, parting
+    monkeypatch.setattr(baked, "take_bake", lambda *args: None)
+    monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
+    monkeypatch.setattr(made_waiting, "lay", lambda *args: [])
+    bake = {"surfaces-bake": str(tmp_path / "bake"), "surfaces-paint": str(tmp_path / "paint")}
+    (tmp_path / "elsewhere").mkdir()
+    for name, short, how, legs in (("table", 0.05, "floor", [0.0] * 4), ("stool", 0.02, "floor", [0.0, 0.0, 0.0, 0.02]),
+                                   ("rack", 0.05, "fixed", [0.0, 0.0, 0.0, 0.05]),
+                                   ("shelf", 0.05, "linked", [0.0, 0.0, 0.0, 0.05])):
+        source = a_thing_on_legs(tmp_path / "elsewhere", name, short) if how == "linked" else None
+        root = a_thing_on_legs(tmp_path / name, name, short,
+                               linked_to=source and source.parent / "assets" / f"{name}.usdc")
+        if how == "fixed":
+            layer = Sdf.Layer.FindOrOpen(str(root))
+            Sdf.AttributeSpec(layer.GetPrimAtPath(f"/{TOY}/Objects/{name}_1"), "score:fixed",
+                              Sdf.ValueTypeNames.Bool).default = True
+            layer.Save()
+        grounded.take_bakes(bake, tmp_path / name, TOY)
+        assert lowest_legs(root.parent / "assets" / f"{name}.usdc") == (legs, legs[-1]), name
     read_only_toy(tmp_path / "store" / TOY)
     parted = []
     monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
