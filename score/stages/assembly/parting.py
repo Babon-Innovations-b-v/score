@@ -105,7 +105,9 @@ def parted(out, place):
             boxes[one] = fitting.world_box(stage, one_path)
     layer.Save()
     moved = {fit["name"]: fit for fit in fits}
-    laid["objects"] = [{**entry, "low": moved[entry["name"]]["low"], "high": moved[entry["name"]]["high"]}
+    laid["objects"] = [{**entry, "low": moved[entry["name"]]["low"], "high": moved[entry["name"]]["high"],
+                        **({"corners": [[round(float(value), 4) for value in point] for point in fitting.oriented_corners(
+                            stage, f"/{place}/Objects/{entry['name']}")]} if "corners" in entry else {})}
                        if entry["name"] in moved else entry for entry in laid["objects"]]
     laid["fitted"] = [*laid.get("fitted", []), *fits]
     laid_path.write_text(json.dumps(laid, indent=1))
