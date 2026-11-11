@@ -242,15 +242,19 @@ def stale_basket(index, checkout, changed):
     return found
 
 
-def basket_made(chosen=None):
+def basket_made(chosen=None, phase=None, places=None):
     """The basket made again from the runner's own plan now (proposals/make.py, plan only: free, no place assembled,
     as each sync pass makes it), so a Buy under his yes in chat buys what a run here buys at launch, not the basket an
     older pass saved (2026-11-05: free work after that pass moved more rows due and the run "would also buy" them);
-    its index. Refused, in words, when the runner could not plan."""
+    its index. A Buy's `phase` and `places` (comma lists, the door's --phase and --place) are the plan's own --phase
+    and --place, so it plans only what it may buy, never the whole environment (2026-11-11: a phase's Buy planned
+    every place for over 50 minutes). Refused, in words, when the runner could not plan."""
     from score.dashboard.proposals import make
+    group = RunGroup(places=tuple(name for name in (places or "").split(",") if name), stages=(), world=WORLD,
+                     phases=tuple(name for name in (phase or "").split(",") if name))
     try:
         return make.make(settings.SCORE_HOME, settings.SCORE_PROPS_HOME / "store", chosen=chosen or guard.backend(),
-                         plan_only=True)
+                         plan_only=True, group=group)
     except RuntimeError as failed:
         raise Refused(f"the basket could not be made again from the runner's plan now: {failed}") from failed
 

@@ -292,16 +292,18 @@ def nodes_by_place(found):
     return by_place
 
 
-def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line: None, plan_only=False):
+def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line: None, plan_only=False, group=None):
     """Make the basket into home/proposals/: the plan, its items, each place's details (none with `plan_only`: no
     place is assembled), prepare's benchmarks item last (proposals/benchmarks.py); the index, with when, on which
     commit and in which checkout it was made (the checkout refuses one made elsewhere or before the design last
-    changed). `say` gets one line a place."""
+    changed) and the plan's selection (`group`, a RunGroup: a Buy by phase or place plans only those; None, the
+    whole environment). `say` gets one line a place."""
     root, work = pathlib.Path(home) / "proposals", pathlib.Path(home) / WORK
     root.mkdir(parents=True, exist_ok=True)
     work.mkdir(parents=True, exist_ok=True)
     declared = records.declared(root)
-    planned = (chosen or guard.backend()).plan(RunGroup(places=(), stages=()))
+    group = group or RunGroup(places=(), stages=())
+    planned = (chosen or guard.backend()).plan(group)
     found = grouped(planned.buys, layer_of or layer_map(), planned.missing, declared)
     for place, nodes in ({} if plan_only else nodes_by_place(found)).items():
         if only and place not in only:
@@ -317,6 +319,7 @@ def make(home, real_store, only=(), chosen=None, layer_of=None, say=lambda line:
         declared_details(ident, given, root)
     found = benchmarks.with_item(found, benchmarks.from_record(pathlib.Path(real_store).parent))
     index = {"made_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "commit": commit(), "checkout": str(REPO),
-             "refusal": planned.refusal, "missing": planned.missing, "items": found, "plan_only": plan_only}
+             "refusal": planned.refusal, "missing": planned.missing, "items": found, "plan_only": plan_only,
+             "selection": {"places": list(group.places), "phases": list(group.phases)}}
     records.put_index(root, index)
     return index

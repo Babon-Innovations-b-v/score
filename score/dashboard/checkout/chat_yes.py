@@ -275,7 +275,9 @@ def buy(yes_id, store=None, phase=None, leave_out=None, places=None, leave_place
         yes = {**yes, "leave_out": [*yes.get("leave_out", ()), *known_stages(leave_out)]}
     approved = approved_now()  # the design's approval now, as the basket below is the runner's plan now
     try:
-        flow.basket_made()  # what the runner's plan buys now at the approved places, never an older pass's basket
+        # what the runner's plan buys now at the approved places, never an older pass's basket; only the asked
+        # phase's and places' rows, as `score plan --phase --place` plans them
+        flow.basket_made(phase=yes.get("phase"), places=places)
     except flow.Refused as refused:
         raise Refused(str(refused)) from refused
     now_basket = current_basket(approved)
