@@ -8,6 +8,7 @@ the cockpit.
     python3 tools/cloud/this_pc.py decide-yes ... | decide <yes id>   # the owner's decisions in chat, below
     python3 tools/cloud/this_pc.py env1 --go <go id>   # a run the owner gave his go: a bought batch, below
     python3 tools/cloud/this_pc.py pause | resume | status   # free this PC (games), pick the run up again, below
+    python3 tools/cloud/this_pc.py stop     # end the live run and its workers: SIGTERM, then SIGKILL after STOP_SECONDS
 
 Pull and push go through the agents' door (tools/cloud/conductor/agent_door.py, the agents' key
 ~/.ssh/score_conductor_agents; owner, 2026-10-27: the door route, not his own key on the conductor, agents never get a
@@ -65,6 +66,8 @@ ask, since 2026-11-08), or over ssh to `--host`.
   each SCORE container's own size and this PC's free disk (a warning under FREE_WARN_GB).
 """
 import argparse
+import contextlib
+import datetime
 import gzip
 import hashlib
 import json
@@ -95,6 +98,10 @@ FREE_WARN_GB = 100  # status warns while this PC's disk has less free
 PAUSED = "paused.json"  # under HOME: the paused run, until resume starts it again
 RUN_OWN = ("SCORE_FROZEN", "SCORE_FROZEN_OWNER", "SCORE_RUN_ID")  # set by `score run` itself, never carried over
 STOP_SECONDS = 240  # a stopped run's 30 s grace, its batches' deletes and the detached wrapper's 90 s, with room
+KILL_SECONDS = 30  # after STOP_SECONDS, the group's SIGKILL is given this long to land before `stop` gives up
+# A run here started again within this many hours of the last start is refused unless given `--restart-reason
+# "<why>"` (#112; 2026-11-11: about ten restarts in a day, each a 10-15 min pass re-confirming done rows).
+RESTART_HOURS = 2
 BEAT = re.compile(r"rows done (\d+), running (\d+), queued (\d+)")  # score.graph.heartbeat_line
 # The sync pass's free steps that bring the design up to date (score/dashboard/sync/client.py plans_kept, then
 # remake_prepared): the plans the plan stage reads, then the hand-ins prepare writes from them.
@@ -267,6 +274,43 @@ def no_push_taken(arguments):
     return [*arguments[:at], *arguments[at + 2:]], reason
 
 
+def restart_taken(arguments):
+    """(arguments without `--restart-reason <why>`, the reason or None); one with no reason is refused."""
+    if "--restart-reason" not in arguments:
+        return list(arguments), None
+    at = arguments.index("--restart-reason")
+    reason = arguments[at + 1].strip() if at + 1 < len(arguments) else ""
+    if not reason or reason.startswith("--"):
+        raise SystemExit('--restart-reason needs its reason: --restart-reason "<why this run starts again now>"')
+    return [*arguments[:at], *arguments[at + 2:]], reason
+
+
+def last_started(home):
+    """The newest start time in `home`'s run registry, as a datetime, or None when no run is recorded."""
+    found = []
+    for path in (home / "runs").glob("*.json"):
+        if path.name == "active.json":
+            continue
+        started = json.loads(path.read_text()).get("started")
+        if started:
+            found.append(datetime.datetime.fromisoformat(started))
+    return max(found, default=None)
+
+
+def start_refusal(home, reason, now=None):
+    """Why a new run here may not start now, or None (#112): never beside a live run (#111, 2026-11-11: a stopped run
+    kept draining beside two newer ones), and not within RESTART_HOURS of the last start without a reason."""
+    entry = live_run(home)
+    if entry is not None:
+        return f"run {entry['id']} is live (pid {entry['pid']}): stop it first with `this_pc.py stop`"
+    started = last_started(home)
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    if reason is None and started is not None and now - started < datetime.timedelta(hours=RESTART_HOURS):
+        return (f"the last run here started {started:%H:%M} UTC, under {RESTART_HOURS} h ago: give "
+                f'--restart-reason "<why>" to start again now')
+    return None
+
+
 def push_stated(home, reason, arguments):
     """The run's first line on whether it pushes: with a `reason` it keeps it in NO_PUSH for `status`, without one it
     clears an earlier run's."""
@@ -432,6 +476,29 @@ def pause(home):
     return f"paused run {entry['id']} ({' '.join(entry['argv'])}); {MACHINE} stopped, {card()}"
 
 
+def stop(home):
+    """Stop the live run here and every process of its group (#111): SIGTERM to its leader, a wait of STOP_SECONDS,
+    then SIGKILL to the group; one line saying which run stopped and how. The container is left running."""
+    entry = live_run(home)
+    if entry is None:
+        return "stop: no run was live"
+    leader = entry["pid"]
+    os.kill(leader, signal.SIGTERM)
+    deadline = time.monotonic() + STOP_SECONDS
+    while group_alive(leader) and time.monotonic() < deadline:
+        time.sleep(0.5)
+    if not group_alive(leader):
+        return f"stopped run {entry['id']} (pid {leader}) by SIGTERM"
+    with contextlib.suppress(ProcessLookupError):
+        os.killpg(leader, signal.SIGKILL)
+    deadline = time.monotonic() + KILL_SECONDS
+    while group_alive(leader):
+        if time.monotonic() > deadline:
+            raise SystemExit(f"stop: run {entry['id']} (pid {leader}) still has processes after SIGKILL")
+        time.sleep(0.5)
+    return f"stopped run {entry['id']} (pid {leader}) by SIGKILL after {STOP_SECONDS} s"
+
+
 def stop_containers():
     """`docker stop` every SCORE container on this PC: MACHINE and each kind's own (MACHINE-<kind>, PRD #73)."""
     listed = asked(["docker", "ps", "--format", "{{.Names}}"])
@@ -527,22 +594,28 @@ def status_line(home):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("command", choices=("env1", "pull", "run", "push", "decide-yes", "decide",
-                                                        "pause", "resume", "status"))
+                                                        "pause", "resume", "status", "stop"))
     parser.add_argument("arguments", nargs=argparse.REMAINDER, help="run: score run's arguments (default world1), "
-                        "--go <go id> and --no-push <reason> among them; decide-yes and decide: the door's verbs' arguments")
+                        "--go <go id>, --no-push <reason> and --restart-reason <why> among them; decide-yes and decide: the door's verbs' arguments")
     parser.add_argument("--host", help="an ssh door's address (default: the cluster conductor's door)")
     parser.add_argument("--key", default="~/.ssh/score_conductor_agents", help="the agents' ssh key to the door")
     options = parser.parse_args(argv)
     home = prepared(HOME)
-    if options.command in ("pause", "resume", "status"):
-        print({"pause": pause, "resume": resume, "status": status_line}[options.command](home))
+    if options.command in ("pause", "resume", "status", "stop"):
+        print({"pause": pause, "resume": resume, "status": status_line, "stop": stop}[options.command](home))
         return 0
     if options.command in ("decide-yes", "decide"):
         return deciding(home, options.command, options.arguments)
     arguments, go = go_taken(options.arguments)
     arguments, reason = no_push_taken(arguments)
+    arguments, restart = restart_taken(arguments)
     running = options.command in ("env1", "run")
     if running:
+        refused = start_refusal(home, restart)
+        if refused:
+            raise SystemExit(f"{options.command}: refused, {refused}")
+        if restart:
+            print(f"restart reason: {restart}", flush=True)
         print(push_stated(home, reason, arguments or ["world1"]), flush=True)
     host = None
     if options.command in ("env1", "pull"):

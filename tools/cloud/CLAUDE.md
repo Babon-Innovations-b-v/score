@@ -86,7 +86,7 @@ model steps the same way. Entry: `batch.py`; its docstring says how to call it.
   it with SIGTERM to its leader, waits until its process group is gone and `docker stop`s the container (never
   `docker pause`: the card's memory stays held); `resume` refuses while a run is live, starts the container and the
   same run detached from `~/.score-this-pc/resume-code` at the recorded commit (log under `~/.score-this-pc/logs`);
-  `status` says running, paused or neither, the newest heartbeat's rows and what is on the card. The owner's one-time
+  `status` says running, paused or neither, the newest heartbeat's rows and what is on the card. `stop` ends the live run and every process of its group (SIGTERM, SIGKILL after `STOP_SECONDS`; #111), and `run`/`env1` refuse to start beside a live run, or within `RESTART_HOURS` (2) of the last start unless given `--restart-reason "<why>"` (#112; 2026-11-11: a stopped run drained beside two newer ones, and about ten restarts in a day each re-confirmed done rows). The owner's one-time
   step: `sudo usermod -aG docker $USER`. The rule below that no model runs on the owner's PC holds everywhere else.
 - **One card queue for this PC** (`backends/card_queue.py`, PRD #73; owner, 2026-10-31: "go full docker ... even for
   local, then we can control and manage this way better"; 2026-10-31: a SAM 3 masks job failed with
