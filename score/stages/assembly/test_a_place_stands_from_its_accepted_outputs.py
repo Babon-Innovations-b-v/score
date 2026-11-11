@@ -1305,7 +1305,12 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         -> `wanted = reach` (the pipe longer than its wall left in the one over it)
     Break: score/stages/assembly/fitting.py: on_wall's `reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @
         out))` -> `reach, deep = across(run, size), across(out, size)` (the turned pipe 1.1 m off its slanted wall), or
-        oriented_corners' `return box @ own[:3, :3] + own[3, :3]` -> its world box's corners"""
+        oriented_corners' `return box @ own[:3, :3] + own[3, :3]` -> its world box's corners
+    Break: score/stages/assembly/fitting.py: on_built_face's `faces.append(origins[ray][[0, 2]] + back[[0, 2]] *
+        float(reach.min()))` -> `faces.append(ends[ray])` (the span left 3 cm in front of its wall), or its `reach <= 2
+        * WALL_REACH` dropped (the span pulled 3 m back onto a far wall), or its `normal = normal if normal @ out >=
+        0.0 else -normal` -> `pass` with the turned face's normal flipped (out into the wall), or slanted_wall's `> 1e-6`
+        -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall)"""
     from pxr import Gf, Usd, UsdGeom
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -1377,6 +1382,25 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     low, high = fitting.world_box(turned, f"/{TOY}/Objects/pipe_9")
     scale, target = fitting.on_wall(low, high, slant, (), (), corners)
     assert scale == 1.0 and np.allclose(target, (2.0 + 0.1 * 0.7071068, low[1], 2.0 - 0.1 * 0.7071068)), target
+    # workshop's slanted walls were built 3 cm behind and 6.5 degrees turned from their things' spans: the span is
+    # put on the built face (a wall face 3 cm behind the slanted span: no turn; one turned 6.5 degrees about the
+    # span's middle: its ends on it, its out the face's, turned 6.5 degrees), and kept where the wall stands 3 m behind
+    # it, past reach
+    behind = np.array([0.7071068, -0.7071068]) * -0.03
+    face = trimesh.Trimesh([[-1.0 + behind[0], 0.0, -1.0 + behind[1]], [5.0 + behind[0], 0.0, 5.0 + behind[1]],
+                            [5.0 + behind[0], 3.0, 5.0 + behind[1]], [-1.0 + behind[0], 3.0, -1.0 + behind[1]]],
+                           [[0, 1, 2], [0, 2, 3]], process=False)
+    moved, degrees = fitting.on_built_face(slant, 1.5, face)
+    assert np.allclose(moved["span"], np.add(slant["span"], behind), atol=1e-6) and abs(degrees) < 1e-6, moved
+    turn = trimesh.transformations.rotation_matrix(np.radians(6.5), [0.0, 1.0, 0.0], [2.0 + behind[0], 0.0,
+                                                                                    2.0 + behind[1]])
+    moved, degrees = fitting.on_built_face(slant, 1.5, face.copy().apply_transform(turn))
+    run = np.subtract(*moved["span"][::-1]) / np.linalg.norm(np.subtract(*moved["span"][::-1]))
+    assert abs(abs(degrees) - 6.5) < 1e-3 and abs(float(run @ moved["out"])) < 1e-6 and float(
+        np.dot(moved["out"], slant["out"])) > 0.99, (moved, degrees)
+    assert fitting.on_built_face(slant, 1.5, face.copy().apply_translation((-2.1213, 0.0, 2.1213))) == (slant, 0.0)
+    assert fitting.slanted_wall(slant) and fitting.slanted_wall({"out": [0.991393, -0.13092]}) and not \
+        fitting.slanted_wall(wall)
     corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
     scale, target = fitting.on_wall(np.array([-3.0, 1.5, 0.1]), np.array([-2.0, 2.2, 0.5]), wall, (), corner)
     assert scale == 1.0 and np.allclose(target, (-2.1, 1.5, 0.3)), (scale, target)
