@@ -461,13 +461,45 @@ def on_run(row, holder_row):
     return all(longest >= RUN_SHARE * other for other in sorted(holder)[:2]) and float(size[2]) > float(holder[2])
 
 
-def held(item, row, holder_row, holder_items, items, turn, room=None, plan_top=False):
+def across_run(row, holder_row):
+    """Whether a row is a fitting on a standing run wider than the run is thick (a valve on a standing pipe): its
+    holder's height (size[2]) at least RUN_SHARE times each of its other sides, and the row's footprint wider than
+    the run's thicker side, so it cannot sit within it and is laid against its side, judged by touching it. Lab's 0.2 m
+    valves within their 0.1 m standing pipes floated 0.66 and 1.5 m (settle@lab, 2026-11-11); a fitting on a lying run
+    is on its top (on_run) or within it as before."""
+    size, holder = (found.get("size") if isinstance(found.get("size"), list) and len(found["size"]) == 3 else None
+                    for found in (row, holder_row))
+    if size is None or holder is None or min(holder) <= 0.0:
+        return False
+    tall, thick = float(holder[2]), max(float(holder[0]), float(holder[1]))
+    return tall >= RUN_SHARE * thick and max(float(size[0]), float(size[1])) > thick
+
+
+def side_off_wall(holder_item, plan):
+    """The holder item's side (N, E, S or W) away from the plan wall nearest its middle, None with no walls: lab's
+    valves on their standing pipes were laid on the pipes' side the concept shows, against the wall, 0.1 m in it
+    (2026-11-11)."""
+    spot, nearest_point = middle(holder_item), None
+    for wall in walls_of(plan):
+        start, end = numpy.asarray(wall["from"], float), numpy.asarray(wall["to"], float)
+        run = end - start
+        point = start + run * float(numpy.clip((spot - start) @ run / max(float(run @ run), 1e-9), 0.0, 1.0))
+        if nearest_point is None or numpy.linalg.norm(spot - point) < numpy.linalg.norm(spot - nearest_point):
+            nearest_point = point
+    if nearest_point is None or numpy.linalg.norm(spot - nearest_point) < 1e-6:
+        return None
+    away = spot - nearest_point
+    return snapped(away * (numpy.abs(away) == numpy.abs(away).max()))
+
+
+def held(item, row, holder_row, holder_items, items, turn, room=None, plan_top=False, off_wall=None):
     """A relation to a holder the plan lays, its nearest item: within it, at its foot, where its reading says it is
     under it, and within it where on its shelves (placement: the settle lets it down onto the shelf under it); top
     (where it fits under the place's height `room`, never one said on its holder's side), within it where the plan
-    lays it inside (on its top where it is a fitting on a run: on_run), on its top where it lies flat and the plan
-    stands it at its holder's top (`plan_top`: lies_flat, stands_on_top), else against the face the concept shows it
-    on, the plan's side toward it, its facing, its holder's, or S."""
+    lays it inside (on its top, attached, where it is a fitting on a run: on_run; against its side `off_wall`, away from the
+    wall it stands at, where it is wider than a standing run is thick: across_run), on its top where it lies flat and
+    the plan stands it at its holder's top (`plan_top`: lies_flat, stands_on_top), else against the face the concept
+    shows it on, the plan's side toward it, its facing, its holder's, or S."""
     nearest = min(holder_items, key=lambda name: float(numpy.linalg.norm(middle(items[name]) - middle(item))))
     said = "side" if rests(row) == LEANING else placement(row, holder_row)  # a leaning thing stands against a side
     if said in ("under", "shelf"):
@@ -478,10 +510,14 @@ def held(item, row, holder_row, holder_items, items, turn, room=None, plan_top=F
             and not design_shell.fills_opening(row):
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top in the concept"}
     if rests(row) != LEANING and inside(item, items[nearest]):
-        if on_run(row, holder_row):
-            return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}: the plan lays it inside a run "
-                                                            "lower than it is tall"}
-        return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}
+        if on_run(row, holder_row):  # a fitting on its run is attached to it, never standing on its round top
+            return {"how": "top", "holder": nearest, "rests": ATTACHED,
+                    "why": f"on {holder_row['id']}: the plan lays it inside a run lower than it is tall"}
+        if not across_run(row, holder_row):
+            return {"how": "within", "holder": nearest, "why": f"within {holder_row['id']}: the plan lays it inside"}
+        if off_wall:  # a valve on a standing pipe: against its side away from the wall it stands at
+            return {"how": "face", "holder": nearest, "face": off_wall,
+                    "why": f"against {holder_row['id']}'s side away from its wall: a fitting on a standing run"}
     if plan_top and said != "side" and fits_over(row, holder_row, room) and not design_shell.fills_opening(row):
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top: the plan stands it there"}
     for face, why in ((seen_side(row, holder_row, turn), "side the concept shows it on"),
@@ -1242,7 +1278,8 @@ def relation(item, row, rows, plan, inventory, laid, taken, turn, taken_stairs, 
                      if inside(item, items[name])] or pairs
         nearest = min(pairs, key=lambda pair: float(numpy.linalg.norm(middle(items[pair[1]]) - middle(item))))
         found = {**held(item, row, nearest[0], [nearest[1]], items, turn, room_height(plan),
-                        lies_flat(row) and stands_on_top(item, items[nearest[1]], plan)),
+                        lies_flat(row) and stands_on_top(item, items[nearest[1]], plan),
+                        side_off_wall(items[nearest[1]], plan)),
                  "holder row": nearest[0]["id"]}
         holder_item = items[nearest[1]]
         if found["how"] == "within" and hangs(item, holder_item, plan):

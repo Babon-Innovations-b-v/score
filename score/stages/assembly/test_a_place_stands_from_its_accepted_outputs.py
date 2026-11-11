@@ -1470,6 +1470,9 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     Break: score/stages/assembly/fitting.py: `fits += stacked_on_runs(stage, place, topped, walled)` dropped, or
         held_faults' `stacked.get(entry["name"], on.get("holder") or [])` -> `on.get("holder") or []` (the stacked
         valve named off its holder's top)
+    Break: score/stages/assembly/built_tops.py: stacked_down's `fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0,
+        target)` dropped (hangar's valve left at its pipe's box top, 0.06 m over its surface), or held_faults' `if
+        topped.get(entry["name"]) is not None:` -> `if False:` (the valve let down named off the pipe's box top)
     Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
     Break: score/stages/assembly/fitting.py: `+ hung_up(stage, place, loose)` -> `+ []`
     Break: score/stages/assembly/fitting.py: roofs' `for scope in ("Structure", "Shell")]` -> `for scope in
@@ -1586,6 +1589,29 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
                         for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": stacked}
     assert not fitting.held_faults({"objects": topped[:1]}, laid), laid
     assert fitting.held_faults({"objects": topped[:1]}, {**laid, "fitted": []})
+    # hangar (2026-11-11): its valve, lifted to the box top of the pipe packed over its own, stood 0.06 m over that
+    # pipe's surface. A pipe built 0.4 m round with a rail up 0.06 m at its far end lets the valve stacked onto it down
+    # to its surface (1.79), and the held gate measures it there.
+    from score.stages.assembly import built_tops
+    from pxr import Gf
+    railed = Usd.Stage.CreateInMemory()
+    built = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 1.45, 0.0), (4.0, 1.79, 0.4)]),
+                                      trimesh.creation.box(bounds=[(3.9, 1.79, 0.0), (4.0, 1.85, 0.4)])])
+    UsdGeom.Xform.Define(railed, f"/{TOY}/Objects/pipe_1").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    pipe = UsdGeom.Mesh.Define(railed, f"/{TOY}/Objects/pipe_1/geo")
+    pipe.CreatePointsAttr([tuple(map(float, point)) for point in built.vertices])
+    pipe.CreateFaceVertexCountsAttr([3] * len(built.faces))
+    pipe.CreateFaceVertexIndicesAttr([int(index) for index in built.faces.ravel()])
+    for name, low, high in (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),
+                            ("valve_1", (1.0, 1.4, 0.1), (1.2, 1.7, 0.3))):
+        a_built_box(railed, f"/{TOY}/Objects/{name}", low, high)
+    stacked = fitting.stacked_on_runs(railed, TOY, topped[:1], [{"name": "pipe_1"}, {"name": "pipe_3"}])
+    down = built_tops.stacked_down(railed, TOY, stacked)
+    assert [(fit["name"], fit["top at"]) for fit in down] == [("valve_1", 1.79)], down
+    assert np.isclose(fitting.world_box(railed, f"/{TOY}/Objects/valve_1")[0][1], 1.79)
+    laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(railed, f"/{TOY}/Objects/{name}")))
+                         } for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": stacked + down}
+    assert not fitting.held_faults({"objects": topped[:1]}, laid), fitting.held_faults({"objects": topped[:1]}, laid)
     # tube (2026-11-11): its screens and panels laid on its plan walls' lines stood up through its vault, whose sides
     # curve in over them. Under the gable (3 m at x 10, rising 0.4 m a metre in) a screen on the x 10 wall, its top
     # 3.3 m, 0.3 m through, is moved 0.65 m into the room, its fit's face with it, and the held gate passes it; the
@@ -2205,7 +2231,15 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         -> `> 9.0:` (seven boxes in rows deeper than the top), or `carry(stage, place, carried, name, ...)` dropped
         (quarters' papers left where their book stood)
     Break: score/stages/assembly/fitting.py: off's `if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not
-        None:` -> `if False:` (workshop's box spread over two units' meeting named 0.2 m off one)"""
+        None:` -> `if False:` (workshop's box spread over two units' meeting named 0.2 m off one)
+    Break: score/stages/assembly/built_tops.py: rest's `if height > foot + reach or np.any(...)` -> `if height > foot +
+        reach:` (the keyboard on the slab's underside), or spot's `tries += sorted(...)` dropped (the lamp left across
+        the divider), or let_down's `fitting.carry(...)` dropped (the paper left at 1.5 m), or held_on's `not
+        fitting.on_shelves_of(on) and` dropped (the jar on the shelves let down), or rest's `if reach <=
+        fitting.BOARD_BED and np.any(...)` -> `if False:` (the box under the slab on its shelf), or let_down's `if
+        laid is None and not within:` -> `if False:` (the crate left over the divider)
+    Break: score/stages/assembly/fitting.py: off_holder's `float(on.get("top at", hold_high[1]))` -> `hold_high[1]`
+        (the monitor let down onto the slab named 0.45 m off its desk's top)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -2350,6 +2384,77 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert fitting.packed_rows([0.3] * 7, [0.3] * 7, 1.0, 0.4) is None
     assert fitting.on_shelves_of({"how": "within", "why": "on the shelves of shelf: its reading says 'on shelves'"})
     assert not fitting.on_shelves_of({"how": "within", "why": "within kitchen_counter: the plan lays it inside"})
+    # lab, quarters, flat, workshop (settle@<place>, 2026-11-11): things on a desk laid on its box's top, the top of a
+    # divider standing over it, floated over the desk's surface or leaned on an edge, past the settle's 30 cm snap. A
+    # desk 1 x 0.6 m, its 3 cm slab's top at 0.75 and a divider up to 1.2 m along its back (z 0.5 to 0.6): a monitor
+    # laid on its box top (1.2) goes down onto the slab, the paper on it with it, and the held gate measures it there;
+    # a lamp across the divider's front is slid off it onto the slab; a keyboard laid within the desk across the slab
+    # (0.7 to 0.76) goes onto the slab's top, never its underside; one within it at its foot is left.
+    from score.stages.assembly import built_tops
+    from pxr import Gf, UsdGeom
+    built = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
+        [(8.0, 0.72, 0.0), (9.0, 0.75, 0.6)], [(8.0, 0.0, 0.0), (8.05, 0.72, 0.6)],
+        [(8.95, 0.0, 0.0), (9.0, 0.72, 0.6)], [(8.0, 0.75, 0.5), (9.0, 1.2, 0.6)])])
+    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/desk_3").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    desk = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/desk_3/geo")
+    desk.CreatePointsAttr([tuple(map(float, point)) for point in built.vertices])
+    desk.CreateFaceVertexCountsAttr([3] * len(built.faces))
+    desk.CreateFaceVertexIndicesAttr([int(index) for index in built.faces.ravel()])
+    on_third = {"how": "top", "holder": ["desk_3"]}
+    for name, low, high in (("monitor_9", (8.1, 1.2, 0.1), (8.4, 1.5, 0.3)),
+                            ("paper_9", (8.2, 1.5, 0.15), (8.3, 1.51, 0.25)),
+                            ("lamp_9", (8.6, 1.2, 0.35), (8.8, 1.5, 0.55)),
+                            ("keyboard_9", (8.5, 0.7, 0.05), (8.9, 0.76, 0.2)), ("bin_9", (8.3, 0.0, 0.2), (8.5, 0.3, 0.4))):
+        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
+    in_desk = {"how": "within", "holder": ["desk_3"], "why": "within desk: the plan lays it inside"}
+    things = [{"name": "monitor_9", "row": "monitor", "on": on_third},
+              {"name": "paper_9", "row": "paper", "on": {"how": "top", "holder": ["monitor_9"]}},
+              {"name": "lamp_9", "row": "lamp", "on": on_third},
+              {"name": "keyboard_9", "row": "keyboard", "on": in_desk},
+              {"name": "bin_9", "row": "bin", "on": in_desk}]
+    assert all(built_tops.held_on(thing) for thing in things)
+    assert not built_tops.held_on({"name": "jar_1", "on": {"how": "within", "holder": ["shelf_1"],
+                                                           "why": "on the shelves of shelf: its reading says so"}})
+    fits = {fit["name"]: fit for fit in built_tops.let_down(stage, TOY, things)}
+    assert sorted(fits) == ["keyboard_9", "lamp_9", "monitor_9"], fits  # the paper carried on its monitor
+    laid = {name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("monitor_9", "paper_9", "lamp_9",
+                                                                                  "keyboard_9", "bin_9", "desk_3")}
+    assert np.allclose(laid["monitor_9"][0], (8.1, 0.75, 0.1)) and fits["monitor_9"]["top at"] == 0.75, laid
+    assert np.allclose(laid["paper_9"][0], (8.2, 1.05, 0.15)), laid["paper_9"]
+    assert np.allclose(laid["lamp_9"][0][1], 0.75) and laid["lamp_9"][1][2] <= 0.5 + 1e-6, laid["lamp_9"]
+    assert np.allclose(laid["keyboard_9"][0], (8.5, 0.75, 0.05)) and np.allclose(laid["bin_9"][0], (8.3, 0.0, 0.2))
+    on_desk_laid = {"objects": [{"name": name, "low": low, "high": high} for name, (low, high) in laid.items()],
+                    "fitted": list(fits.values())}
+    assert fitting.held_faults({"objects": things[:1] + things[2:4]}, on_desk_laid) == []
+    # workshop's seventh storage box, its shelving units' tops full, straddled their meeting and tipped: a crate laid
+    # over the desk's back divider, the desk's slab full of plates, stands on the nearest plate laid there before it
+    def faced(path, bounds):
+        made = trimesh.creation.box(bounds=bounds)
+        UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
+        geo = UsdGeom.Mesh.Define(stage, f"{path}/geo")
+        geo.CreatePointsAttr([tuple(map(float, point)) for point in made.vertices])
+        geo.CreateFaceVertexCountsAttr([3] * len(made.faces))
+        geo.CreateFaceVertexIndicesAttr([int(index) for index in made.faces.ravel()])
+
+    on_full = {"how": "top", "holder": ["desk_3"]}
+    trays = [((8.0, 0.75, 0.0), (8.5, 0.8, 0.45)), ((8.5, 0.75, 0.0), (9.0, 0.8, 0.45))]
+    for number, bounds in enumerate(trays):
+        faced(f"/{TOY}/Objects/plate_{number}", bounds)
+    a_built_box(stage, f"/{TOY}/Objects/crate_9", (8.1, 1.2, 0.45), (8.4, 1.3, 0.6))
+    crowd = [{"name": f"plate_{number}", "row": "plate", "on": on_full} for number in range(2)] + [
+        {"name": "crate_9", "row": "crate", "on": on_full}]
+    crated = {fit["name"]: fit for fit in built_tops.let_down(stage, TOY, crowd)}
+    assert list(crated) == ["crate_9"] and np.isclose(crated["crate_9"]["top at"], 0.8), crated
+    assert "onto plate_0's built surface" in crated["crate_9"]["words"], crated
+    # quarters' mug, its desk's top at its spot no rest, went 0.3 m down onto the shelf under the top: a box over a
+    # slab with a shelf under it and a 4 cm post through its spot slides along the slab, never down onto the shelf
+    shelved_slab = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
+        [(0.0, 0.0, 0.0), (1.0, 0.03, 0.6)], [(0.0, -0.3, 0.0), (1.0, -0.28, 0.6)],
+        [(0.48, 0.03, 0.28), (0.52, 0.23, 0.32)])])
+    found, slid = built_tops.spot(shelved_slab, (0.4, 0.23, 0.2), (0.6, 0.43, 0.4),
+                                  (np.zeros(3), np.array([1.0, 0.23, 0.6])))
+    assert np.isclose(found[1], 0.03) and slid > 0.0 and (found[0] + 0.1 <= 0.48 or found[0] - 0.1 >= 0.52
+                                                          or found[2] + 0.1 <= 0.28 or found[2] - 0.1 >= 0.32), found
 
 
 def test_a_wall_item_stands_on_its_named_face():
