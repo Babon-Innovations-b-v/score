@@ -662,6 +662,14 @@ def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch
                                   "models,surfaces", "sim-body,body-peel")
     assert said.startswith("buy 20261106T000000Z --phase models,surfaces --leave-out sim-body,body-peel:"), said
     assert "20261106T000000Z-models+surfaces.log" in said, said
+    # a Buy by place (2026-11-11): --place and --leave-place reach its command. Break: in agent_door.buy_started,
+    # drop the `--place` part of `asked`; in buy_options, drop "--leave-place" from BUY_OPTIONS
+    said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('places')"],
+                                  place="hub,garage", leave_place="square")
+    assert said.startswith("buy 20261106T000000Z --place hub,garage --leave-place square:"), said
+    assert agent_door.buy_options(["--place", "hub,garage", "--leave-place", "square", "--phase", "models"])
+    assert not agent_door.buy_options(["--place", "hub;rm"])
+    assert not agent_door.buy_options(["--place", "a", "--place", "b"])
     # the cluster fallback (2026-11-06): cluster-check names every gap, and a Buy with --cluster is refused until it
     # passes, then its run carries SCORE_CLOUD=k8s and the kinds. Break: in agent_door.buy_started, drop
     # `cluster_check(os.environ)`; or drop `env={**os.environ, **extra}`

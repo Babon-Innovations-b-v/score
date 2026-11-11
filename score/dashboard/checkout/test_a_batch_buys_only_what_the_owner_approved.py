@@ -697,6 +697,38 @@ def test_a_buy_approved_in_chat_is_refused_outside_what_he_approved(chat, settin
     record, said = chat_yes.buy(yes["id"], phase="models")
     assert record is not None and record.state == "launched", said
     assert launches()[-1][1].stages == ("closeup@alpha",) and record.chat_yes["phase"] == "models", launches()
+    # by place (the door's buy --place / --leave-place; `score run --place` its model): a left-out place's rows are
+    # neither bought nor a "would also buy" refusal, a row needing one waits, and --place keeps the environment rows
+    # its places need and no other. Break: in flow.places_left, drop the `upstream` wait -> pixal@beta is kept;
+    # drop `node in wanted` -> the film is kept under --place alpha; in flow.start, drop the `nodes_left(...)` line
+    # -> the run names closeup@alpha under --leave-place alpha
+    needs = {"closeup@alpha": set(), "closeup@beta": set(), "pixal@beta": {"closeup@alpha"}, "sky": set(),
+             "film": {"closeup@alpha", "closeup@beta"}, "light@alpha": {"sky"}}
+    basket_by_place = [{"id": "a", "nodes": dict.fromkeys(needs, price)},
+                       {"id": "bench", "benchmarks": True, "nodes": {"benchmark-1": price}}]
+
+    def left(chosen, out):
+        return flow.places_left(basket_by_place, chosen, out, needs.__getitem__)
+    assert left(set(), {"alpha"}) == {"closeup@alpha", "light@alpha", "pixal@beta", "film"}
+    assert left({"alpha"}, set()) == {"closeup@beta", "pixal@beta", "film", "benchmark-1"}
+    assert left({"alpha", "beta"}, set()) == {"benchmark-1", "film"} and left(set(), set()) == set()
+    from score import stages
+    from score.graph import chain
+    monkeypatch.setattr(stages, "runner", lambda: types.SimpleNamespace(world=None, store=None,
+                                                                       nodes_named=lambda names: list(names)))
+    monkeypatch.setattr(stages, "places", lambda world, store: ["alpha", "beta"])
+    monkeypatch.setattr(chain, "upstream", lambda runner, starts: needs[starts[0]])
+    with pytest.raises(chat_yes.Refused, match="gamma is no place"):
+        chat_yes.place_left(basket_by_place, "gamma")
+    chat.items = a_basket(settings, ["closeup@alpha", "closeup@beta", "pixal@beta"])
+    monkeypatch.setattr(FakeBackend, "log_folder", tmp_path)  # each run writes its result line: done
+    Launch.objects.update(state="done")  # the phase's run above ended
+    record, said = chat_yes.buy(a_yes()["id"], leave_places="alpha")
+    assert record is not None and record.state == "launched", said
+    assert launches()[-1][1].stages == ("closeup@beta",), launches()
+    record, said = chat_yes.buy(a_yes()["id"], places="alpha")
+    assert record is not None and record.state == "launched", said
+    assert launches()[-1][1].stages == ("closeup@alpha",) and record.chat_yes["places"] == "alpha", launches()
 
 
 def test_a_batch_has_one_budget_across_its_tries(chat, monkeypatch, tmp_path):

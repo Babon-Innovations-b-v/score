@@ -121,7 +121,9 @@ as an argument list, never through a shell, and only when it is one of these:
                                                 comma list; --leave-out <stage>,... stages it neither buys nor
                                                 makes; --cluster <kind>,... its run sends those job kinds to the
                                                 tenant cluster (SCORE_CLOUD=k8s, SCORE_CLOUD_KINDS), refused unless
-                                                cluster-check passes
+                                                cluster-check passes; --place <place>,... only those places' rows
+                                                and the environment rows they need, --leave-place <place>,... every
+                                                row but those places' (a row needing one waits)
     buy-log                                     the tail of the newest Buy's log the door started: its checkout
                                                 line and its result
     decide-yes <decision> <target> [--output H] [--check C] [--sha S] [--reason R] [--worse-reason W] [--euros E]
@@ -261,6 +263,7 @@ RUNNING = "--running"  # this file's own read of each live run's nodes now (the 
 OUTBOX = "--outbox"  # this file's own read of the owner outbox's last lines (the outbox verb runs it)
 OUTBOX_LINES = 40
 STACK = "--stack"  # this file's own ask of a run's process for its Python stacks (the stack verb runs it)
+BUY_OPTIONS = ("--phase", "--leave-out", "--place", "--leave-place", "--cluster", "--max-machines")  # once each
 CLUSTER_CHECK = "--cluster-check"  # this file's own look at the tenant cluster (the cluster-check verb runs it)
 CLUSTER_SETTINGS = ("SCORE_K8S_CONTEXT", "SCORE_K8S_CLUSTER", "SCORE_K8S_PROJECT")  # the box's, never the repo's
 CLUSTER_PROVIDER = "scaleway/tenant"
@@ -470,6 +473,7 @@ def decide(words, latch):
     if verb == "buy":
         if not args or not GRANT_ID.match(args[0]) or not buy_options(args[1:]):
             raise Refused("buy <yes id> [--phase <phase>[,<phase>...]] [--leave-out <stage>[,<stage>...]] "
+                          "[--place <place>[,<place>...]] [--leave-place <place>[,<place>...]] "
                           "[--cluster <kind>[,<kind>...]] [--max-machines <class>=<n>[,...]], the id buy-yes printed")
         if latch:
             raise Refused("the owner's free-only latch is set: no Buy")
@@ -837,11 +841,11 @@ def carried(args, home):
 
 
 def buy_options(rest):
-    """Whether the options after a Buy's yes id are each --phase, --leave-out, --cluster or --max-machines once with
-    a comma list (of names; --max-machines of <class>=<n>)."""
+    """Whether the options after a Buy's yes id are each --phase, --leave-out, --place, --leave-place, --cluster or
+    --max-machines once with a comma list (of names; --max-machines of <class>=<n>)."""
     seen = set()
     while rest:
-        if len(rest) < 2 or rest[0] not in ("--phase", "--leave-out", "--cluster", "--max-machines") or \
+        if len(rest) < 2 or rest[0] not in BUY_OPTIONS or \
                 rest[0] in seen or not (CAPS if rest[0] == "--max-machines" else STAGE_LIST).match(rest[1]):
             return False
         seen.add(rest[0])
@@ -893,12 +897,14 @@ def tenant_status(environment, command=None):
     return done.stdout.strip()
 
 
-def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=None, max_machines=None):
+def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=None, max_machines=None, place=None,
+                leave_place=None):
     """`python -m score.dashboard buy <yes> [--phase <phase>]` started in a session of its own, its words in a log
     under home/BUY_LOGS named with the phase, and the door's answer at once: the log's path (2026-11-04: a Buy priced
     on the idle conductor's 2 cores held the ssh past its caller's 15 minutes, the ssh dropped and the Buy was cut
     off, no checkout written). With `cluster` (a comma list of job kinds) its run sends those kinds to the tenant
-    cluster (SCORE_CLOUD=k8s, SCORE_CLOUD_KINDS, tools/cloud/k8s), refused unless cluster_check passes."""
+    cluster (SCORE_CLOUD=k8s, SCORE_CLOUD_KINDS, tools/cloud/k8s), refused unless cluster_check passes. `place` and
+    `leave_place` (comma lists) pass on as --place and --leave-place (checkout/chat_yes.place_left)."""
     extra = {}
     if cluster:
         cluster_check(os.environ)
@@ -909,7 +915,8 @@ def buy_started(yes, home, command=None, phase=None, leave_out=None, cluster=Non
     folder.mkdir(parents=True, exist_ok=True)
     named = f"{yes}-{phase.replace(',', '+')}" if phase else yes
     log = folder / f"buy-{time.strftime('%Y%m%d-%H%M%S')}-{named}.log"
-    asked = [yes, *(["--phase", phase] if phase else []), *(["--leave-out", leave_out] if leave_out else [])]
+    asked = [yes, *(["--phase", phase] if phase else []), *(["--leave-out", leave_out] if leave_out else []),
+             *(["--place", place] if place else []), *(["--leave-place", leave_place] if leave_place else [])]
     with log.open("w") as written:
         subprocess.Popen(command or [sys.executable, "-m", "score.dashboard", "buy", *asked], cwd=REPO,
                          stdin=subprocess.DEVNULL, stdout=written, stderr=subprocess.STDOUT, start_new_session=True,
@@ -1264,7 +1271,8 @@ def main():
             options = dict(zip(sys.argv[3::2], sys.argv[4::2]))
             print(buy_started(sys.argv[2], PROPS_HOME, phase=options.get("--phase"),
                               leave_out=options.get("--leave-out"), cluster=options.get("--cluster"),
-                              max_machines=options.get("--max-machines"))
+                              max_machines=options.get("--max-machines"), place=options.get("--place"),
+                              leave_place=options.get("--leave-place"))
                   if sys.argv[1] == BUY else buy_log(PROPS_HOME))
         except Refused as refused:
             print(f"score-agent-door: refused: {refused}", file=sys.stderr)

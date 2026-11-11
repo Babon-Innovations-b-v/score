@@ -105,6 +105,26 @@ def phase_kept(items, phase):
     return nodes_kept(items, lambda stage: phases.phase_of(stage) in chosen)
 
 
+def places_left(items, chosen, left, upstream):
+    """The nodes of `items` a Buy by place leaves out (the door's `buy <yes id> --place P,...` and `--leave-place
+    P,...`; `score run --place` its model: the places' own rows and only the environment rows they read): a node at a
+    place `chosen` (place names) does not hold, or `left` does; with `chosen` given, a Benchmarks node (no runner
+    node) and an environment node (no place) no kept place's node needs; and every node whose `upstream(node)` (the
+    nodes not standing it needs made first, graph/chain.upstream) holds a left-out place's node, which waits for that
+    place's Buy, so the run never "would also buy" a left-out place's row (plan_refusals)."""
+    def outside(node):
+        place = node.partition("@")[2]
+        return place in left or bool(chosen and place and place not in chosen)
+    benchmarks = {node for item in items if item.get("benchmarks") for node in item["nodes"]}
+    nodes = {node for item in items if not item.get("benchmarks") for node in item["nodes"]}
+    needs = {node: set(upstream(node)) for node in nodes if not outside(node)}
+    kept = {node for node, needed in needs.items() if not any(outside(other) for other in needed)}
+    if chosen:
+        wanted = {other for node in kept if node.partition("@")[2] for other in needs[node]}
+        kept = {node for node in kept if node.partition("@")[2] or node in wanted}
+    return (nodes - kept) | (benchmarks if chosen else set())
+
+
 def nodes_kept(items, keeps):
     """The `items` with only the nodes whose stage `keeps(stage)` holds, an item left with none dropped."""
     found = []
@@ -313,6 +333,7 @@ def start(user, key, confirmed, seen, at_once=False, yes=None):
             return found, f"checkout {found.pk} was already made with this key: {found.state}"
         items, changed = bought_items(seen)
         items = phase_kept(left_out(items, (yes or {}).get("leave_out", ())), (yes or {}).get("phase"))
+        items = nodes_left(items, set((yes or {}).get("place_left", ())))  # a Buy by place (chat_yes.place_left)
         items, gaps, waits = retry_of(items, accepted_at)
         bought = snapshot(items)
         totals = {**pricing.totals(pricing.basket_prices(bought)), "gaps": gaps}

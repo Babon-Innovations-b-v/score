@@ -92,6 +92,8 @@ def parse(argv):
     bought.add_argument("--phase", help="only that phase's rows of the basket (score/stages/phases); several as a "
                                         "comma list")
     bought.add_argument("--leave-out", help="stages (a comma list) this Buy neither buys nor makes, beside the yes's")
+    bought.add_argument("--place", help="only these places' rows (a comma list) and the environment rows they need")
+    bought.add_argument("--leave-place", help="every row but these places' (a comma list); a row needing one waits")
     decide_yes = commands.add_parser("decide-yes", help="the owner's decision made in a session, quoted "
                                                         "(sync/chat_decisions.py)")
     decide_yes.add_argument("decision", help="accept, reject, waive, lock-concept, lock-film, go, spend, the "
@@ -210,7 +212,8 @@ def buy(options):
     migrate()
     try:
         with conductor.holding("buy"):  # the batch size is held while it prices and launches, never shrunk under it
-            record, said = chat_yes.buy(options.yes, phase=options.phase, leave_out=options.leave_out)
+            record, said = chat_yes.buy(options.yes, phase=options.phase, leave_out=options.leave_out,
+                                        places=options.place, leave_places=options.leave_place)
     except chat_yes.Refused as refused:
         sys.exit(f"buy {options.yes}{phase_words(options.phase)}: refused: {refused}")
     print(f"buy {options.yes}{phase_words(options.phase)}: {said}")
@@ -226,7 +229,9 @@ def grown_first(options, waits):
     from score.graph import runs
     from score.store import PROPS_HOME
     asked = [options.yes, *(["--phase", options.phase] if options.phase else []),
-             *(["--leave-out", options.leave_out] if options.leave_out else [])]
+             *(["--leave-out", options.leave_out] if options.leave_out else []),
+             *(["--place", options.place] if options.place else []),
+             *(["--leave-place", options.leave_place] if options.leave_place else [])]
     log = PROPS_HOME / "logs" / "buys" / f"buy-{time.strftime('%Y%m%d-%H%M%S')}-{options.yes}-grown.log"
     path = size.ask_grow_for([sys.executable, "-m", "score.dashboard", "buy", *asked], runs.launch_settings(), log,
                              conductor.machine()["batch_cores"])

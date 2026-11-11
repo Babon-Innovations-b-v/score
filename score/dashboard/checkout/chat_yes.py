@@ -128,11 +128,12 @@ def record(total, high, answer, question, store=None, leave_out=()):
         "by": settings.SCORE_OWNER, "basket": approved, "leave_out": list(leave_out)})
 
 
-def basket_totals(now_basket, leave_out=(), phase=None):
+def basket_totals(now_basket, leave_out=(), phase=None, place_left=()):
     """pricing.totals of the basket `now_basket` (current_basket) at the runner's prices now, the rows of the stages
-    `leave_out` taken out (flow.left_out), only the phase `phase`'s rows kept when given (flow.phase_kept)."""
+    `leave_out` taken out (flow.left_out), only the phase `phase`'s rows kept when given (flow.phase_kept), the nodes
+    `place_left` (place_left) taken out."""
     items, _ = flow.bought_items(now_basket["items"])
-    items = flow.phase_kept(flow.left_out(items, leave_out), phase)
+    items = flow.nodes_left(flow.phase_kept(flow.left_out(items, leave_out), phase), set(place_left))
     return pricing.totals(pricing.basket_prices(flow.snapshot(items)))
 
 
@@ -235,11 +236,30 @@ def known_stages(names):
     return names.split(",")
 
 
-def buy(yes_id, store=None, phase=None, leave_out=None):
+def place_left(items, places=None, leave_places=None, runner=None):
+    """The nodes of `items` a Buy by place leaves out (flow.places_left): `places` (a comma list) the places it buys,
+    with the environment rows they need; `leave_places` (a comma list) the places it does not buy; a node needing a
+    left-out place's row not standing waits (graph/chain.upstream over the runner's table, as `score run --place`
+    walks it). Refused naming a name that is no place of the environment."""
+    from score import stages
+    from score.graph import chain
+    runner = runner or stages.runner()
+    known = set(stages.places(runner.world, runner.store))
+    chosen, left = [set(names.split(",")) if names else set() for names in (places, leave_places)]
+    unknown = sorted((chosen | left) - known)
+    if unknown:
+        raise Refused(f"{', '.join(unknown)} is no place of the environment: one of {', '.join(sorted(known))}")
+    def upstream(node):
+        return chain.upstream(runner, runner.nodes_named([node]))
+    return sorted(flow.places_left(items, chosen, left, upstream))
+
+
+def buy(yes_id, store=None, phase=None, leave_out=None, places=None, leave_places=None):
     """His Buy under the yes `yes_id`, once: every check of the module docstring, the yes marked used, then flow.start
     as his click, in this thread; (Checkout or None, words). With `phase` (score/stages/phases, the door's `--phase`)
     only that phase's rows of the basket are bought (flow.phase_kept), under the same yes and batch total, the
-    checkout's chat_yes naming it. Refused before the yes is marked used, nothing written."""
+    checkout's chat_yes naming it; with `places` or `leave_places` (comma lists, the door's `--place` and
+    `--leave-place`) only the rows place_left keeps. Refused before the yes is marked used, nothing written."""
     from score.review import web
     store = store or state.source().store
     yes = yes_found(store, yes_id)
@@ -253,7 +273,12 @@ def buy(yes_id, store=None, phase=None, leave_out=None):
     except flow.Refused as refused:
         raise Refused(str(refused)) from refused
     now_basket = current_basket(approved)
-    totals = basket_totals(now_basket, yes.get("leave_out", ()), phase)  # flow.start checks it again, under its lock
+    if places or leave_places:  # a Buy by place (the door's --place, --leave-place), its left-out nodes on the yes
+        items = flow.phase_kept(flow.left_out(flow.bought_items(now_basket["items"])[0], yes.get("leave_out", ())),
+                                phase)
+        yes = {**yes, "places": places, "leave_places": leave_places,
+               "place_left": place_left(items, places, leave_places)}
+    totals = basket_totals(now_basket, yes.get("leave_out", ()), phase, yes.get("place_left", ()))  # flow.start again
     refused = flow.yes_refusals(yes, totals) + latch_refusals() + pin_refusals(health.code()) + run_refusals()
     if refused:
         raise Refused("; ".join(refused))
