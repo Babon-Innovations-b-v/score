@@ -153,6 +153,25 @@ def test_a_monitor_stands_on_its_console_s_top():
                                "STOVE TOP 1": {"shape": "rect", "tall": 0.05, "base": base}})
         found = by_row(holders.relations(plan, {"rows": [counter, stove], "picture": [3000, 1200]}))["stove_top"]
         assert (found["how"], found["holder"]) == (wanted, "KITCHEN COUNTER 1"), (size, base, found)
+    # Flat (settle@flat, 2026-11-11): its second blanket, drawn at 0.7 m on the first blanket on its 0.5 m bed, its
+    # middle 1 cm past the bed's side, was laid against that side 0.24 m up: one the plan stacks on what stands on its
+    # holder's top is on that top; with the first blanket drawn elsewhere on the bed it stands on nothing there and
+    # keeps the side.
+    # Break: score/review/holders/__init__.py: stands_on_top's `or stacked.on_stack(item, holder_item, plan,
+    #     STAND_REACH)` dropped (the stacked blanket on the bed's side), or stacked.py's `meets(other, item)]` ->
+    #     `True]` (the blanket elsewhere on the bed holds it up)
+    bed = {"id": "bed", "noun": "bed", "anchor": "floor", "size": [2.0, 1.0, 0.5]}
+    blanket = {"id": "blanket", "noun": "blanket", "anchor": "on:bed", "where": "on bed, right", "size": [0.8, 0.6, 0.2]}
+    for first, wanted in (([2.536, 1.203], "top"), ([1.0, 1.1], "face")):
+        plan = plan_of([["BED 1", 0.994, 1.084, 1.912, 0.956, "E", "item"],
+                        ["BLANKET 1", *first, 0.478, 0.717, "W", "item"],
+                        ["BLANKET 2", 2.247, 1.753, 0.8, 0.6, None, "item"]],
+                       {"BED 1": ["bed"], "BLANKET 1": ["blanket"], "BLANKET 2": ["blanket"]},
+                       shapes={"BED 1": {"shape": "rect", "tall": 0.5, "base": 0.0},
+                               "BLANKET 1": {"shape": "rect", "tall": 0.2, "base": 0.5},
+                               "BLANKET 2": {"shape": "rect", "tall": 0.2, "base": 0.7}})
+        found = by_item_of(holders.relations(plan, {"rows": [bed, blanket], "picture": PICTURE}))["BLANKET 2"]
+        assert (found["how"], found["holder"]) == (wanted, "BED 1"), (first, found)
 
 
 def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():

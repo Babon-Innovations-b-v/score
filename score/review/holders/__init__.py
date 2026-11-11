@@ -77,6 +77,7 @@ from score.review.holders import named_top
 from score.stages import row_kinds
 from score.stages import shell_parts
 from score.stages.earth_seed import design_shell
+from score.review.holders import stacked
 from score.store import PROPS_HOME
 
 KEPT_PLANS = PROPS_HOME / "design" / "plans"
@@ -537,7 +538,8 @@ def stands_on_top(item, holder_item, plan):
     side, the stove floating 0.76 m and the sink tipping (2026-11-11)."""
     shape, under = shape_of(item[0], plan), shape_of(holder_item[0], plan)
     tall = float(under.get("tall") or 0.0)
-    return tall > 0.0 and abs(float(shape.get("base") or 0.0) - float(under.get("base") or 0.0) - tall) <= STAND_REACH
+    return tall > 0.0 and (abs(float(shape.get("base") or 0.0) - float(under.get("base") or 0.0) - tall) <= STAND_REACH
+                           or stacked.on_stack(item, holder_item, plan, STAND_REACH))  # on what stands there
 
 
 # A row at most this share of its least footprint side tall lies flat (a stove top, a sink): it has no side to stand
