@@ -18,7 +18,7 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   (prop_prints.py: the face from the close-up, the flag patch drawn) are the only pictures. A skin part, a boot and a
   mitt get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
   hard part elsewhere (a pack) sits on the cloth and needs none. A part judged a boot's material is a boot only at the
-  feet (`placed_names`): higher up (a dark visor) it is named by its material. A belt and its buckle are cloth (`worn_as_cloth`).
+  feet (`placed_pieces`, piece by piece): higher up (a dark visor) it is named by its material. A belt and its buckle are cloth (`worn_as_cloth`).
   Every other hard part, the hair and the bare hands ride one joint rigidly (`rigid_joint`: a boot its foot, a mitt
   or a hand its hand, the hair the head, a helmet or pack the joint its weights favour), and a garment within
   EASE_REACH of a hard part is eased onto that part's joint, so the trouser hem goes with the boot it covers.
@@ -44,6 +44,8 @@ sys.path.insert(0, str(PEOPLE))
 
 import piping  # noqa: E402
 import trimesh  # noqa: E402
+from scipy.sparse import coo_matrix  # noqa: E402
+from scipy.sparse.csgraph import connected_components  # noqa: E402
 from scipy.spatial import cKDTree  # noqa: E402
 import tucks  # noqa: E402
 
@@ -226,18 +228,40 @@ SIDED = ("boot", "mitt")
 # start: the officer's black leather at his waist, material "boot black leather", named boot_black_leather, still rode
 # his right foot with a boot's tuck, and the tuck stood 43.7 mm out of his tunic sitting (env1, 2026-11-11).
 BOOT_TOP_SHARE = 0.5
+# Judged piece by piece (each connected run of a part's triangles), not by the part's middle: the astronaut's brown
+# leather boots came as GeoSAM2 parts each holding a boot and a piece of leather at his chest and helmet ring (1.0 to
+# 1.8 m, some 500 of a part's 1,250 points); the part's middle lay low, so the high piece stayed a boot, rode its
+# shin, and its tuck stood 45 to 67 mm out of his suit in every clip (env1, 2026-11-11).
 
 
-def placed_names(names_of, materials_of, pieces, heights):
-    """Each part's name, with a part named boot whose middle (its triangles' mean, `pieces` split_parts') lies above
-    BOOT_TOP_SHARE of the person (`heights`: every point's height) named by its material instead (`unsided`)."""
+def placed_pieces(split, names_of, materials_of, heights):
+    """The parts as named surfaces {(part, name): (points, faces, weights, used)} (`split` split_parts'). A part named
+    boot keeps its name on its connected pieces whose middle (their triangles' mean) lies at or under BOOT_TOP_SHARE
+    of the person (`heights`: every point's height); its pieces above that are one surface named by its material
+    (`unsided`)."""
     low, high = float(heights.min()), float(heights.max())
-    placed = dict(names_of)
-    for part, name in names_of.items():
-        points, faces = pieces[part][0], pieces[part][1]
-        if name == "boot" and points[faces].mean(1)[:, 1].mean() - low > BOOT_TOP_SHARE * (high - low):
-            placed[part] = unsided(materials_of[part])
-    return placed
+    found = {}
+    for part, (points, faces, weights, used) in split.items():
+        name = names_of[part]
+        if name != "boot":
+            found[(part, name)] = (points, faces, weights, used)
+            continue
+        middles = points[faces].mean(1)[:, 1]
+        label = piece_labels(faces, len(points))
+        tops = {piece: middles[label == piece].mean() - low > BOOT_TOP_SHARE * (high - low) for piece in set(label)}
+        raised = np.array([tops[piece] for piece in label], bool)
+        for keep, kept_name in ((~raised, name), (raised, unsided(materials_of[part]))):
+            if keep.any():
+                kept, renumbered = np.unique(faces[keep], return_inverse=True)
+                found[(part, kept_name)] = (points[kept], renumbered.reshape(-1, 3), weights[kept], used[kept])
+    return found
+
+
+def piece_labels(faces, count):
+    """Each triangle's connected piece (triangles sharing a point are one piece)."""
+    edges = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]]])
+    graph = coo_matrix((np.ones(len(edges)), (edges[:, 0], edges[:, 1])), shape=(count, count))
+    return connected_components(graph, directed=False)[1][faces[:, 0]]
 
 
 def unsided(material):
@@ -249,15 +273,16 @@ def unsided(material):
     return "_".join(words) or "hard"
 
 
-def boot_names(pieces, names_of):
-    """The boot parts and the mitt parts gathered by side, each triangle's side by x: one boot_l, boot_r, mitt_l and
-    mitt_r each (a GeoSAM2 part can hold a piece of the other boot, whose own middle sent its tuck the wrong way)."""
+def boot_names(pieces):
+    """The boot surfaces and the mitt surfaces (`pieces` placed_pieces') gathered by side, each triangle's side by x:
+    one boot_l, boot_r, mitt_l and mitt_r each (a GeoSAM2 part can hold a piece of the other boot, whose own middle
+    sent its tuck the wrong way)."""
     found, sided = {}, {}
-    for part, (points, faces, weights, used) in pieces.items():
-        if names_of[part] not in SIDED:
-            found[(part, names_of[part])] = (points, faces, weights, used)
+    for (part, name), (points, faces, weights, used) in pieces.items():
+        if name not in SIDED:
+            found[(part, name)] = (points, faces, weights, used)
             continue
-        for side, sign in ((names_of[part] + "_l", 1.0), (names_of[part] + "_r", -1.0)):
+        for side, sign in ((name + "_l", 1.0), (name + "_r", -1.0)):
             keep = (sign * points[faces].mean(1)[:, 0]) > 0
             if keep.any():
                 kept, renumbered = np.unique(faces[keep], return_inverse=True)
@@ -302,10 +327,9 @@ def surfaces(fit_rig, parts, prints=None):
     names = list(fit_rig["names"])
     index = {int(part): number for number, part in enumerate(parts["parts"])}
     split = split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"], face_parts(fit_rig, parts))
-    names_of = placed_names({part: str(parts["names"][number]) for part, number in index.items()},
-                            {part: str(parts["materials"][number]) for part, number in index.items()}, split,
-                            fit_rig["points"][:, 1])
-    pieces = boot_names(split, names_of)
+    pieces = boot_names(placed_pieces(split, {part: str(parts["names"][number]) for part, number in index.items()},
+                                      {part: str(parts["materials"][number]) for part, number in index.items()},
+                                      fit_rig["points"][:, 1]))
     role_of = {key: "garment" if worn_as_cloth(key[1]) else str(parts["roles"][index[key[0]]]) for key in pieces}
     hard_points, hard_joints = [np.zeros((0, 3))], [np.zeros(0, dtype=object)]
     rigid = [key for key in pieces if role_of[key] == "hard" or key[1] in RIGID_NAMES]
