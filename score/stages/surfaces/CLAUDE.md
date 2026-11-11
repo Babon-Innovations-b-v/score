@@ -348,3 +348,10 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   `test_every_part_takes_a_library_surface_and_is_held_to_it.py` (the framework side, the finish route with Google
   and the paint's step faked, the method's steps, the bake job, the bodies' faces, the library keys), on the
   framework's Python.
+- **Two rows are made through a module of their own, set in the table** (`stages.kit_and_lit_kept`,
+  `stages.bake_checked`), so no row reading finish_parts.py, route_parts.py or bake_check.py (the bake, the recheck,
+  the people's dress: 193 accepted rows) moves for them: `parts_kept.py` (surfaces-parts: a shell surface further
+  from the close-up than the finish's own never takes it over; a code-built light's finish listed on a glowing surface
+  is its lit one) and `check_seen.py` (surfaces-check: a ship place's view distance from a kit laid from its own
+  scene record, sized by the bake). Fold them into finish_parts.py, route_parts.py and bake_check.py when a change
+  there re-makes those rows anyway.
