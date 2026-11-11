@@ -221,20 +221,32 @@ SIDED = ("boot", "mitt")
 # fit stands the soles at 0); above it, it is named by its material, as prop_parts names any other hard part. The
 # astronaut's dark visor, judged black rubber boot (his palette, the work suit's, holds no glass), was split into
 # boot_l and boot_r at 0.9 of his height, rode his feet and shins, and its tucks stood 5 cm out of his helmet in every
-# clip (env1, 2026-11-08). The shipped and made boots' tops lie under a third of the height.
+# clip (env1, 2026-11-08). The shipped and made boots' tops lie under a third of the height. Its material name's
+# leading words that start as a boot's or a mitt's (SIDED) are left out of its name, which every boot rule reads by its
+# start: the officer's black leather at his waist, material "boot black leather", named boot_black_leather, still rode
+# his right foot with a boot's tuck, and the tuck stood 43.7 mm out of his tunic sitting (env1, 2026-11-11).
 BOOT_TOP_SHARE = 0.5
 
 
 def placed_names(names_of, materials_of, pieces, heights):
     """Each part's name, with a part named boot whose middle (its triangles' mean, `pieces` split_parts') lies above
-    BOOT_TOP_SHARE of the person (`heights`: every point's height) named by its material instead."""
+    BOOT_TOP_SHARE of the person (`heights`: every point's height) named by its material instead (`unsided`)."""
     low, high = float(heights.min()), float(heights.max())
     placed = dict(names_of)
     for part, name in names_of.items():
         points, faces = pieces[part][0], pieces[part][1]
         if name == "boot" and points[faces].mean(1)[:, 1].mean() - low > BOOT_TOP_SHARE * (high - low):
-            placed[part] = materials_of[part].replace(" ", "_")
+            placed[part] = unsided(materials_of[part])
     return placed
+
+
+def unsided(material):
+    """A material's name as a part's, its leading words that start as a boot's or a mitt's (SIDED) left out, so no
+    boot or mitt rule takes it ("boot black leather": black_leather); "hard" when no word is left."""
+    words = material.split()
+    while words and words[0].startswith(SIDED):
+        words = words[1:]
+    return "_".join(words) or "hard"
 
 
 def boot_names(pieces, names_of):
