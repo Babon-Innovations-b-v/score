@@ -1085,7 +1085,8 @@ def related(design, relation, spot, way, base, size, piece=0):
     if how in ("top", "within", "face"):
         found = {"how": how, "holder item": relation["holder"], "why": relation["why"],
                  **({"holder row": relation["holder row"]} if relation.get("holder row") else {}),
-                 **({"hangs": True} if relation.get("hangs") else {})}  # hung on its holder's back (fitting.on_back)
+                 **({"hangs": True} if relation.get("hangs") else {}),  # hung on its holder's back (fitting.on_back)
+                 **({"under": True} if relation.get("under") else {})}  # at its holder's foot (fitting.on_holder)
         if relation.get("spots"):
             spot = np.asarray(relation["spots"][min(piece, len(relation["spots"]) - 1)], float)
         if how == "face":
