@@ -409,7 +409,7 @@ NO_OP_REASON = "same result: every change since it was made is proved a no-op fo
 NARROWING_REASON = "same reads: every file its key reads today reads as it did when it was made"
 WORDS_REASON = "same meaning: every file its key reads today reads as when it was made, or differs only in words"
 # The key parts a narrowing carry needs the same: all but the code version and the declared files' hashes.
-NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "beside")
+NARROWING_SAME = ("contract", "expects", "params", "seed", "models", "after", "beside", "dropped")  # dropped_parts
 # A phase's lock (CONTEXT.md "phase", the owner's design of 2026-11-06): its accepted outputs, never made again by
 # a later code change. phase-locks/<environment>/<phase>/<n>.json, written once by `score lock-phase` (the runner's
 # bookkeeping, no accept, reject, waiver or spend); a locked node is kept over a key that moved only by code.
@@ -1329,6 +1329,7 @@ class Runner:
             parts, key = self.retake_parts(node_name(stage, place), parts, key)
         else:  # only a key whose output he rejected gains an again part: no other node's key moves
             parts, key = self.again_parts(stage, node_name(stage, place), parts, key)
+        parts, key = self.dropped_parts(node_name(stage, place), parts, key)
         note = self.store.read(f"{REMAKES}{node_name(stage, place)}/{key}.json")
         if note and note["then"] == "remake":  # only then a remake part: no other node's key moves
             failed = ", ".join(sorted(note["failed"]))
@@ -1370,6 +1371,24 @@ class Runner:
         """Whether an accept of the node followed the owner's newest reject of `output`: its retake was made and kept."""
         newest = max(reject["at"] for reject in self.store.rejects(node) if reject["output"] == output)
         return any(accept["at"] > newest for accept in self.store.accepts(node))
+
+    def dropped_parts(self, node, parts, key):
+        """(parts, key) moved on by a `dropped` part when this key's record was carried by a phase lock and a drop
+        naming the node (drop_from_phase) came at or after that lock, so the runner makes it; a drop written after the
+        carry otherwise left the carried output standing on its key for good (2026-11-11: earth-seed@docking_airlock,
+        carried onto cf0e0f2c's key by the surfaces lock of 11-09 at 11-10 13:26, dropped at 20:41, kept its ochre deck
+        and failed light@docking_airlock's colour). Only such a key moves."""
+        carried = (self.store.record(node, key) or {}).get("carried", {})
+        if "phase" not in carried:
+            return parts, key
+        every = self.phase_locks()
+        locked = [lock["at"] for lock in every if (lock["phase"], lock["n"]) == (carried["phase"], carried["lock"])]
+        drops = [lock for lock in every if locked and node in lock.get("dropped", ()) and lock["at"] >= locked[0]]
+        if not drops:
+            return parts, key
+        parts = {**parts, "dropped": {"after": key, "phase": drops[-1]["phase"], "lock": drops[-1]["n"],
+                                      "why": f"carried by {carried['phase']} lock {carried['lock']}, dropped since"}}
+        return parts, text_hash(json.dumps(parts, sort_keys=True))
 
     def again_parts(self, stage, node, parts, key):
         """(parts, key) made once more when the owner rejected the output this key's record holds (a row that does not
@@ -1775,7 +1794,7 @@ class Runner:
         if record is None or record.get("uncommitted", True) or not record.get("commit"):
             return None
         if any(record.get(part) != keyed.get(part) for part in ("code", "contract", "expects", "params", "seed",
-                                                                 "models", "after", "beside")):
+                                                                 "models", "after", "beside", "dropped")):
             return None
         if set(record["files"]) != set(keyed["files"]):
             return None
@@ -2832,6 +2851,8 @@ class Runner:
             if last.get(part, {}) != keyed.get(part, {}):
                 reasons += [f"{name} changed" for name in sorted(set(last.get(part, {})) | set(keyed.get(part, {})))
                             if last.get(part, {}).get(name) != keyed.get(part, {}).get(name)]
+        if "dropped" in keyed and keyed["dropped"] != last.get("dropped"):  # dropped_parts
+            reasons.append(f"dropped from its phase by {keyed['dropped']['phase']} lock {keyed['dropped']['lock']}")
         return reasons
 
     def node_status(self, stage, place):
