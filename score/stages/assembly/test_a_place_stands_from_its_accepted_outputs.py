@@ -1276,7 +1276,12 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     Break: score/stages/assembly/fitting.py: `(middle, middle + wide) if way[axis // 2] > 0 else (middle - wide,
         middle)` -> `(middle - wide, middle) if way[axis // 2] > 0 else (middle, middle + wide)`
     Break: score/stages/assembly/fitting.py: `for name in sorted(by_name, key=lambda name: name not in leaves):` ->
-        `for name in by_name:`"""
+        `for name in by_name:`
+    Break: score/stages/assembly/fitting.py: fitted's `others = [box for other, box in mounted.items() ...]` -> `others
+        = []` (lamp_2 left in lamp_1), or on_wall's `[*clear, *mounted]` -> `clear` (the cabinet left in the corner)
+    Break: score/stages/assembly/fitting.py: mounted_height's `return next((at for at in lower ...), height)` ->
+        `return height` (the pipe shrunk beside the one over it), or its `wanted = min(reach, longest(height, clear))`
+        -> `wanted = reach` (the pipe longer than its wall left in the one over it)"""
     from pxr import Gf, Usd, UsdGeom
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -1294,6 +1299,7 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     stage = Usd.Stage.CreateInMemory()
     for name, size, turn, at in (("Objects/pipe_1", (3.2, 1.0, 0.32), 0.0, (0.0, 0.5, 2.0)),
                                  ("Objects/lamp_1", (0.4, 0.3, 0.1), 0.0, (0.0, 2.45, 0.15)),
+                                 ("Objects/lamp_2", (0.4, 0.3, 0.1), 0.0, (0.1, 2.45, 0.15)),
                                  ("Objects/door_1", (1.0, 2.0, 0.1), 180.0, (0.0, 1.0, 3.0)),
                                  ("Shell/wall_2", (1.2, 0.1, 0.2), 0.0, (0.0, -0.05, 0.0))):
         xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
@@ -1303,10 +1309,12 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
                                    * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
     wall = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
     entries = [{"name": "pipe_1", "row": "pipe", "on": wall}, {"name": "lamp_1", "row": "lamp", "on": wall},
+               {"name": "lamp_2", "row": "lamp", "on": wall},
                {"name": "door_1", "row": "door", "on": {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0],
                                                           "wide": 1.2, "tall": 2.2}}]
-    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {"pipe_1", "lamp_1", "door_1"})}
-    assert sorted(fits) == ["door_1", "pipe_1"], fits
+    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {"pipe_1", "lamp_1", "lamp_2", "door_1"})}
+    assert sorted(fits) == ["door_1", "lamp_2", "pipe_1"], fits
+    assert np.allclose(fits["lamp_2"]["low"], (0.2, 2.3, 0.1)), fits  # slid along clear of lamp_1, laid before it
     assert np.allclose(fits["door_1"]["low"], (-0.4, 0.0, 0.05)) and np.allclose(fits["door_1"]["high"],
                                                                                   (0.6, 2.0, 0.15)), fits
     swing = fitting.swing_box(stage, f"/{TOY}/Objects/door_1")
@@ -1317,6 +1325,24 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     out = (np.array([-0.4, 0.0, -0.9]), np.array([0.6, 2.0, 0.1]))
     scale, target = fitting.on_wall(np.array([-1.6, 0.0, 1.0]), np.array([1.6, 1.0, 1.32]), wall, [out])
     assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.26)), (scale, target)
+    # habitat (settle@habitat, 2026-11-10): two 3 m pipes 0.45 m tall stood 0.25 m apart on one wall, and kitchen
+    # cabinets on meeting walls, crossed by their own depth. A 4 m pipe 0.45 m tall laid at 2.35 m over one laid at
+    # 2.6 m on the same 6 m wall has no whole stretch at its height: it stands MOUNT_GAP under it, at 2.1 m; with
+    # nothing laid before it, it stays. A 1 m cabinet laid into the corner where one on the meeting wall (x -3 to
+    # -2.6) stands slides along clear of it, x -2.6 to -1.6.
+    pipe = (np.array([-2.0, 2.35, 0.1]), np.array([2.0, 2.8, 0.3]))
+    laid = [(np.array([-2.0, 2.6, 0.1]), np.array([2.0, 3.05, 0.3]))]
+    scale, target = fitting.on_wall(*pipe, wall, (), laid)
+    assert scale == 1.0 and np.allclose(target, (0.0, 2.1, 0.2)), (scale, target)
+    scale, target = fitting.on_wall(*pipe, wall)
+    assert scale == 1.0 and np.allclose(target, (0.0, 2.35, 0.2)), (scale, target)
+    # hangar's 32 m pipes on its 31.3 m walls: one longer than its wall stands under the one laid before it too
+    long_pipe = (np.array([-3.5, 2.35, 0.1]), np.array([3.5, 2.8, 0.3]))
+    scale, target = fitting.on_wall(*long_pipe, wall, (), [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))])
+    assert abs(scale - 6 / 7) < 1e-9 and np.allclose(target, (0.0, 2.1, 0.1 + 0.1 * 6 / 7)), (scale, target)
+    corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
+    scale, target = fitting.on_wall(np.array([-3.0, 1.5, 0.1]), np.array([-2.0, 2.2, 0.5]), wall, (), corner)
+    assert scale == 1.0 and np.allclose(target, (-2.1, 1.5, 0.3)), (scale, target)
 
 
 def test_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
