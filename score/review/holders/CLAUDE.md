@@ -48,7 +48,7 @@ ceiling) and how each is read.
 - **A placement word past `on` is kept** (`placement`, 2026-11-04): a row its reading's `where` says is under its
   holder is `within` it with `under` (the assembly lays it at the holder's foot), one on its shelves `within` it, its `why`
   starting "on the shelves of" (the assembly lays it on its holder's built boards, `fitting.on_boards`, which reads
-  those words: keep them), one on its holder's side never on its top; a flat row (`lies_flat`) the plan stands at its holder's top (`stands_on_top`) on that top, never against its side (galley's stove top and sink, drawn half past their counter's edge, 2026-11-11); a fitting the plan lays inside a standing run wider than the run is thick (`across_run`) against its side, never within it (lab's valves on their standing pipes, 2026-11-11); the assembly's held gate
+  those words: keep them), one on its holder's side never on its top; a flat row (`lies_flat`) the plan stands at its holder's top (`stands_on_top`) on that top, never against its side (galley's stove top and sink, drawn half past their counter's edge, 2026-11-11), or on what stands on that top (`stacked.on_stack`: flat's second blanket on the first, on its bed, 2026-11-11); a fitting the plan lays inside a standing run wider than the run is thick (`across_run`) against its side, never within it (lab's valves on their standing pipes, 2026-11-11); the assembly's held gate
   fails a relation that disagrees (`fitting.placement_faults`). One anchor for a row whose `where` names several
   holders (quarters' books on "desk, window sill, top bunk") is the reading's limit, not mended here.
 - **The assembly lays by it** at built sizes (`score/stages/assembly/fitting.py`), and the plan page shows what it laid
