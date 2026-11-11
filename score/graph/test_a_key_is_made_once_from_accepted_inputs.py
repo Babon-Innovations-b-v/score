@@ -4434,6 +4434,8 @@ def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_wi
     unread (sim-body at a place whose cast wears no pilot: 2026-11-11) neither waits on it nor reads it.
     Breaks (each applied once, seen red, reverted), in score/graph/__init__.py:
     'if before not in unread and (' -> 'if True and (';
+    '    return [name for name in optional if name in line and name not in stood and name not in stopped]' -> '    return []'
+    (the cast starts before its dress is settled and is made undressed);
     '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
     runner = people_runner("a suit")
     for whole in (True, False):
