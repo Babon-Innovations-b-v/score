@@ -1032,7 +1032,11 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         slanted wall's box)
     Break: score/stages/assembly/fitting.py: slants' `if not flight(name) and (name.split("_")[0] != "wall"` -> `if
         (name.split("_")[0] != "wall"` (the crate left on the flight), or free_spot's `outline)[0] >= 0.0` -> `outline)[0]
-        > 0.0` (a point's depth is never over 0: a crate whose middle stands on the flight found no way off it)"""
+        > 0.0` (a point's depth is never over 0: a crate whose middle stands on the flight found no way off it)
+    Break: score/stages/assembly/fitting.py: free_spot's `clear &= on_deck(box[0] + chunk, size, deck)` -> `pass` and
+        parted_boxes' `if (deck := deck_at(boxes[name], floors)) is not None` -> `if False and ...` (greenhouse's desk
+        parted past its deck's edge), or parted's `outlines = {name: outline ...}` -> `outlines = {}` (the desk clear
+        of the railing, in its box, parted)"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1244,6 +1248,35 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert fitting.shallow_out(car[0], car[1] + (0.3, 0.0, 0.0), wall_12) is None
     assert fitting.shallow_out(car[0], car[1] - (0.04, 0.0, 0.0), wall_12) is None
     assert fitting.straight(wall_12) and not fitting.straight(((1.35, -0.2, -11.89), (2.53, 24.0, -8.72)))
+    # settle@greenhouse (2026-11-11): its railings, 9.4 m chords turned off the floor's axes, have world boxes 3.7 m
+    # deep, and its upper floor stops short of its walls. A desk clear of a railing turned 30 degrees, in its box,
+    # stays (judged by the railing's outline, never its box); of two desks laid in each other at the deck's corner,
+    # the one parted stays on the deck (x and z 0 to 4 at 3 m), never past its edge into the room's 2 m beyond it.
+    decked = Usd.Stage.CreateInMemory()
+    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 6.0, 6.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 6.0, 6.0)),
+                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 6.0, 0.0)), ("wall_4", (0.0, 0.0, 6.0), (6.0, 6.0, 6.1)),
+                            ("deck_2", (0.0, 2.8, 0.0), (4.0, 3.0, 4.0))):
+        a_built_box(decked, f"/{TOY}/Structure/{name}", low, high)
+    UsdGeom.Mesh(decked.GetPrimAtPath(f"/{TOY}/Structure/deck_2/geo")).CreateFaceVertexCountsAttr([4])
+    UsdGeom.Mesh(decked.GetPrimAtPath(f"/{TOY}/Structure/deck_2/geo")).CreateFaceVertexIndicesAttr([2, 3, 7, 6])  # top
+    UsdGeom.Xform.Define(decked, f"/{TOY}/Objects/railing_1").AddTransformOp().Set(
+        Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), 30.0)) * Gf.Matrix4d().SetTranslate(Gf.Vec3d(2.0, 3.5,
+                                                                                                         1.5)))
+    UsdGeom.Cube.Define(decked, f"/{TOY}/Objects/railing_1/geo").AddScaleOp().Set(Gf.Vec3f(2.0, 0.5, 0.01))
+    desks = {"desk_1": ((2.4, 3.0, 2.0), (3.2, 3.5, 2.5)), "desk_2": ((2.8, 3.0, 3.2), (3.8, 3.5, 3.9)),
+             "desk_3": ((3.1, 3.0, 3.3), (3.9, 3.5, 3.95))}
+    for name, (low, high) in desks.items():
+        a_built_box(decked, f"/{TOY}/Objects/{name}", low, high)
+    assert fitting.thin_outline(decked, f"/{TOY}/Objects/railing_1") is not None and fitting.thin_outline(
+        decked, f"/{TOY}/Objects/desk_1") is None
+    fitting.fitted(decked, TOY, [{"name": name, "row": name[:-2]} for name in ("railing_1", *desks)],
+                   {"railing_1", *desks})
+    after = {name: fitting.world_box(decked, f"/{TOY}/Objects/{name}") for name in desks}
+    assert np.allclose(after["desk_1"][0], desks["desk_1"][0]), after  # in the railing's box, clear of it: stays
+    assert not np.allclose(after["desk_2"][0], desks["desk_2"][0]) or not np.allclose(
+        after["desk_3"][0], desks["desk_3"][0]), after  # parted
+    assert all(box[0][0] >= -1e-6 and box[0][2] >= -1e-6 and box[1][0] <= 4.0 + 1e-6 and box[1][2] <= 4.0 + 1e-6
+               for box in after.values()), after  # on the deck
     assert np.allclose(crates["crate_6"][0], laid_by["crate_6"][0]), crates  # by the outline, never the box
     record = {"objects": [{"name": name, "row": name[:-2]} for name in ("bed_1", "crate_3", "rug_1", "table_1")]}
     laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)} for name, (low, high) in
@@ -1609,7 +1642,9 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         0.0 else -normal` -> `pass` with the turned face's normal flipped (out into the wall), or slanted_wall's `> 1e-6`
         -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall), or its `share in
         (FACE_INSET, 1.0 - FACE_INSET)` -> `share in (0.0, 1.0)` (a span ending past its wall's corner turned onto
-        the wall behind, habitat's wall_9)
+        the wall behind, habitat's wall_9), or its `return face_near(on, height, mesh)` -> `return on, 0.0`
+        (greenhouse's lamp left on its arc's chord, its pipe on the arc's outer face), or along_its_wall's `if deep <=
+        STRAIGHT_LEAST * max(reach, 1e-9):` -> `if True:` (its pipe left sticking out of its wall)
     Break: score/stages/assembly/fitting.py: stood_off's `0.0 < float(along.min() + along.max()) / 2 < length`
         dropped (walkway's whole-wall pipe stood on its end walls' front, against the wall across), or off_wall's
         `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
@@ -1748,6 +1783,35 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         for start, way in ((0.0035, (0.0, 0.0)), (-1.0, deep))])
     moved, degrees = fitting.on_built_face(slant, 1.5, corner)
     assert np.allclose(moved["span"], slant["span"], atol=1e-6) and abs(degrees) < 1e-6, (moved, degrees)
+    # greenhouse (2026-11-11): its plan walls an arc, its shell built on its outline's octagon 0.3 to 1.2 m behind the
+    # arc's chords. A face 1.2 m behind the span's middle, turned 20 degrees, is past the face rays' reach: the span is
+    # laid on it, along its run (10 m long here), its out the face's, turned 20 degrees; a face 0.7 m in front of a
+    # span whose out points at it (a pipe on the arc's outer face) takes the span, its out turned round to the room
+    middle, way = np.array([2.0, 2.0]), np.array([0.7071068, -0.7071068])
+
+    def a_face(at, turn):
+        run = np.array([[np.cos(turn), -np.sin(turn)], [np.sin(turn), np.cos(turn)]]) @ np.array([way[1], -way[0]])
+        ends = [at + run * 5.0, at - run * 5.0]
+        return trimesh.Trimesh([[ends[0][0], 0.0, ends[0][1]], [ends[1][0], 0.0, ends[1][1]],
+                                [ends[1][0], 3.0, ends[1][1]], [ends[0][0], 3.0, ends[0][1]]], [[0, 1, 2], [0, 2, 3]],
+                               process=False), run
+
+    for at, turn, toward in ((middle - way * 1.2, np.radians(20.0), 1.0), (middle + way * 0.7, 0.0, -1.0)):
+        built, run = a_face(at, turn)
+        moved, degrees = fitting.on_built_face(slant, 1.5, built)
+        ends = np.asarray(moved["span"], float)
+        assert np.allclose((ends - at) @ np.array([-run[1], run[0]]), 0.0, atol=1e-6), moved  # on the face
+        assert abs(float(np.dot(moved["out"], run))) < 1e-6 and float(np.dot(moved["out"], way)) * toward > 0.9, moved
+        assert np.linalg.norm(ends[1] - ends[0]) > 9.0 and abs(abs(degrees) - (20.0 if toward > 0 else 180.0)) < 1e-3, (
+            moved, degrees)
+    # ... and its 3 m pipes, built lying, stood 3 m out of their wall: one long across its wall is turned along it
+    UsdGeom.Xform.Define(turned, f"/{TOY}/Objects/pipe_10").AddTransformOp().Set(
+        Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -45.0)))
+    UsdGeom.Cube.Define(turned, f"/{TOY}/Objects/pipe_10/geo").AddScaleOp().Set(Gf.Vec3f(1.5, 0.1, 0.1))
+    across_it = {"how": "wall", "span": [[0.0, 0.0], [4.0, -4.0]], "out": [0.7071068, 0.7071068]}
+    assert not fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", slant)
+    assert fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", across_it)
+    assert not fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", across_it)  # along it now
     assert fitting.slanted_wall(slant) and fitting.slanted_wall({"out": [0.991393, -0.13092]}) and not \
         fitting.slanted_wall(wall)
     corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]

@@ -20,7 +20,9 @@ shrunk where it does not fit (never grown past its own model), so it sits
             built surface at its built size, its top on it (hung_under)
     wall    with its back on a wall's face (`span`, `out` into the room), within the face's length, out of the room
             each swinging leaf turns through and of its doorway's passage (swing_box, passage_box, on_wall), on the
-            front of the built ribs and pillars standing out of the face across it (stood_off)
+            front of the built ribs and pillars standing out of the face across it (stood_off); on a slanted wall on
+            its built face behind its span, or the nearest along its `out` either way (face_near), its long side
+            along it (along_its_wall)
     in      in its opening: its middle on the opening's middle at its sill, as wide and tall as the opening at most,
             its middle on the face of its built wall it swings to (its own -z way), else on the wall's room face
             where that wall stands behind the plan's line (opening_spot: hangar's and garage's shell walls stand
@@ -29,8 +31,9 @@ shrunk where it does not fit (never grown past its own model), so it sits
             there to the deck's top over its length, its high end's foot on the deck's near side (ramp_rest)
 
 and things nothing holds (no `on`) laid at their built size inside each other, a fixture or a wall are parted on the
-floor at that size, each in its own room, by the plan fixes' relation solver and then the nearest free spot (parted;
-a thin rug under a table is no overlap; one with no free spot is named, crowded_faults), and one still inside a deck or
+floor at that size, each in its own room and on its deck (on_deck), by the plan fixes' relation solver and then the
+nearest free spot (parted; a thin rug under a table is no overlap, a thin turned thing is judged by its outline,
+thin_outline; one with no free spot is named, crowded_faults), and one still inside a deck or
 wall (statics) is moved the least way out of it
 (moved_out: airlock's sandbags in its porch deck, its porch post in its wall), and one whose built surface passes up
 through a roof's built surface (by the roof's mesh, never its box: a dome's box holds the room under it) is moved down
@@ -1549,7 +1552,8 @@ def on_built_face(on, height, mesh):
     degrees turned from the faces their things' spans give, so a thing laid flush on its span stood up to 4.6 cm in its
     wall at one end (2026-11-10). A ray from a span's very end grazes past its wall's corner onto the next wall behind
     it: habitat's kitchen cabinets and control panel on its wall_9 were turned 3 degrees into it, 9 cm deep
-    (2026-11-11)."""
+    (2026-11-11). Where either ray meets none, the built face nearest the span along its `out` either way within
+    FACE_FAR is taken (face_near)."""
     if mesh is None:
         return on, 0.0
     import trimesh
@@ -1568,7 +1572,7 @@ def on_built_face(on, height, mesh):
         reach = (hits[rays == ray] - origins[ray]) @ back
         reach = reach[(reach > 0.0) & (reach <= 2 * WALL_REACH)]
         if not len(reach):
-            return on, 0.0
+            return face_near(on, height, mesh)
         faces.append(origins[ray][[0, 2]] + back[[0, 2]] * float(reach.min()))
     run = faces[1] - faces[0]
     if float(np.linalg.norm(run)) < 1e-6:
@@ -1604,6 +1608,84 @@ def face_run(ends, out, height, mesh):
             kept = max(reach - WALL_REACH, 0.0)
             shares[1 - ray] = 0.5 + (kept if ray == 0 else -kept) / length
     return shares[0], shares[1]
+
+
+# How far along a wall relation's `out` either way from its span's middle its built face is looked for where it does
+# not stand behind its span (face_near), metres: under the 3 m a wall across the room stands at in the module test.
+FACE_FAR = 1.5
+# The farthest a built face found so is followed along either way from where it was met (face_near), metres.
+FACE_RUN_MOST = 10.0
+
+
+def face_near(on, height, mesh):
+    """(the wall relation laid on the standing built face (`mesh`, built_walls) a ray from its span's middle at
+    `height` meets first along its `out` either way within FACE_FAR, its `out` that face's normal toward the span, its
+    span the run of that face round the point met (face_span), the degrees about +y that turn its `out` to the face's);
+    (on, 0) where none is. Greenhouse's plan walls are an arc round its middle, 0.65 m thick, its shell built on its
+    outline's octagon 0.3 to 1.2 m behind the arc's inner face: its eight wall lamps were laid on the arc's chords,
+    touching nothing, and its two pipes, their plan spots in the arc's outer half, on its outer face, out of the
+    room and through its walls (settle@greenhouse, 2026-11-11)."""
+    start, run, out, length = wall_line(on)
+    middle = start + run * length / 2
+    origins = np.array([[middle[0], height, middle[1]]] * 2)
+    ways = np.array([[-out[0], 0.0, -out[1]], [out[0], 0.0, out[1]]])
+    hits, rays, triangles = mesh.ray.intersects_location(origins, ways, multiple_hits=False)
+    found = []
+    for hit, ray, triangle in zip(np.asarray(hits, float).reshape(-1, 3), np.asarray(rays, int),
+                                  np.asarray(triangles, int)):
+        normal = np.asarray(mesh.face_normals[triangle], float)
+        flat = normal[[0, 2]]
+        reach = float(np.linalg.norm(hit - origins[ray]))
+        if reach <= FACE_FAR and float(np.linalg.norm(flat)) >= STANDING_LEAST:  # a standing face, not a deck's
+            found.append((reach, hit, flat / float(np.linalg.norm(flat)) * (1.0 if flat @ ways[ray][[0, 2]] < 0.0
+                                                                            else -1.0)))
+    if not found:
+        return on, 0.0
+    _, hit, normal = min(found, key=lambda one: one[0])
+    begin, end = face_span(hit, normal, mesh)
+    degrees = math.degrees(math.atan2(out[1] * normal[0] - out[0] * normal[1], float(out @ normal)))
+    return {**on, "span": [[float(value) for value in point] for point in (begin, end)],
+            "out": [float(value) for value in normal]}, degrees
+
+
+# A face whose normal's floor part is shorter than this stands at no wall (a deck's top, a roof's slope).
+STANDING_LEAST = 0.9
+
+
+def face_span(hit, normal, mesh):
+    """(from, to) [x, z] of the run of a built face (`mesh`) round a point on it (`hit` [x, y, z], its unit floor
+    `normal` toward the room): every RAY_STEP along it either way out to FACE_RUN_MOST, a ray from WALL_REACH in front
+    of it at the point's height cast back meets the face's plane within MOVE_LEAST, from the point met on to the last
+    such either way (a crossing wall, a turn of the wall or a hole ends it)."""
+    tangent = np.array([-normal[1], normal[0]])
+    steps = np.arange(RAY_STEP, FACE_RUN_MOST + RAY_STEP / 2, RAY_STEP)
+    ends = []
+    for sign in (1.0, -1.0):  # from its (out z, -out x) end
+        floor = hit[[0, 2]] + tangent[None, :] * (sign * steps)[:, None] + normal * WALL_REACH
+        origins = np.array([[x, hit[1], z] for x, z in floor])
+        hits, rays, _ = mesh.ray.intersects_location(origins, np.tile([-normal[0], 0.0, -normal[1]],
+                                                                      (len(origins), 1)), multiple_hits=False)
+        met = np.full(len(origins), np.inf)
+        met[np.asarray(rays, int)] = np.linalg.norm(np.asarray(hits, float).reshape(-1, 3)
+                                                    - origins[np.asarray(rays, int)], axis=1)
+        on_face = np.abs(met - WALL_REACH) <= MOVE_LEAST
+        last = int(np.argmin(on_face)) if not on_face.all() else len(steps)  # the steps on it before the first off
+        ends.append(hit[[0, 2]] + tangent * sign * (steps[last - 1] if last else 0.0))
+    return ends[0], ends[1]
+
+
+def along_its_wall(stage, path, on):
+    """Whether a wall thing whose own box (oriented_corners) reaches across its wall (`on`'s `out`) more than
+    STRAIGHT_LEAST times as far as along it was turned a quarter about +y on the stage, its long side along the face.
+    Greenhouse's 3 m pipes, their rows 3 m tall, were built lying and laid sticking 3 m out of their wall, through the
+    walls behind it (settle@greenhouse, 2026-11-11)."""
+    low, high = world_box(stage, path)
+    reach, deep = wall_reach(low, high, *wall_line(on)[1:3], oriented_corners(stage, path))
+    if deep <= STRAIGHT_LEAST * max(reach, 1e-9):
+        return False
+    pivot = foot_middle(low, high)
+    pitched_by(stage.GetPrimAtPath(path), pivot, (0.0, 1.0, 0.0), 90.0, pivot)
+    return True
 
 
 def oriented_corners(stage, path):
@@ -1922,6 +2004,7 @@ def fitted(stage, place, entries, laid, cuts=None):
         if how == "in" and name in leaves and slanted(entry["on"]):
             surface = wall_points(stage, place)
         on_shelves = how == "within" and held and on_shelves_of(entry["on"]) and not hangs_in(entry)
+        along = False  # turned to lie along its wall (along_its_wall)
         if on_shelves:
             holder, found = shelved(low, high, entry["on"], held,
                                     lambda holder: surface_mesh(stage, f"/{place}/{scope}/{holder}"), taken)
@@ -1936,6 +2019,9 @@ def fitted(stage, place, entries, laid, cuts=None):
                     pitched_by(stage.GetPrimAtPath(path), pivot, (0.0, 1.0, 0.0), degrees, pivot)
                     low, high = world_box(stage, path)
                 entry = {**entry, "on": built_on}
+            if turned and along_its_wall(stage, path, entry["on"]):
+                along = True
+                low, high = world_box(stage, path)
             walled = how in ("wall", "face") and name not in leaves
             clear = [box for leaf in sorted(done & leaves) for box in rooms(leaf)] if walled else ()
             if turned:  # and out of the openings cut through its wall (wall_holes)
@@ -1967,6 +2053,8 @@ def fitted(stage, place, entries, laid, cuts=None):
             return
         scale, target, words, face = found
         moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), scale, target)
+        if along:
+            words += "; turned a quarter to lie along its wall: built long across it"
         if how == "in":  # held to what it has clear of the built walls and the opening things laid before it
             words += held_clear(stage, path, entry["on"], opened_around())
             opened.append(path)
@@ -2208,14 +2296,16 @@ def in_slants(box, slanted):
 FREE_CHUNK = 2048
 
 
-def free_spot(box, others, pieces, inside, slanted=()):
+def free_spot(box, others, pieces, inside, slanted=(), floors=()):
     """The least move [x, y, z] on the floor that takes a box (low, high) clear of every box of `others` and of the
     wall `pieces` (each [(low, high)], those it shares height with: tall_together) and of the slanted walls
     (`slanted`, slants': by their outlines) and keeps it in `inside` [low x, low z, high x, high z], its middle
-    passing through no wall piece or slanted wall it did not start in (it stays in its room); None where no move
+    passing through no wall piece or slanted wall it did not start in (it stays in its room), and its footprint over
+    the deck it stands on where it starts on one (`floors`, deck_triangles: on_deck); None where no move
     does. Only flush moves are judged (flush_moves), so the move found is exact. The solver's overlap
     gives a box laid across a wall no way out (it holds the wall's piece inside its own on both axes, so the
     overlap's gradient is 0): habitat's bunk beds, 2.1 m long, laid across its slanted inner wall."""
+    deck = deck_at(box, floors)
     near = stacked([other for other in [*others, *pieces] if tall_together(box, other)])
     walls_near = stacked([piece for piece in pieces if tall_together(box, piece)])
     middle, size = foot_middle(*box), box[1] - box[0]
@@ -2238,10 +2328,35 @@ def free_spot(box, others, pieces, inside, slanted=()):
             clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]], size[[0, 2]] / 2, outline) <= HELD_MOST
             if not begun:
                 clear &= ~slant_crossed(middle, middle + chunk, outline)
+        if deck is not None:
+            clear &= on_deck(box[0] + chunk, size, deck)
         for move in chunk[clear]:
             if not (through(middle, middle + move, walls_near) & ~started).any():
                 return move
     return None
+
+
+def deck_at(box, floors):
+    """The deck triangles of `floors` ([n, 3, 3], deck_triangles) lying at a box's (low, high) foot, within HELD_MOST
+    of its height, where its foot's middle stands over one of them; None where it stands on none (on the ground)."""
+    if not len(floors):
+        return None
+    level = floors[(np.abs(floors[:, :, 1] - float(box[0][1])) <= HELD_MOST).all(axis=1)]
+    if not len(level) or not np.isfinite(roof_under(foot_middle(*box)[None, :], level))[0]:
+        return None
+    return level
+
+
+def on_deck(lows, size, deck):
+    """(N,) whether each footprint (its box's low corner `lows` [N, 3], its `size`) stands over the `deck`
+    triangles (deck_at) at its middle and its four corners. Greenhouse's upper floor is cut 0.3 to 1.2 m short of
+    its walls: its desks, a chair and a tank parted clear of each other went past its edge, tipping and floating
+    3 m over the floor below (settle@greenhouse, 2026-11-11)."""
+    lows = np.asarray(lows, float).reshape(-1, 3)
+    offsets = np.array([[0.5, 0.0, 0.5], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 1.0]]) \
+        * np.asarray(size, float)
+    points = (lows[:, None, :] + offsets[None, :, :]).reshape(-1, 3)
+    return np.isfinite(roof_under(points, deck)).reshape(len(lows), len(offsets)).all(axis=1)
 
 
 def parted_spots(boxes, movers, fixed, inside):
@@ -2298,7 +2413,7 @@ def bound_of_all(boxes, inside):
             max([inside[2], *(box[1][0] for box in outside)]), max([inside[3], *(box[1][2] for box in outside)])]
 
 
-def parted_boxes(boxes, still, pieces, inside, slanted=(), hung=()):
+def parted_boxes(boxes, still, pieces, inside, slanted=(), hung=(), floors=()):
     """({name: box (low, high)}, {name left out}) of the boxes {name: (low, high)} of the things nothing holds, the
     crowded ones parted
     at their built size, kept in `inside` [low x, low z, high x, high z], clear of the `still` boxes (fixtures and held
@@ -2313,13 +2428,13 @@ def parted_boxes(boxes, still, pieces, inside, slanted=(), hung=()):
     left for one, the plan's later one is left out (hangar's two 30 x 13 m cranes and its one 20.2 m bay between its
     ribs, 2026-11-11), never left in the other. The slanted walls (`slanted`, slants') are judged by their outlines
     throughout: the solver knows only boxes, so one it leaves in or takes through a slanted wall goes to its free
-    spot too."""
+    spot too, as does one it takes off the deck it stood on (`floors`, deck_triangles: on_deck)."""
     fixed = [*still, *pieces]
     movers = crowded(boxes, fixed, slanted)
     if not movers:
         return boxes, set()
     after = {**boxes, **{name: moved_box(boxes[name], free_spot(boxes[name], still, pieces,
-                                                                 bound_of(boxes[name], inside), slanted))
+                                                                 bound_of(boxes[name], inside), slanted, floors))
                          for name in movers if crowded({name: boxes[name]}, fixed, slanted)}}
     crowd = crowded(after, []) & movers
     if crowd:
@@ -2331,7 +2446,9 @@ def parted_boxes(boxes, still, pieces, inside, slanted=(), hung=()):
                                                       walls_all)).any()
                or any(slant_crossed(foot_middle(*boxes[name]), foot_middle(*after[name]), outline)[0]
                       and not slant_crossed(foot_middle(*boxes[name]), foot_middle(*boxes[name]), outline)[0]
-                      for outline, _ in slanted)}
+                      for outline, _ in slanted)} | {
+        name for name in movers if (deck := deck_at(boxes[name], floors)) is not None
+        and not on_deck(after[name][0], boxes[name][1] - boxes[name][0], deck)[0]}
     tried, left = set(), set()
     while pending := sorted((crowded(after, fixed, slanted) & movers | crossed) - tried - left,
                             key=lambda name: (-float(np.prod((boxes[name][1] - boxes[name][0])[[0, 2]])), name)):
@@ -2340,12 +2457,12 @@ def parted_boxes(boxes, still, pieces, inside, slanted=(), hung=()):
         others = [*still, *(box for other, box in after.items() if other != name)]
         if not (name in crossed or crowded({name: after[name]}, [*others, *pieces], slanted)):
             continue
-        shift = free_spot(boxes[name], others, pieces, bound_of(boxes[name], inside), slanted)
+        shift = free_spot(boxes[name], others, pieces, bound_of(boxes[name], inside), slanted, floors)
         if shift is None and name in hung:
             later = {other for other in set(hung) & movers if other > name and other in after}
             shift = free_spot(boxes[name], [*still, *(box for other, box in after.items()
                                                       if other != name and other not in later)],
-                              pieces, bound_of(boxes[name], inside), slanted)
+                              pieces, bound_of(boxes[name], inside), slanted, floors)
             if shift is None:
                 left.add(name)
                 del after[name]
@@ -2368,24 +2485,30 @@ def parted(stage, place, entries, holding=()):
     stand inside each other or a static after (#72, settle@flat: its bed in its bedside table and wardrobe, laid
     bigger than the plan's estimates). One hung from the roof (the scene record's `under roof`) with no free spot is
     left out (parted_boxes): its prim made inactive, so nothing lays, drops or judges it, and its fit says why (how
-    "left out"), a gap of its own; the fits [{name, how "parted" or "left out", ...}]."""
+    "left out"), a gap of its own; the fits [{name, how "parted" or "left out", ...}]. A thin thing turned off the
+    floor's axes (thin_outline: a railing's world box holds the room beside it) is never parted and kept clear of by
+    its outline, as a slanted wall is; each parted one stays on the deck it stands on (on_deck)."""
     paths = {entry["name"]: f"/{place}/Objects/{entry['name']}" for entry in entries}
-    boxes = {name: world_box(stage, path) for name, path in paths.items()}
+    outlines = {name: outline for name, path in paths.items() if (outline := thin_outline(stage, path)) is not None}
+    boxes = {name: world_box(stage, path) for name, path in paths.items() if name not in outlines}
     held = {f"{scope}/{name}": box for scope in ("Objects", "Fixtures") for name, box in walls_in(stage, place, scope)
-            if scope == "Fixtures" or (name not in boxes and name not in holding)}
+            if scope == "Fixtures" or (name not in boxes and name not in outlines and name not in holding)}
     built = walls(stage, place)
     thin = statics(built)
     pieces = [box for name, box in thin if name.split("_")[0] == "wall"]
     room = [box for name, box in built if name.split("_")[0] == "wall"]
     inside = ([min(box[0][0] for box in room), min(box[0][2] for box in room), max(box[1][0] for box in room),
                max(box[1][2] for box in room)] if room else [-np.inf, -np.inf, np.inf, np.inf])
-    slanted = slants(stage, place)
+    slanted = [*slants(stage, place), *((outline, world_box(stage, paths[name])) for name, outline in outlines.items())]
     after, left = parted_boxes(boxes, list(held.values()), pieces, inside, slanted,
-                               {entry["name"] for entry in entries if entry.get("under roof")})
+                               {entry["name"] for entry in entries if entry.get("under roof")},
+                               deck_triangles(stage, place))
     if crossing({**held, **after}, thin, slanted) >= crossing({**held, **boxes}, thin, slanted):
         return []
     fits = []
     for entry in entries:
+        if entry["name"] in outlines:
+            continue
         if entry["name"] in left:
             fits.append(left_out(stage, paths[entry["name"]], entry, boxes[entry["name"]]))
             continue
@@ -2398,6 +2521,33 @@ def parted(stage, place, entries, holding=()):
                              f"parted {float(np.linalg.norm(shift)):.2f} m on the floor at its built size: laid "
                              f"inside another thing, nothing holding it there"))
     return fits
+
+
+# A thin thing whose world box holds more than this many times its own turned box's floor is turned off the floor's axes
+# (thin_outline); a thing thicker across than THIN_MOST metres is no thin one (a turned bench is parted by its box).
+TURNED_MOST = 2.0
+THIN_MOST = 0.3
+
+
+def thin_outline(stage, path):
+    """The floor outline [4, 2] (x, z) of a thing's own turned box (oriented_corners), at least 2 MOVE_LEAST thick,
+    where that box is straight (STRAIGHT_LEAST times as long as thick), THIN_MOST thick at most, and its world box
+    holds more than TURNED_MOST times its floor; None otherwise. Greenhouse's five railings, 9.4 m chords round its upper floor's middle, have
+    world boxes 3.7 m deep: its desks, chairs and tanks standing clear of them in those boxes were parted out of them,
+    past its upper floor's edge (settle@greenhouse, 2026-11-11)."""
+    corners = oriented_corners(stage, path)[:, [0, 2]]
+    origin, along, across = corners[0], corners[4] - corners[0], corners[1] - corners[0]
+    long, thick = float(np.linalg.norm(along)), float(np.linalg.norm(across))
+    if long < thick:
+        along, across, long, thick = across, along, thick, long
+    if long < 1e-9 or long < STRAIGHT_LEAST * thick or thick > THIN_MOST:
+        return None
+    if float(np.prod(np.ptp(corners, axis=0))) <= TURNED_MOST * long * max(thick, 2 * MOVE_LEAST):
+        return None
+    side = np.array([-along[1], along[0]]) / long
+    middle = origin + across / 2
+    half = side * max(thick, 2 * MOVE_LEAST) / 2
+    return np.array([middle - half, middle + along - half, middle + along + half, middle + half])
 
 
 def left_out(stage, path, entry, box):
