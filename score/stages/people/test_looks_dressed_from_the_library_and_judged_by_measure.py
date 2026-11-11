@@ -30,6 +30,9 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `dress.outer_labels`: every point kept at its nearest sample (`if not near` read as `if True`)  -> the outer
   surface test (the suit inside is nearer).
 - `dress.without_strays`: `rounds=0`  -> the stray blotch test.
+- `dress.painted_primitives`: `under = primitive["material"] in garments` read as `False`  -> the garment split
+  test (the under layer reads the collar's skin above it and fails aligned with the garment's skin, pilot
+  2026-11-11).
 - `dress.flat_materials`: the normal map left out of the maps it asks for  -> the flat factors test.
 - `dress.worn_name`: `role in KEPT_ROLES` read as `False`  -> the variants test (the visor changes in variant 1).
 - `dress.worn_name`: its refusal of a worn surface the library lacks dropped  -> the variants test (suit_blue worn
@@ -394,6 +397,28 @@ def test_a_garment_splits_where_its_paint_changes_and_a_hard_part_takes_one_surf
     lone = np.array(["brown", "brown", "brown", "grey", "brown", "brown", "brown", "brown"])
     assert set(dress.surfaces_of(lone, faces, "garment", strip)) == {"brown"}
     assert set(dress.surfaces_of(np.array(["boot"] * 5 + ["suit"] * 3), faces, "hard", strip)) == {"boot"}
+    # the route's under layer, a second primitive in the garment's material 1 cm under it, reads no paint of its own
+    # (the pilot's read the open collar's skin and failed aligned at 1.38 cm with the garment's few skin points)
+    collar = strip.copy()
+    collar[6:, 0] = 2.2  # the skin of the open collar: less of the garment's area than its suit
+    under = collar - [0.0, 0.0, 0.01]
+    blob = b"".join(found.astype(dtype).tobytes() for found, dtype in (
+        (collar, np.float32), (faces, np.uint32), (under, np.float32)))
+    views = [(0, 96, 5126, "VEC3", 8), (96, faces.size * 4, 5125, "SCALAR", faces.size),
+             (96 + faces.size * 4, 96, 5126, "VEC3", 8)]
+    document = {"bufferViews": [{"buffer": 0, "byteOffset": start, "byteLength": size} for start, size, *_ in views],
+                "accessors": [{"bufferView": number, "componentType": kind, "type": shape, "count": count}
+                              for number, (_, _, kind, shape, count) in enumerate(views)]}
+    rest = len(blob).to_bytes(4, "little") + b"BIN\x00" + blob
+
+    class Take:
+        def labels(self, points, normals):
+            sunk = points[:, 2] < -0.005
+            return (np.where(sunk | (points[:, 0] >= 2), "skin", "suit"), np.where(sunk, 0.018, 0.004))
+    primitives = [{"attributes": {"POSITION": 0}, "indices": 1, "material": 0},
+                  {"attributes": {"POSITION": 2}, "indices": 1, "material": 0}]
+    (_, worn, _), (_, layer, apart) = dress.painted_primitives(document, rest, primitives, Take(), ["garment"] * 2)
+    assert set(worn) == {"suit", "skin"} and set(layer) == {"suit"} and set(apart) == {0.018}
 
 
 def test_a_one_surface_part_wears_what_most_of_its_area_wears_not_most_of_its_points():
