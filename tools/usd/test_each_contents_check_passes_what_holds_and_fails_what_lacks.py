@@ -6,14 +6,17 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   drapes passes).
 - effects_and_motion_both_ways: contents.unmet's `return [need for need in needs if not any(need in name for name in
   names)]` made `return []`.
-- crops_both_ways: contents.judge_crops' `faults = [] if share >= least else` made `if share >= 0 else`.
+- crops_both_ways: contents.judge_crops' `faults = [] if share >= least else` made `if share >= 0 else`; and
+  (2026-11-11, beds no longer tagged soil, greenhouse unknown) its `.Get() in beds` made `.Get() is not None` (the
+  rug counted a bed, so both beds planted read short).
 - likeness_and_paint_both_ways: contents.judge_likeness' `if prim.GetAttribute("score:row").Get() not in held` made
   `if False`; and (2026-11-10) its `and prim.GetAttribute("score:model").Get() not in models` dropped (a row on a
   held row's model fails).
 - light_sound_neighbours_and_game_both_ways: contents.judge_game's `if sources:` made `if False:`; and (2026-11-10,
   the scene time 2099-10-01 read as the game) contents.GAME's `\b2099\b(?!-\d{2}-\d{2})` made `\b2099\b`.
 - the_assembled_record_and_a_waiting_entry_both_ways: contents.judge_waiting's `waiting = list(...)` made
-  `waiting = []`.
+  `waiting = []`; and (2026-11-11) waiting_row's `return row if row and number.isdigit() else name` made
+  `return name`.
 - a_far_look_near_a_view_both_ways: contents.far_only's `return f"{character}-{outfit}" not in full` made
   `return False`.
 - the_bed_from_the_design_both_ways: contents.judge_sound's `if not stage.GetPrimAtPath(f"/{place}/Sound/Room/{name}")]`
@@ -227,7 +230,12 @@ def crops_both_ways():
             tile.CreatePointsAttr([(x - 0.5, 0, -0.5), (x + 0.5, 0, -0.5), (x + 0.5, 0, 0.5), (x - 0.5, 0, 0.5)])
             tile.CreateFaceVertexCountsAttr([4])
             tile.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-            tile.GetPrim().CreateAttribute("score:plain", Sdf.ValueTypeNames.String).Set("soil")
+            tile.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("planter")  # its bed row's
+        loose = UsdGeom.Mesh.Define(stage, f"/{PLACE}/rug_1")  # an object of no bed row is no bed to plant
+        loose.CreatePointsAttr([(9.5, 0, -0.5), (10.5, 0, -0.5), (10.5, 0, 0.5), (9.5, 0, 0.5)])
+        loose.CreateFaceVertexCountsAttr([4])
+        loose.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+        loose.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("rug")
         plants = UsdGeom.PointInstancer.Define(stage, f"/{PLACE}/Crops/lettuce")
         plants.CreatePositionsAttr([(0.1, 0, 0.1)])
         stage.GetRootLayer().Save()
@@ -385,7 +393,11 @@ def the_assembled_record_and_a_waiting_entry_both_ways():
         cases += [("the assembled record's shown place missing", judged("neighbours", path), contents.FAIL),
                   ("the assembled record free of the game, data/scene's citing it", judged("game", path),
                    contents.FAIL),
-                  ("the cairn waiting on its model", judged("waiting", path), contents.FAIL)]
+                  ("the cairn waiting on its model", judged("waiting", path), contents.FAIL),
+                  ("a waiting object named by its row, for a gap of the row",
+                   contents.waiting_row("objects spacesuit_locker_2: its model comes from the bake"), "spacesuit_locker"),
+                  ("a waiting object of no numbered row named as it is",
+                   contents.waiting_row("objects cairn: its model comes through the next batch"), "cairn")]
         (data / "scene" / f"{PLACE}.json").write_text(json.dumps({"place": PLACE, "lights": [], "places": []}))
         cases.append(("every scene record free of the game", judged("game", path), contents.PASS))
         made = folder / "scene-record-output"

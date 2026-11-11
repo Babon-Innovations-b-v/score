@@ -54,9 +54,12 @@ def object_of(finding):
 
 
 def covers(entry, finding):
-    """True when a finding is the entry's: one of its objects, and of its kind when the entry says one (`contains`,
-    a phrase the finding holds: the bake check's order rule among its other faults)."""
-    return object_of(finding) in entry["objects"] and entry.get("contains", "") in finding
+    """True when a finding is the entry's: one of its objects (as named, or before a look it names in brackets:
+    complete's people finding "astronaut_1 (astronaut): not a made model"), and of its kind when the entry says one
+    (`contains`, a phrase the finding holds: the bake check's order rule among its other faults)."""
+    named = object_of(finding)
+    return (named in entry["objects"] or named.split(" (", 1)[0] in entry["objects"]) and \
+        entry.get("contains", "") in finding
 
 
 def moved(verdict, gaps):

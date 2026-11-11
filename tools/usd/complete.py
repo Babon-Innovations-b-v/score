@@ -73,6 +73,7 @@ import contents  # noqa: E402
 STAGES = WORK / "usd"
 REVIEWS = WORK / "review"
 HANDIN = "design/props/{place}.json"  # a designed place's hand-in, under the home (the complete stage declares it)
+PLAN = "design/plans/{place}.json"  # a designed place's kept plan, under the home (the complete stage declares it)
 CHECKS = ("rows", "made_only", "placeholders", "resting", "picks", "boxes", "reach", *contents.JUDGES)
 # Checks whose faults are shown on the manifest but not counted, each unproven on its end-result fault (docs/bible.md,
 # architecture/experimental): what would prove it. That such a check was recorded on the stage as it is now counts.
@@ -95,7 +96,7 @@ STAGE_PARTS = ("layers", "assets")
 # Structure), the sky the light layer draws; each by the kinds (score:kind) of what draws it. 2026-11-10: walkway's
 # floor grating and walls, hub's doorways and starry sky, cockpit's hull failed the rows check with their shell and
 # sky standing. People rows are the people check's (PEOPLE_ROUTE), judged there by name.
-DRAWN_BY = {"plan": ("structure",), "sky": ("sky body", "sky backdrop", "sky disc")}
+DRAWN_BY = {"plan": ("structure",), "sky": ("sky body", "sky backdrop", "sky disc"), "ground": ("ground",)}
 PEOPLE_ROUTE = "people"
 REVIEW_STAMP = "review.json"
 # The owner reviews a place in the browser viewer from its store page (tools/review/store_page.py, owner 2026-10-11:
@@ -180,38 +181,62 @@ def load(check, stage):
 
 # --- the checks ---------------------------------------------------------------------------------------------------
 
-def unlaid_rows(inventory, laid):
-    """Each inventory row not among the laid rows and with no written drop reason: [{row, why}]."""
+def unlaid_rows(inventory, laid, dropped=None):
+    """Each inventory row not among the laid rows and with no written drop reason (its own `dropped`, or its plan's
+    `dropped`, {row: how many it lays}, with none laid there): [{row, why}]."""
     held_back = {row["id"] for row in inventory.get("held_back", []) if row.get("why_code") or row.get("why")}
+    planned = dropped or {}
     return [{"row": row["id"], "why": f"no object of this row on the stage ({row.get('made') or row.get('kind', 'no kind')}) and no "
                                       "written drop reason (`dropped`)"}
             for row in inventory["rows"]
-            if row["id"] not in laid and not str(row.get("dropped", "")).strip() and row["id"] not in held_back]
+            if row["id"] not in laid and not str(row.get("dropped", "")).strip() and row["id"] not in held_back
+            and (row["id"] not in planned or planned[row["id"]])]
 
 
-def short_rows(inventory, counts):
+def short_rows(inventory, counts, dropped=None):
     """Each inventory row whose objects stand on the stage (`counts`, {row: objects}, contents.object_counts) fewer
-    than its reading counts (its `count`), with no written drop reason: [{row, why}]. 2026-11-04: the lab's 10 pipes
-    stood as 6, and the rows check passed every row with one object."""
+    than its reading counts (its `count`), or than its plan lays where the plan dropped some (`dropped`, {row: how
+    many it lays, None where it says no number}), with no written drop reason: [{row, why}]. 2026-11-04: the lab's 10
+    pipes stood as 6, and the rows check passed every row with one object; 2026-11-11: galley's one kitchen counter,
+    the plan's 4 fewer laid as its free floor holds, failed it."""
     held_back = {row["id"] for row in inventory.get("held_back", []) if row.get("why_code") or row.get("why")}
+    planned = dropped or {}
+
+    def wanted(row):
+        count = int(row.get("count") or 1)
+        if row["id"] not in planned:
+            return count
+        return 0 if planned[row["id"]] is None else min(count, int(planned[row["id"]]))
     return [{"row": row["id"], "why": f"{counts[row['id']]} objects of this row on the stage, its reading counts "
                                       f"{int(row.get('count') or 1)}, and no written drop reason (`dropped`)"}
             for row in inventory["rows"]
-            if 0 < counts.get(row["id"], 0) < int(row.get("count") or 1) and not str(row.get("dropped", "")).strip()
+            if 0 < counts.get(row["id"], 0) < wanted(row) and not str(row.get("dropped", "")).strip()
             and row["id"] not in held_back]
 
 
-def rows_faults(stage_file, inventory, place, shown=None, routes=None):
+def plan_dropped(plan):
+    """{row: how many its plan lays (None where it says no number)} of the rows a kept plan dropped (its `dropped`:
+    [{item, why, laid}], the item a row's id), the least where it names one more than once; {} without a plan."""
+    found = {}
+    for entry in (plan or {}).get("dropped") or []:
+        laid = entry.get("laid")
+        before = found.get(entry["item"], laid)
+        found[entry["item"]] = None if laid is None or before is None else min(int(laid), int(before))
+    return found
+
+
+def rows_faults(stage_file, inventory, place, shown=None, routes=None, dropped=None):
     """Each inventory row with no object of the place's own on the stage (a shown place's never counts), or fewer of
-    its objects than its count (short_rows), and no written drop reason: [{row, why}]. A backdrop row shown from
-    another place of its scene (`shown`, shown_rows) is made by the skyline when an object of that place's row stands
-    in the place's Places (contents.shown_laid); a row its hand-in routes to a drawing of the place's own (`routes`,
-    {row: route}, handin_routes) is laid when that drawing stands (drawn_rows)."""
+    its objects than its count (short_rows), and no written drop reason (its own, or its plan's `dropped`,
+    plan_dropped): [{row, why}]. A backdrop row shown from another place of its scene (`shown`, shown_rows) is made
+    by the skyline when an object of that place's row stands in the place's Places (contents.shown_laid); a row its
+    hand-in routes to a drawing of the place's own (`routes`, {row: route}, handin_routes) is laid when that drawing
+    stands (drawn_rows)."""
     from pxr import Usd
     opened = Usd.Stage.Open(str(stage_file))
     laid = contents.laid_rows(opened, place) | contents.shown_laid(opened, place, shown or {}) | \
         drawn_rows(opened, place, routes or {})
-    return unlaid_rows(inventory, laid) + short_rows(inventory, contents.object_counts(opened, place))
+    return unlaid_rows(inventory, laid, dropped) + short_rows(inventory, contents.object_counts(opened, place), dropped)
 
 
 def drawn_routes(stage, place):
@@ -246,8 +271,9 @@ def shown_rows(place):
 
 def rows_check(place, stage):
     """Every inventory row made or dropped with a reason."""
+    plan = HOME / PLAN.format(place=place)
     faults = rows_faults(stage, json.loads(laid_inventory(place, stage).read_text()), place, shown_rows(place),
-                         handin_routes(place))
+                         handin_routes(place), plan_dropped(json.loads(plan.read_text()) if plan.is_file() else None))
     return result("rows", FAIL if faults else PASS, stage, faults)
 
 
@@ -491,11 +517,11 @@ def gap_moved(check, place, found):
     """A check's saved result with the place's accepted gaps moved as the runner's complete row moves them
     (score/stages gap_moved over score/stages/complete gate_check's verdict): (answer, why moved, or None). Only a
     gate of GAP_GATES["complete"] moves, and only when every fault is an accepted gap's; anything else stands as saved."""
+    from score import checks, stages
     from score.stages import gaps
-    entries = gaps.entries(gap_inputs(place), "complete", check)
+    entries = gaps.entries(gap_inputs(place), "complete", check) + stages.reaching("complete", check, gap_inputs(place))
     if not entries:
         return found["result"], None
-    from score import checks, stages
     if check not in stages.GAP_GATES["complete"]:
         return found["result"], None
     faults = found.get("faults", [])
