@@ -1013,6 +1013,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: `return pivot, np.cross(way, [0.0, 1.0, 0.0]),` -> `return pivot,
         np.cross([0.0, 1.0, 0.0], way),`
     Break: score/stages/assembly/fitting.py: `fits += moved_out(stage, place, loose)` -> `fits += []`
+    Break: score/stages/assembly/fitting.py: `fits += floor_clear.off_edges(stage, place, loose) +
+        floor_clear.apart(stage, place, loose)` -> `fits += []` (habitat's plant left across its rug's edge, its lamp
+        in its sofa), or floor_clear.py's leans' `> LEAN_MOST` -> `> 0.0` (the table moved off its rug), or apart's
+        `if not TOUCH < reach <= fitting.HELD_MOST:` -> `if not reach > 0.0:` (the touching crate moved)
     Break: score/stages/assembly/fitting.py: `and not entry.get("on") and not climbs(entry)]` (fitted's loose) ->
         `and not entry.get("on")]`
     Break: score/stages/assembly/fitting.py: `return [(name, box) for name, box in built if name.split("_")[0] in
@@ -1295,6 +1299,24 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
                                      for name, (low, high) in held.items()]}
     found = [fault for fault in fitting.held_faults(record, laid) if "inside" in fault[1]]
     assert found == [("jar_1", "laid 0.19 m inside jar_2 at its built size", 0.19)], found  # never its shelf or desk
+    # settle@habitat (2026-11-11): its potted plant and table lamp stood across 2 cm rugs' edges and leaned 4.2 and 4.9
+    # degrees once dropped; its sofa, parted, stood 0.047 m into a table lamp, which the parting lets stand. A 0.28 m
+    # plant across a rug's edge is moved 0.11 m wholly off it (the least way: on it is 0.18 m); a 1.2 m table across
+    # it leans under 3 degrees and is left; the lamp is moved 0.047 m out of the sofa, the smaller of the two; a crate
+    # 0.2 m into a chest is the parting's, and one touching 0.02 m into another is left.
+    rugged = Usd.Stage.CreateInMemory()
+    rugs = {"rug_1": ((0.0, 0.0, 0.0), (2.0, 0.02, 2.0)), "plant_1": ((1.9, 0.0, 0.5), (2.18, 0.4, 0.78)),
+            "table_1": ((1.5, 0.0, 1.0), (2.7, 0.75, 1.6)), "sofa_1": ((4.0, 0.0, 0.0), (6.0, 0.9, 0.874)),
+            "lamp_1": ((4.5, 0.0, 0.827), (4.78, 0.5, 1.127)), "chest_1": ((8.0, 0.0, 0.0), (9.0, 0.8, 1.0)),
+            "crate_1": ((8.8, 0.0, 0.2), (9.4, 0.5, 0.8)), "crate_2": ((7.42, 0.0, 2.0), (8.02, 0.5, 2.6)),
+            "chest_2": ((8.0, 0.0, 1.8), (9.0, 0.8, 2.8))}
+    for name, (low, high) in rugs.items():
+        a_built_box(rugged, f"/{TOY}/Objects/{name}", low, high)
+    fits = fitting.fitted(rugged, TOY, [{"name": name, "row": name[:-2]} for name in rugs], set(rugs))
+    assert sorted((fit["name"], fit["how"], fit["moved"]) for fit in fits if fit["how"] != "parted") == [
+        ("lamp_1", "apart", 0.047), ("plant_1", "off edge", 0.11)], fits
+    assert np.allclose(fitting.world_box(rugged, f"/{TOY}/Objects/plant_1")[0], (2.01, 0.0, 0.5)), fits
+    assert np.allclose(fitting.world_box(rugged, f"/{TOY}/Objects/lamp_1")[0], (4.5, 0.0, 0.874)), fits
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
@@ -1463,7 +1485,14 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     Break: score/stages/assembly/fitting.py: moved_in's `for _, triangles in built)` -> `for _, triangles in
         built) and False` (tube's screen left up through its vault), or its `for point in fit[key]] for key in
         ("span", "corners") if key in fit}})` -> `for point in fit[key]] for key in () if key in fit}})` (its face
-        left on the wall's line, the held gate naming it 0.65 m off)"""
+        left on the wall's line, the held gate naming it 0.65 m off)
+    Break: score/stages/assembly/fitting.py: `wall_clear.under_roofs(stage, place, walled, fits)` dropped (stairwell's
+        lamp and conduit run left up through its roof), or wall_clear.py's `if float(lowered[0][1]) >= 0.0 and` ->
+        `if` (the run sunk under the floor), or its `if scale < SHRINK_MOST:` -> `if False:` (the 4 m pipe shrunk to
+        75%), or its `foot - out * deep * (1.0 - scale) / 2` -> `foot` (the run's back off its wall)
+    Break: score/stages/assembly/fitting.py: `for box in rooms(leaf)), *climbing] if walled else ()` -> `for box in
+        rooms(leaf))] if walled else ()` (stairwell's electrical box left in its stair railing), or wall_clear.py's
+        climbing `if fitting.climbs(entry) and` -> `if False and`"""
     from pxr import Usd, UsdGeom
     from score.stages.assembly import fitting
     stage = Usd.Stage.CreateInMemory()
@@ -1585,6 +1614,42 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
         vault, f"/{TOY}/Objects/screen_1")))}], "fitted": moved}
     assert fitting.held_faults({"objects": screens[:1]}, walled) == [], fitting.held_faults({"objects": screens[:1]},
                                                                                             walled)
+    # stairwell (2026-11-11): its conduit runs, built 3.1 m tall from the floor of a room 3 m to its flat roof, stood
+    # 0.1 m up through it, which no move into the room clears; its wall lamp 0.15 m. The lamp is moved 0.16 m down so
+    # its top stands 0.01 m under the roof; the run, on the floor, is shrunk to 96% about its foot, its back kept on
+    # its wall; one 4 m tall (75%) is left for the held gate. Its electrical box, laid where a stair railing reaches
+    # its wall, is slid along the wall clear of the railing (the parting never moves a climbing row's things).
+    flat = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(flat, f"/{TOY}/Structure/roof_1")
+    slab = UsdGeom.Mesh.Define(flat, f"/{TOY}/Structure/roof_1/geo")
+    slab.CreatePointsAttr([(0, 3, -1), (10, 3, -1), (10, 3, 10), (0, 3, 10)])
+    slab.CreateFaceVertexCountsAttr([4])
+    slab.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    UsdGeom.Xform.Define(flat, f"/{TOY}/Structure/wall_1")
+    back = trimesh.creation.box(bounds=((0.0, 0.0, -0.2), (10.0, 3.0, 0.0)))
+    drawn = UsdGeom.Mesh.Define(flat, f"/{TOY}/Structure/wall_1/geo")
+    drawn.CreatePointsAttr([tuple(map(float, point)) for point in back.vertices])
+    drawn.CreateFaceVertexCountsAttr([3] * len(back.faces))
+    drawn.CreateFaceVertexIndicesAttr([int(index) for index in back.faces.reshape(-1)])
+    for name, low, high in (("conduit_1", (1.0, 0.0, 0.0), (1.1, 3.1, 0.2)),
+                            ("lamp_1", (5.0, 2.5, 0.0), (5.2, 3.15, 0.15)),
+                            ("pipes_2", (7.0, 0.0, 0.0), (7.1, 4.0, 0.1)), ("box_1", (1.9, 1.0, 0.0), (2.3, 1.4, 0.2)),
+                            ("stair_railing_1", (2.0, 0.0, 0.0), (2.1, 1.5, 3.0))):
+        a_built_box(flat, f"/{TOY}/Objects/{name}", low, high)
+    along = {"how": "wall", "span": [[0.0, 0.0], [10.0, 0.0]], "out": [0.0, 1.0], "why": "against its wall"}
+    hung = fitting.fitted(flat, TOY, [*[{"name": name, "row": name[:-2], "on": along}
+                                        for name in ("box_1", "conduit_1", "lamp_1", "pipes_2")],
+                                      {"name": "stair_railing_1", "row": "stair_railing"}],
+                          {"box_1", "conduit_1", "lamp_1", "pipes_2", "stair_railing_1"})
+    boxes = {name: fitting.world_box(flat, f"/{TOY}/Objects/{name}") for name in ("box_1", "conduit_1", "lamp_1",
+                                                                                   "pipes_2")}
+    assert np.allclose(boxes["lamp_1"], ((5.0, 2.34, 0.0), (5.2, 2.99, 0.15)), atol=1e-6), boxes
+    assert np.allclose(boxes["conduit_1"][1][1], 2.99) and np.allclose(boxes["conduit_1"][0][[1, 2]], 0.0), boxes
+    assert np.allclose(boxes["pipes_2"][1][1], 4.0), boxes  # 75%: left
+    assert boxes["box_1"][0][0] >= 2.1 - 1e-6, boxes  # clear of the railing at x 2.0 to 2.1
+    words = {fit["name"]: fit["words"] for fit in hung}
+    assert "moved 0.16 m down under roof_1" in words["lamp_1"] and "shrunk to 96% under roof_1" in \
+        words["conduit_1"], words
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():
@@ -1694,8 +1759,12 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
         rib's front named off its wall)
     Break: score/stages/assembly/fitting.py: fit's `if scale < SCALE_LEAST: return CROWDED` dropped (a wall thing with
         no stretch left shrunk to nothing), or oriented_corners' `or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12`
-        dropped (a prim scaled flat: LinAlgError, Singular matrix)"""
+        dropped (a prim scaled flat: LinAlgError, Singular matrix)
+    Break: score/stages/assembly/wall_clear.py: face_walls' `if not name.startswith(fitting.ROOF)` -> `if True`
+        (habitat's pipe over its wall's top laid on its dome's rim, 0.3 m behind its wall's face), or fitting.py's
+        `on_built_face(entry["on"], (low[1] + high[1]) / 2, faced())` -> `..., faces())`"""
     from pxr import Gf, Usd, UsdGeom
+    from score.stages.assembly import wall_clear
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
              {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
@@ -1855,6 +1924,28 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
     assert not fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", slant)
     assert fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", across_it)
     assert not fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", across_it)  # along it now
+    # habitat's pipes (2026-11-11), 2.6 m up and 0.44 m tall on walls 2.8 m tall, cast their face rays over the walls'
+    # tops onto the dome's rim 0.3 m behind: a roof is no face. Under its wall's top the face is found as before.
+    domed = Usd.Stage.CreateInMemory()
+    rim = trimesh.Trimesh([[point[0] - 0.3 * 0.7071068, height, point[2] + 0.3 * 0.7071068]
+                           for point in face.vertices[:2] for height in (2.8, 3.5)], [[0, 1, 3], [0, 3, 2]],
+                          process=False)
+    for name, mesh in (("wall_1", face.copy().apply_transform(np.diag([1.0, 2.8 / 3.0, 1.0, 1.0]))), ("roof_1", rim)):
+        UsdGeom.Xform.Define(domed, f"/{TOY}/Structure/{name}")
+        drawn = UsdGeom.Mesh.Define(domed, f"/{TOY}/Structure/{name}/geo")
+        drawn.CreatePointsAttr([tuple(map(float, point)) for point in mesh.vertices])
+        drawn.CreateFaceVertexCountsAttr([3] * len(mesh.faces))
+        drawn.CreateFaceVertexIndicesAttr([int(index) for index in mesh.faces.reshape(-1)])
+    moved, _ = fitting.on_built_face(slant, 2.9, fitting.built_walls(domed, TOY))
+    assert np.allclose(moved["span"], np.add(slant["span"], behind + [-0.3 * 0.7071068, 0.3 * 0.7071068]),
+                       atol=1e-3), moved  # the rim, as it was found before
+    assert fitting.on_built_face(slant, 2.9, wall_clear.face_walls(domed, TOY)) == (slant, 0.0)
+    moved, _ = fitting.on_built_face(slant, 1.5, wall_clear.face_walls(domed, TOY))
+    assert np.allclose(moved["span"], np.add(slant["span"], behind), atol=1e-6), moved
+    a_built_box(domed, f"/{TOY}/Objects/pipe_1", (1.9, 2.7, 1.9), (2.1, 3.1, 2.1))
+    fitting.fitted(domed, TOY, [{"name": "pipe_1", "row": "pipe", "on": slant}], {"pipe_1"})
+    foot = fitting.foot_middle(*fitting.world_box(domed, f"/{TOY}/Objects/pipe_1"))
+    assert float((foot[[0, 2]] - slant["span"][0]) @ slant["out"]) > 0.0, foot  # in front of its wall, not the rim
     assert fitting.slanted_wall(slant) and fitting.slanted_wall({"out": [0.991393, -0.13092]}) and not \
         fitting.slanted_wall(wall)
     corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
