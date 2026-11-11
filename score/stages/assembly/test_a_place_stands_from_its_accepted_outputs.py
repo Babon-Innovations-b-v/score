@@ -294,11 +294,16 @@ def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
     holder hanging (its relation's `hangs`, fitting.hangs_in) is given `hanging` (judged by touching: one touching
     nothing still hangs free); one within not hanging, one filling its holder (a door's window), one of a row with
     another object laid otherwise, or a row naming its own support, keeps what the triage gives it.
+    settle@street (2026-11-11): its red paper lanterns, laid on the side of their lantern string 24 m up, were judged
+    floating 23.8 m over the street. A row whose every object the record lays on its holder's side (`face`) is
+    `hanging` too; the box, one within and one on a face, is not.
     Break: score/stages/assembly/fitting.py: `and bool(on.get("hangs"))` -> `` (every one within hung)
-    Break: score/stages/assembly/__init__.py: `if all(hung)}` -> `if any(hung)}`"""
+    Break: score/stages/assembly/__init__.py: `if all(hung)}` -> `if any(hung)}`
+    Break: score/stages/assembly/mounted.py: on_faces' `if all(faced)}` -> `if any(faced)}`, or resting_rows'
+        `**on_faces(record or {}), ` dropped"""
     inventory = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor": "on:locker"},
                           {"id": "crate", "anchor": "on:locker"}, {"id": "box", "anchor": "on:locker"},
-                          {"id": "window", "anchor": "on:locker"},
+                          {"id": "lantern", "anchor": "on:locker"}, {"id": "window", "anchor": "on:locker"},
                           {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
 
     def laid(name, row, how=None, hung=False, **more):
@@ -308,10 +313,11 @@ def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
                           laid("suit_2", "suit", "within", True), laid("crate_1", "crate", "within"),
                           laid("box_1", "box", "within", True), laid("box_2", "box", "face"),
                           laid("window_1", "window", "within", True, fills=True),
-                          laid("fixed_suit_1", "fixed_suit", "within", True)]}
+                          laid("fixed_suit_1", "fixed_suit", "within", True), laid("lantern_1", "lantern", "face"),
+                          laid("lantern_2", "lantern", "face")]}
     found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory, record)["rows"]}
-    assert found == {"locker": None, "suit": "hanging", "crate": None, "box": None, "window": None,
-                     "fixed_suit": "fixed"}, found
+    assert found == {"locker": None, "suit": "hanging", "crate": None, "box": None, "lantern": "hanging",
+                     "window": None, "fixed_suit": "fixed"}, found
 
 
 def test_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
@@ -1021,6 +1027,9 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`
     Break: score/stages/assembly/fitting.py: free_spot's `clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]],
         size[[0, 2]] / 2, outline) <= HELD_MOST` -> `pass` (its free spot found in the slanted corner, the parting is refused: left in the fixture)
+    Break: score/stages/assembly/fitting.py: shallow_out's `if abs(moves[axis]) > HELD_MOST:` -> `if False:` (a car
+        laid across a wall pulled 4 m through it), or straight's `>= STRAIGHT_LEAST *` -> `>= 0.0 *` (moved out of a
+        slanted wall's box)
     Break: score/stages/assembly/fitting.py: slants' `if not flight(name) and (name.split("_")[0] != "wall"` -> `if
         (name.split("_")[0] != "wall"` (the crate left on the flight), or free_spot's `outline)[0] >= 0.0` -> `outline)[0]
         > 0.0` (a point's depth is never over 0: a crate whose middle stands on the flight found no way off it)"""
@@ -1226,6 +1235,15 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     crates = {name: fitting.world_box(flown, f"/{TOY}/Objects/{name}") for name in laid_by}
     assert not np.allclose(crates["crate_5"][0], laid_by["crate_5"][0]), crates  # parted off the flight
     assert fitting.crossing(crates, [], fitting.slants(flown, TOY)) == 0, crates
+    # settle@street (2026-11-11): its police car stood 0.044 m into wall_12, too little for the parting to take it.
+    # It is moved back out the way it came, along the floor; one across the wall, or only touching it, is left; a
+    # slanted wall's box is no wall piece's shape.
+    wall_12 = (np.array([4.15, -0.2, -19.3]), np.array([4.45, 3.5, 18.45]))
+    car = (np.array([0.478, 0.2, 8.937]), np.array([4.194, 1.521, 10.868]))
+    assert np.allclose(fitting.shallow_out(*car, wall_12), (-0.044, 0.0, 0.0)), fitting.shallow_out(*car, wall_12)
+    assert fitting.shallow_out(car[0], car[1] + (0.3, 0.0, 0.0), wall_12) is None
+    assert fitting.shallow_out(car[0], car[1] - (0.04, 0.0, 0.0), wall_12) is None
+    assert fitting.straight(wall_12) and not fitting.straight(((1.35, -0.2, -11.89), (2.53, 24.0, -8.72)))
     assert np.allclose(crates["crate_6"][0], laid_by["crate_6"][0]), crates  # by the outline, never the box
     record = {"objects": [{"name": name, "row": name[:-2]} for name in ("bed_1", "crate_3", "rug_1", "table_1")]}
     laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)} for name, (low, high) in
@@ -1476,7 +1494,12 @@ def test_a_door_goes_in_its_opening_narrowed_to_fit():
     passage, motion@lab round 35: 1.264 m clear in a 1.896 m opening) it is held to the 0.9 m clear between them, and
     a 0.6 m door there stands against the jamb its own left edge faces, not the plan's opening end.
     Break: score/stages/assembly/fitting.py: `scale[run_axis] *= (end - start) / wide` -> `pass`
-    Break: score/stages/assembly/fitting.py: `            start = max(start, far)` -> `            pass`"""
+    Break: score/stages/assembly/fitting.py: `            start = max(start, far)` -> `            pass`
+    Break: score/stages/assembly/fitting.py: hole_wall's `if not inside:` -> `if True:` (laid in an uncut wall), or
+        its `along[axis // 2] = 1.0 if` -> `along[2 - axis // 2] = 1.0 if` (turned across its wall), or its `if
+        own_jambs(on, mesh, height):` -> `if False:` (moved out of its own slanted wall)
+    Break: score/stages/assembly/fitting.py: opening_clear's `floor = max(` -> `floor = min(` (its sill left in the
+        pavement), or its `reach.append(float(met.min())` -> `reach.append(float(met.max())` (held past the fold)"""
     from score.stages.assembly import fitting
     opening = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
     scale, target, words, _ = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.4, 3.05), opening)
@@ -1488,6 +1511,32 @@ def test_a_door_goes_in_its_opening_narrowed_to_fit():
     assert np.allclose(scale, (0.9 / 1.4, 1.0, 1.0)) and np.allclose(target, (5.0, 0.0, 0.0)), (scale, target)
     _, target, _, _ = fitting.fit((0.3, 0.0, 2.95), (0.9, 2.1, 3.05), opening, jambs, left=(-1.0, 0.0))
     assert np.allclose(target, (4.85, 0.0, 0.0)), target
+    # settle@street (2026-11-11): its restaurant door 2's plan opening lies on a slanted plan wall, 0.67 m off the
+    # straight wall_2 the kit's shell cut its 1 m hole in (z -3.2 to -2.2 at x -2.85 to -2.55); laid slanted across
+    # it, it stood 0.15 m in the wall. It is laid along that wall in its hole, turned 20.9 degrees; with no hole cut
+    # there, as it is.
+    def boxes(*found):
+        return trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in found])
+    holed = boxes([(-2.85, 0.0, -4.4), (-2.55, 3.5, -3.2)], [(-2.85, 0.0, -2.2), (-2.55, 3.5, -1.1)],
+                  [(-2.85, 0.0, -3.2), (-2.55, 0.2, -2.2)], [(-2.85, 2.7, -3.2), (-2.55, 3.5, -2.2)])
+    piece = (np.array([-2.85, 0.0, -4.4]), np.array([-2.55, 3.5, -1.1]))
+    slanted = {"how": "in", "middle": [-2.032, 0.2, -2.7], "along": [0.356, -0.934], "wide": 1.0, "tall": 2.5}
+    walled, degrees = fitting.hole_wall(slanted, [piece], holed)
+    assert np.allclose(walled["middle"], (-2.7, 0.2, -2.7)) and walled["along"] == [0.0, -1.0], walled
+    assert abs(degrees - 20.87) < 0.05, degrees
+    solid = boxes([(-2.85, 0.0, -4.4), (-2.55, 3.5, -1.1)])
+    assert fitting.hole_wall(slanted, [piece], solid) == (slanted, 0.0)
+    # one cut in its own slanted wall (a wall stands on its line just past its end) stays in it
+    jamb = boxes([(-1.9, 0.0, -3.4), (-1.7, 3.5, -3.1)])
+    own = trimesh.util.concatenate([holed, jamb])
+    assert fitting.hole_wall(slanted, [piece], own) == (slanted, 0.0)
+    # ... and its roller shutters, 0.35 m deep: one cut with its sill 0.2 m under the pavement before it, the facade
+    # folding back across its far end. A 3 m shutter along x: its floor is the pavement's top, its clear run ends at
+    # the fold 1.2 m along, and nothing stands the other way.
+    shutter = trimesh.creation.box(bounds=[(-1.5, 0.0, -0.175), (1.5, 3.0, 0.175)])
+    around = boxes([(-2.0, 0.0, 0.0), (2.0, 0.2, 1.0)], [(1.2, 0.0, -1.0), (1.3, 3.0, 1.0)])
+    floor, start, end = fitting.opening_clear(np.asarray(shutter.vertices), {"along": [1.0, 0.0]}, around)
+    assert abs(floor - 0.2) < 1e-6 and abs(end - 1.2) < 1e-6 and start == -np.inf, (floor, start, end)
 
 
 def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():
@@ -1771,6 +1820,9 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     Break: score/stages/assembly/fitting.py: `hits, _, _ = mesh.ray.intersects_location(origins, directions,
         multiple_hits=False)` -> `hits = mesh.vertices[(mesh.vertices[:, 1] >= band[0]) & (mesh.vertices[:, 1] <=
         band[1])]`
+    Break: score/stages/assembly/fitting.py: touching's `if not MOVE_LEAST < float(gaps[nearest]) <= FACE_REACH:` ->
+        `if True:` (the lantern left under its string's end), or off_faces' `if behind < -MOVE_LEAST:` -> `if False:`
+        (the clothes left in the wall)
     Break: score/stages/assembly/fitting.py: on_face's `if face is not None and clear:` -> `if False:` (the second
         panel laid on the first)"""
     import trimesh
@@ -1793,6 +1845,31 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     _, beside, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame, mounted=[first])
     _, alone, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame)
     assert np.allclose(beside, (0.45, 0.0, 0.845)) and np.allclose(alone, (0.15, 0.0, 0.845)), (beside, alone)
+    # settle@street (2026-11-11): lantern 11, on the 1 cm end of its sagging string, stood 0.045 m under it; hanging
+    # clothes 3 and 4, within a drying rack turned along slanted wall_7, stood 0.05 m behind its face. A 0.1 m cube
+    # 0.04 m under a holder's surface is moved up onto it, one 0.5 m away is left; one 0.05 m behind a wall face along
+    # (1, 1) is moved out along the face's way until it stands in front of it.
+    from pxr import Gf, Usd, UsdGeom
+
+    def a_cube(stage, path, low, high):
+        cube = trimesh.creation.box(bounds=[low, high])
+        UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
+        mesh = UsdGeom.Mesh.Define(stage, f"{path}/geo")
+        mesh.CreatePointsAttr([tuple(map(float, point)) for point in cube.vertices])
+        mesh.CreateFaceVertexCountsAttr([3] * len(cube.faces))
+        mesh.CreateFaceVertexIndicesAttr([int(index) for index in cube.faces.ravel()])
+    placed = Usd.Stage.CreateInMemory()
+    holder = trimesh.creation.box(bounds=[(0.0, 1.0, 0.0), (1.0, 1.1, 0.01)])
+    for name, low in (("lantern_1", (0.4, 0.86, 0.0)), ("lantern_2", (0.4, 0.4, 0.0))):
+        a_cube(placed, f"/{TOY}/Objects/{name}", low, np.add(low, 0.1))
+    assert "onto its holder's surface" in fitting.touching(placed, f"/{TOY}/Objects/lantern_1", holder)
+    assert abs(fitting.world_box(placed, f"/{TOY}/Objects/lantern_1")[1][1] - 1.0) < 1e-6
+    assert fitting.touching(placed, f"/{TOY}/Objects/lantern_2", holder) == ""
+    a_cube(placed, f"/{TOY}/Objects/clothes_1", (1.0, 0.0, 0.9), (1.2, 0.5, 1.1))
+    wall = {"how": "wall", "span": [[0.0, 0.0], [3.0, 3.0]], "out": [-0.7071068, 0.7071068]}
+    assert "out of the wall" in fitting.off_faces(placed, f"/{TOY}/Objects/clothes_1", [wall])
+    corners = trimesh.bounds.corners(np.array(fitting.world_box(placed, f"/{TOY}/Objects/clothes_1")))[:, [0, 2]]
+    assert abs(float((corners @ np.array(wall["out"])).min())) < 1e-6, corners
 
 
 def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
@@ -2029,7 +2106,10 @@ def test_a_wall_item_stands_on_its_named_face():
         `spot = start + run * along`
     Break: score/stages/assembly/fitting.py: fitted's `clear = [*clear, *wall_holes(faces(), entry["on"], ...)]` ->
         `pass` is caught by the sweep's walkway only; wall_holes' `open_at = ~near...` -> `open_at = near...` (walkway's
-        and shiplock's screens hung in the holes cut through their walls)"""
+        and shiplock's screens hung in the holes cut through their walls)
+    Break: score/stages/assembly/fitting.py: walls_ahead's `<= deep]] = True` -> `<= 0.0]] = True` (the rack left in
+        the wall folding back in front of its face), or its `taken |= alongs >= past if` -> `taken |= False if` (the
+        face past the wall crossing it left free)"""
     from score.stages.assembly import fitting
     on = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}
     scale, target, _, _ = fitting.fit((4.4, 0.0, 2.9), (4.6, 0.6, 3.9), on)
@@ -2047,6 +2127,20 @@ def test_a_wall_item_stands_on_its_named_face():
     screen = (np.array([0.1, 1.0, 2.25]), np.array([0.2, 1.5, 2.75]))
     assert np.allclose(fitting.on_wall(*screen, along, holes)[1], (0.15, 1.0, 1.725))
     assert np.allclose(fitting.on_wall(*screen, along, ())[1], (0.15, 1.0, 2.5))
+    # settle@street (2026-11-11): its drying rack 3, on its slanted wall_7 where wall_8 folds back in front of it,
+    # stood 0.05 m in wall_8. A wall 0.2 m in front of the face from z 4 to 6: the run it stands before is found, and
+    # a 1 m rack 0.5 m deep laid at z 5 goes before it.
+    ahead = trimesh.creation.box(bounds=[(0.3, 0.0, 4.0), (0.4, 3.0, 6.0)])
+    taken = fitting.walls_ahead(ahead, along, (1.0, 1.5), 0.5)
+    assert [(round(float(run[:, 2].min()), 3), round(float(run[:, 2].max()), 3)) for run in taken] == [
+        (3.975, 6.025)], taken
+    rack = (np.array([0.1, 1.0, 4.5]), np.array([0.6, 1.5, 5.5]))
+    assert np.allclose(fitting.on_wall(*rack, along, taken)[1], (0.35, 1.0, 3.475))
+    assert fitting.walls_ahead(ahead, along, (1.0, 1.5), 0.1) == []
+    # ... and past where a wall crosses the face itself (wall_8 folding back across wall_7's end): outside the room
+    across = trimesh.creation.box(bounds=[(0.0, 0.0, 5.0), (0.5, 3.0, 5.1)])
+    assert [(round(float(run[:, 2].min()), 3), round(float(run[:, 2].max()), 3))
+            for run in fitting.walls_ahead(across, along, (1.0, 1.5), 0.5)] == [(4.975, 6.025)]
 
 
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):
