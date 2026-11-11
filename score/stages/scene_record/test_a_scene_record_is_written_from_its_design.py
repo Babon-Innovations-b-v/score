@@ -818,6 +818,8 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     Break: score/stages/scene_record/writer.py: `found["room"] = float(recess["room"])` -> `pass`
     Break: score/stages/scene_record/writer.py: `**({"hangs": True} if relation.get("hangs") else {})}` -> `}` (the
         docking airlock's spacesuit, hanging in its locker, laid as standing in it)
+    Break: score/stages/scene_record/writer.py: `**({"under": True} if relation.get("under") else {})}` -> `}` (galley's
+        oven and quarters' cables, said under their holder, laid up in it and failing their placement)
     And the 2026-11-04 audit's laid-as-designed gate: the wall lamp's front faces out of its wall into the room (it
     was laid with its back to the room), at its relation's 2 m height; a lamp hung from the roof has its top 0.01 m
     under the place's 3 m ceiling; a chair before the module stands at its piece's spot, naming the module; the
@@ -983,6 +985,10 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     assert writer.related(design, {"how": "floor", "height": 0.0, "why": "on what is under it"}, [1.0, 1.0],
                           [1.0, 0.0], 3.3, [1.0, 1.0, 1.0])[2] == 0.0
     assert found["suit"]["on"]["hangs"] is True and found["suit"]["on"]["holder"] == ["module_1"], found["suit"]
+    under = {"how": "within", "holder": "MODULE 1", "why": "under module"}
+    assert writer.related(design, {**under, "under": True}, [1.0, 1.0], [1.0, 0.0], 0.0, [1.0, 1.0, 1.0])[3][
+        "under"] is True
+    assert "under" not in writer.related(design, under, [1.0, 1.0], [1.0, 0.0], 0.0, [1.0, 1.0, 1.0])[3]
     square = [[0.0, 0.0], [20.0, 0.0], [20.0, 20.0], [0.0, 20.0]]
     boxed = {**design, "walls": [{"from": start, "to": end, "thick": 0.2}
                                  for start, end in zip(square, square[1:] + square[:1])]}
