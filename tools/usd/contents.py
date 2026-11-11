@@ -408,29 +408,35 @@ def plants(stage, place):
     return found
 
 
+def bed_rows(found):
+    """The rows of a design holding its crops (score/stages/crops/crop_data.record_of's beds: the planter beds)."""
+    return set(stages_module("crops.crop_data").record_of(found, row_rules())["beds"])
+
+
 def judge_crops(stage, place, inventory, outputs):
-    """Where the place's design shows crops, the share of soil tiles with a plant of the crops layer over them at least
-    PLANTED_SHARE."""
+    """Where the place's design shows crops, the share of its beds (the objects of the rows holding its crops,
+    bed_rows) with a plant of the crops layer over them at least PLANTED_SHARE. 2026-11-11: it counted tiles said
+    soil (score:plain), which nothing writes since the beds became the plan's objects, so greenhouse's was unknown."""
     from pxr import Usd, UsdGeom
     found = design(place)
     if found is None:
         return UNKNOWN, [], NO_DESIGN.format(place=place, folder=DESIGN)
     if "crops" not in stages_module("design_layers").kinds_of(found, row_rules()):
         return PASS, [], "no crops here"
-    least = PLANTED_SHARE
+    least, beds = PLANTED_SHARE, bed_rows(found)
     cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_, UsdGeom.Tokens.render])
     soil = [cache.ComputeWorldBound(prim).ComputeAlignedRange() for prim in stage.Traverse()
-            if prim.IsA(UsdGeom.Mesh) and prim.HasAttribute("score:plain")
-            and prim.GetAttribute("score:plain").Get() == "soil"]
+            if prim.HasAttribute("score:row") and prim.GetAttribute("score:row").Get() in beds
+            and not str(prim.GetPath()).startswith(f"/{place}/Places/")]
     crops = plants(stage, place)
     if not soil:
-        return UNKNOWN, [], "no soil tiles (meshes said soil) on the stage to plant"
+        return UNKNOWN, [], f"no bed ({', '.join(sorted(beds)) or 'no row holds its crops'}) on the stage to plant"
     planted = sum(any(tile.GetMin()[0] <= x <= tile.GetMax()[0] and tile.GetMin()[2] <= z <= tile.GetMax()[2]
                       for x, z in crops) for tile in soil)
     share = planted / len(soil)
-    faults = [] if share >= least else [f"{planted} of {len(soil)} soil tiles planted ({share:.2f}), under {least}"
+    faults = [] if share >= least else [f"{planted} of {len(soil)} beds planted ({share:.2f}), under {least}"
                                         + ("; no crops layer (/<place>/Crops) on the stage" if not crops else "")]
-    return outcome(faults, f"{planted} of {len(soil)} soil tiles planted ({share:.2f})")
+    return outcome(faults, f"{planted} of {len(soil)} beds planted ({share:.2f})")
 
 
 # --- likeness and paint ---------------------------------------------------------------------------------------------
@@ -670,7 +676,16 @@ def judge_waiting(stage, place, inventory, outputs):
     root prim's score:waiting): a gap, named."""
     root = stage.GetPrimAtPath(f"/{place}")
     waiting = list(root.GetAttribute(WAITING).Get() or []) if root and root.HasAttribute(WAITING) else []
-    return outcome([f"a gap: {entry}" for entry in waiting], "no entry of the scene record waits on its model")
+    return outcome([f"{waiting_row(entry)}: a gap: {entry}" for entry in waiting],
+                   "no entry of the scene record waits on its model")
+
+
+def waiting_row(entry):
+    """The row a waiting entry ("objects <row>_<n>: why", assembly/record's) is an object of, which a gap names
+    (2026-11-11: shiplock's spacesuit lockers, their bake a batch gap, still failed waiting as "a gap: ...")."""
+    name = entry.split(": ", 1)[0].split(" ", 1)[-1]
+    row, _, number = name.rpartition("_")
+    return row if row and number.isdigit() else name
 
 
 JUDGES = {"people": judge_people, "effects": judge_effects, "motion": judge_motion, "crops": judge_crops,

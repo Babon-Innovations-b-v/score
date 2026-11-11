@@ -42,6 +42,8 @@ def files(place):
     check's)."""
     design = {"design": "{home}/design/inventory/{place}.json",
               "hand-in": prop_data.keyed(place)} if contents.design(place) is not None else {}  # takes' progress left out
+    plan = complete.PLAN.format(place=place)
+    design.update({"plan": "{home}/" + plan} if design and (complete.HOME / plan).is_file() else {})  # its `dropped`
     cast = contents.cast_of(place) or {}
     bodies = {person["character"] for person in cast.get("people", [])}
     bodies |= {cast["crowd"]["character"]} if cast.get("crowd") else set()

@@ -28,6 +28,12 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
   And (2026-11-10, walkway's plan-routed walls failed with their shell standing) complete.rows_faults'
   `| drawn_rows(opened, place, routes or {})` dropped; drawn_routes' `if kinds & set(drawn)` made `if True`;
   complete.reach_check's `if row["id"] not in drawn` made `if True`.
+  And (2026-11-11, galley's one kitchen counter its plan laid as its floor holds failed) complete.short_rows'
+  `if row["id"] not in planned: return count` made `if True: return count`, and unlaid_rows'
+  `and (row["id"] not in planned or planned[row["id"]])` dropped.
+- an_accepted_gap_moves_only_the_faults_it_names, 2026-11-11 (the bodies gaps filed at characters-layer failed
+  complete's people at every place): stages.reaching's `return [entry for entry in` made `return [] and [`, and
+  gaps.covers' `or named.split(" (", 1)[0] in entry["objects"]` dropped.
 - a_backdrop_row_is_made_by_the_skyline_once_its_place_stands_its_object: complete.rows_faults'
   `| contents.shown_laid(opened, place, shown or {})` dropped.
 - an_edit_after_the_checks_makes_them_stale: complete.check_requirement's `if found["fingerprint"] != current:` made
@@ -186,6 +192,14 @@ def a_row_with_no_object_needs_a_drop_reason():
         short = complete.rows_check(resting_test.PLACE, stage)
         if short["result"] != complete.FAIL or [fault["row"] for fault in short["faults"]] != ["crate"]:
             problems.append(f"a row laid short of its count did not fail by name: {short['faults']}")
+        planned = complete.plan_dropped({"dropped": [{"item": "crate", "why": "its free floor holds 1", "laid": 1},
+                                                     {"item": "rocket", "why": "a structure row"}]})
+        plain = {"rows": [{"id": "crate", "count": 2}, {"id": "lamp"}, {"id": "rocket"}]}
+        if complete.short_rows(plain, {"crate": 1}, planned) or \
+                [fault["row"] for fault in complete.unlaid_rows(plain, {"crate"}, planned)] != ["lamp"]:
+            problems.append("a row its plan dropped to what its floor holds still failed, or one it did not passed")
+        if complete.short_rows(plain, {"crate": 1}, {"crate": 2}) == []:
+            problems.append("a row laid short of what its plan lays passed")
         if complete.stage_requirement(stage)[0] != complete.FAIL:
             problems.append("the inventory changed after the export, and the stage still reads current")
         return problems
@@ -347,7 +361,9 @@ def an_accepted_gap_moves_only_the_faults_it_names():
         named = {"row": "complete", "reason": "a test", "decided": "the test", "faults": ["player: not on the stage"]}
         (gaps.FOLDER / f"{resting_test.PLACE}.json").write_text(json.dumps({"gaps": [
             {**named, "name": "no player", "check": "people", "objects": ["player"]},
-            {**named, "name": "not a gap gate", "check": "light", "objects": ["crate"]}]}))
+            {**named, "name": "not a gap gate", "check": "light", "objects": ["crate"]},
+            {**named, "name": "astronaut_1 has no body", "row": "characters-layer", "check": "bodies",
+             "objects": ["astronaut_1"]}]}))
         problems = []
         try:
             def answer(check, faults):
@@ -358,6 +374,12 @@ def an_accepted_gap_moves_only_the_faults_it_names():
                 problems.append(f"the named people fault did not move: {moved}")
             if answer("people", ["player: not on the stage", "guard: not on the stage"])[0] != complete.FAIL:
                 problems.append("a fault no gap names passed with the named one")
+            body = "astronaut_1 (astronaut): not a made model: no accepted body of its look"
+            if answer("people", [body])[0] != complete.PASS:  # filed at characters-layer, it reaches complete's people
+                problems.append("a body gap filed at the characters layer did not move complete's people fault")
+            if answer("people", [body, "pilot (pilot): not a made model: no accepted body of its look"])[0] != \
+                    complete.FAIL:
+                problems.append("a person no body gap names passed with the gapped one")
             if answer("light", ["crate: no lamp"])[0] != complete.FAIL:
                 problems.append("a gap moved a check that is not one of complete's gap gates")
             if complete.accepted_gaps_requirement(resting_test.PLACE)[0] != complete.FAIL:

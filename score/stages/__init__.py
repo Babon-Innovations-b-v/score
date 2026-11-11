@@ -944,7 +944,19 @@ GAP_GATES = {"assembly": ("placeholders", "resting"), "surfaces-check": ("stands
              # before the plan (the ship's rooms, overseer 2026-10-15), a generated model with no clean take to paint
              # (the camp's canister and sample props, overseer 2026-10-16), an effect no record holds yet (the Moon
              # places' dust, wheel dust, spray and ship exhaust on the effects follow-up list, overseer 2026-10-16)
-             "complete": ("people", "likeness", "motion", "rows", "game", "boxes", "painted", "effects", "picks", "reach")}
+             "complete": ("people", "likeness", "motion", "rows", "game", "boxes", "painted", "effects", "picks", "reach",
+                          "neighbours")}
+# The gaps filed at the row whose gate first met the fault that move complete's own gate on the same objects too
+# (complete, gate: [(row, its gate)]): a body no look made (characters-layer's bodies) is complete's people fault, a
+# moving row no maker builds (#88, motion's designed and covered) its motion fault and, with no object, its rows
+# fault, a likeness gap its likeness fault, a shown place nothing can stand (the neighbours' written gaps) its
+# neighbours fault. 2026-11-11: every one of them still failed complete at nearly every place, so
+# fails_only_on_gaps stopped demo-film and place-peel.
+COMPLETE_FROM = {"people": (("characters-layer", "bodies"),),
+                 "motion": (("motion", "designed"), ("motion", "covered")),
+                 "rows": (("motion", "designed"),),
+                 "likeness": tuple(("likeness", gate) for gate in ("likeness", "outline", "thin and in proportion")),
+                 "neighbours": (("neighbours", "neighbours"),)}
 # The gates a batch gap moves a fault from (score/stages/batch_gaps.py: a take a paid step failed inside the batch, a gap
 # by the owner's yes to the batch, the batch rule of 2026-10-20): each paid step's own sorting gate, and the readers
 # down the line that would fail the take it left out (the likeness, complete: every gate, ALL). Only the faults of the
@@ -987,9 +999,19 @@ def gap_moved(row, check):
 
     def judged(output, inputs, evidence):
         carried = tied(batch_gaps.of(inputs, output), inputs) if batch else []
-        return gaps.moved(check.judge(output, inputs, evidence), gaps.entries(inputs, row, check.name) + carried)
+        return gaps.moved(check.judge(output, inputs, evidence),
+                          gaps.entries(inputs, row, check.name) + reaching(row, check.name, inputs) + carried)
     judged.__wrapped__ = check.judge
     return checks.Check(check.name, judged, check.evidence)
+
+
+def reaching(row, check, inputs):
+    """The place's gaps filed at another row that move complete's gate `check` too (COMPLETE_FROM): the owner's, and
+    those a read row wrote in its output (gaps.written); none for any row but complete."""
+    if row != "complete":
+        return []
+    sources = set(COMPLETE_FROM.get(check, ()))
+    return [entry for entry in gaps.entries(inputs) + gaps.written(inputs) if (entry["row"], entry["check"]) in sources]
 
 
 def tied(found, inputs):
@@ -997,7 +1019,8 @@ def tied(found, inputs):
     (`props`, stood_for), as motion reads it: a gap a paid step named by its take alone moves its rows' faults by name
     (likeness@camp, 2026-10-30: the split's patchy-paint gaps named camp_kitchen_counter_5393e7f9, not the
     kitchen_counter row the likeness faulted, and the first read of a gap's name is the one kept)."""
-    objects = prop_data.record_at(inputs["props"]).get("objects", {}) if "props" in inputs else {}
+    handin = inputs.get("props") or inputs.get("hand-in")  # complete reads the same hand-in as its `hand-in`
+    objects = prop_data.record_at(handin).get("objects", {}) if handin else {}
     return [{**entry, "objects": sorted({item for take in entry["objects"] for item in stood_for(take, objects)})}
             for entry in found]
 
