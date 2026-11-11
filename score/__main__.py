@@ -1,6 +1,6 @@
 """SCORE's one command: the runner drives an environment's lines to their end, with no agent in the loop.
 
-    .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--phase F] [--jobs N] [--detach]
+    .venv/bin/python -m score run <environment> [--place P ...] [--stage S ...] [--phase F[,F...] ...] [--jobs N] [--detach]
         [--rebuy-reason R] [--uncommitted] [--oversubscribe] [--free]
     .venv/bin/python -m score status [<environment>] [--place P ...] [--stage S ...]                   # every line's state
     .venv/bin/python -m score images publish <kind>   # an accepted image proof's record into images.json
@@ -37,8 +37,8 @@ node's thread pools and its children's capped at this PC's cores shared out amon
 others in score.graph.THREAD_VARIABLES, and the OpenBLAS pools already loaded), so a lone node at the default --jobs
 still gets only its share (--jobs 1 gives it every core); more jobs than cores is refused unless given --oversubscribe;
 with --stage, only those stages and the ones they read (a line's other rows, a paid surface row say, are left alone);
---phase (run, status and plan) adds every stage of that phase of the environment's table (score/stages/phases) to
---stage, refused for an unknown phase or one holding no stage of the table; --leave-out (a comma list of stages, or
+--phase (run, status and plan; several repeated or as a comma list) adds every stage of those phases of the
+environment's table (score/stages/phases) to --stage, refused for an unknown phase or one holding no stage of the table; --leave-out (a comma list of stages, or
 SCORE_LEAVE_OUT read the same way when it is not given) makes none of those stages' rows not already standing, and
 each row reading one waits on it as on any unmade input (graph.LEFT_OUT), refused for a stage the table does not hold. It
 starts
@@ -261,8 +261,9 @@ def parse(argv):
     for command in (run, status, plan, check):
         command.add_argument("--place", action="append", help="one place's line (repeat it); default: every place")
         command.add_argument("--stage", action="append", help="only this stage and what it reads (repeat it)")
-        command.add_argument("--phase", choices=phases.NAMES,
-                             help="every stage of this phase and what they read, as --stage (score/stages/phases)")
+        command.add_argument("--phase", action="extend", type=phase_list,
+                             help="every stage of this phase and what they read, as --stage (score/stages/phases); "
+                                  "several repeated or as a comma list, as the door's buy takes them")
         command.add_argument("--object", action="append",
                              help="only this object of a place, in the stages that select (repeat it)")
     options = parser.parse_args(argv)
@@ -271,16 +272,32 @@ def parse(argv):
     return options
 
 
+def phase_list(given):
+    """The phase names of one --phase value, a name or a comma list of them (as the door's buy takes them); an
+    argparse error naming the first that is no phase (score/stages/phases), so a typo never runs another phase."""
+    names = [name.strip() for name in given.split(",") if name.strip()]
+    unknown = [name for name in names if name not in phases.NAMES]
+    if unknown or not names:
+        raise argparse.ArgumentTypeError(f"invalid choice: {(unknown or [given])[0]!r} "
+                                         f"(choose from {', '.join(phases.NAMES)})")
+    return names
+
+
 def phase_stages(options, table):
-    """options.stage with every stage of the phase options.phase among `table`'s stage names added, in their order
-    (score/stages/phases); options.stage as given without a phase. Exits naming the phase when it holds no stage of
-    the table, so a phase is never read as the whole environment."""
-    if not getattr(options, "phase", None):
+    """options.stage with every stage of the phases options.phase (a name or a list of names) among `table`'s stage
+    names added, in their order (score/stages/phases); options.stage as given without a phase. Exits naming a phase
+    that holds no stage of the table, so a phase is never read as the whole environment."""
+    asked = getattr(options, "phase", None)
+    if not asked:
         return options.stage
-    held = phases.stages_of(options.phase, list(table))
-    if not held:
-        sys.exit(f"score: the phase {options.phase} holds no stage of this environment's table")
-    return [*(options.stage or []), *[name for name in held if name not in (options.stage or [])]]
+    asked = [asked] if isinstance(asked, str) else asked
+    held = set()
+    for phase in asked:
+        stages_held = phases.stages_of(phase, list(table))
+        if not stages_held:
+            sys.exit(f"score: the phase {phase} holds no stage of this environment's table")
+        held.update(stages_held)
+    return [*(options.stage or []), *[name for name in table if name in held and name not in (options.stage or [])]]
 
 
 def left_out_stages(options, table):

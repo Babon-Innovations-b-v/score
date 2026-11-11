@@ -1206,9 +1206,11 @@ GATHER = graph.Stage("gather", "world", make_show, TEXT, PASSES, beside={"clean"
 def test_a_run_holds_the_nodes_it_names_and_what_they_read_place_by_place(monkeypatch):
     """#26: `--place people --stage <body>` keeps an environment row named with the place, where before it was left
     out; an environment stage not named stays out; one node named by itself is a run of its own. `--phase` (#21) is
-    --stage with every stage of that phase, never the whole environment, and an unknown phase is refused.
+    --stage with every stage of that phase, never the whole environment, and an unknown phase is refused; several
+    phases, repeated or as a comma list, are all kept, not only the last.
     Break: score/graph/__init__.py: '                                      if stage.grain == "place" or node_name(stage, place) in named]' -> '                                      if stage.grain == "place"]'
-    Break: score/__main__.py: '    held = phases.stages_of(options.phase, list(table))' -> '    held = []'"""
+    Break: score/__main__.py: '        stages_held = phases.stages_of(phase, list(table))' -> '        stages_held = []'
+    Break: score/__main__.py: '        command.add_argument("--phase", action="extend", type=phase_list,' -> '        command.add_argument("--phase", type=lambda given: phase_list(given)[-1:],'"""
     world, store, _ = ready_world()
     runner = a_runner(world, store, (CLEAN, COUNT, GATHER))
     names = {graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False, only=["gather"])}
@@ -1226,6 +1228,9 @@ def test_a_run_holds_the_nodes_it_names_and_what_they_read_place_by_place(monkey
     names = {graph.node_name(*node) for node in runner.line_nodes(["hangar"], whole=False, only=late)}
     assert names == {"clean@hangar", "count@hangar", "gather"}, names
     assert command.phase_stages(argparse.Namespace(phase=None, stage=["count"]), runner.stages) == ["count"]
+    both = command.phase_stages(command.parse(["plan", "world1", "--phase", "late,early"]), runner.stages)
+    assert both == ["clean", "count", "gather"], both
+    assert command.parse(["plan", "world1", "--phase", "early", "--phase", "late"]).phase == ["early", "late"]
     with pytest.raises(SystemExit, match="holds no stage"):
         command.phase_stages(argparse.Namespace(phase="early", stage=None), {"count": COUNT})
     printed = io.StringIO()
