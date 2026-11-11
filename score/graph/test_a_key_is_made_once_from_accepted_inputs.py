@@ -1379,9 +1379,12 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
     gate not changed since the lock is not judged again: checkout 47, 2026-11-07, pixal and closeup bought again);
     K edited so the gate fails the locked output, or cannot tell (unknown), makes A again (2026-11-07, 796d7a76's paint
     gate, hub's console: unknown on the paint made before it). Locked, then dropped from its phase (drop_from_phase):
-    its own file edited makes A again (2026-11-08: campgrounds' tower held by an old lock). `score plan`'s to_run
+    its own file edited makes A again (2026-11-08: campgrounds' tower held by an old lock); dropped only after its lock
+    carried it onto a moved key, its key moves on and A is made again, then stays on that key (2026-11-11:
+    earth-seed@docking_airlock kept its ochre deck after its drop). `score plan`'s to_run
     (buy_check) lists A exactly when the runner makes it, never when it keeps it (2026-11-10: 559 shown, about 8 made).
     Break: score/graph/__init__.py: '        if any(node in lock.get("dropped", ()) and lock["at"] >= locks[-1]["at"] for lock in every):' -> '        if False:'
+    Break: score/graph/__init__.py: '        if not drops:' -> '        if True:'
     Break: score/graph/__init__.py: '        return (record, reworded) if _code.unchanged(dropped, file_hash) else None' -> '        return (record, reworded)'
     Break: score/graph/__init__.py: '        if not all(self.code_file(stage, name, place) for name in keyed["files"]' -> '        if False and not all(self.code_file(stage, name, place) for name in keyed["files"]'
     Break: score/graph/__init__.py: '        if self.gates_moved(stage, locks[-1]) and self.fails_today(stage, place, record):' -> '        if self.fails_today(stage, place, record):'
@@ -1477,6 +1480,15 @@ def test_an_output_whose_key_only_got_narrower_or_reworded_is_kept_and_a_changed
                 assert record["output"] == old["output"] and record["carried"] == {
                     "reason": graph.PHASE_REASON.format(at=lock["at"]), "phase": "props", "lock": 1,
                     "from key": old["key"], "to key": keyed["key"], "made by": made_by}
+                if case == 12:  # dropped after that carry: its key moves on and it is made (dropped_parts)
+                    a_runner(world, store, (stage,)).drop_from_phase("props", ["narrow@hangar"])
+                    runner = a_runner(world, store, (stage,))
+                    moved = runner.key(stage, "hangar")
+                    assert moved["key"] != keyed["key"] and moved["dropped"]["after"] == keyed["key"], moved
+                    assert runner.node_status(stage, "hangar").endswith(", dropped from its phase by props lock 2")
+                    assert runner.run(["hangar"])["narrow@hangar"].startswith("made: pass")
+                    assert "carried" not in store.record("narrow@hangar", moved["key"])
+                    assert a_runner(world, store, (stage,)).key(stage, "hangar")["key"] == moved["key"]
             elif change == "words only":
                 assert record["output"] == old["output"] and record["carried"] == {
                     "reason": graph.WORDS_REASON, "from key": old["key"], "to key": keyed["key"], "made by": made_by,
