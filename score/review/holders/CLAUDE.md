@@ -62,7 +62,7 @@ ceiling) and how each is read.
   `hung_faults` checking they stand; a floor item its plan stands over half its height up on nothing (no level,
   flight or other thing's top under its box; people hold nothing; its own row's only where it piles) gets the
   `height` of what is under it (`stood_under`: square's stage screen at its deck's 3.3 m behind it, street's and
-  engineroom's things the old plan fix piled), which the scene record lays it at. The relations file keys the
+  engineroom's things the old plan fix piled), which the scene record lays it at. A row anchored on a floor row (`on:floor_plates`) whose words say it is on a holder laid on the plan (`named_top.py`, ON_WORDS) and whose plan stands it up is `top` of that holder's nearest item (airlock's open case 'on bench', 0.49 m up beside its bench, floated 0.42 m, 2026-11-11). The relations file keys the
   surfaces bake (`route_bake.bake_files`): a change here re-keys that place's bake.
 - **Leaning and attached (#94)**: a row whose reading's `where` says "leaning against" or "attached to" (`rests`,
   LEAN_WORDS, ATTACH_WORDS) has `rests` on each of its relations, carried to the scene record's objects for the
