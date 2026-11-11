@@ -1352,7 +1352,16 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     (more than 1 m: its hang sets its height) so its box's top stands 0.01 m under the roof. Of two cranes hung from
     the roof where a 10 m room holds one, the later is left out, never left in the other; two things on the floor
     are left as laid (the held gate names them). A valve on its pipe's top inside the pipe run packed over it is
-    stacked onto that run, and the held gate judges it there.
+    stacked onto that run, and the held gate judges it there. Under a frame roof (two 2 m edge strips at 5 m and a
+    front strip, the middle open: hangar's, motion@hangar 2026-11-11) a crane hung by its box, its trolley's top 0.01 m
+    under the roof up in the opening, its girder's ends 0.7 m under the strips touching nothing, is moved 0.69 m up so
+    they stand 0.01 m under them, and 0.02 m out from under the front strip its trolley's lip overhangs by 0.01 m; a lip
+    0.1 m under it (more than 0.05 m) is not moved out, so it hangs by that lip 0.39 m up; one already touching is left.
+    Break: score/stages/assembly/fitting.py: `hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)` ->
+        `hung_up(stage, place, loose) + []` (the crane left hung by its box, touching nothing)
+    Break: score/stages/assembly/fitting.py: part_hang's `if shift is None or float(np.linalg.norm(shift)) >
+        HELD_MOST:` -> `if shift is None:` (the 0.1 m lip moved out), or its `lifts = sorted({...}, reverse=True)` ->
+        `lifts = sorted({...})` (hung by the 0.01 m lip, the ends still 0.31 m under)
     Break: score/stages/assembly/fitting.py: `fits = moved_down(stage, place, [entry for entry in loose if
         entry.get("under roof")])` -> `fits = []` (the crane left 2.1 m through the roof), or moved_down's
         `(drop > OUT_MOST and not hung)` -> `drop > OUT_MOST`
@@ -1443,6 +1452,21 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     assert -0.01 <= after["crane_1"][0][2] and after["crane_1"][1][2] <= 10.01, after
     after, left = fitting.parted_boxes(cranes, [], sides, [-0.5, -0.5, 10.5, 10.5])
     assert not left and sorted(after) == ["crane_1", "crane_2"], (after, left)
+    for lip, moved, low in ((1.99, 0.69, (0.5, 4.69, 2.01)), (1.9, 0.39, (0.5, 4.39, 1.9))):
+        frame = Usd.Stage.CreateInMemory()
+        for name, (x0, x1, z0, z1) in (("roof_1", (0, 2, 0, 10)), ("roof_2", (8, 10, 0, 10)), ("roof_3", (2, 8, 0, 2))):
+            UsdGeom.Xform.Define(frame, f"/{TOY}/Structure/{name}")
+            strip = UsdGeom.Mesh.Define(frame, f"/{TOY}/Structure/{name}/geo")
+            strip.CreatePointsAttr([(x0, 5, z0), (x1, 5, z0), (x1, 5, z1), (x0, 5, z1)])
+            strip.CreateFaceVertexCountsAttr([4])
+            strip.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+        a_built_box(frame, f"/{TOY}/Objects/crane_1", (0.5, 4.0, 3.0), (9.5, 4.3, 6.0))  # the girder, its ends under
+        a_built_box(frame, f"/{TOY}/Objects/crane_1/trolley", (4.0, 4.3, 2.1), (6.0, 4.99, 4.0))  # up in the opening
+        a_built_box(frame, f"/{TOY}/Objects/crane_1/lip", (4.0, 4.3, lip), (6.0, 4.6, 2.1))  # under the front strip
+        hung = fitting.fitted(frame, TOY, [{"name": "crane_1", "row": "crane", "under roof": True}], {"crane_1"})
+        assert [(fit["name"], fit["how"], fit["moved"]) for fit in hung] == [("crane_1", "hung", moved)], hung
+        assert np.allclose(fitting.world_box(frame, f"/{TOY}/Objects/crane_1")[0], low), hung
+        assert fitting.hung_by_parts(frame, TOY, [{"name": "crane_1", "row": "crane", "under roof": True}]) == []
     runs = Usd.Stage.CreateInMemory()
     for name, low, high in (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),
                             ("pipe_1", (0.0, 1.45, 0.0), (4.0, 1.85, 0.4)),
