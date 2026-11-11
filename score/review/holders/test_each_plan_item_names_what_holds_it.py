@@ -655,6 +655,14 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     Break: score/review/holders/__init__.py: `return round(EYE_MOUNT - tall / 2, 3)` -> `return None`
     Break: score/review/holders/__init__.py: `seats_beside(found, items, rows, plan, tied)` -> `pass`
     Break: score/review/holders/__init__.py: `rails_along(found, plan)` -> `pass`
+    Break: score/review/holders/__init__.py: stair_sides' `**({"height": float(stair["from"])} if "from" in stair else
+        {}),` dropped, or relation's `"rests": ATTACHED,` dropped (the stairwell's railings at their items' heights,
+        dropped loose)
+    Break: score/review/holders/__init__.py: relations' `or stood_on(item, row, rows, plan, items, laid)` dropped (the
+        lamps over the desk and over nothing held by nothing), or stood_on's `if base / 2 < found[0] <= base +
+        STAND_REACH` -> `if found[0] <= base + STAND_REACH` (the lamp over the rug on the rug) or -> `if True` (the lamp
+        over the shelf on its top, inside it), or its `if named:` -> `if False:` (the TV on the floor), or its `if base
+        <= max(STAND_REACH, tall / 2): return None` dropped (the lamp on the floor given a relation)
     2026-11-06 (hangar's eight 32 m pipes at 10 m in one another, four on its 64 m left wall): three 8 m ducts on
     three items 4 m apart along the 20 m front wall, 2 m up: the second slides along it clear of the first, the third,
     with no room left along it, stands its tall and PIECE_GAP over its height, under the wall's top (the ducts stood
@@ -747,6 +755,41 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     clocks = [by_item[f"CLOCK {number}"] for number in (1, 2)]
     assert sorted(clock["spot"] for clock in clocks) == [[14.475, 12.0], [15.525, 12.0]], clocks
     assert {clock["height"] for clock in clocks} == {1.35}, clocks
+    # settle@stairwell, 2026-11-10: its railings laid at their plan items' heights, 0.5 to 3 m off their flights'
+    # feet, and dropped as loose: each stands at its flight's foot, attached to it
+    flights = plan_of(items, plan["rows"], walls=plan["walls"],
+                      stairs=[{"points": [[2.0, 8.0], [3.0, 8.0], [3.0, 11.0], [2.0, 11.0]], "angle": 90.0,
+                               "from": 1.5, "to": 3.0}])
+    railed = by_item_of(holders.relations(flights, {"rows": rows, "picture": PICTURE}))
+    assert all(railed[f"RAIL {number}"]["rests"] == holders.ATTACHED and railed[f"RAIL {number}"]["pieces"][0][
+        "height"] == 1.5 for number in (1, 2, 3)), railed
+    # settle@habitat, @hangar, @quarters, 2026-11-10: a floor row's own item its plan stands up on nothing its row
+    # names (table lamps 0.8 m up 'in living areas, bedrooms', bench tools 1 m up 'on the work bench') had no relation
+    # and fell in the drop. A lamp 0.8 m up over a 0.78 m desk stands on its top; one over nothing stands on the
+    # floor; one over a 1.2 m shelf, whose top is over it, on the floor too, and one over a 2 cm rug no holder of it
+    # but on the floor at the rug's top; one on the floor has no relation; a TV 0.4 m up 'on tv stand' over nothing stands on the nearest TV stand's top.
+    rows = [{"id": "desk", "noun": "desk", "anchor": "floor", "size": [1.0, 0.6, 0.78]},
+            {"id": "shelf", "noun": "shelf", "anchor": "floor", "size": [1.0, 0.4, 1.2]},
+            {"id": "rug", "noun": "rug", "anchor": "floor", "size": [2.0, 2.0, 0.02]},
+            {"id": "tv_stand", "noun": "tv stand", "anchor": "floor", "size": [1.2, 0.4, 0.5]},
+            {"id": "tv", "noun": "tv", "anchor": "floor", "where": "on tv stand", "size": [1.0, 0.1, 0.6]},
+            {"id": "lamp", "noun": "lamp", "anchor": None, "where": "living areas, bedrooms", "size": [0.3, 0.3, 0.5]}]
+    items = [["DESK 1", 2.0, 2.0, 1.0, 0.6, None, "item"], ["SHELF 1", 8.0, 2.0, 1.0, 0.4, None, "item"],
+             ["RUG 1", 14.0, 8.0, 2.0, 2.0, None, "item"], ["TV STAND 1", 2.0, 9.0, 1.2, 0.4, None, "item"],
+             ["TV STAND 2", 17.0, 1.0, 1.2, 0.4, None, "item"], ["TV 1", 4.0, 9.0, 1.0, 0.1, None, "item"],
+             ["LAMP 1", 2.3, 2.1, 0.3, 0.3, None, "item"], ["LAMP 2", 5.0, 5.0, 0.3, 0.3, None, "item"],
+             ["LAMP 3", 8.3, 2.05, 0.3, 0.3, None, "item"], ["LAMP 4", 12.0, 5.0, 0.3, 0.3, None, "item"],
+             ["LAMP 5", 14.5, 8.5, 0.3, 0.3, None, "item"]]
+    lit = plan_of(items, {item[0]: [item[0].rsplit(" ", 1)[0].lower().replace(" ", "_")] for item in items})
+    lit["shapes"] = {**{f"LAMP {number}": {"base": 0.8, "tall": 0.5} for number in (1, 2, 3, 5)},
+                     "LAMP 4": {"base": 0.0, "tall": 0.5}, "TV 1": {"base": 0.4, "tall": 0.6}}
+    found = by_item_of(holders.relations(lit, {"rows": rows, "picture": PICTURE}))
+    assert (found["LAMP 1"]["how"], found["LAMP 1"]["holder"], found["LAMP 1"]["holder row"]) == (
+        "top", "DESK 1", "desk"), found["LAMP 1"]
+    assert [(found[name]["how"], found[name]["height"]) for name in ("LAMP 2", "LAMP 3", "LAMP 5")] == [
+        ("floor", 0.0), ("floor", 0.0), ("floor", 0.02)], found  # on the floor, the one over the rug on its top
+    assert "LAMP 4" not in found, found["LAMP 4"]
+    assert (found["TV 1"]["how"], found["TV 1"]["holder"]) == ("top", "TV STAND 1"), found["TV 1"]
     rows = [{"id": "floor_grating", "noun": "grating", "part": "floor", "anchor": "floor"},
             {"id": "railing", "noun": "railing", "anchor": "on:floor_grating", "size": [3.0, 2.0, 1.0], "count": 2},
             {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0]}]
