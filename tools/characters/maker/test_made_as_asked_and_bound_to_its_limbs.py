@@ -77,7 +77,8 @@ unless named):
   (a bulky suit stays 12 cm off its body); soft_points' `~np.isin(part_of, sorted(rigid))` made all True (the hard
   cap counted as cloth); suit_rounds' `SUIT_STEP * along` made `0 * along` (the body never drawn to the suit).
   Its boot place case (env1, 2026-11-08: the astronaut's dark visor judged a boot rode his feet): prop_build.placed_names'
-  `> BOOT_TOP_SHARE * (high - low)` made `> high - low` (the visor stays a boot).
+  `> BOOT_TOP_SHARE * (high - low)` made `> high - low` (the visor stays a boot); unsided's
+  `words = words[1:]` made `break` (the officer's waist leather, "boot black leather", rides his foot, env1 2026-11-11).
 - test_pokes_read_a_hard_parts_stretch: pokes.stretch's `max(worst, ...)` made `min(worst, ...)`.
 - test_piping_is_cut_down_the_outside_of_a_limb: piping.across_outer_line's outer half `> 0` made `< 0`.
 - test_a_flat_sheet_crosses_nothing: pokes.crossing_pairs' shared-corner filter and `usable &` both dropped (either
@@ -765,6 +766,9 @@ def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows(tmp_path):
                                      heights)
     assert placed == {0: "boot", 1: "black_rubber_boot"}, placed
     assert prop_build.rigid_joint(placed[1], split[1][0], np.array([[1.0, 0, 0]] * 3), names) == "Hips"
+    waist = prop_build.placed_names({1: "boot"}, {1: "boot black leather"}, split, heights)[1]
+    assert waist == "black_leather" and not waist.startswith(prop_build.SIDED), waist
+    assert prop_build.rigid_joint(waist, split[1][0], np.array([[1.0, 0, 0]] * 3), names) == "Hips"
     cloth = np.array([[0.1, 0.21, 0.0], [0.1, 0.5, 0.0]])
     eased = prop_build.eased_to_hard(cloth, np.array([[0, 1.0, 0], [0, 1.0, 0]]), boot,
                                      np.array(["LeftFoot", "LeftFoot"], dtype=object), names, np.array([-1, 0, 1]))
