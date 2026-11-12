@@ -1,6 +1,7 @@
 """Runs inside Blender on the bake's card: paint_bake.py's job (the paint, the take's make_chunky entries, the pending
 models stood square) with its last step, the bake, run through layout_fit.py, so each model's texture layout is laid
-again before it bakes where surfaces-check's "texture layout sound" would fail it (#118).
+again before it bakes where surfaces-check's "texture layout sound" would fail it (#118), and its paint through
+../base_level.py, so a take's base counts level within 3 cm through its standing height, as its feet do.
 
     blender -b --python paint_fit.py -- <listing>    (route_bake.card_job's, its script set by ../bake_fitted.py)
 
@@ -10,6 +11,7 @@ it starts, so an edit there moved 28 rows (11 paid); this one only the bake row 
 import json
 import os
 import pathlib
+import signal
 import subprocess
 import sys
 
@@ -20,8 +22,25 @@ import paint_bake  # noqa: E402
 import paint_take  # noqa: E402
 
 
+def paint():
+    """paint_take.main with the paint run by ../base_level.py (place_line's paint-take, its base levelled within 3 cm
+    through the take's standing height)."""
+    listing = pathlib.Path(sys.argv[sys.argv.index("--") + 1])
+    named = json.loads(listing.read_text())
+    paint_take.install()
+    repo = pathlib.Path(named["paint repo"])
+    environment = dict(os.environ, PYTHONPATH=str(paint_take.SITE), PROPS_HOME=named["props home"],
+                       FARM_LOCAL_MODELS="1")
+    code, peak = paint_take.measured([paint_take.PYTHON, str(repo / "score/stages/surfaces/base_level.py"),
+                                      "paint-take", str(listing), str(listing.parent)], environment)
+    killed = f", killed by {signal.Signals(-code).name}" if code < 0 else ""
+    print(f"paint {named['paint take']}: exit code {code}{killed}, peak memory {peak:.2f} GB", flush=True)
+    if code:
+        raise RuntimeError(f"the paint of {named['paint take']} failed")
+
+
 def main():
-    paint_take.main()
+    paint()
     listing = pathlib.Path(sys.argv[sys.argv.index("--") + 1])
     named = json.loads(listing.read_text())
     repo = pathlib.Path(named["paint repo"])

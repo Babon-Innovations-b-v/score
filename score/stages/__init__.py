@@ -758,7 +758,8 @@ def paint_baked(row):
     """surfaces-bake with the paint's files beside its own (paint_files: the paint runs in its job on the rented card,
     route_bake.py, #18) and the job's scripts (inside/, run up there, never imported; the folder's overlay left out),
     with the recipes the bake's Blender scripts import (bake.py's `import recipes`: run apart, no import keys it;
-    declared here, in the table, so no other row's code moves, 2026-10-28)."""
+    declared here, in the table, so no other row's code moves, 2026-10-28) and the paint's base levelling paint_fit.py
+    runs (base_level.py, run apart: a take's base counted level within 3 cm, 2026-11-12)."""
     if row.name != "surfaces-bake":
         return row
     own = row.files
@@ -766,7 +767,8 @@ def paint_baked(row):
         **paint_files(place), **own(place), **{f"paint bake {name}": "{repo}/score/stages/surfaces/inside/" + name
                                                for name in ("paint_bake.py", "paint_take.py", "paint_fit.py",
                                                             "layout_fit.py")},
-        "bake recipes": "{repo}/tools/props/library/recipes.py"})
+        "bake recipes": "{repo}/tools/props/library/recipes.py",
+        "paint bake base_level.py": "{repo}/score/stages/surfaces/base_level.py"})
 
 
 def layout_fitted(row):
