@@ -40,7 +40,7 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           scene_clips, screens, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, library_reads, parts_kept, \
-    route_check, uv_layout
+    recheck_picks, route_check, uv_layout
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -782,6 +782,26 @@ def kit_and_lit_kept(row):
     return dataclasses.replace(row, make=parts_kept.make_parts)
 
 
+def picks_applied(rows):
+    """The loop's rows with finish-route-picks before surfaces-parts, made from the parts row as the table wraps it
+    (its reads, files and object filter; recheck_picks.make_picks: the parts drafted and the recheck's one question
+    asked of them, Claude on this PC at EUR 0, the request the recheck row sends, so its cached answer), and the parts
+    made through recheck_picks.make_parts: the finish list with each fitting pick over it, the same output where
+    nothing is picked (#118, point 3). Set here, as kit_and_lit_kept is, so no row reading route_recheck.py,
+    route_parts.py or parts_kept.py moves."""
+    found = []
+    for row in rows:
+        if row.name == "surfaces-parts":
+            found.append(dataclasses.replace(
+                row, name=recheck_picks.ROW, make=recheck_picks.make_picks,
+                contract=contracts.Contract(recheck_picks.ROW, 1, recheck_picks.picks_faults),
+                checks=(guarded(recheck_picks.GATE, recheck_picks.judge_picks),)))
+            row = dataclasses.replace(row, make=recheck_picks.make_parts,
+                                      after={**row.after, recheck_picks.ROW: (recheck_picks.ROW, 1)})
+        found.append(row)
+    return tuple(found)
+
+
 def meaning_checked(row):
     """surfaces-parts with the gate "kept the list's meaning" beside its own (route_parts.judge_meaning: a finish
     the colour check moved keeps the list's recipe and hue). Set here, as code_marked is, so no row reading the
@@ -1010,8 +1030,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))),
+          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
+              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
@@ -1686,7 +1706,8 @@ STAGES = tuple(dataclasses.replace(row, make=leaving_out(row.make)) if row.name 
 # row's code moves. Each function reads only its arguments and the row's code.
 PER_TAKE = {"finish-route-views": ("view_take", lambda arguments: arguments[3]),
             "finish-route-split": ("split_take", lambda arguments: arguments[0]["out"]),
-            "surfaces-parts": ("parts_take", lambda arguments: arguments[0]["out"])}
+            "surfaces-parts": ("parts_take", lambda arguments: arguments[0]["out"]),
+            recheck_picks.ROW: ("parts_take", lambda arguments: arguments[0]["out"])}
 
 
 def kept_module():

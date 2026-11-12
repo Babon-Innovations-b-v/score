@@ -224,7 +224,7 @@ tests it turned red:
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
   the_recheck_words_a_finish_in_the_token_it_is_drawn_and_baked_in
 - route_recheck.py: `wrong = failed(finishes, answers)` -> `wrong = []`  ->
-  the_recheck_sorts_one_answer_into_pass_or_a_gap_its_suggestion_unapplied
+  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
 - route_recheck.py: `if faults: found[take] = {"colour_faults"` -> `if False: found[take] = {"colour_faults"`  ->
   the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour
 - scene_palette.py: `tokens.setdefault(entry["token"], entry["colour"].lower())` -> `tokens[entry["token"]] =
@@ -325,6 +325,12 @@ tests it turned red:
 - parts_kept.py: `return found if found["delta_e"] <= record["delta_e"] else record` -> `return found` (kit_kept)  ->
   a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
 - parts_kept.py: `finish.get("surface") in glowing and` -> `False and` (lit_kept)  ->
+  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
+- recheck_picks.py: `if apart > finish_parts.COLOUR_DELTA_E:` -> `if False:` (fitting); or `if picks:` -> `if
+  False:` (make_parts); or `(out / batch_gaps.FILE).unlink(missing_ok=True)` -> `pass` (make_picks); or `or
+  token_apart(...) > finish_parts.COLOUR_DELTA_E]` -> `or False]` (judge_picks)  ->
+  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+- __init__.py (the table): `make=recheck_picks.make_parts,` -> `make=row.make,` (picks_applied)  ->
   a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
   one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance
@@ -2223,9 +2229,13 @@ def split(folder, rows):
 
 
 def parted(folder, rows):
-    out = folder / "parts"
+    """The parts row's make as the table sets it (recheck_picks.make_parts), with no pick."""
+    from score.stages.surfaces import recheck_picks
+    out, picks = folder / "parts", folder / "no picks"
     out.mkdir()
-    parts_kept.make_parts(rows, out, 7, {"objects": [TAKE]})
+    picks.mkdir()
+    (picks / recheck_picks.FILE).write_text(json.dumps({"takes": {}, "not_picked": {}}))
+    recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, out, 7, {"objects": [TAKE]})
     return {**rows, "surfaces-parts": out}
 
 
@@ -2607,8 +2617,15 @@ def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
         (glows, kept) = route_parts.lit_finishes([diffuser, housing], every)
     assert glows["surface"] == "cold" and glows["family"] == "plastic" and kept == housing, (glows, kept)
     assert route_parts.lit_finishes([diffuser, housing], every)[1]["surface"] == "cold", "held only while it runs"
-    made = next(row for row in stages.STAGES if row.name == "surfaces-parts").make
-    assert inspect.unwrap(made) is parts_kept.make_parts, made
+    # the row makes through recheck_picks.make_parts, which runs parts_kept.make_parts on the picked list, and reads
+    # the picks row, made from it just before it
+    from score.stages.surfaces import recheck_picks
+    names = [row.name for row in stages.STAGES]
+    made = ROWS["surfaces-parts"].make
+    assert inspect.unwrap(made) is recheck_picks.make_parts, made
+    assert names.index(recheck_picks.ROW) == names.index("surfaces-parts") - 1, names
+    assert recheck_picks.ROW in ROWS["surfaces-parts"].after and recheck_picks.parts_kept is parts_kept
+    assert not ROWS[recheck_picks.ROW].paid and ROWS[recheck_picks.ROW].selects
 
 
 def baked(folder, rows):
@@ -2860,7 +2877,38 @@ def test_the_recheck_words_a_finish_in_the_token_it_is_drawn_and_baked_in():
     assert "drawn red" in route_recheck.finish_lines([dict(finish, settings=None)], surfaces, tokens)
 
 
-def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_its_suggestion_unapplied():
+def recheck_picks_judged(folder):
+    """The picks row's gate on the picks in folder/picks, read with the rows' palette and library."""
+    from score.stages.surfaces import recheck_picks
+    return recheck_picks.judge_picks(folder / "picks", {"finish-route-palette": folder / "palette",
+                                                         "surface-library": folder / "surface-library"}, {})
+
+
+def picked_parts(folder, answer):
+    """The picks row made through the rows, its one ask faked to answer `answer`, then the parts made with its picks:
+    the picks, their verdict, the parts' record of the take, and the parts' record made without the picks row."""
+    from score.stages.surfaces import recheck_picks
+    original = recheck_picks.ask
+    recheck_picks.ask = lambda bodies: {take: json.dumps(answer) for take in bodies}
+    try:
+        rows = split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0])
+        picks = folder / "picks"
+        picks.mkdir()
+        recheck_picks.make_picks(rows, picks, 7, {"objects": [TAKE]})
+    finally:
+        recheck_picks.ask = original
+    assert not (picks / "batch-gaps.json").exists()  # a recheck fail here is a pick, never a gap
+    made, plain = folder / "parts", folder / "plain"
+    made.mkdir()
+    plain.mkdir()
+    recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, made, 7, {"objects": [TAKE]})
+    parts_kept.make_parts(rows, plain, 7, {"objects": [TAKE]})
+    return (json.loads((picks / "picks.json").read_text()), recheck_picks.judge_picks(picks, rows, {}),
+            json.loads((made / "parts.json").read_text())["takes"][TAKE], (made / "parts.json").read_bytes(),
+            (plain / "parts.json").read_bytes())
+
+
+def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked():
     with tempfile.TemporaryDirectory() as temporary:
         record, verdict, asked = rechecked(pathlib.Path(temporary),
                                            {"finishes": [{"finish": 1, "matches": True, "why": "red"},
@@ -2874,6 +2922,35 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_its_suggestion_unapplie
         assert record["suggested"] == {"red paint": {"token": "alarm", "roughness": 0.2}}, record["suggested"]
         assert verdict.answer == "fail" and "too dull" in verdict.findings[0], verdict
         assert (pathlib.Path(temporary) / "recheck" / TAKE / "checked-front.png").exists()
+    # #118 point 3: the picks row applies a suggestion whose token lies within dE 32 of the finish's close-up colour
+    # (red_pipes' rust-brown for the list's copper), so the parts, the bake and the recheck after it take it
+    failing = {"finish": 1, "matches": False, "why": "painted, not copper", "token": "alarm", "roughness": 0.2,
+               "metal": 0.1}
+    with tempfile.TemporaryDirectory() as temporary:
+        found, verdict, record, made, plain = picked_parts(pathlib.Path(temporary), {"finishes": [
+            failing, {"finish": 2, "matches": True, "why": "blue"}]})
+        pick = found["takes"][TAKE]["1"]
+        assert pick["token"] == "alarm" and pick["delta_e"] <= finish_parts.COLOUR_DELTA_E, found
+        assert verdict.answer == "pass" and verdict.measures["picked_takes"] == 1, verdict
+        red = record["finishes"][0]
+        assert red["settings"]["token"] == "alarm" and red["settings"]["roughness"] == 0.2, red
+        assert red["settings"]["seed"] == pick["was"]["settings"]["seed"] and red["picked"]["why"], red
+        assert red["by"] == "the list" and red["delta_e"] <= finish_parts.COLOUR_DELTA_E, red  # the parts' own check
+        assert {row["settings"]["token"] for row in record["parts"] if row["words"] == "red paint"} == {"alarm"}
+        assert made != plain
+        # a pick lying off the close-up's colour is refused by the gate
+        picks = pathlib.Path(temporary) / "picks" / "picks.json"
+        picks.chmod(0o644)
+        picks.write_text(json.dumps({**found, "takes": {TAKE: {"1": dict(pick, measured_lab=[90.0, -40.0, 60.0])}}}))
+        assert recheck_picks_judged(pathlib.Path(temporary)).answer == "fail"
+    # and none is applied when its token lies off the close-up's colour, or a failing finish names no token: the
+    # parts are then made as they were, byte for byte, so nothing after them moves
+    for wrong, why in (({"token": "bay-three"}, "lies dE"), ({"metal": None}, "no library token")):
+        with tempfile.TemporaryDirectory() as temporary:
+            found, verdict, record, made, plain = picked_parts(pathlib.Path(temporary), {"finishes": [
+                {**failing, **wrong}, {"finish": 2, "matches": True, "why": "blue"}]})
+            assert not found["takes"] and why in found["not_picked"][TAKE], found
+            assert made == plain and verdict.answer == "pass", verdict
 
 
 def test_the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour():

@@ -126,8 +126,17 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   its colour is a gap with no ask; the rest are drawn from every view, each part flat in its library surface's
   colour (its token's where it has settings), and asked once against the close-up; all match passes, else "no
   library surface fits" names it (`gate:finish-route-recheck/library surface fits:<take>`), Gemini's token,
-  roughness and metal kept as the gap's `suggested`, never applied. The list's settings never edit
-  materials.json.
+  roughness and metal kept as the gap's `suggested`. The list's settings never edit materials.json.
+- **The recheck's picks are applied before the parts** (#118 point 3; a list asked again returns its cached mis-pick):
+  `finish-route-picks` (`recheck_picks.py`, set in the table by `stages.picks_applied`, Claude on this PC at EUR 0,
+  never Gemini) drafts the parts as surfaces-parts makes them and asks the recheck's own question of them (the recheck
+  row's request, so its cached answer). A failed take is picked only when the answer names a library token, roughness
+  and metal for every finish it failed and each token lies within `COLOUR_DELTA_E` of that finish's close-up colour;
+  else it is not picked, its reason kept (a take the free colour check failed, no token, no colour measured, a token
+  off the close-up). surfaces-parts then makes the list with the picks over it (`recheck_picks.make_parts`: token,
+  roughness, metal, seed and own wear kept, `picked` on the finish), so the parts' colour check, bake, paint gates and
+  the recheck after the bake judge a pick as they judge the list's own; with no pick the parts come out the same, so
+  nothing after them moves. One pick a take: a take the recheck after the bake fails again is a gap.
 - **Claude asks the palette, library, list and recheck** (coordinator for the owner, 2026-10-27, after the
   side-by-side on #36: Claude matched or beat Gemini on each, every gate passed): the table wraps their makes
   (`score/stages/__init__.py`, `claude_asks.asking_claude` on `claude_asks.ROWS`): the module's own make runs with its
