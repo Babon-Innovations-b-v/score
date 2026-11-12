@@ -274,18 +274,25 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     """Round 32's docking airlock (2026-10-30): its wall pipes on its left wall and ceiling rails on its ceiling panels
     were judged as standing on them, leaning and tipping. The triage is given each such row's support as its holder's
     kind (assembly/mounted.py), so it judges them by touching; a row on a floor or an object, or naming its own
-    support, keeps what the triage gives it.
-    Break: score/stages/assembly/__init__.py: `if row["id"] in on_walls and not row.get("support")` -> `if False`"""
+    support, keeps what the triage gives it. Tube's wall lamps on its ribs (a structure row built into its wall) were
+    judged standing on the ribs' curve (settle@tube, 2026-11-12): a wall thing on a built-in row is mounted with it; a
+    cup on it still stands.
+    Break: score/stages/assembly/__init__.py: `if row["id"] in on_walls and not row.get("support")` -> `if False`
+    Break: score/stages/assembly/mounted.py: `return {**found, **on_built_in(rows, holders, found, built_in)}` ->
+        `return found`, or structure_mounted.py's `and holder_kind(rows[row_id]) in ("wall", "ceiling")` -> `` (the
+        cup mounted)"""
     inventory = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
                           {"id": "floor_plates", "part": "floor"}, {"id": "locker", "part": "object"},
                           {"id": "wall_pipes", "anchor": "on:left_wall"},
                           {"id": "ceiling_rails", "anchor": "on:ceiling_panels"},
                           {"id": "fixed_pipe", "anchor": "on:left_wall", "support": "fixed"},
-                          {"id": "crate", "anchor": "on:floor_plates"}, {"id": "suit", "anchor": "on:locker"}]}
+                          {"id": "crate", "anchor": "on:floor_plates"}, {"id": "suit", "anchor": "on:locker"},
+                          {"id": "ribs", "part": "structure", "anchor": "on:left_wall"},
+                          {"id": "wall_lamps", "anchor": "on:ribs"}, {"id": "cup", "anchor": "on:ribs"}]}
     found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory)["rows"]}
     assert found == {"left_wall": None, "ceiling_panels": None, "floor_plates": None, "locker": None,
                      "wall_pipes": "wall", "ceiling_rails": "ceiling", "fixed_pipe": "fixed", "crate": None,
-                     "suit": None}, found
+                     "suit": None, "ribs": "wall", "wall_lamps": "wall", "cup": None}, found
 
 
 def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
@@ -846,7 +853,9 @@ def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
     Break: score/stages/assembly/held_apart.py: `*(f"{name}: {words}" for name, words, _ in
         fitting.short_doors(record, laid))))` -> `))`
     Break: score/stages/assembly/fitting.py: `held = [boxes[name] for name in on.get("holder") or [] if name in
-        boxes] if on["how"] != "in" else walls` -> `... else []`"""
+        boxes] if on["how"] != "in" else walls` -> `... else []`
+    Break: score/stages/assembly/opening_walls.py: `if near(own) or not near(2 - own):` -> `if True:` (the collar
+        door left along z), or `-> if not near(2 - own):` (the side door turned onto the sill across its wall's end)"""
     from score import stages
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -876,6 +885,18 @@ def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
     [held] = [check.judge for check in stages.ASSEMBLY.checks if check.name == "held"]
     verdict = held(tmp_path, {}, None)
     assert verdict.answer == checks.PASS and f"door_1: {short}" in verdict.findings, verdict
+    # tube (2026-11-12): its plan draws only its long walls; its end opening (middle x 0, z 0), given the left wall's
+    # way (z) 1.6 m off, is turned onto the end wall its shell built across it (its sill and lintel along x, their
+    # line at z -0.3), a quarter turn; one on its own wall keeps its way.
+    from score.stages.assembly import opening_walls
+    ends = [((-1.1, -0.2, -0.45), (1.1, 0.0, -0.15)), ((-1.1, 2.6, -0.45), (1.1, 3.0, -0.15)),
+            ((-1.668, -0.2, -0.45), (-1.532, 3.2, 10.49))]
+    collar = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.0, 1.0], "wide": 2.2, "tall": 2.6}
+    turned, degrees = opening_walls.across(collar, 0.0, ends)
+    assert turned["along"] == [1.0, 0.0] and np.allclose(turned["middle"], (0.0, 0.0, -0.3)) and \
+        abs(degrees) == 90.0, (turned, degrees)
+    side = {**collar, "middle": [-1.6, 0.0, 5.0]}
+    assert opening_walls.across(side, 0.0, ends) == (side, 0.0)
 
 
 def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
@@ -1513,8 +1534,27 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
         75%), or its `foot - out * deep * (1.0 - scale) / 2` -> `foot` (the run's back off its wall)
     Break: score/stages/assembly/fitting.py: `for box in rooms(leaf)), *climbing] if walled else ()` -> `for box in
         rooms(leaf))] if walled else ()` (stairwell's electrical box left in its stair railing), or wall_clear.py's
-        climbing `if fitting.climbs(entry) and` -> `if False and`"""
-    from pxr import Usd, UsdGeom
+        climbing `if fitting.climbs(entry) and` -> `if False and`
+    Break: score/stages/assembly/fitting.py: through_roof's `vault_feet.roof_over(points, near)` -> `roof_under(points,
+        near)` (the screen on the bulged vault's wall read 2 m up through it), or vault_feet.py's `arched[:, None] &
+        (found < foot)` -> `found < foot` (the crate read through none), or -> `False` (the screen read through it)
+    Break: score/stages/assembly/fitting.py: `ribs.kept_clear(stage, place, path, entry["on"], clear, others, built)
+        if turned` -> `(clear, built) if turned` (the screen and pipes left in the rib), or ribs.py's `if any(end -
+        begin >= reach for begin, end in free):` -> `if True:` (the pipes shrunk to the 7.8 m beside it), or its
+        `return [*clear, *parts], built` -> `return clear, [*built, *parts]` (the screen stood on the rib's front),
+        or its `front = float((fronts[both] - (backs[both] - box_back)).max())` -> `pass` (the round pipe stood by
+        its box's back, 0.04 m off the rib), or its `and (part := beside(mesh, start, run, out, band, own)) is not
+        None]  # the pieces it crosses there` -> `if (part := ...) is not None]` (the pipe stood on the second rib
+        by its bracket's back, 0.04 m off the first)
+    Break: score/stages/assembly/fitting.py: `+ ribs.kept_off(stage, place, loose, list(by_name.values()))` -> `+ []`
+        (the light left up in the rib, the lamp inside its leg), or ribs.py's `under = [(name, gap) for name, gap in
+        over if gap < fitting.ROOF_CLEAR - fitting.MOVE_LEAST]` -> `under = over` (the light let down again), or
+        `top = topped(*fitting.world_box(stage, path))` -> `top = fitting.box_topped(fitting.surface_points(stage,
+        path))` (the light's corners, at its ends, stand under no rib: left up in it)
+    Break: score/stages/assembly/vault_feet.py: `return fitting.wall_holes(built, on, band)` -> `return found` (the
+        vault-only face one hole its whole length), or its `found = fitting.wall_holes(walls, on, band)` -> `found =
+        fitting.wall_holes(built, on, band)` (the hole behind which the vault stands left unread)"""
+    from pxr import Gf, Sdf, Usd, UsdGeom
     from score.stages.assembly import fitting
     stage = Usd.Stage.CreateInMemory()
     UsdGeom.Xform.Define(stage, f"/{TOY}/Structure/roof_1")
@@ -1694,6 +1734,130 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     words = {fit["name"]: fit["words"] for fit in hung}
     assert "moved 0.16 m down under roof_1" in words["lamp_1"] and "shrunk to 96% under roof_1" in \
         words["conduit_1"], words
+    # tube (2026-11-12): its vault springs from its walls' faces at the floor and bulges out behind them, so over a
+    # spot just behind a wall's face it has a foot a few centimetres up and its arc over it. A screen 1 to 2 m up on
+    # the x 10 wall, its back on the face, is under the arc and through no roof (fitting.moved_in had stood each 5 cm
+    # off its wall, touching nothing); a panel up to 3.3 m still reaches 0.3 m over the arc's 3 m, and a crate 1 to
+    # 1.5 m up out through a steep side, which stands 0.2 m up over its outer edge, 1.3 m.
+    bulged = Usd.Stage.CreateInMemory()
+    UsdGeom.Xform.Define(bulged, f"/{TOY}/Structure/roof_1")
+    belly = UsdGeom.Mesh.Define(bulged, f"/{TOY}/Structure/roof_1/geo")
+    belly.CreatePointsAttr([(9.9, 0, 0), (10.5, 1.5, 0), (10, 3, 0), (5, 5, 0),
+                            (9.9, 0, 10), (10.5, 1.5, 10), (10, 3, 10), (5, 5, 10)])
+    belly.CreateFaceVertexCountsAttr([4, 4, 4])
+    belly.CreateFaceVertexIndicesAttr([0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6])
+    a_built_box(bulged, f"/{TOY}/Objects/screen_2", (9.8, 1.0, 4.0), (10.0, 2.0, 5.0))
+    a_built_box(bulged, f"/{TOY}/Objects/panel_2", (9.8, 2.5, 6.0), (10.0, 3.3, 7.0))
+    UsdGeom.Xform.Define(bulged, f"/{TOY}/Structure/roof_2")  # a steep side running down past a crate's foot
+    steep = UsdGeom.Mesh.Define(bulged, f"/{TOY}/Structure/roof_2/geo")
+    steep.CreatePointsAttr([(0, 4, 20), (2, 0, 20), (2, 0, 22), (0, 4, 22)])
+    steep.CreateFaceVertexCountsAttr([4])
+    steep.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    a_built_box(bulged, f"/{TOY}/Objects/crate_2", (0.5, 1.0, 20.5), (1.9, 1.5, 21.5))
+    through = fitting.through_roofs(bulged, TOY, ["screen_2", "panel_2", "crate_2"])
+    assert [(found["name"], found["metres"]) for found in through] == [("panel_2", 0.3), ("crate_2", 1.3)], through
+    # tube (2026-11-12): its ribs are arches (a structure row, `score:row`) standing in front of its walls' faces.
+    # Here one 1.4 to 1.6 m round the floor's middle line, z 2 to 2.2, in front of the x -1.6 wall from 0.3 m up. A
+    # 0.8 m screen 0.6 to 1 m up across it slides along clear of it (to z 2.2); 8 m pipes 0.2 to 0.5 m up, which no
+    # stretch of the 10 m wall holds whole beside it, stand on its front at their top, 0.29 m out (a round pipe on the
+    # x 1.6 wall by its own surface where it crosses the rib, touching it, never by its bracket's back elsewhere nor
+    # on a second rib at z 9.5 it does not reach); a light hung 0.05 m
+    # up in its 1.4 m underside is let down 0.06 m; a lamp laid within its box inside its leg is drawn out to its face.
+    from score.stages.assembly import ribs
+    ribbed = Usd.Stage.CreateInMemory()
+    turns = np.linspace(0.0, np.pi, 33)
+    quads = []
+    for step in range(32):
+        corner = lambda depth, radius, turn: (depth * 2 + radius) * 33 + turn  # noqa: E731
+        quads += [(corner(0, 0, step), corner(0, 0, step + 1), corner(1, 0, step + 1), corner(1, 0, step)),
+                  (corner(0, 1, step), corner(1, 1, step), corner(1, 1, step + 1), corner(0, 1, step + 1)),
+                  (corner(0, 0, step), corner(0, 1, step), corner(0, 1, step + 1), corner(0, 0, step + 1)),
+                  (corner(1, 0, step), corner(1, 0, step + 1), corner(1, 1, step + 1), corner(1, 1, step))]
+    for number, near in ((1, 2.0), (2, 9.5)):  # the second past the pipes' ends, which they do not cross
+        ring = [(-np.cos(turn) * radius, np.sin(turn) * radius, depth) for depth in (near, near + 0.2)
+                for radius in (1.4, 1.6) for turn in turns]  # [depth][radius][turn]
+        UsdGeom.Xform.Define(ribbed, f"/{TOY}/Structure/ribs_{number}").GetPrim().CreateAttribute(
+            "score:row", Sdf.ValueTypeNames.String).Set("ribs")
+        arch = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Structure/ribs_{number}/geo")
+        arch.CreatePointsAttr([tuple(map(float, point)) for point in ring])
+        arch.CreateFaceVertexCountsAttr([4] * len(quads))
+        arch.CreateFaceVertexIndicesAttr([int(index) for quad in quads for index in quad])
+    UsdGeom.Xform.Define(ribbed, f"/{TOY}/Structure/wall_1")
+    side = trimesh.creation.box(bounds=((-1.75, 0.0, 0.0), (-1.6, 3.0, 10.0)))
+    built = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Structure/wall_1/geo")
+    built.CreatePointsAttr([tuple(map(float, point)) for point in side.vertices])
+    built.CreateFaceVertexCountsAttr([3] * len(side.faces))
+    built.CreateFaceVertexIndicesAttr([int(index) for index in side.faces.reshape(-1)])
+    UsdGeom.Xform.Define(ribbed, f"/{TOY}/Structure/wall_2")
+    side = trimesh.creation.box(bounds=((1.6, 0.0, 0.0), (1.75, 3.0, 10.0)))
+    built = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Structure/wall_2/geo")
+    built.CreatePointsAttr([tuple(map(float, point)) for point in side.vertices])
+    built.CreateFaceVertexCountsAttr([3] * len(side.faces))
+    built.CreateFaceVertexIndicesAttr([int(index) for index in side.faces.reshape(-1)])
+    round_pipe = trimesh.creation.cylinder(radius=0.15, height=8.0, sections=48)  # along z
+    round_pipe.apply_translation((1.45, 0.35, 5.0))
+    round_pipe = trimesh.util.concatenate([round_pipe, trimesh.creation.box(bounds=((1.45, 0.2, 5.0),
+                                                                                   (1.6, 0.5, 5.1)))])  # a bracket
+    UsdGeom.Xform.Define(ribbed, f"/{TOY}/Objects/pipes_4").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    drawn = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Objects/pipes_4/geo")
+    drawn.CreatePointsAttr([tuple(map(float, point)) for point in round_pipe.vertices])
+    drawn.CreateFaceVertexCountsAttr([3] * len(round_pipe.faces))
+    drawn.CreateFaceVertexIndicesAttr([int(index) for index in round_pipe.faces.reshape(-1)])
+    for name, low, high in (("screen_3", (-1.6, 0.6, 1.8), (-1.4, 1.0, 2.6)), ("pipes_3", (-1.6, 0.2, 1.0),
+                                                                                 (-1.4, 0.5, 9.0)),
+                            ("light_3", (-0.1, 1.35, 1.5), (0.1, 1.45, 2.5)),
+                            ("lamp_3", (-1.55, 0.9, 2.05), (-1.45, 1.0, 2.15))):
+        a_built_box(ribbed, f"/{TOY}/Objects/{name}", low, high)
+    left = {"how": "wall", "span": [[-1.6, 10.0], [-1.6, 0.0]], "out": [1.0, 0.0], "why": "against its wall"}
+    right = {"how": "wall", "span": [[1.6, 0.0], [1.6, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
+    fits = fitting.fitted(ribbed, TOY, [{"name": "screen_3", "row": "screen", "on": left},
+                                        {"name": "pipes_3", "row": "pipes", "on": left},
+                                        {"name": "pipes_4", "row": "pipes", "on": right},
+                                        {"name": "light_3", "row": "light", "under roof": True},
+                                        {"name": "lamp_3", "row": "lamp", "on": {
+                                            "how": "within", "holder": ["ribs_1"], "holder scope": "Structure"}}],
+                          {"screen_3", "pipes_3", "pipes_4", "light_3", "lamp_3"})
+    boxes = {name: fitting.world_box(ribbed, f"/{TOY}/Objects/{name}") for name in ("screen_3", "pipes_3", "light_3",
+                                                                                    "lamp_3")}
+    assert np.isclose(boxes["screen_3"][0][2], 2.2, atol=1e-3) and np.isclose(boxes["screen_3"][0][0], -1.6), boxes
+    assert np.isclose(boxes["pipes_3"][0][0], -1.6 + 1.6 - np.sqrt(1.4 ** 2 - 0.5 ** 2), atol=0.01) and \
+        np.isclose(boxes["pipes_3"][1][2] - boxes["pipes_3"][0][2], 8.0), boxes
+    assert np.isclose(boxes["light_3"][1][1], 1.39, atol=0.005) and np.isclose(boxes["lamp_3"][0][0], -0.979,
+                                                                                atol=0.01), boxes
+    assert {fit["name"]: fit["how"] for fit in fits if fit["name"] in ("light_3", "lamp_3")} == {
+        "light_3": "down", "lamp_3": "within"}, fits
+    assert ribs.kept_off(ribbed, TOY, [{"name": "light_3", "row": "light", "under roof": True}], []) == []
+    _, gaps, _ = trimesh.proximity.closest_point(fitting.surface_mesh(ribbed, f"/{TOY}/Structure/ribs_1"),
+                                                 trimesh.sample.sample_surface(fitting.surface_mesh(
+                                                     ribbed, f"/{TOY}/Objects/pipes_4"), 20000, seed=0)[0])
+    assert gaps.min() <= 0.01, gaps.min()  # the round pipe touches the rib, not its box's corner
+    # tube's window holes, 2 m wide in its left wall, open onto its vault 0.42 m behind: read on the walls alone a
+    # hole from z 4 to 6 (to the rays a step past its edges, 3.975 and 6.025) stands in a wall with the vault 0.4 m
+    # behind it; a vault that is its own wall (no wall piece on the face) has no hole.
+    from score.stages.assembly import vault_feet, wall_clear
+    holed = Usd.Stage.CreateInMemory()
+    for name, bounds in (("wall_1", ((-1.75, 0.0, 0.0), (-1.6, 3.0, 4.0))), ("wall_1_2", ((-1.75, 0.0, 6.0),
+                                                                                          (-1.6, 3.0, 10.0)))):
+        piece = trimesh.creation.box(bounds=bounds)
+        UsdGeom.Xform.Define(holed, f"/{TOY}/Structure/{name}")
+        drawn = UsdGeom.Mesh.Define(holed, f"/{TOY}/Structure/{name}/geo")
+        drawn.CreatePointsAttr([tuple(map(float, point)) for point in piece.vertices])
+        drawn.CreateFaceVertexCountsAttr([3] * len(piece.faces))
+        drawn.CreateFaceVertexIndicesAttr([int(index) for index in piece.faces.reshape(-1)])
+    UsdGeom.Xform.Define(holed, f"/{TOY}/Structure/roof_1")
+    behind = UsdGeom.Mesh.Define(holed, f"/{TOY}/Structure/roof_1/geo")
+    behind.CreatePointsAttr([(-2.0, 0.0, 0.0), (-2.0, 3.0, 0.0), (-2.0, 3.0, 10.0), (-2.0, 0.0, 10.0)])
+    behind.CreateFaceVertexCountsAttr([4])
+    behind.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    face = {"how": "wall", "span": [[-1.6, 0.0], [-1.6, 10.0]], "out": [1.0, 0.0]}
+    everything, bare = fitting.built_walls(holed, TOY), wall_clear.face_walls(holed, TOY)
+    assert fitting.wall_holes(everything, face, (1.0, 1.5)) == []
+    [hole] = vault_feet.wall_holes(everything, bare, face, (1.0, 1.5))
+    assert np.isclose(hole[:, 2].min(), 3.975) and np.isclose(hole[:, 2].max(), 6.025), hole
+    holed.RemovePrim(f"/{TOY}/Structure/wall_1")
+    holed.RemovePrim(f"/{TOY}/Structure/wall_1_2")
+    assert vault_feet.wall_holes(fitting.built_walls(holed, TOY), wall_clear.face_walls(holed, TOY), face,
+                                 (1.0, 1.5)) == []
 
 
 def test_a_door_goes_in_its_opening_narrowed_to_fit():

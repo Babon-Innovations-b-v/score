@@ -63,7 +63,7 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import board_spots, floor_clear, passages, wall_clear
+from score.stages.assembly import board_spots, floor_clear, opening_walls, passages, ribs, vault_feet, wall_clear
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -2007,6 +2007,8 @@ def fitted(stage, place, entries, laid, cuts=None):
         if how == "in":  # laid along the straight built wall its hole was cut in (hole_wall)
             walled_in, degrees = hole_wall(entry["on"], [box for wall, box in statics(walls(stage, place))
                                                          if wall.split("_")[0] == "wall" and straight(box)], faces())
+            walled_in, degrees = opening_walls.across(walled_in, degrees, [box for wall, box in statics(walls(
+                stage, place)) if wall.split("_")[0] == "wall" and straight(box)])  # one on no plan wall
             if walled_in is not entry["on"]:
                 if abs(degrees) > TURN_LEAST:
                     pivot = foot_middle(low, high)
@@ -2038,18 +2040,21 @@ def fitted(stage, place, entries, laid, cuts=None):
             walled = how in ("wall", "face") and name not in leaves
             clear = [*(box for leaf in sorted(done & leaves) for box in rooms(leaf)), *climbing] if walled else ()
             if turned:  # and out of the openings cut through its wall (wall_holes)
-                clear = [*clear, *wall_holes(faces(), entry["on"], (float(low[1]), float(high[1])))]
+                clear = [*clear, *vault_feet.wall_holes(faces(), faced(), entry["on"], (float(low[1]),
+                                                                                       float(high[1])))]
             if on_face:  # and out of the built walls standing in front of its face (walls_ahead)
                 deep = wall_reach(low, high, *wall_line(entry["on"])[1:3], oriented_corners(stage, path))[1]
                 clear = [*clear, *walls_ahead(faces(), entry["on"], (float(low[1]), float(high[1])), deep)]
             others = [box for other, box in mounted.items() if other not in (entry["on"].get("holder") or [])] \
                 if walled else ()
+            clear, ribbed = ribs.kept_clear(stage, place, path, entry["on"], clear, others, built) if turned \
+                else (clear, built)  # and clear of a curved hull's ribs, or on their front
             corners = oriented_corners(stage, path) if turned else None
             found = fit(low, high, entry["on"], built if how == "in" else [box for _, box in held], surface,
                         recesses, own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else None, clear,
-                        others, corners, () if passes(entry) else built)
+                        others, corners, () if passes(entry) else ribbed)
             if turned:  # the face it is laid on, which the held gate measures it off (held_faults)
-                faced_on[name] = stood_face(low, high, entry["on"], corners, built)
+                faced_on[name] = stood_face(low, high, entry["on"], corners, ribbed)
         if held and hangs_in(entry):
             found = on_back(stage, found, low, high, path, held, f"/{place}/{scope}/", built)
         if found is CROWDED:
@@ -2139,7 +2144,8 @@ def fitted(stage, place, entries, laid, cuts=None):
     stacked = stacked_on_runs(stage, place, topped, walled)
     fits += stacked + built_tops.stacked_down(stage, place, stacked)  # onto the runs' built surface
     return fits + moved_down(stage, place, loose) + \
-        hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)
+        hung_up(stage, place, loose) + hung_by_parts(stage, place, loose) + \
+        ribs.kept_off(stage, place, loose, list(by_name.values()))
 
 
 def laid_face(on, corners):
@@ -2993,7 +2999,7 @@ def through_roof(points, triangles):
                      & (triangles[:, :, [0, 2]].min(axis=1) <= high[[0, 2]]).all(axis=1)]
     if not len(near):
         return 0.0
-    reach = points[:, 1] - roof_under(points, near)
+    reach = points[:, 1] - vault_feet.roof_over(points, near)
     reach = reach[np.isfinite(reach)]
     # shortcut: read at hull corners only, so a thing reaching out past a roof's edge is read at its corners under it;
     # read every point should one through a roof go unnamed.
