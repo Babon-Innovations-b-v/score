@@ -2129,8 +2129,9 @@ def fitted(stage, place, entries, laid, cuts=None):
     walled = [entry for entry in by_name.values() if entry["on"]["how"] == "wall"]
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
     fits += spread_on_tops(stage, place, topped)
-    from score.stages.assembly import built_tops  # onto the built surface under them
+    from score.stages.assembly import built_tops, crest_tops  # onto the built surface under them
     fits += built_tops.let_down(stage, place, [entry for entry in by_name.values() if built_tops.held_on(entry)])
+    fits += crest_tops.laid_on(stage, place, [entry for entry in by_name.values() if built_tops.held_on(entry)])
     fits += moved_past(stage, place, walled)
     moved_in(stage, place, walled, fits)
     fits += passages.drawn_in(stage, place, walled)

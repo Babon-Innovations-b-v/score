@@ -2273,7 +2273,10 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         fitting.BOARD_BED and np.any(...)` -> `if False:` (the box under the slab on its shelf), or let_down's `if
         laid is None and not within:` -> `if False:` (the crate left over the divider)
     Break: score/stages/assembly/fitting.py: off_holder's `float(on.get("top at", hold_high[1]))` -> `hold_high[1]`
-        (the monitor let down onto the slab named 0.45 m off its desk's top)"""
+        (the monitor let down onto the slab named 0.45 m off its desk's top)
+    Break: score/stages/assembly/crest_tops.py: rest's `lift = float(np.nanmax(np.concatenate(...))) + CLEAR` -> `lift
+        = CLEAR` (the pile left 0.4 m over the crest), or one's `if here is not None and abs(here - CLEAR) <=
+        fitting.MOVE_LEAST and stands(...):` -> `if False:` (the pile resting on the crest laid again)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -2489,6 +2492,27 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
                                   (np.zeros(3), np.array([1.0, 0.23, 0.6])))
     assert np.isclose(found[1], 0.03) and slid > 0.0 and (found[0] + 0.1 <= 0.48 or found[0] - 0.1 >= 0.52
                                                           or found[2] + 0.1 <= 0.28 or found[2] - 0.1 >= 0.32), found
+    # old_station (2026-11-12): sandbags laid at the corners of its modules' curved tops floated 0.06 to 1.03 m over
+    # them, no flat spot under their inner half. A 1.2 x 0.3 x 0.6 m pile 0.4 m over the corner of a 2 m cylinder
+    # lying along z (its crest at x 21, y 2), which let_down leaves, is slid toward the crest until its middle stands
+    # 5 cm inside the crest's 0.48 m strip it touches within 3 cm (x 20.81 to 21.19), its foot let down onto the
+    # crest; laid again, it stays where it rests.
+    from score.stages.assembly import crest_tops
+    tube = trimesh.creation.cylinder(radius=1.0, height=4.0, sections=64)
+    tube.apply_translation((21.0, 1.0, 2.0))
+    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/module_9").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    module = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/module_9/geo")
+    module.CreatePointsAttr([tuple(map(float, point)) for point in tube.vertices])
+    module.CreateFaceVertexCountsAttr([3] * len(tube.faces))
+    module.CreateFaceVertexIndicesAttr([int(index) for index in tube.faces.ravel()])
+    faced(f"/{TOY}/Objects/bags_9", [(20.0, 2.4, 0.0), (21.2, 2.7, 0.6)])
+    piled = [{"name": "bags_9", "row": "bags", "on": {"how": "top", "holder": ["module_9"]}}]
+    assert built_tops.let_down(stage, TOY, piled) == []
+    crest = crest_tops.laid_on(stage, TOY, piled)
+    low, high = fitting.world_box(stage, f"/{TOY}/Objects/bags_9")
+    assert [fit["name"] for fit in crest] == ["bags_9"] and abs(low[1] - 2.0) <= 0.01, (crest, low)
+    assert 20.8 <= (low[0] + high[0]) / 2 <= 21.2 and np.isclose(crest[0]["top at"], low[1], atol=1e-3), (low, high)
+    assert crest_tops.laid_on(stage, TOY, piled) == []
 
 
 def test_a_wall_item_stands_on_its_named_face():
@@ -2744,15 +2768,21 @@ def a_thing_on_legs(folder, name, short, linked_to=None):
     """A place `toy` in `folder` laying one floor thing `name` from its own asset assets/<name>.usdc: a
     2 m square top on four 10 cm square legs 0.6 m long, the leg at (+0.9, +0.9) ending `short` metres over the
     others, with its collision hull; the asset a hard link to `linked_to`'s when given. The root's path."""
-    from pxr import Sdf, Usd, UsdGeom, Vt
-    import colliders
     parts = [trimesh.creation.box((2.0, 0.1, 2.0), trimesh.transformations.translation_matrix((0, 0.65, 0)))]
     for x in (-0.9, 0.9):
         for z in (-0.9, 0.9):
             lift = short if (x, z) == (0.9, 0.9) else 0.0
             parts.append(trimesh.creation.box((0.1, 0.6 - lift, 0.1), trimesh.transformations.translation_matrix(
                 (x, 0.3 + lift / 2, z))))
-    mesh = trimesh.util.concatenate(parts)
+    return a_floor_thing(folder, name, trimesh.util.concatenate(parts), linked_to)
+
+
+def a_floor_thing(folder, name, mesh, linked_to=None, beside=()):
+    """A place `toy` in `folder` laying one floor thing `name` at (3, 0, -2) from its own asset assets/<name>.usdc
+    holding `mesh` and its collision hull (a hard link to `linked_to`'s when given), and a box laid beside it for each
+    (low, high) of `beside`, in the place's frame. The root's path."""
+    from pxr import Sdf, Usd, UsdGeom, Vt
+    import colliders
     asset = folder / "assets" / f"{name}.usdc"
     asset.parent.mkdir(parents=True, exist_ok=True)
     if linked_to is not None:
@@ -2774,6 +2804,8 @@ def a_thing_on_legs(folder, name, short, linked_to=None):
     thing.AddTranslateOp().Set((3.0, 0.0, -2.0))
     thing.GetPrim().GetReferences().AddReference(f"./assets/{name}.usdc")
     thing.GetPrim().CreateAttribute("score:anchor", Sdf.ValueTypeNames.String).Set("floor")
+    for number, (low, high) in enumerate(beside):
+        a_built_box(stage, f"/{TOY}/Objects/crate_{number}", low, high)
     stage.GetRootLayer().Save()
     return root
 
@@ -2803,7 +2835,14 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     Break: score/stages/assembly/even_feet.py: `if foot - lowest > triage.TOLERANCE and not` -> `if False and not`
     Break: score/stages/assembly/even_feet.py: `or os.stat(path).st_nlink != 1` -> `` (a write through a link)
     Break: score/stages/assembly/even_feet.py: `and not said("score:fixed")` -> ``
-    Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`"""
+    Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`
+    Break: score/stages/assembly/even_feet.py: `stood, cut = footing.stood(points * scale, triangles)` -> `stood, cut
+        = points * scale, []` (the hub left on its post's foot)
+    Break: score/stages/assembly/footing.py: cut_at's `points[points[:, 1] <= lowest + cut, 1] = lowest` dropped (the
+        hub's legs left 0.15 m up)
+    Break: score/stages/assembly/even_feet.py: `laid_flat.flattened(stage, folder, place)` -> `pass` (the slab left
+        standing), or laid_flat's `if axis is None or footing.stands(...)` -> `if axis is None` (the board laid down),
+        or clear_side's `if all(not meets(...))` -> `if True` (the slab laid down into the crate)"""
     from pxr import Sdf
     from score.stages.assembly import grounded, made_waiting, parting
     monkeypatch.setattr(baked, "take_bake", lambda *args: None)
@@ -2824,6 +2863,39 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
             layer.Save()
         grounded.take_bakes(bake, tmp_path / name, TOY)
         assert lowest_legs(root.parent / "assets" / f"{name}.usdc") == (legs, legs[-1]), name
+    # assembly@old_station (2026-11-12): its hub stood on a foot at its back edge 16 to 24 cm under its legs, its
+    # weight 1.75 m outside what it touched, and its power cables, one 10 m cable on edge, tipped whatever its foot.
+    # A 2 m table whose legs end 0.15 m over the foot of a post at its back edge stands on its legs and the post, its
+    # top as made; the table on its legs alone, and a 4 m board 2 m tall and 0.18 m thick on its whole edge, are left
+    # as made; a slab 0.1 m thick on a 1 m foot at one end lies down on its broad side, toward the side clear of the
+    # crate beside it.
+    def under(name, at, along, across):
+        asset = Usd.Stage.Open(str(tmp_path / name / "assets" / f"{name}.usdc"))
+        points = np.asarray(asset.GetPrimAtPath(f"/{name}/geo").GetAttribute("points").Get())
+        part = points[(np.abs(points[:, 0] - at[0]) <= along) & (np.abs(points[:, 2] - at[1]) <= across)]
+        return round(float(part[:, 1].min()), 3), round(float(np.ptp(points[:, 1])), 3), points
+
+    from pxr import Usd
+    box = trimesh.creation.box
+    shift = trimesh.transformations.translation_matrix
+    legs = [box((0.1, 0.45, 0.1), shift((x, 0.375, z))) for x in (-0.9, 0.9) for z in (-0.9, 0.9)]
+    post = box((0.1, 0.65, 0.1), shift((0.0, 0.325, -0.95)))
+    slab = trimesh.util.concatenate([box((1.0, 0.1, 0.1), shift((-1.5, 0.05, 0.0))),
+                                     box((3.0, 1.7, 0.1), shift((0.5, 1.15, 0.0)))])
+    for name, mesh, beside in (("hub", trimesh.util.concatenate([box((2.0, 0.1, 2.0), shift((0, 0.65, 0))), *legs,
+                                                                   post]), ()),
+                               ("bench", trimesh.util.concatenate([box((2.0, 0.1, 2.0), shift((0, 0.65, 0))), *legs]),
+                                ()),
+                               ("board", box((4.0, 2.0, 0.18), shift((0.0, 1.0, 0.0))), ()),
+                               ("cable", slab, [((0.0, 0.0, -1.95), (6.0, 0.5, -1.0))])):
+        a_floor_thing(tmp_path / name, name, mesh, beside=beside)
+        grounded.take_bakes(bake, tmp_path / name, TOY)
+    leg, tall, points = under("hub", (0.9, 0.9), 0.051, 0.051)
+    assert leg == 0.0 and under("hub", (0.0, -0.95), 0.051, 0.051)[0] == 0.0 and tall == 0.7, (leg, tall)
+    assert np.isclose(points[:, 1].max(), 0.7) and np.isclose(points[points[:, 1] > 0.55, 1].min(), 0.6), points
+    assert under("bench", (0.9, 0.9), 0.051, 0.051)[:2] == (0.15, 0.55) and under("board", (0, 0), 9, 9)[1] == 2.0
+    _, tall, points = under("cable", (0.0, 0.0), 9.0, 9.0)
+    assert tall == 0.1 and np.isclose(points[:, 2].min(), -1.95, atol=0.06) and points[:, 2].max() <= 0.06, points
     read_only_toy(tmp_path / "store" / TOY)
     parted = []
     monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])

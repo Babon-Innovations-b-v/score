@@ -26,7 +26,11 @@ edit there moves its ~90 rows anyway (2026-10-27); never call them.
   the triage's fault, the model's to fix. A floor thing's own asset copy is laid with every foot the triage reads off
   (5 cm apart, 3 cm up) brought down onto its lowest (`assembly/even_feet.py`, in grounded.take_bakes and the
   assembly's make): the paint links feet within 3% of the footprint's diagonal, so campgrounds' habitat domes and
-  communications towers passed its "feet in one plane" with feet 3 to 9 cm up (2026-11-11).
+  communications towers passed its "feet in one plane" with feet 3 to 9 cm up (2026-11-11). Before its feet, a model
+  whose footing does not hold its weight (the triage's tip, or its hull's mass under 5 cm inside its 1 cm sole, which
+  the drop rolls) has the part under the footing that would hold it laid level (`assembly/footing.py`: old_station's
+  hub on a foot 0.19 m under its legs, its tunnels), and before that a slab standing on edge that no footing holds is
+  laid down on its broad side (`assembly/laid_flat.py`: old_station's 10 m cable, 2026-11-12).
 - **The gates block what this stage breaks, and a layout it cannot mend**: a broken drop (`rested`) or an object
   resting worse with the layer than without it (`resting`). Two loose objects inside each other are judged at the
   poses the layer lays (the drop's loose-to-loose collision is off): a pair already crossing as laid is kept as laid,
