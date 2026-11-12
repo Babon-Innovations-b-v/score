@@ -17,7 +17,10 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 (SQUARE_PLANS, 2026-10-28): they had read the real home's, so in a bare PROPS_HOME they failed.
 - test_an_output_that_did_not_pass_cannot_be_accepted:
     __init__.py: `if judgement is None or (checks.standing(judgement["verdicts"], waived) != checks.PASS and status
-    is None):` made `if judgement is None:`
+    is None):` made `if judgement is None:`; or `gap_objects(verdicts[GAPPED]) <= GAP_OBJECTS` made `True` (a place's
+    complete with nine gap objects accepted automatically, shiplock 2026-11-12); or gap_objects' `return
+    len({str(finding).split(": ", 1)[0] ...})` made `return len(verdict.get("findings") or ())` (two findings of one
+    object counted as two objects)
 - test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_owner_with_a_reason:
     __init__.py: `if worse and not worse_reason:` made `if False:`; or `if accepted_record is None: return {}` removed
     (accepted_card: an accepted output with no record here crashes the accept)
@@ -541,10 +544,22 @@ def refusal(call):
     return str(refused.value)
 
 
+def gapped_card(*findings):
+    """A scorecard that fails only on its accepted gaps, with those findings ("<gap>: <fault>", the gap object-led)."""
+    return {"likeness": {"answer": checks.PASS, "measures": {}},
+            review.GAPPED: {"answer": checks.FAIL, "measures": {"gaps": len(findings)}, "findings": list(findings)}}
+
+
 def test_an_output_that_did_not_pass_cannot_be_accepted(tally):
     output = tally(5)
     assert "answered fail" in refusal(lambda: review.accept(tally.store, NODE, output, "owner"))
     assert tally.store.accepted(NODE) is None
+    # accepted gaps pass a place on with one gap object; shiplock's nine and cockpit's eleven (2026-11-12) stay failed
+    one = gapped_card("hatch: no model: hatch: none", "hatch: thin: hatch: 2 mm")
+    nine = gapped_card(*(f"part_{number}: no model: part_{number}: none" for number in range(9)))
+    assert review.fails_only_on_gaps(one, set()) and review.gapped_status(one, set()) == \
+        "complete apart from accepted gaps (2)"
+    assert not review.fails_only_on_gaps(nine, set()) and review.gapped_status(nine, set()) is None
 
 
 def test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_owner_with_a_reason(tally):

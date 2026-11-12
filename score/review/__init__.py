@@ -33,6 +33,9 @@ from score.store import RUNNER
 # blocking check is this one is complete apart from accepted gaps (CONTEXT.md): a stage's `gapped` reads it, and the
 # runner takes it automatically with that status (overseer, 2026-10-17); any other fail is never taken so.
 GAPPED = "accepted gaps"
+# The most objects a place's accepted gaps may name and still pass on to the film: each place goes into the film with
+# at most one gap object (owner's rule, 2026-11-12); fails_only_on_gaps holds it.
+GAP_OBJECTS = 1
 # The owner's rule of 2026-10-27, his "yes": a passing output of a bought batch is accepted though a measure got worse.
 IN_BATCH = ("Inside a bought batch, a result that passes every check is accepted automatically, even when a measure is "
             "worse than before; the drop is written down for you to review after the batch, never as a wait. Accepts "
@@ -119,10 +122,19 @@ def newest_judgement(store, record):
 
 # --- accepts, rejects, waivers and spend yeses -----------------------------------------------------------------
 
+def gap_objects(verdict):
+    """How many objects of the place a GAPPED verdict's gaps name: the distinct objects its findings start with
+    (gaps.judge_accepted's "<gap>: <fault>", each gap named "<object>: ...", as a gate names its faults)."""
+    return len({str(finding).split(": ", 1)[0] for finding in verdict.get("findings") or ()})
+
+
 def fails_only_on_gaps(verdicts, waived):
-    """Whether the only check of a scorecard that blocks (a waived one aside) is GAPPED, the accepted gaps check."""
+    """Whether the only check of a scorecard that blocks (a waived one aside) is GAPPED, the accepted gaps check, and
+    its gaps name at most GAP_OBJECTS objects: a place goes into the film with at most one gap object (owner,
+    2026-11-12; shiplock's complete carried 9 and cockpit's 11, both accepted automatically), more stays failed."""
     return [name for name, verdict in verdicts.items()
-            if checks.blocks(verdict["answer"]) and name not in waived] == [GAPPED]
+            if checks.blocks(verdict["answer"]) and name not in waived] == [GAPPED] and \
+        gap_objects(verdicts[GAPPED]) <= GAP_OBJECTS
 
 
 def gapped_status(verdicts, waived):
