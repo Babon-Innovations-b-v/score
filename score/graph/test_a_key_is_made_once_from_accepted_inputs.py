@@ -4407,6 +4407,8 @@ def make_look(inputs, out, seed, params):
 
 
 def make_dress(inputs, out, seed, params):
+    if "torn" in (inputs["look@people"] / "look.txt").read_text():
+        raise SystemExit("no card for the dress answered")
     (out / "dress.txt").write_text((inputs["look@people"] / "look.txt").read_text())
 
 
@@ -4431,11 +4433,15 @@ def people_runner(text, unread=None):
 def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_without_one_that_stopped():
     """The people line's nodes are in the run whole or not, priced, and held for each place that reads them; the cast
     waits on its dress and takes it, and runs without it once its line stopped; a place whose cast leaves the dress
-    unread (sim-body at a place whose cast wears no pilot: 2026-11-11) neither waits on it nor reads it.
+    unread (sim-body at a place whose cast wears no pilot: 2026-11-11) neither waits on it nor reads it; a dress
+    that errored (no card answered) holds the cast, not run, rather than let it be made and keyed without it
+    (2026-11-12: palette ran without an errored pixal and re-keyed a place's surfaces).
     Breaks (each applied once, seen red, reverted), in score/graph/__init__.py:
     'if before not in unread and (' -> 'if True and (';
     '    return [name for name in optional if name in line and name not in stood and name not in stopped]' -> '    return []'
     (the cast starts before its dress is settled and is made undressed);
+    '    return [name for name in optional if done.get(name, "").startswith("error")]' -> '    return []'
+    (the cast runs without its errored dress and is made undressed);
     '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
     runner = people_runner("a suit")
     for whole in (True, False):
@@ -4452,6 +4458,10 @@ def test_a_run_holds_prices_and_waits_on_the_optional_reads_it_makes_and_runs_wi
     found = runner.drive(PLACES, say=quiet, whole=False)
     assert found["dress"] == "not run: its line stopped at look@people", found
     assert accepted_text(runner.store, "cast@hangar", "cast.txt") == "undressed"
+    runner = people_runner("a torn suit")
+    found = runner.drive(PLACES, say=quiet, whole=False)
+    assert found["dress"].startswith("error"), found
+    assert found["cast@hangar"] == found["cast@station"] == "not run: waits on dress", found
     runner = people_runner("a suit", unread=lambda place: {"dress"} if place == "station" else ())
     assert runner.optional_nodes(runner.stages["cast"], "station") == [], "station's cast waits on the dress"
     found = runner.drive(PLACES, say=quiet, whole=False)
