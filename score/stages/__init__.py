@@ -58,6 +58,7 @@ import score.stages.motion.cloth as motion_cloth
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.railing_hold as railing_hold
+import score.stages.terrain.bounded as bounded_relief
 import score.stages.people_rows as people_rows
 import score.stages.props.prop_data as prop_data
 import score.stages.shapes_first.floor_fit as floor_fit
@@ -2068,6 +2069,24 @@ def railing_held(row):
 
 
 STAGES = tuple(map(railing_held, STAGES))
+
+
+def relief_bounded(row):
+    """terrain and ground-fit (terrain/bounded.py ROWS) declaring bounded.py as a file of theirs, so their keys move
+    with how a plan's spots shape its relief: here, in the table, not in design.py (the assembly and prepare read it,
+    and an edit there moved 62 paid rows that never shape a relief)."""
+    if row.name not in bounded_relief.ROWS:
+        return row
+    if not callable(row.files):  # terrain's, one dict for the environment
+        return dataclasses.replace(row, files={**row.files, **bounded_relief.FILES})
+
+    @functools.wraps(row.files)
+    def declared(place):
+        return {**row.files(place), **bounded_relief.FILES}
+    return dataclasses.replace(row, files=declared)
+
+
+STAGES = tuple(map(relief_bounded, STAGES))
 
 
 def pixal_takes_tool():

@@ -27,6 +27,10 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   inventory rows, which never had it).
 - outside.under_floor: `points[inside, 1] = np.minimum(...)` -> `pass` (a room's ground through its floor, 2026-10-31:
   the moon rooms' ground stood level with their decks' tops once the decks stood at the floor).
+- bounded.shaped: `weighed(spots) if is_dip(spots) else` dropped (2026-11-12, wreck: its three dip spots fit a plane
+  33.7 degrees steep, 6.5 m ridges round it; clipped, still tilted -0.5 m to -1 m across).
+- bounded.clipped: `np.clip(spline(...), low, high)` -> `spline(...)` (a spline rising past its highest spot).
+- bounded.install: `design.spline = spline` -> `pass` (design's own thin-plate spline, wreck's plane again).
 """
 import json
 import math
@@ -38,7 +42,7 @@ import trimesh
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 from score.stages import terrain
-from score.stages.terrain import design, fit, gates, join, outside, sight
+from score.stages.terrain import bounded, design, fit, gates, join, outside, sight
 
 SPOTS = [[10.0, 10.0, 0.0], [30.0, 10.0, 2.0], [20.0, 30.0, -1.0], [20.0, 20.0, 1.0]]
 SITE = {"title": "SITE", "w": 40.0, "d": 40.0, "terrain": {"spots": SPOTS}, "structure": ["regolith"],
@@ -82,6 +86,18 @@ def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots(tm
     point = design.place_plan.on_holder(turned, SHED, [1.0, 2.0])
     assert np.allclose(point, [8.0, 5.0]) and np.allclose(design.own_points(source, [point]), [[1.0, 2.0]])
     assert np.allclose(design.on_top(source, [[1.0, 2.0]]), [point])
+    # wreck's three spots mean a dip of about 1 m: never a tilted plane, never past the spots' heights (2026-11-12)
+    dip = np.array([[11.036, 12.536, -0.5], [8.143, 13.286, -1.0], [19.071, 13.286, -1.0]])
+    across = bounded.shaped(dip)([[11.0, 0.0], [11.0, 24.0], [11.036, 12.536]])
+    assert abs(across[0] - across[1]) < 0.1 and abs(across[2] + 0.5) < 1e-6, across
+    relief = design.spline({"spots": dip.tolist(), "middle": [10.714, 10.714]})
+    heights = relief([[x, y] for x in range(-15, 37) for y in range(-15, 37)])
+    assert heights.min() >= -1.0 - 1e-9 and heights.max() <= 1e-9, (heights.min(), heights.max())
+    mixed = np.array(SPOTS)  # a spline that bends keeps its shape inside its heights, and is clipped past them
+    assert not bounded.is_dip(mixed[:3]) and not bounded.is_dip(-np.abs(mixed))
+    beyond = bounded.shaped(mixed)([[x, y] for x in range(-60, 100, 4) for y in range(-60, 100, 4)])
+    assert beyond.min() >= -1.0 and beyond.max() <= 2.0 and np.allclose(bounded.shaped(mixed)(mixed[:, :2]),
+                                                                        mixed[:, 2], atol=0.01), beyond
     out = root / "out"
     terrain.make({key: str(value) for key, value in inputs.items()}, out, 0, {})
     assert terrain.grounds_faults(out) == [] and sorted(path.name for path in (out / "moon/places").iterdir()) == \
