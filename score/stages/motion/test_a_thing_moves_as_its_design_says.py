@@ -25,7 +25,7 @@ from pxr import Gf, Sdf, Usd, UsdGeom  # noqa: E402
 
 from score import checks  # noqa: E402
 from score.stages import motion  # noqa: E402
-from score.stages.motion import from_design  # noqa: E402
+from score.stages.motion import exhaust, from_design  # noqa: E402
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 PLACE = "toy"
@@ -574,7 +574,18 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` -> `"motion": ("designed",),`
     Break: score/stages/motion/__init__.py: `for moment in np.arange(np.ceil(climbed_from(entry)), seconds + 1e-9,
         1.0):` ->
-        `for moment in np.arange(0.0, seconds + 1e-9, 1.0):`"""
+        `for moment in np.arange(0.0, seconds + 1e-9, 1.0):`
+    The library's exhaust (data/effects/exhaust.json, motion@square 2026-11-12) drawn for the launch takes its line
+    off `unmade`: its flame 0.67 rocket heights at 3 s (2.01 m under the 3 m rocket), its core 0.2 (0.6 m), its smoke
+    column of puffs, its flame held under the climbing rocket's foot, so `covered` passes with only the turbine's gap;
+    one drawn at 0.3 rocket heights (under the footage's 0.45), its flame taken off the layer and the whole exhaust
+    taken off each fail it by name.
+    Break: score/stages/motion/exhaust.py: `move.Set(Gf.Vec3d(*foot_at(stage, rocket, code)), code)` ->
+        `move.Set(Gf.Vec3d(*foot_at(stage, rocket, 0.0)), code)`
+    Break: score/stages/motion/exhaust.py: `if not low <= share <= high:` -> `if False:`
+    Break: score/stages/motion/exhaust.py: `if not prim or prim.GetAttribute("score:effect:kind").Get() != KIND:` ->
+        `if False:`
+    Break: score/stages/__init__.py: `"covered": exhaust.judge_covered` dropped from MOTION_JUDGES"""
     from score.stages import design_layers
     ship = ("ship_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "ship", "name": "ship", "noun": "ship"}], extra=(ship,))
@@ -609,6 +620,34 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     for objects, answer in (([f"/{PLACE}/Objects/rocket_1", "turbine"], checks.PASS), (["turbine"], checks.FAIL)):
         gapped = dict(inputs, gaps=a_gap(tmp_path / "unmade" / "gaps.json", "covered", objects))
         assert table_judge("covered", out, gapped).answer == answer, (objects, table_judge("covered", out, gapped))
+    exhausted = dict(inputs, exhaust=REPO / "data/effects/exhaust.json",
+                     gaps=a_gap(tmp_path / "unmade" / "turbine.json", "covered", ["turbine"]))
+    short = json.loads(exhausted["exhaust"].read_text())
+    (tmp_path / "short.json").write_text(json.dumps(dict(short, flame=dict(short["flame"], length=[[3.0, 0.3]]))))
+    shutil.copytree(out, tmp_path / "short")
+    for folder, recipe in ((out, exhausted["exhaust"]), (tmp_path / "short", tmp_path / "short.json")):
+        with motion.built(exhausted) as source:
+            exhaust.write(dict(exhausted, exhaust=recipe), folder, source)
+    drawn = json.loads((out / motion.RECORD).read_text())
+    rocket_exhaust = drawn["exhaust"][f"/{PLACE}/Objects/rocket_1"]
+    assert not [line for line in drawn["unmade"] if "rocket_1" in line], drawn["unmade"]
+    assert rocket_exhaust["flame"]["length"][1] == [3.0, 2.01] and rocket_exhaust["core"]["length"] == [[3.0, 0.6]]
+    assert rocket_exhaust["puffs"] > 1, rocket_exhaust
+    passed = table_judge("covered", out, exhausted)
+    assert passed.answer == checks.PASS and passed.measures["exhausts"] == 1, (passed.reason, passed.findings)
+    shortened = table_judge("covered", tmp_path / "short", exhausted)
+    assert shortened.answer == checks.FAIL and "flame length 3 s after lift-off 0.30" in " ".join(
+        shortened.findings), shortened.findings
+    flame = f"/{PLACE}/Effects/rocket_1_exhaust/flame"
+    layer = Sdf.Layer.FindOrOpen(str(out / "layers/motion.usda"))
+    Usd.Stage.Open(layer).RemovePrim(flame)
+    layer.Save()
+    dropped = table_judge("covered", out, exhausted)
+    assert dropped.answer == checks.FAIL and dropped.findings[-1].endswith("its flame is not drawn"), dropped.findings
+    Usd.Stage.Open(layer).RemovePrim(f"/{PLACE}/Effects/rocket_1_exhaust")
+    layer.Save()
+    gone = table_judge("covered", out, exhausted)
+    assert gone.answer == checks.FAIL and gone.findings[-1].endswith("stands on the stage"), gone.findings
     unpulled = dict(record, moves=[dict(entry, climb=dict(entry["climb"], pull=0.0)) if "climb" in entry else entry
                                    for entry in record["moves"]])
     (tmp_path / "unpulled").mkdir()
