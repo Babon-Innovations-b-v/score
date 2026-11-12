@@ -959,6 +959,13 @@ def unsettled(optional, line, stood, stopped):
     return [name for name in optional if name in line and name not in stood and name not in stopped]
 
 
+def errored(optional, done):
+    """A waiting node's `optional` reads (Runner.optional_nodes) whose own node ended in an error (an infrastructure
+    fault: a rent refused, no card answered), not a failed check or left out: the node waits on the first rather than
+    run and be keyed without it (2026-11-12: palette made without an errored pixal re-keyed a place's surfaces)."""
+    return [name for name in optional if done.get(name, "").startswith("error")]
+
+
 def kept(known, node, what, work, *args):
     """work(*args), kept in `known` ({node: {what: answer}}) across a drive's turns until forget drops the node."""
     answers = known.setdefault(node, {})
@@ -2619,7 +2626,7 @@ class Runner:
         node is made once and each line that reads it waits on it alone. A node that does not end accepted stops its
         own line and leaves a fault report: every node that reads it, directly or through another, is not run, and a node
         on that line that reads nothing of it still runs; a node waits on its optional reads the drive makes too and
-        runs without one that stops (unsettled); {node: what it did}, in table order. `whole` False drives the places'
+        runs without one that stops (unsettled), but not without one that errored: it waits on that (errored); {node: what it did}, in table order. `whole` False drives the places'
         lines alone, with only the environment nodes they read; `only` (stage names) those stages and the ones they read.
         `gauges`, given by score run alone (a stage's own drive says no beats), is called every HEARTBEAT seconds for
         the text a heartbeat line carries (the run's euros so far, its paid runs open)."""
@@ -2683,7 +2690,13 @@ class Runner:
                     earlier = kept(known, node, "earlier", self.earlier, stage, place)
                     passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}
                     waits = [stopped[before] for before in earlier if before in stopped and before not in passes]
-                    if waits:
+                    held_on = [] if waits else errored(
+                        kept(known, node, "optional", self.optional_nodes, stage, place), done)
+                    if held_on:
+                        waiting.remove((stage, place))
+                        stopped[node], done[node] = held_on[0], f"not run: waits on {held_on[0]}"
+                        say(f"{node}: {done[node]}")
+                    elif waits:
                         waiting.remove((stage, place))
                         stopped[node] = waits[0]
                         done[node] = (FREE_WAITS.format(node=waits[0]) if done.get(waits[0], "").startswith(PAID_LEFT)
