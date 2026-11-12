@@ -35,9 +35,13 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   launches (`launch`): from the layer's start it climbs straight up (`climb`) at the middle of its kind's cited push
   (thrust over liftoff mass, Saturn V to Falcon 9) less the pull of the body its site stands on (the scene's sky
   inputs, `{home}/design/sky/<place>.json`), and `speeds` reads its acceleration off the stage plus that body's pull
-  against the push; its exhaust stays `unmade` until an effect kind makes it. A flag on a body with no air (under
+  against the push; its exhaust (flame, white core and smoke column) is the library's (`data/effects/exhaust.json`,
+  the retired launch record's footage measures; beside `data/library`, which 44 paid rows read whole), drawn into the layer under `/<place>/Effects/<rocket>_exhaust` by
+  `exhaust.py`, which the table sets on the row's make and `covered` (as `shown_rows.py`'s `designed`): its line leaves
+  `unmade`, and `covered` holds the drawn exhaust to the footage's flame lengths, its flame under the climbing foot
+  and its smoke column. A place with no launch keeps its output. A flag on a body with no air (under
   `natural_grounds.WIND_KPA`: the Moon) hangs still with that reason. A move no
-  writer makes (a rocket's exhaust, a flag's cloth in the air, a body of water, a double door's leaves) is `unmade` and fails
+  writer makes (a flag's cloth in the air, a body of water, a double door's leaves) is `unmade` and fails
   `covered`, as does every row no stage makes (`row_kinds.uncovered`: a moving word in its noun; a screen's picture is
   the screens stage's, `data/checks/screens.json` `read_by`, #88),
   never a still. The record is written into the output (`moves.json`) and the gates

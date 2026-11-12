@@ -1,0 +1,55 @@
+{
+	"is": "The library's rocket exhaust: what a launching rocket's row (data/checks/row-kinds.json, its rule's `exhaust`) shows under it as it climbs, for a launch seen from afar (the square's rocket, about 900 m off). Drawn cheap, as shapes that read at that distance, never as particles: the flame and its white core, two glowing cones under the rocket's foot, each its length in rocket heights after lift-off (`length`, knots of [seconds after lift-off, rocket heights], held before the first and after the last), its top as wide as `radius` of the rocket's narrower width, widening `spread_degrees` either side over its longest; and the smoke column it leaves, puffs born where its foot stood, one each time it has risen a puff's birth radius (never more than `most`), each growing by `radius` (knots of [its age in seconds, rocket heights]) and gone after `lifetime`. Colours are sRGB; a flame's `brightness` multiplies its colour given off as light. `checks`: the measures the motion row's `covered` holds a made exhaust to, each from the footage. Read by score/stages/motion/exhaust.py, which writes it into the motion layer of the place whose launch it is.",
+	"how": "Measured by eye on each photograph's pixels against the rocket's own length in it (Falcon Heavy, about 70 m), to roughly a sixth: the flame under the rocket, its white core, the column of exhaust it leaves. The times after lift-off are read off the sequence of each launch's photographs. Carried from the launch's footage record (data/effects/launch.json, retired 2026-10-21 with the old records, its effects withdrawn from score_lib with every old effect the same day: score_lib 60da34e6, the owner's 'all old models retired'); the numbers are that record's, made a library kind of its own.",
+	"sources": {
+		"KSC-20190625-PH_CSH01_0010": {
+			"what": "Falcon Heavy STP-2 from LC-39A at night, 25 June 2019, about two seconds after lift-off",
+			"url": "https://images-assets.nasa.gov/image/KSC-20190625-PH_CSH01_0010/KSC-20190625-PH_CSH01_0010~medium.jpg",
+			"measured": "rocket 215 px; flame under the rocket about 0.55 rocket heights"
+		},
+		"KSC-20190625-PH_CSH01_0013": {
+			"what": "the same launch, about three seconds after lift-off",
+			"url": "https://images-assets.nasa.gov/image/KSC-20190625-PH_CSH01_0013/KSC-20190625-PH_CSH01_0013~medium.jpg",
+			"measured": "rocket 230 px; flame 0.67 rocket heights, its white core about a fifth"
+		},
+		"KSC-20180206-PH_KLS02_0046": {
+			"what": "Falcon Heavy's demonstration flight from LC-39A by day, 6 February 2018, about twelve seconds after lift-off",
+			"url": "https://images-assets.nasa.gov/image/KSC-20180206-PH_KLS02_0046/KSC-20180206-PH_KLS02_0046~medium.jpg",
+			"measured": "the flame about one rocket height; a thin pale column of exhaust under the rocket"
+		}
+	},
+	"licence": "NASA photographs, not copyrighted in the United States (NASA's media usage guidelines); used here only as measurements.",
+	"flame": {
+		"length": [[2.0, 0.55], [3.0, 0.67], [12.0, 1.0]],
+		"radius": 0.5,
+		"spread_degrees": 5.0,
+		"colour": "#ffb35c",
+		"brightness": 9.0,
+		"opacity": 0.9,
+		"from": "KSC-20190625-PH_CSH01_0010, KSC-20190625-PH_CSH01_0013, KSC-20180206-PH_KLS02_0046 (the orange flame, half to one rocket height long under the rocket, widening as it goes: the launch record's 5 degree spread and 0.9 opacity, its white core seen through it; its top the engines' ring, half the rocket's width either side)"
+	},
+	"core": {
+		"length": [[3.0, 0.2]],
+		"radius": 0.44,
+		"spread_degrees": 3.0,
+		"colour": "#fff4dc",
+		"brightness": 18.0,
+		"from": "KSC-20190625-PH_CSH01_0013 (the white core of the flame under the cores, about a fifth of the rocket's height; as wide as the launch record's core emitter against its flame's, 3.0 m to 3.4 m of the flame's half the rocket's width, with its 3 degree spread)"
+	},
+	"trail": {
+		"radius": [[0.0, 0.056], [3.2, 0.075], [16.0, 0.129]],
+		"lifetime": 16.0,
+		"most": 240,
+		"colour": "#cfcac2",
+		"opacity": 0.3,
+		"from": "KSC-20180206-PH_KLS02_0046, KSC-20190625-PH_CSH01_0013 (the column of exhaust the rocket leaves under it as it climbs, thin and pale: the launch record's plume, its emitter 3.0 m wide and its puffs 1.5 m grown 0.6, 1.5 and 4.0 times at their birth, a fifth of their 16 s and their end, over the 70 m rocket, in rocket heights)"
+	},
+	"drawn": {
+		"segments": 12,
+		"rings": 6
+	},
+	"checks": [
+		{"name": "flame length 3 s after lift-off", "part": "flame", "after_lift": 3.0, "range": [0.45, 1.0], "from": ["KSC-20190625-PH_CSH01_0010", "KSC-20190625-PH_CSH01_0013", "KSC-20180206-PH_KLS02_0046"]},
+		{"name": "flame core 3 s after lift-off", "part": "core", "after_lift": 3.0, "range": [0.1, 0.35], "from": ["KSC-20190625-PH_CSH01_0013"]}
+	]
+}

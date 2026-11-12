@@ -50,7 +50,7 @@ import score.stages.demo_film.final as demo_film_final
 import score.stages.demo_film.peel_rows as peel_rows
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import held_apart, neighbours, resting_within, wired
-from score.stages.motion import shown_rows
+from score.stages.motion import exhaust, shown_rows
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.railing_hold as railing_hold
@@ -108,16 +108,27 @@ def designed_motion(files):
     return declared
 
 
+def exhausted(files):
+    """motion's files with the library's rocket exhaust its make draws a launch's exhaust from (exhaust.made)."""
+    @functools.wraps(files)
+    def declared(place):
+        return {**files(place), "exhaust": "{data}/effects/exhaust.json"}
+    return declared
+
+
 # Experimental (PRD #6) until the owner reviews it: each scene's motion layer made from its design (its design shows a
 # row whose kind moves), its doors timed off its accepted cast's walkers (a place with people reads the cast row),
 # over its seed with its accepted scene record written in and the surface line's bakes laid (the design's objects
 # wait on them: without, every moving row had no object, Batch 1, 2026-10-27), the seed alone where the place has no
 # scene-record row; the final assembly takes it. Its designed gate takes shown_rows' read of the hand-in here, in the
-# table (a row another place makes and this one shows is that place's to move), so no motion output moves.
-MOTION = graph.Stage("motion", "place", motion.make, motion.LAYER,
-                     tuple(dataclasses.replace(check, judge=motion.on_built(shown_rows.judge_designed))
-                           if check.name == "designed" else check for check in motion.CHECKS),
-                     files=designed_motion(motion.files),
+# table (a row another place makes and this one shows is that place's to move), so no motion output moves. A launch's
+# exhaust is drawn from the library's (data/effects/exhaust.json) by exhaust.made over the make, and its `covered`
+# holds it to the library's footage checks, so only a place with a launch moves its output (motion@square, 2026-11-12).
+MOTION_JUDGES = {"designed": shown_rows.judge_designed, "covered": exhaust.judge_covered}
+MOTION = graph.Stage("motion", "place", exhaust.made(motion.make), motion.LAYER,
+                     tuple(dataclasses.replace(check, judge=motion.on_built(MOTION_JUDGES[check.name]))
+                           if check.name in MOTION_JUDGES else check for check in motion.CHECKS),
+                     files=exhausted(designed_motion(motion.files)),
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                             "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                             "cast": ("cast", 1)},
