@@ -1973,7 +1973,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     by_name = {entry["name"]: entry for entry in entries if entry.get("on") and entry["name"] in laid}
     bakes = {entry["name"]: entry.get("bake") for entry in entries}
     loose = [entry for entry in entries if entry["name"] in laid and not entry.get("on") and not climbs(entry)]
-    from score.stages.assembly import held_along
+    from score.stages.assembly import face_reach, held_along
     before = held_along.boxes(stage, place, loose)  # what each holder's things move with (held_along.carried)
     fits = moved_down(stage, place, [entry for entry in loose if entry.get("under roof")])
     done, fits = set(), fits + parted(stage, place, loose, set(by_name))
@@ -2078,6 +2078,7 @@ def fitted(stage, place, entries, laid, cuts=None):
             opened.append(path)
         if how == "face" and surface is not None:  # its back met on its holder's surface
             words += touching(stage, path, surface)
+            words, face = face_reach.met(stage, path, entry["on"], surface, face, words)  # its back reaches it
         if how == "within" and not on_shelves:  # in front of the wall its holder is laid on
             words += off_faces(stage, path, [faced_on[holder] for holder, _ in held if holder in faced_on])
         from pxr import Sdf

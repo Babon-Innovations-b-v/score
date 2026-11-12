@@ -280,7 +280,13 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     Break: score/stages/assembly/__init__.py: `if row["id"] in on_walls and not row.get("support")` -> `if False`
     Break: score/stages/assembly/mounted.py: `return {**found, **on_built_in(rows, holders, found, built_in)}` ->
         `return found`, or structure_mounted.py's `and holder_kind(rows[row_id]) in ("wall", "ceiling")` -> `` (the
-        cup mounted)"""
+        cup mounted)
+    assembly@base (2026-11-12): its antenna, on top of its dome module (a "dome": a ceiling by its words), was judged a
+    ceiling piece touching nothing. A ceiling row's thing the scene record lays on its holder's top stands on it, and
+    keeps what the triage gives it; one laid under it, or with no record, is still mounted there.
+    Break: score/stages/assembly/on_tops.py: standing's `if kind != "ceiling" or row_id not in topped}` -> `}` (the
+        antenna on top judged hanging), or laid_on_tops' `if all(topped)}` -> `}` (the rails hung under their panels
+        judged standing)"""
     inventory = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
                           {"id": "floor_plates", "part": "floor"}, {"id": "locker", "part": "object"},
                           {"id": "wall_pipes", "anchor": "on:left_wall"},
@@ -293,6 +299,15 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     assert found == {"left_wall": None, "ceiling_panels": None, "floor_plates": None, "locker": None,
                      "wall_pipes": "wall", "ceiling_rails": "ceiling", "fixed_pipe": "fixed", "crate": None,
                      "suit": None, "ribs": "wall", "wall_lamps": "wall", "cup": None}, found
+    domed = {"rows": [{"id": "dome_module", "part": "object"}, {"id": "antenna", "anchor": "on:dome_module"},
+                      {"id": "ceiling_panels", "part": "roof"}, {"id": "ceiling_rails", "anchor": "on:ceiling_panels"}]}
+    record = {"objects": [{"name": "antenna_1", "row": "antenna", "on": {"how": "top", "holder": ["dome_module_1"]}},
+                          {"name": "ceiling_rails_1", "row": "ceiling_rails",
+                           "on": {"how": "ceiling", "holder": ["ceiling_panels_1"]}}]}
+    found = {row["id"]: row.get("support") for row in assembly.resting_rows(domed, record)["rows"]}
+    assert found == {"dome_module": None, "antenna": None, "ceiling_panels": None, "ceiling_rails": "ceiling"}, found
+    found = {row["id"]: row.get("support") for row in assembly.resting_rows(domed)["rows"]}
+    assert found["antenna"] == "ceiling", found
 
 
 def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
@@ -2273,7 +2288,15 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     one already in front of the tube stays.
     Break: score/stages/assembly/face_spots.py: met's `if face is None:` -> `if True:` (the valve left on the box's
         side, touching nothing), or fitting.py's `target = face_spots.met(surface, on, box, size * scale, target,
-        clear)` dropped"""
+        clear)` dropped
+    assembly@base (2026-11-12): ramp_front_left_1, a platform on legs, was stood on the toe of its module's own built
+    ramp, a lip reaching 3 m out of the module's face beside its legs, and hung free 0.15 m off it. A 0.2 m cube 1 m in
+    front of a wall's face, beside a 0.2 m wide lip reaching out to it, is pushed in until its back meets the face (its
+    face plane then the face's); one 2.5 cm off the face (touching it), and one 2 m out (past the holder's depth), are
+    left.
+    Break: score/stages/assembly/face_reach.py: met's `<= resting.TOLERANCE:` -> `<= -1.0:` (the touching cube
+        pushed), `if not fitting.MOVE_LEAST < gap <= depth:` -> `if not fitting.MOVE_LEAST < gap:` (the far cube
+        pushed), or gap_in's `least = min(least, ...)` -> `least = least` (nothing pushed)"""
     import trimesh
     from score.stages.assembly import fitting
     points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
@@ -2347,6 +2370,19 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     assert "out of the wall" in fitting.off_faces(placed, f"/{TOY}/Objects/clothes_1", [wall])
     corners = trimesh.bounds.corners(np.array(fitting.world_box(placed, f"/{TOY}/Objects/clothes_1")))[:, [0, 2]]
     assert abs(float((corners @ np.array(wall["out"])).min())) < 1e-6, corners
+    from score.stages.assembly import face_reach
+    module = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.0, 0.0, -0.3), (1.0, 2.0, 0.0)]),
+                                       trimesh.creation.box(bounds=[(0.5, 0.0, 0.0), (0.7, 0.2, 1.0)])])
+    front = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
+    for name, low in (("ramp_1", (0.0, 0.5, 1.0)), ("ramp_2", (-0.5, 0.5, 0.025)), ("ramp_3", (-0.9, 0.5, 2.0))):
+        a_cube(placed, f"/{TOY}/Objects/{name}", low, np.add(low, 0.2))
+    words, face = face_reach.met(placed, f"/{TOY}/Objects/ramp_1", front, module, (1.0, False), "laid")
+    back = fitting.world_box(placed, f"/{TOY}/Objects/ramp_1")[0][2]
+    assert "pushed 0.99 m in" in words and abs(back - 0.005) < 1e-3 and abs(face[0] - back) < 1e-6, (words, back)
+    for name, low in (("ramp_2", 0.025), ("ramp_3", 2.0)):
+        assert face_reach.met(placed, f"/{TOY}/Objects/{name}", front, module, (low, False), "laid") == \
+            ("laid", (low, False)), name
+        assert abs(fitting.world_box(placed, f"/{TOY}/Objects/{name}")[0][2] - low) < 1e-6, name
 
 
 def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
