@@ -11,8 +11,8 @@ shrunk where it does not fit (never grown past its own model), so it sits
             surface standing where it is laid (a box on a shelf unit at the plan's base, through its board) or meets
             one laid in it before, laid on the nearest of the holder's built boards under it it fits on clear of both,
             else on its top (on_boards); of several holders the nearest with such a spot, tried in order of distance,
-            then on top of one laid there before (stacked_spots) the same way, and with none on any of them left as laid
-            and named crowded (shelved)
+            then on top of one laid there before (stacked_spots) the same way, a flat one then on a pile (piled), and
+            with none on any of them left as laid and named crowded (shelved)
     face    with its back on its holder's side `out` points from, within that side's span and height (a garage door on
             its module's front): on the holder's frontmost surface across its own span and height (front_face), and a
             door the bake cut a recess for in that recess, shrunk to fit it beside its room (on_face), out of the room
@@ -63,8 +63,8 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import (board_spots, floor_clear, hung_between, opening_free, opening_walls, passages, ribs,
-                                 room_clear, vault_feet, wall_clear)
+from score.stages.assembly import (board_spots, floor_clear, hung_between, opening_free, opening_walls, passages, piled,
+                                 ribs, room_clear, vault_feet, wall_clear)
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -415,7 +415,8 @@ def on_boards(low, high, scale, target, box, mesh, taken=(), stack=False):
     if not any(float(spot[1]) < inside for spot in rests):  # a board stretch the slide stepped over (board_spots)
         rests += [spot for spot in rests_and_tops(board_spots.along(target, axis, hold_low, hold_high, half))[0]
                   if float(spot[1]) < inside]
-    found = rests or tops or (stacked_spots(footprint, points, taken, box) if stack else [])
+    found = rests or tops or (stacked_spots(footprint, points, taken, box) if stack is True else []) or (
+        piled.spots(footprint, points, taken, box, size) if stack == piled.PILE else [])  # a flat one on a pile
     if not found:
         return None
     return min(found, key=lambda spot: float(np.linalg.norm(spot - target)))
@@ -2172,7 +2173,8 @@ def shelved(low, high, on, held, surface_of, taken):
     """(holder, fit) of a thing laid on its holders' boards (on_shelves_of) from its box (low, high): each of `held`
     [(name, box)] tried nearest first on the floor plan, on its built surface (`surface_of(name)`, surface_mesh's),
     clear of the boxes laid in it before (`taken`, {name: [(low, high)]}), the first that is not CROWDED, then each
-    again stacking on one laid before (on_boards' `stack`); (None, CROWDED) when none has a clear spot left. Garage's
+    again stacking on one laid before (on_boards' `stack`), then a flat one piled (piled.PILE: camp's plant trays,
+    2026-11-12); (None, CROWDED) when none has a clear spot left. Garage's
     14 boxes on three shelf units all went to the nearest, 12 piled at two spots of it (2026-11-10); its three units
     hold 7 on their boards and tops, the rest stacked on those (2026-11-11)."""
     here = (np.asarray(low, float) + np.asarray(high, float)) / 2
@@ -2181,7 +2183,7 @@ def shelved(low, high, on, held, surface_of, taken):
         return float(np.linalg.norm(((np.asarray(item[1][0], float) + np.asarray(item[1][1], float)) / 2
                                      - here)[[0, 2]]))
 
-    for stack in (False, True):
+    for stack in (False, True, piled.PILE):
         for holder, box in sorted(held, key=distance):
             found = fit(low, high, on, [box], surface_of(holder), clear=taken.get(holder, []), stack=stack)
             if found is not CROWDED:

@@ -2600,7 +2600,13 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         fitting.MOVE_LEAST and stands(...):` -> `if False:` (the pile resting on the crest laid again), or may_rest's
         `lift = np.max(...) + CLEAR` -> `lift = np.max(...) + CLEAR + triage.TOLERANCE` (the sieve passes the crest
         by: the pile left over it), or its `& (most - weights[:, axis] >= triage.BALANCE - SLACK)` dropped
-        (rest asked along the ridge's strip)"""
+        (rest asked along the ridge's strip)
+    Break: score/stages/assembly/fitting.py: shelved's `for stack in (False, True, piled.PILE):` -> `for stack in
+        (False, True):` (camp's tray crowded), or piled.py: spots' `if not flat(size): return []` dropped (garage's
+        box piled on its stacked one)
+    Break: score/stages/assembly/flush_tops.py: laid's `if sloped is None or not triage.LEAN_MOST < sloped[1] <=
+        SLOPE_MOST:` -> `if sloped is None:` (the box laid flush on the 30-degree slab), or crest_tops.py: stands'
+        `triage.lean(turn, ...)` -> `triage.lean(np.eye(4), ...)` (the box left upright on the 15-degree slab)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -2690,6 +2696,14 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
 
     assert fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": piled(full), "unit_far": piled(far_full)}) \
         == (None, fitting.CROWDED)
+    # camp (settle@camp, 2026-11-12): its plant rack's model holds plants on every board, so of its four trays one
+    # went on its top, one stacked on that, and two were left crowded, floating and leaning. A flat tray (0.35 x 0.172
+    # x 0.4 m: its height at most piled.FLAT of its narrower side), every board, top and stacking spot taken, piles on
+    # the stacked box of the nearest unit; the 0.3 m box above never piles.
+    tray = ((0.025, 0.1, 0.05), (0.375, 0.272, 0.45))
+    holder, (_, target, _, _) = fitting.shelved(*tray, within, held, surfaces.get,
+                                                {"unit_near": piled(full), "unit_far": piled(far_full)})
+    assert holder == "unit_near" and np.allclose(target, (0.2, 1.1, 0.25)), (holder, target)
     # only a thing on its holder's shelves is laid on its boards (galley's sink in its counter, its stove top on it,
     # are laid as the plan draws them)
     # workshop (settle@workshop, 2026-11-10): seven 0.408 m storage boxes on two 1.5 m shelf units side by side, each
@@ -2863,6 +2877,31 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         crest_tops.may_rest, crest_tops.rest = sieve, rest
     assert on_ridge is None and ridge_asked == 0, (on_ridge, ridge_asked)
     assert sieved is not None and np.array_equal(sieved, unsieved), (sieved, unsieved)
+    # camp (settle@camp, 2026-11-12): its kitchen counter's model leans 16 degrees in its frame, its top one plane
+    # sloping 18 degrees with no level spot, and the coffee maker let down onto it leaned 18.3 degrees. A 0.2 x 0.1 x
+    # 0.2 m box laid upright 0.3 m over a 1 x 0.1 x 1 m slab turned 15 degrees about z is laid flush on it, its up
+    # along the slab's, and laid again it is left; over a slab turned 30 degrees (past flush_tops.SLOPE_MOST) it is
+    # left upright.
+    from score.stages.assembly import flush_tops
+    for number, (degrees, at) in enumerate(((15.0, 30.0), (30.0, 33.0))):
+        slab = trimesh.creation.box(bounds=[(at, 0.9, 0.0), (at + 1.0, 1.0, 1.0)])
+        slab.apply_transform(trimesh.transformations.rotation_matrix(np.radians(degrees), (0.0, 0.0, 1.0),
+                                                                     (at + 0.5, 0.95, 0.5)))
+        UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/counter_{number}").AddTransformOp().Set(Gf.Matrix4d(1.0))
+        counter = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/counter_{number}/geo")
+        counter.CreatePointsAttr([tuple(map(float, point)) for point in slab.vertices])
+        counter.CreateFaceVertexCountsAttr([3] * len(slab.faces))
+        counter.CreateFaceVertexIndicesAttr([int(index) for index in slab.faces.ravel()])
+        faced(f"/{TOY}/Objects/maker_{number}", [(at + 0.4, 1.3, 0.4), (at + 0.6, 1.4, 0.6)])
+    makers = [{"name": f"maker_{number}", "row": "maker", "on": {"how": "top", "holder": [f"counter_{number}"]}}
+              for number in range(2)]
+    flush = flush_tops.laid(stage, TOY, makers)
+    turned = np.asarray(UsdGeom.Xformable(stage.GetPrimAtPath(f"/{TOY}/Objects/maker_0"))
+                        .ComputeLocalToWorldTransform(0))[1, :3]
+    slab_up = (-np.sin(np.radians(15.0)), np.cos(np.radians(15.0)), 0.0)
+    assert [fit["name"] for fit in flush] == ["maker_0"] and np.degrees(np.arccos(np.clip(
+        turned @ slab_up / np.linalg.norm(turned), -1.0, 1.0))) < 1.0, (flush, turned)
+    assert flush_tops.laid(stage, TOY, makers) == []
 
 
 def test_a_wall_item_stands_on_its_named_face():

@@ -91,10 +91,11 @@ def may_rest(low, weight, field, shifts):
     return enough
 
 
-def stands(mesh, exact, move):
+def stands(mesh, exact, move, turn=np.eye(4)):
     """Whether the thing (`mesh`) moved by `move` [x, lift, z] rests on the holders' surface (`exact`: spots [n, 2] ->
     heights) by the triage's own measure: CONTACTS of its low points within TOLERANCE, its weight BALANCE inside them,
-    every foot down (triage.feet_gaps) and what it touches leaning LEAN_SPARE less than LEAN_MOST (triage.lean)."""
+    every foot down (triage.feet_gaps) and what it touches leaning LEAN_SPARE less than LEAN_MOST (triage.lean) from
+    its up (`turn`'s, 4 x 4: upright where none is given; flush_tops lays one turned)."""
     import resting
     import triage
     from score.stages.assembly import footing
@@ -112,7 +113,7 @@ def stands(mesh, exact, move):
         return False
     if any(gap > triage.TOLERANCE for _, gap in triage.feet_gaps(moved, gaps_of)):
         return False
-    return triage.lean(np.eye(4), low[touching], gaps[touching]) <= triage.LEAN_MOST - LEAN_SPARE
+    return triage.lean(turn, low[touching], gaps[touching]) <= triage.LEAN_MOST - LEAN_SPARE
 
 
 def slope(spots, heights):
