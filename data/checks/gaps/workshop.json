@@ -1,39 +1,48 @@
 {
-  "gaps": [
-    {
-      "name": "lamp: outline under the line after its one paid retake",
-      "row": "likeness",
-      "check": "outline",
-      "objects": [
-        "lamp"
-      ],
-      "reason": "The workshop lamp's Pixal3D take failed its outline in checkout 67 (0.423), was retaken once paid, and failed again; a second retake is not bought (the owner's rule of 2026-11-09). A re-finish from its raw model under the stand fix (90c152fc) measured 0.706 off the batch, so a later free fix of its finish may close the gap. Noted on #10.",
-      "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-10 ~02:30 UTC",
-      "faults": [
-        "lamp: outline 0.423 under 0.5 (prop route)"
-      ]
-    },
-    {
-      "name": "robotic_arm: outline under the line after its one paid retake",
-      "row": "likeness",
-      "check": "outline",
-      "objects": [
-        "robotic_arm"
-      ],
-      "reason": "The workshop robotic arm's Pixal3D take failed its outline at every turn (0.374, checkout 67), had its one paid retake (accepted in checkout 71), and the retake fails its outline again on this PC (0.364); a second retake is not bought (the owner's rule of 2026-11-09).",
-      "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-10 ~02:30 UTC",
-      "faults": [
-        "robotic_arm: outline 0.364 under 0.5 (prop route)"
-      ]
-    },
+ "gaps": [
+  {
+   "name": "lamp: outline under the line after its one paid retake",
+   "row": "likeness",
+   "check": "outline",
+   "objects": [
+    "lamp"
+   ],
+   "reason": "The workshop lamp's Pixal3D take failed its outline in checkout 67 (0.423), was retaken once paid, and failed again; a second retake is not bought (the owner's rule of 2026-11-09). A re-finish from its raw model under the stand fix (90c152fc) measured 0.706 off the batch, so a later free fix of its finish may close the gap. Noted on #10.",
+   "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-10 ~02:30 UTC",
+   "faults": [
+    "lamp: outline 0.423 under 0.5 (prop route)"
+   ]
+  },
+  {
+   "name": "robotic_arm: outline under the line after its one paid retake",
+   "row": "likeness",
+   "check": "outline",
+   "objects": [
+    "robotic_arm"
+   ],
+   "reason": "The workshop robotic arm's Pixal3D take failed its outline at every turn (0.374, checkout 67), had its one paid retake (accepted in checkout 71), and the retake fails its outline again on this PC (0.364); a second retake is not bought (the owner's rule of 2026-11-09).",
+   "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-10 ~02:30 UTC",
+   "faults": [
+    "robotic_arm: outline 0.364 under 0.5 (prop route)"
+   ]
+  }
+ ],
+ "retired": [
   {
    "name": "2 people with no body of their look (person/made)",
    "row": "characters-layer",
    "check": "bodies",
-   "objects": ["person_centre", "person_right"],
+   "objects": [
+    "person_centre",
+    "person_right"
+   ],
    "reason": "The cast names these people, and the people line has no accepted dressed body of their look yet: the named bodies (astronaut, person, person_uniform, pilot, officer, man_stair, woman_stair) fail their clips gate after their retake (0 usable clips since af917635, 2026-11-08), and the hangar's and square's bodies are remade tonight. The characters layer's bodies gate named each and stopped the place's assembly, scene tree and film. This gap only lets the place's assembly and scene tree go on while the bodies are remade (the fix 9030543d, parts bought on 2026-11-10); it does not let the place into the film: complete still fails these people by name, and the owner's rule of 2026-11-10 is that no place goes into the film unfinished. Only these people's no-body findings move to complete, which fails them by name; any person who gets a body is laid and no longer a finding.",
    "decided": "owner (@JoeyKardolus), 2026-11-10, his standing rules of 2026-10-13, 2026-11-09 and 2026-11-10 (env1 film)",
-   "faults": ["person_centre: person/made, no accepted body of its look (people-dress-person-made)", "person_right: person/made, no accepted body of its look (people-dress-person-made-v1)"]
+   "faults": [
+    "person_centre: person/made, no accepted body of its look (people-dress-person-made)",
+    "person_right: person/made, no accepted body of its look (people-dress-person-made-v1)"
+   ],
+   "passed": "characters-layer@workshop 97d4b6152acf"
   }
  ]
 }
