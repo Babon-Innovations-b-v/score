@@ -43,6 +43,10 @@ CLEAR = 0.005
 # passes are asked again of the surface by the triage's measure at most.
 EVERY = 4000
 ASKED = 200
+# How many spots the sieve's first pass (may_rest) reads at once: small enough that its arrays stay in the cache.
+SIEVED_AT_ONCE = 1000
+# How far, metres, the sieve's first pass (may_rest) lets a spot through short of BALANCE: its sums' rounding.
+SLACK = 1e-9
 
 
 def rest(low, every, weight, field, shift):
@@ -64,6 +68,27 @@ def rest(low, every, weight, field, shift):
     if footing.inside_by(np.asarray(weight, float) + shift, spots[touching]) < triage.BALANCE:
         return None
     return lift if slope(spots[touching], tops[touching]) < triage.LEAN_MOST else None
+
+
+def may_rest(low, weight, field, shifts):
+    """Whether the thing (its `low` points, its `weight` [x, z]) may rest on the holder's top (`field`) moved by each
+    of `shifts` [n, 2]: lifted by its low points alone, CONTACTS of them touch and its weight stands BALANCE inside the
+    box around them. rest lifts it by every point of it, never less, and more lift touches fewer; the hull of what
+    then touches lies within that box. So a shift false here is one rest finds None at (SLACK takes the sums' last
+    digits): base's hangar_roof_opening_1 was asked of rest at 1.5 million spots on the hangar's roof, 3 hours."""
+    import triage
+    tops = field((low[None, :, [0, 2]] + shifts[:, None, :]).reshape(-1, 2)).reshape(len(shifts), len(low))
+    found = np.isfinite(tops)
+    lift = np.max(np.where(found, tops - low[:, 1], -np.inf), axis=1) + CLEAR
+    touching = found & (low[:, 1] + lift[:, None] - tops <= triage.TOLERANCE)
+    enough = touching.sum(axis=1) >= CONTACTS
+    weights = np.asarray(weight, float) + shifts
+    for axis, column in ((0, 0), (1, 2)):
+        least = np.min(np.where(touching, low[:, column], np.inf), axis=1) + shifts[:, axis]
+        most = np.max(np.where(touching, low[:, column], -np.inf), axis=1) + shifts[:, axis]
+        enough &= (weights[:, axis] - least >= triage.BALANCE - SLACK) & \
+            (most - weights[:, axis] >= triage.BALANCE - SLACK)
+    return enough
 
 
 def stands(mesh, exact, move):
@@ -245,10 +270,13 @@ def spot(thing, fields, box_of, box, others, top=None):
                     for x in np.arange(hold_low[0], hold_high[0] + STEP / 2, STEP)])
     zs = np.unique([fitting.kept_within(z, hold_low[2], hold_high[2], half[2])
                     for z in np.arange(hold_low[2], hold_high[2] + STEP / 2, STEP)])
-    tries = sorted(((x, z) for x in xs for z in zs), key=lambda at: np.hypot(at[0] - foot[0], at[1] - foot[2]))
+    grid = np.stack(np.meshgrid(xs, zs, indexing="ij"), axis=-1).reshape(-1, 2)
+    tries = grid[np.argsort(np.hypot(grid[:, 0] - foot[0], grid[:, 1] - foot[2]), kind="stable")]
+    shifts = tries - foot[[0, 2]]
+    sieved = np.concatenate([part[may_rest(low_points, weight, field, part)] for part in np.array_split(
+        shifts, max(1, -(-len(shifts) // SIEVED_AT_ONCE)))])
     asked = 0
-    for x, z in tries:
-        shift = np.array([x - foot[0], z - foot[2]])
+    for shift in sieved:
         if rest(low_points, every, weight, field, shift) is None:
             continue
         lift = rest(low_points, every, weight, exact, shift)
