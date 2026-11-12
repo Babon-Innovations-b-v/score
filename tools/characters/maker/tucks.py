@@ -22,6 +22,8 @@ from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.spatial import cKDTree
 
+import pokes
+
 # How far a band runs on under the garment: joins.py asks 1 cm; on the player 4 cm reached up into the forearm, where
 # the sleeve's weights part from the hand's, and showed in 34 of 485 sampled frames, 2.5 cm in 22 (2026-10-10).
 TUCK_LENGTH = 0.025
@@ -86,9 +88,17 @@ def tucked_ring(places, middle, starts, directions, garment_points, tree):
     return moved - across * (1 - wanted / np.maximum(reach, 1e-9))[:, None]
 
 
-def inside(places, outer):
-    """Whether each place lies inside the person at rest (`outer`, the whole watertight Pixal3D mesh)."""
-    return outer.contains(places)
+def inside(places, outer, worn=None):
+    """Whether each place lies inside the person at rest (`outer`, the whole watertight Pixal3D mesh) and, given
+    `worn` (the person's surfaces as built, every band left out, as pokes.py reads them), inside those too by their
+    winding number: the build pushes a garment off the skin and the boots (prop_build.cleared_of_body), and where it
+    pushed a trouser hem in along a boot top's normals a band point inside the whole mesh lay 6.4 mm out of the
+    trouser leg at rest and 7.3 mm sitting, its settled tucks over the gate in every clip (person_uniform, env1,
+    2026-11-11)."""
+    found = outer.contains(places)
+    if worn is not None and found.any():
+        found[found] = np.abs(pokes.winding(places[found], worn)) >= 0.5
+    return found
 
 
 def limb_weights(moved, ring_joints, garment_points, garment_weights, parents):
@@ -108,11 +118,11 @@ def limb_weights(moved, ring_joints, garment_points, garment_weights, parents):
 
 
 def tucked(points, faces, weights, garment_points, garment_weights, bones, outer, parents, rigid=False,
-           least_edges=6):
+           least_edges=6, worn=None):
     """The part with a tuck under every border loop of at least `least_edges` edges that meets a garment: (points,
     faces, weights), the band's points appended after the part's own. `bones` gives each joint's bones as (start,
-    end) places and `parents` each joint's parent; `outer` is the whole person at rest, which a band edge must lie
-    under to be kept. A `rigid` part's band (a boot's, a mitt's) rides its ring's own joint, as the part does: the
+    end) places and `parents` each joint's parent; `outer` is the whole person at rest, and `worn` the person's
+    surfaces as built, which a band edge must lie under to be kept (`inside`). A `rigid` part's band (a boot's, a mitt's) rides its ring's own joint, as the part does: the
     garment over it is held to that joint near it (prop_build.eased_to_hard), and a band weighted from the garment
     stood 26 mm out of Nev's trouser leg as she stood (2026-10-10)."""
     tree = cKDTree(garment_points)
@@ -133,7 +143,7 @@ def tucked(points, faces, weights, garment_points, garment_weights, bones, outer
         ring = np.unique(loop)
         starts, directions = nearest_bones(points[ring], weights[ring].argmax(1), bones)
         moved = tucked_ring(points[ring], middle, starts, directions, garment_points, tree)
-        hidden = dict(zip(ring, inside(moved, outer)))
+        hidden = dict(zip(ring, inside(moved, outer, worn)))
         keep = np.array([hidden[first] and hidden[second] for first, second in loop], bool)
         if not keep.any():
             continue
