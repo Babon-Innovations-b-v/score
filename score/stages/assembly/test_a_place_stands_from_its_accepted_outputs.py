@@ -2810,6 +2810,51 @@ def a_floor_thing(folder, name, mesh, linked_to=None, beside=()):
     return root
 
 
+def a_sloped_place(folder, inside=False):
+    """A place `toy` in `folder` on a made ground rising 0.2 m a metre north (-z) from 1 m at z 0
+    (/toy/Outside/near on a layer of its own) with a built deck over x 6 to 10: a 1 m box laid at the floor (0 m) at
+    x 0 holding a 0.2 m cube on its top, a 1 m box over the deck at x 8, a 1 m box the record lays on a level 3.3 m
+    up at x -6, its record (`inside` as given) and laid.json.
+    The root's path."""
+    from pxr import Gf, Sdf, Usd, UsdGeom
+    (folder / "layers").mkdir(parents=True)
+    ground = Usd.Stage.CreateNew(str(folder / "layers/ground.usda"))
+    across, along = np.meshgrid(np.linspace(-10, 10, 21), np.linspace(-10, 10, 21))
+    points = np.c_[across.ravel(), 1.0 - 0.2 * along.ravel(), along.ravel()]
+    corners = [triangle for row in range(20) for column in range(20) for triangle in (
+        (row * 21 + column, row * 21 + column + 1, (row + 1) * 21 + column + 1),
+        (row * 21 + column, (row + 1) * 21 + column + 1, (row + 1) * 21 + column))]
+    near = UsdGeom.Mesh.Define(ground, f"/{TOY}/Outside/near")
+    near.CreatePointsAttr([tuple(point) for point in points])
+    near.CreateFaceVertexCountsAttr([3] * len(corners))
+    near.CreateFaceVertexIndicesAttr([index for triangle in corners for index in triangle])
+    ground.GetRootLayer().Save()
+    base = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
+    things = {"crate_1": ((-0.5, 0.0, -0.5), (0.5, 1.0, 0.5)), "cube_1": ((-0.1, 1.0, -0.1), (0.1, 1.2, 0.1)),
+              "case_1": ((7.5, 0.0, -0.5), (8.5, 1.0, 0.5)), "podium_1": ((-6.5, 3.3, -0.5), (-5.5, 4.3, 0.5))}
+    for name, (low, high) in things.items():
+        a_built_box(base, f"/{TOY}/Objects/{name}", low, high)
+        box = trimesh.creation.box(bounds=[low, high])
+        UsdGeom.Mesh(base.GetPrimAtPath(f"/{TOY}/Objects/{name}/geo")).GetPointsAttr().Set(
+            [tuple(point) for point in box.vertices])
+    deck = UsdGeom.Mesh.Define(base, f"/{TOY}/Shell/deck_1/geo")
+    deck.CreatePointsAttr([(6.0, -0.1, -2.0), (10.0, -0.1, -2.0), (10.0, -0.1, 2.0), (6.0, -0.1, 2.0)])
+    deck.CreateFaceVertexCountsAttr([4])
+    deck.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    base.GetRootLayer().Save()
+    root = Usd.Stage.CreateNew(str(folder / f"{TOY}.usda"))
+    root.GetRootLayer().subLayerPaths = ["./layers/ground.usda", "./layers/base.usda"]
+    root.SetDefaultPrim(UsdGeom.Xform.Define(root, f"/{TOY}").GetPrim())
+    root.GetRootLayer().Save()
+    (folder / record.RECORD).write_text(json.dumps({"place": TOY, "inside": inside, "objects": [
+        {"name": "crate_1", "row": "crate", "at": [0, 0, 0]}, {"name": "case_1", "row": "case", "at": [8, 0, 0]},
+        {"name": "podium_1", "row": "podium", "at": [-6, 3.3, 0]},
+        {"name": "cube_1", "row": "cube", "on": {"how": "top", "holder": ["crate_1"]}}]}))
+    (folder / made_waiting.LAID).write_text(json.dumps({"objects": [
+        {"name": name, "low": list(low), "high": list(high)} for name, (low, high) in things.items()]}))
+    return folder / f"{TOY}.usda"
+
+
 def lowest_legs(asset):
     """The lowest point of each leg of a thing_on_legs asset (its drawn mesh) and of its collision hull, metres."""
     from pxr import Usd, UsdGeom
@@ -2842,9 +2887,14 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         hub's legs left 0.15 m up)
     Break: score/stages/assembly/even_feet.py: `laid_flat.flattened(stage, folder, place)` -> `pass` (the slab left
         standing), or laid_flat's `if axis is None or footing.stands(...)` -> `if axis is None` (the board laid down),
-        or clear_side's `if all(not meets(...))` -> `if True` (the slab laid down into the crate)"""
+        or clear_side's `if all(not meets(...))` -> `if True` (the slab laid down into the crate)
+    Break: score/stages/assembly/grounded.py: `on_ground.stood(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/on_ground.py: `if record.get("inside") or not` -> `if not`, `if over_deck(pivot,
+        decks):` -> `if False:`, `and at_floor(entry)` -> `` (square's podium let down off its stage), `for one in
+        (name, *held):` -> `for one in (name,):`, `turn = turn_onto(up, normal)` -> `turn = np.eye(4)`, `if leans <=
+        LEAN_MOST and abs(` -> `if False and abs(`, or `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`"""
     from pxr import Sdf
-    from score.stages.assembly import grounded, made_waiting, parting
+    from score.stages.assembly import grounded, made_waiting, on_ground, parting
     monkeypatch.setattr(baked, "take_bake", lambda *args: None)
     monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
     monkeypatch.setattr(made_waiting, "lay", lambda *args: [])
@@ -2897,13 +2947,45 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     _, tall, points = under("cable", (0.0, 0.0), 9.0, 9.0)
     assert tall == 0.1 and np.isclose(points[:, 2].min(), -1.95, atol=0.06) and points[:, 2].max() <= 0.06, points
     read_only_toy(tmp_path / "store" / TOY)
-    parted = []
+    parted, stood = [], []
     monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
+    restore = on_ground.stood
+    monkeypatch.setattr(on_ground, "stood", lambda folder, place: stood.append((folder, place)) or [])
     root = grounded.grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)},
                                   tmp_path / "settle")
     stage = opened(root)
     assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
     assert parted == [(tmp_path / "settle", TOY)], parted  # parted as the assembly's make parts (wired.make)
+    assert stood == [(tmp_path / "settle", TOY)], stood  # on its made ground, as the assembly's make stands them
+    # assembly@wreck (2026-11-12): every thing laid at the plan's floor, 0 m, over a made ground from -4.8 to +4.0 m
+    # under them. On a ground rising 0.2 m a metre north from 1 m at z 0, a 1 m box laid at 0 m is turned
+    # atan(0.2) = 11.31 degrees with the slope and let down onto it, every corner of its foot on the ground and the
+    # cube on its top moved with it; one over a built deck and one the record lays on a 3.3 m level (square's podium)
+    # are left, a second stand moves nothing, and an enclosed place is left whole.
+    from pxr import Usd
+    for inside in (False, True):
+        place = a_sloped_place(tmp_path / f"sloped-{inside}", inside)
+        fits = restore(place.parent, TOY)
+        stage = Usd.Stage.Open(str(place))
+
+        def corners(name):
+            prim = stage.GetPrimAtPath(f"/{TOY}/Objects/{name}")
+            return on_ground.world_points(prim), on_ground.up_of(prim)
+        crate, up = corners("crate_1")
+        foot = crate[crate[:, 1] <= np.sort(crate[:, 1])[3] + 1e-6]
+        cube, _ = corners("cube_1")
+        if inside:
+            assert fits == [] and np.isclose(crate[:, 1].min(), 0.0) and np.allclose(up, [0, 1, 0]), fits
+            continue
+        assert [(fit["name"], fit["how"]) for fit in fits] == [("crate_1", "grounded"), ("cube_1", "grounded")], fits
+        assert np.isclose(np.degrees(np.arccos(up[1])), 11.31, atol=0.01) and up[2] > 0, up
+        assert np.allclose(foot[:, 1], 1.0 - 0.2 * foot[:, 2], atol=1e-4), foot
+        assert np.allclose(cube.mean(axis=0), crate.mean(axis=0) + 0.6 * up, atol=1e-4), (cube, crate)
+        case, _ = corners("case_1")
+        assert np.isclose(case[:, 1].min(), 0.0) and np.isclose(corners("podium_1")[0][:, 1].min(), 3.3), case
+        laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
+        assert np.isclose(laid["crate_1"]["low"][1], crate[:, 1].min(), atol=1e-3), laid
+        assert restore(place.parent, TOY) == []
 
 
 # --- the layers gate ------------------------------------------------------------------------------------------------
