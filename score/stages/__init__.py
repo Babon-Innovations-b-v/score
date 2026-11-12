@@ -30,10 +30,12 @@ import multiprocessing
 import os
 import pathlib
 import shutil
+import subprocess
 import sys
 import tempfile
 
 from score import checks, contracts, graph, review
+from score.adapters.models import claude_code
 from score.checks import grain
 from score.stages import (animals, assembly, cast, complete, crops, demo_film, design_layers, earth_seed, effects,
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
@@ -1616,11 +1618,52 @@ def retaking(make):
     return made
 
 
+class AskBroken(ConnectionError):
+    """A Claude ask whose call never answered: its stream ended without its result line, or it timed out. Not the
+    model's answer, so never the row's output: it goes up out of the make, nothing is recorded under the row's key, and
+    a later run asks again (surface-library@galley, 2026-11-12: the stream of req_011CgxDJN4hBhHsiiARA6Grv broke off
+    after 0.39 min, its Unanswered was the row's gap, then noted "same question, same answer" and never asked again)."""
+
+
+def broken_ask(answer):
+    """The AskBroken an answer of claude_code.asked is when its call never answered (a stream with no result line, a
+    time-out); None for an answer, or an Unanswered the model's own result line gave (no structured answer)."""
+    cause = getattr(answer, "__cause__", None)
+    if not isinstance(answer, claude_code.Unanswered) or not (
+            isinstance(cause, subprocess.TimeoutExpired)
+            or isinstance(cause, claude_code.Unanswered) and str(cause).startswith("no result line")):
+        return None
+    return AskBroken(f"Claude Code's call never answered, nothing kept, asked again on a later run: {answer}")
+
+
+def unbroken_asks(make):
+    """The make with claude_code.asked raising AskBroken (broken_ask) for an ask whose call never answered, its own
+    asked put back after. Wrapped inside claude_asks.asking_claude, so the row's code version (that wrapper's file and
+    the make's own, inspect.unwrap) does not hold this framework file."""
+    @functools.wraps(make)
+    def made(inputs, out, seed, params):
+        asked = claude_code.asked
+
+        def answered(bodies, caller):
+            answers = asked(bodies, caller)
+            broken = next(filter(None, map(broken_ask, answers.values())), None)
+            if broken:
+                raise broken
+            return answers
+        claude_code.asked = answered
+        try:
+            return make(inputs, out, seed, params)
+        finally:
+            claude_code.asked = asked
+    return made
+
+
 # The finish route's palette, library, list and recheck asked of Claude on this PC (surfaces/claude_asks.py; coordinator
 # for the owner, 2026-10-27, after the side-by-side on #36): wired here, in the framework's table, so no row that does
-# not switch re-keys (body-face, which stays on Gemini, and ground-join read surfaces/__init__.py).
-STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(row.make)) if row.name in claude_asks.ROWS
-               else row for row in STAGES)
+# not switch re-keys (body-face, which stays on Gemini, and ground-join read surfaces/__init__.py). An ask whose call
+# never answered goes up out of the make (unbroken_asks), never kept as the row's output.
+STAGES = tuple(dataclasses.replace(row, make=claude_asks.asking_claude(unbroken_asks(row.make)))
+               if row.name in claude_asks.ROWS else row for row in STAGES)
 # Pixal3D's takes the owner's reject names are made again, the rest kept (retaking).
 STAGES = tuple(dataclasses.replace(row, retakes=True, make=retaking(row.make)) if row.name in RETAKES else row
                for row in STAGES)
