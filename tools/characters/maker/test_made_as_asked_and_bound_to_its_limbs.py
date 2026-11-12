@@ -112,8 +112,11 @@ unless named):
 - test_a_boots_shaft_follows_the_shin_and_its_sole_the_foot: route_build.shafted's `FOOT_DEGREES - degrees` made
   `degrees - FOOT_DEGREES` (the sole on the shin, the shaft on the foot), or shaft_tops' `> ... + SHAFT_FROM` made
   `<` (a tall boot left wholly on its foot).
-- test_a_web_bridging_the_legs_fails_the_stretch_check: route_stretch.grown's `- rest` made `/ rest` (a ratio, not
-  metres), or MOST_METRES raised past the 0.21 m the pre-route astronaut's crotch web grew walking.
+- test_a_web_bridging_the_legs_fails_the_stretch_check_and_a_skirt_over_both_swings_no_leg: route_stretch.grown's
+  `- rest` made `/ rest` (a ratio, not metres), or MOST_METRES raised past the 0.21 m the pre-route astronaut's crotch
+  web grew walking; and, apart (2026-11-12, each seen red), clearance.bridging's `return found` made
+  `return np.zeros_like(found)` (the skirt's halves read as the legs swing the left leg out, woman_stair's 1.41
+  stance), or its `meet` made true for every edge (a trouser leg pushed into the other no longer swings out).
 - test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth: under_layer's `np.isfinite(near) &`
   dropped (the base drawn beyond UNDER_REACH).
 - test_cloth_next_to_a_skin_part_rides_its_weights_and_takes_no_correctives: skin_share's own-family `mine` made every
@@ -1031,7 +1034,43 @@ def test_a_boots_shaft_follows_the_shin_and_its_sole_the_foot():
     assert route_build.shaft_tops(document, [route_build.Surface(0, shoe, None, weights, None)], names, bind) == {}
 
 
-def test_a_web_bridging_the_legs_fails_the_stretch_check():
+LEG_NAMES = ["Hips", "Chest", "LeftArm", "RightArm"] + [side + bone for side in ("Left", "Right")
+                                                        for bone in ("Leg", "Shin", "Foot", "ToeBase", "ToeEnd")]
+LEG_PARENTS = np.array([-1, 0, 1, 1, 0, 4, 5, 6, 7, 0, 9, 10, 11, 12])
+
+
+def legs_in(tubes):
+    """A standing rig's legs inside cloth tubes ((centre across, radius) each, knee high, one part): a point left of
+    the middle rides the left shin, the rest the right."""
+    bind = np.tile(np.eye(4), (len(LEG_NAMES), 1, 1))
+    places = {"Hips": (0, 1.0, 0), "Chest": (0, 1.4, 0), "LeftArm": (0.2, 1.4, 0), "RightArm": (-0.2, 1.4, 0)}
+    for side, sign in (("Left", 1), ("Right", -1)):
+        places.update({side + "Leg": (sign * 0.1, 0.9, 0), side + "Shin": (sign * 0.1, 0.48, 0),
+                       side + "Foot": (sign * 0.1, 0.06, 0), side + "ToeBase": (sign * 0.1, 0.02, 0.1),
+                       side + "ToeEnd": (sign * 0.1, 0.02, 0.18)})
+    for joint, name in enumerate(LEG_NAMES):
+        bind[joint, :3, 3] = places[name]
+    upright = trimesh.transformations.rotation_matrix(np.pi / 2, [1, 0, 0])
+    cloth = trimesh.util.concatenate([trimesh.creation.cylinder(
+        radius, 0.3, sections=48, transform=trimesh.transformations.translation_matrix([centre, 0.45, 0]) @ upright)
+        for centre, radius in tubes])
+    points, faces = np.asarray(cloth.vertices), np.asarray(cloth.faces)
+    weights = np.zeros((len(points), len(LEG_NAMES)))
+    weights[points[:, 0] > 0, LEG_NAMES.index("LeftShin")] = 1.0
+    weights[points[:, 0] <= 0, LEG_NAMES.index("RightShin")] = 1.0
+    return {"bind": bind, "points": points, "faces": faces, "weights": weights, "part_of": np.zeros(len(faces), int)}
+
+
+def left_leg_swung(rig, across):
+    """The left leg's degrees out of the right in one frame of the bind with the left leg moved `across` (metres)."""
+    import clearance
+    frame = rig["bind"].copy()
+    frame[clearance.below(LEG_NAMES.index("LeftLeg"), LEG_PARENTS), 0, 3] += across
+    left_of_right = next(step for step in clearance.PASSES if step[0] == "LeftLeg")
+    return float(np.degrees(clearance.pass_angles(frame[None], rig, LEG_NAMES, LEG_PARENTS, left_of_right)[0]))
+
+
+def test_a_web_bridging_the_legs_fails_the_stretch_check_and_a_skirt_over_both_swings_no_leg():
     # One triangle from the left thigh to the right one, 4 cm wide at rest; the legs part 0.21 m in the stride.
     rest = np.array([[0.02, 0.7, 0.0], [-0.02, 0.7, 0.0], [0.0, 0.72, 0.0]])
     faces = np.array([[0, 1, 2]])
@@ -1041,6 +1080,13 @@ def test_a_web_bridging_the_legs_fails_the_stretch_check():
     assert triangle == 0 and np.isclose(most, 0.21)
     assert most > route_stretch.MOST_METRES
     assert route_stretch.grown(rest, bind, faces)[0] == 0.0
+    # The build's clearance: a skirt round both legs (one surface whose halves ride each shin) is no leg, so the left
+    # leg brought 5 cm in is not swung out of it; a trouser leg pushed 17 cm into the other still is, and legs apart
+    # are not.
+    assert left_leg_swung(legs_in([(0.0, 0.15)]), -0.05) == 0.0
+    trousers = legs_in([(0.1, 0.06), (-0.1, 0.06)])
+    assert left_leg_swung(trousers, -0.17) > 0.0
+    assert left_leg_swung(trousers, 0.0) == 0.0
 
 
 def test_the_body_under_a_cut_web_is_drawn_inside_in_the_cut_garments_cloth():
