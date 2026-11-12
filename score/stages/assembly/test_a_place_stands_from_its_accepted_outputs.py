@@ -3157,6 +3157,11 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         the sole read inside it)
     Break: score/stages/assembly/footing.py: cut_at's `points[points[:, 1] <= lowest + cut, 1] = lowest` dropped (the
         hub's legs left 0.15 m up)
+    Break: score/stages/assembly/even_feet.py: `plated = post_plate.based(root, scale)` -> `plated = []` (the flag left
+        tipping on its pole), or post_foot's `if across > POST or wide < ...` -> `if wide < ...` (the lamp's 0.2 m
+        foot read as a post and given a plate), or stood's `turned = (points - pivot) @ turn.T + pivot` -> `turned =
+        points` (the pole left leaning), or standing_post's `<= LEAN_MOST` -> `<= 90.0` (the pipe stood on its leg), or
+        joined's `subset.GetIndicesAttr().Set(...)` dropped (the plate in no part)
     Break: score/stages/assembly/even_feet.py: `laid_flat.flattened(stage, folder, place)` -> `pass` (the slab left
         standing), or laid_flat's `if axis is None or footing.stands(...)` -> `if axis is None` (the board laid down),
         or clear_side's `if all(not meets(...))` -> `if True` (the slab laid down into the crate)
@@ -3260,6 +3265,51 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     sole = np.array([(x, 0.0, z) for x in (0.0, 1.0) for z in (0.0, 1.0)])
     for foot in (np.array([(0.4, 0.05, 0.4), (0.6, 0.05, 0.4), (0.5, 0.05, 0.6)]), np.array([(1.4, 0.05, 0.4)] * 3)):
         assert big_bases.outlines([sole])(foot) == triage.within_a_foot(foot, [sole]) == (foot[0, 0] < 1.0)
+    # square (2026-11-12): its 41 red flags stood on a pole 1.5 cm wide at its foot leaning 10 degrees, their cloth
+    # 0.42 m to one side, their weight (the triage's: by surface area) 0.18 m outside the pole's foot. A 0.5 m pole so
+    # leaned with a 0.4 m cloth on it stands upright on a plate in the pole's part that holds it, its texture places,
+    # normals and parts carried; a pole on a 0.2 m foot under a head to one side (no thin post), and a 3 m pipe on a
+    # thin leg leaning 60 degrees (no post standing), are left as made.
+    from pxr import UsdGeom, Vt
+    from score.stages.assembly import post_plate
+    for name, head, lean in (("flag", box((0.4, 0.3, 0.004), shift((0.2075, 0.35, 0.0))), 10),
+                             ("lamp", trimesh.util.concatenate([box((0.2, 0.01, 0.2), shift((0.0, 0.005, 0.0))), box(
+                                 (0.8, 0.02, 0.1), shift((0.4, 0.5, 0.0)))]), 0),
+                             ("pipe", box((3.0, 0.05, 0.05), shift((1.4, 0.53, 0.0))), 0)):
+        pole = box((0.015, 0.5, 0.015), shift((0.0, 0.25, 0.0)))
+        if name == "pipe":
+            pole.apply_transform(trimesh.transformations.rotation_matrix(np.radians(60), (0, 0, 1), (0, 0.25, 0)))
+        mesh = trimesh.util.concatenate([pole, head])
+        mesh.apply_transform(trimesh.transformations.rotation_matrix(np.radians(lean), (1, 0, 0)))
+        mesh.apply_translation((0.0, -mesh.bounds[0][1], 0.0))
+        a_floor_thing(tmp_path / name, name, mesh)
+        asset = Usd.Stage.Open(str(tmp_path / name / "assets" / f"{name}.usdc"))
+        geo = UsdGeom.Mesh(asset.GetPrimAtPath(f"/{name}/geo"))
+        geo.CreateNormalsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(mesh.vertex_normals, dtype=np.float32)))
+        UsdGeom.PrimvarsAPI(geo).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray,
+                                               UsdGeom.Tokens.vertex).Set([(0.25, 0.75)] * len(mesh.vertices))
+        for part, faces in (("pole_iron", range(len(pole.faces))),
+                            ("flag_cloth", range(len(pole.faces), len(mesh.faces)))):
+            UsdGeom.Subset.CreateGeomSubset(geo, part, UsdGeom.Tokens.face, Vt.IntArray(list(faces)), "materialBind")
+        asset.GetRootLayer().Save()
+        grounded.take_bakes(bake, tmp_path / name, TOY)
+    flag = Usd.Stage.Open(str(tmp_path / "flag" / "assets" / "flag.usdc"))
+    geo = UsdGeom.Mesh(flag.GetPrimAtPath("/flag/geo"))
+    points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
+    triangles = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+    parts = {subset.GetPrim().GetName(): np.asarray(subset.GetIndicesAttr().Get())
+             for subset in UsdGeom.Subset.GetAllGeomSubsets(geo)}
+    pole = points[np.unique(triangles[parts["pole_iron"][:12]])]
+    plate = points[16:]
+    assert len(points) == 16 + 4 * post_plate.SEGMENTS + 2 and len(parts["pole_iron"]) == 12 + 4 * post_plate.SEGMENTS
+    assert np.ptp(pole[:, 2]) < 0.016 and np.isclose(pole[:, 1].min(), post_plate.THICK, atol=1e-4), pole
+    assert np.isclose(plate[:, 1].min(), 0.0, atol=1e-4) and 0.05 <= np.ptp(plate[:, 0]) / 2 <= 0.3, plate
+    assert big_bases.holds_as_made(points, triangles) and len(geo.GetNormalsAttr().Get()) == len(points)
+    assert list(UsdGeom.PrimvarsAPI(geo).GetPrimvar("st").Get())[-1] == (0.25, 0.75)
+    assert len(Usd.Stage.Open(str(tmp_path / "lamp" / "assets" / "lamp.usdc")).GetPrimAtPath(
+        "/lamp/geo").GetAttribute("points").Get()) == 24
+    assert len(Usd.Stage.Open(str(tmp_path / "pipe" / "assets" / "pipe.usdc")).GetPrimAtPath(
+        "/pipe/geo").GetAttribute("points").Get()) == 16
     read_only_toy(tmp_path / "store" / TOY)
     parted, stood = [], []
     monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
