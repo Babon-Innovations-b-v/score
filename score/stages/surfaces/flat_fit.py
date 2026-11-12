@@ -20,8 +20,10 @@ import pathlib
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
-if str(HERE) not in sys.path:
-    sys.path.append(str(HERE))
+LIBRARY_TOOLS = HERE.parents[2] / "tools/props/library"  # bake_job's `import library`, as palette_library adds it
+for folder in (HERE, LIBRARY_TOOLS):
+    if str(folder) not in sys.path:
+        sys.path.append(str(folder))
 
 import numpy as np  # noqa: E402
 
