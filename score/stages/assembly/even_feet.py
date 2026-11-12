@@ -79,18 +79,21 @@ def own_asset(geo, folder):
 
 
 def level_asset(asset, scale):
-    """The asset's drawn mesh stood on what holds it (big_bases.levelled: upright, a footing that holds it, its feet
-    down by level_feet, its sole level; at `scale`: the size it is laid at, per axis) and its collision hull made again
-    round it, saved; what was done ([] and nothing written when nothing was)."""
+    """The asset's drawn mesh stood on what holds it (post_plate.based: a thin post stood upright on a plate that holds
+    it; big_bases.levelled: upright, a footing that holds it, its feet down by level_feet, its sole level; at `scale`:
+    the size it is laid at, per axis) and its collision hull made again round it, saved; what was done ([] and nothing
+    written when nothing was)."""
     import colliders
     from pxr import Gf, Usd, UsdGeom, Vt
     stage = Usd.Stage.Open(str(asset))
     root = stage.GetDefaultPrim()
     mesh = UsdGeom.Mesh(root.GetChild("geo"))
+    from score.stages.assembly import big_bases, post_plate
+    plated = post_plate.based(root, scale)  # a thin post's foot stood upright on a plate that holds it
     points = np.asarray(mesh.GetPointsAttr().Get(), dtype=np.float64)
     triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
-    from score.stages.assembly import big_bases
     levelled, gaps = big_bases.levelled(points * scale, triangles)  # stood up, its footing cut, its feet down
+    gaps = plated + gaps
     if not gaps:
         return []
     points = (levelled / scale).astype(np.float32)
