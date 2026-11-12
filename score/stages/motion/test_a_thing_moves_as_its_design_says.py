@@ -604,6 +604,68 @@ def test_a_hatch_lying_flat_stands_and_a_parted_build_moves_its_parts(tmp_path):
         name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
 
 
+def a_flag(stage, path):
+    """A flag on its pole as one mesh: its pole a 2 cm post 1 m tall on its own upright line, its cloth a 0.5 x 0.4 m
+    sheet of 10 x 8 squares off the pole's top toward +x, each a GeomSubset named by its library surface as a bake
+    names it (`<library surface>__<finish>`)."""
+    post = [(x, y, z) for y in (0.0, 1.0) for x in (-0.01, 0.01) for z in (-0.01, 0.01)]
+    sides = [(0, 1, 5), (0, 5, 4), (2, 3, 7), (2, 7, 6), (0, 2, 6), (0, 6, 4), (1, 3, 7), (1, 7, 5)]
+    sheet = [(0.05 * column, 0.6 + 0.05 * row, 0.0) for row in range(9) for column in range(11)]
+    squares = [(8 + row * 11 + column, 8 + row * 11 + column + 1, 8 + (row + 1) * 11 + column + 1,
+                8 + (row + 1) * 11 + column) for row in range(8) for column in range(10)]
+    faces = sides + [tri for a, b, c, d in squares for tri in ((a, b, c), (a, c, d))]
+    mesh = UsdGeom.Mesh.Define(stage, path)
+    mesh.GetPointsAttr().Set([Gf.Vec3f(*point) for point in post + sheet])
+    mesh.GetFaceVertexCountsAttr().Set([3] * len(faces))
+    mesh.GetFaceVertexIndicesAttr().Set([index for face in faces for index in face])
+    for name, chosen in (("pole_iron__iron_r050", range(len(sides))), ("flag_cloth__red_r085",
+                                                                         range(len(sides), len(faces)))):
+        subset = UsdGeom.Subset.Define(stage, f"{path}/{name.split('__')[0]}")
+        subset.GetIndicesAttr().Set(list(chosen))
+        subset.GetElementTypeAttr().Set(UsdGeom.Tokens.face)
+        subset.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(name)
+
+
+def flag_inputs(folder, recipe="cloth"):
+    """The toy place with a red flag's row and one flag at (4, 0, -4) whose cloth's library surface is made with
+    `recipe`, its surface bake's specs and the flag cloth's files."""
+    from score.stages.motion import cloth
+    inputs = toy_inputs(folder, ROWS + [{"id": "flag", "name": "red flag", "noun": "flag"}])
+    stage = Usd.Stage.Open(str(inputs["seed"] / "layers/base.usda"))
+    UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/flag_1").AddTranslateOp().Set(Gf.Vec3d(4.0, 0.0, -4.0))
+    a_flag(stage, f"/{PLACE}/Objects/flag_1/geo")
+    stage.GetRootLayer().Save()
+    (folder / "bake").mkdir()
+    (folder / "bake/specs.json").write_text(json.dumps({"flag_cloth": {"recipe": recipe, "thread": 0.003},
+                                                        "pole_iron": {"recipe": "metal"}}))
+    roots = {"data": str(REPO / "data"), "repo": str(REPO)}
+    return dict(inputs, **{name: pathlib.Path(pattern.format(**roots)) for name, pattern in cloth.FILES.items()},
+                **{"surfaces-bake": folder / "bake"})
+
+
+def a_written_run(turn):
+    """A cloth run as Newton's would come back, written here (Newton is not run in the test): the grid's nodes swung
+    about the pole's upright line by `turn` times sin(pi t) radians at t seconds, the pinned column on it standing."""
+    def ran(job, folder):
+        points = np.asarray(job["points"])
+        angles = turn * np.sin(np.pi * np.arange(job["frames"]) / job["rate"])
+        sine, cosine = np.sin(angles)[:, None], np.cos(angles)[:, None]
+        swung = np.stack([points[:, 0] * cosine + points[:, 2] * sine, np.broadcast_to(points[:, 1], (len(angles), len(points))),
+                          -points[:, 0] * sine + points[:, 2] * cosine], axis=2)
+        return swung, "a written run"
+    return ran
+
+
+def waved_out(inputs, folder, run):
+    """The motion row's output for the flag place, its flag waved by `run`: motion.make, then cloth.waved."""
+    from score.stages.motion import cloth
+    out, record = made(inputs, folder)
+    with motion.built(inputs) as source:
+        found = cloth.waved(record, inputs, source, out / "layers/motion.usda", run)
+    (out / motion.RECORD).write_text(json.dumps(found))
+    return out, record, found
+
+
 def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     """A ship named as an old record's moving kind, on a craft row that stands with its written reason, is not asked
     for (3 moving kinds: door, fan, rover); the design's door taken out of the record (neither moved nor standing with
@@ -649,7 +711,21 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
     Break: score/stages/motion/exhaust.py: `if not low <= share <= high:` -> `if False:`
     Break: score/stages/motion/exhaust.py: `if not prim or prim.GetAttribute("score:effect:kind").Get() != KIND:` ->
         `if False:`
-    Break: score/stages/__init__.py: `"covered": exhaust.judge_covered` dropped from MOTION_JUDGES"""
+    Break: score/stages/__init__.py: `"covered": exhaust.judge_covered` dropped from MOTION_JUDGES
+    A red flag on its pole on Earth (#88), its cloth's library surface made with the cloth table's `cloth` recipe: the
+    rigid make leaves it unmade, and the flag cloth (cloth.py) waves it from a run written here (Newton is not run):
+    its unmade line goes, its cloth grid pins the 21 nodes on the pole's line, its 8 pole points ride the pole and
+    its 99 cloth points the cloth, and the table's `covered` passes it waving as UsdSkel skins it, `moving area`,
+    `steps`, `follows` and `designed` passing too; a run that stands still fails `covered` by the flag's name; a flag
+    whose surface's recipe the cloth table does not hold keeps its unmade line, with why.
+    Break: score/stages/motion/cloth.py: `if off.max() < MOVED_LEAST:` -> `if False:`
+    Break: score/stages/motion/cloth.py: `for line in record["unmade"] if line.split(":", 1)[0] not in waving]` ->
+        `for line in record["unmade"]]`
+    Break: score/stages/motion/cloth.py: `if recipe in table)` -> `if recipe)`
+    Break: score/stages/motion/cloth_layer.py: `skeleton.SetInfo("apiSchemas", ...)` dropped (the skeleton plays no
+        animation: the flag stands)
+    Break: score/stages/motion/cloth_rig.py: `"pinned": index[:, 0] == 0` -> `"pinned": index[:, 0] < 0`
+    Break: score/stages/__init__.py: `motion_cloth.covering(exhaust.judge_covered)` -> `exhaust.judge_covered`"""
     from score.stages import design_layers
     ship = ("ship_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "ship", "name": "ship", "noun": "ship"}], extra=(ship,))
@@ -734,6 +810,30 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
             assert "rocket_1" in moved and judge("grounded", lifted, flagged).answer == checks.PASS
         else:
             assert "rocket_1" not in moved and "does not lift it off" in found["still"][f"/{PLACE}/Objects/rocket_1"]
+    flag = f"/{PLACE}/Objects/flag_1"
+    for name, turn in (("waving", 0.5), ("standing", 0.0)):
+        (tmp_path / name).mkdir()
+        flagged = flag_inputs(tmp_path / name)
+        out, rigid, found = waved_out(flagged, tmp_path / name, a_written_run(turn))
+        verdict = table_judge("covered", out, flagged)
+        assert [line.split(":", 1)[0] for line in rigid["unmade"]] == [flag], rigid["unmade"]
+        assert found["unmade"] == [] and found["cloth"][flag]["mesh"] == f"{flag}/geo", found
+        run = found["cloth runs"][found["cloth"][flag]["run"]]
+        assert run["recipe"] == "cloth" and run["measures"]["pinned nodes"] == 21, run
+        assert run["measures"]["pole points"] == 8 and run["measures"]["cloth points"] == 99, run["measures"]
+        if name == "waving":
+            assert verdict.answer == checks.PASS and verdict.measures["waving cloth"] == 1, (verdict.reason,
+                                                                                            verdict.findings)
+            for gate in ("moving area", "steps", "follows", "designed"):
+                assert table_judge(gate, out, flagged).answer == checks.PASS, table_judge(gate, out, flagged)
+        else:
+            assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(
+                f"{flag}: its cloth reaches only 0.000 m off its start"), verdict.findings
+    (tmp_path / "metal").mkdir()
+    unwoven = flag_inputs(tmp_path / "metal", recipe="metal")
+    _, _, found = waved_out(unwoven, tmp_path / "metal", a_written_run(0.5))
+    assert len(found["unmade"]) == 1 and found["unmade"][0].endswith(
+        "(no part of it has a library surface whose recipe the cloth table holds)") and not found["cloth"], found
 
 
 def test_a_swing_is_tried_its_rule_s_way_and_the_other_down_to_sixty_degrees():
