@@ -4030,7 +4030,12 @@ def test_a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_wit
     Break: flat_fit.py `face_fit`: `laid[thin] = min(laid[thin], depth_bound(size[thin]))` -> `pass` (depth unheld)
     Break: flat_fit.py `held`: `bake_job.fitted_size = fitted_size` -> `pass` (not held)
     Break: inside/paint_fit.py `"score/stages/surfaces/flat_fit.py"` -> `".../route_bake.py"`, or __init__.py the
-    declared `flat_fit.py` -> `route_bake.py` (the bake's card job lays by bake_job alone)"""
+    declared `flat_fit.py` -> `route_bake.py` (the bake's card job lays by bake_job alone)
+    Break: flat_fit.py drops `LIBRARY_TOOLS` from its sys.path (the bake job's own interpreter cannot import library)"""
+    script = REPO / "score/stages/surfaces/flat_fit.py"  # run as the bake job runs it: its own interpreter, no repo path
+    started = subprocess.run([sys.executable, "-I", str(script)], cwd=tempfile.gettempdir(), capture_output=True,
+                             text=True, timeout=60)
+    assert "ModuleNotFoundError" not in started.stderr, started.stderr[-600:]
     folder = a_folder()
     try:
         def entry_for(row, take_extents, kit):
