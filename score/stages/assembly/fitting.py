@@ -63,8 +63,8 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import (board_spots, floor_clear, hung_between, opening_walls, passages, ribs, room_clear,
-                                 vault_feet, wall_clear)
+from score.stages.assembly import (board_spots, floor_clear, hung_between, opening_free, opening_walls, passages, ribs,
+                                 room_clear, vault_feet, wall_clear)
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -2022,6 +2022,8 @@ def fitted(stage, place, entries, laid, cuts=None):
                     low, high = world_box(stage, path)
                 entry = {**entry, "on": walled_in}
                 laid_in[name] = walled_in
+        if how == "in":  # in the part of its opening the opening things laid before leave free (opening_free)
+            entry = opening_free.laid(entry, low, high, [world_box(stage, other) for other in opened], laid_in)
         if how == "in" and name in leaves and slanted(entry["on"]):
             surface = wall_points(stage, place)
         on_shelves = how == "within" and held and on_shelves_of(entry["on"]) and not hangs_in(entry)
@@ -2102,8 +2104,9 @@ def fitted(stage, place, entries, laid, cuts=None):
                      **({"face": round(face[0], 4), **({"hung": True} if face[1] else {})} if face is not None
                         else {}), **(laid_face(faced_on[name], oriented_corners(stage, path)) if name in faced_on
                                      else {}),
-                     **({"opening": {key: laid_in[name][key] for key in ("middle", "along")}} if name in laid_in
-                        else {})})
+                     **({"opening": {key: laid_in[name][key] for key in ("middle", "along", "wide")  # its wide
+                                     if key != "wide" or laid_in[name][key] != by_name[name]["on"]["wide"]}}  # narrowed
+                        if name in laid_in else {})})
 
     def rooms(leaf):
         """The swing box and the passage box of a leaf as laid."""
