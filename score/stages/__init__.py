@@ -814,12 +814,16 @@ def baked_colour_checked(row):
 
 
 def feet_checked(row):
-    """surfaces-paint with the gate "feet in one plane" beside its own (place_line.judge_feet: a take's short legs are
-    stretched down before its bake, a missing leg fails by name). Set here, as bake_checked is, so the turntable's and
-    SegviGen's code version does not move."""
+    """surfaces-paint with the gate "feet in one plane" beside its own (feet_stand.judge_feet: a take's short legs are
+    stretched down before its bake, a missing leg fails by name, a take refused on its resting face alone is judged by
+    its baked model's stance, cockpit's pilot seat, 2026-11-12), made by feet_stand.make_paint so its batch gaps are
+    the gate's. Set here, as bake_checked is, so the turntable's and SegviGen's code version and place_line.py's
+    readers do not move."""
     if row.name != "surfaces-paint":
         return row
-    return dataclasses.replace(row, checks=(*row.checks, guarded("feet in one plane", surfaces.place_line.judge_feet)),
+    import feet_stand  # by its bare name, as route_paint imports place_line: one module
+    return dataclasses.replace(row, make=feet_stand.make_paint,
+                               checks=(*row.checks, guarded("feet in one plane", feet_stand.judge_feet)),
                                files=paint_files)
 
 
