@@ -44,6 +44,7 @@ from score.stages.surfaces import bake_check, body_faces, carry, check_seen, cla
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
+import score.stages.people_gaps as people_gaps
 import score.stages.cast.driven as characters_driven
 import score.stages.cast.layer as characters_layer
 import score.stages.demo_film.final as demo_film_final
@@ -1187,14 +1188,15 @@ BODIES_GAP_READERS = ("demo-film", "demo-film-extra", "body-peel", "sound")
 def accepted_gaps(row):
     """The rows the owner's accepted gaps reach (2026-10-14: the hangar's ship, the wreck's three pieces, the camp grounds'
     crane ship today as named fails), and the batch gaps (BATCH_GATES): a moving gate's faults on the named objects go
-    down the line, and complete fails each gap by name with its numbers. Set here, in the table."""
+    down the line, and complete fails each gap by name with its numbers, but the batch gaps of its own takes of its
+    people rows, which the characters layer lays from the people line (people_gaps.py). Set here, in the table."""
     if row.name in BODIES_GAP_READERS:
         row = dataclasses.replace(row, files=with_gap_files(row.files, "characters-layer"))
     if row.name not in GAP_GATES and row.name not in BATCH_GATES:
         return row
     kept = tuple(gap_moved(row.name, check) if check.name in GAP_GATES.get(row.name, ()) or
                  batch_moves(row.name, check.name) else check for check in row.checks)
-    named = (checks.Check(graph.GAPPED, gaps.judge_accepted),) if row.name == "complete" else ()
+    named = (checks.Check(graph.GAPPED, people_gaps.judge_accepted),) if row.name == "complete" else ()
     reads = None if row.name == "complete" else row.name
     return dataclasses.replace(row, files=with_gap_files(row.files, reads), checks=(*kept, *named))
 

@@ -219,6 +219,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/gaps.py:
   test_the_decision_file_is_read_by_row_and_check_and_a_pass_or_unknown_is_left_alone.
 - `judge_accepted`: a finding without its gap's name (`f"{fault}"`)  ->
   test_complete_fails_each_accepted_gap_by_name_with_its_numbers (and the batch section's line test).
+- score/stages/people_gaps.py `judge_accepted`: every batch gap kept (`whose = False`); or `of_people` reading a
+  model's row from any name (`number.isdigit()` dropped); or `all` read as `any` over a gap's objects  ->
+  test_complete_fails_each_accepted_gap_by_name_with_its_numbers.
 - score/stages/__init__.py `gap_moved`: `judged.__wrapped__ = check.judge` dropped  ->
   test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps (and the batch section's two table-move tests).
 - data/checks/gaps/garage.json: its pipe entry deleted; or this file's `dropped`: `if entry.get("passed")` dropped  ->
@@ -341,7 +344,7 @@ from score import checks, contracts, graph, review, stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
 from score.graph import _code, rebuy  # noqa: E402
 from score.stages import (batch_gaps, design_layers, gaps, layer_base, moved, natural_grounds,  # noqa: E402
-                          people_refresh, people_rows, row_kinds)
+                          people_gaps, people_refresh, people_rows, row_kinds)
 from score.stages.surfaces import route_views  # noqa: E402
 from score.store import PROPS_HOME, Store, file_hash, tree_hash as store_tree_hash  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
@@ -1895,14 +1898,36 @@ def test_a_gap_is_an_input_of_complete_and_of_the_row_it_names_alone():
         assert not gaps.files("nowhere") and not gaps.files("nowhere", "assembly")
 
 
-def test_complete_fails_each_accepted_gap_by_name_with_its_numbers():
+def test_complete_fails_each_accepted_gap_by_name_with_its_numbers(tmp_path):
+    """And complete's gate in the table (people_gaps.py) leaves out a batch gap of the place's own take of a people row,
+    which the characters layer lays from the people line (cockpit, 2026-11-12: its pilot's and officer's takes, laid
+    nowhere, were two of its eleven gap objects on "human skin"), never a gap naming another object too."""
     crane = entry("crane: a foot off the floor", "complete", "resting", ["/campgrounds/Objects/crane_1"],
                   ["/campgrounds/Objects/crane_1: foot 2 3.2 cm off the floor"])
     with decided({"campgrounds": [crane]}):
         found = gaps.judge_accepted(None, recorded("campgrounds"), None)
+        both = people_gaps.judge_accepted(None, recorded("campgrounds"), None)
     assert found.answer == checks.FAIL and "crane: a foot off the floor" in found.reason
     assert found.findings == ("crane: a foot off the floor: /campgrounds/Objects/crane_1: foot 2 3.2 cm off the floor",)
+    assert (both.answer, both.reason, both.findings) == (found.answer, found.reason, found.findings)
     assert gaps.judge_accepted(None, {}, None).answer == checks.PASS
+    handin = written(tmp_path, "handin.json", {
+        "rows": [{"id": "pilot", "route": "people"}, {"id": "seat", "route": "prop"}],
+        "objects": {"pilot": {"take": "toy_pilot_1", "rows": ["pilot"]}, "seat": {"take": "toy_seat_1", "rows": ["seat"]}},
+        "takes": {"toy_pilot_1": {"route": "people"}, "toy_seat_1": {"route": "prop"}}})
+    batch = tmp_path / "check"
+    batch.mkdir()
+    batch_gaps.write(batch, [batch_gaps.gap(f"{name}: off", "surfaces-check", "baked", objects, [f"{name}: off"], "x")
+                             for name, objects in (("toy_pilot_1", ["toy_pilot_1"]), ("pilot_1", ["toy_pilot_1", "pilot_1"]),
+                                                   ("seat_1", ["toy_seat_1", "seat_1"]), ("lamp", ["pilot_lamp"]),
+                                                   ("both", ["toy_pilot_1", "toy_seat_1"]))])
+    found = people_gaps.judge_accepted(None, {"hand-in": handin, "check": batch}, None)
+    assert found.answer == checks.FAIL and found.measures["people takes' gaps"] == 2, found
+    assert [finding.split(":")[0] for finding in found.findings] == ["seat_1", "lamp", "both"], found.findings
+    assert "pilot_1: off" in found.reason.split("left out, the people line's")[1], found.reason
+    batch_gaps.write(batch, [batch_gaps.gap("pilot_1: off", "surfaces-check", "baked", ["pilot_1"], ["off"], "x")])
+    assert people_gaps.judge_accepted(None, {"hand-in": handin, "check": batch}, None).answer == checks.PASS
+    assert people_gaps.judge_accepted(None, {"check": batch}, None).answer == checks.FAIL  # no hand-in: no people row
 
 
 def test_complete_lists_a_gap_a_row_it_reads_wrote_in_its_output(tmp_path):
