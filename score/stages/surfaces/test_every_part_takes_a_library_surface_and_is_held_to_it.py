@@ -94,6 +94,10 @@ tests it turned red:
   (capped_base), or inside/paint_fit.py: `"score/stages/surfaces/base_level.py"` -> `".../place_line.py"`, or
   __init__.py: the declared `base_level.py` -> `place_line.py`  ->
   a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused
+- flat_fit.py: `if not flat(size):` -> `if True:` (fitted_size), or `laid[thin] = min(laid[thin],
+  depth_bound(size[thin]))` -> `pass` (face_fit), or `bake_job.fitted_size = fitted_size` -> `pass` (held), or
+  inside/paint_fit.py: `"score/stages/surfaces/flat_fit.py"` -> `".../route_bake.py"`, or __init__.py: the declared
+  `flat_fit.py` -> `route_bake.py`  -> a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row
 - place_line.py: `if len(under) < 3 or rise <= tolerance or` -> `if True or`  ->
   a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level
 - place_line.py: `if normal[1] > -1e-6: # no face` -> `if True: # no face`  ->
@@ -4021,7 +4025,12 @@ def test_a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_wit
     (bake_job.refitted), one the stand kept, a code build's and a person's as they were.
     Break: bake_job.py `laid_size`: `return fitted_size(labelled, size, base)` -> `return size` (stretched to its row)
     Break: bake_job.py `fit_within`: `np.min(` -> `np.max(` (past its row)
-    Break: bake_job.py `refitted`: `if fits else entry` -> `if False else entry` (stretched to its tumbled fit)"""
+    Break: bake_job.py `refitted`: `if fits else entry` -> `if False else entry` (stretched to its tumbled fit)
+    Break: flat_fit.py `fitted_size`: `if not flat(size):` -> `if True:` (a flat row as small as its model's depth)
+    Break: flat_fit.py `face_fit`: `laid[thin] = min(laid[thin], depth_bound(size[thin]))` -> `pass` (depth unheld)
+    Break: flat_fit.py `held`: `bake_job.fitted_size = fitted_size` -> `pass` (not held)
+    Break: inside/paint_fit.py `"score/stages/surfaces/flat_fit.py"` -> `".../route_bake.py"`, or __init__.py the
+    declared `flat_fit.py` -> `route_bake.py` (the bake's card job lays by bake_job alone)"""
     folder = a_folder()
     try:
         def entry_for(row, take_extents, kit):
@@ -4051,6 +4060,33 @@ def test_a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_wit
         assert bake_job.refitted(stood, written_entries, labelled, built=True) == stood
         assert bake_job.refitted(stood, written_entries, labelled, person=True) == stood
         assert bake_job.fit_within([2.0, 1.0, 4.0], [1.0, 1.0, 1.0]) == [0.5, 0.25, 1.0]
+        # a flat row (the model gate's "flat") is laid by its face, its depth held apart (flat_fit.py, #10
+        # 2026-11-12): quarters' picture frame, its take 0.43 deep for its height, was laid 0.039 by 0.046 by 0.02 m
+        # for its 0.15 by 0.2 by 0.02 m row, 6% of its face. Its face now fills the row, its depth held at 6 cm (3
+        # times its row's); a door 10 cm deep for its 5 cm row keeps its 10 cm (under 3 times); a lumpy window 1.1 m
+        # deep for its 2 cm row is 6 cm; a crate's row is not flat and lays as before.
+        import flat_fit  # by its bare name, as the bake's card runs it
+        frame_row, frame_take = [0.15, 0.2, 0.02], (0.15, 0.2, 0.086)
+        frame = a_box_take(folder / "frame", "frame-t1", frame_take)
+        assert bake_job.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.035, 0.047, 0.02]
+        assert flat_fit.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
+        assert flat_fit.face_fit((1.0, 2.0, 0.1), [1.0, 2.0, 0.05]) == [1.0, 2.0, 0.1]  # a door: as deep as made
+        assert flat_fit.face_fit((1.2, 1.0, 1.1), [1.2, 1.0, 0.02]) == [1.2, 1.0, 0.06]  # a lumpy window: held
+        assert flat_fit.face_fit((0.5, 0.5, 2.0), [2.0, 1.0, 0.1]) == [1.0, 1.0, 0.3]  # the face within on both
+        crate = folder / "crate" / "labelled" / "crate-t1"
+        for row in ([1.0, 1.0, 1.0], [3.0, 1.5, 1.5], [8.0, 0.01, 0.01]):  # chunky, chunky, slender: not flat
+            assert not flat_fit.flat(row)
+            assert flat_fit.fitted_size(crate, row, bake_job.TURNS[90]) == bake_job.fitted_size(
+                crate, row, bake_job.TURNS[90])
+        with flat_fit.held():  # the bake's entries (laid_size) and its stood takes (refitted) lay by it
+            assert bake_job.laid_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
+            stood_frame = {"frame_1": {"base": bake_job.TURNS[0], "size": [0.035, 0.047, 0.02], "stood": {}}}
+            assert bake_job.refitted(stood_frame, {"frame_1": {"size": frame_row}}, frame)["frame_1"]["size"] == [
+                0.15, 0.2, 0.06]
+        assert bake_job.fitted_size is flat_fit.FITS, "and lets go"
+        assert "score/stages/surfaces/flat_fit.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
+        bake = {row.name: row for row in stages.STAGES}["surfaces-bake"]
+        assert bake.files("base")["paint bake flat_fit.py"].endswith("score/stages/surfaces/flat_fit.py")
     finally:
         shutil.rmtree(folder)
 
