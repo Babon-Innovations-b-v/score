@@ -1,21 +1,6 @@
 {
  "gaps": [
   {
-   "name": "restaurant_door and restaurant_window: flat sheets a library finish cannot match to their close-ups",
-   "row": "likeness",
-   "check": "likeness",
-   "objects": [
-    "restaurant_door",
-    "restaurant_window"
-   ],
-   "reason": "Their Pixal3D takes made no model, so each is a flat-sheet code build (score/stages/props/flat_sheet.py) laid as its close-up's outline at the row's size and finished with a plain library surface; DINOv2 cannot score a flat slab as like a close-up of a glass door or window (0.084 and 0.037 under 0.14, the PC run of 2026-11-10), and a sheet's retake is the same flat build again, so it would fail the same way. The same cause as quarters' rug (5e0c189c): ships as a named gap under the owner's rule of 2026-11-09 until a library surface and a sheet build that can carry glass land.",
-   "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session as for quarters' rug, 2026-11-10 ~03:45 UTC",
-   "faults": [
-    "restaurant_door: likeness 0.084 under 0.14 (prop route)",
-    "restaurant_window: likeness 0.037 under 0.14 (prop route)"
-   ]
-  },
-  {
    "name": "distant_red_flag: moves (cloth), no maker builds it yet (#88)",
    "row": "motion",
    "check": "designed",
@@ -70,6 +55,22 @@
     "pedestrian_umbrella_7: person/made, no accepted body of its look (people-dress-person-made-v7)"
    ],
    "passed": "characters-layer@street e23661d6662d"
+  },
+  {
+   "name": "restaurant_door and restaurant_window: flat sheets a library finish cannot match to their close-ups",
+   "row": "likeness",
+   "check": "likeness",
+   "objects": [
+    "restaurant_door",
+    "restaurant_window"
+   ],
+   "reason": "Their Pixal3D takes made no model, so each is a flat-sheet code build (score/stages/props/flat_sheet.py) laid as its close-up's outline at the row's size and finished with a plain library surface; DINOv2 cannot score a flat slab as like a close-up of a glass door or window (0.084 and 0.037 under 0.14, the PC run of 2026-11-10), and a sheet's retake is the same flat build again, so it would fail the same way. The same cause as quarters' rug (5e0c189c): ships as a named gap under the owner's rule of 2026-11-09 until a library surface and a sheet build that can carry glass land.",
+   "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session as for quarters' rug, 2026-11-10 ~03:45 UTC",
+   "faults": [
+    "restaurant_door: likeness 0.084 under 0.14 (prop route)",
+    "restaurant_window: likeness 0.037 under 0.14 (prop route)"
+   ],
+   "passed": "likeness@street fd45ac62ed42"
   }
  ]
 }
