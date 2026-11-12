@@ -1,7 +1,8 @@
 """Runs inside Blender on the bake's card: paint_bake.py's job (the paint, the take's make_chunky entries, the pending
 models stood square) with its last step, the bake, run through layout_fit.py, so each model's texture layout is laid
 again before it bakes where surfaces-check's "texture layout sound" would fail it (#118), and its paint through
-../base_level.py, so a take's base counts level within 3 cm through its standing height, as its feet do.
+../base_level.py, so a take's base counts level within 3 cm through its standing height, as its feet do, and its
+make_chunky entries through ../flat_fit.py, so a flat row's model is laid by its face, its depth held apart (#10).
 
     blender -b --python paint_fit.py -- <listing>    (route_bake.card_job's, its script set by ../bake_fitted.py)
 
@@ -45,7 +46,7 @@ def main():
     named = json.loads(listing.read_text())
     repo = pathlib.Path(named["paint repo"])
     environment = dict(os.environ, PYTHONPATH=str(paint_take.SITE), PROPS_HOME=named["props home"])
-    route_bake = [paint_take.PYTHON, str(repo / "score/stages/surfaces/route_bake.py")]
+    route_bake = [paint_take.PYTHON, str(repo / "score/stages/surfaces/flat_fit.py")]  # route_bake.py's steps
     blender = [paint_bake.BLENDER, "-b", "-setaudio", "None", "--python-exit-code", "1", "--python"]
     chunky = [*blender, str(repo / "tools/props/library/inside/make_chunky.py"), "--", named["bake chunky job"]]
     fitted = [*blender, str(repo / "score/stages/surfaces/inside/layout_fit.py"), "--", named["bake chunky job"]]
