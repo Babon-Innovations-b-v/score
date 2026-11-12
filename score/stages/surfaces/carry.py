@@ -297,6 +297,8 @@ def standing(runner, row, place, keyed):
     if accepted is None:
         return None, "nothing accepted"
     record = review.record_of(runner.store, node, accepted)
+    if record is None:
+        return None, f"its accepted output {accepted[:12]} has no record in this store"
     return record, why_not(runner, row, place, record, keyed)
 
 

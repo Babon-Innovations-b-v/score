@@ -1545,11 +1545,18 @@ def test_a_bake_model_with_no_written_entry_is_declared_missing_by_name():
 
 
 def test_a_record_from_an_uncommitted_tree_or_a_changed_code_without_proof_never_carries():
+    """Break: carry.standing reads why_not off a None record (an accepted output whose record this store lacks) and
+    raises instead of naming it."""
     row = ROWS["surfaces-paint"]
     assert carry.why_not(StubRunner(), row, "hub", a_record(uncommitted=True), {}) == \
         "made from a tree with changes not committed"
     assert carry.why_not(StubRunner(), row, "hub", a_record(), {}) == \
         "its code changed since, with no proof its result is the same"
+    orphan = StubRunner()
+    orphan.store.accepted = lambda node: "a" * 64
+    orphan.store.records = lambda node: []
+    assert carry.standing(orphan, row, "hub", {}) == \
+        (None, f"its accepted output {'a' * 12} has no record in this store")
 
 
 def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions():
