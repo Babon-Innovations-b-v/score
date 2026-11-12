@@ -354,4 +354,7 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   from the close-up than the finish's own never takes it over; a code-built light's finish listed on a glowing surface
   is its lit one) and `check_seen.py` (surfaces-check: a ship place's view distance from a kit laid from its own
   scene record, sized by the bake). Fold them into finish_parts.py, route_parts.py and bake_check.py when a change
-  there re-makes those rows anyway.
+  there re-makes those rows anyway. So is surfaces-paint (`stages.feet_checked`, `feet_stand.py`): a take refused on
+  its resting face alone (place_line.resting_base's rise across the band) passes "feet in one plane" when its baked
+  model stands by the resting check's measure (cockpit's pilot seat, 2026-11-12), so place_line.py, in the bake's and
+  84 paid rows' code, does not move; fold it into place_line.judge_feet when place_line.py moves anyway.

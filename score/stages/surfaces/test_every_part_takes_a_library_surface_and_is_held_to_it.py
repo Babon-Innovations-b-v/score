@@ -325,6 +325,10 @@ tests it turned red:
   a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
   one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance
+- feet_stand.py: `if refused == [feet.get("rests")] else None` -> `if False else None` (judge_feet)  ->
+  a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
+- feet_stand.py: `worst = max(worst, outside if outside > BALANCE else 0.0)` -> `worst = max(worst, 0.0)` (off_balance)
+  -> a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
 """
 import inspect
 import io
@@ -762,6 +766,21 @@ def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view
         assert bake_check.seen_degrees({"scene record": scene, "kit": laid}) == {}, "no bake, no size, no distance"
 
 
+def baked_model(folder, name, mesh):
+    """A baked .gltf of `mesh` in `folder/made`: its positions and triangles in one buffer, its .bin beside it."""
+    points = np.asarray(mesh.vertices, dtype=np.float32).tobytes()
+    corners = np.asarray(mesh.faces, dtype=np.uint32).tobytes()
+    (folder / "made").mkdir(parents=True, exist_ok=True)
+    (folder / "made" / f"{name}.bin").write_bytes(points + corners)
+    (folder / "made" / f"{name}.gltf").write_text(json.dumps({
+        "buffers": [{"uri": f"{name}.bin", "byteLength": len(points) + len(corners)}],
+        "bufferViews": [{"buffer": 0, "byteLength": len(points)},
+                        {"buffer": 0, "byteOffset": len(points), "byteLength": len(corners)}],
+        "accessors": [{"bufferView": 0, "componentType": 5126, "count": len(mesh.vertices), "type": "VEC3"},
+                      {"bufferView": 1, "componentType": 5125, "count": mesh.faces.size, "type": "SCALAR"}],
+        "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}]}))
+
+
 def tank_mesh(ends, height=1.6):
     """A tank's (vertices, faces), its own frame (+y up), on four corner legs ending `ends` up (the water tank's
     measured)."""
@@ -856,9 +875,31 @@ def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fail
         (folder / "painted.json").write_text(json.dumps({"takes": {"water_tank-r1": {"feet": found}}}))
         judged = place_line.judge_feet(folder, {}, None)
         assert judged.answer == verdict and (verdict == checks.PASS or "water_tank-r1" in judged.findings[0]), judged
-    shutil.rmtree(folder)
     paint = {stage.name: stage for stage in stages.STAGES}["surfaces-paint"]
     assert "feet in one plane" in [check.name for check in paint.checks]
+    import feet_stand  # by its bare name, as the table sets it on the row
+    assert paint.make is feet_stand.make_paint
+    # a take refused on its resting face alone (cockpit's pilot seat, 2026-11-12: its face rose 18.1% across its base
+    # while its weight lay inside what it touches) passes when its baked model stands by the resting check's measure,
+    # fails named when it does not, and every other refusal fails as a missing leg
+    seat = {"feet": 1, "gaps": [0.0], "levelled": [], "refused": [0.1807], "rests": 0.1807}
+    flag = {"feet": 1, "gaps": [0.0], "levelled": [], "refused": [0.1511, 0.2263], "rests": 0.2263}
+    upright = trimesh.creation.box(bounds=((-0.3, 0.0, -0.3), (0.3, 1.0, 0.3)))
+    tipped = trimesh.creation.box(bounds=((-0.2, 0.0, -0.2), (0.2, 2.0, 0.2)))
+    tipped.apply_transform(trimesh.transformations.rotation_matrix(math.radians(25.0), [0.0, 0.0, 1.0]))
+    for model, found, verdict, named in ((upright, seat, checks.PASS, None), (tipped, seat, checks.FAIL, "not stand"),
+                                         (upright, flag, checks.FAIL, "missing leg"),
+                                         (None, seat, checks.FAIL, "missing leg")):  # no bake read: as refused
+        bake = folder / "bake"
+        shutil.rmtree(bake, ignore_errors=True)
+        (bake / "entries").mkdir(parents=True)
+        (bake / "entries" / "pilot_seat-r1.json").write_text(json.dumps({"pilot_seat_1": {}}))
+        if model is not None:
+            baked_model(bake, "pilot_seat_1", model)
+        (folder / "painted.json").write_text(json.dumps({"takes": {"pilot_seat-r1": {"feet": found}}}))
+        judged = feet_stand.judge_feet(folder, {"surfaces-bake": bake}, None)
+        assert judged.answer == verdict and (named is None or named in judged.findings[0]), (verdict, judged)
+    shutil.rmtree(folder)
     rules = REPO / "data/checks/resting.json"
     tank = {"place": "greenhouse", "kind": "greenhouse_water_tank"}
     glove = {"place": "lab", "kind": "lab_hanging_glove"}  # held on its cabinet, but it hangs: no feet to level
