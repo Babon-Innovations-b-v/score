@@ -2597,7 +2597,10 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         (the monitor let down onto the slab named 0.45 m off its desk's top)
     Break: score/stages/assembly/crest_tops.py: rest's `lift = float(np.nanmax(np.concatenate(...))) + CLEAR` -> `lift
         = CLEAR` (the pile left 0.4 m over the crest), or one's `if here is not None and abs(here - CLEAR) <=
-        fitting.MOVE_LEAST and stands(...):` -> `if False:` (the pile resting on the crest laid again)"""
+        fitting.MOVE_LEAST and stands(...):` -> `if False:` (the pile resting on the crest laid again), or may_rest's
+        `lift = np.max(...) + CLEAR` -> `lift = np.max(...) + CLEAR + triage.TOLERANCE` (the sieve passes the crest
+        by: the pile left over it), or its `& (most - weights[:, axis] >= triage.BALANCE - SLACK)` dropped
+        (rest asked along the ridge's strip)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -2834,6 +2837,32 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert [fit["name"] for fit in crest] == ["bags_9"] and abs(low[1] - 2.0) <= 0.01, (crest, low)
     assert 20.8 <= (low[0] + high[0]) / 2 <= 21.2 and np.isclose(crest[0]["top at"], low[1], atol=1e-3), (low, high)
     assert crest_tops.laid_on(stage, TOY, piled) == []
+    # base (2026-11-12): its hangar's roof opening was asked of rest at 1.5 million spots on the hangar's top, none
+    # holding it, 3 hours. The sieve's first pass (may_rest) leaves the spot found by asking rest at every one; on a
+    # 20 m ridge, where the pile touches a strip too narrow to stand balanced on, it asks rest at none.
+    import triage
+    ridge = trimesh.convex.convex_hull(np.array([(x, y, z) for x, y in ((0, 0), (2, 0), (1, 1)) for z in (0, 20)],
+                                                float))
+
+    def pile_spot(holder, at):
+        pile = trimesh.creation.box((1.2, 0.3, 0.6))
+        pile.apply_translation(at)
+        hold = tuple(holder.bounds)
+        thing = (pile, np.asarray(triage.low_points(pile), float),
+                 np.vstack([pile.vertices, pile.sample(crest_tops.EVERY, seed=0)]))
+        fields = crest_tops.height_field(holder, hold), crest_tops.exact_field(holder, hold)
+        return crest_tops.spot(thing, fields, tuple(pile.bounds), hold, [])
+    sieve, rest, asked = crest_tops.may_rest, crest_tops.rest, []
+    try:
+        crest_tops.rest = lambda *args: asked.append(args) or rest(*args)
+        on_ridge, ridge_asked = pile_spot(ridge, (1.0, 2.0, 10.0)), len(asked)
+        sieved = pile_spot(tube, (20.6, 2.55, 0.3))
+        crest_tops.may_rest = lambda low, weight, field, shifts: np.ones(len(shifts), bool)
+        unsieved = pile_spot(tube, (20.6, 2.55, 0.3))
+    finally:
+        crest_tops.may_rest, crest_tops.rest = sieve, rest
+    assert on_ridge is None and ridge_asked == 0, (on_ridge, ridge_asked)
+    assert sieved is not None and np.array_equal(sieved, unsieved), (sieved, unsieved)
 
 
 def test_a_wall_item_stands_on_its_named_face():
