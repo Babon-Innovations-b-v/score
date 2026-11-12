@@ -877,7 +877,11 @@ def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
     Break: score/stages/assembly/fitting.py: `held = [boxes[name] for name in on.get("holder") or [] if name in
         boxes] if on["how"] != "in" else walls` -> `... else []`
     Break: score/stages/assembly/opening_walls.py: `if near(own) or not near(2 - own):` -> `if True:` (the collar
-        door left along z), or `-> if not near(2 - own):` (the side door turned onto the sill across its wall's end)"""
+        door left along z), or `-> if not near(2 - own):` (the side door turned onto the sill across its wall's end)
+    Break: score/stages/assembly/opening_free.py: `if not taken:` -> `if True:` (tube's windows_2 left on windows_1's
+        jamb), or its `if finish - begin >= wide - 1e-9]` -> `]` (laid in the 0.23 m stretch past a box it never
+        fits); fitting.py's `for key in ("middle", "along", "wide")` -> `("middle", "along")` (the gate judges it off
+        its whole opening)"""
     from score import stages
     from score.stages.assembly import fitting
     walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
@@ -919,6 +923,40 @@ def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
         abs(degrees) == 90.0, (turned, degrees)
     side = {**collar, "middle": [-1.6, 0.0, 5.0]}
     assert opening_walls.across(side, 0.0, ends) == (side, 0.0)
+    # tube (2026-11-12): windows_2's cut opening (z 1.03 to 3.03) overlaps windows_1's, laid before it against the
+    # rib at z 1.22 (to z 1.70); it is laid in the stretch windows_1 leaves free (1.70 to 3.03), never in one too
+    # short for it, and the held gate judges it in that stretch; one on the far wall, or none, leaves the opening
+    # as it is, and so does one that leaves no stretch it fits (held_clear and the gate judge it as laid).
+    from score.stages.assembly import opening_free
+    window = {"how": "in", "middle": [-1.6, 0.8, 2.027], "along": [0.0, 1.0], "wide": 2.0, "tall": 0.8}
+    own = (np.array((-1.6511, 0.8, 1.789)), np.array((-1.5489, 1.0439, 2.2646)))
+    first, far = ((-1.6511, 0.8, 1.221), (-1.5489, 1.0439, 1.6966)), ((1.5489, 0.8, 1.221), (1.6511, 1.0439, 1.6966))
+    rib = ((-1.6511, 0.8, 1.0), (-1.5489, 1.0439, 1.221))
+    free = opening_free.free_part(window, *own, [rib, first])
+    assert np.allclose(free["middle"], (-1.6, 0.8, 2.3618)) and free["wide"] == 1.3304, free
+    assert all(opening_free.free_part(window, *own, before) is window
+               for before in ([far], [], [((-1.6511, 0.8, 1.0), (-1.5489, 1.0439, 2.8))])), "left as it is"
+    from pxr import Usd
+    hull = Usd.Stage.CreateInMemory()
+    built = {"wall_4_9": ((-1.668, -0.2, 0.336), (-1.532, 0.8, 2.336)), "wall_4_7": ((-1.668, -0.2, 1.027),
+                                                                                  (-1.532, 0.8, 3.027)),
+             "wall_4_8": ((-1.668, 1.6, 0.336), (-1.532, 3.2, 3.027)), "structural_ribs_2": ((-1.6, 0.0, 1.021),
+                                                                                           (1.6, 3.2, 1.221)),
+             "structural_ribs_3": ((-1.6, 0.0, 2.724), (1.6, 3.2, 2.924))}
+    for name, (low, high) in built.items():
+        a_built_box(hull, f"/{TOY}/Structure/{name}", low, high)
+    cut = {"windows_1": 1.336, "windows_2": 2.027}
+    for name, middle in cut.items():
+        a_built_box(hull, f"/{TOY}/Objects/{name}", (-1.6511, 0.8, middle - 0.2378), (-1.5489, 1.0439, middle + 0.2378))
+    entries = [{"name": name, "row": "windows", "on": {**window, "middle": [-1.6, 0.8, middle]}}
+               for name, middle in cut.items()]
+    laid = {fit["name"]: fit for fit in fitting.fitted(hull, TOY, entries, set(cut))}
+    assert laid["windows_2"]["low"][2] >= laid["windows_1"]["high"][2] - 1e-4 and laid["windows_2"]["opening"][
+        "wide"] < 2.0 and "opening" not in laid["windows_1"], laid
+    beside = {"objects": [{"name": name, "low": fit["low"], "high": fit["high"]} for name, fit in laid.items()],
+              "walls": [{"name": name, "low": low, "high": high} for name, (low, high) in built.items()],
+              "fitted": list(laid.values())}
+    assert fitting.held_faults({"objects": entries}, beside) == [], beside
 
 
 def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
