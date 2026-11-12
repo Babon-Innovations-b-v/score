@@ -15,6 +15,12 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `measure.level_under`: `- plane @ np.linalg.pinv(plane)` dropped (the gaps judged off the feet, not off a plane)
   -> the deck edge test (the person on the slope is left out).
 - `measure.run_into`: `sorted(names) if hit else []` read as `[]`  -> the toy place test.
+- `spread.NUDGES`: the rings past 1.2 m out to NUDGE_FAR dropped  -> the toy place test (the member among the beds
+  left out).
+- `cast.seated_clear`: `if not into` read as `if True`  -> the toy place test (the bench's sitter stays under the
+  laptop).
+- `measure.seat_spots`: the `- BODY_RADIUS` dropped (spots to the seat's very ends)  -> the toy place test (85 spots
+  across the bench, not 13 along it).
 - `cast.overlaps`: `< measure.KNEE` read as `< 100`  -> the overlap test (bodies on two levels overlap).
 - `cast.off_ground`: `> STAND_SLACK` read as `> 1.0`  -> the standing test.
 - `cast.short_of`: the packed `not crowd["copies"]` branch dropped  -> the packed crowd test.
@@ -65,6 +71,7 @@ import sys
 
 import numpy as np
 import pytest
+import trimesh
 from pxr import Usd, UsdGeom
 
 from score import checks, stages
@@ -104,7 +111,9 @@ def off_the_crate(spot):
 
 def seat_place(folder):
     """base.usda of place `camp`: the toy floor, a 1 m crate `crate_1` from 0 to 1 and a 0.4 m stool `stool_1_1` at
-    3 to 3.4, its seat 0.45 high, its back a board 0.05 thick up to 0.9 along its far side."""
+    3 to 3.4, its seat 0.45 high, its back a board 0.05 thick up to 0.9 along its far side; a bench `bench_1_1` 0.45
+    high, x -3 to -2.4, z 0 to 2, and a laptop `laptop_1` 0.4 m square from 1.2 to 1.25 over its middle (quarters'
+    laptop on the bunk over its sitter, 2026-11-12)."""
     stage = Usd.Stage.CreateNew(str(folder / "seats.usda"))
     UsdGeom.Xform.Define(stage, "/camp")
     mesh(stage, "/camp/Ground/floor", [(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)], [(0, 1, 2, 3)])
@@ -113,6 +122,9 @@ def seat_place(folder):
     mesh(stage, "/camp/Objects/stool_1_1", [(x, y, z) for x in (3, 3.4) for y in (0, 0.45) for z in (3, 3.4)]
          + [(x, y, z) for x in (3, 3.4) for y in (0.45, 0.9) for z in (3.35, 3.4)],
          box + [tuple(index + 8 for index in face) for face in box])
+    mesh(stage, "/camp/Objects/bench_1_1", [(x, y, z) for x in (-3, -2.4) for y in (0, 0.45) for z in (0, 2)], box)
+    mesh(stage, "/camp/Objects/laptop_1", [(x, y, z) for x in (-2.9, -2.5) for y in (1.2, 1.25) for z in (0.8, 1.2)],
+         box)
     stage.Save()
     return measure.solids(folder / "seats.usda", "camp")
 
@@ -160,9 +172,24 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_pat
     assert over["at"] == [0.5, 1.0, 0.5]
     high = cast.on_support({"people": [dict(people["climber"], at=[0.5, 2.0, 0.5])]}, seats)["people"][0]
     assert high["at"] == [0.5, 2.0, 0.5]  # never lowered
+    # a sitter whose body at its seat's middle runs into a thing over it (quarters' laptop on the bunk over its
+    # sitter) sits at the nearest spot along its seat clear of it; one clear at the middle keeps it; one with no clear
+    # spot keeps the middle, for the clear gate to name
+    top = measure.top_of("seated")
+    bench = measure.seat_spots(seats["Objects/bench_1_1"])
+    assert bench[0] == ([-2.7, 0.0, 1.0], 0.45) and len(bench) == 13, bench  # the middle, then 0.125 m along it
+    assert measure.run_into([[-2.7, 0.45, 1.0]], seats, [top], ["Objects/bench_1_1"]) == [["Objects/laptop_1"]]
+    at, height = cast.seated_clear(seats, "Objects/bench_1_1")
+    assert height == 0.45 and at[0] == -2.7 and abs(at[2] - 1.0) == 0.5, at  # the nearest clear: 0.2 + 0.25 off
+    assert measure.run_into([[at[0], height, at[2]]], seats, [top], ["Objects/bench_1_1"]) == [[]]
+    assert cast.seated_clear(seats, "Objects/stool_1_1") == ([3.2, 0.0, 3.2], 0.45)
+    plank = trimesh.creation.box(extents=[0.6, 0.05, 2.0], transform=trimesh.transformations.translation_matrix(
+        [-2.7, 1.2, 1.0])).triangles
+    assert cast.seated_clear(dict(seats, **{"Objects/plank": plank}), "Objects/bench_1_1") == ([-2.7, 0.0, 1.0], 0.45)
+    bunk = cast.on_support({"people": [dict(people["sitter_1"], at=[-2.7, 0.0, 1.0], anchor="on:bench_1")]}, seats)
+    assert (bunk["people"][0]["at"], bunk["people"][0]["seat_on"]) == (at, "Objects/bench_1_1"), bunk
     spot = cast.seated_spot(people["sitter_1"])
     assert spot == [3.2, 0.45, 3.2] and measure.ground_under([spot], seats)[0]["gap"] == 0.0
-    top = measure.top_of("seated")
     assert measure.run_into([spot], seats, [top], ["Objects/stool_1_1"]) == [[]]
     assert measure.run_into([spot], seats, [top]) == [["Objects/stool_1_1"]]  # its back, its own
     assert "no seat" in cast.off_ground({"gap": 0.0, "on": "Ground/floor", "water": False, "seat": None})
@@ -180,6 +207,16 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_pat
     # the body's 16-sided cylinder is BODY_RADIUS to its corners, BODY_RADIUS cos(pi/16) to its flat sides
     assert spot[1] == 0.0 and off_the_crate(spot) >= 0.245, spot
     assert [copy["at"] for copy in copies] == [[3.0, 0.0, 3.0]]  # the crowd copy on the crate is not stood
+    # a member whose spot the layout filled past 1.2 m round (greenhouse's planter beds edge to edge round its middle
+    # astronaut, 2026-11-12) stands on the nearest clear floor out to NUDGE_FAR; none there, it is left out
+    beds = dict(found, **{"Objects/beds": trimesh.creation.box(
+        extents=[3.4, 0.5, 3.4], transform=trimesh.transformations.translation_matrix([0.5, 0.25, 0.5])).triangles})
+    placed, _ = spread.stand_every([inside], {"worker_1"}, [], 0, beds)
+    off = np.hypot(placed[0]["at"][0] - 0.5, placed[0]["at"][2] - 0.5) if placed else None
+    assert placed and 1.2 < off <= spread.NUDGE_FAR and measure.run_into([placed[0]["at"]], beds) == [[]], placed
+    wide = dict(found, **{"Objects/beds": trimesh.creation.box(
+        extents=[6.0, 0.5, 6.0], transform=trimesh.transformations.translation_matrix([0.5, 0.25, 0.5])).triangles})
+    assert spread.stand_every([inside], {"worker_1"}, [], 0, wide)[0] == []
 
 
 def test_a_base_with_no_solid_stands_nobody_and_runs_into_nothing():
@@ -377,7 +414,6 @@ def test_a_spot_on_a_raised_level_stands_at_its_height():
     assert still == record["people"][2] and cast.climbers_of(cast.on_stairs(record, stairs)) == {"man", "woman"}
     # a deck 1.5 m over the man's flight (the stairwell's 3 m deck over its flight from the 1.5 m landing, 2026-11-10):
     # he walks up the nearest flight he walks clear, the low one; the woman's flight is clear and stays hers
-    import trimesh
     deck = {"Shell/deck_2": trimesh.creation.box(extents=[1.2, 0.2, 2.0], transform=trimesh.transformations
                                                  .translation_matrix([12.5, 5.1, -4.0])).triangles}
     man, woman, _ = cast.on_stairs(cast.on_levels(record, stairs), stairs, deck)["people"]

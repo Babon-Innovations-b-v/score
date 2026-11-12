@@ -25,7 +25,8 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   `people_rows.seat_of`) plays the `seated` clip and is put on the nearest seat of that row not taken, measured on the
   laid objects (the cast and sim-body read the surface line's bakes, so `layer_base.built` lays them): its feet on the
   seat's floor under its middle, `seat` its height (`measure.seat_top`), measured from the seat's top and clear of
-  all but its own seat; one whose row lays no free seat (none laid, all taken, or no surface `SEAT_LOW` to
+  all but its own seat; where its body there runs into something (quarters' laptop on the bunk over its sitter,
+  2026-11-12) at the nearest spot along the seat that is clear (`seated_clear`), else at the middle for `clear` to name; one whose row lays no free seat (none laid, all taken, or no surface `SEAT_LOW` to
   `SEAT_REACH` over its floor) stands on clear floor by its spot instead (`unseated`, nudged like a group member),
   named as a finding of `standing` (2026-11-10: camp's office chairs never laid, airlock's bench top 0.19 m); the
   seat's fault is its row's to fix. Any other anchored person is raised
