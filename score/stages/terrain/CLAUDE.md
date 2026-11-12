@@ -20,8 +20,8 @@ standing on it. `__init__.py`'s and `fit.py`'s docstrings have the makes and the
   concept's setting: each top scene stands at its site (its kept sky, `{home}/design/sky/<scene>.json`), each scene
   its plan holds where it holds it, unturned, its floor on the top's; the body's true sphere (its radius the
   setting's) or the plot's plane, raised by each kept plan's terrain spots (a thin-plate
-  spline faded past the farthest spot, kept within the spots' heights; three spots none above the floor are a dip, weighed
-  by distance, never the tilted plane through them: `bounded.py`, installed in `design.spline`'s place by the table and declared a file of terrain and ground-fit, 2026-11-12, wreck). A scene no ground stands is no row of ground-fit; an outdoor one is a seat
+  spline faded past the farthest spot, kept within the spots' heights; spots none above the floor are dents, each round,
+  2.5 m across with a flat 2 m floor at its spot, the floor elsewhere, never a plane or one dip through them: `bounded.py`, installed in `design.spline`'s place by the table and declared a file of terrain and ground-fit, 2026-11-12, wreck). A scene no ground stands is no row of ground-fit; an outdoor one is a seat
   gap (`needs.py`) until its top scene has a site.
 - **Terrain is a model layer (owner, 2026-10-20; CONTEXT.md "layer adapter").** Its detail (craters, tracks,
   outcrops) is the scene inventory's terrain rows, made by the shared loop like any row and joined into the ground by

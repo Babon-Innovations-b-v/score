@@ -4,11 +4,16 @@ three, a shallow dip of about 1 m ((11.04, 12.54, -0.5), (8.14, 13.29, -1), (19.
 degrees steep, kept at full height out to the farthest spot: ridges of 6.5 m and pits of 5 m round the place, and the
 things laid on it faulted.
 
+    shape = bounded.dented(spots)   # [[x, y, height <= 0]] -> a function of [[x, y]]: each spot a dent, else 0
     shape = bounded.shaped(spots)   # [[x, y, height]] -> a function of [[x, y]] giving heights within the spots'
 
-A dip (three spots, none above the floor) is no plane: each point takes the spots' heights weighed by the inverse
-square of its distance to each (Shepard's), which never leaves their range and passes through every spot. Any other
-spline is clipped to the spots' lowest and highest height, so it never rises or sinks past what the plan gives.
+Spots none above the floor are dents (`dented`), each local to its spot (2026-11-12, wreck): its plan's notes lay
+"the forward section resting in a 2.5 m dent 30 cm deep where it struck, the two pressure spheres in shallow dents".
+One dip weighed over all three spots (Shepard's, the first fix) still ran the ground 0.4 to 0.8 m across the place and
+faded past the farthest spot inside it: its rocket halves, lander, tank, cylindrical part and gold foil stood on the
+slope. Each spot is now a round dent its height deep, flat to DENT_FLOOR from it and reaching DENT_REACH, and the
+ground is the floor outside the dents. Any other spline is clipped to the spots' lowest and highest height, so it
+never rises or sinks past what the plan gives.
 
 Apart from design.py so that only the rows that shape a relief take it into their keys: terrain and ground-fit (ROWS)
 declare it as a file of theirs (FILES, added in the framework's table, score/stages/__init__.py, which imports it and
@@ -25,18 +30,28 @@ ROWS = ("terrain", "ground-fit")
 FILES = {"bounded relief": "{repo}/score/stages/terrain/bounded.py"}
 
 
-def is_dip(spots):
-    """Whether three distinct spots [[x, y, height]] mean a dip: none stands above the floor (height 0)."""
-    return len(spots) == 3 and bool((spots[:, 2] <= 0.0).all())
+# How far, metres, a dent reaches from its spot (wreck's plan notes give its rocket's dent as 2.5 m across), and how
+# far its floor, flat at the spot's height: wreck's spherical tank, 1.5 m round, leaned 6.4 to 7.9 degrees on the
+# faces of a bowl, and 3.1 on a 1.5 m floor, as the place's near grid (0.5 m apart) draws them: every triangle of
+# that grid within 0.3 m of the spot has its corners on a 2 m floor.
+DENT_REACH = 1.25
+DENT_FLOOR = 1.0
 
 
-def weighed(spots):
-    """The spots' heights at points [[x, y]], each spot weighed by the inverse square of its distance (its own height
-    at a spot)."""
+def is_dented(spots):
+    """Whether spots [[x, y, height]] mean dents: none stands above the floor (height 0)."""
+    return bool((spots[:, 2] <= 0.0).all())
+
+
+def dented(spots):
+    """The ground of dent spots at points [[x, y]]: each spot the middle of a round dent its height deep, flat to
+    DENT_FLOOR from it and rising straight to the floor (0) at DENT_REACH; the deeper dent where two meet, the floor
+    elsewhere."""
     def shape(points):
-        apart = np.atleast_2d(points)[:, None, :] - spots[None, :, :2]
-        weights = 1.0 / np.maximum((apart ** 2).sum(axis=2), 1e-12)
-        return (weights * spots[:, 2]).sum(axis=1) / weights.sum(axis=1)
+        points = np.atleast_2d(np.asarray(points, dtype=float))
+        apart = np.hypot(points[:, None, 0] - spots[None, :, 0], points[:, None, 1] - spots[None, :, 1])
+        rise = np.clip((apart - DENT_FLOOR) / (DENT_REACH - DENT_FLOOR), 0.0, 1.0)
+        return (spots[None, :, 2] * (1.0 - rise)).min(axis=1)
     return shape
 
 
@@ -49,8 +64,8 @@ def clipped(spots):
 
 
 def shaped(spots):
-    """The shape of distinct spots [[x, y, height]] of differing heights: weighed for a dip, else clipped."""
-    return weighed(spots) if is_dip(spots) else clipped(spots)
+    """The shape of distinct spots [[x, y, height]] of differing heights, none of them dents: clipped."""
+    return clipped(spots)
 
 
 def spline(source):
@@ -59,6 +74,8 @@ def spline(source):
     height is the whole relief)."""
     spots = np.asarray(source["spots"], dtype=float)
     spots = spots[np.unique(spots[:, :2], axis=0, return_index=True)[1]]
+    if is_dented(spots):
+        return dented(spots)
     if len(spots) < 3 or np.ptp(spots[:, 2]) < 1e-3:
         return None
     shape = shaped(spots)
