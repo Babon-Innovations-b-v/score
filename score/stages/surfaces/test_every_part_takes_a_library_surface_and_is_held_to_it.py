@@ -65,6 +65,9 @@ tests it turned red:
   a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
 - uv_layout.py: `return shares, int((counts > 1).sum()), int((counts > 0).sum())` -> `return shares, 0, 1`  ->
   a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- uv_layout.py: `and not (one_surface and measure == "thin")` dropped, or `== 1` -> `<= 2` (judge_layout)  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model (the sticky note fails, or the frame
+  passes); `not (one_surface and measure == "thin")` -> `not one_surface`  -> the same (its overlap passes)
 - uv_layout.py: `keys = np.concatenate([geometry["positions"], geometry["uvs"]], axis=1)` -> `keys =
   np.arange(len(geometry["positions"]))[:, None]`  ->
   a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
@@ -1124,6 +1127,12 @@ def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_m
     thin = uv_layout.layout_record(uv_layout.measure(squares(*sound, laid(0.5, 0.5, 0.0005, 0.0005)), [(1024, 1024)]))
     assert thin["thin"] == round(1 / 3, 4) and [fault for fault in uv_layout.faults(thin) if fault.startswith(
         uv_layout.WORDS["thin"])], thin
+    # quarters' sticky note, 2026-11-12: a model of one surface has no thin-chart fault (its strip's neighbours bake
+    # its own finish); the same strip beside a second surface still fails, and every other measure still counts
+    sparse_only = uv_layout.faults({**thin, "thin": 0.0})  # the speck is also a fraction of the squares' density
+    assert uv_layout.faults(thin, one_surface=True) == sparse_only, thin
+    assert uv_layout.faults({**thin, "overlap": 0.05}, one_surface=True) == [
+        *uv_layout.faults({**thin, "thin": 0.0, "overlap": 0.05})], thin
     # a split corner at a hard normal edge (the same position and texture coordinate twice) is one chart, not two
     split = squares(laid(0.1, 0.1, 0.5, 0.5))
     split["positions"] = np.concatenate([split["positions"], split["positions"][[0, 2]]])
@@ -1135,10 +1144,15 @@ def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_m
         folder = pathlib.Path(temporary)
         (folder / "checks.json").write_text(json.dumps({name: {"layout": record} for name, record in records.items()}))
         verdict = uv_layout.judge_layout(folder, {}, None)
+        (folder / "checks.json").write_text(json.dumps({
+            "note": {"layout": {**thin, "sparse": 0.0}, "surfaces": {"label_yellow": {}}},
+            "frame": {"layout": {**thin, "sparse": 0.0}, "surfaces": {"label_yellow": {}, "dark_steel": {}}}}))
+        one_surface = uv_layout.judge_layout(folder, {}, None)
         (folder / "checks.json").write_text(json.dumps({"crate": {"missing_maps": ["base_color"]}}))
         unmeasured = uv_layout.judge_layout(folder, {}, None)
     assert verdict.answer == "fail" and sorted(finding.split(":")[0] for finding in verdict.findings) == [
         "mirrored", "outside", "overlap", "sparse", "stretched"], verdict.findings
+    assert [finding.split(":")[0] for finding in one_surface.findings] == ["frame"], one_surface.findings
     assert unmeasured.answer == "unknown", unmeasured
     assert "texture layout sound" in [check.name for check in stages.bake_checked(
         {row.name: row for row in surfaces.ROWS}["surfaces-check"]).checks]

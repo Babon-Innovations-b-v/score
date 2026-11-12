@@ -302,7 +302,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   fail, 15 by shared texels (smart_project's folds on lumpy takes, the faces sharing a texel 6 to 13% of the model's
   size apart), 17 by sub-texel charts on small pictures. The back-face fault (`inside/bake.py` HIDDEN_SHARE, a face
   toward the kit's back packed at a twentieth of the density) is ruled out: every caller passes `backs_hidden=False`,
-  and no model's density facing any axis is under 0.7 of another's (doors included).
+  and no model's density facing any axis is under 0.7 of another's (doors included). A model of one surface has no
+  thin-chart fault (`ONE_SURFACE`, 2026-11-12): a thin chart takes its neighbours' colour, all its own finish; on env1's
+  38 models failing it every thin strip is geometry under a texel at the model's own density, not the packer.
+- **Every place's models are sized from its own scene record** (`stages.seen_from_record`, 2026-11-12): read
+  beside wherever the scene-record row writes one, the earth places' too; with only the ship places', 46 earth
+  models failed "baked matches its surfaces" on no view distance alone.
 - **A base that slopes as one piece is brought down level** in the paint (`place_line.flattened_base`, after the legs):
   each footprint quadrant of the bottom quarter over 1% of the size up comes down its whole gap at its lowest point,
   spread by inverse squared distance and faded over the band; over 15% is a model fault, refused. Then an underside
