@@ -32,6 +32,8 @@ import ground as grounds  # noqa: E402
 import scene  # noqa: E402
 import whole_layer  # noqa: E402
 
+# this form, not `from ... import`: the code version then leaves the assembly's __init__ out
+import score.stages.assembly.lamps_along as lamps_along  # noqa: E402
 from score.stages.light import sky  # noqa: E402
 
 LAYER = "layers/light.usda"
@@ -81,7 +83,7 @@ def placed_lamps(stage, place, record):
     MOVE_MOST, which is moved), else written new (the sky's lights are the physics', sky.py). Returns what was done
     to each record lamp."""
     seeded = own_lamps(stage, place)
-    free = {path: (spot, shaped) for path, spot, shaped in seeded}
+    free = {path: (lamps_along.laid_at(stage, path, spot), shaped) for path, spot, shaped in seeded}  # carried
     done = []
     wanted = record_lamps(record)
     for name, entry in wanted:
