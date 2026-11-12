@@ -58,6 +58,7 @@ import score.stages.motion.cloth as motion_cloth
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.railing_hold as railing_hold
+import score.stages.props.flat_drawn as flat_drawn
 import score.stages.terrain.bounded as bounded_relief
 import score.stages.people_rows as people_rows
 import score.stages.props.prop_data as prop_data
@@ -2083,6 +2084,22 @@ def railing_held(row):
 
 
 STAGES = tuple(map(railing_held, STAGES))
+
+
+def flat_drawn_held(row):
+    """likeness (props/flat_drawn.py ROWS) declaring flat_drawn.py and the bake's flat_fit.py as files of its own, so
+    its key moves with how a flat row's model is drawn (by its face, as the bake lays it, #10 2026-11-12): here, in
+    the table, not in likeness_row, as railing_held is."""
+    if row.name not in flat_drawn.ROWS:
+        return row
+
+    @functools.wraps(row.files)
+    def declared(place):
+        return {**row.files(place), **flat_drawn.FILES}
+    return dataclasses.replace(row, files=declared)
+
+
+STAGES = tuple(map(flat_drawn_held, STAGES))
 
 
 def relief_bounded(row):

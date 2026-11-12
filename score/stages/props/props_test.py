@@ -151,7 +151,10 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
     0.5 m crate made right passes and one made square fails its spread; a 0.6 by 0.6 by 2 m locker passes. Laid x wide,
     z deep, as before f2ccd22c, the right crate read spread 1.0 and failed. A Pixal3D take is laid within its row at its
     own proportions (the case's comment).
-    Break: likeness_row.py `drawn_size`: `bake_job.fit_within(extents, ...)` -> the row's own size (stretched)"""
+    Break: likeness_row.py `drawn_size`: `bake_job.fit_within(extents, ...)` -> the row's own size (stretched)
+    Break: flat_drawn.py `drawn_size`: `or not fit.flat(row["size"]):` -> `or True:` (a flat row drawn by its depth)
+    Break: flat_drawn.py `install`: `likeness_row.drawn_size = drawn_size` -> `pass` (not installed)
+    Break: __init__.py `flat_drawn_held`: `**flat_drawn.FILES` dropped (the likeness key not moved by it)"""
     tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
     import trimesh
     rows = {"crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 2.0], True), "square crate": ([2.0, 1.0, 0.5], [1.0, 0.5, 1.0], False),
@@ -171,6 +174,21 @@ def test_the_model_check_holds_a_prop_s_proportions_whichever_way_round_the_fini
     assert laid == [2.832, 1.5, 0.808], laid
     found = likeness_row.model_checks(tunnel, laid, "p_tunnel", False)["model_check"]
     assert found["pass"] and found["spread"] == 0.0, found
+    # 2026-11-12 (#10): the bake lays a flat row's model by its face, its depth held apart (surfaces/flat_fit.py), so
+    # the check draws it so (props/flat_drawn.py in drawn_size's place): quarters' picture frame, baked 0.15 by 0.178 by
+    # 0.06 m for its 0.15 by 0.02 by 0.2 m row, was drawn 0.05 by 0.02 by 0.059 (fitted as one, its depth bound) and its
+    # wall read 1.7 mm; it is drawn at its baked size. The tunnel (not flat) is drawn as before.
+    import score.stages.props.flat_drawn as flat_drawn
+    assert likeness_row.drawn_size is flat_drawn.drawn_size, "installed"
+    frame = tmp_path / "frame.glb"
+    trimesh.creation.box(extents=[0.15, 0.178, 0.06]).export(frame)
+    frame_row = {"id": "picture_frame", "name": "picture frame", "anchor": "on:wall", "size": [0.15, 0.02, 0.2]}
+    assert flat_drawn.UNFLAT(frame_row, frame, [frame_row], {}) == [0.05, 0.02, 0.059]
+    assert likeness_row.drawn_size(frame_row, frame, [frame_row], {}) == [0.15, 0.06, 0.178]
+    assert likeness_row.drawn_size(row, tunnel, [row], {}) == flat_drawn.UNFLAT(row, tunnel, [row], {})
+    likeness = {stage.name: stage for stage in stages.STAGES}["likeness"]
+    assert likeness.files("quarters")["flat drawn"] == "{repo}/score/stages/props/flat_drawn.py"
+    assert likeness.files("quarters")["flat fit"] == "{repo}/score/stages/surfaces/flat_fit.py"
 
 
 def test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided_sheet_still_fails():
