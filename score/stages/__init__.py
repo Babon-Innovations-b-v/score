@@ -42,7 +42,7 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           scene_clips, screens, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
-    parts_kept, recheck_picks, route_check, uv_layout
+    parts_kept, recheck_picks, route_check, uv_layout, bake_fitted
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -764,8 +764,18 @@ def paint_baked(row):
     own = row.files
     return dataclasses.replace(row, files=lambda place: {
         **paint_files(place), **own(place), **{f"paint bake {name}": "{repo}/score/stages/surfaces/inside/" + name
-                                               for name in ("paint_bake.py", "paint_take.py")},
+                                               for name in ("paint_bake.py", "paint_take.py", "paint_fit.py",
+                                                            "layout_fit.py")},
         "bake recipes": "{repo}/tools/props/library/recipes.py"})
+
+
+def layout_fitted(row):
+    """surfaces-bake made by bake_fitted.make_bake: each take's card job runs inside/paint_fit.py, its bake through
+    inside/layout_fit.py, a model's texture layout laid again where "texture layout sound" would fail it (#118). Set
+    here, as kit_and_lit_kept is, so no row whose code reaches route_bake.py moves (each declares what it starts)."""
+    if row.name != "surfaces-bake":
+        return row
+    return dataclasses.replace(row, make=bake_fitted.make_bake)
 
 
 def code_marked(row):
@@ -1035,8 +1045,8 @@ STAGES = (TERRAIN, EFFECTS, SETTLE, SOUND, SCREENS, ASSEMBLY, NEIGHBOURS,
           PHYSICS_TRIAL,
           # The place's plan (its scene record first: the cockpit groups the plan by its first reader, the base), then
           # the shared loop every model layer runs (score/stages/shapes_first, #41), the table's shims by row name.
-          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
-              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows()))))))))))))),
+          SCENE_RECORD, PLAN, *picks_applied(map(library_narrowed, map(layout_fitted, map(paint_baked, map(feet_checked, map(baked_colour_checked, map(bake_checked, map(meaning_checked, map(kit_and_lit_kept, map(code_marked, map(
+              close_up_laid, map(boxed_split, map(content_kept, map(designed_rough, shapes_first.rows())))))))))))))),
           *(library_narrowed(far_judged(content_kept(row))) for row in people.ROWS), SHELL_SPLIT, CAST, SIM_BODY, CHARACTERS,
           PEOPLE_CLOTH, SCENE_CLIPS, MOTION,
           *light.ROWS, *crops.ROWS,
