@@ -254,8 +254,10 @@ def resting_rows(inventory, record=None):
     rests leaning or attached `fixed` (mounted.resting_as_laid: as the settle lays it, never on its feet)."""
     # not settling's held.py: its snap.py would key this row
     from score.stages.assembly.mounted import mounted, on_faces, resting_as_laid
+    from score.stages.assembly import on_tops  # a ceiling row's top thing stands on it
     given = {**on_faces(record or {}), **hung_within(record or {}),
-             **mounted({row["id"]: row for row in inventory["rows"]}), **resting_as_laid(record or {})}
+             **on_tops.standing(mounted({row["id"]: row for row in inventory["rows"]}), record),
+             **resting_as_laid(record or {})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]}
                                   if row["id"] in given and not row.get("support") else row
                                   for row in inventory["rows"]]}
