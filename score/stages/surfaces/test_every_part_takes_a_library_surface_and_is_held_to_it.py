@@ -347,6 +347,9 @@ tests it turned red:
   False:` (make_parts); or `(out / batch_gaps.FILE).unlink(missing_ok=True)` -> `pass` (make_picks); or `or
   token_apart(...) > finish_parts.COLOUR_DELTA_E]` -> `or False]` (judge_picks)  ->
   the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+- recheck_picks.py: `if pick["token"] not in tokens:` -> `if False:` (placing); or `if highest >= count:` -> `if
+  False:` (split_fits); or `OVERLAP = 0.5` -> `OVERLAP = 0.2`; or `return same[0] if len(same) == 1 else None` ->
+  `return index` (finish_for)  -> the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
 - colour_picks.py: `return fits[0] if fits and fits[0][0] <= finish_parts.COLOUR_DELTA_E else None` -> `return
   fits[0] if fits else None` (nearest_token); or `if finish_parts.hue_kept(` -> `if True or finish_parts.hue_kept(`
   (nearest_token); or `if why != NOT_ASKED:` -> `if True:` (make_picks)  ->
@@ -2985,7 +2988,7 @@ def recheck_picks_judged(folder):
 def picked_parts(folder, answer, listing=two_finish_answer):
     """The picks row made through the rows as the table sets it (colour_picks.make_picks) on the list `listing`
     answers, its one ask faked to answer `answer`, then the parts made with its picks: the picks, their verdict, the
-    parts' record of the take, and the parts' record made without the picks row."""
+    parts' record of the take, the parts' record made without the picks row, and the rows' inputs."""
     from score.stages.surfaces import colour_picks, recheck_picks
     original, asked = recheck_picks.ask, []
     recheck_picks.ask = lambda bodies: asked.extend(bodies) or {take: json.dumps(answer) for take in bodies}
@@ -3005,7 +3008,20 @@ def picked_parts(folder, answer, listing=two_finish_answer):
     parts_kept.make_parts(rows, plain, 7, {"objects": [TAKE]})
     return (json.loads((picks / "picks.json").read_text()), recheck_picks.judge_picks(picks, rows, {}),
             json.loads((made / "parts.json").read_text())["takes"][TAKE], (made / "parts.json").read_bytes(),
-            (plain / "parts.json").read_bytes())
+            (plain / "parts.json").read_bytes(), {**rows, recheck_picks.ROW: picks})
+
+
+def remade_parts(rows, takes, folder):
+    """surfaces-parts made again on `rows` with the picks file holding `takes`: its parts.json."""
+    from score.stages.surfaces import recheck_picks
+    picks, out = folder / "picks again", folder / "parts again"
+    shutil.rmtree(picks, ignore_errors=True)
+    shutil.rmtree(out, ignore_errors=True)
+    picks.mkdir()
+    out.mkdir()
+    (picks / recheck_picks.FILE).write_text(json.dumps({"takes": takes, "not_picked": {}}))
+    recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, out, 7, {"objects": [TAKE]})
+    return json.loads((out / "parts.json").read_text())
 
 
 def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked():
@@ -3027,7 +3043,7 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggest
     failing = {"finish": 1, "matches": False, "why": "painted, not copper", "token": "alarm", "roughness": 0.2,
                "metal": 0.1}
     with tempfile.TemporaryDirectory() as temporary:
-        found, verdict, record, made, plain = picked_parts(pathlib.Path(temporary), {"finishes": [
+        found, verdict, record, made, plain, rows = picked_parts(pathlib.Path(temporary), {"finishes": [
             failing, {"finish": 2, "matches": True, "why": "blue"}]})
         pick = found["takes"][TAKE]["1"]
         assert pick["token"] == "alarm" and pick["delta_e"] <= finish_parts.COLOUR_DELTA_E, found
@@ -3038,6 +3054,33 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggest
         assert red["by"] == "the list" and red["delta_e"] <= finish_parts.COLOUR_DELTA_E, red  # the parts' own check
         assert {row["settings"]["token"] for row in record["parts"] if row["words"] == "red paint"} == {"alarm"}
         assert made != plain
+        # a pick is placed on the finish its words name, never by its number alone: one numbered 2 naming "Red
+        # Paint!" lies on the list's red paint; one naming no finish of this list (a remake pairing the picks with
+        # another list, 2026-11-12: "brown plastic" on flat's "brown plastic cord and switch") or a token the scene
+        # library lacks (galley's brushed-steel) is dropped by name, and the parts still make, as without the pick
+        from score.stages.surfaces import recheck_picks
+        moved = remade_parts(rows, {TAKE: {"2": dict(pick, finish="Red  Paint!")}}, pathlib.Path(temporary))
+        assert moved["takes"][TAKE]["finishes"][0]["settings"]["token"] == "alarm" and "picks_dropped" not in moved
+        for wrong, why in (({"finish": "blue paint coat and trim"}, "no finish of the list is it"),
+                           ({"token": "brushed-steel"}, "brushed-steel is no token of the scene library")):
+            dropped = remade_parts(rows, {TAKE: {"1": dict(pick, **wrong)}}, pathlib.Path(temporary))
+            assert why in dropped["picks_dropped"][TAKE][0], dropped.get("picks_dropped")
+            assert dropped["takes"] == json.loads(plain)["takes"], wrong
+        listing = [{"finish": "rusty painted steel"}, {"finish": "brown plastic cord and switch"},
+                   {"finish": "weathered galvanised sheet steel"}, {"finish": "brushed stainless steel"}]
+        assert [recheck_picks.finish_for(name, number, listing, set()) for name, number in (
+            ("Rusty grey painted steel", 3), ("Weathered galvanised sheet-steel housing", 0), ("brown plastic", 1),
+            ("bare brushed steel sheet and tube", 3))] == [0, 2, None, None]
+        assert recheck_picks.finish_for("rusty painted steel", 0, listing, {0}) is None  # one pick a finish
+        # a split whose faces carry a finish its list lacks (made on another list: docking_airlock's IndexError) is
+        # refused by name before anything is made
+        other = pathlib.Path(temporary) / "other list"
+        shutil.copytree(rows["finish-route-list"], other)
+        entry = json.loads((other / f"{TAKE}.json").read_text())
+        (other / f"{TAKE}.json").chmod(0o644)
+        (other / f"{TAKE}.json").write_text(json.dumps({**entry, "finishes": entry["finishes"][:1]}))
+        with pytest.raises(ValueError, match="made on another list"):
+            remade_parts({**rows, "finish-route-list": other}, {}, pathlib.Path(temporary))
         # a pick lying off the close-up's colour is refused by the gate
         picks = pathlib.Path(temporary) / "picks" / "picks.json"
         picks.chmod(0o644)
@@ -3047,7 +3090,7 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggest
     # parts are then made as they were, byte for byte, so nothing after them moves
     for wrong, why in (({"token": "bay-three"}, "lies dE"), ({"metal": None}, "no library token")):
         with tempfile.TemporaryDirectory() as temporary:
-            found, verdict, record, made, plain = picked_parts(pathlib.Path(temporary), {"finishes": [
+            found, verdict, record, made, plain, _ = picked_parts(pathlib.Path(temporary), {"finishes": [
                 {**failing, **wrong}, {"finish": 2, "matches": True, "why": "blue"}]})
             assert not found["takes"] and why in found["not_picked"][TAKE], found
             assert made == plain and verdict.answer == "pass", verdict
@@ -3076,7 +3119,7 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggest
     off_list = lambda views: {**two_finish_answer(views), "finishes": [
         finish_entry("red paint", wear="worn"), finish_entry("grey paint", token="hull-trim")]}
     with tempfile.TemporaryDirectory() as temporary:
-        found, verdict, record, made, plain = picked_parts(pathlib.Path(temporary), None, off_list)
+        found, verdict, record, made, plain, _ = picked_parts(pathlib.Path(temporary), None, off_list)
         assert not found["takes"] and "no library token of its listed hue" in found["not_picked"][TAKE], found
         assert record["finishes"][1]["by"] == "off its colour" and made == plain, record["finishes"][1]
     # the table makes the picks row through colour_picks.make_picks

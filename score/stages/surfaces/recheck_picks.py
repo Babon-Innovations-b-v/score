@@ -19,7 +19,11 @@ or parts_kept.py (the bake, the recheck, the people's dress) moves for them:
   roughness and metal, its seed and own wear kept, its colour the token's, `picked` its record), then
   parts_kept.make_parts as before, so the parts' free colour check, the bake, the paint's gates and the recheck judge
   a pick as they judge the list's own. With no pick it is the same make on the same inputs: the same output, so the
-  rows reading it keep their keys (stages.REMADE_SAME).
+  rows reading it keep their keys (stages.REMADE_SAME). A pick lies on the finish its words name (finish_for: its
+  number when the words there are the same, else the same words, else the most shared), never on a number alone: a
+  remake can pair the picks with another list (2026-11-12, the Buy's: "brown plastic" on "brown plastic cord and
+  switch"). One that names no finish of the list, or a token the scene library lacks, is dropped by name
+  (parts.json `picks_dropped`) and the take made as listed; a split made on another list is refused by name.
 
 A pick is applied once: the recheck after the bake asks again of the picked parts, and a take it fails then is a gap
 as before (owner, 2026-10-28: one remake, no loops).
@@ -27,6 +31,7 @@ as before (owner, 2026-10-28: one remake, no loops).
 import contextlib
 import json
 import pathlib
+import re
 import sys
 import tempfile
 
@@ -150,40 +155,114 @@ def judge_picks(output, inputs, evidence):
 
 
 def make_parts(inputs, out, seed, params):
-    """parts_kept.make_parts on the finish list with the picks over it; with no pick, on the list as it is."""
+    """parts_kept.make_parts on the finish list with the picks over it; with no pick, on the list as it is. A pick
+    that finds no finish of this list, or names a token the scene library lacks, is dropped and named in parts.json's
+    `picks_dropped` (only when one is), so the row still makes."""
     picks = json.loads((pathlib.Path(inputs[ROW]) / FILE).read_text())["takes"]
     rest = {name: path for name, path in inputs.items() if name != ROW}
+    split_fits(pathlib.Path(rest["finish-route-split"]), pathlib.Path(rest["finish-route-list"]))
+    dropped = {}
     with contextlib.ExitStack() as stack:
         stack.enter_context(through_this_module())
         if picks:
             temporary = pathlib.Path(stack.enter_context(tempfile.TemporaryDirectory()))
             tokens = palette_library.library_tokens(palette_library.read(rest))
             rest["finish-route-list"] = picked_list(pathlib.Path(rest["finish-route-list"]), picks, tokens,
-                                                    temporary / "list")
-        return parts_kept.make_parts(rest, out, seed, params)
+                                                    temporary / "list", dropped)
+        made = parts_kept.make_parts(rest, out, seed, params)
+    if dropped:
+        path = out / "parts.json"
+        path.write_text(json.dumps({**json.loads(path.read_text()), "picks_dropped": dropped}, indent=1))
+    return made
 
 
-def picked_list(listed, picks, tokens, folder):
-    """The list row's output in `folder`: each file linked, each picked take's list written with its picks over it."""
+def split_fits(split, listed):
+    """Refuses, by name, a split whose faces carry a finish number its take's list does not have: a split made on
+    another list (a remake pairing one list's split with another list, 2026-11-12: docking_airlock's IndexError)."""
+    import numpy as np
+    takes = json.loads((split / "split.json").read_text())
+    for take, record in sorted(takes.items()):
+        labels, entry = split / take / "finish.npy", listed / f"{take}.json"
+        if record.get("fault") or not labels.is_file() or not entry.is_file():
+            continue
+        count, highest = len(json.loads(entry.read_text())["finishes"]), int(np.load(labels).max())
+        if highest >= count:
+            raise ValueError(f"{take}: the split labels finish {highest + 1} but its list has {count}: the split was "
+                             "made on another list")
+
+
+def picked_list(listed, picks, tokens, folder, dropped):
+    """The list row's output in `folder`: each file linked, each picked take's list written with its picks over it;
+    `dropped` gets {take: [why]} of each pick that could not be placed."""
     folder.mkdir()
     for path in listed.iterdir():
         if path.stem not in picks or path.suffix != ".json":
             (folder / path.name).symlink_to(path.resolve())
     for take, take_picks in picks.items():
+        if not (listed / f"{take}.json").is_file():
+            dropped[take] = [f"{pick['finish']}: the list has no {take}" for pick in take_picks.values()]
+            continue
         entry = json.loads((listed / f"{take}.json").read_text())
-        entry["finishes"] = [with_pick(finish, take_picks.get(str(number + 1)), tokens)
-                             for number, finish in enumerate(entry["finishes"])]
+        placed, whys = placing(entry["finishes"], take_picks, tokens)
+        if whys:
+            dropped[take] = whys
+        entry["finishes"] = [with_pick(finish, placed.get(index), tokens)
+                             for index, finish in enumerate(entry["finishes"])]
         (folder / f"{take}.json").write_text(json.dumps(entry, indent=1))
     return folder
 
 
+def placing(finishes, take_picks, tokens):
+    """({list index: pick}, [why]) of a take's picks: each on the finish its words name (finish_for), one pick a
+    finish; a pick whose token the scene library lacks, or that names no finish of this list, dropped with its why."""
+    found, whys = {}, []
+    for number, pick in sorted(take_picks.items(), key=lambda item: int(item[0])):
+        if pick["token"] not in tokens:
+            whys.append(f"{pick['finish']}: {pick['token']} is no token of the scene library; pick dropped")
+            continue
+        index = finish_for(pick["finish"], int(number) - 1, finishes, set(found))
+        if index is None:
+            whys.append(f"{pick['finish']}: no finish of the list is it; pick dropped")
+            continue
+        found[index] = pick
+    return found, whys
+
+
+OVERLAP = 0.5  # the least share of words (Jaccard) a pick's finish shares with the list's finish it is placed on
+
+
+def words(text):
+    """A finish's words, lower case, letters and digits only."""
+    return re.findall(r"[a-z0-9]+", str(text).lower())
+
+
+def finish_for(name, index, finishes, taken):
+    """The list index a pick's finish names: its own number when the words there are the same (case and punctuation
+    aside), else the one finish with the same words, else the one finish sharing the most words, at least OVERLAP of
+    them; None when none, or two tie. A finish already picked is not given a second pick."""
+    wanted = words(name)
+    free = [number for number in range(len(finishes)) if number not in taken]
+    if index in free and words(finishes[index]["finish"]) == wanted:
+        return index
+    same = [number for number in free if words(finishes[number]["finish"]) == wanted]
+    if same:
+        return same[0] if len(same) == 1 else None
+    shared = sorted(((jaccard(set(wanted), set(words(finishes[number]["finish"]))), number) for number in free),
+                    reverse=True)
+    if not shared or shared[0][0] < OVERLAP or (len(shared) > 1 and shared[1][0] == shared[0][0]):
+        return None
+    return shared[0][1]
+
+
+def jaccard(first, second):
+    return len(first & second) / len(first | second) if first | second else 0.0
+
+
 def with_pick(finish, pick, tokens):
     """A list finish in its pick's token, roughness and metal (its seed and own wear kept; its colour the token's,
-    as route_list.finishes_of gives it), `picked` the pick; as it was with no pick. A pick for other words refuses."""
+    as route_list.finishes_of gives it), `picked` the pick; as it was with no pick."""
     if pick is None:
         return finish
-    if pick["finish"] != finish["finish"]:
-        raise ValueError(f"a pick for {pick['finish']!r} lies on the list's {finish['finish']!r}")
     settings = {**(finish.get("settings") or {}), **{name: pick[name] for name in SETTINGS}}
     return {**finish, "settings": settings, "colour": [round(float(value), 5) for value in tokens[pick["token"]]],
             "picked": pick}
