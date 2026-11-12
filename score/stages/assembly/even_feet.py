@@ -36,7 +36,9 @@ def evened(folder, place):
     """Each floor thing's model of the place at `folder` with every foot down (level_feet), in its own asset:
     [(model, the gaps brought down)], the models with none left out."""
     from pxr import Usd, UsdGeom
+    from score.stages.assembly import laid_flat
     stage = Usd.Stage.Open(str(pathlib.Path(folder) / f"{place}.usda"))
+    laid_flat.flattened(stage, folder, place)  # a slab on its edge laid down first: its footing and feet as it lies
     things = stage.GetPrimAtPath(f"/{place}/Objects")
     sizes = {}
     for prim in (things.GetChildren() if things else []):
@@ -77,8 +79,9 @@ def own_asset(geo, folder):
 
 
 def level_asset(asset, scale):
-    """The asset's drawn mesh with its feet down (level_feet, at `scale`: the size it is laid at, per axis) and its
-    collision hull made again round it, saved; the gaps brought down ([] and nothing written when none)."""
+    """The asset's drawn mesh stood on a footing that holds it (footing.stood) with its feet down (level_feet, at
+    `scale`: the size it is laid at, per axis) and its collision hull made again round it, saved; the cut and the gaps
+    brought down ([] and nothing written when none)."""
     import colliders
     from pxr import Gf, Usd, UsdGeom, Vt
     stage = Usd.Stage.Open(str(asset))
@@ -86,7 +89,10 @@ def level_asset(asset, scale):
     mesh = UsdGeom.Mesh(root.GetChild("geo"))
     points = np.asarray(mesh.GetPointsAttr().Get(), dtype=np.float64)
     triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
-    levelled, gaps = level_feet(points * scale, triangles)
+    from score.stages.assembly import footing
+    stood, cut = footing.stood(points * scale, triangles)  # a part under the footing that holds it brought up first
+    levelled, gaps = level_feet(stood, triangles)
+    gaps = cut + gaps
     if not gaps:
         return []
     points = (levelled / scale).astype(np.float32)

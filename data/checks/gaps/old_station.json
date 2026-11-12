@@ -1,5 +1,20 @@
 {
- "gaps": [],
+ "gaps": [
+  {
+   "name": "solar_panel_mast_1: a 6 m pole on a 10 cm foot falls when dropped",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "/old_station/Objects/solar_panel_mast_1"
+   ],
+   "contains": "unstable",
+   "reason": "Its model is a bare pole 6 m tall, 17 cm across and 10 cm across at its foot, laid standing on flat ground; as laid it stands (its weight inside its foot), but the drop topples it (moves 4.41 m and turns 90 degrees, output 6930a964f029, 2026-11-12), as any pole that narrow does. A mast is set in its ground, and the design's reading names no row fixed, so the drop judges it loose; no footing within the model holds it, and laid down it would no longer be a mast. It failed the assembly's resting gate as made and on its free remake (2026-11-12), so it is old_station's one gap: this entry moves its drop fault alone from the assembly's resting gate to complete, which fails it by name; every other fault still stops the line.",
+   "decided": "owner (@JoeyKardolus), his standing rules of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\") and of env1's film (at most one gap object a place), applied by the old_station resting fix, 2026-11-12",
+   "faults": [
+    "/old_station/Objects/solar_panel_mast_1: unstable 4.4142: moves 4.41 m and turns 90 degrees when dropped (SAGE: over 0.2 m or 8 degrees)"
+   ]
+  }
+ ],
  "retired": [
   {
    "name": "2 people with no body of their look (astronaut/made)",
