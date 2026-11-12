@@ -11,13 +11,13 @@ middle of their hull's mass), and the drop rolled the left one 9 degrees (cut 0.
 sole, 1 cm deep, ends 4 cm from its hull's middle of mass, and the drop rolled it 45 degrees (cut 0.02 m). Each stands
 on what the cut lays level at its foot, both its weights BALANCE inside it.
 
-    stood(points, triangles)   (the points, [the cut, metres]): the model's points with its footing cut at the least
-                               height (CUT_STEP apart, REACH at most) whose footing holds both weights BALANCE inside,
-                               when its footing as made does not hold them (the surface's middle BALANCE outside it, as
-                               the triage tips it, or the hull's middle of mass under BALANCE inside its sole, as the
-                               drop rolls it); [] and the points as they are when it holds them or no cut within REACH
-                               does
-    stands(points, triangles)  whether its footing holds it as made or cut (laid_flat lays down one that never stands)
+    needed_cut(points, triangles)  the least height (CUT_STEP apart, REACH at most) whose footing holds both weights
+                                   BALANCE inside, when its footing as made does not hold them (the surface's middle
+                                   BALANCE outside it, as the triage tips it, or the hull's middle of mass under
+                                   BALANCE inside its sole, as the drop rolls it); 0.0 when it holds them, None when
+                                   no cut within REACH does (big_bases.levelled cuts it, cut_at, before its feet)
+    stands(points, triangles)      whether its footing holds it as made or cut (laid_flat lays down one that never
+                                   stands)
 """
 import pathlib
 import sys
@@ -37,17 +37,8 @@ SOLE = 0.01
 SAMPLES = 20000
 
 
-def stood(points, triangles):
-    """The points (+y up, metres, as laid) with the footing cut where it does not hold the model's weight (module
-    docstring), and the cut ([] with none)."""
-    cut = needed_cut(points, triangles)
-    if not cut:
-        return np.asarray(points, dtype=np.float64), []
-    return cut_at(points, cut), [round(cut, 4)]
-
-
 def stands(points, triangles):
-    """Whether the model stands on a footing that holds its weight, as made or cut (stood)."""
+    """Whether the model stands on a footing that holds its weight, as made or cut within REACH (needed_cut)."""
     return needed_cut(points, triangles) is not None
 
 

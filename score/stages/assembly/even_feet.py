@@ -79,9 +79,9 @@ def own_asset(geo, folder):
 
 
 def level_asset(asset, scale):
-    """The asset's drawn mesh stood on a footing that holds it (footing.stood) with its feet down (level_feet, at
-    `scale`: the size it is laid at, per axis) and its collision hull made again round it, saved; the cut and the gaps
-    brought down ([] and nothing written when none)."""
+    """The asset's drawn mesh stood on what holds it (big_bases.levelled: upright, a footing that holds it, its feet
+    down by level_feet, its sole level; at `scale`: the size it is laid at, per axis) and its collision hull made again
+    round it, saved; what was done ([] and nothing written when nothing was)."""
     import colliders
     from pxr import Gf, Usd, UsdGeom, Vt
     stage = Usd.Stage.Open(str(asset))
@@ -89,10 +89,8 @@ def level_asset(asset, scale):
     mesh = UsdGeom.Mesh(root.GetChild("geo"))
     points = np.asarray(mesh.GetPointsAttr().Get(), dtype=np.float64)
     triangles = np.asarray(mesh.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
-    from score.stages.assembly import footing
-    stood, cut = footing.stood(points * scale, triangles)  # a part under the footing that holds it brought up first
-    levelled, gaps = level_feet(stood, triangles)
-    gaps = cut + gaps
+    from score.stages.assembly import big_bases
+    levelled, gaps = big_bases.levelled(points * scale, triangles)  # stood up, its footing cut, its feet down
     if not gaps:
         return []
     points = (levelled / scale).astype(np.float32)
@@ -131,11 +129,12 @@ def off_feet(points, triangles):
     within the outline of a foot that touches), its points the mesh's points in the band nearest one of its own."""
     import triage
     from scipy.spatial import cKDTree
+    from score.stages.assembly import big_bases
     lowest = float(points[:, 1].min())
     feet = triage.foot_clusters(points, triangles, triage.LOW_BAND)
-    down = [members for members, foot in feet if foot - lowest <= triage.TOLERANCE]
+    within = big_bases.outlines([members for members, foot in feet if foot - lowest <= triage.TOLERANCE])
     off = [number for number, (members, foot) in enumerate(feet)
-           if foot - lowest > triage.TOLERANCE and not triage.within_a_foot(members, down)]
+           if foot - lowest > triage.TOLERANCE and not within(members)]
     if not off:
         return []
     labels = np.concatenate([np.full(len(members), number) for number, (members, _) in enumerate(feet)])

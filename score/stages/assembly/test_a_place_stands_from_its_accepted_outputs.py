@@ -3045,8 +3045,15 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     Break: score/stages/assembly/even_feet.py: `or os.stat(path).st_nlink != 1` -> `` (a write through a link)
     Break: score/stages/assembly/even_feet.py: `and not said("score:fixed")` -> ``
     Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`
-    Break: score/stages/assembly/even_feet.py: `stood, cut = footing.stood(points * scale, triangles)` -> `stood, cut
-        = points * scale, []` (the hub left on its post's foot)
+    Break: score/stages/assembly/big_bases.py: levelled's `stood = footing.cut_at(points, cut) if cut else ...` ->
+        `stood = np.asarray(points, dtype=np.float64)` (the hub left on its post's foot, the tower on its slope)
+    Break: score/stages/assembly/big_bases.py: upright's `stood = (points - middle) @ turn.T` -> `stood = points -
+        middle` (the beam left leaning)
+    Break: score/stages/assembly/big_bases.py: deep_cut's `deepest = DEEP * float(np.ptp(points[:, 1]))` -> `deepest
+        = 9.0` (the 4 m post cut level), or levelled's `stood, sole = sole_cut(stood, triangles)` -> `sole = []` (the
+        hall left on its corners), or sole_cut's `SOLE * float(np.ptp(points[:, 1]))` -> `1.0` (the shed cut level)
+    Break: score/stages/assembly/big_bases.py: outlines's within `return any(...)` -> `return True` (the foot beside
+        the sole read inside it)
     Break: score/stages/assembly/footing.py: cut_at's `points[points[:, 1] <= lowest + cut, 1] = lowest` dropped (the
         hub's legs left 0.15 m up)
     Break: score/stages/assembly/even_feet.py: `laid_flat.flattened(stage, folder, place)` -> `pass` (the slab left
@@ -3110,6 +3117,48 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     assert under("bench", (0.9, 0.9), 0.051, 0.051)[:2] == (0.15, 0.55) and under("board", (0, 0), 9, 9)[1] == 2.0
     _, tall, points = under("cable", (0.0, 0.0), 9.0, 9.0)
     assert tall == 0.1 and np.isclose(points[:, 2].min(), -1.95, atol=0.06) and points[:, 2].max() <= 0.06, points
+    # base (2026-11-12): its connecting tubes, a code build leaned 33 degrees, stood on legs at one side, its central
+    # hub's bottom sloped 6 m across it, and its hangar and greenhouse dome stood with hundreds of feet 3 to 10 cm up
+    # on bands the triage samples coarsely, which the feet's stretch read again apart. A 4 m beam leaned 20 degrees is
+    # laid level, its middle across and its lowest where they were; a 9 m tower whose bottom slopes 0.9 m is cut level,
+    # a 4 m one (an eighth of it under the slope) left; a 4 m floor whose inner corners stand 0.15 m up under a roof
+    # 3.5 m up is cut level, under one 2 m up (a twentieth of it under the corners) left, the triage's band sampled as
+    # coarsely as on the dome (4,000 points over 21 m^2); a foot is inside a touching foot's outline as the triage
+    # reads it.
+    import triage
+    from score.stages.assembly import big_bases
+    beam = box((4.0, 0.6, 0.6), trimesh.transformations.rotation_matrix(np.radians(20), (0, 0, 1)))
+    beam.apply_translation((0.3, -beam.bounds[0][1], 0.1))
+    towers = {}
+    for tall in (9.0, 4.0):
+        towers[tall] = box((2.0, tall, 2.0))
+        corners = np.array(towers[tall].vertices)
+        corners[(corners[:, 1] < 0) & (corners[:, 0] < 0), 1] += 0.9
+        towers[tall].vertices = corners - (0.0, corners[:, 1].min(), 0.0)
+    for name, mesh in (("beam", beam), ("tower", towers[9.0]), ("post", towers[4.0])):
+        a_floor_thing(tmp_path / name, name, mesh)
+        grounded.take_bakes(bake, tmp_path / name, TOY)
+    _, tall, points = under("beam", (0.0, 0.0), 9.0, 9.0)
+    assert np.isclose(tall, 0.6) and np.allclose((points.min(axis=0) + points.max(axis=0))[[0, 2]] / 2, (0.3, 0.1),
+                                                 atol=1e-5) and np.isclose(points[:, 1].min(), 0.0), points
+    assert sorted({round(float(height), 3) for height in under("tower", (0, 0), 9, 9)[2][:, 1]}) == [0.0, 9.0]
+    assert sorted({round(float(height), 3) for height in under("post", (0, 0), 9, 9)[2][:, 1]}) == [0.0, 0.9, 4.0]
+    monkeypatch.setattr(triage, "FOOT_SAMPLES", (400, 4000))
+    across = np.arange(-2.0, 2.001, 1.0)
+    corners = [(x, 0.15 if (row + column) % 2 and 0 < row < 4 and 0 < column < 4 else 0.0, z)
+               for row, x in enumerate(across) for column, z in enumerate(across)]
+    cells = [face for row in range(4) for column in range(4) for face in (
+        [row * 5 + column, row * 5 + column + 1, (row + 1) * 5 + column + 1],
+        [row * 5 + column, (row + 1) * 5 + column + 1, (row + 1) * 5 + column])]
+    for name, roof in (("hall", 3.5), ("shed", 2.0)):
+        a_floor_thing(tmp_path / name, name, trimesh.util.concatenate([trimesh.Trimesh(corners, cells, process=False),
+                                                                      box((4.0, 0.2, 4.0), shift((0, roof, 0)))]))
+        grounded.take_bakes(bake, tmp_path / name, TOY)
+    assert sorted({round(float(height), 3) for height in under("hall", (0, 0), 1.5, 1.5)[2][:, 1]})[:2] == [0.0, 3.4]
+    assert 0.15 in {round(float(height), 3) for height in under("shed", (0, 0), 1.5, 1.5)[2][:, 1]}
+    sole = np.array([(x, 0.0, z) for x in (0.0, 1.0) for z in (0.0, 1.0)])
+    for foot in (np.array([(0.4, 0.05, 0.4), (0.6, 0.05, 0.4), (0.5, 0.05, 0.6)]), np.array([(1.4, 0.05, 0.4)] * 3)):
+        assert big_bases.outlines([sole])(foot) == triage.within_a_foot(foot, [sole]) == (foot[0, 0] < 1.0)
     read_only_toy(tmp_path / "store" / TOY)
     parted, stood = [], []
     monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
