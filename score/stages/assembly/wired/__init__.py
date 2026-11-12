@@ -10,7 +10,8 @@ this one, so it moves the assembly's key alone (as held_apart.py does for the he
              stood          each floor thing at an open place's floor slid to a level spot beside it where its made
                             ground slopes (level_spot.py: wreck's tank in its dent) and stood on that ground
                             (on_ground.py), each thing on its holder's curved top laid again on its levelled model
-                            (tops_levelled.py: wreck's open hatch), then each face thing of a row the resting gate
+                            (tops_levelled.py: wreck's open hatch), each roof piece on its holder's top let down onto
+                            the holder it roofs (roof_tops.py: base's glass pyramid roof), then each face thing of a row the resting gate
                             judges standing by the seed's inventory let down onto what is under it (face_down.py:
                             wreck's solar_panels_5, 2026-11-12; tube's wall lamps on its ribs are mounted, so left)
              released       every stage the make left in a reference cycle collected (release): fitting.fitted's
@@ -33,7 +34,7 @@ import json
 import pathlib
 
 from score.stages import assembly
-from score.stages.assembly import face_down, level_spot, on_ground, parting, tops_levelled
+from score.stages.assembly import face_down, level_spot, on_ground, parting, roof_tops, tops_levelled
 
 # gaps.WRITTEN, the file complete's accepted gaps gate reads; named here, not imported, so score/stages/gaps.py stays
 # out of the assembly's code version (a gap's verdict moves complete alone; the test reads it back through gaps.py)
@@ -51,6 +52,7 @@ def make(inputs, out, seed, params):
     level_spot.slid(out, assembly.stage_file(out).stem)
     on_ground.stood(out, assembly.stage_file(out).stem)
     tops_levelled.laid(out, assembly.stage_file(out).stem)
+    roof_tops.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
     face_down.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
     release()
     silence(inputs, out)
