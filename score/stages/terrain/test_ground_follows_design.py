@@ -27,8 +27,11 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   inventory rows, which never had it).
 - outside.under_floor: `points[inside, 1] = np.minimum(...)` -> `pass` (a room's ground through its floor, 2026-10-31:
   the moon rooms' ground stood level with their decks' tops once the decks stood at the floor).
-- bounded.shaped: `weighed(spots) if is_dip(spots) else` dropped (2026-11-12, wreck: its three dip spots fit a plane
-  33.7 degrees steep, 6.5 m ridges round it; clipped, still tilted -0.5 m to -1 m across).
+- bounded.spline: `if is_dented(spots): return dented(spots)` dropped (2026-11-12, wreck: its three dent spots fit a
+  plane 33.7 degrees steep, 6.5 m ridges round it; clipped, still tilted -0.5 m to -1 m across the place).
+- bounded.dented: `(apart - DENT_FLOOR) / (DENT_REACH - DENT_FLOOR)` -> `apart / DENT_REACH` (a cone, no floor:
+  wreck's tank leaned on its faces), or `np.clip(..., 0.0, 1.0)` -> its value alone (the dent running on past
+  DENT_REACH as a rise).
 - bounded.clipped: `np.clip(spline(...), low, high)` -> `spline(...)` (a spline rising past its highest spot).
 - bounded.install: `design.spline = spline` -> `pass` (design's own thin-plate spline, wreck's plane again).
 """
@@ -86,15 +89,19 @@ def test_a_designs_ground_stands_its_scenes_on_the_true_sphere_with_its_spots(tm
     point = design.place_plan.on_holder(turned, SHED, [1.0, 2.0])
     assert np.allclose(point, [8.0, 5.0]) and np.allclose(design.own_points(source, [point]), [[1.0, 2.0]])
     assert np.allclose(design.on_top(source, [[1.0, 2.0]]), [point])
-    # wreck's three spots mean a dip of about 1 m: never a tilted plane, never past the spots' heights (2026-11-12)
-    dip = np.array([[11.036, 12.536, -0.5], [8.143, 13.286, -1.0], [19.071, 13.286, -1.0]])
-    across = bounded.shaped(dip)([[11.0, 0.0], [11.0, 24.0], [11.036, 12.536]])
-    assert abs(across[0] - across[1]) < 0.1 and abs(across[2] + 0.5) < 1e-6, across
-    relief = design.spline({"spots": dip.tolist(), "middle": [10.714, 10.714]})
-    heights = relief([[x, y] for x in range(-15, 37) for y in range(-15, 37)])
-    assert heights.min() >= -1.0 - 1e-9 and heights.max() <= 1e-9, (heights.min(), heights.max())
+    # wreck's three spots, none above the floor, are dents local to each (its plan's notes: "a 2.5 m dent where it
+    # struck", "shallow dents"): each spot's height deep at it, the floor past DENT_REACH, never a plane or one dip
+    dents = np.array([[11.036, 12.536, -0.5], [8.143, 13.286, -1.0], [19.071, 13.286, -1.0]])
+    relief = design.spline({"spots": dents.tolist(), "middle": [10.714, 10.714]})
+    grid = np.array([[x / 2, y / 2] for x in range(-30, 74) for y in range(-30, 74)])
+    heights = relief(grid)
+    apart = np.hypot(grid[:, None, 0] - dents[None, :, 0], grid[:, None, 1] - dents[None, :, 1]).min(axis=1)
+    assert np.allclose(relief(dents[:, :2]), dents[:, 2]) and heights.min() >= -1.0 - 1e-9, heights.min()
+    assert np.all(heights[apart >= bounded.DENT_REACH] == 0.0) and np.all(heights[apart < 1.0] < -0.1), heights.max()
+    down = relief([[19.071 + step, 13.286] for step in (1.2, 1.1, 0.95, 0.5, 0.0)])  # its floor flat, its side
+    assert np.allclose(down, [-0.2, -0.6, -1.0, -1.0, -1.0]), down  # straight
     mixed = np.array(SPOTS)  # a spline that bends keeps its shape inside its heights, and is clipped past them
-    assert not bounded.is_dip(mixed[:3]) and not bounded.is_dip(-np.abs(mixed))
+    assert not bounded.is_dented(mixed) and bounded.is_dented(-np.abs(mixed))
     beyond = bounded.shaped(mixed)([[x, y] for x in range(-60, 100, 4) for y in range(-60, 100, 4)])
     assert beyond.min() >= -1.0 and beyond.max() <= 2.0 and np.allclose(bounded.shaped(mixed)(mixed[:, :2]),
                                                                         mixed[:, 2], atol=0.01), beyond
