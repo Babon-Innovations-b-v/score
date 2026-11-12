@@ -330,6 +330,12 @@ tests it turned red:
   False:` (make_parts); or `(out / batch_gaps.FILE).unlink(missing_ok=True)` -> `pass` (make_picks); or `or
   token_apart(...) > finish_parts.COLOUR_DELTA_E]` -> `or False]` (judge_picks)  ->
   the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+- colour_picks.py: `return fits[0] if fits and fits[0][0] <= finish_parts.COLOUR_DELTA_E else None` -> `return
+  fits[0] if fits else None` (nearest_token); or `if finish_parts.hue_kept(` -> `if True or finish_parts.hue_kept(`
+  (nearest_token); or `if why != NOT_ASKED:` -> `if True:` (make_picks)  ->
+  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+- __init__.py (the table): `make=colour_picks.make_picks,` -> `make=recheck_picks.make_picks,` (picks_applied)  ->
+  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
 - __init__.py (the table): `make=recheck_picks.make_parts,` -> `make=row.make,` (picks_applied)  ->
   a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
@@ -2884,19 +2890,21 @@ def recheck_picks_judged(folder):
                                                          "surface-library": folder / "surface-library"}, {})
 
 
-def picked_parts(folder, answer):
-    """The picks row made through the rows, its one ask faked to answer `answer`, then the parts made with its picks:
-    the picks, their verdict, the parts' record of the take, and the parts' record made without the picks row."""
-    from score.stages.surfaces import recheck_picks
-    original = recheck_picks.ask
-    recheck_picks.ask = lambda bodies: {take: json.dumps(answer) for take in bodies}
+def picked_parts(folder, answer, listing=two_finish_answer):
+    """The picks row made through the rows as the table sets it (colour_picks.make_picks) on the list `listing`
+    answers, its one ask faked to answer `answer`, then the parts made with its picks: the picks, their verdict, the
+    parts' record of the take, and the parts' record made without the picks row."""
+    from score.stages.surfaces import colour_picks, recheck_picks
+    original, asked = recheck_picks.ask, []
+    recheck_picks.ask = lambda bodies: asked.extend(bodies) or {take: json.dumps(answer) for take in bodies}
     try:
-        rows = split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0])
+        rows = split(folder, listed(folder, lambda views, take: listing(views))[0])
         picks = folder / "picks"
         picks.mkdir()
-        recheck_picks.make_picks(rows, picks, 7, {"objects": [TAKE]})
+        colour_picks.make_picks(rows, picks, 7, {"objects": [TAKE]})
     finally:
         recheck_picks.ask = original
+    assert (TAKE in asked) is (answer is not None), asked  # a take the free colour check failed is never asked
     assert not (picks / "batch-gaps.json").exists()  # a recheck fail here is a pick, never a gap
     made, plain = folder / "parts", folder / "plain"
     made.mkdir()
@@ -2951,6 +2959,36 @@ def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggest
                 {**failing, **wrong}, {"finish": 2, "matches": True, "why": "blue"}]})
             assert not found["takes"] and why in found["not_picked"][TAKE], found
             assert made == plain and verdict.answer == "pass", verdict
+    # #118 group C: a take the free colour check failed, which the recheck never asks, is picked on the scene
+    # library's token nearest its off finish's close-up colour within dE 32 among those keeping what the list meant
+    # (finish_parts.hue_kept): "blue steel" listed in plain steel, seen blue, takes bay-three, its recipe, roughness and
+    # metal its list's; "grey steel" seen blue keeps no grey token near it, nor does a finish with no colour words
+    # move off its listed hue (a dim close-up pulled foliage to a ground grey, 2026-11-12): no pick, a gap by name
+    from score.stages.surfaces import colour_picks
+    tokens = library.token_colours({"tokens": TOKENS})
+    steel = finish_parts.library_lab({"colour": tokens["steel"]}).tolist()
+    seen_blue = finish_parts.library_lab({"colour": tokens["bay-three"]}).tolist()
+    off = {"finish": "blue steel", "surface": "bare_steel", "by": "off its colour", "measured_lab": seen_blue,
+           "delta_e": 55.5, "settings": {"token": "steel", "roughness": 0.4, "metal": 1.0, "seed": 3},
+           "looks": {"listed": {"recipe": "bare_metal", "lab": steel}}}
+    fitting = {"finish": "red paint", "surface": "red_paint", "by": "the list", "measured_lab": steel}
+    found, why = colour_picks.colour_fitting([fitting, off], tokens)
+    assert why is None and list(found) == ["2"] and found["2"]["token"] == "bay-three", (found, why)
+    assert found["2"]["by"] == colour_picks.BY and (found["2"]["roughness"], found["2"]["metal"]) == (0.4, 1.0), found
+    assert colour_picks.recheck_picks.with_pick(off, found["2"], tokens)["settings"]["token"] == "bay-three"
+    for words in ("grey steel", "steel"):
+        found, why = colour_picks.colour_fitting([dict(off, finish=words)], tokens)
+        assert not found and "no library token of its listed hue" in why, (words, found, why)
+    # through the rows: "grey paint" listed over the blue box is off its colour, never asked, and not picked; its
+    # parts come out byte for byte as without the picks row
+    off_list = lambda views: {**two_finish_answer(views), "finishes": [
+        finish_entry("red paint", wear="worn"), finish_entry("grey paint", token="hull-trim")]}
+    with tempfile.TemporaryDirectory() as temporary:
+        found, verdict, record, made, plain = picked_parts(pathlib.Path(temporary), None, off_list)
+        assert not found["takes"] and "no library token of its listed hue" in found["not_picked"][TAKE], found
+        assert record["finishes"][1]["by"] == "off its colour" and made == plain, record["finishes"][1]
+    # the table makes the picks row through colour_picks.make_picks
+    assert inspect.unwrap(ROWS[colour_picks.recheck_picks.ROW].make) is colour_picks.make_picks
 
 
 def test_the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour():

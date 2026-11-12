@@ -39,8 +39,8 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           scene_clips, screens, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
-from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, library_reads, parts_kept, \
-    recheck_picks, route_check, uv_layout
+from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
+    parts_kept, recheck_picks, route_check, uv_layout
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
 import score.stages.scene_record.writer  # noqa: F401
 import score.stages.batch_gaps as batch_gaps
@@ -787,13 +787,15 @@ def picks_applied(rows):
     (its reads, files and object filter; recheck_picks.make_picks: the parts drafted and the recheck's one question
     asked of them, Claude on this PC at EUR 0, the request the recheck row sends, so its cached answer), and the parts
     made through recheck_picks.make_parts: the finish list with each fitting pick over it, the same output where
-    nothing is picked (#118, point 3). Set here, as kit_and_lit_kept is, so no row reading route_recheck.py,
-    route_parts.py or parts_kept.py moves."""
+    nothing is picked (#118, point 3). The picks row makes through colour_picks.make_picks: the recheck's picks, then
+    each take the free colour check failed, which the recheck never asks, on the library tokens nearest its off
+    finishes' close-up colours (#118, group C). Set here, as kit_and_lit_kept is, so no row reading route_recheck.py,
+    route_parts.py, parts_kept.py or recheck_picks.py moves."""
     found = []
     for row in rows:
         if row.name == "surfaces-parts":
             found.append(dataclasses.replace(
-                row, name=recheck_picks.ROW, make=recheck_picks.make_picks,
+                row, name=recheck_picks.ROW, make=colour_picks.make_picks,
                 contract=contracts.Contract(recheck_picks.ROW, 1, recheck_picks.picks_faults),
                 checks=(guarded(recheck_picks.GATE, recheck_picks.judge_picks),)))
             row = dataclasses.replace(row, make=recheck_picks.make_parts,

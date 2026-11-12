@@ -136,7 +136,12 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   off the close-up). surfaces-parts then makes the list with the picks over it (`recheck_picks.make_parts`: token,
   roughness, metal, seed and own wear kept, `picked` on the finish), so the parts' colour check, bake, paint gates and
   the recheck after the bake judge a pick as they judge the list's own; with no pick the parts come out the same, so
-  nothing after them moves. One pick a take: a take the recheck after the bake fails again is a gap.
+  nothing after them moves. One pick a take: a take the recheck after the bake fails again is a gap. A take the free
+  colour check failed, which the recheck never asks, is picked too (`colour_picks.py`, the picks row's make, #118 group
+  C): each finish off its colour takes the scene library's token nearest its close-up colour within `COLOUR_DELTA_E`
+  among those keeping what the list meant (`finish_parts.hue_kept`: the colour its words name, else its listed hue;
+  its recipe, roughness and metal kept); a finish with no such token, or whose nearest is its own (off by order),
+  leaves the take unpicked, a gap by name.
 - **Claude asks the palette, library, list and recheck** (coordinator for the owner, 2026-10-27, after the
   side-by-side on #36: Claude matched or beat Gemini on each, every gate passed): the table wraps their makes
   (`score/stages/__init__.py`, `claude_asks.asking_claude` on `claude_asks.ROWS`): the module's own make runs with its
