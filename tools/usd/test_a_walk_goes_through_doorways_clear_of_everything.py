@@ -6,7 +6,8 @@ alone and a crowd's instances, stand in the way as boxes where they stand, and o
 moment; a thing the stage moves stands in the way where it is at each moment, its particles and its people aside;
 and an eye's clearance is its true distance from walls and people; a still view (a look the light is rendered on)
 stands in free air, outside every solid with its picture not filled by a near surface, or is turned or moved till it
-does (into the room it looks across, never back out of it or into an open model like a tunnel), or left out.
+does (into the room it looks across, never back out of it or into an open model like a tunnel), or left out; an eye
+in a domed round room as the shell builds it stands in no solid.
 
 Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - a_path_between_rooms_goes_through_the_doorway: camera_paths.leg's
@@ -28,6 +29,10 @@ Breaks that turn each test red (each applied once and seen red, 2026-10-27):
 - clearance_is_measured_on_every_side (a moved eye steps into its room, 2026-11-11): camera_paths.steps_in's
   `backward = inside and ...` made `backward = False` (the lamp's eye moved 0.46 m back from its look);
   `models_round(scenes, spot) <= within` made `True` (the doorway's eye moved out into the open tunnel).
+- clearance_is_measured_on_every_side (a domed room holds its eyes, 2026-11-12): camera_paths.inside_solid's
+  `(behind & holds).sum()` made `behind.sum()` (the eye in the domed round room stands inside a solid, its view moved);
+  `holds = np.all(...)` made `holds = np.zeros(len(faces), bool)` (the eyes in the crate and the lamp stand
+  outside them: neither is moved out clear).
 
 Run: .venv/bin/python tools/usd/test_a_walk_goes_through_doorways_clear_of_everything.py
 """
@@ -277,18 +282,19 @@ def still_views_stand_in_free_air(scenes):
             camera_paths.view_faults(scenes, backed, size):
         problems.append(f"the wall's view is not stepped back 0.5 m still looking at it: {backed}")
     moved, _ = camera_paths.cleared_view(scenes, crate, size)
-    if moved is None or camera_paths.inside_solid(scenes["still"], moved["eye"]) or \
+    if moved is None or camera_paths.inside_solid(scenes, moved["eye"]) or \
             camera_paths.view_faults(scenes, moved, size):
         problems.append(f"the crate's view is not moved out clear: {moved}")
     box = trimesh.creation.box(extents=(0.8, 0.8, 0.8))
     closet = trimesh.Trimesh(box.vertices, box.faces[:, ::-1], process=False)  # seen from inside: faces inward
     shut, why = camera_paths.cleared_view(dict(scenes, still=closet, blocking=closet, boxes=np.zeros((0, 8, 3)),
                                                tree=camera_paths.mesh_tree(closet),
-                                               owners=np.zeros(len(closet.faces), dtype=np.int64)),
+                                               owners=np.zeros(len(closet.faces), dtype=np.int64),
+                                               model_bounds=camera_paths.model_bounds([closet])),
                                           view([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]), size)
     if shut is not None or not why:
         problems.append(f"a view shut in a closet 0.8 m across is kept: {shut}")
-    return problems + a_moved_eye_steps_into_its_room(view, size)
+    return problems + a_moved_eye_steps_into_its_room(view, size) + a_domed_room_holds_its_eyes(view, size)
 
 
 def a_moved_eye_steps_into_its_room(view, size):
@@ -325,6 +331,33 @@ def a_moved_eye_steps_into_its_room(view, size):
     across = view([-2.0, 1.6, 1.5], [-3.5, 1.0, -1.0])
     if camera_paths.cleared_view(scenes, across, size) != (across, None):
         problems.append(f"a clear view across the room is moved: {camera_paths.cleared_view(scenes, across, size)}")
+    return problems
+
+
+def built(piece):
+    """A shell piece tools/usd/builders draws ({points, triangles}) as a mesh, its faces turned as it draws them."""
+    return trimesh.Trimesh(piece["points"], piece["triangles"], process=False)
+
+
+def a_domed_room_holds_its_eyes(view, size):
+    """A round room as the shell builds it (tools/usd/builders: its deck and 24 wall pieces slabs, whose sides face
+    in, its roof a dome, which faces out): an eye in it stands in no solid and a view across it is kept as it is,
+    though its rays meet the walls' and the dome's faces from behind (2026-11-12: every view of lab left out)."""
+    import builders
+    ring = [[6.0 * np.sin(angle), -6.0 * np.cos(angle)] for angle in np.linspace(0, 2 * np.pi, 24, endpoint=False)]
+    walls = [built(builders.slab([one, two, np.multiply(two, 1.05), np.multiply(one, 1.05)], -0.2, 3.0, "wall"))
+             for one, two in zip(ring, ring[1:] + ring[:1])]
+    shown = {"deck": built(builders.slab(ring, -0.2, 0.0, "deck")),
+             "roof": built(builders.dome(6.3, 2.8, "roof", rise=1.0)), **{f"wall_{number}": wall
+                                                                          for number, wall in enumerate(walls)}}
+    scenes = camera_paths.scenes_of(shown, built(builders.slab([[-9, -9], [9, -9], [9, 9], [-9, 9]], -0.4, -0.2, "x")),
+                                    lambda flat: np.zeros(len(np.atleast_2d(flat))), np.zeros((0, 8, 3)))
+    spot = view([1.4, 1.6, -1.6], [-2.0, 1.0, 3.0])
+    problems = []
+    if camera_paths.inside_solid(scenes, spot["eye"]):
+        problems.append("an eye in the middle of a domed round room stands inside a solid")
+    if camera_paths.cleared_view(scenes, spot, size) != (spot, None):
+        problems.append(f"a view across a domed round room is moved: {camera_paths.cleared_view(scenes, spot, size)}")
     return problems
 
 
