@@ -7,6 +7,11 @@ this one, so it moves the assembly's key alone (as held_apart.py does for the he
              parted         each floor thing a wall's or face's thing was laid into moved to its nearest free spot
                             (assembly/parting.py, which the settle's grounded seed parts too: airlock's
                             control_pedestals_2 under its wall_pipes_1, 2026-11-10)
+             stood          each floor thing at an open place's floor slid to a level spot beside it where its made
+                            ground slopes (level_spot.py: wreck's tank in its dent) and stood on that ground
+                            (on_ground.py), each thing on its holder's curved top laid again on its levelled model
+                            (tops_levelled.py: wreck's open hatch), then each face thing of a standing row let down
+                            onto what is under it (face_down.py: wreck's solar_panels_5, 2026-11-12)
              released       every stage the make left in a reference cycle collected (release): fitting.fitted's
                             recursive closure `one` holds the stage the design objects were laid on, so until a
                             collection ran its asset layers stayed loaded and screens.take's Sdf.Layer.CreateNew of
@@ -27,7 +32,7 @@ import json
 import pathlib
 
 from score.stages import assembly
-from score.stages.assembly import on_ground, parting
+from score.stages.assembly import face_down, level_spot, on_ground, parting, tops_levelled
 
 # gaps.WRITTEN, the file complete's accepted gaps gate reads; named here, not imported, so score/stages/gaps.py stays
 # out of the assembly's code version (a gap's verdict moves complete alone; the test reads it back through gaps.py)
@@ -42,7 +47,10 @@ def make(inputs, out, seed, params):
     silent voices made gaps (module docstring)."""
     assembly.make_from_seed(inputs, out, seed, params)
     parting.parted(out, assembly.stage_file(out).stem)
+    level_spot.slid(out, assembly.stage_file(out).stem)
     on_ground.stood(out, assembly.stage_file(out).stem)
+    tops_levelled.laid(out, assembly.stage_file(out).stem)
+    face_down.let_down(out, assembly.stage_file(out).stem)
     release()
     silence(inputs, out)
 
