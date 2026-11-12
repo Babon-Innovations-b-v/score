@@ -143,7 +143,8 @@ against the place's recorded game shots; the script Blender runs is `../blender/
   use it on every frame. renders.py does not read it; a caller hands the views to `renders.render_stage` and
   `walk_video`. The demo's place films (`../review/demo.py`) walk every shot with its `leg` (a clear straight edge,
   else RRT*). A still view (a look the light is rendered on) stands in free air (`view_faults`: its eye outside every
-  solid, read by rays meeting faces from behind, and CLEARANCE from every mesh; its middle meeting no surface within
+  solid, read by rays meeting faces from behind of a model whose box holds the eye (the shell's dome faces out and
+  its wall slabs' sides in: lab's every view left out, 2026-11-12), and CLEARANCE from every mesh; its middle meeting no surface within
   LOOK_CLEAR, 1 m, nor more than NEAR_MOST of its picture doing so), else `cleared_view` gives it the least change that clears it
   (a 15 degree turn about its eye or a 0.25 m move out along a line through no surface weighing one step each, up to
   all the way round and 1.5 m out; `steps_in`: into no model the eye was not already within, an open tunnel too, and an

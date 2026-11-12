@@ -82,7 +82,10 @@ LOOK_CLEAR = 1.0
 NEAR_MOST = 0.25
 PICTURE_RAYS = (16, 9)
 # An eye is inside a solid when at least this share of the rays it sends every way (INSIDE_WAYS) meet a surface from
-# behind first: from inside a closed mesh every one does, from a room none.
+# behind first, of a model whose box holds the eye (or the ground): from inside a closed mesh every one does, from a
+# room none. A model whose box does not hold the eye cannot hold it, whichever way its faces turn: the shell's dome
+# faces out and its wall pieces' sides in (tools/usd/builders.dome, slab), so from inside lab's domed round room 17 of
+# 26 rays met a face from behind and every view was left out (2026-11-12).
 INSIDE_SHARE = 0.5
 INSIDE_WAYS = np.array([way for way in itertools.product((-1.0, 0.0, 1.0), repeat=3) if any(way)])
 INSIDE_WAYS = INSIDE_WAYS / np.linalg.norm(INSIDE_WAYS, axis=1)[:, None]
@@ -250,8 +253,15 @@ def scenes_of(shown, ground, height, boxes):
         raise ValueError(f"the place's mesh has {len(still.faces)} faces, its models {len(owners)}")
     corners = np.vstack([mesh.bounds for mesh in meshes]) if meshes else np.zeros((2, 3))
     extent = (corners[:, 0].min(), corners[:, 2].min(), corners[:, 0].max(), corners[:, 2].max())
-    scenes = {"still": still, "tree": mesh_tree(still), "owners": owners, "height": height, "extent": extent}
+    scenes = {"still": still, "tree": mesh_tree(still), "owners": owners, "model_bounds": model_bounds(meshes),
+              "height": height, "extent": extent}
     return with_people(scenes, boxes)
+
+
+def model_bounds(meshes):
+    """Each model's box ((count + 1, 2, 3): its lowest and highest corner), in the order `owners` numbers them, and
+    last (`owners`' -1) the ground's, unbounded: the ground's faces always count (inside_solid)."""
+    return np.array([mesh.bounds for mesh in meshes] + [[[-np.inf] * 3, [np.inf] * 3]]).reshape(-1, 2, 3)
 
 
 def with_people(scenes, boxes):
@@ -367,7 +377,7 @@ def clearances(scenes, eyes, boxes=None):
     ((count, 8, 3) corners; the scenes' own when not given; 0 inside one, a closed mesh too: inside_solid; FCL
     measures an eye inside a wardrobe by its walls, 2026-11-04): two arrays, metres, inf where there is nothing."""
     boxes = scenes["boxes"] if boxes is None else boxes
-    walls = np.array([0.0 if inside_solid(scenes["still"], eye) else
+    walls = np.array([0.0 if inside_solid(scenes, eye) else
                       fcl.distance(scenes["tree"], fcl.CollisionObject(fcl.Sphere(1e-6), fcl.Transform(eye)),
                                    fcl.DistanceRequest(), fcl.DistanceResult()) + 1e-6 for eye in np.atleast_2d(eyes)])
     persons = np.array([box_distances(boxes, eye).min() if len(boxes) else np.inf for eye in np.atleast_2d(eyes)])
@@ -390,13 +400,17 @@ def picture_ways(view, size):
     return np.vstack([forward, ways / np.linalg.norm(ways, axis=1)[:, None]])
 
 
-def inside_solid(mesh, eye):
-    """Whether an eye stands inside a solid of the mesh: at least INSIDE_SHARE of the ways round it (INSIDE_WAYS) meet
-    a face from behind first."""
-    origins = np.tile(np.asarray(eye, dtype=float), (len(INSIDE_WAYS), 1))
+def inside_solid(scenes, eye):
+    """Whether an eye stands inside a solid of the place (scenes_of): at least INSIDE_SHARE of the ways round it
+    (INSIDE_WAYS) meet first a face from behind of a model whose box holds the eye, or of the ground."""
+    eye = np.asarray(eye, dtype=float)
+    mesh = scenes["still"]
+    origins = np.tile(eye, (len(INSIDE_WAYS), 1))
     _, rays, faces = mesh.ray.intersects_location(origins, INSIDE_WAYS, multiple_hits=False)
     behind = np.einsum("ij,ij->i", mesh.face_normals[faces], INSIDE_WAYS[rays]) > 0
-    return int(behind.sum()) >= INSIDE_SHARE * len(INSIDE_WAYS)
+    bounds = scenes["model_bounds"][scenes["owners"][faces]]
+    holds = np.all((bounds[:, 0] <= eye) & (eye <= bounds[:, 1]), axis=1)
+    return int((behind & holds).sum()) >= INSIDE_SHARE * len(INSIDE_WAYS)
 
 
 def models_round(scenes, eye):
@@ -428,7 +442,7 @@ def view_faults(scenes, view, size):
     mesh, a person or a moving thing, its middle meeting a surface nearer than LOOK_CLEAR, or more than NEAR_MOST of
     its picture doing so."""
     eye = np.asarray(view["eye"], dtype=float)
-    if inside_solid(scenes["still"], eye):
+    if inside_solid(scenes, eye):
         return ["its eye stands inside a solid"]
     walls, persons = clearances(scenes, eye)
     found = [] if stands_clear(walls, persons)[0] else \
@@ -473,7 +487,7 @@ def cleared_view(scenes, view, size):
     if not faults:
         return view, None
     eye = np.asarray(view["eye"], dtype=float)
-    inside = inside_solid(scenes["still"], eye)
+    inside = inside_solid(scenes, eye)
     headings = np.linspace(0.0, 2.0 * np.pi, MOVE_HEADINGS, endpoint=False)
     rings = np.arange(1, int(round(MOVE_MOST / MOVE_STEP)) + 1)
     spots = [(0, eye)] + [(ring, eye + ring * MOVE_STEP * np.array([np.cos(heading), 0.0, np.sin(heading)]))
