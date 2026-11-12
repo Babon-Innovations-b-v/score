@@ -319,6 +319,16 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   and no model's density facing any axis is under 0.7 of another's (doors included). A model of one surface has no
   thin-chart fault (`ONE_SURFACE`, 2026-11-12): a thin chart takes its neighbours' colour, all its own finish; on env1's
   38 models failing it every thin strip is geometry under a texel at the model's own density, not the packer.
+  The bake lays a layout that would fail again before it bakes (`inside/layout_fit.py`, run in make_chunky's place
+  by `inside/paint_fit.py`, paint_bake.py's job with that last step, the card job's script set by `bake_fitted.py`
+  on the bake row alone, `stages.layout_fitted`, 2026-11-12: paint_bake.py and what it starts are declared by every
+  row whose code reaches route_bake.py, 28 rows, 11 paid): each single piece's packed
+  layout measured as the check measures it and, only past the check's limit (`LIMIT`), laid again: faces on a
+  shared texel (every one of env1's folds lies inside one smart_project chart, its layers 13 to 22% of the model
+  apart, normals about 30 degrees apart) projected again on their own at 30, 15, then 8 degrees (`UNFOLD_ANGLES`), a
+  round kept only when it shares fewer; then the picture's side doubled while the thin share is over `TARGET` (0.5%),
+  up to bake.LARGEST. A layout the check passes, or one no laying again brings under the limit, is baked as
+  make_chunky bakes it, so a bake moves only where it is fixed. Its measure is its own copy, so an edit of uv_layout.py moves no bake.
 - **Every place's models are sized from its own scene record** (`stages.seen_from_record`, 2026-11-12): read
   beside wherever the scene-record row writes one, the earth places' too; with only the ship places', 46 earth
   models failed "baked matches its surfaces" on no view distance alone.

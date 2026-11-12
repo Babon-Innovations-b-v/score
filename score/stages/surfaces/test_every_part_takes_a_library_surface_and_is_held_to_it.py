@@ -71,6 +71,17 @@ tests it turned red:
 - uv_layout.py: `keys = np.concatenate([geometry["positions"], geometry["uvs"]], axis=1)` -> `keys =
   np.arange(len(geometry["positions"]))[:, None]`  ->
   a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- inside/layout_fit.py: `"overlap": float((counts > 1).sum() / max(int((counts > 0).sum()), 1)),` -> `"overlap":
+  0.0,`, or `(width < THIN_TEXELS)` -> `(width < 0)`  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- inside/layout_fit.py: `and side * 2 <= largest` dropped, or `rounds is not None and rounds < UNFOLD_ROUNDS` dropped,
+  or `(TARGET if rounds else LIMIT)` -> `TARGET`, or `found["thin"] > LIMIT or` dropped, or `polygons[found["shared"]]`
+  -> `polygons`  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+- __init__.py: `"layout_fit.py")},` -> `)},`, or `return dataclasses.replace(row, make=bake_fitted.make_bake)` ->
+  `return row`, or inside/paint_fit.py: `subprocess.run(fitted, check=True)` -> `subprocess.run(chunky, check=True)`,
+  or bake_fitted.py: `route_bake.SCRIPT = SCRIPT` dropped  ->
+  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
 - bake_check.py: `surface = ray_surfaces(geometry, laid, codes, entry["size"], sampled)` -> `surface =
   np.full(len(middles), -1)`  -> a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
 - bake_check.py: `found.append(round(float(chosen[:, 1].min() - low[1]), 3))` -> `found.append(0.0)`  ->
@@ -1152,6 +1163,46 @@ def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_m
     split["triangles"][1] = [4, 5, 3]
     # (its width the square's 2 * 512^2 / (4 * 512) texels, a lone half's 150)
     assert np.allclose(uv_layout.measure(split, [(1024, 1024)])["width"], 256.0)
+    # the bake lays such a layout again before it bakes (inside/layout_fit.py, 2026-11-12): its own measure is the
+    # check's, a sound layout is kept as made, a fold is projected again, a thin one gets twice the side up to the cap
+    sys.path.insert(0, str(REPO / "score/stages/surfaces/inside"))
+    import layout_fit
+    import route_bake
+    from score.stages.surfaces import bake_fitted
+    fit = {name: layout_fit.measured(*(squares(*cases[name])[part] for part in ("positions", "uvs", "triangles")),
+                                     1024) for name in ("sound", "overlap")}
+    thin_fit = layout_fit.measured(*(squares(*sound, laid(0.5, 0.5, 0.0005, 0.0005))[part]
+                                     for part in ("positions", "uvs", "triangles")), 1024)
+    for found, record in ((fit["sound"], records["sound"]), (fit["overlap"], records["overlap"]), (thin_fit, thin)):
+        assert abs(found["thin"] - record["thin"]) < 1e-4 and abs(found["overlap"] - record["overlap"]) < 1e-4, (
+            found, record)
+    assert layout_fit.next_step(fit["sound"], 512, 2048, 0) is None
+    assert layout_fit.next_step(fit["overlap"], 512, 2048, 0) == layout_fit.UNFOLD
+    assert layout_fit.next_step(fit["overlap"], 512, 2048, None) is None  # a round that shared no fewer stops it
+    # a layout the check passes is never laid again (wreck's open hatch, 0.64% shared: its unfolding thinned it)
+    passing = {**fit["overlap"], "overlap": 0.0064, "thin": 0.0064}
+    assert not layout_fit.failing(passing) and layout_fit.failing(fit["overlap"]) and layout_fit.failing(thin_fit)
+    assert layout_fit.next_step(passing, 512, 2048, 0) == 1024 and layout_fit.next_step(
+        {**passing, "thin": 0.0}, 512, 2048, 0) is None and layout_fit.next_step(
+        {**passing, "thin": 0.0}, 512, 2048, 1) == layout_fit.UNFOLD
+    assert layout_fit.next_step(thin_fit, 512, 2048, 0) == 1024 and layout_fit.next_step(thin_fit, 2048, 2048, 0) is None
+    # the faces a fold lays on one texel are the ones projected again: the two overlapping squares, not the third
+    assert layout_fit.folded_faces(fit["overlap"], np.arange(6) // 2).tolist() == [0, 2], fit["overlap"]["shared"]
+    # and the bake runs it (its card job's script inside/paint_fit.py, set on the row alone, so no reader of
+    # route_bake.py moves), declared on its row
+    bake_row = {row.name: row for row in stages.STAGES}["surfaces-bake"]
+    assert bake_row.make is bake_fitted.make_bake and bake_row.files("airlock")["paint bake layout_fit.py"].endswith(
+        "score/stages/surfaces/inside/layout_fit.py"), bake_row.files("airlock")
+    assert {row.name: row for row in stages.STAGES}["surfaces-parts"].make is not bake_fitted.make_bake
+    started = (REPO / bake_fitted.SCRIPT).read_text()
+    assert "inside/layout_fit.py" in started.split("fitted = ")[1].split("\n")[0] and started.split(
+        "subprocess.run(")[-1].startswith("fitted,"), started
+    made = (route_bake.SCRIPT, route_bake.make_bake)
+    route_bake.make_bake = lambda *given: route_bake.SCRIPT  # the job's script as card_job reads it, nothing rented
+    try:
+        assert bake_fitted.make_bake({}, None, 0, {}) == bake_fitted.SCRIPT
+    finally:
+        route_bake.SCRIPT, route_bake.make_bake = made
     with tempfile.TemporaryDirectory() as temporary:
         folder = pathlib.Path(temporary)
         (folder / "checks.json").write_text(json.dumps({name: {"layout": record} for name, record in records.items()}))
