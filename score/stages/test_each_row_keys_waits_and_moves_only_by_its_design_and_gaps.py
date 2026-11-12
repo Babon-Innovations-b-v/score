@@ -22,6 +22,10 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - score/graph/_code.py `FRAMEWORK` without `score/stages/__init__.py`  -> the terrain key test (the table moves
   terrain's key).
 - `FRAMEWORK` without `tools/cloud/provider.py`, or without `tools/cloud/secret_store.py`  -> the run machinery test.
+- `broken_ask`: `return None` first  -> the surface library test (a Claude stream with no result line kept as the
+  row's gap, surface-library@galley 2026-11-12); `startswith("no result line")` -> `True`  -> the same test (an
+  answer's own "no structured answer" raised as broken); `asking_claude(unbroken_asks(row.make))` ->
+  `unbroken_asks(asking_claude(row.make))`  -> the same test (the claude rows' keys lose claude_asks.py).
 - the light layer no longer given the body faces' reads (`FACE_READS`)  -> the light layer test.
 - `worn`: `applies` true at every place  -> the two dress row tests.
 - `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
@@ -348,7 +352,7 @@ from score.adapters import compute  # noqa: E402
 from score.graph import _code, rebuy  # noqa: E402
 from score.stages import (batch_gaps, design_layers, gaps, layer_base, moved, natural_grounds,  # noqa: E402
                           people_gaps, people_refresh, people_rows, row_kinds)
-from score.stages.surfaces import route_views  # noqa: E402
+from score.stages.surfaces import claude_asks, route_views  # noqa: E402
 from score.store import PROPS_HOME, Store, file_hash, tree_hash as store_tree_hash  # noqa: E402
 import score.stages.props.pixal_row as pixal_row  # noqa: E402
 
@@ -567,12 +571,15 @@ def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
         assert code_after_editing(table[name], "score/stages/surfaces/surface_data.py") != before, name
 
 
-def test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly():
+def test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly(tmp_path, monkeypatch):
     """surface-library's key holds no assembly: an edit to the assembly's fitting leaves every place's key, an edit to
     its own check (judge_library, scene_library.py) moves it (the library check's import through the assembly package
     re-keyed all 27 rows on each fitting.py edit, 2026-10-30). The library check (score/stages/library/checks.py) is
     the library@ rows', not this row's: it was in this key only through score/review and the store, which 68416f67
-    took out."""
+    took out. A Claude ask whose stream ends without its result line is never the row's output: the make raises
+    AskBroken (a ConnectionError), the adapter keeps nothing and a later run asks again, while a real answer is kept
+    and read back as before and the model's own "no structured answer" stays the take's gap (surface-library@galley,
+    2026-11-12, was kept as a fail and never asked again); that wrapper is the table's, so it keys no claude row."""
     rows = [stage for stage in stages.STAGES if stage.name.startswith("surface-library")]
     assert rows
     for row in rows:
@@ -580,6 +587,37 @@ def test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly(
         for unrelated in ("score/stages/assembly/fitting.py", "score/stages/assembly/__init__.py"):
             assert code_after_editing(row, unrelated) == before, (row.name, unrelated)
         assert code_after_editing(row, "score/stages/surfaces/scene_library.py") != before, row.name
+    for row in (stage for stage in stages.STAGES if stage.name.split("@")[0] in claude_asks.ROWS):
+        own = _code.start_files(graph.code_functions(row))
+        assert REPO / "score/stages/surfaces/claude_asks.py" in own, row.name
+        assert code_after_editing(row, "score/stages/__init__.py") == code_after_editing(row, "nothing"), row.name
+    from score.adapters.models import claude_code
+    monkeypatch.setattr(claude_code, "CACHE", tmp_path / "cache")
+    monkeypatch.setattr(claude_code, "LEDGER", tmp_path / "ledger.jsonl")
+    monkeypatch.setattr(claude_code.shutil, "which", lambda name: "/usr/bin/claude")
+    answered = json.dumps({"type": "result", "is_error": False, "structured_output": {"surfaces": []}, "usage": {}})
+    unstructured = json.dumps({"type": "result", "is_error": True, "subtype": "error_during_execution",
+                               "result": "schema not met"})
+    cut = json.dumps({"type": "assistant", "request_id": "req_cut", "message": {"content": []}})
+    streams = {"kept": answered, "cut": cut, "unstructured": unstructured}
+    monkeypatch.setattr(claude_code.subprocess, "run", lambda command, input, **_: subprocess.CompletedProcess(
+        command, 0, streams[json.loads(input)["message"]["content"][0]["text"]] + "\n", ""))
+
+    def body(text):
+        return {"contents": [{"parts": [{"text": text}]}],
+                "generationConfig": {"responseSchema": {"type": "OBJECT", "properties": {}}}}
+
+    def make(inputs, out, seed, params):
+        out.update(claude_code.asked({text: body(text) for text in inputs}, "surface-library"))
+    made = {}
+    stages.unbroken_asks(make)(["kept", "unstructured"], made, 0, {})
+    assert made["kept"] == json.dumps({"surfaces": []}) and isinstance(made["unstructured"], claude_code.Unanswered)
+    assert [path.read_text() for path in (tmp_path / "cache").iterdir()] == [made["kept"]]
+    with pytest.raises(stages.AskBroken, match="no result line"):
+        stages.unbroken_asks(make)(["kept", "cut"], {}, 0, {})
+    assert len(list((tmp_path / "cache").iterdir())) == 1 and claude_code.asked.__name__ == "asked"
+    streams["kept"] = cut  # read back from the cache, never asked again
+    assert stages.unbroken_asks(make)(["kept"], made, 0, {}) is None and made["kept"] == json.dumps({"surfaces": []})
 
 
 def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
