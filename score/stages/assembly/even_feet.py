@@ -126,18 +126,19 @@ def level_feet(points, triangles):
     return points, gaps
 
 
-def off_feet(points, triangles):
+def off_feet(points, triangles, spare=0.0):
     """[(the mesh's points of the foot, its lowest height)] of each foot the resting triage reads off on a level
-    ground under the mesh (triage.feet_gaps: a foot whose lowest lies over TOLERANCE above the mesh's lowest and not
-    within the outline of a foot that touches), its points the mesh's points in the band nearest one of its own."""
+    ground under the mesh (triage.feet_gaps: a foot whose lowest lies over TOLERANCE, less `spare` metres, above the
+    mesh's lowest and not within the outline of a foot that touches), its points the mesh's points in the band
+    nearest one of its own."""
     import triage
     from scipy.spatial import cKDTree
     from score.stages.assembly import big_bases
-    lowest = float(points[:, 1].min())
+    lowest, most = float(points[:, 1].min()), triage.TOLERANCE - spare
     feet = triage.foot_clusters(points, triangles, triage.LOW_BAND)
-    within = big_bases.outlines([members for members, foot in feet if foot - lowest <= triage.TOLERANCE])
+    within = big_bases.outlines([members for members, foot in feet if foot - lowest <= most])
     off = [number for number, (members, foot) in enumerate(feet)
-           if foot - lowest > triage.TOLERANCE and not within(members)]
+           if foot - lowest > most and not within(members)]
     if not off:
         return []
     labels = np.concatenate([np.full(len(members), number) for number, (members, _) in enumerate(feet)])

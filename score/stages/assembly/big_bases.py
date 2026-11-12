@@ -14,17 +14,22 @@ reads as hundreds of feet off; brought down the stretch reads them again apart. 
 is off. A foot's test against the outlines of the touching feet (triage.within_a_foot) made each outline again for
 each foot asked: 2.4 million outlines on the dome, 3 minutes a round; made once here, 4 seconds.
 
+base, later that day: its tube, retaken from its picture (a Pixal3D model, no longer a code build), lay 22 degrees off
+its frame, a round tube squashed in depth (its oriented box 1.9 x 3.8 x 6.9 m). The box axis nearest up was its 3.8
+m side, turned up on which no footing within 1 m holds it, so it was left leaned and tipped 0.28 m in the triage;
+turned 69 degrees onto its 1.9 m side (the next axis, least turn first) a cut of 0.09 m holds it.
+
     levelled(points, triangles)  (the points, [what was done: the turn in degrees, the cuts and gaps in metres]): the
                                  model stood upright when its code leaned it (upright), cut where its footing does not
                                  hold it (footing.needed_cut, else deep_cut), its feet brought down (even_feet.
                                  level_feet) and its sole cut where one is still off (sole_cut)
     upright(points, triangles)   a model tumbled in its frame (tumble.tumbled) that no footing within REACH holds,
-                                 turned so its oriented box's up axis stands up, when a footing within REACH then holds
-                                 it; its middle across and its lowest where they were
+                                 turned so an axis of its oriented box stands up, the least turn first, the first a
+                                 footing within REACH then holds; its middle across and its lowest where they were
     deep_cut(points, triangles)  the least cut past REACH, at most DEEP of its height, after which its footing holds
                                  its weight as made (footing.holds); 0.0 when none does
     sole_cut(points, triangles)  the least cut (SOLE_STEP apart, at most SOLE of its height) after which no foot is off
-                                 (even_feet.off_feet)
+                                 (even_feet.off_feet: by SPARE under the triage's TOLERANCE where a cut does it)
     outlines(down)               whether a foot lies inside the outline of one of the touching feet `down`, as
                                  triage.within_a_foot judges it, each outline made once
 """
@@ -40,9 +45,13 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 # 1.18 m. A model under 2 m tall is cut no deeper than REACH.
 DEEP = 0.125
 # The most a sole is cut level, a share of the model's height, and the cuts tried, metres apart: base's greenhouse
-# dome (12.2 m) was cut 0.50 m, its hangar (11.2 m) 0.30 m.
-SOLE = 0.05
+# dome (12.2 m) was cut 0.50 m, its hangar (11.2 m) 0.30 m; its dome as baked again (528647ac) 0.65 m.
+SOLE = 0.06
 SOLE_STEP = 0.05
+# How far, metres, under the triage's TOLERANCE a sole is cut until no foot is off, where a cut within SOLE does it:
+# the triage reads the laid model over its made ground, never quite level. base's greenhouse dome (2026-11-12), cut
+# 0.60 m, kept a foot 2.99 cm up (a face rising out of its sole, sampled), read 3.03 cm over its ground.
+SPARE = 0.005
 
 
 def levelled(points, triangles):
@@ -59,24 +68,26 @@ def levelled(points, triangles):
 
 
 def upright(points, triangles):
-    """(the points, [the turn, degrees]) of a model tumbled in its frame that no footing within REACH holds, turned up
-    when a footing within REACH then holds it; the points as they are and [] otherwise."""
+    """(the points, [the turn, degrees]) of a model tumbled in its frame that no footing within REACH holds, turned
+    onto the first axis of its oriented box (the least turn first) on which a footing within REACH then holds it; the
+    points as they are and [] when none does."""
     from score.stages.assembly import footing
     from score.stages.surfaces import tumble
     points = np.asarray(points, dtype=np.float64)
     if len(points) < 4 or not tumble.tumbled(points) or footing.needed_cut(points, triangles) is not None:
         return points, []
     axes, _, _ = tumble.oriented(points)
-    up = axes[:, int(np.argmax(np.abs(axes[1, :])))]
-    up = up / np.linalg.norm(up) * np.sign(up[1])
-    turn = turned_onto(up, np.array([0.0, 1.0, 0.0]))
     middle = (points.min(axis=0) + points.max(axis=0)) / 2
-    stood = (points - middle) @ turn.T
-    stood += [middle[0] - (stood[:, 0].min() + stood[:, 0].max()) / 2, points[:, 1].min() - stood[:, 1].min(),
-              middle[2] - (stood[:, 2].min() + stood[:, 2].max()) / 2]
-    if footing.needed_cut(stood, triangles) is None:
-        return points, []
-    return stood, [round(float(np.degrees(np.arccos(np.clip(up[1], -1.0, 1.0)))), 2)]
+    # each axis of its oriented box, the least turn first: a round section's box turns freely about its length
+    for up in sorted((axes[:, column] / np.linalg.norm(axes[:, column]) * (np.sign(axes[1, column]) or 1.0)
+                      for column in range(3)), key=lambda way: -way[1]):
+        turn = turned_onto(up, np.array([0.0, 1.0, 0.0]))
+        stood = (points - middle) @ turn.T
+        stood += [middle[0] - (stood[:, 0].min() + stood[:, 0].max()) / 2, points[:, 1].min() - stood[:, 1].min(),
+                  middle[2] - (stood[:, 2].min() + stood[:, 2].max()) / 2]
+        if footing.needed_cut(stood, triangles) is not None:
+            return stood, [round(float(np.degrees(np.arccos(np.clip(up[1], -1.0, 1.0)))), 2)]
+    return points, []
 
 
 def turned_onto(way, onto):
@@ -116,15 +127,18 @@ def holds_as_made(points, triangles):
 
 def sole_cut(points, triangles):
     """(the points, [the cut, metres]) with the model's sole cut level at the least cut (SOLE_STEP apart, at most SOLE
-    of its height) after which no foot is off; the points as they are and [] when none is off or no such cut is."""
+    of its height) after which no foot is off SPARE under the triage's TOLERANCE, else none off at its TOLERANCE; the
+    points as they are and [] when none is off or no such cut is."""
     from score.stages.assembly import even_feet, footing
     points = np.asarray(points, dtype=np.float64)
-    if not even_feet.off_feet(points, triangles):
-        return points, []
-    for cut in np.arange(SOLE_STEP, SOLE * float(np.ptp(points[:, 1])) + SOLE_STEP / 2, SOLE_STEP):
-        flat = footing.cut_at(points, float(cut))
-        if not even_feet.off_feet(flat, triangles):
-            return flat, [round(float(cut), 4)]
+    cuts = np.arange(SOLE_STEP, SOLE * float(np.ptp(points[:, 1])) + SOLE_STEP / 2, SOLE_STEP)
+    for spare in (SPARE, 0.0):
+        if not even_feet.off_feet(points, triangles, spare):
+            return points, []
+        for cut in cuts:
+            flat = footing.cut_at(points, float(cut))
+            if not even_feet.off_feet(flat, triangles, spare):
+                return flat, [round(float(cut), 4)]
     return points, []
 
 

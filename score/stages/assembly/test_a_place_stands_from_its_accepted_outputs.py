@@ -286,7 +286,10 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     keeps what the triage gives it; one laid under it, or with no record, is still mounted there.
     Break: score/stages/assembly/on_tops.py: standing's `if kind != "ceiling" or row_id not in topped}` -> `}` (the
         antenna on top judged hanging), or laid_on_tops' `if all(topped)}` -> `}` (the rails hung under their panels
-        judged standing)"""
+        judged standing)
+    Break: score/stages/assembly/roof_tops.py: roofs' `if row.get("part") in ROOF_PARTS and row["id"] in topped}` ->
+        `if row["id"] in topped}` (the lamp on top fixed), or `-> `if row.get("part") in ROOF_PARTS}` (the porch on
+        its face fixed); score/stages/assembly/__init__.py: `**roof_tops.roofs(inventory["rows"], record), ` -> ``"""
     inventory = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
                           {"id": "floor_plates", "part": "floor"}, {"id": "locker", "part": "object"},
                           {"id": "wall_pipes", "anchor": "on:left_wall"},
@@ -308,6 +311,19 @@ def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     assert found == {"dome_module": None, "antenna": None, "ceiling_panels": None, "ceiling_rails": "ceiling"}, found
     found = {row["id"]: row.get("support") for row in assembly.resting_rows(domed)["rows"]}
     assert found["antenna"] == "ceiling", found
+    # assembly@base (2026-11-12): its glass pyramid roof on its hub's top and its hangar's roof opening on the hangar's
+    # top were judged standing on their own weight and floated 0.26 and 2.98 m. A roof or opening row laid on its
+    # holder's top is part of that holder's roof, fixed to it; one laid on a face (hanging there), or a thing on a
+    # top, is not.
+    roofed = {"rows": [{"id": "hub", "noun": "building"}, {"id": "pyramid", "part": "roof", "anchor": "on:hub"},
+                       {"id": "skylight", "part": "opening", "anchor": "on:hub"},
+                       {"id": "porch", "part": "roof", "anchor": "on:hub"},
+                       {"id": "lamp", "part": "object", "anchor": "on:hub"}]}
+    record = {"objects": [{"name": f"{name}_1", "row": name, "on": {"how": how, "holder": ["hub_1"]}}
+                          for name, how in (("pyramid", "top"), ("skylight", "top"), ("porch", "face"),
+                                            ("lamp", "top"))]}
+    found = {row["id"]: row.get("support") for row in assembly.resting_rows(roofed, record)["rows"]}
+    assert found == {"hub": None, "pyramid": "fixed", "skylight": "fixed", "porch": "hanging", "lamp": None}, found
 
 
 def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
@@ -3326,6 +3342,40 @@ def a_topped_place(folder):
     return folder / f"{TOY}.usda"
 
 
+def a_roofed_place(folder):
+    """A place `toy` in `folder` (no made ground): a hall of two walls 2 m tall at x -1.5 to -1.3 and 1.3 to 1.5, open
+    between them, and a roof slab 3 m across them, its foot 2.5 m up (0.5 m over the walls), with a fin 0.8 m under
+    its middle; the record lays the roof on the hall's top; its record and laid.json. The root's path."""
+    from pxr import Usd, UsdGeom
+    (folder / "layers").mkdir(parents=True)
+    base = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
+    hall = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.5, 0.0, -1.0), (-1.3, 2.0, 1.0)]),
+                                     trimesh.creation.box(bounds=[(1.3, 0.0, -1.0), (1.5, 2.0, 1.0)])])
+    roof = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.5, 2.5, -0.5), (1.5, 2.6, 0.5)]),
+                                     trimesh.creation.box(bounds=[(-0.05, 1.7, -0.5), (0.05, 2.5, 0.5)])])
+    for name, mesh in (("hall_1", hall), ("roof_1", roof)):
+        a_built_box(base, f"/{TOY}/Objects/{name}", *mesh.bounds)
+        geo = UsdGeom.Mesh(base.GetPrimAtPath(f"/{TOY}/Objects/{name}/geo"))
+        geo.GetPointsAttr().Set([tuple(map(float, point)) for point in mesh.vertices])
+        geo.GetExtentAttr().Set([tuple(map(float, end)) for end in mesh.bounds])
+        geo.CreateFaceVertexCountsAttr([3] * len(mesh.faces))
+        geo.CreateFaceVertexIndicesAttr([int(index) for index in mesh.faces.ravel()])
+    base.GetRootLayer().Save()
+    root = Usd.Stage.CreateNew(str(folder / f"{TOY}.usda"))
+    root.GetRootLayer().subLayerPaths = ["./layers/base.usda"]
+    root.SetDefaultPrim(UsdGeom.Xform.Define(root, f"/{TOY}").GetPrim())
+    root.GetRootLayer().Save()
+    (folder / record.RECORD).write_text(json.dumps({"place": TOY, "inside": False, "objects": [
+        {"name": "hall_1", "row": "hall", "at": [0, 0, 0]},
+        {"name": "roof_1", "row": "roof", "on": {"how": "top", "holder": ["hall_1"]}}]}))
+    (folder / made_waiting.LAID).write_text(json.dumps({
+        "objects": [{"name": "roof_1", "low": [float(value) for value in roof.bounds[0]],
+                     "high": [float(value) for value in roof.bounds[1]]}],
+        "holders": [{"name": "hall_1", "low": [float(value) for value in hall.bounds[0]],
+                     "high": [float(value) for value in hall.bounds[1]]}]}))
+    return folder / f"{TOY}.usda"
+
+
 def a_dented_place(folder):
     """A place `toy` in `folder` on a made ground (/toy/Outside/near, 0.25 m apart, on a layer of its own) flat at 0 but
     for a round dent at the middle, a sphere's cap 1.25 m round and 1 m deep; a 0.6 m box laid at the floor 0.25 m off
@@ -3386,14 +3436,22 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     the resting check reads apart (5 cm): a floor thing's own asset is laid with a leg 5 cm short brought down onto
     its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's and an asset linked
     from elsewhere are left as they are.
-    Break: score/stages/assembly/even_feet.py: `if foot - lowest > triage.TOLERANCE and not` -> `if False and not`
+    Break: score/stages/assembly/even_feet.py: `if foot - lowest > most and not` -> `if False and not`
+    Break: score/stages/assembly/big_bases.py: sole_cut's `for spare in (SPARE, 0.0):` -> `for spare in (0.0,):` (the
+        cabinet left on a leg 2.7 cm short)
     Break: score/stages/assembly/even_feet.py: `or os.stat(path).st_nlink != 1` -> `` (a write through a link)
     Break: score/stages/assembly/even_feet.py: `and not said("score:fixed")` -> ``
     Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`
     Break: score/stages/assembly/big_bases.py: levelled's `stood = footing.cut_at(points, cut) if cut else ...` ->
         `stood = np.asarray(points, dtype=np.float64)` (the hub left on its post's foot, the tower on its slope)
     Break: score/stages/assembly/big_bases.py: upright's `stood = (points - middle) @ turn.T` -> `stood = points -
-        middle` (the beam left leaning)
+        middle` (the beam left leaning), or `key=lambda way: -way[1]):` -> `key=lambda way: -way[1])[:1]:` (the
+        angle left on its leg tips)
+    Break: score/stages/assembly/grounded.py: `roof_tops.let_down(folder, seed.name, inventory_rows(inputs))` -> `pass`
+    Break: score/stages/assembly/roof_tops.py: downs' `if on_ground.TOLERANCE < between < np.inf:` -> `if between <
+        np.inf:` (laid again, moved 5 mm down into the walls), `found[entry["name"]] = between - CLEAR` -> `=
+        between` (moved 0.5 m), or let_down's `fits.append({**fit, "top at": ...} if one ==
+        name else fit)` -> `fits.append(fit)` (the held gate measures it off the hall's box top)
     Break: score/stages/assembly/big_bases.py: deep_cut's `deepest = DEEP * float(np.ptp(points[:, 1]))` -> `deepest
         = 9.0` (the 4 m post cut level), or levelled's `stood, sole = sole_cut(stood, triangles)` -> `sole = []` (the
         hall left on its corners), or sole_cut's `SOLE * float(np.ptp(points[:, 1]))` -> `1.0` (the shed cut level)
@@ -3431,7 +3489,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         (slid 2 cm, still on the dent's side), or `or level(low, high, ground):` -> `` (the crate on flat ground slid
         too: it is level where it is)"""
     from pxr import Sdf
-    from score.stages.assembly import face_down, grounded, level_spot, made_waiting, on_ground, parting, tops_levelled
+    from score.stages.assembly import (face_down, grounded, level_spot, made_waiting, on_ground, parting, roof_tops,
+                                       tops_levelled)
     monkeypatch.setattr(baked, "take_bake", lambda *args: None)
     monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
     monkeypatch.setattr(made_waiting, "lay", lambda *args: [])
@@ -3525,6 +3584,23 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     sole = np.array([(x, 0.0, z) for x in (0.0, 1.0) for z in (0.0, 1.0)])
     for foot in (np.array([(0.4, 0.05, 0.4), (0.6, 0.05, 0.4), (0.5, 0.05, 0.6)]), np.array([(1.4, 0.05, 0.4)] * 3)):
         assert big_bases.outlines([sole])(foot) == triage.within_a_foot(foot, [sole]) == (foot[0, 0] < 1.0)
+    # base, later that day: its greenhouse dome, its sole cut 0.60 m, kept a foot 2.99 cm up its model (a face rising
+    # out of its sole), read 3.03 cm over its ground. A 2 m cabinet on four legs, one 2.7 cm short (within the check's
+    # 3 cm, under its spare), has its sole cut level 0.05 m.
+    legs = [box((0.1, 0.6 - lift, 0.1), shift((x, 0.3 + lift / 2, z))) for x, z, lift in (
+        (-0.9, -0.9, 0.0), (-0.9, 0.9, 0.0), (0.9, -0.9, 0.0), (0.9, 0.9, 0.027))]
+    a_floor_thing(tmp_path / "cabinet", "cabinet", trimesh.util.concatenate([box((2.0, 1.4, 2.0), shift((0, 1.3, 0))),
+                                                                             *legs]))
+    grounded.take_bakes(bake, tmp_path / "cabinet", TOY)
+    assert under("cabinet", (0.9, 0.9), 0.051, 0.051)[:2] == (0.0, 2.0), under("cabinet", (0.9, 0.9), 0.051, 0.051)
+    # base, later that day: its tube, retaken from its picture, lay 22 degrees off its frame, squashed in depth; on its
+    # box axis nearest up no footing holds it, on its next one a cut of 0.09 m does. A 4 m angle (a 2 m top on a 1 m
+    # leg at one end) leaned 20 degrees, which stood on its leg tips, is turned 70 degrees onto its leg's outer face.
+    angle = trimesh.util.concatenate([box((2.0, 0.2, 4.0), shift((1.0, 0.9, 0.0))), box((0.2, 0.8, 4.0),
+                                                                                        shift((0.1, 0.4, 0.0)))])
+    angle.apply_transform(trimesh.transformations.rotation_matrix(np.radians(20), (0, 0, 1)))
+    stood, turned = big_bases.upright(angle.vertices - (0.0, angle.bounds[0][1], 0.0), angle.faces)
+    assert turned == [70.0] and np.allclose(np.ptp(stood, axis=0), (1.0, 2.0, 4.0), atol=1e-6), (turned, stood)
     # square (2026-11-12): its 41 red flags stood on a pole 1.5 cm wide at its foot leaning 10 degrees, their cloth
     # 0.42 m to one side, their weight (the triage's: by surface area) 0.18 m outside the pole's foot. A 0.5 m pole so
     # leaned with a 0.4 m cloth on it stands upright on a plate in the pole's part that holds it, its texture places,
@@ -3574,6 +3650,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     parted, stood, downed, topped, levelled = [], [], [], [], []
     monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
     restore, lay_down, lay_tops, slide = on_ground.stood, face_down.let_down, tops_levelled.laid, level_spot.slid
+    lay_roofs, roofed = roof_tops.let_down, []
+    monkeypatch.setattr(roof_tops, "let_down", lambda folder, place, rows: roofed.append((folder, place)) or [])
     monkeypatch.setattr(level_spot, "slid", lambda folder, place: levelled.append((folder, place)) or [])
     monkeypatch.setattr(tops_levelled, "laid", lambda folder, place: topped.append((folder, place)) or [])
     monkeypatch.setattr(on_ground, "stood", lambda folder, place: stood.append((folder, place)) or [])
@@ -3584,7 +3662,7 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
     assert parted == [(tmp_path / "settle", TOY)], parted  # parted as the assembly's make parts (wired.make)
     assert stood == [(tmp_path / "settle", TOY)], stood  # on its made ground, as the assembly's make stands them
-    assert levelled == downed == topped == [(tmp_path / "settle", TOY)], downed  # as wired.make lays them
+    assert levelled == downed == topped == roofed == [(tmp_path / "settle", TOY)], downed  # as wired.make lays them
     # assembly@wreck (2026-11-12): every thing laid at the plan's floor, 0 m, over a made ground from -4.8 to +4.0 m
     # under them. On a ground rising 0.2 m a metre north from 1 m at z 0, a 1 m box laid at 0 m is turned
     # atan(0.2) = 11.31 degrees with the slope and let down onto it, every corner of its foot on the ground and the
@@ -3649,6 +3727,23 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     assert abs(hatch[:, 2].mean()) < 0.15 and abs(hatch[:, 1].min() - 2.0) < 0.01, hatch.min(axis=0)
     laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
     assert np.isclose(laid["hatch_1"]["low"][1], hatch[:, 1].min(), atol=1e-3) and lay_tops(place.parent, TOY) == []
+    # assembly@base (2026-11-12): its hangar roof opening, a slab with a fin hanging 2.7 m under it into the hangar's
+    # open middle, was left at the hangar's box top and floated 2.98 m. A 3 m slab with a fin 0.8 m under it, laid
+    # 0.5 m over the two walls of a hall it spans (the fin between them), is let down onto the walls' tops, its fin
+    # into the hall, nothing slid across; its row read as an object, or laid again, it moves no more.
+    rows = [{"id": "hall", "noun": "building"}, {"id": "roof", "part": "opening", "anchor": "on:hall"}]
+    place = a_roofed_place(tmp_path / "roofed")
+    fits = lay_roofs(place.parent, TOY, rows)
+    stage = Usd.Stage.Open(str(place))
+    roof = on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/roof_1"))
+    assert [(fit["name"], fit["moved"], fit["top at"]) for fit in fits] == [("roof_1", 0.495, 1.205)], fits
+    assert np.isclose(roof[:, 1].min(), 1.205) and np.allclose(roof[:, [0, 2]].min(axis=0), (-1.5, -0.5)), roof
+    laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
+    assert np.isclose(laid["roof_1"]["low"][1], 1.205) and lay_roofs(place.parent, TOY, rows) == [], laid
+    assert fitting.held_faults(json.loads((place.parent / record.RECORD).read_text()),
+                               json.loads((place.parent / made_waiting.LAID).read_text())) == []
+    place = a_roofed_place(tmp_path / "roofed-object")
+    assert lay_roofs(place.parent, TOY, [rows[0], {**rows[1], "part": "object"}]) == []
     # assembly@wreck (2026-11-12): its spherical tank, laid 0.26 m off the middle of its 1 m dent, was turned 7.9
     # degrees with the dent's side and leaned. A 0.6 m box laid 0.25 m off the middle of a round dent 1 m deep (a
     # sphere's cap 1.25 m round) is slid to where the ground under it is level, at the dent's middle; one on the flat
