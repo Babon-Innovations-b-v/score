@@ -27,6 +27,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - mix.sweep: return 1.0 always (the sweep test).
 - mix.lamp_faults: never "blown" (the sweep test).
 - layer.strengths: write the strength unscaled (the layer test).
+- layer.placed_lamps: `free = {path: (lamps_along.laid_at(stage, path, spot), shaped) ...}` -> `free = {path: (spot,
+  shaped) ...}` (the layer test: a lamp the assembly carried out of a wall with its floor light put back 5 cm inside
+  it; light@walkway's spot-2 at 0.079 against its concept's 0.237, 2026-11-12).
 - layer.place_middle: the stage's bound for an inside place too (the ceiling lamp test, 2026-10-30).
 - layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the post baked
   as one mesh test, 2026-10-31: kept, every way out stopped).
@@ -121,6 +124,7 @@ from score import checks
 from score.checks import grain
 from score.review import overhead, setting
 from score.stages import light
+from score.stages.assembly import lamps_along
 from score.stages.light import haze, layer, measure, mix, needs, night, passes, sky
 from score.stages.terrain import needs as ground_needs
 from score.store import Store
@@ -1201,6 +1205,18 @@ def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_streng
     assert [entry["done"] for entry in found["placed"]] == ["moved 1.00 m", "added"], found["placed"]
     moved = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
     assert moved["spot"] == [1.0, 2.0, 0.0] and not moved["shaped"], moved
+    # a lamp the assembly carried 8 cm with its floor light out of a wall (assembly/lamps_along) keeps its carried
+    # spot: the record's lamp at its laid spot is that one, never moved back into the wall (light@walkway, 2026-11-12)
+    carried = tmp_path / "carried"
+    tiny_seed(carried)
+    base = Usd.Stage.Open(str(carried / "layers/base.usda"))
+    lamps_along.moved_with(base, "tiny", np.array([-0.1, 1.9, -0.1]), np.array([0.1, 2.1, 0.1]), np.zeros(3), 1.0,
+                           np.array([0.08, 0.0, 0.0]))
+    base.Save()
+    kept = layer.write("tiny", {"lights": [dict(record["lights"][0], at=[0.0, 2.0, 0.0])]}, carried,
+                       tmp_path / "carried-out")
+    assert [entry["done"] for entry in kept["placed"]] == ["kept"] and kept["lamps"][0]["spot"] == [0.08, 2.0, 0.0], \
+        kept
     layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 0.5)})
     held = Usd.Stage.Open(str(out / layer.LAYER))
     assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0

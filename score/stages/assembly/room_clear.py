@@ -14,6 +14,8 @@ HELD_MOST at most across it (fitting.shallow_out); neither takes the rest:
 """
 import numpy as np
 
+from score.stages.assembly import lamps_along
+
 # A thing longer than the room between two facing wall pieces is narrowed along it to fit where that keeps this share
 # of its length; one that would need more is left for the held gate to name.
 SHRINK_MOST = 0.9
@@ -110,6 +112,7 @@ def cleared(stage, place, entries):
             if move is None:
                 continue
             foot = fitting.foot_middle(low, high)
+            lamps_along.moved_with(stage, place, low, high, foot, 1.0, foot + move)  # its lamps with it
             fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + move)
             fits.append(fitting.laid_fit(stage, path, entry, "out", None, float(np.abs(move).max()), 1.0,
                                          f"moved {float(np.abs(move).max()):.3f} m out of a wall it was laid in"))

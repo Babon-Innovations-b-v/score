@@ -1133,7 +1133,14 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         0.06 m in wall_3, the light in wall_4), or room_clear.py's `if room >= length or room < SHRINK_MOST * length:`
         -> `if room >= length:` (the beam shrunk to 83%), or moved_across's `> float(box[1][axis] - box[0][axis]):`
         -> `> fitting.HELD_MOST:` (the light left in its wall), or `-> > 100.0:` (the spaceship across wall_5 moved
-        3 m)"""
+        3 m)
+    light@walkway (2026-11-12): the floor lights were moved out of wall_4 and their lamps, laid at their plan spots
+    inside them, left 2.7 cm in the wall, its spot-2 at 0.079 against its concept's 0.237. The light's lamp is carried
+    0.0503 m into the room with it, its record spot kept (lamps_along.laid_at); a lamp in the duct's box, which is
+    narrowed, and one beside the light stay.
+    Break: score/stages/assembly/room_clear.py: `lamps_along.moved_with(stage, place, low, high, foot, 1.0, foot +
+        move)` dropped (the lamp left in wall_4), or lamps_along.py's `if np.any(spot < np.asarray(low) - WITHIN) or
+        ...: continue` -> `if False: continue` (the lamp beside the light carried too)"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1434,6 +1441,10 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
                             ("light_1", (-0.0503, 0.0, 3.0), (-0.0037, 0.06, 3.8)),
                             ("beam_1", (1.0, 0.5, -0.03), (1.2, 0.7, 11.97))):
         a_built_box(ducted, f"/{TOY}/Objects/{name}", low, high)
+    from pxr import Gf, UsdGeom, UsdLux
+    for name, at in (("light_lamp", (-0.0270, 0.03, 3.4)), ("duct_lamp", (0.65, 2.0, 5.0)),
+                     ("beside_lamp", (0.3, 0.03, 3.4))):
+        UsdLux.SphereLight.Define(ducted, f"/{TOY}/Lights/{name}").AddTranslateOp().Set(Gf.Vec3d(*at))
     fits = fitting.fitted(ducted, TOY, [{"name": name, "row": name[:-2]} for name in ("duct_1", "light_1", "beam_1")],
                           {"duct_1", "light_1", "beam_1"})
     duct, light, beam = (fitting.world_box(ducted, f"/{TOY}/Objects/{name}") for name in ("duct_1", "light_1",
@@ -1441,6 +1452,13 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert np.allclose(duct, ((0.5, 1.7, 0.0), (0.8, 2.3, 10.0)), atol=1e-6), fits
     assert np.allclose(light, ((0.0, 0.0, 3.0), (0.0466, 0.06, 3.8)), atol=1e-6), fits
     assert abs(float(beam[1][2] - beam[0][2]) - 12.0) < 1e-6, fits
+    from score.stages.assembly import lamps_along
+    spots = {prim.GetName(): np.array(UsdGeom.Xformable(prim).GetOrderedXformOps()[0].Get())
+             for prim in ducted.GetPrimAtPath(f"/{TOY}/Lights").GetChildren()}
+    lamps = {name: (spot, lamps_along.laid_at(ducted, f"/{TOY}/Lights/{name}", spot)) for name, spot in spots.items()}
+    assert np.allclose(lamps["light_lamp"], ((0.0233, 0.03, 3.4), (-0.027, 0.03, 3.4)), atol=1e-4), lamps
+    assert np.allclose(lamps["duct_lamp"], ((0.65, 2.0, 5.0),) * 2) and np.allclose(
+        lamps["beside_lamp"], ((0.3, 0.03, 3.4),) * 2), lamps
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
