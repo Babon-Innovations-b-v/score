@@ -36,13 +36,15 @@ def layout_of(gltf):
 def judge_layout(output, inputs, evidence):
     """Every baked model's texture layout sound (#92): no surface outside its picture, mirrored, sharing texels,
     stretched, given a fraction of its model's texture detail or in charts too thin to hold a colour, past each
-    measure's limit (LIMITS), named by model and measure."""
+    measure's limit (LIMITS), named by model and measure; thin charts only on a model of more than one surface
+    (faults)."""
     import surface_gates as gates
     found = json.loads((pathlib.Path(output) / "checks.json").read_text())
-    measured = {model: record["layout"] for model, record in found.items() if "layout" in record}
+    measured = {model: record for model, record in found.items() if "layout" in record}
     if not measured:
         return gates.unknown("texture layout sound", "no baked model's texture layout was measured")
-    failing = [f"{model}: {fault}" for model, layout in measured.items() for fault in faults(layout)]
+    failing = [f"{model}: {fault}" for model, record in measured.items()
+               for fault in faults(record["layout"], len(record.get("surfaces", {})) == 1)]
     return gates.verdict("texture layout sound", failing, len(measured), "layout faults over the models")
 
 
@@ -207,11 +209,14 @@ def weighted_quantile(values, weights, fraction):
     return float(values[order][min(np.searchsorted(reached, fraction * reached[-1]), len(values) - 1)])
 
 
-def faults(layout):
-    """A model's layout faults, one a measure past its limit (LIMITS), in words (WORDS) with its share."""
+def faults(layout, one_surface=False):
+    """A model's layout faults, one a measure past its limit (LIMITS), in words (WORDS) with its share. A model of one
+    surface (`one_surface`: its bake labelled every face with the same finish) has no thin-chart fault: a chart too
+    thin for its own colour takes its neighbours', and every neighbour is its own surface (ONE_SURFACE)."""
     return [f"{WORDS[measure]} {layout[measure]:.1%} of its surface, over {limit:.1%}"
             if measure != "overlap" else f"{WORDS[measure]} {layout[measure]:.1%} of its texels, over {limit:.1%}"
-            for measure, limit in LIMITS.items() if layout[measure] > limit]
+            for measure, limit in LIMITS.items()
+            if layout[measure] > limit and not (one_surface and measure == "thin")]
 
 
 WORDS = {"outside": "texture coordinates outside the picture on", "mirrored": "texture laid mirrored on",
@@ -231,3 +236,8 @@ DENSITY_FALL = 0.25
 THIN_TEXELS = 1.0
 LEAST = 0.01
 LIMITS = {"outside": 0.0, "mirrored": LEAST, "overlap": LEAST, "stretched": LEAST, "sparse": LEAST, "thin": LEAST}
+# ONE_SURFACE: a thin chart is a fault for the colour it takes from a neighbour of another surface. Measured on env1's
+# 38 models failing it on this PC's store (2026-11-12): each one's thin share lies in strips its geometry makes under a
+# texel wide at the model's own median density (paper and sticky-note edges, a lantern string's 7 mm wire at 115
+# texels a metre), the layout keeping one density; five of them hold one surface (quarters' paper, poster and sticky
+# note, the street's drying rack and lantern string), where a strip's neighbours bake its own finish.
