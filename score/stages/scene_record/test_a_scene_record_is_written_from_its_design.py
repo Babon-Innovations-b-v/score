@@ -897,7 +897,13 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     Break: score/stages/scene_record/writer.py: `on["along"] = round((number + 0.5) / len(hung), 4)` -> `pass`
     Break: score/stages/scene_record/writer.py: `return thick <= THIN_SHARE * min(float(side) for side in size)` ->
         `return False` (the lantern laid against the string's side), or `-> return True` (the garage door hung under
-        its module)"""
+        its module)
+    assembly@square (2026-11-12): its lantern strings, hung 6 m over the plaza between its buildings, carried no `on`
+    and were judged on the plaza. A string the relations hang between two poles carries `between` them, naming each
+    pole's object; one hung between a pole and an item that lays no object is held by nothing and says so.
+    Break: score/stages/scene_record/writer.py: related's `if how == "hung" and len(relation.get("holders") or []) ==
+        2:` -> `if False:` (the string with no `on`), or holder_names' `on["holder"] = [of_item[0] for of_item in
+        names]` -> `pass` (no holders named), or its `if all(names):` -> `if any(names):` (held by one pole)"""
     from score.stages.scene_record import gates, writer
     design = {"w": 20.0, "d": 20.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 20.0, 20.0, None, "item"],
                                               ["MODULE 1", 8.0, 2.0, 6.0, 6.0, None, "item"],
@@ -949,6 +955,22 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
     lanterns = [entry["on"] for entry in hung if entry["row"] == "lantern"]
     assert [(on["below"], on["along"], on["holder"]) for on in lanterns] == [
         (True, 0.25, ["string_1"]), (True, 0.75, ["string_1"])], lanterns
+    poled = {**design, "items": [["POLE 1", 2.0, 2.0, 0.5, 0.5, None, "item"], ["POLE 2", 16.0, 2.0, 0.5, 0.5, None,
+                                                                                  "item"],
+                                 ["STRING 1", 2.5, 2.0, 13.5, 0.5, None, "item"],
+                                 ["STRING 2", 2.5, 4.0, 13.5, 0.5, None, "item"]],
+             "rows": {"POLE 1": ["pole"], "POLE 2": ["pole"], "STRING 1": ["string"], "STRING 2": ["string"]}}
+    strung = {entry["name"]: entry for entry in writer.design_objects(poled, {"rows": [
+        {"id": "pole", "anchor": "floor", "route": "prop", "size": [0.5, 0.5, 8.0]},
+        {"id": "string", "anchor": "floor", "route": "prop", "size": [13.5, 0.5, 0.5]}], "objects": {}}, {
+            "relations": [{"item": "STRING 1", "row": "string", "how": "hung", "holders": ["POLE 1", "POLE 2"],
+                           "holder rows": ["pole", "pole"], "why": "hung between POLE 1 and POLE 2"},
+                          {"item": "STRING 2", "row": "string", "how": "hung", "holders": ["POLE 1", "MAST 1"],
+                           "holder rows": ["pole", "mast"], "why": "hung between POLE 1 and MAST 1"}]})}
+    assert strung["string_1"]["on"] == {"how": "between", "holder items": ["POLE 1", "POLE 2"],
+                                        "holder rows": ["pole", "pole"], "why": "hung between POLE 1 and POLE 2",
+                                        "holder": ["pole_1", "pole_2"]}, strung["string_1"]
+    assert "on" not in strung["string_2"] and "MAST 1" in strung["string_2"]["unheld"], strung["string_2"]
     assert (garage["on"]["room"], garage["on"]["room_way"]) == (0.55, [-1.0, 0.0]), garage  # kept within the face
     assert lamp["on"]["span"] == [[-9.9, 10.0], [-9.9, -10.0]] and lamp["on"]["out"] == [1.0, 0.0], lamp
     assert lamp["rotation"] == writer.yaw_turn(design, (0.0, 1.0), rows[1]["size"]) and lamp["at"][1] == 2.0, lamp

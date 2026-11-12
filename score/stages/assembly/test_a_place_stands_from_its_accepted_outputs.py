@@ -322,8 +322,14 @@ def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
     Break: score/stages/assembly/fitting.py: `and bool(on.get("hangs"))` -> `` (every one within hung)
     Break: score/stages/assembly/__init__.py: `if all(hung)}` -> `if any(hung)}`
     Break: score/stages/assembly/mounted.py: on_faces' `if all(faced)}` -> `if any(faced)}`, or resting_rows'
-        `**on_faces(record or {}), ` dropped"""
+        `**on_faces(record or {}), ` dropped
+    assembly@square (2026-11-12): its lantern strings, hung 6 m over the plaza between its buildings, were judged held
+    on the plaza by its inventory's on:plaza and floated 1.7 to 4.35 m over it. A row whose every object the record
+    hangs between two holders (`between`) is `hanging` too.
+    Break: score/stages/assembly/__init__.py: resting_rows' `**hung_between.rows(record or {}),` dropped, or
+        hung_between.py's rows `if all(hung)}` -> `if any(hung)}` (the box, one between and one within, hanging)"""
     inventory = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor": "on:locker"},
+                          {"id": "string", "anchor": "on:locker"},
                           {"id": "crate", "anchor": "on:locker"}, {"id": "box", "anchor": "on:locker"},
                           {"id": "lantern", "anchor": "on:locker"}, {"id": "window", "anchor": "on:locker"},
                           {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
@@ -336,10 +342,11 @@ def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
                           laid("box_1", "box", "within", True), laid("box_2", "box", "face"),
                           laid("window_1", "window", "within", True, fills=True),
                           laid("fixed_suit_1", "fixed_suit", "within", True), laid("lantern_1", "lantern", "face"),
-                          laid("lantern_2", "lantern", "face")]}
+                          laid("lantern_2", "lantern", "face"), laid("string_1", "string", "between"),
+                          laid("box_3", "box", "between")]}
     found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory, record)["rows"]}
-    assert found == {"locker": None, "suit": "hanging", "crate": None, "box": None, "lantern": "hanging",
-                     "window": None, "fixed_suit": "fixed"}, found
+    assert found == {"locker": None, "suit": "hanging", "string": "hanging", "crate": None, "box": None,
+                     "lantern": "hanging", "window": None, "fixed_suit": "fixed"}, found
 
 
 def test_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
@@ -1079,7 +1086,16 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
         of the railing, in its box, parted)
     Break: score/stages/assembly/fitting.py: `fits += held_along.carried(stage, place, list(by_name.values()), before)`
         -> `fits += []` (greenhouse's computer left at its parted desk's edge), or held_along.py's carried `if
-        float(np.linalg.norm(shift)) <= fitting.MOVE_LEAST:` -> `if True:`"""
+        float(np.linalg.norm(shift)) <= fitting.MOVE_LEAST:` -> `if True:`
+    assembly@walkway (2026-11-12): its ceiling ducts, built 0.069 m longer than the room between walls 1 and 3, were
+    moved out of wall_1 into wall_3; its 4.7 cm floor lights lay wholly in wall_4, 0.0503 m from its face. A 10.06 m
+    duct between walls 10 m apart is narrowed along z to the room, both ends on their walls; a 4.66 cm light in
+    wall_4 is moved 0.0503 m out of it into the room; a 12 m beam (83%) is left at its length.
+    Break: score/stages/assembly/fitting.py: `fits += room_clear.cleared(stage, place, loose)` dropped (the duct left
+        0.06 m in wall_3, the light in wall_4), or room_clear.py's `if room >= length or room < SHRINK_MOST * length:`
+        -> `if room >= length:` (the beam shrunk to 83%), or moved_across's `> float(box[1][axis] - box[0][axis]):`
+        -> `> fitting.HELD_MOST:` (the light left in its wall), or `-> > 100.0:` (the spaceship across wall_5 moved
+        3 m)"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1371,6 +1387,22 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     desk, computer = (fitting.world_box(desked, f"/{TOY}/Objects/{name}") for name in ("desk_6", "computer_4"))
     assert np.allclose(desk[0], (4.0, 0.0, 2.5), atol=1e-6), fits
     assert np.allclose(computer[0], (4.9, 0.75, 2.7), atol=1e-6), fits
+    ducted = Usd.Stage.CreateInMemory()
+    for name, low, high in (("wall_1", (-0.126, -0.2, -0.126), (1.5, 2.5, 0.0)),
+                            ("wall_3", (-0.126, -0.2, 10.0), (1.5, 2.5, 10.126)),
+                            ("wall_4", (-0.126, -0.2, -0.126), (0.0, 2.5, 10.126))):
+        a_built_box(ducted, f"/{TOY}/Shell/{name}", low, high)
+    for name, low, high in (("duct_1", (0.5, 1.7, -0.03), (0.8, 2.3, 10.03)),
+                            ("light_1", (-0.0503, 0.0, 3.0), (-0.0037, 0.06, 3.8)),
+                            ("beam_1", (1.0, 0.5, -0.03), (1.2, 0.7, 11.97))):
+        a_built_box(ducted, f"/{TOY}/Objects/{name}", low, high)
+    fits = fitting.fitted(ducted, TOY, [{"name": name, "row": name[:-2]} for name in ("duct_1", "light_1", "beam_1")],
+                          {"duct_1", "light_1", "beam_1"})
+    duct, light, beam = (fitting.world_box(ducted, f"/{TOY}/Objects/{name}") for name in ("duct_1", "light_1",
+                                                                                           "beam_1"))
+    assert np.allclose(duct, ((0.5, 1.7, 0.0), (0.8, 2.3, 10.0)), atol=1e-6), fits
+    assert np.allclose(light, ((0.0, 0.0, 3.0), (0.0466, 0.06, 3.8)), atol=1e-6), fits
+    assert abs(float(beam[1][2] - beam[0][2]) - 12.0) < 1e-6, fits
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
@@ -2296,7 +2328,18 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     left.
     Break: score/stages/assembly/face_reach.py: met's `<= resting.TOLERANCE:` -> `<= -1.0:` (the touching cube
         pushed), `if not fitting.MOVE_LEAST < gap <= depth:` -> `if not fitting.MOVE_LEAST < gap:` (the far cube
-        pushed), or gap_in's `least = min(least, ...)` -> `least = least` (nothing pushed)"""
+        pushed), or gap_in's `least = min(least, ...)` -> `least = least` (nothing pushed)
+    assembly@square (2026-11-12): its lantern strings, hung 6 m up between its buildings, floated where the plan drew
+    them. Between two 8 m buildings 8 m apart, a 10 m string laid along z is turned along the run between them and
+    shrunk to 80%, its ends on both; a 4 m one is laid at its size from the first, the held gate naming it 4 m short
+    of the second; one whose second holder is not laid waits, its prim inactive.
+    Break: score/stages/assembly/fitting.py: `fits += hung_between.laid(stage, place, [entry for entry in entries if
+        entry["name"] in laid])` dropped (the strings left where the plan drew them)
+    Break: score/stages/assembly/hung_between.py: `degrees = (degrees + 90.0) % 180.0 - 90.0` -> `degrees = 0.0` (the
+        string left along z), or `scale = min(1.0, run / max(length, 1e-9))` -> `scale = 1.0` (into both buildings),
+        or laid's `if missing or len(holders) != 2` -> `if len(holders) != 2` (string_3 laid against a holder not laid)
+    Break: score/stages/assembly/fitting.py: off's `return hung_between.off(low, high, boxes)` -> `pass` (the short
+        string judged on the nearer holder's box only, 0 off)"""
     import trimesh
     from score.stages.assembly import fitting
     points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
@@ -2383,6 +2426,28 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
         assert face_reach.met(placed, f"/{TOY}/Objects/{name}", front, module, (low, False), "laid") == \
             ("laid", (low, False)), name
         assert abs(fitting.world_box(placed, f"/{TOY}/Objects/{name}")[0][2] - low) < 1e-6, name
+    strung = Usd.Stage.CreateInMemory()
+    for name, low, high in (("building_1", (-10.0, 0.0, -5.0), (-2.0, 20.0, 5.0)),
+                            ("building_2", (6.0, 0.0, -5.0), (14.0, 20.0, 5.0)),
+                            ("string_1", (1.9, 6.0, -4.0), (2.1, 6.2, 6.0)),
+                            ("string_2", (0.0, 7.0, 2.9), (4.0, 7.2, 3.1)),
+                            ("string_3", (0.0, 8.0, -1.1), (4.0, 8.2, -0.9))):
+        a_cube(strung, f"/{TOY}/Objects/{name}", low, high)
+    between = [{"name": f"string_{number}", "row": "string",
+                "on": {"how": "between", "holder": ["building_1", f"building_{2 if number < 3 else 3}"]}}
+               for number in (1, 2, 3)]
+    hung = fitting.fitted(strung, TOY, [{"name": "building_1", "row": "building"},
+                                        {"name": "building_2", "row": "building"}, *between],
+                          {"building_1", "building_2", "string_1", "string_2", "string_3"})
+    hows = {fit["name"]: fit["how"] for fit in hung}
+    assert hows == {"string_1": "between", "string_2": "between", "string_3": "waiting"}, hung
+    spans = {name: fitting.world_box(strung, f"/{TOY}/Objects/{name}") for name in ("string_1", "string_2")}
+    assert np.allclose(spans["string_1"], ((-2.0, 6.0, 0.92), (6.0, 6.16, 1.08)), atol=1e-6), spans
+    assert np.allclose(spans["string_2"], ((-2.0, 7.0, 2.9), (2.0, 7.2, 3.1)), atol=1e-6), spans
+    assert not strung.GetPrimAtPath(f"/{TOY}/Objects/string_3").IsActive(), hung
+    buildings = [fitting.world_box(strung, f"/{TOY}/Objects/building_{number}") for number in (1, 2)]
+    assert fitting.off(*spans["string_1"], between[0]["on"], buildings) < 1e-6
+    assert abs(fitting.off(*spans["string_2"], between[1]["on"], buildings) - 4.0) < 1e-6
 
 
 def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():

@@ -63,7 +63,8 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import board_spots, floor_clear, opening_walls, passages, ribs, vault_feet, wall_clear
+from score.stages.assembly import (board_spots, floor_clear, hung_between, opening_walls, passages, ribs, room_clear,
+                                 vault_feet, wall_clear)
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -1340,6 +1341,8 @@ def off(low, high, on, holders=()):
         return off_opening(low, high, on, boxes)
     if on["how"] == "ramp":
         return off_ramp(low, high, on, boxes)
+    if on["how"] == hung_between.BETWEEN and boxes:  # off the farther of its two holders
+        return hung_between.off(low, high, boxes)
     if not boxes:
         return None
     if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not None:  # one run of tops (spread_on_tops):
@@ -1979,6 +1982,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     done, fits = set(), fits + parted(stage, place, loose, set(by_name))
     loose = [entry for entry in loose if stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}").IsActive()]
     fits += moved_out(stage, place, loose)
+    fits += room_clear.cleared(stage, place, loose)  # what moved_out leaves in a wall piece (room_clear)
     fits += floor_clear.off_edges(stage, place, loose) + floor_clear.apart(stage, place, loose)
     fits += held_along.carried(stage, place, list(by_name.values()), before)
     built = [box for _, box in walls(stage, place)]
@@ -1987,6 +1991,8 @@ def fitted(stage, place, entries, laid, cuts=None):
         if name in done or name in seen:
             return
         entry = by_name[name]
+        if hung_between.between(entry):  # hung between its holders once they stand, after (hung_between.laid)
+            return
         for holder in entry["on"].get("holder") or []:
             if holder in by_name:
                 one(holder, (*seen, name))
@@ -2132,6 +2138,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     mounted = {}  # {wall or face thing: its box as laid}, which each laid after it on a wall or face keeps clear of
     for name in sorted(by_name, key=lambda name: name not in leaves):  # the leaves first: a wall's things keep clear of them
         one(name)
+    fits += hung_between.laid(stage, place, [entry for entry in entries if entry["name"] in laid])
     walled = [entry for entry in by_name.values() if entry["on"]["how"] == "wall"]
     topped = [entry for entry in by_name.values() if entry["on"]["how"] == "top"]
     fits += spread_on_tops(stage, place, topped)

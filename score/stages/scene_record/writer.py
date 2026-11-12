@@ -1060,8 +1060,9 @@ def related(design, relation, spot, way, base, size, piece=0):
     facade); on, within or against its holder as it was (at its piece's spot where the relation gives `spots`: street's
     three restaurant doors spread their width and room apart), its holder's objects named after (holder_names); on
     the floor at the relation's spot where it gives one (a stair at the plan's stair, a railing round its engine),
-    at its `height` where it gives one (on what stands under it, never over nothing); hung between its holders
-    (`hung`) where its plan lays it; a ramp at its spot, run up its
+    at its `height` where it gives one (on what stands under it, never over nothing); hung between its two holders
+    (`hung`) where its plan lays it, its `on` how "between" them, which the assembly hangs it from once both are laid
+    (assembly/hung_between: the square's lantern strings between its buildings); a ramp at its spot, run up its
     way, its `on` the level's edge, the way up and the level's top in the place's frame. None `on` on the floor, the
     ceiling or past an edge."""
     if "pieces" in relation:
@@ -1098,6 +1099,10 @@ def related(design, relation, spot, way, base, size, piece=0):
                 found["room"] = float(recess["room"])
                 found["room_way"] = plan_way(design, room_way) if any(room_way) else [0.0, 0.0]
         return spot, way, base, found
+    if how == "hung" and len(relation.get("holders") or []) == 2:  # between its two holders (assembly/hung_between)
+        return spot, way, float(relation.get("height", base)), {
+            "how": "between", "holder items": list(relation["holders"]),
+            "holder rows": list(relation.get("holder rows") or []), "why": relation["why"]}
     if how == "ramp":
         ends, floor = in_frame(design, relation["edge"], float(relation["height"]))
         return (np.asarray(relation["spot"], float), np.asarray(relation["way"], float), base,
@@ -1152,8 +1157,9 @@ def arch_names(design, handin):
 
 def holder_names(found, laid, arched=None):
     """Each object's `on` naming its holder's objects (those laid at its holder item, `laid` {item: [names]}, of its
-    holder row where it names one), else the arch the record lays there (`arched`, under Structure: a tube's rib);
-    one whose holder item laid neither keeps no `on` and says so."""
+    holder row where it names one), else the arch the record lays there (`arched`, under Structure: a tube's rib), one
+    hung between two holder items (`holder items`) the first object of each; one whose holder item laid neither
+    keeps no `on` and says so."""
     rows = {entry["name"]: entry["row"] for entry in found}
     for entry in found:
         if "beside" in entry:  # a seat before its holder (holders' `beside`): its holder's objects named
@@ -1170,6 +1176,15 @@ def holder_names(found, laid, arched=None):
             else:
                 entry.pop("on")
                 entry["unheld"] = f"its holder item {on['holder item']!r} lays no object"
+        if on and "holder items" in on:  # hung between two holders: each one's object
+            names = [[name for name in laid.get(item) or [] if rows.get(name) == row]
+                     for item, row in zip(on["holder items"], on["holder rows"])]
+            if all(names):
+                on["holder"] = [of_item[0] for of_item in names]
+            else:
+                entry.pop("on")
+                entry["unheld"] = f"of the holder items {' and '.join(on['holder items'])} it hangs between, " \
+                                  "one lays no object"
     return found
 
 
