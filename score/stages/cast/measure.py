@@ -24,6 +24,9 @@ TOPS = {"sitting": 1.0, "seated": 0.9, "lying": None}
 # from SEAT_REACH over its foot (its lowest point, the floor its feet stand on) at its middle, at least SEAT_LOW over
 # that floor: a chair's seat, never the top of its back; a bunk bed's bottom bunk, never its top one.
 SEAT_LOW, SEAT_REACH = 0.2, 0.75
+# The pitch, metres, of the spots across a seat a seated person whose body at its middle runs into something is tried
+# at, nearest the middle first (cast.seated_clear): a body's radius over two.
+SEAT_PITCH = 0.125
 # Scopes that hold nothing a person stands on or walks into.
 NOT_SOLID = ("Sky", "Lights", "Characters", "Sound", "Environment", "Library")
 WATER = "Water"
@@ -107,15 +110,45 @@ def mesh_of(tris):
 def seat_top(tris):
     """([x, floor, z] of a seat's middle across the ground on its floor, its seat's height over that floor) of one laid
     item's triangles, or None when none of its surfaces lies SEAT_LOW to SEAT_REACH over its floor under its middle."""
+    found = seat_spots(tris, pitch=None)
+    return found[0] if found else None
+
+
+def seat_spots(tris, pitch=SEAT_PITCH):
+    """Each ([x, floor, z], seat height over the floor) across one laid item's box where a surface lies SEAT_LOW to
+    SEAT_REACH over its floor: its middle first, then spots `pitch` apart across its box (a body's radius in from its
+    sides), nearest the middle first (a bunk's length: one sat at its middle under the laptop on the bunk over it,
+    quarters 2026-11-12); only the middle with no pitch."""
     points = np.asarray(tris, dtype=float).reshape(-1, 3)
     low, high = points.min(axis=0), points.max(axis=0)
     middle = (low + high) / 2
-    origin = [[middle[0], low[1] + SEAT_REACH, middle[2]]]
-    hits, _, _ = mesh_of(np.asarray(tris, dtype=float)).ray.intersects_location(origin, [[0.0, -1.0, 0.0]],
-                                                                               multiple_hits=True)
-    heights = [float(hit[1] - low[1]) for hit in hits if SEAT_LOW <= hit[1] - low[1] <= SEAT_REACH]
-    return ([round(float(middle[0]), 3), round(float(low[1]), 3), round(float(middle[2]), 3)],
-            round(max(heights), 3)) if heights else None
+    spots = [(float(middle[0]), float(middle[2]))]
+    if pitch:
+        reach = [max(0.0, float(high[axis] - low[axis]) / 2 - BODY_RADIUS) for axis in (0, 2)]  # the body inside
+        across = [np.arange(-np.floor(half / pitch), np.floor(half / pitch) + 1) * pitch for half in reach]
+        spots += sorted(((float(middle[0] + dx), float(middle[2] + dz)) for dx in across[0] for dz in across[1]
+                         if abs(dx) > 1e-9 or abs(dz) > 1e-9),
+                        key=lambda spot: np.hypot(spot[0] - middle[0], spot[1] - middle[2]))
+    origins = [[x, low[1] + SEAT_REACH, z] for x, z in spots]
+    hits, rays, _ = mesh_of(np.asarray(tris, dtype=float)).ray.intersects_location(
+        origins, [[0.0, -1.0, 0.0]] * len(origins), multiple_hits=True)
+    heights = {}
+    for hit, ray in zip(hits, rays):
+        if SEAT_LOW <= hit[1] - low[1] <= SEAT_REACH:
+            heights[int(ray)] = max(heights.get(int(ray), 0.0), float(hit[1] - low[1]))
+    return [([round(x, 3), round(float(low[1]), 3), round(z, 3)], round(heights[number], 3))
+            for number, (x, z) in enumerate(spots) if number in heights]
+
+
+def near(found, tris):
+    """The solids of `found` whose box meets the box of `tris` grown by a body's radius round it and a head's height
+    over it: all a body on it can run into."""
+    points = np.asarray(tris, dtype=float).reshape(-1, 3)
+    low = points.min(axis=0) - [BODY_RADIUS, 0.0, BODY_RADIUS]
+    high = points.max(axis=0) + [BODY_RADIUS, HEAD, BODY_RADIUS]
+    boxes = {name: np.asarray(other, dtype=float).reshape(-1, 3) for name, other in found.items()}
+    return {name: found[name] for name, other in boxes.items()
+            if np.all(other.min(axis=0) <= high) and np.all(other.max(axis=0) >= low)}
 
 
 def top_under(tris, spot):

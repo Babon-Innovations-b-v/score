@@ -242,9 +242,10 @@ def on_support(record, found):
     """The record with each person its design anchors on a laid item (`anchor` "on:<row>", people_rows.cast_record:
     the item's solids `<scope>/<row>_<n>` of the stage the cast is measured on, its laid objects in it) put on it: a
     seated one (the "seated" clip, people_rows.doing_of) on the nearest seat of that row not taken (measure.seat_top),
-    its feet on the seat's floor under its middle and its `seat` the seat's height over it, `seat_on` the solid (a row
-    that lays no seat it sits on leaves it `seat` None, named by the standing gate); any other raised onto the top of
-    the item under its spot (measure.top_under), never lowered. 8 seated people sat on the floor in a ground-sit, their
+    its feet on the seat's floor under its middle, or the nearest spot along it its body is clear at (seated_clear),
+    and its `seat` the seat's height over it, `seat_on` the solid (a row that lays no seat it sits on leaves it `seat`
+    None, named by the standing gate); any other raised onto the top of the item under its spot (measure.top_under),
+    never lowered. 8 seated people sat on the floor in a ground-sit, their
     anchors lost and no seat in the solids (2026-11-04)."""
     taken = set()
 
@@ -261,15 +262,28 @@ def on_support(record, found):
                      for seated in [measure.seat_top(found[name])] if seated]
             if not seats:
                 return unseated(person, anchor.removeprefix("on:"), {name: found[name] for name in held})
-            name, (at, height) = min(seats, key=lambda seat: np.hypot(seat[1][0][0] - person["at"][0],
-                                                                       seat[1][0][2] - person["at"][2]))
+            name, _ = min(seats, key=lambda seat: np.hypot(seat[1][0][0] - person["at"][0],
+                                                            seat[1][0][2] - person["at"][2]))
             taken.add(name)
+            at, height = seated_clear(found, name)
             return dict(person, at=at, seat=height, seat_on=name)
         tops = [top for name in held for top in [measure.top_under(found[name], person["at"])] if top is not None]
         return dict(person, at=[person["at"][0], max(tops), person["at"][2]]) \
             if tops and max(tops) > person["at"][1] else person
 
     return dict(record, people=[supported(person) for person in record.get("people", [])])
+
+
+def seated_clear(found, seat):
+    """(feet spot, seat height) of a seated body on its seat (`seat`, a name in `found`): at the seat's middle where its
+    body runs into nothing but its seat, else at the nearest spot across the seat where it does (measure.seat_spots), else
+    at its middle, for the clear gate to name what it runs into. Quarters' sitter on its bunk's middle ran its head into
+    the laptop laid on the bunk over it (2026-11-12)."""
+    spots = measure.seat_spots(found[seat])
+    clashes = measure.run_into([[at[0], at[1] + height, at[2]] for at, height in spots],
+                               measure.near(found, found[seat]), [measure.top_of("seated")] * len(spots),
+                               [seat] * len(spots))
+    return next((spot for spot, into in zip(spots, clashes) if not into), spots[0])
 
 
 def unseated(person, row, held):

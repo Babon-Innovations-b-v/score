@@ -8,8 +8,8 @@ clear of whom it keeps clear of, dealt in a seeded order; the first `count` that
 no count, one mass SAM 3 could not part, as many as fit), each with the turn, clip, phase and palette cast.py's own draw gives the copy of that number, so the
 same cast always gives the same people. Random spots (cast.py's own spread) jam well short of a dense crowd: on the
 square 8,428 of 10,000 fitted from six times as many candidates. A group member that does not fit where its band puts it takes the first spot that does on a
-spiral round it (NUDGES), and is left out when none does. Named people are never moved: their spots are the
-record's, and the gates judge them as written.
+spiral round it (NUDGES, out to NUDGE_FAR), and is left out when none does. Named people are never moved: their
+spots are the record's, and the gates judge them as written.
 """
 import math
 import random
@@ -27,9 +27,15 @@ JITTER = 0.025
 FAR_SHARE = 0.10
 HEIGHT = 1.7
 ASPECT = 16 / 9
-# A group member's other spots, nearest first: rings every 0.15 m out to 1.2 m, twelve spots a ring.
+# A group member's other spots, nearest first: rings every 0.15 m out to 1.2 m, twelve spots a ring; then on out to
+# NUDGE_FAR, a spot every FAR_PITCH round each ring, for a spot the layout has filled further round (greenhouse's
+# middle astronaut, its planter beds laid edge to edge round its spot, the nearest clear floor 1.8 m off, 2026-11-12).
+NUDGE_FAR, FAR_PITCH = 2.4, 0.3
 NUDGES = [(0.0, 0.0)] + [(ring * 0.15 * math.cos(turn * math.pi / 6), ring * 0.15 * math.sin(turn * math.pi / 6))
-                         for ring in range(1, 9) for turn in range(12)]
+                         for ring in range(1, 9) for turn in range(12)] + [
+    (ring * 0.15 * math.cos(turn * 2 * math.pi / spots), ring * 0.15 * math.sin(turn * 2 * math.pi / spots))
+    for ring in range(9, round(NUDGE_FAR / 0.15) + 1)
+    for spots in [math.ceil(2 * math.pi * ring * 0.15 / FAR_PITCH)] for turn in range(spots)]
 CELL = 1.0
 
 
