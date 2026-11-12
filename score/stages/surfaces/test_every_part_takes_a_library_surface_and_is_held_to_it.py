@@ -88,6 +88,12 @@ tests it turned red:
   a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out
 - place_line.py: `if gaps.max() > most:` -> `if False:`  ->
   a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused
+- base_level.py: `min(rest[-2], cap)` -> `rest[-2]` (capped), or `return (found, record) if record["rise"] is not None
+  else capped(step, cap)(points, *rest)` -> `return capped(step, cap)(points, *rest)` (capped_plane), or
+  `place_line.levelled_feet = levelled_feet` -> `pass` (held), or `setattr(place_line, name, step)` -> `pass`
+  (capped_base), or inside/paint_fit.py: `"score/stages/surfaces/base_level.py"` -> `".../place_line.py"`, or
+  __init__.py: the declared `base_level.py` -> `place_line.py`  ->
+  a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused
 - place_line.py: `if len(under) < 3 or rise <= tolerance or` -> `if True or`  ->
   a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level
 - place_line.py: `if normal[1] > -1e-6: # no face` -> `if True: # no face`  ->
@@ -1292,6 +1298,41 @@ def test_a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_
     level = rack.copy()
     level[:4, 1] = 0.0
     assert place_line.flattened_base(level, 0.25, 0.01, 0.15)[1]["flattened"] == []
+    # the bake's paint (base_level.py, run by inside/paint_fit.py) counts a base level within 3 cm through the standing
+    # height, as the feet are: a hundredth of base's large hangar (0.84 m) left corners 34 to 60 cm up and "stands
+    # level" failed it (2026-11-12). A hall 2 units tall stood 20 m (a hundredth 1.4 m): its corner 8 cm up comes down,
+    # 2 cm up stays; stood 0.2 m (a hundredth 1.4 cm, under 3 cm) it levels exactly as before.
+    import base_level  # by its bare name, as the bake's card runs it
+    box = trimesh.creation.box(bounds=((-5.0, 0.0, -5.0), (5.0, 2.0, 5.0))).subdivide().subdivide().subdivide()
+    corner = (box.vertices[:, 0] >= 0) & (box.vertices[:, 2] >= 0) & (box.vertices[:, 1] < 1e-9)
+    for up, tall, moves in ((0.008, 20.0, True), (0.002, 20.0, False), (0.3, 0.2, False), (0.1, 0.2, False)):
+        hall = np.asarray(box.vertices).copy()
+        hall[corner, 1] += up
+        was, _ = place_line.levelled_feet(hall, box.faces, tall)
+        now, report = base_level.levelled_feet(hall, box.faces, tall)
+        assert np.array_equal(was, now) != moves, (up, tall)
+        if moves:  # in metres through its standing height: 8 cm up as the paint left it, level now
+            assert max(bake_check.stance_lows(was * 10.0)) > 0.03 >= max(bake_check.stance_lows(now * 10.0))
+            assert report["flattened"], report
+    assert all(getattr(place_line, name).__module__ == "place_line" for name in base_level.BASE_STEPS), "let go"
+    # a sloping plane the paint brought down before is brought down as before (capped alone, its cells' 2 cm of
+    # unevenness lie off a 5 mm plane and it found none); one rising 2 cm, under the hundredth, now comes down too
+    slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
+    bottom = np.asarray(slab.vertices)[:, 1] < 1e-9
+    for rise, rough, acts in ((0.08, 0.02, True), (0.02, 0.0, True), (0.002, 0.0, False)):
+        base = np.asarray(slab.vertices).copy()
+        base[bottom, 1] += rise * (base[bottom, 0] + 1.0) / 2.0 + rough * (np.arange(bottom.sum()) % 2)
+        before = place_line.sloped_base(base, 0.5, 0.17, 0.03, 0.4)
+        after = base_level.capped_plane(place_line.sloped_base, 0.005)(base, 0.5, 0.17, 0.03, 0.4)
+        assert (after[1]["rise"] is not None) == acts, (rise, after[1])
+        if before[1]["rise"] is not None:
+            assert np.array_equal(before[0], after[0]), "as the paint brought it down before"
+    with base_level.held():
+        assert base_level.place_line.levelled_feet is base_level.levelled_feet, "the bake's paint levels by base_level"
+    assert place_line.levelled_feet is base_level.PAINTS_LEVEL, "and lets go"
+    assert "score/stages/surfaces/base_level.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
+    bake = {row.name: row for row in stages.STAGES}["surfaces-bake"]
+    assert bake.files("base")["paint bake base_level.py"].endswith("score/stages/surfaces/base_level.py")
 
 
 def test_a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level():

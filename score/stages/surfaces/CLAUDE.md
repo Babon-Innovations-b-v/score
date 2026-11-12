@@ -340,7 +340,11 @@ and `architecture/experimental`; method: the paper's Methods, "Shape and surface
   through the middle (the square's guard hut, 2026-10-14: 14 cm across, it stood on a strip and tipped). Last, the face
   it rests on (`resting_base`: its convex hull's face under its weight) comes down level when it rises over 1% of its
   footprint's diagonal: the quadrants and cells miss a plinth rim under a level floor (the garage's control cabinet,
-  2026-10-15: 2.1 degrees over). Wear and dirt are
+  2026-10-15: 2.1 degrees over). In the bake each step's 1% is at most 3 cm through the take's standing height, as
+  the feet's is (`base_level.py`, run by `inside/paint_fit.py` in place_line's stead so place_line.py moves no row,
+  2026-11-12: base's large hangar's 1% was 0.84 m, corners 34 to 60 cm up stayed and "stands level" failed it); the
+  plane step capped only where the uncapped one found no plane (its 1% is also how near the plane its cells lie).
+  Wear and dirt are
   the room's setting, applied where they have a cause (owner): a per-model amount read off the close-up is a
   picture-derived look (tried 2026-10-13, reverted). The one exception is the finish route's own wear: a library
   level the list gives a finish only with a cause the views show (owner, 2026-10-20).
