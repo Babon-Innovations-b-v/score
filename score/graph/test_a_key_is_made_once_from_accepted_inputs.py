@@ -790,13 +790,23 @@ def judge_parts(output, inputs, evidence):
     return checks.Verdict("parts", checks.FAIL, "a model made upstream lacks its parts", findings=("crate: no lid",))
 
 
+def judge_gaps(output, inputs, evidence):
+    """Accepted gaps naming the objects of the brief's words ("hatch hatch": one object, "hatch ship": two)."""
+    objects = inputs["brief"].read_text().split()
+    return checks.Verdict(graph.GAPPED, checks.FAIL, "batch gaps", {"gaps": len(objects)}, {"gaps": "lower"},
+                          tuple(f"{name}: no model: {name}: none" for name in objects))
+
+
 def test_a_failed_check_of_inputs_is_noted_for_a_fix_upstream_naming_its_objects_and_not_remade():
     """Likeness@airlock, 2026-10-29: a row whose make never uses its seed (it measures what other rows made) was
     remade with a fresh seed, failed the same way and went to the owner's list. Such a row is noted once for a fix
     upstream, its failing objects named, never remade, never on the owner's list; the table marks its check rows and
     sim-body (no random start, 2026-10-30).
     Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and asks_cached(stage) else'
-    Break: score/stages/__init__.py: '"light", "motion", "sim-body")' -> '"light", "motion")'"""
+    Break: score/stages/__init__.py: '"light", "motion", "sim-body")' -> '"light", "motion")'
+    A row failing only on accepted gaps that name two objects is not accepted and goes to the owner's list with the
+    count (shiplock's complete, nine gap objects, accepted automatically 2026-11-12); one object is still accepted.
+    Break: score/graph/__init__.py: 'then = "owner" if too_many_gaps(failed) else then' -> 'then = then'"""
     from score import stages
     assert {row.name for row in stages.STAGES if not row.seeded} == set(stages.UNSEEDED)
     assert not next(row for row in stages.STAGES if row.name == "sim-body").seeded  # its remakes were byte-identical
@@ -807,6 +817,15 @@ def test_a_failed_check_of_inputs_is_noted_for_a_fix_upstream_naming_its_objects
     assert runner.run(["hangar"]) == {"pick@hangar": f"made: fail; {said}"}
     assert [(note["then"], note["why"]) for note in noted(runner, "notes")] == [("fix", said)]
     assert noted(runner, "owner-list") == [] and len(store.records("pick@hangar")) == 1
+    gapped = graph.Stage("gapped", "place", make_seeded, TEXT, (checks.Check(graph.GAPPED, judge_gaps),),
+                         files={"brief": "{data}/{place}/brief.txt"}, seeded=False)
+    world, store = a_world({"hangar": "hatch hatch", "airlock": "hatch ship"}), a_store()
+    runner = a_runner(world, store, (gapped,))
+    gaps = "its accepted gaps name 2 objects, at most 1 passes on to the film"
+    assert runner.run(["hangar", "airlock"]) == {"gapped@hangar": "made: fail, accepted automatically",
+                                                 "gapped@airlock": f"made: fail; {gaps}: on the owner's list, priced"}
+    assert store.accepted("gapped@airlock") is None
+    assert [(note["node"], note["why"]) for note in noted(runner, "owner-list")] == [("gapped@airlock", gaps)]
 
 
 def test_a_failed_gate_blocks_what_follows_and_a_waiver_passes_it_for_its_key_only():

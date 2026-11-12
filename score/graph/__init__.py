@@ -508,6 +508,15 @@ def asks_cached(stage):
     return any(path in CACHED_ASKS or CACHED_ASKS & set(_code.live_imports(path)) for path in own)
 
 
+def too_many_gaps(failed):
+    """Why a failed output whose one failed check is its accepted gaps, naming more objects than pass on to the film
+    (review.GAP_OBJECTS), goes to the owner's list: no remake or source fix names fewer gaps, he decides them; else
+    ""."""
+    objects = review.gap_objects(failed[GAPPED]) if set(failed) == {GAPPED} else 0
+    return f"its accepted gaps name {objects} objects, at most {review.GAP_OBJECTS} passes on to the film" \
+        if objects > review.GAP_OBJECTS else ""
+
+
 def fix_why(stage, failed):
     """Why a failed output is noted for a source fix: its cached asks answer alike (SAME_ANSWER), or, for a row that
     checks its inputs, SAME_INPUTS with its failed checks' findings (the failing objects), else their names."""
@@ -1656,12 +1665,14 @@ class Runner:
             return did
         free = (not stage.paid and not any(euros for _, euros in stage.gatherers.values())) or on_this_pc()
         then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else "remake" if free and not second else "owner"
+        then = "owner" if too_many_gaps(failed) else then  # no remake or source fix names fewer gaps: his to decide
         if not self.note(stage, place, keyed, failed, then):
             return did  # noted by an earlier run: its remake, or the owner's list, has it
         if then == "fix":
             return f"{did}; {fix_why(stage, failed)}"
         if then == "owner":
-            return f"{did}; {'the second failure' if second else 'a paid remake'}: on the owner's list, priced"
+            why = too_many_gaps(failed) or ('the second failure' if second else 'a paid remake')
+            return f"{did}; {why}: on the owner's list, priced"
         return f"{did}; automatic free remake, attempt 2, after {', '.join(sorted(failed))}: " \
                f"{self.run_node(stage, place)}"
 
@@ -1696,7 +1707,8 @@ class Runner:
             entry["why"] = fix_why(stage, entry["failed"])
         if then == "owner":
             entry["euros"] = self.price(stage, place, keyed)
-            entry["why"] = "both attempts failed" if "remake" in keyed else "its remake is paid"
+            entry["why"] = too_many_gaps(failed) or \
+                ("both attempts failed" if "remake" in keyed else "its remake is paid")
         try:
             self.store.write_once(f"{REMAKES}{node}/{keyed['key']}.json", entry)
         except FileExistsError:
