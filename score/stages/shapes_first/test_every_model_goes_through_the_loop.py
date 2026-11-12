@@ -334,6 +334,8 @@ READS_THE_LOOP = {
     "light-passes": "renders of the place as the assembly lays it (light/passes.py LAID), lays no model",
     "light": "the place's light judged on it as the assembly lays it (light/passes.py LAID), lays no model",
     "screens": "each screen row's picture over its bake and its finishes (#88), lays no model",
+    "finish-route-picks": "the recheck's picks for the loop's parts row, made from it in the table and read by it "
+                          "alone (stages.picks_applied, #118), lays no model",
 }
 # Every paid row outside the loop and what it makes: none a model, but the named exceptions MADE_OUTSIDE holds.
 MAKES_NO_MODEL = {
