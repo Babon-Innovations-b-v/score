@@ -3,7 +3,7 @@ says over the seed (the assembly takes it the same way), and its drop gate fails
 or stood upright for the paint is named; only what lies on the very object resting worse is kept with it; a flush pose
 resting worse falls back to the drop's rest; one fallen into the hollow piece it lay on is laid where it lands,
 anything else past the limits kept as laid; a cloud drop asks the physics trial's card alone, runs in its Python, and
-is never bought twice.
+is never bought twice; a drop of many touching bodies has room for their contacts (when the trial's Python is built).
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27), in settling/__init__.py:
 - the_layer_lays_each_object_at_its_rest: write_layer's `Gf.Matrix4d(local.T.tolist())` made
@@ -56,6 +56,11 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   floating 2.5 m, 2026-11-07).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
+- a_cloud_drop_runs_on_the_trials_card_in_its_python_once, its room_for_many_touching_bodies (inside/settle_drop.py,
+  with the trial's Python under PROPS_HOME/envs/newton_env, else `skipped`; 2026-11-12, on this PC's card shared with
+  a live run: 90 s for the file fixed, two drops): contact_room's `max(CONTACTS * shapes, BODY_CONTACTS * bodies)`
+  made `CONTACTS * shapes` (the room of 16 a shape: the 14 boxes' drop fails, as assembly@old_station's did), or
+  made `BODY_CONTACTS * (bodies + shapes)` (the parted body's room moved).
 
 Run: .venv/bin/python score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py
 """
@@ -80,7 +85,8 @@ PLACE = resting_test.PLACE
 
 def a_cloud_drop_runs_on_the_trials_card_in_its_python_once():
     """A cloud drop asks the trial's card class alone and runs the drop script in the trial's Python; the same drop
-    again is read back from the cache, no machine asked."""
+    again is read back from the cache, no machine asked; a drop of many touching bodies has room for their contacts
+    (room_for_many_touching_bodies)."""
     import blender_cloud
     import drop
     asked = []
@@ -112,7 +118,81 @@ def a_cloud_drop_runs_on_the_trials_card_in_its_python_once():
     finally:
         blender_cloud.Machine = real
     wanted = [{"classes": ("gpu-24gb",), "script": drop.INSIDE, "env": drop.ENV}]
-    return [] if asked == wanted else [f"the drops asked {asked}, not {wanted} once"]
+    problems = [] if asked == wanted else [f"the drops asked {asked}, not {wanted} once"]
+    return problems + room_for_many_touching_bodies()
+
+
+# A box's corners and faces (metres; its foot at y = 0), and the fine ground's cell: the box bottoms of
+# assembly@old_station's hulls met their ground mesh at up to 32 contacts each (2026-11-12).
+BOX = [(x, y, z) for x in (-0.2, 0.2) for y in (0.0, 0.4) for z in (-0.2, 0.2)]
+BOX_FACES = [0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3]
+CELL = 0.05
+
+
+def boxes_on_a_fine_ground(folder, count, parts=None):
+    """A place of `count` boxes 1 m apart on a fine ground grid (8 m square), each box its own loose object (its
+    convex `parts` written beside the stage, when given); the stage's path."""
+    from pxr import Gf
+    folder.mkdir(parents=True)
+    stage = Usd.Stage.CreateNew(str(folder / "place.usda"))
+    UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
+    stage.SetDefaultPrim(UsdGeom.Xform.Define(stage, f"/{PLACE}").GetPrim())
+    side = round(8 / CELL)
+    across = np.linspace(-4.0, 4.0, side + 1)
+    ground = UsdGeom.Mesh.Define(stage, f"/{PLACE}/Ground/Ground")
+    ground.CreatePointsAttr([Gf.Vec3f(float(x), 0.0, float(z)) for z in across for x in across])
+    ground.CreateFaceVertexCountsAttr([4] * side * side)
+    ground.CreateFaceVertexIndicesAttr([corner for row in range(side) for column in range(side)
+                                        for corner in (row * (side + 1) + column, (row + 1) * (side + 1) + column,
+                                                       (row + 1) * (side + 1) + column + 1,
+                                                       row * (side + 1) + column + 1)])
+    for number in range(count):
+        at = spot(number)
+        UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/box_{number}")
+        box = UsdGeom.Mesh.Define(stage, f"/{PLACE}/Objects/box_{number}/box")
+        box.CreatePointsAttr([Gf.Vec3f(*map(float, np.array(corner) + at)) for corner in BOX])
+        box.CreateFaceVertexCountsAttr([4] * 6)
+        box.CreateFaceVertexIndicesAttr(BOX_FACES)
+    stage.Save()
+    if parts:  # in the drawn mesh's own frame, which is the stage's here
+        import convex_parts
+        (folder / convex_parts.FILE).write_text(json.dumps(
+            {f"box_{number}": [[list(np.array(corner) + spot(number)) for corner in part] for part in parts]
+             for number in range(count)}))
+    return folder / "place.usda"
+
+
+def spot(number):
+    """Where box `number` stands: six to a row, 1 m apart."""
+    return np.array([-3.0 + number % 6, 0.0, -3.0 + number // 6])
+
+
+def room_for_many_touching_bodies():
+    """assembly@old_station (2026-11-12): 14 one-hull bodies on a fine ground met 231 contacts in a room of 224 (16 a
+    shape) and the drop failed. Fourteen boxes on a fine ground drop with room for every contact any substep meets;
+    a box of four layers keeps the room of 16 a shape it had."""
+    import drop
+    if not list(drop.LOCAL_ENV.glob(".built-*")):
+        print(f"skipped: {room_for_many_touching_bodies.__name__}: no trial Python built "
+              f"at {drop.LOCAL_ENV} (score/stages/physics/inside/newton_env.sh)")
+        return []
+    layers = [[(x, y, z) for x in (-0.2, 0.2) for y in (bottom, bottom + 0.1) for z in (-0.2, 0.2)]
+              for bottom in (0.0, 0.1, 0.2, 0.3)]
+    found = {}
+    with tempfile.TemporaryDirectory() as temporary:
+        for name, count, parts in (("many", 14, None), ("parted", 1, layers)):
+            path = boxes_on_a_fine_ground(pathlib.Path(temporary) / name, count, parts)
+            try:
+                found[name] = drop.simulate(path, {f"box_{number}": 0.0 for number in range(count)},
+                                            pathlib.Path(temporary) / f"{name}-drop")["contacts"]
+            except RuntimeError as error:
+                return [f"the {name} drop failed: {error}"]
+    problems = []
+    if not found["many"]["most"] < found["many"]["room"] or found["many"]["most"] <= 16 * 14:
+        problems.append(f"14 boxes: room {found['many']}, the old room 224 (they should need more)")
+    if found["parted"]["room"] != 16 * 4:
+        problems.append(f"a box of four layers: room {found['parted']['room']}, not 64 as before")
+    return problems
 
 
 def laid(stage, name):
