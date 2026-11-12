@@ -37,7 +37,10 @@ his money yes for them. Read the package's `CLAUDE.md` one level up first; its r
   naming a try's stop (`flow.yes_refusals`, again in `write_line`), nothing left of his total (`flow.batch_budget`),
   code off the pin, the latch or a live run; a changed basket (fewer, more or other items, other versions) or a
   higher high is never a refusal (owner, 2026-11-05: "A BUY IS TILL THE END OF THE BUDGET OR UNTIL THE END GOAL
-  ENV1 DONE IS COMPELTED"): only a higher batch total needs a new yes. `buy <id>` first makes the basket again
+  ENV1 DONE IS COMPELTED"): only a higher batch total needs a new yes. `buy <id>` first derives the kept plans'
+  relations again where they changed (`chat_yes.relations_kept`: holders.keep, as the sync's plans pass does; its
+  `--place` only; one line naming the changed places), so it never plans on stale relations while the sync is paused
+  (Buy 91, 2026-11-12), then makes the basket again
   from the runner's plan now (`flow.basket_made`, make.py plan only, free, as a sync pass does; a Buy's `--phase` and
   `--place` are the plan's own, so it plans only those, 2026-11-11), so it buys what the
   plan buys at the approved places (`screens.now_items`' filters, `--no-film`'s `left_out`), never an older pass's

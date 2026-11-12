@@ -254,6 +254,18 @@ def place_left(items, places=None, leave_places=None, runner=None):
     return sorted(flow.places_left(items, chosen, left, upstream))
 
 
+def relations_kept(places=None):
+    """Each kept plan's relations derived again where they changed (holders.keep, as the sync's plans pass keeps
+    them: plans_pass.main), over `places` (a comma list; None: every kept plan), so a Buy never plans on relations
+    older than its plans, whether the sync runs or not (2026-11-12: the sync paused, Buy 91 built 4 places' scene
+    records from relations older than the night's fixes); one line naming the places whose relations changed."""
+    from score.review import holders
+    kept = sorted(path.stem for path in holders.KEPT_PLANS.glob("*.json"))
+    chosen = {name for name in (places or "").split(",") if name}
+    changed = holders.keep([place for place in kept if not chosen or place in chosen])
+    return f"relations kept before the plan: {', '.join(changed) + ' changed' if changed else 'none changed'}"
+
+
 def buy(yes_id, store=None, phase=None, leave_out=None, places=None, leave_places=None, take_cheap=None):
     """His Buy under the yes `yes_id`, once: every check of the module docstring, the yes marked used, then flow.start
     as his click, in this thread; (Checkout or None, words). With `phase` (score/stages/phases, the door's `--phase`)
@@ -274,6 +286,7 @@ def buy(yes_id, store=None, phase=None, leave_out=None, places=None, leave_place
     if leave_out:  # stages this Buy leaves out beside the yes's own (2026-11-06: sim-body until its fixes land)
         yes = {**yes, "leave_out": [*yes.get("leave_out", ()), *known_stages(leave_out)]}
     approved = approved_now()  # the design's approval now, as the basket below is the runner's plan now
+    print(relations_kept(places))  # before it plans: the scene record lays each object by these relations
     try:
         # what the runner's plan buys now at the approved places, never an older pass's basket; only the asked
         # phase's and places' rows, as `score plan --phase --place` plans them

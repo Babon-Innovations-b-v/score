@@ -48,6 +48,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - flow.batch_groups: the Benchmarks group -> `if False:` -> test_the_benchmarks_are_one_item_on_the_buy_screen_...
 - api/routes.books_figure: `user.username` -> "someone" -> test_the_google_figure_button_writes_the_owners_figure_...
 - flow.by_of: `return user.username` -> test_a_buy_approved_in_chat_launches_his_checkout_once
+- chat_yes.buy: drop `print(relations_kept(places))`, or move it after `flow.basket_made` -> a Buy plans on relations
+  older than its plans while the sync is paused (Buy 91, 2026-11-12) -> test_a_buy_approved_in_chat_launches_...
+- chat_yes.relations_kept: `not chosen or place in chosen` -> `True` -> a Buy by place derives every place's
+  relations -> test_a_buy_approved_in_chat_launches_his_checkout_once
 - chat_yes.buy: `current_basket(approved)` -> `current_basket()` -> a Buy in chat buys at the places prepare's saved
   design record approves and the run "would also buy" beta's row -> test_a_buy_approved_in_chat_launches_...
 - chat_yes.approved_now: its `except` dropped -> a design that cannot be worked out is no refusal in words ->
@@ -606,8 +610,25 @@ def a_yes(total=33.0, high=30.0):
     return chat_yes.record(total, high, "Yes, buy it", QUESTION)
 
 
-def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monkeypatch):
+def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(FakeBackend, "log_folder", None)
+    # the kept relations are older than their plans (the sync paused, 2026-11-12: Buy 91 built 4 places' scene
+    # records from them): the Buy derives them again before it plans, and says which changed
+    import json
+    from score.dashboard.checkout import chat_yes
+    from score.review import holders
+    for name in ("KEPT_PLANS", "KEPT_INVENTORY", "KEPT"):
+        monkeypatch.setattr(holders, name, tmp_path / name)
+        (tmp_path / name).mkdir()
+    for place in ("alpha", "beta"):
+        (tmp_path / "KEPT_PLANS" / f"{place}.json").write_text(json.dumps({"w": 20.0, "d": 12.0, "items": [],
+                                                                            "rows": {}, "shapes": {}}))
+        (tmp_path / "KEPT_INVENTORY" / f"{place}.json").write_text(json.dumps({"rows": []}))
+        (tmp_path / "KEPT" / f"{place}.json").write_text("{}")  # derived from an older plan
+    kept_at = []
+    keep = holders.keep
+    monkeypatch.setattr(holders, "keep", lambda places: kept_at.append(
+        sum(call[0] == "plan" for call in FakeBackend.calls)) or keep(places))
     chat.items = a_basket(settings, ["closeup@alpha"])
     yes = a_yes(high=15.0)
     assert [item["id"] for item in yes["basket"]["items"]] == ["alpha-pieces"] and yes["by"] == "joey"
@@ -622,6 +643,14 @@ def test_a_buy_approved_in_chat_launches_his_checkout_once(chat, settings, monke
     monkeypatch.setattr(screens, "approved_places", lambda world: ["alpha"])
     record, said = chat_buy(yes["id"])
     assert record is not None and record.state == "launched", said
+    assert kept_at == [0] and "relations kept before the plan: alpha, beta changed" in capsys.readouterr().out
+    assert json.loads((tmp_path / "KEPT/alpha.json").read_text())["plan"] == holders.plan_sha(
+        (tmp_path / "KEPT_PLANS/alpha.json").read_text())
+    (tmp_path / "KEPT/alpha.json").write_text("{}")  # a Buy by place keeps that place's relations only
+    (tmp_path / "KEPT/beta.json").write_text("{}")
+    assert chat_yes.relations_kept("beta") == "relations kept before the plan: beta changed"
+    assert chat_yes.relations_kept() == "relations kept before the plan: alpha changed"
+    assert chat_yes.relations_kept() == "relations kept before the plan: none changed"
     assert [item["id"] for item in record.items] == ["alpha-pieces", "beta-pieces"]
     assert launches()[0][1].stages == ("closeup@alpha", "closeup@beta")
     line = stop_line(chat)
