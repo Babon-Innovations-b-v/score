@@ -249,13 +249,14 @@ def hung_within(record):
 def resting_rows(inventory, record=None):
     """The `inventory` ({"rows": [...]}) with each row on a wall or ceiling row (assembly/mounted.py) given that
     `support`, and each the scene `record` hangs within its holder (hung_within) or lays on its holder's side
-    (mounted.on_faces) `hanging`, unless it names its own:
+    (mounted.on_faces) or between two holders (hung_between.rows) `hanging`, unless it names its own:
     the triage judges it by touching (a hanging one touching nothing still fails, hanging free); each the record says
     rests leaning or attached `fixed` (mounted.resting_as_laid: as the settle lays it, never on its feet)."""
     # not settling's held.py: its snap.py would key this row
+    from score.stages.assembly import hung_between
     from score.stages.assembly.mounted import mounted, on_faces, resting_as_laid
     from score.stages.assembly import on_tops  # a ceiling row's top thing stands on it
-    given = {**on_faces(record or {}), **hung_within(record or {}),
+    given = {**on_faces(record or {}), **hung_within(record or {}), **hung_between.rows(record or {}),
              **on_tops.standing(mounted({row["id"]: row for row in inventory["rows"]}), record),
              **resting_as_laid(record or {})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]}
