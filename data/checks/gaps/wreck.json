@@ -1,13 +1,23 @@
 {
- "gaps": [
+ "gaps": [],
+ "retired": [
   {
    "name": "3 people with no body of their look (astronaut/made)",
    "row": "characters-layer",
    "check": "bodies",
-   "objects": ["astronaut_1", "astronaut_2", "astronaut_3"],
+   "objects": [
+    "astronaut_1",
+    "astronaut_2",
+    "astronaut_3"
+   ],
    "reason": "The cast names these people, and the people line has no accepted dressed body of their look yet: the named bodies (astronaut, person, person_uniform, pilot, officer, man_stair, woman_stair) fail their clips gate after their retake (0 usable clips since af917635, 2026-11-08), and the hangar's and square's bodies are remade tonight. The characters layer's bodies gate named each and stopped the place's assembly, scene tree and film. This gap only lets the place's assembly and scene tree go on while the bodies are remade (the fix 9030543d, parts bought on 2026-11-10); it does not let the place into the film: complete still fails these people by name, and the owner's rule of 2026-11-10 is that no place goes into the film unfinished. Only these people's no-body findings move to complete, which fails them by name; any person who gets a body is laid and no longer a finding.",
    "decided": "owner (@JoeyKardolus), 2026-11-10, his standing rules of 2026-10-13, 2026-11-09 and 2026-11-10 (env1 film)",
-   "faults": ["astronaut_1: astronaut/made, no accepted body of its look (people-dress-astronaut-made)", "astronaut_2: astronaut/made, no accepted body of its look (people-dress-astronaut-made-v1)", "astronaut_3: astronaut/made, no accepted body of its look (people-dress-astronaut-made-v2)"]
+   "faults": [
+    "astronaut_1: astronaut/made, no accepted body of its look (people-dress-astronaut-made)",
+    "astronaut_2: astronaut/made, no accepted body of its look (people-dress-astronaut-made-v1)",
+    "astronaut_3: astronaut/made, no accepted body of its look (people-dress-astronaut-made-v2)"
+   ],
+   "passed": "characters-layer@wreck ad80a27bf53d"
   }
  ]
 }
