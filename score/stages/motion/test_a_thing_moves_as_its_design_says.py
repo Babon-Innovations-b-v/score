@@ -240,7 +240,17 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     A crane the hand-in marks shown from another place (motion@street, 2026-11-10: its distant flags and rocket are
     the square's) is that place's to move, so `designed` passes it here naming where; one marked shown from no place
     still fails.
-    Break: score/stages/motion/shown_rows.py: `if row_of(line) not in shown` -> `if True`"""
+    Break: score/stages/motion/shown_rows.py: `if row_of(line) not in shown` -> `if True`
+    The sea (motion@square, 2026-11-10): the terrain lays it as one water sheet, /<place>/Outside/water, that only its
+    score:row names; the table's make finds it by that tag on the build with the made ground and keys the library's
+    ripple into its points (deep-water waves of 5, 4 and 2.5 s: 39.07, 25.0 and 9.77 m long on the Earth's 9.82
+    m/s/s), so `designed` and `covered` pass, the sheet rises and falls and stands at the round's end as it started;
+    motion's own make, which finds objects by name alone, leaves the sea missing. Untagged it fails `designed`; with
+    its ripple's keys gone it fails `covered`.
+    Break: score/stages/motion/tagged_rows.py: `if tag and tag.HasAuthoredValue() and tag.Get() == row:` -> `if False:`
+    Break: score/stages/motion/water_rows.py: `ripple.write(layer, path, ripple.keyed(...), why)` -> `pass`
+    Break: score/stages/motion/ripple.py: `number = omega * omega / float(gravity)` -> `number = omega / float(gravity)`"""
+    from score import stages
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
     out, _ = made(inputs, tmp_path)
     verdict = judge("designed", out, inputs)
@@ -278,6 +288,60 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
         out, _ = made(inputs, folder)
         verdict = judge("grounded", out, dict(inputs, terrain=folder / "terrain"))
         assert verdict.answer == answer, (rises, verdict.reason, verdict.findings)
+    for tagged in (False, True):
+        folder = tmp_path / f"sea_{tagged}"
+        inputs = a_sea(folder, tagged)
+        out = folder / "out"
+        out.mkdir()
+        stages.MOTION.make(inputs, out, 0, {})
+        verdict = table_judge("designed", out, inputs)
+        assert (verdict.answer == checks.PASS) == tagged, (tagged, verdict.reason, verdict.findings)
+        if not tagged:
+            assert verdict.findings == ("sea: moves (ripple), and no object of it stands on the stage",), verdict
+    assert judge("designed", out, inputs).answer == checks.FAIL, "by name alone the sea has no object"
+    entry, = json.loads((out / "ripples.json").read_text())["ripples"]
+    assert (entry["prim"], entry["row"]) == (f"/{PLACE}/Outside/water", "sea"), entry
+    assert [wave["length"] for wave in entry["waves"]] == [39.0725, 25.0064, 9.7681], entry["waves"]
+    verdict = table_judge("covered", out, inputs)
+    assert verdict.answer == checks.PASS and verdict.measures["tagged moved"] == 1, (verdict.reason, verdict.findings)
+    rises = [sea_heights(out, inputs, second) for second in (0.0, 1.0, 20.0)]
+    assert np.allclose(rises[0], rises[2], atol=1e-6) and np.abs(rises[1] - rises[0]).max() > 0.05, rises
+    layer = Sdf.Layer.FindOrOpen(str(out / "layers/motion.usda"))
+    layer.GetPrimAtPath(f"/{PLACE}/Outside/water").RemoveProperty(
+        layer.GetAttributeAtPath(f"/{PLACE}/Outside/water.points"))
+    layer.Save()
+    verdict = table_judge("covered", out, inputs)
+    assert verdict.answer == checks.FAIL and verdict.findings == (
+        f"/{PLACE}/Outside/water (sea): its ripple keys its points still (0 keys)",), verdict.findings
+
+
+def a_sea(folder, tagged):
+    """A place with a sea row whose only object is its terrain's water sheet (outside.write_mesh's form: 41 by 41
+    points 0.5 m apart, a metre under the floor), naming the row in its score:row where `tagged`."""
+    folder.mkdir()
+    inputs = toy_inputs(folder, ROWS + [{"id": "sea", "name": "sea", "noun": "sea"}])
+    (folder / "terrain/earth/places").mkdir(parents=True)
+    ground = Usd.Stage.CreateNew(str(folder / f"terrain/earth/places/{PLACE}.usdc"))
+    spots = np.stack(np.meshgrid(np.arange(41) * 0.5, np.arange(41) * 0.5, indexing="ij"), axis=-1).reshape(-1, 2)
+    mesh = UsdGeom.Mesh.Define(ground, f"/{PLACE}/Outside/water")
+    mesh.GetPointsAttr().Set([Gf.Vec3f(float(x) + 8.0, -1.0, float(z) - 10.0) for x, z in spots])
+    cells = [(row * 41 + column, row * 41 + column + 1, (row + 1) * 41 + column + 1, (row + 1) * 41 + column)
+             for row in range(40) for column in range(40)]
+    mesh.GetFaceVertexCountsAttr().Set([3] * (2 * len(cells)))
+    mesh.GetFaceVertexIndicesAttr().Set([corner for a, b, c, d in cells for corner in (a, b, c, a, c, d)])
+    if tagged:
+        mesh.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set("sea")
+    ground.GetRootLayer().Save()
+    return dict(inputs, terrain=folder / "terrain")
+
+
+def sea_heights(out, inputs, second):
+    """The sea sheet's heights at a second, its motion layer over the terrain's ground."""
+    root = Sdf.Layer.CreateAnonymous(".usda")
+    root.subLayerPaths = [str(out / "layers/motion.usda"), str(inputs["terrain"] / f"earth/places/{PLACE}.usdc")]
+    stage = Usd.Stage.Open(root)
+    points = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Outside/water")).GetPointsAttr()
+    return np.asarray(points.Get(second * 24.0), dtype=float)[:, 1]
 
 
 def a_gap(path, check, objects):

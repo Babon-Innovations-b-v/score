@@ -41,7 +41,7 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   `unmade`, and `covered` holds the drawn exhaust to the footage's flame lengths, its flame under the climbing foot
   and its smoke column. A place with no launch keeps its output. A flag on a body with no air (under
   `natural_grounds.WIND_KPA`: the Moon) hangs still with that reason. A move no
-  writer makes (a flag's cloth in the air, a body of water, a double door's leaves) is `unmade` and fails
+  writer makes (a flag's cloth in the air, a double door's leaves) is `unmade` and fails
   `covered`, as does every row no stage makes (`row_kinds.uncovered`: a moving word in its noun; a screen's picture is
   the screens stage's, `data/checks/screens.json` `read_by`, #88),
   never a still. The record is written into the output (`moves.json`) and the gates
@@ -52,11 +52,17 @@ stage (`../layer_base.py`). `__init__.py`'s docstring has the make and the gates
   2026-10-28: the lift's bake job failed in the batch). The accepted plan's `placed` gap on a row counts as such a
   gap (`from_design.plan_gaps`: hangar's floor hatch, placed none of, 2026-10-29), its name pointing at where the
   source fix waits; a take the surface line left out is named by the table's `leaving_out` from the hand-in
-  (hangar's overhead crane). A row with no object and no gap still stops the line. A moving row no maker builds yet (#88: a flag's cloth, a rocket, a body of water) ships as an accepted gap in
+  (hangar's overhead crane). A row with no object and no gap still stops the line. A moving row no maker builds yet (#88: a flag's cloth, a rocket) ships as an accepted gap in
   `data/checks/gaps/<place>.json` (`stages.GAP_GATES["motion"]`: `designed` for a row with no object, `covered` for
   its objects' unmade move), failed by name at complete. A backdrop row the hand-in marks `shown` from another place of its scene (the
   street's distant flags and rocket are the square's) is that place's row to move: the table's `designed` reads it
-  (`shown_rows.py`) and leaves it to that place's motion row, where its fault stands. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
+  (`shown_rows.py`) and leaves it to that place's motion row, where its fault stands. A moving row whose objects
+  only their `score:row` names (the square's sea: the terrain lays it as one water sheet, /<place>/Outside/water) is
+  found by that tag on the build with the made ground laid (`tagged_rows.py`), and its move made by the library's
+  motion recipe (`water_rows.py`, set on the row by the table like `shown_rows.py`): a body of water's ripple
+  (`ripple.py`'s `RECIPE`, kept in code: `data/library` is hashed whole by paid rows, so a file there re-keys them), deep-water waves keyed into the sheet's points in `layers/motion.usda`
+  (Blender's import plays them as a mesh sequence), recorded in the output's `ripples.json`; `moves.json` stays as
+  the rigid make wrote it (the sound row reads it), and the table's `designed` and `covered` read the ripples. A per-row parameter a rule cannot choose is one recorded model call per scene inside the batch, never
   typed by hand.
 - **The old records are retired** (`data/motion/<place>.json`, the game's timed motions, `data/motion/rigid/` and
   `data/motion/models/`, written for the old concepts; owner, 2026-10-21: all old stuff is retired). The sound row
