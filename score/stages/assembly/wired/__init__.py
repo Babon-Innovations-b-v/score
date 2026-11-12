@@ -10,8 +10,9 @@ this one, so it moves the assembly's key alone (as held_apart.py does for the he
              stood          each floor thing at an open place's floor slid to a level spot beside it where its made
                             ground slopes (level_spot.py: wreck's tank in its dent) and stood on that ground
                             (on_ground.py), each thing on its holder's curved top laid again on its levelled model
-                            (tops_levelled.py: wreck's open hatch), then each face thing of a standing row let down
-                            onto what is under it (face_down.py: wreck's solar_panels_5, 2026-11-12)
+                            (tops_levelled.py: wreck's open hatch), then each face thing of a row the resting gate
+                            judges standing by the seed's inventory let down onto what is under it (face_down.py:
+                            wreck's solar_panels_5, 2026-11-12; tube's wall lamps on its ribs are mounted, so left)
              released       every stage the make left in a reference cycle collected (release): fitting.fitted's
                             recursive closure `one` holds the stage the design objects were laid on, so until a
                             collection ran its asset layers stayed loaded and screens.take's Sdf.Layer.CreateNew of
@@ -50,9 +51,16 @@ def make(inputs, out, seed, params):
     level_spot.slid(out, assembly.stage_file(out).stem)
     on_ground.stood(out, assembly.stage_file(out).stem)
     tops_levelled.laid(out, assembly.stage_file(out).stem)
-    face_down.let_down(out, assembly.stage_file(out).stem)
+    face_down.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
     release()
     silence(inputs, out)
+
+
+def inventory_rows(inputs, out):
+    """The rows of the inventory the seed at `out` was laid from (assembly.declared_inventory, in the declared
+    inventory folder), as the resting gate reads them; None where it names none there."""
+    inventory = assembly.declared_inventory(out, inputs["inventories"]) if "inventories" in inputs else None
+    return json.loads(inventory.read_text())["rows"] if inventory is not None and inventory.is_file() else None
 
 
 def release():
