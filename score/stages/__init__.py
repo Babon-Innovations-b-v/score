@@ -51,6 +51,7 @@ import score.stages.demo_film.peel_rows as peel_rows
 from score.stages.surfaces.surface_gates import guarded
 from score.stages.assembly import held_apart, neighbours, resting_within, wired
 from score.stages.motion import exhaust, shown_rows, water_rows
+import score.stages.motion.cloth as motion_cloth
 from score.stages.assembly import scene_tree
 import score.stages.props.masks_row as masks_row
 import score.stages.props.railing_hold as railing_hold
@@ -126,13 +127,15 @@ def exhausted(files):
 # holds it to the library's footage checks, so only a place with a launch moves its output (motion@square, 2026-11-12).
 # A moving row whose objects only their score:row names (the square's sea, a terrain water sheet) is moved by its
 # library recipe (the ripple) by water_rows.made over that, its `designed` and `covered` water_rows' too, so only a
-# place with such a row moves its output (motion@square, 2026-11-12).
+# place with such a row moves its output (motion@square, 2026-11-12). A flag the rigid make leaves unmade waves as
+# cloth in the layer (motion/cloth.py: data/effects/flag_cloth.json), and `covered` counts it moved only where its
+# cloth moves, so only a place with a flag of its own moves its output.
 MOTION_JUDGES = {"designed": motion.on_built(water_rows.judge_designed),
-                 "covered": water_rows.covered(motion.on_built(exhaust.judge_covered))}
-MOTION = graph.Stage("motion", "place", water_rows.made(exhaust.made(motion.make)), motion.LAYER,
+                 "covered": water_rows.covered(motion.on_built(motion_cloth.covering(exhaust.judge_covered)))}
+MOTION = graph.Stage("motion", "place", water_rows.made(exhaust.made(motion_cloth.made(motion.make))), motion.LAYER,
                      tuple(dataclasses.replace(check, judge=MOTION_JUDGES[check.name])
                            if check.name in MOTION_JUDGES else check for check in motion.CHECKS),
-                     files=exhausted(designed_motion(motion.files)),
+                     files=exhausted(designed_motion(motion_cloth.files(motion.files))),
                      after={"scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                             "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                             "cast": ("cast", 1)},
