@@ -27,7 +27,7 @@ import json
 import pathlib
 
 from score.stages import assembly
-from score.stages.assembly import parting
+from score.stages.assembly import on_ground, parting
 
 # gaps.WRITTEN, the file complete's accepted gaps gate reads; named here, not imported, so score/stages/gaps.py stays
 # out of the assembly's code version (a gap's verdict moves complete alone; the test reads it back through gaps.py)
@@ -42,6 +42,7 @@ def make(inputs, out, seed, params):
     silent voices made gaps (module docstring)."""
     assembly.make_from_seed(inputs, out, seed, params)
     parting.parted(out, assembly.stage_file(out).stem)
+    on_ground.stood(out, assembly.stage_file(out).stem)
     release()
     silence(inputs, out)
 
