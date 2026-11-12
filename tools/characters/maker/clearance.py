@@ -105,6 +105,18 @@ def swing_axis(frame, root, end, names, way):
     return (axis / size if size > 1e-9 else None), pivot
 
 
+def bridging(faces, part_of, moving, body):
+    """The points of every part (`part_of`, each face's) in which the moving limb's points and its body's meet along
+    an edge: one surface hung over both, a skirt over both legs, not a limb going into a body. Read as the legs, a
+    skirt's halves riding each shin met at its hem and swung both legs out in every clip (woman_stair standing 6.0
+    and 4.5 degrees, walking 22.5, her stance 1.41 over the hips against 0.55 to 1.2; 2026-11-12)."""
+    edges = faces[:, [0, 1, 1, 2, 2, 0]].reshape(-1, 2)
+    meet = (moving[edges[:, 0]] & body[edges[:, 1]]) | (body[edges[:, 0]] & moving[edges[:, 1]])
+    found = np.zeros(len(moving), dtype=bool)
+    found[faces[np.isin(part_of, np.repeat(part_of, 3)[meet])].ravel()] = True
+    return found
+
+
 def pass_angles(world, fit_rig, names, parents, step):
     """The least angle (radians) per frame that keeps a pass's limb end out of its body."""
     root_name, ends_names, body_names, way = step
@@ -117,13 +129,17 @@ def pass_angles(world, fit_rig, names, parents, step):
     # on the same surface, where a mixed set read a hand inside a folded arm as outside the other hand next to it.
     owner = weights.argmax(axis=1)
     groups = [owner == names.index(name) for name in body_names]
+    hung = (bridging(fit_rig["faces"], fit_rig["part_of"], moving, np.any(groups, axis=0)) if "part_of" in fit_rig
+            else np.zeros(len(points), dtype=bool))  # a rig not thinned part by part names no parts: none hung
+    moving = moving & ~hung
+    groups = [group & ~hung for group in groups]
     root = names.index(root_name)
     chain = below(root, parents)
     angles = np.zeros(len(world))
 
     def deepest(skin, bodies):
         moved = skinned(points[moving], weights[moving], skin)
-        return max(depth(moved, body_points, body_normals) for body_points, body_normals in bodies)
+        return max((depth(moved, body_points, body_normals) for body_points, body_normals in bodies), default=0.0)
 
     for number, frame in enumerate(world):
         skin = frame @ inverse
