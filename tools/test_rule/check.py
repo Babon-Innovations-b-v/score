@@ -87,6 +87,8 @@ MAIN_ONLY = (
 MAY_SKIP = {
     "score/stages/sim_body/inside/*": "needs a GPU: runs in the cluster gate",
     "tools/usd/test_a_hollow_body_keeps_its_hollow.py": "two of its drops need the Newton env, which needs a GPU",
+    "score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py":
+        "its two room drops need the Newton env, which needs a GPU",
 }
 
 # Test files holding more than one test function on 2026-11-01 (118 files, 2139 functions over one), each

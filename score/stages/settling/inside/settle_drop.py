@@ -25,8 +25,9 @@ pose is taken. Two loose objects whose
 drawn triangles cross at rest are reported (`overlaps`).
 
 out.json: {"objects": {object name: {"motion": 4 x 4, "moving": metres a second at the end, "inside": [static objects
-it starts in]}}, "overlaps": [[name, name], ...], "engine": "..."}; the motion is how the object moved from as laid to
-at rest, in the stage's own frame (y up), row by row (column vectors): its settled matrix is motion @ its laid matrix.
+it starts in]}}, "overlaps": [[name, name], ...], "contacts": {"room": its room, "most": the most any substep met},
+"engine": "..."}; the motion is how the object moved from as laid to at rest, in the stage's own frame (y up), row by
+row (column vectors): its settled matrix is motion @ its laid matrix.
 """
 import json
 import math
@@ -70,6 +71,13 @@ MARGIN = 0.004
 # stops at 60 dofs, and its sparse inertia solve is wrong over 60 dofs in a tree (#60). Newton's contacts are sorted.
 CONTACTS = 16
 ROWS = 3
+# Room for at least this many contacts a loose body: a body of one or a few hulls meets more than CONTACTS a shape on
+# a fine ground (each hull and the ground mesh are one pair, which Newton reduces to up to 240 contacts; it sizes its
+# own room at 40 a pair with a mesh in it, collide.py's _RIGID_CONTACTS_PER_MESH_PAIR). assembly@old_station's 14
+# one-hull bodies met 231 in 224 and failed (2026-11-12); with room they peaked at 295 (21 a body, at most 32 between
+# one hull and its ground), and 14 boxes on a 5 cm ground grid at 445 (32 a body): twice the most a body was seen to
+# meet. A scene of 4 shapes a body or more keeps CONTACTS a shape, its room as before.
+BODY_CONTACTS = 64
 # Beside the stage: its hollow objects' convex parts (tools/usd/convex_parts.py's FILE).
 PARTS_FILE = "convex-parts.json"
 # What a stage draws that nothing stands on or against: its sky (the haze round the place, the stars, the moon's and
@@ -180,6 +188,18 @@ def stack_groups(names, under):
     return {name: 1 + roots.index(root(name)) for name in names}
 
 
+def contact_room(bodies, shapes):
+    """The contacts a drop of `bodies` loose bodies of `shapes` convex shapes in all has room for: CONTACTS a shape,
+    and at least BODY_CONTACTS a body."""
+    return max(CONTACTS * shapes, BODY_CONTACTS * bodies)
+
+
+@wp.kernel
+def peaked(count: wp.array(dtype=wp.int32), peak: wp.array(dtype=wp.int32)):
+    """The most contacts met so far: the count now, if more."""
+    peak[0] = wp.max(peak[0], count[0])
+
+
 @wp.kernel
 def damped(speeds: wp.array(dtype=float), kept: wp.array(dtype=float)):
     """Each speed times its kept share."""
@@ -254,7 +274,7 @@ class Drop:
         if not self.bodies:  # nothing loose: MuJoCo refuses a model with no joint (assembly@docking_airlock, 2026-10-30)
             return
         self.model = builder.finalize(device=wp.get_preferred_device())
-        self.room = CONTACTS * shapes
+        self.room = contact_room(len(self.bodies), shapes)
         self.solver = newton.solvers.SolverMuJoCo(
             self.model, use_mujoco_contacts=False, integrator="euler", cone="elliptic", nconmax=self.room,
             njmax=self.room * ROWS)
@@ -266,6 +286,7 @@ class Drop:
         damping = np.array([DAMPING_LINEAR] * 3 + [DAMPING_ANGULAR] * 3)
         self.kept = wp.array(np.tile((1.0 - damping) ** (1.0 / FPS), len(self.bodies)), dtype=float,
                              device=self.model.device)
+        self.peak = wp.zeros(1, dtype=wp.int32, device=self.model.device)  # over every substep, not a frame's last
         self.graph, self.stepped = None, False
 
     def frame(self):
@@ -280,8 +301,13 @@ class Drop:
         else:
             self.steps()
         self.stepped = True
-        if int(self.contacts.rigid_contact_count.numpy()[0]) >= self.room:
-            raise RuntimeError(f"the drop met {self.room} contacts, all it has room for: raise CONTACTS")
+        if self.most() >= self.room:
+            raise RuntimeError(f"the drop met {self.most()} contacts, {self.room} its room: raise BODY_CONTACTS or "
+                               "CONTACTS")
+
+    def most(self):
+        """The most contacts any substep has met so far."""
+        return int(self.peak.numpy()[0])
 
     def steps(self):
         """SUBSTEPS (an even count: the states end where they began), then every body's speed damped a frame's share."""
@@ -289,6 +315,7 @@ class Drop:
         for _ in range(SUBSTEPS):
             self.now.clear_forces()
             self.pipeline.collide(self.now, self.contacts)
+            wp.launch(peaked, dim=1, inputs=[self.contacts.rigid_contact_count, self.peak], device=self.model.device)
             self.solver.step(self.now, self.next, self.control, self.contacts, step)
             self.now, self.next = self.next, self.now
         wp.launch(damped, dim=len(self.kept), inputs=[self.now.joint_qd, self.kept], device=self.model.device)
@@ -338,7 +365,8 @@ def main():
             laid[:3, 3] = drop.middles[name]
             motions[name] = pose @ np.linalg.inv(laid)
             found[name] = {"motion": motions[name].tolist(), "inside": drop.inside[name], "moving": speeds[name]}
-    out.write_text(json.dumps({"objects": found, "overlaps": overlaps(drop.meshes, motions),
+    room = {"room": drop.room, "most": drop.most()} if drop.bodies else {}
+    out.write_text(json.dumps({"objects": found, "overlaps": overlaps(drop.meshes, motions), "contacts": room,
                                "engine": f"newton {newton.__version__} SolverMuJoCo on Newton's contacts, "
                                          f"{wp.get_preferred_device()}"}, indent=1))
     print("settle_drop: wrote", out)
