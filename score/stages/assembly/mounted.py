@@ -22,7 +22,8 @@ def mounted(rows):
                    if holders.get(row_id) in pieces}:
         pieces.update(more)
         found.update(more)
-    return found
+    from score.stages.assembly.structure_mounted import on_built_in
+    return {**found, **on_built_in(rows, holders, found, built_in)}
 
 
 def resting_as_laid(record):
