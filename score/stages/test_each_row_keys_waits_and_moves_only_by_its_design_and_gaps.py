@@ -32,6 +32,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   drive pass listed all 81 plans again, 35 s, 2026-11-11; a new record kept the old listing).
 - `places`: the `merged` scenes not taken out  -> the place test.
 - `ship_place`: always False  -> the ship place test.
+- `seen_from_record`: `ship_place(place)` alone (`or scene_record.written(place)` dropped)  -> the ship place test
+  (an earth place's surfaces-check read no scene record, so 46 of env1's models had no view distance, 2026-11-12);
+  `True`  -> the same test (a place the scene-record row writes nothing for would wait on it).
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
   surface_data`)  -> test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line.
 - score/stages/surfaces/scene_library.py judge_library: `from score.stages.assembly import stage_file` added  ->
@@ -849,10 +852,17 @@ def test_the_check_reads_every_input_check_step_reads():
     assert read <= set(handed), read - set(handed)
 
 
-def test_a_ship_place_is_read_from_git():
-    """On a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is not."""
+def test_a_ship_place_is_read_from_git(monkeypatch):
+    """On a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is not. Every
+    place the scene-record row writes a record for, the hub too, reads it beside for its surfaces-check's view
+    distance; a place it writes none for reads nothing beside, a ship place its own still."""
     assert not (PROPS_HOME / "work/usd-ship/cockpit").exists()
     assert stages.ship_place("cockpit") and not stages.ship_place("hub")
+    row = next(row for row in stages.STAGES if row.name == "surfaces-check")
+    assert row.beside == {"scene-record": ("scene-record", 1)} and row.neighbours is stages.own_record
+    monkeypatch.setattr(stages.scene_record, "written", lambda place: place == "hub")
+    assert row.neighbours("hub") == ["hub"] and row.neighbours("cockpit") == ["cockpit"]
+    assert row.neighbours("people") == [], "no scene record written: nothing to wait on"
 
 
 def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():

@@ -1288,19 +1288,28 @@ OWN_RECORD = "scene-record"
 
 
 def own_record(place):
-    """[place] for a ship place, which reads its own scene record (`OWN_RECORD@<place>`, read beside), else none."""
-    return [place] if ship_place(place) else []
+    """[place] for a place that reads its own scene record (`OWN_RECORD@<place>`, read beside: seen_from_record),
+    else none."""
+    return [place] if seen_from_record(place) else []
+
+
+def seen_from_record(place):
+    """Whether the place's views come from its own scene record: a ship place's, and every place the scene-record
+    row writes a record for (scene_record.written). Earth places were left out when the old kits retired
+    (2026-10-21), so surfaces-check sized none of their models: 46 of env1's baked models failed "baked matches its
+    surfaces" on no view distance alone (2026-11-12), every one with views and its bake laid in its scene record."""
+    return ship_place(place) or scene_record.written(place)
 
 
 def record_beside(inputs, place):
-    """The scene record a ship place's row reads beside (own_record): record/<place>.json in its output."""
+    """The scene record a place's row reads beside (own_record): record/<place>.json in its output."""
     return pathlib.Path(inputs[f"{OWN_RECORD}@{place}"]) / "record" / f"{place}.json"
 
 
 def reading_own_record(row):
-    """The row reading, for a ship place, its own scene-record output beside (own_record), so its views come from the
-    stage that writes them and wait on it (2026-10-19: they were a copy under work/demo/world1-r4/views, made by hand,
-    lost with the work folder). Any other place reads nothing beside, so its key stays."""
+    """The row reading, for a place seen_from_record, its own scene-record output beside (own_record), so its views
+    come from the stage that writes them and wait on it (2026-10-19: they were a copy under work/demo/world1-r4/views,
+    made by hand, lost with the work folder). Any other place reads nothing beside, so its key stays."""
     beside = {OWN_RECORD: ("scene-record", 1)}
     if row.beside and row.beside != beside:
         raise ValueError(f"{row.name} already reads beside; own_record would give its other reads the same places")
@@ -1308,15 +1317,16 @@ def reading_own_record(row):
 
 
 def ship_seen(row):
-    """surfaces-check with a view distance for a ship place's models (2026-10-15: every model's was none, so the
+    """surfaces-check with a view distance for a place's models (2026-10-15: every ship model's was none, so the
     cockpit's pedestal, side console and ceiling equipment and the engine room's fuel tank were unknown): its views
-    its own scene record's, read beside (reading_own_record). The old ship kit's made pieces laid beside it went
-    with the old kits (2026-10-21). Any other place is checked as before: wrapped here, so its key stays."""
+    its own scene record's, read beside (reading_own_record) wherever seen_from_record, the earth places' too since
+    their old kits went (2026-10-21). A place without a scene record is checked as before: wrapped here, so its key
+    stays."""
     make = row.make
 
     def made(inputs, out, seed, params):
         place = json.loads(pathlib.Path(inputs["surfaces"]).read_text())["place"]
-        if not ship_place(place):
+        if not seen_from_record(place):
             return make(inputs, out, seed, params)
         return make(dict(inputs, **{"scene record": record_beside(inputs, place)}), out, seed, params)
     return reading_own_record(dataclasses.replace(row, make=functools.wraps(make)(made)))
