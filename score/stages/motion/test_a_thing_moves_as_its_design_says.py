@@ -236,7 +236,11 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
         seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`
     The camp's ground is the terrain row's made ground, its own layer (places/camp.usdc under /<place>/Outside), not
     in the place's stage (motion@campgrounds, 2026-11-10): standing on it the crane passes, lifted off it it fails.
-    Break: score/stages/motion/__init__.py: `*space.made_ground_meshes(inputs.get("terrain"), place), ` -> ``"""
+    Break: score/stages/motion/__init__.py: `*space.made_ground_meshes(inputs.get("terrain"), place), ` -> ``
+    A crane the hand-in marks shown from another place (motion@street, 2026-11-10: its distant flags and rocket are
+    the square's) is that place's to move, so `designed` passes it here naming where; one marked shown from no place
+    still fails.
+    Break: score/stages/motion/shown_rows.py: `if row_of(line) not in shown` -> `if True`"""
     inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
     out, _ = made(inputs, tmp_path)
     verdict = judge("designed", out, inputs)
@@ -245,6 +249,10 @@ def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
     assert table_judge("designed", out, inputs).answer == checks.FAIL, "no batch gap names the crane, so its fault stays"
     gapped = dict(inputs, gaps=a_gap(tmp_path / "gaps.json", "designed", ["crane"]))
     assert table_judge("designed", out, gapped).answer == checks.PASS, "a recorded gap of the crane moves its fault"
+    for shown, answer in (({"place": "square", "row": "crane"}, checks.PASS), (None, checks.FAIL)):
+        (tmp_path / "handin.json").write_text(json.dumps({"rows": [{"id": "crane", "shown": shown}]}))
+        verdict = table_judge("designed", out, dict(inputs, props=tmp_path / "handin.json"))
+        assert verdict.answer == answer and ("square's crane" in verdict.reason) == bool(shown), (shown, verdict)
     for rises, answer in ((0.0, checks.PASS), (0.5, checks.FAIL)):
         folder = tmp_path / f"camp_{rises:g}"
         folder.mkdir()
