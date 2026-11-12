@@ -63,7 +63,10 @@ unless named):
   `(squared < 0)` (nothing matched).
 - test_lowered_arms_turn_the_arm_bones: placed's `along_axis(places[parent], fit[chain], length)` made `mean[chain]`.
 - test_inpainting_blends_the_unmatched_strip: inpainted's solved weights made zero (`0 * splu(...)`).
-- test_tuck_runs_under_the_garment: tucks.tucked_ring's `places + away * directions * TUCK_LENGTH` made `-`.
+- test_tuck_runs_under_the_garment: tucks.tucked_ring's `places + away * directions * TUCK_LENGTH` made `-`; its
+  worn case (person_uniform, env1 2026-11-11: a trouser hem the build pushed in along a boot top left a band point
+  6.4 mm out at rest): tucks.inside's `>= 0.5` winding test against `worn` dropped (the band under a garment pushed
+  in past it is kept).
 - test_pokes_read_inside_and_outside: pokes.tuck_out's `np.where(inside, -distance, distance)` swapped.
 - test_pokes_read_a_band_under_two_overlapping_parts_as_hidden: tuck_out's winding-number second ask dropped (the
   2026-10-10 fault: a band under both overlapping parts read as outside).
@@ -80,7 +83,9 @@ unless named):
   `> BOOT_TOP_SHARE * (high - low)` made `> high - low` (the visor stays a boot); unsided's
   `words = words[1:]` made `break` (the officer's waist leather, "boot black leather", rides his foot, env1 2026-11-11);
   placed_pieces' `tops[piece] for piece in label` made the whole part's middle (the astronaut's chest leather in his
-  boot part stays a boot and its tuck stands 67 mm out, env1 2026-11-11).
+  boot part stays a boot and its tuck stands 67 mm out, env1 2026-11-11); hands_on_arms' `for word in ARM_WORDS`
+  made always true (the woman on the stairs' bare shins stay skin_hands and ride her hands, their tucks 62 mm out,
+  env1 2026-11-11).
 - test_pokes_read_a_hard_parts_stretch: pokes.stretch's `max(worst, ...)` made `min(worst, ...)`.
 - test_piping_is_cut_down_the_outside_of_a_limb: piping.across_outer_line's outer half `> 0` made `< 0`.
 - test_a_flat_sheet_crosses_nothing: pokes.crossing_pairs' shared-corner filter and `usable &` both dropped (either
@@ -676,6 +681,16 @@ def test_tuck_runs_under_the_garment():
     alone, _, _ = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)), bones, short,
                                parents)
     assert len(alone) == len(points)
+    # The garment as built covers the band, or was pushed in past it (a hem cleared along a boot top's normals): the
+    # band is kept only under the first.
+    covering = trimesh.creation.cylinder(radius=0.056, segment=[(0, -0.3, 0), (0, 0.0, 0)], sections=48)
+    pushed_in = trimesh.creation.cylinder(radius=0.02, segment=[(0, -0.3, 0), (0, 0.0, 0)], sections=48)
+    kept, _, _ = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)), bones, whole,
+                              parents, worn=covering)
+    assert len(kept) == len(out_points)
+    alone, _, _ = tucks.tucked(points, faces, weights, cuff, np.tile([0.0, 1.0], (len(cuff), 1)), bones, whole,
+                               parents, worn=pushed_in)
+    assert len(alone) == len(points)
 
 
 def test_pokes_read_inside_and_outside():
@@ -780,6 +795,16 @@ def test_a_hard_part_rides_one_joint_and_the_cloth_by_it_follows(tmp_path):
     assert sorted(mixed) == [(0, "boot"), (0, "brown_leather")], sorted(mixed)
     assert mixed[(0, "boot")][0][:, 1].max() < 0.5 and mixed[(0, "brown_leather")][0][:, 1].min() > 1.5
     assert sorted(prop_build.boot_names(mixed)) == [(0, "boot_l"), (0, "brown_leather")]
+    # One skin part holding a hand and a bare shin (the woman on the stairs under her skirt, 2026-11-11): the shin,
+    # its weights on no arm joint, is bare skin on its own weights, the hand stays a hand.
+    skin_names = ["Hips", "LeftShin", "LeftHand"]
+    skin = (np.concatenate([np.array([[0.5, 0.95, 0.0], [0.5, 0.85, 0.0], [0.55, 0.9, 0.0]]), boot[:1] + 0.2,
+                            boot[1:] + 0.2, boot[:1] + 0.25]), np.array([[0, 1, 2], [3, 4, 5]]),
+            np.array([[0, 0, 1.0]] * 3 + [[0, 1.0, 0]] * 3), np.arange(6))
+    armed = prop_build.hands_on_arms({(0, "skin_hands"): skin}, skin_names)
+    assert sorted(armed) == [(0, prop_build.BARE), (0, "skin_hands")], sorted(armed)
+    assert armed[(0, "skin_hands")][0][:, 1].min() > 0.8 and armed[(0, prop_build.BARE)][0][:, 1].max() < 0.5
+    assert prop_build.BARE not in prop_build.RIGID_NAMES
     cloth = np.array([[0.1, 0.21, 0.0], [0.1, 0.5, 0.0]])
     eased = prop_build.eased_to_hard(cloth, np.array([[0, 1.0, 0], [0, 1.0, 0]]), boot,
                                      np.array(["LeftFoot", "LeftFoot"], dtype=object), names, np.array([-1, 0, 1]))

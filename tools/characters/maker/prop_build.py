@@ -19,6 +19,9 @@ parents); `parts.npz` prop_parts.py's (each face's part, the parts' names, roles
   mitt get a tuck under every border they share with a garment (tucks.py): the joins joins.py measures and the neck; a
   hard part elsewhere (a pack) sits on the cloth and needs none. A part judged a boot's material is a boot only at the
   feet (`placed_pieces`, piece by piece): higher up (a dark visor) it is named by its material. A belt and its buckle are cloth (`worn_as_cloth`).
+  A skin part below the head is a hand only on the arms (`hands_on_arms`, piece by piece): elsewhere (bare shins
+  under a skirt) it is bare skin on its own weights. A band is kept only where it lies inside the whole mesh and the
+  surfaces as built (`worn_surface`, the garments cleared off the body), the surface the poke check reads.
   Every other hard part, the hair and the bare hands ride one joint rigidly (`rigid_joint`: a boot its foot, a mitt
   or a hand its hand, the hair the head, a helmet or pack the joint its weights favour), and a garment within
   EASE_REACH of a hard part is eased onto that part's joint, so the trouser hem goes with the boot it covers.
@@ -257,6 +260,34 @@ def placed_pieces(split, names_of, materials_of, heights):
     return found
 
 
+# A bare skin part is a hand only on the arms, piece by piece: prop_parts names every skin part below the head
+# skin_hands, and the woman on the stairs' bare shins under her skirt (GeoSAM2 parts 10 and 12, their weights
+# LeftShin and RightShin) rode her hands rigidly, their tucks 40 to 62 mm out of the skirt in every clip (env1,
+# 2026-11-11). A piece whose weights favour no arm joint is bare skin on its own weights (BARE), tucked as the
+# neck is.
+ARM_WORDS = ("Arm", "Hand")
+BARE = "skin_body"
+
+
+def hands_on_arms(pieces, joint_names):
+    """The surfaces (`pieces`, placed_pieces') with each connected piece of a skin_hands surface kept a hand only
+    where its points' weights favour an arm joint (ARM_WORDS of `joint_names`); the others one surface named BARE."""
+    found = {}
+    for (part, name), (points, faces, weights, used) in pieces.items():
+        if name != "skin_hands":
+            found[(part, name)] = (points, faces, weights, used)
+            continue
+        label = piece_labels(faces, len(points))
+        on_arm = {piece: any(word in joint_names[int(weights[np.unique(faces[label == piece])].sum(0).argmax())]
+                             for word in ARM_WORDS) for piece in set(label)}
+        armed = np.array([on_arm[piece] for piece in label], bool)
+        for keep, kept_name in ((armed, name), (~armed, BARE)):
+            if keep.any():
+                kept, renumbered = np.unique(faces[keep], return_inverse=True)
+                found[(part, kept_name)] = (points[kept], renumbered.reshape(-1, 3), weights[kept], used[kept])
+    return found
+
+
 def piece_labels(faces, count):
     """Each triangle's connected piece (triangles sharing a point are one piece)."""
     edges = np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]]])
@@ -327,9 +358,9 @@ def surfaces(fit_rig, parts, prints=None):
     names = list(fit_rig["names"])
     index = {int(part): number for number, part in enumerate(parts["parts"])}
     split = split_parts(fit_rig["points"], fit_rig["faces"], fit_rig["weights"], face_parts(fit_rig, parts))
-    pieces = boot_names(placed_pieces(split, {part: str(parts["names"][number]) for part, number in index.items()},
-                                      {part: str(parts["materials"][number]) for part, number in index.items()},
-                                      fit_rig["points"][:, 1]))
+    pieces = boot_names(hands_on_arms(placed_pieces(
+        split, {part: str(parts["names"][number]) for part, number in index.items()},
+        {part: str(parts["materials"][number]) for part, number in index.items()}, fit_rig["points"][:, 1]), names))
     role_of = {key: "garment" if worn_as_cloth(key[1]) else str(parts["roles"][index[key[0]]]) for key in pieces}
     hard_points, hard_joints = [np.zeros((0, 3))], [np.zeros(0, dtype=object)]
     rigid = [key for key in pieces if role_of[key] == "hard" or key[1] in RIGID_NAMES]
@@ -356,6 +387,7 @@ def surfaces(fit_rig, parts, prints=None):
     strips = piped(pieces, role_of, colour_of, parts, index, prints, fit_rig)
     garment = [piece for key, piece in pieces.items() if role_of[key] == "garment"] + [strip[3:6] for strip in strips]
     whole = trimesh.Trimesh(fit_rig["points"], fit_rig["faces"], process=False)
+    worn = worn_surface([piece[:2] for piece in pieces.values()] + [strip[3:5] for strip in strips])
     garment_points = np.concatenate([piece[0] for piece in garment])
     garment_weights = np.concatenate([piece[2] for piece in garment])
     found = []
@@ -366,11 +398,20 @@ def surfaces(fit_rig, parts, prints=None):
             tuck_from = len(points)
             points, faces, weights = tucks.tucked(points, faces, weights, garment_points, garment_weights,
                                                   bones_of(fit_rig), whole, np.asarray(fit_rig["parents"]),
-                                                  rigid=name.startswith(SIDED))
+                                                  rigid=name.startswith(SIDED), worn=worn)
         uv = printed_uv(prints, part, used, len(points))
         picture = None if uv is None else prints[f"image_{part}"].tobytes()
         found.append((name, role, colour_of[(part, name)], points, faces, weights, tuck_from, uv, picture))
     return found + strips
+
+
+def worn_surface(surfaces):
+    """The person's surfaces as built (`surfaces`: (points, faces) each, garments cleared off the body, no tucks) as
+    one mesh, unwelded: the surface pokes.py measures a tuck against, read by its winding number (tucks.inside)."""
+    offsets = np.cumsum([0] + [len(points) for points, _ in surfaces])
+    return trimesh.Trimesh(np.concatenate([points for points, _ in surfaces]),
+                           np.concatenate([faces + offset for (_, faces), offset in zip(surfaces, offsets)]),
+                           process=False)
 
 
 PIPING = "piping"
