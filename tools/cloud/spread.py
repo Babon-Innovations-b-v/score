@@ -197,6 +197,25 @@ def arm_for_run(folder, host, deadline):
     batch.arm_self_delete(folder, host, deadline)
 
 
+# Sent to a machine before its set-up script (tools/cloud/*_setup.sh): its apt sources moved from Scaleway's zone
+# mirror (<zone>.clouds.archive.ubuntu.com) to archive.ubuntu.com (security.ubuntu.com kept), in the classic
+# sources.list and Ubuntu 24.04's deb822 ubuntu.sources, and apt given 3 retries and a 30 s http timeout. Buy 91
+# (2026-11-12): the pl-waw-2, nl-ams-2 and fr-par-2 mirrors timed out while archive.ubuntu.com answered, and three
+# settles' set-ups failed after 44 min or hung. Here, not in a set-up script or batch.py: those are files paid rows
+# read, so editing one makes them again.
+APT_MIRROR = ("for sources in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources; do "
+              "if [ -f $sources ]; then sed -i -E "
+              "'s#(https?://)[a-z0-9-]+[.]clouds[.]archive[.]ubuntu[.]com#\\1archive.ubuntu.com#g' $sources; fi; "
+              "done; mkdir -p /etc/apt/apt.conf.d; "
+              "printf 'Acquire::Retries \"3\";\\nAcquire::http::Timeout \"30\";\\n' "
+              "> /etc/apt/apt.conf.d/80score-retries")
+
+
+def off_zone_mirror(folder, host):
+    """The machine's apt moved off Scaleway's zone mirror, before its set-up script runs (APT_MIRROR)."""
+    batch.remote(folder, host, APT_MIRROR, check=True)
+
+
 @contextlib.contextmanager
 def tended(run, machine):
     """A machine a runner works itself, armed to delete itself if this PC goes quiet and hearing its heartbeat while
@@ -210,6 +229,7 @@ def tended(run, machine):
             provider.cloud.let_go_turn(machine["id"])
         host = machine["host"]
         arm_for_run(machine["folder"], host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        off_zone_mirror(machine["folder"], host)
         threading.Thread(target=pictures.keep_beating, args=(machine["folder"], host, stop), daemon=True).start()
         yield host
         machine["healthy"] = True  # the block ended well: the machine may be parked (park.py)
@@ -228,6 +248,7 @@ def tend(run, machine, kind, shares, prepare, do, at_once=None):
     try:
         host = machine["host"]
         arm_for_run(folder, host, run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
+        off_zone_mirror(folder, host)
         threading.Thread(target=pictures.keep_beating, args=(folder, host, stop), daemon=True).start()
         began = time.time()
         prepare(machine)

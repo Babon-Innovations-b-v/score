@@ -18,6 +18,8 @@ seen red, reverted):
   `shares.failed_job(share)` (before "its share is a gap") -> `shares.put(share)`; or drop `broken.set()`.
 - test_a_machine_that_fails_its_set_up_is_not_replaced: in `one_machine`, `if not machine.get("pool") or
   shares.queued() <= 0:` -> `if shares.queued() <= 0:`.
+  Or in `tend`, drop `off_zone_mirror(folder, host)` (the set-up script runs with apt still on Scaleway's zone mirror,
+  Buy 91); or in APT_MIRROR, `archive.ubuntu.com#g` -> `security.ubuntu.com#g`.
 - test_machines_claimed_side_by_side_spread_over_the_zones: in batch.py `claim_from`, `capacity.next_offer(remaining,
   run.machines + pending, kind)` -> `capacity.next_offer(remaining, run.machines, kind)`.
 - test_a_slot_keeps_asking_until_stock_comes_up: in batch.py `claim_rounds`, `while machine is None and
@@ -39,6 +41,7 @@ seen red, reverted):
   machine.get("yielded")` (two and three stay waiting).
 """
 import pathlib
+import subprocess
 import sys
 import threading
 import time
@@ -111,10 +114,14 @@ def fake_machines(monkeypatch, tmp_path):
         return machine
     monkeypatch.setattr(batch, "claim", claim)
     monkeypatch.setattr(batch, "arm_self_delete", lambda *arguments: None)
+    sent = []
+    monkeypatch.setattr(batch, "remote", lambda folder, host, command, **keywords: sent.append(command))
     monkeypatch.setattr(batch, "delete_machine", lambda machine: machine.update(deleted=time.time()))
     monkeypatch.setattr(batch, "say", lambda line: None)
     monkeypatch.setattr(pictures, "keep_beating", lambda folder, host, stop: None)
-    return pictures.Run(tmp_path, time.time() + 60)
+    run = pictures.Run(tmp_path, time.time() + 60)
+    run.sent = sent  # what the machines were sent over ssh
+    return run
 
 
 def test_the_machines_share_the_work_and_a_broken_machines_share_is_a_gap(fake_machines):
@@ -139,7 +146,10 @@ def test_the_machines_share_the_work_and_a_broken_machines_share_is_a_gap(fake_m
 def test_a_machine_that_fails_its_set_up_is_not_replaced(fake_machines):
     run, done = fake_machines, []
 
+    sent_before_set_up = []
+
     def prepare(machine):
+        sent_before_set_up.extend(run.sent)
         if machine["folder"].name == "m1":
             raise RuntimeError("a package mirror was mid-sync")
     shares = spread.Shares(["one", "two"])
@@ -147,6 +157,20 @@ def test_a_machine_that_fails_its_set_up_is_not_replaced(fake_machines):
                        lambda machine, share, card: done.append((machine["folder"].name, share)))
     # no machine rented in its place: its shares stay waiting, gaps for a new batch and a new ask
     assert done == [] and len(run.machines) == 1 and list(shares.waiting) == ["one", "two"]
+    # its apt was moved off Scaleway's zone mirror before its set-up ran, security.ubuntu.com left as it is
+    assert sent_before_set_up == [spread.APT_MIRROR], sent_before_set_up
+    apt = run.folder / "etc/apt"
+    (apt / "sources.list.d").mkdir(parents=True)
+    classic = "deb http://fr-par-2.clouds.archive.ubuntu.com/ubuntu noble main\n" \
+              "deb http://security.ubuntu.com/ubuntu noble-security main\n"
+    deb822 = "Types: deb\nURIs: https://nl-ams-2.clouds.archive.ubuntu.com/ubuntu/\nSuites: noble\n\n" \
+             "Types: deb\nURIs: http://security.ubuntu.com/ubuntu/\nSuites: noble-security\n"
+    (apt / "sources.list").write_text(classic)
+    (apt / "sources.list.d/ubuntu.sources").write_text(deb822)
+    subprocess.run(["bash", "-c", spread.APT_MIRROR.replace("/etc/apt", str(apt))], check=True)
+    assert (apt / "sources.list").read_text() == classic.replace("fr-par-2.clouds.archive", "archive")
+    assert (apt / "sources.list.d/ubuntu.sources").read_text() == deb822.replace("nl-ams-2.clouds.archive", "archive")
+    assert (apt / "apt.conf.d/80score-retries").read_text() == 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\n'
 
 
 def test_machines_claimed_side_by_side_spread_over_the_zones(tmp_path, monkeypatch):

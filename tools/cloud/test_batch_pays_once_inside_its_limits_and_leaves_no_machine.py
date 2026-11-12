@@ -880,6 +880,7 @@ class Tended:
         self.done = []
         monkeypatch.setattr(batch, "arm_self_delete", lambda folder, host, deadline: self.done.append(
             ("armed", host, deadline)))
+        monkeypatch.setattr(spread, "off_zone_mirror", lambda folder, host: self.done.append(("off zone mirror", host)))
         monkeypatch.setattr(pictures, "keep_beating", lambda folder, host, stop: self.done.append(
             ("beating", host)) or stop.wait(5))
         monkeypatch.setattr(batch, "delete_machine", lambda machine: self.done.append(("deleted", machine["host"])))
