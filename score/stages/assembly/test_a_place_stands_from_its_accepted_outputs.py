@@ -3381,6 +3381,9 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         `for one in (name, *held):` -> `for one in (name,):`, gap_under's `if len(rays):` -> `if False:` (the panel
         let down through the step onto the ground), or downs' `points = points[points[:, 1] <= ...]` -> `pass` (let
         down 0.1 m onto the rail its back rests on)
+    Break: score/stages/assembly/face_down.py: faced_standing's `and given.get(entry["row"]) in STANDING` -> `` (the
+        panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows)` ->
+        `faced_standing(record)`
     Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`
     Break: score/stages/assembly/tops_levelled.py: `fits = crest_tops.laid_on(stage, place, entries)` -> `fits = []`,
         or `layer.Save()` -> `pass`
@@ -3535,7 +3538,7 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     monkeypatch.setattr(level_spot, "slid", lambda folder, place: levelled.append((folder, place)) or [])
     monkeypatch.setattr(tops_levelled, "laid", lambda folder, place: topped.append((folder, place)) or [])
     monkeypatch.setattr(on_ground, "stood", lambda folder, place: stood.append((folder, place)) or [])
-    monkeypatch.setattr(face_down, "let_down", lambda folder, place: downed.append((folder, place)) or [])
+    monkeypatch.setattr(face_down, "let_down", lambda folder, place, rows: downed.append((folder, place)) or [])
     root = grounded.grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)},
                                   tmp_path / "settle")
     stage = opened(root)
@@ -3585,6 +3588,16 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     assert np.allclose([low["panel_1"], low["panel_2"], low["sign_1"], low["cube_2"]], [0.1, 0.2, 0.6, 0.5]), low
     laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
     assert np.isclose(laid["panel_1"]["low"][1], 0.1, atol=1e-3) and lay_down(place.parent, TOY) == [], laid
+    # assembly@tube (2026-11-12): its wall lamps, a row on its structural ribs (a structure row on its wall panels),
+    # four within a rib and seven on a rib's side, were let down 1.3 to 2.2 m from 2 m up, lamps 5 to 7 into the deck:
+    # the resting gate judges the row mounted on its ribs by the inventory, by touching. The same panel, its row on a
+    # rib built into a wall by the inventory, is left 0.5 m up its crate's side; its row on the crate, let down.
+    rows = [{"id": "crate", "noun": "crate", "anchor": "on:rib"}, {"id": "hull_wall", "noun": "wall"},
+            {"id": "rib", "noun": "rib", "part": "structure", "anchor": "on:hull_wall"}]
+    for holder, moved in (("rib", []), ("crate", [("panel_1", 0.4), ("cube_2", 0.4)])):
+        place = a_faced_place(tmp_path / f"faced-on-{holder}")
+        fits = lay_down(place.parent, TOY, [*rows, {"id": "panel", "noun": "wall lamp", "anchor": f"on:{holder}"}])
+        assert [(fit["name"], round(fit["moved"], 3)) for fit in fits] == moved, (holder, fits)
     # assembly@wreck (2026-11-12): its open hatch, left at its rocket half's box top in the fitting (its model a foot
     # off until even_feet levelled it), floated 1.74 m over the hull. A 0.2 m box at the box top of a hull lying on
     # its side (radius 1 m, crest 2 m up), 0.6 m off the crest (0.2 m over the hull there), is laid on the crest, its

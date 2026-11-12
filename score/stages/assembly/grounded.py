@@ -4,6 +4,7 @@ it and the motion models layer lays its models on it (2026-10-15: the motion mod
 seed, whose structure still held the game's old ship, which the scene record no longer lays, and the hull stood 48
 cm up on it in the assembly).
 """
+import json
 import os
 import pathlib
 import shutil
@@ -48,8 +49,16 @@ def grounded_seed(inputs, folder):
     level_spot.slid(folder, seed.name)  # to a level spot of its made ground, as wired.make
     on_ground.stood(folder, seed.name)  # on its made ground, as the assembly's make stands them (wired.make)
     tops_levelled.laid(folder, seed.name)  # a thing on its holder's curved top laid again on its levelled model
-    face_down.let_down(folder, seed.name)  # a face thing of a standing row onto what is under it, as wired.make
+    # a face thing of a row its inventory leaves standing onto what is under it, as wired.make (tube's wall lamps on
+    # its ribs are mounted, so left)
+    face_down.let_down(folder, seed.name, inventory_rows(inputs))
     return root
+
+
+def inventory_rows(inputs):
+    """The rows of the settle's inventory (`inventory`, the file the settle judges by); None without one."""
+    path = pathlib.Path(inputs["inventory"]) if inputs.get("inventory") else None
+    return json.loads(path.read_text())["rows"] if path is not None and path.is_file() else None
 
 
 def take_bakes(inputs, folder, place):
