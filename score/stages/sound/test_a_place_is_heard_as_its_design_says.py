@@ -79,77 +79,55 @@ def toy():
     shutil.rmtree(folder)
 
 
-def bed(toy, place):
-    data, design = toy
-    return beds.of_place(place, beds.paths(place, data, design))
+SUIT = ["suit_fans", "suit_breathing_calm"]
+# (place, how it is heard, its bed's sounds, what its design lacks, whether its design is kept: a sound row of its own)
+BEDS = [
+    ("room", "room", ["habitat", "base_hum"], [], True),  # one potted plant makes no greenhouse
+    ("farm", "room", ["greenhouse", "base_hum"], [], True),
+    ("bay", "room", ["garage", "base_hum"], [], True),
+    ("link", "room", ["link_tube", "base_hum"], [], False),
+    ("cabin", "room", ["ship_inside"], [], False),  # a craft's room: no base hum through its hull
+    ("dock", "room", ["ship_inside"], [], False),  # added in the app: within.json lacks it, the base's plan holds it
+    ("hut", "room", ["camp_room"], [], False),  # a shelter alone in the open on Mars, a plan alone
+    ("flatlet", "room", ["earth_flat"], [], False),  # a room where the air outside is breathed
+    ("crater", "suit", SUIT, [], False),  # the Moon's vacuum, under the Armstrong limit
+    ("dunes", "suit", SUIT, [], False),  # Mars's 0.636 kPa, under the Armstrong limit
+    ("base", "suit", SUIT, [], False),  # a top scene round its rooms stands on its site: outside, though a kit
+    ("plaza", "open", ["street_night", "prologue_crowd", "square_pa"], [], True),
+    ("pier", "open", ["launch_pad"], [], True),  # a part of the plaza, its site the plaza's
+    ("cave", None, [], ["rock has no surface pressure"], False),
+    ("lost", None, [], ["no site in the setting holds it"], False),
+]
 
 
-def test_rooms_hear_their_own_tone(toy):
-    """Each room hears its own tone by what its design shows (one potted plant makes no greenhouse); a craft's room
-    no base hum through its hull; a scene added in the app is held by the plan that holds it.
+@pytest.mark.parametrize("place, heard, sounds, missing, kept", BEDS, ids=[row[0] for row in BEDS])
+def test_a_place_is_heard_as_its_design_says(toy, place, heard, sounds, missing, kept):
+    """A place's bed comes from its design alone: how it is heard, the tones it plays, and what its design lacks,
+    named, never guessed. The `bed` gate passes a decided bed and fails an undecided one naming what lacks; its bed gap
+    says what lacks, or that a decided bed is still to make, the sound row's to make only where the design is kept
+    (the plaza), else naming the work, never a node the table lacks (the hut).
     Break: score/stages/sound/beds.py: `found["shape"] = plan.get("shape")` -> `found["shape"] = None`
     Break: score/stages/sound/beds.py: `found["grounded"] = not plan.get("ground_free")` -> `found["grounded"] =
-        True`"""
-    assert bed(toy, "room")["sounds"] == ["habitat", "base_hum"]  # one potted plant makes no greenhouse
-    assert bed(toy, "farm")["sounds"] == ["greenhouse", "base_hum"]
-    assert bed(toy, "bay")["sounds"] == ["garage", "base_hum"]
-    assert bed(toy, "link")["sounds"] == ["link_tube", "base_hum"]
-    assert bed(toy, "cabin")["sounds"] == ["ship_inside"]  # a craft's room: no base hum through its hull
-    # added in the app: within.json lacks it, the base's plan holds it
-    assert bed(toy, "dock")["sounds"] == ["ship_inside"]
-    assert bed(toy, "hut")["sounds"] == ["camp_room"]  # a shelter alone in the open on Mars
-    assert bed(toy, "flatlet")["sounds"] == ["earth_flat"]  # a room where the air outside is breathed
-
-
-def test_outside_hears_the_suit_or_the_open_air(toy):
-    """The Moon's vacuum and Mars's 0.636 kPa are under the Armstrong limit: the suit; Earth's open air, its crowd.
+        True`
     Break: score/stages/sound/beds.py: `None if kpa is None else "suit" if kpa < ARMSTRONG_KPA else "open")`
-        -> `None if kpa is None else "open")`"""
-    for place in ("crater", "dunes"):  # the Moon's vacuum and Mars's 0.636 kPa, both under the Armstrong limit
-        found = bed(toy, place)
-        assert found["facts"]["heard"] == "suit" and found["sounds"] == ["suit_fans", "suit_breathing_calm"], found
-    assert bed(toy, "plaza")["sounds"] == ["street_night", "prologue_crowd", "square_pa"]
-    assert bed(toy, "pier")["sounds"] == ["launch_pad"]  # a part of the plaza, its site the plaza's
-    found = bed(toy, "base")  # a top scene round its rooms stands on its site: outside, though its shell is a kit
-    assert found["facts"]["heard"] == "suit" and found["sounds"] == ["suit_fans", "suit_breathing_calm"], found
-
-
-def test_what_the_design_lacks_is_named_never_guessed(toy):
-    """A body with no surface pressure and a scene no site holds hear nothing, each named, and a gap says so.
+        -> `None if kpa is None else "open")`
     Break: score/stages/sound/beds.py: `found["missing"].append(f"{ground} has no surface pressure")` -> `pass`
-    Break: score/stages/sound/beds.py: `found["missing"].append("no site in the setting holds it")` -> `pass`"""
-    cave, lost = bed(toy, "cave"), bed(toy, "lost")
-    assert cave["sounds"] == [] and cave["facts"]["missing"] == ["rock has no surface pressure"], cave
-    assert lost["sounds"] == [] and lost["facts"]["missing"] == ["no site in the setting holds it"], lost
-    data, design = toy
-    gaps = {gap["id"]: gap for gap in needs.gaps("cave", data, design)}
-    assert "rock has no surface pressure" in gaps["sound:bed:room"]["work"], gaps
-    room = {gap["id"]: gap for gap in needs.gaps("room", data, design)}  # decided: a bed still to make, no old pick
-    assert "cave" in beds.places(design) and "still to make" in room["sound:bed:room"]["sentence"], room
-
-
-def test_the_bed_gate_fails_a_scene_whose_design_leaves_its_bed_undecided(toy):
-    """The farm's bed is decided: pass; the cave's and the lost scene's undecided: fail, naming what lacks.
-    Break: score/stages/sound/gates.py: `    if bed["sounds"]:` -> `    if True:`"""
-    data, design = toy
-    judged = {place: gates.judge_bed(None, beds.paths(place, data, design), None) for place in ("farm", "cave", "lost")}
-    assert judged["farm"].answer == checks.PASS, judged["farm"]
-    assert judged["cave"].answer == checks.FAIL and judged["cave"].findings == ("rock has no surface pressure",)
-    assert judged["lost"].answer == checks.FAIL and judged["lost"].findings == ("no site in the setting holds it",)
-
-
-def test_a_bed_still_to_make_is_the_sound_row_s_only_where_the_design_has_one(toy):
-    """The plaza (a kept design) and the hut (a plan alone) both hear a bed still to make: the plaza's gap is its sound
-    row's to make, the hut has no sound row, so its gap names the work, never a node the table lacks.
+    Break: score/stages/sound/beds.py: `found["missing"].append("no site in the setting holds it")` -> `pass`
+    Break: score/stages/sound/gates.py: `    if bed["sounds"]:` -> `    if True:`
     Break: score/stages/sound/needs.py: `"node": f"sound@{place}" if made_here else None,` -> `"node":
         f"sound@{place}",`"""
     data, design = toy
-    plaza, hut = (next(gap for gap in needs.gaps(place, data, design) if gap["id"] == "sound:bed:room")
-                  for place in ("plaza", "hut"))
-    assert "still to make" in plaza["sentence"] and "still to make" in hut["sentence"], (plaza, hut)
-    assert plaza["node"] == "sound@plaza" and plaza["work"] is None, plaza
-    assert hut["node"] is None and hut["work"], hut
-    assert needs.sounded("plaza", design) and not needs.sounded("hut", design)
+    found = beds.of_place(place, beds.paths(place, data, design))
+    assert (found["facts"].get("heard"), found["sounds"], found["facts"]["missing"]) == (heard, sounds, missing), found
+    verdict = gates.judge_bed(None, beds.paths(place, data, design), None)
+    assert (verdict.answer, verdict.findings) == (checks.PASS if sounds else checks.FAIL, tuple(missing)), verdict
+    gap = {gap["id"]: gap for gap in needs.gaps(place, data, design)}["sound:bed:room"]
+    assert place in beds.places(design) and needs.sounded(place, design) == kept
+    if missing:
+        assert all(lack in gap["work"] for lack in missing) and gap["node"] is None, gap
+    else:
+        assert "still to make" in gap["sentence"], gap
+        assert (gap["node"], gap["work"] is None) == ((f"sound@{place}", True) if kept else (None, False)), gap
 
 
 # --- the sound row's make, gates and takes ----------------------------------------------------------------------------
