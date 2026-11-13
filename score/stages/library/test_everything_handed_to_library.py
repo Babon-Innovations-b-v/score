@@ -232,7 +232,10 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
         tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls, found, blobs):
     called = fake_library(tmp_path, monkeypatch, mode, found, blobs) if mode else None
     runner = toy_runner(tmp_path, free=free, exceptions=exceptions)
+    asked = []
+    monkeypatch.setattr(handed, "spawn", lambda store, job: asked.append(job))
     did = runner.run([PLACE])
+    assert asked == [] and not (tmp_path / "store" / handed.FOLDER).exists()  # handing accepts is off unless asked
     output, found = library_output(runner)
     assert handover.report(output)["backend"] == ("command" if mode else "none")
     assert set(verdicts) <= set(found), found
@@ -280,18 +283,11 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     again = runner.run([PLACE])
     assert again[f"library@{PLACE}"] == "fresh", again
     assert len(called.read_text().splitlines()) == calls, "a second run called the library again"
-
-
-def test_every_accept_is_handed_the_moment_it_is_made(tmp_path, monkeypatch):
-    """Off unless the run or the owner's click asks; a failing handover keeps the accept, the next one covers it."""
-    fake_library(tmp_path, monkeypatch)
-    runner = toy_runner(tmp_path)
-    runner.run([PLACE])
-    route = library.runner_route(runner)
-    asked = []
-    monkeypatch.setattr(handed, "spawn", lambda store, job: asked.append(job))
+    if not accepted:
+        return
+    # every accept handed the moment it is made: the run's automatic accept and the owner's start the handover; a
+    # failing handover keeps the accept and the next one covers it
     store, nodes = runner.store, lambda: handed.nodes_of(runner.stages.values(), [PLACE])
-    assert asked == [] and not (tmp_path / "store" / handed.FOLDER).exists()
     (tmp_path / f"data/briefs/{PLACE}.txt").write_text("the garage, again")
     runner.hand_on_accept = True
     assert runner.run([PLACE])[f"made@{PLACE}"].endswith("accepted automatically")
@@ -300,7 +296,7 @@ def test_every_accept_is_handed_the_moment_it_is_made(tmp_path, monkeypatch):
     assert handed.waiting(store, WORLD, nodes()) == {None: [("ground", store.accepted("ground"))],
                                                      PLACE: [(f"made@{PLACE}", made)]}
     job = {"world": WORLD, "seed": 7, "commit": asked[0]["commit"], "route": route, "repo": str(REPO)}
-    library_command = os.environ["SCORE_LIB_COMMAND"]
+    library_command = backend.settings()["SCORE_LIB_COMMAND"]
     monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} -c 'import sys; sys.exit(3)'")
     handed.drain(store, WORLD, lambda: job, nodes, say=lambda line: None)
     assert store.accepted(f"made@{PLACE}") == made  # a failed handover never loses the accept
