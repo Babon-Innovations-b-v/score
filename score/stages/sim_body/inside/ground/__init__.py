@@ -1,6 +1,7 @@
 """The scene's ground as the sim body stands on it (pure numpy, the person's own frame, Y up): each point's ground (the
 highest drawn triangle under it, at most REACH_UP over it, or over its body's lowest point or middle (`body_reach`), with
-HEADROOM free over it), its height over it, and each triangle's upward normal."""
+HEADROOM free over it or within a knee of its body's lowest point (`body_floor`), never one over the point with another
+between them), its height over it, and each triangle's upward normal."""
 import numpy as np
 
 # Free height over a surface for a body to stand on it (metres): under less (a table top, a shelf) it is a block.
@@ -8,6 +9,7 @@ HEADROOM = 1.0
 # How far over a point its ground may lie (metres): the cast's KNEE (score/stages/cast/measure.py; the test checks
 # they agree), so a body the cast stands on a deck stands on the deck, not on the floor under it.
 REACH_UP = 0.3
+SAME = 1e-9  # metres: crossings closer than this are one (a point on an edge two triangles share)
 
 
 def _crossings(points, ground):
@@ -43,16 +45,39 @@ def body_reach(points):
     return max(points[:, 1].min() + REACH_UP, float(np.median(points[:, 1])))
 
 
-def standing(points, ground, reach=None):
+def body_floor(points):
+    """The highest a body's floor may lie whatever is over it: REACH_UP over its lowest point. The surface its feet
+    stand on is its floor with a desk, a chair's seat or a railing over part of them (2026-11-13, greenhouse's
+    astronaut_1 and astronaut_4: the deck under a chair and a tank, 0.42 m and less free over it, read as blocks, and
+    the furniture's tops over the feet as their ground: 0.798 and 0.409 m into it)."""
+    return points[:, 1].min() + REACH_UP
+
+
+def beneath(points, which, heights):
+    """Whether each crossing (sorted by point, then height) lies over its point and over the lowest crossing over it:
+    the point is under that solid (beneath a desk's top, its underside between), never in it. Crossings at one height
+    (a point on the edge two triangles share) are one."""
+    if not len(which):
+        return np.zeros(0, dtype=bool)
+    over = heights > points[which, 1]
+    starts = np.flatnonzero(np.append(True, which[1:] != which[:-1]))
+    lowest = np.minimum.reduceat(np.where(over, heights, np.inf), starts)  # each point's lowest crossing over it
+    return over & (heights > np.repeat(lowest, np.diff(np.append(starts, len(which)))) + SAME)
+
+
+def standing(points, ground, reach=None, floor=None):
     """Each point's ground: the highest crossing at most `reach` high (default REACH_UP over the point) with HEADROOM
-    free over it, its height and its triangle (nan and -1 where none is)."""
+    free over it, or at most `floor` high (default none: a body's `body_floor`), and not `beneath` it, its height and
+    its triangle (nan and -1 where none is)."""
     reach = points[:, 1] + REACH_UP if reach is None else np.broadcast_to(reach, len(points))
+    floor = np.full(len(points), -np.inf) if floor is None else np.broadcast_to(floor, len(points))
     which, heights, triangles = _crossings(points, ground)
     order = np.lexsort((heights, which))
     which, heights, triangles = which[order], heights[order], triangles[order]
     above = np.append(heights[1:], np.inf)
     above[np.append(which[1:] != which[:-1], True)] = np.inf  # the top crossing of each point has nothing over it
-    free = (above - heights >= HEADROOM) & (heights <= reach[which])
+    free = (((above - heights >= HEADROOM) | (heights <= floor[which])) & (heights <= reach[which])
+            & ~beneath(points, which, heights))
     found, under = np.full(len(points), np.nan), np.full(len(points), -1)
     which, heights, triangles = which[free], heights[free], triangles[free]
     top = which != np.append(which[1:], -1)  # the highest standing crossing of each point
@@ -60,9 +85,9 @@ def standing(points, ground, reach=None):
     return found, under
 
 
-def heights_over(points, ground, reach=None):
-    """Each point's height over its ground (`standing`'s reach); nan where it has none."""
-    return points[:, 1] - standing(points, ground, reach)[0]
+def heights_over(points, ground, reach=None, floor=None):
+    """Each point's height over its ground (`standing`'s reach and floor); nan where it has none."""
+    return points[:, 1] - standing(points, ground, reach, floor)[0]
 
 
 def normals(ground):
