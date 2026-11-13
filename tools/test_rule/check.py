@@ -168,7 +168,6 @@ FUNCTION_DEBT = {
     "tools/props/test_crop_as_pixal3d_does.py": 2,
     "tools/props/test_one_run_on_the_card.py": 12,
     "tools/props/test_raw_model_faces_minus_z.py": 3,
-    "tools/review/test_a_films_shots_keep_clear_and_move_smoothly.py": 17,
     "tools/review/test_a_preview_shows_each_shots_ends_and_leaves_the_stage_alone.py": 4,
     "tools/review/test_a_region_is_judged_against_the_games_own_light.py": 4,
     "tools/review/test_the_style_measure_reads_only_the_models_own_pixels.py": 8,
