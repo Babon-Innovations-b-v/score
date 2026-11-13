@@ -6,6 +6,9 @@
     a gone image      a wired tool's image with no folder is refused
     no why            a row without its reason is refused
 
+One test, test_every_vendored_tool_is_accounted_for, runs the real table and a case table of stand-in
+repositories (each row: what is changed in the stand-in, and the faults that must come back) through `faults`.
+
 Breaks (each applied once, seen red, reverted), in score/adapters/vendored/__init__.py:
 - the real table, a gone image: row_faults looks for the image one folder too deep (`images / "x" / row["image"]`).
 - a new tool: folder_faults reports no folder without a row.
@@ -28,59 +31,52 @@ sys.path.insert(0, str(REPO))
 from score.adapters import vendored  # noqa: E402
 
 
-def stand_in():
-    """A repository of one vendored tool, its caller, its image and its stage."""
-    root = pathlib.Path(tempfile.mkdtemp(prefix="vendored-test-"))
-    for folder in ("vendor/toolkit", "tools/cloud/images/toolbox", "score/stages/shaping", "tools/run"):
+CALLER = "tools/run/call.py"
+
+# name, what the stand-in changes, the faults `faults` must give; None runs the real table on the real repository
+CASES = [
+    ("the real table", None, []),
+    ("the stand-in as made", {}, []),
+    ("a new tool without a row", {"add": ("vendor/newtool",)},
+     ["vendor/newtool is vendored but has no row in score/adapters/vendored"]),
+    ("a caller that never names its tool", {"caller": "print('moved on')\n"},
+     ["toolkit: caller tools/run/call.py never names toolkit"]),
+    ("a caller that is gone", {"caller": None}, ["toolkit: caller tools/run/call.py is not there"]),
+    ("a gone image and stage", {"remove": ("tools/cloud/images/toolbox", "score/stages/shaping")},
+     ["toolkit: image toolbox has no folder in tools/cloud/images",
+      "toolkit: stage package score/stages/shaping is not there"]),
+    ("no why", {"why": ""}, ["toolkit: no why"]),
+]
+
+
+def stand_in(root, change):
+    """A repository of one vendored tool, its caller, its image and its stage, with `change` applied; its table."""
+    for folder in ("vendor/toolkit", "tools/cloud/images/toolbox", "score/stages/shaping", "tools/run",
+                   *change.get("add", ())):
         (root / folder).mkdir(parents=True)
-    (root / "tools/run/call.py").write_text("subprocess.run(['vendor/toolkit/run'])\n")
-    row = {"use": vendored.WIRED, "image": "toolbox", "names": ("toolkit",), "callers": ("tools/run/call.py",),
-           "stages": ("shaping",), "why": "a stand-in"}
-    return root, {"toolkit": row}
+    caller = change.get("caller", "subprocess.run(['vendor/toolkit/run'])\n")
+    if caller is not None:
+        (root / CALLER).write_text(caller)
+    for folder in change.get("remove", ()):
+        shutil.rmtree(root / folder)
+    row = {"use": vendored.WIRED, "image": "toolbox", "names": ("toolkit",), "callers": (CALLER,),
+           "stages": ("shaping",), "why": change.get("why", "a stand-in")}
+    return {"toolkit": row}
 
 
-def test_the_real_table():
-    assert vendored.faults() == [], vendored.faults()
-
-
-def test_a_new_tool_without_a_row():
-    root, tools = stand_in()
-    (root / "vendor/newtool").mkdir()
-    assert vendored.faults(tools, root) == ["vendor/newtool is vendored but has no row in score/adapters/vendored"]
-    shutil.rmtree(root)
-
-
-def test_a_stale_caller():
-    root, tools = stand_in()
-    assert vendored.faults(tools, root) == []
-    (root / "tools/run/call.py").write_text("print('moved on')\n")
-    assert vendored.faults(tools, root) == ["toolkit: caller tools/run/call.py never names toolkit"]
-    (root / "tools/run/call.py").unlink()
-    assert vendored.faults(tools, root) == ["toolkit: caller tools/run/call.py is not there"]
-    shutil.rmtree(root)
-
-
-def test_a_gone_image_and_stage():
-    root, tools = stand_in()
-    shutil.rmtree(root / "tools/cloud/images/toolbox")
-    shutil.rmtree(root / "score/stages/shaping")
-    assert vendored.faults(tools, root) == ["toolkit: image toolbox has no folder in tools/cloud/images",
-                                            "toolkit: stage package score/stages/shaping is not there"]
-    shutil.rmtree(root)
-
-
-def test_no_why():
-    root, tools = stand_in()
-    tools["toolkit"]["why"] = ""
-    assert vendored.faults(tools, root) == ["toolkit: no why"]
-    shutil.rmtree(root)
+def test_every_vendored_tool_is_accounted_for():
+    for name, change, expected in CASES:
+        if change is None:
+            found = vendored.faults()
+        else:
+            with tempfile.TemporaryDirectory(prefix="vendored-test-") as folder:
+                root = pathlib.Path(folder)
+                found = vendored.faults(stand_in(root, change), root)
+        assert found == expected, f"{name}: {found}"
 
 
 if __name__ == "__main__":
-    import pathlib
     import runpy
     runpy.run_path(str(pathlib.Path(__file__).resolve().parents[3] / "conftest.py"))["refuse_outside_sandbox"]()
-    tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
-    for test in tests:
-        test()
-    print(f"vendored_test: {len(tests)} passed")
+    test_every_vendored_tool_is_accounted_for()
+    print(f"vendored_test: {len(CASES)} cases passed")
