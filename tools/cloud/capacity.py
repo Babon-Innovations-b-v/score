@@ -194,9 +194,11 @@ def runs_at_once(kind, machine_class):
 
 def caps():
     """The machine caps: the backend's quotas by class, then SCORE_MAX_MACHINES's `class=N` pairs over them, with
-    `all` for a whole run."""
+    `all` for a whole run: the backend's own count when it has one (this PC's claims_at_once: as many claims as its
+    card and memory hold by their measured shares), else the largest quota, at least RUN_MACHINES."""
     quotas = getattr(provider.cloud, "QUOTAS", {})
-    found = dict(quotas, all=max(RUN_MACHINES, *quotas.values()))
+    at_once = getattr(provider.cloud, "claims_at_once", None)
+    found = dict(quotas, all=at_once() if at_once else max(RUN_MACHINES, *quotas.values()))
     for pair in filter(None, os.environ.get("SCORE_MAX_MACHINES", "").replace(" ", "").split(",")):
         name, _, number = pair.partition("=")
         if not number.isdigit():

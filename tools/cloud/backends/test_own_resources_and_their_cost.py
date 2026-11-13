@@ -126,6 +126,12 @@ The invariants, each with the break that turns its test red (each applied once a
   first; or drop the memory sum in `card_queue.take` -> the Pixal3D claim starts beside both; or drop
   `card_queue.resize(...)` in `let_go_turn` -> the second place gets one turn; or drop `if turns else 0` there -> a claim
   that let its last turn go holds memory None and every next claim fails to count the queue's memory.
+- A sim-body claim (BESIDE) shares score-this-pc with the Blender bakes, its share of the queue the queue's own measure
+  of its kind (5 takes: 3.6 GB of card, 3.12 GB x MEMORY_MARGIN), never the whole card and memory; a second one waits
+  while its card does not fit; the run's cap here is as many claims as fit by those shares (claims_at_once), never a
+  fixed one. Break: `(kind in SHARED or kind in BESIDE)` -> `kind in SHARED` in `claimed` -> the sim-body claim
+  waits on the bakes' lock; or drop `memory_share = measured_memory` in `take` -> it holds the whole memory and
+  waits; or `at_once() if at_once else max(...)` -> `max(...)` in `capacity.caps` -> the cap reads 20.
 - A claim's memory is its container's highest anon reading while it holds its share, counted for its kind only from
   claims alone in that container. Break: drop the `card_queue.watch_memory(...)` call in `local.take` -> memory
   unmeasured; or drop `and not any(beside(...))` in `card_queue.read_memory` -> 5.0 GB from the two claims together;
@@ -1049,4 +1055,21 @@ def test_this_pc_claims_of_different_kinds_run_side_by_side_each_in_its_own_cont
     bakes = local.take("blender", "key")
     assert bakes["id"].startswith("score-this-pc:") and local.take("characters", "key", {"card_gb": 1,
                                                                                           "memory_gb": 3}) is None
+    local.delete(bakes["id"], local.ZONE)
+    with (card_queue.QUEUE / "measures.jsonl").open("a") as measures:  # sim-body's claims, measured by the queue
+        for card_gb, memory_gb in ((3.6, 3.12), (2.9, 2.4), (3.2, 2.9), (2.6, 2.1), (3.4, 2.7)):
+            measures.write(json.dumps({"job": "this-pc sim-body", "card_gb": card_gb, "alone": True, "cores": 9.7,
+                                       "memory_gb": memory_gb, "memory_alone": True}) + "\n")
+    bakes = local.take("blender", "key")  # 9.7 GB of card, 22.1 GiB
+    body = local.take("sim-body", "key", {"memory_gb": 1.86})  # beside them: 3.6 GB, 3.12 GB x 1.5 = 4.4 GiB
+    assert body["id"].startswith("score-this-pc:") and body["id"] != bakes["id"]
+    assert [round(share["memory_gb"], 1) for share in card_queue.live("held") if share["job"] == "this-pc sim-body"] \
+        == [4.4]
+    assert local.take("sim-body", "key") is None  # a second sim body: 16.9 GB of card does not fit, it waits
+    card_queue.release(card_queue.WAITING.pop(("this-pc sim-body", "env-run")))
+    import capacity
+    monkeypatch.setattr(capacity.provider, "cloud", local)
+    monkeypatch.delenv("SCORE_MAX_MACHINES", raising=False)
+    assert capacity.run_cap() == local.claims_at_once() == 2  # similar's 0.8 and sim-body's 3.6; the bakes' 9.7 not
+    local.delete(body["id"], local.ZONE)
     local.delete(bakes["id"], local.ZONE)

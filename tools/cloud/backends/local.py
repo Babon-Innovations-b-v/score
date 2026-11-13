@@ -12,29 +12,30 @@ Linux through `--gpus all`); each container's memory and cores are held under th
 so a job that runs out of memory fails alone and never takes WSL down.
 
 Claims of different kinds run side by side, each in its container, while their shares of this PC's one card queue
-(card_queue.py: card GB from CARD_NEED or the run's measured need, memory GiB from memory_need; an unmeasured need
-holds the whole) fit together; a claim holds the PC's LOCK shared and its container's lock (container_lock), one claim
-a container at a time but for the SHARED kinds. A claim that finds either busy, or the queue without room for it, gets
-None and its runner waits and asks again (batch.claim_rounds polls park.adopt); a claim the queue refused waits in
-it, first come first served, so a stream of claims never starves an earlier one, and a card user outside the
-containers (sim body tuning, a proof container) never passes the card beside them. A SHARED kind's jobs (Blender:
-every input and output at its own absolute path, nothing of one claim's in another's way) share its container across
-claims: such a claim holds its container's lock shared and takes free ones of RUNS_AT_ONCE's turns (a lock file each,
-one Blender job a turn) as many as the queue's free memory holds (free_memory_turns), each turn let go as its slot
-runs out of work (spread.tend, its share's memory with it), so the container runs up to RUNS_AT_ONCE's Blender jobs at
-once over all the places' bake rows, never one row at a time (env1, 2026-10-28: 26 bake rows waited on the claim of
-one place). An exclusive claim waiting for a lock (its want beside the lock) keeps new shared claims of it out until
-it has its turn; set-ups (`setting_up`) run one at a time over the PC. Each of the jobs' card calls (the Cycles bake,
-a render) waits its turn on the card (card_turn.py, put into the claim's container's Blender startup folder at every
-claim), so the card never works for more than card_turn.CARD_SLOTS (two) Blender jobs at once. Its offers are
-always `parked`, so batch.rent never orders anything: the machine is only ever taken through park.adopt
-(park.here), which asks no clearance, since it costs nothing (price 0; the ledger's rows carry the measured minutes
-at EUR 0). A job that needs more card or memory than this PC has is refused at its claim with the reason, never run
-to an out-of-memory; it stays a cloud job. The need is the job's own measure when its run gives one (a characters
-run whose steps are all measured: characters.card_need), else its kind's (TOO_BIG). A job predicted past its
-container's memory runs alone (the PC's LOCK exclusive). `delete` restarts the claim's container, which ends whatever
-a job left running on the card (a detached worker), and keeps its files: only when no other claim holds it, so the
-last shared claim to leave restarts it and none restarts it under another claim's jobs.
+(card_queue.py: card GB from CARD_NEED or the run's measured need, memory GiB from memory_need; a kind in neither its
+own measure in the queue, measured_share; an unmeasured need holds the whole) fit together; a claim holds the PC's LOCK
+shared and its container's lock (container_lock), one claim a container at a time but for the SHARED kinds and the
+BESIDE kinds sharing theirs. A claim that finds either busy, or the queue without room for it, gets None and its runner
+waits and asks again (batch.claim_rounds polls park.adopt); a claim the queue refused waits in it, first come first
+served, so a stream of claims never starves an earlier one, and a card user outside the containers (sim body tuning, a
+proof container) never passes the card beside them. A SHARED kind's jobs (Blender: every input and output at its own
+absolute path, nothing of one claim's in another's way) share its container across claims: such a claim holds its
+container's lock shared and takes free ones of RUNS_AT_ONCE's turns (a lock file each, one Blender job a turn) as many
+as the queue's free memory holds (free_memory_turns), each turn let go as its slot runs out of work (spread.tend, its
+share's memory with it), so the container runs up to RUNS_AT_ONCE's Blender jobs at once over all the places' bake rows,
+never one row at a time (env1, 2026-10-28: 26 bake rows waited on the claim of one place). An exclusive claim waiting
+for a lock (its want beside the lock) keeps new shared claims of it out until it has its turn; set-ups (`setting_up`)
+run one at a time over the PC. Each of the jobs' card calls (the Cycles bake, a render) waits its turn on the card
+(card_turn.py, put into the claim's container's Blender startup folder at every claim), so the card never works for more
+than card_turn.CARD_SLOTS (two) Blender jobs at once. Its offers are always `parked`, so batch.rent never orders
+anything: the machine is only ever taken through park.adopt (park.here), which asks no clearance, since it costs nothing
+(price 0; the ledger's rows carry the measured minutes at EUR 0). A job that needs more card or memory than this PC has
+is refused at its claim with the reason, never run to an out-of-memory; it stays a cloud job. The need is the job's own
+measure when its run gives one (a characters run whose steps are all measured: characters.card_need), else its kind's
+(TOO_BIG). A job predicted past its container's memory runs alone (the PC's LOCK exclusive). `delete` restarts the
+claim's container, which ends whatever a job left running on the card (a detached worker), and keeps its files: only
+when no other claim holds it, so the last shared claim to leave restarts it and none restarts it under another claim's
+jobs.
 
 A claim's end also removes its own files from its container, as a rented machine's clean-up does before it is parked
 (2026-11-03: this PC's disk 98% full, 476 GB in the containers' own layers, score-this-pc 379 GB, since nothing removed
@@ -111,8 +112,17 @@ HELD = {}  # {machine id: the open lock file} for the claims this process holds
 # (2026-10-31, card_queue.py measured).
 CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4, "segment": 7.55}
 # The memory GB a kind's claim holds when its run gives none (run.need's memory_gb comes first); a kind in neither
-# holds the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs, the worker's resident peak 1.26 GB.
+# holds its measured share (measured_share), else the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs,
+# the worker's resident peak 1.26 GB.
 MEMORY_NEED = {"similar": 1.3}
+# A kind in neither CARD_NEED nor MEMORY_NEED, its run giving no need, holds in the card queue what the queue measured
+# of its claims (card_queue.peaks of "this-pc <kind>": the highest card alone on the card, the highest memory alone in
+# its container times MEMORY_MARGIN), once MEASURED_TAKES such takes are kept; until then the whole of it. The share
+# is the queue's count only: the container keeps memory_cap (never held to a measure: 2026-11-13, sim-body held to
+# 3 GB was killed by the container's limit), so a take past its measure grows in the container and raises the measure.
+# 2026-11-13: sim-body's claims (8 takes, card 3.6 GB, memory 3.12 GB, 9.7 cores) held the whole card and memory, and
+# the Blender bakes waited behind a processor-bound job with the card at 4%.
+MEASURED_TAKES = 5
 # Kinds whose run's memory_gb is blender_cloud's prediction for a Blender job, not a measure of theirs: a held chain
 # (--serve) of another kind is given PREDICTED_BASE (Blender and the scene) before its first job names a script
 # (blender_cloud.alone_need), and a claim held to that ran sim_body.py in a 3 GB container, whose memory limit killed
@@ -130,9 +140,16 @@ MEMORY_MARGIN = 1.5
 TURNS = {}  # {machine id: [its open turn files]} for the shared claims this process holds
 # Kinds whose claims share the machine (the docstring): each of their jobs' files is at its own absolute path.
 SHARED = frozenset({"blender"})
+# Kinds whose claims share their container with the SHARED kind's beside it (the container's lock held shared), one
+# job a claim and no turns, each its own share of the card queue: their jobs' files at their own paths and their
+# clean-up naming only those (park.CLEANUPS), their set-up Blender's and the container's Newton env, which no other
+# kind's set-up moves. sim-body (blender_cloud's Machine of kind sim-body, newton_env.sh): 2026-11-13, one sim-body
+# claim held score-this-pc alone for 20-35 min of mostly processor work while the Blender bakes and a second place's
+# sim body waited on its lock.
+BESIDE = frozenset({"sim-body"})
 # The kinds that stay in MACHINE, the first container, which holds their set-up (Blender 5.0 and its system packages,
 # card_turn.py); every other kind has a container of its own (container), made from the same IMAGE (PRD #73).
-FIRST = frozenset({"blender", "library"})
+FIRST = frozenset({"blender", "library", "sim-body"})
 # Containers of their own for the other kinds only when the run says so (SCORE_THIS_PC_OWN_CONTAINERS=1, set at a
 # restart: each such kind then sets up once in its own); without it every kind stays in MACHINE, one claim at a time
 # but Blender's, as before.
@@ -238,8 +255,12 @@ def take(kind, public_key, need=None):
     alone = memory > int(memory_cap()[:-1]) * 2**30
     name = container(kind)
     handles, turns = claimed(kind, alone)
-    share = handles and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind)), "env-run",
-                                        "blender" if turns else None, memory_need(need, turns, alone))
+    card, measured_memory = measured_share(kind)
+    memory_share = memory_need(need, turns, alone)
+    if memory_share is None and not alone:
+        memory_share = measured_memory
+    share = handles and card_queue.take(f"this-pc {kind}", (need or {}).get("card_gb", CARD_NEED.get(kind, card)),
+                                        "env-run", "blender" if turns else None, memory_share)
     share = share and card_queue.watch(share)
     if handles and share is None:  # its card or memory is held (another kind's claim, a side job): it waits
         for held in (*turns, *handles):
@@ -289,6 +310,38 @@ def take(kind, public_key, need=None):
     elif alone:
         found["turns"] = 1  # one job at a time: the container's whole room is its
     return found
+
+
+def measured_share(kind):
+    """The card GB and memory GiB the card queue measured of `kind`'s claims (card_queue.peaks; the memory times
+    MEMORY_MARGIN), each None until MEASURED_TAKES of its takes measured it."""
+    peak = card_queue.peaks().get(f"this-pc {kind}", {})
+    card = peak["card_gb"] if peak.get("card_takes", 0) >= MEASURED_TAKES else None
+    memory = peak["memory_gb"] if peak.get("memory_takes", 0) >= MEASURED_TAKES else None
+    return card, None if memory is None else memory * MEMORY_MARGIN * GB_IN_GIB
+
+
+def claims_at_once():
+    """How many claims this PC holds at once, the run's cap of machines here (capacity.caps): the kinds' card queue
+    shares (a Blender claim at CARD_NEED with one turn's memory, every other at CARD_NEED, MEMORY_NEED or its
+    measured_share), smallest card first, as many as fit together in card_queue.BUDGET_GB and its memory_gb; a kind
+    with a part unknown (the whole) or too big for this PC (TOO_BIG) is left out; at least one. Each claim is still
+    admitted only while its share fits the queue beside those held (take)."""
+    kinds = set(CARD_NEED) | set(MEMORY_NEED) | {job.removeprefix("this-pc ") for job in card_queue.peaks()
+                                                 if job.startswith("this-pc ")}
+    shares = []
+    for kind in kinds - set(TOO_BIG):
+        card, memory = measured_share(kind)
+        card = CARD_NEED.get(kind, card)
+        memory = (BLENDER_PEAK_GB + BLENDER_MARGIN_GB) * GB_IN_GIB if kind in SHARED else (
+            MEMORY_NEED[kind] * GB_IN_GIB if kind in MEMORY_NEED else memory)
+        if card is not None and memory is not None:
+            shares.append((card, memory))
+    count, card_held, memory_held = 0, 0.0, 0.0
+    for card, memory in sorted(shares):
+        if card_held + card <= card_queue.BUDGET_GB and memory_held + memory <= card_queue.memory_gb():
+            count, card_held, memory_held = count + 1, card_held + card, memory_held + memory
+    return max(1, count)
 
 
 def own_need(kind, need):
@@ -341,7 +394,7 @@ def claimed(kind, alone=False):
     if alone:
         (wanting(LOCK) / str(os.getpid())).unlink(missing_ok=True)
     lock = container_lock(container(kind))
-    shared = kind in SHARED and not alone
+    shared = (kind in SHARED or kind in BESIDE) and not alone
     own = lock.open("a+")
     if not got(own, not shared) or shared and wanted_elsewhere(lock):
         for held in (own, whole):
@@ -352,6 +405,8 @@ def claimed(kind, alone=False):
     if not shared:
         (wanting(lock) / str(os.getpid())).unlink(missing_ok=True)
         return [whole, own], []  # alone: its container's lock too, so a late delete elsewhere leaves it running
+    if kind in BESIDE:
+        return [whole, own], []  # one job, no turns: its own share of the queue
     turns = free_turns(RUNS_AT_ONCE.get(kind, 1), free_memory_turns())
     if not turns:
         for held in (own, whole):

@@ -293,10 +293,11 @@ def record(handle, cores=None, memory_gb=None):
         measures.write(json.dumps(line) + "\n")
 
 
-def measured():
-    """One line a job of measures.jsonl: its takes, the highest card GB of those alone on the card (others' shares
-    beside it would count in a reading), the highest cores, and the highest memory GB of those alone in their
-    container (other claims there count in a reading)."""
+def peaks():
+    """measures.jsonl by job: {job: {"takes", "card_gb", "card_takes", "cores", "memory_gb", "memory_takes"}}, the
+    highest card GB of its takes alone on the card (others' shares beside it would count in a reading), the highest
+    cores, and the highest memory GB of its takes alone in their container (other claims there count in a reading);
+    a part never measured None, with no takes."""
     rows = {}
     path = QUEUE / "measures.jsonl"
     for line in path.read_text().splitlines() if path.exists() else []:
@@ -307,10 +308,19 @@ def measured():
         row["cores"] += [item["cores"]] if item["cores"] is not None else []
         row["memory_gb"] += [item["memory_gb"]] if item["memory_gb"] is not None and item.get(
             "memory_alone", True) else []
-    return "\n".join(f"{job}: {row['takes']} takes, card {max(row['alone'], default='unmeasured')} GB "
-                     f"({len(row['alone'])} alone), cores {max(row['cores'], default='unmeasured')}, memory "
-                     f"{max(row['memory_gb'], default='unmeasured')} GB ({len(row['memory_gb'])} alone)"
-                     for job, row in sorted(rows.items()))
+    return {job: {"takes": row["takes"], "card_gb": max(row["alone"], default=None), "card_takes": len(row["alone"]),
+                  "cores": max(row["cores"], default=None), "memory_gb": max(row["memory_gb"], default=None),
+                  "memory_takes": len(row["memory_gb"])} for job, row in rows.items()}
+
+
+def measured():
+    """One line a job of its peaks: its takes, its card GB, cores and memory GB, each "unmeasured" when none."""
+    def shown(value):
+        return "unmeasured" if value is None else value
+
+    return "\n".join(f"{job}: {row['takes']} takes, card {shown(row['card_gb'])} GB ({row['card_takes']} alone), "
+                     f"cores {shown(row['cores'])}, memory {shown(row['memory_gb'])} GB ({row['memory_takes']} alone)"
+                     for job, row in sorted(peaks().items()))
 
 
 def release(handle, cores=None, memory_gb=None):
