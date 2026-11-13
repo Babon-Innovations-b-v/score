@@ -9,20 +9,20 @@ old tests needed went with the old disk (2026-10-19): those tests only ever skip
 geometry of the test's own.
 
 Breaks that turn it red (each applied once and seen red, then reverted):
-- `spread.grounded`: `or next(clashes)` dropped  -> the toy place test (the member stays in the crate).
+- `spread.grounded`: `or next(clashes)` dropped  -> the stood test (the member stays in the crate).
 - `spread.grounded`: `or not next(level)` dropped  -> the deck edge test (the member stays over the edge).
 - `measure.level_under`: `np.abs(row) <= FOOT_STEP` read as `<= 1.0`  -> the deck edge test.
 - `measure.level_under`: `- plane @ np.linalg.pinv(plane)` dropped (the gaps judged off the feet, not off a plane)
   -> the deck edge test (the person on the slope is left out).
-- `measure.run_into`: `sorted(names) if hit else []` read as `[]`  -> the toy place test.
-- `spread.NUDGES`: the rings past 1.2 m out to NUDGE_FAR dropped  -> the toy place test (the member among the beds
+- `measure.run_into`: `sorted(names) if hit else []` read as `[]`  -> the stood test.
+- `spread.NUDGES`: the rings past 1.2 m out to NUDGE_FAR dropped  -> the stood test (the member among the beds
   left out).
-- `cast.seated_clear`: `if not into` read as `if True`  -> the toy place test (the bench's sitter stays under the
+- `cast.seated_clear`: `if not into` read as `if True`  -> the stood test (the bench's sitter stays under the
   laptop).
-- `measure.seat_spots`: the `- BODY_RADIUS` dropped (spots to the seat's very ends)  -> the toy place test (85 spots
+- `measure.seat_spots`: the `- BODY_RADIUS` dropped (spots to the seat's very ends)  -> the stood test (85 spots
   across the bench, not 13 along it).
 - `cast.overlaps`: `< measure.KNEE` read as `< 100`  -> the overlap test (bodies on two levels overlap).
-- `cast.off_ground`: `> STAND_SLACK` read as `> 1.0`  -> the standing test.
+- `cast.off_ground`: `> STAND_SLACK` read as `> 1.0`  -> the stood test (a body 0.10 m off judged standing).
 - `cast.short_of`: the packed `not crowd["copies"]` branch dropped  -> the packed crowd test.
 - `driven.bodiless`: `.startswith(NO_BODY)` read as `False` (a person with no body passes)  -> the no dressed body test.
 - `cast.made_row`: `row if row in inputs else None` read as `row`  -> the made test (a look with no dress row made).
@@ -35,7 +35,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `cast.stairs_of`: `"down" if "down" in words` read as `"up"`  -> the levels test.
 - `cast.on_stairs`: `(lowest, highest) if ... == "up"` read as `(highest, lowest)`  -> the levels test.
 - `cast.off_the_plan`: `not any(...)` read as `False`  -> the levels test (the spot off the plan stood).
-- `cast.on_made_ground`: `ground > at[1]` read as `False`  -> the made ground rise test (the one under it found
+- `cast.on_made_ground`: `ground > at[1]` read as `False`  -> the stood test (the one under the rise found
   nothing under it).
 - `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
   a body that is not there instead of naming the gap).
@@ -45,24 +45,24 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `driven.lay_sim_body`: the Turned transform not set  -> the sim body test (the sim body mirrored off the skin).
 - `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the feet-leave test.
 - tools/characters/cast_check.py `repeated_people`: `len(names) > 1` read as `> 9`  -> the variants test.
-- `measure.seat_top`: `SEAT_LOW <=` dropped (the crate's floor face a seat)  -> the toy place test (the second
+- `measure.seat_top`: `SEAT_LOW <=` dropped (the crate's floor face a seat)  -> the stood test (the second
   seated person seated on the crate).
-- `cast.on_support`: `taken.add(name)` dropped  -> the toy place test (two people on one stool).
-- `cast.on_support`: a seated person's `at=at` dropped  -> the toy place test (seated on the floor at its spot).
-- `cast.on_support`: `max(tops) > person["at"][1]` read as `True`  -> the toy place test (one over it lowered).
-- `measure.run_into`: `- {seat}` dropped  -> the toy place test (the seated body runs into its own stool's back).
-- `cast.off_ground`: the no-seat branch dropped  -> the toy place test (a seated one with no seat stands).
-- `people_rows.doing_of`: `"seated" if seat_of(row) else` dropped  -> the toy place test (a stool's sitter sits on
-  the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the toy place test (nobody supported).
-- `cast.unseated`: `doing="standing"` dropped  -> the toy place test (one with no seat stays seated, off members).
-- `cast.judge_standing`: the unseated findings dropped  -> the toy place test (stood for want of a seat unnamed).
+- `cast.on_support`: `taken.add(name)` dropped  -> the stood test (two people on one stool).
+- `cast.on_support`: a seated person's `at=at` dropped  -> the stood test (seated on the floor at its spot).
+- `cast.on_support`: `max(tops) > person["at"][1]` read as `True`  -> the stood test (one over it lowered).
+- `measure.run_into`: `- {seat}` dropped  -> the stood test (the seated body runs into its own stool's back).
+- `cast.off_ground`: the no-seat branch dropped  -> the stood test (a seated one with no seat stands).
+- `people_rows.doing_of`: `"seated" if seat_of(row) else` dropped  -> the stood test (a stool's sitter sits on
+  the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the stood test (nobody supported).
+- `cast.unseated`: `doing="standing"` dropped  -> the stood test (one with no seat stays seated, off members).
+- `cast.judge_standing`: the unseated findings dropped  -> the stood test (stood for want of a seat unnamed).
 - `cast.on_stairs`: `runs[flight["name"]] != (0, ...)` dropped from the flight's order  -> the levels test (the man
   under the deck).
 - `cast.on_stairs`: `runs[flight["name"]] or` dropped (the whole flight walked, its clear run unread)  -> the levels
   test (the woman on the tread under the slab).
 - `stages.GAP_GATES`: `"characters-layer": ("bodies",)` dropped, or `driven.judge_bodies`'s finding not starting
   "<name>: "  -> the no-dressed-body test (a gap naming both people no longer moves the fail).
-- `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the toy place test
+- `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the stood test
   (the climber at the plan's middle, off its spot (0, 0, -3)).
 """
 import json
@@ -129,11 +129,66 @@ def seat_place(folder):
     return measure.solids(folder / "seats.usda", "camp")
 
 
-def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_path):
-    """Also: a seated person (its design anchors it on a seat) sits on the nearest seat of its anchor's row not taken,
+def made_place(folder):
+    """Place `camp` with a base.usda of no solid of its own and the terrain row's made ground
+    (world/places/camp.usdc): a rise 2 m up over x -5 to 0 and a hollow 1 m down over x 0 to 5 (wreck's made ground,
+    an earth seed whose plan lays no shell). Returns the terrain row's inputs."""
+    folder.mkdir()
+    base = Usd.Stage.CreateNew(str(folder / "base.usda"))
+    UsdGeom.Xform.Define(base, "/camp")
+    base.Save()
+    ground = Usd.Stage.CreateNew(str(folder / "world/places/camp.usdc"))
+    mesh(ground, "/camp/Ground/rise", [(-5, 2, -5), (0, 2, -5), (0, 2, 5), (-5, 2, 5)], [(0, 1, 2, 3)])
+    mesh(ground, "/camp/Ground/hollow", [(0, -1, -5), (5, -1, -5), (5, -1, 5), (0, -1, 5)], [(0, 1, 2, 3)])
+    ground.Save()
+    return {"terrain": str(folder)}
+
+
+FLOOR = {"gap": 0.0, "on": "Ground/floor", "water": False}
+NOTHING = {"gap": None, "on": None, "water": False}
+# Where a body's spot is measured: (world, its spots, the ground under each, the solids each runs into). `bare` is a
+# base with no solid (every body stands on nothing, for the standing gate to name, never failing the make); `made` the
+# same base measured with its made ground. A ground of None is not read (the body inside the crate).
+MEASURED = [
+    ("toy", [[0.5, 0.0, 0.5], [3.0, 0.0, 3.0]], [None, FLOOR], [["Objects/crate"], []]),
+    ("bare", [[0.0, 0.0, 0.0], [1.0, 0.0, 1.0]], [NOTHING, NOTHING], [[], []]),
+    ("made", [[-2.0, 2.0, 0.0]], [{"gap": 0.0, "on": "Ground/rise", "water": False}], [[]]),
+]
+# What is wrong with where a body's feet are: (the body's measure, the finding, whether the finding is the whole of it).
+OFF_GROUND = [
+    ({"gap": 0.03, "on": "Ground/floor", "water": False}, None, True),
+    ({"gap": 0.1, "on": "Ground/floor", "water": False}, "+0.10 m off", False),
+    ({"gap": 0.0, "on": "Ground/floor", "water": True}, "standing in the water", True),
+    ({"gap": None, "on": None, "water": False}, "nothing solid", False),
+    ({"gap": 0.0, "on": "Ground/floor", "water": False, "seat": None}, "no seat", False),
+    ({"gap": 0.0, "on": "Objects/stool_1_1", "water": False, "seat": "Objects/stool_1_1"}, None, True),
+]
+
+
+def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_out(tmp_path):
+    """Every spot is measured on its place's solids (its made ground too; a base with none stands nobody, and runs
+    into nothing), and each body's feet judged within the slack, never in water, a seated one on its seat. A seated
+    person (its design anchors it on a seat) sits on the nearest seat of its anchor's row not taken,
     its feet on the seat's floor under its middle, measured from its seat's top and clear of all but its own seat; one
-    whose row lays no seat it sits on is named; a standing one is raised onto the top of its anchor under it."""
+    whose row lays no seat it sits on is named; a standing one is raised onto the top of its anchor under it, and one
+    under a rise of the made ground onto it (wreck's astronaut_3, round 33, 2026-10-30: its plan spot at 0 lay under a
+    3.9 m rise, the knee's ray down found nothing and it was left out); one over a hollow stays."""
     seats = seat_place(tmp_path)
+    found = toy_place(tmp_path)
+    inputs = made_place(tmp_path / "made")
+    bare = measure.solids(tmp_path / "made/base.usda", "camp")
+    made = measure.solids(tmp_path / "made/base.usda", "camp", cast.made_ground(inputs, "camp"))
+    assert set(found) == {"Ground/floor", "Objects/crate"} and bare == {}
+    assert cast.made_ground(inputs, "camp") == tmp_path / "made/world/places/camp.usdc"
+    assert cast.made_ground({}, "camp") is None
+    worlds = {"toy": found, "bare": bare, "made": made}
+    for world, spots, under, into in MEASURED:
+        grounds = measure.ground_under(spots, worlds[world])
+        assert [ground if want else want for ground, want in zip(grounds, under)] == under, (world, grounds)
+        assert measure.run_into(spots, worlds[world]) == into, world
+    for body, finding, whole in OFF_GROUND:
+        judged = cast.off_ground(body)
+        assert (judged == finding) if whole else (finding in judged), (body, judged)
     assert measure.seat_top(seats["Objects/stool_1_1"]) == ([3.2, 0.0, 3.2], 0.45)
     assert measure.seat_top(seats["Objects/crate_1"]) is None  # its top 1 m up: no seat
     from score.stages import people_rows
@@ -192,12 +247,6 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_pat
     assert spot == [3.2, 0.45, 3.2] and measure.ground_under([spot], seats)[0]["gap"] == 0.0
     assert measure.run_into([spot], seats, [top], ["Objects/stool_1_1"]) == [[]]
     assert measure.run_into([spot], seats, [top]) == [["Objects/stool_1_1"]]  # its back, its own
-    assert "no seat" in cast.off_ground({"gap": 0.0, "on": "Ground/floor", "water": False, "seat": None})
-    assert cast.off_ground({"gap": 0.0, "on": "Objects/stool_1_1", "water": False, "seat": "Objects/stool_1_1"}) is None
-    found = toy_place(tmp_path)
-    assert set(found) == {"Ground/floor", "Objects/crate"}
-    assert measure.run_into([[0.5, 0.0, 0.5], [3.0, 0.0, 3.0]], found) == [["Objects/crate"], []]
-    assert measure.ground_under([[3.0, 0.0, 3.0]], found)[0] == {"gap": 0.0, "on": "Ground/floor", "water": False}
     inside = {"name": "worker_1", "at": [0.5, 0.0, 0.5], "doing": "standing"}
     lost = {"name": "worker_2", "at": [20.0, 0.0, 20.0], "doing": "standing"}  # off the floor, 15 m from it
     placed, copies = spread.stand_every([inside, lost], {"worker_1", "worker_2"},
@@ -217,48 +266,11 @@ def test_a_person_dealt_into_a_thing_is_stood_clear_round_it_or_left_out(tmp_pat
     wide = dict(found, **{"Objects/beds": trimesh.creation.box(
         extents=[6.0, 0.5, 6.0], transform=trimesh.transformations.translation_matrix([0.5, 0.25, 0.5])).triangles})
     assert spread.stand_every([inside], {"worker_1"}, [], 0, wide)[0] == []
-
-
-def test_a_base_with_no_solid_stands_nobody_and_runs_into_nothing():
-    """An earth seed whose plan lays no shell: every body stands on nothing, for the standing gate to name, instead
-    of failing the make."""
-    spots = [[0.0, 0.0, 0.0], [1.0, 0.0, 1.0]]
-    assert measure.ground_under(spots, {}) == [{"gap": None, "on": None, "water": False}] * 2
-    assert measure.run_into(spots, {}) == [[], []]
-
-
-def test_a_body_stands_on_the_places_made_ground(tmp_path):
-    """The terrain row's made ground (places/<place>.usdc) is measured with a base that has no solid of its own."""
-    base = Usd.Stage.CreateNew(str(tmp_path / "base.usda"))
-    UsdGeom.Xform.Define(base, "/camp")
-    base.Save()
-    ground = Usd.Stage.CreateNew(str(tmp_path / "world/places/camp.usdc"))
-    mesh(ground, "/camp/Ground/patch", [(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)], [(0, 1, 2, 3)])
-    ground.Save()
-    made = cast.made_ground({"terrain": str(tmp_path)}, "camp")
-    assert made == tmp_path / "world/places/camp.usdc" and cast.made_ground({}, "camp") is None
-    assert measure.solids(tmp_path / "base.usda", "camp") == {}
-    found = measure.solids(tmp_path / "base.usda", "camp", made)
-    assert [stood["on"] for stood in measure.ground_under([[0.0, 0.0, 0.0]], found)] == ["Ground/patch"]
-
-
-def test_a_person_under_a_rise_of_the_made_ground_stands_on_it(tmp_path):
-    """Wreck's astronaut_3 (round 33, 2026-10-30): its plan spot at 0 lay under a 3.9 m rise of the made ground, the
-    knee's ray down found nothing and it was left out. Raised onto the ground it stands; one over a hollow stays."""
-    base = Usd.Stage.CreateNew(str(tmp_path / "base.usda"))
-    UsdGeom.Xform.Define(base, "/camp")
-    base.Save()
-    ground = Usd.Stage.CreateNew(str(tmp_path / "world/places/camp.usdc"))
-    mesh(ground, "/camp/Ground/rise", [(-5, 2, -5), (0, 2, -5), (0, 2, 5), (-5, 2, 5)], [(0, 1, 2, 3)])
-    mesh(ground, "/camp/Ground/hollow", [(0, -1, -5), (5, -1, -5), (5, -1, 5), (0, -1, 5)], [(0, 1, 2, 3)])
-    ground.Save()
-    inputs = {"terrain": str(tmp_path)}
-    found = measure.solids(tmp_path / "base.usda", "camp", cast.made_ground(inputs, "camp"))
     record = {"people": [{"name": "up", "at": [-2.0, 0.0, 0.0]}, {"name": "down", "at": [2.0, 0.0, 0.0]}]}
-    assert spread.grounded([person["at"] for person in record["people"]], found)[0] is None
+    assert spread.grounded([person["at"] for person in record["people"]], made)[0] is None
     raised = cast.on_made_ground(record, writer.ground_under(inputs, "camp"))["people"]
     assert [person["at"] for person in raised] == [[-2.0, 2.0, 0.0], [2.0, 0.0, 0.0]]
-    assert spread.grounded([person["at"] for person in raised], found) == [[-2.0, 2.0, 0.0], [2.0, -1.0, 0.0]]
+    assert spread.grounded([person["at"] for person in raised], made) == [[-2.0, 2.0, 0.0], [2.0, -1.0, 0.0]]
     assert cast.on_made_ground(record, None) == record
 
 
@@ -287,13 +299,6 @@ def test_standing_bodies_nearer_than_two_widths_on_one_level_overlap():
         {"name": "a", "at": [0.0, 0.0, 0.0]}, {"name": "b", "at": [0.3, 0.0, 0.0]},
         {"name": "c", "at": [3.0, 0.0, 0.0]}, {"name": "d", "at": [3.1, 3.0, 0.0]})]  # d a landing over c
     assert cast.overlaps(singles, None) == [["a", "b"]]
-
-
-def test_feet_stand_within_the_slack_and_never_in_water():
-    assert cast.off_ground({"gap": 0.03, "on": "Ground/floor", "water": False}) is None
-    assert "+0.10 m off" in cast.off_ground({"gap": 0.1, "on": "Ground/floor", "water": False})
-    assert cast.off_ground({"gap": 0.0, "on": "Ground/floor", "water": True}) == "standing in the water"
-    assert "nothing solid" in cast.off_ground({"gap": None, "on": None, "water": False})
 
 
 def test_a_designs_crowd_without_ground_is_named_short():
