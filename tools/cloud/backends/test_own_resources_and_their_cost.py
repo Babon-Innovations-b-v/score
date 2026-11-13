@@ -113,7 +113,8 @@ The invariants, each with the break that turns its test red (each applied once a
 - The container keeps HOST_CORES of this PC's cores (--cpus 20 of 24) at every claim, and a claim whose run gives its
   measured memory is held to it times MEMORY_MARGIN (17 GB: 26g), set back at its delete; one with none keeps 27g.
   Break: drop `*cpu_arguments()` from `running`'s update; or `memory_gb * MEMORY_MARGIN` -> `memory_gb` in `held_to`
-  -> 17g; or drop the `elif ... held_to(...)` branch in `take`.
+  -> 17g; or drop the `elif ... held_to(...)` branch in `take`; or drop `need = own_need(kind, need)` in `take` -> a
+  sim-body chain held to blender_cloud's Blender prediction, 3g (sim-body@airlock and @garage killed, 2026-11-13).
 - Claims of different kinds run side by side, each in its kind's own container (Blender in score-this-pc, the others
   in score-this-pc-<kind>), while their card and memory shares fit the queue; an unmeasured kind holds the whole
   memory and waits for both; claims the queue refused are served first come first served; a Blender claim takes only
@@ -1020,6 +1021,9 @@ def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_me
     calls.clear()
     local.delete(local.take("pixal", "key")["id"], "this-pc")
     assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # no measure: 27g
+    calls.clear()  # a sim-body chain's memory_gb is blender_cloud's Blender prediction (2 GB), never its measure
+    local.delete(local.take("sim-body", "key", {"memory_gb": 1.86})["id"], "this-pc")
+    assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # not 3g
 
 
 def test_this_pc_claims_of_different_kinds_run_side_by_side_each_in_its_own_container_while_they_fit(monkeypatch,

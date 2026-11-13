@@ -113,6 +113,12 @@ CARD_NEED = {"blender": 9.7, "pixal": 10.8, "similar": 0.8, "library": 1.4, "seg
 # The memory GB a kind's claim holds when its run gives none (run.need's memory_gb comes first); a kind in neither
 # holds the whole memory. DINOv2's likeness: 2026-10-31, the same 56 pairs, the worker's resident peak 1.26 GB.
 MEMORY_NEED = {"similar": 1.3}
+# Kinds whose run's memory_gb is blender_cloud's prediction for a Blender job, not a measure of theirs: a held chain
+# (--serve) of another kind is given PREDICTED_BASE (Blender and the scene) before its first job names a script
+# (blender_cloud.alone_need), and a claim held to that ran sim_body.py in a 3 GB container, whose memory limit killed
+# it mid-run (2026-11-13: sim-body@airlock and @garage, ssh's 255, the container's OOM kill at 3.0 GB anon). Their
+# claim keeps memory_cap and holds the whole memory in the card queue, as any unmeasured one.
+PREDICTED_ONLY = frozenset({"sim-body"})
 CARDS = {}  # {machine id: its open share of the card queue} for the claims this process holds
 # Cores the container never gets (--cpus): WSL, the desktop and the run's own steps beside it keep them, so this PC
 # answers while the container is busy (2026-10-31: the PC lagged under load). No kind's cores are measured yet: each
@@ -224,6 +230,7 @@ def take(kind, public_key, need=None):
     unit_minutes, host, disk_gb, here}; None while another claim holds it, or while the room a job alone needs is
     not free (alone_room). ValueError for a job too big (refusal)."""
     need = {"memory_gb": MEMORY_NEED[kind], **(need or {})} if kind in MEMORY_NEED else need
+    need = own_need(kind, need)
     refused = refusal(kind, need)
     if refused:
         raise ValueError(refused)
@@ -282,6 +289,14 @@ def take(kind, public_key, need=None):
     elif alone:
         found["turns"] = 1  # one job at a time: the container's whole room is its
     return found
+
+
+def own_need(kind, need):
+    """`need` as a claim of `kind` holds it: without its memory_gb for a PREDICTED_ONLY kind (a Blender prediction,
+    not its own measure), None when nothing is left."""
+    if kind not in PREDICTED_ONLY or not need:
+        return need
+    return {key: value for key, value in need.items() if key != "memory_gb"} or None
 
 
 def queued(kind):
