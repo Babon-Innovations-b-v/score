@@ -291,32 +291,6 @@ MONTH = Spend(spent=120.0, reserved=30.0, ceiling=900.0, world="world1", month="
     CostLine(source="models", label="Model calls", euros=None, partial=True, origin="no rows yet")])
 
 
-@pytest.fixture
-def month_read():
-    """The routes read the month through their FastAPI dependency: MONTH in its place."""
-    from score.dashboard.site.asgi import inner
-    inner.dependency_overrides[actions.spend] = lambda: MONTH
-    yield MONTH
-    inner.dependency_overrides.clear()
-
-
-@pytest.fixture
-def cockpit(world, read, settings, tmp_path):
-    """The fixture environment with alpha's gaps priced (the close-up on the prop route, settle off it and measured,
-    the sound guessed), prepare's record, and the basket made."""
-    items = a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world, nodes={"closeup@alpha": {**MEASURED, "basis": "per unit × forecast"},
-                                "settle@alpha": SETTLE, "sound@alpha": {
-                                    "likely_euros": None, "high_euros": None, "guess_euros": 1.0,
-                                    "basis": "not measured yet", "likely_minutes": None, "high_minutes": None}},
-                  eta={"likely_minutes": None, "high_minutes": None, "at_least_minutes": 20.0,
-                       "unknown": [{"node": "sound@alpha"}]})
-    a_remake(world)
-    world.source.refresh()
-    world.items = items
-    return world
-
-
 # === who may see and act ==============================================================================================
 
 PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/place/beta/step/assembly/",
@@ -623,211 +597,93 @@ def test_the_step_page_shows_its_own_picture_and_what_it_read(world):
 
 # === screens' data (state/screens.py) =================================================================================
 
-def test_the_environment_screen_sums_the_remake_its_eta_floor_and_each_places_tile(cockpit):
-    """prepare's route EUR 10 (2 blocked, 1 predicted gap) plus settle off it (EUR 2-3), the sound unpriced: 12-15, 2
-    unpriced; the month: 2118.87 cloud, models not read, against the stop 120 + 30. Break: state/screens.py
-    `remake_money` leaves `rest` out of the whole."""
-    found = screens.environment(cockpit.source, MONTH)
-    remake = found["remake"]
-    assert (remake["route"]["likely"], remake["route"]["blocked"], remake["route"]["predicted_gaps"]) == (10.0, 2, 1)
-    assert remake["rest"] == {"likely": 2.0, "high": 3.0, "priced": 1, "unpriced": 1}
-    assert (remake["likely"], remake["high"], remake["unpriced"]) == (12.0, 15.0, 2)
-    assert remake["eta"] == {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "untimed": 3}
-    assert found["money"] == {"month": "2026-10", "cloud": 2118.87, "models": None, "total": 2118.87,
-                              "whole": False, "stop": 900.0, "against_stop": 150.0, "in_flight": 30.0,
-                              "refused": False}
-    alpha = next(place for place in found["places"] if place["place"] == "alpha")
-    assert alpha["gaps"] == 4 and alpha["worst"] == "route" and alpha["takes"]["takes"] == 3
-    assert [bool(place["picture"]) for place in found["places"]] == [True, False]
-    assert found["gaps"] == {"missing": 2, "gate": 1, "route": 1}
-    world = cockpit.source.world_state()
-    assert screens.picture_of(world, "alpha") == (f"/thumbs/{world.concepts['alpha'].sha}.jpg", "concept")
-    assert screens.picture_of(world, "beta") == (None, None)  # lost: never a render instead
-
-
-def test_before_any_design_is_approved_the_remake_is_an_estimate_that_buys_nothing(cockpit):
-    """Owner, 2026-10-21: prepare's figure over the read inventories (1 of 2), its floor and unpriced layers, on the
-    remake tile and Buy; never buyable; stale on uncommitted code. Break: state/screens.py `estimate` keeps its figure
-    while stale (`current = True`)."""
-    a_remake(cockpit, approved=(), inventory={"read": ["alpha"], "waiting": ["beta"]})
-    cockpit.source.refresh()
-    assert screens.remake_money(cockpit.source.world_state())["estimate"] == {
-        "likely": 10.0, "high": 12.0, "unpriced": ["likeness-calibration"], "places": 1, "waiting": 1,
-        "eta": {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "untimed": 2}, "stale": None}
-    owner = signed_in()
-    for page, start, end in (("/buy/", ">After design<", '<ul class="buy-layers buy-design">'),
-                             ("/places/", ">remake<", "Review and buy")):
-        html = owner.get(page).content.decode()
-        tile = html[html.index(start):html.index(end)]
-        assert "<small>EUR</small> 10&ndash;12<small>, " in tile
-        assert "1 <small>of</small> 2 <small>scenes</small>" in tile
-    assert 'data-url="/buy/yes/"' not in owner.get("/buy/").content.decode()
-    a_remake(cockpit, approved=(), inventory={"read": ["alpha"], "waiting": ["beta"]},
-             priced_on={"commit": "6cdf4d40", "uncommitted": True, "per_unit_sha256": "x"})
-    cockpit.source.refresh()
-    stale = screens.remake_money(cockpit.source.world_state())["estimate"]
-    assert stale["likely"] is None and stale["stale"] == "it was made on code not committed"
-
-
-def test_a_remake_priced_on_code_not_committed_shows_unknown_and_buy_disabled(cockpit):
-    """Never 0.00 stale. Break: state/screens.py `remake_money` drops prepare's `stale`."""
-    a_remake(cockpit, priced_on={"commit": "6cdf4d40", "uncommitted": True, "per_unit_sha256": "x"})
-    cockpit.source.refresh()
-    assert screens.remake_money(cockpit.source.world_state())["stale"] == ["it was made on code not committed"]
-    html = signed_in().get("/buy/").content.decode()
-    after = html[html.index(">Buy now<"):html.index('<ul class="buy-layers buy-design">')]
-    assert after.count(">unknown</span>") == 1 and "&ndash;" not in after
-    assert 'data-url="/buy/yes/"' not in html and 'disabled title="it was made on code not committed' in after
-
-
-def test_the_place_screen_lists_its_gaps_and_prices_each_chain_once(cockpit):
-    """The close-up's chain: its EUR 2-3 plus the guessed sound (1 unpriced); complete's: free plus the sound. Break:
-    state/screens.py `chain_price` prices every node of the record, not the chain's."""
-    found = screens.place(cockpit.source, "alpha", None)
-    assert [item["kind"] for item in found["items"]] == ["missing", "missing", "gate", "route"]
-    assert found["items"][0]["prim"] == "/alpha/Gaps/lamp_1" and found["items"][0]["node"] == "closeup@alpha"
-    assert found["prices"]["closeup@alpha"] == {"likely": 2.0, "high": 3.0, "priced": 1, "unpriced": 1}
-    assert found["prices"]["complete@alpha"] == {"likely": 0, "high": 0, "priced": 0, "unpriced": 1}
-    assert found["gaps"] == {"missing": 2, "gate": 1, "route": 1} and not found["price_stale"]
-
-
-def test_buy_totals_the_chosen_items_and_a_choice_on_another_version_is_none(cockpit, month_read):
-    """Stop = high 3 + 10% = 3.3; no choice, no stop. Break: state/screens.py `buy` sets the stop at the high, without
-    BUFFER."""
-    item = cockpit.items[0]
-    assert screens.buy(cockpit.items, {}, MONTH)["stop"] is None
-    found = screens.buy(cockpit.items, {item["id"]: "buy"}, MONTH)
-    assert found["chosen"] == 1 and (found["total"]["likely"], found["total"]["high"], found["stop"]) == (2.0, 3.0, 3.3)
-    assert found["eta"] == {"likely_minutes": 10.0, "high_minutes": 20.0, "untimed": 0}
-    stored = records.items(cockpit.root / "home" / "proposals")[0]
-    BasketChoice.objects.create(item=stored["id"], version="0" * 16, choice="buy", by="joey")
-    shown = api().get("/api/screens/buy").json()
-    assert shown["chosen"] == 0 and shown["items"][0]["choice"] is None
-
-
-def test_the_batch_is_what_buy_buys_and_what_waits_is_counted_with_no_euros(cockpit):
-    """The basket buys closeup@alpha now at its own price (2-3, not prepare's share); settle and the sound wait, counted
-    by why with no euros; a lost input buys nothing. Break: state/screens.py `now_items` keeps items waiting on a
-    missing input."""
-    found = screens.batch(cockpit.source.world_state(), cockpit.items)
-    models, motion, sound = found["layers"]
-    assert (models["make"], models["waiting"], models["models"]) == (2, 0, 2)
-    assert (models["likely"], models["high"]) == (2.0, 3.0)
-    assert (motion["waiting"], motion["why"], motion["likely"]) == (1, {"an earlier step first": 1}, 0.0)
-    assert (sound["waiting"], sound["likely"], sound["guessed"]) == (1, 0.0, 0.0)
-    assert (found["total"]["likely"], found["total"]["high"]) == (found["now"]["likely"], found["now"]["high"]) == (
-        2.0, 3.0)
-    assert (found["now"]["steps"], found["now"]["places"], found["now"]["stop"]) == (1, ["alpha"], 3.3)
-    assert found["waiting"] == {"steps": 2, "why": ["an earlier step first"]}
-    blocked = [{**item, "missing": ["a lost input"]} for item in cockpit.items]
-    waits = screens.batch(cockpit.source.world_state(), blocked)
-    assert waits["now"]["steps"] == 0 and waits["now"]["stop"] is None
-    assert waits["layers"][0]["why"]["lost concept views"] == 2
-
-
-def test_the_buy_line_is_priced_as_its_checkout_records_it_and_refused_on_a_basket_older_than_the_price(cockpit):
-    """With two guessed steps (1.5 each) and an unpriced rough model: likely 2, high 3 + 3 = 6, stop 6.6; no ETA, 3
-    untimed kinds; refused while the basket is older than the price or of unknown age. Break: state/screens.py
-    `buy_refusals` never says the basket is older than the price."""
-    from score.dashboard.checkout import pricing
-    guessed = {"likely_euros": None, "high_euros": None, "guess_euros": 1.5, "basis": "not measured yet",
-               "likely_minutes": None, "high_minutes": None}
-    unpriced = {"likely_euros": None, "high_euros": None, "basis": "not measured yet"}
-    items = [{**item, "nodes": {**item["nodes"], "sound@alpha": guessed, "light-passes@alpha": guessed,
-                                 "rough-model@alpha": unpriced}} for item in cockpit.items]
-    world = cockpit.source.world_state()
-    found = screens.batch(world, items, "2099-01-01T00:00:00Z")
-    now = found["now"]
-    totals = pricing.totals(pricing.basket_prices(screens.now_items(items, screens.approved_places(world))))
-    assert (now["likely"], now["high"], now["guessed"], now["guesses"]) == (2.0, 6.0, 3.0, 2)
-    assert now["high"] == pricing.cleared_high(totals) and now["stop"] == 6.6
-    assert now["no_price"] == {"models": 1}
-    assert now["eta"]["likely_minutes"] is None and now["eta"]["untimed_kinds"] == {"rough model": 1,
-                                                                                    "light renders": 1, "sound": 1}
-    assert now["eta"]["at_least_minutes"] == 10.0 and now["eta"]["at_least_high_minutes"] == 20.0
-    assert found["refused"] == []
-    older = screens.batch(world, items, "2026-10-19T08:00:00Z")["refused"]
-    assert len(older) == 1 and older[0].startswith("the basket (2026-10-19 08:00) is older than the price (")
-    assert screens.batch(world, items)["refused"] == ["the basket's time is not known"]
-
-
-def test_no_step_is_bought_at_a_place_whose_design_is_not_approved(cockpit):
-    """Owner, 2026-10-20, "design decides inventory". Break: state/screens.py `now_items` drops `approved and
-    for_approved(...)`."""
-    a_remake(cockpit, approved=())
-    cockpit.source.refresh()
-    world = cockpit.source.world_state()
-    found = screens.batch(world, cockpit.items)
-    assert found["now"]["steps"] == 0 and found["now"]["stop"] is None and found["layers"] == []
-    money = screens.remake_money(world)
-    assert (money["likely"], money["approved"], money["in_design"]) == (None, 0, 2)
-    assert screens.now_items(cockpit.items, ["beta"]) == []
-    design = screens.design(cockpit.source, world)
-    assert design["approved"] == [] and [row["design"]["plan"] for row in design["places"]] == ["remake", "remake"]
-    a_remake(cockpit, approved=("alpha",))
-    cockpit.source.refresh()
-    money = screens.remake_money(cockpit.source.world_state())
-    assert (money["likely"], money["high"], money["in_design"]) == (12.0, 15.0, 1)
-    assert money["eta"]["at_least_minutes"] is None  # the runner times the whole remake only
-
-
-def test_buy_buys_the_people_line_with_the_places_whose_cast_reads_it():
-    """Buy of 2026-10-24 refused "the run would also buy closeup@people". Break: state/screens.py `for_approved` ignores
-    an item's `for`."""
-    from score.dashboard.checkout import flow
-    from score.dashboard.launch.backend import GroupPlan
-    price = {"likely_euros": 1.0, "high_euros": 2.0, "runs": 1}
-
-    def item(ident, places, nodes, held):
-        return {"id": ident, "places": places, "nodes": {node: price for node in nodes}, "missing": [], "for": held}
-    items = [item("alpha-settle", ["alpha"], ["settle@alpha"], ["alpha"]),
-             item("beta-settle", ["beta"], ["settle@beta"], ["beta"]),
-             item("people-base", ["people"], ["closeup@people", "people-dress-pilot-made"], ["alpha", "beta"]),
-             item("environment-body-face", [], ["body-face-moon"], [])]
-    bought = screens.now_items(items, ["alpha"])
-    assert [found["id"] for found in bought] == ["alpha-settle", "people-base", "environment-body-face"]
-    assert [found["id"] for found in screens.now_items(items, ["gamma"])] == ["environment-body-face"]
-    plan = GroupPlan(missing=[], refusal=None, to_run={}, blocked={},
-                     buys=[{"node": node, "why": "", "again": False}
-                           for node in ("settle@alpha", "closeup@people", "people-dress-pilot-made", "body-face-moon")])
-    assert flow.plan_refusals(types.SimpleNamespace(items=bought), [(None, plan)]) == []
-
-
-def test_the_buy_counts_every_plant_of_the_design(cockpit):
-    """Owner, 2026-10-24: every growing row is a plant, its count its objects; the planter its bed. By hand: greens on 4
-    planters (1 crop row) and 3 palms: 2 rows, 4 objects, 4 beds; the desk no plant. Break: state/screens.py
-    `plants_total` leaves `beds` out."""
-    kept = cockpit.source.props_home / "design" / "inventory"
-    kept.mkdir(parents=True, exist_ok=True)
-    (kept / "alpha.json").write_text(json.dumps({"rows": [
-        {"id": "planter", "noun": "planter", "count": 4}, {"id": "greens", "noun": "plants", "anchor": "on:planter"},
-        {"id": "palm", "noun": "tree", "count": 3}, {"id": "desk", "noun": "desk"}]}))
-    cockpit.source.refresh()
-    world = cockpit.source.world_state()
-    assert world.plants == {"alpha": {"rows": 2, "objects": 4, "crops": 1, "beds": 4}}
-    assert screens.batch(world, cockpit.items)["plants"] == {"rows": 2, "objects": 4, "crops": 1, "beds": 4,
-                                                            "places": ["alpha"]}
-    world.plants = {}
-    assert screens.batch(world, cockpit.items)["plants"] is None
-
-
-def test_the_stats_count_measured_prices_gaps_and_places_complete(cockpit):
-    """settle and the close-up measured, the sound not: 2 of 3. Break: state/screens.py `stats` counts every basis as
-    measured."""
-    found = screens.stats(cockpit.source, MONTH)
-    assert found["prices"]["measured"] == 2 and found["prices"]["steps"] == 3
-    assert found["days"][-1] == {"day": "2026-10-20", "cloud": 1.25, "models": 0.4}
-    assert found["places"]["total"] == 2 and found["gaps"]["missing"] == 2
-
-
-def test_every_screen_route_answers_json_and_the_remake_travels_in_the_export(cockpit, month_read):
-    """Break: api/routes.py `place_screen` drops its unknown-place 404."""
-    web = api()
-    for path in ("environment", "place/alpha", "buy", "stats", "library"):
-        assert web.get(f"/api/screens/{path}").status_code == 200, path
-    assert web.get("/api/screens/place/nowhere").status_code == 404
-    world = cockpit.source.world_state(MONTH)
-    assert WorldState.model_validate_json(world.model_dump_json()).remake.counts["blocked"] == 2
+ABSENT = "(absent)"  # a path not there (picked)
+COCKPIT_NODES = {  # alpha's gaps priced: the close-up on the prop route, settle off it and measured, the sound guessed
+    "closeup@alpha": {**MEASURED, "basis": "per unit × forecast"}, "settle@alpha": SETTLE,
+    "sound@alpha": {"likely_euros": None, "high_euros": None, "guess_euros": 1.0, "basis": "not measured yet",
+                    "likely_minutes": None, "high_minutes": None}}
+COCKPIT_ETA = {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 20.0, "unknown": [{"node": "sound@alpha"}]}
+UNCOMMITTED = {"commit": "6cdf4d40", "uncommitted": True, "per_unit_sha256": "x"}
+READ_ALPHA = {"read": ["alpha"], "waiting": ["beta"]}
+NOT_COMMITTED = "it was made on code not committed"
+OLDER = "older than the price ("
+GUESS = {"likely_euros": None, "high_euros": None, "guess_euros": 1.5, "basis": "not measured yet",
+         "likely_minutes": None, "high_minutes": None}  # with an unpriced rough model, the buy line's guessed steps
+PEOPLE_PRICE = {"likely_euros": 1.0, "high_euros": 2.0, "runs": 1}
+PEOPLE = [  # (item, its places, its nodes, the places whose cast reads it): Buy of 2026-10-24 refused closeup@people
+    ("alpha-settle", ["alpha"], ["settle@alpha"], ["alpha"]), ("beta-settle", ["beta"], ["settle@beta"], ["beta"]),
+    ("people-base", ["people"], ["closeup@people", "people-dress-pilot-made"], ["alpha", "beta"]),
+    ("environment-body-face", [], ["body-face-moon"], [])]
+PLANTS = [{"id": "planter", "noun": "planter", "count": 4}, {"id": "greens", "noun": "plants", "anchor": "on:planter"},
+          {"id": "palm", "noun": "tree", "count": 3}, {"id": "desk", "noun": "desk"}]  # by hand: 2 rows, 4 objects, 4 beds
+SCREEN_ROUTES = ("environment", "place/alpha", "buy", "stats", "library", "place/nowhere")
+SCREEN_MOMENTS = [  # (moment, prepare's record then, what else is written, {"source:path": what the screens answer})
+    ("priced", {}, None, {
+        # prepare's route EUR 10 (2 blocked, 1 predicted gap) plus settle off it (EUR 2-3), the sound unpriced
+        "environment:remake.route.likely": 10.0, "environment:remake.route.blocked": 2,
+        "environment:remake.route.predicted_gaps": 1,
+        "environment:remake.rest": {"likely": 2.0, "high": 3.0, "priced": 1, "unpriced": 1},
+        "environment:remake.likely": 12.0, "environment:remake.high": 15.0, "environment:remake.unpriced": 2,
+        "environment:remake.eta": {"likely_minutes": None, "high_minutes": None, "at_least_minutes": 30.0, "untimed": 3},
+        "environment:money": {"month": "2026-10", "cloud": 2118.87, "models": None, "total": 2118.87, "whole": False,
+                              "stop": 900.0, "against_stop": 150.0, "in_flight": 30.0, "refused": False},
+        "environment:alpha.gaps": 4, "environment:alpha.worst": "route", "environment:alpha.takes.takes": 3,
+        "environment:pictured": [True, False], "environment:gaps": {"missing": 2, "gate": 1, "route": 1},
+        "pictures:alpha is its concept": True, "pictures:beta": (None, None),  # lost: never a render instead
+        # each chain priced once: the close-up's EUR 2-3 plus the guessed sound; complete's free plus the sound
+        "place:items.*.kind": ["missing", "missing", "gate", "route"], "place:items.0.prim": "/alpha/Gaps/lamp_1",
+        "place:items.0.node": "closeup@alpha",
+        "place:prices.closeup@alpha": {"likely": 2.0, "high": 3.0, "priced": 1, "unpriced": 1},
+        "place:prices.complete@alpha": {"likely": 0, "high": 0, "priced": 0, "unpriced": 1},
+        "place:gaps": {"missing": 2, "gate": 1, "route": 1}, "place:stale": False,
+        # the stop is the high 3 + 10%; no choice, no stop
+        "buy none:stop": None, "buy chosen:chosen": 1, "buy chosen:total.likely": 2.0, "buy chosen:total.high": 3.0,
+        "buy chosen:stop": 3.3, "buy chosen:eta": {"likely_minutes": 10.0, "high_minutes": 20.0, "untimed": 0},
+        # the batch buys the close-up now at its own price; settle and the sound wait, counted by why with no euros
+        "batch:layers.0.make": 2, "batch:layers.0.waiting": 0, "batch:layers.0.models": 2, "batch:layers.0.likely": 2.0,
+        "batch:layers.0.high": 3.0, "batch:layers.1.waiting": 1, "batch:layers.1.why": {"an earlier step first": 1},
+        "batch:layers.1.likely": 0.0, "batch:layers.2.waiting": 1, "batch:layers.2.likely": 0.0,
+        "batch:layers.2.guessed": 0.0, "batch:layers.3": ABSENT, "batch:total.likely": 2.0, "batch:total.high": 3.0,
+        "batch:now.likely": 2.0, "batch:now.high": 3.0, "batch:now.steps": 1, "batch:now.places": ["alpha"],
+        "batch:now.stop": 3.3, "batch:waiting": {"steps": 2, "why": ["an earlier step first"]},
+        "batch lost input:now.steps": 0, "batch lost input:now.stop": None,  # a lost input buys nothing
+        "batch lost input:layers.0.why.lost concept views": 2,
+        # two guessed steps (1.5 each), an unpriced rough model: likely 2, high 3 + 3 = 6, stop 6.6, 3 untimed kinds
+        "batch guessed:now.likely": 2.0, "batch guessed:now.high": 6.0, "batch guessed:now.guessed": 3.0,
+        "batch guessed:now.guesses": 2, "batch guessed:now.stop": 6.6, "batch guessed:now.no_price": {"models": 1},
+        "batch guessed:now.eta.likely_minutes": None,
+        "batch guessed:now.eta.untimed_kinds": {"rough model": 1, "light renders": 1, "sound": 1},
+        "batch guessed:now.eta.at_least_minutes": 10.0, "batch guessed:now.eta.at_least_high_minutes": 20.0,
+        "batch guessed:refused": [], "batch guessed:cleared high": 6.0,
+        "batch guessed:older": [f"the basket (2026-10-19 08:00) is {OLDER}"],
+        "batch guessed:unknown age": ["the basket's time is not known"],
+        "stats:prices.measured": 2, "stats:prices.steps": 3,  # settle and the close-up measured, the sound not
+        "stats:last day": {"day": "2026-10-20", "cloud": 1.25, "models": 0.4}, "stats:places.total": 2,
+        "stats:gaps.missing": 2,
+        "routes:codes": [200, 200, 200, 200, 200, 404], "routes:exported blocked": 2,
+        "people:alpha": ["alpha-settle", "people-base", "environment-body-face"],
+        "people:gamma": ["environment-body-face"], "people:refusals": [], "people:beta of the basket": []}),
+    ("on code not committed", {"priced_on": UNCOMMITTED}, None, {  # never 0.00 stale
+        "remake money:stale": [NOT_COMMITTED], "buy now:unknowns": 1, "buy now:range": False,
+        "buy now:offered": False, "buy now:disabled": True}),
+    ("no design approved", {"approved": ()}, None, {  # owner, 2026-10-20: "design decides inventory"
+        "batch:now.steps": 0, "batch:now.stop": None, "batch:layers": [], "remake money:likely": None,
+        "remake money:approved": 0, "remake money:in_design": 2, "design:approved": [],
+        "design:places.*.design.plan": ["remake", "remake"]}),
+    ("alpha's inventory read", {"approved": (), "inventory": READ_ALPHA}, None, {  # an estimate that buys nothing
+        "remake money:estimate": {"likely": 10.0, "high": 12.0, "unpriced": ["likeness-calibration"], "places": 1,
+                                  "waiting": 1, "eta": {"likely_minutes": None, "high_minutes": None,
+                                                        "at_least_minutes": 30.0, "untimed": 2}, "stale": None},
+        "tiles:/buy/": [True, True], "tiles:/places/": [True, True], "tiles:offered": False}),
+    ("alpha's inventory read, uncommitted", {"approved": (), "inventory": READ_ALPHA, "priced_on": UNCOMMITTED}, None,
+     {"remake money:estimate.likely": None, "remake money:estimate.stale": NOT_COMMITTED}),
+    ("alpha approved", {"approved": ("alpha",)}, None, {
+        "remake money:likely": 12.0, "remake money:high": 15.0, "remake money:in_design": 1,
+        "remake money:eta.at_least_minutes": None}),  # the runner times the whole remake only
+    ("a choice on another version", {}, "choice", {"api buy:chosen": 0, "api buy:items.0.choice": None}),
+    ("plants", {}, "plants", {  # owner, 2026-10-24: every growing row is a plant, the planter its bed
+        "plants:world": {"alpha": {"rows": 2, "objects": 4, "crops": 1, "beds": 4}},
+        "plants:batch": {"rows": 2, "objects": 4, "crops": 1, "beds": 4, "places": ["alpha"]}, "plants:none": None})]
 
 
 def test_a_place_shows_no_numbers_until_its_inventory_is_read_from_its_locked_concept(drafting):
@@ -2553,9 +2409,6 @@ def item_rules(path, html):
                      if gone in html]
 
 
-ABSENT = "(absent)"
-
-
 def picked(data, path):
     """The value at a dotted `path` in viewer data ("*" maps over a list, a number indexes), ABSENT when not there."""
     if not path:
@@ -2940,7 +2793,20 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_fac
     None; state/library.py `export_three_d` adds each entry's whole web copy; state/library.py `missing` reads any
     `.lost` mark as lost, whatever sha it names; state/library.py `blob` serves any sha in the blob folder;
     pages/library_actions.py `carried_out` skips `actions.agent_started`; pages/library.py imports score.stages;
-    state/library.py `blob` looks only in the blob folder."""
+    state/library.py `blob` looks only in the blob folder.
+    And the screens' data over alpha's gaps priced and prepare's record, moment by moment (SCREEN_MOMENTS): the
+    environment's remake is prepare's route plus every paid step off it, with its month against the stop; each gap's
+    chain priced once; the Buy's stop its high plus 10%; the batch buys now what Buy buys, at its own price, and counts
+    what waits with no euros; guesses and untimed kinds kept apart, refused on a basket older than the price; nothing
+    bought at a place whose design is not approved (the people's line goes with the places whose cast reads it); an
+    estimate from the read inventories that buys nothing, no figure on code not committed; every plant counted; the
+    stats count only measured prices; every screen route answers and an unknown place is 404.
+    Breaks (each applied once and seen red): state/screens.py `remake_money` leaves `rest` out of the whole;
+    `estimate` keeps its figure while stale (`current = True`); `remake_money` drops prepare's `stale`; `chain_price`
+    prices every node of the record, not the chain's; `buy` sets the stop at the high, without BUFFER; `now_items`
+    keeps items waiting on a missing input; `buy_refusals` never says the basket is older than the price; `now_items`
+    drops `approved and for_approved(...)`; `for_approved` ignores an item's `for`; `plants_total` leaves `beds` out;
+    `stats` counts every basis as measured; api/routes.py `place_screen` drops its unknown-place 404."""
     from score.dashboard.pages import cockpit, present, views
     from score.dashboard.pages.models import BasketItem, ChangeRequest
     from score.dashboard.state import gaps as gap_rows
@@ -3155,7 +3021,116 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_fac
         "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
         "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
         "light_bytes": 5, "triangles": 12}))
-    a_gaps_finding(world, settings, tmp_path)
+    items = a_gaps_finding(world, settings, tmp_path)
+
+    # The screens' data (state/screens.py) over alpha's gaps priced and prepare's record, moment by moment
+    # (SCREEN_MOMENTS): each moment's record written, then every "source:path" it names read from what the screens,
+    # the screen routes and the Buy and Places pages answer on that one world.
+    from score.dashboard.checkout import flow, pricing
+    from score.dashboard.launch.backend import GroupPlan
+    from score.dashboard.site.asgi import inner
+    a_gaps_price(world, nodes=COCKPIT_NODES, eta=COCKPIT_ETA)
+    guessed = [{**item, "nodes": {**item["nodes"], "sound@alpha": GUESS, "light-passes@alpha": GUESS,
+                                   "rough-model@alpha": {"likely_euros": None, "high_euros": None,
+                                                         "basis": "not measured yet"}}} for item in items]
+    people = [{"id": ident, "places": places, "nodes": {node: PEOPLE_PRICE for node in nodes}, "missing": [],
+               "for": held} for ident, places, nodes, held in PEOPLE]
+    inventory = world.source.props_home / "design" / "inventory" / "alpha.json"
+    kept_inventory = inventory.read_bytes() if inventory.is_file() else None
+
+    def month_api(path):
+        """The screen route's answer with the month read as MONTH (its FastAPI dependency)."""
+        inner.dependency_overrides[actions.spend] = lambda: MONTH
+        try:
+            return api().get(f"/api/screens/{path}")
+        finally:
+            inner.dependency_overrides.pop(actions.spend)
+
+    def environment(state):
+        found = screens.environment(world.source, MONTH)
+        return {**found, "alpha": next(place for place in found["places"] if place["place"] == "alpha"),
+                "pictured": [bool(place["picture"]) for place in found["places"]]}
+
+    def guessed_batch(state):
+        found = screens.batch(state, guessed, "2099-01-01T00:00:00Z")
+        totals = pricing.totals(pricing.basket_prices(screens.now_items(guessed, screens.approved_places(state))))
+        older = screens.batch(state, guessed, "2026-10-19T08:00:00Z")["refused"]
+        return {**found, "cleared high": pricing.cleared_high(totals),
+                "older": [why.split(OLDER)[0] + OLDER for why in older],
+                "unknown age": screens.batch(state, guessed)["refused"]}
+
+    def people_bought(state):
+        bought = screens.now_items(people, ["alpha"])
+        plan = GroupPlan(missing=[], refusal=None, to_run={}, blocked={}, buys=[
+            {"node": node, "why": "", "again": False}
+            for node in ("settle@alpha", "closeup@people", "people-dress-pilot-made", "body-face-moon")])
+        return {"alpha": [item["id"] for item in bought],
+                "gamma": [item["id"] for item in screens.now_items(people, ["gamma"])],
+                "refusals": flow.plan_refusals(types.SimpleNamespace(items=bought), [(None, plan)]),
+                "beta of the basket": screens.now_items(items, ["beta"])}
+
+    def buy_now(state):
+        html = owner.get("/buy/").content.decode()
+        after = html[html.index(">Buy now<"):html.index('<ul class="buy-layers buy-design">')]
+        return {"unknowns": after.count(">unknown</span>"), "range": "&ndash;" in after,
+                "offered": 'data-url="/buy/yes/"' in html, "disabled": f'disabled title="{NOT_COMMITTED}' in after}
+
+    def tiles(state):
+        found = {"offered": 'data-url="/buy/yes/"' in owner.get("/buy/").content.decode()}
+        for page, start, end in (("/buy/", ">After design<", '<ul class="buy-layers buy-design">'),
+                                 ("/places/", ">remake<", "Review and buy")):
+            html = owner.get(page).content.decode()
+            tile = html[html.index(start):html.index(end)]
+            found[page] = ["<small>EUR</small> 10&ndash;12<small>, " in tile,
+                           "1 <small>of</small> 2 <small>scenes</small>" in tile]
+        return found
+
+    def plants(state):
+        found = {"world": state.plants, "batch": screens.batch(state, items)["plants"]}
+        state.plants = {}
+        return {**found, "none": screens.batch(state, items)["plants"]}
+
+    screen_of = {
+        "environment": environment, "place": lambda state: {
+            **(found := screens.place(world.source, "alpha", None)), "stale": bool(found["price_stale"])},
+        "pictures": lambda state: {"alpha is its concept": screens.picture_of(state, "alpha") == (
+            f"/thumbs/{state.concepts['alpha'].sha}.jpg", "concept"), "beta": screens.picture_of(state, "beta")},
+        "buy none": lambda state: screens.buy(items, {}, MONTH),
+        "buy chosen": lambda state: screens.buy(items, {items[0]["id"]: "buy"}, MONTH),
+        "batch": lambda state: screens.batch(state, items),
+        "batch lost input": lambda state: screens.batch(state, [{**item, "missing": ["a lost input"]}
+                                                                for item in items]),
+        "batch guessed": guessed_batch, "remake money": screens.remake_money,
+        "design": lambda state: screens.design(world.source, state),
+        "stats": lambda state: {**(found := screens.stats(world.source, MONTH)), "last day": found["days"][-1]},
+        "routes": lambda state: {"codes": [month_api(path).status_code for path in SCREEN_ROUTES],
+                                 "exported blocked": WorldState.model_validate_json(world.source.world_state(
+                                     MONTH).model_dump_json()).remake.counts["blocked"]},
+        "api buy": lambda state: month_api("buy").json(), "people": people_bought, "buy now": buy_now,
+        "tiles": tiles, "plants": plants}
+    for moment, record, written, want in SCREEN_MOMENTS:
+        a_remake(world, **record)
+        if written == "choice":
+            BasketChoice.objects.create(item=records.items(settings.SCORE_HOME / "proposals")[0]["id"],
+                                        version="0" * 16, choice="buy", by="joey")
+        if written == "plants":
+            inventory.parent.mkdir(parents=True, exist_ok=True)
+            inventory.write_text(json.dumps({"rows": PLANTS}))
+        world.source.refresh()
+        state = world.source.world_state()
+        answered = {}
+        for key in want:
+            source = key.split(":")[0]
+            if source not in answered:
+                answered[source] = screen_of[source](state)
+        assert {key: picked(answered[key.split(":")[0]], key.split(":", 1)[1]) for key in want} == want, moment
+    (world.root / "props/work/checks/prepare/remake.json").unlink()  # prepare never ran, as the rest below reads it
+    if kept_inventory is None:
+        inventory.unlink()
+    else:
+        inventory.write_bytes(kept_inventory)
+    BasketChoice.objects.all().delete()
+    world.source.refresh()
 
     # A standalone check's findings stand only while what they judged is accepted, and gaps are not repeated among
     # them: a library finding over beta's accepted assembly stands, over another output it is not read.
