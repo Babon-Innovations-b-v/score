@@ -27,8 +27,9 @@ render that never passes) and a store of its own; the machine's score_lib checko
                               optional, both free, and no row reads them (owner, 2026-10-22: no paid preview)
     pictures                  a lost picture never stops the others; a 404 is not asked again until the bytes change
     the invariant             each mismatch (not handed, not in library, moved on, shown nowhere, not pushed) gives
-                              exactly its problem on small fixed sets, equal sets none; the sweep reads a library
-                              folder and writes the cockpit's findings with the entry's picture
+                              exactly its problem on small fixed sets, equal sets none; one row an environment through
+                              the sweep's chain: the library folder read into rows, a library-free decision (dated, its
+                              own environment) standing for a library, the cockpit's findings with the entry's picture
     demos                     a demo off the shape says what; one with no example or that fails is missing with why
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
@@ -547,9 +548,15 @@ def test_an_item_pages_viewer_files_are_fetched_and_a_404_is_not_asked_again(tmp
 # --- the invariant on small fixed sets ------------------------------------------------------------------------------
 
 LIB_WORLD = "world1"
+PICTURE, PICTURE_SHA = b"\x89PNG fake picture bytes", "ab" + "0" * 62
+LIBRARY = ({"address": "model/rover@1"}, {"address": "model/rover@2"})  # the garage's one entry, two versions
+DATED = {"why": "a test", "who": "@owner", "when": "2026-10-18"}
+UNCONFIGURED = {"world": ["not handed"], "garage": ["not handed"]}
+NOT_CONFIGURED_SAID = (("garage", 0, "sentence", "has", "no library is configured"),)
 
 
 def row(address, node="pixal@garage", output="out-1", state="draft", place="garage", world=LIB_WORLD):
+    """One library row as the invariant reads it (sweep.entry_row's shape, its picture left out)."""
     kind, rest = address.split("/")
     entry_id, version = rest.split("@")
     return {"address": address, "kind": kind, "id": entry_id, "version": int(version), "state": state,
@@ -566,118 +573,102 @@ def held(node, report_of=None):
             "why": "" if report_of else "nothing stands accepted", "report": report_of}
 
 
-def agreeing():
-    """An environment and a library that agree: the garage handed, its one entry held at its output."""
-    handed = {"world": held("library-world", report()), "garage": held("library@garage", report("model/rover@2"))}
-    return handed, [row("model/rover@1"), row("model/rover@2")], {"pixal@garage": "out-1"}
-
-
-def rules(found):
-    return {where: [item["rule"] for item in items] for where, items in found.items() if items}
-
-
-def test_an_environment_and_a_library_that_agree_have_no_problem():
-    handed, rows, accepted = agreeing()
-    assert invariant.problems(LIB_WORLD, handed, rows, accepted, True) == {"world": [], "garage": []}
-
-
-def test_no_library_leaves_every_node_not_handed():
-    handed, rows, accepted = agreeing()
-    found = invariant.problems(LIB_WORLD, handed, rows, accepted, False)
-    assert rules(found) == {"world": ["not handed"], "garage": ["not handed"]}
-    assert "no library is configured" in found["garage"][0]["sentence"]
-
-
-def test_a_place_with_no_accepted_library_node_is_not_handed_by_name():
-    handed, rows, accepted = agreeing()
-    handed["hangar"] = held("library@hangar")
-    found = invariant.problems(LIB_WORLD, handed, rows, accepted, True)
-    assert rules(found) == {"hangar": ["not handed"]}
-    assert found["hangar"][0]["sentence"] == ("The hangar is not handed to the library yet (library@hangar: nothing "
-                                              "stands accepted).")
-
-
-def test_an_address_the_library_lacks_or_holds_withdrawn_is_not_in_library():
-    handed, rows, accepted = agreeing()
-    handed["garage"]["report"] = report("model/rover@2", "model/crate@1", "model/cart@1")
-    rows.append(row("model/cart@1", state="withdrawn"))
-    found = invariant.problems(LIB_WORLD, handed, rows, accepted, True)
-    assert rules(found) == {"garage": ["not in library", "not in library"]}
-    assert [item["address"] for item in found["garage"]] == ["model/crate@1", "model/cart@1"]
-    assert "withdrawn" in found["garage"][1]["sentence"]
-
-
-def test_an_entry_whose_output_moved_on_is_named_and_a_repo_made_one_never_moves():
-    handed, rows, _ = agreeing()
-    found = invariant.problems(LIB_WORLD, handed, rows, {"pixal@garage": "out-2"}, True)
-    assert rules(found) == {"garage": ["moved on"]}
-    assert found["garage"][0]["sentence"] == ("model/rover@2 was made from an output the garage no longer holds "
-                                              "(pixal@garage).")
-    gone = invariant.problems(LIB_WORLD, handed, rows, {"pixal@garage": None}, True)
-    assert "no longer has accepted" in gone["garage"][0]["sentence"]
-    handed, rows, accepted = agreeing()
-    rows.append(row("surface/steel@1", node=None, output=None))
-    handed["garage"]["report"] = report("model/rover@2", "surface/steel@1")
-    assert rules(invariant.problems(LIB_WORLD, handed, rows, accepted, True)) == {}
-
-
-def test_a_newest_entry_no_handover_names_is_shown_nowhere_and_history_is_not_counted():
-    handed, rows, accepted = agreeing()
-    rows += [row("model/old_crate@1"), row("model/tank@1", world="world2"), row("model/hut@1", place="hangar")]
-    found = invariant.problems(LIB_WORLD, handed, rows, accepted, True)
-    assert rules(found) == {"garage": ["shown nowhere"], "world": ["shown nowhere"]}
-    assert found["garage"][0]["address"] == "model/old_crate@1"
-    assert found["world"][0]["address"] == "model/hut@1"  # the hangar has no library node: shown on the environment
-    handed, rows, accepted = agreeing()
-    rows[0]["output"] = "out-0"  # rover@1 made from an older output: history, not a problem
-    assert rules(invariant.problems(LIB_WORLD, handed, rows, accepted, True)) == {}
-
-
-def test_a_handover_that_did_not_push_is_not_pushed():
-    handed, rows, accepted = agreeing()
-    handed["garage"]["report"] = report("model/rover@2", pushed=False)
-    found = invariant.problems(LIB_WORLD, handed, rows, accepted, True)
-    assert rules(found) == {"garage": ["not pushed"]}
-    assert found["garage"][0]["sentence"] == "The library's last handover of the garage did not push: no remote."
-
-
-def write_entry(root, blobs, address, picture=b"\x89PNG fake picture bytes"):
-    kind, rest = address.split("/")
-    entry_id, version = rest.split("@")
-    sha = "ab" + "0" * 62
-    (blobs / "blobs" / sha[:2]).mkdir(parents=True, exist_ok=True)
-    (blobs / "blobs" / sha[:2] / sha).write_bytes(picture)
-    folder = root / "entries" / kind / entry_id / version
+def write_entry(root, blobs, spec):
+    """One library entry's folder from a row spec, its picture's bytes in the blob folder."""
+    entry = row(**spec)
+    (blobs / "blobs" / PICTURE_SHA[:2]).mkdir(parents=True, exist_ok=True)
+    (blobs / "blobs" / PICTURE_SHA[:2] / PICTURE_SHA).write_bytes(PICTURE)
+    folder = root / "entries" / entry["kind"] / entry["id"] / str(entry["version"])
     folder.mkdir(parents=True)
     (folder / "entry.json").write_text(json.dumps({
-        "schema": "score-lib-entry/1", "address": address, "kind": kind, "id": entry_id, "version": int(version),
-        "state": "draft", "picture": {"file": "picture.png"}, "files": {"picture.png": {"sha256": sha}},
-        "provenance": {"world": LIB_WORLD, "place": "garage", "node": "pixal@garage", "output": "out-1"}}))
+        "schema": "score-lib-entry/1", "address": entry["address"], "kind": entry["kind"], "id": entry["id"],
+        "version": entry["version"], "state": entry["state"], "picture": {"file": "picture.png"},
+        "files": {"picture.png": {"sha256": PICTURE_SHA}},
+        "provenance": {key: entry[key] for key in ("world", "place", "node", "output")}}))
 
 
-def test_the_sweep_reads_a_library_folder_and_writes_the_cockpits_findings_with_the_entrys_picture(tmp_path):
-    root, blobs, out = tmp_path / "library", tmp_path / "blobs", tmp_path / "out"
-    write_entry(root, blobs, "model/rover@2")
-    rows = sweep.library_rows(str(root))
-    assert rows == [dict(row("model/rover@2"), picture="ab" + "0" * 62)]
-    handed = {"garage": held("library@garage", report("model/rover@2"))}
-    found = invariant.problems(LIB_WORLD, handed, rows, {"pixal@garage": "out-2"}, True)
-    sweep.written("garage", handed["garage"], found["garage"], rows, str(blobs), out / "garage")
-    on_disk = json.loads((out / "garage" / "findings.json").read_text())
-    assert on_disk["answer"] == "fail" and on_disk["outputs"] == {"library@garage": "lib-out"}
-    finding = on_disk["findings"][0]
-    assert finding["rule"] == "moved on" and set(finding) == {"rule", "prim", "name", "sentence", "picture"}
-    assert (out / "garage" / finding["picture"]).read_bytes() == b"\x89PNG fake picture bytes"
-    assert sweep.library_rows("") == []
+def case(name, expect, said=(), library=LIBRARY, free=(), garage=("model/rover@2",), pushed=True, hangar=False,
+         accepted=None):
+    """One environment and library: the library's entries (None: no library folder), the library-free decisions,
+    what the garage's handover names and whether it pushed, a hangar with no library node, the accepted outputs; the
+    rules found where (empty places left out) and what the problems say: (where, index, field, "is"/"has", text)."""
+    world = {"library": library, "free": free, "garage": garage, "pushed": pushed, "hangar": hangar,
+             "accepted": {"pixal@garage": "out-1"} if accepted is None else accepted}
+    return pytest.param(world, expect, said, id=name)
 
 
-def test_a_library_free_environment_is_a_dated_decision(tmp_path):
-    path = tmp_path / "free.json"
-    path.write_text(json.dumps({"worlds": [{"world": LIB_WORLD, "why": "a test world", "who": "@owner", "when": ""}]}))
-    assert not sweep.library_free(LIB_WORLD, path)  # an undated decision is no decision
-    path.write_text(json.dumps({"worlds": [{"world": LIB_WORLD, "why": "a test", "who": "@owner",
-                                            "when": "2026-10-18"}]}))
-    assert sweep.library_free(LIB_WORLD, path) and not sweep.library_free("world2", path)
+@pytest.mark.parametrize("world, expect, said", (
+    case("agree", {}),
+    case("no library", UNCONFIGURED, NOT_CONFIGURED_SAID, library=None),
+    case("an undated free decision is no decision", UNCONFIGURED, NOT_CONFIGURED_SAID, library=None,
+         free=({"world": LIB_WORLD, **DATED, "when": ""},)),
+    case("another environment's free decision", UNCONFIGURED, NOT_CONFIGURED_SAID, library=None,
+         free=({"world": "world2", **DATED},)),
+    case("a dated free decision configures", {"garage": ["not in library"]},
+         (("garage", 0, "address", "is", "model/rover@2"),), library=None, free=({"world": LIB_WORLD, **DATED},)),
+    case("a place with no accepted library node", {"hangar": ["not handed"]},
+         (("hangar", 0, "sentence", "is",
+           "The hangar is not handed to the library yet (library@hangar: nothing stands accepted)."),), hangar=True),
+    case("an address the library lacks or holds withdrawn", {"garage": ["not in library", "not in library"]},
+         (("garage", 0, "address", "is", "model/crate@1"), ("garage", 1, "address", "is", "model/cart@1"),
+          ("garage", 1, "sentence", "has", "withdrawn")),
+         library=(*LIBRARY, {"address": "model/cart@1", "state": "withdrawn"}),
+         garage=("model/rover@2", "model/crate@1", "model/cart@1")),
+    case("moved on", {"garage": ["moved on"]},
+         (("garage", 0, "sentence", "is",
+           "model/rover@2 was made from an output the garage no longer holds (pixal@garage)."),),
+         accepted={"pixal@garage": "out-2"}),
+    case("no longer accepted", {"garage": ["moved on"]}, (("garage", 0, "sentence", "has", "no longer has accepted"),),
+         accepted={"pixal@garage": None}),
+    case("a repo-made entry never moves", {}, library=(*LIBRARY, {"address": "surface/steel@1", "node": None,
+                                                                  "output": None}),
+         garage=("model/rover@2", "surface/steel@1")),
+    case("a newest entry no handover names", {"garage": ["shown nowhere"], "world": ["shown nowhere"]},
+         (("garage", 0, "address", "is", "model/old_crate@1"),
+          ("world", 0, "address", "is", "model/hut@1")),  # the hangar has no library node: shown on the environment
+         library=(*LIBRARY, {"address": "model/old_crate@1"}, {"address": "model/tank@1", "world": "world2"},
+                  {"address": "model/hut@1", "place": "hangar"})),
+    case("history is not counted", {}, library=({"address": "model/rover@1", "output": "out-0"},
+                                                {"address": "model/rover@2"})),
+    case("not pushed", {"garage": ["not pushed"]},
+         (("garage", 0, "sentence", "is", "The library's last handover of the garage did not push: no remote."),),
+         pushed=False),
+))
+def test_every_mismatch_between_handover_library_and_store_is_named_where_the_cockpit_reads_it(
+        tmp_path, world, expect, said):
+    """The sweep's chain on one environment: the library folder read into rows, the library-free decision, the
+    invariant's problems, each place's findings.json with the entry's picture beside it."""
+    root, blobs, out, free = tmp_path / "library", tmp_path / "blobs", tmp_path / "out", tmp_path / "free.json"
+    for spec in world["library"] or ():
+        write_entry(root, blobs, spec)
+    rows = sweep.library_rows(str(root) if world["library"] is not None else "")
+    assert rows == [dict(row(**spec), picture=PICTURE_SHA) for spec in sorted(
+        world["library"] or (), key=lambda spec: row(**spec)["address"].replace("@", "/"))], rows
+    free.write_text(json.dumps({"worlds": list(world["free"])}))
+    configured = world["library"] is not None or sweep.library_free(LIB_WORLD, free)
+    handed = {"world": held("library-world", report()),
+              "garage": held("library@garage", report(*world["garage"], pushed=world["pushed"]))}
+    if world["hangar"]:
+        handed["hangar"] = held("library@hangar")
+    found = invariant.problems(LIB_WORLD, handed, rows, world["accepted"], configured)
+    assert {where: [item["rule"] for item in items] for where, items in found.items() if items} == expect, found
+    assert set(found) == set(handed), found
+    for where, index, field, how, text in said:
+        told = found[where][index][field]
+        assert (told == text if how == "is" else text in told), (where, index, field, told)
+    addresses = {entry["address"] for entry in rows}
+    for where, node in handed.items():
+        sweep.written(where, node, found[where], rows, str(blobs), out / where)
+        on_disk = json.loads((out / where / "findings.json").read_text())
+        assert on_disk["answer"] == ("fail" if expect.get(where) else "pass"), on_disk
+        assert on_disk["outputs"] == ({node["node"]: "lib-out"} if node["report"] else {}), on_disk
+        assert [finding["rule"] for finding in on_disk["findings"]] == expect.get(where, []), on_disk
+        for finding in on_disk["findings"]:
+            assert set(finding) == {"rule", "prim", "name", "sentence", "picture"}, finding
+            if finding["name"] in addresses:  # the entry's picture copied beside its findings
+                assert (out / where / finding["picture"]).read_bytes() == PICTURE, finding
+            else:
+                assert finding["picture"] is None, finding
 
 
 # --- the demos ------------------------------------------------------------------------------------------------------
