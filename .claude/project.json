@@ -31,5 +31,20 @@
       }
     ],
     "way_out": "Cloud runs and test gates: add --detach (blender_cloud.py, tools/usd/settle.py, tools/review/page.py) or wrap them in tools/cloud/detached.py, which prints one result line at the end."
+  },
+  "purge": {
+    "_comment": "Where /purge (.claude/skills/purge) finds this repository's test bookkeeping: each value a command run at a worktree root, or an instruction where there is no command.",
+    "setup": "make env",
+    "suite": "make tests (the test rule's guard first, then every test file in its sandbox at TEST_SECONDS)",
+    "test_check": "python3 tools/test_rule/check.py",
+    "test_debt": "python3 tools/test_rule/check.py, read beside its FUNCTION_DEBT, ALLOWLIST and MAIN_ONLY entries",
+    "test_new": "one test_<invariant>.py in the module's directory, holding one test function, its docstring naming the break that turns it red (applied once, seen red, reverted); bible workflow/module-standard",
+    "debt_lists": "tools/test_rule/check.py: FUNCTION_DEBT, ALLOWLIST, MAIN_ONLY",
+    "time_budget": "TEST_SECONDS a file (Makefile, the one constant make tests reads); the whole suite within the time root CLAUDE.md sets",
+    "modules": "the directory a test file sits in, a tests/ folder counting as its parent's, and in FLAT_TOOL_FOLDERS each tool script (tools/test_rule/check.py)",
+    "duplicates": null,
+    "extra_checks": [
+      "python3 docs/adr/tools/check_index.py"
+    ]
   }
 }
