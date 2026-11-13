@@ -29,26 +29,29 @@ the output's contract, and so does an empty cast (no singles and no crowd), by n
 takes minutes); the real run's numbers are on #65.
 
 Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
-- the_root_and_end_sites_go_to_their_carrier: segments_of's carrier `joint = parents[joint]` made `joint = -1`.
+- a_body_doing_its_clip_stands_on_its_ground_within_its_residual (2026-11-13: the four breaks below folded into it,
+  each seen red on it), its root and end sites going to their carrier: segments_of's carrier `joint = parents[joint]`
+  made `joint = -1`.
 - the_mass_is_stated_else_height_times_bmi: mass_of's `tall ** 2` made `tall`.
-- a_body_is_built_at_its_persons_own_size: person_rig's `size` handed to played as 1.0 (2026-10-29; before, its
-  `local[:, hips, :3, 3] *= size` dropped); route_clip's scale handed to played as `size` (the climber's route
-  1.1 m long, 2026-11-04); its `ground + (... - ground) * size` made `... * size` (its feet under the steps).
-- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-10-29 (#70's float): person_rig's no-build case
+- its body built at its person's own size: person_rig's `size` handed to played as 1.0 (2026-10-29; before, its
+  `local[:, hips, :3, 3] *= size` dropped; green since the lift is figured at the size, on main before the fold
+  too); route_clip's scale handed to played as `size` (the climber's route 1.1 m long, 2026-11-04); its `ground +
+  (... - ground) * size` made `... * size` (its feet under the steps).
+- its clip on its bind's bones with its feet on its ground, 2026-10-29 (#70's float): person_rig's no-build case
   made `return rig, 1.0` (the clip's own offsets, 5 cm short, played raw: the standing foot 2 cm over its ground); its
   lift handed to played as 0.0 (the foot 3 cm under its ground; 2026-10-29, the lift now `played.floor_lift`).
-- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-11-05 (#70, the pickup's float): person_rig's
+- its clip on its bind's bones with its feet on its ground, 2026-11-05 (#70, the pickup's float): person_rig's
   `stood(found, ...)` dropped (the floating foot 7 mm over its ground); stood's `heights < STANCE_HIGH` dropped (the
   jump's flight pulled 10 cm down onto its ground); stood's `heights <= others[:, None]` dropped (the sitting column's
   foot pulled 2 cm down, its other skin pushed under its floor).
-- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-11-06 (#70, Kimodo's own contacts): person_rig's
+- its clip on its bind's bones with its feet on its ground, 2026-11-06 (#70, Kimodo's own contacts): person_rig's
   `played.contacted(found[key], ...)` handed the unstood `played.clip_local(...)` (the correction given the floating
   foot); contacts_of's `"foot_contacts" in saved.files` check dropped (a motion without contacts refused); make's
   `contacts` not handed to person_rig (no clip corrected).
-- a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground, 2026-11-06 (#70, the toes Kimodo's toe pin sank):
-  person_rig's `toes_lifted(found, ...)` dropped (the corrected clip's toes left under); toes_lifted's
+- its clip on its bind's bones with its feet on its ground, 2026-11-06 (#70, the toes Kimodo's toe pin sank):
+  person_rig's `toes_lifted(found, ...)` dropped (the corrected clip's toes never lifted); toes_lifted's
   `moved[low] = played.toward_flat(...)` dropped (the tipped foot's toes 1 cm under); its share made 0 (the same).
-- the_clip_chains_down_the_tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
+- its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - the_model_is_unpacked_only_as_pinned: fetched's sha256 check dropped.
 - a_good_run_passes_and_each_gate_fails_its_break: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
@@ -144,11 +147,6 @@ def toe_rig():
             "clip_tipped": clip}
 
 
-def test_the_root_and_end_sites_go_to_their_carrier():
-    kept, carriers = sim_body.segments_of(toy_rig())
-    assert kept == [1, 2] and carriers == [1, 1, 2, 1, 2]
-
-
 def test_the_mass_is_stated_else_height_times_bmi():
     assert sim_body.mass_of({"weight": 64.0}, 1.75) == {"kg": 64.0, "source": "stated weight"}
     woman = sim_body.mass_of({"height": 1.8, "sex": "female"}, 1.75)
@@ -156,115 +154,6 @@ def test_the_mass_is_stated_else_height_times_bmi():
     unknown = sim_body.mass_of({}, 2.0)
     assert unknown["kg"] == pytest.approx(4 * 24.65) and unknown["sex"] == "not stated"
     assert unknown["height from"] == "the SOMA body's own standing height"
-
-
-def test_a_body_is_built_at_its_persons_own_size():
-    """A built body 1.1 times the rig (its bind, offsets and surface): the person's rig takes its bind and surface,
-    every clip's offsets its own and the travel 1.1 times the clip's; its segments stand 1.1 times as far apart."""
-    rig = toy_rig()
-    rig["clip_standing"][:, 1, 1, 3] = 0.5  # the clip's Hips travel: its height over the Root
-    big = np.array(rig["bind"])
-    big[:, :3, 3] *= 1.1
-    offsets = np.array([np.linalg.inv(big[parent])[:3, :3] @ (big[joint][:3, 3] - big[parent][:3, 3])
-                        for joint, parent in enumerate(np.clip(rig["parents"], 0, None))])
-    built = {"bind": big, "offsets": offsets, "source_points": rig["points"] * 1.1}
-    person, size = sim_body.person_rig(rig, built)
-    assert size == pytest.approx(1.1) and sim_body.person_rig(rig, None)[1] == 1.0
-    world = sim_body.clip_frames(person, "standing", [1, 2])
-    assert world[0, 0, 1, 3] == pytest.approx(0.55)  # the Hips travel 1.1 times the clip's
-    assert world[0, 1, 1, 3] == pytest.approx(0.0)  # the LeftFoot at its built offset under it
-    assert sim_body.standing_height(person) == pytest.approx(1.1)
-    # a climber's scene-made clip up 0.3 m over 1 m of route (its ground 1 m up in the scene): its travel kept where
-    # the route goes, only the Hips' 0.5 m over the route's ground made 1.1 times as tall
-    climb = np.array(rig["clip_standing"])
-    ground = np.linspace(0.0, 0.3, len(climb))
-    climb[:, 1, 0, 3], climb[:, 1, 1, 3] = np.linspace(0.0, 1.0, len(climb)), ground + 0.5
-    plan = {"clip": "scene_man", "placement": {"origin": [4.0, 1.0, 2.0], "turn": 90.0},
-            "route": [[4.0 + along, 1.0 + up, 2.0] for along, up in zip(np.linspace(0.0, 1.0, len(climb)), ground)]}
-    local = sim_body.route_clip(rig, built, {**rig, "clip_scene_man": climb}, plan)
-    world = sim_body.clip_frames({**person, "clip_scene_man": local}, "scene_man", [1, 2])
-    assert world[:, 0, 0, 3] == pytest.approx(np.linspace(0.0, 1.0, len(climb)))  # along its route, never 1.1 m
-    assert world[:, 0, 1, 3] == pytest.approx(ground + 0.55)  # up its steps, its hips its own height over them
-    assert world[:, 1, 1, 3] == pytest.approx(ground)  # its foot on the route's ground
-
-
-def test_a_clip_plays_on_its_binds_bones_with_its_feet_on_its_ground(tmp_path, monkeypatch):
-    """The toy's clips posed on a body 5 cm shorter in the leg than its bind (the foot 0.45 m under the Hips, the bind's
-    0.5 m) at the Hips' height 0.47 m: played with no build, the foot hangs 0.5 m under the Hips, the standing frame's
-    foot on its ground (y = 0, the bind's), and the walking clip lifted by the same 3 cm (raw, its foot 2 cm up); a
-    clip whose still foot floats 7 mm over a second stands it within 1 mm of its ground, a jump keeps its 10 cm flight
-    and one whose other skin lies under its foot keeps its foot where it was."""
-    rig = toy_rig()
-    rig["clip_standing"][:, 1, 1, 3] = 0.47
-    rig["clip_standing"][:, 2, 1, 3] = -0.45
-    rig["clip_walking"] = np.array(rig["clip_standing"])
-    rig["clip_walking"][:, 1, 0, 3] = np.linspace(0.0, 1.0, 10)  # walking along x
-    played, size = sim_body.person_rig(rig, None)
-    assert size == 1.0 and np.asarray(played["bind"]) == pytest.approx(rig["bind"])
-    standing = sim_body.clip_frames(played, "standing", [1, 2])
-    assert standing[0, 1, 1, 3] == pytest.approx(0.0, abs=1e-9)  # the foot on its ground
-    walking = sim_body.clip_frames(played, "walking", [1, 2])
-    assert walking[:, 0, 1, 3] == pytest.approx(0.5) and walking[:, 1, 1, 3] == pytest.approx(0.0, abs=1e-9)
-    assert walking[:, 0, 0, 3] == pytest.approx(np.linspace(0.0, 1.0, 10))  # its travel along the ground as it was
-    # a clip floating its still foot up to 7 mm mid-clip (as Kimodo's pickup floats its skin) stands it on its
-    # ground on every frame; one whose foot leaves its ground 10 cm (a jump's flight) keeps its flight
-    rig["clip_floating"] = np.repeat(rig["clip_standing"][:1], 30, axis=0)  # a second, as the pickup's float
-    rig["clip_floating"][:, 1, 1, 3] += 0.007 * np.sin(np.linspace(0.0, np.pi, 30)) ** 2
-    rig["clip_jumping"] = np.array(rig["clip_standing"])
-    rig["clip_jumping"][4:6, 1, 1, 3] += 0.1
-    played = sim_body.person_rig(rig, None)[0]
-    floating = sim_body.clip_frames(played, "floating", [1, 2])
-    assert np.abs(floating[:, 1, 1, 3]).max() < 0.001
-    jumping = sim_body.clip_frames(played, "jumping", [1, 2])
-    assert jumping[:, 1, 1, 3] == pytest.approx([0.0] * 4 + [0.1] * 2 + [0.0] * 4, abs=1e-6)
-    # one whose other skin lies under its foot (the column upside down, its foot 2 cm up: a body sitting on its floor)
-    # is carried there, its foot left where it was
-    rig["clip_sitting"] = np.array(rig["clip_standing"])
-    rig["clip_sitting"][:, 1, :3, :3] = np.diag([1.0, -1.0, -1.0])
-    rig["clip_sitting"][:, 1, 1, 3] = -0.48 - 0.03  # less the 3 cm lift the standing clip gives every clip
-    sitting = sim_body.clip_frames(sim_body.person_rig(rig, None)[0], "sitting", [1, 2])
-    assert sitting[:, 1, 1, 3] == pytest.approx(0.02, abs=1e-6) and sitting[:, 0, 1, 3] == pytest.approx(-0.48)
-    # a clip whose Kimodo motion carries its foot contacts (people-clips-made's motions/) gets Kimodo's own foot
-    # correction after it is stood, and only it (MotionCorrection is not run here: its numbers are on #70)
-    (tmp_path / "motions").mkdir()
-    np.savez(tmp_path / "motions" / "floating.npz", foot_contacts=np.ones((30, 6), dtype=bool))
-    np.savez(tmp_path / "motions" / "jumping.npz", root_positions=np.zeros((10, 3)))
-    contacts = sim_body.contacts_of(tmp_path, rig)
-    assert list(contacts) == ["floating"] and contacts["floating"].shape == (30, 6)
-    handed = {}
-    monkeypatch.setattr(sim_body._body.played, "contacted",
-                        lambda local, names, parents, bind, given: handed.setdefault("floating", local) + 0.5)
-    lifted = []
-    monkeypatch.setattr(sim_body._body, "toes_lifted", lambda rig, local: lifted.append(local) or local)
-    corrected = sim_body.person_rig(rig, None, contacts)[0]
-    assert len(lifted) == 1 and lifted[0] == pytest.approx(handed["floating"] + 0.5)  # its toes lifted after
-    assert np.abs(sim_body.clip_frames({**corrected, "clip_floating": handed["floating"]}, "floating",
-                                       [1, 2])[:, 1, 1, 3]).max() < 0.001  # handed the stood clip
-    assert corrected["clip_floating"] == pytest.approx(handed["floating"] + 0.5)
-    assert corrected["clip_jumping"] == pytest.approx(played["clip_jumping"])
-    # Kimodo's toe pin turns the foot alone: a foot pitched 30 degrees onto its toes, the toe base on its bind's
-    # height, has its toes' skin under its floor; their toes are bent up the least that puts it back on the floor,
-    # the toe base not moved, and a frame whose foot is on its floor is left as it is
-    monkeypatch.undo()
-    foot = toe_rig()
-    lifted = sim_body._body.toes_lifted(foot, foot["clip_tipped"])
-    lowest = sim_body._body.foot_lowest(foot, foot["clip_tipped"], sim_body._body.FEET[0])
-    assert lowest[0] < -0.01 and lowest[1] == pytest.approx(0.0, abs=1e-9)
-    lowest = sim_body._body.foot_lowest(foot, lifted, sim_body._body.FEET[0])
-    assert -sim_body._body.TOE_FLOOR <= lowest[0] < 0.003 and lifted[1] == pytest.approx(foot["clip_tipped"][1])
-    assert sim_body._body.played.chained(lifted, foot["parents"])[0, 3, :3, 3] == pytest.approx(
-        sim_body._body.played.chained(foot["clip_tipped"], foot["parents"])[0, 3, :3, 3])
-
-
-def test_the_clip_chains_down_the_tree():
-    rig = toy_rig()
-    turned = np.eye(4)
-    turned[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]  # 90 degrees about y
-    along = np.eye(4)
-    along[0, 3] = 1.0
-    rig["clip_turn"] = np.array([[turned, np.eye(4), along, np.eye(4), np.eye(4)]])
-    world = sim_body.clip_frames(rig, "turn", [1, 2])
-    assert world[0, 1, :3, 3] == pytest.approx([0.0, 0.0, -1.0])
 
 
 def test_the_model_is_unpacked_only_as_pinned(tmp_path, monkeypatch):
@@ -541,3 +430,127 @@ def test_a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails(tm
     out = made_on(tmp_path / "empty", monkeypatch, {"characters": []})
     assert "no bodies" not in json.loads((out / sim_body.RECORD).read_text())
     assert sim_body.output_faults(out) == [sim_body.EMPTY_CAST] == ["empty cast: no single characters and no crowd"]
+
+
+def near(want, tol=None):
+    """(low, high) bounds within `tol` of `want`; with no `tol`, pytest.approx's own (a millionth of it)."""
+    want = np.asarray(want, dtype=float)
+    tol = 1e-6 * np.abs(want) + 1e-12 if tol is None else tol
+    return want - tol, want + tol
+
+
+def clip_worlds(tmp_path):
+    """The rigs the clips are played on, by name: `stored` the toy rig as saved, a clip `turn` of its root turned 90
+    degrees about up carrying LeftFoot 1 m along x; `built` the toy (its standing Hips 0.5 m over the Root) on a body
+    1.1 times its bind, offsets and surface, with a climber's scene-made clip `scene_man` up 0.3 m over 1 m of route
+    (its ground 1 m up in the scene); `shorter` the toy's clips posed on a body 5 cm shorter in the leg (the foot 0.45
+    m under the Hips at 0.47 m) played with no build: standing, walking 1 m along x, floating its still foot up to 7 mm
+    over a second, jumping 10 cm on frames 4 and 5, sitting (upside down, its other skin under its foot 2 cm up), the
+    floating one's Kimodo motion carrying its foot contacts (the jumping one's none); `toe stored` the toe rig's
+    tipped foot as saved and `toes lifted` it with its toes lifted."""
+    rig = toy_rig()
+    rig["clip_standing"][:, 1, 1, 3] = 0.5  # the clip's Hips travel: its height over the Root
+    big = np.array(rig["bind"])
+    big[:, :3, 3] *= 1.1
+    offsets = np.array([np.linalg.inv(big[parent])[:3, :3] @ (big[joint][:3, 3] - big[parent][:3, 3])
+                        for joint, parent in enumerate(np.clip(rig["parents"], 0, None))])
+    built = {"bind": big, "offsets": offsets, "source_points": rig["points"] * 1.1}
+    person, size = sim_body.person_rig(rig, built)
+    climb = np.array(rig["clip_standing"])
+    ground = np.linspace(0.0, 0.3, len(climb))
+    climb[:, 1, 0, 3], climb[:, 1, 1, 3] = np.linspace(0.0, 1.0, len(climb)), ground + 0.5
+    plan = {"clip": "scene_man", "placement": {"origin": [4.0, 1.0, 2.0], "turn": 90.0},
+            "route": [[4.0 + along, 1.0 + up, 2.0] for along, up in zip(np.linspace(0.0, 1.0, len(climb)), ground)]}
+    person["clip_scene_man"] = sim_body.route_clip(rig, built, {**rig, "clip_scene_man": climb}, plan)
+    stored = toy_rig()
+    turned, along = np.eye(4), np.eye(4)
+    turned[:3, :3] = [[0, 0, 1], [0, 1, 0], [-1, 0, 0]]  # 90 degrees about y
+    along[0, 3] = 1.0
+    stored["clip_turn"] = np.array([[turned, np.eye(4), along, np.eye(4), np.eye(4)]])
+    short = toy_rig()
+    short["clip_standing"][:, 1, 1, 3] = 0.47
+    short["clip_standing"][:, 2, 1, 3] = -0.45
+    short["clip_walking"] = np.array(short["clip_standing"])
+    short["clip_walking"][:, 1, 0, 3] = np.linspace(0.0, 1.0, 10)
+    short["clip_floating"] = np.repeat(short["clip_standing"][:1], 30, axis=0)  # a second, as the pickup's float
+    short["clip_floating"][:, 1, 1, 3] += 0.007 * np.sin(np.linspace(0.0, np.pi, 30)) ** 2
+    short["clip_jumping"] = np.array(short["clip_standing"])
+    short["clip_jumping"][4:6, 1, 1, 3] += 0.1
+    short["clip_sitting"] = np.array(short["clip_standing"])
+    short["clip_sitting"][:, 1, :3, :3] = np.diag([1.0, -1.0, -1.0])
+    short["clip_sitting"][:, 1, 1, 3] = -0.48 - 0.03  # less the 3 cm lift the standing clip gives every clip
+    (tmp_path / "motions").mkdir()
+    np.savez(tmp_path / "motions" / "floating.npz", foot_contacts=np.ones((30, 6), dtype=bool))
+    np.savez(tmp_path / "motions" / "jumping.npz", root_positions=np.zeros((10, 3)))
+    contacts = sim_body.contacts_of(tmp_path, short)
+    shorter, unbuilt = sim_body.person_rig(short, None, contacts)
+    toe = toe_rig()
+    return {"stored": stored, "built": person, "shorter": shorter, "toe stored": toe,
+            "toes lifted": {**toe, "clip_tipped": sim_body._body.toes_lifted(toe, toe["clip_tipped"])}}, {
+        "built": size, "shorter": unbuilt, "contacts": contacts, "short": short}
+
+
+ROUTE = np.linspace(0.0, 0.3, 10)  # the climber's route's ground
+# (world, clip, what: a joint's segment frame or the left foot's lowest skin, axis, (low, high) on every frame)
+PLAYED = [
+    ("built", "standing", "Hips", 1, near(0.55)),  # the Hips travel 1.1 times the clip's
+    ("built", "standing", "LeftFoot", 1, near(0.0)),  # the LeftFoot at its built offset under it
+    ("built", "standing", "LeftToeEnd", 1, near(0.0)),  # an end site goes with the segment that carries it
+    ("built", "scene_man", "Hips", 0, near(np.linspace(0.0, 1.0, 10))),  # along its route, never 1.1 m
+    ("built", "scene_man", "Hips", 1, near(ROUTE + 0.55)),  # up its steps, its hips its own height over them
+    ("built", "scene_man", "LeftFoot", 1, near(ROUTE)),  # its foot on the route's ground
+    ("stored", "turn", "LeftFoot", slice(None), near([[0.0, 0.0, -1.0]])),  # chained down the tree
+    ("shorter", "standing", "LeftFoot", 1, near(0.0, 1e-9)),  # its foot on the bind's ground, not 2 cm under
+    ("shorter", "walking", "Hips", 1, near([0.5] * 10)),  # lifted by the same 3 cm, not floating 2 cm
+    ("shorter", "walking", "LeftFoot", 1, near([0.0] * 10, 1e-9)),
+    ("shorter", "walking", "Hips", 0, near(np.linspace(0.0, 1.0, 10))),  # its travel along the ground as it was
+    ("shorter", "floating", "LeftFoot", 1, near([0.0] * 30, 0.999e-3)),  # stood on every frame, not 7 mm up
+    ("shorter", "floating", "Hips", 0, near([0.5] * 30)),  # Kimodo's correction (its stand-in: 0.5 m along x) kept
+    ("shorter", "jumping", "LeftFoot", 1, near([0.0] * 4 + [0.1] * 2 + [0.0] * 4, 1e-6)),  # its flight kept
+    ("shorter", "jumping", "Hips", 0, near([0.0] * 10)),  # no correction: Kimodo gave it no contacts
+    ("shorter", "sitting", "LeftFoot", 1, near([0.02] * 10, 1e-6)),  # carried by its other skin, foot left up
+    ("shorter", "sitting", "Hips", 1, near([-0.48] * 10)),
+    ("toe stored", "tipped", "sole", None, ([-np.inf, -1e-9], [np.nextafter(-0.01, -1.0), 1e-9])),  # toes under
+    ("toes lifted", "tipped", "sole", None, ([-sim_body._body.TOE_FLOOR, -1e-9], [np.nextafter(0.003, 0.0), 1e-9])),  # bent onto it
+]
+
+
+def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path, monkeypatch):
+    """Every clip played on its rig: each row's segment (an end site read through the segment carrying it) or foot
+    skin within its bounds on every frame; the build's size, and Kimodo's correction run on the floating clip alone,
+    handed it stood, its toes then lifted, the toe base never moved."""
+    handed, lifted = [], []
+
+    def contacted(local, names, parents, bind, given):
+        """Kimodo's correction's stand-in (MotionCorrection is not run here: its numbers are on #70): the clip it is
+        handed with its Root moved 0.5 m along x."""
+        handed.append((local, len(given)))
+        moved = np.array(local)
+        moved[:, 0, 0, 3] += 0.5
+        return moved
+    monkeypatch.setattr(sim_body._body.played, "contacted", contacted)
+    toes_lifted = sim_body._body.toes_lifted
+    monkeypatch.setattr(sim_body._body, "toes_lifted",
+                        lambda rig, local: lifted.append(local) or toes_lifted(rig, local))
+    worlds, made = clip_worlds(tmp_path)
+    assert sim_body.segments_of(toy_rig()) == ([1, 2], [1, 1, 2, 1, 2])
+    assert made["built"] == pytest.approx(1.1) and sim_body.standing_height(worlds["built"]) == pytest.approx(1.1)
+    assert made["shorter"] == 1.0 and np.asarray(worlds["shorter"]["bind"]) == pytest.approx(made["short"]["bind"])
+    assert list(made["contacts"]) == ["floating"] and made["contacts"]["floating"].shape == (30, 6)
+    assert [count for _, count in handed] == [30] and len(lifted) == 2  # the floating clip's, then the tipped foot's
+    assert lifted[0] == pytest.approx(worlds["shorter"]["clip_floating"])  # the corrected clip's toes lifted after
+    assert np.abs(sim_body.clip_frames({**worlds["shorter"], "clip_floating": handed[0][0]}, "floating",
+                                       [1, 2])[:, 1, 1, 3]).max() < 0.001  # handed the stood clip
+    toe, stored = worlds["toes lifted"], worlds["toe stored"]
+    assert toe["clip_tipped"][1] == pytest.approx(stored["clip_tipped"][1])  # a foot on its floor left as it is
+    assert sim_body._body.played.chained(toe["clip_tipped"], toe["parents"])[:, 3, :3, 3] == pytest.approx(
+        sim_body._body.played.chained(stored["clip_tipped"], stored["parents"])[:, 3, :3, 3])  # the toe base kept
+    for world, clip, what, axis, (low, high) in PLAYED:
+        rig = worlds[world]
+        if what == "sole":
+            got = sim_body._body.foot_lowest(rig, rig[f"clip_{clip}"], sim_body._body.FEET[0])
+        else:
+            kept, carriers = sim_body.segments_of(rig)
+            segment = kept.index(carriers[[str(name) for name in rig["names"]].index(what)])
+            got = sim_body.clip_frames(rig, clip, kept)[:, segment, :3, 3][:, axis]
+        assert np.all((low <= got) & (got <= high)), f"{world} {clip} {what}: {got} not within {low}..{high}"
