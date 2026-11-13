@@ -155,7 +155,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 36,
     "tools/cloud/test_blender_cloud_runs_a_job_as_written.py": 10,
     "tools/cloud/test_judge_asks_each_question_once_on_a_card_that_holds_it.py": 3,
-    "tools/cloud/test_kept_rerun_pays_only_for_missing_jobs.py": 11,
     "tools/cloud/test_meshparts_brings_back_only_the_splits.py": 3,
     "tools/cloud/test_park_holds_a_machine_only_while_it_pays_off.py": 24,
     "tools/cloud/test_pool_books_every_card_once_and_deletes_every_card.py": 44,
