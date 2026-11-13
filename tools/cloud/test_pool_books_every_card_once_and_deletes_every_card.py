@@ -12,7 +12,7 @@ park.py and spread.py are the pool's own call sites):
 
 - test_a_pool_books_every_card_once_and_deletes_every_card: in park.py `pool_parkable`, `and
   pool.current(machine["pool"]) is not None` -> `and False` (a card back from its claim is deleted).
-- test_jobs_start_on_the_first_warm_card_while_the_collector_grows_the_pool: in `collect`, `collect_round(run_id,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its collector's first warm card): in `collect`, `collect_round(run_id,
   plan, collecting)` -> `pass`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its broken card): in park.py `park`, `pool.left(machine["pool"], machine["id"])` ->
   `pass`; (its idle card deleted under the pool) in `beat`, `if reads is not None and reads(record["id"],
@@ -58,7 +58,7 @@ park.py and spread.py are the pool's own call sites):
 - test_a_pool_books_every_card_once_and_deletes_every_card (its release side by side): in `at_once`, the threads -> one call after another.
 - test_a_pool_holds_what_its_jobs_can_run_at_once: in `counts_for`, `[:max(0, jobs)]` -> ``; or in `reach`,
   `[row for row in rows if not row[2]]` -> `rows`.
-- test_the_collector_stops_once_and_lets_its_release_finish: in `stop_on_signals`, `signal.signal(each,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its collector's first stop): in `stop_on_signals`, `signal.signal(each,
   signal.SIG_IGN)` -> `pass`.
 - test_a_zombie_holds_nothing: in `process_alive`, `!= "Z"` -> `!= "?"`.
 - test_with_l4s_sold_out_the_pool_rents_an_l40s_in_an_l4s_place_and_a_24gb_claim_takes_it: in `rents`, `rented =
@@ -72,12 +72,12 @@ park.py and spread.py are the pool's own call sites):
   machine.get("pool") and batch.answers(machine):` -> `if False:`.
 - test_a_set_up_that_keeps_failing_takes_no_card_after_card: in spread.py `one_machine`, `if setup_deaths > 1:` ->
   `if setup_deaths > 5:`.
-- test_a_failed_round_never_ends_the_collector: in `collect`, `except Exception as error:` -> `except
+- test_a_pool_books_every_card_once_and_deletes_every_card (its collector's failed round): in `collect`, `except Exception as error:` -> `except
   ZeroDivisionError as error:`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its failed delete): in `gathered`, `errors.append(error)` -> `raise`.
-- test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards: in `close_all`, `if not (path.parent /
+- test_a_pool_books_every_card_once_and_deletes_every_card (the kill switch): in `close_all`, `if not (path.parent /
   "closed").exists() and close(path.parent.name)` -> `if False`.
-- test_a_stop_signal_during_the_collectors_release_lets_it_release_every_card: in `stop_on_signals`, `if
+- test_a_pool_books_every_card_once_and_deletes_every_card (a stop while it releases): in `stop_on_signals`, `if
   batch.STOPPING.is_set():` -> `if False:`.
 - test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does: in `takes`, `if kind in
   capacity.PROCESSOR_KINDS and any(` -> `if any(`.
@@ -94,7 +94,7 @@ park.py and spread.py are the pool's own call sites):
   LEAD_MARGIN_MINUTES`.
 - test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends: in `trim`, `if not paid_ahead(record, now)}`
   -> `if True}`.
-- test_a_hung_collector_is_killed_once_the_release_has_waited_its_bound: in `end_collector`, `os.kill(collector,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its hung collector): in `end_collector`, `os.kill(collector,
   signal.SIGKILL)` -> `pass`.
 - test_an_open_pool_whose_collector_is_gone_gets_a_new_one_and_a_closed_pool_none: in `revive`, `plan =
   current(run_id)` -> `plan = plan_of(run_id)`.
@@ -237,30 +237,6 @@ def dead_check(dead, folder):
 
 def claimed(run, kind):
     return batch.claim(run, "account", OFFERS, len(run.machines) + 1, kind, wanted=lambda: False)
-
-
-def test_jobs_start_on_the_first_warm_card_while_the_collector_grows_the_pool():
-    calls, run_id = fresh(stock=1, sizes={"gpu-24gb": 3})
-    patch(pool, "POLL_SECONDS", 0.05)
-    patch(batch, "stock_wait_minutes", lambda rounds: 0.001)
-    collector = threading.Thread(target=pool.collect, args=(run_id,))
-    collector.start()
-    try:
-        run = a_run("first-warm")
-        card = batch.claim(run, "account", OFFERS, 1, KINDS[0], wanted=lambda: True)
-        assert card["pool"] == run_id and len(calls.rented) == 1  # the job starts on the first card, the pool still short
-        calls.stock = 5  # stock comes back: the collector grows the pool beside the run
-        deadline = time.time() + 5
-        while len(park.pool_records(run_id)) < 2 and time.time() < deadline:
-            time.sleep(0.02)
-        assert len(pool.members(run_id)) == 3 and len(calls.rented) == 3
-        assert pool.state(run_id) == {"size": 3, "warm": 3, "idle": 2, "open": True}  # the cockpit's cards warm
-        card["healthy"] = True
-        batch.delete_machine(card)
-    finally:
-        pool.release(run_id)
-        collector.join(5)
-    assert not collector.is_alive() and sorted(calls.deleted) == sorted(calls.rented)  # every card gone at the end
 
 
 def test_a_dead_cards_share_goes_back_on_the_queue_once():
@@ -508,27 +484,6 @@ def test_a_pool_holds_what_its_jobs_can_run_at_once():
     pool.release(run_id)
 
 
-def test_the_collector_stops_once_and_lets_its_release_finish():
-    """First Buy of 2026-10-24: the run's release signalled the stopping collector again, and a card it was renting
-    was never deleted."""
-    import signal
-    before = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
-    pool.stop_on_signals()
-    try:
-        try:
-            os.kill(os.getpid(), signal.SIGTERM)
-            time.sleep(1)
-            raise AssertionError("the first stop did not end the collector")
-        except SystemExit:
-            pass
-        assert batch.STOPPING.is_set() and signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
-        os.kill(os.getpid(), signal.SIGTERM)  # the second: ignored, the release goes on
-    finally:
-        for number, handler in before.items():
-            signal.signal(number, handler)
-        batch.STOPPING.clear()
-
-
 def test_a_zombie_holds_nothing():
     """A taker killed and not yet reaped holds its card no longer (review of 2026-10-24)."""
     child = os.fork()
@@ -626,73 +581,6 @@ def test_a_set_up_that_keeps_failing_takes_no_card_after_card():
         assert len(calls.deleted) == cards_taken and len(calls.rented) == 3, (answering, calls.deleted)
         assert list(shares.waiting) == ["one", "two"]  # gaps, for the run to say
         pool.release(run_id)
-
-
-def test_a_failed_round_never_ends_the_collector():
-    """Review (2026-10-23): one API error in a round (scw's server-type list, a delete) ended the collector, which
-    released the pool, and every later step of the run took no card."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
-    patch(pool, "POLL_SECONDS", 0.02)
-    patch(batch, "stock_wait_minutes", lambda rounds: 0.001)
-    asked = []
-
-    def offers(classes):
-        asked.append(classes)
-        if len(asked) == 1:
-            raise RuntimeError("scw: 503 Service Unavailable")
-        return [offer for offer in OFFERS if offer.machine_class in classes]
-    patch(cloud, "offers", offers)
-    collector = threading.Thread(target=pool.collect, args=(run_id,))
-    collector.start()
-    try:
-        deadline = time.time() + 5
-        while len(pool.members(run_id)) < 2 and time.time() < deadline:
-            time.sleep(0.02)
-        assert len(pool.members(run_id)) == 2 and collector.is_alive() and pool.current(run_id) is not None
-    finally:
-        pool.release(run_id)
-        collector.join(5)
-    assert not collector.is_alive() and len(asked) >= 2
-
-
-def test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards():
-    """Review (2026-10-23): Stop everything released a pool's idle cards while its collector ran on and ordered their
-    replacements."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
-    patch(pool, "POLL_SECONDS", 0.02)
-    grow(run_id)
-    collector = threading.Thread(target=pool.collect, args=(run_id,))
-    collector.start()
-    assert run_id in pool.close_all() and pool.close_all() == []
-    for record in park.pool_records(run_id):  # the switch's own release of the parked cards, after the close
-        park.release(record["id"], record["zone"], record["token"])
-    collector.join(5)
-    assert not collector.is_alive() and len(calls.rented) == 2 and sorted(calls.deleted) == sorted(calls.rented)
-
-
-def test_a_stop_signal_during_the_collectors_release_lets_it_release_every_card():
-    """Fault of 2026-10-24: the collector, releasing after its first SIGTERM, took a second one (its run's group stop,
-    then the pool's close) and ended after 7 of 13 parked machines; the other 6 billed until deleted by hand."""
-    import signal
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
-    grow(run_id)
-    assert len(park.pool_records(run_id)) == 3
-    before = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
-    delete = cloud.delete
-
-    def signalled(server_id, zone):
-        os.kill(os.getpid(), signal.SIGTERM)  # handled in this (the main) thread, between this card and the next
-        return delete(server_id, zone)
-    patch(cloud, "delete", signalled)
-    pool.stop_on_signals()
-    try:
-        batch.STOPPING.set()  # the collector's release (collect's end) runs stopping
-        pool.release(run_id)
-    finally:
-        for number, handler in before.items():
-            signal.signal(number, handler)
-        batch.STOPPING.clear()
-    assert park.pool_records(run_id) == [] and sorted(calls.deleted) == sorted(calls.rented), calls.deleted
 
 
 PROCESSOR = "cpu-48c-96gb"
@@ -856,27 +744,6 @@ def test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends():
     pool.release(run_id)
 
 
-def test_a_hung_collector_is_killed_once_the_release_has_waited_its_bound():
-    """Batch 1 (2026-10-25): a run that does not end holds its pool's parked machines. A release whose collector
-    does not end on its SIGTERM sends it SIGKILL after COLLECTOR_STOP_SECONDS, its idle cards deleted first."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
-    grow(run_id)
-    hung = REAL_POPEN([sys.executable, "-c", "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
-                       "print('ready', flush=True); time.sleep(60)"], stdout=subprocess.PIPE, text=True)
-    assert hung.stdout.readline().strip() == "ready"  # its SIGTERM is ignored from here
-    with pool.locked(run_id):
-        pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": hung.pid})
-    patch(pool, "COLLECTOR_STOP_SECONDS", 0.5)
-    started = time.time()
-    try:
-        pool.release(run_id)
-        assert hung.wait(5) == -signal.SIGKILL and time.time() - started < 5
-    finally:
-        hung.kill()
-        hung.wait()
-    assert sorted(calls.deleted) == sorted(calls.rented) and not park.pool_records(run_id)
-
-
 def test_an_open_pool_whose_collector_is_gone_gets_a_new_one_and_a_closed_pool_none():
     """Fault of 2026-10-26: with its collector gone and the pool open, nothing rents its places and every claim waits
     on it; the run's heartbeat starts a collector again (revive), never for a pool closed or one whose collector
@@ -907,9 +774,48 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
     whose taker died, one deleted under the pool while idle (2026-11-05: its failing beat finds it gone); each is
     struck off and one collector round rents the three places again. A stopped runner's card is deleted, on the
     pool until its delete went through (review of 2026-10-24), and a claim while stopping rents nothing. Its release
-    deletes the cards side by side, one delete failing: every card is tried and the failure said (review of
-    2026-10-23)."""
+    comes as its collector's process is stopped: the first stop ends the collector, a second is ignored (first Buy of
+    2026-10-24: a card being rented was never deleted), and one that comes while it releases lets the release go on
+    (2026-10-24: 6 of 13 parked machines left billing); a collector hung past its stop is killed once the release has
+    waited its bound (Batch 1, 2026-10-25); the cards go side by side, one delete failing: every card is tried and
+    the failure said (review of 2026-10-23).
+
+    First, a pool run by its collector: the job starts on the first warm card while the collector, one round of it
+    failing on the provider's API (review of 2026-10-23: that ended the collector), grows the pool beside it; the
+    kill switch closes the pool so nothing replaces the cards it releases (review of 2026-10-23)."""
     import characters
+    calls, run_id = fresh(stock=1, sizes={"gpu-24gb": 3})
+    patch(pool, "POLL_SECONDS", 0.05)
+    patch(batch, "stock_wait_minutes", lambda rounds: 0.001)
+    asked = []
+
+    def offers(classes):  # the collector's first ask fails on the provider's API
+        asked.append(classes)
+        if threading.current_thread() is collector and len(asked) == 1:
+            raise RuntimeError("scw: 503 Service Unavailable")
+        return [offer for offer in OFFERS if offer.machine_class in classes]
+    patch(cloud, "offers", offers)
+    collector = threading.Thread(target=pool.collect, args=(run_id,))
+    collector.start()
+    try:
+        card = batch.claim(a_run("first-warm"), "account", OFFERS, 1, KINDS[0], wanted=lambda: True)
+        assert card["pool"] == run_id and len(calls.rented) == 1  # the job starts on the first card, the pool still short
+        calls.stock = 5  # stock comes back: the collector grows the pool beside the run
+        deadline = time.time() + 5
+        while len(park.pool_records(run_id)) < 2 and time.time() < deadline:
+            time.sleep(0.02)
+        assert len(pool.members(run_id)) == 3 and len(calls.rented) == 3
+        assert pool.state(run_id) == {"size": 3, "warm": 3, "idle": 2, "open": True}  # the cockpit's cards warm
+        assert collector.is_alive() and pool.current(run_id) is not None and len(asked) >= 2  # its failed round
+        card["healthy"] = True
+        batch.delete_machine(card)
+        assert run_id in pool.close_all() and pool.close_all() == []  # the kill switch, then its own release
+        for record in park.pool_records(run_id):
+            park.release(record["id"], record["zone"], record["token"])
+    finally:
+        pool.close(run_id)
+        collector.join(5)
+    assert not collector.is_alive() and len(calls.rented) == 3 and sorted(calls.deleted) == sorted(calls.rented)
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
     assert grow(run_id) == 3
     orphan, broken = claimed(a_run("orphan"), KINDS[0]), claimed(a_run("dead"), KINDS[0])
@@ -944,16 +850,41 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
         with lock:
             tried.append(server_id)
             first = len(tried) <= len(left)
+            if len(tried) == 1:  # a stop signal while it releases (the run's group stop, then the pool's close)
+                os.kill(os.getpid(), signal.SIGTERM)
         if first:
             gate.wait()  # each delete waits for the others: one after another this would time out
         if first and server_id == tried[0]:  # the first card's first delete fails
             raise RuntimeError("Failed to detach block volume")
         return True
     patch(cloud, "delete", slow_delete)
-    with pytest.raises(RuntimeError, match="detach"):
-        pool.release(run_id)
+    hung = REAL_POPEN([sys.executable, "-c", "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+                       "print('ready', flush=True); time.sleep(60)"], stdout=subprocess.PIPE, text=True)
+    assert hung.stdout.readline().strip() == "ready"  # its SIGTERM is ignored from here
+    with pool.locked(run_id):
+        pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": hung.pid})
+    patch(pool, "COLLECTOR_STOP_SECONDS", 0.5)
+    before = {number: signal.getsignal(number) for number in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)}
+    pool.stop_on_signals()
+    try:
+        with pytest.raises(SystemExit):  # the first stop ends the collector
+            os.kill(os.getpid(), signal.SIGTERM)
+            time.sleep(1)
+        assert batch.STOPPING.is_set() and signal.getsignal(signal.SIGTERM) == signal.SIG_IGN
+        os.kill(os.getpid(), signal.SIGTERM)  # the second: ignored, the release goes on
+        pool.stop_on_signals()  # a stop that finds the collector already releasing (collect's end set STOPPING)
+        started = time.time()
+        with pytest.raises(RuntimeError, match="detach"):
+            pool.release(run_id)
+        assert hung.wait(5) == -signal.SIGKILL and time.time() - started < 5
+    finally:
+        for number, handler in before.items():
+            signal.signal(number, handler)
+        batch.STOPPING.clear()
+        hung.kill()
+        hung.wait()
     assert set(tried) == left and tried.count(tried[0]) == 2  # the failed one tried again as a member
-    assert pool.current(run_id) is None and not pool.members(run_id)
+    assert pool.current(run_id) is None and not pool.members(run_id) and not park.pool_records(run_id)
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
     assert grow(run_id) == 2 and grow(run_id) == 0 and len(calls.rented) == 2  # rented once; full, nothing more
     for name in rented_ago(run_id, 30):
