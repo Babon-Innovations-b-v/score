@@ -126,7 +126,6 @@ FUNCTION_DEBT = {
     "score/stages/library/test_everything_handed_to_library.py": 12,
     "score/stages/light/test_light_measured_against_design.py": 6,
     "score/stages/motion/test_a_thing_moves_as_its_design_says.py": 14,
-    "score/stages/people_cloth/test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure.py": 8,
     "score/stages/scene_record/test_a_scene_record_is_written_from_its_design.py": 22,
     "score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py": 2,
     "score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py": 8,
