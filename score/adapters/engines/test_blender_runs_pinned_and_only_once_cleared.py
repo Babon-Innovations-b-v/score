@@ -46,43 +46,64 @@ RENDER = graph.Stage("render", "place", make_nothing, contracts.Contract("toy-re
                      paid=True)
 
 
-SCRIPT = "tools/blender/inside/warm_kernels.py"
-ARGUMENTS = ["/work/out.json"]
-CLASSES = ["cpu-32c-128gb"]
+NODE = "render@hangar"
+JOB = {"script": "tools/blender/inside/warm_kernels.py", "arguments": ["/work/out.json"], "inputs": [], "outputs": [],
+       "classes": ["cpu-32c-128gb"], "minutes": 5, "euros": 0.5}
+
+# One node's job asked to run twice: books state -> whether the compute adapter refuses it.
+CASES = [
+    ("books unknown", "the month's books are unknown", True),
+    ("cleared", None, False),
+]
 
 
 def test_a_blender_job_runs_pinned_and_headless_only_once_cleared():
-    """One node, one script: its job spec is the pinned image run headless, and its machine run starts only after
-    the compute adapter clears it, named by the node's ticket."""
-    spec = engines.blender_job(SCRIPT, ARGUMENTS, [], "code/x.tar.gz", 5, 0.4)
-    assert spec["euros"] == 0.4
-    assert "@sha256:" in spec["image"]  # pinned by digest, never a moving tag
+    """One node's job: its container spec and its machine run are the same script and arguments, the spec pinned and
+    headless, and the machine run starts only once the compute adapter clears it, named by the node's ticket."""
+    spec = engines.blender_job(JOB["script"], JOB["arguments"], JOB["outputs"], "code/x.tar.gz", JOB["minutes"],
+                               JOB["euros"])
     command = spec["command"]
-    assert "-b" in command and command[command.index("--python-exit-code") + 1] == "1"  # headless; a failed script fails
-    assert command[command.index("--python") + 1] == SCRIPT
-    assert command[-2:] == ["--", *ARGUMENTS]
-
     runner = graph.Runner([RENDER], graph.Environment("toy", 1, {}), Store.in_folder(tempfile.mkdtemp()))
+    key = runner.ticket(NODE)["key"]
     blender_cloud = engines.machine_runner()
     real = blender_cloud.run_elsewhere
     blender_cloud.run_elsewhere = lambda *arguments: STARTED.append(arguments + (os.environ.get(compute.TICKET),))
     books = compute.ledger()
+    kept_refusal = books.books_refusal
     try:
-        kept_refusal, books.books_refusal = books.books_refusal, lambda: "the month's books are unknown"
-        try:
-            with pytest.raises(compute.Refused, match="unknown"):
-                engines.blender_on_machines(runner, "render@hangar", SCRIPT, ARGUMENTS, [], [], CLASSES, 5, 0.5)
-        finally:
-            books.books_refusal = kept_refusal
-        assert STARTED == []
-        key = runner.ticket("render@hangar")["key"]
-        books.entries = lambda: []
-        engines.blender_on_machines(runner, "render@hangar", SCRIPT, ARGUMENTS, [], [], CLASSES, 5, 0.5)
-        assert STARTED == [(SCRIPT, ARGUMENTS, [], [], CLASSES, f"render@hangar {key[:12]}", 5,
-                            f"render@hangar {key}")], STARTED
-        assert compute.TICKET not in os.environ
+        for name, refusal, refused in CASES:
+            STARTED.clear()
+            books.books_refusal = (lambda: refusal) if refusal else kept_refusal
+            if refusal is None:
+                books.entries = lambda: []
+            try:
+                engines.blender_on_machines(runner, NODE, JOB["script"], JOB["arguments"], JOB["inputs"],
+                                            JOB["outputs"], JOB["classes"], JOB["minutes"], JOB["euros"])
+                raised = None
+            except compute.Refused as refusal_raised:
+                raised = refusal_raised
+            assert (raised is not None) == refused, (name, raised)
+            if refused:
+                assert "unknown" in str(raised), (name, raised)
+                assert STARTED == [], (name, STARTED)
+                continue
+            assert len(STARTED) == 1, (name, STARTED)
+            script, arguments, inputs, outputs, classes, label, minutes, ticket = STARTED[0]
+            # the machine run is the spec's own job: same script, same arguments after "--"
+            assert script == command[command.index("--python") + 1], (name, script, command)
+            assert list(arguments) == command[command.index("--") + 1:], (name, arguments, command)
+            assert (inputs, outputs, classes, minutes) == (JOB["inputs"], spec["outputs"], JOB["classes"],
+                                                           spec["minutes"]), (name, STARTED)
+            assert label == f"{NODE} {key[:12]}" and ticket == f"{NODE} {key}", (name, label, ticket)
+            assert compute.TICKET not in os.environ, name
     finally:
+        books.books_refusal = kept_refusal
         blender_cloud.run_elsewhere = real
+    # that one job, as a container spec: pinned by digest, headless, a failed script fails, priced at its estimate
+    assert "@sha256:" in spec["image"], spec["image"]
+    assert "-b" in command and command[command.index("--python-exit-code") + 1] == "1", command
+    assert command[command.index("--python") + 1] == JOB["script"] and command[-2:] == ["--", *JOB["arguments"]]
+    assert spec["euros"] == JOB["euros"], spec
 
 
 if __name__ == "__main__":
