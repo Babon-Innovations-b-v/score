@@ -143,7 +143,6 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py": 3,
     "score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py": 6,
     "score/stages/sound/test_a_place_is_heard_as_its_design_says.py": 20,
-    "score/stages/surface_tiles/test_shell_tiles.py": 4,
     "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py": 116,
     "score/stages/test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.py": 80,
     "score/stages/video_clips/test_a_row_per_upload_and_gates_refuse_flips.py": 2,
