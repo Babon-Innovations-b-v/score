@@ -22,7 +22,8 @@ render that never passes) and a store of its own; the machine's score_lib checko
                               process's) and handed.spawn's process name no copy in words or environment, and a child
                               the command left running ends with its row (2026-11-05: on the conductor they kept the
                               copy busy, so every carry, clean-cache and clean-frozen refused)
-    the defaults              the environment wins over the defaults; the cloud's store only when no blob folder is set
+    the defaults              the environment wins over the defaults, a library the defaults alone name is found; the
+                              cloud's store only when no blob folder is set (rows of the runner's seams)
     the real table            the two rows read every row of their grain but straight-masks, the showcase renders
                               optional, both free, and no row reads them (owner, 2026-10-22: no paid preview)
     pictures                  a lost picture never stops the others; a 404 is not asked again until the bytes change
@@ -76,12 +77,15 @@ FAKE_STORE = {"endpoint": "https://store.example", "region": "region-1", "bucket
 PLACE, WORLD = "garage", "toyworld"
 TOY = contracts.Contract("toy-text", 1, lambda folder: [] if any(folder.glob("*.txt")) else ["no text file"])
 
-# The fake library: writes handover.json from reads.json as its mode file says, and counts its calls.
-FAKE = '''import json, pathlib, sys
+# The fake library: writes handover.json from reads.json as its mode file says, and writes down each call's words and
+# the blob store its environment names.
+FAKE = '''import json, os, pathlib, sys
 words = sys.argv[1:]
 here = pathlib.Path(__file__).parent
+seen = {name: os.environ.get(name) for name in ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_BUCKET", "SCORE_LIB_S3_PREFIX",
+                                               "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")}
 with (here / "calls.txt").open("a") as calls:
-    calls.write(json.dumps(words) + "\\n")
+    calls.write(json.dumps({"words": words, "environment": seen}) + "\\n")
 value = lambda option: words[words.index(option) + 1] if option in words else None
 out = pathlib.Path(value("--out"))
 mode = (here / "mode.txt").read_text().strip()
@@ -164,14 +168,23 @@ def toy_runner(root, free=False, exceptions=None):
                         Store.in_folder(root / "store"))
 
 
-def fake_library(root, monkeypatch, mode="full"):
-    """The fake library's folder under `root`, its command set in the environment; its calls file."""
+def fake_library(root, monkeypatch, mode="full", found="environment", blobs=False):
+    """The fake library's folder under `root`, its folder and command set where `found` says: in the environment over
+    defaults naming another library, or in the defaults alone; with `blobs` a blob folder in the environment over a
+    default one. Its calls file."""
     folder = root / "library"
     folder.mkdir(parents=True)
     (folder / "handover.py").write_text(FAKE)
     (folder / "mode.txt").write_text(mode)
-    monkeypatch.setenv("SCORE_LIB_ROOT", str(folder))
-    monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} {folder / 'handover.py'}")
+    ours = {"SCORE_LIB_ROOT": str(folder), "SCORE_LIB_COMMAND": f"{sys.executable} {folder / 'handover.py'}"}
+    defaults = ours if found == "defaults" else {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"}
+    if found == "environment":
+        for name, value in ours.items():
+            monkeypatch.setenv(name, value)
+    if blobs:
+        defaults = {**defaults, "SCORE_LIB_BLOBS_DIR": "/the/default/blobs"}
+        monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(root / "blobs"))
+    monkeypatch.setattr(backend.library_files, "defaults", lambda: defaults)
     return folder / "calls.txt"
 
 
@@ -189,20 +202,24 @@ EXCEPTION_E1 = {"id": "E1", "place": PLACE, "prim": "/garage/*", "what": "a toy"
                 "allowed_by": "@owner", "allowed_on": "2026-10-18"}
 
 
-def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=True, calls=2):
+def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=True, calls=2, found="environment",
+         blobs=False):
     """One toy environment at the runner's seams: the fake library's mode (None: no library command), a library-free
     decision, the written exceptions; the library node's verdicts that do not pass (check: (answer, "is"/"has",
     reason text), every other verdict passes), whether its library nodes are accepted automatically, and how often
-    the library's command ran (each node once; a failed output is made once more, an unknown one is not)."""
-    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, id=name)
+    the library's command ran (each node once; a failed output is made once more, an unknown one is not); where the
+    library's settings are found (fake_library) and whether a blob folder is set."""
+    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, found, blobs, id=name)
 
 
-@pytest.mark.parametrize("mode, free, exceptions, verdicts, accepted, calls", (
+@pytest.mark.parametrize("mode, free, exceptions, verdicts, accepted, calls, found, blobs", (
     seam("no library configured", verdicts={"configured": (checks.FAIL, "is", "no library configured"),
                                             "handed": (checks.FAIL, "has", f"made@{PLACE}"),
                                             "saved": (checks.FAIL, "has", "no library configured")}, accepted=False),
     seam("a library-free environment", free=True),
     seam("a configured library", mode="full"),
+    seam("a library found by its defaults, the environment's blob folder over theirs", mode="full", found="defaults",
+         blobs=True),
     seam("an output the handover misses", mode="miss-one",
          verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}")}, accepted=False, calls=4),
     seam("a written exception covers it", mode="exception", exceptions=[EXCEPTION_E1]),
@@ -212,8 +229,8 @@ def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=T
          verdicts={"copies": (checks.UNKNOWN, "has", "model/rover@1")}, accepted=False),
 ))
 def test_the_library_node_hands_everything_by_the_librarys_command_once_and_names_what_it_misses(
-        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls):
-    called = fake_library(tmp_path, monkeypatch, mode) if mode else None
+        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls, found, blobs):
+    called = fake_library(tmp_path, monkeypatch, mode, found, blobs) if mode else None
     runner = toy_runner(tmp_path, free=free, exceptions=exceptions)
     did = runner.run([PLACE])
     output, found = library_output(runner)
@@ -236,10 +253,17 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
         assert ("library-world" in waiting) is not free, waiting
         return
     # the library's own command with the template's words, for the place's node and for the environment's
-    words = [json.loads(line) for line in called.read_text().splitlines()]
+    said = [json.loads(line) for line in called.read_text().splitlines()]
+    words = [call["words"] for call in said]
     assert len(words) == calls, words
     place_words = next(said for said in words if "--place" in said)
     world_words = next(said for said in words if "--place" not in said)
+    # the cloud's blob store only when no blob folder is set, and the environment's folder over the defaults'
+    store = {"SCORE_LIB_BLOBS_DIR": str(tmp_path / "blobs"), "SCORE_LIB_S3_BUCKET": None, "SCORE_LIB_S3_PREFIX": None,
+             "AWS_ACCESS_KEY_ID": None, "AWS_SECRET_ACCESS_KEY": None} if blobs else {
+        "SCORE_LIB_BLOBS_DIR": None, "SCORE_LIB_S3_BUCKET": "a-bucket", "SCORE_LIB_S3_PREFIX": "score_lib",
+        "AWS_ACCESS_KEY_ID": "AK", "AWS_SECRET_ACCESS_KEY": "SK"}
+    assert all(call["environment"] == store for call in said), said
 
     def after(option):
         return place_words[place_words.index(option) + 1]
@@ -248,7 +272,7 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     assert after("--route") == route == world_words[world_words.index("--route") + 1]
     assert runner.key(runner.stages[library.PLACE_ROW], PLACE)["params"]["route"] == route  # in the key
     assert after("--store") == str((tmp_path / "store/objects").resolve())
-    assert place_words[place_words.index("handover") - 1] == str(tmp_path / "library")  # --root
+    assert place_words[:3] == ["--root", str(tmp_path / "library"), "handover"], place_words  # the setting's own root
     assert "--world" in world_words, world_words
     # the showcase render that never passed is read without
     assert handover.handed(output) == [{"node": f"made@{PLACE}", "output": handover.handed(output)[0]["output"],
@@ -465,25 +489,6 @@ def running(pid):
         return stat.read_text().rsplit(") ", 1)[1][0] != "Z"
     except FileNotFoundError:
         return False
-
-
-def test_the_environment_wins_over_the_defaults_and_the_cloud_store_only_without_a_blob_folder(monkeypatch):
-    monkeypatch.setattr(backend.library_files, "defaults",
-                        lambda: {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"})
-    found = backend.settings()
-    assert found == {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"}
-    assert backend.kind(found) == backend.COMMAND
-    monkeypatch.setenv("SCORE_LIB_ROOT", "/the/environment")
-    assert backend.settings()["SCORE_LIB_ROOT"] == "/the/environment", "the default won over the environment"
-    words = backend.arguments(backend.settings(), {"world": "w", "place": None, "seed": 1, "commit": "c", "route": "r",
-                                                   "store": "s", "repo": "r", "out": "o"})
-    assert words[:4] == ["lib", "--x", "--root", "/the/environment"] and "--place" not in words, words
-    environment = backend.command_environment(backend.settings(), "s", "r")
-    assert environment["SCORE_LIB_S3_BUCKET"] == "a-bucket" and environment["SCORE_LIB_S3_PREFIX"] == "score_lib"
-    assert environment["AWS_ACCESS_KEY_ID"] == "AK" and environment["AWS_SECRET_ACCESS_KEY"] == "SK"
-    monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", "/the/blobs")
-    environment = backend.command_environment(backend.settings(), "s", "r")
-    assert "SCORE_LIB_S3_BUCKET" not in environment, "the cloud store was read over a blob store that was set"
 
 
 def test_the_real_tables_library_rows_read_every_row_free_and_nothing_reads_them():
