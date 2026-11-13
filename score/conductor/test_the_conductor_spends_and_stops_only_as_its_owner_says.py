@@ -72,112 +72,80 @@ def home(tmp_path, monkeypatch):
     return tmp_path
 
 
-@pytest.fixture
-def as_conductor(tmp_path, monkeypatch):
-    """A function making this process a fake conductor of `cores` cores (machine.json and the size function's url)."""
-    def make(cores=2):
-        (tmp_path / "machine.json").write_text(json.dumps(RECORD))
-        monkeypatch.setattr(conductor, "MACHINE", tmp_path / "machine.json")
-        monkeypatch.setattr(os, "cpu_count", lambda: cores)
-        monkeypatch.setenv(conductor.SIZE_URL, "https://size.invalid/")
-    return make
-
-
 # --- size: grow for the owner's run, shrink when idle ------------------------------------------------------------------
 
-def test_a_run_waits_for_size_only_on_a_conductor_for_the_owner_within_the_batch_cores(as_conductor):
-    assert size.waits(16, False, agent=False) is None  # not a conductor: refused as on the PC
-    assert conductor.default_jobs(8) == 8
-    as_conductor(2)
-    assert size.waits(16, False, agent=False).startswith("16 jobs on 2 cores: waiting")
-    assert size.waits(2, False, agent=False) is None  # fits
-    assert size.waits(16, True, agent=False) is None  # --oversubscribe runs as asked
-    assert size.waits(16, False, agent=True) is None  # an agent's run never grows the machine
-    assert size.waits(17, False, agent=False) is None  # more than the batch size has
-    as_conductor(16)
-    assert conductor.default_jobs(8) == 16
+NOW = 10_000_000
+WAITING = {**IDLE, "waiting": 1, "wanted": 16}
+PASSING = {**IDLE, "passing": 1, "held": ["sync-pass-4242"]}
 
-
-def test_a_grow_is_asked_for_a_waiting_run_once_no_run_is_live_and_no_latch_holds(tmp_path):
-    waiting = {**IDLE, "waiting": 1, "wanted": 16}
-    assert size.decide(waiting, 2, RECORD, 0, 100, False)[0] == size.GROW
-    assert size.decide({**waiting, "claims": 1}, 2, RECORD, 0, 100, False)[0] is None
-    assert size.decide({**waiting, "running": 1}, 2, RECORD, 0, 100, False)[0] is None
-    assert "free-only latch" in size.decide(waiting, 2, RECORD, 0, 100, True)[1]
-    # a Buy on the idle size asks for the batch size before it prices, and starts again at the boot on it
-    assert size.buy_waits(RECORD, 2).startswith("2 cores: a Buy prices on the batch size")
-    assert size.buy_waits(RECORD, 16) is None and size.buy_waits(None, 2) is None
-    asked, pokes = tmp_path / "asked", []
-    size.ask_grow_for(["buy", "y1", "--phase", "models"], {"SCORE_CLOUD": "k8s"}, tmp_path / "buy.log", 16, asked,
-                      lambda: pokes.append(1))
-    view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds", asked)
-    assert pokes == [1] and (view["waiting"], view["wanted"]) == (1, 16)
-    assert size.decide(view, 2, RECORD, 0, 100, False)[0] == size.GROW
-    started, words = [], []
-    assert size.started_asked(words.append, asked, cores=2, start=lambda *a, **k: started.append(a)) == 0
-    assert not started and size.asked_grows(asked)  # still waits on the idle size
-    assert size.started_asked(words.append, asked, cores=16,
-                              start=lambda argv, **k: started.append((argv, k["env"]["SCORE_CLOUD"]))) == 1
-    assert started == [(["buy", "y1", "--phase", "models"], "k8s")] and not size.asked_grows(asked)
-    size.ask_grow_for(["buy", "y2"], {}, tmp_path / "buy.log", 16, asked, lambda: None)
-    late = size.asked_grows(asked)[0][1]["at"] + size.ASKED_HOURS * 3600 + 1
-    assert size.started_asked(words.append, asked, cores=16, now=late, start=lambda *a, **k: 1 / 0) == 0
-    assert not size.asked_grows(asked) and "not started" in words[-1]
-
-
-def test_a_shrink_comes_only_after_thirty_idle_minutes_at_the_batch_size(tmp_path, monkeypatch):
-    now = 10_000_000
-    assert size.decide(IDLE, 16, RECORD, now - 29 * 60, now, False)[0] is None
-    assert size.decide(IDLE, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
-    assert size.decide(IDLE, 2, RECORD, 0, now, False)[0] is None  # already at the idle size
-    for busy in ("claims", "running", "waiting", "parked", "frozen", "working"):
-        found = size.decide({**IDLE, busy: 1}, 16, RECORD, 0, now, False)
-        assert found[0] is None and busy in found[1], (busy, found)
+# size.decide's answers: (row, busy view, cores, idle since, now, latched) -> (action, a word its reason holds or None)
+DECIDED = [
+    ("grow for a waiting run", WAITING, 2, 0, 100, False, size.GROW, "waits for 16 cores"),
+    ("no grow while a claim is live", {**WAITING, "claims": 1}, 2, 0, 100, False, None, "live runs"),
+    ("no grow while a run is live", {**WAITING, "running": 1}, 2, 0, 100, False, None, "live runs"),
+    ("no grow under the kill switch's latch", WAITING, 2, 0, 100, True, None, "free-only latch"),
+    ("no shrink before thirty minutes", IDLE, 16, NOW - 29 * 60, NOW, False, None, "idle 29 of 30"),
+    ("shrink after thirty idle minutes", IDLE, 16, NOW - 31 * 60, NOW, False, size.SHRINK, None),
+    ("nothing at the idle size", IDLE, 2, 0, NOW, False, None, "idle size"),
+    *[(f"no shrink while {busy}", {**IDLE, busy: 1}, 16, 0, NOW, False, None, busy)
+      for busy in ("claims", "running", "waiting", "parked", "frozen", "working")],
     # 2026-11-04: sync passes back to back held the clock at 0 all morning; a pass waits the shrink, never the clock
-    passing = {**IDLE, "passing": 1, "held": ["sync-pass-4242"]}
-    assert not size.is_busy(passing)
-    found = size.decide(passing, 16, RECORD, now - 31 * 60, now, False)
-    assert found[0] == size.DRAIN and "sync-pass-4242" in found[1], found
-    assert size.decide(passing, 16, RECORD, now - 29 * 60, now, False)[0] is None  # not idle long enough: no drain
-    # the drain mark stops new passes while fresh, and the size timer takes it back once a pass is no longer the hold
+    ("a pass drains the shrink", PASSING, 16, NOW - 31 * 60, NOW, False, size.DRAIN, "sync-pass-4242"),
+    ("no drain before thirty minutes", PASSING, 16, NOW - 29 * 60, NOW, False, None, None),
+    ("the pass ended: shrink", {**PASSING, "passing": 0, "held": []}, 16, NOW - 31 * 60, NOW, False, size.SHRINK,
+     None),
+]
+
+# a run asking for size: (conductor's cores or None off one, jobs, --oversubscribe, an agent's) -> (waits' start, a
+# Buy's wait's start, the default jobs of a run given none of 8)
+ASKED_SIZE = [
+    (None, 16, False, False, None, None, 8),  # not a conductor: refused as on the PC
+    (2, 16, False, False, "16 jobs on 2 cores: waiting", "2 cores: a Buy prices on the batch size", 2),
+    (2, 2, False, False, None, "2 cores: a Buy prices on the batch size", 2),  # fits
+    (2, 16, True, False, None, "2 cores: a Buy prices on the batch size", 2),  # --oversubscribe runs as asked
+    (2, 16, False, True, None, "2 cores: a Buy prices on the batch size", 2),  # an agent's run never grows it
+    (2, 17, False, False, None, "2 cores: a Buy prices on the batch size", 2),  # more than the batch size has
+    (16, 16, False, False, None, None, 16),  # at the batch size: fits, and a Buy prices at once
+]
+
+# a registered `running` entry with this process's pid, registered at an offset from now (None: when unknown); an
+# out-of-memory kill leaves an entry `running`, and a later process given its pid is not the run
+ENTRIES = [(datetime.timedelta(seconds=5), True), (-datetime.timedelta(days=400), False), (None, False)]
+
+
+def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch):
+    for row, view, cores, idle_since, now, latched, action, word in DECIDED:
+        found = size.decide(view, cores, RECORD, idle_since, now, latched)
+        assert found[0] == action and (word is None or word in found[1]), (row, found)
+    assert not size.is_busy(PASSING)  # a pass is no work that keeps the batch size
+    tmp_path = home
+
+    def become(cores):
+        """This process a conductor of `cores` cores (machine.json and the size function's url), or none at None."""
+        if cores is None:
+            monkeypatch.delenv(conductor.SIZE_URL, raising=False)
+            return
+        monkeypatch.setattr(os, "cpu_count", lambda: cores)
+        monkeypatch.setenv(conductor.SIZE_URL, "https://size.invalid/")
+    (tmp_path / "machine.json").write_text(json.dumps(RECORD))
+    monkeypatch.setattr(conductor, "MACHINE", tmp_path / "machine.json")
     monkeypatch.setattr(conductor, "DRAINING", tmp_path / "draining.json")
-    monkeypatch.setattr(conductor, "machine", lambda path=None: RECORD)
-    monkeypatch.setattr(conductor, "cores", lambda: 16)
-    monkeypatch.setattr(runs, "boot_time", lambda: 0)
-    state = tmp_path / "size-state.json"
-    assert size.tick(say=lambda line: None, now=now, view=passing, state_path=state, asker=None)["action"] == size.DRAIN
-    assert size.draining(now + 60) and not size.draining(now + size.DRAIN_MINUTES * 60 + 1)
-    asked = []
-    size.tick(say=lambda line: None, now=now + 300, view={**passing, "passing": 0, "held": []}, state_path=state,
-              asker=lambda action: asked.append(action) or "ok")
-    assert asked == [size.SHRINK] and size.draining(now + 300)  # the mark stays until the machine is small
-    monkeypatch.setattr(conductor, "cores", lambda: 2)  # booted at the idle size: passes go on again
-    size.tick(say=lambda line: None, now=now + 600, view={**IDLE, "held": []}, state_path=state, asker=None)
-    assert not conductor.DRAINING.exists()
-    assert size.decide({**passing, "passing": 0, "held": []}, 16, RECORD, now - 31 * 60, now, False)[0] == size.SHRINK
-    with conductor.holding("sync-pass", tmp_path / "holds"), conductor.holding("reading", tmp_path / "holds"):
-        view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds")
-    assert (view["working"], view["passing"]) == (1, 1) and len(view["held"]) == 2, view
+    for cores_now, jobs, oversubscribe, agent, waits, buy, default in ASKED_SIZE:
+        become(cores_now)
+        row = (cores_now, jobs, oversubscribe, agent)
+        said = size.waits(jobs, oversubscribe, agent=agent)
+        assert (said is None) if waits is None else said.startswith(waits), (row, said)
+        said = size.buy_waits(None, cores_now)
+        assert (said is None) if buy is None else said.startswith(buy), (row, said)
+        assert conductor.default_jobs(8) == default, row
+    for offset, live in ENTRIES:
+        entry = {"pid": os.getpid(), "state": runs.RUNNING}
+        if offset is not None:
+            at = datetime.datetime.now(datetime.timezone.utc) + offset
+            entry["started"] = at.isoformat(timespec="seconds")
+        assert size.entry_alive(entry) is live, offset
 
-
-def test_the_idle_time_counts_from_the_last_busy_pass_and_marks_its_resize(home, as_conductor):
-    asks = []
-    start = max(time.time(), runs.boot_time()) + 3600
-
-    def tick(view, now):
-        return size.tick(say=lambda line: None, now=now, asker=asks.append, state_path=home / "size.json", view=view)
-    as_conductor(16)
-    found = [tick({**IDLE, "claims": 1}, start), tick(IDLE, start + 29 * 60), tick(IDLE, start + 31 * 60)]
-    assert [each["action"] for each in found] == [None, None, size.SHRINK] and asks == [size.SHRINK]
-    assert json.loads(conductor.RESIZING.read_text())["action"] == size.SHRINK  # its power-off is a resize's
-
-
-def test_off_a_conductor_the_size_timer_asks_nothing(monkeypatch):
-    monkeypatch.delenv(conductor.SIZE_URL, raising=False)
-    assert size.tick(say=lambda line: None, asker=lambda action: 1 / 0)["action"] is None
-
-
-def test_the_ask_carries_the_token_read_by_name_and_only_grow_or_shrink(tmp_path, monkeypatch):
+    # the ask: the token read by name, only grow or shrink, and a failed ask takes its resize mark back
     reader = tmp_path / "reader"
     reader.write_text("#!/bin/sh\n[ \"$1\" = score-conductor-size-token ] && echo the-token\n")
     reader.chmod(0o700)
@@ -199,56 +167,80 @@ def test_the_ask_carries_the_token_read_by_name_and_only_grow_or_shrink(tmp_path
     with pytest.raises(ValueError):
         size.ask("delete", url="https://size.invalid/", opener=opener)
 
-
-def test_a_failed_ask_takes_its_resize_mark_back(home):
     def refused(action):
         raise RuntimeError("the size function is down")
     with pytest.raises(RuntimeError):
         size.asked(size.GROW, refused)
     assert not conductor.RESIZING.exists()
 
-
-def test_a_running_entry_is_live_only_while_its_own_process_is():
-    """An out-of-memory kill leaves an entry `running`; a later process given its pid is not the run."""
-    late = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=5)
-    early = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=400)
-    entry = {"pid": os.getpid(), "state": runs.RUNNING}
-    assert size.entry_alive({**entry, "started": late.isoformat(timespec="seconds")})
-    assert not size.entry_alive({**entry, "started": early.isoformat(timespec="seconds")})  # its pid, not its run
-    assert not size.entry_alive(entry)  # registered when, unknown: not counted as its run
-
-
-def test_busy_counts_claims_waiting_runs_parked_machines_and_frozen_copies_in_use(tmp_path, monkeypatch):
-    (tmp_path / "runs").mkdir()
-    (tmp_path / "parked").mkdir()
+    # one world: a Buy asks the grow on the idle size before it prices, and starts again at the boot on the batch size
+    folders = [tmp_path / name for name in ("runs", "parked", "frozen", "holds", "asked")]
+    asked, pokes = folders[4], []
+    size.ask_grow_for(["buy", "y1", "--phase", "models"], {"SCORE_CLOUD": "k8s"}, tmp_path / "buy.log", 16, asked,
+                      lambda: pokes.append(1))
+    view = size.busy(*folders)
+    assert pokes == [1] and (view["waiting"], view["wanted"]) == (1, 16)
+    assert size.decide(view, 2, RECORD, 0, 100, False)[0] == size.GROW
+    started, words = [], []
+    assert size.started_asked(words.append, asked, cores=2, start=lambda *a, **k: started.append(a)) == 0
+    assert not started and size.asked_grows(asked)  # still waits on the idle size
+    assert size.started_asked(words.append, asked, cores=16,
+                              start=lambda argv, **k: started.append((argv, k["env"]["SCORE_CLOUD"]))) == 1
+    assert started == [(["buy", "y1", "--phase", "models"], "k8s")] and not size.asked_grows(asked)
+    size.ask_grow_for(["buy", "y2"], {}, tmp_path / "buy.log", 16, asked, lambda: None)
+    late = size.asked_grows(asked)[0][1]["at"] + size.ASKED_HOURS * 3600 + 1
+    assert size.started_asked(words.append, asked, cores=16, now=late, start=lambda *a, **k: 1 / 0) == 0
+    assert not size.asked_grows(asked) and "not started" in words[-1]
+    # ...then a claim, a waiting run, a parked machine and a frozen copy in use, and the holds
+    for folder in folders[:2]:
+        folder.mkdir(exist_ok=True)
     (tmp_path / "frozen" / "live-copy").mkdir(parents=True)
     (tmp_path / "frozen" / "left-over").mkdir()
     runs.claim("c0ffee", ["a@b"], os.getpid(), folder=tmp_path / "runs")
     runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=tmp_path / "runs")
     (tmp_path / "parked" / "machine.json").write_text("{}")
     monkeypatch.chdir(tmp_path / "frozen" / "live-copy")
-    view = size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path / "holds")
-    assert view == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1, "working": 0,
-                    "passing": 0, "held": []}
-
-
-def test_a_hold_keeps_the_machine_busy_until_its_process_lets_go(tmp_path, monkeypatch):
-    """2026-10-25: a shrink cut the first sync pass after a boot. A holder killed mid-way holds nothing."""
-    with conductor.holding("sync-pass", tmp_path):
-        assert conductor.holds(tmp_path) == [f"sync-pass-{os.getpid()}"]
-        assert size.busy(tmp_path / "runs", tmp_path / "parked", tmp_path / "frozen", tmp_path)["passing"] == 1  # a pass waits the shrink (decide)
-    assert conductor.holds(tmp_path) == [] and not list(tmp_path.glob("*.lock"))
+    assert size.busy(*folders) == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1,
+                                   "working": 0, "passing": 0, "held": []}
+    # 2026-10-25: a shrink cut the first sync pass after a boot. A hold lasts while its process does; a holder killed
+    # mid-way holds nothing
+    holds = folders[3]
+    with conductor.holding("sync-pass", holds), conductor.holding("reading", holds):
+        assert conductor.holds(holds) == [f"reading-{os.getpid()}", f"sync-pass-{os.getpid()}"]
+        view = size.busy(*folders)
+    assert (view["working"], view["passing"]) == (1, 1) and len(view["held"]) == 2, view
+    assert conductor.holds(holds) == [] and not list(holds.glob("*.lock"))
     code = (f"import os, sys, pathlib; sys.path.insert(0, {str(REPO)!r}); from score import conductor; "
-            f"h = conductor.holding('film-preview', pathlib.Path({str(tmp_path)!r})); h.__enter__(); "
+            f"h = conductor.holding('film-preview', pathlib.Path({str(holds)!r})); h.__enter__(); "
             "print('held', flush=True); os.kill(os.getpid(), 9)")
     child = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
     assert child.stdout.readline().strip() == "held"
     child.wait()
-    assert conductor.holds(tmp_path) == [] and not list(tmp_path.glob("*.lock"))  # the dead holder's file is gone
-    monkeypatch.setattr(conductor, "HOLDS", tmp_path / "holds")
-    monkeypatch.delenv(conductor.SIZE_URL, raising=False)
+    assert conductor.holds(holds) == [] and not list(holds.glob("*.lock"))  # the dead holder's file is gone
+
+    # the size timer: the idle clock counts from the last busy pass, a pass drains the shrink (no new pass while the
+    # mark is fresh), the shrink is asked once it ended and marks its resize, and the idle size takes the mark back
+    become(16)
+    monkeypatch.setattr(runs, "boot_time", lambda: 0)
+    asks, state = [], tmp_path / "size-state.json"
+
+    def tick(view, now):
+        return size.tick(say=lambda line: None, now=now, asker=asks.append, state_path=state, view=view)["action"]
+    assert [tick({**IDLE, "claims": 1}, NOW), tick(IDLE, NOW + 29 * 60), tick(PASSING, NOW + 31 * 60)] == [
+        None, None, size.DRAIN] and asks == []
+    assert size.draining(NOW + 32 * 60) and not size.draining(NOW + 31 * 60 + size.DRAIN_MINUTES * 60 + 1)
+    assert tick({**PASSING, "passing": 0, "held": []}, NOW + 36 * 60) == size.SHRINK and asks == [size.SHRINK]
+    assert size.draining(NOW + 36 * 60)  # the mark stays until the machine is small
+    assert json.loads(conductor.RESIZING.read_text())["action"] == size.SHRINK  # its power-off is a resize's
+    become(2)  # booted at the idle size: passes go on again
+    assert tick({**IDLE, "held": []}, NOW + 40 * 60) is None and not conductor.DRAINING.exists()
+
+    # off a conductor the size timer asks nothing and a hold writes nothing
+    become(None)
+    assert size.tick(say=lambda line: None, asker=lambda action: 1 / 0)["action"] is None
+    monkeypatch.setattr(conductor, "HOLDS", tmp_path / "off-holds")
     with conductor.holding("sync-pass"):
-        assert not conductor.HOLDS.exists()  # off a conductor a hold writes nothing
+        assert not conductor.HOLDS.exists()
 
 
 # --- money: the conductor's bill stays out of the batch's ---------------------------------------------------------------
