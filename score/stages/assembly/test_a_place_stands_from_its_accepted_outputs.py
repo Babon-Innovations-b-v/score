@@ -271,101 +271,6 @@ def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
     assert resting(output, kit_floor).answer == checks.UNKNOWN
 
 
-def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
-    """Round 32's docking airlock (2026-10-30): its wall pipes on its left wall and ceiling rails on its ceiling panels
-    were judged as standing on them, leaning and tipping. The triage is given each such row's support as its holder's
-    kind (assembly/mounted.py), so it judges them by touching; a row on a floor or an object, or naming its own
-    support, keeps what the triage gives it. Tube's wall lamps on its ribs (a structure row built into its wall) were
-    judged standing on the ribs' curve (settle@tube, 2026-11-12): a wall thing on a built-in row is mounted with it; a
-    cup on it still stands.
-    Break: score/stages/assembly/__init__.py: `if row["id"] in on_walls and not row.get("support")` -> `if False`
-    Break: score/stages/assembly/mounted.py: `return {**found, **on_built_in(rows, holders, found, built_in)}` ->
-        `return found`, or structure_mounted.py's `and holder_kind(rows[row_id]) in ("wall", "ceiling")` -> `` (the
-        cup mounted)
-    assembly@base (2026-11-12): its antenna, on top of its dome module (a "dome": a ceiling by its words), was judged a
-    ceiling piece touching nothing. A ceiling row's thing the scene record lays on its holder's top stands on it, and
-    keeps what the triage gives it; one laid under it, or with no record, is still mounted there.
-    Break: score/stages/assembly/on_tops.py: standing's `if kind != "ceiling" or row_id not in topped}` -> `}` (the
-        antenna on top judged hanging), or laid_on_tops' `if all(topped)}` -> `}` (the rails hung under their panels
-        judged standing)
-    Break: score/stages/assembly/roof_tops.py: roofs' `if row.get("part") in ROOF_PARTS and row["id"] in topped}` ->
-        `if row["id"] in topped}` (the lamp on top fixed), or `-> `if row.get("part") in ROOF_PARTS}` (the porch on
-        its face fixed); score/stages/assembly/__init__.py: `**roof_tops.roofs(inventory["rows"], record), ` -> ``"""
-    inventory = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
-                          {"id": "floor_plates", "part": "floor"}, {"id": "locker", "part": "object"},
-                          {"id": "wall_pipes", "anchor": "on:left_wall"},
-                          {"id": "ceiling_rails", "anchor": "on:ceiling_panels"},
-                          {"id": "fixed_pipe", "anchor": "on:left_wall", "support": "fixed"},
-                          {"id": "crate", "anchor": "on:floor_plates"}, {"id": "suit", "anchor": "on:locker"},
-                          {"id": "ribs", "part": "structure", "anchor": "on:left_wall"},
-                          {"id": "wall_lamps", "anchor": "on:ribs"}, {"id": "cup", "anchor": "on:ribs"}]}
-    found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory)["rows"]}
-    assert found == {"left_wall": None, "ceiling_panels": None, "floor_plates": None, "locker": None,
-                     "wall_pipes": "wall", "ceiling_rails": "ceiling", "fixed_pipe": "fixed", "crate": None,
-                     "suit": None, "ribs": "wall", "wall_lamps": "wall", "cup": None}, found
-    domed = {"rows": [{"id": "dome_module", "part": "object"}, {"id": "antenna", "anchor": "on:dome_module"},
-                      {"id": "ceiling_panels", "part": "roof"}, {"id": "ceiling_rails", "anchor": "on:ceiling_panels"}]}
-    record = {"objects": [{"name": "antenna_1", "row": "antenna", "on": {"how": "top", "holder": ["dome_module_1"]}},
-                          {"name": "ceiling_rails_1", "row": "ceiling_rails",
-                           "on": {"how": "ceiling", "holder": ["ceiling_panels_1"]}}]}
-    found = {row["id"]: row.get("support") for row in assembly.resting_rows(domed, record)["rows"]}
-    assert found == {"dome_module": None, "antenna": None, "ceiling_panels": None, "ceiling_rails": "ceiling"}, found
-    found = {row["id"]: row.get("support") for row in assembly.resting_rows(domed)["rows"]}
-    assert found["antenna"] == "ceiling", found
-    # assembly@base (2026-11-12): its glass pyramid roof on its hub's top and its hangar's roof opening on the hangar's
-    # top were judged standing on their own weight and floated 0.26 and 2.98 m. A roof or opening row laid on its
-    # holder's top is part of that holder's roof, fixed to it; one laid on a face (hanging there), or a thing on a
-    # top, is not.
-    roofed = {"rows": [{"id": "hub", "noun": "building"}, {"id": "pyramid", "part": "roof", "anchor": "on:hub"},
-                       {"id": "skylight", "part": "opening", "anchor": "on:hub"},
-                       {"id": "porch", "part": "roof", "anchor": "on:hub"},
-                       {"id": "lamp", "part": "object", "anchor": "on:hub"}]}
-    record = {"objects": [{"name": f"{name}_1", "row": name, "on": {"how": how, "holder": ["hub_1"]}}
-                          for name, how in (("pyramid", "top"), ("skylight", "top"), ("porch", "face"),
-                                            ("lamp", "top"))]}
-    found = {row["id"]: row.get("support") for row in assembly.resting_rows(roofed, record)["rows"]}
-    assert found == {"hub": None, "pyramid": "fixed", "skylight": "fixed", "porch": "hanging", "lamp": None}, found
-
-
-def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
-    """Round 32's docking airlock: its spacesuits, laid within their lockers at the plan's 0.1 m base, were judged as
-    standing on the lockers' insides and leaned 12 degrees. A row whose every object the scene record lays within its
-    holder hanging (its relation's `hangs`, fitting.hangs_in) is given `hanging` (judged by touching: one touching
-    nothing still hangs free); one within not hanging, one filling its holder (a door's window), one of a row with
-    another object laid otherwise, or a row naming its own support, keeps what the triage gives it.
-    settle@street (2026-11-11): its red paper lanterns, laid on the side of their lantern string 24 m up, were judged
-    floating 23.8 m over the street. A row whose every object the record lays on its holder's side (`face`) is
-    `hanging` too; the box, one within and one on a face, is not.
-    Break: score/stages/assembly/fitting.py: `and bool(on.get("hangs"))` -> `` (every one within hung)
-    Break: score/stages/assembly/__init__.py: `if all(hung)}` -> `if any(hung)}`
-    Break: score/stages/assembly/mounted.py: on_faces' `if all(faced)}` -> `if any(faced)}`, or resting_rows'
-        `**on_faces(record or {}), ` dropped
-    assembly@square (2026-11-12): its lantern strings, hung 6 m over the plaza between its buildings, were judged held
-    on the plaza by its inventory's on:plaza and floated 1.7 to 4.35 m over it. A row whose every object the record
-    hangs between two holders (`between`) is `hanging` too.
-    Break: score/stages/assembly/__init__.py: resting_rows' `**hung_between.rows(record or {}),` dropped, or
-        hung_between.py's rows `if all(hung)}` -> `if any(hung)}` (the box, one between and one within, hanging)"""
-    inventory = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor": "on:locker"},
-                          {"id": "string", "anchor": "on:locker"},
-                          {"id": "crate", "anchor": "on:locker"}, {"id": "box", "anchor": "on:locker"},
-                          {"id": "lantern", "anchor": "on:locker"}, {"id": "window", "anchor": "on:locker"},
-                          {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
-
-    def laid(name, row, how=None, hung=False, **more):
-        on = {"how": how, "holder": ["locker_1"], **({"hangs": True} if hung else {})}
-        return {"name": name, "row": row, "at": [0.0, 0.1, 0.0], **({"on": on} if how else {}), **more}
-    record = {"objects": [laid("locker_1", "locker"), laid("suit_1", "suit", "within", True),
-                          laid("suit_2", "suit", "within", True), laid("crate_1", "crate", "within"),
-                          laid("box_1", "box", "within", True), laid("box_2", "box", "face"),
-                          laid("window_1", "window", "within", True, fills=True),
-                          laid("fixed_suit_1", "fixed_suit", "within", True), laid("lantern_1", "lantern", "face"),
-                          laid("lantern_2", "lantern", "face"), laid("string_1", "string", "between"),
-                          laid("box_3", "box", "between")]}
-    found = {row["id"]: row.get("support") for row in assembly.resting_rows(inventory, record)["rows"]}
-    assert found == {"locker": None, "suit": "hanging", "string": "hanging", "crate": None, "box": None,
-                     "lantern": "hanging", "window": None, "fixed_suit": "fixed"}, found
-
-
 def test_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
     """Round 32's docking airlock: spacesuit_left_1, laid within its locker at the plan's base, hung 4.1 cm off the
     locker's back and touched nothing (hangs free). A hanging one moves along its holder's back way until its built
@@ -472,66 +377,6 @@ def test_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model(tmp_pat
         assembly.lay_fixtures_baked(out / assembly.BASE_LAYER, "rocket")
 
 
-def test_a_claimed_model_is_laid_from_the_name_its_place_bakes_it_under(tmp_path):
-    """The hangar (2026-10-15) lays parts_rack_1, which old_station bakes as parts_rack: the claim's baked name comes
-    from the hangar's own bake (elsewhere.json, baked_as), and the model is read under the hangar's name (its three
-    points intact); a model baked under its own name is read where it is.
-    Break: score/stages/assembly/baked.py: `else claims[model]["baked_as"]` -> `else model`
-    Break: score/stages/assembly/baked.py: `if baked_as == model:` -> `if True:`"""
-    import export
-    folder = tmp_path
-    (folder / "surfaces.json").write_text(json.dumps(
-        {"elsewhere": {"parts_rack_1": {"take": "parts_rack-r1", "place": "old_station"}}}))
-    (folder / "bake").mkdir()
-    (folder / "bake/elsewhere.json").write_text(json.dumps({"parts_rack_1": {
-        "take": "parts_rack-r1", "place": "old_station", "node": "surfaces-bake@old_station",
-        "baked_as": "parts_rack"}}))
-    (folder / "old").mkdir()
-    (folder / "old/baked.json").write_text(json.dumps({"parts_rack": {"parts": "parts_rack-r1"}}))
-    inputs = {"surfaces": folder / "surfaces.json", "surfaces-bake": folder / "bake",
-              "surfaces-bake@old_station": folder / "old", "surfaces-paint@old_station": folder / "paint"}
-    [(bake, _, _, models)] = assembly.claimed_bakes(inputs, folder / "out")
-    assert bake == folder / "old" and models == {"parts_rack_1": "parts_rack"}, models
-    a_baked_triangle(folder / "old/made", "parts_rack")
-    found = assembly.renamed_model(folder / "old/made", "parts_rack", "parts_rack_1", folder / "out/renamed")
-    geometry = export.model_geometry(export.model_file(found, "parts_rack_1"))
-    assert len(geometry["positions"]) == 3, geometry
-    assert assembly.renamed_model(folder / "old/made", "parts_rack", "parts_rack", folder / "x") == folder / "old/made"
-
-
-def test_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own_bake(tmp_path):
-    """assembly@hub (2026-10-15): workshop bakes wrench_1 and wrench_2 from one take (wrench-r6), each its own size,
-    and the hub's elsewhere.json names wrench_1 as every wrench's baked_as; wrench_2 stood as wrench_1's bake. A model
-    the claimed place bakes under its own name with the claimed take is read under it; wrench_9, which it does not
-    bake, falls back to baked_as.
-    Break: score/stages/assembly/baked.py: `baked.get(model, {}).get("parts") == claim["take"]` -> `False`"""
-    folder = tmp_path
-    elsewhere = {name: {"take": "wrench-r6", "place": "workshop"} for name in ("wrench_1", "wrench_2", "wrench_9")}
-    (folder / "surfaces.json").write_text(json.dumps({"elsewhere": elsewhere}))
-    (folder / "bake").mkdir()
-    (folder / "bake/elsewhere.json").write_text(json.dumps(
-        {name: dict(claim, baked_as="wrench_1") for name, claim in elsewhere.items()}))
-    (folder / "workshop").mkdir()
-    (folder / "workshop/baked.json").write_text(json.dumps(
-        {"wrench_1": {"parts": "wrench-r6"}, "wrench_2": {"parts": "wrench-r6"}}))
-    inputs = {"surfaces": folder / "surfaces.json", "surfaces-bake": folder / "bake",
-              "surfaces-bake@workshop": folder / "workshop", "surfaces-paint@workshop": folder / "paint"}
-    [(_, _, _, models)] = assembly.claimed_bakes(inputs, folder / "out")
-    assert models == {"wrench_1": "wrench_1", "wrench_2": "wrench_2", "wrench_9": "wrench_1"}, models
-
-
-def test_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data(tmp_path, monkeypatch):
-    """claiming_places reads the scene's design surface data (`elsewhere`): the yard lays models the barn and the shed
-    bake; a place with no surface data claims none.
-    Break: score/stages/assembly/baked.py: `return sorted({claim["place"] for claim in elsewhere.values()})` -> `return
-        sorted({claim["take"] for claim in elsewhere.values()})`"""
-    monkeypatch.setattr(baked, "DESIGN_SURFACES", tmp_path)
-    (tmp_path / "yard.json").write_text(json.dumps({"elsewhere": {"rack_1": {"place": "shed", "take": "rack"},
-                                                                  "lamp_1": {"place": "barn", "take": "lamp"}}}))
-    assert baked.claiming_places("yard") == ["barn", "shed"]
-    assert baked.claiming_places("nook") == []
-
-
 # --- layers, record and sound ---------------------------------------------------------------------------------------
 
 def test_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it(tmp_path):
@@ -605,51 +450,6 @@ def test_a_light_the_motion_layer_animates_plays_its_keyframes(tmp_path):
             assert hashlib.sha256((folder / f"layers/{name}.usda").read_bytes()).hexdigest() == digest, (name, folder)
 
 
-def test_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_its_seed_record(tmp_path):
-    """The accepted scene record's prims stand in the base in place of the old record's (the wall and the lamp gone,
-    the objects kept, its one lamp laid); a place with no record row keeps the seed's and says it is unverified.
-    Break: score/stages/assembly/record.py: `edit.Add(f"/{place}/{name}", Sdf.Path.emptyPath)` -> `pass`"""
-    root = a_toy(tmp_path / "out")
-    inputs = a_record(tmp_path, ONE_LAMP)
-    said = assembly.take_record(inputs, root.parent, TOY)
-    stage = opened(root)
-    assert said == f"scene-record@{TOY}"
-    assert not stage.GetPrimAtPath(f"/{TOY}/Structure/old_wall") and not stage.GetPrimAtPath(f"/{TOY}/Lights/old_lamp")
-    assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and stage.GetPrimAtPath(f"/{TOY}/Objects/fan_1")
-    other = a_toy(tmp_path / "other")
-    said = assembly.take_record({"scene": tmp_path / f"record/record/{TOY}.json", "kit": inputs["kit"]},
-                                other.parent, TOY)
-    kept = opened(other)
-    assert "unverified" in said and kept.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
-
-
-def test_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_written_again(tmp_path):
-    """A seed's floor drawn with no collision (as round three wrote every wall, floor and stair) fails the collision
-    gate by name, one uncolliding; the accepted record written over it (a wall and a flight of stairs) collides.
-    Break: score/stages/assembly/__init__.py: `solid = sum(fault["what"] != "model" for fault in faults)` -> `solid =
-        0`"""
-    from pxr import Sdf, Usd, UsdGeom, UsdShade
-    root = a_toy(tmp_path / "out")
-    base = Usd.Stage.Open(str(root.parent / "layers/base.usda"))
-    UsdShade.Material.Define(base, f"/{TOY}/Library/concrete")
-    bare = UsdGeom.Mesh.Define(base, f"/{TOY}/Structure/seed_floor")
-    bare.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
-    base.GetRootLayer().Save()
-    before = assembly.judge_collision(root.parent, {}, None)
-    assert before.answer == checks.FAIL and before.measures == {"uncolliding": 1, "models without collider": 0}
-    assert before.findings[0].startswith(f"/{TOY}/Structure/seed_floor: "), before.findings
-    walls = {"structure": [
-        {"name": "wall", "builder": "box", "centre": [0, 1.5, -4], "size": [8, 3, 0.2], "surface": "concrete"},
-        {"name": "steps", "builder": "stairs", "foot": [2, 0, 0], "top": [2, 1.2, -1.8], "wide": 1.0, "steps": 6,
-         "surface": "concrete"}]}
-    assembly.take_record(a_record(tmp_path, walls), root.parent, TOY)
-    after = assembly.judge_collision(root.parent, {}, None)
-    assert after.answer == checks.PASS and after.measures == {"uncolliding": 0, "models without collider": 0}, \
-        after.findings
-    stage = opened(root)
-    assert all(stage.GetPrimAtPath(f"/{TOY}/Structure/{name}") for name in ("wall", "steps"))
-
-
 def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():
     """A walkway tube 6 m long with 2 m bays lays its bay piece three times, each with its spot, as the exporter lays
     them; a room's pieces stand as laid.
@@ -658,20 +458,6 @@ def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():
     laid = assembly.laid_pieces(kit, {"tube_length": 6.0})
     assert len(laid) == 3 and all("spot" in piece for piece in laid), laid
     assert assembly.laid_pieces({"pieces": kit["pieces"]}, {}) == kit["pieces"]
-
-
-def test_an_entry_waiting_on_its_model_lays_nothing_and_is_named(tmp_path):
-    """Fault (2026-10-12): the campgrounds' record names its cairn, whose model is not released yet, and the assembly
-    errored on it. An entry marked `waiting` lays nothing; the root prim names it for the completion gate.
-    Break: score/stages/assembly/record.py: `laid, waiting = without_waiting(record)` -> `laid, waiting = record, []`"""
-    root = a_toy(tmp_path / "out")
-    cairn = {"objects": [{"name": "cairn", "model": "models/none/none.glb", "at": [0, 0, 0],
-                          "waiting": "its model comes through the next batch"}]}
-    assembly.take_record(a_record(tmp_path, cairn), root.parent, TOY)
-    stage = opened(root)
-    assert not stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn")
-    assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
-        "objects cairn: its model comes through the next batch"]
 
 
 def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_longer_named(tmp_path):
@@ -732,79 +518,6 @@ def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_long
                                                                           for axis in (0, 2)]
     assert spans == {"ship": [-0.5, -3.0, 0.5, 3.0], "crane": [-3.0, -0.5, 3.0, 0.5],
                      "barge": [-3.5, -0.5, 3.5, 0.5], "cart": [-0.25, -0.5, 0.25, 0.5]}, spans
-
-
-def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_row(tmp_path):
-    """Fault (2026-10-25): a designed place's record laid no object, so settle, physics and motion found none. A
-    design's object (`bake` its take's model, `row` its inventory row) is laid with the baked model at
-    /<place>/Objects/<name>, its score:row the inventory row; one whose model the bake has not made stays named.
-    Break: score/stages/assembly/made_waiting.py: `scope = f"/{place}/Objects" if "bake" in entry else
-        f"/{place}/Fixtures"` -> `scope = f"/{place}/Fixtures"`"""
-    root = a_toy(tmp_path / "out")
-    entries = [{"name": name, "row": row_id, "bake": bake, "at": [1.0, 0.0, 1.0], "rotation": [0.0, 0.0, 0.0, 1.0],
-                "kind": "object", "waiting": "its model comes from the bake"}
-               for name, row_id, bake in (("lamp_1", "lamp", "bench_1"), ("rail_1", "rail", "rail_1"))]
-    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
-    an_asset(root.parent / "assets/bench_1.usdc", [(-1.0, 0.0, -0.25), (1.0, 0.0, -0.25), (1.0, 1.0, 0.25)], [3],
-             [0, 1, 2])
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"bench_1": {}}))
-    assert made_waiting.lay(root.parent, TOY, tmp_path / "bake") == ["bench_1"]
-    stage = opened(root)
-    prim = stage.GetPrimAtPath(f"/{TOY}/Objects/lamp_1")
-    assert prim.GetChild("geo").IsValid() and prim.GetAttribute("score:row").Get() == "lamp", prim
-    assert prim.GetAttribute("score:model").Get() == "bench_1" and not stage.GetPrimAtPath(f"/{TOY}/Fixtures")
-    assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [
-        "objects rail_1: its model comes from the bake"]
-
-
-def test_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_object(tmp_path):
-    """Fault (2026-10-30): camp's rocks stood twice at one spot, an object at /camp/Objects/rock_1_1 and a piece of
-    the ground ground-join cut and seated at /camp/Outside/Detail/rock_1. A record entry whose row ground-join joined
-    (its join.json pieces) is laid by the ground alone: no object, and no longer named waiting.
-    Break: score/stages/assembly/made_waiting.py: `if entry.get("waiting") and entry.get("row") in joined:` ->
-        `if False:`
-    Break: score/stages/assembly/made_waiting.py: `return frozenset(json.loads(...)["pieces"])` -> `return frozenset()`"""
-    root = a_toy(tmp_path / "out")
-    entries = [{"name": f"{row_id}_1", "row": row_id, "bake": f"{row_id}_1", "at": [1.0, 0.0, 1.0],
-                "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "its model comes from the bake"}
-               for row_id in ("rock", "bench")]
-    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
-    for model in ("rock_1", "bench_1"):
-        a_box_asset(root.parent / f"assets/{model}.usdc", (-1.0, 0.0, -1.0), (1.0, 1.0, 1.0))
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"rock_1": {}, "bench_1": {}}))
-    (tmp_path / "join").mkdir()
-    (tmp_path / "join/join.json").write_text(json.dumps({"place": TOY, "pieces": {"rock": {}}, "code ground": {}}))
-    joined = made_waiting.joined_rows({"ground-join": tmp_path / "join"})
-    assert joined == {"rock"} and made_waiting.joined_rows({}) == frozenset()
-    assert made_waiting.lay(root.parent, TOY, tmp_path / "bake", joined) == ["bench_1"]
-    stage = opened(root)
-    assert not stage.GetPrimAtPath(f"/{TOY}/Objects/rock_1") and stage.GetPrimAtPath(f"/{TOY}/Objects/bench_1")
-    assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
-
-
-def test_the_settle_s_seed_leaves_out_a_row_ground_join_joined(tmp_path, monkeypatch):
-    """The settle drops the place as the assembly lays it (grounded.take_bakes): a row ground-join joined is no object
-    there either, so no drop moves it and no settle over names a prim the assembly no longer lays (camp's rocks, loose
-    on the ground, 2026-10-30). The bakes' own export is stubbed: only what is laid is read.
-    Break: score/stages/assembly/grounded.py: `made_waiting.lay(folder, place, bake, made_waiting.joined_rows(inputs))`
-        -> `made_waiting.lay(folder, place, bake)`"""
-    from score.stages.assembly import grounded
-    root = a_toy(tmp_path / "out")
-    entry = {"name": "rock_1", "row": "rock", "bake": "rock_1", "at": [1.0, 0.0, 1.0],
-             "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "its model comes from the bake"}
-    assembly.take_record(a_record(tmp_path, {"objects": [entry]}), root.parent, TOY)
-    a_box_asset(root.parent / "assets/rock_1.usdc", (-1.0, 0.0, -1.0), (1.0, 1.0, 1.0))
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"rock_1": {}}))
-    (tmp_path / "join").mkdir()
-    (tmp_path / "join/join.json").write_text(json.dumps({"place": TOY, "pieces": {"rock": {}}, "code ground": {}}))
-    monkeypatch.setattr(baked, "take_bake", lambda *args, **kwargs: None)
-    monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
-    grounded.take_bakes({"surfaces-bake": tmp_path / "bake", "surfaces-paint": tmp_path / "paint",
-                         "ground-join": tmp_path / "join"}, root.parent, TOY)
-    assert not opened(root).GetPrimAtPath(f"/{TOY}/Objects/rock_1")
 
 
 BOX_FACES = [0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3]  # a box's six sides, of its corners
@@ -4378,13 +4091,175 @@ def the_yard(root, case):
     return yard, inputs
 
 
+# --- what each row's resting is judged by ---------------------------------------------------------------------------
+
+# Each inventory (and the scene record laying it, or none) and the support the triage gives every row
+# (assembly.resting_rows): None where it keeps what the triage gives it.
+WALLED = {"rows": [{"id": "left_wall", "part": "wall"}, {"id": "ceiling_panels", "part": "roof"},
+                   {"id": "floor_plates", "part": "floor"}, {"id": "locker", "part": "object"},
+                   {"id": "wall_pipes", "anchor": "on:left_wall"}, {"id": "ceiling_rails", "anchor": "on:ceiling_panels"},
+                   {"id": "fixed_pipe", "anchor": "on:left_wall", "support": "fixed"},
+                   {"id": "crate", "anchor": "on:floor_plates"}, {"id": "suit", "anchor": "on:locker"},
+                   {"id": "ribs", "part": "structure", "anchor": "on:left_wall"},
+                   {"id": "wall_lamps", "anchor": "on:ribs"}, {"id": "cup", "anchor": "on:ribs"}]}
+DOMED = {"rows": [{"id": "dome_module", "part": "object"}, {"id": "antenna", "anchor": "on:dome_module"},
+                  {"id": "ceiling_panels", "part": "roof"}, {"id": "ceiling_rails", "anchor": "on:ceiling_panels"}]}
+ROOFED = {"rows": [{"id": "hub", "noun": "building"}, {"id": "pyramid", "part": "roof", "anchor": "on:hub"},
+                   {"id": "skylight", "part": "opening", "anchor": "on:hub"},
+                   {"id": "porch", "part": "roof", "anchor": "on:hub"}, {"id": "lamp", "part": "object", "anchor": "on:hub"}]}
+LOCKERED = {"rows": [{"id": "locker", "part": "object"}, {"id": "suit", "anchor": "on:locker"},
+                     {"id": "string", "anchor": "on:locker"}, {"id": "crate", "anchor": "on:locker"},
+                     {"id": "box", "anchor": "on:locker"}, {"id": "lantern", "anchor": "on:locker"},
+                     {"id": "window", "anchor": "on:locker"},
+                     {"id": "fixed_suit", "anchor": "on:locker", "support": "fixed"}]}
+
+
+def laid(name, row_id, how=None, holder="locker_1", hung=False, **more):
+    """A scene record's object of this row, laid on its holder `how` (hanging there when `hung`)."""
+    on = {"how": how, "holder": [holder], **({"hangs": True} if hung else {})}
+    return {"name": name, "row": row_id, "at": [0.0, 0.1, 0.0], **({"on": on} if how else {}), **more}
+
+
+TRIAGED = [
+    # Round 32's docking airlock (2026-10-30): its wall pipes and ceiling rails were judged standing on their wall and
+    # panels, leaning and tipping: a row on a wall or ceiling row is mounted there unless it names its own support.
+    # Tube's wall lamps on its ribs (settle@tube, 2026-11-12): a wall thing on a built-in row is mounted with it; a cup
+    # on it still stands.
+    {"name": "the airlock's walls", "inventory": WALLED, "record": None,
+     "supports": {"left_wall": None, "ceiling_panels": None, "floor_plates": None, "locker": None,
+                  "wall_pipes": "wall", "ceiling_rails": "ceiling", "fixed_pipe": "fixed", "crate": None,
+                  "suit": None, "ribs": "wall", "wall_lamps": "wall", "cup": None}},
+    # assembly@base (2026-11-12): its antenna on top of its dome module (a ceiling by its words) was judged a ceiling
+    # piece touching nothing: laid on its holder's top it stands; laid under it, or with no record, it is mounted.
+    {"name": "the base's antenna on top", "inventory": DOMED,
+     "record": {"objects": [laid("antenna_1", "antenna", "top", "dome_module_1"),
+                            laid("ceiling_rails_1", "ceiling_rails", "ceiling", "ceiling_panels_1")]},
+     "supports": {"dome_module": None, "antenna": None, "ceiling_panels": None, "ceiling_rails": "ceiling"}},
+    {"name": "the base's antenna with no record", "inventory": DOMED, "record": None,
+     "supports": {"dome_module": None, "antenna": "ceiling", "ceiling_panels": None, "ceiling_rails": "ceiling"}},
+    # assembly@base (2026-11-12): its glass pyramid roof and its hangar's roof opening, laid on their holders' tops,
+    # floated 0.26 and 2.98 m judged standing: a roof or opening on its holder's top is fixed to it; one on a face
+    # hangs there, a thing on a top stands.
+    {"name": "the base's roofs", "inventory": ROOFED,
+     "record": {"objects": [laid(f"{name}_1", name, how, "hub_1") for name, how in
+                            (("pyramid", "top"), ("skylight", "top"), ("porch", "face"), ("lamp", "top"))]},
+     "supports": {"hub": None, "pyramid": "fixed", "skylight": "fixed", "porch": "hanging", "lamp": None}},
+    # Round 32's docking airlock: its spacesuits, hung within their lockers, were judged standing on the lockers'
+    # insides and leaned 12 degrees; settle@street (2026-11-11): its lanterns, on the side of their string 24 m up,
+    # floated; assembly@square (2026-11-12): its lantern strings, hung between its buildings, floated. A row whose every
+    # object hangs within, on a face or between is hanging; one within not hanging (the crate), filling its holder (a
+    # door's window), with another object laid otherwise (the box) or naming its own support keeps what it is given.
+    {"name": "the airlock's lockers", "inventory": LOCKERED,
+     "record": {"objects": [laid("locker_1", "locker"), laid("suit_1", "suit", "within", hung=True),
+                            laid("suit_2", "suit", "within", hung=True), laid("crate_1", "crate", "within"),
+                            laid("box_1", "box", "within", hung=True), laid("box_2", "box", "face"),
+                            laid("window_1", "window", "within", hung=True, fills=True),
+                            laid("fixed_suit_1", "fixed_suit", "within", hung=True),
+                            laid("lantern_1", "lantern", "face"), laid("lantern_2", "lantern", "face"),
+                            laid("string_1", "string", "between"), laid("box_3", "box", "between")]},
+     "supports": {"locker": None, "suit": "hanging", "string": "hanging", "crate": None, "box": None,
+                  "lantern": "hanging", "window": None, "fixed_suit": "fixed"}},
+]
+
+
+# --- the accepted record and the bakes laid over the toy ------------------------------------------------------------
+
+# The accepted record over the toy: its one lamp, a wall and a flight of stairs written again with collision, and four
+# waiting objects: the campgrounds' cairn, whose model is not released (2026-10-12), a design's lamp laid from its
+# take's model bench_1 (2026-10-25), a rail whose model the bake has not made, and a rock ground-join joined
+# (camp's rocks, stood twice, 2026-10-30).
+WAITING_OBJECTS = [
+    {"name": "cairn", "row": "cairn", "model": "models/none/none.glb", "at": [0, 0, 0],
+     "waiting": "its model comes through the next batch"},
+    *({"name": name, "row": row_id, "bake": bake, "at": [1.0, 0.0, 1.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+       "kind": "object", "waiting": "its model comes from the bake"}
+      for name, row_id, bake in (("lamp_1", "lamp", "bench_1"), ("rail_1", "rail", "rail_1"),
+                                 ("rock_1", "rock", "rock_1")))]
+RECORDED = {**ONE_LAMP, "objects": WAITING_OBJECTS, "structure": [
+    {"name": "wall", "builder": "box", "centre": [0, 1.5, -4], "size": [8, 3, 0.2], "surface": "concrete"},
+    {"name": "steps", "builder": "stairs", "foot": [2, 0, 0], "top": [2, 1.2, -1.8], "wide": 1.0, "steps": 6,
+     "surface": "concrete"}]}
+# The models the toy lays from other places' bakes (its surface data's `elsewhere`): the hangar's parts_rack_1, which
+# old_station bakes as parts_rack (2026-10-15), and the hub's wrenches of one take, workshop baking wrench_1 and
+# wrench_2 each its own size and not wrench_9, its own bake naming wrench_1 every wrench's baked_as (2026-10-15).
+ELSEWHERE = {"parts_rack_1": {"take": "parts_rack-r1", "place": "old_station"},
+             **{name: {"take": "wrench-r6", "place": "workshop"} for name in ("wrench_1", "wrench_2", "wrench_9")}}
+BAKED_AS = {"parts_rack_1": "parts_rack", "wrench_1": "wrench_1", "wrench_2": "wrench_1", "wrench_9": "wrench_1"}
+BAKED_ELSEWHERE = {"old_station": {"parts_rack": {"parts": "parts_rack-r1"}},
+                   "workshop": {"wrench_1": {"parts": "wrench-r6"}, "wrench_2": {"parts": "wrench-r6"}}}
+
+
+def the_recorded_toy(root):
+    """The toy seed with a seed floor drawn with no collision (as round three wrote every wall, floor and stair), and
+    the settle's inputs over it: the accepted record (RECORDED), the toy's bake (bench_1 and rock_1 made), ground-join
+    joining the rock, and the bakes of the places it claims models from; the root and the inputs."""
+    from pxr import Sdf, Usd, UsdGeom, UsdShade
+    seed = a_toy(root / "out")
+    base = Usd.Stage.Open(str(seed.parent / "layers/base.usda"))
+    UsdShade.Material.Define(base, f"/{TOY}/Library/concrete")
+    bare = UsdGeom.Mesh.Define(base, f"/{TOY}/Structure/seed_floor")
+    bare.GetPrim().CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
+    base.GetRootLayer().Save()
+    inputs = a_record(root, RECORDED)
+    bake = root / "bake"
+    a_baked_triangle(bake / "made", "bench_1")
+    (bake / "baked.json").write_text(json.dumps({"bench_1": {}, "rock_1": {}}))
+    (bake / "elsewhere.json").write_text(json.dumps({name: dict(claim, baked_as=BAKED_AS[name])
+                                                     for name, claim in ELSEWHERE.items()}))
+    (root / "join").mkdir()
+    (root / "join/join.json").write_text(json.dumps({"place": TOY, "pieces": {"rock": {}}, "code ground": {}}))
+    (root / "surfaces").mkdir()
+    (root / f"surfaces/{TOY}.json").write_text(json.dumps({"elsewhere": ELSEWHERE}))
+    inputs.update({"surfaces-bake": bake, "surfaces-paint": root / "paint", "ground-join": root / "join",
+                   "surfaces": root / f"surfaces/{TOY}.json"})
+    for other, made in BAKED_ELSEWHERE.items():
+        (root / other).mkdir()
+        (root / other / "baked.json").write_text(json.dumps(made))
+        inputs.update({f"surfaces-bake@{other}": root / other, f"surfaces-paint@{other}": root / f"paint_{other}"})
+    a_baked_triangle(root / "old_station/made", "parts_rack")
+    return seed, inputs
+
+
 def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     """A place waits on every layer its design needs, shows its neighbours from their own outputs, and stands each
     child scene at its hold on its plan: each place of LAYERED is judged by the layers gate; each world of NEIGHBOURED
     is judged the seed's way, made through neighbours.make, and judged again with the outputs it was made from gone,
     and the ASKED queries are answered from RECORDS; each yard of YARDS is made through scene_tree.make, opened, and
     judged by the children gate; the plans it reads are the creator's kept ones, each child's declared, and a plan
-    laying out a scene above it is refused.
+    laying out a scene above it is refused. Each inventory of TRIAGED gets the support its rows rest by; the toy, its
+    seed floor failing the collision gate, takes the accepted RECORDED (its old record gone, its walls colliding, its
+    waiting objects named) and its bakes the settle's way (grounded.take_bakes): the design's lamp laid under Objects
+    from its take's model, the joined rock no object and no longer named, the models it lays from other places' bakes
+    claimed under the names those bake them under; a toy with no record row keeps its seed's.
+    Break: score/stages/assembly/__init__.py: resting_rows' `if row["id"] in given and not row.get("support") else
+        row` -> `if False else row` (the airlock's walls)
+    Break: score/stages/assembly/mounted.py: `return {**found, **on_built_in(rows, holders, found, built_in)}` ->
+        `return found`, or structure_mounted.py's `and holder_kind(rows[row_id]) in ("wall", "ceiling")` -> `` (the
+        airlock's walls: the cup mounted)
+    Break: score/stages/assembly/on_tops.py: standing's `if kind != "ceiling" or row_id not in topped}` -> `}`, or
+        laid_on_tops' `if all(topped)}` -> `}` (the base's antenna on top)
+    Break: score/stages/assembly/roof_tops.py: roofs' `if row.get("part") in ROOF_PARTS and row["id"] in topped}` ->
+        `if row["id"] in topped}` or `if row.get("part") in ROOF_PARTS}`; score/stages/assembly/__init__.py:
+        `**roof_tops.roofs(inventory["rows"], record), ` -> `` (the base's roofs)
+    Break: score/stages/assembly/fitting.py: `and bool(on.get("hangs"))` -> ``; score/stages/assembly/__init__.py:
+        hung_within's `if all(hung)}` -> `if any(hung)}` (the airlock's lockers)
+    Break: score/stages/assembly/mounted.py: on_faces' `if all(faced)}` -> `if any(faced)}`, or resting_rows'
+        `**on_faces(record or {}), ` dropped (the airlock's lockers, the base's roofs)
+    Break: score/stages/assembly/__init__.py: resting_rows' `**hung_between.rows(record or {}),` dropped, or
+        hung_between.py's rows `if all(hung)}` -> `if any(hung)}` (the airlock's lockers)
+    Break: score/stages/assembly/__init__.py: `solid = sum(fault["what"] != "model" for fault in faults)` -> `solid =
+        0` (the recorded toy's seed floor)
+    Break: score/stages/assembly/record.py: `edit.Add(f"/{place}/{name}", Sdf.Path.emptyPath)` -> `pass` (the old
+        wall kept), or `laid, waiting = without_waiting(record)` -> `laid, waiting = record, []` (the cairn laid)
+    Break: score/stages/assembly/made_waiting.py: `scope = f"/{place}/Objects" if "bake" in entry else
+        f"/{place}/Fixtures"` -> `scope = f"/{place}/Fixtures"` (the design's lamp)
+    Break: score/stages/assembly/made_waiting.py: `if entry.get("waiting") and entry.get("row") in joined:` ->
+        `if False:`, or joined_rows' `return frozenset(json.loads(...)["pieces"])` -> `return frozenset()`;
+        score/stages/assembly/grounded.py: `made_waiting.lay(folder, place, bake, made_waiting.joined_rows(inputs))`
+        -> `made_waiting.lay(folder, place, bake)` (the joined rock laid again)
+    Break: score/stages/assembly/baked.py: `else claims[model]["baked_as"]` -> `else model` (parts_rack_1, wrench_9),
+        `baked.get(model, {}).get("parts") == claim["take"]` -> `False` (wrench_2), `if baked_as == model:` -> `if
+        True:` (parts_rack_1 read under its own name), or claiming_places' `claim["place"]` -> `claim["take"]`
     Break: score/stages/assembly/__init__.py: `"physics": "settle", ` -> `` (a crate on the floor)
     Break: score/stages/assembly/__init__.py: `waiting = [f"{name}@{place}" for name in needed if name not in
         origin["layers"]]` -> `waiting = []` (the design taking four)
@@ -4501,3 +4376,54 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     (kept / "nook.json").write_text(json.dumps({**NOOK, "holds": [{"place": "yard"}]}))
     with pytest.raises(ValueError, match="cannot hold itself"):
         scene_tree.held("yard")
+    for case in TRIAGED:
+        found = {row["id"]: row.get("support")
+                 for row in assembly.resting_rows(case["inventory"], case["record"])["rows"]}
+        assert found == case["supports"], f"{case['name']}: {found}"
+    import export
+    from score.stages.assembly import grounded
+    recorded = tmp_path / "recorded"
+    seed, inputs = the_recorded_toy(recorded)
+    before = assembly.judge_collision(seed.parent, {}, None)
+    assert before.answer == checks.FAIL and before.measures == {"uncolliding": 1, "models without collider": 0}, before
+    assert before.findings[0].startswith(f"/{TOY}/Structure/seed_floor: "), before.findings
+    assert assembly.take_record(inputs, seed.parent, TOY) == f"scene-record@{TOY}"
+    after = assembly.judge_collision(seed.parent, {}, None)
+    assert after.answer == checks.PASS and after.measures == {"uncolliding": 0, "models without collider": 0}, \
+        after.findings
+    stage = opened(seed)
+    for path, stands in (("Structure/old_wall", False), ("Lights/old_lamp", False), ("Lights/light_1", True),
+                         ("Objects/fan_1", True), ("Structure/wall", True), ("Structure/steps", True),
+                         ("Fixtures/cairn", False)):
+        assert bool(stage.GetPrimAtPath(f"/{TOY}/{path}")) == stands, f"the recorded toy: {path} stands {not stands}"
+    waits = [f"objects {entry['name']}: {entry['waiting']}" for entry in WAITING_OBJECTS]
+    assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == waits
+    for model in ("bench_1", "rock_1"):
+        a_box_asset(seed.parent / f"assets/{model}.usdc", (-1.0, 0.0, -1.0), (1.0, 1.0, 1.0))
+    assert made_waiting.joined_rows(inputs) == {"rock"} and made_waiting.joined_rows({}) == frozenset()
+    taken = []
+    with monkeypatch.context() as patched:  # the bakes' own export stubbed: only what is laid, and from where, is read
+        patched.setattr(baked, "take_bake", lambda *args: taken.append(args))
+        grounded.take_bakes(inputs, seed.parent, TOY)
+    assert taken == [(recorded / "bake", recorded / "paint", seed.parent),
+                     (recorded / "old_station", recorded / "paint_old_station", seed.parent,
+                      {"parts_rack_1": "parts_rack"}),
+                     (recorded / "workshop", recorded / "paint_workshop", seed.parent,
+                      {"wrench_1": "wrench_1", "wrench_2": "wrench_2", "wrench_9": "wrench_1"})], taken
+    stage = opened(seed)
+    lamp = stage.GetPrimAtPath(f"/{TOY}/Objects/lamp_1")
+    assert lamp.GetChild("geo").IsValid() and lamp.GetAttribute("score:row").Get() == "lamp", lamp
+    assert lamp.GetAttribute("score:model").Get() == "bench_1" and not stage.GetPrimAtPath(f"/{TOY}/Fixtures")
+    assert not stage.GetPrimAtPath(f"/{TOY}/Objects/rock_1")
+    assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [waits[0], waits[2]]
+    other = a_toy(tmp_path / "unrecorded")
+    said = assembly.take_record({"scene": recorded / f"record/record/{TOY}.json", "kit": inputs["kit"]},
+                                other.parent, TOY)
+    assert "unverified" in said and opened(other).GetPrimAtPath(f"/{TOY}/Structure/old_wall"), said
+    monkeypatch.setattr(baked, "DESIGN_SURFACES", recorded / "surfaces")
+    assert baked.claiming_places(TOY) == ["old_station", "workshop"] and baked.claiming_places("nook") == []
+    made = recorded / "old_station/made"
+    renamed = assembly.renamed_model(made, "parts_rack", "parts_rack_1", recorded / "renamed")
+    geometry = export.model_geometry(export.model_file(renamed, "parts_rack_1"))
+    assert len(geometry["positions"]) == 3, geometry
+    assert assembly.renamed_model(made, "parts_rack", "parts_rack", recorded / "x") == made
