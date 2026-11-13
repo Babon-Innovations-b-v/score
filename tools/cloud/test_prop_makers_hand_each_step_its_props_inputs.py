@@ -75,6 +75,7 @@ FREE_CHECKS = [
     ("a body no builder makes", prop_makers.parts_named, BODIED, False, "no builder"),
     ("bodied, its parts refused", prop_makers.check_parts, BODIED, False, "lies 0.3 off"),
 ]
+EXACT = {"bodied, its parts refused"}  # rows whose reason is pinned whole, not only contained
 
 
 def test_prop_makers_hand_each_step_its_props_inputs(tmp_path, monkeypatch):
@@ -142,7 +143,8 @@ def test_prop_makers_hand_each_step_its_props_inputs(tmp_path, monkeypatch):
     assert prop_makers.parts_folder(BODIED) == tmp_path / "work/body-parts" / BODIED["take"]
     for row, check, prop, ok, word in FREE_CHECKS:
         got_ok, why = check(prop)
-        assert got_ok is ok and word in why and (why == "") is ok, f"{row}: {(got_ok, why)}"
+        assert got_ok is ok and (why == word if row in EXACT else word in why and (why == "") is ok), \
+            f"{row}: {(got_ok, why)}"
     assert written == [BODIED["name"]]  # a bodied prop's parts are written before its bake is judged
 
     labelled = tmp_path / "labelled/aft_section-t1"
