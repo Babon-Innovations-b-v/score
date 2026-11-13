@@ -214,7 +214,6 @@ FUNCTION_DEBT = {
     "tools/review/test_a_place_page_reads_its_own_audit_and_status.py": 4,
     "tools/review/test_a_preview_shows_each_shots_ends_and_leaves_the_stage_alone.py": 4,
     "tools/review/test_a_region_is_judged_against_the_games_own_light.py": 4,
-    "tools/review/test_the_review_page_shows_what_the_stages_wrote.py": 11,
     "tools/review/test_the_showcase_cuts_every_film_in_order_within_its_cap.py": 8,
     "tools/review/test_the_style_measure_reads_only_the_models_own_pixels.py": 8,
     "tools/review/viewer/test_the_web_copy_is_the_stage_whole_and_the_picks_are_kept.py": 6,
