@@ -15,7 +15,8 @@ brought that foot down, and on the levelled model the crest holds it.
 import json
 import pathlib
 
-from score.stages.assembly import BASE_LAYER, RECORD, built_tops, crest_tops, fitting, flush_tops, made_waiting
+from score.stages.assembly import (BASE_LAYER, RECORD, built_tops, crest_tops, fine_tops, fitting, flush_tops,
+                                   made_waiting)
 
 
 def laid(folder, place):
@@ -35,6 +36,7 @@ def laid(folder, place):
     entries = [entry for entry in entries if stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}")]
     fits = crest_tops.laid_on(stage, place, entries)
     fits += flush_tops.laid(stage, place, entries)  # one over a sloping plane no spot of which holds it, flush on it
+    fits += fine_tops.laid(stage, place, entries)  # one no spot of crest_tops' grid holds, on a finer one
     if not fits:
         return []
     layer.Save()
