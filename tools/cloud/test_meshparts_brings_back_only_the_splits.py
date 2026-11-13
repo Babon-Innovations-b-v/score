@@ -3,10 +3,15 @@
 machine path's bring_back keeps come back (the share's own find(1) line deletes the rest); and a share asked for one
 splitter runs only that one.
 
+One share of two takes is run through `cluster_job`'s own line: crate-s1's splitters leave their results beside
+scratch files, lamp-s1's leave only scratch; the outputs are brought back as the job maps them and `to_split` is asked
+again.
+
 Break that turns it red: drop `! ` from the find line in `cluster_job` (it then deletes the results and keeps the
 rest), or map the outputs to `run / take` instead of `run / take / "down"`.
 """
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -14,38 +19,43 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
 import meshparts  # noqa: E402
 
-
-def test_the_shares_clean_up_keeps_exactly_what_bring_back_keeps(tmp_path):
-    out = tmp_path / "work" / "out" / "crate-s1"
-    kept = ["segvigen_auto.npz", "segvigen_guided.npz", "geosam2.npz", "seg_timing.json", "render.png",
-            "result/inference.log"]
-    dropped = ["mesh.glb", "views/view-01.png", "scratch.npz", "inference.log"]
-    for name in kept + dropped:
-        (out / name).parent.mkdir(parents=True, exist_ok=True)
-        (out / name).write_text("x")
-    line = meshparts.cluster_job(["crate-s1"], tmp_path)["command"][2]
-    clean = line[line.index("find /work/out"):].replace("/work/out", str(tmp_path / "work" / "out"))
-    subprocess.run(["bash", "-c", clean], check=True)
-    left = sorted(str(path.relative_to(out)) for path in out.rglob("*") if path.is_file())
-    assert left == sorted(kept)
+TAKES = ["crate-s1", "lamp-s1"]
+RESULTS = ["segvigen_auto.npz", "segvigen_guided.npz", "geosam2.npz", "seg_timing.json", "render.png",
+           "result/inference.log"]
+SCRATCH = ["mesh.glb", "views/view-01.png", "scratch.npz", "inference.log"]
+# What each take's /work/out holds when its splitters end: crate-s1 split, lamp-s1 left only scratch.
+MACHINE_OUT = {"crate-s1": RESULTS + SCRATCH, "lamp-s1": SCRATCH}
 
 
-def test_a_take_whose_splits_came_back_is_not_split_again(tmp_path):
-    for take in ("crate-s1", "lamp-s1"):
-        (tmp_path / take / "up").mkdir(parents=True)
-        (tmp_path / take / "up" / "raw.glb").write_text("glb")
-    assert meshparts.to_split(tmp_path) == ["crate-s1", "lamp-s1"]
-    job = meshparts.cluster_job(["crate-s1", "lamp-s1"], tmp_path)
+def files_under(folder):
+    """The files below `folder`, as sorted paths relative to it."""
+    return sorted(str(path.relative_to(folder)) for path in folder.rglob("*") if path.is_file())
+
+
+def test_a_share_brings_back_only_its_splits_into_down_and_runs_only_the_splitters_asked(tmp_path):
+    run = tmp_path / "run"
+    for take in TAKES:
+        (run / take / "up").mkdir(parents=True)
+        (run / take / "up" / "raw.glb").write_text("glb")
+    assert meshparts.to_split(run) == TAKES
+
+    job = meshparts.cluster_job(TAKES, run)
+    line = job["command"][2]
     assert [item["path"] for item in job["inputs"]] == ["/work/in/crate-s1", "/work/in/lamp-s1"]
-    crate = pathlib.Path(next(output["local"] for output in job["outputs"] if output["path"] == "/work/out/crate-s1"))
-    crate.mkdir(parents=True)
-    for name in ("segvigen_auto.npz", "segvigen_guided.npz", "geosam2.npz"):
-        (crate / name).write_text("npz")
-    assert meshparts.to_split(tmp_path) == ["lamp-s1"]
+    assert line.index("segvigen-run") < line.index("geosam2-run") < line.index("find /work/out")
+    only = meshparts.cluster_job(["crate-s1"], run, ("geosam2",))["command"][2]
+    assert "geosam2-run" in only and "segvigen-run" not in only
 
+    machine = tmp_path / "work" / "out"
+    for take, names in MACHINE_OUT.items():
+        for name in names:
+            (machine / take / name).parent.mkdir(parents=True, exist_ok=True)
+            (machine / take / name).write_text("x")
+    clean = line[line.index("find /work/out"):].replace("/work/out", str(machine))
+    subprocess.run(["bash", "-c", clean], check=True)
+    for output in job["outputs"]:
+        shutil.copytree(machine / pathlib.PurePosixPath(output["path"]).name, output["local"], dirs_exist_ok=True)
 
-def test_a_share_asked_for_one_splitter_runs_only_that_one(tmp_path):
-    only = meshparts.cluster_job(["crate-s1"], tmp_path, ("geosam2",))
-    assert "geosam2-run" in only["command"][2] and "segvigen-run" not in only["command"][2]
-    both = meshparts.cluster_job(["crate-s1"], tmp_path)["command"][2]
-    assert both.index("segvigen-run") < both.index("geosam2-run") < both.index("find /work/out")
+    assert files_under(run / "crate-s1" / "down") == sorted(RESULTS)
+    assert files_under(run / "lamp-s1" / "down") == []
+    assert meshparts.to_split(run) == ["lamp-s1"]
