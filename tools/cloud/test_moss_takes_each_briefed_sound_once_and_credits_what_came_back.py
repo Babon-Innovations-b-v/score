@@ -22,68 +22,65 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import moss_sound  # noqa: E402
 
 
-def test_a_page_asks_one_take_of_each_of_its_briefed_sounds(tmp_path):
-    sounds = tmp_path / "sounds.json"
+def test_a_page_takes_each_briefed_sound_once_and_credits_what_came_back(tmp_path, monkeypatch):
+    import local
+    sounds, out = tmp_path / "sounds.json", tmp_path / "out"
     sounds.write_text(json.dumps({"sounds": {
         "door": {"pick": {"page": "hub", "prompts": ["a heavy door", "a creaky door"], "seconds": 3}},
         "wind": {"pick": {"page": "hub", "prompts": ["wind over a roof"]}},
         "bird": {"pick": {"page": "camp", "prompts": ["a crow"]}},
         "hum": {"pick": {"page": "hub", "prompts": []}},
         "rain": {}}}))
-    assert moss_sound.jobs_for("hub", sounds) == [
+    jobs = moss_sound.jobs_for("hub", sounds)
+    assert jobs == [
         {"file": "door__p1__s1.wav", "sound": "door", "prompt": "a heavy door", "seconds": 3, "seed": 1},
         {"file": "wind__p1__s1.wav", "sound": "wind", "prompt": "wind over a roof", "seconds": 8, "seed": 1}]
 
+    # The run on this PC's card: the generator exits 127 after the door's take and both shares' scores came back.
+    commands, recorded = [], []
 
-def test_the_manifest_credits_only_the_takes_that_came_back_and_scores_join(tmp_path):
-    jobs = [{"file": "door__p1__s1.wav", "sound": "door"}, {"file": "wind__p1__s1.wav", "sound": "wind"}]
-    (tmp_path / "door__p1__s1.wav").write_bytes(b"RIFF")
-    (tmp_path / "scores-0.json").write_text(json.dumps({"door__p1__s1.wav": 0.31}))
-    (tmp_path / "scores-1.json").write_text(json.dumps({"wind__p1__s1.wav": 0.12}))
-    made = moss_sound.write_manifest(tmp_path, jobs)
-    assert [take["file"] for take in made] == ["door__p1__s1.wav"]
-    assert json.loads((tmp_path / "manifest.json").read_text()) == made
-    assert made[0]["licence"] == "Apache-2.0" and made[0]["code"] and made[0]["weights"]
-    moss_sound.join_scores(tmp_path)
-    assert json.loads((tmp_path / "scores.json").read_text()) == {"door__p1__s1.wav": 0.31, "wind__p1__s1.wav": 0.12}
+    def copy(folder, sources, destination, **options):
+        if destination == f"{out}/":
+            (out / "door__p1__s1.wav").write_bytes(b"RIFF")
+            (out / "scores-0.json").write_text(json.dumps({"door__p1__s1.wav": 0.31}))
+            (out / "scores-1.json").write_text(json.dumps({"wind__p1__s1.wav": 0.12}))
 
-
-def test_a_cluster_shares_jobs_file_holds_its_jobs_and_takes_come_back_to_out(tmp_path):
-    jobs = [{"sound": "door", "prompt": "a heavy door", "seed": 1, "seconds": 2, "file": "door-1.wav"}]
-    job = moss_sound.cluster_job(2, jobs, tmp_path / "jobs-2.json", tmp_path / "out")
-    sent = pathlib.Path(job["inputs"][0]["local"])
-    assert json.loads(sent.read_text()) == jobs
-    assert job["inputs"][0]["path"] == job["command"][2]
-    # the repo's run.sh goes with the code and is what runs, never the image's moss-run (its old moss_generate path)
-    assert moss_sound.RUN_SCRIPT in job["code"] and job["command"][1] == f"/work/repo/{moss_sound.RUN_SCRIPT}"
-    assert [output["local"] for output in job["outputs"]] == [str(tmp_path / "out")]
-
-
-def test_moss_goes_a_model_at_a_time_only_on_this_pcs_card_and_fits_its_claim_there():
-    import local
-    assert moss_sound.here_only({"here": True}) == "MOSS_ONE_AT_A_TIME=1 "
-    assert moss_sound.here_only({"host": "10.0.0.2"}) == ""
-    assert moss_sound.THIS_PC_NEED["card_gb"] < local.TOO_BIG["moss-sound"]  # under all of MOSS on the card at once
-    assert local.refusal("moss-sound", {"card_gb": moss_sound.THIS_PC_NEED["card_gb"]}) is None
-
-
-def test_a_share_runs_moss_generate_with_the_venvs_python(tmp_path, monkeypatch):
-    commands = []
-    monkeypatch.setattr(moss_sound.batch, "copy", lambda *arguments, **options: None)
-    monkeypatch.setattr(moss_sound.batch, "remote", lambda folder, host, command, **options: commands.append(command) or __import__("subprocess").CompletedProcess(command, 0))
-    moss_sound.make_share({"folder": tmp_path, "host": "172.17.0.2", "here": True}, (0, []), 0, tmp_path / "out")
-    words = commands[0].split()
-    assert "/root/venv/bin/python" in words and words[words.index("/root/venv/bin/python") + 1] == "moss_generate.py"
-
-
-def test_a_share_that_failed_on_this_pc_is_returned_by_name(tmp_path, monkeypatch):
     def on_machines(run, account, found, count, kind, shares, prepare, do):
-        shares.failed_job(shares.waiting.popleft())  # make_share raised spread.JobFailed (exit 127)
+        share = shares.waiting.popleft()
+        try:
+            do({"folder": run.folder, "host": "172.17.0.2", "here": True}, share, 0)
+        except moss_sound.spread.JobFailed:
+            shares.failed_job(share)
 
     monkeypatch.setattr(moss_sound.cloud, "account", lambda: "account")
     monkeypatch.setattr(moss_sound.batch, "offers", lambda classes: [])
     monkeypatch.setattr(moss_sound.batch, "BATCHES", tmp_path)
+    monkeypatch.setattr(moss_sound.batch, "copy", copy)
+    monkeypatch.setattr(moss_sound.batch, "remote", lambda folder, host, command, **options: commands.append(command)
+                        or __import__("subprocess").CompletedProcess(command, 127))
     monkeypatch.setattr(moss_sound.spread, "on_machines", on_machines)
-    monkeypatch.setattr(moss_sound, "record", lambda *args: None)
-    failed = moss_sound.on_this_pc([{"file": "pump.wav"}], tmp_path / "out", 10)
+    monkeypatch.setattr(moss_sound, "record", lambda run, machines, started, folder, made: recorded.append(made))
+    failed = moss_sound.on_this_pc(jobs, out, 10)
     assert len(failed) == 1 and failed[0].startswith("share 0 ("), failed
+    assert recorded == [[jobs[0]]]
+    # the venv's Python runs moss_generate.py, MOSS a model at a time on this PC's card only
+    words = commands[0].split()
+    assert "MOSS_ONE_AT_A_TIME=1" in words and moss_sound.here_only({"host": "10.0.0.2"}) == ""
+    assert "/root/venv/bin/python" in words and words[words.index("/root/venv/bin/python") + 1] == "moss_generate.py"
+    assert moss_sound.THIS_PC_NEED["card_gb"] < local.TOO_BIG["moss-sound"]  # under all of MOSS on the card at once
+    assert local.refusal("moss-sound", {"card_gb": moss_sound.THIS_PC_NEED["card_gb"]}) is None
+
+    made = moss_sound.write_manifest(out, jobs)
+    assert [take["file"] for take in made] == ["door__p1__s1.wav"]
+    assert json.loads((out / "manifest.json").read_text()) == made
+    assert made[0]["licence"] == "Apache-2.0" and made[0]["code"] and made[0]["weights"]
+    moss_sound.join_scores(out)
+    assert json.loads((out / "scores.json").read_text()) == {"door__p1__s1.wav": 0.31, "wind__p1__s1.wav": 0.12}
+
+    # The same jobs as a cluster share: its jobs file goes up, the repo's run.sh (never the image's moss-run) runs.
+    job = moss_sound.cluster_job(2, jobs, tmp_path / "jobs-2.json", out)
+    sent = pathlib.Path(job["inputs"][0]["local"])
+    assert json.loads(sent.read_text()) == jobs
+    assert job["inputs"][0]["path"] == job["command"][2]
+    assert moss_sound.RUN_SCRIPT in job["code"] and job["command"][1] == f"/work/repo/{moss_sound.RUN_SCRIPT}"
+    assert [output["local"] for output in job["outputs"]] == [str(out)]
