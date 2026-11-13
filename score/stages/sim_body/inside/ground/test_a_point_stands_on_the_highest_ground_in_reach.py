@@ -85,7 +85,7 @@ def a_body_under_a_roof_stands_on_its_floor():
     """A floor at 0 and a single-sided roof at 1.84 m: a 1.76 m body standing on the floor (points from its feet to its
     head) reads 0 m over its ground, its head not grounded on the roof 0.08 m over it; the same body on a deck at
     2.958 m stands on the deck, and one on the floor under the deck on the floor. A seated body sits on its seat
-    (`seated_reach_problems`)."""
+    (`seated_reach_problems`); a foot under a desk stands on its floor (`under_a_desk_problems`)."""
     body = np.array([[0.5, height, 0.5] for height in np.linspace(0.0, 1.76, 12)])
     roofed = np.array(square(0.0) + square(1.84, -1.0, 1.0))
     decked = np.array(square(0.0) + square(2.958, -1.0, 1.0))
@@ -93,7 +93,7 @@ def a_body_under_a_roof_stands_on_its_floor():
              for name, points, under in (("under the roof", body, roofed), ("on the deck", body + [0, 2.958, 0], decked),
                                          ("under the deck", body, decked))}
     return [f"{name}: {over} over its ground, not 0" for name, over in found.items() if abs(over) > 1e-9] + \
-        seated_reach_problems()
+        seated_reach_problems() + under_a_desk_problems()
 
 
 def seated_reach_problems():
@@ -110,7 +110,7 @@ def seated_reach_problems():
              ("the feet", over[0])) if not abs(found) < 1e-9]
 
 
-def a_foot_under_a_desk_stands_on_its_floor():
+def under_a_desk_problems():
     """A body standing on a floor 0.2 m thick (its top at 0), one foot under a desk (its underside at 0.72 m, its top
     at 0.75 m, 0.72 m free under it: under HEADROOM), its hand at 1.1 m over a counter top at 1.0 m under a cupboard at
     1.5 m: the foot under the desk stands 0 m over the floor, never 0.75 m into the desk's top; a foot 3 mm into the
@@ -149,7 +149,6 @@ def every_normal_points_up():
 
 CHECKS = (a_point_over_a_slope_stands_at_its_height, a_low_top_is_a_block_not_a_floor,
           a_point_on_a_deck_stands_on_the_deck, a_body_under_a_roof_stands_on_its_floor,
-          a_foot_under_a_desk_stands_on_its_floor,
           reach_up_is_the_casts_knee, every_normal_points_up)
 
 
