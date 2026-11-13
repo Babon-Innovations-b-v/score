@@ -280,32 +280,11 @@ def test_the_judge_timeout_is_an_operational_setting_outside_every_key():
     assert not any("timeout" in setting for setting in models.api_record("gemini-judge"))
 
 
-
 def run_line(number, euros, minutes):
     """One paid run of the render stage on one card with two jobs."""
     machine = {"cards": 1, "minutes": minutes, "euros": euros, "unit_seconds": [60, 60], "setup_minutes": 1.0}
     return {"ticket": f"render@place{number} {number}", "kind": "blender", "batch": f"blender-{number}",
             "machines": [machine], "euros": euros, "wall_minutes": minutes}
-
-
-def test_a_paid_node_is_priced_on_its_stages_measured_runs_else_its_estimate():
-    """The cockpit's price is the runner's: likely the median run, high what the clearance reserves, cards from
-    the run's sizing; an unmeasured stage has no price, its estimate kept apart as the guess, with no minutes."""
-    saved = BOOKS.entries
-    try:
-        BOOKS.entries = lambda: [run_line(number, euros, minutes)
-                                 for number, (euros, minutes) in enumerate([(1.0, 10), (2.0, 20), (3.0, 30)])]
-        price = compute.run_price("render@hangar", 9.0)
-        assert price["likely_euros"] == 2.0 and price["likely_minutes"] == 20 and price["runs"] == 3
-        assert price["high_euros"] == compute.run_forecast("render@hangar", 9.0)["euros"] > 2.0
-        assert price["cards"] == 2  # two 1-minute jobs a run on a 1-minute set-up: a card each
-        BOOKS.entries = lambda: []
-        assert compute.run_price("render@hangar", 9.0) == {
-            "likely_euros": None, "high_euros": None, "guess_euros": 9.0, "likely_minutes": None, "high_minutes": None,
-            "cards": None, "runs": 0, "basis": "not measured yet", "minutes_why": "not measured yet"}
-        assert compute.run_forecast("render@hangar", 9.0)["euros"] == 9.0  # the clearance still reserves the guess
-    finally:
-        BOOKS.entries = saved
 
 
 class Outputs:
@@ -322,70 +301,6 @@ class Outputs:
 
     def read_file(self, output, name):
         return self.made[output].get(name)
-
-
-def test_a_stage_measured_per_unit_is_priced_at_its_units_and_a_node_with_none_to_count_is_a_guess():
-    """A stage with measured per-unit numbers (PER_UNIT) is priced at them times the units its node's accepted output
-    made, likely and high both, and cleared at its high; a stage that shares its unit (`also`) is priced the same;
-    a node with no accepted output to count is not measured yet, its estimate only a guess."""
-    saved, kept = BOOKS.entries, compute.PER_UNIT
-    folder = pathlib.Path(tempfile.mkdtemp())
-    compute.PER_UNIT = folder / "per-unit.json"
-    compute.PER_UNIT.write_text(json.dumps({"stages": {"render": {
-        "stage": "render", "unit": "model", "count": {"json_keys": "takes.json"}, "also": ["crops-render"],
-        "likely_euros": 0.2, "high_euros": 0.5, "runs": 40, "sources": {}}}}))
-    outputs = Outputs({"render@hangar": {"takes.json": {"a": 1, "b": 2, "c": 3}, "contract.json": {}},
-                       "crops-render@hangar": {"takes.json": {"a": 1}}})
-    try:
-        BOOKS.entries = lambda: []
-        price = compute.run_price("render@hangar", 9.0, outputs)
-        share = compute.BILL_SHARE  # a card stage's ledger euros on the provider's bill (no Google calls)
-        assert (price["likely_euros"], price["high_euros"], price["units"], price["runs"], price["basis"]) == (
-            round(0.6 * share, 4), round(1.5 * share, 4), 3, 40, "per unit × counted"), price
-        assert compute.run_forecast("render@hangar", 9.0, outputs) == {"euros": round(1.5 * share, 4), "minutes": None,
-                                                                       "high_minutes": None, "measured": 40}
-        assert compute.run_price("crops-render@hangar", 2.0, outputs)["likely_euros"] == round(0.2 * share, 4)
-        unseen = compute.run_price("render@lab", 9.0, outputs)
-        assert unseen["likely_euros"] is None and unseen["guess_euros"] == 9.0 and unseen["runs"] == 0
-        assert compute.run_price("bake@hangar", 3.0, outputs)["basis"] == "not measured yet"
-    finally:
-        BOOKS.entries, compute.PER_UNIT = saved, kept
-
-
-def test_a_node_not_made_yet_is_priced_per_unit_times_its_forecast_units_else_it_is_a_guess_that_says_where():
-    """Units forecast before a make (gaps' price) give per unit times them, a basis of their own, before the units
-    an older accepted output counted (the gap's make makes what it adds, not what the last make made); a stage with no forecast rule, an `also` stage, or no units is a guess with the
-    file and line its row names its estimate on."""
-    saved, kept = BOOKS.entries, compute.PER_UNIT
-    folder = pathlib.Path(tempfile.mkdtemp())
-    compute.PER_UNIT = folder / "per-unit.json"
-    rule = {"rule": "models", "source": "the place's takes"}
-    compute.PER_UNIT.write_text(json.dumps({"stages": {
-        "render": {"stage": "render", "unit": "model", "count": {"json_keys": "takes.json"}, "also": ["crops-render"],
-                   "likely_euros": 0.2, "high_euros": 0.5, "runs": 40, "sources": {}, "forecast": rule},
-        "bake": {"stage": "bake", "unit": "job", "count": {"one": True}, "also": [], "likely_euros": 1.0,
-                 "high_euros": 2.0, "runs": 3, "sources": {}, "forecast": None, "forecast_why": "no batch"}}}))
-    outputs = Outputs({"render@hangar": {"takes.json": {"a": 1}}})
-    try:
-        BOOKS.entries = lambda: []
-        share = compute.BILL_SHARE  # a card stage's ledger euros on the provider's bill (no Google calls)
-        price = compute.run_price("render@lab", 9.0, outputs, units=4, guess_from="score/stages/x.py:12")
-        assert (price["likely_euros"], price["high_euros"], price["units"], price["basis"], price["unit_source"]) == (
-            round(0.8 * share, 4), round(2.0 * share, 4), 4, "per unit × forecast", "the place's takes"), price
-        again = compute.run_price("render@hangar", 9.0, outputs, units=4)  # an accept of 1 take, 4 forecast
-        assert (again["units"], again["basis"], again["likely_euros"]) == (
-            4, "per unit × forecast", round(0.8 * share, 4)), again
-        assert compute.run_price("render@hangar", 9.0, outputs)["basis"] == "per unit × counted"  # no forecast given
-        for node, units in (("bake@lab", 4), ("crops-render@lab", 4), ("render@lab", 0), ("render@lab", None)):
-            found = compute.run_price(node, 3.0, outputs, units=units, guess_from="score/stages/x.py:12")
-            assert found["likely_euros"] is None and found["guess_euros"] == 3.0, (node, units, found)
-            assert found["guess_from"] == "score/stages/x.py:12" and found["basis"] == "not measured yet"
-        assert "guess_from" not in compute.run_price("bake@lab", 3.0)
-        # the clearance reserves what the plan priced: the forecast's high, never the guess, where it is measured
-        assert compute.run_forecast("render@lab", 9.0, outputs, units=4)["euros"] == price["high_euros"]
-        assert compute.run_forecast("render@lab", 9.0, outputs)["euros"] == 9.0  # nothing counted: the estimate
-    finally:
-        BOOKS.entries, compute.PER_UNIT = saved, kept
 
 
 def make_takes(inputs, out, seed, params):
@@ -432,44 +347,6 @@ def test_a_retake_is_cleared_and_priced_for_its_own_takes_not_every_take_of_its_
         assert selected_price(retake, buy)["high_euros"] == round(0.5 * share, 4)
     finally:
         BOOKS.entries, compute.PER_UNIT, price.planned_units = saved, kept, planned
-
-
-def test_a_per_unit_price_is_timed_on_its_stages_measured_time_by_the_runners_card_rule():
-    """Minutes come from the stage's measured time (PER_UNIT `time`) on the runner's own card rule, likely on the
-    median unit and high on the HIGH one, cards capped at the run's cap; a stage of calls holds no cards; a stage with
-    no measured time keeps its price and says why it has no minutes."""
-    saved, kept = BOOKS.entries, compute.PER_UNIT
-    folder = pathlib.Path(tempfile.mkdtemp())
-    compute.PER_UNIT = folder / "per-unit.json"
-    rule = {"rule": "models", "source": "the place's takes"}
-    timed = {"unit_seconds": {"likely": 600.0, "high": 1200.0}, "setup_minutes": {"likely": 10.0, "high": 14.0},
-             "slots": 1, "holds": "machines"}
-    stage = {"unit": "model", "count": None, "also": [], "likely_euros": 0.2, "high_euros": 0.5, "runs": 40,
-             "sources": {}, "forecast": rule}
-    compute.PER_UNIT.write_text(json.dumps({"stages": {
-        "render": {**stage, "stage": "render", "time": timed},
-        "ask": {**stage, "stage": "ask", "time": {**timed, "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 4,
-                                                   "holds": "calls"}},
-        "bake": {**stage, "stage": "bake", "time": {"why": "no line timed it"}},
-        "drop": {**stage, "stage": "drop", "time": {**timed, "setup_minutes": {"why": "no set-up timed"}}}}}))
-    try:
-        BOOKS.entries = lambda: []
-        price = compute.run_price("render@lab", 9.0, units=4)
-        # a 10-minute job on a 10-minute set-up: a card each, set-up then one job; high on the high set-up
-        assert (price["cards"], price["likely_minutes"], price["high_minutes"]) == (4, 20.0, 34.0), price
-        many = compute.run_price("render@lab", 9.0, units=500)
-        cap = capacity.run_cap()  # the run's cap: the largest class quota (#20)
-        assert many["cards"] == cap, many
-        assert many["likely_minutes"] == 10 + math.ceil(500 / cap) * 10, many
-        asked = compute.run_price("ask@lab", 9.0, units=8)
-        assert (asked["cards"], asked["likely_minutes"], asked["high_minutes"]) == (None, 20.0, 40.0), asked
-        unknown = compute.run_price("bake@lab", 9.0, units=4)
-        assert unknown["likely_euros"] == round(0.8 * compute.BILL_SHARE, 4) and unknown["likely_minutes"] is None
-        assert unknown["minutes_why"] == "no line timed it"
-        untimed = compute.run_price("drop@lab", 9.0, units=4)
-        assert untimed["likely_minutes"] is None and untimed["minutes_why"] == "no set-up timed", untimed
-    finally:
-        BOOKS.entries, compute.PER_UNIT = saved, kept
 
 
 def test_a_measured_settle_run_is_not_timed_below_the_runs_it_is_read_from():
@@ -521,21 +398,6 @@ def test_a_stage_row_says_where_its_estimate_is_written():
     assert RENDER.euros_from is None  # no estimate, nothing to say
 
 
-def test_each_count_rule_counts_the_units_an_output_made():
-    """The count rules read the output as the stages write it: files by pattern, one file a take, a JSON's keys or
-    field, every map attempt of a take."""
-    take_map = {"front": {"attempts": [{}, {}]}, "views": {"t15-090": {"attempts": [{}]}, "t15-180": {"attempts": []}}}
-    names = {"finishes": [{"by": "the list"}]}
-    outputs = Outputs({"out": {"contract.json": {}, "a-s1.json": names, "b-s1.json": names, "a-s1/map.json": take_map,
-                               "passes/p-0.views.json": {}, "passes/p-1.views.json": {}, "passes/p-0/look.png": None,
-                               "closeups.json": {"pro_pictures": 4}}})
-    rules = [({"one": True}, 1), ({"files": "passes/*.views.json"}, 2), ({"take_files": ".json"}, 3),
-             ({"json_field": ["closeups.json", "pro_pictures"]}, 4), ({"map_attempts": "map.json"}, 3),
-             ({"json_keys": "missing.json"}, None)]
-    for count, units in rules:
-        assert compute.counted_units(outputs, "out", count) == units, (count, units)
-
-
 def test_a_count_of_zero_is_free_only_where_its_rule_counts_zero():
     """A place whose sound takes all stand made counts 0 takes: EUR 0 and no time (COUNTED_ZERO, pixal's takes too); any other rule's
     0 is nothing counted, so no price (unknown, never free)."""
@@ -583,8 +445,6 @@ def test_the_cockpits_google_line_is_the_bill_else_the_owners_figure_else_no_fig
         assert days[0]["day"] == f"{month}-01" and set(days[-1]) == {"day", "cloud", "models"}
     finally:
         BOOKS.BOOKS = kept
-
-
 
 
 def ledger(*lines):
@@ -1141,6 +1001,28 @@ def measured_lines(stage, euros, minutes=20.0):
             for number, cost in enumerate(euros)]
 
 
+SHARE = compute.BILL_SHARE  # a card stage's ledger euros on the provider's bill (no Google calls)
+CAP = capacity.run_cap()  # the run's cap: the largest class quota (#20)
+ABSENT = "not in the answer"
+RESERVED = "what the clearance reserves"  # a price's field equal to run_forecast's euros for the same ask
+WHERE = "score/stages/x.py:12"  # the file and line a row names its estimate on
+
+
+class Exactly(dict):
+    """An expected answer that is the whole answer, not some of its fields."""
+
+
+def per_unit_stage(stage, **more):
+    """A PER_UNIT stage measured at EUR 0.2 likely and 0.5 high a model over 40 runs, counted by takes.json's keys."""
+    return {"stage": stage, "unit": "model", "count": {"json_keys": "takes.json"}, "also": [], "likely_euros": 0.2,
+            "high_euros": 0.5, "runs": 40, "sources": {}, **more}
+
+
+MODELS = {"rule": "models", "source": "the place's takes"}
+TIMED = {"unit_seconds": {"likely": 600.0, "high": 1200.0}, "setup_minutes": {"likely": 10.0, "high": 14.0},
+         "slots": 1, "holds": "machines"}
+TAKE_MAP = {"front": {"attempts": [{}, {}]}, "views": {"t15-090": {"attempts": [{}]}, "t15-180": {"attempts": []}}}
+NAMES = {"finishes": [{"by": "the list"}]}
 OWN = "the row's grant"  # a step tagged with the grant its row made
 SPENT_10K = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0}
 # One row a world: its brief, the owner's stop line (euros, baseline) or none, the ledger's lines, the bill, an
@@ -1154,6 +1036,11 @@ SPENT_10K = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0
 #     the runner's store or none; inside compute.spending while the run is open (its reservation ends with it), else
 #     with only its ticket named; expected is the refusal's words or the found clearance's fields
 #   ("stop", euros): the owner writes the world's stop line now
+#   ("price"|"forecast", node, estimate, asked, expected): compute.run_price or compute.run_forecast on the row's
+#     accepted outputs (its "outputs") and per-unit file (its "per_unit" stages), `asked` its units or guess_from;
+#     expected the answer's fields (ABSENT: not there; RESERVED: the run_forecast euros of the same ask; a range), or
+#     Exactly the whole answer
+#   ("count", output, rule, units): compute.counted_units of the row's output by the count rule
 # A trial row's store is a trial's own inside the home (compare.py's): its stop line and reservations are the
 # framework store's, every cleared run's reservations kept there.
 # and what stands after: the outbox's lines, the grant's draws (euros, balance) and balance.
@@ -1234,6 +1121,99 @@ ASKS = [
                             ("rent", False, {"euros": 6.0}),  # the clearance read from the trial's store
                             ("clear", 5.0, None, None, {"euros": 5.0})]},  # released: in flight no more
                  id="a trial's own store held to the world's stop"),
+    # the cockpit's price is the runner's: likely the median run, high what the clearance reserves, cards from the
+    # run's sizing (two 1-minute jobs a run on a 1-minute set-up: a card each)
+    pytest.param({"text": "a hall", "ledger": [run_line(number, euros, minutes)
+                                               for number, (euros, minutes) in enumerate([(1.0, 10), (2.0, 20),
+                                                                                          (3.0, 30)])],
+                  "steps": [("price", "render@hangar", 9.0, {}, {"likely_euros": 2.0, "likely_minutes": 20, "runs": 3,
+                                                                 "high_euros": RESERVED, "cards": 2}),
+                            ("forecast", "render@hangar", 9.0, {}, {"euros": (2.0, math.inf)})]},
+                 id="priced on its stage's measured runs"),
+    # an unmeasured stage has no price, its estimate kept apart as the guess with no minutes; the clearance still
+    # reserves the guess
+    pytest.param({"text": "a hall", "ledger": [],
+                  "steps": [("price", "render@hangar", 9.0, {}, Exactly({
+                      "likely_euros": None, "high_euros": None, "guess_euros": 9.0, "likely_minutes": None,
+                      "high_minutes": None, "cards": None, "runs": 0, "basis": "not measured yet",
+                      "minutes_why": "not measured yet"})),
+                            ("forecast", "render@hangar", 9.0, {}, {"euros": 9.0})]},
+                 id="unmeasured, its estimate a guess"),
+    # measured per unit: its units of the node's accepted output, likely and high both, cleared at its high; an
+    # `also` stage priced the same; a node with no accepted output to count is not measured yet. The count rules
+    # read the output as the stages write it: files by pattern, one file a take, a JSON's keys or field, every map
+    # attempt of a take.
+    pytest.param({"text": "a hall", "ledger": [], "per_unit": {"render": per_unit_stage("render", also=["crops-render"])},
+                  "outputs": {"render@hangar": {"takes.json": {"a": 1, "b": 2, "c": 3}, "contract.json": {}},
+                              "crops-render@hangar": {"takes.json": {"a": 1}},
+                              "out": {"contract.json": {}, "a-s1.json": NAMES, "b-s1.json": NAMES,
+                                      "a-s1/map.json": TAKE_MAP, "passes/p-0.views.json": {},
+                                      "passes/p-1.views.json": {}, "passes/p-0/look.png": None,
+                                      "closeups.json": {"pro_pictures": 4}}},
+                  "steps": [("price", "render@hangar", 9.0, {}, {
+                                "likely_euros": round(0.6 * SHARE, 4), "high_euros": round(1.5 * SHARE, 4),
+                                "units": 3, "runs": 40, "basis": "per unit × counted"}),
+                            ("forecast", "render@hangar", 9.0, {}, Exactly({
+                                "euros": round(1.5 * SHARE, 4), "minutes": None, "high_minutes": None,
+                                "measured": 40})),
+                            ("price", "crops-render@hangar", 2.0, {}, {"likely_euros": round(0.2 * SHARE, 4)}),
+                            ("price", "render@lab", 9.0, {}, {"likely_euros": None, "guess_euros": 9.0, "runs": 0}),
+                            ("price", "bake@hangar", 3.0, {}, {"basis": "not measured yet"}),
+                            ("count", "out", {"one": True}, 1),
+                            ("count", "out", {"files": "passes/*.views.json"}, 2),
+                            ("count", "out", {"take_files": ".json"}, 3),
+                            ("count", "out", {"json_field": ["closeups.json", "pro_pictures"]}, 4),
+                            ("count", "out", {"map_attempts": "map.json"}, 3),
+                            ("count", "out", {"json_keys": "missing.json"}, None)]},
+                 id="per unit times its counted units"),
+    # units forecast before a make (gaps' price) give per unit times them, before the units an older accepted output
+    # counted (the gap's make makes what it adds); a stage with no forecast rule, an `also` stage, or no units is a
+    # guess naming the file and line its row writes its estimate on; the clearance reserves the forecast's high
+    pytest.param({"text": "a hall", "ledger": [],
+                  "per_unit": {"render": per_unit_stage("render", also=["crops-render"], forecast=MODELS),
+                               "bake": {"stage": "bake", "unit": "job", "count": {"one": True}, "also": [],
+                                        "likely_euros": 1.0, "high_euros": 2.0, "runs": 3, "sources": {},
+                                        "forecast": None, "forecast_why": "no batch"}},
+                  "outputs": {"render@hangar": {"takes.json": {"a": 1}}},
+                  "steps": [("price", "render@lab", 9.0, {"units": 4, "guess_from": WHERE}, {
+                                "likely_euros": round(0.8 * SHARE, 4), "high_euros": round(2.0 * SHARE, 4),
+                                "units": 4, "basis": "per unit × forecast", "unit_source": "the place's takes"}),
+                            ("forecast", "render@lab", 9.0, {"units": 4}, {"euros": round(2.0 * SHARE, 4)}),
+                            ("forecast", "render@lab", 9.0, {}, {"euros": 9.0}),  # nothing counted: the estimate
+                            ("price", "render@hangar", 9.0, {"units": 4}, {  # an accept of 1 take, 4 forecast
+                                "units": 4, "basis": "per unit × forecast", "likely_euros": round(0.8 * SHARE, 4)}),
+                            ("price", "render@hangar", 9.0, {}, {"basis": "per unit × counted"}),
+                            *[("price", node, 3.0, {"units": units, "guess_from": WHERE}, {
+                                "likely_euros": None, "guess_euros": 3.0, "guess_from": WHERE,
+                                "basis": "not measured yet"})
+                              for node, units in (("bake@lab", 4), ("crops-render@lab", 4), ("render@lab", 0),
+                                                  ("render@lab", None))],
+                            ("price", "bake@lab", 3.0, {"store": None}, {"guess_from": ABSENT})]},
+                 id="per unit times its forecast units, else a guess that says where"),
+    # minutes from the stage's measured time on the runner's card rule: likely on the median unit, high on the HIGH
+    # one, cards capped at the run's cap; a stage of calls holds no cards; no measured time keeps its price and says why
+    pytest.param({"text": "a hall", "ledger": [],
+                  "per_unit": {"render": per_unit_stage("render", count=None, forecast=MODELS, time=TIMED),
+                               "ask": per_unit_stage("ask", count=None, forecast=MODELS, time={
+                                   **TIMED, "setup_minutes": {"likely": 0.0, "high": 0.0}, "slots": 4,
+                                   "holds": "calls"}),
+                               "bake": per_unit_stage("bake", count=None, forecast=MODELS,
+                                                      time={"why": "no line timed it"}),
+                               "drop": per_unit_stage("drop", count=None, forecast=MODELS, time={
+                                   **TIMED, "setup_minutes": {"why": "no set-up timed"}})},
+                  "steps": [  # a 10-minute job on a 10-minute set-up: a card each; high on the high set-up
+                      ("price", "render@lab", 9.0, {"units": 4}, {"cards": 4, "likely_minutes": 20.0,
+                                                                  "high_minutes": 34.0}),
+                      ("price", "render@lab", 9.0, {"units": 500}, {
+                          "cards": CAP, "likely_minutes": 10 + math.ceil(500 / CAP) * 10}),
+                      ("price", "ask@lab", 9.0, {"units": 8}, {"cards": None, "likely_minutes": 20.0,
+                                                               "high_minutes": 40.0}),
+                      ("price", "bake@lab", 9.0, {"units": 4}, {"likely_euros": round(0.8 * SHARE, 4),
+                                                                "likely_minutes": None,
+                                                                "minutes_why": "no line timed it"}),
+                      ("price", "drop@lab", 9.0, {"units": 4}, {"likely_minutes": None,
+                                                                "minutes_why": "no set-up timed"})]},
+                 id="timed on its measured time by the runner's card rule"),
 ]
 
 
@@ -1259,7 +1239,9 @@ def test_paid_work_starts_only_inside_its_clearance(row):
     """Every paid start asks the runner's clearance: refused (and nothing written) while a prerequisite failed or is
     not accepted, the run has no estimate or measure, its high would pass the world's stop line with what was spent
     since the line and everything in flight (less what it ledgered, open overrides too), or a benchmark grant's
-    balance; else cleared at its measured high, kept in the store with no typed yes, the job keyed to it."""
+    balance; else cleared at its measured high, kept in the store with no typed yes, the job keyed to it. That high
+    is the price the cockpit shows: its measured runs, else per unit times the units counted or forecast, timed on
+    the card rule, else a guess at the estimate that names where it is written."""
     assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     runner = a_world(row)
     if "stop" in row:
@@ -1273,8 +1255,30 @@ def test_paid_work_starts_only_inside_its_clearance(row):
     grant = compute.grant_benchmark("Yes", QUESTION, row["grant"], store=runner.store)["id"] if "grant" in row else None
     home = Store.default() if "trial" in row else runner.store  # the store holding the world's line and reservations
     tickets, cleared, newest = [], 0, None
+    outputs, kept = Outputs(row["outputs"]) if "outputs" in row else None, compute.PER_UNIT
+    if "per_unit" in row:
+        compute.PER_UNIT = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
+        compute.PER_UNIT.write_text(json.dumps({"stages": row["per_unit"]}))
     try:
         for step in row["steps"]:
+            if step[0] == "count":
+                _, output, rule, units = step
+                assert compute.counted_units(outputs, output, rule) == units, step
+                continue
+            if step[0] in ("price", "forecast"):
+                via, node, estimate, given, expected = step
+                asked = {"store": outputs, **given}
+                answer = (compute.run_price if via == "price" else compute.run_forecast)(node, estimate, **asked)
+                assert not isinstance(expected, Exactly) or answer == expected, (step, answer)
+                for field, value in expected.items():
+                    if value == RESERVED:
+                        value = compute.run_forecast(node, estimate, asked["store"], asked.get("units"))["euros"]
+                    found = answer.get(field, ABSENT)
+                    if isinstance(value, tuple):
+                        assert value[0] < found < value[1], (step, field, answer)
+                    else:
+                        assert found == value, (step, field, answer)
+                continue
             if step[0] == "bill":
                 billed(tickets[-1], step[1])
                 continue
@@ -1345,6 +1349,7 @@ def test_paid_work_starts_only_inside_its_clearance(row):
         if "balance" in row:
             assert compute.grant_balance(runner.store, grant, {}) == row["balance"]
     finally:
+        compute.PER_UNIT = kept
         for ticket in tickets:
             compute.release(ticket)
         BILL["euros"] = 0.0
