@@ -1,14 +1,15 @@
 """The Scaleway backend touches only its own project's resources, and every euro a machine causes is counted.
 
-Every `scw` call is stubbed (and the `subprocess.run` the backend calls `scw` through): nothing is made, read or deleted
-on the provider, and the ledger is a file in the sandbox home.
+Scaleway is one account of the test's own (`Scaleway`), answering the `subprocess.run` the backend reaches `scw`
+through from records of our project and another's: nothing is made, read or deleted on the provider, and the ledger is
+a file in the sandbox home.
 
 The invariants, each with the break that turns its test red (each applied once and seen red):
 
 - A registry namespace, the runtime key's secret, a bill line, a leftover address and a machine a refused order made
   are taken only when their own record names our project (and the runner's tag, for a machine).
   Break: drop `and space.get("project_id") == project` in `registry_namespace` -> another project's namespace is used.
-  Break: drop `if line.get("project_id") != project: continue` in `consumption` -> the bill reads EUR 100.5.
+  Break: drop `if line.get("project_id") != project: continue` in `consumption` -> the bill reads EUR 187.0.
 - The env1 cap's whole bill reads every project: SCORE's whole, the shared one but babon's own services, a machine
   of the shared project SCORE's only in a score or gate pool; an empty bill or a lower one raises.
   Break: `counted` returns True for every line -> the database line counts. Break: drop the `whole < last_whole`
@@ -39,6 +40,8 @@ The invariants, each with the break that turns its test red (each applied once a
   Break: drop the `delete_left_by_refusal(...)` call in `create` -> srv-made stays.
 - Deleting something another sweep already deleted is done, not an error (surfaces-bake@wreck, 2026-10-13); any other
   refusal raises. Break: `return False` -> `raise` in `delete`'s `gone_after_failure` branch; or `is_gone` always False.
+  A machine the zone is still making is waited out, then deleted (2026-11-05, surfaces-bake@camp). Break: drop the
+  PROVISION words from NOT_YET.
 - This PC's backend (local.py) costs nothing and orders nothing: every class it serves is offered `parked` at EUR 0,
   a class beyond its one 16 GB card is refused at once, a kind too big for the card is refused at its claim, one claim
   holds it at a time, and a delete from another process leaves a claim still held alone.
@@ -162,44 +165,6 @@ OTHER = "project-other"
 BAD = next(iter(scaleway.BAD_ADDRESSES))
 
 
-class FakeScw:
-    """Answers `scw` calls from a table of (first three arguments) -> answer, recording every call."""
-
-    def __init__(self, answers):
-        self.answers = answers
-        self.calls = []
-        self.stored = None
-
-    def __call__(self, *arguments):
-        self.calls.append(arguments)
-        if arguments[:3] == ("secret", "version", "create"):
-            data = next(argument for argument in arguments if argument.startswith("data="))
-            self.stored = pathlib.Path(data[len("data=@"):]).read_text()
-        return self.answers.get(arguments[:3])
-
-    def made(self, *head):
-        return [call for call in self.calls if call[:len(head)] == head]
-
-
-@pytest.fixture
-def ledger_file(monkeypatch, tmp_path):
-    """The cloud ledger as a fresh file; its lines read back."""
-    import ledger
-    monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
-    return lambda: [json.loads(line) for line in ledger.LEDGER.read_text().splitlines()] if ledger.LEDGER.exists() \
-        else []
-
-
-@pytest.fixture
-def fake(monkeypatch):
-    """A FakeScw with the account and runtime secret stubbed; set `fake.answers` before calling the backend."""
-    stub = FakeScw({})
-    monkeypatch.setattr(scaleway, "scw", stub)
-    monkeypatch.setattr(scaleway, "account", lambda: OURS)
-    monkeypatch.setattr(scaleway, "secret", lambda name: json.dumps({"access_key": "AK", "secret_key": "SK"}))
-    return stub
-
-
 @pytest.fixture(autouse=True)
 def self_delete_key(monkeypatch, tmp_path):
     """The runner's self-delete key as a file of the test's own, never this PC's: create's self-delete check reads it
@@ -210,14 +175,6 @@ def self_delete_key(monkeypatch, tmp_path):
     monkeypatch.setattr(scaleway, "self_delete_refusal",
                         lambda secret, zone: None if secret == "works" else "Scaleway's instance API answers it 401")
     return batch.SELF_DELETE_KEY
-
-
-def ours_key():
-    return {("secret", "secret", "list"): [{"name": scaleway.RUNTIME_KEY_SECRET, "project_id": OURS}]}
-
-
-def namespace(project, public=False, endpoint="rg/x"):
-    return {"name": scaleway.REGISTRY_NAMESPACE, "project_id": project, "is_public": public, "endpoint": endpoint}
 
 
 @pytest.fixture(autouse=True)
@@ -238,332 +195,392 @@ def card_queue_folder(monkeypatch, tmp_path):
 SAMPLER = [sys.executable, "-c", "import time; print(8000); print(9000, flush=True); time.sleep(5)"]
 
 
-# --- only our own project's resources -------------------------------------------------------------------------------
 
-def test_the_registry_is_our_own_private_namespace(fake):
-    fake.answers = {**ours_key(), ("registry", "namespace", "list"): [namespace(OURS, endpoint="rg/ours")]}
-    assert scaleway.registry() == {"endpoint": "rg/ours", "username": "nologin", "password": "SK"}
-    assert not fake.made("registry", "namespace", "create")
-
-    fake.answers = {**ours_key(), ("registry", "namespace", "list"): [namespace(OTHER)],
-                    ("registry", "namespace", "create"): namespace(OURS, endpoint="rg/new")}
-    assert scaleway.registry()["endpoint"] == "rg/new"
-    made = fake.made("registry", "namespace", "create")
-    assert len(made) == 1 and f"project-id={OURS}" in made[0] and "is-public=false" in made[0]
-
-    fake.answers = {**ours_key(), ("registry", "namespace", "list"): [namespace(OURS, public=True)]}
-    with pytest.raises(SystemExit, match="public"):
-        scaleway.registry()
+def namespace(project, public=False, endpoint="rg/x"):
+    return {"name": scaleway.REGISTRY_NAMESPACE, "project_id": project, "is_public": public, "endpoint": endpoint}
 
 
-def test_a_missing_runtime_key_is_scoped_to_the_project_and_kept_only_in_the_secret(fake):
-    fake.answers = {("secret", "secret", "list"): [{"name": scaleway.RUNTIME_KEY_SECRET, "project_id": OTHER}],
-                    ("iam", "application", "list"): [], ("iam", "application", "create"): {"id": "app"},
-                    ("iam", "policy", "list"): [],
-                    ("iam", "api-key", "create"): {"access_key": "AK2", "secret_key": "SK2"},
-                    ("secret", "secret", "create"): {"id": "held"}}
-    scaleway.runtime_key(OURS)
-    policy = fake.made("iam", "policy", "create")[0]
-    assert f"rules.0.project-ids.0={OURS}" in policy and "application-id=app" in policy
-    assert {argument.split("=", 1)[1] for argument in policy if ".permission-set-names." in argument} == {
-        "ObjectStorageFullAccess", "ContainerRegistryFullAccess"}
-    assert f"default-project-id={OURS}" in fake.made("iam", "api-key", "create")[0]
-    assert f"project-id={OURS}" in fake.made("secret", "secret", "create")[0]
-    assert json.loads(fake.stored) == {"access_key": "AK2", "secret_key": "SK2"}
-    assert not any("SK2" in argument for call in fake.calls for argument in call)
+def refused(text):
+    return subprocess.CompletedProcess([], 1, "", text)
 
 
-def test_the_bill_keeps_only_the_projects_own_lines(fake):
-    fake.answers = {("billing", "consumption", "list"): [
-        {"project_id": OURS, "product_name": "L4", "sku": "s", "unit": "minute", "billed_quantity": "10",
-         "value": {"units": 1, "nanos": 500000000}},
-        {"project_id": OTHER, "product_name": "L4", "sku": "x", "value": {"units": 99}}]}
-    assert scaleway.month_spend(OURS) == 1.5
-    # the env1 cap's whole bill (the plan of 2026-11-09): every project read, SCORE's projects whole, the shared one
-    # but babon's own services, any other project left out; an empty bill or one below the last kept read raises
-    shared = "babon-platform"
-    fake.answers = {("billing", "consumption", "list"): [
-        {"project_id": "ff", "project_name": "farm-factory", "category_name": "Compute", "product_name": "L4",
-         "sku": "/instance/server/l4_1_24g/fr-par-2", "value": {"units": 10}},
-        {"project_id": "sc", "project_name": "score-conductor", "category_name": "Storage", "sku": "/storage/b",
-         "product_name": "Block Storage Volume", "value": {"units": 2, "nanos": 500000000}},
-        {"project_id": "bp", "project_name": shared, "category_name": "Compute", "product_name": "L4",
-         "sku": "/instance/server/l4_1_24g/fr-par-2", "value": {"units": 40}},
-        {"project_id": "bp", "project_name": shared, "category_name": "Managed Databases", "product_name": "DB",
-         "sku": "/storage/rdb", "value": {"units": 30}},
-        {"project_id": "bp", "project_name": shared, "category_name": "Network", "product_name": "Loadbalancer IP",
-         "sku": "/network/loadbalancer/ip/par1", "value": {"units": 1}},
-        {"project_id": "bw", "project_name": "babon-worker", "category_name": "Security and Identity",
-         "product_name": "Secret Manager", "sku": "/paas/secret", "value": {"units": 3}}]}
-    read = scaleway.bill_all()
-    assert read["whole"] == 86.5 and read["lines"] == {
-        "farm-factory|/instance/server/l4_1_24g/fr-par-2": 10.0, "score-conductor|/storage/b": 2.5,
-        f"{shared}|/instance/server/l4_1_24g/fr-par-2": 40.0}
-    assert read["projects"] == {"farm-factory": "ff", "score-conductor": "sc", shared: "bp", "babon-worker": "bw"}
-    with pytest.raises(scaleway.Unread, match="below"):
-        scaleway.bill_all(last_whole=90.0)
-    fake.answers = {("billing", "consumption", "list"): []}
-    with pytest.raises(scaleway.Unread, match="no line"):
-        scaleway.bill_all()
-    # split by pool tag: the shared project's machine in a score or gate pool is SCORE's, any other babon's
-    names = {"ff": "farm-factory", "bp": shared, "xx": "babon-worker"}
-    assert [scaleway.owner_of({"project": project, "tags": tags}, names) for project, tags in (
-        ("ff", []), ("bp", ["pool-name=score-l4-1-z2"]), ("bp", ["pool-name=gate-cpu"]),
-        ("bp", ["pool-name=batch-l4"]), ("bp", []), ("xx", ["pool-name=score-x"]))] == [
-        "score", "score", "score", "babon", "babon", None]
+def made_at(seconds):
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(seconds))
 
 
-def test_a_quarantined_or_foreign_address_is_never_a_leftover(monkeypatch):
-    addresses = [{"id": "ip-q", "address": BAD, "project": OURS, "server": None, "tags": [scaleway.QUARANTINED]},
-                 {"id": "ip-l", "address": "151.115.1.1", "project": OURS, "server": None, "tags": []},
-                 {"id": "ip-x", "address": "151.115.2.2", "project": OTHER, "server": None, "tags": []},
-                 {"id": "ip-on", "address": "151.115.3.3", "project": OURS, "server": {"id": "s"}, "tags": []}]
-    monkeypatch.setattr(scaleway, "scw", lambda *arguments: addresses)
-    assert scaleway.leftover_addresses(OURS, ("pl-waw-2",)) == [("ip-l", "pl-waw-2", "151.115.1.1")]
+def machine(server_id, name, project=OURS, tags=(scaleway.TAG,), addresses=()):
+    """A machine record as Scaleway's `server get` answers it: made now, one 60 GB disk, `addresses` on it."""
+    return {"id": server_id, "name": name, "project": project, "tags": list(tags), "commercial_type": "POP2-32C-128G",
+            "creation_date": made_at(time.time()), "volumes": {"0": {"size": 60e9}},
+            "public_ips": [{"id": address["id"], "address": address["address"], "family": "inet"}
+                           for address in addresses]}
 
 
-# --- offers and quotas ----------------------------------------------------------------------------------------------
-
-def offered(monkeypatch, tmp_path, classes, zones, processor_zones, listed, quotas, parked=()):
-    """scaleway.offers on stubbed zones, type lists (`listed` in every zone), quotas and parked records; (the offers,
-    the zones whose type list was read)."""
-    read = []
-    monkeypatch.setattr(scaleway, "scw", lambda *arguments: read.append(arguments[-1]) or listed)
-    monkeypatch.setattr(scaleway, "price", lambda machine_type, zone: (0.02, 60))
-    folder = tmp_path / "parked"
-    folder.mkdir(exist_ok=True)
-    for index, record in enumerate(parked):
-        (folder / f"{index}.json").write_text(record if isinstance(record, str) else json.dumps(record))
-    monkeypatch.setattr(scaleway, "PARKED", folder)
-    monkeypatch.setattr(scaleway, "ZONES", zones)
-    monkeypatch.setattr(scaleway, "PROCESSOR_ZONES", processor_zones)
-    monkeypatch.setattr(scaleway, "zone_quotas", lambda: quotas)
-    return scaleway.offers(classes), read
+def loose_address(address_id, address, project=OURS, server=None, tags=()):
+    return {"id": address_id, "address": address, "project": project, "server": server and {"id": server},
+            "tags": list(tags)}
 
 
-def test_a_processor_class_is_offered_wherever_it_has_quota_and_a_card_class_only_in_card_zones(monkeypatch, tmp_path):
-    """Owner, 2026-10-23 ("cant u just get a faster cpu"): the big POP2 types were short in the card zones and in stock
-    elsewhere; a type with no quota (POP2-HC-64C-128G) is never ordered."""
-    listed = [{"name": "POP2-HC-64C-128G", "availability": "available"},
-              {"name": "POP2-HC-48C-96G", "availability": "available"},
-              {"name": "L4-1-24G", "availability": "available"}]
-    quotas = {("POP2-HC-48C-96G", "fr-par-1"): 1, ("POP2-HC-48C-96G", "nl-ams-2"): 1, ("L4-1-24G", "fr-par-1"): 50,
-              ("L4-1-24G", "nl-ams-2"): 50}
-    found, read = offered(monkeypatch, tmp_path, ["cpu-64c-128gb", "cpu-48c-96gb", "gpu-24gb"], ("fr-par-1",),
-                          ("nl-ams-2", "fr-par-1"), listed, quotas)
-    assert sorted((offer.machine_class, offer.zone) for offer in found) == [
-        ("cpu-48c-96gb", "fr-par-1"), ("cpu-48c-96gb", "nl-ams-2"), ("gpu-24gb", "fr-par-1")]
-    assert read == ["zone=fr-par-1", "zone=nl-ams-2"]
-    _, read = offered(monkeypatch, tmp_path, ["gpu-24gb"], ("fr-par-1",), ("nl-ams-2",), listed, quotas)
-    assert read == ["zone=fr-par-1"]  # a card-only ask reads no processor zone
+class Scaleway:
+    """One Scaleway account as the backend reaches it through `subprocess.run` (every `scw` command, and the server
+    create the backend runs itself): our project's and another's registry namespaces, runtime key secrets, bill lines,
+    addresses, disks and machines, answered from these records and changed as Scaleway changes them. Every command is
+    kept in `commands`; each of `refusals` ((command head, Scaleway's words, what else happens meanwhile)) answers
+    the first command it heads, once; `order` answers a server create; `racing` are addresses another order's machine
+    takes once a moment has passed (`settle`)."""
 
+    def __init__(self):
+        self.namespaces, self.secrets, self.bill, self.types, self.disks = [], [], [], [], []
+        self.addresses, self.servers, self.refusals, self.racing, self.commands = [], [], [], [], []
+        self.order, self.stored = None, None
 
-def test_a_type_short_where_our_run_parked_one_is_offered_as_parked(monkeypatch, tmp_path):
-    """2026-10-12: every POP2-32C-128G was short because our runs held them parked, and blender_cloud refused for no
-    stock instead of taking one. An expired record and one half-written do not count."""
-    import time
-    parked = [{"type": "POP2-32C-128G", "zone": "fr-par-2", "until": time.time() + 600},
-              {"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": time.time() - 60}, "{\"type\": "]
-    quotas = {("POP2-32C-128G", "fr-par-2"): 2, ("POP2-32C-128G", "pl-waw-2"): 2}
-    found, _ = offered(monkeypatch, tmp_path, ["cpu-32c-128gb"], ("fr-par-2", "pl-waw-2"), (),
-                       [{"name": "POP2-32C-128G", "availability": "shortage"}], quotas, parked)
-    assert {offer.zone: offer.stock_word for offer in found} == {"fr-par-2": "parked", "pl-waw-2": "shortage"}
-    assert {offer.zone: offer.stock for offer in found} == {"fr-par-2": 1, "pl-waw-2": 2}
+    def __call__(self, command, **options):
+        arguments = tuple(command[1:-2] if command[-2:] == ["-o", "json"] else command[1:])
+        self.commands.append(arguments)
+        for index, (head, words, meanwhile) in enumerate(self.refusals):
+            if arguments[:len(head)] == head:
+                del self.refusals[index]
+                meanwhile()
+                return refused(words)
+        if arguments[:3] == ("instance", "server", "create"):
+            return self.order(dict(argument.split("=", 1) for argument in arguments[3:] if "=" in argument))
+        try:
+            answer = self.answer(arguments[:3], arguments[3:])
+        except LookupError as missing:
+            return refused(f"{missing.args[0]} not found")
+        return subprocess.CompletedProcess(command, 0, "" if answer is None else json.dumps(answer), "")
+
+    def answer(self, head, rest):
+        value = dict(argument.split("=", 1) for argument in rest if "=" in argument)
+        target = rest[0] if rest else None
+        reads = {("registry", "namespace", "list"): self.namespaces, ("secret", "secret", "list"): self.secrets,
+                 ("billing", "consumption", "list"): self.bill, ("instance", "server-type", "list"): self.types,
+                 ("instance", "ip", "list"): self.addresses, ("block", "volume", "list"): self.disks,
+                 ("instance", "server", "list"): self.servers, ("iam", "application", "list"): [],
+                 ("iam", "policy", "list"): [], ("account", "project", "get"): {"organization_id": "org"},
+                 ("config", "get", "secret-key"): "key", ("iam", "application", "create"): {"id": "app"},
+                 ("iam", "policy", "create"): {}, ("iam", "api-key", "create"): {"access_key": "AK2",
+                                                                                 "secret_key": "SK2"}}
+        if head in reads:
+            return reads[head]
+        if head == ("registry", "namespace", "create"):
+            self.namespaces.append(namespace(value["project-id"], value["is-public"] == "true", "rg/new"))
+            return self.namespaces[-1]
+        if head == ("secret", "secret", "create"):
+            self.secrets.append({"name": value["name"], "project_id": value["project-id"]})
+            return {"id": "held"}
+        if head == ("secret", "version", "create"):
+            data = value["data"]
+            self.stored = pathlib.Path(data[1:]).read_text() if data.startswith("@") else data
+            return {}
+        if head == ("instance", "ip", "create"):
+            self.addresses.append(loose_address(f"ip-fresh-{value['server']}", "151.115.9.9", value["project-id"],
+                                                value["server"], [value["tags.0"]]))
+            return {}
+        if head == ("instance", "ip", "get"):
+            return {"ip": self.find(self.addresses, target, "ip")}
+        if head == ("instance", "ip", "detach"):
+            self.find(self.addresses, target, "ip")["server"] = None
+            return {}
+        if head == ("instance", "ip", "update"):
+            self.find(self.addresses, target, "ip")["tags"] = [value[key] for key in sorted(value) if
+                                                               key.startswith("tags.")]
+            return {}
+        if head == ("instance", "ip", "delete"):
+            self.addresses.remove(self.find(self.addresses, target, "ip"))
+            return None
+        if head == ("block", "volume", "delete"):
+            self.disks.remove(self.find(self.disks, target, "volume"))
+            return None
+        if head == ("instance", "server", "get"):
+            return self.find(self.servers, target, "server")
+        if head == ("instance", "server", "terminate"):  # with-ip=true: its addresses go with it
+            self.servers.remove(self.find(self.servers, target, "server"))
+            self.addresses[:] = [address for address in self.addresses
+                                 if (address["server"] or {}).get("id") != target]
+            return None
+        raise AssertionError(f"scw {' '.join(head)} is not one this account answers")
+
+    @staticmethod
+    def find(records, item_id, kind):
+        found = [record for record in records if record["id"] == item_id]
+        if not found:
+            raise LookupError(kind)
+        return found[0]
+
+    def rent(self, address, owner):
+        """Orders answered with a machine of the name asked, given `address` (`owner`'s address record)."""
+        def order(value):
+            given = loose_address(f"ip-{value['name']}", address, owner, f"srv-{value['name']}")
+            self.addresses.append(given)
+            self.servers.append(machine(f"srv-{value['name']}", value["name"], addresses=[given]))
+            return subprocess.CompletedProcess([], 0, json.dumps(self.servers[-1]), "")
+        self.order = order
+
+    def refuse_but_make(self, value):
+        """HTTP 500 (2026-10-22) that made the machine anyway, with its own loose address and disk, while another
+        order's address is loose for a moment before its machine takes it."""
+        self.servers.append(machine("srv-made", value["name"]))
+        racing = loose_address("ip-racing", "3.3.3.3")
+        self.addresses += [loose_address("ip-new", "2.2.2.2"), racing]
+        self.racing.append(racing)
+        self.disks.append({"id": "disk-new", "name": value["name"], "project_id": OURS, "references": []})
+        return refused('{"error":"cannot create the server: http error 500"}')
+
+    def settle(self):
+        for address in self.racing:
+            address["server"] = {"id": "srv-racing"}
 
 
 @pytest.fixture
-def quota_world(fake, monkeypatch):
-    fake.answers = {("account", "project", "get"): {"organization_id": "org"}, ("config", "get", "secret-key"): "key"}
+def ledger_file(monkeypatch, tmp_path):
+    """The cloud ledger as a fresh file; its lines read back."""
+    import ledger
+    monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
+    return lambda: [json.loads(line) for line in ledger.LEDGER.read_text().splitlines()] if ledger.LEDGER.exists() \
+        else []
+
+
+@pytest.fixture
+def world(monkeypatch, tmp_path, request):
+    """One account holding our project's resources beside another's, the backend reaching it only through
+    `subprocess.run`; no sleep waits, its quota pages and prices read from here."""
+    account = Scaleway()
+    account.namespaces = [namespace(OTHER, endpoint="rg/other"), namespace(OURS, endpoint="rg/ours")]
+    account.secrets = [{"name": scaleway.RUNTIME_KEY_SECRET, "project_id": OTHER}]
+    account.servers = [machine("srv-other", "masks-1", OTHER), machine("srv-untagged", "masks-1", tags=()),
+                       machine("srv-near", "masks-10"), machine("srv-wreck", "surfaces-bake-1"),
+                       machine("srv-stuck", "surfaces-bake-2"), machine("srv-making", "surfaces-bake-3")]
+    account.addresses = [loose_address("ip-old", "1.1.1.1"), loose_address("ip-x", "151.115.2.2", OTHER),
+                         loose_address("ip-on", "151.115.3.3", server="srv-near")]
+    monkeypatch.setattr(subprocess, "run", account)
+    monkeypatch.setattr(scaleway.time, "sleep", lambda seconds: account.settle())
+    monkeypatch.setattr(scaleway, "account", lambda: OURS)
+    monkeypatch.setattr(scaleway, "secret", lambda name: json.dumps({"access_key": "AK", "secret_key": "SK"}))
+    monkeypatch.setattr(scaleway, "price", lambda machine_type, zone: (0.02, 60))
     scaleway.zone_quotas.cache_clear()
-    yield monkeypatch
-    scaleway.zone_quotas.cache_clear()
+    request.addfinalizer(scaleway.zone_quotas.cache_clear)
+    return account
 
 
-def test_quotas_are_read_by_type_and_zone(quota_world):
-    pages = [{"name": "cp_servers_type_POP2_HC_48C_96G", "limits": [{"zone": "nl-ams-2", "limit": 1},
-                                                                    {"zone": "pl-waw-1", "limit": 0}]},
-             {"name": "cp_servers_type_L4_1_24G", "limits": [{"zone": "fr-par-1", "unlimited": True}]},
-             {"name": "adt_beta", "limits": [{"zone": "fr-par-1", "limit": 1}]}]
-    quota_world.setattr(scaleway, "quota_pages",
-                        lambda organization, key: pages if (organization, key) == ("org", "key") else [])
-    assert scaleway.zone_quotas() == {("POP2-HC-48C-96G", "nl-ams-2"): 1, ("POP2-HC-48C-96G", "pl-waw-1"): 0,
-                                      ("L4-1-24G", "fr-par-1"): float("inf")}
+# The bill of 2026-11: our project's line and another's (project_id only), and the organisation's whole bill as the
+# env1 cap reads it (the plan of 2026-11-09): SCORE's projects whole, the shared one but babon's own services.
+SHARED = "babon-platform"
+BILL = [
+    {"project_id": OURS, "product_name": "L4", "sku": "s", "unit": "minute", "billed_quantity": "10",
+     "value": {"units": 1, "nanos": 500000000}},
+    {"project_id": OTHER, "product_name": "L4", "sku": "x", "value": {"units": 99}},
+    {"project_id": "ff", "project_name": "farm-factory", "category_name": "Compute", "product_name": "L4",
+     "sku": "/instance/server/l4_1_24g/fr-par-2", "value": {"units": 10}},
+    {"project_id": "sc", "project_name": "score-conductor", "category_name": "Storage", "sku": "/storage/b",
+     "product_name": "Block Storage Volume", "value": {"units": 2, "nanos": 500000000}},
+    {"project_id": "bp", "project_name": SHARED, "category_name": "Compute", "product_name": "L4",
+     "sku": "/instance/server/l4_1_24g/fr-par-2", "value": {"units": 40}},
+    {"project_id": "bp", "project_name": SHARED, "category_name": "Managed Databases", "product_name": "DB",
+     "sku": "/storage/rdb", "value": {"units": 30}},
+    {"project_id": "bp", "project_name": SHARED, "category_name": "Network", "product_name": "Loadbalancer IP",
+     "sku": "/network/loadbalancer/ip/par1", "value": {"units": 1}},
+    {"project_id": "bw", "project_name": "babon-worker", "category_name": "Security and Identity",
+     "product_name": "Secret Manager", "sku": "/paas/secret", "value": {"units": 3}}]
+
+# Whose a machine is, by its project and pool tag: (project id, tags, owner).
+OWNERS = [("ff", [], "score"), ("bp", ["pool-name=score-l4-1-z2"], "score"), ("bp", ["pool-name=gate-cpu"], "score"),
+          ("bp", ["pool-name=batch-l4"], "babon"), ("bp", [], "babon"), ("xx", ["pool-name=score-x"], None)]
+
+# The registry namespaces the account lists, the endpoint registry() gives (or the refusal) and the namespaces it
+# makes: (row, namespaces, endpoint, made).
+NAMESPACES = [("ours beside another's", None, "rg/ours", 0),
+              ("only another project's: ours is made private", [namespace(OTHER)], "rg/new", 1),
+              ("ours public: refused", [namespace(OURS, public=True)], "public", 0)]
+
+# Quotas as Scaleway's IAM pages list them (the CLI has none); a non-type quota is no machine's.
+QUOTA_PAGES = [
+    {"name": "cp_servers_type_POP2_HC_48C_96G", "limits": [{"zone": "nl-ams-2", "limit": 1},
+                                                           {"zone": "fr-par-1", "limit": 1},
+                                                           {"zone": "pl-waw-1", "limit": 0}]},
+    {"name": "cp_servers_type_L4_1_24G", "limits": [{"zone": "fr-par-1", "unlimited": True},
+                                                    {"zone": "nl-ams-2", "limit": 50}]},
+    {"name": "cp_servers_type_POP2_32C_128G", "limits": [{"zone": "fr-par-2", "limit": 2},
+                                                         {"zone": "pl-waw-2", "limit": 2}]},
+    {"name": "adt_beta", "limits": [{"zone": "fr-par-1", "limit": 1}]}]
+
+# Each machine type every zone lists: the big POP2 in stock (owner, 2026-10-23: "cant u just get a faster cpu"), the
+# 64-core one with no quota anywhere, POP2-32C-128G short because our own runs parked them (2026-10-12).
+TYPES = [{"name": "POP2-HC-64C-128G", "availability": "available"},
+         {"name": "POP2-HC-48C-96G", "availability": "available"},
+         {"name": "L4-1-24G", "availability": "available"},
+         {"name": "POP2-32C-128G", "availability": "shortage"}]
+
+# A new machine's address: (row, the address it got, the `ip` command Scaleway refuses, whose the address's record
+# says it is, the ip commands sent, whether the machine is kept). A bad one is swapped and quarantined; when that
+# cannot be done safely the machine is deleted (its offer refused) and nothing is tagged past the failed step.
+ADDRESSES = [("bad: swapped and quarantined", BAD, None, OURS, ["create", "get", "detach", "update"], True),
+             ("good: left as it is", "151.115.10.10", None, OURS, [], True),
+             ("bad, its detach refused", BAD, "detach", OURS, ["create", "get", "detach"], False),
+             ("bad, another project's", BAD, None, OTHER, ["create", "get"], False)]
+
+# A deleted machine's disk (60 GB) and address billed by the started hour: (minutes since its creation, hours billed).
+HOURS = [(61, 2), (2, 1)]
 
 
-def test_a_key_that_may_not_read_quotas_leaves_them_unknown(quota_world):
-    """The conductor's key reads no quota (HTTP 403, 2026-10-24): the Buy stopped at its pool."""
-    def refused(organization, key):
+def test_only_our_projects_resources_are_taken_and_every_euro_they_cause_is_counted(world, ledger_file, monkeypatch,
+                                                                                     tmp_path):
+    import ledger
+    one_hour = 60 * 0.00013 + 0.005  # 60 GB at EUR 0.00013 a GB-hour, one address at EUR 0.005 an hour
+
+    # the container path: the runtime key (only another project's secret is listed) is made scoped to our project and
+    # kept only in Secret Manager; the registry is our own private namespace, made when only another's is listed
+    for row, listed, endpoint, making in NAMESPACES:
+        world.namespaces = list(listed or world.namespaces)
+        before = len(world.commands)
+        if endpoint == "public":
+            with pytest.raises(SystemExit, match="public"):
+                scaleway.registry()
+        else:
+            assert scaleway.registry() == {"endpoint": endpoint, "username": "nologin", "password": "SK"}, row
+        made = [command for command in world.commands[before:] if command[:3] == ("registry", "namespace", "create")]
+        assert len(made) == making, row
+        assert all(f"project-id={OURS}" in command and "is-public=false" in command for command in made), row
+    policies = [command for command in world.commands if command[:3] == ("iam", "policy", "create")]
+    assert len(policies) == 1 and f"rules.0.project-ids.0={OURS}" in policies[0] and "application-id=app" in policies[0]
+    assert {argument.split("=", 1)[1] for argument in policies[0] if ".permission-set-names." in argument} == {
+        "ObjectStorageFullAccess", "ContainerRegistryFullAccess"}
+    assert [command for command in world.commands if command[:3] == ("iam", "api-key", "create")
+            and f"default-project-id={OURS}" in command]
+    assert [command for command in world.commands if command[:3] == ("secret", "secret", "create")
+            and f"project-id={OURS}" in command]
+    assert json.loads(world.stored) == {"access_key": "AK2", "secret_key": "SK2"}
+    assert not any("SK2" in argument for command in world.commands for argument in command)
+
+    # the bill: our project's own lines; the cap's whole bill reads every project and counts SCORE's usage
+    world.bill = BILL
+    assert scaleway.month_spend(OURS) == 1.5
+    read = scaleway.bill_all()
+    assert read["whole"] == 187.0 and read["lines"] == {
+        "farm-factory|/instance/server/l4_1_24g/fr-par-2": 10.0, "score-conductor|/storage/b": 2.5,
+        f"{SHARED}|/instance/server/l4_1_24g/fr-par-2": 40.0}
+    assert read["projects"] == {OURS: OURS, OTHER: OTHER, "farm-factory": "ff", "score-conductor": "sc", SHARED: "bp",
+                                "babon-worker": "bw"}
+    with pytest.raises(scaleway.Unread, match="below"):
+        scaleway.bill_all(last_whole=190.0)
+    names = {"ff": "farm-factory", "bp": SHARED, "xx": "babon-worker"}
+    assert [scaleway.owner_of({"project": project, "tags": tags}, names) for project, tags, _ in OWNERS] == [
+        owner for _, _, owner in OWNERS]
+    world.bill = []
+    with pytest.raises(scaleway.Unread, match="no line"):
+        scaleway.bill_all()
+
+    # offers: quotas read by type and zone, a processor class in every rent zone with quota, a card class in the card
+    # zones only, each zone's type list read once, a short type our run parked offered as parked (an expired record and
+    # a half-written one do not count)
+    world.types = TYPES
+    monkeypatch.setattr(scaleway, "quota_pages",
+                        lambda organization, key: QUOTA_PAGES if (organization, key) == ("org", "key") else [])
+    assert scaleway.zone_quotas() == {
+        ("POP2-HC-48C-96G", "nl-ams-2"): 1, ("POP2-HC-48C-96G", "fr-par-1"): 1, ("POP2-HC-48C-96G", "pl-waw-1"): 0,
+        ("L4-1-24G", "fr-par-1"): float("inf"), ("L4-1-24G", "nl-ams-2"): 50, ("POP2-32C-128G", "fr-par-2"): 2,
+        ("POP2-32C-128G", "pl-waw-2"): 2}
+    parked = tmp_path / "parked"
+    parked.mkdir()
+    for index, record in enumerate([{"type": "POP2-32C-128G", "zone": "fr-par-2", "until": time.time() + 600},
+                                    {"type": "POP2-32C-128G", "zone": "pl-waw-2", "until": time.time() - 60}]):
+        (parked / f"{index}.json").write_text(json.dumps(record))
+    (parked / "2.json").write_text("{\"type\": ")
+    monkeypatch.setattr(scaleway, "PARKED", parked)
+    monkeypatch.setattr(scaleway, "ZONES", ("fr-par-1", "fr-par-2", "pl-waw-2"))
+    monkeypatch.setattr(scaleway, "PROCESSOR_ZONES", ("nl-ams-2", "fr-par-1"))
+    zones_read = lambda: [command[-1] for command in world.commands  # noqa: E731
+                          if command[:3] == ("instance", "server-type", "list")]
+    found = scaleway.offers(["cpu-64c-128gb", "cpu-48c-96gb", "gpu-24gb", "cpu-32c-128gb"])
+    assert {(offer.machine_class, offer.zone): (offer.stock_word, offer.stock) for offer in found} == {
+        ("cpu-48c-96gb", "fr-par-1"): ("available", 0), ("gpu-24gb", "fr-par-1"): ("available", 0),
+        ("cpu-32c-128gb", "fr-par-2"): ("parked", 1), ("cpu-32c-128gb", "pl-waw-2"): ("shortage", 2),
+        ("cpu-48c-96gb", "nl-ams-2"): ("available", 0)}
+    assert zones_read() == ["zone=fr-par-1", "zone=fr-par-2", "zone=pl-waw-2", "zone=nl-ams-2"]
+    scaleway.offers(["gpu-24gb"])
+    assert zones_read()[4:] == ["zone=fr-par-1", "zone=fr-par-2", "zone=pl-waw-2"]  # a card-only ask: no processor zone
+
+    def refused_quotas(organization, key):  # the conductor's key reads no quota (403, 2026-10-24): none known
         raise urllib.error.HTTPError("https://api.scaleway.com", 403, "Forbidden", {}, None)
-    quota_world.setattr(scaleway, "quota_pages", refused)
+    monkeypatch.setattr(scaleway, "quota_pages", refused_quotas)
+    scaleway.zone_quotas.cache_clear()
     assert scaleway.zone_quotas() is None
 
+    # renting: a new machine's bad address is swapped for a fresh one and quarantined, or the machine deleted
+    terminated = lambda since: [command[3] for command in world.commands[since:]  # noqa: E731
+                                if command[:3] == ("instance", "server", "terminate")]
+    for number, (row, address, refusing, owner, sent, kept) in enumerate(ADDRESSES, 1):
+        name, since = f"blender-{number}", len(world.commands)
+        world.rent(address, owner)
+        world.refusals = [(("instance", "ip", refusing), f"scw ip {refusing} failed", lambda: None)] if refusing else []
+        offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb", price=0.02)
+        answer = scaleway.create(OURS, offer, name, [], 60)
+        assert answer[0] == (f"srv-{name}" if kept else None) and (answer[1] is None) == kept, row
+        assert terminated(since) == ([] if kept else [f"srv-{name}"]), row
+        ip = [command for command in world.commands[since:]
+              if command[:2] == ("instance", "ip") and command[2] != "list"]
+        assert [command[2] for command in ip] == sent, row
+        if kept and sent:
+            assert f"server=srv-{name}" in ip[0] and f"project-id={OURS}" in ip[0], row
+            assert ip[3][3] == f"ip-{name}" and f"tags.0={scaleway.QUARANTINED}" in ip[3], row
 
-# --- every euro counted ---------------------------------------------------------------------------------------------
-
-def test_disk_and_address_are_billed_by_the_started_hour_and_written_on_delete(monkeypatch, ledger_file):
-    server = {"id": "s1", "name": "blender-1", "commercial_type": "L4-1-24G", "creation_date": "2026-10-12T10:00:00Z",
-              "public_ips": [{"id": "ip"}]}
-    created = 1791799200.0  # 2026-10-12T10:00:00Z
-    one_hour = 60 * 0.00013 + 0.005  # 60 GB at EUR 0.00013 a GB-hour, one address at EUR 0.005 an hour
-    assert scaleway.disk_and_address_euros(server, 60, created + 61 * 60) == pytest.approx(2 * one_hour)
-    assert scaleway.disk_and_address_euros(server, 60, created + 2 * 60) == pytest.approx(one_hour)
-
-    monkeypatch.setattr(scaleway, "server_record", lambda *_: server)
-    monkeypatch.setattr(scaleway, "disk_gb", lambda *_: 60.0)
-    monkeypatch.setattr(scaleway, "terminate", lambda *_: True)
-    assert scaleway.delete("s1", "fr-par-2")
-    monkeypatch.setattr(scaleway, "server_record", lambda *_: None)  # already gone: nothing deleted, nothing written
-    assert not scaleway.delete("s1", "fr-par-2")
-    lines = ledger_file()
-    assert [line["kind"] for line in lines] == ["disk-and-address"] and lines[0]["euros"] >= one_hour
-
-
-def created_with(monkeypatch, address, failing=(), owner=OURS):
-    """create() on a stubbed Scaleway whose new machine got `address`; failing: the `ip` commands that fail. (its
-    answer, the scw calls past the loose reads, the machines deleted)."""
-    calls, deleted = [], []
-
-    def fake_scw(*arguments):
-        if arguments[2] != "list":
-            calls.append(arguments)
-        if arguments[:2] == ("instance", "ip") and arguments[2] in failing:
-            raise RuntimeError(f"scw ip {arguments[2]} failed")
-        return {"ip": {"id": arguments[3], "project": owner}} if arguments[:3] == ("instance", "ip", "get") else {}
-
-    server = {"id": "srv-1", "public_ips": [{"id": "ip-1", "address": address, "family": "inet"}]}
-    monkeypatch.setattr(scaleway, "scw", fake_scw)
-    monkeypatch.setattr(scaleway, "delete", lambda server_id, zone: deleted.append(server_id) or True)
-    monkeypatch.setattr(subprocess, "run", lambda *arguments, **options: types.SimpleNamespace(
-        returncode=0, stdout=json.dumps(server), stderr=""))
-    offer = types.SimpleNamespace(type="POP2-32C-128G", zone="pl-waw-2", machine_class="cpu-32c-128gb", price=0.02)
-    return scaleway.create(OURS, offer, "blender-1", [], 60), calls, deleted
-
-
-def test_a_bad_address_is_swapped_and_quarantined_or_the_machine_deleted(monkeypatch, ledger_file):
-    answer, calls, deleted = created_with(monkeypatch, BAD)
-    assert answer == ("srv-1", None) and not deleted
-    assert [call[2] for call in calls] == ["create", "get", "detach", "update"]
-    assert "server=srv-1" in calls[0] and f"project-id={OURS}" in calls[0]
-    assert f"tags.0={scaleway.QUARANTINED}" in calls[3] and calls[3][3] == "ip-1"
-
-    assert created_with(monkeypatch, "151.115.10.10")[1:] == ([], [])  # a good address is left as it is
-
-    for failing, owner in ((("detach",), OURS), ((), OTHER)):
-        answer, calls, deleted = created_with(monkeypatch, BAD, failing, owner)
-        assert answer[0] is None and deleted == ["srv-1"]
-        assert not any(call[2] == "update" for call in calls)  # nothing tagged past the failed step or the check
-
-
-def test_a_refused_orders_own_machine_is_deleted_at_once(monkeypatch, ledger_file):
-    """2026-10-22: an order refused with HTTP 500 had made its machine (stopped, billed, unwatched)."""
-    listed = [{"id": "srv-made", "name": "masks-1", "project": OURS, "tags": [scaleway.TAG]},
-              {"id": "srv-other", "name": "masks-1", "project": OTHER, "tags": [scaleway.TAG]},
-              {"id": "srv-untagged", "name": "masks-1", "project": OURS, "tags": []},
-              {"id": "srv-near", "name": "masks-10", "project": OURS, "tags": [scaleway.TAG]}]
-    deleted = []
-    monkeypatch.setattr(scaleway, "scw",
-                        lambda *arguments: listed if arguments[:3] == ("instance", "server", "list") else [])
-    monkeypatch.setattr(scaleway, "delete", lambda server_id, zone: deleted.append((server_id, zone)) or True)
-    monkeypatch.setattr(subprocess, "run", lambda *arguments, **options: types.SimpleNamespace(
-        returncode=1, stdout="", stderr='{"error":"cannot create the server: http error 500"}'))
+    # a refused order's own machine (HTTP 500 that made it anyway, 2026-10-22: stopped, billed, unwatched) and its own
+    # loose address and disk are deleted, their euros its ledger line; another order's racing address is left alone
+    since = len(world.commands)
+    world.order = world.refuse_but_make
     offer = types.SimpleNamespace(type="L4-1-24G", zone="fr-par-1", machine_class="gpu-24gb", price=0.013)
     answer = scaleway.create(OURS, offer, "masks-1", [], 60)
     assert answer[0] is None and "500" in answer[1]
-    assert deleted == [("srv-made", "fr-par-1")]
-    import ledger
-    assert [line["state"] for line in ledger_file() if line["kind"] in (ledger.RENT_STARTED, ledger.RENT_REFUSED)] == [
-        "started", "refused"]  # the order's started line, closed by its refusal
-
-
-def test_a_refused_orders_own_loose_address_and_disk_are_deleted_and_counted(monkeypatch, ledger_file):
-    """Only what the order made: loose after it, not before, and still loose after the settle (another order's address
-    is loose for a moment before its machine takes it)."""
-    reads, deleted = [], []
-    old_ip = {"id": "ip-old", "address": "1.1.1.1", "project": OURS, "server": None, "tags": []}
-    new_ip = {"id": "ip-new", "address": "2.2.2.2", "project": OURS, "server": None, "tags": []}
-    racing_ip = {"id": "ip-racing", "address": "3.3.3.3", "project": OURS, "server": None, "tags": []}
-    new_disk = {"id": "disk-new", "name": "masks-1", "project_id": OURS, "references": []}
-
-    def scw(*arguments):
-        if arguments[:3] == ("instance", "ip", "list"):
-            reads.append(1)
-            return [old_ip] if len(reads) == 1 else ([old_ip, new_ip, racing_ip] if len(reads) == 2
-                                                      else [old_ip, new_ip, {**racing_ip, "server": {"id": "x"}}])
-        if arguments[:3] == ("block", "volume", "list"):
-            return [] if len(reads) == 1 else [new_disk]
-        if arguments[2] == "delete":
-            deleted.append(arguments[3])
-        return []
-    monkeypatch.setattr(scaleway, "scw", scw)
-    monkeypatch.setattr(scaleway.time, "sleep", lambda seconds: None)
-    monkeypatch.setattr(subprocess, "run", lambda *arguments, **options: types.SimpleNamespace(
-        returncode=1, stdout="", stderr="out of stock"))
-    offer = types.SimpleNamespace(type="L4-1-24G", zone="fr-par-1", machine_class="gpu-24gb", price=0.013)
-    answer = scaleway.create(OURS, offer, "masks-1", [], 60)
-    assert answer[0] is None and sorted(deleted) == ["disk-new", "ip-new"]
-    fees = [line for line in ledger_file() if line["kind"] == "disk-and-address"]
+    assert terminated(since) == ["srv-made"] and "zone=fr-par-1" in next(
+        command for command in world.commands[since:] if command[2] == "terminate")
+    gone = sorted(command[3] for command in world.commands[since:] if command[2] == "delete")
+    assert gone == ["disk-new", "ip-new"]
+    lines = ledger_file()
+    assert [line["state"] for line in lines if line["kind"] in (ledger.RENT_STARTED, ledger.RENT_REFUSED)
+            and line["name"] == "masks-1"] == ["started", "refused"]  # the order's started line, closed by its refusal
+    fees = [line for line in lines if line["kind"] == "disk-and-address" and line["who"] == "scaleway.create"]
     assert len(fees) == 1 and fees[0]["name"] == "masks-1"
     assert fees[0]["euros"] == pytest.approx(0.005 + 60 * 0.00013)  # one address-hour, 60 GB for one hour
 
+    # every euro: a machine's disk and address are billed by the started hour from its creation, one ledger line
+    # written when it is deleted; a machine already gone deletes nothing and writes nothing
+    created = 1791799200.0  # 2026-10-12T10:00:00Z
+    server = {"creation_date": made_at(created), "public_ips": [{"id": "ip"}]}
+    assert [scaleway.disk_and_address_euros(server, 60, created + minutes * 60) for minutes, _ in HOURS] == [
+        pytest.approx(hours * one_hour) for _, hours in HOURS]
+    assert scaleway.delete("srv-blender-2", "pl-waw-2") is True
+    assert scaleway.delete("srv-blender-2", "pl-waw-2") is False
+    written = [line for line in ledger_file() if line["batch"] == "disk-and-address-srv-blender-2"]
+    assert len(written) == 1 and written[0]["euros"] == pytest.approx(one_hour)
 
-# --- deleting what is already gone ----------------------------------------------------------------------------------
-
-def deleting(monkeypatch, still_there):
-    """delete() on a stubbed Scaleway whose terminate is refused (two sweeps on one leftover), the machine read again
-    after it `still_there`. (its answer or the error it raised, the ledger lines written)."""
-    reads, written = [], []
-
-    def run(command, **options):
-        if command[2:4] == ["server", "get"]:
-            reads.append(1)
-            if len(reads) > 1 and not still_there:
-                return types.SimpleNamespace(returncode=1, stdout="", stderr="server not found")
-            return types.SimpleNamespace(returncode=0, stdout=json.dumps({"id": "srv-1", "volumes": {}}), stderr="")
-        return types.SimpleNamespace(returncode=1, stdout="",
-                                     stderr="Failed to detach block volume v-1: volume_id does not respect constraint")
-    monkeypatch.setattr(subprocess, "run", run)
-    monkeypatch.setattr(scaleway.time, "sleep", lambda seconds: None)
-    monkeypatch.setattr(scaleway, "record_disk_and_address", lambda server, gb, now: written.append(server["id"]))
-    try:
-        return scaleway.delete("srv-1", "pl-waw-2"), written
-    except RuntimeError as error:
-        return error, written
-
-
-def test_a_leftover_another_sweep_deleted_is_gone_and_a_machine_that_stays_raises(monkeypatch):
-    """surfaces-bake@wreck, 2026-10-13: two sweeps deleted one leftover; the second's refused detach killed its job."""
-    assert deleting(monkeypatch, still_there=False) == (False, [])
-    answer, written = deleting(monkeypatch, still_there=True)
-    assert isinstance(answer, RuntimeError) and "does not respect constraint" in str(answer) and not written
-    # a machine the zone is still making refuses its terminate until it is made: waited out, then deleted (2026-11-05,
-    # surfaces-bake@camp). Break: drop the PROVISION words from NOT_YET.
-    answers = iter([subprocess.CompletedProcess([], 1, "", "precondition failed: , Cannot modify the SBS volumes of an "
-                                                "instance in the state SessionState.PROVISION"),
-                    subprocess.CompletedProcess([], 0, "", "")])
-    monkeypatch.setattr(scaleway.subprocess, "run", lambda *arguments, **options: next(answers))
-    monkeypatch.setattr(scaleway.time, "sleep", lambda seconds: None)
-    assert scaleway.terminate("srv-1", "fr-par-2") is True
-
-
-def test_deleting_an_address_or_disk_already_gone_is_done_and_another_failure_raises(monkeypatch):
-    def refusing(text):
-        def scw(*arguments):
-            raise subprocess.CalledProcessError(1, ["scw", *arguments], output="", stderr=text)
-        return scw
-    monkeypatch.setattr(scaleway, "scw", refusing("ip not found"))
-    scaleway.delete_address("ip-1", "pl-waw-2")
-    monkeypatch.setattr(scaleway, "scw", refusing("volume not found"))
-    scaleway.delete_disk("v-1", "pl-waw-2")
-    monkeypatch.setattr(scaleway, "scw", refusing("permission denied"))
+    # deleting what another sweep already deleted is done (surfaces-bake@wreck, 2026-10-13: two sweeps on one
+    # leftover; the second's refused detach killed its job), any other refusal raises; a machine the zone is still
+    # making refuses its terminate until it is made: waited out, then deleted (2026-11-05, surfaces-bake@camp)
+    constraint = "Failed to detach block volume v-1: volume_id does not respect constraint"
+    wreck = world.find(world.servers, "srv-wreck", "server")
+    world.refusals = [(("instance", "server", "terminate", "srv-wreck"), constraint,
+                       lambda: world.servers.remove(wreck)),
+                      (("instance", "server", "terminate", "srv-stuck"), constraint, lambda: None),
+                      (("instance", "server", "terminate", "srv-making"), ("precondition failed: , Cannot modify the "
+                       "SBS volumes of an instance in the state SessionState.PROVISION"), lambda: None),
+                      (("block", "volume", "delete", "v-1"), "permission denied", lambda: None)]
+    assert scaleway.delete("srv-wreck", "pl-waw-2") is False
+    with pytest.raises(RuntimeError, match="does not respect constraint"):
+        scaleway.delete("srv-stuck", "pl-waw-2")
+    assert scaleway.terminate("srv-making", "fr-par-2") is True
+    assert not [line for line in ledger_file() if line["batch"] in ("disk-and-address-srv-wreck",
+                                                                     "disk-and-address-srv-stuck")]
+    scaleway.delete_address("ip-1", "pl-waw-2")  # not found: another sweep's
+    scaleway.delete_disk("v-2", "pl-waw-2")
     with pytest.raises(subprocess.CalledProcessError):
         scaleway.delete_disk("v-1", "pl-waw-2")
 
+    # a machine whose state cannot be read is a refusal its waiter waits out and deletes, never a crash
+    assert "server not found" in scaleway.start_if_stopped("srv-unknown", "pl-waw-2")
 
-def test_a_machine_whose_state_cannot_be_read_is_refused_not_raised(monkeypatch):
-    def unreadable(*arguments):
-        raise subprocess.CalledProcessError(1, ["scw"], "", "server not found")
-    monkeypatch.setattr(scaleway, "scw", unreadable)
-    assert "server not found" in scaleway.start_if_stopped("id", "pl-waw-2")
+    # what is left: only our own loose address is a leftover, never another project's, one on a machine or the
+    # quarantined bad address
+    assert scaleway.leftover_addresses(OURS, ("pl-waw-2",)) == [("ip-old", "pl-waw-2", "1.1.1.1")]
 
 
 def test_this_pc_orders_nothing_costs_nothing_and_holds_one_claim(monkeypatch, tmp_path):
