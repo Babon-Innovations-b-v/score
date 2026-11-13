@@ -351,39 +351,9 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     assert handed.waiting(store, WORLD, nodes()) == {PLACE: [(f"made@{PLACE}", made)]}  # not pushed: not handed
 
 
-def test_an_output_no_entry_holds_is_held_through_what_it_was_made_into(tmp_path):
-    table = [graph.Stage("terrain", "world", make_text, TOY), graph.Stage("list", "place", make_text, TOY),
-             graph.Stage("bake", "place", make_text, TOY, after={"list": ("toy-text", 1)}),
-             graph.Stage("seed", "place", make_text, TOY, after={"terrain": ("toy-text", 1)}),
-             graph.Stage("film", "place", make_text, TOY)]
-    relation = library.made_into(table)
-    place = {"place record": str(tmp_path / f"{PLACE}.json")}
-    reads = library.reads_of({**place, **{name: str(tmp_path / (name[0] * 3)) for name in ("list", "bake", "film")}},
-                             relation)
-    assert {read["node"]: (read["into"], read["beyond"]) for read in reads} == {
-        f"list@{PLACE}": (["bake"], []), f"bake@{PLACE}": ([], []), f"film@{PLACE}": ([], [])}, reads
-    assert library.reads_of({"terrain": str(tmp_path / "ttt")}, relation)[0]["beyond"] == ["seed"]
-
-    def judged(held):
-        """`handed` over the reads, an entry holding each row in `held` and none the rest."""
-        handover.write(tmp_path / handover.READS, reads)
-        handover.write(tmp_path / handover.REPORT, {"covered": [
-            {"node": read["node"], "output": read["output"], "exception": None, "why": "no exporter takes it",
-             "entries": [f"layer/{read['node']}@1"] if read["node"].split("@")[0] in held else []}
-            for read in reads]})
-        return library_checks.judge_handed(tmp_path, {}, None)
-    verdict = judged({"bake", "film"})  # the list is held through the bake made from it
-    assert verdict.answer == checks.PASS and "(1 held through" in verdict.reason, verdict
-    verdict = judged({"film"})  # neither the list nor the bake it was made into is held
-    assert verdict.answer == checks.FAIL and {f"list@{PLACE}", f"bake@{PLACE}"} == {
-        finding.split(" ")[0] for finding in verdict.findings}, verdict
-    verdict = judged({"bake"})  # an output made into nothing held is held by no entry
-    assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(f"film@{PLACE}"), verdict
-
-
 def fixture_inputs(root, fixture):
-    """The traced check's inputs over the library-finish check's fixture stage (data/checks/library/<fixture>), laid
-    as a place named "fixture" with an assembly of that one stage."""
+    """The gate's inputs over the library-finish check's fixture stage (data/checks/library/<fixture>), laid as a
+    place named "fixture" with an assembly of that one stage, and an empty output folder for the handover's files."""
     data = world_data(root)
     (root / "home/design/plans/fixture.json").write_text("{}")
     assembled = root / "assembly"
@@ -391,7 +361,6 @@ def fixture_inputs(root, fixture):
     (assembled / "fixture.usda").write_text((REPO / "data/checks/library" / fixture).read_text())
     output = root / "output"
     output.mkdir()
-    handover.write(output / handover.REPORT, json.loads((HERE / "handover_example.json").read_text()))
     return output, {"world record": data / "definitions/world.json", "library free": data / "checks/library-free.json",
                     "place record": root / "home/design/plans/fixture.json", "assembly": assembled}
 
@@ -408,15 +377,50 @@ def fixture_library(root):
     return root
 
 
-def test_traced_is_unknown_without_a_library_and_names_a_photo_finish(tmp_path, monkeypatch):
-    output, inputs = fixture_inputs(tmp_path / "good", "good.usda")
-    found = library_checks.judge_traced(output, inputs, None)
-    assert found.answer == checks.UNKNOWN and "SCORE_LIB_ROOT" in found.reason, found
-    monkeypatch.setenv("SCORE_LIB_ROOT", str(fixture_library(tmp_path / "library")))
-    assert library_checks.judge_traced(output, inputs, None).answer == checks.PASS
-    output, inputs = fixture_inputs(tmp_path / "bad", "bad.usda")
-    found = library_checks.judge_traced(output, inputs, None)
-    assert found.answer == checks.FAIL and "photo_of_a_crate.png" in found.reason, found
+# The place row's gate on one handover folder: the assembled fixture stage, whether a library folder is set, which
+# outputs an entry holds; `traced`'s (answer, text in its reason) and `handed`'s (answer, the nodes its findings name,
+# text in its reason).
+GATE_CASES = (
+    ("no library; the list held through the bake made from it", "good.usda", False, {"bake", "film"},
+     (checks.UNKNOWN, "SCORE_LIB_ROOT"), (checks.PASS, set(), "(1 held through")),
+    ("the good fixture traced; neither the list nor the bake it was made into held", "good.usda", True, {"film"},
+     (checks.PASS, ""), (checks.FAIL, {f"list@{PLACE}", f"bake@{PLACE}"}, "")),
+    ("the bad fixture names its photo; an output made into nothing held", "bad.usda", True, {"bake"},
+     (checks.FAIL, "photo_of_a_crate.png"), (checks.FAIL, {f"film@{PLACE}"}, "")),
+)
+
+
+def test_the_gate_holds_an_output_through_what_it_was_made_into_and_traces_every_finish(tmp_path, monkeypatch):
+    table = [graph.Stage("terrain", "world", make_text, TOY), graph.Stage("list", "place", make_text, TOY),
+             graph.Stage("bake", "place", make_text, TOY, after={"list": ("toy-text", 1)}),
+             graph.Stage("seed", "place", make_text, TOY, after={"terrain": ("toy-text", 1)}),
+             graph.Stage("film", "place", make_text, TOY)]
+    relation = library.made_into(table)
+    place = {"place record": str(tmp_path / f"{PLACE}.json")}
+    reads = library.reads_of({**place, **{name: str(tmp_path / (name[0] * 3)) for name in ("list", "bake", "film")}},
+                             relation)
+    assert {read["node"]: (read["into"], read["beyond"]) for read in reads} == {
+        f"list@{PLACE}": (["bake"], []), f"bake@{PLACE}": ([], []), f"film@{PLACE}": ([], [])}, reads
+    assert library.reads_of({"terrain": str(tmp_path / "ttt")}, relation)[0]["beyond"] == ["seed"]
+    shelf = fixture_library(tmp_path / "library")
+    gate = [check for check in library_checks.CHECKS if check.name in ("handed", "traced")]
+    for index, (name, fixture, shelved, held, traced, handed_) in enumerate(GATE_CASES):
+        output, inputs = fixture_inputs(tmp_path / str(index), fixture)
+        handover.write(output / handover.READS, reads)
+        handover.write(output / handover.REPORT, {"covered": [
+            {"node": read["node"], "output": read["output"], "exception": None, "why": "no exporter takes it",
+             "entries": [f"layer/{read['node']}@1"] if read["node"].split("@")[0] in held else []}
+            for read in reads]})
+        if shelved:
+            monkeypatch.setenv("SCORE_LIB_ROOT", str(shelf))
+        else:
+            monkeypatch.delenv("SCORE_LIB_ROOT", raising=False)
+        found = {check.name: checks.judge(check, output, inputs, None) for check in gate}
+        answer, text = traced
+        assert found["traced"].answer == answer and text in found["traced"].reason, (name, found["traced"])
+        answer, nodes, text = handed_
+        assert found["handed"].answer == answer and text in found["handed"].reason, (name, found["handed"])
+        assert {finding.split(" ")[0] for finding in found["handed"].findings} == nodes, (name, found["handed"])
 
 
 def test_a_slow_library_is_a_transient_error_and_no_handover_leaves_a_process_naming_a_frozen_copy(
@@ -514,48 +518,69 @@ def test_the_real_tables_library_rows_read_every_row_free_and_nothing_reads_them
 
 # --- the pictures ---------------------------------------------------------------------------------------------------
 
-def test_a_lost_picture_never_stops_the_others(monkeypatch):
+LOST = "HeadObject: An error occurred (404) when calling it"
+VIEWER = {"web3d/light.glb": "web3d", "web3d/full.glb": "web3d", "material.usda": "usd", "print.png": "texture",
+          "settings.json": "record", "a.ogg": "audio", "b.ogg": "audio", "c.ogg": "audio", "d.ogg": "audio",
+          "e.ogg": "audio", "sky.usda": "usd", "closeup.png": "closeup"}
+
+
+def picture_entry(root, address, files, picture=None, sha="f" * 64):
+    """One library entry's record: its files (name: role) all of bytes `sha`, its picture, a web copy when it has
+    one."""
+    kind, rest = address.split("/")
+    entry_id, version = rest.split("@")
+    record = {"schema": "score-lib-entry/1", "address": address, "kind": kind, "id": entry_id,
+              "version": int(version), "state": "draft", "provenance": {},
+              "files": {name: {"role": role, "sha256": sha} for name, role in files.items()}}
+    if picture:
+        record["picture"] = {"file": picture}
+    if "web3d/light.glb" in files:
+        record["web3d"] = {"file": "web3d/full.glb", "light": "web3d/light.glb"}
+    folder = root / "entries" / kind / entry_id / version
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "entry.json").write_text(json.dumps(record))
+
+
+def test_every_picture_and_viewer_file_is_fetched_and_a_lost_one_never_stops_the_others_nor_is_asked_again(
+        tmp_path, monkeypatch):
+    root = tmp_path / "lib"
+    for address in ("model/crate@1", "surface/steel@1", "sound/hum@1", "effect/smoke@1"):
+        picture_entry(root, address, VIEWER)
+    picture_entry(root, "place/flat@1", {"a.png": "picture", "web3d/light.glb": "web3d"}, picture="a.png")
+    picture_entry(root, "ground/lost@1", {"b.png": "picture"}, picture="b.png")
+    asked = []
+
     def fetched(address, named):
-        if address == "ground/lost@1":
-            raise backend.library_files.LibraryUnreachable("fetch ground/lost@1 exited 1: 404 Not Found")
+        """The cache's path of every file but the ground's picture and the crate's web copy, which the store lost."""
+        asked.append((address, named))
+        if (address, named) in (("ground/lost@1", "b.png"), ("model/crate@1", "web3d/light.glb")):
+            raise backend.library_files.LibraryUnreachable(LOST)
         return pathlib.Path(named)
 
     monkeypatch.setattr(pictures, "fetched", fetched)
-    monkeypatch.setattr(backend, "settings", lambda: {"SCORE_LIB_ROOT": "lib"})
-    monkeypatch.setattr(pictures, "pictured", lambda root, kinds: [("place/flat@1", "a.png"),
-                                                                   ("ground/lost@1", "b.png")])
-    monkeypatch.setattr(pictures, "viewed", lambda root, kinds: [("place/flat@1", "web3d/light.glb")])
-    assert pictures.run() == ("library pictures (every kind) in the cache: 1 of 2 (1 not fetched, first: "
-                              "ground/lost@1: fetch ground/lost@1 exited 1: 404 Not Found); viewer files: 1 of 1")
-
-
-def test_an_item_pages_viewer_files_are_fetched_and_a_404_is_not_asked_again(tmp_path, monkeypatch):
-    files = {"web3d/light.glb": "web3d", "web3d/full.glb": "web3d", "material.usda": "usd", "print.png": "texture",
-             "settings.json": "record", "a.ogg": "audio", "b.ogg": "audio", "c.ogg": "audio", "d.ogg": "audio",
-             "e.ogg": "audio", "sky.usda": "usd", "closeup.png": "closeup"}
-    record = {"files": {name: {"role": role, "sha256": "f" * 64} for name, role in files.items()},
-              "web3d": {"file": "web3d/full.glb", "light": "web3d/light.glb"}}
-    assert pictures.viewer_files({**record, "kind": "model"}) == ["web3d/light.glb", "closeup.png"]
-    assert pictures.viewer_files({**record, "kind": "surface"}) == ["web3d/light.glb", "material.usda", "print.png"]
-    assert pictures.viewer_files({**record, "kind": "sound"})[1:] == ["a.ogg", "b.ogg", "c.ogg", "d.ogg"]
-    assert pictures.viewer_files({**record, "kind": "effect"})[1:] == ["settings.json"]
-    root = tmp_path / "lib"
-    entry = root / "entries/model/crate/1/entry.json"
-    entry.parent.mkdir(parents=True)
-    entry.write_text(json.dumps({"files": {"web3d/light.glb": {"sha256": "a" * 64}}}))
-    asked = []
-
-    def lost(address, named):
-        asked.append(named)
-        raise backend.library_files.LibraryUnreachable("HeadObject: An error occurred (404) when calling it")
-
+    monkeypatch.setattr(backend, "settings", lambda: {"SCORE_LIB_ROOT": str(root)})
     monkeypatch.setattr(backend.library_files, "cache_folder", lambda: tmp_path / "cache")
-    monkeypatch.setattr(pictures, "fetched", lost)
-    assert pictures.held_or_why("model/crate@1", "web3d/light.glb", root)[0] is False
-    assert "404 before" in pictures.held_or_why("model/crate@1", "web3d/light.glb", root)[1] and len(asked) == 1
-    entry.write_text(json.dumps({"files": {"web3d/light.glb": {"sha256": "b" * 64}}}))  # new bytes: asked again
-    pictures.held_or_why("model/crate@1", "web3d/light.glb", root)
-    assert len(asked) == 2
+    # what an item page's viewer plays of each kind: the light web copy, then a model's close-up, a surface's
+    # material and print, a sound's first four takes, an effect's settings; a place's only its web copy
+    viewed = [("effect/smoke@1", "web3d/light.glb"), ("effect/smoke@1", "settings.json"),
+              ("model/crate@1", "web3d/light.glb"), ("model/crate@1", "closeup.png"),
+              ("place/flat@1", "web3d/light.glb"),
+              *[("sound/hum@1", named) for named in ("web3d/light.glb", "a.ogg", "b.ogg", "c.ogg", "d.ogg")],
+              *[("surface/steel@1", named) for named in ("web3d/light.glb", "material.usda", "print.png")]]
+    assert pictures.viewed(root, None) == viewed
+    assert pictures.run() == (f"library pictures (every kind) in the cache: 1 of 2 (1 not fetched, first: "
+                              f"ground/lost@1: {LOST}); viewer files: 12 of 13 (1 not fetched, first: "
+                              f"model/crate@1: {LOST})")
+    assert sorted(asked) == sorted([("ground/lost@1", "b.png"), ("place/flat@1", "a.png"), *viewed]), asked
+    asked.clear()
+    assert pictures.run() == ("library pictures (every kind) in the cache: 1 of 2 (1 not fetched, first: "
+                              "ground/lost@1: b.png lost (404 before)); viewer files: 12 of 13 (1 not fetched, first: "
+                              "model/crate@1: web3d/light.glb lost (404 before))")
+    assert ("ground/lost@1", "b.png") not in asked and ("model/crate@1", "web3d/light.glb") not in asked, asked
+    picture_entry(root, "model/crate@1", VIEWER, sha="b" * 64)  # new bytes: asked again
+    asked.clear()
+    pictures.run()
+    assert ("model/crate@1", "web3d/light.glb") in asked and ("ground/lost@1", "b.png") not in asked, asked
 
 
 # --- the invariant on small fixed sets ------------------------------------------------------------------------------
@@ -690,26 +715,42 @@ GOOD = {"example": "the greenhouse's beds", "view": "plan", "bounds": [0, 0, 1, 
         "steps": [{"label": "The beds", "shapes": [{"kind": "area", "points": [[0, 0], [1, 0], [1, 1]], "tone": "c1"}]}]}
 
 
-def test_a_demo_on_the_shape_has_no_problems_and_one_off_it_says_what():
-    assert demos.problems(GOOD) == []
-    off = {**GOOD, "view": "film", "steps": [{"label": "x", "shapes": [{"kind": "blob", "points": [[0, 0]]},
-                                                                       {"kind": "dots", "points": [], "tone": "pink"}]}]}
-    assert demos.problems(off) == ["view 'film'", "shape kind 'blob'", "tone 'pink'"]
-    assert demos.problems({**GOOD, "view": "relief"}) == ["relief without heights"]
+OFF = {**GOOD, "view": "film", "steps": [{"label": "x", "shapes": [{"kind": "blob", "points": [[0, 0]]},
+                                                                 {"kind": "dots", "points": [], "tone": "pink"}]}]}
 
 
-def test_a_demo_module_without_an_example_or_that_fails_is_missing_with_why_and_each_names_its_algorithm():
-    class Without:
-        @staticmethod
-        def made(inputs):
-            raise demos.NoExample("nothing kept")
+def raises(error):
+    """A module's `made` that raises `error`."""
+    def made(inputs):
+        raise error
+    return made
 
-    class Broken:
-        @staticmethod
-        def made(inputs):
-            raise KeyError("beds")
 
-    assert demos.made(Without) == {"missing": "nothing kept"}
-    assert demos.made(Broken)["missing"].startswith("its demo failed: KeyError")
-    found = demos.modules()
-    assert "surface_recipes" in found and all(module.ALGORITHM == name for name, module in found.items())
+# Each algorithm's demo as its module makes it, and what demos.json holds for it.
+DEMO_CASES = {
+    "on the shape": (lambda inputs: GOOD, GOOD),
+    "off the shape": (lambda inputs: OFF,
+                      {"missing": "its demo is off the shape: view 'film'; shape kind 'blob'; tone 'pink'"}),
+    "relief": (lambda inputs: {**GOOD, "view": "relief"},
+               {"missing": "its demo is off the shape: relief without heights"}),
+    "no example": (raises(demos.NoExample("nothing kept")), {"missing": "nothing kept"}),
+    "fails": (raises(KeyError("beds")), {"missing": "its demo failed: KeyError: 'beds'"}),
+}
+
+
+def test_a_demo_off_the_shape_or_without_an_example_is_missing_with_why_and_never_stops_the_others(
+        tmp_path, monkeypatch):
+    monkeypatch.setattr(backend.library_files, "cache_folder", lambda: tmp_path / "cache")
+    real = demos.modules()
+    assert "surface_recipes" in real and all(module.ALGORITHM == name for name, module in real.items())
+    fakes = {}
+    for name, (made, _) in DEMO_CASES.items():
+        fakes[name] = type(sys)(name)
+        fakes[name].made = made
+    monkeypatch.setattr(demos, "modules", lambda: fakes)
+    line = demos.run()
+    assert line.startswith(f"library demos: 1 of 5 made into {demos.path()} (not made: "), line
+    assert all(f"{name}: {expected['missing'][:120]}" in line
+               for name, (_, expected) in DEMO_CASES.items() if "missing" in expected), line
+    made = json.loads(demos.path().read_text())
+    assert made == {name: expected for name, (_, expected) in DEMO_CASES.items()}, made

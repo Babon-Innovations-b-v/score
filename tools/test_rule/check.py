@@ -106,7 +106,7 @@ FUNCTION_DEBT = {
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 31,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 16,
     "score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py": 22,
-    "score/stages/library/test_everything_handed_to_library.py": 10,
+    "score/stages/library/test_everything_handed_to_library.py": 7,
     "score/stages/motion/test_a_thing_moves_as_its_design_says.py": 14,
     "score/stages/scene_record/test_a_scene_record_is_written_from_its_design.py": 18,
     "score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py": 2,
