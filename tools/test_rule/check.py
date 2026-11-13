@@ -164,7 +164,6 @@ FUNCTION_DEBT = {
     "tools/props/test_raw_model_faces_minus_z.py": 3,
     "tools/review/test_a_region_is_judged_against_the_games_own_light.py": 4,
     "tools/sound/loudness/test_no_take_leaves_louder_than_the_rule.py": 5,
-    "tools/sound/picker/test_picker_puts_in_only_clean_safe_takes.py": 6,
 }
 
 # The docstring line that excuses a second test function, with its reason after the colon.
