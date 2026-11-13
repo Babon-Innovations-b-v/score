@@ -20,7 +20,9 @@ stages made here, each answer worked out by hand:
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26; "the measures' table" is the rows of
 measures read on pictures and passes made here in test_light_measured_against_design, with its verdict rows, the
 checks' answers on measures files; "the layer's rows" are the lamp placement rows on seeds made here in it and the
-layer's checks after them: strengths, colours, the eye, the fill):
+layer's checks after them: strengths, colours, the eye, the fill; "the look's sky rows", "the strengths rows" and
+"the lit stage rows" are its rows and verdicts on four places' looks and passes, on places' passes swept by
+light.strengths, and on a stage laid by passes.source):
 - sky.py: the light's direction negated in `write_light` (the sky test, test_light_measured_against_design: the house
   sun; this and the other sky test breaks proved again 2026-11-13).
 - sky.through_dust: the forward peak left out of the beam (depth not delta-scaled), or `dust` not passed on in
@@ -55,7 +57,7 @@ layer's checks after them: strengths, colours, the eye, the fill):
   looks pass) (the measures' table: the verdict rows, 2026-10-30).
 - light_passes.sky_mask: `== 0` -> `!= 0` (the measures' table: the sky mask row, 2026-10-30; proved
   2026-11-13).
-- light.sky_measures: the look's sky read by measure.sky_pixels, not its passes' mask (the look's sky test,
+- light.sky_measures: the look's sky read by measure.sky_pixels, not its passes' mask (the look's sky rows,
   2026-10-30).
 - passes.judge_magenta: the share read times 0 (the measures' table: the magenta rows, 2026-10-30; proved
   2026-11-13).
@@ -64,35 +66,37 @@ layer's checks after them: strengths, colours, the eye, the fill):
 - mix.own_share: the share read on the pixels' mixed light (`mixed(passes, scales).sum()`), the light no group holds
   scaled, or left out (the measures' table: the sweep rows, 2026-11-10: tube's denoiser noise read as half its light).
 - light.strengths: a lamp-lit place's lamps swept only to the top of mix.SCALES, or a daylit place's to the top of
-  mix.LAMP_SCALES (the sun-swept test, 2026-11-10: hangar's lamps stopped at x32).
+  mix.LAMP_SCALES (the strengths rows: airlock, 2026-11-10: hangar's lamps stopped at x32).
 - light.strengths: `first` always {} (a lamp-lit place's suns not at the floor), or the suns' sweep without
-  `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the sun-swept test, 2026-11-04).
+  `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the strengths rows: airlock,
+  2026-11-04).
 - measure.surface_cast: brightness left in (`* 128.0 / ...` dropped); light.judge_colour: `gap <= CAST_MOST` ->
   `True` (the measures' table: the cast and verdict rows, 2026-11-04).
 - measure.backdrop: every near pixel taken, not only those joined to the border, or the border's share rule dropped;
   light.concept_cast: the backdrop not left out (the measures' table: the cast rows, 2026-11-10).
-- light.row_skies: the rows' boxes read as [top, left, bottom, right] (the look's sky test, 2026-11-04).
-- light.row_skies: the boxes read whole, not on measure.commonest_near (the look's sky test, 2026-11-10).
+- light.row_skies: the rows' boxes read as [top, left, bottom, right] (the look's sky rows, 2026-11-04).
+- light.row_skies: the boxes read whole, not on measure.commonest_near (the look's sky rows, 2026-11-10).
 - light.open_sky: the doorways not left out (`return mask` first), or light.through_doorways' `reach > 0` dropped
-  (the look's sky test, 2026-11-10: hub's door openings read as its sky).
+  (the look's sky rows, 2026-11-10: hub's door openings read as its sky).
 - light_passes.missing_share: the glossy colour pass left out (the measures' table: the missing picture row,
   2026-10-30; proved 2026-11-13).
 - passes.neighbours: keep a planless shown place (the measures' table: the places shown rows).
 - mix.tone_curve: the one-knot curve of a black view dropped (the measures' table: the black view rows, 2026-10-29).
 - light.drawn_count: the sky's prims counted (the measures' table: the drawn row, 2026-10-29).
-- passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
+- passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the lit stage rows,
+  2026-10-29).
 - passes.device_for: `need > card_gb * 2**30` -> `False` (the measures' table: the card rows, 2026-10-29; proved
   2026-11-13).
 - layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the layer's rows:
   the fill, 2026-10-30).
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
-  own (the sun-swept test, 2026-10-30).
+  own (the strengths rows: airlock, 2026-10-30).
 - mix.fill_sweep: return 1.0 always, the greatest factor for the least, or the place left unjudged; light.strengths:
-  the fill's sweep not applied (the shadow test, 2026-10-30).
+  the fill's sweep not applied (the strengths rows: hangar, 2026-10-30).
 - mix.fill_sweep: from the top of SCALES down, or `exposed` left out; light.exposed_within: never more black (the
   measures' table: the fill floor rows, 2026-10-30).
 - light.strengths: the suns' step down not applied; mix.sun_down: the suns' own scale returned always, the brightness
-  rules left out, or from the floor of SCALES up; light.exposed_within: `kinds` ignored (the sunlit wall test,
+  rules left out, or from the floor of SCALES up; light.exposed_within: `kinds` ignored (the strengths rows: camp,
   2026-10-31).
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
   knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the
@@ -103,11 +107,12 @@ layer's checks after them: strengths, colours, the eye, the fill):
   with any gain; mix.capped: `caps` ignored (the measures' table: the float look rows, 2026-11-10);
   light.shipped_colours: the record colour's luminance left out, light.colours_written: the colour written unscaled,
   light.group_colours: `emitters` ignored (the layer's rows, 2026-11-10).
-- light.strengths: a night light swept as a sun (`path not in night_lights` dropped; the sun-swept test, 2026-11-10);
-  mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white: the light no
-  group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
-  out, light.environment_adapted: the background left as it was (the layer's rows, 2026-11-10).
-- light.strengths: the fill not swept again after a blown lamp is turned down (the shadow view test, 2026-11-10).
+- light.strengths: a night light swept as a sun (`path not in night_lights` dropped; the strengths rows: airlock,
+  2026-11-10); mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white:
+  the light no group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer
+  luminance left out, light.environment_adapted: the background left as it was (the layer's rows, 2026-11-10).
+- light.strengths: the fill not swept again after a blown lamp is turned down (the strengths rows: hangar turned
+  down, 2026-11-10).
 - light.room_eye: None always, or for a room its concept shows in daylight an eye too (the layer's rows, 2026-11-10).
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
   the emitter words (the measures' table: the float look rows, 2026-11-10).
@@ -115,11 +120,17 @@ layer's checks after them: strengths, colours, the eye, the fill):
   (night.eye_dark); mix.surround_factor: SURROUND always (the sky test's night and the layer's rows,
   2026-11-10: the square's sky too blue).
 - light.look_at: the sky's factor left to the smoothing (the measures' table: the float look rows, 2026-11-10: the
-  square's sky lit by its lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test,
-  2026-11-10: the stairwell); light.airless_sky: the concept's sky as painted on an airless body (the look's sky test,
+  square's sky lit by its lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky rows,
+  2026-11-10: the stairwell); light.airless_sky: the concept's sky as painted on an airless body (the look's sky rows,
   2026-11-10: hangar); light.on_card: the look as it is (the measures' table: the verdict rows, 2026-11-10: the street's
   black police car); light_passes.surface_of: the glossy colour left out (the measures' table: the surface reflectance
   row; proved 2026-11-13).
+- light.judge_sky: `hued = dark or abs(ratio - ...) <= BLUE_TO_RED_WITHIN` -> `hued = abs(ratio - ...) <=
+  BLUE_TO_RED_WITHIN` (the look's sky rows: the dark navy concept, 2026-11-02; proved 2026-11-13).
+- passes.source: `ground_finish.finish_ground(...)` dropped (the lit stage rows: the ground stays named missing);
+  bare.faults: `why = bare_why(prim)` -> `why = None` (an unfinished ground or bare wall passes), or `if outdoor and
+  not sky` -> `if False` (an outdoor place with an empty sky passes); passes.shown_in: the `neighbour <name>` test
+  dropped (a ground scene read beside is rendered as shown) (the lit stage rows, 2026-11-04; proved 2026-11-13).
 """
 import json
 import math
@@ -228,8 +239,11 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     Mars' campgrounds in its dust, the square by night, and a seed whose record drew the old sky. Then the measures
     (measure.py) and the views' passes (passes.py, inside/light_passes.py) are read on pictures and passes made here:
     a bank of floodlight panes, a body's disc, a sky, haze, a point in a view, a missing picture's surface colours, the
-    object index pass, a magenta look, two passes jobs past and within their card, the sweep (mix.py) on a lamp's
-    passes, a fill on two views of a sun's shadow and a dark render's float look swept 32 times up. Last the layer (layer.py) on
+    object index pass, a magenta look, two passes jobs past and within their card, a stage laid by passes.source
+    without and with its library, four places' looks and passes read for their sky, the sweep (mix.py) on a lamp's
+    passes, a fill on two views of a sun's shadow, a dark render's float look swept 32 times up, and light.strengths
+    on airlock's, hangar's and camp's passes (by day, by night, under its Moon, a lamp turned down, a sunlit wall),
+    each judged by the gates' verdicts too. Last the layer (layer.py) on
     seeds made here: where each lamp lands (a row each), then on the first row's layer its strengths, colours and eye,
     a read-only input kept, the concept's fill in the open and inside, and a shown place's pictures kept."""
     seen = {"noon": overhead.seen(HOUSE, HOUSE["sites"][0], NOON),
@@ -450,6 +464,74 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
                           ("unsaid", {})):
         np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)), **missing)
         magenta[said] = passes.judge_magenta(tmp_path, {}, {})
+    # the lit stage (2026-10-29, light-passes@base and @airlock) was the seed with its record, every design object
+    # waiting on the surface line's bake and no made ground, so base drew nothing and airlock a bare shell; it is laid
+    # by the assembly's own code: the bake's model at its waiting entry, the made ground over the base, finished by
+    # ground_finish with the surface its scene library gives its row (2026-11-04, the eyes review of env1: the
+    # campgrounds', base's, square's and street's ground rendered a white sheet, its finish named missing). The layer's
+    # `surfaced` gate (bare.faults) names a ground or shell mesh with no library surface and an outdoor place's empty
+    # sky before the paid render: read on the stage laid without the library, then lit, then with a bare wall and a
+    # sky, then with that wall hidden
+    import score.stages.assembly.baked as baked
+    from score.stages.light import bare
+    from score.stages.terrain import outside
+    laying = tmp_path / "stage-lit"
+    tiny_seed(laying / "seed")
+    seed_base = Usd.Stage.Open(str(laying / "seed/layers/base.usda"))
+    regolith = UsdShade.Shader.Define(seed_base, "/tiny/Library/lunar_regolith/surface")
+    regolith.CreateIdAttr("UsdPreviewSurface")
+    UsdShade.Material.Define(seed_base, "/tiny/Library/lunar_regolith").CreateSurfaceOutput().ConnectToSource(
+        regolith.ConnectableAPI(), "surface")
+    seed_base.GetRootLayer().Save()
+    (laying / "record/record").mkdir(parents=True)
+    waiting_hub = {"name": "hub_1", "row": "hub", "bake": "hub_1", "kind": "object", "at": [0.0, 0.0, 0.0],
+                   "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model comes from the bake"}
+    (laying / "record/record/tiny.json").write_text(json.dumps({"place": "tiny", "objects": [waiting_hub]}))
+    (laying / "kit.json").write_text(json.dumps({"pieces": []}))
+    (laying / "surfaces.json").write_text("{}")
+    (laying / "bake/made").mkdir(parents=True)
+    (laying / "bake/baked.json").write_text(json.dumps({"hub_1": {}}))
+    (laying / "bake/made/hub_1.gltf").write_text("{}")  # what the laid model's hash is stamped from
+    (laying / "terrain/grounds/places").mkdir(parents=True)
+    made_ground = Usd.Stage.CreateNew(str(laying / "terrain/grounds/places/tiny.usdc"))
+    UsdGeom.Cube.Define(made_ground, "/tiny/Terrain/ground")
+    outside.write(made_ground, "tiny", {"near": (np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float),
+                                                 np.array([[0, 2, 1]]))}, "regolith", ["regolith", "the test's"])
+    made_ground.Save()
+    (laying / "inventory.json").write_text(json.dumps({"rows": [{"id": "regolith", "noun": "ground",
+                                                                 "terrain": True}]}))
+    (laying / "library").mkdir()
+    (laying / "library/materials.json").write_text(json.dumps({"kinds": {"ground": ["lunar_regolith"]}}))
+
+    def made_asset(bake, paint, out, models=None):  # the bake's asset as take_bake writes it, without its paint
+        asset = Usd.Stage.CreateNew(str(out / "assets/hub_1.usdc"))
+        asset.SetDefaultPrim(UsdGeom.Xform.Define(asset, "/hub_1").GetPrim())
+        UsdGeom.Cube.Define(asset, "/hub_1/geo")
+        asset.Save()
+    laid_inputs = {"seed": str(laying / "seed"), "scene-record": str(laying / "record"),
+                   "kit": str(laying / "kit.json"), "surfaces": str(laying / "surfaces.json"),
+                   "surfaces-bake": str(laying / "bake"), "surfaces-paint": str(laying / "bake"),
+                   "terrain": str(laying / "terrain")}
+    with monkeypatch.context() as patched:
+        patched.setattr(baked, "take_bake", made_asset)
+        unfinished = bare.faults(passes.source("tiny", laid_inputs, laying / "bare") / "tiny.usda", "tiny")
+        laid_inputs.update({"surface-library": str(laying / "library"),
+                            "inventory tiny": str(laying / "inventory.json")})
+        lit_root = passes.source("tiny", laid_inputs, laying / "lit") / "tiny.usda"
+    lit_stage = Usd.Stage.Open(str(lit_root))
+    laid_prims = (lit_stage.GetPrimAtPath("/tiny/Objects/hub_1").IsValid(),
+                  bool(lit_stage.GetPrimAtPath("/tiny/Terrain/ground")), light.drawn_count(lit_root, "tiny"),
+                  str(UsdShade.MaterialBindingAPI(lit_stage.GetPrimAtPath("/tiny/Outside/near"))
+                      .ComputeBoundMaterial()[0].GetPath()))
+    surfaced = [bare.faults(lit_root, "tiny")]
+    bare_wall = UsdGeom.Mesh.Define(lit_stage, "/tiny/Shell/wall").GetPrim()
+    bare_wall.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
+    UsdLux.DomeLight.Define(lit_stage, "/tiny/Sky/Backdrops/stars")
+    lit_stage.Save()
+    surfaced.append(bare.faults(lit_root, "tiny"))
+    UsdGeom.Imageable(bare_wall).MakeInvisible()
+    lit_stage.Save()
+    surfaced.append(bare.faults(lit_root, "tiny"))
     script = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
     # base's light passes (2026-10-29, #36) needed about 29 GB, past this PC's 16 GB card: a job blender_cloud.py
     # predicts past the card it renders on gets the processor in its views file, one that fits keeps the card, and
@@ -651,6 +733,159 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
                  np.full((32, 32, 1), 0.1) + room_lamp[..., None] * cool_light)
     cool_lamps = {"lamp_0": (cool_light, cool_light)}
     plain_cast = light.balanced_cast([room_view], cool_lamps, {"lamp_0": 1.0})
+    # a look's sky is read where the render met no surface, never its top rows' commonest colour (old_station's lit
+    # ground filled its views' top rows and read as its sky, 99.7 levels off its black one, 2026-10-30), against its
+    # concept's sky, the black top half of a picture grey below. Four places, each one view looking level whose look
+    # is black over its top 20 rows: court's passes hold that sky, court_old's were saved before the mask; porch's
+    # render met no surface through a door's opening, porch_sky's there and in the sky over it. An inside place whose
+    # views see sky (2026-11-04: camp's glass domes showed black space, and only outdoor places were judged) is read
+    # against its sky rows' boxes on its concept; with no box its concept shows none to judge against
+    seen_sky = tmp_path / "skies-seen"
+    sky_top, opening = np.zeros((100, 100), bool), np.zeros((100, 100), bool)
+    sky_top[:20] = True
+    opening[36:66, 30:70] = True
+    sky_concept = np.where(np.arange(100)[:, None, None] < 50, 0, 128).repeat(100, 1).repeat(3, 2).astype(np.uint8)
+    for place, mask in (("court", sky_top), ("court_old", None), ("porch", opening), ("porch_sky", sky_top | opening)):
+        Image.fromarray(sky_concept).save(tmp_path / f"{place}.png")
+        (seen_sky / f"looks/{place}").mkdir(parents=True)
+        (seen_sky / f"passes/{place}-0").mkdir(parents=True)
+        Image.fromarray(np.repeat(np.where(sky_top, 0, 200)[..., None], 3, axis=2).astype(np.uint8)).save(
+            seen_sky / f"looks/{place}/v-look.png")
+        np.savez(seen_sky / f"passes/{place}-0/v-passes.npz", combined=np.ones((50, 50)),
+                 **({} if mask is None else {"sky": mask}))
+        if place.startswith("porch"):
+            (seen_sky / f"passes/{place}-0.views.json").write_text(json.dumps({"size": [100, 100], "views": [
+                {"name": "v", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -10.0], "up": [0.0, 1.0, 0.0], "fov": 80}]}))
+    sky_read = {place: light.sky_measures(place, seen_sky, seen_sky) for place in ("court", "court_old")}
+    inside_skies = {}
+    with monkeypatch.context() as patched:
+        patched.setattr(light, "designed", lambda place: True)
+        for said, boxes in (("its top", [[0, 0, 100, 40]]), ("no box", []), ("its lit lower half", [[0, 60, 100, 100]]),
+                            ("its roof under its black sky", [[0, 0, 100, 60]])):
+            inventory = seen_sky / f"{said}.json"
+            inventory.write_text(json.dumps({"rows": [{"id": "stars", "anchor": "sky", "boxes": boxes}]}))
+            row_sky = light.row_skies("court", inventory)
+            inside_skies[said] = light.sky_measures("court", seen_sky, seen_sky, row_sky) if row_sky else \
+                {"concept": None, "views": [], "inside": "its concept shows no sky"}
+    # what a view sees through one of the place's doorways is the place the door leads to, never its sky (2026-11-10:
+    # hub's door openings, met by no surface down its tubes, read as its sky, 4-9 levels and red against its navy
+    # concept): a level view 5 m from a door 4 m wide and 3 m high sees it over columns 26 to 74 and rows 33 to 69 of
+    # 100 (focal 50 / tan 40 = 59.6 px); a door behind the eye hides none
+    door = [{"middle": [0.0, 0.0, -5.0], "inward": [0.0, 0.0, 1.0], "wide": 4.0, "sill": 0.0, "head": 3.0}]
+    door_behind = [{**door[0], "middle": [0.0, 0.0, 5.0], "inward": [0.0, 0.0, -1.0]}]
+    # an inside place's cutaway concept is seen from outside it, its views by the room's eye (2026-11-10: the
+    # stairwell's sky through its windows, [3.5, 7.3, 15.1], against its concept's navy [29.8, 33.3, 54.7]): the
+    # room's eye at 100 lux takes 21.457 / 214.571 = 0.1 of the light the eye over the square does; the concept's
+    # sRGB 29.8, 33.3, 54.7 is linear 0.0128, 0.0152, 0.0373, a tenth of it 4.2, 5.0, 12.2 levels. On an airless body
+    # no air scatters light, so the sky is black whatever the concept paints (2026-11-10: hangar's roof opening on the
+    # Moon, [1.1, 1.1, 1.2] against its concept's navy [35.5, 41.9, 69.2], 46.9 levels); on the Earth (the night
+    # table's air) or a dusty body (the record's sky_dome) the concept's sky stands. A sky's blue to red is judged only
+    # where the concept's sky shows a hue (2026-11-02: base's concept drew the Moon's airless sky dark navy, 18.5 levels
+    # off black, blue to red 2.42; the physics' black sky failed blue to red 1.0 every round): a lit sky of [95, 90, 95]
+    # under a concept of [80, 90, 110] passes the gap at 10 levels and fails on blue to red 1.0 against 1.375
+    stairwell = concept_sky_of([29.8, 33.3, 54.7])
+    in_room = light.seen_inside(stairwell, {"scale": 21.457, "outside_scale": 214.571})
+    navy = concept_sky_of([35.5, 41.9, 69.2])
+    air_table = {"air": {"earth": {"rayleigh_depth": 0.0088}}}
+    on_moon = {"site": {"on": "moon"}, "setting": {"bodies": [{"body": "moon", "reference": "moon"}]}}
+    on_earth = {"site": {"on": "earth"}, "setting": {"bodies": [{"body": "earth", "reference": "earth"}]}}
+    airless = light.airless_sky(navy, {}, on_moon, air_table)
+    # the strengths (light.strengths) on places' passes made here, faults of #36 each, their looks by a tone curve
+    # known by hand. airlock (2026-10-30): its lamps stopped at the sweep's floor while its sun carried it x1.44 over
+    # its concept, never swept since x1.44 is within; engineroom's two wall-panel lamps on one spot each gave half the
+    # light where they were it, so neither could read blown out; airlock's roof beacon over its dome read unlit from
+    # inside. By night (2026-11-04, the light audit: hangar's sun swept to x19 in a night hangar, its lamps 8% of its
+    # light) a lamp-lit concept's suns stand at the floor while its lamps are swept to the top of LAMP_SCALES
+    # (2026-11-10: hangar's stopped at x32 with 14% of its light), never past SUN_MOST after; a daylit place's lamps
+    # only to the top of SCALES, where its sun takes over; a night light (its Moon) stands at x1, never swept.
+    # hangar (2026-10-30): the sun carried 84-94% of every view and was swept with the fill, so spot-2, the floor in
+    # the parked ship's shadow, stayed at 0.120 against the concept's 0.304; after the lamps and the suns the fill
+    # alone is swept, the least raise bringing every view within VIEW_WITHIN with the place kept within
+    # BRIGHT_WITHIN, and again once a blown lamp is turned down (2026-11-10: hangar's light_1 halved for its glare
+    # left spot-2 dark, its fill at the floor its sweep had set). camp (2026-10-31, round 33): its sunlit shell read
+    # 2.2-4.3% blown in seven views against its concept's 0.0%, the sun 99.7% of the light there and never turned
+    # down; a sun blowing a view past its concept is stepped down SCALES only as far as that needs, the fill swept
+    # after it; with its concept unread, kept
+    sweep = tmp_path / "sweep"
+    lamp_ramp = np.tile(np.linspace(0.0, 4.0, 40)[:, None], (1, 60))
+    glare_edge = np.where(np.arange(60) < 1, 2000.0 * lamp_ramp, 0.0)  # a glare: the place within x1.5 at the floor
+    shade_ramp = np.tile(np.linspace(0.2, 1.8, 30), (20, 1))  # a light that varies: each view's tone curve has a slope
+    left_third = (np.arange(30) < 10)[None, :]
+    camp_sun = np.where((np.arange(60) >= 54)[None, :], 3.0, 0.2) * np.ones((40, 60))  # the right tenth: a pale wall
+    camp_fill = np.full((40, 60), 1e-3)
+    camp_colour = np.repeat(np.repeat(np.repeat((camp_sun + camp_fill)[..., None], 3, axis=2), 2, axis=0), 2, axis=1)
+    camp_views = {"v": {"lamp_0": camp_sun, "lamp_1": camp_fill, "combined": camp_sun + camp_fill,
+                        "colour": camp_colour, "sky": np.zeros(camp_colour.shape[:2], dtype=bool)}}
+    camp_groups = {"lamp_0": "/p/Lights/sky_sun", "lamp_1": "/p/Lights/concept_fill"}
+    hangar_groups = {"lamp_0": "/p/Lights/light_1", "lamp_1": "/p/Lights/sky_sun", "lamp_2": "/p/Lights/concept_fill"}
+    rendered_in = {
+        "airlock": passes_job(sweep, "airlock", {"lamp_0": "/p/Lights/light_1", "lamp_1": "/p/Lights/light_2",
+                                                 "lamp_2": "/p/Lights/beacon", "lamp_3": "/p/Lights/sky_sun"},
+                              {"v": {"lamp_0": glare_edge, "lamp_1": glare_edge, "lamp_2": np.zeros((40, 60)),
+                                     "lamp_3": np.tile(np.linspace(0.05, 0.55, 60), (40, 1))}}, [120, 80]),
+        "hangar": passes_job(sweep, "hangar", hangar_groups, {
+            "lit": {"lamp_0": 1e-4 * shade_ramp, "lamp_1": 0.2 * shade_ramp, "lamp_2": 0.02 * shade_ramp},
+            "shade": {"lamp_0": 1e-4 * shade_ramp, "lamp_1": 0.01 * shade_ramp, "lamp_2": 0.02 * shade_ramp}},
+                             [60, 40]),
+        "hangar_turned": passes_job(sweep, "hangar_turned", hangar_groups, {
+            "glare": {"lamp_0": np.where(left_third, 60.0, 0.0) * np.ones((20, 1)), "lamp_1": 0.2 * shade_ramp,
+                      "lamp_2": 0.01 * shade_ramp},
+            "lit": {"lamp_0": 0.1 * shade_ramp, "lamp_1": 0.2 * shade_ramp, "lamp_2": 0.01 * shade_ramp},
+            "pool": {"lamp_0": 0.06 * shade_ramp, "lamp_1": 0.0 * shade_ramp, "lamp_2": 0.01 * shade_ramp}}, [60, 40]),
+        **{place: passes_job(sweep, place, camp_groups, camp_views, [120, 80], floor_transform)
+           for place in ("camp", "camp_unread")}}
+    rendered_of = {place: light.view_passes(passes_of, place) for place, (passes_of, _) in rendered_in.items()}
+    views_of = {place: {view: (held, curve) for view, (held, curve, _) in rendered.items()}
+                for place, rendered in rendered_of.items()}
+    camp_looks = {view: (held, look) for view, (held, _, look) in rendered_of["camp"].items()}
+    camp_target = mix.place_brightness(views_of["camp"], {})
+    dim_target, turned_target = (float(toned_look(np.full((20, 30), level)).mean()) for level in (0.2, 0.3))
+    brightness_of = {"airlock": dim_target, "hangar": dim_target, "hangar_turned": turned_target, "camp": camp_target,
+                     "camp_unread": camp_target}
+    shell = {"inside": True, "floor": [[-3.0, -3.0], [3.0, 3.0]], "ceiling": 3.0}
+    airlock_lamps = [{"path": "/p/Lights/light_1", "spot": [1.0, 2.0, 0.0], "shaft": False},
+                     {"path": "/p/Lights/light_2", "spot": [1.0, 2.0, 0.0], "shaft": False},
+                     {"path": "/p/Lights/beacon", "spot": [0.0, 3.2, 0.0], "shaft": False},
+                     {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True}]
+    hangar_lamps = [{"path": "/p/Lights/light_1", "spot": [0.0, 2.0, 0.0], "shaft": False},
+                    {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True},
+                    {"path": "/p/Lights/concept_fill", "spot": [0.0, 2.5, 0.0], "shaft": False, "sun": True,
+                     "fill": True}]
+    camp_lamps = [hangar_lamps[1], hangar_lamps[2]]
+    by_night, by_day = {"scene": {"daylight": False}}, {"scene": {"daylight": True}}
+    sweeps, swept_runs = [], {}
+    real_sweep = mix.sweep
+    with monkeypatch.context() as patched:
+        patched.setattr(light, "concept_brightness", brightness_of.get)
+        patched.setattr(light, "concept_extremes", {"camp": no_black}.get)
+        patched.setattr(mix, "sweep", lambda views, groups, target, held=None, most=None, **kept: sweeps[-1].append(
+            (list(groups), dict(held or {}), most)) or real_sweep(views, groups, target, held, most, **kept))
+        for said, place, lamps, record, given in (
+                ("airlock", "airlock", airlock_lamps, shell, {}),
+                ("airlock by night", "airlock", airlock_lamps, shell, {"light": by_night}),
+                ("airlock by day", "airlock", airlock_lamps, shell, {"light": by_day}),
+                ("airlock under its Moon", "airlock", airlock_lamps, shell,
+                 {"light": by_night, "night_lights": ["/p/Lights/sky_sun"]}),
+                ("hangar", "hangar", hangar_lamps, {"inside": False}, {}),
+                ("hangar turned down", "hangar_turned", hangar_lamps, {"inside": True}, {"light": by_night}),
+                ("camp", "camp", camp_lamps, {"inside": False}, {}),
+                ("camp unread", "camp_unread", camp_lamps, {"inside": False}, {})):
+            sweeps.append([])
+            passes_folder, layer_folder = rendered_in[place]
+            swept_runs[said] = (*light.strengths(place, passes_folder, lamps, layer_folder, record, **given),
+                                sweeps[-1])
+    airlock_scales, airlock_found, _ = swept_runs["airlock"]
+    _, night_found, night_sweeps = swept_runs["airlock by night"]
+    hangar_scales, hangar_found, _ = swept_runs["hangar"]
+    turned_scales, turned_found, _ = swept_runs["hangar turned down"]
+    camp_scales, camp_found, _ = swept_runs["camp"]
+    hangar_lower = float(mix.SCALES[list(mix.SCALES).index(hangar_found["fill_scale"]) - 1])
+    camp_upper = float(mix.SCALES[list(mix.SCALES).index(camp_scales["lamp_0"]) + 1])
+    crowded = {}  # the shade lit only where the fill would carry the middle view, and the place, past x1.5
+    for name, sunlight, filled in (("lit", 0.3, 0.0), ("middle", 0.12, 0.06), ("shade", 0.0, 0.02)):
+        held = {"lamp_1": sunlight * shade_ramp, "lamp_2": filled * shade_ramp,
+                "combined": (sunlight + filled) * shade_ramp}
+        crowded[name] = (held, mix.tone_curve(held["combined"], toned_look(held["combined"])))
     # a warning light or beacon is a signal, a faint emitter, never a room's lamp (garage's amber bulbs, 2026-11-10)
     from score.stages.scene_record import writer
     lamps_library = REPO / "data/library/lamps.json"
@@ -825,7 +1060,115 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
             ("a ceiling lamp: a source",
              writer.glow_share({"id": "ceiling_lamp", "noun": "lamp"}, {"glowing": "bulb"}, lamps_library)[1],
              "source"),
-            ("the places an accepted record shows, then none accepted", shown, [["wreck"], []])):
+            ("the places an accepted record shows, then none accepted", shown, [["wreck"], []]),
+            ("a ground scene read beside: rendered as a neighbour, never shown",
+             passes.shown_in({"scene-record@base": "x", "scene-record@square": "y", "neighbour square": "z"}),
+             ["square"]),
+            ("a stage laid without its library: its ground's finish named missing",
+             any("/tiny/Outside/near (ground): its finish is named missing" in fault for fault in unfinished), True),
+            ("a stage laid without its library: its empty sky named", any("empty sky" in fault for fault in unfinished),
+             True),
+            ("the lit stage: the bake's model, the made ground, three prims drawn, the ground's library finish",
+             laid_prims, (True, True, 3, "/tiny/Library/lunar_regolith")),
+            ("the lit stage's gate: its empty sky, then a bare wall under a sky, then that wall hidden", surfaced,
+             [["/tiny: an outdoor place with an empty sky (no sky element nor dome light)"],
+              ["/tiny/Shell/wall (structure): it is bound to no material"], []]),
+            ("an inside place's views see its sky", light.sees_sky("court", seen_sky, seen_sky), True),
+            ("a door's opening: no sky; a door behind the eye hides none",
+             (light.sees_sky("porch", seen_sky, seen_sky), light.sees_sky("porch", seen_sky, seen_sky, door),
+              light.sees_sky("porch", seen_sky, seen_sky, door_behind)), (True, False, True)),
+            ("the sky over the door: still sky", bool((light.open_sky(seen_sky, "porch_sky", "v", door) ==
+                                                      sky_top).all()), True),
+            ("the stairwell's sky as its room's eye sees it", (in_room["mean_rgb"], in_room["painted"]),
+             (pytest.approx([4.2, 5.0, 12.2], abs=0.15), [29.8, 33.3, 54.7])),
+            ("a sky by day, outside and in an older record: as painted",
+             [light.seen_inside(stairwell, dark) for dark in (None, {"scale": 214.571, "outside_scale": 214.571},
+                                                              {"scale": 21.457})], [stairwell] * 3),
+            ("the navy sky on an airless body: black, its paint kept", (airless["mean_rgb"], airless["painted"]),
+             ([0.0, 0.0, 0.0], navy["mean_rgb"])),
+            ("the navy sky on the Earth, a dusty body, none, and on no site",
+             [light.airless_sky(navy, {}, on_earth, air_table),
+              light.airless_sky(navy, {"environment": {"sky_dome": {"depth": 0.6}}}, on_moon, air_table),
+              light.airless_sky(None, {}, on_moon, air_table), light.airless_sky(navy, {}, None, air_table)],
+             [navy, navy, None, navy]),
+            ("SCALES' floor and top pinned, 1 not",
+             (mix.pinned(float(mix.SCALES[0])), mix.pinned(float(mix.SCALES[-1])), mix.pinned(1.0)),
+             (True, True, False)),
+            ("airlock: its lamps at the floor, its sun swept under 1",
+             (airlock_found["swept_scale"], airlock_found["sun_scale"] < 1.0), (mix.SCALES[0], True)),
+            ("airlock: its two panels on one spot one lamp, turned down together under the sweep",
+             (airlock_found["lamps"]["/p/Lights/light_2"]["one_with"],
+              airlock_scales["lamp_0"] == airlock_scales["lamp_1"] < airlock_found["swept_scale"]),
+             ("/p/Lights/light_1", True)),
+            ("airlock: the panels still glaring after their halvings, the beacon outside its shell",
+             [airlock_found["lamps"][path]["fault"] for path in ("/p/Lights/light_1", "/p/Lights/light_2",
+                                                                  "/p/Lights/beacon")], ["blown", "blown", "unseen"]),
+            ("the beacon outside the shell, not outside an outdoor place; a spot sunk in its deck inside",
+             (light.outside_shell([0.0, 3.2, 0.0], shell), light.outside_shell([0.0, 3.2, 0.0], {"inside": False}),
+              light.outside_shell([2.9, -0.05, -2.9], shell)), (True, False, False)),
+            ("airlock's source: its sun within SUN_MOST, lamp-lit unread",
+             (airlock_found["source"]["sun_most"] <= mix.SUN_MOST, airlock_found["source"]["lamp_lit"]), (True, None)),
+            ("airlock by night: its sun held at the floor, every sweep of it at most SUN_MOST",
+             (night_sweeps[0][1], all(most == mix.SUN_MOST for groups, _, most in night_sweeps if "lamp_3" in groups)),
+             ({"lamp_3": float(mix.SCALES[0])}, True)),
+            ("airlock by night: its lamps to the top of LAMP_SCALES, past SCALES'",
+             (night_sweeps[0][2], night_sweeps[0][2] > float(mix.SCALES[-1])), (float(mix.LAMP_SCALES[-1]), True)),
+            ("airlock by day: its lamps to the top of SCALES", swept_runs["airlock by day"][2][0][2],
+             float(mix.SCALES[-1])),
+            ("airlock by night: lamp-lit, its sun within SUN_MOST",
+             (night_found["source"]["lamp_lit"], night_found["source"]["sun_most"] <= mix.SUN_MOST), (True, True)),
+            ("airlock under its Moon: the night light at 1, never swept",
+             (swept_runs["airlock under its Moon"][0]["lamp_3"],
+              any("lamp_3" in groups for groups, _, _ in swept_runs["airlock under its Moon"][2])), (1.0, False)),
+            ("hangar: the fill raised over the suns' sweep, written",
+             (hangar_found["fill_scale"] > hangar_found["sun_scale"], hangar_scales["lamp_2"] == hangar_found[
+                 "fill_scale"]), (True, True)),
+            ("hangar: every view and the place within",
+             (mix.views_within(views_of["hangar"], hangar_scales, dim_target),
+              mix.within(views_of["hangar"], hangar_scales, dim_target)), (True, True)),
+            ("hangar: the fill one step under, then at the suns' sweep alone: a view off",
+             (mix.views_within(views_of["hangar"], dict(hangar_scales, lamp_2=hangar_lower), dim_target),
+              mix.views_within(views_of["hangar"], dict(hangar_scales, lamp_2=hangar_found["sun_scale"]), dim_target)),
+             (False, False)),
+            ("hangar: the fill swept again, the same", mix.fill_sweep(views_of["hangar"], "lamp_2", dim_target,
+                                                                      hangar_scales), hangar_scales["lamp_2"]),
+            ("a fill that would carry the middle view past x1.5: the place within, a view not",
+             (mix.within(crowded, {}, 0.12), mix.views_within(crowded, {}, 0.12)), (True, False)),
+            ("a fill that would carry the middle view past x1.5: kept at 1",
+             (mix.views_within(crowded, {"lamp_2": 4.0}, 0.12), mix.fill_sweep(crowded, "lamp_2", 0.12, {})),
+             (True, 1.0)),
+            ("hangar turned down: its glaring lamp turned down, no longer blown",
+             (turned_scales["lamp_0"] < turned_found["swept_scale"],
+              turned_found["lamps"]["/p/Lights/light_1"]["fault"]), (True, None)),
+            ("hangar turned down: within before it, the pool too dark after it with the fill at the floor",
+             (mix.views_within(views_of["hangar_turned"], dict(turned_scales, lamp_0=turned_found["swept_scale"],
+                                                               lamp_2=floor), turned_target),
+              mix.views_within(views_of["hangar_turned"], dict(turned_scales, lamp_2=floor), turned_target)),
+             (True, False)),
+            ("hangar turned down: the fill swept again over the floor, written",
+             (turned_scales["lamp_2"] > floor, turned_found["fill_scale"] == turned_scales["lamp_2"],
+              turned_found["lamps"]["/p/Lights/concept_fill"]["scale"] == turned_scales["lamp_2"]), (True, True, True)),
+            ("hangar turned down: every view and the place within",
+             (mix.views_within(views_of["hangar_turned"], turned_scales, turned_target),
+              mix.within(views_of["hangar_turned"], turned_scales, turned_target)), (True, True)),
+            ("camp's sunlit wall white in the render", light.exposed_within(camp_looks, no_black, {}, ("blown",)),
+             False),
+            ("camp: its sun stepped down under 1",
+             (camp_scales["lamp_0"] == camp_found["sun_scale"], camp_scales["lamp_0"] < 1.0), (True, True)),
+            ("camp: exposed within at its strengths, blown one step up",
+             (light.exposed_within(camp_looks, no_black, camp_scales),
+              light.exposed_within(camp_looks, no_black, dict(camp_scales, lamp_0=camp_upper), ("blown",))),
+             (True, False)),
+            ("camp: every view and the place within",
+             (mix.views_within(views_of["camp"], camp_scales, camp_target),
+              mix.within(views_of["camp"], camp_scales, camp_target)), (True, True)),
+            ("camp: its fill swept after the sun",
+             mix.fill_sweep(views_of["camp"], "lamp_1", camp_target, camp_scales,
+                            lambda tried: light.exposed_within(camp_looks, no_black, tried)), camp_scales["lamp_1"]),
+            ("a sun too dark to step down: kept",
+             mix.sun_down(views_of["camp"], ["lamp_0"], camp_target * 4.0, {"lamp_0": 1.0},
+                          lambda tried: light.exposed_within(camp_looks, no_black, tried, ("blown",))), 1.0),
+            ("camp with its concept unread: its sun kept", swept_runs["camp unread"][0]["lamp_0"], 1.0)):
         assert expected == measured, (said, measured)
     with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
         measure.where({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0], "fov": 90},
@@ -858,7 +1201,7 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
                                                ("no surface pass", 3, None))})
     judged = tmp_path / "judged"
     judged.mkdir()
-    for said, judge, measures, answer in (
+    for said, judge, measures, answer, *says in (
             ("as black as its concept", light.judge_exposure,
              {"exposure": {"concept": {"black": 0.45, "blown": 0.0}, "views": {"wide": {"black": 0.5, "blown": 0.01}}}},
              checks.PASS),
@@ -883,9 +1226,46 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
             ("a green room against a grey concept", light.judge_colour,
              {"colour": {"concept": [128.0] * 3, "views": {"v": measure.surface_cast(green_room)}}}, checks.FAIL),
             ("a view with no cast", light.judge_colour, {"colour": {"concept": [128.0] * 3, "views": {"v": None}}},
-             checks.UNKNOWN)):
+             checks.UNKNOWN),
+            ("a look's black sky read on its mask", light.judge_sky, {"sky": sky_read["court"]}, checks.PASS),
+            ("passes saved before the sky mask", light.judge_sky, {"sky": sky_read["court_old"]}, checks.UNKNOWN,
+             "no sky mask"),
+            ("an inside place's black sky under its concept's black top", light.judge_sky,
+             {"sky": inside_skies["its top"]}, checks.PASS),
+            ("an inside place whose concept shows no sky", light.judge_sky, {"sky": inside_skies["no box"]},
+             checks.PASS),
+            ("an inside place's black sky under its concept's lit grey", light.judge_sky,
+             {"sky": inside_skies["its lit lower half"]}, checks.FAIL),
+            ("a sky row's box holding the roof under its black sky: read on the sky's flat colour", light.judge_sky,
+             {"sky": inside_skies["its roof under its black sky"]}, checks.PASS),
+            ("the stairwell's sky against its concept as its room's eye sees it", light.judge_sky,
+             one_sky(concept_sky_of(in_room["mean_rgb"]), [3.5, 7.3, 15.1]), checks.PASS),
+            ("the stairwell's sky against its concept as the outside eye sees it: 30.4 levels", light.judge_sky,
+             one_sky(stairwell, [3.5, 7.3, 15.1]), checks.FAIL),
+            ("a black sky on an airless body", light.judge_sky, one_sky(airless, [1.1, 1.1, 1.2]), checks.PASS),
+            ("a grey sky on an airless body", light.judge_sky, one_sky(airless, [30.0, 30.0, 30.0]), checks.FAIL),
+            ("a black sky against the navy as painted", light.judge_sky, one_sky(navy, [1.1, 1.1, 1.2]), checks.FAIL),
+            ("a black sky under a concept's dark navy: blue to red not judged", light.judge_sky,
+             one_sky(concept_sky_of([11.4, 16.5, 27.6]), [2.5, 2.6, 2.6]), checks.PASS, "not judged"),
+            ("a lit sky within the gap, off its concept's hue", light.judge_sky,
+             one_sky(concept_sky_of([80.0, 90.0, 110.0]), [95.0, 90.0, 95.0]), checks.FAIL,
+             "gap to the concept 10.0 levels", "within 0.15"),
+            ("a lamp-lit place with 5% of its light from its lamps", light.judge_source,
+             {"brightness": {"source": {"lamp_lit": True, "lamp_share": 0.05, "sun_most": 0.5}}}, checks.FAIL, "5.0%"),
+            ("a daylit place with 5% from its lamps", light.judge_source,
+             {"brightness": {"source": {"lamp_lit": False, "lamp_share": 0.05, "sun_most": 0.5}}}, checks.PASS,
+             "daylight"),
+            ("a lamp-lit place with 60% from its lamps", light.judge_source,
+             {"brightness": {"source": {"lamp_lit": True, "lamp_share": 0.6, "sun_most": 0.5}}}, checks.PASS,
+             "lamp-lit"),
+            ("a sun swept to x19", light.judge_source,
+             {"brightness": {"source": {"lamp_lit": False, "lamp_share": 0.6, "sun_most": 19.0}}}, checks.FAIL, "x19"),
+            ("a source not read", light.judge_source,
+             {"brightness": {"source": {"lamp_lit": None, "lamp_share": 0.6, "sun_most": 1.0}}}, checks.UNKNOWN,
+             "not read")):
         (judged / "measures.json").write_text(json.dumps(measures))
-        assert judge(judged, {}, {}).answer == answer, (said, measures)
+        verdict = judge(judged, {}, {})
+        assert verdict.answer == answer and all(word in verdict.reason for word in says), (said, verdict.reason)
 
     # the layer (layer.py) on seeds made here, one lamp /tiny/Lights/light_1 each: where each lamp lands is a row,
     # its seed's lamp spot, the meshes round it, how far the assembly carried it with its floor light, the record,
@@ -1162,123 +1542,6 @@ def glowing_bank():
     return np.clip(picture, 0, 255)
 
 
-def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_hue_its_concept_shows(tmp_path,
-                                                                                                       monkeypatch):
-    """A look's sky is read where the render met no surface, never its top rows' commonest colour, and judged
-    against its concept's sky.
-    2026-11-02: base's concept drew the Moon's airless sky dark navy ([11.4, 16.5, 27.6], 18.5 levels off black,
-    blue to red 2.42); the physics' black sky passed the colour gap (16.7) and failed blue to red (1.0) every round.
-    A concept sky within SKY_GAP_MOST of black leaves blue to red unjudged; a lit one still holds it: a sky of
-    [95, 90, 95] under a concept of [80, 90, 110] (93 levels off black) passes the gap at 10 levels and fails on blue
-    to red 1.0 against 1.375.
-    Break: score/stages/light/__init__.py: `hued = dark or abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`
-        -> `hued = abs(ratio - concept["blue_to_red"]) <= BLUE_TO_RED_WITHIN`"""
-    # old_station's lit ground filled its views' top rows and read as its sky, 99.7 levels off its black one
-    # (2026-10-30); passes saved before the mask leave the sky unjudged, named
-    concept = tmp_path / "concept.png"
-    Image.fromarray(np.where(np.arange(100)[:, None, None] < 50, 0, 128).repeat(100, 1).repeat(3, 2)
-                    .astype(np.uint8)).save(concept)
-    monkeypatch.setattr(light, "concept_pictures", lambda place: [concept])
-    (tmp_path / "looks/yard").mkdir(parents=True)
-    (tmp_path / "passes/yard-0").mkdir(parents=True)
-    sky = np.zeros((100, 100), bool)
-    sky[:20] = True
-    look = np.where(sky, 0, 200)
-    Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(tmp_path / "looks/yard/v-look.png")
-    for held, answer in (({"sky": sky}, checks.PASS), ({}, checks.UNKNOWN)):
-        np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), **held)
-        (tmp_path / "measures.json").write_text(json.dumps({"sky": light.sky_measures("yard", tmp_path, tmp_path)}))
-        verdict = light.judge_sky(tmp_path, {}, {})
-        assert verdict.answer == answer, verdict.reason
-    assert "no sky mask" in verdict.reason
-    # an inside place whose views see sky (2026-11-04: camp's glass domes showed black space, and only outdoor places
-    # were judged): read against its sky rows' boxes on its concept, the black top half here, so the look's black
-    # sky passes and a lit one fails; with no sky row its concept shows none to judge against
-    np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=sky)
-    inventory = tmp_path / "inventory.json"
-    monkeypatch.setattr(light, "designed", lambda place: True)
-    assert light.sees_sky("yard", tmp_path, tmp_path)
-    for rows, answer in (([{"id": "stars", "anchor": "sky", "boxes": [[0, 0, 100, 40]]}], checks.PASS),
-                         ([{"id": "stars", "anchor": "sky", "boxes": []}], checks.PASS)):
-        inventory.write_text(json.dumps({"rows": rows}))
-        concept_sky = light.row_skies("yard", inventory)
-        measured = light.sky_measures("yard", tmp_path, tmp_path, concept_sky) if concept_sky else \
-            {"concept": None, "views": [], "inside": "its concept shows no sky"}
-        (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
-        assert light.judge_sky(tmp_path, {}, {}).answer == answer
-    inventory.write_text(json.dumps({"rows": [{"id": "stars", "anchor": "sky", "boxes": [[0, 60, 100, 100]]}]}))
-    measured = light.sky_measures("yard", tmp_path, tmp_path, light.row_skies("yard", inventory))
-    (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
-    assert light.judge_sky(tmp_path, {}, {}).answer == checks.FAIL  # its concept's sky lit grey, the look's black
-    # a sky row's box holding the place's lit roof under its black sky (2026-11-10: greenhouse's starry band read
-    # 58.6 levels grey) is read on the sky's own flat colour, so the look's black sky passes
-    inventory.write_text(json.dumps({"rows": [{"id": "stars", "anchor": "sky", "boxes": [[0, 0, 100, 60]]}]}))
-    measured = light.sky_measures("yard", tmp_path, tmp_path, light.row_skies("yard", inventory))
-    (tmp_path / "measures.json").write_text(json.dumps({"sky": measured}))
-    assert light.judge_sky(tmp_path, {}, {}).answer == checks.PASS, measured["concept"]
-    # a sky's blue to red is judged only where the concept's sky shows a hue
-    def judged(concept_rgb, sky_rgb):
-        concept = {"mean_rgb": concept_rgb, "blue_to_red": round(concept_rgb[2] / concept_rgb[0], 4),
-                   "rise_to_horizon": 0.0, "pictures": 1}
-        after = {"mean_rgb": sky_rgb, "rise_to_horizon": 0.0, "blue_to_red": round(sky_rgb[2] / sky_rgb[0], 4),
-                 "gap_to_concept": measure.colour_gap(sky_rgb, concept_rgb)}
-        (tmp_path / "measures.json").write_text(json.dumps({"sky": {"concept": concept, "views": [
-            {"view": "spot-1", "after": after, "masked": True}]}}))
-        return light.judge_sky(tmp_path, {}, {})
-
-    # an inside place's cutaway concept is seen from outside it, its views by the room's eye (2026-11-10: the
-    # stairwell's sky through its windows, [3.5, 7.3, 15.1], against its concept's navy [29.8, 33.3, 54.7]): the
-    # room's eye at 100 lux takes 21.457 / 214.571 = 0.1 of the light the eye over the square does; the concept's
-    # sRGB 29.8, 33.3, 54.7 is linear 0.0128, 0.0152, 0.0373, a tenth of it 4.2, 5.0, 12.2 levels
-    painted = {"mean_rgb": [29.8, 33.3, 54.7], "blue_to_red": 1.8356, "rise_to_horizon": 0.0, "pictures": 1}
-    inside = light.seen_inside(painted, {"scale": 21.457, "outside_scale": 214.571})
-    assert inside["mean_rgb"] == pytest.approx([4.2, 5.0, 12.2], abs=0.15) and inside["painted"] == [29.8, 33.3, 54.7]
-    assert judged(inside["mean_rgb"], [3.5, 7.3, 15.1]).answer == checks.PASS
-    assert judged(painted["mean_rgb"], [3.5, 7.3, 15.1]).answer == checks.FAIL  # the outside eye's sky: 30.4 levels
-    for dark in (None, {"scale": 214.571, "outside_scale": 214.571}, {"scale": 21.457}):  # by day, outside, older
-        assert light.seen_inside(painted, dark) == painted
-    # on an airless body no air scatters light, so the sky is black whatever the concept paints (2026-11-10: hangar's
-    # roof opening on the Moon, [1.1, 1.1, 1.2] against its concept's navy [35.5, 41.9, 69.2], 46.9 levels): judged
-    # against black, a black sky passes and a grey one fails; on the Earth (the night table's air) or a dusty body
-    # (the record's sky_dome) the concept's sky stands
-    navy = {"mean_rgb": [35.5, 41.9, 69.2], "blue_to_red": 1.9516, "rise_to_horizon": 0.0, "pictures": 1}
-    table = {"air": {"earth": {"rayleigh_depth": 0.0088}}}
-    moon = {"site": {"on": "moon"}, "setting": {"bodies": [{"body": "moon", "reference": "moon"}]}}
-    earth = {"site": {"on": "earth"}, "setting": {"bodies": [{"body": "earth", "reference": "earth"}]}}
-    airless = light.airless_sky(navy, {}, moon, table)
-    assert airless["mean_rgb"] == [0.0, 0.0, 0.0] and airless["painted"] == navy["mean_rgb"]
-    for sky_rgb, answer in (([1.1, 1.1, 1.2], checks.PASS), ([30.0, 30.0, 30.0], checks.FAIL)):
-        after = {"mean_rgb": sky_rgb, "rise_to_horizon": 0.0, "blue_to_red": round(sky_rgb[2] / sky_rgb[0], 4),
-                 "gap_to_concept": measure.colour_gap(sky_rgb, airless["mean_rgb"])}
-        (tmp_path / "measures.json").write_text(json.dumps({"sky": {"concept": airless, "views": [
-            {"view": "spot-1", "after": after, "masked": True}]}}))
-        assert light.judge_sky(tmp_path, {}, {}).answer == answer
-    assert judged(navy["mean_rgb"], [1.1, 1.1, 1.2]).answer == checks.FAIL
-    assert light.airless_sky(navy, {}, earth, table) == navy
-    assert light.airless_sky(navy, {"environment": {"sky_dome": {"depth": 0.6}}}, moon, table) == navy
-    assert light.airless_sky(None, {}, moon, table) is None and light.airless_sky(navy, {}, None, table) == navy
-    dark = judged([11.4, 16.5, 27.6], [2.5, 2.6, 2.6])
-    assert dark.answer == checks.PASS and "not judged" in dark.reason, dark.reason
-    lit = judged([80.0, 90.0, 110.0], [95.0, 90.0, 95.0])
-    assert lit.answer == checks.FAIL and "gap to the concept 10.0 levels" in lit.reason and "within 0.15" in \
-        lit.reason, lit.reason
-    # what a view sees through one of the place's doorways is the place the door leads to, never its sky (2026-11-10:
-    # hub's door openings, met by no surface down its tubes, read as its sky, 4-9 levels and red against its navy
-    # concept): a level view 5 m from a door 4 m wide and 3 m high sees it over columns 26 to 74 and rows 33 to 69 of
-    # 100 (focal 50 / tan 40 = 59.6 px); the door's opening is no sky, the sky over the door still is
-    door = [{"middle": [0.0, 0.0, -5.0], "inward": [0.0, 0.0, 1.0], "wide": 4.0, "sill": 0.0, "head": 3.0}]
-    (tmp_path / "passes/yard-0.views.json").write_text(json.dumps({"size": [100, 100], "views": [
-        {"name": "v", "eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -10.0], "up": [0.0, 1.0, 0.0], "fov": 80}]}))
-    opening = np.zeros((100, 100), bool)
-    opening[36:66, 30:70] = True
-    np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=opening)
-    assert light.sees_sky("yard", tmp_path, tmp_path) and not light.sees_sky("yard", tmp_path, tmp_path, door)
-    behind = [{**door[0], "middle": [0.0, 0.0, 5.0], "inward": [0.0, 0.0, -1.0]}]  # a door behind the eye hides none
-    assert light.sees_sky("yard", tmp_path, tmp_path, behind)
-    np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=sky | opening)
-    assert (light.open_sky(tmp_path, "yard", "v", door) == sky).all()
-
-
 def inside_functions(*names):
     """Functions and constants of inside/light_passes.py (a Blender script, run only inside Blender) to call here."""
     import ast
@@ -1297,270 +1560,45 @@ def toned_look(light_in):
     return light_in / (1.0 + light_in)
 
 
-def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_spot_or_outside_are_judged_so(
-        tmp_path, monkeypatch):
-    """Faults of 2026-10-30 (#36): airlock's lamps stopped at the sweep's floor while the sun (and fill) carried it
-    x1.44 over its concept, never swept since x1.44 is within; engineroom's two wall-panel lamps on one spot each gave
-    half the light where they were it, so neither could read blown out; airlock's roof beacon over its dome read
-    unlit from inside."""
-    ramp = np.tile(np.linspace(0.0, 4.0, 40)[:, None], (1, 60))
-    glare = np.where(np.arange(60) < 1, 2000.0 * ramp, 0.0)  # a small glare: the place within x1.5 at the floor
-    held = {"lamp_0": glare, "lamp_1": glare, "lamp_2": np.zeros((40, 60)),
-            "lamp_3": np.tile(np.linspace(0.05, 0.55, 60), (40, 1))}
-    held["combined"] = sum(held.values())
-    job = tmp_path / "passes/passes/p-0"
+def passes_job(folder, place, groups, views, size, transform=None):
+    """A place's passes rendered into its own passes folder under `folder`: its groups' lights, each view's passes
+    (`views`, the combined light the groups' sum unless given) and its look at twice their size: the combined light
+    through toned_look, saved at half precision, or, with a view `transform`, the view's colour pass through it; and
+    its views file, every view one eye. Its passes folder and the layer folder holding that views file."""
+    job = folder / f"{place}/passes/{place}-0"
     job.mkdir(parents=True)
-    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/p/Lights/light_1", "lamp_1": "/p/Lights/light_2",
-                                                            "lamp_2": "/p/Lights/beacon", "lamp_3": "/p/Lights/sky_sun"}}))
-    np.savez(job / "v-passes.npz", **{name: values.astype(np.float16) for name, values in held.items()})
-    look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
-    Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(job / "v-look.png")
-    (tmp_path / "layer").mkdir()
-    (tmp_path / "layer" / passes.VIEWS).write_text(json.dumps({"size": [120, 80], "views": [
-        {"name": "v", "eye": [0.0, 1.6, 5.0], "aim": [0.0, 1.6, 0.0], "up": [0.0, 1.0, 0.0], "fov": 70.0}]}))
-    lamps = [{"path": "/p/Lights/light_1", "spot": [1.0, 2.0, 0.0], "shaft": False},
-             {"path": "/p/Lights/light_2", "spot": [1.0, 2.0, 0.0], "shaft": False},
-             {"path": "/p/Lights/beacon", "spot": [0.0, 3.2, 0.0], "shaft": False},
-             {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True}]
-    record = {"inside": True, "floor": [[-3.0, -3.0], [3.0, 3.0]], "ceiling": 3.0}
-    monkeypatch.setattr(light, "concept_brightness", lambda place: float(toned_look(np.full((40, 60), 0.2)).mean()))
-    monkeypatch.setattr(light, "concept_extremes", lambda place: None)
-    assert mix.pinned(float(mix.SCALES[0])) and mix.pinned(float(mix.SCALES[-1])) and not mix.pinned(1.0)
-    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record)
-    assert found["swept_scale"] == mix.SCALES[0] and found["sun_scale"] < 1.0, found
-    one, other = found["lamps"]["/p/Lights/light_1"], found["lamps"]["/p/Lights/light_2"]
-    assert other["one_with"] == "/p/Lights/light_1" and scales["lamp_0"] == scales["lamp_1"] < found["swept_scale"]
-    assert one["fault"] == other["fault"] == "blown"  # still glaring after its halvings: one lamp, read blown
-    assert found["lamps"]["/p/Lights/beacon"]["fault"] == "unseen", found["lamps"]
-    assert light.outside_shell([0.0, 3.2, 0.0], record) and not light.outside_shell([0.0, 3.2, 0.0], {"inside": False})
-    assert not light.outside_shell([2.9, -0.05, -2.9], record)  # sunk in its deck: still judged
-    assert found["source"]["sun_most"] <= mix.SUN_MOST and found["source"]["lamp_lit"] is None, found["source"]
-    # 2026-11-04, the light audit: hangar's sun swept to x19 in a night hangar, its lamps 8% of its light. A lamp-lit
-    # concept (inside, no daylight) has its suns at the floor while its lamps are swept, never past SUN_MOST after
-    held_at = []
-    swept = mix.sweep
-    monkeypatch.setattr(mix, "sweep", lambda views, groups, target, held=None, most=None, **kept: held_at.append(
-        (list(groups), dict(held or {}), most)) or swept(views, groups, target, held, most, **kept))
-    _, night = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record,
-                               {"scene": {"daylight": False}})
-    assert held_at[0][1] == {"lamp_3": float(mix.SCALES[0])} and all(
-        most == mix.SUN_MOST for groups, _, most in held_at if "lamp_3" in groups), held_at
-    # 2026-11-10: hangar's lamps (a lamp-lit place's) stopped at x32 with 14% of its light; they reach the top of
-    # LAMP_SCALES, a daylit place's lamps only the top of SCALES, where its sun takes over.
-    assert held_at[0][2] == float(mix.LAMP_SCALES[-1]) > float(mix.SCALES[-1]), held_at
-    held_at.clear()
-    light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record, {"scene": {"daylight": True}})
-    assert held_at[0][2] == float(mix.SCALES[-1]), held_at
-    assert night["source"]["lamp_lit"] is True and night["source"]["sun_most"] <= mix.SUN_MOST, night["source"]
-    # 2026-11-10: a lamp-lit night place swept its Moon to the floor as a sun; a night light stands at x1, never swept
-    held_at.clear()
-    moonlit, _ = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", record,
-                                 {"scene": {"daylight": False}}, night_lights=["/p/Lights/sky_sun"])
-    assert moonlit["lamp_3"] == 1.0 and not any("lamp_3" in groups for groups, _, _ in held_at), (moonlit, held_at)
-    for source, answer, said in (({"lamp_lit": True, "lamp_share": 0.05, "sun_most": 0.5}, checks.FAIL, "5.0%"),
-                                 ({"lamp_lit": False, "lamp_share": 0.05, "sun_most": 0.5}, checks.PASS, "daylight"),
-                                 ({"lamp_lit": True, "lamp_share": 0.6, "sun_most": 0.5}, checks.PASS, "lamp-lit"),
-                                 ({"lamp_lit": False, "lamp_share": 0.6, "sun_most": 19.0}, checks.FAIL, "x19"),
-                                 ({"lamp_lit": None, "lamp_share": 0.6, "sun_most": 1.0}, checks.UNKNOWN, "not read")):
-        (tmp_path / "measures.json").write_text(json.dumps({"brightness": {"source": source}}))
-        verdict = light.judge_source(tmp_path, {}, {})
-        assert verdict.answer == answer and said in verdict.reason, (source, verdict.reason)
-
-
-def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_that_brings_it(tmp_path, monkeypatch):
-    """Fault of 2026-10-30 (#36): at hangar the sun carried 84-94% of every view and was swept with the fill, so
-    spot-2, the floor in the parked ship's shadow, stayed at 0.120 against the concept's 0.304 (outside x2.5) with the
-    place at x1.00. After the lamps and the suns the fill alone is swept: the least raise that brings every view within
-    VIEW_WITHIN with the place kept within BRIGHT_WITHIN; and again once a blown lamp is turned down (2026-11-10)."""
-    ramp = np.tile(np.linspace(0.2, 1.8, 30), (20, 1))  # a light that varies, so each view's tone curve has a slope
-    held_views = {"lit": {"lamp_0": 1e-4 * ramp, "lamp_1": 0.2 * ramp, "lamp_2": 0.02 * ramp},
-                  "shade": {"lamp_0": 1e-4 * ramp, "lamp_1": 0.01 * ramp, "lamp_2": 0.02 * ramp}}
-    job = tmp_path / "passes/passes/p-0"
-    job.mkdir(parents=True)
-    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/p/Lights/light_1", "lamp_1": "/p/Lights/sky_sun",
-                                                            "lamp_2": "/p/Lights/concept_fill"}}))
-    for view, held in held_views.items():
-        held["combined"] = sum(held.values())
-        np.savez(job / f"{view}-passes.npz", **{name: values.astype(np.float16) for name, values in held.items()})
-        look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
-        Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(job / f"{view}-look.png")
-    (tmp_path / "layer").mkdir()
-    (tmp_path / "layer" / passes.VIEWS).write_text(json.dumps({"size": [60, 40], "views": [
+    (job / "passes.json").write_text(json.dumps({"groups": groups}))
+    if transform is not None:
+        np.savez(job / passes.VIEW_TRANSFORM, **transform)
+    for view, given in views.items():
+        held = {**given, "combined": given["combined"] if "combined" in given else sum(given.values())}
+        if transform is None:
+            look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
+            Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(
+                job / f"{view}-look.png")
+            held = {name: values.astype(np.float16) for name, values in held.items()}
+        else:
+            Image.fromarray(np.round(mix.displayed(transform, held["colour"]) * 255).astype(np.uint8)).save(
+                job / f"{view}-look.png")
+        np.savez(job / f"{view}-passes.npz", **held)
+    layer_folder = folder / f"{place}/layer"
+    layer_folder.mkdir()
+    (layer_folder / passes.VIEWS).write_text(json.dumps({"size": size, "views": [
         {"name": view, "eye": [0.0, 1.6, 5.0], "aim": [0.0, 1.6, 0.0], "up": [0.0, 1.0, 0.0], "fov": 70.0}
-        for view in held_views]}))
-    lamps = [{"path": "/p/Lights/light_1", "spot": [0.0, 2.0, 0.0], "shaft": False},
-             {"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True},
-             {"path": "/p/Lights/concept_fill", "spot": [0.0, 2.5, 0.0], "shaft": False, "sun": True, "fill": True}]
-    target = float(toned_look(np.full((20, 30), 0.2)).mean())
-    monkeypatch.setattr(light, "concept_brightness", lambda place: target)
-    monkeypatch.setattr(light, "concept_extremes", lambda place: None)
-    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})
-    views = {view: (held, curve) for view, (held, curve, _) in light.view_passes(tmp_path / "passes", "p").items()}
-    lower = float(mix.SCALES[list(mix.SCALES).index(found["fill_scale"]) - 1])
-    assert found["fill_scale"] > found["sun_scale"] and scales["lamp_2"] == found["fill_scale"], found
-    assert mix.views_within(views, scales, target) and mix.within(views, scales, target), found["after"]
-    assert not mix.views_within(views, dict(scales, lamp_2=lower), target)  # the least raise
-    assert not mix.views_within(views, dict(scales, lamp_2=found["sun_scale"]), target)  # the suns' sweep alone: off
-    assert mix.fill_sweep(views, "lamp_2", target, scales) == scales["lamp_2"]  # swept again: the same
-    crowded = {}  # the shade lit only where the fill would carry the middle view, and the place, past x1.5
-    for name, sun, fill in (("lit", 0.3, 0.0), ("middle", 0.12, 0.06), ("shade", 0.0, 0.02)):
-        held = {"lamp_1": sun * ramp, "lamp_2": fill * ramp, "combined": (sun + fill) * ramp}
-        crowded[name] = (held, mix.tone_curve(held["combined"], toned_look(held["combined"])))
-    assert mix.within(crowded, {}, 0.12) and not mix.views_within(crowded, {}, 0.12)
-    assert mix.views_within(crowded, {"lamp_2": 4.0}, 0.12) and mix.fill_sweep(crowded, "lamp_2", 0.12, {}) == 1.0
-    # a blown lamp turned down after the fill's sweep takes its light from the floor it lit: the fill is swept again
-    # on the lamps as they then stand (2026-11-10: hangar's light_1 halved for its glare left spot-2 at 0.120 against
-    # its concept's 0.304, its fill still at the floor its sweep had set)
-    left = (np.arange(30) < 10)[None, :]
-    glaring = {"glare": {"lamp_0": np.where(left, 60.0, 0.0) * np.ones((20, 1)), "lamp_1": 0.2 * ramp},
-               "lit": {"lamp_0": 0.1 * ramp, "lamp_1": 0.2 * ramp}, "pool": {"lamp_0": 0.06 * ramp, "lamp_1": 0.0 * ramp}}
-    for view, held in glaring.items():
-        held["lamp_2"] = 0.01 * ramp
-        held["combined"] = sum(held.values())
-        np.savez(job / f"{view}-passes.npz", **{name: values.astype(np.float16) for name, values in held.items()})
-        look = np.repeat(np.repeat(np.round(toned_look(held["combined"]) * 255) / 255, 2, axis=0), 2, axis=1)
-        Image.fromarray((np.repeat(look[..., None], 3, axis=2) * 255).astype(np.uint8)).save(job / f"{view}-look.png")
-    for view in held_views:
-        if view not in glaring:
-            (job / f"{view}-passes.npz").unlink()
-            (job / f"{view}-look.png").unlink()
-    target = float(toned_look(np.full((20, 30), 0.3)).mean())
-    monkeypatch.setattr(light, "concept_brightness", lambda place: target)
-    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": True},
-                                    {"scene": {"daylight": False}})
-    views = {view: (held, curve) for view, (held, curve, _) in light.view_passes(tmp_path / "passes", "p").items()}
-    floor = float(mix.SCALES[0])
-    assert scales["lamp_0"] < found["swept_scale"] and found["lamps"]["/p/Lights/light_1"]["fault"] is None, found
-    assert mix.views_within(views, dict(scales, lamp_0=found["swept_scale"], lamp_2=floor), target)  # before it
-    assert not mix.views_within(views, dict(scales, lamp_2=floor), target)  # turned down, the pool too dark
-    assert scales["lamp_2"] > floor and found["fill_scale"] == scales["lamp_2"] \
-        and found["lamps"]["/p/Lights/concept_fill"]["scale"] == scales["lamp_2"], found
-    assert mix.views_within(views, scales, target) and mix.within(views, scales, target), found["after"]
+        for view in views]}))
+    return folder / place, layer_folder
 
 
-def test_a_sun_blowing_out_the_wall_it_lights_is_stepped_down_only_as_far_as_the_views_need_and_the_fill_after(
-        tmp_path, monkeypatch):
-    """Fault of 2026-10-31 (#36, round 33): camp's sunlit shell read 2.2-4.3% blown in seven views against its concept's
-    0.0% (campgrounds' spot-4 2.4%), the sun 99.7% of the light there and never turned down: a sun is no lamp, and the
-    sweep judged blown only lamps. A sun blowing a view past its concept is stepped down SCALES only as far as that
-    needs, the place and every view kept within (mix.sun_down), the fill swept after it."""
-    low, high = -24.0, 4.0
-    axis = 2.0 ** np.linspace(low, high, 57)
-    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
-    transform = {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}  # 252 of 255 at 2.3
-    job = tmp_path / "passes/passes/p-0"
-    job.mkdir(parents=True)
-    np.savez(job / passes.VIEW_TRANSFORM, **transform)
-    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/p/Lights/sky_sun",
-                                                            "lamp_1": "/p/Lights/concept_fill"}}))
-    wall = (np.arange(60) >= 54)[None, :]  # the right tenth: a pale wall in the sun
-    sun = np.where(wall, 3.0, 0.2) * np.ones((40, 60))
-    fill = np.full((40, 60), 1e-3)
-    colour = np.repeat(np.repeat(np.repeat((sun + fill)[..., None], 3, axis=2), 2, axis=0), 2, axis=1)
-    Image.fromarray(np.round(mix.displayed(transform, colour) * 255).astype(np.uint8)).save(job / "v-look.png")
-    np.savez(job / "v-passes.npz", lamp_0=sun, lamp_1=fill, combined=sun + fill, colour=colour,
-             sky=np.zeros(colour.shape[:2], dtype=bool))
-    (tmp_path / "layer").mkdir()
-    (tmp_path / "layer" / passes.VIEWS).write_text(json.dumps({"size": [120, 80], "views": [
-        {"name": "v", "eye": [0.0, 1.6, 5.0], "aim": [0.0, 1.6, 0.0], "up": [0.0, 1.0, 0.0], "fov": 70.0}]}))
-    lamps = [{"path": "/p/Lights/sky_sun", "spot": None, "shaft": False, "sun": True},
-             {"path": "/p/Lights/concept_fill", "spot": [0.0, 2.5, 0.0], "shaft": False, "sun": True, "fill": True}]
-    rendered = light.view_passes(tmp_path / "passes", "p")
-    views = {view: (held, curve) for view, (held, curve, _) in rendered.items()}
-    looks = {view: (held, look) for view, (held, _, look) in rendered.items()}
-    target, concept = mix.place_brightness(views, {}), {"black": 0.0, "blown": 0.0}
-    assert not light.exposed_within(looks, concept, {}, ("blown",))  # the wall is white in the render
-    monkeypatch.setattr(light, "concept_brightness", lambda place: target)
-    monkeypatch.setattr(light, "concept_extremes", lambda place: concept)
-    scales, found = light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})
-    upper = float(mix.SCALES[list(mix.SCALES).index(scales["lamp_0"]) + 1])
-    assert scales["lamp_0"] == found["sun_scale"] < 1.0, found
-    assert light.exposed_within(looks, concept, scales)  # the gate's rule holds at the swept strengths
-    assert not light.exposed_within(looks, concept, dict(scales, lamp_0=upper), ("blown",))  # the least step down
-    assert mix.views_within(views, scales, target) and mix.within(views, scales, target)
-    assert scales["lamp_1"] == mix.fill_sweep(views, "lamp_1", target, scales,
-                                              lambda tried: light.exposed_within(looks, concept, tried))
-    assert mix.sun_down(views, ["lamp_0"], target * 4.0, {"lamp_0": 1.0},
-                        lambda tried: light.exposed_within(looks, concept, tried, ("blown",))) == 1.0  # too dark: kept
-    monkeypatch.setattr(light, "concept_extremes", lambda place: None)
-    assert light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})[0]["lamp_0"] == 1.0
+def concept_sky_of(rgb):
+    """A concept's sky of mean colour `rgb`, as concept_skies reads one."""
+    return {"mean_rgb": rgb, "blue_to_red": round(rgb[2] / rgb[0], 4), "rise_to_horizon": 0.0, "pictures": 1}
 
 
-def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monkeypatch):
-    """Fault (2026-10-29, light-passes@base and @airlock): the lit stage was the seed with its record, every design
-    object waiting on the surface line's bake and no made ground, so base drew nothing and airlock a bare shell. The
-    stage is laid by the assembly's own code: the bake's model at its waiting entry, the made ground over the base.
-    Fault (2026-11-04, the eyes review of env1): the made ground was laid with its finish named missing, never bound to
-    the surface its scene library gives its row as the assembly binds it, so the campgrounds', base's, square's and
-    street's ground rendered a white sheet. It is finished by the assembly's own code (ground_finish), and the layer's
-    `surfaced` gate (bare.faults) names a ground or shell mesh with no library surface and an outdoor place's empty
-    sky before the paid render.
-    Break: passes.source: `ground_finish.finish_ground(...)` dropped (the ground stays named missing).
-    Break: bare.faults: `why = bare_why(prim)` -> `why = None` (an unfinished ground or bare wall passes).
-    Break: bare.faults: `if outdoor and not sky` -> `if False` (an outdoor place with an empty sky passes).
-    Break: passes.shown_in: the `neighbour <name>` test dropped (a ground scene read beside is rendered as shown)."""
-    import score.stages.assembly.baked as baked
-    from score.stages.light import bare
-    from score.stages.terrain import outside
-    tiny_seed(tmp_path / "seed")
-    seed = Usd.Stage.Open(str(tmp_path / "seed/layers/base.usda"))
-    shader = UsdShade.Shader.Define(seed, "/tiny/Library/lunar_regolith/surface")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    UsdShade.Material.Define(seed, "/tiny/Library/lunar_regolith").CreateSurfaceOutput().ConnectToSource(
-        shader.ConnectableAPI(), "surface")
-    seed.GetRootLayer().Save()
-    (tmp_path / "record/record").mkdir(parents=True)
-    hub = {"name": "hub_1", "row": "hub", "bake": "hub_1", "kind": "object", "at": [0.0, 0.0, 0.0],
-           "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model comes from the bake"}
-    (tmp_path / "record/record/tiny.json").write_text(json.dumps({"place": "tiny", "objects": [hub]}))
-    (tmp_path / "kit.json").write_text(json.dumps({"pieces": []}))
-    (tmp_path / "surfaces.json").write_text("{}")
-    (tmp_path / "bake/made").mkdir(parents=True)
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"hub_1": {}}))
-    (tmp_path / "bake/made/hub_1.gltf").write_text("{}")  # what the laid model's hash is stamped from
-    (tmp_path / "terrain/grounds/places").mkdir(parents=True)
-    ground = Usd.Stage.CreateNew(str(tmp_path / "terrain/grounds/places/tiny.usdc"))
-    UsdGeom.Cube.Define(ground, "/tiny/Terrain/ground")
-    points, triangles = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float), np.array([[0, 2, 1]])
-    outside.write(ground, "tiny", {"near": (points, triangles)}, "regolith", ["regolith", "the test's"])
-    ground.Save()
-    (tmp_path / "inventory.json").write_text(json.dumps({"rows": [{"id": "regolith", "noun": "ground",
-                                                                   "terrain": True}]}))
-    (tmp_path / "library").mkdir()
-    (tmp_path / "library/materials.json").write_text(json.dumps({"kinds": {"ground": ["lunar_regolith"]}}))
-
-    def made(bake, paint, out, models=None):  # the bake's asset as take_bake writes it, without its paint
-        asset = Usd.Stage.CreateNew(str(out / "assets/hub_1.usdc"))
-        asset.SetDefaultPrim(UsdGeom.Xform.Define(asset, "/hub_1").GetPrim())
-        UsdGeom.Cube.Define(asset, "/hub_1/geo")
-        asset.Save()
-    monkeypatch.setattr(baked, "take_bake", made)
-    inputs = {"seed": str(tmp_path / "seed"), "scene-record": str(tmp_path / "record"),
-              "kit": str(tmp_path / "kit.json"), "surfaces": str(tmp_path / "surfaces.json"),
-              "surfaces-bake": str(tmp_path / "bake"), "surfaces-paint": str(tmp_path / "bake"),
-              "terrain": str(tmp_path / "terrain")}
-    bare_root = passes.source("tiny", inputs, tmp_path / "bare") / "tiny.usda"
-    named = bare.faults(bare_root, "tiny")
-    assert any("/tiny/Outside/near (ground): its finish is named missing" in fault for fault in named), named
-    assert any("empty sky" in fault for fault in named), named
-    inputs.update({"surface-library": str(tmp_path / "library"), "inventory tiny": str(tmp_path / "inventory.json")})
-    root = passes.source("tiny", inputs, tmp_path / "lit") / "tiny.usda"
-    stage = Usd.Stage.Open(str(root))
-    assert stage.GetPrimAtPath("/tiny/Objects/hub_1").IsValid() and stage.GetPrimAtPath("/tiny/Terrain/ground")
-    assert light.drawn_count(root, "tiny") == 3
-    near = stage.GetPrimAtPath("/tiny/Outside/near")
-    assert UsdShade.MaterialBindingAPI(near).ComputeBoundMaterial()[0].GetPath() == "/tiny/Library/lunar_regolith"
-    assert bare.faults(root, "tiny") == ["/tiny: an outdoor place with an empty sky (no sky element nor dome light)"]
-    wall = UsdGeom.Mesh.Define(stage, "/tiny/Shell/wall").GetPrim()
-    wall.CreateAttribute("score:kind", Sdf.ValueTypeNames.String).Set("structure")
-    UsdLux.DomeLight.Define(stage, "/tiny/Sky/Backdrops/stars")
-    stage.Save()
-    assert bare.faults(root, "tiny") == ["/tiny/Shell/wall (structure): it is bound to no material"]
-    UsdGeom.Imageable(wall).MakeInvisible()
-    stage.Save()
-    assert bare.faults(root, "tiny") == []
-    assert passes.shown_in({"scene-record@base": "x", "scene-record@square": "y", "neighbour square": "z"}) == \
-        ["square"]
+def one_sky(concept, sky_rgb):
+    """A measures file's sky: one masked view whose sky is `sky_rgb`, against the concept's sky `concept`."""
+    after = {"mean_rgb": sky_rgb, "rise_to_horizon": 0.0, "blue_to_red": round(sky_rgb[2] / sky_rgb[0], 4),
+             "gap_to_concept": measure.colour_gap(sky_rgb, concept["mean_rgb"])}
+    return {"sky": {"concept": concept, "views": [{"view": "spot-1", "after": after, "masked": True}]}}
 
 
 # --- the layer on a stage made here ---------------------------------------------------------------------------------
