@@ -128,7 +128,7 @@ FUNCTION_DEBT = {
     "score/stages/earth_seed/test_a_scene_s_base_stands_from_its_design.py": 19,
     "score/stages/effects/test_effects_ride_their_design.py": 6,
     "score/stages/images/test_image_proofs_pass_only_a_proof_that_did_its_jobs.py": 6,
-    "score/stages/library/test_everything_handed_to_library.py": 13,
+    "score/stages/library/test_everything_handed_to_library.py": 12,
     "score/stages/light/test_light_measured_against_design.py": 6,
     "score/stages/motion/test_a_thing_moves_as_its_design_says.py": 18,
     "score/stages/people_cloth/test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure.py": 8,
