@@ -276,7 +276,8 @@ def test_unknown_books_refuse_every_paid_point(tmp_path, monkeypatch, case):
     assert ran == [], ran  # no key made, no machine ordered
 
     books = ledger.read_books()
-    assert {name: books.get(name) for name in books_after} == books_after, books
+    assert {name: books[name] for name in books_after if name in books} == books_after, books  # every named key held
+    assert ("bill_all" in books) == (shape["export"] is not None), books  # every read-back records the whole bill
     assert ("bill_all" in books) == ("scw" in (books.get("bill_all_unread") or "")), books  # no scw: the whole bill unread
     year, month = map(int, this_month().split("-"))
     assert bool(queries) == (shape["export"] is not None)
