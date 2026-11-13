@@ -16,9 +16,11 @@ def met(surface, on, box, size, target, clear=()):
     """The foot middle `target` of a thing of `size` (as laid, scaled) against its holder box's (`box`, low, high)
     side `on`'s `out` points from, kept where front_face meets the holder's built `surface` over its span (widened by
     FACE_REACH, as on_face measures it) and height; else moved to the nearest spot within the box, RAY_STEP apart
-    along the face and in height, where it meets it in line with the thing's middle within its height, so it stands
-    on the surface and not on its edge, out of the boxes `clear` (the swing and passage boxes, the things laid on the
-    face before it: a box (low, high) or a turned one's corners); kept where none does."""
+    along the face and in height, where it meets it in line with the thing's middle at its foot and at its top, so it
+    stands on the surface and not on its edge, out of the boxes `clear` (the swing and passage boxes, the things laid
+    on the face before it: a box (low, high) or a turned one's corners); kept where none does. Met at its top alone,
+    quarters' 1.3 cm wrench was hung 0.2 m up by the slanting lower edge of its desk's back panel, across a side of
+    the desk as laid, 0.12 m (settle@quarters, 2026-11-13)."""
     axis, side, sign = fitting.face_axes(on)
     below, above = fitting.beside(on, side)
     size, target = np.asarray(size, float), np.asarray(target, float)
@@ -34,9 +36,11 @@ def met(surface, on, box, size, target, clear=()):
     spots = sorted(((along, height) for along in alongs for height in heights),
                    key=lambda spot: float(np.hypot(spot[0] - target[side], spot[1] - target[1])))
     for along, height in spots:
-        face = fitting.front_face(surface, axis, sign, side, (along, along), (height, height + size[1]))
-        if face is None:
+        ends = [fitting.front_face(surface, axis, sign, side, (along, along), (level, level))
+                for level in (height, height + size[1])]
+        if None in ends:  # its foot or its top in line with nothing: on the surface's edge
             continue
+        face = max(end * sign for end in ends) * sign
         moved = target.copy()
         moved[side], moved[1], moved[axis] = along, height, face + sign * half[axis]
         reach = np.array([half[0], 0.0, half[2]])

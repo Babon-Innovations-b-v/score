@@ -1713,6 +1713,11 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
         topped.get(entry["name"]) is not None:` -> `if False:` (the valve let down named off the pipe's box top)
     Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
     Break: score/stages/assembly/fitting.py: `+ hung_up(stage, place, loose)` -> `+ []`
+    Break: score/stages/assembly/fitting.py: hung_up's `(np.inf if at_hang else OUT_MOST + ROOF_CLEAR)` -> `OUT_MOST +
+        ROOF_CLEAR` (quarters' pipe left 4.5 m under the roof), or its `abs(...) <= MOVE_LEAST` -> `True` (the pipe
+        moved off its hang moved up too); hung_up's `+ into_its_room(...)` or `+ clear_of_others(...)` dropped
+        (quarters' pipe left through its wall, then across its lights: caught on quarters' laid seed), or
+        clear_of_others' `shift[axis] += away * ...` -> `shift[axis] += 0.0 * ...` (the pipe left across the lights)
     Break: score/stages/assembly/fitting.py: roofs' `for scope in ("Structure", "Shell")]` -> `for scope in
         ("Structure",)]` (the Shell's dome is no roof: its light left under it)
     Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
@@ -1807,6 +1812,27 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
     a_built_box(shelled, f"/{TOY}/Objects/light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))
     assert [name for name, _ in fitting.roofs(shelled, TOY)] == ["roof_1"]
     assert [(fit["name"], fit["moved"]) for fit in fitting.hung_up(shelled, TOY, entries[-1:])] == [("light_1", 0.39)]
+    # quarters' wall pipe (settle@quarters, 2026-11-13), read 4 m tall and built 4 m long, 0.33 m tall: the record hung
+    # it 1.43 m under its floor, 3.68 m under its roof. One still at the record's hang is moved up however far (4.49 m
+    # here, the dome 3.4 m up over its end); one moved off its hang is moved OUT_MOST at most, so left
+    a_built_box(shelled, f"/{TOY}/Objects/pipe_1", (1.0, -1.43, 1.0), (4.0, -1.1, 1.2))
+    a_built_box(shelled, f"/{TOY}/Objects/pipe_2", (1.0, -1.43, 3.0), (4.0, -1.1, 3.2))
+    pipes = [{"name": "pipe_1", "row": "pipe", "under roof": True, "at": [2.5, -1.43, 1.1]},
+             {"name": "pipe_2", "row": "pipe", "under roof": True, "at": [2.5, 0.0, 3.1]}]
+    assert [(fit["name"], fit["moved"]) for fit in fitting.hung_up(shelled, TOY, pipes)] == [("pipe_1", 4.49)]
+    # lifted, it ran 1.74 m on through its east wall, its room 4.23 m wide: one lifted into a wall piece is moved along
+    # into the room between it and the piece facing it, then out of a string of lights already hung there; one longer
+    # than that room is left
+    roomed = Usd.Stage.CreateInMemory()
+    for name, low, high in (("wall_1", (-0.2, 0.0, -1.0), (0.0, 2.5, 3.0)), ("wall_2", (4.23, 0.0, -1.0),
+                                                                           (4.39, 2.5, 3.0))):
+        a_built_box(roomed, f"/{TOY}/Shell/{name}", low, high)
+    a_built_box(roomed, f"/{TOY}/Objects/lights_1", (4.18, 2.2, -1.0), (4.23, 2.375, 3.0))
+    shift = fitting.into_its_room(roomed, TOY, np.array([2.0, 2.2, 0.0]), np.array([5.985, 2.5, 0.1]))
+    assert np.allclose(shift, (-1.755, 0.0, 0.0)), shift
+    away = fitting.clear_of_others(roomed, TOY, "pipe_9", np.array([0.245, 2.2, 0.0]), np.array([4.23, 2.5, 0.1]))
+    assert np.allclose(away, (-0.06, 0.0, 0.0)) and not np.any(fitting.into_its_room(
+        roomed, TOY, np.array([-0.5, 2.2, 0.0]), np.array([4.5, 2.5, 0.1]))), away
     cranes = {name: (np.array([0.0, 3.0, z]), np.array([10.0, 5.0, z + 6.0])) for name, z in (("crane_1", 0.0),
                                                                                                 ("crane_2", 3.0))}
     sides = [(np.array(low, float), np.array(high, float)) for low, high in (
@@ -2469,10 +2495,12 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     settle@lab (2026-11-11): valve_3, laid on pipe_3's room side, hung free 0.41 m off it: the pipe model zig-zags
     across its 0.9 m box and at the valve's height its tube runs 0.5 m along the face. A 0.2 m valve against a 1 m
     box's E side whose one tube stands 0.8 m along it and 0.1 m inside is slid along onto the tube's middle, its back on it;
-    one already in front of the tube stays.
-    Break: score/stages/assembly/face_spots.py: met's `if face is None:` -> `if True:` (the valve left on the box's
-        side, touching nothing), or fitting.py's `target = face_spots.met(surface, on, box, size * scale, target,
-        clear)` dropped
+    one already in front of the tube stays. settle@quarters (2026-11-13): a 1.3 cm wrench against its desk's back was
+    slid 0.2 m up, where only its top met the slanting lower edge of the desk's back panel, inside the desk as laid. A
+    wrench slid to a panel whose lower edge is 0.2125 m up stands with its foot on it too, 0.25 m up.
+    Break: score/stages/assembly/face_spots.py: met's `if None in ends:` -> `if True:` (the valve left on the box's
+        side, touching nothing), or -> `if ends[1] is None:` (the wrench 0.2 m up, its foot under the panel), or
+        fitting.py's `target = face_spots.met(surface, on, box, size * scale, target, clear)` dropped
     assembly@base (2026-11-12): ramp_front_left_1, a platform on legs, was stood on the toe of its module's own built
     ramp, a lip reaching 3 m out of the module's face beside its legs, and hung free 0.15 m off it. A 0.2 m cube 1 m in
     front of a wall's face, beside a 0.2 m wide lip reaching out to it, is pushed in until its back meets the face (its
@@ -2540,6 +2568,11 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     _, kept, (kept_back, _) = fitting.on_face(np.array([0.0, 1.5, -0.95]), np.array([0.05, 1.7, -0.75]), east, piped,
                                               pipe)
     assert abs(kept_back + 0.1) < 1e-9 and np.allclose(kept, (-0.075, 1.5, -0.85)), kept
+    from score.stages.assembly import face_spots
+    panel = trimesh.creation.box(bounds=[(0.0, 0.2125, 0.9), (0.5, 0.5, 1.0)])
+    wrench = face_spots.met(panel, {"how": "face", "out": [0.0, 1.0]}, (np.zeros(3), np.array([1.0, 0.5, 1.0])),
+                            (0.166, 0.013, 0.05), (0.75, 0.0, 1.025))
+    assert np.allclose(wrench, (0.483, 0.25, 1.025)), wrench
     # settle@street (2026-11-11): lantern 11, on the 1 cm end of its sagging string, stood 0.045 m under it; hanging
     # clothes 3 and 4, within a drying rack turned along slanted wall_7, stood 0.05 m behind its face. A 0.1 m cube
     # 0.04 m under a holder's surface is moved up onto it, one 0.5 m away is left; one 0.05 m behind a wall face along
@@ -2708,6 +2741,19 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left), or meets'
         `return overlap(square, np.asarray(outline, float)) > fitting.BOARD_CLEAR` -> `return True` (the box beside the
         diagonal railing read as in it)
+    Break: score/stages/assembly/fine_tops.py: one's `found + beside(stage, place, entry, carried, ...)` -> `found`
+        (the book left leaning on the wrench), or fitting.py: reaches_into's `np.minimum(BOARD_CLEAR, thinner / 4)` ->
+        `BOARD_CLEAR` (the wrenches read clear) or -> `np.minimum(BOARD_CLEAR, thinner / 2)` (the book's corner read clear), beside's `< under]` -> `< -1.0]`, or crest_tops.py: stands' `points[:,
+        1] - tops` -> `np.maximum(points[:, 1] - tops, 0.0)` (the book's points in the wrench read at their own height)
+    Break: score/stages/assembly/fine_tops.py: laid's `fitting.with_stacked(stage, place, carried, list(by_name))` ->
+        `carried` (the cup left at 1.4 m as its computer is laid on the rim), or fitting.py: with_stacked's `<=
+        BOARD_BED and` -> `<= -1.0 and` (nothing read standing on anything)
+    Break: score/stages/assembly/fine_tops.py: one's `move, on_other = stacked(stage, place, entry, thing, (low, high),
+        carried)` -> `pass` (the third cup left over the slope), or its `float(np.linalg.norm(move)) <
+        fitting.MOVE_LEAST)` -> `False)` (the stacked cup laid again where it is)
+    Break: score/stages/assembly/crest_tops.py: stands' `balance(moved.vertices)` -> `triage.BALANCE`, rest's `<
+        balance(every)` -> `< triage.BALANCE` or may_rest's `inside = ..., balance(low)` -> `..., triage.BALANCE` (the
+        6 cm box read not resting on the flat slab), or balance's `/ 4` -> `/ 0.5` (the box over the edge read resting)
     Break: score/stages/assembly/railings_held.py: held_up's `keep = min(1.0, ...)` -> `keep = 1.0` (the chord left 4.5
         m tall), cut_back's `if not inside(points[near], hulls):` -> `if True:` (its end left in the wall), change's
         `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening),
@@ -3038,6 +3084,79 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert not fine_tops.meets(np.array([2.5, 0.0, 0.5]), np.array([3.0, 0.5, 1.0]), diagonal)
     assert fine_tops.meets(np.array([1.8, 0.0, 1.8]), np.array([2.3, 0.5, 2.3]), diagonal)
     assert fine_tops.meets(np.array([2.5, 0.0, 0.5]), np.array([3.0, 0.5, 1.0]), (*diagonal[:2], None))
+    # quarters (settle@quarters, 2026-11-13): a book laid 9.5 mm deep over a 1.3 cm wrench on its desk (fitting's
+    # BOARD_CLEAR lets a box 1 cm into another) rested on the desk alone and leaned 7.9 degrees on the wrench. A thing
+    # is judged on what it stands among lower than its top too: a 0.2 m book with one edge over a 1.3 cm wrench on a
+    # slab, leaning 3.4 degrees on it as laid, is laid where it rests among them, the wrench left; laid again both are
+    # left.
+    faced(f"/{TOY}/Objects/desk_70", [(70.0, 0.0, 0.0), (71.0, 0.03, 0.6)])
+    faced(f"/{TOY}/Objects/wrench_70", [(70.4, 0.03, 0.15), (70.57, 0.043, 0.2)])
+    faced(f"/{TOY}/Objects/book_70", [(70.39, 0.0335, 0.15), (70.59, 0.0765, 0.35)])
+    over = [{"name": name, "row": name.split("_")[0], "on": {"how": "top", "holder": ["desk_70"]}}
+            for name in ("wrench_70", "book_70")]
+    under = trimesh.util.concatenate([fitting.surface_mesh(stage, f"/{TOY}/Objects/{name}")
+                                      for name in ("desk_70", "wrench_70")])
+    among = crest_tops.exact_field(under, fitting.world_box(stage, f"/{TOY}/Objects/desk_70"))
+    assert not crest_tops.stands(fitting.surface_mesh(stage, f"/{TOY}/Objects/book_70"), among, np.zeros(3))
+    fine = fine_tops.laid(stage, TOY, over)
+    assert [fit["name"] for fit in fine] == ["book_70"], fine
+    assert crest_tops.stands(fitting.surface_mesh(stage, f"/{TOY}/Objects/book_70"), among, np.zeros(3))
+    assert fine_tops.laid(stage, TOY, over) == []
+    # its two wrenches, 1.3 cm thick, were let down one 9 mm into the other, and a book's corner 5 mm into one: boxes
+    # reach into each other past a quarter of the thinner one's size along a way where that is under BOARD_CLEAR;
+    # 0.2 m boxes 9 mm into each other do not
+    thin = (np.array([0.0, 0.0, 0.0]), np.array([0.17, 0.013, 0.05]))
+    assert fitting.meets_any(np.array([0.0, 0.004, 0.04]), np.array([0.17, 0.017, 0.09]), [thin])
+    assert fitting.meets_any(np.array([0.13, 0.008, 0.03]), np.array([0.29, 0.05, 0.23]), [thin])  # a book's corner
+    assert not fitting.meets_any(np.array([0.0, 0.013, 0.0]), np.array([0.17, 0.026, 0.05]), [thin])
+    assert not fitting.meets_any(np.array([0.0, 0.191, 0.0]), np.array([0.2, 0.39, 0.2]), [
+        (np.zeros(3), np.array([0.2, 0.2, 0.2]))])
+    # its plant pot, stacked on a book (built_tops.stacked_spot) when the desk had no spot left, was left 0.69 m over
+    # the desk's corner once the book was laid on a spot where it rests. What stands on a thing's top moves with it: a
+    # cup on a computer over the slope of a desk whose rim (x 42 to 42.3) has no room beside it rides it onto the rim.
+    assert fitting.with_stacked(stage, TOY, {"desk_40": ["computer_40"]}, ["computer_40", "paper_9"]) == {
+        "desk_40": ["computer_40"]}
+    shifted = rim.copy()
+    shifted.vertices[:, 0] = np.where(shifted.vertices[:, 0] > 40.5, 42.3, 42.0)
+    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/desk_41").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    desk = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/desk_41/geo")
+    desk.CreatePointsAttr([tuple(map(float, point)) for point in shifted.vertices])
+    desk.CreateFaceVertexCountsAttr([3] * len(shifted.faces))
+    desk.CreateFaceVertexIndicesAttr([int(index) for index in shifted.faces.ravel()])
+    faced(f"/{TOY}/Objects/computer_41", [(42.05, 1.2, 0.3), (42.25, 1.4, 0.5)])
+    faced(f"/{TOY}/Objects/cup_41", [(42.09, 1.4, 0.34), (42.21, 1.5, 0.46)])
+    assert fitting.with_stacked(stage, TOY, {}, ["computer_41", "cup_41"]) == {"computer_41": ["cup_41"]}
+    riding = [{"name": name, "row": name.split("_")[0], "on": {"how": "top", "holder": ["desk_41"]}}
+              for name in ("computer_41", "cup_41")]
+    fine = fine_tops.laid(stage, TOY, riding)
+    low, high = fitting.world_box(stage, f"/{TOY}/Objects/computer_41")
+    cup_low, cup_high = fitting.world_box(stage, f"/{TOY}/Objects/cup_41")
+    assert [fit["name"] for fit in fine] == ["computer_41"] and abs(low[1] - 1.0) <= 0.01, (fine, low)
+    assert np.isclose(cup_low[1], high[1]) and np.allclose((cup_low + cup_high)[[0, 2]] / 2,
+                                                           (low + high)[[0, 2]] / 2), (cup_low, low, high)
+    # a third thing, over the slope, the rim and the computer's top full, stands on the cup's top where it rests
+    # there; laid again, all three are left
+    faced(f"/{TOY}/Objects/cup_42", [(42.09, 1.2, 0.2), (42.21, 1.3, 0.32)])
+    riding.append({"name": "cup_42", "row": "cup", "on": {"how": "top", "holder": ["desk_41"]}})
+    fine = fine_tops.laid(stage, TOY, riding)
+    stack_low = fitting.world_box(stage, f"/{TOY}/Objects/cup_42")[0]
+    assert [fit["name"] for fit in fine] == ["cup_42"] and "onto cup_41's top" in fine[0]["words"], fine
+    assert 0.0 <= stack_low[1] - fitting.world_box(stage, f"/{TOY}/Objects/cup_41")[1][1] <= 0.01, stack_low
+    assert fine_tops.laid(stage, TOY, riding) == []
+    # its mouse (10 x 6 cm), a 5 cm wrench and a plant pot were never found a spot where they rest: no point of a 6 cm
+    # thing is BALANCE (5 cm) inside it. A 10 x 6 cm box on a flat slab rests there, its weight a quarter of its 6 cm
+    # inside what it touches; hung 5 cm past the slab's edge it does not.
+    import resting
+    slab = trimesh.creation.box(bounds=[(60.0, 0.0, 0.0), (61.0, 0.03, 0.6)])
+    flat = crest_tops.exact_field(slab, tuple(slab.bounds))
+    mouse = trimesh.creation.box(bounds=[(60.4, 0.035, 0.2), (60.5, 0.075, 0.26)])
+    low_points = np.asarray(triage.low_points(mouse), float)
+    weight = resting.weight_at(mouse)
+    assert np.isclose(crest_tops.balance(mouse.vertices), 0.015) and crest_tops.balance(slab.vertices) == 0.05
+    assert crest_tops.stands(mouse, flat, np.zeros(3)) and crest_tops.rest(low_points, np.asarray(
+        mouse.vertices), weight, flat, np.zeros(2)) is not None, crest_tops.balance(mouse.vertices)
+    assert crest_tops.may_rest(low_points, weight, flat, np.zeros((1, 2)))[0]
+    assert not crest_tops.stands(mouse, flat, np.array([0.55, 0.0, 0.0]))
     # its railing row, 1 m tall, built 4.5 m (its bake's parts from before railing_hold) as 9.4 m chords whose ends ran
     # 0.12 and 0.14 m into its walls, the first and fifth over its stair's opening once held. A chord 9.4 m along x = z,
     # 4.5 m tall, on a floor at 3 m that ends 0.9 m short of its middle, one end in a wall box, is held to 1 m, slid
@@ -3675,6 +3794,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     Break: score/stages/assembly/face_down.py: faced_standing's `and given.get(entry["row"]) in STANDING` -> `` (the
         panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows)` ->
         `faced_standing(record)`
+    Break: score/stages/assembly/face_down.py: tip_drop's `<= 0.0:` -> `<= np.inf:` (the tipping wrench
+        left), or downs' `elif gap <= on_ground.TOLERANCE:` -> `elif False:` (caught on quarters' laid seed)
     Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`, or
         `railings_held.laid(folder, seed.name, inventory_rows(inputs))` -> `pass`
     Break: score/stages/assembly/tops_levelled.py: `fits = crest_tops.laid_on(stage, place, entries)` -> `fits = []`,
@@ -3923,6 +4044,14 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     assert np.allclose([low["panel_1"], low["panel_2"], low["sign_1"], low["cube_2"]], [0.1, 0.2, 0.6, 0.5]), low
     laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
     assert np.isclose(laid["panel_1"]["low"][1], 0.1, atol=1e-3) and lay_down(place.parent, TOY) == [], laid
+    # quarters' flat wrench (settle@quarters, 2026-11-13), its back edge on its desk's panel 0.25 m up, the rest of it
+    # over the floor, tipped: a foot touching only along one edge, its weight 6 cm past it, is let down by the least
+    # gap of the rest (0.25 m); one standing on four points round its weight, and one touching nowhere, are not
+    flat = np.array([(x, 0.25, z) for x in (0.0, 0.04, 0.08, 0.12, 0.16) for z in (0.0, 0.06, 0.12)])
+    edge = np.where(flat[:, 2] == 0.0, 0.005, 0.25)
+    assert np.isclose(face_down.tip_drop(flat, edge, (0.08, 0.06)), 0.25)
+    assert face_down.tip_drop(flat, np.full(len(flat), 0.005), (0.08, 0.06)) == 0.0
+    assert face_down.tip_drop(flat, np.full(len(flat), np.inf), (0.08, 0.06)) == 0.0
     # assembly@tube (2026-11-12): its wall lamps, a row on its structural ribs (a structure row on its wall panels),
     # four within a rib and seven on a rib's side, were let down 1.3 to 2.2 m from 2 m up, lamps 5 to 7 into the deck:
     # the resting gate judges the row mounted on its ribs by the inventory, by touching. The same panel, its row on a

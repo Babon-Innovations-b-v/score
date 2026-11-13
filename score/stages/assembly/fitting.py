@@ -322,8 +322,19 @@ def crosses(points, low, high):
 
 
 def meets_any(low, high, boxes):
-    """Whether a box (low, high) reaches into any of `boxes` [(low, high)] by more than BOARD_CLEAR every way."""
-    return any(float(depths(low, high, box).min()) > BOARD_CLEAR for box in boxes)
+    """Whether a box (low, high) reaches into any of `boxes` [(low, high)] (reaches_into)."""
+    return any(reaches_into(low, high, box) for box in boxes)
+
+
+def reaches_into(low, high, box):
+    """Whether a box (low, high) reaches into another (low, high) by more than BOARD_CLEAR every way, or by more than
+    a quarter of the thinner of the two along a way where that is less: two things 1.3 cm thick never reach 1 cm into
+    each other's height, and quarters' wrenches on its desk were laid one 9 mm into the other, a book 9.5 mm over both,
+    then another book's corner 5 mm into a wrench, which then read the book over it as its support and leaned 15
+    degrees (settle@quarters, 2026-11-13)."""
+    thinner = np.minimum(np.asarray(high, float) - np.asarray(low, float), np.asarray(box[1], float) -
+                         np.asarray(box[0], float))
+    return bool(np.all(depths(low, high, box) > np.minimum(BOARD_CLEAR, thinner / 4)))
 
 
 def supported(hits, foot):
@@ -2757,6 +2768,26 @@ def carry(stage, place, carried, name, shift, seen=()):
         carry(stage, place, carried, other, shift, (*seen, name))
 
 
+def with_stacked(stage, place, carried, names):
+    """`carried` ({holder: [names]}, carry's) with, for each of `names`, those of them standing on its top as they lie
+    now: a foot within BOARD_BED of its box's top, over its box and more than BOARD_BED over its foot (built_tops'
+    stacked_spot stacks one so where no spot is left on their holders). Quarters' plant pot, stacked on a book its
+    desk had no spot for, was left 0.69 m up over the desk's corner when the book was laid on a spot of the desk where
+    it rests (fine_tops; settle@quarters, 2026-11-13)."""
+    boxes = {name: world_box(stage, f"/{place}/Objects/{name}") for name in names
+             if stage.GetPrimAtPath(f"/{place}/Objects/{name}")}
+    found = {holder: list(riding) for holder, riding in carried.items()}
+    for name, (low, high) in boxes.items():
+        foot = foot_middle(low, high)
+        for under, (under_low, under_high) in boxes.items():
+            if under == name or name in found.get(under, []):
+                continue
+            if abs(float(low[1]) - float(under_high[1])) <= BOARD_BED and float(low[1]) > float(under_low[1]) + \
+                    BOARD_BED and under_low[0] <= foot[0] <= under_high[0] and under_low[2] <= foot[2] <= under_high[2]:
+                found.setdefault(under, []).append(name)
+    return found
+
+
 def packed_rows(longs, deeps, length, depth):
     """[[piece, ...]] of things `longs` long and `deeps` deep (in their order) laid in rows across a top `length` long
     and `depth` deep, BOARD_CLEAR from each other and its edges: all in one row where they fit so, else each row
@@ -3058,21 +3089,31 @@ def hung_up(stage, place, entries):
     """Each entry hung from the roof (the scene record's `under roof`: laid with its top at the roof's underside by its
     reading's tall) whose built top (box_topped: its box's, over its footprint) stands more than ROOF_CLEAR under the
     built roof over it moved straight up to it,
-    where that is OUT_MOST at most: its model is made at its own tall, so the record's hang leaves a shorter one
-    touching nothing (settle@airlock, 2026-11-10: its roof light read 0.4 m tall, built 0.27, 0.13 m under its dome);
-    the fits [{name, how, ...}]."""
+    where that is OUT_MOST at most, or however far where it still stands at the record's hang (its foot within
+    MOVE_LEAST of the record's height): its model is made at its own tall, so the record's hang leaves a shorter one
+    touching nothing (settle@airlock, 2026-11-10: its roof light read 0.4 m tall, built 0.27, 0.13 m under its dome),
+    and one still at that hang is exactly its reading's tall less its built tall under it (quarters' wall pipe, read
+    4 m tall and built 4 m long, hung 1.43 m under its floor, 3.68 m under its roof, settle@quarters 2026-11-13);
+    lifted, it is moved along the floor into its room out of the walls it reaches into (into_its_room) and out of the
+    things already there (clear_of_others); the fits [{name, how, ...}]."""
     built, fits = roofs(stage, place), []
     for entry in entries if built else []:
         if not entry.get("under roof"):
             continue
         path = f"/{place}/Objects/{entry['name']}"
         gap = under_roof_gap(box_topped(surface_points(stage, path)), built)
-        if gap is None or not ROOF_CLEAR + MOVE_LEAST < gap <= OUT_MOST + ROOF_CLEAR:
+        low, high = world_box(stage, path)
+        at_hang = entry.get("at") is not None and abs(float(low[1]) - float(entry["at"][1])) <= MOVE_LEAST
+        if gap is None or not ROOF_CLEAR + MOVE_LEAST < gap <= (np.inf if at_hang else OUT_MOST + ROOF_CLEAR):
             continue
         lift = gap - ROOF_CLEAR
-        low, high = world_box(stage, path)
-        moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) + [0.0, lift, 0.0])
-        words = f"moved {lift:.2f} m up to the roof it hangs from: built shorter than its reading"
+        move = np.array([0.0, lift, 0.0]) + into_its_room(stage, place, low + [0.0, lift, 0.0],
+                                                           high + [0.0, lift, 0.0])
+        move = move + clear_of_others(stage, place, entry["name"], low + move, high + move)
+        moved_by(stage.GetPrimAtPath(path), foot_middle(low, high), 1.0, foot_middle(low, high) + move)
+        words = f"moved {lift:.2f} m up to the roof it hangs from: built shorter than its reading" + (
+            f", {float(np.abs(move[[0, 2]]).max()):.2f} m along into its room out of its wall" if np.any(move[[0, 2]])
+            else "")
         from pxr import Sdf
         stage.GetPrimAtPath(path).CreateAttribute("score:fitted", Sdf.ValueTypeNames.String).Set(words)
         after = world_box(stage, path)
@@ -3080,6 +3121,48 @@ def hung_up(stage, place, entries):
                      "moved": round(lift, 3), "scale": 1.0, "low": [round(float(value), 4) for value in after[0]],
                      "high": [round(float(value), 4) for value in after[1]], "words": words})
     return fits
+
+
+def into_its_room(stage, place, low, high):
+    """The move [x, 0, z] that brings a box (low, high) out of each straight wall piece of the place it reaches into by
+    more than the resting check's touch into the room between that piece and the one facing it (room_clear.into_room),
+    where the box then reaches into no wall piece; zeros otherwise (hung_up, which lifts a thing hung from the roof
+    straight up, past what the parting cleared it of)."""
+    from score.stages.assembly import floor_clear, room_clear
+    pieces = [box for name, box in statics(walls(stage, place)) if name.split("_")[0] == "wall" and straight(box)]
+    shift = np.zeros(3)
+    for box in pieces:
+        if depths(low + shift, high + shift, box).min() <= floor_clear.TOUCH:
+            continue
+        move = room_clear.into_room(low + shift, high + shift, box, room_clear.thin_axis(box), pieces)
+        if move is not None:
+            shift = shift + move
+    if any(depths(low + shift, high + shift, box).min() > floor_clear.TOUCH for box in pieces):
+        return np.zeros(3)
+    return shift
+
+
+def clear_of_others(stage, place, name, low, high):
+    """The move [x, 0, z] that takes a box (low, high) of the thing `name` out of every other thing of the place it
+    reaches into by more than the resting check's touch every way, the least way along the floor, where it then
+    reaches into none of them nor a wall piece; zeros otherwise (hung_up: quarters' pipe, lifted to its roof and into
+    its room, lay across the string lights hung on its east wall under the roof, settle@quarters 2026-11-13)."""
+    from score.stages.assembly import floor_clear
+    things = stage.GetPrimAtPath(f"/{place}/Objects")
+    boxes = [world_box(stage, str(prim.GetPath())) for prim in (things.GetChildren() if things else [])
+             if prim.GetName() != name and prim.IsActive()]
+    boxes += [box for found, box in statics(walls(stage, place)) if found.split("_")[0] == "wall" and straight(box)]
+    shift = np.zeros(3)
+    for box in boxes:
+        reach = depths(low + shift, high + shift, box)
+        if reach.min() <= floor_clear.TOUCH:
+            continue
+        axis = 0 if reach[0] <= reach[2] else 2
+        away = 1.0 if (low[axis] + high[axis]) / 2 >= (box[0][axis] + box[1][axis]) / 2 else -1.0
+        shift[axis] += away * (float(reach[axis]) + MOVE_LEAST)
+    if not np.any(shift) or any(depths(low + shift, high + shift, box).min() > floor_clear.TOUCH for box in boxes):
+        return np.zeros(3)
+    return shift
 
 
 def hung_by_parts(stage, place, entries):

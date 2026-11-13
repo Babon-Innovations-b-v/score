@@ -2,6 +2,7 @@
 calls cleared after moved_out; assembly@walkway failed its resting gate on them, 2026-11-12).
 
     cleared(stage, place, entries)    each thing still in a wall piece narrowed to its room or moved out of the wall
+    into_room(low, high, box, axis, pieces)   the move that brings a thing reaching into a wall piece into its room
 
 The parting takes a thing inside a wall by more than HELD_MOST every way, and moved_out one reaching into it by
 HELD_MOST at most across it (fitting.shallow_out); neither takes the rest:
@@ -64,6 +65,23 @@ def narrowed(low, high, box, axis, pieces):
     target = fitting.foot_middle(low, high)
     target[axis] = (ends[0] + ends[1]) / 2
     return scale, target
+
+
+def into_room(low, high, box, axis, pieces):
+    """The move [x, y, z] along `axis` that brings a thing's box (low, high), reaching into the wall piece `box`, wholly
+    into the room between that piece and the one facing it across the thing (facing), the least way; None where no
+    piece faces it or the thing is longer than that room. Quarters' wall pipe, 4 m long in a 4.23 m room, hung up to
+    its roof from its plan spot ran 1.74 m on through its east wall (settle@quarters, 2026-11-13)."""
+    other = facing(box, axis, low, high, pieces)
+    if other is None:
+        return None
+    middle = (float(low[axis]) + float(high[axis])) / 2
+    near, far = sorted((room_face(box, axis, middle), room_face(other, axis, middle)))
+    if float(high[axis] - low[axis]) > far - near:
+        return None
+    move = np.zeros(3)
+    move[axis] = max(near - float(low[axis]), 0.0) + min(far - float(high[axis]), 0.0)
+    return move
 
 
 def moved_across(low, high, box, axis, statics):
