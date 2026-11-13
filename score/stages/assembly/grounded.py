@@ -9,7 +9,7 @@ import os
 import pathlib
 import shutil
 
-from score.stages.assembly import face_down, level_spot, on_ground, parting, railings_held, roof_tops, tops_levelled
+from score.stages.assembly import face_down, floor_down, level_spot, on_ground, parting, railings_held, roof_tops, tops_levelled
 
 # The seed's own files copied beside its root (its assets are copied or linked apart).
 SEED_PARTS = ("layers", "inputs.json")
@@ -48,6 +48,7 @@ def grounded_seed(inputs, folder):
     record.take_ground(inputs["terrain"], seed.name, root)
     level_spot.slid(folder, seed.name)  # to a level spot of its made ground, as wired.make
     on_ground.stood(folder, seed.name)  # on its made ground, as the assembly's make stands them (wired.make)
+    floor_down.let_down(folder, seed.name)  # a floor thing laid past what the settle lets down onto what is under it
     railings_held.laid(folder, seed.name, inventory_rows(inputs))  # a railing to its row's height, off the walls
     tops_levelled.laid(folder, seed.name)  # a thing on its holder's curved top laid again on its levelled model
     roof_tops.let_down(folder, seed.name, inventory_rows(inputs))  # a roof piece onto the holder it roofs

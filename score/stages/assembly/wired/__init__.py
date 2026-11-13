@@ -9,7 +9,9 @@ this one, so it moves the assembly's key alone (as held_apart.py does for the he
                             control_pedestals_2 under its wall_pipes_1, 2026-11-10)
              stood          each floor thing at an open place's floor slid to a level spot beside it where its made
                             ground slopes (level_spot.py: wreck's tank in its dent) and stood on that ground
-                            (on_ground.py), each railing of a row held to its height and cut back off the built
+                            (on_ground.py), each floor thing laid further over what is under it than the settle
+                            lets down let down onto it (floor_down.py: hangar's spaceship at its plan's keel height,
+                            2026-11-13), each railing of a row held to its height and cut back off the built
                             walls (railings_held.py: greenhouse's), each thing on its holder's curved top laid again
                             on its levelled model (tops_levelled.py: wreck's open hatch), or on a finer grid's spot
                             of its top (fine_tops.py: greenhouse's computers), each roof piece on its holder's top let
@@ -36,7 +38,7 @@ import json
 import pathlib
 
 from score.stages import assembly
-from score.stages.assembly import face_down, level_spot, on_ground, parting, railings_held, roof_tops, tops_levelled
+from score.stages.assembly import face_down, floor_down, level_spot, on_ground, parting, railings_held, roof_tops, tops_levelled
 
 # gaps.WRITTEN, the file complete's accepted gaps gate reads; named here, not imported, so score/stages/gaps.py stays
 # out of the assembly's code version (a gap's verdict moves complete alone; the test reads it back through gaps.py)
@@ -53,6 +55,7 @@ def make(inputs, out, seed, params):
     parting.parted(out, assembly.stage_file(out).stem)
     level_spot.slid(out, assembly.stage_file(out).stem)
     on_ground.stood(out, assembly.stage_file(out).stem)
+    floor_down.let_down(out, assembly.stage_file(out).stem)
     railings_held.laid(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))  # held, off the walls
     tops_levelled.laid(out, assembly.stage_file(out).stem)
     roof_tops.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
