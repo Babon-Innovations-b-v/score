@@ -103,8 +103,9 @@ ROOMS = [((True, False), (True, True, True)),
          ((True, True), (False, False, False)),
          ((False, False), (None, False, None))]
 
-# a body's (middle, radius) -> the horizon's dip from an eye 1.7 m up, worked by hand
-HORIZONS = [(((0.0, -220.0, 0.0), 220.0), np.degrees(np.arccos(220.0 / 221.7))), (None, 0.0)]
+# a body's (middle, radius) -> the horizon's dip from an eye 1.7 m up, worked by hand, and its tolerance
+# (no body: exactly no dip)
+HORIZONS = [(((0.0, -220.0, 0.0), 220.0), np.degrees(np.arccos(220.0 / 221.7)), 1e-9), (None, 0.0, 0.0)]
 
 # a 4 x 3 m room (walls, an inside place: its shell lays a deck 0.2 m thick, its top at the floor, out 0.15 m past its
 # outline) on flat ground at its floor: the ground under its deck lies at the deck's foot, -0.2 m, the ground round it
@@ -249,9 +250,9 @@ def test_ground_follows_design(tmp_path, monkeypatch):
         if holes is not None:
             found = fit.measure_continuous(gates.caster(scene), {"floor": [[-2.0, -2.0], [2.0, 2.0]]}, 10.0)
             assert (found["holes"] > 0) is holes and found["rays"] > 400, (row, found)
-    for body, dip in HORIZONS:
+    for body, dip, tolerance in HORIZONS:
         turned_up, found = sight.horizon([0.0, 1.7, 0.0], up, body)
-        assert abs(found - dip) < 1e-9 and np.allclose(turned_up, [0, 1, 0]), (body, found)
+        assert abs(found - dip) <= tolerance and np.allclose(turned_up, [0, 1, 0]), (body, found)
 
     # ground-fit: an object hanging over the ground floats, one on rough ground is named, one high on a wall is neither
     boxes = {"crate_1": (np.array([0.0, 0.12, 0.0]), np.array([1.0, 1.0, 1.0])),
