@@ -1043,68 +1043,55 @@ def modules_of_its_own(prefix, files):
         shutil.rmtree(root)
 
 
-def test_the_code_version_follows_imports_inside_functions_through_path_folders_and_wrapped_judges():
-    """A function importing inside its body a module from another path folder; a judge wrapped elsewhere
-    (functools.wraps) is hashed from its own module too (the surface stage's guarded checks); the venv never.
-    Break: score/graph/_code.py: 'for node in ast.walk(ast.parse(source, str(path))):' -> 'for node in ast.parse(source, str(path)).body:'"""
-    files = {"start/follow_start.py": "def work():\n    import follow_inner\n    return follow_inner.VALUE\n",
-             "inner/follow_inner.py": "import numpy\nVALUE = 1\n",
-             "start/follow_judge.py": "def judge(output, inputs, evidence):\n    return None\n"}
-    with modules_of_its_own("_code_follow_", files) as root:
-        sys.path[:0] = [str(root / "start"), str(root / "inner")]
-        _code.search_folders.cache_clear()
+CODE_FILES = {"start/follow_start.py": "def work():\n    import follow_inner\n    return follow_inner.VALUE\n",
+              "inner/follow_inner.py": "import numpy\nVALUE = 1\n",
+              "start/follow_judge.py": "def judge(output, inputs, evidence):\n    return None\n",
+              "start/follow_wrap.py": "import functools\n\n\ndef wrap(judge):\n"
+                                      "    return functools.wraps(judge)(lambda output, inputs, evidence: None)\n",
+              "first/top_of_order.py": "import shared_name\n\n\ndef work():\n    return shared_name\n",
+              "one/shared_name.py": "VALUE = 1\n", "other/shared_name.py": "VALUE = 2\n",
+              "later/shared_name.py": "VALUE = 3\n",
+              "start/edited_start.py": "def work():\n    return 1\n", "start/edited_added.py": "VALUE = 1\n"}
+
+
+def test_the_code_version_is_every_repository_file_a_stages_functions_import_and_only_those():
+    """One folder of modules of its own, read through the real import walk (_code.source_files, _code.code_version):
+    a function importing inside its body a module from another path folder is followed there; a judge wrapped
+    elsewhere (functools.wraps) is hashed from its own module too (the surface stage's guarded checks); the venv
+    (numpy) never. A name two path folders hold is hashed from both, in either order (a row's key moved between two
+    runs with no file changed, 2026-10-11); a folder put on the path after the first code version gives no stage
+    another same-named module (stages_test's earlier tests gave effects-layer triage.py, 2026-10-13). The import walk
+    is cached a process (#49), and an import added to a file is followed at the next read.
+    Break: score/graph/_code.py: 'for node in ast.walk(ast.parse(source, str(path))):' -> 'for node in ast.parse(source, str(path)).body:'
+    Break: score/graph/_code.py: 'if known is None or known[0] != stamp or not all(module.is_file() for module in known[1]):' -> 'if known is None:'
+    Break: score/graph/_code.py: '            if is_file(path)}' -> '            if is_file(path) and path == next(candidate for candidate, _ in repository_candidates(name, search_folders(), REPO, OUTSIDE) if is_file(candidate))}'"""
+    with modules_of_its_own("_code_version_", CODE_FILES) as root:
+        sys.path[:0] = [str(root / name) for name in ("start", "inner", "first")]
+        import edited_start
         import follow_judge
         import follow_start
-        found = {path.relative_to(root).as_posix() for path in _code.source_files([follow_start.work])}
-        assert found == {"start/follow_start.py", "inner/follow_inner.py"}, found
-        wrapped = functools.wraps(follow_judge.judge)(lambda output, inputs, evidence: None)
-        assert "follow_judge.py" in {path.name for path in _code.source_files([wrapped])}
-
-
-def test_a_file_edited_in_one_process_gives_a_new_code_version():
-    """The import walk is cached a process (#49); an import added to a file is followed at the next read.
-    Break: score/graph/_code.py: 'if known is None or known[0] != stamp or not all(module.is_file() for module in known[1]):' -> 'if known is None:'"""
-    files = {"edited_start.py": "def work():\n    return 1\n", "edited_added.py": "VALUE = 1\n"}
-    with modules_of_its_own("_code_edited_", files) as root:
-        sys.path.insert(0, str(root))
-        _code.search_folders.cache_clear()
-        import edited_start
-        before = _code.code_version([edited_start.work], lambda path: "same")
-        assert before == _code.code_version([edited_start.work], lambda path: "same")
-        (root / "edited_start.py").write_text("import edited_added\n\n\ndef work():\n    return 1\n")
-        after = _code.code_version([edited_start.work], lambda path: "same")
-        assert after != before and any("edited_added.py" in part for part in after), after
-
-
-SHARED = {"first/top_of_order.py": "import shared_name\n\n\ndef work():\n    return shared_name\n",
-          "one/shared_name.py": "VALUE = 1\n", "other/shared_name.py": "VALUE = 2\n"}
-
-
-def test_the_code_version_holds_whatever_the_paths_order_and_whatever_folder_comes_on_it_later():
-    """A name two path folders hold is hashed from both, in either order (a row's key moved between two runs with no
-    file changed, 2026-10-11); a folder put on the path after the first code version gives no stage another
-    same-named module (stages_test's earlier tests gave effects-layer triage.py, 2026-10-13).
-    Break: score/graph/_code.py: '                found.add(path.resolve())' -> '                return {path.resolve()}'"""
-    with modules_of_its_own("_code_order_", SHARED) as root:
-        sys.path[:0] = [str(root / "first")]
+        import follow_wrap
         found = []
         for order in (("one", "other"), ("other", "one")):
-            sys.path[1:1] = [str(root / name) for name in order]
+            sys.path[3:3] = [str(root / name) for name in order]
             _code.search_folders.cache_clear()
             sys.modules.pop("top_of_order", None)
             import top_of_order
-            found.append(_code.source_files([top_of_order.work]))
-            del sys.path[1:3]
-        assert found[0] == found[1] and len(found[0]) == 3, found
-    with modules_of_its_own("_code_later_", {name.replace("other/", "later/"): text
-                                            for name, text in SHARED.items()}) as root:
-        sys.path[:0] = [str(root / "first"), str(root / "one")]
+            functions = [follow_start.work, follow_wrap.wrap(follow_judge.judge), top_of_order.work, edited_start.work]
+            found.append({path.relative_to(root).as_posix() for path in _code.source_files(functions)})
+            del sys.path[3:5]
+        assert found[0] == found[1] == {
+            "start/follow_start.py", "inner/follow_inner.py", "start/follow_wrap.py", "start/follow_judge.py",
+            "first/top_of_order.py", "one/shared_name.py", "other/shared_name.py", "start/edited_start.py"}, found
+        sys.path[3:3] = [str(root / "one"), str(root / "other")]
         _code.search_folders.cache_clear()
-        sys.modules.pop("top_of_order", None)
-        import top_of_order
-        before = _code.source_files([top_of_order.work])
+        before = _code.code_version(functions, lambda path: "same")
         sys.path.insert(0, str(root / "later"))
-        assert _code.source_files([top_of_order.work]) == before and len(before) == 2, before
+        assert _code.code_version(functions, lambda path: "same") == before
+        (root / "start/edited_start.py").write_text("import edited_added\n\n\ndef work():\n    return 1\n")
+        after = _code.code_version(functions, lambda path: "same")
+        assert [part for part in after if part not in before] == [
+            f"{(root / 'start/edited_added.py').relative_to(REPO).as_posix()} same"], after
 
 
 # --- reads beside: other places' outputs, an environment's, up to a shell and down to child scenes -----------------
