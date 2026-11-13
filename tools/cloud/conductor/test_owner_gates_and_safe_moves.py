@@ -87,8 +87,13 @@ The checkout moves (update.py):
   registry entry, fresh: running 0, buys 0) holds back only a uv.lock move (2026-11-02: a plan row run waiting ten
   hours for memory held the conductor off its pin). Break: `idle_copies` drops the `running` test -> a working run is
   passed by. Break: drop the `if runs and lock_changed` refusal -> .venv is synced under an idle run.
-- A move that changes units/ installs them (`boot.sh units`), so a new unit is live without a boot.
+- A move that changes units/ installs them (`boot.sh units`), so a new unit is live without a boot; the pinned Claude
+  Code is installed by a move when it is not there; a release's commit noted by the door's release-pin is followed
+  while the cockpit still pins the commit it replaced.
   Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
+  Break: `units_installed` returns "". Break: `claude_installed` returns "". Break: `released_over` returns the pin
+  first. Break: agent_door.release_pinned drops its `run(...)` of update.py.
+  (These cases are rows of CASES in test_the_checkout_moves_only_when_nothing_works_from_it, each break seen red.)
 - score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
   moves, and an identity it has stays (2026-10-28: every library commit on the conductor failed for want of one).
   Break: in `library_identified`, `.returncode == 0` -> `.returncode == 1` (no identity given; one there overwritten).
@@ -1429,6 +1434,13 @@ def test_secrets_go_whole_and_private_to_the_runtime_folder_and_an_empty_read_re
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.org", "GIT_COMMITTER_NAME": "t",
            "GIT_COMMITTER_EMAIL": "t@example.org", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
 TOKEN = "t" * 40
+HOSTED = "hosted"  # a cockpit that pins nothing yet (its mode, no commit)
+ABSENT = "absent"  # pin.json holds no pin: the update stopped before it read one
+RUN = b"/x/.venv/bin/python\0-m\0score\0run\0world1\0"
+SYNC_PASS = b"/x/.venv/bin/python\0-m\0score.dashboard\0sync\0"
+UPDATES_FIRST = "[Service]\nExecStartPre=/usr/bin/python3 -I /r/tools/cloud/conductor/update.py --repo /r\n"
+DASHBOARD_SYNC = ["sync", "-q", "--frozen", "--group", "dashboard"]
+PROPS_SYNC = ["{home}/env", "sync", "-q", "--frozen", "--no-dev", "--project", "{checkout}"]
 
 
 def git(repo, *args):
@@ -1437,7 +1449,9 @@ def git(repo, *args):
 
 
 def commit(repo, name, text):
-    (pathlib.Path(repo) / name).write_text(text)
+    path = pathlib.Path(repo) / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text)
     git(repo, "add", name)
     git(repo, "commit", "-q", "-m", name)
     return git(repo, "rev-parse", "HEAD")
@@ -1445,8 +1459,8 @@ def commit(repo, name, text):
 
 @contextlib.contextmanager
 def cockpit(answer):
-    """A local cockpit, its base URL: /api/sync/pin with the token answers `answer` (a dict), anything else the
-    hosting proxy's own /healthz body or 401, as the proxy and the token check do."""
+    """A local cockpit, its base URL: /api/sync/pin with the token answers what `answer` (a dict, changed between
+    calls) holds, anything else the hosting proxy's own /healthz body or 401, as the proxy and the token check do."""
     class Health(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             signed_in = self.headers.get("Authorization") == f"Bearer {TOKEN}"
@@ -1472,212 +1486,242 @@ def cockpit(answer):
         server.shutdown()
 
 
-@pytest.fixture
-def world(tmp_path):
-    """An origin with three commits on main (uv.lock, a.txt, uv.lock), a checkout detached at the first, a uv shim
-    logging its calls, an empty proc folder and a home beside them; `move(url)` runs update.update on it."""
-    origin = tmp_path / "origin"
-    origin.mkdir()
+def origin_commits(origin, boot_log):
+    """Main's commits by name (uv.lock, a.txt, uv.lock, boot.sh, a unit, b.txt, boot.sh pinning Claude Code 9.9.9)
+    and `side`, one commit on a branch off main."""
     git(origin, "init", "-q", "-b", "main")
-    commits = [commit(origin, "uv.lock", "one"), commit(origin, "a.txt", "two"), commit(origin, "uv.lock", "three")]
-    checkout = tmp_path / "checkout"
+    boot = "tools/cloud/conductor/boot.sh"
+    commits = {"lock1": commit(origin, "uv.lock", "one"), "a": commit(origin, "a.txt", "two"),
+               "lock3": commit(origin, "uv.lock", "three"),
+               "boot": commit(origin, boot, f'echo "$1" >> {boot_log}\n'),
+               "unit": commit(origin, "tools/cloud/conductor/units/score-sweep.timer", "[Timer]\n"),
+               "b": commit(origin, "b.txt", "not a unit"),
+               "claude": commit(origin, boot, f'CLAUDE_PIN="@anthropic-ai/claude-code@9.9.9"\necho "$1" >> {boot_log}\n')}
+    git(origin, "checkout", "-q", "-b", "side")
+    commits["side"] = commit(origin, "c.txt", "off main")
+    git(origin, "checkout", "-q", "main")
+    return commits
+
+
+def case(name, start, pin, *, head=None, has=(), lacks=(), ends="", uv=(), boot=(), noted="pin", token=TOKEN,
+         release=None, home=(), processes=(), registry=None, sync_unit=None, dirty=False, library=None, email=None):
+    """One moment of the conductor's checkout: where it stands (`start`), what the cockpit pins (`pin`, a commit's
+    name or HOSTED), what lives beside it (`home` files, `processes` {pid: (command line, "frozen" or "checkout")},
+    a `registry` entry (gauges, fresh) for the frozen copy, the installed `sync_unit`, uncommitted changes, score_lib's
+    `library` identity: "none" or an email), whether the door's release-pin brings it (`release`: (commit, replaced));
+    then what the update leaves: the commit it stands at (`head`, default `start`), words the line has, lacks and ends
+    with, the uv and boot.sh calls made, the pin noted for the Machine card (default the pin read) and score_lib's
+    email."""
+    if noted == "pin":
+        noted = None if pin == HOSTED else pin
+    return dict(name=name, start=start, pin=pin, head=head or start, has=has, lacks=lacks, ends=ends, uv=uv, boot=boot,
+                noted=noted, token=token, release=release, home=home, processes=dict(processes), registry=registry,
+                sync_unit=sync_unit, dirty=dirty, library=library, email=email)
+
+
+IN_FROZEN = {5151: (RUN, "frozen")}
+CASES = [
+    # A release's commit, noted through the door's release-pin, is followed while the cockpit still pins the commit
+    # it replaced (the door runs released code before the host has built); a pin that moved on is followed again.
+    case("release-followed-before-the-host-builds", "lock1", "lock1", head="a", release=("a", "lock1"),
+         has=("release-pin: ", "the release's commit"), noted="a"),
+    case("release-passed-by-a-pin-that-moved-on", "a", "lock3", release=("a", "lock1"), head="lock3",
+         has=(".venv synced",), uv=(DASHBOARD_SYNC,)),
+    case("a-pin-reached-moves-and-syncs-nothing", "a", "a", has=("update: at ",)),
+    # A move that changes units/ installs them (2026-10-31: the disk sweep's own timer waited for a boot); the pinned
+    # Claude Code is installed by a move when it is not there (owner, 2026-11-05).
+    case("units-changed-installed", "lock3", "unit", head="unit", ends=", the units installed", boot=("units",)),
+    case("no-unit-changed-none-installed", "unit", "b", head="b", lacks=("units",)),
+    case("claude-code-pinned-installed", "b", "claude", head="claude", has=(", Claude Code 9.9.9 installed",),
+         boot=("claude",)),
+    # After the move (machine.json), a missing prop environment (left out of every backup) or a lock move syncs it.
+    case("before-the-move-no-prop-environment", "lock1", "lock1", lacks=("prop environment",)),
+    case("prop-environment-missing-built", "lock1", "lock1", home=("machine.json",),
+         has=("update: at ", "the prop environment synced"), uv=(PROPS_SYNC,)),
+    case("prop-environment-there-kept", "lock1", "lock1", home=("machine.json", "env/bin/python"),
+         lacks=("prop environment",)),
+    case("lock-move-syncs-the-prop-environment", "lock1", "lock3", head="lock3", home=("machine.json", "env/bin/python"),
+         has=("the prop environment synced",), uv=(DASHBOARD_SYNC, PROPS_SYNC)),
+    # A pin off main is refused, an unread pin moves nothing, no pin follows origin/main forward.
+    case("pin-off-main-refused", "lock1", "side", has=("refused",)),
+    case("unread-pin-moves-nothing", "lock1", "a", token="wrong", noted=ABSENT,
+         has=("update: not now, the cockpit's pin could not be read", "401")),
+    case("no-pin-follows-main", "lock1", HOSTED, head="claude", has=("origin/main",),
+         uv=(DASHBOARD_SYNC,), boot=("units", "claude")),
+    # A live run in its frozen copy holds every move; one whose fresh registry entry runs and buys nothing (2026-11-02)
+    # holds back only a uv.lock move; a stale entry says nothing of now; score starting from the checkout holds it.
+    case("frozen-run-holds-a-lock-move", "lock1", "lock3", processes=IN_FROZEN,
+         has=("not now", "pid 5151: /x/.venv/bin/python -m score run world1")),
+    case("frozen-run-holds-any-move", "lock1", "a", processes=IN_FROZEN, has=("5151",)),
+    case("running-run-holds-a-lock-move", "lock1", "lock3", processes=IN_FROZEN,
+         registry=({"running": 1, "buys": 0}, True), has=("not now",)),
+    case("running-run-holds-any-move", "lock1", "a", processes=IN_FROZEN, registry=({"running": 1, "buys": 0}, True),
+         has=("not now",)),
+    case("buying-run-holds-a-lock-move", "lock1", "lock3", processes=IN_FROZEN,
+         registry=({"running": 0, "buys": 2}, True), has=("not now",)),
+    case("buying-run-holds-any-move", "lock1", "a", processes=IN_FROZEN, registry=({"running": 0, "buys": 2}, True),
+         has=("not now",)),
+    case("idle-run-holds-a-lock-move", "lock1", "lock3", processes=IN_FROZEN,
+         registry=({"running": 0, "buys": 0}, True), has=("not now", "an idle run's copy links .venv")),
+    case("idle-run-passed-by", "lock1", "a", head="a", processes=IN_FROZEN, registry=({"running": 0, "buys": 0}, True),
+         has=("->",)),
+    case("stale-idle-entry-holds", "lock1", "a", processes=IN_FROZEN, registry=({"running": 0, "buys": 0}, False),
+         has=("5151",)),
+    case("score-starting-from-the-checkout-holds", "lock1", HOSTED, processes={4242: (RUN, "checkout")},
+         noted=ABSENT, has=("not now", "4242")),
+    # A sync pass holds back only a uv.lock move (2026-10-25); the line names a unit with no update before its pass.
+    case("sync-pass-lets-a-move-by", "lock1", "a", head="a", processes={6161: (SYNC_PASS, "checkout")}, has=("->",)),
+    case("sync-pass-holds-a-lock-move", "a", "lock3", processes={6161: (SYNC_PASS, "checkout")},
+         has=("not now", "6161", "runs no update")),
+    case("sync-pass-of-a-unit-updating-first", "a", "lock3", processes={6161: (SYNC_PASS, "checkout")},
+         sync_unit=UPDATES_FIRST, has=("not now", "6161"), lacks=("runs no update",)),
+    case("tracked-changes-wait", "lock1", "lock3", dirty=True, noted=ABSENT, has=("tracked changes",)),
+    # score_lib's checkout gets the machine's committer when git knows none there, even when nothing moves (2026-10-28).
+    case("library-without-identity-given-one", "claude", "claude", library="none",
+         has=("given its committer SCORE conductor",), email="conductor@score.invalid"),
+    case("library-identity-kept", "claude", "claude", library="owner@example.org", lacks=("committer",),
+         email="owner@example.org"),
+]
+
+
+@contextlib.contextmanager
+def checkout_world(folder):
+    """An origin (origin_commits), a checkout of it, a uv and a boot.sh logging their calls, a proc folder, a home
+    with a frozen copy, the sync unit's path, score_lib's place and one cockpit whose answer each case sets."""
+    origin = folder / "origin"
+    origin.mkdir()
+    commits = origin_commits(origin, folder / "boot.log")
+    checkout = folder / "checkout"
     subprocess.run(["git", "clone", "-q", str(origin), str(checkout)], check=True, env={**os.environ, **GIT_ENV})
-    git(checkout, "checkout", "-q", "--detach", commits[0])
-    log = tmp_path / "uv.log"
-    uv = executable(tmp_path / "uv", f"#!/bin/sh\necho \"${{UV_PROJECT_ENVIRONMENT:-}} $*\" >> {log}\n")
-    proc = tmp_path / "proc"
-    proc.mkdir()
-    home = tmp_path / "home"
-    sync_unit = tmp_path / "score-sync.service"
-
-    def move(url, token=TOKEN):
-        return update.update(checkout, url, uv=str(uv), proc=proc, token=lambda: token, home=home,
-                             sync_unit=sync_unit)
-
-    def at():
-        return git(checkout, "rev-parse", "HEAD")
-
-    def process(pid, cmdline, cwd):
-        entry = proc / str(pid)
-        entry.mkdir(exist_ok=True)
-        (entry / "cmdline").write_bytes(cmdline)
-        if (entry / "cwd").is_symlink():
-            (entry / "cwd").unlink()
-        (entry / "cwd").symlink_to(cwd)
-    return types.SimpleNamespace(origin=origin, checkout=checkout, commits=commits, log=log, proc=proc, home=home,
-                                 move=move, at=at, process=process, folder=tmp_path, sync_unit=sync_unit)
+    uv = executable(folder / "uv", f"#!/bin/sh\necho \"${{UV_PROJECT_ENVIRONMENT:-}} $*\" >> {folder / 'uv.log'}\n")
+    answer = {}
+    with cockpit(answer) as url:
+        yield types.SimpleNamespace(folder=folder, commits=commits, checkout=checkout, uv=uv, url=url, answer=answer,
+                                    home=folder / "home", proc=folder / "proc", sync_unit=folder / "score-sync.service",
+                                    library=folder / "score_lib", uv_log=folder / "uv.log",
+                                    boot_log=folder / "boot.log")
 
 
-def test_the_checkout_follows_the_pin_and_syncs_only_when_the_lock_moved(world):
-    """A release's commit, noted through the door's release-pin, is followed while the cockpit still pins the commit
-    it replaced, so the door runs released code before the host has built; a pin that moved on is followed again.
-    Break: in update.released_over, `return pin, "the cockpit's pin"` first (the door runs old code after a release).
-    Break: in agent_door.release_pinned, drop the `run(...)` of update.py (the move waits for the next tick)."""
+def stands(world, row):
+    """The world set to the row's moment, every trace of the case before wiped."""
+    for path in (world.home, world.proc, world.library):
+        shutil.rmtree(path, ignore_errors=True)
+    for path in (world.uv_log, world.boot_log, world.sync_unit):
+        path.unlink(missing_ok=True)
+    git(world.checkout, "checkout", "-q", "-f", "--detach", world.commits[row["start"]])
+    world.home.mkdir()
+    world.proc.mkdir()
+    copy = world.home / "frozen" / "abc123"
+    copy.mkdir(parents=True)
+    for name in row["home"]:
+        (world.home / name).parent.mkdir(parents=True, exist_ok=True)
+        (world.home / name).write_text("{}")
+    for pid, (cmdline, where) in row["processes"].items():
+        (world.proc / str(pid)).mkdir()
+        (world.proc / str(pid) / "cmdline").write_bytes(cmdline)
+        (world.proc / str(pid) / "cwd").symlink_to(copy if where == "frozen" else world.checkout)
+    if row["registry"]:
+        gauges, fresh = row["registry"]
+        entry = world.home / "runs" / "r1.json"
+        entry.parent.mkdir()
+        entry.write_text(json.dumps({"state": "running", "worktree": str(copy), **gauges}))
+        if not fresh:  # an entry not noted lately says nothing of what its run does now
+            old = time.time() - update.IDLE_FRESH - 60
+            os.utime(entry, (old, old))
+    if row["sync_unit"]:
+        world.sync_unit.write_text(row["sync_unit"])
+    if row["dirty"]:
+        (world.checkout / "uv.lock").write_text("edited")
+    if row["library"]:
+        subprocess.run(["git", "init", "-q", str(world.library)], check=True)
+        if row["library"] != "none":
+            git(world.library, "config", "user.email", row["library"])
+    world.answer.clear()
+    world.answer.update({"ok": True, "mode": "hosted"} if row["pin"] == HOSTED else
+                        {"ok": True, "commit": world.commits[row["pin"]]})
+
+
+def moved(world, row):
+    """The update's line: score-update's own call, or the door's release-pin running it."""
     import agent_door
-    with pytest.raises(agent_door.Refused, match="two full shas"):
-        agent_door.decide(["release-pin", world.commits[1][:12], world.commits[0]], False)
-    argv, _ = agent_door.decide(["release-pin", world.commits[1], world.commits[0]], False)
-    assert argv[1:] == [agent_door.RELEASE_PIN, world.commits[1], world.commits[0]], argv
+
+    def move():
+        return update.update(world.checkout, world.url, uv=str(world.uv), proc=world.proc, token=lambda: row["token"],
+                             home=world.home, sync_unit=world.sync_unit)
+    if not row["release"]:
+        return move()
     ran = []
 
     def update_now(command, **_):
         ran.append(command)
-        with cockpit({"ok": True, "commit": world.commits[0]}) as url:  # the host not built yet: the old pin
-            return types.SimpleNamespace(returncode=0, stdout=world.move(url) + "\n", stderr="")
-    code, said = agent_door.release_pinned(world.commits[1], world.commits[0], world.home, run=update_now, values={})
+        return types.SimpleNamespace(returncode=0, stdout=move() + "\n", stderr="")
+    released, replaced = (world.commits[name] for name in row["release"])
+    code, said = agent_door.release_pinned(released, replaced, world.home, run=update_now, values={})
     assert code == 0 and ran and ran[0][-3:] == [str(agent_door.REPO / "tools/cloud/conductor/update.py"), "--repo",
                                                  str(agent_door.REPO)], ran
-    assert world.at() == world.commits[1] and "the release's commit" in said, said
-    with cockpit({"ok": True, "commit": world.commits[1]}) as url:
-        line = world.move(url)
-    assert world.at() == world.commits[1] and not world.log.exists(), line  # a.txt only: no sync
-    noted = json.loads((world.home / "conductor" / "pin.json").read_text())
-    assert noted["pin"] == world.commits[1] and noted["at"]  # the Machine card's pin
-    with cockpit({"ok": True, "commit": world.commits[2]}) as url:
-        line = world.move(url)
-    assert world.at() == world.commits[2] and ".venv synced" in line
-    assert world.log.read_text().split() == ["sync", "-q", "--frozen", "--group", "dashboard"]
+    return said
 
 
-def test_a_move_that_changes_the_units_installs_them_without_a_boot(world):
-    """2026-10-31: the disk sweep's own timer would reach the live conductor only at its next boot.
-    Break: in update.py `units_installed`, return "" always (a new unit waits for a boot)."""
-    folder = world.origin / "tools" / "cloud" / "conductor" / "units"
-    folder.mkdir(parents=True)
-    log = world.folder / "boot-units.log"
-    commit(world.origin, "tools/cloud/conductor/boot.sh", f'echo "$1" >> {log}\n')
-    changed = commit(world.origin, "tools/cloud/conductor/units/score-sweep.timer", "[Timer]\n")
-    later = commit(world.origin, "b.txt", "not a unit")
-    git(world.checkout, "checkout", "-q", "--detach", world.commits[2])
-    with cockpit({"ok": True, "commit": changed}) as url:
-        line = world.move(url)
-    assert world.at() == changed and line.endswith(", the units installed"), line
-    with cockpit({"ok": True, "commit": later}) as url:
-        line = world.move(url)
-    assert world.at() == later and "units" not in line and log.read_text().split() == ["units"], line
-    # The pinned Claude Code (owner, 2026-11-05) installed by the move when it is not there, not again once it is.
-    # Break: in update.py `claude_installed`, return "" always (a live conductor never gets Claude Code).
-    pinned = commit(world.origin, "tools/cloud/conductor/boot.sh",
-                    f'CLAUDE_PIN="@anthropic-ai/claude-code@9.9.9"\necho "$1" >> {log}\n')
-    with cockpit({"ok": True, "commit": pinned}) as url:
-        line = world.move(url)
-    assert world.at() == pinned and ", Claude Code 9.9.9 installed" in line, line
-    assert log.read_text().split() == ["units", "claude"]
-    cli = world.folder / "claude-cli"
-    cli.write_text('#!/bin/sh\necho "9.9.9 (Claude Code)"\n')
-    cli.chmod(0o755)
-    assert update.claude_installed(world.checkout, cli) == "" and log.read_text().split() == ["units", "claude"]
-
-
-def test_after_the_move_a_lock_move_or_a_missing_prop_environment_syncs_it(world):
-    world.home.mkdir()
-    with cockpit({"ok": True, "commit": world.commits[0]}) as url:
-        assert "prop environment" not in world.move(url)  # before the move: the home stays empty
-        (world.home / "machine.json").write_text("{}")
-        line = world.move(url)  # the prop environment is left out of every backup: built at the next update
-        assert line.startswith("update: at ") and "the prop environment synced" in line, line
-        (world.home / "env" / "bin").mkdir(parents=True)
-        (world.home / "env" / "bin" / "python").write_text("")
-        assert "prop environment" not in world.move(url)
-    assert len(world.log.read_text().splitlines()) == 1
-    with cockpit({"ok": True, "commit": world.commits[2]}) as url:
-        assert "the prop environment synced" in world.move(url)
-    assert world.log.read_text().splitlines()[-1].split() == [
-        str(world.home / "env"), "sync", "-q", "--frozen", "--no-dev", "--project", str(world.checkout)]
-
-
-def test_a_pin_off_main_is_refused_none_follows_main_forward_and_an_unread_pin_moves_nothing(world):
-    git(world.origin, "checkout", "-q", "-b", "side")
-    side = commit(world.origin, "b.txt", "off main")
-    git(world.checkout, "fetch", "-q", "origin", "side")
-    with cockpit({"ok": True, "commit": side}) as url:
-        assert "refused" in world.move(url) and world.at() == world.commits[0]
-    with cockpit({"commit": world.commits[1]}) as url:  # a wrong token: the proxy's 401
-        line = world.move(url, token="wrong")
-    assert line.startswith("update: not now, the cockpit's pin could not be read") and "401" in line
-    assert world.at() == world.commits[0]
-    with cockpit({"ok": True, "mode": "hosted"}) as url:
-        line = world.move(url)
-    assert world.at() == world.commits[2] and "origin/main" in line
-
-
-def test_a_move_waits_while_a_run_works_in_its_frozen_copy_or_score_starts_from_the_checkout(world):
-    copy = world.home / "frozen" / "abc123"
-    copy.mkdir(parents=True)
-    world.process(5151, b"/x/.venv/bin/python\0-m\0score\0run\0world1\0", copy)
-    with cockpit({"commit": world.commits[2]}) as url:
-        line = world.move(url)
-    assert "not now" in line and "pid 5151: /x/.venv/bin/python -m score run world1" in line
-    assert world.at() == world.commits[0] and not world.log.exists()
-    with cockpit({"commit": world.commits[1]}) as url:
-        assert "5151" in world.move(url) and world.at() == world.commits[0]  # a.txt only: still held
-    entry = world.home / "runs" / "r1.json"
-    entry.parent.mkdir(parents=True)
-    for gauges, moves in (({"running": 1, "buys": 0}, False), ({"running": 0, "buys": 2}, False),
-                          ({"running": 0, "buys": 0}, True)):
-        entry.write_text(json.dumps({"state": "running", "worktree": str(copy), **gauges}))
-        with cockpit({"commit": world.commits[2]}) as url:  # uv.lock moves: an idle run's copy links .venv
-            assert "not now" in world.move(url) and world.at() == world.commits[0]
-        with cockpit({"commit": world.commits[1]}) as url:
-            line = world.move(url)
-        assert (world.at() == world.commits[1]) == moves, (gauges, line)
-        git(world.checkout, "checkout", "-q", "--detach", world.commits[0])
-    old = time.time() - update.IDLE_FRESH - 60
-    os.utime(entry, (old, old))  # an entry not noted lately says nothing of what its run does now
-    with cockpit({"commit": world.commits[1]}) as url:
-        assert "5151" in world.move(url) and world.at() == world.commits[0]
-    entry.unlink()
-    world.process(5151, b"/x/.venv/bin/python\0-m\0score\0run\0world1\0", world.folder)  # the run ended
-    world.process(4242, b"/x/.venv/bin/python\0-m\0score\0run\0world1\0", world.checkout)
-    line = world.move(None)
-    assert "not now" in line and "4242" in line and world.at() == world.commits[0]
-    world.process(4242, b"/x/.venv/bin/python\0-m\0score\0run\0world1\0", world.folder)
-    with cockpit({"commit": world.commits[2]}) as url:
-        assert ".venv synced" in world.move(url) and world.at() == world.commits[2]
-
-
-def test_a_sync_pass_holds_back_only_a_lock_move(world):
-    """A pass outlasts the 5-minute timer and the next starts right after it (2026-10-25: the checkout sat on an old
-    commit all morning)."""
-    world.process(6161, b"/x/.venv/bin/python\0-m\0score.dashboard\0sync\0", world.checkout)
-    with cockpit({"commit": world.commits[1]}) as url:
-        assert "->" in world.move(url) and world.at() == world.commits[1]
-    with cockpit({"commit": world.commits[2]}) as url:
-        line = world.move(url)
-        assert "not now" in line and "6161" in line and world.at() == world.commits[1]
-        # the health record says why the checkout lags; a unit with no update before its pass is named (2026-10-26)
-        noted = json.loads((world.home / "conductor" / "pin.json").read_text())
-        assert noted["pin"] == world.commits[2] and noted["said"] == line and "runs no update" in line
-        world.sync_unit.write_text(f"[Service]\nExecStartPre=/usr/bin/python3 -I /r/tools/cloud/conductor/update.py "
-                                   f"--repo /r\n")
-        assert "runs no update" not in world.move(url)
-
-
-def test_a_checkout_with_changes_waits_and_two_updates_take_turns(world, monkeypatch):
-    (world.checkout / "uv.lock").write_text("edited")
-    assert "tracked changes" in world.move(None) and world.at() == world.commits[0]
-    git(world.checkout, "checkout", "-q", "--", "uv.lock")
-    called = []
-    monkeypatch.setattr(update, "update", lambda repo, url: called.append(repo) or "update: at test")
-    with open(world.checkout / ".git" / "score-update.lock", "w") as held:
-        fcntl.flock(held, fcntl.LOCK_EX)
-        second = threading.Thread(target=update.main, args=(["--repo", str(world.checkout)],))
-        second.start()
-        second.join(0.5)
-        assert second.is_alive() and not called
-    second.join(5)
-    assert called == [world.checkout.resolve()]
-
-
-def test_score_libs_checkout_gets_the_machines_committer_only_when_it_has_none(world, monkeypatch):
+def test_the_checkout_moves_only_when_nothing_works_from_it(tmp_path, monkeypatch):
+    """Each case of CASES: the one world set to its moment, the update run once through score-update's call or the
+    door's release-pin, then where the checkout stands, what its line says, what uv and boot.sh were asked, the pin
+    noted for the Machine card and score_lib's committer; then Claude Code at its pin is left alone and two updates
+    take turns on the checkout's lock.
+    Break: fall back to origin/main when the pin read fails -> unread-pin-moves-nothing.
+    Break: `lock_changed` always True -> a-pin-reached-moves-and-syncs-nothing.
+    Break: `idle_copies` drops the `running` test -> running-run-holds-any-move.
+    Break: drop the `if runs and lock_changed` refusal -> idle-run-holds-a-lock-move.
+    Break: `frozen_users` returns [] -> frozen-run-holds-any-move.
+    Break: `pass_updates_first` always True -> sync-pass-holds-a-lock-move.
+    Break: in update.released_over, `return pin, "the cockpit's pin"` first -> release-followed-before-the-host-builds.
+    Break: in agent_door.release_pinned, drop the `run(...)` of update.py -> release-followed-before-the-host-builds.
+    Break: in update.py `units_installed`, return "" always -> units-changed-installed.
+    Break: in update.py `claude_installed`, return "" always -> claude-code-pinned-installed.
+    Break: in `library_identified`, `.returncode == 0` -> `.returncode == 1` -> library-identity-kept.
+    Break: drop the lock in update.main -> two updates no longer take turns."""
+    import agent_door
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    library = world.checkout.parent / "score_lib"
-    subprocess.run(["git", "init", "-q", str(library)], check=True)
-    line = world.move(None)
-    assert "given its committer SCORE conductor" in line, line
-    assert git(library, "config", "user.email") == "conductor@score.invalid"
-    assert git(library, "config", "user.name") == "SCORE conductor"
-    git(library, "config", "user.email", "owner@example.org")
-    assert "committer" not in world.move(None)
-    assert git(library, "config", "user.email") == "owner@example.org"
+    with checkout_world(tmp_path) as world:
+        commits = world.commits
+        with pytest.raises(agent_door.Refused, match="two full shas"):
+            agent_door.decide(["release-pin", commits["a"][:12], commits["lock1"]], False)
+        argv, _ = agent_door.decide(["release-pin", commits["a"], commits["lock1"]], False)
+        assert argv[1:] == [agent_door.RELEASE_PIN, commits["a"], commits["lock1"]], argv
+        places = {"home": world.home, "checkout": world.checkout}
+        for row in CASES:
+            stands(world, row)
+            line = moved(world, row)
+            said = f"{row['name']}: {line}"
+            assert git(world.checkout, "rev-parse", "HEAD") == commits[row["head"]], said
+            assert all(words in line for words in row["has"]), said
+            assert not any(words in line for words in row["lacks"]) and line.endswith(row["ends"]), said
+            asked = [[word.format(**places) for word in call] for call in row["uv"]]
+            uv_calls = world.uv_log.read_text().splitlines() if world.uv_log.exists() else []
+            assert [call.split() for call in uv_calls] == asked, said
+            assert (world.boot_log.read_text().split() if world.boot_log.exists() else []) == list(row["boot"]), said
+            noted = json.loads((world.home / "conductor" / "pin.json").read_text())
+            # the health record says why a checkout lags: the update's own line (the door's adds its note before it)
+            assert (line.endswith(f"; {noted['said']}") if row["release"] else noted["said"] == line), (said, noted)
+            want = row["noted"] if row["noted"] in (ABSENT, None) else commits[row["noted"]]
+            assert noted.get("pin", ABSENT) == want and (want == ABSENT or noted["at"]), (said, noted)
+            if row["email"]:
+                assert git(world.library, "config", "user.email") == row["email"], said
+                assert row["library"] != "none" or git(world.library, "config", "user.name") == "SCORE conductor"
+
+        # Claude Code already at its pin is not installed again.
+        cli = executable(world.folder / "claude-cli", '#!/bin/sh\necho "9.9.9 (Claude Code)"\n')
+        git(world.checkout, "checkout", "-q", "-f", "--detach", commits["claude"])
+        world.boot_log.unlink(missing_ok=True)
+        assert update.claude_installed(world.checkout, cli) == "" and not world.boot_log.exists()
+        # Two updates take turns on the checkout's lock.
+        called = []
+        monkeypatch.setattr(update, "update", lambda repo, url: called.append(repo) or "update: at test")
+        with open(world.checkout / ".git" / "score-update.lock", "w") as held:
+            fcntl.flock(held, fcntl.LOCK_EX)
+            second = threading.Thread(target=update.main, args=(["--repo", str(world.checkout)],))
+            second.start()
+            second.join(0.5)
+            assert second.is_alive() and not called
+        second.join(5)
+        assert called == [world.checkout.resolve()]
