@@ -209,7 +209,7 @@ FUNCTION_DEBT = {
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
     "tools/props/gates/test_model_gate_judges_real_meshes.py": 5,
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
-    "tools/props/scene/test_a_scene_is_made_from_its_concept.py": 25,
+    "tools/props/scene/test_a_scene_is_made_from_its_concept.py": 17,
     "tools/props/test_crop_as_pixal3d_does.py": 7,
     "tools/props/test_one_run_on_the_card.py": 12,
     "tools/props/test_raw_model_faces_minus_z.py": 3,
