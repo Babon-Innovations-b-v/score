@@ -7,8 +7,8 @@ gates (layers, collision, resting, neighbours, child
 scenes) fail or wait on what is missing. Every expected point and name is worked out by hand from the toy places
 below. No spend, no machine: toy stages made here, a drop run in which nothing moved.
 
-Each case of the one test below names the break that turns it red (`Break: <file>: `old` -> `new``); each
-was applied once and seen red.
+Each test below names the break that turns it red (`Break: <file>: `old` -> `new``), the last one also the yard
+of its table the break turns red; each was applied once and seen red.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
 score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py
@@ -236,7 +236,7 @@ def resting(output, inputs):
     return resting_within.judge_resting(output, inputs, evidence)
 
 
-def case_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
+def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
     """Fault (review of step 0, 2026-10-11): the judge read the repository's resting.json, so a world whose rules were
     elsewhere was judged on files its key did not cover. The sunk plate passes where the world's rules name its kit
     group, fails by name where they name none, and a seed naming no inventory in the folder is unknown.
@@ -271,7 +271,7 @@ def case_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
     assert resting(output, kit_floor).answer == checks.UNKNOWN
 
 
-def case_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
+def test_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     """Round 32's docking airlock (2026-10-30): its wall pipes on its left wall and ceiling rails on its ceiling panels
     were judged as standing on them, leaning and tipping. The triage is given each such row's support as its holder's
     kind (assembly/mounted.py), so it judges them by touching; a row on a floor or an object, or naming its own
@@ -327,7 +327,7 @@ def case_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there():
     assert found == {"hub": None, "pyramid": "fixed", "skylight": "fixed", "porch": "hanging", "lamp": None}, found
 
 
-def case_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
+def test_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
     """Round 32's docking airlock: its spacesuits, laid within their lockers at the plan's 0.1 m base, were judged as
     standing on the lockers' insides and leaned 12 degrees. A row whose every object the scene record lays within its
     holder hanging (its relation's `hangs`, fitting.hangs_in) is given `hanging` (judged by touching: one touching
@@ -366,7 +366,7 @@ def case_a_row_the_record_hangs_within_its_holder_is_judged_hanging():
                      "lantern": "hanging", "window": None, "fixed_suit": "fixed"}, found
 
 
-def case_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
+def test_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
     """Round 32's docking airlock: spacesuit_left_1, laid within its locker at the plan's base, hung 4.1 cm off the
     locker's back and touched nothing (hangs free). A hanging one moves along its holder's back way until its built
     surface meets the holder's inside back face, its height and its place across kept (hung_back): the back is
@@ -391,7 +391,7 @@ def case_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
     assert toward_back[:2] == (0, 1.0) and abs(toward_back[2] - 0.4) < 1e-9, toward_back
 
 
-def case_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path):
+def test_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path):
     """Fault (Buy of 2026-10-24): the assembly declared {data}/inventory while every designed seed is laid from
     {home}/design/inventory and records that full path, so no resting gate was judged and every drop run raised after
     its clearance. The seed's recorded file is found by name in the declared folder; a seed naming none has none.
@@ -410,7 +410,7 @@ def case_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path)
 
 # --- the bakes ------------------------------------------------------------------------------------------------------
 
-def case_a_baked_model_carries_its_hash_and_keeps_the_owner_s_pick(tmp_path):
+def test_a_baked_model_carries_its_hash_and_keeps_the_owner_s_pick(tmp_path):
     """After the assembly takes a bake, the object carries the baked file's hash (sha256 of its .gltf and its buffer's
     hex digest, worked out here) and the seed's as `repaint_of`, so the owner's pick of the seed's model still holds;
     the same hash without the seed's beside it breaks the pick (the greenhouse's water tank, 2026-10-12).
@@ -444,7 +444,7 @@ def case_a_baked_model_carries_its_hash_and_keeps_the_owner_s_pick(tmp_path):
     assert len(found) == 1 and "not the owner's pick" in found[0]["why"], found
 
 
-def case_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model(tmp_path):
+def test_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model(tmp_path):
     """Fault (complete@launch, 2026-10-15): the rocket, laid from the released models/rockets/rocket.gltf, kept the
     seed's paint, the bake matched only by name. It now references the baked asset, named by its model; a bake that
     moved the frame (a 3 m cube for a 2 m one) is refused.
@@ -472,7 +472,7 @@ def case_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model(tmp_pat
         assembly.lay_fixtures_baked(out / assembly.BASE_LAYER, "rocket")
 
 
-def case_a_claimed_model_is_laid_from_the_name_its_place_bakes_it_under(tmp_path):
+def test_a_claimed_model_is_laid_from_the_name_its_place_bakes_it_under(tmp_path):
     """The hangar (2026-10-15) lays parts_rack_1, which old_station bakes as parts_rack: the claim's baked name comes
     from the hangar's own bake (elsewhere.json, baked_as), and the model is read under the hangar's name (its three
     points intact); a model baked under its own name is read where it is.
@@ -499,7 +499,7 @@ def case_a_claimed_model_is_laid_from_the_name_its_place_bakes_it_under(tmp_path
     assert assembly.renamed_model(folder / "old/made", "parts_rack", "parts_rack", folder / "x") == folder / "old/made"
 
 
-def case_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own_bake(tmp_path):
+def test_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own_bake(tmp_path):
     """assembly@hub (2026-10-15): workshop bakes wrench_1 and wrench_2 from one take (wrench-r6), each its own size,
     and the hub's elsewhere.json names wrench_1 as every wrench's baked_as; wrench_2 stood as wrench_1's bake. A model
     the claimed place bakes under its own name with the claimed take is read under it; wrench_9, which it does not
@@ -520,7 +520,7 @@ def case_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own
     assert models == {"wrench_1": "wrench_1", "wrench_2": "wrench_2", "wrench_9": "wrench_1"}, models
 
 
-def case_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data(tmp_path, monkeypatch):
+def test_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data(tmp_path, monkeypatch):
     """claiming_places reads the scene's design surface data (`elsewhere`): the yard lays models the barn and the shed
     bake; a place with no surface data claims none.
     Break: score/stages/assembly/baked.py: `return sorted({claim["place"] for claim in elsewhere.values()})` -> `return
@@ -534,7 +534,7 @@ def case_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data(tmp_
 
 # --- layers, record and sound ---------------------------------------------------------------------------------------
 
-def case_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it(tmp_path):
+def test_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it(tmp_path):
     """A layer stage's layer goes between the others in record.ORDER (light over motion over effects), replacing the
     seed's of the same name, and the root's range grows to the layer's 480 frames; the light stage's live lamps (a
     layer and no assets, 2026-10-13) leave no stale assets/light behind.
@@ -567,7 +567,7 @@ def case_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it(tmp_path)
     assert not (root.parent / "assets/light").exists()
 
 
-def case_a_light_the_motion_layer_animates_plays_its_keyframes(tmp_path):
+def test_a_light_the_motion_layer_animates_plays_its_keyframes(tmp_path):
     """A lamp whose strength the motion layer keys (0 then 50 at frame 12) and the light layer sets (20) plays the
     motion's keys on the assembled stage (the airlock's cycle light, 2026-10-16); a lamp the motion leaves alone keeps
     20. Both taken layers come in read-only and neither file changes (the store's files are never edited).
@@ -605,7 +605,7 @@ def case_a_light_the_motion_layer_animates_plays_its_keyframes(tmp_path):
             assert hashlib.sha256((folder / f"layers/{name}.usda").read_bytes()).hexdigest() == digest, (name, folder)
 
 
-def case_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_its_seed_record(tmp_path):
+def test_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_its_seed_record(tmp_path):
     """The accepted scene record's prims stand in the base in place of the old record's (the wall and the lamp gone,
     the objects kept, its one lamp laid); a place with no record row keeps the seed's and says it is unverified.
     Break: score/stages/assembly/record.py: `edit.Add(f"/{place}/{name}", Sdf.Path.emptyPath)` -> `pass`"""
@@ -623,7 +623,7 @@ def case_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_i
     assert "unverified" in said and kept.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
 
 
-def case_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_written_again(tmp_path):
+def test_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_written_again(tmp_path):
     """A seed's floor drawn with no collision (as round three wrote every wall, floor and stair) fails the collision
     gate by name, one uncolliding; the accepted record written over it (a wall and a flight of stairs) collides.
     Break: score/stages/assembly/__init__.py: `solid = sum(fault["what"] != "model" for fault in faults)` -> `solid =
@@ -650,7 +650,7 @@ def case_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_writt
     assert all(stage.GetPrimAtPath(f"/{TOY}/Structure/{name}") for name in ("wall", "steps"))
 
 
-def case_a_tube_s_lamps_hang_on_every_bay_of_its_way():
+def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():
     """A walkway tube 6 m long with 2 m bays lays its bay piece three times, each with its spot, as the exporter lays
     them; a room's pieces stand as laid.
     Break: score/stages/assembly/record.py: `if "bay" not in kit or not record.get("tube_length"):` -> `if True:`"""
@@ -660,7 +660,7 @@ def case_a_tube_s_lamps_hang_on_every_bay_of_its_way():
     assert assembly.laid_pieces({"pieces": kit["pieces"]}, {}) == kit["pieces"]
 
 
-def case_an_entry_waiting_on_its_model_lays_nothing_and_is_named(tmp_path):
+def test_an_entry_waiting_on_its_model_lays_nothing_and_is_named(tmp_path):
     """Fault (2026-10-12): the campgrounds' record names its cairn, whose model is not released yet, and the assembly
     errored on it. An entry marked `waiting` lays nothing; the root prim names it for the completion gate.
     Break: score/stages/assembly/record.py: `laid, waiting = without_waiting(record)` -> `laid, waiting = record, []`"""
@@ -674,7 +674,7 @@ def case_an_entry_waiting_on_its_model_lays_nothing_and_is_named(tmp_path):
         "objects cairn: its model comes through the next batch"]
 
 
-def case_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_longer_named(tmp_path):
+def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_longer_named(tmp_path):
     """The camp grounds' cairn (2026-10-13): once the surface line has baked its row, the assembly lays that model
     where the entry stands. The baked cairn spans 2 x 2 x 0.5 m; turned 90 degrees about y it spans 0.5 x 2 x 2, its
     foot at the spot's 0.5, its middle over (3, -2).
@@ -701,7 +701,7 @@ def case_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_long
     assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
 
 
-def case_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_row(tmp_path):
+def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_row(tmp_path):
     """Fault (2026-10-25): a designed place's record laid no object, so settle, physics and motion found none. A
     design's object (`bake` its take's model, `row` its inventory row) is laid with the baked model at
     /<place>/Objects/<name>, its score:row the inventory row; one whose model the bake has not made stays named.
@@ -725,7 +725,7 @@ def case_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_r
         "objects rail_1: its model comes from the bake"]
 
 
-def case_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_object(tmp_path):
+def test_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_object(tmp_path):
     """Fault (2026-10-30): camp's rocks stood twice at one spot, an object at /camp/Objects/rock_1_1 and a piece of
     the ground ground-join cut and seated at /camp/Outside/Detail/rock_1. A record entry whose row ground-join joined
     (its join.json pieces) is laid by the ground alone: no object, and no longer named waiting.
@@ -751,7 +751,7 @@ def case_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_ob
     assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
 
 
-def case_the_settle_s_seed_leaves_out_a_row_ground_join_joined(tmp_path, monkeypatch):
+def test_the_settle_s_seed_leaves_out_a_row_ground_join_joined(tmp_path, monkeypatch):
     """The settle drops the place as the assembly lays it (grounded.take_bakes): a row ground-join joined is no object
     there either, so no drop moves it and no settle over names a prim the assembly no longer lays (camp's rocks, loose
     on the ground, 2026-10-30). The bakes' own export is stubbed: only what is laid is read.
@@ -791,7 +791,7 @@ def a_box_asset(path, low, high):
     an_asset(path, *boxes_mesh([(low, high)]))
 
 
-def case_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
+def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
     """Fault (motion@base, 2026-10-29): base's garage door stood 0.17 m off its module's front and 4.7 m of its 6 m
     past the module's corner, laid at its plan item's middle; its motion check failed it. Laid by its relation (on the
     module's S face, `out` +z) at their built sizes, the 12 m module from 26.254 to 38.254 across and to 39.4 in front,
@@ -826,7 +826,7 @@ def case_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
     assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
 
 
-def case_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_path):
+def test_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_path):
     """#36, motion@base: the module's box reaches z 39.43 only by a 0.39 m lip above the doorway, its face round the
     recess at 39.039, so the door laid on the box's side hung in the air; and the bake cut the recess from the row's
     6 m (6.6 with its room), while the built door, 8.30 m, covered solid wall past it. Here the module's face stands at
@@ -873,7 +873,7 @@ def case_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_pa
     assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
 
 
-def case_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_named(tmp_path):
+def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_named(tmp_path):
     """#36: hangar's and garage's shell walls stand 0.15 m behind the plan's line, so a door laid on the line hung 0.04
     to 0.15 m in front of its wall and left its jamb and sill as it swung (motion@garage grounded). A 2.4 x 2.4 x 0.2 m
     door in its 2.4 m wide, 2.66 m tall opening at z 0.15, the built wall's sill and lintel from z -0.276 to 0 (its
@@ -976,7 +976,7 @@ def case_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_
     assert fitting.held_faults({"objects": entries}, beside) == [], beside
 
 
-def case_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
+def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
     """#72, so it never comes back silently: the `held` gate fails by name on a door laid 1 m beside its module's
     face (its measure 1.0 m), a door or window in no opening and on no holder, one held by nothing and one left at the
     room's middle, and a 6 m door on a 6 m face with 0.55 m of recess room beside it (0.55 m too narrow); the door
@@ -1028,7 +1028,7 @@ def case_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
                - 0.2) < 1e-9
 
 
-def case_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):
+def test_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):
     """#36, street's three restaurant doors: two 1 m doors laid on one facade's +z face 0.58 m apart overlap by
     0.42 m and fail by name; a third 0.58 m further on overlaps only the second; a sign above the doors (no height
     shared) and a door on the facade's -z face at the same spot pass, as do doors held side by side.
@@ -1082,7 +1082,7 @@ def a_solid_box(stage, path, low, high, degrees=0.0):
     mesh.CreateExtentAttr([tuple(map(float, box.bounds[0])), tuple(map(float, box.bounds[1]))])
 
 
-def case_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
+def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     """settle@airlock (2026-10-30): its ramp lay beside its porch deck, its end 0.14 m in the deck's slab, two sandbags
     in the slab and its porch post 0.14 m in wall_3, laid at the plan's estimates; the drop sank and tilted them. The
     assembly lays a ramp up its way onto its deck (the built static past its level's edge whose top is nearest the
@@ -1524,7 +1524,7 @@ def case_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert np.allclose(crate[0][[0, 2]], (0.47, corner - 1.52), atol=1e-6), crate
 
 
-def case_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
+def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
     """held@garage, @habitat, @workshop (2026-10-30): a glass tunnel or corridor tube the concept shows meeting its
     module's wall from outside, laid against that wall, reached 0.09 to 0.30 m into the built wall; it joins the place
     through it, as a door stands in its opening, so the held gate excuses its wall, never a deck. A pipe laid against
@@ -1641,7 +1641,7 @@ def case_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
         assert fitting.held_faults({"objects": [entry]}, laid) == [], fitting.held_faults({"objects": [entry]}, laid)
 
 
-def case_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
+def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
     """hangar's wall pipes stood 22 m up through its 15 m roof, and the inside-a-static check left roofs out because a
     dome's box holds the room under it. A roof is read by its mesh: a gable from 3 m eaves at x 0 and 10 to a 5 m ridge
     at x 5. A lamp under the ridge (its top 4.5 m, the roof 4.8 m over its edge) is inside the roof's box and left; a
@@ -2026,7 +2026,7 @@ def case_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
                                  (1.0, 1.5)) == []
 
 
-def case_a_door_goes_in_its_opening_narrowed_to_fit():
+def test_a_door_goes_in_its_opening_narrowed_to_fit():
     """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 2.1 / 2.4 for
     its height, then held across its width alone to the opening's 1.2 m (1.2 / 1.4 of its own), its foot's middle on
     the opening's middle at its sill. Between built jambs 0.3 m thick centred on the opening's ends (the lab's entry
@@ -2078,7 +2078,7 @@ def case_a_door_goes_in_its_opening_narrowed_to_fit():
     assert abs(floor - 0.2) < 1e-6 and abs(end - 1.2) < 1e-6 and start == -np.inf, (floor, start, end)
 
 
-def case_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():
+def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():
     """#36, garage 2026-10-30: hung on its wall's room face, each door swung out, its kind's way, into its own jamb
     0.05 to 0.08 m, and 10 m pipes laid along the walls stood across both doorways; neither door swung. A 2 m door in
     the 2.4 m opening of a wall from z -0.276 to 0 (the room to +z) whose own -z way (its kind's swing) points out of
@@ -2339,7 +2339,7 @@ def case_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
                        [[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
 
 
-def case_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
+def test_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
     """#36, garage 2026-10-30: its doors swung out of the room clear, but pipes laid along the walls inside ran across
     both doorways, so nobody could walk through; street's drying racks, laid on their facade under its doors (hung on
     the facade, no opening), stood in the doors' swing either way. A 1 x 2 x 0.1 m door in its 1.2 m opening of a
@@ -2408,7 +2408,7 @@ def case_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
     assert fitting.on_face(*rack, dict(facade, room=0.0), box, None, [recess])[2][1]  # the door it was cut for does
 
 
-def case_a_thing_on_a_face_stands_on_its_front_never_inside_it():
+def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     """#36, street 2026-10-30: two drying racks (0.12 m tall) stood 1.3 and 2.3 m inside their facade: its flat front
     has corners only at its ends, and the corners within the racks' height were a window's back. A facade whose front
     (z 0) is one box 10 m wide and a window's back 1.9 m inside it, its corners in the rack's height: the rack's back
@@ -2569,7 +2569,7 @@ def case_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     assert abs(fitting.off(*spans["string_2"], between[1]["on"], buildings) - 4.0) < 1e-6
 
 
-def case_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
+def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
     """#36, cockpit 2026-10-30: its rear doors, in an opening of a slanted wall (its boxes say nothing of its faces),
     stood on the plan's line 0.37 m in front of the built wall and swung their kind's way into its jamb. A 1 m opening
     at the origin along (0.6, 0.8), its built wall's jambs from 0.3 to 0.5 m across it the way (0.8, -0.6): a door
@@ -2610,7 +2610,7 @@ def case_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
                                                                   "high": fits[0]["high"]}]}) == [], fits
 
 
-def case_a_monitor_goes_on_its_console_s_top_within_its_span():
+def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     """A 0.5 x 0.4 x 0.1 m monitor laid 2 m off its 3 x 1 x 0.8 m console (x 0 to 3, top at 1 m) stands on its top,
     moved in to x 3 - 0.25 = 2.75, z kept at 0.4, its foot at 1 m; a console narrower than it shrinks it to fit.
     Break: score/stages/assembly/fitting.py: `target[1] = hold_high[1] if how == "top" else` -> `target[1] = foot[1]
@@ -3039,7 +3039,7 @@ def case_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert railings_held.change(laid_chord, railing_row, [wall], under) is None
 
 
-def case_a_wall_item_stands_on_its_named_face():
+def test_a_wall_item_stands_on_its_named_face():
     """A 1 x 0.6 x 0.2 m wall lamp laid at the room's middle (the walls item) stands with its back on its wall's face
     (z 0.1 to 6.1 at x 2, the room to +x), 0.1 m out from it, slid along to the face's nearest point.
     Break: score/stages/assembly/fitting.py: `spot = start + run * along + out * across(out, size) * scale / 2` ->
@@ -3083,7 +3083,7 @@ def case_a_wall_item_stands_on_its_named_face():
             for run in fitting.walls_ahead(across, along, (1.0, 1.5), 0.5)] == [(4.975, 6.025)]
 
 
-def case_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):
+def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):
     """Fault (2026-10-12): the garage's fourth pressure gauge moved off the big door's track in its kit, yet the
     assembly kept the seed's object where the old kit put it. The second crate's kit spot moved to (5, 0, 2): it
     stands there; the first, unmoved, keeps its transform, and a second run moves nothing.
@@ -3115,7 +3115,7 @@ def a_sound_output(folder, uses):
     return folder
 
 
-def case_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said(tmp_path):
+def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said(tmp_path):
     """Fault (2026-10-12): the assembly kept the seed's sound layer, so camp, launch and square failed complete's sound
     check. The layer is written from the accepted output: the room tone under Sound/Room, the hum at the fan's row, the
     door's sound at its own second (2.5 s, 2.5 x the stage's rate in frames), each file under its world name, the layer
@@ -3151,7 +3151,7 @@ def case_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said
     assert unplaced == [f"hum (motion): no moving prim /{TOY}/Objects/door_1 on the stage"], unplaced
 
 
-def case_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer(tmp_path):
+def test_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer(tmp_path):
     """A seed from the store is read-only; its copy takes the record's save over the base and a layer stage's
     read-only layer in place of the seed's (Batch 1, 2026-10-25: every assembly refused the save).
     Break: score/stages/assembly/__init__.py: `shutil.copytree(source, out / part, copy_function=shutil.copyfile)` ->
@@ -3172,7 +3172,7 @@ def case_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read
     assert all(path.stat().st_mode & 0o200 for path in out.rglob("*") if path.is_file())
 
 
-def case_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row(tmp_path):
+def test_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row(tmp_path):
     """Hub (#36, assembly@hub placeholders): the terrain's made ground came in as /<place>/Outside/near and far, its
     finish named missing, drawn with no material. Each mesh of it is bound in the taken (read-only) ground layer to
     the surface the scene's surface library gives its row's kind (lunar_surface, a ground: lunar_regolith, laid under
@@ -3226,7 +3226,7 @@ def case_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row
     assert faults == [f"/{TOY}/Outside/water"], faults
 
 
-def case_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp_path, monkeypatch):
+def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp_path, monkeypatch):
     """Airlock (#36): a room the base holds stands on the base's made ground, its row base's lunar_surface, which the
     room's own inventory and surface library lack, so it stayed drawn with no material. The assembly reads beside the
     surface library of the scene holding the row (ground_scenes: the base, its ground's top scene; none for the base
@@ -3544,7 +3544,7 @@ def lowest_legs(asset):
     return legs, round(float(hull[(hull[:, 0] > 0.5) & (hull[:, 2] > 0.5), 1].min()), 4)
 
 
-def case_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path, monkeypatch):
+def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path, monkeypatch):
     """The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
     settle) is laid with its record written over the copied base and an assets folder of its own.
     Break: score/stages/assembly/grounded.py: `(folder / "assets").mkdir()` -> `pass`
@@ -3896,43 +3896,41 @@ DESIGN = {"rows": [{"id": "wall", "noun": "wall", "kind": "code", "anchor": "flo
                    {"id": "greens", "noun": "plants", "kind": "generate", "anchor": "on:bed"}]}
 
 
-def case_a_place_needs_the_layers_its_design_shows():
-    """The person needs its characters layer, the kettle its effects, the door its motion, the plants on the planter
-    their crops; no loose row, so no settle; light and sound always. A bare room needs light and sound only, and a
-    crate on the floor its settle.
-    Break: score/stages/assembly/__init__.py: `"physics": "settle", ` -> ``"""
-    assert assembly.needed_layers(DESIGN, KINDS) == ["characters-layer", "crops-layer", "effects-layer", "motion",
-                                                     "light", "sound"]
-    bare = {"rows": [{"id": "wall", "noun": "wall", "kind": "code", "anchor": "floor"}]}
-    assert assembly.needed_layers(bare, KINDS) == ["light", "sound"]
-    crate = {"id": "crate", "noun": "crate", "kind": "generate", "anchor": "floor"}
-    assert assembly.needed_layers({"rows": [*bare["rows"], crate]}, KINDS) == ["settle", "light", "sound"]
+# A crate on the floor: a loose row, so its place needs the settle.
+CRATE = {"id": "crate", "noun": "crate", "kind": "generate", "anchor": "floor"}
+EVERY = ["characters-layer", "crops-layer", "effects-layer", "motion", "light", "sound"]
+# Each place's layers: its design (None: a place with no design), the layer stages the assembly took and the sounds it
+# placed nowhere; the layers its design needs, and the layers gate's answer and the layers it waits on, each by name.
+# DESIGN's person needs its characters layer, the kettle its effects, the door its motion, the plants on the planter
+# their crops; no loose row, so no settle; light and sound always.
+LAYERED = [
+    {"name": "the design taking four", "design": DESIGN, "took": ["sound", "effects-layer", "motion", "light"],
+     "needs": EVERY, "answer": checks.UNKNOWN, "waits": (f"characters-layer@{TOY}", f"crops-layer@{TOY}")},
+    {"name": "the design taking all", "design": DESIGN, "took": EVERY, "needs": EVERY, "answer": checks.PASS,
+     "waits": ()},
+    {"name": "a sound placed nowhere", "design": DESIGN, "took": EVERY, "unplaced": ["hum"], "needs": EVERY,
+     "answer": checks.FAIL},
+    {"name": "a bare room", "design": {"rows": DESIGN["rows"][:1]}, "took": ["light", "sound"],
+     "needs": ["light", "sound"], "answer": checks.PASS, "waits": ()},
+    {"name": "a crate on the floor", "design": {"rows": [*DESIGN["rows"][:1], CRATE]}, "took": ["light", "sound"],
+     "needs": ["settle", "light", "sound"], "answer": checks.UNKNOWN, "waits": (f"settle@{TOY}",)},
+    {"name": "no design", "design": None, "took": EVERY, "answer": checks.UNKNOWN},
+]
 
 
-def case_a_place_waits_on_every_layer_it_needs(tmp_path):
-    """The layers gate: unknown while a layer the design needs has no accepted output taken (the person's and the
-    plants' here), naming each; pass once all are; fail on a sound placed nowhere; unknown for a place with no design.
-    Break: score/stages/assembly/__init__.py: `waiting = [f"{name}@{place}" for name in needed if name not in
-        origin["layers"]]` -> `waiting = []`
-    Break: score/stages/assembly/__init__.py: `if origin["unplaced sounds"]:` -> `if False:`"""
-    output = tmp_path
+def layered(root, case):
+    """The assembly's output for a LAYERED case (its origin naming the layers it took) and the gate's inputs."""
+    output = root / case["name"].replace(" ", "_")
+    output.mkdir(parents=True)
     (output / f"{TOY}.usda").write_text("#usda 1.0\n")
-    (output / "design.json").write_text(json.dumps(DESIGN))
     (output / "row-kinds.json").write_text(json.dumps({"kinds": KINDS}))
-    designed = {"design": output / "design.json", "row kinds": output / "row-kinds.json"}
-
-    def judged(layers, unplaced=(), inputs=designed):
-        (output / "origin.json").write_text(json.dumps({"layers": dict.fromkeys(layers, "x"), "record": "r",
-                                                        "unplaced sounds": list(unplaced)}))
-        return assembly.judge_layers(output, inputs, None)
-
-    every = ["characters-layer", "crops-layer", "effects-layer", "motion", "light", "sound"]
-    waiting = judged(["sound", "effects-layer", "motion", "light"])
-    assert waiting.answer == checks.UNKNOWN and waiting.findings == (f"characters-layer@{TOY}",
-                                                                     f"crops-layer@{TOY}"), waiting
-    assert judged(every).answer == checks.PASS
-    assert judged(every, ["hum"]).answer == checks.FAIL
-    assert judged(every, inputs={"row kinds": output / "row-kinds.json"}).answer == checks.UNKNOWN
+    (output / "origin.json").write_text(json.dumps({"layers": dict.fromkeys(case["took"], "x"), "record": "r",
+                                                    "unplaced sounds": case.get("unplaced", [])}))
+    inputs = {"row kinds": output / "row-kinds.json"}
+    if case["design"] is not None:
+        (output / "design.json").write_text(json.dumps(case["design"]))
+        inputs["design"] = output / "design.json"
+    return output, inputs
 
 
 # --- the neighbours stage -------------------------------------------------------------------------------------------
@@ -3968,119 +3966,66 @@ def shows(folder, *others):
                                                                  for other in others]}))
 
 
-def judged(output):
-    return neighbours.judge_neighbours(output, {}, None)
+# Each world of shown places: the place, the places its base and its terrain's ground show (each referenced the seed's
+# way), the shown places made (each with the places it shows), whether its own made ground under Outside is gone; the
+# seed's way judged (the place copied alone or with its neighbours beside it); then the made place judged once the
+# outputs it was made from are gone: its answer, places shown, gap, prims active or left out, and the shown place whose
+# copy, removed, fails it.
+NEIGHBOURED = [
+    # Fault (2026-10-12): the launch's assembly showed Places/square and Places/far_city with no children, its
+    # references pointing at round-three seed files the store does not hold. Alone it fails on both shown places (no
+    # file, no children: four faults); made, each stands from its own copied output.
+    {"name": "the launch", "place": "launch", "shows": ("square", "wreck"), "made": {"square": (), "wreck": ()},
+     "seed": {"beside": False, "faults": 4, "a finding": "resolves to no file"}, "shown": 2},
+    # No stage makes the far city: the make stands the rest and names it a gap (gaps.json), and the gate moves only its
+    # faults to the completion gate; a fault no gap names (the square's copy removed) still fails.
+    {"name": "a lost far city", "place": "launch", "shows": ("square", "far_city"), "made": {"square": ()},
+     "gap": "far_city", "removed": "square"},
+    # Fault (2026-10-15): the stairwell's Places/flat, which its seed lacks and the terrain's ground layer adds, kept its
+    # reference ../../flat/flat.usda: only the base layer's references were pointed at the copies.
+    {"name": "the stairwell", "place": "stairwell", "shows": ("street",), "ground": ("flat",),
+     "made": {"street": (), "flat": ("stairwell",)}, "shown": 2},
+    # Fault (2026-10-18): the old station's film looked through a flat grey slab, the shown places' own made grounds:
+    # the seed's way fails on both (two faults, each its own ground); made, both are left out and its own stays.
+    {"name": "the old station", "place": "old_station", "shows": ("wreck",), "ground": ("garage",),
+     "made": {"wreck": (), "garage": ()}, "seed": {"beside": True, "faults": 2, "every finding": "its own ground"},
+     "shown": 2, "active": {"/old_station/Outside/near": True, "/old_station/Places/wreck/Outside": False}},
+    # The airlock has no made ground of its own: through its doors the ground is the one its shown garage draws, so it
+    # stays.
+    {"name": "the airlock", "place": "airlock", "shows": ("garage",), "made": {"garage": ()}, "groundless": True,
+     "active": {"/airlock/Places/garage/Outside": True}},
+]
+# The launch shows the square and the far city, the square the launch; only the square and the launch are written,
+# and the launch is a part of an outside (data/places/within.json), no place of the build. Each query of neighbours.py
+# on a place, and its answer.
+RECORDS = {"launch": {"places": [{"name": "square", "stage": "square"}, {"name": "far_city", "stage": "far_city"}]},
+           "square": {"places": [{"name": "launch", "stage": "launch"}]}}
+ASKED = [("shown", "launch", ["far_city", "square"]), ("neighbours", "launch", ["square"]),
+         ("lost", "launch", ["far_city"]), ("files", "launch", {}), ("applies", "square", True),
+         ("applies", "nowhere", False), ("neighbours", "square", [])]
 
 
-def case_a_place_shows_its_neighbours_from_their_own_outputs(tmp_path, monkeypatch):
-    """Fault (2026-10-12): the launch's assembly showed Places/square and Places/far_city with no children, its
-    references pointing at round-three seed files the store does not hold. Away from its neighbours the launch fails
-    on both shown places (no file, no children: four faults); made, each stands from its own copied output after the
-    originals are gone. A shown place no stage makes is a gap, and a part of another scene's outside (the launch,
-    data/places/within.json) is no neighbour.
-    Break: score/stages/assembly/neighbours.py: `layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda",
-        f"../{PLACES}/{other}/{other}.usda")` -> `pass`
-    Break: score/stages/assembly/neighbours.py: `if scene_record.written(other) and other not in parts()]` -> `if
-        scene_record.written(other)]`"""
-    records = {"launch": {"places": [{"name": "square", "stage": "square"}, {"name": "far_city", "stage": "far_city"}]},
-               "square": {"places": [{"name": "launch", "stage": "launch"}]}}
-    assert neighbours.record_of("nowhere") == {}
-    with monkeypatch.context() as patched:
-        patched.setattr(neighbours, "record_of", lambda place: records.get(place, {}))
-        patched.setattr(neighbours.scene_record, "written", lambda place: place in ("square", "launch"))
-        assert neighbours.shown("launch") == ["far_city", "square"] and neighbours.neighbours("launch") == ["square"]
-        assert neighbours.lost("launch") == ["far_city"] and neighbours.files("launch") == {}
-        assert neighbours.applies("square") and not neighbours.applies("nowhere")
-        assert neighbours.neighbours("square") == [], "the launch is a part of an outside, no place of the build"
-    launch = a_place(tmp_path / "kept", "launch", ("square", "wreck"))
-    shows(launch, "square", "wreck")
-    inputs = {"assembly@square": a_place(tmp_path / "kept", "square"),
-              "assembly@wreck": a_place(tmp_path / "kept", "wreck")}
-    shutil.move(str(launch), tmp_path / "alone")  # away from its neighbours, as the store keeps it
-    alone = judged(tmp_path / "alone")
-    assert alone.answer == checks.FAIL and alone.measures["faults"] == 4, alone
-    assert any("resolves to no file" in finding for finding in alone.findings), alone.findings
-    out = tmp_path / "out"
-    out.mkdir()
-    neighbours.make({**inputs, "assembly": tmp_path / "alone"}, out, 0, {})
-    shutil.rmtree(tmp_path / "kept")
-    verdict = judged(out)
-    assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
-
-
-def case_a_lost_shown_place_is_the_place_s_gap_and_any_other_fault_still_fails(tmp_path):
-    """No stage makes the far city: the make stands the rest and names it a gap (gaps.json), and the gate moves only
-    its faults to the completion gate; a fault no gap names (the square's copy removed) still fails.
-    Break: score/stages/assembly/neighbours.py: `left.append(lost_gap(stage_file(out).stem, other))` -> `pass`"""
-    launch = a_place(tmp_path / "kept", "launch", ("square", "far_city"))
-    shows(launch, "square", "far_city")
-    out = tmp_path / "out"
-    out.mkdir()
-    neighbours.make({"assembly": launch, "assembly@square": a_place(tmp_path / "kept", "square")}, out, 0, {})
-    found = json.loads((out / neighbours.GAPS).read_text())["gaps"]
-    assert [entry["objects"] for entry in found] == [["/launch/Places/far_city"]], found
-    verdict = judged(out)
-    assert verdict.answer == checks.PASS and "far_city: shown by the plan" in verdict.reason, verdict
-    assert verdict.findings and all(finding.startswith("/launch/Places/far_city") for finding in verdict.findings)
-    shutil.rmtree(out / "places" / "square")
-    assert judged(out).answer == checks.FAIL
-
-
-def case_a_shown_place_the_terrain_added_points_at_its_copy(tmp_path):
-    """Fault (2026-10-15): the stairwell's Places/flat, which its seed lacks and the terrain's ground layer adds, kept
-    its reference ../../flat/flat.usda: only the base layer's references were pointed at the copies.
-    Break: score/stages/assembly/neighbours.py: `glob("*.usd*")` -> `glob("*.usda")`"""
-    stairwell = a_place(tmp_path / "kept", "stairwell", ("street",), ("flat",))
-    shows(stairwell, "street", "flat")
-    inputs = {"assembly": stairwell, "assembly@street": a_place(tmp_path / "kept", "street"),
-              "assembly@flat": a_place(tmp_path / "kept", "flat", ("stairwell",))}
-    out = tmp_path / "out"
-    out.mkdir()
-    neighbours.make(inputs, out, 0, {})
-    shutil.rmtree(tmp_path / "kept")
-    verdict = judged(out)
-    assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
-
-
-def case_a_place_with_its_own_ground_shows_its_neighbours_without_theirs(tmp_path):
-    """Fault (2026-10-18): the old station's film looked through a flat grey slab, the shown places' own made grounds:
-    the seed's way fails on both (two faults, each its own ground); made, both are left out and its own stays.
-    Break: score/stages/assembly/neighbours.py: `if owns:` -> `if False:`"""
-    station = a_place(tmp_path / "kept", "old_station", ("wreck",), ("garage",))
-    shows(station, "wreck", "garage")
-    inputs = {"assembly": station, "assembly@wreck": a_place(tmp_path / "kept", "wreck"),
-              "assembly@garage": a_place(tmp_path / "kept", "garage")}
-    out = tmp_path / "out"
-    out.mkdir()
-    neighbours.make(inputs, out, 0, {})
-    shutil.copytree(inputs["assembly"], tmp_path / "before")  # the seed's way, as it stood before
-    for other in ("wreck", "garage"):
-        shutil.copytree(inputs[f"assembly@{other}"], tmp_path / other)
-    before = judged(tmp_path / "before")
-    assert before.answer == checks.FAIL and before.measures["faults"] == 2, before
-    assert all("its own ground" in finding for finding in before.findings), before.findings
-    verdict = judged(out)
-    assert verdict.answer == checks.PASS and verdict.measures["shown"] == 2, verdict
-    stage = opened(out / "old_station.usda")
-    assert stage.GetPrimAtPath("/old_station/Outside/near").IsActive()
-    assert not stage.GetPrimAtPath("/old_station/Places/wreck/Outside").IsActive()
-
-
-def case_a_room_with_no_ground_of_its_own_keeps_its_neighbours_grounds(tmp_path):
-    """The airlock has no made ground of its own: through its doors the ground is the one its shown garage draws, so
-    it stays.
-    Break: score/stages/assembly/neighbours.py: `owns = has_own_ground(layers, place)` -> `owns = True`"""
+def the_neighbours(root, case):
+    """A NEIGHBOURED case's place and the shown places made, under root/kept: the make's inputs."""
     from pxr import Sdf, Usd
-    airlock = a_place(tmp_path / "kept", "airlock", ("garage",))
-    layer = Sdf.Layer.FindOrOpen(str(airlock / "layers" / "ground.usdc"))
-    Usd.Stage.Open(layer).RemovePrim("/airlock/Outside")
-    layer.Save()
-    shows(airlock, "garage")
-    out = tmp_path / "out"
-    out.mkdir()
-    neighbours.make({"assembly": airlock, "assembly@garage": a_place(tmp_path / "kept", "garage")}, out, 0, {})
-    assert judged(out).answer == checks.PASS
-    assert opened(out / "airlock.usda").GetPrimAtPath("/airlock/Places/garage/Outside").IsActive()
+    kept = root / "kept"
+    folder = a_place(kept, case["place"], case["shows"], case.get("ground", ()))
+    if case.get("groundless"):
+        layer = Sdf.Layer.FindOrOpen(str(folder / "layers" / "ground.usdc"))
+        Usd.Stage.Open(layer).RemovePrim(f"/{case['place']}/Outside")
+        layer.Save()
+    shows(folder, *case["shows"], *case.get("ground", ()))
+    return {"assembly": folder, **{f"assembly@{other}": a_place(kept, other, theirs)
+                                   for other, theirs in case["made"].items()}}
+
+
+def the_seed_s_way(root, case, inputs):
+    """The place as its seed stands it: copied to root/seed, its shown places copied beside it when the case says."""
+    seed = root / "seed"
+    shutil.copytree(inputs["assembly"], seed / case["place"])
+    for other in case["made"] if case["seed"]["beside"] else ():
+        shutil.copytree(inputs[f"assembly@{other}"], seed / other)
+    return seed / case["place"]
 
 
 # --- the scene tree -------------------------------------------------------------------------------------------------
@@ -4143,193 +4088,192 @@ def crate_at(stage, path):
             UsdGeom.XformCache().GetLocalToWorldTransform(stage.GetPrimAtPath(path)).ExtractTranslation()]
 
 
-def the_yard(root, hut_plan=HUT, children=("shed", "hut"), shed_plan=SHED):
-    """The yard's tree over the shed's tree (holding the nook's) and the hut's."""
+
+# A held door between the shed and the hut, its kind and width (the square's flat under its stairwell door, 2026-11-04).
+DOOR = {"kind": "door", "wide": 1.0, "sill": 0.0}
+# The yard holding the hut three times (#72: a place held several times stands once a hold): as the yard lays it out,
+# turned 90 degrees at (2, 7) in 3 x 4 m, and turned 45 degrees (the base's tubes off the hub's diagonal facets) in its
+# 4.95 m box at (14, 0).
+THRICE = {**YARD, "holds": [{**YARD["holds"][1], "instance": "hut#1"},
+                            {"place": "hut", "instance": "hut#2", "turn": 90, "x": 2.0, "y": 7.0, "w": 3.0, "d": 4.0},
+                            {"place": "hut", "instance": "hut#3", "turn": 45, "x": 14.0, "y": 0.0, "w": 4.949747,
+                             "d": 4.949747}]}
+# The shed's crate at (6, 0, -1) of its frame is plan (1, 1) on the shed, (3, 4) on the yard: (-7, 0, -2); the nook's
+# crate at its middle is plan (1, 0.5) on the nook, (2, 1.5) on the shed, (4, 4.5) on the yard: (-6, 0, -1.5).
+SHED_CRATES = {"/yard/Scenes/shed/Objects/crate_1": [-7.0, 0.0, -2.0],
+               "/yard/Scenes/shed/Scenes/nook/Objects/crate_1": [-6.0, 0.0, -1.5]}
+# Each yard: how it is made (the hut's, shed's and yard's plans, the children read, the plan the creator edits the
+# yard's to after the make, the scene judged), the crates it must stand where (world points worked out by hand), the
+# scenes copied under it, and its children gate's answer, measure, reason and findings.
+YARDS = [
+    # The hut's crate at (-1, 0, 2) is plan (2, 1) on the turned hut, (12, 6) on the yard: (2, 0, 0).
+    {"name": "the whole tree", "answer": checks.PASS, "children": 2,
+     "crates": {**SHED_CRATES, "/yard/Scenes/hut/Objects/crate_1": [2.0, 0.0, 0.0],
+                "/yard/Objects/crate_1": [0.0, 0.0, 0.0]}},
+    {"name": "a scene holding none", "scene": "nook", "answer": checks.PASS,
+     "reason": "its plan lays out no child scene"},
+    # A shed door to the hut 2.5 m up, the hut's door back on its floor, stands the hut 2.5 m up.
+    {"name": "a child up a door", "answer": checks.PASS,
+     "hut": {**HUT, "openings": [{**DOOR, "at": [0.0, 1.5], "to": "shed"}]},
+     "shed": {**SHED, "openings": [{**DOOR, "at": [4.0, 1.5], "sill": 2.5, "to": "hut"}]},
+     "crates": {"/yard/Scenes/hut/Objects/crate_1": [2.0, 2.5, 0.0],
+                "/yard/Scenes/shed/Objects/crate_1": [-7.0, 0.0, -2.0]}},
+    # The hut's crate at its plan (2, 1): (12, 6), (4, 9) and (16.83, 2.12) on the yard; its one tree copied once.
+    {"name": "a child held thrice", "yard": THRICE, "read": ("hut",), "answer": checks.PASS, "children": 3,
+     "copied": ["hut"], "crates": {"/yard/Scenes/hut_1/Objects/crate_1": [2.0, 0.0, 0.0],
+                                   "/yard/Scenes/hut_2/Objects/crate_1": [-6.0, 0.0, 3.0],
+                                   "/yard/Scenes/hut_3/Objects/crate_1": [6.8284, 0.0, -3.8787]}},
+    {"name": "a child laid out and not read", "read": ("shed",), "answer": checks.FAIL,
+     "findings": ("/yard/Scenes/hut: laid out on yard's plan, not in the stage (no scene of the batch: its design is "
+                  "not done)",)},
+    {"name": "a child planned wider than its hold", "hut": {**HUT, "w": 5.0}, "answer": checks.FAIL,
+     "finding": "/yard/Scenes/hut: its plan laid in its hold is 5 x 3 m, its hold 4.0 x 3.0 m"},
+    {"name": "a child standing where the plan lays out nothing", "edited": {**YARD, "holds": YARD["holds"][:1]},
+     "answer": checks.FAIL, "findings": ("/yard/Scenes/hut: read as a child scene, laid out nowhere on yard's plan",)},
+    {"name": "no plan read", "yard": None, "read": (), "answer": checks.UNKNOWN,
+     "reason": "no plan of yard read: which child scenes it holds cannot be told"},
+]
+
+
+def the_yard(root, case):
+    """The yard's tree over the shed's tree (holding the nook's) and the hut's, as the case makes them; its output and
+    the inputs the gate judges `case["scene"]` (the yard by default) with."""
+    hut_plan, shed_plan = case.get("hut", HUT), case.get("shed", SHED)
     nook, _ = tree_of(root, "nook", a_scene(root / "made", "nook", (0.0, 0.0, 0.0)), NOOK, {})
     shed, _ = tree_of(root, "shed", a_scene(root / "made", "shed", (6.0, 0.0, -1.0)), shed_plan,
                       {"nook": (nook, NOOK)})
     hut, _ = tree_of(root, "hut", a_scene(root / "made", "hut", (-1.0, 0.0, 2.0)), hut_plan, {})
     trees = {"shed": (shed, shed_plan), "hut": (hut, hut_plan)}
-    return tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), YARD,
-                   {child: trees[child] for child in children})
+    yard, inputs = tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), case.get("yard", YARD),
+                           {child: trees[child] for child in case.get("read", ("shed", "hut"))})
+    if "edited" in case:
+        inputs["plan"].write_text(json.dumps(case["edited"]))
+    scene = case.get("scene", "yard")
+    if scene != "yard":
+        return root / "trees" / scene, {"plan": root / "plans" / f"{scene}.json"}
+    return yard, inputs
 
 
-def case_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold(tmp_path):
-    """The shed's crate at (6, 0, -1) of its frame is plan (1, 1) on the shed, (3, 4) on the yard: (-7, 0, -2). The
-    nook's crate at its middle is plan (1, 0.5) on the nook, (2, 1.5) on the shed, (4, 4.5) on the yard: (-6, 0, -1.5).
-    The hut's crate at (-1, 0, 2) is plan (2, 1) on the turned hut, (12, 6) on the yard: (2, 0, 0). The gate passes
-    and a scene holding none says so. A shed door to the hut 2.5 m up, the hut's door back on its floor, stands the
-    hut 2.5 m up (the square's flat under its stairwell door, 2026-11-04), and the gate holds it there.
-    Break: score/stages/assembly/scene_tree.py: `matrix[:3, :3] = turn.T` -> `matrix[:3, :3] = turn`
+def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
+    """A place waits on every layer its design needs, shows its neighbours from their own outputs, and stands each
+    child scene at its hold on its plan: each place of LAYERED is judged by the layers gate; each world of NEIGHBOURED
+    is judged the seed's way, made through neighbours.make, and judged again with the outputs it was made from gone,
+    and the ASKED queries are answered from RECORDS; each yard of YARDS is made through scene_tree.make, opened, and
+    judged by the children gate; the plans it reads are the creator's kept ones, each child's declared, and a plan
+    laying out a scene above it is refused.
+    Break: score/stages/assembly/__init__.py: `"physics": "settle", ` -> `` (a crate on the floor)
+    Break: score/stages/assembly/__init__.py: `waiting = [f"{name}@{place}" for name in needed if name not in
+        origin["layers"]]` -> `waiting = []` (the design taking four)
+    Break: score/stages/assembly/__init__.py: `if origin["unplaced sounds"]:` -> `if False:` (a sound placed nowhere)
+    Break: score/stages/assembly/neighbours.py: `layer.UpdateCompositionAssetDependency(f"../../{other}/{other}.usda",
+        f"../{PLACES}/{other}/{other}.usda")` -> `pass` (the launch)
+    Break: score/stages/assembly/neighbours.py: `if scene_record.written(other) and other not in parts()]` -> `if
+        scene_record.written(other)]` (ASKED: the square's neighbours)
+    Break: score/stages/assembly/neighbours.py: `left.append(lost_gap(stage_file(out).stem, other))` -> `pass` (a lost
+        far city)
+    Break: score/stages/assembly/neighbours.py: `glob("*.usd*")` -> `glob("*.usda")` (the stairwell)
+    Break: score/stages/assembly/neighbours.py: `if owns:` -> `if False:` (the old station)
+    Break: score/stages/assembly/neighbours.py: `owns = has_own_ground(layers, place)` -> `owns = True` (the airlock)
+    Break: score/stages/assembly/scene_tree.py: `matrix[:3, :3] = turn.T` -> `matrix[:3, :3] = turn` (the whole tree)
     Break: score/stages/assembly/scene_tree.py:
         `shift = corner + east * start[0] + south * start[1] + up * level - turn @ child_corner`
-        -> `shift = corner + east * start[0] + south * start[1] + up * level`
-    Break: score/stages/assembly/scene_tree.py: `+ up * level` -> ``
-    The yard holding the hut twice (#72: a place held several times stands once a hold), its second instance turned 90 degrees
-    at (2, 7) 3 x 4 m: its crate at plan (2, 1) of the hut is (4, 9) on the yard, (-6, 0, 3), under /yard/Scenes/hut_2,
-    the hut's one tree copied once; the gate passes it.
-    A third instance turned 45 degrees (#72: the base's tubes off the hub's diagonal facets) in its 4.95 m box at (14, 0):
-    its crate at plan (2, 1) is (16.83, 2.12) on the yard, (6.83, 0, -3.88).
+        -> `shift = corner + east * start[0] + south * start[1] + up * level` (the whole tree)
+    Break: score/stages/assembly/scene_tree.py: `+ up * level` -> `` (a child up a door)
     Break: score/stages/scene_record/plan.py: `return round(math.cos(turn), 12), round(math.sin(turn), 12)` ->
-        `return round(math.cos(turn)), round(math.sin(turn))`
+        `return round(math.cos(turn)), round(math.sin(turn))` (a child held thrice)
     Break: score/stages/assembly/scene_tree.py: `standing = sorted(child for child, hold in laid.items() if hold["place"] in children)` ->
-        `standing = sorted(child for child in laid if child in children)`"""
-    yard, inputs = the_yard(tmp_path)
-    stage = opened(yard / "yard.usda")
-    assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
-    assert crate_at(stage, "/yard/Scenes/shed/Scenes/nook/Objects/crate_1") == [-6.0, 0.0, -1.5]
-    assert crate_at(stage, "/yard/Scenes/hut/Objects/crate_1") == [2.0, 0.0, 0.0]
-    assert crate_at(stage, "/yard/Objects/crate_1") == [0.0, 0.0, 0.0]
-    verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.answer == checks.PASS and verdict.measures["children"] == 2, verdict.findings
-    nook = scene_tree.judge_children(tmp_path / "trees/nook", {"plan": tmp_path / "plans/nook.json"}, None)
-    assert nook.answer == checks.PASS and nook.reason == "its plan lays out no child scene"
-    door = {"kind": "door", "wide": 1.0, "sill": 0.0}
-    raised, inputs = the_yard(tmp_path / "raised", {**HUT, "openings": [{**door, "at": [0.0, 1.5], "to": "shed"}]},
-                              shed_plan={**SHED, "openings": [{**door, "at": [4.0, 1.5], "sill": 2.5, "to": "hut"}]})
-    stage = opened(raised / "yard.usda")
-    assert crate_at(stage, "/yard/Scenes/hut/Objects/crate_1") == [2.0, 2.5, 0.0]
-    assert crate_at(stage, "/yard/Scenes/shed/Objects/crate_1") == [-7.0, 0.0, -2.0]
-    verdict = scene_tree.judge_children(raised, inputs, None)
-    assert verdict.answer == checks.PASS, verdict.findings
-    twice = {**YARD, "holds": [{**YARD["holds"][1], "instance": "hut#1"},
-                               {"place": "hut", "instance": "hut#2", "turn": 90, "x": 2.0, "y": 7.0, "w": 3.0, "d": 4.0},
-                               {"place": "hut", "instance": "hut#3", "turn": 45, "x": 14.0, "y": 0.0, "w": 4.949747,
-                                "d": 4.949747}]}
-    root = tmp_path / "twice"
-    hut, _ = tree_of(root, "hut", a_scene(root / "made", "hut", (-1.0, 0.0, 2.0)), HUT, {})
-    yard, inputs = tree_of(root, "yard", a_scene(root / "made", "yard", (0.0, 0.0, 0.0)), twice, {"hut": (hut, HUT)})
-    stage = opened(yard / "yard.usda")
-    assert crate_at(stage, "/yard/Scenes/hut_1/Objects/crate_1") == [2.0, 0.0, 0.0]
-    assert crate_at(stage, "/yard/Scenes/hut_2/Objects/crate_1") == [-6.0, 0.0, 3.0]
-    assert crate_at(stage, "/yard/Scenes/hut_3/Objects/crate_1") == [6.8284, 0.0, -3.8787]
-    assert sorted(path.name for path in (yard / "scenes").iterdir()) == ["hut"]
-    verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.answer == checks.PASS and verdict.measures["children"] == 3, verdict.findings
-
-
-def case_a_child_laid_out_and_not_stood_fails_by_name(tmp_path):
-    """The yard's plan lays out the hut; a run with no hut read stands the shed alone and fails on the hut.
+        `standing = sorted(child for child in laid if child in children)` (a child held thrice)
     Break: score/stages/assembly/scene_tree.py: `children = sorted(set(laid) | read | standing)` -> `children =
-        sorted(read | standing)`"""
-    yard, inputs = the_yard(tmp_path, children=("shed",))
-    verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.answer == checks.FAIL
-    assert verdict.findings == ("/yard/Scenes/hut: laid out on yard's plan, not in the stage (no scene of the "
-                                "batch: its design is not done)",)
-
-
-def case_a_child_whose_plan_is_not_its_hold_s_size_fails(tmp_path):
-    """A hut planned 5 m wide in a 4 m hold fails on its size.
-    Break: score/stages/assembly/scene_tree.py: `if abs(wide - hold["w"]) > SIZED` -> `if False`"""
-    yard, inputs = the_yard(tmp_path, hut_plan={**HUT, "w": 5.0})
-    verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.answer == checks.FAIL
-    assert "/yard/Scenes/hut: its plan laid in its hold is 5 x 3 m, its hold 4.0 x 3.0 m" in verdict.findings
-
-
-def case_a_child_standing_where_the_plan_lays_out_nothing_fails(tmp_path):
-    """The yard's plan edited to hold the shed only, its tree still standing the hut: the hut fails by name.
-    Break: score/stages/assembly/scene_tree.py: `return [f"/{scene}/{SCENES}/{child}: read as a child scene, laid out
-        nowhere on {scene}'s plan"]` -> `return []`"""
-    yard, inputs = the_yard(tmp_path)
-    inputs["plan"].write_text(json.dumps({**YARD, "holds": YARD["holds"][:1]}))
-    verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.findings == ("/yard/Scenes/hut: read as a child scene, laid out nowhere on yard's plan",)
-
-
-def case_a_scene_with_no_plan_read_is_unknown_not_passed(tmp_path):
-    """The yard's tree made with no plan read stands no child, and what it should hold cannot be told: unknown.
-    Break: score/stages/assembly/scene_tree.py: `if plan is None:` -> `if False:`"""
-    yard, inputs = tree_of(tmp_path, "yard", a_scene(tmp_path / "made", "yard", (0.0, 0.0, 0.0)), None, {})
-    verdict = scene_tree.judge_children(yard, inputs, None)
-    assert verdict.answer == checks.UNKNOWN
-    assert verdict.reason == "no plan of yard read: which child scenes it holds cannot be told"
-
-
-def case_the_plans_read_are_the_creator_s_kept_ones_and_a_scene_holding_itself_is_refused(tmp_path, monkeypatch):
-    """The plan read is the creator's kept one, none without it; each child's plan is declared; a plan laying out a
-    scene above it (the nook holding the yard) is refused.
-    Break: score/stages/assembly/scene_tree.py: `if above:` -> `if False:`
+        sorted(read | standing)` (a child laid out and not read)
+    Break: score/stages/assembly/scene_tree.py: `if abs(wide - hold["w"]) > SIZED` -> `if False` (a child planned
+        wider than its hold)
+    Break: score/stages/assembly/scene_tree.py: `return [f"/{scene}/{SCENES}/{prim_name(child)}: read as a child
+        scene, laid out nowhere on {scene}'s plan"]` -> `return []` (a child standing where the plan lays out nothing)
+    Break: score/stages/assembly/scene_tree.py: `if plan is None:` -> `if False:` (no plan read)
+    Break: score/stages/assembly/scene_tree.py: `if above:` -> `if False:` (the nook holding the yard)
     Break: score/stages/assembly/scene_tree.py: `named.update({f"plan {child}": plan_pattern(child) for child in
-        held(place)})` -> `pass`"""
-    monkeypatch.setattr(scene_tree, "KEPT", tmp_path)
-    for scene, plan in (("yard", YARD), ("shed", SHED), ("hut", HUT), ("nook", NOOK)):
-        (tmp_path / f"{scene}.json").write_text(json.dumps(plan))
+        held(place)})` -> `pass` (the yard's declared plans)"""
+    for case in LAYERED:
+        name = case["name"]
+        output, inputs = layered(tmp_path / "layered", case)
+        if case["design"] is not None:
+            needs = assembly.needed_layers(case["design"], KINDS)
+            assert needs == case["needs"], f"{name}: needs {needs}"
+        verdict = assembly.judge_layers(output, inputs, None)
+        assert verdict.answer == case["answer"], f"{name}: {verdict.answer}, {verdict.reason}, {verdict.findings}"
+        if "waits" in case:
+            assert verdict.findings == case["waits"], f"{name}: waits on {verdict.findings}"
+    assert neighbours.record_of("nowhere") == {}
+    with monkeypatch.context() as patched:
+        patched.setattr(neighbours, "record_of", lambda place: RECORDS.get(place, {}))
+        patched.setattr(neighbours.scene_record, "written", lambda place: place in ("square", "launch"))
+        for query, place, answer in ASKED:
+            got = getattr(neighbours, query)(place)
+            assert (bool(got) if isinstance(answer, bool) else got) == answer, f"{query}({place}): {got}"
+    for case in NEIGHBOURED:
+        name = case["name"]
+        root = tmp_path / "neighboured" / name.replace(" ", "_")
+        inputs = the_neighbours(root, case)
+        if "seed" in case:
+            before = neighbours.judge_neighbours(the_seed_s_way(root, case, inputs), {}, None)
+            assert before.answer == checks.FAIL and before.measures["faults"] == case["seed"]["faults"], \
+                f"{name}, the seed's way: {before}"
+            if "a finding" in case["seed"]:
+                assert any(case["seed"]["a finding"] in finding for finding in before.findings), \
+                    f"{name}, the seed's way: {before.findings}"
+            if "every finding" in case["seed"]:
+                assert all(case["seed"]["every finding"] in finding for finding in before.findings), \
+                    f"{name}, the seed's way: {before.findings}"
+        out = root / "out"
+        out.mkdir()
+        neighbours.make(inputs, out, 0, {})
+        shutil.rmtree(root / "kept")
+        verdict = neighbours.judge_neighbours(out, {}, None)
+        assert verdict.answer == checks.PASS, f"{name}: {verdict}"
+        if "shown" in case:
+            assert verdict.measures["shown"] == case["shown"], f"{name}: {verdict.measures}"
+        if "gap" in case:
+            lost = f"/{case['place']}/Places/{case['gap']}"
+            found = json.loads((out / neighbours.GAPS).read_text())["gaps"]
+            assert [entry["objects"] for entry in found] == [[lost]], f"{name}: gaps {found}"
+            assert f"{case['gap']}: shown by the plan" in verdict.reason, f"{name}: {verdict.reason}"
+            assert verdict.findings and all(finding.startswith(lost) for finding in verdict.findings), \
+                f"{name}: {verdict.findings}"
+        stage = opened(out / f"{case['place']}.usda")
+        for path, active in case.get("active", {}).items():
+            assert stage.GetPrimAtPath(path).IsActive() == active, f"{name}: {path} active {not active}"
+        if "removed" in case:
+            shutil.rmtree(out / "places" / case["removed"])
+            assert neighbours.judge_neighbours(out, {}, None).answer == checks.FAIL, f"{name}: {case['removed']} gone"
+    for number, case in enumerate(YARDS):
+        name = case["name"]
+        root = tmp_path / str(number)
+        output, inputs = the_yard(root, case)
+        if "crates" in case:
+            stage = opened(output / "yard.usda")
+            stood = {path: crate_at(stage, path) for path in case["crates"]}
+            assert stood == case["crates"], f"{name}: crates stand at {stood}"
+        if "copied" in case:
+            copied = sorted(path.name for path in (output / "scenes").iterdir())
+            assert copied == case["copied"], f"{name}: copied {copied}"
+        verdict = scene_tree.judge_children(output, inputs, None)
+        assert verdict.answer == case["answer"], f"{name}: {verdict.answer}, {verdict.reason}, {verdict.findings}"
+        if "children" in case:
+            assert verdict.measures["children"] == case["children"], f"{name}: {verdict.measures}"
+        if "reason" in case:
+            assert verdict.reason == case["reason"], f"{name}: {verdict.reason}"
+        if "findings" in case:
+            assert verdict.findings == case["findings"], f"{name}: {verdict.findings}"
+        if "finding" in case:
+            assert case["finding"] in verdict.findings, f"{name}: {verdict.findings}"
+    kept = tmp_path / "0" / "plans"  # the whole tree's plans: the yard's, shed's, hut's and nook's
+    monkeypatch.setattr(scene_tree, "KEPT", kept)
     assert scene_tree.files("yard") == {"plan": "{home}/design/plans/yard.json",
                                         "plan hut": "{home}/design/plans/hut.json",
                                         "plan shed": "{home}/design/plans/shed.json"}
     assert scene_tree.files("nook") == {"plan": "{home}/design/plans/nook.json"}
-    (tmp_path / "nook.json").unlink()
+    (kept / "nook.json").unlink()
     assert scene_tree.plan_path("nook") is None and scene_tree.held("shed") == ["nook"]
-    (tmp_path / "nook.json").write_text(json.dumps({**NOOK, "holds": [{"place": "yard"}]}))
+    (kept / "nook.json").write_text(json.dumps({**NOOK, "holds": [{"place": "yard"}]}))
     with pytest.raises(ValueError, match="cannot hold itself"):
         scene_tree.held("yard")
-
-
-# --- the one test ---------------------------------------------------------------------------------------------------
-
-CASES = [
-    case_the_resting_gate_judges_the_world_files_the_stage_declares,
-    case_a_row_on_a_wall_or_ceiling_row_is_judged_mounted_there,
-    case_a_row_the_record_hangs_within_its_holder_is_judged_hanging,
-    case_a_hanging_one_is_hung_on_its_holder_s_inside_back_face,
-    case_the_declared_inventory_folder_is_the_one_earth_seed_lays_from,
-    case_a_baked_model_carries_its_hash_and_keeps_the_owner_s_pick,
-    case_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model,
-    case_a_claimed_model_is_laid_from_the_name_its_place_bakes_it_under,
-    case_a_claimed_model_its_place_bakes_under_its_own_name_is_laid_from_its_own_bake,
-    case_the_places_claiming_a_bake_are_read_from_the_design_s_surface_data,
-    case_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it,
-    case_a_light_the_motion_layer_animates_plays_its_keyframes,
-    case_the_accepted_record_replaces_the_seed_s_and_a_place_without_one_keeps_its_seed_record,
-    case_the_collision_gate_fails_a_seed_s_bare_wall_and_passes_the_record_written_again,
-    case_a_tube_s_lamps_hang_on_every_bay_of_its_way,
-    case_an_entry_waiting_on_its_model_lays_nothing_and_is_named,
-    case_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_longer_named,
-    case_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_row,
-    case_a_row_ground_join_joined_is_the_ground_s_and_is_not_laid_again_as_an_object,
-    case_the_settle_s_seed_leaves_out_a_row_ground_join_joined,
-    case_base_s_garage_door_lands_on_its_module_s_front_face,
-    case_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it,
-    case_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_named,
-    case_the_held_gate_names_each_object_not_where_what_holds_it_puts_it,
-    case_the_held_gate_names_two_objects_overlapping_on_one_face,
-    case_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall,
-    case_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not,
-    case_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left,
-    case_a_door_goes_in_its_opening_narrowed_to_fit,
-    case_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing,
-    case_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing,
-    case_a_thing_on_a_face_stands_on_its_front_never_inside_it,
-    case_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to,
-    case_a_monitor_goes_on_its_console_s_top_within_its_span,
-    case_a_wall_item_stands_on_its_named_face,
-    case_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot,
-    case_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said,
-    case_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer,
-    case_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row,
-    case_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row,
-    case_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder,
-    case_a_place_needs_the_layers_its_design_shows,
-    case_a_place_waits_on_every_layer_it_needs,
-    case_a_place_shows_its_neighbours_from_their_own_outputs,
-    case_a_lost_shown_place_is_the_place_s_gap_and_any_other_fault_still_fails,
-    case_a_shown_place_the_terrain_added_points_at_its_copy,
-    case_a_place_with_its_own_ground_shows_its_neighbours_without_theirs,
-    case_a_room_with_no_ground_of_its_own_keeps_its_neighbours_grounds,
-    case_opening_the_yard_opens_the_whole_tree_each_child_at_its_hold,
-    case_a_child_laid_out_and_not_stood_fails_by_name,
-    case_a_child_whose_plan_is_not_its_hold_s_size_fails,
-    case_a_child_standing_where_the_plan_lays_out_nothing_fails,
-    case_a_scene_with_no_plan_read_is_unknown_not_passed,
-    case_the_plans_read_are_the_creator_s_kept_ones_and_a_scene_holding_itself_is_refused,
-]
-
-
-@pytest.mark.parametrize("case", CASES, ids=[case.__name__.removeprefix("case_") for case in CASES])
-def test_a_place_stands_from_its_accepted_outputs(case, tmp_path, monkeypatch):
-    """A place stands from its accepted outputs: each case above is one toy place and the answer it must give, its
-    docstring naming the break that turns it red; a case takes the fixtures it names."""
-    given = {"tmp_path": tmp_path, "monkeypatch": monkeypatch}
-    case(**{name: given[name] for name in inspect.signature(case).parameters})
