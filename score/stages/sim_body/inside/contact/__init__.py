@@ -6,7 +6,7 @@ body: it stands where the fit to SOMA puts it (#70)."""
 import mujoco
 import numpy as np
 
-from ground import body_floor, body_reach, heights_over, standing
+from ground import body_floor, body_reach, body_top, heights_over, standing
 from model import TO_OWN, own_pose
 
 # The ground pushes only a skin point touching it: within GAP of its drawn triangle or into it, the same 5 mm the
@@ -160,8 +160,9 @@ def on_ground_all(model, states, ground, skin):
                                     for state in range(count)])
     reach = np.repeat([body_reach(mine) for mine in own], own.shape[1])  # each state's own reach, point by point
     floor = np.repeat([body_floor(mine) for mine in own], own.shape[1])  # ... and floor
+    top = np.repeat([body_top(mine) for mine in own], own.shape[1])  # ... and top
     every_height, every_triangle = (values.reshape(count, -1)
-                                    for values in standing(own.reshape(-1, 3), ground, reach, floor))
+                                    for values in standing(own.reshape(-1, 3), ground, reach, floor, top))
     return points, segments, shares, bodies, carried, own, every_height, every_triangle
 
 
@@ -259,7 +260,7 @@ def lowests(model, data, skin, ground, parts):
     ({part: its points' indices}); None where none is over any of it. The skin is placed and its heights found once
     for all of them (#70: a point's height is its own, so a part's are the whole skin's at its points)."""
     placed = skin.placed(model, data)
-    heights = heights_over(placed, ground, body_reach(placed), body_floor(placed))
+    heights = heights_over(placed, ground, body_reach(placed), body_floor(placed), body_top(placed))
     return lowest_of(heights), {part: lowest_of(heights[points]) if len(points) else None
                               for part, points in parts.items()}
 
@@ -286,7 +287,7 @@ def pushes(model, data, ground, up, skin, frame=0):
     found = []
     carried = skin.by_segment(model, data)
     own = np.einsum("vs,vsi->vi", skin.weights, carried)
-    heights, triangles = standing(own, ground, body_reach(own), body_floor(own))
+    heights, triangles = standing(own, ground, body_reach(own), body_floor(own), body_top(own))
     over = own[:, 1] - np.nan_to_num(heights, nan=np.inf)
     if skin.credit is not None:
         over = over - skin.credit[frame % len(skin.credit)]

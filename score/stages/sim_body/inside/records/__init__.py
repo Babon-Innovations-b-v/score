@@ -13,7 +13,7 @@ from scipy.spatial import ConvexHull, QhullError
 from scipy.spatial.transform import Rotation
 
 from bone_groups import LACKS
-from ground import heights_over
+from ground import body_top, heights_over
 from model import TO_OWN, own_pose
 from rra import RRA_ROUNDS, turned_off
 from solvers import smoothed
@@ -95,12 +95,14 @@ def bones_of(model):
 
 
 def com_height(model, qpos, ground):
-    """The centre of mass' height over its ground at a pose (m)."""
+    """The centre of mass' height over its ground at a pose (m): the ground a body as high as its bodies' highest
+    origin finds room on (`body_top`: a seated body's mattress under an upper bunk is its seat, not a block)."""
     data = mujoco.MjData(model)
     data.qpos[:] = qpos
     mujoco.mj_kinematics(model, data)
     mujoco.mj_comPos(model, data)
-    return float(heights_over((data.subtree_com[model.jnt_bodyid[0]] @ TO_OWN.T)[None], ground)[0])
+    return float(heights_over((data.subtree_com[model.jnt_bodyid[0]] @ TO_OWN.T)[None], ground,
+                              top=body_top(data.xpos @ TO_OWN.T))[0])
 
 
 def adjustment_record(moved_by, kept, shares, step, before, after, segments, follows):
@@ -155,7 +157,7 @@ def steadied(raw, rate, ground):
             moments = smoothed(np.array([size * centre for _, centre, size, _ in span]), rate)
             for offset in np.flatnonzero(sizes > 0):
                 centre = moments[offset] / sizes[offset]
-                centre[1] -= np.nan_to_num(heights_over(centre[None], ground)[0])
+                centre[1] -= np.nan_to_num(heights_over(centre[None], ground, top=centre[1])[0])  # on what it presses
                 found[start + offset][part] = [*np.round(forces[offset], 3).tolist(), *np.round(centre, 4).tolist()]
     return found
 
@@ -192,7 +194,8 @@ def push_measures(steady, raw, needs, weight, ground):
                 jumps.append(np.linalg.norm(np.subtract(push[:3], steady[frame][part][:3])))
                 shifts.append(np.linalg.norm(np.subtract(push[3:], steady[frame][part][3:])))
     centres = [(push[3:], raw[frame][part][3]) for frame, touches in enumerate(steady) for part, push in touches.items()]
-    heights = heights_over(np.array([centre for centre, _ in centres]), ground) if centres else np.zeros(0)
+    placed = np.array([centre for centre, _ in centres]).reshape(-1, 3)
+    heights = heights_over(placed, ground, top=placed[:, 1]) if centres else np.zeros(0)  # a centre needs no room
     return {"quiet frames": len(quiet),
             "quiet off weight %": round(100 * max((abs(found - weight) for found in sums), default=0.0) / weight, 2),
             "quiet jump % weight": round(100 * float(max(jumps)) / weight, 2),

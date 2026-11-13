@@ -24,6 +24,11 @@ Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-
   foot 3 mm into its floor reads 0.2 m over the floor's underside, never sunk; its `+ SAME` dropped: a point 3 mm into a bent
   floor, on the edge its two triangles share (their heights 4e-17 apart), has no ground (nan).
 - body_floor's `+ REACH_UP` made `+ HEADROOM`: the desk's underside, 0.72 m up, counts as the foot's floor (-0.72).
+- standing's `room = np.minimum(HEADROOM, tops[which] - heights)` made `HEADROOM` (2026-11-13): a body seated on a
+  lower bunk's mattress, 0.6 m free under the upper bunk, its own top 0.55 m over the mattress, has no ground under its
+  thighs (nan; quarters' person_bed's centre of mass, a NaN in RRA's Cholesky); made `tops[which] - heights` (no
+  HEADROOM): a point with no body over it (no top) finds no room under anything, the floor under the counter top and
+  under the deck read nan.
 - REACH_UP made 0.4: it no longer agrees with the cast's KNEE.
 - normals' `found *= np.sign(found[:, 1:2]) + (found[:, 1:2] == 0)` dropped: a triangle wound the other way points
   down.
@@ -98,16 +103,28 @@ def a_body_under_a_roof_stands_on_its_floor():
 
 def seated_reach_problems():
     """A floor at 0 and a chair's seat 0.40 m up under a seated body's thighs, its feet on the floor before it and its
-    trunk up to 1.3 m: its thighs stand 0 m over the seat, its feet 0 m over the floor."""
+    trunk up to 1.3 m: its thighs stand 0 m over the seat, its feet 0 m over the floor. The same seat a lower bunk's
+    mattress, the upper bunk's underside 1.0 m up (0.6 m free, under HEADROOM), the body's trunk up to 0.95 m (0.55 m
+    over the mattress): its thighs, its centre of mass among them, stand 0 m over the mattress (quarters'
+    person_bed, 2026-11-13); a body reaching 1.1 m up there has no room, the mattress a block: its thighs stand on the
+    floor under it, 0.4 m over it."""
     feet = [[0.5, height, 0.0] for height in np.linspace(0.0, 0.4, 5)]
     thighs = [[x, 0.4, 0.0] for x in np.linspace(-0.3, 0.1, 5)]
-    trunk = [[-0.3, height, 0.0] for height in np.linspace(0.5, 1.3, 9)]
-    body = np.array(feet + thighs + trunk)
+    body = np.array(feet + thighs + [[-0.3, height, 0.0] for height in np.linspace(0.5, 1.3, 9)])
     seated = np.array(square(0.0) + square(0.4, -0.4, 0.2))
     over = ground.heights_over(body, seated, ground.body_reach(body))
+    bunk = np.array(square(0.0) + square(0.4, -0.4, 0.2) + square(1.0, -0.4, 0.2))
+    low, high = (np.array(feet + thighs + [[-0.3, height, 0.0] for height in np.linspace(0.5, top, 9)])
+                 for top in (0.95, 1.1))
+    under_bunk = ground.heights_over(low, bunk, ground.body_reach(low), ground.body_floor(low), ground.body_top(low))
+    no_room = ground.heights_over(high, bunk, ground.body_reach(high), ground.body_floor(high), ground.body_top(high))
     return [f"{name}: {found} over its ground, not 0" for name, found in
             (("the thighs", np.nanmax(np.abs(over[5:10])) if not np.isnan(over[5:10]).any() else np.nan),
-             ("the feet", over[0])) if not abs(found) < 1e-9]
+             ("the feet", over[0]),
+             ("the thighs on the bunk", np.nanmax(np.abs(under_bunk[5:10])) if not np.isnan(under_bunk[5:10]).any()
+              else np.nan)) if not abs(found) < 1e-9] + (
+        [] if np.allclose(no_room[5:10], 0.4) else [f"a body too tall for the bunk: its thighs {no_room[5:10]} over its "
+                                                     "ground, not 0.4 over the floor"])
 
 
 def under_a_desk_problems():
@@ -121,7 +138,7 @@ def under_a_desk_problems():
                     + square(1.5, -1.0, -0.5))
     body = np.array([[0.5, 0.0, 0.5], [-0.3, -0.003, -0.3], [-0.2, 0.9, 0.2], [-0.75, 1.1, -0.75]]
                     + [[-0.2, height, 0.2] for height in np.linspace(0.1, 1.7, 9)])
-    over = ground.heights_over(body, room, ground.body_reach(body), ground.body_floor(body))
+    over = ground.heights_over(body, room, ground.body_reach(body), ground.body_floor(body), ground.body_top(body))
     corners = np.array([[0.2, 0.0, 1.6], [1.2, 0.1, 0.9], [1.0, 0.0, 1.5], [0.2, 0.3, 1.0]])  # a bent floor 0.2 thick
     bent = np.array([corners[[0, 1, 2]], corners[[0, 2, 3]]])
     on_edge = corners[0] + (corners[2] - corners[0]) * 0.43 - [0.0, 0.003, 0.0]  # its two triangles cross 4e-17 apart
