@@ -347,6 +347,11 @@ tests it turned red:
   a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
 - parts_kept.py: `finish.get("surface") in glowing and` -> `False and` (lit_kept)  ->
   a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
+- parts_kept.py: `if record.get("picked"):` -> `if False:` (kit_kept); or `if finish.get("picked"):` -> `if False:`
+  (pick_kept); or `if spec.get("recipe") == "glowing" and` -> `if False and` (glow_kept)  ->
+  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+- check_seen.py: `if surface.split(route_settings.SEPARATOR)[0] in glowing` -> `if False` (lit_as_light)  ->
+  a_finish_judged_by_its_own_colour_is_not_compared_with_its_close_up
 - recheck_picks.py: `if apart > finish_parts.COLOUR_DELTA_E:` -> `if False:` (fitting); or `if picks:` -> `if
   False:` (make_parts); or `(out / batch_gaps.FILE).unlink(missing_ok=True)` -> `pass` (make_picks); or `or
   token_apart(...) > finish_parts.COLOUR_DELTA_E]` -> `or False]` (judge_picks)  ->
@@ -705,6 +710,20 @@ def test_a_finish_judged_by_its_own_colour_is_not_compared_with_its_close_up():
     faults = bake_check.close_up_faults("beacon_1", baked_record({"red_plastic": (1.0, red)},
                                                                  {"red_plastic": dome["measured_lab"]}))
     assert len(faults) == 1 and "red_plastic" in faults[0], faults
+    # the engine room's core (2026-11-13): its glow, a `glowing` variant whose family the scene library coined
+    # ("energy"), baked its blue against the close-up's white-hot column; as the row judges it (check_seen) a glowing
+    # surface is judged by its own colour, its opaque casing still compared and ordered
+    glow = route_settings.settings_name("core_glow", {"token": "reactor-blue", "roughness": 0.2, "metal": 0.0})
+    core = baked_record({glow: (0.23, [63.7, 7.0, -56.4]), "casing": (0.77, [32.3, 0.1, -2.6])},
+                        {glow: [77.1, 0.7, -2.7], "casing": [70.0, 0.0, 0.0]})
+    core["surfaces"][glow]["family"], core["missing_maps"] = "energy", []
+    assert len(bake_check.surface_faults("core_1", core)) == 2  # the glow off its close-up, the casing too
+    lit = bake_check.surface_faults("core_1", check_seen.lit_as_light(core, {"core_glow"}))
+    assert len(lit) == 1 and "casing" in lit[0], lit
+    assert check_seen.glowing_surfaces({}) == set()  # a row that reads no scene library: nothing counted lit
+    with tempfile.TemporaryDirectory() as scratch:
+        (pathlib.Path(scratch) / "checks.json").write_text(json.dumps({"core_1": core}))
+        assert check_seen.judge_lit(scratch, {}, None).answer == checks.FAIL
 
 
 WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, -0.3, 1.0],
@@ -2071,6 +2090,37 @@ def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagge
                                               [seen["deck_plate"]], every, kit)[0]
     assert kept["surface"] == "bare_steel" and kept["by"] == "the list", kept
     assert plate["surface"] == "deck_plate" and plate["by"] == "the room's kit surface by colour", plate
+    # a picked finish keeps its pick (the engine room's crate, 2026-11-13: picked steel-grey, the kit took it back
+    # to the deck plate the recheck had failed): never the kit's, and never moved by the order, whose other finish
+    # moves instead (dark at L* 25, light at 61: the picked frame seen lighter than the box, the box takes the dark)
+    picked = dict(finishes[3], picked={"token": "steel-grey"})
+    dark, light = {"family": "steel", "recipe": "bare_metal", "colour": [0.043] * 3}, \
+        {"family": "steel", "recipe": "bare_metal", "colour": [0.29] * 3}
+    pair = {"dark_steel": dark, "light_steel": light}
+    frame = {"finish": "worn steel frame", "parts": "frame", "surface": "dark_steel", "fits": True, "picked": {}}
+    box = {"finish": "steel box", "parts": "box", "surface": "light_steel", "fits": True}
+    seen_pair = [finish_parts.library_lab(dark) + [20.0, 0, 0], finish_parts.library_lab(dark) + [7.0, 0, 0]]
+    moved = finish_parts.checked_finishes({"kind": "shelf", "object": "shelf"}, [dict(frame), dict(box)], seen_pair,
+                                          pair)
+    with parts_kept.held():
+        kept = finish_parts.checked_finishes({"kind": "module", "object": "module"}, [picked], [seen["deck_plate"]],
+                                             every, kit)[0]
+        frame_kept, box_moved = finish_parts.checked_finishes({"kind": "shelf", "object": "shelf"},
+                                                              [dict(frame, picked={"token": "slate"}), dict(box)],
+                                                              seen_pair, pair)
+    assert kept["surface"] == "bare_steel" and kept["by"] == "the list", kept
+    assert moved[0]["surface"] == "light_steel", moved  # without the hold the pick is moved off
+    assert frame_kept["surface"] == "dark_steel" and box_moved["surface"] == "dark_steel", (frame_kept, box_moved)
+    # a glowing surface the scene library put in a family of its own coining ("energy": the engine room's core glow
+    # seen white-hot, 2026-11-13) is judged by its own colour, as a light is, never off its colour
+    core = {"core_glow": {"family": "energy", "recipe": "glowing", "colour": [0.07, 0.33, 1.0]}}
+    column = {"finish": "Blue core glow", "parts": "column", "surface": "core_glow", "fits": True}
+    white = [np.array([77.1, 0.7, -2.7])]
+    assert finish_parts.checked_finishes({"kind": "core", "object": "core"}, [dict(column)], white, core)[0][
+        "by"] == "off its colour"
+    with parts_kept.held():
+        glowing = finish_parts.checked_finishes({"kind": "core", "object": "core"}, [dict(column)], white, core)[0]
+    assert glowing["by"] == "its own colour" and glowing["surface"] == "core_glow", glowing
     assert foil["surface"] == "gold_foil" and foil["by"] == "off its colour", foil  # never silver_foil
     lit = {"reactor_glow": {"family": "glass", "recipe": "glowing", "colour": [0.10, 0.45, 1.0]},
            "side_glazing": {"family": "glass", "recipe": "glass", "colour": [0.005, 0.0225, 0.05]}}
