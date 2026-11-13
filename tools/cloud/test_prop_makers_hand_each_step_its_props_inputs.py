@@ -30,138 +30,126 @@ PROPS = [{"name": "ship-s1", "place": "hangar", "row": "ship", "take": "ship-b1"
           "picture": "/pics/crane.png", "parts": "/parts/crane", "keep": ["closeup"]}]
 
 
-class StandIn:
-    """A stand-in for subprocess.run: records each command, writes the outputs `make` names and a ledger line."""
+class Cloud:
+    """A stand-in for subprocess.run serving both paid tools: records each command, writes the outputs the tool would
+    bring back (batch.py: each listed take's files; library_bake.py: each job's model) and one ledger line of the
+    tool's kind; `down` makes it fail and bring nothing back."""
 
-    def __init__(self, ledger, kind, make, code=0):
-        self.ledger, self.kind, self.make, self.code, self.commands = ledger, kind, make, code, []
+    KINDS = {"batch.py": "pixal", "library_bake.py": "library"}
+
+    def __init__(self, ledger):
+        self.ledger, self.down, self.commands = ledger, False, []
 
     def __call__(self, command, **_):
         self.commands.append(command)
-        for path in self.make(command):
+        kind = self.KINDS[pathlib.Path(command[1]).name]
+        for path in [] if self.down else self.outputs(kind, command):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text("made")
+        count = sum(self.KINDS[pathlib.Path(sent[1]).name] == kind for sent in self.commands)
         with self.ledger.open("a") as ledger:
-            ledger.write(json.dumps({"kind": self.kind, "batch": f"{self.kind}-{len(self.commands)}"}) + "\n")
-        return types.SimpleNamespace(returncode=self.code, stdout="", stderr="")
+            ledger.write(json.dumps({"kind": kind, "batch": f"{kind}-{count}"}) + "\n")
+        return types.SimpleNamespace(returncode=int(self.down), stdout="", stderr="")
+
+    @staticmethod
+    def outputs(kind, command):
+        if kind == "pixal":
+            listing = pathlib.Path(command[2]).read_text().split("\n")
+            return [prop_makers.WORK / "pixal" / f"{line.split()[0]}{suffix}" for line in listing if line
+                    for suffix in prop_makers.TAKE_FILES]
+        return [pathlib.Path(job["out"]) / f"{job['chunky'][0]['name']}.gltf" for job in bake_jobs(command)]
 
 
-@pytest.fixture
-def sandbox(tmp_path, monkeypatch):
-    """prop_makers pointed at a sandbox work folder and ledger, its surface data a stand-in entry."""
+def bake_jobs(command):
+    """The make_chunky jobs a library_bake.py command names."""
+    return [json.loads(pathlib.Path(job).read_text()) for job in command[2:command.index("--who")]]
+
+
+BODIED = dict(PROPS[0], parts=None, body="ship-s1")
+# The free checks before anything is paid: (row, check, prop, expected ok, a word its reason holds).
+FREE_CHECKS = [
+    ("no parts and no body", prop_makers.parts_named, dict(PROPS[0], parts=None), False, "names no parts"),
+    ("its own parts", prop_makers.parts_named, PROPS[0], True, ""),
+    ("keeps its bake", prop_makers.parts_named, dict(PROPS[0], parts=None, keep=["bake"]), True, ""),
+    ("a body with a builder", prop_makers.parts_named, dict(PROPS[0], parts=None, body="main_console-s1"), True, ""),
+    ("a body no builder makes", prop_makers.parts_named, BODIED, False, "no builder"),
+    ("bodied, its parts refused", prop_makers.check_parts, BODIED, False, "lies 0.3 off"),
+]
+
+
+def test_prop_makers_hand_each_step_its_props_inputs(tmp_path, monkeypatch):
+    """One work folder, ledger and cloud: the close-ups, then image-to-3d (down once, then up with the crane's take
+    already made), then the bake, each step's inputs read off what the cloud was handed; then the free checks."""
+    from PIL import Image
+    import library
+    import stage
+    import trimesh
     real_bake_entry = prop_makers.bake_entry
+    out, cloud = tmp_path / "out", Cloud(tmp_path / "ledger.jsonl")
     monkeypatch.setattr(prop_makers, "WORK", tmp_path / "work")
     monkeypatch.setattr(prop_makers, "LEDGER", tmp_path / "ledger.jsonl")
-    monkeypatch.setattr(prop_makers, "bake_entry", lambda prop: ({"specs": {}}, dict(ENTRY, name=prop["take"], parts=prop["parts"])))
-    return tmp_path, real_bake_entry
-
-
-def made_takes(command):
-    """The take files batch.py brings back for every line of its list."""
-    listing = pathlib.Path(command[2]).read_text().split("\n")
-    return [prop_makers.WORK / "pixal" / f"{line.split()[0]}{suffix}" for line in listing if line
-            for suffix in prop_makers.TAKE_FILES]
-
-
-def test_models_go_up_as_one_batch_and_a_made_take_is_not_asked(sandbox):
-    folder, _ = sandbox
-    (folder / "work/pixal").mkdir(parents=True)
-    for suffix in prop_makers.TAKE_FILES:
-        (folder / "work/pixal" / f"crane-b1{suffix}").write_text("made before")
-    call = StandIn(folder / "ledger.jsonl", "pixal", made_takes)
-    made = prop_makers.make_models(PROPS, folder / "out", "test", call)
-    [command] = call.commands
-    assert command[1].endswith("batch.py") and command[command.index("--inventory") + 1].endswith("hangar.json")
-    assert pathlib.Path(command[2]).read_text() == "ship-b1 /pics/ship.png --faces 19000 --seed 1\n"
-    assert made == {"ship-s1": {"batch": "pixal-1", "take": "ship-b1"},
-                    "crane-r1": {"batch": None, "take": "crane-b1"}}
-
-
-def test_bake_is_one_batch_of_make_chunky_jobs_of_each_props_parts(sandbox, monkeypatch):
-    folder, _ = sandbox
-    surfaces = folder / "surfaces.json"
-    surfaces.write_text(json.dumps({"library": "hangar"}))
-    monkeypatch.setattr(prop_makers, "bake_inputs", lambda place: {"surfaces": surfaces})
+    monkeypatch.setattr(prop_makers, "bake_entry",
+                        lambda prop: ({"specs": {}}, dict(ENTRY, name=prop["take"], parts=prop["parts"])))
+    monkeypatch.setattr(prop_makers, "bake_inputs", lambda place: {"surfaces": tmp_path / f"{place}.json"})
+    for place in ("hangar", "campgrounds"):
+        (tmp_path / f"{place}.json").write_text(json.dumps({"library": "hangar"}))
     monkeypatch.setattr(place_line, "baking_specs", lambda library, specs, folders: {"steel": {"recipe": "steel"}})
-    out = folder / "out"
 
-    def baked(command):
-        jobs = [json.loads(pathlib.Path(job).read_text()) for job in command[2:command.index("--who")]]
-        return [pathlib.Path(job["out"]) / f"{job['chunky'][0]['name']}.gltf" for job in jobs]
-
-    call = StandIn(folder / "ledger.jsonl", "library", baked)
-    made = prop_makers.make_bakes(PROPS, out, "test", call)
-    [command] = call.commands
-    assert command[1].endswith("library_bake.py")
-    jobs = [json.loads(pathlib.Path(job).read_text()) for job in command[2:command.index("--who")]]
-    assert sorted(job["chunky"][0]["parts"] for job in jobs) == ["/parts/crane", "/parts/ship"]
-    assert all(job["specs"] == {"steel": {"recipe": "steel"}} for job in jobs)
-    assert made == {"ship-s1": {"batch": "library-1", "model": str(out / "made/ship-b1.gltf")},
-                    "crane-r1": {"batch": "library-1", "model": str(out / "made/crane-b1.gltf")}}
-
-
-def test_a_batch_that_made_nothing_raises(sandbox):
-    folder, _ = sandbox
-    call = StandIn(folder / "ledger.jsonl", "pixal", lambda command: [], code=1)
-    with pytest.raises(RuntimeError, match="made nothing"):
-        prop_makers.make_models(PROPS, folder / "out", "test", call)
-
-
-def test_a_prop_with_no_parts_stops_before_anything_is_paid():
-    ok, why = prop_makers.parts_named(dict(PROPS[0], parts=None))
-    assert not ok and "names no parts" in why
-    assert prop_makers.parts_named(PROPS[0]) == (True, "")
-    assert prop_makers.parts_named(dict(PROPS[0], parts=None, keep=["bake"])) == (True, "")
-    assert prop_makers.parts_named(dict(PROPS[0], parts=None, body="main_console-s1")) == (True, "")
-    ok, why = prop_makers.parts_named(dict(PROPS[0], parts=None, body="ship-s1"))
-    assert not ok and "no builder" in why
-
-
-def test_a_bodied_props_parts_are_written_before_its_bake_and_a_refusal_stops_it(sandbox, monkeypatch):
-    folder, _ = sandbox
-    bodied = dict(PROPS[0], parts=None, body="ship-s1")
-    assert prop_makers.parts_folder(bodied) == folder / "work/body-parts" / bodied["take"]
-    written = []
-    monkeypatch.setattr(prop_makers, "write_body_parts",
-                        lambda prop: (written.append(prop["name"]) or False, "lies 0.3 off"))
-    assert prop_makers.check_parts(bodied) == (False, "lies 0.3 off") and written == [bodied["name"]]
-
-
-def test_a_bodied_props_bake_entry_is_refused_by_name_while_the_repo_library_is_retired(sandbox, monkeypatch):
-    import library
-    import trimesh
-    folder, real_bake_entry = sandbox
-    labelled = folder / "labelled/aft_section-t1"
-    labelled.mkdir(parents=True)
-    trimesh.creation.box(extents=(2.0, 1.0, 1.0)).export(labelled / "hull_white.ply")
-    (folder / "surfaces.json").write_text(json.dumps({"place": "wreck", "library": "wreck",
-                                                      "bake": {"models": {"aft_section": "aft_section-t1"}}}))
-    monkeypatch.setattr(prop_makers, "bake_inputs", lambda place: {"surfaces": folder / "surfaces.json"})
-    monkeypatch.setattr(prop_makers, "accepted_labelled", lambda prop: labelled)
-    bodied = {"name": "aft_section-t1", "place": "wreck", "take": "aft_section-b2", "body": "aft_section-t1"}
-    with pytest.raises(library.LibraryEmpty, match="wreck: no wear"):
-        real_bake_entry(bodied)
-
-
-def test_a_close_up_is_drawn_once_and_one_that_fails_is_a_gap(tmp_path, monkeypatch):
-    from PIL import Image
-    import stage
-    drawn = []
-    concept = tmp_path / "concept.png"
+    concept, drawn = tmp_path / "concept.png", []
     Image.new("RGB", (800, 600), (120, 120, 120)).save(concept)
-
-    def row(prop):
-        return {"id": prop["row"], "scene": prop["place"], "words": prop["row"], "size": [1.0, 1.0, 1.0],
-                "concept": str(concept), "box": [100, 100, 200, 150]}
 
     def draw(asks):  # pro.draw reads its own key since 79df451c
         for path, (_, _, reference, _) in asks.items():  # text, crop, room, seed (ce306fd2)
             drawn.append((path.name, reference is not None))
             Image.new("RGB", (64, 64), (200, 200, 200)).save(path)  # a plain picture: the shape check fails it
         return dict.fromkeys(asks, True)
-    monkeypatch.setattr(prop_makers, "closeup_row", row)
+    monkeypatch.setattr(prop_makers, "closeup_row", lambda prop: {
+        "id": prop["row"], "scene": prop["place"], "words": prop["row"], "size": [1.0, 1.0, 1.0],
+        "concept": str(concept), "box": [100, 100, 200, 150]})
     monkeypatch.setattr(stage.pro, "draw", draw)
     monkeypatch.setitem(sys.modules, "secret_store", types.SimpleNamespace(secret=lambda name: "key"))
-    made = prop_makers.make_closeups(PROPS, str(tmp_path))
+
+    closeups = prop_makers.make_closeups(PROPS, str(out))
     assert sorted(drawn) == [("crane.png", True), ("ship.png", True)]  # small crops take the room, once each
-    assert made == {}  # both failed their shape check: gaps, not drawn again
+    assert closeups == {}  # both failed their shape check: gaps, not drawn again
+
+    cloud.down = True
+    with pytest.raises(RuntimeError, match="made nothing"):
+        prop_makers.make_models(PROPS, out, "test", cloud)
+    cloud.down = False
+    (tmp_path / "work/pixal").mkdir(parents=True, exist_ok=True)
+    for suffix in prop_makers.TAKE_FILES:
+        (tmp_path / "work/pixal" / f"crane-b1{suffix}").write_text("made before")
+    models = prop_makers.make_models(PROPS, out, "test", cloud)
+    bakes = prop_makers.make_bakes(PROPS, out, "test", cloud)
+
+    _, models_sent, bake_sent = cloud.commands
+    assert models_sent[1].endswith("batch.py") and models_sent[models_sent.index("--inventory") + 1].endswith("hangar.json")
+    # the made crane is not asked again; the failed close-up is not used, the kept picture is
+    assert pathlib.Path(models_sent[2]).read_text() == "ship-b1 /pics/ship.png --faces 19000 --seed 1\n"
+    assert models == {"ship-s1": {"batch": "pixal-2", "take": "ship-b1"},
+                      "crane-r1": {"batch": None, "take": "crane-b1"}}
+    assert bake_sent[1].endswith("library_bake.py")
+    jobs = bake_jobs(bake_sent)
+    assert sorted(job["chunky"][0]["parts"] for job in jobs) == ["/parts/crane", "/parts/ship"]
+    assert all(job["specs"] == {"steel": {"recipe": "steel"}} for job in jobs)
+    assert bakes == {"ship-s1": {"batch": "library-1", "model": str(out / "made/ship-b1.gltf")},
+                     "crane-r1": {"batch": "library-1", "model": str(out / "made/crane-b1.gltf")}}
+
+    written = []
+    monkeypatch.setattr(prop_makers, "write_body_parts",
+                        lambda prop: (written.append(prop["name"]) or False, "lies 0.3 off"))
+    assert prop_makers.parts_folder(BODIED) == tmp_path / "work/body-parts" / BODIED["take"]
+    for row, check, prop, ok, word in FREE_CHECKS:
+        got_ok, why = check(prop)
+        assert got_ok is ok and word in why and (why == "") is ok, f"{row}: {(got_ok, why)}"
+    assert written == [BODIED["name"]]  # a bodied prop's parts are written before its bake is judged
+
+    labelled = tmp_path / "labelled/aft_section-t1"
+    labelled.mkdir(parents=True)
+    trimesh.creation.box(extents=(2.0, 1.0, 1.0)).export(labelled / "hull_white.ply")
+    (tmp_path / "wreck.json").write_text(json.dumps({"place": "wreck", "library": "wreck",
+                                                     "bake": {"models": {"aft_section": "aft_section-t1"}}}))
+    monkeypatch.setattr(prop_makers, "accepted_labelled", lambda prop: labelled)
+    with pytest.raises(library.LibraryEmpty, match="wreck: no wear"):  # the repo library is retired (2026-10-21)
+        real_bake_entry({"name": "aft_section-t1", "place": "wreck", "take": "aft_section-b2", "body": "aft_section-t1"})
