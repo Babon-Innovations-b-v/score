@@ -101,7 +101,7 @@ FUNCTION_DEBT = {
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
     "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 50,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 101,
-    "score/review/test_the_owners_word_stands.py": 116,
+    "score/review/test_the_owners_word_stands.py": 108,
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 31,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 16,
     "score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py": 22,

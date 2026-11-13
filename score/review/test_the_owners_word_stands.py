@@ -164,6 +164,20 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     overhead.py: `if other["body"] == on or other.get("lux") is not None:` made `if other.get("lux") is not None:`
     overhead.py: `hour = 2.0 * math.pi * since / (light["day_hours"] / 24.0)` made `hour = 0.0`
     overhead.py: `360.0 * 24.0 / body["day_hours"]` made `360.0 * 24.0 / 24.0`
+- test_the_owners_word_stands, its reading's agreement and schema and its plan's gaps (folded 2026-11-14 from
+  eight tests into the AGREED, READ_ANSWERS and GAP_WORDS rows, each break below applied again then and seen red):
+    reading.py: `else row for row in rows if structural(row) or row["boxes"]]` made `else row for row in rows if
+    row["boxes"]]`
+    reading.py: `and area(region) >= LARGE * size[0] * size[1]` made `and area(region) >= 0`
+    reading.py: `and head(other) == head(row) and overlapping(other, row, size)), None)` made `and False), None)`
+    reading.py: `wrong += [] if row.get("kind") in KINDS else ["kind"]` made `wrong += []`
+    reading.py: `raise concepts.Refused(str(unfinished)) from unfinished` made `return ""`
+    plan_checks.py: `for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]` made
+    `for first, second, axis, said, drawn in relations(seen, laid, turn) if False]`
+    plan_checks.py: `if count > 1 and things and item[3] * item[4] > max(SPREAD * things, things + SPREAD_SLACK):`
+    made `if False:`
+    plan_checks.py: `gaps, left_out = [], beyond(plan, inventory) | people(inventory)` made `gaps, left_out = [],
+    people(inventory)`
 - test_each_top_scene_stands_where_the_setting_puts_it_shaped_by_its_own_plan:
     environment_plan.py: `return round(max(tops, default=0.0), 2)` made `return 0.0`
 - test_a_site_without_a_plan_is_a_gap:
@@ -216,20 +230,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     reading.py: `{**row, "count": len(row["boxes"]), "box": row["boxes"][0]}` made `{**row, "box": row["boxes"][0]}`
 - test_a_new_pick_has_no_reading_until_read:
     reading.py: `if sha and found["concept"] == sha and found.get("method")` made `if found.get("method")`
-- test_only_what_both_readers_agree_on_is_a_row_and_the_structure_stays:
-    reading.py: `else row for row in rows if structural(row) or row["boxes"]]` made `else row for row in rows if
-    row["boxes"]]`
-- test_a_large_single_object_only_gemini_found_is_a_row_boxed_by_its_region:
-    reading.py: `and area(region) >= LARGE * size[0] * size[1]` made `and area(region) >= 0`
-- test_duplicates_go_one_box_one_row:
-    reading.py: `and head(other) == head(row) and overlapping(other, row, size)), None)` made `and False), None)`
 - test_a_row_is_found_by_its_own_words_first_and_an_older_reading_is_read_again_by_sam_only:
     reading.py: `again = {place: asked_again(store, place, folder) for place in places if earlier_rows(store,
     place)}` made `again = {}`
-- test_rows_off_the_schema_are_refused:
-    reading.py: `wrong += [] if row.get("kind") in KINDS else ["kind"]` made `wrong += []`
-- test_a_cut_answer_is_refused_by_its_finish_reason_and_both_asks_answer_under_a_schema:
-    reading.py: `raise concepts.Refused(str(unfinished)) from unfinished` made `return ""`
 - test_a_rows_answer_off_the_schema_is_kept_with_its_cost_and_read_again:
     reading.py: `refused = {place: answer for place, answer in asked_places.items() if isinstance(answer[0], str)}`
     made `refused = {}`
@@ -342,18 +345,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     of its box each way (`(skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1]))`), and
     `skeleton = {**skeleton, "w": wide, "d": deep, ...}` made `if not held:` only; `doors_along` returning the
     skeleton's doors as they are
-- test_an_arrangement_not_the_concepts_and_a_tube_joining_nothing_are_gaps:
-    plan_checks.py: `for first, second, axis, said, drawn in relations(seen, laid, turn) if said != drawn]` made
-    `for first, second, axis, said, drawn in relations(seen, laid, turn) if False]`
-- test_a_row_off_to_the_side_or_facing_the_wrong_way_is_a_gap_and_a_run_of_crates_counts_whole_unless_spread:
-    plan_checks.py: `if count > 1 and things and item[3] * item[4] > max(SPREAD * things, things + SPREAD_SLACK):`
-    made `if False:`
 - test_a_thing_the_creator_planned_is_laid_from_his_plan_where_and_the_way_it_is_drawn:
     plan_writing.py: `middle = [x + wide / 2, y + deep / 2] if facing is None:` made `middle = [x, y] if facing is
     None:`
-- test_people_on_their_person_spots_things_seen_far_off_and_rows_beyond_the_place_are_no_gaps:
-    plan_checks.py: `gaps, left_out = [], beyond(plan, inventory) | people(inventory)` made `gaps, left_out = [],
-    people(inventory)`
 - test_with_the_flag_off_a_writing_runs_only_inside_his_yes:
     plan_writing.py: `if AUTOMATIC: return compute.spending(` made `if True: return compute.spending(`
 - test_with_the_flag_on_his_click_asks_no_yes_and_a_reading_writes_its_plan:
@@ -570,7 +564,9 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     case (a measure's step, an answer's drop, a gap's objects) is a row read through the same judge. What the review
     works out for him stands against answers known apart from the code: environment 1's setting from the cited table,
     a house's and an invented body's, each setting off its shape a refused row; and each sky (the Moon's phases, the Sun
-    at Greenwich, a house's sun path) a row read through the same overhead."""
+    at Greenwich, a house's sun path) a row read through the same overhead. A reading's rows are what both readers
+    agree on and an answer off its schema is refused, each a row through the same judge; a written plan's gaps against
+    its concept are rows read through the same plan check."""
     def page():
         return review.page(tally.store, NODE).read_text()
 
@@ -761,6 +757,28 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     assert max(heights) > 80 and min(heights) < -80  # on its equator the star passes over and under once a day
     again = thing_in(sky(invented, ("home", 0.0, 0.0), "2100-01-02T06:00:00Z"), "light")["altitude"]
     assert again == pytest.approx(heights[0], abs=1.5)  # back where it was, less its orbit's turn of 1.5 degrees
+
+    # the scene inventory reading: only what both readers agree on is a row, each answer off its schema refused
+    for row_name, rows, found_by_sam, size, kept, skipped, merged in AGREED:
+        got = reading.agreed(rows, [], found_by_sam, size)
+        for want, answer in zip((kept, skipped, merged), got):
+            assert want is None or holds(answer, want), (row_name, answer)
+    assert reading.inside_rows(INSIDE_ROWS, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
+    for row_name, function, arguments, want in READ_ANSWERS:
+        if isinstance(want, Refusal):
+            with pytest.raises(concepts.Refused, match=want):
+                getattr(reading, function)(*arguments)
+                pytest.fail(f"{row_name}: taken")
+        else:
+            answer = getattr(reading, function)(*arguments)
+            assert holds(answer, want), (row_name, answer)
+    parts = reading.parts_schema(["drum", "mast"])["properties"]["parts"]  # the parts ask answers under a schema
+    assert parts["required"] == ["drum", "mast"] and parts["properties"]["mast"]["enum"] == list(reading.PARTS)
+
+    # a written plan's gaps against its concept: where each row stands and faces, what joins, what counts
+    for row_name, plan, inventory, kinds, want in GAP_WORDS:
+        words = [gap["words"] for gap in plan_checks.checked(plan, inventory) if kinds is None or gap["kind"] in kinds]
+        assert (want <= set(words)) if isinstance(want, set) else words == want, (row_name, words)
 
 
 
@@ -1971,6 +1989,93 @@ def row(row_id, noun, region, boxes, **more):
             "size": [1, 1, 1], **more}
 
 
+def holds(got, want):
+    """Whether an answer holds what a row wants: each wanted key of a dict (a missing key read as None), each item of a
+    list in order and no more, any other value equal."""
+    if isinstance(want, dict):
+        return isinstance(got, dict) and all(holds(got.get(key), value) for key, value in want.items())
+    if isinstance(want, list):
+        return isinstance(got, list) and len(got) == len(want) and all(map(holds, got, want))
+    return got == want
+
+
+AGREED = [  # (row, the rows Gemini read and SAM 3 boxed, SAM 3's own finds, the picture's size, kept, skipped,
+    # merged: each held as `holds` reads it, None for not asked)
+    ("the structure stays, a thing only one reader found is skipped",
+     [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
+      row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], []),
+      row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]]),
+      row("cup", "cup", None, [], anchor="on:crate")], [{"word": "machine", "box": [50, 50, 60, 60]}], (100, 100),
+     [{"id": "wall", "count": 1}, {"id": "dome", "count": 1}, {"id": "rock", "count": 1}, {"id": "chair", "count": 2}],
+     [{"name": "crate", "why": reading.ONLY_GEMINI}, {"name": "cup", "why": reading.ONLY_GEMINI},
+      {"name": "machine", "why": reading.ONLY_SAM}], []),
+    ("a large single object only Gemini found is boxed by its region; a counted, coded, small or taken one is not",
+     [row("core", "core", [200, 400, 600, 600], []),  # 8% of the picture, counted once: kept
+      row("drums", "drum", [0, 0, 500, 500], [], count=3),  # counted three times: one region is no box
+      row("pipes", "pipe", [0, 0, 500, 500], [], kind="code"),  # no object of its own
+      row("cup", "cup", [0, 0, 100, 100], []),  # 1%: too small to stand on Gemini alone
+      row("crate", "crate", [700, 700, 1000, 1000], []),  # its region is the bench's box: another's
+      row("bench", "bench", None, [[700, 700, 1000, 1000]])], [], (1000, 1000),
+     [{"id": "core", "box": [400.0, 200.0, 600.0, 600.0], "boxed_by": "gemini"},
+      {"id": "bench", "box": [700, 700, 1000, 1000], "boxed_by": None}],
+     [{"row": "drums"}, {"row": "pipes"}, {"row": "cup"}, {"row": "crate"}], None),
+    ("one instance boxed twice on one row is one box",
+     [row("chair", "chair", None, [[0, 0, 10, 10], [0, 0, 10, 11]])], [], (100, 100),
+     [{"boxes": [[0, 0, 10, 10]], "count": 1}], None, None),
+    ("one box held by two rows goes to the one whose region it fits",
+     [row("locker", "locker", [500, 500, 600, 600], [[0, 0, 10, 10]]),
+      row("chest", "chest", [0, 0, 200, 200], [[0, 0, 10, 10], [40, 40, 50, 50]])], [], (100, 100),
+     [{"id": "chest", "boxes": [[0, 0, 10, 10], [40, 40, 50, 50]]}], [{"name": "locker"}], None),
+    ("two rows of one thing are one row, both's instances counted once, a child on the merged one moved",
+     [row("cabinet", "cabinet", None, [[0, 0, 10, 10]]),
+      row("storage", "storage cabinets", None, [[0, 0, 10, 11], [60, 0, 70, 10]]),
+      row("cup", "cup", None, [[62, 0, 64, 2]], anchor="on:storage")], [], (100, 100),
+     [{"id": "cabinet", "count": 2}, {"id": "cup", "count": 1, "anchor": "on:cabinet"}], None,
+     [{"name": "storage cabinets", "row": "storage", "into": "cabinet"}]),
+]
+
+INSIDE_ROWS = [row("hangar", "building", None, []), row("ship", "spacecraft", None, [], anchor="on:hangar"),
+               row("hatch", "door", None, [], anchor="on:ship"), row("cup", "cup", None, [])]
+
+
+class Refusal(str):
+    """A row's outcome that is a refusal (concepts.Refused) whose words match this pattern."""
+
+
+ROW_ANSWER = '{"rows": [{"id": "a", "name": "a", "noun": "a", "kind": "code", "count": 1, "size": "s", ' \
+             '"anchor": "floor", "where": "w", "terrain": false, "part": "object"}]}'
+CUT = {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"rows": [{'}]}}],
+       "usageMetadata": {"candidatesTokenCount": 2400, "thoughtsTokenCount": 63136}}
+UNREAD = {"id": "a", "anchor": None, "region": None, "terrain": False, "count": 1, "size": None,
+          "boxes": [[0, 0, 1, 1]]}
+READ_ANSWERS = [  # (row, the reading's judging function, its arguments, the outcome as `holds` reads it, or a Refusal)
+    ("a row on the schema is read, its region unread", "rows_of", (ROW_ANSWER,), [{"id": "a", "region": None}]),
+    ("a count of 0", "rows_of", (ROW_ANSWER.replace('"count": 1', '"count": 0'),), Refusal("count")),
+    ("a kind off the list", "rows_of", (ROW_ANSWER.replace('"kind": "code"', '"kind": "mechanic"'),), Refusal("kind")),
+    ("terrain not a bool", "rows_of", (ROW_ANSWER.replace('"terrain": false', '"terrain": "no"'),), Refusal("terrain")),
+    ("a part off the list", "rows_of", (ROW_ANSWER.replace('"part": "object"', '"part": "lamp"'),), Refusal("part")),
+    ("an anchor on no row is a gap of its row, not a refusal", "rows_of", (ROW_ANSWER.replace('"floor"', '"on:b"'),),
+     [{"anchor": None}]),
+    ("no JSON", "rows_of", ("rows: none",), Refusal("no JSON")),
+    ("an anchor on a row", "anchor_of", ("a", ["a", "b"]), "on:a"),
+    ("a region drawn inside out", "region_of", ([10, 20, 5, 30],), None),
+    ("a region", "region_of", ([10, 20, 500, 300],), [10, 20, 500, 300]),
+    ("a row with no size or anchor has both gaps", "gaps", ([UNREAD],), [{"kind": "size"}, {"kind": "anchor"}]),
+    ("ground the plan sizes is no gap", "gaps", ([{"id": "g", "anchor": "ground", "terrain": True, "size": None}],),
+     []),
+    ("metres, three", "metres_of", ([4.8, 1.9, 1.5],), [4.8, 1.9, 1.5]),
+    ("metres, two", "metres_of", ([4.8, 1.9],), None),
+    ("metres, one of them 0", "metres_of", ([4.8, 0, 1.5],), None),
+    ("metres in words", "metres_of", ("4.8 m",), None),
+    ("metres, one a bool", "metres_of", ([True, 1, 1],), None),
+    ("an answer cut at its token limit is refused, its thinking named", "answer_text", (CUT,),
+     Refusal("MAX_TOKENS .*thinking 63136")),
+    ("a finished answer is its text", "answer_text",
+     ({**CUT, "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": '{"rows": []}'}]}}]},),
+     '{"rows": []}'),
+]
+
+
 def test_a_picked_place_is_read_once_with_its_boxes_and_gaps(store, tmp_path, monkeypatch):
     sha = picked_place(store, tmp_path)
     cleared = []
@@ -2015,55 +2120,6 @@ def test_a_new_pick_has_no_reading_until_read(store, tmp_path):
     assert reading.reading_of(store, "wreck") is None and reading.to_read(store, ["wreck"]) == []
 
 
-def test_only_what_both_readers_agree_on_is_a_row_and_the_structure_stays():
-    rows = [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
-            row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], []),
-            row("chair", "chair", [0, 0, 500, 500], [[0, 0, 10, 10], [20, 0, 30, 10]]),
-            row("cup", "cup", None, [], anchor="on:crate")]
-    kept, skipped, merged = reading.agreed(rows, [], [{"word": "machine", "box": [50, 50, 60, 60]}], (100, 100))
-    assert [(item["id"], item["count"]) for item in kept] == [("wall", 1), ("dome", 1), ("rock", 1), ("chair", 2)]
-    assert [(item["name"], item["why"]) for item in skipped] == [
-        ("crate", reading.ONLY_GEMINI), ("cup", reading.ONLY_GEMINI), ("machine", reading.ONLY_SAM)]
-    assert merged == []
-    inside = [row("hangar", "building", None, []), row("ship", "spacecraft", None, [], anchor="on:hangar"),
-              row("hatch", "door", None, [], anchor="on:ship"), row("cup", "cup", None, [])]
-    assert reading.inside_rows(inside, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
-
-
-def test_a_large_single_object_only_gemini_found_is_a_row_boxed_by_its_region():
-    size = (1000, 1000)
-    rows = [row("core", "core", [200, 400, 600, 600], []),  # 8% of the picture, counted once: kept
-            row("drums", "drum", [0, 0, 500, 500], [], count=3),  # counted three times: one region is no box
-            row("pipes", "pipe", [0, 0, 500, 500], [], kind="code"),  # no object of its own
-            row("cup", "cup", [0, 0, 100, 100], []),  # 1%: too small to stand on Gemini alone
-            row("crate", "crate", [700, 700, 1000, 1000], []),  # its region is the bench's box: another's
-            row("bench", "bench", None, [[700, 700, 1000, 1000]])]
-    kept, skipped, _ = reading.agreed(rows, [], [], size)
-    assert [(item["id"], item["box"], item.get("boxed_by")) for item in kept] == [
-        ("core", [400.0, 200.0, 600.0, 600.0], "gemini"), ("bench", [700, 700, 1000, 1000], None)]
-    assert [item["row"] for item in skipped] == ["drums", "pipes", "cup", "crate"]
-
-
-def test_duplicates_go_one_box_one_row():
-    size = (100, 100)
-    # one instance boxed twice on one row: one box
-    [only], _, _ = reading.agreed([row("chair", "chair", None, [[0, 0, 10, 10], [0, 0, 10, 11]])], [], [], size)
-    assert only["boxes"] == [[0, 0, 10, 10]] and only["count"] == 1
-    # one box held by two rows: the one whose region it fits
-    kept, skipped, _ = reading.agreed([row("locker", "locker", [500, 500, 600, 600], [[0, 0, 10, 10]]),
-                                       row("chest", "chest", [0, 0, 200, 200], [[0, 0, 10, 10], [40, 40, 50, 50]])],
-                                      [], [], size)
-    assert {item["id"]: item["boxes"] for item in kept} == {"chest": [[0, 0, 10, 10], [40, 40, 50, 50]]}
-    assert [item["name"] for item in skipped] == ["locker"]
-    # two rows of one thing: one row, the instances of both counted once, a child on the merged one moved
-    kept, _, merged = reading.agreed([row("cabinet", "cabinet", None, [[0, 0, 10, 10]]),
-                                      row("storage", "storage cabinets", None, [[0, 0, 10, 11], [60, 0, 70, 10]]),
-                                      row("cup", "cup", None, [[62, 0, 64, 2]], anchor="on:storage")], [], [], size)
-    assert [(item["id"], item["count"]) for item in kept] == [("cabinet", 2), ("cup", 1)]
-    assert merged == [{"name": "storage cabinets", "row": "storage", "into": "cabinet"}]
-    assert kept[1]["anchor"] == "on:cabinet"
-
-
 def test_a_row_is_found_by_its_own_words_first_and_an_older_reading_is_read_again_by_sam_only(store, tmp_path):
     sha = picked_place(store, tmp_path)
     old = [{**dict(READ_ROWS[2]), "view": "v1", "box": None, "boxes": [], "size": [0.4, 0.4, 18.0],
@@ -2086,38 +2142,6 @@ def test_a_row_is_found_by_its_own_words_first_and_an_older_reading_is_read_agai
     assert record["euros"] == {"rows": 0.0, "boxes": 0.08, "total": 0.08} and record["answered"][0]["metres"] == [
         0.4, 0.4, 18.0]
     assert reading.spent(store, ["wreck"]) == 0.21 and reading.cost(store, record)["euros"] == 0.21
-
-
-def test_rows_off_the_schema_are_refused():
-    good = '{"rows": [{"id": "a", "name": "a", "noun": "a", "kind": "code", "count": 1, "size": "s", ' \
-           '"anchor": "floor", "where": "w", "terrain": false, "part": "object"}]}'
-    assert reading.rows_of(good)[0]["id"] == "a" and reading.rows_of(good)[0]["region"] is None
-    for wrong, said in (('"count": 1', '"count": 0'), ('"kind": "code"', '"kind": "mechanic"'),
-                        ('"terrain": false', '"terrain": "no"'), ('"part": "object"', '"part": "lamp"')):
-        with pytest.raises(concepts.Refused, match=said.split(":")[0].strip('"')):
-            reading.rows_of(good.replace(wrong, said))
-    assert reading.rows_of(good.replace('"floor"', '"on:b"'))[0]["anchor"] is None  # a gap of its row, not a refusal
-    assert reading.anchor_of("a", ["a", "b"]) == "on:a" and reading.region_of([10, 20, 5, 30]) is None
-    assert reading.region_of([10, 20, 500, 300]) == [10, 20, 500, 300]
-    unread = {"id": "a", "anchor": None, "region": None, "terrain": False, "count": 1, "size": None,
-              "boxes": [[0, 0, 1, 1]]}
-    assert [gap["kind"] for gap in reading.gaps([unread])] == ["size", "anchor"]
-    assert reading.gaps([{"id": "g", "anchor": "ground", "terrain": True, "size": None}]) == []  # the plan sizes it
-    assert reading.metres_of([4.8, 1.9, 1.5]) == [4.8, 1.9, 1.5]
-    assert [reading.metres_of(wrong) for wrong in ([4.8, 1.9], [4.8, 0, 1.5], "4.8 m", [True, 1, 1])] == [None] * 4
-    with pytest.raises(concepts.Refused, match="no JSON"):
-        reading.rows_of("rows: none")
-
-
-def test_a_cut_answer_is_refused_by_its_finish_reason_and_both_asks_answer_under_a_schema():
-    cut = {"candidates": [{"finishReason": "MAX_TOKENS", "content": {"parts": [{"text": '{"rows": [{'}]}}],
-           "usageMetadata": {"candidatesTokenCount": 2400, "thoughtsTokenCount": 63136}}
-    with pytest.raises(concepts.Refused, match="MAX_TOKENS .*thinking 63136"):
-        reading.answer_text(cut)
-    finished = {**cut, "candidates": [{"finishReason": "STOP", "content": {"parts": [{"text": '{"rows": []}'}]}}]}
-    assert reading.answer_text(finished) == '{"rows": []}'
-    parts = reading.parts_schema(["drum", "mast"])["properties"]["parts"]
-    assert parts["required"] == ["drum", "mast"] and parts["properties"]["mast"]["enum"] == list(reading.PARTS)
 
 
 def test_a_rows_answer_off_the_schema_is_kept_with_its_cost_and_read_again(store, tmp_path):
@@ -3146,47 +3170,52 @@ def test_a_footprint_answered_as_box_2d_is_measured_from_its_box():
     assert how["metres a unit"][0] == how["metres a unit"][1] and (skeleton["w"], skeleton["d"]) == (3.464, 3.464)
 
 
-def test_an_arrangement_not_the_concepts_and_a_tube_joining_nothing_are_gaps():
-    # the concept: a hub in the middle, a dome left of it, a hangar behind it, a tube from the hub to the dome
-    inventory = {"picture": [1000, 1000], "rows": [
-        {"id": "hub", "count": 1, "boxes": [[400, 400, 600, 600]]},
-        {"id": "dome", "count": 1, "boxes": [[100, 420, 250, 580]]},
-        {"id": "hangar", "count": 1, "boxes": [[350, 50, 650, 200]]},
-        {"id": "tube", "count": 1, "boxes": [[250, 480, 400, 520]]}]}
-    rows = {"HUB 1": ["hub"], "DOME 1": ["dome"], "HANGAR 1": ["hangar"], "TUBE 1": ["tube"]}
-    laid = [["HUB 1", 20.0, 20.0, 10.0, 10.0, None, "item"], ["DOME 1", 2.0, 21.0, 8.0, 8.0, None, "item"],
-            ["HANGAR 1", 15.0, 0.0, 20.0, 10.0, None, "item"], ["TUBE 1", 10.0, 24.0, 10.0, 2.0, None, "item"]]
-    plan = {"w": 40.0, "d": 40.0, "doors": [], "people": [[30.0, 35.0]], "items": laid, "rows": rows}
-    gaps = [gap for gap in plan_checks.checked(plan, inventory) if gap["kind"] in ("arrangement", "joined")]
-    assert gaps == []  # as the concept, seen from the south
-    packed = [["HUB 1", 20.0, 20.0, 10.0, 10.0, None, "item"], ["DOME 1", 31.0, 21.0, 8.0, 8.0, None, "item"],
-              ["HANGAR 1", 15.0, 0.0, 20.0, 10.0, None, "item"], ["TUBE 1", 2.0, 34.0, 10.0, 2.0, None, "item"]]
-    words = [gap["words"] for gap in plan_checks.checked({**plan, "items": packed}, inventory)
-             if gap["kind"] in ("arrangement", "joined")]
-    assert "dome is left of hub in the concept, right of it on the plan" in words
-    assert "hub is joined by a tube in the concept, by none on the plan" in words
-
-
-def test_a_row_off_to_the_side_or_facing_the_wrong_way_is_a_gap_and_a_run_of_crates_counts_whole_unless_spread():
-    # the concept: a pad in the middle, a desk on the left, a rack on the right, all at about one depth
-    inventory = {"picture": [1000, 1000], "rows": [
-        {"id": "pad", "count": 1, "boxes": [[400, 600, 600, 700]]},
-        {"id": "desk", "count": 1, "boxes": [[50, 600, 150, 700]]},
-        {"id": "rack", "count": 1, "boxes": [[850, 600, 950, 700]]},
-        {"id": "crate", "count": 6, "size": [0.8, 0.8, 0.8], "boxes": [[0, 0, 10, 10]]}]}
-    rows = {"PAD 1": ["pad"], "DESK 1": ["desk"], "RACK 1": ["rack"], "CRATE 1": ["crate"]}
-    laid = [["PAD 1", 14.0, 10.0, 4.0, 4.0, None, "item"], ["DESK 1", 1.0, 10.0, 2.0, 1.0, "S", "item"],
-            ["RACK 1", 28.0, 10.0, 2.0, 1.0, None, "item"], ["CRATE 1", 1.0, 1.0, 4.0, 1.0, None, "item"]]
-    plan = {"w": 32.0, "d": 20.0, "doors": [], "people": [[16.0, 18.0]], "items": laid, "rows": rows,
-            "shapes": {"CRATE 1": {"count": 6}, "DESK 1": {"seen": ["toward"]}}}
-    assert [gap["words"] for gap in plan_checks.checked(plan, inventory)] == []  # a run of 6 crates is all 6
-    off = [["PAD 1", 22.0, 10.0, 4.0, 4.0, None, "item"], ["DESK 1", 1.0, 10.0, 2.0, 1.0, "N", "item"], *laid[2:]]
-    words = [gap["words"] for gap in plan_checks.checked({**plan, "items": off}, inventory)]
-    assert "pad stands in the middle of the concept (50% across), on the right of the plan (81% across)" in words
-    assert "desk 1 faces toward in the concept, away on the plan" in words
-    spread = [*laid[:3], ["CRATE 1", 1.0, 1.0, 12.0, 8.0, None, "item"]]  # 6 crates boxed round half the place
-    words = [gap["words"] for gap in plan_checks.checked({**plan, "items": spread}, inventory)]
-    assert "crate 1 boxes 6 things drawn apart as one (12.0 x 8.0 m), not one run" in words
+CONCEPT_ROWS = {"picture": [1000, 1000], "rows": [  # a hub in the middle, a dome left, a hangar behind, a tube hub-dome
+    {"id": "hub", "count": 1, "boxes": [[400, 400, 600, 600]]},
+    {"id": "dome", "count": 1, "boxes": [[100, 420, 250, 580]]},
+    {"id": "hangar", "count": 1, "boxes": [[350, 50, 650, 200]]},
+    {"id": "tube", "count": 1, "boxes": [[250, 480, 400, 520]]}]}
+AS_DRAWN = {"w": 40.0, "d": 40.0, "doors": [], "people": [[30.0, 35.0]],
+            "items": [["HUB 1", 20.0, 20.0, 10.0, 10.0, None, "item"], ["DOME 1", 2.0, 21.0, 8.0, 8.0, None, "item"],
+                      ["HANGAR 1", 15.0, 0.0, 20.0, 10.0, None, "item"],
+                      ["TUBE 1", 10.0, 24.0, 10.0, 2.0, None, "item"]],
+            "rows": {"HUB 1": ["hub"], "DOME 1": ["dome"], "HANGAR 1": ["hangar"], "TUBE 1": ["tube"]}}
+DESK_ROWS = {"picture": [1000, 1000], "rows": [  # a pad in the middle, a desk left, a rack right, about one depth
+    {"id": "pad", "count": 1, "boxes": [[400, 600, 600, 700]]},
+    {"id": "desk", "count": 1, "boxes": [[50, 600, 150, 700]]},
+    {"id": "rack", "count": 1, "boxes": [[850, 600, 950, 700]]},
+    {"id": "crate", "count": 6, "size": [0.8, 0.8, 0.8], "boxes": [[0, 0, 10, 10]]}]}
+DESK_LAID = [["PAD 1", 14.0, 10.0, 4.0, 4.0, None, "item"], ["DESK 1", 1.0, 10.0, 2.0, 1.0, "S", "item"],
+             ["RACK 1", 28.0, 10.0, 2.0, 1.0, None, "item"], ["CRATE 1", 1.0, 1.0, 4.0, 1.0, None, "item"]]
+DESKS = {"w": 32.0, "d": 20.0, "doors": [], "people": [[16.0, 18.0]], "items": DESK_LAID,
+         "rows": {"PAD 1": ["pad"], "DESK 1": ["desk"], "RACK 1": ["rack"], "CRATE 1": ["crate"]},
+         "shapes": {"CRATE 1": {"count": 6}, "DESK 1": {"seen": ["toward"]}}}
+DINER_ROWS = {"rows": [{"id": "crate", "count": 1}, {"id": "diner", "noun": "person", "count": 1},
+                       {"id": "distant_flag", "count": 1}, {"id": "stage", "count": 1}]}
+DINER = {"w": 6.0, "d": 4.0, "doors": [], "people": [[4.0, 3.0, None, "diner"]],
+         "items": [["CRATE 1", 1.0, 1.0, 1.0, 1.0, None, "item"], ["DINER 1", 1.2, 1.2, 0.5, 0.5, None, "item"],
+                   ["DISTANT FLAG 1", 9.0, 1.0, 1.0, 1.0, None, "item"]],
+         "rows": {"CRATE 1": ["crate"], "DINER 1": ["diner"], "DISTANT FLAG 1": ["distant_flag"]}}
+GAP_WORDS = [  # (row, a written plan, its inventory, the gap kinds read or None for all, the gaps' words: a list is
+    # exactly them, a set is among them)
+    ("laid as the concept, seen from the south", AS_DRAWN, CONCEPT_ROWS, {"arrangement", "joined"}, []),
+    ("the dome put right of the hub and the tube off by itself", {**AS_DRAWN, "items": [
+        AS_DRAWN["items"][0], ["DOME 1", 31.0, 21.0, 8.0, 8.0, None, "item"], AS_DRAWN["items"][2],
+        ["TUBE 1", 2.0, 34.0, 10.0, 2.0, None, "item"]]}, CONCEPT_ROWS, {"arrangement", "joined"},
+     {"dome is left of hub in the concept, right of it on the plan",
+      "hub is joined by a tube in the concept, by none on the plan"}),
+    ("a run of 6 crates is all 6, each row where drawn and facing as drawn", DESKS, DESK_ROWS, None, []),
+    ("the pad off to the side, the desk turned away", {**DESKS, "items": [
+        ["PAD 1", 22.0, 10.0, 4.0, 4.0, None, "item"], ["DESK 1", 1.0, 10.0, 2.0, 1.0, "N", "item"], *DESK_LAID[2:]]},
+     DESK_ROWS, None, {"pad stands in the middle of the concept (50% across), on the right of the plan (81% across)",
+                       "desk 1 faces toward in the concept, away on the plan"}),
+    ("6 crates boxed round half the place", {**DESKS, "items": [*DESK_LAID[:3], ["CRATE 1", 1.0, 1.0, 12.0, 8.0, None,
+                                                                                  "item"]]},
+     DESK_ROWS, None, {"crate 1 boxes 6 things drawn apart as one (12.0 x 8.0 m), not one run"}),
+    ("a person on its spot and a thing seen far off are no gaps; a row not laid is", DINER, DINER_ROWS, None,
+     ["stage: 1 in the concept, 0 on the plan"]),
+    ("a row marked beyond the place is no gap", {**DINER, "beyond": ["stage"]}, DINER_ROWS, None, []),
+]
 
 
 def test_a_thing_the_creator_planned_is_laid_from_his_plan_where_and_the_way_it_is_drawn(monkeypatch):
@@ -3207,17 +3236,6 @@ def test_a_thing_the_creator_planned_is_laid_from_his_plan_where_and_the_way_it_
     assert plan["shapes"]["SHIP 1"]["points"][0] == [1.0, 0.5] and plan["shapes"]["SHIP 1"]["base"] == 1.0
     plan["items"][0][5] = None
     assert plan_writing.creator_laid(plan)[1][0]["words"] == "the way ship 1's nose points was not read: laid nose E"
-
-
-def test_people_on_their_person_spots_things_seen_far_off_and_rows_beyond_the_place_are_no_gaps():
-    plan = {"w": 6.0, "d": 4.0, "doors": [], "people": [[4.0, 3.0, None, "diner"]],
-            "items": [["CRATE 1", 1.0, 1.0, 1.0, 1.0, None, "item"], ["DINER 1", 1.2, 1.2, 0.5, 0.5, None, "item"],
-                      ["DISTANT FLAG 1", 9.0, 1.0, 1.0, 1.0, None, "item"]],
-            "rows": {"CRATE 1": ["crate"], "DINER 1": ["diner"], "DISTANT FLAG 1": ["distant_flag"]}}
-    inventory = {"rows": [{"id": "crate", "count": 1}, {"id": "diner", "noun": "person", "count": 1},
-                          {"id": "distant_flag", "count": 1}, {"id": "stage", "count": 1}]}
-    assert [gap["words"] for gap in plan_checks.checked(plan, inventory)] == ["stage: 1 in the concept, 0 on the plan"]
-    assert plan_checks.checked({**plan, "beyond": ["stage"]}, inventory) == []
 
 
 def test_with_the_flag_off_a_writing_runs_only_inside_his_yes(store, data, gemini, monkeypatch):
