@@ -43,9 +43,9 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - demos.shape_problem: accept any shape kind (demos).
 - library.rows: the place row reads straight-masks too (the real table).
 - graph.Runner conclude: drop `self.hand_accepted()` after an automatic accept; hand_on_accept True by default;
-  handed.hand_waiting: no record_failure; handed.drain: hand once (`while` -> `if`, no second look after the lock);
-  handed.covered: count an unpushed report; web.hand_accept: say started without starting (every accept handed,
-  2026-11-02).
+  handed.hand_waiting: no record_failure; handed.drain: hand once (`while` -> `if` and no second look after the
+  lock, together); handed.covered: count an unpushed report; web.hand_accept: say started without starting (every
+  accept handed, 2026-11-02).
 - backend.run: words or environment not through `outside`/`outside_frozen`; no `ended(process.pid)` after the command;
   handed.spawn: the environment only its SCORE_FROZEN marks dropped (the run's PYTHONPATH kept) (no frozen copy
   named, 2026-11-05).
@@ -185,38 +185,61 @@ def library_output(runner, place=PLACE):
 
 # --- the rows at the runner's seams ---------------------------------------------------------------------------------
 
-def test_no_library_configured_fails_and_the_place_is_not_complete(tmp_path):
-    runner = toy_runner(tmp_path)
+EXCEPTION_E1 = {"id": "E1", "place": PLACE, "prim": "/garage/*", "what": "a toy", "why": "a test",
+                "allowed_by": "@owner", "allowed_on": "2026-10-18"}
+
+
+def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=True, calls=2):
+    """One toy environment at the runner's seams: the fake library's mode (None: no library command), a library-free
+    decision, the written exceptions; the library node's verdicts that do not pass (check: (answer, "is"/"has",
+    reason text), every other verdict passes), whether its library nodes are accepted automatically, and how often
+    the library's command ran (each node once; a failed output is made once more, an unknown one is not)."""
+    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, id=name)
+
+
+@pytest.mark.parametrize("mode, free, exceptions, verdicts, accepted, calls", (
+    seam("no library configured", verdicts={"configured": (checks.FAIL, "is", "no library configured"),
+                                            "handed": (checks.FAIL, "has", f"made@{PLACE}"),
+                                            "saved": (checks.FAIL, "has", "no library configured")}, accepted=False),
+    seam("a library-free environment", free=True),
+    seam("a configured library", mode="full"),
+    seam("an output the handover misses", mode="miss-one",
+         verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}")}, accepted=False, calls=4),
+    seam("a written exception covers it", mode="exception", exceptions=[EXCEPTION_E1]),
+    seam("an exception the data does not write covers nothing", mode="exception",
+         verdicts={"handed": (checks.FAIL, "has", "E1")}, accepted=False, calls=4),
+    seam("a missing copy is unknown, never a pass", mode="no-copy",
+         verdicts={"copies": (checks.UNKNOWN, "has", "model/rover@1")}, accepted=False),
+))
+def test_the_library_node_hands_everything_by_the_librarys_command_once_and_names_what_it_misses(
+        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls):
+    called = fake_library(tmp_path, monkeypatch, mode) if mode else None
+    runner = toy_runner(tmp_path, free=free, exceptions=exceptions)
     did = runner.run([PLACE])
-    output, verdicts = library_output(runner)
-    assert handover.report(output)["backend"] == "none"
-    assert verdicts["configured"]["answer"] == checks.FAIL
-    assert verdicts["configured"]["reason"] == "no library configured"
-    assert "accepted" not in did[f"library@{PLACE}"], did
+    output, found = library_output(runner)
+    assert handover.report(output)["backend"] == ("command" if mode else "none")
+    assert set(verdicts) <= set(found), found
+    for check, verdict in found.items():
+        answer, how, text = verdicts.get(check, (checks.PASS, "has", ""))
+        told = verdict["reason"]
+        assert verdict["answer"] == answer and (told == text if how == "is" else text in told), (check, verdict)
     waiting = dict(library.world_completion(runner, [PLACE]))
-    assert f"library@{PLACE}" in waiting and "library-world" in waiting, waiting
-    assert "not complete" in library.completion_line(WORLD, list(waiting.items()))
-
-
-def test_a_library_free_environment_passes_and_is_complete(tmp_path):
-    runner = toy_runner(tmp_path, free=True)
-    did = runner.run([PLACE])
-    _, verdicts = library_output(runner)
-    assert all(verdict["answer"] == checks.PASS for verdict in verdicts.values()), verdicts
-    assert did[f"library@{PLACE}"].endswith("accepted automatically"), did
-    assert library.world_completion(runner, [PLACE]) == []
-
-
-def test_a_configured_library_runs_once_with_the_templates_words(tmp_path, monkeypatch):
-    calls = fake_library(tmp_path, monkeypatch)
-    runner = toy_runner(tmp_path)
-    did = runner.run([PLACE])
-    assert did[f"library@{PLACE}"].endswith("accepted automatically"), did
-    assert did["library-world"].endswith("accepted automatically"), did
-    words = [json.loads(line) for line in calls.read_text().splitlines()]
-    assert len(words) == 2, words  # the place's node and the environment's, once each
-    place_words = next(found for found in words if "--place" in found)
-    world_words = next(found for found in words if "--place" not in found)
+    if accepted:
+        assert did[f"library@{PLACE}"].endswith("accepted automatically"), did
+        assert did["library-world"].endswith("accepted automatically"), did
+        assert waiting == {}, waiting
+    else:
+        assert "accepted" not in did[f"library@{PLACE}"], did
+        assert f"library@{PLACE}" in waiting, waiting
+        assert "not complete" in library.completion_line(WORLD, list(waiting.items()))
+    if mode is None:
+        assert ("library-world" in waiting) is not free, waiting
+        return
+    # the library's own command with the template's words, for the place's node and for the environment's
+    words = [json.loads(line) for line in called.read_text().splitlines()]
+    assert len(words) == calls, words
+    place_words = next(said for said in words if "--place" in said)
+    world_words = next(said for said in words if "--place" not in said)
 
     def after(option):
         return place_words[place_words.index(option) + 1]
@@ -227,16 +250,20 @@ def test_a_configured_library_runs_once_with_the_templates_words(tmp_path, monke
     assert after("--store") == str((tmp_path / "store/objects").resolve())
     assert place_words[place_words.index("handover") - 1] == str(tmp_path / "library")  # --root
     assert "--world" in world_words, world_words
-    output, _ = library_output(runner)
     # the showcase render that never passed is read without
     assert handover.handed(output) == [{"node": f"made@{PLACE}", "output": handover.handed(output)[0]["output"],
                                         "into": ["demo-film"], "beyond": []}]
     again = runner.run([PLACE])
     assert again[f"library@{PLACE}"] == "fresh", again
-    assert len(calls.read_text().splitlines()) == 2, "a second run called the library again"
-    assert library.world_completion(runner, [PLACE]) == []
+    assert len(called.read_text().splitlines()) == calls, "a second run called the library again"
 
-    # every accept handed the moment it is made (#40): off unless the run or the owner's click asks
+
+def test_every_accept_is_handed_the_moment_it_is_made(tmp_path, monkeypatch):
+    """Off unless the run or the owner's click asks; a failing handover keeps the accept, the next one covers it."""
+    fake_library(tmp_path, monkeypatch)
+    runner = toy_runner(tmp_path)
+    runner.run([PLACE])
+    route = library.runner_route(runner)
     asked = []
     monkeypatch.setattr(handed, "spawn", lambda store, job: asked.append(job))
     store, nodes = runner.store, lambda: handed.nodes_of(runner.stages.values(), [PLACE])
@@ -282,22 +309,6 @@ def test_the_route_moves_with_a_route_stages_code_only():
     assert library.route(lambda stage: codes[stage.name], rows) != before, "a route stage's code did not move it"
 
 
-@pytest.mark.parametrize("mode, exceptions, answer", (
-    ("miss-one", None, checks.FAIL),
-    ("exception", [{"id": "E1", "place": PLACE, "prim": "/garage/*", "what": "a toy", "why": "a test",
-                    "allowed_by": "@owner", "allowed_on": "2026-10-18"}], checks.PASS),
-    ("exception", None, checks.FAIL)))  # an exception the data does not write covers nothing
-def test_an_output_the_handover_misses_fails_handed_by_name_unless_a_written_exception_covers_it(
-        tmp_path, monkeypatch, mode, exceptions, answer):
-    fake_library(tmp_path, monkeypatch, mode)
-    runner = toy_runner(tmp_path, exceptions=exceptions)
-    runner.run([PLACE])
-    _, verdicts = library_output(runner)
-    assert verdicts["handed"]["answer"] == answer, verdicts["handed"]
-    if answer == checks.FAIL:
-        assert (f"made@{PLACE}" if mode == "miss-one" else "E1") in verdicts["handed"]["reason"]
-
-
 def test_an_output_no_entry_holds_is_held_through_what_it_was_made_into(tmp_path):
     table = [graph.Stage("terrain", "world", make_text, TOY), graph.Stage("list", "place", make_text, TOY),
              graph.Stage("bake", "place", make_text, TOY, after={"list": ("toy-text", 1)}),
@@ -326,16 +337,6 @@ def test_an_output_no_entry_holds_is_held_through_what_it_was_made_into(tmp_path
         finding.split(" ")[0] for finding in verdict.findings}, verdict
     verdict = judged({"bake"})  # an output made into nothing held is held by no entry
     assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(f"film@{PLACE}"), verdict
-
-
-def test_a_missing_copy_is_unknown_never_a_pass(tmp_path, monkeypatch):
-    fake_library(tmp_path, monkeypatch, "no-copy")
-    runner = toy_runner(tmp_path)
-    did = runner.run([PLACE])
-    _, verdicts = library_output(runner)
-    assert verdicts["copies"]["answer"] == checks.UNKNOWN
-    assert "model/rover@1" in verdicts["copies"]["reason"]
-    assert "accepted" not in did[f"library@{PLACE}"], did
 
 
 def fixture_inputs(root, fixture):
