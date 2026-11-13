@@ -323,75 +323,9 @@ PAGES = ["/", "/place/alpha/", "/place/beta/", "/place/alpha/step/closeup/", "/p
          "/world/step/terrain/", "/basket/", "/buy/", "/stats/", "/runs/", "/requests/", "/picks/alpha", "/view/alpha"]
 POSTS = ["/place/alpha/step/closeup/request/", "/place/alpha/step/closeup/decide/", "/place/alpha/step/closeup/queue/",
          "/basket/change/", "/refresh/", "/freshness/"]
-
-
-def test_every_page_answers_the_owner_and_sends_a_stranger_to_sign_in(world):
-    """Break: pages/views.py `place_page` raises for beta."""
-    owner = signed_in()
-    for page in PAGES:
-        assert owner.get(page).status_code == 200, page
-        answer = Client().get(page)
-        assert answer.status_code == 302 and answer["Location"].startswith("/login/"), page
-
-
-def test_every_post_needs_its_csrf_token_and_back_stays_on_this_site(world):
-    """Break: site/settings.py drops CsrfViewMiddleware."""
-    user = get_user_model().objects.create_user("joey", password="a long enough password")
-    guarded = Client(enforce_csrf_checks=True)
-    guarded.force_login(user)
-    for page in POSTS:
-        assert guarded.post(page, {"words": "x"}).status_code == 403, page
-    owner = signed_in()
-    for back in ("https://evil.example/", "//evil.example/", "javascript:alert(1)"):
-        answer = owner.post("/refresh/", {"back": back})
-        assert answer.status_code == 302 and answer["Location"] == "/", back
-    assert owner.post("/refresh/", {"back": "/place/alpha/"})["Location"] == "/place/alpha/"
-
-
-def test_node_ids_stay_inside_the_details_fold(world, read):
-    """Owner rule (a wording check): node ids only inside details.ids, on the screens and the 3D viewer's page. Break:
-    templates/pages/step.html prints `{{ detail.node }}` beside each read."""
-    copy = world.root / "web" / "alpha"
-    copy.mkdir(parents=True)
-    (copy / "alpha.json").write_text(json.dumps({
-        "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
-        "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
-        "light_bytes": 5, "triangles": 12}))
-    owner = signed_in()
-    for page in [*PAGES[:6], "/view/alpha"]:
-        found = NODE.search(outside_details(owner.get(page).content.decode()))
-        assert found is None, (page, found and found.group(0))
-
-
-def test_the_owner_decides_a_waiting_output_and_anyone_else_is_refused(world):
-    """A worse output needs his reason; a guest sees no action and is refused. Break: pages/actions.py `decide` sends
-    `worse_reason or 'none'` (a reason he never gave)."""
-    owner = signed_in()
-    waiting = world.outputs["closeup@alpha waiting"]
-    owner.post("/place/alpha/step/closeup/decide/", {"decision": "accept", "output": waiting})
-    assert world.store.accepted("closeup@alpha") != waiting  # worse, no reason: not taken
-    owner.post("/place/alpha/step/closeup/decide/", {"decision": "accept", "output": waiting,
-                                                     "worse_reason": "one fault is fine here"})
-    assert world.store.accepted("closeup@alpha") == waiting
-    assert world.store.current_accept("closeup@alpha")["by"] == "joey"
-    guest = signed_in("guest")
-    assert "Accept this output" not in guest.get("/place/alpha/step/closeup/").content.decode()
-    assert guest.post("/place/alpha/step/closeup/decide/").status_code == 403
-
-
-def test_a_change_request_lands_in_the_inbox_and_queue_this_or_next_adds_the_right_step(world, settings):
-    """Break: pages/views.py `step_queue` queues the step itself for "next"."""
-    from score.dashboard.pages.models import BasketItem, ChangeRequest
-    owner = signed_in()
-    assert owner.post("/place/alpha/step/closeup/request/", {"words": "the lamp is too red", "output": "x"}
-                      ).status_code == 302
-    change = ChangeRequest.objects.get()
-    assert change.node == "closeup@alpha" and change.words == "the lamp is too red"
-    assert (settings.SCORE_HOME / "inbox" / f"{change.pk}.json").is_file()
-    owner.post("/place/alpha/step/plan/queue/", {"which": "this"})
-    owner.post("/place/alpha/step/scene-record/queue/", {"which": "next"})
-    queued = {(item.place, item.stage) for item in BasketItem.objects.all()}
-    assert queued == {("alpha", "plan"), ("alpha", "assembly")}  # the stage table: scene-record, then assembly
+NODE_FREE = [*PAGES[:6], "/view/alpha"]  # node ids only inside details.ids here (the basket and Buy name nodes)
+BACKS = [("https://evil.example/", 302, "/"), ("//evil.example/", 302, "/"), ("javascript:alert(1)", 302, "/"),
+         ("/place/alpha/", 302, "/place/alpha/")]  # a back link, the answer and where he lands: never off this site
 
 
 # === nothing advances unseen ==========================================================================================
@@ -407,21 +341,6 @@ def ready_plan(buys):
     return Plan.objects.create(basket_hash="h", made_by="joey", state="ready", body=body, finished=timezone.now())
 
 
-def test_a_paid_launch_waits_until_the_owner_advanced_what_it_reads(world):
-    """Only the owner advances; a launch reading assembly and complete is refused until both are. Break: pages/seen.py
-    `unseen_reads` holds nothing back (`if False:`)."""
-    assert signed_in("guest").post("/place/alpha/step/assembly/advance/", {"output": "x"}).status_code == 403
-    plan = ready_plan([{"node": PAID, "euros": 5.0, "why": "never ran", "again": False}])
-    assert set(actions.unseen(plan)) == {(PAID, "assembly@alpha"), (PAID, "complete@alpha")}
-    refused = actions.launch_refusals(get_user_model()(username="joey"), plan, True, "")
-    assert any(why.startswith("not seen by owner") for why in refused)
-    owner = signed_in()
-    for stage in ("assembly", "complete"):
-        assert owner.post(f"/place/alpha/step/{stage}/advance/", {"output": world.outputs[f"{stage}@alpha"]}
-                          ).status_code == 302
-    assert seen.advanced("assembly@alpha", world.outputs["assembly@alpha"]) and actions.unseen(plan) == []
-
-
 class PaidFilm(FakeBackend):
     """The fake backend buying the film as well as the close-up."""
 
@@ -432,45 +351,9 @@ class PaidFilm(FakeBackend):
         return planned
 
 
-def test_a_hosted_advance_is_queued_and_the_stores_machine_applies_only_the_owners(world, settings):
-    """Hosted, the click queues; on the store's machine a launch is refused until his advances are applied, and someone
-    else's advance is refused. Break: sync/applying.py `apply_advance` skips its `from_owner` check."""
-    settings.SCORE_LEDGER_FILES = [world.ledger]
-    launch = {"kind": "launch", "user": "joey", "payload": {"items": [{"place": "alpha", "stage": "demo-film"}]}}
-    refused = applying.apply(launch, world.source, PaidFilm())
-    assert refused.state == "refused" and "not seen by owner" in refused.detail, refused.detail
-    other = applying.apply({"kind": "advance", "user": "mallory", "payload": {
-        "node": "assembly@alpha", "output": world.outputs["assembly@alpha"]}}, world.source)
-    assert other.state == "refused" and not seen.advanced("assembly@alpha", world.outputs["assembly@alpha"])
-    for node in ("assembly@alpha", "complete@alpha"):
-        applied = applying.apply({"kind": "advance", "user": "joey", "payload": {
-            "node": node, "output": world.outputs[node]}}, world.source)
-        assert applied.state == "done", applied.detail
-    assert applying.apply(launch, world.source, PaidFilm()).state == "running"
-    settings.SCORE_MODE = "hosted"
-    signed_in().post("/place/beta/step/assembly/advance/", {"output": world.outputs["assembly@beta"]})
-    assert SyncRequest.objects.get(kind="advance").payload == {"node": "assembly@beta",
-                                                               "output": world.outputs["assembly@beta"]}
-
-
 # === numbers, not prose ===============================================================================================
 
 SCREENS = ["/", "/places/", "/environments/world1/", "/place/alpha/", "/buy/", "/stats/", "/library/"]
-
-
-def test_every_screen_shows_numbers_not_prose_and_sets_no_stop(world, settings, tmp_path, monkeypatch):
-    """Owner rules (wording checks, #42, 2026-10-20): at most WORD_BUDGET words outside data, no traceback, no stop or
-    month figure set from the cockpit. Break: templates/pages/stats.html gains a paragraph of 54 plain words."""
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
-    a_month(monkeypatch, paid_refused="the month's books are lost")
-    owner = signed_in()
-    for page in SCREENS:
-        html = owner.get(page).content.decode()
-        words = prose(html)
-        assert len(words) <= WORD_BUDGET, (page, len(words), words)
-        assert "Traceback" not in html and "/api/money/stop" not in html and "/api/money/month" not in html, page
 
 
 # === the runner's prices, summed and never made =======================================================================
@@ -3306,3 +3189,118 @@ def test_deploy_templates_hold_only_placeholders():
             value = line.split("=", 1)[1].strip()
             assert value == "" or value.startswith("<") or re.fullmatch(r"[\w./:-]+", value) and not re.search(
                 r"\.(org|com|net|nl|io)\b", value), (path, line)
+
+
+# === the one question: what the owner sees and who may act on it =====================================================
+
+def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch):
+    """One world (the fixture environment, alpha's gaps checked and priced, the month's books lost) walked through every
+    page, then acted on by the owner, a guest, a stranger, a page without its CSRF token and the sync applier. Each
+    page answers the owner and sends a stranger to sign in; node ids stay in the details fold; a screen holds at most
+    WORD_BUDGET words outside data, no traceback and no stop or month figure; every post needs its CSRF token and a
+    back link stays on this site; only the owner decides (a worse output needs his reason), advances and is applied;
+    a change request lands in the inbox and "this"/"next" queue the right stage; a paid launch waits until he advanced
+    both outputs it reads; hosted, his advance is queued.
+    Breaks (each applied once and seen red): pages/views.py `place_page` raises for beta; site/settings.py drops
+    CsrfViewMiddleware; templates/pages/step.html prints `{{ detail.node }}` beside each read; pages/actions.py
+    `decide` sends `worse_reason or 'none'`; pages/views.py `step_queue` queues the step itself for "next";
+    pages/seen.py `unseen_reads` holds nothing back (`if False:`); sync/applying.py `apply_advance` skips its
+    `from_owner` check; pages/views.py `step_advance` answers without recording (`said = "advanced"`);
+    templates/pages/stats.html gains a paragraph of 54 plain words."""
+    from score.dashboard.pages.models import BasketItem, ChangeRequest
+    guarded_user = get_user_model().objects.create_user("joey", password="a long enough password")
+    guarded = Client(enforce_csrf_checks=True)
+    guarded.force_login(guarded_user)
+    owner, guest = signed_in(), signed_in("guest")
+    copy = world.root / "web" / "alpha"
+    copy.mkdir(parents=True)
+    (copy / "alpha.json").write_text(json.dumps({
+        "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
+        "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
+        "light_bytes": 5, "triangles": 12}))
+    a_gaps_finding(world, settings, tmp_path)
+    a_gaps_price(world)
+    world.source.refresh()
+    with pytest.MonkeyPatch.context() as month:
+        a_month(month, paid_refused="the month's books are lost")
+        for page in dict.fromkeys([*PAGES, *SCREENS]):
+            answer = owner.get(page)
+            html = answer.content.decode()
+            assert answer.status_code == 200, page
+            assert "Traceback" not in html and "/api/money/stop" not in html and "/api/money/month" not in html, page
+            stranger = Client().get(page)
+            assert stranger.status_code == 302 and stranger["Location"].startswith("/login/"), page
+            found = NODE.search(outside_details(html)) if page in NODE_FREE else None
+            assert found is None, (page, found.group(0))
+            words = prose(html) if page in SCREENS else []
+            assert len(words) <= WORD_BUDGET, (page, len(words), words)
+
+    assert "Accept this output" not in guest.get("/place/alpha/step/closeup/").content.decode()
+    for back, status, location in BACKS:
+        answer = owner.post("/refresh/", {"back": back})
+        assert (answer.status_code, answer["Location"]) == (status, location), back
+
+    # Every post on the one world, each row followed by what the world then holds: (the waiting close-up accepted, by
+    # whom, each change request with its inbox file, the queued steps), carried from row to row.
+    waiting = world.outputs["closeup@alpha waiting"]
+
+    def held():
+        accept = world.store.current_accept("closeup@alpha") or {}
+        return (world.store.accepted("closeup@alpha") == waiting, accept.get("by"),
+                [(change.node, change.words, (settings.SCORE_HOME / "inbox" / f"{change.pk}.json").is_file())
+                 for change in ChangeRequest.objects.all()],
+                {(item.place, item.stage) for item in BasketItem.objects.all()})
+
+    untouched = held()
+    asked = [("closeup@alpha", "the lamp is too red", True)]
+    decide = "/place/alpha/step/closeup/decide/"
+    posts = [*((f"no csrf {page}", guarded, page, {"words": "x"}, 403, untouched) for page in POSTS),
+             ("guest decides", guest, decide, {"decision": "accept", "output": waiting,
+                                               "worse_reason": "one fault is fine here"}, 403, untouched),
+             ("worse, no reason", owner, decide, {"decision": "accept", "output": waiting}, 302, untouched),
+             ("worse, his reason", owner, decide, {"decision": "accept", "output": waiting,
+                                                   "worse_reason": "one fault is fine here"}, 302,
+              (True, "joey", [], set())),
+             ("change request", owner, "/place/alpha/step/closeup/request/",
+              {"words": "the lamp is too red", "output": "x"}, 302, (True, "joey", asked, set())),
+             ("queue this", owner, "/place/alpha/step/plan/queue/", {"which": "this"}, 302,
+              (True, "joey", asked, {("alpha", "plan")})),
+             ("queue next", owner, "/place/alpha/step/scene-record/queue/", {"which": "next"}, 302,  # the stage table:
+              (True, "joey", asked, {("alpha", "plan"), ("alpha", "assembly")}))]  # scene-record, then assembly
+    for row, actor, page, body, status, after in posts:
+        assert (actor.post(page, body).status_code, held()) == (status, after), row
+
+    # Nothing advances unseen: a launch reading assembly and complete is refused until the owner advanced both, by his
+    # click here or by his queued request applied on the store's machine; a guest's click and someone else's request
+    # advance nothing. Each row: who, how, the node, then the answer, whether it is advanced and what the plan waits on.
+    settings.SCORE_LEDGER_FILES = [world.ledger]
+    plan = ready_plan([{"node": PAID, "euros": 5.0, "why": "never ran", "again": False}])
+    launch = {"kind": "launch", "user": "joey", "payload": {"items": [{"place": "alpha", "stage": "demo-film"}]}}
+    clicks, answers = {"guest": guest, "joey": owner}, {302: "done", 403: "refused"}
+
+    def advance(user, how, node):
+        if how == "click":
+            code = clicks[user].post(f"/place/alpha/step/{node.split('@')[0]}/advance/",
+                                     {"output": world.outputs[node]}).status_code
+            return answers.get(code, code)
+        return applying.apply({"kind": "advance", "user": user, "payload": {
+            "node": node, "output": world.outputs[node]}}, world.source).state
+
+    both = {(PAID, "assembly@alpha"), (PAID, "complete@alpha")}
+    advances = [("guest", "click", "assembly@alpha", "refused", False, both),
+                ("mallory", "request", "assembly@alpha", "refused", False, both),
+                ("joey", "click", "assembly@alpha", "done", True, {(PAID, "complete@alpha")}),
+                ("joey", "request", "complete@alpha", "done", True, set())]
+    for user, how, node, state, advanced, waits in advances:
+        refusals = actions.launch_refusals(get_user_model()(username="joey"), plan, True, "")
+        assert any(why.startswith("not seen by owner") for why in refusals), (user, how, node, refusals)
+        launched = applying.apply(launch, world.source, PaidFilm())
+        assert launched.state == "refused" and "not seen by owner" in launched.detail, (user, how, launched.detail)
+        assert (advance(user, how, node), bool(seen.advanced(node, world.outputs[node])),
+                set(actions.unseen(plan))) == (state, advanced, waits), (user, how, node)
+    assert applying.apply(launch, world.source, PaidFilm()).state == "running"
+
+    settings.SCORE_MODE = "hosted"
+    owner.post("/place/beta/step/assembly/advance/", {"output": world.outputs["assembly@beta"]})
+    assert SyncRequest.objects.get(kind="advance").payload == {"node": "assembly@beta",
+                                                               "output": world.outputs["assembly@beta"]}

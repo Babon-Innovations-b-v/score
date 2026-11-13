@@ -113,7 +113,7 @@ FUNCTION_DEBT = {
     "score/dashboard/proposals/test_a_basket_shows_what_a_run_on_main_would_buy.py": 20,
     "score/dashboard/state/test_the_cockpit_shows_the_store_as_read.py": 21,
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 42,
-    "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 115,
+    "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 108,
     "score/dashboard/web3d/test_a_web_copy_is_made_from_the_standing_accept.py": 7,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 115,
     "score/library/test_read_only_at_known_schema.py": 4,
