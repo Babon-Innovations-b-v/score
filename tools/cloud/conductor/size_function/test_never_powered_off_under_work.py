@@ -1,7 +1,8 @@
 """The size function powers the conductor off only when nothing is known to work on it, only for its own server at
 one of its two sizes, and never leaves it off or unprotected; its S3 reads are signed as AWS's own example says.
 
-Against a fake Instances API and a stubbed health record: no cloud. Each invariant with the break that turns it red
+One test drives a table of requests through the function's entry point `handler.handle`, against a fake Instances
+API and a fake object store that holds the health record: no cloud. Each invariant with the break that turns it red
 (each applied once and seen red):
 
 - Grow and shrink are refused, before any write, while a run is active, a paid machine parked, a frozen worktree in
@@ -18,12 +19,16 @@ Against a fake Instances API and a stubbed health record: no cloud. Each invaria
   `resize`. Break: drop the `wait_stopped` call (the fake refuses a type change on a running server).
 - A request needs the token, POST and a known action; a refusal is answered as JSON.
   Break: `return action` before the token check in `request_action`.
-- s3's SigV4 signature equals AWS's published 'GET Object' example. Break: sort the header names in reverse.
+- The health record is read signed with the function's own key for its region, by s3's SigV4 signer, which the fake
+  store trusts only because it reproduces AWS's published 'GET Object' example. Break: sort the header names in
+  reverse.
 """
 import datetime
 import json
 import pathlib
 import sys
+import urllib.error
+import urllib.request
 
 import pytest
 
@@ -36,17 +41,22 @@ IDLE, BATCH = "POP2-HM-2C-16G", "POP2-HM-16C-128G"
 CONFIG = {"SCORE_SERVER_ID": "srv-1", "SCORE_ZONE": "fr-par-2", "SCORE_IDLE_TYPE": IDLE, "SCORE_BATCH_TYPE": BATCH,
           "SCORE_HEALTH_BUCKET": "b", "SCORE_HEALTH_REGION": "nl-ams", "SCW_ACCESS_KEY": "AK", "SCW_SECRET_KEY": "SK",
           "SCORE_SIZE_TOKEN": "tok"}
+UNPROTECT, OFF, ON, PROTECT = {"protected": False}, {"action": "poweroff"}, {"action": "poweron"}, {"protected": True}
+TO_BATCH, TO_IDLE = {"commercial_type": BATCH}, {"commercial_type": IDLE}
+FULL_GROW = [UNPROTECT, OFF, TO_BATCH, ON, PROTECT]
+AWS_EXAMPLE_SIGNATURE = "Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41"
 
 
 class FakeApi:
     """The Instances API for one server, protected as `machine.py up` leaves it: poweroff stops it after two reads
     and is refused while it is protected (as Scaleway's 400 'server is protected'); a type change on a server that is
-    not stopped is refused, as Scaleway refuses it."""
+    not stopped is refused, as Scaleway refuses it. `refuse` names a write Scaleway refuses outright."""
 
-    def __init__(self, kind=IDLE, state="running", name="score-conductor", tags=("score-conductor",)):
+    def __init__(self, kind=IDLE, state="running", name="score-conductor", tags=("score-conductor",),
+                 protected=True, refuse=None):
         self.server = {"id": "srv-1", "name": name, "tags": list(tags), "commercial_type": kind, "state": state,
-                       "protected": True}
-        self.calls, self.stopping = [], None
+                       "protected": protected}
+        self.calls, self.stopping, self.refuse = [], None, refuse
 
     def __call__(self, method, path, body=None):
         self.calls.append((method, path, body))
@@ -56,9 +66,11 @@ class FakeApi:
                 if self.stopping <= 0:
                     self.server["state"], self.stopping = "stopped", None
             return {"server": dict(self.server)}
-        if method == "PATCH" and "protected" in body:
+        if self.refuse is not None and self.refuse in body.values():
+            raise OSError(f"Scaleway refused {body}")
+        if "protected" in body:
             self.server["protected"] = body["protected"]
-        elif method == "PATCH":
+        elif "commercial_type" in body:
             if self.server["state"] != "stopped":
                 raise OSError("HTTP Error 400: the server must be stopped to change its type")
             self.server["commercial_type"] = body["commercial_type"]
@@ -74,106 +86,121 @@ class FakeApi:
         return [call[2] for call in self.calls if call[0] != "GET"]
 
 
-def fresh(**counts):
+class FakeStore:
+    """The health bucket as `urlopen`: it serves health/conductor.json (404 when there is none) only to a read signed
+    with the function's key for its region, checked by recomputing s3's signature, which it trusts only because s3
+    reproduces AWS's published S3 SigV4 'GET Object' example (us-east-1, 2013-05-24, Range bytes=0-9)."""
+
+    def __init__(self, record):
+        aws = s3.signed_headers(
+            "GET", "https://examplebucket.s3.amazonaws.com/test.txt", "us-east-1", "AKIAIOSFODNN7EXAMPLE",
+            "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", s3.digest(b""),
+            datetime.datetime(2013, 5, 24, tzinfo=datetime.timezone.utc), {"Range": "bytes=0-9"})["authorization"]
+        assert aws.endswith(AWS_EXAMPLE_SIGNATURE), aws
+        assert "SignedHeaders=host;range;x-amz-content-sha256;x-amz-date" in aws, aws
+        self.record, self.reads = record, 0
+
+    def __call__(self, request, timeout):
+        url = s3.object_url(CONFIG["SCORE_HEALTH_BUCKET"], handler.HEALTH_KEY, CONFIG["SCORE_HEALTH_REGION"])
+        assert request.full_url == url
+        signed_at = datetime.datetime.strptime(request.get_header("X-amz-date"), "%Y%m%dT%H%M%SZ").replace(
+            tzinfo=datetime.timezone.utc)
+        assert request.get_header("Authorization") == s3.signed_headers(
+            "GET", url, CONFIG["SCORE_HEALTH_REGION"], CONFIG["SCW_ACCESS_KEY"], CONFIG["SCW_SECRET_KEY"],
+            s3.digest(b""), signed_at)["authorization"]
+        self.reads += 1
+        if self.record is None:
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+        body = json.dumps(self.record).encode()
+
+        class Answer:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                return body
+        return Answer()
+
+
+def record(**counts):
+    """A health record written now, saying nothing works on the conductor unless `counts` says so."""
     now = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
-    return lambda: {"written_at": now, "active_runs": 0, "parked": 0, "frozen": 0, "working": 0, **counts}
+    return {"written_at": now, "active_runs": 0, "parked": 0, "frozen": 0, "working": 0, **counts}
 
 
-def resize(action, api, health=None):
-    return handler.resize(action, CONFIG, api, health or fresh(), sleep=lambda seconds: None)
+UNSAID = {key: value for key, value in record().items() if key != "working"}
+STALE = {"written_at": "2026-01-01T00:00:00+00:00"}
 
 
-def test_grow_lifts_protection_powers_off_changes_type_powers_on_and_protects_again():
-    api = FakeApi()
-    assert resize("grow", api) == {"action": "grow", "from": IDLE, "to": BATCH, "state": "starting", "changed": True}
-    assert api.writes() == [{"protected": False}, {"action": "poweroff"}, {"commercial_type": BATCH},
-                            {"action": "poweron"}, {"protected": True}]
-    assert api.server["protected"] is True
-
-    unprotected = FakeApi()
-    unprotected.server["protected"] = False
-    resize("grow", unprotected)
-    assert not any("protected" in (body or {}) for body in unprotected.writes())
-
-    at_size = FakeApi(kind=BATCH)
-    assert resize("grow", at_size)["changed"] is False and at_size.writes() == []
+def request(action="grow", token="tok", method="POST"):
+    return {"httpMethod": method, "headers": {"X-Score-Size-Token": token}, "body": json.dumps({"action": action})}
 
 
-@pytest.mark.parametrize("action, kind", [("shrink", BATCH), ("grow", IDLE)])
-@pytest.mark.parametrize("health, words", [
-    (fresh(active_runs=1), "run(s) active"), (fresh(parked=2), "parked"), (fresh(frozen=1), "frozen"),
-    (lambda: None, "no health record"), (lambda: {"written_at": "2026-01-01T00:00:00+00:00"}, "too old")])
-def test_neither_resize_runs_while_the_conductor_is_busy_or_its_state_unknown(action, kind, health, words):
-    api = FakeApi(kind=kind)
-    with pytest.raises(handler.Refused, match=words.replace("(", r"\(").replace(")", r"\)")):
-        resize(action, api, health)
-    assert api.writes() == []
+def done(action, was, to):
+    return {"action": action, "from": was, "to": to, "state": "starting", "changed": True}
 
 
-def test_work_under_a_hold_refuses_only_a_shrink_and_a_stopped_server_needs_no_record():
-    unsaid = {key: value for key, value in fresh()().items() if key != "working"}
-    for health in (fresh(working=1), lambda: unsaid):
-        api = FakeApi(kind=BATCH)
-        with pytest.raises(handler.Refused, match="hold"):
-            resize("shrink", api, health)
-        assert api.writes() == []
-    assert resize("grow", FakeApi(kind=IDLE), fresh(working=1))["changed"]  # a waiting run asked for it
-    assert resize("shrink", FakeApi(kind=BATCH, state="stopped"), lambda: None)["to"] == IDLE
+BUSY = [(record(active_runs=1), "run(s) active"), (record(parked=2), "parked"), (record(frozen=1), "frozen"),
+        (None, "no health record"), (STALE, "too old")]
+
+# id: (request, the server as FakeApi's keywords, the stored health record, the expected answer: (status, the whole
+# body or the words its refusal holds) or the error it raises, the writes the Instances API saw in order)
+CASES = {
+    "grow": (request("grow"), {}, record(), (200, done("grow", IDLE, BATCH)), FULL_GROW),
+    "grow-unprotected-stays-unprotected": (request("grow"), {"protected": False}, record(),
+                                           (200, done("grow", IDLE, BATCH)), [OFF, TO_BATCH, ON]),
+    "grow-at-size-untouched": (request("grow"), {"kind": BATCH}, record(),
+                               (200, {"action": "grow", "from": BATCH, "to": BATCH, "state": "running",
+                                      "changed": False}), []),
+    **{f"{action}-refused-{words.split()[-1]}": (request(action), {"kind": kind}, health, (409, words), [])
+       for action, kind in (("shrink", BATCH), ("grow", IDLE)) for health, words in BUSY},
+    "shrink-refused-under-a-hold": (request("shrink"), {"kind": BATCH}, record(working=1), (409, "hold"), []),
+    "shrink-refused-when-the-record-does-not-say": (request("shrink"), {"kind": BATCH}, UNSAID, (409, "hold"), []),
+    "grow-under-a-hold-a-waiting-run-asked": (request("grow"), {}, record(working=1),
+                                              (200, done("grow", IDLE, BATCH)), FULL_GROW),
+    "shrink-stopped-needs-no-record": (request("shrink"), {"kind": BATCH, "state": "stopped"}, None,
+                                       (200, done("shrink", BATCH, IDLE)), [UNPROTECT, TO_IDLE, ON, PROTECT]),
+    "type-change-refused-powered-on-and-protected": (request("grow"), {"refuse": BATCH}, record(), OSError,
+                                                     FULL_GROW),
+    "power-off-refused-protected-again": (request("grow"), {"refuse": "poweroff"}, record(), OSError,
+                                          [UNPROTECT, OFF, PROTECT]),
+    "not-tagged-the-conductor": (request("grow"), {"tags": ("farm-factory-batch",)}, record(), (403, "not the"), []),
+    "not-named-the-conductor": (request("grow"), {"name": "other"}, record(), (403, "not the"), []),
+    "neither-of-its-two-sizes": (request("grow"), {"kind": "GPU-3070-S"}, record(), (409, "neither"), []),
+    "wrong-token": (request("grow", token="nope"), {}, record(), (403, "X-Score-Size-Token"), []),
+    "unknown-action": (request("delete"), {}, record(), (400, "action must be"), []),
+    "not-post": ({"httpMethod": "GET", "headers": {}}, {}, record(), (405, "POST only"), []),
+    "not-set-up": ({"httpMethod": "POST", "headers": {}, "body": "{}"}, {}, record(), (500, "not set up"), []),
+}
 
 
-def test_a_refused_type_change_or_power_off_never_leaves_it_off_or_unprotected():
-    class Refusing(FakeApi):
-        def __call__(self, method, path, body=None):
-            if "commercial_type" in (body or {}):
-                self.calls.append((method, path, body))
-                raise OSError("the type change was refused")
-            return super().__call__(method, path, body)
-    api = Refusing()
-    with pytest.raises(OSError):
-        resize("grow", api)
-    assert [call[2] for call in api.calls if call[0] == "POST"] == [{"action": "poweroff"}, {"action": "poweron"}]
-    assert api.server["protected"] is True
+@pytest.mark.parametrize("event, server, health, expected, writes", CASES.values(), ids=CASES.keys())
+def test_never_powered_off_under_work(monkeypatch, event, server, health, expected, writes):
+    for name, value in CONFIG.items():
+        monkeypatch.setenv(name, value)
+    if expected == (500, "not set up"):
+        for name in CONFIG:
+            monkeypatch.delenv(name)
+    api, store = FakeApi(**server), FakeStore(health)
+    monkeypatch.setattr(handler, "instance_api", lambda config: api)
+    monkeypatch.setattr(urllib.request, "urlopen", store)
+    monkeypatch.setattr(handler, "POLL_SECONDS", 0)
 
-    class Stuck(FakeApi):
-        def __call__(self, method, path, body=None):
-            if body == {"action": "poweroff"}:
-                self.calls.append((method, path, body))
-                raise OSError("the power off was refused")
-            return super().__call__(method, path, body)
-    api = Stuck()
-    with pytest.raises(OSError):
-        resize("grow", api)
-    assert api.server["protected"] is True and api.calls[-1][2] == {"protected": True}
-
-
-def test_only_the_conductor_at_one_of_its_two_sizes():
-    for api in (FakeApi(tags=("farm-factory-batch",)), FakeApi(name="other"), FakeApi(kind="GPU-3070-S")):
-        with pytest.raises(handler.Refused):
-            resize("grow", api)
-        assert api.writes() == []
-
-
-def test_a_request_needs_post_the_token_and_a_known_action_and_is_answered_as_json(monkeypatch):
-    def event(token, body):
-        return {"httpMethod": "POST", "headers": {"X-Score-Size-Token": token}, "body": json.dumps(body)}
-    assert handler.request_action(event("tok", {"action": "shrink"}), "tok") == "shrink"
-    for wrong, status in ((event("nope", {"action": "grow"}), 403), (event("tok", {"action": "delete"}), 400),
-                          ({"httpMethod": "GET", "headers": {}}, 405)):
-        with pytest.raises(handler.Refused) as refused:
-            handler.request_action(wrong, "tok")
-        assert refused.value.status == status
-    for name in CONFIG:
-        monkeypatch.delenv(name, raising=False)
-    answer = handler.handle({"httpMethod": "POST", "headers": {}, "body": "{}"}, None)
-    assert answer["statusCode"] == 500 and "not set up" in json.loads(answer["body"])["refused"]
-
-
-def test_the_s3_signature_matches_awss_published_example():
-    """AWS's S3 SigV4 example 'GET Object' (us-east-1, 2013-05-24, Range bytes=0-9): the signature is AWS's."""
-    headers = s3.signed_headers(
-        "GET", "https://examplebucket.s3.amazonaws.com/test.txt", "us-east-1", "AKIAIOSFODNN7EXAMPLE",
-        "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", s3.digest(b""),
-        datetime.datetime(2013, 5, 24, tzinfo=datetime.timezone.utc), {"Range": "bytes=0-9"})
-    assert headers["authorization"].endswith(
-        "Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41")
-    assert "SignedHeaders=host;range;x-amz-content-sha256;x-amz-date" in headers["authorization"]
+    if expected is OSError:
+        with pytest.raises(OSError):
+            handler.handle(event, None)
+    else:
+        status, body = expected
+        answer = handler.handle(event, None)
+        assert answer["statusCode"] == status and answer["headers"] == {"Content-Type": "application/json"}
+        said = json.loads(answer["body"])
+        if isinstance(body, dict):
+            assert said == body
+        else:
+            assert set(said) == {"refused"} and body in said["refused"], said
+    assert api.writes() == writes
+    assert api.server["protected"] is server.get("protected", True)
+    assert api.server["state"] in ("running", "starting"), api.server
