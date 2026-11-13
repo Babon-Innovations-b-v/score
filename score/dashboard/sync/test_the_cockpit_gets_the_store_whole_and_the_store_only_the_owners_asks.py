@@ -63,23 +63,27 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - timer.unit_text: the pull never replaced -> test_the_units_render_for_the_conductors_user_and_no_pull_...
 - timer.dashboard_refusal: the dashboard diff -> `if False:` -> test_without_a_host_the_install_checks_the_commit_...
 - review/web.as_owner_deciding: `with markers_lifted():` -> `with contextlib.nullcontext():` ->
-  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+  test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.refusal: the `now != yes["target"]` check -> `if False:` ->
-  test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
+  test_the_cockpit_gets_the_store_whole_...
 - applying.OWNER_FIGURES: the "spend-override" line dropped (his spend override in chat has no request kind) ->
-  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+  test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.override_state: the `web.override_yes(...) is not None` check -> `if False:` ->
-  test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
+  test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.books_state: `"books": books` dropped from its target (a books month asked before the books were
-  written since applies anyway) -> test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
+  written since applies anyway) -> test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.request_of: the books month branch dropped (his books month in chat has no request kind) ->
-  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+  test_the_cockpit_gets_the_store_whole_...
 - applying.OWNER_FIGURES: the "stop-line" line dropped (his stop line in chat has no request kind) ->
-  test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+  test_the_cockpit_gets_the_store_whole_...
 - applying.OWNER_FIGURES: the "cap-line" line dropped, or chat_decisions.cap_state's `"current"` set to None (a cap
-  written since applies anyway) -> test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside
+  written since applies anyway) -> test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.stop_state: its `"line"` set to None (a stop line asked before another line was written applies
-  anyway) -> test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question
+  anyway) -> test_the_cockpit_gets_the_store_whole_...
+- chat_decisions.request_of: a reject's `takes` dropped (a retake of named takes remakes every take) ->
+  test_the_cockpit_gets_the_store_whole_...
+- chat_decisions.apply: the `handed_back(store, yes_id, applied.detail)` after a refused apply dropped (a yes the
+  cockpit refused stays used, 2026-11-05) -> test_the_cockpit_gets_the_store_whole_...
 - state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
 - launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
   test_every_module_the_hosted_image_holds_imports_from_it_alone
@@ -97,6 +101,7 @@ import subprocess
 import sys
 import time
 import types
+from unittest.mock import ANY
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -166,7 +171,9 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     """The fixture world exported twice and once under a tiny cap, then the hosted side's sync routes driven through one
     exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token; then the
     store side applies one request table (a stranger's, an agent's process's, bad names and library addresses, kinds
-    no button sends, then the owner's own), a refused request writing nothing."""
+    no button sends, then the owner's own), a refused request writing nothing; then his decisions made in chat
+    through one table of decision kinds (each with a twin asked before its target changed) and one of yeses never
+    recorded."""
     world = owner_books
     one, small = exported(world, tmp_path / "one"), exported(world, tmp_path / "small", cap_mb=0.02)
     exported(world, tmp_path / "two")
@@ -255,6 +262,7 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
 
     from score.dashboard.pages import actions, library_actions
     from score.review import web as review_web
+    agent_started = actions.agent_started
     settings.SCORE_MODE, settings.SCORE_LIB_ROOT = settings.LOCAL, tmp_path
     monkeypatch.setattr(library_actions, "library", lambda: types.SimpleNamespace(entry=lambda address: None))
     monkeypatch.setattr(library_actions, "run", lambda arguments: pytest.fail(f"ran {arguments}"))
@@ -275,7 +283,6 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
                                 ("environment-save", {"world": "..", "concept": {}, "locked": False}))],
         ("a library address not in it", "library", "joey", {"action": "withdraw", "addresses": [
             "--upload-pack=touch x"]}, False, "refused", "is not in the library"),
-        ("his decision", "decision", "joey", {**decision, "worse_reason": "fine"}, False, "done", None),
         ("his books figure", "books-figure", "joey", figure, False, "done", None),
         ("his waiver", "waiver", "joey", waiver, False, "done", None),
         ("his change", "change", "joey", {"place": "alpha", "stage": "closeup", "words": "redder"}, False, "done",
@@ -293,6 +300,152 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
     assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
     assert list((home / "inbox").glob("*.json"))
+
+    # his decisions made in chat (sync/chat_decisions.py, owner 2026-10-27), each through one table: recorded quoted
+    # by his name, a twin asked before its target changed; a cockpit refusal hands the yes back unused; applied once
+    # through the request code of his click, the agent marks lifted only inside; the twin refused, nothing marked used
+    from score.dashboard.films import script
+    from score.dashboard.sync import chat_decisions
+    from score.store import AGENT_MARKERS
+    monkeypatch.setattr(actions, "agent_started", agent_started)
+    mark, output, seen, real = AGENT_MARKERS[0], world.outputs["closeup@alpha waiting"], [], applying.apply
+    monkeypatch.setenv(mark, "1")
+    monkeypatch.setattr("score.adapters.compute.cap_baseline",
+                        lambda: {"at": "t", "whole": 2127.39, "lines": {"ff|l4": 169.0}})
+    world.books.unlink()  # his books figure above was this month's: the books month asks a month not written yet
+    month = review_web.books_of("")[0]
+    script.save(settings.SCORE_HOME, script.blank("chat-film", "Chat"))
+    cap = {"euros": "300", "line": "255", "start": "2026-11-09T18:40:00+00:00", "month_cap": "2970",
+           "finish": "2026-11-21T23:59:00+00:00", "standing": "15"}
+    takes = {"reason": "stool: outline 0.392 under 0.5", "takes": ["stool_1"]}
+    edited = lambda: script.save(settings.SCORE_HOME, script.blank("chat-film", "Chat, edited"))  # noqa: E731
+    decided = [  # (decision, target, given, the twin: (its given, why it is refused, what changes after it is asked)
+        #          or None, its target, the request his click makes, words of the applied detail, what it reads
+        #          afterwards: (reader, the reading))
+        ("accept", "closeup@alpha", {"output": output, "worse_reason": "one fault is fine"},
+         ({"output": output, "reason": "red"}, "changed since he answered", None),  # a reject, then his accept
+         {"node": "closeup@alpha", "output": output, "accepted": ANY},
+         {"kind": "decision", "user": "joey", "payload": {"node": "closeup@alpha", "output": output,
+                                                          "decision": "accept", "reason": "",
+                                                          "worse_reason": "one fault is fine"}},
+         "", (lambda: (world.store.accepted("closeup@alpha"),
+                       world.store.current_accept("closeup@alpha")["by"]), (output, "joey"))),
+        ("reject", "closeup@alpha", {"output": output, **takes}, None,  # its takes reach his reject record
+         {"node": "closeup@alpha", "output": output, "accepted": output},
+         {"kind": "decision", "user": "joey", "payload": {"node": "closeup@alpha", "output": output,
+                                                          "decision": "reject", "worse_reason": "", **takes}},
+         "", (lambda: world.store.rejects("closeup@alpha")[-1]["takes"], ["stool_1"])),
+        ("spend", "relight-hangar", {"euros": "4", "purpose": "one relight"},
+         ({"euros": "2", "purpose": "relight"}, "gone since the question", None),  # the name took a yes since
+         {"override": "relight-hangar", "euros": 4.0, "purpose": "one relight"},
+         {"kind": "spend-override", "user": "joey", "payload": {"name": "relight-hangar", "euros": 4.0,
+                                                                "purpose": "one relight"}},
+         'SCORE_SPEND_TICKET="override relight-hangar"',
+         (lambda: picked(world.store.spend_yes("override", "relight-hangar"), "euros", "by", "purpose"),
+          (4.0, "joey", "one relight"))),
+        ("stop", "chat-stop", {"euros": "10"}, ({"euros": "12"}, "changed since he answered", None),  # a line since
+         {"world": "chat-stop", "euros": 10.0, "line": None},
+         {"kind": "stop-line", "user": "joey", "payload": {"world": "chat-stop", "euros": 10.0,
+                                                           "reason": "his yes in chat: Yes", "replaces": None}},
+         "EUR 10.00", (lambda: picked(review_web.stop_line(world.store, "chat-stop"), "euros", "by", "baseline.bill"),
+                       (10.0, "joey", 1.0))),
+        ("cap", "env1", cap, ({**cap, "line": "200"}, "changed since he answered", None),  # a cap written since
+         {"cap": "env1", "euros": 300.0, "line": 255.0, "start": cap["start"], "month_cap": 2970.0,
+          "finish": cap["finish"], "standing_per_day": 15.0, "open": True, "current": None},
+         {"kind": "cap-line", "user": "joey", "payload": {
+             "cap": "env1", "euros": 300.0, "line": 255.0, "start": cap["start"], "month_cap": 2970.0,
+             "finish": cap["finish"], "standing_per_day": 15.0, "open": True, "replaces": None,
+             "words": "his yes in chat: Yes", "yes": ANY}},
+         "paid work stops at EUR 255.00",
+         (lambda: picked(review_web.cap_now("env1"), "by", "open", "baseline.whole", "line"),
+          ("joey", True, 2127.39, 255.0))),
+        ("cap", "env1", {"close": True}, None, {"cap": "env1", "open": False, "current": ANY},  # its film accepted
+         {"kind": "cap-line", "user": "joey", "payload": {
+             "cap": "env1", "euros": None, "line": None, "start": None, "month_cap": None, "finish": None,
+             "standing_per_day": None, "open": False, "replaces": ANY, "words": "his yes in chat: Yes", "yes": ANY}},
+         "", (lambda: review_web.cap_now("env1")["open"], False)),
+        ("lock-film", "chat-film", {}, ({}, "changed since he answered", edited),  # the script edited since
+         {"film": "chat-film", "script": ANY},
+         {"kind": "film-lock", "user": "joey", "payload": {"film": "chat-film", "script": ANY}},
+         "", (lambda: picked(script.locked(settings.SCORE_HOME, "chat-film"), "title"), ("Chat, edited",))),
+        (review_web.BOOKS_MONTH, month, {"euros": "0"},
+         ({"euros": "5"}, "changed since he answered", None),  # the books written since
+         {"month": month, "euros": 0.0, "books": {}},
+         {"kind": "books-figure", "user": "joey", "payload": {"euros": 0.0}}, f"books known for {month}",
+         (lambda: picked(json.loads(world.books.read_text()), "month", "state", "google_before", "google_by"),
+          (month, "known", 0.0, "joey"))),
+    ]
+    for decision, target, given, twin, then, item, words, (reads, reading) in decided:
+        asked = f"{decision} {target}?"
+        twin_yes = twin and chat_decisions.record(decision, target, "Yes", asked, **twin[0])
+        if twin and twin[2]:
+            twin[2]()
+        yes = chat_decisions.record(decision, target, "Yes", asked, **given)
+        assert (yes["target"], yes["by"], yes["question"]) == (then, "joey", asked), decision
+        monkeypatch.setattr(applying, "apply", lambda request, source: applying.Applied("refused", "not now"))
+        assert chat_decisions.apply(yes["id"]).state == "refused", decision  # handed back: the same yes applies later
+        assert not review_web.decision_yes_used(world.store, yes["id"]) and found(reads) != reading, decision
+        monkeypatch.setattr(applying, "apply", lambda request, source: seen.append(
+            (request, mark in os.environ)) or real(request, source))
+        applied = chat_decisions.apply(yes["id"])
+        assert applied.state == "done" and words in applied.detail, (decision, applied.detail)
+        assert seen[-1] == (item, False) and os.environ[mark] == "1", (decision, seen[-1])
+        assert reads() == reading, decision
+        assert "used already" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply, yes["id"]).value)
+        if twin:
+            assert twin[1] in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply, twin_yes["id"]).value)
+            assert not review_web.decision_yes_used(world.store, twin_yes["id"]) and reads() == reading, decision
+    go = chat_decisions.record("go", "world1", "sure", "Let the run accept passing results on its own?")
+    assert review_web.owners_go(world.store, go["id"], "world1") == go
+    assert review_web.owners_go(world.store, go["id"], "w2") is None
+    assert review_web.owners_go(world.store, yes["id"], "world1") is None  # only a go
+    for yes_id, why in ((go["id"], "is a go"), ("20261027T000000000000Z", "is no quoted decision yes")):
+        assert why in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply, yes_id).value)
+    unrecorded = [  # (decision, target, answer, question, given, words of the refusal)
+        ("accept", "closeup@alpha", "", "Q?", {"output": output}, "quotes the owner's answer"),
+        ("accept", "closeup@alpha", "Yes", "", {"output": output}, "quotes the owner's answer"),
+        ("reject", "closeup@alpha", "Yes", "Q?", {"output": output}, "says why"),
+        ("accept", "closeup@alpha", "Yes", "Q?", {"output": "0" * 64}, "has no output"),
+        ("accept", "closeup@alpha", "Yes", "Q?", {"output": output, "euros": "4"}, "only a spend, a books month"),
+        ("accept", "closeup@alpha", "Yes", "Q?", {"output": output, "takes": ["stool_1"]}, "only a reject names takes"),
+        *[("spend", name, "Yes", "Q?", {"euros": euros, "purpose": purpose}, why) for euros, purpose, name, why in (
+            ("4", "", "a", "says what it is for"), ("0", "x", "a", "above 0"), ("four", "x", "a", "as an amount"),
+            ("4", "x", "relight-hangar", "holds a yes already"))],
+        *[(review_web.BOOKS_MONTH, target, "Yes", "Q?", {"euros": euros}, why) for euros, target, why in (
+            ("-1", month, "finite figure"), ("nan", month, "finite figure"), ("zero", month, "as an amount"),
+            ("", month, "as an amount"), ("0", "2020-01", "this month's provider figure only"))],
+        (review_web.BOOKS_MONTH, month, "Yes", "Q?", {"euros": "0", "purpose": "x"}, "only a spend names a purpose"),
+        *[("stop", "chat-stop", "Yes", "Q?", {"euros": euros}, why) for euros, why in (
+            ("0", "finite amount above"), ("-1", "finite amount above"), ("nan", "finite amount above"),
+            ("ten", "as an amount"), ("", "as an amount"))],
+        ("stop", "chat-stop", "Yes", "Q?", {"euros": "10", "line": "5"}, "only a cap names a line"),
+        ("cap", "env1", "Yes", "Q?", {"euros": "300", "line": "400", "start": "2026-11-09T18:40"}, "is within its"),
+        ("cap", "env1", "Yes", "Q?", {"euros": "300", "line": "255"}, "names the time its count starts"),
+        ("cap", "env1", "Yes", "Q?", {"euros": "nan", "line": "255", "start": "2026-11-09T18:40"}, "finite amount"),
+    ]
+    for decision, target, answer, question, given, why in unrecorded:
+        refused = pytest.raises(chat_decisions.Refused, chat_decisions.record, decision, target, answer, question,
+                                **given)
+        assert why in str(refused.value), (decision, target, given, str(refused.value))
+
+
+def picked(record, *paths):
+    """The values at the dotted `paths` of a record (a dict of dicts)."""
+    found_values = []
+    for path in paths:
+        value = record
+        for name in path.split("."):
+            value = value[name]
+        found_values.append(value)
+    return tuple(found_values)
+
+
+def found(reads):
+    """What `reads` reads, None while what it reads is not written yet."""
+    try:
+        return reads()
+    except (TypeError, KeyError, IndexError, OSError):
+        return None
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
@@ -1154,205 +1307,3 @@ def test_every_module_the_hosted_image_holds_imports_from_it_alone(tmp_path):
                           env=hosted_env(home), cwd=tmp_path, capture_output=True, text=True)
     assert done.returncode == 0, done.stderr[-3000:]
     assert json.loads(done.stdout.strip().splitlines()[-1]) == {}
-
-
-# --- the owner's decisions made in chat (sync/chat_decisions.py, owner 2026-10-27) ---------------------------------
-
-QUESTION = "Accept closeup@alpha's new output (one more fault than the accepted one)?"
-
-
-def test_a_decision_made_in_chat_is_applied_once_as_his_click_with_the_agent_marks_lifted_only_inside(world,
-                                                                                                    monkeypatch,
-                                                                                                    settings):
-    """His quoted yes is applied through the cockpit's own request (applying.apply) by his name, the agent marks off
-    only while it runs; a second apply, an unquoted yes or someone's id with no yes is refused."""
-    from score.dashboard.sync import chat_decisions
-    from score.store import AGENT_MARKERS
-    mark = AGENT_MARKERS[0]
-    output = world.outputs["closeup@alpha waiting"]
-    yes = chat_decisions.record("accept", "closeup@alpha", "Yes, accept it", QUESTION, output=output,
-                                worse_reason="one fault is fine")
-    assert yes["target"]["output"] == output and yes["by"] == "joey" and yes["question"] == QUESTION
-    seen = []
-    real = applying.apply
-    monkeypatch.setenv(mark, "1")
-    monkeypatch.setattr(applying, "apply", lambda item, source: seen.append(
-        (item, mark in os.environ)) or real(item, source))
-    applied = chat_decisions.apply(yes["id"])
-    assert applied.state == "done", applied.detail
-    assert seen == [({"kind": "decision", "user": "joey", "payload": {
-        "node": "closeup@alpha", "output": output, "decision": "accept", "reason": "",
-        "worse_reason": "one fault is fine"}}, False)] and os.environ[mark] == "1"
-    assert world.store.accepted("closeup@alpha") == output
-    assert world.store.current_accept("closeup@alpha")["by"] == "joey"
-    for refused in (yes["id"], "20261027T000000000000Z"):
-        pytest.raises(chat_decisions.Refused, chat_decisions.apply, refused)
-    for answer, question in (("", QUESTION), ("Yes", "")):
-        pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", answer, question,
-                      output=output)
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, "reject", "closeup@alpha", "Yes", QUESTION,
-                  output=output)  # a reject says why, in his words
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
-                  output="0" * 64)  # no such output
-    # his spend override in chat (owner, 2026-11-02: "we talked about this, those kinda rules are stupid"): applied
-    # once through the cockpit's own request, as his override yes under its name, the agent marks lifted only inside
-    asked = "Say yes to EUR 4 for relight-hangar, one relight of the hangar outside the runner?"
-    spend = chat_decisions.record("spend", "relight-hangar", "Yes", asked, euros="4", purpose="one relight")
-    applied = chat_decisions.apply(spend["id"])
-    assert applied.state == "done" and 'SCORE_SPEND_TICKET="override relight-hangar"' in applied.detail, applied.detail
-    assert seen[-1] == ({"kind": "spend-override", "user": "joey", "payload": {
-        "name": "relight-hangar", "euros": 4.0, "purpose": "one relight"}}, False) and os.environ[mark] == "1"
-    assert {name: world.store.spend_yes("override", "relight-hangar")[name] for name in ("euros", "by", "purpose")} == {
-        "euros": 4.0, "by": "joey", "purpose": "one relight"}
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, spend["id"])
-    for euros, purpose, name in (("4", "", "a"), ("0", "x", "a"), ("four", "x", "a"), ("4", "x", "relight-hangar")):
-        pytest.raises(chat_decisions.Refused, chat_decisions.record, "spend", name, "Yes", asked, euros=euros,
-                      purpose=purpose)  # no purpose, no amount above 0, or a name holding a yes already
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
-                  output=output, euros="4")  # only a spend names euros
-    # his books month in chat (a rent refused on his PC, "the month's spend is unknown", answered EUR 0): applied once
-    # through his cockpit's "Enter it in the books" (books-figure), by his name, the agent marks lifted only inside
-    from score.review import web
-    books = settings.SCORE_PROPS_HOME / "cloud" / "books.json"
-    books.unlink(missing_ok=True)
-    month = web.books_of("")[0]
-    asked = f"Enter EUR 0 as the provider's bill for {month} in the books?"
-    month_yes = chat_decisions.record(web.BOOKS_MONTH, month, "EUR 0", asked, euros="0")
-    assert month_yes["target"] == {"month": month, "euros": 0.0, "books": {}}
-    applied = chat_decisions.apply(month_yes["id"])
-    assert applied.state == "done" and f"books known for {month}" in applied.detail, applied.detail
-    assert seen[-1] == ({"kind": "books-figure", "user": "joey", "payload": {"euros": 0.0}}, False)
-    assert os.environ[mark] == "1"
-    assert {name: json.loads(books.read_text())[name] for name in ("month", "state", "google_before", "google_by")} == {
-        "month": month, "state": "known", "google_before": 0.0, "google_by": "joey"}
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, month_yes["id"])
-    for euros, target in (("-1", month), ("nan", month), ("zero", month), ("", month), ("0", "2020-01")):
-        pytest.raises(chat_decisions.Refused, chat_decisions.record, web.BOOKS_MONTH, target, "Yes", asked,
-                      euros=euros)  # no finite figure of at least 0, or not this month
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, web.BOOKS_MONTH, month, "Yes", asked, euros="0",
-                  purpose="x")  # only a spend names a purpose
-    books.unlink()
-    # his stop line in chat (owner, 2026-11-07, asked for an images stop line: "WTF HAVE I SAID ABOUTT"): applied once
-    # through the cockpit's own request (stop-line) by his name, a first line counting from the books as they stand
-    monkeypatch.setattr(web, "books_now", lambda: {"month": "2026-11", "bill": 1.0, "ledger": 1.0})
-    asked = "Set the chat-stop environment's stop line at EUR 10?"
-    stop = chat_decisions.record("stop", "chat-stop", "Yes", asked, euros="10")
-    assert stop["target"] == {"world": "chat-stop", "euros": 10.0, "line": None}
-    applied = chat_decisions.apply(stop["id"])
-    assert applied.state == "done" and "EUR 10.00" in applied.detail, applied.detail
-    assert seen[-1] == ({"kind": "stop-line", "user": "joey", "payload": {
-        "world": "chat-stop", "euros": 10.0, "reason": "his yes in chat: Yes", "replaces": None}}, False)
-    assert os.environ[mark] == "1"
-    line = web.stop_line(world.store, "chat-stop")
-    assert (line["euros"], line["by"], line["baseline"]["bill"]) == (10.0, "joey", 1.0)
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, stop["id"])
-    for euros in ("0", "-1", "nan", "ten", ""):
-        pytest.raises(chat_decisions.Refused, chat_decisions.record, "stop", "chat-stop", "Yes", asked, euros=euros)
-    # his env1 cap on the whole bill (the plan of 2026-11-09, K10): applied once through the cockpit's own request
-    # (cap-line) by his name, counted from the whole bill as read then; a cap written since refuses the yes; closed later
-    monkeypatch.setattr("score.adapters.compute.cap_baseline",
-                        lambda: {"at": "t", "whole": 2127.39, "lines": {"ff|l4": 169.0}})
-    asked = "Cap env1 at EUR 300, paid work stopping at EUR 255, counted from 2026-11-09 18:40 UTC?"
-    cap = chat_decisions.record("cap", "env1", "Yes", asked, euros="300", line="255", start="2026-11-09T18:40:00+00:00",
-                                month_cap="2970", finish="2026-11-21T23:59:00+00:00", standing="15")
-    assert cap["target"] == {"cap": "env1", "euros": 300.0, "line": 255.0, "start": "2026-11-09T18:40:00+00:00",
-                             "month_cap": 2970.0, "finish": "2026-11-21T23:59:00+00:00", "standing_per_day": 15.0,
-                             "open": True, "current": None}
-    applied = chat_decisions.apply(cap["id"])
-    assert applied.state == "done" and "paid work stops at EUR 255.00" in applied.detail, applied.detail
-    assert seen[-1][0]["kind"] == "cap-line" and seen[-1][0]["user"] == "joey"
-    written = web.cap_now("env1")
-    assert (written["by"], written["open"], written["baseline"]["whole"], written["line"]) == ("joey", True, 2127.39,
-                                                                                               255.0)
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, cap["id"])
-    again = chat_decisions.record("cap", "env1", "Yes", asked, euros="300", line="200", start="2026-11-09T18:40")
-    since = (datetime.datetime.fromisoformat(written["at"]) + datetime.timedelta(microseconds=1)).isoformat()
-    lines = pathlib.Path(os.environ["SCORE_CAP_BOOK"]) / "caps" / "env1" / "lines"  # the conftest's folder book
-    (lines / f"{since.replace(':', '').replace('-', '')}-0.json").write_text(json.dumps({**written, "at": since}))
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, again["id"])  # a cap written since
-    closed = chat_decisions.record("cap", "env1", "Yes", "Close env1's cap: its film is accepted?", close=True)
-    assert chat_decisions.apply(closed["id"]).state == "done" and web.cap_now("env1")["open"] is False
-    for given in ({"euros": "300", "line": "400", "start": "2026-11-09T18:40"}, {"euros": "300", "line": "255"},
-                  {"euros": "nan", "line": "255", "start": "2026-11-09T18:40"}):
-        pytest.raises(chat_decisions.Refused, chat_decisions.record, "cap", "env1", "Yes", asked, **given)
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, "stop", "chat-stop", "Yes", asked, euros="10",
-                  line="5")  # only a cap names a line
-
-
-def test_a_reject_made_in_chat_carries_the_takes_he_named_to_remake_into_his_reject(world):
-    """Owner, 2026-10-28 (a failing object remade once, free): a reject's takes reach his reject record through the
-    cockpit's own request, so a row that retakes remakes those alone (graph.Stage.retakes); only a reject names takes.
-    Break: score/dashboard/sync/chat_decisions.py: '            **({"takes": given["takes"]} if given.get("takes") else {})}}' -> '            }}'"""
-    from score.dashboard.sync import chat_decisions
-    output = world.outputs["closeup@alpha waiting"]
-    applying.apply({"kind": "decision", "user": "joey", "payload": {
-        "node": "closeup@alpha", "output": output, "decision": "accept", "worse_reason": "fine"}}, world.source)
-    yes = chat_decisions.record("reject", "closeup@alpha", "Yes, remake free", QUESTION, output=output,
-                                reason="stool: outline 0.392 under 0.5", takes=["stool_1"])
-    assert chat_decisions.apply(yes["id"]).state == "done"
-    assert world.store.rejects("closeup@alpha")[-1]["takes"] == ["stool_1"]
-    pytest.raises(chat_decisions.Refused, chat_decisions.record, "accept", "closeup@alpha", "Yes", QUESTION,
-                  output=output, takes=["stool_1"])
-
-
-def test_a_decision_made_in_chat_is_refused_once_its_target_changed_since_the_question(world, settings, monkeypatch):
-    """Another accept since the question, or the film's script edited since, refuses it, nothing marked used; a go is carried by its run and never applied here."""
-    from score.dashboard.films import script
-    from score.dashboard.sync import chat_decisions
-    from score.review import web
-    output = world.outputs["closeup@alpha waiting"]
-    yes = chat_decisions.record("reject", "closeup@alpha", "Yes, reject it", QUESTION, output=output, reason="red")
-    applying.apply({"kind": "decision", "user": "joey", "payload": {
-        "node": "closeup@alpha", "output": output, "decision": "accept", "worse_reason": "fine"}}, world.source)
-    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
-                                                            yes["id"]).value)
-    assert not web.decision_yes_used(world.store, yes["id"])
-    script.save(settings.SCORE_HOME, script.blank("chat-film", "Chat"))
-    film = chat_decisions.record("lock-film", "chat-film", "Yes, lock it", "Lock chat-film as shown?")
-    script.save(settings.SCORE_HOME, script.blank("chat-film", "Chat, edited"))
-    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
-                                                            film["id"]).value)
-    assert script.locked(settings.SCORE_HOME, "chat-film") is None
-    film = chat_decisions.record("lock-film", "chat-film", "Yes, lock it", "Lock chat-film as shown?")
-    # an apply the cockpit refuses hands the yes back, so the same yes applies after the fix; applied, it is used
-    # (2026-11-05: a film lock refused for its captions left the owner's yes used). Break: in chat_decisions.apply,
-    # drop `handed_back(store, yes_id, applied.detail)`
-    real = applying.apply
-    applying.apply = lambda request, source: applying.Applied("refused", "its captions name another design")
-    try:
-        assert chat_decisions.apply(film["id"]).state == "refused"
-    finally:
-        applying.apply = real
-    assert not web.decision_yes_used(world.store, film["id"]) and script.locked(settings.SCORE_HOME, "chat-film") is None
-    assert chat_decisions.apply(film["id"]).state == "done"
-    assert script.locked(settings.SCORE_HOME, "chat-film")["title"] == "Chat, edited"
-    assert web.decision_yes_used(world.store, film["id"])
-    assert "used already" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply, film["id"]).value)
-    go = chat_decisions.record("go", "world1", "sure", "Let the run accept passing results on its own?")
-    assert web.owners_go(world.store, go["id"], "world1") == go and web.owners_go(world.store, go["id"], "w2") is None
-    assert web.owners_go(world.store, yes["id"], "world1") is None  # only a go
-    pytest.raises(chat_decisions.Refused, chat_decisions.apply, go["id"])
-    first, second = (chat_decisions.record("spend", "relight", "Yes", "EUR 2 for relight?", euros="2",
-                                           purpose="relight") for _ in range(2))
-    assert chat_decisions.apply(first["id"]).state == "done"
-    assert "gone since the question" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
-                                                          second["id"]).value)  # the name took a yes since
-    books = settings.SCORE_PROPS_HOME / "cloud" / "books.json"
-    books.unlink(missing_ok=True)
-    month = web.books_of("")[0]
-    first, second = (chat_decisions.record(web.BOOKS_MONTH, month, "Yes", f"EUR {euros} for {month}?", euros=euros)
-                     for euros in ("0", "5"))
-    assert chat_decisions.apply(first["id"]).state == "done"
-    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
-                                                            second["id"]).value)  # the books were written since
-    assert json.loads(books.read_text())["google_before"] == 0.0
-    assert not web.decision_yes_used(world.store, second["id"])
-    books.unlink()
-    monkeypatch.setattr(web, "books_now", lambda: {"month": "2026-11", "bill": 1.0, "ledger": 1.0})
-    first, second = (chat_decisions.record("stop", "chat-stopped", "Yes", f"Stop line EUR {euros}?", euros=euros)
-                     for euros in ("10", "12"))
-    assert chat_decisions.apply(first["id"]).state == "done"
-    assert "changed since he answered" in str(pytest.raises(chat_decisions.Refused, chat_decisions.apply,
-                                                            second["id"]).value)  # a line was written since
-    assert web.stop_line(world.store, "chat-stopped")["euros"] == 10.0
-    assert not web.decision_yes_used(world.store, second["id"])
