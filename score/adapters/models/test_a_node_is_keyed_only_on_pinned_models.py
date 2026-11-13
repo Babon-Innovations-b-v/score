@@ -191,8 +191,10 @@ def test_a_node_is_keyed_only_on_pinned_models(monkeypatch):
     assert all(line["euros"] == 0 and line["model"] == "claude-opus-5-5" and line["caller"] == asks[line["prompt"]][1]
                for line in lines)
     ended = {"what colour?": "finished", "what colour is b?": "finished"}
-    assert collections.Counter((asks[line["prompt"]][0], line["state"]) for line in lines) == collections.Counter(
-        {(text, state): count for text, count in texts.items() for state in ("started", ended.get(text, "failed"))})
+    states = collections.defaultdict(list)  # each prompt's states in file order: a start is written before its end
+    for line in lines:
+        states[asks[line["prompt"]][0]].append(line["state"])
+    assert dict(states) == {text: ["started", ended.get(text, "failed")] * count for text, count in texts.items()}
 
 
 if __name__ == "__main__":
