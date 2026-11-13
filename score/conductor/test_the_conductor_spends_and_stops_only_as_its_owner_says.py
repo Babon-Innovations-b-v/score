@@ -28,8 +28,14 @@ owner, or the gone copy's unmarked processes, stay; dropping kill.starting itsel
 stop's SIGTERM ends the starting run before the sweep looks); or in conductor.project_refusal drop either name from its
 set (a paid point clears under the conductor's project); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
-ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
-SECRET_NAME test (the sync token's value lands in a drive Job's spec), or drop its READER_NAMES (the drive pod reads no
+ProcessLookupError catch (a process ending mid-read crashes store-evict); or disk.launch_refusal's
+`max(FLOOR_GB, round(written_most(runs_folder), 1))` -> `FLOOR_GB` (a run starts on less room than the last one took),
+or graph/runs.noted's `min(entry.get("disk_lowest", free), free)` -> `free`, or launch_refusal's `if evicting(...)`
+dropped (a run starts while store-evict evicts the blobs it reads, #74), or store_evict's `alone` dropped (a second
+store-evict runs beside the first); or in disk.deleted_open 'if not os.readlink(handle).endswith(" (deleted)"):' ->
+'if True:' (a deleted file still open is never counted), or in disk.roots
+'**({mount: 3} if mount != home.resolve() else {})}' -> '}' (the folders outside the home are never measured); or in
+cluster.carried_environment drop the SECRET_NAME test (the sync token's value lands in a drive Job's spec), or drop its READER_NAMES (the drive pod reads no
 secret by name: `claude` has no login, env1 2026-11-08); or in score/__main__.py default_jobs drop the cluster
 record's jobs (a price on the cluster worked out on the node's cores); or in cluster.pod_view read an unanswered
 cluster as no units (a dead cluster shows the conductor fine); or in cluster.pod_log drop `or own_namespace()` (a
@@ -118,13 +124,122 @@ ASKED_SIZE = [
 # out-of-memory kill leaves an entry `running`, and a later process given its pid is not the run
 ENTRIES = [(datetime.timedelta(seconds=5), True), (-datetime.timedelta(days=400), False), (None, False)]
 
+# --- the machine card: a run's memory cap, the slice's shim, health, logs, the data disk's floor and account --------
+
+GIB = 2 ** 30
+# a conductor's memory in GB -> its runs' cap in bytes: the memory less HEADROOM_GB, never below one
+CAPS = [(16, 10 * GIB), (128, 122 * GIB), (4, GIB)]
+# the drive pod's memory on the cluster's home (#76 step 3): (kept stage peaks, jobs, floor, the record's cap in GB) ->
+# bytes asked: the floor beside the largest peaks, one a job, each at least the floor, at most the record's cap
+MEMORY_ASKED = [({"a": 10 * GIB, "b": 2 * GIB, "c": 1 * GIB}, 2, 6 * GIB, 64, 22 * GIB),
+                ({}, 3, 6 * GIB, 64, 24 * GIB),  # never measured: the floor each
+                ({"a": 50 * GIB}, 2, 6 * GIB, 40, 40 * GIB)]
+# a process's cgroup line -> whether it runs inside score-runs.slice
+CGROUPS = [("0::/user.slice/user@1000.service/app.slice/run-p1.scope", False),
+           ("0::/user.slice/user@1000.service/score.slice/score-runs.slice/run-p1.scope", True)]
+# systemd-run's words through the shim -> the words the real one is given: --slice-inherit for a user unit without a
+# slice of its own
+SHIMMED = [(("--user", "--scope", "-q", "-p", "MemoryMax=16G", "nice", "x"),
+            "--slice-inherit --user --scope -q -p MemoryMax=16G nice x"),
+           (("--user", "--slice=other.slice", "x"), "--user --slice=other.slice x"),
+           (("--scope", "x"), "--scope x"),  # not a user unit: left alone
+           (("--user", "--", "x", "--slice"), "--slice-inherit --user -- x --slice")]
+# the cluster record of the home, its absence or one naming a namespace -> (--jobs given none, the namespace its pods'
+# logs are read in): a price on the cluster is worked out on the record's jobs, never the node's cores
+RECORDS = [(None, None, "score"), ({"image": "x", "jobs": 12, "namespace": "score-rehearsal"}, 12, "score-rehearsal")]
+
+# systemd's answer for each unit the health reads
+SHOWN = {"score-sync.timer": ("active", ""), "score-sync.service": ("inactive", "success"),
+         "score-listen.service": ("failed", "exit-code"), "score-resume.service": ("inactive", "success"),
+         "score-backup.timer": ("inactive", ""), "score-backup.service": ("inactive", "")}
+
+
+def properties(unit):
+    state, result = SHOWN[unit]
+    return {"ActiveState": state, "Result": result,
+            "ExecMainExitTimestamp": "@1792656000" if unit == "score-sync.service" else ""}
+
 
 def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch):
+    tmp_path = home
+    # the pure answers: a run's memory cap, the drive pod's memory, the size timer's decisions
+    for memory, cap in CAPS:  # a detached run is capped in score-runs.slice at the memory less 6 GB
+        assert slices.cap_bytes(memory) == cap, memory
+    unit = (REPO / "tools/cloud/conductor/units/score-runs.slice").read_text().splitlines()
+    percent = int(next(line for line in unit if line.startswith("MemoryMax=")).partition("=")[2].rstrip("%"))
+    assert 16 * percent / 100 <= 16 - slices.HEADROOM_GB  # the unit file's cap is within the idle size's
+    for peaks, jobs, floor, cap_gb, asked in MEMORY_ASKED:
+        assert cluster.memory_request(peaks, jobs, floor, cap_gb) == asked, (peaks, jobs, cap_gb)
     for row, view, cores, idle_since, now, latched, action, word in DECIDED:
         found = size.decide(view, cores, RECORD, idle_since, now, latched)
         assert found[0] == action and (word is None or word in found[1]), (row, found)
     assert not size.is_busy(PASSING)  # a pass is no work that keeps the batch size
-    tmp_path = home
+
+    # the home's machine files: the shim is used only inside the slice (this test runs outside it), and adds
+    # --slice-inherit there
+    for line, inside in CGROUPS:
+        (tmp_path / "cgroup").write_text(f"{line}\n")
+        assert bool(slices.in_slice(tmp_path / "cgroup")) is inside, line
+    kept = os.environ.get("PATH")
+    assert not slices.apply_shim() and os.environ.get("PATH") == kept
+    (tmp_path / "real").mkdir()
+    (tmp_path / "real" / "systemd-run").write_text("#!/bin/sh\necho \"$@\"\n")
+    (tmp_path / "real" / "systemd-run").chmod(0o755)
+    shim_path = f"{slices.SHIM}:{tmp_path / 'real'}:/usr/bin:/bin"
+    for words, given in SHIMMED:
+        done = subprocess.run(["systemd-run", *words], env={**os.environ, "PATH": shim_path},
+                              capture_output=True, text=True, check=True)
+        assert done.stdout.strip() == given, words
+    # one pod's cgroup: inside a pod the guard reads the pod's memory limit and cores, never the node's; outside a
+    # pod nothing changes; with no limit, nothing is read
+    pod = tmp_path / "pod"
+    pod.mkdir()
+    (pod / "memory.max").write_text(f"{8 * GIB}\n")
+    (pod / "memory.current").write_text(f"{5 * GIB}\n")
+    (pod / "memory.stat").write_text(f"anon 1\ninactive_file {GIB}\n")
+    (pod / "cpu.max").write_text("400000 100000\n")
+    assert cluster.pod_memory(pod) == (8 * GIB, 4 * GIB) and cluster.cores(pod) == 4
+    fake = type("graph", (), {"AVAILABLE": staticmethod(lambda: 100 * GIB),
+                              "TOTAL": staticmethod(lambda: 128 * GIB)})
+    assert not cluster.guard_pod_memory(fake, pod, environment={}) and fake.AVAILABLE() == 100 * GIB
+    assert cluster.guard_pod_memory(fake, pod, environment={"KUBERNETES_SERVICE_HOST": "10.0.0.1"})
+    assert (fake.AVAILABLE(), fake.TOTAL()) == (4 * GIB, 8 * GIB)
+    (pod / "memory.max").write_text("max\n")
+    (pod / "cpu.max").write_text("max 100000\n")
+    assert cluster.pod_memory(pod) is None and cluster.cores(pod) is None
+    # the home's cluster record sets a run's jobs and the namespace whose pods' logs are read (the 2026-11-07
+    # rehearsal); with none, the conductor's own (none here: graph.JOBS) and the default namespace
+    from score import __main__ as command, graph
+    kubectl = []
+    for found, jobs, namespace in RECORDS:
+        monkeypatch.setattr(cluster, "RECORD", tmp_path / "cluster.json" if found else tmp_path / "no-cluster.json")
+        if found:
+            (tmp_path / "cluster.json").write_text(json.dumps(found))
+        assert command.default_jobs() == (jobs or graph.JOBS), found
+        tail = cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: kubectl.append(argv) or
+                               subprocess.CompletedProcess(argv, 0, "[listen] up\n", ""))
+        assert tail == ["[listen] up"] and kubectl[-1][1:7] == [
+            "-n", namespace, "logs", "pod/score-conductor-0", "-c", "conductor"], (found, kubectl[-1])
+    monkeypatch.setattr(cluster, "RECORD", tmp_path / "no-cluster.json")
+    # in the cluster's conductor pod (#76 step 5) the units come from the cluster's answer, never systemd, and a
+    # cluster that does not answer is every unit failed
+    labels = {"app.kubernetes.io/name": "score-conductor"}
+
+    def job(unit_name, stamp, **status):
+        return {"kind": "Job", "metadata": {"name": f"{unit_name}-{stamp}", "creationTimestamp": f"2026-11-07T{stamp}Z",
+                                            "labels": {**labels, "app.kubernetes.io/component": unit_name}},
+                "status": status}
+    answer = {"items": [
+        {"kind": "Pod", "metadata": {"labels": {**labels, "app.kubernetes.io/component": "conductor"}},
+         "status": {"containerStatuses": [{"ready": True}, {"ready": True}]}},
+        job("sync", "20:00:00", succeeded=1, completionTime="2026-11-07T20:03:00Z"),
+        job("sync", "20:05:00", active=1), job("backup", "20:00:00", failed=1)]}
+    seen = cluster.pod_view(answer=answer)
+    assert seen["units"] == {"sync": "active", "listen": "active", "resume": "active", "backup": "failed"}
+    assert seen["last_sync"] == {"at": "2026-11-07T20:03:00Z", "ok": True}
+    with monkeypatch.context() as unanswered:
+        unanswered.setattr(cluster, "kubectl_json", lambda *words: None)
+        assert set(cluster.pod_view()["units"].values()) == {"failed"}
 
     def become(cores):
         """This process a conductor of `cores` cores (machine.json and the size function's url), or none at None."""
@@ -153,7 +268,7 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
 
     # one world: a Buy asks the grow on the idle size before it prices, and starts again at the boot on the batch size
     folders = [tmp_path / name for name in ("runs", "parked", "frozen", "holds", "asked")]
-    asked, pokes = folders[4], []
+    registered, asked, pokes = folders[0], folders[4], []
     size.ask_grow_for(["buy", "y1", "--phase", "models"], {"SCORE_CLOUD": "k8s"}, tmp_path / "buy.log", 16, asked,
                       lambda: pokes.append(1))
     view = size.busy(*folders)
@@ -174,8 +289,8 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         folder.mkdir(exist_ok=True)
     (tmp_path / "frozen" / "live-copy").mkdir(parents=True)
     (tmp_path / "frozen" / "left-over").mkdir()
-    runs.claim("c0ffee", ["a@b"], os.getpid(), folder=tmp_path / "runs")
-    runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=tmp_path / "runs")
+    runs.claim("c0ffee", ["a@b"], os.getpid(), folder=registered)
+    waiting = runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=registered)
     (tmp_path / "parked" / "machine.json").write_text("{}")
     monkeypatch.chdir(tmp_path / "frozen" / "live-copy")
     assert size.busy(*folders) == {"claims": 1, "running": 0, "waiting": 1, "wanted": 16, "parked": 1, "frozen": 1,
@@ -195,6 +310,142 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     assert child.stdout.readline().strip() == "held"
     child.wait()
     assert conductor.holds(holds) == [] and not list(holds.glob("*.lock"))  # the dead holder's file is gone
+
+    # the Machine card on this world. The waiting run notes its disk at its first beat and the lowest since; a run that
+    # ran the disk out counts as all it had and the floor more (2026-11-04: checkout 17 began at 10.4 GB free, over
+    # the 10 GB floor, and ran out 7 min in)
+    runs.noted(waiting, None)
+    beat = json.loads(waiting.read_text())
+    assert beat["disk_lowest"] == beat["disk_start"] > 0, beat
+    waiting.write_text(json.dumps({**beat, "disk_start": 30.0, "disk_lowest": 1.0}))
+    runs.noted(waiting, None)
+    assert json.loads(waiting.read_text())["disk_lowest"] == 1.0  # the lowest stays the lowest seen
+    assert disk.written_most(registered) == 29.0 * disk.WRITTEN_MARGIN
+    (registered / "ran-out.json").write_text(json.dumps({"state": "ended", "disk_start": 20.4, "disk_lowest": 0.1}))
+    assert disk.written_most(registered) == (20.4 + disk.FLOOR_GB) * disk.WRITTEN_MARGIN
+    # its log, a fault, the boot log and the backups in the home; the card's health reads this home's runs, parked
+    # machines and holds
+    for name in ("logs", "faults"):
+        (tmp_path / name).mkdir()
+    (tmp_path / "logs" / "score-run-1.log").write_text(
+        "brief@north: made\nreading gemini-api-key by name\nsent s3cr3t-sync-value along\n"
+        "header X-Auth-Token: abc\nGET /v1beta/models?key=AIzaSyA0123456789abcdefghijklmnopqrstuv\n"
+        "token hf_abcdefghijklmnopqrstuvwxyz0123456789\n-----BEGIN OPENSSH PRIVATE KEY-----\n"
+        "asked with X-Score-Size-Token set\nexit: ok\n")
+    (tmp_path / "faults" / "brief@south.txt").write_text("cause: the brief is empty\n")
+    (tmp_path / "score-boot-system.log").write_text("boot: node 24.21.0 installed\nsent s3cr3t-sync-value along\n")
+    for stamp, kind, ok in (("0900", "backup", False), ("0930", "backup", True), ("0945", "check-data", False)):
+        (tmp_path / "logs" / f"backup-20261022T{stamp}.json").write_text(json.dumps(
+            {"at": f"2026-10-22T{stamp[:2]}:{stamp[2:]}:00+00:00", "kind": kind, "ok": ok}))
+    monkeypatch.setenv("SCORE_SYNC_TOKEN", "s3cr3t-sync-value")
+    for module, name, path in ((health, "BACKUPS", tmp_path / "logs"), (runs, "RUNS", registered),
+                               (size, "PARKED", folders[1]), (frozen, "FOLDER", folders[2]),
+                               (conductor, "HOLDS", holds), (size, "ASKED", asked)):
+        monkeypatch.setattr(module, name, path)
+    floor_gb = disk.FLOOR_GB
+    with monkeypatch.context() as high:  # the data disk under its floor: the card warns
+        high.setattr(disk, "FLOOR_GB", 10 ** 6)
+        found = health.read(properties)
+    assert set(found) == {"at", "machine", "size", "state", "cores", "memory_total", "memory_available", "memory",
+                          "disk_free", "disk", "load", "units", "runs_active", "runs_waiting", "parked_machines",
+                          "holds", "last_backup", "backup", "last_sync", "sync", "free_only", "notes", "code"}
+    assert (found["machine"], found["runs_active"], found["runs_waiting"], found["parked_machines"], found["holds"]) == (
+        "conductor", 1, 1, 1, []), found
+    assert found["units"] == {"sync": "active", "listen": "failed", "resume": "inactive", "backup": "inactive"}
+    assert found["last_sync"] == {"at": "2026-10-22T08:00:00+00:00", "ok": True}  # @1792656000
+    assert found["last_backup"] == found["backup"] == {"at": "2026-10-22T09:30:00+00:00", "ok": True}
+    assert found["memory_total"] >= found["memory_available"] > 0 and len(found["load"]) == 3
+    assert found["disk"]["total_gb"] >= found["disk"]["free_gb"] == found["disk_free"]
+    assert found["disk"]["floor_gb"] == 10 ** 6 and any(note.startswith("disk: ") for note in found["notes"])
+    path = health.write(found, tmp_path / "health.json")
+    assert json.loads(path.read_text()) == found and not list(tmp_path.glob("*.partial"))
+    (tmp_path / "secrets").mkdir()
+    (tmp_path / "secrets" / "google-billing-reader.note").write_text("no google-billing-reader secret\n")
+    assert health.notes(tmp_path / "secrets") == ["no google-billing-reader secret"]
+    assert health.notes(tmp_path / "x") == []
+    assert health.code(pin_path=tmp_path / "none.json")["matches"] is None  # no pin read yet
+    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00",
+                                                   "pin": found["code"]["checkout"][:12]}))
+    assert health.code(pin_path=tmp_path / "pin.json")["matches"] is True
+    said = "update: not now, 0000 changes uv.lock and a sync pass uses .venv (pid 7)"
+    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": "0" * 40, "said": said}))
+    lagging = health.code(pin_path=tmp_path / "pin.json")
+    assert lagging["matches"] is False and lagging["why"] == said  # the checkout lags the pin, and why
+    # its log tails leave out every line naming or holding a secret, and list only the logs written
+    tails = logs.tails(10, logs=tmp_path / "logs", faults=tmp_path / "faults",
+                       read_journal=lambda unit_name, limit: [f"{unit_name}: fine"],
+                       boot_logs=(tmp_path / "score-boot-system.log", tmp_path / "score-boot-user.log"))
+    assert tails["run score-run-1.log"] == ["brief@north: made", "exit: ok"]
+    assert tails["fault brief@south"] == ["cause: the brief is empty"]
+    assert tails["journal score-listen.service"] == ["score-listen.service: fine"]
+    assert tails["boot score-boot-system.log"] == ["boot: node 24.21.0 installed"]
+    assert "boot score-boot-user.log" not in tails  # a boot log not written is not listed
+    assert logs.tail(tmp_path / "logs" / "score-run-1.log", 1) == ["exit: ok"]
+    # no run starts in this home under the data disk's floor: the floor, or what the most its runs wrote needs, or
+    # while store-evict evicts; one store-evict at a time (2026-10-26: 0.24 GB free and Batch 1 died with "No space
+    # left on device")
+    assert disk.launch_refusal(tmp_path, floor=0) is None
+    with disk.alone(tmp_path, disk.EVICT_LOCK):
+        assert "store-evict is running" in disk.launch_refusal(tmp_path, floor=0)
+        assert disk.store_evict(tmp_path, say=lambda line: None)["refused"] == "another store-evict is running"
+    assert disk.launch_refusal(tmp_path, floor=0) is None
+    refused = disk.launch_refusal(tmp_path / "not-yet", floor=10 ** 6)
+    assert refused.startswith("refused: ") and "GB floor" in refused
+    with monkeypatch.context() as low:
+        low.setattr(disk, "free_gb", lambda path=None: 20.0)
+        assert "floor" in disk.launch_refusal(runs_folder=registered)  # 20 GB free, under the 38 GB its runs need
+        assert disk.launch_refusal(runs_folder=registered, floor=10) is None
+        assert disk.FLOOR_GB == floor_gb and disk.warning(disk.free_gb()) is None  # over the floor: the card is quiet
+
+    # `disk` accounts for the whole data disk in one line and a file: the biggest folders (three levels inside
+    # store/cache), the frozen copies, the folders outside the home on its disk, a deleted file still open, the
+    # folders it cannot read (2026-10-30: 0.01 GB free of 91, about 25 GB of it out of the door's sight)
+    mount, disk_home = tmp_path / "disk", tmp_path / "disk" / "home"
+    with monkeypatch.context() as mounted:
+        mounted.setattr(disk, "mount_of", lambda path: mount)  # the disk's top above the home
+        copy = disk_home / "frozen" / "20261026-081445-1"
+        deep = disk_home / "store" / "cache" / "checkouts" / "abc" / "inner"
+        for folder in (copy, deep, mount / "var" / "cache" / "apt", mount / "closed" / "inner"):
+            folder.mkdir(parents=True)
+        (copy / "big").write_bytes(b"x" * 300_000)
+        (deep / "big").write_bytes(b"x" * 300_000)
+        (mount / "var" / "cache" / "apt" / "big").write_bytes(b"x" * 12_000_000)
+        (mount / "closed").chmod(0)
+        held = open(disk_home / "gone.log", "wb")
+        try:
+            held.write(b"x" * 2_000_000)
+            held.flush()
+            (disk_home / "gone.log").unlink()
+            summary, biggest = disk.report(disk_home, disk_home / "conductor" / "disk.json")
+        finally:
+            held.close()
+            (mount / "closed").chmod(0o755)
+    written = json.loads((disk_home / "conductor" / "disk.json").read_text())
+    whole = written["whole"]
+    assert summary.startswith("disk: ") and "1 frozen copies" in summary, summary
+    assert str(disk_home / "conductor") in summary and "GB outside" in summary, summary
+    assert written["folders"] and any(line.endswith(f"  {copy}") for line in biggest), biggest
+    inside = biggest.index(next(line for line in biggest if line.startswith("inside ")))
+    outside = biggest.index(next(line for line in biggest if line.startswith("outside ")))
+    assert any(line.endswith(f"  {deep}") for line in biggest[inside:outside]), biggest
+    assert any(line.endswith(f"  {mount / 'var' / 'cache' / 'apt'}") for line in biggest[outside:]), biggest
+    assert whole["mount"] == str(mount) and whole["outside_gb"] > 0, whole
+    assert any(process.endswith(f"(pid {os.getpid()})") for process in whole["deleted_open"]), whole
+    assert any("deleted, still open in" in line for line in biggest)
+    if os.getuid() != 0:  # root reads every folder
+        assert whole["unread"] and any(line.startswith("unreadable: ") for line in biggest), whole
+
+    class Gone:  # a process that ended between the /proc listing and its read
+        name = "4242"
+
+        def __truediv__(self, part):
+            return self
+
+        def read_bytes(self):
+            raise ProcessLookupError(3, "No such process")
+
+    with pytest.raises(FileNotFoundError):  # read as ended, so working() skips it (store-evict crashed, 2026-11-07)
+        disk.said_by(Gone())
 
     # the size timer, its asks sent through the real ask with the token read by name: the idle clock counts from the
     # last busy pass, a pass drains the shrink (no new pass while the mark is fresh), the shrink is asked once it ended
@@ -440,45 +691,7 @@ def a_batch(home):
             "all": [*left, live, node, waiter, begin, starting, passing]}
 
 
-# --- slices: a run's memory capped, nothing changed off a conductor -----------------------------------------------------
-
-def test_the_cap_is_the_memory_less_six_gigabytes_at_both_sizes_and_the_slice_file_no_more():
-    assert slices.cap_bytes(16) == 10 * 1024 ** 3
-    assert slices.cap_bytes(128) == 122 * 1024 ** 3
-    assert slices.cap_bytes(4) == 1024 ** 3  # never below one
-    lines = (REPO / "tools/cloud/conductor/units/score-runs.slice").read_text().splitlines()
-    percent = int(next(line for line in lines if line.startswith("MemoryMax=")).partition("=")[2].rstrip("%"))
-    assert 16 * percent / 100 <= 16 - slices.HEADROOM_GB  # the unit file's own cap within the idle size's
-    # On the cluster's home (#76 step 3) the drive pod's memory is the guard's own reckoning: the floor beside the
-    # largest kept stage peaks, one a job, each at least the floor, at most the record's cap; inside a pod the guard
-    # reads the pod's limit, never the node's; the run's jobs (so its price) are the record's, not the node's cores.
-    gib = 2 ** 30
-    assert cluster.memory_request({"a": 10 * gib, "b": 2 * gib, "c": 1 * gib}, 2, 6 * gib, 64) == 22 * gib
-    assert cluster.memory_request({}, 3, 6 * gib, 64) == 24 * gib  # never measured: the floor each
-    assert cluster.memory_request({"a": 50 * gib}, 2, 6 * gib, 40) == 40 * gib
-    cgroup = pathlib.Path(tempfile.mkdtemp())
-    (cgroup / "memory.max").write_text(f"{8 * gib}\n")
-    (cgroup / "memory.current").write_text(f"{5 * gib}\n")
-    (cgroup / "memory.stat").write_text(f"anon 1\ninactive_file {gib}\n")
-    assert cluster.pod_memory(cgroup) == (8 * gib, 4 * gib)
-    fake = type("graph", (), {"AVAILABLE": staticmethod(lambda: 100 * gib), "TOTAL": staticmethod(lambda: 128 * gib)})
-    assert not cluster.guard_pod_memory(fake, cgroup, environment={})  # outside a pod nothing changes
-    assert fake.AVAILABLE() == 100 * gib
-    assert cluster.guard_pod_memory(fake, cgroup, environment={"KUBERNETES_SERVICE_HOST": "10.0.0.1"})
-    assert (fake.AVAILABLE(), fake.TOTAL()) == (4 * gib, 8 * gib)
-    (cgroup / "memory.max").write_text("max\n")
-    assert cluster.pod_memory(cgroup) is None
-    from score import __main__ as command, graph
-    record = cgroup / "cluster.json"
-    record.write_text(json.dumps({"image": "x", "jobs": 12}))
-    original = cluster.RECORD
-    cluster.RECORD = record
-    try:
-        assert command.default_jobs() == 12
-    finally:
-        cluster.RECORD = original
-    assert command.default_jobs() == graph.JOBS  # no record, no conductor here
-
+# --- a detached run: its own scope in the slice, a Job of its own on the cluster's home ------------------------------
 
 def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_none(tmp_path):
     from score import __main__ as command
@@ -549,134 +762,6 @@ def _written(path, found):
     return path
 
 
-def test_the_shim_is_used_only_inside_the_slice(tmp_path):
-    (tmp_path / "cgroup").write_text("0::/user.slice/user@1000.service/app.slice/run-p1.scope\n")
-    assert not slices.in_slice(tmp_path / "cgroup")
-    (tmp_path / "cgroup").write_text("0::/user.slice/user@1000.service/score.slice/score-runs.slice/run-p1.scope\n")
-    assert slices.in_slice(tmp_path / "cgroup")
-    kept = os.environ.get("PATH")
-    assert not slices.apply_shim() and os.environ.get("PATH") == kept  # this test runs outside the slice
-
-
-def test_the_shim_adds_slice_inherit_to_a_user_unit_without_a_slice_of_its_own(tmp_path):
-    real = tmp_path / "real"
-    real.mkdir()
-    (real / "systemd-run").write_text("#!/bin/sh\necho \"$@\"\n")
-    (real / "systemd-run").chmod(0o755)
-    path = f"{slices.SHIM}:{real}:/usr/bin:/bin"
-
-    def shimmed(*words):
-        return subprocess.run(["systemd-run", *words], env={**os.environ, "PATH": path}, capture_output=True,
-                              text=True, check=True).stdout.strip()
-    assert shimmed("--user", "--scope", "-q", "-p", "MemoryMax=16G", "nice", "x") == \
-        "--slice-inherit --user --scope -q -p MemoryMax=16G nice x"
-    assert shimmed("--user", "--slice=other.slice", "x") == "--user --slice=other.slice x"
-    assert shimmed("--scope", "x") == "--scope x"  # not a user unit: left alone
-    assert shimmed("--user", "--", "x", "--slice") == "--slice-inherit --user -- x --slice"
-
-
-# --- health and logs ---------------------------------------------------------------------------------------------------
-
-SHOWN = {"score-sync.timer": ("active", ""), "score-sync.service": ("inactive", "success"),
-         "score-listen.service": ("failed", "exit-code"), "score-resume.service": ("inactive", "success"),
-         "score-backup.timer": ("inactive", ""), "score-backup.service": ("inactive", "")}
-
-
-def properties(unit):
-    state, result = SHOWN[unit]
-    return {"ActiveState": state, "Result": result,
-            "ExecMainExitTimestamp": "@1792656000" if unit == "score-sync.service" else ""}
-
-
-def test_each_unit_family_reads_active_failed_or_inactive():
-    assert {name: health.unit_state(units, properties) for name, units in health.UNITS.items()} == {
-        "sync": "active", "listen": "failed", "resume": "inactive", "backup": "inactive"}
-    assert health.last_sync(properties) == {"at": "2026-10-22T08:00:00+00:00", "ok": True}  # @1792656000
-
-
-def test_the_health_has_every_field_the_machine_card_reads_and_is_written_whole(tmp_path, monkeypatch):
-    monkeypatch.setattr(health, "BACKUPS", tmp_path)
-    for stamp, kind, ok in (("0900", "backup", False), ("0930", "backup", True), ("0945", "check-data", False)):
-        (tmp_path / f"backup-20261022T{stamp}.json").write_text(json.dumps(
-            {"at": f"2026-10-22T{stamp[:2]}:{stamp[2:]}:00+00:00", "kind": kind, "ok": ok}))
-    found = health.read(properties)
-    assert set(found) == {"at", "machine", "size", "state", "cores", "memory_total", "memory_available", "memory",
-                          "disk_free", "disk", "load", "units", "runs_active", "runs_waiting", "parked_machines", "holds",
-                          "last_backup", "backup", "last_sync", "sync", "free_only", "notes", "code"}
-    assert found["last_backup"] == found["backup"] == {"at": "2026-10-22T09:30:00+00:00", "ok": True}
-    assert found["memory_total"] >= found["memory_available"] > 0 and len(found["load"]) == 3
-    assert found["disk"]["total_gb"] >= found["disk"]["free_gb"] == found["disk_free"]
-    (tmp_path / "secrets").mkdir()
-    (tmp_path / "secrets" / "google-billing-reader.note").write_text("no google-billing-reader secret\n")
-    assert health.notes(tmp_path / "secrets") == ["no google-billing-reader secret"]
-    assert health.notes(tmp_path / "none") == []
-    assert health.code(pin_path=tmp_path / "none.json")["matches"] is None  # no pin read yet
-    here = found["code"]["checkout"]
-    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": here[:12]}))
-    assert health.code(pin_path=tmp_path / "pin.json")["matches"] is True
-    said = "update: not now, 0000 changes uv.lock and a sync pass uses .venv (pid 7)"
-    (tmp_path / "pin.json").write_text(json.dumps({"at": "2026-10-25T10:00:00+00:00", "pin": "0" * 40, "said": said}))
-    lagging = health.code(pin_path=tmp_path / "pin.json")
-    assert lagging["matches"] is False and lagging["why"] == said  # the checkout lags the pin, and why
-    path = health.write(found, tmp_path / "health.json")
-    assert json.loads(path.read_text()) == found and not list(tmp_path.glob("*.partial"))
-    # In the cluster's conductor pod (#76 step 5) the card's units come from the cluster's answer, never systemd, and
-    # a cluster that does not answer is every unit failed; memory and cores are the pod's own limits.
-    labels = {"app.kubernetes.io/name": "score-conductor"}
-
-    def job(unit, stamp, **status):
-        return {"kind": "Job", "metadata": {"name": f"{unit}-{stamp}", "creationTimestamp": f"2026-11-07T{stamp}Z",
-                                            "labels": {**labels, "app.kubernetes.io/component": unit}},
-                "status": status}
-    answer = {"items": [
-        {"kind": "Pod", "metadata": {"labels": {**labels, "app.kubernetes.io/component": "conductor"}},
-         "status": {"containerStatuses": [{"ready": True}, {"ready": True}]}},
-        job("sync", "20:00:00", succeeded=1, completionTime="2026-11-07T20:03:00Z"),
-        job("sync", "20:05:00", active=1), job("backup", "20:00:00", failed=1)]}
-    seen = cluster.pod_view(answer=answer)
-    assert seen["units"] == {"sync": "active", "listen": "active", "resume": "active", "backup": "failed"}
-    assert seen["last_sync"] == {"at": "2026-11-07T20:03:00Z", "ok": True}
-    monkeypatch.setattr(cluster, "kubectl_json", lambda *words: None)
-    assert set(cluster.pod_view()["units"].values()) == {"failed"}
-    (tmp_path / "cpu.max").write_text("400000 100000\n")
-    assert cluster.cores(tmp_path) == 4
-    (tmp_path / "cpu.max").write_text("max 100000\n")
-    assert cluster.cores(tmp_path) is None
-    asked = []
-    lines = cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: asked.append(argv) or
-                            subprocess.CompletedProcess(argv, 0, "[listen] up\n", ""))
-    assert lines == ["[listen] up"] and asked[0][3:7] == ["logs", "pod/score-conductor-0", "-c", "conductor"]
-    assert asked[0][1:3] == ["-n", "score"]  # no cluster record here: the default namespace
-    record = tmp_path / "cluster.json"
-    record.write_text('{"namespace": "score-rehearsal"}')
-    monkeypatch.setattr(cluster, "RECORD", record)  # the record's namespace, never a fixed one (the 2026-11-07 rehearsal)
-    cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: asked.append(argv) or
-                    subprocess.CompletedProcess(argv, 0, "", ""))
-    assert asked[1][1:3] == ["-n", "score-rehearsal"]
-
-
-def test_the_log_tails_leave_out_every_line_naming_or_holding_a_secret(tmp_path, monkeypatch):
-    monkeypatch.setenv("SCORE_SYNC_TOKEN", "s3cr3t-sync-value")
-    (tmp_path / "logs").mkdir()
-    (tmp_path / "faults").mkdir()
-    (tmp_path / "logs" / "score-run-1.log").write_text(
-        "brief@north: made\nreading gemini-api-key by name\nsent s3cr3t-sync-value along\n"
-        "header X-Auth-Token: abc\nGET /v1beta/models?key=AIzaSyA0123456789abcdefghijklmnopqrstuv\n"
-        "token hf_abcdefghijklmnopqrstuvwxyz0123456789\n-----BEGIN OPENSSH PRIVATE KEY-----\n"
-        "asked with X-Score-Size-Token set\nexit: ok\n")
-    (tmp_path / "faults" / "brief@south.txt").write_text("cause: the brief is empty\n")
-    (tmp_path / "score-boot-system.log").write_text("boot: node 24.21.0 installed\nsent s3cr3t-sync-value along\n")
-    found = logs.tails(10, logs=tmp_path / "logs", faults=tmp_path / "faults",
-                       read_journal=lambda unit, limit: [f"{unit}: fine"],
-                       boot_logs=(tmp_path / "score-boot-system.log", tmp_path / "score-boot-user.log"))
-    assert found["run score-run-1.log"] == ["brief@north: made", "exit: ok"]
-    assert found["fault brief@south"] == ["cause: the brief is empty"]
-    assert found["journal score-listen.service"] == ["score-listen.service: fine"]
-    assert found["boot score-boot-system.log"] == ["boot: node 24.21.0 installed"]
-    assert "boot score-boot-user.log" not in found  # a boot log not written is not listed
-    assert logs.tail(tmp_path / "logs" / "score-run-1.log", 1) == ["exit: ok"]
-
-
 # --- the free end-to-end check -----------------------------------------------------------------------------------------
 
 def test_the_dry_check_passes_every_step_in_one_line():
@@ -694,107 +779,6 @@ def test_the_dry_check_passes_every_step_in_one_line():
 
 
 # --- disk: the floor, what fills it, the copies no run needs ---------------------------------------------------------
-
-def test_no_run_starts_under_the_disk_floor_and_the_health_warns_there(tmp_path, monkeypatch):
-    """2026-10-26: 0.24 GB free of 91 GB and Batch 1 died with "No space left on device"; 2026-11-04: checkout 17 began
-    at 10.4 GB free, over the 10 GB floor, and ran out 7 min in.
-    Break: disk.launch_refusal's `max(FLOOR_GB, round(written_most(runs_folder), 1))` -> `FLOOR_GB` (a run starts on
-    less room than the last one took), or graph/runs.noted's `min(entry.get("disk_lowest", free), free)` -> `free`,
-    or launch_refusal's `if evicting(...)` dropped (a run starts while store-evict evicts the blobs it reads, #74), or
-    store_evict's `alone` dropped (a second store-evict runs beside the first)."""
-    assert disk.launch_refusal(tmp_path, floor=0) is None
-    with disk.alone(tmp_path, disk.EVICT_LOCK):
-        assert "store-evict is running" in disk.launch_refusal(tmp_path, floor=0)
-        assert disk.store_evict(tmp_path, say=lambda line: None)["refused"] == "another store-evict is running"
-    assert disk.launch_refusal(tmp_path, floor=0) is None
-    refused = disk.launch_refusal(tmp_path / "not-yet", floor=10 ** 6)
-    assert refused.startswith("refused: ") and "GB floor" in refused
-    folder = tmp_path / "runs"
-    folder.mkdir()
-    entry = folder / "r1.json"
-    entry.write_text(json.dumps({"state": "running"}))
-    runs.noted(entry, None)
-    started = json.loads(entry.read_text())
-    assert started["disk_lowest"] == started["disk_start"] > 0, started
-    entry.write_text(json.dumps({**started, "disk_start": 30.0, "disk_lowest": 1.0}))
-    runs.noted(entry, None)
-    assert json.loads(entry.read_text())["disk_lowest"] == 1.0  # the lowest stays the lowest seen
-    assert disk.written_most(folder) == 29.0 * disk.WRITTEN_MARGIN
-    entry.unlink()
-    (folder / "r2.json").write_text(json.dumps({"disk_start": 10.4, "disk_lowest": 0.1}))  # ran the disk out
-    assert disk.written_most(folder) == (10.4 + disk.FLOOR_GB) * disk.WRITTEN_MARGIN
-    monkeypatch.setattr(disk, "free_gb", lambda path=None: 20.0)
-    assert "floor" in disk.launch_refusal(runs_folder=folder)  # 20 GB free, under the 25.5 measured
-    assert disk.launch_refusal(runs_folder=folder, floor=10) is None
-    monkeypatch.undo()
-    monkeypatch.setattr(disk, "FLOOR_GB", 10 ** 6)
-    found = health.read(properties)
-    assert found["disk"]["floor_gb"] == 10 ** 6 and any(note.startswith("disk: ") for note in found["notes"])
-    monkeypatch.setattr(disk, "FLOOR_GB", 0)
-    assert not any(note.startswith("disk: ") for note in health.read(properties)["notes"])
-
-
-def test_disk_names_the_biggest_folders_in_one_line_and_a_file(tmp_path, monkeypatch):
-    home = tmp_path / "home"
-    monkeypatch.setattr(disk, "mount_of", lambda path: home)  # the home the disk's top, as on the conductor
-    (home / "frozen" / "20261026-081445-1").mkdir(parents=True)
-    (home / "frozen" / "20261026-081445-1" / "big").write_bytes(b"x" * 300_000)
-    summary, biggest = disk.report(home, home / "conductor" / "disk.json")
-    assert summary.startswith("disk: ") and "1 frozen copies" in summary and str(home / "conductor") in summary
-    written = json.loads((home / "conductor" / "disk.json").read_text())
-    copy = str(home / "frozen" / "20261026-081445-1")
-    assert written["folders"] and any(line.endswith(f"  {copy}") for line in biggest)
-    deep = home / "store" / "cache" / "checkouts" / "abc" / "inner"
-    deep.mkdir(parents=True)
-    (deep / "big").write_bytes(b"x" * 300_000)
-    _, biggest = disk.report(home, home / "conductor" / "disk.json")
-    assert any(line.endswith(f"  {deep}") for line in biggest[biggest.index(next(
-        line for line in biggest if line.startswith("inside "))):]), biggest  # three levels inside store/cache
-
-    class Gone:  # a process that ended between the /proc listing and its read
-        name = "4242"
-
-        def __truediv__(self, part):
-            return self
-
-        def read_bytes(self):
-            raise ProcessLookupError(3, "No such process")
-
-    with pytest.raises(FileNotFoundError):  # read as ended, so working() skips it (store-evict crashed, 2026-11-07)
-        disk.said_by(Gone())
-
-
-def test_disk_accounts_for_the_whole_data_disk(tmp_path, monkeypatch):
-    """2026-10-30: 0.01 GB free of 91, about 25 GB of it not under PROPS_HOME's folders and out of the door's sight.
-    Break: score/conductor/disk.py deleted_open: 'if not os.readlink(handle).endswith(" (deleted)"):' -> 'if True:'
-    (a deleted file still open is never counted), or roots: '**({mount: 3} if mount != home.resolve() else {})}' ->
-    '}' (the folders outside the home are never measured)."""
-    home = tmp_path / "home"
-    monkeypatch.setattr(disk, "mount_of", lambda path: tmp_path)  # the disk's top above the home
-    (home / "store").mkdir(parents=True)
-    (tmp_path / "var" / "cache" / "apt").mkdir(parents=True)
-    (tmp_path / "var" / "cache" / "apt" / "big").write_bytes(b"x" * 12_000_000)
-    (tmp_path / "closed").mkdir()
-    (tmp_path / "closed" / "inner").mkdir()
-    (tmp_path / "closed").chmod(0)
-    held = open(home / "gone.log", "wb")
-    try:
-        held.write(b"x" * 2_000_000)
-        held.flush()
-        (home / "gone.log").unlink()
-        summary, lines = disk.report(home, home / "conductor" / "disk.json")
-    finally:
-        held.close()
-        (tmp_path / "closed").chmod(0o755)
-    whole = json.loads((home / "conductor" / "disk.json").read_text())["whole"]
-    assert whole["mount"] == str(tmp_path) and whole["outside_gb"] > 0 and "GB outside" in summary, summary
-    outside = lines[lines.index(next(line for line in lines if line.startswith("outside "))):]
-    assert any(line.endswith(f"  {tmp_path / 'var' / 'cache' / 'apt'}") for line in outside), outside
-    assert any(process.endswith(f"(pid {os.getpid()})") for process in whole["deleted_open"]), whole
-    assert any("deleted, still open in" in line for line in lines)
-    if os.getuid() != 0:  # root reads every folder
-        assert whole["unread"] and any(line.startswith("unreadable: ") for line in lines), whole
-
 
 def gc_home(tmp_path):
     """A home whose store holds blobs an output, a record, a link, a listing blob and nothing name."""
