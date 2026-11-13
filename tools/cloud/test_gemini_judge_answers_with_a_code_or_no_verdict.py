@@ -91,7 +91,8 @@ def test_each_question_gets_a_code_or_a_no_verdict_and_only_no_verdicts_are_aske
             assert gemini_judge.answer_one(jobs[name], record, "key") == replies[name], name
     listing = tmp_path / "questions.json"
     listing.write_text(json.dumps(list(jobs.values())))
-    asked_again = {job["name"] for job in gemini_judge.to_ask(listing, answers)}
+    asked_again = [job["name"] for job in gemini_judge.to_ask(listing, answers)]
+    assert asked_again == [name for name, *_, again in ROWS if again], asked_again  # listing order, each once
 
     for name, codes, reply, holds, calls, again in ROWS:
         assert len(sent[name]) == calls, (name, len(sent[name]))
@@ -104,7 +105,6 @@ def test_each_question_gets_a_code_or_a_no_verdict_and_only_no_verdicts_are_aske
         elif reply:
             assert replies[name].startswith(gemini_judge.FAILED) and holds in replies[name], (name, replies[name])
             assert "{" not in replies[name], (name, replies[name])
-        assert (name in asked_again) == again, name
     lines = [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines()]
     priced = [line for line in lines if line.get("euros")]
     replied = sum(calls for _, _, reply, _, calls, _ in ROWS if reply and REPLIES[reply] is not None)
