@@ -23,13 +23,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - building.pictures_folder: old versions kept -> test_a_change_to_the_exporting_code_sends_every_bundle_again
 - endpoints.readable: the format check -> `if False:` -> test_an_export_of_a_format_the_hosted_side_cannot_read_...
 - endpoints.report: the state kept "waiting" -> test_the_cockpit_gets_the_store_whole_...
-- applying.apply_decision: the owner check -> `if False:` -> test_a_decision_from_someone_not_the_local_owner_is_refused
-- applying.OWNER_FIGURES: a "month" kind added -> test_the_owners_figures_and_waiver_are_applied_for_him_...
-- pages/actions.owner_figure_off_why: the agent check -> `if False:` -> test_the_owners_figures_are_refused_in_...
+- applying.apply_decision: the owner check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- applying.OWNER_FIGURES: a "month" kind added -> test_the_cockpit_gets_the_store_whole_...
+- pages/actions.owner_figure_off_why: the agent check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - pages/actions.set_books_figure: the amount check -> `if False:` -> test_the_hosted_buttons_queue_the_owners_...
 - pages/actions.scene_name: the name check -> `if False:`; or library_actions.carried_out: the refusal dropped ->
-  test_a_synced_request_naming_a_path_or_an_entry_not_in_the_library_is_refused
-- pages/actions.record_change: no inbox write -> test_a_change_request_is_applied_into_the_inbox
+  test_the_cockpit_gets_the_store_whole_...
+- pages/actions.record_change: no inbox write -> test_the_cockpit_gets_the_store_whole_...
 - client.sync_pass: `applied = []` -> test_a_sync_pass_pushes_the_export_and_reports_each_request
 - client.sync_pass: a `usd_sweep()` also inside the pricing lock -> test_the_usd_check_runs_outside_the_pricing_lock
 - client.step_run: `err` without "out of time after ..." -> test_a_step_out_of_time_is_ended_and_says_so
@@ -161,9 +161,13 @@ def answered(web, row, headers):
     return web.request(method, path, headers=headers, **({kind: body} if body is not None else {}))
 
 
-def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(world, tmp_path, settings):
+def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(owner_books, tmp_path, settings,
+                                                                             monkeypatch):
     """The fixture world exported twice and once under a tiny cap, then the hosted side's sync routes driven through one
-    exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token."""
+    exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token; then the
+    store side applies one request table (a stranger's, an agent's process's, bad names and library addresses, kinds
+    no button sends, then the owner's own), a refused request writing nothing."""
+    world = owner_books
     one, small = exported(world, tmp_path / "one"), exported(world, tmp_path / "small", cap_mb=0.02)
     exported(world, tmp_path / "two")
     names = {path.name for path in (tmp_path / "one/files").iterdir()}
@@ -249,6 +253,47 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(wor
             assert answered(web, route, wrong).status_code == 401, (wrong, route)
     shutil.rmtree(home / "export")  # its names sort after the dated exports the passes below swap in
 
+    from score.dashboard.pages import actions, library_actions
+    from score.review import web as review_web
+    settings.SCORE_MODE, settings.SCORE_LIB_ROOT = settings.LOCAL, tmp_path
+    monkeypatch.setattr(library_actions, "library", lambda: types.SimpleNamespace(entry=lambda address: None))
+    monkeypatch.setattr(library_actions, "run", lambda arguments: pytest.fail(f"ran {arguments}"))
+    key = world.store.records("closeup@beta")[-1]["key"]
+    decision = {"node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}
+    figure, waiver = {"euros": 12.5}, {"node": "closeup@beta", "output": world.outputs["closeup@beta"],
+                                       "check": "looks", "reason": "three faults are fine here"}
+    requests = [  # in order: (what, kind, user, payload, in an agent's process, state, words in its detail or None)
+        *[(f"a stranger's {kind}", kind, "mallory", payload, False, "refused", "not this store's owner")
+          for kind, payload in (("decision", decision), ("books-figure", figure), ("waiver", waiver))],
+        *[(f"his {kind} in an agent's process", kind, "joey", payload, True, "refused", None)
+          for kind, payload in (("books-figure", figure), ("waiver", waiver))],
+        *[(f"a {kind}, which no button sends", kind, "joey", {"euros": 40.0}, False, "refused", None)
+          for kind in ("stop", "month")],
+        *[(f"{kind} naming a path", kind, "joey", payload, False, "refused", "is not a scene name")
+          for kind, payload in (("concept-pick", {"place": "../../accepts", "sha": None}),
+                                ("plan-write", {"place": "a/b", "euros": 0.0}),
+                                ("environment-save", {"world": "..", "concept": {}, "locked": False}))],
+        ("a library address not in it", "library", "joey", {"action": "withdraw", "addresses": [
+            "--upload-pack=touch x"]}, False, "refused", "is not in the library"),
+        ("his decision", "decision", "joey", {**decision, "worse_reason": "fine"}, False, "done", None),
+        ("his books figure", "books-figure", "joey", figure, False, "done", None),
+        ("his waiver", "waiver", "joey", waiver, False, "done", None),
+        ("his change", "change", "joey", {"place": "alpha", "stage": "closeup", "words": "redder"}, False, "done",
+         None),
+    ]
+    for what, kind, user, payload, agent, state, words in requests:
+        monkeypatch.setattr(actions, "agent_started", lambda agent=agent: agent)
+        applied = applying.apply({"kind": kind, "user": user, "payload": payload}, world.source)
+        assert applied.state == state and (words is None or words in applied.detail), (what, applied.detail)
+        if state == "refused":  # a refused request writes nothing: no books, no waiver, no inbox, no stop
+            assert not world.books.exists() and not world.store.waivers("closeup@beta", key), what
+            assert not list((home / "inbox").glob("*.json")), what
+    assert review_web.stop_line(world.store, "world1") is None  # only his stop line made in chat sets a stop
+    books = json.loads(world.books.read_text())
+    assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
+    assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
+    assert list((home / "inbox").glob("*.json"))
+
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
 def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world, settings, monkeypatch):
@@ -323,24 +368,6 @@ def test_an_export_of_a_format_the_hosted_side_cannot_read_is_refused_in_the_syn
     assert not (settings.SCORE_HOME / "export/current").exists()
 
 
-def test_a_decision_from_someone_not_the_local_owner_is_refused(world):
-    applied = applying.apply({"kind": "decision", "user": "mallory", "payload": {
-        "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}},
-        world.source)
-    assert applied.state == "refused" and "not this store's owner" in applied.detail
-    applied = applying.apply({"kind": "decision", "user": "joey", "payload": {
-        "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept",
-        "worse_reason": "fine"}}, world.source)
-    assert applied.state == "done", applied.detail
-
-
-def owner_figures(world):
-    """One request of each owner's money figure and waiver kind, by user name: {kind: payload}."""
-    return {"books-figure": {"euros": 12.5},
-            "waiver": {"node": "closeup@beta", "output": world.outputs["closeup@beta"], "check": "looks",
-                       "reason": "three faults are fine here"}}
-
-
 @pytest.fixture
 def owner_books(world, monkeypatch, settings):
     """The fixture world with no agent marks and no books yet (under this run's temp PROPS_HOME), the stop's first
@@ -354,59 +381,6 @@ def owner_books(world, monkeypatch, settings):
     world.books.unlink(missing_ok=True)
     yield world
     world.books.unlink(missing_ok=True)
-
-
-def test_the_owners_figures_and_waiver_are_applied_for_him_and_refused_for_anyone_else(owner_books):
-    """Each owner request kind from the cockpit's buttons: someone not the local owner writes nothing; the owner's
-    goes through the same owner-only function as his local cockpit, recorded with his name; no request but his
-    stop line made in chat (stop-line) sets a stop (a batch's stop is written by his checkout's yes)."""
-    from score.review import web
-    world = owner_books
-    key = world.store.records("closeup@beta")[-1]["key"]
-    for kind, payload in owner_figures(world).items():
-        applied = applying.apply({"kind": kind, "user": "mallory", "payload": payload}, world.source)
-        assert applied.state == "refused" and "not this store's owner" in applied.detail, (kind, applied)
-    assert not world.books.exists() and not world.store.waivers("closeup@beta", key)
-    for kind, payload in owner_figures(world).items():
-        applied = applying.apply({"kind": kind, "user": "joey", "payload": payload}, world.source)
-        assert applied.state == "done", (kind, applied)
-    assert web.stop_line(world.store, "world1") is None
-    for kind in ("stop", "month"):
-        assert applying.apply({"kind": kind, "user": "joey", "payload": {"euros": 40.0}}, world.source).state == \
-            "refused"
-    books = json.loads(world.books.read_text())
-    assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
-    assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
-
-
-def test_a_synced_request_naming_a_path_or_an_entry_not_in_the_library_is_refused(owner_books, settings,
-                                                                                    monkeypatch, tmp_path):
-    """A request from the hosted side is checked again on the store's machine: a place or environment name that is a
-    path never reaches a store key or a file, and a library address not in the library never reaches its command."""
-    from score.dashboard.pages import library_actions
-    for kind, payload in (("concept-pick", {"place": "../../accepts", "sha": None}),
-                          ("plan-write", {"place": "a/b", "euros": 0.0}),
-                          ("environment-save", {"world": "..", "concept": {}, "locked": False})):
-        applied = applying.apply({"kind": kind, "user": "joey", "payload": payload}, owner_books.source)
-        assert applied.state == "refused" and "is not a scene name" in applied.detail, (kind, applied.detail)
-    settings.SCORE_LIB_ROOT = tmp_path
-    monkeypatch.setattr(library_actions, "library", lambda: types.SimpleNamespace(entry=lambda address: None))
-    monkeypatch.setattr(library_actions, "run", lambda arguments: pytest.fail(f"ran {arguments}"))
-    applied = applying.apply({"kind": "library", "user": "joey", "payload": {
-        "action": "withdraw", "addresses": ["--upload-pack=touch x"]}}, owner_books.source)
-    assert applied.state == "refused" and "is not in the library" in applied.detail
-
-
-def test_the_owners_figures_are_refused_in_an_agents_process(owner_books, monkeypatch):
-    """The sync pass applies an owner request only outside an agent's process: the same barrier as his terminal."""
-    from score.dashboard.pages import actions
-    from score.review import web
-    monkeypatch.setattr(actions, "agent_started", lambda: True)
-    for kind in ("books-figure", "waiver"):
-        applied = applying.apply({"kind": kind, "user": "joey", "payload": owner_figures(owner_books)[kind]},
-                                 owner_books.source)
-        assert applied.state == "refused", (kind, applied)
-    assert web.stop_line(owner_books.store, "world1") is None
 
 
 def test_the_hosted_buttons_queue_the_owners_request_and_refuse_anyone_else(world, settings):
@@ -429,12 +403,6 @@ def test_the_hosted_buttons_queue_the_owners_request_and_refuse_anyone_else(worl
     pages = Client()
     pages.force_login(user)
     assert pages.post("/world/step/terrain/waive/", {"output": "x", "check": "looks", "reason": "r"}).status_code == 403
-
-
-def test_a_change_request_is_applied_into_the_inbox(world, settings):
-    applied = applying.apply({"kind": "change", "user": "joey", "payload": {
-        "place": "alpha", "stage": "closeup", "words": "redder"}}, world.source)
-    assert applied.state == "done" and list((settings.SCORE_HOME / "inbox").glob("*.json"))
 
 
 class Hosted:
