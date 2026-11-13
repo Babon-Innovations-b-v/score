@@ -2,38 +2,39 @@
 against its entry's sha256, or a gap (None); and nothing names the game 2099's checkout (the owner, 2026-10-09: the
 game and SCORE are fully separate things).
 
-What each test pins:
+What the test pins, on one toy library (a git checkout with a bare remote, its blobs by sha256 beside it, and a
+stand-in `score-lib` that fetches a blob out by the entry's sha256 and takes takes in: writes the entry with each
+file's sha256 and blob, commits and pushes), and on the repository's own code and data:
 
-- a reference reads as its parts, and its stage name holds no '@' (an OpenUSD asset path cannot);
-- a repository file resolves without the library; a folder of one's own stands in for the library;
+- a name reads as its parts or as no reference, and its stage name holds no '@' (an OpenUSD asset path cannot); a
+  repository file resolves without the library (a missing one raises); a folder of one's own stands in for the
+  library; a name the library does not hold is a gap and is never fetched (rows of one name table);
 - a reference is fetched once into the cache by the library's command and served from there after, fetched again
-  when the cached bytes changed, refused when the fetched bytes are other than the entry's sha256; a name the library
-  does not hold is a gap; with no blob store set the command is handed the cloud backend's object store (a fake
-  here) under the prefix score_lib, through its environment only;
+  when the cached bytes changed, refused when the fetched bytes are other than the entry's sha256; with no blob store
+  set the command is handed the cloud backend's object store (a fake here) under the prefix score_lib, through its
+  environment only, and with one set the cloud's is not read;
+- a Pixal3D take freed from work/pixal (pixal_takes.py) comes back whole from the library, the same bytes under the
+  same names, camera folder included, and is read back whole only when the library hands every file back at its size
+  and hash;
 - every name the data gives is a reference, a repository file that is there, or an old release name (a gap);
 - a wording check guarding the owner's rule of 2026-10-09: no code, data or overlay names a Godot path (`res://`),
   the game's checkout (`projects/2099`, `2099/game`), the old `--world <the game's checkout>` option, or (outside
-  comments and docstrings, and note keys in the data) a path into the game's tree (`game/...`, `sim/...`);
-- a Pixal3D take freed from work/pixal (pixal_takes.py) comes back whole from the library, the same bytes under the
-  same names, camera folder included, and is read back whole only when the library hands every file back at its size
-  and hash. Its library is a toy git checkout with a bare remote and a stand-in `score-lib` (take-in --save writes the
-  take's entry with each file's sha256 and blob, commits and pushes; fetch copies a blob out by the entry's sha256).
+  comments and docstrings, and note keys in the data) a path into the game's tree (`game/...`, `sim/...`).
 
-The break that turns each test red (applied once each, seen red, reverted):
+The break that turns the test red (applied once each, seen red, reverted):
 
-- test_a_reference_reads_as_its_parts: REFERENCE's id part loses its `(?:\\.[a-z0-9_]+)?`.
-- test_a_repository_file_or_a_folder_of_ones_own_resolves_without_the_library: resolve's `data/` branch removed.
-- test_the_library_is_fetched_once_checked_and_a_name_it_lacks_is_a_gap: from_library's cache check
-  `sha256(target) == expected` made `True` (a changed cache is served).
-- test_the_cloud_store_is_handed_on_only_when_no_store_is_set: blob_store returns `values` at once.
-- test_every_record_name_is_a_reference_a_repository_file_or_a_gap (a data guard: the data names no model or sound
-  file today): a record value `"model": "assets/rover.glb"` added to data/library/lamps.json.
-- test_nothing_names_the_games_checkout: a line `GODOT = "res://scenes/x.tscn"` added to library_files.py.
-- test_a_freed_take_comes_back_whole: pixal_takes.take_back's `missing = [name for name in sorted(record["files"]) if
-  not (folder / name).exists()]` -> `missing = [name for name in sorted(record["files"]) if name.endswith(".glb") and
-  not (folder / name).exists()]` (the close-up and camera stay lost).
-- test_read_back_names_a_file_that_came_back_changed: pixal_takes.read_back's `if library_files.sha256(there) !=
-  library_files.sha256(here):` -> `if False:` (a blob with other bytes passes).
+- REFERENCE's id part loses its `(?:\\.[a-z0-9_]+)?` (the habitat.recordings row reads as no reference).
+- resolve's `data/` branch removed (the repository rows resolve to None).
+- from_library's cache check `sha256(target) == expected` made `True` (a changed cache is served).
+- blob_store returns `values` at once (the command is handed no cloud store).
+- a record value `"model": "assets/rover.glb"` added to data/library/lamps.json (a data guard: the data names no model
+  or sound file today).
+- a line `GODOT = "res://scenes/x.tscn"` added to library_files.py.
+- pixal_takes.take_back's `missing = [name for name in sorted(record["files"]) if not (folder / name).exists()]` ->
+  `missing = [name for name in sorted(record["files"]) if name.endswith(".glb") and not (folder / name).exists()]`
+  (the close-up and camera stay lost).
+- pixal_takes.read_back's `if library_files.sha256(there) != library_files.sha256(here):` -> `if False:` (a blob with
+  other bytes passes).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest tools/library/test_every_record_name_resolves_or_is_a_gap.py
 """
@@ -42,7 +43,6 @@ import hashlib
 import json
 import pathlib
 import re
-import shutil
 import subprocess
 import sys
 
@@ -64,64 +64,80 @@ NOTE_KEYS = {"from", "from_file", "read_by", "about", "is", "by", "recorded", "c
 CHECKED = ("tools", "data", "design", "Makefile", "pyproject.toml", "README.md", "docs/bible.md")
 SKIPPED = ("vendor/", "tools/library/test_every_record_name_resolves_or_is_a_gap.py")
 TEXT_ENDINGS = (".py", ".sh", ".json", ".md", ".html", ".js", ".toml", ".txt", ".usda", "")
-# A stand-in library command: `fetch <address> --file <file> --into <cache>` copies the file from a blob folder named
-# by the entry's sha256, as score-lib fetch does from its blob store, and notes each fetch and the store it was given.
-FAKE_COMMAND = '''
-import json, os, pathlib, shutil, sys
+# A stand-in library command. `take-in <list> --save --report <file>` writes each take's entry with every file's sha256
+# and its blob, commits and pushes; `fetch <address> (--file <file>)... --into <cache>` copies each file from the blob
+# folder by the entry's sha256, as score-lib does from its blob store, and notes each fetch and the store it was given.
+COMMAND = r'''
+import hashlib, json, os, pathlib, shutil, subprocess, sys
 words = sys.argv[1:]
 root = pathlib.Path(words[words.index("--root") + 1])
-address, file = words[words.index("fetch") + 1], words[words.index("--file") + 1]
-into = pathlib.Path(words[words.index("--into") + 1])
-kind, rest = address.split("/", 1)
-entry_id, version = rest.split("@")
-record = json.loads((root / "entries" / kind / entry_id / version / "entry.json").read_text())
-target = into / "score_lib" / kind / entry_id / version / file
-target.parent.mkdir(parents=True, exist_ok=True)
-shutil.copyfile(root / "blobs" / record["files"][file]["sha256"], target)
-(root / "fetches.txt").open("a").write(address + "\\n")
-(root / "store.txt").write_text(os.environ.get("SCORE_LIB_S3_BUCKET", "") + "/" + os.environ.get("SCORE_LIB_S3_PREFIX", "")
-                                + " " + os.environ.get("AWS_SECRET_ACCESS_KEY", ""))
+blobs = root.parent / "blobs"
+if "take-in" in words:
+    listing = json.loads(pathlib.Path(words[words.index("take-in") + 1]).read_text())
+    report = {"new": [], "unchanged": [], "changed draft": [], "new version": [], "refused": []}
+    for entry in listing["entries"]:
+        files = {}
+        for name, about in entry["files"].items():
+            data = pathlib.Path(about["path"]).read_bytes()
+            sha = hashlib.sha256(data).hexdigest()
+            (blobs / sha).write_bytes(data)
+            files[name] = {"sha256": sha, "bytes": len(data), "role": "gltf"}
+        address = f"take/{entry['id']}@1"
+        path = root / "entries/take" / entry["id"] / "1" / "entry.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"address": address, "kind": "take", "id": entry["id"], "version": 1,
+                                    "title": entry["title"], "files": files}))
+        report["new"].append(address)
+    git = ["git", "-C", str(root)]
+    subprocess.run(git + ["add", "-A"], check=True)
+    subprocess.run(git + ["commit", "-q", "-m", "take-in"], check=True)
+    subprocess.run(git + ["push", "-q", "origin", "HEAD"], check=True, capture_output=True)
+    report["saved"] = {"committed": "x", "pushed": True, "why": ""}
+    pathlib.Path(words[words.index("--report") + 1]).write_text(json.dumps(report))
+else:
+    address = words[words.index("fetch") + 1]
+    kind, rest = address.split("/")
+    entry_id, version = rest.split("@")
+    record = json.loads((root / "entries" / kind / entry_id / version / "entry.json").read_text())
+    into = pathlib.Path(words[words.index("--into") + 1]) / "score_lib" / kind / entry_id / version
+    for at, word in enumerate(words):
+        if word == "--file":
+            name = words[at + 1]
+            (into / name).parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(blobs / record["files"][name]["sha256"], into / name)
+    (root.parent / "fetches.txt").open("a").write(address + "\n")
+    (root.parent / "store.txt").write_text(os.environ.get("SCORE_LIB_S3_BUCKET", "") + "/"
+                                           + os.environ.get("SCORE_LIB_S3_PREFIX", "") + " "
+                                           + os.environ.get("AWS_SECRET_ACCESS_KEY", ""))
 '''
 HUM = "sound/hum.recordings@1/audio/recordings/hum.ogg"
-
-
-def test_a_reference_reads_as_its_parts():
-    assert library_files.parsed("sound/habitat.recordings@1/audio/recordings/places/habitat.ogg") == {
-        "address": "sound/habitat.recordings@1", "kind": "sound", "id": "habitat.recordings", "version": "1",
-        "file": "audio/recordings/places/habitat.ogg"}
-    for name in ("models/rover/rover.glb", "sound/hum@0/a.ogg", "Sound/hum@1/a.ogg", "sound/hum@1"):
-        assert library_files.parsed(name) is None, name
-    assert library_files.stage_name("model/rover.gltf@2/gltf/rover.glb") == "model/rover.gltf/2/gltf/rover.glb"
-    assert library_files.stage_name("data/library/lamps.json") == "data/library/lamps.json"
-
-
-def test_a_repository_file_or_a_folder_of_ones_own_resolves_without_the_library(tmp_path, monkeypatch):
-    monkeypatch.delenv("SCORE_LIB_ROOT", raising=False)
-    monkeypatch.delenv("SCORE_LIB_FILES", raising=False)
-    assert library_files.resolve("data/library/lamps.json") == REPO / "data/library/lamps.json"
-    with pytest.raises(FileNotFoundError):
-        library_files.resolve("data/library/no-such-file.json")
-    (tmp_path / "models/box").mkdir(parents=True)
-    (tmp_path / "models/box/box.glb").write_bytes(b"box")
-    assert library_files.resolve("models/box/box.glb", tmp_path) == tmp_path / "models/box/box.glb"
-    assert library_files.resolve("models/box/none.glb", tmp_path) is None
+TAKE = {"cup-s1.glb": b"glTF raw", "cup-s1-12000.glb": b"glTF thin", "cup-s1-final.glb": b"glTF up",
+        "cup-s1.json": b"{}", "cup-s1.svviews/input.png": b"PNG close-up", "cup-s1.svviews/transforms.json": b"{}"}
+GAP, MISSING = "gap", "missing"
 
 
 @pytest.fixture
-def toy_library(tmp_path, monkeypatch):
-    """A library with one entry (the hum), its blob by sha256, the stand-in command, a fake cloud backend's object
-    store, and PROPS_HOME in tmp_path; the library's root."""
-    root = tmp_path / "library"
-    (root / "blobs").mkdir(parents=True)
+def library(tmp_path, monkeypatch):
+    """The toy library's checkout (pushed to its bare remote) holding the hum entry, its blobs beside it, the stand-in
+    command, a fake cloud backend's object store, PROPS_HOME in tmp_path with a work/pixal holding one take, and a
+    folder of one's own; the checkout."""
+    root, remote = tmp_path / "lib" / "score_lib", tmp_path / "lib" / "remote.git"
+    root.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
+    for words in (["init", "-q"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
+                  ["remote", "add", "origin", str(remote)], ["commit", "-q", "--allow-empty", "-m", "start"],
+                  ["push", "-q", "-u", "origin", "HEAD"]):
+        subprocess.run(["git", "-C", str(root), *words], check=True, capture_output=True)
+    (tmp_path / "lib" / "blobs").mkdir()
     sha = hashlib.sha256(b"a hum").hexdigest()
-    (root / "blobs" / sha).write_bytes(b"a hum")
+    (tmp_path / "lib" / "blobs" / sha).write_bytes(b"a hum")
     entry = root / "entries/sound/hum.recordings/1"
     entry.mkdir(parents=True)
     (entry / "entry.json").write_text(json.dumps({"files": {"audio/recordings/hum.ogg": {"sha256": sha}}}))
-    (tmp_path / "fetch.py").write_text(FAKE_COMMAND)
+    (tmp_path / "score-lib.py").write_text(COMMAND)
     monkeypatch.setenv("PROPS_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SCORE_LIB_ROOT", str(root))
-    monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} {tmp_path / 'fetch.py'}")
+    monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} {tmp_path / 'score-lib.py'}")
     for variable in ("SCORE_LIB_FILES", *library_files.BLOB_STORE):
         monkeypatch.delenv(variable, raising=False)
     provider = type(sys)("provider")
@@ -129,59 +145,16 @@ def toy_library(tmp_path, monkeypatch):
         "endpoint": "https://store.example", "region": "region-1", "bucket": "a-bucket", "access_key": "AK",
         "secret_key": "SK"})})
     monkeypatch.setitem(sys.modules, "provider", provider)
+    pixal = tmp_path / "home" / "work" / "pixal"
+    for name, data in TAKE.items():
+        (pixal / name).parent.mkdir(parents=True, exist_ok=True)
+        (pixal / name).write_bytes(data)
+    (pixal / "cup-s10.glb").write_bytes(b"another take")  # its name starts like cup-s1's: not one of its files
+    (tmp_path / "own/models/box").mkdir(parents=True)
+    (tmp_path / "own/models/box/box.glb").write_bytes(b"box")
     library_files.cloud_store.cache_clear()
     yield root
     library_files.cloud_store.cache_clear()
-
-
-def test_the_library_is_fetched_once_checked_and_a_name_it_lacks_is_a_gap(toy_library, tmp_path):
-    found = library_files.resolve(HUM)
-    assert found == tmp_path / "home/cache/library/score_lib/sound/hum.recordings/1/audio/recordings/hum.ogg"
-    assert found.read_bytes() == b"a hum"
-    assert library_files.resolve(HUM) == found
-    assert (toy_library / "fetches.txt").read_text().split() == ["sound/hum.recordings@1"]  # once
-    found.write_bytes(b"changed")  # the cache's bytes moved: fetched again, then checked
-    assert library_files.resolve(HUM).read_bytes() == b"a hum"
-    assert len((toy_library / "fetches.txt").read_text().split()) == 2
-    (toy_library / "blobs" / hashlib.sha256(b"a hum").hexdigest()).write_bytes(b"other bytes")
-    found.unlink()
-    with pytest.raises(library_files.LibraryUnreachable, match="does not hash"):
-        library_files.resolve(HUM)
-    for gap in ("models/hub_kit/console_1.gltf", "sound/nothing.recordings@1/audio/nothing.ogg",
-                "sound/hum.recordings@1/audio/other.ogg"):
-        assert library_files.resolve(gap) is None, gap
-
-
-def test_the_cloud_store_is_handed_on_only_when_no_store_is_set(toy_library, monkeypatch):
-    library_files.resolve(HUM)
-    assert (toy_library / "store.txt").read_text() == "a-bucket/score_lib SK"
-    assert not any("SK" == value for value in library_files.settings().values())  # never in this process's settings
-    shutil.rmtree(toy_library.parent / "home/cache")  # fetched again, now with a store set
-    monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(toy_library / "blobs"))
-    library_files.resolve(HUM)
-    assert (toy_library / "store.txt").read_text() == "/ "  # a store of its own: the cloud's is not read
-
-
-def test_every_record_name_is_a_reference_a_repository_file_or_a_gap():
-    """Every file name the data gives (a .glb, .gltf, .ogg or .wav) is a library reference, a repository file that is
-    there, or an old release name (`models/...`, `sound/...`): a gap the remake fills."""
-    named = set()
-
-    def walk(value, key):
-        if isinstance(value, dict):
-            for inner, item in value.items():
-                walk(item, inner)
-        elif isinstance(value, list):
-            for item in value:
-                walk(item, key)
-        elif isinstance(value, str) and key not in NOTE_KEYS and re.fullmatch(r"[\w.@/-]+\.(glb|gltf|ogg|wav)", value):
-            named.add(value)
-
-    for path in sorted((REPO / "data").rglob("*.json")):
-        walk(json.loads(path.read_text()), None)
-    odd = sorted(name for name in named if not (library_files.parsed(name) or name.startswith(("models/", "sound/"))
-                                                or (name.startswith("data/") and (REPO / name).exists())))
-    assert not odd, "names that are neither a reference, a repository file nor a gap:\n  " + "\n  ".join(odd)
 
 
 def tracked():
@@ -224,116 +197,110 @@ def game_names(path):
         found += [f"{where}:{number}: {line.strip()[:120]}" for number, line in enumerate(text.splitlines(), 1)
                   if re.search(r"(^|[\s\"'=/])(game|sim)/[\w.-]+/", line.split("#", 1)[0])]
     elif path.suffix == ".json":
-        def walk(value, key):
-            if isinstance(value, dict):
-                for inner, item in value.items():
-                    yield from walk(item, inner)
-            elif isinstance(value, list):
-                for item in value:
-                    yield from walk(item, key)
-            elif isinstance(value, str) and key not in NOTE_KEYS and GAME_PATH.match(value):
-                yield f"{where}: {key}: {value[:120]}"
-        found += list(walk(json.loads(text), None))
+        found += [f"{where}: {key}: {value[:120]}" for key, value in strings(json.loads(text))
+                  if GAME_PATH.match(value)]
     return found
 
 
-def test_nothing_names_the_games_checkout():
-    for line in ("export.py <record> --world ~/projects/game", "`--world <the game's checkout>`",
-                 'parser.add_argument("--world", type=pathlib.Path, help="the game\'s checkout")', "--world=/srv/game"):
-        assert FORBIDDEN.search(line), line  # the pattern itself catches the old option
-    for line in ("store_page.py <place> [--world world1]", 'parser.add_argument("--world", default="world1")'):
-        assert not FORBIDDEN.search(line), line  # and lets an environment's name through
-    faults = [fault for path in tracked() for fault in game_names(path)]
-    assert not faults, "the game's checkout is still named:\n  " + "\n  ".join(faults)
+def strings(value, key=None):
+    """Every (key, string) a JSON value holds outside its note keys, a list's items under the list's key."""
+    if isinstance(value, dict):
+        for inner, item in value.items():
+            yield from strings(item, inner)
+    elif isinstance(value, list):
+        for item in value:
+            yield from strings(item, key)
+    elif isinstance(value, str) and key not in NOTE_KEYS:
+        yield key, value
 
 
-TAKE_COMMAND = r'''
-import hashlib, json, pathlib, shutil, subprocess, sys
-words = sys.argv[1:]
-root = pathlib.Path(words[words.index("--root") + 1])
-blobs = root.parent / "blobs"
-blobs.mkdir(exist_ok=True)
-if "take-in" in words:
-    listing = json.loads(pathlib.Path(words[words.index("take-in") + 1]).read_text())
-    report = {"new": [], "unchanged": [], "changed draft": [], "new version": [], "refused": []}
-    for entry in listing["entries"]:
-        files = {}
-        for name, about in entry["files"].items():
-            data = pathlib.Path(about["path"]).read_bytes()
-            sha = hashlib.sha256(data).hexdigest()
-            (blobs / sha).write_bytes(data)
-            files[name] = {"sha256": sha, "bytes": len(data), "role": "gltf"}
-        address = f"take/{entry['id']}@1"
-        path = root / "entries/take" / entry["id"] / "1" / "entry.json"
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"address": address, "kind": "take", "id": entry["id"], "version": 1,
-                                    "title": entry["title"], "files": files}))
-        report["new"].append(address)
-    git = ["git", "-C", str(root)]
-    subprocess.run(git + ["add", "-A"], check=True)
-    subprocess.run(git + ["commit", "-q", "-m", "take-in"], check=True)
-    subprocess.run(git + ["push", "-q", "origin", "HEAD"], check=True, capture_output=True)
-    report["saved"] = {"committed": "x", "pushed": True, "why": ""}
-    pathlib.Path(words[words.index("--report") + 1]).write_text(json.dumps(report))
-else:
-    address = words[words.index("fetch") + 1]
-    kind, rest = address.split("/")
-    entry_id, version = rest.split("@")
-    record = json.loads((root / "entries" / kind / entry_id / version / "entry.json").read_text())
-    into = pathlib.Path(words[words.index("--into") + 1]) / "score_lib" / kind / entry_id / version
-    for at, word in enumerate(words):
-        if word == "--file":
-            name = words[at + 1]
-            (into / name).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(blobs / record["files"][name]["sha256"], into / name)
-'''
-TAKE = {"cup-s1.glb": b"glTF raw", "cup-s1-12000.glb": b"glTF thin", "cup-s1-final.glb": b"glTF up",
-        "cup-s1.json": b"{}", "cup-s1.svviews/input.png": b"PNG close-up", "cup-s1.svviews/transforms.json": b"{}"}
+def test_every_record_name_resolves_or_is_a_gap(library, tmp_path, monkeypatch):
+    own, cache = tmp_path / "own", tmp_path / "home/cache/library/score_lib"
+    fetches, store = tmp_path / "lib/fetches.txt", tmp_path / "lib/store.txt"
+    # name, the folder of one's own given to resolve, its stage name, and what resolve gives: a path, a gap or missing.
+    names = [
+        ("sound/habitat.recordings@1/audio/recordings/places/habitat.ogg", None,
+         "sound/habitat.recordings/1/audio/recordings/places/habitat.ogg", GAP),  # the library holds no such entry
+        ("model/rover.gltf@2/gltf/rover.glb", None, "model/rover.gltf/2/gltf/rover.glb", GAP),
+        ("sound/nothing.recordings@1/audio/nothing.ogg", None, "sound/nothing.recordings/1/audio/nothing.ogg", GAP),
+        ("sound/hum.recordings@1/audio/other.ogg", None, "sound/hum.recordings/1/audio/other.ogg", GAP),  # no such file
+        (HUM, None, "sound/hum.recordings/1/audio/recordings/hum.ogg",
+         cache / "sound/hum.recordings/1/audio/recordings/hum.ogg"),
+        ("models/rover/rover.glb", None, "models/rover/rover.glb", GAP),  # an old release name: no reference
+        ("models/hub_kit/console_1.gltf", None, "models/hub_kit/console_1.gltf", GAP),
+        ("sound/hum@0/a.ogg", None, "sound/hum@0/a.ogg", GAP),  # version 0
+        ("Sound/hum@1/a.ogg", None, "Sound/hum@1/a.ogg", GAP),  # a capital in the kind
+        ("sound/hum@1", None, "sound/hum@1", GAP),  # no file in the entry
+        ("data/library/lamps.json", None, "data/library/lamps.json", REPO / "data/library/lamps.json"),
+        ("data/library/no-such-file.json", None, "data/library/no-such-file.json", MISSING),
+        ("models/box/box.glb", own, "models/box/box.glb", own / "models/box/box.glb"),
+        ("models/box/none.glb", own, "models/box/none.glb", GAP),
+    ]
+    for name, folder, stage, outcome in names:
+        assert library_files.stage_name(name) == stage, name
+        assert (library_files.parsed(name) is None) == (stage == name), name
+        if outcome == MISSING:
+            with pytest.raises(FileNotFoundError):
+                library_files.resolve(name, folder)
+        else:
+            assert library_files.resolve(name, folder) == (None if outcome == GAP else outcome), name
+    assert library_files.parsed(names[0][0]) == {
+        "address": "sound/habitat.recordings@1", "kind": "sound", "id": "habitat.recordings", "version": "1",
+        "file": "audio/recordings/places/habitat.ogg"}
 
+    # Only the hum was fetched, once, with the cloud's store in the command's environment and never in this process.
+    found = cache / "sound/hum.recordings/1/audio/recordings/hum.ogg"
+    assert found.read_bytes() == b"a hum"
+    assert library_files.resolve(HUM) == found
+    assert fetches.read_text().split() == ["sound/hum.recordings@1"]
+    assert store.read_text() == "a-bucket/score_lib SK"
+    assert not any("SK" == value for value in library_files.settings().values())
+    found.write_bytes(b"changed")  # the cache's bytes moved: fetched again, then checked, now with a store set
+    monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(tmp_path / "lib/blobs"))
+    assert library_files.resolve(HUM).read_bytes() == b"a hum"
+    assert len(fetches.read_text().split()) == 2
+    assert store.read_text() == "/ "  # a store of its own: the cloud's is not read
+    (tmp_path / "lib/blobs" / hashlib.sha256(b"a hum").hexdigest()).write_bytes(b"other bytes")
+    found.unlink()
+    with pytest.raises(library_files.LibraryUnreachable, match="does not hash"):
+        library_files.resolve(HUM)
 
-@pytest.fixture
-def take_library(tmp_path, monkeypatch):
-    """A toy library checkout with its remote, its stand-in command, and a work/pixal holding one take."""
-    root, remote = tmp_path / "lib" / "score_lib", tmp_path / "lib" / "remote.git"
-    root.mkdir(parents=True)
-    subprocess.run(["git", "init", "-q", "--bare", str(remote)], check=True)
-    for words in (["init", "-q"], ["config", "user.email", "t@t"], ["config", "user.name", "t"],
-                  ["remote", "add", "origin", str(remote)], ["commit", "-q", "--allow-empty", "-m", "start"],
-                  ["push", "-q", "-u", "origin", "HEAD"]):
-        subprocess.run(["git", "-C", str(root), *words], check=True, capture_output=True)
-    (tmp_path / "score-lib.py").write_text(TAKE_COMMAND)
-    monkeypatch.setenv("SCORE_LIB_ROOT", str(root))
-    monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} {tmp_path / 'score-lib.py'}")
-    monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(tmp_path / "lib" / "blobs"))
-    monkeypatch.setenv("PROPS_HOME", str(tmp_path / "home"))
-    pixal = tmp_path / "home" / "work" / "pixal"
-    for name, data in TAKE.items():
-        (pixal / name).parent.mkdir(parents=True, exist_ok=True)
-        (pixal / name).write_bytes(data)
-    (pixal / "cup-s10.glb").write_bytes(b"another take")  # its name starts like cup-s1's: not one of its files
-    return pixal
-
-
-def test_a_freed_take_comes_back_whole(take_library, tmp_path):
-    assert pixal_takes.take_names("cup-s1", take_library) == sorted(TAKE)
-    report = pixal_takes.taken_in(["cup-s1"], take_library, "0" * 40, tmp_path / "scratch")
+    # A Pixal3D take taken in, freed from work/pixal and put back whole; read back whole until a blob changes.
+    pixal = tmp_path / "home/work/pixal"
+    assert pixal_takes.take_names("cup-s1", pixal) == sorted(TAKE)
+    report = pixal_takes.taken_in(["cup-s1"], pixal, "0" * 40, tmp_path / "scratch")
     assert report["new"] == ["take/cup_s1@1"] and report["saved"]["pushed"], report
     assert pixal_takes.upstream_holds("cup-s1")
-    assert pixal_takes.read_back("cup-s1", take_library, tmp_path) is None
+    assert json.loads((library / "entries/take/cup_s1/1/entry.json").read_text())["title"] == "cup-s1"
+    assert pixal_takes.read_back("cup-s1", pixal, tmp_path) is None
     for name in TAKE:
-        (take_library / name).unlink()
-    assert pixal_takes.take_back("cup-s1", take_library) == sorted(TAKE)
-    assert {name: (take_library / name).read_bytes() for name in TAKE} == TAKE
-    assert pixal_takes.take_back("cup-s1", take_library) == []
-    assert pixal_takes.take_back("bowl-s1", take_library) == []
-    assert (take_library / "cup-s10.glb").read_bytes() == b"another take"
-
-
-def test_read_back_names_a_file_that_came_back_changed(take_library, tmp_path):
-    pixal_takes.taken_in(["cup-s1"], take_library, "0" * 40, tmp_path / "scratch")
+        (pixal / name).unlink()
+    assert pixal_takes.take_back("cup-s1", pixal) == sorted(TAKE)
+    assert {name: (pixal / name).read_bytes() for name in TAKE} == TAKE
+    assert pixal_takes.take_back("cup-s1", pixal) == []
+    assert pixal_takes.take_back("bowl-s1", pixal) == []
+    assert (pixal / "cup-s10.glb").read_bytes() == b"another take"
     sha = hashlib.sha256(TAKE["cup-s1.svviews/input.png"]).hexdigest()
-    (tmp_path / "lib" / "blobs" / sha).write_bytes(b"PNG close-UP")  # the same size, other bytes
-    said = pixal_takes.read_back("cup-s1", take_library, tmp_path)
-    assert said == "cup-s1.svviews/input.png came back with other bytes"
-    entry = json.loads((tmp_path / "lib/score_lib/entries/take/cup_s1/1/entry.json").read_text())
-    assert entry["title"] == "cup-s1"
+    (tmp_path / "lib/blobs" / sha).write_bytes(b"PNG close-UP")  # the same size, other bytes
+    assert pixal_takes.read_back("cup-s1", pixal, tmp_path) == "cup-s1.svviews/input.png came back with other bytes"
+
+    # The repository's data: every file name (a .glb, .gltf, .ogg or .wav) is a reference, a repository file that is
+    # there, or an old release name (`models/...`, `sound/...`): a gap the remake fills.
+    named = {value for path in sorted((REPO / "data").rglob("*.json"))
+             for _, value in strings(json.loads(path.read_text()))
+             if re.fullmatch(r"[\w.@/-]+\.(glb|gltf|ogg|wav)", value)}
+    odd = sorted(name for name in named if not (library_files.parsed(name) or name.startswith(("models/", "sound/"))
+                                                or (name.startswith("data/") and (REPO / name).exists())))
+    assert not odd, "names that are neither a reference, a repository file nor a gap:\n  " + "\n  ".join(odd)
+
+    # The repository's code and data name no game checkout; the pattern catches the old option and lets an
+    # environment's name through.
+    for line, forbidden in (("export.py <record> --world ~/projects/game", True),
+                            ("`--world <the game's checkout>`", True),
+                            ('parser.add_argument("--world", type=pathlib.Path, help="the game\'s checkout")', True),
+                            ("--world=/srv/game", True),
+                            ("store_page.py <place> [--world world1]", False),
+                            ('parser.add_argument("--world", default="world1")', False)):
+        assert bool(FORBIDDEN.search(line)) == forbidden, line
+    faults = [fault for path in tracked() for fault in game_names(path)]
+    assert not faults, "the game's checkout is still named:\n  " + "\n  ".join(faults)
