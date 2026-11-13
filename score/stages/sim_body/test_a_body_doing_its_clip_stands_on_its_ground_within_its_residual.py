@@ -3,20 +3,23 @@ clip's frames chain down the tree, the model is fetched only as pinned, and each
 
 On a toy rig made here (a closed 0.2 x 1 x 0.2 m column: Root at 0, Hips at 0.5 m, LeftFoot at 0 m, the end sites): the
 root and each end site go to the segment that carries them. The mass is the stated weight, else the height squared times
-the BMI of the stated sex (NCD-RisC 2016: a 1.80 m woman 80.35 kg), else the mean of both, marked estimated. A built
+the BMI of the stated sex (NCD-RisC 2016: a 1.80 m woman 80.35 kg), else the mean of both at the SOMA body's own
+height, marked estimated (the make's ann, eve and fay). A built
 body 1.1 times the rig plays its clips 1.1 times as far. A clip whose offsets are shorter than its rig's bind (as
 people-clips-made's are: posed on SOMA's zero-identity body, 7 cm shorter than the template its bind is, #70) is played
 on the bind's own bones and lifted so its standing frame's feet are where the bind's are, every clip by the same lift,
 as the people build plays it (`tools.characters.played`, prop_build.py's arithmetic): its feet stand on its ground; a
 clip floating its still foot 7 mm mid-clip stands it on its ground on every frame, a jump keeps its flight. A clip's frames chain
 down the tree (a root turned 90 degrees about up carries a child 1 m along x to -1 m along z). The model's wheel is
-unpacked only when its sha256 is the pinned one. On runs written here (no engine): a good run passes every gate, a body
+unpacked only when its sha256 is the pinned one (a make whose model is pinned at another stops). On runs written here
+(no engine): a good run passes every gate, a body
 5 cm into its ground fails `on floor`, a landed foot 5 cm off its ground fails `lands` and so does a body no foot of
 which lands, unless it sits and its ground carries it (a seated body its ground never carries fails), a ground that pushes 10% under the weight fails `carries`, a segment 10 degrees off the clip fails
 `follows` and so does RRA's move of a segment 6 degrees or the pelvis 2.5 cm off the fitted path in one frame, a
 residual force over 2% of the weight or a moment over 1% of it times the centre's height fails `residual`, a body
 shaking a degree each frame round its clip's swing fails `smooth` and one moving as its clip does passes. The make on
-the toy, over a toy seed whose ground is one raised square, its engine run stood in by a written one, hands each body
+the toy, over a toy seed whose ground is one raised square, its run the real one on rented cards of kind sim-body (the
+machine path stood in, writing a written run; two clips a card), hands each body
 the ground's triangles in its own frame (its spot and turn, then the dressed body's Turned), leaves out by name a body
 no solid is near, names the clip the rig lacks and the crowd, weighs each body by the scene's gravity, and writes the
 layer: each SOMA segment an Xform at its pose every frame holding the bone it rides, another bone under Bones, and the
@@ -28,11 +31,11 @@ body, the record's `no bodies` naming why, every gate passing; a cast whose one 
 the output's contract, and so does an empty cast (no singles and no crowd), by name (#70, square, 2026-10-30). Newton and MuJoCo are not run here (the model's run
 takes minutes); the real run's numbers are on #65.
 
-Breaks that turn each check red (each applied once and seen red, reverted, 2026-10-27):
-- a_body_doing_its_clip_stands_on_its_ground_within_its_residual (2026-11-13: the four breaks below folded into it,
-  each seen red on it), its root and end sites going to their carrier: segments_of's carrier `joint = parents[joint]`
+Breaks that turn the one test red (each applied once and seen red, reverted, 2026-10-27; 2026-11-13 the file folded
+into its one test, every break below seen red on it again):
+- its root and end sites going to their carrier: segments_of's carrier `joint = parents[joint]`
   made `joint = -1`.
-- the_mass_is_stated_else_height_times_bmi: mass_of's `tall ** 2` made `tall`.
+- its mass: mass_of's `tall ** 2` made `tall`.
 - its body built at its person's own size: person_rig's `size` handed to played as 1.0 (2026-10-29; before, its
   `local[:, hips, :3, 3] *= size` dropped; green since the lift is figured at the size, on main before the fold
   too); route_clip's scale handed to played as `size` (the climber's route 1.1 m long, 2026-11-04); its `ground +
@@ -53,8 +56,8 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `moved[low] = played.toward_flat(...)` dropped (the tipped foot's toes 1 cm under); its share made 0 (the same).
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
-- the_model_is_unpacked_only_as_pinned: fetched's sha256 check dropped.
-- a_good_run_passes_and_each_gate_fails_its_break: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
+- its model unpacked only as pinned: fetched's sha256 check dropped.
+- its gates on the written runs: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'
   `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`; judge_residual's force check
   dropped; its moment check dropped; RESIDUAL_FORCE 0.02 made 0.05 (2026-10-28); judge_follows' per-frame turn
@@ -64,28 +67,29 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `> 1e9` (a body shaking 1 degree every other frame round its clip's swing passes), and measured's clip jerk of
   `frame["targets"]` made `frame["angles"]` (the body judged against itself)
   (2026-11-05).
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28: make's `adjusted=entry["adjusted"]`
+- its make on the place's cast, 2026-10-28: make's `adjusted=entry["adjusted"]`
   dropped (the RRA adjustment not recorded); make's job `"adjust"` dropped (the run gets no cap).
-- the_make_stands_each_body_on_its_own_ground_under_its_character: ground_of's `np.linalg.inv(frame)` made `frame`;
+- its make on the place's cast: ground_of's `np.linalg.inv(frame)` made `frame`;
   own_frame's `turn + TURNED` made `turn`; make's `if not len(ground)` check dropped; write_layer's
   `points @ carried[:3, :3].T + carried[:3, 3]` made `points` (a ridden bone drawn in its body's frame, not its
   segment's); its colour's `shade` made 0; the record's `"attribution": ATTRIBUTION` made `""`.
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70): make's `frame["poses"] =
+- its make on the place's cast, 2026-10-28 (#70): make's `frame["poses"] =
   [soma_pose(world) ...]` made `pass` (the run's moved poses kept); soma_pose's `world[:3, 3]` rounded to 2 places;
   make's targets `points=rig["points"]` made `rig["bind"]` (the mesh not handed to the sizing).
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-10-28 (#70's solver): make's
+- its make on the place's cast, 2026-10-28 (#70's solver): make's
   `"calibrated on": CALIBRATED_ON` made `"the rig's standing clip"`.
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-04: left_out_why's climber check dropped
+- its make on the place's cast, 2026-11-04: left_out_why's climber check dropped
   (the climber walks the flat clip through its steps).
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-02: on_card's targets' folders dropped
+- its make on the place's cast, 2026-11-02: on_card's targets' folders dropped
   from its inputs (the machine has no targets).
-- the_make_stands_each_body_on_its_own_ground_under_its_character, 2026-11-06 (every sim body run on a card): ran's
+- its make on the place's cast, 2026-11-06 (every sim body run on a card): ran's
   `os.environ.get(LOCAL) == "1"` made `True` (the run on this PC); on_card's `kind=KIND` dropped (rented as a Blender
-  job); batched's `PER_MACHINE` made 1 (a card a clip); ran_elsewhere's people merge kept the first card's alone;
+  job); batched's `PER_MACHINE` made 1 (a card a clip; the constant made 1: the price's cards); ran_elsewhere's
+  people merge kept the first card's alone;
   card_minutes' high `clips * CLIP_HIGH_MINUTES` made `clips * CLIP_MINUTES` (the high reserved at the likely).
-- a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): output_faults'
+- its casts' make, 2026-10-30 (#70): output_faults'
   `"no bodies" not in` check dropped (the crowd-only cast failed again); no_singles' `cast["characters"]` made `True`.
-- a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails, 2026-10-30 (#70): no_singles'
+- its casts' make, 2026-10-30 (#70): no_singles'
   `or not cast.get("crowd")` dropped (the empty cast passed with the crowd's reason).
 
 Run: .venv/bin/python -m pytest score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py
@@ -147,80 +151,55 @@ def toe_rig():
             "clip_tipped": clip}
 
 
-def test_the_mass_is_stated_else_height_times_bmi():
-    assert sim_body.mass_of({"weight": 64.0}, 1.75) == {"kg": 64.0, "source": "stated weight"}
-    woman = sim_body.mass_of({"height": 1.8, "sex": "female"}, 1.75)
-    assert woman["kg"] == pytest.approx(80.35) and woman["source"] == "estimated" and woman["height from"] == "stated"
-    unknown = sim_body.mass_of({}, 2.0)
-    assert unknown["kg"] == pytest.approx(4 * 24.65) and unknown["sex"] == "not stated"
-    assert unknown["height from"] == "the SOMA body's own standing height"
-
-
-def test_the_model_is_unpacked_only_as_pinned(tmp_path, monkeypatch):
-    wheel = tmp_path / "made" / "model.whl"
-    wheel.parent.mkdir()
-    with zipfile.ZipFile(wheel, "w") as packed:
-        packed.writestr("musclemimic_models/model/body/myofullbody.xml", "<mujoco/>")
-    sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
-    monkeypatch.setattr(sim_body, "HOME", tmp_path / "home")
-    monkeypatch.setattr(sim_body, "MODEL", (wheel.as_uri(), "0" * 64))
-    with pytest.raises(ValueError, match="sha256"):
-        sim_body.fetched()
-    monkeypatch.setattr(sim_body, "MODEL", (wheel.as_uri(), sha))
-    folder = sim_body.fetched()
-    assert (folder / "musclemimic_models/model/body/myofullbody.xml").read_text() == "<mujoco/>"
-
-
 def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0, foot=0.003, foot_push=0.5, residual=(0.6, 0.0, 0.8),
-           moment=(0.0, 0.0, 0.0)):
+           moment=(0.0, 0.0, 0.0), shake=None):
     """A written run of `count` frames: two segments, the ground pushing `push` of `weight`, `foot_push` of it through
-    one foot `foot` m over it, the body `off` degrees about x from the clip on each segment, a residual."""
-    return [{"angles": [[off, 0.0, 0.0], [off, 0.0, 0.0]], "targets": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
-             "torques": [1.0, -3.0], "ground": [0.0, push * weight, 0.0], "lowest": lowest,
-             "feet": {"LeftFoot": [foot, foot_push * weight], "RightFoot": [0.3, 0.01 * weight]},
-             "residual": [*residual, *moment], "reserve": 0.5, "activations": [0.1, 0.4], "forces": [20.0, 300.0],
-             "poses": []} for _ in range(count)]
+    one foot `foot` m over it, the body `off` degrees about x from the clip on each segment, a residual; with `shake`,
+    the clip swinging smoothly about x and the body following it `shake` degrees off every other frame."""
+    run = [{"angles": [[off, 0.0, 0.0], [off, 0.0, 0.0]], "targets": [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]],
+            "torques": [1.0, -3.0], "ground": [0.0, push * weight, 0.0], "lowest": lowest,
+            "feet": {"LeftFoot": [foot, foot_push * weight], "RightFoot": [0.3, 0.01 * weight]},
+            "residual": [*residual, *moment], "reserve": 0.5, "activations": [0.1, 0.4], "forces": [20.0, 300.0],
+            "poses": []} for _ in range(count)]
+    if shake is not None:
+        for number, frame in enumerate(run):
+            wanted = [[30 * np.sin(number / 6), 0.0, 0.0]] * 2
+            frame.update(targets=wanted, angles=[[wanted[0][0] + shake * (-1) ** number, 0.0, 0.0]] * 2)
+    return run
 
 
-def judged(tmp_path, run, turn=3.0, pelvis=1.5, clip="walking"):
+def judged(folder, run, turn=3.0, pelvis=1.5, clip="walking"):
     """The gates on a written run of `clip` whose RRA moved a segment `turn` degrees and the pelvis `pelvis` cm at
-    most."""
+    most: their answers and the run's measures."""
     adjusted = {"largest turn deg": turn, "pelvis cm": [0.5, pelvis]}
     measures = sim_body.measured({"frames": run, "kg": 10.0, "com height": 1.0, "adjusted": adjusted}, 10.0)
-    (tmp_path / sim_body.RECORD).write_text(json.dumps({"bodies": {"one": {"clip": clip, "measures": measures}}}))
-    return {check.name: check.judge(tmp_path, {}, {}).answer for check in sim_body.CHECKS}, measures
+    (folder / sim_body.RECORD).write_text(json.dumps({"bodies": {"one": {"clip": clip, "measures": measures}}}))
+    return {check.name: check.judge(folder, {}, {}).answer for check in sim_body.CHECKS}, measures
 
 
-def test_a_good_run_passes_and_each_gate_fails_its_break(tmp_path):
-    good, measures = judged(tmp_path, frames(40))
-    assert good == {"on floor": checks.PASS, "lands": checks.PASS, "carries": checks.PASS, "follows": checks.PASS,
-                    "residual": checks.PASS, "smooth": checks.PASS}
-    assert (measures["largest torque Nm"], measures["largest residual N"], measures["largest muscle force N"]) == (
-        3.0, 1.0, 300.0)
-    assert measures["frames within residual limits"] == 1.0
-    assert measures["landings"] == 40  # the unloaded right foot is no landing
-    assert judged(tmp_path, frames(40, lowest=-0.05))[0]["on floor"] == checks.FAIL
-    assert judged(tmp_path, frames(40, foot=0.05))[0]["lands"] == checks.FAIL
-    assert judged(tmp_path, frames(40, foot_push=0.0))[0]["lands"] == checks.FAIL
-    assert judged(tmp_path, frames(40, foot_push=0.0), clip="sitting")[0]["lands"] == checks.PASS  # its seat carries
-    assert judged(tmp_path, frames(40, push=0.0, foot_push=0.0), clip="sitting")[0]["lands"] == checks.FAIL
-    assert judged(tmp_path, frames(40, push=0.9))[0]["carries"] == checks.FAIL
-    off, measures = judged(tmp_path, frames(40, off=10.0))
-    assert off["follows"] == checks.FAIL and measures["mean off clip deg"] == pytest.approx(10.0)
-    assert judged(tmp_path, frames(40), turn=6.0)[0]["follows"] == checks.FAIL  # one frame's chest 6 degrees off
-    assert judged(tmp_path, frames(40), pelvis=2.5)[0]["follows"] == checks.FAIL  # one frame's pelvis 2.5 cm off
-    over, measures = judged(tmp_path, frames(40, residual=(0.0, 2.5, 0.0)))  # over 2% of 100 N
-    assert over["residual"] == checks.FAIL and measures["frames within residual limits"] == 0.0
-    assert judged(tmp_path, frames(40, moment=(1.1, 0.0, 0.0)))[0]["residual"] == checks.FAIL  # over 1 N m
-    swing = [[[30 * np.sin(frame / 6), 0.0, 0.0]] * 2 for frame in range(40)]  # the clip's smooth swing about x
-    shaken = frames(40)
-    for frame, (turns, wanted) in enumerate(zip(shaken, swing)):  # the body follows it 1 degree off every other frame
-        turns.update(targets=wanted, angles=[[wanted[0][0] + (-1) ** frame, 0.0, 0.0]] * 2)
-    rough, measures = judged(tmp_path, shaken)
-    assert rough["smooth"] == checks.FAIL and measures["jerk deg"] > measures["clip jerk deg"] > 0
-    for turns in shaken:  # the body moving as its clip does: no rougher
-        turns["angles"] = turns["targets"]
-    assert judged(tmp_path, shaken)[0]["smooth"] == checks.PASS
+PASSED = dict.fromkeys(("on floor", "lands", "carries", "follows", "residual", "smooth"), checks.PASS)
+# (the run, frames(40, ...)'s arguments, judged's arguments, the gates' answers, its measures, its turns rougher than
+# its clip's); the weight 100 N, so the residual's limits 2 N and 1 N m
+GATED = [
+    ("good", {}, {}, PASSED, {"largest torque Nm": 3.0, "largest residual N": 1.0, "largest muscle force N": 300.0,
+                              "frames within residual limits": 1.0, "landings": 40}, False),  # the right foot unloaded
+    ("5 cm into its ground", {"lowest": -0.05}, {}, {"on floor": checks.FAIL}, {}, False),
+    ("its landed foot 5 cm off", {"foot": 0.05}, {}, {"lands": checks.FAIL}, {}, False),
+    ("no foot lands", {"foot_push": 0.0}, {}, {"lands": checks.FAIL}, {}, False),
+    ("sitting, its seat carries", {"foot_push": 0.0}, {"clip": "sitting"}, {"lands": checks.PASS}, {}, False),
+    ("sitting, nothing carries", {"push": 0.0, "foot_push": 0.0}, {"clip": "sitting"}, {"lands": checks.FAIL}, {},
+     False),
+    ("its ground 10% under", {"push": 0.9}, {}, {"carries": checks.FAIL}, {}, False),
+    ("10 degrees off its clip", {"off": 10.0}, {}, {"follows": checks.FAIL}, {"mean off clip deg": pytest.approx(10.0)},
+     False),
+    ("RRA turned a segment 6 degrees", {}, {"turn": 6.0}, {"follows": checks.FAIL}, {}, False),
+    ("RRA moved the pelvis 2.5 cm", {}, {"pelvis": 2.5}, {"follows": checks.FAIL}, {}, False),
+    ("a residual force of 2.5 N", {"residual": (0.0, 2.5, 0.0)}, {}, {"residual": checks.FAIL},
+     {"frames within residual limits": 0.0}, False),
+    ("a residual moment of 1.1 N m", {"moment": (1.1, 0.0, 0.0)}, {}, {"residual": checks.FAIL}, {}, False),
+    ("shaking a degree round its clip's swing", {"shake": 1.0}, {}, {"smooth": checks.FAIL}, {}, True),
+    ("moving as its clip does", {"shake": 0.0}, {}, {"smooth": checks.PASS}, {}, False),
+]
 
 
 def toy_seed(folder):
@@ -235,201 +214,106 @@ def toy_seed(folder):
     stage.Save()
 
 
-def written_run(job):
-    """A written engine run for the job's one person: Hips and LeftFoot each riding a bone 0.1 m up its segment's own
-    frame, one muscle of two points, twenty frames, each with poses moved 0.6 m up (as the run wrote them before #70:
-    the stage must not keep them)."""
-    person = job["people"][0]
-    written = []
-    for _ in range(20):
-        frame = frames(1, weight=person["kg"] * 1.62)[0]
-        frame.update(poses=[[0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0]],
-                     activations=[1.0], forces=[100.0])
-        written.append(frame)
-    entry = {"rides": {"Hips": "pelvis", "LeftFoot": "tibia_l"}, "model": {"kg": person["kg"]},
-             "muscles": ["soleus_l"], "bones": ["pelvis", "tibia_l", "talus_l"], "kg": person["kg"], "com height": 0.5,
-             "frames": written,
-             "adjusted": {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}}
-    bones = np.zeros((20, 3, 7))
-    bones[:, :, 6] = 1.0
-    bones[:, 0, 1], bones[:, 1, 1] = 0.6, 0.1  # each ridden bone 0.1 m up its segment
-    riders = np.zeros((20, 2, 7))
-    riders[:, :, 6] = 1.0
-    riders[:, 0, 1] = 0.5  # the Hips segment 0.5 m up, the LeftFoot at the origin
-    arrays = {"ann/bones": bones, "ann/segments": riders,
-              "ann/paths": np.tile([[0.0, 0.4, 0.0], [0.0, 0.1, 0.0]], (20, 1)).astype(np.float32),
-              "ann/counts": np.full((20, 1), 2, dtype=np.int32)}
-    for bone in entry["bones"]:
-        arrays[f"ann/mesh/{bone}/points"] = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]], dtype=np.float32)
-        arrays[f"ann/mesh/{bone}/faces"] = np.array([[0, 1, 2]], dtype=np.int32)
-    return {"engine": "written", "people": {"ann": entry}}, arrays
-
-
-def test_the_make_stands_each_body_on_its_own_ground_under_its_character(tmp_path, monkeypatch):
+def make_inputs(folder):
+    """The make's inputs under `folder`: the toy rig whose standing clip runs twenty frames, its Hips rising and its
+    shin bent off the bind, Kimodo's own foot contacts beside it (as people-clips-made keeps them), the toy seed; and
+    the model's wheel. Returns (inputs without the cast, the rig, the wheel)."""
     rig = toy_rig()
-    rig["clip_standing"] = np.concatenate([rig["clip_standing"]] * 2)  # twenty frames, as the written run's
-    rig["clip_standing"][:, 1, 1, 3] = np.linspace(0.5, 0.6, 20)  # its Hips rising: a clip that moves
+    rig["clip_standing"] = np.concatenate([rig["clip_standing"]] * 2)
+    rig["clip_standing"][:, 1, 1, 3] = np.linspace(0.5, 0.6, 20)
     bent = np.eye(4)
     bent[1:3, 1:3] = [[np.cos(0.2), -np.sin(0.2)], [np.sin(0.2), np.cos(0.2)]]
-    rig["clip_standing"][:, 2] = rig["clip_standing"][:, 2] @ bent  # its standing shin bent off the bind
-    (tmp_path / "clips").mkdir()
-    np.savez(tmp_path / "clips/rig.npz", **rig)
-    (tmp_path / "clips/motions").mkdir()  # Kimodo's own foot contacts beside the rig, as people-clips-made keeps them
-    np.savez(tmp_path / "clips/motions/standing.npz", foot_contacts=np.ones((20, 6), dtype=bool))
-    corrected = []
-    monkeypatch.setattr(sim_body._body.played, "contacted",
-                        lambda local, names, parents, bind, given: corrected.append(len(given)) or local)
-    toy_seed(tmp_path / "seed")
-    (tmp_path / "cast").mkdir()
-    cast = {"place": "toy", "crowd": {"name": "crowd"}, "characters": [
-        {"name": "ann", "doing": "standing", "at": [1.0, 0.0, 2.0], "turn": 30.0, "weight": 50.0},
-        {"name": "bob", "doing": "flying", "at": [0.0, 0.0, 0.0]},
-        {"name": "cid", "doing": "standing", "at": [50.0, 0.0, 50.0]},
-        {"name": "dee", "doing": "standing", "at": [1.0, 0.0, 2.0],
-         "stairs": {"way": "up", "flight": "stair_1", "to": [1.0, 1.0, 3.0], "rise": 0.2, "run": 0.2}}]}
-    (tmp_path / "cast/cast.json").write_text(json.dumps(cast))
+    rig["clip_standing"][:, 2] = rig["clip_standing"][:, 2] @ bent
+    (folder / "clips/motions").mkdir(parents=True)
+    np.savez(folder / "clips/rig.npz", **rig)
+    np.savez(folder / "clips/motions/standing.npz", foot_contacts=np.ones((20, 6), dtype=bool))
+    toy_seed(folder / "seed")
+    wheel = folder / "wheel" / "model.whl"
+    wheel.parent.mkdir()
+    with zipfile.ZipFile(wheel, "w") as packed:
+        packed.writestr("musclemimic_models/model/body/myofullbody.xml", "<mujoco/>")
+    return {sim_body.CLIPS_ROW: str(folder / "clips"), "seed": str(folder / "seed")}, rig, wheel
 
-    def written(job, out):
-        job = json.loads(job.read_text())
-        assert [person["name"] for person in job["people"]] == ["ann"]
-        person = job["people"][0]
-        assert person["segments"] == ["Hips", "LeftFoot"] and person["kg"] == 50.0 and job["model"] == "fetched"
-        assert job["adjust"]["follows deg"] == sim_body.FOLLOWED and job["residual"]["force"] == 0.02
-        assert "standing" not in person  # the calibration is the static table (#70), no clip of the rig
-        ground = np.load(person["targets"])["ground"]
-        assert np.load(person["targets"])["points"] == pytest.approx(rig["points"])  # the mesh the sizing reads
-        assert ground[:, :, 1] == pytest.approx(0.1)
-        # the square's corner (3, 5) is (2, 3) from ann's spot: turned back her 30 degrees and the dressed body's
-        # Turned 180 about up, (-0.232, -3.598) (without the Turned: (0.232, 3.598), the ground mirrored)
-        assert np.abs(ground.reshape(-1, 3)[:, [0, 2]] - [1.5 - 2 * np.cos(np.pi / 6), -1 - 3 * np.cos(np.pi / 6)]).sum(
-            axis=1).min() == pytest.approx(0.0, abs=1e-5)
-        return written_run(job)
 
-    monkeypatch.setattr(sim_body, "ran", written)
-    monkeypatch.setattr(sim_body, "fetched", lambda: "fetched")
-    monkeypatch.setattr(sim_body, "gravity_of", lambda place, inputs: ("moon", 1.62))
-    out = tmp_path / "out"
-    out.mkdir()
-    sim_body.make({"cast": str(tmp_path / "cast"), sim_body.CLIPS_ROW: str(tmp_path / "clips"),
-                   "seed": str(tmp_path / "seed")}, out, 0, {})
-    record = json.loads((out / sim_body.RECORD).read_text())
-    assert corrected == [20]  # the one build's standing clip given Kimodo's correction on its contacts
-    ann = record["bodies"]["ann"]
-    assert ann["measures"]["weight N"] == pytest.approx(81.0) and ann["segments"] == {"Hips": "pelvis",
-                                                                                      "LeftFoot": "tibia_l"}
-    assert ann["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}
-    assert ann["calibrated on"] == sim_body.CALIBRATED_ON
-    assert [line.split(":")[0] for line in record["left out"]] == ["bob", "cid", "dee", "crowd"]
-    assert "no scene-made clip up its stairs (stair_1)" in record["left out"][2]  # a climber never walks flat
-    assert record["bodies"]["ann"]["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}
-    assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
-    monkeypatch.undo()  # the real ran again
-    held = []  # the run goes to rented cards of kind sim-body, its clips batched, its files at their paths
+def written_run(job):
+    """A written engine run for each of the job's people: Hips and LeftFoot each riding a bone 0.1 m up its segment's
+    own frame, one muscle of two points, twenty frames, each with poses moved 0.6 m up (as the run wrote them before
+    #70: the stage must not keep them)."""
+    people, arrays = {}, {}
+    for person in job["people"]:
+        name = person["name"]
+        written = []
+        for _ in range(20):
+            frame = frames(1, weight=person["kg"] * 1.62)[0]
+            frame.update(poses=[[0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0], [0.0, 0.6, 0.0, 0.0, 0.0, 0.0, 1.0]],
+                         activations=[1.0], forces=[100.0])
+            written.append(frame)
+        people[name] = {"rides": {"Hips": "pelvis", "LeftFoot": "tibia_l"}, "model": {"kg": person["kg"]},
+                        "muscles": ["soleus_l"], "bones": ["pelvis", "tibia_l", "talus_l"], "kg": person["kg"],
+                        "com height": 0.5, "frames": written,
+                        "adjusted": {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}}
+        bones = np.zeros((20, 3, 7))
+        bones[:, :, 6] = 1.0
+        bones[:, 0, 1], bones[:, 1, 1] = 0.6, 0.1  # each ridden bone 0.1 m up its segment
+        riders = np.zeros((20, 2, 7))
+        riders[:, :, 6] = 1.0
+        riders[:, 0, 1] = 0.5  # the Hips segment 0.5 m up, the LeftFoot at the origin
+        arrays.update({f"{name}/bones": bones, f"{name}/segments": riders,
+                       f"{name}/paths": np.tile([[0.0, 0.4, 0.0], [0.0, 0.1, 0.0]], (20, 1)).astype(np.float32),
+                       f"{name}/counts": np.full((20, 1), 2, dtype=np.int32)})
+        for bone in people[name]["bones"]:
+            arrays[f"{name}/mesh/{bone}/points"] = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0]], dtype=np.float32)
+            arrays[f"{name}/mesh/{bone}/faces"] = np.array([[0, 1, 2]], dtype=np.int32)
+    return {"engine": "rented", "rate": 30, "people": people}, arrays
 
+
+def rented(seen):
+    """blender_cloud's machine path stood in: each card hired is kept in seen["hired"] (its classes, minutes, kind),
+    each job run on one in seen["ran"] (script, arguments, inputs, outputs, env, the job, its people's targets read),
+    its run written by written_run."""
     class Machine:
         def __init__(self, classes, who, minutes, kind):
-            held.append((classes, minutes, kind))
+            seen["hired"].append((classes, minutes, kind))
 
         def __enter__(self):
             return self
 
         def run(self, script, arguments, inputs, outputs, minutes, env):
-            names = [person["name"] for person in json.loads(arguments[0].read_text())["people"]]
-            held.append((script, arguments, inputs, outputs, env, names))
-            json.dump({"engine": "rented", "rate": 30, "people": {name: {"of": name} for name in names}},
-                      outputs[0].open("w"))
-            np.savez(outputs[1], **{f"{name}_bones": np.ones(1) for name in names})
+            job = json.loads(arguments[0].read_text())
+            seen["ran"].append((script, arguments, inputs, outputs, env, job,
+                                {person["name"]: dict(np.load(person["targets"])) for person in job["people"]}))
+            found, arrays = written_run(job)
+            outputs[0].write_text(json.dumps(found))
+            np.savez(outputs[1], **arrays)
 
         def __exit__(self, *_):
             pass
-    monkeypatch.setattr(sim_body.subprocess, "run", lambda *_, **__: pytest.fail("ran on this PC"))
-    monkeypatch.setattr("score.adapters.engines.machine_runner",
-                        lambda: types.SimpleNamespace(Machine=Machine, SETUP_MINUTES=8))
-    monkeypatch.setattr(sim_body, "PER_MACHINE", 2)  # three clips: two on one card, one on another
-    job = tmp_path / "job.json"
-    job.write_text(json.dumps({"model": "/models/88b0", "rate": 30, "people": [
-        {"name": name, "targets": str(tmp_path / f"clips/{name}.npz")} for name in ("ann", "bob", "cid")]}))
-    found, arrays = sim_body.ran(job, tmp_path / "run.json")
-    assert found == {"engine": "rented", "rate": 30, "people": {"ann": {"of": "ann"}, "bob": {"of": "bob"},
-                                                                "cid": {"of": "cid"}}}
-    assert sorted(arrays) == ["ann_bones", "bob_bones", "cid_bones"]
-    cards = sorted((entry for entry in held if len(entry) == 6), key=lambda entry: entry[5])
-    assert [entry[5] for entry in cards] == [["ann", "bob"], ["cid"]]
-    assert sorted(entry for entry in held if len(entry) == 3) == [
-        (list(sim_body.CLASSES), sim_body.card_minutes(1)[1], "sim-body"),
-        (list(sim_body.CLASSES), sim_body.card_minutes(2)[1], "sim-body")]
-    first = tmp_path / "job-0.json"
-    assert cards[0][:5] == (sim_body.REPO / sim_body.INSIDE, [first, tmp_path / "run-0.json"],
-                            [first, tmp_path / "clips", "/models/88b0"],
-                            [tmp_path / "run-0.json", tmp_path / "run-0.npz"], sim_body.REPO / sim_body.ENV_SCRIPT)
-    assert sorted(path.name for path in tmp_path.glob("*-[0-9].*")) == []  # the parts gone, one run left
-    # priced from measured minutes: the row's estimate is seven clips' high on one card, no clip is free, and the
-    # forecast reads its cast's singles
-    monkeypatch.undo()
-    from score.adapters import engines
-    engines.machine_runner()  # tools/cloud on the path: the kind's classes are capacity's, an L4 first, parked clean
-    import capacity
-    import park
-    assert capacity.order_for(sim_body.KIND)[0] == sim_body.CLASSES[0] == "gpu-24gb"
-    assert set(sim_body.CLASSES) <= set(capacity.classes_for(sim_body.KIND)) and sim_body.KIND in park.CLEANUPS
-    assert park.CLEANUPS[sim_body.KIND]({"paths": {"/home/x/job.json", "/root/lib/envs"}}) == "rm -rf /home/x/job.json"
-    assert sim_body.priced(7)["euros"] == sim_body.EUROS and sim_body.priced(7)["cards"] == 1
-    assert sim_body.priced(0)["euros"] == 0.0
-    assert sim_body.priced(sim_body.PER_MACHINE + 1)["cards"] == 2
-    assert sim_body.forecast({"cast": str(tmp_path / "cast")}) == sim_body.priced(4)
-    stage = Usd.Stage.Open(str(out / sim_body.LAYER))
-    root = "/toy/Characters/ann/SimBody"
-    cache = UsdGeom.XformCache(5)
-    bone = stage.GetPrimAtPath(f"{root}/LeftFoot/bone_tibia_l")
-    first = UsdGeom.Mesh(bone).GetPointsAttr().Get()[0]
-    assert cache.GetLocalToWorldTransform(bone).Transform(Gf.Vec3d(first))[1] == pytest.approx(0.1)  # 0.1 m up it
-    assert stage.GetPrimAtPath(f"{root}/Bones/bone_talus_l/bone_talus_l").IsA(UsdGeom.Mesh)
-    muscles = UsdGeom.BasisCurves(stage.GetPrimAtPath(f"{root}/Muscles"))
-    assert list(muscles.GetCurveVertexCountsAttr().Get(5)) == [2]
-    assert tuple(UsdGeom.PrimvarsAPI(muscles).GetPrimvar("displayColor").Get(5)[0]) == pytest.approx(
-        sim_body.ACTIVE, abs=1e-6)
-    # SOMA's joints leave the stage unchanged: every frame's poses are the clip's own segment frames as the stage
-    # plays it (person_rig: its standing feet stood on its floor), bit for bit
-    from scipy.spatial.transform import Rotation
-    clip = sim_body.clip_frames(sim_body.person_rig(rig, None)[0], "standing", [1, 2])
-    measures = json.loads((out / "measures/ann.json").read_text())
-    for frame, worlds in zip(measures, clip):
-        for pose, world in zip(frame["poses"], worlds):
-            assert pose[:3] == list(world[:3, 3]) and Rotation.from_quat(pose[3:]).as_matrix() == pytest.approx(
-                world[:3, :3], abs=1e-12)
-    assert len(measures) == len(clip) == 20
-    assert sim_body.output_faults(out) == []
+    return types.SimpleNamespace(Machine=Machine, SETUP_MINUTES=8)
 
 
-def made_on(tmp_path, monkeypatch, cast):
-    """The make on the toy rig and seed for a cast, no engine run allowed; its output folder."""
-    tmp_path.mkdir()
-    np.savez(tmp_path / "rig.npz", **toy_rig())
-    toy_seed(tmp_path / "seed")
-    (tmp_path / "cast").mkdir()
-    (tmp_path / "cast/cast.json").write_text(json.dumps({"place": "toy", **cast}))
-    monkeypatch.setattr(sim_body, "ran", lambda job, out: pytest.fail("no body to run"))
-    monkeypatch.setattr(sim_body, "gravity_of", lambda place, inputs: ("moon", 1.62))
-    out = tmp_path / "out"
-    out.mkdir()
-    sim_body.make({"cast": str(tmp_path / "cast"), sim_body.CLIPS_ROW: str(tmp_path),
-                   "seed": str(tmp_path / "seed")}, out, 0, {})
-    return out
-
-
-def test_a_cast_of_no_singles_passes_with_its_reason_and_a_missing_clip_fails(tmp_path, monkeypatch):
-    out = made_on(tmp_path / "crowd", monkeypatch, {"crowd": {"name": "crowd"}, "characters": []})
-    record = json.loads((out / sim_body.RECORD).read_text())
-    assert record["bodies"] == {} and record["no bodies"] == sim_body.NO_SINGLES
-    assert sim_body.output_faults(out) == []
-    assert all(check.judge(out, {}, {}).answer == checks.PASS for check in sim_body.CHECKS)
-    lacking = {"characters": [{"name": "bob", "doing": "flying", "at": [0, 0, 0]}]}
-    out = made_on(tmp_path / "lacking", monkeypatch, lacking)
-    assert "no bodies" not in json.loads((out / sim_body.RECORD).read_text())
-    assert sim_body.output_faults(out) == ["no sim body: the cast names no character whose clip the rig holds"]
-    out = made_on(tmp_path / "empty", monkeypatch, {"characters": []})
-    assert "no bodies" not in json.loads((out / sim_body.RECORD).read_text())
-    assert sim_body.output_faults(out) == [sim_body.EMPTY_CAST] == ["empty cast: no single characters and no crowd"]
+SINGLES = [{"name": "ann", "doing": "standing", "at": [1.0, 0.0, 2.0], "turn": 30.0, "weight": 50.0},
+           {"name": "bob", "doing": "flying", "at": [0.0, 0.0, 0.0]},  # a clip the rig lacks
+           {"name": "cid", "doing": "standing", "at": [50.0, 0.0, 50.0]},  # no solid near
+           {"name": "dee", "doing": "standing", "at": [1.0, 0.0, 2.0],  # a climber with no scene-made clip
+            "stairs": {"way": "up", "flight": "stair_1", "to": [1.0, 1.0, 3.0], "rise": 0.2, "run": 0.2}},
+           {"name": "eve", "doing": "standing", "at": [0.0, 0.0, 1.0], "height": 1.8, "sex": "female"},
+           {"name": "fay", "doing": "standing", "at": [2.0, 0.0, 4.0]}]
+CROWD = {"name": "crowd"}
+LACKING = "no sim body: the cast names no character whose clip the rig holds"
+# (the cast, its crowd and singles, its model pinned at the wheel's own sha256, the error the make raises, its bodies,
+# the names it leaves out, its record's `no bodies`, its output's faults, the people on each rented card, the gates'
+# answers where judged: the place's written runs carry a fixed 1 N residual, over fay's 2%)
+CASTS = [
+    ("the place's", {"crowd": CROWD, "characters": SINGLES}, True, "", ["ann", "eve", "fay"],
+     ["bob", "cid", "dee", "crowd"], None, [], [["ann", "eve"], ["fay"]], None),
+    ("the place's, its model not as pinned", {"crowd": CROWD, "characters": SINGLES}, False, "sha256", [], [], None,
+     [], [], None),
+    ("a crowd and no singles", {"crowd": CROWD, "characters": []}, True, "", [], ["crowd"], sim_body.NO_SINGLES, [],
+     [], PASSED),
+    ("a single whose clip the rig lacks", {"characters": SINGLES[1:2]}, True, "", [], ["bob"], None, [LACKING], [],
+     None),
+    ("empty", {"characters": []}, True, "", [], [], None, ["empty cast: no single characters and no crowd"], [], None),
+]
 
 
 def near(want, tol=None):
@@ -516,9 +400,10 @@ PLAYED = [
 
 
 def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path, monkeypatch):
-    """Every clip played on its rig: each row's segment (an end site read through the segment carrying it) or foot
-    skin within its bounds on every frame; the build's size, and Kimodo's correction run on the floating clip alone,
-    handed it stood, its toes then lifted, the toe base never moved."""
+    """Every clip played on its rig, each row's segment or foot skin within its bounds on every frame; every written
+    run judged by the gates as its row says; the make run on each cast through the real run's rented cards: who gets a
+    body and who is left out by name, each body weighed, stood on its own ground, calibrated, its run on its card, its
+    layer written and its SOMA poses kept bit for bit; the price of the clips."""
     handed, lifted = [], []
 
     def contacted(local, names, parents, bind, given):
@@ -532,7 +417,8 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     toes_lifted = sim_body._body.toes_lifted
     monkeypatch.setattr(sim_body._body, "toes_lifted",
                         lambda rig, local: lifted.append(local) or toes_lifted(rig, local))
-    worlds, made = clip_worlds(tmp_path)
+    (tmp_path / "played").mkdir()
+    worlds, made = clip_worlds(tmp_path / "played")
     assert sim_body.segments_of(toy_rig()) == ([1, 2], [1, 1, 2, 1, 2])
     assert made["built"] == pytest.approx(1.1) and sim_body.standing_height(worlds["built"]) == pytest.approx(1.1)
     assert made["shorter"] == 1.0 and np.asarray(worlds["shorter"]["bind"]) == pytest.approx(made["short"]["bind"])
@@ -554,3 +440,130 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             segment = kept.index(carriers[[str(name) for name in rig["names"]].index(what)])
             got = sim_body.clip_frames(rig, clip, kept)[:, segment, :3, 3][:, axis]
         assert np.all((low <= got) & (got <= high)), f"{world} {clip} {what}: {got} not within {low}..{high}"
+
+    (tmp_path / "judged").mkdir()
+    for name, run, judging, answers, wanted, rougher in GATED:
+        got, measures = judged(tmp_path / "judged", frames(40, **run), **judging)
+        assert {gate: got[gate] for gate in answers} == answers, name
+        assert {key: measures[key] for key in wanted} == wanted, name
+        assert (measures["jerk deg"] > measures["clip jerk deg"] > 0) == rougher, name
+
+    inputs, rig, wheel = make_inputs(tmp_path / "inputs")
+    sha = hashlib.sha256(wheel.read_bytes()).hexdigest()
+    monkeypatch.setattr(sim_body, "HOME", tmp_path / "home")
+    monkeypatch.setattr(sim_body, "gravity_of", lambda place, inputs: ("moon", 1.62))
+    monkeypatch.setattr(sim_body, "PER_MACHINE", 2)  # three clips: two on one card, one on another
+    monkeypatch.delenv(sim_body.LOCAL, raising=False)
+    monkeypatch.setattr(sim_body.subprocess, "run", lambda *_, **__: pytest.fail("ran on this PC"))
+    outs = {}
+    for name, cast, pinned, error, bodies, left, reason, faults, cards, gates in CASTS:
+        folder = tmp_path / "made" / name
+        (folder / "cast").mkdir(parents=True)
+        (folder / "cast/cast.json").write_text(json.dumps({"place": "toy", **cast}))
+        monkeypatch.setattr(sim_body, "MODEL", (wheel.as_uri(), sha if pinned else "0" * 64))
+        seen = {"hired": [], "ran": []}
+        monkeypatch.setattr("score.adapters.engines.machine_runner", lambda seen=seen: rented(seen))
+        (folder / "out").mkdir()
+        try:
+            sim_body.make({**inputs, "cast": str(folder / "cast")}, folder / "out", 0, {})
+            raised = ""
+        except ValueError as fault:
+            raised = str(fault)
+        assert bool(raised) == bool(error) and error in raised, f"{name}: raised {raised!r}"
+        if raised:
+            continue
+        record = json.loads((folder / "out" / sim_body.RECORD).read_text())
+        assert sorted(record["bodies"]) == bodies, name
+        assert [line.split(":")[0] for line in record["left out"]] == left, name
+        assert record.get("no bodies") == reason and sim_body.output_faults(folder / "out") == faults, name
+        assert sorted(sorted(person["name"] for person in job["people"]) for *_, job, _ in seen["ran"]) == cards, name
+        if gates:
+            assert {check.name: check.judge(folder / "out", {}, {}).answer for check in sim_body.CHECKS} == gates, name
+        outs[name] = folder / "out", record, seen
+    out, record, seen = outs["the place's"]
+
+    # the run: on rented cards of kind sim-body, its clips batched, its files at their paths, its parts gone
+    # each make with a body has its one build's standing clip given Kimodo's correction (the place's cast's, then its
+    # unpinned model's before the model stops it); a cast with no body plays none
+    assert [count for _, count in handed] == [30, 20, 20]
+    assert sorted(seen["hired"]) == [(list(sim_body.CLASSES), sim_body.card_minutes(1)[1], "sim-body"),
+                                     (list(sim_body.CLASSES), sim_body.card_minutes(2)[1], "sim-body")]
+    ran = sorted(seen["ran"], key=lambda card: card[5]["people"][0]["name"])
+    model = sim_body.HOME / "models" / sha[:16]
+    for number, (script, arguments, given, outputs, env, job, targets) in enumerate(ran):
+        part = out / f"job-{number}.json"
+        assert (script, arguments, given, outputs, env) == (
+            sim_body.REPO / sim_body.INSIDE, [part, out / f"run-{number}.json"], [part, out / "clips", str(model)],
+            [out / f"run-{number}.json", out / f"run-{number}.npz"], sim_body.REPO / sim_body.ENV_SCRIPT)
+        assert job["model"] == str(model) and job["adjust"]["follows deg"] == sim_body.FOLLOWED
+        assert job["residual"]["force"] == 0.02
+        for person in job["people"]:
+            assert person["segments"] == ["Hips", "LeftFoot"] and "standing" not in person  # the static table (#70)
+            assert targets[person["name"]]["points"] == pytest.approx(rig["points"])  # the mesh the sizing reads
+            assert targets[person["name"]]["ground"][:, :, 1] == pytest.approx(0.1)
+    assert (model / "musclemimic_models/model/body/myofullbody.xml").read_text() == "<mujoco/>"
+    assert sorted(path.name for path in out.glob("*-[0-9].*")) == []
+    # the square's corner (3, 5) is (2, 3) from ann's spot: turned back her 30 degrees and the dressed body's Turned
+    # 180 about up, (-0.232, -3.598) (without the Turned: (0.232, 3.598), the ground mirrored)
+    ground = ran[0][6]["ann"]["ground"]
+    assert np.abs(ground.reshape(-1, 3)[:, [0, 2]] - [1.5 - 2 * np.cos(np.pi / 6), -1 - 3 * np.cos(np.pi / 6)]).sum(
+        axis=1).min() == pytest.approx(0.0, abs=1e-5)
+
+    # the record: each body weighed (stated, else its height squared times its sex's BMI, else the mean of both at
+    # the SOMA body's height) under the scene's gravity, on its ground, calibrated, adjusted; the model attributed
+    assert record["engine"] == "rented" and ran[0][5]["people"][0]["kg"] == 50.0
+    assert {name: body["mass"] for name, body in record["bodies"].items()} == {
+        "ann": {"kg": 50.0, "source": "stated weight"},
+        "eve": {"kg": pytest.approx(80.35), "source": "estimated", "height": 1.8, "height from": "stated",
+                "sex": "female", "bmi": 24.8},
+        "fay": {"kg": pytest.approx(24.65), "source": "estimated", "height": 1.0,
+                "height from": "the SOMA body's own standing height", "sex": "not stated", "bmi": 24.65}}
+    for name, body in record["bodies"].items():
+        assert body["measures"]["weight N"] == round(body["mass"]["kg"] * 1.62, 2), name
+        assert body["segments"] == {"Hips": "pelvis", "LeftFoot": "tibia_l"}, name
+        assert body["ground"] == {"solids": ["Ground/Ground"], "triangles": 2}, name
+        assert body["calibrated on"] == sim_body.CALIBRATED_ON, name
+        assert body["adjusted"] == {"pelvis cm": [0.5, 1.2], "largest turn deg": 3.0, "mass %": -1.0}, name
+    assert record["bodies"]["ann"]["measures"]["weight N"] == pytest.approx(81.0)
+    assert "no scene-made clip up its stairs (stair_1)" in record["left out"][2]  # a climber never walks flat
+    assert "Holzbaur" in record["model"]["attribution"] and "Apache-2.0" in record["model"]["attribution"]
+
+    # the layer: each segment an Xform holding the bone it rides, another bone under Bones, the muscles coloured by
+    # activation; SOMA's joints leave the stage unchanged: every frame's poses the clip's own segment frames as the
+    # stage plays it (person_rig, Kimodo's correction given), bit for bit
+    from scipy.spatial.transform import Rotation
+    stage = Usd.Stage.Open(str(out / sim_body.LAYER))
+    cache = UsdGeom.XformCache(5)
+    contacts = sim_body.contacts_of(inputs[sim_body.CLIPS_ROW], rig)
+    clip = sim_body.clip_frames(sim_body.person_rig(rig, None, contacts)[0], "standing", [1, 2])
+    for name in record["bodies"]:
+        root = f"/toy/Characters/{name}/SimBody"
+        bone = stage.GetPrimAtPath(f"{root}/LeftFoot/bone_tibia_l")
+        first = UsdGeom.Mesh(bone).GetPointsAttr().Get()[0]
+        assert cache.GetLocalToWorldTransform(bone).Transform(Gf.Vec3d(first))[1] == pytest.approx(0.1), name
+        assert stage.GetPrimAtPath(f"{root}/Bones/bone_talus_l/bone_talus_l").IsA(UsdGeom.Mesh), name
+        muscles = UsdGeom.BasisCurves(stage.GetPrimAtPath(f"{root}/Muscles"))
+        assert list(muscles.GetCurveVertexCountsAttr().Get(5)) == [2], name
+        assert tuple(UsdGeom.PrimvarsAPI(muscles).GetPrimvar("displayColor").Get(5)[0]) == pytest.approx(
+            sim_body.ACTIVE, abs=1e-6), name
+        measures = json.loads((out / f"measures/{name}.json").read_text())
+        assert len(measures) == len(clip) == 20, name
+        for frame, segments in zip(measures, clip):
+            for pose, world in zip(frame["poses"], segments):
+                assert pose[:3] == list(world[:3, 3]) and Rotation.from_quat(pose[3:]).as_matrix() == pytest.approx(
+                    world[:3, :3], abs=1e-12), name
+
+    # priced from measured minutes: seven clips' high on one card, no clip free, the forecast its cast's singles; the
+    # kind's classes capacity's, an L4 first, parked clean
+    monkeypatch.undo()
+    from score.adapters import engines
+    engines.machine_runner()  # tools/cloud on the path
+    import capacity
+    import park
+    assert capacity.order_for(sim_body.KIND)[0] == sim_body.CLASSES[0] == "gpu-24gb"
+    assert set(sim_body.CLASSES) <= set(capacity.classes_for(sim_body.KIND)) and sim_body.KIND in park.CLEANUPS
+    assert park.CLEANUPS[sim_body.KIND]({"paths": {"/home/x/job.json", "/root/lib/envs"}}) == "rm -rf /home/x/job.json"
+    assert sim_body.priced(7)["euros"] == sim_body.EUROS and sim_body.priced(7)["cards"] == 1
+    assert sim_body.priced(0)["euros"] == 0.0
+    assert sim_body.priced(sim_body.PER_MACHINE + 1)["cards"] == 2
+    assert sim_body.forecast({"cast": str(tmp_path / "made/the place's/cast")}) == sim_body.priced(len(SINGLES))
