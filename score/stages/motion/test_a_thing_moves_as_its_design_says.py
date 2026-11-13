@@ -15,12 +15,14 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/motion/test
 import copy
 import json
 import pathlib
+import re
 import shutil
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
 
 import numpy as np  # noqa: E402
+import pytest  # noqa: E402
 from pxr import Gf, Sdf, Usd, UsdGeom  # noqa: E402
 
 from score import checks  # noqa: E402
@@ -895,57 +897,19 @@ def motion_layer(output):
     return Sdf.Layer.FindOrOpen(str(pathlib.Path(output) / "layers/motion.usda"))
 
 
-def test_the_check_passes_a_true_motion(tmp_path):
-    """The cart round its path, the door swung 90 degrees on its hinge and the hatch slid down pass follows, steps,
-    moving area and clear.
-    Break: score/stages/motion/check.py: `if abs(reached - wanted) > ANGLE_MOST:` -> `if abs(reached - wanted) >= 0:`"""
-    seed, out = checked_place(tmp_path)
-    found = {name: judged(out, seed, RECORD, name) for name in ("follows", "steps", "moving area", "clear")}
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items()}
-
-
-def test_follows_fails_a_move_off_its_record(tmp_path):
-    """The cart judged against a path its layer does not drive (its third corner moved to (4, 4)) is off its curve;
-    the door judged against a 60 degree swing it does not make swings 90.
-    Break: score/stages/motion/check.py: `faults.append(f"{name}: {off.max():.2f} m off its path's curve at its frame
-        {int(off.argmax())}")` -> `pass`
-    Break: score/stages/motion/check.py: `if abs(reached - wanted) > ANGLE_MOST:` -> `if False:`"""
-    seed, out = checked_place(tmp_path)
-    elsewhere = copy.deepcopy(RECORD)
-    elsewhere["moves"][0]["path"]["points"][2] = [4.0, 4.0]
-    verdict = judged(out, seed, elsewhere, "follows")
-    assert verdict.answer == checks.FAIL and any("off its path's curve" in line for line in verdict.findings), verdict
-    wider = copy.deepcopy(RECORD)
-    wider["moves"][1]["swing"]["angle"] = 60.0
-    verdict = judged(out, seed, wider, "follows")
-    assert verdict.answer == checks.FAIL and any("swings 90.0 degrees, its record 60.0" in line
-                                                 for line in verdict.findings), verdict
-
-
-def test_steps_fails_a_frame_thrown_aside(tmp_path):
-    """One frame of the cart's drive thrown 2 m aside is a jump of the cart.
-    Break: score/stages/motion/check.py: `return np.flatnonzero(steps > most)` -> `return np.array([], dtype=int)`"""
-    seed, out = checked_place(tmp_path)
-    layer = motion_layer(out)
+def a_frame_thrown_aside(output):
+    """One frame of the cart's drive thrown 2 m aside in the layer."""
+    layer = motion_layer(output)
     moved = layer.GetAttributeAtPath(f"/{PLACE}/Objects/cart_1.xformOp:translate:path")
     code = sorted(layer.ListTimeSamplesForPath(moved.path))[40]
     spot = layer.QueryTimeSample(moved.path, code)
     layer.SetTimeSample(moved.path, code, Gf.Vec3d(spot[0] + 2.0, spot[1], spot[2]))
     layer.Save()
-    verdict = judged(out, seed, RECORD, "steps")
-    assert verdict.answer == checks.FAIL and any(line.startswith("cart_round: jumps") for line in verdict.findings), \
-        verdict
 
 
-def test_moving_area_fails_a_stray_mover_and_a_named_one_standing_still(tmp_path):
-    """A crate the layer moves that no record names, and the door's turn taken out of the layer, each fail by name.
-    Break: score/stages/motion/check.py: `stray = [path for path in varying_prims(stage, place, scopes) if not
-        under_any(path, named)]` -> `stray = []`
-    Break: score/stages/motion/check.py: `still = [path for path in named if frame_steps(shapes[path], codes).sum() <=
-        STILL_MOST]` -> `still = []`"""
-    seed, out = checked_place(tmp_path)
-    layer = motion_layer(out)
+def a_stray_crate_and_a_still_door(output):
+    """The layer moves the crate, which no record names, and the door's turn is taken out of it."""
+    layer = motion_layer(output)
     crate = Sdf.CreatePrimInLayer(layer, f"/{PLACE}/Objects/crate_1")
     crate.specifier = Sdf.SpecifierOver
     shift = Sdf.AttributeSpec(crate, "xformOp:translate", Sdf.ValueTypeNames.Double3)
@@ -955,18 +919,59 @@ def test_moving_area_fails_a_stray_mover_and_a_named_one_standing_still(tmp_path
     for sample in layer.ListTimeSamplesForPath(swung.path):
         layer.EraseTimeSample(swung.path, sample)
     layer.Save()
-    verdict = judged(out, seed, RECORD, "moving area")
-    assert verdict.answer == checks.FAIL, verdict
-    assert f"/{PLACE}/Objects/crate_1: moves, yet no record moves it" in verdict.findings, verdict
-    assert f"/{PLACE}/Objects/door_1: its record moves it, yet it stands still in the stage" in verdict.findings
 
 
-def test_clear_fails_a_path_laid_through_the_wall(tmp_path):
-    """The cart's path laid out to x = 9 runs through the wall at x = 8: clear fails naming the wall.
+def recorded(change):
+    """RECORD with `change` applied to a deep copy of it."""
+    record = copy.deepcopy(RECORD)
+    change(record)
+    return record
+
+
+# The cart's path laid out to x = 9, through the wall at x = 8.
+THROUGH = recorded(lambda record: record["moves"][0]["path"].update(points=[[0, 0], [9, 0], [9, 3], [0, 3]]))
+
+# Each case: the record its layer is written from, the record it is judged against, an edit made to the written layer,
+# the gates judged, their answer, and patterns each matching some finding line of every failing gate.
+CHECK_CASES = [
+    ("a true motion", RECORD, RECORD, None, ("follows", "steps", "moving area", "clear"), checks.PASS, ()),
+    ("the cart judged against a path its layer does not drive", RECORD,
+     recorded(lambda record: record["moves"][0]["path"]["points"].__setitem__(2, [4.0, 4.0])), None, ("follows",),
+     checks.FAIL, (r"off its path's curve",)),
+    ("the door judged against a 60 degree swing it does not make", RECORD,
+     recorded(lambda record: record["moves"][1]["swing"].update(angle=60.0)), None, ("follows",), checks.FAIL,
+     (r"swings 90\.0 degrees, its record 60\.0",)),
+    ("a frame of the cart thrown 2 m aside", RECORD, RECORD, a_frame_thrown_aside, ("steps",), checks.FAIL,
+     (r"^cart_round: jumps",)),
+    ("a stray crate moving and the door standing still", RECORD, RECORD, a_stray_crate_and_a_still_door,
+     ("moving area",), checks.FAIL, (rf"^/{PLACE}/Objects/crate_1: moves, yet no record moves it$",
+                                     rf"^/{PLACE}/Objects/door_1: its record moves it, yet it stands still in the stage$")),
+    ("the cart's path laid through the wall", THROUGH, THROUGH, None, ("clear",), checks.FAIL, (r"Structure/wall",)),
+]
+
+
+@pytest.mark.parametrize("case", CHECK_CASES, ids=[case[0] for case in CHECK_CASES])
+def test_a_thing_moves_as_its_design_says(tmp_path, case):
+    """The motion check (check.py, #23) holds every move to its record: on the checked place, the cart driven round
+    its path, the door swung 90 degrees on its hinge and the hatch slid down pass follows, steps, moving area and
+    clear; each known fault, written into the record the gate reads or into the layer, fails its gate by name.
+    Break: score/stages/motion/check.py: `if abs(reached - wanted) > ANGLE_MOST:` -> `if abs(reached - wanted) >= 0:`
+    Break: score/stages/motion/check.py: `faults.append(f"{name}: {off.max():.2f} m off its path's curve at its frame
+        {int(off.argmax())}")` -> `pass`
+    Break: score/stages/motion/check.py: `if abs(reached - wanted) > ANGLE_MOST:` -> `if False:`
+    Break: score/stages/motion/check.py: `return np.flatnonzero(steps > most)` -> `return np.array([], dtype=int)`
+    Break: score/stages/motion/check.py: `stray = [path for path in varying_prims(stage, place, scopes) if not
+        under_any(path, named)]` -> `stray = []`
+    Break: score/stages/motion/check.py: `still = [path for path in named if frame_steps(shapes[path], codes).sum() <=
+        STILL_MOST]` -> `still = []`
     Break: score/stages/motion/__init__.py: `faults.append((path, f"{path}: reaches {worst:.2f} m into {where[0]} at
         {where[1] / rate:.2f} s"))` -> `pass`"""
-    through = copy.deepcopy(RECORD)
-    through["moves"][0]["path"]["points"] = [[0, 0], [9, 0], [9, 3], [0, 3]]
-    seed, out = checked_place(tmp_path, through)
-    verdict = judged(out, seed, through, "clear")
-    assert verdict.answer == checks.FAIL and any("Structure/wall" in line for line in verdict.findings), verdict
+    name, laid, against, edit, gates, answer, patterns = case
+    seed, out = checked_place(tmp_path, laid)
+    if edit:
+        edit(out)
+    for gate in gates:
+        verdict = judged(out, seed, against, gate)
+        assert verdict.answer == answer, (name, gate, verdict.reason, verdict.findings)
+        unmatched = [pattern for pattern in patterns if not any(re.search(pattern, line) for line in verdict.findings)]
+        assert unmatched == [], (name, gate, unmatched, verdict.findings)
