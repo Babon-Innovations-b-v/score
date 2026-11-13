@@ -154,7 +154,6 @@ FUNCTION_DEBT = {
     "tools/characters/people/test_body_pieces_hold_together.py": 16,
     "tools/cloud/backends/test_own_resources_and_their_cost.py": 33,
     "tools/cloud/conductor/test_owner_gates_and_safe_moves.py": 25,
-    "tools/cloud/images/test_built_once_and_every_machine_deleted.py": 6,
     "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 12,
     "tools/cloud/runtime/test_a_job_runs_once_on_checked_weights.py": 15,
     "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 36,
