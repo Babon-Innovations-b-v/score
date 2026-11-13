@@ -108,7 +108,7 @@ PROPOSALS = [{"id": "v1.1", "view": "v1", "box": GALLEY, "area": 90000, "share":
              {"id": "v1.4", "view": "v1", "box": BIG, "area": 120000, "share": 0.03}]
 
 # measured_problems on typed and measured boxes: (case, rows, picture size, fragments one problem holds together,
-# fragments no problem holds, how many problems or None).
+# fragments no problem holds, how many problems or None, or the exact list of problems).
 WHOLE = [0, 0, WIDE, TALL]
 SMALL = [a_row(f"r{index}", [200 + 400 * index, 700, 240 + 400 * index, 740]) for index in range(6)]
 MEASURED = [
@@ -125,7 +125,7 @@ MEASURED = [
      [("row wall_lower", "whole picture"), ("row desk", "whole picture"), ("row rack", "whole picture")], [], 3),
     ("an unseen row", spread_over_the_picture() + [a_row("hidden", None, unseen="behind the camera")], SIZE, [], [], 0),
     ("its picture missing", spread_over_the_picture() + [a_row("hidden", None, unseen="behind the camera")], None,
-     [("view v1: its picture is missing",)], [], 1),
+     [], [], ["view v1: its picture is missing"]),
 ]
 
 # The words SAM 3 is asked for a row's name: its short name, then its last word when that is shorter.
@@ -173,10 +173,11 @@ GATE = [
 
 def problems_hold(problems, has, lacks, count):
     """Whether `problems` holds each group of `has` in one line, no line holds any of `lacks`, and there are `count`
-    of them when `count` is given."""
+    of them when `count` is a number, or they are exactly `count` when it is a list."""
+    exact = problems == count if isinstance(count, list) else len(problems) == count
     return (all(any(all(part in line for part in group) for line in problems) for group in has)
             and not any(part in line for part in lacks for line in problems)
-            and (count is None or len(problems) == count))
+            and (count is None or exact))
 
 
 def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
