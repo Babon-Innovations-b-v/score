@@ -1,112 +1,121 @@
 """tools/costs' invariant: every euro is ledgered before it is spent, measured before it prices, and adds up to the bill.
 
-- costs.py (the paper's tables and the day's alarm): the ledgers add up to the bill. The paper's reconciliation is the
-  ledger rows before the read plus every part of the bill the ledger misses (storage, unledgered compute), each figure
-  worked out by hand from the ledger and bill written here (no cloud, no evidence files); an engine run is typed by its
-  price, a processor machine priced again by the started hour, R&D and production cover the ledger, order lines change
-  no table; the day's alarm (`reconcile-day`) fails when a ledgered line is over 5% off its bill and names the
-  provider, fails on an empty or partial bill and on a missing ledger (faults of the review of C1, 2026-10-17), counts
-  a run across midnight by its share and a machine still running at its price, and keeps storage and other lines out of
-  the gap; `today` is the bill less the last read before the day; local roots never reach the paper's copy.
-- per_unit.py: every per-unit price and time rests on measured lines only (owner, 2026-10-18 and 2026-10-20: never a
-  flat guess). A batch is read once and priced over the units it finished (one that finished nothing left out); a line
-  is the stage its ticket names; a Google unit is a finished call; likely the median, high the 90% quantile; a stage
-  with no lines is left out, a time no line holds is a `why`, never a 0; a recorded stage is priced from its runs in
-  git; the warm stages are their measured work at the bill's price plus the overhead, a batch stage half its standard
-  calls; and the modes that write in place keep what they do not measure (`--times-only` leaves every euro of the
-  repository's own file byte-identical, #14). Ledgers are written in the test, plus the paper's public ledger copy.
-- Paid calls only through the clients that write a ledger line before the call (the owner's rule, tools/cloud/CLAUDE.md
-  "Paid calls only through the ledgered clients"; 2026-10-17: a Google day billed about EUR 520 the ledger never held,
-  and 21% of the bill was in no ledger row): a Gemini call through google_spend.generate, a Scaleway machine, disk,
-  address or cluster pool through the backends that batch.rent and the cluster set-up drive; any other module that
-  calls Gemini directly or orders one of those fails. A wording check by design, guarding that owner rule; the lint's
-  own reading is pinned on fixtures whose paid lines are counted by hand. Read from each tracked Python file's syntax
-  tree (its imports, by statement or by importlib.import_module or __import__ given a string; its strings joined with
-  + and f-strings; and the scw words a call is given, read through variables, joined and starred lists, .append,
-  .extend and .insert), and from the lines of every other runnable file (shell and other scripts, Makefiles,
-  Dockerfiles, manifests, a #! file with no suffix), a line ending in a backslash joined with the next; vendor/ is
-  third-party, and docs and data run nothing, so both are left out. A variable is read as the function it is in set it,
-  in source order, and every setting or growing of one is checked too, so an order built in one branch counts. A word
-  it cannot read (a function's parameter) between a product and "create" still counts as an order. It does not follow
-  words across modules, through other functions' return values, through attributes (self.cmd), lists indexed or
-  sliced, an .insert at an index it cannot read (read as the end), or built with % or .format.
+One test asks it of small worlds written here, each driven once through the code's entry points, and compares every
+measure taken on them with its expected value in `EXPECTED` (a failure names the measure):
+- costs.py (`paper:` and `day:` measures, the paper's tables and the day's alarm): the ledgers add up to the bill. The
+  paper's reconciliation is the ledger rows before the read plus every part of the bill the ledger misses (storage,
+  unledgered compute), each figure worked out by hand from the ledger and bill written here (no cloud, no evidence
+  files); an engine run is typed by its price, a processor machine priced again by the started hour, R&D and
+  production cover the ledger, order lines change no table; the day's alarm (`reconcile-day`, run as a command on the
+  rows of `DAYS`) fails when a ledgered line is over 5% off its bill and names the provider, fails on an empty or
+  partial bill and on a missing ledger (faults of the review of C1, 2026-10-17), counts a run across midnight by its
+  share and a machine still running at its price, and keeps storage and other lines out of the gap; `today` is the
+  bill less the last read before the day; local roots never reach the paper's copy.
+- per_unit.py (`unit:` measures): every per-unit price and time rests on measured lines only (owner, 2026-10-18 and
+  2026-10-20: never a flat guess). A batch is read once and priced over the units it finished (one that finished
+  nothing left out); a line is the stage its ticket names; a Google unit is a finished call; likely the median, high
+  the 90% quantile; a stage with no lines is left out, a time no line holds is a `why`, never a 0; a recorded stage is
+  priced from its runs in git; the warm stages are their measured work at the bill's price plus the overhead, a batch
+  stage half its standard calls; and the modes that write in place keep what they do not measure (`--times-only`
+  leaves every euro of the repository's own file byte-identical, #14). Ledgers are written in the test, plus the
+  paper's public ledger copy.
+- Paid calls only through the clients that write a ledger line before the call (`lint:` measures; the owner's rule,
+  tools/cloud/CLAUDE.md "Paid calls only through the ledgered clients"; 2026-10-17: a Google day billed about EUR 520
+  the ledger never held, and 21% of the bill was in no ledger row): a Gemini call through google_spend.generate, a
+  Scaleway machine, disk, address or cluster pool through the backends that batch.rent and the cluster set-up drive;
+  any other module that calls Gemini directly or orders one of those fails. A wording check by design, guarding that
+  owner rule; the lint's own reading is pinned on the fixtures of `LINT_CASES`, whose paid lines are counted by hand.
+  Read from each tracked Python file's syntax tree (its imports, by statement or by importlib.import_module or
+  __import__ given a string; its strings joined with + and f-strings; and the scw words a call is given, read through
+  variables, joined and starred lists, .append, .extend and .insert), and from the lines of every other runnable file
+  (shell and other scripts, Makefiles, Dockerfiles, manifests, a #! file with no suffix), a line ending in a backslash
+  joined with the next; vendor/ is third-party, and docs and data run nothing, so both are left out. A variable is
+  read as the function it is in set it, in source order, and every setting or growing of one is checked too, so an
+  order built in one branch counts. A word it cannot read (a function's parameter) between a product and "create"
+  still counts as an order. It does not follow words across modules, through other functions' return values, through
+  attributes (self.cmd), lists indexed or sliced, an .insert at an index it cannot read (read as the end), or built
+  with % or .format.
 
-No cloud, no machine; each file the tests write is in the run's own temp folder.
+No cloud, no machine; each file the test writes is in the run's own temp folder.
 
-Breaks (each applied once, seen red, reverted, 2026-10-27), in costs.py (test_the_ledgers_add_up_to_the_bill[<check>]):
-- `scrub` leaves the `$PROPS` root unreplaced -> local_roots_leave_the_copy.
-- `untyped_kinds` reads every row as inferred -> a_row_without_kind_is_tagged_pixal.
-- `month_rows` without `< before` (the late row counted) -> the_bill_is_the_ledger_and_what_it_misses,
-  rnd_and_production_cover_the_ledger.
-- `outside_compute` counts Storage as compute -> the_bill_is_the_ledger_and_what_it_misses.
-- `engine_type` by the exact minute, not the started one -> an_engine_run_is_typed_by_its_price,
-  an_engine_run_group_names_its_card_type, processor_machines_are_priced_again_by_the_started_hour.
-- `per_product` prices processor types by the minute -> processor_machines_are_priced_again_by_the_started_hour.
-- `is_rnd` without the `RND_WHO` rule -> rnd_and_production_cover_the_ledger.
-- `types_before` drops the euros beyond the machines -> euros_beyond_the_machines_are_not_split.
-- `today_line` does not subtract the baseline -> today_is_the_bill_less_the_last_read_before_the_day.
+Breaks (each applied once, seen red, reverted, 2026-11-13; the measures named are those that went red), in costs.py:
+- `scrub` leaves the `$PROPS` root unreplaced -> paper: scrub keeps only the public roots.
+- `untyped_kinds` reads every row as inferred -> paper: a row without kind is tagged pixal.
+- `month_rows` without `< before` (the late row counted) -> paper: the bill is the ledger and what it misses,
+  paper: R&D and production cover the ledger.
+- `outside_compute` counts Storage as compute -> paper: the bill is the ledger and what it misses.
+- `engine_type` by the exact minute, not the started one -> paper: an engine run is typed by its price, paper: an
+  engine run group names its card type, paper: processor machines priced again by the started hour.
+- `per_product` prices processor types by the minute -> paper: processor machines priced again by the started hour.
+- `is_rnd` without the `RND_WHO` rule -> paper: R&D and production cover the ledger.
+- `types_before` drops the euros beyond the machines -> paper: euros beyond the machines are not split.
+- `today_line` does not subtract the baseline -> paper: today is the bill less the last read before the day.
 - `cloud_since` keeps rows from before `since`; `google_tracks` leaves out a started call never finished ->
-  spend_since_splits_by_track.
-- `DAY_TOLERANCE` 0.15 -> a_day_eleven_percent_off_its_bill_fails_and_names_the_provider; 0.03 ->
-  a_day_within_five_percent_passes.
-- `failed` lets a missing bill pass -> an_empty_or_partial_bill_fails, the_scaleway_day_comes_from_the_saved_reads.
-- `bill_line_of` reads disks and addresses as other -> a_day_eleven_percent_off..., storage_and_other_lines_never_alarm.
-- `snapshot_day_bill` takes the day's first read, or no read before the day as an empty start ->
-  the_scaleway_day_comes_from_the_saved_reads.
-- `cloud_window_lines` counts a run whole on its start day -> a_run_across_midnight_counts_its_share_of_the_day;
-  leaves the open rents out -> a_machine_still_running_counts_at_its_price.
-- `day_report_line` reports no unledgered lines -> storage_and_other_lines_never_alarm.
-- `ledger_lines_of` reads a missing ledger as empty -> a_missing_ledger_fails_as_missing.
-- `run_rows` without the order lines filter (`ledger.ORDER_LINES`) -> order_lines_stay_out_of_the_paper.
+  paper: spend since splits by track.
+- `DAY_TOLERANCE` 0.15 -> day: eleven percent off fails and names the provider; 0.03 -> day: within five percent
+  passes.
+- `failed` lets a missing bill pass (its gaps read as none) -> day: an empty bill fails, day: a bill without
+  scaleway fails, day: no read before the day is no bill.
+- `bill_line_of` reads disks and addresses as other -> day: eleven percent off fails and names the provider.
+- `snapshot_day_bill` takes the day's first read, or no read before the day as an empty start -> day: the scaleway
+  day comes from the saved reads, day: no read before the day is no bill.
+- `cloud_window_lines` counts a run whole on its start day -> day: a run across midnight counts its share; leaves the
+  open rents out -> day: a machine still running counts at its price.
+- `day_report_line` reports no unledgered lines -> day: storage and other lines never alarm.
+- `ledger_lines_of` reads a missing ledger as empty -> day: no cloud ledger fails as missing, day: no google ledger
+  fails as missing.
+- `run_rows` without the order lines filter (`ledger.ORDER_LINES`) -> paper: order lines change no reconciliation,
+  paper: order lines change no table.
 
-Breaks (each applied once, seen red, reverted, 2026-10-27), in per_unit.py:
-- `ledger_lines` reads a batch in two ledgers twice -> test_a_batch_is_read_once_and_priced_over_the_units_it_finished.
-- `cloud_measures` keeps a batch that finished no unit (its euros over one unit) -> that test, the ticketed-line test
-  and test_the_file_holds_measured_stages_only_with_median_high_and_runs.
-- `of_spec` reads a ticketed line by its fields; `line_units` without `SOUND_TAKES`; `warm_entry` ignores the stage's
-  own jobs -> test_a_ticketed_line_is_the_stage_its_ticket_names_and_a_warm_stage_is_priced_on_its_own_timed_jobs.
-- `google_measures` counts a started call -> test_google_units_are_finished_calls_of_the_stages_caller.
-- `measure` keeps a stage with no lines; `per_model` inverted (models over units) -> test_the_file_holds_measured_...
-- `recorded` leaves a run's euros not over its units -> test_a_recorded_stage_is_priced_from_its_runs_...
-- `forecast` leaves the `one` rule's source empty -> test_every_stage_has_a_forecast_rule_with_its_source.
-- `with_rules` rebuilds a measured stage bare -> test_rules_only_writes_the_rules_and_keeps_the_measured_numbers.
-- `in_machine_setup` does not divide the jobs by the jobs at once -> test_a_cloud_stages_time_is_read_from_its_...
-- `cloud_times` writes a set-up no line timed as 0 -> test_a_stage_whose_lines_time_no_set_up_says_so_...
-- `unit_seconds` leaves the slots out -> test_a_line_without_machine_seconds_is_timed_by_its_working_minutes_...
-- `kept_times` replaces a measured time with a why -> test_writing_times_in_place_keeps_a_measured_time_...
+Breaks (each applied once, seen red, reverted, 2026-11-13), in per_unit.py:
+- `ledger_lines` reads a batch in two ledgers twice -> unit: a batch in two ledgers is read once, unit: pixal priced
+  over the units each batch finished.
+- `cloud_measures` keeps a batch that finished no unit (its euros over one unit) -> unit: pixal priced over the
+  units each batch finished, unit: the measured file.
+- `of_spec` reads a ticketed line by its fields -> unit: a line ticketed for tiles is no bake's; `line_units` without
+  `SOUND_TAKES` -> unit: an older sound line over its recorded takes; `warm_entry` ignores the stage's own jobs ->
+  unit: --add prices a warm stage on its own timed jobs.
+- `google_measures` counts a started call -> unit: google units are finished calls.
+- `measure` keeps a stage with no lines -> unit: stages with no lines are left out; `per_model` inverted (models over
+  units) -> unit: the measured file.
+- `recorded` leaves a run's euros not over its units -> unit: a recorded stage is priced from its runs.
+- `forecast` leaves the `one` rule's source empty -> unit: stages without a forecast rule and source.
+- `with_rules` rebuilds a measured stage bare -> the test errors (KeyError: 'settle') before its measures compare.
+- `in_machine_setup` does not divide the jobs by the jobs at once -> unit: a pixal batch's time from the paper's line.
+- `cloud_times` writes a set-up no line timed as 0 -> unit: a stage whose lines time no set-up says so.
+- `unit_seconds` leaves the slots out -> unit: a line's seconds by its working minutes and slots.
+- `kept_times` replaces a measured time with a why -> the test errors (KeyError: 'unit_seconds') at that measure.
 - `google_times` counts no failed call; `in_flight` counts a call twice; `batch_job_time` times a Batch API row as
-  calls -> test_a_google_stages_time_is_its_calls_started_to_finished_and_how_many_ran_at_once.
-- `spread`'s likely the max, not the median -> test_node_minutes_are_the_store_finish_records_minutes_by_stage (and
-  the time tests).
-- `warm_price` without `OVERHEAD` -> test_a_warm_stage_is_its_measured_work_..., and the byte-identical test.
-- `batch_entry` at the full standard price -> test_a_batch_stage_is_half_its_measured_standard_calls_..., and the
-  byte-identical test.
-- `with_times` drops `likely_euros` -> test_writing_the_times_leaves_every_euro_of_the_per_unit_file_byte_identical.
-(The old line "take the mean for `likely`" was tried and stays green: the fixtures' medians equal their means. It is
-not claimed.)
+  calls -> unit: a google stage's time from its calls, unit: a Batch API row is unmeasured.
+- `spread`'s likely the max, not the median -> unit: node minutes are the store's finish records (and the time
+  measures).
+- `warm_price` without `OVERHEAD` -> unit: a warm stage at the bill's price plus the overhead, and unit: --times-only
+  keeps every euro.
+- `batch_entry` at the full standard price -> unit: a batch stage is half its standard calls, and unit: --times-only
+  keeps every euro.
+- `with_times` drops `likely_euros` -> unit: --times-only keeps every euro.
 
-Breaks (each applied once, seen red, reverted, 2026-10-27), in this file's lint:
-- `PAID_TEXT` without Google's host -> test_a_module_calling_gemini_directly_fails.
-- `paid_module` without `GEMINI_MODULES` -> test_a_module_loading_googles_client_fails.
-- `SCW_PAID` without ("instance", "server") -> test_a_module_ordering_a_scaleway_machine_or_disk_fails (and the order
-  tests).
-- `sequence_words` reads no variable -> test_an_order_built_before_its_call_fails,
-  test_a_name_two_functions_use_is_read_in_each_functions_own_words.
-- `joined_text` reads no f-string -> test_an_address_joined_from_strings_fails; no `+` join -> that test and the
-  two-functions test.
-- `GROW_ARGUMENTS` without append and extend -> test_an_order_grown_by_append_or_extend_fails; without insert ->
-  test_an_order_put_together_with_insert_fails.
-- `scw_orders` does not check a setting's words -> test_an_order_grown_in_one_branch_fails.
-- `DYNAMIC_IMPORTS` empty -> test_googles_client_loaded_by_name_fails.
-- `logical_lines` joins no backslash line -> test_a_shell_order_broken_over_lines_fails.
-- `runnable` Python and shell only -> test_runnable_files_beyond_python_and_shell_are_read.
-- `orders_in` without the unread-word rule -> test_an_order_whose_resource_is_a_parameter_fails; reading delete as an
-  order -> test_reading_and_deleting_are_not_paid_calls.
-- `outside_allowed` allows every top-level part -> test_an_allowed_file_may_order_only_in_its_named_parts.
-- `ALLOWED` without tools/cloud/google_spend.py -> test_the_repository_makes_paid_calls_only_through_the_ledgered_clients.
+Breaks (each applied once, seen red, reverted, 2026-11-13), in this file's lint:
+- `PAID_TEXT` without Google's host -> lint: a module calling gemini directly.
+- `paid_module` without `GEMINI_MODULES` -> lint: a module loading google's client.
+- `SCW_PAID` without ("instance", "server") -> lint: a module ordering a scaleway machine or disk (and the order rows).
+- `sequence_words` reads no variable -> lint: an order built before its call, lint: a name two functions use.
+- `joined_text` reads no f-string -> lint: an address joined from strings; no `+` join -> that row and lint: a name
+  two functions use.
+- `GROW_ARGUMENTS` without append and extend -> lint: an order grown by append or extend; without insert -> lint: an
+  order put together with insert.
+- `scw_orders` does not check a setting's words -> lint: an order grown in one branch.
+- `DYNAMIC_IMPORTS` empty -> lint: google's client loaded by name.
+- `logical_lines` joins no backslash line -> lint: a shell order broken over lines.
+- `runnable` Python and shell only -> lint: a Makefile, lint: a manifest, lint: a #! script.
+- `orders_in` without the unread-word rule -> lint: an order whose resource is a parameter; reading delete as an
+  order -> lint: reading and deleting.
+- `outside_allowed` allows every top-level part -> lint: an allowed file orders only in its named parts.
+- `ALLOWED` without tools/cloud/google_spend.py -> lint: the repository's paid calls outside the ledgered clients.
 """
 import ast
 import concurrent.futures
+import datetime
 import json
 import multiprocessing
 import pathlib
@@ -115,8 +124,6 @@ import subprocess
 import sys
 import tempfile
 
-import pytest
-
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
@@ -124,7 +131,53 @@ import costs  # noqa: E402
 import per_unit  # noqa: E402
 
 
-# --- costs.py: the ledgers add up to the bill ---
+class Text:
+    """An expected text: it holds every one of `has`, none of `lacks`, and matches every pattern of `matches` (a line
+    of it, re.M)."""
+
+    def __init__(self, has=(), lacks=(), matches=()):
+        self.has, self.lacks, self.matches = has, lacks, matches
+
+    def holds(self, value):
+        return (all(text in value for text in self.has) and not any(text in value for text in self.lacks)
+                and all(re.search(pattern, value, re.M) for pattern in self.matches))
+
+    def __repr__(self):
+        return f"Text(has={self.has}, lacks={self.lacks}, matches={self.matches})"
+
+
+class Between:
+    """An expected number above `low` and at most `high`."""
+
+    def __init__(self, low, high):
+        self.low, self.high = low, high
+
+    def holds(self, value):
+        return self.low < value <= self.high
+
+    def __repr__(self):
+        return f"between {self.low} (out) and {self.high}"
+
+
+class Near:
+    """An expected number within `tolerance` of `target`."""
+
+    def __init__(self, target, tolerance):
+        self.target, self.tolerance = target, tolerance
+
+    def holds(self, value):
+        return abs(value - self.target) <= self.tolerance
+
+    def __repr__(self):
+        return f"{self.target} within {self.tolerance}"
+
+
+def holds(expected, value):
+    """Whether a measure's value is what its row expects: the matcher's own judgement, else equal."""
+    return expected.holds(value) if hasattr(expected, "holds") else value == expected
+
+
+# --- the paper's world: a month's ledger and its bill ---
 
 READ = "2026-10-10T01:36Z"
 
@@ -157,276 +210,8 @@ ROWS = [
 ]
 
 
-def local_roots_leave_the_copy():
-    """A local path keeps only its part under the public roots; nothing of the home folder is left."""
-    row = costs.scrub({"folder": costs.HOME + "/.claude/jobs/abc/tmp/x", "jobs": [costs.HOME + "/.farm-factory-props/w"],
-                       "deep": {"path": costs.HOME + "/.cache/y"}})
-    if row != {"folder": "tmp/x", "jobs": ["$PROPS/w"], "deep": {"path": "$HOME/.cache/y"}}:
-        return [f"scrubbed to {row}"]
-    return []
-
-
-def a_row_without_kind_is_tagged_pixal():
-    """Only the row with no kind is tagged, by its batch, and its exact fields say it is the runner's own."""
-    tags = costs.untyped_kinds(ROWS)
-    if list(tags) != ["pixal-1"] or tags["pixal-1"]["kind"] != "pixal" or tags["pixal-1"].get("inferred"):
-        return [f"tags {tags}"]
-    return []
-
-
-def the_bill_is_the_ledger_and_what_it_misses():
-    """Ledger rows before the read plus every part not in the ledger add up to the bill."""
-    report = costs.reconcile(ROWS, BILL, READ)
-    problems = []
-    if report["ledger_month"] != 2.28:
-        problems.append(f"ledger month {report['ledger_month']}, not 2.28 (the late row is after the read)")
-    if report["not_in_ledger"] != {"storage": 1.0, "compute-not-in-ledger": 0.87}:
-        problems.append(f"not in the ledger {report['not_in_ledger']}")
-    if report["check"]["ledger_month + not_in_ledger"] != report["check"]["bill"]:
-        problems.append(f"check {report['check']}")
-    return problems
-
-
-def an_engine_run_is_typed_by_its_price():
-    """A row naming no machine takes the type whose price gives its euros by the started minute."""
-    found = costs.engine_type(ROWS[1], costs.unit_prices(BILL))
-    return [] if found == "L4-1-24G" else [f"typed {found}"]
-
-
-def an_engine_run_group_names_its_card_type():
-    """The kinds-of-batch table types an engine run by its price, as the machine-type table does."""
-    rows = costs.month_rows(ROWS, "2026-10", READ)
-    table = costs.per_group(rows, costs.untyped_kinds(ROWS), {}, costs.unit_prices(BILL))
-    engine = [group for group in table if group["group"] == costs.group_of("game-gate")]
-    return [] if engine and engine[0]["cards"] == "L4-1-24G 100%" else [f"engine runs {engine}"]
-
-
-def processor_machines_are_priced_again_by_the_started_hour():
-    """A processor machine the ledger priced by the minute costs its started hours at the bill's price."""
-    rows = costs.month_rows(ROWS, "2026-10", READ)
-    products = costs.per_product(rows, BILL, costs.unit_prices(BILL))
-    pop = products["POP2-32C-128G"]
-    if round(pop["ledger"], 2) != 1.29 or round(pop["at_billing_unit"], 2) != 2.36:
-        return [f"POP2 {pop}, not ledger 1.29 and 2.36 at two started hours"]
-    if abs(products["L4-1-24G"]["at_billing_unit"] - 0.39375) > 1e-9:
-        return [f"L4 {products['L4-1-24G']}: the engine run is not priced again"]
-    return []
-
-
-def rnd_and_production_cover_the_ledger():
-    """The engine run and the proof are R&D, the review render and the Pixal3D batch production, and both sum up."""
-    rows = costs.month_rows(ROWS, "2026-10", READ)
-    split = costs.split_rnd(rows, costs.untyped_kinds(ROWS))
-    if round(split["R&D"], 4) != 1.3938 or round(split["production"], 2) != 0.89:
-        return [f"split {split}"]
-    return []
-
-
-def euros_beyond_the_machines_are_not_split():
-    """A row's euros that its machines do not hold read 'not split'; a row with no machines 'not recorded'."""
-    euros = costs.types_before(ROWS, "2026-10-06")
-    expected = {"POP2-32C-128G": 1.29, "not split": 0.1, "not recorded": 0.89375}
-    if {key: round(value, 5) for key, value in euros.items() if round(value, 5)} != expected:
-        return [f"types {euros}"]
-    return []
-
-
-def today_is_the_bill_less_the_last_read_before_the_day():
-    """`today` takes the last snapshot read before 00:00 UTC as the day's start, and names L40S apart from L4."""
-    import datetime
-    import json
-    import tempfile
-
-    folder = pathlib.Path(tempfile.mkdtemp())
-    line = lambda sku, euros: {"sku": sku, "euros": euros}  # noqa: E731
-    (folder / "2026-10-11T2100Z.json").write_text(json.dumps({"lines": [line("/instance/server/l4_1_24g/x", 10.0)]}))
-    (folder / "2026-10-12T0600Z.json").write_text(json.dumps({"lines": [line("/instance/server/l4_1_24g/x", 99.0)]}))
-    now = datetime.datetime(2026, 10, 12, 18, 0, tzinfo=datetime.timezone.utc)
-    baseline, since = costs.day_baseline(folder, now)
-    lines = [line("/instance/server/l4_1_24g/x", 25.0), line("/instance/server/l40s_1_48g/x", 2.0),
-             line("/network/ipam/ipv4/x", 1.0)]
-    text = costs.today_line(lines, baseline, since, 7.0, "saved")
-    problems = []
-    if "today since 00:00 UTC EUR 18.00 (L4 15.00, L40S 2.00, addresses 1.00)" not in text:
-        problems.append(text)
-    first, since = costs.day_baseline(folder, datetime.datetime(2026, 10, 11, 23, 0, tzinfo=datetime.timezone.utc))
-    if since != "2100" or first[0]["euros"] != 10.0:
-        problems.append(f"the day's first read: {since} {first}")
-    return problems
-
-
-def spend_since_splits_by_track():
-    """`today --since`: cloud rows by their worktree (older rows by who), Google calls by tag, a call started and never
-    finished at its estimate, nothing from before the time."""
-    since = costs.moment("2026-10-12T18:25Z")
-    rows = [{"started": "2026-10-12T18:30:00Z", "worktree": "agent-a1", "euros": 2.0},
-            {"started": "2026-10-12T18:40:00Z", "who": "surfaces", "euros": 1.0},
-            {"started": "2026-10-12T18:00:00Z", "worktree": "agent-a1", "euros": 50.0}]
-    google = [{"time": "2026-10-12T20:30:00+02:00", "call": "a", "state": "started", "model": "m", "estimate": 0.3,
-               "tag": "people"},
-              {"time": "2026-10-12T20:31:00+02:00", "call": "a", "state": "finished", "model": "m", "euros": 0.2,
-               "tag": "people"},
-              {"time": "2026-10-12T20:32:00+02:00", "call": "b", "state": "started", "model": "m", "estimate": 0.05,
-               "caller": "finishmap-name"},
-              {"time": "2026-10-12T20:00:00+02:00", "call": "c", "state": "finished", "model": "m", "euros": 9.0}]
-    tracks = costs.cloud_since(rows, since) + costs.google_since(google, since, lambda model: 0.0)
-    expected = {"agent-a1": 2.0, "who: surfaces": 1.0, "google: people": 0.2, "google: finishmap-name": 0.05}
-    return [] if dict(tracks) == expected else [f"tracks {dict(tracks)}"]
-
-
-def run_day_check(day_bill, cloud_rows, google_lines, snapshots=(), skip=()):
-    """Run `reconcile-day 2026-10-11` on files written here: the day bill when given (else none), the ledgers (a
-    ledger given as None is named but never written), and a bills folder holding `snapshots` ({"read", "lines"}
-    each); (its exit code, its output)."""
-    import json
-    import subprocess
-    import tempfile
-
-    folder = pathlib.Path(tempfile.mkdtemp())
-    bills = folder / "bills"
-    bills.mkdir()
-    for snapshot in snapshots:
-        (bills / f"{snapshot['read'][:13]}{snapshot['read'][14:16]}Z.json").write_text(json.dumps(snapshot))
-    if cloud_rows is not None:
-        (folder / "ledger.jsonl").write_text("".join(json.dumps(row) + "\n" for row in cloud_rows))
-    if google_lines is not None:
-        (folder / "google.jsonl").write_text("".join(json.dumps(line) + "\n" for line in google_lines))
-    command = [sys.executable, str(HERE / "costs.py"), "reconcile-day", "2026-10-11", "--ledger",
-               str(folder / "ledger.jsonl"), "--google-ledger", str(folder / "google.jsonl"), "--bills", str(bills),
-               *[part for provider in skip for part in ("--skip", provider)]]
-    if day_bill is not None:
-        (folder / "bill.json").write_text(json.dumps(day_bill))
-        command.insert(4, str(folder / "bill.json"))
-    done = subprocess.run(command, capture_output=True, text=True)
-    return done.returncode, done.stdout + done.stderr
-
-
-def a_day_eleven_percent_off_its_bill_fails_and_names_the_provider():
-    """A Google day billed EUR 100 with EUR 89 in the ledger (11% off, over 5%) exits non-zero and says google; the
-    Scaleway day beside it, within 5%, says within, its disks and addresses one line against the ledger's."""
-    day_bill = {"google": [{"sku": "gemini-3-pro-image", "euros": 100.0}],
-                "scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 50.0},
-                             {"sku": "/storage/block/volume-low-latency-5k/fr-par-2", "euros": 3.0},
-                             {"sku": "/network/ipam/ipv4/fr-par-2", "euros": 2.0}]}
-    cloud_rows = [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 51.0},
-                  {"started": "2026-10-11T10:00:00Z", "kind": "disk-and-address", "euros": 4.5},
-                  {"started": "2026-10-12T10:00:00Z", "kind": "pixal", "euros": 99.0}]
-    google_lines = [{"time": "2026-10-11T10:00:00+02:00", "day": "2026-10-11", "call": "a", "state": "started",
-                     "model": "m", "estimate": 0.15},
-                    {"time": "2026-10-11T10:01:00+02:00", "day": "2026-10-11", "call": "a", "state": "finished",
-                     "model": "m", "euros": 89.0},
-                    {"time": "2026-10-12T10:01:00+02:00", "day": "2026-10-12", "call": "b", "state": "finished",
-                     "model": "m", "euros": 11.0}]
-    code, output = run_day_check(day_bill, cloud_rows, google_lines)
-    problems = []
-    if code == 0:
-        problems.append(f"exit 0 on an 11% gap: {output}")
-    google = [line for line in output.splitlines() if line.startswith("google:")]
-    if not google or "calls: bill 100.00, ledgers 89.00, 11.0% apart; over" not in google[0]:
-        problems.append(f"google not named as over: {output}")
-    scaleway = [line for line in output.splitlines() if line.startswith("scaleway:")]
-    if not scaleway or "within" not in scaleway[0] or "over" in scaleway[0] \
-            or "disks and addresses: bill 5.00, ledgers 4.50" not in scaleway[0]:
-        problems.append(f"scaleway line: {output}")
-    return problems
-
-
-def a_day_within_five_percent_passes():
-    """A bill of EUR 100 against EUR 96 in the ledgers exits 0, Google left out on purpose."""
-    code, output = run_day_check({"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 100.0}]},
-                                 [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 96.0}], [],
-                                 skip=["google"])
-    return [] if code == 0 and "within" in output else [f"exit {code}: {output}"]
-
-
-def an_empty_or_partial_bill_fails():
-    """Fault (review of C1, 2026-10-17): a bill of {} or one without a provider exited 0, so an empty bill read as
-    all clear. A provider with no bill fails and is named, unless left out with --skip."""
-    problems = []
-    code, output = run_day_check({}, [], [])
-    if code == 0 or "google: no bill" not in output or "scaleway: no bill" not in output:
-        problems.append(f"an empty bill: exit {code}: {output}")
-    code, output = run_day_check({"google": [{"sku": "m", "euros": 1.0}]}, [],
-                                 [{"day": "2026-10-11", "call": "a", "state": "finished", "model": "m", "euros": 1.0}])
-    if code == 0 or "scaleway: no bill" not in output:
-        problems.append(f"a bill without scaleway: exit {code}: {output}")
-    return problems
-
-
-def snapshot(read, machines, storage=0.0):
-    """One saved read of the month's Scaleway bill: its machines and object storage so far."""
-    return {"read": read, "lines": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": machines},
-                                    {"sku": "/storage/obj/usage/fr-par", "euros": storage}]}
-
-
-def the_scaleway_day_comes_from_the_saved_reads():
-    """Fault (review of C1, 2026-10-17): nothing built the day's bill, so the alarm needed a hand-made file. With no
-    file, the Scaleway day is the last read of the day less the last read before it, and the ledger is taken over
-    the same window."""
-    reads = [snapshot("2026-10-10T23:00:00+00:00", 100.0), snapshot("2026-10-11T12:00:00+00:00", 120.0),
-             snapshot("2026-10-11T23:30:00+00:00", 150.0, storage=10.0)]
-    rows = [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "wall_minutes": 60, "euros": 50.0}]
-    code, output = run_day_check(None, rows, [], snapshots=reads, skip=["google"])
-    problems = []
-    if code != 0 or "machines: bill 50.00, ledgers 50.00" not in output:
-        problems.append(f"exit {code}: {output}")
-    if "not in any ledger: storage 10.00" not in output:
-        problems.append(f"storage not reported apart: {output}")
-    code, output = run_day_check(None, rows, [], snapshots=reads[1:], skip=["google"])
-    if code == 0 or "scaleway: no bill" not in output:
-        problems.append(f"no read before the day: exit {code}: {output}")
-    return problems
-
-
-def a_run_across_midnight_counts_its_share_of_the_day():
-    """Fault (review of C1, 2026-10-17): a run was counted whole on the day it started, so one crossing midnight
-    alarmed on both days. Its euros are spread over its hours: 3 of its 4 hours fall in the window."""
-    reads = [snapshot("2026-10-10T23:00:00+00:00", 0.0), snapshot("2026-10-11T23:30:00+00:00", 30.0)]
-    rows = [{"started": "2026-10-10T22:00:00Z", "kind": "pixal", "wall_minutes": 240, "euros": 40.0}]
-    code, output = run_day_check(None, rows, [], snapshots=reads, skip=["google"])
-    return [] if code == 0 and "machines: bill 30.00, ledgers 30.00" in output else [f"exit {code}: {output}"]
-
-
-def storage_and_other_lines_never_alarm():
-    """Fault (review of C1, 2026-10-17): storage, registry, secrets and cluster lines have no ledger rows, yet the
-    totals were compared, so a heavy storage day alarmed. They are reported apart and kept out of the gap."""
-    day_bill = {"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 20.0},
-                             {"sku": "/storage/obj/usage/fr-par", "euros": 40.0},
-                             {"sku": "/paas/secret_manager/access/fr-par", "euros": 5.0}]}
-    code, output = run_day_check(day_bill, [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 20.0}],
-                                 [], skip=["google"])
-    if code != 0 or "not in any ledger: storage 40.00, other 5.00" not in output:
-        return [f"exit {code}: {output}"]
-    return []
-
-
-def a_machine_still_running_counts_at_its_price():
-    """Fault (review of C1, 2026-10-17): a run still going has no row yet, so its day alarmed. Its started line counts
-    at its price up to its deadline: 60 minutes at EUR 0.10."""
-    line = {"started": "2026-10-11T10:00:00Z", "batch": "rent-pixal-9-1", "kind": "rent-started", "run": "pixal-9",
-            "name": "pixal-9-1", "price": 0.1, "deadline": costs.moment("2026-10-11T11:00:00Z"), "euros": 0.0}
-    code, output = run_day_check({"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 6.0}]}, [line],
-                                 [], skip=["google"])
-    return [] if code == 0 and "machines: bill 6.00, ledgers 6.00" in output else [f"exit {code}: {output}"]
-
-
-def a_missing_ledger_fails_as_missing():
-    """Fault (review of C1, 2026-10-17): a ledger path that does not exist read as an empty ledger, so the day printed
-    'ledgers 0.00', 84-94% apart, and blamed spend outside the ledger when the ledger file itself was missing. A
-    missing ledger fails as missing and names its path."""
-    problems = []
-    day_bill = {"scaleway": [{"sku": "/instance/server/l4_1_24g/fr-par-2", "euros": 20.0}],
-                "google": [{"sku": "m", "euros": 1.0}]}
-    code, output = run_day_check(day_bill, None, [], skip=["google"])
-    if code == 0 or "scaleway: no ledger at " not in output or "ledgers 0.00" in output:
-        problems.append(f"no cloud ledger: exit {code}: {output}")
-    code, output = run_day_check(day_bill, [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 20.0}],
-                                 None)
-    if code == 0 or "google: no ledger at " not in output or "scaleway: machines" not in output:
-        problems.append(f"no Google ledger: exit {code}: {output}")
-    return problems
-
-
+# The started, refused and order lines: not batches, so the paper's commands answer the same with them (fault, review
+# of C1, 2026-10-17: reconcile counted them, tables gave a 0-euro rent-started group, types_before 'not recorded').
 ORDER_ROWS = [
     {"started": "2026-10-04T09:00:00Z", "batch": "rent-pixal-2-1", "kind": "rent-started", "state": "started",
      "run": "pixal-2", "name": "pixal-2-1", "type": "L4-1-24G", "price": 0.75, "deadline": None, "machines": [],
@@ -438,41 +223,178 @@ ORDER_ROWS = [
      "what": "pool", "name": "p", "machines": [], "attempts": [], "machine_minutes": 0.0, "euros": 0.0}]
 
 
-def order_lines_stay_out_of_the_paper():
-    """Fault (review of C1, 2026-10-17): the started, refused and order lines are not batches, yet reconcile counted
-    them in its rows, tables in its header and its per-kind table (a 0-euro rent-started group) and types_before as
-    'not recorded'. The paper's commands give the same answer with them as without."""
-    problems = []
+def bill_line(sku, euros):
+    """One line of a saved bill read."""
+    return {"sku": sku, "euros": euros}
+
+
+def paper_measures():
+    """The paper's commands driven once over ROWS and BILL (and once more with the order lines added), `today` over two
+    saved reads and `today --since` over a few rows and calls: {measure: its value}."""
+    prices = costs.unit_prices(BILL)
+    rows = costs.month_rows(ROWS, "2026-10", READ)
+    kinds = costs.untyped_kinds(ROWS)
+    report = costs.reconcile(ROWS, BILL, READ)
+    products = costs.per_product(rows, BILL, prices)
+    split = costs.split_rnd(rows, kinds)
+    engine = [group for group in costs.per_group(rows, kinds, {}, prices) if group["group"] == costs.group_of("game-gate")]
     with_orders = ROWS + ORDER_ROWS
-    if costs.reconcile(with_orders, BILL, READ) != costs.reconcile(ROWS, BILL, READ):
-        problems.append("reconcile changed by order lines")
-    reconciliation = costs.reconcile(ROWS, BILL, READ)
-    if costs.tables(with_orders, reconciliation, BILL) != costs.tables(ROWS, reconciliation, BILL):
-        problems.append("tables changed by order lines")
-    if costs.types_before(with_orders, "2026-10-06") != costs.types_before(ROWS, "2026-10-06"):
-        problems.append("types_before changed by order lines")
-    return problems
+    home = costs.HOME
+    reads = pathlib.Path(tempfile.mkdtemp())
+    (reads / "2026-10-11T2100Z.json").write_text(json.dumps({"lines": [bill_line("/instance/server/l4_1_24g/x", 10.0)]}))
+    (reads / "2026-10-12T0600Z.json").write_text(json.dumps({"lines": [bill_line("/instance/server/l4_1_24g/x", 99.0)]}))
+    baseline, since = costs.day_baseline(reads, datetime.datetime(2026, 10, 12, 18, 0, tzinfo=datetime.timezone.utc))
+    first, first_since = costs.day_baseline(reads, datetime.datetime(2026, 10, 11, 23, 0, tzinfo=datetime.timezone.utc))
+    today = [bill_line("/instance/server/l4_1_24g/x", 25.0), bill_line("/instance/server/l40s_1_48g/x", 2.0),
+             bill_line("/network/ipam/ipv4/x", 1.0)]
+    moment = costs.moment("2026-10-12T18:25Z")
+    since_rows = [{"started": "2026-10-12T18:30:00Z", "worktree": "agent-a1", "euros": 2.0},
+                  {"started": "2026-10-12T18:40:00Z", "who": "surfaces", "euros": 1.0},
+                  {"started": "2026-10-12T18:00:00Z", "worktree": "agent-a1", "euros": 50.0}]
+    since_calls = [{"time": "2026-10-12T20:30:00+02:00", "call": "a", "state": "started", "model": "m",
+                    "estimate": 0.3, "tag": "people"},
+                   {"time": "2026-10-12T20:31:00+02:00", "call": "a", "state": "finished", "model": "m", "euros": 0.2,
+                    "tag": "people"},
+                   {"time": "2026-10-12T20:32:00+02:00", "call": "b", "state": "started", "model": "m",
+                    "estimate": 0.05, "caller": "finishmap-name"},
+                   {"time": "2026-10-12T20:00:00+02:00", "call": "c", "state": "finished", "model": "m", "euros": 9.0}]
+    return {
+        "paper: scrub keeps only the public roots": costs.scrub(
+            {"folder": home + "/.claude/jobs/abc/tmp/x", "jobs": [home + "/.farm-factory-props/w"],
+             "deep": {"path": home + "/.cache/y"}}),
+        "paper: a row without kind is tagged pixal": {
+            batch: (tag["kind"], bool(tag.get("inferred"))) for batch, tag in kinds.items()},
+        "paper: the bill is the ledger and what it misses": {
+            "ledger month": report["ledger_month"], "not in ledger": report["not_in_ledger"],
+            "adds up": report["check"]["ledger_month + not_in_ledger"] == report["check"]["bill"]},
+        "paper: an engine run is typed by its price": costs.engine_type(ROWS[1], prices),
+        "paper: an engine run group names its card type": [group["cards"] for group in engine][:1],
+        "paper: processor machines priced again by the started hour": (
+            round(products["POP2-32C-128G"]["ledger"], 2), round(products["POP2-32C-128G"]["at_billing_unit"], 2)),
+        "paper: an engine run is not priced again": products["L4-1-24G"]["at_billing_unit"],
+        "paper: R&D and production cover the ledger": (round(split["R&D"], 4), round(split["production"], 2)),
+        "paper: euros beyond the machines are not split": {
+            key: round(value, 5) for key, value in costs.types_before(ROWS, "2026-10-06").items() if round(value, 5)},
+        "paper: order lines change no reconciliation": costs.reconcile(with_orders, BILL, READ) == report,
+        "paper: order lines change no table": costs.tables(with_orders, report, BILL) == costs.tables(ROWS, report, BILL),
+        "paper: order lines change no machine type": (
+            costs.types_before(with_orders, "2026-10-06") == costs.types_before(ROWS, "2026-10-06")),
+        "paper: today is the bill less the last read before the day": costs.today_line(today, baseline, since, 7.0,
+                                                                                      "saved"),
+        "paper: the day's first read is the last before it": (first_since, first[0]["euros"]),
+        "paper: spend since splits by track": dict(
+            costs.cloud_since(since_rows, moment) + costs.google_since(since_calls, moment, lambda model: 0.0)),
+    }
 
 
-CHECKS = [local_roots_leave_the_copy, a_row_without_kind_is_tagged_pixal, the_bill_is_the_ledger_and_what_it_misses,
-          an_engine_run_is_typed_by_its_price, an_engine_run_group_names_its_card_type,
-          processor_machines_are_priced_again_by_the_started_hour,
-          rnd_and_production_cover_the_ledger, euros_beyond_the_machines_are_not_split,
-          today_is_the_bill_less_the_last_read_before_the_day, spend_since_splits_by_track,
-          a_day_eleven_percent_off_its_bill_fails_and_names_the_provider, a_day_within_five_percent_passes,
-          an_empty_or_partial_bill_fails, the_scaleway_day_comes_from_the_saved_reads,
-          a_run_across_midnight_counts_its_share_of_the_day, storage_and_other_lines_never_alarm,
-          a_machine_still_running_counts_at_its_price, a_missing_ledger_fails_as_missing,
-          order_lines_stay_out_of_the_paper]
+# --- the day's alarm: `reconcile-day 2026-10-11` run as a command on each row's files ---
+
+def snapshot(read, machines, storage=0.0):
+    """One saved read of the month's Scaleway bill: its machines and object storage so far."""
+    return {"read": read, "lines": [bill_line("/instance/server/l4_1_24g/fr-par-2", machines),
+                                    bill_line("/storage/obj/usage/fr-par", storage)]}
 
 
-@pytest.mark.parametrize("check", CHECKS, ids=[check.__name__ for check in CHECKS])
-def test_the_ledgers_add_up_to_the_bill(check):
-    """Each check gives the problems it found: none."""
-    assert check() == []
+SAVED_READS = [snapshot("2026-10-10T23:00:00+00:00", 100.0), snapshot("2026-10-11T12:00:00+00:00", 120.0),
+               snapshot("2026-10-11T23:30:00+00:00", 150.0, storage=10.0)]
 
 
-# --- per_unit.py: every per-unit price and time rests on measured lines only ---
+ONE_RUN = [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "wall_minutes": 60, "euros": 50.0}]
+
+
+TWO_PROVIDERS = {"scaleway": [bill_line("/instance/server/l4_1_24g/fr-par-2", 20.0)], "google": [bill_line("m", 1.0)]}
+
+
+# Each row: the day bill (None: no file, the Scaleway day built from the saved reads), the cloud and Google ledgers
+# (None: named but never written), the saved reads, the providers skipped; and what the command's "exit N:" and output
+# must say. Faults of the review of C1, 2026-10-17: an empty bill read as all clear, nothing built the day's bill, a
+# run across midnight alarmed on both days, a heavy storage day alarmed, a running machine's day alarmed, a missing
+# ledger read as empty and blamed spend outside it.
+DAYS = {
+    "day: eleven percent off fails and names the provider": (
+        {"google": [bill_line("gemini-3-pro-image", 100.0)],
+         "scaleway": [bill_line("/instance/server/l4_1_24g/fr-par-2", 50.0),
+                      bill_line("/storage/block/volume-low-latency-5k/fr-par-2", 3.0),
+                      bill_line("/network/ipam/ipv4/fr-par-2", 2.0)]},
+        [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 51.0},
+         {"started": "2026-10-11T10:00:00Z", "kind": "disk-and-address", "euros": 4.5},
+         {"started": "2026-10-12T10:00:00Z", "kind": "pixal", "euros": 99.0}],
+        [{"time": "2026-10-11T10:00:00+02:00", "day": "2026-10-11", "call": "a", "state": "started", "model": "m",
+          "estimate": 0.15},
+         {"time": "2026-10-11T10:01:00+02:00", "day": "2026-10-11", "call": "a", "state": "finished", "model": "m",
+          "euros": 89.0},
+         {"time": "2026-10-12T10:01:00+02:00", "day": "2026-10-12", "call": "b", "state": "finished", "model": "m",
+          "euros": 11.0}], (), (),
+        Text(lacks=("exit 0:",),
+             matches=(r"^google:.*calls: bill 100\.00, ledgers 89\.00, 11\.0% apart; over",
+                      r"^scaleway:(?!.*over)(?=.*within)(?=.*disks and addresses: bill 5\.00, ledgers 4\.50)"))),
+    "day: within five percent passes": (
+        {"scaleway": [bill_line("/instance/server/l4_1_24g/fr-par-2", 100.0)]},
+        [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 96.0}], [], (), ("google",),
+        Text(has=("exit 0:", "within"))),
+    "day: an empty bill fails": ({}, [], [], (), (), Text(has=("google: no bill", "scaleway: no bill"),
+                                                           lacks=("exit 0:",))),
+    "day: a bill without scaleway fails": (
+        {"google": [bill_line("m", 1.0)]}, [],
+        [{"day": "2026-10-11", "call": "a", "state": "finished", "model": "m", "euros": 1.0}], (), (),
+        Text(has=("scaleway: no bill",), lacks=("exit 0:",))),
+    "day: the scaleway day comes from the saved reads": (
+        None, ONE_RUN, [], SAVED_READS, ("google",),
+        Text(has=("exit 0:", "machines: bill 50.00, ledgers 50.00", "not in any ledger: storage 10.00"))),
+    "day: no read before the day is no bill": (
+        None, ONE_RUN, [], SAVED_READS[1:], ("google",), Text(has=("scaleway: no bill",), lacks=("exit 0:",))),
+    "day: a run across midnight counts its share": (
+        None, [{"started": "2026-10-10T22:00:00Z", "kind": "pixal", "wall_minutes": 240, "euros": 40.0}], [],
+        [snapshot("2026-10-10T23:00:00+00:00", 0.0), snapshot("2026-10-11T23:30:00+00:00", 30.0)], ("google",),
+        Text(has=("exit 0:", "machines: bill 30.00, ledgers 30.00"))),
+    "day: storage and other lines never alarm": (
+        {"scaleway": [bill_line("/instance/server/l4_1_24g/fr-par-2", 20.0),
+                      bill_line("/storage/obj/usage/fr-par", 40.0),
+                      bill_line("/paas/secret_manager/access/fr-par", 5.0)]},
+        [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 20.0}], [], (), ("google",),
+        Text(has=("exit 0:", "not in any ledger: storage 40.00, other 5.00"))),
+    "day: a machine still running counts at its price": (
+        {"scaleway": [bill_line("/instance/server/l4_1_24g/fr-par-2", 6.0)]},
+        [{"started": "2026-10-11T10:00:00Z", "batch": "rent-pixal-9-1", "kind": "rent-started", "run": "pixal-9",
+          "name": "pixal-9-1", "price": 0.1, "deadline": costs.moment("2026-10-11T11:00:00Z"), "euros": 0.0}],
+        [], (), ("google",), Text(has=("exit 0:", "machines: bill 6.00, ledgers 6.00"))),
+    "day: no cloud ledger fails as missing": (
+        TWO_PROVIDERS, None, [], (), ("google",),
+        Text(has=("scaleway: no ledger at ",), lacks=("exit 0:", "ledgers 0.00"))),
+    "day: no google ledger fails as missing": (
+        TWO_PROVIDERS, [{"started": "2026-10-11T09:00:00Z", "kind": "pixal", "euros": 20.0}], None, (), (),
+        Text(has=("google: no ledger at ", "scaleway: machines"), lacks=("exit 0:",))),
+}
+
+
+def day_check(row):
+    """`reconcile-day 2026-10-11` on one DAYS row's files, written to a fresh folder: "exit N:", its output below."""
+    day_bill, cloud_rows, google_lines, snapshots, skip, _ = row
+    folder = pathlib.Path(tempfile.mkdtemp())
+    bills = folder / "bills"
+    bills.mkdir()
+    for read in snapshots:
+        (bills / f"{read['read'][:13]}{read['read'][14:16]}Z.json").write_text(json.dumps(read))
+    for name, lines in (("ledger.jsonl", cloud_rows), ("google.jsonl", google_lines)):
+        if lines is not None:
+            (folder / name).write_text("".join(json.dumps(line) + "\n" for line in lines))
+    command = [sys.executable, str(HERE / "costs.py"), "reconcile-day", "2026-10-11", "--ledger",
+               str(folder / "ledger.jsonl"), "--google-ledger", str(folder / "google.jsonl"), "--bills", str(bills),
+               *[part for provider in skip for part in ("--skip", provider)]]
+    if day_bill is not None:
+        (folder / "bill.json").write_text(json.dumps(day_bill))
+        command.insert(4, str(folder / "bill.json"))
+    done = subprocess.run(command, capture_output=True, text=True)
+    return f"exit {done.returncode}:\n{done.stdout}{done.stderr}"
+
+
+def day_measures():
+    """Every DAYS row's command, run side by side: {row: "exit N: output"}."""
+    with concurrent.futures.ThreadPoolExecutor(len(DAYS)) as pool:
+        return dict(zip(DAYS, pool.map(day_check, DAYS.values())))
+
+
+# --- per_unit.py's worlds: ledgers written here, Google calls, a store, and the paper's ledger copy ---
 
 LINES = [
     {"batch": "batch-1", "kind": "pixal", "models_done": 10, "euros": 1.0},
@@ -492,168 +414,67 @@ CALLS = [
 ]
 
 
-def written(rows):
-    path = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
-    path.write_text("".join(json.dumps(row) + "\n" for row in rows) + "{torn\n")
-    return path
+# Calls of one caller with their times: a and b overlap by 20 s, c failed, the last of the first format (no state).
+TIMED_CALLS = [{"call": "a", "caller": "pro", "state": "started", "time": "2026-10-12T10:00:00+02:00"},
+               {"call": "b", "caller": "pro", "state": "started", "time": "2026-10-12T10:00:10+02:00"},
+               {"call": "a", "caller": "pro", "state": "finished", "time": "2026-10-12T10:00:30+02:00", "euros": 0.1},
+               {"call": "b", "caller": "pro", "state": "finished", "time": "2026-10-12T10:01:10+02:00", "euros": 0.1},
+               {"call": "c", "caller": "pro", "state": "failed"}, {"caller": "pro", "euros": 0.1}]
 
 
-def test_a_batch_is_read_once_and_priced_over_the_units_it_finished():
-    """Each batch's euros over the units it finished; one finished nothing is left out; a batch in two ledgers once."""
-    first, second = written(LINES), written(LINES[:1])
-    lines = per_unit.ledger_lines([first, second])
-    assert [line["batch"] for line, _ in lines] == [row["batch"] for row in LINES]
-    each, batches = per_unit.cloud_measures(lines, per_unit.SPECS["pixal"])
-    assert each == [0.1, 0.5] and batches == ["batch-1", "batch-2"]
-    each, batches = per_unit.cloud_measures(lines, per_unit.SPECS["light-passes"])
-    assert each == [0.1] and batches == ["blender-1"]
-    each, batches = per_unit.cloud_measures(lines, per_unit.SPECS["settle"])
-    assert each == [0.0] and batches == ["blender-2"]  # a free drop counts; another `who` is another job
+# Ticketed lines: the ticket names the stage, whatever the kind. Sound's own line names its takes; an older one does
+# not (its takes recorded in SOUND_TAKES), and one named in neither counts none.
+TILES = {"batch": "tiles-1", "kind": "library", "ticket": "surface-tiles@airlock abc", "jobs": ["a"], "euros": 0.2,
+         "machines": []}
+BAKE = {"batch": "bake-1", "kind": "library", "ticket": "surfaces-bake@airlock abc", "jobs": ["a", "b"], "euros": 0.5,
+        "machines": [{"type": "L4-1-24G", "started": True, "unit_seconds": [60.0, 120.0], "work_minutes": 4.0}]}
+TAKE = {"batch": "prove-1", "kind": "prove", "who": "score runner, sound stage", "ticket": "sound@airlock abc",
+        "euros": 0.23, "machines": [], "takes": 1}
+OLD_TAKE = {key: value for key, value in TAKE.items() if key != "takes"} | {
+    "batch": "prove-20261021-005847-4017578", "euros": 0.0525}
+UNNAMED_TAKE = {**OLD_TAKE, "batch": "prove-2"}
 
 
-def test_a_ticketed_line_is_the_stage_its_ticket_names_and_a_warm_stage_is_priced_on_its_own_timed_jobs():
-    """A line whose ticket names another stage is no bake's, whatever its kind; sound's run is priced over the takes
-    its line names (one here), an older line's over its takes recorded in SOUND_TAKES, a line naming none counts none;
-    the bake's own jobs price it in place of every library job in the paper's copy, and the add mode keeps every
-    other stage."""
-    tiles = {"batch": "tiles-1", "kind": "library", "ticket": "surface-tiles@airlock abc", "jobs": ["a"], "euros": 0.2,
-             "machines": []}
-    kit = {"batch": "bake-1", "kind": "library", "ticket": "surfaces-bake@airlock abc", "jobs": ["a", "b"],
-           "euros": 0.5,
-           "machines": [{"type": "L4-1-24G", "started": True, "unit_seconds": [60.0, 120.0], "work_minutes": 4.0}]}
-    take = {"batch": "prove-1", "kind": "prove", "who": "score runner, sound stage", "ticket": "sound@airlock abc",
-            "euros": 0.23, "machines": [], "takes": 1}
-    lines = per_unit.ledger_lines([written([tiles, take])])
-    assert per_unit.cloud_measures(lines, per_unit.SPECS["surfaces-bake"]) == ([], [])
-    assert per_unit.cloud_measures(lines, per_unit.SPECS["sound"]) == ([0.23], ["prove-1"])
-    square = {**take, "batch": "prove-20261021-005847-4017578", "euros": 0.0525}
-    del square["takes"]
-    unnamed = {**square, "batch": "prove-2"}
-    each, _ = per_unit.cloud_measures(per_unit.ledger_lines([written([square, unnamed])]), per_unit.SPECS["sound"])
-    assert each == [0.0525 / 11], each
-    out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
-    settle = {"stage": "settle", "likely_euros": 0.59, "high_euros": 1.6, "runs": 3, "sources": {}}
-    out.write_text(json.dumps({"read": [], "high_quantile": 0.9, "stages": {"settle": settle}}))
-    per_unit.main(["--add", "--ledger", str(written([kit, take])), "--out", str(out)])
-    found = json.loads(out.read_text())["stages"]
-    assert found["settle"] == settle and found["sound"]["likely_euros"] == 0.23
-    assert found["sound"]["forecast"]["rule"] == "sound_takes"
-    bake = found["surfaces-bake"]
-    assert bake["runs"] == 2 and bake["time"]["unit_seconds"]["likely"] == 90.0, bake
-    assert "of its own jobs" in bake["sources"]["warm work"]
+# A per-unit file's stage measured elsewhere, which the in-place modes must keep.
+SETTLE = {"stage": "settle", "likely_euros": 0.59, "high_euros": 1.6, "runs": 3, "sources": {}}
 
 
-def test_google_units_are_finished_calls_of_the_stages_caller():
-    """A call counts once it finished (or in the first format, written only then); started and failed do not."""
-    each, days = per_unit.google_measures(CALLS, "pro")
-    assert each == [0.14, 0.12] and days == ["2026-10-11", "2026-10-12"]
+MEASURED = {"stage": "pixal", "unit": "model", "count": {"json_keys": "takes.json"}, "also": [], "likely_euros": 0.1,
+            "high_euros": 0.4, "runs": 9, "sources": {"cloud batches": ["b1"]},
+            "forecast": {"rule": "stale", "source": "old"}}
 
 
-def test_the_file_holds_measured_stages_only_with_median_high_and_runs():
-    """Likely the median, high the HIGH quantile, runs what they rest on; a stage with no lines is left out."""
-    found = per_unit.measure(per_unit.ledger_lines([written(LINES)]), CALLS, "google-ledger.jsonl")
-    assert found["pixal"]["likely_euros"] == 0.3 and found["pixal"]["runs"] == 2
-    assert 0.3 < found["pixal"]["high_euros"] <= 0.5 and found["pixal"]["count"] == {"json_keys": "takes.json"}
-    assert found["closeup"]["runs"] == 2 and "surfaces-maps" not in found and "surfaces-bake" not in found
-    assert found["pixal"]["forecast"]["rule"] == "pixal_takes" and "per_model" not in found["pixal"]["forecast"]
-    assert found["closeup"]["forecast"]["per_model"] == round(297 / 217, 4)  # a picture a row, a retry a rejected one
-
-
-def test_a_recorded_stage_is_priced_from_its_runs_with_their_sources_and_no_count_rule():
-    """Each recorded run's euros over its units; likely their median; runs how many; the sources named."""
-    found = per_unit.measure([], [], "google-ledger.jsonl")["surfaces-paint"]
-    runs = per_unit.RECORDED["surfaces-paint"]["runs"]
-    each = sorted(run["euros"] / run["units"] for run in runs)
-    assert found["likely_euros"] == round((each[0] + each[1]) / 2, 5) and found["runs"] == len(runs)
-    assert found["sources"]["recorded runs"] == [run["source"] for run in runs] and found["count"] is None
-    assert found["forecast"]["rule"] == "models"
-
-
-def test_every_stage_has_a_forecast_rule_with_its_source():
-    for stage, spec in {**per_unit.SPECS, **per_unit.RECORDED}.items():
-        found = per_unit.forecast(spec)["forecast"]
-        assert found["rule"] and found["source"], stage
-
-
-def test_rules_only_writes_the_rules_and_keeps_the_measured_numbers():
-    measured = {"stage": "pixal", "unit": "model", "count": {"json_keys": "takes.json"}, "also": [],
-                "likely_euros": 0.1, "high_euros": 0.4, "runs": 9, "sources": {"cloud batches": ["b1"]},
-                "forecast": {"rule": "stale", "source": "old"}}
-    out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
-    out.write_text(json.dumps({"read": ["x"], "high_quantile": 0.9,
-                               "stages": {"pixal": measured, "settle": {**measured, "stage": "settle"}}}))
-    per_unit.main(["--rules-only", "--out", str(out)])
-    found = json.loads(out.read_text())
-    assert found["read"] == ["x"] and found["stages"]["settle"]["likely_euros"] == 0.1
-    assert found["stages"]["pixal"]["forecast"]["rule"] == "pixal_takes"
-    assert found["stages"]["pixal"]["basis"] == "warm work time"  # a WARM stage priced by the owner's method
-    assert found["stages"]["settle"]["forecast"]["rule"] == "one"
-    assert set(per_unit.RECORDED) <= set(found["stages"])  # the recorded stages written again
+# A pixal line with no machine seconds: 20 working minutes; with per_card 2 on two one-card machines.
+UNTIMED = {"batch": "b", "kind": "pixal", "models_done": 4, "machine_minutes": 20.0, "euros": 1.0}
 
 
 PAPER = REPO / "paper/evidence/cloud/ledger.jsonl"
 
 
-def paper_line(batch):
-    """One real line of the paper's ledger copy, by its batch."""
-    return next((line, source) for line, source in per_unit.ledger_lines([PAPER]) if line["batch"] == batch)
+def written(rows):
+    """A ledger of `rows` in a fresh folder, a torn last line after them; its path."""
+    path = pathlib.Path(tempfile.mkdtemp()) / "ledger.jsonl"
+    path.write_text("".join(json.dumps(row) + "\n" for row in rows) + "{torn\n")
+    return path
 
 
-def test_a_cloud_stages_time_is_read_from_its_machines_own_job_seconds():
-    """Real lines: a settle run's one job and its card's start wait; a Pixal3D batch of three at once on one card."""
-    settle = per_unit.cloud_times([paper_line("blender-20261008-165605-2054366")], per_unit.SPECS["settle"])
-    assert settle["unit_seconds"] == {"likely": 539.6, "high": 539.6} and settle["slots"] == 1, settle
-    # set-up: the card's 0.37 min start wait and its 2.93 min in the machine before its 539.6 s job (11.93 working)
-    assert settle["setup_minutes"] == {"likely": 3.304, "high": 3.304}, settle
-    assert settle["failed_start_share"] == 0 and settle["holds"] == "machines"
-    pixal = per_unit.cloud_times([paper_line("batch-20261008-134426-1833430")], per_unit.SPECS["pixal"])
-    assert pixal["unit_seconds"]["likely"] == 629.98 and pixal["slots"] == 3, pixal
-    # 0.60 start wait and 13.33 working minutes less three jobs' 1589 s run three at once
-    assert pixal["setup_minutes"] == {"likely": 5.102, "high": 5.102}, pixal
-    assert per_unit.cloud_times([], per_unit.SPECS["settle"])["why"].startswith("no ledger line")
+def per_unit_file(body, *arguments):
+    """per_unit's main run on a per-unit file holding `body` with `arguments`; the file it leaves."""
+    out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
+    out.write_text(json.dumps(body, indent=1) + "\n")
+    per_unit.main([*arguments, "--out", str(out)])
+    return json.loads(out.read_text())
 
 
-def test_a_stage_whose_lines_time_no_set_up_says_so_and_never_writes_a_zero():
-    line = {"batch": "b", "kind": "pixal", "models_done": 2, "machine_minutes": 20.0, "euros": 1.0}
-    found = per_unit.cloud_times([(line, "here line 1")], per_unit.SPECS["pixal"])
-    assert found["unit_seconds"]["likely"] == 600.0 and found["setup_minutes"] == {
-        "why": "no line read here timed a machine's set-up"}, found
+def without_time(body):
+    """A per-unit file's text with every time field left out."""
+    return json.dumps({**{name: value for name, value in body.items() if name != "node_minutes"},
+                       "stages": {stage: {name: value for name, value in found.items() if name != "time"}
+                                  for stage, found in body["stages"].items()}}, indent=1)
 
 
-def test_a_line_without_machine_seconds_is_timed_by_its_working_minutes_and_slots_over_its_units():
-    """A job's time, not the batch's throughput: the machines' working minutes times the jobs each ran at once."""
-    line = {"batch": "b", "kind": "pixal", "models_done": 4, "machine_minutes": 20.0, "euros": 1.0}
-    assert per_unit.unit_seconds(line, "models_done") == [300.0] * 4
-    two = {**line, "per_card": 2, "machines": [{"cards": 1, "work_minutes": 10.0, "minutes": 11.0},
-                                               {"cards": 1, "work_minutes": 10.0, "minutes": 11.0}]}
-    assert per_unit.unit_seconds(two, "models_done") == [600.0] * 4
-    assert per_unit.unit_seconds({**line, "machine_minutes": None}, "models_done") == []
-
-
-def test_writing_times_in_place_keeps_a_measured_time_the_ledgers_read_here_do_not_hold():
-    body = {"stages": {"closeup": {"time": {"unit_seconds": {"likely": 30.0, "high": 50.0}}},
-                       "pixal": {"time": {"why": "none"}}}, "node_minutes": {"plan": {"likely": 2.0}}}
-    stage_times, made = per_unit.kept_times(body, {"closeup": {"why": "no Google ledger read here"},
-                                                   "pixal": {"unit_seconds": {"likely": 9.0, "high": 9.0}}}, {})
-    assert stage_times["closeup"]["unit_seconds"]["likely"] == 30.0 and stage_times["pixal"]["unit_seconds"]
-    assert made == {"plan": {"likely": 2.0}}
-
-
-def test_a_google_stages_time_is_its_calls_started_to_finished_and_how_many_ran_at_once():
-    calls = [{"call": "a", "caller": "pro", "state": "started", "time": "2026-10-12T10:00:00+02:00"},
-             {"call": "b", "caller": "pro", "state": "started", "time": "2026-10-12T10:00:10+02:00"},
-             {"call": "a", "caller": "pro", "state": "finished", "time": "2026-10-12T10:00:30+02:00", "euros": 0.1},
-             {"call": "b", "caller": "pro", "state": "finished", "time": "2026-10-12T10:01:10+02:00", "euros": 0.1},
-             {"call": "c", "caller": "pro", "state": "failed"}, {"caller": "pro", "euros": 0.1}]
-    found = per_unit.google_times(calls, "pro", "google-ledger.jsonl")
-    assert found["unit_seconds"]["likely"] == 45.0 and found["slots"] == 1 and found["holds"] == "calls"
-    assert found["failed_start_share"] == round(1 / 3, 3) and found["lines"] == 2
-    assert "why" in per_unit.google_times(calls, "pro", None) and "why" in per_unit.google_times([], "pro", "g")
-    batch = per_unit.batch_job_time(calls, "pro", "google-ledger.jsonl")  # a Batch API row's whole job: unmeasured
-    assert list(batch) == ["why"] and "1 request(s) at once timed only (2 calls, 45 s likely" in batch["why"]
-
-
-def test_node_minutes_are_the_store_finish_records_minutes_by_stage():
+def finish_records():
+    """The node times of a store whose finish records are three makes and one carried record (no make)."""
     sys.path.insert(0, str(REPO))
     from score.graph import runs
     from score.store import Store
@@ -665,49 +486,106 @@ def test_node_minutes_are_the_store_finish_records_minutes_by_stage():
                                                    "finished": f"2026-10-20T1{number}", "minutes": minutes})
     store.write_record("plan@flat", "key9", {"node": "plan@flat", "stage": "plan", "finished": "2026-10-20T19",
                                              "minutes": 99.0, "carried": {"reason": "kept over a no-op"}})
-    made = runs.node_times(store)  # a carried record is no make
-    assert [row["node"] for row in made] == ["plan@hangar", "plan@lab", "concept@lab"]
-    found = per_unit.node_minutes(made, root)
-    assert found["plan"]["likely"] == 4.0 and found["plan"]["makes"] == 2 and found["concept"]["high"] == 1.0
+    return runs.node_times(store), root
 
 
-def test_a_warm_stage_is_its_measured_work_over_the_cards_slots_at_the_bills_price_and_the_overhead():
-    """Pixal3D: the L4 jobs' own seconds in the paper's ledger, three at once, the saved bill's L4 hour, plus 10%;
-    a stage outside WARM and BATCH keeps every field."""
-    other = {"stage": "settle", "likely_euros": 0.59, "high_euros": 1.6, "runs": 3, "sources": {}}
-    found = per_unit.with_warm({"stages": {"pixal": {"stage": "pixal", "time": {}}, "settle": other}})["stages"]
-    seconds = [value for row in per_unit.warm_rows(per_unit.WARM["pixal"]) for value in row["unit_seconds"]]
-    assert len(seconds) == found["pixal"]["runs"] == 52 and round(per_unit.hourly("L4-1-24G"), 4) == 0.7875
-    assert found["pixal"]["likely_euros"] == round(1358.404 / 3 * per_unit.hourly("L4-1-24G") / 3600 * 1.1, 5)
-    assert found["pixal"]["time"]["slots"] == 3 and found["pixal"]["time"]["unit_seconds"]["likely"] == 1358.404
-    setups = per_unit.row_setups(per_unit.warm_rows(per_unit.WARM["pixal"]))  # its timed machines' own set-ups
-    assert found["pixal"]["time"]["setup_minutes"] == per_unit.spread(setups) and found["settle"] == other
-
-
-def test_a_batch_stage_is_half_its_measured_standard_calls_and_a_route_ask_says_it_is_priced_from_the_lists():
-    found = per_unit.with_warm({"stages": {}})["stages"]
-    assert found["closeup"]["likely_euros"] == round(per_unit.PRO_PICTURES["likely"] / 2, 5)
-    assert "google calls" in found["finish-route-list"]["sources"]  # no bill share on a Google stage
-    assert found["finish-route-recheck"]["forecast"]["rule"] == "models" and found["finish-route-list"]["price_note"]
-    assert found["finish-route-list"]["time"]["why"]  # no batch call timed: no ETA made up
-
-
-def test_writing_the_times_leaves_every_euro_of_the_per_unit_file_byte_identical():
-    """The repository's own per-unit file, its time written again from the paper's ledger copy: every field but the
-    time fields is the same, byte for byte."""
-    out = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
+def unit_measures():
+    """per_unit driven once over each world: {measure: its value}."""
+    lines = per_unit.ledger_lines([written(LINES), written(LINES[:1])])
+    ticketed = per_unit.ledger_lines([written([TILES, TAKE])])
+    measured = per_unit.measure(per_unit.ledger_lines([written(LINES)]), CALLS, "google-ledger.jsonl")
+    recorded = per_unit.measure([], [], "google-ledger.jsonl")["surfaces-paint"]
+    added = per_unit_file({"read": [], "high_quantile": 0.9, "stages": {"settle": SETTLE}},
+                          "--add", "--ledger", str(written([BAKE, TAKE])))["stages"]
+    rules = per_unit_file({"read": ["x"], "high_quantile": 0.9,
+                           "stages": {"pixal": MEASURED, "settle": {**MEASURED, "stage": "settle"}}}, "--rules-only")
+    paper = {line["batch"]: (line, source) for line, source in per_unit.ledger_lines([PAPER])}
+    settle = per_unit.cloud_times([paper["blender-20261008-165605-2054366"]], per_unit.SPECS["settle"])
+    pixal = per_unit.cloud_times([paper["batch-20261008-134426-1833430"]], per_unit.SPECS["pixal"])
+    untimed_setup = per_unit.cloud_times([({**UNTIMED, "models_done": 2}, "here line 1")], per_unit.SPECS["pixal"])
+    two_cards = {**UNTIMED, "per_card": 2, "machines": [{"cards": 1, "work_minutes": 10.0, "minutes": 11.0},
+                                                        {"cards": 1, "work_minutes": 10.0, "minutes": 11.0}]}
+    kept, made = per_unit.kept_times(
+        {"stages": {"closeup": {"time": {"unit_seconds": {"likely": 30.0, "high": 50.0}}},
+                    "pixal": {"time": {"why": "none"}}}, "node_minutes": {"plan": {"likely": 2.0}}},
+        {"closeup": {"why": "no Google ledger read here"}, "pixal": {"unit_seconds": {"likely": 9.0, "high": 9.0}}}, {})
+    google = per_unit.google_times(TIMED_CALLS, "pro", "google-ledger.jsonl")
+    batch_job = per_unit.batch_job_time(TIMED_CALLS, "pro", "google-ledger.jsonl")
+    records, root = finish_records()
+    node_minutes = per_unit.node_minutes(records, root)
+    warm = per_unit.with_warm({"stages": {"pixal": {"stage": "pixal", "time": {}}, "settle": SETTLE}})["stages"]
+    batch_stages = per_unit.with_warm({"stages": {}})["stages"]
     before = json.loads((REPO / "data/costs/per-unit.json").read_text())
-    out.write_text(json.dumps(before, indent=1) + "\n")
-    per_unit.main(["--times-only", "--ledger", str(PAPER), "--out", str(out)])
-    after = json.loads(out.read_text())
-
-    def without_time(body):
-        return json.dumps({**{name: value for name, value in body.items() if name != "node_minutes"},
-                           "stages": {stage: {name: value for name, value in found.items() if name != "time"}
-                                      for stage, found in body["stages"].items()}}, indent=1)
-
-    assert without_time(after) == without_time(before)
-    assert set(after["stages"]) == set(before["stages"]) and all("time" in found for found in after["stages"].values())
+    after = per_unit_file(before, "--times-only", "--ledger", str(PAPER))
+    return {
+        "unit: a batch in two ledgers is read once": [line["batch"] for line, _ in lines],
+        "unit: pixal priced over the units each batch finished": per_unit.cloud_measures(lines, per_unit.SPECS["pixal"]),
+        "unit: light passes are the light stage's jobs": per_unit.cloud_measures(lines, per_unit.SPECS["light-passes"]),
+        "unit: settle is its own who's, a free drop counted": per_unit.cloud_measures(lines, per_unit.SPECS["settle"]),
+        "unit: a line ticketed for tiles is no bake's": per_unit.cloud_measures(ticketed,
+                                                                               per_unit.SPECS["surfaces-bake"]),
+        "unit: sound priced over the takes its line names": per_unit.cloud_measures(ticketed, per_unit.SPECS["sound"]),
+        "unit: an older sound line over its recorded takes": per_unit.cloud_measures(
+            per_unit.ledger_lines([written([OLD_TAKE, UNNAMED_TAKE])]), per_unit.SPECS["sound"])[0],
+        "unit: --add keeps every other stage and adds sound": (
+            added["settle"], added["sound"]["likely_euros"], added["sound"]["forecast"]["rule"]),
+        "unit: --add prices a warm stage on its own timed jobs": (
+            added["surfaces-bake"]["runs"], added["surfaces-bake"]["time"]["unit_seconds"]["likely"],
+            "of its own jobs" in added["surfaces-bake"]["sources"]["warm work"]),
+        "unit: google units are finished calls": per_unit.google_measures(CALLS, "pro"),
+        "unit: the measured file": {
+            "pixal likely": measured["pixal"]["likely_euros"], "pixal runs": measured["pixal"]["runs"],
+            "pixal count": measured["pixal"]["count"], "pixal forecast": measured["pixal"]["forecast"]["rule"],
+            "pixal per model": "per_model" in measured["pixal"]["forecast"],
+            "closeup runs": measured["closeup"]["runs"],
+            "closeup per model": measured["closeup"]["forecast"]["per_model"]},
+        "unit: pixal's high is the high quantile": measured["pixal"]["high_euros"],
+        "unit: stages with no lines are left out": sorted({"surfaces-maps", "surfaces-bake"} & set(measured)),
+        "unit: a recorded stage is priced from its runs": (
+            recorded["likely_euros"], recorded["runs"], recorded["sources"]["recorded runs"], recorded["count"],
+            recorded["forecast"]["rule"]),
+        "unit: stages without a forecast rule and source": [
+            stage for stage, spec in {**per_unit.SPECS, **per_unit.RECORDED}.items()
+            if not (per_unit.forecast(spec)["forecast"]["rule"] and per_unit.forecast(spec)["forecast"]["source"])],
+        "unit: --rules-only keeps the measured numbers": (
+            rules["read"], rules["stages"]["settle"]["likely_euros"], rules["stages"]["pixal"]["forecast"]["rule"],
+            rules["stages"]["pixal"]["basis"], rules["stages"]["settle"]["forecast"]["rule"],
+            set(per_unit.RECORDED) <= set(rules["stages"])),
+        "unit: a settle run's time from the paper's line": {
+            key: settle[key] for key in ("unit_seconds", "slots", "setup_minutes", "failed_start_share", "holds")},
+        "unit: a pixal batch's time from the paper's line": (
+            pixal["unit_seconds"]["likely"], pixal["slots"], pixal["setup_minutes"]),
+        "unit: a stage with no line says why": per_unit.cloud_times([], per_unit.SPECS["settle"])["why"],
+        "unit: a stage whose lines time no set-up says so": (
+            untimed_setup["unit_seconds"]["likely"], untimed_setup["setup_minutes"]),
+        "unit: a line's seconds by its working minutes and slots": (
+            per_unit.unit_seconds(UNTIMED, "models_done"), per_unit.unit_seconds(two_cards, "models_done"),
+            per_unit.unit_seconds({**UNTIMED, "machine_minutes": None}, "models_done")),
+        "unit: writing times in place keeps a measured time": (
+            kept["closeup"]["unit_seconds"]["likely"], bool(kept["pixal"]["unit_seconds"]), made),
+        "unit: a google stage's time from its calls": {
+            key: google[key] for key in ("slots", "holds", "failed_start_share", "lines")}
+        | {"likely": google["unit_seconds"]["likely"],
+           "why with no ledger": "why" in per_unit.google_times(TIMED_CALLS, "pro", None),
+           "why with no calls": "why" in per_unit.google_times([], "pro", "g")},
+        "unit: a Batch API row is unmeasured": f"{list(batch_job)}: {batch_job.get('why')}",
+        "unit: node minutes are the store's finish records": (
+            [row["node"] for row in records], node_minutes["plan"]["likely"], node_minutes["plan"]["makes"],
+            node_minutes["concept"]["high"]),
+        "unit: a warm stage at the bill's price plus the overhead": (
+            len([value for row in per_unit.warm_rows(per_unit.WARM["pixal"]) for value in row["unit_seconds"]]),
+            warm["pixal"]["runs"], round(per_unit.hourly("L4-1-24G"), 4), warm["pixal"]["likely_euros"],
+            warm["pixal"]["time"]["slots"], warm["pixal"]["time"]["unit_seconds"]["likely"],
+            warm["pixal"]["time"]["setup_minutes"], warm["settle"]),
+        "unit: a batch stage is half its standard calls": (
+            batch_stages["closeup"]["likely_euros"], "google calls" in batch_stages["finish-route-list"]["sources"],
+            batch_stages["finish-route-recheck"]["forecast"]["rule"],
+            bool(batch_stages["finish-route-list"]["price_note"]),
+            bool(batch_stages["finish-route-list"]["time"]["why"])),
+        "unit: --times-only keeps every euro": (
+            without_time(after) == without_time(before), set(after["stages"]) == set(before["stages"]),
+            all("time" in found for found in after["stages"].values())),
+    }
 
 
 # --- paid calls only through the ledgered clients (a wording check guarding the owner rule) ---
@@ -736,11 +614,7 @@ ALLOWED = {
     "score/conductor/logs.py": ("the log scrubber names the Google key header to blank it, calls nothing",
                                 {"SECRET_WORDS"}),
     str(pathlib.Path(__file__).resolve().relative_to(REPO)): (
-        "this lint's pattern and its fixtures", {"PAID_TEXT", "test_a_module_calling_gemini_directly_fails",
-                                        "test_a_module_ordering_a_scaleway_machine_or_disk_fails",
-                                        "test_an_address_built_in_an_f_string_fails",
-                                        "test_a_shell_order_broken_over_lines_fails",
-                                        "test_runnable_files_beyond_python_and_shell_are_read"}),
+        "this lint's pattern and its fixtures", {"PAID_TEXT", "LINT_CASES"}),
 }
 
 
@@ -1061,189 +935,219 @@ def tracked_sources():
             if not path.startswith("vendor/") and (REPO / path).is_file() and runnable(REPO / path)]
 
 
-def fixture(source):
-    """A module written to a fresh folder from `source`; its path."""
-    path = pathlib.Path(tempfile.mkdtemp()) / "fixture.py"
-    path.write_text(source)
-    return path
-
-
-def test_a_module_calling_gemini_directly_fails():
-    path = fixture('import urllib.request\n'
-                   'URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"\n'
-                   'def ask(body):\n'
-                   '    return urllib.request.urlopen(urllib.request.Request(URL, data=body))\n')
-    assert [line for line, _ in paid_calls(path)] == [2], paid_calls(path)
-
-
-def test_a_module_loading_googles_client_fails():
-    path = fixture("from google import genai\nimport vertexai\n")
-    assert [line for line, _ in paid_calls(path)] == [1, 2], paid_calls(path)
-
-
-def test_a_module_ordering_a_scaleway_machine_or_disk_fails():
-    path = fixture('import subprocess\n'
-                   'subprocess.run(["scw", "instance", "server", "create", "type=L4-1-24G"])\n'
-                   'scw("block", "volume", "create", "size=20GB")\n'
-                   'subprocess.run("scw instance ip create zone=fr-par-2", shell=True)\n')
-    assert [line for line, _ in paid_calls(path)] == [2, 3, 4], paid_calls(path)
-
-
-def test_an_order_built_before_its_call_fails():
-    """Fault (review, 2026-10-17): only words passed straight into one call were read, so an order put in a variable
-    first, a list with more joined on, or a starred list came back clean."""
-    path = fixture('import subprocess\n'
-                   'cmd = ["scw", "instance", "server", "create"]\n'
-                   'subprocess.run(cmd)\n'
-                   'subprocess.run(["scw", "block", "volume", "create"] + extra)\n'
-                   'subprocess.run([*["scw", "instance", "ip", "create"], "zone=fr-par-2"])\n'
-                   'base = ["scw", "k8s", "pool"]\n'
-                   'subprocess.run(base + ["create", "size=0"])\n')
-    assert [line for line, _ in paid_calls(path)] == [2, 3, 4, 5, 7], paid_calls(path)
-
-
-def test_an_address_built_in_an_f_string_fails():
-    """Fault (review, 2026-10-17): an f-string splits into pieces, so the address was never seen whole; and the
-    block API is v1alpha1, which a v1-only pattern missed."""
-    path = fixture('zone = "fr-par-2"\n'
-                   'SERVERS = f"https://api.scaleway.com/instance/v1/zones/{zone}/servers"\n'
-                   'VOLUMES = "https://api.scaleway.com/block/v1alpha1/zones/fr-par-2/volumes"\n'
-                   'ORDER = f"scw instance server create zone={zone}"\n')
-    assert [line for line, _ in paid_calls(path)] == [2, 3, 4], paid_calls(path)
-
-
-def test_an_order_grown_by_append_or_extend_fails():
-    """Fault (review of C1, 2026-10-17): a list grown with .append or .extend was read only as first set, so an order
-    finished by one came back clean."""
-    path = fixture('import subprocess\n'
-                   'cmd = ["scw", "instance", "server"]\n'
-                   'cmd.append("create")\n'
-                   'subprocess.run(cmd)\n'
-                   'disk = ["scw", "block"]\n'
-                   'disk.extend(["volume", "create"])\n'
-                   'subprocess.run(disk)\n')
-    assert [line for line, _ in paid_calls(path)] == [3, 4, 6, 7], paid_calls(path)
-
-
-def test_a_name_two_functions_use_is_read_in_each_functions_own_words():
-    """Fault (review of C1, 2026-10-17): variables were one module-wide table with only the last setting by line
-    kept, so a call in an earlier function read a later function's words and its order came back clean."""
-    path = fixture('import subprocess\n'
-                   'def a():\n'
-                   '    cmd = ["scw", "instance", "server"]\n'
-                   '    subprocess.run(cmd + ["create"])\n'
-                   'def b():\n'
-                   '    cmd = ["ls"]\n'
-                   '    subprocess.run(cmd)\n'
-                   'def c():\n'
-                   '    api = "https://api.scaleway.com/instance/v1/zones/fr-par-2"\n'
-                   '    requests.post(api + "/servers")\n'
-                   'def d():\n'
-                   '    api = "https://example.org"\n')
-    assert [line for line, _ in paid_calls(path)] == [4, 10], paid_calls(path)
-
-
-def test_an_order_grown_in_one_branch_fails():
-    """A list grown to an order in one branch and to something else after it still orders: the growing line itself
-    is checked, not only the words left at the call."""
-    path = fixture('import subprocess\n'
-                   'def a(new):\n'
-                   '    cmd = ["scw", "instance", "server"]\n'
-                   '    if new:\n'
-                   '        cmd.append("create")\n'
-                   '    else:\n'
-                   '        cmd = ["scw", "instance", "server", "list"]\n'
-                   '    subprocess.run(cmd)\n')
-    assert [line for line, _ in paid_calls(path)] == [5], paid_calls(path)
-
-
-def test_an_order_put_together_with_insert_fails():
-    """Fault (review of C1, 2026-10-17): .insert was not read, so `cmd.insert(1, "instance")` building an order passed."""
-    path = fixture('import subprocess\n'
-                   'cmd = ["scw", "server", "create"]\n'
-                   'cmd.insert(1, "instance")\n'
-                   'subprocess.run(cmd)\n')
-    assert [line for line, _ in paid_calls(path)] == [3, 4], paid_calls(path)
-
-
-def test_googles_client_loaded_by_name_fails():
-    """Fault (review of C1, 2026-10-17): only import statements were read, so importlib.import_module("google.genai")
-    passed."""
-    path = fixture('import importlib\n'
-                   'genai = importlib.import_module("google.genai")\n'
-                   'scaleway = __import__("scaleway.instance")\n'
-                   'json = importlib.import_module("json")\n')
-    assert [line for line, _ in paid_calls(path)] == [2, 3], paid_calls(path)
-
-
-def test_a_shell_order_broken_over_lines_fails():
-    """Fault (review of C1, 2026-10-17): shell was matched one line at a time, so `scw instance server \\` with
-    `create` on the next line passed."""
-    path = pathlib.Path(tempfile.mkdtemp()) / "rent.sh"
-    path.write_text('#!/bin/bash\nscw instance server \\\n  create type=L4-1-24G\nscw instance server list\n')
-    assert [line for line, _ in paid_calls(path)] == [2], paid_calls(path)
-
-
-def test_runnable_files_beyond_python_and_shell_are_read():
-    """Fault (review of C1, 2026-10-17): only *.py and *.sh were scanned, so an order in a Makefile, Dockerfile,
-    manifest or a #! script with no suffix passed. Docs and data are left out: they run nothing."""
-    folder = pathlib.Path(tempfile.mkdtemp())
-    names = {"Makefile": "rent:\n\tscw instance server create\n", "job.yaml": "args: [scw k8s pool create]\n",
-             "hook": "#!/bin/sh\nscw block volume create\n", "notes.md": "scw instance server create\n"}
-    for name, text in names.items():
-        (folder / name).write_text(text)
-    assert sorted(name for name in names if runnable(folder / name)) == ["Makefile", "hook", "job.yaml"]
-    assert [line for line, _ in paid_calls(folder / "Makefile")] == [2]
-
-
-def test_an_order_whose_resource_is_a_parameter_fails():
-    """Fault (review of C1, 2026-10-17): a word given as a function's parameter cannot be read, so
-    `scw("instance", what, "create")` came back clean. A product's create with an unread word between still orders."""
-    path = fixture('def order(what):\n'
-                   '    scw("instance", what, "create")\n'
-                   'def look(what):\n'
-                   '    scw("instance", what, "list")\n')
-    assert [line for line, _ in paid_calls(path)] == [2], paid_calls(path)
-
-
-def test_an_address_joined_from_strings_fails():
-    """Fault (review of C1, 2026-10-17): only one string at a time was matched, so an order's address joined from a
-    base and a path (with + or inside an f-string) came back clean."""
-    path = fixture('import requests\n'
-                   'API = "https://api.scaleway.com/instance/v1"\n'
-                   'requests.post(API + f"/zones/{zone}/servers")\n'
-                   'requests.post(f"{API}/zones/{zone}/ips")\n'
-                   'requests.get(API + f"/zones/{zone}/servers/{server}/action")\n')
-    assert [line for line, _ in paid_calls(path)] == [3, 4], paid_calls(path)
-
-
-def test_an_allowed_file_may_order_only_in_its_named_parts():
-    """Fault (review of C1, 2026-10-17): ALLOWED covered whole files, so a paid call added anywhere in the backend or
-    in this file passed. A call in an allowed file passes only inside the top-level functions or constants named."""
-    path = fixture('def create():\n'
-                   '    scw("instance", "server", "create")\n'
-                   'def later():\n'
-                   '    scw("instance", "ip", "create")\n')
-    assert [line for line, _ in outside_allowed(path, {"create"})] == [4], outside_allowed(path, {"create"})
-
-
-def test_reading_and_deleting_are_not_paid_calls():
-    path = fixture('scw("instance", "server", "get", "id")\nscw("instance", "server", "delete", "id")\n'
-                   'assert command[:4] == ["scw", "instance", "server", "create"]\n'
-                   'API = "https://api.scaleway.com/instance/v1/zones/{zone}/servers/{server}/action"\n'
-                   'from score.adapters import compute\n')
-    assert paid_calls(path) == []
-
-
 def repository_calls(path):
     """(line, what) for each paid call one tracked file (repository-relative) makes outside its ALLOWED parts."""
     return outside_allowed(REPO / path, ALLOWED.get(path, ("", set()))[1])
 
 
-def test_the_repository_makes_paid_calls_only_through_the_ledgered_clients():
+# The lint's own reading: (file name, its text, the top-level parts it may order in, its paid lines counted by hand,
+# or "runs nothing"). Faults of the reviews of 2026-10-17 each left one row's order unread before it was fixed.
+LINT_CASES = {
+    "lint: a module calling gemini directly": (
+        "fixture.py", 'import urllib.request\n'
+                      'URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"\n'
+                      'def ask(body):\n'
+                      '    return urllib.request.urlopen(urllib.request.Request(URL, data=body))\n', set(), [2]),
+    "lint: a module loading google's client": ("fixture.py", "from google import genai\nimport vertexai\n", set(),
+                                               [1, 2]),
+    "lint: a module ordering a scaleway machine or disk": (
+        "fixture.py", 'import subprocess\n'
+                      'subprocess.run(["scw", "instance", "server", "create", "type=L4-1-24G"])\n'
+                      'scw("block", "volume", "create", "size=20GB")\n'
+                      'subprocess.run("scw instance ip create zone=fr-par-2", shell=True)\n', set(), [2, 3, 4]),
+    # an order put in a variable first, a list with more joined on, a starred list
+    "lint: an order built before its call": (
+        "fixture.py", 'import subprocess\n'
+                      'cmd = ["scw", "instance", "server", "create"]\n'
+                      'subprocess.run(cmd)\n'
+                      'subprocess.run(["scw", "block", "volume", "create"] + extra)\n'
+                      'subprocess.run([*["scw", "instance", "ip", "create"], "zone=fr-par-2"])\n'
+                      'base = ["scw", "k8s", "pool"]\n'
+                      'subprocess.run(base + ["create", "size=0"])\n', set(), [2, 3, 4, 5, 7]),
+    # an f-string splits into pieces; the block API is v1alpha1
+    "lint: an address built in an f-string": (
+        "fixture.py", 'zone = "fr-par-2"\n'
+                      'SERVERS = f"https://api.scaleway.com/instance/v1/zones/{zone}/servers"\n'
+                      'VOLUMES = "https://api.scaleway.com/block/v1alpha1/zones/fr-par-2/volumes"\n'
+                      'ORDER = f"scw instance server create zone={zone}"\n', set(), [2, 3, 4]),
+    "lint: an order grown by append or extend": (
+        "fixture.py", 'import subprocess\n'
+                      'cmd = ["scw", "instance", "server"]\n'
+                      'cmd.append("create")\n'
+                      'subprocess.run(cmd)\n'
+                      'disk = ["scw", "block"]\n'
+                      'disk.extend(["volume", "create"])\n'
+                      'subprocess.run(disk)\n', set(), [3, 4, 6, 7]),
+    # one module-wide table of variables read an earlier function's call with a later function's words
+    "lint: a name two functions use is read in each function's own words": (
+        "fixture.py", 'import subprocess\n'
+                      'def a():\n'
+                      '    cmd = ["scw", "instance", "server"]\n'
+                      '    subprocess.run(cmd + ["create"])\n'
+                      'def b():\n'
+                      '    cmd = ["ls"]\n'
+                      '    subprocess.run(cmd)\n'
+                      'def c():\n'
+                      '    api = "https://api.scaleway.com/instance/v1/zones/fr-par-2"\n'
+                      '    requests.post(api + "/servers")\n'
+                      'def d():\n'
+                      '    api = "https://example.org"\n', set(), [4, 10]),
+    # the growing line itself orders, not only the words left at the call
+    "lint: an order grown in one branch": (
+        "fixture.py", 'import subprocess\n'
+                      'def a(new):\n'
+                      '    cmd = ["scw", "instance", "server"]\n'
+                      '    if new:\n'
+                      '        cmd.append("create")\n'
+                      '    else:\n'
+                      '        cmd = ["scw", "instance", "server", "list"]\n'
+                      '    subprocess.run(cmd)\n', set(), [5]),
+    "lint: an order put together with insert": (
+        "fixture.py", 'import subprocess\n'
+                      'cmd = ["scw", "server", "create"]\n'
+                      'cmd.insert(1, "instance")\n'
+                      'subprocess.run(cmd)\n', set(), [3, 4]),
+    "lint: google's client loaded by name": (
+        "fixture.py", 'import importlib\n'
+                      'genai = importlib.import_module("google.genai")\n'
+                      'scaleway = __import__("scaleway.instance")\n'
+                      'json = importlib.import_module("json")\n', set(), [2, 3]),
+    "lint: a shell order broken over lines": (
+        "rent.sh", '#!/bin/bash\nscw instance server \\\n  create type=L4-1-24G\nscw instance server list\n', set(),
+        [2]),
+    # runnable files beyond Python and shell are read; docs and data run nothing
+    "lint: a Makefile": ("Makefile", "rent:\n\tscw instance server create\n", set(), [2]),
+    "lint: a manifest": ("job.yaml", "args: [scw k8s pool create]\n", set(), [1]),
+    "lint: a #! script": ("hook", "#!/bin/sh\nscw block volume create\n", set(), [2]),
+    "lint: a doc": ("notes.md", "scw instance server create\n", set(), "runs nothing"),
+    "lint: an order whose resource is a parameter": (
+        "fixture.py", 'def order(what):\n'
+                      '    scw("instance", what, "create")\n'
+                      'def look(what):\n'
+                      '    scw("instance", what, "list")\n', set(), [2]),
+    "lint: an address joined from strings": (
+        "fixture.py", 'import requests\n'
+                      'API = "https://api.scaleway.com/instance/v1"\n'
+                      'requests.post(API + f"/zones/{zone}/servers")\n'
+                      'requests.post(f"{API}/zones/{zone}/ips")\n'
+                      'requests.get(API + f"/zones/{zone}/servers/{server}/action")\n', set(), [3, 4]),
+    # ALLOWED covered whole files once; a call in an allowed file passes only inside the parts named
+    "lint: an allowed file orders only in its named parts": (
+        "fixture.py", 'def create():\n'
+                      '    scw("instance", "server", "create")\n'
+                      'def later():\n'
+                      '    scw("instance", "ip", "create")\n', {"create"}, [4]),
+    "lint: reading and deleting": (
+        "fixture.py", 'scw("instance", "server", "get", "id")\nscw("instance", "server", "delete", "id")\n'
+                      'assert command[:4] == ["scw", "instance", "server", "create"]\n'
+                      'API = "https://api.scaleway.com/instance/v1/zones/{zone}/servers/{server}/action"\n'
+                      'from score.adapters import compute\n', set(), []),
+}
+
+
+def lint_measures():
+    """The lint over each LINT_CASES fixture, written to a fresh folder, and over every tracked runnable file, side by
+    side: {measure: the paid lines it found, or "runs nothing"}."""
+    found = {}
+    for name, (file_name, text, parts, _) in LINT_CASES.items():
+        path = pathlib.Path(tempfile.mkdtemp()) / file_name
+        path.write_text(text)
+        found[name] = [line for line, _ in outside_allowed(path, parts)] if runnable(path) else "runs nothing"
     paths = tracked_sources()
     with concurrent.futures.ProcessPoolExecutor(mp_context=multiprocessing.get_context("fork")) as pool:
-        found = {path: calls for path, calls in zip(paths, pool.map(repository_calls, paths, chunksize=16)) if calls}
-    assert not found, ("call Gemini through google_spend.generate and rent through batch.rent, not directly: "
-                       f"{found}")
+        found["lint: the repository's paid calls outside the ledgered clients"] = {
+            path: calls for path, calls in zip(paths, pool.map(repository_calls, paths, chunksize=16)) if calls}
+    return found
 
+
+def recorded_price():
+    """surfaces-paint as its recorded runs price it: the median of two runs' euros over units, the runs, their
+    sources, no count rule, forecast by models."""
+    runs = per_unit.RECORDED["surfaces-paint"]["runs"]
+    each = sorted(run["euros"] / run["units"] for run in runs)
+    return round((each[0] + each[1]) / 2, 5), len(runs), [run["source"] for run in runs], None, "models"
+
+
+def warm_price():
+    """Pixal3D warm: 52 timed L4 jobs, the saved bill's L4 hour, the median job three at once plus 10%, and its timed
+    machines' own set-ups; settle, outside WARM and BATCH, kept."""
+    hourly = per_unit.hourly("L4-1-24G")
+    setups = per_unit.row_setups(per_unit.warm_rows(per_unit.WARM["pixal"]))
+    return (52, 52, 0.7875, round(1358.404 / 3 * hourly / 3600 * 1.1, 5), 3, 1358.404, per_unit.spread(setups), SETTLE)
+
+
+EXPECTED = {
+    "paper: scrub keeps only the public roots": {"folder": "tmp/x", "jobs": ["$PROPS/w"],
+                                                 "deep": {"path": "$HOME/.cache/y"}},
+    "paper: a row without kind is tagged pixal": {"pixal-1": ("pixal", False)},
+    "paper: the bill is the ledger and what it misses": {  # the late row is after the read
+        "ledger month": 2.28, "not in ledger": {"storage": 1.0, "compute-not-in-ledger": 0.87}, "adds up": True},
+    "paper: an engine run is typed by its price": "L4-1-24G",
+    "paper: an engine run group names its card type": ["L4-1-24G 100%"],
+    "paper: processor machines priced again by the started hour": (1.29, 2.36),  # two started hours
+    "paper: an engine run is not priced again": Near(0.39375, 1e-9),
+    "paper: R&D and production cover the ledger": (1.3938, 0.89),  # engine run and proof; review render and Pixal3D
+    "paper: euros beyond the machines are not split": {"POP2-32C-128G": 1.29, "not split": 0.1,
+                                                       "not recorded": 0.89375},
+    "paper: order lines change no reconciliation": True,
+    "paper: order lines change no table": True,
+    "paper: order lines change no machine type": True,
+    "paper: today is the bill less the last read before the day": Text(
+        has=("today since 00:00 UTC EUR 18.00 (L4 15.00, L40S 2.00, addresses 1.00)",)),
+    "paper: the day's first read is the last before it": ("2100", 10.0),
+    "paper: spend since splits by track": {"agent-a1": 2.0, "who: surfaces": 1.0, "google: people": 0.2,
+                                           "google: finishmap-name": 0.05},
+    **{name: row[-1] for name, row in DAYS.items()},
+    "unit: a batch in two ledgers is read once": [row["batch"] for row in LINES],
+    "unit: pixal priced over the units each batch finished": ([0.1, 0.5], ["batch-1", "batch-2"]),
+    "unit: light passes are the light stage's jobs": ([0.1], ["blender-1"]),
+    "unit: settle is its own who's, a free drop counted": ([0.0], ["blender-2"]),
+    "unit: a line ticketed for tiles is no bake's": ([], []),
+    "unit: sound priced over the takes its line names": ([0.23], ["prove-1"]),
+    "unit: an older sound line over its recorded takes": [0.0525 / 11],
+    "unit: --add keeps every other stage and adds sound": (SETTLE, 0.23, "sound_takes"),
+    "unit: --add prices a warm stage on its own timed jobs": (2, 90.0, True),
+    "unit: google units are finished calls": ([0.14, 0.12], ["2026-10-11", "2026-10-12"]),
+    "unit: the measured file": {
+        "pixal likely": 0.3, "pixal runs": 2, "pixal count": {"json_keys": "takes.json"},
+        "pixal forecast": "pixal_takes", "pixal per model": False, "closeup runs": 2,
+        "closeup per model": round(297 / 217, 4)},  # a picture a row, a retry a rejected one
+    "unit: pixal's high is the high quantile": Between(0.3, 0.5),
+    "unit: stages with no lines are left out": [],
+    "unit: a recorded stage is priced from its runs": recorded_price(),
+    "unit: stages without a forecast rule and source": [],
+    "unit: --rules-only keeps the measured numbers": (["x"], 0.1, "pixal_takes", "warm work time", "one", True),
+    # the card's 0.37 min start wait and its 2.93 min in the machine before its 539.6 s job (11.93 working)
+    "unit: a settle run's time from the paper's line": {
+        "unit_seconds": {"likely": 539.6, "high": 539.6}, "slots": 1, "setup_minutes": {"likely": 3.304, "high": 3.304},
+        "failed_start_share": 0, "holds": "machines"},
+    # 0.60 start wait and 13.33 working minutes less three jobs' 1589 s run three at once
+    "unit: a pixal batch's time from the paper's line": (629.98, 3, {"likely": 5.102, "high": 5.102}),
+    "unit: a stage with no line says why": Text(matches=(r"\Ano ledger line",)),
+    "unit: a stage whose lines time no set-up says so": (600.0, {"why": "no line read here timed a machine's set-up"}),
+    # a job's time, not the batch's throughput: the working minutes times the jobs each machine ran at once
+    "unit: a line's seconds by its working minutes and slots": ([300.0] * 4, [600.0] * 4, []),
+    "unit: writing times in place keeps a measured time": (30.0, True, {"plan": {"likely": 2.0}}),
+    "unit: a google stage's time from its calls": {
+        "slots": 1, "holds": "calls", "failed_start_share": round(1 / 3, 3), "lines": 2, "likely": 45.0,
+        "why with no ledger": True, "why with no calls": True},
+    "unit: a Batch API row is unmeasured": Text(  # a Batch API row's whole job, not its calls
+        has=("['why']: ", "1 request(s) at once timed only (2 calls, 45 s likely")),
+    "unit: node minutes are the store's finish records": (  # a carried record is no make
+        ["plan@hangar", "plan@lab", "concept@lab"], 4.0, 2, 1.0),
+    "unit: a warm stage at the bill's price plus the overhead": warm_price(),
+    "unit: a batch stage is half its standard calls": (  # no bill share on a Google stage, no batch call timed
+        round(per_unit.PRO_PICTURES["likely"] / 2, 5), True, "models", True, True),
+    "unit: --times-only keeps every euro": (True, True, True),
+    **{name: row[-1] for name, row in LINT_CASES.items()},
+    "lint: the repository's paid calls outside the ledgered clients": {},
+}
+
+
+def test_every_euro_is_ledgered_measured_and_adds_up_to_the_bill():
+    """Every measure of the worlds above is what EXPECTED says, and nothing is measured that it does not name."""
+    found = {**paper_measures(), **day_measures(), **unit_measures(), **lint_measures()}
+    wrong = [f"{name}: {found.get(name, 'not measured')!r}, expected {expected!r}"
+             for name, expected in EXPECTED.items() if name not in found or not holds(expected, found[name])]
+    wrong += [f"{name}: measured, but EXPECTED has no row for it" for name in set(found) - set(EXPECTED)]
+    assert not wrong, "\n".join(wrong)

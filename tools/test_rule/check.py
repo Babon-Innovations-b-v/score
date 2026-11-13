@@ -206,7 +206,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_scene_runs_only_an_approved_locked_plan_in_order.py": 7,
     "tools/cloud/test_spread_runs_every_share_once.py": 13,
     "tools/cloud/test_this_pc_pulls_no_keys_and_pushes_without_replacing.py": 10,
-    "tools/costs/test_every_euro_is_ledgered_measured_and_adds_up_to_the_bill.py": 53,
     "tools/library/test_every_record_name_resolves_or_is_a_gap.py": 8,
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
     "tools/props/gates/test_model_gate_judges_real_meshes.py": 5,
