@@ -9,18 +9,15 @@ and `uv` are stand-ins that log their calls, and HOME is a scratch folder, so no
 
 The break that turns each test red (applied once each, seen red, reverted):
 
-- test_board_status_refuses_another_repos_board_or_an_unknown_column: config()'s `here and repo and here != repo`
-  made `False`.
-- test_board_status_moves_a_card_on_the_board_into_its_column: main's mutation sent with `o=options[0]["id"]`.
-- test_board_status_adds_a_card_from_another_board_first: board_item's `node["project"]["number"] == number` made
-  `True`.
 - test_gate_scope_runs_nothing_only_for_documents: is_document's `BUILT_PREFIXES + CODE_PREFIXES` made
   `BUILT_PREFIXES`.
 - test_gate_scope_runs_everything_when_asked_or_on_ci: forced_reason's CI branch removed.
-- test_setup_github_needs_a_login_and_a_dry_run_changes_nothing: sync_labels creates a label even on a dry run.
-- test_setup_github_resets_a_template_config_and_syncs_labels: main keeps the template's backlog_prd.
-- test_setup_github_gives_the_board_its_columns_and_fields: "Review" taken out of STATUS_OPTIONS; or main's
-  `config.get("owner") or owner` made `owner` (a re-run overwrites the hand-edited owner).
+- test_github_scripts_write_only_their_own_repos_board_and_labels, one row red per break: config()'s `here and repo
+  and here != repo` made `False` (another repo's board); main's mutation sent with `o=options[0]["id"]` (moves the
+  card); board_item's `node["project"]["number"] == number` made `True` (adds from another board); sync_labels
+  creates a label even on a dry run; main keeps the template's backlog_prd (resets a template's config); "Review"
+  taken out of STATUS_OPTIONS, or main's `config.get("owner") or owner` made `owner` (a re-run overwrites the
+  hand-edited owner) (gives the board its columns).
 - test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree: is_clean returns True at once; or reap's
   `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped).
 - test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something: main prints the report also when empty.
@@ -134,62 +131,6 @@ def script(repo, env, name, *args):
                           text=True)
 
 
-# board-status: only this repo's card, only into a column the board has.
-
-FIELDS = {"fields": [{"id": "F1", "name": "Status", "options": [
-    {"id": "O1", "name": "Not started"}, {"id": "O2", "name": "Done"}]}]}
-
-
-def on_board(project_number):
-    return {"repository": {"issue": {"id": "I1", "projectItems": {"nodes": [
-        {"id": "ITEM", "project": {"id": "P1", "number": project_number}}]}}}}
-
-
-def configure(repo, config):
-    (repo / ".claude" / "project.json").write_text(json.dumps(config))
-
-
-def test_board_status_refuses_another_repos_board_or_an_unknown_column(scratch_repo, fake_gh):
-    env, answer, calls = fake_gh
-    assert "board-status.py <issue-number> <status>" in script(scratch_repo, env, "board-status.py", "7").stderr
-    configure(scratch_repo, {"repo": "template/origin", "project": {"number": 3}})
-    run = script(scratch_repo, env, "board-status.py", "7", "Done")
-    assert run.returncode != 0 and "names template/origin but this checkout is acme/widget" in run.stderr
-    assert calls() == []  # refused before gh was asked anything
-    configure(scratch_repo, {"repo": "acme/widget", "project": {"number": 0}})
-    run = script(scratch_repo, env, "board-status.py", "7", "Done")
-    assert run.returncode != 0 and "setup-github.py --board" in run.stderr
-    configure(scratch_repo, {"repo": "acme/widget", "project": {"number": 3, "owner": "acme"}})
-    answer({"project field-list": {"stdout": json.dumps(FIELDS)}})
-    run = script(scratch_repo, env, "board-status.py", "7", "Doing")
-    assert run.returncode != 0 and "unknown status 'Doing'; board columns: Not started, Done" in run.stderr
-
-
-def test_board_status_moves_a_card_on_the_board_into_its_column(scratch_repo, fake_gh):
-    env, answer, calls = fake_gh
-    configure(scratch_repo, {"repo": "acme/widget", "project": {"number": 3, "owner": "acme"}})
-    answer({"project field-list": {"stdout": json.dumps(FIELDS)},
-            "graphql query": {"stdout": json.dumps({"data": on_board(3)})},
-            "graphql mutation": {"stdout": json.dumps({"data": {}})}})
-    run = script(scratch_repo, env, "board-status.py", "7", "Done")
-    assert (run.returncode, run.stdout) == (0, "#7 -> Done\n"), run.stderr
-    assert {"p=P1", "i=ITEM", "f=F1", "o=O2"} <= set(calls()[-1]["args"])  # Done's option on board 3's item
-    assert not any(call["args"][:2] == ["project", "item-add"] for call in calls())
-
-
-def test_board_status_adds_a_card_from_another_board_first(scratch_repo, fake_gh):
-    env, answer, calls = fake_gh
-    configure(scratch_repo, {"repo": "acme/widget", "project": {"number": 3, "owner": "acme"}})
-    # the stand-in answers every query alike, so after item-add the issue is still only on board 9
-    answer({"project field-list": {"stdout": json.dumps(FIELDS)},
-            "graphql query": {"stdout": json.dumps({"data": on_board(9)})}})
-    run = script(scratch_repo, env, "board-status.py", "7", "Done")
-    assert run.returncode != 0 and "#7 could not be added to board #3" in run.stderr
-    assert [call["args"] for call in calls() if call["args"][:2] == ["project", "item-add"]] == [
-        ["project", "item-add", "3", "--owner", "acme", "--url", "https://github.com/acme/widget/issues/7"]]
-    assert not any("mutation" in " ".join(call["args"]) for call in calls())  # no other board's card was moved
-
-
 # gate-scope: documents alone run nothing; anything else, and every doubt, runs everything.
 
 gate_scope = module(SCRIPTS / "gate-scope.py", "gate_scope")
@@ -216,68 +157,126 @@ def test_gate_scope_runs_everything_when_asked_or_on_ci(monkeypatch):
     assert gate_scope.plan({"README.md"}, gate_scope.forced_reason([]))[0] == "full"
 
 
-# setup-github: labels synced, a template's config reset, the board given its columns, a dry run changes nothing.
+# board-status and setup-github: every gh call that changes GitHub, run against a stand-in gh. A call is a write
+# unless it is one of these reads, so a write the rows do not expect, of any kind, turns its row red.
 
+READS = (["auth", "status"], ["repo", "view"], ["label", "list"], ["project", "list"], ["project", "view"],
+         ["project", "field-list"])
+FIELDS = {"fields": [{"id": "F1", "name": "Status", "options": [
+    {"id": "O1", "name": "Not started"}, {"id": "O2", "name": "Done"}]}]}
 REPO_VIEW = {"stdout": json.dumps({"nameWithOwner": "acme/widget", "owner": {"login": "acme"}})}
+BOARD = {"repo": "acme/widget", "project": {"number": 3, "owner": "acme"}}
+# The board's columns and the labels the loop reads, written out by hand: the scripts' rules.
+COLUMNS = [
+    {"name": "LowPriority", "color": "GRAY",
+     "description": "Real, not now. The standing backlog PRDs live here permanently."},
+    {"name": "Not started", "color": "GRAY", "description": "Accepted, nobody has begun."},
+    {"name": "In Progress", "color": "YELLOW", "description": "Someone is working on it right now."},
+    {"name": "Review", "color": "ORANGE", "description": "Done by its author, waiting on a second pair of eyes."},
+    {"name": "Done", "color": "GREEN", "description": "Acceptance list genuinely met."}]
+LABELS_MADE = [["label", "create", name] for name in (
+    "PRD", "vision", "bug", "enhancement", "needs-triage", "needs-info", "ready-for-agent", "ready-for-human",
+    "wontfix")]
 
 
-def test_setup_github_needs_a_login_and_a_dry_run_changes_nothing(scratch_repo, fake_gh):
+def on_board(project_number):
+    return {"stdout": json.dumps({"data": {"repository": {"issue": {"id": "I1", "projectItems": {"nodes": [
+        {"id": "ITEM", "project": {"id": "P1", "number": project_number}}]}}}}})}
+
+
+def written(call):
+    """A gh call as the change it makes: a mutation's variables, a label by its name, any other command whole."""
+    args = call["args"]
+    if args[:2] == ["api", "graphql"]:
+        if call["stdin"]:
+            return ["mutation", json.loads(call["stdin"])["variables"]]
+        pairs = [args[at + 1] for at, arg in enumerate(args) if arg == "-F"]
+        return ["mutation", dict(pair.split("=", 1) for pair in pairs)]
+    return args[:3] if args[0] == "label" else args
+
+
+def is_write(call):
+    args = call["args"]
+    if args[:2] == ["api", "graphql"]:
+        return "mutation" in " ".join(args) + call["stdin"]
+    return args[:2] not in READS
+
+
+GH_CASES = [  # (id, project.json before (None: acme/widget's), gh answers, script and arguments, succeeds, what it
+    # says (a str: the whole stdout; else fragments of stdout, or of stderr when it fails), asks gh at all, the writes
+    # in order, project.json after (None: unchanged))
+    ("board-status usage", None, {}, ["board-status.py", "7"], False,
+     ["board-status.py <issue-number> <status>"], False, [], None),
+    ("board-status refuses another repo's board", {"repo": "template/origin", "project": {"number": 3}}, {},
+     ["board-status.py", "7", "Done"], False, ["names template/origin but this checkout is acme/widget"], False, [],
+     None),
+    ("board-status needs a board", {"repo": "acme/widget", "project": {"number": 0}}, {},
+     ["board-status.py", "7", "Done"], False, ["setup-github.py --board"], False, [], None),
+    ("board-status refuses an unknown column", BOARD, {"project field-list": {"stdout": json.dumps(FIELDS)}},
+     ["board-status.py", "7", "Doing"], False, ["unknown status 'Doing'; board columns: Not started, Done"], True,
+     [], None),
+    ("board-status moves the card on its board", BOARD,
+     {"project field-list": {"stdout": json.dumps(FIELDS)}, "graphql query": on_board(3),
+      "graphql mutation": {"stdout": json.dumps({"data": {}})}},
+     ["board-status.py", "7", "Done"], True, "#7 -> Done\n", True,
+     [["mutation", {"p": "P1", "i": "ITEM", "f": "F1", "o": "O2"}]], None),  # Done's option on board 3's item
+    # the stand-in answers every query alike, so after item-add the issue is still only on board 9
+    ("board-status adds a card from another board first", BOARD,
+     {"project field-list": {"stdout": json.dumps(FIELDS)}, "graphql query": on_board(9)},
+     ["board-status.py", "7", "Done"], False, ["#7 could not be added to board #3"], True,
+     [["project", "item-add", "3", "--owner", "acme", "--url", "https://github.com/acme/widget/issues/7"]], None),
+    ("setup-github needs a login", None, {"auth status": {"exit": 1}}, ["setup-github.py"], False,
+     ["gh auth login"], True, [], None),
+    ("setup-github dry run changes nothing", None,
+     {"repo view": REPO_VIEW, "label list": {"stdout": json.dumps([{"name": "bug"}])}},
+     ["setup-github.py", "--dry-run", "--board"], True,
+     ["would update label bug", "would create label PRD", "would create a project on acme and link it to acme/widget"],
+     True, [], None),
+    ("setup-github resets a template's config", {
+        "repo": "template/origin", "project": {"number": 4, "owner": "template"}, "backlog_prd": 12,
+        "people": {"someone": "someone"}, "areas": ["paper"]},
+     {"repo view": REPO_VIEW, "label list": {"stdout": "[]"}}, ["setup-github.py"], True,
+     ["config came from template/origin; resetting board, backlog and people"], True, LABELS_MADE,
+     {"repo": "acme/widget", "owner": "acme", "project": {"number": 0, "owner": ""}, "backlog_prd": None,
+      "people": {"acme": "acme"}, "areas": ["paper"]}),
+    # a re-run in the same repo keeps the hand-edited owner; Roadmap start was there already
+    ("setup-github gives the board its columns and fields", {"repo": "acme/widget", "owner": "someone",
+                                                             "areas": ["paper"]},
+     {"repo view": REPO_VIEW, "label list": {"stdout": "[]"},
+      "project list": {"stdout": json.dumps({"projects": [
+          {"title": "widget", "closed": False, "number": 5, "url": "https://example.test/5"}]})},
+      "project view": {"stdout": json.dumps({"id": "PROJ"})},
+      "project field-list": {"stdout": json.dumps({"fields": [
+          {"id": "F1", "name": "Status", "options": [{"name": "Todo"}]}, {"id": "F2", "name": "Roadmap start"}]})},
+      "graphql mutation": {"stdout": json.dumps({"data": {}})}},
+     ["setup-github.py", "--board"], True, [], True,
+     LABELS_MADE + [["mutation", {"f": "F1", "o": COLUMNS}], ["mutation", {"p": "PROJ", "n": "Roadmap end"}],
+                    ["mutation", {"p": "PROJ", "o": [{"name": "paper", "color": "BLUE", "description": "paper"}]}],
+                    ["project", "link", "5", "--owner", "acme", "--repo", "acme/widget"]],
+     {"repo": "acme/widget", "owner": "someone", "areas": ["paper"], "people": {"acme": "acme"},
+      "project": {"number": 5, "owner": "acme"}}),
+]
+
+
+@pytest.mark.parametrize("before,answers,command,succeeds,said,asks_gh,writes,after",
+                         [case[1:] for case in GH_CASES], ids=[case[0] for case in GH_CASES])
+def test_github_scripts_write_only_their_own_repos_board_and_labels(scratch_repo, fake_gh, before, answers, command,
+                                                                     succeeds, said, asks_gh, writes, after):
     env, answer, calls = fake_gh
-    answer({"auth status": {"exit": 1}})
-    run = script(scratch_repo, env, "setup-github.py")
-    assert run.returncode != 0 and "gh auth login" in run.stderr
     config = scratch_repo / ".claude" / "project.json"
-    before = config.read_text()
-    answer({"repo view": REPO_VIEW, "label list": {"stdout": json.dumps([{"name": "bug"}])}})
-    run = script(scratch_repo, env, "setup-github.py", "--dry-run", "--board")
-    assert run.returncode == 0, run.stderr
-    assert "would update label bug" in run.stdout and "would create label PRD" in run.stdout
-    assert "would create a project on acme and link it to acme/widget" in run.stdout
-    assert config.read_text() == before
-    assert not any(call["args"][:2] in (["label", "create"], ["label", "edit"], ["project", "create"])
-                   for call in calls())
-
-
-def test_setup_github_resets_a_template_config_and_syncs_labels(scratch_repo, fake_gh):
-    env, answer, calls = fake_gh
-    config = scratch_repo / ".claude" / "project.json"
-    config.write_text(json.dumps({"repo": "template/origin", "project": {"number": 4, "owner": "template"},
-                                  "backlog_prd": 12, "people": {"someone": "someone"}, "areas": ["paper"]}))
-    answer({"repo view": REPO_VIEW, "label list": {"stdout": "[]"}})
-    run = script(scratch_repo, env, "setup-github.py")
-    assert run.returncode == 0, run.stderr
-    assert "config came from template/origin; resetting board, backlog and people" in run.stdout
-    assert json.loads(config.read_text()) == {
-        "repo": "acme/widget", "owner": "acme", "project": {"number": 0, "owner": ""},
-        "backlog_prd": None, "people": {"acme": "acme"}, "areas": ["paper"]}
-    assert [call["args"][2] for call in calls() if call["args"][:2] == ["label", "create"]] == [
-        "PRD", "vision", "bug", "enhancement", "needs-triage", "needs-info", "ready-for-agent", "ready-for-human",
-        "wontfix"]
-
-
-def test_setup_github_gives_the_board_its_columns_and_fields(scratch_repo, fake_gh):
-    env, answer, calls = fake_gh
-    config = scratch_repo / ".claude" / "project.json"
-    config.write_text(json.dumps({"repo": "acme/widget", "owner": "someone", "areas": ["paper"]}))
-    fields = {"fields": [{"id": "F1", "name": "Status", "options": [{"name": "Todo"}]},
-                         {"id": "F2", "name": "Roadmap start"}]}
-    answer({"repo view": REPO_VIEW, "label list": {"stdout": "[]"},
-            "project list": {"stdout": json.dumps({"projects": [
-                {"title": "widget", "closed": False, "number": 5, "url": "https://example.test/5"}]})},
-            "project view": {"stdout": json.dumps({"id": "PROJ"})},
-            "project field-list": {"stdout": json.dumps(fields)},
-            "graphql mutation": {"stdout": json.dumps({"data": {}})}})
-    run = script(scratch_repo, env, "setup-github.py", "--board")
-    assert run.returncode == 0, run.stderr
-    written = json.loads(config.read_text())
-    assert written["project"] == {"number": 5, "owner": "acme"}
-    assert written["owner"] == "someone"  # a re-run in the same repo keeps the hand-edited owner
-    mutations = [json.loads(call["stdin"])["variables"] for call in calls() if call["stdin"]]
-    assert [option["name"] for option in mutations[0]["o"]] == [
-        "LowPriority", "Not started", "In Progress", "Review", "Done"]
-    assert mutations[1] == {"p": "PROJ", "n": "Roadmap end"}  # Roadmap start was there already
-    assert mutations[2]["o"] == [{"name": "paper", "color": "BLUE", "description": "paper"}] and len(mutations) == 3
-    assert ["project", "link", "5", "--owner", "acme", "--repo", "acme/widget"] in [call["args"] for call in calls()]
+    if before is not None:
+        config.write_text(json.dumps(before))
+    kept = config.read_text()
+    answer(answers)
+    run = script(scratch_repo, env, *command)
+    assert (run.returncode == 0) == succeeds, run.stdout + run.stderr
+    if isinstance(said, str):
+        assert run.stdout == said, run.stderr
+    for fragment in said if isinstance(said, list) else []:
+        assert fragment in (run.stdout if succeeds else run.stderr), run.stdout + run.stderr
+    assert bool(calls()) == asks_gh, calls()
+    assert [written(call) for call in calls() if is_write(call)] == writes
+    assert (json.loads(config.read_text()) == after) if after is not None else config.read_text() == kept
 
 
 # worktree-reap: only a dead session's clean, merged worktree goes.
