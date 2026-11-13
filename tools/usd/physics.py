@@ -203,15 +203,33 @@ def lifted(stage, drop):
     moved(prim, Gf.Vec3d(at[0] - middle[0], landing(stage, drop) + drop["over"] - low[1], at[1] - middle[2]))
 
 
+def centred(hull):
+    """The hull with its own frame's origin at its middle, its shape where it was. Newton (1.7.0) leaves out every
+    triangle of a static mesh that faces away from a convex shape's origin (its mesh midphase and its contact
+    reduction): a body whose origin is at its foot, as the export lays it, lost the floor it stood on as soon as that
+    origin dipped a few millimetres under it, and fell through (chair_1 through the engine room's deck, 2026-11-13)."""
+    mesh = UsdGeom.Mesh(hull)
+    points = np.asarray(mesh.GetPointsAttr().Get(), dtype=float)
+    middle = (points.min(axis=0) + points.max(axis=0)) / 2
+    mesh.GetPointsAttr().Set([Gf.Vec3f(*point) for point in (points - middle).tolist()])
+    if mesh.GetExtentAttr().HasAuthoredValue():
+        mesh.GetExtentAttr().Set([Gf.Vec3f(*(points.min(axis=0) - middle).tolist()),
+                                  Gf.Vec3f(*(points.max(axis=0) - middle).tolist())])
+    shape = UsdGeom.Xformable(hull)
+    local = shape.GetLocalTransformation()
+    shape.MakeMatrixXform().Set(Gf.Matrix4d().SetTranslate(Gf.Vec3d(*middle.tolist())) * local)
+
+
 def make_body(prim):
     """A trial body: a rigid body colliding by the export's hull, its own triangles off, the hull bound to the
-    physics material of what it draws."""
+    physics material of what it draws and its origin at its middle (`centred`)."""
     UsdPhysics.RigidBodyAPI.Apply(prim)
     drawn = own_meshes(prim)
     for mesh in drawn:
         UsdPhysics.CollisionAPI(mesh.GetPrim()).CreateCollisionEnabledAttr(False)
     material = UsdShade.MaterialBindingAPI(drawn[0].GetPrim()).ComputeBoundMaterial("physics")[0]
     for hull in hulls(prim):
+        centred(hull)
         UsdPhysics.CollisionAPI(hull).CreateCollisionEnabledAttr(True)
         UsdShade.MaterialBindingAPI.Apply(hull).Bind(material, UsdShade.Tokens.weakerThanDescendants, "physics")
 

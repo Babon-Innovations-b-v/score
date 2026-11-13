@@ -18,6 +18,9 @@ Breaks that turn each check red (each applied once and seen red, 2026-10-27), al
 - the_hinge_stands_at_its_pins (what Newton needs said): write_hinge's `newton:limitStiffness` line dropped (the leaf
   swung to 148.6 degrees through its 100), or its `pairs.AddTarget(mesh.GetPath())` made `pass` (the leaf rubbed its
   frame and opened 8.6 degrees), or its ArticulationRootAPI line dropped (Newton refused the orphan FixedJoint).
+- a_hull_collides_about_its_middle (what Newton needs said): make_body's `centred(hull)` line dropped (the crate laid
+  with its origin at its foot keeps it there: Newton leaves out the floor's triangles once that origin dips under
+  them, and chair_1 fell through the engine room's deck, 2026-11-13).
 
 Run: .venv/bin/python tools/usd/test_the_physics_layers_hold_mass_drop_and_hinge.py [<folder>]   (a folder keeps the
 toy place, for a Blender run)
@@ -77,8 +80,9 @@ def mesh(stage, path, boxes, middle):
     return found
 
 
-def toy_place(folder):
-    """A room with a table, two crates, a hinged door in its frame, a stool, laid as the export lays objects."""
+def toy_place(folder, foot=()):
+    """A room with a table, two crates, a hinged door in its frame, a stool, laid as the export lays objects: each
+    object's origin at its middle, or at its foot for the objects named in `foot`."""
     folder = pathlib.Path(folder)
     (folder / "layers").mkdir(parents=True)
     Sdf.Layer.CreateNew(str(folder / "layers/edit.usda")).Save()
@@ -88,6 +92,8 @@ def toy_place(folder):
     UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.y)
     for name, boxes in BOXES.items():
         middle = np.mean([np.add(low, high) / 2 for low, high in boxes], axis=0)
+        if name in foot:
+            middle[1] = min(low[1] for low, _ in boxes)
         holder = UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/{name}")
         holder.MakeMatrixXform().Set(Gf.Matrix4d().SetTranslate(Gf.Vec3d(*middle)))
         mesh(stage, f"/{PLACE}/Objects/{name}/geo", boxes, middle)
@@ -178,6 +184,22 @@ def the_motion_plays_back(folder):
         "./layers/physics_motion.usda"
 
 
+def a_hull_collides_about_its_middle():
+    """A body laid with its origin at its foot collides by a hull whose own origin is its middle, the hull's shape
+    where the drawn crate stands."""
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = toy_place(pathlib.Path(temporary) / PLACE, foot=("crate_2",))
+        written_once(folder)
+        stage = composed(folder)
+        hull = stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_2/collision")
+        placed = UsdGeom.Xformable(hull).ComputeLocalToWorldTransform(Usd.TimeCode.Default())
+        corners = np.array([placed.Transform(Gf.Vec3d(*point))
+                            for point in np.asarray(UsdGeom.Mesh(hull).GetPointsAttr().Get(), float).tolist()])
+        low, high = physics.world_box(stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_2"))
+        assert np.allclose(corners.min(axis=0), low, atol=1e-5) and np.allclose(corners.max(axis=0), high, atol=1e-5)
+        assert np.allclose(placed.ExtractTranslation(), (low + high) / 2, atol=1e-5), placed.ExtractTranslation()
+
+
 def a_blocked_fall_is_refused():
     with tempfile.TemporaryDirectory() as temporary:
         folder = toy_place(pathlib.Path(temporary) / PLACE)
@@ -208,6 +230,7 @@ def main():
         the_hinge_stands_at_its_pins(folder)
         if not kept:
             the_motion_plays_back(folder)
+    a_hull_collides_about_its_middle()
     a_blocked_fall_is_refused()
     a_record_without_gravity_is_refused()
     print("test_the_physics_layers_hold_mass_drop_and_hinge: ok")
