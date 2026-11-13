@@ -1,8 +1,9 @@
 """ground: a point stands on the highest drawn triangle under it at most REACH_UP (the cast's KNEE) over it, a body's
-points over its lowest point, with HEADROOM free over it, at the height worked out by hand, and every triangle's
+points over its lowest point, with HEADROOM free over it or within a knee of the body's lowest point, never one over
+it with another between, at the height worked out by hand, and every triangle's
 normal points up (pure numpy: the score venv runs it).
 
-Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-31 and 2026-11-07:
+Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-31, 2026-11-07 and 2026-11-13:
 - standing's `free = (above - heights >= HEADROOM) & ...` made `>= 0`: a point 1.1 m over a floor, over a counter
   top at 1.0 m with a cupboard 0.5 m over it, stands on the counter top, under the cupboard.
 - standing's `top = which != np.append(which[1:], -1)` made the first of each point (the lowest, as before
@@ -16,6 +17,13 @@ Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-
 - body_reach's `max(..., float(np.median(points[:, 1])))` dropped (its lowest point plus REACH_UP alone, as before
   2026-11-07): a body seated on a 0.40 m seat, its feet on the floor, has no ground under its seat (nan), the seat
   past its reach and the floor under it covered (#98's sit-to-stand chair).
+- standing's `| (heights <= floor[which])` dropped (2026-11-13): a body standing on a deck with a foot under a desk
+  (its underside 0.72 m, its top 0.75 m) has no floor under that foot, the deck read as a block; with `&
+  ~beneath(...)` dropped too, the foot reads 0.75 m into the desk's top (greenhouse's astronaut_1 and astronaut_4).
+- `beneath`'s return made `over & False`: the foot under the desk stands on its top, 0.75 m into it; made `over`: a
+  foot 3 mm into its floor reads 0.2 m over the floor's underside, never sunk; its `+ SAME` dropped: a point 3 mm into a bent
+  floor, on the edge its two triangles share (their heights 4e-17 apart), has no ground (nan).
+- body_floor's `+ REACH_UP` made `+ HEADROOM`: the desk's underside, 0.72 m up, counts as the foot's floor (-0.72).
 - REACH_UP made 0.4: it no longer agrees with the cast's KNEE.
 - normals' `found *= np.sign(found[:, 1:2]) + (found[:, 1:2] == 0)` dropped: a triangle wound the other way points
   down.
@@ -102,6 +110,29 @@ def seated_reach_problems():
              ("the feet", over[0])) if not abs(found) < 1e-9]
 
 
+def a_foot_under_a_desk_stands_on_its_floor():
+    """A body standing on a floor 0.2 m thick (its top at 0), one foot under a desk (its underside at 0.72 m, its top
+    at 0.75 m, 0.72 m free under it: under HEADROOM), its hand at 1.1 m over a counter top at 1.0 m under a cupboard at
+    1.5 m: the foot under the desk stands 0 m over the floor, never 0.75 m into the desk's top; a foot 3 mm into the
+    floor reads 3 mm into it, never over the floor's underside; the hand stands on the floor, the counter top still a
+    block. A point 3 mm into a bent floor, on the edge its two triangles share, reads 3 mm into it."""
+    floor = square(0.0) + square(-0.2)
+    room = np.array(floor + square(0.72, 0.0, 1.0) + square(0.75, 0.0, 1.0) + square(1.0, -1.0, -0.5)
+                    + square(1.5, -1.0, -0.5))
+    body = np.array([[0.5, 0.0, 0.5], [-0.3, -0.003, -0.3], [-0.2, 0.9, 0.2], [-0.75, 1.1, -0.75]]
+                    + [[-0.2, height, 0.2] for height in np.linspace(0.1, 1.7, 9)])
+    over = ground.heights_over(body, room, ground.body_reach(body), ground.body_floor(body))
+    corners = np.array([[0.2, 0.0, 1.6], [1.2, 0.1, 0.9], [1.0, 0.0, 1.5], [0.2, 0.3, 1.0]])  # a bent floor 0.2 thick
+    bent = np.array([corners[[0, 1, 2]], corners[[0, 2, 3]]])
+    on_edge = corners[0] + (corners[2] - corners[0]) * 0.43 - [0.0, 0.003, 0.0]  # its two triangles cross 4e-17 apart
+    found = {"the foot under the desk": (over[0], 0.0), "the foot into the floor": (over[1], -0.003),
+             "the hand over the counter top": (over[3], 1.1),
+             "a point into a bent floor on its edge": (
+                 ground.heights_over(on_edge[None], np.concatenate([bent, bent - [0.0, 0.2, 0.0]]))[0], -0.003)}
+    return [f"{name}: {height} over its ground, not {wanted}" for name, (height, wanted) in found.items()
+            if not abs(height - wanted) < 1e-9]
+
+
 def reach_up_is_the_casts_knee():
     """REACH_UP is the cast's KNEE, so the cast and the sim body stand a person on the same surface."""
     from score.stages.cast import measure
@@ -118,6 +149,7 @@ def every_normal_points_up():
 
 CHECKS = (a_point_over_a_slope_stands_at_its_height, a_low_top_is_a_block_not_a_floor,
           a_point_on_a_deck_stands_on_the_deck, a_body_under_a_roof_stands_on_its_floor,
+          a_foot_under_a_desk_stands_on_its_floor,
           reach_up_is_the_casts_knee, every_normal_points_up)
 
 
