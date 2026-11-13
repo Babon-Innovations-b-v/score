@@ -109,7 +109,6 @@ FUNCTION_DEBT = {
     "score/dashboard/auth/test_only_the_proxy_or_the_owner_signs_in.py": 7,
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
     "score/dashboard/films/test_a_film_is_timed_checked_and_priced_from_its_script.py": 27,
-    "score/dashboard/previews/test_every_step_card_has_a_picture.py": 19,
     "score/dashboard/proposals/test_a_basket_shows_what_a_run_on_main_would_buy.py": 20,
     "score/dashboard/state/test_the_cockpit_shows_the_store_as_read.py": 21,
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
