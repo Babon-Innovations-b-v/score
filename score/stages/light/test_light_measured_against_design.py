@@ -19,7 +19,8 @@ stages made here, each answer worked out by hand:
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26; "the measures' table" is the rows of
 measures read on pictures and passes made here in test_light_measured_against_design, with its verdict rows, the
-checks' answers on measures files):
+checks' answers on measures files; "the layer's rows" are the lamp placement rows on seeds made here in it and the
+layer's checks after them: strengths, colours, the eye, the fill):
 - sky.py: the light's direction negated in `write_light` (the sky test, test_light_measured_against_design: the house
   sun; this and the other sky test breaks proved again 2026-11-13).
 - sky.through_dust: the forward peak left out of the beam (depth not delta-scaled), or `dust` not passed on in
@@ -32,19 +33,19 @@ checks' answers on measures files):
   2026-11-13).
 - mix.sweep: return 1.0 always (the sweep test).
 - mix.lamp_faults: never "blown" (the sweep test).
-- layer.strengths: write the strength unscaled (the layer test).
+- layer.strengths: write the strength unscaled (the layer's rows).
 - layer.placed_lamps: `free = {path: (lamps_along.laid_at(stage, path, spot), shaped) ...}` -> `free = {path: (spot,
-  shaped) ...}` (the layer test: a lamp the assembly carried out of a wall with its floor light put back 5 cm inside
+  shaped) ...}` (the layer's rows: a lamp the assembly carried out of a wall with its floor light put back 5 cm inside
   it; light@walkway's spot-2 at 0.079 against its concept's 0.237, 2026-11-12).
-- layer.place_middle: the stage's bound for an inside place too (the ceiling lamp test, 2026-10-30).
-- layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the post baked
-  as one mesh test, 2026-10-31: kept, every way out stopped).
+- layer.place_middle: the stage's bound for an inside place too (the layer's rows: the ceiling lamp in its fixture, 2026-10-30).
+- layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the layer's rows: the
+  lamp closed in a post's head, 2026-10-31: kept, every way out stopped).
 - light.unlit_why: an inside place lit by a sun alone counted lit (the measures' table: the unlit rows).
 - night.is_night: always true; night.scale_of: inside and outside swapped; night.skyglow_of: `within_km` ignored;
   night.roofed: `>= ROOFED_LEAST` -> `> 0`; night.write_layer: `layer.Save()` dropped;
   night.colour: `dark` ignored; night.body_lux: the radius over the distance not squared (the sky
   test: the night, 2026-11-10).
-- light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
+- light.fill_wanted: ignore `unseen` (the layer's rows: the fill); no fill beside a sun, the old rule (the layer's rows: the fill, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the measures' table: the disc rows; proved
   2026-11-13).
 - light.judge_exposure: pass with no concept (the measures' table: the verdict rows).
@@ -80,7 +81,7 @@ checks' answers on measures files):
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
 - passes.device_for: `need > card_gb * 2**30` -> `False` (the measures' table: the card rows, 2026-10-29; proved
   2026-11-13).
-- layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the fill test,
+- layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the layer's rows: the fill,
   2026-10-30).
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
   own (the sun-swept test, 2026-10-30).
@@ -99,17 +100,17 @@ checks' answers on measures files):
   mix.white_fit: the distance read in (x, y) for (u, v); mix.balance: the held class swept too, `most` ignored, or kept
   with any gain; mix.capped: `caps` ignored (the float look test, 2026-11-10); light.shipped_colours: the record
   colour's luminance left out, light.colours_written: the colour written unscaled, light.group_colours: `emitters`
-  ignored (the layer test, 2026-11-10).
+  ignored (the layer's rows, 2026-11-10).
 - light.strengths: a night light swept as a sun (`path not in night_lights` dropped; the sun-swept test, 2026-11-10);
   mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white: the light no
   group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
-  out, light.environment_adapted: the background left as it was (the layer test, 2026-11-10).
+  out, light.environment_adapted: the background left as it was (the layer's rows, 2026-11-10).
 - light.strengths: the fill not swept again after a blown lamp is turned down (the shadow view test, 2026-11-10).
-- light.room_eye: None always, or for a room its concept shows in daylight an eye too (the layer test, 2026-11-10).
+- light.room_eye: None always, or for a room its concept shows in daylight an eye too (the layer's rows, 2026-11-10).
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
   the emitter words (the float look test, 2026-11-10).
 - night.air_glow: the rods' share read on the sky's own luminance (`seen_dark(at_zenith)`), not the adapted eye's
-  (night.eye_dark); mix.surround_factor: SURROUND always (the sky test's night and the layer test,
+  (night.eye_dark); mix.surround_factor: SURROUND always (the sky test's night and the layer's rows,
   2026-11-10: the square's sky too blue).
 - light.look_at: the sky's factor left to the smoothing (the float look test, 2026-11-10: the square's sky lit by its
   lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test, 2026-11-10: the stairwell);
@@ -218,7 +219,9 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     Mars' campgrounds in its dust, the square by night, and a seed whose record drew the old sky. Then the measures
     (measure.py) and the views' passes (passes.py, inside/light_passes.py) are read on pictures and passes made here:
     a bank of floodlight panes, a body's disc, a sky, haze, a point in a view, a missing picture's surface colours, the
-    object index pass, a magenta look and two passes jobs past and within their card."""
+    object index pass, a magenta look and two passes jobs past and within their card. Last the layer (layer.py) on
+    seeds made here: where each lamp lands (a row each), then on the first row's layer its strengths, colours and eye,
+    a read-only input kept, the concept's fill in the open and inside, and a shown place's pictures kept."""
     seen = {"noon": overhead.seen(HOUSE, HOUSE["sites"][0], NOON),
             "midnight": overhead.seen(HOUSE, HOUSE["sites"][0], MIDNIGHT),
             "base": overhead.seen(ENVIRONMENT_1, BASE, WHEN),
@@ -691,6 +694,191 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
              checks.UNKNOWN)):
         (judged / "measures.json").write_text(json.dumps(measures))
         assert judge(judged, {}, {}).answer == answer, (said, measures)
+
+    # the layer (layer.py) on seeds made here, one lamp /tiny/Lights/light_1 each: where each lamp lands is a row,
+    # its seed's lamp spot, the meshes round it, how far the assembly carried it with its floor light, the record,
+    # and what the layer did with it
+    bulb = {"type": "omni", "at": [1.0, 2.0, 0.0], "energy": 1.0, "colour": "#ffcc00", "row": "bulb"}
+    record = {"lights": [bulb, {"type": "spot", "at": [20.0, 2.0, 0.0], "aim": [20.0, 0.0, 0.0], "angle": 30.0,
+                                "energy": 1.0, "colour": "#ffffff", "row": "panel"}]}
+    post = ("/tiny/Objects/street_lamp", (((-0.05, 0.0, -0.05), (0.05, 3.3, 0.05)),
+                                          ((-0.25, 3.3, -0.25), (0.25, 4.0, 0.25))))
+    pavement = ("/tiny/Objects/pavement", (((2.0, 0.0, -1.0), (8.0, 0.1, 1.0)),))
+    laid = {}
+    for said, spot, meshes, carried, given, done, rule, enclosing, landed in (
+            # a record lamp 1 m from the seed's moves it, one far from any is added
+            ("a record lamp near the seed lamp", (0.0, 2.0, 0.0), (), None, record, ["moved 1.00 m", "added"], None,
+             None, lambda at: at == [1.0, 2.0, 0.0]),
+            # a lamp the assembly carried 8 cm with its floor light out of a wall (assembly/lamps_along) keeps its
+            # carried spot: the record's lamp at its laid spot is that one, never moved back into the wall
+            # (light@walkway, 2026-11-12)
+            ("a lamp carried out of its wall", (0.0, 2.0, 0.0), (), 0.08, {"lights": [dict(bulb, at=[0.0, 2.0, 0.0])]},
+             ["kept"], None, None, lambda at: at == [0.08, 2.0, 0.0]),
+            # walkway, round 33 (2026-10-30): its ceiling ducts reached 6.1 m over a 2.6 m ceiling, the stage bound's
+            # middle stood over the ceiling, and its enclosed ceiling lamps moved up into it and read unlit
+            ("a ceiling lamp in its fixture under a duct", (0.0, 2.4, 0.0),
+             (("/tiny/Objects/fixture", (((-0.1, 2.3, -0.1), (0.1, 2.5, 0.1)),)),
+              ("/tiny/Objects/duct", (((-6.0, 2.4, 3.0), (6.0, 9.0, 4.0)),))), None,
+             {"lights": [], "inside": True, "floor": [[-1.0, -1.0], [1.0, 1.0]], "ceiling": 2.6}, [],
+             "moved out of its fixture", None, lambda at: at[1] < 2.3),
+            # square and street, round 34 (2026-10-31): the bake laid each street lamp as one 4 m mesh, post and head,
+            # its head closed round the lamp at the library's mount height; no part was small enough to be its
+            # fixture, the lamp was kept, every way out stopped, and it lit nothing
+            ("a lamp closed in a post's head", (0.0, 3.8, 0.0), (post, pavement), None, {"lights": []}, [],
+             "moved out of its model's head", post[0], lambda at: at[0] > 0.25 and 3.3 <= at[1] <= 4.0),
+            ("a lamp under a post's head", (0.2, 3.1, 0.2), (post, pavement), None, {"lights": []}, [], None, None,
+             lambda at: at == [0.2, 3.1, 0.2])):
+        seed = placed_seed(tmp_path / "placed" / said, spot, meshes, carried)
+        found = layer.write("tiny", given, seed, tmp_path / "laid" / said)
+        laid[said] = found
+        lamp = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
+        assert [entry["done"] for entry in found["placed"]] == done, (said, found["placed"])
+        assert found.get("fixtures", {}).get("/tiny/Lights/light_1", {}).get("rule") == rule, (said, found)
+        assert landed(lamp["spot"]) and not lamp["shaped"], (said, lamp)
+        if enclosing:  # out of what closed it in
+            opened = Usd.Stage.Open(str(seed / "layers/base.usda"))
+            assert layer.blocked_share(np.array(lamp["spot"]), [layer.world_mesh(opened, enclosing)]) < \
+                layer.ENCLOSED, said
+
+    # the strengths are written into a copy and the read-only input stays (2026-10-12, light@camp: they were saved
+    # over the input layer, a read-only checkout); the record's views, at the check size, travel with the layer
+    found, out = laid["a record lamp near the seed lamp"], tmp_path / "laid/a record lamp near the seed lamp"
+    (out / passes.VIEWS).write_text(json.dumps(passes.record_views(
+        {"views": [{"name": "door", "eye": [0, 1.6, 2], "aim": [0, 1.2, 0], "fov": 70}]})))
+    before = (out / layer.LAYER).read_bytes()
+    for path in out.rglob("*"):
+        os.chmod(path, stat.S_IREAD | (stat.S_IEXEC if path.is_dir() else 0))
+    try:
+        light.layer_copied(out, tmp_path / "copied")
+        layer.strengths(tmp_path / "copied" / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 2.0)})
+        assert (out / layer.LAYER).read_bytes() == before
+        size, copied = passes.views_of(tmp_path / "copied")
+        assert size == passes.CHECK_SIZE and copied[0]["up"] == [0.0, 1.0, 0.0] and copied[0]["frame"] == 0
+    finally:
+        for path in out.rglob("*"):
+            os.chmod(path, stat.S_IRWXU)
+    layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 0.5)})
+    held = Usd.Stage.Open(str(out / layer.LAYER))
+    assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0
+    # the bulb painted #ffcc00 ships its black body's light at the luminance it was rendered with, its brightest
+    # channel at most 1 and its intensity raised for the rest; as a faint emitter it keeps its paint
+    job = tmp_path / "passes/passes/tiny-0"
+    job.mkdir(parents=True)
+    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/tiny/Lights/light_1"}}))
+    colours = light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER)
+    assert np.allclose(colours["lamp_0"][1], mix.lamp_light(layer.scene.colour("#ffcc00")))
+    assert np.allclose(*light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER, {"bulb"})["lamp_0"])
+    painted = light.shipped_colours(colours, {"lamp_0": "/tiny/Lights/light_1"}, found, record, out / layer.LAYER)
+    boosts = light.colours_written(out / layer.LAYER, painted)
+    written = np.array(Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Lights/light_1")
+                       .attributes["inputs:color"].default)
+    assert written.max() <= 1.0 + 1e-6 and boosts["/tiny/Lights/light_1"] >= 1.0
+    assert math.isclose(float(mix.LUMA @ written) * boosts["/tiny/Lights/light_1"],
+                        float(mix.LUMA @ np.array(layer.scene.colour("#ffcc00"))), rel_tol=1e-4)
+    # 2026-11-10: flat, under its warm lamps, rendered as a daylight camera sees a tungsten room (cast [162, 128, 93])
+    # where its concept's surfaces read about neutral; the eye at a lit place by night adapts to the light it stands
+    # in. CIECAM02's D by hand: 100 lx, L_A = 100 / pi / 5 = 6.366 cd/m^2, 1 - e^(-48.366 / 92) / 3.6 = 0.8357.
+    assert math.isclose(mix.adaptation_degree(100.0), 0.8357, abs_tol=1e-4)
+    # CIE 159's surrounds: dark (SR 0) F 0.8, dim 0.9 at SR 0.1, average 1.0 from 0.2; an eye in the square at 10 lux
+    # under its 0.1116 cd/m^2 night sky, SR 0.1116 / (10 / pi) = 0.035, F 0.835, D 0.835 x 0.8252 = 0.689
+    assert [mix.surround_factor(ratio) for ratio in (0.0, 0.1, 0.2, 0.5)] == pytest.approx([0.8, 0.9, 1.0, 1.0])
+    assert mix.adaptation_degree(10.0, mix.surround_factor(0.1116 / (10.0 / math.pi))) == pytest.approx(0.689,
+                                                                                                         abs=0.001)
+    tungsten = mix.black_body(2856.0)
+    whole, none = mix.adaptation(tungsten, 1.0), mix.adaptation(tungsten, 0.0)
+    assert np.allclose(none, np.eye(3)) and np.allclose(whole @ tungsten / float(mix.LUMA @ (whole @ tungsten)),
+                                                        np.ones(3), atol=1e-6)
+    adapted = mix.unit_light(mix.adaptation(tungsten, 0.8357) @ tungsten)
+    # nearer white, a trace of its warmth kept
+    assert 1.0 < adapted[0] / adapted[2] < tungsten[0] / tungsten[2], adapted
+    views = {"v": ({"combined": np.full((2, 2), 9.0), "lamp_0": np.full((2, 2), 2.0), "lamp_1": np.ones((2, 2))},
+                   None)}
+    assert np.allclose(mix.adapting_white(views, {"lamp_0": 0.5}, {"lamp_0": (np.ones(3), tungsten),
+                                                                  "lamp_1": (np.ones(3), np.ones(3))}),
+                       mix.unit_light(tungsten + np.ones(3)))  # its lamps at their scales, the light no group holds out
+    # the light no group holds (a shown place's lamps) takes the eye's change of each channel (mix.REST), luminance out
+    change = mix.tint({"combined": np.ones((8, 8))}, {}, {mix.REST: (np.ones(3), np.array([2.0, 1.0, 0.5]))},
+                      np.ones((8, 8)))
+    assert np.allclose(change, mix.unit_light([2.0, 1.0, 0.5]), atol=1e-6), change[0, 0]
+    # a night light (no record lamp) ships its adapted colour at the luminance its layer colour was rendered in, and
+    # the night air's dome and background are taken through the same adaptation
+    stage = Usd.Stage.Open(str(out / layer.LAYER))
+    night_moon = UsdLux.DistantLight.Define(stage, "/tiny/Lights/night_moon")
+    night_moon.CreateColorAttr(Gf.Vec3f(0.5, 0.5, 0.5))
+    dome = UsdLux.DomeLight.Define(stage, "/tiny/Environment")
+    dome.CreateColorAttr(Gf.Vec3f(0.2, 0.2, 0.2))
+    dome.GetPrim().CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.1, 0.1, 0.1))
+    stage.Save()
+    sent = mix.unit_light([0.8, 1.0, 1.3])
+    painted = light.shipped_colours({"lamp_1": (np.ones(3), sent)}, {"lamp_1": "/tiny/Lights/night_moon"}, found,
+                                    record, out / layer.LAYER)
+    assert np.allclose(painted["/tiny/Lights/night_moon"], sent * 0.5), painted
+    light.environment_adapted(out / layer.LAYER, "tiny", whole)
+    held = Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Environment")
+    assert np.allclose(np.array(held.attributes["inputs:color"].default), whole @ np.full(3, 0.2), atol=1e-6)
+    assert np.allclose(np.array(held.attributes["score:background"].default), whole @ np.full(3, 0.1), atol=1e-6)
+    # the eye adapts to the light it stands in whatever the hour outside (2026-11-10: greenhouse, a dome lit by its
+    # lamps under the Sun, read [175, 105, 101] against its concept's [146, 115, 123], its 2700 K panels seen as a
+    # daylight camera sees them): a lamp-lit room (inside, its concept showing no daylight) by day has the eye in its
+    # 100 lux (EN 12464-1), pi x 683 / 100 = 21.46 on the views' scale, its room round it; a room its concept shows
+    # in daylight, or an outdoor place, has none
+    eyes = tmp_path / "night.json"
+    eyes.write_text(json.dumps({"adapted_lux": {"outside": 10.0, "inside": 100.0}}))
+    unlit = {"scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
+    eye = light.room_eye({"night": str(eyes)}, unlit, {"inside": True})
+    assert eye == {"scale": pytest.approx(math.pi * 683.0 / 100.0, rel=1e-3)}, eye
+    assert light.room_eye({"night": str(eyes)}, {"scene": dict(unlit["scene"], daylight=True)}, {"inside": True}) \
+        is None
+    assert light.room_eye({"night": str(eyes)}, unlit, {"inside": False}) is None
+
+    # a concept showing light from no source in view takes its fill, in the open beside a sun over the horizon too
+    # (2026-10-30, light@base: its sun, its only light, swept to 1/32 left its shaded walls 53% black where the
+    # concept's shade is filled), never where the concept shows none or is not read; the fill is a soft overhead
+    # distant light in the open, a sphere light under the ceiling over the middle inside. The seed: a room 6 m across
+    # round the middle, a moon km off, an environment dome, a wall's picture
+    shown = {"rows": {}, "scene": {"daylight": True, "unseen": True, "unseen_colour": "#ffddbb"}}
+    assert light.fill_wanted(shown) and not light.fill_wanted(None)
+    assert not light.fill_wanted({**shown, "scene": {**shown["scene"], "unseen": False}})
+    seed = tmp_path / "room"
+    tiny_seed(seed)
+    (seed / "assets/textures").mkdir(parents=True)
+    Image.new("RGB", (4, 4), (90, 90, 90)).save(seed / "assets/textures/wall.png")
+    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+    UsdGeom.Cube.Define(base, "/tiny/Room").CreateSizeAttr(6.0)
+    UsdGeom.Sphere.Define(base, "/tiny/Sky/Moon").AddTranslateOp().Set(Gf.Vec3d(0.0, -5000.0, 0.0))
+    UsdLux.DomeLight.Define(base, "/tiny/Environment")
+    shader = UsdShade.Shader.Define(base, "/tiny/Looks/wall/picture")
+    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set("../assets/textures/wall.png")
+    base.Save()
+    for inside, kind in ((False, UsdLux.DistantLight), (True, UsdLux.SphereLight)):
+        out = tmp_path / f"room-inside-{inside}"
+        layer.write("tiny", {"lights": [], "environment": {"inside": False}}, seed, out)
+        # the scene record, written from the design alone, holds no glow (the old sky record's night glow was the
+        # game's, retired 2026-10-21)
+        opened = Usd.Stage.Open(str(out / layer.LAYER))  # held while its prim is read
+        held = opened.GetPrimAtPath("/tiny/Environment")
+        assert not held or not held.HasAttribute("score:glow_threshold")
+        found = layer.write_fill(out, seed, "tiny", "#ffddbb", inside, {"floor": [[-3.0, -3.0], [5.0, 3.0]],
+                                                                           "ceiling": 3.0},
+                                 REPO / "data/library/lamps.json")
+        opened = Usd.Stage.Open(str(out / layer.LAYER))
+        held = opened.GetPrimAtPath(found["path"])
+        assert held.IsA(kind) and found["fill"] and found["sun"], (inside, found)
+        assert (found["spot"] is None) != inside and (not inside or found["spot"] == [1.0, 2.7, 0.0]), found
+        assert not inside or held.GetAttribute("score:game:range").Get() == 4.0, found  # half the floor's width
+
+    # a shown place keeps its pictures (2026-10-18, light-passes of ten places: a shown place's light layer was written
+    # into its seed's copy in the lit tree, and the writer moved that copy's own pictures into assets/light, so its
+    # materials drew magenta)
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    shutil.copytree(seed, tree / "tiny", copy_function=os.link)  # hard links, as cp -al (subprocess.run is held above)
+    passes.neighbour_layer("tiny", {"lights": []}, seed, tree)
+    assert (tree / "tiny/assets/textures/wall.png").exists() and (tree / "tiny" / layer.LAYER).exists()
+    assert passes.unresolved(tree / "tiny/tiny.usda") == []
+    assert not (tree.parent / "light-of-tiny").exists()
+    shutil.rmtree(tree / "tiny/assets/textures")
+    assert len(passes.unresolved(tree / "tiny/tiny.usda")) == 1
 
 
 def exposure_of(folder, look, sky_mask, surface):
@@ -1357,244 +1545,26 @@ def tiny_seed(seed):
     root.Save()
 
 
-def test_a_record_lamp_near_a_seed_lamp_moves_it_one_far_is_added_and_the_strengths_land(tmp_path):
-    seed, out = tmp_path / "seed", tmp_path / "out"
-    tiny_seed(seed)
-    record = {"lights": [{"type": "omni", "at": [1.0, 2.0, 0.0], "energy": 1.0, "colour": "#ffcc00", "row": "bulb"},
-                         {"type": "spot", "at": [20.0, 2.0, 0.0], "aim": [20.0, 0.0, 0.0], "angle": 30.0,
-                          "energy": 1.0, "colour": "#ffffff", "row": "panel"}]}
-    found = layer.write("tiny", record, seed, out)
-    assert [entry["done"] for entry in found["placed"]] == ["moved 1.00 m", "added"], found["placed"]
-    moved = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
-    assert moved["spot"] == [1.0, 2.0, 0.0] and not moved["shaped"], moved
-    # a lamp the assembly carried 8 cm with its floor light out of a wall (assembly/lamps_along) keeps its carried
-    # spot: the record's lamp at its laid spot is that one, never moved back into the wall (light@walkway, 2026-11-12)
-    carried = tmp_path / "carried"
-    tiny_seed(carried)
-    base = Usd.Stage.Open(str(carried / "layers/base.usda"))
-    lamps_along.moved_with(base, "tiny", np.array([-0.1, 1.9, -0.1]), np.array([0.1, 2.1, 0.1]), np.zeros(3), 1.0,
-                           np.array([0.08, 0.0, 0.0]))
-    base.Save()
-    kept = layer.write("tiny", {"lights": [dict(record["lights"][0], at=[0.0, 2.0, 0.0])]}, carried,
-                       tmp_path / "carried-out")
-    assert [entry["done"] for entry in kept["placed"]] == ["kept"] and kept["lamps"][0]["spot"] == [0.08, 2.0, 0.0], \
-        kept
-    layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 0.5)})
-    held = Usd.Stage.Open(str(out / layer.LAYER))
-    assert held.GetPrimAtPath("/tiny/Lights/light_1").GetAttribute("inputs:intensity").Get() == 5.0
-    # the bulb painted #ffcc00 ships its black body's light at the luminance it was rendered with, its brightest
-    # channel at most 1 and its intensity raised for the rest; as a faint emitter it keeps its paint
-    job = tmp_path / "passes/passes/tiny-0"
-    job.mkdir(parents=True)
-    (job / "passes.json").write_text(json.dumps({"groups": {"lamp_0": "/tiny/Lights/light_1"}}))
-    colours = light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER)
-    assert np.allclose(colours["lamp_0"][1], mix.lamp_light(layer.scene.colour("#ffcc00")))
-    assert np.allclose(*light.group_colours(tmp_path / "passes", found, record, out / layer.LAYER, {"bulb"})["lamp_0"])
-    painted = light.shipped_colours(colours, {"lamp_0": "/tiny/Lights/light_1"}, found, record, out / layer.LAYER)
-    boosts = light.colours_written(out / layer.LAYER, painted)
-    written = np.array(Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Lights/light_1")
-                       .attributes["inputs:color"].default)
-    assert written.max() <= 1.0 + 1e-6 and boosts["/tiny/Lights/light_1"] >= 1.0
-    assert math.isclose(float(mix.LUMA @ written) * boosts["/tiny/Lights/light_1"],
-                        float(mix.LUMA @ np.array(layer.scene.colour("#ffcc00"))), rel_tol=1e-4)
-    # 2026-11-10: flat, under its warm lamps, rendered as a daylight camera sees a tungsten room (cast [162, 128, 93])
-    # where its concept's surfaces read about neutral; the eye at a lit place by night adapts to the light it stands
-    # in. CIECAM02's D by hand: 100 lx, L_A = 100 / pi / 5 = 6.366 cd/m^2, 1 - e^(-48.366 / 92) / 3.6 = 0.8357.
-    assert math.isclose(mix.adaptation_degree(100.0), 0.8357, abs_tol=1e-4)
-    # CIE 159's surrounds: dark (SR 0) F 0.8, dim 0.9 at SR 0.1, average 1.0 from 0.2; an eye in the square at 10 lux
-    # under its 0.1116 cd/m^2 night sky, SR 0.1116 / (10 / pi) = 0.035, F 0.835, D 0.835 x 0.8252 = 0.689
-    assert [mix.surround_factor(ratio) for ratio in (0.0, 0.1, 0.2, 0.5)] == pytest.approx([0.8, 0.9, 1.0, 1.0])
-    assert mix.adaptation_degree(10.0, mix.surround_factor(0.1116 / (10.0 / math.pi))) == pytest.approx(0.689,
-                                                                                                         abs=0.001)
-    tungsten = mix.black_body(2856.0)
-    whole, none = mix.adaptation(tungsten, 1.0), mix.adaptation(tungsten, 0.0)
-    assert np.allclose(none, np.eye(3)) and np.allclose(whole @ tungsten / float(mix.LUMA @ (whole @ tungsten)),
-                                                        np.ones(3), atol=1e-6)
-    seen = mix.unit_light(mix.adaptation(tungsten, 0.8357) @ tungsten)
-    assert 1.0 < seen[0] / seen[2] < tungsten[0] / tungsten[2], seen  # nearer white, a trace of its warmth kept
-    views = {"v": ({"combined": np.full((2, 2), 9.0), "lamp_0": np.full((2, 2), 2.0), "lamp_1": np.ones((2, 2))},
-                   None)}
-    assert np.allclose(mix.adapting_white(views, {"lamp_0": 0.5}, {"lamp_0": (np.ones(3), tungsten),
-                                                                  "lamp_1": (np.ones(3), np.ones(3))}),
-                       mix.unit_light(tungsten + np.ones(3)))  # its lamps at their scales, the light no group holds out
-    # the light no group holds (a shown place's lamps) takes the eye's change of each channel (mix.REST), luminance out
-    change = mix.tint({"combined": np.ones((8, 8))}, {}, {mix.REST: (np.ones(3), np.array([2.0, 1.0, 0.5]))},
-                      np.ones((8, 8)))
-    assert np.allclose(change, mix.unit_light([2.0, 1.0, 0.5]), atol=1e-6), change[0, 0]
-    # a night light (no record lamp) ships its adapted colour at the luminance its layer colour was rendered in, and
-    # the night air's dome and background are taken through the same adaptation
-    stage = Usd.Stage.Open(str(out / layer.LAYER))
-    moon = UsdLux.DistantLight.Define(stage, "/tiny/Lights/night_moon")
-    moon.CreateColorAttr(Gf.Vec3f(0.5, 0.5, 0.5))
-    dome = UsdLux.DomeLight.Define(stage, "/tiny/Environment")
-    dome.CreateColorAttr(Gf.Vec3f(0.2, 0.2, 0.2))
-    dome.GetPrim().CreateAttribute("score:background", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.1, 0.1, 0.1))
-    stage.Save()
-    sent = mix.unit_light([0.8, 1.0, 1.3])
-    painted = light.shipped_colours({"lamp_1": (np.ones(3), sent)}, {"lamp_1": "/tiny/Lights/night_moon"}, found,
-                                    record, out / layer.LAYER)
-    assert np.allclose(painted["/tiny/Lights/night_moon"], sent * 0.5), painted
-    light.environment_adapted(out / layer.LAYER, "tiny", whole)
-    held = Sdf.Layer.FindOrOpen(str(out / layer.LAYER)).GetPrimAtPath("/tiny/Environment")
-    assert np.allclose(np.array(held.attributes["inputs:color"].default), whole @ np.full(3, 0.2), atol=1e-6)
-    assert np.allclose(np.array(held.attributes["score:background"].default), whole @ np.full(3, 0.1), atol=1e-6)
-    # the eye adapts to the light it stands in whatever the hour outside (2026-11-10: greenhouse, a dome lit by its
-    # lamps under the Sun, read [175, 105, 101] against its concept's [146, 115, 123], its 2700 K panels seen as a
-    # daylight camera sees them): a lamp-lit room (inside, its concept showing no daylight) by day has the eye in its
-    # 100 lux (EN 12464-1), pi x 683 / 100 = 21.46 on the views' scale, its room round it; a room its concept shows
-    # in daylight, or an outdoor place, has none
-    table = tmp_path / "night.json"
-    table.write_text(json.dumps({"adapted_lux": {"outside": 10.0, "inside": 100.0}}))
-    unlit = {"scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
-    eye = light.room_eye({"night": str(table)}, unlit, {"inside": True})
-    assert eye == {"scale": pytest.approx(math.pi * 683.0 / 100.0, rel=1e-3)}, eye
-    assert light.room_eye({"night": str(table)}, {"scene": dict(unlit["scene"], daylight=True)}, {"inside": True}) \
-        is None
-    assert light.room_eye({"night": str(table)}, unlit, {"inside": False}) is None
-
-
-def box_mesh(stage, path, low, high):
-    """A closed box mesh from `low` to `high`."""
-    corners = [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
-    mesh = UsdGeom.Mesh.Define(stage, path)
-    mesh.CreatePointsAttr([Gf.Vec3f(*corner) for corner in corners])
-    mesh.CreateFaceVertexCountsAttr([4] * 6)
-    mesh.CreateFaceVertexIndicesAttr([0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3])
-
-
-def test_a_ceiling_lamp_freed_from_its_fixture_moves_into_its_room_never_toward_a_duct_over_the_ceiling(tmp_path):
-    """Walkway, round 33 (2026-10-30): its ceiling ducts reached 6.1 m over a 2.6 m ceiling, the stage bound's middle
-    stood over the ceiling, and its enclosed ceiling lamps moved up into it and read unlit."""
-    seed, out = tmp_path / "seed", tmp_path / "out"
-    tiny_seed(seed)
-    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
-    UsdGeom.Xformable(base.GetPrimAtPath("/tiny/Lights/light_1")).GetOrderedXformOps()[0].Set(Gf.Vec3d(0.0, 2.4, 0.0))
-    box_mesh(base, "/tiny/Objects/fixture", (-0.1, 2.3, -0.1), (0.1, 2.5, 0.1))
-    box_mesh(base, "/tiny/Objects/duct", (-6.0, 2.4, 3.0), (6.0, 9.0, 4.0))
-    base.Save()
-    record = {"lights": [], "inside": True, "floor": [[-1.0, -1.0], [1.0, 1.0]], "ceiling": 2.6}
-    found = layer.write("tiny", record, seed, out)
-    assert found["fixtures"]["/tiny/Lights/light_1"]["rule"] == "moved out of its fixture", found["fixtures"]
-    freed = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
-    assert freed["spot"][1] < 2.3, freed
-
-
-def post_mesh(stage, path):
-    """One mesh, a 4 m lamp post fused whole with its closed head: post (-0.05, 0, -0.05)-(0.05, 3.3, 0.05), head
-    (-0.25, 3.3, -0.25)-(0.25, 4.0, 0.25)."""
-    corners, faces = [], []
-    for low, high in (((-0.05, 0.0, -0.05), (0.05, 3.3, 0.05)), ((-0.25, 3.3, -0.25), (0.25, 4.0, 0.25))):
-        start = len(corners)
-        corners += [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
-        faces += [start + index for index in (0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3)]
-    mesh = UsdGeom.Mesh.Define(stage, path)
-    mesh.CreatePointsAttr([Gf.Vec3f(*corner) for corner in corners])
-    mesh.CreateFaceVertexCountsAttr([4] * 12)
-    mesh.CreateFaceVertexIndicesAttr(faces)
-
-
-@pytest.mark.parametrize("spot, rule", [((0.0, 3.8, 0.0), "moved out of its model's head"),
-                                        ((0.2, 3.1, 0.2), None)])
-def test_a_lamp_closed_in_the_head_of_a_post_baked_as_one_mesh_moves_out_and_one_under_it_stays(tmp_path, spot, rule):
-    """Square and street, round 34 (2026-10-31): the bake laid each street lamp as one 4 m mesh, post and head, its
-    head closed round the lamp at the library's mount height; no part was small enough to be its fixture, the lamp was
-    kept, every way out stopped, and it lit nothing."""
-    seed, out = tmp_path / "seed", tmp_path / "out"
+def placed_seed(seed, spot, meshes, carried):
+    """A tiny seed (tiny_seed) with its lamp at `spot`, each of `meshes` ((path, boxes), every (low, high) box of
+    one closed mesh) laid in it, and, when `carried` is given, its lamp carried that far along x with a floor light
+    the assembly moved out of a wall (lamps_along.moved_with)."""
     tiny_seed(seed)
     base = Usd.Stage.Open(str(seed / "layers/base.usda"))
     UsdGeom.Xformable(base.GetPrimAtPath("/tiny/Lights/light_1")).GetOrderedXformOps()[0].Set(Gf.Vec3d(*spot))
-    post_mesh(base, "/tiny/Objects/street_lamp")
-    box_mesh(base, "/tiny/Objects/pavement", (2.0, 0.0, -1.0), (8.0, 0.1, 1.0))
+    for path, boxes in meshes:
+        corners, faces = [], []
+        for low, high in boxes:
+            start = len(corners)
+            corners += [(x, y, z) for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]
+            faces += [start + index for index in (0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5,
+                                                  7, 3)]
+        mesh = UsdGeom.Mesh.Define(base, path)
+        mesh.CreatePointsAttr([Gf.Vec3f(*corner) for corner in corners])
+        mesh.CreateFaceVertexCountsAttr([4] * (6 * len(boxes)))
+        mesh.CreateFaceVertexIndicesAttr(faces)
+    if carried is not None:
+        lamps_along.moved_with(base, "tiny", np.array([-0.1, 1.9, -0.1]), np.array([0.1, 2.1, 0.1]), np.zeros(3),
+                               1.0, np.array([carried, 0.0, 0.0]))
     base.Save()
-    found = layer.write("tiny", {"lights": []}, seed, out)
-    freed = next(lamp for lamp in found["lamps"] if lamp["path"] == "/tiny/Lights/light_1")
-    if rule is None:
-        assert "/tiny/Lights/light_1" not in found.get("fixtures", {}), found.get("fixtures")
-        assert freed["spot"] == list(spot), freed
-        return
-    assert found["fixtures"]["/tiny/Lights/light_1"]["rule"] == rule, found["fixtures"]
-    assert freed["spot"][0] > 0.25 and 3.3 <= freed["spot"][1] <= 4.0, freed
-    stage = Usd.Stage.Open(str(seed / "layers/base.usda"))
-    assert layer.blocked_share(np.array(freed["spot"]), [layer.world_mesh(stage, "/tiny/Objects/street_lamp")]) \
-        < layer.ENCLOSED
-
-
-def test_no_camera_glow_is_written_from_a_record_that_holds_none(tmp_path):
-    """The scene record, written from the design alone, holds no glow (the old sky record's night glow was the game's,
-    retired 2026-10-21)."""
-    seed = tmp_path / "seed"
-    tiny_seed(seed)
-    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
-    UsdLux.DomeLight.Define(base, "/tiny/Environment")
-    base.Save()
-    layer.write("tiny", {"lights": [], "environment": {"inside": False}}, seed, tmp_path / "dark")
-    dark = Usd.Stage.Open(str(tmp_path / "dark" / layer.LAYER))  # held while its prim is read
-    held = dark.GetPrimAtPath("/tiny/Environment")
-    assert not held or not held.HasAttribute("score:glow_threshold")
-
-
-@pytest.mark.parametrize("inside, kind", ((False, UsdLux.DistantLight), (True, UsdLux.SphereLight)))
-def test_the_concepts_fill_comes_wherever_the_concept_shows_unseen_light(tmp_path, inside, kind):
-    """A concept showing light from no source in view takes its fill, in the open beside a sun over the horizon too
-    (2026-10-30, light@base: its sun, its only light, swept to 1/32 left its shaded walls 53% black where the
-    concept's shade is filled), never where the concept shows none or is not read; the fill is a soft overhead distant
-    light in the open, a sphere light under the ceiling over the middle inside."""
-    seen = {"rows": {}, "scene": {"daylight": True, "unseen": True, "unseen_colour": "#ffddbb"}}
-    assert light.fill_wanted(seen) and not light.fill_wanted(None)
-    assert not light.fill_wanted({**seen, "scene": {**seen["scene"], "unseen": False}})
-    seed, out = tmp_path / "seed", tmp_path / "out"
-    tiny_seed(seed)
-    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
-    UsdGeom.Cube.Define(base, "/tiny/Room").CreateSizeAttr(6.0)  # a room 6 m across round the middle
-    UsdGeom.Sphere.Define(base, "/tiny/Sky/Moon").AddTranslateOp().Set(Gf.Vec3d(0.0, -5000.0, 0.0))  # km off
-    base.Save()
-    layer.write("tiny", {"lights": []}, seed, out)
-    record = {"floor": [[-3.0, -3.0], [5.0, 3.0]], "ceiling": 3.0}
-    found = layer.write_fill(out, seed, "tiny", "#ffddbb", inside, record, REPO / "data/library/lamps.json")
-    opened = Usd.Stage.Open(str(out / layer.LAYER))  # held while its prim is read
-    held = opened.GetPrimAtPath(found["path"])
-    assert held.IsA(kind) and found["fill"] and found["sun"], found
-    assert (found["spot"] is None) != inside and (not inside or found["spot"] == [1.0, 2.7, 0.0]), found
-    assert not inside or held.GetAttribute("score:game:range").Get() == 4.0, found  # half the floor's width
-
-
-def test_the_strengths_are_written_into_a_copy_and_the_read_only_input_stays(tmp_path):
-    """Fault (2026-10-12, light@camp): the strengths were saved over the input layer, a read-only checkout."""
-    seed, made, out = tmp_path / "seed", tmp_path / "made", tmp_path / "out"
-    tiny_seed(seed)
-    layer.write("tiny", {"lights": []}, seed, made)
-    views = {"views": [{"name": "door", "eye": [0, 1.6, 2], "aim": [0, 1.2, 0], "fov": 70}]}
-    (made / passes.VIEWS).write_text(json.dumps(passes.record_views(views)))
-    before = (made / layer.LAYER).read_bytes()
-    for path in made.rglob("*"):
-        os.chmod(path, stat.S_IREAD | (stat.S_IEXEC if path.is_dir() else 0))
-    try:
-        light.layer_copied(made, out)
-        layer.strengths(out / layer.LAYER, "tiny", {"/tiny/Lights/light_1": (10.0, 2.0)})
-        assert (made / layer.LAYER).read_bytes() == before
-        size, copied = passes.views_of(out)  # the record's views, at the check size, travel with the layer
-        assert size == passes.CHECK_SIZE and copied[0]["up"] == [0.0, 1.0, 0.0] and copied[0]["frame"] == 0
-    finally:
-        for path in made.rglob("*"):
-            os.chmod(path, stat.S_IRWXU)
-
-
-def test_a_shown_place_keeps_its_pictures(tmp_path):
-    """Fault (2026-10-18, light-passes of ten places): a shown place's light layer was written into its seed's copy in
-    the lit tree, and the writer moved that copy's own pictures into assets/light, so its materials drew magenta."""
-    seed, tree = tmp_path / "seed", tmp_path / "tree"
-    tiny_seed(seed)
-    (seed / "assets/textures").mkdir(parents=True)
-    Image.new("RGB", (4, 4), (90, 90, 90)).save(seed / "assets/textures/wall.png")
-    base = Usd.Stage.Open(str(seed / "layers/base.usda"))
-    shader = UsdShade.Shader.Define(base, "/tiny/Looks/wall/picture")
-    shader.CreateInput("file", Sdf.ValueTypeNames.Asset).Set("../assets/textures/wall.png")
-    base.Save()
-    tree.mkdir()
-    subprocess.run(["cp", "-al", str(seed), str(tree / "tiny")], check=True)
-    passes.neighbour_layer("tiny", {"lights": []}, seed, tree)
-    assert (tree / "tiny/assets/textures/wall.png").exists() and (tree / "tiny" / layer.LAYER).exists()
-    assert passes.unresolved(tree / "tiny/tiny.usda") == []
-    assert not (tree.parent / "light-of-tiny").exists()
-    shutil.rmtree(tree / "tiny/assets/textures")
-    assert len(passes.unresolved(tree / "tiny/tiny.usda")) == 1
+    return seed
