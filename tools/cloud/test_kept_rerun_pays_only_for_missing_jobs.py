@@ -290,10 +290,12 @@ def test_kept_rerun_pays_only_for_missing_jobs(monkeypatch, tmp_path):
     copies = mark(first["copies"]).parent  # kept as copies, as 5a46a96e did
     written_frame({"outputs": [str(copies / "outputs" / "frames" / "part192")]}, "192.png", "frame 192")
     (copies / kept.DONE).write_text(json.dumps({"job": first["copies"], "peers": {}}, sort_keys=True))
-    assert not kept.keep(first["outside"], SYSTEM) and kept.missing([first["outside"]], SYSTEM) == [first["outside"]]
     render(first["no code"])
+    stored = sorted((tmp_path / "store").rglob("*"))
+    assert not kept.keep(first["outside"], SYSTEM) and kept.missing([first["outside"]], SYSTEM) == [first["outside"]]
     monkeypatch.delenv(kept.CODE)
     assert not kept.keep(first["no code"], SYSTEM) and kept.missing([first["no code"]], SYSTEM) == [first["no code"]]
+    assert sorted((tmp_path / "store").rglob("*")) == stored  # a refused keep writes nothing into the store
     monkeypatch.setenv(kept.CODE, "row code 1")
     cut = mark(first["cut short"])
     cut.unlink()  # the copy was cut before its mark
