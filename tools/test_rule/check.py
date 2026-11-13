@@ -167,7 +167,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_box_masks_stop_when_no_masks_came_back.py": 3,
     "tools/cloud/test_delight_makes_each_unlit_copy_once.py": 3,
     "tools/cloud/test_detached_logs_everything_and_says_one_line.py": 3,
-    "tools/cloud/test_google_batch_sends_each_request_once.py": 7,
     "tools/cloud/test_judge_asks_each_question_once_on_a_card_that_holds_it.py": 3,
     "tools/cloud/test_kept_rerun_pays_only_for_missing_jobs.py": 11,
     "tools/cloud/test_library_bake_sends_what_its_job_names.py": 6,
