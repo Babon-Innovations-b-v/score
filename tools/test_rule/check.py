@@ -164,7 +164,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_prop_makers_hand_each_step_its_props_inputs.py": 7,
     "tools/cloud/test_scene_runs_only_an_approved_locked_plan_in_order.py": 7,
     "tools/cloud/test_spread_runs_every_share_once.py": 13,
-    "tools/cloud/test_this_pc_pulls_no_keys_and_pushes_without_replacing.py": 10,
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
     "tools/props/scene/test_a_scene_is_made_from_its_concept.py": 17,
