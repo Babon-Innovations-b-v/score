@@ -108,7 +108,7 @@ FUNCTION_DEBT = {
     "score/dashboard/films/test_a_film_is_timed_checked_and_priced_from_its_script.py": 27,
     "score/dashboard/state/test_the_cockpit_shows_the_store_as_read.py": 21,
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
-    "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 90,
+    "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 79,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 115,
     "score/library/test_read_only_at_known_schema.py": 4,
     "score/review/test_the_owners_word_stands.py": 116,
