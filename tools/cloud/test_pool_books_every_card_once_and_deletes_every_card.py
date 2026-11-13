@@ -10,7 +10,7 @@ The cloud, ssh and process calls are stand-ins that rent nothing (`stock` cards 
 worked out from the card price and minutes held. The break that turns each red (applied once, seen red, reverted;
 park.py and spread.py are the pool's own call sites):
 
-- test_a_run_rents_its_pool_once_and_claims_of_every_kind_reuse_its_cards: in park.py `pool_parkable`, `and
+- test_a_pool_books_every_card_once_and_deletes_every_card: in park.py `pool_parkable`, `and
   pool.current(machine["pool"]) is not None` -> `and False` (a card back from its claim is deleted).
 - test_jobs_start_on_the_first_warm_card_while_the_collector_grows_the_pool: in `collect`, `collect_round(run_id,
   plan, collecting)` -> `pass`.
@@ -20,12 +20,12 @@ park.py and spread.py are the pool's own call sites):
   process_alive(holder):` -> `if False:`.
 - test_a_dead_cards_share_goes_back_on_the_queue_once: in spread.py `work_slot`, `if machine.get("pool") and
   shares.again(share):` -> `if False:`.
-- test_the_pools_idle_spell_and_rent_keep_their_minutes_and_book_no_euros_of_their_own and
-  test_a_job_on_a_pool_card_adds_no_second_charge: in ledger.py `machine_row`, `row["card_euros"], row["euros"] =
-  row["euros"], 0.0` -> `row["card_euros"] = row["euros"]` (the card's minutes charged twice).
-- test_a_pool_card_held_n_minutes_books_n_minutes_as_it_accrues: in `charge`, `max(0.0, owed - card.get("booked",
+- test_a_pool_books_every_card_once_and_deletes_every_card (its idle spell, its taker's row): in ledger.py
+  `machine_row`, `row["card_euros"], row["euros"] = row["euros"], 0.0` -> `row["card_euros"] = row["euros"]` (the card's
+  minutes charged twice).
+- test_a_pool_books_every_card_once_and_deletes_every_card (its hold): in `charge`, `max(0.0, owed - card.get("booked",
   0.0))` -> `max(0.0, owed)`.
-- test_the_runs_end_releases_the_pool_and_a_card_back_after_it_is_deleted: in `release`, `[lambda record=record:
+- test_a_pool_books_every_card_once_and_deletes_every_card (the run's end): in `release`, `[lambda record=record:
   release_idle(record) for record in park.pool_records(run_id)]` -> `[]`.
 - test_a_stopped_runner_deletes_its_card_and_rents_nothing: in park.py `pool_parkable`, drop `and not
   batch.STOPPING.is_set()`.
@@ -33,7 +33,8 @@ park.py and spread.py are the pool's own call sites):
   {}).get("disk_gb") != disk:` -> `if False:`; or in `Collecting.asked_anew`, `if classes - self.short_before:` ->
   `if False:` (a new class's ask waits out the backoff other classes built; Buy 98, 2026-11-13); or in `claim`,
   drop `batch.say(closed_under(...))` (a claim the pool closed under ends naming nothing).
-- test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned: in park.py `CLEANUPS`, drop the `"similar"` entry.
+- test_a_pool_books_every_card_once_and_deletes_every_card (every buy kind cleaned): in park.py `CLEANUPS`, drop the
+  `"similar"` entry.
 - test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_with_its_time_left: in `claim`,
   `paused(run, left)` -> `pass`.
 - test_a_pool_is_sized_from_the_runs_planned_card_work: in `size_for`, `while sum(sizes.values()) > MOST_CARDS:` ->
@@ -237,22 +238,6 @@ def claimed(run, kind):
     return batch.claim(run, "account", OFFERS, len(run.machines) + 1, kind, wanted=lambda: False)
 
 
-def test_a_run_rents_its_pool_once_and_claims_of_every_kind_reuse_its_cards():
-    calls, run_id = fresh(stock=10)
-    assert grow(run_id) == 2 and len(calls.rented) == 2
-    assert grow(run_id) == 0 and len(calls.rented) == 2  # full: nothing more rented
-    seen = set()
-    for kind in KINDS * 2:
-        run = a_run(kind)
-        card = claimed(run, kind)
-        assert card is not None and card["pool"] == run_id
-        seen.add(card["id"])
-        card["healthy"] = True
-        batch.delete_machine(card)  # back to the pool, not deleted
-    assert len(calls.rented) == 2 and seen <= set(calls.rented) and not calls.deleted
-    assert len(park.pool_records(run_id)) == 2 and not pool.shortfall(pool.current(run_id), pool.members(run_id))
-
-
 def test_jobs_start_on_the_first_warm_card_while_the_collector_grows_the_pool():
     calls, run_id = fresh(stock=1, sizes={"gpu-24gb": 3})
     patch(pool, "POLL_SECONDS", 0.05)
@@ -328,81 +313,22 @@ def test_a_dead_cards_share_goes_back_on_the_queue_once():
 
 
 def rented_ago(run_id, minutes):
-    """Make the pool's one card as if rented `minutes` ago and parked (paid to then) half that ago."""
-    member = next((pool.folder_of(run_id) / "cards").glob("*.json"))
-    member.write_text(json.dumps({**json.loads(member.read_text()), "created": time.time() - minutes * 60}))
-    path = next(park.PARKED.glob("*.json"))
-    record = json.loads(path.read_text())
-    record.update(created=record["created"] - minutes * 60, parked_at=record["parked_at"] - minutes * 30,
-                  paid_minutes=minutes / 2)
-    path.write_text(json.dumps(record))
-    return json.loads(member.read_text())["name"]
+    """Make every card of the pool as if rented `minutes` ago and parked (paid to then) half that ago; their names."""
+    names = []
+    for member in (pool.folder_of(run_id) / "cards").glob("*.json"):
+        member.write_text(json.dumps({**json.loads(member.read_text()), "created": time.time() - minutes * 60}))
+        names.append(json.loads(member.read_text())["name"])
+    for path in park.PARKED.glob("*.json"):
+        record = json.loads(path.read_text())
+        record.update(created=record["created"] - minutes * 60, parked_at=record["parked_at"] - minutes * 30,
+                      paid_minutes=minutes / 2)
+        path.write_text(json.dumps(record))
+    return names
 
 
 def pool_euros():
     """Every euro the sandbox's ledger holds: the run's pool's and its cards' takers'."""
     return sum(entry["euros"] for entry in ledger.entries())
-
-
-def test_the_pools_idle_spell_and_rent_keep_their_minutes_and_book_no_euros_of_their_own():
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    rented_ago(run_id, 20)
-    card = claimed(a_run("idle"), KINDS[0])
-    entries = ledger.entries()
-    idle = [entry for entry in entries if entry["batch"].startswith("pool-idle-")]
-    cold = [entry for entry in entries if entry["batch"] == f"pool-{run_id}-{card['id']}"]
-    assert len(idle) == 1 and idle[0]["run"] == run_id and cold and cold[0]["run"] == run_id
-    assert idle[0]["euros"] == 0.0 and cold[0]["euros"] == 0.0  # the pool's hold books them (hold)
-    assert abs(idle[0]["machines"][0]["card_euros"] - 10 * CARD_PRICE) < CARD_PRICE + 1e-9  # its 10 idle minutes
-    assert card["paid_minutes"] >= 20
-    row = ledger.machine_row(card)
-    assert row["euros"] == 0.0 and row["card_euros"] < CARD_PRICE + 1e-9  # the taker's time, for the measurements
-
-
-def test_a_pool_card_held_n_minutes_books_n_minutes_as_it_accrues():
-    """Fault of 2026-10-25: Batch 1's pool of 10 L4s and 3 processor machines was held 11 h and booked EUR 0.00."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    name = rented_ago(run_id, 30)
-    ledger.rent_started("machines", name, {"type": "card-type", "zone": "zone-a", "price": CARD_PRICE}, None)
-    assert ledger.open_rents(ledger.entries(), time.time())  # its rent counted as open until the pool books it
-    pool.hold(run_id)
-    assert abs(pool_euros() - 30 * CARD_PRICE) <= CARD_PRICE + 1e-9  # 30 min, to the started minute
-    assert not ledger.open_rents(ledger.entries(), time.time())  # booked: its rent is no longer counted beside
-    pool.hold(run_id)
-    assert abs(pool_euros() - 30 * CARD_PRICE) <= CARD_PRICE + 1e-9  # booked once, not again
-    pool.release(run_id)
-    assert calls.deleted and abs(pool_euros() - 30 * CARD_PRICE) <= CARD_PRICE + 1e-9  # struck off: to its delete
-
-
-def test_a_job_on_a_pool_card_adds_no_second_charge():
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    rented_ago(run_id, 30)
-    run = a_run("job")
-    card = claimed(run, KINDS[0])
-    card["healthy"] = True
-    batch.delete_machine(card)  # the job done, the card back in the pool
-    ledger.record({"started": "2026-10-25T12:00:00Z", "batch": "job", "kind": KINDS[0],
-                   **ledger.machines_record(run.machines, [], time.time())})  # the taker's own row
-    pool.hold(run_id)
-    pool.release(run_id)
-    assert abs(pool_euros() - 30 * CARD_PRICE) <= CARD_PRICE + 1e-9  # every minute once, the job's included
-
-
-def test_the_runs_end_releases_the_pool_and_a_card_back_after_it_is_deleted():
-    calls, run_id = fresh(stock=10)
-    grow(run_id)
-    card = claimed(a_run("end"), KINDS[0])
-    pool.release(run_id)
-    assert pool.current(run_id) is None and len(calls.deleted) == 1  # the idle card at once; the held one is its taker's
-    idle = [entry["run"] for entry in ledger.entries() if entry["batch"].startswith("pool-idle-")]
-    assert idle == [run_id, run_id]  # the taken card's spell parked, then the idle card's to its delete
-    card["healthy"] = True
-    batch.delete_machine(card)  # comes back after the end: deleted, not parked
-    assert sorted(calls.deleted) == sorted(calls.rented) and not park.pool_records(run_id)
-    assert claimed(a_run("after"), KINDS[0]) is None and len(calls.rented) == 2  # a claim after the end takes nothing
 
 
 def test_a_stopped_runner_deletes_its_card_and_rents_nothing():
@@ -446,31 +372,6 @@ def test_a_class_the_pool_lacks_is_asked_for_and_no_stock_never_empties_the_offe
     shortage = [offer._replace(stock_word="shortage") for offer in OFFERS]
     patch(cloud, "offers", lambda classes: [offer for offer in shortage if offer.machine_class in classes])
     assert batch.one_class_in_stock(["gpu-24gb"])  # none in stock: still offered, its claims wait for stock
-
-
-def test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned():
-    """Every kind that runs on pool cards has its clean-up, so a card it used goes back to the pool, its run's files
-    removed, rather than being deleted and rented again (fault, 2026-10-23: the likeness threw its L4 away). A kind
-    whose set-up writes no mark also removes every set-up mark, so the next kind on the card sets up again."""
-    import characters
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    commands = []
-    patch(batch, "remote", lambda folder, host, command, **_: commands.append(command))
-    unmarked = ["similar", "unirig", "parts", "closeups", "moss-sound", "unlit"]
-    kinds = [characters.KIND, "pictures", "pictures-20b", "scene", "prove", *unmarked]  # prove: the sound takes
-    for kind in kinds:
-        card = claimed(a_run(f"buy-{kind}"), kind)
-        assert card is not None and card["pool"] == run_id, kind
-        card["healthy"] = True
-        batch.delete_machine(card)
-        assert len(park.pool_records(run_id)) == 1, kind  # back in the pool
-    assert len(calls.rented) == 1 and not calls.deleted
-    for removed in ("/root/make/*", "/root/pics/out", "/root/props/work/scene", "/root/similar", "/root/UniRig",
-                    "/root/smoke"):
-        assert any(removed in command for command in commands), (removed, commands)
-    assert all(park.ALL_MARKS in park.CLEANUPS[kind](card) for kind in unmarked)
-    pool.release(run_id)
 
 
 def test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_with_its_time_left():
@@ -1084,3 +985,65 @@ def test_an_open_pool_whose_collector_is_gone_gets_a_new_one_and_a_closed_pool_n
         pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": GONE_PID})
     pool.close(run_id)
     assert not pool.revive(run_id) and pool.plan_of(run_id)["collector"] == GONE_PID
+
+
+UNMARKED = ["similar", "unirig", "parts", "closeups", "moss-sound", "unlit"]  # kinds whose set-up writes no mark
+# two cards each booked to its started minute, the hold rounding their sum to the micro-euro
+BOOKED_WITHIN = 2 * CARD_PRICE + 1e-6
+CLEANED = ("/root/make/*", "/root/pics/out", "/root/props/work/scene", "/root/similar", "/root/UniRig", "/root/smoke")
+
+
+def test_a_pool_books_every_card_once_and_deletes_every_card():
+    """One run's pool of two cards, rented 30 min ago: claims of every kind take them and give them back cleaned, the
+    pool books their minutes once (their idle spells, their rents and their takers' rows adding nothing), and the
+    run's end deletes the idle card at once and the held one once it comes back. Faults: 2026-10-23 (the likeness threw its L4 away), 2026-10-25
+    (Batch 1's pool of 10 L4s and 3 processor machines was held 11 h and booked EUR 0.00)."""
+    import characters
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
+    assert grow(run_id) == 2 and grow(run_id) == 0 and len(calls.rented) == 2  # rented once; full, nothing more
+    for name in rented_ago(run_id, 30):
+        ledger.rent_started("machines", name, {"type": "card-type", "zone": "zone-a", "price": CARD_PRICE}, None)
+    assert ledger.open_rents(ledger.entries(), time.time())  # its rent counted as open until the pool books it
+    commands = []
+    patch(batch, "remote", lambda folder, host, command, **_: commands.append(command))
+    kinds = [*KINDS, characters.KIND, "pictures", "pictures-20b", "scene", "prove", *UNMARKED]  # prove: sound takes
+    for number, kind in enumerate(kinds):
+        run = a_run(f"buy-{kind}")
+        card = claimed(run, kind)
+        assert card is not None and card["pool"] == run_id and card["id"] in calls.rented, kind
+        if not number:  # the first take closes its card's 15 idle minutes since it parked, its rent cold before
+            entries = ledger.entries()
+            idle = [entry for entry in entries if entry["batch"].startswith("pool-idle-")]
+            cold = [entry for entry in entries if entry["batch"] == f"pool-{run_id}-{card['id']}"]
+            assert len(idle) == 1 and idle[0]["run"] == run_id and cold and cold[0]["run"] == run_id
+            assert idle[0]["euros"] == 0.0 and cold[0]["euros"] == 0.0  # the pool's hold books them
+            assert abs(idle[0]["machines"][0]["card_euros"] - 15 * CARD_PRICE) < CARD_PRICE + 1e-9
+            assert card["paid_minutes"] >= 30
+            row = ledger.machine_row(card)
+            assert row["euros"] == 0.0 and row["card_euros"] < CARD_PRICE + 1e-9  # the taker's time, measured only
+        card["healthy"] = True
+        batch.delete_machine(card)  # back to the pool, not deleted
+        assert len(park.pool_records(run_id)) == 2, kind
+        if not number:
+            ledger.record({"started": "2026-10-25T12:00:00Z", "batch": "job", "kind": kind,
+                           **ledger.machines_record(run.machines, [], time.time())})  # the taker's own row
+    assert len(calls.rented) == 2 and not calls.deleted
+    assert not pool.shortfall(pool.current(run_id), pool.members(run_id))
+    for removed in CLEANED:
+        assert any(removed in command for command in commands), (removed, commands)
+    assert all(park.ALL_MARKS in park.CLEANUPS[kind](card) for kind in UNMARKED)  # the next kind sets up again
+    pool.hold(run_id)
+    assert abs(pool_euros() - 2 * 30 * CARD_PRICE) <= BOOKED_WITHIN  # 30 min to the started minute, the job's included
+    assert not ledger.open_rents(ledger.entries(), time.time())  # booked: its rent no longer counted beside
+    pool.hold(run_id)
+    assert abs(pool_euros() - 2 * 30 * CARD_PRICE) <= BOOKED_WITHIN  # booked once, not again
+    card = claimed(a_run("end"), KINDS[0])
+    pool.release(run_id)
+    assert pool.current(run_id) is None and len(calls.deleted) == 1  # the idle card at once; the held one is its taker's
+    card["healthy"] = True
+    batch.delete_machine(card)  # comes back after the end: deleted, not parked
+    assert sorted(calls.deleted) == sorted(calls.rented) and not park.pool_records(run_id)
+    idle = [entry["run"] for entry in ledger.entries() if entry["batch"].startswith("pool-idle-")]
+    assert idle == [run_id] * (len(kinds) + 2)  # each idle spell once: to its take, the last to its delete
+    assert abs(pool_euros() - 2 * 30 * CARD_PRICE) <= BOOKED_WITHIN  # struck off: to its delete, still once
+    assert claimed(a_run("after"), KINDS[0]) is None and len(calls.rented) == 2  # a claim after the end takes nothing
