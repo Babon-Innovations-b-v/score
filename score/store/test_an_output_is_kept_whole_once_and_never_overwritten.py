@@ -2,9 +2,10 @@
 writing one key at once exactly one lands), moves the accepted output only by an accept, keeps an agent out of the
 owner's areas, and survives a reboot: a cut write leaves the whole object or none, an unreadable object is quarantined
 and read as absent except an owner's decision, which stops the read and stays put. The reboot safety is in no row's
-key. Every case runs on a store of its own in the temp folder.
+key. One store in the temp folder, installed by the runner and the owner's commands, carries every check; the owner's
+areas are tried on a framework store of its own in a fresh Python.
 
-Each test's break (applied once, seen red, reverted), in score/store/__init__.py unless named:
+Each break (applied once, seen red, reverted), in score/store/__init__.py unless named:
 - named by content: durable.put_tree names the output with a random field added to its listing.
 - checkout read-only: place_blob chmods the copy 0o644.
 - checkout links the blob: linked_read_only returns False at its start.
@@ -29,7 +30,6 @@ import multiprocessing
 import os
 import pathlib
 import runpy
-import shutil
 import signal
 import subprocess
 import sys
@@ -43,9 +43,27 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 PLAIN = {name: vars(Store).get(name) for name in durable.METHODS}  # Store as score/store/__init__.py writes it
 durable.install()  # as the runner and the owner's commands run the store
 
-
-def a_store():
-    return Store.in_folder(tempfile.mkdtemp())
+TREE = {"stage.usda": "#usda 1.0", "layers/base.usda": "base" * 100000}  # stage.usda's bytes shared with OTHER
+OTHER = {"stage.usda": "#usda 1.0", "layers/base.usda": "changed"}
+WRITES_THROUGH_A_CHECKOUT = {"open r+b": lambda path: open(path, "r+b"), "open ab": lambda path: open(path, "ab"),
+                             "write_text": lambda path: path.write_text("changed")}
+OWNER_WRITES = [  # (who runs the Python, area, by, written)
+    ("agent", "acc" + "epts", "owner", False),
+    ("agent", "rej" + "ects", "owner", False),
+    ("agent", "rej" + "ects", RUNNER, False),  # a reject is never the runner's
+    ("agent", "acc" + "epts", RUNNER, True),  # the runner's automatic accept
+    ("owner", "acc" + "epts", "owner", True),
+]
+OWNER_READS = {"accepted": lambda store: store.accepted("clean@hangar"),
+               "rejected": lambda store: store.rejected("clean@hangar", "o1"),
+               "waivers": lambda store: store.waivers("clean@hangar", "k"),
+               "spend_yes": lambda store: store.spend_yes("clean@hangar", "k")}
+CUT_OWNER_DECISIONS = [  # (key, the reads that must stop on it); each written empty and cut half way
+    ("rejects/clean@hangar/t.json", ("accepted", "rejected")),
+    ("acc" + "epts/clean@hangar/t.json", ("accepted", "rejected")),
+    ("waivers/clean@hangar/k/c.json", ("waivers",)),
+    ("spend-yes/clean@hangar/k.json", ("spend_yes",)),
+]
 
 
 def a_folder(files):
@@ -54,139 +72,6 @@ def a_folder(files):
         (folder / name).parent.mkdir(parents=True, exist_ok=True)
         (folder / name).write_text(text)
     return folder
-
-
-def test_an_output_is_named_by_its_content_and_stored_once():
-    store = a_store()
-    first = store.put_tree(a_folder({"stage.usda": "#usda 1.0", "layers/base.usda": "base"}))
-    again = store.put_tree(a_folder({"stage.usda": "#usda 1.0", "layers/base.usda": "base"}))
-    other = store.put_tree(a_folder({"stage.usda": "#usda 1.0", "layers/base.usda": "changed"}))
-    assert first == again != other
-    assert first == tree_hash(a_folder({"stage.usda": "#usda 1.0", "layers/base.usda": "base"}))
-    blobs = store.objects.keys("blobs/")
-    assert len(blobs) == 3, blobs  # the shared stage.usda is kept once
-
-
-def test_a_checkout_gives_the_output_back_read_only():
-    store = a_store()
-    output = store.put_tree(a_folder({"a.txt": "a", "deep/b.txt": "b"}))
-    folder = store.checkout(output)
-    assert (folder / "deep/b.txt").read_text() == "b"
-    try:
-        (folder / "a.txt").write_text("changed")
-    except PermissionError:
-        return
-    raise AssertionError("a stored output could be written over")
-
-
-def test_a_checkout_links_the_stored_bytes_and_no_write_through_it_reaches_them():
-    """2026-10-27: checkouts copied every output they gave out (16 GB in an hour beside a 22 GB store on the conductor).
-    A checkout is a hard link to the read-only blob: no second copy, a write through it is refused, and a save that
-    replaces the file or adds one changes the checkout's entries only, never the blob."""
-    store = a_store()
-    output = store.put_tree(a_folder({"a.txt": "a", "b.txt": "b"}))
-    blob = store.objects.path(f"blobs/{store.listing(output)['a.txt']}")
-    folder = store.checkout(output)
-    assert (folder / "a.txt").samefile(blob) and blob.stat().st_nlink == 2, "a checkout copied the stored bytes"
-    for write in (lambda: open(folder / "a.txt", "r+b"), lambda: open(folder / "a.txt", "ab"),
-                  lambda: (folder / "a.txt").write_text("changed")):
-        try:
-            write()
-        except PermissionError:
-            continue
-        raise AssertionError("a stored file could be written through its checkout")
-    (folder / "saved.txt").write_text("a save beside it")
-    (folder / "saved.txt").replace(folder / "a.txt")  # a save that writes new and renames over its input
-    assert blob.read_text() == "a" and file_hash(blob) == store.listing(output)["a.txt"], "the stored bytes changed"
-    assert (store.checkout(output) / "a.txt").samefile(blob), "a changed checkout was handed out again"
-
-
-def test_a_writable_blob_is_copied_never_linked():
-    store = a_store()
-    output = store.put_tree(a_folder({"a.txt": "a"}))
-    blob = store.objects.path(f"blobs/{store.listing(output)['a.txt']}")
-    blob.chmod(0o644)  # a blob not stored by put_blob (a restore, a hand copy)
-    checked = store.checkout(output) / "a.txt"
-    assert not checked.samefile(blob) and checked.read_text() == "a" and not checked.stat().st_mode & 0o222
-
-
-def test_relink_makes_a_checkouts_whole_copies_links_and_leaves_a_changed_one():
-    """The conductor's checkouts made as copies before this, freed with a run live (disk.clean-cache)."""
-    store = a_store()
-    output = store.put_tree(a_folder({"a.txt": "a" * 5000, "b.txt": "b"}))
-    folder = store.checkout(output)
-    for name, text in (("a.txt", "a" * 5000), ("b.txt", "changed")):  # an old copy, and a copy a make wrote over
-        (folder / name).unlink()
-        (folder / name).write_text(text)
-        (folder / name).chmod(0o444)
-    reader = open(folder / "a.txt", "rb")  # a node reading the copy while it is relinked
-    assert store.relink(output) == 5000
-    assert (folder / "a.txt").samefile(store.objects.path(f"blobs/{store.listing(output)['a.txt']}"))
-    assert reader.read() == b"a" * 5000 and (folder / "b.txt").read_text() == "changed"
-    reader.close()
-    assert sorted(path.name for path in folder.iterdir()) == ["a.txt", "b.txt"]
-    assert not list(store.cache.rglob("*.partial")) and store.relink(output) == 0
-
-
-def owner_write(environment, area="acc" + "epts", by="owner"):
-    """Write into an owner's area of the framework's own store from a fresh Python with this environment; its exit
-    and error."""
-    code = ("from score.store import Store; "
-            f"Store.default().write_once('{area}/a@b/{by}.json', {{'output': 'o', 'at': '1', 'by': '{by}'}})")
-    done = subprocess.run([sys.executable, "-c", code], cwd=REPO, env=environment, capture_output=True, text=True)
-    return done.returncode, done.stderr
-
-
-def test_an_agent_cannot_write_the_owners_areas_of_the_framework_store():
-    """Fault (review of step 0): `Store.default().write_once("acc"+"epts/...")` from an agent's Python wrote an accept;
-    only a hook's text match stood in the way."""
-    home = tempfile.mkdtemp()
-    owner = {name: value for name, value in os.environ.items() if name not in AGENT_MARKERS}
-    agent = {**owner, "CLAUDECODE": "1"}
-    status, error = owner_write({**agent, "PROPS_HOME": home})
-    assert status != 0 and "only the owner" in error, (status, error)
-    assert not list(pathlib.Path(home).rglob("*.json"))
-    assert owner_write({**agent, "PROPS_HOME": home}, "rej" + "ects")[0] != 0
-    assert owner_write({**agent, "PROPS_HOME": home}, "rej" + "ects", RUNNER)[0] != 0  # a reject is never the runner's
-    assert owner_write({**agent, "PROPS_HOME": home}, by=RUNNER)[0] == 0  # the runner's automatic accept
-    assert owner_write({**owner, "PROPS_HOME": home})[0] == 0
-    test_store = Store.in_folder(tempfile.mkdtemp())  # a test's or trial's own store stays writable
-    test_store.write_accept("a@b", {"output": "o", "at": "2026-10-11T10:00:00+00:00"})
-
-
-def test_nothing_in_the_store_is_overwritten():
-    store = a_store()
-    store.write_record("clean@hangar", "k1", {"finished": "1"})
-    try:
-        store.write_record("clean@hangar", "k1", {"finished": "2"})
-    except FileExistsError:
-        assert store.record("clean@hangar", "k1") == {"finished": "1"}
-        return
-    raise AssertionError("a finish record was written over")
-
-
-def test_the_accepted_output_is_the_newest_accept_and_nothing_else_moves_it():
-    store = a_store()
-    first = store.put_tree(a_folder({"a": "1"}))
-    assert store.accepted("clean@hangar") is None
-    store.write_accept("clean@hangar", {"output": first, "at": "2026-10-11T10:00:00+00:00"})
-    store.put_tree(a_folder({"a": "2"}))  # a newer output lands beside it
-    assert store.accepted("clean@hangar") == first
-    second = store.put_tree(a_folder({"a": "3"}))
-    store.write_accept("clean@hangar", {"output": second, "at": "2026-10-11T11:00:00+00:00"})
-    assert store.accepted("clean@hangar") == second
-    assert [accept["output"] for accept in store.accepts("clean@hangar")] == [first, second]
-
-
-def test_evidence_is_kept_by_check_and_output_and_missing_is_none():
-    store = a_store()
-    output = store.put_tree(a_folder({"a": "1"}))
-    assert store.evidence_file("resting", output) is None and store.evidence_hash("resting", output) is None
-    store.put_evidence("resting", output, a_folder({"drop.json": "{}"}) / "drop.json")
-    other = store.put_tree(a_folder({"a": "2"}))
-    store.put_evidence("resting", other, a_folder({"drop.json": '{"fell": 1}'}) / "drop.json")
-    assert store.evidence_file("resting", output).read_text() == "{}"
-    assert store.evidence_file("resting", other).read_text() == '{"fell": 1}'  # each output its own
 
 
 def at_once(work, count=8):
@@ -213,63 +98,6 @@ def at_once(work, count=8):
     return found
 
 
-def test_of_processes_writing_one_key_at_once_exactly_one_writes_it():
-    """Fault (the coordinator, 2026-10-11): lines run side by side now; a check-then-write let two processes both
-    write a write-once key, and a reader could read half a file."""
-    store = a_store()
-
-    def write(number):
-        try:
-            store.write_record("clean@hangar", "k1", {"number": number})
-            return "written"
-        except FileExistsError:
-            return "refused"
-
-    assert at_once(write) == ["refused"] * 7 + ["written"]
-    assert store.record("clean@hangar", "k1")["number"] in range(8)
-    assert not list(store.objects.root.rglob("*.partial"))
-
-
-def test_processes_storing_and_checking_out_one_output_at_once_all_find_it_whole():
-    store, folder = a_store(), a_folder({"a.txt": "one", "b/c.txt": "two" * 100000})
-    output = tree_hash(folder)
-    assert at_once(lambda number: store.put_tree(folder)) == [output] * 8
-    listing = store.listing(output)
-    assert at_once(lambda number: str(tree_listing(store.checkout(output)) == listing), 16) == ["True"] * 16
-    assert not list(store.objects.root.rglob("*.partial")) and not list(store.cache.rglob("*.partial"))
-
-
-def test_two_runs_of_one_node_never_share_a_scratch_folder():
-    """Two runs making one key at once each get their own folder: a second run once wiped the first's work and the
-    first's cleanup removed the second's input list (the surface test's arms, 2026-10-11)."""
-    root = pathlib.Path(tempfile.mkdtemp())
-    try:
-        store = Store.in_folder(root)
-        first = store.making("same-key")
-        (first / "work.txt").write_text("the first run's work")
-        second = store.making("same-key")
-        assert second != first and (first / "work.txt").exists() and not any(second.iterdir())
-    finally:
-        shutil.rmtree(root)
-
-
-
-
-def test_the_reboot_safety_is_in_no_rows_key():
-    """C9 review: the durability edits sat in score/store/__init__.py, which every stage that calls the store hashes,
-    and moving that file into FRAMEWORK instead dropped it and the runtime store from 44 paid rows' keys; no carry
-    kept them. Here neither file changes, and no stage's code version reads durable.py."""
-    from score import graph, stages
-    from score.graph import _code
-    assert REPO / "score/store/__init__.py" not in _code.FRAMEWORK
-    reached = [row.name for row in stages.STAGES
-               if REPO / "score/store/durable.py" in _code.source_files(graph.code_functions(row))]
-    assert reached == [], reached
-    calls_the_store = [row.name for row in stages.STAGES
-                       if REPO / "score/store/__init__.py" in _code.source_files(graph.code_functions(row))]
-    assert calls_the_store, "no stage reads score/store/__init__.py: this check would prove nothing"
-
-
 def plain_store():
     """Store's methods as score/store/__init__.py has them, before any install."""
     for name, method in PLAIN.items():
@@ -279,99 +107,210 @@ def plain_store():
             setattr(Store, name, method)
 
 
-def installed(name):
-    """Store's method `name` as durable installed it, under offload's write wrap of put_blob (its __wrapped__)."""
-    method = vars(Store)[name]
-    return getattr(method, "__wrapped__", method)
+def installed():
+    """Whether every Store method durable replaces is durable's, under offload's write wrap of put_blob."""
+    return all(getattr(vars(Store)[name], "__wrapped__", vars(Store)[name]) is method
+               for name, method in durable.METHODS.items())
 
 
-def test_the_runner_and_the_owners_commands_install_the_reboot_safety():
+def installed_by_the_framework(store):
+    """`store`, its reboot safety installed once by the runner and once by the owner's commands (each from a plain
+    Store), with `store` as the framework's store meanwhile so the live one is never touched."""
     from score import graph
     from score.review import __main__ as owner
     default = vars(Store)["default"]
     try:
         plain_store()
-        graph.Runner((), None, a_store())
-        assert all(installed(name) is method for name, method in durable.METHODS.items())
+        graph.Runner((), None, store)
+        assert installed(), "the runner left the store without its reboot safety"
         plain_store()
-        Store.default = classmethod(lambda cls: a_store())  # never the live store
+        Store.default = classmethod(lambda cls: store)
         try:
             owner.main(["page", "clean@hangar"])
-        except Exception:  # a node this empty store lacks: only the install before the page counts here
+        except Exception:  # noqa: BLE001 - a node this empty store lacks: only the install before the page counts
             pass
-        assert all(installed(name) is method for name, method in durable.METHODS.items())
+        assert installed(), "the owner's commands left the store without its reboot safety"
     finally:
         Store.default = default
         durable.install()
+    return store
 
 
-def test_a_write_killed_between_its_partial_file_and_its_link_leaves_no_object():
-    """C9: a machine that goes down mid-write leaves the whole object or none, never a cut one a later run reads."""
-    store = a_store()
+def owner_write(home, who, area, by):
+    """Write `area`/a@b/`by`.json into the framework store at `home` from a fresh Python run by `who`; exit, error."""
+    owner = {name: value for name, value in os.environ.items() if name not in AGENT_MARKERS}
+    environment = {**owner, "PROPS_HOME": home, **({"CLAUDECODE": "1"} if who == "agent" else {})}
+    code = ("from score.store import Store; "
+            f"Store.default().write_once('{area}/a@b/{by}.json', {{'output': 'o', 'at': '1', 'by': '{by}'}})")
+    done = subprocess.run([sys.executable, "-c", code], cwd=REPO, env=environment, capture_output=True, text=True)
+    return done.returncode, done.stderr
+
+
+def quarantined(store):
+    return sorted(path.name for path in (store.cache.parent / "quarantine").rglob("*") if path.is_file())
+
+
+def written(store, key, value):
+    """Write a record; 'written', or 'refused' when the key is already in the store."""
+    try:
+        store.write_record("clean@hangar", key, value)
+        return "written"
+    except FileExistsError:
+        return "refused"
+
+
+def test_an_output_is_kept_whole_once_and_never_overwritten():
+    store = installed_by_the_framework(Store.in_folder(tempfile.mkdtemp()))
+
+    # Named by its content and stored once, whole, by eight processes storing it at once.
+    folder = a_folder(TREE)
+    output = tree_hash(folder)
+    assert at_once(lambda number: store.put_tree(folder)) == [output] * 8
+    assert store.put_tree(a_folder(TREE)) == output != store.put_tree(a_folder(OTHER))
+    other = tree_hash(a_folder(OTHER))
+    assert len(store.objects.keys("blobs/")) == 3, store.objects.keys("blobs/")  # the shared stage.usda kept once
+
+    # Sixteen processes checking it out at once all find it whole; no half object or checkout is left.
+    listing = store.listing(output)
+    assert at_once(lambda number: str(tree_listing(store.checkout(output)) == listing), 16) == ["True"] * 16
+    assert not list(store.objects.root.rglob("*.partial")) and not list(store.cache.rglob("*.partial"))
+
+    # 2026-10-27: checkouts copied every output (16 GB in an hour beside a 22 GB store on the conductor). A checkout
+    # is a hard link to the read-only blob: no second copy, no write through it, and a save that replaces a file
+    # changes the checkout only, which is then made again.
+    checkout = store.checkout(output)
+    blob = store.objects.path(f"blobs/{listing['layers/base.usda']}")
+    assert (checkout / "layers/base.usda").samefile(blob) and blob.stat().st_nlink == 2, "a checkout copied the bytes"
+    for name, write in WRITES_THROUGH_A_CHECKOUT.items():
+        try:
+            write(checkout / "layers/base.usda")
+        except PermissionError:
+            continue
+        raise AssertionError(f"{name}: a stored file could be written through its checkout")
+    (checkout / "saved.txt").write_text("a save beside it")
+    (checkout / "saved.txt").replace(checkout / "layers/base.usda")  # a save that writes new and renames over
+    assert file_hash(blob) == listing["layers/base.usda"], "the stored bytes changed"
+    assert (store.checkout(output) / "layers/base.usda").samefile(blob), "a changed checkout was handed out again"
+
+    # Relink (disk.clean-cache, with a run live): a whole copy becomes a link, a changed one is left for checkout.
+    for name, text in (("layers/base.usda", TREE["layers/base.usda"]), ("stage.usda", "changed")):
+        (checkout / name).unlink()
+        (checkout / name).write_text(text)
+        (checkout / name).chmod(0o444)
+    with open(checkout / "layers/base.usda", "rb") as reader:  # a node reading the copy while it is relinked
+        assert store.relink(output) == len(TREE["layers/base.usda"])
+        assert (checkout / "layers/base.usda").samefile(blob)
+        assert reader.read() == TREE["layers/base.usda"].encode() and (checkout / "stage.usda").read_text() == "changed"
+    assert sorted(path.name for path in checkout.rglob("*")) == ["base.usda", "layers", "stage.usda"]
+    assert not list(store.cache.rglob("*.partial")) and store.relink(output) == 0
+
+    # A blob found writable (a restore, a hand copy) is copied read-only, never linked.
+    changed_blob = store.objects.path(f"blobs/{store.listing(other)['layers/base.usda']}")
+    changed_blob.chmod(0o644)
+    copied = store.checkout(other) / "layers/base.usda"
+    assert not copied.samefile(changed_blob) and copied.read_text() == "changed" and not copied.stat().st_mode & 0o222
+
+    # Two runs making one key get a scratch folder each (a second run once wiped the first's work, 2026-10-11).
+    first_making = store.making("same-key")
+    (first_making / "work.txt").write_text("the first run's work")
+    second_making = store.making("same-key")
+    assert second_making != first_making and (first_making / "work.txt").exists() and not any(second_making.iterdir())
+
+    # 2026-10-11: of eight processes writing one key at once exactly one writes it; nothing writes over it after.
+    assert at_once(lambda number: written(store, "k1", {"number": number})) == ["refused"] * 7 + ["written"]
+    first_record = store.record("clean@hangar", "k1")
+    assert first_record["number"] in range(8)
+    assert written(store, "k1", {"number": 9}) == "refused" and store.record("clean@hangar", "k1") == first_record
+    assert not list(store.objects.root.rglob("*.partial"))
+
+    # C9: a machine down between the write's partial file and its link leaves no object; the key stays free.
+    records = store.objects.keys("records/")
 
     def killed_at_the_link():
         os.link = lambda source, target: os.kill(os.getpid(), signal.SIGKILL)
-        store.write_record("clean@hangar", "k1", {"finished": "1"})
+        store.write_record("clean@hangar", "k2", {"finished": "1"})
 
     process = multiprocessing.get_context("fork").Process(target=killed_at_the_link)
     process.start()
     process.join()
     assert process.exitcode == -signal.SIGKILL
-    assert store.record("clean@hangar", "k1") is None and store.objects.keys("records/") == []
-    store.write_record("clean@hangar", "k1", {"finished": "2"})  # the key is free for the run made again
-    assert store.record("clean@hangar", "k1") == {"finished": "2"}
+    assert store.record("clean@hangar", "k2") is None and store.objects.keys("records/") == records
+    assert written(store, "k2", {"finished": "2"}) == "written"
+    assert store.record("clean@hangar", "k2") == {"finished": "2"}
 
-
-def test_an_empty_or_unparsable_object_is_quarantined_and_read_as_absent():
-    """C9: a 0-byte record after a WSL restart made every later run fail on reading it."""
-    store = a_store()
-    empty = store.objects.path("records/clean@hangar/k1.json")
-    cut = store.objects.path("judgements/clean@hangar/k1/t.json")
-    empty.parent.mkdir(parents=True)
+    # C9: an empty or cut object (a 0-byte record after a WSL restart) is quarantined and read as absent.
+    empty = store.objects.path("records/clean@hangar/k3.json")
+    cut = store.objects.path("judgements/clean@hangar/k3/t.json")
     empty.write_bytes(b"")
     cut.parent.mkdir(parents=True)
     cut.write_text('{"at": "ab')
-    assert store.record("clean@hangar", "k1") is None and store.record("clean@hangar", "k1") is None
-    assert store.judgements("clean@hangar", "k1") == []
+    assert store.record("clean@hangar", "k3") is None and store.record("clean@hangar", "k3") is None
+    assert store.judgements("clean@hangar", "k3") == []
     assert not empty.exists() and not cut.exists()
-    quarantined = sorted(path.name for path in (store.cache.parent / "quarantine").rglob("*") if path.is_file())
-    assert [name.split(".json")[0] for name in quarantined] == ["k1", "t"], quarantined
-    store.write_record("clean@hangar", "k1", {"finished": "1"})
-    assert store.record("clean@hangar", "k1") == {"finished": "1"}
+    assert [name.split(".json")[0] for name in quarantined(store)] == ["k3", "t"], quarantined(store)
+    assert written(store, "k3", {"finished": "1"}) == "written"
+    assert store.record("clean@hangar", "k3") == {"finished": "1"}
 
+    # The accepted output is the newest accept; a newer output stored beside it moves nothing.
+    assert store.accepted("clean@hangar") is None
+    store.write_accept("clean@hangar", {"output": output, "at": "2026-10-11T10:00:00+00:00"})
+    store.put_tree(a_folder({"stage.usda": "newer"}))
+    assert store.accepted("clean@hangar") == output
+    store.write_accept("clean@hangar", {"output": other, "at": "2026-10-11T11:00:00+00:00"})
+    assert store.accepted("clean@hangar") == other
+    assert [accept["output"] for accept in store.accepts("clean@hangar")] == [output, other]
 
-def test_an_unreadable_owner_decision_stops_the_read_and_stays_where_it_is():
-    """C9 review: a cut reject read as absent let the accept it undid stand again, and a cut accept read as absent
-    let a paid row be bought again as a fresh buy; an owner's decision is never moved or read as absent."""
-    store = a_store()
-    store.write_accept("clean@hangar", {"output": "o1", "at": "1", "by": "owner"})
-    readers = {"rejects/clean@hangar/t.json": (lambda: store.accepted("clean@hangar"),
-                                              lambda: store.rejected("clean@hangar", "o1")),
-               "accepts/clean@hangar/t.json": (lambda: store.accepted("clean@hangar"),
-                                              lambda: store.rejected("clean@hangar", "o1")),
-               "waivers/clean@hangar/k/c.json": (lambda: store.waivers("clean@hangar", "k"),),
-               "spend-yes/clean@hangar/k.json": (lambda: store.spend_yes("clean@hangar", "k"),)}
-    for key, reads in readers.items():
+    # C9 review: a cut owner's decision read as absent would undo a reject or buy a paid row again: it stops the
+    # read and stays where it is, out of quarantine.
+    before = quarantined(store)
+    for key, reads in CUT_OWNER_DECISIONS:
         for text in ("", '{"output": "o1", "at": "2"'):
             path = store.objects.path(key)
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(text)
             for read in reads:
                 try:
-                    read()
+                    OWNER_READS[read](store)
                 except durable.UnreadableOwnerObject as refused:
-                    assert key in str(refused), refused
+                    assert key in str(refused), (key, read, refused)
                 else:
-                    raise AssertionError(f"a cut {key} was read as absent")
-            assert path.read_text() == text  # never moved
+                    raise AssertionError(f"a cut {key} was read as absent by {read}")
+            assert path.read_text() == text, f"{key} was moved"
             path.unlink()
-    assert not (store.cache.parent / "quarantine").exists()
-    assert store.accepted("clean@hangar") == "o1"
+    assert quarantined(store) == before and store.accepted("clean@hangar") == other
+
+    # Evidence is kept per check and output; a missing one is None.
+    assert store.evidence_file("resting", output) is None and store.evidence_hash("resting", output) is None
+    store.put_evidence("resting", output, a_folder({"drop.json": "{}"}) / "drop.json")
+    store.put_evidence("resting", other, a_folder({"drop.json": '{"fell": 1}'}) / "drop.json")
+    assert store.evidence_file("resting", output).read_text() == "{}"
+    assert store.evidence_file("resting", other).read_text() == '{"fell": 1}'
+
+    # Review of step 0: an agent's Python wrote an accept into the framework store; only a hook's text match stood in
+    # the way. Now the store itself refuses every owner write of an agent but the runner's automatic accept.
+    home = tempfile.mkdtemp()
+    for who, area, by, lands in OWNER_WRITES:
+        kept = len(list(pathlib.Path(home).rglob("*.json")))
+        status, error = owner_write(home, who, area, by)
+        found = len(list(pathlib.Path(home).rglob("*.json")))
+        if lands:
+            assert status == 0 and found == kept + 1, (who, area, by, status, error)
+        else:
+            assert status != 0 and "only the owner" in error and found == kept, (who, area, by, status, error)
+
+    # C9 review: the reboot safety sat in score/store/__init__.py, which every stage calling the store hashes, and an
+    # edit there re-keyed 44 paid rows. No stage's code version reads durable.py, and the store's module stays a
+    # stage file rather than a framework one.
+    from score import graph, stages
+    from score.graph import _code
+    assert REPO / "score/store/__init__.py" not in _code.FRAMEWORK
+    reads = {row.name: _code.source_files(graph.code_functions(row)) for row in stages.STAGES}
+    assert [name for name, files in reads.items() if REPO / "score/store/durable.py" in files] == []
+    assert [name for name, files in reads.items() if REPO / "score/store/__init__.py" in files], \
+        "no stage reads score/store/__init__.py: this check would prove nothing"
 
 
 if __name__ == "__main__":
     runpy.run_path(str(REPO / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
+    test_an_output_is_kept_whole_once_and_never_overwritten()
+    print("ok")
