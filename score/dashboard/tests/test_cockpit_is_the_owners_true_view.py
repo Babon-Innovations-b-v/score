@@ -957,7 +957,7 @@ def a_pool(props):
                                           "pool: 2 card(s) short, none in stock; asking again in 3 min\n")
 
 
-def a_batch(world, log=LOG, state="launched", pool=True, key="a"):
+def a_batch(world, log=LOG, key="a"):
     """A checkout launched one run whose log is `log`; closeup@alpha's own log written since (it runs now)."""
     props, store = world.source.props_home, world.source.store_root
     (props / "logs").mkdir(parents=True, exist_ok=True)
@@ -966,7 +966,7 @@ def a_batch(world, log=LOG, state="launched", pool=True, key="a"):
     plan = Plan.objects.create(basket_hash=f"checkout-{key}", made_by="joey", state="ready", body=PLAN)
     launch = Launch.objects.create(plan=plan, by="joey", state="running", handles=[
         {"command": ["score", "run"], "pid": None, "log": str(path), "refused": None}])
-    record = Checkout.objects.create(key=key * 32, by="joey", state=state, totals=TOTALS, launch=launch,
+    record = Checkout.objects.create(key=key * 32, by="joey", state="launched", totals=TOTALS, launch=launch,
                                      items=[{"nodes": {"closeup@alpha": {}, "closeup@beta": {}}}],
                                      stop_line={"euros": 516.44, "spent": 120.0, "reserved": 0.0, "batch_from": 90.0,
                                                 "at": "2026-10-24T11:08:38+00:00"})
@@ -975,277 +975,13 @@ def a_batch(world, log=LOG, state="launched", pool=True, key="a"):
     row_log.write_text("drawing\n")
     later = time.time() + 5
     os.utime(row_log, (later, later))
-    if pool:
-        a_pool(props)
+    a_pool(props)
     return record
 
 
 def newest():
     from score.dashboard.checkout import watched
     return watched.newest()
-
-
-def test_the_batch_is_read_from_its_log_its_rows_and_its_pool(world):
-    """From LOG by hand: 6 rows planned; terrain and plan@alpha done, closeup@beta failed, assembly@beta not run,
-    closeup@alpha running (its log newer), assembly@alpha queued; EUR 3.21 the last heartbeat; one card warm and busy of
-    two, one short. Break: state/batch_run.py `pool_of` counts no card busy."""
-    a_batch(world)
-    run = world.source.batch_run()
-    assert run["state"] == "running" and run["checkout"] == Checkout.objects.get().pk
-    assert run["rows"] == {"total": 6, "done": 2, "failed": 1, "not_run": 1, "running": 1, "queued": 1}
-    assert run["money"]["runs"] == 3.21 and run["money"]["line"] == 516.44
-    # spent is the money guard's: the environment's 100 since its first line less the 90 the batch began at
-    assert (run["money"]["spent"], run["money"]["other"]) == (10.0, 6.79)
-    assert run["eta"]["likely_minutes"] == 121.5 and run["eta"]["untimed"] == 1
-    scenes = {scene["place"]: scene for scene in run["scenes"]}
-    assert scenes[""]["state"] == "done" and scenes["alpha"]["running"] == ["close-ups"]
-    assert scenes["beta"]["failed"] == 1 and scenes["beta"]["not_run"] == 1 and scenes["beta"]["state"] == "failed"
-    assert run["pool"]["cards"] == {"size": 2, "warm": 1, "busy": 1, "idle": 0, "short": 1}
-    assert run["pool"]["processors"] == {"size": 1, "warm": 0, "busy": 0, "idle": 0, "short": 1}
-    [problem] = run["problems"]
-    assert problem["place"] == "beta" and problem["words"].startswith(
-        "The close-ups step stopped: no card of 24 GB graphics card was had")
-    assert "gpu-" not in problem["words"] and "1 later step" in problem["words"]
-
-
-def test_a_relaunch_goes_on_where_the_checkout_was(world):
-    """A second run plans only what is not accepted: every planned row still counted, those accepted since done, a stale
-    accept not. Break: state/batch_run.py `row_states` counts a row done whatever its accept's time."""
-    record = a_batch(world)
-    first = record.launch.plan
-    first.body = {**PLAN, "checkout": record.pk}
-    first.save()
-    rest = {"groups": [{"places": ["alpha", "beta"], "to_run": {}, "blocked": {"assembly@alpha": "waits"},
-                        "buys": [{"node": "closeup@alpha"}, {"node": "closeup@beta"}]}], "checkout": record.pk}
-    again = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready", body=rest)
-    Launch.objects.filter(pk=record.launch.pk).update(plan=again)
-    after = (record.at + datetime.timedelta(minutes=5)).isoformat()
-    accepts = {"terrain": after, "plan@alpha": after, "assembly@beta": after,
-               "assembly@alpha": (record.at - datetime.timedelta(days=1)).isoformat()}
-    found = batch_run.gathered(newest(), world.source.props_home, world.source.store_root, accepted_at=accepts.get)
-    assert found["rows"] == {"total": 6, "done": 3, "failed": 1, "not_run": 0, "running": 1, "queued": 1}
-    assert {scene["place"]: (scene["done"], scene["total"]) for scene in found["scenes"]} == {
-        "": (1, 1), "alpha": (1, 3), "beta": (1, 2)}
-
-
-def test_a_relaunch_adds_the_first_runs_money_and_clock_and_parked_machines_show(world):
-    """Fault of 2026-10-24: spend began again at 0 and 13 parked machines billed unseen. 1.18 + 3.21 = 4.39; 2 parked of
-    this run plus the old run's: 3. Break: state/batch_run.py `parked_of` counts none."""
-    record = a_batch(world)
-    first_log = world.source.props_home / "logs" / "score-run-0.log"
-    first_log.write_text("[cloud] 12:00:00 pool of 2 gpu-24gb opened for run old-run until 16:00\n"
-                         "heartbeat 2026-10-24T10:30:00+00:00: rows done 1, running 0, queued 5; this run's rows: "
-                         "paid runs open 0, EUR 1.18 in the ledger since the run started\n")
-    plan = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready",
-                               body={**PLAN, "checkout": record.pk})
-    earlier = Launch.objects.create(plan=plan, by="joey", state="stopped", handles=[
-        {"command": ["score", "run"], "pid": None, "log": str(first_log), "refused": None}])
-    began = record.launch.at - datetime.timedelta(minutes=45)
-    Launch.objects.filter(pk=earlier.pk).update(at=began)
-    parked = world.source.props_home / "cloud" / "parked"
-    parked.mkdir(parents=True)
-    for number, pool in enumerate(["old-run", RUN, RUN, "someone-else"]):
-        (parked / f"m-{number}.json").write_text(json.dumps({"id": f"m-{number}", "pool": pool}))
-    (world.source.props_home / "cloud" / "pools" / RUN / "closed").write_text("")
-    found = batch_run.gathered(newest(), world.source.props_home, world.source.store_root)
-    assert found["money"]["runs"] == 4.39
-    assert found["started"] == began.isoformat(timespec="seconds") and found["eta"]["elapsed"] >= 45
-    assert not found["pool"]["open"] and found["pool"]["renting"] == 3
-    html = signed_in().get("/buy/run/").content.decode()
-    assert "3 still renting" in html and len(prose(html)) <= 60
-
-
-def test_the_state_follows_the_result_line_the_checkout_and_the_pool():
-    """A drive that ended with lines stopped is finished; a refusal, an error or a traceback is stopped; no warm card
-    while stock is short is waiting. Break: state/batch_run.py `overall` never says waiting (its pool check `if
-    False:`)."""
-    def said(log):
-        return batch_run.overall({"state": "launched", "launch": {}}, batch_run.read_log(log.splitlines(), set()),
-                                 False, None)
-    assert said("exit: stopped, 3 of 4 lines done, 1 stopped\ndetached: failed exit=1 minutes=80.0") == (
-        "finished", "some scenes' lines stopped")
-    assert said("refused: these inputs are missing, so the rows ...\n  /x/a.json\nexit: exited, exit 1\n"
-                "detached: failed exit=1 minutes=0.3") == (
-        "stopped", "refused: these inputs are missing, so the rows ...")
-    assert said("exit: error: KeyError: 'x'\ndetached: failed exit=1 minutes=2.0") == (
-        "stopped", "error: KeyError: 'x'")
-    assert said("Traceback\ndetached: failed exit=1 minutes=0.1")[0] == "stopped"
-    pool = {"open": True, "cards": {"warm": 0, "short": 2}}
-    nothing = batch_run.read_log([], set())
-    assert batch_run.overall({"state": "launched", "launch": {}}, nothing, True, pool)[0] == "waiting"
-    pool["cards"]["warm"] = 1
-    assert batch_run.overall({"state": "launched", "launch": {}}, nothing, True, pool)[0] == "running"
-    assert batch_run.overall({"state": "launched", "launch": {}}, nothing, False, None) == (
-        "stopped", "the run ended without its result line")
-
-
-def test_a_run_finished_stopped_or_starting_says_so_on_the_monitor(world):
-    """Break: state/batch_run.py `overall` drops its launching -> starting line."""
-    record = a_batch(world, log=LOG + "detached: ok exit=0 minutes=15.6 log=x outputs=y\n")
-    run = world.source.batch_run()
-    assert run["state"] == "finished" and run["ended"] and run["scenes"][1]["running"] == []
-    record.launch.handles[0]["log"] = str(world.source.props_home / "logs" / "gone.log")
-    record.launch.save()
-    (world.source.props_home / "logs" / "gone.log").write_text(
-        LOG.format(run=RUN) + "detached: stopped by signal 15 exit=143 minutes=0.0 log=x outputs=y\n")
-    run = world.source.batch_run()
-    assert run["state"] == "stopped" and run["problems"][0]["kind"] == "run"
-    Checkout.objects.update(state="launching", launch=None)
-    assert world.source.batch_run()["state"] == "starting"
-
-
-def test_the_money_is_this_batchs_high_with_its_guesses_and_its_room_the_line_less_what_came_before(world):
-    """327.24 + 33.16 = 360.40; the line 516.44 less 120 before it = 396.44 = 360.40 x 1.1; no line yet: the high plus
-    10% and nothing spent. Break: state/batch_run.py `own_stop` leaves the spend before out of the room."""
-    record = a_batch(world)
-    money = world.source.batch_run()["money"]
-    assert money["high"] == 360.40 and money["stop"] == 396.44 == round(360.40 * 1.1, 2)
-    assert not run_monitor.money_bar({**money, "try_spent": 340.0})["over"]
-    assert batch_run.own_stop({"euros": 396.44}) is None  # a line without what it was written over
-    record.state, record.stop_line = "launching", {}
-    record.save()
-    (world.source.props_home / "logs" / "score-run-a.log").write_text("paid rows this run would buy: 2\n")
-    money = world.source.batch_run()["money"]
-    assert money["runs"] == 0.0 and money["stop"] == round(money["high"] * batch_run.BUFFER, 2)
-
-
-def test_a_finished_rows_batch_gaps_are_problems(world):
-    """Break: state/batch_run.py `gap_problems` asks no row for its batch gaps."""
-    a_batch(world)
-    found = batch_run.gathered(newest(), world.source.props_home, world.source.store_root,
-                               lambda node: [{"name": "hatch: no model"}] if node == "plan@alpha" else [])
-    assert [problem for problem in found["problems"] if problem["kind"] == "gaps"] == [
-        {"at": "2026-10-24T11:09:00+00:00", "place": "alpha", "node": "plan@alpha", "kind": "gaps",
-         "words": "Plan left 1 thing out as gaps.", "tip": "hatch: no model"}]
-
-
-def test_scenes_show_parent_scenes_before_their_child_scenes():
-    """Break: pages/run_monitor.py `ordered` sorts by the scene's own name only."""
-    within = {"cockpit": "ship", "galley": "ship", "ship": "hangar", "flat": "block"}
-    names = {"hangar": "Hangar", "ship": "Ship", "cockpit": "Cockpit", "galley": "Galley", "flat": "Flat"}
-    assert run_monitor.ordered(["galley", "flat", "hangar", "cockpit", "ship", ""], within, names) == [
-        ("", 0), ("flat", 0), ("hangar", 0), ("ship", 1), ("cockpit", 2), ("galley", 2)]
-
-
-def test_the_monitor_shows_the_owner_his_stops_while_the_batch_lives_and_home_and_buy_lead_to_it(world):
-    """Stop only for the owner, only while it lives; no batch: says so; Home links to it while it lives; Buy shows the
-    live batch instead of a second Buy. Break: templates/pages/run_monitor.html shows the stops `{% if live %}` (not
-    only to the owner)."""
-    owner = signed_in()
-    assert "No batch yet" in owner.get("/buy/run/").content.decode()
-    assert 'href="/buy/run/"' not in owner.get("/").content.decode() and ">Batch</a>" not in owner.get(
-        "/buy/").content.decode()
-    a_batch(world)
-    html = owner.get("/buy/run/").content.decode()
-    assert 'data-url="/api/machine/stop"' in html and 'data-url="/api/machine/stop-batch"' in html
-    assert "396.44" in html and "waiting for stock" in html and 'href="/place/alpha/"' not in html
-    assert len(prose(html)) <= 60, prose(html)
-    assert "/api/machine/stop" not in signed_in("sam").get("/buy/run/").content.decode()
-    assert 'href="/buy/run/"' in owner.get("/").content.decode()
-    buy = owner.get("/buy/").content.decode()
-    assert re.search(r"Batch \d+ is (starting|running|waiting for machines): \d+ of \d+ steps, EUR [\d.]+ spent", buy)
-    assert 'data-url="/buy/yes/"' not in buy and ">Batch</a>" in buy
-
-
-def test_an_ended_try_is_history_under_the_batch_now(world):
-    """Owner, 2026-10-26: "the cockpit is still just a bunch of red". Break: pages/run_monitor.py `ended` always
-    None."""
-    a_batch(world, log=LOG + "detached: stopped by signal 15 exit=143 minutes=0.0 log=x outputs=y\n", pool=False)
-    Launch.objects.update(state="failed")
-    html = signed_in().get("/buy/run/").content.decode()
-    assert "Next try not started" in html and "Try 1 ended" in html
-    assert re.search(r'<details class="rm-history"><summary[^>]*>Problems when try 1 ended <span data-v>\d+', html)
-    assert "data-rm-reload=" not in html and "/api/machine/stop-batch" not in html
-
-
-def test_the_export_carries_the_batch_and_the_hosted_page_says_how_fresh(world, tmp_path, monkeypatch):
-    """Break: sync/building.py `batch_run_file` writes nothing."""
-    a_batch(world)
-    building.build(world.source, tmp_path / "one", MADE, 50, SPEND, world.root)
-    exported = ExportedSource(tmp_path / "one")
-    run = exported.batch_run()
-    assert run["read_at"] == MADE and run["money"]["runs"] == 3.21 and run["rows"]["done"] == 2
-    from score.dashboard import state
-    monkeypatch.setattr(state, "source", lambda: exported)
-    with override_settings(SCORE_MODE="hosted"):
-        html = signed_in().get("/buy/run/").content.decode()
-        assert "min ago" in html and "Buy sent" not in html
-        SyncRequest.objects.create(kind="checkout", user="joey", payload={})
-        SyncRequest.objects.filter(kind="checkout").update(
-            created=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1))
-        assert "Buy sent" in signed_in("sam").get("/buy/run/").content.decode()
-
-
-def test_a_fault_is_said_as_a_short_plain_cause_and_rows_sharing_one_are_one_problem(tmp_path):
-    """Break: state/batch_run.py `failure_problem` never says in how many places."""
-    cloud = ("error: CalledProcessError: Command '['/home/score/tools/cloud/blender_cloud.py', '--scene', 'x']' "
-             "returned non-zero exit status 1.")
-    assert plain.step_cause(cloud, "  | no card could be rented") == "no cloud machine could be rented"
-    assert plain.step_cause(cloud, "") == "its run on a cloud machine failed"
-    assert plain.step_cause("error: RuntimeError: light@a: an input changed while it ran; nothing is stored") == \
-        "an input file changed while it ran"
-    assert plain.step_cause("made: fail") == "it was made but failed its check"
-    assert plain.step_cause("error: ValueError: need at least one array to concatenate") == \
-        "need at least one array to concatenate"
-    said = plain.step_cause("error: KeyError: " + "word " * 40 + "/home/score/deep/file.json")
-    assert len(said) <= 103 and "/home" not in said
-    report = tmp_path / "faults.txt"
-    report.write_text("  | no card could be rented\n")
-    fault = (f"error: CalledProcessError: Command '['/x/blender_cloud.py']' returned non-zero exit status 1; "
-             f"fault report {report}")
-    rows = {f"light@{place}": ("failed", fault, "2026-10-24T11:09:00+00:00") for place in ("a", "b", "c")}
-    rows["film@a"] = ("not_run", "not run: its line stopped at light@a", None)
-    [problem] = batch_run.failures(rows)
-    assert problem["places"] == ["a", "b", "c"] and problem["place"] == ""
-    assert problem["words"].endswith(
-        "stopped in 3 places: no cloud machine could be rented. 1 later step waits on them.")
-    assert len(problem["raw"]) == 3 and "blender_cloud.py" in problem["raw"][0]
-
-
-def test_the_next_buy_says_what_it_makes_again_first_and_keeps():
-    """Of a, b, c, d planned: a, b made, c failed, d never ran; the next buys c, d, e. Break: state/batch_run.py
-    `next_buy` counts a failed step as never run too (`unrun = planned - made`); `retries` ends the batch on a design
-    edit since (owner, 2026-10-26: the fixes made to finish a batch are part of it)."""
-    run = {"checkout": 3, "batch": 1, "at": "2026-10-25T09:10:00+00:00", "state": "finished",
-           "nodes": {"planned": ["a", "b", "c", "d"], "made": ["a", "b"], "failed": ["c"]}}
-    assert batch_run.next_buy(run, ["c", "d", "e"]) == (
-        "Retry Batch 1: makes again the 1 step that failed and the 1 that never ran; makes 1 step for the "
-        "first time; keeps the 2 already made.")
-    assert batch_run.next_buy({**run, "design_at": "2026-10-25T10:00:00Z"}, ["c"]).startswith("Retry Batch 1:")
-    made = {"planned": ["a", "b"], "made": ["a", "b"], "failed": []}
-    assert batch_run.next_buy({**run, "nodes": made}, ["a"]).startswith("Batch 2, after Batch 1: makes again the 1")
-    assert batch_run.next_buy({**run, "state": "running"}, ["c"]) is None
-    assert batch_run.next_buy({"checkout": 1, "state": "finished"}, ["c"]) is None
-
-
-def test_a_buy_while_the_batch_is_unfinished_is_its_next_try_whatever_the_design_edits(world):
-    """Owner, 2026-10-25: "its the same batch, ur just retrying a failed part of it; it will become a mess if we split
-    after fail"; 2026-10-26: Batch 1's fifth Buy, after a day of design fixes, was called Batch 2. A design edit ends no
-    batch; a relaunch whose run never began (stopped while waiting for size) is no try; a batch ends once every row
-    it planned was made. Break: checkout/watched.py `batch_ended` ends a batch when `design_at` is past its last try;
-    `started` counts a launch stopped before its first heartbeat."""
-    first = a_batch(world)
-    retry = a_batch(world, key="b")
-    retry.at = first.at + datetime.timedelta(hours=1)
-    retry.save()
-    found = world.source.batch_run()
-    assert (found["batch"], found["tries"], found["checkout"]) == (1, 2, retry.pk)
-    unstarted = a_batch(world, key="c", log="score run: waiting for size: 16 jobs, 2 cores; registered as w1; x\n"
-                        "score run: stopped by signal 15 while waiting for size\ndetached: stopped by signal 15\n")
-    unstarted.at, unstarted.design_at = retry.at + datetime.timedelta(hours=1), \
-        (retry.at + datetime.timedelta(minutes=5)).isoformat()
-    unstarted.save()
-    assert (world.source.batch_run()["batch"], world.source.batch_run()["tries"]) == (1, 3)  # the newest is shown
-    relaunch = a_batch(world, key="d")
-    relaunch.at = unstarted.at + datetime.timedelta(minutes=20)
-    relaunch.save()
-    Launch.objects.filter(pk=unstarted.launch_id).update(state="stopped")  # as polling left it
-    assert (world.source.batch_run()["batch"], world.source.batch_run()["tries"]) == (1, 3)
-    from score.dashboard.checkout import watched
-    every = list(Checkout.objects.order_by("at"))
-    made = lambda node: (relaunch.at - datetime.timedelta(minutes=1)).isoformat()  # noqa: E731
-    after = Checkout(at=relaunch.at + datetime.timedelta(hours=1))
-    assert watched.batch_ended(every, after, made) and not watched.batch_ended(every, after, lambda node: None)
 
 
 TRY_ONE = "\n".join([
@@ -1274,58 +1010,139 @@ def two_tries(tmp_path, try_log=None):
             "try_nodes": ["closeup@beta", "assembly@beta"]}
 
 
-def test_a_try_shows_what_it_makes_again_as_waiting_and_the_batchs_spend_apart_from_the_trys(tmp_path):
-    """Owner, 2026-10-25: "and it still shows all failed etc"; 2026-10-26: is the spend try 4 or the batch? 2.00 + 5.00
-    = 7.00 the batch's, 5.00 the try's. Break: state/batch_run.py `gathered` keeps an earlier try's line of a row this
-    try makes again."""
-    accepted = {"terrain": "2026-10-24T23:04:00+00:00"}.get
-    run = batch_run.gathered(two_tries(tmp_path), tmp_path, tmp_path, accepted_at=accepted,
-                             now=datetime.datetime(2026, 10, 25, 9, 1, tzinfo=datetime.timezone.utc))
-    assert run["state"] == "starting"
-    assert {scene["place"]: scene["state"] for scene in run["scenes"]} == {"": "done", "alpha": "failed",
-                                                                          "beta": "waiting"}
-    assert (run["rows"]["done"], run["rows"]["failed"], run["rows"]["not_run"]) == (1, 1, 0)
-    assert [problem["node"] for problem in run["problems"]] == ["light@alpha"] and run["retried"] == 1
-    clock = run_monitor.clock(run)
-    assert clock["started"] == "08:59" and clock["batch_started"] == "24 Oct 23:00"
-    again = TRY_ONE.splitlines()[0] + "\ncloseup@beta: error: RuntimeError: no card again; fault report /x/f.txt\n" \
-        "assembly@beta: not run: its line stopped at closeup@beta\ndetached: failed\nexit: stopped, 1 line\n"
-    ended = batch_run.gathered(two_tries(tmp_path, again), tmp_path, tmp_path, accepted_at=accepted)
-    assert ended["state"] == "finished" and ended["retried"] == 0
-    assert {problem["node"] for problem in ended["problems"]} == {"light@alpha", "closeup@beta"}
-    beat = heartbeat("2026-10-25T09:30:00+00:00", 0, 1, 0, 0, "5.00") + "\ndetached: failed\nexit: stopped, 1 line\n"
-    money = batch_run.gathered(two_tries(tmp_path, beat), tmp_path, tmp_path)["money"]
-    assert (money["runs"], money["try_spent"]) == (7.0, 5.0)
-    assert run_monitor.money_bar({**money, "high": 8.0, "stop": 10.0})["spent"] == 50.0
-
-
-def test_the_monitor_shows_the_batchs_spend_of_its_one_budget(world):
-    """Owner, 2026-10-26: "i have no idea how far the previours even got filled", then "the stop should be a total of
-    the batch, not per try": spent is the money guard's measure since the batch's first line, the next Buy's figure
-    the batch total. Break: state/batch_run.py `money_of` gives `left` as the whole budget; checkout/watched.py
-    `batch_money` counts spent from 0, not the batch's start; state/batch_run.py `batch_total` drops `need`."""
-    record = a_batch(world)
-    record.stop_line = {**record.stop_line, "euros": 820.0, "batch_from": 80.0, "batch_budget": 740.0,
-                        "batch_used": 410.0}
-    record.save()
-    money = world.source.batch_run()["money"]
-    assert money["budget"] == 740.0 and money["left"] == round(740.0 - money["spent"] - money["in_flight"], 2)
-    assert money["spent"] == 20.0 and re.search(r"Batch 1: EUR 20.00 spent of EUR 740.00 budget, EUR [\d.]+ left",
-                     signed_in().get("/buy/run/").content.decode())
-    from score.dashboard.pages import views  # what the next Buy sets: the batch's total, never a try's stop alone
-    run = world.source.batch_run()
-    assert views.next_total(run, 33.0) is None and views.next_total({**run, "state": "stopped"}, 33.0) == 740.0
-    raised = {**run, "state": "stopped", "money": {**money, "budget": 10.0}}
-    assert views.next_total(raised, 33.0) == round(20.0 + money["in_flight"] + 33.0, 2)
-
-
-def test_what_prepare_predicts_for_the_next_try_shows_once_made_since_the_try():
-    """Break: pages/run_monitor.py `prepared` drops its made-after-the-try comparison."""
-    remake = types.SimpleNamespace(made_at="2026-10-26T08:00:00+00:00", counts={"predicted_gaps": 12}, stale=None)
-    world = types.SimpleNamespace(remake=remake)
-    assert run_monitor.prepared(world, {"at": "2026-10-25T16:00:00+00:00"}) == {
-        "at": "2026-10-26T08:00:00+00:00", "gaps": 12, "stale": None}
-    assert run_monitor.prepared(world, {"at": "2026-10-26T09:00:00+00:00"}) is None
+FINISHED = "detached: ok exit=0 minutes=15.6 log=x outputs=y\n"
+STOPPED = "detached: stopped by signal 15 exit=143 minutes=0.0 log=x outputs=y\n"
+# What the run monitor judges on its own, row by row (BATCH_JUDGED below holds each answer).
+OVERALLS = [  # (the run's log, whether its launch still lives, its pool, what overall says: the state, then its why)
+    ("exit: stopped, 3 of 4 lines done, 1 stopped\ndetached: failed exit=1 minutes=80.0", False, None,
+     ("finished", "some scenes' lines stopped")),
+    ("refused: these inputs are missing, so the rows ...\n  /x/a.json\nexit: exited, exit 1\n"
+     "detached: failed exit=1 minutes=0.3", False, None,
+     ("stopped", "refused: these inputs are missing, so the rows ...")),
+    ("exit: error: KeyError: 'x'\ndetached: failed exit=1 minutes=2.0", False, None,
+     ("stopped", "error: KeyError: 'x'")),
+    ("Traceback\ndetached: failed exit=1 minutes=0.1", False, None, ("stopped",)),
+    ("", True, {"open": True, "cards": {"warm": 0, "short": 2}}, ("waiting",)),  # no warm card while stock is short
+    ("", True, {"open": True, "cards": {"warm": 1, "short": 2}}, ("running",)),
+    ("", False, None, ("stopped", "the run ended without its result line"))]
+CLOUD_FAULT = ("error: CalledProcessError: Command '['/home/score/tools/cloud/blender_cloud.py', '--scene', 'x']' "
+               "returned non-zero exit status 1.")
+CAUSES = [  # (a step's fault line, its fault report's tail, the plain cause, None where only its shape is pinned)
+    (CLOUD_FAULT, "  | no card could be rented", "no cloud machine could be rented"),
+    (CLOUD_FAULT, "", "its run on a cloud machine failed"),
+    ("error: RuntimeError: light@a: an input changed while it ran; nothing is stored", "",
+     "an input file changed while it ran"),
+    ("made: fail", "", "it was made but failed its check"),
+    ("error: ValueError: need at least one array to concatenate", "", "need at least one array to concatenate"),
+    ("error: KeyError: " + "word " * 40 + "/home/score/deep/file.json", "", None)]
+NEXT_RUN = {"checkout": 3, "batch": 1, "at": "2026-10-25T09:10:00+00:00", "state": "finished",
+            "nodes": {"planned": ["a", "b", "c", "d"], "made": ["a", "b"], "failed": ["c"]}}
+NEXT_BUYS = [  # (the batch's run, what the next Buy makes, what it says, whether that is all it says or how it begins)
+    (NEXT_RUN, ["c", "d", "e"], "Retry Batch 1: makes again the 1 step that failed and the 1 that never ran; makes 1 "
+     "step for the first time; keeps the 2 already made.", True),
+    ({**NEXT_RUN, "design_at": "2026-10-25T10:00:00Z"}, ["c"], "Retry Batch 1:", False),  # a design edit ends no batch
+    ({**NEXT_RUN, "nodes": {"planned": ["a", "b"], "made": ["a", "b"], "failed": []}}, ["a"],
+     "Batch 2, after Batch 1: makes again the 1", False),
+    ({**NEXT_RUN, "state": "running"}, ["c"], None, True),
+    ({"checkout": 1, "state": "finished"}, ["c"], None, True)]
+PREPARED_REMAKE = types.SimpleNamespace(remake=types.SimpleNamespace(
+    made_at="2026-10-26T08:00:00+00:00", counts={"predicted_gaps": 12}, stale=None))
+BATCH_JUDGED = {
+    "overall": [want for *_, want in OVERALLS],
+    "causes": [(want, True) for *_, want in CAUSES],
+    "next buys": [want for _, _, want, _ in NEXT_BUYS],
+    "prepared after the try, before it": [{"at": "2026-10-26T08:00:00+00:00", "gaps": 12, "stale": None}, None],
+    "own stop of a line without what it was written over": None,
+    "parents before children": [("", 0), ("flat", 0), ("hangar", 0), ("ship", 1), ("cockpit", 2), ("galley", 2)],
+    "one fault in 3 places": (["a", "b", "c"], "", True, 3, True)}
+WITHIN = {"cockpit": "ship", "galley": "ship", "ship": "hangar", "flat": "block"}
+WITHIN_NAMES = {"hangar": "Hangar", "ship": "Ship", "cockpit": "Cockpit", "galley": "Galley", "flat": "Flat"}
+AGAIN = (TRY_ONE.splitlines()[0] + "\ncloseup@beta: error: RuntimeError: no card again; fault report /x/f.txt\n"
+         "assembly@beta: not run: its line stopped at closeup@beta\ndetached: failed\nexit: stopped, 1 line\n")
+BEAT = heartbeat("2026-10-25T09:30:00+00:00", 0, 1, 0, 0, "5.00") + "\ndetached: failed\nexit: stopped, 1 line\n"
+TRIES = [  # (the second try's log, None while it launches; whether terrain's accept is read; {probe: what is seen})
+    # the try makes closeup@beta and assembly@beta again: they wait, not failed; the first try's light@alpha stays
+    (None, True, {"state": "starting", "scene states": {"": "done", "alpha": "failed", "beta": "waiting"},
+                  "rows.done": 1, "rows.failed": 1, "rows.not_run": 0, "problem nodes": ["light@alpha"],
+                  "retried": 1, "clock.started": "08:59", "clock.batch_started": "24 Oct 23:00"}),
+    (AGAIN, True, {"state": "finished", "retried": 0, "problem nodes": ["closeup@beta", "light@alpha"]}),
+    # 2.00 + 5.00 = 7.00 the batch's, 5.00 the try's, and the bar fills by the batch's spend
+    (BEAT, False, {"money.runs": 7.0, "money.try_spent": 5.0, "bar.spent": 50.0})]
+STOPS = ('data-url="/api/machine/stop"', 'data-url="/api/machine/stop-batch"')
+LIVE_BATCH = r"Batch \d+ is (starting|running|waiting for machines): \d+ of \d+ steps, EUR [\d.]+ spent"
+BATCH_MOMENTS = [  # (moment, {(source, path, test): what is seen}); one batch bought, launched, read and ended,
+    # then tried again; a source is the run (batch_run), the run gathered by hand, the export or a page as who sees it
+    ("no batch", {("owner /buy/run/", "", "has No batch yet"): True, ("owner /", "", 'has href="/buy/run/"'): False,
+                  ("owner /buy/", "", "has >Batch</a>"): False}),
+    ("ordered", {("run", "state"): "starting"}),  # launching, no launch yet
+    ("launch started", {("run", "money.runs"): 0.0, ("run", "stop is the high plus 10%"): True}),  # no line yet
+    # From LOG by hand: 6 rows planned; terrain and plan@alpha done, closeup@beta failed, assembly@beta not run,
+    # closeup@alpha running (its log newer), assembly@alpha queued; EUR 3.21 the last heartbeat; spent is the money
+    # guard's (the environment's 100 since its first line less the 90 the batch began at); one card warm and busy of
+    # two, one short; 327.24 + 33.16 = 360.40 high, the line 516.44 less 120 before it = 396.44 = 360.40 x 1.1.
+    ("launched", {
+        ("run", "state"): "running", ("run", "checkout is the newest"): True,
+        ("run", "rows"): {"total": 6, "done": 2, "failed": 1, "not_run": 1, "running": 1, "queued": 1},
+        ("run", "money.runs"): 3.21, ("run", "money.line"): 516.44, ("run", "money.spent"): 10.0,
+        ("run", "money.other"): 6.79, ("run", "eta.likely_minutes"): 121.5, ("run", "eta.untimed"): 1,
+        ("run", "by place..state"): "done", ("run", "by place.alpha.running"): ["close-ups"],
+        ("run", "by place.beta.failed"): 1, ("run", "by place.beta.not_run"): 1,
+        ("run", "by place.beta.state"): "failed",
+        ("run", "pool.cards"): {"size": 2, "warm": 1, "busy": 1, "idle": 0, "short": 1},
+        ("run", "pool.processors"): {"size": 1, "warm": 0, "busy": 0, "idle": 0, "short": 1},
+        ("run", "problems.*.place"): ["beta"],
+        ("run", "problems.0.words", "starts The close-ups step stopped: no card of 24 GB graphics card was had"): True,
+        ("run", "problems.0.words", "has gpu-"): False, ("run", "problems.0.words", "has 1 later step"): True,
+        ("run", "money.high"): 360.40, ("run", "money.stop"): 396.44, ("run", "stop is the high plus 10%"): True,
+        ("run", "bar over at 340"): False,
+        ("gathered", "gap problems"): [{"at": "2026-10-24T11:09:00+00:00", "place": "alpha", "node": "plan@alpha",
+                                        "kind": "gaps", "words": "Plan left 1 thing out as gaps.",
+                                        "tip": "hatch: no model"}],
+        **{("owner /buy/run/", "", f"has {stop}"): True for stop in STOPS},
+        ("owner /buy/run/", "", "has 396.44"): True, ("owner /buy/run/", "", "has waiting for stock"): True,
+        ("owner /buy/run/", "", 'has href="/place/alpha/"'): False, ("owner /buy/run/", "", "words at most 60"): True,
+        ("sam /buy/run/", "", "has /api/machine/stop"): False, ("owner /", "", 'has href="/buy/run/"'): True,
+        ("owner /buy/", "", f"re {LIVE_BATCH}"): True, ("owner /buy/", "", 'has data-url="/buy/yes/"'): False,
+        ("owner /buy/", "", "has >Batch</a>"): True}),
+    ("hosted", {("export", "read_at"): MADE, ("export", "money.runs"): 3.21, ("export", "rows.done"): 2,
+                ("owner /buy/run/", "", "has min ago"): True, ("owner /buy/run/", "", "has Buy sent"): False}),
+    ("buy sent", {("sam /buy/run/", "", "has Buy sent"): True}),
+    # spent is the money guard's measure since the batch's first line; the next Buy's figure the batch total
+    ("one budget", {
+        ("run", "money.budget"): 740.0, ("run", "left is the budget less spent and in flight"): True,
+        ("run", "money.spent"): 20.0,
+        ("owner /buy/run/", "", r"re Batch 1: EUR 20.00 spent of EUR 740.00 budget, EUR [\d.]+ left"): True,
+        ("run", "next total while it runs"): None, ("run", "next total once stopped"): 740.0,
+        ("run", "next total over a smaller budget is spent, in flight and the need"): True}),
+    # a second run plans only what is not accepted: every planned row still counted, those accepted since done, a
+    # stale accept not
+    ("relaunched", {
+        ("gathered", "rows"): {"total": 6, "done": 3, "failed": 1, "not_run": 0, "running": 1, "queued": 1},
+        ("gathered", "scene counts"): {"": (1, 1), "alpha": (1, 3), "beta": (1, 2)}}),
+    # fault of 2026-10-24: spend began again at 0 and 13 parked machines billed unseen; 1.18 + 3.21 = 4.39; 2 parked
+    # of this run plus the old run's: 3
+    ("first run and parked", {
+        ("gathered", "money.runs"): 4.39, ("gathered", "started is the first launch"): True,
+        ("gathered", "eta.elapsed", "at least 45"): True, ("gathered", "pool.open"): False,
+        ("gathered", "pool.renting"): 3, ("owner /buy/run/", "", "has 3 still renting"): True,
+        ("owner /buy/run/", "", "words at most 60"): True}),
+    ("finished", {("run", "state"): "finished", ("run", "ended", "set"): True, ("run", "scenes.1.running"): []}),
+    ("stopped", {("run", "state"): "stopped", ("run", "problems.0.kind"): "run"}),
+    # owner, 2026-10-26: "the cockpit is still just a bunch of red": an ended try is history under the batch now
+    ("ended", {("owner /buy/run/", "", "has Next try not started"): True,
+               ("owner /buy/run/", "", "has Try 1 ended"): True,
+               ("owner /buy/run/", "", r're <details class="rm-history"><summary[^>]*>Problems when try 1 ended '
+                                       r'<span data-v>\d+'): True,
+               ("owner /buy/run/", "", "has data-rm-reload="): False,
+               ("owner /buy/run/", "", "has /api/machine/stop-batch"): False}),
+    # owner, 2026-10-25: "its the same batch, ur just retrying a failed part of it"; 2026-10-26: Batch 1's fifth Buy,
+    # after a day of design fixes, was called Batch 2. A design edit ends no batch; a relaunch whose run never began
+    # (stopped while waiting for size) is no try; a batch ends once every row it planned was made.
+    ("retried", {("run", "batch"): 1, ("run", "tries"): 2, ("run", "checkout is the newest"): True}),
+    ("stopped waiting for size", {("run", "batch"): 1, ("run", "tries"): 3}),  # the newest is shown
+    ("relaunched after it", {("run", "batch"): 1, ("run", "tries"): 3,
+                             ("watched", "ended once every row was made"): True,
+                             ("watched", "ended while a row was never made"): False})]
 
 
 # === the store's machine ==============================================================================================
@@ -2743,8 +2560,8 @@ def deploy_value_ok(line):
 
 # === the one question: what the owner sees and who may act on it =====================================================
 
-def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_factory, monkeypatch, shelf_once,
-                                         hosted_child):
+def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, tmp_path_factory, monkeypatch,
+                                         shelf_once, hosted_child):
     """One world (the fixture environment, alpha's gaps checked and priced, the month's books lost) walked through every
     page, then acted on by the owner, a guest, a stranger, a page without its CSRF token and the sync applier. Each
     page answers the owner and sends a stranger to sign in; node ids stay in the details fold; a screen holds at most
@@ -2806,7 +2623,28 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_fac
     prices every node of the record, not the chain's; `buy` sets the stop at the high, without BUFFER; `now_items`
     keeps items waiting on a missing input; `buy_refusals` never says the basket is older than the price; `now_items`
     drops `approved and for_approved(...)`; `for_approved` ignores an item's `for`; `plants_total` leaves `beds` out;
-    `stats` counts every basis as measured; api/routes.py `place_screen` drops its unknown-place 404."""
+    `stats` counts every basis as measured; api/routes.py `place_screen` drops its unknown-place 404.
+    And the run monitor, over its own judging rows, a batch of two tries and one batch on a fresh copy of the world
+    (BATCH_MOMENTS): read from its log, its rows and its pool; a relaunch goes on where the checkout was and adds the
+    first run's money and clock, its parked machines shown; the state follows the result line, the checkout and the
+    pool; the money is this batch's high with its guesses, its room the line less what came before, and its spend of
+    one budget; a row's batch gaps are problems; parent scenes before their child scenes; the stops only for the owner
+    while the batch lives; an ended try is history; the export carries the batch and the hosted page says how fresh;
+    a fault said as a short plain cause, rows sharing one one problem; the next Buy says what it makes again; a Buy
+    while the batch is unfinished is its next try; a try shows what it makes again as waiting; what prepare predicts
+    shows once made since the try.
+    Breaks (each applied once and seen red): state/batch_run.py `pool_of` counts no card busy; `row_states` counts a
+    row done whatever its accept's time; `parked_of` counts none; `overall` never says waiting (its pool check `if
+    False:`); `overall` drops its launching -> starting line; `own_stop` leaves the spend before out of the room;
+    `gap_problems` asks no row for its batch gaps; pages/run_monitor.py `ordered` sorts by the scene's own name only;
+    templates/pages/run_monitor.html shows the stops `{% if live %}` (not only to the owner); pages/run_monitor.py
+    `ended` always None; sync/building.py `batch_run_file` writes nothing; state/batch_run.py `failure_problem` never
+    says in how many places; `next_buy` counts a failed step as never run too (`unrun = planned - made`); `retries`
+    ends the batch on a design edit since; checkout/watched.py `batch_ended` ends a batch when `design_at` is past its
+    last try; `started` counts a launch stopped before its first heartbeat; state/batch_run.py `gathered` keeps an
+    earlier try's line of a row this try makes again; `money_of` gives `left` as the whole budget;
+    checkout/watched.py `batch_money` counts spent from 0, not the batch's start; state/batch_run.py `batch_total`
+    drops `need`; pages/run_monitor.py `prepared` drops its made-after-the-try comparison."""
     from score.dashboard.pages import cockpit, present, views
     from score.dashboard.pages.models import BasketItem, ChangeRequest
     from score.dashboard.state import gaps as gap_rows
@@ -3282,3 +3120,195 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_fac
     owner.post("/place/beta/step/assembly/advance/", {"output": world.outputs["assembly@beta"]})
     assert SyncRequest.objects.get(kind="advance").payload == {"node": "assembly@beta",
                                                                "output": world.outputs["assembly@beta"]}
+
+    # The run monitor (state/batch_run.py, pages/run_monitor.py, checkout/watched.py). First what it judges on its own,
+    # row by row (BATCH_JUDGED), then a batch of two tries gathered by hand (TRIES), then one batch on a fresh copy of
+    # the world, bought, launched, read, hosted, relaunched and ended, then tried again (BATCH_MOMENTS).
+    from score.dashboard.checkout import watched
+    report = tmp_path / "faults.txt"
+    report.write_text("  | no card could be rented\n")
+    fault = (f"error: CalledProcessError: Command '['/x/blender_cloud.py']' returned non-zero exit status 1; "
+             f"fault report {report}")
+    fault_rows = {f"light@{place}": ("failed", fault, "2026-10-24T11:09:00+00:00") for place in ("a", "b", "c")}
+    [shared] = batch_run.failures({**fault_rows, "film@a": ("not_run", "not run: its line stopped at light@a", None)})
+    causes = [(said if want is not None else None, len(said) <= 103 and "/home" not in said)
+              for text, tail, want in CAUSES for said in [plain.step_cause(text, tail)]]
+    next_buys = [said if whole or said is None else said[:len(want)] for run, nodes, want, whole in NEXT_BUYS
+                 for said in [batch_run.next_buy(run, nodes)]]
+    judged = {
+        "overall": [batch_run.overall({"state": "launched", "launch": {}}, batch_run.read_log(log.splitlines(), set()),
+                                      live, pool)[:len(want)] for log, live, pool, want in OVERALLS],
+        "causes": causes, "next buys": next_buys,
+        "prepared after the try, before it": [run_monitor.prepared(PREPARED_REMAKE, {"at": at}) for at in (
+            "2026-10-25T16:00:00+00:00", "2026-10-26T09:00:00+00:00")],
+        "own stop of a line without what it was written over": batch_run.own_stop({"euros": 396.44}),
+        "parents before children": run_monitor.ordered(["galley", "flat", "hangar", "cockpit", "ship", ""], WITHIN,
+                                                       WITHIN_NAMES),
+        "one fault in 3 places": (shared["places"], shared["place"], shared["words"].endswith(
+            "stopped in 3 places: no cloud machine could be rented. 1 later step waits on them."), len(shared["raw"]),
+            "blender_cloud.py" in shared["raw"][0])}
+    assert judged == BATCH_JUDGED
+
+    def derived(run):
+        """What a probe reads of a gathered run beyond its own fields, by name."""
+        money = run.get("money") or {}
+        return {
+            "scene states": lambda: {scene["place"]: scene["state"] for scene in run["scenes"]},
+            "scene counts": lambda: {scene["place"]: (scene["done"], scene["total"]) for scene in run["scenes"]},
+            "by place": lambda: {scene["place"]: scene for scene in run["scenes"]},
+            "problem nodes": lambda: sorted(problem["node"] for problem in run["problems"]),
+            "gap problems": lambda: [problem for problem in run["problems"] if problem["kind"] == "gaps"],
+            "clock": lambda: run_monitor.clock(run),
+            "bar": lambda: run_monitor.money_bar({**money, "high": 8.0, "stop": 10.0}),
+            "bar over at 340": lambda: run_monitor.money_bar({**money, "try_spent": 340.0})["over"],
+            "stop is the high plus 10%": lambda: money["stop"] == round(money["high"] * batch_run.BUFFER, 2),
+            "left is the budget less spent and in flight": lambda: money["left"] == round(
+                money["budget"] - money["spent"] - money["in_flight"], 2),
+            "next total while it runs": lambda: views.next_total(run, 33.0),
+            "next total once stopped": lambda: views.next_total({**run, "state": "stopped"}, 33.0),
+            "next total over a smaller budget is spent, in flight and the need": lambda: views.next_total(
+                {**run, "state": "stopped", "money": {**money, "budget": 10.0}}, 33.0) == round(
+                money["spent"] + money["in_flight"] + 33.0, 2),
+            "checkout is the newest": lambda: run["checkout"] == Checkout.objects.order_by("at").last().pk,
+            "started is the first launch": lambda: run["started"] == batched["began"].isoformat(timespec="seconds")}
+
+    def probed(found, path, test=None):
+        """The value at `path` of `found` (a derived name first), put through `test` when one is named."""
+        head, _, rest = path.partition(".")
+        names = derived(found) if isinstance(found, dict) else {}
+        value = picked(names[head](), rest) if head in names else picked(found, path)
+        if test is None:
+            return value
+        how, _, arg = test.partition(" ")
+        return {"has": lambda: arg in value, "starts": lambda: value.startswith(arg),
+                "re": lambda: bool(re.search(arg, value)), "set": lambda: bool(value),
+                "at": lambda: value >= float(arg.split()[-1]),
+                "words": lambda: len(prose(value)) <= int(arg.split()[-1])}[how]()
+
+    for log, accepted, want in TRIES:
+        run = batch_run.gathered(two_tries(tmp_path, log), tmp_path, tmp_path, **(
+            {"accepted_at": {"terrain": "2026-10-24T23:04:00+00:00"}.get} if accepted else {}), **(
+            {} if log else {"now": datetime.datetime(2026, 10, 25, 9, 1, tzinfo=datetime.timezone.utc)}))
+        assert {path: probed(run, path) for path in want} == want, log
+
+    settings.SCORE_MODE = settings.LOCAL
+    for model in (Checkout, Launch, Plan, SyncRequest):
+        model.objects.all().delete()
+    batch_world = copy_of(built_once[True], tmp_path_factory.mktemp("batch"), monkeypatch)
+    props, logs = batch_world.source.props_home, batch_world.source.props_home / "logs"
+    batched = {}
+
+    def gathered():
+        return batch_run.gathered(newest(), props, batch_world.source.store_root,
+                                  lambda node: [{"name": "hatch: no model"}] if node == "plan@alpha" else [],
+                                  **({"accepted_at": batched["accepts"].get} if "accepts" in batched else {}))
+
+    def exported():
+        building.build(batch_world.source, tmp_path / "batch-export", MADE, 50, SPEND, batch_world.root)
+        batched["export"] = ExportedSource(tmp_path / "batch-export")
+        hosting.enter_context(pytest.MonkeyPatch.context()).setattr(dashboard_state, "source",
+                                                                    lambda: batched["export"])
+        hosting.enter_context(override_settings(SCORE_MODE="hosted"))
+
+    def buy_sent():
+        SyncRequest.objects.create(kind="checkout", user="joey", payload={})
+        SyncRequest.objects.filter(kind="checkout").update(
+            created=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1))
+
+    def one_budget():
+        hosting.close()
+        record = Checkout.objects.get()
+        record.stop_line = {**record.stop_line, "euros": 820.0, "batch_from": 80.0, "batch_budget": 740.0,
+                            "batch_used": 410.0}
+        record.save()
+
+    def relaunched():
+        record = Checkout.objects.get()
+        Plan.objects.filter(pk=record.launch.plan_id).update(body={**PLAN, "checkout": record.pk})
+        rest = {"groups": [{"places": ["alpha", "beta"], "to_run": {}, "blocked": {"assembly@alpha": "waits"},
+                            "buys": [{"node": "closeup@alpha"}, {"node": "closeup@beta"}]}], "checkout": record.pk}
+        again = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready", body=rest)
+        Launch.objects.filter(pk=record.launch.pk).update(plan=again)
+        after = (record.at + datetime.timedelta(minutes=5)).isoformat()
+        batched["accepts"] = {"terrain": after, "plan@alpha": after, "assembly@beta": after,
+                              "assembly@alpha": (record.at - datetime.timedelta(days=1)).isoformat()}
+
+    def first_run_and_parked():
+        batched.pop("accepts")
+        record = Checkout.objects.get()
+        (logs / "score-run-0.log").write_text(
+            "[cloud] 12:00:00 pool of 2 gpu-24gb opened for run old-run until 16:00\n"
+            "heartbeat 2026-10-24T10:30:00+00:00: rows done 1, running 0, queued 5; this run's rows: "
+            "paid runs open 0, EUR 1.18 in the ledger since the run started\n")
+        plan = Plan.objects.create(basket_hash="checkout-1", made_by="joey", state="ready",
+                                   body={**PLAN, "checkout": record.pk})
+        earlier = Launch.objects.create(plan=plan, by="joey", state="stopped", handles=[
+            {"command": ["score", "run"], "pid": None, "log": str(logs / "score-run-0.log"), "refused": None}])
+        batched["began"] = record.launch.at - datetime.timedelta(minutes=45)
+        Launch.objects.filter(pk=earlier.pk).update(at=batched["began"])
+        (props / "cloud" / "parked").mkdir(parents=True)
+        for number, pool in enumerate(["old-run", RUN, RUN, "someone-else"]):
+            (props / "cloud" / "parked" / f"m-{number}.json").write_text(json.dumps({"id": f"m-{number}",
+                                                                                   "pool": pool}))
+        (props / "cloud" / "pools" / RUN / "closed").write_text("")
+
+    def stopped():
+        launch = Checkout.objects.get().launch
+        launch.handles[0]["log"] = str(logs / "gone.log")
+        launch.save()
+        (logs / "gone.log").write_text(LOG.format(run=RUN) + STOPPED)
+
+    def retried():
+        for model in (Checkout, Launch, Plan):
+            model.objects.all().delete()
+        first, retry = a_batch(batch_world), a_batch(batch_world, key="b")
+        retry.at = first.at + datetime.timedelta(hours=1)
+        retry.save()
+        batched["last"] = retry
+
+    def waiting_for_size():
+        unstarted = a_batch(batch_world, key="c", log="score run: waiting for size: 16 jobs, 2 cores; registered as "
+                            "w1; x\nscore run: stopped by signal 15 while waiting for size\n"
+                            "detached: stopped by signal 15\n")
+        unstarted.at, unstarted.design_at = batched["last"].at + datetime.timedelta(hours=1), \
+            (batched["last"].at + datetime.timedelta(minutes=5)).isoformat()
+        unstarted.save()
+        batched["last"] = unstarted
+
+    def relaunched_after():
+        relaunch = a_batch(batch_world, key="d")
+        relaunch.at = batched["last"].at + datetime.timedelta(minutes=20)
+        relaunch.save()
+        Launch.objects.filter(pk=batched["last"].launch_id).update(state="stopped")  # as polling left it
+        made = (relaunch.at - datetime.timedelta(minutes=1)).isoformat()
+        every, after = list(Checkout.objects.order_by("at")), Checkout(at=relaunch.at + datetime.timedelta(hours=1))
+        batched["watched"] = {"ended once every row was made": watched.batch_ended(every, after, lambda node: made),
+                              "ended while a row was never made": watched.batch_ended(every, after, lambda node: None)}
+
+    writes = {
+        "ordered": lambda: (batched.update(record=a_batch(batch_world)), Checkout.objects.update(
+            state="launching", launch=None, stop_line={})),
+        "launch started": lambda: (Checkout.objects.update(launch=batched["record"].launch),
+                                   (logs / "score-run-a.log").write_text("paid rows this run would buy: 2\n")),
+        "launched": lambda: (Checkout.objects.update(state="launched", stop_line=batched["record"].stop_line),
+                             (logs / "score-run-a.log").write_text(LOG.format(run=RUN))),
+        "hosted": exported, "buy sent": buy_sent, "one budget": one_budget, "relaunched": relaunched,
+        "first run and parked": first_run_and_parked,
+        "finished": lambda: (logs / "score-run-a.log").write_text(LOG.format(run=RUN) + FINISHED),
+        "stopped": stopped, "ended": lambda: Launch.objects.update(state="failed"), "retried": retried,
+        "stopped waiting for size": waiting_for_size, "relaunched after it": relaunched_after}
+    from score.dashboard import state as dashboard_state
+    with contextlib.ExitStack() as hosting:
+        for moment, want in BATCH_MOMENTS:
+            writes.get(moment, lambda: None)()
+            sources = {"run": lambda: (batched["export"] if "export" in batched and settings.SCORE_MODE == "hosted"
+                                       else batch_world.source).batch_run(),
+                       "gathered": gathered, "export": lambda: batched["export"].batch_run(),
+                       "watched": lambda: batched["watched"]}
+            answered = {}
+            for source, *probe in want:
+                if source not in answered:
+                    who, _, page = source.partition(" ")
+                    answered[source] = sources[source]() if source in sources else signed_in(
+                        "joey" if who == "owner" else who).get(page).content.decode()
+            assert {(source, *probe): probed(answered[source], *probe) for source, *probe in want} == want, moment
