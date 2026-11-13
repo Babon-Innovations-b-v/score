@@ -8,25 +8,11 @@ No machine is rented: the backend, ssh and the clock are stand-ins, and the dyin
 Expected numbers are worked out by hand in the tests. The break that turns each red (applied once, seen red,
 reverted):
 
-- test_a_batch_past_the_owners_limits_is_refused_and_the_dearest_cards_left_out: in ledger.py `refusal`,
-  `estimated_minutes > BATCH_HOURS * 60` -> `estimated_minutes > BATCH_HOURS * 600`; or in `affordable`, `found =
-  [offer for offer in found if offer.per_card < dearest]` -> `break`.
-- test_the_month_counts_a_running_machine_until_its_run_row_delete_or_refusal: in ledger.py `month_total`, the `+
-  sum(open_euros(line, now) ...)` term -> `+ 0`; or in `open_rents`, `("disk-and-address", RENT_REFUSED)` ->
-  `("disk-and-address",)`.
 - test_a_list_names_each_model_once_with_its_options: in `read_list`, `if len(set(names)) != len(names):` -> `if
   False:`.
-- test_a_batch_on_this_pcs_card_passes_its_class_check_and_a_misnamed_class_is_refused: in `check_classes`, the
-  `provider.cards(name)` loop -> the old `set(classes) - set(cloud.CLASSES)` refusal (this PC's backend lists none).
-- test_the_fleet_is_sized_to_end_in_its_aim_and_a_capped_one_aims_for_what_it_can: in `cards_needed`, `working =
-  minutes - SETUP_MINUTES - per_model * per_card` -> `working = minutes - SETUP_MINUTES`; or in `aimed_minutes`,
-  `max(` -> `min(`.
-- test_model_minutes_come_from_the_batch_started_last: in `card_minutes_per_model`, `reverse=True` -> `reverse=False`.
 - test_a_batch_builds_only_an_approved_inventorys_rows: in `from_the_inventory`, `if strays:` -> `if False:`.
 - test_a_batch_builds_a_character_only_when_its_spec_is_approved: in `from_the_characters`, `if not
   spec.get("approved"):` -> `if False:`.
-- test_a_machine_is_left_over_once_past_its_deadline_or_its_process_is_gone: in `is_leftover`, `and not (pid and
-  process_alive(int(pid)))` -> `and False`.
 - test_a_short_fleet_rents_more_as_stock_comes_up: in `keep_the_fleet`, `if short > 0 and not fleet.no_more_work() and`
   -> `if False and` (a short fleet never asks again).
 - test_a_fleet_waits_out_an_open_pool_but_never_a_closed_one: in `keep_the_fleet`, `if alive or not pool_open() or
@@ -50,7 +36,6 @@ reverted):
   `QUIET_MINUTES * 6000`.
 - test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on: in `claim_from`, `if not isinstance(error,
   OutOfStock):` -> `if False:`.
-- test_a_jobs_deadline_comes_from_its_measured_high_seconds: in `job_deadline_seconds`, `["high"]` -> `["median"]`.
 - test_nothing_is_rented_outside_a_cleared_run: in `rent`, drop `compute.require_cleared(f"a {machine_type} in
   {zone}")`.
 - test_a_rent_writes_its_started_line_before_the_order_is_sent: in backends/scaleway.py `create`, drop the
@@ -76,11 +61,20 @@ The estimates are each runner's on a fixed list, as recorded from the code befor
 implementation), and their euros are checked against count x minutes x price worked out here. No machine is rented.
 The break that turns each red (applied once, seen red, reverted):
 
-- test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine (each runner priced inside, past the limits and
-  on a dear month): in batch.py `priced`, `ledger.cost(minutes, dearest) * count` -> `ledger.cost(minutes, dearest)`;
-  or `dearest = max(` -> `dearest = min(`; or in ledger.py `refusal`, `if euros > cap:` -> `if False:`; or in
-  batch.py `priced`, `refused = ledger.refusal(minutes, dearest * count)` -> `refused = ledger.refusal(minutes,
-  dearest * count) or (spent > 1000 and "the month")`.
+- test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine (a table of judged rows: the limits, the bill, the
+  cards taken, the month's open machines, the classes, the fleet's size, the rate, leftovers and a job's deadline; and
+  each runner priced inside, past the limits and on a dear month): in ledger.py `refusal`, `estimated_minutes >
+  BATCH_HOURS * 60` -> `estimated_minutes > BATCH_HOURS * 600`, or `if euros > cap:` -> `if False:`; in `month_total`,
+  the `+ sum(open_euros(line, now) ...)` term -> `+ 0`; in `open_rents`, `("disk-and-address", RENT_REFUSED)` ->
+  `("disk-and-address",)`; in batch.py `affordable`, `found = [offer for offer in found if offer.per_card <
+  dearest]` -> `break`; in `check_classes`, the `provider.cards(name)` loop -> the old `set(classes) -
+  set(cloud.CLASSES)` refusal (this PC's backend lists none); in `cards_needed`, `working = minutes - SETUP_MINUTES -
+  per_model * per_card` -> `working = minutes - SETUP_MINUTES`; in `aimed_minutes`, `max(` -> `min(`; in
+  `card_minutes_per_model`, `reverse=True` -> `reverse=False`; in `is_leftover`, `and not (pid and
+  process_alive(int(pid)))` -> `and False`; in `job_deadline_seconds`, `["high"]` -> `["median"]`; in `priced`,
+  `ledger.cost(minutes, dearest) * count` -> `ledger.cost(minutes, dearest)`, or `dearest = max(` -> `dearest =
+  min(`, or `refused = ledger.refusal(minutes, dearest * count)` -> `refused = ledger.refusal(minutes, dearest *
+  count) or (spent > 1000 and "the month")`.
 - test_a_scene_machine_is_armed_and_deleted_also_when_a_step_fails: in spread.py `tended`, move
   `batch.delete_machine(machine)` from the `finally` to after the `yield` (deleted only when the block ends well).
 - test_a_held_character_machine_is_armed_with_the_grace_and_deleted: in spread.py `tended`, `run.deadline +
@@ -126,6 +120,7 @@ import closeups_cloud  # noqa: E402
 import delight  # noqa: E402
 import finish_masks  # noqa: E402
 import judge  # noqa: E402
+import local  # noqa: E402
 import library_bake  # noqa: E402
 import meshparts  # noqa: E402
 import parts  # noqa: E402
@@ -164,25 +159,6 @@ def refusal_of(call, *arguments):
     return None
 
 
-def test_a_batch_past_the_owners_limits_is_refused_and_the_dearest_cards_left_out(monkeypatch):
-    assert ledger.refusal(90, L4) is None
-    assert "4 h" in ledger.refusal(241, L4)
-    assert "€60" in ledger.refusal(210, 0.3)  # EUR 63
-    assert ledger.minutes_allowed(L4) == 240 and round(ledger.minutes_allowed(0.3)) == 200
-    # under the owner's override with EUR 2.47 left (labval-motor-20261106) a batch may spend 2.47 less 10%
-    monkeypatch.setenv(compute.TICKET, "override labval")
-    monkeypatch.setattr(compute, "override_room", lambda store=None: {"name": "labval", "euros": 40.0,
-                                                                      "spent": 37.53, "left": 2.47})
-    assert "override labval" in ledger.refusal(30, 0.1)  # EUR 3
-    assert ledger.refusal(20, 0.1) is None  # EUR 2, inside 2.25
-    assert round(ledger.minutes_allowed(0.1), 1) == 22.5  # the watchdog's deadline
-    monkeypatch.undo()
-    assert ledger.cost(1.2, L4) == 2 * L4  # billed by the started minute
-    found = [provider.Offer(L4, 1, "L4", "zone-a", L4, "gpu-24gb", 0, "scarce"),
-             provider.Offer(0.047775, 2, "H100", "zone-b", 0.047775, "gpu-80gb", 0, "shortage")]
-    # 20 H100s for 180 min is EUR 172; 20 L4s EUR 47: the H100 is left out
-    assert [offer.machine_class for offer in batch.affordable(found, minutes=180, cards=20)] == ["gpu-24gb"]
-    assert batch.affordable(found, minutes=30, cards=2) == found
 
 
 def started_line(name, minutes_ago, deadline_in=None, price=0.02, run="pixal-7"):
@@ -195,25 +171,6 @@ def started_line(name, minutes_ago, deadline_in=None, price=0.02, run="pixal-7")
     return line
 
 
-def test_the_month_counts_a_running_machine_until_its_run_row_delete_or_refusal():
-    """Fault (review of C1, 2026-10-17): a started line held 0 euros and the month ignored it, so the guard did not
-    count a machine running and not yet billed."""
-    batches = [{"started": "2026-09-29T10:00:00Z", "euros": 1.5}, {"started": "2026-08-31T23:00:00Z", "euros": 9.0}]
-    assert ledger.month_total("2026-09", batches) == 1.5
-    running = [started_line("pixal-7-1", 60, deadline_in=120)]  # an hour at EUR 0.02 a minute
-    assert round(ledger.month_total(MONTH, running, now=NOW), 2) == 1.2 and ledger.open_rents(running, NOW) == running
-    died = [started_line("pixal-7-1", 600, deadline_in=-360)]  # its run died: counted to its deadline, 4 h
-    assert round(ledger.month_total(MONTH, died, now=NOW), 2) == 4.8
-    started = [started_line("pixal-7-1", 60, 120), started_line("pixal-7-2", 60, 120),
-               started_line("other-1", 60, 120, run="other")]
-    closing = [{"started": started[0]["started"], "batch": "pixal-7", "kind": "pixal", "euros": 1.5},
-               {"started": started[0]["started"], "batch": "disk-and-address-s1", "kind": "disk-and-address",
-                "name": "other-1", "euros": 0.1},
-               {"started": started[0]["started"], "batch": "rent-pixal-7-2", "kind": ledger.RENT_REFUSED,
-                "name": "pixal-7-2", "euros": 0.0}]
-    assert ledger.open_rents(started + closing, NOW) == []
-    assert ledger.open_rents(started + closing[2:], NOW) == [started[0], started[2]]  # the refusal closes only its own
-    assert round(ledger.month_total(MONTH, started + closing, now=NOW), 2) == 1.6
 
 
 def test_a_list_names_each_model_once_with_its_options(tmp_path):
@@ -228,33 +185,10 @@ def test_a_list_names_each_model_once_with_its_options(tmp_path):
     assert "twice" in refusal_of(batch.read_list, listing)
 
 
-def test_a_batch_on_this_pcs_card_passes_its_class_check_and_a_misnamed_class_is_refused(monkeypatch):
-    """2026-10-28: every Pixal3D batch on this PC's card (SCORE_CLOUD=local, whose CLASSES is empty: its offers are
-    parked) exited 1 at once, its classes checked against the backend's CLASSES; which it sells is its offers'."""
-    import local
-    monkeypatch.setattr(batch, "cloud", local)
-    batch.check_classes(batch.capacity.classes_for("pixal"))
-    assert "not a capability class" in refusal_of(batch.check_classes, ["gpu-24gb", "gpu24"])
 
 
-def test_the_fleet_is_sized_to_end_in_its_aim_and_a_capped_one_aims_for_what_it_can():
-    # 229 models at 3.95 card minutes each, 3 at once, in an hour: 5 min set-up and an 11.85 min last run leave
-    # 43.15 min of work for 904.55 card minutes, 21 cards; 5 + 229 * 3.95 / 21 + 11.85 = 59.9 min
-    assert batch.cards_needed(229, 3, 60, 3.95) == 21
-    assert round(batch.expected_minutes(229, 21, 3, 3.95)) == 60
-    assert batch.cards_needed(5, 3, 60, 3.95) == 1
-    assert "too short" in refusal_of(batch.cards_needed, 10, 6, 20, 3.95)  # 5 + 23.7 for one run: over 20
-    # one card, 3 models at 18.7 card minutes, 3 at once: 5 + 56.1 + 56.1 = 117.2 min, aimed for, not refused
-    assert round(batch.aimed_minutes(3, 1, 3, 18.7, 60), 1) == 117.2
-    assert batch.aimed_minutes(5, 20, 3, 3.95, 60) == 60  # an uncapped small batch keeps its aim
 
 
-def test_model_minutes_come_from_the_batch_started_last(monkeypatch):
-    """A batch stopped part way is written after a later one; its slow rate must not set the estimate."""
-    monkeypatch.setattr(ledger, "entries", lambda: [
-        {"started": "2026-09-30T17:56:47Z", "models_done": 5, "card_minutes": 25},
-        {"started": "2026-09-30T17:35:47Z", "models_done": 3, "card_minutes": 380}])
-    assert batch.card_minutes_per_model() == 5
 
 
 def test_a_batch_builds_only_an_approved_inventorys_rows(tmp_path):
@@ -307,13 +241,6 @@ def test_a_batch_builds_a_character_only_when_its_spec_is_approved(tmp_path):
     assert "share a name" in refusal_of(batch.from_the_characters, [path, path])
 
 
-def test_a_machine_is_left_over_once_past_its_deadline_or_its_process_is_gone():
-    here, later = socket.gethostname(), 2e9
-    assert batch.is_leftover([], 1e9)
-    assert batch.is_leftover([f"deadline={1e9 - 1:.0f}"], 1e9)
-    assert not batch.is_leftover([f"deadline={later:.0f}", f"host={here}", f"pid={os.getpid()}"], 1e9)
-    assert batch.is_leftover([f"deadline={later:.0f}", f"host={here}", "pid=999999999"], 1e9)
-    assert not batch.is_leftover([f"deadline={later:.0f}", "host=elsewhere", "pid=999999999"], 1e9)
 
 
 class FleetStub:
@@ -569,10 +496,6 @@ def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on(monkeypatch
     assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a", "zone-b"]
 
 
-def test_a_jobs_deadline_comes_from_its_measured_high_seconds():
-    measured = json.loads((REPO / "data" / "costs" / "per-unit.json").read_text())
-    high = measured["stages"]["pixal"]["time"]["unit_seconds"]["high"]
-    assert batch.job_deadline_seconds() == batch.DEADLINE_FACTOR * high
 
 
 def test_nothing_is_rented_outside_a_cleared_run(monkeypatch, tmp_path):
@@ -831,15 +754,50 @@ ESTIMATES = {
 SAID = re.compile(r"on (\d+|one) (?:machine|card)s?: about (\d+) min, €([\d.]+); €([\d.]+) spent this month$")
 
 
-def stubbed(monkeypatch, spent=100.0, scale=1.0):
-    """batch's offers, month spend and say stubbed; the lines it says."""
-    said = []
-    monkeypatch.setattr(batch, "offers", lambda classes: offers(scale))
-    monkeypatch.setattr(batch, "month_spent", lambda account: spent)
-    monkeypatch.setattr(batch, "say", said.append)
-    monkeypatch.delenv("SCORE_RUN_ID", raising=False)  # no warm pool
-    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)  # no measured pre-flight
-    return said
+class Stopped(str):
+    """A call's SystemExit, as its message."""
+
+
+class Refused:
+    """The expected outcome of a refusal holding every one of `words`: a stop (SystemExit), or with `raised=False` a
+    refusal line returned."""
+
+    def __init__(self, *words, raised=True):
+        self.words, self.raised = words, raised
+
+    def holds(self, outcome, said):
+        return (isinstance(outcome, str) and isinstance(outcome, Stopped) == self.raised
+                and all(word in outcome for word in self.words))
+
+
+class Estimate:
+    """A runner's estimate said once as `recorded` with the month's `spent`, its euros its machines at the dearest offer
+    it may take for the minutes it says, and the minutes the 4 h and EUR 60 limits allow returned last."""
+
+    def __init__(self, recorded, spent):
+        self.recorded, self.spent = recorded, spent
+
+    def holds(self, outcome, said):
+        if isinstance(outcome, Stopped) or said != [f"{self.recorded}; €{self.spent:.2f} spent this month"]:
+            return False
+        count, minutes, euros, _ = SAID.search(said[0]).groups()
+        count = 1 if count == "one" else int(count)
+        dearest = max(offer.per_card for offer in outcome[0])  # the dearest offer the runner may take
+        # billed by the started minute: the said minutes are rounded, so the bill lies within a minute of them
+        return ((int(minutes) - 0.5) * dearest * count - 0.005 <= float(euros) <= (int(minutes) + 1.5) * dearest * count
+                and outcome[-1] == min(240.0, 60.0 / (dearest * count)))
+
+
+def holds(expected, outcome, said):
+    """Whether a call's `outcome` (and the lines it `said`) is the `expected` one: a matcher's, or equal."""
+    if isinstance(expected, (Refused, Estimate)):
+        return expected.holds(outcome, said)
+    return not isinstance(outcome, Stopped) and outcome == expected
+
+
+def case(name, call, expected, stubs=(), env=None):
+    """A row: `call` under the attributes `stubs` set ((target, attribute, value)) and the environment `env`."""
+    return pytest.param(call, expected, stubs, env or {}, id=name)
 
 
 # Each runner priced three ways: its month at EUR 100, offers 200 times dearer (EUR 2 to 10 a minute: every batch
@@ -848,29 +806,108 @@ PRICINGS = {"inside": (100.0, 1.0, False), "past-the-limits": (100.0, 200.0, Tru
             "dear-month": (10_000.0, 1.0, False)}
 
 
-@pytest.mark.parametrize("pricing", PRICINGS)
-@pytest.mark.parametrize("runner", ESTIMATES)
-def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, runner, pricing):
-    """A runner says its estimate (its machines at the dearest offer it may take, for the minutes it says) and
-    returns the minutes the 4 h and EUR 60 limits allow, refuses a batch past EUR 60, and never refuses on the
-    month's total."""
+def priced(runner, pricing):
+    """The row of `runner` priced by `pricing`: its offers and month spend stubbed, its outcome expected."""
     estimate, recorded = ESTIMATES[runner]
     spent, scale, past = PRICINGS[pricing]
-    said = stubbed(monkeypatch, spent=spent, scale=scale)
+    stubs = ((batch, "offers", lambda classes: offers(scale)), (batch, "month_spent", lambda account: spent))
+    expected = Refused("refused", "€60") if past else Estimate(recorded, spent)
+    return case(f"{runner}-{pricing}", estimate, expected, stubs)
+
+
+# 20 H100s for 180 min is EUR 172, 20 L4s EUR 47: the H100 is left out
+FOUND = [provider.Offer(L4, 1, "L4", "zone-a", L4, "gpu-24gb", 0, "scarce"),
+         provider.Offer(0.047775, 2, "H100", "zone-b", 0.047775, "gpu-80gb", 0, "shortage")]
+# under the owner's override with EUR 2.47 left (labval-motor-20261106) a batch may spend 2.47 less 10%
+OVERRIDE = ((compute, "override_room", lambda store=None: {"name": "labval", "euros": 40.0, "spent": 37.53,
+                                                           "left": 2.47}),)
+OVERRIDE_TICKET = {compute.TICKET: "override labval"}
+# Fault (review of C1, 2026-10-17): a started line held 0 euros and the month ignored it, so the guard did not count a
+# machine running and not yet billed.
+MONTHS = [{"started": "2026-09-29T10:00:00Z", "euros": 1.5}, {"started": "2026-08-31T23:00:00Z", "euros": 9.0}]
+RUNNING = [started_line("pixal-7-1", 60, deadline_in=120)]  # an hour at EUR 0.02 a minute
+DIED = [started_line("pixal-7-1", 600, deadline_in=-360)]  # its run died: counted to its deadline, 4 h
+STARTED = [started_line("pixal-7-1", 60, 120), started_line("pixal-7-2", 60, 120),
+           started_line("other-1", 60, 120, run="other")]
+CLOSING = [{"started": STARTED[0]["started"], "batch": "pixal-7", "kind": "pixal", "euros": 1.5},
+           {"started": STARTED[0]["started"], "batch": "disk-and-address-s1", "kind": "disk-and-address",
+            "name": "other-1", "euros": 0.1},
+           {"started": STARTED[0]["started"], "batch": "rent-pixal-7-2", "kind": ledger.RENT_REFUSED,
+            "name": "pixal-7-2", "euros": 0.0}]
+# 2026-10-28: every Pixal3D batch on this PC's card (SCORE_CLOUD=local, whose CLASSES is empty: its offers are parked)
+# exited 1 at once, its classes checked against the backend's CLASSES; which it sells is its offers'.
+THIS_PC = ((batch, "cloud", local),)
+# a batch stopped part way is written after a later one; its slow rate must not set the estimate
+ENTRIES = ((ledger, "entries", lambda: [{"started": "2026-09-30T17:56:47Z", "models_done": 5, "card_minutes": 25},
+                                        {"started": "2026-09-30T17:35:47Z", "models_done": 3, "card_minutes": 380}]),)
+LATER, HOST = 2e9, socket.gethostname()
+HIGH = json.loads((REPO / "data" / "costs" / "per-unit.json").read_text())["stages"]["pixal"]["time"]["unit_seconds"]
+CASES = [
+    case("90-min-inside", lambda: ledger.refusal(90, L4), None),
+    case("241-min-past-4h", lambda: ledger.refusal(241, L4), Refused("4 h", raised=False)),
+    case("eur63-past-eur60", lambda: ledger.refusal(210, 0.3), Refused("€60", raised=False)),
+    case("minutes-allowed-l4", lambda: ledger.minutes_allowed(L4), 240),
+    case("minutes-allowed-dear", lambda: round(ledger.minutes_allowed(0.3)), 200),
+    case("override-eur3-past", lambda: ledger.refusal(30, 0.1), Refused("override labval", raised=False), OVERRIDE,
+         OVERRIDE_TICKET),
+    case("override-eur2-inside", lambda: ledger.refusal(20, 0.1), None, OVERRIDE, OVERRIDE_TICKET),
+    case("override-watchdog-minutes", lambda: round(ledger.minutes_allowed(0.1), 1), 22.5, OVERRIDE, OVERRIDE_TICKET),
+    case("billed-by-started-minute", lambda: ledger.cost(1.2, L4), 2 * L4),
+    case("dearest-left-out", lambda: [offer.machine_class for offer in batch.affordable(FOUND, minutes=180, cards=20)],
+         ["gpu-24gb"]),
+    case("all-affordable", lambda: batch.affordable(FOUND, minutes=30, cards=2), FOUND),
+    case("month-of-batches", lambda: ledger.month_total("2026-09", MONTHS), 1.5),
+    case("month-running", lambda: round(ledger.month_total(MONTH, RUNNING, now=NOW), 2), 1.2),
+    case("open-running", lambda: ledger.open_rents(RUNNING, NOW), RUNNING),
+    case("month-died-to-deadline", lambda: round(ledger.month_total(MONTH, DIED, now=NOW), 2), 4.8),
+    case("open-all-closed", lambda: ledger.open_rents(STARTED + CLOSING, NOW), []),
+    case("refusal-closes-its-own", lambda: ledger.open_rents(STARTED + CLOSING[2:], NOW), [STARTED[0], STARTED[2]]),
+    case("month-closed", lambda: round(ledger.month_total(MONTH, STARTED + CLOSING, now=NOW), 2), 1.6),
+    case("this-pcs-card-classes", lambda: batch.check_classes(batch.capacity.classes_for("pixal")), None, THIS_PC),
+    case("misnamed-class", lambda: batch.check_classes(["gpu-24gb", "gpu24"]), Refused("not a capability class"),
+         THIS_PC),
+    # 229 models at 3.95 card minutes each, 3 at once, in an hour: 5 min set-up and an 11.85 min last run leave 43.15
+    # min of work for 904.55 card minutes, 21 cards; 5 + 229 * 3.95 / 21 + 11.85 = 59.9 min
+    case("fleet-of-21", lambda: batch.cards_needed(229, 3, 60, 3.95), 21),
+    case("fleet-ends-in-its-hour", lambda: round(batch.expected_minutes(229, 21, 3, 3.95)), 60),
+    case("fleet-of-1", lambda: batch.cards_needed(5, 3, 60, 3.95), 1),
+    case("aim-too-short", lambda: batch.cards_needed(10, 6, 20, 3.95), Refused("too short")),  # 5 + 23.7: over 20
+    # one card, 3 models at 18.7 card minutes, 3 at once: 5 + 56.1 + 56.1 = 117.2 min, aimed for, not refused
+    case("capped-aims-for-what-it-can", lambda: round(batch.aimed_minutes(3, 1, 3, 18.7, 60), 1), 117.2),
+    case("uncapped-keeps-its-aim", lambda: batch.aimed_minutes(5, 20, 3, 3.95, 60), 60),
+    case("minutes-of-the-last-started", lambda: batch.card_minutes_per_model(), 5, ENTRIES),
+    case("leftover-unlabelled", lambda: batch.is_leftover([], 1e9), True),
+    case("leftover-past-deadline", lambda: batch.is_leftover([f"deadline={1e9 - 1:.0f}"], 1e9), True),
+    case("not-leftover-process-alive", lambda: batch.is_leftover(
+        [f"deadline={LATER:.0f}", f"host={HOST}", f"pid={os.getpid()}"], 1e9), False),
+    case("leftover-process-gone", lambda: batch.is_leftover(
+        [f"deadline={LATER:.0f}", f"host={HOST}", "pid=999999999"], 1e9), True),
+    case("not-leftover-other-host", lambda: batch.is_leftover(
+        [f"deadline={LATER:.0f}", "host=elsewhere", "pid=999999999"], 1e9), False),
+    case("job-deadline-from-high", lambda: batch.job_deadline_seconds(), batch.DEADLINE_FACTOR * HIGH["high"]),
+    *(priced(runner, pricing) for runner in ESTIMATES for pricing in PRICINGS),
+]
+
+
+@pytest.mark.parametrize("call, expected, stubs, env", CASES)
+def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, call, expected, stubs, env):
+    """Every limit, price and clock a batch judges by gives its expected answer: the 4 h and EUR 60 limits (an
+    override's room), the started-minute bill, the cards it may take, the month's open machines, the classes it checks,
+    the fleet it sizes, the rate it estimates by, the machines left over and a job's deadline; and each runner says
+    its estimate (its machines at the dearest offer it may take, for the minutes it says) and returns the minutes the
+    limits allow, refuses a batch past EUR 60, and never refuses on the month's total."""
+    said = []
+    monkeypatch.setattr(batch, "say", said.append)
+    monkeypatch.delenv(compute.TICKET, raising=False)  # no measured pre-flight, no override but a row's
+    for target, attribute, value in stubs:
+        monkeypatch.setattr(target, attribute, value)
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
     try:
-        returned, refused = estimate(), None
+        outcome = call()
     except SystemExit as stop:
-        returned, refused = None, str(stop)
-    if past:
-        assert refused and "refused" in refused and "€60" in refused, (runner, refused)
-        return
-    assert refused is None and said == [f"{recorded}; €{spent:.2f} spent this month"], (runner, refused, said)
-    count, minutes, euros, _ = SAID.search(said[0]).groups()
-    count = 1 if count == "one" else int(count)
-    dearest = max(offer.per_card for offer in returned[0])  # the dearest offer the runner may take
-    # billed by the started minute: the said minutes are rounded, so the bill lies within a minute of them
-    assert (int(minutes) - 0.5) * dearest * count - 0.005 <= float(euros) <= (int(minutes) + 1.5) * dearest * count
-    assert returned[-1] == min(240.0, 60.0 / (dearest * count)), runner  # the 4 h and EUR 60 limits
+        outcome = Stopped(stop)
+    assert holds(expected, outcome, said), (outcome, said)
 
 
 class Tended:
