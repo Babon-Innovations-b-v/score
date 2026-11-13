@@ -5,54 +5,20 @@ shows them on, a door in the plan's opening and the next one, with no opening le
 wall lamp the plan writer left on the walls item on a named wall's room side; and the file is kept beside the plan
 with the plan's sha. Plans and inventories are small ones made here.
 
-Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+One test asks it of every row of CASES: a world (a plan and its rows through holders.relations, keep over a home of
+its own, or one of holders' judging functions with its inputs) and what its answer must hold, part by part. The rows'
+ids begin with the behaviour they pin, named in brackets below with the breaks that turn its rows red
+(`Break: <file>: `old` -> `new``); each was applied once, seen red and reverted.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/test_each_plan_item_names_what_holds_it.py
-"""
-import json
-import pathlib
-import sys
 
-import numpy
-
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
-
-from score.review import holders, plan_checks, plan_fixes  # noqa: E402
-
-PICTURE = [1000, 600]
-
-
-def plan_of(items, rows, **more):
-    """A plan of items [name, x, y, wide, deep, facing, kind] tied to their rows, 20 x 12 m."""
-    return {"w": 20.0, "d": 12.0, "items": items, "rows": rows, "shapes": {}, **more}
-
-
-def by_row(found):
-    return {entry["row"]: entry for entry in found["relations"]}
-
-
-def by_item_of(found):
-    return {entry["item"]: entry for entry in found["relations"]}
-
-
-def test_base_s_garage_door_stands_against_its_module_s_front():
-    """Base (2026-10-29): the plan lays the garage door to its module's west, but the concept shows its box within the
+[garage-door] Base (2026-10-29): the plan lays the garage door to its module's west, but the concept shows its box within the
     module's across, its foot near the module's: against the module's side toward the viewer, S (the viewer looks
     north with no other rows to turn it by).
     Break: score/review/holders/__init__.py: `return snapped(right) if across > under[2] else snapped(toward)` ->
-        `return snapped(right) if across > under[2] else snapped(-toward)`"""
-    rows = [{"id": "module", "noun": "building", "anchor": "ground", "box": [500, 100, 900, 560]},
-            {"id": "garage_door", "noun": "door", "anchor": "on:module", "size": [6.0, 0.5, 8.0],
-             "box": [560, 300, 760, 540]}]
-    plan = plan_of([["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"],
-                    ["GARAGE DOOR 1", 4.1, 13.9, 4.4, 4.4, None, "item"]],
-                   {"MODULE 1": ["module"], "GARAGE DOOR 1": ["garage_door"]})
-    door = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["garage_door"]
-    assert (door["how"], door["holder"], door["face"]) == ("face", "MODULE 1", "S"), door
+        `return snapped(right) if across > under[2] else snapped(-toward)`
 
-
-def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
-    """#72 (score, 2026-10-29: a door that opens needs a true opening in its holder model, one that never moves sits
+[recess] #72 (score, 2026-10-29: a door that opens needs a true opening in its holder model, one that never moves sits
     flush): base's garage door swings (its kind's rule, served: an astronaut passes), so its module gets a recess
     behind it on its S face, the model's +z (laid along E: its +x east), as deep as its 6 m swing sweeps plus
     RECESS_MARGIN, its middle 7.65 m left of the module's, widened on its hinge side (its own left, laid along E:
@@ -66,55 +32,14 @@ def test_a_moving_door_s_recess_holds_its_motion_and_a_static_one_sits_flush():
         90.0)))) if rule["move"] == "swing"` -> `depth = (deep if rule["move"] == "swing"`
     Break: score/review/holders/__init__.py: `recess = recess_of(item, row, (middle(holder_item), item_way(holder_item,
         nearest[0]), holder_base),` -> `recess = None and recess_of(item, row, (middle(holder_item),
-        item_way(holder_item, nearest[0]), holder_base),`"""
-    rows = [{"id": "module", "noun": "building", "anchor": "ground", "size": [12.0, 12.0, 12.0],
-             "box": [500, 100, 900, 560]},
-            {"id": "garage_door", "noun": "door", "anchor": "on:module", "size": [6.0, 0.5, 8.0],
-             "box": [560, 300, 760, 540]},
-            {"id": "shutter", "noun": "shutter", "anchor": "on:module", "size": [2.0, 0.1, 2.0],
-             "box": [800, 400, 880, 540]},
-            {"id": "astronaut", "noun": "astronaut", "anchor": "floor"}]
-    plan = plan_of([["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"],
-                    ["GARAGE DOOR 1", 4.1, 13.9, 4.4, 4.4, None, "item"],
-                    ["SHUTTER 1", 20.0, 5.0, 0.1, 2.0, None, "item"]],
-                   {"MODULE 1": ["module"], "GARAGE DOOR 1": ["garage_door"], "SHUTTER 1": ["shutter"]})
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    recess = found["garage_door"]["recess"]
-    assert (recess["model"], recess["axis"], recess["side"]) == ("module_1", "z", 1.0), recess
-    assert recess["depth"] == 6.0 + holders.RECESS_MARGIN and recess["along"] == -7.65, recess
-    room = round(0.5 + holders.RECESS_MARGIN + holders.RECESS_WALL, 3)
-    assert (recess["room"], recess["room_side"]) == (room, -1.0), recess
-    assert found["shutter"]["how"] == "face" and "recess" not in found["shutter"], found["shutter"]
-    kinds = holders.row_kinds.table()
-    sliding = {**kinds, "door": {**kinds["door"], "motion": {**kinds["door"]["motion"], "move": "slide"}}}
-    recess = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}, kinds=sliding))["garage_door"]["recess"]
-    assert recess["depth"] == 0.5 + holders.RECESS_MARGIN and recess["room"] == 6.6 and recess["room_side"] == 1.0
+        item_way(holder_item, nearest[0]), holder_base),`
 
-
-def test_three_doors_on_one_face_item_stand_their_width_and_room_apart():
-    """Street (#36): its three 1.0 m restaurant doors on one 1.74 m plan item were laid 0.58 m apart, their recesses
+[three-doors] Street (#36): its three 1.0 m restaurant doors on one 1.74 m plan item were laid 0.58 m apart, their recesses
     in one another. Each piece of a face relation gets its own spot (`spots`), its width, its recess's room and
     OPENING_ROOM from the next, about the item's middle, and its recess's `pieces` read the same spots.
-    Break: score/review/holders/__init__.py: `if length >= pitch * (len(placed) - 1) - 1e-9:` -> `if True:`"""
-    rows = [{"id": "module", "noun": "building", "anchor": "ground", "size": [12.0, 12.0, 12.0],
-             "box": [500, 100, 900, 560]},
-            {"id": "restaurant_door", "noun": "door", "anchor": "on:module", "size": [1.0, 0.1, 2.1], "count": 3,
-             "box": [560, 300, 760, 540]},
-            {"id": "astronaut", "noun": "astronaut", "anchor": "floor"}]
-    plan = plan_of([["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"],
-                    ["RESTAURANT DOOR 1", 9.0, 18.4, 1.74, 0.5, None, "item"]],
-                   {"MODULE 1": ["module"], "RESTAURANT DOOR 1": ["restaurant_door"]})
-    door = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["restaurant_door"]
-    pitch = 1.0 + door["recess"]["room"] + holders.OPENING_ROOM
-    xs = [spot[0] for spot in door["spots"]]
-    assert len(xs) == 3 and all(abs(right - left - pitch) < 1e-3 for left, right in zip(xs, xs[1:])), door
-    assert abs(xs[1] - 9.87) < 1e-3, door  # about the item's middle
-    alongs = door["recess"]["pieces"]
-    assert all(abs(abs(right - left) - pitch) < 1e-3 for left, right in zip(alongs, alongs[1:])), door["recess"]
+    Break: score/review/holders/__init__.py: `if length >= pitch * (len(placed) - 1) - 1e-9:` -> `if True:`
 
-
-def test_a_monitor_stands_on_its_console_s_top():
-    """The concept shows the monitor's foot over the console's by more than a quarter of the console's box, its top
+[on-top] The concept shows the monitor's foot over the console's by more than a quarter of the console's box, its top
     above the console's top quarter: on the console's top, its nearest item named.
     Break: score/review/holders/__init__.py: `return under[3] - seen[3] > TOP_SHARE * tall and seen[1] < under[1] +
         TOP_SHARE * tall` -> `return False`
@@ -126,56 +51,17 @@ def test_a_monitor_stands_on_its_console_s_top():
     monitor (not flat) there, keep the side.
     Break: score/review/holders/__init__.py: held's `if plan_top and said != "side"` -> `if False and said != "side"`
     Break: score/review/holders/__init__.py: lies_flat's `<= FLAT_SHARE * min(` -> `<= 9.0 * min(` (the monitor on
-        the top), or stands_on_top's `<= STAND_REACH` -> `<= 9.0` (the stove on the floor on the top)"""
-    rows = [{"id": "console", "noun": "console", "anchor": "floor", "box": [300, 300, 700, 500]},
-            {"id": "monitor", "noun": "monitor", "anchor": "on:console", "box": [400, 220, 480, 330]}]
-    plan = plan_of([["CONSOLE 1", 2.0, 2.0, 3.0, 0.8, "S", "item"], ["CONSOLE 2", 12.0, 2.0, 3.0, 0.8, "S", "item"],
-                    ["MONITOR 1", 6.0, 2.0, 0.5, 0.2, None, "item"]],
-                   {"CONSOLE 1": ["console"], "CONSOLE 2": ["console"], "MONITOR 1": ["monitor"]})
-    monitor = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["monitor"]
-    assert (monitor["how"], monitor["holder"]) == ("top", "CONSOLE 1"), monitor
-    # its reading's placement word past `on`: under it at its foot, on its shelves within, on its side against it;
-    # "left side of the console" says where on it, never its side (quarters' cables, poster, 2026-11-04)
-    for where, wanted in (("under console", ("within", True)), ("on shelves", ("within", None)),
-                          ("console side", ("face", None)), ("left side of console", ("top", None))):
-        said = by_row(holders.relations(plan, {"rows": [rows[0], {**rows[1], "where": where}], "picture": PICTURE}))
-        assert (said["monitor"]["how"], said["monitor"].get("under")) == wanted, (where, said["monitor"])
-    counter = {"id": "kitchen_counter", "noun": "counter", "anchor": "floor", "size": [3.5, 0.6, 0.9],
-               "box": [1692, 603, 1949, 779]}
-    for size, base, wanted in (([0.6, 0.6, 0.05], 0.9, "top"), ([0.6, 0.6, 0.05], 0.0, "face"),
-                               ([0.5, 0.1, 0.4], 0.9, "face")):
-        stove = {"id": "stove_top", "noun": "stove", "anchor": "on:kitchen_counter", "where": "right wall, on counter",
-                 "size": size, "box": [1500, 700, 1680, 779]}
-        plan = plan_of([["KITCHEN COUNTER 1", 3.625, 0.775, 0.6, 3.5, "E", "item"],
-                        ["STOVE TOP 1", 4.017, 1.544, 0.566, 0.878, "E", "item"]],
-                       {"KITCHEN COUNTER 1": ["kitchen_counter"], "STOVE TOP 1": ["stove_top"]},
-                       shapes={"KITCHEN COUNTER 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
-                               "STOVE TOP 1": {"shape": "rect", "tall": 0.05, "base": base}})
-        found = by_row(holders.relations(plan, {"rows": [counter, stove], "picture": [3000, 1200]}))["stove_top"]
-        assert (found["how"], found["holder"]) == (wanted, "KITCHEN COUNTER 1"), (size, base, found)
-    # Flat (settle@flat, 2026-11-11): its second blanket, drawn at 0.7 m on the first blanket on its 0.5 m bed, its
-    # middle 1 cm past the bed's side, was laid against that side 0.24 m up: one the plan stacks on what stands on its
-    # holder's top is on that top; with the first blanket drawn elsewhere on the bed it stands on nothing there and
-    # keeps the side.
-    # Break: score/review/holders/__init__.py: stands_on_top's `or stacked.on_stack(item, holder_item, plan,
-    #     STAND_REACH)` dropped (the stacked blanket on the bed's side), or stacked.py's `meets(other, item)]` ->
-    #     `True]` (the blanket elsewhere on the bed holds it up)
-    bed = {"id": "bed", "noun": "bed", "anchor": "floor", "size": [2.0, 1.0, 0.5]}
-    blanket = {"id": "blanket", "noun": "blanket", "anchor": "on:bed", "where": "on bed, right", "size": [0.8, 0.6, 0.2]}
-    for first, wanted in (([2.536, 1.203], "top"), ([1.0, 1.1], "face")):
-        plan = plan_of([["BED 1", 0.994, 1.084, 1.912, 0.956, "E", "item"],
-                        ["BLANKET 1", *first, 0.478, 0.717, "W", "item"],
-                        ["BLANKET 2", 2.247, 1.753, 0.8, 0.6, None, "item"]],
-                       {"BED 1": ["bed"], "BLANKET 1": ["blanket"], "BLANKET 2": ["blanket"]},
-                       shapes={"BED 1": {"shape": "rect", "tall": 0.5, "base": 0.0},
-                               "BLANKET 1": {"shape": "rect", "tall": 0.2, "base": 0.5},
-                               "BLANKET 2": {"shape": "rect", "tall": 0.2, "base": 0.7}})
-        found = by_item_of(holders.relations(plan, {"rows": [bed, blanket], "picture": PICTURE}))["BLANKET 2"]
-        assert (found["how"], found["holder"]) == (wanted, "BED 1"), (first, found)
+        the top), or stands_on_top's `<= STAND_REACH` -> `<= 9.0` (the stove on the floor on the top)
+    its reading's placement word past `on`: under it at its foot, on its shelves within, on its side against it;
+    "left side of the console" says where on it, never its side (quarters' cables, poster, 2026-11-04)
+    Flat (settle@flat, 2026-11-11): its second blanket, drawn at 0.7 m on the first blanket on its 0.5 m bed, its
+    middle 1 cm past the bed's side, was laid against that side 0.24 m up: one the plan stacks on what stands on its
+    holder's top is on that top; with the first blanket drawn elsewhere on the bed it stands on nothing there and
+    keeps the side. Break: score/review/holders/__init__.py: stands_on_top's `or stacked.on_stack(item, holder_item,
+    plan,     STAND_REACH)` dropped (the stacked blanket on the bed's side), or stacked.py's `meets(other, item)]`
+    ->     `True]` (the blanket elsewhere on the bed holds it up)
 
-
-def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
-    """Round 32's docking airlock: the 1.8 m spacesuit's box lies in its 2 m locker's top half, so the concept reads
+[too-tall] Round 32's docking airlock: the 1.8 m spacesuit's box lies in its 2 m locker's top half, so the concept reads
     it as on the locker's top, and the assembly stood it there through the 2.5 m ceiling. On a top it must fit under
     the place's height (its tallest wall or its highest roof): here within the locker, where the plan lays it; under
     a dome rising to 4.2 m (the workshop's robotic arm on its console) it stays on the top.
@@ -200,178 +86,57 @@ def test_a_spacesuit_too_tall_for_its_locker_s_top_stands_within_it():
         across_run's `tall >= RUN_SHARE * thick and` dropped (the valve on the stub laid against it)
     Break: score/review/holders/__init__.py: held's `if off_wall:` -> `if False:` (the valve on the side the concept
         shows), or side_off_wall's `away * (numpy.abs(away) == numpy.abs(away).max())` -> `-away * (...)` (toward the
-        wall)"""
-    pipe, valve = {"size": [0.4, 32.0, 0.4]}, {"size": [0.6, 0.2, 0.6]}
-    assert holders.on_run(valve, pipe) and not holders.on_run({"size": [0.6, 0.2, 0.3]}, pipe)
-    assert not holders.on_run({"size": [0.5, 0.1, 0.8]}, {"size": [1.5, 0.5, 0.1]})
-    assert not holders.on_run({"size": [0.6, 0.4, 1.8]}, {"size": [0.4, 0.4, 0.5]}) and not holders.on_run({}, pipe)
-    runs = {"PIPE 1": ["PIPE 1", 0.0, 0.0, 32.0, 0.4, "S", "item"],
-            "VALVE 1": ["VALVE 1", 1.0, 0.0, 0.6, 0.2, "S", "item"]}
-    for size, how in (([0.6, 0.2, 0.6], "top"), ([0.6, 0.2, 0.3], "within")):
-        found = holders.held(runs["VALVE 1"], {"id": "pipe_valves", "noun": "valve", "anchor": "on:large_pipes",
-                                               "size": size}, {"id": "large_pipes", "noun": "pipe", "anchor": "wall",
-                                                               **pipe}, ["PIPE 1"], runs, 0.0)
-        assert (found["how"], found["holder"], found.get("rests")) == (how, "PIPE 1", how == "top" and "attached"
-                                                                       or None), found
-    standing = {"id": "pipe", "noun": "pipe", "anchor": "wall", "size": [0.1, 0.1, 2.5]}
-    walled = plan_of([], {}, walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
-                                    {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2}])
-    assert holders.side_off_wall(["PIPE 9", 5.0, 0.2, 0.2, 0.2, None, "item"], walled) == "S"
-    assert holders.side_off_wall(["PIPE 9", 0.2, 6.0, 0.2, 0.2, None, "item"], walled) == "E"
-    valve = {"id": "valve", "noun": "valve", "anchor": "on:pipe", "size": [0.2, 0.1, 0.2]}
-    found = holders.held(runs["VALVE 1"], valve, standing, ["PIPE 1"], runs, 0.0, off_wall="S")
-    assert (found["how"], found["face"]) == ("face", "S"), found
-    for size, holder, how in (([0.2, 0.1, 0.2], standing, "face"), ([0.08, 0.08, 0.2], standing, "within"),
-                              ([0.6, 0.2, 0.3], {**standing, "size": [0.4, 32.0, 0.4]}, "within"),
-                              ([0.2, 0.1, 0.2], {**standing, "size": [0.1, 0.1, 0.15]}, "within")):
-        found = holders.held(runs["VALVE 1"], {"id": "valve", "noun": "valve", "anchor": "on:pipe", "size": size},
-                             holder, ["PIPE 1"], runs, 0.0)
-        assert (found["how"], found["holder"]) == (how, "PIPE 1"), (size, found)
-    rows = [{"id": "locker", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0], "box": [681, 565, 813, 1062]},
-            {"id": "suit", "noun": "spacesuit", "anchor": "on:locker", "size": [0.6, 0.4, 1.8],
-             "box": [687, 565, 812, 789]}]
-    picture = [3000, 1200]
-    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2, "tall": 2.5}]
-    items = [["LOCKER 1", 2.0, 2.0, 0.8, 0.6, "S", "item"], ["SUIT 1", 2.1, 2.1, 0.6, 0.4, "S", "item"]]
-    tied = {"LOCKER 1": ["locker"], "SUIT 1": ["suit"]}
-    low = by_row(holders.relations(plan_of(items, tied, walls=walls), {"rows": rows, "picture": picture}))["suit"]
-    assert (low["how"], low["holder"]) == ("within", "LOCKER 1"), low
-    domed = plan_of(items, tied, walls=walls, roofs=[{"kind": "dome", "eave": 2.5, "top": 4.2}])
-    high = by_row(holders.relations(domed, {"rows": rows, "picture": picture}))["suit"]
-    assert high["how"] == "top", high
+        wall)
 
-
-def test_a_spacesuit_within_its_locker_hangs_and_a_tray_on_a_shelf_does_not():
-    """Round 32's docking airlock: its 1.8 m spacesuits at 0.1 m within their 2 m lockers hang (the assembly hangs
+[hangs] Round 32's docking airlock: its 1.8 m spacesuits at 0.1 m within their 2 m lockers hang (the assembly hangs
     them on the locker's back and judges them by touching). Within a holder, a thing hangs when its foot is over the
     holder's and under its top, it is at least half the holder's height and its top is in the holder's top quarter;
     a tray on a rack's shelf, a sticky note high in a locker, a 1.3 m thing low in a 2.5 m frame, a keyboard on its
     desk's top do not (none of them over all 26 env1 plans either).
     Break: score/review/holders/__init__.py: `and tall >= high / 2 and` -> `and` (the sticky note hangs)
     Break: score/review/holders/__init__.py: `and base + tall >= under + high * (1 - TOP_SHARE)` -> `` (the low
-        thing in its frame hangs)"""
-    shapes = {"LOCKER 1": {"base": 0.0, "tall": 2.0}, "SUIT 1": {"base": 0.1, "tall": 1.8},
-              "RACK 1": {"base": 0.1, "tall": 2.2}, "TRAY 1": {"base": 1.0, "tall": 0.1},
-              "NOTE 1": {"base": 1.5, "tall": 0.001}, "FRAME 1": {"base": 0.0, "tall": 2.5},
-              "CHASSIS 1": {"base": 0.2, "tall": 1.3}, "DESK 1": {"base": 0.0, "tall": 0.8},
-              "KEYBOARD 1": {"base": 0.8, "tall": 0.05}}
-    plan = plan_of([], {}, shapes=shapes)
-    found = {thing: holders.hangs([thing], [holder], plan) for thing, holder in (
-        ("SUIT 1", "LOCKER 1"), ("TRAY 1", "RACK 1"), ("NOTE 1", "LOCKER 1"), ("CHASSIS 1", "FRAME 1"),
-        ("KEYBOARD 1", "DESK 1"))}
-    assert found == {"SUIT 1": True, "TRAY 1": False, "NOTE 1": False, "CHASSIS 1": False, "KEYBOARD 1": False}, found
+        thing in its frame hangs)
 
-
-def test_a_spot_in_another_holder_like_its_anchor_s_is_held_by_that_one():
-    """Round 32's docking airlock: both spacesuits name the left locker, but the plan lays the second in the right
+[other-holder] Round 32's docking airlock: both spacesuits name the left locker, but the plan lays the second in the right
     locker's box, where it hung against the left locker's face 3 m away. The object its plan spot falls in holds it,
     where its anchor's does not and one like it (same anchor, a word shared) does; a spot in neither keeps its anchor.
     Break: score/review/holders/__init__.py: `if not any(inside(item, items[name]) for _, name in pairs):` ->
-        `if False:`"""
-    rows = [{"id": "locker_left", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0]},
-            {"id": "locker_right", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0]},
-            {"id": "suit", "noun": "spacesuit", "anchor": "on:locker_left", "size": [0.6, 0.4, 1.8]}]
-    plan = plan_of([["LOCKER LEFT 1", 2.0, 2.0, 0.8, 0.6, "S", "item"],
-                    ["LOCKER RIGHT 1", 10.0, 2.0, 0.8, 0.6, "S", "item"],
-                    ["SUIT 1", 2.1, 2.1, 0.6, 0.4, "S", "item"], ["SUIT 2", 10.1, 2.1, 0.6, 0.4, "S", "item"],
-                    ["SUIT 3", 6.0, 6.0, 0.6, 0.4, "S", "item"]],
-                   {"LOCKER LEFT 1": ["locker_left"], "LOCKER RIGHT 1": ["locker_right"], "SUIT 1": ["suit"],
-                    "SUIT 2": ["suit"], "SUIT 3": ["suit"]})
-    found = {entry["item"]: (entry["how"], entry["holder"]) for entry in holders.relations(
-        plan, {"rows": rows, "picture": PICTURE})["relations"] if entry["row"] == "suit"}
-    assert found["SUIT 1"] == ("within", "LOCKER LEFT 1") and found["SUIT 2"] == ("within", "LOCKER RIGHT 1"), found
-    assert found["SUIT 3"][1] == "LOCKER LEFT 1", found
+        `if False:`
 
-
-def test_monitors_the_concept_shows_on_two_consoles_stand_on_the_nearest():
-    """Hub (2026-10-29): the reading anchors all 38 monitors on its 3 x 0.8 m control bank (one anchor a row), but the
+[nearest-console] Hub (2026-10-29): the reading anchors all 38 monitors on its 3 x 0.8 m control bank (one anchor a row), but the
     concept shows them on the bank and on a console beside it. Each monitor stands on the nearest of the rows like
     its named holder (the same anchor, a word of what it is shared: control) that the concept shows its things on;
     the chair a monitor's foot also falls in, a row of another kind, holds none.
     Break: score/review/holders/__init__.py: `and kind_words(other) & kind_words(holder)]` -> `]`
     Break: score/review/holders/__init__.py: `items, shown = plan_items(plan), seen_holders(row, holder, rows, laid)`
-        -> `items, shown = plan_items(plan), [holder]`"""
-    rows = [{"id": "main_control_bank", "noun": "control bank", "anchor": "floor", "box": [100, 200, 400, 500]},
-            {"id": "control_console_right", "noun": "console", "anchor": "floor", "box": [600, 300, 900, 500]},
-            {"id": "chair", "noun": "chair", "anchor": "floor", "box": [650, 380, 700, 470]},
-            {"id": "monitor_screen", "noun": "monitor", "anchor": "on:main_control_bank",
-             "boxes": [[150, 150, 200, 260], [660, 300, 700, 400], [800, 240, 850, 340]]}]
-    plan = plan_of([["MAIN CONTROL BANK 1", 1.0, 1.0, 3.0, 0.8, "S", "item"],
-                    ["CONTROL CONSOLE RIGHT 1", 14.0, 1.0, 3.0, 0.8, "S", "item"],
-                    ["CHAIR 1", 15.0, 2.5, 0.6, 0.6, None, "item"],
-                    ["MONITOR SCREEN 1", 2.0, 1.2, 0.5, 0.1, None, "item"],
-                    ["MONITOR SCREEN 2", 15.0, 1.2, 0.5, 0.1, None, "item"],
-                    ["MONITOR SCREEN 3", 15.2, 2.6, 0.5, 0.1, None, "item"]],
-                   {"MAIN CONTROL BANK 1": ["main_control_bank"], "CONTROL CONSOLE RIGHT 1": ["control_console_right"],
-                    "CHAIR 1": ["chair"], "MONITOR SCREEN 1": ["monitor_screen"],
-                    "MONITOR SCREEN 2": ["monitor_screen"], "MONITOR SCREEN 3": ["monitor_screen"]})
-    found = {entry["item"]: entry["holder"] for entry in holders.relations(plan, {"rows": rows, "picture": PICTURE})[
-        "relations"] if entry["row"] == "monitor_screen"}
-    assert found == {"MONITOR SCREEN 1": "MAIN CONTROL BANK 1", "MONITOR SCREEN 2": "CONTROL CONSOLE RIGHT 1",
-                     "MONITOR SCREEN 3": "CONTROL CONSOLE RIGHT 1"}, found
+        -> `items, shown = plan_items(plan), [holder]`
 
-
-def test_a_door_goes_in_the_plan_s_opening_and_the_next_in_one_cut_for_it():
-    """Two door rows the plan writer left on the walls item, one door opening on the north wall: the first goes in
+[cut-opening] Two door rows the plan writer left on the walls item, one door opening on the north wall: the first goes in
     it; the second, with no opening left (cockpit's four rear doors, 2026-10-29: one opening on its plan), in an
     opening cut for it where its spot meets the nearest wall: with no projection (no rows laid alike) its one piece
     spread along the longest wall, at (10, 0), its own 1.0 m wide and 2.1 m tall from the floor.
     Break: score/review/holders/__init__.py: `found = in_opening(item, row, plan, inventory, taken) if
         design_shell.fills_opening(row) else None` -> `found = None`
     Break: score/review/holders/__init__.py: `found = [in_plan_opening(spot, row, plan, taken) or (cut_in(spot, row,
-        item, plan) if spot is not None else None)` -> `found = [in_plan_opening(spot, row, plan, taken)`"""
-    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.2, 0.1, 2.1]},
-            {"id": "back_door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]}]
-    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}, {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["door", "back_door"]}, walls=walls,
-                   openings=[{"kind": "door", "at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2}])
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    assert found["door"]["how"] == "in" and found["door"]["opening"]["at"] == [5.0, 0.0], found["door"]
-    assert found["back_door"]["how"] == "in" and found["back_door"]["opening"] == {
-        "at": [10.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1, "cut": True}, found["back_door"]
+        item, plan) if spot is not None else None)` -> `found = [in_plan_opening(spot, row, plan, taken)`
 
-
-def test_a_window_takes_a_window_s_opening_and_a_door_a_door_s():
-    """#36, camp: the relations gave the dome door's opening to a dome window (the plan draws only door openings), so
+[window-opening] #36, camp: the relations gave the dome door's opening to a dome window (the plan draws only door openings), so
     the window stood in the door's swing. With one door opening at (5, 0) and a window laid first, at the north
     wall's east end: the window is cut where its spot meets the wall, kept 0.25 + OPENING_ROOM + the wall's 0.2 m
     inside its end (x 19.35), and the door takes the door opening.
     Break: score/review/holders/__init__.py: `if number not in taken and (opening["kind"] == "window") == (word ==
         "window")]` -> `if number not in taken]`
     Break: score/review/holders/__init__.py: `at = start + run * kept_along(float((on_line(spot, wall) - start) @
-        run), length, keep)` -> `at = on_line(spot, wall)`"""
-    rows = [{"id": "dome_window", "noun": "window", "anchor": "wall", "size": [0.5, 0.1, 0.5]},
-            {"id": "dome_door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.0]}]
-    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}, {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
-    plan = plan_of([["DOME WINDOW 1", 19.6, 0.0, 0.2, 0.1, None, "item"],
-                    ["DOME DOOR 1", 4.5, 0.0, 1.0, 0.2, None, "item"]],
-                   {"DOME WINDOW 1": ["dome_window"], "DOME DOOR 1": ["dome_door"]}, walls=walls,
-                   openings=[{"kind": "door", "at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2}])
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    assert found["dome_window"]["opening"] == {"at": [19.35, 0.0], "wide": 0.5, "sill": 0.9, "head": 1.4,
-                                               "cut": True}, found["dome_window"]
-    assert found["dome_door"]["opening"]["at"] == [5.0, 0.0] and "cut" not in found["dome_door"]["opening"], found
+        run), length, keep)` -> `at = on_line(spot, wall)`
 
-
-def test_doors_laid_on_one_item_each_get_their_own_opening():
-    """#36, cockpit: the plan lays its four 1.2 m rear doors on one item, so its relation gave them one opening and
+[own-openings] #36, cockpit: the plan lays its four 1.2 m rear doors on one item, so its relation gave them one opening and
     the scene record stacked all four in it. Each piece takes an opening of its own where the scene record lays it
     (along the item, x 8.25 to 9.75 on the north wall), cut at its built width and spread apart along the wall with
     OPENING_ROOM between them: middles 8.25, 9.65, 11.05, 12.45.
     Break: score/review/holders/__init__.py: `return [spot for spot, _ in piece_middles(item, row, plan)]` ->
-        `return [middle(item)]`"""
-    rows = [{"id": "rear_door", "noun": "door", "anchor": "wall", "size": [1.2, 0.2, 2.1], "count": 4}]
-    plan = plan_of([["REAR DOOR 1", 8.0, 0.2, 2.0, 0.4, None, "item"]], {"REAR DOOR 1": ["rear_door"]},
-                   walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}])
-    door = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["rear_door"]
-    assert [piece["opening"]["at"] for piece in door["pieces"]] == [[8.25, 0.0], [9.65, 0.0], [11.05, 0.0],
-                                                                     [12.45, 0.0]], door
-    assert all(piece["opening"]["wide"] == 1.2 and piece["opening"]["cut"] for piece in door["pieces"]), door
+        `return [middle(item)]`
 
-
-def test_openings_are_cut_at_their_built_widths_spread_apart_on_their_wall():
-    """#36: stairwell's plan drew its 1 m doors and gate in 0.39 m openings, and the assembly shrank them to 0.39 m;
+[built-widths] #36: stairwell's plan drew its 1 m doors and gate in 0.39 m openings, and the assembly shrank them to 0.39 m;
     habitat's 1 m door and 1.5 m window, drawn 0.42 m apart, would meet cut at their widths. On a 20 m wall a 1 m door
     in a 0.39 m opening at x 19.8 is cut at its own 1 m, a 2 m window in a 0.2 m opening at x 18.7 at its 2 m; meeting,
     they are spread apart in their order along the wall, 0.2 m between them and 0.2 m plus the wall's 0.2 m inside its
@@ -389,72 +154,16 @@ def test_openings_are_cut_at_their_built_widths_spread_apart_on_their_wall():
     Break: score/review/holders/__init__.py: `if wide <= float(opening["wide"]):` -> `if True:`
     Break: score/review/holders/__init__.py: `crowded = spread(found)` -> `crowded = []`
     Break: score/review/holders/__init__.py: `return lefts if lefts and lefts[0] >= room - 1e-9 else None` ->
-        `return lefts`"""
-    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]},
-            {"id": "window", "noun": "window", "anchor": "wall", "size": [2.0, 0.1, 1.0]}]
-    walls = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["door", "window"]}, walls=walls,
-                   openings=[{"kind": "door", "at": [19.8, 0.0], "wide": 0.39, "sill": 0.0, "head": 2.2},
-                             {"kind": "window", "at": [18.7, 0.0], "wide": 0.2, "sill": 1.0, "head": 2.0}])
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    assert by_row(found)["door"]["opening"] == {"at": [19.1, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.2,
-                                                "cut": True}, by_row(found)["door"]
-    assert by_row(found)["window"]["opening"] == {"at": [17.4, 0.0], "wide": 2.0, "sill": 1.0, "head": 2.0,
-                                                  "cut": True}, by_row(found)["window"]
-    assert "crowded" not in found
-    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [2.0, 0.1, 2.1]},
-            {"id": "back_door", "noun": "door", "anchor": "wall", "size": [2.0, 0.1, 2.1]}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 4.0, 12.0, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["door", "back_door"]}, walls=[{"from": [0.0, 0.0], "to": [4.0, 0.0],
-                                                                           "thick": 0.2}],
-                   openings=[{"kind": "door", "at": [1.5, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2},
-                             {"kind": "door", "at": [2.5, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2}])
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    assert sorted(entry["opening"]["wide"] for entry in found["relations"]) == [0.3, 0.3], found["relations"]
-    assert [sorted(entry["rows"]) for entry in found["crowded"]] == [["back_door", "door"]], found.get("crowded")
-    rows = [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]},
-            {"id": "shutter", "noun": "shutter", "anchor": "wall", "size": [3.0, 0.1, 3.0]}]
-    small = [{"from": [0.0, 0.0], "to": [4.6, 0.0], "thick": 0.1}, {"from": [4.6, 0.0], "to": [4.6, 6.0], "thick": 0.1},
-             {"from": [4.6, 6.0], "to": [0.0, 6.0], "thick": 0.1}, {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.1}]
-    plan = plan_of([["DOOR 1", 1.8, 0.0, 1.0, 0.1, None, "item"], ["SHUTTER 1", 2.5, 0.3, 3.0, 0.1, None, "item"]],
-                   {"DOOR 1": ["door"], "SHUTTER 1": ["shutter"]}, walls=small,
-                   openings=[{"kind": "door", "at": [2.3, 0.0], "wide": 1.5, "sill": 0.0, "head": 2.2}])
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    assert by_row(found)["door"]["opening"]["at"] == [2.3, 0.0], by_row(found)["door"]
-    assert (by_row(found)["shutter"]["wall"]["from"], by_row(found)["shutter"]["wall"]["to"]) == (
-        [4.6, 0.0], [4.6, 6.0]) and "crowded" not in found, found
-    rows = [{"id": "window", "noun": "window", "anchor": "wall", "size": [0.5, 0.1, 0.5]}]
-    plan = plan_of([["WINDOW 1", 5.0, 0.3, 0.5, 0.1, None, "item"]], {"WINDOW 1": ["window"]},
-                   walls=[{"from": [5.0, 0.0], "to": [5.6, 0.0], "thick": 0.1},
-                          {"from": [0.0, 3.0], "to": [12.0, 3.0], "thick": 0.1}])
-    window = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["window"]
-    assert (window["wall"]["from"], window["opening"]["at"]) == ([5.0, 0.0], [5.3, 0.0]), window
+        `return lefts`
 
-
-def test_a_street_facade_stands_past_its_edge_and_its_units_on_its_face():
-    """Street (2026-10-29): its building facades, wall rows the plan writer left on the walls item, stood at the
+[facade] Street (2026-10-29): its building facades, wall rows the plan writer left on the walls item, stood at the
     street's middle, the AC units on them held by nothing (the plan draws no wall). A facade whose concept box stands
     in the view's left half stands past the plan's left edge (the viewer looking north: W), at its middle; a unit on
     it stands against its face toward the street, E.
     Break: score/review/holders/__init__.py: `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row":
-        holder["id"],` -> `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": None,`"""
-    rows = [{"id": "left_building_facade", "noun": "building facade", "part": "wall", "anchor": "ground",
-             "box": [0, 0, 300, 600]},
-            {"id": "air_conditioner_unit", "noun": "air conditioner", "anchor": "on:left_building_facade",
-             "box": [100, 200, 160, 240]}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 6.0, 30.0, None, "item"],
-                    ["AIR CONDITIONER UNIT 1", 0.5, 10.0, 0.8, 0.4, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["left_building_facade"], "AIR CONDITIONER UNIT 1": ["air_conditioner_unit"]},
-                   structure=["left_building_facade"], w=6.0, d=30.0)
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    facade, unit = found["left_building_facade"], found["air_conditioner_unit"]
-    assert (facade["how"], facade["edge"], facade["spot"]) == ("edge", "W", [0.0, 15.0]), facade
-    assert (unit["how"], unit["holder row"], unit["face"]) == ("face", "left_building_facade", "E"), unit
+        holder["id"],` -> `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": None,`
 
-
-def test_things_on_one_face_that_meet_at_their_built_widths_are_spread_along_it():
-    """Street (#36): its 3 m window, stairwell entrance and roller shutters were laid at their built widths on 1.74 m
+[face-spread] Street (#36): its 3 m window, stairwell entrance and roller shutters were laid at their built widths on 1.74 m
     plan items and overlapped on their facade's face. On a 30 m facade a 3 m window drawn at y 10 and a 3 m shutter
     drawn 1.74 m after it meet at their widths: the window keeps its spot, the shutter is spread on past it, 0.2 m
     (OPENING_ROOM) between them, to y 13.2; an air conditioner above both (3.0 m up, both 3.0 m tall at most) meets
@@ -470,105 +179,29 @@ def test_things_on_one_face_that_meet_at_their_built_widths_are_spread_along_it(
     them on its S side, too short for the three: each turned to the side the plan draws it on, none crowded (storage's
     pillar pipes laid in one another on one side).
     Break: score/review/holders/__init__.py: `if not [turned for _, entries in crowded for turned in
-        [turned_toward(entries, items)] if turned]:` -> `if True:`"""
-    def facade_plan(long):
-        rows = [{"id": "left_building_facade", "noun": "building facade", "part": "wall", "anchor": "ground",
-                 "size": [3.0, long, 20.0], "box": [0, 0, 300, 600]},
-                {"id": "window", "noun": "window", "anchor": "on:left_building_facade", "size": [3.0, 0.1, 2.5]},
-                {"id": "shutter", "noun": "shutter", "anchor": "on:left_building_facade", "size": [3.0, 0.1, 3.0]},
-                {"id": "air_conditioner_unit", "noun": "air conditioner", "anchor": "on:left_building_facade",
-                 "size": [0.8, 0.4, 0.6]}]
-        plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 6.0, long, None, "item"],
-                        ["WINDOW 1", 0.5, long / 2 - 5.87, 0.5, 1.74, "E", "item"],
-                        ["SHUTTER 1", 0.5, long / 2 - 4.13, 0.5, 1.74, "E", "item"],
-                        ["AIR CONDITIONER UNIT 1", 0.5, long / 2 - 5.3, 0.4, 0.6, "E", "item"]],
-                       {plan_checks.WALLS_ITEM: ["left_building_facade"], "WINDOW 1": ["window"],
-                        "SHUTTER 1": ["shutter"], "AIR CONDITIONER UNIT 1": ["air_conditioner_unit"]},
-                       structure=["left_building_facade"], w=6.0, d=long)
-        plan["shapes"] = {"AIR CONDITIONER UNIT 1": {"base": 3.0}}
-        return holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    found = facade_plan(30.0)
-    spread = by_row(found)
-    assert "spots" not in spread["window"] and "spots" not in spread["air_conditioner_unit"], spread
-    assert spread["shutter"]["spots"] == [[0.75, 13.2]], spread["shutter"]
-    assert "crowded" not in found and all("_holder" not in entry for entry in found["relations"]), found
-    found = facade_plan(6.0)
-    assert all("spots" not in entry for entry in found["relations"]), found["relations"]
-    assert [(entry["face"], entry["rows"]) for entry in found["crowded"]] == [("E", ["air_conditioner_unit", "shutter", "window"])], found
-    rows = [{"id": "pillar", "noun": "pillar", "anchor": "floor", "size": [0.3, 0.3, 3.0], "box": [500, 100, 600, 560]},
-            {"id": "pillar_pipe", "noun": "pipe", "anchor": "on:pillar", "size": [0.13, 0.1, 3.0],
-             "box": [530, 100, 570, 560]}]
-    plan = plan_of([["PILLAR 1", 8.0, 5.0, 0.3, 0.3, None, "item"],
-                    ["PILLAR PIPE 1", 8.1, 4.9, 0.1, 0.1, None, "item"],
-                    ["PILLAR PIPE 2", 8.1, 5.3, 0.1, 0.1, None, "item"],
-                    ["PILLAR PIPE 3", 8.3, 5.1, 0.1, 0.1, None, "item"]],
-                   {"PILLAR 1": ["pillar"], **{f"PILLAR PIPE {number}": ["pillar_pipe"] for number in (1, 2, 3)}})
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    faces = [by_item_of(found)[f"PILLAR PIPE {number}"]["face"] for number in (1, 2, 3)]
-    assert faces == ["N", "S", "E"] and "crowded" not in found, (faces, found.get("crowded"))
+        [turned_toward(entries, items)] if turned]:` -> `if True:`
 
-
-def test_things_drawn_past_their_holder_s_built_end_are_spread_inside_it():
-    """Hub (#36, assembly@hub held): three 0.5 m monitors drawn against a 9 m console item stood past its 4.5 m built
+[built-end] Hub (#36, assembly@hub held): three 0.5 m monitors drawn against a 9 m console item stood past its 4.5 m built
     model's end, apart as drawn; the assembly kept each inside the face's ends and they overlapped there by 0.5 m. Kept
     inside the ends as the assembly keeps them they meet, so they are spread along it in their plan order, 0.2 m
     apart and 0.2 m inside its end.
     Break: score/review/holders/__init__.py: `kept = [kept_on_face(piece, half) for piece in pieces]` ->
-        `kept = [piece["along"] for piece in pieces]`"""
-    rows = [{"id": "console", "noun": "console", "anchor": "floor", "size": [4.5, 0.8, 1.0]},
-            {"id": "monitor", "noun": "monitor", "anchor": "on:console", "size": [0.5, 0.1, 0.4]}]
-    items = [["CONSOLE 1", 0.0, 4.0, 9.0, 1.0, "N", "item"]]
-    items += [[f"MONITOR {number}", along, 5.0, 0.5, 0.1, None, "item"]
-              for number, along in ((1, 6.5), (2, 7.5), (3, 8.4))]
-    plan = plan_of(items, {"CONSOLE 1": ["console"], **{item[0]: ["monitor"] for item in items[1:]}})
-    plan["shapes"] = {item[0]: {"base": 1.0} for item in items[1:]}
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    faces = [entry for entry in found["relations"] if entry["row"] == "monitor"]
-    assert [(entry["how"], entry["face"]) for entry in faces] == [("face", "S")] * 3, faces
-    assert [entry["spots"] for entry in faces] == [[[4.9, 5.05]], [[5.6, 5.05]], [[6.3, 5.05]]], faces
-    assert "crowded" not in found, found
+        `kept = [piece["along"] for piece in pieces]`
 
-
-def test_a_stair_the_plan_writer_left_unplaced_stands_at_the_plan_s_stair():
-    """Greenhouse (2026-10-29): its two stairs rows, on its lower floor, stood at the room's middle (the walls item);
+[stair] Greenhouse (2026-10-29): its two stairs rows, on its lower floor, stood at the room's middle (the walls item);
     the plan draws its stairs. Each stands at the next stair's middle, along its way up (90 degrees: south, the
     plan's y).
-    Break: score/review/holders/__init__.py: `if words_of(row) & STAIR_WORDS and stairs:` -> `if False:`"""
-    rows = [{"id": "lower_floor", "noun": "floor", "part": "floor", "anchor": "ground"},
-            {"id": "stairs", "noun": "stairs", "anchor": "on:lower_floor", "count": 1}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["lower_floor", "stairs"]}, structure=["lower_floor"],
-                   stairs=[{"kind": "stair", "points": [[2.0, 2.0], [6.0, 2.0], [6.0, 3.0], [2.0, 3.0]], "angle": 90}])
-    stairs = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["stairs"]
-    assert stairs["how"] == "floor" and stairs["spot"] == [4.0, 2.5] and stairs["way"] == [0.0, 1.0], stairs
+    Break: score/review/holders/__init__.py: `if words_of(row) & STAIR_WORDS and stairs:` -> `if False:`
 
-
-def test_a_ramp_runs_up_to_the_nearest_raised_level_s_edge():
-    """Airlock (settle@airlock, 2026-10-30): its ramp's plan item ended 0.42 m short of its porch deck (0.2 m up), its
+[ramp] Airlock (settle@airlock, 2026-10-30): its ramp's plan item ended 0.42 m short of its porch deck (0.2 m up), its
     long side along the deck's edge, so the record laid it beside the deck, its end in the deck's slab. A ramp row on
     the ground climbs to the nearest raised level: its 2 m long side run straight up to that level's nearest edge
     (x 9.889, the way up east, into the level), its high end on the edge, its middle 1 m short of it at the item's y;
     a bench beside the same deck, no ramp, gets no relation, and with no raised level the ramp gets none either.
     Break: score/review/holders/__init__.py: `way = way if way @ (inner - start) > 0 else -way` -> `... < 0 ...`
-    Break: score/review/holders/__init__.py: `None) or up_to_level(item, row, plan)` -> `None)`"""
-    rows = [{"id": "ramp", "noun": "ramp", "anchor": "ground", "size": [1.2, 2.0, 0.2]},
-            {"id": "bench", "noun": "bench", "anchor": "ground", "size": [1.2, 0.4, 0.4]}]
-    items = [["RAMP 1", 8.267, 10.904, 1.2, 2.0, None, "item"], ["BENCH 1", 8.0, 9.0, 1.2, 0.4, None, "item"]]
-    tied = {"RAMP 1": ["ramp"], "BENCH 1": ["bench"]}
-    levels = [{"name": "the floor", "height": 0.0, "points": [[0.0, 0.0], [12.0, 0.0], [12.0, 12.0], [0.0, 12.0]]},
-              {"name": "the porch deck", "height": 0.2,
-               "points": [[9.889, 8.625], [15.298, 8.625], [15.298, 14.74], [9.889, 14.74]]}]
-    found = by_row(holders.relations(plan_of(items, tied, levels=levels), {"rows": rows, "picture": PICTURE}))
-    assert sorted(found) == ["ramp"], found
-    ramp = found["ramp"]
-    assert ramp["how"] == "ramp" and ramp["way"] == [1.0, 0.0] and ramp["height"] == 0.2, ramp
-    assert ramp["spot"] == [8.889, 11.904] and ramp["edge"] == [[9.889, 14.74], [9.889, 8.625]], ramp
-    flat = holders.relations(plan_of(items, tied, levels=levels[:1]), {"rows": rows, "picture": PICTURE})
-    assert flat["relations"] == [], flat
+    Break: score/review/holders/__init__.py: `None) or up_to_level(item, row, plan)` -> `None)`
 
-
-def test_a_wall_lamp_stands_on_its_wall_s_room_side():
-    """A lamp on the left wall (a structure row, part wall) the plan writer left on the walls item stands against the
+[wall-side] A lamp on the left wall (a structure row, part wall) the plan writer left on the walls item stands against the
     longest wall's middle, on the side of its line toward the plan's middle: walking it from (0, 0) to (0, 12) (y
     south), the room to +x is its line's side -1.
     Break: score/review/holders/__init__.py: `side = off_line(numpy.array([float(plan["w"]) / 2, float(plan["d"]) /
@@ -588,90 +221,23 @@ def test_a_wall_lamp_stands_on_its_wall_s_room_side():
     Break: score/review/holders/__init__.py: `said = "side" if rests(row) == LEANING else placement(row,
         holder_row)` -> `said = placement(row, holder_row)`
     Break: score/review/holders/__init__.py: `found.append({"item": name, "row": row_id, **got, **rests_entry(row)})`
-        -> `found.append({"item": name, "row": row_id, **got})` (the second, the held rows')"""
-    turn = numpy.radians(7.5)
-    middle = [10.0 + 4.6 * numpy.cos(turn), 6.0 + 4.6 * numpy.sin(turn)]
-    round_plan = plan_of([["PANEL 1", middle[0] - 0.1, middle[1] - 0.1, 0.2, 0.2, None, "item"]], {"PANEL 1": ["panel"]},
-                         walls=[{"arc": {"centre": [10.0, 6.0], "radius": 5.0, "start": 315.0, "end": 45.0},
-                                 "thick": 0.2}])
-    panel = by_row(holders.relations(round_plan, {"rows": [{"id": "panel", "noun": "panel", "anchor": "wall",
-                                                             "size": [1.0, 0.1, 1.0]}], "picture": PICTURE}))["panel"]
-    assert panel["how"] == "wall" and numpy.allclose(panel["wall"]["from"], [15.0, 6.0], atol=1e-3) and numpy.allclose(
-        panel["wall"]["to"], [10.0 + 5 * numpy.cos(numpy.radians(15)), 6.0 + 5 * numpy.sin(numpy.radians(15))],
-        atol=1e-3), panel
-    rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
-            {"id": "wall_lamp", "noun": "lamp", "anchor": "on:left_wall", "size": [0.3, 0.2, 0.3]}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["left_wall", "wall_lamp"]}, structure=["left_wall"],
-                   walls=[{"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2},
-                          {"from": [0.0, 0.0], "to": [4.0, 0.0], "thick": 0.2}])
-    lamp = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["wall_lamp"]
-    assert lamp["how"] == "wall" and lamp["wall"]["to"] == [0.0, 12.0] and lamp["side"] == -1, lamp
-    assert lamp["spot"] == [0.0, 6.0], lamp
-    rows += [{"id": "board", "noun": "board", "anchor": "floor", "where": "left, leaning against the left wall",
-              "size": [0.4, 0.05, 0.6]},
-             {"id": "sign", "noun": "sign", "anchor": "on:left_wall", "where": "left wall, attached to the left wall",
-              "size": [0.4, 0.05, 0.3]},
-             {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0], "box": [400, 300, 600, 500]},
-             {"id": "plank", "noun": "plank", "anchor": "on:crate", "where": "centre, leaning against the crate",
-              "size": [0.3, 0.05, 0.8], "box": [450, 200, 550, 300]}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],
-                    ["BOARD 1", 1.0, 5.0, 0.4, 0.1, None, "item"], ["CRATE 1", 9.5, 5.5, 1.0, 1.0, None, "item"],
-                    ["PLANK 1", 9.8, 5.7, 0.3, 0.1, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["left_wall", "wall_lamp", "sign"], "BOARD 1": ["board"],
-                    "CRATE 1": ["crate"], "PLANK 1": ["plank"]}, structure=["left_wall"], walls=plan["walls"])
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    board, sign, plank = found["board"], found["sign"], found["plank"]
-    assert (board["how"], board["rests"], board["wall"]["to"]) == ("wall", "leaning", [0.0, 12.0]), board
-    assert "height" not in board, board
-    assert (sign["how"], sign["rests"], sign["height"]) == ("wall", "attached", 1.35), sign
-    assert (plank["how"], plank["holder"], plank["rests"]) == ("face", "CRATE 1", "leaning"), plank
-    assert "rests" not in found["wall_lamp"], found["wall_lamp"]
+        -> `found.append({"item": name, "row": row_id, **got})` (the second, the held rows')
 
-
-def test_a_thing_drawn_past_its_wall_stands_in_the_room_and_a_tunnel_outside():
-    """Hangar (held@hangar, 2026-10-30): two of its back-wall pipes were drawn 1.6 and 2.3 m past the wall the outline
+[past-wall] Hangar (held@hangar, 2026-10-30): two of its back-wall pipes were drawn 1.6 and 2.3 m past the wall the outline
     closes the room with, so they stood against its outer face, outside the hangar, 0.48 m in the built wall. A thing
     against a wall drawn past the outline stands on the room's side; a tunnel the concept shows meeting the wall from
     outside (garage's glass tunnel) keeps its side. Walking the back wall from (20, 12) to (0, 12), the room (north,
     -y) is its side +1.
     Break: score/review/holders/__init__.py: `or (placed and past_outline(spot, row, plan))` -> ``
-    Break: score/review/holders/__init__.py: `and not kind_words(row) & PASSAGE_WORDS and not` -> `and not`"""
-    rows = [{"id": "large_pipes", "noun": "pipes", "anchor": "wall", "size": [0.4, 8.0, 0.4]},
-            {"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [2.5, 4.0, 2.5]}]
-    items = [["LARGE PIPES 1", 10.0, 12.0, 1.0, 3.1, None, "item"], ["GLASS TUNNEL 1", 3.0, 12.3, 1.7, 4.2, "S", "item"]]
-    plan = plan_of(items, {"LARGE PIPES 1": ["large_pipes"], "GLASS TUNNEL 1": ["glass_tunnel"]},
-                   outline=[[0.0, 0.0], [20.0, 0.0], [20.0, 12.0], [0.0, 12.0]],
-                   walls=[{"from": [20.0, 12.0], "to": [0.0, 12.0], "thick": 0.6}])
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    assert found["large_pipes"]["how"] == "wall" and found["large_pipes"]["side"] == 1, found
-    assert found["glass_tunnel"]["how"] == "wall" and found["glass_tunnel"]["side"] == -1, found
+    Break: score/review/holders/__init__.py: `and not kind_words(row) & PASSAGE_WORDS and not` -> `and not`
 
-
-ROOM_WALLS = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
-              {"from": [0.0, 12.0], "to": [20.0, 12.0], "thick": 0.2},
-              {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2},
-              {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
-
-
-def test_two_wall_panels_each_drawn_as_the_whole_room_stand_on_walls_of_their_own():
-    """Engineroom (#36): the plan draws its two wall panels each as the whole room, on a hull that names no side; each
+[two-panels] Engineroom (#36): the plan draws its two wall panels each as the whole room, on a hull that names no side; each
     stands at the middle of the nearest wall the other does not hold (N, then S: both 6 m from the middle), never both
     at the room's middle.
     Break: score/review/holders/__init__.py: `free = [wall for wall in walls if wall_key(wall) not in taken] or walls`
-        -> `free = walls`"""
-    rows = [{"id": "hull", "noun": "hull", "part": "wall", "anchor": "floor"},
-            {"id": "wall_panel", "noun": "panel", "anchor": "on:hull", "size": [20.0, 12.0, 3.5]}]
-    plan = plan_of([["PANEL 1", 0.5, 0.5, 19.0, 11.0, None, "item"], ["PANEL 2", 0.5, 0.5, 19.0, 11.0, None, "item"]],
-                   {"PANEL 1": ["wall_panel"], "PANEL 2": ["wall_panel"]}, walls=ROOM_WALLS)
-    found = {entry["item"]: entry for entry in holders.relations(plan, {"rows": rows, "picture": PICTURE})["relations"]}
-    assert found["PANEL 1"]["wall"]["to"] == [20.0, 0.0] and found["PANEL 1"]["spot"] == [10.0, 0.0], found
-    assert found["PANEL 2"]["wall"]["to"] == [20.0, 12.0] and found["PANEL 2"]["spot"] == [10.0, 12.0], found
-    assert found["PANEL 1"]["side"] == 1 and found["PANEL 2"]["side"] == -1, found  # each on its room side
+        -> `free = walls`
 
-
-def test_lights_on_the_wall_their_anchor_names_spread_along_it():
-    """Quarters (#36): its string lights and wall light, left on the walls item and anchored on its left wall, stand on
+[wall-spread] Quarters (#36): its string lights and wall light, left on the walls item and anchored on its left wall, stand on
     the wall furthest to the viewer's left (x 0: the viewer looks north), not the longest; both at its spot, they are
     spread evenly along it, a third and two thirds of the way.
     Break: score/review/holders/__init__.py: `wall = named_wall(holder, plan, turn) if holder is not None else None`
@@ -793,351 +359,967 @@ def test_lights_on_the_wall_their_anchor_names_spread_along_it():
     (corner_trims), not on its wall's line: a 0.8 m cabinet drawn at the end of a 3.2 m line whose corner walls are
     0.4 m thick is kept 0.2 m further in, so the one drawn 0.05 m clear of it on the line slides clear of it.
     Break: score/review/holders/__init__.py: `first, last = corner_trims(plan, start, end)  # its face's ends` ->
-        `first, last = 0.0, 0.0  # its face's ends`"""
-    rows = [{"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
-            {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
-            {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["left_wall", "string_lights", "wall_light"]}, structure=["left_wall"],
-                   walls=ROOM_WALLS)
-    found = by_row(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    assert [found[row]["wall"]["to"] for row in ("string_lights", "wall_light")] == [[0.0, 12.0], [0.0, 12.0]], found
-    assert sorted(found[row]["spot"] for row in ("string_lights", "wall_light")) == [[0.0, 4.0], [0.0, 8.0]], found
-    rows = [{"id": "tools", "noun": "tool", "anchor": "wall", "where": "left wall", "size": [0.5, 0.05, 0.3], "count": 6},
-            {"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "back", "size": [6.0, 0.2, 0.2]},
-            {"id": "crane", "noun": "crane", "anchor": "wall", "where": "top, spanning left to right",
-             "size": [18.0, 2.0, 1.0]},
-            {"id": "lamp", "noun": "lamp", "anchor": "wall", "where": "high on the right wall", "size": [0.8, 0.2, 0.3]},
-            {"id": "desk", "noun": "desk", "anchor": "floor", "size": [2.0, 0.8, 0.8]},
-            {"id": "chair", "noun": "chair", "anchor": "floor", "where": "at the desk", "size": [0.6, 0.6, 1.0]},
-            {"id": "staircase", "noun": "staircase", "anchor": "floor"},
-            {"id": "railing", "noun": "railing", "anchor": "on:staircase", "size": [3.0, 0.1, 1.0]},
-            {"id": "duct", "noun": "duct", "anchor": "wall", "size": [8.0, 0.2, 0.2]},
-            {"id": "clock", "noun": "clock", "anchor": "wall", "size": [1.0, 0.1, 0.3]}]
-    items = [["TOOLS 1", 0.2, 5.0, 0.5, 2.0, None, "item"], ["PIPE 1", 10.3, 0.5, 0.5, 1.0, None, "item"],
-             ["CRANE 1", 1.0, 1.0, 18.0, 2.0, None, "item"], ["LAMP 1", 19.5, 6.0, 0.5, 0.5, None, "item"],
-             ["DESK 1", 8.0, 5.0, 6.0, 3.0, "S", "item"], ["CHAIR 1", 10.5, 9.0, 1.0, 1.0, None, "item"],
-             *[[f"RAIL {number}", 2.0, 8.0, 1.0, 3.0, None, "item"] for number in (1, 2, 3)],
-             *[[f"DUCT {number}", 6.0, 0.3, 8.0, 0.2, None, "item"] for number in (1, 2, 3)],
-             *[[f"CLOCK {number}", 14.5, 11.5, 1.0, 0.2, None, "item"] for number in (1, 2)]]
-    plan = plan_of(items, {item[0]: [item[0].split()[0].lower().replace("rail", "railing")] for item in items},
-                   walls=[*ROOM_WALLS, {"from": [10.0, 0.0], "to": [10.0, 2.0], "thick": 0.2}],
-                   stairs=[{"points": [[2.0, 8.0], [3.0, 8.0], [3.0, 11.0], [2.0, 11.0]], "angle": 90.0}])
-    plan["shapes"] = {"TOOLS 1": {"count": 6}}
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})["relations"]
-    by_item = {entry["item"]: entry for entry in found}
-    tools = by_item["TOOLS 1"]["pieces"]
-    alongs = sorted(piece["spot"][1] for piece in tools)
-    assert len(tools) == 6 and all(piece["wall"]["from"][0] == piece["wall"]["to"][0] == 0.0 for piece in tools), tools
-    assert all(after - before >= 0.5 + holders.PIECE_GAP - 1e-3 for before, after in zip(alongs, alongs[1:])), alongs
-    assert {piece["height"] for piece in tools} == {1.35}, tools
-    assert (by_item["PIPE 1"]["wall"]["from"], by_item["PIPE 1"]["wall"]["to"]) == ([0.0, 0.0], [20.0, 0.0]), by_item
-    assert (by_item["CRANE 1"]["how"], by_item["CRANE 1"].get("to roof")) == ("ceiling", True), by_item["CRANE 1"]
-    assert by_item["LAMP 1"]["height"] == 2.25, by_item["LAMP 1"]
-    [seat] = by_item["CHAIR 1"]["pieces"]
-    assert (by_item["CHAIR 1"]["beside"], seat["spot"], seat["way"]) == ("DESK 1", [11.0, 7.3], [1.0, 0.0]), seat
-    rails = [by_item[f"RAIL {number}"]["pieces"][0]["spot"] for number in (1, 2, 3)]
-    assert len({tuple(spot) for spot in rails}) == 3, rails
-    ducts = [by_item[f"DUCT {number}"] for number in (1, 2, 3)]
-    assert sorted(duct["height"] for duct in ducts) == [1.15, 1.65, 1.9], ducts  # 1.4 m is the 6 m pipe's there
-    assert {(tuple(duct["spot"]), tuple(duct["wall"]["to"])) for duct in ducts} == {((10.0, 0.4), (20.0, 0.0))}, ducts
-    clocks = [by_item[f"CLOCK {number}"] for number in (1, 2)]
-    assert sorted(clock["spot"] for clock in clocks) == [[14.475, 12.0], [15.525, 12.0]], clocks
-    assert {clock["height"] for clock in clocks} == {1.35}, clocks
-    # settle@stairwell, 2026-11-10: its railings laid at their plan items' heights, 0.5 to 3 m off their flights'
-    # feet, and dropped as loose: each stands at its flight's foot, attached to it
-    flights = plan_of(items, plan["rows"], walls=plan["walls"],
-                      stairs=[{"points": [[2.0, 8.0], [3.0, 8.0], [3.0, 11.0], [2.0, 11.0]], "angle": 90.0,
-                               "from": 1.5, "to": 3.0}])
-    railed = by_item_of(holders.relations(flights, {"rows": rows, "picture": PICTURE}))
-    assert all(railed[f"RAIL {number}"]["rests"] == holders.ATTACHED and railed[f"RAIL {number}"]["pieces"][0][
-        "height"] == 1.5 for number in (1, 2, 3)), railed
-    # settle@habitat, @hangar, @quarters, 2026-11-10: a floor row's own item its plan stands up on nothing its row
-    # names (table lamps 0.8 m up 'in living areas, bedrooms', bench tools 1 m up 'on the work bench') had no relation
-    # and fell in the drop. A lamp 0.8 m up over a 0.78 m desk stands on its top; one over nothing stands on the
-    # floor; one over a 1.2 m shelf, whose top is over it, on the floor too, and one over a 2 cm rug no holder of it
-    # but on the floor at the rug's top; one on the floor has no relation; a TV 0.4 m up 'on tv stand' over nothing stands on the nearest TV stand's top.
-    rows = [{"id": "desk", "noun": "desk", "anchor": "floor", "size": [1.0, 0.6, 0.78]},
-            {"id": "shelf", "noun": "shelf", "anchor": "floor", "size": [1.0, 0.4, 1.2]},
-            {"id": "rug", "noun": "rug", "anchor": "floor", "size": [2.0, 2.0, 0.02]},
-            {"id": "tv_stand", "noun": "tv stand", "anchor": "floor", "size": [1.2, 0.4, 0.5]},
-            {"id": "tv", "noun": "tv", "anchor": "floor", "where": "on tv stand", "size": [1.0, 0.1, 0.6]},
-            {"id": "lamp", "noun": "lamp", "anchor": None, "where": "living areas, bedrooms", "size": [0.3, 0.3, 0.5]}]
-    items = [["DESK 1", 2.0, 2.0, 1.0, 0.6, None, "item"], ["SHELF 1", 8.0, 2.0, 1.0, 0.4, None, "item"],
+        `first, last = 0.0, 0.0  # its face's ends`
+    settle@stairwell, 2026-11-10: its railings laid at their plan items' heights, 0.5 to 3 m off their flights'
+    feet, and dropped as loose: each stands at its flight's foot, attached to it
+    settle@habitat, @hangar, @quarters, 2026-11-10: a floor row's own item its plan stands up on nothing its row
+    names (table lamps 0.8 m up 'in living areas, bedrooms', bench tools 1 m up 'on the work bench') had no relation
+    and fell in the drop. A lamp 0.8 m up over a 0.78 m desk stands on its top; one over nothing stands on the
+    floor; one over a 1.2 m shelf, whose top is over it, on the floor too, and one over a 2 cm rug no holder of it
+    but on the floor at the rug's top; one on the floor has no relation; a TV 0.4 m up 'on tv stand' over nothing
+    stands on the nearest TV stand's top.
+    settle@airlock, 2026-11-11: its open case, anchored on its floor plates but 'on bench', drawn 0.49 m up beside
+    the bench's top, was read as on the floor and floated 0.42 m: it stands on the bench's top; a box 'on bench' its
+    plan draws on the floor stays there
+    settle@engineroom, 2026-11-09: its plan took railings 5 to 8 off (no free floor), saying it lays 4 of the 8 its
+    concept counts; the relations lay one at each item left, as the scene record does, never two
+
+[kept] keep writes each place's relations under the relations folder, naming the kept plan's sha, and writes nothing
+    again while plan and inventory stand.
+    Break: score/review/holders/__init__.py: `if not path.is_file() or path.read_text() != found:` -> `if True:`
+
+[loose] The plan check that every opening sits on a wall the shell builds (its outline's or an inner wall's): in a
+    20 x 12 m room an opening on its north wall and one on an inner wall across it at y 6 are on walls; one in the
+    room's middle of nothing is named loose (the lab's doors, in walls the shell did not build, hung on nothing,
+    motion@lab round 35; camp's airlock door still stands in its dome's gap).
+    Break: score/review/holders/__init__.py: `if not design_shell.on_a_wall(plan, opening)]` -> `if False]`
+
+[open-doorway] The street (2026-10-31): its plan draws no walls (an open ground has none) and its stairwell door stands in
+    its facade row, a doorway into the building: no wall opening of its own, so it is not named loose.
+    Break: score/review/holders/__init__.py: `if "wall" not in shell_parts.parts(plan):` -> `if False:`
+"""
+import contextlib
+import json
+import pathlib
+import sys
+import tempfile
+from unittest import mock
+
+import numpy
+import pytest
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[3]))
+
+from score.review import holders, plan_checks, plan_fixes  # noqa: E402
+
+PICTURE = [1000, 600]
+ABSENT = type("Absent", (), {"__repr__": lambda self: "ABSENT"})()  # a key the answer does not hold
+
+
+def plan_of(items, rows, **more):
+    """A plan of items [name, x, y, wide, deep, facing, kind] tied to their rows, 20 x 12 m."""
+    return {"w": 20.0, "d": 12.0, "items": items, "rows": rows, "shapes": {}, **more}
+
+
+def relate(plan, rows, picture=PICTURE, kinds=None):
+    """The place's relations through holders.relations, indexed by row and by item, with the world they came from."""
+    found = holders.relations(plan, {"rows": rows, **({"picture": picture} if picture else {})}, kinds=kinds)
+    return {**found, "row": {entry["row"]: entry for entry in found["relations"]},
+            "item": {entry["item"]: entry for entry in found["relations"]}, "world": {"plan": plan, "rows": rows}}
+
+
+def kept(plan, inventory):
+    """keep run twice over one place in a home of its own (and a place with no files): what each run wrote, and the
+    sha the kept file names."""
+    with tempfile.TemporaryDirectory() as home, contextlib.ExitStack() as stack:
+        for name in ("KEPT_PLANS", "KEPT_INVENTORY", "KEPT"):
+            folder = pathlib.Path(home) / name
+            folder.mkdir()
+            stack.enter_context(mock.patch.object(holders, name, folder))
+        (pathlib.Path(home) / "KEPT_PLANS/hut.json").write_text(json.dumps(plan))
+        (pathlib.Path(home) / "KEPT_INVENTORY/hut.json").write_text(json.dumps(inventory))
+        first, second = holders.keep(["hut", "nowhere"]), holders.keep(["hut"])
+        return {"first": first, "second": second,
+                "sha": json.loads((pathlib.Path(home) / "KEPT/hut.json").read_text())["plan"]}
+
+
+# What a want's path reads past a key: measures of the value reached (each takes the value and the whole answer).
+def each(*segments):
+    return lambda value, root: [probe(part, segments, root) for part in value]
+
+
+def among(*keys):
+    return lambda value, root: [value.get(key, ABSENT) for key in keys]
+
+
+def where(key, wanted):
+    return lambda value, root: [part for part in value if part.get(key) == wanted]
+
+
+def by_id(field):
+    return lambda value, root: {row["id"]: row[field] for row in value if field in row}
+
+
+def ordered(value, root):
+    return sorted(value)
+
+
+def steps(value, root):
+    return [after - before for before, after in zip(value, value[1:])]
+
+
+def magnitude(value, root):
+    return [abs(part) for part in value]
+
+
+def count(value, root):
+    return len(value)
+
+
+def keys(value, root):
+    return sorted(value)
+
+
+def unique(value, root):
+    return [json.loads(text) for text in sorted({json.dumps(part) for part in value})]
+
+
+def distinct(value, root):
+    return len(unique(value, root))
+
+
+def length(value, root):
+    return holders.wall_length(value)
+
+
+def lies_flat(walls):
+    """1 when a piece's face lies along one of the walls, both its ends on that wall's line inside its ends."""
+    def measure(piece, root):
+        ends = [numpy.asarray(piece["wall"][key], float) for key in ("from", "to")]
+        return any(all(holders.off_line(end, wall)[0] < 1e-3 and numpy.linalg.norm(holders.on_line(end, wall) - end)
+                       < 1e-3 for end in ends) for wall in walls)
+    return measure
+
+
+def off_nearest(points):
+    """How far a spot stands off the nearest of the points along its furthest axis, to the mm."""
+    def measure(spot, root):
+        nearest = min(points, key=lambda point: numpy.linalg.norm(numpy.subtract(spot, point)))
+        return round(float(numpy.abs(numpy.subtract(spot, nearest)).max()), 3)
+    return measure
+
+
+def world_rows(root):
+    return {row["id"]: row for row in root["world"]["rows"]}
+
+
+def clear(found, root):
+    """The most two wall things' built boxes meet by."""
+    rows, plan, boxes = world_rows(root), root["world"]["plan"], []
+    for entry in found["relations"]:
+        for piece in entry.get("pieces") or [entry]:
+            if piece.get("how") == "wall":
+                boxes.append(holders.relation_box({**entry, **piece}, rows[entry["row"]], plan))
+    return max((holders.boxes_meet(box, other) for number, box in enumerate(boxes) for other in boxes[number + 1:]),
+               default=0.0)
+
+
+def hung(found, root):
+    return holders.hung_boxes(found["relations"], world_rows(root), root["world"]["plan"])
+
+
+def meets_hung(item):
+    """How far the item's built box meets the first box hung from the roof."""
+    def measure(found, root):
+        entry = found["item"][item]
+        box = holders.relation_box(entry, world_rows(root)[entry["row"]], root["world"]["plan"])
+        return holders.boxes_meet(box, hung(found, root)[0])
+    return measure
+
+
+def elsewhere(spot, height):
+    """1 when walled_clear's answer takes another spot or a height ONE_SPOT off the one given."""
+    return lambda value, root: value[0]["spot"] != spot or abs(value[1] - height) >= holders.ONE_SPOT
+
+
+def probe(value, path, root):
+    """The part of an answer a want's path names: `a/b/0` keys and list places, measures between them; ABSENT when
+    its last key is not there (a key missing before it fails the row)."""
+    parts = [step for segment in path for step in ([segment] if callable(segment) else segment.split("/"))]
+    for number, step in enumerate(parts):
+        if callable(step):
+            value = step(value, root)
+        elif isinstance(value, (list, tuple)) and step.isdigit():
+            value = value[int(step)]
+        elif number == len(parts) - 1 or step in value:
+            value = value.get(step, ABSENT)
+        else:
+            raise KeyError(f"{step} of {'/'.join(map(str, parts))} not in {sorted(value)}")
+    return value
+
+
+class Near:
+    """Within `tol` of the value, at the same shape."""
+    def __init__(self, value, tol=1e-3):
+        self.value, self.tol = value, tol
+
+    def __eq__(self, got):
+        return got is not ABSENT and numpy.shape(got) == numpy.shape(self.value) and bool(numpy.all(
+            numpy.abs(numpy.asarray(got, float) - numpy.asarray(self.value, float)) < self.tol))
+
+    def __repr__(self):
+        return f"Near({self.value!r}, {self.tol})"
+
+
+class AtLeast:
+    """At least the value (every one of a list)."""
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, got):
+        return got is not ABSENT and all(part >= self.value for part in (got if isinstance(got, list) else [got]))
+
+    def __repr__(self):
+        return f"AtLeast({self.value})"
+
+
+class AtMost:
+    """At most the value."""
+    def __init__(self, value):
+        self.value = value
+
+    def __eq__(self, got):
+        return got is not ABSENT and got <= self.value
+
+    def __repr__(self):
+        return f"AtMost({self.value})"
+
+
+class Each:
+    """Every one of a list as wanted."""
+    def __init__(self, wanted):
+        self.wanted = wanted
+
+    def __eq__(self, got):
+        return isinstance(got, list) and all(self.wanted == part for part in got)
+
+    def __repr__(self):
+        return f"Each({self.wanted!r})"
+
+
+class OneOf:
+    def __init__(self, *values):
+        self.values = values
+
+    def __eq__(self, got):
+        return got in self.values
+
+    def __repr__(self):
+        return f"OneOf{self.values!r}"
+
+
+class Holds:
+    """A text holding these words."""
+    def __init__(self, text):
+        self.text = text
+
+    def __eq__(self, got):
+        return isinstance(got, str) and self.text in got
+
+    def __repr__(self):
+        return f"Holds({self.text!r})"
+
+
+def case(name, judge, *args, want, **kwargs):
+    """One row: what is asked (a holders function, or relate/kept over a world) and what its answer must hold."""
+    return pytest.param(judge, args, kwargs, want, id=name)
+
+
+CASES = []
+
+# garage-door, recess: base's module and its doors
+MODULE = {"id": "module", "noun": "building", "anchor": "ground", "box": [500, 100, 900, 560]}
+GARAGE_DOOR = {"id": "garage_door", "noun": "door", "anchor": "on:module", "size": [6.0, 0.5, 8.0],
+               "box": [560, 300, 760, 540]}
+BASE_ITEMS = [["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"], ["GARAGE DOOR 1", 4.1, 13.9, 4.4, 4.4, None, "item"]]
+CASES.append(case("garage-door", relate, plan_of(BASE_ITEMS, {"MODULE 1": ["module"], "GARAGE DOOR 1": ["garage_door"]}),
+                  [MODULE, GARAGE_DOOR],
+                  want={"row/garage_door/how": "face", "row/garage_door/holder": "MODULE 1",
+                        "row/garage_door/face": "S"}))
+SIZED_MODULE = {**MODULE, "size": [12.0, 12.0, 12.0]}
+ASTRONAUT = {"id": "astronaut", "noun": "astronaut", "anchor": "floor"}
+RECESS_ROWS = [SIZED_MODULE, GARAGE_DOOR,
+               {"id": "shutter", "noun": "shutter", "anchor": "on:module", "size": [2.0, 0.1, 2.0],
+                "box": [800, 400, 880, 540]}, ASTRONAUT]
+RECESS_PLAN = plan_of([*BASE_ITEMS, ["SHUTTER 1", 20.0, 5.0, 0.1, 2.0, None, "item"]],
+                      {"MODULE 1": ["module"], "GARAGE DOOR 1": ["garage_door"], "SHUTTER 1": ["shutter"]})
+CASES.append(case("recess-swing", relate, RECESS_PLAN, RECESS_ROWS, want={
+    "row/garage_door/recess/model": "module_1", "row/garage_door/recess/axis": "z",
+    "row/garage_door/recess/side": 1.0, "row/garage_door/recess/depth": 6.0 + holders.RECESS_MARGIN,
+    "row/garage_door/recess/along": -7.65,
+    "row/garage_door/recess/room": round(0.5 + holders.RECESS_MARGIN + holders.RECESS_WALL, 3),
+    "row/garage_door/recess/room_side": -1.0, "row/shutter/how": "face", "row/shutter/recess": ABSENT}))
+KINDS = holders.row_kinds.table()
+SLIDING = {**KINDS, "door": {**KINDS["door"], "motion": {**KINDS["door"]["motion"], "move": "slide"}}}
+CASES.append(case("recess-slide", relate, RECESS_PLAN, RECESS_ROWS, kinds=SLIDING, want={
+    "row/garage_door/recess/depth": 0.5 + holders.RECESS_MARGIN, "row/garage_door/recess/room": 6.6,
+    "row/garage_door/recess/room_side": 1.0}))
+
+# three-doors: three 1.0 m doors on one 1.74 m face item, each its width, recess room and OPENING_ROOM apart
+PITCH = 1.0 + round(0.1 + holders.RECESS_MARGIN + holders.RECESS_WALL, 3) + holders.OPENING_ROOM
+CASES.append(case(
+    "three-doors", relate,
+    plan_of([["MODULE 1", 8.0, 1.0, 11.9, 17.2, None, "item"],
+             ["RESTAURANT DOOR 1", 9.0, 18.4, 1.74, 0.5, None, "item"]],
+            {"MODULE 1": ["module"], "RESTAURANT DOOR 1": ["restaurant_door"]}),
+    [SIZED_MODULE, {"id": "restaurant_door", "noun": "door", "anchor": "on:module", "size": [1.0, 0.1, 2.1],
+                    "count": 3, "box": [560, 300, 760, 540]}, ASTRONAUT],
+    want={("row/restaurant_door/spots", each("0"), steps): Near([PITCH, PITCH]),
+          "row/restaurant_door/spots/1/0": Near(9.87),  # about the item's middle
+          ("row/restaurant_door/recess/pieces", steps, magnitude): Near([PITCH, PITCH])}))
+
+# on-top: a monitor on its console's top; its placement words; a flat stove on its counter; a stacked blanket
+CONSOLE = {"id": "console", "noun": "console", "anchor": "floor", "box": [300, 300, 700, 500]}
+MONITOR = {"id": "monitor", "noun": "monitor", "anchor": "on:console", "box": [400, 220, 480, 330]}
+CONSOLES = plan_of([["CONSOLE 1", 2.0, 2.0, 3.0, 0.8, "S", "item"], ["CONSOLE 2", 12.0, 2.0, 3.0, 0.8, "S", "item"],
+                    ["MONITOR 1", 6.0, 2.0, 0.5, 0.2, None, "item"]],
+                   {"CONSOLE 1": ["console"], "CONSOLE 2": ["console"], "MONITOR 1": ["monitor"]})
+CASES.append(case("on-top-monitor", relate, CONSOLES, [CONSOLE, MONITOR],
+                  want={"row/monitor/how": "top", "row/monitor/holder": "CONSOLE 1"}))
+for said, how, under in (("under console", "within", True), ("on shelves", "within", ABSENT),
+                          ("console side", "face", ABSENT), ("left side of console", "top", ABSENT)):
+    CASES.append(case(f"on-top-said-{said.replace(' ', '-')}", relate, CONSOLES, [CONSOLE, {**MONITOR, "where": said}],
+                      want={"row/monitor/how": how, "row/monitor/under": under}))
+COUNTER = {"id": "kitchen_counter", "noun": "counter", "anchor": "floor", "size": [3.5, 0.6, 0.9],
+           "box": [1692, 603, 1949, 779]}
+for name, size, base, how in (("on-top-flat-stove", [0.6, 0.6, 0.05], 0.9, "top"),
+                              ("on-top-stove-on-floor", [0.6, 0.6, 0.05], 0.0, "face"),
+                              ("on-top-standing-stove", [0.5, 0.1, 0.4], 0.9, "face")):
+    stove = {"id": "stove_top", "noun": "stove", "anchor": "on:kitchen_counter", "where": "right wall, on counter",
+             "size": size, "box": [1500, 700, 1680, 779]}
+    CASES.append(case(name, relate, plan_of(
+        [["KITCHEN COUNTER 1", 3.625, 0.775, 0.6, 3.5, "E", "item"], ["STOVE TOP 1", 4.017, 1.544, 0.566, 0.878, "E", "item"]],
+        {"KITCHEN COUNTER 1": ["kitchen_counter"], "STOVE TOP 1": ["stove_top"]},
+        shapes={"KITCHEN COUNTER 1": {"shape": "rect", "tall": 0.9, "base": 0.0},
+                "STOVE TOP 1": {"shape": "rect", "tall": 0.05, "base": base}}), [COUNTER, stove], picture=[3000, 1200],
+        want={"row/stove_top/how": how, "row/stove_top/holder": "KITCHEN COUNTER 1"}))
+BED = {"id": "bed", "noun": "bed", "anchor": "floor", "size": [2.0, 1.0, 0.5]}
+BLANKET = {"id": "blanket", "noun": "blanket", "anchor": "on:bed", "where": "on bed, right", "size": [0.8, 0.6, 0.2]}
+for name, first, how in (("on-top-stacked-blanket", [2.536, 1.203], "top"),
+                         ("on-top-blanket-beside-the-stack", [1.0, 1.1], "face")):
+    CASES.append(case(name, relate, plan_of(
+        [["BED 1", 0.994, 1.084, 1.912, 0.956, "E", "item"], ["BLANKET 1", *first, 0.478, 0.717, "W", "item"],
+         ["BLANKET 2", 2.247, 1.753, 0.8, 0.6, None, "item"]],
+        {"BED 1": ["bed"], "BLANKET 1": ["blanket"], "BLANKET 2": ["blanket"]},
+        shapes={"BED 1": {"shape": "rect", "tall": 0.5, "base": 0.0}, "BLANKET 1": {"shape": "rect", "tall": 0.2, "base": 0.5},
+                "BLANKET 2": {"shape": "rect", "tall": 0.2, "base": 0.7}}), [BED, BLANKET],
+        want={"item/BLANKET 2/how": how, "item/BLANKET 2/holder": "BED 1"}))
+
+# too-tall: fittings on runs, valves by standing pipes, a spacesuit too tall for its locker's top
+PIPE_RUN = {"size": [0.4, 32.0, 0.4]}
+for name, thing, holder, wanted in (
+        ("too-tall-valve-on-its-pipe-run", {"size": [0.6, 0.2, 0.6]}, PIPE_RUN, True),
+        ("too-tall-valve-no-taller-than-its-pipe", {"size": [0.6, 0.2, 0.3]}, PIPE_RUN, False),
+        ("too-tall-clothes-on-a-drying-rack", {"size": [0.5, 0.1, 0.8]}, {"size": [1.5, 0.5, 0.1]}, False),
+        ("too-tall-sitter-on-its-seat", {"size": [0.6, 0.4, 1.8]}, {"size": [0.4, 0.4, 0.5]}, False),
+        ("too-tall-sizeless-on-a-run", {}, PIPE_RUN, False)):
+    CASES.append(case(name, holders.on_run, thing, holder, want={(): wanted}))
+RUNS = {"PIPE 1": ["PIPE 1", 0.0, 0.0, 32.0, 0.4, "S", "item"], "VALVE 1": ["VALVE 1", 1.0, 0.0, 0.6, 0.2, "S", "item"]}
+LARGE_PIPES = {"id": "large_pipes", "noun": "pipe", "anchor": "wall", **PIPE_RUN}
+for name, size, how, rests in (("too-tall-valve-attached-on-its-run", [0.6, 0.2, 0.6], "top", "attached"),
+                               ("too-tall-valve-within-its-run", [0.6, 0.2, 0.3], "within", ABSENT)):
+    CASES.append(case(name, holders.held, RUNS["VALVE 1"],
+                      {"id": "pipe_valves", "noun": "valve", "anchor": "on:large_pipes", "size": size},
+                      LARGE_PIPES, ["PIPE 1"], RUNS, 0.0, want={"how": how, "holder": "PIPE 1", "rests": rests}))
+WALLED = plan_of([], {}, walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
+                                {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2}])
+CASES.append(case("too-tall-off-the-north-wall", holders.side_off_wall, ["PIPE 9", 5.0, 0.2, 0.2, 0.2, None, "item"],
+                  WALLED, want={(): "S"}))
+CASES.append(case("too-tall-off-the-west-wall", holders.side_off_wall, ["PIPE 9", 0.2, 6.0, 0.2, 0.2, None, "item"],
+                  WALLED, want={(): "E"}))
+STANDING = {"id": "pipe", "noun": "pipe", "anchor": "wall", "size": [0.1, 0.1, 2.5]}
+CASES.append(case("too-tall-valve-off-the-wall", holders.held, RUNS["VALVE 1"],
+                  {"id": "valve", "noun": "valve", "anchor": "on:pipe", "size": [0.2, 0.1, 0.2]}, STANDING, ["PIPE 1"],
+                  RUNS, 0.0, off_wall="S", want={"how": "face", "face": "S"}))
+for name, size, holder, how in (
+        ("too-tall-valve-beside-a-standing-pipe", [0.2, 0.1, 0.2], STANDING, "face"),
+        ("too-tall-valve-no-wider-than-its-pipe", [0.08, 0.08, 0.2], STANDING, "within"),
+        ("too-tall-valve-in-a-lying-run", [0.6, 0.2, 0.3], {**STANDING, "size": [0.4, 32.0, 0.4]}, "within"),
+        ("too-tall-valve-on-a-stub", [0.2, 0.1, 0.2], {**STANDING, "size": [0.1, 0.1, 0.15]}, "within")):
+    CASES.append(case(name, holders.held, RUNS["VALVE 1"],
+                      {"id": "valve", "noun": "valve", "anchor": "on:pipe", "size": size}, holder, ["PIPE 1"], RUNS,
+                      0.0, want={"how": how, "holder": "PIPE 1"}))
+LOCKER_ROWS = [{"id": "locker", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0], "box": [681, 565, 813, 1062]},
+               {"id": "suit", "noun": "spacesuit", "anchor": "on:locker", "size": [0.6, 0.4, 1.8],
+                "box": [687, 565, 812, 789]}]
+LOCKER_ITEMS = [["LOCKER 1", 2.0, 2.0, 0.8, 0.6, "S", "item"], ["SUIT 1", 2.1, 2.1, 0.6, 0.4, "S", "item"]]
+LOCKER_TIED = {"LOCKER 1": ["locker"], "SUIT 1": ["suit"]}
+LOW_WALLS = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2, "tall": 2.5}]
+CASES.append(case("too-tall-suit-under-a-low-ceiling", relate, plan_of(LOCKER_ITEMS, LOCKER_TIED, walls=LOW_WALLS),
+                  LOCKER_ROWS, picture=[3000, 1200], want={"row/suit/how": "within", "row/suit/holder": "LOCKER 1"}))
+CASES.append(case("too-tall-suit-under-a-dome", relate, plan_of(
+    LOCKER_ITEMS, LOCKER_TIED, walls=LOW_WALLS, roofs=[{"kind": "dome", "eave": 2.5, "top": 4.2}]), LOCKER_ROWS,
+    picture=[3000, 1200], want={"row/suit/how": "top"}))
+
+# hangs: within a holder, which things hang
+HANG_PLAN = plan_of([], {}, shapes={
+    "LOCKER 1": {"base": 0.0, "tall": 2.0}, "SUIT 1": {"base": 0.1, "tall": 1.8}, "RACK 1": {"base": 0.1, "tall": 2.2},
+    "TRAY 1": {"base": 1.0, "tall": 0.1}, "NOTE 1": {"base": 1.5, "tall": 0.001}, "FRAME 1": {"base": 0.0, "tall": 2.5},
+    "CHASSIS 1": {"base": 0.2, "tall": 1.3}, "DESK 1": {"base": 0.0, "tall": 0.8},
+    "KEYBOARD 1": {"base": 0.8, "tall": 0.05}})
+for thing, holder, wanted in (("SUIT 1", "LOCKER 1", True), ("TRAY 1", "RACK 1", False), ("NOTE 1", "LOCKER 1", False),
+                              ("CHASSIS 1", "FRAME 1", False), ("KEYBOARD 1", "DESK 1", False)):
+    CASES.append(case(f"hangs-{thing.split()[0].lower()}", holders.hangs, [thing], [holder], HANG_PLAN,
+                      want={(): wanted}))
+
+# other-holder: a spot in another locker like its anchor's
+CASES.append(case(
+    "other-holder", relate,
+    plan_of([["LOCKER LEFT 1", 2.0, 2.0, 0.8, 0.6, "S", "item"], ["LOCKER RIGHT 1", 10.0, 2.0, 0.8, 0.6, "S", "item"],
+             ["SUIT 1", 2.1, 2.1, 0.6, 0.4, "S", "item"], ["SUIT 2", 10.1, 2.1, 0.6, 0.4, "S", "item"],
+             ["SUIT 3", 6.0, 6.0, 0.6, 0.4, "S", "item"]],
+            {"LOCKER LEFT 1": ["locker_left"], "LOCKER RIGHT 1": ["locker_right"], "SUIT 1": ["suit"],
+             "SUIT 2": ["suit"], "SUIT 3": ["suit"]}),
+    [{"id": "locker_left", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0]},
+     {"id": "locker_right", "noun": "locker", "anchor": "floor", "size": [0.8, 0.6, 2.0]},
+     {"id": "suit", "noun": "spacesuit", "anchor": "on:locker_left", "size": [0.6, 0.4, 1.8]}],
+    want={"item/SUIT 1/how": "within", "item/SUIT 1/holder": "LOCKER LEFT 1", "item/SUIT 2/how": "within",
+          "item/SUIT 2/holder": "LOCKER RIGHT 1", "item/SUIT 3/holder": "LOCKER LEFT 1"}))
+
+# nearest-console: monitors the concept shows on two consoles
+CASES.append(case(
+    "nearest-console", relate,
+    plan_of([["MAIN CONTROL BANK 1", 1.0, 1.0, 3.0, 0.8, "S", "item"],
+             ["CONTROL CONSOLE RIGHT 1", 14.0, 1.0, 3.0, 0.8, "S", "item"], ["CHAIR 1", 15.0, 2.5, 0.6, 0.6, None, "item"],
+             ["MONITOR SCREEN 1", 2.0, 1.2, 0.5, 0.1, None, "item"], ["MONITOR SCREEN 2", 15.0, 1.2, 0.5, 0.1, None, "item"],
+             ["MONITOR SCREEN 3", 15.2, 2.6, 0.5, 0.1, None, "item"]],
+            {"MAIN CONTROL BANK 1": ["main_control_bank"], "CONTROL CONSOLE RIGHT 1": ["control_console_right"],
+             "CHAIR 1": ["chair"], "MONITOR SCREEN 1": ["monitor_screen"], "MONITOR SCREEN 2": ["monitor_screen"],
+             "MONITOR SCREEN 3": ["monitor_screen"]}),
+    [{"id": "main_control_bank", "noun": "control bank", "anchor": "floor", "box": [100, 200, 400, 500]},
+     {"id": "control_console_right", "noun": "console", "anchor": "floor", "box": [600, 300, 900, 500]},
+     {"id": "chair", "noun": "chair", "anchor": "floor", "box": [650, 380, 700, 470]},
+     {"id": "monitor_screen", "noun": "monitor", "anchor": "on:main_control_bank",
+      "boxes": [[150, 150, 200, 260], [660, 300, 700, 400], [800, 240, 850, 340]]}],
+    want={("item", among("MONITOR SCREEN 1", "MONITOR SCREEN 2", "MONITOR SCREEN 3"), each("holder")): [
+        "MAIN CONTROL BANK 1", "CONTROL CONSOLE RIGHT 1", "CONTROL CONSOLE RIGHT 1"]}))
+
+# cut-opening, window-opening, own-openings, built-widths: doors and windows in openings
+NORTH_EAST = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}, {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
+DOOR_OPENING = {"kind": "door", "at": [5.0, 0.0], "wide": 1.4, "sill": 0.0, "head": 2.2}
+CASES.append(case(
+    "cut-opening", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]], {plan_checks.WALLS_ITEM: ["door", "back_door"]},
+            walls=NORTH_EAST, openings=[DOOR_OPENING]),
+    [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.2, 0.1, 2.1]},
+     {"id": "back_door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]}],
+    want={"row/door/how": "in", "row/door/opening/at": [5.0, 0.0], "row/back_door/how": "in",
+          "row/back_door/opening": {"at": [10.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1, "cut": True}}))
+CASES.append(case(
+    "window-opening", relate,
+    plan_of([["DOME WINDOW 1", 19.6, 0.0, 0.2, 0.1, None, "item"], ["DOME DOOR 1", 4.5, 0.0, 1.0, 0.2, None, "item"]],
+            {"DOME WINDOW 1": ["dome_window"], "DOME DOOR 1": ["dome_door"]}, walls=NORTH_EAST, openings=[DOOR_OPENING]),
+    [{"id": "dome_window", "noun": "window", "anchor": "wall", "size": [0.5, 0.1, 0.5]},
+     {"id": "dome_door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.0]}],
+    want={"row/dome_window/opening": {"at": [19.35, 0.0], "wide": 0.5, "sill": 0.9, "head": 1.4, "cut": True},
+          "row/dome_door/opening/at": [5.0, 0.0], "row/dome_door/opening/cut": ABSENT}))
+CASES.append(case(
+    "own-openings", relate,
+    plan_of([["REAR DOOR 1", 8.0, 0.2, 2.0, 0.4, None, "item"]], {"REAR DOOR 1": ["rear_door"]},
+            walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}]),
+    [{"id": "rear_door", "noun": "door", "anchor": "wall", "size": [1.2, 0.2, 2.1], "count": 4}],
+    want={("row/rear_door/pieces", each("opening/at")): [[8.25, 0.0], [9.65, 0.0], [11.05, 0.0], [12.45, 0.0]],
+          ("row/rear_door/pieces", each("opening/wide")): [1.2] * 4,
+          ("row/rear_door/pieces", each("opening/cut")): [True] * 4}))
+CASES.append(case(
+    "built-widths-spread", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]], {plan_checks.WALLS_ITEM: ["door", "window"]},
+            walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2}],
+            openings=[{"kind": "door", "at": [19.8, 0.0], "wide": 0.39, "sill": 0.0, "head": 2.2},
+                      {"kind": "window", "at": [18.7, 0.0], "wide": 0.2, "sill": 1.0, "head": 2.0}]),
+    [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]},
+     {"id": "window", "noun": "window", "anchor": "wall", "size": [2.0, 0.1, 1.0]}],
+    want={"row/door/opening": {"at": [19.1, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.2, "cut": True},
+          "row/window/opening": {"at": [17.4, 0.0], "wide": 2.0, "sill": 1.0, "head": 2.0, "cut": True},
+          "crowded": ABSENT}))
+CASES.append(case(
+    "built-widths-crowded", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 4.0, 12.0, None, "item"]], {plan_checks.WALLS_ITEM: ["door", "back_door"]},
+            walls=[{"from": [0.0, 0.0], "to": [4.0, 0.0], "thick": 0.2}],
+            openings=[{"kind": "door", "at": [1.5, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2},
+                      {"kind": "door", "at": [2.5, 0.0], "wide": 0.3, "sill": 0.0, "head": 2.2}]),
+    [{"id": "door", "noun": "door", "anchor": "wall", "size": [2.0, 0.1, 2.1]},
+     {"id": "back_door", "noun": "door", "anchor": "wall", "size": [2.0, 0.1, 2.1]}],
+    want={("relations", each("opening/wide"), ordered): [0.3, 0.3],
+          ("crowded", each("rows", ordered)): [["back_door", "door"]]}))
+SMALL_ROOM = [{"from": [0.0, 0.0], "to": [4.6, 0.0], "thick": 0.1}, {"from": [4.6, 0.0], "to": [4.6, 6.0], "thick": 0.1},
+              {"from": [4.6, 6.0], "to": [0.0, 6.0], "thick": 0.1}, {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.1}]
+CASES.append(case(
+    "built-widths-wall-with-room", relate,
+    plan_of([["DOOR 1", 1.8, 0.0, 1.0, 0.1, None, "item"], ["SHUTTER 1", 2.5, 0.3, 3.0, 0.1, None, "item"]],
+            {"DOOR 1": ["door"], "SHUTTER 1": ["shutter"]}, walls=SMALL_ROOM,
+            openings=[{"kind": "door", "at": [2.3, 0.0], "wide": 1.5, "sill": 0.0, "head": 2.2}]),
+    [{"id": "door", "noun": "door", "anchor": "wall", "size": [1.0, 0.1, 2.1]},
+     {"id": "shutter", "noun": "shutter", "anchor": "wall", "size": [3.0, 0.1, 3.0]}],
+    want={"row/door/opening/at": [2.3, 0.0], "row/shutter/wall/from": [4.6, 0.0], "row/shutter/wall/to": [4.6, 6.0],
+          "crowded": ABSENT}))
+CASES.append(case(
+    "built-widths-stub", relate,
+    plan_of([["WINDOW 1", 5.0, 0.3, 0.5, 0.1, None, "item"]], {"WINDOW 1": ["window"]},
+            walls=[{"from": [5.0, 0.0], "to": [5.6, 0.0], "thick": 0.1}, {"from": [0.0, 3.0], "to": [12.0, 3.0], "thick": 0.1}]),
+    [{"id": "window", "noun": "window", "anchor": "wall", "size": [0.5, 0.1, 0.5]}],
+    want={"row/window/wall/from": [5.0, 0.0], "row/window/opening/at": [5.3, 0.0]}))
+
+# facade, face-spread: a street facade past the plan's edge and the things on its face
+FACADE = {"id": "left_building_facade", "noun": "building facade", "part": "wall", "anchor": "ground",
+          "box": [0, 0, 300, 600]}
+CASES.append(case(
+    "facade", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 6.0, 30.0, None, "item"], ["AIR CONDITIONER UNIT 1", 0.5, 10.0, 0.8, 0.4, None, "item"]],
+            {plan_checks.WALLS_ITEM: ["left_building_facade"], "AIR CONDITIONER UNIT 1": ["air_conditioner_unit"]},
+            structure=["left_building_facade"], w=6.0, d=30.0),
+    [FACADE, {"id": "air_conditioner_unit", "noun": "air conditioner", "anchor": "on:left_building_facade",
+              "box": [100, 200, 160, 240]}],
+    want={"row/left_building_facade/how": "edge", "row/left_building_facade/edge": "W",
+          "row/left_building_facade/spot": [0.0, 15.0], "row/air_conditioner_unit/how": "face",
+          "row/air_conditioner_unit/holder row": "left_building_facade", "row/air_conditioner_unit/face": "E"}))
+
+
+def facade_plan(long):
+    """A facade `long` m along with a 3 m window, a 3 m shutter 1.74 m after it and an air conditioner 3 m up."""
+    return plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 6.0, long, None, "item"],
+                    ["WINDOW 1", 0.5, long / 2 - 5.87, 0.5, 1.74, "E", "item"],
+                    ["SHUTTER 1", 0.5, long / 2 - 4.13, 0.5, 1.74, "E", "item"],
+                    ["AIR CONDITIONER UNIT 1", 0.5, long / 2 - 5.3, 0.4, 0.6, "E", "item"]],
+                   {plan_checks.WALLS_ITEM: ["left_building_facade"], "WINDOW 1": ["window"], "SHUTTER 1": ["shutter"],
+                    "AIR CONDITIONER UNIT 1": ["air_conditioner_unit"]},
+                   structure=["left_building_facade"], w=6.0, d=long, shapes={"AIR CONDITIONER UNIT 1": {"base": 3.0}})
+
+
+def facade_rows(long):
+    return [{**FACADE, "size": [3.0, long, 20.0]},
+            {"id": "window", "noun": "window", "anchor": "on:left_building_facade", "size": [3.0, 0.1, 2.5]},
+            {"id": "shutter", "noun": "shutter", "anchor": "on:left_building_facade", "size": [3.0, 0.1, 3.0]},
+            {"id": "air_conditioner_unit", "noun": "air conditioner", "anchor": "on:left_building_facade",
+             "size": [0.8, 0.4, 0.6]}]
+
+
+CASES.append(case("face-spread", relate, facade_plan(30.0), facade_rows(30.0), want={
+    "row/window/spots": ABSENT, "row/air_conditioner_unit/spots": ABSENT, "row/shutter/spots": [[0.75, 13.2]],
+    "crowded": ABSENT, ("relations", each("_holder")): Each(ABSENT)}))
+CASES.append(case("face-spread-crowded", relate, facade_plan(6.0), facade_rows(6.0), want={
+    ("relations", each("spots")): Each(ABSENT), ("crowded", each("face")): ["E"],
+    ("crowded", each("rows")): [["air_conditioner_unit", "shutter", "window"]]}))
+CASES.append(case(
+    "face-spread-pillar", relate,
+    plan_of([["PILLAR 1", 8.0, 5.0, 0.3, 0.3, None, "item"], ["PILLAR PIPE 1", 8.1, 4.9, 0.1, 0.1, None, "item"],
+             ["PILLAR PIPE 2", 8.1, 5.3, 0.1, 0.1, None, "item"], ["PILLAR PIPE 3", 8.3, 5.1, 0.1, 0.1, None, "item"]],
+            {"PILLAR 1": ["pillar"], **{f"PILLAR PIPE {number}": ["pillar_pipe"] for number in (1, 2, 3)}}),
+    [{"id": "pillar", "noun": "pillar", "anchor": "floor", "size": [0.3, 0.3, 3.0], "box": [500, 100, 600, 560]},
+     {"id": "pillar_pipe", "noun": "pipe", "anchor": "on:pillar", "size": [0.13, 0.1, 3.0], "box": [530, 100, 570, 560]}],
+    want={("item", among("PILLAR PIPE 1", "PILLAR PIPE 2", "PILLAR PIPE 3"), each("face")): ["N", "S", "E"],
+          "crowded": ABSENT}))
+
+# built-end: three monitors drawn past their console's built end
+END_ITEMS = [["CONSOLE 1", 0.0, 4.0, 9.0, 1.0, "N", "item"],
+             *[[f"MONITOR {number}", along, 5.0, 0.5, 0.1, None, "item"] for number, along in ((1, 6.5), (2, 7.5), (3, 8.4))]]
+CASES.append(case(
+    "built-end", relate,
+    plan_of(END_ITEMS, {"CONSOLE 1": ["console"], **{item[0]: ["monitor"] for item in END_ITEMS[1:]}},
+            shapes={item[0]: {"base": 1.0} for item in END_ITEMS[1:]}),
+    [{"id": "console", "noun": "console", "anchor": "floor", "size": [4.5, 0.8, 1.0]},
+     {"id": "monitor", "noun": "monitor", "anchor": "on:console", "size": [0.5, 0.1, 0.4]}],
+    want={("item", among("MONITOR 1", "MONITOR 2", "MONITOR 3"), each("how")): ["face"] * 3,
+          ("item", among("MONITOR 1", "MONITOR 2", "MONITOR 3"), each("face")): ["S"] * 3,
+          ("item", among("MONITOR 1", "MONITOR 2", "MONITOR 3"), each("spots")): [[[4.9, 5.05]], [[5.6, 5.05]], [[6.3, 5.05]]],
+          "crowded": ABSENT}))
+
+# stair, ramp
+CASES.append(case(
+    "stair", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]], {plan_checks.WALLS_ITEM: ["lower_floor", "stairs"]},
+            structure=["lower_floor"],
+            stairs=[{"kind": "stair", "points": [[2.0, 2.0], [6.0, 2.0], [6.0, 3.0], [2.0, 3.0]], "angle": 90}]),
+    [{"id": "lower_floor", "noun": "floor", "part": "floor", "anchor": "ground"},
+     {"id": "stairs", "noun": "stairs", "anchor": "on:lower_floor", "count": 1}],
+    want={"row/stairs/how": "floor", "row/stairs/spot": [4.0, 2.5], "row/stairs/way": [0.0, 1.0]}))
+RAMP_ROWS = [{"id": "ramp", "noun": "ramp", "anchor": "ground", "size": [1.2, 2.0, 0.2]},
+             {"id": "bench", "noun": "bench", "anchor": "ground", "size": [1.2, 0.4, 0.4]}]
+RAMP_ITEMS = [["RAMP 1", 8.267, 10.904, 1.2, 2.0, None, "item"], ["BENCH 1", 8.0, 9.0, 1.2, 0.4, None, "item"]]
+LEVELS = [{"name": "the floor", "height": 0.0, "points": [[0.0, 0.0], [12.0, 0.0], [12.0, 12.0], [0.0, 12.0]]},
+          {"name": "the porch deck", "height": 0.2,
+           "points": [[9.889, 8.625], [15.298, 8.625], [15.298, 14.74], [9.889, 14.74]]}]
+CASES.append(case("ramp", relate, plan_of(RAMP_ITEMS, {"RAMP 1": ["ramp"], "BENCH 1": ["bench"]}, levels=LEVELS),
+                  RAMP_ROWS, want={("row", keys): ["ramp"], "row/ramp/how": "ramp", "row/ramp/way": [1.0, 0.0],
+                                   "row/ramp/height": 0.2, "row/ramp/spot": [8.889, 11.904],
+                                   "row/ramp/edge": [[9.889, 14.74], [9.889, 8.625]]}))
+CASES.append(case("ramp-no-raised-level", relate,
+                  plan_of(RAMP_ITEMS, {"RAMP 1": ["ramp"], "BENCH 1": ["bench"]}, levels=LEVELS[:1]), RAMP_ROWS,
+                  want={"relations": []}))
+
+# wall-side: a panel by a round wall, a wall lamp on its wall's room side, things leaning and attached
+PANEL_MIDDLE = [10.0 + 4.6 * numpy.cos(numpy.radians(7.5)), 6.0 + 4.6 * numpy.sin(numpy.radians(7.5))]
+CASES.append(case(
+    "wall-side-round-wall", relate,
+    plan_of([["PANEL 1", PANEL_MIDDLE[0] - 0.1, PANEL_MIDDLE[1] - 0.1, 0.2, 0.2, None, "item"]], {"PANEL 1": ["panel"]},
+            walls=[{"arc": {"centre": [10.0, 6.0], "radius": 5.0, "start": 315.0, "end": 45.0}, "thick": 0.2}]),
+    [{"id": "panel", "noun": "panel", "anchor": "wall", "size": [1.0, 0.1, 1.0]}],
+    want={"row/panel/how": "wall", "row/panel/wall/from": Near([15.0, 6.0]),
+          "row/panel/wall/to": Near([10.0 + 5 * numpy.cos(numpy.radians(15)), 6.0 + 5 * numpy.sin(numpy.radians(15))])}))
+LEFT_WALL = {"id": "left_wall", "noun": "wall", "part": "wall", "anchor": "floor"}
+WALL_LAMP = {"id": "wall_lamp", "noun": "lamp", "anchor": "on:left_wall", "size": [0.3, 0.2, 0.3]}
+LEFT_WALLS = [{"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2}, {"from": [0.0, 0.0], "to": [4.0, 0.0], "thick": 0.2}]
+CASES.append(case(
+    "wall-side-lamp", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]], {plan_checks.WALLS_ITEM: ["left_wall", "wall_lamp"]},
+            structure=["left_wall"], walls=LEFT_WALLS), [LEFT_WALL, WALL_LAMP],
+    want={"row/wall_lamp/how": "wall", "row/wall_lamp/wall/to": [0.0, 12.0], "row/wall_lamp/side": -1,
+          "row/wall_lamp/spot": [0.0, 6.0]}))
+CASES.append(case(
+    "wall-side-leaning", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"], ["BOARD 1", 1.0, 5.0, 0.4, 0.1, None, "item"],
+             ["CRATE 1", 9.5, 5.5, 1.0, 1.0, None, "item"], ["PLANK 1", 9.8, 5.7, 0.3, 0.1, None, "item"]],
+            {plan_checks.WALLS_ITEM: ["left_wall", "wall_lamp", "sign"], "BOARD 1": ["board"], "CRATE 1": ["crate"],
+             "PLANK 1": ["plank"]}, structure=["left_wall"], walls=LEFT_WALLS),
+    [LEFT_WALL, WALL_LAMP,
+     {"id": "board", "noun": "board", "anchor": "floor", "where": "left, leaning against the left wall",
+      "size": [0.4, 0.05, 0.6]},
+     {"id": "sign", "noun": "sign", "anchor": "on:left_wall", "where": "left wall, attached to the left wall",
+      "size": [0.4, 0.05, 0.3]},
+     {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0], "box": [400, 300, 600, 500]},
+     {"id": "plank", "noun": "plank", "anchor": "on:crate", "where": "centre, leaning against the crate",
+      "size": [0.3, 0.05, 0.8], "box": [450, 200, 550, 300]}],
+    want={"row/board/how": "wall", "row/board/rests": "leaning", "row/board/wall/to": [0.0, 12.0],
+          "row/board/height": ABSENT, "row/sign/how": "wall", "row/sign/rests": "attached", "row/sign/height": 1.35,
+          "row/plank/how": "face", "row/plank/holder": "CRATE 1", "row/plank/rests": "leaning",
+          "row/wall_lamp/rests": ABSENT}))
+
+# past-wall: things drawn past their wall stand in the room, a tunnel outside
+CASES.append(case(
+    "past-wall", relate,
+    plan_of([["LARGE PIPES 1", 10.0, 12.0, 1.0, 3.1, None, "item"], ["GLASS TUNNEL 1", 3.0, 12.3, 1.7, 4.2, "S", "item"]],
+            {"LARGE PIPES 1": ["large_pipes"], "GLASS TUNNEL 1": ["glass_tunnel"]},
+            outline=[[0.0, 0.0], [20.0, 0.0], [20.0, 12.0], [0.0, 12.0]],
+            walls=[{"from": [20.0, 12.0], "to": [0.0, 12.0], "thick": 0.6}]),
+    [{"id": "large_pipes", "noun": "pipes", "anchor": "wall", "size": [0.4, 8.0, 0.4]},
+     {"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [2.5, 4.0, 2.5]}],
+    want={"row/large_pipes/how": "wall", "row/large_pipes/side": 1, "row/glass_tunnel/how": "wall",
+          "row/glass_tunnel/side": -1}))
+
+ROOM_WALLS = [{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
+              {"from": [0.0, 12.0], "to": [20.0, 12.0], "thick": 0.2},
+              {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2},
+              {"from": [20.0, 0.0], "to": [20.0, 12.0], "thick": 0.2}]
+
+# two-panels: two wall panels each drawn as the whole room
+CASES.append(case(
+    "two-panels", relate,
+    plan_of([["PANEL 1", 0.5, 0.5, 19.0, 11.0, None, "item"], ["PANEL 2", 0.5, 0.5, 19.0, 11.0, None, "item"]],
+            {"PANEL 1": ["wall_panel"], "PANEL 2": ["wall_panel"]}, walls=ROOM_WALLS),
+    [{"id": "hull", "noun": "hull", "part": "wall", "anchor": "floor"},
+     {"id": "wall_panel", "noun": "panel", "anchor": "on:hull", "size": [20.0, 12.0, 3.5]}],
+    want={"item/PANEL 1/wall/to": [20.0, 0.0], "item/PANEL 1/spot": [10.0, 0.0], "item/PANEL 1/side": 1,
+          "item/PANEL 2/wall/to": [20.0, 12.0], "item/PANEL 2/spot": [10.0, 12.0], "item/PANEL 2/side": -1}))
+
+# wall-spread: things on walls, roofs, seats, stairs and floors spread apart
+CASES.append(case(
+    "wall-spread-lights", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"]],
+            {plan_checks.WALLS_ITEM: ["left_wall", "string_lights", "wall_light"]}, structure=["left_wall"],
+            walls=ROOM_WALLS),
+    [LEFT_WALL, {"id": "string_lights", "noun": "lights", "anchor": "on:left_wall", "size": [3.0, 0.05, 0.05]},
+     {"id": "wall_light", "noun": "light", "anchor": "on:left_wall", "size": [1.0, 0.1, 0.1]}],
+    want={("row", among("string_lights", "wall_light"), each("wall/to")): [[0.0, 12.0], [0.0, 12.0]],
+          ("row", among("string_lights", "wall_light"), each("spot"), ordered): [[0.0, 4.0], [0.0, 8.0]]}))
+HALL_ROWS = [{"id": "tools", "noun": "tool", "anchor": "wall", "where": "left wall", "size": [0.5, 0.05, 0.3], "count": 6},
+             {"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "back", "size": [6.0, 0.2, 0.2]},
+             {"id": "crane", "noun": "crane", "anchor": "wall", "where": "top, spanning left to right",
+              "size": [18.0, 2.0, 1.0]},
+             {"id": "lamp", "noun": "lamp", "anchor": "wall", "where": "high on the right wall", "size": [0.8, 0.2, 0.3]},
+             {"id": "desk", "noun": "desk", "anchor": "floor", "size": [2.0, 0.8, 0.8]},
+             {"id": "chair", "noun": "chair", "anchor": "floor", "where": "at the desk", "size": [0.6, 0.6, 1.0]},
+             {"id": "staircase", "noun": "staircase", "anchor": "floor"},
+             {"id": "railing", "noun": "railing", "anchor": "on:staircase", "size": [3.0, 0.1, 1.0]},
+             {"id": "duct", "noun": "duct", "anchor": "wall", "size": [8.0, 0.2, 0.2]},
+             {"id": "clock", "noun": "clock", "anchor": "wall", "size": [1.0, 0.1, 0.3]}]
+HALL_ITEMS = [["TOOLS 1", 0.2, 5.0, 0.5, 2.0, None, "item"], ["PIPE 1", 10.3, 0.5, 0.5, 1.0, None, "item"],
+              ["CRANE 1", 1.0, 1.0, 18.0, 2.0, None, "item"], ["LAMP 1", 19.5, 6.0, 0.5, 0.5, None, "item"],
+              ["DESK 1", 8.0, 5.0, 6.0, 3.0, "S", "item"], ["CHAIR 1", 10.5, 9.0, 1.0, 1.0, None, "item"],
+              *[[f"RAIL {number}", 2.0, 8.0, 1.0, 3.0, None, "item"] for number in (1, 2, 3)],
+              *[[f"DUCT {number}", 6.0, 0.3, 8.0, 0.2, None, "item"] for number in (1, 2, 3)],
+              *[[f"CLOCK {number}", 14.5, 11.5, 1.0, 0.2, None, "item"] for number in (1, 2)]]
+HALL_TIED = {item[0]: [item[0].split()[0].lower().replace("rail", "railing")] for item in HALL_ITEMS}
+HALL_WALLS = [*ROOM_WALLS, {"from": [10.0, 0.0], "to": [10.0, 2.0], "thick": 0.2}]
+FLIGHT = {"points": [[2.0, 8.0], [3.0, 8.0], [3.0, 11.0], [2.0, 11.0]], "angle": 90.0}
+RAILS = among("RAIL 1", "RAIL 2", "RAIL 3")
+DUCTS = among("DUCT 1", "DUCT 2", "DUCT 3")
+CLOCKS = among("CLOCK 1", "CLOCK 2")
+CASES.append(case(
+    "wall-spread-hall", relate,
+    plan_of(HALL_ITEMS, HALL_TIED, walls=HALL_WALLS, stairs=[FLIGHT], shapes={"TOOLS 1": {"count": 6}}), HALL_ROWS,
+    want={("item/TOOLS 1/pieces", count): 6, ("item/TOOLS 1/pieces", each("wall/from/0")): Each(0.0),
+          ("item/TOOLS 1/pieces", each("wall/to/0")): Each(0.0),
+          ("item/TOOLS 1/pieces", each("spot/1"), ordered, steps): AtLeast(0.5 + holders.PIECE_GAP - 1e-3),
+          ("item/TOOLS 1/pieces", each("height"), unique): [1.35],
+          "item/PIPE 1/wall/from": [0.0, 0.0], "item/PIPE 1/wall/to": [20.0, 0.0],
+          "item/CRANE 1/how": "ceiling", "item/CRANE 1/to roof": True, "item/LAMP 1/height": 2.25,
+          "item/CHAIR 1/beside": "DESK 1", ("item/CHAIR 1/pieces", count): 1,
+          "item/CHAIR 1/pieces/0/spot": [11.0, 7.3], "item/CHAIR 1/pieces/0/way": [1.0, 0.0],
+          ("item", RAILS, each("pieces/0/spot"), distinct): 3,
+          ("item", DUCTS, each("height"), ordered): [1.15, 1.65, 1.9],  # 1.4 m is the 6 m pipe's there
+          ("item", DUCTS, each("spot"), unique): [[10.0, 0.4]], ("item", DUCTS, each("wall/to"), unique): [[20.0, 0.0]],
+          ("item", CLOCKS, each("spot"), ordered): [[14.475, 12.0], [15.525, 12.0]],
+          ("item", CLOCKS, each("height"), unique): [1.35]}))
+CASES.append(case(
+    "wall-spread-flight-railings", relate,
+    plan_of(HALL_ITEMS, HALL_TIED, walls=HALL_WALLS, stairs=[{**FLIGHT, "from": 1.5, "to": 3.0}]), HALL_ROWS,
+    want={("item", RAILS, each("rests")): Each(holders.ATTACHED), ("item", RAILS, each("pieces/0/height")): Each(1.5)}))
+LIT_ITEMS = [["DESK 1", 2.0, 2.0, 1.0, 0.6, None, "item"], ["SHELF 1", 8.0, 2.0, 1.0, 0.4, None, "item"],
              ["RUG 1", 14.0, 8.0, 2.0, 2.0, None, "item"], ["TV STAND 1", 2.0, 9.0, 1.2, 0.4, None, "item"],
              ["TV STAND 2", 17.0, 1.0, 1.2, 0.4, None, "item"], ["TV 1", 4.0, 9.0, 1.0, 0.1, None, "item"],
              ["LAMP 1", 2.3, 2.1, 0.3, 0.3, None, "item"], ["LAMP 2", 5.0, 5.0, 0.3, 0.3, None, "item"],
              ["LAMP 3", 8.3, 2.05, 0.3, 0.3, None, "item"], ["LAMP 4", 12.0, 5.0, 0.3, 0.3, None, "item"],
              ["LAMP 5", 14.5, 8.5, 0.3, 0.3, None, "item"]]
-    lit = plan_of(items, {item[0]: [item[0].rsplit(" ", 1)[0].lower().replace(" ", "_")] for item in items})
-    lit["shapes"] = {**{f"LAMP {number}": {"base": 0.8, "tall": 0.5} for number in (1, 2, 3, 5)},
-                     "LAMP 4": {"base": 0.0, "tall": 0.5}, "TV 1": {"base": 0.4, "tall": 0.6}}
-    found = by_item_of(holders.relations(lit, {"rows": rows, "picture": PICTURE}))
-    assert (found["LAMP 1"]["how"], found["LAMP 1"]["holder"], found["LAMP 1"]["holder row"]) == (
-        "top", "DESK 1", "desk"), found["LAMP 1"]
-    assert [(found[name]["how"], found[name]["height"]) for name in ("LAMP 2", "LAMP 3", "LAMP 5")] == [
-        ("floor", 0.0), ("floor", 0.0), ("floor", 0.02)], found  # on the floor, the one over the rug on its top
-    assert "LAMP 4" not in found, found["LAMP 4"]
-    assert (found["TV 1"]["how"], found["TV 1"]["holder"]) == ("top", "TV STAND 1"), found["TV 1"]
-    # settle@airlock, 2026-11-11: its open case, anchored on its floor plates but 'on bench', drawn 0.49 m up beside
-    # the bench's top, was read as on the floor and floated 0.42 m: it stands on the bench's top; a box 'on bench' its
-    # plan draws on the floor stays there
-    rows = [{"id": "floor_plates", "noun": "floor plates", "part": "floor", "anchor": "ground"},
-            {"id": "bench", "noun": "bench", "anchor": "on:floor_plates", "size": [0.6, 0.6, 0.49]},
-            {"id": "case", "noun": "case", "anchor": "on:floor_plates", "where": "on bench", "size": [0.5, 0.4, 0.3]},
-            {"id": "box", "noun": "box", "anchor": "on:floor_plates", "where": "on bench", "size": [0.3, 0.3, 0.3]}]
-    items = [["BENCH 1", 2.0, 2.0, 1.0, 0.35, None, "item"], ["CASE 1", 3.1, 2.0, 0.35, 0.35, None, "item"],
-             ["BOX 1", 5.0, 5.0, 0.3, 0.3, None, "item"]]
-    benched = plan_of(items, {"BENCH 1": ["bench"], "CASE 1": ["case"], "BOX 1": ["box"]}, structure=["floor_plates"])
-    benched["shapes"] = {"CASE 1": {"base": 0.49, "tall": 0.3}, "BOX 1": {"base": 0.0, "tall": 0.3}}
-    found = by_item_of(holders.relations(benched, {"rows": rows, "picture": PICTURE}))
-    assert (found["CASE 1"]["how"], found["CASE 1"]["holder"], found["CASE 1"]["holder row"]) == (
-        "top", "BENCH 1", "bench"), found["CASE 1"]
-    assert found["BOX 1"]["how"] == "floor", found["BOX 1"]
-    rows = [{"id": "floor_grating", "noun": "grating", "part": "floor", "anchor": "floor"},
-            {"id": "railing", "noun": "railing", "anchor": "on:floor_grating", "size": [3.0, 2.0, 1.0], "count": 2},
-            {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0]}]
-    items = [["RAILING 1", 4.0, 4.0, 3.0, 2.0, None, "item"], ["RAILING 2", 4.0, 4.0, 3.0, 2.0, None, "item"],
-             ["CRATE 1", 5.0, 6.5, 1.0, 1.0, None, "item"], ["CRATE 2", 5.0, 1.0, 1.0, 1.0, None, "item"]]
-    plan = plan_of(items, {"RAILING 1": ["railing"], "RAILING 2": ["railing"], "CRATE 1": ["crate"],
-                           "CRATE 2": ["crate"]}, structure=["floor_grating"])
-    railings = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    assert "spot" not in railings["RAILING 1"] and railings["RAILING 2"]["spot"] == [8.55, 5.0], railings
-    plan = plan_of([["RAILING 1", 0.0, 0.0, 20.0, 12.0, None, "item"], ["RAILING 2", 0.0, 0.0, 20.0, 12.0, None,
-                                                                         "item"]],
-                   {"RAILING 1": ["railing"], "RAILING 2": ["railing"]}, structure=["floor_grating"])
-    railings = by_item_of(holders.relations(plan, {"rows": rows[:2], "picture": PICTURE}))
-    assert "spot" not in railings["RAILING 2"], railings  # no floor room beside it: kept as drawn
-    rows = [{"id": "pipes", "noun": "pipes", "anchor": "wall", "where": "left wall", "size": [4.0, 0.2, 0.2],
-             "count": 3}]
-    plan = plan_of([["PIPES 1", 0.2, 1.0, 0.4, 4.0, None, "item"], ["PIPES 2", 0.2, 7.0, 0.4, 4.0, None, "item"]],
-                   {"PIPES 2": ["pipes"], "PIPES 1": ["pipes"]}, walls=ROOM_WALLS)
-    pipes = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    first = pipes["PIPES 1"]["pieces"]
-    assert len(first) == 2 and abs(first[0]["spot"][1] - first[1]["spot"][1]) >= 4.0, first
-    assert "pieces" not in pipes["PIPES 2"], pipes
-
-    def flat(piece, walls):  # its face lies along one wall, inside its ends
-        ends = [numpy.asarray(piece["wall"][key], float) for key in ("from", "to")]
-        return any(all(holders.off_line(end, wall)[0] < 1e-3 and numpy.linalg.norm(holders.on_line(end, wall) - end)
-                       < 1e-3 for end in ends) for wall in walls)
-    small = [{"from": [0.0, 0.0], "to": [4.6, 0.0], "thick": 0.1}, {"from": [4.6, 0.0], "to": [4.6, 6.0], "thick": 0.1},
-             {"from": [4.6, 6.0], "to": [0.0, 6.0], "thick": 0.1}, {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.1}]
-    rows = [{"id": "cabinets", "noun": "cabinets", "anchor": "wall", "size": [3.5, 0.4, 0.6], "count": 3}]
-    plan = plan_of([["CABINETS 1", 1.0, 0.5, 3.5, 0.4, None, "item"]], {"CABINETS 1": ["cabinets"]}, walls=small)
-    cabinets = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["CABINETS 1"]["pieces"]
-    assert len(cabinets) == 3 and all(flat(piece, small) for piece in cabinets), cabinets
-    assert len({(tuple(piece["wall"]["from"]), tuple(piece["wall"]["to"])) for piece in cabinets}) == 3, cabinets
-    bent = [{"from": [0.0, 4.0], "to": [0.0, 0.0], "thick": 0.1}, {"from": [0.0, 0.0], "to": [4.0, 0.0], "thick": 0.1},
-            {"from": [0.0, 11.0], "to": [10.0, 11.0], "thick": 0.1}]
-    rows = [{"id": "pipes", "noun": "pipes", "anchor": "wall", "size": [3.9, 0.2, 0.2], "count": 2}]
-    plan = plan_of([["PIPES 1", 0.5, 0.5, 3.9, 0.2, None, "item"]], {"PIPES 1": ["pipes"]}, walls=bent)
-    pipes = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["PIPES 1"]
-    assert pipes["wall"]["to"] == [10.0, 11.0] and all(flat(piece, bent[2:]) for piece in pipes["pieces"]), pipes
-    rows = [{"id": "duct", "noun": "duct", "anchor": "wall", "size": [8.0, 0.2, 0.2]}]
-    plan = plan_of([[f"DUCT {number}", 1.0 + 4.0 * number, 0.2, 8.0, 0.2, None, "item"] for number in (0, 1, 2)],
-                   {f"DUCT {number}": ["duct"] for number in (0, 1, 2)}, walls=ROOM_WALLS,
-                   shapes={f"DUCT {number}": {"base": 2.0} for number in (0, 1, 2)})
-    ducts = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    assert [(ducts[f"DUCT {number}"]["spot"], ducts[f"DUCT {number}"].get("height")) for number in (0, 1, 2)] == [
-        ([5.0, 0.3], None), ([13.05, 0.0], None), ([13.0, 0.3], 2.25)], ducts
-    assert holders.wall_band(rows[0], 0.0, 0.2, ROOM_WALLS[0], plan) == (0.0, 0.0)
-
-    def clear(found, rows, plan):  # no two wall things' built boxes meet by more than WALL_TOUCH
-        by_id, boxes = {row["id"]: row for row in rows}, []
-        for entry in found["relations"]:
-            for piece in entry.get("pieces") or [entry]:
-                if piece.get("how") == "wall":
-                    boxes.append(holders.relation_box({**entry, **piece}, by_id[entry["row"]], plan))
-        return all(holders.boxes_meet(box, other) <= holders.WALL_TOUCH for number, box in enumerate(boxes)
-                   for other in boxes[number + 1:])
-    rows = [{"id": "hull", "noun": "hull", "part": "wall", "anchor": "floor"},
-            {"id": "red_pipes", "noun": "pipes", "anchor": "on:hull", "size": [20.0, 12.0, 0.2], "count": 4},
-            {"id": "rug", "noun": "rug", "anchor": "floor", "size": [20.0, 12.0, 0.2]}]
-    plan = plan_of([[f"RED PIPES {number}", 0.0, 0.0, 20.0, 12.0, None, "item"] for number in (1, 2)],
-                   {f"RED PIPES {number}": ["red_pipes"] for number in (1, 2)}, walls=ROOM_WALLS)
-    built = {row["id"]: row["size"] for row in holders.built_rows(rows, plan, {"rows": rows, "picture": PICTURE})
-             if "size" in row}
-    assert built == {"red_pipes": [16.0, 0.2, 0.2], "rug": [20.0, 12.0, 0.2]}, built  # the run's made piece, on a wall
-    box = [{"from": [0.0, 0.0], "to": [3.5, 0.0], "thick": 0.1, "tall": 2.8},
-           {"from": [3.5, 0.0], "to": [3.5, 2.0], "thick": 0.1, "tall": 2.8},
-           {"from": [3.5, 2.0], "to": [1.75, 2.0], "thick": 0.1, "tall": 2.8},
-           {"from": [1.75, 2.0], "to": [0.0, 2.0], "thick": 0.1, "tall": 2.8},
-           {"from": [0.0, 2.0], "to": [0.0, 0.0], "thick": 0.1, "tall": 2.8}]
-    rows = [{"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "upper walls", "size": [3.0, 0.2, 0.2]}]
-    plan = plan_of([[f"PIPE {number}", 0.15 + 0.1 * number, 0.1, 3.0, 0.2, None, "item"] for number in (1, 2, 3, 4)],
-                   {f"PIPE {number}": ["pipe"] for number in (1, 2, 3, 4)}, walls=box, w=3.5, d=2.0,
-                   outline=[[0.0, 0.0], [3.5, 0.0], [3.5, 2.0], [0.0, 2.0]],
-                   shapes={f"PIPE {number}": {"base": 2.6} for number in (1, 2, 3, 4)})
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    pipes = by_item_of(found)
-    assert [pipes[f"PIPE {number}"].get("height") for number in (1, 2, 3, 4)] == [None, 2.35, None, 2.35], pipes
-    for number in (3, 4):  # the south wall full at both heights its band holds: on the north run of two walls
-        pipe = pipes[f"PIPE {number}"]
-        assert pipe["wall"]["from"][1] == pipe["wall"]["to"][1] == pipe["spot"][1] == 2.0 and pipe["side"] == 1, pipe
-        assert abs(holders.wall_length(pipe["wall"]) - 3.0) < 1e-3 and "nearest wall with room" in pipe["why"], pipe
-    assert clear(found, rows, plan), found
-    thick = [{"from": [0.0, 3.2], "to": [0.0, 0.0], "thick": 0.4}, {"from": [0.0, 0.0], "to": [3.0, 0.0], "thick": 0.4},
-             {"from": [3.0, 0.0], "to": [3.0, 3.2], "thick": 0.4}, {"from": [3.0, 3.2], "to": [0.0, 3.2], "thick": 0.4}]
-    rows = [{"id": "kitchen_cabinet", "noun": "cabinet", "anchor": "wall", "size": [0.8, 0.4, 0.8]}]
-    plan = plan_of([["CABINET 1", 0.0, 0.0, 0.4, 0.8, None, "item"], ["CABINET 2", 0.0, 0.85, 0.4, 0.8, None, "item"]],
-                   {"CABINET 1": ["kitchen_cabinet"], "CABINET 2": ["kitchen_cabinet"]}, walls=thick, w=3.0, d=3.2,
-                   outline=[[0.0, 0.0], [3.0, 0.0], [3.0, 3.2], [0.0, 3.2]],
-                   shapes={f"CABINET {number}": {"base": 1.5} for number in (1, 2)})
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    cabinets = by_item_of(found)
-    assert cabinets["CABINET 2"]["spot"][1] >= 1.0 + 0.4 - holders.WALL_TOUCH, cabinets  # its face starts at 0.2 m
-    assert "slid" in cabinets["CABINET 2"]["why"] and clear(found, rows, plan), cabinets
-    rows = [{"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [5.0, 3.0, 3.0]},
-            {"id": "monitor", "noun": "monitor", "anchor": "wall", "size": [0.4, 0.1, 0.3]}]
-    plan = plan_of([["MONITOR 1", 9.8, 0.1, 0.4, 0.1, None, "item"],
-                    ["GLASS TUNNEL 1", 7.5, 0.0, 5.0, 0.5, None, "item"]],
-                   {"MONITOR 1": ["monitor"], "GLASS TUNNEL 1": ["glass_tunnel"]}, walls=ROOM_WALLS)
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    laid = by_item_of(found)
-    assert laid["GLASS TUNNEL 1"]["spot"] == [10.0, 0.25] and "slid" in laid["MONITOR 1"]["why"], laid  # its own wall
-    assert clear(found, rows, plan), found
-    rows = [{"id": "conduit", "noun": "conduit", "anchor": "wall", "size": [3.0, 0.1, 12.0]}]
-    tall = [{**wall, "tall": 11.8} for wall in ROOM_WALLS]
-    plan = plan_of([["CONDUIT 1", 8.0, 0.1, 3.0, 0.1, None, "item"]], {"CONDUIT 1": ["conduit"]}, walls=tall,
-                   shapes={"CONDUIT 1": {"base": 12.0}})
-    assert by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))["CONDUIT 1"]["height"] == 0.0
-    rows = [{"id": "wall_lamp", "noun": "lamp", "anchor": "wall", "size": [0.2, 0.1, 0.3]},
-            {"id": "notice_board", "noun": "board", "anchor": "wall", "size": [3.0, 0.1, 2.9]}]
-    narrow = [{"from": [0.0, 0.0], "to": [3.2, 0.0], "thick": 0.1, "tall": 3.0},
-              {"from": [3.2, 0.0], "to": [3.2, 1.0], "thick": 0.1, "tall": 3.0},
-              {"from": [3.2, 1.0], "to": [0.0, 1.0], "thick": 0.1, "tall": 3.0},
-              {"from": [0.0, 1.0], "to": [0.0, 0.0], "thick": 0.1, "tall": 3.0}]
-    plan = plan_of([["LAMP 1", 1.5, 0.0, 0.2, 0.1, None, "item"], ["LAMP 2", 1.5, 0.9, 0.2, 0.1, None, "item"],
-                    ["BOARD 1", 0.1, 0.0, 3.0, 0.1, None, "item"]],
-                   {"LAMP 1": ["wall_lamp"], "LAMP 2": ["wall_lamp"], "BOARD 1": ["notice_board"]}, walls=narrow,
-                   w=3.2, d=1.0, outline=[[0.0, 0.0], [3.2, 0.0], [3.2, 1.0], [0.0, 1.0]])
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    laid = by_item_of(found)
-    assert laid["BOARD 1"]["spot"] == [1.6, 0.05] and laid["LAMP 1"]["wall"]["to"] == [0.0, 1.0], laid
-    assert clear(found, rows, plan), found  # the board, stuck behind the lamps, laid first: the lamps part round it
-    rows = [{"id": "pipe_thick", "noun": "pipe", "anchor": "wall", "size": [3.0, 0.15, 0.15]},
-            {"id": "ceiling_light", "noun": "light", "anchor": "ceiling", "size": [0.8, 0.3, 0.1]}]
-    plan = plan_of([["PIPE THICK 1", 0.25, 0.1, 3.0, 0.15, None, "item"],
-                    ["PIPE THICK 2", 0.1, 0.2, 3.0, 0.15, None, "item"],
-                    ["CEILING LIGHT 1", 2.0, 0.1, 0.8, 0.3, "S", "item"]],
-                   {"PIPE THICK 1": ["pipe_thick"], "PIPE THICK 2": ["pipe_thick"],
-                    "CEILING LIGHT 1": ["ceiling_light"]}, walls=narrow, w=3.2, d=1.0,
-                   outline=[[0.0, 0.0], [3.2, 0.0], [3.2, 1.0], [0.0, 1.0]],
-                   shapes={f"PIPE THICK {number}": {"base": 2.6} for number in (1, 2)})
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})
-    laid, by_id = by_item_of(found), {row["id"]: row for row in rows}
-    hung = holders.hung_boxes(found["relations"], by_id, plan)
-    assert len(hung) == 1 and abs(hung[0][6] - 2.99) < 1e-6, hung  # under the walls' 3 m: no roof drawn
-    assert laid["PIPE THICK 2"]["height"] == 2.4, laid["PIPE THICK 2"]  # 2.8 m would meet the light hung at 2.89 m
-    assert all(holders.boxes_meet(holders.relation_box(laid[item], by_id["pipe_thick"], plan), hung[0])
-               <= holders.WALL_TOUCH for item in ("PIPE THICK 1", "PIPE THICK 2")), laid
-    rows = [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
-            {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}]
-    plan = plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"],
-                    ["SHOP DOOR 1", 14.5, 0.0, 1.0, 0.2, None, "item"]],
-                   {plan_checks.WALLS_ITEM: ["front_wall", "shop_door"], "SHOP DOOR 1": ["shop_door"]},
-                   structure=["front_wall"], walls=ROOM_WALLS,
-                   openings=[{"kind": "door", "at": [3.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1},
-                             {"kind": "door", "at": [15.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1}])
-    found = holders.relations(plan, {"rows": rows, "picture": PICTURE})["relations"]
-    assert [(entry["item"], entry["opening"]["at"]) for entry in found if entry["row"] == "shop_door"] == [
-        ("SHOP DOOR 1", [15.0, 0.0])], found
-    assert holders.piles({"id": "sandbags", "size_words": "knee high pile"}) and not holders.piles(
-        {"id": "railing", "where": "around engines", "size_words": "waist high"})
-    assert holders.PILE_WORDS == plan_fixes.PILE_WORDS
-    rows = [{"id": "grating", "noun": "grating", "part": "floor", "anchor": "floor"},
-            {"id": "engine", "noun": "engine", "anchor": "on:grating", "size": [3.0, 1.5, 1.5]},
-            {"id": "railing", "noun": "railing", "anchor": "on:grating", "where": "around engines",
-             "size": [3.5, 0.4, 1.0]}]
-    railings = {f"RAILING {number}": ["railing"] for number in range(1, 5)}
-    plan = plan_of([["ENGINE 1", 3.0, 4.0, 3.0, 1.5, "N", "item"], ["ENGINE 2", 13.0, 4.0, 3.0, 1.5, "N", "item"],
-                    *[[name, 6.0, 6.0, 3.5, 0.4, None, "item"] for name in railings]],
-                   {"ENGINE 1": ["engine"], "ENGINE 2": ["engine"], **railings})
-    plan["shapes"] = {f"RAILING {number}": {"base": float(number - 1), "tall": 1.0} for number in range(1, 5)}
-    found = by_item_of(holders.relations(plan, {"rows": rows, "picture": PICTURE}))
-    laid = [found[name] for name in railings]
-    assert len({tuple(entry["spot"]) for entry in laid}) == 4 and {entry["height"] for entry in laid} == {0.0}, laid
-    for entry in laid:  # each beside one engine's side, 0.2 m (its depth's half) and PIECE_GAP off it
-        engine = numpy.array([4.5, 4.75]) if entry["spot"][0] < 10 else numpy.array([14.5, 4.75])
-        off = numpy.abs(numpy.subtract(entry["spot"], engine))
-        assert round(float(off.max()), 3) in (1.5 + 0.25, 0.75 + 0.25) and "round engine" in entry["why"], entry
-    rows = [{"id": "plaza", "noun": "plaza", "part": "ground", "anchor": "ground"},
-            {"id": "tower", "noun": "tower", "anchor": "on:plaza", "size": [2.0, 2.0, 18.0]},
-            {"id": "crowd", "noun": "crowd", "anchor": "on:plaza", "size": [0.5, 0.3, 1.8]},
-            {"id": "lantern_string", "noun": "lanterns", "anchor": "on:plaza", "where": "above plaza",
-             "size": [16.0, 0.5, 0.5]},
-            {"id": "stage_screen", "noun": "screen", "anchor": "on:plaza", "where": "stage back",
-             "size": [8.0, 0.5, 6.0]}]
-    items = [["TOWER 1", 0.0, 4.0, 2.0, 2.0, None, "item"], ["TOWER 2", 18.0, 4.0, 2.0, 2.0, None, "item"],
-             ["CROWD 1", 0.0, 0.0, 20.0, 12.0, None, "item"], ["LANTERN STRING 1", 2.0, 5.0, 16.0, 0.5, None, "item"],
-             ["STAGE SCREEN 1", 6.0, 8.0, 8.0, 0.5, None, "item"],
-             ["STAGE SCREEN 2", 6.0, 10.0, 8.0, 0.5, None, "item"]]
-    tied = {"TOWER 1": ["tower"], "TOWER 2": ["tower"], "CROWD 1": ["crowd"], "LANTERN STRING 1": ["lantern_string"],
-            "STAGE SCREEN 1": ["stage_screen"], "STAGE SCREEN 2": ["stage_screen"]}
-    square = plan_of(items, tied, levels=[{"height": 3.3, "points": [[5.0, 9.0], [15.0, 9.0], [15.0, 12.0],
-                                                                      [5.0, 12.0]]}])
-    square["shapes"] = {"LANTERN STRING 1": {"base": 6.0, "tall": 0.5}, "STAGE SCREEN 1": {"base": 3.3, "tall": 6.0},
-                        "STAGE SCREEN 2": {"base": 3.3, "tall": 6.0}, "TOWER 1": {"tall": 18.0},
-                        "TOWER 2": {"tall": 18.0}, "CROWD 1": {"tall": 1.8}}
-    found = by_item_of(holders.relations(square, {"rows": rows, "picture": PICTURE}))
-    assert (found["LANTERN STRING 1"]["how"], found["LANTERN STRING 1"]["holders"]) == (
-        "hung", ["TOWER 1", "TOWER 2"]), found["LANTERN STRING 1"]
-    assert found["STAGE SCREEN 1"]["height"] == 0.0 and "height" not in found["STAGE SCREEN 2"], found
-    square["items"] = items[2:]
-    found = by_item_of(holders.relations(square, {"rows": rows, "picture": PICTURE}))
-    assert found["LANTERN STRING 1"]["how"] == "floor", found["LANTERN STRING 1"]
-    own, inner = ({"from": [5.0, 4.0], "to": [6.0, 4.0], "thick": 0.1, "tall": 2.8},
-                  {"from": [5.0, 5.0], "to": [8.0, 5.0], "thick": 0.1, "tall": 2.8})
-    pipe = {"id": "pipe", "noun": "pipe", "anchor": "wall", "size": [3.0, 0.2, 0.2]}
-    context = {"item": "PIPE 2", "row": "pipe", "how": "wall", "wall": own, "side": 1, "spot": [5.5, 4.0]}
-    walled = plan_of([], {}, walls=[own, inner])
-    moved, height = holders.walled_clear(context, pipe, walled, 1.0, [])
-    assert (moved["spot"], height) == ([5.5, 5.0], 1.0), moved
-    moved, height = holders.walled_clear(context, pipe, walled, 1.0, [], [("pipe", [5.5, 5.0], 1.0)])
-    assert moved["spot"] != [5.5, 5.0] or abs(height - 1.0) >= holders.ONE_SPOT, (moved, height)
-    # settle@engineroom, 2026-11-09: its plan took railings 5 to 8 off (no free floor), saying it lays 4 of the 8 its
-    # concept counts; the relations lay one at each item left, as the scene record does, never two
-    railed = {"items": [[f"RAIL {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "item"] for number in (1, 2, 3, 4)],
-              "rows": {f"RAIL {number}": ["railing"] for number in (1, 2, 3, 4)}}
-    railing, tied = {"id": "railing", "count": 8}, {"railing": [f"RAIL {number}" for number in (1, 2, 3, 4)]}
-    assert holders.pieces_at("RAIL 1", railing, railed, tied) == 2
-    railed["dropped"] = [{"item": "railing", "why": "4 more of it than the place's free floor holds", "laid": 4}]
-    assert [holders.pieces_at(f"RAIL {number}", railing, railed, tied) for number in (1, 2, 3, 4)] == [1, 1, 1, 1]
+CASES.append(case(
+    "wall-spread-stood-on", relate,
+    plan_of(LIT_ITEMS, {item[0]: [item[0].rsplit(" ", 1)[0].lower().replace(" ", "_")] for item in LIT_ITEMS},
+            shapes={**{f"LAMP {number}": {"base": 0.8, "tall": 0.5} for number in (1, 2, 3, 5)},
+                    "LAMP 4": {"base": 0.0, "tall": 0.5}, "TV 1": {"base": 0.4, "tall": 0.6}}),
+    [{"id": "desk", "noun": "desk", "anchor": "floor", "size": [1.0, 0.6, 0.78]},
+     {"id": "shelf", "noun": "shelf", "anchor": "floor", "size": [1.0, 0.4, 1.2]},
+     {"id": "rug", "noun": "rug", "anchor": "floor", "size": [2.0, 2.0, 0.02]},
+     {"id": "tv_stand", "noun": "tv stand", "anchor": "floor", "size": [1.2, 0.4, 0.5]},
+     {"id": "tv", "noun": "tv", "anchor": "floor", "where": "on tv stand", "size": [1.0, 0.1, 0.6]},
+     {"id": "lamp", "noun": "lamp", "anchor": None, "where": "living areas, bedrooms", "size": [0.3, 0.3, 0.5]}],
+    want={"item/LAMP 1/how": "top", "item/LAMP 1/holder": "DESK 1", "item/LAMP 1/holder row": "desk",
+          ("item", among("LAMP 2", "LAMP 3", "LAMP 5"), each("how")): ["floor"] * 3,
+          ("item", among("LAMP 2", "LAMP 3", "LAMP 5"), each("height")): [0.0, 0.0, 0.02],  # the last on the rug's top
+          "item/LAMP 4": ABSENT, "item/TV 1/how": "top", "item/TV 1/holder": "TV STAND 1"}))
+CASES.append(case(
+    "wall-spread-named-top", relate,
+    plan_of([["BENCH 1", 2.0, 2.0, 1.0, 0.35, None, "item"], ["CASE 1", 3.1, 2.0, 0.35, 0.35, None, "item"],
+             ["BOX 1", 5.0, 5.0, 0.3, 0.3, None, "item"]], {"BENCH 1": ["bench"], "CASE 1": ["case"], "BOX 1": ["box"]},
+            structure=["floor_plates"],
+            shapes={"CASE 1": {"base": 0.49, "tall": 0.3}, "BOX 1": {"base": 0.0, "tall": 0.3}}),
+    [{"id": "floor_plates", "noun": "floor plates", "part": "floor", "anchor": "ground"},
+     {"id": "bench", "noun": "bench", "anchor": "on:floor_plates", "size": [0.6, 0.6, 0.49]},
+     {"id": "case", "noun": "case", "anchor": "on:floor_plates", "where": "on bench", "size": [0.5, 0.4, 0.3]},
+     {"id": "box", "noun": "box", "anchor": "on:floor_plates", "where": "on bench", "size": [0.3, 0.3, 0.3]}],
+    want={"item/CASE 1/how": "top", "item/CASE 1/holder": "BENCH 1", "item/CASE 1/holder row": "bench",
+          "item/BOX 1/how": "floor"}))
+GRATING = {"id": "floor_grating", "noun": "grating", "part": "floor", "anchor": "floor"}
+GRATING_RAILING = {"id": "railing", "noun": "railing", "anchor": "on:floor_grating", "size": [3.0, 2.0, 1.0], "count": 2}
+CASES.append(case(
+    "wall-spread-parted-on-floor", relate,
+    plan_of([["RAILING 1", 4.0, 4.0, 3.0, 2.0, None, "item"], ["RAILING 2", 4.0, 4.0, 3.0, 2.0, None, "item"],
+             ["CRATE 1", 5.0, 6.5, 1.0, 1.0, None, "item"], ["CRATE 2", 5.0, 1.0, 1.0, 1.0, None, "item"]],
+            {"RAILING 1": ["railing"], "RAILING 2": ["railing"], "CRATE 1": ["crate"], "CRATE 2": ["crate"]},
+            structure=["floor_grating"]),
+    [GRATING, GRATING_RAILING, {"id": "crate", "noun": "crate", "anchor": "floor", "size": [1.0, 1.0, 1.0]}],
+    want={"item/RAILING 1/spot": ABSENT, "item/RAILING 2/spot": [8.55, 5.0]}))
+CASES.append(case(
+    "wall-spread-no-floor-room", relate,
+    plan_of([["RAILING 1", 0.0, 0.0, 20.0, 12.0, None, "item"], ["RAILING 2", 0.0, 0.0, 20.0, 12.0, None, "item"]],
+            {"RAILING 1": ["railing"], "RAILING 2": ["railing"]}, structure=["floor_grating"]),
+    [GRATING, GRATING_RAILING], want={"item/RAILING 2/spot": ABSENT}))  # kept as drawn
+CASES.append(case(
+    "wall-spread-row-on-two-items", relate,
+    plan_of([["PIPES 1", 0.2, 1.0, 0.4, 4.0, None, "item"], ["PIPES 2", 0.2, 7.0, 0.4, 4.0, None, "item"]],
+            {"PIPES 2": ["pipes"], "PIPES 1": ["pipes"]}, walls=ROOM_WALLS),
+    [{"id": "pipes", "noun": "pipes", "anchor": "wall", "where": "left wall", "size": [4.0, 0.2, 0.2], "count": 3}],
+    want={("item/PIPES 1/pieces", count): 2, ("item/PIPES 1/pieces", each("spot/1"), steps, magnitude): AtLeast(4.0),
+          "item/PIPES 2/pieces": ABSENT}))
+CASES.append(case(
+    "wall-spread-round-corners", relate,
+    plan_of([["CABINETS 1", 1.0, 0.5, 3.5, 0.4, None, "item"]], {"CABINETS 1": ["cabinets"]}, walls=SMALL_ROOM),
+    [{"id": "cabinets", "noun": "cabinets", "anchor": "wall", "size": [3.5, 0.4, 0.6], "count": 3}],
+    want={("item/CABINETS 1/pieces", count): 3, ("item/CABINETS 1/pieces", each(lies_flat(SMALL_ROOM))): Each(True),
+          ("item/CABINETS 1/pieces", each("wall"), distinct): 3}))
+BENT = [{"from": [0.0, 4.0], "to": [0.0, 0.0], "thick": 0.1}, {"from": [0.0, 0.0], "to": [4.0, 0.0], "thick": 0.1},
+        {"from": [0.0, 11.0], "to": [10.0, 11.0], "thick": 0.1}]
+CASES.append(case(
+    "wall-spread-bent-wall", relate,
+    plan_of([["PIPES 1", 0.5, 0.5, 3.9, 0.2, None, "item"]], {"PIPES 1": ["pipes"]}, walls=BENT),
+    [{"id": "pipes", "noun": "pipes", "anchor": "wall", "size": [3.9, 0.2, 0.2], "count": 2}],
+    want={"item/PIPES 1/wall/to": [10.0, 11.0], ("item/PIPES 1/pieces", each(lies_flat(BENT[2:]))): Each(True)}))
+DUCT = {"id": "duct", "noun": "duct", "anchor": "wall", "size": [8.0, 0.2, 0.2]}
+DUCT_PLAN = plan_of([[f"DUCT {number}", 1.0 + 4.0 * number, 0.2, 8.0, 0.2, None, "item"] for number in (0, 1, 2)],
+                    {f"DUCT {number}": ["duct"] for number in (0, 1, 2)}, walls=ROOM_WALLS,
+                    shapes={f"DUCT {number}": {"base": 2.0} for number in (0, 1, 2)})
+CASES.append(case("wall-spread-ducts-slide-then-stand", relate, DUCT_PLAN, [DUCT], want={
+    "item/DUCT 0/spot": [5.0, 0.3], "item/DUCT 0/height": ABSENT, "item/DUCT 1/spot": [13.05, 0.0],
+    "item/DUCT 1/height": ABSENT, "item/DUCT 2/spot": [13.0, 0.3], "item/DUCT 2/height": 2.25}))
+CASES.append(case("wall-spread-band-on-the-floor", holders.wall_band, DUCT, 0.0, 0.2, ROOM_WALLS[0], DUCT_PLAN,
+                  want={(): (0.0, 0.0)}))
+RED_PIPES_ROWS = [{"id": "hull", "noun": "hull", "part": "wall", "anchor": "floor"},
+                  {"id": "red_pipes", "noun": "pipes", "anchor": "on:hull", "size": [20.0, 12.0, 0.2], "count": 4},
+                  {"id": "rug", "noun": "rug", "anchor": "floor", "size": [20.0, 12.0, 0.2]}]
+CASES.append(case(
+    "wall-spread-made-size", holders.built_rows, RED_PIPES_ROWS,
+    plan_of([[f"RED PIPES {number}", 0.0, 0.0, 20.0, 12.0, None, "item"] for number in (1, 2)],
+            {f"RED PIPES {number}": ["red_pipes"] for number in (1, 2)}, walls=ROOM_WALLS),
+    {"rows": RED_PIPES_ROWS, "picture": PICTURE},
+    want={(by_id("size"),): {"red_pipes": [16.0, 0.2, 0.2], "rug": [20.0, 12.0, 0.2]}}))  # the run's piece, on a wall
+TALL_BOX = [{"from": [0.0, 0.0], "to": [3.5, 0.0], "thick": 0.1, "tall": 2.8},
+            {"from": [3.5, 0.0], "to": [3.5, 2.0], "thick": 0.1, "tall": 2.8},
+            {"from": [3.5, 2.0], "to": [1.75, 2.0], "thick": 0.1, "tall": 2.8},
+            {"from": [1.75, 2.0], "to": [0.0, 2.0], "thick": 0.1, "tall": 2.8},
+            {"from": [0.0, 2.0], "to": [0.0, 0.0], "thick": 0.1, "tall": 2.8}]
+UPPER = {f"item/PIPE {number}/{key}": wanted for number in (3, 4) for key, wanted in (
+    ("wall/from/1", 2.0), ("wall/to/1", 2.0), ("spot/1", 2.0), ("side", 1), ("why", Holds("nearest wall with room")))}
+CASES.append(case(
+    "wall-spread-upper-walls", relate,
+    plan_of([[f"PIPE {number}", 0.15 + 0.1 * number, 0.1, 3.0, 0.2, None, "item"] for number in (1, 2, 3, 4)],
+            {f"PIPE {number}": ["pipe"] for number in (1, 2, 3, 4)}, walls=TALL_BOX, w=3.5, d=2.0,
+            outline=[[0.0, 0.0], [3.5, 0.0], [3.5, 2.0], [0.0, 2.0]],
+            shapes={f"PIPE {number}": {"base": 2.6} for number in (1, 2, 3, 4)}),
+    [{"id": "pipe", "noun": "pipe", "anchor": "wall", "where": "upper walls", "size": [3.0, 0.2, 0.2]}],
+    want={("item", among("PIPE 1", "PIPE 2", "PIPE 3", "PIPE 4"), each("height")): [ABSENT, 2.35, ABSENT, 2.35],
+          **UPPER, ("item/PIPE 3/wall", length): Near(3.0), ("item/PIPE 4/wall", length): Near(3.0),
+          (clear,): AtMost(holders.WALL_TOUCH)}))  # the south wall full: on the north run of two walls
+THICK = [{"from": [0.0, 3.2], "to": [0.0, 0.0], "thick": 0.4}, {"from": [0.0, 0.0], "to": [3.0, 0.0], "thick": 0.4},
+         {"from": [3.0, 0.0], "to": [3.0, 3.2], "thick": 0.4}, {"from": [3.0, 3.2], "to": [0.0, 3.2], "thick": 0.4}]
+CASES.append(case(
+    "wall-spread-corner-trims", relate,
+    plan_of([["CABINET 1", 0.0, 0.0, 0.4, 0.8, None, "item"], ["CABINET 2", 0.0, 0.85, 0.4, 0.8, None, "item"]],
+            {"CABINET 1": ["kitchen_cabinet"], "CABINET 2": ["kitchen_cabinet"]}, walls=THICK, w=3.0, d=3.2,
+            outline=[[0.0, 0.0], [3.0, 0.0], [3.0, 3.2], [0.0, 3.2]],
+            shapes={f"CABINET {number}": {"base": 1.5} for number in (1, 2)}),
+    [{"id": "kitchen_cabinet", "noun": "cabinet", "anchor": "wall", "size": [0.8, 0.4, 0.8]}],
+    want={"item/CABINET 2/spot/1": AtLeast(1.0 + 0.4 - holders.WALL_TOUCH),  # its face starts at 0.2 m
+          "item/CABINET 2/why": Holds("slid"), (clear,): AtMost(holders.WALL_TOUCH)}))
+CASES.append(case(
+    "wall-spread-tunnel-first", relate,
+    plan_of([["MONITOR 1", 9.8, 0.1, 0.4, 0.1, None, "item"], ["GLASS TUNNEL 1", 7.5, 0.0, 5.0, 0.5, None, "item"]],
+            {"MONITOR 1": ["monitor"], "GLASS TUNNEL 1": ["glass_tunnel"]}, walls=ROOM_WALLS),
+    [{"id": "glass_tunnel", "noun": "tunnel", "anchor": "wall", "size": [5.0, 3.0, 3.0]},
+     {"id": "monitor", "noun": "monitor", "anchor": "wall", "size": [0.4, 0.1, 0.3]}],
+    want={"item/GLASS TUNNEL 1/spot": [10.0, 0.25], "item/MONITOR 1/why": Holds("slid"),  # the tunnel its own wall
+          (clear,): AtMost(holders.WALL_TOUCH)}))
+CASES.append(case(
+    "wall-spread-under-the-wall-top", relate,
+    plan_of([["CONDUIT 1", 8.0, 0.1, 3.0, 0.1, None, "item"]], {"CONDUIT 1": ["conduit"]},
+            walls=[{**wall, "tall": 11.8} for wall in ROOM_WALLS], shapes={"CONDUIT 1": {"base": 12.0}}),
+    [{"id": "conduit", "noun": "conduit", "anchor": "wall", "size": [3.0, 0.1, 12.0]}],
+    want={"item/CONDUIT 1/height": 0.0}))
+NARROW = [{"from": [0.0, 0.0], "to": [3.2, 0.0], "thick": 0.1, "tall": 3.0},
+          {"from": [3.2, 0.0], "to": [3.2, 1.0], "thick": 0.1, "tall": 3.0},
+          {"from": [3.2, 1.0], "to": [0.0, 1.0], "thick": 0.1, "tall": 3.0},
+          {"from": [0.0, 1.0], "to": [0.0, 0.0], "thick": 0.1, "tall": 3.0}]
+NARROW_OUTLINE = [[0.0, 0.0], [3.2, 0.0], [3.2, 1.0], [0.0, 1.0]]
+CASES.append(case(
+    "wall-spread-stuck-laid-first", relate,
+    plan_of([["LAMP 1", 1.5, 0.0, 0.2, 0.1, None, "item"], ["LAMP 2", 1.5, 0.9, 0.2, 0.1, None, "item"],
+             ["BOARD 1", 0.1, 0.0, 3.0, 0.1, None, "item"]],
+            {"LAMP 1": ["wall_lamp"], "LAMP 2": ["wall_lamp"], "BOARD 1": ["notice_board"]}, walls=NARROW, w=3.2, d=1.0,
+            outline=NARROW_OUTLINE),
+    [{"id": "wall_lamp", "noun": "lamp", "anchor": "wall", "size": [0.2, 0.1, 0.3]},
+     {"id": "notice_board", "noun": "board", "anchor": "wall", "size": [3.0, 0.1, 2.9]}],
+    want={"item/BOARD 1/spot": [1.6, 0.05], "item/LAMP 1/wall/to": [0.0, 1.0],
+          (clear,): AtMost(holders.WALL_TOUCH)}))  # the board laid first: the lamps part round it
+CASES.append(case(
+    "wall-spread-under-a-hung-light", relate,
+    plan_of([["PIPE THICK 1", 0.25, 0.1, 3.0, 0.15, None, "item"], ["PIPE THICK 2", 0.1, 0.2, 3.0, 0.15, None, "item"],
+             ["CEILING LIGHT 1", 2.0, 0.1, 0.8, 0.3, "S", "item"]],
+            {"PIPE THICK 1": ["pipe_thick"], "PIPE THICK 2": ["pipe_thick"], "CEILING LIGHT 1": ["ceiling_light"]},
+            walls=NARROW, w=3.2, d=1.0, outline=NARROW_OUTLINE,
+            shapes={f"PIPE THICK {number}": {"base": 2.6} for number in (1, 2)}),
+    [{"id": "pipe_thick", "noun": "pipe", "anchor": "wall", "size": [3.0, 0.15, 0.15]},
+     {"id": "ceiling_light", "noun": "light", "anchor": "ceiling", "size": [0.8, 0.3, 0.1]}],
+    want={(hung, count): 1, (hung, "0/6"): Near(2.99, 1e-6),  # under the walls' 3 m: no roof drawn
+          "item/PIPE THICK 2/height": 2.4,  # 2.8 m would meet the light hung at 2.89 m
+          (meets_hung("PIPE THICK 1"),): AtMost(holders.WALL_TOUCH),
+          (meets_hung("PIPE THICK 2"),): AtMost(holders.WALL_TOUCH)}))
+CASES.append(case(
+    "wall-spread-door-on-its-own-item", relate,
+    plan_of([[plan_checks.WALLS_ITEM, 0.0, 0.0, 20.0, 12.0, None, "item"], ["SHOP DOOR 1", 14.5, 0.0, 1.0, 0.2, None, "item"]],
+            {plan_checks.WALLS_ITEM: ["front_wall", "shop_door"], "SHOP DOOR 1": ["shop_door"]},
+            structure=["front_wall"], walls=ROOM_WALLS,
+            openings=[{"kind": "door", "at": [3.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1},
+                      {"kind": "door", "at": [15.0, 0.0], "wide": 1.0, "sill": 0.0, "head": 2.1}]),
+    [{"id": "front_wall", "noun": "wall", "part": "wall", "anchor": "floor"},
+     {"id": "shop_door", "noun": "door", "anchor": "on:front_wall", "size": [1.0, 0.1, 2.1]}],
+    want={("relations", where("row", "shop_door"), each("item")): ["SHOP DOOR 1"],
+          ("relations", where("row", "shop_door"), each("opening/at")): [[15.0, 0.0]]}))
+CASES.append(case("wall-spread-a-pile-piles", holders.piles, {"id": "sandbags", "size_words": "knee high pile"},
+                  want={(): True}))
+CASES.append(case("wall-spread-a-railing-does-not-pile", holders.piles,
+                  {"id": "railing", "where": "around engines", "size_words": "waist high"}, want={(): False}))
+CASES.append(case("wall-spread-pile-words-are-plan-fixes-own", getattr, holders, "PILE_WORDS",
+                  want={(): plan_fixes.PILE_WORDS}))
+ENGINE_RAILINGS = {f"RAILING {number}": ["railing"] for number in range(1, 5)}
+CASES.append(case(
+    "wall-spread-around-engines", relate,
+    plan_of([["ENGINE 1", 3.0, 4.0, 3.0, 1.5, "N", "item"], ["ENGINE 2", 13.0, 4.0, 3.0, 1.5, "N", "item"],
+             *[[name, 6.0, 6.0, 3.5, 0.4, None, "item"] for name in ENGINE_RAILINGS]],
+            {"ENGINE 1": ["engine"], "ENGINE 2": ["engine"], **ENGINE_RAILINGS},
+            shapes={f"RAILING {number}": {"base": float(number - 1), "tall": 1.0} for number in range(1, 5)}),
+    [{"id": "grating", "noun": "grating", "part": "floor", "anchor": "floor"},
+     {"id": "engine", "noun": "engine", "anchor": "on:grating", "size": [3.0, 1.5, 1.5]},
+     {"id": "railing", "noun": "railing", "anchor": "on:grating", "where": "around engines", "size": [3.5, 0.4, 1.0]}],
+    want={("item", among(*ENGINE_RAILINGS), each("spot"), distinct): 4,
+          ("item", among(*ENGINE_RAILINGS), each("height"), unique): [0.0],
+          # each beside one engine's side, 0.2 m (its depth's half) and PIECE_GAP off it
+          ("item", among(*ENGINE_RAILINGS), each("spot", off_nearest([[4.5, 4.75], [14.5, 4.75]]))):
+              Each(OneOf(1.5 + 0.25, 0.75 + 0.25)),
+          ("item", among(*ENGINE_RAILINGS), each("why")): Each(Holds("round engine"))}))
+PLAZA_ROWS = [{"id": "plaza", "noun": "plaza", "part": "ground", "anchor": "ground"},
+              {"id": "tower", "noun": "tower", "anchor": "on:plaza", "size": [2.0, 2.0, 18.0]},
+              {"id": "crowd", "noun": "crowd", "anchor": "on:plaza", "size": [0.5, 0.3, 1.8]},
+              {"id": "lantern_string", "noun": "lanterns", "anchor": "on:plaza", "where": "above plaza",
+               "size": [16.0, 0.5, 0.5]},
+              {"id": "stage_screen", "noun": "screen", "anchor": "on:plaza", "where": "stage back", "size": [8.0, 0.5, 6.0]}]
+PLAZA_ITEMS = [["TOWER 1", 0.0, 4.0, 2.0, 2.0, None, "item"], ["TOWER 2", 18.0, 4.0, 2.0, 2.0, None, "item"],
+               ["CROWD 1", 0.0, 0.0, 20.0, 12.0, None, "item"], ["LANTERN STRING 1", 2.0, 5.0, 16.0, 0.5, None, "item"],
+               ["STAGE SCREEN 1", 6.0, 8.0, 8.0, 0.5, None, "item"], ["STAGE SCREEN 2", 6.0, 10.0, 8.0, 0.5, None, "item"]]
 
 
-def test_the_relations_are_kept_beside_the_plan_with_its_sha(tmp_path, monkeypatch):
-    """keep writes each place's relations under the relations folder, naming the kept plan's sha, and writes nothing
-    again while plan and inventory stand.
-    Break: score/review/holders/__init__.py: `if not path.is_file() or path.read_text() != found:` -> `if True:`"""
-    for name in ("KEPT_PLANS", "KEPT_INVENTORY", "KEPT"):
-        monkeypatch.setattr(holders, name, tmp_path / name)
-        (tmp_path / name).mkdir()
-    text = json.dumps(plan_of([], {}))
-    (tmp_path / "KEPT_PLANS/hut.json").write_text(text)
-    (tmp_path / "KEPT_INVENTORY/hut.json").write_text(json.dumps({"rows": []}))
-    assert holders.keep(["hut", "nowhere"]) == ["hut"] and holders.keep(["hut"]) == []
-    assert json.loads((tmp_path / "KEPT/hut.json").read_text())["plan"] == holders.plan_sha(text)
+def plaza(items):
+    """The plaza with its deck 3.3 m up and the items given."""
+    return plan_of(items, {"TOWER 1": ["tower"], "TOWER 2": ["tower"], "CROWD 1": ["crowd"],
+                           "LANTERN STRING 1": ["lantern_string"], "STAGE SCREEN 1": ["stage_screen"],
+                           "STAGE SCREEN 2": ["stage_screen"]},
+                   levels=[{"height": 3.3, "points": [[5.0, 9.0], [15.0, 9.0], [15.0, 12.0], [5.0, 12.0]]}],
+                   shapes={"LANTERN STRING 1": {"base": 6.0, "tall": 0.5}, "STAGE SCREEN 1": {"base": 3.3, "tall": 6.0},
+                           "STAGE SCREEN 2": {"base": 3.3, "tall": 6.0}, "TOWER 1": {"tall": 18.0},
+                           "TOWER 2": {"tall": 18.0}, "CROWD 1": {"tall": 1.8}})
 
 
-def test_an_opening_on_no_wall_the_shell_builds_is_named_loose():
-    """The plan check that every opening sits on a wall the shell builds (its outline's or an inner wall's): in a
-    20 x 12 m room an opening on its north wall and one on an inner wall across it at y 6 are on walls; one in the
-    room's middle of nothing is named loose (the lab's doors, in walls the shell did not build, hung on nothing,
-    motion@lab round 35; camp's airlock door still stands in its dome's gap).
-    Break: score/review/holders/__init__.py: `if not design_shell.on_a_wall(plan, opening)]` -> `if False]`"""
-    walls = [{"from": [0.0, 6.0], "to": [20.0, 6.0], "thick": 0.2}]
-    openings = [{"kind": "door", "at": at, "wide": 1.0, "sill": 0.0, "head": 2.0} for at in ([5.0, 0.0], [10.0, 6.0],
-                                                                                              [10.0, 3.0])]
-    found = holders.relations(plan_of([], {}, walls=walls, openings=openings), {"rows": []})
-    loose = [{"opening": 3, "at": [10.0, 3.0], "why": "it sits on no wall the shell builds"}]
-    assert found.get("loose") == loose, found
+CASES.append(case("wall-spread-plaza", relate, plaza(PLAZA_ITEMS), PLAZA_ROWS, want={
+    "item/LANTERN STRING 1/how": "hung", "item/LANTERN STRING 1/holders": ["TOWER 1", "TOWER 2"],
+    "item/STAGE SCREEN 1/height": 0.0, "item/STAGE SCREEN 2/height": ABSENT}))
+CASES.append(case("wall-spread-plaza-without-towers", relate, plaza(PLAZA_ITEMS[2:]), PLAZA_ROWS,
+                  want={"item/LANTERN STRING 1/how": "floor"}))
+OWN_WALL = {"from": [5.0, 4.0], "to": [6.0, 4.0], "thick": 0.1, "tall": 2.8}
+INNER_WALL = {"from": [5.0, 5.0], "to": [8.0, 5.0], "thick": 0.1, "tall": 2.8}
+PIPE_CONTEXT = ({"item": "PIPE 2", "row": "pipe", "how": "wall", "wall": OWN_WALL, "side": 1, "spot": [5.5, 4.0]},
+                {"id": "pipe", "noun": "pipe", "anchor": "wall", "size": [3.0, 0.2, 0.2]},
+                plan_of([], {}, walls=[OWN_WALL, INNER_WALL]), 1.0, [])
+CASES.append(case("wall-spread-onto-an-inner-wall", holders.walled_clear, *PIPE_CONTEXT,
+                  want={"0/spot": [5.5, 5.0], "1": 1.0}))
+CASES.append(case("wall-spread-its-row-already-there", holders.walled_clear, *PIPE_CONTEXT, [("pipe", [5.5, 5.0], 1.0)],
+                  want={(elsewhere([5.5, 5.0], 1.0),): True}))
+RAILED = {"items": [[f"RAIL {number}", 2.0 * number, 1.0, 1.0, 1.0, None, "item"] for number in (1, 2, 3, 4)],
+          "rows": {f"RAIL {number}": ["railing"] for number in (1, 2, 3, 4)}}
+RAILED_TIED = {"railing": [f"RAIL {number}" for number in (1, 2, 3, 4)]}
+CASES.append(case("wall-spread-pieces-at-an-item", holders.pieces_at, "RAIL 1", {"id": "railing", "count": 8}, RAILED,
+                  RAILED_TIED, want={(): 2}))
+for number in (1, 2, 3, 4):
+    CASES.append(case(f"wall-spread-pieces-at-rail-{number}-after-drops", holders.pieces_at, f"RAIL {number}",
+                      {"id": "railing", "count": 8},
+                      {**RAILED, "dropped": [{"item": "railing", "why": "4 more of it than the place's free floor holds",
+                                              "laid": 4}]}, RAILED_TIED, want={(): 1}))
+
+# kept, loose, open-doorway
+CASES.append(case("kept", kept, plan_of([], {}), {"rows": []}, want={
+    "first": ["hut"], "second": [], "sha": holders.plan_sha(json.dumps(plan_of([], {})))}))
+CASES.append(case(
+    "loose", relate,
+    plan_of([], {}, walls=[{"from": [0.0, 6.0], "to": [20.0, 6.0], "thick": 0.2}],
+            openings=[{"kind": "door", "at": at, "wide": 1.0, "sill": 0.0, "head": 2.0}
+                      for at in ([5.0, 0.0], [10.0, 6.0], [10.0, 3.0])]), [], picture=None,
+    want={"loose": [{"opening": 3, "at": [10.0, 3.0], "why": "it sits on no wall the shell builds"}]}))
+CASES.append(case(
+    "open-doorway", relate,
+    plan_of([], {}, shell="kit", inside=False, walls=[],
+            openings=[{"kind": "door", "at": [1.4, 19.4], "wide": 1.0, "sill": 0.14, "head": 2.2, "to": "stairwell"}]),
+    [], picture=None, want={"loose": ABSENT}))
 
 
-def test_an_open_place_s_doorway_is_no_loose_opening():
-    """The street (2026-10-31): its plan draws no walls (an open ground has none) and its stairwell door stands in
-    its facade row, a doorway into the building: no wall opening of its own, so it is not named loose.
-    Break: score/review/holders/__init__.py: `if "wall" not in shell_parts.parts(plan):` -> `if False:`"""
-    opening = {"kind": "door", "at": [1.4, 19.4], "wide": 1.0, "sill": 0.14, "head": 2.2, "to": "stairwell"}
-    street = plan_of([], {}, shell="kit", inside=False, walls=[], openings=[opening])
-    assert "loose" not in holders.relations(street, {"rows": []}), "an open place's doorway"
+@pytest.mark.parametrize("judge, args, kwargs, want", CASES)
+def test_each_plan_item_names_what_holds_it(judge, args, kwargs, want):
+    """Each row's answer holds what its want names, part by part."""
+    answer = judge(*args, **kwargs)
+    for path, wanted in want.items():
+        got = probe(answer, path if isinstance(path, tuple) else (path,), answer)
+        assert wanted == got, (path, got, wanted)
