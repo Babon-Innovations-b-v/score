@@ -91,8 +91,10 @@ DASHBOARD_ENV = pathlib.Path.home() / ".config" / "score" / "dashboard.env"  # t
 OWNERS_GO = "SCORE_OWNERS_GO"  # score.review.web.OWNERS_GO: the run's go, the owner's recorded in a session
 PC_ENV = pathlib.Path.home() / ".farm-factory-props" / "env"  # the prop environment bootstrap.sh builds here
 DOOR_SERVICE = pathlib.Path(__file__).resolve().parent / "conductor" / "door_service.py"  # the cluster's door
-ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1",
-               "SCORE_MAX_MACHINES": "all=1"}  # one machine: this PC
+# No SCORE_MAX_MACHINES: the run's cap here is backends/local.py's claims_at_once (capacity.caps), as many claims as
+# this PC's card and memory hold by their measured shares, never one (2026-11-13: the card at 4% while card jobs
+# waited behind one processor-bound claim).
+ENVIRONMENT = {"SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1"}
 MACHINE = "score-this-pc"  # backends/local.py's first container; each other kind's is MACHINE-<kind>
 FREE_WARN_GB = 100  # status warns while this PC's disk has less free
 PAUSED = "paused.json"  # under HOME: the paused run, until resume starts it again

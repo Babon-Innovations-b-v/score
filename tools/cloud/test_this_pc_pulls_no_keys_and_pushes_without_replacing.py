@@ -288,7 +288,7 @@ def test_a_run_here_is_free_only_on_this_pcs_card_in_its_own_home(tmp_path, monk
     home = this_pc.prepared(tmp_path / "home")
     environment = this_pc.run_environment(home)
     assert {key: environment[key] for key in this_pc.ENVIRONMENT} == {
-        "SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1", "SCORE_MAX_MACHINES": "all=1"}
+        "SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1"}
     assert environment["PROPS_HOME"] == str(home) and (home / "cloud/ssh_key.pub").exists()
     assert (home / "env").is_symlink()
 
