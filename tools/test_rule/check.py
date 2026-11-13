@@ -157,7 +157,7 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py": 17,
     "score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py": 3,
     "score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py": 9,
-    "score/stages/sound/test_a_place_is_heard_as_its_design_says.py": 24,
+    "score/stages/sound/test_a_place_is_heard_as_its_design_says.py": 20,
     "score/stages/surface_tiles/test_shell_tiles.py": 4,
     "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py": 116,
     "score/stages/terrain/test_ground_follows_design.py": 10,
