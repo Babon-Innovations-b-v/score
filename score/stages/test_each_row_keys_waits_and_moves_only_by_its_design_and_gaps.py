@@ -47,7 +47,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_the_paint_bake_and_check_code_moves_only_their_own_rows.
 - score/stages/assembly/baked.py: `import complete as stage_inputs`  ->
   test_the_completion_gate_s_code_moves_only_complete_and_settle and
-  test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps.
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its GAPPED_GATES rows).
 - score/stages/shapes_first/__init__.py: the palette's optional Pixal3D read dropped (`optional=row.optional`)  ->
   test_no_base_or_layer_row_must_wait_on_the_prop_route.
 - `creator_plan`: the concept declared whether it is kept or not (`if True:`)  ->
@@ -95,7 +95,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 
 --- a scenes layers are read off its design, and a rows kind comes from its own words ---
 
-The cases of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps, the one test these two sections fold into.
+The cases of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps, the one test these two sections and the accepted-gap
+section below fold into.
 Which layers a scene has is read off its design alone, and the stage table and the assembly's layers gate give one
 answer (design_layers.py): each row shows the layer its kind does, crops are plants on a bed and never a potted plant,
 every scene with a design has light and sound, a place with no kept design has no layer at all, and for a design kept
@@ -210,29 +211,31 @@ keeping the findings; any other fault still fails it; a named unknown moves and 
 gap by name with its numbers, the owner's and the ones a row wrote in its output; a gap is an input of complete and of
 the row it names alone, and only complete's code version holds gaps.py, so moving a verdict re-makes nothing paid.
 
-The owner's gap decisions of the old concepts were retired with them (2026-10-21), so each test writes the decision it
+The owner's gap decisions of the old concepts were retired with them (2026-10-21), so the test writes each decision it
 judges, in the file's own form, into a gaps folder of its own.
 
 Breaks (each applied once, seen red, reverted), in score/stages/gaps.py:
-- `moved`: `if not all(any(covers(...)) ...)` read with `any` over the findings  -> the named-faults cases (another
-  fault moves too).
-- `covers`: `and entry.get("contains", "") in finding` dropped  -> the order case (a colour fault moves).
-- `object_of`: the JSON branch dropped  -> the rows and boxes cases.
-- `moved`: the unknown branch dropped  -> the unknown test.
-- `files`: the `row is not None and ...` narrowing dropped  -> the inputs test (the paint reads the street's gaps).
-- `judge_accepted`: `written(inputs)` left out  -> the written-gap test.
+- `moved`: `if not all(any(covers(...)) ...)` read with `any` over the findings  -> the MOVED named-faults
+  rows (another fault moves too).
+- `covers`: `and entry.get("contains", "") in finding` dropped  -> the MOVED order rows (a colour fault moves).
+- `object_of`: the JSON branch dropped  -> the MOVED rows and boxes rows.
+- `moved`: the unknown branch dropped  -> the MOVED named-unknown row.
+- `files`: the `row is not None and ...` narrowing dropped  -> the GAP_READERS rows (the paint reads the
+  street's gaps).
+- `judge_accepted`: `written(inputs)` left out  -> the far city's written gap (FAR_CITY).
 - `entries`: the row and check filter dropped (`return list(found)`)  ->
-  test_the_decision_file_is_read_by_row_and_check_and_a_pass_or_unknown_is_left_alone.
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (the wreck's decision file).
 - `judge_accepted`: a finding without its gap's name (`f"{fault}"`)  ->
-  test_complete_fails_each_accepted_gap_by_name_with_its_numbers (and the batch section's line test).
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its crane, and the batch section's line test).
 - score/stages/people_gaps.py `judge_accepted`: every batch gap kept (`whose = False`); or `of_people` reading a
   model's row from any name (`number.isdigit()` dropped); or `all` read as `any` over a gap's objects  ->
-  test_complete_fails_each_accepted_gap_by_name_with_its_numbers.
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its people batch gaps).
 - score/stages/__init__.py `gap_moved`: `judged.__wrapped__ = check.judge` dropped  ->
-  test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps (and the batch section's two table-move tests).
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its GAPPED_GATES rows; and the batch section's two table-move
+  tests).
 - data/checks/gaps/garage.json: its pipe entry deleted; or this file's `dropped`: `if entry.get("passed")` dropped  ->
-  test_an_owner_s_gap_is_never_dropped_unless_it_is_retired_on_a_passing_output (2026-10-29: 37aa882c dropped the
-  owner's pipe gap by itself).
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its DROPPED rows and the tree's own records;
+  2026-10-29: 37aa882c dropped the owner's pipe gap by itself).
 
 --- a failed paid take is a gap carried down its line ---
 
@@ -1421,7 +1424,9 @@ HAS_LAYER = [("shed", "people", True), ("shed", "light", True), ("shed", "effect
 def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, monkeypatch):
     """Each row's kind, a person's look and a natural ground are read off its own words (a ground then its body's
     physics) and each scene's layers off its kept design, and the stage table holds a row for exactly the layers the
-    assembly's gate waits on; a row's objects are found outside the layers' scopes, anything else a stranger."""
+    assembly's gate waits on; a row's objects are found outside the layers' scopes, anything else a stranger. An
+    accepted gap moves only the faults it names and is read only by complete and the row it names; complete fails
+    each by name, and an owner's gap is never dropped unless retired on a passing output."""
     from score.stages import assembly
     house = row_kinds.table()
     for case, judge, read, answer in JUDGED:
@@ -1448,6 +1453,75 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     assert row_kinds.strangers(["Objects/door_2", "Objects/kettle", "Objects/door_frame_1", "Objects/doormat"],
                                {"rows": [{"id": "door"}, {"id": "kettle"}]}) == ["Objects/door_frame_1",
                                                                                 "Objects/doormat"]
+
+    # an accepted gap moves only its named faults, keeping its findings; anything else is left as it was
+    for case, verdict, found, answer, said in MOVED:
+        kept = gaps.moved(verdict, found)
+        if answer is None:
+            assert kept == verdict, (case, kept)
+            continue
+        assert (kept.answer, kept.findings) == (answer, verdict.findings) and found[0]["name"] in kept.reason, \
+            (case, kept)
+        if answer == checks.FAIL:  # still failing, the gap of its own faults named beside the other fault
+            assert kept.measures == verdict.measures and kept.reason.startswith(verdict.reason), (case, kept)
+        else:
+            assert kept.measures["moved"] == said, (case, kept)
+    for case, after, lost in DROPPED:
+        assert dropped({"garage": {"gaps": [PIPE]}}, after) == lost, case
+    # an owner's gap stays in the tree's own records since the commit it branched from main
+    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=REPO, capture_output=True, text=True)
+    commit = base.stdout.strip() if base.returncode == 0 else "HEAD"
+    tree = {path.stem: json.loads(path.read_text()) for path in sorted((REPO / "data/checks/gaps").glob("*.json"))}
+    assert dropped(git_gaps(commit), tree) == [], f"owner's gaps dropped since {commit[:12]}"
+
+    # the owner's decision files of four places, each read by its row and check
+    with decided({"wreck": [RESTING, ORDER], "street": [NAMED_UNKNOWN], "campgrounds": [CRANE],
+                  "lab": [entry("chairs", "assembly", "placeholders", ["chair_1"], [])]}):
+        assert gaps.entries(recorded("wreck"), "assembly", "resting") == [RESTING]
+        for place, name, reads in GAP_READERS:
+            assert (gaps.NAME in ROWS[name].files(place)) is reads, (place, name)
+        assert not gaps.files("nowhere") and not gaps.files("nowhere", "assembly")
+        crane = gaps.judge_accepted(None, recorded("campgrounds"), None)
+        crane_people = people_gaps.judge_accepted(None, recorded("campgrounds"), None)
+    # complete fails each accepted gap by name with its numbers, and its people gate gives the same answer
+    assert crane.answer == checks.FAIL and CRANE["name"] in crane.reason
+    assert crane.findings == ("crane: a foot off the floor: /campgrounds/Objects/crane_1: foot 2 3.2 cm off the floor",)
+    assert (crane_people.answer, crane_people.reason, crane_people.findings) == (crane.answer, crane.reason,
+                                                                                 crane.findings)
+    assert gaps.judge_accepted(None, {}, None).answer == checks.PASS
+    # a gap a row it reads wrote in its own output is listed by name
+    (tmp_path / "neighbours").mkdir()
+    (tmp_path / "neighbours" / gaps.WRITTEN).write_text(json.dumps({"gaps": [FAR_CITY]}))
+    lost = gaps.judge_accepted(None, {"neighbours": tmp_path / "neighbours"}, None)
+    assert lost.answer == checks.FAIL and FAR_CITY["name"] in lost.reason, lost
+    # complete's people gate leaves out a batch gap of the place's own take of a people row alone, never one naming
+    # another object too (cockpit, 2026-11-12: the pilot's and officer's takes were two of eleven gap objects)
+    handin = written(tmp_path, "handin.json", {
+        "rows": [{"id": "pilot", "route": "people"}, {"id": "seat", "route": "prop"}],
+        "objects": {"pilot": {"take": "toy_pilot_1", "rows": ["pilot"]}, "seat": {"take": "toy_seat_1", "rows": ["seat"]}},
+        "takes": {"toy_pilot_1": {"route": "people"}, "toy_seat_1": {"route": "prop"}}})
+    batch = tmp_path / "check"
+    batch.mkdir()
+    batch_gaps.write(batch, [batch_gaps.gap(f"{name}: off", "surfaces-check", "baked", objects, [f"{name}: off"], "x")
+                             for name, objects in (("toy_pilot_1", ["toy_pilot_1"]), ("pilot_1", ["toy_pilot_1", "pilot_1"]),
+                                                   ("seat_1", ["toy_seat_1", "seat_1"]), ("lamp", ["pilot_lamp"]),
+                                                   ("both", ["toy_pilot_1", "toy_seat_1"]))])
+    people = people_gaps.judge_accepted(None, {"hand-in": handin, "check": batch}, None)
+    assert people.answer == checks.FAIL and people.measures["people takes' gaps"] == 2, people
+    assert [finding.split(":")[0] for finding in people.findings] == ["seat_1", "lamp", "both"], people.findings
+    assert "pilot_1: off" in people.reason.split("left out, the people line's")[1], people.reason
+    batch_gaps.write(batch, [batch_gaps.gap("pilot_1: off", "surfaces-check", "baked", ["pilot_1"], ["off"], "x")])
+    assert people_gaps.judge_accepted(None, {"hand-in": handin, "check": batch}, None).answer == checks.PASS
+    assert people_gaps.judge_accepted(None, {"check": batch}, None).answer == checks.FAIL  # no hand-in: no people row
+
+    # the table wraps each gate in the gap mover, and only complete's code version holds gaps.py
+    assert graph.GAPPED == "accepted gaps" and graph.GAPPED in [check.name for check in ROWS["complete"].checks]
+    for name, gate in GAPPED_GATES:
+        check = next(check for check in ROWS[name].checks if check.name == gate)
+        assert hasattr(check.judge, "__wrapped__"), (name, gate)
+    hashing = {name for name in ("assembly", "surfaces-check", "surfaces-paint", "complete")
+               if _code.REPO / "score/stages/gaps.py" in _code.source_files(graph.code_functions(ROWS[name]))}
+    assert hashing == {"complete"}, hashing  # moving a verdict re-makes nothing, the paid paint above all
 
 
 # --- every designed person is a look of the line ---
@@ -1850,36 +1924,56 @@ CASES = {  # gap, another fault of the same gate no gap names
     "a record by its path": (GAME, "scene-record output x/record/launch.json: 1 entries take their numbers from the "
                                    "game (source), 1 positions placed from it"),
 }
+NAMED_UNKNOWN = entry("launch: no likeness output", "complete", "likeness", [], [],
+                      unknown="no accepted likeness@street")  # the overseer, 2026-10-15: no props file answers it
 
 
-@pytest.mark.parametrize("case", sorted(CASES))
-def test_only_the_named_faults_move_and_any_other_still_stops_the_line(case):
-    gap, other = CASES[case]
-    named = failed(gap["check"], gap["faults"])
-    kept = gaps.moved(named, [gap])
-    assert kept.answer == checks.PASS and kept.findings == named.findings, kept
-    assert kept.measures["moved"] == len(gap["faults"]) and gap["name"] in kept.reason
-    both = failed(gap["check"], [*gap["faults"], other])
-    still = gaps.moved(both, [gap])  # still failing, the gap of its own faults named beside the other fault
-    assert (still.answer, still.findings, still.measures) == (both.answer, both.findings, both.measures), still
-    assert still.reason.startswith(both.reason) and gap["name"] in still.reason, still
+def unknown(check, reason):
+    return checks.Verdict(check, checks.UNKNOWN, reason)
 
 
-def test_the_decision_file_is_read_by_row_and_check_and_a_pass_or_unknown_is_left_alone():
-    with decided({"wreck": [RESTING, ORDER]}):
-        found = gaps.entries(recorded("wreck"), "assembly", "resting")
-    assert found == [RESTING]
-    unknown = checks.Verdict("resting", checks.UNKNOWN, "no drop run")
-    assert gaps.moved(unknown, found) == unknown
+# (case, the gate's verdict, the gaps it is judged against, the answer after the move or None when it is left alone,
+# the faults it says it moved): only the named faults move and any other still stops the line; a named unknown moves
+# and another unknown, or one no gap names, stays
+MOVED = [
+    *[(f"{case}: its named faults", failed(gap["check"], gap["faults"]), [gap], checks.PASS, len(gap["faults"]))
+      for case, (gap, _) in CASES.items()],
+    *[(f"{case}: another fault beside them", failed(gap["check"], [*gap["faults"], other]), [gap], checks.FAIL, None)
+      for case, (gap, other) in CASES.items()],
+    ("a named unknown", unknown("likeness", "no accepted likeness@street"), [NAMED_UNKNOWN], checks.PASS, 1),
+    ("another unknown", unknown("likeness", "2 generated rows and no accepted likeness@launch"), [NAMED_UNKNOWN], None,
+     None),
+    ("an unknown no gap names", unknown("resting", "no drop run"), [RESTING], None, None),
+]
 
+# the owner's pipe gap at the garage (#36, 2026-10-29: 37aa882c deleted it): (case, the record after, what it dropped)
+PIPE = {"name": "pipe: its path build cannot match", "row": "likeness", "check": "outline"}
+DROPPED = [
+    ("kept", {"garage": {"gaps": [PIPE]}}, []),
+    ("the file deleted", {}, ["garage: pipe: its path build cannot match"]),
+    ("emptied", {"garage": {"gaps": []}}, ["garage: pipe: its path build cannot match"]),
+    ("retired on no output", {"garage": {"gaps": [], "retired": [dict(PIPE, passed="")]}},
+     ["garage: pipe: its path build cannot match"]),
+    ("retired on a passing output", {"garage": {"gaps": [], "retired": [dict(PIPE, passed="likeness@garage 1a2b3c")]}},
+     []),
+]
 
-def test_a_named_unknown_moves_and_another_unknown_stays():
-    """The overseer, 2026-10-15: the likeness no props file answers moves; another unknown stays."""
-    found = [entry("launch: no likeness output", "complete", "likeness", [], [], unknown="no accepted likeness@street")]
-    assert gaps.moved(checks.Verdict("likeness", checks.UNKNOWN, "no accepted likeness@street"), found).answer \
-        == checks.PASS
-    other = checks.Verdict("likeness", checks.UNKNOWN, "2 generated rows and no accepted likeness@launch")
-    assert gaps.moved(other, found) == other
+# (place, row, whether the row reads the place's gaps): a street's gaps (complete's alone) made the paid paint at three
+# places run again (the overseer, 2026-10-15)
+GAP_READERS = [("street", "assembly", False), ("street", "surfaces-check", False), ("street", "surfaces-paint", False),
+               ("street", "complete", True), ("lab", "assembly", True), ("lab", "surfaces-paint", False)]
+
+# the gates the table wraps in the gap mover
+GAPPED_GATES = [("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
+                ("surfaces-check", "baked matches its surfaces"), ("surfaces-paint", "colour against the close-up"),
+                ("complete", "people"), ("complete", "likeness"), ("complete", "motion"), ("complete", "rows"),
+                ("complete", "game"), ("complete", "boxes")]
+
+CRANE = entry("crane: a foot off the floor", "complete", "resting", ["/campgrounds/Objects/crane_1"],
+              ["/campgrounds/Objects/crane_1: foot 2 3.2 cm off the floor"])
+FAR_CITY = {"name": "far_city: shown by the plan, not stood", "row": "neighbours", "check": "neighbours",
+            "objects": ["/flat/Places/far_city"], "reason": "its seed went with the old disk",
+            "decided": "lost input, 2026-10-19 (the old disk)", "faults": []}  # lost with the old disk, #10
 
 
 def dropped(before, after):
@@ -1902,95 +1996,6 @@ def git_gaps(commit):
     return {pathlib.Path(name).stem: json.loads(subprocess.run(["git", "show", f"{commit}:{name}"], cwd=REPO,
                                                                check=True, capture_output=True, text=True).stdout)
             for name in listing if name.endswith(".json")}
-
-
-def test_an_owner_s_gap_is_never_dropped_unless_it_is_retired_on_a_passing_output():
-    """#36 (2026-10-29): 37aa882c deleted data/checks/gaps/garage.json, the owner's "Accept as a gap" for the pipe,
-    expecting its width rule to pass it; the re-bake measured outline 0.246 and the record was restored as he decided
-    it. An owner's gap stays until its item passes its gate on a made output: it leaves `gaps` only as `retired`, its
-    `passed` naming that output. Here against the fixtures, then against the tree's own records since the commit it
-    branched from main (a change that drops one fails before it is pushed).
-    Break: data/checks/gaps/garage.json: its pipe entry deleted (or the file)  -> this test
-    Break: `dropped`: `if entry.get("passed")` dropped  -> this test (a retirement naming no output)"""
-    pipe = {"name": "pipe: its path build cannot match", "row": "likeness", "check": "outline"}
-    before = {"garage": {"gaps": [pipe]}}
-    assert dropped(before, before) == []
-    assert dropped(before, {}) == ["garage: pipe: its path build cannot match"]  # the file deleted
-    assert dropped(before, {"garage": {"gaps": []}}) == ["garage: pipe: its path build cannot match"]  # emptied
-    assert dropped(before, {"garage": {"gaps": [], "retired": [dict(pipe, passed="")]}}) == [
-        "garage: pipe: its path build cannot match"]  # retired on no output
-    assert dropped(before, {"garage": {"gaps": [], "retired": [dict(pipe, passed="likeness@garage 1a2b3c")]}}) == []
-    base = subprocess.run(["git", "merge-base", "HEAD", "origin/main"], cwd=REPO, capture_output=True, text=True)
-    commit = base.stdout.strip() if base.returncode == 0 else "HEAD"
-    tree = {path.stem: json.loads(path.read_text()) for path in sorted((REPO / "data/checks/gaps").glob("*.json"))}
-    assert dropped(git_gaps(commit), tree) == [], f"owner's gaps dropped since {commit[:12]}"
-
-
-def test_a_gap_is_an_input_of_complete_and_of_the_row_it_names_alone():
-    """The overseer, 2026-10-15: a street's gaps (complete's alone) made the paid paint at three places run again."""
-    likeness = entry("launch: no likeness output", "complete", "likeness", [], [], unknown="x")
-    with decided({"street": [likeness], "lab": [entry("chairs", "assembly", "placeholders", ["chair_1"], [])]}):
-        for row in ("assembly", "surfaces-check", "surfaces-paint"):
-            assert gaps.NAME not in ROWS[row].files("street"), row
-        assert gaps.NAME in ROWS["complete"].files("street")
-        assert gaps.NAME in ROWS["assembly"].files("lab") and gaps.NAME not in ROWS["surfaces-paint"].files("lab")
-        assert not gaps.files("nowhere") and not gaps.files("nowhere", "assembly")
-
-
-def test_complete_fails_each_accepted_gap_by_name_with_its_numbers(tmp_path):
-    """And complete's gate in the table (people_gaps.py) leaves out a batch gap of the place's own take of a people row,
-    which the characters layer lays from the people line (cockpit, 2026-11-12: its pilot's and officer's takes, laid
-    nowhere, were two of its eleven gap objects on "human skin"), never a gap naming another object too."""
-    crane = entry("crane: a foot off the floor", "complete", "resting", ["/campgrounds/Objects/crane_1"],
-                  ["/campgrounds/Objects/crane_1: foot 2 3.2 cm off the floor"])
-    with decided({"campgrounds": [crane]}):
-        found = gaps.judge_accepted(None, recorded("campgrounds"), None)
-        both = people_gaps.judge_accepted(None, recorded("campgrounds"), None)
-    assert found.answer == checks.FAIL and "crane: a foot off the floor" in found.reason
-    assert found.findings == ("crane: a foot off the floor: /campgrounds/Objects/crane_1: foot 2 3.2 cm off the floor",)
-    assert (both.answer, both.reason, both.findings) == (found.answer, found.reason, found.findings)
-    assert gaps.judge_accepted(None, {}, None).answer == checks.PASS
-    handin = written(tmp_path, "handin.json", {
-        "rows": [{"id": "pilot", "route": "people"}, {"id": "seat", "route": "prop"}],
-        "objects": {"pilot": {"take": "toy_pilot_1", "rows": ["pilot"]}, "seat": {"take": "toy_seat_1", "rows": ["seat"]}},
-        "takes": {"toy_pilot_1": {"route": "people"}, "toy_seat_1": {"route": "prop"}}})
-    batch = tmp_path / "check"
-    batch.mkdir()
-    batch_gaps.write(batch, [batch_gaps.gap(f"{name}: off", "surfaces-check", "baked", objects, [f"{name}: off"], "x")
-                             for name, objects in (("toy_pilot_1", ["toy_pilot_1"]), ("pilot_1", ["toy_pilot_1", "pilot_1"]),
-                                                   ("seat_1", ["toy_seat_1", "seat_1"]), ("lamp", ["pilot_lamp"]),
-                                                   ("both", ["toy_pilot_1", "toy_seat_1"]))])
-    found = people_gaps.judge_accepted(None, {"hand-in": handin, "check": batch}, None)
-    assert found.answer == checks.FAIL and found.measures["people takes' gaps"] == 2, found
-    assert [finding.split(":")[0] for finding in found.findings] == ["seat_1", "lamp", "both"], found.findings
-    assert "pilot_1: off" in found.reason.split("left out, the people line's")[1], found.reason
-    batch_gaps.write(batch, [batch_gaps.gap("pilot_1: off", "surfaces-check", "baked", ["pilot_1"], ["off"], "x")])
-    assert people_gaps.judge_accepted(None, {"hand-in": handin, "check": batch}, None).answer == checks.PASS
-    assert people_gaps.judge_accepted(None, {"check": batch}, None).answer == checks.FAIL  # no hand-in: no people row
-
-
-def test_complete_lists_a_gap_a_row_it_reads_wrote_in_its_output(tmp_path):
-    """The neighbours' far city (lost with the old disk, #10): its own gaps.json, listed by complete by name."""
-    lost = {"name": "far_city: shown by the plan, not stood", "row": "neighbours", "check": "neighbours",
-            "objects": ["/flat/Places/far_city"], "reason": "its seed went with the old disk",
-            "decided": "lost input, 2026-10-19 (the old disk)", "faults": []}
-    (tmp_path / gaps.WRITTEN).write_text(json.dumps({"gaps": [lost]}))
-    found = gaps.judge_accepted(None, {"neighbours": tmp_path}, None)
-    assert found.answer == checks.FAIL and "far_city: shown by the plan, not stood" in found.reason, found
-
-
-def test_the_table_wires_the_gates_and_only_complete_hashes_the_gaps():
-    assert graph.GAPPED == "accepted gaps" and graph.GAPPED in [check.name for check in ROWS["complete"].checks]
-    for row, gate in (("assembly", "placeholders"), ("assembly", "resting"), ("surfaces-check", "stands level"),
-                      ("surfaces-check", "baked matches its surfaces"),
-                      ("surfaces-paint", "colour against the close-up"), ("complete", "people"),
-                      ("complete", "likeness"), ("complete", "motion"), ("complete", "rows"), ("complete", "game"),
-                      ("complete", "boxes")):
-        check = next(check for check in ROWS[row].checks if check.name == gate)
-        assert hasattr(check.judge, "__wrapped__"), (row, gate)
-    hashing = {name for name in ("assembly", "surfaces-check", "surfaces-paint", "complete")
-               if _code.REPO / "score/stages/gaps.py" in _code.source_files(graph.code_functions(ROWS[name]))}
-    assert hashing == {"complete"}, hashing  # moving a verdict re-makes nothing, the paid paint above all
 
 
 # --- a failed paid take is a gap carried down its line ---
