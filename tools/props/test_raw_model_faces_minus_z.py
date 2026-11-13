@@ -6,18 +6,19 @@ The raw model is a small lopsided box, turned and stamped by the vendored lab's 
 every model it writes, so the case is the real stamp and the real turn; the answer (the box's own points before the
 turn) is known apart from the code.
 
-Breaks that turn each test red (each applied once and seen red, 2026-10-26):
-- test_a_turned_raw_model_comes_back_to_minus_z_with_its_camera: pixal.model_turned_back's
-  `glb_file.turned(document, views, HALF_TURN)` dropped; and, apart, cameras_turned_back's `VIEW_TURN @` dropped.
-- test_an_unturned_raw_model_is_left_as_it_is: facing_back's `if not turned_by_lab(raw):` made `if False:`.
-- test_turning_back_twice_turns_once: model_turned_back's `extras.pop(FACING_KEY)` made `extras.get(FACING_KEY)` (the
-  stamp stays, so a second call turns it again).
+Breaks that turn test_a_raw_model_faces_minus_z_once red (each applied once and seen red, 2026-10-26, again 2026-11-13):
+- pixal.model_turned_back's `glb_file.turned(document, views, HALF_TURN)` dropped (the turned row); and, apart,
+  cameras_turned_back's `VIEW_TURN @` dropped (the turned row's camera).
+- facing_back's `if not turned_by_lab(raw):` made `if False:` (the never-turned row is turned).
+- model_turned_back's `extras.pop(FACING_KEY)` made `extras.get(FACING_KEY)` (the stamp stays, so the second call
+  turns it again).
 """
 import json
 import pathlib
 import sys
 
 import numpy as np
+import pytest
 import trimesh
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -55,34 +56,31 @@ def positions(raw):
     return glb_file.positions(document, views)
 
 
-def test_a_turned_raw_model_comes_back_to_minus_z_with_its_camera(tmp_path):
+def camera_file(raw):
+    return raw.with_suffix(".svviews") / "transforms.json"
+
+
+@pytest.mark.parametrize("turned_by_lab", [True, False], ids=["turned by the lab", "never turned"])
+def test_a_raw_model_faces_minus_z_once(tmp_path, turned_by_lab):
+    """Each raw model, turned by the lab or not, is read facing -Z: facing_back turns it back exactly when the lab
+    turned it, takes the stamp off model and camera, and a second call changes nothing."""
     raw = raw_model(tmp_path)
     before = positions(raw)
-    camera = json.loads((raw.with_suffix(".svviews") / "transforms.json").read_text())
-    turned_as_the_lab_turns(raw)
-    assert np.allclose(positions(raw), before * [-1, 1, -1])  # the lab's turn, as the case needs it
-    assert pixal.facing_back(raw) is True
+    camera = json.loads(camera_file(raw).read_text())
+    if turned_by_lab:
+        turned_as_the_lab_turns(raw)
+        assert np.allclose(positions(raw), before * [-1, 1, -1])  # the lab's turn, as the case needs it
+    given = raw.read_bytes(), camera_file(raw).read_text()
+
+    assert pixal.facing_back(raw) is turned_by_lab
+    once = raw.read_bytes(), camera_file(raw).read_text()
+    assert (once == given) is not turned_by_lab, "the files change exactly when the model was turned back"
     assert np.allclose(positions(raw), before)
     document, _ = glb_file.read(raw)
     assert FACING_KEY not in (document["asset"].get("extras") or {})
-    found = json.loads((raw.with_suffix(".svviews") / "transforms.json").read_text())
+    found = json.loads(camera_file(raw).read_text())
     assert CAMERA_KEY not in found
     assert np.allclose(found["frames"][0]["transform_matrix"], camera["frames"][0]["transform_matrix"])
 
-
-def test_an_unturned_raw_model_is_left_as_it_is(tmp_path):
-    raw = raw_model(tmp_path)
-    model = raw.read_bytes()
-    cameras = (raw.with_suffix(".svviews") / "transforms.json").read_text()
     assert pixal.facing_back(raw) is False
-    assert raw.read_bytes() == model
-    assert (raw.with_suffix(".svviews") / "transforms.json").read_text() == cameras
-
-
-def test_turning_back_twice_turns_once(tmp_path):
-    raw = raw_model(tmp_path)
-    before = positions(raw)
-    turned_as_the_lab_turns(raw)
-    pixal.facing_back(raw)
-    assert pixal.facing_back(raw) is False
-    assert np.allclose(positions(raw), before)
+    assert (raw.read_bytes(), camera_file(raw).read_text()) == once
