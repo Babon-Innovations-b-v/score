@@ -156,7 +156,6 @@ FUNCTION_DEBT = {
     "score/store/restore/test_the_restore_spends_nothing_and_accepts_nothing_old_by_hand.py": 21,
     "score/store/test_an_output_is_kept_whole_once_and_never_overwritten.py": 17,
     "tools/blender/inside/test_ink_at_edges_and_each_prim_its_own.py": 5,
-    "tools/blender/test_blender_stays_off_the_owners_screen.py": 7,
     "tools/characters/animals/test_rig_follows_the_body.py": 9,
     "tools/characters/clips/test_motion_lands_on_the_rigs_rest.py": 6,
     "tools/characters/maker/test_made_as_asked_and_bound_to_its_limbs.py": 59,
