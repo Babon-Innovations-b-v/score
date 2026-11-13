@@ -171,7 +171,7 @@ FUNCTION_DEBT = {
     "tools/characters/test_characters_play_as_their_file_and_cast_say.py": 11,
     "tools/cloud/backends/test_own_resources_and_their_cost.py": 33,
     "tools/cloud/conductor/size_function/test_never_powered_off_under_work.py": 7,
-    "tools/cloud/conductor/test_owner_gates_and_safe_moves.py": 32,
+    "tools/cloud/conductor/test_owner_gates_and_safe_moves.py": 25,
     "tools/cloud/images/test_built_once_and_every_machine_deleted.py": 6,
     "tools/cloud/k8s/clusters/test_own_cluster_capped_and_ledgered.py": 6,
     "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 13,
