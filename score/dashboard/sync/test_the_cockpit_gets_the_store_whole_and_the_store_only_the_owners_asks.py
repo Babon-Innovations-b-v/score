@@ -17,11 +17,11 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - endpoints.pin: `{"commit": None}` -> test_the_cockpit_gets_the_store_whole_...
 - endpoints.checked_path: the ".." check dropped -> test_the_cockpit_gets_the_store_whole_...
 - endpoints.blob: `if offset != have:` -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
-- client.push_export: `whole = True` -> test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole
-- client.uploaded: the deadline as if counted before the build -> test_a_build_longer_than_the_pass_still_sends_...
+- client.push_export: `whole = True` -> test_the_cockpit_gets_the_store_whole_...
+- client.uploaded: the deadline as if counted before the build -> test_the_cockpit_gets_the_store_whole_...
 - endpoints.swept: unused blobs kept (`if stale:`) -> test_the_cockpit_gets_the_store_whole_...
-- building.pictures_folder: old versions kept -> test_a_change_to_the_exporting_code_sends_every_bundle_again
-- endpoints.readable: the format check -> `if False:` -> test_an_export_of_a_format_the_hosted_side_cannot_read_...
+- building.pictures_folder: old versions kept -> test_the_cockpit_gets_the_store_whole_...
+- endpoints.readable: the format check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - endpoints.report: the state kept "waiting" -> test_the_cockpit_gets_the_store_whole_...
 - applying.apply_decision: the owner check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - applying.OWNER_FIGURES: a "month" kind added -> test_the_cockpit_gets_the_store_whole_...
@@ -30,13 +30,13 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - pages/actions.scene_name: the name check -> `if False:`; or library_actions.carried_out: the refusal dropped ->
   test_the_cockpit_gets_the_store_whole_...
 - pages/actions.record_change: no inbox write -> test_the_cockpit_gets_the_store_whole_...
-- client.sync_pass: `applied = []` -> test_a_sync_pass_pushes_the_export_and_reports_each_request
-- client.sync_pass: a `usd_sweep()` also inside the pricing lock -> test_the_usd_check_runs_outside_the_pricing_lock
+- client.sync_pass: `applied = []` -> test_the_cockpit_gets_the_store_whole_...
+- client.sync_pass: a `usd_sweep()` also inside the pricing lock -> test_the_cockpit_gets_the_store_whole_...
 - client.step_run: `err` without "out of time after ..." -> test_a_step_out_of_time_is_ended_and_says_so
-- client.design_moved: the copy check -> `if False:` -> test_a_pass_says_the_design_moved_when_a_live_runs_copy_differs
-- client.sync_pass: the basket not made -> test_each_pass_makes_the_basket_again_from_the_runners_plan_...
-- client.sync_pass: the moved-checkout words never said -> test_a_pass_still_pushes_its_export_when_the_checkout_...
-- client.sync_pass: the tree refusal ignored -> test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_...
+- client.design_moved: the copy check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- client.sync_pass: the basket not made -> test_the_cockpit_gets_the_store_whole_...
+- client.sync_pass: the moved-checkout words never said -> test_the_cockpit_gets_the_store_whole_...
+- client.sync_pass: the tree refusal ignored -> test_the_cockpit_gets_the_store_whole_...
 - client.tree_refusal: uncommitted changes ignored -> test_the_tree_check_wants_every_tracked_file_committed_...
 - state/exported.made_words: "export of" for "state from" -> test_hosted_pages_render_from_the_export_with_its_time
 - client.readings_fixed: the places not given -> test_a_pass_fixes_no_reading_that_holds_no_part_of_another_rows_thing
@@ -105,7 +105,7 @@ from unittest.mock import ANY
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.test import Client, override_settings
+from django.test import Client
 from fastapi.testclient import TestClient
 
 from score.dashboard.pages.models import SyncRequest
@@ -169,9 +169,11 @@ def answered(web, row, headers):
 def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(owner_books, tmp_path, settings,
                                                                              monkeypatch):
     """The fixture world exported twice and once under a tiny cap, then the hosted side's sync routes driven through one
-    exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token; then the
-    store side applies one request table (a stranger's, an agent's process's, bad names and library addresses, kinds
-    no button sends, then the owner's own), a refused request writing nothing; then his decisions made in chat
+    exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token, then
+    pushed to pass after pass (late, slow, unchanged, new code, an old format); then the store side applies one request
+    table (a stranger's, an agent's process's, bad names and library addresses, kinds
+    no button sends, then the owner's own), a refused request writing nothing; then sync passes against a hosted side
+    in memory (two refused, three that push as the design copy moves); then his decisions made in chat
     through one table of decision kinds (each with a twin asked before its target changed) and one of yeses never
     recorded."""
     world = owner_books
@@ -260,6 +262,55 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
             assert answered(web, route, wrong).status_code == 401, (wrong, route)
     shutil.rmtree(home / "export")  # its names sort after the dated exports the passes below swap in
 
+    # the store side pushes the world's export here, pass after pass: one over its time before its first file sends
+    # nothing and swaps in nothing; one whose build outgrows the pass still sends all it lacks (2026-10-21: the
+    # deadline counted from before the build, every pass sent nothing and swapped in an export with no state.json);
+    # one with nothing new sends only the new state and manifest; one after the exporting code changed sends every
+    # bundle again and keeps only that version's pictures; one of a format this side cannot read is refused
+    exports, current, remote = home / "export", home / "export/current", remote_of(web)
+    clock, build = [0.0], building.build
+
+    def pushed(made_at, seconds=600.0, slow=False, code=None):
+        """The export pushed at `made_at` with the pass given `seconds`, its build outgrowing the pass when `slow`,
+        under the exporting code `code` when given: (what the push said, the shown manifest or None, alpha's bundle)."""
+        with monkeypatch.context() as patch:
+            patch.setattr(client, "PASS_SECONDS", seconds)
+            patch.setattr(client, "made_now", lambda: made_at)
+            if slow:
+                patch.setattr(client.time, "monotonic", lambda: clock[0])
+                patch.setattr(client.building, "build", lambda *args: clock.__setitem__(0, clock[0] + seconds + 1)
+                              or build(*args))
+            if code:
+                patch.setattr(versions, "exporting", lambda: code)
+            said = client.push_export(remote, world.source, FakeBackend())
+            shown = (current / "manifest.json").exists() and json.loads((current / "manifest.json").read_text())
+            return said, shown or None, shown and json.loads((current / "places/alpha.json").read_text())
+    late, _, _ = pushed("2026-10-18T12:30:00+00:00", seconds=-1.0)
+    assert late["files"] == 0 and late["to_come"] > 0 and not late["committed"]
+    assert "state.json" in {entry["what"] for entry in late["left_out"] if entry["why"] == client.STILL}
+    assert not current.exists()  # an export with no records is never swapped in
+    whole, shown, before = pushed("2026-10-18T13:00:00+00:00", slow=True)
+    assert whole["committed"] and whole["to_come"] == 0 and whole["files"] == late["to_come"]
+    assert shown["made_at"] == "2026-10-18T13:00:00+00:00" and (current / "state.json").is_file()
+    assert not any(entry["why"] == client.STILL for entry in shown["left_out"])
+    assert all((current / path).is_file() for path in shown["written"]), shown["written"]
+    assert before["code_version"] == versions.exporting() and before["format"] == versions.FORMAT
+    again, _, _ = pushed("2026-10-18T14:00:00+00:00")
+    assert again["files"] <= 2  # only what changed: the new state.json and manifest
+    kept = [path for path in exports.iterdir() if path.is_dir() and not path.is_symlink()]
+    assert len(kept) == 2 and os.readlink(current) == "2026-10-18T140000+0000"
+    moved, shown, after = pushed("2026-10-18T16:00:00+00:00", code="0123456789ab")
+    assert after["code_version"] == shown["code_version"] == "0123456789ab" and after["detail"] == before["detail"]
+    assert moved["files"] >= len(world.source.places()) + 1  # every place's bundle and the world's, sent again
+    assert [path.name for path in (world.source.home / building.PICTURES).iterdir()] == ["0123456789ab"]
+    with monkeypatch.context() as patch:
+        patch.setattr(versions, "FORMAT", 1)  # an old store side: gaps and stops as words
+        fed(patch)
+        said = client.sync_pass(remote, world.source, FakeBackend())
+    assert said.startswith("REFUSED") and "export format 1 cannot be read here" in said, said
+    assert os.readlink(current) == "2026-10-18T160000+0000"  # never swapped in
+    shutil.rmtree(exports)
+
     from score.dashboard.pages import actions, library_actions
     from score.review import web as review_web
     agent_started = actions.agent_started
@@ -300,6 +351,70 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     assert books["google_before"] == 12.5 and books["google_by"] == "joey" and books["state"] == "known"
     assert world.store.waivers("closeup@beta", key)["looks"]["by"] == "joey"
     assert list((home / "inbox").glob("*.json"))
+
+    # sync passes against a hosted side in memory: from a checkout not clean and pushed, or when the runner's price
+    # fails, nothing is synced; else a pass prices, makes the basket again from the runner's plan in this checkout (an
+    # agent worktree's basket of yesterday replaced), pushes the export even when the checkout moved during it,
+    # answers and reports each request, runs the USD check after the pricing lock, and says when a live run's design
+    # copy differs from the design
+    hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}},
+                     {"id": 8, "kind": "decision", "user": "mallory", "payload": {
+                         "node": "closeup@alpha", "output": "o", "decision": "reject"}}])
+    unpushed = "commit 0123abcd is not on origin's main: push it first"
+    refusals = [  # (the tree's refusal, the runner's price, the pattern of what the pass says)
+        (unpushed, (PRICED, None), re.escape(f"REFUSED: nothing synced: {unpushed}; sweep: test")),
+        (None, (None, "the runner's price failed: exit 1"),
+         re.escape("REFUSED: nothing synced: the runner's price failed: exit 1; ") + ".*gaps.*" + re.escape(
+             "; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")),
+    ]
+    for tree, price, words in refusals:
+        with monkeypatch.context() as patch:
+            offline(patch)
+            patch.setattr(client, "tree_refusal", lambda repo, tree=tree: tree)
+            patch.setattr(client, "runner_price", lambda repo, environment, price=price: price)
+            said = client.sync_pass(hosted, world.source, FakeBackend())
+        assert re.fullmatch(words, said), said
+        assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == [], said
+    props, proposals, held, gaps_sweep = settings.SCORE_PROPS_HOME, home / "proposals", [], client.gaps_sweep
+    records.put_index(proposals, {"made_at": "2026-10-20T17:45:33Z", "checkout": "/x/.claude/worktrees/agent-a",
+                                  "items": [{"id": "navigation-pieces", "nodes": {"closeup@navigation": {}}}]})
+    (props / "design" / "plans").mkdir(parents=True, exist_ok=True)
+    (props / "design" / "plans" / "p.json").write_text("{}")
+    copy = props / "frozen" / "run1.home" / "design"  # a live run's own design copy (graph/frozen.py)
+    shutil.copytree(props / "design", copy)
+    passes = []
+    with monkeypatch.context() as patch:
+        priced = fed(patch)
+        patch.setattr(client, "usd_sweep", lambda: held.append(client.pass_pricing()) or "usd check: test")
+        patch.setattr(client, "gaps_sweep", lambda: held.append(client.pass_pricing()) or gaps_sweep())
+        patch.setattr(FakeBackend, "plan_buys", ["closeup@alpha", "pixal@beta"])
+        heads = ["a" * 40, "b" * 40]  # the checkout moves during the first pass only
+        patch.setattr(client, "head", lambda repo: heads.pop(0) if heads else "b" * 40)
+        for change in (None, lambda: (props / "design" / "plans" / "p.json").write_text('{"moved": true}'),
+                       lambda: shutil.rmtree(copy) or copy.symlink_to(props / "design")):  # the run ended: a link
+            if change:
+                change()
+            passes.append((client.sync_pass(hosted, world.source, FakeBackend()), len(hosted.commits)))
+            hosted.waiting_items = []
+    (said, commits), (moved, _), (ended, _) = passes
+    assert "pushed the export" in said and "0 still to come" in said and commits == 1, said
+    assert "library problems" in said, said  # the library sweep ran before the export was built
+    # and the gaps after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
+    assert "gaps failed: exit 1: no store at " in said, said
+    assert "the checkout moved from aaaaaaaa to bbbbbbbb during the pass" in said and "Buy waits" in said, said
+    assert "checkouts: 0 left launching failed, 0 ended batches' lines taken back" in said, said
+    assert "usd check: test" in said and "design moved" not in said, said
+    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none "
+                         "listed; basket made: 2 items, 2 paid steps; library pictures: test; library demos: test; "
+                         "film previews: test"), said
+    assert moved.endswith("design moved since the running batch started (the cockpit prices the design as it is now)")
+    assert "design moved" not in ended, ended
+    assert priced == [world.source.world.name] * 3 and held == [True, False] * 3  # priced, then USD after the lock
+    assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
+    index = records.index(proposals)
+    assert index["checkout"] == str(make.REPO) and index["plan_only"] and index["made_at"] > "2026-10-20T17:45:33Z"
+    assert index["commit"] == make.commit()
+    assert sorted(node for item in index["items"] for node in item["nodes"]) == ["closeup@alpha", "pixal@beta"]
 
     # his decisions made in chat (sync/chat_decisions.py, owner 2026-10-27), each through one table: recorded quoted
     # by his name, a twin asked before its target changed; a cockpit refusal hands the yes back unused; applied once
@@ -448,79 +563,6 @@ def found(reads):
         return None
 
 
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole(world, settings, monkeypatch):
-    exports = settings.SCORE_HOME / "export"
-    web = hosted_client()
-    monkeypatch.setattr(client, "PASS_SECONDS", -1.0)  # the pass is over before its first file: its records wait
-    first = client.push_export(remote_of(web), world.source, FakeBackend())
-    assert first["files"] == 0 and first["to_come"] > 0 and not first["committed"]
-    assert "state.json" in {entry["what"] for entry in first["left_out"] if entry["why"] == client.STILL}
-    assert not (exports / "current").exists()  # an export with no records is never swapped in
-    monkeypatch.setattr(client, "PASS_SECONDS", 600.0)
-    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T13:00:00+00:00")
-    second = client.push_export(remote_of(web), world.source, FakeBackend())
-    assert second["to_come"] == 0 and second["files"] == first["to_come"]
-    shown = json.loads((exports / "current/manifest.json").read_text())
-    assert shown["made_at"] == "2026-10-18T13:00:00+00:00"
-    assert not any(entry["why"] == client.STILL for entry in shown["left_out"])
-    for path in shown["written"]:
-        assert (exports / "current" / path).is_file(), path
-    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T14:00:00+00:00")
-    third = client.push_export(remote_of(web), world.source, FakeBackend())
-    assert third["files"] <= 2  # only what changed: the new state.json and manifest
-    kept = [path for path in exports.iterdir() if path.is_dir() and not path.is_symlink()]
-    assert len(kept) == 2 and os.readlink(exports / "current") == "2026-10-18T140000+0000"
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_a_build_longer_than_the_pass_still_sends_the_export(world, settings, monkeypatch):
-    """2026-10-21: the build outgrew PASS_SECONDS, the deadline was counted from before it, and every pass sent
-    nothing and swapped in an export with no state.json (the cockpit's places 404)."""
-    clock, build = [0.0], building.build
-
-    def slow_build(*args):
-        clock[0] += client.PASS_SECONDS + 1
-        return build(*args)
-    monkeypatch.setattr(client.time, "monotonic", lambda: clock[0])
-    monkeypatch.setattr(client.building, "build", slow_build)
-    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
-    pushed = client.push_export(remote_of(hosted_client()), world.source, FakeBackend())
-    assert pushed["committed"] and pushed["to_come"] == 0
-    assert (settings.SCORE_HOME / "export/current/state.json").is_file()
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_a_change_to_the_exporting_code_sends_every_bundle_again(world, settings, monkeypatch):
-    web, current = hosted_client(), settings.SCORE_HOME / "export/current"
-    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)  # other tests' exports sort after a date
-    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T15:00:00+00:00")
-    first = client.push_export(remote_of(web), world.source, FakeBackend())
-    assert first["to_come"] == 0
-    before = json.loads((current / "places/alpha.json").read_text())
-    assert before["code_version"] == versions.exporting() and before["format"] == versions.FORMAT
-    monkeypatch.setattr(versions, "exporting", lambda: "0123456789ab")  # the building code changed
-    monkeypatch.setattr(client, "made_now", lambda: "2026-10-18T16:00:00+00:00")
-    second = client.push_export(remote_of(web), world.source, FakeBackend())
-    after = json.loads((current / "places/alpha.json").read_text())
-    assert after["code_version"] == "0123456789ab" and after["detail"] == before["detail"]
-    assert json.loads((current / "manifest.json").read_text())["code_version"] == "0123456789ab"
-    assert second["files"] >= len(world.source.places()) + 1  # every place's bundle and the world's, sent again
-    pictures = world.source.home / building.PICTURES
-    assert [path.name for path in pictures.iterdir()] == ["0123456789ab"]  # the old version's pictures went
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_an_export_of_a_format_the_hosted_side_cannot_read_is_refused_in_the_sync_words(world, settings,
-                                                                                         monkeypatch):
-    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
-    monkeypatch.setattr(versions, "FORMAT", 1)  # an old store side: gaps and stops as words
-    fed(monkeypatch)
-    said = client.sync_pass(remote_of(hosted_client()), world.source, FakeBackend())
-    assert said.startswith("REFUSED") and "export format 1 cannot be read here" in said, said
-    assert not (settings.SCORE_HOME / "export/current").exists()
-
-
 @pytest.fixture
 def owner_books(world, monkeypatch, settings):
     """The fixture world with no agent marks and no books yet (under this run's temp PROPS_HOME), the stop's first
@@ -589,34 +631,6 @@ class Hosted:
         self.reports.append((request_id, state))
 
 
-def test_a_sync_pass_pushes_the_export_and_reports_each_request(world, monkeypatch):
-    priced = fed(monkeypatch)
-    hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}},
-                     {"id": 8, "kind": "decision", "user": "mallory", "payload": {
-                         "node": "closeup@alpha", "output": "o", "decision": "reject"}}])
-    said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert "pushed the export" in said and "0 still to come" in said and len(hosted.commits) == 1
-    assert "library problems" in said, said  # the library sweep ran before the export was built
-    # and the gaps after it: with no store under PROPS_HOME they fail loudly, said in the pass's words
-    assert "gaps failed: exit 1: no store at " in said, said
-    # priced before the push
-    assert said.endswith(f"{PRICED}; plans for the plan stage: test; remake batch (estimate): test; benchmarks: none listed; basket made: 0 items, 0 paid steps; library pictures: test; library demos: test; film previews: test")
-    assert "checkouts: 0 left launching failed, 0 ended batches' lines taken back" in said
-    assert priced == [world.source.world.name]
-    assert hosted.reports == [(7, "picked_up"), (7, "done"), (8, "picked_up"), (8, "refused")]
-
-
-def test_the_usd_check_runs_outside_the_pricing_lock(world, monkeypatch):
-    """The USD check prices nothing, so a pass runs it after the pricing lock: a Buy is never judged by its basket's
-    commit alone while a long check runs (review 2026-10-26: 500k quads took 3.9 s, a place)."""
-    fed(monkeypatch)
-    held = []
-    monkeypatch.setattr(client, "usd_sweep", lambda: held.append(client.pass_pricing()) or "usd check: test")
-    monkeypatch.setattr(client, "gaps_sweep", lambda: held.append(client.pass_pricing()) or "gaps: test")
-    said = client.sync_pass(Hosted([]), world.source, FakeBackend())
-    assert held == [True, False] and "usd check: test" in said, said
-
-
 def test_a_step_out_of_time_is_ended_and_says_so(settings, tmp_path):
     """A pass step given a limit (the USD check) is ended with its group when the limit runs out, its exit nonzero
     and its last error line saying so, so the pass goes on."""
@@ -625,63 +639,6 @@ def test_a_step_out_of_time_is_ended_and_says_so(settings, tmp_path):
                            grace=2, limit=1)
     assert done.returncode != 0 and done.stdout.strip() == "began"
     assert done.stderr.strip().splitlines()[-1] == "out of time after 1 s"
-
-
-def test_a_pass_says_the_design_moved_when_a_live_runs_copy_differs(world, monkeypatch, settings):
-    """A live run reads its own design copy (graph/frozen.py): a pass whose design differs from it says so."""
-    fed(monkeypatch)
-    home = settings.SCORE_PROPS_HOME
-    (home / "design" / "plans").mkdir(parents=True, exist_ok=True)
-    (home / "design" / "plans" / "p.json").write_text("{}")
-    copy = home / "frozen" / "run1.home" / "design"
-    shutil.copytree(home / "design", copy)
-    assert "design moved" not in client.sync_pass(Hosted([]), world.source, FakeBackend())
-    (home / "design" / "plans" / "p.json").write_text('{"moved": true}')
-    assert client.sync_pass(Hosted([]), world.source, FakeBackend()).endswith(
-        "design moved since the running batch started (the cockpit prices the design as it is now)")
-    shutil.rmtree(copy)
-    copy.symlink_to(home / "design")  # the run ended: its copy is a link to the real design
-    assert "design moved" not in client.sync_pass(Hosted([]), world.source, FakeBackend())
-
-
-def test_each_pass_makes_the_basket_again_from_the_runners_plan_in_this_checkout(world, monkeypatch, settings):
-    """A basket an agent's worktree made yesterday (a scene merged away since, none of today's rows) is replaced by
-    the runner's plan of today, made here, when and on which commit said: what the checkout reads."""
-    fed(monkeypatch)
-    root = settings.SCORE_HOME / "proposals"
-    records.put_index(root, {"made_at": "2026-10-20T17:45:33Z", "checkout": "/x/.claude/worktrees/agent-a",
-                             "items": [{"id": "navigation-pieces", "nodes": {"closeup@navigation": {}}}]})
-    monkeypatch.setattr(FakeBackend, "plan_buys", ["closeup@alpha", "pixal@beta"])
-    said = client.sync_pass(Hosted([]), world.source, FakeBackend())
-    assert "basket made: 2 items, 2 paid steps" in said, said
-    index = records.index(root)
-    assert index["checkout"] == str(make.REPO) and index["plan_only"] and index["made_at"] > "2026-10-20T17:45:33Z"
-    assert index["commit"] == make.commit()
-    assert sorted(node for item in index["items"] for node in item["nodes"]) == ["closeup@alpha", "pixal@beta"]
-
-
-def test_a_pass_still_pushes_its_export_when_the_checkout_moved_during_it(world, monkeypatch):
-    fed(monkeypatch)
-    commits = iter(["a" * 40, "b" * 40])
-    monkeypatch.setattr(client, "head", lambda repo: next(commits))
-    hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}}])
-    said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert "the checkout moved from aaaaaaaa to bbbbbbbb during the pass" in said and "Buy waits" in said, said
-    assert hosted.commits and hosted.reports == [(7, "picked_up"), (7, "done")]  # pushed, his requests applied
-
-
-def test_a_pass_syncs_nothing_from_a_checkout_not_clean_and_pushed_or_when_the_price_fails(world, monkeypatch):
-    hosted = Hosted([{"id": 7, "kind": "change", "user": "joey", "payload": {"stage": "closeup", "words": "x"}}])
-    offline(monkeypatch)
-    monkeypatch.setattr(client, "tree_refusal", lambda repo: "commit 0123abcd is not on origin's main: push it first")
-    said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert said == "REFUSED: nothing synced: commit 0123abcd is not on origin's main: push it first; sweep: test"
-    monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
-    monkeypatch.setattr(client, "runner_price", lambda repo, environment: (None, "the runner's price failed: exit 1"))
-    said = client.sync_pass(hosted, world.source, FakeBackend())
-    assert said.startswith("REFUSED: nothing synced: the runner's price failed: exit 1; ") and "gaps" in said
-    assert said.endswith("; remake batch (estimate): test; benchmarks: none listed; library pictures: test; library demos: test")
-    assert hosted.commits == [] and hosted.chunks == [] and hosted.reports == []
 
 
 def a_checkout(tmp_path):
