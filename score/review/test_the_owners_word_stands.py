@@ -141,41 +141,28 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     environment_concept.py: `if named in index and index[named]["key"] != key:` made `if False:`
 - test_an_agents_process_cannot_keep_a_version_or_a_reference:
     environment_concept.py: `if offsite is None and running_under_agent():` made `if False:`
-- test_every_real_bodys_value_names_its_source:
+- test_the_owners_word_stands, its setting and sky (folded 2026-11-13 from fifteen tests on the cited table, a
+  setting's shape and the sky overhead, each break below applied again then and seen red):
     data/physics/bodies.json: `"name": "nasa-sun", "radius_km": "nasa-sun",` made `"name": "nasa-sun",`
-- test_environment_one_takes_its_bodies_from_the_table_and_its_gravity_from_their_mass:
     setting.py: `/ (body["radius_km"] * 1000.0) ** 2, 3)` made `/ (body["radius_km"] * 1000.0), 3)`
-- test_a_house_on_a_plot_needs_no_bodies_its_sun_is_a_light:
     setting.py: `if shape not in SHAPES:` made `if False:`
-- test_a_real_body_set_off_the_table_keeps_his_values_and_an_invented_one_needs_all_of_its_own:
     setting.py: `float(str(value).replace(",", "."))` made `float(str(value))`
-- test_a_setting_out_of_shape_is_refused:
     setting.py: `if bodies and sum(1 for body in bodies if not body.get("around")) != 1:` made `if False:`
-- test_a_models_values_for_a_real_body_are_dropped_for_the_tables:
     setting.py: `if row.get("reference") else row` made `if False else row`
-- test_a_models_answer_never_stacks_two_sites_the_concept_had_apart:
     setting.py: `kept = [earlier[site.get("place")] if count[spot(site)] > 1` made `kept =
     [earlier[site.get("place")] if False`
-- test_the_moon_is_full_and_new_when_it_was:
     overhead.py: `lit = (1.0 + float(np.dot(to_light, unit(-toward)))) / 2.0` made `lit = (1.0 -
     float(np.dot(to_light, unit(-toward)))) / 2.0`
-- test_the_suns_light_stands_where_it_does_over_greenwich_at_the_equinox_at_its_strength:
     overhead.py: `math.degrees(math.atan2(east, north)) % 360.0` made `math.degrees(math.atan2(north, east)) %
     360.0`
-- test_the_suns_disc_is_widest_in_january_and_narrowest_in_july:
     overhead.py: `"across": round(math.degrees(2.0 * math.asin(star["radius_km"] / apart)), 5)` made `"across":
     round(math.degrees(2.0 * math.asin(star["radius_km"] / 1.496e8)), 5)`
-- test_earth_hangs_still_about_two_degrees_across_over_a_near_side_moon_site_and_its_phase_turns:
     overhead.py: `if body.get("locked_to"): pole = orbit_pole(body, day)` made `if False: pole = orbit_pole(body,
     day)`
-- test_mars_from_earth_and_earth_from_mars_are_points_and_the_sun_is_dimmer_at_mars:
     overhead.py: `lux = star["lux"] * (star["lux_at_km"] / apart) ** 2` made `lux = star["lux"] * (star["lux_at_km"]
     / apart)`
-- test_environment_1_overhead_holds_its_bodies_the_suns_light_and_the_stars:
     overhead.py: `if other["body"] == on or other.get("lux") is not None:` made `if other.get("lux") is not None:`
-- test_a_houses_sun_is_a_light_on_its_day_path_with_no_bodies:
     overhead.py: `hour = 2.0 * math.pi * since / (light["day_hours"] / 24.0)` made `hour = 0.0`
-- test_an_invented_body_turns_by_its_own_day_under_an_invented_star:
     overhead.py: `360.0 * 24.0 / body["day_hours"]` made `360.0 * 24.0 / 24.0`
 - test_each_top_scene_stands_where_the_setting_puts_it_shaped_by_its_own_plan:
     environment_plan.py: `return round(max(tops, default=0.0), 2)` made `return 0.0`
@@ -580,7 +567,10 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     """One store's tally node: the runner takes a passing output and nothing worse; a worse or failed one only the
     owner takes, by his own signed-in name, with his written reason or waiver; within his worse accept the runner
     follows him and no further; his reject sticks; his commands and his stop line refuse anyone else. Each judging
-    case (a measure's step, an answer's drop, a gap's objects) is a row read through the same judge."""
+    case (a measure's step, an answer's drop, a gap's objects) is a row read through the same judge. What the review
+    works out for him stands against answers known apart from the code: environment 1's setting from the cited table,
+    a house's and an invented body's, each setting off its shape a refused row; and each sky (the Moon's phases, the Sun
+    at Greenwich, a house's sun path) a row read through the same overhead."""
     def page():
         return review.page(tally.store, NODE).read_text()
 
@@ -704,6 +694,73 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     for row, node, findings, lines in GAPPED_WORSE:
         got = review.worse_than_accepted(None, node, {"output": "new", "verdicts": resting(3, findings)})
         assert (got == lines) if lines is not None else got != [], (row, got)
+
+    # the setting: real bodies from the cited table, each value naming its source; invented ones whole
+    table = setting.reference()
+    for key, body in table["bodies"].items():
+        assert set(body["cited"]) == {field for field in body if field != "cited"}, key
+        assert all(source in table["sources"] for source in body["cited"].values()), key
+    environment_1 = setting.now()
+    bodies = {body["body"]: body for body in environment_1["bodies"]}
+    assert set(bodies) == {"sun", "earth", "moon", "mars"} and environment_1["plots"] == []
+    assert {key: bodies[key]["gravity"] for key in ("earth", "moon", "mars")} == pytest.approx(
+        {"earth": 9.82, "moon": 1.62, "mars": 3.73}, abs=0.005)  # NASA's fact sheets: surface gravity (mean)
+    assert bodies["moon"]["radius_km"] == 1737.4 and bodies["moon"]["locked_to"] == "earth"
+    assert bodies["moon"]["distance_km"] == pytest.approx(384400, rel=1e-3)
+    assert {site["place"]: site["on"] for site in environment_1["sites"]} == {
+        "square": "earth", "wreck": "moon", "old_station": "moon", "base": "moon", "campgrounds": "mars"}
+    assert bodies["sun"]["kelvin"] == 5772.0 and bodies["sun"]["lux"] == 128000.0  # the body and the light it gives
+    assert "lux" not in bodies["earth"] and environment_1["lights"] == []
+    assert environment_1["backdrops"] == [{"backdrop": "stars", "name": "Stars", "shape": "dome", "lux": 0.0001}]
+    house = setting.checked(HOUSE)  # a house on a plot needs no bodies: its sun is a light
+    assert house["bodies"] == [] and house["plots"] == [{"plot": "meadow", "name": "Meadow", "gravity": 9.81}]
+    assert house["lights"][0]["light"] == "sun" and house["lights"][0]["day_hours"] == 24.0
+    assert house["backdrops"] == [{"backdrop": "sky", "name": "Sky", "shape": "dome", "lux": 10000.0}]
+    assert house["sites"] == [{"place": "house", "on": "meadow", "x": 0.0, "y": 0.0, "height_m": 0.0}]
+    earth = setting.checked({"bodies": [{"reference": "sun"}, {"reference": "earth", "day_hours": "30",
+                                                                "radius_km": "7000,5"}]})["bodies"][1]
+    assert earth["radius_km"] == 7000.5 and earth["day_hours"] == 30.0 and "pole_ra_deg" not in earth  # his own day
+    assert earth["mass_kg"] == 5.9722e24 and earth["name"] == "Earth"  # the rest the table's
+    for row, off_shape, words in REFUSED_SETTINGS:
+        with pytest.raises(setting.Refused) as refused:
+            setting.checked(off_shape)
+            pytest.fail(f"{row}: taken")
+        assert re.search(words, str(refused.value)), (row, str(refused.value))
+    assert setting.proposed({"bodies": [{"body": "moon", "name": "Moon", "reference": "moon", "radius_km": 220}]})[
+        "bodies"] == [{"body": "moon", "name": "Moon", "reference": "moon"}]  # a model's values give way to the table's
+    rounded = [{**site, "latitude": 55.0, "longitude": 0.0} if site["on"] == "moon" else site
+               for site in environment_1["sites"]]  # a model's answer stacking the Moon's sites on one spot
+    assert setting.kept_apart({**environment_1, "sites": rounded}, environment_1)["sites"] == environment_1["sites"]
+    spots = [setting.spot(site) for site in environment_1["sites"]]
+    assert len(set(spots)) == len(spots)  # environment 1's proposal: each site its own spot
+    moved = [{**site, "longitude": 0.5} if site["place"] == "base" else site for site in environment_1["sites"]]
+    assert setting.kept_apart({**environment_1, "sites": moved}, environment_1)["sites"] == moved  # one he moves moves
+
+    # overhead: each sky read against one known apart from the code
+    for row, seen_from, when, key, field, expected in SKIES:
+        got = thing_in(sky(environment_1["bodies"], seen_from, when), key)[field]
+        assert above(got, *expected) if isinstance(expected, tuple) else got == expected, (row, got)
+    from_moon = [thing_in(sky(environment_1["bodies"], ("moon", 55.0, 0.0), f"2099-06-{day:02d}T12:00:00Z"), "earth")
+                 ["altitude"] for day in (1, 8, 15)]
+    assert max(from_moon) - min(from_moon) < 1  # Earth over a near-side Moon site is locked: it stays
+    house_noon = sky(None, "house", "2024-03-20T12:00:00Z")  # a house's sky holds no bodies, under its own backdrop
+    assert house_noon["bodies"] == [] and house_noon["backdrops"][0]["name"] == "Sky"
+    base = next(site for site in environment_1["sites"] if site["place"] == "base")
+    over_base = overhead.seen(environment_1, base, "2099-06-01T12:00:00Z")
+    assert [light["of"] for light in over_base["lights"]] == ["sun"]
+    assert {body["body"] for body in over_base["bodies"]} == {"earth", "mars"}  # never the Moon it stands on, nor Sun
+    assert over_base["backdrops"] == [{"name": "Stars", "shape": "dome", "lux": 0.0001}]
+    home = {"body": "home", "name": "Home", "radius_km": 5000.0, "mass_kg": 5e24, "around": "star",
+            "distance_km": 1.2e8, "period_days": 300.0, "eccentricity": 0.0, "inclination_deg": 0.0,
+            "day_hours": 30.0, "tilt_deg": 0.0}  # an invented body turning by its own day under an invented star
+    invented = [{"body": "star", "name": "Star", "radius_km": 600000.0, "mass_kg": 2e30, "kelvin": 4000.0,
+                 "lux": 1e5, "lux_at_km": 1.2e8}, home]
+    start = datetime.datetime(2100, 1, 1, tzinfo=datetime.timezone.utc)
+    heights = [thing_in(sky(invented, ("home", 0.0, 0.0), (start + datetime.timedelta(hours=hour)).isoformat()),
+                        "light")["altitude"] for hour in range(31)]
+    assert max(heights) > 80 and min(heights) < -80  # on its equator the star passes over and under once a day
+    again = thing_in(sky(invented, ("home", 0.0, 0.0), "2100-01-02T06:00:00Z"), "light")["altitude"]
+    assert again == pytest.approx(heights[0], abs=1.5)  # back where it was, less its orbit's turn of 1.5 degrees
 
 
 
@@ -1448,94 +1505,31 @@ HOUSE = {"bodies": [], "plots": [{"name": "Meadow", "gravity": 9.81}], "lights":
          "sites": [{"place": "house", "on": "meadow", "x": 0, "y": "0", "height_m": 0}]}
 
 
-def test_every_real_bodys_value_names_its_source():
-    table = setting.reference()
-    for key, body in table["bodies"].items():
-        values = [field for field in body if field != "cited"]
-        assert set(body["cited"]) == set(values), key
-        assert all(source in table["sources"] for source in body["cited"].values()), key
-
-
-def test_environment_one_takes_its_bodies_from_the_table_and_its_gravity_from_their_mass():
-    found = setting.now()
-    bodies = {body["body"]: body for body in found["bodies"]}
-    assert set(bodies) == {"sun", "earth", "moon", "mars"} and found["plots"] == []
-    assert {key: bodies[key]["gravity"] for key in ("earth", "moon", "mars")} == pytest.approx(
-        {"earth": 9.82, "moon": 1.62, "mars": 3.73}, abs=0.005)  # NASA's fact sheets: surface gravity (mean)
-    assert bodies["moon"]["radius_km"] == 1737.4 and bodies["moon"]["locked_to"] == "earth"
-    assert bodies["moon"]["distance_km"] == pytest.approx(384400, rel=1e-3)
-    assert {site["place"]: site["on"] for site in found["sites"]} == {
-        "square": "earth", "wreck": "moon", "old_station": "moon", "base": "moon", "campgrounds": "mars"}
-    assert bodies["sun"]["kelvin"] == 5772.0 and bodies["sun"]["lux"] == 128000.0  # the body and the light it gives
-    assert "lux" not in bodies["earth"] and found["lights"] == []
-    assert found["backdrops"] == [{"backdrop": "stars", "name": "Stars", "shape": "dome", "lux": 0.0001}]
-
-
-def test_a_house_on_a_plot_needs_no_bodies_its_sun_is_a_light():
-    found = setting.checked(HOUSE)
-    assert found["bodies"] == [] and found["plots"] == [{"plot": "meadow", "name": "Meadow", "gravity": 9.81}]
-    assert found["lights"][0]["light"] == "sun" and found["lights"][0]["day_hours"] == 24.0
-    assert found["backdrops"] == [{"backdrop": "sky", "name": "Sky", "shape": "dome", "lux": 10000.0}]
-    assert found["sites"] == [{"place": "house", "on": "meadow", "x": 0.0, "y": 0.0, "height_m": 0.0}]
-    with pytest.raises(setting.Refused, match="no equinox|equinox is no moment"):
-        setting.checked({**HOUSE, "lights": [{**SUN, "equinox": "noon"}]})
-    with pytest.raises(setting.Refused, match="shape is one of"):
-        setting.checked({**HOUSE, "backdrops": [{"name": "Sky", "lux": 1, "shape": "box"}]})
-    with pytest.raises(setting.Refused, match="share a key"):
-        setting.checked({**HOUSE, "backdrops": [{"name": "Sun", "lux": 1}]})
-    with pytest.raises(setting.Refused, match="shines with"):
-        setting.checked({"bodies": [{"name": "Star", "radius_km": 1, "mass_kg": 1, "lux": 5}]})
-
-
-def test_a_real_body_set_off_the_table_keeps_his_values_and_an_invented_one_needs_all_of_its_own():
-    rows = [{"reference": "sun"}, {"reference": "earth", "day_hours": "30", "radius_km": "7000,5"}]
-    earth = setting.checked({"bodies": rows})["bodies"][1]
-    assert earth["radius_km"] == 7000.5 and earth["day_hours"] == 30.0 and "pole_ra_deg" not in earth  # his own day
-    assert earth["mass_kg"] == 5.9722e24 and earth["name"] == "Earth"  # the rest the table's
-    with pytest.raises(setting.Refused, match="no distance_km"):
-        setting.checked({"bodies": [{"reference": "sun"}, {"name": "Home", "radius_km": 5000, "mass_kg": 5e24,
-                                                           "around": "sun"}]})
-    with pytest.raises(setting.Refused, match="no real body"):
-        setting.checked({"bodies": [{"reference": "vulcan"}]})
-
-
-def test_a_setting_out_of_shape_is_refused():
-    with pytest.raises(setting.Refused, match="no body or plot"):
-        setting.checked({**HOUSE, "sites": [{"place": "house", "on": "the moon", "x": 0, "y": 0}]})
-    with pytest.raises(setting.Refused, match="orbits nothing"):
-        setting.checked({"bodies": [{"reference": "sun"}, {"reference": "mars", "around": ""},
-                                    {"name": "Star two", "radius_km": 1, "mass_kg": 1}]})
-    with pytest.raises(setting.Refused, match="is no body"):
-        setting.checked({"bodies": [{"reference": "sun"}, {"reference": "moon"}]})  # it orbits an Earth not there
-    with pytest.raises(setting.Refused, match="latitude of 95"):
-        setting.checked({"bodies": [{"reference": "sun"}, {"reference": "mars"}],
-                         "sites": [{"place": "camp", "on": "mars", "latitude": 95, "longitude": 0}]})
-
-
-def test_a_models_values_for_a_real_body_are_dropped_for_the_tables():
-    proposed = setting.proposed({"bodies": [{"body": "moon", "name": "Moon", "reference": "moon", "radius_km": 220}]})
-    assert proposed["bodies"] == [{"body": "moon", "name": "Moon", "reference": "moon"}]
-
-
-def test_a_models_answer_never_stacks_two_sites_the_concept_had_apart():
-    before = setting.now()
-    rounded = [{**site, "latitude": 55.0, "longitude": 0.0} if site["on"] == "moon" else site
-               for site in before["sites"]]
-    kept = setting.kept_apart({**before, "sites": rounded}, before)
-    assert kept["sites"] == before["sites"]  # every Moon site back where it stood
-    spots = [setting.spot(site) for site in before["sites"]]
-    assert len(set(spots)) == len(spots)  # environment 1's proposal: each site its own spot
-    moved = [{**site, "longitude": 0.5} if site["place"] == "base" else site for site in before["sites"]]
-    assert setting.kept_apart({**before, "sites": moved}, before)["sites"] == moved  # a site he moves alone moves
+REFUSED_SETTINGS = [  # (row, a setting off its shape, the refusal's words)
+    ("a sun light whose equinox is no moment", {**HOUSE, "lights": [{**SUN, "equinox": "noon"}]},
+     "no equinox|equinox is no moment"),
+    ("a backdrop of no known shape", {**HOUSE, "backdrops": [{"name": "Sky", "lux": 1, "shape": "box"}]},
+     "shape is one of"),
+    ("a backdrop sharing the sun light's key", {**HOUSE, "backdrops": [{"name": "Sun", "lux": 1}]}, "share a key"),
+    ("an invented star shining with no kelvin", {"bodies": [{"name": "Star", "radius_km": 1, "mass_kg": 1, "lux": 5}]},
+     "shines with"),
+    ("an invented body with no distance of its own",
+     {"bodies": [{"reference": "sun"}, {"name": "Home", "radius_km": 5000, "mass_kg": 5e24, "around": "sun"}]},
+     "no distance_km"),
+    ("a reference to no real body", {"bodies": [{"reference": "vulcan"}]}, "no real body"),
+    ("a site on neither a body nor a plot", {**HOUSE, "sites": [{"place": "house", "on": "the moon", "x": 0, "y": 0}]},
+     "no body or plot"),
+    ("two bodies orbiting nothing", {"bodies": [{"reference": "sun"}, {"reference": "mars", "around": ""},
+                                                {"name": "Star two", "radius_km": 1, "mass_kg": 1}]},
+     "orbits nothing"),
+    ("a moon round an Earth not there", {"bodies": [{"reference": "sun"}, {"reference": "moon"}]}, "is no body"),
+    ("a site at latitude 95", {"bodies": [{"reference": "sun"}, {"reference": "mars"}],
+                               "sites": [{"place": "camp", "on": "mars", "latitude": 95, "longitude": 0}]},
+     "latitude of 95"),
+]
 
 
 # --- overhead: the sky at a site, against skies known apart from the code ---------------------------------------------
-
-
-ENVIRONMENT_1 = setting.now()
-
-
-BODIES = ENVIRONMENT_1["bodies"]
 
 
 LIT_HOUSE = setting.checked({
@@ -1546,84 +1540,70 @@ LIT_HOUSE = setting.checked({
     "sites": [{"place": "house", "on": "meadow", "x": 0, "y": 0}]})
 
 
-def at(found, key):
+def above(value, low=None, high=None):
+    """A reading strictly between its bounds (an open side None)."""
+    return (low is None or value > low) and (high is None or value < high)
+
+
+SKIES = [  # (row, seen from: a body, latitude, longitude, or "house", the moment, the light or body, field, expected)
+    # expected: an exact value, a pytest.approx, or (low, high) strictly between, an open side None
+    ("full Moon, 25 January 2024, 17:54 UT", ("earth", 0.0, 0.0), "2024-01-25T18:00:00Z", "moon", "lit", (0.97, None)),
+    ("the full Moon is half a degree across", ("earth", 0.0, 0.0), "2024-01-25T18:00:00Z", "moon", "across",
+     pytest.approx(0.52, abs=0.04)),
+    ("new Moon, 11 January 2024, 11:57 UT", ("earth", 0.0, 0.0), "2024-01-11T12:00:00Z", "moon", "lit", (None, 0.03)),
+    ("Greenwich at the equinox: the light is the Sun's", ("earth", 51.48, 0.0), "2024-03-20T12:07:00Z", "light", "of",
+     "sun"),
+    ("Greenwich at the equinox: the Sun's kelvin", ("earth", 51.48, 0.0), "2024-03-20T12:07:00Z", "light", "kelvin",
+     5772.0),
+    ("Greenwich at the equinox: the Sun at 90 less the latitude", ("earth", 51.48, 0.0), "2024-03-20T12:07:00Z",
+     "light", "altitude", pytest.approx(90 - 51.48, abs=0.5)),
+    ("Greenwich at the equinox: the Sun due south", ("earth", 51.48, 0.0), "2024-03-20T12:07:00Z", "light", "azimuth",
+     pytest.approx(180, abs=1)),
+    ("March: Earth near its mean distance, the Sun at its strength", ("earth", 51.48, 0.0), "2024-03-20T12:07:00Z",
+     "light", "lux", pytest.approx(128000, rel=0.02)),
+    ("the Sun at perihelion: 32.53 arc minutes", ("earth", 0.0, 0.0), "2024-01-03T00:00:00Z", "light", "across",
+     pytest.approx(32.53 / 60, abs=0.005)),
+    ("the Sun at aphelion: 31.46 arc minutes", ("earth", 0.0, 0.0), "2024-07-05T00:00:00Z", "light", "across",
+     pytest.approx(31.46 / 60, abs=0.005)),
+    *((f"Earth from the Moon, 2099-06-{day:02d}: about 1.9 degrees", ("moon", 55.0, 0.0), f"2099-06-{day:02d}T12:00:00Z",
+       "earth", "across", (1.75, 2.05)) for day in (1, 8, 15)),
+    ("Earth from the Moon at new Earth", ("moon", 55.0, 0.0), "2099-06-01T12:00:00Z", "earth", "lit", (None, 0.1)),
+    ("Earth from the Moon a fortnight on: nearly full", ("moon", 55.0, 0.0), "2099-06-15T12:00:00Z", "earth", "lit",
+     (0.8, None)),
+    ("Mars from Earth is a point", ("earth", 22.3, 114.2), "2099-06-01T12:00:00Z", "mars", "across", (None, 0.01)),
+    ("Earth from Mars is a point", ("mars", 30.0, 130.0), "2099-06-01T12:00:00Z", "earth", "across", (None, 0.01)),
+    ("the Sun at Mars, 1.38 to 1.67 AU: 128000 over its square", ("mars", 30.0, 130.0), "2099-06-01T12:00:00Z",
+     "light", "lux", (45000, 65000)),
+    ("a house's sun is a light of no body", "house", "2024-03-20T12:00:00Z", "light", "of", None),
+    ("a house's sun at its own lux", "house", "2024-03-20T12:00:00Z", "light", "lux", 100000),
+    ("a house's sun at its own kelvin", "house", "2024-03-20T12:00:00Z", "light", "kelvin", 5800),
+    ("a house's equinox noon: 90 less its latitude", "house", "2024-03-20T12:00:00Z", "light", "altitude",
+     pytest.approx(90 - 52.0, abs=0.01)),
+    ("a house's equinox noon: due south", "house", "2024-03-20T12:00:00Z", "light", "azimuth",
+     pytest.approx(180, abs=0.01)),
+    ("a house's summer noon a quarter year on: at its highest", "house", "2024-06-20T12:00:00Z", "light", "altitude",
+     pytest.approx(90 - 52.0 + 23.44, abs=0.3)),
+    ("a house's equinox midnight: as far under", "house", "2024-03-21T00:00:00Z", "light", "altitude",
+     pytest.approx(-38.0, abs=0.5)),
+    ("a house's equinox morning: on the horizon", "house", "2024-03-20T06:00:00Z", "light", "altitude",
+     pytest.approx(0.0, abs=0.15)),
+    ("a house's equinox morning: due east", "house", "2024-03-20T06:00:00Z", "light", "azimuth",
+     pytest.approx(90, abs=0.2)),
+]
+
+
+def sky(bodies, seen_from, when):
+    """The sky over a site: from a body of these bodies at a latitude and longitude, or over the lit house's site."""
+    if seen_from == "house":
+        return overhead.seen(LIT_HOUSE, LIT_HOUSE["sites"][0], when)
+    return overhead.from_body(bodies, *seen_from, when)
+
+
+def thing_in(found, key):
+    """The first light of a sky ("light"), or the body of that key in it."""
+    if key == "light":
+        return found["lights"][0]
     return next(body for body in found["bodies"] if body["body"] == key)
-
-
-def moon_of(when):
-    return at(overhead.from_body(BODIES, "earth", 0.0, 0.0, when), "moon")
-
-
-def test_the_moon_is_full_and_new_when_it_was():
-    assert moon_of("2024-01-25T18:00:00Z")["lit"] > 0.97  # full Moon, 25 January 2024, 17:54 UT
-    assert moon_of("2024-01-11T12:00:00Z")["lit"] < 0.03  # new Moon, 11 January 2024, 11:57 UT
-    assert moon_of("2024-01-25T18:00:00Z")["across"] == pytest.approx(0.52, abs=0.04)
-
-
-def test_the_suns_light_stands_where_it_does_over_greenwich_at_the_equinox_at_its_strength():
-    sun = overhead.from_body(BODIES, "earth", 51.48, 0.0, "2024-03-20T12:07:00Z")["lights"][0]
-    assert sun["of"] == "sun" and sun["kelvin"] == 5772.0
-    assert sun["altitude"] == pytest.approx(90 - 51.48, abs=0.5) and sun["azimuth"] == pytest.approx(180, abs=1)
-    assert sun["lux"] == pytest.approx(128000, rel=0.02)  # March: Earth near its mean distance
-
-
-def test_the_suns_disc_is_widest_in_january_and_narrowest_in_july():
-    sun = [overhead.from_body(BODIES, "earth", 0.0, 0.0, when)["lights"][0]["across"]
-           for when in ("2024-01-03T00:00:00Z", "2024-07-05T00:00:00Z")]
-    # the Sun's apparent diameter at perihelion and aphelion: 32.53 and 31.46 arc minutes
-    assert sun[0] == pytest.approx(32.53 / 60, abs=0.005) and sun[1] == pytest.approx(31.46 / 60, abs=0.005)
-
-
-def test_earth_hangs_still_about_two_degrees_across_over_a_near_side_moon_site_and_its_phase_turns():
-    seen = [at(overhead.from_body(BODIES, "moon", 55.0, 0.0, f"2099-06-{day:02d}T12:00:00Z"), "earth")
-            for day in (1, 8, 15)]
-    assert all(1.75 < earth["across"] < 2.05 for earth in seen)  # Earth from the Moon: about 1.9 degrees
-    assert max(earth["altitude"] for earth in seen) - min(earth["altitude"] for earth in seen) < 1  # locked: it stays
-    assert seen[0]["lit"] < 0.1 and seen[2]["lit"] > 0.8  # a fortnight from new Earth to nearly full
-
-
-def test_mars_from_earth_and_earth_from_mars_are_points_and_the_sun_is_dimmer_at_mars():
-    assert at(overhead.from_body(BODIES, "earth", 22.3, 114.2, "2099-06-01T12:00:00Z"), "mars")["across"] < 0.01
-    from_mars = overhead.from_body(BODIES, "mars", 30.0, 130.0, "2099-06-01T12:00:00Z")
-    assert at(from_mars, "earth")["across"] < 0.01
-    assert 45000 < from_mars["lights"][0]["lux"] < 65000  # 1.38 to 1.67 AU: 128000 over its square
-
-
-def test_environment_1_overhead_holds_its_bodies_the_suns_light_and_the_stars():
-    site = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "base")
-    found = overhead.seen(ENVIRONMENT_1, site, "2099-06-01T12:00:00Z")
-    assert [light["of"] for light in found["lights"]] == ["sun"]
-    assert {body["body"] for body in found["bodies"]} == {"earth", "mars"}  # never the Moon it stands on, nor the Sun
-    assert found["backdrops"] == [{"name": "Stars", "shape": "dome", "lux": 0.0001}]
-
-
-def test_a_houses_sun_is_a_light_on_its_day_path_with_no_bodies():
-    site = LIT_HOUSE["sites"][0]
-    noon = overhead.seen(LIT_HOUSE, site, "2024-03-20T12:00:00Z")
-    assert noon["bodies"] == [] and noon["backdrops"][0]["name"] == "Sky"
-    sun = noon["lights"][0]
-    assert sun["of"] is None and sun["lux"] == 100000 and sun["kelvin"] == 5800
-    assert sun["altitude"] == pytest.approx(90 - 52.0, abs=0.01) and sun["azimuth"] == pytest.approx(180, abs=0.01)
-    summer = overhead.seen(LIT_HOUSE, site, "2024-06-20T12:00:00Z")["lights"][0]  # a quarter year on: at its highest
-    assert summer["altitude"] == pytest.approx(90 - 52.0 + 23.44, abs=0.3)
-    midnight = overhead.seen(LIT_HOUSE, site, "2024-03-21T00:00:00Z")["lights"][0]
-    assert midnight["altitude"] == pytest.approx(-38.0, abs=0.5)
-    morning = overhead.seen(LIT_HOUSE, site, "2024-03-20T06:00:00Z")["lights"][0]
-    assert morning["altitude"] == pytest.approx(0.0, abs=0.15) and morning["azimuth"] == pytest.approx(90, abs=0.2)
-
-
-def test_an_invented_body_turns_by_its_own_day_under_an_invented_star():
-    world = {"body": "home", "name": "Home", "radius_km": 5000.0, "mass_kg": 5e24, "around": "star",
-             "distance_km": 1.2e8, "period_days": 300.0, "eccentricity": 0.0, "inclination_deg": 0.0,
-             "day_hours": 30.0, "tilt_deg": 0.0}
-    bodies = [{"body": "star", "name": "Star", "radius_km": 600000.0, "mass_kg": 2e30, "kelvin": 4000.0,
-               "lux": 1e5, "lux_at_km": 1.2e8}, world]
-    start = datetime.datetime(2100, 1, 1, tzinfo=datetime.timezone.utc)
-    heights = [overhead.from_body(bodies, "home", 0.0, 0.0, (start + datetime.timedelta(hours=hour)).isoformat())
-               ["lights"][0]["altitude"] for hour in range(31)]
-    assert max(heights) > 80 and min(heights) < -80  # on its equator the star passes over and under once a day
-    again = overhead.from_body(bodies, "home", 0.0, 0.0, "2100-01-02T06:00:00Z")["lights"][0]["altitude"]
-    assert again == pytest.approx(heights[0], abs=1.5)  # back where it was, less its orbit's turn of 1.5 degrees
 
 
 # --- the environment plan: sites where the setting puts them, shaped by their own plans -------------------------------

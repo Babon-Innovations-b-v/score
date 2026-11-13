@@ -112,7 +112,7 @@ FUNCTION_DEBT = {
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 115,
     "score/library/test_read_only_at_known_schema.py": 4,
     "score/review/relation_solver/test_a_crowded_plan_is_parted_inside_its_walls_the_same_way_every_run.py": 2,
-    "score/review/test_the_owners_word_stands.py": 131,
+    "score/review/test_the_owners_word_stands.py": 116,
     "score/stages/animals/test_animal_rows_follow_the_design.py": 3,
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 42,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 20,
