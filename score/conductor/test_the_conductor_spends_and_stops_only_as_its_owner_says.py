@@ -145,34 +145,6 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
             entry["started"] = at.isoformat(timespec="seconds")
         assert size.entry_alive(entry) is live, offset
 
-    # the ask: the token read by name, only grow or shrink, and a failed ask takes its resize mark back
-    reader = tmp_path / "reader"
-    reader.write_text("#!/bin/sh\n[ \"$1\" = score-conductor-size-token ] && echo the-token\n")
-    reader.chmod(0o700)
-    sent = []
-
-    class Answer(io.BytesIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *exc):
-            return False
-
-    def opener(request, timeout):
-        sent.append((request.full_url, request.get_header("X-score-size-token"), json.loads(request.data)))
-        return Answer(b"powering off")
-    monkeypatch.setenv(size.READER, str(reader))
-    assert size.ask(size.GROW, url="https://size.invalid/", opener=opener) == "powering off"
-    assert sent == [("https://size.invalid/", "the-token", {"action": "grow"})]
-    with pytest.raises(ValueError):
-        size.ask("delete", url="https://size.invalid/", opener=opener)
-
-    def refused(action):
-        raise RuntimeError("the size function is down")
-    with pytest.raises(RuntimeError):
-        size.asked(size.GROW, refused)
-    assert not conductor.RESIZING.exists()
-
     # one world: a Buy asks the grow on the idle size before it prices, and starts again at the boot on the batch size
     folders = [tmp_path / name for name in ("runs", "parked", "frozen", "holds", "asked")]
     asked, pokes = folders[4], []
@@ -218,22 +190,56 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     child.wait()
     assert conductor.holds(holds) == [] and not list(holds.glob("*.lock"))  # the dead holder's file is gone
 
-    # the size timer: the idle clock counts from the last busy pass, a pass drains the shrink (no new pass while the
-    # mark is fresh), the shrink is asked once it ended and marks its resize, and the idle size takes the mark back
+    # the size timer, its asks sent through the real ask with the token read by name: the idle clock counts from the
+    # last busy pass, a pass drains the shrink (no new pass while the mark is fresh), the shrink is asked once it ended
+    # and marks its resize, the idle size takes the drain back, a failed grow takes its resize mark back, and an ask is
+    # only grow or shrink
     become(16)
     monkeypatch.setattr(runs, "boot_time", lambda: 0)
-    asks, state = [], tmp_path / "size-state.json"
+    reader = tmp_path / "reader"
+    reader.write_text("#!/bin/sh\n[ \"$1\" = score-conductor-size-token ] && echo the-token\n")
+    reader.chmod(0o700)
+    monkeypatch.setenv(size.READER, str(reader))
+    sent, down, state = [], [], tmp_path / "size-state.json"
+
+    class Answer(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    def opener(request, timeout):
+        if down:
+            raise RuntimeError("the size function is down")
+        sent.append((request.full_url, request.get_header("X-score-size-token"), json.loads(request.data)))
+        return Answer(b"powering off")
+
+    def asker(action):
+        return size.ask(action, opener=opener)
 
     def tick(view, now):
-        return size.tick(say=lambda line: None, now=now, asker=asks.append, state_path=state, view=view)["action"]
+        return size.tick(say=lambda line: None, now=now, asker=asker, state_path=state, view=view)["action"]
     assert [tick({**IDLE, "claims": 1}, NOW), tick(IDLE, NOW + 29 * 60), tick(PASSING, NOW + 31 * 60)] == [
-        None, None, size.DRAIN] and asks == []
+        None, None, size.DRAIN] and sent == []
     assert size.draining(NOW + 32 * 60) and not size.draining(NOW + 31 * 60 + size.DRAIN_MINUTES * 60 + 1)
-    assert tick({**PASSING, "passing": 0, "held": []}, NOW + 36 * 60) == size.SHRINK and asks == [size.SHRINK]
+    assert tick({**PASSING, "passing": 0, "held": []}, NOW + 36 * 60) == size.SHRINK
+    assert sent == [("https://size.invalid/", "the-token", {"action": "shrink"})]
     assert size.draining(NOW + 36 * 60)  # the mark stays until the machine is small
     assert json.loads(conductor.RESIZING.read_text())["action"] == size.SHRINK  # its power-off is a resize's
     become(2)  # booted at the idle size: passes go on again
     assert tick({**IDLE, "held": []}, NOW + 40 * 60) is None and not conductor.DRAINING.exists()
+    down.append(1)  # a waiting run asks the grow while the size function is down: the mark is taken back
+    with pytest.raises(RuntimeError):
+        tick(WAITING, NOW + 41 * 60)
+    assert not conductor.RESIZING.exists() and len(sent) == 1
+    down.clear()
+    assert tick(WAITING, NOW + 42 * 60) == size.GROW
+    assert sent[1:] == [("https://size.invalid/", "the-token", {"action": "grow"})]
+    assert json.loads(conductor.RESIZING.read_text())["action"] == size.GROW
+    with pytest.raises(ValueError):
+        asker("delete")
+    assert len(sent) == 2
 
     # off a conductor the size timer asks nothing and a hold writes nothing
     become(None)
