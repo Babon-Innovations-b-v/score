@@ -41,6 +41,7 @@ from score.stages import (animals, assembly, cast, complete, crops, demo_film, d
                           gaps, images, library, light, motion, people, people_cloth, physics, scene_record, settling,
                           scene_clips, screens, shapes_first, shell_split, sim_body, sound,
                           surface_tiles, surfaces, terrain, video_clips)
+from score.stages.cast import feet as cast_feet  # cast's make: its own module, so no other row's key moves with it
 from score.stages.surfaces import bake_check, body_faces, carry, check_seen, claude_asks, colour_picks, library_reads, \
     parts_kept, recheck_picks, route_check, uv_layout, bake_fitted
 import score.stages.scene_record.gates  # noqa: F401  scene_record.gates and .writer, which the package leaves out
@@ -642,7 +643,7 @@ SCENE_RECORD = graph.Stage("scene-record", "place", scene_record.writer.make, sc
 # objects: a seat carries a seated person; without them 8 seated people sat on the floor, 2026-11-04).
 # Its `made` gate reads the looks' dress rows as optional inputs: a look whose dressed body stands usable is made.
 DRESS_ROWS = tuple(row.name for row in people.ROWS if row.name.startswith(f"{characters_layer.DRESS}-"))
-CAST = graph.Stage("cast", "place", cast.make, cast.CAST, cast.CHECKS, files=cast.files,
+CAST = graph.Stage("cast", "place", cast_feet.make, cast.CAST, cast.CHECKS, files=cast.files,
                    after={"plan": ("place-plan", 2), "scene-record": ("scene-record", 1), "terrain": ("grounds", 2),
                           "surfaces-bake": ("surfaces-bake", 1), "surfaces-paint": ("surfaces-paint", 1),
                           **{name: ("people-dress", 1) for name in DRESS_ROWS}},

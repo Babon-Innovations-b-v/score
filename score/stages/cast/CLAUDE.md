@@ -40,6 +40,12 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
   (`clear_run`; none clear: the nearest, on its longest run of clear treads, else whole for `clear` to name)
   (writer.stair's, as the scene record lays it), on its first (clear) tread the way it walks, facing its last (clear) one, with `stairs` (its way, flight, last tread, rise and run) for the
   scene-made clip; never nudged onto level ground (`climbers_of`), judged where it stands.
+- **A stood person's feet keep clear** (`feet.py`, 2026-11-13): a spot spread stands a person on is kept only where a
+  cylinder `BODY_RADIUS` round its feet from `FEET_LIFT` to `KNEE` meets no solid but the one it stands on (airlock's
+  astronaut stood with a vacuum's low part under its toe, greenhouse's astronaut_4 with a foot under a tank). `feet.make`
+  is the cast's make, wired in the stage table: scene_clips imports this package and through it every row from the
+  assembly on, so an edit to `spread.py`, `measure.py` or `__init__.py` moves 242 accepted rows; `feet.py` moves the
+  cast's key alone.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of
   the seed's base layer (FCL); a point instancer's prototypes are left out (they stand only where it copies them).
 - **Do not import tools/characters at load.** Its `cast_check` on the path or in `sys.modules` joins the assembly's

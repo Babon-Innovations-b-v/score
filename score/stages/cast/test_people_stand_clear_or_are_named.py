@@ -11,6 +11,9 @@ geometry of the test's own.
 Breaks that turn it red (each applied once and seen red, then reverted):
 - `spread.grounded`: `or next(clashes)` dropped  -> the stood test (the member stays in the crate).
 - `spread.grounded`: `or not next(level)` dropped  -> the deck edge test (the member stays over the edge).
+- `feet.grounded`: `or next(low)` dropped  -> the deck edge test (the member by the low block stays over it).
+- `feet.feet_into`: `- {on}` dropped  -> the deck edge test (the slope's own ground in its feet's way).
+- `feet.feet_kept`: `spread.grounded = grounded` dropped  -> the deck edge test (the member stays over the block).
 - `measure.level_under`: `np.abs(row) <= FOOT_STEP` read as `<= 1.0`  -> the deck edge test.
 - `measure.level_under`: `- plane @ np.linalg.pinv(plane)` dropped (the gaps judged off the feet, not off a plane)
   -> the deck edge test (the person on the slope is left out).
@@ -76,7 +79,7 @@ from pxr import Usd, UsdGeom
 
 from score import checks, stages
 from score.stages import cast, gaps
-from score.stages.cast import driven, layer, measure, spread
+from score.stages.cast import driven, feet, layer, measure, spread
 from score.stages.scene_record import writer
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -277,14 +280,26 @@ def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_o
 def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_level(tmp_path):
     """Camp's astronaut_1 and astronaut_2_1 (round 33, 2026-10-30) stood within 0.15 m of a 5.8 cm deck's edge, their
     middles on one level and a foot over the other, and sank into it in sim-body. Nudged, each stands BODY_RADIUS
-    clear of the edge; one in the deck's middle stays, and so does one on an even slope (wreck's made ground)."""
+    clear of the edge; one in the deck's middle stays, and so does one on an even slope (wreck's made ground). Airlock's
+    astronaut (2026-11-13) stood with a vacuum cleaner's low part under its toe, under its body's knee and between
+    level_under's rays: one by a low block there is nudged off it, its feet's room clear of it (feet.feet_into)."""
     stage = Usd.Stage.CreateNew(str(tmp_path / "base.usda"))
     UsdGeom.Xform.Define(stage, "/camp")
     mesh(stage, "/camp/Ground/floor", [(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)], [(0, 1, 2, 3)])
     mesh(stage, "/camp/Shell/deck", [(0, 0.058, -5), (5, 0.058, -5), (5, 0.058, 5), (0, 0.058, 5)], [(0, 1, 2, 3)])
     mesh(stage, "/camp/Ground/slope", [(-5, 0, 6), (5, 0, 6), (5, 2.4, 10), (-5, 2.4, 10)], [(0, 1, 2, 3)])
+    mesh(stage, "/camp/Objects/vacuum", [(x, y, z) for x in (-1.82, -1.78) for y in (0.0, 0.04) for z in (-0.02, 0.02)],
+         [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)])
     stage.Save()
     found = measure.solids(tmp_path / "base.usda", "camp")
+    by_vacuum = [-2.0, 0.0, 0.0]  # the block 0.18 to 0.22 m off its middle, under no ray and under its knee
+    assert measure.level_under([by_vacuum], found) == [True] and measure.run_into([by_vacuum], found) == [[]]
+    assert feet.feet_into([by_vacuum, [-3.0, 0.0, 0.0]], ["Ground/floor"] * 2, found) == [["Objects/vacuum"], []]
+    assert feet.feet_into([[0.0, 1.8, 9.0]], ["Ground/slope"], found) == [[]]  # its own slope is not in the way
+    with feet.feet_kept():
+        stood = spread.nudged([{"name": "toe", "at": by_vacuum}], found, spread.Kept())[0]["at"]
+    assert spread.grounded is feet.PLAIN  # spread's own standing back once the make ends
+    assert stood[1] == 0.0 and np.hypot(stood[0] + 1.8, stood[2]) >= measure.BODY_RADIUS, stood
     assert measure.level_under([[0.1, 0.058, 0.0], [-0.1, 0.0, 0.0], [2.0, 0.058, 0.0], [0.0, 1.8, 9.0]], found) == [
         False, False, True, True]
     members = [{"name": "edge", "at": [0.1, 0.0, 0.0]}, {"name": "middle", "at": [2.0, 0.0, 1.0]}]
