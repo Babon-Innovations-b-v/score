@@ -8,7 +8,10 @@ the frames run at consecutive moments of the stage's time; a shot starts where i
 people (never inside a solid), or is left out; an earlier take's clear shots are kept; and a frame's ink lines drawn alone are laid over its
 look. No Blender, no cloud.
 
-Each test's break (applied once, seen red, reverted), in tools/review/demo.py, by the test's key words:
+One film of the two rooms (with two people added high over them) is planned through film_cameras and film_shots, and
+again with an earlier take of it, each shot judged against its camera's row (RECORD); its walks by one judge
+(walk_faults), a sharp corner rounded by rounded_corners too. Each break (applied once, seen red, reverted), in
+tools/review/demo.py, by the behaviour's key words:
 - a roof look left out: shot_cameras keeps a camera looking up at a roof.
 - through the wall: walked_frames looks away from the camera's aim.
 - keeps to its floor: walk_path drops its on_floor test.
@@ -31,7 +34,6 @@ Each test's break (applied once, seen red, reverted), in tools/review/demo.py, b
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_a_films_shots_keep_clear_and_move_smoothly.py
 """
-import copy
 import json
 import pathlib
 import sys
@@ -47,296 +49,211 @@ import camera_paths  # noqa: E402  (tools/usd, on the path through demo)
 import test_a_walk_goes_through_doorways_clear_of_everything as camera_paths_test  # noqa: E402
 
 
-def camera(name, eye, aim):
-    return {"name": name, "eye": eye, "aim": aim, "fov": 75}
-
-
-WORLD = []  # (stage, its rooms' scenes), made once for the file
-
-
-def rooms():
-    """Two rooms side by side (tools/usd camera_paths.py's test), made once: (stage, scenes)."""
-    if not WORLD:
-        stage = camera_paths_test.rooms_stage(pathlib.Path(tempfile.mkdtemp()))
-        WORLD.append((stage, camera_paths.place_scenes(stage)))
-    return WORLD[0]
+def camera(name, eye, aim, **more):
+    return {"name": name, "eye": eye, "aim": aim, "fov": 75, **more}
 
 
 FLOOR = [[-4.0, -3.0], [4.0, 3.0]]
-TWO_CAMERAS = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("b", [-1, 1.6, 0], [-3, 1.2, 0])],
-               "inside": True, "floor": FLOOR}
-THROUGH_THE_WALL = camera("through-the-wall", [-3.0, 1.6, 2.0], [3.0, 1.2, 2.0])
-BY_THE_WALL = camera("by-the-wall", [-3.9, 1.6, 2.0], [-3.9, 1.2, -2.0])
-IN_THE_CRATE = camera("in-the-crate", [-2.0, 0.5, 0.0], [-1.0, 0.5, 0.0])  # the 1 m crate at x = -2, its middle
-PLANNED = {}  # the file's slow plans (RRT* walks, seconds each), made once, side by side
+SHORT_FLOOR = [[-4.0, -3.0], [-2.5, 3.0]]  # the left room's floor ending well short of the wall ahead
+# The owner's picked viewpoints of the rooms, in the order he saved them: the first looks up past the near-level hold
+# into the other room, its walk turning through the doorway.
+PICKS = [dict(camera("by the stair", [-2.0, 1.6, 2.5], [4.0, 3.0, -1.0]), fov=70),
+         camera("door", [5.0, 1.6, 2.0], [5.0, 1.4, -2.0])]
+# The record's cameras and what each one's shot does in the film: "walk", "stand", or "left" (None from shot_move:
+# no clear spot near it, the film falls back to a spare, or leaves the shot out without one); `moved` the least the
+# start moves off the camera's own spot; `reach` the furthest x a walk goes; `own eye` a stand at the camera's eye.
+RECORD = [
+    (camera("through-the-wall", [-3.0, 1.6, 2.0], [3.0, 1.2, 2.0]), {"move": "walk", "reach": -camera_paths.CLEARANCE}),
+    (camera("by-the-wall", [-3.9, 1.6, 2.0], [-3.9, 1.2, -2.0]), {"move": "walk", "moved": 0.1}),
+    (camera("in-the-crate", [-2.0, 0.5, 0.0], [-1.0, 0.5, 0.0]), {"move": ("walk", "stand", "left"), "moved": 0.5}),
+    (camera("over-the-rooms", [-3.0, 9.0, 2.0], [3.0, 0.0, 2.0]), {"move": "stand", "own eye": True, "level": False}),
+    (camera("held", [-3.0, 1.6, 2.0], [-3.0, -9.0, -2.0], stand=True), {"move": "stand", "level": True}),
+    (camera("among-people", [2.0, 9.0, 2.0], [2.0, 8.0, -2.0]), {"move": "stand", "height": 9.0, "moved": 0.3}),
+    (camera("walled", [3.0, 9.0, -2.0], [3.0, 8.0, -4.0]), {"move": "left"}),
+    (camera("up-roof", [0.0, 1.6, 0.0], [0.2, 4.1, 0.0]), {}),
+    (camera("far", [-3.0, 1.6, -2.0], [-1.0, 1.2, 0.0]), {"move": "walk"}),
+    (camera("near", [1.0, 1.6, 0.5], [1.0, 1.2, -2.0]), {"move": "walk"}),
+]
+FILMED = ["by the stair", "through-the-wall", "by-the-wall", "over-the-rooms", "held", "among-people", "in-the-crate",
+          "walled"]  # the shots that may be left out last, so a take planned again keeps its shots' numbers
+# A person standing by the among-people camera, and one whose box walls the walled camera in (balcony cameras over
+# floors the stage does not draw, as the square's stage-near): (name, size, centre).
+PEOPLE = [("stander", (0.6, 1.8, 0.6), (2.0, 8.5, 2.0)), ("crowd", (6.0, 2.0, 6.0), (3.0, 8.5, -2.0))]
+# The film as given to plan, read as (film, place, cameras named); a film's name read as (key, title).
+GIVEN = [("hub=wide-north,wide-east", ("hub", "hub", ["wide-north", "wide-east"])), ("hub", ("hub", "hub", [])),
+         ("campgrounds@camp=outside_far", ("campgrounds", "camp", ["outside_far"]))]
+NAMES = [("old_station", ("old_station", "Old station")), ("camp:Mars camp", ("camp", "Mars camp"))]
+# A view's aim from an eye at 1.6 m, and the pitch (degrees) levelled holds it at.
+PITCHES = [([0.0, 9.0, -2.0], demo.LOOK_UP), ([0.0, -9.0, -2.0], -demo.LOOK_DOWN),
+           ([0.0, 1.4, -4.0], float(np.degrees(np.arctan2(-0.2, 4.0))))]
 
 
-def plan(name):
-    """One of the file's slow plans, by name, on the rooms: the two-camera film (film_shots) with an earlier take of
-    it, or one camera's move."""
-    stage, scenes = rooms()
-    if name == "two-shot film":
-        film = demo.film_shots(TWO_CAMERAS, stage, scenes, demo.shot_cameras(TWO_CAMERAS), {})
-        return {"film": film, **earlier_take(stage, scenes, *film)}
-    view, room = {"through the wall": (THROUGH_THE_WALL, FLOOR), "by the wall": (BY_THE_WALL, FLOOR),
-                  "in the crate": (IN_THE_CRATE, None)}[name]
-    return demo.shot_move(scenes, view, room, seed=0)
+def rooms_with_people(folder):
+    """The two rooms (tools/usd camera_paths.py's test) with PEOPLE added: (stage, scenes)."""
+    stage = camera_paths_test.rooms_stage(folder)
+    for name, size, centre in PEOPLE:
+        camera_paths_test.add_person(stage, name, size, centre)
+    return stage, camera_paths.place_scenes(stage)
 
 
-def planned(name):
-    """`name`'s plan (plan): every one made once, each in a forked process of its own on the rooms made before the
-    fork, two at a time (the gate's two CPUs; one after another they took most of this file's 60 s budget); each
-    caller gets its own copy."""
-    if not PLANNED:
-        import concurrent.futures
-        import multiprocessing
-        rooms()
-        names = ("two-shot film", "through the wall", "by the wall", "in the crate")
-        with concurrent.futures.ProcessPoolExecutor(2, mp_context=multiprocessing.get_context("fork")) as pool:
-            PLANNED.update(zip(names, pool.map(plan, names)))
-    return copy.deepcopy(PLANNED[name])
+def pitch(looked):
+    return float(np.degrees(np.arctan2(looked[1], np.linalg.norm(looked[[0, 2]]))))
 
 
-def earlier_take(stage, scenes, moves, shots):
-    """The two-camera film planned again with an earlier take of it whose second shot comes too near a wall: the
-    take's folder, the shots kept of it (kept_shots) and the film planned with them."""
-    with tempfile.TemporaryDirectory() as temporary:
-        keep = pathlib.Path(temporary)
-        (keep / "views").mkdir()
-        views = [view for shot, _ in shots for view in shot]
-        near = [dict(view, eye=[-3.9, 1.6, 2.0]) if demo.shot_of(view) == "shot1" else view for view in views]
-        (keep / "views" / "rooms.json").write_text(json.dumps({"views": near, "moves": moves}))
-        kept = demo.kept_shots(keep, "rooms", scenes, stage)
-    _, again = demo.film_shots(TWO_CAMERAS, stage, scenes, demo.shot_cameras(TWO_CAMERAS), kept)
-    return {"take": str(keep), "kept": kept, "again": again}
+def on(floor, eyes):
+    return bool((eyes[:, [0, 2]] >= np.array(floor[0]) - 1e-9).all() and (eyes[:, [0, 2]] <= np.array(floor[1]) + 1e-9).all())
 
 
-def two_shot_film():
-    """A film of two cameras in the left room: (moves, shots) as film_shots plans them on the file's rooms."""
-    return planned("two-shot film")["film"]
-
-
-def test_cameras_leave_out_a_roof_look_and_spread_over_the_list():
-    record = {"views": [camera(f"spot{number}", [number, 1.6, 0], [number, 1.2, -4]) for number in range(7)]
-              + [camera("up-roof", [0, 1.6, 0], [0.2, 4.1, 0])]}
-    chosen = demo.shot_cameras(record, count=4)
-    assert [view["name"] for view in chosen] == ["spot0", "spot2", "spot4", "spot6"], chosen
-    assert all(view["name"] != "up-roof" for view in demo.shot_cameras(record, count=10))
-    assert [view["name"] for view in demo.shot_cameras(record, names=["spot5", "spot1"])] == ["spot5", "spot1"]
-    assert demo.chosen("hub=wide-north,wide-east") == ("hub", "hub", ["wide-north", "wide-east"])
-    assert demo.chosen("hub") == ("hub", "hub", [])
-    assert demo.chosen("campgrounds@camp=outside_far") == ("campgrounds", "camp", ["outside_far"])
-
-
-def test_a_walk_through_the_wall_goes_only_as_far_as_is_clear():
-    scenes = rooms()[1]
-    """A camera in the left room looking at the right one through the wall between them walks half the way, not into
-    the wall; its eyes stay at eye height, every step is clear, and it keeps looking towards the right room."""
-    view = THROUGH_THE_WALL
-    move = planned("through the wall")
-    frames = demo.shot_frames(move, view, 0, 30)
+def walk_faults(scenes, move, frames, view, floor):
+    """What a walk's frames do wrong: off eye height, a step meeting something, not moving, off its room's floor,
+    looking away from its camera's aim, or a corner turned sharper than 60 degrees between two steps of its path."""
     eyes = np.array([frame["eye"] for frame in frames])
-    assert move["move"] == "walk" and len(frames) == 30, move
-    assert np.abs(eyes[:, 1] - camera_paths.EYE_HEIGHT).max() < 1e-6, eyes[:, 1]
-    assert eyes[:, 0].max() < -camera_paths.CLEARANCE, f"the walk reaches x = {eyes[:, 0].max():.2f}, the wall"
-    assert np.linalg.norm(eyes[-1] - eyes[0]) > demo.SHORTEST_WALK, "the walk does not move"
-    assert camera_paths.edges_clear(scenes, eyes[:-1], eyes[1:], 0.0).all(), "a step meets something"
     looks = np.array([frame["aim"] for frame in frames]) - eyes
-    assert (looks[:, 0] > 0).all(), "the walk looks away from what its camera looks at"
+    ahead = (np.asarray(view["aim"]) - np.asarray(view["eye"]))[[0, 2]]
+    path = np.array(move["path"])
+    ways = np.diff(path, axis=0)[:, [0, 2]]
+    ways = ways[np.linalg.norm(ways, axis=1) > 0]  # a rounded corner's curve may start on the point before it
+    ways = ways / np.linalg.norm(ways, axis=1)[:, None]
+    turns = np.degrees(np.arccos(np.clip((ways[1:] * ways[:-1]).sum(axis=1), -1.0, 1.0)))
+    faults = {
+        "off eye height": np.abs(eyes[:, 1] - camera_paths.EYE_HEIGHT).max() >= 1e-6,
+        "a step meets something": not camera_paths.edges_clear(scenes, eyes[:-1], eyes[1:], 0.0).all(),
+        "its path is not walkable": not camera_paths.edges_walkable(scenes, path[:-1], path[1:],
+                                                                   camera_paths.CLEARANCE).all(),
+        "it does not move": np.linalg.norm(eyes[-1] - eyes[0]) <= demo.SHORTEST_WALK,
+        "off its floor": floor is not None and not on(floor, eyes),
+        "looks away from its camera's aim": not (looks[:, [0, 2]] @ ahead > 0).all(),
+        f"a corner turns {turns.max() if len(turns) else 0:.0f} degrees at once": len(turns) and turns.max() >= 60.0,
+        "its ends moved": not (np.allclose(path[0], frames[0]["eye"], atol=1e-4)
+                               and np.allclose(path[-1], frames[-1]["eye"], atol=1e-4)),
+    }
+    return [fault for fault, found in faults.items() if found]
 
 
-def test_a_rooms_walk_keeps_to_its_floor():
-    scenes = rooms()[1]
-    """A room's walk keeps to the record's floor: with the floor ending well short of the wall ahead, the walk goes
-    sideways instead, every eye on the floor."""
-    floor = [[-4.0, -3.0], [-2.5, 3.0]]
-    view = camera("short-floor", [-3.0, 1.6, 2.0], [3.0, 1.2, 2.0])
-    move = demo.shot_move(scenes, view, floor, seed=0)
-    eyes = np.array([frame["eye"] for frame in demo.shot_frames(move, view, 0, 30)])[:, [0, 2]]
-    assert move["move"] == "walk" and np.linalg.norm(eyes[-1] - eyes[0]) > demo.SHORTEST_WALK, move
-    assert (eyes >= np.array(floor[0]) - 1e-9).all() and (eyes <= np.array(floor[1]) + 1e-9).all(), eyes
-
-
-def test_a_camera_held_over_every_floor_stands_looking_where_it_looks():
-    scenes = rooms()[1]
-    """A camera held far over any floor of the stage (a balcony the stage does not draw) stands at its own eye and
-    keeps looking where it looks, steeply down, not levelled."""
-    view = camera("over-the-rooms", [-3.0, 9.0, 2.0], [3.0, 0.0, 2.0])
-    move = demo.shot_move(scenes, view, None, seed=0)
-    assert move["move"] == "stand" and move["eye"] == view["eye"] and not move["level"], move
-    frame = demo.shot_frames(move, view, 0, 30)[15]
-    looked = np.array(frame["aim"]) - frame["eye"]
-    assert np.degrees(np.arctan2(looked[1], np.linalg.norm(looked[[0, 2]]))) < -45, frame
-
-
-def test_the_owners_picked_viewpoints_are_the_films_cameras():
-    """The owner's picked viewpoints are a film's cameras in the order he saved them; a name given picks from them
-    and the record's; with none picked the record's spread is used."""
-    record = {"views": [camera(f"spot{number}", [number, 1.6, 0], [number, 1.2, -4]) for number in range(7)]}
-    with tempfile.TemporaryDirectory() as temporary:
-        picks = pathlib.Path(temporary)
-        assert demo.film_cameras("hall", record, picks=picks) == demo.shot_cameras(record)
-        demo.viewpoints.append("hall", dict(camera("by the stair", [2, 1.6, 1], [0, 1.4, -5]), fov=70), picks)
-        demo.viewpoints.append("hall", camera("door", [5, 1.6, 2], [5, 1.4, -2]), picks)
-        assert [view["name"] for view in demo.film_cameras("hall", record, picks=picks)] == ["by the stair", "door"]
-        named = demo.film_cameras("hall", record, ["spot3", "door"], picks=picks)
-        assert [view["name"] for view in named] == ["spot3", "door"]
-        assert demo.film_cameras("hall", record, picks=picks)[0]["fov"] == 70
-
-
-def test_a_standing_shot_turns_in_place_each_the_other_way():
-    """A standing shot keeps its eye and turns its view through TURN_DEGREES, each shot the other way."""
-    view = camera("spot", [0.0, 1.6, 4.0], [0.0, 1.2, -6.0])
-    frames = demo.standing_frames(np.array(view["eye"]), np.array(view["aim"]), view, 0, 30)
+def stand_turn(frames):
+    """A standing shot's eye drift (metres) and its view's turn from first to last frame (signed degrees about up)."""
     eyes = np.array([frame["eye"] for frame in frames])
-    assert np.linalg.norm(eyes[-1] - eyes[0]) < 1e-9
-    first, last = (np.array(frames[index]["aim"]) - eyes[index] for index in (0, -1))
-    turn = np.degrees(np.arccos(np.dot(first[[0, 2]], last[[0, 2]])
-                                / np.linalg.norm(first[[0, 2]]) / np.linalg.norm(last[[0, 2]])))
-    assert abs(turn - demo.TURN_DEGREES) < 0.1, turn
-    other = demo.standing_frames(np.array(view["eye"]), np.array(view["aim"]), view, 1, 30)
-    assert np.sign(other[0]["aim"][0]) == -np.sign(frames[0]["aim"][0]), "shots turn the other way in turn"
+    first, last = (np.array(frames[index]["aim"])[[0, 2]] - eyes[index][[0, 2]] for index in (0, -1))
+    turn = np.degrees(np.arccos(np.dot(first, last) / np.linalg.norm(first) / np.linalg.norm(last)))
+    return float(np.linalg.norm(eyes[-1] - eyes[0])), float(turn * np.sign(first[1] * last[0] - first[0] * last[1]))
 
 
-def test_a_shot_glides_at_one_speed_between_its_eased_ends():
-    """A shot's camera speeds up and slows down only over EASE_SECONDS at its ends and glides at one speed between,
-    from 0 to 1, never going back: no surge in the middle of the shot."""
-    shares = demo.eased(96)
+def test_a_films_shots_keep_clear_and_move_smoothly():
+    """One film of the rooms planned through film_cameras and film_shots (and again with an earlier take of it), every
+    shot judged against its camera's row; then the film's names, eases, levels and ink."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    stage, scenes = rooms_with_people(folder)
+    record = {"views": [view for view, _ in RECORD], "inside": True, "floor": FLOOR}
+    expected = {view["name"]: row for view, row in RECORD}
+    expected["by the stair"] = {"move": "walk"}
+    picks = folder / "picks"
+
+    # The cameras: the record's spread (none looking up at a roof) until the owner picks; then his picks in order.
+    level = [view["name"] for view, _ in RECORD if view["name"] != "up-roof"]
+    assert [view["name"] for view in demo.film_cameras("rooms", record, picks=picks)] == [
+        level[index] for index in (0, 3, 5, 8)]
+    assert "up-roof" not in [view["name"] for view in demo.shot_cameras(record, count=len(RECORD))]
+    for pick in PICKS:
+        demo.viewpoints.append("rooms", pick, picks)
+    found = demo.film_cameras("rooms", record, picks=picks)
+    assert [(view["name"], view["fov"]) for view in found] == [("by the stair", 70), ("door", 75)], found
+    cameras = demo.film_cameras("rooms", record, FILMED, picks=picks)
+    assert [view["name"] for view in cameras] == FILMED
+    spares = demo.spare_cameras(record, cameras)
+    assert [view["name"] for view in spares] == ["far", "near"], spares
+
+    moves, shots = demo.film_shots(record, stage, scenes, cameras, {}, spares=spares)
+    views = [view for shot, _ in shots for view in shot]
+    per_shot = round(demo.SHOT_SECONDS * demo.RATE)
+    made = [move["camera"] for move in moves]
+    left = [name for name in FILMED if expected[name]["move"] == "left"
+            or "left" in expected[name]["move"] and name not in made]
+    queue = [view["name"] for view in spares]
+    assert made == [queue.pop(0) if name in left else name for name in FILMED], made
+    assert all(fresh for _, fresh in shots) and len(views) == len(moves) * per_shot, moves
+    assert [view["frame"] for view in views] == list(range(len(views))), "the shots' moments are not consecutive"
+    assert [view["name"] for view in views[per_shot - 1:per_shot + 1]] == [f"shot0-{per_shot - 1:03d}", "shot1-000"]
+    people = camera_paths.moving_boxes(stage)
+    sides = set()
+    for number, (move, (frames, _)) in enumerate(zip(moves, shots)):
+        view, row = next(view for view in cameras + spares if view["name"] == move["camera"]), expected[move["camera"]]
+        eyes = np.array([frame["eye"] for frame in frames])
+        allowed = row["move"] if isinstance(row["move"], tuple) else (row["move"],)
+        assert move["move"] in allowed and len(frames) == per_shot, (row, move)
+        assert {frame["fov"] for frame in frames} == {view["fov"]}, view
+        walls, persons = camera_paths.clearances(camera_paths.with_people(scenes, people), eyes)
+        assert camera_paths.stands_clear(walls, persons).all(), (move, walls.min(), persons.min())
+        assert move["moved"] > row.get("moved", -1.0), (move, row)
+        if move["move"] == "walk":
+            faults = walk_faults(scenes, move, frames, view, FLOOR)
+            assert not faults, (move["camera"], faults)
+            assert eyes[:, 0].max() < row.get("reach", np.inf), f"{move['camera']} reaches x = {eyes[:, 0].max():.2f}"
+            continue
+        drift, turn = stand_turn(frames)
+        assert drift < 1e-9 and abs(abs(turn) - demo.TURN_DEGREES) < 0.1, (move["camera"], drift, turn)
+        sides.add(np.sign(turn) * (1 if number % 2 == 0 else -1))
+        assert move["level"] == row.get("level", move["level"]), move
+        if row.get("own eye"):
+            assert move["eye"] == view["eye"] and pitch(np.array(frames[per_shot // 2]["aim"]) - eyes[0]) < -45, move
+        assert move["eye"][1] == row.get("height", move["eye"][1]), move
+    assert len(sides) == 1, "standing shots do not turn the other way each in turn"
+    # A walk's path cornered 148 degrees at once in the right room, rounded as a walk's is, walks as smoothly.
+    sharp = [np.array([x, camera_paths.EYE_HEIGHT, z]) for x, z in ((1.0, 2.0), (2.0, -1.5), (3.0, 2.0))]
+    rounded = demo.rounded_corners(scenes, sharp)
+    view = camera("corner", [1.0, 1.6, 2.0], [5.0, 1.2, 2.0])
+    move = {"camera": "corner", "move": "walk", "path": [point.tolist() for point in rounded]}
+    assert len(rounded) == demo.ROUND_STEPS + 3, len(rounded)
+    faults = walk_faults(scenes, move, demo.shot_frames(move, view, 0, per_shot), view, FLOOR)
+    assert not faults, faults
+
+    # An earlier take whose second shot comes nearer a wall than the clearance, planned again on the floor recorded
+    # shorter since and with no spare: the clear shots are kept as they were, the near one planned anew on the
+    # shorter floor (it goes sideways), and the walled shot is left out.
+    keep = folder / "take"
+    (keep / "views").mkdir(parents=True)
+    near = [dict(view, eye=[-3.9, 1.6, 2.0]) if demo.shot_of(view) == "shot1" else view for view in views]
+    (keep / "views" / "rooms.json").write_text(json.dumps({"views": near, "moves": moves}))
+    kept = demo.kept_shots(keep, "rooms", scenes, stage)
+    assert sorted(kept) == [number for number in range(len(moves)) if number != 1], sorted(kept)
+    assert kept[0][0] == dict(moves[0], kept=str(keep)) and kept[0][1] == shots[0][0], kept[0][0]
+    shorter = dict(record, floor=SHORT_FLOOR)
+    again_moves, again = demo.film_shots(shorter, stage, scenes, cameras, kept)
+    assert [move["camera"] for move in again_moves] == [name for name in FILMED if name not in left], again_moves
+    assert [fresh for _, fresh in again] == [number == 1 for number in range(len(again))], [fresh for _, fresh in again]
+    assert again[0][0] == shots[0][0]
+    assert again_moves[1]["move"] == "walk", again_moves[1]
+    faults = walk_faults(scenes, again_moves[1], again[1][0], cameras[1], SHORT_FLOOR)
+    assert not faults, faults
+
+    # A shot's progress: still at its ends, eased over EASE_SECONDS, one speed between, never going back.
+    shares = demo.eased(per_shot)
     speeds = np.diff(shares) * demo.RATE
     middle = speeds[round(demo.EASE_SECONDS * demo.RATE) + 1:-round(demo.EASE_SECONDS * demo.RATE) - 1]
     assert shares[0] == 0.0 and abs(shares[-1] - 1.0) < 1e-9 and (np.diff(shares) >= 0).all(), shares
     assert np.ptp(middle) < 1e-9, "the walk's speed changes between its eased ends"
-    assert speeds.max() < 1.2 / (95 / demo.RATE), "its top speed over 1.2 times its mean (the cosine's was 1.57)"
-
-
-def test_a_walks_corner_is_rounded_and_stays_walkable():
-    scenes = rooms()[1]
-    """A walk's corner is rounded where the curve stays walkable, so the walk never turns in one frame; its ends stay."""
-    path = [np.array([1.0, 1.6, 2.0]), np.array([2.0, 1.6, -1.5]), np.array([3.0, 1.6, 2.0])]
-    rounded = demo.rounded_corners(scenes, path)
-    ways = np.diff(np.array(rounded), axis=0)
-    ways = ways[:, [0, 2]] / np.linalg.norm(ways[:, [0, 2]], axis=1)[:, None]
-    turns = np.degrees(np.arccos(np.clip((ways[1:] * ways[:-1]).sum(axis=1), -1.0, 1.0)))
-    assert len(rounded) == demo.ROUND_STEPS + 3 and turns.max() < 60.0, turns  # 148 degrees at once unrounded
-    assert np.allclose(rounded[0], path[0]) and np.allclose(rounded[-1], path[-1])
-    assert camera_paths.edges_walkable(scenes, np.array(rounded[:-1]), np.array(rounded[1:]),
-                                       camera_paths.CLEARANCE).all()
-
-
-def test_a_camera_that_says_stand_stands():
-    scenes = rooms()[1]
-    """A camera that says `stand` stands where a walk would be clear (a small room the walk would cross into a wall)."""
-    view = dict(camera("held", [-3.0, 1.6, 2.0], [-3.0, 1.2, -2.0]), stand=True)
-    assert demo.shot_move(scenes, view, None, seed=0)["move"] == "stand"
-
-
-def test_a_view_is_held_near_level():
+    assert speeds.max() < 1.2 / ((per_shot - 1) / demo.RATE), "its top speed over 1.2 times its mean (the cosine's 1.57)"
     eye = np.array([0.0, 1.6, 0.0])
-    for aim, most in (([0.0, 9.0, -2.0], demo.LOOK_UP), ([0.0, -9.0, -2.0], -demo.LOOK_DOWN), ([0.0, 1.4, -4.0], None)):
-        looked = demo.levelled(eye, aim) - eye
-        pitch = np.degrees(np.arctan2(looked[1], np.linalg.norm(looked[[0, 2]])))
-        expected = most if most is not None else np.degrees(np.arctan2(-0.2, 4.0))
-        assert abs(pitch - expected) < 1e-6, (aim, pitch)
+    for aim, most in PITCHES:
+        assert abs(pitch(demo.levelled(eye, aim) - eye) - most) < 1e-6, (aim, most)
+    for given, reading in GIVEN:
+        assert demo.chosen(given) == reading, given
+    for given, reading in NAMES:
+        assert demo.named(given) == reading, given
 
-
-def test_the_frames_run_at_consecutive_moments_of_the_stages_time():
-    """A film's shots follow one another at consecutive moments of the stage's time, and each records its move."""
-    moves, shots = two_shot_film()
-    views = [view for shot, _ in shots for view in shot]
-    per_shot = round(demo.SHOT_SECONDS * demo.RATE)
-    assert len(views) == 2 * per_shot and [move["camera"] for move in moves] == ["a", "b"], moves
-    assert all(fresh for _, fresh in shots) and all("path" in move or "eye" in move for move in moves), moves
-    assert [view["frame"] for view in views[:3]] == [0, 1, 2]  # 24 time codes a second at 24 frames
-    assert views[per_shot]["name"] == "shot1-000" and views[per_shot]["frame"] > views[per_shot - 1]["frame"]
-
-
-def test_a_shot_starts_where_it_keeps_the_clearance():
-    scenes = rooms()[1]
-    """A camera 0.1 m from a wall starts its shot from the nearest spot that keeps the clearance, and every frame of
-    its walk keeps it; one standing inside the crate (a closed mesh) is moved out of it, or left out."""
-    view = BY_THE_WALL
-    move = planned("by the wall")
-    eyes = np.array([frame["eye"] for frame in demo.shot_frames(move, view, 0, 30)])
-    walls, _ = camera_paths.clearances(scenes, eyes)
-    assert move["moved"] > 0.1 and walls.min() >= camera_paths.CLEARANCE - camera_paths.KEPT_TO, (move, walls.min())
-    move = planned("in the crate")
-    assert move is None or (move["moved"] > 0.5 and camera_paths.clearances(scenes, move["eye"])[0][0] >=
-                            camera_paths.CLEARANCE - camera_paths.KEPT_TO), move
-
-
-def test_a_camera_among_people_is_moved_out_or_left_out():
-    stage = camera_paths_test.rooms_stage(pathlib.Path(tempfile.mkdtemp()))  # its own: a person is added
-    scenes = camera_paths.place_scenes(stage)
-    """A camera standing inside a person's box (a balcony camera the stage draws no floor under, as the square's
-    stage-near) is moved out of it to keep the clearance, at its own height; one walled in by people is left out."""
-    camera_paths_test.add_person(stage, "stander", (0.6, 1.8, 0.6), (2.0, 8.5, 2.0))
-    crowded = camera_paths.with_people(scenes, camera_paths.people_boxes(stage))
-    view = camera("among-people", [2.0, 9.0, 2.0], [2.0, 8.0, -2.0])
-    move = demo.shot_move(crowded, view, None, seed=0)
-    walls, persons = camera_paths.clearances(crowded, move["eye"])
-    assert move["move"] == "stand" and move["eye"][1] == 9.0, move
-    assert camera_paths.stands_clear(walls, persons).all() and move["moved"] > 0.3, (move, persons)
-    boxed = camera_paths.with_people(scenes, np.array([camera_paths.box_corners([-1.0, 7.5, -1.0], [5.0, 9.5, 5.0])]))
-    assert demo.shot_move(boxed, view, None, seed=0) is None, "a camera deep inside a person's box is not left out"
-
-
-def test_an_earlier_takes_clear_shots_are_kept_and_a_near_one_planned_anew():
-    _, shots = two_shot_film()
-    """With an earlier take, a shot whose every frame stands clear is kept as it was (its move marked with the take);
-    one that comes nearer a wall than the clearance is planned anew (earlier_take, planned with the film)."""
-    taken = planned("two-shot film")
-    kept, again = taken["kept"], taken["again"]
-    assert list(kept) == [0] and kept[0][0]["kept"] == taken["take"] and kept[0][1] == shots[0][0], list(kept)
-    assert [fresh for _, fresh in again] == [False, True] and again[0][0] == shots[0][0], again[0][0][:1]
-
-
-def test_a_shot_with_no_clear_spot_falls_back_to_a_spare_camera():
-    stage, scenes = rooms()
-    """A shot whose camera stands no clear spot falls back to the record's next camera that does, the one furthest
-    from the first camera first (none looking up at a roof), so the film keeps its shots; with no spare it is left
-    out (fault 2026-10-25: a one-shot film too short for the environment film's walk-through)."""
-    record = {"views": [camera("a", [-3, 1.6, 2], [-3, 1.2, -2]), camera("walled", [-1, 1.6, 0], [-3, 1.2, 0]),
-                        camera("near", [-2.5, 1.6, 1.5], [-3, 1.2, -2]), camera("far", [3, 1.6, -2], [1, 1.2, 0]),
-                        camera("roof", [3, 1.6, 2], [3, 9.0, 2.1])],
-              "inside": True, "floor": [[-4.0, -3.0], [4.0, 3.0]]}
-    cameras = [record["views"][0], record["views"][1]]
-    spares = demo.spare_cameras(record, cameras)
-    assert [view["name"] for view in spares] == ["far", "near"], spares
-    real = demo.shot_move
-    demo.shot_move = lambda scene, view, *rest, **named: None if view["name"] == "walled" else real(
-        scene, view, *rest, **named)
-    try:
-        moves, _ = demo.film_shots(record, stage, scenes, cameras, {}, spares=spares)
-        alone, _ = demo.film_shots(record, stage, scenes, cameras, {})
-    finally:
-        demo.shot_move = real
-    assert [move["camera"] for move in moves] == ["a", "far"], moves
-    assert [move["camera"] for move in alone] == ["a"], alone
-
-
-def test_ink_lines_drawn_alone_are_laid_over_the_look():
-    """A frame whose cloud job drew its ink lines alone gets them laid over its look; a frame inked already is kept."""
-    with tempfile.TemporaryDirectory() as temporary:
-        frames = pathlib.Path(temporary)
-        Image.new("RGB", (4, 3), (200, 150, 100)).save(frames / "shot0-000-look.png")
-        lines = Image.new("RGBA", (4, 3), (10, 9, 8, 0))
-        lines.putpixel((1, 1), (10, 9, 8, 255))
-        lines.putpixel((2, 1), (10, 9, 8, 128))
-        lines.save(frames / "shot0-000-lines.png")
-        found = np.asarray(Image.open(demo.inked(frames, "shot0-000")))
-    assert tuple(found[1, 1]) == (10, 9, 8) and tuple(found[0, 0]) == (200, 150, 100), found[:2, :2]
-    assert np.abs(found[1, 2].astype(int) - [105, 79, 54]).max() <= 1, found[1, 2]
-
-
-def test_a_film_name_reads_as_its_key_and_title():
-    assert demo.named("old_station") == ("old_station", "Old station")
-    assert demo.named("camp:Mars camp") == ("camp", "Mars camp")
+    # The film's first frame drawn by a cloud job as its look and its ink lines alone: the lines laid over the look.
+    first = views[0]["name"]
+    Image.new("RGB", (4, 3), (200, 150, 100)).save(folder / f"{first}-look.png")
+    lines = Image.new("RGBA", (4, 3), (10, 9, 8, 0))
+    lines.putpixel((1, 1), (10, 9, 8, 255))
+    lines.putpixel((2, 1), (10, 9, 8, 128))
+    lines.save(folder / f"{first}-lines.png")
+    inked = np.asarray(Image.open(demo.inked(folder, first)))
+    assert tuple(inked[1, 1]) == (10, 9, 8) and tuple(inked[0, 0]) == (200, 150, 100), inked[:2, :2]
+    assert np.abs(inked[1, 2].astype(int) - [105, 79, 54]).max() <= 1, inked[1, 2]
 
 
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
+    test_a_films_shots_keep_clear_and_move_smoothly()
+    print("ok")
