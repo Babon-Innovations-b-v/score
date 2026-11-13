@@ -116,57 +116,91 @@ POOLS = {"gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "cpu-32c-128gb"}
 
 # ==== classes and Jobs ==============================================================================================
 
-def test_the_class_order_is_capacitys_narrowed_to_the_pools():
-    order, _late = submit.class_order("pixal", {}, POOLS)
-    assert order[0] == "gpu-24gb" and "gpu-24gb-x2" not in order  # the cheapest card per job first (2026-10-12)
-    order, late = submit.class_order("library", {"classes": ["gpu-24gb", "gpu-48gb", "gpu-80gb"]}, POOLS)
-    assert order == ["gpu-24gb", "gpu-48gb"] and late == set()  # bakes never take an H100
-    assert submit.class_order("blender", {"classes": ["cpu-32c-128gb"]}, POOLS)[0] == ["cpu-32c-128gb"]
-    spec = {"kind": "blender", "capacity_kind": "library", "image": "image", "minutes": 5,
-            "classes": ["gpu-24gb", "gpu-48gb", "gpu-80gb"]}
-    run = submit.Run("r1", {"bake": spec}, FakeKubectl([]), PoolCluster())
-    assert list(run.kinds) == ["library"] and run.orders["bake"] == (["gpu-24gb", "gpu-48gb"], set())
-    assert submit.job_cards({}, ["gpu-24gb", "gpu-48gb"]) == 1 and submit.job_cards({}, ["cpu-32c-128gb"]) == 0
-    # no pool for any of a job's classes: the nearest pool that holds it (#76: settle's 4 cores, the paint's 16 and 32)
-    assert submit.class_order("blender", {"classes": ["cpu-4c-32gb"]}, POOLS)[0] == ["cpu-32c-128gb"]
-    assert submit.class_order("blender", {"classes": ["cpu-32c-64gb", "cpu-16c-64gb"]}, POOLS | {"cpu-64c-256gb"})[
-        0] == ["cpu-32c-128gb"]
-    assert submit.class_order("pixal", {"classes": ["gpu-24gb-x2"]}, POOLS)[0] == ["gpu-80gb-x2"]
-    with pytest.raises(SystemExit, match="nor one that holds it"):
-        submit.class_order("blender", {"classes": ["gpu-24gb-x2"]}, POOLS)  # only an H100 pair: never Blender
-    with pytest.raises(SystemExit, match="nor one that holds it"):
-        submit.class_order("blender", {"classes": ["cpu-64c-256gb"]}, POOLS)
+TENANT = {"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}
+CARDS = ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
+LONG_NAME = "score-" + "a" * 54 + "-g3"  # 'Run_2026-10-09T15:00' and 80 a's: the end kept, at 63 characters
+REFUSED = "nor one that holds it"
+# job: the job's spec, the cluster's pools and own taints, the Job's run, id and generation; then what it takes: the
+# kind it is known by, its classes in order, the late ones, its cards and the Job's name (or the refusal)
+CASES = {
+    "pixal-capacitys-order": (dict(kind="pixal"), POOLS, (), ("r", "j", 0),
+                              ("pixal", ["gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2"], set(), 1,
+                               "score-r-j-g0")),
+    "own-classes-preferred-in-their-order": (dict(kind="pixal", classes=["gpu-80gb", "gpu-48gb"], attempt_limit=3),
+                                             POOLS, (), ("run-1", "take_7", 1),
+                                             ("pixal", ["gpu-80gb", "gpu-48gb"], set(), 1, "score-run-1-take-7-g1")),
+    "a-bake-never-takes-an-h100": (dict(kind="library", classes=CARDS), POOLS, (), ("r", "j", 1),
+                                   ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-r-j-g1")),
+    "a-bake-in-the-blender-image": (dict(kind="blender", capacity_kind="library", classes=CARDS, attempt_limit=1),
+                                    POOLS, (), ("Run_A", "Take_7", 1),
+                                    ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-run-a-take-7-g1")),
+    "a-processor-class-asks-no-card": (dict(kind="blender", classes=["cpu-32c-128gb"]), POOLS, (),
+                                       ("run-1", "settle", 0),
+                                       ("blender", ["cpu-32c-128gb"], set(), 0, "score-run-1-settle-g0")),
+    "a-tenants-own-taint": (dict(kind="pixal", classes=["gpu-24gb"]), POOLS, (TENANT,),
+                            ("Run_2026-10-09T15:00", "a" * 80, 3),
+                            ("pixal", ["gpu-24gb"], set(), 1, LONG_NAME)),
+    # no pool for any of a job's classes: the nearest pool that holds it (#76: settle's 4 cores, the paint's 16, 32)
+    "settles-4-cores-on-the-32-core-pool": (dict(kind="blender", classes=["cpu-4c-32gb"]), POOLS, (), ("r", "j", 0),
+                                            ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g0")),
+    "the-smallest-pool-that-holds-it": (dict(kind="blender", classes=["cpu-32c-64gb", "cpu-16c-64gb"]),
+                                        POOLS | {"cpu-64c-256gb"}, (), ("r", "j", 0),
+                                        ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g0")),
+    "a-card-pair-on-the-h100-pair": (dict(kind="pixal", classes=["gpu-24gb-x2"]), POOLS, (), ("r", "j", 0),
+                                     ("pixal", ["gpu-80gb-x2"], set(), 1, "score-r-j-g0")),
+    "only-an-h100-pair-holds-it-never-blender": (dict(kind="blender", classes=["gpu-24gb-x2"]), POOLS, (),
+                                                 ("r", "j", 0), REFUSED),
+    "no-pool-holds-it": (dict(kind="blender", classes=["cpu-64c-256gb"]), POOLS, (), ("r", "j", 0), REFUSED),
+}
 
 
-SPEC = {"kind": "pixal", "image": "registry.example/score/score-pixal:1-abc@sha256:00", "minutes": 30,
-        "attempt_limit": 3}
+class RowCluster:
+    """A cluster of the row's pools and own taints."""
+
+    def __init__(self, pools, tolerations):
+        self.pools, self.TOLERATIONS = pools, list(tolerations)
+
+    def class_pools(self):
+        return [{"class": name} for name in self.pools]
 
 
-def test_a_job_takes_only_its_classes_preferred_in_order_with_its_cards_and_cache():
-    job = manifests.job(SPEC, "run-1", "take_7", ["gpu-80gb", "gpu-48gb"], 1)
+@pytest.mark.parametrize("given, pools, taints, named, expected", CASES.values(), ids=CASES.keys())
+def test_jobs_take_their_classes_in_order(given, pools, taints, named, expected):
+    """A run reads each job's classes (capacity's order, narrowed to the cluster's pools, else the nearest pool that
+    holds them, never one its kind may not take) and, widened to all of them, makes a Job that requires exactly those,
+    prefers them in order, asks cards only on card classes and bears a Kubernetes name."""
+    spec = dict(given, image="registry.example/score/score-pixal:1-abc@sha256:00", minutes=30)
+    run_id, job_id, generation = named
+    kubectl = FakeKubectl([])
+    if expected == REFUSED:
+        with pytest.raises(SystemExit, match=REFUSED):
+            submit.Run(run_id, {job_id: spec}, kubectl, RowCluster(pools, taints))
+        return
+    kind, order, late, cards, name = expected
+    run = submit.Run(run_id, {job_id: spec}, kubectl, RowCluster(pools, taints))
+    assert list(run.kinds) == [kind] and run.orders[job_id] == (order, late)
+    run.kinds[kind]["step"] = len(order)  # widened to every class
+    run.jobs[job_id]["generation"] = generation
+    run.make(job_id)
+    job, = kubectl.applied
     pod = job["spec"]["template"]["spec"]
     required = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
-    assert required["nodeSelectorTerms"][0]["matchExpressions"][0]["values"] == ["gpu-80gb", "gpu-48gb"]
+    assert required["nodeSelectorTerms"][0]["matchExpressions"][0]["values"] == order
     preferred = pod["affinity"]["nodeAffinity"]["preferredDuringSchedulingIgnoredDuringExecution"]
-    weights = {term["preference"]["matchExpressions"][0]["values"][0]: term["weight"] for term in preferred}
-    assert weights["gpu-80gb"] > weights["gpu-48gb"]
-    assert {toleration["key"] for toleration in pod["tolerations"]} == {"nvidia.com/gpu", "score.dev/class"}
+    assert [term["preference"]["matchExpressions"][0]["values"] for term in preferred] == [[name] for name in order]
+    weights = [term["weight"] for term in preferred]
+    assert weights == sorted(set(weights), reverse=True), weights  # the first weighs most, each less than the last
+    assert {toleration["key"] for toleration in pod["tolerations"]} == {"nvidia.com/gpu", "score.dev/class"} | {
+        taint["key"] for taint in taints} and all(taint in pod["tolerations"] for taint in taints)
     container = pod["containers"][0]
-    assert container["resources"]["limits"] == dict(manifests.NO_LIMIT, **{"nvidia.com/gpu": "1"})
-    assert container["args"] == ["run-1", "take_7"]
+    card_ask = {"nvidia.com/gpu": str(cards)} if cards else {}
+    assert container["resources"]["limits"] == dict(manifests.NO_LIMIT, **card_ask)  # past any node's
+    assert container["resources"]["requests"].get("nvidia.com/gpu") == card_ask.get("nvidia.com/gpu")
+    assert container["args"] == [run_id, job_id]
     assert {"name": "cache", "mountPath": "/cache"} in container["volumeMounts"]
     assert pod["volumes"][0]["hostPath"]["path"] == "/var/lib/score-cache"
-    assert pod["restartPolicy"] == "Never" and job["spec"]["backoffLimit"] == 2  # three attempts in all
-    tenant = {"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}
-    assert tenant in manifests.job(SPEC, "run-1", "take_7", ["gpu-24gb"], 1, 0, [tenant])["spec"]["template"][
-        "spec"]["tolerations"]  # a tenant cluster's own taint on score's pools
-    processor = manifests.job(dict(SPEC, kind="blender"), "run-1", "settle", ["cpu-32c-128gb"], 0)
-    assert "nvidia.com/gpu" not in processor["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"]
-
-    name = manifests.job_name("Run_2026-10-09T15:00", "a" * 80, 3)
-    assert len(name) <= 63 and name.endswith("-g3") and name == name.lower()  # Kubernetes' name rules
-    assert manifests.job_name("r", "j", 0) != manifests.job_name("r", "j", 1)
-    assert manifests.job_name("Run_A", "Take_7", 1) == "score-run-a-take-7-g1"
+    assert pod["restartPolicy"] == "Never" and job["spec"]["backoffLimit"] == spec.get("attempt_limit", 3) - 1
+    assert job["metadata"]["name"] == name and len(name) <= 63  # Kubernetes' name rules
 
 
 # ==== widening ======================================================================================================
