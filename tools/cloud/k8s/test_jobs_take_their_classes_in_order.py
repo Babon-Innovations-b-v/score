@@ -114,44 +114,50 @@ from score.store import Store, offload  # noqa: E402
 POOLS = {"gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "cpu-32c-128gb"}
 
 
-# ==== classes and Jobs ==============================================================================================
+# ==== classes, Jobs and widening ====================================================================================
 
 TENANT = {"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}
 CARDS = ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
-LONG_NAME = "score-" + "a" * 54 + "-g3"  # 'Run_2026-10-09T15:00' and 80 a's: the end kept, at 63 characters
+LONG_NAME = "score-" + "a" * 54 + "-g1"  # 'Run_2026-10-09T15:00' and 80 a's: the end kept, at 63 characters
 REFUSED = "nor one that holds it"
-# job: the job's spec, the cluster's pools and own taints, the Job's run, id and generation; then what it takes: the
-# kind it is known by, its classes in order, the late ones, its cards and the Job's name (or the refusal)
+DONE = ({"type": "Complete", "status": "True"}, True, "done")
+FAILED_BEFORE_IT_RAN = ({"type": "Failed", "status": "True"}, False, "failed")  # a failure, never a wait to remake
+EXPIRED_AFTER_IT_RAN = ({"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}, True, "failed")
+# job: the job's spec, the cluster's pools and own taints, capacity's late classes, the Job's run and id, how its Job
+# ends (whether its pod ran first); then what it takes: the kind it is known by, its classes in order, the late ones, its cards and
+# the name of its last Job (each class added makes it again, and a wait past its deadline once more), or the refusal
 CASES = {
-    "pixal-capacitys-order": (dict(kind="pixal"), POOLS, (), ("r", "j", 0),
-                              ("pixal", ["gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2"], set(), 1,
-                               "score-r-j-g0")),
+    "pixal-capacitys-order-a-late-class": (dict(kind="pixal"), POOLS, (), {"pixal": ("gpu-48gb",)}, ("r", "j"), DONE,
+                                           ("pixal", ["gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2"],
+                                            {"gpu-48gb"}, 1, "score-r-j-g4")),
+    "meshparts-capacitys-order": (dict(kind="meshparts"), POOLS, (), {}, ("r1", "part"), FAILED_BEFORE_IT_RAN,
+                                  ("meshparts", ["gpu-24gb", "gpu-48gb", "gpu-80gb"], set(), 1, "score-r1-part-g3")),
     "own-classes-preferred-in-their-order": (dict(kind="pixal", classes=["gpu-80gb", "gpu-48gb"], attempt_limit=3),
-                                             POOLS, (), ("run-1", "take_7", 1),
-                                             ("pixal", ["gpu-80gb", "gpu-48gb"], set(), 1, "score-run-1-take-7-g1")),
-    "a-bake-never-takes-an-h100": (dict(kind="library", classes=CARDS), POOLS, (), ("r", "j", 1),
-                                   ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-r-j-g1")),
+                                             POOLS, (), {}, ("run-1", "take_7"), DONE,
+                                             ("pixal", ["gpu-80gb", "gpu-48gb"], set(), 1, "score-run-1-take-7-g2")),
+    "a-bake-never-takes-an-h100": (dict(kind="library", classes=CARDS), POOLS, (), {}, ("r", "j"),
+                                   EXPIRED_AFTER_IT_RAN, ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-r-j-g2")),
     "a-bake-in-the-blender-image": (dict(kind="blender", capacity_kind="library", classes=CARDS, attempt_limit=1),
-                                    POOLS, (), ("Run_A", "Take_7", 1),
-                                    ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-run-a-take-7-g1")),
-    "a-processor-class-asks-no-card": (dict(kind="blender", classes=["cpu-32c-128gb"]), POOLS, (),
-                                       ("run-1", "settle", 0),
-                                       ("blender", ["cpu-32c-128gb"], set(), 0, "score-run-1-settle-g0")),
-    "a-tenants-own-taint": (dict(kind="pixal", classes=["gpu-24gb"]), POOLS, (TENANT,),
-                            ("Run_2026-10-09T15:00", "a" * 80, 3),
-                            ("pixal", ["gpu-24gb"], set(), 1, LONG_NAME)),
+                                    POOLS, (), {}, ("Run_A", "Take_7"), DONE,
+                                    ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-run-a-take-7-g2")),
+    "a-processor-class-asks-no-card": (dict(kind="blender", classes=["cpu-32c-128gb"]), POOLS, (), {},
+                                       ("run-1", "settle"), DONE,
+                                       ("blender", ["cpu-32c-128gb"], set(), 0, "score-run-1-settle-g1")),
+    "a-tenants-own-taint": (dict(kind="pixal", classes=["gpu-24gb"]), POOLS, (TENANT,), {},
+                            ("Run_2026-10-09T15:00", "a" * 80), DONE, ("pixal", ["gpu-24gb"], set(), 1, LONG_NAME)),
     # no pool for any of a job's classes: the nearest pool that holds it (#76: settle's 4 cores, the paint's 16, 32)
-    "settles-4-cores-on-the-32-core-pool": (dict(kind="blender", classes=["cpu-4c-32gb"]), POOLS, (), ("r", "j", 0),
-                                            ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g0")),
+    "settles-4-cores-on-the-32-core-pool": (dict(kind="blender", classes=["cpu-4c-32gb"]), POOLS, (), {}, ("r", "j"),
+                                            DONE, ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g1")),
     "the-smallest-pool-that-holds-it": (dict(kind="blender", classes=["cpu-32c-64gb", "cpu-16c-64gb"]),
-                                        POOLS | {"cpu-64c-256gb"}, (), ("r", "j", 0),
-                                        ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g0")),
-    "a-card-pair-on-the-h100-pair": (dict(kind="pixal", classes=["gpu-24gb-x2"]), POOLS, (), ("r", "j", 0),
-                                     ("pixal", ["gpu-80gb-x2"], set(), 1, "score-r-j-g0")),
-    "only-an-h100-pair-holds-it-never-blender": (dict(kind="blender", classes=["gpu-24gb-x2"]), POOLS, (),
-                                                 ("r", "j", 0), REFUSED),
-    "no-pool-holds-it": (dict(kind="blender", classes=["cpu-64c-256gb"]), POOLS, (), ("r", "j", 0), REFUSED),
+                                        POOLS | {"cpu-64c-256gb"}, (), {}, ("r", "j"), DONE,
+                                        ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g1")),
+    "a-card-pair-on-the-h100-pair": (dict(kind="pixal", classes=["gpu-24gb-x2"]), POOLS, (), {}, ("r", "j"), DONE,
+                                     ("pixal", ["gpu-80gb-x2"], set(), 1, "score-r-j-g1")),
+    "only-an-h100-pair-holds-it-never-blender": (dict(kind="blender", classes=["gpu-24gb-x2"]), POOLS, (), {},
+                                                 ("r", "j"), DONE, REFUSED),
+    "no-pool-holds-it": (dict(kind="blender", classes=["cpu-64c-256gb"]), POOLS, (), {}, ("r", "j"), DONE, REFUSED),
 }
+CANNOT_GROW = "pod didn't trigger scale-up: 1 in backoff after failed scale-up"
 
 
 class RowCluster:
@@ -164,14 +170,25 @@ class RowCluster:
         return [{"class": name} for name in self.pools]
 
 
-@pytest.mark.parametrize("given, pools, taints, named, expected", CASES.values(), ids=CASES.keys())
-def test_jobs_take_their_classes_in_order(given, pools, taints, named, expected):
+@pytest.mark.parametrize("given, pools, taints, late_classes, named, ends, expected", CASES.values(),
+                         ids=CASES.keys())
+def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, named, ends, expected, monkeypatch):
     """A run reads each job's classes (capacity's order, narrowed to the cluster's pools, else the nearest pool that
-    holds them, never one its kind may not take) and, widened to all of them, makes a Job that requires exactly those,
-    prefers them in order, asks cards only on card classes and bears a Kubernetes name."""
+    holds them, never one its kind may not take), starts it on the first, and adds one class at a time only once the
+    autoscaler said for the grace time that none can grow (a word before the last widening, about a taint, or followed
+    by a scale-up does not count) or no node came for NODE_MINUTES while a pod waited, a late class after LATE_MINUTES;
+    a Job that waited past its deadline is made again with the classes so far; that Job requires exactly them, prefers
+    them in order, asks cards only on card classes and bears a Kubernetes name; the run is marked waiting until its job
+    runs, and the job takes its Job's end and the node it ran on."""
+    clock = [submit.parse_time("2026-10-09T14:00:00Z")]
+    monkeypatch.setattr(submit.time, "time", lambda: clock[0])
+    monkeypatch.setattr(submit.capacity, "LATE", late_classes)
+    marks = []
+    monkeypatch.setattr(submit.preflight, "mark_waiting", lambda: marks.append("waiting"))
+    monkeypatch.setattr(submit.preflight, "unmark_waiting", lambda: marks.append("ran"))
     spec = dict(given, image="registry.example/score/score-pixal:1-abc@sha256:00", minutes=30)
-    run_id, job_id, generation = named
-    kubectl = FakeKubectl([])
+    run_id, job_id = named
+    kubectl = LiveKubectl()
     if expected == REFUSED:
         with pytest.raises(SystemExit, match=REFUSED):
             submit.Run(run_id, {job_id: spec}, kubectl, RowCluster(pools, taints))
@@ -179,15 +196,64 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, named, expected)
     kind, order, late, cards, name = expected
     run = submit.Run(run_id, {job_id: spec}, kubectl, RowCluster(pools, taints))
     assert list(run.kinds) == [kind] and run.orders[job_id] == (order, late)
-    run.kinds[kind]["step"] = len(order)  # widened to every class
-    run.jobs[job_id]["generation"] = generation
     run.make(job_id)
-    job, = kubectl.applied
+    label = manifests.label_value(job_id)
+
+    def look(seconds, words=(), waiting=True):
+        """The cluster at `seconds`: the job's pod fitting no node (or none), the autoscaler's `words` on it (reason,
+        message, when); the run reads it and widens. The classes it may take after."""
+        clock[0] = seconds
+        pod_name = manifests.job_name(run_id, job_id, run.jobs[job_id]["generation"]) + "-pod"
+        kubectl.pods = [{"kind": "Pod", "metadata": {"name": pod_name, "labels": {"score.dev/job": label}}, "spec": {},
+                         "status": {"conditions": [{"type": "PodScheduled", "status": "False",
+                                                    "lastTransitionTime": time_text(seconds)}]}}] if waiting else []
+        kubectl.events = [{"reason": reason, "involvedObject": {"name": pod_name}, "lastTimestamp": time_text(when),
+                           "message": message} for reason, message, when in words]
+        jobs, pods, no_grow = run.read()
+        run.update_job(job_id, run.current(job_id, jobs), pods.get(label, []))
+        run.widen(pods, no_grow)
+        assert run.jobs[job_id]["state"] == "waiting"  # a Job with no word yet runs on
+        return run.allowed(job_id)
+
+    first = run.kinds[kind]["first"]
+    for step in range(1, len(order) + 1):
+        assert run.allowed(job_id) == order[:step] and run.jobs[job_id]["generation"] == step - 1, step
+        since = run.kinds[kind]["since"]
+        word = ("NotTriggerScaleUp", CANNOT_GROW, since)
+        grace = since + submit.NO_GROW_GRACE_MINUTES * 60
+        if step % 2:  # the autoscaler said none of the allowed pools can grow
+            assert look(grace - 1, [word]) == order[:step]  # not for the grace time yet
+            if step < len(order) and order[step] in late and grace < first + submit.capacity.LATE_MINUTES * 60:
+                assert look(grace, [word]) == order[:step]  # a late class waits
+                grace = first + submit.capacity.LATE_MINUTES * 60
+            assert look(grace, [word]) == order[:step + 1], step  # one more class, or none left to add
+            continue
+        # no node came: the autoscaler's words that do not count, then NODE_MINUTES with a pod waiting
+        assert look(grace, [("NotTriggerScaleUp", CANNOT_GROW, since - 1)]) == order[:step]  # said before widening
+        noise = [("NotTriggerScaleUp", "pod didn't trigger scale-up: 8 max node group size reached", since + 10),
+                 ("TriggeredScaleUp", "pod triggered scale-up", since + 20),
+                 ("NotTriggerScaleUp", "pod didn't trigger scale-up: 1 node(s) had taint", since + 30)]
+        node_time = since + submit.NODE_MINUTES * 60
+        assert look(node_time - 1, noise) == order[:step]  # a scale-up followed; a taint is no word to widen
+        assert look(node_time, waiting=False) == order[:step]  # nothing waits
+        assert look(node_time) == order[:step + 1], step
+    assert run.jobs[job_id]["generation"] == len(order) - 1  # nothing left to add: not made again
+    submit.note_wait(run)  # no job ran yet: its runaway watch leaves the wait out
+    assert marks == ["waiting"]
+
+    expired = kubectl.jobs[manifests.job_name(run_id, job_id, len(order) - 1)]
+    expired["status"] = {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}
+    jobs, _pods, _no_grow = run.read()
+    run.update_job(job_id, run.current(job_id, jobs), [])
+    assert run.jobs[job_id]["state"] == "waiting" and run.jobs[job_id]["generation"] == len(order)  # made again
+    assert manifests.job_name(run_id, job_id, len(order) - 1) in kubectl.deleted
+    job = kubectl.jobs[name]
+    assert job["metadata"]["annotations"]["score.dev/classes"] == ",".join(order)  # the earlier classes kept
     pod = job["spec"]["template"]["spec"]
     required = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
     assert required["nodeSelectorTerms"][0]["matchExpressions"][0]["values"] == order
     preferred = pod["affinity"]["nodeAffinity"]["preferredDuringSchedulingIgnoredDuringExecution"]
-    assert [term["preference"]["matchExpressions"][0]["values"] for term in preferred] == [[name] for name in order]
+    assert [term["preference"]["matchExpressions"][0]["values"] for term in preferred] == [[each] for each in order]
     weights = [term["weight"] for term in preferred]
     assert weights == sorted(set(weights), reverse=True), weights  # the first weighs most, each less than the last
     assert {toleration["key"] for toleration in pod["tolerations"]} == {"nvidia.com/gpu", "score.dev/class"} | {
@@ -202,47 +268,21 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, named, expected)
     assert pod["restartPolicy"] == "Never" and job["spec"]["backoffLimit"] == spec.get("attempt_limit", 3) - 1
     assert job["metadata"]["name"] == name and len(name) <= 63  # Kubernetes' name rules
 
-
-# ==== widening ======================================================================================================
-
-def test_widening_waits_for_the_autoscalers_word_or_the_node_time_and_late_classes_wait():
-    state = {"step": 1, "since": 1000.0, "first": 1000.0}
-    assert not submit.wants_widening(state, [], 1000.0 + 3600)  # nothing waits
-    assert not submit.wants_widening(state, [(1000.0, None)], 1000.0 + 60)
-    grace = 1000.0 + submit.NO_GROW_GRACE_MINUTES * 60
-    assert not submit.wants_widening(state, [(1000.0, 1050.0)], grace - 1)
-    assert submit.wants_widening(state, [(1000.0, 1050.0)], grace)
-    assert not submit.wants_widening(state, [(1000.0, 900.0)], grace)  # said before the last widening
-    assert submit.wants_widening(state, [(1000.0, None)], 1000.0 + submit.NODE_MINUTES * 60)
-
-    order, late = ["gpu-24gb", "gpu-48gb", "gpu-80gb"], {"gpu-80gb"}
-    assert not submit.may_widen({"step": 2, "since": 0.0, "first": 0.0}, order, late, 60.0)
-    assert submit.may_widen({"step": 2, "since": 0.0, "first": 0.0}, order, late,
-                            submit.capacity.LATE_MINUTES * 60.0)
-    assert not submit.may_widen({"step": 3, "since": 0.0, "first": 0.0}, order, late, 1e9)  # none left
-
-
-def test_the_autoscalers_cannot_grow_counts_only_when_no_scale_up_followed():
-    """Right after a pool's cap changes the autoscaler says "max node group size reached" for a moment and then grows
-    it (2026-10-09)."""
-    events = [{"reason": "NotTriggerScaleUp", "involvedObject": {"name": "pod-a"},
-               "lastTimestamp": "2026-10-09T14:00:00Z",
-               "message": "pod didn't trigger scale-up: 1 in backoff after failed scale-up"},
-              {"reason": "NotTriggerScaleUp", "involvedObject": {"name": "pod-d"},
-               "lastTimestamp": "2026-10-09T14:00:00Z", "message": "pod didn't trigger scale-up: 1 node(s) had taint"},
-              {"reason": "TriggeredScaleUp", "involvedObject": {"name": "pod-b"},
-               "lastTimestamp": "2026-10-09T14:00:00Z", "message": "pod triggered scale-up"},
-              {"reason": "NotTriggerScaleUp", "involvedObject": {"name": "pod-c"},
-               "lastTimestamp": "2026-10-09T14:20:39Z",
-               "message": "pod didn't trigger scale-up: 8 max node group size reached"},
-              {"reason": "TriggeredScaleUp", "involvedObject": {"name": "pod-c"},
-               "lastTimestamp": "2026-10-09T14:20:59Z", "message": "pod triggered scale-up"}]
-    assert submit.no_grow_times(events) == {"pod-a": 1791554400.0}  # 2026-10-09T14:00:00Z
-    assert submit.job_outcome({"status": {"conditions": [{"type": "Complete", "status": "True"}]}}) == "done"
-    assert submit.job_outcome({"status": {"conditions": [
-        {"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}}) == "expired"
-    assert submit.job_outcome({"status": {"conditions": [{"type": "Failed", "status": "True"}]}}) == "failed"
-    assert submit.job_outcome({"status": {}}) is None
+    condition, ran, state = ends
+    node = f"node-{order[-1]}" if ran else None  # stock came back on its last class
+    kubectl.pods = [{"kind": "Pod", "metadata": {"name": "p", "labels": {"score.dev/job": label}},
+                     "spec": {"nodeName": node},
+                     "status": {"containerStatuses": [{"state": {"running": {"startedAt": time_text(clock[0])}}}]}}
+                    ] if ran else []
+    jobs, pods, _no_grow = run.read()
+    run.update_job(job_id, run.current(job_id, jobs), pods.get(label, []))
+    submit.note_wait(run)  # its job runs on a node now: its minutes count
+    assert marks == ["waiting", "ran" if ran else "waiting"]
+    job["status"] = {"conditions": [condition]}
+    jobs, pods, _no_grow = run.read()
+    run.update_job(job_id, run.current(job_id, jobs), pods.get(label, []))
+    assert run.jobs[job_id]["state"] == state and run.jobs[job_id]["node"] == node
+    assert run.jobs[job_id]["generation"] == len(order)  # a failed Job, or one that ran past its deadline, is never made again
 
 
 class FakeCluster:
@@ -322,64 +362,6 @@ class QuotaKubectl(LiveKubectl):
 
 def time_text(seconds):
     return submit.datetime.datetime.fromtimestamp(seconds, submit.datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def test_a_run_widens_one_class_at_a_time_remakes_an_expired_wait_and_takes_stock_that_comes_back(monkeypatch):
-    clock = [submit.parse_time("2026-10-09T14:00:00Z")]
-    monkeypatch.setattr(submit.time, "time", lambda: clock[0])
-    kubectl = LiveKubectl()
-    spec = {"kind": "meshparts", "image": "image", "minutes": 10}
-    run = submit.Run("r1", {"part": spec}, kubectl, PoolCluster())
-    order, _late = submit.class_order("meshparts", spec, POOLS)
-    assert order == ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
-    run.make("part")
-    assert run.allowed("part") == ["gpu-24gb"]
-
-    def poll_with_no_stock(minutes):
-        name = manifests.job_name("r1", "part", run.jobs["part"]["generation"])
-        stamp = time_text(clock[0])
-        kubectl.pods = [{"kind": "Pod", "metadata": {"name": f"{name}-pod", "labels": {"score.dev/job": "part"}},
-                         "spec": {}, "status": {"conditions": [{"type": "PodScheduled", "status": "False",
-                                                                "lastTransitionTime": stamp}]}}]
-        clock[0] += minutes * 60
-        kubectl.events = [{"reason": "NotTriggerScaleUp", "involvedObject": {"name": f"{name}-pod"},
-                           "lastTimestamp": stamp,
-                           "message": "pod didn't trigger scale-up: 1 in backoff after failed scale-up"}]
-        jobs, pods, no_grow = run.read()
-        run.update_job("part", run.current("part", jobs), pods.get("part", []))
-        run.widen(pods, no_grow)
-
-    poll_with_no_stock(2)
-    assert run.allowed("part") == ["gpu-24gb", "gpu-48gb"] and run.jobs["part"]["generation"] == 1
-    marks = []
-    monkeypatch.setattr(submit.preflight, "mark_waiting", lambda: marks.append("waiting"))
-    monkeypatch.setattr(submit.preflight, "unmark_waiting", lambda: marks.append("ran"))
-    submit.note_wait(run)  # no job ran yet: its runaway watch leaves the wait out
-    assert marks == ["waiting"]
-    poll_with_no_stock(2)
-    assert run.allowed("part") == order and run.jobs["part"]["generation"] == 2
-    poll_with_no_stock(2)
-    assert run.allowed("part") == order and run.jobs["part"]["generation"] == 2  # nothing left to add
-
-    current = kubectl.jobs[manifests.job_name("r1", "part", 2)]
-    current["status"] = {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}
-    jobs, _pods, _no_grow = run.read()
-    run.update_job("part", run.current("part", jobs), [])
-    assert run.jobs["part"]["state"] == "waiting" and run.jobs["part"]["generation"] == 3
-    remade = kubectl.jobs[manifests.job_name("r1", "part", 3)]
-    assert remade["metadata"]["annotations"]["score.dev/classes"] == ",".join(order)  # the earlier classes kept
-
-    kubectl.pods = [{"kind": "Pod", "metadata": {"name": "p", "labels": {"score.dev/job": "part"}},
-                     "spec": {"nodeName": "node-80gb"},
-                     "status": {"containerStatuses": [{"state": {"running": {"startedAt": time_text(clock[0])}}}]}}]
-    jobs, pods, _no_grow = run.read()
-    run.update_job("part", run.current("part", jobs), pods["part"])
-    submit.note_wait(run)  # its job runs on a node now: its minutes count
-    assert marks == ["waiting", "ran"]
-    remade["status"] = {"conditions": [{"type": "Complete", "status": "True"}]}
-    jobs, pods, _no_grow = run.read()
-    run.update_job("part", run.current("part", jobs), pods["part"])
-    assert run.jobs["part"]["state"] == "done" and run.jobs["part"]["node"] == "node-80gb"
 
 
 def test_resume_takes_up_the_newest_generation_and_a_run_holds_to_its_parallel_jobs():
