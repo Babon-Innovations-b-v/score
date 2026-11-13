@@ -195,7 +195,15 @@ def test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided
     """A sheet (likeness_row.sheet) is read straight through its face, its rim band skipped: a solid 1 mm paper whose
     rim is rounded (as the finish's remesh rounds it) passes, its wall 1 mm, though its normals read 0.6 mm (#36:
     quarters' paper 0.6 mm, habitat's paper note 1.4 mm, each a solid sheet). A hollow 1 cm shell laid as that paper
-    and a one-sided plane still fail."""
+    and a one-sided plane still fail.
+    A sheet row drawn by its face thicker than its row (props/flat_drawn.py: a curled sheet keeps its curl as its depth)
+    is held a sheet by its row, at its row's thickness, read through (Buy 97, 2026-11-13: habitat's paper note, a solid
+    slab 9.5 mm through on its 1 cm row, drawn 2.7 cm deep, read 1.8 mm along its rim's normals and failed): a curled
+    solid 1 mm paper on a 1 mm row passes; on a 1 cm row (far thinner than its row) it fails, as do a hollow curled
+    shell and a curled one-sided plane on either row.
+    Break: flat_drawn.py `install`: `likeness_row.model_checks = model_checks` dropped (the curled paper fails)
+    Break: flat_drawn.py `solid`: `if len(heights) == 2` -> `if True` (the hollow shell on the paper row passes)
+    Break: flat_drawn.py `model_checks`: `least_wall([min(row)])` -> `least_wall([0.0])` (the far thinner sheet passes)"""
     tmp_path = pathlib.Path(tempfile.mkdtemp())  # a plain script: no pytest fixture
     import trimesh
     corners = [(x, z) for x in (-0.14, 0.14) for z in (-0.09, 0.09)]
@@ -210,6 +218,27 @@ def test_a_solid_sheet_s_wall_is_read_through_its_face_and_a_hollow_or_one_sided
         mesh.export(path)
         found = likeness_row.model_checks(path, [0.3, 0.2, 0.001], "p_paper", False)["model_check"]
         assert found.get("sheet") and found["pass"] is passes, (name, found)
+
+    def curled(mesh):  # bent 1.7 cm across its face, as Pixal3D's paper note is
+        mesh = mesh.subdivide().subdivide().subdivide().subdivide()
+        mesh.vertices[:, 2] += 0.017 * (mesh.vertices[:, 0] / 0.1) ** 2
+        return mesh
+    inner = trimesh.creation.box([0.19, 0.29, 0.008])
+    inner.invert()
+    curls = {"paper": curled(trimesh.creation.box([0.2, 0.3, 0.001])),
+             "hollow": curled(trimesh.util.concatenate([trimesh.creation.box([0.2, 0.3, 0.01]), inner])),
+             "plane": curled(trimesh.Trimesh([[-0.1, -0.15, 0], [0.1, -0.15, 0], [0.1, 0.15, 0], [-0.1, 0.15, 0]],
+                                             [[0, 1, 2], [0, 2, 3]]))}
+    for name, mesh in curls.items():
+        mesh.export(tmp_path / f"curled {name}.glb")
+    for deep, name, passes in ((0.001, "paper", True), (0.01, "paper", False), (0.001, "hollow", False),
+                               (0.01, "hollow", False), (0.001, "plane", False), (0.01, "plane", False)):
+        row = {"id": "paper_note", "name": "paper note", "size": [0.2, deep, 0.3]}
+        path = tmp_path / f"curled {name}.glb"
+        drawn = likeness_row.drawn_size(row, path, [row], {})
+        assert min(drawn) > deep, (name, drawn)  # drawn by its face, its curl its depth
+        found = likeness_row.model_checks(path, drawn, "p_paper_note", False)["model_check"]
+        assert found.get("sheet") and found["pass"] is passes, (deep, name, found)
     shutil.rmtree(tmp_path)
 
 
