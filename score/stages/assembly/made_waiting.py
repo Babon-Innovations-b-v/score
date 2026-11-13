@@ -17,7 +17,7 @@ there re-keys their paid rows.
 import json
 import pathlib
 
-from score.stages.assembly import fitting
+from score.stages.assembly import fitting, on_pads
 from score.stages.assembly.record import BASE_LAYER, RECORD, WAITING
 
 # {objects: [{name, row, low, high}], holders: [{name, low, high}] (holders laid as structure: a tube's ribs), walls:
@@ -122,7 +122,9 @@ def lay(out, place, bake, joined=frozenset()):
                 UsdGeom.Scope.Define(stage, scope)
             xform = UsdGeom.Xform.Define(stage, f"{scope}/{entry['name']}")
             xform.GetPrim().GetReferences().AddReference(f"../assets/{model}.usdc")
-            xform.AddTransformOp().Set(placement(entry, *asset_bounds(out / "assets" / f"{model}.usdc")))
+            low, high = asset_bounds(out / "assets" / f"{model}.usdc")
+            # across a pad its middle stands on, turned onto it before the fitting parts it (on_pads)
+            xform.AddTransformOp().Set(on_pads.turned(entry, record, placement(entry, low, high), low, high))
             for name, value in (("score:kind", entry.get("kind", "fixture")), ("score:model", model),
                                 ("score:row", entry["row"]), ("score:from", f"{entry.get('from', '')}; laid by the "
                                                                             f"assembly with the surface line's baked "

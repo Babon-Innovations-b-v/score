@@ -680,7 +680,13 @@ def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_long
     foot at the spot's 0.5, its middle over (3, -2).
     Break: score/stages/assembly/made_waiting.py: `move = Gf.Vec3d(at[0] - (least[0] + most[0]) / 2, at[1] - least[1],
         at[2] - (least[2] + most[2]) / 2)` -> `move = Gf.Vec3d(*at)`
-    Break: score/stages/assembly/made_waiting.py: `root.RemoveProperty(WAITING)` -> `pass`"""
+    Break: score/stages/assembly/made_waiting.py: `root.RemoveProperty(WAITING)` -> `pass`
+    Break: score/stages/assembly/made_waiting.py: `on_pads.turned(entry, record, placement(entry, low, high), low,
+        high)` -> `placement(entry, low, high)` (the ship left across its pad)
+    Break: score/stages/assembly/on_pads.py: `if entry.get("on") or entry.get("fills") or entry.get("under roof"):` ->
+        `if entry.get("on"):` (the crane turned), `and on_piece(footprint(turn, low, high), outline).all():` -> `:`
+        (the barge turned), `if not on_piece(laid, outline).all() and` -> `if` (the cart turned), or
+        `float(entry.get("low", -1.0)) >= 0.0` -> `False` (no pad)"""
     from pxr import Gf, UsdGeom
     root = a_toy(tmp_path / "out")
     cairn = {"objects": [{"name": "cairn", "model": "models/none/none.glb", "row": "cairn", "at": [3.0, 0.5, -2.0],
@@ -699,6 +705,33 @@ def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_long
     assert Gf.IsClose(middle[2], -2.0, 1e-5) and Gf.IsClose(box.GetSize()[2], 2.0, 1e-4), box
     assert prim.GetAttribute("score:row").Get() == "cairn"
     assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
+    # settle@hangar (2026-11-13): its 28 m ship, laid across the hall over its landing pad laid along the hall, stood
+    # half on the pad and half on the deck, tipping. On a 2 x 6 m pad 0.1 m high, a 6 x 1 m ship laid across it is
+    # turned a quarter onto it about its middle; one hung from the roof and one too long to fit turned are left as
+    # laid, and one wholly on it stays.
+    root = a_toy(tmp_path / "padded")
+    pad = {"name": "pad_1", "builder": "slab", "row": "pad", "low": 0.0, "high": 0.1, "surface": "floor_plate",
+           "points": [[-1.0, -3.0], [1.0, -3.0], [1.0, 3.0], [-1.0, 3.0]]}
+    things = {"ship": ({}, [0.0, 0.1, 0.0], 3.0), "crane": ({"under roof": True}, [0.0, 0.1, 0.0], 3.0),
+              "barge": ({}, [0.0, 0.1, 0.0], 3.5), "cart": ({}, [0.0, 0.1, 0.0], 0.25)}
+    entries = [{"name": name, "row": name, "at": at, "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "no model", **said}
+               for name, (said, at, _) in things.items()]
+    assembly.take_record(a_record(tmp_path / "padded", {"structure": [pad], "objects": entries}), root.parent, TOY)
+    for name, (_, _, half) in things.items():
+        an_asset(root.parent / f"assets/{name}.usdc", [(-half, 0.0, -0.5), (half, 0.0, -0.5), (half, 1.0, 0.5)],
+                 [3], [0, 1, 2])
+    (tmp_path / "padded/bake").mkdir()
+    (tmp_path / "padded/bake/baked.json").write_text(json.dumps({name: {} for name in things}))
+    made_waiting.lay(root.parent, TOY, tmp_path / "padded/bake")
+    stage = opened(root)
+    spans = {}
+    for name in things:
+        box = UsdGeom.BBoxCache(0, [UsdGeom.Tokens.default_]).ComputeWorldBound(
+            stage.GetPrimAtPath(f"/{TOY}/Fixtures/{name}")).ComputeAlignedRange()
+        spans[name] = [round(box.GetMin()[axis], 3) for axis in (0, 2)] + [round(box.GetMax()[axis], 3)
+                                                                          for axis in (0, 2)]
+    assert spans == {"ship": [-0.5, -3.0, 0.5, 3.0], "crane": [-3.0, -0.5, 3.0, 0.5],
+                     "barge": [-3.5, -0.5, 3.5, 0.5], "cart": [-0.25, -0.5, 0.25, 0.5]}, spans
 
 
 def test_a_design_object_is_laid_under_objects_with_its_take_model_and_its_own_row(tmp_path):
@@ -3439,7 +3472,8 @@ def a_floored_place(folder):
     a_solid_box(base, f"/{TOY}/Shell/deck_1", (-5.0, -0.1, -5.0), (5.0, 0.0, 5.0))
     things = {"ship_1": ((-1.0, 1.0, -1.0), (1.0, 2.0, 1.0)), "cube_1": ((-0.1, 2.0, -0.1), (0.1, 2.2, 0.1)),
               "crate_1": ((2.0, 0.2, 2.0), (2.5, 0.7, 2.5)), "rack_1": ((-3.0, 1.0, -3.0), (-2.5, 2.0, -2.5)),
-              "lamp_1": ((1.0, 1.0, -0.1), (1.1, 1.2, 0.1)), "seat_1": ((0.85, 1.5, 0.85), (1.15, 1.9, 1.15))}
+              "lamp_1": ((1.0, 1.0, -0.1), (1.1, 1.2, 0.1)), "seat_1": ((0.85, 1.5, 0.85), (1.15, 1.9, 1.15)),
+              "crane_1": ((3.0, 3.0, -4.0), (4.0, 4.0, -3.0))}
     for name, (low, high) in things.items():
         a_solid_box(base, f"/{TOY}/Objects/{name}", low, high)
     Sdf.AttributeSpec(base.GetRootLayer().GetPrimAtPath(f"/{TOY}/Objects/rack_1"), "score:fixed",
@@ -3455,7 +3489,8 @@ def a_floored_place(folder):
         {"name": "crate_1", "row": "crate", "at": [2.25, 0.2, 2.25]},
         {"name": "rack_1", "row": "rack", "at": [-2.75, 1.0, -2.75]},
         {"name": "lamp_1", "row": "lamp", "on": {"how": "face", "holder": ["ship_1"], "out": [1.0, 0.0]}},
-        {"name": "seat_1", "row": "seat", "on": {"how": "within", "holder": ["ship_1"]}}]}))
+        {"name": "seat_1", "row": "seat", "on": {"how": "within", "holder": ["ship_1"]}},
+        {"name": "crane_1", "row": "crane", "at": [3.5, 3.0, -3.5], "under roof": True}]}))
     (folder / made_waiting.LAID).write_text(json.dumps({"objects": [
         {"name": name, "low": list(low), "high": list(high)} for name, (low, high) in things.items()]}))
     return folder / f"{TOY}.usda"
@@ -3629,7 +3664,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     Break: score/stages/assembly/floor_down.py: downs' `if DRIFT_MOST < gap < float("inf"):` -> `if gap <
         float("inf"):` (the crate let down too), `found[entry["name"]] = gap - CLEAR` -> `= gap`, `and
         even_feet.floor_thing(prim)` -> `` (the rack let down), `for one in (name, *held):` -> `for one in (name,):`,
-        `if name not in held and below(` -> `if name != entry["name"] and below(` (the ship held up by its seat), or
+        `if name not in held and below(` -> `if name != entry["name"] and below(` (the ship held up by its seat), `or
+        entry.get("under roof"):` -> `:` (the crane let down), or
         let_down's `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
     Break: score/stages/assembly/face_down.py: `and entry["row"] not in hanging` -> `` (the sign let down too),
         `if on_ground.TOLERANCE < gap < np.inf:` -> `if gap < np.inf:` (a second let down moves panel_1 again: 0),
@@ -3830,18 +3866,19 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     # settle@hangar (2026-11-13): its spaceship, laid at the plan's keel height on its landing gear (1.039 m) though
     # its model stands on its own feet, floated 0.94 m: past the settle's 0.3 m, kept as laid, failing rested and
     # resting. A 2 m ship laid 1 m over a built floor is let down onto it, less the snap's 2 mm, the cube on its top
-    # the lamp on its face and the seat within it with it; a crate 0.2 m over it (the settle's) and a fixed rack are left, and a second
+    # the lamp on its face and the seat within it with it; a crate 0.2 m over it (the settle's), a fixed rack and a
+    # crane hung from the roof (settle@hangar's, let down 1.39 m off its roof, hanging free) are left, and a second
     # let down moves nothing.
     from pxr import Usd
     place = a_floored_place(tmp_path / "floored")
     fits = lay_floored(place.parent, TOY)
     stage = Usd.Stage.Open(str(place))
     low = {name: on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/{name}"))[:, 1].min()
-           for name in ("ship_1", "cube_1", "crate_1", "rack_1", "lamp_1", "seat_1")}
+           for name in ("ship_1", "cube_1", "crate_1", "rack_1", "lamp_1", "seat_1", "crane_1")}
     assert [(fit["name"], fit["how"], round(fit["moved"], 3)) for fit in fits] == [
         ("ship_1", "floored", 0.998), ("cube_1", "floored", 0.998), ("lamp_1", "floored", 0.998),
         ("seat_1", "floored", 0.998)], fits
-    assert np.allclose(list(low.values()), [0.002, 1.002, 0.2, 1.0, 0.002, 0.502]), low
+    assert np.allclose(list(low.values()), [0.002, 1.002, 0.2, 1.0, 0.002, 0.502, 3.0]), low
     laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
     assert np.isclose(laid["ship_1"]["low"][1], 0.002, atol=1e-3) and lay_floored(place.parent, TOY) == [], laid
     # assembly@wreck (2026-11-12): every thing laid at the plan's floor, 0 m, over a made ground from -4.8 to +4.0 m

@@ -46,7 +46,8 @@ def downs(stage, place, record):
     holding, found = fitting.holders_of(record), {}
     for entry in record.get("objects") or []:
         prim = stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}")
-        if not (prim and prim.IsActive() and parting.loose(entry) and even_feet.floor_thing(prim)):
+        if not (prim and prim.IsActive() and parting.loose(entry) and even_feet.floor_thing(prim)) or \
+                entry.get("under roof"):  # hung from the roof (fitting.hung_by_parts), never on the floor
             continue
         points = on_ground.world_points(prim)
         if not len(points):
