@@ -9,21 +9,15 @@ Every answer below is worked out by hand from a small fixture (a box room 8 m wi
 a lamp at 3 m) or read from the owner's rules, never computed by the code under test.
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
-- box_check `spread_problems`: `if False:` for the one-quarter check ->
-  test_boxes_spread_over_their_picture_pass_and_typed_ones_crowded_in_a_corner_fail.
-- box_check `box_problems`: `if False:` for the whole-picture check ->
-  test_a_box_outside_its_picture_or_over_the_whole_of_it_fails.
-- box_check `judge_rows`: drop `if not is_whole(...)` -> test_the_judge_sees_the_whole_picture_and_the_crop_once_a_seed.
-- box_check `verdict`: `len(failing) < len(replies)` ->
-  test_the_judges_majority_decides_and_a_third_seed_breaks_only_a_tie.
-- box_check `noun`: split on `[(;]` only (no colon or comma) -> test_sam_3_is_asked_for_the_short_name.
-- box_check `grounding`: drop the `fills` condition ->
-  test_sam_3_s_masks_ground_a_box_before_the_judge_and_tighten_a_loose_one.
-- box_check `from_proposals`: `return True` -> test_the_gate_passes_only_a_measured_box_checked_on_that_box.
-- box_check `row_verdict`: an unmeasured box `return PASS` ->
-  test_an_unmeasured_box_blocks_and_a_row_laid_from_the_plan_is_not_boxed.
-- partition `mapping_problems`: `if False:` for the reasonless drop ->
-  test_a_row_s_box_is_its_proposals_own_and_every_proposal_is_accounted_for.
+- box_check `spread_problems`: `if False:` for the one-quarter check -> test_a_scene_is_made_from_its_concept.
+- box_check `box_problems`: `if False:` for the whole-picture check -> test_a_scene_is_made_from_its_concept.
+- box_check `judge_rows`: drop `if not is_whole(...)` -> test_a_scene_is_made_from_its_concept.
+- box_check `verdict`: `len(failing) < len(replies)` -> test_a_scene_is_made_from_its_concept.
+- box_check `noun`: split on `[(;]` only (no colon or comma) -> test_a_scene_is_made_from_its_concept.
+- box_check `grounding`: drop the `fills` condition -> test_a_scene_is_made_from_its_concept.
+- box_check `from_proposals`: `return True` -> test_a_scene_is_made_from_its_concept.
+- box_check `row_verdict`: an unmeasured box `return PASS` -> test_a_scene_is_made_from_its_concept.
+- partition `mapping_problems`: `if False:` for the reasonless drop -> test_a_scene_is_made_from_its_concept.
 - inventory `row_problems`: `if False:` for the unknown view ->
   test_an_inventory_row_says_where_it_is_seen_and_what_it_is.
 - inventory `approved_inventory`: `if False:` for the approval ->
@@ -102,195 +96,202 @@ def crowded(**changes):
                                 400 + 100 * (index // 6)], **changes) for index in range(24)]
 
 
-def test_boxes_spread_over_their_picture_pass_and_typed_ones_crowded_in_a_corner_fail():
-    assert box_check.measured_problems(an_inventory(spread_over_the_picture()), {"v1": SIZE}) == []
-    problems = box_check.measured_problems(an_inventory(crowded()), {"v1": SIZE})
-    assert any("one quarter" in problem for problem in problems), problems
-    assert any("span only" in problem for problem in problems), problems
-    assert box_check.measured_problems(an_inventory(crowded(box_from=["v1.1"])), {"v1": SIZE}) == []  # measured
-    small = [a_row(f"r{index}", [200 + 400 * index, 700, 240 + 400 * index, 740]) for index in range(6)]
-    problems = box_check.measured_problems(an_inventory(small), {"v1": SIZE})
-    assert any("cover" in problem and "its rows suggest" in problem for problem in problems), problems
-    few = box_check.measured_problems(an_inventory(small[:4]), {"v1": SIZE})
-    assert not any("its rows suggest" in problem for problem in few), few  # a few far things may be small
+# ---- the world: one concept, its proposals, the inventory mapped on them ------------------------------------------
+
+WIDE, TALL = SIZE
+# SAM 2.1's proposals on the concept: a galley, a drawer lying inside it (a part), a crate, and a big unnamed thing.
+GALLEY, DRAWER = [113, 207, 391, 618], [120, 220, 200, 300]
+CRATE, BIG = [1503, 811, 1702, 1033], [1800, 900, 2200, 1300]
+PROPOSALS = [{"id": "v1.1", "view": "v1", "box": GALLEY, "area": 90000, "share": 0.02},
+             {"id": "v1.2", "view": "v1", "box": DRAWER, "area": 5000, "share": 0.001},
+             {"id": "v1.3", "view": "v1", "box": CRATE, "area": 30000, "share": 0.002},
+             {"id": "v1.4", "view": "v1", "box": BIG, "area": 120000, "share": 0.03}]
+
+# measured_problems on typed and measured boxes: (case, rows, picture size, fragments one problem holds together,
+# fragments no problem holds, how many problems or None).
+WHOLE = [0, 0, WIDE, TALL]
+SMALL = [a_row(f"r{index}", [200 + 400 * index, 700, 240 + 400 * index, 740]) for index in range(6)]
+MEASURED = [
+    ("spread over the picture", spread_over_the_picture(), SIZE, [], [], 0),
+    ("typed and crowded in a corner", crowded(), SIZE, [("one quarter",), ("span only",)], [], None),
+    ("crowded but measured", crowded(box_from=["v1.1"]), SIZE, [], [], 0),
+    ("six small boxes", SMALL, SIZE, [("cover", "its rows suggest")], [], None),
+    ("a few far things may be small", SMALL[:4], SIZE, [], ["its rows suggest"], None),
+    ("a box over the edge", spread_over_the_picture() + [a_row("over", [2600, 1400, 2900, 1600])], SIZE,
+     [("row over", "not inside")], [], None),
+    ("whole-picture boxes, kit rows too", spread_over_the_picture() + [
+        a_row("wall_lower", WHOLE, group="kit: wall", repeats="across the room"),
+        a_row("desk", WHOLE, group="kit: furniture"), a_row("rack", WHOLE)], SIZE,
+     [("row wall_lower", "whole picture"), ("row desk", "whole picture"), ("row rack", "whole picture")], [], 3),
+    ("an unseen row", spread_over_the_picture() + [a_row("hidden", None, unseen="behind the camera")], SIZE, [], [], 0),
+    ("its picture missing", spread_over_the_picture() + [a_row("hidden", None, unseen="behind the camera")], None,
+     [("view v1: its picture is missing",)], [], 1),
+]
+
+# The words SAM 3 is asked for a row's name: its short name, then its last word when that is shorter.
+NOUNS = [("stainless galley counter: worktop with hob and sink", ["stainless galley counter", "counter"]),
+         ("a strip lamp in a steel housing with a frosted lens, over a door", ["strip lamp", "lamp"]),
+         ("lamp on a rod from the ceiling: housing and lens", ["lamp"]),
+         ("plain lower wall panel, bolted", ["plain lower wall panel", "panel"]),
+         ("hammer", ["hammer"])]
+
+# The judge's replies for one box and its verdict.
+SHOWN = 'thinking... {"shows": true, "main": true, "what": "a locker"}'
+BESIDE = '{"shows": true, "main": false, "what": "the wall beside a locker"}'
+ON_A_WALL = '{"shows": false, "main": false, "what": "a wall"}'
+VERDICTS = [([SHOWN, SHOWN, BESIDE], {"passes": True, "passed": 2, "of": 3, "what": "the wall beside a locker"}),
+            ([SHOWN, BESIDE, "no answer at all"], {"passes": False, "passed": 1, "of": 3,
+                                                   "what": "the wall beside a locker"})]
+
+# SAM 3's instances of each row's words, and what they say of its box. The whole room says nothing.
+INSIDE = {"box": [10, 10, 50, 50], "score": 0.9, "inside": 0.9, "fills": 0.6}
+TINY = {"box": [10, 10, 14, 14], "score": 0.9, "inside": 1.0, "fills": 0.01}
+ELSEWHERE = {"box": [900, 10, 990, 80], "score": 0.8, "inside": 0.0, "fills": 0.0}
+ROOM = {"box": [0, 0, 2700, 1500], "score": 0.9, "inside": 0.02, "fills": 0.9}
+KEYS = {"box": [400, 300, 520, 340], "score": 0.9, "inside": 1.0, "fills": 0.02}
+GROUNDING = {"camp.galley": ([ELSEWHERE, INSIDE], {"grounding": "grounded"}),
+             "camp.crate": ([ELSEWHERE], {"grounding": "off", "found_at": ELSEWHERE["box"]}),
+             "camp.net": ([ROOM], {"grounding": "not found"}),
+             "camp.bin": ([], {"grounding": "not found"}),
+             "camp.keyboard": ([ELSEWHERE, TINY], {"grounding": "loose", "found_at": TINY["box"]}),
+             "camp.wall": ([ROOM, KEYS], {"grounding": "loose", "found_at": KEYS["box"]})}
+
+# Rows added to the mapped world one at a time and the gate's word on each: (row, box, box_from, route, the routes
+# passed unboxed, the row's result, words of its why, the scene's result).
+GATE = [
+    ("moved", [1503, 811, 1702, 1040], ["v1.3"], None, (), "fail", "not the box round", "fail"),  # moved by hand
+    ("typed", [600, 200, 900, 640], None, None, (), "fail", "typed", "fail"),  # round numbers (the camp's, 2026-10-09)
+    ("whole", WHOLE, None, None, (), "fail", "whole picture", "fail"),
+    ("table", GALLEY, ["v1.3"], None, (), "fail", "not the box round", "fail"),  # names a proposal not its own
+    ("bunk", [1200, 300, 1300, 400], ["v1.1"], None, (), "fail", "not the box round", "fail"),  # outside its thing
+    ("unmeasured", [1503, 811, 1701, 1033], None, None, (), "unknown", "not measured", "unknown"),
+    ("ground", WHOLE, None, "ground", box_check.UNBOXED, "pass", "not boxed", "pass"),  # laid from the plan
+    ("ground", WHOLE, None, "ground", (), "fail", "whole picture", "fail"),  # the close-ups crop by the box
+    ("ground", WHOLE, None, "prop", box_check.UNBOXED, "fail", "whole picture", "fail"),
+]
 
 
-def test_a_box_outside_its_picture_or_over_the_whole_of_it_fails():
-    rows = spread_over_the_picture() + [a_row("over", [2600, 1400, 2900, 1600])]
-    problems = box_check.measured_problems(an_inventory(rows), {"v1": SIZE})
-    assert any("row over" in problem and "not inside" in problem for problem in problems), problems
-    whole = [0, 0, SIZE[0], SIZE[1]]
-    rows = spread_over_the_picture() + [a_row("wall_lower", whole, group="kit: wall", repeats="across the room"),
-                                        a_row("desk", whole, group="kit: furniture"), a_row("rack", whole)]
-    problems = box_check.measured_problems(an_inventory(rows), {"v1": SIZE})
-    assert {problem.split(":")[0] for problem in problems if "whole picture" in problem} == \
-        {"row wall_lower", "row desk", "row rack"}, problems
-    rows = spread_over_the_picture() + [a_row("hidden", None, unseen="behind the camera")]
-    assert box_check.measured_problems(an_inventory(rows), {"v1": SIZE}) == []
-    assert box_check.measured_problems(an_inventory(rows), {"v1": None}) == ["view v1: its picture is missing"]
+def problems_hold(problems, has, lacks, count):
+    """Whether `problems` holds each group of `has` in one line, no line holds any of `lacks`, and there are `count`
+    of them when `count` is given."""
+    return (all(any(all(part in line for part in group) for line in problems) for group in has)
+            and not any(part in line for part in lacks for line in problems)
+            and (count is None or len(problems) == count))
 
 
-def test_the_judge_sees_the_whole_picture_and_the_crop_once_a_seed(tmp_path):
-    picture = tmp_path / "concept.png"
-    Image.new("RGB", SIZE, (90, 90, 90)).save(picture)
-    rows = spread_over_the_picture()[:2] + [a_row("wall", [0, 0, SIZE[0], SIZE[1]], group="kit: wall")]
-    jobs = box_check.judge_jobs("camp", an_inventory(rows, str(picture)), {"v1": SIZE}, tmp_path / "judge",
-                                box_check.SEEDS)
-    assert len(jobs) == 2 * len(box_check.SEEDS)  # the kit wall's whole picture is not asked about
-    assert {job["seed"] for job in jobs} == set(box_check.SEEDS)
-    whole, cut = (pathlib.Path(path) for path in jobs[0]["images"])
-    assert Image.open(whole).width == box_check.OVERVIEW_WIDE
-    assert max(Image.open(cut).size) >= box_check.SHORTEST_CROP
-    assert "the r0" in jobs[0]["text"]
-
-
-def test_the_judges_majority_decides_and_a_third_seed_breaks_only_a_tie(tmp_path):
-    shown = 'thinking... {"shows": true, "main": true, "what": "a locker"}'
-    beside = '{"shows": true, "main": false, "what": "the wall beside a locker"}'
-    assert box_check.verdict([shown, shown, beside])["passes"]
-    failed = box_check.verdict([shown, beside, "no answer at all"])
-    assert not failed["passes"] and failed["passed"] == 1 and failed["what"] == "the wall beside a locker"
-    wall = '{"shows": false, "main": false, "what": "a wall"}'
-    first, second, third = box_check.SEEDS
-    jobs = [{"name": f"{key}~{seed}", "seed": seed, "text": "", "images": []} for key in ("agreed", "split", "unasked")
-            for seed in (first, second)]
-    for name, text in ((f"agreed~{first}", wall), (f"agreed~{second}", wall), (f"split~{first}", shown),
-                       (f"split~{second}", wall)):
-        (tmp_path / f"{name}.txt").write_text(text)
-    assert [job["name"] for job in box_check.deciding_jobs(jobs, tmp_path)] == [f"split~{third}"]
-    found = box_check.verdicts(jobs, tmp_path)
-    assert set(found) == {"agreed"} and not found["agreed"]["passes"] and found["agreed"]["of"] == 2
-    (tmp_path / f"split~{third}.txt").write_text(shown)
-    assert box_check.verdicts(jobs, tmp_path)["split"] == {"passes": True, "passed": 2, "of": 3, "what": "a wall"}
-
-
-def test_sam_3_is_asked_for_the_short_name():
-    assert box_check.noun("stainless galley counter: worktop with hob and sink") == "stainless galley counter"
-    assert box_check.noun("a strip lamp in a steel housing with a frosted lens, over a door") == "strip lamp"
-    assert box_check.noun("lamp on a rod from the ceiling: housing and lens") == "lamp"
-    assert box_check.nouns("plain lower wall panel, bolted") == ["plain lower wall panel", "panel"]
-    assert box_check.nouns("hammer") == ["hammer"]
-
-
-def test_sam_3_s_masks_ground_a_box_before_the_judge_and_tighten_a_loose_one():
-    inside = {"box": [10, 10, 50, 50], "score": 0.9, "inside": 0.9, "fills": 0.6}
-    tiny = {"box": [10, 10, 14, 14], "score": 0.9, "inside": 1.0, "fills": 0.01}
-    elsewhere = {"box": [900, 10, 990, 80], "score": 0.8, "inside": 0.0, "fills": 0.0}
-    room = {"box": [0, 0, 2700, 1500], "score": 0.9, "inside": 0.02, "fills": 0.9}
-    assert box_check.grounding([elsewhere, inside], SIZE) == {"grounding": "grounded"}
-    assert box_check.grounding([elsewhere, tiny], SIZE) == {"grounding": "loose", "found_at": [10, 10, 14, 14]}
-    assert box_check.grounding([elsewhere], SIZE) == {"grounding": "off", "found_at": [900, 10, 990, 80]}
-    assert box_check.grounding([room], SIZE) == {"grounding": "not found"}  # the whole room says nothing
-    assert box_check.grounding([], SIZE) == {"grounding": "not found"}
-    rows = spread_over_the_picture()[:2] + [a_row("wall", [0, 0, SIZE[0], SIZE[1]], group="kit: wall")]
-    assert box_check.mask_jobs("camp", an_inventory(rows, "/concepts/K01.png"), {"v1": SIZE}) == [
-        {"picture": "/concepts/K01.png", "rows": [{"key": "camp.r0", "nouns": ["r0"], "box": rows[0]["box"]},
-                                                  {"key": "camp.r1", "nouns": ["r1"], "box": rows[1]["box"]},
-                                                  {"key": "camp.wall", "nouns": ["wall"], "box": rows[2]["box"]}]}]
-    grounded = {"camp.galley": {"grounding": "grounded"}, "camp.crate": {"grounding": "off", "found_at": [1, 2, 3, 4]},
-                "camp.net": {"grounding": "not found"}, "camp.bin": {"grounding": "not found"}}
-    judged = {"camp.galley.1-2-3-4": {"passes": False, "what": "a wall"},
-              "camp.crate.1-2-3-4": {"passes": True, "what": ""},
-              "camp.net.1-2-3-4": {"passes": False, "what": "a wall"}}
-    results = box_check.decided(grounded, judged)
-    assert [results[key]["passes"] for key in ("camp.galley", "camp.crate", "camp.net", "camp.bin")] == \
-        [True, True, False, None]  # SAM 3 finding the words elsewhere leaves the box to the judge
-    found = an_inventory([a_row("keyboard", [100, 100, 900, 600]), a_row("wall", [0, 0, 900, 600], group="kit: wall")])
-    loose = {"camp.keyboard": {"grounding": "loose", "found_at": [400, 300, 520, 340]},
-             "camp.wall": {"grounding": "loose", "found_at": [0, 0, 10, 10]}}
-    assert box_check.tighten("camp", found, loose) == ["keyboard", "wall"]  # a repeating row boxes one example
-    assert found["rows"][0]["box"] == [400, 300, 520, 340] and found["rows"][1]["box"] == [0, 0, 10, 10]
-
-
-@pytest.fixture
-def partitioned(tmp_path, monkeypatch):
-    """A place with one picture, its proposals and its recorded results in a partition folder; call it with
-    {row: (box, box_from)} for its inventory."""
+def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
+    """A scene's rows stand on boxes measured on its concept. Tiles cover the concept; every SAM 2.1 proposal is mapped
+    to a row, dropped with a reason or named new (a part of a mapped one needs nothing), and a pointer only picks
+    proposals: a row's box is its proposals' own. The gate passes only a measured box checked on that very box,
+    blocks an unmeasured one and fails a typed, whole-picture or moved one; boxes typed into one corner fail; the judge
+    sees the whole picture and the crop of every box but a kit row's whole picture, once a seed, its majority decides
+    and a third seed breaks only a tie; SAM 3 is asked for a row's short name, a box it grounds passes, a loose one is
+    tightened to the thing inside it, and words found elsewhere leave the box to the judge."""
     picture = tmp_path / "concept.png"
     Image.new("RGB", SIZE, (90, 90, 90)).save(picture)
     monkeypatch.setattr(box_check, "PARTITION", tmp_path / "partition")
-    (tmp_path / "partition" / "camp").mkdir(parents=True)
-    proposals = [{"id": "v1.1", "view": "v1", "box": [113, 207, 391, 618], "area": 90000},
-                 {"id": "v1.2", "view": "v1", "box": [1503, 811, 1702, 1033], "area": 30000}]
-    (tmp_path / "partition" / "camp" / "proposals.json").write_text(json.dumps(proposals))
-    (tmp_path / "partition" / "camp" / "boxes.json").write_text(json.dumps({
-        "galley": {"passes": True, "by": "SAM 3: grounded", "box": [113, 207, 391, 618]},
-        "crate": {"passes": True, "by": "SAM 3: grounded", "box": [1503, 811, 1702, 1033]}}))
+    folder = tmp_path / "partition" / "camp"
+    folder.mkdir(parents=True)
+    (folder / "proposals.json").write_text(json.dumps(PROPOSALS))
 
-    def made(boxes):
-        rows = [a_row(name, box, **({"box_from": source} if source else {})) for name, (box, source) in boxes.items()]
-        return an_inventory(rows, str(picture))
-    return made
+    def the_place():
+        return an_inventory([a_row("galley", None, unseen="x"), a_row("crate", None, unseen="x"),
+                             a_row("wall", None, unseen="x", group="kit: wall", repeats="across the room")],
+                            str(picture))
 
+    tiles = [box for _, _, box in partition.tile_boxes(SIZE)]
+    assert (min(box[0] for box in tiles), min(box[1] for box in tiles), max(box[2] for box in tiles),
+            max(box[3] for box in tiles)) == (0, 0, WIDE, TALL)
 
-def test_the_gate_passes_only_a_measured_box_checked_on_that_box(partitioned):
-    found = partitioned({"galley": ([113, 207, 391, 618], ["v1.1"]), "crate": ([1503, 811, 1702, 1033], ["v1.2"])})
-    assert box_check.gate("camp", found)["result"] == "pass"
-    found["rows"][1]["box"] = [1503, 811, 1702, 1040]  # moved by hand since: no longer its proposal's box
-    assert box_check.gate("camp", found)["rows"]["crate"]["result"] == "fail"
-    found = partitioned({
-        "galley": ([600, 200, 900, 640], None),               # round numbers, typed (the camp's, 2026-10-09)
-        "crate": ([0, 0, SIZE[0], SIZE[1]], None),           # the whole picture
-        "table": ([113, 207, 391, 618], ["v1.2"]),           # names a proposal it is not the box of
-        "bunk": ([1200, 300, 1300, 400], ["v1.1"])})          # outside the object it names
-    rows = box_check.gate("camp", found)["rows"]
-    assert all(rows[name]["result"] == "fail" for name in ("galley", "crate", "table", "bunk")), rows
-    assert "typed" in rows["galley"]["why"] and "whole picture" in rows["crate"]["why"]
-
-
-def test_an_unmeasured_box_blocks_and_a_row_laid_from_the_plan_is_not_boxed(partitioned):
-    found = partitioned({"galley": ([113, 207, 391, 618], ["v1.1"]), "crate": ([1503, 811, 1701, 1033], None)})
-    verdict = box_check.gate("camp", found)
-    assert verdict["rows"]["crate"]["result"] == "unknown" and verdict["result"] == "unknown", verdict
-    found = partitioned({"galley": ([113, 207, 391, 618], ["v1.1"]), "ground": ([0, 0, SIZE[0], SIZE[1]], None)})
-    found["rows"][1]["route"] = "ground"
-    verdict = box_check.gate("camp", found, box_check.UNBOXED)
-    assert verdict["result"] == "pass" and verdict["unboxed"] == ["ground"], verdict
-    assert box_check.gate("camp", found)["rows"]["ground"]["result"] == "fail"  # the close-ups crop by the box
-    found["rows"][1]["route"] = "prop"
-    assert box_check.gate("camp", found, box_check.UNBOXED)["rows"]["ground"]["result"] == "fail"
-
-
-def a_partition_place():
-    return {"rows": [{"id": "desk", "view": "v1", "box": None, "unseen": "x"},
-                     {"id": "lamp", "view": "v1", "box": None, "unseen": "x"},
-                     {"id": "wall", "view": "v1", "box": None, "unseen": "x", "repeats": "across the room"}]}
-
-
-PROPOSALS = [{"id": "v1.1", "view": "v1", "box": [100, 100, 500, 400], "area": 90000, "share": 0.02},
-             {"id": "v1.2", "view": "v1", "box": [120, 120, 200, 200], "area": 5000, "share": 0.001},
-             {"id": "v1.3", "view": "v1", "box": [800, 50, 900, 150], "area": 8000, "share": 0.002},
-             {"id": "v1.4", "view": "v1", "box": [1500, 900, 1900, 1300], "area": 120000, "share": 0.03}]
-
-
-def test_a_row_s_box_is_its_proposals_own_and_every_proposal_is_accounted_for():
-    """Tiles cover the picture; a mapping leaving a big proposal or a row out, or dropping one with no reason, is
-    refused; applied boxes are the proposals' own; a pointer only picks proposals and is never kept as a box."""
-    boxes = [box for _, _, box in partition.tile_boxes(SIZE)]
-    assert min(box[0] for box in boxes) == 0 and max(box[2] for box in boxes) == SIZE[0]
-    assert min(box[1] for box in boxes) == 0 and max(box[3] for box in boxes) == SIZE[1]
-    unboxed = a_partition_place()
+    unboxed = the_place()
     for row in unboxed["rows"]:
         row.pop("unseen")
-    problems = partition.mapping_problems(unboxed, PROPOSALS, {"v1.1": {"row": "desk"}, "v1.3": {"drop": ""}})
-    assert any("v1.4 is neither" in line for line in problems), problems   # a big proposal left out
-    assert not any("v1.2" in line for line in problems), problems           # a part of v1.1 needs no entry
-    assert any("dropped without a reason" in line for line in problems), problems
-    assert any("row lamp has no proposal" in line for line in problems), problems
-    mapped = a_partition_place()
-    new = partition.apply(mapped, PROPOSALS, {"v1.1": {"row": "desk"}, "v1.3": {"rows": ["lamp", "wall"]},
-                                              "v1.4": {"new": "a crate"}})
-    rows = {row["id"]: row for row in mapped["rows"]}
-    assert rows["desk"]["box"] == [100, 100, 500, 400] and rows["desk"]["box_from"] == ["v1.1"]
-    assert "unseen" not in rows["lamp"] and rows["wall"]["box"] == [800, 50, 900, 150]
-    assert new[0]["words"] == "a crate" and new[0]["box"] == [1500, 900, 1900, 1300]
-    mapping, matched = partition.snap(a_partition_place(), PROPOSALS,
-                                      {"desk": [90, 90, 520, 420], "lamp": [790, 40, 910, 160]})
-    assert matched["desk"]["proposals"] == ["v1.1", "v1.2"] and matched["lamp"]["proposals"] == ["v1.3"]
-    assert mapping["v1.1"] == {"rows": ["desk"]}
-    pointed = a_partition_place()
-    partition.apply(pointed, PROPOSALS, mapping)
-    assert {row["id"]: row["box"] for row in pointed["rows"]}["desk"] == [100, 100, 500, 400]
+    problems = partition.mapping_problems(unboxed, PROPOSALS, {"v1.1": {"row": "galley"}, "v1.3": {"drop": ""},
+                                                               "v1.4": {"row": "wall"}})
+    assert problems == ["proposal v1.3 is dropped without a reason", "row crate has no proposal and no 'unseen' reason"]
+    problems = partition.mapping_problems(unboxed, PROPOSALS, {"v1.1": {"row": "galley"},
+                                                               "v1.3": {"rows": ["crate", "wall"]}})
+    assert problems == ["proposal v1.4 is neither mapped to a row nor dropped with a reason"]  # v1.2 is v1.1's part
+
+    found = the_place()
+    mapping, matched = partition.snap(found, PROPOSALS,
+                                      {"galley": [100, 200, 400, 630], "crate": [1490, 800, 1710, 1040]})
+    assert matched["galley"]["proposals"] == ["v1.1", "v1.2"] and matched["crate"]["proposals"] == ["v1.3"]
+    assert mapping == {"v1.1": {"rows": ["galley"]}, "v1.2": {"rows": ["galley"]}, "v1.3": {"rows": ["crate"]}}
+    mapping["v1.3"]["rows"].append("wall")
+    mapping["v1.4"] = {"new": "a crate"}
+    new = partition.apply(found, PROPOSALS, mapping)
+    assert [(row["id"], row["box"], row["box_from"], "unseen" in row) for row in found["rows"]] == [
+        ("galley", GALLEY, ["v1.1", "v1.2"], False),  # the proposals' own box, never the pointer
+        ("crate", CRATE, ["v1.3"], False), ("wall", CRATE, ["v1.3"], False)]
+    assert [(element["words"], element["box"]) for element in new] == [("a crate", BIG)]
+
+    (folder / "boxes.json").write_text(json.dumps({name: {"passes": True, "by": "SAM 3: grounded", "box": box}
+                                                   for name, box in (("galley", GALLEY), ("crate", CRATE),
+                                                                     ("wall", CRATE))}))
+    verdict = box_check.gate("camp", found)
+    assert verdict["result"] == "pass" and {row["result"] for row in verdict["rows"].values()} == {"pass"}, verdict
+    for name, box, source, route, routes, result, why, scene in GATE:
+        added = copy.deepcopy(found)
+        added["rows"].append(a_row(name, box, **({"box_from": source} if source else {}),
+                                   **({"route": route} if route else {})))
+        verdict = box_check.gate("camp", added, routes)
+        case = f"{name} routed {route} under {routes}"
+        assert verdict["rows"][name]["result"] == result and why in verdict["rows"][name]["why"], (case, verdict)
+        assert verdict["result"] == scene and verdict["unboxed"] == ([name] if route in routes else []), (case, verdict)
+
+    for case, rows, size, has, lacks, count in MEASURED:
+        problems = box_check.measured_problems(an_inventory(rows), {"v1": size})
+        assert problems_hold(problems, has, lacks, count), (case, problems)
+
+    for words, expected in NOUNS:
+        assert box_check.nouns(words) == expected and box_check.noun(words) == expected[0], words
+
+    judged = copy.deepcopy(found)
+    judged["rows"] += [a_row("net", [700, 400, 900, 700]), a_row("keyboard", [1000, 300, 1400, 600]),
+                       a_row("wall_kit", WHOLE, group="kit: wall")]
+    jobs = box_check.judge_jobs("camp", judged, {"v1": SIZE}, tmp_path / "judge", box_check.SEEDS)
+    first, second, third = box_check.SEEDS
+    keys = [f"camp.{name}.{'-'.join(map(str, box))}" for name, box in (
+        ("galley", GALLEY), ("crate", CRATE), ("wall", CRATE), ("net", [700, 400, 900, 700]),
+        ("keyboard", [1000, 300, 1400, 600]))]  # the kit wall's whole picture is not asked about
+    assert [job["name"] for job in jobs] == [f"{key}~{seed}" for key in keys for seed in box_check.SEEDS]
+    whole, cut = (pathlib.Path(path) for path in jobs[0]["images"])
+    assert Image.open(whole).width == box_check.OVERVIEW_WIDE
+    assert max(Image.open(cut).size) >= box_check.SHORTEST_CROP
+    assert "the galley" in jobs[0]["text"]
+    assert box_check.mask_jobs("camp", judged, {"v1": SIZE}) == [
+        {"picture": str(picture), "rows": [{"key": f"camp.{row['id']}", "nouns": [row["id"]], "box": row["box"]}
+                                           for row in judged["rows"]]}]
+
+    for replies, expected in VERDICTS:
+        assert box_check.verdict(replies) == expected, replies
+    answers = tmp_path / "answers"
+    answers.mkdir()
+    galley, crate, _, net, _ = keys  # the wall and the keyboard are not answered yet
+    for name, text in ((f"{galley}~{first}", ON_A_WALL), (f"{galley}~{second}", ON_A_WALL),
+                       (f"{net}~{first}", ON_A_WALL), (f"{net}~{second}", ON_A_WALL),
+                       (f"{crate}~{first}", SHOWN), (f"{crate}~{second}", ON_A_WALL)):
+        (answers / f"{name}.txt").write_text(text)
+    assert [job["name"] for job in box_check.deciding_jobs(jobs, answers)] == [f"{crate}~{third}"]
+    agreed = {"passes": False, "passed": 0, "of": 2, "what": "a wall"}
+    assert box_check.verdicts(jobs, answers) == {galley: agreed, net: agreed}  # the split crate waits on its third
+    (answers / f"{crate}~{third}.txt").write_text(SHOWN)
+    verdicts = box_check.verdicts(jobs, answers)
+    assert verdicts[crate] == {"passes": True, "passed": 2, "of": 3, "what": "a wall"}
+
+    grounded = {}
+    for key, (instances, expected) in GROUNDING.items():
+        grounded[key] = box_check.grounding(instances, SIZE)
+        assert grounded[key] == expected, key
+    results = box_check.decided(grounded, verdicts)
+    assert {key: results[key]["passes"] for key in GROUNDING} == {
+        "camp.galley": True,  # SAM 3 grounds it over the judge
+        "camp.crate": True,  # SAM 3 finding the words elsewhere leaves the box to the judge
+        "camp.net": False, "camp.bin": None, "camp.keyboard": None, "camp.wall": None}
+    assert box_check.tighten("camp", judged, grounded) == ["wall", "keyboard"]  # a repeating row boxes one example
+    boxes = {row["id"]: row["box"] for row in judged["rows"]}
+    assert boxes["wall"] == KEYS["box"] and boxes["keyboard"] == TINY["box"] and boxes["galley"] == GALLEY
 
 
 # ---- the inventory's shape -----------------------------------------------------------------------------------------
