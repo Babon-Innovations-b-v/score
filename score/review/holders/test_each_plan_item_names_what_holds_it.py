@@ -65,8 +65,8 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     it as on the locker's top, and the assembly stood it there through the 2.5 m ceiling. On a top it must fit under
     the place's height (its tallest wall or its highest roof): here within the locker, where the plan lays it; under
     a dome rising to 4.2 m (the workshop's robotic arm on its console) it stays on the top.
-    Break: score/review/holders/__init__.py: `if on_top(row, holder_row) and fits_over(row, holder_row, room) and` ->
-        `if on_top(row, holder_row) and`
+    Break: score/review/holders/__init__.py: relation's `on_top(row, holder_row) and fits_over(row, holder_row, room)`
+        -> `on_top(row, holder_row)`
     Break: score/review/holders/__init__.py: room_height's `+ [float(roof["top"]) for roof in plan.get("roofs") or []
         if roof.get("top")]` -> `+ []`
     A fitting on a run lower than it is tall (hangar's 0.6 m valve laid inside its 0.4 x 32 m pipe) is on the run,
@@ -115,10 +115,11 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     it; the second, with no opening left (cockpit's four rear doors, 2026-10-29: one opening on its plan), in an
     opening cut for it where its spot meets the nearest wall: with no projection (no rows laid alike) its one piece
     spread along the longest wall, at (10, 0), its own 1.0 m wide and 2.1 m tall from the floor.
-    Break: score/review/holders/__init__.py: `found = in_opening(item, row, plan, inventory, taken) if
+    Break: score/review/holders/__init__.py: `found = in_opening(item, row, plan, inventory, taken, standing) if
         design_shell.fills_opening(row) else None` -> `found = None`
-    Break: score/review/holders/__init__.py: `found = [in_plan_opening(spot, row, plan, taken) or (cut_in(spot, row,
-        item, plan) if spot is not None else None)` -> `found = [in_plan_opening(spot, row, plan, taken)`
+    Break: score/review/holders/__init__.py: `found.append(in_plan_opening(spot, row, plan, taken) or (cut_in(spot,
+        row, item, plan, [*standing, *({"row": row["id"], **piece} for piece in found if piece)]) if spot is not None
+        else None))` -> `found.append(in_plan_opening(spot, row, plan, taken))`
 
 [window-opening] #36, camp: the relations gave the dome door's opening to a dome window (the plan draws only door openings), so
     the window stood in the door's swing. With one door opening at (5, 0) and a window laid first, at the north
@@ -160,8 +161,8 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     street's middle, the AC units on them held by nothing (the plan draws no wall). A facade whose concept box stands
     in the view's left half stands past the plan's left edge (the viewer looking north: W), at its middle; a unit on
     it stands against its face toward the street, E.
-    Break: score/review/holders/__init__.py: `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row":
-        holder["id"],` -> `return {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": None,`
+    Break: score/review/holders/__init__.py: `found = {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row":
+        holder["id"],` -> `found = {"how": "face", "holder": plan_checks.WALLS_ITEM, "holder row": None,`
 
 [face-spread] Street (#36): its 3 m window, stairwell entrance and roller shutters were laid at their built widths on 1.74 m
     plan items and overlapped on their facade's face. On a 30 m facade a 3 m window drawn at y 10 and a 3 m shutter
@@ -234,8 +235,8 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
 [two-panels] Engineroom (#36): the plan draws its two wall panels each as the whole room, on a hull that names no side; each
     stands at the middle of the nearest wall the other does not hold (N, then S: both 6 m from the middle), never both
     at the room's middle.
-    Break: score/review/holders/__init__.py: `free = [wall for wall in walls if wall_key(wall) not in taken] or walls`
-        -> `free = walls`
+    Break: score/review/holders/__init__.py: `free = [wall for wall in long_enough if wall_key(wall) not in taken] or
+        long_enough` -> `free = long_enough`
 
 [wall-spread] Quarters (#36): its string lights and wall light, left on the walls item and anchored on its left wall, stand on
     the wall furthest to the viewer's left (x 0: the viewer looks north), not the longest; both at its spot, they are
@@ -307,7 +308,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     Break: score/review/holders/__init__.py: stair_sides' `**({"height": float(stair["from"])} if "from" in stair else
         {}),` dropped, or relation's `"rests": ATTACHED,` dropped (the stairwell's railings at their items' heights,
         dropped loose)
-    Break: score/review/holders/__init__.py: relations' `or stood_on(item, row, rows, plan, items, laid)` dropped (the
+    Break: score/review/holders/__init__.py: relations' `or stood_on(item, row, rows, plan, items, laid, tied)` dropped (the
         lamps over the desk and over nothing held by nothing), or stood_on's `if base / 2 < found[0] <= base +
         STAND_REACH` -> `if found[0] <= base + STAND_REACH` (the lamp over the rug on the rug) or -> `if True` (the lamp
         over the shelf on its top, inside it), or its `if named:` -> `if False:` (the TV on the floor), or its `if base
@@ -324,8 +325,8 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     at one spot above clear the 6 m pipe at 1.4 m on their wall, the middle one two steps up); a wall thing on the
     floor is never stood up.
     Break: score/review/holders/__init__.py: `apart_on_walls(found, rows, plan)` -> `pass`
-    Break: score/review/holders/__init__.py: `if (spot := slid_clear(context, row, plan, height, laid)) is not None:`
-        -> `if False:`
+    Break: score/review/holders/__init__.py: `if (spot := slid_clear(context, row, plan, height, boxes, taken)) is not
+        None:` -> `if False:`
     Break: score/review/holders/__init__.py: `if height <= 0.0:` -> `if False:`
     2026-11-07 (laid-as-designed@cockpit, @habitat, @workshop, @stairwell): a wall thing is parted at the size it is
     made at (prepare's groups.made_size: a run read round the room's walls one piece of it; a rug keeps its reading's);
@@ -337,8 +338,8 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     room left on either, is laid first and the lamps part round it (the stairwell's 12 m tall conduits after its lamps).
     Break: score/review/holders/__init__.py: `made = groups.made_size(row, rows, plan, laid, box) if wall_held(row,
         by_id) else None` -> `made = None`
-    Break: score/review/holders/__init__.py: `elif (moved := walled_clear(context, row, plan, height, boxes)) is not
-        None:` -> `elif False:`
+    Break: score/review/holders/__init__.py: `elif (moved := walled_clear(context, row, plan, height, boxes, taken))
+        is not None:` -> `elif False:`
     Break: score/review/holders/__init__.py: `for chord in run_chords(plan, long)]` -> `for chord in []]`
     Break: score/review/holders/__init__.py: `for entry in sorted(order, key=lambda entry: not
         passage(rows[entry["row"]])):` -> `for entry in order:`
