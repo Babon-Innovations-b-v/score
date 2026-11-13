@@ -80,7 +80,6 @@ MAIN_ONLY = (
     "score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py",
     "score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py",
     "score/stages/sim_body/inside/solvers/test_each_solver_meets_a_hand_worked_answer.py",
-    "score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py",
 )
 
 # Test files that may print `skipped` (a check not run on this box), each with the reason.
@@ -140,7 +139,6 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/tuning/_adjoint/test_implicit_columns_equal_re_solved_differences.py": 27,
     "score/stages/sim_body/inside/tuning/_paired/test_a_step_counts_only_past_its_noise_floor_on_a_fixed_case_set.py": 6,
     "score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py": 17,
-    "score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py": 3,
     "score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py": 6,
     "score/stages/sound/test_a_place_is_heard_as_its_design_says.py": 20,
     "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py": 116,

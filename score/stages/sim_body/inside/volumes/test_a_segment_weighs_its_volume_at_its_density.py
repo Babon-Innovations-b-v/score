@@ -13,12 +13,16 @@ Breaks (each applied once, seen red, reverted), 2026-10-28:
 - (2026-11-01) slenderness's `(GIRTH_MIDDLE[1] - GIRTH_MIDDLE[0]) * length` made `length`: the section read over the
   whole stretch while the cells are counted in its middle.
 
-Run: .venv/bin/python score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py
+One box, filled, cut and weighed once; each half is a row (its line, its bone group at its density, its centre
+height, its hand-worked mass), every measure of that half asserted on the one result.
+
+Run: make tests TESTS=score/stages/sim_body/inside/volumes/test_a_segment_weighs_its_volume_at_its_density.py
 """
 import pathlib
 import sys
 
 import numpy as np
+import pytest
 
 INSIDE = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(INSIDE))
@@ -32,58 +36,38 @@ FACES = np.array([[0, 1, 3], [0, 3, 2], [4, 6, 7], [4, 7, 5], [0, 4, 5], [0, 5, 
 LINES = [[((0.1, 0.0, 0.05), (0.1, 0.5, 0.05))], [((0.1, 0.5, 0.05), (0.1, 1.0, 0.05))]]
 
 
-def halves():
+# Each half: its line's index in LINES, its bone group (a thigh at 1.05 kg/l, a shin at 1.09), its centre's height,
+# and its share of 21.4 kg by density times its 0.01 m3: 10.5 and 10.9 kg.
+HALVES = [(0, "LeftLeg", 0.25, 10.5), (1, "LeftShin", 0.75, 10.9)]
+# A solid's spread V (a2 + b2 + c2) / 12 at 0.01 m3, its trace per kg (a2 + b2 + c2) / 6, its girth for its length.
+SPREAD = 2.5e-4  # 0.01 (0.04 + 0.25 + 0.01) / 12
+TRACE_PER_KG = 0.05  # (0.04 + 0.25 + 0.01) / 6
+GIRTH = np.sqrt(0.02) / 0.5
+
+
+@pytest.fixture(scope="module")
+def box():
+    """The box filled, its cells shared between the two lines, each half measured and the halves weighed at 21.4 kg."""
     cells = volumes.filled(CORNERS, FACES)
-    return cells, volumes.measured(cells, volumes.shares(cells, LINES), 2)
-
-
-def the_box_fills_to_its_volume_in_two_halves():
-    """0.02 m3 whole within one cell layer (1%); each half 0.01 m3 centred at (0.1, 0.25 or 0.75, 0.05), its spread
-    0.01 (0.04 + 0.25 + 0.01) / 12 = 2.5e-4 m5 within 1e-9 (the cells fill the box exactly)."""
-    cells, found = halves()
-    problems = [] if abs(len(cells) * volumes.CELL ** 3 - 0.02) < 2e-4 else [f"{len(cells)} cells"]
-    for (volume, centre, spread), height in zip(found, (0.25, 0.75)):
-        if abs(volume - 0.01) > 1e-4 or not np.allclose(centre, [0.1, height, 0.05], atol=1e-3):
-            problems.append(f"half at {height}: {volume} m3 at {centre}")
-        if abs(spread - 2.5e-4) > 1e-9:
-            problems.append(f"half at {height}: spread {spread}")
-    return problems
-
-
-def the_halves_share_the_mass_by_density():
-    """As a thigh (1.05 kg/l) and a shin (1.09 kg/l), the halves of 21.4 kg: 10.5 and 10.9 kg (their volumes the
-    same), each trace m (0.04 + 0.25 + 0.01) / 6 = 0.05 m."""
-    _, found = halves()
-    weighed = volumes.weighed(["LeftLeg", "LeftShin"], found, 21.4)
-    problems = []
-    for group, kg in (("LeftLeg", 10.5), ("LeftShin", 10.9)):
-        mass, _, trace = weighed[group]
-        if abs(mass - kg) > 0.01 * kg or abs(trace - 0.05 * mass) > 0.002 * 0.05 * mass:
-            problems.append(f"{group}: {mass:.3f} kg, trace {trace:.5f}")
-    return problems
-
-
-def each_half_is_as_wide_for_its_length_as_its_section():
-    """Each half's girth for its length sqrt(0.2 x 0.1) / 0.5 = 0.2828 within 1% (its cells fill the box exactly)."""
-    cells, _ = halves()
     owner = volumes.shares(cells, LINES)
-    problems = []
-    for group, [(start, end)] in enumerate(LINES):
-        found = volumes.slenderness(cells, owner, group, start, end)
-        if abs(found - np.sqrt(0.02) / 0.5) > 0.01 * np.sqrt(0.02) / 0.5:
-            problems.append(f"half {group}: {found:.4f}")
-    return problems
+    found = volumes.measured(cells, owner, 2)
+    return cells, owner, found, volumes.weighed([group for _, group, _, _ in HALVES], found, 21.4)
 
 
-CHECKS = (the_box_fills_to_its_volume_in_two_halves, the_halves_share_the_mass_by_density,
-          each_half_is_as_wide_for_its_length_as_its_section)
-
-
-if __name__ == "__main__":
-    import runpy
-    runpy.run_path(str(pathlib.Path(__file__).resolve().parents[5] / "conftest.py"))["refuse_outside_sandbox"]()
-    failures = [f"{check.__name__}: {problem}" for check in CHECKS for problem in check()]
-    for failure in failures:
-        print(failure)
-    print("ok" if not failures else f"{len(failures)} failed")
-    sys.exit(1 if failures else 0)
+@pytest.mark.parametrize("line, group, height, kg", HALVES, ids=[group for _, group, _, _ in HALVES])
+def test_a_segment_weighs_its_volume_at_its_density(box, line, group, height, kg):
+    """The box fills to 0.02 m3 within one cell layer (1%); the half is 0.01 m3 centred at (0.1, height, 0.05), its
+    spread 2.5e-4 m5 within 1e-9 (the cells fill the box exactly); weighed, its mass is kg within 1% and its trace
+    0.05 m per kg within 0.2%; its girth for its length sqrt(0.2 x 0.1) / 0.5 = 0.2828 within 1%."""
+    cells, owner, found, weighed = box
+    volume, centre, spread = found[line]
+    mass, _, trace = weighed[group]
+    (start, end), = LINES[line]
+    girth = volumes.slenderness(cells, owner, line, start, end)
+    assert abs(len(cells) * volumes.CELL ** 3 - 0.02) < 2e-4, f"{len(cells)} cells"
+    assert abs(volume - 0.01) <= 1e-4 and np.allclose(centre, [0.1, height, 0.05], atol=1e-3), \
+        f"{group}: {volume} m3 at {centre}"
+    assert abs(spread - SPREAD) <= 1e-9, f"{group}: spread {spread}"
+    assert abs(mass - kg) <= 0.01 * kg and abs(trace - TRACE_PER_KG * mass) <= 0.002 * TRACE_PER_KG * mass, \
+        f"{group}: {mass:.3f} kg, trace {trace:.5f}"
+    assert abs(girth - GIRTH) <= 0.01 * GIRTH, f"{group}: girth for its length {girth:.4f}"
