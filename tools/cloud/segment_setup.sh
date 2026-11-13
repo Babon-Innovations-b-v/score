@@ -7,9 +7,12 @@
 set -euo pipefail
 
 # A card parked after an earlier run of its kind (park.py) is set up already: this file wrote the mark last,
-# named for this file's text and its pins, so a changed set-up runs again.
+# named for this file's text and its pins, so a changed set-up runs again. The mark holds only while /root/venv
+# imports sam2: box_masks_cloud.py's SAM 3 set-up shares the kind `segment`, writes no mark and rebuilds /root/venv
+# (2026-11-13: this PC's segment venv held SAM 3's, the mark stood, and every look's regions failed "No module named
+# 'sam2'").
 done_mark="/root/.segment-setup-$( (cat "$0"; echo "${SAM2:?} ${SAM2_WEIGHTS:?}") | sha256sum | cut -c1-16)"
-if [ -f "$done_mark" ]; then
+if [ -f "$done_mark" ] && /root/venv/bin/python -c "import sam2" 2>/dev/null; then
   echo "set up already (a parked card)"
   exit 0
 fi
