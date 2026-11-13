@@ -1,5 +1,5 @@
-"""The harness scripts change only what they own: board-status only this repo's card, setup-github only this repo's
-labels, board and config (nothing on a dry run), worktree-reap only a dead session's clean merged worktree,
+"""The harness scripts change only what they own: gate-scope nothing (documents alone run no tests), board-status
+only this repo's card, setup-github only this repo's labels, board and config (nothing on a dry run), worktree-reap only a dead session's clean merged worktree,
 bootstrap only its own links and flags, ssh-agent.sh only its agent socket, its ~/.bashrc block and its
 ~/.ssh/config lines (GitHub's port 443 only when port 22 is refused), and sandbox-home and conftest.py keep every test off the real home while
 removing everything a test leaves.
@@ -9,10 +9,9 @@ and `uv` are stand-ins that log their calls, and HOME is a scratch folder, so no
 
 The break that turns each test red (applied once each, seen red, reverted):
 
-- test_gate_scope_runs_nothing_only_for_documents, one row red per break: is_document's `BUILT_PREFIXES +
-  CODE_PREFIXES` made `BUILT_PREFIXES`; or forced_reason's CI branch removed.
-- test_github_scripts_write_only_their_own_repos_board_and_labels, one row red per break: config()'s `here and repo
-  and here != repo` made `False` (another repo's board); main's mutation sent with `o=options[0]["id"]` (moves the
+- test_scripts_change_only_what_they_own, one row red per break: gate-scope's is_document's `BUILT_PREFIXES +
+  CODE_PREFIXES` made `BUILT_PREFIXES` (a hook change runs nothing); or gate-scope's forced_reason's CI branch
+  removed; or board-status's config()'s `here and repo and here != repo` made `False` (another repo's board); main's mutation sent with `o=options[0]["id"]` (moves the
   card); board_item's `node["project"]["number"] == number` made `True` (adds from another board); sync_labels
   creates a label even on a dry run; main keeps the template's backlog_prd (resets a template's config); "Review"
   taken out of STATUS_OPTIONS, or main's `config.get("owner") or owner` made `owner` (a re-run overwrites the
@@ -92,13 +91,15 @@ def module(path, name):
 
 @pytest.fixture
 def scratch_repo(tmp_path):
-    """A git repo holding a copy of the scripts and a project.json for acme/widget."""
+    """A git repo holding a committed copy of the scripts and a project.json for acme/widget."""
     repo = tmp_path / "repo"
     shutil.copytree(SCRIPTS, repo / ".claude" / "scripts", ignore=shutil.ignore_patterns("tests"))
     (repo / ".claude" / "settings.json").write_text('{"committed": true}\n')
     (repo / ".claude" / "project.json").write_text(json.dumps({"repo": "acme/widget"}) + "\n")
     git(repo, "init", "-q", "-b", "main")
     git(repo, "remote", "add", "origin", "git@github.com:acme/widget.git")
+    git(repo, "add", "-A")
+    git(repo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "scripts")
     return repo
 
 
@@ -126,34 +127,9 @@ def script(repo, env, name, *args):
                           text=True)
 
 
-# gate-scope: documents alone run nothing; anything else, and every doubt, runs everything.
-
-gate_scope = module(SCRIPTS / "gate-scope.py", "gate_scope")
-
-
-@pytest.mark.parametrize("changed,argv,ci,mode", [
-    ({"CONTEXT.md", "docs/bible.md", "src/CLAUDE.md", ".claude/skills/grill/SKILL.md"}, [], None, "none"),
-    ({"docs/bible.md", "src/app.py"}, [], None, "full"),
-    ({"paper/score/source/score.md"}, [], None, "full"),  # the paper's draft is a build input
-    ({".claude/hooks/md_guard.py"}, [], None, "full"), ({".claude/scripts/gate-scope.py"}, [], None, "full"),
-    ({".claude/settings.json"}, [], None, "full"),
-    (None, [], None, "full"),  # nothing to compare with
-    ({"README.md"}, [], None, "none"),  # nothing asked for and not on CI: nothing forces the full gate
-    ({"README.md"}, ["--full"], None, "full"),  # asked for
-    ({"README.md"}, [], "true", "full"),  # on CI
-], ids=["documents", "documents and code", "paper draft", "hook", "gate-scope itself", "settings", "no origin",
-        "readme", "readme --full", "readme on CI"])
-def test_gate_scope_runs_nothing_only_for_documents(monkeypatch, changed, argv, ci, mode):
-    monkeypatch.delenv("GATE_FULL", raising=False)
-    if ci is None:
-        monkeypatch.delenv("CI", raising=False)
-    else:
-        monkeypatch.setenv("CI", ci)
-    assert gate_scope.plan(changed, gate_scope.forced_reason(argv))[0] == mode
-
-
-# board-status and setup-github: every gh call that changes GitHub, run against a stand-in gh. A call is a write
-# unless it is one of these reads, so a write the rows do not expect, of any kind, turns its row red.
+# Every script run in the scratch repo against a stand-in gh. A gh call is a write unless it is one of these reads,
+# so a write the rows do not expect, of any kind, turns its row red. gate-scope reads the change against origin/main
+# and asks nothing of GitHub: documents alone run nothing; anything else, and every doubt, runs everything.
 
 READS = (["auth", "status"], ["repo", "view"], ["label", "list"], ["project", "list"], ["project", "view"],
          ["project", "field-list"])
@@ -197,37 +173,71 @@ def is_write(call):
     return args[:2] not in READS
 
 
-GH_CASES = [  # (id, project.json before (None: acme/widget's), gh answers, script and arguments, succeeds, what it
-    # says (a str: the whole stdout; else fragments of stdout, or of stderr when it fails), asks gh at all, the writes
-    # in order, project.json after (None: unchanged))
-    ("board-status usage", None, {}, ["board-status.py", "7"], False,
+DOCUMENTS = {"CONTEXT.md", "docs/bible.md", "src/CLAUDE.md", ".claude/skills/grill/SKILL.md"}
+NONE = "MODE none\nWHY only documents changed\n"
+
+
+def one_code_file(path):
+    return f"MODE full\nWHY 1 changed files are not documents, first {path}\n"
+
+
+def gate(name, changed, command, environ, said):
+    """A gate-scope row: the paths changed since origin/main (None: no origin/main), its environment, its answer."""
+    return (name, None, changed, environ, {}, ["gate-scope.py", *command], True, said, False, [], None)
+
+
+def github(name, before, *rest):
+    """A board-status or setup-github row: run with nothing changed, no origin/main and no extra environment."""
+    return (name, before, None, {}, *rest)
+
+
+CASES = [  # (id, project.json before (None: acme/widget's), paths changed since origin/main (None: no origin/main),
+    # extra environment, gh answers, script and arguments, succeeds, what it says (a str: the whole stdout; else
+    # fragments of stdout, or of stderr when it fails), asks gh at all, the writes in order, project.json after (None:
+    # unchanged))
+    gate("gate-scope: documents", DOCUMENTS, [], {}, NONE),
+    gate("gate-scope: documents and code", {"docs/bible.md", "src/app.py"}, [], {}, one_code_file("src/app.py")),
+    # the paper's draft is a build input
+    gate("gate-scope: paper draft", {"paper/score/source/score.md"}, [], {},
+         one_code_file("paper/score/source/score.md")),
+    gate("gate-scope: hook", {".claude/hooks/md_guard.py"}, [], {}, one_code_file(".claude/hooks/md_guard.py")),
+    gate("gate-scope: itself", {".claude/scripts/gate-scope.py"}, [], {},
+         one_code_file(".claude/scripts/gate-scope.py")),
+    gate("gate-scope: settings", {".claude/settings.json"}, [], {}, one_code_file(".claude/settings.json")),
+    gate("gate-scope: no origin", None, [], {}, "MODE full\nWHY no origin/main to compare with\n"),
+    # nothing asked for and not on CI: nothing forces the full gate
+    gate("gate-scope: readme", {"README.md"}, [], {}, NONE),
+    gate("gate-scope: readme --full", {"README.md"}, ["--full"], {}, "MODE full\nWHY asked for the full gate\n"),
+    gate("gate-scope: readme on CI", {"README.md"}, [], {"CI": "true"},
+         "MODE full\nWHY running on CI, which always runs everything\n"),
+    github("board-status usage", None, {}, ["board-status.py", "7"], False,
      ["board-status.py <issue-number> <status>"], False, [], None),
-    ("board-status refuses another repo's board", {"repo": "template/origin", "project": {"number": 3}}, {},
+    github("board-status refuses another repo's board", {"repo": "template/origin", "project": {"number": 3}}, {},
      ["board-status.py", "7", "Done"], False, ["names template/origin but this checkout is acme/widget"], False, [],
      None),
-    ("board-status needs a board", {"repo": "acme/widget", "project": {"number": 0}}, {},
+    github("board-status needs a board", {"repo": "acme/widget", "project": {"number": 0}}, {},
      ["board-status.py", "7", "Done"], False, ["setup-github.py --board"], False, [], None),
-    ("board-status refuses an unknown column", BOARD, {"project field-list": {"stdout": json.dumps(FIELDS)}},
+    github("board-status refuses an unknown column", BOARD, {"project field-list": {"stdout": json.dumps(FIELDS)}},
      ["board-status.py", "7", "Doing"], False, ["unknown status 'Doing'; board columns: Not started, Done"], True,
      [], None),
-    ("board-status moves the card on its board", BOARD,
+    github("board-status moves the card on its board", BOARD,
      {"project field-list": {"stdout": json.dumps(FIELDS)}, "graphql query": on_board(3),
       "graphql mutation": {"stdout": json.dumps({"data": {}})}},
      ["board-status.py", "7", "Done"], True, "#7 -> Done\n", True,
      [["mutation", {"p": "P1", "i": "ITEM", "f": "F1", "o": "O2"}]], None),  # Done's option on board 3's item
     # the stand-in answers every query alike, so after item-add the issue is still only on board 9
-    ("board-status adds a card from another board first", BOARD,
+    github("board-status adds a card from another board first", BOARD,
      {"project field-list": {"stdout": json.dumps(FIELDS)}, "graphql query": on_board(9)},
      ["board-status.py", "7", "Done"], False, ["#7 could not be added to board #3"], True,
      [["project", "item-add", "3", "--owner", "acme", "--url", "https://github.com/acme/widget/issues/7"]], None),
-    ("setup-github needs a login", None, {"auth status": {"exit": 1}}, ["setup-github.py"], False,
+    github("setup-github needs a login", None, {"auth status": {"exit": 1}}, ["setup-github.py"], False,
      ["gh auth login"], True, [], None),
-    ("setup-github dry run changes nothing", None,
+    github("setup-github dry run changes nothing", None,
      {"repo view": REPO_VIEW, "label list": {"stdout": json.dumps([{"name": "bug"}])}},
      ["setup-github.py", "--dry-run", "--board"], True,
      ["would update label bug", "would create label PRD", "would create a project on acme and link it to acme/widget"],
      True, [], None),
-    ("setup-github resets a template's config", {
+    github("setup-github resets a template's config", {
         "repo": "template/origin", "project": {"number": 4, "owner": "template"}, "backlog_prd": 12,
         "people": {"someone": "someone"}, "areas": ["paper"]},
      {"repo view": REPO_VIEW, "label list": {"stdout": "[]"}}, ["setup-github.py"], True,
@@ -235,7 +245,7 @@ GH_CASES = [  # (id, project.json before (None: acme/widget's), gh answers, scri
      {"repo": "acme/widget", "owner": "acme", "project": {"number": 0, "owner": ""}, "backlog_prd": None,
       "people": {"acme": "acme"}, "areas": ["paper"]}),
     # a re-run in the same repo keeps the hand-edited owner; Roadmap start was there already
-    ("setup-github gives the board its columns and fields", {"repo": "acme/widget", "owner": "someone",
+    github("setup-github gives the board its columns and fields", {"repo": "acme/widget", "owner": "someone",
                                                              "areas": ["paper"]},
      {"repo view": REPO_VIEW, "label list": {"stdout": "[]"},
       "project list": {"stdout": json.dumps({"projects": [
@@ -253,11 +263,18 @@ GH_CASES = [  # (id, project.json before (None: acme/widget's), gh answers, scri
 ]
 
 
-@pytest.mark.parametrize("before,answers,command,succeeds,said,asks_gh,writes,after",
-                         [case[1:] for case in GH_CASES], ids=[case[0] for case in GH_CASES])
-def test_github_scripts_write_only_their_own_repos_board_and_labels(scratch_repo, fake_gh, before, answers, command,
-                                                                     succeeds, said, asks_gh, writes, after):
+@pytest.mark.parametrize("before,changed,environ,answers,command,succeeds,said,asks_gh,writes,after",
+                         [case[1:] for case in CASES], ids=[case[0] for case in CASES])
+def test_scripts_change_only_what_they_own(scratch_repo, fake_gh, before, changed, environ, answers, command,
+                                           succeeds, said, asks_gh, writes, after):
     env, answer, calls = fake_gh
+    env = {**{key: value for key, value in env.items() if key not in ("CI", "GATE_FULL")}, **environ}
+    if changed is not None:  # origin/main is the committed scratch repo, and each path is changed on top of it
+        git(scratch_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+        for name in changed:
+            (scratch_repo / name).parent.mkdir(parents=True, exist_ok=True)
+            with (scratch_repo / name).open("a") as changing:
+                changing.write("\n")
     config = scratch_repo / ".claude" / "project.json"
     if before is not None:
         config.write_text(json.dumps(before))
