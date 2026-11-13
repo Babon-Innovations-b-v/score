@@ -5,11 +5,11 @@ current (paper/CLAUDE.md: a change to the draft is rebuilt and committed in the 
 (paper/score/out/stamp.json) records a hash of every input and output; a draft edited without a rebuild, a generated file
 edited by hand, a file added or removed, all fail.
 
-The break that turns each test red (applied once each, seen red, reverted):
+The break that turns the test red (applied once each, seen red, reverted):
 
-- test_the_committed_build_matches_its_source: a space added to paper/score/source/score.md (or any input or committed
-  output changed) without `make paper`.
-- test_the_check_catches_every_drift: `stale_reasons` returns [] once a stamp exists.
+- a space added to paper/score/source/score.md (or any input or committed output changed) without `make paper`:
+  every row fails on the repository's own check.
+- `stale_reasons` returns [] once a stamp exists: the drift rows fail.
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest paper/score/build/
 """
@@ -24,14 +24,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import build  # noqa: E402
 
-
-def test_the_committed_build_matches_its_source():
-    reasons = build.stale_reasons()
-    assert reasons == [], "the paper is stale; run `make paper` and commit paper/:\n" + "\n".join(reasons)
+DRAFT_REASON = "input changed since the last build: paper/score/source/score.md"
 
 
-@pytest.fixture
-def paper_copy(tmp_path, monkeypatch):
+def copy_paper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """A copy of the paper's tree, with the build module pointed at it: draft, bibliography, figures, outputs, stamp."""
     paper = tmp_path / "paper" / "score"
     for part in ("source", "figures", "out", "arxiv"):
@@ -47,19 +43,38 @@ def paper_copy(tmp_path, monkeypatch):
     return paper
 
 
-def test_the_check_catches_every_drift(paper_copy):
-    """Each drift is named, by role and path, and only it."""
-    assert build.stale_reasons() == []  # the copy is as current as the repository's
-    with (paper_copy / "source/score.md").open("a") as draft:
-        draft.write("\nA sentence added without a rebuild.\n")
-    assert build.stale_reasons() == ["input changed since the last build: paper/score/source/score.md"]
-    (paper_copy / "out/score.tex").write_text((paper_copy / "out/score.tex").read_text() + "% by hand\n")
-    (paper_copy / "arxiv/notes.tex").write_text("left over\n")
-    pdf = paper_copy / "out/score.pdf"
-    pdf.unlink()
-    assert build.stale_reasons() == ["input changed since the last build: paper/score/source/score.md",
-                                     "output added since the last build: paper/score/arxiv/notes.tex",
-                                     "output removed since the last build: paper/score/out/score.pdf",
-                                     "output changed since the last build: paper/score/out/score.tex"]  # by path
-    (paper_copy / "out/stamp.json").unlink()
-    assert build.stale_reasons() == ["no stamp: the paper has never been built here"]
+def drift(paper: Path, action: str, relative: str, text: str = "") -> None:
+    """Change one file of the copied paper the way a careless edit would: append to it, write it, or remove it."""
+    path = paper / relative
+    if action == "append":
+        path.write_text(path.read_text() + text)
+    elif action == "write":
+        path.write_text(text)
+    else:
+        path.unlink()
+
+
+@pytest.mark.parametrize("drifts, expected", [
+    pytest.param([], [], id="a faithful copy is as current as the repository"),
+    pytest.param([("append", "source/score.md", "\nA sentence added without a rebuild.\n")], [DRAFT_REASON],
+                 id="draft edited without a rebuild"),
+    pytest.param([("append", "source/score.md", "\nA sentence added without a rebuild.\n"),
+                  ("append", "out/score.tex", "% by hand\n"),
+                  ("write", "arxiv/notes.tex", "left over\n"),
+                  ("unlink", "out/score.pdf")],
+                 [DRAFT_REASON,
+                  "output added since the last build: paper/score/arxiv/notes.tex",
+                  "output removed since the last build: paper/score/out/score.pdf",
+                  "output changed since the last build: paper/score/out/score.tex"],  # inputs first, then by path
+                 id="every drift named by role and path, and only it"),
+    pytest.param([("append", "source/score.md", "\nA sentence added without a rebuild.\n"),
+                  ("unlink", "out/stamp.json")],
+                 ["no stamp: the paper has never been built here"], id="no stamp"),
+])
+def test_paper_build_matches_its_source(tmp_path, monkeypatch, drifts, expected):
+    reasons = build.stale_reasons()
+    assert reasons == [], "the paper is stale; run `make paper` and commit paper/:\n" + "\n".join(reasons)
+    paper = copy_paper(tmp_path, monkeypatch)
+    for change in drifts:
+        drift(paper, *change)
+    assert build.stale_reasons() == expected
