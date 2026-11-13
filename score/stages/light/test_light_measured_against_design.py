@@ -39,7 +39,7 @@ checks' answers on measures files):
 - layer.place_middle: the stage's bound for an inside place too (the ceiling lamp test, 2026-10-30).
 - layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the post baked
   as one mesh test, 2026-10-31: kept, every way out stopped).
-- light.unlit_why: an inside place lit by a sun alone counted lit (the unlit test).
+- light.unlit_why: an inside place lit by a sun alone counted lit (the measures' table: the unlit rows).
 - night.is_night: always true; night.scale_of: inside and outside swapped; night.skyglow_of: `within_km` ignored;
   night.roofed: `>= ROOFED_LEAST` -> `> 0`; night.write_layer: `layer.Save()` dropped;
   night.colour: `dark` ignored; night.body_lux: the radius over the distance not squared (the sky
@@ -74,7 +74,7 @@ checks' answers on measures files):
   (the look's sky test, 2026-11-10: hub's door openings read as its sky).
 - light_passes.missing_share: the glossy colour pass left out (the measures' table: the missing picture row,
   2026-10-30; proved 2026-11-13).
-- passes.neighbours: keep a planless shown place (the neighbours test).
+- passes.neighbours: keep a planless shown place (the measures' table: the places shown rows).
 - mix.tone_curve: the one-knot curve of a black view dropped (the measures' table: the black view rows, 2026-10-29).
 - light.drawn_count: the sky's prims counted (the measures' table: the drawn row, 2026-10-29).
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
@@ -480,6 +480,60 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     UsdGeom.Cube.Define(tiny, "/tiny/Objects/hub")
     tiny.Save()
     drawn.append(light.drawn_count(tmp_path / "tiny.usda", "tiny"))
+    # the rows read the design only (owner's rule of 2026-10-21, a wording check of the declared files): no row
+    # declares a record in data/scene, read here on the real design before the one made below stands in for it
+    hand_kept = [(place, path) for place in ("launch", "square", "hub")
+                 for files in (light.layer_files, light.light_files, passes.passes_files)
+                 for path in files(place).values() if path.startswith("{data}/scene")]
+    applies = (light.applies("far_city"), light.applies(None))
+    design = design_world(tmp_path / "design")
+    with monkeypatch.context() as patched:
+        patched.setattr(passes, "KEPT", design)
+        patched.setattr(needs, "KEPT_PLANS", design / "plans")
+        # what a place needs lit: an outdoor place the design stands on no ground lacks its seat and its sky until
+        # its kept sky has a site and a scene time; a room under a roof needs neither, whatever an old hand-kept
+        # record beside it says; a place with no plan adds nothing
+        old = tmp_path / "needs"
+        (old / "scene").mkdir(parents=True)
+        (old / "skies").mkdir()
+        (old / "scene/room.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
+        (old / "scene/oldonly.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
+        needed = {"yard": needs_of("yard", old, design)}
+        (old / "skies/yard.json").write_text(json.dumps({"place": "yard", "top": "yard",
+                                                         "time": "2024-06-01T12:00:00Z",
+                                                         "site": {"on": "rock", "x": 0, "y": 0, "height_m": 0},
+                                                         "setting": setting.checked(YARD)}))
+        needed.update({place: needs_of(place, old, design) for place in ("yard kept", "nowhere")})
+        needed.update({place: needs.gaps(place, old, old / "skies") for place in ("room", "oldonly")})  # the light's
+        # the record is the scene-record output's (a shown place's read beside, with its seed and its design kit)
+        record_inputs = {}
+        for node, place in (("scene-record", "launch"), ("scene-record@square", "square")):
+            (tmp_path / "rows" / node / "record").mkdir(parents=True)
+            (tmp_path / "rows" / node / "record" / f"{place}.json").write_text(json.dumps({"place": place,
+                                                                                         "lights": []}))
+            record_inputs[node] = str(tmp_path / "rows" / node)
+            kit = tmp_path / "rows" / f"{place}-kit.json"  # the design's kit, as earth-seed writes it
+            kit.write_text(json.dumps({"room": place, "pieces": []}))
+            record_inputs["kit" if place == "launch" else f"kit {place}"] = str(kit)
+        record_inputs["neighbour square"] = str(tmp_path / "rows")  # its seed, as passes_files declares it
+        heads = light.lamp_heads("launch", record_inputs)
+        # the floodlights: the glowing rows the plan aims that the kit lays, each kind `<room>_<row>`
+        laid = {place: {"room": place, "pieces": [{"kind": f"{place}_{row}", "part": "glow"}
+                                                  for row in ("mast_lamp", "desk")]} for place in ("yard", "hall",
+                                                                                                   "shed")}
+        shafted = {place: haze.shafted_kinds(place, kit) for place, kit in laid.items()}
+        # the places shown: the accepted record's with a kept plan, none before it stands accepted
+        flat_record = {"place": "flat", "places": [{"stage": "wreck"}, {"stage": "far_city"}, {"stage": "flat"}]}
+        shown = []
+        for held in ({"scene-record@flat": flat_record}, {}):
+            patched.setattr(Store, "default", classmethod(lambda cls, held=held: Accepted(held)))
+            shown.append(passes.neighbours("flat"))
+        floodlit = (haze.shafted_rows("yard"), shafted, haze.shafted_kinds("yard", {"room": "yard", "pieces": []}))
+    # fault (Buy of 2026-10-24): glowing put score/stages on sys.path, so the assembly's `import sound` took the
+    # sound stage package for tools/usd/sound.py and failed on audio_prim
+    stages = str(pathlib.Path(haze.__file__).resolve().parents[1])
+    lamp, sun = {"path": "/p/Lights/lamp_1"}, {"path": "/p/Lights/sky_sun", "sun": True}
+    fill = {"path": "/p/Lights/concept_fill", "sun": True, "fill": True}
     for said, measured, expected in (
             ("a bank of lit panes: its halo", grid["halo"], Between(high=0.02)),
             ("a bank of lit panes: its fill", grid["fill"], Between(high=0.1)),
@@ -549,7 +603,34 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
             ("a black view's brightness", mix.place_brightness(unlit_views, {}), pytest.approx(0.0003)),
             ("a black view swept toward 0.3: still not within",
              mix.within(unlit_views, {"lamp_0": mix.sweep(unlit_views, ["lamp_0"], 0.3)}, 0.3), False),
-            ("prims drawn by a stage of its sky alone, then with a hub", drawn, [0, 1])):
+            ("prims drawn by a stage of its sky alone, then with a hub", drawn, [0, 1]),
+            ("no light at all, outside and inside: named",
+             (bool(light.unlit_why([], inside=False)), bool(light.unlit_why([], inside=True))), (True, True)),
+            ("an inside place lit by a sun alone: named", bool(light.unlit_why([sun], inside=True)), True),
+            ("an outdoor place lit by its sun", light.unlit_why([sun], inside=False), None),
+            ("an inside place lit by its lamp", light.unlit_why([lamp], inside=True), None),
+            ("an outdoor place lit by its lamp and sun", light.unlit_why([lamp, sun], inside=False), None),
+            ("an inside place lit by its sun and the concept's fill", light.unlit_why([sun, fill], inside=True), None),
+            ("a place whose lights were not read", "not read" in light.unlit_why([], False, read=False), True),
+            ("an outdoor yard on no ground and with no kept sky", needed["yard"], ["ground:seat:yard",
+                                                                                   "sky:site:yard"]),
+            ("the yard with its kept sky", needed["yard kept"], []),
+            ("a room under its roof, an old record saying outside: no light need", needed["room"], []),
+            ("an old hand-kept record with no plan: no light need", needed["oldonly"], []),
+            ("a place with no plan", needed["nowhere"], []),
+            ("a place with no kept plan, and none: no row", applies, (False, False)),
+            ("a row declaring a record in data/scene", hand_kept, []),
+            ("the record rows' place, its shown places and a shown place's record",
+             (passes.place_of(record_inputs), passes.shown_in(record_inputs),
+              passes.record_of("square", record_inputs)["place"]), ("launch", ["square"], "square")),
+            ("a kit laying no shafted lamp: no floodlight head", heads, []),
+            ("the shafted rows: the glowing row its plan aims", floodlit[0], {"mast_lamp"}),
+            ("the shafted kinds a yard, a hall aiming none and a shed aiming no glowing row lay", floodlit[1],
+             {"yard": {"yard_mast_lamp"}, "hall": set(), "shed": set()}),
+            ("a kit laying none of the yard's shafted rows", floodlit[2], set()),
+            ("score/stages put on sys.path", stages in [str(pathlib.Path(entry).resolve()) for entry in sys.path
+                                                        if entry], False),
+            ("the places an accepted record shows, then none accepted", shown, [["wreck"], []])):
         assert expected == measured, (said, measured)
     with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
         measure.where({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0], "fov": 90},
@@ -619,6 +700,50 @@ def exposure_of(folder, look, sky_mask, surface):
     np.savez(folder / "passes/hall-0/v-passes.npz", combined=np.ones((10, 10)), sky=sky_mask,
              **({} if surface is None else {"surface": surface}))
     return light.exposure_measures("hall", folder, folder)
+
+
+YARD = {"plots": [{"name": "Rock", "gravity": 9.81}], "sites": [{"place": "yard", "on": "rock", "x": 0, "y": 0}],
+        "lights": [{"name": "Sun", "kelvin": 5800, "lux": 100000, "latitude": 52.0, "tilt_deg": 23.44,
+                    "day_hours": 24, "year_days": 365.2422, "equinox": "2024-03-20T12:00:00Z"}]}
+
+
+def design_world(design):
+    """The design's kept plans and scene inventories, as score/review/plans.py keeps them: an open yard aiming its
+    mast lamp, a room under its roof, a hall aiming nothing, a shed aiming its desk (no glowing kind's row), and the
+    wreck, whose plan says where its doors lead; each inventory a mast lamp and a desk. The folder."""
+    plans = {"yard": {"shell": "outdoor", "w": 10.0, "d": 10.0, "aims": {"mast_lamp": {"at": "pad"}}},
+             "room": {"shell": "kit", "inside": True}, "hall": {"aims": {}},
+             "shed": {"aims": {"desk": {"at": "pad"}}}, "wreck": {"leads": {}}}
+    for kind in ("plans", "inventory"):
+        (design / kind).mkdir(parents=True)
+    for place, plan in plans.items():
+        (design / f"plans/{place}.json").write_text(json.dumps(plan))
+    for place in ("yard", "hall", "shed"):
+        (design / f"inventory/{place}.json").write_text(json.dumps({"rows": [
+            {"id": "mast_lamp", "name": "mast lamp"}, {"id": "desk", "name": "desk"}]}))
+    return design
+
+
+def needs_of(place, data, design):
+    """The light's and the ground's gap ids for `place` (`<place> kept` reads `place`), `data` holding the old
+    hand-kept records and the kept skies."""
+    place = place.split()[0]
+    skies = data / "skies"
+    return sorted(gap["id"] for gap in needs.gaps(place, data, skies) +
+                  ground_needs.gaps(place, data, design / "plans", skies))
+
+
+class Accepted:
+    """A store holding `held` ({node: record}) as accepted outputs."""
+
+    def __init__(self, held):
+        self.held = held
+
+    def accepted(self, node):
+        return "output" if node in self.held else None
+
+    def read_file(self, output, name):
+        return self.held["scene-record@flat"] if name == "record/flat.json" else None
 
 
 # --- the measures on pictures made here ----------------------------------------------------------------------------
@@ -1408,16 +1533,6 @@ def test_no_camera_glow_is_written_from_a_record_that_holds_none(tmp_path):
     assert not held or not held.HasAttribute("score:glow_threshold")
 
 
-def test_a_place_lit_by_nothing_in_its_design_is_named_before_the_paid_render():
-    """No light at all, or an inside place lit only by the sky's lights outside its shell."""
-    lamp, sun = {"path": "/p/Lights/lamp_1"}, {"path": "/p/Lights/sky_sun", "sun": True}
-    assert light.unlit_why([], inside=False) and light.unlit_why([], inside=True)
-    assert light.unlit_why([sun], inside=True) and light.unlit_why([sun], inside=False) is None
-    assert light.unlit_why([lamp], inside=True) is None and light.unlit_why([lamp, sun], inside=False) is None
-    fill = {"path": "/p/Lights/concept_fill", "sun": True, "fill": True}
-    assert light.unlit_why([sun, fill], inside=True) is None and "not read" in light.unlit_why([], False, read=False)
-
-
 @pytest.mark.parametrize("inside, kind", ((False, UsdLux.DistantLight), (True, UsdLux.SphereLight)))
 def test_the_concepts_fill_comes_wherever_the_concept_shows_unseen_light(tmp_path, inside, kind):
     """A concept showing light from no source in view takes its fill, in the open beside a sun over the horizon too
@@ -1483,99 +1598,3 @@ def test_a_shown_place_keeps_its_pictures(tmp_path):
     assert not (tree.parent / "light-of-tiny").exists()
     shutil.rmtree(tree / "tiny/assets/textures")
     assert len(passes.unresolved(tree / "tiny/tiny.usda")) == 1
-
-
-# --- the rows read the design only ----------------------------------------------------------------------------------
-
-def test_what_an_outdoor_place_needs_lit_comes_from_its_plan_and_kept_sky(tmp_path, monkeypatch):
-    """An outdoor place the design stands on no ground lacks its seat and its sky until its kept sky has a site and a
-    scene time; a room under a roof needs neither, whatever an old hand-kept record beside it says; a place with no
-    plan adds nothing."""
-    data = tmp_path
-    for folder in ("scene", "plans", "definitions", "skies"):
-        (data / folder).mkdir(parents=True)
-    skies = data / "skies"
-    (data / "plans/yard.json").write_text(json.dumps({"shell": "outdoor", "w": 10.0, "d": 10.0}))
-    (data / "plans/room.json").write_text(json.dumps({"shell": "kit", "inside": True}))
-    (data / "scene/room.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
-    (data / "scene/oldonly.json").write_text(json.dumps({"environment": {"inside": False}, "views": []}))
-    monkeypatch.setattr(needs, "KEPT_PLANS", data / "plans")
-
-    def ids(place):
-        return sorted(gap["id"] for gap in needs.gaps(place, data, skies) +
-                      ground_needs.gaps(place, data, data / "plans", skies))
-    assert ids("yard") == ["ground:seat:yard", "sky:site:yard"], ids("yard")
-    house = {"plots": [{"name": "Rock", "gravity": 9.81}], "sites": [{"place": "yard", "on": "rock", "x": 0, "y": 0}],
-             "lights": [{"name": "Sun", "kelvin": 5800, "lux": 100000, "latitude": 52.0, "tilt_deg": 23.44,
-                         "day_hours": 24, "year_days": 365.2422, "equinox": "2024-03-20T12:00:00Z"}]}
-    (skies / "yard.json").write_text(json.dumps({"place": "yard", "top": "yard", "time": "2024-06-01T12:00:00Z",
-                                                 "site": {"on": "rock", "x": 0, "y": 0, "height_m": 0},
-                                                 "setting": setting.checked(house)}))
-    assert ids("yard") == [], ids("yard")
-    assert needs.gaps("room", data, skies) == []
-    assert needs.gaps("oldonly", data, skies) == [] and ids("nowhere") == []
-
-
-def test_the_rows_read_the_scene_record_output_never_a_hand_kept_record(tmp_path):
-    """Owner's rule of 2026-10-21 (wording check of the declared files): no row declares a record in data/scene; the
-    record is the scene-record output's (a shown place's read beside), and a place with no kept plan has no row."""
-    assert not light.applies("far_city") and not light.applies(None)
-    for place in ("launch", "square", "hub"):
-        for files in (light.layer_files, light.light_files, passes.passes_files):
-            assert not [path for path in files(place).values() if path.startswith("{data}/scene")], (place, files)
-    inputs = {}
-    for node, place in (("scene-record", "launch"), ("scene-record@square", "square")):
-        (tmp_path / node / "record").mkdir(parents=True)
-        (tmp_path / node / "record" / f"{place}.json").write_text(json.dumps({"place": place, "lights": []}))
-        inputs[node] = str(tmp_path / node)
-        kit = tmp_path / f"{place}-kit.json"  # the design's kit, as earth-seed writes it
-        kit.write_text(json.dumps({"room": place, "pieces": []}))
-        inputs["kit" if place == "launch" else f"kit {place}"] = str(kit)
-    inputs["neighbour square"] = str(tmp_path)  # its seed, as passes_files declares each shown place's
-    assert passes.place_of(inputs) == "launch" and passes.shown_in(inputs) == ["square"]
-    assert passes.record_of("square", inputs)["place"] == "square"
-    assert light.lamp_heads("launch", inputs) == []  # no kit lays a shafted lamp: no floodlight head
-
-
-def test_the_floodlights_are_the_glowing_rows_the_plan_aims_that_the_kit_lays(tmp_path, monkeypatch):
-    rows = [{"id": "mast_lamp", "name": "mast lamp"}, {"id": "desk", "name": "desk"}]
-    aims = {"yard": {"mast_lamp": {"at": "pad"}}, "hall": {}, "shed": {"desk": {"at": "pad"}}}
-    for kind in ("design/plans", "design/inventory"):
-        (tmp_path / kind).mkdir(parents=True)
-    for place, aimed in aims.items():
-        (tmp_path / f"design/plans/{place}.json").write_text(json.dumps({"aims": aimed}))
-        (tmp_path / f"design/inventory/{place}.json").write_text(json.dumps({"rows": rows}))
-    monkeypatch.setattr(passes, "KEPT", tmp_path / "design")
-    laid = {place: {"room": place, "pieces": [{"kind": f"{place}_{row['id']}", "part": "glow"} for row in rows]}
-            for place in aims}
-    assert haze.shafted_rows("yard") == {"mast_lamp"}
-    # fault (Buy of 2026-10-24): glowing put score/stages on sys.path, so the assembly's `import sound` took the
-    # sound stage package for tools/usd/sound.py and failed on audio_prim
-    stages = str(pathlib.Path(haze.__file__).resolve().parents[1])
-    assert stages not in [str(pathlib.Path(entry).resolve()) for entry in sys.path if entry], sys.path
-    assert haze.shafted_kinds("yard", laid["yard"]) == {"yard_mast_lamp"}
-    assert not haze.shafted_kinds("hall", laid["hall"]) and not haze.shafted_kinds("shed", laid["shed"])
-    assert not haze.shafted_kinds("yard", {"room": "yard", "pieces": []})
-
-
-def test_the_places_shown_are_the_accepted_records_with_a_kept_plan(tmp_path, monkeypatch):
-    """Never an old hand-kept record's: none before the record stands accepted, a planless one left out."""
-    record = {"place": "flat", "places": [{"stage": "wreck"}, {"stage": "far_city"}, {"stage": "flat"}]}
-
-    class Accepted:
-        def __init__(self, held):
-            self.held = held
-
-        def accepted(self, node):
-            return "output" if node in self.held else None
-
-        def read_file(self, output, name):
-            return self.held["scene-record@flat"] if name == "record/flat.json" else None
-
-    monkeypatch.setattr(passes, "KEPT", tmp_path)
-    (tmp_path / "plans").mkdir()
-    (tmp_path / "plans/wreck.json").write_text(json.dumps({"leads": {}}))
-    monkeypatch.setattr(Store, "default", classmethod(lambda cls: Accepted({"scene-record@flat": record})))
-    assert passes.neighbours("flat") == ["wreck"]
-    monkeypatch.setattr(Store, "default", classmethod(lambda cls: Accepted({})))
-    assert passes.neighbours("flat") == []
