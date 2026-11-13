@@ -20,6 +20,7 @@ tools/review/demo.py, by the behaviour's key words:
 - turns in place: standing_frames turns every shot the same way.
 - glides at one speed: eased is one cosine over the whole shot.
 - corner rounded: rounded_corners keeps every corner sharp.
+- corner ends kept: rounded_corners moves the path's last point (5 cm).
 - says stand, stands: shot_move walks a camera that says stand.
 - near level: levelled clamps nothing.
 - consecutive moments: shot_times starts every shot at the same moment.
@@ -200,6 +201,7 @@ def test_a_films_shots_keep_clear_and_move_smoothly():
     # A walk's path cornered 148 degrees at once in the right room, rounded as a walk's is, walks as smoothly.
     sharp = [np.array([x, camera_paths.EYE_HEIGHT, z]) for x, z in ((1.0, 2.0), (2.0, -1.5), (3.0, 2.0))]
     rounded = demo.rounded_corners(scenes, sharp)
+    assert np.allclose(rounded[0], sharp[0]) and np.allclose(rounded[-1], sharp[-1]), rounded
     view = camera("corner", [1.0, 1.6, 2.0], [5.0, 1.2, 2.0])
     move = {"camera": "corner", "move": "walk", "path": [point.tolist() for point in rounded]}
     assert len(rounded) == demo.ROUND_STEPS + 3, len(rounded)
