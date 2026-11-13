@@ -178,7 +178,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_park_holds_a_machine_only_while_it_pays_off.py": 24,
     "tools/cloud/test_pictures_draws_each_listed_picture_once_on_a_card_that_holds_its_model.py": 5,
     "tools/cloud/test_pool_books_every_card_once_and_deletes_every_card.py": 44,
-    "tools/cloud/test_preflight_sizes_paid_work_from_measured_numbers.py": 9,
     "tools/cloud/test_prop_batch_pays_each_measured_step_once.py": 6,
     "tools/cloud/test_prop_makers_hand_each_step_its_props_inputs.py": 7,
     "tools/cloud/test_scene_runs_only_an_approved_locked_plan_in_order.py": 7,
