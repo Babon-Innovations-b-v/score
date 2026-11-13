@@ -2622,7 +2622,16 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         box piled on its stacked one)
     Break: score/stages/assembly/flush_tops.py: laid's `if sloped is None or not triage.LEAN_MOST < sloped[1] <=
         SLOPE_MOST:` -> `if sloped is None:` (the box laid flush on the 30-degree slab), or crest_tops.py: stands'
-        `triage.lean(turn, ...)` -> `triage.lean(np.eye(4), ...)` (the box left upright on the 15-degree slab)"""
+        `triage.lean(turn, ...)` -> `triage.lean(np.eye(4), ...)` (the box left upright on the 15-degree slab)
+    Break: score/stages/assembly/fine_tops.py: spot's `if crest_tops.stands(mesh, exact, move):` -> `if False:` (the
+        computer left over the desk's slope), its `xs = np.arange(hold_low[0], ...)`, `zs = ...` -> each
+        `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left), or meets'
+        `return overlap(square, np.asarray(outline, float)) > fitting.BOARD_CLEAR` -> `return True` (the box beside the
+        diagonal railing read as in it)
+    Break: score/stages/assembly/railings_held.py: held_up's `keep = min(1.0, ...)` -> `keep = 1.0` (the chord left 4.5
+        m tall), cut_back's `if not inside(points[near], hulls):` -> `if True:` (its end left in the wall), change's
+        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening),
+        or held's `and not CLIMBED & set(climbing)` dropped (the stair's railing held)"""
     from score.stages.assembly import fitting
     console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
     on = {"how": "top", "holder": ["console_1"]}
@@ -2918,6 +2927,69 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert [fit["name"] for fit in flush] == ["maker_0"] and np.degrees(np.arccos(np.clip(
         turned @ slab_up / np.linalg.norm(turned), -1.0, 1.0))) < 1.0, (flush, turned)
     assert flush_tops.laid(stage, TOY, makers) == []
+    # greenhouse (settle@greenhouse, 2026-11-13): its desk's top is sloping bowls but for its front rim, and its four
+    # computers were left over the bowls, leaning 51 degrees once let down. A desk whose top (x 40 to 41) is a 40
+    # degree slope from 0.1 m at z 0 to 0.6 m at z 0.6, then a 0.14 m rim at 1 m to its front, z 0.74: a 0.2 m box laid
+    # over the slope stands on the rim, its middle at z 0.65 to 0.69 (its weight triage.BALANCE inside what it
+    # touches), its front past the desk's; crest_tops keeps its footprint within the desk (its middle at most 0.64,
+    # 0.04 inside the rim) and leaves it. Laid again it is left.
+    from score.stages.assembly import fine_tops
+    rim = trimesh.util.concatenate([
+        trimesh.convex.convex_hull(np.array([(x, y, z) for x in (40.0, 41.0) for y, z in (
+            (0.0, 0.0), (0.1, 0.0), (0.6, 0.6), (0.0, 0.6))], float)),
+        trimesh.creation.box(bounds=[(40.0, 0.0, 0.6), (41.0, 1.0, 0.74)])])
+    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/desk_40").AddTransformOp().Set(Gf.Matrix4d(1.0))
+    desk = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/desk_40/geo")
+    desk.CreatePointsAttr([tuple(map(float, point)) for point in rim.vertices])
+    desk.CreateFaceVertexCountsAttr([3] * len(rim.faces))
+    desk.CreateFaceVertexIndicesAttr([int(index) for index in rim.faces.ravel()])
+    faced(f"/{TOY}/Objects/computer_40", [(40.4, 1.2, 0.3), (40.6, 1.4, 0.5)])
+    computers = [{"name": "computer_40", "row": "computer", "on": {"how": "top", "holder": ["desk_40"]}}]
+    assert crest_tops.laid_on(stage, TOY, computers) == []
+    fine = fine_tops.laid(stage, TOY, computers)
+    low, high = fitting.world_box(stage, f"/{TOY}/Objects/computer_40")
+    assert [fit["name"] for fit in fine] == ["computer_40"] and abs(low[1] - 1.0) <= 0.01, (fine, low)
+    assert 0.65 - 1e-6 <= (low[2] + high[2]) / 2 <= 0.69 and high[2] > 0.74, (low, high)
+    assert fine_tops.laid(stage, TOY, computers) == []
+    # its railings run diagonally, their world boxes over the desks: a thing meets a thin one turned off the floor's
+    # axes by its outline (a 0.1 m strip along x = z), never by the box round it.
+    diagonal = (np.array([0.0, 0.0, 0.0]), np.array([4.0, 1.0, 4.0]),
+                np.array([(0.05, -0.05), (4.05, 3.95), (3.95, 4.05), (-0.05, 0.05)]))
+    assert not fine_tops.meets(np.array([2.5, 0.0, 0.5]), np.array([3.0, 0.5, 1.0]), diagonal)
+    assert fine_tops.meets(np.array([1.8, 0.0, 1.8]), np.array([2.3, 0.5, 2.3]), diagonal)
+    assert fine_tops.meets(np.array([2.5, 0.0, 0.5]), np.array([3.0, 0.5, 1.0]), (*diagonal[:2], None))
+    # its railing row, 1 m tall, built 4.5 m (its bake's parts from before railing_hold) as 9.4 m chords whose ends ran
+    # 0.12 and 0.14 m into its walls, the first and fifth over its stair's opening once held. A chord 9.4 m along x = z,
+    # 4.5 m tall, on a floor at 3 m that ends 0.9 m short of its middle, one end in a wall box, is held to 1 m, slid
+    # back along itself until its weight stands within the check's 5 cm of the floor's edge, and drawn back until it
+    # stands railings_held.CLEAR off the wall; laid again it is left. railing_hold's rule holds: a stair's railing,
+    # which climbs, and a squat one are not held.
+    from scipy.spatial import ConvexHull
+    from score.stages.assembly import railings_held
+    import score.stages.props.railing_hold as railing_hold
+    import score.stages.props.thin_straight as thin_straight
+    railing_row = {"id": "railing", "name": "metal railings", "noun": "railing", "anchor": "on:upper_floor",
+                   "size": [50.0, 0.1, 1.0]}
+    for kept in (railing_row, {**railing_row, "name": "stair railing", "anchor": "on:staircase"},
+                 {**railing_row, "size": [2.0, 1.0, 1.0]}, {**railing_row, "name": "metal pipe", "noun": "pipe"}):
+        assert railings_held.held(kept) == (thin_straight.profile(kept) == "railing" and not railing_hold.climbs(kept)
+                                            and thin_straight.slender(kept["size"])), kept
+    assert railings_held.held(railing_row) and not railings_held.held({**railing_row, "anchor": "on:staircase"})
+    way = np.array([1.0, 0.0, 1.0]) / np.sqrt(2.0)
+    chord = trimesh.creation.box(extents=(9.4, 4.5, 0.1))
+    chord.apply_transform(trimesh.transformations.rotation_matrix(np.radians(-45.0), (0.0, 1.0, 0.0)))
+    chord.apply_translation((0.0, 5.25, 0.0))
+    wall = ConvexHull(np.array([(x, y, z) for x in (2.6, 4.0) for y in (2.8, 8.0) for z in (2.0, 5.0)], float))
+
+    def under(points):
+        return np.where(points @ way > -0.9, np.inf, np.abs(points[:, 1] - 3.0))
+    whole, words = railings_held.change(chord, railing_row, [wall], under)
+    laid_chord = chord.copy()
+    laid_chord.apply_transform(whole.T)
+    assert np.isclose(np.ptp(laid_chord.vertices[:, 1]), 1.0) and np.isclose(laid_chord.bounds[0, 1], 3.0), words
+    assert not railings_held.inside(laid_chord.vertices, [wall]) and "slid -0." in words, words
+    assert railings_held.outside_by(laid_chord, under) <= 0.05 < railings_held.outside_by(chord, under), words
+    assert railings_held.change(laid_chord, railing_row, [wall], under) is None
 
 
 def test_a_wall_item_stands_on_its_named_face():
@@ -3481,7 +3553,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     Break: score/stages/assembly/face_down.py: faced_standing's `and given.get(entry["row"]) in STANDING` -> `` (the
         panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows)` ->
         `faced_standing(record)`
-    Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`, or
+        `railings_held.laid(folder, seed.name, inventory_rows(inputs))` -> `pass`
     Break: score/stages/assembly/tops_levelled.py: `fits = crest_tops.laid_on(stage, place, entries)` -> `fits = []`,
         or `layer.Save()` -> `pass`
     Break: score/stages/assembly/grounded.py: `level_spot.slid(folder, seed.name)` -> `pass`
@@ -3654,6 +3727,9 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     monkeypatch.setattr(roof_tops, "let_down", lambda folder, place, rows: roofed.append((folder, place)) or [])
     monkeypatch.setattr(level_spot, "slid", lambda folder, place: levelled.append((folder, place)) or [])
     monkeypatch.setattr(tops_levelled, "laid", lambda folder, place: topped.append((folder, place)) or [])
+    from score.stages.assembly import railings_held
+    railed = []
+    monkeypatch.setattr(railings_held, "laid", lambda folder, place, rows: railed.append((folder, place)) or [])
     monkeypatch.setattr(on_ground, "stood", lambda folder, place: stood.append((folder, place)) or [])
     monkeypatch.setattr(face_down, "let_down", lambda folder, place, rows: downed.append((folder, place)) or [])
     root = grounded.grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)},
@@ -3662,7 +3738,7 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
     assert parted == [(tmp_path / "settle", TOY)], parted  # parted as the assembly's make parts (wired.make)
     assert stood == [(tmp_path / "settle", TOY)], stood  # on its made ground, as the assembly's make stands them
-    assert levelled == downed == topped == roofed == [(tmp_path / "settle", TOY)], downed  # as wired.make lays them
+    assert levelled == downed == topped == roofed == railed == [(tmp_path / "settle", TOY)], downed  # as wired.make
     # assembly@wreck (2026-11-12): every thing laid at the plan's floor, 0 m, over a made ground from -4.8 to +4.0 m
     # under them. On a ground rising 0.2 m a metre north from 1 m at z 0, a 1 m box laid at 0 m is turned
     # atan(0.2) = 11.31 degrees with the slope and let down onto it, every corner of its foot on the ground and the
