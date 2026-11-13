@@ -113,12 +113,31 @@ def as_they_rest(inventory, record):
     `hanging` support (mounted.on_faces: judged by touching), as the assembly's resting check reads them:
     never dropped or snapped down, never judged on its feet; the settle leans a leaning one itself (leaning_phase).
     2026-11-07: settle@storage judged its wall lights 2.5 m up the left wall as floating and its wall pipes as
-    standing on nothing, the assembly as mounted."""
+    standing on nothing, the assembly as mounted. A ceiling row's thing the record lays standing on its holder's top
+    or within it stands (standing_on_ceilings)."""
     from score.stages.assembly.mounted import mounted, on_faces, resting_as_laid
     rows = with_anchors(inventory)["rows"]
-    given = {**on_faces(record or {}), **mounted({row["id"]: row for row in rows}), **resting_as_laid(record or {})}
+    given = {**on_faces(record or {}), **standing_on_ceilings(mounted({row["id"]: row for row in rows}), record),
+             **resting_as_laid(record or {})}
     return {**inventory, "rows": [{**row, "support": given[row["id"]]} if row["id"] in given and not row.get("support")
                                   else row for row in rows]}
+
+
+def standing_on_ceilings(mounted, record):
+    """The `mounted` rows ({row id: "wall" or "ceiling"}) less each ceiling one the scene `record` lays standing on
+    its holder: on its top (assembly/on_tops.standing, as the assembly's resting_rows reads it) or within it, neither
+    hung there (`hangs`) nor filling it (`fills`). holders.holder_kind reads a "dome" as a ceiling by its word:
+    settle@campgrounds judged its habitat ramp, laid within its habitat dome on the ground, a ceiling piece touching
+    nothing (2026-11-13). Here, not in on_tops.py, which an edit would move in some 25 rows of every world's code."""
+    from score.stages.assembly import on_tops
+    rows = {}
+    for entry in (record or {}).get("objects") or []:
+        on = entry.get("on") or {}
+        rows.setdefault(entry["row"], []).append(on.get("how") == "within" and not on.get("hangs")
+                                                 and not entry.get("fills"))
+    within = {row_id for row_id, stands in rows.items() if all(stands)}
+    return {row_id: kind for row_id, kind in on_tops.standing(mounted, record).items()
+            if kind != "ceiling" or row_id not in within}
 
 
 def scene_record(root):
@@ -150,7 +169,8 @@ def make(inputs, out, seed, params):
         stage = Usd.Stage.Open(str(root))
         loose, ignore, starts, under = settle.drop_job(stage, place, inventory, upright=True, kit_path=inputs["kit"])
         found = judged(root, inputs)
-        laid = faulty(found, place)
+        contained = within_of(record)  # one laid within another by its plan: no overlap fault (planned_within)
+        laid = faulty(found, place, contained)
         hollow, unsplit = {}, {}  # the objects dropped as convex parts; those CoACD failed on, as their one hull
         if starts or under or laid & set(loose):
             hollow, unsplit = convex_parts.hollow_parts(stage, place, loose, PARTS)
@@ -175,11 +195,11 @@ def make(inputs, out, seed, params):
         laid_over(root, seed, place, poses, scratch / "held.usda")
         rested = judged(root, inputs)
         poses = merged(poses, fixed_phase(root, rested, place, ("floor",)), seed, place)  # a hull's hollow on the drop
-        worse = faulty(rested, place) - laid
+        worse = faulty(rested, place, contained) - laid
         poses, fell_back = fallen_back(poses, worse)
         if fell_back:  # each now at the drop's own rest, judged again
             laid_over(root, seed, place, poses, scratch / "fallback.usda")
-            worse = faulty(judged(root, inputs), place) - laid
+            worse = faulty(judged(root, inputs), place, contained) - laid
         rested_stage = Usd.Stage.Open(str(root))
         poses = kept_where_worse(poses, worse | supports_of(rested_stage, place, worse), inventory,
                                  lambda name: supports_of(rested_stage, place, {name}))
@@ -339,10 +359,14 @@ def judged(root, inputs):
                          inventory_file=inputs["inventory"])
 
 
-def faulty(found, place):
+def faulty(found, place, contained=None):
     """The top-level objects a triage finds a real fault on, by name (the free check before a drop is bought, and
-    after one what it made worse)."""
-    names = {fault["object"].removeprefix(f"/{place}/Objects/") for fault in found["faults"] if fault["real"]}
+    after one what it made worse), an overlap of one thing the plan lays within the other (`contained`, within_of)
+    not one, as the resting gate counts it (planned_within): settle@campgrounds' lander, inside its own attached ramp
+    as its plan lays it, read as faulty as laid, so the drop resting it 4.7 cm up on that ramp, five feet off the
+    ground, was never kept as laid as resting worse, and failed the gate (2026-11-13)."""
+    names = {fault["object"].removeprefix(f"/{place}/Objects/") for fault in found["faults"] if fault["real"]
+             and not planned_within(fault, contained or {})}
     return {name.split("/")[0] for name in names}
 
 
@@ -361,15 +385,28 @@ def kept_where_worse(poses, worse, inventory, resting_on):
     a sloping base the drop tips over the triage's lean, a mouse snapped onto a desk's edge), and what is held on it,
     kept as laid: the layer never makes an object rest worse. Held on it is held on that very object
     (`resting_on(name)`: the objects it rests on, supports_of), not on any of its row: one pallet resting worse kept
-    every case on all four of the campgrounds' pallets as laid, 5 degrees over on theirs (2026-10-15)."""
+    every case on all four of the campgrounds' pallets as laid, 5 degrees over on theirs (2026-10-15); or carried with
+    that very object (moved as it moved, carried_along: campgrounds' lander ramp, attached within its lander)."""
     held_on = {row["id"]: row.get("anchor", "").removeprefix("on:") for row in inventory["rows"]}
     rows = {name.rsplit("_", 1)[0] for name in worse}
     kept = {name for name in poses if name in worse
-            or (held_on.get(name.rsplit("_", 1)[0]) in rows and resting_on(name) & worse)}
+            or (held_on.get(name.rsplit("_", 1)[0]) in rows
+                and (resting_on(name) & worse or carried_along(poses, name, worse)))}
     return {name: (dict(pose, after=pose["before"], rested=False,
                         said=f"kept as laid: {pose['said']} made it, or what lies on it, rest worse") if name in kept
                    else pose)
             for name, pose in poses.items()}
+
+
+def carried_along(poses, name, holders):
+    """Whether the layer moves object `name` exactly as it moves one of `holders` (settle.carried_with gives what lies
+    on a settled object its holder's motion) while it moves at all."""
+    import numpy as np
+    pose = poses[name]
+    motion = pose["after"] @ np.linalg.inv(pose["before"])
+    return not np.allclose(motion, np.eye(4)) and any(
+        np.allclose(motion, poses[holder]["after"] @ np.linalg.inv(poses[holder]["before"]))
+        for holder in holders if holder in poses)
 
 
 def supports_of(stage, place, names):

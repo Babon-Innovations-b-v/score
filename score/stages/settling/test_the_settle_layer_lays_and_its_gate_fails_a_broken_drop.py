@@ -17,7 +17,10 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   `return other in contained.get(one, ()) or one in contained.get(other, ())` made `return False` (plants laid within
   their bed fail, greenhouse 2026-11-09), or made `return True` (a laptop on its desk excused).
 - only_what_lies_on_the_object_resting_worse_is_kept_with_it: kept_where_worse's `resting_on(name) & worse` made
-  `True` (every case of the row kept).
+  `True` (every case of the row kept); its `or carried_along(poses, name, worse)` dropped, or carried_along's
+  `np.allclose(motion, ...)` made `True` (the ramp carried with the worse lander left lifted, or the other lander's
+  ramp kept); faulty's `and not planned_within(fault, contained or {})` dropped (the lander inside its planned ramp
+  faulty as laid: settle@campgrounds 2026-11-13).
 - a_flush_pose_resting_worse_falls_back_to_the_drops_rest: fallen_back's `back = {...}` made `back = set()`.
 - one_fallen_into_a_hollow_piece_is_laid_where_it_lands: laid_where_it_lands without its `supports[0] not in hollow`
   test (a one-hull support's faller laid where it lands).
@@ -53,7 +56,9 @@ Breaks that turn each check red (each applied once and seen red, reverted, 2026-
   floating board); and assembly/mounted.py resting_as_laid's `if entry.get("rests") in ("leaning", "attached")` made
   `if False` (the leaning and attached rows dropped and snapped as loose and held ones); and as_they_rest's
   `**mounted(...)` dropped (a lamp on a wall row judged standing on what is under it: settle@storage's wall lights
-  floating 2.5 m, 2026-11-07).
+  floating 2.5 m, 2026-11-07); and standing_on_ceilings' `or row_id not in within` made `or True` (the ramp within
+  its habitat dome judged a ceiling piece touching nothing, settle@campgrounds 2026-11-13), or its
+  `and not on.get("hangs")` dropped (the lamp hung within its dome judged standing).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once (tools/usd/drop.py): simulate's `machine.run(..., env=ENV)`
   without `env=ENV` (the drop sent to the card's Blender).
 - a_cloud_drop_runs_on_the_trials_card_in_its_python_once, its room_for_many_touching_bodies (inside/settle_drop.py,
@@ -285,17 +290,31 @@ def the_drop_gate_fails_a_broken_drop_and_names_what_was_kept():
 
 def only_what_lies_on_the_object_resting_worse_is_kept_with_it():
     """Both ways: a case on the pallet that rests worse is kept as laid with it; a case of the same row on another
-    pallet of the same row is not (the campgrounds' open cases, 2026-10-15)."""
+    pallet of the same row is not (the campgrounds' open cases, 2026-10-15). A ramp the layer carries with its lander
+    (moved as it moved, resting on nothing under it) is kept with the lander resting worse; one carried with another
+    lander is not (settle@campgrounds, 2026-11-13). And the make's free check counts no overlap of a thing laid within
+    another by its plan (faulty with within_of), so the lander inside its ramp is not faulty as laid and its worse
+    rest is kept as laid."""
     eye = np.eye(4)
-    moved = np.eye(4)
-    moved[1, 3] = 0.01
-    poses = {name: {"before": eye, "after": moved, "rested": True, "said": "moved"}
-             for name in ("pallet_1", "pallet_2", "case_1", "case_2")}
-    inventory = {"rows": [{"id": "pallet", "anchor": "floor"}, {"id": "case", "anchor": "on:pallet"}]}
+    moved, other = np.eye(4), np.eye(4)
+    moved[1, 3], other[1, 3] = 0.01, 0.02
+    poses = {name: {"before": eye, "after": moved if name.endswith("_1") else other, "rested": True, "said": "moved"}
+             for name in ("pallet_1", "pallet_2", "case_1", "case_2", "lander_1", "lander_2", "ramp_1", "ramp_2")}
+    inventory = {"rows": [{"id": "pallet", "anchor": "floor"}, {"id": "case", "anchor": "on:pallet"},
+                          {"id": "lander", "anchor": "ground"}, {"id": "ramp", "anchor": "on:lander"}]}
     under = {"case_1": {"pallet_1"}, "case_2": {"pallet_2"}}
-    found = settle.kept_where_worse(poses, {"pallet_1"}, inventory, lambda name: under.get(name, set()))
+    found = settle.kept_where_worse(poses, {"pallet_1", "lander_1"}, inventory, lambda name: under.get(name, set()))
     kept = sorted(name for name, pose in found.items() if not pose["rested"])
-    return [] if kept == ["case_1", "pallet_1"] else [f"kept {kept}, not the worse pallet and its own case"]
+    problems = [] if kept == ["case_1", "lander_1", "pallet_1", "ramp_1"] else [
+        f"kept {kept}, not the worse pallet and lander and their own case and ramp"]
+    record = {"objects": [{"name": "ramp_1", "on": {"how": "within", "holder": ["lander_1"]}}]}
+    triaged = {"faults": [{"object": "/campgrounds/Objects/lander_1", "kind": "overlaps", "partner": "ramp_1",
+                           "real": True},
+                          {"object": "/campgrounds/Objects/crate_1", "kind": "overlaps", "partner": "crate_2",
+                           "real": True}]}
+    if settle.faulty(triaged, "campgrounds", settle.within_of(record)) != {"crate_1"}:
+        problems.append("the lander inside its planned ramp read as faulty as laid, or crates inside each other not")
+    return problems
 
 
 
@@ -539,12 +558,20 @@ def a_leaning_thing_rests_on_its_foot_against_its_holder_and_the_gate_fails_one_
     from score.stages.settling import held
     problems = []
     rows = {"objects": [{"name": "board_1", "row": "board", "rests": "leaning", "on": {"how": "wall", "out": [1, 0]}},
-                        {"name": "ramp_1", "row": "ramp", "rests": "attached"}, {"name": "crate_1", "row": "crate"}]}
+                        {"name": "ramp_1", "row": "ramp", "rests": "attached"}, {"name": "crate_1", "row": "crate"},
+                        {"name": "habitat_ramp_1", "row": "habitat_ramp", "on": {"how": "within"}},
+                        {"name": "dome_lamp_1", "row": "dome_lamp", "on": {"how": "within", "hangs": True}},
+                        {"name": "antenna_1", "row": "antenna", "on": {"how": "top"}}]}
     inventory = settle.as_they_rest({"rows": [{"id": "board"}, {"id": "ramp", "anchor": "on:lander"},
                                               {"id": "crate"}, {"id": "left_wall", "part": "wall"},
-                                              {"id": "lamp", "anchor": "on:left_wall"}]}, rows)
+                                              {"id": "lamp", "anchor": "on:left_wall"},
+                                              {"id": "habitat_dome", "part": "structure"},
+                                              {"id": "habitat_ramp", "anchor": "on:habitat_dome"},
+                                              {"id": "dome_lamp", "anchor": "on:habitat_dome"},
+                                              {"id": "antenna", "anchor": "on:habitat_dome"}]}, rows)
     supports = {row["id"]: row.get("support") for row in inventory["rows"]}
-    if supports != {"board": "fixed", "ramp": "fixed", "crate": None, "left_wall": None, "lamp": "wall"}:
+    if supports != {"board": "fixed", "ramp": "fixed", "crate": None, "left_wall": None, "lamp": "wall",
+                    "habitat_dome": None, "habitat_ramp": None, "dome_lamp": "ceiling", "antenna": None}:
         problems.append(f"supports as they rest: {supports}")
     ways = held.leaning(rows)
     if ways != {"board_1": [1, 0]}:
