@@ -26,15 +26,15 @@ tests it turned red:
 - surface_gates.py: `except (FileNotFoundError, KeyError, json.JSONDecodeError) as missing:` -> `except (KeyError,
   json.JSONDecodeError) as missing:`  -> a_gate_that_cannot_read_its_evidence_answers_unknown
 - bake_check.py: `(colour[:, 0] < BLOTCH_L) & (far > BLOTCH_DELTA_E)` -> `(colour[:, 0] < BLOTCH_L)`  ->
-  a_clean_label_border_passes_and_a_black_smudge_along_it_fails, a_surfaces_own_drawn_seams_are_not_blotches
+  every_part_takes_a_library_surface_and_is_held_to_it
 - bake_check.py: `if finish.get("measured_lab") is not None and not finish.get("cover"):` -> `if
-  finish.get("measured_lab") is not None:`  -> a_finish_judged_by_its_own_colour_is_not_compared_with_its_close_up
+  finish.get("measured_lab") is not None:`  -> every_part_takes_a_library_surface_and_is_held_to_it
 - bake_check.py: `name = route_settings.settings_name(finish["surface"], settings) if settings else finish["surface"]`
-  -> `name = finish["surface"]`  -> a_surface_with_the_list_s_settings_is_compared_with_its_close_up
+  -> `name = finish["surface"]`  -> every_part_takes_a_library_surface_and_is_held_to_it
 - bake_check.py: `if seen > ORDER_L and baked < -ORDER_BAKED:` -> `if False:`  ->
-  the_water_tank_s_reversed_greys_fail_and_its_cream_paint_passes
+  every_part_takes_a_library_surface_and_is_held_to_it
 - bake_check.py: `if apart >= 1: return []` -> `if apart >= 0: return []`  ->
-  one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance
+  every_part_takes_a_library_surface_and_is_held_to_it
 - place_line.py: `band = wide if not tall else min(FOOT_BAND, FOOT_BAND_METRES / tall) * height` -> `band = wide`  ->
   a_tall_take_s_feet_are_found_in_the_resting_check_s_band
 - place_line.py: `if record["feet"] == 2:` -> `if False:`  -> a_take_on_two_feet_has_its_short_one_levelled
@@ -351,7 +351,7 @@ tests it turned red:
   (pick_kept); or `if spec.get("recipe") == "glowing" and` -> `if False and` (glow_kept)  ->
   a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
 - check_seen.py: `if surface.split(route_settings.SEPARATOR)[0] in glowing` -> `if False` (lit_as_light)  ->
-  a_finish_judged_by_its_own_colour_is_not_compared_with_its_close_up
+  every_part_takes_a_library_surface_and_is_held_to_it
 - recheck_picks.py: `if apart > finish_parts.COLOUR_DELTA_E:` -> `if False:` (fitting); or `if picks:` -> `if
   False:` (make_parts); or `(out / batch_gaps.FILE).unlink(missing_ok=True)` -> `pass` (make_picks); or `or
   token_apart(...) > finish_parts.COLOUR_DELTA_E]` -> `or False]` (judge_picks)  ->
@@ -368,7 +368,7 @@ tests it turned red:
 - __init__.py (the table): `make=recheck_picks.make_parts,` -> `make=row.make,` (picks_applied)  ->
   a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
-  one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance
+  every_part_takes_a_library_surface_and_is_held_to_it
 - feet_stand.py: `if refused == [feet.get("rests")] else None` -> `if False else None` (judge_feet)  ->
   a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
 - feet_stand.py: `worst = max(worst, outside if outside > BALANCE else 0.0)` -> `worst = max(worst, 0.0)` (off_balance)
@@ -641,6 +641,7 @@ SEED_TRAY_SURFACES = [(30.5, 7.6, 15.6), (79.2, -0.7, 7.6), (9.3, 0.5, -1.4)]
 
 
 def paper_record(rows):
+    """The seed tray's checks.json record, its printed_paper's near-black share measured from `rows` (blotch_share)."""
     colour = np.array([row[:3] for row in rows])
     reach = np.array([[flag == "1" for flag in row[4]] for row in rows])
     share = bake_check.blotch_share(colour, np.array([row[3] for row in rows]), np.ones(len(rows), dtype=bool), reach,
@@ -650,20 +651,15 @@ def paper_record(rows):
                                            "near_black": share}}}
 
 
-def test_a_clean_label_border_passes_and_a_black_smudge_along_it_fails():
-    assert bake_check.surface_faults("seed_tray_1", paper_record(SEED_TRAY_PAPER)) == []
-    smudge, area = [], 0.0  # light triangles across the label's border turned black until a tenth of its area
-    total = sum(row[3] for row in SEED_TRAY_PAPER)
-    for row in SEED_TRAY_PAPER:
+def smudged(rows):
+    """`rows` with the light triangles across the label's border turned black until a tenth of its area."""
+    smudge, area = [], 0.0
+    total = sum(row[3] for row in rows)
+    for row in rows:
         if row[5] and row[0] > bake_check.BLOTCH_L and area < 0.1 * total:
             row, area = (0.0, 0.0, 0.0, *row[3:]), area + row[3]
         smudge.append(row)
-    faults = bake_check.surface_faults("seed_tray_1", paper_record(smudge))
-    assert len(faults) == 1 and "printed_paper" in faults[0] and "near black" in faults[0], faults
-    # the table wraps the make (stages/gaps.py: an accepted gap moves a fault, the wrapper unwraps to the judge); the
-    # finish route's check is bake_check's against the bake's specs (route_check.py), through check_seen.py
-    assert inspect.unwrap({stage.name: stage for stage in stages.STAGES}["surfaces-check"].make) \
-        is check_seen.make_check
+    return smudge
 
 
 # The flat's quilt_cotton as the library resolves it (linear RGB): red cotton, ink-line seams as its second.
@@ -682,73 +678,6 @@ def quilt_record(spec):
                                           "delta_e": 0.0, "near_black": share}}}
 
 
-def test_a_surfaces_own_drawn_seams_are_not_blotches():
-    assert bake_check.surface_faults("quilt_1", quilt_record(QUILT_COTTON)) == []
-    faults = bake_check.surface_faults("quilt_1", quilt_record({"colour": QUILT_COTTON["colour"]}))
-    assert len(faults) == 1 and "near black" in faults[0], faults
-
-
-def test_a_finish_judged_by_its_own_colour_is_not_compared_with_its_close_up():
-    """The garage beacon: its red transparent dome measured pale pink on its brighter half (its highlights and what
-    lies behind it), so the paint keeps red_plastic by its own colour; the bake check leaves it out of the close-up
-    too. The opaque knob of the same surface is still compared."""
-    dome = {"finish": "Red transparent plastic", "surface": "red_plastic", "measured_lab": [70.8, 21.2, 11.5],
-            "by": "its own colour", "cover": True}
-    label = {"finish": "Printed label", "surface": "printed_paper", "measured_lab": [30.0, 5.0, 5.0],
-             "by": "its own colour"}  # print off its listed colour: judged by its own colour, still in the close-up
-    knob = {"finish": "Red plastic", "surface": "red_plastic", "measured_lab": [40.0, 55.0, 40.0], "by": "the list"}
-    with tempfile.TemporaryDirectory() as scratch:
-        folder = pathlib.Path(scratch)
-        (folder / "labels.json").write_text(json.dumps({"finishes": [dome]}))
-        assert bake_check.close_up_colours(folder) == {}
-        (folder / "labels.json").write_text(json.dumps({"finishes": [dome, label]}))
-        assert bake_check.close_up_colours(folder) == {"printed_paper": [30.0, 5.0, 5.0]}
-        (folder / "labels.json").write_text(json.dumps({"finishes": [dome, knob]}))
-        assert bake_check.close_up_colours(folder) == {"red_plastic": [40.0, 55.0, 40.0]}
-    red = [38.5, 57.0, 47.5]
-    assert bake_check.close_up_faults("beacon_1", baked_record({"red_plastic": (1.0, red)}, {})) == []
-    faults = bake_check.close_up_faults("beacon_1", baked_record({"red_plastic": (1.0, red)},
-                                                                 {"red_plastic": dome["measured_lab"]}))
-    assert len(faults) == 1 and "red_plastic" in faults[0], faults
-    # the engine room's core (2026-11-13): its glow, a `glowing` variant whose family the scene library coined
-    # ("energy"), baked its blue against the close-up's white-hot column; as the row judges it (check_seen) a glowing
-    # surface is judged by its own colour, its opaque casing still compared and ordered
-    glow = route_settings.settings_name("core_glow", {"token": "reactor-blue", "roughness": 0.2, "metal": 0.0})
-    core = baked_record({glow: (0.23, [63.7, 7.0, -56.4]), "casing": (0.77, [32.3, 0.1, -2.6])},
-                        {glow: [77.1, 0.7, -2.7], "casing": [70.0, 0.0, 0.0]})
-    core["surfaces"][glow]["family"], core["missing_maps"] = "energy", []
-    assert len(bake_check.surface_faults("core_1", core)) == 2  # the glow off its close-up, the casing too
-    lit = bake_check.surface_faults("core_1", check_seen.lit_as_light(core, {"core_glow"}))
-    assert len(lit) == 1 and "casing" in lit[0], lit
-    assert check_seen.glowing_surfaces({}) == set()  # a row that reads no scene library: nothing counted lit
-    with tempfile.TemporaryDirectory() as scratch:
-        (pathlib.Path(scratch) / "checks.json").write_text(json.dumps({"core_1": core}))
-        assert check_seen.judge_lit(scratch, {}, None).answer == checks.FAIL
-
-
-WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, -0.3, 1.0],
-                       "tank_water": [53.2, -3.2, -2.3]}  # the finish-map method's measures, greenhouse, 2026-10-12
-
-
-def test_a_surface_with_the_list_s_settings_is_compared_with_its_close_up():
-    """astronaut-made (2026-10-23): the bake names a part with the list's settings by them (route_settings), so the
-    close-up keyed by the variant alone compared nothing; keyed as the part bakes, boots baked L* 65.5 against their
-    close-up's 33 fail. A finish the colour check moved to another surface bakes under that surface's own name."""
-    settings = {"token": "glass-grey", "roughness": 0.85, "metal": 0.0, "seed": 7}
-    boots = {"finish": "boots", "surface": "suit_boots", "listed_surface": "suit_boots", "settings": settings,
-             "measured_lab": [33.1, 0.9, 7.6]}
-    moved = {"finish": "belt", "surface": "rubber_dark", "listed_surface": "suit_boots", "settings": settings,
-             "measured_lab": [20.0, 0.0, 0.0]}
-    named = route_settings.settings_name("suit_boots", settings)
-    with tempfile.TemporaryDirectory() as scratch:
-        folder = pathlib.Path(scratch)
-        (folder / "labels.json").write_text(json.dumps({"finishes": [boots, moved]}))
-        close_up = bake_check.close_up_colours(folder)
-    assert close_up == {named: [33.1, 0.9, 7.6], "rubber_dark": [20.0, 0.0, 0.0]}, close_up
-    faults = bake_check.close_up_faults("body", baked_record({named: (1.0, [65.5, 0.0, 0.0])}, close_up))
-    assert len(faults) == 1 and named in faults[0] and "33.3" in faults[0], faults
-
-
 def baked_record(surfaces, close_up, degrees=None):
     """A checks.json record of a model baked exactly on its surfaces ({surface: (share, L*a*b*)})."""
     return {"surfaces": {name: {"share": share, "baked_lab": list(colour), "surface_lab": list(colour),
@@ -756,52 +685,141 @@ def baked_record(surfaces, close_up, degrees=None):
             "close_up": close_up, "seen_degrees": degrees}
 
 
+def labelled_close_up(finishes):
+    """The close-up colours bake_check reads from a take's labels.json holding `finishes`."""
+    with tempfile.TemporaryDirectory() as scratch:
+        (pathlib.Path(scratch) / "labels.json").write_text(json.dumps({"finishes": finishes}))
+        return bake_check.close_up_colours(pathlib.Path(scratch))
+
+
+# The garage beacon's finishes: its red transparent dome measured pale pink on its brighter half (its highlights and
+# what lies behind it), a cover judged by its own colour; a print off its listed colour, judged by its own colour but
+# still in the close-up; the opaque knob of the same surface as the dome, compared.
+DOME = {"finish": "Red transparent plastic", "surface": "red_plastic", "measured_lab": [70.8, 21.2, 11.5],
+        "by": "its own colour", "cover": True}
+LABEL = {"finish": "Printed label", "surface": "printed_paper", "measured_lab": [30.0, 5.0, 5.0], "by": "its own colour"}
+KNOB = {"finish": "Red plastic", "surface": "red_plastic", "measured_lab": [40.0, 55.0, 40.0], "by": "the list"}
+# astronaut-made (2026-10-23): boots with the list's settings bake by their settings' name (route_settings); a belt
+# the colour check moved to another surface bakes under that surface's own name.
+SUIT = {"token": "glass-grey", "roughness": 0.85, "metal": 0.0, "seed": 7}
+BOOTS = route_settings.settings_name("suit_boots", SUIT)
+BOOTS_FINISH = {"finish": "boots", "surface": "suit_boots", "listed_surface": "suit_boots", "settings": SUIT,
+                "measured_lab": [33.1, 0.9, 7.6]}
+BELT_FINISH = {"finish": "belt", "surface": "rubber_dark", "listed_surface": "suit_boots", "settings": SUIT,
+               "measured_lab": [20.0, 0.0, 0.0]}
+# Each take's finishes and the close-up colours they give: (finishes, close-up).
+CLOSE_UPS = {
+    "a covering dome": ([DOME], {}),
+    "a dome and an off-colour print": ([DOME, LABEL], {"printed_paper": [30.0, 5.0, 5.0]}),
+    "a dome and an opaque knob": ([DOME, KNOB], {"red_plastic": [40.0, 55.0, 40.0]}),
+    "an uncovered dome": ([dict(DOME, cover=False)], {"red_plastic": [70.8, 21.2, 11.5]}),
+    "boots by their settings, a belt moved": ([BOOTS_FINISH, BELT_FINISH],
+                                              {BOOTS: [33.1, 0.9, 7.6], "rubber_dark": [20.0, 0.0, 0.0]}),
+}
+
+WATER_TANK_CLOSE_UP = {"painted_panel": [80.3, -0.2, 6.0], "bare_steel": [67.3, -0.3, 1.0],
+                       "tank_water": [53.2, -3.2, -2.3]}  # the finish-map method's measures, greenhouse, 2026-10-12
 # The water tank's surfaces as the greenhouse's library gave them when it was fixed (2026-10-12), L*a*b*: the
 # check's measured case, kept as numbers since every old material was retired (2026-10-21).
 TANK_SURFACES = {"bare_steel": [66.3, -1.1, -4.5], "tank_water": [41.5, -3.2, -6.9], "cream_paint": [79.2, -0.7, 7.6]}
+GREY_PANEL = [61.6, -1.5, -6.5]
+# the engine room's core (2026-11-13): its glow, a `glowing` variant whose family the scene library coined ("energy"),
+# baked its blue against the close-up's white-hot column; its opaque casing off its close-up too
+CORE_GLOW = route_settings.settings_name("core_glow", {"token": "reactor-blue", "roughness": 0.2, "metal": 0.0})
 
 
-def test_the_water_tank_s_reversed_greys_fail_and_its_cream_paint_passes():
-    before = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]), "bare_steel": (0.1536, [66.3, -1.1, -4.5]),
-                           "tank_water": (0.1212, [58.7, -1.7, 2.4])}, WATER_TANK_CLOSE_UP)  # its stored check
-    before["seen_degrees"] = 23.83  # 1.4 m wide, 3.3 m from the greenhouse's nearest view
-    faults = bake_check.surface_faults("water_tank_1", before)
-    # its water bakes 8.9 b* off its paint, 1.9 noticeable differences at that size: told apart, not one look
-    assert len(faults) == 1 and "painted_panel is 13.0 L* lighter than bare_steel" in faults[0], faults
-    grey_body = baked_record({"painted_panel": (0.7253, [61.6, -1.5, -6.5]),
-                              "bare_steel": (0.1536, TANK_SURFACES["bare_steel"]),
-                              "tank_water": (0.1212, TANK_SURFACES["tank_water"])}, WATER_TANK_CLOSE_UP, 23.83)
-    faults = bake_check.surface_faults("water_tank_1", grey_body)  # the water fixed, the body still grey
-    assert len(faults) == 1 and "lighter than bare_steel" in faults[0], faults
-    after = baked_record({"cream_paint": (0.7253, TANK_SURFACES["cream_paint"]),
-                          "bare_steel": (0.1536, TANK_SURFACES["bare_steel"]),
-                          "tank_water": (0.1212, TANK_SURFACES["tank_water"])},
-                         {"cream_paint": WATER_TANK_CLOSE_UP["painted_panel"],
-                          **{name: WATER_TANK_CLOSE_UP[name] for name in ("bare_steel", "tank_water")}}, 23.83)
-    assert bake_check.surface_faults("water_tank_1", after) == [], bake_check.surface_faults("water_tank_1", after)
-    one = baked_record({"painted_panel": (1.0, [61.6, -1.5, -6.5])}, {"painted_panel": [80.3, -0.2, 6.0]})
-    assert bake_check.surface_faults("panel_1", one) == [], "one surface is one look by design"
-    dark = baked_record({"painted_panel": (0.9, [61.6, -1.5, -6.5]), "rubber": (0.1, [9.3, 0.5, -1.4])},
-                        {"painted_panel": [61.0, 0.0, 0.0], "rubber": [62.0, 0.0, 0.0]})
-    faults = bake_check.surface_faults("cabinet_1", dark)
-    assert len(faults) == 1 and "rubber" in faults[0] and "over 32" in faults[0], faults
+def core_record():
+    core = baked_record({CORE_GLOW: (0.23, [63.7, 7.0, -56.4]), "casing": (0.77, [32.3, 0.1, -2.6])},
+                        {CORE_GLOW: [77.1, 0.7, -2.7], "casing": [70.0, 0.0, 0.0]})
+    core["surfaces"][CORE_GLOW]["family"] = "energy"
+    return core
 
 
-def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view_distance():
-    cover = baked_record({"bare_steel": (0.2813, [66.3, -1.1, -4.5]), "hull_white_scorched": (0.7187, [75.6, -1.2, -1.0])},
-                         {"hull_white_scorched": [92.7, -0.3, 0.0], "bare_steel": [65.4, 1.6, 5.6]})
-    cover["seen_degrees"] = 11.29  # the wreck's access cover, 4.5 m from wreck-home
-    assert bake_check.one_look_faults("access_cover", cover) == [], "9.3 L* at 6 degrees is seen"
-    fragment = baked_record({"bare_steel": (0.4118, [64.1, -0.8, -3.2]), "galvanized_steel": (0.4758, [68.6, -1.2, -2.2]),
-                             "roof_steel_paint": (0.1123, [63.7, -1.0, -2.7])},
-                            {"bare_steel": [51.1, 1.9, 7.0], "galvanized_steel": [89.6, -0.2, 3.6],
-                             "roof_steel_paint": [49.7, -1.0, 2.8]})
-    fragment["seen_degrees"] = 4.71
-    faults = bake_check.one_look_faults("fragment", fragment)
-    assert len(faults) == 1 and "one grey look" in faults[0], faults
-    del fragment["seen_degrees"]
-    faults = bake_check.one_look_faults("fragment", fragment)
-    assert len(faults) == 1 and "no view distance" in faults[0], "a gate never passes on what it cannot measure"
+def fragment_record(degrees):
+    """The wreck's grey fragment: three near-neutral surfaces baked within 4.5 L*, its close-up 38.5 L* apart."""
+    return baked_record({"bare_steel": (0.4118, [64.1, -0.8, -3.2]), "galvanized_steel": (0.4758, [68.6, -1.2, -2.2]),
+                         "roof_steel_paint": (0.1123, [63.7, -1.0, -2.7])},
+                        {"bare_steel": [51.1, 1.9, 7.0], "galvanized_steel": [89.6, -0.2, 3.6],
+                         "roof_steel_paint": [49.7, -1.0, 2.8]}, degrees)
+
+
+# Each checked model (its name in checks.json) -> (its record, the faults the bake check names on it: one tuple of the
+# words each fault holds, in order).
+JUDGED = {
+    # the seed tray's label border straddles the black plastic: a clean border passes, a smudge along it fails
+    "seed_tray_clean": (lambda: paper_record(SEED_TRAY_PAPER), []),
+    "seed_tray_smudged": (lambda: paper_record(smudged(SEED_TRAY_PAPER)), [("printed_paper", "near black")]),
+    # a surface's own drawn seams are its colours, not blotches; without its second colour they are
+    "quilt_seamed": (lambda: quilt_record(QUILT_COTTON), []),
+    "quilt_without_its_seams": (lambda: quilt_record({"colour": QUILT_COTTON["colour"]}), [("near black",)]),
+    # a covering dome is judged by its own colour, so the close-up holds nothing to compare; uncovered it is compared
+    "beacon_covered": (lambda: baked_record({"red_plastic": (1.0, [38.5, 57.0, 47.5])},
+                                            labelled_close_up(CLOSE_UPS["a covering dome"][0])), []),
+    "beacon_uncovered": (lambda: baked_record({"red_plastic": (1.0, [38.5, 57.0, 47.5])},
+                                              labelled_close_up(CLOSE_UPS["an uncovered dome"][0])),
+                         [("red_plastic", "its close-up")]),
+    # a glowing variant counted lit (check_seen, as the row judges it) is judged by its own colour, its casing still
+    # compared; unlit, both are off their close-up
+    "core_unlit": (core_record, [(CORE_GLOW, "its close-up"), ("casing", "its close-up")]),
+    "core_lit": (lambda: check_seen.lit_as_light(core_record(), {"core_glow"}), [("casing", "its close-up")]),
+    # boots keyed as the part bakes: baked L* 65.5 against their close-up's 33 fails
+    "body": (lambda: baked_record({BOOTS: (1.0, [65.5, 0.0, 0.0])},
+                                  labelled_close_up(CLOSE_UPS["boots by their settings, a belt moved"][0])),
+             [(BOOTS, "33.3")]),
+    # the water tank as stored (1.4 m wide, 3.3 m from the greenhouse's nearest view): its paint baked darker than its
+    # steel; its water 8.9 b* off its paint is 1.9 noticeable differences at that size, told apart, not one look
+    "water_tank_stored": (lambda: baked_record({"painted_panel": (0.7253, GREY_PANEL),
+                                                "bare_steel": (0.1536, [66.3, -1.1, -4.5]),
+                                                "tank_water": (0.1212, [58.7, -1.7, 2.4])}, WATER_TANK_CLOSE_UP, 23.83),
+                          [("painted_panel is 13.0 L* lighter than bare_steel",)]),
+    "water_tank_grey_body": (lambda: baked_record({"painted_panel": (0.7253, GREY_PANEL),
+                                                   "bare_steel": (0.1536, TANK_SURFACES["bare_steel"]),
+                                                   "tank_water": (0.1212, TANK_SURFACES["tank_water"])},
+                                                  WATER_TANK_CLOSE_UP, 23.83),
+                             [("lighter than bare_steel",)]),
+    "water_tank_cream": (lambda: baked_record({"cream_paint": (0.7253, TANK_SURFACES["cream_paint"]),
+                                               "bare_steel": (0.1536, TANK_SURFACES["bare_steel"]),
+                                               "tank_water": (0.1212, TANK_SURFACES["tank_water"])},
+                                              {"cream_paint": WATER_TANK_CLOSE_UP["painted_panel"],
+                                               **{name: WATER_TANK_CLOSE_UP[name]
+                                                  for name in ("bare_steel", "tank_water")}}, 23.83), []),
+    # one surface is one look by design; a dark part 50 L* off its close-up is over 32
+    "panel_1": (lambda: baked_record({"painted_panel": (1.0, GREY_PANEL)}, {"painted_panel": [80.3, -0.2, 6.0]}), []),
+    "cabinet_1": (lambda: baked_record({"painted_panel": (0.9, GREY_PANEL), "rubber": (0.1, [9.3, 0.5, -1.4])},
+                                       {"painted_panel": [61.0, 0.0, 0.0], "rubber": [62.0, 0.0, 0.0]}),
+                  [("rubber", "over 32")]),
+    # one look fails only what a viewer cannot tell apart at the place's view distance: the wreck's access cover,
+    # 4.5 m from wreck-home, is 9.3 L* apart at 6 degrees and seen; the fragment is one grey look; with no view
+    # distance it is named, never passed
+    "access_cover": (lambda: baked_record({"bare_steel": (0.2813, [66.3, -1.1, -4.5]),
+                                           "hull_white_scorched": (0.7187, [75.6, -1.2, -1.0])},
+                                          {"hull_white_scorched": [92.7, -0.3, 0.0], "bare_steel": [65.4, 1.6, 5.6]},
+                                          11.29), []),
+    "fragment_seen": (lambda: fragment_record(4.71), [("one grey look",)]),
+    "fragment_unplaced": (lambda: fragment_record(None), [("no view distance",)]),
+}
+
+
+def test_every_part_takes_a_library_surface_and_is_held_to_it():
+    """Every baked part is held to its library surface and its take's close-up: the finishes' labels give the
+    close-up colours, the bake check's gate (check_seen.judge_lit, the surfaces-check row's) judges one checks.json of
+    every case and names exactly the faults each model's row expects, and the view distance it judges one look at is
+    read from the place's scene record and kit."""
+    for case, (finishes, close_up) in CLOSE_UPS.items():
+        assert labelled_close_up(finishes) == close_up, case
+    with tempfile.TemporaryDirectory() as scratch:
+        records = {model: dict(make(), missing_maps=[]) for model, (make, _) in JUDGED.items()}
+        (pathlib.Path(scratch) / "checks.json").write_text(json.dumps(records))
+        found = check_seen.judge_lit(scratch, {}, None)  # a row that reads no scene library counts nothing lit
+    expected = sum(len(faults) for _, faults in JUDGED.values())
+    assert found.answer == checks.FAIL and found.reason == f"{expected} of {len(JUDGED)} faults over the models", found
+    for model, (_, faults) in JUDGED.items():
+        named = [fault for fault in found.findings if fault.startswith(f"{model}: ")]
+        assert len(named) == len(faults) and all(all(word in fault for word in words)
+                                                 for fault, words in zip(named, faults)), (model, named)
+    # the table wraps the make (stages/gaps.py: an accepted gap moves a fault, the wrapper unwraps to the judge); the
+    # finish route's check is bake_check's against the bake's specs (route_check.py), through check_seen.py
+    assert inspect.unwrap(ROWS["surfaces-check"].make) is check_seen.make_check
     assert abs(bake_check.noticed([50, 0, 0], [55.155, 0, 0], 10.0) - 1.0) < 0.01, "ND(50) of L* at 6 degrees"
     desk = [{"model": "models/hub_kit/comms_1.gltf", "at": [2.0, 0.0, 0.0], "yaw": 90.0,
              "children": [{"model": "models/hub_kit/headset_1.gltf", "at": [1.0, 0.5, 0.0]}]}]
@@ -813,15 +831,13 @@ def test_one_look_fails_only_what_a_viewer_cannot_tell_apart_at_the_place_s_view
         {"name": "sliding_door_1", "bake": "sliding_door_1", "at": [0.0, 1.6, 2.0]},
         {"name": "sliding_door_2", "bake": "sliding_door_1", "at": [0.0, 1.6, 4.0]},
         {"name": "vault_door_1", "bake": "vault_door_1", "at": [0.0, 0.0, 1.0]}]}
-    kit = check_seen.laid_kit(record, {"sliding_door_1": {"size": [1.0, 2.0, 0.2]}})
     with tempfile.TemporaryDirectory() as temporary:
         scene, laid = pathlib.Path(temporary) / "record.json", pathlib.Path(temporary) / "kit.json"
         scene.write_text(json.dumps(record))
-        laid.write_text(json.dumps(kit))
-        degrees = bake_check.seen_degrees({"scene record": scene, "kit": laid})
-        assert degrees == {"sliding_door_1": 28.07}, degrees  # its 1.0 m middle side, 2 m from the eye; unbaked: none
-        laid.write_text(json.dumps(check_seen.laid_kit(record, {})))
-        assert bake_check.seen_degrees({"scene record": scene, "kit": laid}) == {}, "no bake, no size, no distance"
+        for baked, degrees in (({"sliding_door_1": {"size": [1.0, 2.0, 0.2]}}, {"sliding_door_1": 28.07}),
+                               ({}, {})):  # its 1.0 m middle side, 2 m from the eye; unbaked: no size, no distance
+            laid.write_text(json.dumps(check_seen.laid_kit(record, baked)))
+            assert bake_check.seen_degrees({"scene record": scene, "kit": laid}) == degrees, baked
 
 
 def baked_model(folder, name, mesh):
