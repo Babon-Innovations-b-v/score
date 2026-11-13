@@ -175,7 +175,6 @@ FUNCTION_DEBT = {
     "tools/props/test_crop_as_pixal3d_does.py": 2,
     "tools/props/test_one_run_on_the_card.py": 12,
     "tools/props/test_raw_model_faces_minus_z.py": 3,
-    "tools/props/test_refused_on_this_pc.py": 3,
     "tools/props/test_stood_up_and_kept_intact.py": 17,
     "tools/review/test_a_film_is_shown_only_when_its_measures_pass.py": 4,
     "tools/review/test_a_films_shots_keep_clear_and_move_smoothly.py": 17,
