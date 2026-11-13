@@ -122,7 +122,6 @@ FUNCTION_DEBT = {
     "score/stages/animals/test_animal_rows_follow_the_design.py": 3,
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 42,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 20,
-    "score/stages/crops/test_crops_grow_as_the_concept_grows_them.py": 13,
     "score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py": 32,
     "score/stages/effects/test_effects_ride_their_design.py": 6,
     "score/stages/images/test_image_proofs_pass_only_a_proof_that_did_its_jobs.py": 6,
