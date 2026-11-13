@@ -63,8 +63,8 @@ import math
 
 import numpy as np
 
-from score.stages.assembly import (board_spots, floor_clear, hung_between, opening_free, opening_walls, passages, piled,
-                                 ribs, room_clear, vault_feet, wall_clear)
+from score.stages.assembly import (board_spots, floor_clear, floor_free, hung_between, opening_free, opening_walls,
+                                 passages, piled, ribs, room_clear, vault_feet, wall_clear)
 
 # A fit that moves an object less than this, metres, and shrinks it by less than SHRINK_LEAST is no fit: it sits.
 MOVE_LEAST = 0.01
@@ -2155,6 +2155,7 @@ def fitted(stage, place, entries, laid, cuts=None):
     wall_clear.under_roofs(stage, place, walled, fits)
     stacked = stacked_on_runs(stage, place, topped, walled)
     fits += stacked + built_tops.stacked_down(stage, place, stacked)  # onto the runs' built surface
+    fits += floor_free.cleared(stage, place, loose, entries)  # floor things off walls by their surfaces
     return fits + moved_down(stage, place, loose) + \
         hung_up(stage, place, loose) + hung_by_parts(stage, place, loose) + \
         ribs.kept_off(stage, place, loose, list(by_name.values()))

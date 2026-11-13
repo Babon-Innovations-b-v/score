@@ -1066,6 +1066,21 @@ def a_built_box(stage, path, low, high):
     mesh.CreateExtentAttr([low, high])
 
 
+def a_solid_box(stage, path, low, high, degrees=0.0):
+    """An Xform at `path` (one transform op) holding a box mesh from `low` to `high` with its faces, turned `degrees`
+    about the up axis through its middle."""
+    from pxr import Gf, UsdGeom
+    box = trimesh.creation.box(bounds=[low, high])
+    middle = (np.asarray(low, float) + np.asarray(high, float)) / 2
+    box.apply_transform(trimesh.transformations.rotation_matrix(np.radians(degrees), [0.0, 1.0, 0.0], middle))
+    UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
+    mesh = UsdGeom.Mesh.Define(stage, f"{path}/geo")
+    mesh.CreatePointsAttr([tuple(map(float, point)) for point in box.vertices])
+    mesh.CreateFaceVertexCountsAttr([3] * len(box.faces))
+    mesh.CreateFaceVertexIndicesAttr([int(index) for index in box.faces.reshape(-1)])
+    mesh.CreateExtentAttr([tuple(map(float, box.bounds[0])), tuple(map(float, box.bounds[1]))])
+
+
 def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     """settle@airlock (2026-10-30): its ramp lay beside its porch deck, its end 0.14 m in the deck's slab, two sandbags
     in the slab and its porch post 0.14 m in wall_3, laid at the plan's estimates; the drop sank and tilted them. The
@@ -1156,7 +1171,17 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     narrowed, and one beside the light stay.
     Break: score/stages/assembly/room_clear.py: `lamps_along.moved_with(stage, place, low, high, foot, 1.0, foot +
         move)` dropped (the lamp left in wall_4), or lamps_along.py's `if np.any(spot < np.asarray(low) - WITHIN) or
-        ...: continue` -> `if False: continue` (the lamp beside the light carried too)"""
+        ...: continue` -> `if False: continue` (the lamp beside the light carried too)
+    settle@habitat (2026-11-13): its rugs 4 and 7 to 10 lay across its partition walls and under a wall thing, and its
+    bookshelf 2 and bunk bed 2 stood 2 and 4.4 cm into slanted walls, which the parting lets stand (its HELD_MOST); the
+    drop took them as laid inside (its triangles still crossing past a 5 mm nudge) or slid the bed 92 cm. A 2 m rug
+    laid across a partition into a 1.52 m alcove is shrunk to 74% and moved 0.24 m into it, GAP from both walls; a
+    crate 2 cm into a slanted wall is moved (0.03, 0.02) m off it; a rug 4 mm into wall_4 is no overlap to the drop and
+    is left.
+    Break: score/stages/assembly/fitting.py: `fits += floor_free.cleared(stage, place, loose, entries)` dropped (the
+        rug and the crate left in their walls), or floor_free.py's reaches' `< half - NUDGE` -> `< half` (the rug 4 mm
+        in moved), or spot_for's `for scale in scales:` -> `for scale in scales[:1]:` (the alcove's rug left), or
+        free_moves' `reach = half + GAP` -> `reach = half` (the rug and crate left touching their walls)"""
     import math
     from pxr import Usd
     from score.stages.assembly import fitting
@@ -1475,6 +1500,27 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert np.allclose(lamps["light_lamp"], ((0.0233, 0.03, 3.4), (-0.027, 0.03, 3.4)), atol=1e-4), lamps
     assert np.allclose(lamps["duct_lamp"], ((0.65, 2.0, 5.0),) * 2) and np.allclose(
         lamps["beside_lamp"], ((0.3, 0.03, 3.4),) * 2), lamps
+    walled = Usd.Stage.CreateInMemory()
+    for name, low, high, degrees in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 6.0), 0.0),
+                                     ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 6.0), 0.0),
+                                     ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0), 0.0),
+                                     ("wall_4", (0.0, 0.0, 6.0), (6.0, 3.0, 6.1), 0.0),
+                                     ("wall_5", (1.52, 0.0, 2.0), (1.62, 3.0, 6.0), 0.0),
+                                     ("wall_6", (1.0 - 2 ** 0.5 / 2, 0.0, 0.95), (1.0 + 2 ** 0.5 / 2, 3.0, 1.05), 45.0)):
+        a_solid_box(walled, f"/{TOY}/Structure/{name}", low, high, degrees)
+    corner = 2.0 - 0.05 * 2 ** 0.5 + 0.02 * 2 ** 0.5  # the crate's far corner's x + z: 2 cm into wall_6's near face
+    for name, low, high in (("rug_2", (0.0, 0.0, 3.0), (2.0, 0.017, 4.0)),
+                            ("rug_3", (2.0, 0.0, 4.504), (4.0, 0.017, 6.004)),
+                            ("crate_1", (0.5, 0.0, corner - 1.5), (1.0, 0.5, corner - 1.0))):
+        a_solid_box(walled, f"/{TOY}/Objects/{name}", low, high)
+    things = ("rug_2", "rug_3", "crate_1")
+    fits = fitting.fitted(walled, TOY, [{"name": name, "row": name[:-2]} for name in things], set(things))
+    found = {fit["name"]: (fit["how"], fit["moved"], fit["scale"]) for fit in fits
+             if fit["how"] in ("flat clear", "off wall")}
+    assert found == {"rug_2": ("flat clear", 0.24, 0.74), "crate_1": ("off wall", 0.036, 1.0)}, fits
+    rug, crate = (fitting.world_box(walled, f"/{TOY}/Objects/{name}") for name in ("rug_2", "crate_1"))
+    assert np.allclose(rug, ((0.02, 0.0, 3.13), (1.5, 0.017, 3.87)), atol=1e-6), rug
+    assert np.allclose(crate[0][[0, 2]], (0.47, corner - 1.52), atol=1e-6), crate
 
 
 def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
