@@ -6,34 +6,33 @@ shares; the cast check (cast_check.py) refuses the same person twice and a walk 
 with the cast's prims, every character stands or walks where the cast puts it, plays its clip from its start and
 wears only its parts; and the review page (tools/review/characters.py) sees each from in front.
 
-A two-joint body made here (a distant and a dressed mesh, a clip that runs round and one that plays once, a sparse
-morph target keyed on in the walk's second frame) whose skinned points are worked out by hand in each test.
+One world: a two-joint body made here (a distant and a dressed mesh, a clip that runs round and one that plays once,
+a sparse morph target keyed on in the walk's second frame) converted once dressed and once as an animal, a cast laid
+from it, and the review's plan of that stage. Its skinned points are worked out by hand in the SKINNED rows, where
+each laid character stands in the PLACED rows, what each body shows in the SHOWN rows, and the cast check's verdicts
+in the FAULTS rows.
 
-Breaks that turn each test red (each applied once and seen red, 2026-10-26):
-- test_the_asset_skins_its_points_where_the_files_own_skinning_puts_them: convert's bind `matrix(values).GetInverse()`
-  made `matrix(values)`; and, apart, write_part's `if shape_names:` made `if False:` (no blend shapes); and, apart,
-  joint_paths' `"/".join(reversed(trail))` made `"/".join(trail)`.
-- test_the_files_half_turn_is_kept_below_the_root: convert's `turned.AddTransformOp().Set(local_matrix(scene_root))`
-  made `.Set(Gf.Matrix4d(1))`.
-- test_a_running_clip_repeats_for_the_whole_length_and_a_played_once_one_holds: repeated's `cycle = keys[:-1] if ...
-  else keys` made `cycle = keys`; and, apart, write_clips' `once = animation["name"] in ONCE` made `once = False`.
-- test_a_person_wears_the_dressed_body_and_an_animal_every_mesh: write_body's `if worn is not None and name not in
-  worn:` made `if name not in (worn or ()):`.
-- test_a_dense_morph_target_keeps_the_points_it_moves: sparse_values keeps every point (its nonzero pick dropped).
-- test_the_casts_rules_are_the_same_from_the_same_seeds: kit_mix's `random.Random(seed)` made `random.Random()`;
-  and, apart, band_places' `along * (number + draw.random()) / group["count"]` made `along * draw.random()`.
-- test_a_crowd_stands_on_its_tiers_clear_of_the_ground_kept_off_with_its_clips_by_their_shares: crowd_copies'
-  `at = [x, ground_at(boxes, x, z), z]` made `at = [x, 0.0, z]`.
-- test_the_cast_check_refuses_the_same_person_twice_and_a_walk_through_somebody: clash_with_things' `if top < feet +
-  KNEE or bottom > feet + HEAD: continue` dropped (the floor plate counts); and, apart, look_of's head and hair parts
-  dropped (`*sorted(...)` removed: two kit people of one build read the same).
-- test_a_laid_character_stands_or_walks_where_the_cast_puts_it: walked's `seconds += math.dist(here, there) / pace`
-  made `seconds += math.dist(here, there)`.
-- test_a_laid_character_plays_its_clip_from_its_start_and_wears_only_its_parts: referenced's
-  `Sdf.LayerOffset(-start_seconds * skel_usd.RATE)` made `Sdf.LayerOffset(0)`; and, apart, held_still's
-  `GetRotationsAttr().Get(time)` made `.Get(time + 1)`.
-- test_the_review_sees_a_person_from_in_front_and_a_crowd_from_its_views: tools/review/characters.py ahead's
-  `at[2] - math.cos(angle) * distance` made `at[2] + ...`.
+Breaks that turn the test red (each applied once and seen red, 2026-10-26; again after the fold, 2026-11-13):
+- convert's bind `matrix(values).GetInverse()` made `matrix(values)` (the SKINNED rows); and, apart, write_part's
+  `if shape_names:` made `if False:` (no blend shapes: the "hips point one frame in" row); and, apart, joint_paths'
+  `"/".join(reversed(trail))` made `"/".join(trail)` (the joints' order).
+- convert's `turned.AddTransformOp().Set(local_matrix(scene_root))` made `.Set(Gf.Matrix4d(1))` (the half turn).
+- repeated's `cycle = keys[:-1] if ... else keys` made `cycle = keys`; and, apart, write_clips' `once =
+  animation["name"] in ONCE` made `once = False` (the walk's and the door's samples).
+- write_body's `if worn is not None and name not in worn:` made `if name not in (worn or ()):` (the "animal" row of
+  SHOWN).
+- sparse_values keeps every point (its nonzero pick dropped) (the dense morph target).
+- kit_mix's `random.Random(seed)` made `random.Random()`; and, apart, band_places' `along * (number +
+  draw.random()) / group["count"]` made `along * draw.random()` (the seeded rules and the band's spread).
+- crowd_copies' `at = [x, ground_at(boxes, x, z), z]` made `at = [x, 0.0, z]` (the crowd on its tier).
+- clash_with_things' `if top < feet + KNEE or bottom > feet + HEAD: continue` dropped (the floor plate counts: the
+  "through the crate" row of FAULTS); and, apart, look_of's head and hair parts dropped (`*sorted(...)` removed: two
+  kit people of one build read the same, the group's 40 looks).
+- walked's `seconds += math.dist(here, there) / pace` made `seconds += math.dist(here, there)` (the walker's PLACED
+  rows).
+- referenced's `Sdf.LayerOffset(-start_seconds * skel_usd.RATE)` made `Sdf.LayerOffset(0)` (row_1's offset); and,
+  apart, held_still's `GetRotationsAttr().Get(time)` made `.Get(time + 1)` (the sleeper's held pose).
+- tools/review/characters.py ahead's `at[2] - math.cos(angle) * distance` made `at[2] + ...` (the close eye).
 """
 
 import io
@@ -44,7 +43,6 @@ import struct
 import sys
 
 import numpy as np
-import pytest
 from PIL import Image
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdSkel
 
@@ -175,145 +173,6 @@ def skinned(stage, mesh_path, clip, time):
     return np.array(points)
 
 
-@pytest.fixture(scope="module")
-def folder(tmp_path_factory):
-    """The test's world: the test body and the kit builds the row's members are dealt, as body files."""
-    found = tmp_path_factory.mktemp("characters")
-    (found / "bodies").mkdir()
-    body_glb(found / "bodies/tester.glb")
-    for build in {cast.kit_mix(40 + number)["character"] for number in range(3)}:
-        body_glb(found / f"bodies/{build}.glb")
-    return found
-
-
-@pytest.fixture(scope="module")
-def asset(folder):
-    return Usd.Stage.Open(str(skel_usd.convert(folder / "bodies/tester.glb", folder / "assets")))
-
-
-def test_the_asset_skins_its_points_where_the_files_own_skinning_puts_them(asset):
-    """At rest the points are the file's; one frame into the walk the hips' points have turned a quarter round z about
-    the hips and risen 0.1 m, the third one moved 0.1 m along x first by its morph target (a blend shape here); the
-    root's points never move; the far body has no shapes; the shape is keyed off again at frame 2."""
-    skeleton = UsdSkel.Skeleton(asset.GetPrimAtPath("/Character/Turned/Skeleton"))
-    assert list(skeleton.GetJointsAttr().Get()) == ["Root", "Root/Hips"]  # parents first, as paths
-    assert Gf.IsClose(skeleton.GetBindTransformsAttr().Get()[1].ExtractTranslation(), Gf.Vec3d(0, 1, 0), 1e-6)
-    person = "/Character/Turned/Body/person/jacket_0"
-    assert np.allclose(skinned(asset, person, "walking", 0)[2], [-0.2, 1.5, 0.0], atol=1e-5)
-    moved = skinned(asset, person, "walking", 1)
-    turn = np.array([[math.cos(math.pi / 4), -math.sin(math.pi / 4)], [math.sin(math.pi / 4), math.cos(math.pi / 4)]])
-    assert np.allclose(moved[2][:2], turn @ np.array([-0.1, 0.5]) + [0.0, 1.1], atol=1e-5), moved[2]
-    assert np.allclose(moved[0], [-0.2, 0.0, 0.0], atol=1e-6)
-    assert np.allclose(skinned(asset, "/Character/Turned/Body/far/clothes_0", "walking", 1)[2][:2],
-                       turn @ np.array([-0.2, 0.5]) + [0.0, 1.1], atol=1e-5)
-    assert np.allclose(skinned(asset, person, "walking", 2)[2], [-0.2, 1.5, 0.0], atol=1e-5)
-
-
-def test_the_files_half_turn_is_kept_below_the_root(asset):
-    """The file's turn half round is on Turned, so a cast transform on the root never replaces it."""
-    turned = UsdGeom.Xformable(asset.GetPrimAtPath("/Character/Turned")).ComputeLocalToWorldTransform(0)
-    assert Gf.IsClose(turned.TransformDir(Gf.Vec3d(0, 0, 1)), Gf.Vec3d(0, 0, -1), 1e-6)
-    assert UsdGeom.Xformable(asset.GetPrimAtPath("/Character")).GetOrderedXformOps() == []
-
-
-def test_a_running_clip_repeats_for_the_whole_length_and_a_played_once_one_holds(asset):
-    """The walk's two-frame cycle (its third key is its first again) fills 12 s at 30 a second, 361 samples; the door
-    plays its two keys once."""
-    walk = UsdSkel.Animation(asset.GetPrimAtPath("/Character/Animations/walking")).GetRotationsAttr()
-    samples = walk.GetTimeSamples()
-    assert len(samples) == 361 and samples[0] == 0
-
-    def turn_of(time):
-        quaternion = walk.Get(time)[1]
-        return np.array([quaternion.GetReal(), *quaternion.GetImaginary()])
-    assert np.allclose(turn_of(2), turn_of(0)) and np.allclose(turn_of(3), turn_of(1), atol=1e-6)
-    assert not np.allclose(turn_of(3), turn_of(0), atol=1e-3)
-    door = UsdSkel.Animation(asset.GetPrimAtPath("/Character/Animations/door")).GetRotationsAttr()
-    assert door.GetTimeSamples() == [0.0, 1.0]
-    lengths = asset.GetPrimAtPath("/Character").GetCustomDataByKey("score:clip_seconds")
-    assert math.isclose(lengths["walking"], 2 / 30, rel_tol=1e-5)
-
-
-def test_a_person_wears_the_dressed_body_and_an_animal_every_mesh(folder, asset):
-    """The dressed body is worn and the distant one hidden by default, its picture written beside the asset; an
-    animal names no outfit and wears every mesh of its file."""
-    far = UsdGeom.Imageable(asset.GetPrimAtPath("/Character/Turned/Body/far"))
-    assert far.ComputeVisibility() == UsdGeom.Tokens.invisible
-    assert (folder / "assets/textures/tester_0.png").exists()
-    every = Usd.Stage.Open(str(skel_usd.convert(folder / "bodies/tester.glb", folder / "animal", worn=None)))
-    assert UsdGeom.Imageable(every.GetPrimAtPath("/Character/Turned/Body/far")).ComputeVisibility() == \
-        UsdGeom.Tokens.inherited
-
-
-def test_a_dense_morph_target_keeps_the_points_it_moves():
-    """The people route writes its correctives as dense morph targets (route_build.py): skel_usd keeps the points one
-    moves, as it does a sparse one's."""
-    values = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0, 0], [0, -0.2, 0]], np.float32)
-    document = {"bufferViews": [{"buffer": 0, "byteLength": values.nbytes}],
-                "accessors": [{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3"}]}
-    indices, offsets = skel_usd.sparse_values(document, values.tobytes(), 0)
-    assert indices.tolist() == [1, 3] and np.allclose(offsets, values[[1, 3]]), (indices, offsets)
-
-
-def test_the_casts_rules_are_the_same_from_the_same_seeds():
-    mix = cast.kit_mix(5003)
-    assert mix == cast.kit_mix(5003), "the same seed is the same person"
-    assert mix["character"].startswith("kit_") and mix["worn"]["plain"][0].startswith("plain_")
-    face = mix["worn"]["plain"][1].removeprefix("head_")
-    assert mix["worn"]["plain"][2].endswith(f"_{face}"), "the hair is made on the face it is worn with"
-    # A character faces -z: one at the origin facing a point on -x is turned a quarter round, to its right.
-    assert math.isclose(cast.facing_degrees([0, 0, 0], [-5, 0, 0]), 90.0)
-    group = {"name": "row", "count": 10, "seed": 7, "band": [-13.0, -16.0, 8.0, 26.0], "facing_to": [-45, 3, 0],
-             "doing": ["standing", "clapping"], "phase_step": 0.37}
-    places = cast.band_places(group)
-    assert places == cast.band_places(group) and len(places) == 10
-    assert all(-13 <= at[0] <= -5 and -16 <= at[2] <= 10 for at in places)
-    assert [at[2] for at in places] == sorted(at[2] for at in places), "spread evenly along the band"
-    assert all(-16 + 2.6 * number <= at[2] <= -16 + 2.6 * (number + 1) for number, at in enumerate(places))
-
-
-def test_a_crowd_stands_on_its_tiers_clear_of_the_ground_kept_off_with_its_clips_by_their_shares():
-    crowd = {"name": "crowd", "count": 400, "seed": 3, "spread": [-42.0, -56.0, 38.4, 112.0],
-             "kept_off": [[-44.0, -13.0, 4.5, 19.0]], "clear_radius": 0.7,
-             "tiers": [[-38.0, 0.0, -40.0, 23.0, 0.8, 74.0]], "tier_tread": 0.9, "tier_half_step": 0.4,
-             "facing_to": [-45.5, 3.3, -3.5], "turn_jitter": 0.35, "height_jitter": 0.06,
-             "doing": ["standing", "cheering"], "shares": [0.7, 0.3], "phases": 2,
-             "palettes": [[[1, 2, 3]], [[4, 5, 6]]], "palette_parts": ["skin"], "palette_shares": [0.5, 0.5]}
-    copies = cast.crowd_copies(crowd, keep_clear=[])
-    assert copies == cast.crowd_copies(crowd, keep_clear=[]) and len(copies) == 400
-    on_tier = [copy for copy in copies if -38 <= copy["at"][0] <= -15 and -40 <= copy["at"][2] <= 34]
-    assert on_tier and all(copy["at"][1] == 0.8 for copy in on_tier), "standing on the tier's top"
-    off_tier = [copy for copy in copies if copy not in on_tier and not (-38.9 <= copy["at"][0] <= -14.1
-                                                                          and -40.9 <= copy["at"][2] <= 34.9)]
-    assert off_tier and all(copy["at"][1] == 0.0 for copy in off_tier), "on the ground off the tiers"
-    assert all(abs(copy["tall"] - 1) <= 0.06 for copy in copies)
-    assert 0.6 < sum(copy["clip"] == 0 for copy in copies) / 400 < 0.8, "clips dealt by their shares"
-
-
-def test_the_cast_check_refuses_the_same_person_twice_and_a_walk_through_somebody():
-    """The cast check finds the same person twice (a named body, a kit look), a walk through somebody standing and a
-    walk through a thing between knee and head, passes a walk round them, steps over a floor plate, and a group is
-    dealt a new look for every member (owner, 2026-10-09: nobody twice, walks clear)."""
-    walker = {"name": "walker", "character": "bram", "doing": "walking", "at": [0.0, 0.0, 0.0], "facing_to": [4, 0, 0],
-              "path": [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]}
-    standing = {"name": "standing", "character": "take_c", "doing": "waiting", "at": [2.0, 0.0, 0.2],
-                "facing_to": [2.0, 0.0, 1.0]}
-    twice = {"people": [walker, dict(standing, name="again", at=[9.0, 0.0, 9.0]), standing]}
-    assert cast_check.repeated_people(twice) == ["again and standing are the same person (take_c)"]
-    told_apart = {"people": [dict(standing, variant=1), dict(standing, name="again", variant=2)]}
-    assert cast_check.repeated_people(told_apart) == [], "one body in two variants is two people"
-    assert any("from standing" in fault for fault in cast_check.walk_faults({"people": [walker, standing]}, []))
-    crate = ("Objects/crate_1", (1.8, -0.3, 2.4, 0.3), 0.0, 0.8)
-    plate = ("Objects/plate_1", (1.0, -1.0, 3.0, 1.0), -0.05, 0.02)
-    faults = cast_check.walk_faults({"people": [walker]}, [crate, plate])
-    assert len(faults) == 1 and "crate_1" in faults[0], faults
-    round_them = dict(walker, path=[[0.0, 0.0, 0.0], [2.0, 0.0, -1.2], [4.0, 0.0, 0.0]])
-    assert cast_check.check({"people": [round_them, standing]}, [crate, plate]) == []
-    group = {"name": "row", "count": 40, "seed": 5000, "band": [0.0, 0.0, 4.0, 20.0], "facing_to": [0, 0, -9],
-             "doing": ["cheering"]}
-    members = cast.characters_of({"groups": [group]})
-    assert len({cast.look_of(member["character"], member["worn"]) for member in members}) == 40
-
 
 FOUND = {"people": [{"name": "keeper", "character": "tester", "doing": "door", "at": [1.0, 0.0, 2.0],
                      "facing_to": [1.0, 0.0, -5.0], "why": "keeps the door"},
@@ -357,52 +216,176 @@ def laid(folder, found):
     return stage
 
 
-@pytest.fixture(scope="module")
-def stage(folder):
-    return laid(folder, FOUND)
+
+TURN = np.array([[math.cos(math.pi / 4), -math.sin(math.pi / 4)], [math.sin(math.pi / 4), math.cos(math.pi / 4)]])
+PERSON, FAR = "/Character/Turned/Body/person/jacket_0", "/Character/Turned/Body/far/clothes_0"
+
+# The points UsdSkel deforms, worked out by hand: (row, mesh, clip, frame, point, coordinates compared, where, atol).
+# One frame into the walk the hips' points have turned a quarter round z about the hips and risen 0.1 m, the third
+# one moved 0.1 m along x first by its morph target; the root's points never move; the shape is keyed off at frame 2.
+SKINNED = [
+    ("at rest", PERSON, "walking", 0, 2, 3, [-0.2, 1.5, 0.0], 1e-5),
+    ("hips point one frame in", PERSON, "walking", 1, 2, 2, TURN @ np.array([-0.1, 0.5]) + [0.0, 1.1], 1e-5),
+    ("root point never moves", PERSON, "walking", 1, 0, 3, [-0.2, 0.0, 0.0], 1e-6),
+    ("far body has no shapes", FAR, "walking", 1, 2, 2, TURN @ np.array([-0.2, 0.5]) + [0.0, 1.1], 1e-5),
+    ("shape keyed off again", PERSON, "walking", 2, 2, 3, [-0.2, 1.5, 0.0], 1e-5),
+]
+
+# Where a laid character stands at a time code: the keeper where the cast puts it; the walker covers its 4 m at
+# 2 m a second, at the path's end at 2 s (60 time codes) and half way at 1 s.
+PLACED = [("keeper", 0, (1, 0, 2)), ("walker", 60, (0, 0, -4)), ("walker", 30, (0, 0, -2))]
+
+# What a body shows: (row, world, body prim, the visible children). A person wears the dressed body, the distant one
+# hidden; an animal names no outfit and wears every mesh; a kit member wears only the kit's parts, which this test
+# body has none of.
+SHOWN = [("person", "asset", "/Character/Turned/Body", ["person"]),
+         ("animal", "animal", "/Character/Turned/Body", ["far", "person"]),
+         ("kit member", "stage", "/yard/Characters/row_0/Turned/Body", [])]
+
+WALKER = {"name": "walker", "character": "bram", "doing": "walking", "at": [0.0, 0.0, 0.0], "facing_to": [4, 0, 0],
+          "path": [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]}
+STANDING = {"name": "standing", "character": "take_c", "doing": "waiting", "at": [2.0, 0.0, 0.2],
+            "facing_to": [2.0, 0.0, 1.0]}
+CRATE = ("Objects/crate_1", (1.8, -0.3, 2.4, 0.3), 0.0, 0.8)
+PLATE = ("Objects/plate_1", (1.0, -1.0, 3.0, 1.0), -0.05, 0.02)
+
+# The cast check's verdicts (owner, 2026-10-09: nobody twice, walks clear): (row, people, things on the stage, the
+# words each fault holds, one fault per entry).
+FAULTS = [
+    ("same person twice", [dict(STANDING, name="again", at=[9.0, 0.0, 9.0]), STANDING], [],
+     ["again and standing are the same person (take_c)"]),
+    ("one body in two variants", [dict(STANDING, variant=1), dict(STANDING, name="again", variant=2)], [], []),
+    ("through somebody standing", [WALKER, STANDING], [], ["from standing"]),
+    ("through the crate, over the plate", [WALKER], [CRATE, PLATE], ["crate_1"]),
+    ("round them", [dict(WALKER, path=[[0.0, 0.0, 0.0], [2.0, 0.0, -1.2], [4.0, 0.0, 0.0]]), STANDING],
+     [CRATE, PLATE], []),
+]
+
+ROW = {"name": "row", "count": 10, "seed": 7, "band": [-13.0, -16.0, 8.0, 26.0], "facing_to": [-45, 3, 0],
+       "doing": ["standing", "clapping"], "phase_step": 0.37}
+CROWD = {"name": "crowd", "count": 400, "seed": 3, "spread": [-42.0, -56.0, 38.4, 112.0],
+         "kept_off": [[-44.0, -13.0, 4.5, 19.0]], "clear_radius": 0.7,
+         "tiers": [[-38.0, 0.0, -40.0, 23.0, 0.8, 74.0]], "tier_tread": 0.9, "tier_half_step": 0.4,
+         "facing_to": [-45.5, 3.3, -3.5], "turn_jitter": 0.35, "height_jitter": 0.06,
+         "doing": ["standing", "cheering"], "shares": [0.7, 0.3], "phases": 2,
+         "palettes": [[[1, 2, 3]], [[4, 5, 6]]], "palette_parts": ["skin"], "palette_shares": [0.5, 0.5]}
+REVIEWED = {"people": [{"name": "keeper", "character": "tester", "doing": "door", "at": [1.0, 0.0, 2.0],
+                        "facing_to": [1.0, 0.0, -5.0], "why": "keeps the door"}],
+            "crowd": {"name": "crowd", "count": 5, "spread": [0, 0, 4, 4], "facing_to": [0, 0, -9],
+                      "views": [{"name": "above", "eye": [0, 9, 0], "aim": [2, 0, 2]}]}}
 
 
-def test_a_laid_character_stands_or_walks_where_the_cast_puts_it(stage):
+def visible(stage, path):
+    """The names of a body's children not hidden."""
+    return [child.GetName() for child in stage.GetPrimAtPath(path).GetChildren()
+            if UsdGeom.Imageable(child).ComputeVisibility() != UsdGeom.Tokens.invisible]
+
+
+def quaternion_at(attribute, time):
+    """The hips' turn of a clip's rotations at `time`, as w x y z."""
+    quaternion = attribute.Get(time)[1]
+    return np.array([quaternion.GetReal(), *quaternion.GetImaginary()])
+
+
+def test_characters_play_as_their_file_and_cast_say(tmp_path, monkeypatch):
+    """The test body converted dressed and as an animal, the cast laid from it and the review's plan of that stage
+    each answer as the file and the cast say; the cast's rules and check judge their inputs as the rows say."""
+    import characters
+    (tmp_path / "bodies").mkdir()
+    body_glb(tmp_path / "bodies/tester.glb")
+    for build in {cast.kit_mix(40 + number)["character"] for number in range(3)}:
+        body_glb(tmp_path / f"bodies/{build}.glb")
+    worlds = {"asset": Usd.Stage.Open(str(skel_usd.convert(tmp_path / "bodies/tester.glb", tmp_path / "assets"))),
+              "animal": Usd.Stage.Open(str(skel_usd.convert(tmp_path / "bodies/tester.glb", tmp_path / "animal",
+                                                            worn=None))),
+              "stage": laid(tmp_path, FOUND)}
+    monkeypatch.setattr(characters, "cast_of", lambda place: REVIEWED)
+    planned = characters.plan("yard", tmp_path / "stage/yard.usda")
+    asset, stage = worlds["asset"], worlds["stage"]
+
+    for row, mesh, clip, frame, point, axes, where, atol in SKINNED:
+        got = skinned(asset, mesh, clip, frame)[point][:axes]
+        assert np.allclose(got, where, atol=atol), (row, got)
+    for name, time, where in PLACED:
+        got = UsdGeom.Xformable(stage.GetPrimAtPath(f"/yard/Characters/{name}")).ComputeLocalToWorldTransform(time)
+        assert Gf.IsClose(got.ExtractTranslation(), Gf.Vec3d(*where), 1e-6), (name, time, got.ExtractTranslation())
+    for row, world, path, shown in SHOWN:
+        assert visible(worlds[world], path) == shown, (row, visible(worlds[world], path))
+    for row, people, things, words in FAULTS:
+        faults = cast_check.check({"people": people}, things)
+        assert len(faults) == len(words) and all(any(word in fault for fault in faults) for word in words), \
+            (row, faults)
+
+    # The asset: joints parents first as paths, the hips bound a metre up, the file's half turn on Turned below a
+    # root a cast transform sets, the dressed body's picture beside it.
+    skeleton = UsdSkel.Skeleton(asset.GetPrimAtPath("/Character/Turned/Skeleton"))
+    assert list(skeleton.GetJointsAttr().Get()) == ["Root", "Root/Hips"]
+    assert Gf.IsClose(skeleton.GetBindTransformsAttr().Get()[1].ExtractTranslation(), Gf.Vec3d(0, 1, 0), 1e-6)
+    turned = UsdGeom.Xformable(asset.GetPrimAtPath("/Character/Turned")).ComputeLocalToWorldTransform(0)
+    assert Gf.IsClose(turned.TransformDir(Gf.Vec3d(0, 0, 1)), Gf.Vec3d(0, 0, -1), 1e-6)
+    assert UsdGeom.Xformable(asset.GetPrimAtPath("/Character")).GetOrderedXformOps() == []
+    assert (tmp_path / "assets/textures/tester_0.png").exists()
+
+    # Its clips: the walk's two-frame cycle (its third key its first again) fills 12 s at 30 a second, 361 samples;
+    # the door plays its two keys once; the walk's own length is kept.
+    walk = UsdSkel.Animation(asset.GetPrimAtPath("/Character/Animations/walking")).GetRotationsAttr()
+    assert len(walk.GetTimeSamples()) == 361 and walk.GetTimeSamples()[0] == 0
+    assert np.allclose(quaternion_at(walk, 2), quaternion_at(walk, 0))
+    assert np.allclose(quaternion_at(walk, 3), quaternion_at(walk, 1), atol=1e-6)
+    assert not np.allclose(quaternion_at(walk, 3), quaternion_at(walk, 0), atol=1e-3)
+    door = UsdSkel.Animation(asset.GetPrimAtPath("/Character/Animations/door")).GetRotationsAttr()
+    assert door.GetTimeSamples() == [0.0, 1.0]
+    lengths = asset.GetPrimAtPath("/Character").GetCustomDataByKey("score:clip_seconds")
+    assert math.isclose(lengths["walking"], 2 / 30, rel_tol=1e-5)
+
+    # The people route writes its correctives as dense morph targets (route_build.py): skel_usd keeps the points one
+    # moves, as it does a sparse one's.
+    values = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0, 0], [0, -0.2, 0]], np.float32)
+    dense = {"bufferViews": [{"buffer": 0, "byteLength": values.nbytes}],
+             "accessors": [{"bufferView": 0, "componentType": 5126, "count": 4, "type": "VEC3"}]}
+    indices, offsets = skel_usd.sparse_values(dense, values.tobytes(), 0)
+    assert indices.tolist() == [1, 3] and np.allclose(offsets, values[[1, 3]]), (indices, offsets)
+
+    # The laid stage: each plays its clip; a held one a pose of its own, the clip's joints at its start with no time
+    # samples; the row's second member starts half way into its 2/30 s clip, its reference offset back 1 time code.
     keeper = stage.GetPrimAtPath("/yard/Characters/keeper")
     assert keeper.IsA(UsdSkel.Root)
-    at = UsdGeom.Xformable(keeper).ComputeLocalToWorldTransform(0).ExtractTranslation()
-    assert Gf.IsClose(at, Gf.Vec3d(1, 0, 2), 1e-6)
-    # The walker covers its 4 m at 2 m a second: at 2 s (60 time codes) it is at the path's end, at 1 s half way.
-    walker = UsdGeom.Xformable(stage.GetPrimAtPath("/yard/Characters/walker"))
-    assert Gf.IsClose(walker.ComputeLocalToWorldTransform(60).ExtractTranslation(), Gf.Vec3d(0, 0, -4), 1e-6)
-    assert Gf.IsClose(walker.ComputeLocalToWorldTransform(30).ExtractTranslation(), Gf.Vec3d(0, 0, -2), 1e-6)
-
-
-def test_a_laid_character_plays_its_clip_from_its_start_and_wears_only_its_parts(stage):
-    source = stage.GetPrimAtPath("/yard/Characters/keeper/Turned/Skeleton").GetRelationship("skel:animationSource")
-    assert source.GetTargets() == [Sdf.Path("/yard/Characters/keeper/Animations/door")]
-    # A held character plays a pose of its own: the clip's joints at its start, with no time samples.
-    sleeper = "/yard/Characters/sleeper"
-    source = stage.GetPrimAtPath(f"{sleeper}/Turned/Skeleton").GetRelationship("skel:animationSource")
-    assert source.GetTargets() == [Sdf.Path(f"{sleeper}/Held")]
-    pose = UsdSkel.Animation(stage.GetPrimAtPath(f"{sleeper}/Held")).GetRotationsAttr()
-    clip = UsdSkel.Animation(stage.GetPrimAtPath(f"{sleeper}/Animations/walking")).GetRotationsAttr()
+    assert keeper.GetPrimAtPath("Turned/Skeleton").GetRelationship("skel:animationSource").GetTargets() == \
+        [Sdf.Path("/yard/Characters/keeper/Animations/door")]
+    sleeper = stage.GetPrimAtPath("/yard/Characters/sleeper")
+    assert sleeper.GetPrimAtPath("Turned/Skeleton").GetRelationship("skel:animationSource").GetTargets() == \
+        [Sdf.Path("/yard/Characters/sleeper/Held")]
+    pose = UsdSkel.Animation(sleeper.GetPrimAtPath("Held")).GetRotationsAttr()
+    clip = UsdSkel.Animation(sleeper.GetPrimAtPath("Animations/walking")).GetRotationsAttr()
     assert pose.GetTimeSamples() == [] and list(pose.Get(30)) == list(clip.Get(0))
-    # The row's second member starts half way into its 2/30 s clip: its reference is offset back by 1 time code.
     member = stage.GetPrimAtPath("/yard/Characters/row_1")
-    offset = member.GetPrimStack()[0].referenceList.prependedItems[0].layerOffset.offset
-    assert math.isclose(offset, -1.0, abs_tol=1e-6)
-    shown = [child.GetName() for child in stage.GetPrimAtPath("/yard/Characters/row_0/Turned/Body").GetChildren()
-             if UsdGeom.Imageable(child).ComputeVisibility() != UsdGeom.Tokens.invisible]
-    assert shown == [], "a kit member wears only the kit's parts, which this test body has none of"
+    assert math.isclose(member.GetPrimStack()[0].referenceList.prependedItems[0].layerOffset.offset, -1.0,
+                        abs_tol=1e-6)
 
+    # The cast's rules from the same seeds are the same people in the same spots.
+    mix, places, copies = cast.kit_mix(5003), cast.band_places(ROW), cast.crowd_copies(CROWD, keep_clear=[])
+    assert (mix, places, copies) == (cast.kit_mix(5003), cast.band_places(ROW), cast.crowd_copies(CROWD, keep_clear=[]))
+    assert mix["character"].startswith("kit_") and mix["worn"]["plain"][0].startswith("plain_")
+    face = mix["worn"]["plain"][1].removeprefix("head_")
+    assert mix["worn"]["plain"][2].endswith(f"_{face}"), "the hair is made on the face it is worn with"
+    members = cast.characters_of({"groups": [{"name": "row", "count": 40, "seed": 5000, "band": [0.0, 0.0, 4.0, 20.0],
+                                              "facing_to": [0, 0, -9], "doing": ["cheering"]}]})
+    assert len({cast.look_of(member["character"], member["worn"]) for member in members}) == 40, "a new look each"
+    # A character faces -z: one at the origin facing a point on -x is turned a quarter round, to its right.
+    assert math.isclose(cast.facing_degrees([0, 0, 0], [-5, 0, 0]), 90.0)
+    assert len(places) == 10 and all(-13 <= at[0] <= -5 and -16 <= at[2] <= 10 for at in places)
+    assert all(-16 + 2.6 * number <= at[2] <= -16 + 2.6 * (number + 1) for number, at in enumerate(places)), \
+        "spread evenly along the band"
+    on_tier = [copy for copy in copies if -38 <= copy["at"][0] <= -15 and -40 <= copy["at"][2] <= 34]
+    assert len(copies) == 400 and on_tier and all(copy["at"][1] == 0.8 for copy in on_tier), "standing on the tier"
+    off_tier = [copy for copy in copies if copy not in on_tier and not (-38.9 <= copy["at"][0] <= -14.1
+                                                                          and -40.9 <= copy["at"][2] <= 34.9)]
+    assert off_tier and all(copy["at"][1] == 0.0 for copy in off_tier), "on the ground off the tiers"
+    assert all(abs(copy["tall"] - 1) <= 0.06 for copy in copies)
+    assert 0.6 < sum(copy["clip"] == 0 for copy in copies) / 400 < 0.8, "clips dealt by their shares"
 
-def test_the_review_sees_a_person_from_in_front_and_a_crowd_from_its_views(folder, stage, monkeypatch):
-    """The review page's plan (tools/review/characters.py): a person seen close first from straight in front (2.6 m
-    ahead of its -z front, at eye height 1.6), the crowd from its own views and from what it faces, and the moving
-    shots' frames in order."""
-    import characters
-    found = {"people": [{"name": "keeper", "character": "tester", "doing": "door", "at": [1.0, 0.0, 2.0],
-                         "facing_to": [1.0, 0.0, -5.0], "why": "keeps the door"}],
-             "crowd": {"name": "crowd", "count": 5, "spread": [0, 0, 4, 4], "facing_to": [0, 0, -9],
-                       "views": [{"name": "above", "eye": [0, 9, 0], "aim": [2, 0, 2]}]}}
-    monkeypatch.setattr(characters, "cast_of", lambda place: found)
-    planned = characters.plan("yard", folder / "stage/yard.usda")
+    # The review's plan: a person seen close first from straight in front (2.6 m ahead of its -z front, at eye height
+    # 1.6), the crowd from its own views and from what it faces, and the moving shots' frames in order.
     assert planned["closes"][0]["eyes"][0] == [1.0, 1.6, 2.0 - 2.6]
     assert [view["name"] for view in planned["wides"]] == ["crowd-above", "crowd-crowd-faced"]
     assert planned["moves"] == ["close-keeper", "crowd-above", "crowd-crowd-faced"]
