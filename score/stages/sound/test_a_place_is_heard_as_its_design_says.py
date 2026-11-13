@@ -127,7 +127,10 @@ def test_a_place_is_heard_as_its_design_says(toy, place, heard, sounds, missing,
         assert all(lack in gap["work"] for lack in missing) and gap["node"] is None, gap
     else:
         assert "still to make" in gap["sentence"], gap
-        assert (gap["node"], gap["work"] is None) == ((f"sound@{place}", True) if kept else (None, False)), gap
+        if kept:
+            assert gap["node"] == f"sound@{place}" and gap["work"] is None, gap
+        else:
+            assert gap["node"] is None and gap["work"], gap
 
 
 # --- the sound row's make, gates and takes ----------------------------------------------------------------------------
