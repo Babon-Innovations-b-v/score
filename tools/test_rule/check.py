@@ -155,7 +155,6 @@ FUNCTION_DEBT = {
     "tools/characters/clips/test_motion_lands_on_the_rigs_rest.py": 6,
     "tools/characters/maker/test_made_as_asked_and_bound_to_its_limbs.py": 59,
     "tools/characters/people/test_body_pieces_hold_together.py": 16,
-    "tools/characters/test_characters_play_as_their_file_and_cast_say.py": 11,
     "tools/cloud/backends/test_own_resources_and_their_cost.py": 33,
     "tools/cloud/conductor/size_function/test_never_powered_off_under_work.py": 7,
     "tools/cloud/conductor/test_owner_gates_and_safe_moves.py": 25,
