@@ -1,0 +1,17 @@
+{
+ "gaps": [
+  {
+   "name": "kitchen_utensils: outline under the line after its one paid retake",
+   "row": "likeness",
+   "check": "outline",
+   "objects": [
+    "kitchen_utensils"
+   ],
+   "reason": "The galley's kitchen utensils failed their outline, were retaken once paid by pixal@galley in Buy 98 (2026-11-13), and the baked retake still scores 0.402 under 0.5 at its best way (likeness@galley 9b5fe6e4 on b1bafcab, 2026-11-13 11:48 UTC); a second retake is not bought. 1 of the place's 14 objects. If a later finish reaches the line, this entry is removed.",
+   "decided": "the owner's rule of 2026-11-09 (\"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\"), applied by the env1 run session, 2026-11-13 ~13:20 UTC",
+   "faults": [
+    "kitchen_utensils: outline 0.402 under 0.5 (prop route)"
+   ]
+  }
+ ]
+}
