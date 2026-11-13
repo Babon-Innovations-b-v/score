@@ -1,6 +1,7 @@
-"""The style measure (style.py) reads only the models' own pixels and its numbers come out as worked by hand, on
-renders drawn in the test: no Blender, no cloud, no review pages. Each case is a check returning its problems; the
-test_ wrappers at the end fail on any.
+"""The style measure (style.py) reads only the models' own pixels and its numbers come out as worked by hand: one
+review root drawn in the test (no Blender, no cloud, no review pages), measured through style.py's own two steps
+(write_pairs, then report over a likeness written by hand in place of similar.py's), every reading checked on that
+one result.
 
 Breaks (each applied once, seen red, reverted), in tools/review/style.py:
 - told from the grey: foreground takes every pixel (`distance >= 0`).
@@ -14,9 +15,9 @@ Breaks (each applied once, seen red, reverted), in tools/review/style.py:
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_the_style_measure_reads_only_the_models_own_pixels.py
 """
+import json
 import pathlib
 import sys
-import tempfile
 
 import numpy as np
 from PIL import Image
@@ -27,162 +28,99 @@ import style  # noqa: E402
 import sweep  # noqa: E402
 
 GREY = (100, 100, 102)
+BLUE = np.array([0.05, 0.10, 0.60])  # the places' one palette colour, linear
+HALF_BLUE = tuple(int(round(value * 255)) for value in (BLUE * 0.5) ** (1 / 2.4) * 1.055 - 0.055)  # at half light, sRGB
+STAINS = (slice(16, 48, 3), slice(16, 48), (60, 50, 40))
+
+# The review root: place, model, its colour, its square, stained; each a <place>/models/<model>--made--now.png.
+MODELS = [
+    ("hub", "blue", HALF_BLUE, (16, 48), False),
+    ("hub", "red", (200, 40, 40), (16, 48), False),
+    ("hub", "grey", (180, 180, 180), (16, 48), False),
+    ("lab", "flat", (120, 120, 120), (16, 48), False),
+    ("lab", "stained", (120, 120, 120), (16, 48), True),
+    ("lab", "tiny", (120, 120, 120), (30, 34), False),
+    ("lab", "wrench", (90, 90, 90), (16, 48), False),
+    ("workshop", "wrench", (90, 90, 90), (16, 48), False),
+    ("workshop", "vice", (90, 90, 90), (8, 56), False),
+    ("camp", "lamp", (40, 160, 60), (16, 48), False),
+]
+
+# similar.py's answer, by hand: the copy's pair (lab's wrench is workshop's wrench) must leave it.
+LIKENESS = {"colour|hub/blue|hub/red": 0.9, "colour|hub/blue|lab/flat": 0.5, "shape|hub/blue|hub/red": 0.7,
+            "shape|hub/blue|lab/flat": 0.6, "colour|camp/lamp|lab/flat": 0.4, "shape|camp/lamp|lab/flat": 0.4,
+            "colour|lab/wrench|workshop/wrench": 1.0, "shape|lab/wrench|workshop/wrench": 1.0,
+            "colour|lab/wrench|workshop/vice": 0.6, "shape|lab/wrench|workshop/vice": 0.5}
+
+# Each model's readings as worked by hand: its fit to the blue palette at any brightness (None: no coloured pixels).
+FITS = {"hub/blue": 1.0, "hub/red": 0.0, "hub/grey": None, "camp/lamp": 0.0}
 
 
-def render(path, colour, size=64, box=(16, 48)):
+def render(path, colour, box, stained):
     """A made-model render as review_models.py leaves it: one grey with a square of the colour in the middle."""
-    picture = np.full((size, size, 3), GREY, dtype=np.uint8)
+    picture = np.full((64, 64, 3), GREY, dtype=np.uint8)
     picture[box[0]:box[1], box[0]:box[1]] = colour
+    if stained:
+        picture[STAINS[0], STAINS[1]] = STAINS[2]
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(picture).save(path)
-    return path
 
 
-def the_model_is_told_from_the_grey():
-    """The pixels away from the corners' grey are the model's, and only those."""
-    with tempfile.TemporaryDirectory() as folder:
-        path = render(pathlib.Path(folder) / "a.png", (200, 40, 40))
-        mask = style.foreground(np.asarray(Image.open(path)))
-    if mask.sum() != 32 * 32 or mask[:16].any():
-        return [f"the model is {mask.sum()} pixels, not the 1024 of its square"]
-    return []
+def review_root(root):
+    """Every model of MODELS drawn under root, and one parts render the measure must not read."""
+    for place, model, colour, box, stained in MODELS:
+        render(root / place / "models" / f"{model}{style.SUFFIX}", colour, box, stained)
+    render(root / "hub/models/blue--parts--now.png", (90, 90, 90), (16, 48), False)
 
 
-def lab_goes_back_to_linear():
-    """lab_to_linear undoes sweep.lab, so a palette can be lit and read again."""
+def test_the_style_measure_reads_only_the_models_own_pixels(tmp_path, monkeypatch):
+    root, work = tmp_path / "review", tmp_path / "work"
+    review_root(root)
+    work.mkdir()
+    monkeypatch.setattr(style, "palettes_of", lambda places: {place: sweep.lab(BLUE[None]) for place in places})
+
+    renders = style.model_renders(root)
+    assert {place: list(models) for place, models in renders.items()} == {
+        "camp": ["lamp"], "hub": ["blue", "grey", "red"], "lab": ["flat", "stained", "tiny", "wrench"],
+        "workshop": ["vice", "wrench"]}, f"the renders found are {renders}"
+
+    mask = style.foreground(np.asarray(Image.open(renders["hub"]["red"])))
+    assert mask.sum() == 32 * 32 and not mask[:16].any(), f"the model is {mask.sum()} pixels, not its square's 1024"
+
     colours = np.random.default_rng(1).random((50, 3))
     back = style.lab_to_linear(sweep.lab(colours))
-    return [] if np.allclose(back, colours, atol=1e-4) else [f"off by {np.abs(back - colours).max():.5f}"]
+    assert np.allclose(back, colours, atol=1e-4), f"Lab back to linear is off by {np.abs(back - colours).max():.5f}"
 
-
-def a_palette_colour_fits_at_any_brightness():
-    """A model drawn in a palette colour, darker than the colour itself, fits; one in another hue does not; a grey
-    model has no coloured pixels and no fit."""
-    palette = sweep.lab(np.array([[0.05, 0.10, 0.60]]))  # one blue
-    problems = []
-    with tempfile.TemporaryDirectory() as folder:
-        darker = (np.array([0.05, 0.10, 0.60]) * 0.5) ** (1 / 2.4) * 1.055 - 0.055  # the blue at half its light, sRGB
-        cases = {"blue": (tuple(int(round(value * 255)) for value in darker), 1.0), "red": ((200, 40, 40), 0.0),
-                 "grey": ((180, 180, 180), None)}
-        for name, (colour, expected) in cases.items():
-            found = style.model_colour(render(pathlib.Path(folder) / f"{name}.png", colour), style.shaded(palette))
-            if found["fit"] != expected:
-                problems.append(f"the {name} model fits {found['fit']}, not {expected}")
-    return problems
-
-
-def pairs_cover_within_and_draw_across():
-    """Every pair within a place is compared, and each model's partners across come from other places, the same on
-    every run."""
-    renders = {place: {f"m{index}": pathlib.Path(f"{place}{index}.png") for index in range(count)}
-               for place, count in (("hub", 3), ("lab", 4), ("camp", 1))}
-    pairs = style.pair_names(renders)
-    problems = []
+    pairs = [tuple(name.split("|")[1:]) for name in style.write_pairs(root, work) if name.startswith("colour|")]
     within = [pair for pair in pairs if pair[0].split("/")[0] == pair[1].split("/")[0]]
-    if len(within) != 3 + 6:
-        problems.append(f"{len(within)} pairs within, not the 9 of a place of three and one of four")
-    if pairs != style.pair_names(renders):
-        problems.append("the pairs across change from run to run")
-    if not any("camp/m0" in pair for pair in pairs):
-        problems.append("a place with one model has no pair across")
-    return problems
+    assert len(within) == 3 + 6 + 1, f"{len(within)} pairs within, not the 10 of places of three, four and two"
+    assert pairs == style.pair_names(renders) == style.pair_names(style.model_renders(root)), "the pairs change"
+    assert any("camp/lamp" in pair for pair in pairs), "a place with one model has no pair across"
+    assert len(list((work / "shapes").glob("*.png"))) == len(MODELS), "a silhouette per model is missing"
 
+    (work / "likeness.json").write_text(json.dumps(LIKENESS))
+    found = style.report(root, work)
+    models = json.loads((work / "style-models.json").read_text())
+    fits = {name: models[name.split("/")[0]][name.split("/")[1]]["fit"] for name in FITS}
+    assert fits == FITS, f"the models fit {fits}, not {FITS}"
 
-def the_style_gap_takes_the_shapes_away():
-    """The gap is the colour renders' within-minus-across less the silhouettes'; a place with no pair within has
-    none."""
-    likeness = {"colour|hub/a|hub/b": 0.9, "colour|hub/a|lab/c": 0.5, "shape|hub/a|hub/b": 0.7,
-                "shape|hub/a|lab/c": 0.6, "colour|camp/a|lab/c": 0.4, "shape|camp/a|lab/c": 0.4}
-    problems = []
-    gap = style.place_features(likeness, "hub")["style_gap"]
-    if gap != round((0.9 - 0.5) - (0.7 - 0.6), 3):
-        problems.append(f"the hub's gap is {gap}, not 0.3")
-    if style.place_features(likeness, "camp")["style_gap"] is not None:
-        problems.append("a place without a pair within has a gap")
-    world = style.world_features(likeness)
-    if world["colour"]["pairs"] != [1, 2] or world["style_gap"] != round((0.9 - 0.45) - (0.7 - 0.5), 3):
-        problems.append(f"the world's readings are {world}")
-    return problems
+    flat, stained, tiny = (models["lab"][model]["marks"] for model in ("flat", "stained", "tiny"))
+    assert stained > flat, f"the stained model reads {stained} marks, not above the flat one's {flat}"
+    assert tiny is None, f"a model with no whole tile reads {tiny} marks"
 
-
-def the_renders_are_found_by_place():
-    """model_renders reads <place>/models/<model>--made--now.png and nothing else."""
-    with tempfile.TemporaryDirectory() as folder:
-        root = pathlib.Path(folder)
-        render(root / "hub/models/chair_1--made--now.png", (90, 90, 90))
-        render(root / "hub/models/chair_1--parts--now.png", (90, 90, 90))
-        found = style.model_renders(root)
-    return [] if list(found) == ["hub"] and list(found["hub"]) == ["chair_1"] else [f"found {found}"]
-
-
-def a_model_shown_twice_is_left_out():
-    """The same render in two places is a copy, and its pair leaves the likeness; a different model stays."""
-    with tempfile.TemporaryDirectory() as folder:
-        root = pathlib.Path(folder)
-        renders = {"hub": {"wrench": render(root / "hub.png", (90, 90, 90))},
-                   "workshop": {"wrench": render(root / "workshop.png", (90, 90, 90)),
-                                "vice": render(root / "vice.png", (90, 90, 90), box=(8, 56))}}
-        copied = style.copies(renders)
-    likeness = {"colour|hub/wrench|workshop/wrench": 1.0, "colour|hub/wrench|workshop/vice": 0.6}
-    kept = style.without_copies(likeness, copied)
-    return [] if list(kept) == ["colour|hub/wrench|workshop/vice"] else [f"copies {copied}, kept {kept}"]
-
-
-def stains_read_as_marks():
-    """A model with a stained surface reads more marks than one painted flat; one with no whole tile reads None."""
-    with tempfile.TemporaryDirectory() as folder:
-        root = pathlib.Path(folder)
-        flat = style.marks(render(root / "flat.png", (120, 120, 120)))
-        stained = render(root / "stained.png", (120, 120, 120))
-        picture = np.asarray(Image.open(stained)).copy()
-        picture[16:48:3, 16:48] = (60, 50, 40)
-        Image.fromarray(picture).save(stained)
-        marked = style.marks(stained)
-        tiny = style.marks(render(root / "tiny.png", (120, 120, 120), box=(30, 34)))
-    problems = []
-    if not marked > flat:
-        problems.append(f"the stained model reads {marked}, not above the flat one's {flat}")
-    if tiny is not None:
-        problems.append(f"a model with no whole tile reads {tiny}")
-    return problems
-
-
-def test_stains_read_as_marks():
-    assert stains_read_as_marks() == []
-
-
-def test_a_model_shown_twice_is_left_out():
-    assert a_model_shown_twice_is_left_out() == []
-
-
-def test_the_model_is_told_from_the_grey():
-    assert the_model_is_told_from_the_grey() == []
-
-
-def test_lab_goes_back_to_linear():
-    assert lab_goes_back_to_linear() == []
-
-
-def test_a_palette_colour_fits_at_any_brightness():
-    assert a_palette_colour_fits_at_any_brightness() == []
-
-
-def test_pairs_cover_within_and_draw_across():
-    assert pairs_cover_within_and_draw_across() == []
-
-
-def test_the_style_gap_takes_the_shapes_away():
-    assert the_style_gap_takes_the_shapes_away() == []
-
-
-def test_the_renders_are_found_by_place():
-    assert the_renders_are_found_by_place() == []
+    assert found["copies"] == [("lab/wrench", "workshop/wrench")], f"the copies are {found['copies']}"
+    hub = found["places"]["hub"]["features"]
+    assert hub["style_gap"] == round((0.9 - 0.5) - (0.7 - 0.6), 3), f"the hub's gap is {hub['style_gap']}, not 0.3"
+    for place in ("camp", "workshop"):
+        assert found["places"][place]["features"]["style_gap"] is None, f"{place}, no pair within, has a gap"
+    world = found["features"]
+    assert world["colour"]["pairs"] == [1, 3] and world["style_gap"] == round((0.9 - 0.5) - (0.7 - 0.5), 3), (
+        f"the world's readings (the copy's pair out, the vice's in) are {world}")
 
 
 if __name__ == "__main__":
     import runpy
+
+    import pytest
     runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
+    raise SystemExit(pytest.main([__file__, "-q"]))
