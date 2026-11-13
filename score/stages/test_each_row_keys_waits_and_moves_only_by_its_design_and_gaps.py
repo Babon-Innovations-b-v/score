@@ -93,25 +93,25 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   (kept.call would hand back a take made from that file's old bytes); the same in route_split.py `split_take` or
   route_parts.py `parts_take`  -> the same test.
 
---- a scenes layers are read off its design ---
+--- a scenes layers are read off its design, and a rows kind comes from its own words ---
 
+The cases of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps, the one test these two sections fold into.
 Which layers a scene has is read off its design alone, and the stage table and the assembly's layers gate give one
-answer (design_layers.py): each row shows the layer its kind does, crops are plants on a bed and never a potted
-plant, every scene with a design has light and sound, a place with no kept design has no layer at all, and for a
-design kept where the plan stage keeps it every layer row the assembly's gate waits on is a row the table holds for
-the place, and no other. On designs and row-kind rules written here.
+answer (design_layers.py): each row shows the layer its kind does, crops are plants on a bed and never a potted plant,
+every scene with a design has light and sound, a place with no kept design has no layer at all, and for a design kept
+where the plan stage keeps it every layer row the assembly's gate waits on is a row the table holds for the place, and
+no other. On designs and row-kind rules written here.
 
 Breaks (each applied once, seen red, reverted), in score/stages/design_layers.py:
-- `DOES`: `"loose": "physics"` dropped  -> the kind test (the kettle shows no physics).
-- `on_bed`: `or "grows" in ...` dropped  -> the crops test (greens on a planter are no crops).
-- `plants_of`: the beds kept among the plants (`if row["id"] not in beds` dropped)  -> the plants test.
-- `has_layer`: `if place is None or not path.is_file(): return False` read as returning True  -> the kept test.
-- `kinds_of`: `set(EVERY_SCENE)` read as `set()`  -> the kind test (a bare room has no light).
+- `DOES`: `"loose": "physics"` dropped  -> the kettle row (it shows no physics).
+- `on_bed`: `or "grows" in ...` dropped  -> the plants-on-a-rack row (its greens are no crops).
+- `plants_of`: the beds kept among the plants (`if row["id"] not in beds` dropped)  -> the plants-and-beds row.
+- `has_layer`: `if place is None or not path.is_file(): return False` read as returning True  ->
+  the barn's has_layer row.
+- `kinds_of`: `set(EVERY_SCENE)` read as `set()`  -> the opening gives no motion row (no light).
 - score/stages/__init__.py: the sound row's `designed("sound")` written `designed("sounds")`  ->
-  test_the_table_has_a_row_for_every_layer_the_gate_waits_on.
-- data/checks/row-kinds.json: "tree" dropped from the plant nouns  -> test_the_house_rules_call_trees_and_shrubs_plants.
-
---- a rows kind comes from its own words ---
+  the hangar's table check.
+- data/checks/row-kinds.json: "tree" dropped from the plant nouns  -> the house plant: tree row.
 
 A scene inventory row's kind comes from its own reading words alone (row_kinds.py): its reading noun first, matched
 whole, its name's last word only for a row read with no noun, else the kind its name says holds it; a scene's
@@ -120,17 +120,16 @@ outside the layers' own scopes, and a prim no row's object has is a stranger. On
 rules (data/checks/row-kinds.json, where the expected kinds are read off the file's own nouns by hand).
 
 Breaks (each applied once, seen red, reverted), in score/stages/row_kinds.py:
-- `kind_of`: the noun ignored (`words(row.get("noun")) or` dropped)  -> the noun test ("door panel" read as a door).
-- `kind_of`: `wanted in rule["nouns"]` read as any noun inside the words  -> the noun test ("floor plate").
-- `held_kind`: `said[-2] in rule["nouns"]` dropped  -> the lamp test ("fence post" read as a lamp).
-- `kind_of`: `if row.get("part") == "opening":` read as `if False:`  -> the opening test (workshop's doorway, a hole
+- `said_nouns`: the noun ignored (`noun = words(row.get("noun"))` read as `noun = ""`)  -> the floor plate row.
+- `kind_of`: `wanted in rule["nouns"]` read as any noun inside the words  -> the door panel row.
+- `held_kind`: `said[-2] in rule["nouns"]` dropped  -> the fence post row (read as a lamp).
+- `kind_of`: `if row.get("part") == "opening":` read as `if False:`  -> the opening rows (workshop's doorway, a hole
   read with the noun "door", swings and its scene needs motion).
-- `objects_of`: the NOT_OBJECTS prune dropped  -> the objects test (/toy/Effects/door_3 found).
-- `of_row`: `(_\\d+)?` read as `.*`  -> the objects test (door_frame_1 found) and the strangers test.
+- `objects_of`: the NOT_OBJECTS prune dropped  -> the toy door objects (/toy/Effects/door_3 found).
+- `of_row`: `(_\\d+)?` read as `.*`  -> the toy door objects (door_frame_1 found) and the strangers.
 - `does`: only a kind's first deed read (`["does"][:1]`)  ->
-  test_a_scenes_rows_are_picked_by_what_their_kind_does_and_a_kind_can_do_more_than_one_thing,
-  test_each_row_shows_the_layer_its_kind_does and test_the_table_has_a_row_for_every_layer_the_gate_waits_on.
-- data/checks/row-kinds.json: "tv" dropped from the screen nouns  -> test_the_house_rules_read_real_words.
+  the loose-rows row (the kettle not picked), the kettle row and the hangar's table check.
+- data/checks/row-kinds.json: "tv" dropped from the screen nouns  -> the house: tv row.
 
 --- every designed person is a look of the line ---
 
@@ -1247,160 +1246,140 @@ def test_a_rejected_sheet_is_remade_as_its_flat_sheet_build_never_a_new_seed(tmp
     assert "reject" in json.loads((pixal / "note_3.svviews" / thin_straight.MARK).read_text())["why"]
 
 
-# --- a scenes layers are read off its design ---
+# --- a scenes layers are read off its design, and a rows kind comes from its own words ---
 
 KINDS = {"person": {"nouns": ["astronaut", "crowd"], "does": ["acts"]},
          "kettle": {"nouns": ["kettle"], "does": ["emits", "loose"]},
          "door": {"nouns": ["door"], "does": ["moves"]}, "vehicle": {"nouns": ["rover"], "does": ["moves"]},
          "plant": {"nouns": ["plant", "plants", "planter", "rack"], "does": ["grows"]},
          "loose": {"nouns": ["chair"], "does": ["loose"]}}
+RULES = {"door": {"nouns": ["door", "hatch"], "does": ["moves"]},
+         "kettle": {"nouns": ["kettle"], "does": ["emits", "loose"]},
+         "loose": {"nouns": ["chair", "cylinder"], "does": ["loose"]}}
+LAMPS = {"lamp": {"nouns": ["light", "floodlight"], "does": ["glows"], "held_by": ["tower", "frame", "post"]}}
+PLATES = {"loose": {"nouns": ["plate"], "does": ["loose"]}}
+HOUSE = "the house rules"  # data/checks/row-kinds.json, read in the test
 
 
 def row(row_id, noun, kind="generate", anchor="floor"):
     return {"id": row_id, "noun": noun, "kind": kind, "anchor": anchor}
 
 
-def test_each_row_shows_the_layer_its_kind_does():
-    # a kettle emits and is loose; a rover and a door built as code both move
-    assert design_layers.kinds_of({"rows": [row("kettle", "kettle")]}, KINDS) == {"effects", "physics", "light",
-                                                                                   "sound"}
-    assert design_layers.kinds_of({"rows": [row("rover", "rover")]}, KINDS) == {"motion", "light", "sound"}
-    assert design_layers.kinds_of({"rows": [row("door", "door", kind="code")]}, KINDS) == {"motion", "light", "sound"}
-    # a crowd acts; a bare room still has its light and sound
-    assert design_layers.kinds_of({"rows": [row("crowd", "crowd")]}, KINDS) == {"people", "light", "sound"}
-    assert design_layers.kinds_of({"rows": [row("wall", "wall", kind="code")]}, KINDS) == {"light", "sound"}
+def named(name, noun):
+    """A row read from a scene's words, its id its name's."""
+    return {"id": name.replace(" ", "_"), "name": name, "noun": noun}
 
 
-def test_crops_are_plants_on_a_bed_never_a_potted_plant():
-    # plants on a raised planter (a row that grows itself) or on a bed by its noun are crops; a potted plant on the
-    # floor or on a desk is not
-    beds = [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]
-    assert "crops" in design_layers.kinds_of({"rows": beds}, KINDS)
-    rack = [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]  # no bed noun: it grows itself
-    assert "crops" in design_layers.kinds_of({"rows": rack}, KINDS)
-    plot = [row("bed", "bed", kind="code"), row("greens", "plants", anchor="on:bed")]
-    assert "crops" in design_layers.kinds_of({"rows": plot}, KINDS)
-    potted = [row("desk", "desk"), row("pot", "plant", anchor="on:desk"), row("fern", "plant")]
-    assert "crops" not in design_layers.kinds_of({"rows": potted}, KINDS)
+HOLE = {"id": "doorway", "name": "doorway", "noun": "door", "part": "opening"}  # workshop's doorway (2026-10-30)
+SWING = {"id": "doorway", "name": "closed metal door", "noun": "door", "part": "structure"}  # hangar's
+INVENTORY = {"rows": [{"id": "kettle", "noun": "kettle"}, {"id": "stool", "noun": "chair"},
+                      {"id": "front_door", "noun": "door"}, {"id": "wall", "noun": "wall"}]}
+SCENE = {"rows": [row("planter", "planter") | {"count": 11}, row("greens", "plants", anchor="on:planter") | {"count": 5},
+                  row("pot", "plant") | {"count": 2}, row("desk", "desk")]}
+EMPTY_PLANTS = {"rows": 0, "objects": 0, "crops": 0, "beds": 0}
+ONE_PLANT = {"rows": 1, "objects": 1, "crops": 0, "beds": 0}
+
+# (case, judge, what it reads, the kind rules, its answer): a row's kind, a scene's layers, its plants and the rows
+# picked by what their kind does, each read off the words and design alone
+JUDGED = [
+    # the noun decides before the name; with no noun the name's last word; a two-word noun is matched whole
+    ("door panel is a panel", row_kinds.kind_of, ({"id": "door_panel", "name": "door panel", "noun": "panel"},), RULES,
+     None),
+    ("airlock door", row_kinds.kind_of, (named("airlock door", "door"),), RULES, "door"),
+    ("gas cylinder by its name", row_kinds.kind_of, ({"id": "gas_cylinder", "name": "gas cylinder"},), RULES, "loose"),
+    ("round hatch by its id", row_kinds.kind_of, ({"id": "round_hatch"},), RULES, "door"),
+    ("floor plate is no plate", row_kinds.kind_of, (named("floor plate", "floor plate"),), PLATES, None),
+    # an opening is a hole that does nothing of its noun; a door read as structure still swings
+    ("opening is no door", row_kinds.kind_of, (HOLE,), RULES, None),
+    ("structure door swings", row_kinds.kind_of, (SWING,), RULES, "door"),
+    ("opening moves nothing", row_kinds.rows_that, ({"rows": [HOLE]}, "moves"), RULES, []),
+    ("opening gives no motion", design_layers.kinds_of, ({"rows": [HOLE]},), RULES, {"light", "sound"}),
+    ("structure door gives motion", design_layers.kinds_of, ({"rows": [SWING]},), RULES, {"motion", "light", "sound"}),
+    # a lamp read as what holds it is still a lamp; a switch and a fence post are none
+    ("floodlight tower", row_kinds.kind_of, (named("floodlight tower", "tower"),), LAMPS, "lamp"),
+    ("grow light frame", row_kinds.kind_of, ({"id": "grow_light_frame", "noun": "frame"},), LAMPS, "lamp"),
+    ("light switch", row_kinds.kind_of, (named("light switch", "switch"),), LAMPS, None),
+    ("fence post", row_kinds.kind_of, (named("fence post", "post"),), LAMPS, None),
+    # a scene's rows are picked by what their kind does, and a kind can do more than one thing
+    ("loose rows", row_kinds.rows_that, (INVENTORY, "loose"), RULES,
+     [{"id": "kettle", "noun": "kettle", "row_kind": "kettle"}, {"id": "stool", "noun": "chair", "row_kind": "loose"}]),
+    ("emitting rows", row_kinds.rows_that, (INVENTORY, "emits"), RULES,
+     [{"id": "kettle", "noun": "kettle", "row_kind": "kettle"}]),
+    ("moving rows", row_kinds.rows_that, (INVENTORY, "moves"), RULES,
+     [{"id": "front_door", "noun": "door", "row_kind": "door"}]),
+    # the house rules read real words
+    *[(f"house: {name}", row_kinds.kind_of, (named(name, noun),), HOUSE, kind) for name, noun, kind in (
+        ("stove", "stove", "cooker"), ("table lamp", "lamp", "lamp"), ("tracked rover", "rover", "vehicle"),
+        ("ceiling light", "light", "lamp"), ("dining chair", "chair", "loose"), ("tv", "tv", "screen"),
+        ("laptop", "laptop", "computer"), ("planter bed", "planter", "plant"), ("hatch", "hatch", "door"),
+        ("door mat", "mat", None), ("outer wall", "wall", None))],
+    # each row shows the layer its kind does: a kettle emits and is loose, a rover and a door built as code move, a
+    # crowd acts, and a bare room still has its light and sound
+    ("kettle", design_layers.kinds_of, ({"rows": [row("kettle", "kettle")]},), KINDS,
+     {"effects", "physics", "light", "sound"}),
+    ("rover", design_layers.kinds_of, ({"rows": [row("rover", "rover")]},), KINDS, {"motion", "light", "sound"}),
+    ("code door", design_layers.kinds_of, ({"rows": [row("door", "door", kind="code")]},), KINDS,
+     {"motion", "light", "sound"}),
+    ("crowd", design_layers.kinds_of, ({"rows": [row("crowd", "crowd")]},), KINDS, {"people", "light", "sound"}),
+    ("bare room", design_layers.kinds_of, ({"rows": [row("wall", "wall", kind="code")]},), KINDS, {"light", "sound"}),
+    # crops are plants on a raised planter (a row that grows itself), on a rack, or on a bed by its noun; a potted
+    # plant on the floor or on a desk is not
+    ("plants on a planter", design_layers.kinds_of,
+     ({"rows": [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]},), KINDS,
+     {"crops", "light", "sound"}),
+    ("plants on a rack", design_layers.kinds_of,
+     ({"rows": [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]},), KINDS, {"crops", "light", "sound"}),
+    ("plants on a bed", design_layers.kinds_of,
+     ({"rows": [row("bed", "bed", kind="code"), row("greens", "plants", anchor="on:bed")]},), KINDS,
+     {"crops", "light", "sound"}),
+    ("potted plants", design_layers.kinds_of,
+     ({"rows": [row("desk", "desk"), row("pot", "plant", anchor="on:desk"), row("fern", "plant")]},), KINDS,
+     {"light", "sound"}),
+    # plants are every growing row, and the planter under crops is their bed
+    ("plants and beds", design_layers.plants_of, (SCENE,), KINDS, {"rows": 2, "objects": 7, "crops": 1, "beds": 11}),
+    ("no plants", design_layers.plants_of, ({"rows": [row("desk", "desk")]},), KINDS, EMPTY_PLANTS),
+    *[(f"house plant: {noun}", design_layers.plants_of, ({"rows": [row("green", noun)]},), HOUSE, ONE_PLANT)
+      for noun in ("tree", "palm", "shrub", "bush", "moss", "fern", "flower")],
+]
+
+# a place has a layer only by its kept design: the shed keeps one astronaut, the hangar every layer kind, the barn none
+KEPT = {"shed": {"rows": [row("pilot", "astronaut")]},
+        "hangar": {"rows": [row("pilot", "astronaut"), row("kettle", "kettle"), row("hatch", "door", kind="code"),
+                            row("planter", "planter"), row("greens", "plants", anchor="on:planter")]}}
+HAS_LAYER = [("shed", "people", True), ("shed", "light", True), ("shed", "effects", False),
+             ("barn", "light", False), (None, "sound", False)]
 
 
-def test_plants_are_every_growing_row_and_the_planter_under_crops_is_their_bed():
-    design = {"rows": [row("planter", "planter") | {"count": 11},
-                       row("greens", "plants", anchor="on:planter") | {"count": 5},
-                       row("pot", "plant") | {"count": 2}, row("desk", "desk")]}
-    assert design_layers.plants_of(design, KINDS) == {"rows": 2, "objects": 7, "crops": 1, "beds": 11}
-    assert design_layers.plants_of({"rows": [row("desk", "desk")]}, KINDS)["rows"] == 0
+def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, monkeypatch):
+    """Each row's kind is read off its own words and each scene's layers off its kept design, and the stage table
+    holds a row for exactly the layers the assembly's gate waits on; a row's objects are found outside the layers'
+    scopes, anything else a stranger."""
+    from score.stages import assembly
+    house = row_kinds.table()
+    for case, judge, read, rules, answer in JUDGED:
+        assert judge(*read, house if rules is HOUSE else rules) == answer, case
 
-
-def test_the_house_rules_call_trees_and_shrubs_plants():
-    from score.stages import row_kinds
-    rules = row_kinds.table()
-    for noun in ("tree", "palm", "shrub", "bush", "moss", "fern", "flower"):
-        assert design_layers.plants_of({"rows": [row("green", noun)]}, rules)["rows"] == 1, noun
-
-
-def test_a_place_has_a_layer_only_by_its_kept_design():
-    with tempfile.TemporaryDirectory() as folder:
-        kept, design_layers.KEPT = design_layers.KEPT, pathlib.Path(folder)
-        try:
-            (pathlib.Path(folder) / "shed.json").write_text(json.dumps({"rows": [row("pilot", "astronaut")]}))
-            assert design_layers.has_layer("shed", "people") and design_layers.has_layer("shed", "light")
-            assert not design_layers.has_layer("shed", "effects")
-            # a place with no design has no layer at all, light and sound included
-            assert not design_layers.has_layer("barn", "light") and not design_layers.has_layer(None, "sound")
-        finally:
-            design_layers.KEPT = kept
-
-
-def test_the_table_has_a_row_for_every_layer_the_gate_waits_on():
-    """For a design kept where the plan stage keeps it, every layer stage the assembly's layers gate needs is a row
-    the table holds for the place, and no layer row the assembly reads applies beyond them, by the house's rules."""
-    import score.stages as stages
-    from score.stages import assembly, row_kinds
-    design = {"rows": [row("pilot", "astronaut"), row("kettle", "kettle"), row("hatch", "door", kind="code"),
-                       row("planter", "planter"), row("greens", "plants", anchor="on:planter")]}
-    with tempfile.TemporaryDirectory() as folder:
-        kept, design_layers.KEPT = design_layers.KEPT, pathlib.Path(folder)
-        try:
-            (pathlib.Path(folder) / "shed.json").write_text(json.dumps(design))
-            needed = assembly.needed_layers(design, row_kinds.table())
-            rows = {stage.name for stage in stages.STAGES if stage.grain == "place"
-                    and stage.name in assembly.NEEDS.values() and stage.applies is not None
-                    and stage.applies("shed")}
-        finally:
-            design_layers.KEPT = kept
+    monkeypatch.setattr(design_layers, "KEPT", tmp_path)
+    for place, design in KEPT.items():
+        (tmp_path / f"{place}.json").write_text(json.dumps(design))
+    for place, layer, has in HAS_LAYER:
+        assert design_layers.has_layer(place, layer) is has, (place, layer)
+    needed = assembly.needed_layers(KEPT["hangar"], house)
+    rows = {stage.name for stage in stages.STAGES if stage.grain == "place" and stage.name in assembly.NEEDS.values()
+            and stage.applies is not None and stage.applies("hangar")}
     assert needed == ["characters-layer", "crops-layer", "effects-layer", "motion", "settle", "light", "sound"]
     assert rows == set(needed), rows
 
-
-# --- a rows kind comes from its own words ---
-
-RULES = {"door": {"nouns": ["door", "hatch"], "does": ["moves"]},
-         "kettle": {"nouns": ["kettle"], "does": ["emits", "loose"]},
-         "loose": {"nouns": ["chair", "cylinder"], "does": ["loose"]}}
-
-
-def test_the_noun_decides_before_the_name():
-    # a "door panel" is a panel (its noun), not a door; a row read with no noun falls back on its name's last word
-    assert row_kinds.kind_of({"id": "door_panel", "name": "door panel", "noun": "panel"}, RULES) is None
-    assert row_kinds.kind_of({"id": "airlock_door", "name": "airlock door", "noun": "door"}, RULES) == "door"
-    assert row_kinds.kind_of({"id": "gas_cylinder", "name": "gas cylinder"}, RULES) == "loose"
-    assert row_kinds.kind_of({"id": "round_hatch"}, RULES) == "door"
-    # a noun of two words is matched whole: a "floor plate" is no plate, though "plate" is a loose noun
-    assert row_kinds.kind_of({"id": "floor_plate", "name": "floor plate", "noun": "floor plate"},
-                             {"loose": {"nouns": ["plate"], "does": ["loose"]}}) is None
-
-
-def test_a_row_read_as_an_opening_is_a_hole_and_does_nothing_of_its_noun():
-    # workshop's "doorway" (2026-10-30): read as an opening with the noun "door", a hole in its wall with no object,
-    # so it neither moves nor gives its scene motion; hangar's doorway, a door read as structure, still swings
-    hole = {"id": "doorway", "name": "doorway", "noun": "door", "part": "opening"}
-    door = {"id": "doorway", "name": "closed metal door", "noun": "door", "part": "structure"}
-    assert row_kinds.kind_of(hole, RULES) is None and row_kinds.kind_of(door, RULES) == "door"
-    assert row_kinds.rows_that({"rows": [hole]}, "moves", RULES) == []
-    assert design_layers.kinds_of({"rows": [hole]}, RULES) == {"light", "sound"}
-    assert design_layers.kinds_of({"rows": [door]}, RULES) == {"motion", "light", "sound"}
-
-
-def test_a_lamp_read_as_what_holds_it_is_still_a_lamp():
-    # a "floodlight tower" read as a tower is the lamp kind's (held_by); a "light switch" and a "fence post" are none
-    rules = {"lamp": {"nouns": ["light", "floodlight"], "does": ["glows"], "held_by": ["tower", "frame", "post"]}}
-    assert row_kinds.kind_of({"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower"}, rules) == "lamp"
-    assert row_kinds.kind_of({"id": "grow_light_frame", "noun": "frame"}, rules) == "lamp"
-    assert row_kinds.kind_of({"id": "light_switch", "name": "light switch", "noun": "switch"}, rules) is None
-    assert row_kinds.kind_of({"id": "fence_post", "name": "fence post", "noun": "post"}, rules) is None
-
-
-def test_a_scenes_rows_are_picked_by_what_their_kind_does_and_a_kind_can_do_more_than_one_thing():
-    inventory = {"rows": [{"id": "kettle", "noun": "kettle"}, {"id": "stool", "noun": "chair"},
-                          {"id": "front_door", "noun": "door"}, {"id": "wall", "noun": "wall"}]}
-    assert [row["id"] for row in row_kinds.rows_that(inventory, "loose", RULES)] == ["kettle", "stool"]
-    assert [row["id"] for row in row_kinds.rows_that(inventory, "emits", RULES)] == ["kettle"]
-    assert [(row["id"], row["row_kind"]) for row in row_kinds.rows_that(inventory, "moves", RULES)] == [
-        ("front_door", "door")]
-
-
-def test_the_house_rules_read_real_words():
-    rules = row_kinds.table()
-    expected = {("stove", "stove"): "cooker", ("table lamp", "lamp"): "lamp", ("tracked rover", "rover"): "vehicle",
-                ("ceiling light", "light"): "lamp", ("dining chair", "chair"): "loose", ("tv", "tv"): "screen",
-                ("laptop", "laptop"): "computer", ("planter bed", "planter"): "plant", ("hatch", "hatch"): "door",
-                ("door mat", "mat"): None, ("outer wall", "wall"): None}
-    for (name, noun), kind in expected.items():
-        assert row_kinds.kind_of({"id": name.replace(" ", "_"), "name": name, "noun": noun}, rules) == kind, name
-
-
-def test_a_rows_objects_are_found_outside_the_layers_scopes_and_anything_else_is_a_stranger():
     stage = Usd.Stage.CreateInMemory()
     for path in ("/toy", "/toy/Fixtures", "/toy/Fixtures/door_1", "/toy/Fixtures/door_1/door_1", "/toy/Objects",
                  "/toy/Objects/door_2", "/toy/Objects/door_frame_1", "/toy/Effects", "/toy/Effects/door_3"):
         UsdGeom.Xform.Define(stage, path)
-    assert row_kinds.objects_of(stage, "toy", "door") == ["/toy/Fixtures/door_1", "/toy/Objects/door_2"]
-    assert row_kinds.objects_of(stage, "toy", "window") == []
-    assert row_kinds.objects_of(stage, "elsewhere", "door") == []
-    inventory = {"rows": [{"id": "door"}, {"id": "kettle"}]}
+    for scene, noun, found in (("toy", "door", ["/toy/Fixtures/door_1", "/toy/Objects/door_2"]), ("toy", "window", []),
+                               ("elsewhere", "door", [])):
+        assert row_kinds.objects_of(stage, scene, noun) == found, (scene, noun)
     assert row_kinds.strangers(["Objects/door_2", "Objects/kettle", "Objects/door_frame_1", "Objects/doormat"],
-                               inventory) == ["Objects/door_frame_1", "Objects/doormat"]
+                               {"rows": [{"id": "door"}, {"id": "kettle"}]}) == ["Objects/door_frame_1",
+                                                                                "Objects/doormat"]
 
 
 # --- every designed person is a look of the line ---
