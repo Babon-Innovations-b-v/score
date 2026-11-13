@@ -14,6 +14,8 @@ import pathlib
 import sys
 import tempfile
 
+import pytest
+
 HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import store_page  # noqa: E402
@@ -34,33 +36,29 @@ def an_audit():
     return folder / "audit.txt"
 
 
-def test_a_places_section_runs_from_its_heading_to_the_next():
-    audit = an_audit()
-    assert store_page.audit_section(audit, "greenhouse") == ("  People                X  no cast\n"
-                                                             "  Reads wrong           an empty hall")
-    assert store_page.audit_section(audit, "garage") == "  Close-ups             M"
+# Each place a page is made for: its audit section, its name, its completion record and the status words it shows.
+PLACES = [
+    pytest.param("greenhouse", "  People                X  no cast\n  Reads wrong           an empty hall",
+                 "the greenhouse", {"verdict": "pass", "status": "complete"}, ">complete<",
+                 id="section-ends-at-next-heading"),
+    pytest.param("garage", "  Close-ups             M", "the garage",
+                 {"verdict": "gapped", "status": "complete apart from accepted gaps", "accepted_gaps": [{}, {}]},
+                 ">complete apart from accepted gaps (2)<", id="last-section-gaps-counted"),
+    pytest.param("nowhere", None, "nowhere", {"verdict": "unknown", "status": "NOT complete"}, ">NOT complete<",
+                 id="unnamed-place-no-entry"),
+]
 
 
-def test_a_place_the_audit_does_not_name_reads_as_none():
-    assert store_page.audit_section(an_audit(), "hangar") is None
-
-
-def test_a_places_name_is_its_entrys_else_its_key():
-    assert store_page.place_name("nowhere") == "nowhere"  # a key with no entry in place.json, never a KeyError
-    assert store_page.place_name("garage") == "the garage"
-
-
-def test_the_completion_status_is_in_dones_own_words():
-    assert ">complete<" in store_page.status_pill({"verdict": "pass", "status": "complete"})
-    assert ">complete apart from accepted gaps (2)<" in store_page.status_pill(
-        {"verdict": "gapped", "status": "complete apart from accepted gaps", "accepted_gaps": [{}, {}]})
-    assert ">NOT complete<" in store_page.status_pill({"verdict": "unknown", "status": "NOT complete"})
+@pytest.mark.parametrize("place, section, name, found, pill", PLACES)
+def test_a_place_page_reads_its_own_audit_and_status(place, section, name, found, pill):
+    assert store_page.audit_section(an_audit(), place) == section, place
+    assert store_page.place_name(place) == name, place
+    assert pill in store_page.status_pill(found), place
 
 
 if __name__ == "__main__":
     import runpy
     runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            test()
-            print("ok", name)
+    for row in PLACES:
+        test_a_place_page_reads_its_own_audit_and_status(*row.values)
+        print("ok", row.id)
