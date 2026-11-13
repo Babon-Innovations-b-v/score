@@ -154,7 +154,7 @@ FUNCTION_DEBT = {
     "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 12,
     "tools/cloud/runtime/test_a_job_runs_once_on_checked_weights.py": 15,
     "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 36,
-    "tools/cloud/test_blender_cloud_runs_a_job_as_written.py": 14,
+    "tools/cloud/test_blender_cloud_runs_a_job_as_written.py": 10,
     "tools/cloud/test_detached_logs_everything_and_says_one_line.py": 3,
     "tools/cloud/test_judge_asks_each_question_once_on_a_card_that_holds_it.py": 3,
     "tools/cloud/test_kept_rerun_pays_only_for_missing_jobs.py": 11,
