@@ -17,12 +17,13 @@ import pathlib
 import sys
 import tempfile
 import numpy as np
+import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
 from score import checks  # noqa: E402
-from score.stages.scene_record import gates, plan  # noqa: E402
+from score.stages.scene_record import gates, plan, writer  # noqa: E402
 
 SHED = {"title": "SHED", "w": 8.0, "d": 6.0, "corner": 1.0, "height": "walls 3 m, dome rising 1 m",
         "doors": [["N", 4.0, 1.2, "HATCH N, 1.2 x 2.1 m"], ["S", 4.0, 2.0, "BIG DOOR, 2 x 3 m"]],
@@ -698,49 +699,151 @@ def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model
             if entry["row"] == "pipe"] == ["plan item 'PIPE 1'", "plan item 'PIPE 2'"]
 
 
-def test_a_row_the_plan_lays_only_against_its_edge_stands_past_it_facing_in():
-    """2026-10-26: the square's 30 by 30 m buildings, laid by its plan only as 2 to 7 m strips at its edges
-    (floor_fit.past_edge), stood centred on those strips over the plaza. Such a row stands with its face on the
-    edge's line and its body out past it, facing in. On a 20 by 20 m plan (centred: plan (x, y) is place (x - 10,
-    y - 10)): the 30 x 30 m building's strip at the right edge, (18, 0) 2 x 10 m (a corner: it runs along the right
-    edge), stands at plan (35, 5), its body 20 to 50 m east, facing west; the 40 x 20 m one's strip at the foot,
-    (5, 18) 10 x 2 m, at plan (10, 30), 20 to 40 m south, facing north; a kiosk on the ground off the edge stays
-    centred on its item.
-    Break: score/stages/scene_record/writer.py: `spot, way = past_edge_spot(item, design, spot, size)` -> `pass`"""
-    from score.stages.scene_record import writer
-    design = {"w": 20.0, "d": 20.0, "items": [["RIGHT 1", 18.0, 0.0, 2.0, 10.0, "W", "item"],
-                                              ["FRONT 1", 5.0, 18.0, 10.0, 2.0, "N", "item"],
-                                              ["KIOSK 1", 9.0, 9.0, 2.0, 2.0, "N", "item"]],
-              "rows": {"RIGHT 1": ["right"], "FRONT 1": ["front"], "KIOSK 1": ["kiosk"]}}
-    rows = [{"id": name, "anchor": "ground", "route": "shell", "size": size}
-            for name, size in (("right", [30.0, 30.0, 20.0]), ("front", [40.0, 20.0, 15.0]), ("kiosk", [2, 2, 3]))]
-    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}})}
-    assert found["right"]["at"] == [25.0, 0.0, -5.0], found["right"]
-    assert found["right"]["rotation"] == writer.yaw_turn(design, writer.FACING_WAY["W"], rows[0]["size"])
-    assert found["front"]["at"] == [0.0, 0.0, 20.0], found["front"]
-    assert found["front"]["rotation"] == writer.yaw_turn(design, writer.FACING_WAY["N"], rows[1]["size"])
-    assert found["kiosk"]["at"] == [0.0, 0.0, 0.0], found["kiosk"]
+class Turned:
+    """An object's turn: `writer.yaw_turn` laying its row's long side along plan `way` (a facing letter or a
+    vector); `signed` False takes a quaternion and its negative as one turn, and `not_` asks that it is not that turn."""
+
+    def __init__(self, way, signed=True, not_=False):
+        self.way, self.signed, self.not_ = way, signed, not_
+
+    def holds(self, rotation, design, size):
+        way = writer.FACING_WAY[self.way] if isinstance(self.way, str) else self.way
+        wanted = writer.yaw_turn(design, way, size)
+        same = rotation == wanted if self.signed else bool(np.isclose(abs(np.dot(rotation, wanted)), 1.0))
+        return same != self.not_
 
 
-def test_a_run_lies_along_its_item_s_long_side_whatever_its_facing():
-    """#36, 2026-10-31: the walkway's two 12 m ceiling ducts (0.5 by 12 m), each on a 0.14 by 12 m item along the hall
-    facing S, were turned by their facing across the hall. A row long on the ground at an item long the other way to
-    its facing lies along the item (its facing's way turned a quarter, writer.item_way); a chair, not long, keeps its
-    facing on its box a little deeper than wide.
-    Break: score/stages/scene_record/writer.py: `return np.array([-way[1], way[0]])` -> `return way`"""
-    from score.stages.scene_record import writer
-    design = {"w": 2.0, "d": 12.0, "items": [["DUCT 1", 0.5, 0.0, 0.14, 12.0, "S", "item"],
-                                             ["CHAIR 1", 1.2, 5.0, 0.5, 0.6, "S", "item"]],
-              "rows": {"DUCT 1": ["duct"], "CHAIR 1": ["chair"]}}
-    rows = [{"id": "duct", "route": "prop", "size": [0.5, 12.0, 0.3]},
-            {"id": "chair", "route": "prop", "size": [0.5, 0.55, 0.9]}]
-    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}})}
+class Starts:
+    """A said reason that begins with `text`."""
 
-    def same(one, two):  # one turn: a quaternion and its negative
-        return bool(np.isclose(abs(np.dot(one, two)), 1.0))
-    assert same(found["duct"]["rotation"], writer.yaw_turn(design, (0.0, -1.0), rows[0]["size"])), found["duct"]
-    assert not same(found["duct"]["rotation"], writer.yaw_turn(design, writer.FACING_WAY["S"], rows[0]["size"]))
-    assert same(found["chair"]["rotation"], writer.yaw_turn(design, writer.FACING_WAY["S"], rows[1]["size"]))
+    def __init__(self, text):
+        self.text = text
+
+    def holds(self, said, design, size):
+        return isinstance(said, str) and said.startswith(self.text)
+
+
+ABSENT = object()
+
+
+# Each case: a plan, its inventory rows and its relations (None: none kept), and the objects it lays with what each
+# must hold (`field` or `field.sub`): a value equal, a Turned turn, a Starts reason, ABSENT, or a tuple of these all.
+#  - past its edge (2026-10-26, floor_fit.past_edge): on a 20 by 20 m plan (centred: plan (x, y) is place (x - 10,
+#    y - 10)) the 30 x 30 m building's strip at the right edge, (18, 0) 2 x 10 m (a corner: it runs along the right
+#    edge), stands at plan (35, 5), its body 20 to 50 m east, facing west; the 40 x 20 m one's strip at the foot,
+#    (5, 18) 10 x 2 m, at plan (10, 30), 20 to 40 m south, facing north; a kiosk on the ground off the edge stays
+#    centred on its item.
+#  - a run along its long side (#36, 2026-10-31: the walkway's 12 m ceiling ducts turned by their facing across the
+#    hall): a duct long on the ground at an item long the other way to its facing lies along the item (its facing's
+#    way turned a quarter, writer.item_way); a chair, not long, keeps its facing on its box a little deeper than wide.
+#  - a facade (street, 2026-10-29): on a 6 x 30 m plan (place (x, z) is plan (x - 3, y - 15)) its 3 m deep facade the
+#    plan writer left on the walls item stands past the W edge, its middle 1.5 m out, at place (-4.5, 0), its long
+#    side along the edge; the AC unit on it names the facade's object alone of the walls item's (its holder row), not
+#    the crate also left there, which stands marked unplaced; a door with no relation is marked as filling an
+#    opening; a row its relations name nothing holding is marked unheld.
+#  - doors at their spots (street, #36: three restaurant doors on one 1.74 m item laid evenly 0.58 m apart, their
+#    recesses in one another): where the relation gives each piece its `spots` (score/review/holders face_spots),
+#    each door stands at its own, place z -1.4, 0, 1.4, x -0.95 (plan 2.05).
+#  - a ramp (settle@airlock, 2026-10-30: its end in its porch deck): with its relation (holders up_to_level), on a 20
+#    by 20 m plan it stands at the relation's spot, plan (8.9, 12), place (-1.1, 2), its long side turned up the way
+#    east, and its `on` gives the assembly the level's edge at place x -0.1, the way up +x and the level's 0.2 m top.
+FACADE_PLAN = {"w": 6.0, "d": 30.0}
+PLACED = [
+    ("past its edge",
+     {"w": 20.0, "d": 20.0, "items": [["RIGHT 1", 18.0, 0.0, 2.0, 10.0, "W", "item"],
+                                      ["FRONT 1", 5.0, 18.0, 10.0, 2.0, "N", "item"],
+                                      ["KIOSK 1", 9.0, 9.0, 2.0, 2.0, "N", "item"]],
+      "rows": {"RIGHT 1": ["right"], "FRONT 1": ["front"], "KIOSK 1": ["kiosk"]}},
+     [{"id": name, "anchor": "ground", "route": "shell", "size": size}
+      for name, size in (("right", [30.0, 30.0, 20.0]), ("front", [40.0, 20.0, 15.0]), ("kiosk", [2, 2, 3]))],
+     None,
+     {"right_1": {"at": [25.0, 0.0, -5.0], "rotation": Turned("W")},
+      "front_1": {"at": [0.0, 0.0, 20.0], "rotation": Turned("N")},
+      "kiosk_1": {"at": [0.0, 0.0, 0.0]}}),
+    ("a run along its long side",
+     {"w": 2.0, "d": 12.0, "items": [["DUCT 1", 0.5, 0.0, 0.14, 12.0, "S", "item"],
+                                     ["CHAIR 1", 1.2, 5.0, 0.5, 0.6, "S", "item"]],
+      "rows": {"DUCT 1": ["duct"], "CHAIR 1": ["chair"]}},
+     [{"id": "duct", "route": "prop", "size": [0.5, 12.0, 0.3]},
+      {"id": "chair", "route": "prop", "size": [0.5, 0.55, 0.9]}],
+     None,
+     {"duct_1": {"rotation": (Turned((0.0, -1.0), signed=False), Turned("S", signed=False, not_=True))},
+      "chair_1": {"rotation": Turned("S", signed=False)}}),
+    ("a facade past its edge",
+     {**FACADE_PLAN, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
+                               ["AC 1", 0.5, 10.0, 0.8, 0.4, None, "item"], ["DOOR 1", 5.0, 5.0, 1.0, 0.1, None, "item"],
+                               ["LAMP 1", 2.0, 2.0, 0.3, 0.3, None, "item"]],
+      "rows": {"ON THE WALLS AND CEILING": ["facade", "crate"], "AC 1": ["ac"], "DOOR 1": ["door"],
+               "LAMP 1": ["lamp"]}},
+     [{"id": name, "anchor": "floor", "route": "prop", "size": size, "noun": noun}
+      for name, size, noun in (("facade", [3.0, 36.0, 24.0], "facade"), ("crate", [1.0, 1.0, 1.0], "crate"),
+                               ("ac", [0.8, 0.4, 0.6], "air conditioner"), ("door", [1.0, 0.1, 2.1], "door"),
+                               ("lamp", [0.3, 0.3, 0.3], "lamp"))],
+     {"relations": [
+         {"item": "ON THE WALLS AND CEILING", "row": "facade", "how": "edge", "edge": "W", "spot": [0.0, 15.0],
+          "why": "past the plan's W edge"},
+         {"item": "AC 1", "row": "ac", "how": "face", "holder": "ON THE WALLS AND CEILING", "holder row": "facade",
+          "face": "E", "why": "against facade's face toward the place"}],
+      "unheld": [{"item": "LAMP 1", "row": "lamp", "why": "its holder stage is neither laid nor a wall"}]},
+     {"facade_1": {"at": [-4.5, 0.0, 0.0], "unplaced": ABSENT, "rotation": Turned((0.0, 1.0))},
+      "ac_1": {"on.holder": ["facade_1"], "on.out": [1.0, 0.0]},
+      "crate_1": {"unplaced": Starts("the plan writer left it")},
+      "door_1": {"fills": True},
+      "lamp_1": {"unheld": Starts("its holder stage")}}),
+    ("doors at their spots",
+     {**FACADE_PLAN, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
+                               ["DOOR 1", 1.8, 14.13, 0.5, 1.74, "E", "item"]],
+      "rows": {"ON THE WALLS AND CEILING": ["facade"], "DOOR 1": ["door"]}},
+     [{"id": "facade", "anchor": "floor", "route": "prop", "size": [3.0, 36.0, 24.0], "noun": "facade"},
+      {"id": "door", "anchor": "on:facade", "route": "prop", "size": [1.0, 0.1, 2.1], "noun": "door", "count": 3}],
+     {"relations": [
+         {"item": "ON THE WALLS AND CEILING", "row": "facade", "how": "edge", "edge": "W", "spot": [0.0, 15.0],
+          "why": "past the plan's W edge"},
+         {"item": "DOOR 1", "row": "door", "how": "face", "holder": "ON THE WALLS AND CEILING", "holder row": "facade",
+          "face": "E", "why": "against facade's face toward the place",
+          "spots": [[2.05, 13.6], [2.05, 15.0], [2.05, 16.4]]}]},
+     {"door_1": {"at": [-0.95, 0.0, -1.4]}, "door_2": {"at": [-0.95, 0.0, 0.0]}, "door_3": {"at": [-0.95, 0.0, 1.4]}}),
+    ("a ramp up to its level's edge",
+     {"w": 20.0, "d": 20.0, "items": [["RAMP 1", 8.0, 9.0, 1.2, 2.0, None, "item"]], "rows": {"RAMP 1": ["ramp"]}},
+     [{"id": "ramp", "anchor": "ground", "route": "shell", "size": [1.2, 2.0, 0.2], "noun": "ramp"}],
+     {"relations": [{"item": "RAMP 1", "row": "ramp", "how": "ramp", "spot": [8.9, 12.0], "way": [1.0, 0.0],
+                     "edge": [[9.9, 14.0], [9.9, 8.0]], "height": 0.2, "why": "up to the porch deck"}]},
+     {"ramp_1": {"at": [-1.1, 0.0, 2.0], "rotation": Turned((1.0, 0.0)),
+                 "on": {"how": "ramp", "edge": [[-0.1, 4.0], [-0.1, -2.0]], "up": [1.0, 0.0], "top": 0.2,
+                        "why": "up to the porch deck"}}}),
+]
+
+
+@pytest.mark.parametrize("design, rows, relations, expected", [case[1:] for case in PLACED],
+                         ids=[case[0] for case in PLACED])
+def test_each_object_stands_where_its_plan_and_relations_lay_it(design, rows, relations, expected):
+    """Each object of a design stands, turns and is marked as its plan item and its kept relations lay it (the cases
+    in PLACED, worked out by hand): past the plan's edge facing in, along its item's long side, at its relation's
+    spot, edge or ramp, naming its holder, or marked unplaced, filling or unheld.
+    Break: score/stages/scene_record/writer.py: `spot, way = past_edge_spot(item, design, spot, size)` -> `pass`
+    Break: score/stages/scene_record/writer.py: `return np.array([-way[1], way[0]])` -> `return way`
+    Break: score/stages/scene_record/writer.py: `return np.asarray(relation["spot"], float) + out * depth / 2,
+        np.array([out[1], -out[0]]), base, None` -> `return spot, way, base, None`
+    Break: score/stages/scene_record/writer.py: `if rows.get(name) == on.get("holder row", rows.get(name))]` -> `]`
+    Break: score/stages/scene_record/writer.py: `if item[0] == WALLS_ITEM and not placed:` -> `if False:`
+    Break: score/stages/scene_record/writer.py: `spot = np.asarray(relation["spots"][min(piece,
+        len(relation["spots"]) - 1)], float)` -> `pass`
+    Break: score/stages/scene_record/writer.py: `return (np.asarray(relation["spot"], float),
+        np.asarray(relation["way"], float), base,` -> `return (spot, way, base,`"""
+    laid = {entry["name"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)}
+    sizes = {row["id"]: row["size"] for row in rows}
+    for name, wanted in expected.items():
+        entry = laid[name]
+        for path, wants in wanted.items():
+            found = entry
+            for key in path.split("."):
+                found = found.get(key, ABSENT) if isinstance(found, dict) else ABSENT
+            for want in wants if isinstance(wants, tuple) else (wants,):
+                if isinstance(want, (Turned, Starts)):
+                    held = want.holds(found, design, sizes[entry["row"]])
+                else:
+                    held = found is want if want is ABSENT else found == want
+                assert held, (name, path, found, want)
 
 
 def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it():
@@ -1063,85 +1166,6 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
         None, "the relations were derived from another plan than the kept one (score/review/holders keep)")
     from score.review import holders
     assert writer.design_shell.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders.keep keeps them
-
-
-def test_a_facade_stands_past_its_edge_and_what_is_left_unplaced_is_marked():
-    """Street (2026-10-29): on a 6 x 30 m plan (place (x, z) is plan (x - 3, y - 15)) its 3 m deep facade the plan
-    writer left on the walls item stands past the W edge, its middle 1.5 m out, at place (-4.5, 0), its long side
-    along the edge; the AC unit on it names the facade's object alone of the walls item's (its holder row), not the
-    crate also left there, which stands marked unplaced; a door with no relation is marked as filling an opening; a
-    row its relations name nothing holding is marked unheld.
-    Break: score/stages/scene_record/writer.py: `return np.asarray(relation["spot"], float) + out * depth / 2,
-        np.array([out[1], -out[0]]), base, None` -> `return spot, way, base, None`
-    Break: score/stages/scene_record/writer.py: `if rows.get(name) == on.get("holder row", rows.get(name))]` -> `]`
-    Break: score/stages/scene_record/writer.py: `if item[0] == WALLS_ITEM and not placed:` -> `if False:`"""
-    from score.stages.scene_record import writer
-    design = {"w": 6.0, "d": 30.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
-                                             ["AC 1", 0.5, 10.0, 0.8, 0.4, None, "item"],
-                                             ["DOOR 1", 5.0, 5.0, 1.0, 0.1, None, "item"],
-                                             ["LAMP 1", 2.0, 2.0, 0.3, 0.3, None, "item"]],
-              "rows": {"ON THE WALLS AND CEILING": ["facade", "crate"], "AC 1": ["ac"], "DOOR 1": ["door"],
-                       "LAMP 1": ["lamp"]}}
-    rows = [{"id": name, "anchor": "floor", "route": "prop", "size": size, "noun": noun}
-            for name, size, noun in (("facade", [3.0, 36.0, 24.0], "facade"), ("crate", [1.0, 1.0, 1.0], "crate"),
-                                     ("ac", [0.8, 0.4, 0.6], "air conditioner"), ("door", [1.0, 0.1, 2.1], "door"),
-                                     ("lamp", [0.3, 0.3, 0.3], "lamp"))]
-    relations = {"relations": [
-        {"item": "ON THE WALLS AND CEILING", "row": "facade", "how": "edge", "edge": "W", "spot": [0.0, 15.0],
-         "why": "past the plan's W edge"},
-        {"item": "AC 1", "row": "ac", "how": "face", "holder": "ON THE WALLS AND CEILING", "holder row": "facade",
-         "face": "E", "why": "against facade's face toward the place"}],
-        "unheld": [{"item": "LAMP 1", "row": "lamp", "why": "its holder stage is neither laid nor a wall"}]}
-    found = {entry["row"]: entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)}
-    assert found["facade"]["at"] == [-4.5, 0.0, 0.0] and "unplaced" not in found["facade"], found["facade"]
-    assert found["facade"]["rotation"] == writer.yaw_turn(design, (0.0, 1.0), rows[0]["size"]), found["facade"]
-    assert found["ac"]["on"]["holder"] == ["facade_1"] and found["ac"]["on"]["out"] == [1.0, 0.0], found["ac"]
-    assert found["crate"]["unplaced"].startswith("the plan writer left it"), found["crate"]
-    assert found["door"]["fills"] is True and found["lamp"]["unheld"].startswith("its holder stage"), found
-
-
-def test_each_door_on_a_face_stands_at_the_spot_its_relation_gives():
-    """Street (#36): its three restaurant doors on one 1.74 m item were laid evenly along it, 0.58 m apart, their
-    recesses in one another. Where the relation gives each piece its `spots` (score/review/holders face_spots), each
-    door stands at its own: on a 6 x 30 m plan (place (x, z) is plan (x - 3, y - 15)) at place z -1.4, 0, 1.4.
-    Break: score/stages/scene_record/writer.py: `spot = np.asarray(relation["spots"][min(piece,
-        len(relation["spots"]) - 1)], float)` -> `pass`"""
-    from score.stages.scene_record import writer
-    design = {"w": 6.0, "d": 30.0, "items": [["ON THE WALLS AND CEILING", 0.0, 0.0, 6.0, 30.0, None, "item"],
-                                             ["DOOR 1", 1.8, 14.13, 0.5, 1.74, "E", "item"]],
-              "rows": {"ON THE WALLS AND CEILING": ["facade"], "DOOR 1": ["door"]}}
-    rows = [{"id": "facade", "anchor": "floor", "route": "prop", "size": [3.0, 36.0, 24.0], "noun": "facade"},
-            {"id": "door", "anchor": "on:facade", "route": "prop", "size": [1.0, 0.1, 2.1], "noun": "door",
-             "count": 3}]
-    relations = {"relations": [
-        {"item": "ON THE WALLS AND CEILING", "row": "facade", "how": "edge", "edge": "W", "spot": [0.0, 15.0],
-         "why": "past the plan's W edge"},
-        {"item": "DOOR 1", "row": "door", "how": "face", "holder": "ON THE WALLS AND CEILING", "holder row": "facade",
-         "face": "E", "why": "against facade's face toward the place",
-         "spots": [[2.05, 13.6], [2.05, 15.0], [2.05, 16.4]]}]}
-    doors = [entry for entry in writer.design_objects(design, {"rows": rows, "objects": {}}, relations)
-             if entry["row"] == "door"]
-    assert [round(door["at"][2], 3) for door in doors] == [-1.4, 0.0, 1.4], doors
-
-
-def test_a_ramp_stands_up_its_way_to_its_level_s_edge():
-    """Airlock (settle@airlock, 2026-10-30): its ramp stood at its plan item, along its porch deck's edge, its end in
-    the deck. With its relation (score/review/holders up_to_level), on a 20 by 20 m plan (place (x, z) is plan
-    (x - 10, y - 10)) it stands at the relation's spot, plan (8.9, 12), place (-1.1, 2), its long side turned up the
-    way east, and its `on` gives the assembly the level's edge at place x -0.1, the way up +x and the level's 0.2 m
-    top.
-    Break: score/stages/scene_record/writer.py: `return (np.asarray(relation["spot"], float),
-        np.asarray(relation["way"], float), base,` -> `return (spot, way, base,`"""
-    from score.stages.scene_record import writer
-    design = {"w": 20.0, "d": 20.0, "items": [["RAMP 1", 8.0, 9.0, 1.2, 2.0, None, "item"]],
-              "rows": {"RAMP 1": ["ramp"]}}
-    rows = [{"id": "ramp", "anchor": "ground", "route": "shell", "size": [1.2, 2.0, 0.2], "noun": "ramp"}]
-    relations = {"relations": [{"item": "RAMP 1", "row": "ramp", "how": "ramp", "spot": [8.9, 12.0], "way": [1.0, 0.0],
-                                "edge": [[9.9, 14.0], [9.9, 8.0]], "height": 0.2, "why": "up to the porch deck"}]}
-    [ramp] = writer.design_objects(design, {"rows": rows, "objects": {}}, relations)
-    assert ramp["at"] == [-1.1, 0.0, 2.0] and ramp["rotation"] == writer.yaw_turn(design, (1.0, 0.0), rows[0]["size"])
-    assert ramp["on"] == {"how": "ramp", "edge": [[-0.1, 4.0], [-0.1, -2.0]], "up": [1.0, 0.0], "top": 0.2,
-                          "why": "up to the porch deck"}, ramp
 
 
 def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
