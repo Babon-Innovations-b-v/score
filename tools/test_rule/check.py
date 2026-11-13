@@ -165,7 +165,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_meshparts_brings_back_only_the_splits.py": 3,
     "tools/cloud/test_park_holds_a_machine_only_while_it_pays_off.py": 24,
     "tools/cloud/test_pool_books_every_card_once_and_deletes_every_card.py": 44,
-    "tools/cloud/test_prop_batch_pays_each_measured_step_once.py": 6,
     "tools/cloud/test_prop_makers_hand_each_step_its_props_inputs.py": 7,
     "tools/cloud/test_scene_runs_only_an_approved_locked_plan_in_order.py": 7,
     "tools/cloud/test_spread_runs_every_share_once.py": 13,
