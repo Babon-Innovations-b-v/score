@@ -3005,20 +3005,17 @@ def test_a_library_with_no_blob_folder_reads_its_pictures_from_the_store_sides_c
     assert bare.blob(alpha.picture) == kept and bare.picture_path(alpha.picture, 64).is_file()
 
 
-def test_names_are_everyday_words_with_the_library_title_kept_as_hover_text():
-    """Break: state/names.py drops its 2p6 -> 2.6 m rule."""
-    from score.dashboard.state.names import plain as named
-    assert named("algorithm", "surface_recipes", "Surface functions: ProcFunc material recipes and wear") == (
-        "Surface finishes", "Surface functions: ProcFunc material recipes and wear")
-    assert named("ground", "earth.flat", "Flat ground (earth)")[0] == "Flat ground, earth"
-    assert named("model", "ac_unit_1", "Ac unit 1")[0] == "Air conditioner 1"
-    assert named("model", "apron_2p6", "Apron 2p6")[0] == "Apron 2.6 m"
-    assert named("effect", "drift_0_3.camp", "Drift 0 3")[0] == "Drift, row 1 spot 4"
-    assert named("layer", "light.camp", "Camp light layer")[0] == "Camp lamps"
-    assert named("model", "wrench", "Wrench") == ("Wrench", "")
+# --- what the pages are made of: plain names, the theme's tokens, no provider (rows and one sweep in the one test) ---
 
-
-# === the theme ========================================================================================================
+NAMES = [  # (kind, library id, library title) -> the plain name, then the hover text where pinned
+    (("algorithm", "surface_recipes", "Surface functions: ProcFunc material recipes and wear"),
+     ("Surface finishes", "Surface functions: ProcFunc material recipes and wear")),
+    (("ground", "earth.flat", "Flat ground (earth)"), ("Flat ground, earth",)),
+    (("model", "ac_unit_1", "Ac unit 1"), ("Air conditioner 1",)),
+    (("model", "apron_2p6", "Apron 2p6"), ("Apron 2.6 m",)),
+    (("effect", "drift_0_3.camp", "Drift 0 3"), ("Drift, row 1 spot 4",)),
+    (("layer", "light.camp", "Camp light layer"), ("Camp lamps",)),
+    (("model", "wrench", "Wrench"), ("Wrench", ""))]
 
 PAGES_ROOT = REPO / "score" / "dashboard" / "pages"
 TOKENS = REPO / "design" / "tokens"
@@ -3033,6 +3030,13 @@ CSS_NAMED = re.compile(rf":[^;{{}}\"]*(?<![\w-])(?:{NAMED})(?![\w-])")
 STYLE = re.compile(r"style=\"([^\"]*)\"")
 USED = re.compile(r"var\(\s*(--[\w-]+)|[tT]oken\(\"(--[\w-]+)\"\)")
 DEFINED = re.compile(r"(--[\w-]+)\s*:")
+INKS = [(ink, ground) for ink in ("--color-primary", "--color-text-body", "--color-text-light", "--color-text-faint",
+                                  "--color-accent")
+        for ground in ("--color-bg", "--color-bg-section", "--color-bg-raised")]
+INKS += [("--color-accent-ink", "--color-accent")]
+INKS += [("--color-on-status", status) for status in ("--color-idle", "--color-gap-missing", "--color-gap-gate",
+                                                     "--color-gap-route", "--color-gap-lost")]
+GAP_KINDS = ("missing", "gate", "route", "lost")
 
 
 def literal_colours(path):
@@ -3044,17 +3048,6 @@ def literal_colours(path):
                     *(colour for value in declarations for colour in CSS_NAMED.findall(value))]
         found += [(number, literal) for literal in literals]
     return found
-
-
-def test_every_colour_comes_from_the_design_tokens_and_every_token_named_is_defined():
-    """Owner rule (a source scan, #25, 2026-10-20): one dark theme on design tokens. Break: static/pages/dash.css gains
-    `a { color: #ff0000; }`."""
-    found = {str(path.relative_to(REPO)): hits for path in SOURCES if (hits := literal_colours(path))}
-    assert not found, f"colours outside design/tokens/colours.css: {found}"
-    defined = {name for path in (TOKENS / "colours.css", TOKENS / "scale.css", *SOURCES)
-               for name in DEFINED.findall(path.read_text())}
-    used = {name for path in SOURCES for pair in USED.findall(path.read_text()) for name in pair if name}
-    assert not used - defined, f"tokens named but never defined: {sorted(used - defined)}"
 
 
 def hex_of(name, text):
@@ -3071,53 +3064,18 @@ def contrast(one, other):
     return (light + 0.05) / (dark + 0.05)
 
 
-def test_text_holds_wcag_aa_on_every_surface_and_the_gap_colours_stay_apart():
-    """Break: design/tokens/colours.css sets --color-text-faint to #1a1d22."""
-    text = (TOKENS / "colours.css").read_text()
-    pairs = [(ink, ground) for ink in ("--color-primary", "--color-text-body", "--color-text-light",
-                                       "--color-text-faint", "--color-accent")
-             for ground in ("--color-bg", "--color-bg-section", "--color-bg-raised")]
-    pairs += [("--color-accent-ink", "--color-accent")]
-    pairs += [("--color-on-status", status) for status in ("--color-idle", "--color-gap-missing", "--color-gap-gate",
-                                                          "--color-gap-route", "--color-gap-lost")]
-    low = {pair: round(contrast(hex_of(pair[0], text), hex_of(pair[1], text)), 2) for pair in pairs}
-    assert not {pair: ratio for pair, ratio in low.items() if ratio < 4.5}, low
-    kinds = [hex_of(f"--color-gap-{kind}", text) for kind in ("missing", "gate", "route", "lost")]
-    assert len(set(kinds)) == 4 and hex_of("--color-accent", text) not in kinds
+# The viewer look check (tests/viewer_look.py, run by hand): a film picture beside a viewer picture of each colour, its
+# measures where pinned and whether it passes; then a camera and the viewer link it opens.
+FILM_COLOUR = (120, 110, 100)
+LOOKS = [(FILM_COLOUR, {"difference": 0.0, "structure": 1.0, "brightness": 1.0, "pink": 0.0, "black": 0.0}, True),
+         ((0, 0, 0), {"black": 1.0}, False),
+         ((240, 130, 150), {"pink": 1.0}, False)]
+CAMERA = {"eye": [1, 2, 3], "aim": [4, 5.5, -6], "fov": 80.0}
+VIEWS = [(132, "view=1.000000,2.000000,3.000000,4.000000,5.500000,-6.000000,80.000000&t=132.000"),
+         (None, "view=1.000000,2.000000,3.000000,4.000000,5.500000,-6.000000,80.000000")]
 
-
-def test_the_tokens_and_the_font_are_served():
-    """Break: site/asgi.py mounts /static/design at the static folder."""
-    web = hosted_client()
-    links = re.findall(r'href="([^"]+)"', (PAGES_ROOT / "templates/pages/tokens.html").read_text())
-    for url in [*links, "/static/design/fonts/poppins/poppins-400-latin.woff2", "/static/pages/tokens.js"]:
-        assert web.get(url).status_code == 200, url
-
-
-# === the viewer look check (tests/viewer_look.py, run by hand) ========================================================
-
-def test_the_viewer_look_check_passes_a_picture_against_itself_fails_black_or_pink_and_links_its_camera(tmp_path):
-    """Break: tests/viewer_look.py `passes` returns True."""
-    from score.dashboard.tests import viewer_look
-
-    def picture(path, colour):
-        Image.new("RGB", (320, 180), colour).save(path)
-        return path
-    film = picture(tmp_path / "film.png", (120, 110, 100))
-    same = viewer_look.measures(film, film)
-    assert same == {"difference": 0.0, "structure": 1.0, "brightness": 1.0, "pink": 0.0, "black": 0.0}
-    assert viewer_look.passes(same)
-    black = viewer_look.measures(film, picture(tmp_path / "black.png", (0, 0, 0)))
-    assert black["black"] == 1.0 and not viewer_look.passes(black)
-    pink = viewer_look.measures(film, picture(tmp_path / "pink.png", (240, 130, 150)))
-    assert pink["pink"] == 1.0 and not viewer_look.passes(pink)
-    camera = {"eye": [1, 2, 3], "aim": [4, 5.5, -6], "fov": 80.0, "frame": 132}
-    assert viewer_look.view_link(camera) == ("view=1.000000,2.000000,3.000000,4.000000,5.500000,-6.000000,80.000000"
-                                             "&t=132.000")
-    assert viewer_look.view_link({**camera, "frame": None}).endswith(",80.000000")
-
-
-# --- no provider named or imported (the whole package's invariant, owner rule "No provider here") ---
+# owner rule "No provider here" (dashboard overlay): nothing in this package imports tools.* or score.adapters or
+# names a provider (one is named only by its cost line's label); deploy/ holds templates only, every host a placeholder.
 
 PACKAGE = REPO / "score/dashboard"
 TEXT = (".py", ".html", ".css", ".js", ".yml", ".example", ".env", ".md", "")
@@ -3139,12 +3097,7 @@ def provider_words():
 
 
 def cloud_modules():
-    return {path.stem for folder in ("tools/cloud", "tools/cloud") for path in (REPO / folder).rglob("*.py")}
-
-
-def files():
-    return [path for path in PACKAGE.rglob("*") if path.is_file() and "__pycache__" not in path.parts
-            and path.suffix in TEXT and path.name != pathlib.Path(__file__).name]
+    return {path.stem for path in (REPO / "tools/cloud").rglob("*.py")}
 
 
 def imported(path):
@@ -3156,40 +3109,13 @@ def imported(path):
             yield node.module
 
 
-# owner rule: nothing in this package imports tools.* or score.adapters (dashboard overlay, "No provider here")
-def test_no_module_imports_tools_the_adapters_or_a_cloud_module():
-    """Break: add `import tools.cloud.ledger` to score/dashboard/state/money.py."""
-    cloud = cloud_modules()
-    for path in PACKAGE.rglob("*.py"):
-        for name in imported(path):
-            assert not name.startswith(("tools", "score.adapters")), (path, name)
-            assert name.split(".")[0] not in cloud, (path, name)
-
-
-# owner rule: no provider named; one is named only by its cost line's label (dashboard overlay, "Numbers, not prose")
-def test_no_file_names_a_provider():
-    """Break: a comment naming the cloud provider (a stem of tools/cloud/backends) in score/dashboard/state/money.py."""
-    words = provider_words()
-    assert words, "the provider list came out empty: the test would prove nothing"
-    for path in files():
-        text = path.read_text(errors="replace").lower()
-        for word in words:
-            assert not re.search(rf"\b{re.escape(word)}\b", text), (path, word)
-
-
-# owner rule: deploy/ holds templates only, every host and name a <placeholder> (dashboard overlay, public repo)
-def test_deploy_templates_hold_only_placeholders():
-    """Break: a real host (`HOST=cockpit.example.com`) in a score/dashboard/deploy template."""
-    for path in (PACKAGE / "deploy").iterdir():
-        text = path.read_text()
-        assert "TEMPLATE" in text, path
-        for line in text.splitlines():
-            if line.strip().startswith("#") or "=" not in line or not line.split("=", 1)[0].isupper():
-                continue
-            value = line.split("=", 1)[1].strip()
-            assert value == "" or value.startswith("<") or re.fullmatch(r"[\w./:-]+", value) and not re.search(
-                r"\.(org|com|net|nl|io)\b", value), (path, line)
-
+def deploy_value_ok(line):
+    """A deploy template's `NAME=value` line holds a placeholder, nothing or a plain non-host word."""
+    if line.strip().startswith("#") or "=" not in line or not line.split("=", 1)[0].isupper():
+        return True
+    value = line.split("=", 1)[1].strip()
+    return bool(value == "" or value.startswith("<") or re.fullmatch(r"[\w./:-]+", value) and not re.search(
+        r"\.(org|com|net|nl|io)\b", value))
 
 # === the one question: what the owner sees and who may act on it =====================================================
 
@@ -3206,8 +3132,65 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
     `decide` sends `worse_reason or 'none'`; pages/views.py `step_queue` queues the step itself for "next";
     pages/seen.py `unseen_reads` holds nothing back (`if False:`); sync/applying.py `apply_advance` skips its
     `from_owner` check; pages/views.py `step_advance` answers without recording (`said = "advanced"`);
-    templates/pages/stats.html gains a paragraph of 54 plain words."""
+    templates/pages/stats.html gains a paragraph of 54 plain words.
+    First, what the pages are made of: each library name in plain words with its title kept as hover text; no package
+    file holds a literal colour, names a token never defined, names a provider (the stems of the repository's own cloud
+    backends and API kinds), imports tools, the adapters or a cloud module, or (deploy/) holds a real host; the inks
+    hold WCAG AA on every ground and the four gap colours stay apart; the token files and the font are served; the
+    viewer look check (tests/viewer_look.py) passes a picture against itself, fails black or pink and links its camera.
+    Breaks (each applied once and seen red): state/names.py drops its 2p6 -> 2.6 m rule; static/pages/dash.css gains
+    `a { color: #ff0000; }`; design/tokens/colours.css sets --color-text-faint to #1a1d22; site/asgi.py mounts
+    /static/design at the static folder; tests/viewer_look.py `passes` returns True; `import tools.cloud.ledger` in
+    score/dashboard/state/money.py; a comment naming the cloud provider (a stem of tools/cloud/backends) in
+    score/dashboard/state/money.py; a real host (`HOST=cockpit.example.com`) in a score/dashboard/deploy template."""
     from score.dashboard.pages.models import BasketItem, ChangeRequest
+    from score.dashboard.state.names import plain as named
+    from score.dashboard.tests import viewer_look
+
+    # What the pages are made of, swept before the world is walked; each fault is named by its file, row or link.
+    words, cloud, deploy = provider_words(), cloud_modules(), PACKAGE / "deploy"
+    assert words, "the provider list came out empty: the sweep would prove nothing"
+    sources = set(SOURCES)
+    defined = {name for path in (TOKENS / "colours.css", TOKENS / "scale.css", *SOURCES)
+               for name in DEFINED.findall(path.read_text())}
+    faults = {f"name {row}": named(*row) for row, want in NAMES if named(*row)[:len(want)] != want}
+    for path in sorted(path for path in PACKAGE.rglob("*") if path.is_file() and "__pycache__" not in path.parts):
+        text = path.read_text(errors="replace") if path.suffix in TEXT or path.parent == deploy else ""
+        found = [*literal_colours(path), *sorted({name for pair in USED.findall(text) for name in pair if name}
+                                                 - defined)] if path in sources else []
+        found += [word for word in words if path.suffix in TEXT and path.name != pathlib.Path(__file__).name
+                  and re.search(rf"\b{re.escape(word)}\b", text.lower())]
+        found += [name for name in (imported(path) if path.suffix == ".py" else ())
+                  if name.startswith(("tools", "score.adapters")) or name.split(".")[0] in cloud]
+        if path.parent == deploy:
+            found += [*([] if "TEMPLATE" in text else ["no TEMPLATE"]),
+                      *(line for line in text.splitlines() if not deploy_value_ok(line))]
+        if found:
+            faults[str(path.relative_to(REPO))] = found
+    colours = (TOKENS / "colours.css").read_text()
+    gaps = [hex_of(f"--color-gap-{kind}", colours) for kind in GAP_KINDS]
+    themed = [(pair, ratio) for pair in INKS if (ratio := round(contrast(*(hex_of(name, colours) for name in pair)), 2))
+              < 4.5]
+    themed += [] if len(set(gaps)) == 4 and hex_of("--color-accent", colours) not in gaps else [("gap colours", gaps)]
+    web = hosted_client()
+    links = re.findall(r'href="([^"]+)"', (PAGES_ROOT / "templates/pages/tokens.html").read_text())
+    themed += [(url, code) for url in [*links, "/static/design/fonts/poppins/poppins-400-latin.woff2",
+                                       "/static/pages/tokens.js"] if (code := web.get(url).status_code) != 200]
+    look = tmp_path / "look"
+    look.mkdir()
+    film = look / "film.png"
+    Image.new("RGB", (320, 180), FILM_COLOUR).save(film)
+    for colour, pinned, passes in LOOKS:
+        Image.new("RGB", (320, 180), colour).save(viewer := look / f"{colour}.png")
+        measured = viewer_look.measures(film, viewer)
+        if ({key: measured[key] for key in pinned}, viewer_look.passes(measured)) != (pinned, passes):
+            themed.append((f"look {colour}", measured))
+    themed += [(f"view {frame}", link) for frame, want in VIEWS
+               if (link := viewer_look.view_link({**CAMERA, "frame": frame})) != want]
+    if themed:
+        faults["theme, tokens served, viewer look"] = themed
+    assert not faults, faults
+
     guarded_user = get_user_model().objects.create_user("joey", password="a long enough password")
     guarded = Client(enforce_csrf_checks=True)
     guarded.force_login(guarded_user)
