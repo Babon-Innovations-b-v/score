@@ -11,12 +11,14 @@ render that never passes) and a store of its own; the machine's score_lib checko
                               a failing command keeps the accept, writes failed.json and status counts what waits; the
                               retry covers it; an accept during a handover is taken by a second loop; an unpushed
                               report is not handed (owner, 2026-11-02, #40)
-    the route                 a route stage's code moves it, another stage's does not
+    the route                 on the toy runner, a route stage's code moves it, another stage's does not
     coverage                  an output the handover misses fails `handed` by name; a written exception covers it; an
                               output no entry holds is held through what it was made into
     copies                    a missing 3D copy is unknown, never a pass
     traced                    unknown with no library, pass on the good fixture, fail naming the photo on the bad one
-    the report's shape        the shared example is on the contract, field for field (both repositories read it)
+    the report's shape        the shared example, as the library writes it, is on the contract field for field
+                              (both repositories read it), and every report the node stores is; a covered row without
+                              its keys leaves the node broken
     a slow library            a run past its timeout is a transient error (tried again by the runner)
     no frozen copy named      inside a run's frozen copy, the library's command (a library row's, the handover
                               process's) and handed.spawn's process name no copy in words or environment, and a child
@@ -37,6 +39,7 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - checks.uncovered: an output not in the handover left out of the findings (coverage).
 - backend.settings: the defaults over the environment (the defaults).
 - library.route: hash every stage, not only the route's (the route).
+- handover.row_faults: skip the covered rows (the report's shape: the keyless report stored, 2026-11-13).
 - invariant: `if now == row["output"]` -> `if True` (moved on never found).
 - invariant.newest: keep the oldest version, not the newest (history is not counted).
 - sweep.library_free: take a decision with no date (library free).
@@ -103,6 +106,11 @@ entries = [{"address": "model/rover@1", "kind": "model", "state": "draft", "stat
 report = {"schema": "library-handover", "version": 1, "backend": "command", "library": "fake", "world": value("--world"),
           "place": value("--place"), "commit": value("--commit"), "command": words, "covered": covered,
           "entries": entries, "refused": [], "saved": {"committed": "c" * 40, "pushed": True, "why": ""}}
+if mode == "example":  # the shared example as the library writes it, only this run's own words put in
+    report = dict(json.loads((here / "example.json").read_text()), world=value("--world"), place=value("--place"),
+                  commit=value("--commit"), command=words)
+if mode == "keyless":
+    report["covered"] = [{"node": "x"}]
 (out / "handover.json").write_text(json.dumps(report, indent=1, sort_keys=True))
 '''
 
@@ -132,7 +140,7 @@ def judge_never(output, inputs, evidence):
     return checks.Verdict("ok", checks.FAIL, "a showcase render that never passes here")
 
 
-GROUND = graph.Stage("ground", "world", make_text, TOY, (checks.Check("ok", judge_always),),
+GROUND = graph.Stage("surfaces-ground", "world", make_text, TOY, (checks.Check("ok", judge_always),),
                      files={"brief": "{data}/briefs/ground.txt"})
 MADE = graph.Stage("made", "place", make_text, TOY, (checks.Check("ok", judge_always),),
                    files={"brief": "{data}/briefs/{place}.txt"})
@@ -176,6 +184,7 @@ def fake_library(root, monkeypatch, mode="full", found="environment", blobs=Fals
     folder.mkdir(parents=True)
     (folder / "handover.py").write_text(FAKE)
     (folder / "mode.txt").write_text(mode)
+    (folder / "example.json").write_text((HERE / "handover_example.json").read_text())
     ours = {"SCORE_LIB_ROOT": str(folder), "SCORE_LIB_COMMAND": f"{sys.executable} {folder / 'handover.py'}"}
     defaults = ours if found == "defaults" else {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"}
     if found == "environment":
@@ -203,16 +212,17 @@ EXCEPTION_E1 = {"id": "E1", "place": PLACE, "prim": "/garage/*", "what": "a toy"
 
 
 def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=True, calls=2, found="environment",
-         blobs=False):
+         blobs=False, broken=None):
     """One toy environment at the runner's seams: the fake library's mode (None: no library command), a library-free
     decision, the written exceptions; the library node's verdicts that do not pass (check: (answer, "is"/"has",
     reason text), every other verdict passes), whether its library nodes are accepted automatically, and how often
     the library's command ran (each node once; a failed output is made once more, an unknown one is not); where the
-    library's settings are found (fake_library) and whether a blob folder is set."""
-    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, found, blobs, id=name)
+    library's settings are found (fake_library) and whether a blob folder is set; `broken`: why a report off the
+    contract leaves both library nodes broken, with no output."""
+    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, found, blobs, broken, id=name)
 
 
-@pytest.mark.parametrize("mode, free, exceptions, verdicts, accepted, calls, found, blobs", (
+@pytest.mark.parametrize("mode, free, exceptions, verdicts, accepted, calls, found, blobs, broken", (
     seam("no library configured", verdicts={"configured": (checks.FAIL, "is", "no library configured"),
                                             "handed": (checks.FAIL, "has", f"made@{PLACE}"),
                                             "saved": (checks.FAIL, "has", "no library configured")}, accepted=False),
@@ -227,17 +237,32 @@ def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=T
          verdicts={"handed": (checks.FAIL, "has", "E1")}, accepted=False, calls=4),
     seam("a missing copy is unknown, never a pass", mode="no-copy",
          verdicts={"copies": (checks.UNKNOWN, "has", "model/rover@1")}, accepted=False),
+    seam("the shared example report is on the contract", mode="example",
+         verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}"),
+                   "refused": (checks.FAIL, "has", "model old_crate from pixal@garage: no take file in the output"),
+                   "quality": (checks.UNKNOWN, "has", "surface/brushed_steel@1")}, accepted=False, calls=4),
+    seam("a covered row without its keys is off the contract", mode="keyless",
+         broken="covered row 1 lacks entries, exception, output, why"),
 ))
 def test_the_library_node_hands_everything_by_the_librarys_command_once_and_names_what_it_misses(
-        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls, found, blobs):
+        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls, found, blobs, broken):
     called = fake_library(tmp_path, monkeypatch, mode, found, blobs) if mode else None
     runner = toy_runner(tmp_path, free=free, exceptions=exceptions)
     asked = []
     monkeypatch.setattr(handed, "spawn", lambda store, job: asked.append(job))
     did = runner.run([PLACE])
     assert asked == [] and not (tmp_path / "store" / handed.FOLDER).exists()  # handing accepts is off unless asked
+    if broken:
+        stage = runner.stages[library.PLACE_ROW]
+        assert runner.store.record(graph.node_name(stage, PLACE), runner.key(stage, PLACE)["key"]) is None
+        assert did[f"library@{PLACE}"] == did["library-world"] == (
+            f"broken: off its contract library-handover v1: {broken}"), did
+        return
     output, found = library_output(runner)
-    assert handover.report(output)["backend"] == ("command" if mode else "none")
+    shared = handover.report(output)  # the library's report or score's own, on the contract field for field
+    assert shared["backend"] == ("command" if mode else "none")
+    assert sorted(shared) == sorted(handover.KEYS) and sorted(shared["saved"]) == sorted(handover.SAVED_KEYS), shared
+    assert all(sorted(line) == sorted(keys) for area, keys in handover.ROWS.items() for line in shared[area]), shared
     assert set(verdicts) <= set(found), found
     for check, verdict in found.items():
         answer, how, text = verdicts.get(check, (checks.PASS, "has", ""))
@@ -273,6 +298,13 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     assert after("--world") == WORLD and after("--place") == PLACE and after("--seed") == "7"
     route = library.runner_route(runner)
     assert after("--route") == route == world_words[world_words.index("--route") + 1]
+
+    def moved(name):
+        """The runner's route with row `name`'s code version moved."""
+        return library.route(lambda stage: runner.code(stage) + ("-moved" if stage.name == name else ""),
+                             runner.stages.values())
+    assert moved(MADE.name) == route, "a stage off the route moved the route"
+    assert moved(GROUND.name) != route, "a route stage's code did not move it"
     assert runner.key(runner.stages[library.PLACE_ROW], PLACE)["params"]["route"] == route  # in the key
     assert after("--store") == str((tmp_path / "store/objects").resolve())
     assert place_words[:3] == ["--root", str(tmp_path / "library"), "handover"], place_words  # the setting's own root
@@ -293,7 +325,7 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     assert runner.run([PLACE])[f"made@{PLACE}"].endswith("accepted automatically")
     made = store.accepted(f"made@{PLACE}")
     assert asked and {job["route"] for job in asked} == {route}, asked  # the run's accepts started the handover
-    assert handed.waiting(store, WORLD, nodes()) == {None: [("ground", store.accepted("ground"))],
+    assert handed.waiting(store, WORLD, nodes()) == {None: [(GROUND.name, store.accepted(GROUND.name))],
                                                      PLACE: [(f"made@{PLACE}", made)]}
     job = {"world": WORLD, "seed": 7, "commit": asked[0]["commit"], "route": route, "repo": str(REPO)}
     library_command = backend.settings()["SCORE_LIB_COMMAND"]
@@ -317,16 +349,6 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     report["saved"]["pushed"] = False
     handover.write(handed.place_folder(store, WORLD, PLACE) / handover.REPORT, report)
     assert handed.waiting(store, WORLD, nodes()) == {PLACE: [(f"made@{PLACE}", made)]}  # not pushed: not handed
-
-
-def test_the_route_moves_with_a_route_stages_code_only():
-    rows = [graph.Stage(name, "place", make_text, TOY) for name in ("pixal", "surfaces-bake", "made")]
-    codes = {"pixal": "a", "surfaces-bake": "b", "made": "c"}
-    before = library.route(lambda stage: codes[stage.name], rows)
-    codes["made"] = "c2"
-    assert library.route(lambda stage: codes[stage.name], rows) == before, "a stage off the route moved the route"
-    codes["surfaces-bake"] = "b2"
-    assert library.route(lambda stage: codes[stage.name], rows) != before, "a route stage's code did not move it"
 
 
 def test_an_output_no_entry_holds_is_held_through_what_it_was_made_into(tmp_path):
@@ -395,17 +417,6 @@ def test_traced_is_unknown_without_a_library_and_names_a_photo_finish(tmp_path, 
     output, inputs = fixture_inputs(tmp_path / "bad", "bad.usda")
     found = library_checks.judge_traced(output, inputs, None)
     assert found.answer == checks.FAIL and "photo_of_a_crate.png" in found.reason, found
-
-
-def test_the_shared_example_report_is_on_the_contract():
-    """The report's shape is a contract both ways: the library repository keeps its own copy of this example."""
-    example = json.loads((HERE / "handover_example.json").read_text())
-    assert handover.report_faults(example) == []
-    assert sorted(example) == sorted(handover.KEYS)
-    for area, keys in handover.ROWS.items():
-        assert all(sorted(row) == sorted(keys) for row in example[area]), area
-    assert sorted(example["saved"]) == sorted(handover.SAVED_KEYS)
-    assert handover.report_faults(dict(example, covered=[{"node": "x"}])), "a covered row without its keys passed"
 
 
 def test_a_slow_library_is_a_transient_error_and_no_handover_leaves_a_process_naming_a_frozen_copy(
