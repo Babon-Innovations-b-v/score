@@ -1,12 +1,12 @@
-"""One paid row an uploaded video and none without one; its gates read a clip as the make writes it, refuse a short
-clip or a flip, and never pass on a missing clip (video_clips/__init__.py; the retarget itself has its own test in
-tools/characters/clips). Nothing paid runs.
+"""One paid row an uploaded video and none without one; that row's own gates read a clip as the make writes it,
+refuse a short clip or a flip, and never pass on a missing clip (video_clips/__init__.py; the retarget itself has its
+own test in tools/characters/clips). Nothing paid runs.
 
 Breaks that turn it red (each applied once and seen red, then reverted):
-- `rows()` globbing `*.mov` instead of `*.mp4`  -> the rows test.
-- `LEAST_FRAMES = 5`  -> the gates test (a 10-frame clip passes `clip read`).
-- `MOST_TURN_DEG = 200.0`  -> the gates test (the 180-degree flip passes `steady`).
-- `guarded` catching nothing (`except ()`)  -> the gates test (no clip raises instead of answering unknown).
+- `rows()` globbing `*.mov` instead of `*.mp4`  -> no row for the uploaded video.
+- `LEAST_FRAMES = 5`  -> the "a third of a second" case (a 10-frame clip passes `clip read`).
+- `MOST_TURN_DEG = 200.0`  -> the "one frame flipped" case (the 180-degree flip passes `steady`).
+- `guarded` catching nothing (`except ()`)  -> the "no clip" case (raises instead of answering unknown).
 """
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -15,36 +15,48 @@ from score.checks import FAIL, PASS, UNKNOWN
 from score.stages import video_clips
 
 
-def written(folder, clip):
-    np.savez_compressed(folder / "clip.npz", clip=clip, names=np.array(["Root", "Hips"]), parents=np.array([-1, 0]))
+def turning(frames):
+    """A clip of `frames` frames on the two-joint rig, the hips turning 2 degrees a frame about y."""
+    clip = np.tile(np.eye(4), (frames, 2, 1, 1))
+    clip[:, 1, :3, :3] = Rotation.from_euler("y", np.arange(frames)[:, None] * 2.0, degrees=True).as_matrix()
+    return clip
 
 
-def test_a_paid_row_an_uploaded_video_and_none_without(tmp_path, monkeypatch):
-    monkeypatch.setattr(video_clips, "VIDEOS", tmp_path)
-    assert video_clips.rows() == ()
-    (tmp_path / "wave.mp4").write_bytes(b"video")
+def flipped_at(clip, frame):
+    """The clip with the hips flipped 180 degrees about x on one frame."""
+    clip = clip.copy()
+    clip[frame, 1, :3, :3] = Rotation.from_euler("x", 180, degrees=True).as_matrix()
+    return clip
+
+
+# (case, the clip the make wrote or None, clip read's answer, steady's answer, steady's findings)
+CASES = (
+    ("no clip", None, UNKNOWN, UNKNOWN, ()),
+    ("40 steady frames", turning(40), PASS, PASS, ()),
+    ("one frame flipped", flipped_at(turning(40), 20), PASS, FAIL, ("Hips",)),
+    ("a third of a second", turning(10), FAIL, PASS, ()),
+)
+
+
+def test_a_row_per_upload_and_its_gates_refuse_a_short_clip_or_a_flip(tmp_path, monkeypatch):
+    videos, rig, output = (tmp_path / name for name in ("videos", "rig", "output"))
+    for folder in (videos, rig, output):
+        folder.mkdir()
+    monkeypatch.setattr(video_clips, "VIDEOS", videos)
+    assert video_clips.rows() == (), "a row without an uploaded video"
+    (videos / "wave.mp4").write_bytes(b"video")
     (row,) = video_clips.rows()
     assert row.name == "video-clip-wave" and row.paid and row.params == {"clip": "wave"}
     assert row.after == {"people-clips-made": ("people-clips-made", 1)}  # retargeted onto the people's rig
-
-
-def test_the_gates_read_a_clip_and_refuse_a_short_one_and_a_flip(tmp_path):
-    rig = tmp_path / "rig"
-    rig.mkdir()
+    gates = {check.name: check for check in row.checks}
     np.savez_compressed(rig / "rig.npz", names=np.array(["Root", "Hips"]), parents=np.array([-1, 0]),
                         bind=np.stack([np.eye(4)] * 2))
     inputs = {"people-clips-made": str(rig)}
-    read, steady = (video_clips.guarded(name, judge) for name, judge in
-                    (("clip read", video_clips.judge_read), ("steady", video_clips.judge_steady)))
-    assert read.judge(tmp_path, inputs, None).answer == UNKNOWN
-    assert steady.judge(tmp_path, inputs, None).answer == UNKNOWN
-    clip = np.tile(np.eye(4), (40, 2, 1, 1))  # 40 frames, the hips turning 2 degrees a frame
-    clip[:, 1, :3, :3] = Rotation.from_euler("y", np.arange(40)[:, None] * 2.0, degrees=True).as_matrix()
-    written(tmp_path, clip)
-    assert read.judge(tmp_path, inputs, None).answer == PASS and steady.judge(tmp_path, inputs, None).answer == PASS
-    clip[20, 1, :3, :3] = Rotation.from_euler("x", 180, degrees=True).as_matrix()  # one frame flipped
-    written(tmp_path, clip)
-    flipped = steady.judge(tmp_path, inputs, None)
-    assert flipped.answer == FAIL and flipped.findings == ("Hips",)
-    written(tmp_path, clip[:10])  # a third of a second
-    assert read.judge(tmp_path, inputs, None).answer == FAIL
+    for case, clip, read, steady, findings in CASES:
+        if clip is not None:
+            np.savez_compressed(output / "clip.npz", clip=clip, names=np.array(["Root", "Hips"]),
+                                parents=np.array([-1, 0]))
+        answers = {name: gate.judge(output, inputs, None) for name, gate in gates.items()}
+        assert answers["clip read"].answer == read, f"{case}: clip read {answers['clip read']}"
+        assert answers["steady"].answer == steady, f"{case}: steady {answers['steady']}"
+        assert answers["steady"].findings == findings, f"{case}: steady named {answers['steady'].findings}"
