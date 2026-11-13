@@ -76,12 +76,11 @@ The estimates are each runner's on a fixed list, as recorded from the code befor
 implementation), and their euros are checked against count x minutes x price worked out here. No machine is rented.
 The break that turns each red (applied once, seen red, reverted):
 
-- test_each_runner_says_and_returns_its_estimate: in batch.py `priced`, `ledger.cost(minutes, dearest) * count` ->
-  `ledger.cost(minutes, dearest)`; or `dearest = max(` -> `dearest = min(`.
-- test_every_runner_refuses_a_batch_past_the_owners_limits: in ledger.py `refusal`, `if euros > cap:` -> `if
-  False:`.
-- test_no_runner_refuses_on_the_months_total: in batch.py `priced`, `refused = ledger.refusal(minutes, dearest *
-  count)` -> `refused = ledger.refusal(minutes, dearest * count) or (spent > 1000 and "the month")`.
+- test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine (each runner priced inside, past the limits and
+  on a dear month): in batch.py `priced`, `ledger.cost(minutes, dearest) * count` -> `ledger.cost(minutes, dearest)`;
+  or `dearest = max(` -> `dearest = min(`; or in ledger.py `refusal`, `if euros > cap:` -> `if False:`; or in
+  batch.py `priced`, `refused = ledger.refusal(minutes, dearest * count)` -> `refused = ledger.refusal(minutes,
+  dearest * count) or (spent > 1000 and "the month")`.
 - test_a_scene_machine_is_armed_and_deleted_also_when_a_step_fails: in spread.py `tended`, move
   `batch.delete_machine(machine)` from the `finally` to after the `yield` (deleted only when the block ends well).
 - test_a_held_character_machine_is_armed_with_the_grace_and_deleted: in spread.py `tended`, `run.deadline +
@@ -843,34 +842,35 @@ def stubbed(monkeypatch, spent=100.0, scale=1.0):
     return said
 
 
-def test_each_runner_says_and_returns_its_estimate(monkeypatch):
-    for name, (estimate, recorded) in ESTIMATES.items():
-        said = stubbed(monkeypatch)
-        returned = estimate()
-        assert said == [f"{recorded}; €100.00 spent this month"], (name, said)
-        count, minutes, euros, _ = SAID.search(said[0]).groups()
-        count = 1 if count == "one" else int(count)
-        dearest = max(offer.per_card for offer in returned[0])  # the dearest offer the runner may take
-        # billed by the started minute: the said minutes are rounded, so the bill lies within a minute of them
-        assert (int(minutes) - 0.5) * dearest * count - 0.005 <= float(euros) <= (int(minutes) + 1.5) * dearest * count
-        assert returned[-1] == min(240.0, 60.0 / (dearest * count)), name  # the 4 h and EUR 60 limits
+# Each runner priced three ways: its month at EUR 100, offers 200 times dearer (EUR 2 to 10 a minute: every batch
+# here passes EUR 60), and a month of EUR 10,000 (never a ceiling): (spent, price scale, refused past the limits).
+PRICINGS = {"inside": (100.0, 1.0, False), "past-the-limits": (100.0, 200.0, True),
+            "dear-month": (10_000.0, 1.0, False)}
 
 
-def test_every_runner_refuses_a_batch_past_the_owners_limits(monkeypatch):
-    for name, (estimate, _) in ESTIMATES.items():
-        stubbed(monkeypatch, scale=200.0)  # EUR 2 to 10 a minute: every batch here passes EUR 60
-        try:
-            estimate()
-            raise AssertionError(f"{name} priced a batch past EUR 60")
-        except SystemExit as refused:
-            assert "refused" in str(refused) and "€60" in str(refused), (name, refused)
-
-
-def test_no_runner_refuses_on_the_months_total(monkeypatch):
-    for name, (estimate, recorded) in ESTIMATES.items():
-        said = stubbed(monkeypatch, spent=10_000.0)
-        estimate()
-        assert said == [f"{recorded}; €10000.00 spent this month"], name
+@pytest.mark.parametrize("pricing", PRICINGS)
+@pytest.mark.parametrize("runner", ESTIMATES)
+def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, runner, pricing):
+    """A runner says its estimate (its machines at the dearest offer it may take, for the minutes it says) and
+    returns the minutes the 4 h and EUR 60 limits allow, refuses a batch past EUR 60, and never refuses on the
+    month's total."""
+    estimate, recorded = ESTIMATES[runner]
+    spent, scale, past = PRICINGS[pricing]
+    said = stubbed(monkeypatch, spent=spent, scale=scale)
+    try:
+        returned, refused = estimate(), None
+    except SystemExit as stop:
+        returned, refused = None, str(stop)
+    if past:
+        assert refused and "refused" in refused and "€60" in refused, (runner, refused)
+        return
+    assert refused is None and said == [f"{recorded}; €{spent:.2f} spent this month"], (runner, refused, said)
+    count, minutes, euros, _ = SAID.search(said[0]).groups()
+    count = 1 if count == "one" else int(count)
+    dearest = max(offer.per_card for offer in returned[0])  # the dearest offer the runner may take
+    # billed by the started minute: the said minutes are rounded, so the bill lies within a minute of them
+    assert (int(minutes) - 0.5) * dearest * count - 0.005 <= float(euros) <= (int(minutes) + 1.5) * dearest * count
+    assert returned[-1] == min(240.0, 60.0 / (dearest * count)), runner  # the 4 h and EUR 60 limits
 
 
 class Tended:
