@@ -141,7 +141,7 @@ FUNCTION_DEBT = {
     "tools/cloud/conductor/test_owner_gates_and_safe_moves.py": 25,
     "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 9,
     "tools/cloud/runtime/test_a_job_runs_once_on_checked_weights.py": 15,
-    "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 36,
+    "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 29,
     "tools/cloud/test_blender_cloud_runs_a_job_as_written.py": 10,
     "tools/cloud/test_park_holds_a_machine_only_while_it_pays_off.py": 24,
     "tools/cloud/test_pool_books_every_card_once_and_deletes_every_card.py": 44,
