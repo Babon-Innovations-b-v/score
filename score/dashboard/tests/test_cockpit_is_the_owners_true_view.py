@@ -2467,20 +2467,20 @@ def entry(root, blobs, kind, entry_id, state="draft", place="alpha", node="close
 
 @pytest.fixture(scope="module")
 def shelf_once(tmp_path_factory):
-    """The shelf's folders made once a file: each test gets a copy of its own."""
+    """The shelf's folders made once a file: the one test reads a copy of its own."""
     folder = tmp_path_factory.mktemp("shelf")
     shelf_made(folder)
     return folder
 
 
-@pytest.fixture
-def shelf(shelf_once, tmp_path):
+@contextlib.contextmanager
+def shelf_copy(shelf_once, folder):
     """A tiny library of 15 entries in a git folder with a bare remote, and its blob folder: this file's one shelf
-    copied into tmp_path, its clone's origin the copy's own bare remote."""
-    shutil.copytree(shelf_once, tmp_path, symlinks=True, dirs_exist_ok=True)
-    config = tmp_path / "lib" / ".git" / "config"
-    config.write_text(config.read_text().replace(str(shelf_once / "remote.git"), str(tmp_path / "remote.git")))
-    root, blobs, command = tmp_path / "lib", tmp_path / "blobs", tmp_path / "score_lib_command.py"
+    copied into `folder`, its clone's origin the copy's own bare remote; the library settings point at it while open."""
+    shutil.copytree(shelf_once, folder, symlinks=True, dirs_exist_ok=True)
+    config = folder / "lib" / ".git" / "config"
+    config.write_text(config.read_text().replace(str(shelf_once / "remote.git"), str(folder / "remote.git")))
+    root, blobs, command = folder / "lib", folder / "blobs", folder / "score_lib_command.py"
     with override_settings(SCORE_LIB_ROOT=str(root), SCORE_LIB_BLOBS_DIR=str(blobs),
                            SCORE_LIB_COMMAND=f"{sys.executable} {command}"):
         yield root
@@ -2560,47 +2560,19 @@ def number_shown(html, label, value):
                      rf'{re.escape(value)}', html) is not None
 
 
-def test_the_library_is_its_kinds_counted_from_its_entries_with_no_entry_until_a_branch_opens(world, shelf):
-    """By hand from the shelf: 3 models, 2 surfaces (steel and the recipes' made-by-code folder), 3 scenes (the place,
-    its concept, its base layer); no Algorithms, Films, Ground or Layers shelf; at most 40 words; the library counts 15
-    entries. Break: state/library.py `shelf_of` puts every algorithm on its own shelf."""
-    from score.dashboard.state import library as lib
-    html = signed_in().get("/library/").content.decode()
-    for kind, count in (("Models", 3), ("Surfaces", 2), ("Kits", 1), ("Effects", 1), ("Skies", 1), ("Lamps", 1),
-                        ("Sound", 1), ("Physics", 0), ("Scenes", 3)):
-        assert f'<span class="node-label" data-v>{kind}</span><span class="node-count" data-v>{count}</span>' in html
-    for gone in ("Algorithms", "Films", "Ground", "Layers"):
-        assert f"data-v>{gone}<" not in html
-    assert "Lamp post" not in html and len(prose(html)) <= WORD_BUDGET
-    found = screens.library_counts(lib.library())
-    kinds = {row["kind"]: row for row in found["kinds"]}
-    assert found["total"] == 15 and kinds["model"]["count"] == 3 and kinds["model"]["locked"] == 1
-    assert kinds["model"]["pictured"] == 3 and kinds["model"]["scored"] == 2
-    assert screens.library_counts(None) == {"kinds": [], "total": 0}
 
-
-def test_a_branch_answers_its_children_a_page_at_a_time_code_in_its_works_folder_a_place_with_its_layers(world, shelf,
-                                                                                                         monkeypatch):
-    """Break: pages/library.py `children` never adds the "more" branch (`left = 0`)."""
-    from score.dashboard.pages import library as pages_library
-    web = api()
-
-    def children(node):
-        return web.get("/api/library/children", params={"node": node}).json()
-    assert [(node["label"], node["count"]) for node in children("surface")] == [("Made by code", 1),
-                                                                                ("Brushed steel", None)]
-    assert [node["href"] for node in children("surface/made_by_code")] == ["/library/algorithm/surface_recipes/1/"]
-    assert [node["href"] for node in children("light")] == ["/library/light/sky.alpha/1/"]
-    assert [node["href"] for node in children("place/alpha")] == ["/library/place/alpha/1/",
-                                                                  "/library/concept/alpha/1/",
-                                                                  "/library/layer/base.alpha/1/"]
-    assert [(node["label"], node["count"], node["tone"]) for node in children("model/piece")] == [
-        ("Crate", 91, "done"), ("Lamp post", 42, "review")]
-    monkeypatch.setattr(pages_library, "PAGE", 1)
-    first = children("model/piece")
-    assert [node["label"] for node in first] == ["Crate", "more"] and first[1]["count"] == 1
-    assert [node["label"] for node in web.get(first[1]["children_url"]).json()] == ["Lamp post"]
-    assert web.get("/api/library/children", params={"node": "nowhere"}).status_code == 404
+# The library's branches as the API answers them: (node, the fields read from each child, the children in order).
+BRANCHES = [("surface", ("label", "count"), [("Made by code", 1), ("Brushed steel", None)]),
+            ("surface/made_by_code", ("href",), [("/library/algorithm/surface_recipes/1/",)]),
+            ("light", ("href",), [("/library/light/sky.alpha/1/",)]),
+            ("place/alpha", ("href",), [("/library/place/alpha/1/",), ("/library/concept/alpha/1/",),
+                                        ("/library/layer/base.alpha/1/",)]),
+            ("model/piece", ("label", "count", "tone"), [("Crate", 91, "done"), ("Lamp post", 42, "review")])]
+# The shelf's kinds on the library screen, counted by hand: 3 models, 2 surfaces (steel and the recipes' made-by-code
+# folder), 3 scenes (the place, its concept, its base layer); no Algorithms, Films, Ground or Layers shelf.
+SHELVES = (("Models", 3), ("Surfaces", 2), ("Kits", 1), ("Effects", 1), ("Skies", 1), ("Lamps", 1), ("Sound", 1),
+           ("Physics", 0), ("Scenes", 3))
+NO_SHELF = ("Algorithms", "Films", "Ground", "Layers")
 
 
 def named_entries(count, stem, place="alpha"):
@@ -2618,182 +2590,6 @@ def node_of(tree, node_id):
         if found:
             return found
     return None
-
-
-def test_folders_split_by_name_then_place_hold_one_newest_locked_version_and_no_withdrawn_entry():
-    """50 upper walls split by place (30, 20), 4 lower apart, 2 singles to other; of versions 1, 2 locked and 3 draft
-    the item is 2; a withdrawn one in no folder. Break: state/library_tree.py `folders` keeps withdrawn entries."""
-    from score.dashboard.state.library_tree import folders
-    made = folders([*named_entries(30, "wall_upper_plain"), *named_entries(20, "wall_upper_plain", "beta"),
-                    *named_entries(4, "wall_lower"), *named_entries(1, "lamp"), *named_entries(1, "crate")])
-    assert [child["id"] for child in node_of(made["tree"], "model/wall")["children"]] == [
-        "model/wall/wall_lower", "model/wall/wall_upper"]
-    upper = node_of(made["tree"], "model/wall/wall_upper")["children"]
-    assert [(child["label"], child["count"]) for child in upper] == [("from alpha", 30), ("from beta", 20)]
-    assert node_of(made["tree"], "model/other")["count"] == 2
-    first = named_entries(1, "crate")[0]
-    versions = [first.model_copy(update={"version": 1, "state": "locked"}),
-                first.model_copy(update={"version": 2, "state": "locked"}),
-                first.model_copy(update={"version": 3, "state": "draft"})]
-    assert [found.version for found in folders(versions)["members"]["model"]] == [2]
-    entries = named_entries(2, "crate")
-    entries[1] = entries[1].model_copy(update={"state": "withdrawn"})
-    assert node_of(folders(entries)["tree"], "model")["count"] == 1
-
-
-def test_an_item_plays_live_in_its_kinds_viewer_from_its_own_files(world, shelf):
-    """Each viewer's facts read from the entry's own files: the model's light copy then whole copy; the surface's colour
-    and roughness from its material; a lamp's power 3 x 2 = 6; the sound's -22.0 LUFS and 4.3 s; the effect's settings
-    without its sources in words; a kit cut open with its 12 pieces; an old preview clip never played; scores only where
-    they mean something. Break: state/library.py reads a lamp's power as its intensity alone."""
-    from score.dashboard.state import library as lib
-    owner = signed_in()
-    lamp = an_item_page(owner, "/library/model/lamp_post.alpha/1/")
-    found = lib.library().entry("model/lamp_post.alpha@1")
-    viewer = item_data(lamp)
-    assert viewer["mode"] == "copy" and viewer["light"] == f"/library-files/files/{found.web3d_light.sha}"
-    assert viewer["full"] == f"/library-files/files/{found.web3d.sha}" and "<video" not in lamp
-    assert f"/library-files/pictures/{found.closeup.sha}.jpg" in lamp  # beside it: the close-up it was made from
-    assert number_shown(lamp, "parts", "3") and number_shown(lamp, "score", "42")
-    steel = item_data(an_item_page(owner, "/library/surface/brushed_steel.alpha/1/"))
-    assert steel["token"] == "steel" and steel["finish"]["colour"] == [0.5, 0.25, 0.125]
-    assert steel["finish"]["roughness"] == 0.35 and steel["palette"]["sign-gold"].startswith("#")
-    lamps = an_item_page(owner, "/library/layer/light.alpha/1/")
-    assert [(each["type"], each["name"], each["power"]) for each in item_data(lamps)["lamps"]] == [
-        ("point", "light_2", 6.0), ("sun", "sun_1", 1.0)]
-    hum = an_item_page(owner, "/library/sound/hum.alpha/1/")
-    assert hum.count("data-wave=") == 2 and number_shown(hum, "loudness", "-22.0 <small>LUFS</small>")
-    assert number_shown(hum, "length", "4.3 <small>s</small>")
-    devil = item_data(an_item_page(owner, "/library/effect/devil.alpha/1/"))
-    assert devil["settings"]["count"] == 15000 and "from" not in devil["settings"]
-    sky = item_data(an_item_page(owner, "/library/light/sky.alpha/1/"))
-    assert sky["mode"] == "sky" and sky["sky"] == "dome"
-    kit = an_item_page(owner, "/library/kit/alpha/1/")
-    assert item_data(kit)["mode"] == "kit" and item_data(kit)["inside"] and number_shown(kit, "pieces", "12")
-    wrench = an_item_page(owner, "/library/model/wrench/1/")
-    assert "<video" not in wrench and not any(each.name.endswith(".mp4")
-                                              for each in lib.shown_files(lib.library().entry("model/wrench@1")))
-    recipes = an_item_page(owner, "/library/algorithm/surface_recipes/1/")
-    assert "score" not in recipes.split('class="nums"')[-1].split("item-actions")[0].lower()  # its score means nothing
-    crate = an_item_page(owner, "/library/model/crate/1/")
-    assert item_data(crate) is None and 'value="withdraw"' in crate
-    assert "data-post" not in an_item_page(signed_in("guest"), "/library/model/crate/1/")  # only the owner decides
-    assert owner.get("/library/model/nothing/1/").status_code == 404
-
-
-def test_an_algorithm_shows_its_work_on_a_real_example_else_why_not(world, shelf):
-    """Break: state/library.py `demo` returns None."""
-    from django.conf import settings
-    owner = signed_in()
-    assert "surfaces bake &times; 2" in an_item_page(owner, "/library/algorithm/surface_recipes/1/")
-    demos = settings.SCORE_PROPS_HOME / "cache" / "library" / "demos.json"
-    demos.parent.mkdir(parents=True, exist_ok=True)
-    demos.write_text(json.dumps({"surface_recipes": DEMO}))
-    shown = an_item_page(owner, "/library/algorithm/surface_recipes/1/")
-    assert ">The beds<" in shown and number_shown(shown, "plants", "9")
-    demos.write_text(json.dumps({"surface_recipes": {"missing": "no example kept"}}))
-    assert "no example of its work is here yet: no example kept" in an_item_page(
-        owner, "/library/algorithm/surface_recipes/1/")
-
-
-def test_a_place_shows_its_3d_copy_once_made_and_a_lost_copy_is_said_missing(world, shelf, tmp_path):
-    """A loss mark of other bytes is not this file; of its own sha it is, and the export carries it. Break:
-    state/library.py `missing` reads any `.lost` mark as lost, whatever sha it names."""
-    from score.dashboard.state import library as lib
-    owner = signed_in()
-    assert "<iframe" not in an_item_page(owner, "/library/place/alpha/1/")
-    copy = world.source.web_copies / "alpha"
-    copy.mkdir(parents=True)
-    (copy / "alpha.json").write_text(json.dumps({"objects": []}))
-    assert '<iframe src="/view/alpha?embed=1"' in an_item_page(owner, "/library/layer/base.alpha/1/")
-    shown = lib.library()
-    kit = shown.entry("kit/alpha@1")
-    (shelf.parent / "blobs" / "blobs" / kit.web3d_light.sha[:2] / kit.web3d_light.sha).unlink()
-    marked = shown.cache / "kit/alpha/1/web3d/light.glb.lost"
-    marked.parent.mkdir(parents=True)
-    marked.write_text("0" * 64)
-    page = an_item_page(owner, "/library/kit/alpha/1/")
-    assert item_data(page) is None and ">3D not here<" in page
-    marked.write_text(kit.web3d_light.sha)
-    assert ">3D missing<" in an_item_page(owner, "/library/kit/alpha/1/")
-    building.build(world.source, tmp_path / "home/export/one", MADE, 50, SPEND, world.root)
-    rows = json.loads((tmp_path / "home/export/one" / lib.EXPORT_ROWS).read_text())
-    assert next(row["missing"] for row in rows if row["address"] == "kit/alpha@1") == ["web3d/light.glb"]
-
-
-def test_the_file_routes_serve_only_files_an_entry_lists(world, shelf):
-    """Break: state/library.py `blob` serves any sha in the blob folder."""
-    from score.dashboard.state import library as lib
-    web = api()
-    found = lib.library().entry("character/walker@1")
-    assert web.get(f"/library-files/thumbs/{found.picture}.jpg").headers["content-type"] == "image/jpeg"
-    assert web.get(f"/library-files/view/{found.glb.sha}.json").json()["triangles"] == 1
-    assert web.get(f"/library-files/view/{found.glb.sha}-light.glb").status_code == 404
-    assert web.get(f"/library-files/files/{'0' * 64}").status_code == 404
-    unlisted = blob(shelf.parent / "blobs", b"bytes no entry lists")
-    assert web.get(f"/library-files/files/{unlisted}").status_code == 404
-    assert signed_in("guest2").get("/library/model/crate/1/3d/").status_code == 404
-
-
-def test_the_owner_refines_locks_and_withdraws_and_no_one_else_nor_an_agent(world, shelf, monkeypatch):
-    """Refine items into the basket, once each; a lock committed and pushed with the library's own command; a lock of a
-    locked entry refused; an agent never locks; hosted, a withdraw is queued and applied for the owner only. Break:
-    pages/library_actions.py `carried_out` skips `actions.agent_started`."""
-    from score.dashboard.state import library as lib
-    web = api()
-    said = web.post("/api/library/refine", json={"addresses": ["model/lamp_post.alpha@1", "model/crate@1"]}).json()
-    assert said["added"] == 2
-    assert web.post("/api/library/refine", json={"addresses": ["model/crate@1"]}).json()["added"] == 0  # already in
-    refused = web.post("/api/library/refine", json={"addresses": ["model/crate@1"], "option": "repaint"})
-    assert refused.status_code == 400 and "no refine option" in refused.json()["detail"]
-    assert api("guest").post("/api/library/refine", json={"addresses": ["model/crate@1"]}).status_code == 403
-    assert RefineItem.objects.count() == 2
-    assert library_actions.ask("joey", "lock", ["model/crate@1"], hosted=False).startswith("refused")
-    monkeypatch.setattr(actions, "agent_started", lambda: True)
-    assert "an agent never locks" in library_actions.ask("joey", "lock", ["model/lamp_post.alpha@1"], hosted=False)
-    assert lib.library().entry("model/lamp_post.alpha@1").state == "draft"
-    monkeypatch.setattr(actions, "agent_started", lambda: False)
-    assert api("guest2").post("/api/library/ask", json={"action": "lock", "addresses": ["model/crate@1"]}
-                              ).status_code == 403
-    answer = web.post("/api/library/ask", json={"action": "lock",
-                                                "addresses": ["model/lamp_post.alpha@1", "sound/hum.alpha@1"]})
-    assert "locked 2 entries" in answer.json()["said"]
-    assert lib.library().entry("model/lamp_post.alpha@1").state == "locked"
-    remote = subprocess.run(["git", "-C", str(shelf.parent / "remote.git"), "log", "-1", "--format=%s"],
-                            capture_output=True, text=True).stdout
-    assert remote.startswith("lock: 2 entries, the owner's decision on the cockpit")
-    assert library_actions.ask("joey", "withdraw", ["model/crate@1"], hosted=True).startswith("queued")
-    queued = SyncRequest.objects.get(kind="library")
-    assert library_actions.waiting() == {"model/crate@1": "withdraw"}
-    assert applying.apply({"kind": "library", "user": "mallory", "payload": queued.payload}, world.source
-                          ).state == "refused"
-    assert applying.apply({"kind": "library", "user": "joey", "payload": queued.payload}, world.source).state == "done"
-    assert lib.library().entry("model/crate@1").state == "withdrawn"
-
-
-def test_the_export_carries_the_library_to_a_hosted_cockpit_light_copies_only(world, shelf, tmp_path):
-    """Twice the same; every picture; 5 library files (two takes, two light copies, the print): never a whole copy or an
-    old clip. Break: state/library.py `export_three_d` adds each entry's whole web copy."""
-    from score.dashboard.state import library as lib
-    first = building.build(world.source, tmp_path / "home/export/one", MADE, 50, SPEND, world.root)
-    again = building.build(world.source, tmp_path / "home/export/two", MADE, 50, SPEND, world.root)
-    assert first["written"] == again["written"] and "library/entries.json" in first["written"]
-    pictures = {each.picture for each in lib.library().entries()}
-    assert all(f"files/{sha}-360.jpg" in first["written"] for sha in pictures)
-    assert sum(path.startswith("library/files/") for path in first["written"]) == 5
-    (tmp_path / "home/export/current").symlink_to("one")
-    with override_settings(SCORE_MODE="hosted", SCORE_HOME=tmp_path / "home", SCORE_LIB_ROOT=None):
-        hosted = lib.library()
-        assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 15
-        web = api("joey3")
-        assert [node["label"] for node in web.get("/api/library/children", params={"node": "model/piece"}).json()
-                ] == ["Crate", "Lamp post"]
-        pages = signed_in("joey4")
-        lamp = item_data(pages.get("/library/model/lamp_post.alpha/1/").content.decode())
-        assert lamp["light"] == f"/library-files/files/{hosted.entry('model/lamp_post.alpha@1').web3d_light.sha}"
-        assert lamp["full"] is None  # light only
-        assert "/3d/" not in pages.get("/library/character/walker/1/").content.decode()
-
 
 HOSTED_CHILD = """
 import json, sys
@@ -2819,7 +2615,7 @@ print(json.dumps({"codes": codes, "branch": branch, "heavy": heavy}))
 """
 
 
-HOSTED_TEST = "test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks"
+HOSTED_TEST = "test_cockpit_is_the_owners_true_view"
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -2850,27 +2646,6 @@ def hosted_child(request, built_once, shelf_once, tmp_path_factory, django_db_se
     yield child
     child.kill()
     child.communicate()
-
-
-def test_a_hosted_library_screen_imports_nothing_the_hosted_image_lacks(hosted_child):
-    """Break: pages/library.py imports score.stages."""
-    out, err = hosted_child.communicate(timeout=50)
-    assert hosted_child.returncode == 0, err[-3000:]
-    assert json.loads(out.strip().splitlines()[-1]) == {"codes": [200] * 9, "branch": ["Pieces", "Props"],
-                                                        "heavy": []}
-
-
-def test_a_library_with_no_blob_folder_reads_its_pictures_from_the_store_sides_cache(shelf, tmp_path):
-    """Break: state/library.py `blob` looks only in the blob folder."""
-    from score.dashboard.state import library as lib
-    blobs, cache = shelf.parent / "blobs", tmp_path / "cache"
-    alpha = lib.LocalLibrary(shelf, None, tmp_path / "thumbs", cache).entry("place/alpha@1")
-    bare = lib.LocalLibrary(shelf, None, tmp_path / "thumbs", cache)
-    assert bare.picture_path(alpha.picture, 64) is None
-    kept = cache / "place" / "alpha" / "1" / alpha.picture_file
-    kept.parent.mkdir(parents=True)
-    kept.write_bytes((blobs / "blobs" / alpha.picture[:2] / alpha.picture).read_bytes())
-    assert bare.blob(alpha.picture) == kept and bare.picture_path(alpha.picture, 64).is_file()
 
 
 # --- what the pages are made of: plain names, the theme's tokens, no provider (rows and one sweep in the one test) ---
@@ -2988,7 +2763,8 @@ def deploy_value_ok(line):
 
 # === the one question: what the owner sees and who may act on it =====================================================
 
-def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_factory, monkeypatch):
+def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_factory, monkeypatch, shelf_once,
+                                         hosted_child):
     """One world (the fixture environment, alpha's gaps checked and priced, the month's books lost) walked through every
     page, then acted on by the owner, a guest, a stranger, a page without its CSRF token and the sync applier. Each
     page answers the owner and sends a stranger to sign in; node ids stay in the details fold; a screen holds at most
@@ -3024,7 +2800,20 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_fac
     findings.json whole instead of `current_findings`; state/local.py `price_stale` ignores `code_moved`;
     state/local.py `gaps_price` remembers its read without `gaps_written()` in the key; state/gaps.py `own_sum` keeps
     nodes another place's chain also has (`reach[node] == 1` dropped); state/local.py `gaps_price` leaves `milestones`
-    out of the GapsPrice; state/local.py `gaps_total` drops `lost_once`."""
+    out of the GapsPrice; state/local.py `gaps_total` drops `lost_once`.
+    And the library, on a copy of the file's shelf: its kinds counted from its entries, no entry until a branch opens;
+    a branch a page at a time; folders by name then place, one newest locked version, no withdrawn entry; each item
+    played live from its own files; an algorithm's real example, else why not; the export carries light copies only,
+    read whole by a hosted cockpit, and a lost copy is said missing; files served only where an entry lists them; only
+    the owner refines, locks and withdraws, never an agent; a hosted library screen imports nothing the hosted image
+    lacks, and a library with no blob folder reads its pictures from the store side's cache.
+    Breaks (each applied once and seen red): state/library.py `shelf_of` puts every algorithm on its own shelf;
+    pages/library.py `children` never adds the "more" branch (`left = 0`); state/library_tree.py `folders` keeps
+    withdrawn entries; state/library.py reads a lamp's power as its intensity alone; state/library.py `demo` returns
+    None; state/library.py `export_three_d` adds each entry's whole web copy; state/library.py `missing` reads any
+    `.lost` mark as lost, whatever sha it names; state/library.py `blob` serves any sha in the blob folder;
+    pages/library_actions.py `carried_out` skips `actions.agent_started`; pages/library.py imports score.stages;
+    state/library.py `blob` looks only in the blob folder."""
     from score.dashboard.pages import cockpit, present, views
     from score.dashboard.pages.models import BasketItem, ChangeRequest
     from score.dashboard.state import gaps as gap_rows
@@ -3098,12 +2887,212 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_fac
         faults["the runner's prices and plain words"] = judged
     assert not faults, faults
 
-    guarded_user = get_user_model().objects.create_user("joey", password="a long enough password")
+    # The library, on a copy of this file's shelf: its kinds counted from its entries with no entry until a branch
+    # opens, a branch a page at a time, folders by name then place, each item played live from its own files, an
+    # algorithm's real example, the export's light copies read by a hosted cockpit, a lost 3D copy said missing, files
+    # served only where an entry lists them, and only the owner refines, locks and withdraws.
+    from score.dashboard.pages import library as pages_library
+    from score.dashboard.state import library as lib
+    from score.dashboard.state.library_tree import folders
+    shelf_at = tmp_path_factory.mktemp("library")
+    with shelf_copy(shelf_once, shelf_at) as shelf:
+        blobs, keeper, keeper_api = shelf_at / "blobs", signed_in(), api()
+        shelves = keeper.get("/library/").content.decode()
+        assert [kind for kind, count in SHELVES if f'<span class="node-label" data-v>{kind}</span><span '
+                f'class="node-count" data-v>{count}</span>' not in shelves] == []
+        assert [gone for gone in NO_SHELF if f"data-v>{gone}<" in shelves] == []
+        assert "Lamp post" not in shelves and len(prose(shelves)) <= WORD_BUDGET
+        counted = screens.library_counts(lib.library())
+        models = next(row for row in counted["kinds"] if row["kind"] == "model")
+        assert ((counted["total"], models["count"], models["locked"], models["pictured"], models["scored"]),
+                screens.library_counts(None)) == ((15, 3, 1, 3, 2), {"kinds": [], "total": 0})
+
+        def children(node):
+            return keeper_api.get("/api/library/children", params={"node": node}).json()
+        for node, fields, want in BRANCHES:
+            assert [tuple(child[field] for field in fields) for child in children(node)] == want, node
+        with pytest.MonkeyPatch.context() as paged:
+            paged.setattr(pages_library, "PAGE", 1)
+            first = children("model/piece")
+            assert ([child["label"] for child in first], first[1]["count"],
+                    [child["label"] for child in keeper_api.get(first[1]["children_url"]).json()]) == (
+                ["Crate", "more"], 1, ["Lamp post"])
+        assert keeper_api.get("/api/library/children", params={"node": "nowhere"}).status_code == 404
+
+        # Folders: 50 upper walls split by place (30, 20), 4 lower apart, 2 singles to other; of versions 1, 2 locked
+        # and 3 draft the item is 2; a withdrawn one is in no folder.
+        walls = folders([*named_entries(30, "wall_upper_plain"), *named_entries(20, "wall_upper_plain", "beta"),
+                         *named_entries(4, "wall_lower"), *named_entries(1, "lamp"), *named_entries(1, "crate")])
+        crate = named_entries(1, "crate")[0]
+        versions = folders([crate.model_copy(update={"version": 1, "state": "locked"}),
+                            crate.model_copy(update={"version": 2, "state": "locked"}),
+                            crate.model_copy(update={"version": 3, "state": "draft"})])
+        withdrawn = named_entries(2, "crate")
+        withdrawn[1] = withdrawn[1].model_copy(update={"state": "withdrawn"})
+        assert {"wall": [child["id"] for child in node_of(walls["tree"], "model/wall")["children"]],
+                "upper": [(child["label"], child["count"])
+                          for child in node_of(walls["tree"], "model/wall/wall_upper")["children"]],
+                "other": node_of(walls["tree"], "model/other")["count"],
+                "versions": [found.version for found in versions["members"]["model"]],
+                "withdrawn": node_of(folders(withdrawn)["tree"], "model")["count"]} == {
+            "wall": ["model/wall/wall_lower", "model/wall/wall_upper"], "upper": [("from alpha", 30), ("from beta", 20)],
+            "other": 2, "versions": [2], "withdrawn": 1}
+
+        # Each viewer's facts read from the entry's own files: the model's light copy then whole copy; the surface's
+        # colour and roughness from its material; a lamp's power 3 x 2 = 6; the sound's -22.0 LUFS and 4.3 s; the
+        # effect's settings without its sources in words; a kit cut open with its 12 pieces; an old preview clip never
+        # played; scores only where they mean something; only the owner decides.
+        lamp = an_item_page(keeper, "/library/model/lamp_post.alpha/1/")
+        found = lib.library().entry("model/lamp_post.alpha@1")
+        viewer = item_data(lamp)
+        assert viewer["mode"] == "copy" and viewer["light"] == f"/library-files/files/{found.web3d_light.sha}"
+        assert viewer["full"] == f"/library-files/files/{found.web3d.sha}" and "<video" not in lamp
+        assert f"/library-files/pictures/{found.closeup.sha}.jpg" in lamp  # beside it: the close-up it was made from
+        assert number_shown(lamp, "parts", "3") and number_shown(lamp, "score", "42")
+        steel = item_data(an_item_page(keeper, "/library/surface/brushed_steel.alpha/1/"))
+        assert steel["token"] == "steel" and steel["finish"]["colour"] == [0.5, 0.25, 0.125]
+        assert steel["finish"]["roughness"] == 0.35 and steel["palette"]["sign-gold"].startswith("#")
+        lamps = an_item_page(keeper, "/library/layer/light.alpha/1/")
+        assert [(each["type"], each["name"], each["power"]) for each in item_data(lamps)["lamps"]] == [
+            ("point", "light_2", 6.0), ("sun", "sun_1", 1.0)]
+        hum = an_item_page(keeper, "/library/sound/hum.alpha/1/")
+        assert hum.count("data-wave=") == 2 and number_shown(hum, "loudness", "-22.0 <small>LUFS</small>")
+        assert number_shown(hum, "length", "4.3 <small>s</small>")
+        devil = item_data(an_item_page(keeper, "/library/effect/devil.alpha/1/"))
+        assert devil["settings"]["count"] == 15000 and "from" not in devil["settings"]
+        sky = item_data(an_item_page(keeper, "/library/light/sky.alpha/1/"))
+        assert sky["mode"] == "sky" and sky["sky"] == "dome"
+        kit = an_item_page(keeper, "/library/kit/alpha/1/")
+        assert item_data(kit)["mode"] == "kit" and item_data(kit)["inside"] and number_shown(kit, "pieces", "12")
+        wrench = an_item_page(keeper, "/library/model/wrench/1/")
+        assert "<video" not in wrench and not any(each.name.endswith(".mp4")
+                                                  for each in lib.shown_files(lib.library().entry("model/wrench@1")))
+        recipes = an_item_page(keeper, "/library/algorithm/surface_recipes/1/")
+        assert "score" not in recipes.split('class="nums"')[-1].split("item-actions")[0].lower()  # means nothing
+        crate_page = an_item_page(keeper, "/library/model/crate/1/")
+        assert item_data(crate_page) is None and 'value="withdraw"' in crate_page
+        assert "data-post" not in an_item_page(signed_in("guest"), "/library/model/crate/1/")
+        assert keeper.get("/library/model/nothing/1/").status_code == 404
+
+        # An algorithm shows its work on a real example, else why not.
+        assert "surfaces bake &times; 2" in recipes
+        demos = settings.SCORE_PROPS_HOME / "cache" / "library" / "demos.json"
+        demos.parent.mkdir(parents=True, exist_ok=True)
+        demos.write_text(json.dumps({"surface_recipes": DEMO}))
+        shown = an_item_page(keeper, "/library/algorithm/surface_recipes/1/")
+        assert ">The beds<" in shown and number_shown(shown, "plants", "9")
+        demos.write_text(json.dumps({"surface_recipes": {"missing": "no example kept"}}))
+        assert "no example of its work is here yet: no example kept" in an_item_page(
+            keeper, "/library/algorithm/surface_recipes/1/")
+
+        # The file routes serve only files an entry lists.
+        walker = lib.library().entry("character/walker@1")
+        assert keeper_api.get(f"/library-files/thumbs/{walker.picture}.jpg").headers["content-type"] == "image/jpeg"
+        assert keeper_api.get(f"/library-files/view/{walker.glb.sha}.json").json()["triangles"] == 1
+        unlisted = blob(blobs, b"bytes no entry lists")
+        assert [keeper_api.get(path).status_code for path in (
+            f"/library-files/view/{walker.glb.sha}-light.glb", f"/library-files/files/{'0' * 64}",
+            f"/library-files/files/{unlisted}")] == [404] * 3
+        assert signed_in("guest2").get("/library/model/crate/1/3d/").status_code == 404
+
+        # The export carries the library to a hosted cockpit, light copies only: twice the same; every picture; 5
+        # library files (two takes, two light copies, the print), never a whole copy or an old clip.
+        exports = shelf_at / "home" / "export"
+        made = building.build(world.source, exports / "one", MADE, 50, SPEND, world.root)
+        again = building.build(world.source, exports / "two", MADE, 50, SPEND, world.root)
+        assert made["written"] == again["written"] and "library/entries.json" in made["written"]
+        assert all(f"files/{each.picture}-360.jpg" in made["written"] for each in lib.library().entries())
+        assert sum(path.startswith("library/files/") for path in made["written"]) == 5
+        (exports / "current").symlink_to("one")
+        with override_settings(SCORE_MODE="hosted", SCORE_HOME=shelf_at / "home", SCORE_LIB_ROOT=None):
+            hosted = lib.library()
+            assert isinstance(hosted, lib.ExportedLibrary) and len(hosted.entries()) == 15
+            assert [node["label"] for node in api("joey3").get(
+                "/api/library/children", params={"node": "model/piece"}).json()] == ["Crate", "Lamp post"]
+            pages = signed_in("joey4")
+            light = item_data(pages.get("/library/model/lamp_post.alpha/1/").content.decode())
+            assert (light["light"], light["full"]) == (
+                f"/library-files/files/{hosted.entry('model/lamp_post.alpha@1').web3d_light.sha}", None)
+            assert "/3d/" not in pages.get("/library/character/walker/1/").content.decode()
+
+        # A place shows its 3D copy once made; a loss mark of other bytes is not this file, of its own sha it is, and
+        # the export carries it.
+        assert "<iframe" not in an_item_page(keeper, "/library/place/alpha/1/")
+        web_copy = world.source.web_copies / "alpha"
+        web_copy.mkdir(parents=True)
+        (web_copy / "alpha.json").write_text(json.dumps({"objects": []}))
+        assert '<iframe src="/view/alpha?embed=1"' in an_item_page(keeper, "/library/layer/base.alpha/1/")
+        listed = lib.library()
+        kit_entry = listed.entry("kit/alpha@1")
+        (blobs / "blobs" / kit_entry.web3d_light.sha[:2] / kit_entry.web3d_light.sha).unlink()
+        marked = listed.cache / "kit/alpha/1/web3d/light.glb.lost"
+        marked.parent.mkdir(parents=True)
+        marked.write_text("0" * 64)
+        lost_page = an_item_page(keeper, "/library/kit/alpha/1/")
+        assert item_data(lost_page) is None and ">3D not here<" in lost_page
+        marked.write_text(kit_entry.web3d_light.sha)
+        assert ">3D missing<" in an_item_page(keeper, "/library/kit/alpha/1/")
+        building.build(world.source, exports / "three", MADE, 50, SPEND, world.root)
+        rows = json.loads((exports / "three" / lib.EXPORT_ROWS).read_text())
+        assert next(row["missing"] for row in rows if row["address"] == "kit/alpha@1") == ["web3d/light.glb"]
+
+        # A library with no blob folder reads its pictures from the store side's cache.
+        cache = shelf_at / "bare-cache"
+        alpha = lib.LocalLibrary(shelf, None, shelf_at / "bare-thumbs", cache).entry("place/alpha@1")
+        bare = lib.LocalLibrary(shelf, None, shelf_at / "bare-thumbs", cache)
+        assert bare.picture_path(alpha.picture, 64) is None
+        kept = cache / "place" / "alpha" / "1" / alpha.picture_file
+        kept.parent.mkdir(parents=True)
+        kept.write_bytes((blobs / "blobs" / alpha.picture[:2] / alpha.picture).read_bytes())
+        assert bare.blob(alpha.picture) == kept and bare.picture_path(alpha.picture, 64).is_file()
+
+        # The owner refines items into the basket, once each; a lock is committed and pushed with the library's own
+        # command; a lock of a locked entry is refused; an agent never locks; hosted, a withdraw is queued and applied
+        # for the owner only.
+        said = keeper_api.post("/api/library/refine", json={"addresses": ["model/lamp_post.alpha@1", "model/crate@1"]})
+        assert said.json()["added"] == 2
+        assert keeper_api.post("/api/library/refine", json={"addresses": ["model/crate@1"]}).json()["added"] == 0
+        refused = keeper_api.post("/api/library/refine", json={"addresses": ["model/crate@1"], "option": "repaint"})
+        assert refused.status_code == 400 and "no refine option" in refused.json()["detail"]
+        assert api("guest").post("/api/library/refine", json={"addresses": ["model/crate@1"]}).status_code == 403
+        assert RefineItem.objects.count() == 2
+        assert library_actions.ask("joey", "lock", ["model/crate@1"], hosted=False).startswith("refused")
+        with pytest.MonkeyPatch.context() as agent:
+            agent.setattr(actions, "agent_started", lambda: True)
+            assert "an agent never locks" in library_actions.ask("joey", "lock", ["model/lamp_post.alpha@1"],
+                                                                 hosted=False)
+        assert lib.library().entry("model/lamp_post.alpha@1").state == "draft"
+        with pytest.MonkeyPatch.context() as agent:
+            agent.setattr(actions, "agent_started", lambda: False)
+            assert api("guest2").post("/api/library/ask", json={"action": "lock", "addresses": ["model/crate@1"]}
+                                      ).status_code == 403
+            answer = keeper_api.post("/api/library/ask", json={"action": "lock", "addresses": [
+                "model/lamp_post.alpha@1", "sound/hum.alpha@1"]})
+            assert "locked 2 entries" in answer.json()["said"]
+            assert lib.library().entry("model/lamp_post.alpha@1").state == "locked"
+            remote = subprocess.run(["git", "-C", str(shelf_at / "remote.git"), "log", "-1", "--format=%s"],
+                                    capture_output=True, text=True).stdout
+            assert remote.startswith("lock: 2 entries, the owner's decision on the cockpit")
+            assert library_actions.ask("joey", "withdraw", ["model/crate@1"], hosted=True).startswith("queued")
+            queued = SyncRequest.objects.get(kind="library")
+            assert library_actions.waiting() == {"model/crate@1": "withdraw"}
+            assert [applying.apply({"kind": "library", "user": user, "payload": queued.payload}, world.source).state
+                    for user in ("mallory", "joey")] == ["refused", "done"]
+            assert lib.library().entry("model/crate@1").state == "withdrawn"
+
+    # A hosted library screen, in its own fresh process over a copy of this world and shelf, imports nothing the
+    # hosted image lacks.
+    out, err = hosted_child.communicate(timeout=50)
+    assert hosted_child.returncode == 0, err[-3000:]
+    assert json.loads(out.strip().splitlines()[-1]) == {"codes": [200] * 9, "branch": ["Pieces", "Props"],
+                                                        "heavy": []}
+
+    guarded_user, _ = get_user_model().objects.get_or_create(username="joey")
     guarded = Client(enforce_csrf_checks=True)
     guarded.force_login(guarded_user)
     owner, guest = signed_in(), signed_in("guest")
-    copy = world.root / "web" / "alpha"
-    copy.mkdir(parents=True)
+    copy = world.root / "web" / "alpha"  # the library's place check below made it first
+    copy.mkdir(parents=True, exist_ok=True)
     (copy / "alpha.json").write_text(json.dumps({
         "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
         "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
