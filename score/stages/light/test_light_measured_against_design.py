@@ -17,13 +17,18 @@ stages made here, each answer worked out by hand:
   pictures moved away (2026-10-18), score/stages put on sys.path (Buy of 2026-10-24), Blender's magenta, read on the
   surface colour, never a lamp's (2026-10-30).
 
-Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
-- sky.py: the light's direction negated in `write_light` (the house sun test).
+Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26; "the measures' table" is the rows of
+measures read on pictures and passes made here in test_light_measured_against_design):
+- sky.py: the light's direction negated in `write_light` (the sky test, test_light_measured_against_design: the house
+  sun; this and the other sky test breaks proved again 2026-11-13).
 - sky.through_dust: the forward peak left out of the beam (depth not delta-scaled), or `dust` not passed on in
-  `write`, or the share written on the airless Moon's sun too (the Moon base test, 2026-11-10).
-- measure.where: `x = size[0] / 2 + ...` off by its focal; its look-along-its-up refusal dropped (the where test;
-  round 33's spot-1 at shiplock looked straight down, up (0, 1, 0), and every measure was NaN, 2026-10-30).
-- measure.veil: the lower rows read as the upper (the veil test).
+  `write`, or the share written on the airless Moon's sun too (the sky test: Mars' and the Moon base's suns,
+  2026-11-10).
+- measure.where: `x = size[0] / 2 + ...` off by its focal; its look-along-its-up refusal dropped (the measures'
+  table: the where rows, proved 2026-11-13; round 33's spot-1 at shiplock looked straight down, up (0, 1, 0), and
+  every measure was NaN, 2026-10-30).
+- measure.veil: the lower rows read as the upper (the measures' table: the veil rows; proved
+  2026-11-13).
 - mix.sweep: return 1.0 always (the sweep test).
 - mix.lamp_faults: never "blown" (the sweep test).
 - layer.strengths: write the strength unscaled (the layer test).
@@ -36,17 +41,20 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.unlit_why: an inside place lit by a sun alone counted lit (the unlit test).
 - night.is_night: always true; night.scale_of: inside and outside swapped; night.skyglow_of: `within_km` ignored;
   night.roofed: `>= ROOFED_LEAST` -> `> 0`; night.write_layer: `layer.Save()` dropped;
-  night.colour: `dark` ignored; night.body_lux: the radius over the distance not squared (the sun under the horizon
-  test, 2026-11-10).
+  night.colour: `dark` ignored; night.body_lux: the radius over the distance not squared (the sky
+  test: the night, 2026-11-10).
 - light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
-- light.body_faults: drop the "not lit from its sun" fault (the discs test).
+- light.body_faults: drop the "not lit from its sun" fault (the measures' table: the disc rows; proved
+  2026-11-13).
 - light.judge_exposure: pass with no concept (the exposure test).
 - light.extremes: `sky` ignored (the Moon look fails), or `luminance[sky]` for `luminance[~sky]` (the dark and blown
   looks pass) (the exposure sky test, 2026-10-30).
-- light_passes.sky_mask: `== 0` -> `!= 0` (the sky mask test, 2026-10-30).
+- light_passes.sky_mask: `== 0` -> `!= 0` (the measures' table: the sky mask row, 2026-10-30; proved
+  2026-11-13).
 - light.sky_measures: the look's sky read by measure.sky_pixels, not its passes' mask (the look's sky test,
   2026-10-30).
-- passes.judge_magenta: the share read times 0 (the magenta view test, 2026-10-30).
+- passes.judge_magenta: the share read times 0 (the measures' table: the magenta rows, 2026-10-30; proved
+  2026-11-13).
 - mix.sweep: `most` ignored; mix.own_share: the lamp's light left unscaled (`scales.get(group, 1.0) *` dropped) (the
   sweep test, 2026-11-04).
 - mix.own_share: the share read on the pixels' mixed light (`mixed(passes, scales).sum()`), the light no group holds
@@ -63,12 +71,14 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.row_skies: the boxes read whole, not on measure.commonest_near (the look's sky test, 2026-11-10).
 - light.open_sky: the doorways not left out (`return mask` first), or light.through_doorways' `reach > 0` dropped
   (the look's sky test, 2026-11-10: hub's door openings read as its sky).
-- light_passes.missing_share: the glossy colour pass left out (the missing picture test, 2026-10-30).
+- light_passes.missing_share: the glossy colour pass left out (the measures' table: the missing picture row,
+  2026-10-30; proved 2026-11-13).
 - passes.neighbours: keep a planless shown place (the neighbours test).
 - mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
 - light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
-- passes.device_for: `need > card_gb * 2**30` -> `False` (the card test, 2026-10-29).
+- passes.device_for: `need > card_gb * 2**30` -> `False` (the measures' table: the card rows, 2026-10-29; proved
+  2026-11-13).
 - layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the fill test,
   2026-10-30).
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
@@ -98,13 +108,14 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
   the emitter words (the float look test, 2026-11-10).
 - night.air_glow: the rods' share read on the sky's own luminance (`seen_dark(at_zenith)`), not the adapted eye's
-  (night.eye_dark); mix.surround_factor: SURROUND always (the sun under the horizon test and the layer test,
+  (night.eye_dark); mix.surround_factor: SURROUND always (the sky test's night and the layer test,
   2026-11-10: the square's sky too blue).
 - light.look_at: the sky's factor left to the smoothing (the float look test, 2026-11-10: the square's sky lit by its
   lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test, 2026-11-10: the stairwell);
   light.airless_sky: the concept's sky as painted on an airless body (the look's sky test, 2026-11-10: hangar);
   light.on_card: the look as it is (the exposure test, 2026-11-10: the street's black police car);
-  light_passes.surface_of: the glossy colour left out (the missing picture test).
+  light_passes.surface_of: the glossy colour left out (the measures' table: the surface reflectance row; proved
+  2026-11-13).
 """
 import json
 import math
@@ -168,216 +179,356 @@ def text_type():
     return Sdf.ValueTypeNames.String
 
 
-def test_a_house_sun_at_its_equinox_noon_shines_from_due_south_38_degrees_up_and_the_sky_dome_lights():
-    seen = overhead.seen(HOUSE, HOUSE["sites"][0], "2024-03-20T12:00:00Z")
-    stage = stage_of("house")
-    sky.write(stage, "house", seen)
-    sun = stage.GetPrimAtPath("/house/Lights/sky_sun")
-    rise = math.radians(90.0 - 52.0)
-    assert np.allclose(shines(sun), [0.0, -math.sin(rise), -math.cos(rise)], atol=1e-3)  # x east, y up, z south
-    assert UsdLux.DistantLight(sun).GetColorTemperatureAttr().Get() == 5800
-    dome = UsdLux.DomeLight(stage.GetPrimAtPath("/house/Sky/Backdrops/sky"))
-    assert dome.GetIntensityAttr().Get() == pytest.approx(10000 / math.pi / 683.0, rel=1e-6)
-    assert not stage.GetPrimAtPath("/house/Sky/Bodies").GetChildren()  # a house's sky holds no worlds
-    assert sky.faults(seen, sky.held(stage, "house")) == []
-    # the day dome is scattered from the brightest light, the way it shines
-    assert np.allclose(sky.sun_entries(seen)[0]["toward"], [0.0, -math.sin(rise), -math.cos(rise)], atol=1e-3)
-    assert sky.sun_entries({**seen, "lights": []}) == []
+NOON, MIDNIGHT = "2024-03-20T12:00:00Z", "2024-03-20T00:00:00Z"
+EARTH_FACE = {"body": "earth", "surface": "earth_face", "family": "paint", "recipe": "painted_plaster",
+              "token": "ocean-blue", "hex": "#1f4f8f", "colour": [0.0137, 0.0782, 0.2747], "roughness": 0.7,
+              "metal": 0.0}
 
 
-def test_the_earth_over_the_moon_base_is_a_ball_about_two_degrees_across_and_the_sun_half_a_degree():
-    seen = overhead.seen(ENVIRONMENT_1, BASE, WHEN)
-    stage = stage_of("base")
-    sky.write(stage, "base", seen)
-    earth = stage.GetPrimAtPath("/base/Sky/Bodies/earth")
-    # the Earth's 6371 km radius at the Moon's 356500 to 406700 km: 1.79 to 2.05 degrees across
-    assert 1800 * math.sin(math.radians(1.79 / 2)) < half_height(earth) < 1800 * math.sin(math.radians(2.05 / 2))
-    sun = stage.GetPrimAtPath("/base/Sky/Discs/sun")
-    # the Sun's 695700 km radius at 0.983 to 1.017 AU: 31.5 to 32.6 arc minutes
-    assert 1800 * math.sin(math.radians(31.4 / 120)) < half_height(sun) < 1800 * math.sin(math.radians(32.7 / 120))
-    assert earth.GetAttribute("score:surface").Get() == "earth_face"
-    assert "body-face-earth" in earth.GetAttribute("score:surface:missing").Get()  # its face waits: named, never grey
-    assert sky.faults(seen, sky.held(stage, "base")) == []
-    # the airless Moon's sun shines at its top-of-air white; on Mars at campgrounds' scene time (9.8 degrees up) its
-    # beam comes through 0.6 of dust: red e^(-(1 - 0.975 * 0.67^2) * 0.6 / sin 9.8) = 0.137, blue (albedo 0.86) 0.114
-    assert not UsdLux.DistantLight(stage.GetPrimAtPath("/base/Lights/sky_sun")).GetColorAttr().HasAuthoredValue()
-    campgrounds = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "campgrounds")
-    on_mars = overhead.seen(ENVIRONMENT_1, campgrounds, "2099-10-01T16:00:00Z")
-    dust = json.loads((REPO / "data/physics/dust.json").read_text())["bodies"]["mars"]
-    stage = stage_of("campgrounds")
-    sky.write(stage, "campgrounds", on_mars, dust=dust)
-    beam = UsdLux.DistantLight(stage.GetPrimAtPath("/campgrounds/Lights/sky_sun"))
-    assert np.allclose(beam.GetColorAttr().Get(), [0.1372, 0.1278, 0.1143], atol=2e-3)
-    assert beam.GetIntensityAttr().Get() == pytest.approx(on_mars["lights"][0]["lux"] / 683.0 / 4.0, rel=1e-4)
-
-
-def test_a_body_is_painted_with_the_face_its_row_made(tmp_path):
-    face = {"body": "earth", "surface": "earth_face", "family": "paint", "recipe": "painted_plaster",
-            "token": "ocean-blue", "hex": "#1f4f8f", "colour": [0.0137, 0.0782, 0.2747], "roughness": 0.7, "metal": 0.0}
-    (tmp_path / "body-face-earth").mkdir()
-    (tmp_path / "body-face-earth/face.json").write_text(json.dumps(face))
-    faces = sky.faces_of({"body-face-earth": str(tmp_path / "body-face-earth"), "sky": str(tmp_path / "none.json")})
-    assert faces == {"earth": face}
-    stage = stage_of("base")
-    sky.write(stage, "base", overhead.seen(ENVIRONMENT_1, BASE, WHEN), faces=faces)
-    earth = stage.GetPrimAtPath("/base/Sky/Bodies/earth")
-    material = UsdShade.MaterialBindingAPI(earth).ComputeBoundMaterial()[0]
-    assert material.GetPath() == "/base/Looks/earth_face" and not earth.HasAttribute("score:surface:missing")
-    assert material.GetPrim().GetAttribute("score:from").Get() == "body-face-earth"
-    shader = UsdShade.Shader(stage.GetPrimAtPath("/base/Looks/earth_face/surface"))
-    assert tuple(shader.GetInput("diffuseColor").Get()) == pytest.approx(face["colour"], abs=1e-6)
-    assert earth.GetAttribute("score:face").Get() == "body-face-earth" and light.face_drawn(earth)
-    assert not light.face_drawn(stage.GetPrimAtPath("/base/Sky/Bodies/mars"))  # its row has not run
-
-
-def test_the_gate_names_a_world_moved_a_light_turned_a_backdrop_missing_and_a_world_left_out():
-    seen = overhead.seen(ENVIRONMENT_1, BASE, WHEN)
-    stage = stage_of("base")
-    sky.write(stage, "base", seen)
-    UsdGeom.Xformable(stage.GetPrimAtPath("/base/Sky/Bodies/earth")).AddTranslateOp().Set((300.0, 0.0, 0.0))
-    UsdGeom.Xformable(stage.GetPrimAtPath("/base/Lights/sky_sun")).AddRotateXOp().Set(5.0)
-    stage.GetPrimAtPath("/base/Sky/Backdrops/stars").SetActive(False)
-    found = sky.faults(seen, sky.held(stage, "base"))
-    assert any(fault.startswith("Earth: at azimuth") for fault in found), found
-    assert any(fault.startswith("the light Sun: shines from") for fault in found), found
-    assert any(fault.startswith("the backdrop Stars") for fault in found), found
-    assert not any("Mars" in fault for fault in found), found
-    stage = stage_of("base")
-    sky.write(stage, "base", {**seen, "bodies": [body for body in seen["bodies"] if body["body"] != "mars"]})
-    sky.write_body(stage, "base", {"body": "phobos", "azimuth": 10.0, "altitude": 20.0, "across": 0.1, "lit": 1.0})
-    found = sky.faults(seen, sky.held(stage, "base"))
-    assert any(fault.startswith("Mars: overhead") for fault in found), found
-    assert "the body phobos: in the sky, but not overhead" in found, found
-
-
-def test_the_old_sky_is_turned_off_and_the_physics_sky_left_on():
-    stage = stage_of("wreck")
-    UsdLux.DistantLight.Define(stage, "/wreck/Lights/sun_1")
-    stars = UsdGeom.Mesh.Define(stage, "/wreck/Sky/Stars").GetPrim()
-    stars.CreateAttribute("score:kind", text_type()).Set("stars")
-    world = UsdGeom.Mesh.Define(stage, "/wreck/Structure/earth").GetPrim()
-    world.CreateAttribute("score:plain", text_type()).Set("sky")
-    wall = UsdGeom.Mesh.Define(stage, "/wreck/Structure/wall").GetPrim()
-    off = sky.retired(stage, "wreck")
-    assert sorted(off) == ["/wreck/Lights/sun_1", "/wreck/Sky/Stars", "/wreck/Structure/earth"], off
-    assert wall.IsActive()
-    sky.write(stage, "wreck", overhead.seen(ENVIRONMENT_1, BASE, WHEN))
-    assert sky.retired(stage, "wreck") == []  # the physics' own sky is never the old one
-
-
-def test_a_sun_under_the_horizon_lights_nothing_and_its_light_held_anyway_is_a_fault(tmp_path):
-    # the house's equinox midnight: the sun as far under the horizon as it stands over it at noon, 90 - 52 = 38 degrees
-    seen = overhead.seen(HOUSE, HOUSE["sites"][0], "2024-03-20T00:00:00Z")
-    assert seen["lights"][0]["altitude"] == pytest.approx(-38.0, abs=0.5)
-    stage = stage_of("house")
-    written = sky.write(stage, "house", seen)
-    assert written["lights"] == [] and not stage.GetPrimAtPath("/house/Lights/sky_sun")
-    assert sky.sun_entries(seen) == []  # no day dome scattered from under the ground
-    assert sky.faults(seen, sky.held(stage, "house")) == []
-    sky.write_light(stage, "house", seen["lights"][0])  # a sky that shines it up through the ground anyway
-    assert "the light sun: in the sky, but not overhead" in sky.faults(seen, sky.held(stage, "house"))
-    # the night's light (night.py), worked out by hand: the full Moon outside the air at its mean distance gives
-    # 128 000 x 0.12 x (1737.4 / 384 400)^2 = 0.314 lux; a 15.0 mag/arcsec^2 sky 10.8e4 x 10^-6 = 0.108 cd/m^2; an
-    # eye at a lit square (10 lux) sees the night pi x 683 / 10 = 214.6 times its physical light, inside (100 lux) 21.5
-    table = json.loads((REPO / "data/physics/night.json").read_text())
-    moon = {"body": "moon", "across": math.degrees(2 * math.asin(1737.4 / 384400.0)), "lit": 1.0}
-    kept = {"setting": ENVIRONMENT_1, "site": SQUARE, "time": WHEN}
-    assert night.body_lux(kept, {"lux": 128000.0}, moon, table["reflecting"]["moon"]) == pytest.approx(0.314, abs=0.001)
-    assert night.ZERO_MAG * 10 ** (-0.4 * 15.0) == pytest.approx(0.108)
-    assert night.scale_of(table, False) == pytest.approx(214.6, abs=0.1)
-    assert night.scale_of(table, True) == pytest.approx(21.46, abs=0.01)
-    assert night.seen_dark(0.001) == 1.0 and night.seen_dark(10.0) == 0.0
-    assert night.skyglow_of(table, SQUARE)["name"] == "Hong Kong, urban"
-    assert night.skyglow_of(table, {**SQUARE, "latitude": 23.5}) is None  # 135 km up the coast: not the city's sky
-    city = night.colour(night.black_body(4000.0))
-    assert city[2] < city[0] < night.colour(night.black_body(4000.0), 1.0)[2]  # the rods see the warm light blue
-    seen = overhead.seen(ENVIRONMENT_1, SQUARE, WHEN)  # 22:00 at the square: the Sun 52.7 under, the Moon 38 up
-    assert night.is_night(seen) and not night.is_night(overhead.seen(ENVIRONMENT_1, SQUARE, "2099-10-01T04:00:00Z"))
-    stage = stage_of("square")
-    sky.write(stage, "square", seen)
-    found = night.write(stage, "square", seen, kept, table, False)
-    moonlight = stage.GetPrimAtPath("/square/Lights/night_moon")
-    lux = moonlight.GetAttribute("score:sky:lux").Get() / found["scale"]  # its 96% phase through 1.6 airmasses
-    assert 0.05 < lux < 0.314 and sky.faults(seen, sky.held(stage, "square")) == []
-    ambient = UsdLux.DomeLight(stage.GetPrimAtPath("/square/Environment")).GetColorAttr().Get()
-    assert ambient[2] > ambient[0] > 0.0 and found["zenith_cd"]["skyglow"] == pytest.approx(0.108)
-    assert night.write(stage_of("square"), "square", overhead.seen(ENVIRONMENT_1, SQUARE, "2099-10-01T04:00:00Z"),
-                       kept, table, False) is None  # by day: nothing
-    for name, (high_x, high_z), under in (("roof_1", (10.0, 10.0), True), ("roof_2", (2.0, 3.0), False)):
-        roofs = stage_of("street")  # a room's ceiling over its 10 x 10 m floor; a 2 x 3 m awning over a street
-        roof = UsdGeom.Mesh.Define(roofs, f"/street/Structure/{name}")
-        roof.CreatePointsAttr([(0.0, 3.5, 0.0), (high_x, 3.5, 0.0), (high_x, 3.7, high_z), (0.0, 3.7, high_z)])
-        roof.GetPrim().CreateAttribute("score:plain", text_type()).Set("shell")
-        assert night.roofed(roofs, "street", [[0.0, 0.0], [10.0, 10.0]]) is under
-    root = Usd.Stage.CreateNew(str(tmp_path / "square.usda"))  # written into a light layer file over the stage
-    root.SetDefaultPrim(UsdGeom.Xform.Define(root, "/square").GetPrim())
-    root.Save()
-    Sdf.Layer.CreateNew(str(tmp_path / "light.usda")).Save()
-    written = night.write_layer(tmp_path / "light.usda", tmp_path / "square.usda", "square", kept, table, None)
-    held = Usd.Stage.Open(str(tmp_path / "light.usda"))
-    assert written["scale"] == pytest.approx(214.6, abs=0.1) and held.GetPrimAtPath("/square/Lights/night_moon")
-    # the rods' share is the adapted eye's, never the sky's own (2026-11-10: the square's sky seen with 64% rods read
-    # 2.4 to 2.8 blue to red against its concept's 2.06): at the square's 10 lux, 10 / pi / 5 = 0.64 cd/m^2, a
-    # smooth step at (0.6 + 0.20) / 2.6 = 0.31 of its way, 0.224; in a 100 lux room, 6.4 cd/m^2, none
-    assert night.eye_dark(table, False) == pytest.approx(0.224, abs=0.001) and night.eye_dark(table, True) == 0.0
-    assert written["dark"] == pytest.approx(0.224, abs=0.001) and written["outside_scale"] == written["scale"]
-    assert night.write(stage_of("stairwell"), "stairwell", seen, kept, table, True)["outside_scale"] == \
-        pytest.approx(214.6, abs=0.1)
+def sky_stage(place, seen, **given):
+    """A stage of `place` with the physics' sky written on it from `seen`; the stage and what was written."""
+    stage = stage_of(place)
+    stage.SetDefaultPrim(stage.GetPrimAtPath(f"/{place}"))
+    return stage, sky.write(stage, place, seen, **given)
 
 
 def seed_with_old_sky(folder):
-    """A seed stage whose record drew the old sky: a sun light and a star field."""
+    """A seed stage whose record drew the old sky: a sun light, a star field and a world laid as structure; and a
+    wall of the place."""
     (folder / "layers").mkdir(parents=True)
     base = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
     base.SetDefaultPrim(UsdGeom.Xform.Define(base, "/house").GetPrim())
     UsdLux.DistantLight.Define(base, "/house/Lights/sun_1")
     stars = UsdGeom.Mesh.Define(base, "/house/Sky/Stars").GetPrim()
     stars.CreateAttribute("score:kind", text_type()).Set("stars")
+    world = UsdGeom.Mesh.Define(base, "/house/Structure/earth").GetPrim()
+    world.CreateAttribute("score:plain", text_type()).Set("sky")
+    UsdGeom.Mesh.Define(base, "/house/Structure/wall")
     base.Save()
     root = Usd.Stage.CreateNew(str(folder / "house.usda"))
     root.GetRootLayer().subLayerPaths.append("./layers/base.usda")
     root.Save()
 
 
-def test_the_light_layer_writes_the_physics_sky_over_the_old_one_and_its_gate_holds_it_to_overhead(tmp_path):
+def test_light_measured_against_design(tmp_path, monkeypatch):
+    """The sky a place is lit by is what overhead.py says at its site and time, written by sky.write (a stage) and
+    layer.write (the light layer over a seed), and held to it by the gate. The worlds: the house at its spring
+    equinox noon and midnight, the Moon base at environment 1's scene time with its Earth's face and the library,
+    Mars' campgrounds in its dust, the square by night, and a seed whose record drew the old sky. Then the measures
+    (measure.py) and the views' passes (passes.py, inside/light_passes.py) are read on pictures and passes made here:
+    a bank of floodlight panes, a body's disc, a sky, haze, a point in a view, a missing picture's surface colours, the
+    object index pass, a magenta look and two passes jobs past and within their card."""
+    seen = {"noon": overhead.seen(HOUSE, HOUSE["sites"][0], NOON),
+            "midnight": overhead.seen(HOUSE, HOUSE["sites"][0], MIDNIGHT),
+            "base": overhead.seen(ENVIRONMENT_1, BASE, WHEN),
+            "square": overhead.seen(ENVIRONMENT_1, SQUARE, WHEN)}  # 22:00 at the square: the Sun 52.7 under
+    (tmp_path / "body-face-earth").mkdir()
+    (tmp_path / "body-face-earth/face.json").write_text(json.dumps(EARTH_FACE))
+    faces = sky.faces_of({"body-face-earth": str(tmp_path / "body-face-earth"), "sky": str(tmp_path / "none.json")})
+    assert faces == {"earth": EARTH_FACE}
+    library = json.loads((sky.REPO / "data/library/materials.json").read_text())
+    noon, _ = sky_stage("house", seen["noon"])
+    midnight, dark = sky_stage("house", seen["midnight"])
+    base, _ = sky_stage("base", seen["base"], faces=faces, library=library)
+    square, _ = sky_stage("square", seen["square"])
+    table = json.loads((REPO / "data/physics/night.json").read_text())
+    kept = {"setting": ENVIRONMENT_1, "site": SQUARE, "time": WHEN}
+    by_night = night.write(square, "square", seen["square"], kept, table, False)
+
+    # the house's sun at equinox noon shines from due south 90 - 52 = 38 degrees up (x east, y up, z south), at
+    # midnight as far under; under the horizon it lights nothing and scatters no day dome from under the ground
+    rise = math.radians(90.0 - 52.0)
+    toward = [0.0, -math.sin(rise), -math.cos(rise)]
+    assert seen["noon"]["lights"][0]["altitude"] == pytest.approx(38.0, abs=0.5)
+    assert seen["midnight"]["lights"][0]["altitude"] == pytest.approx(-38.0, abs=0.5)
+    sun = noon.GetPrimAtPath("/house/Lights/sky_sun")
+    assert np.allclose(shines(sun), toward, atol=1e-3) and UsdLux.DistantLight(sun).GetColorTemperatureAttr().Get() \
+        == 5800
+    assert np.allclose(sky.sun_entries(seen["noon"])[0]["toward"], toward, atol=1e-3)  # the day dome's sun
+    assert sky.sun_entries({**seen["noon"], "lights": []}) == [] and sky.sun_entries(seen["midnight"]) == []
+    assert dark["lights"] == [] and not midnight.GetPrimAtPath("/house/Lights/sky_sun")
+    dome = UsdLux.DomeLight(noon.GetPrimAtPath("/house/Sky/Backdrops/sky"))
+    assert dome.GetIntensityAttr().Get() == pytest.approx(10000 / math.pi / 683.0, rel=1e-6)
+    assert not noon.GetPrimAtPath("/house/Sky/Bodies").GetChildren()  # a house's sky holds no worlds
+
+    # every sky written passes its gate (the square's with its night written over it), and the physics' own sky is
+    # never taken for the old one
+    for name, stage in (("noon", noon), ("midnight", midnight), ("base", base), ("square", square)):
+        assert sky.faults(seen[name], sky.held(stage, stage.GetDefaultPrim().GetName())) == [], name
+    for stage in (noon, midnight, base):
+        assert sky.retired(stage, stage.GetDefaultPrim().GetName()) == []
+
+    # on the Moon base the Earth (6371 km at 356500 to 406700 km) is 1.79 to 2.05 degrees across, the Sun (695700 km
+    # at 0.983 to 1.017 AU) 31.5 to 32.6 arc minutes; the airless Moon's sun shines at its top-of-air white
+    earth, disc = base.GetPrimAtPath("/base/Sky/Bodies/earth"), base.GetPrimAtPath("/base/Sky/Discs/sun")
+    assert 1800 * math.sin(math.radians(1.79 / 2)) < half_height(earth) < 1800 * math.sin(math.radians(2.05 / 2))
+    assert 1800 * math.sin(math.radians(31.4 / 120)) < half_height(disc) < 1800 * math.sin(math.radians(32.7 / 120))
+    assert not UsdLux.DistantLight(base.GetPrimAtPath("/base/Lights/sky_sun")).GetColorAttr().HasAuthoredValue()
+    # a body is painted with the face its row made; one whose row has not run is named waiting, never grey
+    material = UsdShade.MaterialBindingAPI(earth).ComputeBoundMaterial()[0]
+    assert material.GetPath() == "/base/Looks/earth_face" and not earth.HasAttribute("score:surface:missing")
+    assert material.GetPrim().GetAttribute("score:from").Get() == "body-face-earth"
+    shader = UsdShade.Shader(base.GetPrimAtPath("/base/Looks/earth_face/surface"))
+    assert tuple(shader.GetInput("diffuseColor").Get()) == pytest.approx(EARTH_FACE["colour"], abs=1e-6)
+    assert earth.GetAttribute("score:face").Get() == "body-face-earth" and light.face_drawn(earth)
+    mars = base.GetPrimAtPath("/base/Sky/Bodies/mars")
+    assert not light.face_drawn(mars) and mars.GetAttribute("score:surface").Get() == "mars_face"
+    assert "body-face-mars" in mars.GetAttribute("score:surface:missing").Get()
+    # the Sun's disc is the library's glowing recipe in its 5772 K black body colour (white, a little warm), no
+    # placeholder
+    material = UsdShade.MaterialBindingAPI(disc).ComputeBoundMaterial()[0]
+    assert material.GetPath() == "/base/Looks/sun_disc" and not disc.HasAttribute("score:surface:missing")
+    assert material.GetPrim().GetAttribute("score:recipe").Get() == "glowing"
+    glow = UsdShade.Shader(base.GetPrimAtPath("/base/Looks/sun_disc/surface")).GetInput("emissiveColor").Get()
+    assert glow[0] == pytest.approx(1.0, abs=0.01) and glow[2] < glow[0]
+    sys.path.insert(0, str(sky.REPO / "tools/usd"))
+    import placeholders
+    base.GetRootLayer().Export(str(tmp_path / "base.usda"))
+    assert [fault for fault in placeholders.check(tmp_path / "base.usda") if "/Discs/" in fault["prim"]] == []
+
+    # on Mars at campgrounds' scene time (9.8 degrees up) the beam comes through 0.6 of dust: red
+    # e^(-(1 - 0.975 * 0.67^2) * 0.6 / sin 9.8) = 0.137, blue (albedo 0.86) 0.114
+    campgrounds = next(site for site in ENVIRONMENT_1["sites"] if site["place"] == "campgrounds")
+    on_mars = overhead.seen(ENVIRONMENT_1, campgrounds, "2099-10-01T16:00:00Z")
+    dust = json.loads((REPO / "data/physics/dust.json").read_text())["bodies"]["mars"]
+    dusty, _ = sky_stage("campgrounds", on_mars, dust=dust)
+    beam = UsdLux.DistantLight(dusty.GetPrimAtPath("/campgrounds/Lights/sky_sun"))
+    assert np.allclose(beam.GetColorAttr().Get(), [0.1372, 0.1278, 0.1143], atol=2e-3)
+    assert beam.GetIntensityAttr().Get() == pytest.approx(on_mars["lights"][0]["lux"] / 683.0 / 4.0, rel=1e-4)
+
+    # the gate names a world moved, a light turned, a backdrop missing, a sun shining up through the ground, a world
+    # left out and a world the physics has not
+    UsdGeom.Xformable(earth).AddTranslateOp().Set((300.0, 0.0, 0.0))
+    UsdGeom.Xformable(base.GetPrimAtPath("/base/Lights/sky_sun")).AddRotateXOp().Set(5.0)
+    base.GetPrimAtPath("/base/Sky/Backdrops/stars").SetActive(False)
+    found = sky.faults(seen["base"], sky.held(base, "base"))
+    for start in ("Earth: at azimuth", "the light Sun: shines from", "the backdrop Stars"):
+        assert any(fault.startswith(start) for fault in found), (start, found)
+    assert not any("Mars" in fault for fault in found), found
+    sky.write_light(midnight, "house", seen["midnight"]["lights"][0])
+    assert "the light sun: in the sky, but not overhead" in sky.faults(seen["midnight"], sky.held(midnight, "house"))
+    lacking, _ = sky_stage("base", {**seen["base"], "bodies": [body for body in seen["base"]["bodies"]
+                                                             if body["body"] != "mars"]})
+    sky.write_body(lacking, "base", {"body": "phobos", "azimuth": 10.0, "altitude": 20.0, "across": 0.1, "lit": 1.0})
+    found = sky.faults(seen["base"], sky.held(lacking, "base"))
+    assert any(fault.startswith("Mars: overhead") for fault in found), found
+    assert "the body phobos: in the sky, but not overhead" in found, found
+
+    # the night's light (night.py), worked out by hand: the full Moon outside the air at its mean distance gives
+    # 128 000 x 0.12 x (1737.4 / 384 400)^2 = 0.314 lux; a 15.0 mag/arcsec^2 sky 10.8e4 x 10^-6 = 0.108 cd/m^2; an
+    # eye at a lit square (10 lux) sees the night pi x 683 / 10 = 214.6 times its physical light, inside (100 lux)
+    # 21.5. The rods' share is the adapted eye's, never the sky's own (2026-11-10: the square's sky seen with 64% rods
+    # read 2.4 to 2.8 blue to red against its concept's 2.06): at the square's 10 lux, 10 / pi / 5 = 0.64 cd/m^2, a
+    # smooth step at (0.6 + 0.20) / 2.6 = 0.31 of its way, 0.224; in a 100 lux room, 6.4 cd/m^2, none
+    moon = {"body": "moon", "across": math.degrees(2 * math.asin(1737.4 / 384400.0)), "lit": 1.0}
+    for said, measured, expected in (
+            ("the full Moon's lux", night.body_lux(kept, {"lux": 128000.0}, moon, table["reflecting"]["moon"]),
+             pytest.approx(0.314, abs=0.001)),
+            ("a 15 mag/arcsec^2 sky", night.ZERO_MAG * 10 ** (-0.4 * 15.0), pytest.approx(0.108)),
+            ("the eye's scale outside", night.scale_of(table, False), pytest.approx(214.6, abs=0.1)),
+            ("the eye's scale inside", night.scale_of(table, True), pytest.approx(21.46, abs=0.01)),
+            ("rods at 0.001 cd/m^2", night.seen_dark(0.001), 1.0),
+            ("rods at 10 cd/m^2", night.seen_dark(10.0), 0.0),
+            ("the adapted eye's rods outside", night.eye_dark(table, False), pytest.approx(0.224, abs=0.001)),
+            ("the adapted eye's rods inside", night.eye_dark(table, True), 0.0),
+            ("the square's skyglow", night.skyglow_of(table, SQUARE)["name"], "Hong Kong, urban"),
+            ("135 km up the coast: not the city's sky", night.skyglow_of(table, {**SQUARE, "latitude": 23.5}), None),
+            ("the square at 22:00", night.is_night(seen["square"]), True),
+            ("the square at 04:00", night.is_night(overhead.seen(ENVIRONMENT_1, SQUARE, "2099-10-01T04:00:00Z")),
+             False)):
+        assert measured == expected, said
+    city = night.colour(night.black_body(4000.0))
+    assert city[2] < city[0] < night.colour(night.black_body(4000.0), 1.0)[2]  # the rods see the warm light blue
+    # the square by night: its Moon 38 up at its 96% phase through 1.6 airmasses, its sky's glow and air blue
+    lux = square.GetPrimAtPath("/square/Lights/night_moon").GetAttribute("score:sky:lux").Get() / by_night["scale"]
+    assert 0.05 < lux < 0.314
+    ambient = UsdLux.DomeLight(square.GetPrimAtPath("/square/Environment")).GetColorAttr().Get()
+    assert ambient[2] > ambient[0] > 0.0 and by_night["zenith_cd"]["skyglow"] == pytest.approx(0.108)
+    assert night.write(stage_of("square"), "square", overhead.seen(ENVIRONMENT_1, SQUARE, "2099-10-01T04:00:00Z"),
+                       kept, table, False) is None  # by day: nothing
+    assert night.write(stage_of("stairwell"), "stairwell", seen["square"], kept, table, True)["outside_scale"] == \
+        pytest.approx(214.6, abs=0.1)
+    for name, (high_x, high_z), under in (("roof_1", (10.0, 10.0), True), ("roof_2", (2.0, 3.0), False)):
+        roofs = stage_of("street")  # a room's ceiling over its 10 x 10 m floor; a 2 x 3 m awning over a street
+        roof = UsdGeom.Mesh.Define(roofs, f"/street/Structure/{name}")
+        roof.CreatePointsAttr([(0.0, 3.5, 0.0), (high_x, 3.5, 0.0), (high_x, 3.7, high_z), (0.0, 3.7, high_z)])
+        roof.GetPrim().CreateAttribute("score:plain", text_type()).Set("shell")
+        assert night.roofed(roofs, "street", [[0.0, 0.0], [10.0, 10.0]]) is under, name
+    root = Usd.Stage.CreateNew(str(tmp_path / "square.usda"))  # written into a light layer file over the stage
+    root.SetDefaultPrim(UsdGeom.Xform.Define(root, "/square").GetPrim())
+    root.Save()
+    Sdf.Layer.CreateNew(str(tmp_path / "light.usda")).Save()
+    written = night.write_layer(tmp_path / "light.usda", tmp_path / "square.usda", "square", kept, table, None)
+    assert written["scale"] == pytest.approx(214.6, abs=0.1)
+    assert Usd.Stage.Open(str(tmp_path / "light.usda")).GetPrimAtPath("/square/Lights/night_moon")
+    assert written["dark"] == pytest.approx(0.224, abs=0.001) and written["outside_scale"] == written["scale"]
+
+    # the light layer writes the physics' sky over a seed's old one, the old turned off and the place's wall left
+    # on, and its gate holds it to overhead at the kept sky's time: passed at noon, failed 3 hours on, unknown with
+    # no kept sky
     seed, out = tmp_path / "seed", tmp_path / "out"
     seed_with_old_sky(seed)
-    kept = {"place": "house", "top": "house", "time": "2024-03-20T12:00:00Z", "setting": HOUSE,
-            "site": {"on": "meadow", "x": 0.0, "y": 0.0, "height_m": 0.0}}
-    (tmp_path / "sky.json").write_text(json.dumps(kept))
-    found = layer.write("house", {"lights": []}, seed, out, kept)
-    layer.lamps_file(found, out)
-    assert sorted(found["sky"]["retired"]) == ["/house/Lights/sun_1", "/house/Sky/Stars"]
+    kept_sky = {"place": "house", "top": "house", "time": NOON, "setting": HOUSE,
+                "site": {"on": "meadow", "x": 0.0, "y": 0.0, "height_m": 0.0}}
+    layered = layer.write("house", {"lights": []}, seed, out, kept_sky)
+    layer.lamps_file(layered, out)
+    assert sorted(layered["sky"]["retired"]) == ["/house/Lights/sun_1", "/house/Sky/Stars", "/house/Structure/earth"]
     composed = Usd.Stage.Open(str(seed / "house.usda"))
     composed.GetRootLayer().subLayerPaths.insert(0, str(out / layer.LAYER))
     assert not composed.GetPrimAtPath("/house/Lights/sun_1").IsActive()
     assert composed.GetPrimAtPath("/house/Lights/sky_sun").IsActive()
-    verdict = light.judge_sky_bodies(out, {"sky": str(tmp_path / "sky.json")}, {})
-    assert verdict.answer == checks.PASS, verdict
-    (tmp_path / "later.json").write_text(json.dumps({**kept, "time": "2024-03-20T15:00:00Z"}))  # the sun 3 hours on
-    verdict = light.judge_sky_bodies(out, {"sky": str(tmp_path / "later.json")}, {})
-    assert verdict.answer == checks.FAIL and "the light Sun: shines from" in verdict.reason, verdict
-    assert light.judge_sky_bodies(out, {}, {}).answer == checks.UNKNOWN
+    assert composed.GetPrimAtPath("/house/Structure/wall").IsActive()
+    for time, answer, said in ((NOON, checks.PASS, ""), (None, checks.UNKNOWN, ""),
+                               ("2024-03-20T15:00:00Z", checks.FAIL, "the light Sun: shines from")):
+        inputs = {}
+        if time:
+            (tmp_path / "sky.json").write_text(json.dumps({**kept_sky, "time": time}))
+            inputs["sky"] = str(tmp_path / "sky.json")
+        verdict = light.judge_sky_bodies(out, inputs, {})
+        assert verdict.answer == answer and said in verdict.reason, (time, verdict)
 
-
-def test_the_sun_s_disc_is_the_library_s_glowing_recipe_in_its_black_body_colour_and_no_placeholder(tmp_path):
-    sys.path.insert(0, str(sky.REPO / "tools/usd"))
-    import placeholders
-    library = json.loads((sky.REPO / "data/library/materials.json").read_text())
-    stage = stage_of("base")
-    stage.SetDefaultPrim(stage.GetPrimAtPath("/base"))
-    sky.write(stage, "base", overhead.seen(ENVIRONMENT_1, BASE, WHEN), library=library)
-    disc = stage.GetPrimAtPath("/base/Sky/Discs/sun")
-    material = UsdShade.MaterialBindingAPI(disc).ComputeBoundMaterial()[0]
-    assert material.GetPath() == "/base/Looks/sun_disc" and not disc.HasAttribute("score:surface:missing")
-    assert material.GetPrim().GetAttribute("score:recipe").Get() == "glowing"
-    glow = UsdShade.Shader(stage.GetPrimAtPath("/base/Looks/sun_disc/surface")).GetInput("emissiveColor").Get()
-    assert glow[0] == pytest.approx(1.0, abs=0.01) and glow[2] < glow[0]  # 5772 K: white, a little warm
-    stage.GetRootLayer().Export(str(tmp_path / "base.usda"))
-    assert [fault for fault in placeholders.check(tmp_path / "base.usda") if "/Discs/" in fault["prim"]] == []
+    # the measures and the views' passes, read on pictures and passes made here, each against the answer worked out
+    # by hand: one row a measure, its expected value exact, approximate or a strict range (Between)
+    grid, glow = measure.head(grid_bank(), 240, 240, 40), measure.head(glowing_bank(), 240, 240, 40)
+    rows, columns = np.mgrid[0:SIZE, 0:SIZE]
+    lit = np.zeros((SIZE, SIZE, 3))  # a body's disc lit on its right half over a black sky
+    round_disc = np.hypot(columns - 100, rows - 100) < 40
+    lit[round_disc & (columns >= 100)] = [150, 150, 160]
+    lit[round_disc & (columns < 100)] = [12, 12, 14]
+    usable = np.ones((SIZE, SIZE), dtype=bool)
+    right = measure.body(lit, 100, 100, 40, (1.0, 0.0), usable)
+    left = measure.body(lit, 100, 100, 40, (-1.0, 0.0), usable)
+    lost = measure.body(np.zeros((SIZE, SIZE, 3)), 100, 100, 40, (1.0, 0.0), usable)
+    flat_sky = np.zeros((SIZE, SIZE, 3))  # a flat dusky sky over lit ground; the found sky blue to red 0.6 rising
+    flat_sky[:] = [70, 42, 16]
+    flat_sky[120:] = [120, 60, 30]
+    found_sky = flat_sky.copy()
+    found_sky[:90] = np.linspace(170, 195, 90)[:, None, None] * np.array([1.0, 0.78, 0.6])
+    concept_rgb = [188.1, 145.2, 112.1]
+    flat = measure.sky_of(flat_sky, measure.sky_pixels(flat_sky))
+    found = measure.sky_of(found_sky, measure.sky_pixels(found_sky))
+    black = np.zeros((SIZE, SIZE, 3))
+    near_black = np.full((SIZE, SIZE, 3), [1.33, 1.4, 1.3])
+    before = np.full((100, 100, 3), 40.0)
+    glowing = before.copy()
+    glowing[:50] += 100.0  # a lamp's glow up in the sky leaves the place below as it was
+    hazed = glowing.copy()
+    hazed[60:] += 30.0  # haze laid over the place's lower part
+    ahead = {"eye": [0, 0, 0], "aim": [0, 0, -10], "up": [0, 1, 0], "fov": 90}
+    # the surface colours a missing picture gave in Blender 5.0.1 on a tiny stage (2026-10-30): a plain finish's
+    # diffuse colour, a metal's glossy colour, a half metal's both; a grey lit magenta keeps its grey surface colour.
+    # Each pixel's surface reflectance is the diffuse and glossy colours' luminance together (light.on_card): the
+    # grey 0.765 + 0.044 = 0.809, the metal's magenta 0.2126 + 0.0722 = 0.285
+    inside = inside_functions("magenta_colour", "missing_share", "surface_of", "sky_mask")
+    inside["LUMINANCE"] = (0.2126, 0.7152, 0.0722)  # a tuple, which inside_functions leaves out
+    plain, metal, half, grey = (0.956, 0.0, 0.956), (1.0, 0.0, 1.0), (0.48, 0.0, 0.48), (0.765, 0.765, 0.765)
+    diffuse = np.array([[plain, (0.0, 0.0, 0.0), half, grey]])
+    glossy = np.array([[(0.044,) * 3, metal, (0.52, 0.02, 0.52), (0.044,) * 3]])
+    channels = {f"ViewLayer.{kind}.{axis}": values[..., index] for kind, values in
+                (("Diffuse Color", diffuse), ("Glossy Color", glossy)) for index, axis in enumerate("RGB")}
+    surface = inside["surface_of"](channels)
+    # greenhouse's grow light (#ff55ff) lit 62.7% of a look in the old hue band (2026-10-30): the look is not read;
+    # the share Blender's own missing picture covers is, and passes rendered before the share are unknown
+    (tmp_path / "passes/tiny-0").mkdir(parents=True)
+    Image.fromarray(np.full((10, 10, 3), (255, 85, 255), np.uint8)).save(tmp_path / "passes/tiny-0/shot0-look.png")
+    magenta = {}
+    for said, missing in (("none", {"missing": np.float32(0.0)}), ("1%", {"missing": np.float32(0.01)}),
+                          ("unsaid", {})):
+        np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)), **missing)
+        magenta[said] = passes.judge_magenta(tmp_path, {}, {})
+    script = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
+    # base's light passes (2026-10-29, #36) needed about 29 GB, past this PC's 16 GB card: a job blender_cloud.py
+    # predicts past the card it renders on gets the processor in its views file, one that fits keeps the card, and
+    # light_passes.py switches Cycles to the processor for it alone, after usd_views.renderer set its samples and
+    # denoising
+    specs = []
+    for number in range(2):
+        spec = tmp_path / f"{number}.views.json"
+        spec.write_text(json.dumps({"size": [960, 540], "views": [], "lamps": []}))
+        specs.append({"script": passes.SCRIPT, "args": ["root", str(spec), "out"], "inputs": [str(spec)]})
+    said = json.dumps({"card": 16, "needs": [29.3e9, 2.3e9]})
+    monkeypatch.setattr(passes.subprocess, "run", lambda command, **_: subprocess.CompletedProcess(command, 0, said))
+    passes.with_devices(specs, tmp_path)
+    switch = 'if views.get("device") == "CPU" and scene.render.engine == "CYCLES":'
+    for said, measured, expected in (
+            ("a bank of lit panes: its halo", grid["halo"], Between(high=0.02)),
+            ("a bank of lit panes: its fill", grid["fill"], Between(high=0.1)),
+            ("a bank glowing into the air: its halo", glow["halo"], Between(low=0.08)),
+            ("a bank glowing into the air: its fill", glow["fill"], Between(low=0.28)),
+            ("a disc lit on its right: its share shown", right["shown"], Between(low=0.45)),
+            ("a disc lit on its right: lighter toward its sun", right["sunward"] - right["away"], Between(low=50)),
+            ("a disc lost in the sky: its share shown", lost["shown"], 0.0),
+            ("a disc on no usable pixel", measure.body(lit, 100, 100, 40, (1.0, 0.0), ~usable), None),
+            ("a disc lit from its sun", light.body_faults([body_entry(right)]), []),
+            ("a disc lit from the other side", any("not lit from its sun" in fault for fault in
+                                                   light.body_faults([body_entry(left)])), True),
+            ("its sun along the view: not judged", light.body_faults([body_entry(left, sun_seen=False)]), []),
+            ("nearly full: no dark side to judge", light.body_faults([body_entry(left, lit_share=0.98)]), []),
+            ("a disc lost in every view", any("shown in none" in fault for fault in
+                                              light.body_faults([body_entry(lost)])), True),
+            ("a disc shown in one of the views framing it",
+             light.body_faults([body_entry(lost), body_entry(right)]), []),
+            ("the flat sky's gap to its concept", measure.colour_gap(flat["mean_rgb"], concept_rgb), Between(low=80)),
+            ("the found sky's gap to its concept", measure.colour_gap(found["mean_rgb"], concept_rgb),
+             Between(high=20)),
+            ("the found sky's rise to the horizon", found["rise_to_horizon"], Between(low=0)),
+            ("the found sky's blue to red", found["blue_to_red"], Between(0.59, 0.61)),
+            ("a black sky's blue to red: no hue, never red", measure.sky_of(black, measure.sky_pixels(black))[
+                "blue_to_red"], 1.0),
+            ("a near black sky's blue to red", measure.sky_of(near_black, measure.sky_pixels(near_black))[
+                "blue_to_red"], Between(0.95, 1.05)),
+            ("glow in the sky: no veil", measure.veil(before, glowing), 0.0),
+            ("haze over the lower part: its veil", measure.veil(before, hazed),
+             Between(30.0 / 255.0 - 1e-3, 30.0 / 255.0 + 1e-3)),
+            ("a point straight ahead: x, y, depth, focal",
+             tuple(round(value, 6) for value in measure.where(ahead, (200, 100), [0, 0, -5])), (100, 50, 5.0, 100.0)),
+            ("a point behind the eye", measure.where(ahead, (200, 100), [0, 0, 5])[0], None),
+            ("a missing picture's share on plain, metal and half metal finishes, never a grey lit magenta",
+             inside["missing_share"](channels), 0.75),
+            ("the surface reflectance's kind", surface.dtype, np.float16),
+            ("the metal's and the grey's surface reflectance", surface[0, [1, 3]].tolist(),
+             pytest.approx([0.285, 0.809], abs=0.002)),
+            ("the sky mask: where the object index pass met no object",
+             inside["sky_mask"]({"ViewLayer.Object Index.X": np.array([[0.0, 1.0], [1.0, 0.0]])}).tolist(),
+             [[True, False], [False, True]]),
+            ("a magenta lamp's look with no missing picture", magenta["none"].answer, checks.PASS),
+            ("1% of Blender's missing picture", magenta["1%"].answer, checks.FAIL),
+            ("1% of Blender's missing picture: its share", magenta["1%"].measures["magenta share"], 0.01),
+            ("passes rendered before the share", magenta["unsaid"].answer, checks.UNKNOWN),
+            ("the glossy colour pass rendered", "use_pass_diffuse_color = scene.view_layers[0].use_pass_glossy_color"
+             " = True" in script, True),
+            ("29.3 GB on a 16 GB card", passes.device_for(29.3e9, 16), "CPU"),
+            ("2.3 GB on a 16 GB card", passes.device_for(2.3e9, 16), "GPU"),
+            ("20 GB on a rented L4's 24 GB", passes.device_for(20e9, 24), "GPU"),
+            ("the jobs' views files", [json.loads(pathlib.Path(job["args"][1]).read_text())["device"]
+                                       for job in specs], ["CPU", "GPU"]),
+            ("the processor switched after the samples and denoising were set", switch in script and
+             script.index("usd_views.renderer(scene") < script.index(switch), True)):
+        assert expected == measured, (said, measured)
+    with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
+        measure.where({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0], "fov": 90},
+                      (200, 100), [0, 0, 0])
 
 
 # --- the measures on pictures made here ----------------------------------------------------------------------------
+
+class Between:
+    """A row's expected measure: strictly over `low` and under `high`."""
+
+    def __init__(self, low=-math.inf, high=math.inf):
+        self.low, self.high = low, high
+
+    def __eq__(self, value):
+        return self.low < value < self.high
+
+    def __repr__(self):
+        return f"between {self.low} and {self.high}"
+
+
+def body_entry(after, sun_seen=True, lit_share=0.5):
+    """A body's measure in one view, as light.body_faults reads it."""
+    return {"body": "a", "view": "v", "lit": lit_share, "sun_seen": sun_seen, "after": after}
+
 
 def grid_bank():
     picture = np.full((WIDE, WIDE, 3), 20.0)
@@ -393,54 +544,6 @@ def glowing_bank():
     distance = np.hypot(columns - 240, rows - 240)
     picture = np.full((WIDE, WIDE, 3), 20.0) + (230.0 * np.exp(-distance / 45.0))[..., None]
     return np.clip(picture, 0, 255)
-
-
-def test_a_floodlight_bank_of_lit_panes_has_no_halo_and_one_glowing_into_the_air_has():
-    grid, glow = measure.head(grid_bank(), 240, 240, 40), measure.head(glowing_bank(), 240, 240, 40)
-    assert grid["halo"] < 0.02 and grid["fill"] < 0.1, grid
-    assert glow["halo"] > 0.08 and glow["fill"] > 0.28, glow
-
-
-def test_a_disc_lit_from_its_sun_passes_and_one_lit_from_the_other_side_or_lost_fails():
-    """A body's disc lit on its right half over a black sky shows and is lighter toward the sun on the right; the
-    gate's rules fail the same disc judged with its sun on the left, and a disc lost in the sky."""
-    rows, columns = np.mgrid[0:SIZE, 0:SIZE]
-    lit = np.zeros((SIZE, SIZE, 3))
-    disc = np.hypot(columns - 100, rows - 100) < 40
-    lit[disc & (columns >= 100)] = [150, 150, 160]
-    lit[disc & (columns < 100)] = [12, 12, 14]
-    usable = np.ones((SIZE, SIZE), dtype=bool)
-    right = measure.body(lit, 100, 100, 40, (1.0, 0.0), usable)
-    assert right["shown"] > 0.45 and right["sunward"] > right["away"] + 50, right
-    left = measure.body(lit, 100, 100, 40, (-1.0, 0.0), usable)
-    lost = measure.body(np.zeros((SIZE, SIZE, 3)), 100, 100, 40, (1.0, 0.0), usable)
-    assert lost["shown"] == 0.0 and measure.body(lit, 100, 100, 40, (1.0, 0.0), ~usable) is None
-
-    def entry(after, sun_seen=True, lit_share=0.5):
-        return {"body": "a", "view": "v", "lit": lit_share, "sun_seen": sun_seen, "after": after}
-    assert light.body_faults([entry(right)]) == []
-    assert any("not lit from its sun" in fault for fault in light.body_faults([entry(left)]))
-    assert light.body_faults([entry(left, sun_seen=False)]) == []  # its sun along the view: not judged
-    assert light.body_faults([entry(left, lit_share=0.98)]) == []  # nearly full: no dark side to judge
-    assert any("shown in none" in fault for fault in light.body_faults([entry(lost)]))
-    assert light.body_faults([entry(lost), entry(right)]) == []  # shown in one of the views framing it
-
-
-def test_a_sky_s_colour_blue_to_red_and_rise_are_read_on_the_pixels_the_flat_sky_held():
-    before = np.zeros((SIZE, SIZE, 3))
-    before[:] = [70, 42, 16]
-    before[120:] = [120, 60, 30]
-    after = before.copy()
-    after[:90] = np.linspace(170, 195, 90)[:, None, None] * np.array([1.0, 0.78, 0.6])
-    concept = [188.1, 145.2, 112.1]
-    flat = measure.sky_of(before, measure.sky_pixels(before))
-    found = measure.sky_of(after, measure.sky_pixels(after))
-    assert measure.colour_gap(flat["mean_rgb"], concept) > 80 and measure.colour_gap(found["mean_rgb"], concept) < 20
-    assert found["rise_to_horizon"] > 0 and abs(found["blue_to_red"] - 0.6) < 0.01, found
-    black = np.zeros((SIZE, SIZE, 3))
-    near_black = np.full((SIZE, SIZE, 3), [1.33, 1.4, 1.3])
-    assert measure.sky_of(black, measure.sky_pixels(black))["blue_to_red"] == 1.0  # no hue, never "red"
-    assert abs(measure.sky_of(near_black, measure.sky_pixels(near_black))["blue_to_red"] - 1.0) < 0.05
 
 
 def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_hue_its_concept_shows(tmp_path,
@@ -560,25 +663,6 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_
     assert (light.open_sky(tmp_path, "yard", "v", door) == sky).all()
 
 
-def test_haze_over_the_lower_part_reads_as_a_veil_and_glow_in_the_sky_does_not():
-    before = np.full((100, 100, 3), 40.0)
-    after = before.copy()
-    after[:50] += 100.0  # a lamp's glow up in the sky leaves the place below as it was
-    assert measure.veil(before, after) == 0.0
-    after[60:] += 30.0  # haze laid over the place's lower part
-    assert abs(measure.veil(before, after) - 30.0 / 255.0) < 1e-3
-
-
-def test_a_point_straight_ahead_falls_in_the_pictures_middle_and_one_behind_nowhere():
-    view = {"eye": [0, 0, 0], "aim": [0, 0, -10], "up": [0, 1, 0], "fov": 90}
-    x, y, depth, focal = measure.where(view, (200, 100), [0, 0, -5])
-    assert (round(x), round(y), round(depth, 6), round(focal, 6)) == (100, 50, 5.0, 100.0)
-    assert measure.where(view, (200, 100), [0, 0, 5])[0] is None
-    with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
-        measure.where({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0], "fov": 90},
-                      (200, 100), [0, 0, 0])
-
-
 def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_concept_is_unknown(tmp_path, monkeypatch):
     half_black = np.concatenate([np.zeros((10, 20)), np.full((10, 20), 0.5)])
     assert light.extremes(half_black) == {"black": 0.5, "blown": 0.0}
@@ -664,66 +748,6 @@ def inside_functions(*names):
     found = {}
     exec(compile(ast.Module(kept, []), "light_passes.py", "exec"), found)
     return found
-
-
-def test_a_missing_picture_counts_on_plain_and_metal_finishes_and_a_grey_under_a_magenta_lamp_does_not():
-    # the surface colours a missing picture gave in Blender 5.0.1 on a tiny stage (2026-10-30): a plain finish's
-    # diffuse colour, a metal's glossy colour, a half metal's both; a grey lit magenta keeps its grey surface colour
-    share = inside_functions("magenta_colour", "missing_share")["missing_share"]
-    plain, metal, half, grey = (0.956, 0.0, 0.956), (1.0, 0.0, 1.0), (0.48, 0.0, 0.48), (0.765, 0.765, 0.765)
-    diffuse = np.array([[plain, (0.0, 0.0, 0.0), half, grey]])
-    glossy = np.array([[(0.044,) * 3, metal, (0.52, 0.02, 0.52), (0.044,) * 3]])
-    channels = {f"ViewLayer.{kind}.{axis}": values[..., index] for kind, values in
-                (("Diffuse Color", diffuse), ("Glossy Color", glossy)) for index, axis in enumerate("RGB")}
-    assert share(channels) == 0.75
-    # each pixel's surface reflectance, the diffuse and glossy colours' luminance together (light.on_card): the grey
-    # 0.765 + 0.044 = 0.809, the metal's magenta 0.2126 + 0.0722 = 0.285
-    found = inside_functions("surface_of")
-    found["LUMINANCE"] = (0.2126, 0.7152, 0.0722)  # a tuple, which inside_functions leaves out
-    surface = found["surface_of"](channels)
-    assert surface.dtype == np.float16 and np.allclose(surface[0, [1, 3]], [0.285, 0.809], atol=0.002)
-
-
-def test_the_sky_mask_is_where_the_object_index_pass_met_no_object_but_the_day_dome():
-    index = np.array([[0.0, 1.0], [1.0, 0.0]])
-    assert inside_functions("sky_mask")["sky_mask"]({"ViewLayer.Object Index.X": index}).tolist() == [[True, False],
-                                                                                                  [False, True]]
-
-
-def test_a_view_with_one_percent_of_blenders_missing_picture_magenta_fails_and_a_magenta_lamp_does_not(tmp_path):
-    # greenhouse's grow light (#ff55ff) lit 62.7% of a look in the old hue band (2026-10-30): the look is not read
-    (tmp_path / "passes/tiny-0").mkdir(parents=True)
-    Image.fromarray(np.full((10, 10, 3), (255, 85, 255), np.uint8)).save(tmp_path / "passes/tiny-0/shot0-look.png")
-    np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)), missing=np.float32(0.0))
-    assert passes.judge_magenta(tmp_path, {}, {}).answer == checks.PASS
-    np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)), missing=np.float32(0.01))
-    verdict = passes.judge_magenta(tmp_path, {}, {})
-    assert verdict.answer == checks.FAIL and verdict.measures["magenta share"] == 0.01, verdict
-    np.savez(tmp_path / "passes/tiny-0/shot0-passes.npz", combined=np.ones((5, 5)))  # rendered before the share
-    assert passes.judge_magenta(tmp_path, {}, {}).answer == checks.UNKNOWN
-    script = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
-    assert "use_pass_diffuse_color = scene.view_layers[0].use_pass_glossy_color = True" in script
-
-
-def test_a_passes_job_predicted_past_its_card_renders_on_the_processor_at_the_same_settings(tmp_path, monkeypatch):
-    # base's light passes (2026-10-29, #36) needed about 29 GB, past this PC's 16 GB card: a job blender_cloud.py
-    # predicts past the card it renders on gets the processor in its views file, one that fits keeps the card, and
-    # light_passes.py switches Cycles to the processor for it alone, its samples and denoising as set
-    assert passes.device_for(29.3e9, 16) == "CPU" and passes.device_for(2.3e9, 16) == "GPU"
-    assert passes.device_for(20e9, 24) == "GPU"  # a rented L4 holds what this PC's card does not
-    specs = []
-    for number in range(2):
-        spec = tmp_path / f"{number}.views.json"
-        spec.write_text(json.dumps({"size": [960, 540], "views": [], "lamps": []}))
-        specs.append({"script": passes.SCRIPT, "args": ["root", str(spec), "out"], "inputs": [str(spec)]})
-    said = json.dumps({"card": 16, "needs": [29.3e9, 2.3e9]})
-    monkeypatch.setattr(passes.subprocess, "run", lambda command, **_: subprocess.CompletedProcess(command, 0, said))
-    passes.with_devices(specs, tmp_path)
-    assert [json.loads(pathlib.Path(job["args"][1]).read_text())["device"] for job in specs] == ["CPU", "GPU"]
-    script = (pathlib.Path(passes.__file__).parent / "inside/light_passes.py").read_text()
-    switch = 'if views.get("device") == "CPU" and scene.render.engine == "CYCLES":'
-    assert switch in script  # after usd_views.renderer, which set the samples and denoising: the device alone moves
-    assert script.index("usd_views.renderer(scene") < script.index(switch)
 
 
 # --- the sweep on passes made here ----------------------------------------------------------------------------------
