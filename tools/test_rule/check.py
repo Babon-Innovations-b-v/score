@@ -98,7 +98,6 @@ FUNCTION_DEBT = {
     ".claude/scripts/tests/test_scripts_touch_only_what_they_own.py": 5,
     "paper/score/build/test_paper_build_matches_its_source.py": 2,
     "score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py": 37,
-    "score/adapters/models/test_a_node_is_keyed_only_on_pinned_models.py": 7,
     "score/adapters/vendored/test_every_vendored_tool_is_accounted_for.py": 5,
     "score/checks/test_nothing_unproven_passes.py": 10,
     "score/conductor/test_the_conductor_spends_and_stops_only_as_its_owner_says.py": 29,
