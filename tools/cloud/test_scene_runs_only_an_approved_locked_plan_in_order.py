@@ -6,6 +6,9 @@ picture goes up and its folder is mapped into the room; the batch list is the re
 seed; every step runs with the machine's own home and its local models; the cluster job runs the same steps in the
 same order on the room's copy and brings the room back.
 
+One test runs every plan row of the lab's one world through `scene.steps` and, for a plan that may run, also through
+`uploads`, `target_jobs`, `batch_lines`, `command` and `cluster_job`, comparing each with the row's expected outcome.
+
 Break that turns it red: in `check` drop the `place.unread` call (an unlocked scene runs) or the `none:` refusal; in
 `steps` put the depth step before the cut-out; or in `place_of` skip `approved_inventory` and read the file's place.
 """
@@ -36,6 +39,9 @@ scene.place.LOOKS = pathlib.Path(tempfile.mkdtemp()) / "looks"
 (scene.place.LOOKS / "labscene").mkdir(parents=True)
 (scene.place.LOOKS / "labscene" / f"{LOCK}.json").write_text(json.dumps(
     {"scene": "labscene", "concept": LOCK, "look": LOOK, "model": "m", "euros": 0.03, "at": "2026-10-21"}))
+# The place's words: the environment's line, then the locked concept's look.
+STYLE = f"{scene.place.environment_style(scene.place.design()[2].default()).rstrip('.')}. {LOOK}"
+ROOM.mkdir(parents=True, exist_ok=True)
 INVENTORY = _SANDBOX / "lab.json"
 INVENTORY.write_text(json.dumps({
     "scene": "lab", "place": "labscene", "plan": {"world": "w1", "seed": 7, "views": [{"id": "v1"}]},
@@ -56,76 +62,71 @@ def inventory_like(name, **changes):
     return str(path)
 
 
-@pytest.mark.parametrize("plan, why", [
-    ({"room": "lab", "names": ["bench"]}, "approved inventory"),
-    (planned(inventory=str(_SANDBOX / "nowhere.json"), names=["bench"]), "no inventory"),
-    (planned(inventory=inventory_like("workshop", scene="workshop", approved=""), names=["bench"]), "not approved"),
-    (planned(inventory=inventory_like("shed", scene="shed", place="shed"), names=["bench"]), "no locked concept"),
-    (planned(objects=["none:lamp:a globe lamp"]), "no box, no row"),
-    (planned(target={"sentence": "a lab"}), "its design"),
-    (planned(target={"takes": 2}, names=["bench"]), "pick one"),
-])
-def test_a_plan_that_may_not_run_is_refused_before_anything_is_rented(plan, why):
-    with pytest.raises(SystemExit, match=why):
-        scene.steps(plan)
+def redraw(*objects, view=()):
+    """redraw.py's arguments for the lab's objects in the place's style at the inventory's single seed."""
+    return ["tools/props/scene/redraw.py", "lab", *objects, "--style", STYLE, "--seeds", "7", "--side", "1536",
+            *view]
 
 
-def test_a_target_plan_draws_takes_alone_in_the_places_words():
-    plan = planned(target={"refs": ["/refs/one.png"], "takes": 2})
-    [(step, arguments)] = scene.steps(plan)
-    assert step == "target"
-    assert arguments == ["tools/props/scene/target.py", "--list", "/root/props/inputs/targets.json",
-                         "--takes", "2", "--refs-on", "2"]
-    [job] = scene.target_jobs(plan)
-    assert job["refs"] == ["/root/props/inputs/1-one.png"] and job["scene"] == "lab"
-    assert job["sentence"].endswith(f". {LOOK}")
-    assert job["sentence"].startswith(scene.place.environment_style(scene.place.design()[2].default()).rstrip("."))
+EAST = ["--picture", "/root/props/inputs/1-east.png", "--out", "/root/props/work/scene/lab/east"]
+
+# Each row: a plan, and either the refusal it meets before anything is rented or what it runs: its steps in order,
+# its uploads, its target list, and (with a redraw report) its batch list.
+CASES = [
+    ("no inventory named", {"room": "lab", "names": ["bench"]}, "approved inventory", None),
+    ("inventory missing", planned(inventory=str(_SANDBOX / "nowhere.json"), names=["bench"]), "no inventory", None),
+    ("inventory not approved", planned(inventory=inventory_like("workshop", scene="workshop", approved=""),
+                                       names=["bench"]), "not approved", None),
+    ("concept not locked", planned(inventory=inventory_like("shed", scene="shed", place="shed"), names=["bench"]),
+     "no locked concept", None),
+    ("object with no cut-out", planned(objects=["none:lamp:a globe lamp"]), "no box, no row", None),
+    ("target worded by the plan", planned(target={"sentence": "a lab"}), "its design", None),
+    ("target with other steps", planned(target={"takes": 2}, names=["bench"]), "pick one", None),
+    ("build at several seeds", planned(objects=["bench-1:bench"], build={}, seeds="7,8"), "single seed", None),
+    ("build with no objects", {"room": "lab", "build": {}}, "objects", None),
+    ("target alone", planned(target={"refs": ["/refs/one.png"], "takes": 2}), None, {
+        "steps": [("target", ["tools/props/scene/target.py", "--list", "/root/props/inputs/targets.json",
+                              "--takes", "2", "--refs-on", "2"])],
+        "uploads": [(pathlib.Path("/refs/one.png"), scene.REMOTE_INPUTS / "1-one.png")],
+        "targets": [{"scene": "lab", "sentence": STYLE, "shot": "inside", "refs": ["/root/props/inputs/1-one.png"]}]}),
+    ("cut-out, depth, redraw", planned(names=["bench", "desk@0.4"], depth=True, objects=["bench-1:bench", "desk-2:desk"]),
+     None, {"steps": [("cutout", ["tools/props/scene/cutout.py", "lab", "bench", "desk@0.4"]),
+                      ("depth", ["tools/props/scene/depth.py", "lab"]),
+                      ("redraw", redraw("bench-1:bench", "desk-2:desk"))],
+            "uploads": []}),
+    ("plan view", planned(view={"picture": "/views/east.png", "out": str(ROOM / "east")}, names=["bench"],
+                          objects=["bench-1:bench"]), None, {
+        "steps": [("cutout", ["tools/props/scene/cutout.py", "lab", "bench", *EAST]),
+                  ("redraw", redraw("bench-1:bench", view=EAST))],
+        "uploads": [(pathlib.Path("/views/east.png"), scene.REMOTE_INPUTS / "1-east.png")]}),
+    ("batch list from the redraw report", planned(objects=["bench-1:bench", "desk-1:desk"],
+                                                  build={"faces": 12000, "options": {"bench": "--feet --long"}}),
+     None, {"steps": [("redraw", redraw("bench-1:bench", "desk-1:desk"))], "uploads": [],
+            "report": {"build": ["bench", "desk"]},
+            "batch": [["lab-bench", str(ROOM / "redraw" / "bench.png"), "--faces", "12000", "--feet", "--long"],
+                      ["lab-desk", str(ROOM / "redraw" / "desk.png"), "--faces", "12000"]]}),
+]
 
 
-def test_the_steps_run_in_order_in_the_places_style():
-    plan = planned(names=["bench", "desk@0.4"], depth=True, objects=["bench-1:bench", "desk-2:desk"])
+@pytest.mark.parametrize("plan, refusal, runs", [case[1:] for case in CASES], ids=[case[0] for case in CASES])
+def test_scene_runs_only_an_approved_locked_plan_in_order(plan, refusal, runs):
+    if refusal:
+        with pytest.raises(SystemExit, match=refusal):
+            scene.steps(plan)
+        return
     found = scene.steps(plan)
-    assert [step for step, _ in found] == ["cutout", "depth", "redraw"]
-    assert found[0][1] == ["tools/props/scene/cutout.py", "lab", "bench", "desk@0.4"]
-    assert found[2][1][:4] == ["tools/props/scene/redraw.py", "lab", "bench-1:bench", "desk-2:desk"]
-    redraw = found[2][1]
-    assert redraw[redraw.index("--style") + 1].endswith(LOOK) and redraw[redraw.index("--seeds") + 1] == "7"
-
-
-def test_a_plan_view_is_uploaded_and_its_folder_mapped():
-    plan = planned(view={"picture": "/views/east.png", "out": str(ROOM / "east")},
-                   names=["bench"], objects=["bench-1:bench"])
-    assert scene.uploads(plan) == [(pathlib.Path("/views/east.png"), scene.REMOTE_INPUTS / "1-east.png")]
-    view = ["--picture", "/root/props/inputs/1-east.png", "--out", "/root/props/work/scene/lab/east"]
-    found = dict(scene.steps(plan))
-    assert found["cutout"][-4:] == view and found["redraw"][-4:] == view
-
-
-def test_the_batch_list_comes_from_the_redraw_report_at_one_seed():
-    plan = {"room": "lab", "objects": ["bench-1:bench", "desk-1:desk"],
-            "build": {"faces": 12000, "options": {"bench": "--feet --long"}}}
-    lines = scene.batch_lines(plan, {"build": ["bench", "desk"]})
-    assert [shlex.split(line) for line in lines] == [
-        ["lab-bench", str(ROOM / "redraw" / "bench.png"), "--faces", "12000", "--feet", "--long"],
-        ["lab-desk", str(ROOM / "redraw" / "desk.png"), "--faces", "12000"]]
-    with pytest.raises(SystemExit, match="single seed"):
-        scene.steps(dict(plan, seeds="7,8"))
-    with pytest.raises(SystemExit, match="objects"):
-        scene.steps({"room": "lab", "build": {}})
-
-
-def test_every_step_may_load_models_only_up_there():
-    line = scene.command(["tools/props/scene/depth.py", "lab"])
-    assert "FARM_LOCAL_MODELS=1" in line and "PROPS_HOME=/root/props" in line
-    assert line.startswith("cd /root/repo && ")
-
-
-def test_the_cluster_runs_the_same_steps_on_the_rooms_copy():
-    ROOM.mkdir(parents=True, exist_ok=True)
-    plan = planned(names=["bench"], depth=True, objects=["bench-1:bench"])
+    assert found == runs["steps"]
+    assert scene.uploads(plan) == runs["uploads"]
+    if "target" in plan:
+        assert scene.target_jobs(plan) == runs["targets"]
+    if "report" in runs:
+        assert [shlex.split(line) for line in scene.batch_lines(plan, runs["report"])] == runs["batch"]
+    for _, arguments in found:
+        line = scene.command(arguments)
+        assert "FARM_LOCAL_MODELS=1" in line and "PROPS_HOME=/root/props" in line
+        assert line.startswith("cd /root/repo && ")
     job = scene.cluster_job(plan, _SANDBOX / "targets.json")
-    line = job["command"][2]
-    assert line.index("cutout.py lab bench") < line.index("depth.py") < line.index("redraw.py")
+    assert job["command"][2].split(" && ")[1:] == [f"sam-run {shlex.join(arguments)}" for _, arguments in found]
     assert {"local": str(ROOM.resolve()), "path": "/root/props/work/scene/lab"} in job["inputs"]
     assert job["outputs"] == [{"path": "/root/props/work/scene/lab", "local": str(ROOM)}]
     assert job["env"]["PROPS_HOME"] == "/root/props"
