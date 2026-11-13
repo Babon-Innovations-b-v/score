@@ -46,9 +46,9 @@ park.py and spread.py are the pool's own call sites):
   * hours` -> `max(prices) * hours`.
 - test_a_bigger_disk_is_one_card_beside_the_pool_for_its_claim_alone: in `live_asks`, `if process_alive(ask["pid"])`
   -> `if True` (an ask outlives its asker).
-- test_every_rent_fits_the_pools_clearance_and_an_asked_card_makes_room: in `fill`, `roomed = bool(crowded) and
+- test_a_pool_books_every_card_once_and_deletes_every_card (its late clearance's asked card): in `fill`, `roomed = bool(crowded) and
   make_room(run_id, plan, alive, crowded[0])` -> `roomed = False`.
-- test_a_pool_held_longer_stays_open_past_its_first_end_and_prices_its_whole_hours: in `extend`,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its pool held two hours): in `extend`,
   `plan.update({"deadline": deadline, "euros": euros})` -> `plan.update({"euros": euros})`.
 - test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go: in `resize`, `sizes = sized(plan["reserved"], cards,
   processors)` -> `sizes = dict(plan["reserved"])`. Or, the plan of 2026-11-09 B5, in `idle_down` drop the
@@ -61,12 +61,12 @@ park.py and spread.py are the pool's own call sites):
 - test_a_pool_books_every_card_once_and_deletes_every_card (its collector's first stop): in `stop_on_signals`, `signal.signal(each,
   signal.SIG_IGN)` -> `pass`.
 - test_a_zombie_holds_nothing: in `process_alive`, `!= "Z"` -> `!= "?"`.
-- test_with_l4s_sold_out_the_pool_rents_an_l40s_in_an_l4s_place_and_a_24gb_claim_takes_it: in `rents`, `rented =
+- test_a_pool_books_every_card_once_and_deletes_every_card (its L40S standing in for a sold-out L4): in `rents`, `rented =
   stand_in(plan, machine_class, alive, chosen, found) or machine_class` -> `rented = machine_class`.
-- test_with_too_little_money_no_larger_card_is_rented: the money checked nowhere (each alone is covered by the
+- test_a_pool_books_every_card_once_and_deletes_every_card (no second L40S past its clearance): the money checked nowhere (each alone is covered by the
   other): in `stand_in`, drop `and fits(plan, alive, chosen + [bigger], found)`, and in `rents`, `if "euros" in plan
   and not fits(plan, alive, chosen + [rented], found):` -> `if False:`.
-- test_once_l4s_are_back_the_pool_rents_l4s_and_keeps_its_working_l40s: in `slot_of`, `card.get("for") or
+- test_a_pool_books_every_card_once_and_deletes_every_card (its L4s back): in `slot_of`, `card.get("for") or
   card["class"]` -> `card["class"]` (a stand-in no longer fills its L4's place and is let go).
 - test_a_share_that_fails_on_a_card_that_answers_is_a_gap_and_the_card_works_on: in spread.py `work_slot`, `if
   machine.get("pool") and batch.answers(machine):` -> `if False:`.
@@ -391,49 +391,6 @@ def test_a_bigger_disk_is_one_card_beside_the_pool_for_its_claim_alone():
     pool.release(run_id)
 
 
-def test_every_rent_fits_the_pools_clearance_and_an_asked_card_makes_room():
-    """Review of 2026-10-24: a card a claim asked for (a bigger disk, a class the pool lacks) was rented beside the
-    pool with no money check, so the pool could bill past its clearance."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, euros=2 * HOUR_OF_L4)
-    offered(OFFERS + BIG)
-    assert grow(run_id) == 2
-    pool.want(run_id, OFFERS, KINDS[0], 200)
-    assert grow(run_id) == 1 and len(calls.rented) == 2 and len(calls.deleted) == 1  # room made, nothing beside
-    assert grow(run_id) == 1 and len(calls.rented) == 3  # the asked card in the room made
-    assert grow(run_id) == 0 and len(calls.rented) == 3  # the place it took is not filled again while it is asked
-    pool.release(run_id)
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1}, euros=HOUR_OF_L4)
-    offered(OFFERS + BIG)
-    try:
-        pool.want(run_id, BIG, "judge", batch.DISK_GB)  # one L40S alone is two L4 hours
-        raise AssertionError("a card no pool of this clearance can hold was asked for")
-    except pool.TooDear:
-        pass
-    pool.release(run_id)
-
-
-def test_a_pool_held_longer_stays_open_past_its_first_end_and_prices_its_whole_hours():
-    """Batch 1 of 2026-10-24: the pool closed at its cleared 4 h with ~550 rows queued, and every finish after failed
-    (a claim under a closed pool returns no card). Held longer, it is open past its first end, and its rents and
-    asks are priced for its whole hours against its whole clearance."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1}, euros=HOUR_OF_L4)
-    plan = pool.current(run_id)
-    pool.extend(run_id, plan["started"] + 2 * 3600, 2 * HOUR_OF_L4)
-    assert pool.current(run_id)["deadline"] == plan["started"] + 2 * 3600
-    offered(OFFERS + BIG)
-    assert grow(run_id) == 1  # one L4 its two hours fits two L4 hours
-    try:
-        pool.want(run_id, BIG, "judge", batch.DISK_GB)  # one L40S held two hours is four L4 hours
-        raise AssertionError("an L40S held two hours passes a clearance of two L4 hours")
-    except pool.TooDear:
-        pass
-    pool.extend(run_id, plan["started"] + 2 * 3600, 4 * HOUR_OF_L4)
-    pool.want(run_id, BIG, "judge", batch.DISK_GB)  # fits now
-    pool.release(run_id)
-    pool.extend(run_id, plan["started"] + 3 * 3600, 6 * HOUR_OF_L4)  # released: stays closed
-    assert pool.current(run_id) is None
-
-
 def test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go():
     """Second Buy of 2026-10-24: 10 L4s held to the end while the card rows were done by 14:38."""
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
@@ -505,43 +462,6 @@ HOUR_OF_L4 = CARD_PRICE * 60  # what the pool's clearance reserves for one L4 he
 
 def offered(cards):
     patch(cloud, "offers", lambda classes: [offer for offer in cards if offer.machine_class in classes])
-
-
-def test_with_l4s_sold_out_the_pool_rents_an_l40s_in_an_l4s_place_and_a_24gb_claim_takes_it():
-    """Owner, 2026-10-23: "yes" to a bigger card when the L4s are sold out, within the run's money."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, euros=2 * HOUR_OF_L4)
-    offered(L4_SHORT + BIG)
-    assert grow(run_id) == 1  # one L40S (two L4 hours) fits the two L4s' reservation; a second would not
-    [card] = pool.members(run_id)
-    assert card["class"] == "gpu-48gb" and card["for"] == "gpu-24gb"
-    assert pool.shortfall(pool.current(run_id), pool.members(run_id)) == [("gpu-24gb", batch.DISK_GB, False)]
-    assert claimed(a_run("on-l40s"), KINDS[0])["class"] == "gpu-48gb"  # asked on L4 offers alone
-    assert "gpu-80gb" not in pool.takes("blender", OFFERS)  # a kind's never-classes stay out
-    pool.release(run_id)
-
-
-def test_with_too_little_money_no_larger_card_is_rented():
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1}, euros=HOUR_OF_L4)
-    offered(L4_SHORT + BIG)
-    assert grow(run_id) == 0 and not calls.rented
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})  # a clearance unknown: none either
-    offered(L4_SHORT + BIG)
-    assert grow(run_id) == 0 and not calls.rented
-    pool.release(run_id)
-
-
-def test_once_l4s_are_back_the_pool_rents_l4s_and_keeps_its_working_l40s():
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, euros=3 * HOUR_OF_L4)
-    offered(L4_SHORT + BIG)
-    assert grow(run_id) == 1  # the L40S stands in; a second L40S would pass the money, and no L4 is in stock
-    offered(OFFERS + BIG)
-    assert grow(run_id) == 1
-    assert sorted(card["class"] for card in pool.members(run_id)) == ["gpu-24gb", "gpu-48gb"] and not calls.deleted
-    stand_in = next(card for card in pool.members(run_id) if card["class"] == "gpu-48gb")
-    pool.left(run_id, stand_in["id"])  # the L40S leaves: its place goes back to an L4
-    assert grow(run_id) == 1
-    assert [card["class"] for card in pool.members(run_id)] == ["gpu-24gb"] * 2
-    pool.release(run_id)
 
 
 def test_a_share_that_fails_on_a_card_that_answers_is_a_gap_and_the_card_works_on():
@@ -782,7 +702,16 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
 
     First, a pool run by its collector: the job starts on the first warm card while the collector, one round of it
     failing on the provider's API (review of 2026-10-23: that ended the collector), grows the pool beside it; the
-    kill switch closes the pool so nothing replaces the cards it releases (review of 2026-10-23)."""
+    kill switch closes the pool so nothing replaces the cards it releases (review of 2026-10-23).
+
+    Last, a pool whose clearance the run sets only later: with L4s sold out it rents no larger card until its
+    clearance is known, then one L40S in an L4's place within it and never a second (owner, 2026-10-23: "yes" to a
+    bigger card within the run's money), which a 24 GB claim takes; once L4s are back the working L40S stays and an
+    L4 fills its place when it leaves; held two hours, a card a claim asks for is priced for both hours against the
+    whole clearance and an idle card makes room for it (review of 2026-10-24: asked cards were rented with no money
+    check), and a card too dear for the clearance is refused; released, the pool stays closed (Batch 1 of 2026-10-24:
+    the pool closed at its cleared 4 h with ~550 rows queued).
+    """
     import characters
     calls, run_id = fresh(stock=1, sizes={"gpu-24gb": 3})
     patch(pool, "POLL_SECONDS", 0.05)
@@ -933,3 +862,38 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
     assert idle == [run_id] * (len(kinds) + 2)  # each idle spell once: to its take, the last to its delete
     assert abs(pool_euros() - 2 * 30 * CARD_PRICE) <= BOOKED_WITHIN  # struck off: to its delete, still once
     assert claimed(a_run("after"), KINDS[0]) is None and len(calls.rented) == 2  # a claim after the end takes nothing
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})  # last, a pool whose clearance the run sets late
+    offered(L4_SHORT + BIG)
+    assert grow(run_id) == 0 and not calls.rented  # L4s sold out, its clearance unknown: no larger card either
+    plan = pool.current(run_id)
+    pool.extend(run_id, plan["deadline"], 2 * HOUR_OF_L4)
+    assert grow(run_id) == 1  # one L40S (two L4 hours) fits the two L4s' reservation; a second would not
+    [card] = pool.members(run_id)
+    assert card["class"] == "gpu-48gb" and card["for"] == "gpu-24gb"
+    assert pool.shortfall(pool.current(run_id), pool.members(run_id)) == [("gpu-24gb", batch.DISK_GB, False)]
+    assert grow(run_id) == 0 and len(calls.rented) == 1  # too little money for a second larger card
+    taken = claimed(a_run("on-l40s"), KINDS[0])  # asked on L4 offers alone
+    assert taken["class"] == "gpu-48gb" and "gpu-80gb" not in pool.takes("blender", OFFERS)  # never-classes out
+    taken["healthy"] = True
+    batch.delete_machine(taken)
+    pool.extend(run_id, plan["deadline"], 3 * HOUR_OF_L4)
+    offered(OFFERS + BIG)  # the L4s are back: an L4 in the other place, the working L40S kept
+    assert grow(run_id) == 1 and not calls.deleted
+    assert sorted(found["class"] for found in pool.members(run_id)) == ["gpu-24gb", "gpu-48gb"]
+    pool.left(run_id, card["id"])  # the L40S leaves: its place goes back to an L4
+    assert grow(run_id) == 1 and [found["class"] for found in pool.members(run_id)] == ["gpu-24gb"] * 2
+    rented, deleted = len(calls.rented), len(calls.deleted)
+    pool.extend(run_id, plan["started"] + 2 * 3600, 4 * HOUR_OF_L4)  # held two hours: priced for both
+    assert pool.current(run_id)["deadline"] == plan["started"] + 2 * 3600
+    pool.want(run_id, OFFERS, KINDS[0], 200)  # a third L4 two hours passes four L4 hours: room is made first
+    assert grow(run_id) == 1 and len(calls.rented) == rented and len(calls.deleted) == deleted + 1
+    assert grow(run_id) == 1 and len(calls.rented) == rented + 1  # the asked card in the room made
+    assert grow(run_id) == 0 and len(calls.rented) == rented + 1  # its place not filled again while it is asked
+    pool.extend(run_id, plan["started"] + 2 * 3600, 3 * HOUR_OF_L4)
+    with pytest.raises(pool.TooDear):  # one L40S held two hours is four L4 hours (one hour: two, it would fit)
+        pool.want(run_id, BIG, "judge", batch.DISK_GB)
+    pool.extend(run_id, plan["started"] + 2 * 3600, 4 * HOUR_OF_L4)
+    pool.want(run_id, BIG, "judge", batch.DISK_GB)  # fits now
+    pool.release(run_id)
+    pool.extend(run_id, plan["started"] + 3 * 3600, 6 * HOUR_OF_L4)  # released: stays closed
+    assert pool.current(run_id) is None and sorted(calls.deleted) == sorted(calls.rented)
