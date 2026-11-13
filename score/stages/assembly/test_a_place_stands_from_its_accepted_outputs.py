@@ -3428,6 +3428,39 @@ def a_faced_place(folder):
     return folder / f"{TOY}.usda"
 
 
+def a_floored_place(folder):
+    """An enclosed place `toy` in `folder` (no made ground) on a built floor (/toy/Shell/deck_1, its top at 0 m): a
+    2 m ship laid 1 m over it holding a 0.2 m cube on its top and a seat within it 0.1 m under its corner, a crate laid
+    0.2 m over the floor (the settle's to let down), a rack fixed where it is laid 1 m up and a lamp the record lays
+    on the ship's face 1 m up; its record and laid.json. The root's path."""
+    from pxr import Sdf, Usd, UsdGeom
+    (folder / "layers").mkdir(parents=True)
+    base = Usd.Stage.CreateNew(str(folder / "layers/base.usda"))
+    a_solid_box(base, f"/{TOY}/Shell/deck_1", (-5.0, -0.1, -5.0), (5.0, 0.0, 5.0))
+    things = {"ship_1": ((-1.0, 1.0, -1.0), (1.0, 2.0, 1.0)), "cube_1": ((-0.1, 2.0, -0.1), (0.1, 2.2, 0.1)),
+              "crate_1": ((2.0, 0.2, 2.0), (2.5, 0.7, 2.5)), "rack_1": ((-3.0, 1.0, -3.0), (-2.5, 2.0, -2.5)),
+              "lamp_1": ((1.0, 1.0, -0.1), (1.1, 1.2, 0.1)), "seat_1": ((0.85, 1.5, 0.85), (1.15, 1.9, 1.15))}
+    for name, (low, high) in things.items():
+        a_solid_box(base, f"/{TOY}/Objects/{name}", low, high)
+    Sdf.AttributeSpec(base.GetRootLayer().GetPrimAtPath(f"/{TOY}/Objects/rack_1"), "score:fixed",
+                      Sdf.ValueTypeNames.Bool).default = True
+    base.GetRootLayer().Save()
+    root = Usd.Stage.CreateNew(str(folder / f"{TOY}.usda"))
+    root.GetRootLayer().subLayerPaths = ["./layers/base.usda"]
+    root.SetDefaultPrim(UsdGeom.Xform.Define(root, f"/{TOY}").GetPrim())
+    root.GetRootLayer().Save()
+    (folder / record.RECORD).write_text(json.dumps({"place": TOY, "inside": True, "objects": [
+        {"name": "ship_1", "row": "ship", "at": [0, 1.0, 0]},
+        {"name": "cube_1", "row": "cube", "on": {"how": "top", "holder": ["ship_1"]}},
+        {"name": "crate_1", "row": "crate", "at": [2.25, 0.2, 2.25]},
+        {"name": "rack_1", "row": "rack", "at": [-2.75, 1.0, -2.75]},
+        {"name": "lamp_1", "row": "lamp", "on": {"how": "face", "holder": ["ship_1"], "out": [1.0, 0.0]}},
+        {"name": "seat_1", "row": "seat", "on": {"how": "within", "holder": ["ship_1"]}}]}))
+    (folder / made_waiting.LAID).write_text(json.dumps({"objects": [
+        {"name": name, "low": list(low), "high": list(high)} for name, (low, high) in things.items()]}))
+    return folder / f"{TOY}.usda"
+
+
 def a_topped_place(folder):
     """A place `toy` in `folder` (no made ground): a hull lying on its side along x (a cylinder 1 m round, 4 m long,
     its crest 2 m up at z 0) and a 0.2 m box the record lays on its top, at the hull's box top 0.6 m off the crest
@@ -3592,6 +3625,12 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         (name, *held):` -> `for one in (name,):`, `turn = turn_onto(up, normal)` -> `turn = np.eye(4)`, `if leans <=
         LEAN_MOST and abs(` -> `if False and abs(`, or `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
     Break: score/stages/assembly/grounded.py: `face_down.let_down(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/grounded.py: `floor_down.let_down(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/floor_down.py: downs' `if DRIFT_MOST < gap < float("inf"):` -> `if gap <
+        float("inf"):` (the crate let down too), `found[entry["name"]] = gap - CLEAR` -> `= gap`, `and
+        even_feet.floor_thing(prim)` -> `` (the rack let down), `for one in (name, *held):` -> `for one in (name,):`,
+        `if name not in held and below(` -> `if name != entry["name"] and below(` (the ship held up by its seat), or
+        let_down's `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
     Break: score/stages/assembly/face_down.py: `and entry["row"] not in hanging` -> `` (the sign let down too),
         `if on_ground.TOLERANCE < gap < np.inf:` -> `if gap < np.inf:` (a second let down moves panel_1 again: 0),
         `for one in (name, *held):` -> `for one in (name,):`, gap_under's `if len(rays):` -> `if False:` (the panel
@@ -3609,8 +3648,8 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         (slid 2 cm, still on the dent's side), or `or level(low, high, ground):` -> `` (the crate on flat ground slid
         too: it is level where it is)"""
     from pxr import Sdf
-    from score.stages.assembly import (face_down, grounded, level_spot, made_waiting, on_ground, parting, roof_tops,
-                                       tops_levelled)
+    from score.stages.assembly import (face_down, floor_down, grounded, level_spot, made_waiting, on_ground, parting,
+                                       roof_tops, tops_levelled)
     monkeypatch.setattr(baked, "take_bake", lambda *args: None)
     monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
     monkeypatch.setattr(made_waiting, "lay", lambda *args: [])
@@ -3779,13 +3818,32 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     monkeypatch.setattr(railings_held, "laid", lambda folder, place, rows: railed.append((folder, place)) or [])
     monkeypatch.setattr(on_ground, "stood", lambda folder, place: stood.append((folder, place)) or [])
     monkeypatch.setattr(face_down, "let_down", lambda folder, place, rows: downed.append((folder, place)) or [])
+    lay_floored, floored = floor_down.let_down, []
+    monkeypatch.setattr(floor_down, "let_down", lambda folder, place: floored.append((folder, place)) or [])
     root = grounded.grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)},
                                   tmp_path / "settle")
     stage = opened(root)
     assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
     assert parted == [(tmp_path / "settle", TOY)], parted  # parted as the assembly's make parts (wired.make)
     assert stood == [(tmp_path / "settle", TOY)], stood  # on its made ground, as the assembly's make stands them
-    assert levelled == downed == topped == roofed == railed == [(tmp_path / "settle", TOY)], downed  # as wired.make
+    assert levelled == downed == topped == roofed == railed == floored == [(tmp_path / "settle", TOY)], downed
+    # settle@hangar (2026-11-13): its spaceship, laid at the plan's keel height on its landing gear (1.039 m) though
+    # its model stands on its own feet, floated 0.94 m: past the settle's 0.3 m, kept as laid, failing rested and
+    # resting. A 2 m ship laid 1 m over a built floor is let down onto it, less the snap's 2 mm, the cube on its top
+    # the lamp on its face and the seat within it with it; a crate 0.2 m over it (the settle's) and a fixed rack are left, and a second
+    # let down moves nothing.
+    from pxr import Usd
+    place = a_floored_place(tmp_path / "floored")
+    fits = lay_floored(place.parent, TOY)
+    stage = Usd.Stage.Open(str(place))
+    low = {name: on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/{name}"))[:, 1].min()
+           for name in ("ship_1", "cube_1", "crate_1", "rack_1", "lamp_1", "seat_1")}
+    assert [(fit["name"], fit["how"], round(fit["moved"], 3)) for fit in fits] == [
+        ("ship_1", "floored", 0.998), ("cube_1", "floored", 0.998), ("lamp_1", "floored", 0.998),
+        ("seat_1", "floored", 0.998)], fits
+    assert np.allclose(list(low.values()), [0.002, 1.002, 0.2, 1.0, 0.002, 0.502]), low
+    laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
+    assert np.isclose(laid["ship_1"]["low"][1], 0.002, atol=1e-3) and lay_floored(place.parent, TOY) == [], laid
     # assembly@wreck (2026-11-12): every thing laid at the plan's floor, 0 m, over a made ground from -4.8 to +4.0 m
     # under them. On a ground rising 0.2 m a metre north from 1 m at z 0, a 1 m box laid at 0 m is turned
     # atan(0.2) = 11.31 degrees with the slope and let down onto it, every corner of its foot on the ground and the
