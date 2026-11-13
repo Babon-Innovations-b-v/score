@@ -6,7 +6,7 @@ Breaks (each applied once, seen red, reverted), in tools/review/brightness.py:
 - half as bright is dark: region calls dark only under a tenth of the game (`0.1 * game`).
 - as bright is lit: region counts the whole picture's pixels (`pixels.size`).
 - the game's black sky: region drops its LIT_FLOOR test.
-- the bands: bands spreads the rows over twice the picture's height.
+- the bands: bands spreads the rows over twice the picture's height (the bottom bands come out empty).
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python tools/review/test_a_region_is_judged_against_the_games_own_light.py
 """
@@ -55,32 +55,25 @@ def measured(root, scene_tower, game_tower, game_sky=0.002):
     return brightness.measure(root / "renders", root / "annotate", root / "shots", ["far_city", "Towers"])["shore"]
 
 
-def test_a_tower_half_as_bright_as_the_game_is_dark():
-    with tempfile.TemporaryDirectory() as folder:
-        found = measured(pathlib.Path(folder), scene_tower=0.03, game_tower=0.08)
-    assert found["matched"]["verdict"] == "dark", found["matched"]
-    assert abs(found["matched"]["ratio"] - 0.375) < 0.05, found["matched"]
+# Each row: its name, the scene's tower and the game's (linear luminance), the verdict and luminance ratio the tower
+# must get.
+ROWS = [
+    ("half-as-bright-is-dark", 0.03, 0.08, "dark", 0.375),
+    ("as-bright-is-lit", 0.08, 0.08, "lit", 1.0),
+]
 
 
-def test_a_tower_as_bright_as_the_game_is_lit():
-    with tempfile.TemporaryDirectory() as folder:
-        found = measured(pathlib.Path(folder), scene_tower=0.08, game_tower=0.08)
-    assert found["matched"]["verdict"] == "lit", found["matched"]
-    assert found["matched"]["pixels"] == (WIDE // 2) * (TALL // 2)
-
-
-def test_the_games_black_sky_is_never_judged():
-    with tempfile.TemporaryDirectory() as folder:
-        found = measured(pathlib.Path(folder), scene_tower=0.08, game_tower=0.08)
-    top = found["bands"][: brightness.BANDS // 2]
-    assert all(band["verdict"] == "unjudged" for band in top), top
-
-
-def test_the_bands_split_the_picture_top_to_bottom():
-    masks = brightness.bands((TALL, WIDE))
-    assert len(masks) == brightness.BANDS
-    assert sum(mask.sum() for mask in masks) == TALL * WIDE
-    assert masks[0][0].all() and masks[-1][-1].all()
+def test_a_region_is_judged_against_the_games_own_light():
+    for name, scene_tower, game_tower, verdict, ratio in ROWS:
+        with tempfile.TemporaryDirectory() as folder:
+            found = measured(pathlib.Path(folder), scene_tower=scene_tower, game_tower=game_tower)
+        matched, bands = found["matched"], found["bands"]
+        assert matched["verdict"] == verdict, (name, matched)
+        assert abs(matched["ratio"] - ratio) < 0.05, (name, matched)
+        assert matched["pixels"] == (WIDE // 2) * (TALL // 2), (name, matched)
+        assert [band["pixels"] for band in bands] == [WIDE * TALL // brightness.BANDS] * brightness.BANDS, (name, bands)
+        assert all(band["verdict"] == "unjudged" for band in bands[: brightness.BANDS // 2]), (name, bands)
+        assert all(band["verdict"] != "unjudged" for band in bands[brightness.BANDS // 2:]), (name, bands)
 
 
 if __name__ == "__main__":
