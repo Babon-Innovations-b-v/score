@@ -4,7 +4,7 @@ everything already spent since the line and everything in flight counted, under 
 stopped halfway except as a runaway. No cloud: the job store is a folder, the ledger and the bill are set by each
 test, the stop lines and grants live in a sandbox store.
 
-Each test's break (applied once, seen red, reverted), in score/adapters/compute/__init__.py unless named:
+Each break (applied once, seen red, reverted), in score/adapters/compute/__init__.py unless named:
 - prerequisite failed: clearance's `except graph.Blocked` catches KeyError instead (Blocked leaks, no Refused).
 - submitted without a typed yes: submit writes `"node_key": None`.
 - needs its estimate: run_forecast's `if euros is None:` becomes `if False:`.
@@ -165,65 +165,6 @@ def refused(call):
     except compute.Refused as refusal:
         return str(refusal)
     raise AssertionError("taken")
-
-
-def a_job(runner, euros=0.8):
-    job_store = compute.job_contract.stores.FolderStore(tempfile.mkdtemp())
-    spec = {"kind": "blender", "image": "img", "command": ["true"], "euros": euros}
-    return job_store, lambda: compute.submit(runner, "render@hangar", job_store, "run1", "job1", spec)
-
-
-def test_a_node_whose_prerequisite_failed_or_is_not_accepted_is_refused():
-    month_spent(0)
-    failed = a_runner("   ")
-    assert "brief@hangar answered fail" in refused(a_job(failed)[1])
-    rejected = a_runner("a hall")
-    output = rejected.store.accepted("brief@hangar")
-    review.reject(rejected.store, "brief@hangar", output, "owner", "the wrong hall")
-    # a rejected output's key moves on to an `again` key (graph.Runner.again_parts), so it must be made again first
-    assert "brief@hangar has not run on its current inputs" in refused(a_job(rejected)[1])
-
-
-def test_a_cleared_run_is_submitted_without_a_typed_yes():
-    """Fault (the owner, 2026-10-11, 'why are you asking this?'): step 0 cleared a run only on his typed spend yes, so
-    every paid run stalled asking him. The runner clears it now, and keeps the clearance."""
-    month_spent(0)
-    runner = a_runner("a hall")
-    job_store, send = a_job(runner)
-    written = send()
-    key = runner.ticket("render@hangar")["key"]
-    job = compute.job_contract.stores.read_json(job_store, written)
-    assert job["node"] == "render@hangar" and job["node_key"] == key
-    assert runner.store.spend_yes("render@hangar", key) is None
-    assert [cleared["euros"] for cleared in runner.store.clearances("render@hangar", key)] == [0.8]
-
-
-def test_a_paid_run_needs_its_estimate_and_no_month_total_refuses_it():
-    """The owner, 2026-10-20: there is no month's ceiling; a month far past the old EUR 3,000 clears a run."""
-    runner = a_runner("a hall")
-    month_spent(10_000.0)
-    assert "needs its estimate" in refused(a_job(runner, euros=None)[1])
-    assert a_job(runner, euros=5.0)[1]()
-
-
-def measured_runs(stage, euros, minutes=20.0):
-    """The ledger with one batch each of four paid runs of `stage`, at these euros, this month."""
-    BOOKS.entries = lambda: [{"ticket": f"{stage}@place{number} key{number}", "started": BOOKS.this_month(),
-                              "kind": "blender", "batch": f"blender-{number}", "euros": cost, "wall_minutes": minutes,
-                              "machines": []} for number, cost in enumerate(euros)]
-
-
-def test_a_measured_stage_is_cleared_at_its_measured_high_not_its_hand_estimate():
-    """Fault (2026-10-18): a film's estimate was a hand-written EUR 0.7 while its runs cost EUR 1.3 to 16; every
-    clearance and every budget sum was built on the hand figure."""
-    runner = a_runner("a hall")
-    measured_runs("render", [1.0, 1.2, 1.4, 6.0])
-    job_store, send = a_job(runner, euros=0.7)
-    send()
-    cleared = runner.store.clearances("render@hangar", runner.ticket("render@hangar")["key"])[-1]
-    assert cleared["estimate"] == 0.7 and cleared["measured"] == 4 and cleared["minutes"] == 20.0
-    assert 1.4 < cleared["euros"] < 6.0  # the high: the 90th percentile of its runs
-    assert a_job(runner, euros=None)[1]()  # measured runs stand in for a missing estimate
 
 
 def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monkeypatch):
@@ -683,34 +624,6 @@ def outbox(runner):
     return path.read_text().splitlines() if path.exists() else []
 
 
-def test_a_job_that_would_pass_the_stop_is_refused_before_it_starts():
-    """Fault (environment 1, 2026-10-12 to 18): the stop was a figure in a watcher script that killed runs halfway, and it
-    was raised 13 times. Now the clearance refuses a job whose forecast cannot finish under it, and says so once."""
-    runner = a_runner("a hall")
-    stop_at(runner, 20.0)
-    ledger({"euros": 90.0}, {"euros": 15.0})  # the ledger grew EUR 15 since the line
-    BILL["euros"] = 110.0  # the bill only 10: it lags, the ledger counts
-    job_store, dear = a_job(runner, euros=6.0)  # 15 + 6 > 20
-    refusal = refused(dear)
-    assert "EUR 15.00 spent" in refusal and "pass the EUR 20.00 stop" in refusal and job_store.keys("") == []
-    assert refused(dear) and len(outbox(runner)) == 1 and "Free work goes on" in outbox(runner)[0]
-    assert a_job(runner, euros=4.0)[1]()  # 15 + 4 fits under 20
-    runner.run_node(BRIEF, "hangar")  # free work goes on
-
-
-def test_a_batch_over_its_own_stop_is_refused_one_within_it_clears_whatever_the_month_cost():
-    """The owner, 2026-10-20: a batch's own stop is the only spend cap; no month's ceiling. A month at EUR 10,000
-    (past the old EUR 3,000 ceiling) clears a job within the stop and refuses one over it."""
-    runner = a_runner("a hall")
-    month = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0}
-    stop_at(runner, 5.0, baseline=month)
-    ledger({"euros": 10_000.0})
-    BILL["euros"] = 10_000.0
-    assert "pass the EUR 5.00 stop" in refused(a_job(runner, euros=6.0)[1])
-    assert a_job(runner, euros=4.0)[1]()
-    BILL["euros"] = 0.0
-
-
 def clear_in_a_process(runner, ready, sending):
     ready.wait()
     try:
@@ -739,19 +652,6 @@ def test_lines_clearing_at_once_never_both_spend_the_stops_last_euros():
     for process in processes:
         process.join()
     assert answers == ["cleared"] + ["refused"] * 5, answers
-
-
-def test_everything_in_flight_counts_less_what_it_already_ledgered():
-    runner = a_runner("a hall")
-    stop_at(runner, 10.0)
-    ledger({"euros": 90.0})
-    BILL["euros"] = 0.0
-    ticket = compute.clearance(runner, "render@hangar", 6.0)  # in flight: EUR 6 of the 10 left
-    assert "pass" in refused(lambda: compute.clearance(runner, "render@hangar", 5.0))
-    ledger({"euros": 90.0}, {"euros": 4.0, "ticket": f"render@hangar {ticket['key']}",  # 4 of its 6 ledgered
-                             "started": graph.now()})
-    assert compute.clearance(runner, "render@hangar", 3.9)  # 4 spent + 2 in flight + 3.9 fits
-    compute.release(ticket)
 
 
 def test_a_started_job_runs_on_as_the_bill_nears_the_stop_and_stops_only_as_a_runaway():
@@ -876,19 +776,6 @@ def test_spend_counts_from_the_worlds_start_across_months():
     assert guard.spent_since(start, months) == 53.5
 
 
-def test_the_framework_store_refuses_a_world_with_no_line():
-    """In the framework's store an environment must carry the owner's money figure before any paid job starts."""
-    assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
-    store = Store.default()
-    data = pathlib.Path(tempfile.mkdtemp())
-    (data / "hangar.txt").write_text("a hall")
-    runner = graph.Runner([BRIEF, RENDER], graph.Environment("toy-framework", 1, {"data": data}),
-                          store)
-    runner.run_node(BRIEF, "hangar")
-    ledger({"euros": 0.0})
-    assert "has no stop line" in refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
-
-
 def test_a_trials_own_store_in_the_home_is_held_to_the_worlds_stop_and_counted_in_flight():
     """Fault (2026-10-18 review): compare.py's trial store had no stop line of its own, so its paid rows (close-ups,
     pixal, likeness) skipped the stop, and their reservations sat in the trial's store where no clearance counted them."""
@@ -935,17 +822,6 @@ def test_a_reservation_stays_open_while_its_run_lives_or_until_its_runaway_limit
     assert not compute.still_open(hours_ago, {"holder": f"{os.getpid()} 0"}, now)  # a pid since given to another
     assert not compute.still_open(hours_ago, {"high_minutes": 60.0}, now)
     assert compute.still_open(hours_ago, {"high_minutes": 200.0}, now)  # twice 200 min is past 5 h
-
-
-def test_an_override_still_going_counts_in_flight():
-    runner = a_runner("a hall")
-    stop_at(runner, 10.0)
-    ledger({"euros": 90.0})
-    BILL["euros"] = 0.0
-    runner.store.write_spend_yes(compute.OVERRIDE, "repaint", {"node": compute.OVERRIDE, "key": "repaint",
-                                                               "euros": 7.0, "by": "owner", "at": graph.now()})
-    assert "pass the EUR 10.00 stop" in refused(lambda: compute.clearance(runner, "render@hangar", 4.0))
-    assert compute.clearance(runner, "render@hangar", 2.0)
 
 
 def test_a_watch_whose_preflights_cannot_be_read_falls_back_to_its_stages_forecast():
@@ -1055,33 +931,6 @@ def billed(ticket, euros):
     BOOKS.entries = lambda: [*lines, {"started": ticket["clearance"]["at"][:19] + "Z", "euros": euros,
                                       "ticket": f"{ticket['node']} {ticket['key']}"}]
     time.sleep(1.05)
-
-
-def test_a_grant_holds_its_balance_across_runs_and_each_run_draws_its_real_spend():
-    """The owner, 2026-10-22: a grant is not used up by a run that fails after spending cents; it holds its euros until
-    they are spent. Each run holds its high plus 10% while it goes and draws its real spend when it ends, failed too."""
-    runner = a_runner("a hall")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 100.0  # nothing spent since the line
-    stop_at(runner, 1.0)
-    grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
-    clear = lambda euros: lambda: compute.clearance(runner, "render@hangar", euros)  # noqa: E731
-    assert "pass the EUR 1.00 stop" in refused(clear(6.0))  # not tagged: the stop line as ever
-    first = as_benchmark(grant, "run-a", clear(6.0))  # holds 6.60 of 10
-    assert first["clearance"]["grant"] == grant
-    assert "EUR 3.40 left" in refused(lambda: as_benchmark(grant, "run-a", clear(4.0)))
-    billed(first, 0.25)
-    compute.release(first)  # the first run fails after spending 0.25: it draws that, never its hold
-    draws = runner.store.objects.keys(f"grants/draws/{grant}/")
-    assert len(draws) == 1 and runner.store.read(draws[0])["euros"] == 0.25
-    assert runner.store.read(draws[0])["balance"] == 9.75
-    second = as_benchmark(grant, "run-b", clear(8.0))  # another run under the same grant: 8.80 fits in 9.75
-    assert "EUR 0.95 left" in refused(lambda: as_benchmark(grant, "run-b", clear(1.0)))
-    billed(second, 1.5)
-    compute.release(second)
-    assert compute.grant_balance(runner.store, grant, {}) == 8.25
-    assert "one score run" in refused(lambda: as_benchmark(grant, None, clear(0.5)))
-    assert "no benchmark grant" in refused(lambda: as_benchmark("20991231T000000", "run-c", clear(0.5)))
 
 
 def test_a_runs_warm_pool_holds_its_cost_on_the_grant_and_draws_what_its_cards_billed():
@@ -1254,18 +1103,6 @@ def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_
         google_spend.LEDGER = kept
 
 
-def test_a_run_whose_high_does_not_fit_the_balance_left_is_refused():
-    runner = a_runner("a hall")
-    ledger({"euros": 0.0})
-    grant = compute.grant_benchmark("Yes", QUESTION, 2.0, store=runner.store)["id"]
-    clear = lambda euros: lambda: compute.clearance(runner, "render@hangar", euros)  # noqa: E731
-    spent = as_benchmark(grant, "run-a", clear(1.0))
-    billed(spent, 1.2)  # ran over its high: it draws what it spent
-    compute.release(spent)
-    assert "EUR 0.80 left" in refused(lambda: as_benchmark(grant, "run-b", clear(0.75)))
-    assert as_benchmark(grant, "run-b", clear(0.7))  # 0.77 fits
-
-
 def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone():
     """The owner, 2026-10-21: readings run without asking. Cleared with no stop line and no yes, in an agent's process
     too; its node is the reading's only, within READING_EUROS a place; a grant, when tagged, counts it."""
@@ -1335,15 +1172,180 @@ def test_a_grant_used_up_under_the_single_use_rule_holds_its_balance_once_restor
     assert as_benchmark(grant, "run-b", clear)
 
 
+def measured_lines(stage, euros, minutes=20.0):
+    """The ledger lines of one batch each of four paid runs of `stage`, at these euros, this month."""
+    return [{"ticket": f"{stage}@place{number} key{number}", "started": BOOKS.this_month(), "kind": "blender",
+             "batch": f"blender-{number}", "euros": cost, "wall_minutes": minutes, "machines": []}
+            for number, cost in enumerate(euros)]
+
+
+OWN = "the row's grant"  # a step tagged with the grant its row made
+SPENT_10K = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0}
+# One row a world: its brief, the owner's stop line (euros, baseline) or none, the ledger's lines, the bill, an
+# override or a benchmark grant standing; then its steps against the clearance, each answered by the real entry point:
+#   ("submit"|"clear", euros, grant tag, run, expected): a job through compute.submit, or a run through
+#     compute.clearance; expected is the refusal's words (a string or a tuple of them), or the cleared record's fields
+#     (a value, or a (low, high) range it lies strictly inside)
+#   ("bill", euros): the newest cleared run's ledger line (billed)
+#   ("release",): the newest cleared run ends (compute.release)
+# and what stands after: the outbox's lines, the grant's draws (euros, balance) and balance.
+ASKS = [
+    pytest.param({"text": "   ", "ledger": [{"euros": 0.0}],
+                  "steps": [("submit", 0.8, None, None, "brief@hangar answered fail")]}, id="prerequisite failed"),
+    pytest.param({"text": "a hall", "reject": True, "ledger": [{"euros": 0.0}],
+                  "steps": [("submit", 0.8, None, None, "brief@hangar has not run on its current inputs")]},
+                 id="prerequisite rejected: its key moved on to an again key, made again first"),
+    # the owner, 2026-10-11, 'why are you asking this?': the runner clears a run, never his typed spend yes
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "steps": [("submit", 0.8, None, None, {"euros": 0.8})]},
+                 id="cleared without a typed yes"),
+    # the owner, 2026-10-20: no month's ceiling; a month far past the old EUR 3,000 clears a run
+    pytest.param({"text": "a hall", "ledger": [{"euros": 10_000.0}],
+                  "steps": [("submit", None, None, None, "needs its estimate"),
+                            ("submit", 5.0, None, None, {"euros": 5.0, "estimate": 5.0})]},
+                 id="needs its estimate, no month total"),
+    # 2026-10-18: a film's hand-written EUR 0.7 against runs of EUR 1.3 to 16; cleared at the high, the 90th percentile
+    pytest.param({"text": "a hall", "ledger": measured_lines("render", [1.0, 1.2, 1.4, 6.0]),
+                  "steps": [("submit", 0.7, None, None, {"estimate": 0.7, "measured": 4, "minutes": 20.0,
+                                                         "euros": (1.4, 6.0)}),
+                            ("submit", None, None, None, {"estimate": None, "measured": 4, "euros": (1.4, 6.0)})]},
+                 id="measured high, not the hand estimate"),
+    # environment 1, 2026-10-12 to 18: the stop killed runs halfway and was raised 13 times; now refused before the
+    # start, said once, and free work goes on. The ledger grew EUR 15 since the line, the lagging bill only 10.
+    pytest.param({"text": "a hall", "stop": 20.0, "ledger": [{"euros": 90.0}, {"euros": 15.0}], "bill": 110.0,
+                  "steps": [("submit", 6.0, None, None, ("EUR 15.00 spent", "pass the EUR 20.00 stop")),
+                            ("submit", 6.0, None, None, "pass the EUR 20.00 stop"),
+                            ("submit", 4.0, None, None, {"euros": 4.0})],
+                  "outbox": (1, "Free work goes on")}, id="past the stop, refused before it starts"),
+    pytest.param({"text": "a hall", "stop": 5.0, "baseline": SPENT_10K, "ledger": [{"euros": 10_000.0}],
+                  "bill": 10_000.0, "steps": [("submit", 6.0, None, None, "pass the EUR 5.00 stop"),
+                                              ("submit", 4.0, None, None, {"euros": 4.0})]},
+                 id="a batch's own stop, whatever the month cost"),
+    pytest.param({"text": "a hall", "stop": 10.0, "ledger": [{"euros": 90.0}],
+                  "steps": [("clear", 6.0, None, None, {"euros": 6.0}),  # in flight: EUR 6 of the 10 left
+                            ("clear", 5.0, None, None, "pass the EUR 10.00 stop"),
+                            ("bill", 4.0),  # 4 of its 6 ledgered
+                            ("clear", 3.9, None, None, {"euros": 3.9})]},  # 4 spent + 2 in flight + 3.9 fits
+                 id="in flight, less what it ledgered"),
+    pytest.param({"text": "a hall", "stop": 10.0, "ledger": [{"euros": 90.0}], "override": 7.0,
+                  "steps": [("clear", 4.0, None, None, "pass the EUR 10.00 stop"),
+                            ("clear", 2.0, None, None, {"euros": 2.0})]}, id="an override still going in flight"),
+    pytest.param({"text": "a hall", "framework": "toy-framework", "ledger": [{"euros": 0.0}],
+                  "steps": [("clear", 1.0, None, None, "has no stop line")]}, id="framework store with no line"),
+    # the owner, 2026-10-22: a grant holds its euros until spent; each run holds its high plus 10% while it goes and
+    # draws its real spend when it ends, failed too
+    pytest.param({"text": "a hall", "stop": 1.0, "ledger": [{"euros": 90.0}], "bill": 100.0, "grant": 10.0,
+                  "steps": [("clear", 6.0, None, None, "pass the EUR 1.00 stop"),  # not tagged: the stop line
+                            ("clear", 6.0, OWN, "run-a", {"grant": OWN}),  # holds 6.60 of 10
+                            ("clear", 4.0, OWN, "run-a", "EUR 3.40 left"),
+                            ("bill", 0.25), ("release",),  # fails after spending 0.25: draws that, never its hold
+                            ("clear", 8.0, OWN, "run-b", {"grant": OWN}),  # 8.80 fits in 9.75
+                            ("clear", 1.0, OWN, "run-b", "EUR 0.95 left"),
+                            ("bill", 1.5), ("release",),
+                            ("clear", 0.5, OWN, None, "one score run"),
+                            ("clear", 0.5, "20991231T000000", "run-c", "no benchmark grant")],
+                  "draws": [(0.25, 9.75), (1.5, 8.25)], "balance": 8.25}, id="a grant holds its balance across runs"),
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "grant": 2.0,
+                  "steps": [("clear", 1.0, OWN, "run-a", {"grant": OWN}),
+                            ("bill", 1.2), ("release",),  # ran over its high: it draws what it spent
+                            ("clear", 0.75, OWN, "run-b", "EUR 0.80 left"),
+                            ("clear", 0.7, OWN, "run-b", {"grant": OWN})],  # 0.77 fits
+                  "draws": [(1.2, 0.8)]}, id="a high past the grant's balance left"),
+]
+
+
+def a_world(row):
+    """The row's runner: its brief made (and rejected where the row says), in a test store or the framework's."""
+    data = pathlib.Path(tempfile.mkdtemp())
+    (data / "hangar.txt").write_text(row["text"])
+    store = Store.default() if "framework" in row else Store.in_folder(tempfile.mkdtemp())
+    runner = graph.Runner([BRIEF, RENDER], graph.Environment(row.get("framework", "toy"), 1, {"data": data}), store)
+    runner.run_node(BRIEF, "hangar")
+    if row.get("reject"):
+        review.reject(store, "brief@hangar", store.accepted("brief@hangar"), "owner", "the wrong hall")
+    return runner
+
+
+@pytest.mark.parametrize("row", ASKS)
+def test_paid_work_starts_only_inside_its_clearance(row):
+    """Every paid start asks the runner's clearance: refused (and nothing written) while a prerequisite failed or is
+    not accepted, the run has no estimate or measure, its high would pass the world's stop line with what was spent
+    since the line and everything in flight (less what it ledgered, open overrides too), or a benchmark grant's
+    balance; else cleared at its measured high, kept in the store with no typed yes, the job keyed to it."""
+    assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
+    runner = a_world(row)
+    if "stop" in row:
+        stop_at(runner, row["stop"], baseline=row.get("baseline", START))
+    ledger(*row["ledger"])
+    BILL["euros"] = row.get("bill", 0.0)
+    if "override" in row:
+        runner.store.write_spend_yes(compute.OVERRIDE, "repaint", {"node": compute.OVERRIDE, "key": "repaint",
+                                                                   "euros": row["override"], "by": "owner",
+                                                                   "at": graph.now()})
+    grant = compute.grant_benchmark("Yes", QUESTION, row["grant"], store=runner.store)["id"] if "grant" in row else None
+    tickets, cleared = [], 0
+    try:
+        for step in row["steps"]:
+            if step[0] == "bill":
+                billed(tickets[-1], step[1])
+                continue
+            if step[0] == "release":
+                compute.release(tickets.pop())
+                continue
+            via, euros, tag, run, expected = step
+            job_store = compute.job_contract.stores.FolderStore(tempfile.mkdtemp())
+            spec = {"kind": "blender", "image": "img", "command": ["true"], "euros": euros}
+            ask = (lambda: compute.submit(runner, "render@hangar", job_store, "run1", "job1", spec)) if via == "submit" \
+                else (lambda: compute.clearance(runner, "render@hangar", euros))
+            tagged = grant if tag == OWN else tag
+            if isinstance(expected, dict):
+                answer = as_benchmark(tagged, run, ask) if tagged else ask()
+                cleared += 1
+                key = runner.ticket("render@hangar")["key"]
+                records = runner.store.clearances("render@hangar", key)
+                assert len(records) == cleared, (step, records)
+                for field, value in expected.items():
+                    value = grant if value == OWN else value
+                    if isinstance(value, tuple):
+                        assert value[0] < records[-1][field] < value[1], (step, field, records[-1])
+                    else:
+                        assert records[-1][field] == value, (step, field, records[-1])
+                assert runner.store.spend_yes("render@hangar", key) is None, step
+                if via == "submit":
+                    job = compute.job_contract.stores.read_json(job_store, answer)
+                    assert job["node"] == "render@hangar" and job["node_key"] == key, (step, job)
+                else:
+                    assert answer["clearance"] == records[-1], step
+                    tickets.append(answer)
+            else:
+                said = refused(lambda: as_benchmark(tagged, run, ask) if tagged else ask())
+                for words in (expected,) if isinstance(expected, str) else expected:
+                    assert words in said, (step, said)
+                assert job_store.keys("") == [], step
+        if "outbox" in row:
+            count, words = row["outbox"]
+            assert len(outbox(runner)) == count and words in outbox(runner)[0], outbox(runner)
+        runner.run_node(BRIEF, "hangar")  # free work goes on
+        if "draws" in row:
+            draws = [runner.store.read(key) for key in runner.store.objects.keys(f"grants/draws/{grant}/")]
+            assert [(draw["euros"], draw["balance"]) for draw in draws] == row["draws"], draws
+        if "balance" in row:
+            assert compute.grant_balance(runner.store, grant, {}) == row["balance"]
+    finally:
+        for ticket in tickets:
+            compute.release(ticket)
+        BILL["euros"] = 0.0
+
 
 if __name__ == "__main__":
     SANDBOX["refuse_outside_sandbox"]()
     no_cloud_and_books_open(pytest.MonkeyPatch())  # this process only: never undone
     for name, test in list(globals().items()):
         if name.startswith("test_"):
-            patch = pytest.MonkeyPatch()  # a test that takes pytest's monkeypatch gets its own, undone after it
-            try:
-                test(*[patch for _ in test.__code__.co_varnames[:test.__code__.co_argcount]])
-            finally:
-                patch.undo()
+            marks = [mark for mark in getattr(test, "pytestmark", []) if mark.name == "parametrize"]
+            for case in [param.values for param in marks[0].args[1]] if marks else [None]:
+                patch = pytest.MonkeyPatch()  # a test that takes pytest's monkeypatch gets its own, undone after it
+                try:
+                    test(*case) if case else test(*[patch for _ in test.__code__.co_varnames[:test.__code__.co_argcount]])
+                finally:
+                    patch.undo()
             print("ok", name)
