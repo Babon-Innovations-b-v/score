@@ -1,6 +1,6 @@
 """A thing laid on its holder's top where the top is curved, with no flat spot that holds it, laid on the spot of the
 top where it rests by the resting check's measure (fitting.fitted, after built_tops.let_down): let down until no point
-of it is in the top, CONTACTS of its low points touching, its weight BALANCE inside them, every one of its feet down and
+of it is in the top, CONTACTS of its low points touching, its weight `balance` inside them, every one of its feet down and
 what it touches leaning less than the triage's LEAN_MOST by LEAN_SPARE, measured with the triage's own functions on
 the thing as the make lays it (its feet levelled by even_feet, which runs after the fitting).
 
@@ -52,7 +52,7 @@ SLACK = 1e-9
 def rest(low, every, weight, field, shift):
     """How far the thing (its `low` points, triage.low_points', and `every` point of it) is lifted to stand on the
     holder's top (`field`: spots [n, 2] -> heights) once moved by `shift` [x, z], CLEAR over it where nearest, when
-    there CONTACTS low points or more touch (within TOLERANCE), its `weight` [x, z] stands BALANCE inside them and the
+    there CONTACTS low points or more touch (within TOLERANCE), its `weight` [x, z] stands `balance` inside them and the
     surface under them slopes less than LEAN_MOST; else None."""
     import triage
     from score.stages.assembly import footing
@@ -65,15 +65,16 @@ def rest(low, every, weight, field, shift):
     touching = gaps <= triage.TOLERANCE
     if touching.sum() < CONTACTS:
         return None
-    if footing.inside_by(np.asarray(weight, float) + shift, spots[touching]) < triage.BALANCE:
+    if footing.inside_by(np.asarray(weight, float) + shift, spots[touching]) < balance(every):
         return None
     return lift if slope(spots[touching], tops[touching]) < triage.LEAN_MOST else None
 
 
 def may_rest(low, weight, field, shifts):
     """Whether the thing (its `low` points, its `weight` [x, z]) may rest on the holder's top (`field`) moved by each
-    of `shifts` [n, 2]: lifted by its low points alone, CONTACTS of them touch and its weight stands BALANCE inside the
-    box around them. rest lifts it by every point of it, never less, and more lift touches fewer; the hull of what
+    of `shifts` [n, 2]: lifted by its low points alone, CONTACTS of them touch and its weight stands `balance` (of its
+    low points: never more than rest's, of every point) inside the box around them. rest lifts it by every point of it,
+    never less, and more lift touches fewer; the hull of what
     then touches lies within that box. So a shift false here is one rest finds None at (SLACK takes the sums' last
     digits): base's hangar_roof_opening_1 was asked of rest at 1.5 million spots on the hangar's roof, 3 hours."""
     import triage
@@ -82,18 +83,26 @@ def may_rest(low, weight, field, shifts):
     lift = np.max(np.where(found, tops - low[:, 1], -np.inf), axis=1) + CLEAR
     touching = found & (low[:, 1] + lift[:, None] - tops <= triage.TOLERANCE)
     enough = touching.sum(axis=1) >= CONTACTS
-    weights = np.asarray(weight, float) + shifts
+    weights, inside = np.asarray(weight, float) + shifts, balance(low)
     for axis, column in ((0, 0), (1, 2)):
         least = np.min(np.where(touching, low[:, column], np.inf), axis=1) + shifts[:, axis]
         most = np.max(np.where(touching, low[:, column], -np.inf), axis=1) + shifts[:, axis]
-        enough &= (weights[:, axis] - least >= triage.BALANCE - SLACK) & \
-            (most - weights[:, axis] >= triage.BALANCE - SLACK)
+        enough &= (weights[:, axis] - least >= inside - SLACK) & (most - weights[:, axis] >= inside - SLACK)
     return enough
+
+
+def balance(points):
+    """How far, metres, a thing's weight stands inside what it touches to rest there (rest, may_rest, stands): the
+    triage's BALANCE, or a quarter of the narrower side of its box across (its points [n, 3]) where that is less. No
+    point of a 6 cm mouse is 5 cm inside it: quarters' mouse, a 5 cm wrench and a plant pot were never found a spot of
+    their desk where they rest, and were left leaning 3.5 to 3.7 degrees (settle@quarters, 2026-11-13)."""
+    import triage
+    return min(triage.BALANCE, float(np.ptp(np.asarray(points, float)[:, [0, 2]], axis=0).min()) / 4)
 
 
 def stands(mesh, exact, move, turn=np.eye(4)):
     """Whether the thing (`mesh`) moved by `move` [x, lift, z] rests on the holders' surface (`exact`: spots [n, 2] ->
-    heights) by the triage's own measure: CONTACTS of its low points within TOLERANCE, its weight BALANCE inside them,
+    heights) by the triage's own measure: CONTACTS of its low points within TOLERANCE, its weight `balance` inside them,
     every foot down (triage.feet_gaps) and what it touches leaning LEAN_SPARE less than LEAN_MOST (triage.lean) from
     its up (`turn`'s, 4 x 4: upright where none is given; flush_tops lays one turned)."""
     import resting
@@ -104,12 +113,12 @@ def stands(mesh, exact, move, turn=np.eye(4)):
 
     def gaps_of(points):
         tops = exact(points[:, [0, 2]])
-        return np.where(np.isfinite(tops), np.maximum(points[:, 1] - tops, 0.0), np.inf)
+        return np.where(np.isfinite(tops), points[:, 1] - tops, np.inf)  # under a top it is in, as the check reads it
     low = np.asarray(triage.low_points(moved), float)
     gaps = gaps_of(low)
     touching = gaps <= triage.TOLERANCE
     if touching.sum() < CONTACTS or footing.inside_by(resting.weight_at(moved), low[touching][:, [0, 2]]) < \
-            triage.BALANCE:
+            balance(moved.vertices):
         return False
     if any(gap > triage.TOLERANCE for _, gap in triage.feet_gaps(moved, gaps_of)):
         return False
@@ -134,7 +143,7 @@ def laid_on(stage, place, entries):
             carried.setdefault(holder, []).append(entry["name"])
     fits = []
     for name in ordered(by_name):
-        fit = one(stage, place, by_name[name], carried)
+        fit = one(stage, place, by_name[name], fitting.with_stacked(stage, place, carried, list(by_name)))
         if fit is not None:
             fits.append(fit)
     return fits

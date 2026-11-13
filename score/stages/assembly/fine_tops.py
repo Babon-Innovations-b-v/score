@@ -11,10 +11,17 @@ holder's box, 2.5 cm apart, and its box test took the room beside the place's di
 computers were left over the bowls and the settle let them down 10 cm into them, leaning 51 degrees. Each now stands on
 that rim as it was laid (no turn), its weight inside what it touches by the check's own measure (crest_tops.stands).
 
+One no spot of its holders' top holds is laid on the top of one of the others laid on them where it rests there, the
+nearest first (`stacked`): settle@quarters, 2026-11-13, its desk (a 1.2 m bake of a 2.5 m reading, its front left
+0.6 x 0.3 m open, the rest sloping 2 to 3 degrees) holds its 25 things only with some on others, and its mouse, a
+wrench, a plant pot on the keyboard and a picture frame on the other pot leaned 3.5 to 22 degrees where they were laid.
+
     FINE                          metres apart the spots are read
     meets(low, high, other)       whether a box reaches into another thing's box or turned outline
     laid(stage, place, entries)   each thing on its holders' top (`entries`, built_tops.held_on's) that does not rest
                                   where it is laid on the nearest spot where it rests; the fits [{..., "top at"}]
+    stacked(stage, place, entry, thing, box_of, carried)   (the move, the name) onto the nearest other's top where
+                                  it rests
 """
 import numpy as np
 
@@ -34,7 +41,7 @@ def laid(stage, place, entries):
             carried.setdefault(holder, []).append(entry["name"])
     fits = []
     for name in crest_tops.ordered(by_name):
-        fit = one(stage, place, by_name[name], carried)
+        fit = one(stage, place, by_name[name], fitting.with_stacked(stage, place, carried, list(by_name)))
         if fit is not None:
             fits.append(fit)
     return fits
@@ -55,28 +62,86 @@ def one(stage, place, entry, carried):
         return None
     boxes = [fitting.world_box(stage, holder) for holder in holders]
     box = (np.min([low for low, _ in boxes], axis=0), np.max([high for _, high in boxes], axis=0))
-    surface = trimesh.util.concatenate(found)
+    surface = trimesh.util.concatenate(found + beside(stage, place, entry, carried,
+                                                      float(fitting.world_box(stage, path)[1][1])))
     field, exact = crest_tops.height_field(surface, box), crest_tops.exact_field(surface, box)
+    low_points = np.asarray(triage.low_points(own), float)
+    every = np.vstack([own.vertices, own.sample(crest_tops.EVERY, seed=0)])
     if crest_tops.stands(own, exact, np.zeros(3)):
         return None
     left_out = {entry["name"], *(entry["on"].get("holder") or []), *carried.get(entry["name"], [])}
     things = stage.GetPrimAtPath(f"/{place}/Objects")
     others = [outline_of(stage, str(prim.GetPath())) for prim in (things.GetChildren() if things else [])
               if prim.GetName() not in left_out and prim.IsActive()]
-    low_points = np.asarray(triage.low_points(own), float)
-    every = np.vstack([own.vertices, own.sample(crest_tops.EVERY, seed=0)])
     low, high = fitting.world_box(stage, path)
-    move = spot((own, low_points, every, resting.weight_at(own)), (field, exact), (low, high), box, others)
+    thing = (own, low_points, every, resting.weight_at(own))
+    move, on_other = spot(thing, (field, exact), (low, high), box, others), None
     if move is None:
-        return None
+        move, on_other = stacked(stage, place, entry, thing, (low, high), carried)
+    if move is None or (on_other is not None and float(np.linalg.norm(move)) < fitting.MOVE_LEAST):
+        return None  # no spot holds it, or it rests on the other where it lies
     foot = fitting.foot_middle(low, high)
     fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0, foot + move)
     fitting.carry(stage, place, carried, entry["name"], move)
     moved = float(np.linalg.norm(move))
+    holders = ", ".join(entry["on"].get("holder"))
     fit = fitting.laid_fit(stage, path, entry, "top", entry["on"].get("holder"), moved, 1.0,
-                           f"laid {moved:.2f} m onto {', '.join(entry['on'].get('holder'))}'s top, on the spot "
-                           f"of it where it rests")
+                           f"laid {moved:.2f} m onto {holders}'s top, on the spot of it where it rests" if on_other
+                           is None else f"laid {moved:.2f} m onto {on_other}'s top where it rests, no spot of "
+                                        f"{holders}'s top holding it")
     return {**fit, "top at": round(float(foot[1] + move[1]), 4)}
+
+
+def beside(stage, place, entry, carried, under, but=()):
+    """The built surfaces (meshes) of the others laid on a thing's holders (`carried`'s) whose box tops stand under
+    `under` (metres: its own top), less what rides on it, and theirs, and `but`: what it stands among and over, which
+    the resting check reads under its points as it reads its holders (a taller one beside it, read from above, would
+    stand over it). Judged on its
+    holders alone, quarters' keyboard and books, their boxes 8 to 9 mm into each other's on its desk (fitting.BOARD_CLEAR
+    lets a box 1 cm into another), and a book laid 9.5 mm deep over two 1.3 cm wrenches, rested, and leaned 5 to 16
+    degrees on each other (settle@quarters, 2026-11-13)."""
+    riders, todo = set(), [entry["name"]]
+    while todo:
+        for rider in carried.get(todo.pop(), []):
+            if rider not in riders:
+                riders.add(rider)
+                todo.append(rider)
+    left_out = {entry["name"], *riders, *but}
+    names = [other for holder in entry["on"].get("holder") or [] for other in carried.get(holder, [])
+             if other not in left_out and stage.GetPrimAtPath(f"/{place}/Objects/{other}")
+             and float(fitting.world_box(stage, f"/{place}/Objects/{other}")[1][1]) < under]
+    return [mesh for mesh in (fitting.surface_mesh(stage, f"/{place}/Objects/{other}") for other in dict.fromkeys(names))
+            if mesh is not None]
+
+
+def stacked(stage, place, entry, thing, box_of, carried):
+    """(the move [x, lift, z], its name) of a thing (`thing`: mesh, low points, every point, weight; `box_of` its box)
+    onto the top of the nearest of the others laid on its holders (`carried`'s, less what rides on it) where it rests
+    there (spot, on that one's surface within its box), clear of the rest; (None, None) with none."""
+    name = entry["name"]
+    riding = set(carried.get(name, []))
+    names = [other for holder in entry["on"].get("holder") or [] for other in carried.get(holder, [])
+             if other != name and other not in riding and stage.GetPrimAtPath(f"/{place}/Objects/{other}")]
+    here = fitting.foot_middle(*box_of)
+    boxes = {other: fitting.world_box(stage, f"/{place}/Objects/{other}") for other in names}
+    things = stage.GetPrimAtPath(f"/{place}/Objects")
+    for other in sorted(boxes, key=lambda other: float(np.linalg.norm((fitting.foot_middle(*boxes[other]) - here)[
+            [0, 2]]))):
+        mesh = fitting.surface_mesh(stage, f"/{place}/Objects/{other}")
+        if mesh is None or mesh.area <= 0:
+            continue
+        import trimesh
+        left_out = {name, other, *riding, *(entry["on"].get("holder") or [])}
+        others = [outline_of(stage, str(prim.GetPath())) for prim in (things.GetChildren() if things else [])
+                  if prim.GetName() not in left_out and prim.IsActive()]
+        tall = float(box_of[1][1] - box_of[0][1])
+        under = trimesh.util.concatenate([mesh, *beside(stage, place, entry, carried, float(boxes[other][1][1]) + tall,
+                                                         {other})])
+        fields = crest_tops.height_field(under, boxes[other]), crest_tops.exact_field(under, boxes[other])
+        move = spot(thing, fields, box_of, boxes[other], others)
+        if move is not None:
+            return move, other
+    return None, None
 
 
 def spot(thing, fields, box_of, box, others):
@@ -122,11 +187,11 @@ def outline_of(stage, path):
 
 
 def meets(low, high, other):
-    """Whether a box (low, high) reaches into another thing (outline_of's) by more than fitting.BOARD_CLEAR every way:
-    by its box, and on the floor by its turned outline where it has one (the depth along each side's normal of either
+    """Whether a box (low, high) reaches into another thing (outline_of's): by its box (fitting.reaches_into), and on
+    the floor by its turned outline where it has one (the depth along each side's normal of either
     shape, the least of them, as two convex shapes overlap)."""
     other_low, other_high, outline = other
-    if float(fitting.depths(low, high, (other_low, other_high)).min()) <= fitting.BOARD_CLEAR:
+    if not fitting.reaches_into(low, high, (other_low, other_high)):
         return False
     if outline is None:
         return True

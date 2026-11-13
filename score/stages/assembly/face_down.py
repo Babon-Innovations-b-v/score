@@ -49,6 +49,12 @@ def gap_under(points, ground, others):
     """The least gap (metres) from `points` [n, 3] straight down to the first surface under them: the made ground
     (`ground`: (n, 2) x, z -> heights, nan off it) or `others` (one mesh of the other things, or None); inf with
     none."""
+    return float(gaps_under(points, ground, others).min())
+
+
+def gaps_under(points, ground, others):
+    """[n] the gap (metres) from each of `points` [n, 3] straight down to the first surface under it (gap_under's),
+    inf where none is."""
     gaps = points[:, 1] - ground(points[:, [0, 2]])
     gaps = np.where(np.isfinite(gaps), gaps, np.inf)
     if others is not None and len(others.faces):
@@ -57,13 +63,32 @@ def gap_under(points, ground, others):
         if len(rays):
             under = points[rays, 1] - found[:, 1]
             gaps[rays] = np.minimum(gaps[rays], np.where(under >= -fitting.BOARD_CLEAR, under, np.inf))
-    return float(gaps.min())
+    return gaps
+
+
+def tip_drop(points, gaps, weight):
+    """Metres a faced thing whose foot (`points` [n, 3], their `gaps` under them) touches what is under it only where
+    that does not hold it is let down: where fewer than the check's CONTACTS_NEEDED points touch (within TOLERANCE) or
+    its `weight` [x, z] falls outside them (it falls; the resting check names a tip past BALANCE, read on fewer points:
+    quarters' wrench, its back edge on a panel, 2.3 cm outside by these, 5.5 cm by the check's), the least gap of the
+    points that do not touch; 0 where it stands or none is under them."""
+    import resting
+    import triage
+    touching = gaps <= on_ground.TOLERANCE
+    if touching.sum() >= triage.CONTACTS_NEEDED and resting.outside_by(
+            np.asarray(weight, float), points[touching][:, [0, 2]]) <= 0.0:
+        return 0.0
+    rest = gaps[~touching]
+    return float(rest.min()) if len(rest) and np.isfinite(rest.min()) else 0.0
 
 
 def downs(stage, place, record, rows=None):
     """{name: metres} each faced thing of a standing row (faced_standing, by the inventory `rows`) is let down by: the
     least gap of its foot's points (within TOLERANCE of its lowest: its back may touch its holder's side higher up,
-    solar_panels_5 at one point) to the first surface under them, where that is over TOLERANCE (gap_under)."""
+    solar_panels_5 at one point) to the first surface under them, where that is over TOLERANCE (gap_under); or, where
+    what its foot touches does not hold it, the least gap of the points that do not touch (tip_drop): quarters' flat
+    1.3 cm wrench, its back edge on its desk's back panel 0.25 m up and the rest over the floor, tipped
+    (settle@quarters, 2026-11-13)."""
     import resting
     import trimesh
     ground = resting.ground_height(stage, place)
@@ -78,9 +103,14 @@ def downs(stage, place, record, rows=None):
         points = points[points[:, 1] <= points[:, 1].min() + on_ground.TOLERANCE]  # its foot, as the check reads it
         meshes = [mesh for mesh in (fitting.surface_mesh(stage, f"/{place}/Objects/{other}")
                                     for other in names if other != name) if mesh is not None]
-        gap = gap_under(points, ground, trimesh.util.concatenate(meshes) if meshes else None)
+        gaps = gaps_under(points, ground, trimesh.util.concatenate(meshes) if meshes else None)
+        gap = float(gaps.min())
         if on_ground.TOLERANCE < gap < np.inf:
             found[name] = gap
+        elif gap <= on_ground.TOLERANCE:
+            drop = tip_drop(points, gaps, resting.weight_at(fitting.surface_mesh(stage, f"/{place}/Objects/{name}")))
+            if drop > on_ground.TOLERANCE:
+                found[name] = drop
     return found
 
 
