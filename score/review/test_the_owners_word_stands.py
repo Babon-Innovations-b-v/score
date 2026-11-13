@@ -15,43 +15,32 @@ Each test turns red under the break written for it below (each applied once and 
 the file and the exact change. The free fixes' and the sync pass's plans keep tests came in from plan_fixes_test.py
 and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wording tests read kept plans of their own
 (SQUARE_PLANS, 2026-10-28): they had read the real home's, so in a bare PROPS_HOME they failed.
-- test_an_output_that_did_not_pass_cannot_be_accepted:
+- test_the_owners_word_stands (the review's accept, reject, waiver, page, web decision and stop line in one tally
+  store, and the got-worse judge's rows; folded 2026-11-13 from fourteen tests, each break below applied again
+  then and seen red):
     __init__.py: `if judgement is None or (checks.standing(judgement["verdicts"], waived) != checks.PASS and status
     is None):` made `if judgement is None:`; or `gap_objects(verdicts[GAPPED]) <= GAP_OBJECTS` made `True` (a place's
     complete with nine gap objects accepted automatically, shiplock 2026-11-12); or gap_objects' `return
     len({str(finding).split(": ", 1)[0] ...})` made `return len(verdict.get("findings") or ())` (two findings of one
     object counted as two objects)
-- test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_owner_with_a_reason:
     __init__.py: `if worse and not worse_reason:` made `if False:`; or `if accepted_record is None: return {}` removed
     (accepted_card: an accepted output with no record here crashes the accept)
-- test_the_runner_accepts_within_what_the_owner_allowed_and_no_further:
     __init__.py: `if allowed_judgement is None or regressions(judgement["verdicts"],
     allowed_judgement["verdicts"]):` made `if allowed_judgement is None:`
-- test_a_measure_is_worse_only_by_a_step_a_viewer_could_see:
     __init__.py: `return moved > 0 and moved >= tolerance(name, new, old)` made `return moved > 0`
-- test_an_answer_that_drops_is_worse_whatever_its_measures_did:
     __init__.py: `if checks.ANSWERS.index(new["answer"]) > checks.ANSWERS.index(old["answer"]):` made `if False:`
-- test_an_owners_reject_moves_the_accepted_output_back_and_the_runner_never_takes_it_again:
     __init__.py: `if store.rejected(node, output): return None` made `if False: return None`
-- test_the_owners_commands_refuse_without_his_terminal:
     __main__.py: `if not (sys.stdin.isatty() and sys.stdout.isatty()):` made `if False:`
-- test_a_waived_gate_lets_its_output_be_accepted_for_that_key_only:
     __init__.py: `waived = store.waivers(node, record["key"]) status` made `waived = {} status`
-- test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks:
     __init__.py: `return [line for line in regressions(judgement["verdicts"], card) if line.split(": ", 1)[0] not in
     excused]` made `return regressions(judgement["verdicts"], card)`
-- test_the_page_says_who_accepted_and_offers_no_accept_for_a_failed_output:
     __init__.py: `if current.get("by") == RUNNER else "The owner accepted it"` made `if current.get("by") != RUNNER
     else "The owner accepted it"`
-- test_the_signed_in_user_decides_by_his_own_name:
     web.py: `return review.accept(store, node, output, name, reason, worse_reason=worse_reason or None)` made
     `return review.accept(store, node, output, "runner", reason, worse_reason=worse_reason or None)`
-- test_a_web_decision_off_his_rules_is_refused:
     web.py: `if not name or name == RUNNER:` made `if not name:`
-- test_a_worse_output_needs_his_written_reason_from_the_web_too:
     web.py: `return review.accept(store, node, output, name, reason, worse_reason=worse_reason or None)` made
     `return review.accept(store, node, output, name, reason, worse_reason=worse_reason or "his reason")`
-- test_the_signed_in_checkout_writes_the_worlds_stop_line_never_in_an_agents_process:
     web.py: `name = checked_by(by) baseline` made `name = by baseline`
 - test_a_draw_runs_only_inside_the_owners_yes:
     concepts.py: `yes = compute.require_cleared("a concept draw", store)` made `yes = {"euros": 0.0, "key":
@@ -550,202 +539,129 @@ def gapped_card(*findings):
             review.GAPPED: {"answer": checks.FAIL, "measures": {"gaps": len(findings)}, "findings": list(findings)}}
 
 
-def test_an_output_that_did_not_pass_cannot_be_accepted(tally):
-    output = tally(5)
-    assert "answered fail" in refusal(lambda: review.accept(tally.store, NODE, output, "owner"))
-    assert tally.store.accepted(NODE) is None
-    # accepted gaps pass a place on with one gap object; shiplock's nine and cockpit's eleven (2026-11-12) stay failed
-    one = gapped_card("hatch: no model: hatch: none", "hatch: thin: hatch: 2 mm")
-    nine = gapped_card(*(f"part_{number}: no model: part_{number}: none" for number in range(9)))
-    assert review.fails_only_on_gaps(one, set()) and review.gapped_status(one, set()) == \
-        "complete apart from accepted gaps (2)"
-    assert not review.fails_only_on_gaps(nine, set()) and review.gapped_status(nine, set()) is None
-
-
-def test_a_passing_output_is_accepted_by_the_runner_and_a_worse_one_only_by_the_owner_with_a_reason(tally):
-    first = tally(1)
-    assert tally.store.accepted(NODE) == first and tally.store.current_accept(NODE)["by"] == RUNNER
-    second = tally(2)  # passes, but worse: the runner leaves it
-    assert "faults 1 became 2" in refusal(lambda: review.accept(tally.store, NODE, second, "owner"))
-    assert tally.store.accepted(NODE) == first
-    written = review.accept(tally.store, NODE, second, "owner", worse_reason="the second fault is a false alarm")
-    assert written["worse"] == ["faults: faults 1 became 2 (lower is better; worse from 1)"]
-    assert tally.store.accepted(NODE) == second
-    pulled = tally.store.records  # an accept pulled before its record: nothing known to be worse than, so it is taken
-    tally.store.records = lambda node: [record for record in pulled(node) if record["output"] != second]
-    third = tally(3)
-    assert tally.store.accepted(NODE) == third and tally.store.current_accept(NODE)["by"] == RUNNER
-
-
-def test_the_runner_accepts_within_what_the_owner_allowed_and_no_further(tally):
-    """His worse accept records each measure's from and to; a later passing output no worse than the one he took is
-    accepted by the runner with his accept named, one beyond it waits for him."""
-    tally(1)
-    second = tally(2)
-    given = review.accept(tally.store, NODE, second, "owner", worse_reason="two faults are fine here")
-    assert given["allowed"] == {"faults": {"faults": {"from": 1, "to": 2}}}
-    tally(1)  # better: the runner takes it as ever
-    fourth = tally("2\n")  # worse than the third, as bad as the one he took
-    assert tally.store.accepted(NODE) == fourth
-    assert tally.store.current_accept(NODE)["reason"].startswith(
-        f"accepted automatically: within the owner's accept of {given['at'][:10]} ({second[:12]})")
-    tally(3)  # beyond what he allowed
-    assert tally.store.accepted(NODE) == fourth
-
-
 def card(answer, **measures):
     sides = {"halo": "higher", "veil": "lower", "faults": "lower", "lowest clap": "higher", "ferry reach": "lower",
              "stray": "lower"}
     return {"heads": {"answer": answer, "measures": measures, "better": {name: sides[name] for name in measures}}}
 
 
-@pytest.mark.parametrize("new, old, worse", [
-    ({"halo": 0.31}, {"halo": 0.32}, False),  # 0.01 darker reads the same (the owner, 2026-10-13: a 2% step)
-    ({"veil": 0.059}, {"veil": 0.04}, False),
-    ({"halo": 0.30}, {"halo": 0.32}, True),  # 0.02 is worse
-    ({"faults": 3}, {"faults": 2}, True),  # one more fault
-    ({"lowest clap": 0.3760}, {"lowest clap": 0.3761}, True),  # a score no viewer reads: any move
-    ({"ferry reach": 0.024}, {"ferry reach": 0.02}, False),  # 4 mm: unseen
-    ({"ferry reach": 0.026}, {"ferry reach": 0.02}, True),  # 6 mm
-    ({"stray": 0.0001}, {"stray": 0.0}, False),  # under half a percent of a surface
-    ({"stray": 0.006}, {"stray": 0.0}, True),
-])
-def test_a_measure_is_worse_only_by_a_step_a_viewer_could_see(new, old, worse):
-    assert bool(review.regressions(card("pass", **new), card("pass", **old))) == worse
+REGRESSIONS = [  # (row, new card, accepted card, worse: a bool, or the exact lines)
+    ("halo 0.01 darker reads the same (the owner, 2026-10-13: a 2% step)", card("pass", halo=0.31),
+     card("pass", halo=0.32), False),
+    ("veil within its step", card("pass", veil=0.059), card("pass", veil=0.04), False),
+    ("halo 0.02 is worse", card("pass", halo=0.30), card("pass", halo=0.32), True),
+    ("one more fault", card("pass", faults=3), card("pass", faults=2), True),
+    ("a score no viewer reads: any move", card("pass", **{"lowest clap": 0.3760}),
+     card("pass", **{"lowest clap": 0.3761}), True),
+    ("4 mm: unseen", card("pass", **{"ferry reach": 0.024}), card("pass", **{"ferry reach": 0.02}), False),
+    ("6 mm: seen", card("pass", **{"ferry reach": 0.026}), card("pass", **{"ferry reach": 0.02}), True),
+    ("under half a percent of a surface", card("pass", stray=0.0001), card("pass", stray=0.0), False),
+    ("stray seen", card("pass", stray=0.006), card("pass", stray=0.0), True),
+    ("an answer that drops is worse whatever its measures did", card("fail", halo=0.33), card("pass", halo=0.32),
+     ["heads: pass became fail"]),
+]
 
-
-def test_an_answer_that_drops_is_worse_whatever_its_measures_did():
-    assert review.regressions(card("fail", halo=0.33), card("pass", halo=0.32)) == ["heads: pass became fail"]
-
-
-def test_an_owners_reject_moves_the_accepted_output_back_and_the_runner_never_takes_it_again(tally):
-    first = tally(1)
-    second = tally(0)
-    assert tally.store.accepted(NODE) == second  # better: accepted by the runner
-    assert "not tally@hangar's accepted output" in refusal(
-        lambda: review.reject(tally.store, NODE, first, "owner", "w"))
-    assert "needs a reason" in refusal(lambda: review.reject(tally.store, NODE, second, "owner", " "))
-    review.reject(tally.store, NODE, second, "owner", "zero faults means the gate saw nothing")
-    assert tally.store.accepted(NODE) == first
-    assert review.accept_automatically(tally.store, NODE, second) is None
-    tally(0)  # the runner runs the same key again: it never takes the rejected output back
-    assert tally.store.accepted(NODE) == first
-    review.accept(tally.store, NODE, second, "owner", "on a second look it is right")
-    assert tally.store.accepted(NODE) == second
-
-
-def test_the_owners_commands_refuse_without_his_terminal(tally, tmp_path):
-    output = tally(1)
-    for words in (["reject", NODE, output, "--reason", "x"], ["accept", NODE, output],
-                  ["waive", NODE, "k", "faults", "--reason", "x"]):
-        found = subprocess.run([sys.executable, "-m", "score.review", *words], cwd=REPO, capture_output=True, text=True,
-                               stdin=subprocess.DEVNULL, env={**os.environ, "PROPS_HOME": str(tmp_path / "home")})
-        assert found.returncode != 0 and "only the owner" in found.stderr, (words, found.stderr)
-
-
-def test_a_waived_gate_lets_its_output_be_accepted_for_that_key_only(tally):
-    """Fault (review of step 0, 2026-10-11): the hook guarded waivers/, but nothing wrote or read a waiver, so the
-    owner had no way to let a gate he judged wrong pass."""
-    output = tally(5)
-    key = review.record_of(tally.store, NODE, output)["key"]
-    assert "needs a reason" in refusal(lambda: review.waive(tally.store, NODE, key, "faults", "owner", " "))
-    assert "has no check" in refusal(lambda: review.waive(tally.store, NODE, key, "tilt", "owner", "why"))
-    review.waive(tally.store, NODE, key, "faults", "owner", "the five are one fault seen five times")
-    review.accept(tally.store, NODE, output, "owner")
-    assert tally.store.accepted(NODE) == output
-    later = tally(6)  # a new key: the waiver does not carry over
-    assert "answered fail" in refusal(lambda: review.accept(tally.store, NODE, later, "owner"))
-
-
-def test_an_accepted_gaps_objects_leave_the_comparison_and_any_other_object_still_blocks(tmp_path, monkeypatch):
-    """The got-worse comparison is a gate an accepted gap moves its objects' faults from (overseer 2026-10-16;
-    assembly@wreck: resting objects 2 became 3, all three in "wreck: three pieces do not rest"). With a wreck gap
-    written here: the gap's objects at new faults pass; another object at a new fault still reads worse."""
-    from score.stages import gaps
-
-    def resting(objects, findings):
-        return {"resting": {"answer": "pass", "measures": {"objects": objects}, "better": {"objects": "lower"},
-                            "findings": findings}}
-    old = resting(2, ["/wreck/Objects/leg_strut_1: floats 0.0469: nothing under it",
-                      "/wreck/Objects/leg_foot_1: tips 0.2474: its weight falls outside",
-                      "/wreck/Objects/crate_1: sunk 0.03: below"])
-    named = ["/wreck/Objects/leg_strut_1: tips 0.4439: its weight falls outside",
+WRECK_OLD = ["/wreck/Objects/leg_strut_1: floats 0.0469: nothing under it",
+             "/wreck/Objects/leg_foot_1: tips 0.2474: its weight falls outside", "/wreck/Objects/crate_1: sunk 0.03: below"]
+WRECK_NEW = ["/wreck/Objects/leg_strut_1: tips 0.4439: its weight falls outside",
              "/wreck/Objects/forward_section_1: unstable 0.3228: moves", "/wreck/Objects/crate_1: sunk 0.03: below"]
-    monkeypatch.setattr(review, "accepted_card", lambda store, node, output: old)
-    monkeypatch.setattr(gaps, "FOLDER", tmp_path / "checks/gaps")  # the owner's decision, written here
-    gaps.FOLDER.mkdir(parents=True)
-    (gaps.FOLDER / "wreck.json").write_text(json.dumps({"gaps": [{
-        "name": "wreck: three pieces do not rest", "row": "assembly", "check": "resting",
-        "objects": ["/wreck/Objects/leg_strut_1", "/wreck/Objects/leg_foot_1", "/wreck/Objects/forward_section_1"],
-        "reason": "a test's decision", "decided": "owner, 2026-10-16", "faults": []}]}))
-    judged = {"output": "new", "verdicts": resting(3, named)}
-    assert review.worse_than_accepted(None, "assembly@wreck", judged) == []
-    judged = {"output": "new", "verdicts": resting(3, named + ["/wreck/Objects/hull_plate_1: tips 0.3: outside"])}
-    assert review.worse_than_accepted(None, "assembly@wreck", judged) == [
-        "resting: objects 2 became 3 (lower is better; worse from 1)"]
-    grown = [finding.replace("crate_1: sunk 0.03", "crate_1: sunk 0.09") for finding in named]
-    judged = {"output": "new", "verdicts": resting(3, grown)}  # an existing fault outside the gaps grows
-    assert review.worse_than_accepted(None, "assembly@wreck", judged) != []
-    judged = {"output": "new", "verdicts": resting(3, named)}  # no gap reaches this node's gate
-    assert review.worse_than_accepted(None, "assembly@hub", judged) != []
+GAPPED_WORSE = [  # (row, node, the new resting findings, the got-worse lines or None for any): a wreck gap, 3 objects
+    ("the gap's objects at new faults pass", "assembly@wreck", WRECK_NEW, []),
+    ("another object at a new fault still reads worse", "assembly@wreck",
+     WRECK_NEW + ["/wreck/Objects/hull_plate_1: tips 0.3: outside"],
+     ["resting: objects 2 became 3 (lower is better; worse from 1)"]),
+    ("an existing fault outside the gaps grows", "assembly@wreck",
+     [finding.replace("crate_1: sunk 0.03", "crate_1: sunk 0.09") for finding in WRECK_NEW], None),
+    ("no gap reaches this node's gate", "assembly@hub", WRECK_NEW, None),
+]
 
 
-def test_the_page_says_who_accepted_and_offers_no_accept_for_a_failed_output(tally):
-    """A wording check guarding the owner's rules (score/CLAUDE.md, review/): a seed carries its banner, the page says
-    whether the runner or the owner accepted, a worse output is offered to him only with a reason, a failed one not at
-    all, and his reject and waiver show."""
+def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
+    """One store's tally node: the runner takes a passing output and nothing worse; a worse or failed one only the
+    owner takes, by his own signed-in name, with his written reason or waiver; within his worse accept the runner
+    follows him and no further; his reject sticks; his commands and his stop line refuse anyone else. Each judging
+    case (a measure's step, an answer's drop, a gap's objects) is a row read through the same judge."""
     def page():
         return review.page(tally.store, NODE).read_text()
-    tally(1)
+
+    def accepted():
+        return tally.store.accepted(NODE)
+
+    first = tally(1)  # passes, nothing accepted yet: the runner takes it
+    assert accepted() == first and tally.store.current_accept(NODE)["by"] == RUNNER
     assert "Unverified seed." in page() and "The runner accepted this output automatically" in page()
-    second = tally(2)
-    assert "with the Accept button on the cockpit's page of tally@hangar, saying why it may be worse" in page()
-    review.accept(tally.store, NODE, second, "owner", worse_reason="one fault is a false alarm")
-    assert "The owner accepted it" in page()
-    review.reject(tally.store, NODE, second, "owner", "on a third look it is wrong")
-    assert "The owner rejected this output." in page()
-    failed = tally(9)
-    assert "It cannot be accepted" in page() and "Accept button" not in page()
-    review.waive(tally.store, NODE, review.record_of(tally.store, NODE, failed)["key"], "faults", "owner", "seen twice")
-    assert "Waived by owner" in page() and "seen twice" in page()
 
-
-# --- the owner's decision from a signed-in web user -------------------------------------------------------------------
-
-def test_the_signed_in_user_decides_by_his_own_name(tally):
-    output = tally(1)
-    web.decide(tally.store, NODE, output, "reject", by="joey", reason="looked again later")
-    assert tally.store.accepted(NODE) is None
-    written = web.decide(tally.store, NODE, output, "accept", by="joey", reason="it reads right after all")
-    assert written["by"] == "joey" and tally.store.accepted(NODE) == output
-
-
-@pytest.mark.parametrize("faults, decision, named, why", [
-    (1, "accept", {"by": ""}, "signed-in owner's own name"),
-    (1, "accept", {"by": "  "}, "signed-in owner's own name"),
-    (1, "accept", {"by": None}, "signed-in owner's own name"),
-    (1, "accept", {"by": "runner"}, "signed-in owner's own name"),
-    (1, "waive", {"by": "joey"}, "one of accept, reject"),
-    (5, "accept", {"by": "joey"}, "answered fail"),
-    (1, "reject", {"by": "joey", "reason": " "}, "needs a reason"),
-])
-def test_a_web_decision_off_his_rules_is_refused(tally, faults, decision, named, why):
-    output = tally(faults)
-    assert why in refusal(lambda: web.decide(tally.store, NODE, output, decision, **named))
-
-
-def test_a_worse_output_needs_his_written_reason_from_the_web_too(tally):
-    tally(1)
-    second = tally(2)
+    second = tally(2)  # passes, but worse: the runner leaves it, and so do the owner's commands without his reason
+    assert accepted() == first
+    assert "faults 1 became 2" in refusal(lambda: review.accept(tally.store, NODE, second, "owner"))
     assert "worse than the accepted one" in refusal(lambda: web.decide(tally.store, NODE, second, "accept", by="joey"))
-    written = web.decide(tally.store, NODE, second, "accept", by="joey", worse_reason="two faults are fine")
-    assert written["worse_reason"] == "two faults are fine" and tally.store.accepted(NODE) == second
+    assert accepted() == first
+    assert "with the Accept button on the cockpit's page of tally@hangar, saying why it may be worse" in page()
+    given = web.decide(tally.store, NODE, second, "accept", by="joey", worse_reason="two faults are fine")
+    assert given["by"] == "joey" and given["worse_reason"] == "two faults are fine" and accepted() == second
+    assert given["worse"] == ["faults: faults 1 became 2 (lower is better; worse from 1)"]
+    assert given["allowed"] == {"faults": {"faults": {"from": 1, "to": 2}}}
+    assert "The owner accepted it" in page()
 
+    better = tally("1\n")  # better (a key of its own): the runner takes it as ever
+    assert accepted() == better and tally.store.current_accept(NODE)["by"] == RUNNER
+    fourth = tally("2\n")  # worse than the one before, as bad as the one he took: the runner follows his accept
+    assert accepted() == fourth and tally.store.current_accept(NODE)["reason"].startswith(
+        f"accepted automatically: within the owner's accept of {given['at'][:10]} ({second[:12]})")
+    tally(3)  # beyond what he allowed: it waits for him
+    assert accepted() == fourth
 
-def test_the_signed_in_checkout_writes_the_worlds_stop_line_never_in_an_agents_process(tally, monkeypatch):
-    """C22 from the cockpit: his checkout is his money yes; the line is the guard's own, a first line counts from the
-    books given; an empty name or the runner's is refused, and an agent's process writes nothing."""
-    from score.adapters.compute import guard
+    assert "not tally@hangar's accepted output" in refusal(
+        lambda: review.reject(tally.store, NODE, second, "owner", "w"))
+    assert "needs a reason" in refusal(lambda: review.reject(tally.store, NODE, fourth, "owner", " "))
+    review.reject(tally.store, NODE, fourth, "owner", "two faults here are real")
+    assert accepted() == better  # moved back to the one accepted before it
+    assert review.accept_automatically(tally.store, NODE, fourth) is None
+    tally("2\n")  # the runner runs the same key again: it never takes the rejected output back
+    assert accepted() == better and "The owner rejected this output." in page()
+    review.accept(tally.store, NODE, fourth, "owner", "on a second look it is right", worse_reason="as he allowed")
+    assert accepted() == fourth
+
+    pulled = tally.store.records  # an accept pulled before its record: nothing known to be worse than, so it is taken
+    tally.store.records = lambda node: [record for record in pulled(node) if record["output"] != fourth]
+    pulled_worse = tally("3\n")  # worse than the accepted one and beyond his allowance, yet taken
+    assert accepted() == pulled_worse and tally.store.current_accept(NODE)["by"] == RUNNER
+    del tally.store.records
+
+    failed = tally(9)  # fails its gate: offered to no one, refused from his command and the web alike
+    assert accepted() == pulled_worse
+    assert "It cannot be accepted" in page() and "Accept button" not in page()
+    off_his_rules = [  # (output, decision, named, the refusal's words): a web decision off his rules
+        (first, "accept", {"by": ""}, "signed-in owner's own name"),
+        (first, "accept", {"by": "  "}, "signed-in owner's own name"),
+        (first, "accept", {"by": None}, "signed-in owner's own name"),
+        (first, "accept", {"by": "runner"}, "signed-in owner's own name"),
+        (first, "waive", {"by": "joey"}, "one of accept, reject"),
+        (failed, "accept", {"by": "joey"}, "answered fail"),
+        (pulled_worse, "reject", {"by": "joey", "reason": " "}, "needs a reason"),
+    ]
+    for output, decision, named, why in off_his_rules:
+        assert why in refusal(lambda: web.decide(tally.store, NODE, output, decision, **named)), (decision, named)
+    assert "answered fail" in refusal(lambda: review.accept(tally.store, NODE, failed, "owner"))
+    key = review.record_of(tally.store, NODE, failed)["key"]
+    assert "needs a reason" in refusal(lambda: review.waive(tally.store, NODE, key, "faults", "owner", " "))
+    assert "has no check" in refusal(lambda: review.waive(tally.store, NODE, key, "tilt", "owner", "why"))
+    review.waive(tally.store, NODE, key, "faults", "owner", "the nine are one fault seen nine times")
+    assert "Waived by owner" in page() and "the nine are one fault seen nine times" in page()
+    review.accept(tally.store, NODE, failed, "owner", worse_reason="waived")
+    assert accepted() == failed
+    later = tally(10)  # a new key: the waiver does not carry over
+    assert "answered fail" in refusal(lambda: review.accept(tally.store, NODE, later, "owner"))
+    web.decide(tally.store, NODE, failed, "reject", by="joey", reason="looked again later")  # his web reject stands
+    assert accepted() == pulled_worse
+
+    for words in (["reject", NODE, failed, "--reason", "x"], ["accept", NODE, failed],
+                  ["waive", NODE, "k", "faults", "--reason", "x"]):  # his commands, run without his terminal
+        ran = subprocess.run([sys.executable, "-m", "score.review", *words], cwd=REPO, capture_output=True, text=True,
+                             stdin=subprocess.DEVNULL, env={**os.environ, "PROPS_HOME": str(tmp_path / "home")})
+        assert ran.returncode != 0 and "only the owner" in ran.stderr, (words, ran.stderr)
+
+    from score.adapters.compute import guard  # C22 from the cockpit: his checkout writes the world's stop line
     from score.store import AGENT_MARKERS
     for name in AGENT_MARKERS:
         monkeypatch.delenv(name, raising=False)
@@ -755,11 +671,40 @@ def test_the_signed_in_checkout_writes_the_worlds_stop_line_never_in_an_agents_p
     line = web.stop(tally.store, "toy", 9.0, "checkout 1: fix-sound", by="joey", books=lambda: books)
     assert line["by"] == "joey" and line["baseline"] == books and guard.current(tally.store, "toy")["euros"] == 9.0
     raised = web.stop(tally.store, "toy", 12.0, "checkout 2", by="joey", books=lambda: {})
-    assert raised["before"] == 9.0 and raised["baseline"] == books
+    assert raised["before"] == 9.0 and raised["baseline"] == books  # a first line counts from the books given
     monkeypatch.setenv(AGENT_MARKERS[0], "1")
     with pytest.raises(PermissionError):
         web.stop(tally.store, "toy", 99.0, "an agent's", by="joey", books=lambda: books)
     assert guard.current(tally.store, "toy")["euros"] == 12.0
+
+    for row, new, old, worse in REGRESSIONS:  # worse only by a step a viewer could see, or a dropped answer
+        found = review.regressions(new, old)
+        assert (found == worse) if isinstance(worse, list) else (bool(found) == worse), (row, found)
+
+    # accepted gaps pass a place on with one gap object; shiplock's nine and cockpit's eleven (2026-11-12) stay failed
+    one = gapped_card("hatch: no model: hatch: none", "hatch: thin: hatch: 2 mm")
+    nine = gapped_card(*(f"part_{number}: no model: part_{number}: none" for number in range(9)))
+    assert review.fails_only_on_gaps(one, set()) and review.gapped_status(one, set()) == \
+        "complete apart from accepted gaps (2)"
+    assert not review.fails_only_on_gaps(nine, set()) and review.gapped_status(nine, set()) is None
+
+    # an accepted gap's objects leave the got-worse comparison (assembly@wreck, 2026-10-16); any other object blocks
+    from score.stages import gaps
+
+    def resting(objects, findings):
+        return {"resting": {"answer": "pass", "measures": {"objects": objects}, "better": {"objects": "lower"},
+                            "findings": findings}}
+    monkeypatch.setattr(review, "accepted_card", lambda store, node, output: resting(2, WRECK_OLD))
+    monkeypatch.setattr(gaps, "FOLDER", tmp_path / "checks/gaps")  # the owner's decision, written here
+    gaps.FOLDER.mkdir(parents=True)
+    (gaps.FOLDER / "wreck.json").write_text(json.dumps({"gaps": [{
+        "name": "wreck: three pieces do not rest", "row": "assembly", "check": "resting",
+        "objects": ["/wreck/Objects/leg_strut_1", "/wreck/Objects/leg_foot_1", "/wreck/Objects/forward_section_1"],
+        "reason": "a test's decision", "decided": "owner, 2026-10-16", "faults": []}]}))
+    for row, node, findings, lines in GAPPED_WORSE:
+        got = review.worse_than_accepted(None, node, {"output": "new", "verdicts": resting(3, findings)})
+        assert (got == lines) if lines is not None else got != [], (row, got)
+
 
 
 # --- concept draws and locks: a paid call only inside his yes at today's price ----------------------------------------
