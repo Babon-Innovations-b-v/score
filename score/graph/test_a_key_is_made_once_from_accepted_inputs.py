@@ -231,8 +231,6 @@ def make_logged_count(inputs, out, seed, params):
 LOGGED = (dataclasses.replace(CLEAN, make=make_logged_clean), dataclasses.replace(COUNT, make=make_logged_count))
 
 
-
-
 def code_tar(folder):
     """This tree's score/, tools/ and uv.lock as a pod's code archive (the working files, as a frozen commit of an
     uncommitted tree archives them)."""
@@ -2224,6 +2222,7 @@ def test_a_gapped_reader_runs_past_a_gate_failing_only_on_its_accepted_gaps_and_
 # Fault (owner, 2026-10-22): this PC (43 GB) has run out of memory before; the Buy batch goes from 8 jobs to 16.
 
 FLOOR = graph.MEMORY_FLOOR
+GIGA = 10**9
 
 
 def faked(monkeypatch, readings):
@@ -2237,22 +2236,288 @@ def faked(monkeypatch, readings):
     return taken
 
 
-def test_each_running_node_holds_room_for_its_peak_less_what_it_holds_and_a_machine_names_its_own(monkeypatch):
-    """2.5 floors available: room for one unmeasured node with none running, none beside one that holds nothing yet,
-    room beside one that already holds its peak (or more), none beside one at 1 of its 3-floor peak (it grows after
-    its start: finish-route-views, 2026-10-28); a 4 GB floor named by SCORE_MIN_FREE_GB on 9 GB: room for one, none
-    beside one starting.
-    Break: score/graph/__init__.py: '    coming = sum(max(0, peak - holds) for peak, holds in running)' -> '    coming = 0'"""
-    faked(monkeypatch, [2.5 * FLOOR])
-    assert graph.memory_room([], FLOOR) and not graph.memory_room([(FLOOR, 0)], FLOOR)
-    assert graph.memory_room([(FLOOR, FLOOR)], FLOOR) and graph.memory_room([(FLOOR, 2 * FLOOR)], FLOOR)
-    assert not graph.memory_room([(3 * FLOOR, FLOOR)], 0.1 * FLOOR)
-    faked(monkeypatch, [9 * 2**30])
-    monkeypatch.setenv(graph.FLOOR_VARIABLE, "4")
-    assert graph.memory_floor() == 4 * 2**30 and graph.memory_room([], 4 * 2**30)
-    assert not graph.memory_room([(4 * 2**30, 0)], 4 * 2**30)
-    monkeypatch.setenv(graph.FLOOR_VARIABLE, "")
-    assert graph.memory_floor() == FLOOR and not graph.memory_room([], FLOOR)
+def a_machine(proc, cgroups, monkeypatch):
+    """One PC in fake `proc` and `cgroups` folders, read by the real readers (graph.PROC, CGROUPS, docker's listing):
+    a node 100 (1000 MB resident, 300 MB its share; VmHWM 10 GB) whose child 101 shares its pages (1000 MB, 200 MB
+    its share) and exec'd tools/cloud/blender_cloud.py (VmHWM 3 GB), whose child 102 has no readable smaps_rollup
+    (50 MB resident), whose grandchild 103 under 101 holds 100 MB by share, and whose worker 104 forked from it and
+    never exec'd holds 1 GB by share though its VmHWM, inherited, says 2 GB; a node 200 (9000 MB, outside 100's tree)
+    whose child 201 runs tools/cloud/gemini_judge.py; and three containers: the first SCORE one (score-this-pc: 30 GB
+    cap, 10 GB anon; its sshd 10 runs paint_bake.py takes 20 (5 GB now, peaked 6) and 30 (1 GB, peaked 2), an idle
+    ssh session 40 and an rsync session 50), a kind's own (score-this-pc-segment: 10 GB cap, 4 GB anon; its sshd 60
+    runs a segment_worker.py take 70) and another program's (postgres: 50 GB cap, never read). The cgroup folders,
+    by name (docker's listing of them: LISTED)."""
+    page, megabyte = os.sysconf("SC_PAGE_SIZE"), 2**20
+    pages = megabyte // page
+    monkeypatch.setattr(graph, "PROC", str(proc))
+    proc.mkdir()
+    a_process(proc, 1, 0, 0)
+    a_process(proc, 100, 1, 1000 * pages, 300 * 1024)
+    a_process(proc, 101, 100, 1000 * pages, 200 * 1024)
+    a_process(proc, 102, 100, 50 * pages)
+    a_process(proc, 103, 101, 100 * pages, 100 * 1024)
+    a_process(proc, 104, 100, 10, pss_kb=GIGA // 1024)
+    a_process(proc, 200, 1, 9000 * pages, 9000 * 1024)
+    a_process(proc, 201, 200, 10)
+    for pid, (command, high) in {100: (b"python\0score\0run\0", 10 * GIGA),
+                                 101: (b"python3\0tools/cloud/blender_cloud.py\0--detach\0", 3 * GIGA),
+                                 104: (b"python\0score\0run\0", 2 * GIGA),
+                                 201: (b"python3\0tools/cloud/gemini_judge.py\0", 0)}.items():
+        (proc / str(pid) / "cmdline").write_bytes(command)
+        (proc / str(pid) / "status").write_text(f"Name:\tnode\nVmHWM:\t{high // 1024} kB\n")
+    for sshd in (10, 60):
+        a_process(proc, sshd, 1, 1)
+    a_container_job(proc, 10, 20, "paint_bake.py", 5, 6)
+    a_container_job(proc, 10, 30, "paint_bake.py", 1, 2)
+    for session in (40, 50):
+        a_process(proc, session, 10, 1)
+        (proc / str(session) / "cmdline").write_bytes(b"sshd: root@notty\0")
+    a_process(proc, 51, 50, 1)
+    (proc / "51" / "cmdline").write_bytes(b"rsync\0--server\0.\0")
+    a_container_job(proc, 60, 70, "segment_worker.py", 3, 4)
+    folders = {name: cgroups / identity for name, identity in (("first", "aaa"), ("segment", "bbb"), ("theirs", "ccc"))}
+    for name, (room, anon, procs) in {"first": (30, 10, "10\n20\n21\n30\n31\n40\n50\n51\n"),
+                                      "segment": (10, 4, "60\n70\n71\n"), "theirs": (50, 0, "")}.items():
+        folders[name].mkdir(parents=True)
+        (folders[name] / "cgroup.procs").write_text(procs)
+        (folders[name] / "memory.max").write_text(f"{room * GIGA}\n")
+        (folders[name] / "memory.stat").write_text(f"anon {anon * GIGA}\nfile 0\n")
+    monkeypatch.setattr(graph, "CGROUPS", (str(cgroups / "{id}"),))
+    return folders
+
+
+LISTED = "aaa score-this-pc\nbbb score-this-pc-segment\nccc postgres\n"
+
+
+def a_running(*nodes):
+    """runner.coming's `running` of `nodes` ((stage name, pid, whether it is alive)), each at hangar."""
+    return {number: (types.SimpleNamespace(name=stage, grain="place"), "hangar",
+                     types.SimpleNamespace(pid=pid, is_alive=lambda alive=alive: alive))
+            for number, (stage, pid, alive) in enumerate(nodes)}
+
+
+TENTH = int(0.1 * FLOOR)
+WAITING_BAKES = (("bake", 11, True), ("bake", 12, True), ("bake", 13, True), ("count", 14, True))
+SETTLE = (("settle", 11, True),)
+# What a new node has room for: (row, available, SCORE_MIN_FREE_GB, the running nodes' (peak, holds), the new
+# node's expected peak, the floor that applies, whether it fits).
+ROOM = (
+    ("none running: one unmeasured node", 2.5 * FLOOR, "", [], FLOOR, FLOOR, True),
+    ("beside one holding nothing yet: none", 2.5 * FLOOR, "", [(FLOOR, 0)], FLOOR, FLOOR, False),
+    ("beside one holding its peak", 2.5 * FLOOR, "", [(FLOOR, FLOOR)], FLOOR, FLOOR, True),
+    ("beside one holding more than its peak", 2.5 * FLOOR, "", [(FLOOR, 2 * FLOOR)], FLOOR, FLOOR, True),
+    ("beside one at 1 of its 3-floor peak, it grows after its start", 2.5 * FLOOR, "", [(3 * FLOOR, FLOOR)],
+     0.1 * FLOOR, FLOOR, False),
+    ("a 4 GB floor named on 9 GB: room for one", 9 * 2**30, "4", [], 4 * 2**30, 4 * 2**30, True),
+    ("a 4 GB floor named on 9 GB: none beside one starting", 9 * 2**30, "4", [(4 * 2**30, 0)], 4 * 2**30,
+     4 * 2**30, False),
+    ("the floor unnamed on 9 GB: none", 9 * 2**30, "", [], FLOOR, FLOOR, False),
+    ("a second settle beside the first at its 8 GiB stage peak", 20 * 2**30, "", [(8 * 2**30, 0)], 8 * 2**30,
+     FLOOR, False),
+    ("one settle at its 12 GB tree on 30 GB", 30 * GIGA, "", [], 12 * GIGA, FLOOR, True),
+)
+# What each running node reserves (runner.coming), and whether a new node then fits: (row, the running nodes, this
+# PC or not, what each tree holds now, the container's room (None: unread), the stage peaks, the client trees, the
+# grown client stages, the reserves expected, available, the new node's expected peak, whether it fits).
+COMING = (
+    ("on this PC waiting bake clients reserve their kept trees beside the container counted once", WAITING_BAKES,
+     True, TENTH, 1.5 * FLOOR, {"count": 2 * FLOOR}, {"bake": TENTH}, {"bake"},
+     [(TENTH, TENTH)] * 3 + [(2 * FLOOR, TENTH), (int(1.5 * FLOOR), 0)], 5.5 * FLOOR, FLOOR, True),
+    ("on this PC with the container unread each bake keeps the default", WAITING_BAKES, True, TENTH, None,
+     {"count": 2 * FLOOR}, {"bake": TENTH}, {"bake"}, [(FLOOR, TENTH)] * 3 + [(2 * FLOOR, TENTH)], 5.5 * FLOOR,
+     FLOOR, False),
+    ("off this PC the container is never read and each bake keeps the default", WAITING_BAKES, False, TENTH, "never",
+     {"count": 2 * FLOOR}, {"bake": TENTH}, {"bake"}, [(FLOOR, TENTH)] * 3 + [(2 * FLOOR, TENTH)], 5.5 * FLOOR,
+     FLOOR, False),
+    ("a running settle client keeps its tree's kept 12 GB, a second does not start beside it", SETTLE, True, 0, 0,
+     {"settle": 8 * 2**30}, {"settle": 12 * GIGA}, set(), [(12 * GIGA, 0), (0, 0)], 30 * GIGA, 12 * GIGA, False),
+    ("a client stage whose tree was never measured reserves the floor while it runs", SETTLE, True, 0, 0, {}, {},
+     set(), [(FLOOR, 0), (0, 0)], 100 * FLOOR, FLOOR, True),
+    ("an ended node holds nothing, a live one its stage's peak", (("clean", 11, False), ("count", 12, True)), False,
+     0, "never", {"clean": 2 * FLOOR, "count": FLOOR}, {}, set(), [(FLOOR, 0)], 100 * FLOOR, FLOOR, True),
+)
+# What a client stage's node reserves for its own tree: (row, the stage peaks, the client trees, the grown client
+# stages, client_peak, client_reserve).
+CLIENT = (
+    ("settle's 2.87 GB tree kept from a small early node: its 8 GiB stage peak until one grew",
+     {"settle": 8 * 2**30}, {"settle": int(2.87 * GIGA)}, set(), int(2.87 * GIGA), 8 * 2**30),
+    ("settle grown: its kept 2.87 GB", {"settle": 8 * 2**30}, {"settle": int(2.87 * GIGA)}, {"settle"},
+     int(2.87 * GIGA), int(2.87 * GIGA)),
+    ("settle's real 12 GB tree kept over its 8 GiB stage peak", {"settle": 8 * 2**30}, {"settle": 12 * GIGA}, set(),
+     12 * GIGA, 12 * GIGA),
+    ("never measured: the floor", {}, {}, set(), FLOOR, FLOOR),
+)
+
+
+def test_a_node_is_given_room_only_for_what_it_and_the_running_ones_may_still_take(tmp_path, monkeypatch):
+    """A new node starts only while available memory, less what each running node may still grow by and less its own
+    expected peak, stays at the floor (SCORE_MIN_FREE_GB, else MEMORY_FLOOR). A node's tree is read by each process's
+    share of its pages (rss where that cannot be read) and by its VmHWM summed, a worker forked and never exec'd by its
+    share; a tree that runs blender_cloud.py ran a container client. Every SCORE container on this PC is read (never
+    another program's), its room summed and its takes counted; the container reserves what its takes may still grow to,
+    each kind's kept take peaks deciding. On this PC a container client's node reserves its own tree, at least its
+    stage peak until one of its nodes grew, and the container once beside its callers; off this PC, or with the
+    container unread, each keeps its stage's default; an ended node holds nothing. Histories: round 23 (light passes'
+    21 GB take paused before its peak was kept), 2026-10-28 (finish-route-views grew after its start; nodes ended but
+    not reaped counted their peaks), 2026-10-29 (the cap's whole 16.5 GiB reserved beside three small takes), round 26
+    and the coordinator, 2026-10-30 (settle's 12-13 GB never kept, two settles started together), 2026-10-31 (PRD #73:
+    each kind in a container of its own), 2026-11-10 (a settle tree kept at 25.8 GB by inherited VmHWM).
+    Break: score/graph/__init__.py: '    coming = sum(max(0, peak - holds) for peak, holds in running)' -> '    coming = 0'
+    -> ROOM's "beside one holding nothing yet" fits.
+    Break: score/graph/__init__.py:
+    '            mine = process.pid in users and (reading is not None or process.pid not in calling)' ->
+    '            mine = False' -> the bake clients keep the default beside the container: no room.
+    Break: score/graph/__init__.py: 'return found if stage in grown else max(found, peaks.get(stage, memory_floor()))'
+    -> 'return found' -> the ungrown settle reserves 2.87 GB.
+    Break: score/graph/__init__.py: 'client_reserve(name, peaks, clients, grown) if mine' ->
+    'held[process.pid] if mine' -> the running settle reserves what it holds, a second starts beside it.
+    Break: score/graph/__init__.py: '                clients.update(self.keep_client_tree(stage.name, high))' ->
+    '                pass' -> node 100's tree peak not kept while it runs.
+    Break: score/graph/__init__.py: 'max(seen[node], highs.get(process.pid, 0))' -> 'seen[node]' -> nothing kept (its
+    1.7 GB share is under the floor).
+    Break: score/graph/__init__.py: 'if pid != root and forked_only(pid, parent)' -> 'if False' -> worker 104 counted
+    at its inherited 2 GB VmHWM, not its 1 GB share.
+    Break: score/graph/__init__.py: 'return bool(mine) and mine ==' -> 'return bool(mine) or mine ==' -> the exec'd
+    child 101 counted by its share, not its 3 GB VmHWM.
+    Break: score/graph/__init__.py: '                total += proportional_bytes(pid, table[pid][1])' ->
+    '                total += table[pid][1]' -> 100's tree by its resident sum.
+    Break: score/graph/__init__.py: '    return sum(room for room, _ in readings), jobs' ->
+    '    return readings[0][0], container_jobs(readings[0][1])' -> 20 GB, the segment take missing; or
+    'name == CONTAINER or name.startswith(f"{CONTAINER}-")' -> 'True' in container_cgroups -> postgres read.
+    Break: score/graph/__init__.py: '    growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))'
+    -> '    growth = room' -> the whole room again.
+    Break: score/graph/__init__.py: '[kind, max(high, kept["open"].get(key, [kind, 0, None])[1]), None]' ->
+    '[kind, 0, None]' -> each take's highest reading lost: the bake takes' kept peaks, the stopped take's 21 GB.
+    Break: score/graph/__init__.py: 'TAKE_PEAK if len(measured) < TAKES_TRUSTED else 0' -> '0' -> one written take
+    trusted: take 20 and the idle slot grow 1 + 6 GB, not 3.5 + 8.5; paint_bake.py's peak 1 GB from four takes.
+    Break: score/graph/__init__.py: '    side = "written" if wrote else "unwritten"' -> '    side = "written"' -> a
+    take that wrote nothing counted as written: the stopped light take's 21 GB, the failed bakes lowering it to 1 GB.
+    Break: score/graph/__init__.py: 'take_mark(key).get("predicted", 0)' -> '0' -> 21 GB less 1, not 29 less 1.
+    Break: score/graph/__init__.py: 'for stage, place, process in running.values() if process.is_alive()]' ->
+    'for stage, place, process in running.values()]' -> the ended clean node charged its 2 floors.
+    Break: score/graph/__init__.py: '        peak = max(peak, memory_floor()) if contained else peak' ->
+    '        peak = peak' -> a node that ran a container client keeps its 0.1 floor."""
+    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
+    marks = tmp_path / "marks"
+    marks.mkdir()
+    monkeypatch.setattr(graph, "TAKE_MARKS", marks)
+    folders = a_machine(tmp_path / "proc", tmp_path / "cgroups", monkeypatch)
+    page, megabyte = os.sysconf("SC_PAGE_SIZE"), 2**20
+
+    # the machine as its readers see it
+    share_100 = (300 + 200 + 50 + 100) * megabyte + GIGA // 1024 * 1024  # never the resident sum
+    assert graph.trees_held([100, 999]) == {100: share_100, 999: 0}
+    # 100's and its exec'd child's VmHWM, the forked worker by its share; 102 and 103 have no status
+    high_100 = (10 * GIGA // 1024 + 3 * GIGA // 1024 + GIGA // 1024) * 1024
+    assert graph.trees_high([100]) == {100: high_100}
+    assert graph.ran_container_client(100) and not graph.ran_container_client(200)
+    with monkeypatch.context() as docker:
+        docker.setattr(graph.subprocess, "run", lambda *_, **__: subprocess.CompletedProcess([], 0, LISTED, ""))
+        found = graph.container_cgroups()
+    assert found == [folders["first"], folders["segment"]], found
+    monkeypatch.setattr(graph, "CGROUPS_OF", lambda: found)
+    room, jobs = graph.container_reading()
+    assert room == 26 * GIGA and sorted(kind for kind, _, _ in jobs.values()) == [
+        "paint_bake.py", "paint_bake.py", "segment_worker.py"], (room, jobs)
+    take_20, take_30 = graph.take_key(["take-20"]), graph.take_key(["take-30"])
+    high_20, high_30 = 6 * GIGA // 1024 * 1024, 2 * GIGA // 1024 * 1024
+    bakes = graph.container_jobs(folders["first"])
+    assert bakes == {take_20: ("paint_bake.py", 5 * GIGA // page * page, high_20),
+                     take_30: ("paint_bake.py", 1 * GIGA // page * page, high_30)}, bakes
+    assert graph.container_room(folders["first"]) == 20 * GIGA
+    assert graph.take_key(["/a", "/b"]) == "148c32fbefbb40c1"  # tools/cloud/blender_cloud.py's test asserts the same
+
+    for row, available, named, running, expected, floor, fits in ROOM:
+        monkeypatch.setenv(graph.FLOOR_VARIABLE, named)
+        monkeypatch.setattr(graph, "AVAILABLE", lambda available=available: available)
+        assert graph.memory_floor() == floor, row
+        assert graph.memory_room(running, expected) == fits, row
+    monkeypatch.delenv(graph.FLOOR_VARIABLE)
+
+    runner = a_driven_runner({"hangar": "a ship"})
+    for row, nodes, this_pc, holds, container, peaks, clients, grown, reserves, available, expected, fits in COMING:
+        monkeypatch.setenv(graph.THIS_PC[0], graph.THIS_PC[1] if this_pc else "scaleway")
+        monkeypatch.setattr(graph, "HELD", lambda pids, holds=holds: dict.fromkeys(pids, holds))
+        monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, 0))
+        monkeypatch.setattr(graph, "CONTAINED", lambda pid: pid < 14)
+        monkeypatch.setattr(graph, "CONTAINER_READ", (lambda: pytest.fail(f"{row}: the container read")) if
+                            container == "never" else lambda container=container: None if container is None else
+                            (int(container), {}))  # no take seen yet: all its room
+        monkeypatch.setattr(graph, "AVAILABLE", lambda available=available: available)
+        coming = runner.coming(a_running(*nodes), peaks, {}, dict(clients), grown)
+        assert coming == reserves, (row, coming)
+        assert graph.memory_room(coming, expected) == fits, row
+
+    for row, peaks, clients, grown, peak, reserve in CLIENT:
+        assert graph.client_peak("settle", peaks, clients) == peak, row
+        assert graph.client_reserve("settle", peaks, clients, grown) == reserve, row
+    assert runner.client_grown() == set() and runner.keep_grown("settle") == runner.client_grown() == {"settle"}
+
+    # node 100 runs a container client on this PC, read through the machine: its tree's peak is kept at once
+    monkeypatch.setenv(*graph.THIS_PC)
+    for name, reader in (("HELD", graph.trees_held), ("HIGH", graph.trees_high), ("CONTAINED",
+                                                                                graph.ran_container_client)):
+        monkeypatch.setattr(graph, name, reader)
+    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: (0, {}))
+    clients, running = {}, a_running(("settle", 100, True))
+    assert runner.coming(running, {}, {}, clients)[0] == (high_100, share_100)
+    (tmp_path / "proc" / "100" / "status").write_text("Name:\tnode\nVmHWM:\t0 kB\n")  # a later, lower reading
+    runner.coming(running, {}, {}, clients)
+    assert clients == runner.client_trees() == {"settle": high_100}  # stopped now, no outcome read: still kept
+    assert graph.client_peak("settle", runner.peaks(), runner.client_trees()) == high_100
+
+    # a node's stage peak once it ended: one that ran a container client counts as the default at least
+    clean = runner.stages["clean"]
+    runner.keep_peak("clean", TENTH)
+    assert runner.measured(clean, "made: pass", TENTH, False, runner.peaks()) == {"clean": TENTH}
+    assert runner.measured(clean, "fresh", TENTH, True, runner.peaks()) == {"clean": FLOOR}
+    assert runner.peaks() == {"clean": FLOOR}
+
+    # the container's reserve from the first container's bake takes: none seen yet in any claim, its whole room; seen
+    # once, each take TAKE_PEAK (8.5 GB, none of the kind wrote its outputs) less what it holds, each one's highest
+    # reading kept under its key at once
+    empty = {"written": {}, "unwritten": {}, "open": {}, "slots": 0}
+    assert graph.container_reserve(20 * GIGA, bakes, empty) == 20 * GIGA
+    bake_run = a_driven_runner({"hangar": "a ship"})
+    near = functools.partial(pytest.approx, abs=2 * page)
+    assert bake_run.container_growth((20 * GIGA, bakes)) == near(11 * GIGA)  # 3.5 + 7.5
+    assert bake_run.container_takes() == {"written": {}, "unwritten": {}, "slots": 2, "open": {
+        take_20: ["paint_bake.py", high_20, None], take_30: ["paint_bake.py", high_30, None]}}
+    # take 30 ends, its mark saying it wrote its outputs: its 2 GB kept as written, its mark removed; fewer than
+    # TAKES_TRUSTED written, so take 20 still grows 3.5 and the idle slot 8.5; never more than the room
+    (marks / f"{take_30}.json").write_text(json.dumps({"kind": "paint_bake.py", "wrote": True}))
+    alone = {take_20: bakes[take_20]}
+    assert bake_run.container_growth((20 * GIGA, alone)) == near(3.5 * GIGA + 8.5 * GIGA)
+    kept = bake_run.container_takes()
+    assert kept["written"] == {"paint_bake.py": [high_30]} and list(kept["open"]) == [take_20], kept
+    assert not (marks / f"{take_30}.json").exists()
+    assert bake_run.container_growth((3 * GIGA, alone)) == 3 * GIGA
+
+    # another run's desk: a light take read at 21 GB, then gone with no word (its runner stopped): kept at once, still
+    # counted, and SETTLE_SECONDS later settled as a take that wrote nothing, its 21 GB the kind's peak
+    take_run = a_driven_runner({"hangar": "a ship"})
+    light = graph.take_key(["/base.usda", "/views.json", "/passes"])
+    take_run.keep_takes({light: ("light_passes.py", 20 * GIGA, 21 * GIGA)}, 1000.0)
+    kept = take_run.keep_takes({}, 1010.0)
+    assert kept["open"] == {light: ["light_passes.py", 21 * GIGA, 1010.0]}, kept
+    assert graph.take_peak(kept, "light_passes.py") == 21 * GIGA
+    kept = take_run.keep_takes({}, 1010.0 + graph.SETTLE_SECONDS)
+    assert kept["unwritten"] == {"light_passes.py": [21 * GIGA]} and not kept["open"], kept
+    assert graph.take_peak(kept, "light_passes.py") == 21 * GIGA
+    # paint_bake.py: six 1 GB takes that failed (wrote false) and four that wrote leave its peak at TAKE_PEAK; a
+    # fifth written makes it 1 GB
+    for name, wrote in [*((f"failed-{number}", False) for number in range(6)),
+                        *((f"wrote-{number}", True) for number in range(5))]:
+        key = graph.take_key([name])
+        take_run.keep_takes({key: ("paint_bake.py", GIGA, GIGA)}, 2000.0)
+        (marks / f"{key}.json").write_text(json.dumps({"kind": "paint_bake.py", "wrote": wrote}))
+        kept = take_run.keep_takes({}, 2001.0)
+        assert graph.take_peak(kept, "paint_bake.py") == (GIGA if name == "wrote-4" else graph.TAKE_PEAK), name
+    # a running take whose mark predicts 29 GB from its inputs reserves 29 GB less the 1 GB it holds
+    rendering = graph.take_key(["/garage.usda"])
+    (marks / f"{rendering}.json").write_text(json.dumps({"kind": "light_passes.py", "predicted": 29 * GIGA}))
+    assert graph.container_reserve(40 * GIGA, {rendering: ("light_passes.py", GIGA, GIGA)},
+                                   take_run.container_takes()) == 28 * GIGA
 
 
 def test_the_drive_waits_while_memory_is_short_and_never_starts_more_than_its_jobs(monkeypatch):
@@ -2336,125 +2601,6 @@ def test_a_node_past_its_start_still_holds_room_for_its_stages_peak_and_each_pea
     assert runner.coming(alive, peaks, {}, {}) == [(int(1.5 * FLOOR), int(0.1 * FLOOR))]
 
 
-def test_on_this_pc_the_container_is_counted_once_and_its_waiting_clients_reserve_only_their_trees(monkeypatch):
-    """Three bake nodes running the container client (one holds the claim, two wait on it; their own trees kept at 0.1
-    floor, no stage peak kept: the default) and one count node (peak 2 floors), each tree at 0.1 floor, the container's
-    room 1.5 floors, 5.5 floors available: the bake nodes reserve nothing past their kept trees, the container once, so
-    a new default node fits (5.5 - 1.9 - 1.5 - 1 >= 1); with the container unread, or off this PC (the container never
-    read), each bake node keeps the default and it does not.
-    Break: score/graph/__init__.py: '            mine = reading is not None and process.pid in users' ->
-    '            mine = False' -> the bake nodes keep the default beside the container: no room."""
-    runner = a_driven_runner({"hangar": "a ship"})
-    bake, count = types.SimpleNamespace(name="bake", grain="place"), types.SimpleNamespace(name="count", grain="place")
-    alive = [types.SimpleNamespace(pid=pid, is_alive=lambda: True) for pid in (11, 12, 13, 14)]
-    running = {pipe: (bake if process.pid < 14 else count, "hangar", process) for pipe, process in enumerate(alive)}
-    peaks, room = {"count": 2 * FLOOR}, [int(1.5 * FLOOR)]
-    faked(monkeypatch, [5.5 * FLOOR])
-    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, int(0.1 * FLOOR)))
-    monkeypatch.setattr(graph, "CONTAINED", lambda pid: pid < 14)
-    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: room[0] and (room[0], {}))  # no job seen yet: all its room
-    monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, 0))
-    monkeypatch.setenv(*graph.THIS_PC)
-    clients, grown = {"bake": int(0.1 * FLOOR)}, {"bake"}  # a bake that made its output kept its tree
-    coming = runner.coming(running, peaks, {}, clients, grown)
-    assert sum(max(0, peak - holds) for peak, holds in coming) == 2 * FLOOR - int(0.1 * FLOOR) + int(1.5 * FLOOR)
-    assert graph.memory_room(coming, FLOOR)
-    room[0] = None
-    assert not graph.memory_room(runner.coming(running, peaks, {}, clients, grown), FLOOR)
-    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: pytest.fail("the container is read off this PC"))
-    monkeypatch.setenv(graph.THIS_PC[0], "scaleway")
-    assert not graph.memory_room(runner.coming(running, peaks, {}, clients, grown), FLOOR)
-
-
-def test_on_this_pc_a_client_stage_reserves_its_stage_peak_until_a_node_of_it_reached_its_real_size(monkeypatch):
-    """Round 26, 2026-10-30: settle's kept tree was 2.87 GB from a small early node, its real nodes reaching 12 to
-    13.8 GB, and two settles ready in a first drive pass both started. Its stage peak the 8 GiB floor a container stage
-    keeps: until a settle node ended having made its output it reserves 8 GiB, so with 20 GiB available and the 6 GiB
-    floor a second does not start beside the first (20 - 8 - 8 < 6); once one grew, its kept 2.87 GB.
-    Break: score/graph/__init__.py: 'return found if stage in grown else max(found, peaks.get(stage, memory_floor()))'
-    -> 'return found' -> the second settle starts at 2.87 GB."""
-    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
-    peaks, clients = {"settle": 8 * 2**30}, {"settle": int(2.87 * GIGA)}
-    expected = graph.client_reserve("settle", peaks, clients, set())
-    assert expected == 8 * 2**30, expected
-    faked(monkeypatch, [20 * 2**30])
-    assert not graph.memory_room([(expected, 0)], expected)
-    assert graph.client_reserve("settle", peaks, clients, {"settle"}) == int(2.87 * GIGA)
-    runner = a_driven_runner({"hangar": "a ship"})
-    assert runner.client_grown() == set() and runner.keep_grown("settle") == runner.client_grown() == {"settle"}
-
-
-def test_on_this_pc_a_running_container_client_keeps_its_own_trees_kept_peak_until_it_ends(monkeypatch):
-    """Round 26, 2026-10-30: settle@greenhouse and settle@garage each grew to 12-13 GB in their own trees side by side
-    beside the container; a running client node reserved only what its tree held. A `settle` stage whose nodes'
-    trees peaked at 12 GB, 30 GB available, the 6 GiB floor, the container with no room left: one node starts (30 -
-    12 >= 6.4), a second beside the first (its tree holding nothing yet, just after its start) does not (30 - 12 - 12 < 6.4);
-    a stage whose own tree was never measured reserves the floor while it runs.
-    Break: score/graph/__init__.py: 'client_peak(stage.name, peaks, clients) if mine else' ->
-    'held[process.pid] if mine else' -> the second node starts beside the first."""
-    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
-    monkeypatch.setenv(*graph.THIS_PC)
-    runner = a_driven_runner({"hangar": "a ship"})
-    settle = types.SimpleNamespace(name="settle", grain="place")
-    running = {0: (settle, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: True))}
-    faked(monkeypatch, [30 * GIGA])
-    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
-    monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, 0))
-    monkeypatch.setattr(graph, "CONTAINED", lambda pid: True)
-    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: (0, {}))
-    peaks, clients = {"settle": 8 * 2**30}, {"settle": 12 * GIGA}
-    expected = graph.client_peak("settle", peaks, clients)
-    assert expected == 12 * GIGA and graph.memory_room([], expected)
-    coming = runner.coming(running, peaks, {}, clients)
-    assert coming == [(12 * GIGA, 0), (0, 0)] and not graph.memory_room(coming, expected)
-    assert runner.coming(running, {}, {}, {}) == [(FLOOR, 0), (0, 0)]
-
-
-def test_on_this_pc_a_container_clients_tree_peak_is_kept_while_it_runs_so_a_stopped_one_leaves_it(tmp_path,
-                                                                                                  monkeypatch):
-    """The coordinator, 2026-10-30: the round 26 settle nodes never ended with an outcome read, so their 12-13 GB was
-    never kept. A running settle node holding 1 GB by its share now, its processes' VmHWM summing to 13 GB: the
-    reading keeps 13 GB beside the store at once, a later lower reading never lowers it, and with the node stopped
-    (no outcome ever read) a later settle node is reserved at 13 GB; trees_high sums its processes' VmHWM (2 + 3 GB).
-    Break: score/graph/__init__.py: '                clients.update(self.keep_client_tree(stage.name, high))' ->
-    '                pass' -> nothing kept until the node ends.
-    Break: score/graph/__init__.py: 'max(seen[node], highs.get(process.pid, 0))' -> 'seen[node]' -> nothing kept (1 GB
-    is under the floor).
-    A worker forked from the node and never exec'd (the node's command line) counts its share now, not the VmHWM it
-    inherited (2026-11-10: settle's tree kept at 25.8 GB against 15.4 GB by share); an exec'd child keeps its VmHWM.
-    Break: score/graph/__init__.py: 'if pid != root and forked_only(pid, parent)' -> 'if False' -> 7 GB, not 6.
-    Break: score/graph/__init__.py: 'return bool(mine) and mine ==' -> 'return bool(mine) or mine ==' -> the exec'd
-    child counted by its share (rss), not its 3 GB VmHWM."""
-    monkeypatch.setenv(*graph.THIS_PC)
-    runner = a_driven_runner({"hangar": "a ship"})
-    settle = types.SimpleNamespace(name="settle", grain="place")
-    running = {0: (settle, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: True))}
-    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, GIGA))
-    high = [13 * GIGA]
-    monkeypatch.setattr(graph, "HIGH", lambda pids: dict.fromkeys(pids, high[0]))
-    monkeypatch.setattr(graph, "CONTAINED", lambda pid: True)
-    monkeypatch.setattr(graph, "CONTAINER_READ", lambda: (0, {}))
-    clients = {}
-    assert runner.coming(running, {}, {}, clients)[0] == (13 * GIGA, GIGA)
-    high[0] = 2 * GIGA
-    runner.coming(running, {}, {}, clients)
-    assert clients == runner.client_trees() == {"settle": 13 * GIGA}
-    assert graph.client_peak("settle", runner.peaks(), runner.client_trees()) == 13 * GIGA
-    monkeypatch.setattr(graph, "PROC", str(tmp_path))
-    a_process(tmp_path, 100, 1, 10)
-    a_process(tmp_path, 101, 100, 10)
-    for pid, kilobytes in ((100, 2 * GIGA // 1024), (101, 3 * GIGA // 1024)):
-        (tmp_path / str(pid) / "status").write_text(f"Name:\tnode\nVmHWM:\t{kilobytes} kB\n")
-    (tmp_path / "100" / "cmdline").write_bytes(b"python\0score\0run\0")
-    (tmp_path / "101" / "cmdline").write_bytes(b"python\0blender_cloud.py\0")  # exec'd: its own VmHWM
-    assert graph.trees_high([100]) == {100: 2 * GIGA // 1024 * 1024 + 3 * GIGA // 1024 * 1024}
-    # a worker forked from the node and never exec'd starts at the node's VmHWM: its share now (1 GB) counts instead
-    a_process(tmp_path, 102, 100, 10, pss_kb=GIGA // 1024)
-    (tmp_path / "102" / "status").write_text(f"Name:\tnode\nVmHWM:\t{2 * GIGA // 1024} kB\n")
-    (tmp_path / "102" / "cmdline").write_bytes(b"python\0score\0run\0")
-    assert graph.trees_high([100]) == {100: 2 * GIGA // 1024 * 1024 + 3 * GIGA // 1024 * 1024 + GIGA // 1024 * 1024}
-
-
 def test_a_node_that_made_nothing_never_brings_its_stage_under_the_default(monkeypatch):
     """A second drive whose nodes find their outputs made (0.1 floor each, the peaks file gone) keeps no peak, so the
     next node of the stage is still given the default (2026-10-28: quick finish-route-views nodes kept 0.1 GB, and
@@ -2484,25 +2630,6 @@ def a_process(proc, pid, parent, resident_pages, pss_kb=None):
     if pss_kb is not None:
         (folder / "smaps_rollup").write_text(f"00400000-ffffffff ---p 00000000 00:00 0  [rollup]\nRss: "
                                              f"{resident_pages * 4} kB\nPss: {pss_kb} kB\nShared_Clean: 0 kB\n")
-
-
-def test_a_nodes_tree_is_measured_by_its_share_of_each_page_and_by_rss_only_where_it_cannot_be_read(tmp_path,
-                                                                                                    monkeypatch):
-    """A node (pid 100, 1000 MB resident, 300 MB its share) forked two children sharing its pages (101: 1000 MB
-    resident, 200 MB its share; 102 with no readable smaps_rollup, 50 MB resident) and a grandchild (103: 100 MB, 100
-    MB): its tree holds 300 + 200 + 50 + 100 = 650 MB, never the 2150 MB the resident sum counts; a process outside
-    the tree (200) is not counted, a pid that is gone holds 0.
-    Break: score/graph/__init__.py: '                total += proportional_bytes(pid, table[pid][1])' ->
-    '                total += table[pid][1]'"""
-    page, megabyte = os.sysconf("SC_PAGE_SIZE"), 2**20
-    pages = megabyte // page
-    monkeypatch.setattr(graph, "PROC", str(tmp_path))
-    a_process(tmp_path, 100, 1, 1000 * pages, 300 * 1024)
-    a_process(tmp_path, 101, 100, 1000 * pages, 200 * 1024)
-    a_process(tmp_path, 102, 100, 50 * pages)
-    a_process(tmp_path, 103, 101, 100 * pages, 100 * 1024)
-    a_process(tmp_path, 200, 1, 9000 * pages, 9000 * 1024)
-    assert graph.trees_held([100, 999]) == {100: 650 * megabyte, 999: 0}
 
 
 def test_a_nodes_own_report_is_its_trees_share_and_old_rss_peaks_are_no_longer_read(monkeypatch):
@@ -2828,182 +2955,18 @@ def test_on_this_pc_a_container_clients_next_node_is_expected_at_its_own_tree_no
     assert not second_start(this_pc=False)[0]
 
 
-GIGA = 10**9
-
-
-def a_container_job(proc, session, kind, resident_gb, high_gb):
-    """A job in the fake `proc` folder: its ssh session `session` under the container's sshd (pid 10), and one
+def a_container_job(proc, sshd, session, kind, resident_gb, high_gb):
+    """A job in the fake `proc` folder: its ssh session `session` under the container's sshd (pid `sshd`), and one
     Blender running `kind` under it, `resident_gb` resident now and `high_gb` its VmHWM, its script's argument
     `take-<session>` (its take key: take_key(["take-<session>"]))."""
     page = os.sysconf("SC_PAGE_SIZE")
-    a_process(proc, session, 10, 0)
+    a_process(proc, session, sshd, 0)
     (proc / str(session) / "cmdline").write_bytes(b"sshd: root@notty\0")
     (proc / str(session) / "status").write_text("Name:\tsshd\nVmHWM:\t0 kB\n")
     a_process(proc, session + 1, session, int(resident_gb * GIGA) // page)
     (proc / str(session + 1) / "cmdline").write_bytes(b"/root/blender/blender\0-b\0--python\0/r/%s\0--\0take-%d\0" %
                                                       (kind.encode(), session))
     (proc / str(session + 1) / "status").write_text(f"Name:\tblender\nVmHWM:\t{int(high_gb * GIGA) // 1024} kB\n")
-
-
-def test_every_score_container_on_this_pc_is_counted_its_room_summed_and_its_jobs_read(tmp_path, monkeypatch):
-    """PRD #73, 2026-10-31: each kind runs in a container of its own beside the first (score-this-pc), so the run's
-    memory room is every SCORE container's: the first's 20 GB of room and a kind's 6 GB give 26 GB, the kind's running
-    take counted among the jobs; another program's container on this PC is never read.
-    Break: score/graph/__init__.py: '    return sum(room for room, _ in readings), jobs' ->
-    '    return readings[0][0], container_jobs(readings[0][1])' -> 20 GB, the kind's take missing; or
-    'name == CONTAINER or name.startswith(f"{CONTAINER}-")' -> 'True' in container_cgroups -> the other program's
-    container is read."""
-    proc = tmp_path / "proc"
-    proc.mkdir()
-    monkeypatch.setattr(graph, "PROC", str(proc))
-    a_process(proc, 1, 0, 0)
-    a_process(proc, 10, 1, 1)
-    a_container_job(proc, 20, "segment_worker.py", 3, 4)
-    folders = {name: tmp_path / "cgroups" / identity for name, identity in
-               (("first", "aaa"), ("segment", "bbb"), ("theirs", "ccc"))}
-    for name, (room, anon, procs) in {"first": (30, 10, ""), "segment": (10, 4, "10\n20\n21\n"),
-                                      "theirs": (50, 0, "")}.items():
-        folders[name].mkdir(parents=True)
-        (folders[name] / "cgroup.procs").write_text(procs)
-        (folders[name] / "memory.max").write_text(f"{room * GIGA}\n")
-        (folders[name] / "memory.stat").write_text(f"anon {anon * GIGA}\nfile 0\n")
-    listed = "aaa score-this-pc\nbbb score-this-pc-segment\nccc postgres\n"
-    monkeypatch.setattr(graph.subprocess, "run", lambda *_, **__: subprocess.CompletedProcess([], 0, listed, ""))
-    monkeypatch.setattr(graph, "CGROUPS", (str(tmp_path / "cgroups" / "{id}"),))
-    found = graph.container_cgroups()
-    assert found == [folders["first"], folders["segment"]]
-    monkeypatch.setattr(graph, "CGROUPS_OF", lambda: found)
-    room, jobs = graph.container_reading()
-    assert room == 26 * GIGA and [kind for kind, _, _ in jobs.values()] == ["segment_worker.py"]
-
-
-def test_the_container_reserves_what_its_running_takes_may_still_grow_to_and_each_kinds_measured_peak_is_kept(
-        tmp_path, monkeypatch):
-    """2026-10-29: while a bake held the container's claim the drive reserved the cap's whole room (16.5 GiB) beside
-    three takes holding 1.2 to 3.2 GB, and 108 ready nodes waited with 24.6 GB available. A fake container (its sshd 10
-    under 1 outside it; an idle ssh session 40 and an rsync session 50 run no script) runs paint_bake.py takes 20 (5 GB
-    now, peaked 6) and 30 (1 GB, peaked 2), its room 20 GB: no take seen yet in any claim, the whole room; seen once,
-    each take TAKE_PEAK (8.5 GB, none of the kind wrote its outputs yet) less what it holds, 3.5 + 7.5 = 11 GB, and
-    each one's highest reading kept under its key at once. Take 30 ends, its mark saying it wrote its outputs: its 2 GB
-    is kept as written and its mark removed; the kind has fewer than TAKES_TRUSTED (5) written takes, so take 20 (5 GB)
-    still grows 3.5 and the idle slot 8.5: 12 GB; a reserve is never more than the room (3 GB).
-    Break: score/graph/__init__.py: '    growth = sum(max(0, peak - holds) for peak, (_, holds, _) in zip(peaks, jobs.values()))'
-    -> '    growth = room' -> the whole room again."""
-    proc, cgroup = tmp_path / "proc", tmp_path / "cgroup"
-    proc.mkdir()
-    cgroup.mkdir()
-    monkeypatch.setattr(graph, "PROC", str(proc))
-    monkeypatch.setattr(graph, "TAKE_MARKS", tmp_path / "marks")
-    a_process(proc, 1, 0, 0)
-    a_process(proc, 10, 1, 1)
-    a_container_job(proc, 20, "paint_bake.py", 5, 6)
-    a_container_job(proc, 30, "paint_bake.py", 1, 2)
-    for session in (40, 50):
-        a_process(proc, session, 10, 1)
-        (proc / str(session) / "cmdline").write_bytes(b"sshd: root@notty\0")
-    a_process(proc, 51, 50, 1)
-    (proc / "51" / "cmdline").write_bytes(b"rsync\0--server\0.\0")
-    (cgroup / "cgroup.procs").write_text("10\n20\n21\n30\n31\n40\n50\n51\n")
-    (cgroup / "memory.max").write_text(f"{30 * GIGA}\n")
-    (cgroup / "memory.stat").write_text(f"anon {10 * GIGA}\nfile 0\n")
-    page = os.sysconf("SC_PAGE_SIZE")
-    take_20, take_30 = graph.take_key(["take-20"]), graph.take_key(["take-30"])
-    jobs = graph.container_jobs(cgroup)
-    high_20, high_30 = 6 * GIGA // 1024 * 1024, 2 * GIGA // 1024 * 1024
-    assert jobs == {take_20: ("paint_bake.py", 5 * GIGA // page * page, high_20),
-                    take_30: ("paint_bake.py", 1 * GIGA // page * page, high_30)}, jobs
-    assert graph.container_room(cgroup) == 20 * GIGA
-    empty = {"written": {}, "unwritten": {}, "open": {}, "slots": 0}
-    assert graph.container_reserve(20 * GIGA, jobs, empty) == 20 * GIGA
-    runner = a_driven_runner({"hangar": "a ship"})
-    near = functools.partial(pytest.approx, abs=2 * page)
-    assert runner.container_growth((20 * GIGA, jobs)) == near(11 * GIGA)  # 3.5 + 7.5
-    assert runner.container_takes() == {"written": {}, "unwritten": {}, "slots": 2, "open": {
-        take_20: ["paint_bake.py", high_20, None], take_30: ["paint_bake.py", high_30, None]}}
-    (tmp_path / "marks").mkdir()
-    (tmp_path / "marks" / f"{take_30}.json").write_text(json.dumps({"kind": "paint_bake.py", "wrote": True}))
-    alone = {take_20: jobs[take_20]}
-    assert runner.container_growth((20 * GIGA, alone)) == near(3.5 * GIGA + 8.5 * GIGA)
-    kept = runner.container_takes()
-    assert kept["written"] == {"paint_bake.py": [high_30]} and list(kept["open"]) == [take_20], kept
-    assert not (tmp_path / "marks" / f"{take_30}.json").exists()
-    assert runner.container_growth((3 * GIGA, alone)) == 3 * GIGA
-    assert graph.take_key(["/a", "/b"]) == "148c32fbefbb40c1"  # tools/cloud/blender_cloud.py's test asserts the same
-
-
-def test_a_stopped_take_keeps_its_peak_and_takes_that_wrote_nothing_never_lower_the_reserve(tmp_path, monkeypatch):
-    """Round 23: base's light passes take (light_passes.py) held 21 GB in 35 s and the run was paused mid-take, so
-    its peak was never kept; its kind's kept peaks (0.06 to 2.05 GB) all came from renders that failed early. The take
-    read at 21 GB, then gone with no word (its runner stopped): its reading is kept at once and still counts, and
-    SETTLE_SECONDS later it settles as a take that wrote nothing, its 21 GB the kind's peak. For paint_bake.py six
-    takes of 1 GB that failed (their marks: wrote false) and four of 1 GB that wrote their outputs leave its peak at
-    TAKE_PEAK (fewer than TAKES_TRUSTED written); a fifth written take of 1 GB makes it 1 GB. A running take whose
-    mark predicts 29 GB from its inputs reserves 29 GB less the 1 GB it holds.
-    Break: score/graph/__init__.py: '[kind, max(high, kept["open"].get(key, [kind, 0, None])[1]), None]' ->
-    '[kind, 0, None]' -> the stopped take's 21 GB is lost.
-    Break: score/graph/__init__.py: 'TAKE_PEAK if len(measured) < TAKES_TRUSTED else 0' -> '0' -> 1 GB from four takes.
-    Break: score/graph/__init__.py: '    side = "written" if wrote else "unwritten"' -> '    side = "written"' -> the
-    failed takes lower the reserve to 1 GB.
-    Break: score/graph/__init__.py: 'take_mark(key).get("predicted", 0)' -> '0' -> 21 GB less 1, not 29 less 1."""
-    marks = tmp_path / "marks"
-    marks.mkdir()
-    monkeypatch.setattr(graph, "TAKE_MARKS", marks)
-    runner = a_driven_runner({"hangar": "a ship"})
-    light = graph.take_key(["/base.usda", "/views.json", "/passes"])
-    runner.keep_takes({light: ("light_passes.py", 20 * GIGA, 21 * GIGA)}, 1000.0)
-    kept = runner.keep_takes({}, 1010.0)  # the run paused: the take is gone, no word of it
-    assert kept["open"] == {light: ["light_passes.py", 21 * GIGA, 1010.0]}, kept
-    assert graph.take_peak(kept, "light_passes.py") == 21 * GIGA
-    kept = runner.keep_takes({}, 1010.0 + graph.SETTLE_SECONDS)
-    assert kept["unwritten"] == {"light_passes.py": [21 * GIGA]} and not kept["open"], kept
-    assert graph.take_peak(kept, "light_passes.py") == 21 * GIGA
-
-    def ended(name, wrote):
-        key = graph.take_key([name])
-        runner.keep_takes({key: ("paint_bake.py", GIGA, GIGA)}, 2000.0)
-        (marks / f"{key}.json").write_text(json.dumps({"kind": "paint_bake.py", "wrote": wrote}))
-        return runner.keep_takes({}, 2001.0)
-    for number in range(6):
-        ended(f"failed-{number}", False)
-    for number in range(4):
-        kept = ended(f"wrote-{number}", True)
-    assert graph.take_peak(kept, "paint_bake.py") == graph.TAKE_PEAK, kept
-    assert graph.take_peak(ended("wrote-4", True), "paint_bake.py") == GIGA
-    rendering = graph.take_key(["/garage.usda"])
-    (marks / f"{rendering}.json").write_text(json.dumps({"kind": "light_passes.py", "predicted": 29 * GIGA}))
-    assert graph.container_reserve(40 * GIGA, {rendering: ("light_passes.py", GIGA, GIGA)},
-                                   runner.container_takes()) == 28 * GIGA
-
-
-def test_an_ended_node_holds_no_memory_and_one_that_ran_a_container_client_keeps_the_default(tmp_path, monkeypatch):
-    """2026-10-28: a node that ended but was not yet reaped still counted its whole peak (a median of 3 s each), and
-    a Blender node measured 0.1 GB of its tree while its container held 3.7 GB. An ended process is charged nothing,
-    a live one its stage's peak; a tree whose child runs tools/cloud/blender_cloud.py ran a container client, one
-    whose child runs anything else did not; a node that ran one raises its stage's 0.1-floor peak to the default, one
-    that did not keeps it.
-    Break: score/graph/__init__.py: 'for stage, place, process in running.values() if process.is_alive()]' ->
-    'for stage, place, process in running.values()]'
-    Break: score/graph/__init__.py: '        peak = max(peak, memory_floor()) if contained else peak' ->
-    '        peak = peak'"""
-    monkeypatch.delenv(graph.FLOOR_VARIABLE, raising=False)
-    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
-    runner = a_driven_runner({"hangar": "a ship", "station": "a hub"})
-    clean, count = runner.stages["clean"], runner.stages["count"]
-    running = {"ended": (clean, "hangar", types.SimpleNamespace(pid=11, is_alive=lambda: False)),
-               "live": (count, "hangar", types.SimpleNamespace(pid=12, is_alive=lambda: True))}
-    assert runner.coming(running, {"clean": 2 * FLOOR, "count": FLOOR}, {}, {}) == [(FLOOR, 0)]
-    monkeypatch.setattr(graph, "PROC", str(tmp_path))
-    a_process(tmp_path, 100, 1, 10)
-    a_process(tmp_path, 101, 100, 10)
-    (tmp_path / "101" / "cmdline").write_bytes(b"python3\0tools/cloud/blender_cloud.py\0--detach\0")
-    a_process(tmp_path, 200, 1, 10)
-    a_process(tmp_path, 201, 200, 10)
-    (tmp_path / "201" / "cmdline").write_bytes(b"python3\0tools/cloud/gemini_judge.py\0")
-    assert graph.ran_container_client(100) and not graph.ran_container_client(200)
-    runner.keep_peak("clean", int(0.1 * FLOOR))
-    assert runner.measured(clean, "made: pass", int(0.1 * FLOOR), False, runner.peaks()) == {"clean": int(0.1 * FLOOR)}
-    assert runner.measured(clean, "fresh", int(0.1 * FLOOR), True, runner.peaks()) == {"clean": FLOOR}
-    assert runner.peaks() == {"clean": FLOOR}
 
 
 def test_a_pass_reads_each_plan_once_and_a_waiting_nodes_reads_are_kept_until_its_place_or_what_it_reads_ends(
