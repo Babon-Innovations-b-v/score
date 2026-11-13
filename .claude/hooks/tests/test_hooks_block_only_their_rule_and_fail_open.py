@@ -47,7 +47,7 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once. Its push-gate
   half (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block dropped (a grown
   debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a failing touched test
-  pushes); `touched_tests`'s `cluster` made [] (a GPU module is run, not left to the cluster gate); `main` returns 0
+  pushes); `touched_tests`'s `gpu` made [] (a GPU module is run, not left to a run by hand); `main` returns 0
   instead of handing the push lines to pre-push-moved; `main`'s `GIT_HOOK_ENV` pop dropped (the clean push's test
   file, a git-driving one here, then runs against the pushing repository's GIT_DIR); `checked`'s `.venv` link
   dropped (the push from a clone moved off it, checked in a copy, has no environment for its test). Its push-cap
@@ -838,7 +838,7 @@ def test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file(tmp_path
     assert code == 1 and "touched module's test failed" in said and not marker.exists(), (said, out)
     code, said, out, marker = answers["clean"]
     assert code == 0 and "passed in" in out and "1 test file" in out, (said, out)
-    assert "test_rra_moves_mass_and_torso_by_the_mean_residual.py left to the cluster gate" in out, out
+    assert "test_rra_moves_mass_and_torso_by_the_mean_residual.py needs a GPU, left to a run by hand" in out, out
     assert marker.read_text().startswith("refs/heads/main "), marker.read_text()
     code, said, out, marker = answers["away"]
     assert code == 0 and "1 test file" in out and marker.exists(), (said, out)

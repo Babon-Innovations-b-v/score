@@ -85,7 +85,7 @@ MAIN_ONLY = (
 
 # Test files that may print `skipped` (a check not run on this box), each with the reason.
 MAY_SKIP = {
-    "score/stages/sim_body/inside/*": "needs a GPU: runs in the cluster gate",
+    "score/stages/sim_body/inside/*": "needs a GPU: run by hand (make tests) on a GPU box",
     "tools/usd/test_a_hollow_body_keeps_its_hollow.py": "two of its drops need the Newton env, which needs a GPU",
     "score/stages/settling/test_the_settle_layer_lays_and_its_gate_fails_a_broken_drop.py":
         "its two room drops need the Newton env, which needs a GPU",
