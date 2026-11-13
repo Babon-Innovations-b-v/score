@@ -101,14 +101,69 @@ def write(path, text):
     path.write_text(text)
 
 
-def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what_changed(tmp_path):
+
+
+STALE = {"rows": [{"id": "spaceship", "size": [13.688, 45.965, 4.0]}]}  # the spaceship's plan footprint, not prepare's
+GO = "20261027T170000Z"
+
+# a run's own arguments taken off the command line: (parser, arguments, what it gives, or the refusal it raises)
+PARSED = [
+    ("go_taken", ["world1"], (["world1"], None), None),
+    ("no_push_taken", ["world1", "--no-push", "the conductor's disk is full", "--place", "hub"],
+     (["world1", "--place", "hub"], "the conductor's disk is full"), None),
+    ("no_push_taken", ["world1"], (["world1"], None), None),
+    ("no_push_taken", ["world1", "--no-push"], None, "needs its reason"),
+    ("no_push_taken", ["world1", "--no-push", " "], None, "needs its reason"),
+    ("no_push_taken", ["world1", "--no-push", "--place"], None, "needs its reason"),
+    ("restart_taken", ["world1", "--restart-reason", "why", "--jobs", "16"], (["world1", "--jobs", "16"], "why"), None),
+    ("restart_taken", ["world1", "--restart-reason"], None, "needs its reason"),
+]
+
+
+def stand_in_run(home, tmp_path, **variables):
+    """A stand-in `score run`: a process leading its own group with a child in it, ended by SIGTERM a second after it
+    came, registered as running in `home`'s run registry; (process, its entry)."""
+    script = ("import signal, subprocess, sys, time; stopping = []; "
+              "signal.signal(signal.SIGTERM, lambda *_: stopping.append(1)); child = subprocess.Popen([sys.executable, "
+              "'-c', 'import time; time.sleep(60)']); print('ready', flush=True)\n"
+              "while not stopping: time.sleep(0.05)\n"
+              "time.sleep(1); child.terminate(); child.wait()")
+    log = tmp_path / "run.log"
+    log.write_text("heartbeat a: rows done 1, running 2, queued 3; x\nheartbeat b: rows done 4, running 5, queued 6; y\n")
+    process = subprocess.Popen([sys.executable, "-c", script, "score"], start_new_session=True, stdout=log.open("a"),
+                               env={"PATH": "/usr/bin:/bin", **variables})
+    while "ready" not in log.read_text():
+        assert process.poll() is None, log.read_text()
+        this_pc.time.sleep(0.05)
+    entry = {"id": "20261028T131330-1", "argv": ["run", "world1", "--jobs", "8", "--free"], "commit": "a" * 40,
+             "worktree": str(tmp_path / "frozen"), "pid": process.pid, "state": "running"}
+    write(home / "runs" / f"{entry['id']}.json", this_pc.json.dumps(entry))
+    write(home / "runs" / "active.json", "{}")
+    return process, entry
+
+
+def test_this_pc_pulls_what_a_run_reads_runs_free_and_pushes_without_replacing(tmp_path, monkeypatch):
+    """One home on this PC against one conductor's home: pulled (never its keys, ledgers, registry or the hand-in
+    written here, again only what changed, a cut blob made whole), prepared and pushed back by adding (a file a live
+    run removed after the listing skipped, a take remade here replacing the conductor's with its old copy kept); runs
+    here free only with the design brought up to date unless a run is live; then a live run in it paused, resumed as
+    it ran, and stopped."""
+    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
+    (tmp_path / "env").mkdir()
+    monkeypatch.setenv(this_pc.OWNERS_GO, "smuggled")  # a go in this shell, never one a run here carries
     conductor, home = tmp_path / "conductor", tmp_path / "home"
+    hand_in = home / "design/props/hangar.json"
+    write(hand_in, this_pc.json.dumps(STALE))  # written here by an older prepare
+    write(conductor / "design/props/hangar.json", "the conductor's, plan-footprint sizes")
+    write(conductor / "design/surfaces/hangar.json", "the conductor's surface data")
     for name in ("store/objects/blobs/aa", "design/plans/hub.json", "work/pixal/take.glb", "cloud/google-cache/q.json",
                  "cache/library/swatch.png", "cloud/ssh_key", "cloud/self_delete_key.json", "cloud/ledger.jsonl",
                  "runs/active.json", "store/cache/checkouts/x", "frozen/copy/file", "dashboard/db.sqlite3",
                  "dashboard/films/locked/env1_demo.json", "dashboard/films/previews/env1_demo-takes/002.mp4"):
         write(conductor / name, name)
-    home.mkdir()
+    write(conductor / "runs/active.json", "{}")  # the conductor's run registry: no run live, a replace may go
+
+    # pull: what a run reads, never a key, ledger, registry or the conductor's hand-ins (they differ in mtime)
     assert this_pc.pull(home, door(conductor, "store-pull")) == (7, sum(
         len(name) for name in ("store/objects/blobs/aa", "design/plans/hub.json", "work/pixal/take.glb",
                                "cloud/google-cache/q.json", "cache/library/swatch.png",
@@ -118,7 +173,8 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
                     if path.is_file() and path.name != this_pc.BLOBS_CHECKED)
     assert pulled == ["cache/library/swatch.png", "cloud/google-cache/q.json",
                       "dashboard/films/locked/env1_demo.json", "dashboard/films/previews/env1_demo-takes/002.mp4",
-                      "design/plans/hub.json", "store/objects/blobs/aa", "work/pixal/take.glb"]
+                      "design/plans/hub.json", "design/props/hangar.json", "store/objects/blobs/aa",
+                      "work/pixal/take.glb"]
     write(conductor / "design/plans/hub.json", "the hub, changed")
     (home / "store/objects/blobs/aa").chmod(0o444)  # a blob is read-only here, and its mtime differs there
     os.utime(conductor / "store/objects/blobs/aa", (1, 1))
@@ -126,7 +182,7 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     sys.path.insert(0, str(HERE / "conductor"))
     import agent_door
     sent, _, kept = agent_door.store_pull(conductor, {"store/objects/blobs/aa": (0, 0)}, io.BytesIO())
-    assert kept == 1 and sent == 6  # the store object the PC names goes by name, whatever its size and mtime
+    assert kept == 1 and sent == 8  # the store object the PC names goes by name, whatever its size and mtime
     # a listing linked to its blob there, already linked here: the stream's hard link is left as it is
     for side in (conductor, home):
         (side / "store/objects/records").mkdir(parents=True)
@@ -161,95 +217,36 @@ def test_a_pull_brings_what_a_run_reads_and_no_key_or_ledger_and_again_only_what
     assert not (home / blob).exists()
     assert this_pc.pull(home, door(conductor, "store-pull")) == (1, len(body))
     assert (home / blob).read_bytes() == body
-
-
-def test_a_pull_never_brings_a_hand_in_over_the_one_written_here(tmp_path):
-    """The conductor's hand-in differs from this PC's in mtime, so the door sends it; pull leaves it out (2026-10-30)."""
-    conductor, home = tmp_path / "conductor", tmp_path / "home"
-    write(conductor / "design/props/hangar.json", "the conductor's, plan-footprint sizes")
-    write(conductor / "design/surfaces/hangar.json", "the conductor's surface data")
-    write(home / "design/props/hangar.json", "written here by prepare, read sizes")
-    assert this_pc.pull(home, door(conductor, "store-pull")) == (0, 0)
-    assert (home / "design/props/hangar.json").read_text() == "written here by prepare, read sizes"
+    assert hand_in.read_text() == this_pc.json.dumps(STALE)  # every pull left the hand-in written here
     assert not (home / "design/surfaces/hangar.json").exists()
 
+    # prepared: its own key and the PC's environment linked
+    this_pc.prepared(home)
+    assert (home / "cloud/ssh_key.pub").exists() and (home / "env").is_symlink()
 
-def stale_hand_in(home):
-    """A home whose hangar hand-in carries the spaceship's plan footprint, not the size prepare writes now."""
-    write(home / "design/props/hangar.json", this_pc.json.dumps({"rows": [{"id": "spaceship", "size": [13.688, 45.965,
-                                                                                                        4.0]}]}))
-
-
-def test_a_run_here_rewrites_a_stale_hand_in_before_score_run_starts(tmp_path, monkeypatch):
-    """The sync pass's plans keep, then prepare, run against this home, free only, from the run's code; a plan row run
-    the keep starts is waited out; only then `score run`, which reads the rewritten hand-in. Prepare stands in here
-    (its rewrite of a hand-in is prepare's own test's): it writes the size it would write now."""
-    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
-    home = tmp_path / "home"
-    (tmp_path / "env").mkdir()
-    stale_hand_in(this_pc.prepared(home))  # its key made before subprocess.run stands in
-    events, plan_run = [], []
-
-    def step(command, **given):
-        module = command[2]
-        events.append((module, given["cwd"], given["env"]["PROPS_HOME"], given["env"]["SCORE_FREE_ONLY"]))
-        if module == "score.review.plans_pass":
-            plan_run.append({"id": "plan-run", "pid": 1})  # keep started a changed place's plan row, detached
-        if module == "score.stages.complete.prepare":
-            assert not plan_run, "prepare ran while the plan row run held the store"
-            write(home / "design/props/hangar.json", this_pc.json.dumps({"rows": [{"id": "spaceship",
-                                                                                   "size": [8.0, 24.0, 4.0]}]}))
-        return subprocess.CompletedProcess(command, 0, f"{module} done\n", "")
-
-    def waited(seconds):
-        events.append(("waited", seconds))
-        plan_run.clear()
-    monkeypatch.setattr(this_pc, "asked", step)
-    monkeypatch.setattr(this_pc, "live_run", lambda found: plan_run[0] if plan_run else None)
-    monkeypatch.setattr(this_pc.time, "sleep", waited)
-
-    def score_run(command, **given):
-        size = this_pc.json.loads((home / "design/props/hangar.json").read_text())["rows"][0]["size"]
-        events.append(("score run", size))
-        return subprocess.CompletedProcess(command, 0)
-    monkeypatch.setattr(this_pc.subprocess, "run", score_run)
-    assert this_pc.run(home, ["world1"]) == 0
-    assert events == [("score.review.plans_pass", this_pc.REPO, str(home), "1"), ("waited", 5),
-                      ("score.stages.complete.prepare", this_pc.REPO, str(home), "1"), ("score run", [8.0, 24.0, 4.0])]
-
-
-def test_a_run_here_leaves_the_design_of_a_live_run_and_stops_on_a_failed_step(tmp_path, monkeypatch):
-    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
-    home = tmp_path / "home"
-    (tmp_path / "env").mkdir()
-    stale_hand_in(this_pc.prepared(home))  # its key made before subprocess.run stands in
-    asked = []
-    monkeypatch.setattr(this_pc, "asked", lambda command, **given: asked.append(command) or
-                        subprocess.CompletedProcess(command, 1, "", "Traceback\nKeyError: 'hangar'\n"))
-    started = []
-    monkeypatch.setattr(this_pc.subprocess, "run", lambda command, **given: started.append(command) or
-                        subprocess.CompletedProcess(command, 0))
-    monkeypatch.setattr(this_pc, "live_run", lambda found: {"id": "live-run"})
-    assert this_pc.run(home, ["world1", "--place", "hub"]) == 0 and not asked and len(started) == 1
-    monkeypatch.setattr(this_pc, "live_run", lambda found: None)
-    with pytest.raises(SystemExit, match="score.review.plans_pass failed .exit 1.: KeyError: 'hangar'"):
-        this_pc.run(home, ["world1"])
-    assert len(started) == 1  # no score run after a failed step
-
-
-def test_a_push_adds_new_outputs_and_never_replaces_the_conductors(tmp_path):
-    conductor, home = tmp_path / "conductor", tmp_path / "home"
+    # push: only what the conductor lacks, never its keys, a file a live run removed after the listing skipped
     write(conductor / "store/objects/records/hub/k1.json", "the conductor's record")
     write(home / "store/objects/records/hub/k1.json", "this PC's record")
     write(home / "store/objects/records/hub/k2.json", "made on this PC")
     write(home / "work/pixal/new.glb", "a take")
-    write(home / "cloud/ssh_key", "this PC's runner key")
-    pushed = this_pc.push(home, door(conductor, "store-push --missing"), door(conductor, "store-push"))
-    assert pushed == (2, len("made on this PC") + len("a take"))  # only what the conductor lacks went
+    write(home / "work/motion-scratch/layer/garage.usda", "scratch")
+    listed = this_pc.walked
+
+    def gone_after_listing(*arguments):
+        found = list(listed(*arguments))
+        (home / "work/motion-scratch/layer/garage.usda").unlink()
+        return found
+    with monkeypatch.context() as live_scratch:
+        live_scratch.setattr(this_pc, "walked", gone_after_listing)
+        pushed = this_pc.push(home, door(conductor, "store-push --missing"), door(conductor, "store-push"))
+    assert pushed == (2, len("made on this PC") + len("a take"))
     assert (conductor / "store/objects/records/hub/k1.json").read_text() == "the conductor's record"
     assert (conductor / "store/objects/records/hub/k2.json").read_text() == "made on this PC"
     assert (conductor / "work/pixal/new.glb").read_text() == "a take"
-    assert not (conductor / "cloud").exists() and not list((conductor / "tmp/this-pc-push").iterdir())
+    assert not (conductor / "work/motion-scratch").exists()
+    assert not (conductor / "cloud/ssh_key.pub").exists()
+    assert (conductor / "cloud/ssh_key").read_text() == "cloud/ssh_key"
+    assert not list((conductor / "tmp/this-pc-push").iterdir())
     # a take remade here in place (same size, other bytes) replaces the conductor's, whose old copy is kept;
     # a store object is never replaced, a take already the same stays as it is
     write(conductor / "work/pixal/lamp.svviews/input.png", "old close-up")
@@ -267,170 +264,147 @@ def test_a_push_adds_new_outputs_and_never_replaces_the_conductors(tmp_path):
                              capture_output=True, text=True)
     assert refused.returncode != 0 and "work/pixal/ only" in refused.stderr
 
-
-def test_a_push_skips_a_file_a_live_run_removed_after_it_was_listed(tmp_path, monkeypatch):
-    conductor, home = tmp_path / "conductor", tmp_path / "home"
-    write(home / "store/objects/records/hub/k2.json", "made on this PC")
-    write(home / "work/motion-scratch/layer/garage.usda", "scratch")
-    listed = this_pc.walked
-    def gone_after_listing(*arguments):
-        found = list(listed(*arguments))
-        (home / "work/motion-scratch/layer/garage.usda").unlink()
-        return found
-    monkeypatch.setattr(this_pc, "walked", gone_after_listing)
-    pushed = this_pc.push(home, door(conductor, "store-push --missing"), door(conductor, "store-push"))
-    assert pushed == (1, len("made on this PC"))
-    assert (conductor / "store/objects/records/hub/k2.json").read_text() == "made on this PC"
-
-
-def test_a_run_here_is_free_only_on_this_pcs_card_in_its_own_home(tmp_path, monkeypatch):
-    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
-    home = this_pc.prepared(tmp_path / "home")
-    environment = this_pc.run_environment(home)
-    assert {key: environment[key] for key in this_pc.ENVIRONMENT} == {
-        "SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1"}
-    assert environment["PROPS_HOME"] == str(home) and (home / "cloud/ssh_key.pub").exists()
-    assert (home / "env").is_symlink()
-
-
-def test_a_run_here_carries_the_owners_go_only_when_named_and_decisions_reach_its_own_store(tmp_path, monkeypatch):
-    """His go (owner, 2026-10-27) tags only the run that names it, never one from this shell; decide-yes and decide
-    run the cockpit's command against this home's store with the owner his cockpit names."""
-    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
-    monkeypatch.setenv(this_pc.OWNERS_GO, "smuggled")
-    home = this_pc.prepared(tmp_path / "home")
-    assert this_pc.OWNERS_GO not in this_pc.run_environment(home)
-    arguments, go = this_pc.go_taken(["world1", "--go", "20261027T170000Z", "--place", "hub"])
-    assert arguments == ["world1", "--place", "hub"] and go == "20261027T170000Z"
-    assert this_pc.run_environment(home, go)[this_pc.OWNERS_GO] == go
-    assert this_pc.go_taken(["world1"]) == (["world1"], None)
-    assert this_pc.no_push_taken(["world1", "--no-push", "the conductor's disk is full", "--place", "hub"]) == (
-        ["world1", "--place", "hub"], "the conductor's disk is full")
-    assert this_pc.no_push_taken(["world1"]) == (["world1"], None)
-    for bare in (["world1", "--no-push"], ["world1", "--no-push", " "], ["world1", "--no-push", "--place"]):
-        with pytest.raises(SystemExit, match="needs its reason"):
-            this_pc.no_push_taken(bare)
+    # a run's own arguments, and whether it pushes
+    for parser, arguments, gives, refusal in PARSED:
+        if refusal:
+            with pytest.raises(SystemExit, match=refusal):
+                getattr(this_pc, parser)(arguments)
+        else:
+            assert getattr(this_pc, parser)(arguments) == gives, (parser, arguments)
     assert this_pc.push_stated(home, "disk full", ["world1"]) == "no push: disk full"
     assert this_pc.unpushed(home).startswith("not pushed: disk full (world1, ")
     assert this_pc.push_stated(home, None, ["world1"]).startswith("push: ") and this_pc.unpushed(home) is None
-    ran = []
-    monkeypatch.setattr(this_pc.subprocess, "run", lambda command, **given: ran.append((command, given["env"])) or
-                        subprocess.CompletedProcess(command, 0))
-    monkeypatch.delenv("SCORE_OWNER", raising=False)
-    monkeypatch.setattr(this_pc, "DASHBOARD_ENV", tmp_path / "dashboard.env")
-    (tmp_path / "dashboard.env").write_text("SCORE_OWNER=joey\n")
-    assert this_pc.deciding(home, "decide", ["20261027T170000Z"]) == 0
-    command, environment = ran[0]
-    assert command[1:] == ["-m", "score.dashboard", "decide", "20261027T170000Z"]
-    assert environment["PROPS_HOME"] == str(home) and environment["SCORE_OWNER"] == "joey"
-    assert this_pc.OWNERS_GO not in environment
 
+    # runs here: a live run's design left as it is; else the plans keep, its plan row run waited out, then prepare,
+    # free only from the run's code, before `score run` reads the rewritten hand-in; a failed step starts no run.
+    # Prepare stands in (its rewrite of a hand-in is prepare's own test's): it writes the size it would write now.
+    holding = [{"id": "live-run", "pid": 1}]  # a live run's entry, later the plan row run the keep starts, detached
+    failing, events, started = set(), [], []
 
-def stand_in_run(home, tmp_path, **variables):
-    """A stand-in `score run`: a process leading its own group with a child in it, ended by SIGTERM a second after it
-    came, registered as running in `home`'s run registry; (process, its entry)."""
-    script = ("import signal, subprocess, sys, time; stopping = []; "
-              "signal.signal(signal.SIGTERM, lambda *_: stopping.append(1)); child = subprocess.Popen([sys.executable, "
-              "'-c', 'import time; time.sleep(60)']); print('ready', flush=True)\n"
-              "while not stopping: time.sleep(0.05)\n"
-              "time.sleep(1); child.terminate(); child.wait()")
-    log = tmp_path / "run.log"
-    log.write_text("heartbeat a: rows done 1, running 2, queued 3; x\nheartbeat b: rows done 4, running 5, queued 6; y\n")
-    process = subprocess.Popen([sys.executable, "-c", script, "score"], start_new_session=True, stdout=log.open("a"),
-                               env={"PATH": "/usr/bin:/bin", **variables})
-    while "ready" not in log.read_text():
-        assert process.poll() is None, log.read_text()
-        this_pc.time.sleep(0.05)
-    entry = {"id": "20261028T131330-1", "argv": ["run", "world1", "--jobs", "8", "--free"], "commit": "a" * 40,
-             "worktree": str(tmp_path / "frozen"), "pid": process.pid, "state": "running"}
-    write(home / "runs" / f"{entry['id']}.json", this_pc.json.dumps(entry))
-    write(home / "runs" / "active.json", "{}")
-    return process, entry
+    def step(command, **given):
+        module = command[2]
+        events.append((module, given["cwd"], given["env"]["PROPS_HOME"], given["env"]["SCORE_FREE_ONLY"]))
+        if module in failing:
+            return subprocess.CompletedProcess(command, 1, "", "Traceback\nKeyError: 'hangar'\n")
+        if module == "score.review.plans_pass":
+            holding.append({"id": "plan-run", "pid": 1})
+        if module == "score.stages.complete.prepare":
+            assert not holding, "prepare ran while the plan row run held the store"
+            write(hand_in, this_pc.json.dumps({"rows": [{"id": "spaceship", "size": [8.0, 24.0, 4.0]}]}))
+        return subprocess.CompletedProcess(command, 0, f"{module} done\n", "")
 
+    def waited(seconds):
+        events.append(("waited", seconds))
+        holding.clear()
 
-def test_pause_records_the_run_stops_it_and_only_then_the_container(tmp_path, monkeypatch):
-    """Pause (owner, 2026-10-28): the live run's arguments, commit and run variables recorded, its whole group stopped
-    by one SIGTERM, and `docker stop` only once no process of it holds the card."""
-    home = tmp_path / "home"
-    process, entry = stand_in_run(home, tmp_path, SCORE_MIN_FREE_GB="8", SCORE_OWNERS_GO="go1", SCORE_CLOUD="local",
-                                  SCORE_FROZEN="/frozen/copy", PROPS_HOME="/frozen/copy.home")
-    called = []
-    listed = "score-this-pc\npostgres\nscore-this-pc-segment\n"
-    monkeypatch.setattr(this_pc, "asked", lambda command, **given: called.append(
-        (command, this_pc.group_alive(process.pid))) or subprocess.CompletedProcess(command, 0, listed, ""))
-    line = this_pc.pause(home)
-    assert process.wait(timeout=5) == 0 and not this_pc.group_alive(process.pid)
-    stops = [call for call in called if call[0][:2] == ["docker", "stop"]]
-    assert stops == [(["docker", "stop", "score-this-pc", "score-this-pc-segment"], False)]  # every SCORE container,
-    # once the run's group was gone
-    record = this_pc.json.loads((home / this_pc.PAUSED).read_text())
-    assert record["argv"] == entry["argv"] and record["commit"] == "a" * 40
-    assert record["env"] == {"SCORE_MIN_FREE_GB": "8", "SCORE_OWNERS_GO": "go1", "SCORE_CLOUD": "local"}
-    assert record["log"] == str(tmp_path / "run.log") and line.startswith(f"paused run {entry['id']}")
-    assert this_pc.status_line(home).startswith(f"paused {entry['id']} since ")
-    assert "rows done 4, running 5, waiting 6" in this_pc.status_line(home)
-    sizes = "score-this-pc\t379GB (virtual 380GB)\npostgres\t1GB (virtual 2GB)\nscore-this-pc-segment\t24GB (virtual 25GB)\n"
-    monkeypatch.setattr(this_pc, "asked", lambda command, **given: subprocess.CompletedProcess(command, 0, sizes, ""))
-    monkeypatch.setattr(this_pc.shutil, "disk_usage", lambda path: this_pc.shutil._ntuple_diskusage(1007e9, 931e9, 76e9))
-    assert this_pc.status_line(home).endswith("containers score-this-pc 379GB, score-this-pc-segment 24GB; "
-                                              "disk 76 GB free WARNING: under 100 GB free")  # 2026-11-03's disk
-    # stop (#111): a run still draining after STOP_SECONDS has its whole group killed, never left beside the next
-    process, entry = stand_in_run(home, tmp_path)
-    monkeypatch.setattr(this_pc, "STOP_SECONDS", 0.2)
-    assert this_pc.stop(home) == f"stopped run {entry['id']} (pid {process.pid}) by SIGKILL after 0.2 s"
-    assert process.wait(timeout=5) == -this_pc.signal.SIGKILL and not this_pc.group_alive(process.pid)
-    assert this_pc.stop(home) == "stop: no run was live"
+    def launched(command, **given):
+        started.append((command, given["env"], this_pc.json.loads(hand_in.read_text())["rows"][0]["size"]))
+        return subprocess.CompletedProcess(command, 0)
+    with monkeypatch.context() as here:
+        here.setattr(this_pc, "asked", step)
+        here.setattr(this_pc, "live_run", lambda found: holding[0] if holding else None)
+        here.setattr(this_pc.time, "sleep", waited)
+        here.setattr(this_pc.subprocess, "run", launched)
+        assert this_pc.run(home, *this_pc.go_taken(["world1", "--go", GO, "--place", "hub"])) == 0
+        assert not events and len(started) == 1
+        command, environment, size = started[0]
+        assert command[1:] == ["-m", "score", "run", "world1", "--place", "hub", "--free"] and size == [13.688, 45.965,
+                                                                                                      4.0]
+        assert {key: environment[key] for key in this_pc.ENVIRONMENT} == {
+            "SCORE_CLOUD": "local", "SCORE_FREE_ONLY": "1", "SCORE_INPUTS_DIRECT": "1"}
+        assert environment["PROPS_HOME"] == str(home) and environment[this_pc.OWNERS_GO] == GO
+        holding.clear()  # the live run ended
+        assert this_pc.run(home, ["world1"]) == 0
+        assert events == [("score.review.plans_pass", this_pc.REPO, str(home), "1"), ("waited", 5),
+                          ("score.stages.complete.prepare", this_pc.REPO, str(home), "1")]
+        command, environment, size = started[1]
+        assert size == [8.0, 24.0, 4.0] and this_pc.OWNERS_GO not in environment
+        failing.add("score.review.plans_pass")
+        with pytest.raises(SystemExit, match="score.review.plans_pass failed .exit 1.: KeyError: 'hangar'"):
+            this_pc.run(home, ["world1"])
+        assert len(started) == 2  # no score run after a failed step
+        # decide-yes and decide: the cockpit's command against this home's store, the owner his cockpit names
+        here.delenv("SCORE_OWNER", raising=False)
+        here.setattr(this_pc, "DASHBOARD_ENV", tmp_path / "dashboard.env")
+        (tmp_path / "dashboard.env").write_text("SCORE_OWNER=joey\n")
+        assert this_pc.deciding(home, "decide", [GO]) == 0
+        command, environment, _ = started[2]
+        assert command[1:] == ["-m", "score.dashboard", "decide", GO]
+        assert environment["PROPS_HOME"] == str(home) and environment["SCORE_OWNER"] == "joey"
+        assert this_pc.OWNERS_GO not in environment
 
+    # a live run here: no second beside it; paused (recorded, its whole group stopped by one SIGTERM, every SCORE
+    # container stopped only once none of it holds the card), resumed as it ran, and a draining one stopped by SIGKILL
+    runs, calls = [], []
+    names = "score-this-pc\npostgres\nscore-this-pc-segment\n"
+    sizes = ("score-this-pc\t379GB (virtual 380GB)\npostgres\t1GB (virtual 2GB)\n"
+             "score-this-pc-segment\t24GB (virtual 25GB)\n")
 
-def test_resume_refuses_while_a_run_is_live_and_starts_the_paused_one_detached_as_it_ran(tmp_path, monkeypatch):
-    home = tmp_path / "home"
-    monkeypatch.setattr(this_pc, "PC_ENV", tmp_path / "env")
-    monkeypatch.setenv(this_pc.OWNERS_GO, "smuggled")
-    process, entry = stand_in_run(home, tmp_path)
-    try:
-        with pytest.raises(SystemExit, match="refused, run .* is live"):
-            this_pc.resume(home)
-        # a new run never starts beside a live one (#111), whatever reason it is given
-        assert this_pc.start_refusal(home, "a fix").startswith(f"run {entry['id']} is live")
-        assert this_pc.status_line(home).startswith(f"running {entry['id']}")
-    finally:
-        process.kill()
-        process.wait()
-    record = {"id": entry["id"], "argv": entry["argv"], "commit": "b" * 40, "log": None, "paused": "now",
-              "env": {"SCORE_MIN_FREE_GB": "8", "SCORE_OWNERS_GO": "go1"}}
-    write(home / this_pc.PAUSED, this_pc.json.dumps(record))
-    called = []
-
-    def stand_in(command, **given):
-        called.append((command, given))
+    def tool(command, **given):
+        calls.append((command, given, any(this_pc.group_alive(process.pid) for process in runs)))
         if command[3:5] == ["worktree", "add"]:
             pathlib.Path(command[-2]).mkdir()
-        out = "detached: started pid=9 log=/home/logs/score-run.log\n" if "--detach" in command else ""
+        out = (names if command[:3] == ["docker", "ps", "--format"] else sizes if command[:3] == ["docker", "ps", "-a"]
+               else "detached: started pid=9 log=/home/logs/score-run.log\n" if "--detach" in command else "")
         return subprocess.CompletedProcess(command, 0, out, "")
-    monkeypatch.setattr(this_pc, "asked", stand_in)
-    assert this_pc.resume(home) == (f"resumed run world1 --jobs 8 --free at {'b' * 12}: "
-                                    "detached: started pid=9 log=/home/logs/score-run.log")
-    assert called[0][0] == ["docker", "start", "score-this-pc"]
-    assert called[1][0][3:] == ["worktree", "add", "--detach", "--force", str(home / "resume-code"), "b" * 40]
-    # the design brought up to date by the paused run's own code, in its home, before it starts again
-    assert [(command[1:], given["cwd"], given["env"]["PROPS_HOME"]) for command, given in called[2:-1]] == [
-        (["-m", module], home / "resume-code", str(home)) for module in this_pc.DESIGN_STEPS]
-    command, given = called[-1]
-    assert command[1:] == ["-m", "score", *entry["argv"], "--detach"] and given["cwd"] == home / "resume-code"
-    assert {key: given["env"][key] for key in ("SCORE_MIN_FREE_GB", this_pc.OWNERS_GO, "SCORE_FREE_ONLY",
-                                               "PROPS_HOME")} == {"SCORE_MIN_FREE_GB": "8", this_pc.OWNERS_GO: "go1",
-                                                                  "SCORE_FREE_ONLY": "1", "PROPS_HOME": str(home)}
-    assert not (home / this_pc.PAUSED).exists()
-    assert this_pc.status_line(home).startswith("neither running nor paused")
-    # a start within RESTART_HOURS of the last is refused without a reason (#112), and one is taken off the arguments
-    started = this_pc.datetime.datetime(2026, 11, 11, 9, 0, tzinfo=this_pc.datetime.timezone.utc)
+    try:
+        with monkeypatch.context() as card:
+            card.setattr(this_pc, "asked", tool)
+            card.setattr(this_pc.shutil, "disk_usage",
+                         lambda path: this_pc.shutil._ntuple_diskusage(1007e9, 931e9, 76e9))
+            process, entry = stand_in_run(home, tmp_path, SCORE_MIN_FREE_GB="8", SCORE_OWNERS_GO="go1",
+                                          SCORE_CLOUD="local", SCORE_FROZEN="/frozen/copy",
+                                          PROPS_HOME="/frozen/copy.home")
+            runs.append(process)
+            with pytest.raises(SystemExit, match="refused, run .* is live"):
+                this_pc.resume(home)
+            assert this_pc.start_refusal(home, "a fix").startswith(f"run {entry['id']} is live")
+            assert this_pc.status_line(home).startswith(f"running {entry['id']}")
+            line = this_pc.pause(home)
+            assert process.wait(timeout=5) == 0 and not this_pc.group_alive(process.pid)
+            stops = [(command, alive) for command, _, alive in calls if command[:2] == ["docker", "stop"]]
+            assert stops == [(["docker", "stop", "score-this-pc", "score-this-pc-segment"], False)]
+            record = this_pc.json.loads((home / this_pc.PAUSED).read_text())
+            assert record["argv"] == entry["argv"] and record["commit"] == "a" * 40
+            assert record["env"] == {"SCORE_MIN_FREE_GB": "8", "SCORE_OWNERS_GO": "go1", "SCORE_CLOUD": "local"}
+            assert record["log"] == str(tmp_path / "run.log") and line.startswith(f"paused run {entry['id']}")
+            status = this_pc.status_line(home)
+            assert status.startswith(f"paused {entry['id']} since ") and "rows done 4, running 5, waiting 6" in status
+            assert status.endswith("containers score-this-pc 379GB, score-this-pc-segment 24GB; "
+                                   "disk 76 GB free WARNING: under 100 GB free")  # 2026-11-03's disk
+            resuming = len(calls)
+            assert this_pc.resume(home) == (f"resumed run world1 --jobs 8 --free at {'a' * 12}: "
+                                            "detached: started pid=9 log=/home/logs/score-run.log")
+            resumed = [(command, given) for command, given, _ in calls[resuming:] if command[0] != "nvidia-smi"]
+            assert resumed[0][0] == ["docker", "start", "score-this-pc"]
+            assert resumed[1][0][3:] == ["worktree", "add", "--detach", "--force", str(home / "resume-code"), "a" * 40]
+            # the design brought up to date by the paused run's own code, in its home, before it starts again
+            assert [(command[1:], given["cwd"], given["env"]["PROPS_HOME"]) for command, given in resumed[2:-1]] == [
+                (["-m", module], home / "resume-code", str(home)) for module in this_pc.DESIGN_STEPS]
+            command, given = resumed[-1]
+            assert command[1:] == ["-m", "score", *entry["argv"], "--detach"] and given["cwd"] == home / "resume-code"
+            assert {key: given["env"][key] for key in ("SCORE_MIN_FREE_GB", this_pc.OWNERS_GO, "SCORE_FREE_ONLY",
+                                                       "PROPS_HOME")} == {
+                "SCORE_MIN_FREE_GB": "8", this_pc.OWNERS_GO: "go1", "SCORE_FREE_ONLY": "1", "PROPS_HOME": str(home)}
+            assert not (home / this_pc.PAUSED).exists()
+            assert this_pc.status_line(home).startswith("neither running nor paused")
+            # stop (#111): a run still draining after STOP_SECONDS has its whole group killed, never left beside
+            # the next
+            process, entry = stand_in_run(home, tmp_path)
+            runs.append(process)
+            card.setattr(this_pc, "STOP_SECONDS", 0.2)
+            assert this_pc.stop(home) == f"stopped run {entry['id']} (pid {process.pid}) by SIGKILL after 0.2 s"
+            assert process.wait(timeout=5) == -this_pc.signal.SIGKILL and not this_pc.group_alive(process.pid)
+            assert this_pc.stop(home) == "stop: no run was live"
+    finally:
+        for process in runs:
+            process.kill()
+            process.wait()
+    # a start within RESTART_HOURS of the last is refused without a reason (#112)
+    started_at = this_pc.datetime.datetime(2026, 11, 11, 9, 0, tzinfo=this_pc.datetime.timezone.utc)
     write(home / "runs" / "20261111T090000-2.json", this_pc.json.dumps({"id": "2", "state": "ended", "pid": 1,
-                                                                         "started": started.isoformat()}))
-    soon, later = started + this_pc.datetime.timedelta(hours=1), started + this_pc.datetime.timedelta(hours=3)
+                                                                         "started": started_at.isoformat()}))
+    soon, later = started_at + this_pc.datetime.timedelta(hours=1), started_at + this_pc.datetime.timedelta(hours=3)
     assert "--restart-reason" in this_pc.start_refusal(home, None, now=soon)
     assert this_pc.start_refusal(home, "the people chain is stopped", now=soon) is None
     assert this_pc.start_refusal(home, None, now=later) is None
-    assert this_pc.restart_taken(["world1", "--restart-reason", "why", "--jobs", "16"]) == (["world1", "--jobs", "16"],
-                                                                                          "why")
-    with pytest.raises(SystemExit, match="needs its reason"):
-        this_pc.restart_taken(["world1", "--restart-reason"])
