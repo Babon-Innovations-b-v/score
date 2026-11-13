@@ -131,7 +131,6 @@ FUNCTION_DEBT = {
     "score/stages/library/test_everything_handed_to_library.py": 13,
     "score/stages/light/test_light_measured_against_design.py": 9,
     "score/stages/motion/test_a_thing_moves_as_its_design_says.py": 18,
-    "score/stages/people/test_looks_dressed_from_the_library_and_judged_by_measure.py": 36,
     "score/stages/people_cloth/test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure.py": 8,
     "score/stages/rough_model/test_a_rough_model_is_bought_once_from_its_concept.py": 11,
     "score/stages/scene_clips/test_a_walk_becomes_constraints_on_its_own_ground.py": 11,
