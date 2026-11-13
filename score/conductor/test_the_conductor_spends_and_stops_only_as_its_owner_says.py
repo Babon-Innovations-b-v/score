@@ -20,7 +20,13 @@ Break that turns it red: in size.decide grow while a run is live (drop the claim
 leave out the commands ask_grow_for recorded (a Buy on the idle size never grows it); in kill.stop_everything
 release the parked machines before closing the pools, or drop its `stop_cluster` call (score's cluster Jobs left
 running), or pass no `every_box` to cluster_stopper (a cap stop leaves another box's Jobs running), or drop the
-`every_box_stops` call (the runner's machines keep billing past the cap); or in logs drop the secret-shape test (an AIza key reaches the
+`every_box_stops` call (the runner's machines keep billing past the cap), or drop `+ starting_runs(frozen_folder)` (a
+starting run goes on past the stop) or `+ checkout_starting(checkout)` (a `score run` starting from the checkout goes
+on); or in kill.leftovers read frozen.users only (the two naming a copy by SCORE_FROZEN or command line stay), or drop
+its `pid not in passes` (the sync pass is ended); or in kill.starting drop its young or owner test (the old copy's
+owner, or the gone copy's unmarked processes, stay; dropping kill.starting itself stays green, as before this fold: the
+stop's SIGTERM ends the starting run before the sweep looks); or in conductor.project_refusal drop either name from its
+set (a paid point clears under the conductor's project); or in logs drop the secret-shape test (an AIza key reaches the
 tails); or in disk.kept drop the registered-run test (a waiting run's copy is removed); or in disk.said_by drop the
 ProcessLookupError catch (a process ending mid-read crashes store-evict); or in cluster.carried_environment drop the
 SECRET_NAME test (the sync token's value lands in a drive Job's spec), or drop its READER_NAMES (the drive pod reads no
@@ -248,131 +254,61 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     with conductor.holding("sync-pass"):
         assert not conductor.HOLDS.exists()
 
-
-# --- money: the conductor's bill stays out of the batch's ---------------------------------------------------------------
-
-def test_the_bill_the_stop_line_counts_is_the_batch_projects_alone(monkeypatch):
+    # money: the bill the stop line counts is the batch project's alone, and every paid point refuses while the batch
+    # project is the conductor's (by the environment's name, or by the machine record's, whatever its name)
     compute.ledger()  # puts tools/cloud on the path
     import provider
     projects = [{"id": "batch-id", "name": "farm-factory"}, {"id": "conductor-id", "name": "score-conductor"}]
     lines = [{"project_id": "batch-id", "product_name": "Instances", "value": {"units": 40, "nanos": 0}},
              {"project_id": "conductor-id", "product_name": "Instances", "value": {"units": 75, "nanos": 0}}]
-    asked = []
+    scw_asked = []
 
     def scw(*arguments):
-        asked.append(arguments)
+        scw_asked.append(arguments)
         if arguments[:3] == ("account", "project", "list"):
             return [project for project in projects if project["name"] == arguments[3].partition("=")[2]]
         if arguments[:3] == ("billing", "consumption", "list"):
             return lines  # the API's answer may hold lines of other projects: each is checked to be the project's
         raise AssertionError(arguments)
     monkeypatch.setattr(provider.cloud, "scw", scw)
-    monkeypatch.delenv("SCORE_SCALEWAY_PROJECT", raising=False)
-    assert compute.cloud_bill() == 40.0
-    assert not any("conductor-id" in word for arguments in asked for word in arguments)
-
-
-def test_every_paid_point_refuses_while_the_batch_project_is_the_conductors(tmp_path, monkeypatch):
-    line = {"world": "world1", "euros": 100.0, "at": "2026-10-22T09:00:00+00:00"}
     for name in ("SCORE_SCALEWAY_PROJECT", conductor.FREE_ONLY, conductor.SIZE_URL):
         monkeypatch.delenv(name, raising=False)
-    assert guard.refusal(line, 0.0, {}, 1.0) is None
-    monkeypatch.setenv("SCORE_SCALEWAY_PROJECT", conductor.CONDUCTOR_PROJECT)
-    assert "the conductor's own project" in guard.refusal(line, 0.0, {}, 1.0)
-    assert "the conductor's own project" in compute.books_refusal()
-    with pytest.raises(compute.Refused, match="the conductor's own project"):
-        compute.require_books("a card")  # every rent point, the owner's override included
-    record = tmp_path / "machine.json"
-    monkeypatch.setenv("SCORE_SCALEWAY_PROJECT", "batch-of-another-name")
-    record.write_text(json.dumps({"project": "batch-of-another-name"}))
-    assert conductor.machine(record) is None  # not a conductor by the size function's name...
-    assert "the conductor's own project" in conductor.project_refusal(record)  # ...yet its own project
-    record.write_text(json.dumps({"project": "score-conductor-elsewhere"}))
-    assert conductor.project_refusal(record) is None
+    monkeypatch.setattr(conductor, "MACHINE", tmp_path / "no-machine.json")  # by name alone, no record
+    assert compute.cloud_bill() == 40.0
+    assert not any("conductor-id" in word for arguments in scw_asked for word in arguments)
+    line = {"world": "world1", "euros": 100.0, "at": "2026-10-22T09:00:00+00:00"}
+    record = tmp_path / "project-machine.json"
+    # (row, the batch project's name, the machine record's project or None) -> the conductor's own (refused)
+    for row, named, recorded, refused in [
+            ("a batch project", None, None, False),
+            ("the conductor's project by name", conductor.CONDUCTOR_PROJECT, None, True),
+            ("by the record, of another name", "batch-of-another-name", "batch-of-another-name", True),
+            ("a record naming another project", "batch-of-another-name", "score-conductor-elsewhere", False)]:
+        if named is None:
+            monkeypatch.delenv("SCORE_SCALEWAY_PROJECT", raising=False)
+        else:
+            monkeypatch.setenv("SCORE_SCALEWAY_PROJECT", named)
+        if recorded is None:
+            said = [guard.refusal(line, 0.0, {}, 1.0)]
+            if refused:
+                said.append(compute.books_refusal())
+                with pytest.raises(compute.Refused) as raised:
+                    compute.require_books("a card")  # every rent point, the owner's override included
+                said.append(str(raised.value))
+        else:
+            record.write_text(json.dumps({"project": recorded}))
+            assert conductor.machine(record) is None, row  # not a conductor by the size function's name
+            said = [conductor.project_refusal(record)]
+        assert all(("the conductor's own project" in (words or "")) is refused for words in said), (row, said)
 
-
-# --- the kill switch ---------------------------------------------------------------------------------------------------
-
-def test_only_the_owners_process_pulls_the_switch_or_clears_the_latch(monkeypatch):
-    monkeypatch.setattr(kill, "running_under_agent", lambda: True)
-    for call in (lambda: kill.stop_all("owner", "stop"), lambda: kill.allow_paid("owner", "go on"),
-                 lambda: kill.stop_batch("owner", "stop")):
-        with pytest.raises(PermissionError, match="only the owner's click"):
-            call()
-
-
-def test_the_switch_stops_every_run_releases_every_parked_machine_and_latches_free_only(home):
-    (home / "runs").mkdir()
-    (home / "parked").mkdir()
-    live, waiter = subprocess.Popen(SLEEP), subprocess.Popen(SLEEP)
-    runs.claim("c0ffee", ["draw@hangar"], live.pid, folder=home / "runs")
-    waiting = runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=home / "runs")
-    entry = json.loads(waiting.read_text())
-    waiting.write_text(json.dumps({**entry, "pid": waiter.pid}))
-    for number in (1, 2):
-        (home / "parked" / f"m{number}.json").write_text(json.dumps({"id": f"m{number}", "zone": "fr-par-2",
-                                                                      "token": f"t{number}"}))
-    conductor.RESIZING.parent.mkdir(parents=True)
-    conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": time.time()}))
-    released, order = [], []
-
-    def release(server, zone, token):
-        order.append("parked")
-        if server == "m2":
-            raise RuntimeError("the provider said no")
-        released.append((server, zone, token))
-    try:
-        report = kill.stop_everything("owner", "stop it\nall", folder=home / "runs", parked=home / "parked",
-                                      release=release, close_pools=lambda: order.append("pools") or ["run-1"])
-        assert live.wait(10) == -15 and waiter.wait(10) == -15
-    finally:
-        for process in (live, waiter):
-            process.kill()
-            process.wait()
-    assert order[0] == "pools" and report["pools"] == ["run-1"]  # no collector replaces the cards released next
-    assert report["runs"] == [live.pid] and report["waiting"] == [entry["id"]]
-    assert released == [("m1", "fr-par-2", "t1")] and report["errors"][0].startswith("parked m2: RuntimeError")
-    assert json.loads(waiting.read_text())["state"] == runs.STOPPED
-    assert conductor.FREE_ONLY_LATCH.read_text().splitlines()[-1] == "SCORE_FREE_ONLY=1"
-    assert "stop it all" in conductor.FREE_ONLY_LATCH.read_text()  # his words on one line
-    assert not conductor.RESIZING.exists()  # its SIGTERMs are his stop, never a resize's
-    assert list(conductor.HOME.glob("kill-*.json"))  # his stop kept on record
-    assert kill.unlatch("owner", "go on")["was_held"] and not conductor.free_only()
-    assert list(conductor.HOME.glob("free-only-cleared-*.json"))
-
-
-def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed(home):
-    """Owner, 2026-10-25: the next Buy after a stopped batch needs no Allow paid work again."""
-    (home / "runs").mkdir()
-    (home / "parked").mkdir()
-    live = subprocess.Popen(SLEEP)
-    runs.claim("c0ffee", ["draw@hangar"], live.pid, folder=home / "runs")
-    (home / "parked" / "m1.json").write_text(json.dumps({"id": "m1", "zone": "fr-par-2", "token": "t1"}))
-    released = []
-    try:
-        report = kill.stop_everything("owner", "this batch", folder=home / "runs", parked=home / "parked",
-                                      release=lambda *machine: released.append(machine),
-                                      close_pools=lambda: ["run-1"], latched=False,
-                                      stop_cluster=lambda: 'job.batch "score-r-a-g0" deleted')
-        live.wait(10)
-    finally:
-        live.kill()
-        live.wait()
-    assert report["runs"] == [live.pid] and released == [("m1", "fr-par-2", "t1")] and report["pools"] == ["run-1"]
-    assert report["free_only"] is None and not conductor.free_only()
-    assert list(conductor.HOME.glob("batch-stop-*.json")) and not list(conductor.HOME.glob("kill-*.json"))
-    assert report["cluster_jobs"] == 'job.batch "score-r-a-g0" deleted'  # score's cluster Jobs too (#95)
-    # the env1 cap's stop (plan B4): two boxes' Jobs, Stop this batch deletes its own box's, the cap's stop both, and
-    # every runner machine and leftover with them
-    jobs = {"score-r-a-g0": "conductor", "score-r-b-g0": "pc"}
-
-    def stopper(every_box=False):
-        def stop():
-            gone = sorted(name for name, box in jobs.items() if every_box or box == "conductor")
-            for name in gone:
-                del jobs[name]
-            return gone
-        return stop
+    # the stops. Only the owner's process pulls the switch, stops the batch or clears the latch
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(kill, "running_under_agent", lambda: True)
+        for owners in (kill.stop_all, kill.allow_paid, kill.stop_batch):
+            with pytest.raises(PermissionError, match="only the owner's click"):
+                owners("owner", "stop")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")  # score's cluster Jobs: this box's and the PC's
 
     class Cloud:
         def stop_runner_servers(self):
@@ -380,88 +316,128 @@ def test_stop_this_batch_stops_its_run_and_machines_and_leaves_paid_work_allowed
 
         def clean_leftovers(self):
             return {"machines": [("scw-score-l4", "a SCORE pool's machine that is no node")], "disks": []}
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(kill, "cluster_stopper", stopper)
-        patch.setenv("SCORE_CLOUD", "k8s")
-        kill.stop_everything("owner", "this batch", folder=home / "runs", parked=home / "empty", latched=False)
-        assert jobs == {"score-r-b-g0": "pc"}  # another box's run is not this stop's
-        with pytest.raises(ValueError):
-            kill.cap_stop(" ")
-        report = kill.cap_stop("past the stop line", folder=home / "runs", parked=home / "empty", cloud=Cloud())
-    assert jobs == {} and report["cluster_jobs"] == ["score-r-b-g0"] and report["machines"] == ["r-1"]
-    assert report["leftovers_cleaned"]["machines"] and report["free_only"] is None and not conductor.free_only()
-    assert list(conductor.HOME.glob("cap-stop-*.json"))
+
+    # (row, the stop's words, latched, every box: the cap's stop, its record's kind, the cluster Jobs it deletes)
+    for row, words, latched, every_box, kind, deleted in [
+            ("the kill switch", "stop it\nall", True, False, "kill", ["score-r-a-g0"]),
+            ("stop this batch", "this batch", False, False, "batch-stop", ["score-r-a-g0"]),
+            ("the env1 cap's stop", "past the stop line", False, True, "cap-stop", ["score-r-a-g0", "score-r-b-g0"])]:
+        batch = a_batch(tmp_path / kind)
+        jobs = {"score-r-a-g0": "conductor", "score-r-b-g0": "pc"}
+        released, order = [], []
+
+        def stopper(every_box=False):
+            def stop():
+                gone = sorted(name for name, box in jobs.items() if every_box or box == "conductor")
+                for name in gone:
+                    del jobs[name]
+                return gone
+            return stop
+
+        def release(server, zone, token):
+            order.append("parked")
+            if server == "m2":
+                raise RuntimeError("the provider said no")
+            released.append((server, zone, token))
+        monkeypatch.setattr(kill, "cluster_stopper", stopper)
+        monkeypatch.setattr(conductor, "HOLDS", batch["home"] / "holds")
+        given = {"folder": batch["home"] / "runs", "parked": batch["home"] / "parked", "release": release,
+                 "close_pools": lambda: order.append("pools") or ["run-1"], "frozen_folder": batch["home"] / "frozen",
+                 "checkout": batch["home"] / "checkout", "report_folder": batch["home"] / "reports"}
+        try:
+            if every_box:
+                with pytest.raises(ValueError):
+                    kill.cap_stop(" ")
+                report = kill.cap_stop(words, cloud=Cloud(), **given)
+            else:
+                report = kill.stop_everything("owner", words, latched=latched, **given)
+            stopped = [*batch["left"], batch["live"], batch["waiter"], batch["begin"], batch["starting"]]
+            assert all(process.wait(10) == -15 for process in stopped), row
+            assert batch["node"].poll() is None, row  # the stopping run ends its own (remove_owned)
+            assert batch["passing"].poll() is None, row  # a sync pass's own process is its own to end
+        finally:
+            for process in batch["all"]:
+                process.kill()
+                process.wait()
+        # no collector replaces the cards released next
+        assert order[0] == "pools" and report["pools"] == ["run-1"], row
+        assert released == [("m1", "fr-par-2", "t1")] and report["errors"][0].startswith("parked m2: RuntimeError")
+        # a run still starting in its new copy, or from the checkout, is stopped as a run, never swept as a leftover
+        # (2026-11-05: checkout 25, starting at a stop-batch, was spared and went on for hours)
+        assert sorted(report["runs"]) == sorted(process.pid for process in (batch["live"], batch["begin"],
+                                                                            batch["starting"])), row
+        assert report["waiting"] == [batch["waiting"]["id"]], row
+        assert json.loads(batch["entry"].read_text())["state"] == runs.STOPPED, row
+        assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(
+            process.pid for process in batch["left"]), row
+        assert all(entry["command"] for entry in report["leftovers"]), row  # each named, so we learn what they were
+        assert not conductor.RESIZING.exists(), row  # its SIGTERMs are his stop, never a resize's
+        assert [path.name.partition("-2")[0] for path in (batch["home"] / "reports").iterdir()] == [kind], row
+        # score's cluster Jobs too (#95): this box's, and with the cap's stop every box's
+        assert report["cluster_jobs"] == deleted and sorted(jobs) == sorted({"score-r-a-g0", "score-r-b-g0"} -
+                                                                           set(deleted)), row
+        assert report.get("machines") == (["r-1"] if every_box else None), row  # every runner machine too
+        assert bool(report.get("leftovers_cleaned", {}).get("machines")) is every_box, row
+        assert (report["free_only"] is not None) is latched and conductor.free_only() is latched, row
+        if latched:  # his words on one line; every score command then runs free only, until he clears it
+            assert conductor.FREE_ONLY_LATCH.read_text().splitlines()[-1] == "SCORE_FREE_ONLY=1"
+            assert "stop it all" in conductor.FREE_ONLY_LATCH.read_text()
+            done = subprocess.run([sys.executable, "-c", "import os\nfrom score import __main__ as command\n"
+                                   "command.main(['resume', '--dry'])\nprint(os.environ.get('SCORE_FREE_ONLY'))"],
+                                  cwd=REPO, capture_output=True, text=True,
+                                  env={**os.environ, "PROPS_HOME": str(tmp_path), "SCORE_FREE_ONLY": ""})
+            assert done.stdout.strip().splitlines()[-1] == "1", done.stdout + done.stderr[-800:]
+            assert kill.unlatch("owner", "go on")["was_held"] and not conductor.free_only()
+            assert list(conductor.HOME.glob("free-only-cleared-*.json"))
+    # Owner, 2026-10-25: the next Buy after a stopped batch needs no Allow paid work again
+    assert not conductor.free_only()
 
 
-def test_a_stop_ends_every_process_left_in_the_copy_of_a_run_gone_and_leaves_a_stopping_runs_to_it(home, monkeypatch):
-    """2026-10-26: after Stop this batch six processes of the stopped run worked on in its frozen copy for an hour and
-    held the checkout; a second stop found no run and ended none. 2026-11-05: two processes naming a stopped free run's copy
-    by SCORE_FROZEN or command line, not their working folder, held every carry off; stop-batch found none.
-    2026-11-05 too: stop-batch ended three detached free runs 2.1 minutes in, each still working out its claim, so in
-    no registry yet.
-    Break: kill.leftovers -> frozen.users only (the two by name stay), or drop its `pid not in passes` (the sync pass
-    is ended), or drop kill.starting (the starting run is ended) or its young or owner test (the old copy's owner, or
-    the gone copy's unmarked processes, stay), or drop `+ starting_runs(frozen_folder)` in stop_everything (a starting
-    run goes on past the stop)."""
-    (home / "runs").mkdir()
-    gone, stopping = home / "frozen" / "20261026-081445-1", home / "frozen" / "20261026-091445-2"
-    gone.mkdir(parents=True)
-    (home / "frozen" / "20261026-081445-1.home").mkdir()
-    stopping.mkdir()
-    named = [*SLEEP, f"{gone}/score/run.py"]  # the copy as an argument of its own, as a run names it
-    env = {**os.environ, "SCORE_FROZEN": str(gone)}
-    begun, old = home / "frozen" / "20261105-101500-3", home / "frozen" / "20261105-081500-4"
-    begun.mkdir(), old.mkdir()
+def a_batch(home):
+    """A batch as a stop finds it, in `home`: a claimed run working in its frozen copy (a node of its own beside it),
+    a waiting run, two parked machines (the provider refuses the second), a resize mark, a sync pass holding, a run
+    still starting in its new copy and one from the checkout, and five processes left in copies of runs gone (in the
+    copy, in its home, naming it on the command line, by SCORE_FROZEN, an owner past the grace). 2026-10-26: after
+    Stop this batch six processes of the stopped run worked on in its frozen copy for an hour and held the checkout;
+    2026-11-05: two naming a stopped free run's copy by SCORE_FROZEN or command line held every carry off; 2026-11-06:
+    a `score run` still starting from the checkout held the pin 54 min."""
+    for name in ("runs", "parked", "holds", "checkout"):
+        (home / name).mkdir(parents=True)
+    frozen_folder = home / "frozen"
+    gone, stopping = frozen_folder / "20261026-081445-1", frozen_folder / "20261026-091445-2"
+    begun, old = frozen_folder / "20261105-101500-3", frozen_folder / "20261105-081500-4"
+    for folder in (gone, frozen_folder / "20261026-081445-1.home", stopping, begun, old):
+        folder.mkdir(parents=True)
     past = time.time() - disk.YOUNG_SECONDS - 60
     os.utime(old, (past, past))  # an owner past the grace: a run gone, not starting
     owner = {"SCORE_FROZEN_OWNER": "1"}
     left = [subprocess.Popen(SLEEP, cwd=gone), subprocess.Popen(SLEEP, cwd=f"{gone}.home"),
-            subprocess.Popen(named, cwd=home), subprocess.Popen(SLEEP, cwd=home, env=env),  # 2026-11-05: by name only
+            subprocess.Popen([*SLEEP, f"{gone}/score/run.py"], cwd=home),  # the copy as an argument, as a run names it
+            subprocess.Popen(SLEEP, cwd=home, env={**os.environ, "SCORE_FROZEN": str(gone)}),
             subprocess.Popen(SLEEP, cwd=old, env={**os.environ, **owner, "SCORE_FROZEN": str(old)})]
     begin = subprocess.Popen(SLEEP, cwd=home, env={**os.environ, **owner, "SCORE_FROZEN": str(begun)})
-    # a `score run` still starting from the checkout, before any copy (2026-11-06: 54 min, the pin held). Break: in
-    # kill.stop_everything, drop `+ checkout_starting(checkout)`
-    checkout = home / "checkout"
-    checkout.mkdir()
-    starting_here = subprocess.Popen([*SLEEP, "-m", "score", "run", "world1"], cwd=checkout)
-    monkeypatch.setattr(conductor, "HOLDS", home / "holds")
+    starting = subprocess.Popen([*SLEEP, "-m", "score", "run", "world1"], cwd=home / "checkout")
     passing = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO)!r}); "
                                 f"from score import conductor; h = conductor.holding('sync-pass', "
                                 f"__import__('pathlib').Path({str(home / 'holds')!r})); h.__enter__(); "
-                                f"print('held', flush=True); time.sleep(60)"], cwd=home, env=env, stdout=subprocess.PIPE,
-                               text=True)
+                                f"print('held', flush=True); time.sleep(60)"], cwd=home,
+                               env={**os.environ, "SCORE_FROZEN": str(gone)}, stdout=subprocess.PIPE, text=True)
+    live, node, waiter = (subprocess.Popen(SLEEP, cwd=stopping), subprocess.Popen(SLEEP, cwd=stopping),
+                          subprocess.Popen(SLEEP, cwd=home))
+    runs.claim("c0ffee", ["draw@hangar"], live.pid, folder=home / "runs")
+    waiting = runs.register_waiting(["run", "world1", "--jobs", "16"], 16, folder=home / "runs")
+    entry = {**json.loads(waiting.read_text()), "pid": waiter.pid}
+    waiting.write_text(json.dumps(entry))
+    for number in (1, 2):
+        (home / "parked" / f"m{number}.json").write_text(json.dumps({"id": f"m{number}", "zone": "fr-par-2",
+                                                                      "token": f"t{number}"}))
+    conductor.RESIZING.parent.mkdir(parents=True, exist_ok=True)
+    conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": time.time()}))
     assert passing.stdout.readline().strip() == "held"
-    run, node = subprocess.Popen(SLEEP, cwd=stopping), subprocess.Popen(SLEEP, cwd=stopping)
-    runs.claim("c0ffee", ["draw@hangar"], run.pid, folder=home / "runs")
     time.sleep(0.3)  # the children are in their folders before the stop looks
-    try:
-        report = kill.stop_everything("agent", "the batch", folder=home / "runs", parked=home / "empty",
-                                      close_pools=lambda: [], latched=False, frozen_folder=home / "frozen",
-                                      checkout=checkout)
-        assert sorted(entry["pid"] for entry in report["leftovers"]) == sorted(process.pid for process in left)
-        assert all(process.wait(5) == -15 for process in left)
-        assert node.poll() is None  # the stopping run ends its own (remove_owned)
-        # a run still starting in its new copy, not registered yet, is stopped as a run, never swept as a leftover
-        # (2026-11-05: checkout 25, starting at a stop-batch, was spared and went on for hours)
-        assert sorted(report["runs"]) == sorted([run.pid, begin.pid, starting_here.pid]) and begin.wait(5) == -15
-        assert starting_here.wait(5) == -15
-        assert begin.pid not in [entry["pid"] for entry in report["leftovers"]]
-        assert passing.poll() is None  # a sync pass's own process is its own to end
-        assert all(entry["command"] for entry in report["leftovers"])  # each named, so we learn what they were
-    finally:
-        for process in (*left, run, node, passing, begin, starting_here):
-            process.kill()
-            process.wait()
-
-
-def test_every_score_command_runs_free_only_while_the_latch_holds(tmp_path):
-    (tmp_path / "conductor").mkdir()
-    (tmp_path / "conductor" / "free-only").write_text("SCORE_FREE_ONLY=1\n")
-    done = subprocess.run([sys.executable, "-c", "import os\nfrom score import __main__ as command\n"
-                           "command.main(['resume', '--dry'])\nprint(os.environ.get('SCORE_FREE_ONLY'))"],
-                          cwd=REPO, capture_output=True, text=True,
-                          env={**os.environ, "PROPS_HOME": str(tmp_path), "SCORE_FREE_ONLY": ""})
-    assert done.stdout.strip().splitlines()[-1] == "1", done.stdout + done.stderr[-800:]
+    return {"home": home, "left": left, "live": live, "node": node, "waiter": waiter, "begin": begin,
+            "starting": starting, "passing": passing, "waiting": entry, "entry": waiting,
+            "all": [*left, live, node, waiter, begin, starting, passing]}
 
 
 # --- slices: a run's memory capped, nothing changed off a conductor -----------------------------------------------------
