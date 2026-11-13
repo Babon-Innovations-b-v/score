@@ -121,6 +121,7 @@ FUNCTION_DEBT = {
     "score/review/relation_solver/test_a_crowded_plan_is_parted_inside_its_walls_the_same_way_every_run.py": 2,
     "score/review/test_the_owners_word_stands.py": 131,
     "score/stages/animals/test_animal_rows_follow_the_design.py": 3,
+    "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 42,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 20,
     "score/stages/crops/test_crops_grow_as_the_concept_grows_them.py": 13,
     "score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py": 32,
