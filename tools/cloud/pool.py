@@ -488,7 +488,7 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
     run_id = os.environ.get(capacity.RUN_ID)
     want(run_id, offers, kind, disk_gb)
     classes = takes(kind, offers)
-    told = False
+    told, began = False, time.time()
     left = run.deadline - time.time() if getattr(run, "deadline", None) else None
     try:
         while not batch.STOPPING.is_set():
@@ -496,7 +496,10 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
             machine = park.adopt(run, offers, number, kind, disk_gb, classes)
             if machine is not None:
                 return machine
-            if current(run_id) is None or not batch.still_wanted(run, wanted):
+            if current(run_id) is None:
+                batch.say(closed_under(run_id, kind, classes, began))
+                return None
+            if not batch.still_wanted(run, wanted):
                 return None
             if not told:
                 batch.say(f"waiting for a warm pool card for {kind}")
@@ -509,6 +512,17 @@ def claim(run, offers, number, kind, disk_gb, wanted=None):
     finally:
         preflight.unmark_waiting()
         mark_waiting(False)
+
+
+def closed_under(run_id, kind, classes, began):
+    """Why a claim of `kind` waiting since `began` gets no card: the pool closed (released, or its end passed), with
+    the collector's last line on the claim's `classes` (none in stock, or past its clearance's euros). Buy 98,
+    2026-11-13: eight judge claims waited 35 min for an L40S or H100 and ended as "no card for the judge answered",
+    the cause only in the collector's log."""
+    said = [line for line in collector_said(run_id, 400).split(" | ")
+            if "none in stock" in line or any(name in line for name in classes)]
+    return (f"no {kind} card: the run's warm pool closed after {(time.time() - began) / 60:.0f} min waiting for a "
+            f"{' or '.join(sorted(classes))} card" + (f"; its collector last said: {said[-1]}" if said else ""))
 
 
 def mark_waiting(waits):
@@ -957,6 +971,16 @@ class Collecting:
 
     def __init__(self):
         self.account, self.rounds, self.next_ask, self.next_beat, self.refused = None, 0, 0.0, 0.0, None
+        self.short_before = set()
+
+    def asked_anew(self, short):
+        """Ask at once when `short` names a class the last round did not lack: the wait so far was earned on other
+        classes' stock. Buy 98, 2026-11-13: the judge's L40S asks met the 24-min wait the L4s' shortage had built,
+        were asked twice in 35 min and the pool closed under them. A stock read that finds none orders nothing."""
+        classes = {machine_class for machine_class, _, _ in short}
+        if classes - self.short_before:
+            self.rounds, self.next_ask = 0, 0.0
+        self.short_before = classes
 
     def wait_more(self):
         """One more round that gave no card: the next ask after stock_wait_minutes (3, 6, 12, 24, then 30 min)."""
@@ -972,6 +996,7 @@ def collect_round(run_id, plan, collecting):
         collecting.account = cloud.account()
         cloud.allow_key(collecting.account, "farm-factory-batch", batch.ssh_key())
     short = shortfall(plan, idle_down(run_id, plan, trim(run_id, plan, tidy(run_id))))
+    collecting.asked_anew(short)
     refused = cluster_lost(plan) if short else None
     if refused and refused != collecting.refused:
         batch.say(f"pool: renting refused: {refused}")

@@ -30,7 +30,9 @@ park.py and spread.py are the pool's own call sites):
 - test_a_stopped_runner_deletes_its_card_and_rents_nothing: in park.py `pool_parkable`, drop `and not
   batch.STOPPING.is_set()`.
 - test_a_class_the_pool_lacks_is_asked_for_and_no_stock_never_empties_the_offers: in `want`, `if asks.get(key,
-  {}).get("disk_gb") != disk:` -> `if False:`.
+  {}).get("disk_gb") != disk:` -> `if False:`; or in `Collecting.asked_anew`, `if classes - self.short_before:` ->
+  `if False:` (a new class's ask waits out the backoff other classes built; Buy 98, 2026-11-13); or in `claim`,
+  drop `batch.say(closed_under(...))` (a claim the pool closed under ends naming nothing).
 - test_a_card_of_every_buy_kind_goes_back_to_the_pool_cleaned: in park.py `CLEANUPS`, drop the `"similar"` entry.
 - test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_with_its_time_left: in `claim`,
   `paused(run, left)` -> `pass`.
@@ -426,7 +428,21 @@ def test_a_class_the_pool_lacks_is_asked_for_and_no_stock_never_empties_the_offe
     assert pool.shortfall(plan, []) == [("gpu-48gb", 100, True), ("gpu-24gb", batch.DISK_GB, False)]
     patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + big if offer.machine_class in classes])
     assert {offer.machine_class for offer in batch.one_class_in_stock(["gpu-48gb", "gpu-24gb"])} == {"gpu-24gb"}
+    collecting = pool.Collecting()  # the collector's wait, built on the L4s' shortage, is not the new ask's
+    collecting.asked_anew([("gpu-24gb", batch.DISK_GB, False)])
+    collecting.rounds, collecting.next_ask = 4, time.time() + 24 * 60
+    collecting.asked_anew([("gpu-24gb", batch.DISK_GB, False)])
+    assert collecting.rounds == 4
+    collecting.asked_anew([("gpu-48gb", 100, True), ("gpu-24gb", batch.DISK_GB, False)])
+    assert (collecting.rounds, collecting.next_ask) == (0, 0.0)
+    (pool.folder_of(run_id) / "collector.log").write_text("[cloud] pool: 1 card(s) short, none in stock; asking "
+                                                          "again in 30 min\n[cloud] pool: a heartbeat failed\n")
     pool.release(run_id)
+    said = []
+    patch(batch, "say", said.append)
+    assert pool.claim(a_run("closed-under"), big, 1, "judge", 100, wanted=lambda: True) is None
+    assert any("no judge card: the run's warm pool closed" in line and "gpu-48gb" in line
+               and "none in stock" in line for line in said), said
     shortage = [offer._replace(stock_word="shortage") for offer in OFFERS]
     patch(cloud, "offers", lambda classes: [offer for offer in shortage if offer.machine_class in classes])
     assert batch.one_class_in_stock(["gpu-24gb"])  # none in stock: still offered, its claims wait for stock
