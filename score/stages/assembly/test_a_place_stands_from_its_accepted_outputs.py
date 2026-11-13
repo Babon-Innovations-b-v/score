@@ -4401,10 +4401,13 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     for model in ("bench_1", "rock_1"):
         a_box_asset(seed.parent / f"assets/{model}.usdc", (-1.0, 0.0, -1.0), (1.0, 1.0, 1.0))
     assert made_waiting.joined_rows(inputs) == {"rock"} and made_waiting.joined_rows({}) == frozenset()
-    taken = []
+    taken, laid = [], []
+    lay = made_waiting.lay
     with monkeypatch.context() as patched:  # the bakes' own export stubbed: only what is laid, and from where, is read
         patched.setattr(baked, "take_bake", lambda *args: taken.append(args))
+        patched.setattr(made_waiting, "lay", lambda *args: laid.extend(lay(*args)) or laid)
         grounded.take_bakes(inputs, seed.parent, TOY)
+    assert laid == ["bench_1"], laid  # the made model lay reports laid, never rock_1 (joined) or rail_1 (unmade)
     assert taken == [(recorded / "bake", recorded / "paint", seed.parent),
                      (recorded / "old_station", recorded / "paint_old_station", seed.parent,
                       {"parts_rack_1": "parts_rack"}),
@@ -4414,6 +4417,8 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     lamp = stage.GetPrimAtPath(f"/{TOY}/Objects/lamp_1")
     assert lamp.GetChild("geo").IsValid() and lamp.GetAttribute("score:row").Get() == "lamp", lamp
     assert lamp.GetAttribute("score:model").Get() == "bench_1" and not stage.GetPrimAtPath(f"/{TOY}/Fixtures")
+    import stage_inputs
+    assert lamp.GetAttribute("score:model_sha256").Get() == stage_inputs.model_hash(recorded / "bake/made/bench_1.gltf")
     assert not stage.GetPrimAtPath(f"/{TOY}/Objects/rock_1")
     assert list(stage.GetPrimAtPath(f"/{TOY}").GetAttribute(assembly.WAITING).Get()) == [waits[0], waits[2]]
     other = a_toy(tmp_path / "unrecorded")
