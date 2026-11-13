@@ -74,58 +74,213 @@ def Xform "hall"
 PLAIN = "#usda 1.0\ndef Xform \"hall\"\n{\n}\n"
 
 
-def scripted(*shows):
-    """A locked film script whose walk-throughs show each of `shows` (a segment's `shows`)."""
-    return {"segments": [{"cut": "walk-through", "shows": dict(each), "seconds": 4.0} for each in shows]}
+# One locked script, its stages and its scans: the hall's own film walked 7 s from its record's first camera, its other
+# film (porch) walked 7 s from the record's `back`, and the yard shown only as a 3 s hero still from its own `gate`.
+TOUR = [{"cut": "walk-through", "shows": {"place": "hall"}, "sound": "place", "seconds": 7.0},
+        {"cut": "walk-through", "shows": {"place": "hall", "film": "porch", "camera": "back"}, "sound": "place",
+         "seconds": 7.0},
+        {"cut": "hero-still", "shows": {"place": "yard", "camera": "gate"}, "sound": "bed", "seconds": 3.0}]
+DOOR = {"name": "door", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1]}
+BACK = {"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]}
+NO_SLOW = {"fog": 0, "volumes": 0, "glass": 0}
+
+
+def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatch):
+    """One world (a cockpit home holding TOUR locked, a fogged hall's stage, a yard's, a plain, a fogged and a glassed
+    scan) driven through the rows' own entries.
+
+    Which films: a place's films are its locked film scripts' (the lock his yes), never a record written per place:
+    hall and yard have the row, keyed on the script and the people its design stands; porch is the hall's extra row's
+    (demo-film-extra@hall), the yard and an unshown hub have none; each make films at the script's camera, and an extra
+    row's output with no film folder fails its contract. A film a starter shows that no locked script shows waits on
+    his lock (needs.py), its node named. The environment-film row reads only the locked scripts, so a lock and a
+    changed lock each move the files part of its key.
+
+    Within its forecast (#21): two shots of 4 s at 24 frames are 192 frames, one 96; the free scan finds a plain-card
+    puff (fog) and a see-through pane, never the opaque wall, nor a prim the film leaves out, and leaves the stage's
+    files alone; fog or glass is priced high at FOG_FRAME_MINUTES a frame (over 20 times its likely euros), a plain
+    stage at FRAME_SPREAD over the measured frame time, its high the row's estimate. The runner clears the rows at their
+    films' forecast high, the figure film_one refuses over (fault 2026-10-25: cleared at the row's EUR 3.50, a fogged
+    film Blocked itself); a fogged film over a plain clearance is a new ask, and outside a cleared run nothing is
+    compared. A film's record keeps the longest walk-through showing it, and a plan whose shots show less is refused
+    before its frames are rented (fault 2026-10-25: a 3.5 s film Blocked the 7 s walk-through after everything was
+    bought); a film shown only as a hero still keeps one shot. The frames ask cards only, planned at SIZE over the jobs
+    the forecast sizes, no review frames, each job's deadline its frames at the forecast's high (the fogged hall's 2
+    frames a job at 17 minutes plus 10 to set up, 44), each job drawing into a folder of its own (blender_cloud's
+    shared_outputs), its first frame kept as concept.png.
+
+    Break: score/stages/demo_film/__init__.py: `return films().get(place, {}).get("place") == place` -> `return True`
+    Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json",
+        people_rows.place_part(place))` -> `pass`
+    Break: score/stages/demo_film/__init__.py: `if film["place"] == place and name != place]` -> `if film["place"] ==
+        place]`
+    Break: score/stages/demo_film/needs.py: `for film in wanted(place, data) if film not in locked]` -> `for film in
+        wanted(place, data)]`
+    Break: score/stages/demo_film/final.py: `found[f"script {film}"] = "{dashboard}/" + f"{LOCKED}/{film}.json"` ->
+        `pass`
+    Break: score/stages/demo_film/__init__.py: `high = FOG_FRAME_MINUTES if any(slow.values()) else likely *
+        FRAME_SPREAD` -> `high = likely * FRAME_SPREAD`
+    Break: score/stages/demo_film/__init__.py: `if opacity and opacity.Get() is not None and float(opacity.Get()) <
+        1.0:` -> `if opacity and opacity.Get() is not None:`
+    Break: score/stages/demo_film/__init__.py: `shots = len(film_cameras(record, film)[:SHOTS])` -> `shots = SHOTS`
+    Break: score/stages/demo_film/__init__.py: `if cleared is not None and planned["high_euros"] > cleared + 1e-6:` ->
+        `if False:`
+    Break: score/stages/demo_film/__init__.py: `round(sum(film["high_euros"] for film in planned), 2)` ->
+        `round(sum(film["euros"] for film in planned), 2)`
+    Break: score/stages/demo_film/__init__.py: `film["walk_seconds"] = max(film["walk_seconds"],
+        float(segment.get("seconds") or 0.0))` -> `pass`
+    Break: score/stages/demo_film/__init__.py: `if shown < film.get("walk_seconds", 0.0) - 1e-3:` -> `if False:`
+    Break: score/stages/demo_film/__init__.py: `CLASSES = "gpu-24gb"` -> `CLASSES = "gpu-24gb,cpu-8c-32gb"`
+    Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))`
+        -> `job["minutes"] = JOB_LEAD_MINUTES`
+    Break: score/stages/demo_film/__init__.py: drop `own_folders(jobs)` in film_one"""
+    from score import stages
+    from score.store import Store
+    sys.path.insert(0, str(REPO / "tools/cloud"))
+    import blender_cloud
+    import provider
+    demo, _ = demo_film.film_tools()
+    home = tmp_path / "home"
+    world = graph.Environment("world1", 0, {**stages.world1().roots, "dashboard": str(home)})
+    runner = graph.Runner(stages.STAGES, world, Store.in_folder(tmp_path / "store"))
+    row = runner.stages["environment-film"]
+    locked_in(home, monkeypatch)
+    assert not any(name.startswith("script ") for name in runner.file_keys(row, None)), "nothing locked, no script"
+    locked_in(home, monkeypatch, ("tour", a_script(TOUR)))
+    script = home / final.LOCKED / "tour.json"
+    keyed = runner.file_keys(row, None)["script tour"]
+    assert final.shown_places() == ["hall", "yard"]
+
+    # which places have which rows, keyed on what
+    assert demo_film.applies("hall") and demo_film.applies("yard")
+    assert not demo_film.applies("porch") and not demo_film.applies("hub")
+    assert demo_film.extras("hall") == ["porch"] and demo_film.applies_extra("hall")
+    assert not demo_film.applies_extra("yard") and not demo_film.applies_extra("hub")
+    found = demo_film.files("yard")
+    assert found["script tour"] == "{dashboard}/films/locked/tour.json", found
+    assert found["people"][0] == "{data}/people/rows.json", "the people its design stands (seen_faults)"
+    assert not any(name.startswith("film ") for name in found), "no per-place film record"
+    assert demo_film.extra_files("hall")["script tour"] == "{dashboard}/films/locked/tour.json"
+    assert all((REPO / path).exists() for path in demo_film.TOOLS)
+    (tmp_path / "data/films").mkdir(parents=True)
+    starter = [{"cut": "walk-through", "seconds": 4.0, "shows": {"place": place}} for place in ("alpha", "hall")]
+    (tmp_path / "data/films/env.json").write_text(json.dumps({"segments": starter}))
+    waiting = [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", tmp_path / "data")]
+    assert waiting == [("film:yes:alpha", "demo-film@alpha")], waiting
+    assert needs.gaps("hall", tmp_path / "data") == [] and needs.gaps("gamma", tmp_path / "data") == []
+
+    # each film's record holds the walk-through it must fill; a plan showing less is refused before renting
+    filmed = demo_film.films()
+    assert filmed["hall"]["final"] is True
+    walks = {name: filmed[name]["walk_seconds"] for name in ("hall", "porch", "yard")}
+    assert walks == {"hall": 7.0, "porch": 7.0, "yard": 0.0}, walks
+    two, one = [{"camera": "a"}, {"camera": "b"}], [{"camera": "a"}]
+    demo_film.refuse_short("hall", two, filmed["hall"])
+    demo_film.refuse_short("yard", one, filmed["yard"])
+    with pytest.raises(RuntimeError, match="wants 7 s") as refused:
+        demo_film.refuse_short("hall", one, filmed["hall"])
+    assert "3.50 s" in str(refused.value)
+
+    # the free scan and the price it sets: (stage, what it finds slow, the high frame minutes)
+    scans = {}
+    for name, text, slow, high_minutes in (
+            ("plain", PLAIN, NO_SLOW, demo.FRAME_MINUTES * demo_film.FRAME_SPREAD),
+            ("fog", FOGGED, dict(NO_SLOW, fog=1), demo_film.FOG_FRAME_MINUTES),
+            ("glass", GLASSED, dict(NO_SLOW, glass=1), demo_film.FOG_FRAME_MINUTES)):
+        (tmp_path / f"{name}.usda").write_text(text)
+        scans[name] = demo_film.forecast(tmp_path / f"{name}.usda", demo_film.SHOTS)
+        assert scans[name]["frames"] == 192 and scans[name]["frame_minutes"] == demo.FRAME_MINUTES, name
+        assert scans[name]["slow"] == slow, (name, scans[name]["slow"])
+        assert scans[name]["high_frame_minutes"] == high_minutes, (name, scans[name])
+    plain, fog = scans["plain"], scans["fog"]
+    assert plain["euros"] == demo_film.LIKELY_EUROS and plain["high_euros"] == demo_film.EUROS
+    assert fog["high_euros"] > 20 * fog["euros"] and fog["jobs"] == plain["jobs"] >= 1
+    assert "1 fog" in demo_film.forecast_line(fog), demo_film.forecast_line(fog)
+    demo_film.refuse_over_clearance("hall", plain, demo_film.EUROS)
+    demo_film.refuse_over_clearance("hall", fog, None)
+    with pytest.raises(graph.Blocked, match="a new ask"):
+        demo_film.refuse_over_clearance("hall", fog, demo_film.EUROS)
+    assert all(provider.cards(name) for name in demo_film.CLASSES.split(",")), "cards only: none in stock is a gap"
+
+    # the fogged hall with one record camera: one shot, filmed as one batch over the forecast's cards
+    stage = tmp_path / "stage"
+    stage.mkdir()
+    (stage / "hall.usda").write_text(FOGGED)
+    (stage / "scene.json").write_text(json.dumps({"views": [DOOR]}))
+    assert demo_film.film_forecast(stage, {"place": "hall", "camera": "door"})["frames"] == 96
+    planned, deadlines = [], []
+
+    def plan(work, stages, given, jobs_each, size, ink, shots, seconds, start):
+        planned.append((tuple(size), jobs_each))
+        (work / "views").mkdir(parents=True, exist_ok=True)
+        (work / "jobs").mkdir(parents=True, exist_ok=True)
+        views = [{"name": f"shot0-{number:03d}", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1], "fov": 70}
+                 for number in range(4)]
+        written = demo.film_jobs(work, "hall", stages / "hall/hall.usda", [], views, "look", 2, size, ink)
+        (work / "views/hall.json").write_text(json.dumps({"size": list(size), "views": views, "moves": []}))
+        return written
+
+    def render(jobs, log_folder):
+        asked = [json.loads(pathlib.Path(json.loads(path.read_text())["args"][1]).read_text()) for path in jobs]
+        deadlines.extend(json.loads(path.read_text())["minutes"] for path in jobs)
+        assert not any(view.get("review") for job in asked for view in job["views"])
+        assert all(view["look_only"] for job in asked for view in job["views"])
+        loaded = [json.loads(path.read_text()) for path in jobs]
+        assert blender_cloud.shared_outputs(loaded) is None, blender_cloud.shared_outputs(loaded)
+        for job, listing in zip(loaded, asked):
+            frames = pathlib.Path(job["args"][2])
+            frames.mkdir(parents=True)
+            for view in listing["views"]:
+                Image.new("RGB", tuple(listing["size"]), (90, 90, 90)).save(frames / f"{view['name']}-look.png")
+
+    def cut(work, names):
+        (work / "videos").mkdir()
+        (work / "videos/hall.mp4").write_bytes(b"")
+
+    monkeypatch.setattr(demo, "plan", plan)
+    monkeypatch.setattr(demo, "cut", cut)
+    monkeypatch.setattr(demo_film, "render", render)
+    demo_film.film_one(stage, "hall", {"place": "hall", "camera": "door", "final": True}, tmp_path / "filmed",
+                       tmp_path / "log")
+    assert planned == [(demo_film.SIZE, demo_film.forecast(stage / "hall.usda", 1)["jobs"])], planned
+    assert deadlines == [44, 44], deadlines
+    assert Image.open(tmp_path / "filmed/concept.png").size == demo_film.SIZE
+
+    # two record cameras: two shots; the clearance reserves the very forecast the make holds each film to
+    record = {"views": [DOOR, BACK]}
+    (stage / "scene.json").write_text(json.dumps(record))
+    hall = demo_film.film_forecast(stage, {"place": "hall", "camera": "door"})
+    assert hall["frames"] == 192 and hall["slow"]["fog"] == 1
+    left = demo_film.film_forecast(stage, {"place": "hall", "camera": "door", "leave_out": ["/hall/Effects"]})
+    assert left["slow"]["fog"] == 0
+    assert json.loads((stage / "scene.json").read_text()) == record and (stage / "hall.usda").read_text() == FOGGED
+    inputs = {"assembly": str(stage), "script tour": str(script)}
+    own = stages.DEMO_FILM.forecast(inputs)
+    own_planned = demo_film.film_forecast(stage, {"place": "hall"})
+    assert own == {"euros": own_planned["high_euros"], "minutes": None, "high_minutes": None, "measured": 0}, own
+    demo_film.refuse_over_clearance("hall", own_planned, own["euros"])
+    extra = stages.DEMO_FILM_EXTRA.forecast(inputs)
+    assert extra["euros"] == demo_film.film_forecast(stage, {"place": "hall", "camera": "back"})[
+        "high_euros"] > demo_film.EUROS, extra
+
+    # the rows' makes film each place's films at the script's camera
+    made = []
+    monkeypatch.setattr(demo_film, "film_one", lambda stage_folder, name, film, out, log, start, people=0:
+                        made.append((name, film["camera"], start, out.name)))
+    (tmp_path / "yard").mkdir()
+    (tmp_path / "yard/yard.usda").write_text("#usda 1.0\n")
+    demo_film.make({"assembly": tmp_path / "yard", "script tour": script}, tmp_path / "out", 0, {})
+    demo_film.make_extra({"assembly": stage, "script tour": script}, tmp_path / "extra", 0, {})
+    assert made == [("yard", "gate", 0.0, "out"), ("porch", "back", 0.0, "porch")], made
+    assert demo_film.extra_faults(stage) == ["no film"]
+
+    # a changed lock moves the environment film's key
+    locked_in(home, monkeypatch, ("tour", a_script(TOUR[:2])))
+    assert runner.file_keys(row, None)["script tour"] != keyed
+    assert final.shown_places() == ["hall"]
 
 
 # --- which films a place has, and their cameras --------------------------------------------------------------------
-
-def test_only_the_places_a_locked_script_shows_have_the_row_and_it_declares_its_tools(tmp_path, monkeypatch):
-    """A place's films are its locked film scripts' (the lock his yes), never a record written per place: a place a
-    locked script shows has the row, keyed on that script and the people its design stands, and makes its own film
-    from it at the script's camera; any other has none.
-    Break: score/stages/demo_film/__init__.py: `return films().get(place, {}).get("place") == place` -> `return True`
-    Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json",
-        people_rows.place_part(place))` -> `pass`"""
-    script = scripted({"place": "yard", "camera": "gate"})
-    (tmp_path / "k9.json").write_text(json.dumps(script))
-    monkeypatch.setattr(final, "scripts", lambda: {"k9": script})
-    made = []
-    assert demo_film.applies("yard") and not demo_film.applies("hall")
-    found = demo_film.files("yard")
-    assert found["script k9"] == "{dashboard}/films/locked/k9.json", found
-    assert found["people"][0] == "{data}/people/rows.json", "the people its design stands (seen_faults)"
-    assert not any(name.startswith("film ") for name in found), "no per-place film record"
-    assert all((REPO / path).exists() for path in demo_film.TOOLS)
-    monkeypatch.setattr(demo_film, "film_one",
-                        lambda stage, name, film, out, log, start, people=0: made.append((name, film["camera"], start)))
-    (tmp_path / "stage").mkdir()
-    (tmp_path / "stage/yard.usda").write_text("#usda 1.0\n")
-    demo_film.make({"assembly": tmp_path / "stage", "script k9": tmp_path / "k9.json"}, tmp_path / "out", 0, {})
-    assert made == [("yard", "gate", 0.0)], made
-
-
-def test_another_film_of_a_place_is_the_extra_row_s_and_leaves_its_own_film_alone(tmp_path, monkeypatch):
-    """The hangar's script shows its own film and the hull: the hull is the extra row's (demo-film-extra@hangar), the
-    hub has none, and an extra row's output with no film folder fails its contract.
-    Break: score/stages/demo_film/__init__.py: `if film["place"] == place and name != place]` -> `if film["place"] ==
-        place]`"""
-    script = scripted({"place": "hangar", "camera": "across"}, {"place": "hangar", "film": "hull", "camera": "ship"})
-    (tmp_path / "k9.json").write_text(json.dumps(script))
-    monkeypatch.setattr(final, "scripts", lambda: {"k9": script})
-    made = []
-    assert demo_film.extras("hangar") == ["hull"] and demo_film.applies_extra("hangar")
-    assert not demo_film.applies_extra("hub") and not demo_film.applies("hull")
-    assert demo_film.extra_files("hangar")["script k9"] == "{dashboard}/films/locked/k9.json"
-    monkeypatch.setattr(demo_film, "film_one",
-                        lambda stage, name, film, out, log, start, people=0: made.append((name, film["camera"], out.name)))
-    (tmp_path / "stage").mkdir()
-    (tmp_path / "stage/hangar.usda").write_text("#usda 1.0\n")
-    demo_film.make_extra({"assembly": tmp_path / "stage", "script k9": tmp_path / "k9.json"}, tmp_path / "out", 0, {})
-    assert demo_film.extra_faults(tmp_path / "stage") == ["no film"]
-    assert made == [("hull", "ship", "hull")], made
-
 
 def test_a_film_with_no_camera_starts_at_its_scene_record_s_first(tmp_path):
     """No camera named: the record's first is the first shot, the other the second; a record with none refuses.
@@ -219,171 +374,6 @@ def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_i
     assert "blur" in blurred[0] and "blur" not in blurred[1] and "blur" not in blurred[2], "never across a cut"
     assert json.loads(job.read_text())["script"] == demo_film.FRAMES_SCRIPT
     assert "tool " + demo_film.FRAMES_SCRIPT in demo_film.common_files("launch")
-
-
-# --- the forecast and the refusals before anything is bought -------------------------------------------------------
-
-def test_the_forecast_prices_fog_and_glass_high_and_a_plain_stage_at_the_measured_frame_time(tmp_path):
-    """#21: two shots of 4 s at 24 frames are 192 frames; the free scan finds a plain-card puff (fog) and a see-through
-    pane, never the opaque wall; a stage with either is priced high at FOG_FRAME_MINUTES a frame (over 20 times its
-    likely euros), a plain one at FRAME_SPREAD over the measured frame time, its high the row's estimate.
-    Break: score/stages/demo_film/__init__.py: `high = FOG_FRAME_MINUTES if any(slow.values()) else likely *
-        FRAME_SPREAD` -> `high = likely * FRAME_SPREAD`
-    Break: score/stages/demo_film/__init__.py: `if opacity and opacity.Get() is not None and float(opacity.Get()) <
-        1.0:` -> `if opacity and opacity.Get() is not None:`"""
-    demo, _ = demo_film.film_tools()
-    for name, text in (("plain", PLAIN), ("fog", FOGGED), ("glass", GLASSED)):
-        (tmp_path / f"{name}.usda").write_text(text)
-    plain, fog, glass = (demo_film.forecast(tmp_path / f"{name}.usda", demo_film.SHOTS)
-                         for name in ("plain", "fog", "glass"))
-    assert plain["frames"] == 192 and plain["frame_minutes"] == demo.FRAME_MINUTES
-    assert plain["high_frame_minutes"] == demo.FRAME_MINUTES * demo_film.FRAME_SPREAD
-    assert plain["euros"] == demo_film.LIKELY_EUROS and plain["high_euros"] == demo_film.EUROS
-    assert fog["slow"] == {"fog": 1, "volumes": 0, "glass": 0}, fog["slow"]
-    assert glass["slow"] == {"fog": 0, "volumes": 0, "glass": 1}, glass["slow"]
-    assert fog["high_frame_minutes"] == glass["high_frame_minutes"] == demo_film.FOG_FRAME_MINUTES
-    assert fog["high_euros"] > 20 * fog["euros"] and fog["jobs"] == plain["jobs"] >= 1
-    assert "1 fog" in demo_film.forecast_line(fog), demo_film.forecast_line(fog)
-
-
-def test_the_forecast_counts_the_shots_film_one_makes_and_leaves_the_stage_alone(tmp_path):
-    """#21: a record holding one camera is forecast at one shot (96 frames), two at two (192); a prim the film leaves
-    out is out of the scan, and the stage's files are untouched.
-    Break: score/stages/demo_film/__init__.py: `shots = len(film_cameras(record, film)[:SHOTS])` -> `shots = SHOTS`"""
-    record = {"views": [{"name": "door", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1]}]}
-    (tmp_path / "scene.json").write_text(json.dumps(record))
-    (tmp_path / "hall.usda").write_text(FOGGED)
-    film = {"place": "hall", "camera": "door"}
-    assert demo_film.film_forecast(tmp_path, film)["frames"] == 96
-    record["views"].append({"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]})
-    (tmp_path / "scene.json").write_text(json.dumps(record))
-    assert demo_film.film_forecast(tmp_path, film)["frames"] == 192
-    assert demo_film.film_forecast(tmp_path, film)["slow"]["fog"] == 1
-    assert demo_film.film_forecast(tmp_path, dict(film, leave_out=["/hall/Effects"]))["slow"]["fog"] == 0
-    assert json.loads((tmp_path / "scene.json").read_text()) == record
-    assert (tmp_path / "hall.usda").read_text() == FOGGED
-
-
-def test_a_film_whose_forecast_high_passes_its_clearance_is_blocked_before_its_frames_are_bought(tmp_path):
-    """#21: a plain film's high is the row's estimate and passes; a fogged one's passes it and is a new ask; outside a
-    cleared run nothing is compared.
-    Break: score/stages/demo_film/__init__.py: `if cleared is not None and planned["high_euros"] > cleared + 1e-6:` ->
-        `if False:`"""
-    (tmp_path / "plain.usda").write_text(PLAIN)
-    (tmp_path / "fog.usda").write_text(FOGGED)
-    plain, fog = (demo_film.forecast(tmp_path / f"{name}.usda", demo_film.SHOTS) for name in ("plain", "fog"))
-    demo_film.refuse_over_clearance("hall", plain, demo_film.EUROS)
-    demo_film.refuse_over_clearance("hall", fog, None)
-    with pytest.raises(graph.Blocked, match="a new ask"):
-        demo_film.refuse_over_clearance("hall", fog, demo_film.EUROS)
-
-
-def test_the_clearance_reserves_the_forecast_the_make_checks_against(tmp_path):
-    """Fault 2026-10-25: the clearance reserved the row's EUR 3.50 while the make held the film to its own forecast,
-    so a fogged film Blocked itself after it was cleared. The rows clear at their films' forecast high, the figure
-    film_one refuses over, and that figure holds the film.
-    Break: score/stages/demo_film/__init__.py: `round(sum(film["high_euros"] for film in planned), 2)` ->
-        `round(sum(film["euros"] for film in planned), 2)`"""
-    from score import stages
-    (tmp_path / "stage").mkdir()
-    (tmp_path / "stage/hall.usda").write_text(FOGGED)
-    (tmp_path / "stage/scene.json").write_text(json.dumps({"views": [
-        {"name": "door", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1]},
-        {"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]}]}))
-    script = {"segments": [{"cut": "walk-through", "seconds": 7, "shows": {"place": "hall"}},
-                           {"cut": "walk-through", "seconds": 7, "shows": {"place": "hall", "film": "porch",
-                                                                           "camera": "back"}}]}
-    (tmp_path / "script.json").write_text(json.dumps(script))
-    inputs = {"assembly": str(tmp_path / "stage"), "script tour": str(tmp_path / "script.json")}
-    own = stages.DEMO_FILM.forecast(inputs)
-    planned = demo_film.film_forecast(tmp_path / "stage", {"place": "hall"})
-    assert own == {"euros": planned["high_euros"], "minutes": None, "high_minutes": None, "measured": 0}, own
-    demo_film.refuse_over_clearance("hall", planned, own["euros"])
-    extra = stages.DEMO_FILM_EXTRA.forecast(inputs)
-    assert extra["euros"] == demo_film.film_forecast(tmp_path / "stage", {"place": "hall", "camera": "back"})[
-        "high_euros"] > demo_film.EUROS, extra
-
-
-def test_a_film_too_short_for_the_walk_through_that_shows_it_fails_before_its_frames_are_bought():
-    """Fault 2026-10-25: a one-shot film (3.5 s) passed its own gate and Blocked the environment film's 7 s
-    walk-through after everything was bought. A film's record keeps the longest walk-through showing it, and a plan
-    whose shots show less is refused; a film shown only as a hero still keeps one shot.
-    Break: score/stages/demo_film/__init__.py: `film["walk_seconds"] = max(film["walk_seconds"],
-        float(segment.get("seconds") or 0.0))` -> `pass`
-    Break: score/stages/demo_film/__init__.py: `if shown < film.get("walk_seconds", 0.0) - 1e-3:` -> `if False:`"""
-    script = {"segments": [{"cut": "walk-through", "seconds": 7, "shows": {"place": "hall"}},
-                           {"cut": "hero-still", "seconds": 3, "shows": {"place": "hall", "film": "porch"}}]}
-    films = demo_film.films_of({"tour": script})
-    assert films["hall"]["walk_seconds"] == 7.0 and films["porch"]["walk_seconds"] == 0.0, films
-    two, one = [{"camera": "a"}, {"camera": "b"}], [{"camera": "a"}]
-    demo_film.refuse_short("hall", two, films["hall"])
-    demo_film.refuse_short("porch", one, films["porch"])
-    with pytest.raises(RuntimeError, match="wants 7 s") as refused:
-        demo_film.refuse_short("hall", one, films["hall"])
-    assert "3.50 s" in str(refused.value)
-
-
-def test_the_frames_ask_cards_only_so_no_card_in_stock_is_a_gap():
-    """#21: the frames' classes are cards only (blender_cloud never takes a processor machine in a card's place), so a
-    film priced on cards runs on cards or is a gap. A wording check guarding that owner rule.
-    Break: score/stages/demo_film/__init__.py: `CLASSES = "gpu-24gb"` -> `CLASSES = "gpu-24gb,cpu-8c-32gb"`"""
-    sys.path.insert(0, str(REPO / "tools/cloud"))
-    import provider
-    assert all(provider.cards(name) for name in demo_film.CLASSES.split(","))
-
-
-def test_a_film_is_one_batch_dealt_over_the_forecast_s_cards_with_its_high_deadline(tmp_path, monkeypatch):
-    """#21: the frames are planned at SIZE over the jobs the forecast sizes, no review frames, each job's deadline its
-    frames at the forecast's high: the fogged hall's 2 frames a job at 17 minutes plus 10 to set up, 44; each job
-    drawing into a folder of its own, which blender_cloud.py takes (shared_outputs), its frames gathered for the cut;
-    its first frame kept as concept.png.
-    Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))`
-        -> `job["minutes"] = JOB_LEAD_MINUTES`
-    Break: score/stages/demo_film/__init__.py: drop `own_folders(jobs)` in film_one"""
-    demo, _ = demo_film.film_tools()
-    sys.path.insert(0, str(REPO / "tools/cloud"))
-    import blender_cloud
-    planned, deadlines = [], []
-
-    def plan(work, stages, given, jobs_each, size, ink, shots, seconds, start):
-        planned.append((tuple(size), jobs_each))
-        (work / "views").mkdir(parents=True, exist_ok=True)
-        (work / "jobs").mkdir(parents=True, exist_ok=True)
-        views = [{"name": f"shot0-{number:03d}", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1], "fov": 70}
-                 for number in range(4)]
-        written = demo.film_jobs(work, "hall", stages / "hall/hall.usda", [], views, "look", 2, size, ink)
-        (work / "views/hall.json").write_text(json.dumps({"size": list(size), "views": views, "moves": []}))
-        return written
-
-    def render(jobs, log_folder):
-        asked = [json.loads(pathlib.Path(json.loads(path.read_text())["args"][1]).read_text()) for path in jobs]
-        deadlines.extend(json.loads(path.read_text())["minutes"] for path in jobs)
-        assert not any(view.get("review") for job in asked for view in job["views"])
-        assert all(view["look_only"] for job in asked for view in job["views"])
-        loaded = [json.loads(path.read_text()) for path in jobs]
-        assert blender_cloud.shared_outputs(loaded) is None, blender_cloud.shared_outputs(loaded)
-        for job, listing in zip(loaded, asked):
-            frames = pathlib.Path(job["args"][2])
-            frames.mkdir(parents=True)
-            for view in listing["views"]:
-                Image.new("RGB", tuple(listing["size"]), (90, 90, 90)).save(frames / f"{view['name']}-look.png")
-
-    def cut(work, names):
-        (work / "videos").mkdir()
-        (work / "videos/hall.mp4").write_bytes(b"")
-
-    monkeypatch.setattr(demo, "plan", plan)
-    monkeypatch.setattr(demo, "cut", cut)
-    monkeypatch.setattr(demo_film, "render", render)
-    (tmp_path / "stage").mkdir()
-    (tmp_path / "stage/hall.usda").write_text(FOGGED)
-    (tmp_path / "stage/scene.json").write_text(json.dumps({"views": [{"name": "door", "eye": [0, 1.6, 0],
-                                                                      "aim": [0, 1.6, -1]}]}))
-    demo_film.film_one(tmp_path / "stage", "hall", {"place": "hall", "camera": "door", "final": True},
-                       tmp_path / "out", tmp_path / "log")
-    assert planned == [(demo_film.SIZE, demo_film.forecast(tmp_path / "stage/hall.usda", 1)["jobs"])], planned
-    assert deadlines == [44, 44], deadlines
-    assert Image.open(tmp_path / "out/concept.png").size == demo_film.SIZE
 
 
 # --- the film gate --------------------------------------------------------------------------------------------------
@@ -626,42 +616,6 @@ def test_world1_s_script_is_paced_and_names_the_cuts_no_row_makes_yet(tmp_path, 
                     if segment["cut"] in ("walk-through", "hero-still") and (segment.get("shows") or {}).get("place")})
     assert final.shown_places() == shown and shown
     assert final.film_node({"shows": {"place": "hangar", "film": "hull"}}) == ("demo-film-extra@hangar", "hull")
-
-
-def test_the_locked_script_is_the_row_s_input_and_a_new_lock_moves_its_key(tmp_path, monkeypatch):
-    """The Film step's seam: the environment-film row reads only the locked scripts in the cockpit's home, so a lock,
-    a changed lock and an unlock each move the files part of its key.
-    Break: score/stages/demo_film/final.py: `found[f"script {film}"] = "{dashboard}/" + f"{LOCKED}/{film}.json"` ->
-        `pass`"""
-    from score import stages
-    from score.store import Store
-    world = graph.Environment("world1", 0, {**stages.world1().roots, "dashboard": str(tmp_path)})
-    runner = graph.Runner(stages.STAGES, world, Store.in_folder(tmp_path / "store"))
-    row = runner.stages["environment-film"]
-    locked_in(tmp_path, monkeypatch)
-    assert not any(name.startswith("script ") for name in runner.file_keys(row, None))
-    locked_in(tmp_path, monkeypatch, ("toy", a_script(WALKS)))
-    first = runner.file_keys(row, None)["script toy"]
-    assert final.shown_places() == ["alpha", "beta"]
-    locked_in(tmp_path, monkeypatch, ("toy", a_script(WALKS[:2])))
-    assert runner.file_keys(row, None)["script toy"] != first
-    assert final.shown_places() == ["alpha"]
-
-
-def test_a_film_a_script_shows_waits_on_its_lock(tmp_path, monkeypatch):
-    """The film layer's gaps (needs.py): a film a starter shows that no locked script shows waits on his lock, its
-    node named; a locked one is no gap, and the lock is the yes.
-    Break: score/stages/demo_film/needs.py: `for film in wanted(place, data) if film not in locked]` -> `for film in
-        wanted(place, data)]`"""
-    (tmp_path / "films").mkdir()
-    walk = {"cut": "walk-through", "seconds": 4.0}
-    script = {"segments": [dict(walk, shows={"place": "alpha"}), dict(walk, shows={"place": "beta"})]}
-    (tmp_path / "films/env.json").write_text(json.dumps(script))
-    monkeypatch.setattr(final, "scripts", lambda: {"env": {"segments": [dict(walk, shows={"place": "beta"})]}})
-    found = [(gap["id"], gap["node"]) for gap in needs.gaps("alpha", tmp_path)]
-    assert found == [("film:yes:alpha", "demo-film@alpha")], found
-    assert needs.gaps("beta", tmp_path) == [] and needs.gaps("gamma", tmp_path) == []
-    assert demo_film.films()["beta"]["final"] is True
 
 
 # The cut tests' frame: the cut's own steps at a small size, so a gate pod of 2-4 cores encodes them well inside the
