@@ -119,7 +119,7 @@ FUNCTION_DEBT = {
     "score/library/test_read_only_at_known_schema.py": 4,
     "score/review/holders/test_each_plan_item_names_what_holds_it.py": 24,
     "score/review/relation_solver/test_a_crowded_plan_is_parted_inside_its_walls_the_same_way_every_run.py": 2,
-    "score/review/test_the_owners_word_stands.py": 144,
+    "score/review/test_the_owners_word_stands.py": 131,
     "score/stages/animals/test_animal_rows_follow_the_design.py": 3,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 20,
     "score/stages/crops/test_crops_grow_as_the_concept_grows_them.py": 13,
