@@ -18,7 +18,8 @@ stages made here, each answer worked out by hand:
   surface colour, never a lamp's (2026-10-30).
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26; "the measures' table" is the rows of
-measures read on pictures and passes made here in test_light_measured_against_design):
+measures read on pictures and passes made here in test_light_measured_against_design, with its verdict rows, the
+checks' answers on measures files):
 - sky.py: the light's direction negated in `write_light` (the sky test, test_light_measured_against_design: the house
   sun; this and the other sky test breaks proved again 2026-11-13).
 - sky.through_dust: the forward peak left out of the beam (depth not delta-scaled), or `dust` not passed on in
@@ -46,9 +47,9 @@ measures read on pictures and passes made here in test_light_measured_against_de
 - light.fill_wanted: ignore `unseen` (the fill test); no fill beside a sun, the old rule (the fill test, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the measures' table: the disc rows; proved
   2026-11-13).
-- light.judge_exposure: pass with no concept (the exposure test).
+- light.judge_exposure: pass with no concept (the measures' table: the verdict rows).
 - light.extremes: `sky` ignored (the Moon look fails), or `luminance[sky]` for `luminance[~sky]` (the dark and blown
-  looks pass) (the exposure sky test, 2026-10-30).
+  looks pass) (the measures' table: the verdict rows, 2026-10-30).
 - light_passes.sky_mask: `== 0` -> `!= 0` (the measures' table: the sky mask row, 2026-10-30; proved
   2026-11-13).
 - light.sky_measures: the look's sky read by measure.sky_pixels, not its passes' mask (the look's sky test,
@@ -64,9 +65,9 @@ measures read on pictures and passes made here in test_light_measured_against_de
 - light.strengths: `first` always {} (a lamp-lit place's suns not at the floor), or the suns' sweep without
   `mix.SUN_MOST`; light.judge_source: the lamp share rule or the sun rule dropped (the sun-swept test, 2026-11-04).
 - measure.surface_cast: brightness left in (`* 128.0 / ...` dropped); light.judge_colour: `gap <= CAST_MOST` ->
-  `True` (the exposure test, 2026-11-04).
+  `True` (the measures' table: the cast and verdict rows, 2026-11-04).
 - measure.backdrop: every near pixel taken, not only those joined to the border, or the border's share rule dropped;
-  light.concept_cast: the backdrop not left out (the exposure test, 2026-11-10).
+  light.concept_cast: the backdrop not left out (the measures' table: the cast rows, 2026-11-10).
 - light.row_skies: the rows' boxes read as [top, left, bottom, right] (the look's sky test, 2026-11-04).
 - light.row_skies: the boxes read whole, not on measure.commonest_near (the look's sky test, 2026-11-10).
 - light.open_sky: the doorways not left out (`return mask` first), or light.through_doorways' `reach > 0` dropped
@@ -74,8 +75,8 @@ measures read on pictures and passes made here in test_light_measured_against_de
 - light_passes.missing_share: the glossy colour pass left out (the measures' table: the missing picture row,
   2026-10-30; proved 2026-11-13).
 - passes.neighbours: keep a planless shown place (the neighbours test).
-- mix.tone_curve: the one-knot curve of a black view dropped (the black view test, 2026-10-29).
-- light.drawn_count: the sky's prims counted (the drawn test, 2026-10-29).
+- mix.tone_curve: the one-knot curve of a black view dropped (the measures' table: the black view rows, 2026-10-29).
+- light.drawn_count: the sky's prims counted (the measures' table: the drawn row, 2026-10-29).
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
 - passes.device_for: `need > card_gb * 2**30` -> `False` (the measures' table: the card rows, 2026-10-29; proved
   2026-11-13).
@@ -113,7 +114,7 @@ measures read on pictures and passes made here in test_light_measured_against_de
 - light.look_at: the sky's factor left to the smoothing (the float look test, 2026-11-10: the square's sky lit by its
   lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test, 2026-11-10: the stairwell);
   light.airless_sky: the concept's sky as painted on an airless body (the look's sky test, 2026-11-10: hangar);
-  light.on_card: the look as it is (the exposure test, 2026-11-10: the street's black police car);
+  light.on_card: the look as it is (the measures' table: the verdict rows, 2026-11-10: the street's black police car);
   light_passes.surface_of: the glossy colour left out (the measures' table: the surface reflectance row; proved
   2026-11-13).
 """
@@ -450,6 +451,35 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     monkeypatch.setattr(passes.subprocess, "run", lambda command, **_: subprocess.CompletedProcess(command, 0, said))
     passes.with_devices(specs, tmp_path)
     switch = 'if views.get("device") == "CPU" and scene.render.engine == "CYCLES":'
+    # the colour (2026-11-04, the light audit: the lab lit green by its screens, quarters' warm room cool): a cast is
+    # read on the mid-tones with brightness taken out, so a grey room twice as bright reads the same, a green one not.
+    # A cutaway concept's flat backdrop is no surface of the place (2026-11-10: quarters' warm room on a grey 73% of
+    # its picture read neutral): a warm room on grey reads warm, the grey left out; a room filling its picture, its
+    # border painted in many colours, keeps every pixel, a warm patch inside the room that touches no border too
+    grey_room, green_room = np.full((40, 40, 3), 60.0), np.full((40, 40, 3), [60.0, 75.0, 50.0])
+    cutaway = np.full((60, 80, 3), 98.0)
+    cutaway[15:45, 20:60] = [150.0, 110.0, 80.0]
+    cutaway[25:35, 30:50] = 98.0  # the room's own grey floor, joined to no border
+    backdrop_left = light.not_place(cutaway, outdoor=False)
+    Image.fromarray(cutaway.astype(np.uint8)).save(tmp_path / "cutaway.png")
+    Image.fromarray(np.full((20, 20, 3), 128, np.uint8)).save(tmp_path / "hall.png")
+    monkeypatch.setattr(light, "concept_pictures", lambda place: [tmp_path / f"{place}.png"])
+    warm = light.concept_cast("cutaway", outdoor=False)
+    painted = np.random.default_rng(3).uniform(40.0, 200.0, (60, 80, 3))
+    # every view's light all zero gave the tone curve no knots and the sweep crashed in np.interp (2026-10-29,
+    # light@base), where the brightness gate should fail it by name
+    unlit = {"combined": np.zeros((20, 30)), "lamp_0": np.zeros((20, 30))}
+    unlit_views = {"v": (unlit, mix.tone_curve(unlit["combined"], np.full((20, 30), 0.0003)))}
+    # every object of the record waited on its model and no ground was laid, so the stage drew nothing and rendered
+    # black under its sun (2026-10-29, light-passes@base); the light layer's `drawn` gate counts what it lights
+    tiny = Usd.Stage.CreateNew(str(tmp_path / "tiny.usda"))
+    UsdGeom.Xform.Define(tiny, "/tiny")
+    UsdGeom.Sphere.Define(tiny, "/tiny/Sky/Bodies/earth")
+    tiny.Save()
+    drawn = [light.drawn_count(tmp_path / "tiny.usda", "tiny")]
+    UsdGeom.Cube.Define(tiny, "/tiny/Objects/hub")
+    tiny.Save()
+    drawn.append(light.drawn_count(tmp_path / "tiny.usda", "tiny"))
     for said, measured, expected in (
             ("a bank of lit panes: its halo", grid["halo"], Between(high=0.02)),
             ("a bank of lit panes: its fill", grid["fill"], Between(high=0.1)),
@@ -503,11 +533,92 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
             ("the jobs' views files", [json.loads(pathlib.Path(job["args"][1]).read_text())["device"]
                                        for job in specs], ["CPU", "GPU"]),
             ("the processor switched after the samples and denoising were set", switch in script and
-             script.index("usd_views.renderer(scene") < script.index(switch), True)):
+             script.index("usd_views.renderer(scene") < script.index(switch), True),
+            ("a view half black: its black and blown", light.extremes(np.concatenate([np.zeros((10, 20)),
+                                                                                      np.full((10, 20), 0.5)])),
+             {"black": 0.5, "blown": 0.0}),
+            ("a grey room's cast, and twice as bright",
+             (measure.surface_cast(grey_room), measure.surface_cast(grey_room * 2)), ([128.0] * 3, [128.0] * 3)),
+            ("a black picture's cast: says nothing of a colour", measure.surface_cast(np.zeros((40, 40, 3))), None),
+            ("a cutaway's backdrop: its corner left out, its room and the room's grey floor kept",
+             (bool(backdrop_left[0, 0]), bool(backdrop_left[30, 40]), bool(backdrop_left[20, 25])),
+             (True, False, False)),
+            ("a warm room on a grey backdrop: red over blue", warm[0] - warm[2], Between(low=20)),
+            ("a picture painted to its border: no backdrop",
+             (measure.backdrop(painted), light.not_place(painted, outdoor=False)), (None, None)),
+            ("a black view's brightness", mix.place_brightness(unlit_views, {}), pytest.approx(0.0003)),
+            ("a black view swept toward 0.3: still not within",
+             mix.within(unlit_views, {"lamp_0": mix.sweep(unlit_views, ["lamp_0"], 0.3)}, 0.3), False),
+            ("prims drawn by a stage of its sky alone, then with a hub", drawn, [0, 1])):
         assert expected == measured, (said, measured)
     with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
         measure.where({"name": "spot-1", "eye": [0, 4, 0], "aim": [0, 1, 0], "up": [0, 1, 0], "fov": 90},
                       (200, 100), [0, 0, 0])
+
+    # the verdicts on the measures: one row a judged measures file and its answer. The exposure's are read on hall's
+    # one view, its look and passes made here. Garage's 9.4% black was the Moon's black sky through its doors, its
+    # concept a cutaway with no sky (2026-10-30): the sky is left to the sky check. A finish darker than the grey card
+    # is judged on its light, read on the card (2026-11-10: the street's police car's black paint, 5.8 to 10.9% of its
+    # close views under 4 levels): a view half black paint (4% reflectance, Munsell N2.5's) at 3 levels beside a grey
+    # wall, under a tone curve known by hand (look = linear ^ (1 / 2.2)), reads 3 x (0.18 / 0.04) ^ (1 / 2.2) = 5.9
+    # levels on the card; the same paint in no light (0 levels) still black, and a grey finish (0.5) at 3 levels black
+    # on its own
+    hall = tmp_path / "exposure"
+    (hall / "looks/hall").mkdir(parents=True)
+    (hall / "passes/hall-0").mkdir(parents=True)
+    top, half_view, open_floor = (np.zeros((20, 20), bool) for _ in range(3))
+    top[:8] = True
+    half_view[:, :10] = True
+    looked = {name: exposure_of(hall, look, sky_mask, None) for name, look, sky_mask in (
+        ("dark", np.full((20, 20), 2), open_floor), ("blown", np.full((20, 20), 255), open_floor),
+        ("moon", np.where(top, 0, 128), top))}
+    low, high = -16.0, 4.0
+    axis = 2.0 ** np.linspace(low, high, 65)
+    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    np.savez(hall / "passes/hall-0/view-transform.npz", table=np.minimum(knots, 1.0) ** (1 / 2.2), low=low, high=high)
+    looked.update({name: exposure_of(hall, np.where(half_view, level, 128), open_floor,
+                                     None if finish is None else np.where(half_view, finish, 0.5))
+                   for name, level, finish in (("paint lit", 3, 0.04), ("paint unlit", 0, 0.04), ("grey", 3, 0.5),
+                                               ("no surface pass", 3, None))})
+    judged = tmp_path / "judged"
+    judged.mkdir()
+    for said, judge, measures, answer in (
+            ("as black as its concept", light.judge_exposure,
+             {"exposure": {"concept": {"black": 0.45, "blown": 0.0}, "views": {"wide": {"black": 0.5, "blown": 0.01}}}},
+             checks.PASS),
+            ("far blacker than its concept", light.judge_exposure,
+             {"exposure": {"concept": {"black": 0.01, "blown": 0.0}, "views": {"wide": {"black": 0.2, "blown": 0.0}}}},
+             checks.FAIL),
+            ("more blown than its concept", light.judge_exposure,
+             {"exposure": {"concept": {"black": 0.0, "blown": 0.0}, "views": {"wide": {"black": 0.0, "blown": 0.05}}}},
+             checks.FAIL),
+            ("no concept", light.judge_exposure,
+             {"exposure": {"concept": None, "views": {"wide": {"black": 0.0, "blown": 0.0}}}}, checks.UNKNOWN),
+            ("a dark look", light.judge_exposure, {"exposure": looked["dark"]}, checks.FAIL),
+            ("a blown look", light.judge_exposure, {"exposure": looked["blown"]}, checks.FAIL),
+            ("the Moon's black sky over a grey place", light.judge_exposure, {"exposure": looked["moon"]}, checks.PASS),
+            ("black paint lit, read on the card", light.judge_exposure, {"exposure": looked["paint lit"]}, checks.PASS),
+            ("black paint unlit", light.judge_exposure, {"exposure": looked["paint unlit"]}, checks.FAIL),
+            ("a grey finish at 3 levels", light.judge_exposure, {"exposure": looked["grey"]}, checks.FAIL),
+            ("3 levels with no surface pass", light.judge_exposure, {"exposure": looked["no surface pass"]},
+             checks.FAIL),
+            ("a grey room twice as bright as its grey concept", light.judge_colour,
+             {"colour": {"concept": [128.0] * 3, "views": {"v": measure.surface_cast(grey_room * 2)}}}, checks.PASS),
+            ("a green room against a grey concept", light.judge_colour,
+             {"colour": {"concept": [128.0] * 3, "views": {"v": measure.surface_cast(green_room)}}}, checks.FAIL),
+            ("a view with no cast", light.judge_colour, {"colour": {"concept": [128.0] * 3, "views": {"v": None}}},
+             checks.UNKNOWN)):
+        (judged / "measures.json").write_text(json.dumps(measures))
+        assert judge(judged, {}, {}).answer == answer, (said, measures)
+
+
+def exposure_of(folder, look, sky_mask, surface):
+    """hall's exposure measures from its one view: its look (levels), its sky mask and its surface reflectance pass,
+    when given, saved as rendered."""
+    Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(folder / "looks/hall/v-look.png")
+    np.savez(folder / "passes/hall-0/v-passes.npz", combined=np.ones((10, 10)), sky=sky_mask,
+             **({} if surface is None else {"surface": surface}))
+    return light.exposure_measures("hall", folder, folder)
 
 
 # --- the measures on pictures made here ----------------------------------------------------------------------------
@@ -661,82 +772,6 @@ def test_a_look_s_sky_is_read_where_the_render_met_no_surface_and_judged_on_the_
     assert light.sees_sky("yard", tmp_path, tmp_path, behind)
     np.savez(tmp_path / "passes/yard-0/v-passes.npz", combined=np.ones((50, 50)), sky=sky | opening)
     assert (light.open_sky(tmp_path, "yard", "v", door) == sky).all()
-
-
-def test_a_view_far_blacker_or_more_blown_than_its_concept_fails_and_with_no_concept_is_unknown(tmp_path, monkeypatch):
-    half_black = np.concatenate([np.zeros((10, 20)), np.full((10, 20), 0.5)])
-    assert light.extremes(half_black) == {"black": 0.5, "blown": 0.0}
-    for concept, views, answer in (({"black": 0.45, "blown": 0.0}, {"wide": {"black": 0.5, "blown": 0.01}}, checks.PASS),
-                                   ({"black": 0.01, "blown": 0.0}, {"wide": {"black": 0.2, "blown": 0.0}}, checks.FAIL),
-                                   ({"black": 0.0, "blown": 0.0}, {"wide": {"black": 0.0, "blown": 0.05}}, checks.FAIL),
-                                   (None, {"wide": {"black": 0.0, "blown": 0.0}}, checks.UNKNOWN)):
-        (tmp_path / "measures.json").write_text(json.dumps({"exposure": {"concept": concept, "views": views}}))
-        assert light.judge_exposure(tmp_path, {}, {}).answer == answer, (concept, views)
-    # the colour (2026-11-04, the light audit: the lab lit green by its screens, quarters' warm room cool): a cast is
-    # read on the mid-tones with brightness taken out, so a grey room twice as bright reads the same, a green one not
-    grey, green = np.full((40, 40, 3), 60.0), np.full((40, 40, 3), [60.0, 75.0, 50.0])
-    assert light.measure.surface_cast(grey) == light.measure.surface_cast(grey * 2) == [128.0, 128.0, 128.0]
-    assert light.measure.surface_cast(np.zeros((40, 40, 3))) is None  # black says nothing of a colour
-    for views, answer in (({"v": light.measure.surface_cast(grey * 2)}, checks.PASS),
-                          ({"v": light.measure.surface_cast(green)}, checks.FAIL), ({"v": None}, checks.UNKNOWN)):
-        (tmp_path / "measures.json").write_text(json.dumps({"colour": {"concept": [128.0, 128.0, 128.0],
-                                                                       "views": views}}))
-        assert light.judge_colour(tmp_path, {}, {}).answer == answer, views
-    # a cutaway concept's flat backdrop is no surface of the place (2026-11-10: quarters' warm room on a grey 73% of
-    # its picture read neutral): a warm room on grey reads warm, the grey left out; a room filling its picture, its
-    # border painted in many colours, keeps every pixel, a warm patch inside the room that touches no border too
-    cutaway = np.full((60, 80, 3), 98.0)
-    cutaway[15:45, 20:60] = [150.0, 110.0, 80.0]
-    cutaway[25:35, 30:50] = 98.0  # the room's own grey floor, joined to no border
-    left = light.not_place(cutaway, outdoor=False)
-    assert left is not None and left[0, 0] and not left[30, 40] and not left[20, 25]
-    Image.fromarray(cutaway.astype(np.uint8)).save(tmp_path / "cutaway.png")
-    monkeypatch.setattr(light, "concept_pictures", lambda place: [tmp_path / "cutaway.png"])
-    warm = light.concept_cast("cutaway", outdoor=False)
-    assert warm[0] > warm[2] + 20, warm
-    painted = np.random.default_rng(3).uniform(40.0, 200.0, (60, 80, 3))
-    assert light.measure.backdrop(painted) is None and light.not_place(painted, outdoor=False) is None
-
-
-def test_exposure_judges_the_places_surfaces_and_leaves_its_sky_to_the_sky_check(tmp_path, monkeypatch):
-    # garage's 9.4% black was the Moon's black sky through its doors, its concept a cutaway with no sky (2026-10-30)
-    concept = tmp_path / "concept.png"
-    Image.fromarray(np.full((20, 20, 3), 128, np.uint8)).save(concept)
-    monkeypatch.setattr(light, "concept_pictures", lambda place: [concept])
-    (tmp_path / "looks/hall").mkdir(parents=True)
-    (tmp_path / "passes/hall-0").mkdir(parents=True)
-    top = np.zeros((20, 20), bool)
-    top[:8] = True
-    for name, look, sky, answer in (("dark", np.full((20, 20), 2), np.zeros((20, 20), bool), checks.FAIL),
-                                    ("blown", np.full((20, 20), 255), np.zeros((20, 20), bool), checks.FAIL),
-                                    ("moon", np.where(top, 0, 128), top, checks.PASS)):
-        Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(tmp_path / "looks/hall/v-look.png")
-        np.savez(tmp_path / "passes/hall-0/v-passes.npz", combined=np.ones((10, 10)), sky=sky)
-        (tmp_path / "measures.json").write_text(json.dumps({"exposure": light.exposure_measures("hall", tmp_path,
-                                                                                                tmp_path)}))
-        assert light.judge_exposure(tmp_path, {}, {}).answer == answer, name
-    # a finish darker than the grey card is judged on its light, read on the card (2026-11-10: the street's police
-    # car's black paint, 5.8 to 10.9% of its close views under 4 levels): a view half black paint (4% reflectance,
-    # Munsell N2.5's) at 3 levels beside a grey wall, under a tone curve known by hand (look = linear ^ (1 / 2.2)):
-    # on the card it reads 3 x (0.18 / 0.04) ^ (1 / 2.2) = 5.9 levels; the same paint in no light (0 levels) still
-    # black, and a grey finish (0.5) at 3 levels black on its own
-    low, high = -16.0, 4.0
-    axis = 2.0 ** np.linspace(low, high, 65)
-    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
-    np.savez(tmp_path / "passes/hall-0/view-transform.npz", table=np.minimum(knots, 1.0) ** (1 / 2.2), low=low,
-             high=high)
-    half = np.zeros((20, 20), bool)
-    half[:, :10] = True
-    for name, level, finish, answer in (("paint lit", 3, 0.04, checks.PASS), ("paint unlit", 0, 0.04, checks.FAIL),
-                                        ("grey", 3, 0.5, checks.FAIL), ("no surface pass", 3, None, checks.FAIL)):
-        look = np.where(half, level, 128)
-        Image.fromarray(np.repeat(look[..., None], 3, axis=2).astype(np.uint8)).save(tmp_path / "looks/hall/v-look.png")
-        surface = {} if finish is None else {"surface": np.where(half, finish, 0.5)}
-        np.savez(tmp_path / "passes/hall-0/v-passes.npz", combined=np.ones((10, 10)), sky=np.zeros((20, 20), bool),
-                 **surface)
-        (tmp_path / "measures.json").write_text(json.dumps({"exposure": light.exposure_measures("hall", tmp_path,
-                                                                                                tmp_path)}))
-        assert light.judge_exposure(tmp_path, {}, {}).answer == answer, name
 
 
 def inside_functions(*names):
@@ -1015,15 +1050,6 @@ def test_a_sun_blowing_out_the_wall_it_lights_is_stepped_down_only_as_far_as_the
     assert light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})[0]["lamp_0"] == 1.0
 
 
-def test_a_black_view_is_measured_black_not_a_crash():
-    """Fault (2026-10-29, light@base): every view's light all zero gave the tone curve no knots and the sweep crashed in
-    np.interp, where the brightness gate should fail it by name."""
-    black = {"combined": np.zeros((20, 30)), "lamp_0": np.zeros((20, 30))}
-    views = {"v": (black, mix.tone_curve(black["combined"], np.full((20, 30), 0.0003)))}
-    assert mix.place_brightness(views, {}) == pytest.approx(0.0003)
-    assert not mix.within(views, {"lamp_0": mix.sweep(views, ["lamp_0"], 0.3)}, 0.3)
-
-
 def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_transform_not_its_8_bit_look_scaled(
         tmp_path):
     """Fault (2026-10-30, #36): the mixed look was the render's 8-bit look times the sweep's ratio, so a dark render
@@ -1110,19 +1136,6 @@ def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_trans
     library = pathlib.Path(__file__).resolve().parents[3] / "data/library/lamps.json"
     assert writer.glow_share({"id": "warning_light", "noun": "light"}, {"glowing": "bulb"}, library)[1] == "emitter"
     assert writer.glow_share({"id": "ceiling_lamp", "noun": "lamp"}, {"glowing": "bulb"}, library)[1] == "source"
-
-
-def test_a_stage_drawing_nothing_but_its_sky_is_named_before_the_paid_render(tmp_path):
-    """Fault (2026-10-29, light-passes@base): every object of the record waited on its model and no ground was laid,
-    so the stage drew nothing and rendered black under its sun; the light layer's `drawn` gate counts what it lights."""
-    stage = Usd.Stage.CreateNew(str(tmp_path / "tiny.usda"))
-    UsdGeom.Xform.Define(stage, "/tiny")
-    UsdGeom.Sphere.Define(stage, "/tiny/Sky/Bodies/earth")
-    stage.Save()
-    assert light.drawn_count(tmp_path / "tiny.usda", "tiny") == 0
-    UsdGeom.Cube.Define(stage, "/tiny/Objects/hub")
-    stage.Save()
-    assert light.drawn_count(tmp_path / "tiny.usda", "tiny") == 1
 
 
 def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monkeypatch):
