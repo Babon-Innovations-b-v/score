@@ -89,13 +89,44 @@ def kimodo_shaped():
     return names, parents, bind, local
 
 
-def test_the_standing_feet_stand_where_the_bind_puts_them(monkeypatch):
+def people_build():
+    """prop_build.py's own fk, clip_world and floor_lift, loaded by path without its heavy imports' module top run:
+    its three functions' sources executed against numpy."""
+    source = (pathlib.Path(__file__).resolve().parents[1] / "maker/prop_build.py").read_text()
+    names = {"np": np, "TRAVELLING_JOINT": 1, "FEET": played.FEET}
+    for function in ("def fk(", "def clip_world(", "def floor_lift("):
+        start = source.index(function)
+        exec(source[start:source.index("\n\n\n", start)], names)  # noqa: S102 - the repository's own file
+    return names
+
+
+# Each clip played on the toy build: what it shows, its clip, the build's scale over the rig, its lift ("floor": the
+# floor lift, which must be 3 cm, the clips' Hips 3 cm under the bind's), the frame read, and where joints stand on it
+# (the travel, the Hips' whole translation, scales: a 0.97 m Hips stands 1.067 m on a build 1.1 times the rig).
+PLAYS = [
+    ("the standing feet where the bind puts them", "standing", 1.0, "floor", 0, {3: "bind", 4: "bind"}),
+    ("a turned hip carries its leg on the build bones", "walking", 1.0, 0.0, 1,
+     {2: [0.1, 1.07, 0.0], 3: [1.0, 1.07, 0.0]}),
+    ("a bigger build travels further", "walking", 1.1, 0.02, 1,
+     {1: [0.11, 1.087, 0.0], 2: [0.11, 1.187, 0.0], 3: [1.01, 1.187, 0.0]}),
+]
+
+
+def test_a_clip_played_on_a_build_stands_its_feet_where_its_bind_does(monkeypatch):
     rig = toy()
     bones = {"offsets": BIND_OFFSETS, "parents": PARENTS, "bind": rig["bind"]}
-    lift = played.floor_lift(rig, bones, NAMES, 1.0)
-    world = played.clip_world(rig, "standing", BIND_OFFSETS, PARENTS, 1.0, lift)
-    assert world[0, [3, 4], 1, 3] == pytest.approx(rig["bind"][[3, 4], 1, 3])
-    assert lift == pytest.approx(0.03)
+    people = people_build()
+    for row, clip, scale, lift, frame, stands in PLAYS:
+        floor = played.floor_lift(rig, bones, NAMES, scale)
+        assert people["floor_lift"](rig, bones, NAMES, scale) == floor, row
+        if lift == "floor":
+            assert floor == pytest.approx(0.03), row
+            lift = floor
+        world = played.clip_world(rig, clip, BIND_OFFSETS, PARENTS, scale, lift)
+        assert np.array_equal(people["clip_world"](rig, clip, BIND_OFFSETS, PARENTS, scale, lift), world), row
+        for joint, place in stands.items():
+            expected = rig["bind"][joint, :3, 3] if place == "bind" else place
+            assert world[frame, joint, :3, 3] == pytest.approx(expected), f"{row}: {NAMES[joint]}"
     # Kimodo's own correction runs on the build's bones: its skeleton is Kimodo's own, a rig maps onto it joint by
     # joint, and a clip carried to Kimodo's motion and back is itself, the rest's feet where the bind puts them
     source = (pathlib.Path(__file__).resolve().parents[3] / "vendor/kimodo/kimodo/skeleton/definitions.py").read_text()
@@ -107,13 +138,8 @@ def test_the_standing_feet_stand_where_the_bind_puts_them(monkeypatch):
     names, parents, bind, local = kimodo_shaped()
     joints = played.kimodo_joints(names, parents)
     assert [names[own] for own, _ in joints][:3] == ["Hips", "Spine1", "Spine2"] and len(joints) == 23
-    wrong = parents.copy()
-    wrong[names.index("RightFoot")] = names.index("LeftShin")
-    with pytest.raises(ValueError, match="RightFoot hangs from LeftShin"):
-        played.kimodo_joints(names, wrong)
     motion, hips, rest = played.to_kimodo(local, bind, joints, parents)
-    back = played.from_kimodo(local, bind, joints, parents, motion, hips)
-    assert back == pytest.approx(local, abs=1e-9)
+    assert played.from_kimodo(local, bind, joints, parents, motion, hips) == pytest.approx(local, abs=1e-9)
     at_bind = np.array(local[:1])
     for joint, parent in enumerate(parents):
         above = np.eye(4) if parent < 0 else bind[parent]
@@ -126,52 +152,34 @@ def test_the_standing_feet_stand_where_the_bind_puts_them(monkeypatch):
     six[:, 2] = 1.0  # the left toe end, which the correction does not hold
     six[:, 3] = 1.0  # the right heel
     assert played.foot_contacts(six).tolist() == [[0.0, 0.0, 1.0, 0.0]] * 2
-    monkeypatch.setitem(sys.modules, "motion_correction", None)  # a box whose venv was never synced
-    with pytest.raises(RuntimeError, match="needs motion_correction, its prebuilt wheel from vendor/kimodo/wheels"):
-        played.contacted(local, names, parents, bind, np.zeros((4, 6)))
     # a toe the foot carried down (the foot pitched 30 degrees onto it and turned 40 about the upright) bent all the
     # way toward flat lies as the bind's toe does, turned only as the clip turns it; bent none of the way it is as it
-    # was; half bends it half; a toe end hung from the wrong joint is refused
+    # was; half bends it half; its base stays where it was
     toes = ["Root", "LeftFoot", "LeftToeBase", "LeftToeEnd"]
     hung = np.array([-1, 0, 1, 2])
-    bind = np.tile(np.eye(4), (4, 1, 1))
-    bind[1:, :3, 3] = [[0.0, 0.08, 0.0], [0.0, 0.02, 0.12], [0.0, 0.006, 0.17]]
+    toe_bind = np.tile(np.eye(4), (4, 1, 1))
+    toe_bind[1:, :3, 3] = [[0.0, 0.08, 0.0], [0.0, 0.02, 0.12], [0.0, 0.006, 0.17]]
     upright = np.radians(40.0)
     yawed = np.array([[np.cos(upright), 0.0, np.sin(upright)], [0.0, 1.0, 0.0], [-np.sin(upright), 0.0, np.cos(upright)]])
     clip = np.tile(np.eye(4), (1, 4, 1, 1))
     clip[0, 1:, :3, 3] = [[0.0, 0.1, 0.0], [0.0, -0.06, 0.12], [0.0, -0.014, 0.05]]
     clip[0, 1, :3, :3] = yawed @ tipped(30.0)
     for share, toe_turn in ((1.0, yawed), (0.0, yawed @ tipped(30.0)), (0.5, yawed @ tipped(15.0))):
-        bent = played.chained(played.toward_flat(clip, toes, hung, bind, played.TOES[0], share), hung)
-        assert bent[0, 2, :3, :3] == pytest.approx(toe_turn, abs=1e-9)
-        assert bent[0, 2, :3, 3] == pytest.approx(played.chained(clip, hung)[0, 2, :3, 3])  # its base where it was
-    with pytest.raises(ValueError, match="LeftToeEnd hangs from LeftFoot"):
-        played.toward_flat(clip, toes, np.array([-1, 0, 1, 1]), bind, played.TOES[0], 1.0)
-
-
-def test_a_turned_hip_carries_its_leg_on_the_build_bones():
-    rig = toy()
-    world = played.clip_world(rig, "walking", BIND_OFFSETS, PARENTS, 1.0, 0.0)
-    assert world[1, 2, :3, 3] == pytest.approx([0.1, 1.07, 0.0])  # the left leg 0.1 m along the turned hip's x: up
-    assert world[1, 3, :3, 3] == pytest.approx([1.0, 1.07, 0.0])  # its foot 0.9 m down the hip's y: along +x
-
-
-def test_a_bigger_build_travels_further():
-    rig = toy()
-    world = played.clip_world(rig, "standing", BIND_OFFSETS, PARENTS, 1.1, 0.0)
-    assert world[1, 1, 0, 3] == pytest.approx(0.11)
-
-
-def test_the_people_build_plays_the_same():
-    """prop_build.py's own fk, clip_world and floor_lift, loaded by path without its heavy imports' module top run:
-    its three functions' sources executed here against numpy give the same worlds and lift."""
-    source = (pathlib.Path(__file__).resolve().parents[1] / "maker/prop_build.py").read_text()
-    names = {"np": np, "TRAVELLING_JOINT": 1, "FEET": played.FEET}
-    for function in ("def fk(", "def clip_world(", "def floor_lift("):
-        start = source.index(function)
-        exec(source[start:source.index("\n\n\n", start)], names)  # noqa: S102 - the repository's own file
-    rig = toy()
-    bones = {"offsets": BIND_OFFSETS, "parents": PARENTS, "bind": rig["bind"]}
-    assert names["floor_lift"](rig, bones, NAMES, 1.1) == played.floor_lift(rig, bones, NAMES, 1.1)
-    assert np.array_equal(names["clip_world"](rig, "walking", BIND_OFFSETS, PARENTS, 1.1, 0.02),
-                          played.clip_world(rig, "walking", BIND_OFFSETS, PARENTS, 1.1, 0.02))
+        bent = played.chained(played.toward_flat(clip, toes, hung, toe_bind, played.TOES[0], share), hung)
+        assert bent[0, 2, :3, :3] == pytest.approx(toe_turn, abs=1e-9), f"share {share}"
+        assert bent[0, 2, :3, 3] == pytest.approx(played.chained(clip, hung)[0, 2, :3, 3]), f"share {share}"
+    # what is refused, by name: a leg or a toe end hung from the wrong joint, and the correction on a box whose venv
+    # was never synced
+    wrong = parents.copy()
+    wrong[names.index("RightFoot")] = names.index("LeftShin")
+    monkeypatch.setitem(sys.modules, "motion_correction", None)
+    refused = [
+        (lambda: played.kimodo_joints(names, wrong), ValueError, "RightFoot hangs from LeftShin"),
+        (lambda: played.toward_flat(clip, toes, np.array([-1, 0, 1, 1]), toe_bind, played.TOES[0], 1.0), ValueError,
+         "LeftToeEnd hangs from LeftFoot"),
+        (lambda: played.contacted(local, names, parents, bind, np.zeros((4, 6))), RuntimeError,
+         "needs motion_correction, its prebuilt wheel from vendor/kimodo/wheels"),
+    ]
+    for call, error, message in refused:
+        with pytest.raises(error, match=message):
+            call()
