@@ -173,7 +173,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 36,
     "tools/cloud/test_blender_cloud_runs_a_job_as_written.py": 14,
     "tools/cloud/test_box_masks_stop_when_no_masks_came_back.py": 3,
-    "tools/cloud/test_capacity_rents_the_cheapest_fitting_card_within_the_caps.py": 14,
     "tools/cloud/test_delight_makes_each_unlit_copy_once.py": 3,
     "tools/cloud/test_detached_logs_everything_and_says_one_line.py": 3,
     "tools/cloud/test_gemini_judge_answers_with_a_code_or_no_verdict.py": 5,

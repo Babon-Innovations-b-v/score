@@ -6,37 +6,29 @@ the run's cap together, parked machines counted, a slot whose rent gave no machi
 groups the ledger's machines by kind and card in one printed line (owner, 2026-10-12: the cheapest card that fits;
 2026-10-17: every node held a cap of its own).
 
-The expected cards and counts are worked out by hand from the offers and the rule; the run-cap checks run real
-processes against one shared count. The break that turns each red (applied once, seen red, reverted):
+One test: a table of answers (each call of the code under test, the settings it runs under, the answer worked out by
+hand from the offers and the rule) and one home of real `score run` processes against their shared counts. The break
+that turns it red (each applied once, seen red, reverted):
 
-- test_every_kind_runs_on_capability_classes_only: in `classes_for`, the unknown kind's `raise SystemExit(...)` ->
-  `return ()`; or in provider.py `cards`, the last `raise SystemExit(...)` -> `return 0`; or drop `(?:-(\d+)c)?` from
-  provider.GPU -> a class naming its cores is no class.
-- test_the_next_machine_is_the_cheapest_fitting_card_in_stock_spread_over_the_zones: in `next_offer`'s key, drop
-  `offer.stock_word == "shortage", `; or `in_zone[offer.zone]` -> `0`; or `and offer.machine_class not in
-  NEVER.get(kind, ())` -> ``.
-- test_a_late_class_is_taken_only_after_the_wait: in batch.py `claim_round`, `first = [offer for offer in offers if
-  offer.machine_class not in late]` -> `first = list(offers)`.
-- test_a_big_card_runs_several_jobs_of_a_measured_kind_at_once: in `runs_at_once`, `// 24` -> `// 48`.
-- test_a_backend_s_measured_count_rules_over_its_class_size: in `runs_at_once`, `if kind in measured:` -> `if False:`.
-- test_a_secret_comes_from_the_environment_before_the_backend: in secret_store.py `secret`, `if
-  os.environ.get(environment_name(name)):` -> `if False:`.
-- test_a_batch_ends_in_about_its_set_up_and_one_job: in `machines_for`, `span = max(setup_minutes, unit_minutes)` ->
-  `span = unit_minutes`.
-- test_the_caps_follow_the_quotas_and_the_environment: in `caps`, `found[name] = int(number)` -> `pass`.
-- test_a_machine_row_says_how_long_it_waited_worked_and_cost: in ledger.py `machine_row`, `((ready or ended) -
-  began) / 60` -> `(ended - began) / 60`.
-- test_the_report_groups_by_kind_and_card_and_prints_one_line: in `summarise`, `"failed_starts": len(group) -
-  len(ran)` -> `"failed_starts": 0`.
-- test_two_batches_of_one_run_hold_the_runs_cap_together: in `reserve_run_slot`, `room = elsewhere + live <
-  run_cap()` -> `room = live < run_cap()`.
-- test_a_run_counts_its_parked_machines_and_forgets_its_counts_at_its_end: in `held_elsewhere`, `held +=
-  sum(json.loads(` -> `held += 0 * sum(json.loads(`.
-- test_a_run_at_its_cap_says_so_once_each_time_it_fills: in `say_at_cap`, `if at_cap and not AT_CAP:` -> `if
-  at_cap:`.
-- test_a_slot_whose_rent_gave_no_machine_is_freed_and_one_that_gave_a_machine_stays_counted: in
-  `renting_elsewhere`, `if time.time() - count["at"] < RESERVE_SECONDS:` -> `if True:`; or in `held_elsewhere`,
-  `sum(parent != os.getpid() for parent in watchdogs.values())` -> `0`.
+- classes: in `classes_for`, the unknown kind's `raise SystemExit(...)` -> `return ()`; or in provider.py `cards`, the
+  last `raise SystemExit(...)` -> `return 0`; or drop `(?:-(\d+)c)?` from provider.GPU -> a class naming its cores is
+  no class.
+- the next machine: in `next_offer`'s key, drop `offer.stock_word == "shortage", `; or `in_zone[offer.zone]` -> `0`;
+  or `and offer.machine_class not in NEVER.get(kind, ())` -> ``.
+- a late class: in batch.py `claim_round`, `first = [offer for offer in offers if offer.machine_class not in late]` ->
+  `first = list(offers)`.
+- jobs at once: in `runs_at_once`, `// 24` -> `// 48`; or `if kind in measured:` -> `if False:`.
+- secrets: in secret_store.py `secret`, `if os.environ.get(environment_name(name)):` -> `if False:`.
+- a batch's machines: in `machines_for`, `span = max(setup_minutes, unit_minutes)` -> `span = unit_minutes`.
+- the caps: in `caps`, `found[name] = int(number)` -> `pass`.
+- a machine's row: in ledger.py `machine_row`, `((ready or ended) - began) / 60` -> `(ended - began) / 60`.
+- the report: in `summarise`, `"failed_starts": len(group) - len(ran)` -> `"failed_starts": 0`.
+- the run's cap held together: in `reserve_run_slot`, `room = elsewhere + live < run_cap()` -> `room = live <
+  run_cap()`.
+- parked machines: in `held_elsewhere`, `held += sum(json.loads(` -> `held += 0 * sum(json.loads(`.
+- the cap said once: in `say_at_cap`, `if at_cap and not AT_CAP:` -> `if at_cap:`.
+- a slot that gave no machine: in `renting_elsewhere`, `if time.time() - count["at"] < RESERVE_SECONDS:` -> `if
+  True:`; or in `held_elsewhere`, `sum(parent != os.getpid() for parent in watchdogs.values())` -> `0`.
 """
 import contextlib
 import io
@@ -62,149 +54,178 @@ L4, L40S, H100 = 0.013125, 0.024498, 0.047775
 STOCK_WORDS = ("available", "scarce", "shortage")
 
 
-@pytest.fixture(autouse=True)
-def one_process(monkeypatch):
-    """These checks hold one process's caps; the run-wide ones start processes of their own."""
-    monkeypatch.delenv("SCORE_RUN_ID", raising=False)
-    monkeypatch.delenv("SCORE_MAX_MACHINES", raising=False)
-    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)
-
-
 def offer(per_card, stock, machine_class, zone, order=0):
     return provider.Offer(per_card, stock, f"{machine_class}-type{order}", zone,
                           per_card * max(1, provider.cards(machine_class)), machine_class, order, STOCK_WORDS[stock])
 
 
-def refused(call, *arguments):
-    """The SystemExit message of a call that must refuse."""
+class Refuses:
+    """The expected answer of a call that must refuse: its SystemExit names `words`."""
+
+    def __init__(self, words):
+        self.words = words
+
+    def __repr__(self):
+        return f"Refuses({self.words!r})"
+
+
+class Fields:
+    """The expected answer of a call giving a dict: these of its fields, each equal."""
+
+    def __init__(self, **fields):
+        self.fields = fields
+
+    def __eq__(self, other):
+        return isinstance(other, dict) and all(name in other and other[name] == value
+                                               for name, value in self.fields.items())
+
+    def __repr__(self):
+        return f"Fields({self.fields!r})"
+
+
+# The offers the next machine is chosen from. Stock 0 is in stock, 1 scarce, 2 out of stock (shortage).
+L4_A, L4_B, L4_C = (offer(L4, 2, "gpu-24gb", zone) for zone in ("zone-a", "zone-b", "zone-c"))
+H100_B = offer(H100, 2, "gpu-80gb", "zone-b")
+SPREAD = [L4_A, L4_B, L4_C, H100_B]
+H100_IN_STOCK, L4_SCARCE = offer(H100, 0, "gpu-80gb", "zone-a"), offer(L4, 1, "gpu-24gb", "zone-a")
+X2_LATER, X2_FIRST = offer(H100, 2, "gpu-80gb-x2", "zone-a", 1), offer(H100, 2, "gpu-80gb-x2", "zone-b", 0)
+CARDS = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a"), offer(L40S, 2, "gpu-48gb", "zone-a")]
+L40S_SCARCE = offer(L40S, 1, "gpu-48gb", "zone-b")
+TWO_H100S = [{"zone": "zone-a", "class": "gpu-80gb"}] * 2
+LATE_OFFERS = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a")]
+
+# One machine of a run as batch.py records it: 150 s to answer, 600 s of work, 12.5 min billed as 13 started
+# minutes; the same machine never answering, deleted after 5 min; and an offer that gave no machine.
+MACHINE = {"type": "L40S-1-48G", "zone": "fr-par-2", "cards": 1, "price": L40S, "created": 1000.0, "ready": 1150.0,
+           "deleted": 1750.0, "unit_seconds": [200.0, 210.0]}
+SILENT = ledger.machine_row(dict(MACHINE, ready=None, deleted=1300.0))
+REFUSED = batch.refused_row(offer(L4, 2, "gpu-24gb", "zone-a"), "out of stock")
+
+# The ledger the capacity report reads: September's line has no kind (Pixal3D, the only kind then); October's ran an
+# L40S and had a failed L4 start.
+ENTRIES = [{"started": "2026-09-30T10:00:00Z", "machines": [{"type": "L4-1-24G", "zone": "pl-waw-2", "minutes": 30.0,
+                                                             "euros": 0.4}]},
+           {"started": "2026-10-08T10:00:00Z", "kind": "pixal",
+            "machines": [{"type": "L40S-1-48G", "zone": "fr-par-2", "started": True, "start_wait_minutes": 2.0,
+                          "work_minutes": 20.0, "minutes": 22.0, "euros": 0.54, "unit_seconds": [300.0, 320.0, 340.0]}],
+            "attempts": [{"type": "L4-1-24G", "zone": "pl-waw-2", "started": False, "minutes": 0.0, "euros": 0.1}]}]
+
+QUOTAS = provider.cloud.QUOTAS
+RUN_CAP = max(capacity.RUN_MACHINES, *QUOTAS.values())
+CAPPED = {"SCORE_MAX_MACHINES": "gpu-80gb=2, all=3"}
+TAKEN = []
+
+
+def claim_from(run, account, offers, number, kind, disk_gb=batch.DISK_GB):
+    """A claim that gives a machine only from an offer set holding an 80 GB card, noting each set's classes."""
+    TAKEN.append(sorted({item.machine_class for item in offers}))
+    return None if "gpu-80gb" not in TAKEN[-1] else "machine"
+
+
+def claim_rounds(kind):
+    """What batch.claim_round gives a kind from LATE_OFFERS, and the classes each of its rounds was offered."""
+    TAKEN.clear()
+    return batch.claim_round(None, None, LATE_OFFERS, 1, kind), list(TAKEN)
+
+
+# (row, settings, call, arguments, expected): settings are environment variables, and RUNS_AT_ONCE the backend's
+# measured counts; a Refuses answer is a SystemExit naming its words.
+ANSWERS = [
+    # every job kind runs on capability classes, never a provider's machine type
+    ("a processor class has no card", {}, provider.cards, ("cpu-32c-128gb",), 0),
+    ("a two-card class has two", {}, provider.cards, ("gpu-80gb-x2",), 2),
+    ("a class's card size", {}, provider.card_gb, ("gpu-48gb",), 48),
+    ("a class naming its cores has its cards", {}, provider.cards, ("gpu-80gb-x2-48c",), 2),
+    ("a class naming its cores has its card size", {}, provider.card_gb, ("gpu-80gb-x2-48c",), 80),
+    ("a provider's type is no class", {}, provider.cards, ("L4-1-24G",), Refuses("capability class")),
+    ("a bare word is no class", {}, provider.cards, ("gpu",), Refuses("capability class")),
+    ("an unknown kind has no classes", {}, capacity.classes_for, ("nothing",), Refuses("no capability classes")),
+    # the next machine: the kind's cheapest card per job, out of stock last, spread over the zones
+    ("the cheapest card, the backend's first zone", {}, capacity.next_offer, (SPREAD, []), L4_A),
+    ("a zone holding a machine goes after", {}, capacity.next_offer, (SPREAD, [{"zone": "zone-c"}]), L4_A),
+    ("the zone holding none", {}, capacity.next_offer, (SPREAD, [{"zone": "zone-c"}, {"zone": "zone-a"}]), L4_B),
+    ("a bigger card in stock before a 24 GB card out of stock", {}, capacity.next_offer,
+     (SPREAD + [H100_IN_STOCK], []), H100_IN_STOCK),
+    ("a scarce 24 GB card before a bigger one in stock", {}, capacity.next_offer, ([H100_IN_STOCK, L4_SCARCE], []),
+     L4_SCARCE),
+    ("within a class, the backend's own order", {}, capacity.next_offer, ([X2_LATER, X2_FIRST], []), X2_FIRST),
+    ("nothing offered, no machine", {}, capacity.next_offer, ([], []), None),
+    ("Pixal3D on an L4", {}, capacity.next_offer, (CARDS, [], "pixal"), CARDS[0]),
+    ("the mesh splitting on an L4", {}, capacity.next_offer, (CARDS, [], "meshparts"), CARDS[0]),
+    ("the judge on an L40S", {}, capacity.next_offer, (CARDS, [], "judge"), CARDS[2]),
+    ("the 20B picture model on an H100", {}, capacity.next_offer, (CARDS, [], "pictures-20b"), CARDS[1]),
+    ("the library bakes on an L4", {}, capacity.next_offer, (CARDS, [], "library"), CARDS[0]),
+    ("the parts on an L4", {}, capacity.next_offer, (CARDS, [], "parts"), CARDS[0]),
+    ("Blender passes the H100 for the L40S", {}, capacity.next_offer, (CARDS[1:], [], "blender"), CARDS[2]),
+    ("Blender with only an H100 has no machine", {}, capacity.next_offer, (CARDS[1:2], [], "blender"), None),
+    # a late class only after the wait; a kind given none takes every class at once
+    ("a late class after the first round gave nothing", {}, claim_rounds, ("library",),
+     ("machine", [["gpu-24gb"], ["gpu-80gb"]])),
+    ("a kind with no late class takes all at once", {}, claim_rounds, ("pixal",), ("machine", [["gpu-24gb", "gpu-80gb"]])),
+    # jobs at once on one card: three Pixal3D for every 24 GB (six on an L4 ran out of memory), a backend's measure
+    # over that (this PC's 16 GB card answers for gpu-24gb), one for a kind never measured
+    ("Pixal3D on 24 GB", {}, capacity.runs_at_once, ("pixal", "gpu-24gb"), 3),
+    ("Pixal3D on 48 GB", {}, capacity.runs_at_once, ("pixal", "gpu-48gb"), 6),
+    ("Pixal3D on 80 GB", {}, capacity.runs_at_once, ("pixal", "gpu-80gb"), 10),
+    ("an unmeasured kind on 80 GB", {}, capacity.runs_at_once, ("parts", "gpu-80gb"), 1),
+    ("the backend's measure over the class", {"RUNS_AT_ONCE": {"pixal": 1}}, capacity.runs_at_once,
+     ("pixal", "gpu-24gb"), 1),
+    ("the backend's measure leaves other kinds at one", {"RUNS_AT_ONCE": {"pixal": 1}}, capacity.runs_at_once,
+     ("parts", "gpu-24gb"), 1),
+    # a secret from the environment before the backend
+    ("a secret from the environment", {"SCORE_SECRET_SOME_API_KEY": "from-the-environment"}, secret_store.secret,
+     ("some-api-key",), "from-the-environment"),
+    ("a secret from the backend", {}, secret_store.secret, ("some-api-key",), "from-the-backend"),
+    # a batch ends in about its set-up and one job
+    ("one job", {}, capacity.machines_for, (1, 10, 8), 1),
+    ("30 pictures of 9 s: less work than one set-up", {}, capacity.machines_for, (30, 0.15, 8), 1),
+    ("no jobs", {}, capacity.machines_for, (0, 1, 8), 1),
+    ("ten 15-minute Blender jobs: one a machine", {}, capacity.machines_for, (10, 15, 8), 10),
+    ("60 close-ups of 82 s on a 10 min set-up: 9 machines", {}, capacity.machines_for, (60, 82 / 60, 10), 9),
+    ("their 7 rounds over the 9", {}, capacity.spread_minutes, (60, 82 / 60, 10, 9), 10 + 7 * 82 / 60),
+    ("ten at once: a tenth as many", {}, capacity.machines_for, (100, 5, 5, 10), 10),
+    ("never more machines than jobs", {}, capacity.machines_for, (3, 60, 8), 3),
+    # the caps: each class's quota, the run's cap (#20: its largest class's quota, at least RUN_MACHINES), and
+    # SCORE_MAX_MACHINES over both
+    ("a class's quota", {}, capacity.max_machines, ("gpu-80gb",), QUOTAS["gpu-80gb"]),
+    ("a class with no quota", {}, capacity.max_machines, ("cpu-32c-128gb",), capacity.OTHER_MACHINES),
+    ("the run's cap", {}, capacity.run_cap, (), RUN_CAP),
+    ("a big batch at the run's cap", {}, capacity.machines_for, (500, 60, 8), RUN_CAP),
+    ("a class capped by the environment", CAPPED, capacity.max_machines, ("gpu-80gb",), 2),
+    ("the run capped by the environment", CAPPED, capacity.run_cap, (), 3),
+    ("a big batch at the environment's cap", CAPPED, capacity.machines_for, (500, 60, 8), 3),
+    ("the H100s at their cap of 2", CAPPED, capacity.next_offer, ([H100_IN_STOCK, L40S_SCARCE], TWO_H100S, "judge"),
+     L40S_SCARCE),
+    ("the run at its cap of 3", CAPPED, capacity.next_offer,
+     ([H100_IN_STOCK, L40S_SCARCE], TWO_H100S + [{"zone": "zone-b", "class": "gpu-48gb"}], "judge"), None),
+    ("a cap with no number", {"SCORE_MAX_MACHINES": "gpu-80gb"}, capacity.caps, (), Refuses("SCORE_MAX_MACHINES")),
+    # a machine's ledger row: how long it waited, worked and cost
+    ("a machine that answered", {}, ledger.machine_row, (MACHINE,),
+     Fields(started=True, start_wait_minutes=2.5, work_minutes=10.0, minutes=12.5, euros=13 * L40S,
+            unit_seconds=[200.0, 210.0])),
+    ("a machine that never answered: 5 min billed", {}, ledger.machine_row, (dict(MACHINE, ready=None, deleted=1300.0),),
+     Fields(started=False, start_wait_minutes=5.0, work_minutes=0.0, euros=5 * L40S)),
+    ("an hourly machine by the started hour", {}, ledger.cost, (61, 1.221 / 60, 60), pytest.approx(2 * 1.221, abs=1e-9,
+                                                                                                      rel=0)),
+    ("a run's machines, its failed starts and its wait from 900 to its 1150", {}, ledger.machines_record,
+     ([MACHINE], [SILENT, REFUSED], 900.0),
+     Fields(attempts=[SILENT, REFUSED], start_wait_minutes=250 / 60, euros=pytest.approx(18 * L40S, abs=1e-12, rel=0))),
+    # the report groups the ledger's machines by kind and card: September's L4 and October's failed L4 start together
+    ("by kind and card", {}, capacity.summarise, (capacity.machine_rows(ENTRIES),),
+     [Fields(kind="pixal", type="L4-1-24G", machines=1, failed_starts=1),
+      Fields(kind="pixal", type="L40S-1-48G", machines=1, failed_starts=0, units=3, seconds_a_unit=320.0,
+             euros_a_unit=pytest.approx(0.18, abs=1e-9, rel=0))]),
+    ("since October", {}, capacity.summarise, (capacity.machine_rows(ENTRIES, since="2026-10-01"),),
+     [Fields(type="L4-1-24G", machines=0, failed_starts=1), Fields(type="L40S-1-48G", machines=1)]),
+]
+
+
+def answer(call, arguments):
+    """What `call` gives, or Refuses with its SystemExit's message."""
     try:
-        call(*arguments)
+        return call(*arguments)
     except SystemExit as refusal:
-        return str(refusal)
-    raise AssertionError(f"{call.__name__}{arguments} was taken")
-
-
-def test_every_kind_runs_on_capability_classes_only():
-    for kind, classes in capacity.KINDS.items():
-        assert classes and all(provider.cards(machine_class) for machine_class in classes), kind
-    for machine_class in provider.cloud.CLASSES:
-        provider.cards(machine_class)  # every backend class reads as one
-    assert provider.cards("cpu-32c-128gb") == 0 and provider.cards("gpu-80gb-x2") == 2
-    assert provider.card_gb("gpu-48gb") == 48
-    assert provider.cards("gpu-80gb-x2-48c") == 2 and provider.card_gb("gpu-80gb-x2-48c") == 80  # cores named too
-    for wrong in ("L4-1-24G", "gpu"):  # a provider's type is never a class
-        assert "capability class" in refused(provider.cards, wrong)
-    assert "no capability classes" in refused(capacity.classes_for, "nothing")
-
-
-def test_the_next_machine_is_the_cheapest_fitting_card_in_stock_spread_over_the_zones():
-    offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(L4, 2, "gpu-24gb", "zone-b"),
-              offer(L4, 2, "gpu-24gb", "zone-c"), offer(H100, 2, "gpu-80gb", "zone-b")]
-    assert capacity.next_offer(offers, []).machine_class == "gpu-24gb"
-    assert capacity.next_offer(offers, [{"zone": "zone-c"}]).zone != "zone-c"
-    assert capacity.next_offer(offers, [{"zone": "zone-c"}, {"zone": "zone-a"}]).zone == "zone-b"
-    # a bigger card in stock goes before a 24 GB card out of stock, never before a scarce one (owner, 2026-10-12)
-    assert capacity.next_offer(offers + [offer(H100, 0, "gpu-80gb", "zone-a")], []).machine_class == "gpu-80gb"
-    assert capacity.next_offer([offer(H100, 0, "gpu-80gb", "zone-a"), offer(L4, 1, "gpu-24gb", "zone-a")],
-                               []).machine_class == "gpu-24gb"
-    # within a class, the backend's own order; none offered, no machine
-    assert capacity.next_offer([offer(H100, 2, "gpu-80gb-x2", "zone-a", 1), offer(H100, 2, "gpu-80gb-x2", "zone-b", 0)],
-                               []).order == 0
-    assert capacity.next_offer([], []) is None
-    # each kind's cheapest card per job: an L4 for Pixal3D, the mesh splitting and bakes, an L40S for the judge, an
-    # H100 for the 20B picture model; Blender never an H100, and nothing else to be had is no machine
-    cards = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a"),
-             offer(L40S, 2, "gpu-48gb", "zone-a")]
-    for kind, wanted in (("pixal", "gpu-24gb"), ("meshparts", "gpu-24gb"), ("judge", "gpu-48gb"),
-                         ("pictures-20b", "gpu-80gb"), ("library", "gpu-24gb"), ("parts", "gpu-24gb")):
-        assert capacity.next_offer(cards, [], kind).machine_class == wanted, kind
-    assert capacity.next_offer(cards[1:], [], "blender").machine_class == "gpu-48gb"
-    assert capacity.next_offer(cards[1:2], [], "blender") is None
-
-
-def test_a_late_class_is_taken_only_after_the_wait(monkeypatch):
-    taken = []
-
-    def claim_from(run, account, offers, number, kind, disk_gb=batch.DISK_GB):
-        taken.append(sorted({item.machine_class for item in offers}))
-        return None if "gpu-80gb" not in taken[-1] else "machine"
-    monkeypatch.setattr(batch, "claim_from", claim_from)
-    monkeypatch.setattr(batch.time, "sleep", lambda seconds: None)
-    monkeypatch.setattr(batch, "say", lambda line: None)
-    monkeypatch.setattr(capacity, "LATE_MINUTES", 0)
-    monkeypatch.setitem(capacity.LATE, "library", ("gpu-80gb",))  # the rule, on a kind given a late class
-    offers = [offer(L4, 2, "gpu-24gb", "zone-a"), offer(H100, 2, "gpu-80gb", "zone-a")]
-    assert batch.claim_round(None, None, offers, 1, "library") == "machine"
-    assert taken == [["gpu-24gb"], ["gpu-80gb"]]
-    taken.clear()
-    assert batch.claim_round(None, None, offers, 1, "pixal") == "machine" and taken == [["gpu-24gb", "gpu-80gb"]]
-
-
-def test_a_big_card_runs_several_jobs_of_a_measured_kind_at_once():
-    """Three Pixal3D runs for every 24 GB of card (measured on an L4: six at once ran out of memory)."""
-    assert [capacity.runs_at_once("pixal", name) for name in ("gpu-24gb", "gpu-48gb", "gpu-80gb")] == [3, 6, 10]
-    assert capacity.runs_at_once("parts", "gpu-80gb") == 1  # an unmeasured kind: one
-
-
-def test_a_backend_s_measured_count_rules_over_its_class_size(monkeypatch):
-    monkeypatch.setattr(capacity.provider.cloud, "RUNS_AT_ONCE", {"pixal": 1}, raising=False)
-    assert capacity.runs_at_once("pixal", "gpu-24gb") == 1  # this PC's 16 GB card answers for gpu-24gb
-    assert capacity.runs_at_once("parts", "gpu-24gb") == 1
-
-
-def test_a_secret_comes_from_the_environment_before_the_backend(monkeypatch):
-    monkeypatch.setattr(provider.cloud, "secret", lambda name: "from-the-backend")
-    monkeypatch.setenv("SCORE_SECRET_SOME_API_KEY", "from-the-environment")
-    assert secret_store.secret("some-api-key") == "from-the-environment"
-    monkeypatch.delenv("SCORE_SECRET_SOME_API_KEY")
-    assert secret_store.secret("some-api-key") == "from-the-backend"
-
-
-def test_a_batch_ends_in_about_its_set_up_and_one_job():
-    assert capacity.machines_for(1, 10, 8) == 1
-    assert capacity.machines_for(30, 0.15, 8) == 1  # 30 pictures of 9 s: less work than one set-up
-    assert capacity.machines_for(0, 1, 8) == 1
-    assert capacity.machines_for(10, 15, 8) == 10  # ten 15-minute Blender jobs: one a machine
-    # 60 close-ups of 82 s on a 10 min set-up: 82 min of work over 10-minute spans, 9 machines
-    assert capacity.machines_for(60, 82 / 60, 10) == 9
-    assert capacity.spread_minutes(60, 82 / 60, 10, 9) == 10 + 7 * 82 / 60  # 7 rounds of the 60 over 9
-    assert capacity.machines_for(100, 5, 5, slots=10) == 10  # ten at once: a tenth as many
-    assert capacity.machines_for(3, 60, 8) == 3  # never more machines than jobs
-
-
-def test_the_caps_follow_the_quotas_and_the_environment(monkeypatch):
-    quotas = provider.cloud.QUOTAS
-    assert capacity.max_machines("gpu-80gb") == quotas["gpu-80gb"]
-    assert capacity.max_machines("cpu-32c-128gb") == capacity.OTHER_MACHINES
-    # #20: a run holds as many machines as its largest class's quota, at least RUN_MACHINES
-    assert capacity.run_cap() == max(capacity.RUN_MACHINES, *quotas.values())
-    assert capacity.machines_for(500, 60, 8) == capacity.run_cap()
-    monkeypatch.setenv("SCORE_MAX_MACHINES", "gpu-80gb=2, all=3")
-    assert capacity.max_machines("gpu-80gb") == 2 and capacity.run_cap() == 3
-    assert capacity.machines_for(500, 60, 8) == 3
-    offers = [offer(H100, 0, "gpu-80gb", "zone-a"), offer(L40S, 1, "gpu-48gb", "zone-b")]
-    two = [{"zone": "zone-a", "class": "gpu-80gb"}] * 2
-    assert capacity.next_offer(offers, two, "judge").machine_class == "gpu-48gb"  # the H100s at their cap of 2
-    assert capacity.next_offer(offers, two + [{"zone": "zone-b", "class": "gpu-48gb"}], "judge") is None  # all 3
-    monkeypatch.setenv("SCORE_MAX_MACHINES", "gpu-80gb")
-    assert "SCORE_MAX_MACHINES" in refused(capacity.caps)
-
-
-def test_a_machine_row_says_how_long_it_waited_worked_and_cost():
-    machine = {"type": "L40S-1-48G", "zone": "fr-par-2", "cards": 1, "price": L40S, "created": 1000.0,
-               "ready": 1150.0, "deleted": 1750.0, "unit_seconds": [200.0, 210.0]}
-    row = ledger.machine_row(machine)
-    # 150 s to answer, 600 s of work, 12.5 min in all billed as 13 started minutes
-    assert row["started"] and row["start_wait_minutes"] == 2.5 and row["work_minutes"] == 10.0
-    assert row["minutes"] == 12.5 and row["euros"] == 13 * L40S and row["unit_seconds"] == [200.0, 210.0]
-    silent = ledger.machine_row(dict(machine, ready=None, deleted=1300.0))  # never answered: 5 min billed
-    assert not silent["started"] and silent["start_wait_minutes"] == 5.0 and silent["work_minutes"] == 0.0
-    assert silent["euros"] == 5 * L40S
-    assert abs(ledger.cost(61, 1.221 / 60, 60) - 2 * 1.221) < 1e-9  # an hourly machine: by the started hour
-    record = ledger.machines_record([machine], [silent, batch.refused_row(offer(L4, 2, "gpu-24gb", "zone-a"),
-                                                                         "out of stock")], started=900.0)
-    assert len(record["attempts"]) == 2 and record["start_wait_minutes"] == 250 / 60  # from 900 to its 1150
-    assert abs(record["euros"] - 18 * L40S) < 1e-12
+        return Refuses(str(refusal))
 
 
 def report_output(arguments, entries, report_path, monkeypatch):
@@ -217,35 +238,30 @@ def report_output(arguments, entries, report_path, monkeypatch):
     return printed.getvalue()
 
 
-def test_the_report_groups_by_kind_and_card_and_prints_one_line(tmp_path, monkeypatch):
-    entries = [{"started": "2026-09-30T10:00:00Z", "machines": [{"type": "L4-1-24G", "zone": "pl-waw-2",
-                                                                 "minutes": 30.0, "euros": 0.4}]},
-               {"started": "2026-10-08T10:00:00Z", "kind": "pixal",
-                "machines": [{"type": "L40S-1-48G", "zone": "fr-par-2", "started": True, "start_wait_minutes": 2.0,
-                              "work_minutes": 20.0, "minutes": 22.0, "euros": 0.54,
-                              "unit_seconds": [300.0, 320.0, 340.0]}],
-                "attempts": [{"type": "L4-1-24G", "zone": "pl-waw-2", "started": False, "minutes": 0.0,
-                              "euros": 0.1}]}]
-    by = {(row["kind"], row["type"]): row for row in capacity.summarise(capacity.machine_rows(entries))}
-    # the September line has no kind: Pixal3D, the only kind then; its L4 and October's failed L4 start group
-    assert by[("pixal", "L4-1-24G")]["machines"] == 1 and by[("pixal", "L4-1-24G")]["failed_starts"] == 1
-    l40s = by[("pixal", "L40S-1-48G")]
-    assert l40s["units"] == 3 and l40s["seconds_a_unit"] == 320.0 and abs(l40s["euros_a_unit"] - 0.18) < 1e-9
-    assert len(capacity.summarise(capacity.machine_rows(entries, since="2026-10-01"))) == 2
-    path = tmp_path / "report.txt"
-    printed = report_output([], entries[1:], path, monkeypatch)
-    assert printed == ("capacity report: 1 job kinds on 2 card types, 1 machines, 1 failed starts, €0.64; "
-                       f"table: {path}\n")
-    assert len(path.read_text().splitlines()) == 3  # a header and a line a card type
-    assert report_output(["--verbose"], entries[1:], tmp_path / "unused.txt", monkeypatch) == path.read_text()
-    assert not (tmp_path / "unused.txt").exists()
-
-
-def in_a_run(home, cap, run="test-run"):
-    """The environment of a `score run` process with a cap of `cap` machines, its home `home`."""
+def in_a_run(home, cap, run):
+    """The environment of a process of the `score run` `run` with a cap of `cap` machines, its home `home`."""
     return {**os.environ, "PROPS_HOME": str(home), "PROPS_WORK": str(home / "work"), "SCORE_RUN_ID": run,
             "SCORE_MAX_MACHINES": f"all={cap}"}
 
+
+# A process of the run "parked", cap 4, whose park records hold two of its machines (a third is another run's): it
+# asks for slots as its machines come and go, and forgets the run's counts at its end.
+PARKED_RUN = """
+import json, sys
+sys.path.insert(0, sys.argv[1])
+import capacity, park
+park.PARKED.mkdir(parents=True, exist_ok=True)
+for number, run in enumerate(("parked", "parked", "another-run")):
+    (park.PARKED / f"m{number}.json").write_text(json.dumps({"id": f"m{number}", "run": run}))
+assert capacity.reserve_run_slot(1)          # 2 parked + 1 held < 4: counted
+assert not capacity.reserve_run_slot(2)      # 2 parked + 2 held: the cap, said
+assert not capacity.reserve_run_slot(2)      # still at it: not said again
+assert capacity.reserve_run_slot(0)          # room again
+assert not capacity.reserve_run_slot(2)      # filled again: said again
+assert (capacity.RUNS / "parked").exists()
+capacity.forget_run("parked")
+assert not (capacity.RUNS / "parked").exists()
+"""
 
 # A batch process of a `score run`: it rents fake machines as fast as next_offer gives offers and lets some go,
 # writing how many the run's processes hold together into one file. It runs a number of asks, never a span of time
@@ -287,57 +303,8 @@ while asked_at_cap < AT_CAP_ASKS:
 together(-sum(not machine["deleted"] for machine in machines))
 """
 
-
-def test_two_batches_of_one_run_hold_the_runs_cap_together(tmp_path):
-    """Fault (2026-10-17): every --jobs node and parallel batch held run_cap machines of its own."""
-    held = tmp_path / "held.json"
-    held.write_text("")
-    renters = [subprocess.Popen([sys.executable, "-c", RENTER, HERE, str(held), "2", "4"], env=in_a_run(tmp_path, 4))
-               for _ in range(2)]
-    assert [renter.wait(timeout=60) for renter in renters] == [0, 0]
-    assert json.loads(held.read_text())["most"] == 4  # reached, never passed: 8 with a cap each
-
-
-def test_a_run_counts_its_parked_machines_and_forgets_its_counts_at_its_end(tmp_path):
-    check = """
-import json, sys
-sys.path.insert(0, sys.argv[1])
-import capacity, park
-park.PARKED.mkdir(parents=True, exist_ok=True)
-for number, run in enumerate(("test-run", "test-run", "another-run")):
-    (park.PARKED / f"m{number}.json").write_text(json.dumps({"id": f"m{number}", "run": run}))
-assert capacity.reserve_run_slot(1)          # 2 parked + 1 held < 4: counted, 2 held
-assert not capacity.reserve_run_slot(2)      # 2 parked + 2 held: the cap
-assert (capacity.RUNS / "test-run").exists()
-capacity.forget_run("test-run")
-assert not (capacity.RUNS / "test-run").exists()
-"""
-    done = subprocess.run([sys.executable, "-c", check, HERE], env=in_a_run(tmp_path, 4), capture_output=True,
-                          text=True)
-    assert done.returncode == 0, done.stderr[-2000:]
-
-
-def test_a_run_at_its_cap_says_so_once_each_time_it_fills(tmp_path):
-    """Review of C7 (2026-10-17): a batch held back by the run's cap said only "no machine ... in stock"."""
-    check = """
-import sys
-sys.path.insert(0, sys.argv[1])
-import capacity
-assert capacity.reserve_run_slot(1)
-assert not capacity.reserve_run_slot(2)
-assert not capacity.reserve_run_slot(2)
-assert capacity.reserve_run_slot(0)
-assert not capacity.reserve_run_slot(2)
-"""
-    done = subprocess.run([sys.executable, "-c", check, HERE], env=in_a_run(tmp_path, 2), capture_output=True,
-                          text=True)
-    assert done.returncode == 0, done.stderr[-2000:]
-    said = [line for line in done.stderr.splitlines() if "cap" in line]
-    assert len(said) == 2 and "the run holds its cap of 2 machines" in said[0], done.stderr
-
-
 # A process of a run given a slot that rents nothing with it ("fails") or rents a machine whose watchdog it starts as
-# batch.rent does ("rents"); it says "ready" and lives on.
+# batch.rent does ("rents"); it says "<run>.ready" and lives on.
 SLOT_TAKER = """
 import pathlib, subprocess, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -347,7 +314,7 @@ assert capacity.reserve_run_slot(0)
 if sys.argv[3] == "rents":
     subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", str(pathlib.Path(sys.argv[1]) / "batch.py"),
                       "--watchdog", "machine-1", "zone-a", "0"])
-(folder / "ready").write_text("ready")
+(folder / f"{sys.argv[3]}.ready").write_text("ready")
 time.sleep(60)
 """
 # Another process of the run asking for a slot at once, and again once a slot given 1 s ago has lapsed. The 1 s
@@ -363,26 +330,79 @@ print(first, capacity.reserve_run_slot(0))
 """
 
 
-def slot_answers(home, taker):
-    """What a second process of a run with a cap of one is told, at once and after the slot lapsed, while a first
-    holds the slot it was given and did `taker` with it."""
+def test_capacity_rents_the_cheapest_fitting_card_within_the_caps(tmp_path, monkeypatch):
+    for name in ("SCORE_RUN_ID", "SCORE_MAX_MACHINES", "SCORE_SPEND_TICKET", "SCORE_SECRET_SOME_API_KEY"):
+        monkeypatch.delenv(name, raising=False)  # the table holds one process's caps; the runs below their own
+    monkeypatch.setattr(provider.cloud, "secret", lambda name: "from-the-backend")
+    monkeypatch.setattr(batch, "claim_from", claim_from)
+    monkeypatch.setattr(batch.time, "sleep", lambda seconds: None)
+    monkeypatch.setattr(batch, "say", lambda line: None)
+    monkeypatch.setattr(capacity, "LATE_MINUTES", 0)
+    monkeypatch.setitem(capacity.LATE, "library", ("gpu-80gb",))  # the rule, on a kind given a late class
+
+    # One home holds the runs, each its own run id: "parked" first, as its park records are written unlocked; then
+    # two renters of "renters" (cap 4), and a slot taker of "fails" and of "rents" (cap 1), side by side.
+    home = tmp_path / "home"
     home.mkdir()
-    first = subprocess.Popen([sys.executable, "-c", SLOT_TAKER, HERE, str(home), taker], env=in_a_run(home, 1),
-                             start_new_session=True)
+    parked = subprocess.run([sys.executable, "-c", PARKED_RUN, HERE], env=in_a_run(home, 4, "parked"),
+                            capture_output=True, text=True, timeout=60)
+    held = home / "held.json"
+    held.write_text("")
+    renters = [subprocess.Popen([sys.executable, "-c", RENTER, HERE, str(held), "2", "4"],
+                                env=in_a_run(home, 4, "renters")) for _ in range(2)]
+    takers = {run: subprocess.Popen([sys.executable, "-c", SLOT_TAKER, HERE, str(home), run],
+                                    env=in_a_run(home, 1, run), start_new_session=True) for run in ("fails", "rents")}
     try:
+        for machine_class in provider.cloud.CLASSES:
+            provider.cards(machine_class)  # every backend class reads as one, never refused
+        for kind, classes in capacity.KINDS.items():
+            assert classes and all(provider.cards(machine_class) for machine_class in classes), kind
+        for row, settings, call, arguments, expected in ANSWERS:
+            with monkeypatch.context() as setting:
+                for name, value in settings.items():
+                    if name == "RUNS_AT_ONCE":
+                        setting.setattr(provider.cloud, name, value, raising=False)
+                    else:
+                        setting.setenv(name, value)
+                got = answer(call, arguments)
+            if isinstance(expected, Refuses):
+                assert isinstance(got, Refuses) and expected.words in got.words, (row, got)
+            else:
+                assert got == expected, (row, got)
+
+        # the report prints one line and writes its table, a header and a line a card type; --verbose prints it
+        path = tmp_path / "report.txt"
+        assert report_output([], ENTRIES[1:], path, monkeypatch) == (
+            "capacity report: 1 job kinds on 2 card types, 1 machines, 1 failed starts, €0.64; "
+            f"table: {path}\n")
+        assert len(path.read_text().splitlines()) == 3
+        assert report_output(["--verbose"], ENTRIES[1:], tmp_path / "unused.txt", monkeypatch) == path.read_text()
+        assert not (tmp_path / "unused.txt").exists()
+
+        # a run counts its parked machines (another run's not), says once each time its cap fills that the cap holds
+        # it back (it said only "no machine ... in stock"; review of C7, 2026-10-17), and forgets its counts at its end
+        assert parked.returncode == 0, parked.stderr[-2000:]
+        said = [line for line in parked.stderr.splitlines() if "cap" in line]
+        assert len(said) == 2 and "the run holds its cap of 4 machines (2 in its other processes and parked, 2 here)" \
+            in said[0], parked.stderr
+
+        # a slot whose rent gave no machine is freed once it lapses; one that gave a machine stays counted (a slot
+        # that gave none held the run's other processes back for a machine that did not exist; review of C7)
         deadline = time.time() + 60
-        while not (home / "ready").exists() and time.time() < deadline:
+        while not all((home / f"{run}.ready").exists() for run in takers) and time.time() < deadline:
             time.sleep(0.05)
-        asked = subprocess.run([sys.executable, "-c", SLOT_ASKER, HERE], env=in_a_run(home, 1), capture_output=True,
-                               text=True, timeout=60)
-        assert asked.returncode == 0, asked.stderr[-2000:]
-        return asked.stdout.split()
+        askers = {run: subprocess.Popen([sys.executable, "-c", SLOT_ASKER, HERE], env=in_a_run(home, 1, run),
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for run in takers}
+        answers = {run: asker.communicate(timeout=60) for run, asker in askers.items()}
+        assert all(asker.returncode == 0 for asker in askers.values()), answers
+        assert {run: printed.split() for run, (printed, _) in answers.items()} == {
+            "fails": ["False", "True"], "rents": ["False", "False"]}
+
+        # two batches of one run hold its cap together: reached, never passed (8 with a cap each; fault 2026-10-17)
+        assert [renter.wait(timeout=60) for renter in renters] == [0, 0]
+        assert json.loads(held.read_text())["most"] == 4
     finally:
-        os.killpg(first.pid, 9)
-
-
-def test_a_slot_whose_rent_gave_no_machine_is_freed_and_one_that_gave_a_machine_stays_counted(tmp_path):
-    """Review of C7 (2026-10-17): a slot counted for an offer that gave no machine held the run's other processes
-    back for a machine that did not exist."""
-    assert slot_answers(tmp_path / "fails", "fails") == ["False", "True"]
-    assert slot_answers(tmp_path / "rents", "rents") == ["False", "False"]
+        for taker in takers.values():
+            os.killpg(taker.pid, 9)
+        for renter in renters:
+            renter.kill()
