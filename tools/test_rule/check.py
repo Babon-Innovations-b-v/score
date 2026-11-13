@@ -183,7 +183,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_detached_logs_everything_and_says_one_line.py": 3,
     "tools/cloud/test_gemini_judge_answers_with_a_code_or_no_verdict.py": 5,
     "tools/cloud/test_google_batch_sends_each_request_once.py": 7,
-    "tools/cloud/test_google_spend_ledgers_every_call_before_it_is_sent.py": 10,
     "tools/cloud/test_inputs_arrive_intact_and_go_up_once.py": 10,
     "tools/cloud/test_judge_asks_each_question_once_on_a_card_that_holds_it.py": 3,
     "tools/cloud/test_kept_rerun_pays_only_for_missing_jobs.py": 11,

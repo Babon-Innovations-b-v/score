@@ -6,6 +6,10 @@ cached answer); an answer cut off is priced, never cached, and read as its finis
 tracked file calls Google another way (the last a wording check guarding the owner's rule that every Gemini call goes
 through google_spend: tools/cloud/CLAUDE.md).
 
+One test: a day of calls (the CALLS rows) goes through `generate` into one ledger and cache, each row naming what it
+is sent, what Google answers and what the ledger and the answer's text must then hold; the month is then read from
+that ledger, the cache key checked, and the tracked files searched for another way to Google.
+
 Break that turns it red: in `generate` write the started line after `post` returns; cache a response whose
 finishReason is not STOP; or drop `thoughtsTokenCount` from `dollars`.
 """
@@ -22,6 +26,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import google_spend  # noqa: E402
 
 JUDGE = "gemini-3.1-pro-preview"  # USD 2 a million tokens in, 12 out (thinking billed as output)
+PICTURE = "gemini-3-pro-image"  # USD 2 a million tokens in, 120 a million image tokens out
 USAGE = {"promptTokenCount": 1000, "candidatesTokenCount": 100, "thoughtsTokenCount": 900}
 USAGE_DOLLARS = (1000 * 2 + 1000 * 12) / 1e6
 
@@ -32,106 +37,105 @@ def answered(text, finish="STOP"):
         {"text": "thinking it over", "thought": True}, {"text": text}]}}]}
 
 
-@pytest.fixture
-def sent(tmp_path, monkeypatch):
-    """The guard's ledger and cache in the test's folder; the posts it would have sent, each answered "{}"."""
-    monkeypatch.setattr(google_spend, "LEDGER", tmp_path / "google-ledger.jsonl")
-    monkeypatch.setattr(google_spend, "CACHE", tmp_path / "cache")
-    posts = []
-    monkeypatch.setattr(google_spend, "post", lambda model, body, key, timeout: posts.append(body) or answered("{}"))
-    return posts
+CUT = answered('{"surfaces": [{"colours": [\n        {', "MAX_TOKENS")
+LOST = TimeoutError("read timed out")
+
+# (row, model, body, cache, Google's answer or the error sending raises, the call's ledger lines' states (none: answered
+# from the cache), what its last line holds, its answer's text or the Unfinished message it raises)
+CALLS = [
+    ("asked", JUDGE, {"ask": "same"}, True, answered("{}"), ["started", "finished"],
+     {"euros": round(USAGE_DOLLARS, 6), "thinking": 900, "finish": "STOP", "tier": None}, "{}"),
+    ("asked-again-is-cached", JUDGE, {"ask": "same"}, True, None, [], {}, "{}"),
+    ("another-request", JUDGE, {"ask": "other"}, True, answered("{}"), ["started", "finished"],
+     {"euros": round(USAGE_DOLLARS, 6)}, "{}"),
+    ("priority-tier", JUDGE, {"ask": "priority"}, False, {"usageMetadata": {**USAGE, "serviceTier": "priority"}},
+     ["started", "finished"], {"tier": "priority", "euros": round(USAGE_DOLLARS * 1.8, 6)},  # priority: 1.8 times
+     "no finish reason"),
+    ("cut-off", JUDGE, {"ask": "long"}, True, CUT, ["started", "finished"],
+     {"finish": "MAX_TOKENS", "euros": round(USAGE_DOLLARS, 6)}, "MAX_TOKENS.*thinking 900"),
+    ("cut-off-asked-again", JUDGE, {"ask": "long"}, True, CUT, ["started", "finished"],
+     {"finish": "MAX_TOKENS", "euros": round(USAGE_DOLLARS, 6)}, "MAX_TOKENS.*thinking 900"),
+    ("blocked-prompt", JUDGE, {"ask": "blocked"}, True, {"promptFeedback": {"blockReason": "SAFETY"}},
+     ["started", "finished"], {"finish": "no finish reason (prompt SAFETY)", "euros": 0.0}, "SAFETY"),
+    ("safety-stop", JUDGE, {"ask": "unsafe"}, False, answered("{}", "SAFETY"), ["started", "finished"],
+     {"finish": "SAFETY", "euros": round(USAGE_DOLLARS, 6)}, "SAFETY"),
+    ("finished-with-thoughts", JUDGE, {"ask": "text"}, False, answered('{"a": 1}'), ["started", "finished"],
+     {"finish": "STOP"}, '{"a": 1}'),
+    ("lost", PICTURE, {"ask": 1}, False, LOST, ["started", "failed"], {"error": repr(LOST)}, None),
+    ("unpriced-model", "gemini-unknown", {}, False, answered("{}"), ["started", "finished"], {"euros": None}, "{}"),
+]
+TEXTS = {'{}', '{"a": 1}'}
+# month: finished at price, the unpriced at its estimate (0.15), the lost and the killed started at their estimates
+# (0.15 each), a line from before started lines at its euros
+MONTH = USAGE_DOLLARS * 6 + USAGE_DOLLARS * 1.8 + 0.15 * 3 + 1.0
+
+# (model, usageMetadata, USD, digits compared)
+PRICED = [
+    (JUDGE, USAGE, USAGE_DOLLARS, 6),
+    (PICTURE, {"promptTokenCount": 500, "candidatesTokenCount": 1120,
+               "candidatesTokensDetails": [{"modality": "IMAGE", "tokenCount": 1120}]}, 0.001 + 0.1344, 4),
+]
 
 
 def lines():
-    return [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines()]
+    return [json.loads(line) for line in google_spend.LEDGER.read_text().splitlines()] \
+        if google_spend.LEDGER.exists() else []
 
 
-def test_prices_tokens_thinking_and_images():
-    assert round(google_spend.dollars(JUDGE, USAGE), 6) == round(USAGE_DOLLARS, 6)
-    picture = {"promptTokenCount": 500, "candidatesTokenCount": 1120,
-               "candidatesTokensDetails": [{"modality": "IMAGE", "tokenCount": 1120}]}
-    # USD 2 a million tokens in, 120 a million image tokens out
-    assert round(google_spend.dollars("gemini-3-pro-image", picture), 4) == round(0.001 + 0.1344, 4)
+def test_google_spend_ledgers_every_call_before_it_is_sent(tmp_path, monkeypatch):
+    monkeypatch.setattr(google_spend, "LEDGER", tmp_path / "google-ledger.jsonl")
+    monkeypatch.setattr(google_spend, "CACHE", tmp_path / "cache")
+    replies = {}
+    at_send = []
 
+    def post(model, body, key, timeout):
+        at_send.append(lines())
+        reply = replies[json.dumps([model, body], sort_keys=True)]
+        if isinstance(reply, BaseException):
+            raise reply
+        return reply
 
-def test_each_call_writes_a_started_line_before_it_is_sent_then_its_priced_line(sent, monkeypatch):
-    seen = []
-    monkeypatch.setattr(google_spend, "post", lambda model, body, key, timeout: seen.append(lines()) or answered("{}"))
-    google_spend.generate(JUDGE, {"ask": 1}, "key", 5, caller="test")
-    assert [line["state"] for line in seen[0]] == ["started"]
-    begun, line = lines()
-    assert begun["call"] == line["call"] and begun["estimate"] > 0
-    assert line["state"] == "finished" and line["caller"] == "test" and line["thinking"] == 900
-    assert line["day"] == google_spend.today() and line["euros"] == round(USAGE_DOLLARS, 6)
+    monkeypatch.setattr(google_spend, "post", post)
+    for model, usage, usd, digits in PRICED:
+        assert round(google_spend.dollars(model, usage), digits) == round(usd, digits), model
 
+    returned = {}
+    for row, model, body, cache, reply, states, last, text in CALLS:
+        replies[json.dumps([model, body], sort_keys=True)] = reply
+        before, sends = lines(), len(at_send)
+        if isinstance(reply, BaseException):
+            with pytest.raises(type(reply)):
+                google_spend.generate(model, body, "key", 5, caller=row, cache=cache)
+        else:
+            returned[row] = google_spend.generate(model, body, "key", 5, caller=row, cache=cache)
+        new = lines()[len(before):]
+        assert [line["state"] for line in new] == states, row
+        assert len(at_send) - sends == (1 if states else 0), f"{row}: sent {len(at_send) - sends} times"
+        if not states:
+            continue
+        begun, done = new
+        assert at_send[-1] == before + [begun], f"{row}: the started line is not alone on the ledger when sent"
+        assert begun["call"] == done["call"] and begun["estimate"] > 0, row
+        assert {**done, **last} == done and done["caller"] == row and done["day"] == google_spend.today(), row
+        if reply is not None and cache:
+            assert google_spend.cache_path(model, body).exists() == (text in TEXTS), f"{row}: cached wrongly"
+        if row in returned and text not in TEXTS:
+            with pytest.raises(google_spend.Unfinished, match=text):
+                google_spend.answer_text(returned[row])
+        elif row in returned:
+            assert google_spend.answer_text(returned[row]) == text, row
+    assert returned["asked-again-is-cached"] == returned["asked"]
 
-def test_the_service_tier_is_recorded_and_priced(sent, monkeypatch):
-    monkeypatch.setattr(google_spend, "post",
-                        lambda model, body, key, timeout: {"usageMetadata": {**USAGE, "serviceTier": "priority"}})
-    google_spend.generate(JUDGE, {"ask": 1}, "key", 5, caller="test")
-    line = lines()[-1]
-    assert line["tier"] == "priority" and line["euros"] == round(USAGE_DOLLARS * 1.8, 6)  # priority: 1.8 times
-
-
-def test_a_lost_call_counts_in_the_month_at_its_estimate(sent, monkeypatch):
-    def lost(model, body, key, timeout):
-        raise TimeoutError("read timed out")
-    monkeypatch.setattr(google_spend, "post", lost)
-    with pytest.raises(TimeoutError):
-        google_spend.generate("gemini-3-pro-image", {"ask": 1}, "key", 5, caller="test")
-    begun, failed = lines()
-    assert (begun["state"], failed["state"]) == ("started", "failed")
-    assert round(google_spend.month_euros(google_spend.today()[:7]), 6) == round(begun["estimate"], 6)
-
-
-def test_the_month_adds_finished_calls_and_calls_still_going(sent):
-    google_spend.generate(JUDGE, {"ask": 1}, "key", 5, caller="test")
-    google_spend.started("gemini-3-pro-image", "killed")  # a process killed mid-call leaves only this line
+    google_spend.started(PICTURE, "killed")  # a process killed mid-call leaves only this line
     with google_spend.LEDGER.open("a") as ledger:  # a line from before started lines: no call id, no state
         ledger.write(json.dumps({"time": lines()[0]["time"], "model": JUDGE, "euros": 1.0}) + "\n")
-    killed = next(line for line in lines() if line.get("caller") == "killed")
-    assert round(google_spend.month_euros(google_spend.today()[:7]), 6) == round(
-        USAGE_DOLLARS + killed["estimate"] + 1.0, 6)
+    assert round(google_spend.month_euros(google_spend.today()[:7]), 6) == round(MONTH, 6)
     assert google_spend.month_euros("1999-01") == 0
-
-
-def test_the_cache_answers_the_same_request_once_under_a_key_that_never_moves(sent):
-    first = google_spend.generate(JUDGE, {"ask": "same"}, "key", 5, caller="test", cache=True)
-    again = google_spend.generate(JUDGE, {"ask": "same"}, "key", 5, caller="test", cache=True)
-    google_spend.generate(JUDGE, {"ask": "other"}, "key", 5, caller="test", cache=True)
-    assert first == again and len(sent) == 2
-    assert [line["state"] for line in lines()] == ["started", "finished"] * 2
     assert google_spend.cache_path(JUDGE, {"ask": 1}).name == \
         "110ee814120323f0f0e78303db99cc0134533a55c517c3d995a51cc5cfb44f62.json"
 
-
-def test_an_answer_cut_off_is_priced_never_cached_and_read_as_its_finish_reason(sent, monkeypatch):
-    cut = answered('{"surfaces": [{"colours": [\n        {', "MAX_TOKENS")
-    monkeypatch.setattr(google_spend, "post", lambda model, body, key, timeout: sent.append(body) or cut)
-    for _ in range(2):
-        response = google_spend.generate(JUDGE, {"ask": "long"}, "key", 5, caller="test", cache=True)
-    assert len(sent) == 2 and not google_spend.cache_path(JUDGE, {"ask": "long"}).exists()
-    assert lines()[-1]["finish"] == "MAX_TOKENS" and lines()[-1]["euros"] > 0
-    with pytest.raises(google_spend.Unfinished, match="MAX_TOKENS") as unfinished:
-        google_spend.answer_text(response)
-    assert "thinking 900" in str(unfinished.value)
-
-
-def test_a_finished_answer_is_its_text_without_thoughts_and_no_answer_is_unfinished():
-    assert google_spend.answer_text(answered('{"a": 1}')) == '{"a": 1}'
-    for response in ({"promptFeedback": {"blockReason": "SAFETY"}}, answered("{}", "SAFETY")):
-        with pytest.raises(google_spend.Unfinished, match="SAFETY"):
-            google_spend.answer_text(response)
-
-
-def test_an_unpriced_model_is_recorded_without_a_price(sent):
-    google_spend.generate("gemini-unknown", {}, "key", 5, caller="test")
-    assert lines()[-1]["euros"] is None
-
-
-def test_no_module_calls_google_another_way():
-    """Wording check guarding the owner's rule (tools/cloud/CLAUDE.md): only google_spend.py and google_batch.py (on
-    its ledger) talk to generativelanguage.googleapis.com or load Google's own clients."""
+    # wording check guarding the owner's rule (tools/cloud/CLAUDE.md): only google_spend.py and google_batch.py (on
+    # its ledger) talk to generativelanguage.googleapis.com or load Google's own clients
     repo = pathlib.Path(__file__).resolve().parents[2]
     tracked = subprocess.run(["git", "-C", str(repo), "ls-files", "*.py", "*.sh"], capture_output=True, text=True,
                              check=True).stdout.split()
