@@ -100,7 +100,6 @@ FUNCTION_DEBT = {
     "score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py": 37,
     "score/conductor/test_the_conductor_spends_and_stops_only_as_its_owner_says.py": 22,
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
-    "score/dashboard/state/test_the_cockpit_shows_the_store_as_read.py": 21,
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
     "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 79,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 115,
