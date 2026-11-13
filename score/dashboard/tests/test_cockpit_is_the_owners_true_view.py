@@ -3007,14 +3007,14 @@ def test_a_library_with_no_blob_folder_reads_its_pictures_from_the_store_sides_c
 
 # --- what the pages are made of: plain names, the theme's tokens, no provider (rows and one sweep in the one test) ---
 
-NAMES = [  # (kind, library id, library title) -> the plain name, then the hover text where pinned
+NAMES = [  # (kind, library id, library title) -> the plain name, or the whole (name, hover text) pair where pinned
     (("algorithm", "surface_recipes", "Surface functions: ProcFunc material recipes and wear"),
      ("Surface finishes", "Surface functions: ProcFunc material recipes and wear")),
-    (("ground", "earth.flat", "Flat ground (earth)"), ("Flat ground, earth",)),
-    (("model", "ac_unit_1", "Ac unit 1"), ("Air conditioner 1",)),
-    (("model", "apron_2p6", "Apron 2p6"), ("Apron 2.6 m",)),
-    (("effect", "drift_0_3.camp", "Drift 0 3"), ("Drift, row 1 spot 4",)),
-    (("layer", "light.camp", "Camp light layer"), ("Camp lamps",)),
+    (("ground", "earth.flat", "Flat ground (earth)"), "Flat ground, earth"),
+    (("model", "ac_unit_1", "Ac unit 1"), "Air conditioner 1"),
+    (("model", "apron_2p6", "Apron 2p6"), "Apron 2.6 m"),
+    (("effect", "drift_0_3.camp", "Drift 0 3"), "Drift, row 1 spot 4"),
+    (("layer", "light.camp", "Camp light layer"), "Camp lamps"),
     (("model", "wrench", "Wrench"), ("Wrench", ""))]
 
 PAGES_ROOT = REPO / "score" / "dashboard" / "pages"
@@ -3065,11 +3065,12 @@ def contrast(one, other):
 
 
 # The viewer look check (tests/viewer_look.py, run by hand): a film picture beside a viewer picture of each colour, its
-# measures where pinned and whether it passes; then a camera and the viewer link it opens.
+# measures (all where exact, else those pinned) and whether it passes; then a camera and the viewer link it opens.
 FILM_COLOUR = (120, 110, 100)
-LOOKS = [(FILM_COLOUR, {"difference": 0.0, "structure": 1.0, "brightness": 1.0, "pink": 0.0, "black": 0.0}, True),
-         ((0, 0, 0), {"black": 1.0}, False),
-         ((240, 130, 150), {"pink": 1.0}, False)]
+LOOKS = [  # (viewer colour, measures, passes, exact: every measure pinned)
+         (FILM_COLOUR, {"difference": 0.0, "structure": 1.0, "brightness": 1.0, "pink": 0.0, "black": 0.0}, True, True),
+         ((0, 0, 0), {"black": 1.0}, False, False),
+         ((240, 130, 150), {"pink": 1.0}, False, False)]
 CAMERA = {"eye": [1, 2, 3], "aim": [4, 5.5, -6], "fov": 80.0}
 VIEWS = [(132, "view=1.000000,2.000000,3.000000,4.000000,5.500000,-6.000000,80.000000&t=132.000"),
          (None, "view=1.000000,2.000000,3.000000,4.000000,5.500000,-6.000000,80.000000")]
@@ -3153,7 +3154,8 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
     sources = set(SOURCES)
     defined = {name for path in (TOKENS / "colours.css", TOKENS / "scale.css", *SOURCES)
                for name in DEFINED.findall(path.read_text())}
-    faults = {f"name {row}": named(*row) for row, want in NAMES if named(*row)[:len(want)] != want}
+    faults = {f"name {row}": named(*row) for row, want in NAMES
+              if (named(*row) if isinstance(want, tuple) else named(*row)[0]) != want}
     for path in sorted(path for path in PACKAGE.rglob("*") if path.is_file() and "__pycache__" not in path.parts):
         text = path.read_text(errors="replace") if path.suffix in TEXT or path.parent == deploy else ""
         found = [*literal_colours(path), *sorted({name for pair in USED.findall(text) for name in pair if name}
@@ -3180,10 +3182,11 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
     look.mkdir()
     film = look / "film.png"
     Image.new("RGB", (320, 180), FILM_COLOUR).save(film)
-    for colour, pinned, passes in LOOKS:
+    for colour, pinned, passes, exact in LOOKS:
         Image.new("RGB", (320, 180), colour).save(viewer := look / f"{colour}.png")
         measured = viewer_look.measures(film, viewer)
-        if ({key: measured[key] for key in pinned}, viewer_look.passes(measured)) != (pinned, passes):
+        shown = measured if exact else {key: measured[key] for key in pinned}
+        if (shown, viewer_look.passes(measured)) != (pinned, passes):
             themed.append((f"look {colour}", measured))
     themed += [(f"view {frame}", link) for frame, want in VIEWS
                if (link := viewer_look.view_link({**CAMERA, "frame": frame})) != want]
