@@ -4,29 +4,25 @@ the machine byte for byte where the job names it; a corrupt object or an input c
 refused, never stored or unpacked; whatever the store path does not bring is sent directly, so nothing stops a job
 (2026-10-10: two review-page machines waited about 2 hours for inputs sent from this PC).
 
-A folder store and a local ranged HTTP server stand in for the bucket and its signed link; no cloud. The break that
-turns each red (applied once, seen red, reverted):
+A folder store and a local ranged HTTP server stand in for the bucket and its signed link; no cloud. One test,
+test_inputs_arrive_intact_and_go_up_once, builds one world (a store home, a frozen run's home linked into it, a parts
+folder in its making folder named through that link, a file link beside it, a ranged server over the store), drives
+an input through every step (keyed, refused when changed, staged twice, pulled by two machines, refused when corrupt,
+routed directly, linked at its named path) and checks each step on that world; the routing to the direct path is a
+table of rows. The break that turns it red (each applied once, seen red, reverted):
 
-- test_the_key_names_the_contents_bytes: in inputs.py `add_fixed`, drop `info.mtime = 0` (the same files written at
-  another time give another key).
-- test_an_input_goes_up_once_under_its_key: in inputs.py `uploaded`, `if store.exists(key):` -> `if False:` (sent
-  again each time it is staged).
-- test_the_machine_pulls_it_in_ranges_and_unpacks_it_where_it_lay: in input_fetch.py `cached`, `if tar.exists():` ->
-  `if False:` (the machine's cache is not kept for its next job).
-- test_a_corrupt_object_is_refused: in input_fetch.py `cached`, `if f"{found}.tar" != name:` -> `if False:`.
-- test_an_input_changed_after_its_key_was_taken_is_never_stored_under_it: in inputs.py `uploaded`, `!= key:` ->
-  `== None:` (the stale tar is stored).
-- test_small_or_switched_off_inputs_go_directly: in inputs.py `stage`, `if not big or os.environ.get(DIRECT):` ->
-  `if not big:`.
-- test_a_failed_staging_falls_back_to_sending_directly: in inputs.py `stage`, `return []` after the failure's log ->
-  `return [{"path": "x"}]`.
-- test_the_blender_runner_sends_directly_what_the_store_did_not_bring: in blender_cloud.py `send_inputs`, `not in
-  arrived` -> `in arrived`.
-- test_an_input_named_through_a_link_is_linked_at_its_named_path: in inputs.py `named_links`, `if at != target:` ->
-  `if False:`.
-- test_a_folder_link_on_the_way_is_one_link_up_there_so_outputs_land_where_they_come_back_from: in inputs.py
-  `named_links`, `for end in range(2, len(parts) + 1):` -> `for end in [len(parts)]:` (only the file's own link, as
-  before 2026-10-27); or in `link_named`, drop `rm -rf {shlex.quote(at)}`.
+- in inputs.py `add_fixed`, drop `info.mtime = 0` (the same files written at another time give another key).
+- in inputs.py `uploaded`, `if store.exists(key):` -> `if False:` (sent again each time it is staged).
+- in input_fetch.py `cached`, `if tar.exists():` -> `if False:` (the machine's cache is not kept for its next job).
+- in input_fetch.py `cached`, `if f"{found}.tar" != name:` -> `if False:` (a corrupt object is unpacked).
+- in inputs.py `uploaded`, `!= key:` -> `== None:` (the stale tar is stored).
+- in inputs.py `stage`, `if not big or os.environ.get(DIRECT):` -> `if not big:` (the switched-off row stages).
+- in inputs.py `stage`, `return []` after the failure's log -> `return [{"path": "x"}]` (the failed-staging row).
+- in blender_cloud.py `send_inputs`, `not in arrived` -> `in arrived`.
+- in inputs.py `named_links`, `if at != target:` -> `if False:` (the file link is not made at its named path).
+- in inputs.py `named_links`, `for end in range(2, len(parts) + 1):` -> `for end in [len(parts)]:` (only the file's
+  own link, as before 2026-10-27); or in `link_named`, drop `rm -rf {shlex.quote(at)}` (the folder link on the way
+  is not one link up there, so outputs land where nothing brings them back).
 """
 import hashlib
 import http.server
@@ -37,7 +33,10 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import types
+
+import pytest
 
 HERE = pathlib.Path(__file__).resolve().parent
 os.environ["PROPS_WORK"] = tempfile.mkdtemp(prefix="inputs-test-work-")  # the key memo's folder (paths.WORK): own
@@ -97,133 +96,111 @@ def fetched(items, cache):
     return [json.loads(line) for line in done.stdout.splitlines()]
 
 
-def test_the_key_names_the_contents_bytes(tmp_path):
-    import time
-    first = an_input(tmp_path / "one")
-    later = an_input(tmp_path / "two")
-    for path in later.rglob("*"):
-        os.utime(path, (time.time() - 3600, time.time() - 3600))  # the same files, written an hour apart
-    assert inputs.content_key(first) == inputs.content_key(later)
-    assert inputs.content_key(first) != inputs.content_key(an_input(tmp_path / "three", extra=b"!"))
-    store = stores.FolderStore(tmp_path / "store")
-    item = inputs.staged(store, first)
-    assert item["key"] == f"inputs/{hashlib.sha256(store.read_bytes(item['key'])).hexdigest()}.tar"
+# How an input that the store path does not take goes directly: (row, SMALLEST, SCORE_INPUTS_DIRECT, says it failed).
+# The staging environment is /bin/false in every row, so a row that stages at all says so.
+DIRECT_ROWS = [
+    ("small input, under SMALLEST", inputs.SMALLEST, None, False),
+    ("switched off by SCORE_INPUTS_DIRECT", 1, "1", False),
+    ("staging failed", 1, None, True),
+]
 
 
-def test_an_input_goes_up_once_under_its_key(tmp_path):
-    store = stores.FolderStore(tmp_path / "store")
-    folder = an_input(tmp_path)
-    first, second = inputs.staged(store, folder), inputs.staged(store, folder)
-    assert first["uploaded"] and not second["uploaded"] and first["key"] == second["key"]
-    assert store.exists(first["key"]) and first["bytes"] == len(GLB) + len(JSON)
-    assert not list(inputs.FOLDER.glob("*.partial"))
-
-
-def test_the_machine_pulls_it_in_ranges_and_unpacks_it_where_it_lay(tmp_path, monkeypatch):
-    store = stores.FolderStore(tmp_path / "store")
-    item = inputs.staged(store, an_input(tmp_path / "here"))
-    base, server = served(store.root)
-    try:
-        machine = tmp_path / "machine"
-        request = {"path": str(machine / "parts"), "key": item["key"], "url": f"{base}/{item['key']}"}
-        monkeypatch.setattr(input_fetch, "RANGE_SIZE", 1000)
-        tar = machine / "cache" / item["key"].split("/")[1]
-        tar.parent.mkdir(parents=True)
-        size = input_fetch.download(request["url"], tar)
-        assert len(Ranged.asked) >= 3  # in ranges, not one request
-        assert size == store.size(item["key"]) and tar.read_bytes() == store.read_bytes(item["key"])
-        tar.unlink()
-        first, second = fetched([request], machine / "cache"), fetched([request], machine / "cache")
-        assert first[0]["fetched"] and not second[0]["fetched"]  # kept in the machine's cache for its next job
-        assert (machine / "parts/deep/b.json").read_text() == JSON
-        assert (machine / "parts/a.glb").read_bytes() == GLB
-    finally:
-        server.shutdown()
-
-
-def test_a_corrupt_object_is_refused(tmp_path):
-    store = stores.FolderStore(tmp_path / "store")
-    item = inputs.staged(store, an_input(tmp_path / "here"))
-    store.path(item["key"]).write_bytes(b"not the tar")
-    try:
-        fetched([{"path": str(tmp_path / "machine/parts"), "key": item["key"], "url": item["url"]}],
-                tmp_path / "machine/cache")
-        raise AssertionError("a corrupt object was unpacked")
-    except RuntimeError as refused:
-        assert "came down as" in str(refused)
-    assert not (tmp_path / "machine/parts").exists()
-
-
-def test_an_input_changed_after_its_key_was_taken_is_never_stored_under_it(tmp_path):
-    store = stores.FolderStore(tmp_path / "store")
-    folder = an_input(tmp_path)
-    key = inputs.content_key(folder)
-    (folder / "a.glb").write_bytes(b"changed after the key was taken")
-    try:
-        inputs.uploaded(store, folder, key)
-        raise AssertionError("a tar that no longer matches its key was stored under it")
-    except ValueError:
-        pass
-    assert not store.exists(key)
-
-
-def test_small_or_switched_off_inputs_go_directly(tmp_path, monkeypatch):
-    assert inputs.big_inputs([an_input(tmp_path)]) == []  # 3008 bytes, under 8 MB
-    monkeypatch.setattr(inputs, "SMALLEST", 1)
-    monkeypatch.setenv(inputs.DIRECT, "1")
-    assert inputs.stage(tmp_path, [an_input(tmp_path)]) == []
-
-
-def test_a_failed_staging_falls_back_to_sending_directly(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(inputs, "SMALLEST", 1)
-    monkeypatch.setattr(inputs, "VENV_PYTHON", pathlib.Path("/bin/false"))
-    monkeypatch.delenv(inputs.DIRECT, raising=False)
-    assert inputs.stage(tmp_path, [an_input(tmp_path)]) == []
-    assert "sending directly" in capsys.readouterr().err
-
-
-def test_the_blender_runner_sends_directly_what_the_store_did_not_bring(monkeypatch):
-    sent = []
-    monkeypatch.setattr(inputs, "through_store", lambda folder, host, locals_: {str(pathlib.Path("/w/parts").resolve())})
-    monkeypatch.setattr(blender_cloud, "send", lambda folder, host, local: sent.append(local))
-    monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
-    blender_cloud.send_inputs(pathlib.Path("/tmp"), "host", ["/w/parts", "/w/job.json"])
-    assert sent == ["/w/job.json"]
-
-
-def test_an_input_named_through_a_link_is_linked_at_its_named_path(tmp_path):
-    """Garage's rover, named work/pixal/kit5-rover-3.glb, landed at work/pixal5/: Blender found no file (2026-10-12)."""
+def test_inputs_arrive_intact_and_go_up_once(tmp_path, monkeypatch, capsys):
+    # the world: the store's home, a frozen run's home whose store is a link to it, the input in its making folder
+    store_home = tmp_path / "home" / "store"
+    making = store_home / "cache" / "making" / "k-1"
+    making.mkdir(parents=True)
+    (making / ".bake-crate.json").write_text("{}")
+    folder = an_input(making)
+    copy_home = tmp_path / "frozen" / "run.home"
+    copy_home.mkdir(parents=True)
+    (copy_home / "store").symlink_to(store_home)
+    named = copy_home / "store" / "cache" / "making" / "k-1"
+    # garage's rover: a file named work/pixal/rover.glb that lies at work/pixal5/ (2026-10-12), and a plain one
     (tmp_path / "pixal5").mkdir()
     (tmp_path / "pixal").mkdir()
     (tmp_path / "pixal5" / "rover.glb").write_bytes(b"model")
     (tmp_path / "pixal" / "rover.glb").symlink_to("../pixal5/rover.glb")
     (tmp_path / "pixal" / "plain.glb").write_bytes(b"model")
-    found = inputs.named_links([tmp_path / "pixal" / "rover.glb", tmp_path / "pixal" / "plain.glb"])
-    assert found == {str(tmp_path / "pixal" / "rover.glb"): str((tmp_path / "pixal5" / "rover.glb").resolve())}
+    store = stores.FolderStore(tmp_path / "bucket")
 
+    # the key: the same files written an hour apart elsewhere give it, a changed file does not
+    key = inputs.content_key(folder)
+    later = an_input(tmp_path / "later")
+    for path in later.rglob("*"):
+        os.utime(path, (time.time() - 3600, time.time() - 3600))
+    changed = an_input(tmp_path / "changed")
+    assert inputs.content_key(later) == key and inputs.content_key(changed) == key
+    (changed / "a.glb").write_bytes(GLB + b"!")
+    assert inputs.content_key(changed) != key
+    # a tar that no longer hashes to the key taken before the change is never stored under it
+    with pytest.raises(ValueError):
+        inputs.uploaded(store, changed, key)
+    assert not store.exists(key)
 
-def test_a_folder_link_on_the_way_is_one_link_up_there_so_outputs_land_where_they_come_back_from(tmp_path,
-                                                                                                    monkeypatch):
-    """surfaces-bake@campgrounds (2026-10-27): the frozen run's making folder was named through `<copy>.home/store`, a
-    link to the store; the listing was linked file by file into a real folder up there, so the paint wrote its outputs
-    into that folder and the runner, bringing back from the resolved path, found none of them in any job."""
-    store = tmp_path / "home" / "store"
-    making = store / "cache" / "making" / "k-1"
-    making.mkdir(parents=True)
-    (making / ".bake-crate.json").write_text("{}")
-    copy_home = tmp_path / "frozen" / "run.home"
-    copy_home.mkdir(parents=True)
-    (copy_home / "store").symlink_to(store)
-    named = copy_home / "store" / "cache" / "making" / "k-1"
-    found = inputs.named_links([named / ".bake-crate.json", named / "labelled" / "crate", named / "made"])
-    assert found == {str(copy_home / "store"): str(store.resolve())}, found
+    # staged twice (through the link, as the job names it): up once, under the sha256 of the stored bytes
+    first, second = inputs.staged(store, named / "parts"), inputs.staged(store, folder)
+    assert first["uploaded"] and not second["uploaded"] and first["key"] == second["key"] == key
+    assert key == f"inputs/{hashlib.sha256(store.read_bytes(key)).hexdigest()}.tar"
+    assert first["bytes"] == len(GLB) + len(JSON) and not list(inputs.FOLDER.glob("*.partial"))
+
+    # a machine pulls it in ranges, byte for byte, keeps it for its next job and unpacks it where the job names it
+    base, server = served(store.root)
+    try:
+        machine = tmp_path / "machine"
+        request = {"path": str(machine / "parts"), "key": key, "url": f"{base}/{key}"}
+        monkeypatch.setattr(input_fetch, "RANGE_SIZE", 1000)
+        tar = machine / "cache" / key.split("/")[1]
+        tar.parent.mkdir(parents=True)
+        assert input_fetch.download(request["url"], tar) == store.size(key) and len(Ranged.asked) >= 3
+        assert tar.read_bytes() == store.read_bytes(key)
+        tar.unlink()
+        pulls = fetched([request], machine / "cache"), fetched([request], machine / "cache")
+        assert [pull[0]["fetched"] for pull in pulls] == [True, False]
+        assert (machine / "parts/deep/b.json").read_text() == JSON and (machine / "parts/a.glb").read_bytes() == GLB
+    finally:
+        server.shutdown()
+    # a second machine, after the object went corrupt in the store, refuses it and unpacks nothing
+    store.path(key).write_bytes(b"not the tar")
+    with pytest.raises(RuntimeError, match="came down as"):
+        fetched([{"path": str(tmp_path / "other/parts"), "key": key, "url": first["url"]}], tmp_path / "other/cache")
+    assert not (tmp_path / "other/parts").exists()
+
+    # what the store path does not take goes directly, and a failure says so
+    for row, smallest, direct, says in DIRECT_ROWS:
+        with monkeypatch.context() as patched:
+            patched.setattr(inputs, "SMALLEST", smallest)
+            patched.setattr(inputs, "VENV_PYTHON", pathlib.Path("/bin/false"))
+            patched.delenv(inputs.DIRECT, raising=False)
+            if direct:
+                patched.setenv(inputs.DIRECT, direct)
+            capsys.readouterr()
+            assert inputs.stage(tmp_path, [folder]) == [], row
+            assert ("sending directly" in capsys.readouterr().err) == says, row
+    # and the Blender runner sends directly every input the store did not bring
+    sent = []
+    monkeypatch.setattr(inputs, "through_store", lambda log, host, locals_: {str(folder.resolve())})
+    monkeypatch.setattr(blender_cloud, "send", lambda log, host, local: sent.append(local))
+    monkeypatch.setattr(blender_cloud.batch, "say", lambda line: None)
+    blender_cloud.send_inputs(tmp_path, "host", [str(named / "parts"), str(tmp_path / "job.json")])
+    assert sent == [str(tmp_path / "job.json")]
+
+    # every link on the way to a named path is one link up there: the frozen home's store folder link (so outputs
+    # named through it, not there yet, land where they come back from) and the rover's file link; the plain file none
+    job = [named / ".bake-crate.json", named / "labelled" / "crate", named / "made", tmp_path / "pixal" / "rover.glb",
+           tmp_path / "pixal" / "plain.glb"]
+    assert inputs.named_links(job) == {str(copy_home / "store"): str(store_home.resolve()),
+                                       str(tmp_path / "pixal" / "rover.glb"):
+                                       str((tmp_path / "pixal5" / "rover.glb").resolve())}
     commands = []
     monkeypatch.setitem(sys.modules, "batch", types.SimpleNamespace(
-        remote=lambda folder, host, command, check: commands.append(command)))
-    inputs.link_named(tmp_path, "host", [named / ".bake-crate.json"])
-    # the machine as the old file links left it: a real folder where the link lies here
+        remote=lambda log, host, command, check: commands.append(command)))
+    inputs.link_named(tmp_path, "host", job)
+    # the machine as the old file links left it: a real folder where the folder link lies here, the file link gone
     (copy_home / "store").unlink()
     (named / "labelled").mkdir(parents=True)
-    for _ in range(2):  # and once more with the link right: left alone
+    (tmp_path / "pixal" / "rover.glb").unlink()
+    for _ in range(2):  # and once more with the links right: left alone
         subprocess.run(["sh", "-c", commands[0]], check=True)
     assert (copy_home / "store").is_symlink() and (named / ".bake-crate.json").samefile(making / ".bake-crate.json")
+    assert (tmp_path / "pixal" / "rover.glb").read_bytes() == b"model"
