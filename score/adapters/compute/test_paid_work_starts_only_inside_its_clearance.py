@@ -776,44 +776,6 @@ def test_spend_counts_from_the_worlds_start_across_months():
     assert guard.spent_since(start, months) == 53.5
 
 
-def test_a_trials_own_store_in_the_home_is_held_to_the_worlds_stop_and_counted_in_flight():
-    """Fault (2026-10-18 review): compare.py's trial store had no stop line of its own, so its paid rows (close-ups,
-    pixal, likeness) skipped the stop, and their reservations sat in the trial's store where no clearance counted them."""
-    trial = Store.in_folder(compute.PROPS_HOME / "trial-test/store")  # as compare.py's, a store inside the home
-    data = pathlib.Path(tempfile.mkdtemp())
-    (data / "hangar.txt").write_text("a hall")
-    runner = graph.Runner([BRIEF, RENDER], graph.Environment("toy-trial", 1, {"data": data}),
-                          trial)
-    runner.run_node(BRIEF, "hangar")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 0.0
-    (Store.default().cache.parent / "reservations.json").unlink(missing_ok=True)  # earlier tests' runs, in the sandbox
-    assert "has no stop line" in refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
-    as_owner(lambda: guard.set_line(Store.default(), "toy-trial", 10.0, "the trial", "owner",
-                                    "2026-10-18T09:00:00+00:00", START))
-    ticket = compute.clearance(runner, "render@hangar", 6.0)
-    assert pathlib.Path(ticket["reservations"]).parent == Store.default().cache.parent
-    assert "pass the EUR 10.00 stop" in refused(lambda: compute.clearance(runner, "render@hangar", 5.0))
-    with compute.spending(ticket):
-        assert compute.require_cleared("a batch")["euros"] == 6.0  # the clearance is read from the trial's store
-    assert compute.clearance(runner, "render@hangar", 5.0)  # released: in flight no more
-
-
-def test_a_rent_point_refuses_a_clearance_whose_run_has_ended():
-    """Fault (2026-10-18 review): any earlier clearance passed a rent point, so a ticket reused after its run ended
-    started paid work that no stop check and no in-flight sum saw."""
-    runner = a_runner("a hall")
-    ledger({"euros": 0.0})
-    ticket = compute.clearance(runner, "render@hangar", 1.0)
-    with compute.spending(ticket):
-        assert compute.require_cleared("a batch", runner.store)["euros"] == 1.0
-    os.environ[compute.TICKET] = f"render@hangar {ticket['key']}"
-    try:
-        assert "has ended" in refused(lambda: compute.require_cleared("a batch", runner.store))
-    finally:
-        os.environ.pop(compute.TICKET)
-
-
 def test_a_reservation_stays_open_while_its_run_lives_or_until_its_runaway_limit():
     """Fault (2026-10-18 review): a reservation was dropped after 4 h whether or not its run had ended."""
     hours_ago = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).isoformat()
@@ -1188,6 +1150,12 @@ SPENT_10K = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0
 #     (a value, or a (low, high) range it lies strictly inside)
 #   ("bill", euros): the newest cleared run's ledger line (billed)
 #   ("release",): the newest cleared run ends (compute.release)
+#   ("rent", store given, expected): a rent point (compute.require_cleared) asked under the newest cleared run, told
+#     the runner's store or none; inside compute.spending while the run is open (its reservation ends with it), else
+#     with only its ticket named; expected is the refusal's words or the found clearance's fields
+#   ("stop", euros): the owner writes the world's stop line now
+# A trial row's store is a trial's own inside the home (compare.py's): its stop line and reservations are the
+# framework store's, every cleared run's reservations kept there.
 # and what stands after: the outbox's lines, the grant's draws (euros, balance) and balance.
 ASKS = [
     pytest.param({"text": "   ", "ledger": [{"euros": 0.0}],
@@ -1250,6 +1218,22 @@ ASKS = [
                             ("clear", 0.75, OWN, "run-b", "EUR 0.80 left"),
                             ("clear", 0.7, OWN, "run-b", {"grant": OWN})],  # 0.77 fits
                   "draws": [(1.2, 0.8)]}, id="a high past the grant's balance left"),
+    # 2026-10-18 review: any earlier clearance passed a rent point, so a ticket reused after its run ended started paid
+    # work that no stop check and no in-flight sum saw
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("clear", 1.0, None, None, {"euros": 1.0}),
+                            ("rent", True, {"euros": 1.0}),
+                            ("rent", True, "has ended")]}, id="a rent point after its run ended"),
+    # 2026-10-18 review: compare.py's trial store had no stop line of its own, so its paid rows (close-ups, pixal,
+    # likeness) skipped the stop, and their reservations sat in the trial's store where no clearance counted them
+    pytest.param({"text": "a hall", "trial": "toy-trial", "ledger": [{"euros": 90.0}],
+                  "steps": [("clear", 1.0, None, None, "has no stop line"),
+                            ("stop", 10.0),
+                            ("clear", 6.0, None, None, {"euros": 6.0}),
+                            ("clear", 5.0, None, None, "pass the EUR 10.00 stop"),
+                            ("rent", False, {"euros": 6.0}),  # the clearance read from the trial's store
+                            ("clear", 5.0, None, None, {"euros": 5.0})]},  # released: in flight no more
+                 id="a trial's own store held to the world's stop"),
 ]
 
 
@@ -1257,8 +1241,13 @@ def a_world(row):
     """The row's runner: its brief made (and rejected where the row says), in a test store or the framework's."""
     data = pathlib.Path(tempfile.mkdtemp())
     (data / "hangar.txt").write_text(row["text"])
-    store = Store.default() if "framework" in row else Store.in_folder(tempfile.mkdtemp())
-    runner = graph.Runner([BRIEF, RENDER], graph.Environment(row.get("framework", "toy"), 1, {"data": data}), store)
+    store = (Store.default() if "framework" in row else
+             Store.in_folder(compute.PROPS_HOME / "trial-test/store") if "trial" in row else
+             Store.in_folder(tempfile.mkdtemp()))
+    if "trial" in row:
+        (Store.default().cache.parent / "reservations.json").unlink(missing_ok=True)  # earlier tests' runs
+    world = row.get("framework", row.get("trial", "toy"))
+    runner = graph.Runner([BRIEF, RENDER], graph.Environment(world, 1, {"data": data}), store)
     runner.run_node(BRIEF, "hangar")
     if row.get("reject"):
         review.reject(store, "brief@hangar", store.accepted("brief@hangar"), "owner", "the wrong hall")
@@ -1282,7 +1271,8 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                                                                    "euros": row["override"], "by": "owner",
                                                                    "at": graph.now()})
     grant = compute.grant_benchmark("Yes", QUESTION, row["grant"], store=runner.store)["id"] if "grant" in row else None
-    tickets, cleared = [], 0
+    home = Store.default() if "trial" in row else runner.store  # the store holding the world's line and reservations
+    tickets, cleared, newest = [], 0, None
     try:
         for step in row["steps"]:
             if step[0] == "bill":
@@ -1290,6 +1280,28 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                 continue
             if step[0] == "release":
                 compute.release(tickets.pop())
+                continue
+            if step[0] == "stop":
+                as_owner(lambda: guard.set_line(home, runner.world.name, step[1], "the row", "owner",
+                                                "2026-10-18T09:00:00+00:00", START))
+                continue
+            if step[0] == "rent":
+                _, given, expected = step
+                rent = lambda: compute.require_cleared("a batch", *([runner.store] if given else []))  # noqa: E731
+                if newest in tickets:
+                    tickets.remove(newest)
+                    with compute.spending(newest):
+                        said = rent() if isinstance(expected, dict) else refused(rent)
+                else:
+                    os.environ[compute.TICKET] = f"{newest['node']} {newest['key']}"
+                    try:
+                        said = rent() if isinstance(expected, dict) else refused(rent)
+                    finally:
+                        os.environ.pop(compute.TICKET)
+                if isinstance(expected, dict):
+                    assert all(said[field] == value for field, value in expected.items()), (step, said)
+                else:
+                    assert expected in said, (step, said)
                 continue
             via, euros, tag, run, expected = step
             job_store = compute.job_contract.stores.FolderStore(tempfile.mkdtemp())
@@ -1315,7 +1327,9 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                     assert job["node"] == "render@hangar" and job["node_key"] == key, (step, job)
                 else:
                     assert answer["clearance"] == records[-1], step
+                    assert pathlib.Path(answer["reservations"]).parent == home.cache.parent, (step, answer)
                     tickets.append(answer)
+                    newest = answer
             else:
                 said = refused(lambda: as_benchmark(tagged, run, ask) if tagged else ask())
                 for words in (expected,) if isinstance(expected, str) else expected:
