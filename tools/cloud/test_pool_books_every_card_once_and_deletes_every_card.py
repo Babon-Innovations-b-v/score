@@ -14,9 +14,10 @@ park.py and spread.py are the pool's own call sites):
   pool.current(machine["pool"]) is not None` -> `and False` (a card back from its claim is deleted).
 - test_jobs_start_on_the_first_warm_card_while_the_collector_grows_the_pool: in `collect`, `collect_round(run_id,
   plan, collecting)` -> `pass`.
-- test_a_dead_card_is_struck_off_and_replaced: in park.py `park`, `pool.left(machine["pool"], machine["id"])` ->
-  `pass`.
-- test_a_card_whose_taker_died_is_deleted_and_replaced: in `tidy`, `if card["id"] not in parked and holder and not
+- test_a_pool_books_every_card_once_and_deletes_every_card (its broken card): in park.py `park`, `pool.left(machine["pool"], machine["id"])` ->
+  `pass`; (its idle card deleted under the pool) in `beat`, `if reads is not None and reads(record["id"],
+  record["zone"]) is None:` -> `if False:`.
+- test_a_pool_books_every_card_once_and_deletes_every_card (its taker died): in `tidy`, `if card["id"] not in parked and holder and not
   process_alive(holder):` -> `if False:`.
 - test_a_dead_cards_share_goes_back_on_the_queue_once: in spread.py `work_slot`, `if machine.get("pool") and
   shares.again(share):` -> `if False:`.
@@ -27,7 +28,7 @@ park.py and spread.py are the pool's own call sites):
   0.0))` -> `max(0.0, owed)`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (the run's end): in `release`, `[lambda record=record:
   release_idle(record) for record in park.pool_records(run_id)]` -> `[]`.
-- test_a_stopped_runner_deletes_its_card_and_rents_nothing: in park.py `pool_parkable`, drop `and not
+- test_a_pool_books_every_card_once_and_deletes_every_card (its stopped runner): in park.py `pool_parkable`, drop `and not
   batch.STOPPING.is_set()`.
 - test_a_class_the_pool_lacks_is_asked_for_and_no_stock_never_empties_the_offers: in `want`, `if asks.get(key,
   {}).get("disk_gb") != disk:` -> `if False:`; or in `Collecting.asked_anew`, `if classes - self.short_before:` ->
@@ -52,9 +53,9 @@ park.py and spread.py are the pool's own call sites):
 - test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go: in `resize`, `sizes = sized(plan["reserved"], cards,
   processors)` -> `sizes = dict(plan["reserved"])`. Or, the plan of 2026-11-09 B5, in `idle_down` drop the
   `lowered(...)` call (the idle card's place is rented again), or the `IDLE_MINUTES` test (no card is ever let go).
-- test_a_stopped_takers_card_stays_on_the_pool_until_its_delete_went_through: in park.py `park`, the delete and
+- test_a_pool_books_every_card_once_and_deletes_every_card (its stopped taker): in park.py `park`, the delete and
   `pool.left` swapped.
-- test_a_release_deletes_the_cards_side_by_side: in `at_once`, the threads -> one call after another.
+- test_a_pool_books_every_card_once_and_deletes_every_card (its release side by side): in `at_once`, the threads -> one call after another.
 - test_a_pool_holds_what_its_jobs_can_run_at_once: in `counts_for`, `[:max(0, jobs)]` -> ``; or in `reach`,
   `[row for row in rows if not row[2]]` -> `rows`.
 - test_the_collector_stops_once_and_lets_its_release_finish: in `stop_on_signals`, `signal.signal(each,
@@ -73,7 +74,7 @@ park.py and spread.py are the pool's own call sites):
   `if setup_deaths > 5:`.
 - test_a_failed_round_never_ends_the_collector: in `collect`, `except Exception as error:` -> `except
   ZeroDivisionError as error:`.
-- test_a_release_tries_every_card_and_then_says_what_failed: in `gathered`, `errors.append(error)` -> `raise`.
+- test_a_pool_books_every_card_once_and_deletes_every_card (its failed delete): in `gathered`, `errors.append(error)` -> `raise`.
 - test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards: in `close_all`, `if not (path.parent /
   "closed").exists() and close(path.parent.name)` -> `if False`.
 - test_a_stop_signal_during_the_collectors_release_lets_it_release_every_card: in `stop_on_signals`, `if
@@ -262,37 +263,6 @@ def test_jobs_start_on_the_first_warm_card_while_the_collector_grows_the_pool():
     assert not collector.is_alive() and sorted(calls.deleted) == sorted(calls.rented)  # every card gone at the end
 
 
-def test_a_dead_card_is_struck_off_and_replaced():
-    calls, run_id = fresh(stock=10)
-    grow(run_id)
-    card = claimed(a_run("dead"), KINDS[0])
-    card["healthy"] = False  # it broke under its job
-    batch.delete_machine(card)
-    assert calls.deleted == [card["id"]] and len(pool.members(run_id)) == 1
-    assert grow(run_id) == 1 and len(pool.members(run_id)) == 2 and len(calls.rented) == 3
-    # an idle card deleted under the pool (2026-11-05): its failing beat finds it gone, strikes it off, and the
-    # collector rents in its place. Break: in pool.beat, drop the `reads(...) is None` branch.
-    idle = park.pool_records(run_id)[0]
-    beaten = batch.heartbeat
-    batch.heartbeat = lambda folder, host: (_ for _ in ()).throw(subprocess.CalledProcessError(255, ["ssh"]))
-    pool.cloud.server_record = lambda server_id, zone: None
-    try:
-        pool.beat(run_id)
-    finally:
-        batch.heartbeat = beaten
-        del pool.cloud.server_record
-    assert idle["id"] not in {record["id"] for record in park.pool_records(run_id)}
-    assert idle["id"] not in {member["id"] for member in pool.members(run_id)} and grow(run_id) >= 1
-
-
-def test_a_card_whose_taker_died_is_deleted_and_replaced():
-    calls, run_id = fresh(stock=10)
-    grow(run_id)
-    card = claimed(a_run("orphan"), KINDS[0])
-    pool.held_by(run_id, card["id"], GONE_PID)
-    assert grow(run_id) == 1 and card["id"] in calls.deleted and len(pool.members(run_id)) == 2
-
-
 def test_a_dead_cards_share_goes_back_on_the_queue_once():
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
     grow(run_id)
@@ -329,20 +299,6 @@ def rented_ago(run_id, minutes):
 def pool_euros():
     """Every euro the sandbox's ledger holds: the run's pool's and its cards' takers'."""
     return sum(entry["euros"] for entry in ledger.entries())
-
-
-def test_a_stopped_runner_deletes_its_card_and_rents_nothing():
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    card = claimed(a_run("stopped"), KINDS[0])
-    batch.STOPPING.set()
-    try:
-        card["healthy"] = True
-        batch.delete_machine(card)
-        assert claimed(a_run("stopped-again"), KINDS[0]) is None
-    finally:
-        batch.STOPPING.clear()
-    assert calls.deleted == [card["id"]] and len(calls.rented) == 1 and not pool.members(run_id)
 
 
 def test_a_class_the_pool_lacks_is_asked_for_and_no_stock_never_empties_the_offers():
@@ -524,37 +480,6 @@ def test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go():
     pool.release(run_id)
 
 
-def test_a_stopped_takers_card_stays_on_the_pool_until_its_delete_went_through():
-    """Review of 2026-10-24: a card struck off before its delete was out of every release's sight when the taker was
-    killed between the two."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    card = claimed(a_run("stopped"), KINDS[0])
-    seen = []
-    patch(cloud, "delete", lambda server_id, zone: seen.append([found["id"] for found in pool.members(run_id)]) or True)
-    batch.STOPPING.set()
-    try:
-        batch.delete_machine(card)
-    finally:
-        batch.STOPPING.clear()
-    assert seen[0] == [card["id"]] and not pool.members(run_id)  # on the pool while its delete ran
-    pool.release(run_id)
-
-
-def test_a_release_deletes_the_cards_side_by_side():
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 4})
-    assert grow(run_id) == 4
-    gate, started = threading.Barrier(4, timeout=5), []
-
-    def slow_delete(server_id, zone):
-        started.append(server_id)
-        gate.wait()  # each delete waits for the other three: one after another this would time out
-        return True
-    patch(cloud, "delete", slow_delete)
-    pool.release(run_id)
-    assert len(started) == 4 and not pool.members(run_id)
-
-
 def test_a_pool_holds_what_its_jobs_can_run_at_once():
     """Second Buy of 2026-10-24: sized on every line at once, 10 L4s and 3 POP2s opened for 8 jobs."""
     rows = [(f"place-{number}", 3, False) for number in range(12)] + [("place-0", 1, True), ("place-1", 2, True)]
@@ -728,27 +653,6 @@ def test_a_failed_round_never_ends_the_collector():
         pool.release(run_id)
         collector.join(5)
     assert not collector.is_alive() and len(asked) >= 2
-
-
-def test_a_release_tries_every_card_and_then_says_what_failed():
-    """Review (2026-10-23): one failed delete stopped the release, so the other idle cards stayed and the run's own
-    release (its reservations) never ran."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
-    grow(run_id)
-    tried = []
-
-    def delete(server_id, zone):
-        tried.append(server_id)
-        if len(tried) == 1:
-            raise RuntimeError("Failed to detach block volume")
-        return True
-    patch(cloud, "delete", delete)
-    try:
-        pool.release(run_id)
-        raise AssertionError("the failed delete was not raised")
-    except RuntimeError as error:
-        assert "detach" in str(error)
-    assert set(tried) == set(calls.rented) and pool.current(run_id) is None  # the failed one tried again as a member
 
 
 def test_the_kill_switch_closes_every_open_pool_so_nothing_replaces_its_cards():
@@ -997,8 +901,59 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
     """One run's pool of two cards, rented 30 min ago: claims of every kind take them and give them back cleaned, the
     pool books their minutes once (their idle spells, their rents and their takers' rows adding nothing), and the
     run's end deletes the idle card at once and the held one once it comes back. Faults: 2026-10-23 (the likeness threw its L4 away), 2026-10-25
-    (Batch 1's pool of 10 L4s and 3 processor machines was held 11 h and booked EUR 0.00)."""
+    (Batch 1's pool of 10 L4s and 3 processor machines was held 11 h and booked EUR 0.00).
+
+    Before it, a pool of three cards loses one of each way a card goes out of use: one broken under its job, one
+    whose taker died, one deleted under the pool while idle (2026-11-05: its failing beat finds it gone); each is
+    struck off and one collector round rents the three places again. A stopped runner's card is deleted, on the
+    pool until its delete went through (review of 2026-10-24), and a claim while stopping rents nothing. Its release
+    deletes the cards side by side, one delete failing: every card is tried and the failure said (review of
+    2026-10-23)."""
     import characters
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
+    assert grow(run_id) == 3
+    orphan, broken = claimed(a_run("orphan"), KINDS[0]), claimed(a_run("dead"), KINDS[0])
+    pool.held_by(run_id, orphan["id"], GONE_PID)  # its taker died holding it
+    broken["healthy"] = False  # it broke under its job
+    batch.delete_machine(broken)
+    assert calls.deleted == [broken["id"]] and len(pool.members(run_id)) == 2
+    [idle] = park.pool_records(run_id)
+    patch(batch, "heartbeat", lambda folder, host: (_ for _ in ()).throw(subprocess.CalledProcessError(255, ["ssh"])))
+    PATCHES[0].setattr(cloud, "server_record", lambda server_id, zone: None, raising=False)
+    pool.beat(run_id)
+    assert idle["id"] not in {record["id"] for record in park.pool_records(run_id)}
+    assert {member["id"] for member in pool.members(run_id)} == {orphan["id"]}
+    assert grow(run_id) == 3 and orphan["id"] in calls.deleted and len(calls.rented) == 6
+    assert len(pool.members(run_id)) == 3
+    stopped, seen = claimed(a_run("stopped"), KINDS[0]), []
+    patch(cloud, "delete", lambda server_id, zone: seen.append([found["id"] for found in pool.members(run_id)])
+          or calls.deleted.append(server_id) or True)
+    batch.STOPPING.set()
+    try:
+        stopped["healthy"] = True
+        batch.delete_machine(stopped)
+        assert claimed(a_run("stopped-again"), KINDS[0]) is None
+    finally:
+        batch.STOPPING.clear()
+    assert calls.deleted[-1] == stopped["id"] and stopped["id"] in seen[0]  # on the pool while its delete ran
+    assert stopped["id"] not in {found["id"] for found in pool.members(run_id)} and len(calls.rented) == 6
+    left = {found["id"] for found in pool.members(run_id)}
+    gate, tried, lock = threading.Barrier(len(left), timeout=5), [], threading.Lock()
+
+    def slow_delete(server_id, zone):
+        with lock:
+            tried.append(server_id)
+            first = len(tried) <= len(left)
+        if first:
+            gate.wait()  # each delete waits for the others: one after another this would time out
+        if first and server_id == tried[0]:  # the first card's first delete fails
+            raise RuntimeError("Failed to detach block volume")
+        return True
+    patch(cloud, "delete", slow_delete)
+    with pytest.raises(RuntimeError, match="detach"):
+        pool.release(run_id)
+    assert set(tried) == left and tried.count(tried[0]) == 2  # the failed one tried again as a member
+    assert pool.current(run_id) is None and not pool.members(run_id)
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
     assert grow(run_id) == 2 and grow(run_id) == 0 and len(calls.rented) == 2  # rented once; full, nothing more
     for name in rented_ago(run_id, 30):
