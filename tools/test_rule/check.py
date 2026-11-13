@@ -104,7 +104,6 @@ FUNCTION_DEBT = {
     "score/contracts/test_nothing_off_contract_passes.py": 7,
     "score/dashboard/auth/test_only_the_proxy_or_the_owner_signs_in.py": 7,
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
-    "score/dashboard/films/test_a_film_is_timed_checked_and_priced_from_its_script.py": 27,
     "score/dashboard/state/test_the_cockpit_shows_the_store_as_read.py": 21,
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
     "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 79,
