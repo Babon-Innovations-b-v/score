@@ -140,6 +140,8 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   -3.1/0.4/3.7 to -1.3/-0.1/1.6, R -0.3/16.7/33.0 to -0.1/-0.1/0.7; pickup and standing within 1 mm. One lunge frame
   stays under (L, -5.2 mm, from -19.9 stood): its toe base itself 5 mm under, which no toe bend lifts.
   `route_clip`'s treads are not stood.
+  The sim body follows each clip with a jolting start steadied (`inside/eased`, 2026-11-13: Kimodo's standing clip
+  starts with a jolt, 1.5 to 3.2 N m of residual moment on frame 2 under Moon gravity); `poses` stay the clip's own.
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
   up, prop_build.py's root node), so the ground it walks is the ground under the skin's feet (`own_frame`). MuJoCo's
   frame is Z up; `TO_OWN` turns everything back to the person's Y up.
