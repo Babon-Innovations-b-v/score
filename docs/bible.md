@@ -849,6 +849,10 @@ The house standard for a module, so a reader can predict the shape of code they 
   [`codebase-design`](../.claude/skills/codebase-design/SKILL.md) skill.
 - **One function, one purpose.** A docstring that needs "and" between two concerns is two functions.
 - **Every directory carries its overlay** (`CLAUDE.md`) once it has rules of its own.
+- **Three test levels** (owner, 2026-11-01): one test per module, one per module group (`CONTEXT.md`), the full suite
+  on top. A test is one file holding one test function (owner, 2026-11-13: "per test one actual test function, so
+  stacking checks cant happen"): its checks merge into one answer, its cases are rows of one table, and old tests
+  renamed and called from a list are stacking, not a test.
 - **Tests sit with the module**, one file a module, named for the invariant (`test_<invariant>`), driving the public
   interface. A test earns its place by catching a wrong answer:
   - It gives an input whose answer is known, worked out apart from the code (by hand, from the data, from an owner
