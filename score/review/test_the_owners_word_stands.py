@@ -761,8 +761,9 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     # the scene inventory reading: only what both readers agree on is a row, each answer off its schema refused
     for row_name, rows, found_by_sam, size, kept, skipped, merged in AGREED:
         got = reading.agreed(rows, [], found_by_sam, size)
-        for want, answer in zip((kept, skipped, merged), got):
+        for want, answer in zip((kept, skipped), got):
             assert want is None or holds(answer, want), (row_name, answer)
+        assert merged is None or got[2] == merged, (row_name, got[2])  # the merged column exactly, no extra key
     assert reading.inside_rows(INSIDE_ROWS, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
     for row_name, function, arguments, want in READ_ANSWERS:
         if isinstance(want, Refusal):
@@ -1989,18 +1990,32 @@ def row(row_id, noun, region, boxes, **more):
             "size": [1, 1, 1], **more}
 
 
+class NoneOrMissing:
+    """A wanted value read as `dict.get` reads it: the key absent or None."""
+
+
+NONE_OR_MISSING = NoneOrMissing()
+
+
+def wanted_key_holds(got, key, value):
+    """Whether one wanted key of a dict holds: present and holding its value, or NONE_OR_MISSING read through .get."""
+    if value is NONE_OR_MISSING:
+        return got.get(key) is None
+    return key in got and holds(got[key], value)
+
+
 def holds(got, want):
-    """Whether an answer holds what a row wants: each wanted key of a dict (a missing key read as None), each item of a
-    list in order and no more, any other value equal."""
+    """Whether an answer holds what a row wants: each wanted key of a dict present and holding (NONE_OR_MISSING for a
+    key read through .get), each item of a list in order and no more, any other value equal."""
     if isinstance(want, dict):
-        return isinstance(got, dict) and all(holds(got.get(key), value) for key, value in want.items())
+        return isinstance(got, dict) and all(wanted_key_holds(got, key, value) for key, value in want.items())
     if isinstance(want, list):
         return isinstance(got, list) and len(got) == len(want) and all(map(holds, got, want))
     return got == want
 
 
 AGREED = [  # (row, the rows Gemini read and SAM 3 boxed, SAM 3's own finds, the picture's size, kept, skipped,
-    # merged: each held as `holds` reads it, None for not asked)
+    # merged exactly: kept and skipped held as `holds` reads them, None for not asked)
     ("the structure stays, a thing only one reader found is skipped",
      [row("wall", "wall", None, []), row("dome", "building", None, [], inside_place=True),
       row("rock", "rock", None, [], terrain=True), row("crate", "crate", [0, 0, 100, 100], []),
@@ -2017,7 +2032,7 @@ AGREED = [  # (row, the rows Gemini read and SAM 3 boxed, SAM 3's own finds, the
       row("crate", "crate", [700, 700, 1000, 1000], []),  # its region is the bench's box: another's
       row("bench", "bench", None, [[700, 700, 1000, 1000]])], [], (1000, 1000),
      [{"id": "core", "box": [400.0, 200.0, 600.0, 600.0], "boxed_by": "gemini"},
-      {"id": "bench", "box": [700, 700, 1000, 1000], "boxed_by": None}],
+      {"id": "bench", "box": [700, 700, 1000, 1000], "boxed_by": NONE_OR_MISSING}],
      [{"row": "drums"}, {"row": "pipes"}, {"row": "cup"}, {"row": "crate"}], None),
     ("one instance boxed twice on one row is one box",
      [row("chair", "chair", None, [[0, 0, 10, 10], [0, 0, 10, 11]])], [], (100, 100),
