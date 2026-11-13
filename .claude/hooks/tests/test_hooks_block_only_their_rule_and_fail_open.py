@@ -9,41 +9,36 @@ test reads or edits the real config, the real checkout or its state folder; this
 
 The break that turns each test red (applied once each, seen red, reverted):
 
-- test_accept_guard_blocks_the_owners_actions: `_owner_area_write` returns None at once.
-- test_accept_guard_allows_reading_running_and_the_framework: drop `if _FRAMEWORK.search(path): return None`; or
-  drop the `not _TEXT_FILE.search(path)` in `_file_offence`.
-- test_accept_guard_lets_a_benchmark_grant_pass: add `grant_benchmark` to `_OWNER_CALL`'s names.
-- test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes: in `_owner_command`, `not
-  _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check; or drop `spend_override|` from `_LOCK_CALL` (his
-  spend override called straight from Python passes); or drop `(owners_|write_)?google_month|set_books_figure|` from
-  `_LOCK_CALL` (his Google month written straight from Python passes).
-- test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id: `_YES_ID` made `^$` (every id refused),
-  or drop `and not _DASHBOARD.search(path)` in `_file_offence`.
-- test_accept_guard_answers_a_long_command_at_once: the env-assignment group of `_REVIEW_RUN`, `_DECIDE_RUN` and
-  `_WRITER` back to `(\S+=\S*\s+)*` (CodeQL py/redos: exponential on many `!== `; the hook hangs, the harness fails
-  it open); or to `([^\s=]+=\s+)*` (an env-prefixed accept passes).
-- test_completion_guard_refuses_a_false_done_claim: `claimed` returns `set()` at once.
-- test_completion_guard_lets_an_honest_stop_end: drop `or _NEGATION.search(sentence)` in `claimed`.
-  Or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
+- test_hooks_block_only_their_rule_and_fail_open, one row per call a guard answers from the call and its world alone:
+  - its accept_guard rows: `_owner_area_write` returns None at once. Drop `if _FRAMEWORK.search(path): return None`;
+    or drop the `not _TEXT_FILE.search(path)` in `_file_offence`. Add `grant_benchmark` to `_OWNER_CALL`'s names. In
+    `_owner_command`, `not _YES_ID.match(...)` -> `False`; or drop the `_LOCK_CALL` check; or drop `spend_override|`
+    from `_LOCK_CALL` (his spend override called straight from Python passes); or drop
+    `(owners_|write_)?google_month|set_books_figure|` from `_LOCK_CALL` (his Google month written straight from
+    Python passes). `_YES_ID` made `^$` (every id refused), or drop `and not _DASHBOARD.search(path)` in
+    `_file_offence`. The env-assignment group of `_REVIEW_RUN`, `_DECIDE_RUN` and `_WRITER` back to `(\S+=\S*\s+)*`
+    (CodeQL py/redos: exponential on many `!== `; the hook hangs past the row's 20 s, the harness fails it open); or
+    to `([^\s=]+=\s+)*` (an env-prefixed accept passes).
+  - its completion_guard rows: `claimed` returns `set()` at once. Drop `or _NEGATION.search(sentence)` in `claimed`;
+    or in `_says_all_done`, return `bool(re.search(every, sentence, re.IGNORECASE))` (any "all places" counts).
+  - its issue_guard rows: `_is_destructive_git` returns False at once. `_is_gh_issue_create` returns `"create" in`
+    the joined tokens (a substring match, not adjacent tokens). `_areas` returns [] at once. `_open_roots` returns []
+    at once; or `_check_duplicate` returns at once. `_check_dead_paths` returns at once; or `_check_size` returns at
+    once; or `_check_edit_size` returns at once (an edit then grows an over-cap body unchecked).
+  - its md_guard rows: the `tee` pattern taken out of `_SHELL_TARGETS`; or `_recent_typed_messages` returns `texts`
+    (a yes 21 typed messages back is heard). `_approved` returns an empty set at once; or `_user_asked_for_markdown`
+    returns False at once (the user's yes is never heard).
+  - its commit_guard rows: `bypass_in` returns None at once. `live_session_worktrees` returns [] at once.
+    `is_git_commit` returns `"commit" in tokens` (any word).
+  - its wait_guard rows: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once; or `tail_follow`
+    returns None at once; or `long_timeout` returns None at once. Drop the `_MESSAGE.sub` in `blocked`; or drop
+    `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked).
+  - its fail-open rows: accept_guard's `except Exception: return 0` made `return 2`.
 - test_completion_guard_runs_under_the_projects_python (an incident, 2026-10-18; it reads settings.json for the hook's
   command, a wording check guarding the rule that a false done is refused): the local hooks list runs it with `python3`.
-- test_issue_guard_blocks_bare_issues_and_destructive_git: `_is_destructive_git` returns False at once.
-- test_issue_guard_lets_complete_issues_and_ordinary_git_pass: `_is_gh_issue_create` returns `"create" in` the
-  joined tokens (a substring match, not adjacent tokens).
-- test_issue_guard_wants_an_area_once_the_project_has_areas: `_areas` returns [] at once.
-- test_issue_guard_refuses_a_second_root_or_issue_for_open_work: `_open_roots` returns [] at once; or
-  `_check_duplicate` returns at once.
-- test_issue_guard_holds_the_projects_body_rules: `_check_dead_paths` returns at once; or `_check_size` returns at
-  once; or `_check_edit_size` returns at once (an edit then grows an over-cap body unchecked).
-- test_md_guard_blocks_a_new_md_without_a_yes: the `tee` pattern taken out of `_SHELL_TARGETS`; or
-  `_recent_typed_messages` returns `texts` (a yes 21 typed messages back is heard).
-- test_md_guard_allows_the_standing_exceptions: `_approved` returns an empty set at once; or
-  `_user_asked_for_markdown` returns False at once (the user's yes is never heard); or in `main`, ask
-  `_user_asked_for_markdown` before `not offenders` (a non-md call reads the transcript: it hangs on the pipe); or
-  `_recent_typed_messages` starts with `chunk = size` (the whole transcript read, over 100 ms).
-- test_commit_guard_refuses_a_session_waiving_a_guard: `bypass_in` returns None at once.
-- test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live: `live_session_worktrees` returns [] at once.
-- test_commit_guard_reads_only_gits_subcommand_as_a_commit: `is_git_commit` returns `"commit" in tokens` (any word).
+- test_md_guard_reads_only_the_transcripts_end: in `main`, ask `_user_asked_for_markdown` before `not offenders` (a
+  non-md call reads the transcript: it hangs on the pipe); or `_recent_typed_messages` starts with `chunk = size` (the
+  whole transcript read, over 100 ms).
 - test_torn_commit_guard_refuses_a_commit_needing_an_uncommitted_file: `blocks` returns False at once. Its push-gate
   half (.claude/hooks/local/pre-push, in a scratch clone): `gate`'s `if rule.returncode != 0` block dropped (a grown
   debt file pushes); `run_tests` returns True at once, or `touched_tests` returns ([], []) (a failing touched test
@@ -69,11 +64,6 @@ The break that turns each test red (applied once each, seen red, reverted):
 - test_output_cap_spills_a_long_output_whole_and_summarises_it: `text_excerpt`'s `if matches:` made `if False:`.
 - test_output_cap_leaves_what_the_agent_asked_for_alone: `leave_alone` returns False at once.
 - test_output_cap_caps_only_with_a_real_saving: `capped_output`'s saving check made `if False:`.
-- test_wait_guard_blocks_foreground_waits: `poll_loop` returns None at once; or `_foreground_runs` returns [] at once;
-  or `tail_follow` returns None at once; or `long_timeout` returns None at once.
-- test_wait_guard_allows_short_waits_reads_and_background_runs: drop the `_MESSAGE.sub` in `blocked`; or drop
-  `seconds > LONGEST_SLEEP and` in `long_timeout`; or `_TAIL_FOLLOW`'s flag group made `\\S+` (a tail -n blocked).
-- test_every_guard_fails_open_on_garbage: accept_guard's `except Exception: return 0` made `return 2`.
 
 Run: PROPS_HOME=$(mktemp -d) python3 -m pytest .claude/hooks/tests/
 """
@@ -106,26 +96,6 @@ def run(script, payload, env=None, cwd=None, timeout=None):
                           timeout=timeout,
                           input=payload if isinstance(payload, str) else json.dumps(payload))
     return done.returncode, done.stderr, done.stdout
-
-
-def run_side_by_side(script, payloads, env=None, cwd=None):
-    """run(script, payload, env, cwd) for each payload, the hook processes side by side; their answers in order."""
-    with concurrent.futures.ThreadPoolExecutor(min(len(payloads), 8)) as pool:
-        return list(pool.map(lambda payload: run(script, payload, env=env, cwd=cwd), payloads))
-
-
-@pytest.fixture(scope="module")
-def asked(tmp_path_factory):
-    """asked(group, script, payloads, payload) -> run(script(folder), payload): the first case of a group asks the
-    hook every payload of its group side by side, each case then judges its own answer. `script` makes the hook's
-    path from a scratch folder of the group's own."""
-    answers = {}
-
-    def answer(group, script, payloads, payload):
-        if group not in answers:
-            answers[group] = run_side_by_side(script(tmp_path_factory.mktemp(group)), payloads)
-        return answers[group][payloads.index(payload)]
-    return answer
 
 
 def hook_copy(folder, name, config=None):
@@ -230,34 +200,16 @@ READ_AND_RUN = [
 GRANT_QUESTION = ("Confirm this standing rule: in a Claude Code session, I may ask you to approve a benchmark batch of "
                   "at most €20. It covers benchmarks only; anything else and anything over €20 still needs your "
                   "cockpit click.")
-
-
-@pytest.mark.parametrize("payload", OWNER_ACTIONS, ids=range(len(OWNER_ACTIONS)))
-def test_accept_guard_blocks_the_owners_actions(asked, payload):
-    code, said, _ = asked("owners", lambda folder: hook("accept_guard.py"), OWNER_ACTIONS, payload)
-    assert code == BLOCK and "only the owner accepts or rejects" in said, payload
-
-
-@pytest.mark.parametrize("payload", READ_AND_RUN, ids=range(len(READ_AND_RUN)))
-def test_accept_guard_allows_reading_running_and_the_framework(asked, payload):
-    assert asked("reading", lambda folder: hook("accept_guard.py"), READ_AND_RUN, payload)[0] == ALLOW, payload
-
-
-def test_accept_guard_lets_a_benchmark_grant_pass():
-    """The owner's standing rule of 2026-10-20: the session that asked him writes his yes and runs the batch."""
-    grant = (".venv/bin/python - <<'EOF'\nfrom score.adapters import compute\n"
-             f"print(compute.grant_benchmark('Yes, approve it', {GRANT_QUESTION!r}, 12.0))\nEOF")
-    tagged = ("SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 --detach "
-              "--place campgrounds --stage pixal")
-    assert [run(hook("accept_guard.py"), bash(command))[0] for command in (grant, tagged)] == [ALLOW, ALLOW]
-
-
-def test_accept_guard_answers_a_long_command_at_once():
-    """Many `!== ` words are answered in seconds, never a hang that fails open; an env-prefixed accept stays blocked."""
-    done = subprocess.run([sys.executable, str(hook("accept_guard.py"))], capture_output=True, text=True,
-                          input=json.dumps(bash("!== " * 40 + "x")), timeout=20)
-    assert done.returncode == ALLOW
-    assert run(hook("accept_guard.py"), bash("A=1 B=x=y python -m score.review accept closeup@hub"))[0] == BLOCK
+GRANTED = [  # the owner's standing rule of 2026-10-20: the session that asked him writes his yes and runs the batch
+    bash(".venv/bin/python - <<'EOF'\nfrom score.adapters import compute\n"
+         f"print(compute.grant_benchmark('Yes, approve it', {GRANT_QUESTION!r}, 12.0))\nEOF"),
+    bash("SCORE_BENCHMARK_GRANT=20261020T120000.000000+0000 .venv/bin/python -m score run world1 --detach "
+         "--place campgrounds --stage pixal"),
+]
+# Many `!== ` words are answered within the row's 20 s, never a hang the harness fails open; an env-prefixed accept
+# stays blocked.
+LONG_WORDS = bash("!== " * 40 + "x")
+ENV_PREFIXED_ACCEPT = bash("A=1 B=x=y python -m score.review accept closeup@hub")
 
 
 YES = "20261027T170000123456Z"
@@ -302,19 +254,6 @@ CHAT_ROUTE = [
 ]
 
 
-@pytest.mark.parametrize("payload", OWN_LOCKS_AND_STEPS, ids=range(len(OWN_LOCKS_AND_STEPS)))
-def test_accept_guard_blocks_an_agents_own_locks_and_a_decision_without_his_yes(asked, payload):
-    """The owner's decisions in chat (owner, 2026-10-27): an agent's own lock, a call into the chat route's steps,
-    or the apply without a recorded yes's id stays blocked."""
-    code, said, _ = asked("locks", lambda folder: hook("accept_guard.py"), OWN_LOCKS_AND_STEPS, payload)
-    assert code == BLOCK and "only the owner accepts or rejects" in said, payload
-
-
-@pytest.mark.parametrize("payload", CHAT_ROUTE, ids=range(len(CHAT_ROUTE)))
-def test_accept_guard_lets_his_decision_through_only_as_decide_with_its_yes_id(asked, payload):
-    assert asked("chat", lambda folder: hook("accept_guard.py"), CHAT_ROUTE, payload)[0] == ALLOW, payload
-
-
 # completion_guard: a stop may not claim a place it worked on is done while the place's gate does not pass.
 
 PLACE = "zz_test_place"
@@ -333,52 +272,47 @@ def transcript(folder, last_text, entries=None):
     return str(path)
 
 
-@pytest.fixture
-def known_place(tmp_path):
+def known_place_env(folder):
     """The environment in which the guard knows the place (a places file naming it) and finds no stage for it, so its
     gate's every requirement is unknown, which blocks like fail."""
-    within = tmp_path / "within.json"
+    folder.mkdir(parents=True, exist_ok=True)
+    within = folder / "within.json"
     within.write_text(json.dumps({"shells": {PLACE: {}}}))
-    return dict(os.environ, SCORE_GUARD_WITHIN=str(within), PROPS_WORK=str(tmp_path / "work"))
+    return dict(os.environ, SCORE_GUARD_WITHIN=str(within), PROPS_WORK=str(folder / "work"))
 
 
-def false_claims(folder):
-    return [
-        {"transcript_path": transcript(folder / "a", f"The {PLACE} is complete now.")},
-        {"transcript_path": transcript(folder / "b", "Reading the inventory now."),  # the transcript lags
-         "last_assistant_message": f"The {PLACE} is done."},
-        {"transcript_path": transcript(folder / "c", "Nothing claimed here."),  # a sub-agent's own transcript
-         "agent_transcript_path": transcript(folder / "d", f"The {PLACE} is done.")},
-        {"transcript_path": transcript(folder / "e", "Every place is finished.")},
-    ]
+@pytest.fixture
+def known_place(tmp_path):
+    return known_place_env(tmp_path)
 
 
-def test_completion_guard_refuses_a_false_done_claim(tmp_path, known_place):
-    payloads = false_claims(tmp_path)
-    for payload, (code, said, _) in zip(payloads, run_side_by_side(hook("completion_guard.py"), payloads, known_place)):
-        assert code == BLOCK and PLACE in said and "unknown" in said, (payload, said)
+def stop(name, last_text, entries=None, **more):
+    """A Stop payload made in a world: the session `name` (see transcript), and per key in `more` another transcript
+    ending with that text."""
+    return lambda world: {"transcript_path": transcript(world / name, last_text, entries),
+                          **{key: transcript(world / f"{name}-{key}", said) for key, said in more.items()}}
 
 
-def test_completion_guard_lets_an_honest_stop_end(tmp_path, known_place):
-    agent_only = [{"type": "tool_use", "name": "Agent", "input": {"prompt": f"read data/inventory/{PLACE}.json"}}]
-    honest = [
-        transcript(tmp_path / "a", f"Left: export it, then run `complete.py done {PLACE}`."),  # a quoted command
-        transcript(tmp_path / "b", f"The {PLACE} is not complete: rows remain."),
-        transcript(tmp_path / "c", f"No place is complete, {PLACE} included."),
-        transcript(tmp_path / "d", "I moved two crates."),
-        transcript(tmp_path / "e", f"The whole film is done too: it ends at the {PLACE}."),  # owner, 2026-10-21
-        transcript(tmp_path / "f", f"The {PLACE} is done.", entries=[  # a place the session never worked on
-            {"type": "tool_use", "name": "Edit", "input": {"file_path": "/x/data/inventory/nowhere_else.json"}}]),
-        transcript(tmp_path / "g", f"The {PLACE} is done.", entries=agent_only),  # only named in a hand-off
-        transcript(tmp_path / "i", "Each place's shots wait for its complete check, and the film comes after all "
-                                   "places."),  # a done-word beside "all places", no claim (2026-10-27)
-    ]
-    answers = run_side_by_side(hook("completion_guard.py"), [{"transcript_path": path} for path in honest], known_place)
-    for path, (code, _, _) in zip(honest, answers):
-        assert code == ALLOW, path
-    no_scene = dict(known_place, SCORE_GUARD_WITHIN=str(tmp_path / "none.json"))  # an empty scene list matched all
-    claim = transcript(tmp_path / "h", f"The {PLACE} is complete now.")
-    assert run(hook("completion_guard.py"), {"transcript_path": claim}, env=no_scene)[0] == ALLOW
+FALSE_CLAIMS = [
+    stop("claim-a", f"The {PLACE} is complete now."),
+    lambda world: {"transcript_path": transcript(world / "claim-b", "Reading the inventory now."),  # the transcript lags
+                   "last_assistant_message": f"The {PLACE} is done."},
+    stop("claim-c", "Nothing claimed here.", agent_transcript_path=f"The {PLACE} is done."),  # a sub-agent's own transcript
+    stop("claim-e", "Every place is finished."),
+]
+HONEST_STOPS = [
+    stop("honest-a", f"Left: export it, then run `complete.py done {PLACE}`."),  # a quoted command
+    stop("honest-b", f"The {PLACE} is not complete: rows remain."),
+    stop("honest-c", f"No place is complete, {PLACE} included."),
+    stop("honest-d", "I moved two crates."),
+    stop("honest-e", f"The whole film is done too: it ends at the {PLACE}."),  # owner, 2026-10-21
+    stop("honest-f", f"The {PLACE} is done.", entries=[  # a place the session never worked on
+        {"type": "tool_use", "name": "Edit", "input": {"file_path": "/x/data/inventory/nowhere_else.json"}}]),
+    stop("honest-g", f"The {PLACE} is done.",  # only named in a hand-off
+         entries=[{"type": "tool_use", "name": "Agent", "input": {"prompt": f"read data/inventory/{PLACE}.json"}}]),
+    # a done-word beside "all places", no claim (2026-10-27)
+    stop("honest-i", "Each place's shots wait for its complete check, and the film comes after all places."),
+]
 
 
 def test_completion_guard_runs_under_the_projects_python(tmp_path, known_place):
@@ -448,124 +382,110 @@ COMPLETE_OR_ORDINARY = [
 ]
 
 
-@pytest.mark.parametrize("payload,reason", BARE_OR_DESTRUCTIVE, ids=range(len(BARE_OR_DESTRUCTIVE)))
-def test_issue_guard_blocks_bare_issues_and_destructive_git(asked, payload, reason):
-    code, said, _ = asked("bare", lambda folder: issue_guard_copy(folder, []),
-                          [blocked for blocked, _ in BARE_OR_DESTRUCTIVE], payload)
-    assert code == BLOCK and reason in said, said
+
+def created(title, body="x", labels=("bug",)):
+    """An issue made through the GitHub tool, assigned, with these labels and body."""
+    return {"tool_name": "mcp__github__create_issue", "tool_input": {
+        "title": title, "labels": list(labels), "assignees": ["someone"], "body": body}}
 
 
-@pytest.mark.parametrize("payload", COMPLETE_OR_ORDINARY, ids=range(len(COMPLETE_OR_ORDINARY)))
-def test_issue_guard_lets_complete_issues_and_ordinary_git_pass(asked, payload):
-    assert asked("complete", lambda folder: issue_guard_copy(folder, []), COMPLETE_OR_ORDINARY, payload)[0] == ALLOW
+AREA_ASKS = [  # once the project has areas, an issue names one, under the project's own prefix when it names one
+    ("issue-areas", bash(FULL_ISSUE), "block", ("area:<x>",)),
+    ("issue-areas", bash(FULL_ISSUE + " --label area:dev"), "allow", ()),
+    ("issue-team", bash(FULL_ISSUE + " --label area:dev"), "block", ("team:<x>",)),
+    ("issue-team", bash(FULL_ISSUE + " --label team:dev"), "allow", ()),
+]
+
+# An open root's subject is its own title's words and its children's; a standing backlog PRD is never one; a new
+# sub-issue sharing three subject words with an open one is refused unless its Duplicate check names it.
+ROOTS = [{"number": 7, "title": "Render farm queue", "parent": None, "labels": ["PRD"]},
+         {"number": 8, "title": "Lighting rig rebuild", "parent": 7, "labels": ["bug"]},
+         {"number": 36, "title": "Shader cleanup", "parent": None, "labels": ["PRD"]}]
+OPEN_WORK = [{"number": 41, "title": "Rename the wire field treatment_path to label", "labels": ["bug"], "parent": None},
+             {"number": 40, "title": "Rename everything", "labels": ["PRD"], "parent": None}]
+NEW_PRD = 'gh issue create --title "{title}" --label PRD --assignee someone --body "## Root check\n{check}"'
+OPEN_WORK_ASKS = [
+    ("issue-roots", bash(NEW_PRD.format(title="Lighting rig for night scenes", check="none")), "block",
+     ("#7 Render farm queue", "lighting")),
+    ("issue-roots", bash(NEW_PRD.format(title="Lighting rig for night scenes", check="#7 is the farm, not lights")),
+     "allow", ()),
+    ("issue-roots", bash(NEW_PRD.format(title="Shader library", check="none")), "allow", ()),
+    ("issue-open", created("Rename wire field treatment_path everywhere"), "block", ("#41",)),
+    ("issue-open", created("Rename wire field treatment_path everywhere", "## Duplicate check\n#41 is the API half."),
+     "allow", ()),
+    ("issue-open", created("Fix the hero image on mobile"), "allow", ()),
+]
+
+# Cited paths under a listed prefix must exist; an area with a required first line must carry it; a sub-issue, a PRD
+# and a vision PRD each have a maximum body, a comment has its own; an edit may shrink an over-cap body but never grow
+# it, and a first `<!-- Budget: -->` line lifts the cap.
+IN_AREA = FULL_ISSUE + " --label area:{area} --body '{body}'"
+CAPS = {"sub_issue": 300, "prd": 600, "vision_prd": 1000, "comment": 250}
+ROOT_BODY = "## Root check\nNo open root covers this.\n"
+COMMENT = {"tool_name": "mcp__github__add_issue_comment", "tool_input": {"issue_number": 7}}
+OVER_CAP = {"body": "z" * 400, "labels": [{"name": "bug"}]}  # the issue an edit changes, as gh shows it
+EDIT = {"tool_name": "mcp__github__update_issue", "tool_input": {"issue_number": 7}}
+BODY_ASKS = [
+    ("issue-business", bash(IN_AREA.format(area="dev", body="See business/gone/plan.md")), "block",
+     ("business/gone/plan.md",)),
+    ("issue-business", bash(IN_AREA.format(area="dev", body="See business/real.md")), "allow", ()),
+    ("issue-business", bash(IN_AREA.format(area="sales", body="Sell it.")), "block", ("**Business case:**",)),
+    ("issue-business", bash(IN_AREA.format(area="sales", body="**Business case:** x\nSell it.")), "allow", ()),
+    ("issue-caps", created("a size probe", "x" * 301), "block", ("300",)),
+    ("issue-caps", created("a size probe", "x" * 300), "allow", ()),
+    ("issue-caps", created("a size probe", "<!-- Budget: a long spec -->\n" + "x" * 900), "allow", ()),
+    ("issue-caps", created("a size probe", ROOT_BODY + "x" * 600, ["PRD"]), "block", ()),
+    ("issue-caps", created("a size probe", ROOT_BODY + "x" * 600, ["PRD", "vision"]), "allow", ()),
+    ("issue-caps", {**COMMENT, "tool_input": {**COMMENT["tool_input"], "body": "y" * 251}}, "block", ()),
+    ("issue-caps", {**COMMENT, "tool_input": {**COMMENT["tool_input"], "body": "y" * 250}}, "allow", ()),
+    ("issue-caps", bash("gh issue comment 7 --body " + "y" * 251), "block", ()),
+    ("issue-edit", {**EDIT, "tool_input": {**EDIT["tool_input"], "body": OVER_CAP["body"] + "more"}}, "block", ()),
+    ("issue-edit", {**EDIT, "tool_input": {**EDIT["tool_input"], "body": OVER_CAP["body"][:-50]}}, "allow", ()),
+]
 
 
-def test_issue_guard_wants_an_area_once_the_project_has_areas(tmp_path):
-    plain = issue_guard_copy(tmp_path / "a", ["dev", "art"])
-    named = issue_guard_copy(tmp_path / "b", ["dev"], area_label_prefix="team:")  # the project names its prefix
-    asks = [(plain, FULL_ISSUE), (plain, FULL_ISSUE + " --label area:dev"), (named, FULL_ISSUE + " --label area:dev"),
-            (named, FULL_ISSUE + " --label team:dev")]
-    with concurrent.futures.ThreadPoolExecutor(len(asks)) as pool:
-        answers = list(pool.map(lambda ask: run(ask[0], bash(ask[1])), asks))
-    assert answers[0][0] == BLOCK and "area:<x>" in answers[0][1]
-    assert answers[1][0] == ALLOW
-    assert answers[2][0] == BLOCK and "team:<x>" in answers[2][1]
-    assert answers[3][0] == ALLOW
+def listed(issues):
+    """A world's environment in which the guard sees these open issues as GitHub's."""
+    def environment(world):
+        known = world / "open.json"
+        known.write_text(json.dumps(issues))
+        return dict(os.environ, ISSUE_GUARD_ROOTS=str(known))
+    return environment
 
 
-def test_issue_guard_refuses_a_second_root_or_issue_for_open_work(tmp_path):
-    """An open root's subject is its own title's words and its children's; a standing backlog PRD is never one; a new
-    sub-issue sharing three subject words with an open one is refused unless its Duplicate check names it."""
-    roots = tmp_path / "roots.json"
-    roots.write_text(json.dumps([
-        {"number": 7, "title": "Render farm queue", "parent": None, "labels": ["PRD"]},
-        {"number": 8, "title": "Lighting rig rebuild", "parent": 7, "labels": ["bug"]},
-        {"number": 36, "title": "Shader cleanup", "parent": None, "labels": ["PRD"]}]))
-    guard = issue_guard_copy(tmp_path / "repo", [], backlog_prd=36)
-    env = dict(os.environ, ISSUE_GUARD_ROOTS=str(roots))
-    prd = 'gh issue create --title "{title}" --label PRD --assignee someone --body "## Root check\n{check}"'
-    (code, said, _), named, backlog = run_side_by_side(guard, [
-        bash(prd.format(title="Lighting rig for night scenes", check="none")),
-        bash(prd.format(title="Lighting rig for night scenes", check="#7 is the farm, not lights")),
-        bash(prd.format(title="Shader library", check="none"))], env=env)
-    assert code == BLOCK and "#7 Render farm queue" in said and "lighting" in said, said
-    assert named[0] == ALLOW and backlog[0] == ALLOW
-
-    # A new sub-issue whose title shares three subject words with an open one is refused, unless named.
-    guard = issue_guard_copy(tmp_path / "work", [])
-    open_issues = tmp_path / "open.json"
-    open_issues.write_text(json.dumps([
-        {"number": 41, "title": "Rename the wire field treatment_path to label", "labels": ["bug"], "parent": None},
-        {"number": 40, "title": "Rename everything", "labels": ["PRD"], "parent": None}]))
-    env = {**os.environ, "ISSUE_GUARD_ROOTS": str(open_issues)}
-
-    def create(title, body="x"):
-        return {"tool_name": "mcp__github__create_issue", "tool_input": {
-            "title": title, "labels": ["bug"], "assignees": ["someone"], "body": body}}
-
-    (code, said, _), named, other = run_side_by_side(guard, [
-        create("Rename wire field treatment_path everywhere"),
-        create("Rename wire field treatment_path everywhere", "## Duplicate check\n#41 is the API half."),
-        create("Fix the hero image on mobile")], env=env)
-    assert code == BLOCK and "#41" in said, said
-    assert named[0] == ALLOW and other[0] == ALLOW
+def issue_world(areas=(), environment=None, **config):
+    """A world: issue_guard.py in it with these areas and project.json keys, run in this environment."""
+    def make(world):
+        return issue_guard_copy(world, list(areas), **config), environment and environment(world), None
+    return make
 
 
-def test_issue_guard_holds_the_projects_body_rules(tmp_path):
-    """Cited paths under a listed prefix must exist; an area with a required first line must carry it; each issue type's
-    body and a comment keep under their cap."""
-    guard = issue_guard_copy(tmp_path, ["sales", "dev"], cited_paths_must_exist=["business/"],
+def business_world(world):
+    """issue_guard.py whose project wants business/ citations to exist (business/real.md does) and a sales issue's
+    body to open with its business case."""
+    guard = issue_guard_copy(world, ["sales", "dev"], cited_paths_must_exist=["business/"],
                              area_first_line={"sales": {"label": "Business case", "example": "**Business case:** x"}})
-    (tmp_path / "business").mkdir()
-    (tmp_path / "business" / "real.md").write_text("# real\n")
-    issue = FULL_ISSUE + " --label area:{area} --body '{body}'"
-    gone, real, bare, cased = run_side_by_side(guard, [bash(issue.format(area=area, body=body)) for area, body in (
-        ("dev", "See business/gone/plan.md"), ("dev", "See business/real.md"), ("sales", "Sell it."),
-        ("sales", "**Business case:** x\nSell it."))])
-    assert gone[0] == BLOCK and "business/gone/plan.md" in gone[1], gone
-    assert real[0] == ALLOW
-    assert bare[0] == BLOCK and "**Business case:**" in bare[1], bare
-    assert cased[0] == ALLOW
+    (world / "business").mkdir()
+    (world / "business" / "real.md").write_text("# real\n")
+    return guard, None, None
 
-    # A sub-issue, a PRD and a vision PRD each have a maximum body, a comment has its own; an edit may shrink an
-    # over-cap body but never grow it, and a first `<!-- Budget: -->` line lifts the cap.
-    caps = {"sub_issue": 300, "prd": 600, "vision_prd": 1000, "comment": 250}
-    guard = issue_guard_copy(tmp_path / "caps", [], issue_body_caps=caps)
 
-    def create(labels, body):
-        return {"tool_name": "mcp__github__create_issue", "tool_input": {
-            "title": "a size probe", "labels": labels, "assignees": ["someone"], "body": body}}
-
-    root = "## Root check\nNo open root covers this.\n"
-    comment = {"tool_name": "mcp__github__add_issue_comment", "tool_input": {"issue_number": 7}}
-    (code, said, _), *answers = run_side_by_side(guard, [
-        create(["bug"], "x" * 301), create(["bug"], "x" * 300),
-        create(["bug"], "<!-- Budget: a long spec -->\n" + "x" * 900), create(["PRD"], root + "x" * 600),
-        create(["PRD", "vision"], root + "x" * 600),
-        {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 251}},
-        {**comment, "tool_input": {**comment["tool_input"], "body": "y" * 250}},
-        bash("gh issue comment 7 --body " + "y" * 251)])
-    assert code == BLOCK and "300" in said, said
-    assert [answer[0] for answer in answers] == [ALLOW, ALLOW, BLOCK, ALLOW, BLOCK, ALLOW, BLOCK]
-
-    stand_in = tmp_path / "bin"
+def edit_world(world):
+    """issue_guard.py under body caps, with a stand-in gh on PATH that shows the issue an edit changes."""
+    guard = issue_guard_copy(world, [], issue_body_caps=CAPS)
+    stand_in = world / "bin"
     stand_in.mkdir()
-    current = {"body": "z" * 400, "labels": [{"name": "bug"}]}
-    (tmp_path / "issue.json").write_text(json.dumps(current))
-    (stand_in / "gh").write_text(f"#!/bin/sh\ncat {tmp_path / 'issue.json'}\n")
+    (world / "issue.json").write_text(json.dumps(OVER_CAP))
+    (stand_in / "gh").write_text(f"#!/bin/sh\ncat {world / 'issue.json'}\n")
     (stand_in / "gh").chmod(0o755)
-    env = {**os.environ, "PATH": f"{stand_in}:{os.environ.get('PATH', '')}"}
-    edit = {"tool_name": "mcp__github__update_issue", "tool_input": {"issue_number": 7}}
-    grown = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"] + "more"}}
-    shrunk = {**edit, "tool_input": {**edit["tool_input"], "body": current["body"][:-50]}}
-    assert [answer[0] for answer in run_side_by_side(guard, [grown, shrunk], env=env)] == [BLOCK, ALLOW]
+    return guard, {**os.environ, "PATH": f"{stand_in}:{os.environ.get('PATH', '')}"}, None
 
 # md_guard: a new .md inside the repo needs the user's yes.
 
-@pytest.fixture
-def md_repo(tmp_path):
-    """A scratch repo holding md_guard.py, a local md_allowed.json with one yes, and one existing .md; (guard, repo)."""
-    repo = tmp_path / "repo"
+def md_world(folder):
+    """A scratch repo at folder/repo holding md_guard.py, a local md_allowed.json with one yes, and one existing .md;
+    (guard, repo)."""
+    repo = folder / "repo"
     guard = hook_copy(repo, "md_guard.py")
     (guard.parent / "local").mkdir()
     (guard.parent / "local" / "md_allowed.json").write_text(json.dumps([
@@ -574,6 +494,11 @@ def md_repo(tmp_path):
     (repo / "docs").mkdir()
     (repo / "docs" / "existing.md").write_text("# kept\n")
     return guard, repo
+
+
+@pytest.fixture
+def md_repo(tmp_path):
+    return md_world(tmp_path)
 
 
 def md_write(repo, path, transcript=None):
@@ -589,40 +514,48 @@ def typed_transcript(folder, entries):
     """A session transcript of these user entries: a string is a typed message, a dict a tool result."""
     lines = [{"type": "user", "message": {"role": "user", "content": entry if isinstance(entry, str) else [
         {"type": "tool_result", "tool_use_id": "x", "content": entry["result"]}]}} for entry in entries]
+    folder.mkdir(parents=True, exist_ok=True)
     path = folder / "transcript.jsonl"
     path.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
     return path
 
 
-def test_md_guard_blocks_a_new_md_without_a_yes(md_repo, tmp_path):
-    guard, repo = md_repo
-    never = typed_transcript(tmp_path, ["hello", "run the validation", {"result": "wrote notes.md"}])
-    stale = typed_transcript(repo, ["make a md file for it"] + [f"step {at}" for at in range(20)])
-    payloads = (md_write(repo, "docs/never-asked-for.md"), md_write(repo, "docs/no-words.md"),
-                md_write(repo, "docs/never-asked-for.md", never),  # a tool result naming .md is not the person
-                md_bash(repo, "echo hi > notes.md"), md_bash(repo, "echo hi | tee -a docs/summary.md"),
-                md_bash(repo, "touch docs/new.md"), md_bash(repo, "cp docs/existing.md docs/copy.md"),
-                md_bash(repo, "cd docs && echo x > new.md"), md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md"),
-                md_write(repo, "docs/report.md", stale))  # the yes is 21 typed messages back
-    for payload, (code, said, _) in zip(payloads, run_side_by_side(guard, payloads)):
-        assert code == BLOCK and "go-ahead" in said, payload
+def in_md_repo(make):
+    """A payload made in an md world: make(repo, world)."""
+    return lambda world: make(world / "repo", world)
 
 
-def test_md_guard_allows_the_standing_exceptions(md_repo, tmp_path):
+NEW_MD_WITHOUT_A_YES = [in_md_repo(make) for make in (
+    lambda repo, world: md_write(repo, "docs/never-asked-for.md"),
+    lambda repo, world: md_write(repo, "docs/no-words.md"),
+    lambda repo, world: md_write(repo, "docs/never-asked-for.md", typed_transcript(  # a tool result is not the person
+        world / "never", ["hello", "run the validation", {"result": "wrote notes.md"}])),
+    lambda repo, world: md_bash(repo, "echo hi > notes.md"),
+    lambda repo, world: md_bash(repo, "echo hi | tee -a docs/summary.md"),
+    lambda repo, world: md_bash(repo, "touch docs/new.md"),
+    lambda repo, world: md_bash(repo, "cp docs/existing.md docs/copy.md"),
+    lambda repo, world: md_bash(repo, "cd docs && echo x > new.md"),
+    lambda repo, world: md_bash(repo, f"OUT={repo}/docs; echo x > $OUT/n.md"),
+    lambda repo, world: md_write(repo, "docs/report.md", typed_transcript(  # the yes is 21 typed messages back
+        world / "stale", ["make a md file for it"] + [f"step {at}" for at in range(20)])),
+)]
+STANDING_EXCEPTIONS = [in_md_repo(make) for make in (
+    lambda repo, world: md_write(repo, "docs/asked-for.md"),  # listed with the user's words
+    lambda repo, world: md_write(repo, "docs/report.md", typed_transcript(  # asked for in the user's last messages
+        world / "asked", ["hello", "can you make a report, u can make a md file for it"])),
+    lambda repo, world: md_write(repo, ".claude/memory/some-note.md"),  # private memory
+    lambda repo, world: md_write(repo, "tools/new/CLAUDE.md"),  # a directory's overlay
+    lambda repo, world: md_write(repo, "docs/existing.md"),  # an edit
+    lambda repo, world: md_write(repo, "notes.txt"),
+    lambda repo, world: md_bash(repo, "mv docs/existing.md docs/renamed.md"),  # a rename keeps the count
+    lambda repo, world: md_bash(repo, f"echo x > {world}/outside.md"),  # outside the repo
+    lambda repo, world: md_bash(repo, f"cd {world} && echo x > page.md"),
+    lambda repo, world: md_bash(repo, "echo x > $UNKNOWN_SOMEWHERE/page.md"),  # unknowable: fail open
+)]
+
+
+def test_md_guard_reads_only_the_transcripts_end(md_repo, tmp_path):
     guard, repo = md_repo
-    asked = typed_transcript(tmp_path, ["hello", "can you make a report, u can make a md file for it"])
-    payloads = (md_write(repo, "docs/asked-for.md"),  # listed with the user's words
-                md_write(repo, "docs/report.md", asked),  # the user asked for one in their last messages
-                md_write(repo, ".claude/memory/some-note.md"),  # private memory
-                md_write(repo, "tools/new/CLAUDE.md"),  # a directory's overlay
-                md_write(repo, "docs/existing.md"),  # an edit
-                md_write(repo, "notes.txt"),
-                md_bash(repo, "mv docs/existing.md docs/renamed.md"),  # a rename keeps the count
-                md_bash(repo, f"echo x > {tmp_path}/outside.md"),  # outside the repo
-                md_bash(repo, f"cd {tmp_path} && echo x > page.md"),
-                md_bash(repo, "echo x > $UNKNOWN_SOMEWHERE/page.md"))  # unknowable: fail open
-    for payload, (code, _, _) in zip(payloads, run_side_by_side(guard, payloads)):
-        assert code == ALLOW, payload
     # A call that creates no .md answers without reading the transcript (a pipe nobody writes: a read never ends), and
     # a new .md reads only the transcript's end for the yes: a long session's runs to hundreds of MB, read whole it
     # took seconds a call, so the harness timed the guard out (failing open) 341 times.
@@ -676,55 +609,52 @@ WAIVERS = ["git commit --no-verify -m x", "git commit -n -m x", "TORN_GUARD=0 gi
            "LEFTOVER_GUARD=0 true"]
 
 
-def test_commit_guard_refuses_a_session_waiving_a_guard(tmp_path):
-    guard = hook_copy(tmp_path, "commit_guard.py")
-    allowed = ('git commit -m "never use --no-verify or TORN_GUARD=0"', "git status", "ls -n")
-    answers = run_side_by_side(guard, [dict(bash(command), cwd=str(tmp_path)) for command in WAIVERS + list(allowed)])
-    for command, (code, said, _) in zip(WAIVERS, answers):
-        assert code == BLOCK and "routes around" in said, (command, said)
-    for command, (code, _, _) in zip(allowed, answers[len(WAIVERS):]):
-        assert code == ALLOW, command
+ALLOWED_BESIDE_WAIVERS = ['git commit -m "never use --no-verify or TORN_GUARD=0"', "git status", "ls -n"]
 
 
-def test_commit_guard_refuses_the_shared_checkout_while_a_worktree_is_live(tmp_path):
-    repo = git_repo(tmp_path / "repo")
-    guard = hook_copy(tmp_path / "hooks_home", "commit_guard.py")
-    worktree = repo / ".claude" / "worktrees" / "w1"
-    git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
-    commit = bash("git commit -m x")
-    assert run(guard, dict(commit, cwd=str(repo)), env=GIT_ENV)[0] == ALLOW  # nobody else is live
-    git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
+def in_commit_world(command, where="repo"):
+    """A Bash call of this command made in a commit world, run in its repo (or its worktree, or the world itself)."""
+    places = {"repo": lambda world: world / "repo", "worktree": lambda world: world / "repo/.claude/worktrees/w1",
+              "world": lambda world: world}
+    return lambda world: dict(bash(command.format(world=world)), cwd=str(places[where](world)))
+
+
+def live_world(locked):
+    """A world: a repo with a session's worktree w1 (locked by this live process, or not), commit_guard.py beside it
+    in hooks_home, run with a clean git config."""
+    def make(world):
+        repo = git_repo(world / "repo")
+        guard = hook_copy(world / "hooks_home", "commit_guard.py")
+        worktree = repo / ".claude" / "worktrees" / "w1"
+        git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
+        if locked:
+            git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
+        return guard, GIT_ENV, None
+    return make
+
+
+WORKTREE_W1 = "{world}/repo/.claude/worktrees/w1"
+COMMIT_ASKS = [
+    *(("commit", in_commit_world(waiver, "world"), "block", ("routes around",)) for waiver in WAIVERS),
+    *(("commit", in_commit_world(allowed, "world"), "allow", ()) for allowed in ALLOWED_BESIDE_WAIVERS),
+    ("commit-unlocked", in_commit_world("git commit -m x"), "allow", ()),  # nobody else is live
+    ("commit-live", in_commit_world("git commit -m x"), "block", ("w1",)),
+    ("commit-live", in_commit_world("git commit -m x", "worktree"), "allow", ()),  # inside a worktree
+    ("commit-live", in_commit_world("git -C {world} commit -m x"), "allow", ()),
+    ("commit-live", in_commit_world(f"cd {WORKTREE_W1}; git commit -m x"), "allow", ()),
+    ("commit-live", in_commit_world(f"cd {WORKTREE_W1} && git commit -m x"), "allow", ()),
     # `~` reaches the guard unexpanded; it names the home directory as the shell would.
-    home = dict(GIT_ENV, HOME=str(tmp_path))
-    asks = [(dict(commit, cwd=str(repo)), GIT_ENV),
-            (dict(commit, cwd=str(worktree)), GIT_ENV),  # inside a worktree
-            (dict(commit, cwd=str(repo)), dict(GIT_ENV, WORKTREE_GUARD="0")),
-            (dict(bash(f"git -C {tmp_path} commit -m x"), cwd=str(repo)), GIT_ENV),
-            *((dict(bash(elsewhere), cwd=str(repo)), GIT_ENV)
-              for elsewhere in (f"cd {worktree}; git commit -m x", f"cd {worktree} && git commit -m x")),
-            *((dict(bash(elsewhere), cwd=str(repo)), home)
-              for elsewhere in ("git -C ~/repo/.claude/worktrees/w1 commit -m x",
-                                "cd ~/repo/.claude/worktrees/w1 && git commit -m x"))]
-    with concurrent.futures.ThreadPoolExecutor(len(asks)) as pool:
-        (code, said, _), *answers = pool.map(lambda ask: run(guard, ask[0], env=ask[1]), asks)
-    assert code == BLOCK and "w1" in said, said
-    for (payload, _), answer in zip(asks[1:], answers):
-        assert answer[0] == ALLOW, payload
-
-
-
-def test_commit_guard_reads_only_gits_subcommand_as_a_commit(tmp_path):
-    repo = git_repo(tmp_path / "repo")
-    guard = hook_copy(tmp_path / "hooks_home", "commit_guard.py")
-    worktree = repo / ".claude" / "worktrees" / "w1"
-    git(repo, "worktree", "add", "-q", "-b", "w1", str(worktree))
-    git(repo, "worktree", "lock", "--reason", f"claude session pid {os.getpid()}", str(worktree))
-    commits = ("git -c user.name=x commit -m x", "/usr/bin/git commit -m x", "git status; git commit -m x")
-    others = ("git log --grep commit", 'gh issue comment 1 --body "git log shows the commit"',
-              "git status && echo commit")
-    answers = run_side_by_side(guard, [dict(bash(command), cwd=str(repo)) for command in commits + others], env=GIT_ENV)
-    for command, (code, _, _) in zip(commits + others, answers):
-        assert code == (BLOCK if command in commits else ALLOW), command
+    *(("commit-live", in_commit_world(elsewhere), "allow", (), lambda world: {"HOME": str(world)})
+      for elsewhere in ("git -C ~/repo/.claude/worktrees/w1 commit -m x",
+                        "cd ~/repo/.claude/worktrees/w1 && git commit -m x")),
+    # only git's own subcommand is a commit
+    *(("commit-live", in_commit_world(commit), "block", ())
+      for commit in ("git -c user.name=x commit -m x", "/usr/bin/git commit -m x", "git status; git commit -m x")),
+    *(("commit-live", in_commit_world(other), "allow", ())
+      for other in ("git log --grep commit", 'gh issue comment 1 --body "git log shows the commit"',
+                    "git status && echo commit")),
+    ("commit-live", in_commit_world("git commit -m x"), "allow", (), lambda world: {"WORKTREE_GUARD": "0"}),
+]
 
 # torn_commit_guard: a commit may not need what it leaves behind.
 
@@ -1215,20 +1145,6 @@ SHORT_OR_BACKGROUND = [
 ]
 
 
-@pytest.mark.parametrize("command,reason", FOREGROUND_WAITS, ids=range(len(FOREGROUND_WAITS)))
-def test_wait_guard_blocks_foreground_waits(asked, command, reason):
-    code, said, _ = asked("waits", lambda folder: hook_copy(folder, "wait_guard.py", WAIT_CONFIG),
-                          [bash(waiting) for waiting, _ in FOREGROUND_WAITS], bash(command))
-    assert code == BLOCK and reason in said and "run_in_background" in said, said
-    assert "Add --detach." in said or "cloud" not in reason
-
-
-@pytest.mark.parametrize("payload", SHORT_OR_BACKGROUND, ids=range(len(SHORT_OR_BACKGROUND)))
-def test_wait_guard_allows_short_waits_reads_and_background_runs(asked, payload):
-    assert asked("short", lambda folder: hook_copy(folder, "wait_guard.py", WAIT_CONFIG), SHORT_OR_BACKGROUND,
-                 payload)[0] == ALLOW, payload
-
-
 # every hook: a payload it cannot read never wedges a tool call (never exit 2; md_guard exits 1 on a tool_input that
 # is not an object, which the harness also lets through). Shared hooks run as a copy in a scratch folder that is no
 # repository, so none of them reads or moves the real checkout.
@@ -1238,18 +1154,128 @@ SHARED_HOOKS = ["issue_guard.py", "md_guard.py", "output_cap.py", "wait_guard.py
                 "call_efficiency.py"]
 
 
-@pytest.mark.parametrize("name", SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"])
-def test_every_guard_fails_open_on_garbage(name, tmp_path):
-    garbage = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},
-               bash('gh issue create --title "unterminated'), {"transcript_path": "/nowhere/at/all.jsonl"},
-               {"tool_name": "Bash", "tool_input": {"command": "x"}, "tool_response": "text"}]
-    script = hook_copy(tmp_path / "scratch", name) if name in SHARED_HOOKS else hook(name)
-    env = dict(GIT_ENV, OUTPUT_CAP_DIR=str(tmp_path), CLAUDE_PROJECT_DIR=str(tmp_path / "scratch"))
-    answers = run_side_by_side(script, garbage, env=env, cwd=tmp_path / "scratch" if name in SHARED_HOOKS else None)
-    for payload, (code, _, out) in zip(garbage, answers):
-        assert code != BLOCK and out.strip() == "", payload
-    blocker = tmp_path / "file"  # output_cap's spill folder is a file: the output stays whole
+GARBAGE = ["not json at all {{{", {"tool_name": "Bash"}, {"tool_name": "Bash", "tool_input": "text"},
+           bash('gh issue create --title "unterminated'), {"transcript_path": "/nowhere/at/all.jsonl"},
+           {"tool_name": "Bash", "tool_input": {"command": "x"}, "tool_response": "text"}]
+
+
+def open_world(name):
+    """A world for a hook fed garbage: a shared hook as a copy in world/scratch (no repository, so it reads and moves
+    no real checkout) run there, a local one in place; output_cap spills into the world."""
+    def make(world):
+        scratch = world / "scratch"
+        shared = name in SHARED_HOOKS
+        env = dict(GIT_ENV, OUTPUT_CAP_DIR=str(world), CLAUDE_PROJECT_DIR=str(scratch))
+        return (hook_copy(scratch, name) if shared else hook(name)), env, scratch if shared else None
+    return make
+
+
+def spill_blocked_world(world):
+    """output_cap whose spill folder is a file: the output stays whole."""
+    blocker = world / "file"
     blocker.write_text("")
-    code, _, out = run(HOOKS / "output_cap.py", cap_bash("make tests", long_log()),
-                       env=dict(os.environ, OUTPUT_CAP_DIR=str(blocker)))
-    assert (code, out) == (0, "")
+    return HOOKS / "output_cap.py", dict(os.environ, OUTPUT_CAP_DIR=str(blocker)), None
+
+
+def completion_world(scenes):
+    """completion_guard.py in place, its place known with no stage (or, with no scene list at all, matching none)."""
+    def make(world):
+        env = known_place_env(world)
+        if not scenes:
+            env = dict(env, SCORE_GUARD_WITHIN=str(world / "none.json"))
+        return hook("completion_guard.py"), env, None
+    return make
+
+
+WORLDS = {
+    "accept": lambda world: (hook("accept_guard.py"), None, None),
+    "completion": completion_world(scenes=True),
+    "completion-no-scene": completion_world(scenes=False),  # an empty scene list matched all
+    "issue": issue_world(),
+    "issue-areas": issue_world(["dev", "art"]),
+    "issue-team": issue_world(["dev"], area_label_prefix="team:"),  # the project names its prefix
+    "issue-roots": issue_world(environment=listed(ROOTS), backlog_prd=36),
+    "issue-open": issue_world(environment=listed(OPEN_WORK)),
+    "issue-business": business_world,
+    "issue-caps": issue_world(issue_body_caps=CAPS),
+    "issue-edit": edit_world,
+    "md": lambda world: (md_world(world)[0], None, None),
+    "commit": lambda world: (hook_copy(world, "commit_guard.py"), None, None),
+    "commit-unlocked": live_world(locked=False),
+    "commit-live": live_world(locked=True),
+    "wait": lambda world: (hook_copy(world, "wait_guard.py", WAIT_CONFIG), None, None),
+    **{f"open-{name}": open_world(name) for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"]},
+    "spill-blocked": spill_blocked_world,
+}
+
+# One row a call: (world, payload or payload(world), verdict, words its reason holds, optional env(world) on top).
+ROWS = [
+    *(("accept", payload, "block", ("only the owner accepts or rejects",))
+      for payload in OWNER_ACTIONS + OWN_LOCKS_AND_STEPS),
+    ("accept", ENV_PREFIXED_ACCEPT, "block", ()),
+    *(("accept", payload, "allow", ()) for payload in READ_AND_RUN + GRANTED + [LONG_WORDS] + CHAT_ROUTE),
+    *(("completion", payload, "block", (PLACE, "unknown")) for payload in FALSE_CLAIMS),
+    *(("completion", payload, "allow", ()) for payload in HONEST_STOPS),
+    ("completion-no-scene", stop("h", f"The {PLACE} is complete now."), "allow", ()),
+    *(("issue", payload, "block", (reason,)) for payload, reason in BARE_OR_DESTRUCTIVE),
+    *(("issue", payload, "allow", ()) for payload in COMPLETE_OR_ORDINARY),
+    *AREA_ASKS, *OPEN_WORK_ASKS, *BODY_ASKS,
+    *(("md", payload, "block", ("go-ahead",)) for payload in NEW_MD_WITHOUT_A_YES),
+    *(("md", payload, "allow", ()) for payload in STANDING_EXCEPTIONS),
+    *COMMIT_ASKS,
+    *(("wait", bash(command), "block",
+       (reason, "run_in_background") + (("Add --detach.",) if "cloud" in reason else ()))
+      for command, reason in FOREGROUND_WAITS),
+    *(("wait", payload, "allow", ()) for payload in SHORT_OR_BACKGROUND),
+    # never exit 2 and say nothing on what a hook cannot read; md_guard exits 1 on a tool_input that is no object
+    *((f"open-{name}", payload, "open", ())
+      for name in SHARED_HOOKS + ["accept_guard.py", "completion_guard.py"] for payload in GARBAGE),
+    ("spill-blocked", cap_bash("make tests", long_log()), "quiet", ()),
+]
+NAMES = [f"{index:03d}-{row[0]}-{row[2]}" for index, row in enumerate(ROWS)]
+VERDICTS = {  # (exit code, stderr, stdout, words) -> the row holds
+    "block": lambda code, said, out, words: code == BLOCK and all(word in said for word in words),
+    "allow": lambda code, said, out, words: code == ALLOW,
+    "open": lambda code, said, out, words: code != BLOCK and out.strip() == "",
+    "quiet": lambda code, said, out, words: (code, out) == (ALLOW, ""),
+}
+ANSWER_SECONDS = 20  # a hook that has not answered by then hangs: the harness would fail it open
+
+
+def made(value, world):
+    return value(world) if callable(value) else value
+
+
+def ask(script, payload, env, cwd):
+    """run(...) of one call, or (None, why, "") when the hook gives no answer within ANSWER_SECONDS."""
+    try:
+        return run(script, payload, env=env, cwd=cwd, timeout=ANSWER_SECONDS)
+    except subprocess.TimeoutExpired:
+        return None, f"no answer in {ANSWER_SECONDS} s", ""
+
+
+@pytest.fixture(scope="module")
+def answers(tmp_path_factory):
+    """Every row's (exit code, stderr, stdout): each world made once in a scratch folder of its own, every call asked
+    side by side."""
+    worlds = {}
+    for name, make in WORLDS.items():
+        folder = tmp_path_factory.mktemp(name)
+        worlds[name] = (folder, *make(folder))
+    calls = []
+    for world, payload, _, _, *more in ROWS:
+        folder, script, env, cwd = worlds[world]
+        if more:
+            env = {**(env or os.environ), **more[0](folder)}
+        calls.append((script, made(payload, folder), env, cwd))
+    with concurrent.futures.ThreadPoolExecutor(8) as pool:
+        return list(pool.map(lambda call: ask(*call), calls))
+
+
+@pytest.mark.parametrize("row", range(len(ROWS)), ids=NAMES)
+def test_hooks_block_only_their_rule_and_fail_open(answers, row):
+    """Each guard, asked as the harness asks it, blocks the calls its rule names with that rule's reason, lets every
+    other call through, and fails open on what it cannot read."""
+    _, _, verdict, words, *_ = ROWS[row]
+    code, said, out = answers[row]
+    assert VERDICTS[verdict](code, said, out, words), (NAMES[row], words, code, said[-600:], out[-300:])
