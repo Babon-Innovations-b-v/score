@@ -85,7 +85,116 @@ BACK = {"name": "back", "eye": [5, 1.6, 5], "aim": [0, 1.6, 0]}
 NO_SLOW = {"fog": 0, "volumes": 0, "glass": 0}
 
 
-def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatch):
+# --- the cases the one world is judged on ---------------------------------------------------------------------------
+
+# A scene record's cameras: the second shot is the one standing furthest from the first (spot-3, 3.6 m off; spot-2 is
+# 0.5 m), none looking up at a roof.
+SPOTS = [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
+         {"name": "spot-2", "eye": [0.5, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
+         {"name": "spot-3", "eye": [3, 1.6, 2], "aim": [0, 1, 0], "fov": 75},
+         {"name": "roof", "eye": [9, 1.6, 9], "aim": [9, 9, 9.5], "fov": 75}]
+OUTSIDE = "/room/Places/tube/Outside"  # a joined tube's own outside ground, shown inside the room it joins
+# (what the film names, the film, its cameras, the own spots it adds to the record's copy, its start, whether the
+# tube's Outside is still on in the copy after it). A spot of its own (`eye`/`aim`, or `across` the floor from (-2, -1)
+# to (2, 3): shares (0, 1) are (-2, 3), (1, 0) is (2, -1)) is added as a camera of its name; record cameras add nothing.
+CAMERA_FILMS = [
+    ("no camera: the record's first, then the furthest; its own start", {"place": "yard", "start": 6},
+     ["spot-1", "spot-3"], {}, 6.0, True),
+    ("its camera, then the furthest", {"camera": "spot-1"}, ["spot-1", "spot-3"], {}, 0.0, True),
+    ("leaving the tube's Outside out", {"camera": "spot-1", "leave_out": [OUTSIDE]}, ["spot-1", "spot-3"], {}, 0.0,
+     False),
+    ("spots of its own: eye and aim, then across the floor",
+     {"camera": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5],
+      "then": {"camera": "corner", "across": {"eye": [0.0, 1.0], "aim": [1.0, 0.0]}, "fov": 90, "stand": True}},
+     ["bed", "corner"], {"bed": {"name": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5], "fov": 75},
+                         "corner": {"name": "corner", "eye": [-2.0, 1.6, 3.0], "aim": [2.0, 1.2, -1.0], "fov": 90,
+                                    "stand": True}}, 0.0, False),
+    ("its camera, then the one it names", {"camera": "spot-2", "then": "spot-1"}, ["spot-2", "spot-1"], {}, 0.0,
+     False)]
+
+DOOR_PATH = "/hall/Objects/door"
+# (the stage and film, where a person stands, whether the door has a sound of its own, the view's aim along z, its
+# frames, people_seen: {shot: frames seeing a person} or None for nobody there, silent_moving). Looking north from the
+# origin at 75 degrees, out to the 25 m reach (the owner's review of 2026-10-18: no people in any film, no event
+# sounds).
+SEEN = [
+    ("nobody there, the door sliding silent in view", None, False, -10.0, range(4), None, {"shot0": [DOOR_PATH]}),
+    ("someone 5 m ahead", (0, 1.6, -5), False, -10.0, range(4), {"shot0": 4}, {"shot0": [DOOR_PATH]}),
+    ("someone 6 m ahead, standing low", (0, 0.5, -6), False, -10.0, range(4), {"shot0": 4}, {"shot0": [DOOR_PATH]}),
+    ("someone 3 m ahead and a little low", (0, 1.0, -3), False, -10.0, range(4), {"shot0": 4},
+     {"shot0": [DOOR_PATH]}),
+    ("someone 5 m behind the camera", (0, 1.6, 5), False, -10.0, range(4), {"shot0": 0}, {"shot0": [DOOR_PATH]}),
+    ("someone 9 m aside, outside the angle", (9, 1.6, -5), False, -10.0, range(4), {"shot0": 0},
+     {"shot0": [DOOR_PATH]}),
+    ("someone 40 m ahead, past the reach", (0, 1.6, -40), False, -10.0, range(4), {"shot0": 0},
+     {"shot0": [DOOR_PATH]}),
+    ("the door with a sound of its own", None, True, -10.0, range(4), None, {}),
+    ("the door looked away from", None, False, 10.0, range(4), None, {}),
+    ("one frame: nothing seen moving", None, False, -10.0, [0], None, {})]
+
+LEADER_GAPPED = [{"row": "characters-layer", "check": "bodies", "objects": ["leader"]},
+                 {"row": "likeness", "check": "outline", "objects": ["crowd"]}]  # an outline gap gives no body gap
+# (the square's design: one speaker and a far crowd of `count`, rows read or not, the gaps accepted, the place asked,
+# the people its film owes). A crowd SAM 3 could not part (no count) counts one at least; cockpit (2026-11-11): its
+# officer and pilot, accepted gaps with no body of their look, failed its film only once its frames were bought.
+CAST = [("a speaker and a far crowd of 10000", 10000, True, [], "square", 10001),
+        ("a crowd SAM 3 could not part", None, True, [], "square", 2),
+        ("a place with no rows", 10000, True, [], "hub", 0),
+        ("no rows read", 10000, False, [], "square", 0),
+        ("the speaker an accepted bodies gap", None, True, LEADER_GAPPED, "square", 1),
+        ("speaker and crowd both bodies gaps", None, True,
+         [{"row": "characters-layer", "check": "bodies", "objects": ["leader", "crowd"]}], "square", 0)]
+
+
+def a_script(segments):
+    return {"format": "score-film-script", "version": 1, "film": "toy", "size": [1280, 720], "rate": 24,
+            "segments": segments}
+
+
+WALKS = [{"cut": "title", "shows": {"world": "toy"}, "sound": "bed", "text": "Toy", "seconds": 2.0},
+         {"cut": "walk-through", "shows": {"place": "alpha"}, "sound": "place", "text": "Alpha", "seconds": 7.0},
+         {"cut": "walk-through", "shows": {"place": "beta"}, "sound": "place", "text": "Beta", "seconds": 7.0}]
+CROWD_PEEL = {"cut": "body-peel", "shows": {"place": "square"}, "seconds": 5.0}
+LAB_PEEL = {"cut": "body-peel", "shows": {"place": "lab"}, "seconds": 5.0}
+LAB_HANGAR = [{"cut": "walk-through", "shows": {"place": place}, "seconds": 7.0} for place in ("lab", "hangar")]
+NO_ROW_YET = "every fault a cut no row makes yet"
+NO_DESIGN_PEELED = ["the design of lab shows people and no layer peel shows them",
+                    "the design of stairwell shows people and no layer peel shows them"]
+CROWD_UNPLACED = "the cast of square is a crowd with no sim body and no place peel shows it"
+# (the script, judged against the kept designs or alone, its plan faults, its pacing faults). A script is cut only
+# when every segment names its seconds, is a cut a row makes, and a walk-through plays its place's own sound; one
+# showing no film needs a bed. The owner's pacing (review of 2026-10-18): about 3.5 s a place was far too fast; about
+# 7 s, two steady shots, summed over its walk-throughs. Every place whose design shows people is layer peeled (owner,
+# 2026-10-27), every other designed place it walks through place peeled (owner, 2026-11-05: "every scene needs the
+# peel"), and a crowd alone (no sim body) place peeled, never layer peeled.
+SCRIPTS = [
+    ("the toy's two walk-throughs", a_script(WALKS), False, [], []),
+    ("an exploded cut and a walk-through at the bed",
+     a_script([{"cut": "exploded", "shows": {"place": "alpha"}},
+               {"cut": "walk-through", "shows": {"place": "alpha"}, "sound": "bed", "seconds": 7.0}]), False,
+     ["segment 1 (exploded) names no seconds", "segment 1: no row makes exploded frames yet",
+      "segment 2: a walk-through plays its place's own sound, not bed"], []),
+    ("a title alone", a_script(WALKS[:1]), False, ["it shows no place's film and names no bed"], []),
+    ("a title over a bed", dict(a_script(WALKS[:1]), bed="sound/hum"), False, [], []),
+    ("places cut at 3.5 and 3 s", a_script([dict(WALKS[1], seconds=3.5), dict(WALKS[2], seconds=3.0)]), False, [],
+     ["beta: a walk-through of 3 s, under 3.5 s", "alpha: on screen 3.5 s, under 7 s",
+      "beta: on screen 3 s, under 7 s"]),
+    ("two 3.5 s walk-throughs of one place", a_script([dict(WALKS[1], seconds=3.5), dict(WALKS[1], seconds=3.5)]),
+     False, [], []),
+    ("world1's own script, data/films/k9.json", json.loads((REPO / "data/films/k9.json").read_text()), False,
+     NO_ROW_YET, []),
+    ("the toy against the designs", a_script(WALKS), True, [*NO_DESIGN_PEELED, CROWD_UNPLACED], []),
+    ("the crowd layer peeled", a_script([*WALKS, CROWD_PEEL]), True,
+     [*NO_DESIGN_PEELED, "the cast of square is a crowd with no sim body and a layer peel shows it"], []),
+    ("the crowd place peeled", a_script([*WALKS, dict(CROWD_PEEL, cut="place-peel")]), True, NO_DESIGN_PEELED, []),
+    ("lab layer peeled", a_script([*WALKS, LAB_PEEL]), True, [NO_DESIGN_PEELED[1], CROWD_UNPLACED], []),
+    ("lab and hangar walked, lab peeled", a_script([*LAB_HANGAR, LAB_PEEL]), True,
+     [NO_DESIGN_PEELED[1], CROWD_UNPLACED, "hangar is walked through and no place peel shows it"], []),
+    ("lab and hangar walked, lab layer and hangar place peeled",
+     a_script([*LAB_HANGAR, LAB_PEEL, {"cut": "place-peel", "shows": {"place": "hangar"}, "seconds": 5.0}]), True,
+     [NO_DESIGN_PEELED[1], CROWD_UNPLACED], [])]
+
+def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatch, still_film):
     """One world (a cockpit home holding TOUR locked, a fogged hall's stage, a yard's, a plain, a fogged and a glassed
     scan) driven through the rows' own entries.
 
@@ -133,7 +242,63 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/__init__.py: `CLASSES = "gpu-24gb"` -> `CLASSES = "gpu-24gb,cpu-8c-32gb"`
     Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))`
         -> `job["minutes"] = JOB_LEAD_MINUTES`
-    Break: score/stages/demo_film/__init__.py: drop `own_folders(jobs)` in film_one"""
+    Break: score/stages/demo_film/__init__.py: drop `own_folders(jobs)` in film_one
+
+    Its cameras (CAMERA_FILMS over one record): no camera named starts at the record's first, the second shot its
+    `then` or the record camera furthest from the first; its own spots are added to the record's copy, record
+    cameras add nothing; a record with none refuses. What it names to leave out is made inactive in its copy of the
+    stage, nothing named leaves the tube's Outside on; it starts at its own `start`, else the stage's.
+
+    Its gate: a still, silent film cut free fails `film` naming both, held to its planned 9 s (a 2 s title and two 4 s
+    shots joined by half-second fades) and to the size its views planned (SMALL), never the row's default. What its
+    frames see (SEEN, shots.py): a person in front within the angle and reach, a thing seen moving with no sound of its
+    own; a design standing people its stage never got fails the gate and is refused before renting (CAST counts them,
+    less an accepted bodies gap's). The environment film (SCRIPTS): nothing is cut before a lock, every plan fault and
+    the owner's pacing named, the places a locked script shows its walk-throughs' and stills', a segment naming a film
+    the extra row's, a peel node only where it can draw, every kept design the row's input.
+
+    Break: score/stages/demo_film/__init__.py: `return record["views"][0]["name"]` -> `return
+        record["views"][-1]["name"]`
+    Break: score/stages/demo_film/__init__.py: `return max(others, key=lambda view:
+        float(np.linalg.norm(np.subtract(view["eye"], first["eye"]))))` -> `return others[0]`
+    Break: score/stages/demo_film/__init__.py: `flat = low + np.asarray(share, dtype=float) * (high - low)` -> `flat =
+        np.asarray(share, dtype=float) * (high - low)`
+    Break: score/stages/demo_film/__init__.py: `    stage.GetRootLayer().Save()` -> `    pass`
+    Break: score/stages/demo_film/__init__.py: `return float(film.get("start", 0.0))` -> `return 0.0`
+    Break: score/stages/demo_film/__init__.py: `return demo.TITLE_SECONDS + shots * (SECONDS - demo.FADE_SECONDS)` ->
+        `return shots * SECONDS`
+    Break: score/stages/demo_film/__init__.py: `size = tuple(planned.get("size", SIZE))` -> `size = SIZE`
+    Break: score/stages/demo_film/__init__.py: `faults = [fault for _, _, _, found in measured.values() for fault in
+        found]` -> `faults = []`
+    Break: score/stages/demo_film/shots.py: `(np.linalg.norm(offsets, axis=1) <= reach)` -> `(np.linalg.norm(offsets,
+        axis=1) <= 100 * reach)`
+    Break: score/stages/demo_film/shots.py: `int(bool(len(middles)) and bool(in_view(view, middles).any()))` -> `1`
+    Break: score/stages/demo_film/__init__.py: `elif seen is None and people:` -> `elif False:`
+    Break: score/stages/demo_film/__init__.py: `((people_rows.crowd_count(crowd[1]) or 1) if crowd and crowd[0] not in
+        gapped else 0)` -> `(1 if crowd else 0)`
+    Break: score/stages/demo_film/__init__.py: cast_people's `if person["name"] not in gapped` dropped, or
+        refuse_peopleless' `if people and shots.people_seen(...) is None:` -> `if False:`
+    Break: score/stages/demo_film/shots.py: `quiet = [not sounded(prim) for prim in things]` -> `quiet = [True for prim
+        in things]`
+    Break: score/stages/demo_film/shots.py: `moving & in_view(view, now) & np.asarray(quiet)` -> `moving &
+        np.asarray(quiet)`
+    Break: score/stages/demo_film/final.py: `if not named:` -> `if False:`
+    Break: score/stages/demo_film/final.py: `elif cut == WALK and segment.get("sound", "place") != "place":` -> `elif
+        False:`
+    Break: score/stages/demo_film/final.py: `for place, seconds in shown_for.items() if seconds < PLACE_SECONDS - 1e-6]`
+        -> `for place, seconds in shown_for.items() if False]`
+    Break: score/stages/demo_film/final.py: `for segment in walks if segment["seconds"] < SHOT_SECONDS]` -> `for segment
+        in walks if False]`
+    Break: score/stages/demo_film/final.py: `return f"{EXTRA}@{shows['place']}", shows["film"]` -> `return
+        f"{OWN}@{shows['place']}", shows["film"]`
+    Break: score/stages/demo_film/final.py: `if place not in peeled]` -> `if False]`
+    Break: score/stages/demo_film/final.py: `sorted(unpeopled - placed)` -> `[]`
+    Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people") and not crowd_only(place)]` ->
+        `if not crowd_only(place)]`
+    Break: score/stages/demo_film/final.py: `all("crowd" in fields` -> `any("crowd" in fields`
+    Break: score/stages/demo_film/final.py: `for place in crowds if place in peeled or place not in placed]` ->
+        `for place in crowds if False]`
+    Break: score/stages/demo_film/peel_rows.py: `and not final.crowd_only(place)` -> `` (a crowd's layer peel a node)"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -278,68 +443,114 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     locked_in(home, monkeypatch, ("tour", a_script(TOUR[:2])))
     assert runner.file_keys(row, None)["script tour"] != keyed
     assert final.shown_places() == ["hall"]
+    assert final.film_node(TOUR[1]) == ("demo-film-extra@hall", "porch") and final.film_node(TOUR[2]) == (
+        "demo-film@yard", "")
 
-
-# --- which films a place has, and their cameras --------------------------------------------------------------------
-
-def test_a_film_with_no_camera_starts_at_its_scene_record_s_first(tmp_path):
-    """No camera named: the record's first is the first shot, the other the second; a record with none refuses.
-    Break: score/stages/demo_film/__init__.py: `return record["views"][0]["name"]` -> `return
-        record["views"][-1]["name"]`"""
-    record = tmp_path / "scene.json"
-    record.write_text(json.dumps({"views": [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
-                                            {"name": "spot-2", "eye": [3, 1.6, 2], "aim": [0, 1, 0], "fov": 75}]}))
-    assert demo_film.own_cameras(record, {"place": "yard"}) == ["spot-1", "spot-2"]
-    record.write_text(json.dumps({"views": []}))
+    # each film's cameras over one scene record, its spots added to the record's copy only, what it leaves out made
+    # inactive in its copy of the stage (kept by the films after it), its own start
+    record_path = tmp_path / "cameras/scene.json"
+    record_path.parent.mkdir()
+    record_path.write_text(json.dumps({"views": SPOTS, "floor": [[-2, -1], [2, 3]]}))
+    room = record_path.parent / "room.usda"
+    made_room = Usd.Stage.CreateNew(str(room))
+    UsdGeom.Xform.Define(made_room, OUTSIDE + "/near")
+    made_room.GetRootLayer().Save()
+    own = {}
+    for name, film, cameras, added, start, outside_on in CAMERA_FILMS:
+        assert demo_film.own_cameras(record_path, film) == cameras, (name, cameras)
+        own.update(added)
+        kept = {view["name"]: view for view in json.loads(record_path.read_text())["views"]}
+        assert sorted(kept) == sorted([spot["name"] for spot in SPOTS] + [*own]), (name, sorted(kept))
+        assert all(kept[camera] == view for camera, view in added.items()), (name, kept)
+        assert demo_film.film_start(film) == start, name
+        demo_film.leave_out(room, film)
+        opened = Usd.Stage.Open(str(room), Usd.Stage.LoadAll)
+        opened.Reload()
+        assert opened.GetPrimAtPath(OUTSIDE).IsActive() == outside_on, name
+    record_path.write_text(json.dumps({"views": []}))
     with pytest.raises(ValueError, match="no camera"):
-        demo_film.own_cameras(record, {"place": "yard"})
+        demo_film.own_cameras(record_path, {"place": "yard"})
 
+    # the gate on a film cut free: a still colour, no sound, two shots planned at SMALL; it fails naming both, held
+    # to its planned 9 s and the size its views planned, never the row's default
+    assert demo_film.planned_seconds(2) == 9.0
+    gated = tmp_path / "gated"
+    (gated / "hall").mkdir(parents=True)
+    shutil.copy(still_film, gated / "hall/film.mp4")
+    (gated / "hall/views.json").write_text(json.dumps({"size": list(SMALL), "views": [], "moves": [{}, {}]}))
+    (gated / "stage").mkdir()
+    (gated / "stage/hall.usda").write_text("#usda 1.0\n")
+    _, film_checks = demo_film.film_tools()
+    monkeypatch.setattr(film_checks, "clearance_checks", lambda stage, views: ({}, []))
+    verdict = demo_film.judge_film(gated / "hall", {"assembly": gated / "stage"}, {})
+    found = " ".join(verdict.findings)
+    assert verdict.answer == checks.FAIL and "no sound track" in found and "frozen" in found, found
+    assert not any(fault.startswith(("size", "length")) for fault in verdict.findings), verdict.findings
 
-def test_a_film_s_own_spots_are_added_to_the_record_s_copy(tmp_path):
-    """The second shot is the record camera standing furthest from the first (spot-3, 3.6 m off; spot-2 is 0.5 m),
-    none looking up at a roof; record cameras add nothing. A spot of its own (`eye`/`aim`, or `across` the floor from
-    (-2, -1) to (2, 3): shares (0, 1) are (-2, 3), (1, 0) is (2, -1)) is added as a camera of its name.
-    Break: score/stages/demo_film/__init__.py: `return max(others, key=lambda view:
-        float(np.linalg.norm(np.subtract(view["eye"], first["eye"]))))` -> `return others[0]`
-    Break: score/stages/demo_film/__init__.py: `flat = low + np.asarray(share, dtype=float) * (high - low)` -> `flat =
-        np.asarray(share, dtype=float) * (high - low)`"""
-    record = tmp_path / "scene.json"
-    spots = [{"name": "spot-1", "eye": [0, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
-             {"name": "spot-2", "eye": [0.5, 1.6, 0], "aim": [1, 1, 0], "fov": 75},
-             {"name": "spot-3", "eye": [3, 1.6, 2], "aim": [0, 1, 0], "fov": 75},
-             {"name": "roof", "eye": [9, 1.6, 9], "aim": [9, 9, 9.5], "fov": 75}]
-    record.write_text(json.dumps({"views": spots, "floor": [[-2, -1], [2, 3]]}))
-    assert demo_film.own_cameras(record, {"camera": "spot-1"}) == ["spot-1", "spot-3"]
-    assert len(json.loads(record.read_text())["views"]) == 4, "record cameras add nothing"
-    cameras = demo_film.own_cameras(record, {"camera": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5],
-                                             "then": {"camera": "corner", "across": {"eye": [0.0, 1.0],
-                                                                                     "aim": [1.0, 0.0]},
-                                                      "fov": 90, "stand": True}})
-    views = {view["name"]: view for view in json.loads(record.read_text())["views"]}
-    assert cameras == ["bed", "corner"], cameras
-    assert views["bed"] == {"name": "bed", "eye": [-1.5, 1.4, 0.5], "aim": [-4.5, 0.3, 3.5], "fov": 75}
-    assert views["corner"] == {"name": "corner", "eye": [-2.0, 1.6, 3.0], "aim": [2.0, 1.2, -1.0], "fov": 90,
-                               "stand": True}, views["corner"]
-    assert demo_film.own_cameras(record, {"camera": "spot-2", "then": "spot-1"}) == ["spot-2", "spot-1"]
+    # what a film's frames see on a stage with a door sliding at z = -5: the people in view, the things seen moving
+    # with no sound, the faults the gate names, and a film refused before renting when the design stands people the
+    # stage never got
+    for number, (name, person_at, door_sound, aim_z, frames, seen, silent) in enumerate(SEEN):
+        stage_path = a_stage(tmp_path / f"seen{number}", person_at, door_sound)
+        film = views(aim_z, frames)
+        assert shots.people_seen(stage_path, film) == seen, name
+        assert shots.silent_moving(stage_path, film) == silent, name
+        faults = demo_film.seen_faults(stage_path, film, people=2)
+        assert ("the place's design stands 2 people and the film's stage holds none" in faults) == (seen is None), (
+            name, faults)
+        assert ("the place holds people and no frame shows one" in faults) == (seen == {"shot0": 0}), (name, faults)
+        assert [fault for fault in faults if "moves in view" in fault] == [
+            f"{shot}: {path} moves in view with no sound" for shot, paths in silent.items() for path in paths], name
+        assert not any("design stands" in fault for fault in demo_film.seen_faults(stage_path, film, people=0)), name
+        demo_film.refuse_peopleless(name, stage_path, film, 0)
+        if seen is None:
+            with pytest.raises(RuntimeError, match="nothing rented"):
+                demo_film.refuse_peopleless(name, stage_path, film, 2)
+        else:
+            demo_film.refuse_peopleless(name, stage_path, film, 2)
 
+    # how many people a design stands, less those an accepted bodies gap names
+    people = tmp_path / "people"
+    people.mkdir()
+    for name, count, read, gaps, place, expected in CAST:
+        square = {"rows": {"leader": {"looks": ["leader-drawn"]}, "crowd": {"crowd": "far-coat", "count": count}}}
+        (people / "rows.json").write_text(json.dumps({"places": {"square": square}}))
+        (people / "gaps.json").write_text(json.dumps({"gaps": gaps}))
+        gapped = demo_film.gapped_people({"gaps": str(people / "gaps.json")} if gaps else {})
+        assert demo_film.cast_people(place, people / "rows.json" if read else None, gapped) == expected, name
 
-def test_a_film_leaves_out_the_prims_it_names_in_its_copy_only_and_may_name_its_start(tmp_path):
-    """A film naming nothing to leave out leaves the joined tube's Outside on; naming it, the copy makes it inactive.
-    A film starts at its own `start` (6 s), else the stage's.
-    Break: score/stages/demo_film/__init__.py: `    stage.GetRootLayer().Save()` -> `    pass`
-    Break: score/stages/demo_film/__init__.py: `return float(film.get("start", 0.0))` -> `return 0.0`"""
-    path = tmp_path / "room.usda"
-    stage = Usd.Stage.CreateNew(str(path))
-    UsdGeom.Xform.Define(stage, "/room/Places/tube/Outside/near")
-    stage.GetRootLayer().Save()
-    demo_film.leave_out(path, {"camera": "spot-1"})
-    assert Usd.Stage.Open(str(path)).GetPrimAtPath("/room/Places/tube/Outside").IsActive()
-    demo_film.leave_out(path, {"camera": "spot-1", "leave_out": ["/room/Places/tube/Outside"]})
-    opened = Usd.Stage.Open(str(path), Usd.Stage.LoadAll)
-    opened.Reload()
-    assert not opened.GetPrimAtPath("/room/Places/tube/Outside").IsActive()
-    assert demo_film.film_start({"camera": "spot-1", "start": 6}) == 6.0
-    assert demo_film.film_start({"camera": "spot-1"}) == 0.0
+    # which scripts are cut: against the kept designs (lab and stairwell stand people with sim bodies, hangar none,
+    # square a crowd alone), its plan faults and the owner's pacing; locked, the places its films show
+    from score.stages import design_layers, people_rows
+    from score.stages.demo_film import peel_rows
+    designs = tmp_path / "designs"
+    designs.mkdir()
+    for place in ("lab", "stairwell", "hangar", "square"):
+        (designs / f"{place}.json").write_text("{}")
+    monkeypatch.setattr(design_layers, "KEPT", designs)
+    monkeypatch.setattr(design_layers, "has_layer", lambda place, kind: kind == "people" and place != "hangar")
+    cast = {"square": {"rows": {"crowd": {"crowd": "far"}}},
+            "lab": {"rows": {"crowd": {"crowd": "far"}, "ann": {"looks": ["ann_coat"]}}}}
+    monkeypatch.setattr(people_rows, "place_entry", lambda place, found=None: cast.get(place))
+    assert final.peopled() == ["lab", "stairwell"] and final.crowded() == ["square"]
+    against = (final.peopled(), final.designed(), final.crowded())
+    locked_in(home, monkeypatch)
+    with pytest.raises(graph.Blocked, match="no film script locked"):
+        final.require_yes(final.scripts())
+    for name, script, designed, plan_faults, pacing in SCRIPTS:
+        faults = final.plan_faults(script, *(against if designed else ()))
+        if plan_faults == NO_ROW_YET:
+            assert faults and all("no row makes" in fault for fault in faults), (name, faults)
+        else:
+            assert faults == plan_faults, (name, faults)
+        assert final.pacing_faults(final.script_segments(script)) == pacing, name
+        locked_in(home, monkeypatch, ("toy", script))
+        final.require_yes(final.scripts())
+        assert final.shown_places() == sorted({segment["shows"]["place"] for segment in script["segments"]
+                                               if segment["cut"] in ("walk-through", "hero-still")}), name
+    locked_in(home, monkeypatch, ("toy", a_script([*WALKS, CROWD_PEEL, dict(CROWD_PEEL, shows={"place": "lab"})])))
+    assert not peel_rows.applies_body("square") and peel_rows.applies_body("lab"), "no node that cannot draw"
+    assert {"design lab", "design stairwell", "design hangar"} <= set(final.files()), "a design gaining people moves it"
 
 
 def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_its_shot(tmp_path):
@@ -399,45 +610,6 @@ def still_film(tmp_path_factory):
     return look_only_film(tmp_path_factory.mktemp("cut"))
 
 
-def test_a_look_only_plan_is_held_to_its_planned_length_and_size(still_film, tmp_path, monkeypatch):
-    """A two-shot film is a 2 s title and two 4 s shots joined by half-second fades: 9 s, within LENGTH_SLACK; the gate
-    holds a film to the size its views planned (SMALL here), never the row's default.
-    Break: score/stages/demo_film/__init__.py: `return demo.TITLE_SECONDS + shots * (SECONDS - demo.FADE_SECONDS)` ->
-        `return shots * SECONDS`
-    Break: score/stages/demo_film/__init__.py: `size = tuple(planned.get("size", SIZE))` -> `size = SIZE`"""
-    _, film_checks = demo_film.film_tools()
-    assert demo_film.planned_seconds(2) == 9.0
-    (tmp_path / "out").mkdir()
-    shutil.copy(still_film, tmp_path / "out/film.mp4")
-    (tmp_path / "out/views.json").write_text(json.dumps({"size": list(SMALL), "views": [], "moves": [{}, {}]}))
-    (tmp_path / "stage").mkdir()
-    (tmp_path / "stage/hall.usda").write_text("#usda 1.0\n")
-    monkeypatch.setattr(film_checks, "clearance_checks", lambda stage, views: ({}, []))
-    seconds, _, size, faults = demo_film.film_measures(tmp_path / "out", tmp_path / "stage")
-    assert size == SMALL and not any("size" in fault for fault in faults), faults
-    assert abs(seconds - 9.0) <= demo_film.LENGTH_SLACK, seconds
-
-
-def test_the_gate_fails_a_silent_still_film_by_name(still_film, tmp_path, monkeypatch):
-    """A film of one still colour with no sound fails `film`, naming both.
-    Break: score/stages/demo_film/__init__.py: `faults = [fault for _, _, _, found in measured.values() for fault in
-        found]` -> `faults = []`"""
-    _, film_checks = demo_film.film_tools()
-    out = tmp_path / "out"
-    out.mkdir()
-    shutil.copy(still_film, out / "film.mp4")
-    (out / "views.json").write_text(json.dumps({"views": []}))
-    (tmp_path / "stage").mkdir()
-    (tmp_path / "stage/hall.usda").write_text("#usda 1.0\n")
-    monkeypatch.setattr(film_checks, "clearance_checks", lambda stage, views: ({}, []))
-    monkeypatch.setattr(demo_film, "SIZE", SMALL)
-    verdict = demo_film.judge_film(out, {"assembly": tmp_path / "stage"}, {})
-    found = " ".join(verdict.findings)
-    assert verdict.answer == checks.FAIL and "no sound track" in found and "frozen" in found, found
-
-
-LOOKING_NORTH = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -10.0], "fov": 75.0}
-
 
 def views(aim_z=-10.0, frames=range(4)):
     """A standing shot looking along z, one view a frame."""
@@ -470,90 +642,7 @@ def a_stage(folder, person_at=None, door_sound=False):
     return path
 
 
-def test_a_view_sees_what_stands_in_front_within_its_angle_and_reach():
-    """Looking north from the origin at 75 degrees: 5 m ahead is seen, 5 m behind is not, 9 m aside at 5 m ahead is
-    outside the angle, 40 m ahead is past the 25 m reach, a point 3 m ahead and a little low is seen.
-    Break: score/stages/demo_film/shots.py: `(np.linalg.norm(offsets, axis=1) <= reach)` -> `(np.linalg.norm(offsets,
-        axis=1) <= 100 * reach)`"""
-    seen = shots.in_view(LOOKING_NORTH, [[0, 1.6, -5], [0, 1.6, 5], [9, 1.6, -5], [0, 1.6, -40], [0, 1.0, -3]])
-    assert seen.tolist() == [True, False, False, False, True]
-
-
-def test_a_place_with_people_fails_where_no_frame_shows_one(tmp_path):
-    """The owner's review of 2026-10-18: no people in any film. Nobody there is no fault; someone 6 m ahead is seen in
-    all four frames; someone behind the camera in none.
-    Break: score/stages/demo_film/shots.py: `int(bool(len(middles)) and bool(in_view(view, middles).any()))` -> `1`"""
-    assert shots.people_seen(a_stage(tmp_path), views()) is None
-    assert shots.people_seen(a_stage(tmp_path, person_at=(0, 0.5, -6)), views()) == {"shot0": 4}
-    assert shots.people_seen(a_stage(tmp_path, person_at=(0, 0.5, 6)), views()) == {"shot0": 0}
-
-
-def test_a_design_that_stands_people_fails_a_stage_that_holds_none(tmp_path):
-    """The motion layer's bodies (#26): the design stands 2 people and the film's stage got none: it fails; a design
-    standing nobody does not.
-    Break: score/stages/demo_film/__init__.py: `elif seen is None and people:` -> `elif False:`"""
-    film = views(frames=range(round(demo_film.SECONDS * 24)))
-    stage = a_stage(tmp_path, door_sound=True)
-    assert "the place's design stands 2 people and the film's stage holds none" in \
-        demo_film.seen_faults(stage, film, people=2)
-    assert not any("design stands" in fault for fault in demo_film.seen_faults(stage, film, people=0))
-
-
-def test_a_design_s_people_and_crowd_count_its_people(tmp_path):
-    """The square stands one speaker and a far crowd of 10000: 10001 people; a crowd SAM 3 could not part counts one
-    at least (2); a place with no rows, or no rows read, none.
-    Break: score/stages/demo_film/__init__.py: `((people_rows.crowd_count(crowd[1]) or 1) if crowd and crowd[0] not in
-        gapped else 0)` -> `(1 if crowd else 0)`
-    Break: score/stages/demo_film/__init__.py: cast_people's `if person["name"] not in gapped` dropped, or
-        refuse_peopleless' `if people and shots.people_seen(...) is None:` -> `if False:`"""
-    rows = tmp_path / "rows.json"
-    square = {"rows": {"leader": {"looks": ["leader-drawn"]}, "crowd": {"crowd": "far-coat", "count": 10000}}}
-    rows.write_text(json.dumps({"places": {"square": square}}))
-    assert demo_film.cast_people("square", rows) == 10001
-    square["rows"]["crowd"]["count"] = None
-    rows.write_text(json.dumps({"places": {"square": square}}))
-    assert demo_film.cast_people("square", rows) == 2
-    assert demo_film.cast_people("hub", rows) == 0
-    assert demo_film.cast_people("square", None) == 0
-    # cockpit (2026-11-11): its officer and pilot, accepted gaps with no body of their look, failed its film only
-    # once its frames were bought. Gapped people are not counted; a stage with none of the rest fails before renting.
-    assert demo_film.cast_people("square", rows, {"leader"}) == 1
-    assert demo_film.cast_people("square", rows, {"leader", "crowd"}) == 0
-    gaps = tmp_path / "gaps.json"
-    gaps.write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies", "objects": ["leader"]},
-                                         {"row": "likeness", "check": "outline", "objects": ["crowd"]}]}))
-    assert demo_film.gapped_people({"gaps": str(gaps)}) == {"leader"} and demo_film.gapped_people({}) == set()
-    empty, held = a_stage(tmp_path / "empty"), a_stage(tmp_path / "held", person_at=(0, 0.5, -6))
-    demo_film.refuse_peopleless("cockpit", empty, views(), 0)
-    demo_film.refuse_peopleless("cockpit", held, views(), 2)
-    with pytest.raises(RuntimeError, match="nothing rented"):
-        demo_film.refuse_peopleless("cockpit", empty, views(), 2)
-
-
-def test_a_thing_seen_moving_needs_a_sound_of_its_own(tmp_path):
-    """The owner's review of 2026-10-18: no event sounds. The door seen sliding with no sound under it is named; with
-    its sound, looked away from, or seen in one frame only (nothing seen moving) it is not.
-    Break: score/stages/demo_film/shots.py: `quiet = [not sounded(prim) for prim in things]` -> `quiet = [True for prim
-        in things]`
-    Break: score/stages/demo_film/shots.py: `moving & in_view(view, now) & np.asarray(quiet)` -> `moving &
-        np.asarray(quiet)`"""
-    assert shots.silent_moving(a_stage(tmp_path), views()) == {"shot0": ["/hall/Objects/door"]}
-    assert shots.silent_moving(a_stage(tmp_path, door_sound=True), views()) == {}
-    assert shots.silent_moving(a_stage(tmp_path), views(aim_z=10.0)) == {}
-    assert shots.silent_moving(a_stage(tmp_path), views(frames=[0])) == {}
-
-
 # --- the environment's own film (final.py) --------------------------------------------------------------------------
-
-def a_script(segments):
-    return {"format": "score-film-script", "version": 1, "film": "toy", "size": [1280, 720], "rate": 24,
-            "segments": segments}
-
-
-WALKS = [{"cut": "title", "shows": {"world": "toy"}, "sound": "bed", "text": "Toy", "seconds": 2.0},
-         {"cut": "walk-through", "shows": {"place": "alpha"}, "sound": "place", "text": "Alpha", "seconds": 7.0},
-         {"cut": "walk-through", "shows": {"place": "beta"}, "sound": "place", "text": "Beta", "seconds": 7.0}]
-
 
 def locked_in(home, monkeypatch, *films):
     """The cockpit's home `home` holding `films` ({film: script}) locked, as the Film step's Lock keeps them."""
@@ -564,58 +653,6 @@ def locked_in(home, monkeypatch, *films):
     for film, script in films:
         (folder / f"{film}.json").write_text(json.dumps(script))
     monkeypatch.setattr(final, "DASHBOARD", home)
-
-
-def test_nothing_is_cut_before_the_creator_s_yes_and_a_sound_plan():
-    """No locked script: Blocked. A script is cut only when every segment names its seconds, is a cut a row makes, and
-    a walk-through plays its place's own sound; a script showing no film needs a bed.
-    Break: score/stages/demo_film/final.py: `if not named:` -> `if False:`
-    Break: score/stages/demo_film/final.py: `elif cut == WALK and segment.get("sound", "place") != "place":` -> `elif
-        False:`"""
-    with pytest.raises(graph.Blocked, match="no film script locked"):
-        final.require_yes({})
-    final.require_yes({"toy": a_script(WALKS)})
-    assert final.plan_faults(a_script(WALKS)) == []
-    unsound = a_script([{"cut": "exploded", "shows": {"place": "alpha"}},
-                        {"cut": "walk-through", "shows": {"place": "alpha"}, "sound": "bed", "seconds": 7.0}])
-    assert final.plan_faults(unsound) == ["segment 1 (exploded) names no seconds",
-                                          "segment 1: no row makes exploded frames yet",
-                                          "segment 2: a walk-through plays its place's own sound, not bed"]
-    assert final.plan_faults(a_script(WALKS[:1])) == ["it shows no place's film and names no bed"]
-    assert final.plan_faults(dict(a_script(WALKS[:1]), bed="sound/hum")) == []
-
-
-def test_the_owner_s_pacing_fails_a_place_cut_at_three_and_a_half_seconds():
-    """The owner's review of 2026-10-18: about 3.5 s a place, far too fast; about 7 s, two steady shots. Two 3.5 s
-    walk-throughs of one place add to its 7 s.
-    Break: score/stages/demo_film/final.py: `for place, seconds in shown_for.items() if seconds < PLACE_SECONDS - 1e-6]`
-        -> `for place, seconds in shown_for.items() if False]`
-    Break: score/stages/demo_film/final.py: `for segment in walks if segment["seconds"] < SHOT_SECONDS]` -> `for segment
-        in walks if False]`"""
-    assert final.pacing_faults(final.script_segments(a_script(WALKS))) == []
-    fast = [dict(WALKS[1], seconds=3.5), dict(WALKS[2], seconds=3.0)]
-    assert final.pacing_faults(final.script_segments(a_script(fast))) == [
-        "beta: a walk-through of 3 s, under 3.5 s", "alpha: on screen 3.5 s, under 7 s",
-        "beta: on screen 3 s, under 7 s"]
-    two_shots = [dict(WALKS[1], seconds=3.5), dict(WALKS[1], seconds=3.5)]
-    assert final.pacing_faults(final.script_segments(a_script(two_shots))) == []
-
-
-def test_world1_s_script_is_paced_and_names_the_cuts_no_row_makes_yet(tmp_path, monkeypatch):
-    """data/films/k9.json, the house's script: paced, and every plan fault a cut no row makes yet; locked, the places
-    it shows are its walk-throughs' and stills' (read off the script here), and a segment naming a film is the extra
-    row's.
-    Break: score/stages/demo_film/final.py: `return f"{EXTRA}@{shows['place']}", shows["film"]` -> `return
-        f"{OWN}@{shows['place']}", shows["film"]`"""
-    k9 = json.loads((REPO / "data/films/k9.json").read_text())
-    assert final.pacing_faults(final.script_segments(k9)) == []
-    faults = final.plan_faults(k9)
-    assert faults and all("no row makes" in fault for fault in faults), faults
-    locked_in(tmp_path, monkeypatch, ("k9", k9))
-    shown = sorted({segment["shows"]["place"] for segment in k9["segments"]
-                    if segment["cut"] in ("walk-through", "hero-still") and (segment.get("shows") or {}).get("place")})
-    assert final.shown_places() == shown and shown
-    assert final.film_node({"shows": {"place": "hangar", "film": "hull"}}) == ("demo-film-extra@hangar", "hull")
 
 
 # The cut tests' frame: the cut's own steps at a small size, so a gate pod of 2-4 cores encodes them well inside the
@@ -929,49 +966,3 @@ def test_a_close_up_follows_the_walker_on_the_most_uneven_ground():
         peel.close_walker(cast)
     with pytest.raises(ValueError, match="no walker"):
         peel.close_walker(dict(cast, characters=[cast["characters"][1]]))
-
-
-def test_a_locked_script_peels_every_place_whose_design_shows_people(tmp_path, monkeypatch):
-    """A script must show a layer peel of every place whose design shows people (the designs' own layers), else the
-    environment film is Blocked naming each, so the script cannot drift from the designs (owner, 2026-10-27); every
-    kept design is the row's input, so a design that gains people moves its key; and a place peel of every other
-    place with a design that it walks through (owner, 2026-11-05: "every scene needs the peel"; asked whether that
-    meant adding people or peeling the place itself: "2").
-    Break: score/stages/demo_film/final.py: `if place not in peeled]` -> `if False]`
-    Break: score/stages/demo_film/final.py: `sorted(unpeopled - placed)` -> `[]`
-    Break: score/stages/demo_film/final.py: `if design_layers.has_layer(place, "people")]` -> `]`
-    Break: score/stages/demo_film/final.py: `all("crowd" in fields` -> `any("crowd" in fields`
-    Break: score/stages/demo_film/final.py: `for place in crowds if place in peeled or place not in placed]` -> `if False]`
-    Break: score/stages/demo_film/peel_rows.py: `and not final.crowd_only(place)` -> `` (a crowd's layer peel a node)
-    And a place whose cast is a crowd alone (no sim body) is place peeled, never layer peeled."""
-    from score.stages import design_layers, people_rows
-    from score.stages.demo_film import peel_rows
-    monkeypatch.setattr(design_layers, "KEPT", tmp_path)
-    for place in ("lab", "stairwell", "hangar", "square"):
-        (tmp_path / f"{place}.json").write_text("{}")
-    monkeypatch.setattr(design_layers, "has_layer", lambda place, kind: kind == "people" and place != "hangar")
-    rows = {"square": {"rows": {"crowd": {"crowd": "far"}}},
-            "lab": {"rows": {"crowd": {"crowd": "far"}, "ann": {"looks": ["ann_coat"]}}}}
-    monkeypatch.setattr(people_rows, "place_entry", lambda place, found=None: rows.get(place))
-    assert final.peopled() == ["lab", "stairwell"] and final.crowded() == ["square"]
-    crowd = {"cut": "body-peel", "shows": {"place": "square"}, "seconds": 5.0}
-    faults = final.plan_faults(dict(a_script([*WALKS, crowd])), final.peopled(), final.designed(), final.crowded())
-    assert "the cast of square is a crowd with no sim body and a layer peel shows it" in faults
-    faults = final.plan_faults(dict(a_script(WALKS)), (), (), final.crowded())
-    assert faults == ["the cast of square is a crowd with no sim body and no place peel shows it"]  # walked or not
-    faults = final.plan_faults(dict(a_script([*WALKS, dict(crowd, cut="place-peel")])), (), (), final.crowded())
-    assert not any("square" in fault for fault in faults)
-    locked_in(tmp_path / "home", monkeypatch, ("toy", a_script([*WALKS, crowd, dict(crowd, shows={"place": "lab"})])))
-    assert not peel_rows.applies_body("square") and peel_rows.applies_body("lab")  # no node that cannot draw
-    assert {"design lab", "design stairwell", "design hangar"} <= set(final.files())
-    peel = {"cut": "body-peel", "shows": {"place": "lab"}, "seconds": 5.0}
-    faults = final.plan_faults(dict(a_script([*WALKS, peel])), final.peopled())
-    assert "the design of stairwell shows people and no layer peel shows them" in faults
-    assert not any("design of lab" in fault for fault in faults)
-    walked = [{"cut": "walk-through", "shows": {"place": place}, "seconds": 7.0} for place in ("lab", "hangar")]
-    faults = final.plan_faults(dict(a_script([*walked, peel])), final.peopled(), final.designed())
-    assert "hangar is walked through and no place peel shows it" in faults
-    assert not any("no row makes" in fault for fault in faults)
-    placed = {"cut": "place-peel", "shows": {"place": "hangar"}, "seconds": 5.0}
-    faults = final.plan_faults(dict(a_script([*walked, peel, placed])), final.peopled(), final.designed())
-    assert not any("walked through" in fault or "no row makes" in fault for fault in faults)
