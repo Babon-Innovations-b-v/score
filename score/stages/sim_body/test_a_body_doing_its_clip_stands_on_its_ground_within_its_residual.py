@@ -57,6 +57,7 @@ into its one test, every break below seen red on it again):
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - its model unpacked only as pinned: fetched's sha256 check dropped.
+- no run, no body: make's `if job["people"]:` made `if True:` (a cast with no singles runs; 2026-11-13).
 - its gates on the written runs: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'
   `abs(... - 1.0) > CARRIED` made `> 1.0`; judge_follows' `> FOLLOWED` made `> 90`; judge_residual's force check
@@ -455,7 +456,7 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     monkeypatch.setattr(sim_body, "PER_MACHINE", 2)  # three clips: two on one card, one on another
     monkeypatch.delenv(sim_body.LOCAL, raising=False)
     monkeypatch.setattr(sim_body.subprocess, "run", lambda *_, **__: pytest.fail("ran on this PC"))
-    outs = {}
+    outs, ran_for_real = {}, sim_body.ran
     for name, cast, pinned, error, bodies, left, reason, faults, cards, gates in CASTS:
         folder = tmp_path / "made" / name
         (folder / "cast").mkdir(parents=True)
@@ -464,6 +465,10 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
         seen = {"hired": [], "ran": []}
         monkeypatch.setattr("score.adapters.engines.machine_runner", lambda seen=seen: rented(seen))
         (folder / "out").mkdir()
+        if not bodies:  # no body, no run: a cast with none plays nothing
+            monkeypatch.setattr(sim_body, "ran", lambda *_: pytest.fail(f"{name}: ran with no body to run"))
+        else:
+            monkeypatch.setattr(sim_body, "ran", ran_for_real)
         try:
             sim_body.make({**inputs, "cast": str(folder / "cast")}, folder / "out", 0, {})
             raised = ""
@@ -476,6 +481,8 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
         assert sorted(record["bodies"]) == bodies, name
         assert [line.split(":")[0] for line in record["left out"]] == left, name
         assert record.get("no bodies") == reason and sim_body.output_faults(folder / "out") == faults, name
+        assert (record["engine"] is None) == (not bodies) and not (folder / "out" / "job.json").exists(), name
+        assert bool(seen["hired"]) == bool(bodies), name
         assert sorted(sorted(person["name"] for person in job["people"]) for *_, job, _ in seen["ran"]) == cards, name
         if gates:
             assert {check.name: check.judge(folder / "out", {}, {}).answer for check in sim_body.CHECKS} == gates, name
