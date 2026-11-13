@@ -161,7 +161,6 @@ FUNCTION_DEBT = {
     "tools/cloud/test_detached_logs_everything_and_says_one_line.py": 3,
     "tools/cloud/test_judge_asks_each_question_once_on_a_card_that_holds_it.py": 3,
     "tools/cloud/test_kept_rerun_pays_only_for_missing_jobs.py": 11,
-    "tools/cloud/test_library_bake_sends_what_its_job_names.py": 6,
     "tools/cloud/test_meshparts_brings_back_only_the_splits.py": 3,
     "tools/cloud/test_park_holds_a_machine_only_while_it_pays_off.py": 24,
     "tools/cloud/test_pool_books_every_card_once_and_deletes_every_card.py": 44,
