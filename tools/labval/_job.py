@@ -50,8 +50,9 @@ def written_person(name, rig, worlds, segments, kg, folder):
 
 
 def job_of(people, model):
-    """A run's job.json: the stage's rate, Earth's gravity, the fetched model and the stage's own limits and caps."""
-    return {"rate": sim_body.RATE, "gravity": G, "model": str(model), "people": people,
+    """A run's job.json: the stage's rate, Earth's gravity, the fetched model and the stage's own limits and caps; its
+    trials followed from their first frame as measured, never eased (inside/eased is for Kimodo's clips)."""
+    return {"rate": sim_body.RATE, "gravity": G, "model": str(model), "people": people, "eased start": False,
             "residual": {"force": sim_body.RESIDUAL_FORCE, "moment": sim_body.RESIDUAL_MOMENT},
             "adjust": {"move most m": sim_body.MOVE_MOST, "turn most deg": sim_body.FOLLOWED,
                        "follows deg": sim_body.FOLLOWED}}

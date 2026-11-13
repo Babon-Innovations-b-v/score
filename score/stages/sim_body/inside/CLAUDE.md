@@ -11,7 +11,7 @@ walkers, two side by side while this PC was busy); people run one after another 
 - **`sim_body.py` is the run only** (#70: "1400 line script, yuck"): it orders the steps, each a module beside it
   with its interface (`__init__.py`), its one test file and its overlay. Python puts the script's folder first on
   `sys.path`, so they import by bare name, leaves first: `bone_groups`, `ground`, `solvers`, `landmarks`,
-  `calibration`, `volumes`, `tuning`, `evaluation` (its runner; `_case` and `_measure` need Newton's Python) (pure: their tests run in the score venv), then `model`, `batched` (every frame at once on the card), `sizing`, `resting`, `myo`,
+  `calibration`, `volumes`, `tuning`, `eased` (a clip's jolting start steadied), `evaluation` (its runner; `_case` and `_measure` need Newton's Python) (pure: their tests run in the score venv), then `model`, `batched` (every frame at once on the card), `sizing`, `resting`, `myo`,
   `contact`, `fit` (the one solver: mink and scipy's least squares), `muscles`, `rra`, `records`, `motor` (#98: the whole
   trial as one solve, a job's "motor") (MuJoCo-side: their tests run in
   Newton's own Python by subprocess, `skipped` where no env is built, as in `make tests`' sandbox home).

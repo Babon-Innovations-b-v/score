@@ -7,7 +7,8 @@ copy of the scene's ground (#65).
 job.json (written by score/stages/sim_body): {"rate", "gravity", "model" (the fetched model's folder), "residual"
 ({"force", "moment"}: the limits' shares of the weight, and of it times the centre's height), "adjust" ({"move most
 m", "turn most deg", "follows deg"}: RRA's caps; optional "feet kept", default true: false skips `Footing`, RRA's move
-of the pelvis and trunk taken as it is, the legs as the fit stands them: an experiment, #98), "people":
+of the pelvis and trunk taken as it is, the legs as the fit stands them: an experiment, #98), optional "eased start"
+(default true: each clip's jolting start steadied, `eased`; false for a measured trial, LabValidation's), "people":
 [{"name", "kg", "height" (the person's own standing height, m), "rig" ({"names", "parents", "bind"}: the person's rig),
 "segments" ([SOMA segment name], in the order of `targets`), "targets" (an .npz whose `world` is frames x segments x
 4 x 4: each segment's frame in the clip, `ground` n x 3 x 3: the scene's triangles it may touch, both in the
@@ -103,6 +104,7 @@ import newton  # noqa: E402
 import numpy as np  # noqa: E402
 import warp  # noqa: E402
 
+import eased  # noqa: E402
 import fit  # noqa: E402
 import motor  # noqa: E402
 import myo  # noqa: E402
@@ -247,8 +249,11 @@ def run_person(job, person, out_path):
     since = started = time.perf_counter()
     seconds = {}
     targets = np.load(person["targets"])
-    worlds, ground = targets["world"], targets["ground"]
-    segments = person["segments"]
+    worlds, blended = (eased.eased(targets["world"], job["rate"]) if job.get("eased start", True)
+                       else (targets["world"], 0))  # a jolting start steadied; a measured trial as it is
+    ground, segments = targets["ground"], person["segments"]
+    if blended:
+        said(person["name"], f"its clip's start eased over {blended} frames", since)
     path = out_path.parent / f"{person['name']}.xml"
     rig = {**person["rig"], "points": targets["points"], "faces": targets["faces"], "weights": targets["weights"]}
     record, scales, own, angles, motion = fitted_person(job, person, rig, worlds, path)
