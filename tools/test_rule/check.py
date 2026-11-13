@@ -124,7 +124,6 @@ FUNCTION_DEBT = {
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 20,
     "score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py": 32,
     "score/stages/effects/test_effects_ride_their_design.py": 6,
-    "score/stages/images/test_image_proofs_pass_only_a_proof_that_did_its_jobs.py": 6,
     "score/stages/library/test_everything_handed_to_library.py": 12,
     "score/stages/light/test_light_measured_against_design.py": 6,
     "score/stages/motion/test_a_thing_moves_as_its_design_says.py": 14,
