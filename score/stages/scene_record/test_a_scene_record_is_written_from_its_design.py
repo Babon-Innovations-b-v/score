@@ -727,7 +727,8 @@ ABSENT = object()
 
 
 # Each case: a plan, its inventory rows and its relations (None: none kept), and the objects it lays with what each
-# must hold (`field` or `field.sub`): a value equal, a Turned turn, a Starts reason, ABSENT, or a tuple of these all.
+# must hold (`field` or `field.sub`): a value equal, a Turned turn, a Starts reason, ABSENT, or a tuple of these all; a
+# row an expected object stands for lays exactly the expected objects of that row, no more.
 #  - past its edge (2026-10-26, floor_fit.past_edge): on a 20 by 20 m plan (centred: plan (x, y) is place (x - 10,
 #    y - 10)) the 30 x 30 m building's strip at the right edge, (18, 0) 2 x 10 m (a corner: it runs along the right
 #    edge), stands at plan (35, 5), its body 20 to 50 m east, facing west; the 40 x 20 m one's strip at the foot,
@@ -842,8 +843,11 @@ def test_each_object_stands_where_its_plan_and_relations_lay_it(design, rows, re
                 if isinstance(want, (Turned, Starts)):
                     held = want.holds(found, design, sizes[entry["row"]])
                 else:
-                    held = found is want if want is ABSENT else found == want
+                    held = found is want if want is ABSENT or isinstance(want, bool) else found == want
                 assert held, (name, path, found, want)
+    for row in {laid[name]["row"] for name in expected}:
+        named = sorted(name for name, entry in laid.items() if entry["row"] == row)
+        assert named == sorted(name for name in expected if laid[name]["row"] == row), (row, named)
 
 
 def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it():
