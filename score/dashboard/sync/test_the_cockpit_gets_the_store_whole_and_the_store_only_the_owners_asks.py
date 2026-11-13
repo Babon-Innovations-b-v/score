@@ -9,20 +9,20 @@ the batch record while it lives and once as it ends; a moved or reset store show
 pushed commit in the host's style; the timer's install refuses what cannot feed it. A hosted process stays light.
 
 Breaks that turn this red (each applied once and seen red, then reverted):
-- building.build: only the first place's bundle -> test_the_export_holds_the_state_places_pictures_and_films
-- building.build: no node thumbnails (`range(0)`) -> test_the_export_holds_each_gaps_picture_and_each_steps_own_picture
-- building.build: each step's large picture at the thumbnail side -> test_the_export_writes_state_then_thumbnails_...
-- building.Filler.room: the cap check -> `if False:` -> test_the_export_is_the_same_twice_and_keeps_to_its_cap
-- endpoints.token_ok: the compare dropped -> test_every_sync_route_needs_the_token
-- endpoints.pin: `{"commit": None}` -> test_the_pin_tells_the_store_s_machine_the_commit_the_cockpit_runs
-- endpoints.checked_path: the ".." check dropped -> test_a_bad_sha_path_or_name_is_refused
-- endpoints.blob: `if offset != have:` -> `if False:` -> test_a_chunk_at_the_wrong_offset_is_told_where_to_go_on_...
+- building.build: only the first place's bundle -> test_the_cockpit_gets_the_store_whole_...
+- building.build: no node thumbnails (`range(0)`) -> test_the_cockpit_gets_the_store_whole_...
+- building.build: each step's large picture at the thumbnail side -> test_the_cockpit_gets_the_store_whole_...
+- building.Filler.room: the cap check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- endpoints.token_ok: the compare dropped -> test_the_cockpit_gets_the_store_whole_...
+- endpoints.pin: `{"commit": None}` -> test_the_cockpit_gets_the_store_whole_...
+- endpoints.checked_path: the ".." check dropped -> test_the_cockpit_gets_the_store_whole_...
+- endpoints.blob: `if offset != have:` -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - client.push_export: `whole = True` -> test_two_passes_send_only_what_is_lacking_and_swap_the_export_in_whole
 - client.uploaded: the deadline as if counted before the build -> test_a_build_longer_than_the_pass_still_sends_...
-- endpoints.swept: unused blobs kept (`if stale:`) -> test_a_file_no_kept_export_uses_is_swept
+- endpoints.swept: unused blobs kept (`if stale:`) -> test_the_cockpit_gets_the_store_whole_...
 - building.pictures_folder: old versions kept -> test_a_change_to_the_exporting_code_sends_every_bundle_again
 - endpoints.readable: the format check -> `if False:` -> test_an_export_of_a_format_the_hosted_side_cannot_read_...
-- endpoints.report: the state kept "waiting" -> test_a_request_round_trip
+- endpoints.report: the state kept "waiting" -> test_the_cockpit_gets_the_store_whole_...
 - applying.apply_decision: the owner check -> `if False:` -> test_a_decision_from_someone_not_the_local_owner_is_refused
 - applying.OWNER_FIGURES: a "month" kind added -> test_the_owners_figures_and_waiver_are_applied_for_him_...
 - pages/actions.owner_figure_off_why: the agent check -> `if False:` -> test_the_owners_figures_are_refused_in_...
@@ -141,42 +141,49 @@ def fed(monkeypatch):
     return priced
 
 
-def test_the_export_holds_the_state_places_pictures_and_films(world, tmp_path):
-    manifest = exported(world, tmp_path / "one")
+def sha_of(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def gzipped_put(sha, offset, size, data):
+    """A blob chunk's PUT row: the method, its path and its gzipped body."""
+    return "PUT", f"/api/sync/blobs/{sha}?offset={offset}&size={size}", gzip.compress(data)
+
+
+def commit(name, files):
+    return "POST", "/api/sync/commit", {"name": name, "files": files}
+
+
+def answered(web, row, headers):
+    """One sync exchange `row` ((method, path, body), body bytes sent as content, else as JSON) sent to `web`."""
+    method, path, body = row
+    kind = "content" if isinstance(body, bytes) else "json"
+    return web.request(method, path, headers=headers, **({kind: body} if body is not None else {}))
+
+
+def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(world, tmp_path, settings):
+    """The fixture world exported twice and once under a tiny cap, then the hosted side's sync routes driven through one
+    exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token."""
+    one, small = exported(world, tmp_path / "one"), exported(world, tmp_path / "small", cap_mb=0.02)
+    exported(world, tmp_path / "two")
     names = {path.name for path in (tmp_path / "one/files").iterdir()}
-    assert manifest["made_at"] == MADE and manifest["left_out"] == []
+    bundles = {name: json.loads((tmp_path / f"one/places/{name}.json").read_text()) for name in ("alpha", "beta")}
+    closeup = bundles["alpha"]["steps"]["closeup"]["picture"]["sha"]
+    gap = bundles["beta"]["detail"]["accepted_gaps"][0]["picture"]["sha"]
+    assembly = bundles["beta"]["steps"]["assembly"]["picture"]["sha"]
+    written = one["written"]
+    thumbs = [index for index, path in enumerate(written) if path.endswith("-360.jpg")]
+    films = [index for index, path in enumerate(written) if path.endswith(".mp4")]
+    assert one["made_at"] == MADE and one["left_out"] == []
     assert {"state.json", "manifest.json"} <= {path.name for path in (tmp_path / "one").iterdir()}
     assert {"alpha.json", "beta.json", "_world.json"} <= {path.name for path in (tmp_path / "one/places").iterdir()}
     assert any(name.endswith(".mp4") for name in names) and any(name.endswith("-1280.jpg") for name in names)
-    assert any(name.endswith("-360.jpg") for name in names)
+    assert {f"{gap}-1280.jpg", f"{assembly}-360.jpg"} <= names  # each gap's picture, each step's own thumbnail
     source = ExportedSource(tmp_path / "one")
-    assert source.places() == ["alpha", "beta"]
-    assert source.step_detail("alpha", "closeup").waiting is not None
-
-
-def test_the_export_holds_each_gaps_picture_and_each_steps_own_picture(world, tmp_path):
-    exported(world, tmp_path / "one")
-    bundle = json.loads((tmp_path / "one/places/beta.json").read_text())
-    gap = bundle["detail"]["accepted_gaps"][0]["picture"]["sha"]
-    step = bundle["steps"]["assembly"]["picture"]["sha"]
-    assert (tmp_path / f"one/files/{gap}-1280.jpg").is_file() and (tmp_path / f"one/files/{step}-360.jpg").is_file()
-
-
-def test_the_export_writes_state_then_thumbnails_then_films_then_each_steps_large_picture(world, tmp_path):
-    written = exported(world, tmp_path / "one")["written"]
-    bundle = json.loads((tmp_path / "one/places/alpha.json").read_text())
-    step = bundle["steps"]["closeup"]["picture"]["sha"]
-    assert f"files/{step}-1280.jpg" in written
-    thumbs = [index for index, path in enumerate(written) if path.endswith("-360.jpg")]
-    films = [index for index, path in enumerate(written) if path.endswith(".mp4")]
-    assert thumbs and films and max(thumbs) < min(films)
-    assert written.index(f"files/{step}-1280.jpg") > max(films)
-    assert written[0] == "state.json"
-
-
-def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
-    exported(world, tmp_path / "one")
-    exported(world, tmp_path / "two")
+    assert source.places() == ["alpha", "beta"] and source.step_detail("alpha", "closeup").waiting is not None
+    # upload order: state, then thumbnails, then films, then each step's large picture
+    assert written[0] == "state.json" and thumbs and films and max(thumbs) < min(films)
+    assert written.index(f"files/{closeup}-1280.jpg") > max(films)
     live = ("machine.json", "manifest.json")  # machine.json a live read (load, memory), counted in the manifest
     for path in sorted((tmp_path / "one").rglob("*")):
         if path.is_file() and path.name not in live:
@@ -187,71 +194,60 @@ def test_the_export_is_the_same_twice_and_keeps_to_its_cap(world, tmp_path):
     assert manifests[0] == manifests[1]
     machines = [json.loads((tmp_path / name / "machine.json").read_text())["machine"] for name in ("one", "two")]
     assert machines[0] == machines[1]
-    small = exported(world, tmp_path / "small", cap_mb=0.02)
     assert small["left_out"] and all(entry["why"] == "over the export's cap" for entry in small["left_out"])
-    full = {path.name for path in (tmp_path / "one/files").iterdir()}
-    kept = {path.name for path in (tmp_path / "small/files").iterdir()}
-    assert kept < full  # pictures and films past the cap stay out of the files themselves
+    assert {path.name for path in (tmp_path / "small/files").iterdir()} < names  # past the cap stays out of the files
 
+    settings.SCORE_MODE, settings.SCORE_SYNC_TOKEN, settings.SCORE_COMMIT = "hosted", TOKEN, "a" * 40
+    web, bearer, home = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}, settings.SCORE_HOME
+    shutil.rmtree(home / "export", ignore_errors=True)
+    request = SyncRequest.objects.create(kind="change", user="joey", payload={"stage": "closeup", "words": "redder"})
+    data, empty, liar = b"abcdefgh", sha_of(b"{}"), sha_of(b"something else")
+    manifests = {made: f'{{"made_at": "{made}", "format": 3}}'.encode() for made in ("a", "b", "c")}
+    exchanges = [  # in order: (what, (method, path, body), status, the answer's JSON or None)
+        ("the pin", ("GET", "/api/sync/pin", None), 200, {"commit": "a" * 40}),
+        ("lacking a path", ("POST", "/api/sync/lacking", {"files": {"../etc": 1}}), 400, None),
+        ("a whole blob", gzipped_put(empty, 0, 2, b"{}"), 200, {"have": 2, "done": True}),
+        *[(f"commit path {path}", commit("one", {"manifest.json": empty, path: empty}), 400, None)
+          for path in ("../x", "/abs", "a//b", "a\\b")],
+        *[(f"commit name {name!r}", commit(name, {"manifest.json": empty}), 400, None)
+          for name in ("current", "x.partial", "a/b", "")],
+        ("commit without a manifest", commit("one", {"state.json": empty}), 400, None),
+        ("a first chunk", gzipped_put(sha_of(data), 0, 8, data[:3]), 200, {"have": 3, "done": False}),
+        ("a chunk past the gap", gzipped_put(sha_of(data), 6, 8, data[6:]), 409, {"have": 3}),
+        ("the chunk where told", gzipped_put(sha_of(data), 3, 8, data[3:]), 200, {"have": 8, "done": True}),
+        ("a wrong hash", gzipped_put(liar, 0, 8, data), 400, None),
+        ("more than its size", gzipped_put(liar, 0, 2, data), 400, None),
+        ("the request waits", ("GET", "/api/sync/requests?state=waiting", None), 200, None),
+        *[(f"request {state}", ("POST", f"/api/sync/requests/{request.pk}", {"state": state}), 200, None)
+          for state in ("picked_up", "running", "done")],
+        ("request nonsense", ("POST", f"/api/sync/requests/{request.pk}", {"state": "nonsense"}), 422, None),
+    ]
+    exports = [row for made, body in manifests.items() for row in (  # three exports, each uploaded then committed
+        (f"export {made}", gzipped_put(sha_of(body), 0, len(body), body), 200, {"have": len(body), "done": True}),
+        (f"commit {made}", commit(made, {"manifest.json": sha_of(body)}), 200, None))]
+    answers = {}
 
-def sha_of(data):
-    return hashlib.sha256(data).hexdigest()
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_every_sync_route_needs_the_token():
-    web, sha = hosted_client(), sha_of(b"x")
+    def exchanged(rows):
+        for what, row, status, json_answer in rows:
+            answer = answers[what] = answered(web, row, bearer)
+            assert answer.status_code == status, (what, answer.text)
+            assert json_answer is None or answer.json() == json_answer, (what, answer.json())
+    exchanged(exchanges)
+    assert (home / "blobs" / sha_of(data)).read_bytes() == data  # whole, before a commit sweeps it unused
+    exchanged(exports)
+    assert [item["id"] for item in answers["the request waits"].json()] == [request.pk]
+    request.refresh_from_db()
+    assert request.state == "done"
+    assert not (home / "blobs" / liar).exists() and not (home / "blobs" / f"{liar}.part").exists()
+    # only the three good commits landed, the oldest swept with the blob no kept export uses
+    assert sorted(path.name for path in (home / "export").iterdir()) == ["b", "c", "current"]
+    assert [(home / "blobs" / sha_of(body)).exists() for body in manifests.values()] == [False, True, True]
+    routes = [("POST", "/api/sync/lacking", {"files": {sha_of(b"x"): 1}}), gzipped_put(sha_of(b"x"), 0, 1, b"x"),
+              commit("n", {}), ("GET", "/api/sync/pin", None), ("GET", "/api/sync/requests?state=done", None)]
     for wrong in ({}, {"Authorization": "Bearer wrong"}):
-        assert web.post("/api/sync/lacking", json={"files": {sha: 1}}, headers=wrong).status_code == 401
-        assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=1", content=gzip.compress(b"x"),
-                       headers=wrong).status_code == 401
-        assert web.post("/api/sync/commit", json={"name": "n", "files": {}}, headers=wrong).status_code == 401
-        assert web.get("/api/sync/pin", headers=wrong).status_code == 401
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN, SCORE_COMMIT="a" * 40)
-def test_the_pin_tells_the_store_s_machine_the_commit_the_cockpit_runs():
-    """/healthz's body is the hosting proxy's own, so the pin comes from here, behind the token."""
-    answer = hosted_client().get("/api/sync/pin", headers={"Authorization": f"Bearer {TOKEN}"})
-    assert answer.status_code == 200 and answer.json() == {"commit": "a" * 40}
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_a_bad_sha_path_or_name_is_refused(settings):
-    web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
-    assert web.post("/api/sync/lacking", json={"files": {"../etc": 1}}, headers=bearer).status_code == 400
-    sha = sha_of(b"{}")
-    assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=2", content=gzip.compress(b"{}"),
-                   headers=bearer).json()["done"]
-    for path in ("../x", "/abs", "a//b", "a\\b"):
-        files = {"manifest.json": sha, path: sha}
-        assert web.post("/api/sync/commit", json={"name": "one", "files": files}, headers=bearer).status_code == 400
-    for name in ("current", "x.partial", "a/b", ""):
-        answer = web.post("/api/sync/commit", json={"name": name, "files": {"manifest.json": sha}}, headers=bearer)
-        assert answer.status_code == 400, name
-    assert web.post("/api/sync/commit", json={"name": "one", "files": {"state.json": sha}},
-                    headers=bearer).status_code == 400
-    assert not (settings.SCORE_HOME / "export/current").exists()
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_a_chunk_at_the_wrong_offset_is_told_where_to_go_on_and_a_wrong_hash_is_refused(settings):
-    web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
-    data = b"abcdefgh"
-    sha = sha_of(data)
-    assert web.put(f"/api/sync/blobs/{sha}?offset=0&size=8", content=gzip.compress(data[:3]),
-                   headers=bearer).json() == {"have": 3, "done": False}
-    answer = web.put(f"/api/sync/blobs/{sha}?offset=6&size=8", content=gzip.compress(data[6:]), headers=bearer)
-    assert answer.status_code == 409 and answer.json() == {"have": 3}
-    assert web.put(f"/api/sync/blobs/{sha}?offset=3&size=8", content=gzip.compress(data[3:]),
-                   headers=bearer).json() == {"have": 8, "done": True}
-    assert (settings.SCORE_HOME / "blobs" / sha).read_bytes() == data
-    liar = sha_of(b"something else")
-    answer = web.put(f"/api/sync/blobs/{liar}?offset=0&size=8", content=gzip.compress(data), headers=bearer)
-    assert answer.status_code == 400 and not (settings.SCORE_HOME / "blobs" / liar).exists()
-    assert not (settings.SCORE_HOME / "blobs" / f"{liar}.part").exists()
-    past = web.put(f"/api/sync/blobs/{liar}?offset=0&size=2", content=gzip.compress(data), headers=bearer)
-    assert past.status_code == 400
+        for route in routes:
+            assert answered(web, route, wrong).status_code == 401, (wrong, route)
+    shutil.rmtree(home / "export")  # its names sort after the dated exports the passes below swap in
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
@@ -297,21 +293,6 @@ def test_a_build_longer_than_the_pass_still_sends_the_export(world, settings, mo
 
 
 @override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_a_file_no_kept_export_uses_is_swept(settings):
-    web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
-    blobs = settings.SCORE_HOME / "blobs"
-    for made, data in (("a", b"{\"made_at\": \"a\", \"format\": 3}"), ("b", b"{\"made_at\": \"b\", \"format\": 3}"),
-                       ("c", b"{\"made_at\": \"c\", \"format\": 3}")):
-        sha = sha_of(data)
-        web.put(f"/api/sync/blobs/{sha}?offset=0&size={len(data)}", content=gzip.compress(data), headers=bearer)
-        answer = web.post("/api/sync/commit", json={"name": made, "files": {"manifest.json": sha}}, headers=bearer)
-        assert answer.status_code == 200, answer.text
-    assert not (blobs / sha_of(b'{"made_at": "a", "format": 3}')).exists()
-    assert (blobs / sha_of(b'{"made_at": "b", "format": 3}')).exists()
-    assert (blobs / sha_of(b'{"made_at": "c", "format": 3}')).exists()
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
 def test_a_change_to_the_exporting_code_sends_every_bundle_again(world, settings, monkeypatch):
     web, current = hosted_client(), settings.SCORE_HOME / "export/current"
     shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)  # other tests' exports sort after a date
@@ -340,20 +321,6 @@ def test_an_export_of_a_format_the_hosted_side_cannot_read_is_refused_in_the_syn
     said = client.sync_pass(remote_of(hosted_client()), world.source, FakeBackend())
     assert said.startswith("REFUSED") and "export format 1 cannot be read here" in said, said
     assert not (settings.SCORE_HOME / "export/current").exists()
-
-
-@override_settings(SCORE_MODE="hosted", SCORE_SYNC_TOKEN=TOKEN)
-def test_a_request_round_trip():
-    request = SyncRequest.objects.create(kind="change", user="joey", payload={"stage": "closeup", "words": "redder"})
-    web, bearer = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}
-    waiting = web.get("/api/sync/requests?state=waiting", headers=bearer).json()
-    assert [item["id"] for item in waiting] == [request.pk]
-    for step in ("picked_up", "running", "done"):
-        assert web.post(f"/api/sync/requests/{request.pk}", json={"state": step}, headers=bearer).status_code == 200
-    request.refresh_from_db()
-    assert request.state == "done"
-    assert web.post(f"/api/sync/requests/{request.pk}", json={"state": "nonsense"}, headers=bearer).status_code == 422
-    assert web.get("/api/sync/requests?state=done", headers={"Authorization": "Bearer x"}).status_code == 401
 
 
 def test_a_decision_from_someone_not_the_local_owner_is_refused(world):
