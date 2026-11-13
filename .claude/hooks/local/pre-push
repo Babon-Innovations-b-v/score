@@ -9,7 +9,7 @@ nothing changed, else a temporary worktree of it, removed afterwards):
 2. the one test file of each module the pushed commits touch (`git diff --name-only <remote sha>..<local sha>`), run
    by `make tests TESTS=...` (each in its sandbox, at the Makefile's TEST_SECONDS), at most JOBS at once, the whole run inside
    `score.pushTestSeconds` (default 600), which it prints; a failure or the budget running out refuses the push. A
-   test file `MAY_SKIP` marks for the cluster gate (it needs a GPU) is left to that gate and named;
+   test file `MAY_SKIP` marks as needing a GPU is left to a run by hand (`make tests` on a GPU box) and named;
 3. hands the push lines on to .claude/hooks/local/pre-push-moved (a moved paid row needs its Moved-rows trailer, on
    when `score.movedCheck` is true) and answers with its exit code.
 
@@ -65,7 +65,7 @@ def project_python(repo):
 
 
 def touched_tests(checkout, changed):
-    """(the test files of the modules the changed paths sit in, those left to the cluster gate), by the test rule's
+    """(the test files of the modules the changed paths sit in, those left to a run by hand), by the test rule's
     own reading of a module (check.module_of): a path's module is the nearest folder above it that has a test file
     (in a flat tool folder, the tool script it is), a test file's its own."""
     sys.path.insert(0, str(checkout / "tools/test_rule"))
@@ -87,8 +87,8 @@ def touched_tests(checkout, changed):
             if module in modules:
                 wanted.update(modules[module])
                 break
-    cluster = [pattern for pattern, reason in check.MAY_SKIP.items() if "cluster gate" in reason]
-    left = sorted(path for path in wanted if any(fnmatch.fnmatch(str(path), pattern) for pattern in cluster))
+    gpu = [pattern for pattern, reason in check.MAY_SKIP.items() if reason.startswith("needs a GPU")]
+    left = sorted(path for path in wanted if any(fnmatch.fnmatch(str(path), pattern) for pattern in gpu))
     return sorted(wanted - set(left)), left
 
 
@@ -119,7 +119,7 @@ def gate(checkout, base, tip, python):
     changed = (git("diff", "--name-only", f"{base}..{tip}", cwd=checkout) or "").split() if base else []
     tests, left = touched_tests(checkout, changed)
     for path in left:
-        print(f"push gate: {path} left to the cluster gate")
+        print(f"push gate: {path} needs a GPU, left to a run by hand")
     if tests:
         budget = int(git("config", "score.pushTestSeconds", cwd=checkout) or BUDGET_SECONDS)
         print(f"push gate: {len(tests)} touched module test file(s), budget {budget} s, {JOBS} at once")

@@ -4,8 +4,7 @@ The guard on the test rule (`docs/bible.md` `workflow/module-standard`; owner, 2
 rule had drifted). `check.py` is the way in; `make tests` runs it first and fails on any fault.
 
 - **The time budget is the Makefile's, not the guard's** (owner, 2026-11-07): `make tests` kills a file at
-  `TEST_SECONDS` (60) and prints it as over budget; `SUITE_SECONDS` (600) is the cluster gate's whole-suite limit,
-  read through `make test-budget`.
+  `TEST_SECONDS` (60) and prints it as over budget.
 - **What it refuses**: a module with more than one test file, a test file not named `test_<invariant>.py`, a test file
   whose docstring names no break that turns it red. Its docstring gives the exact reading (what a module is, the flat
   tool folders, the break line).

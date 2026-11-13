@@ -1,7 +1,7 @@
-# The project's commands. No CI runs these here: the whole suite runs on every push to main in the cluster's gate, one
-# pod per module group (`make test-groups`, `make test-group GROUP=<group>`); read its answer with `make gate-result`.
+# The project's commands. No CI runs these: the push gate (.claude/hooks/local/pre-push) runs the touched modules' tests
+# before every push to main, and the whole suite (`make tests`) is run by hand.
 
-.PHONY: paper check env tests test-groups test-group test-budget gate-result
+.PHONY: paper check env tests
 
 # The scaffold's tests are pytest tests; pytest runs the paper's unittest check too.
 PYTEST ?= uv run -q --with pytest pytest
@@ -23,12 +23,9 @@ MEMORY_CAP ?= systemd-run --user --scope -q -p MemoryMax=16G
 # The files run side by side, at most JOBS at once (JOBS=1: one after another), each its own sandbox and memory cap;
 # a file's line prints as it ends, a failure's tail with it in one write.
 JOBS ?= 6
-# The time budgets (docs/bible.md workflow/module-standard), the one place every gate reads them from: one test file at
-# most TEST_SECONDS (owner, 2026-11-07: "we have a one test max of 60 sec"), the whole suite in the cluster's gate, push
-# to verdict, at most SUITE_SECONDS (owner, 2026-11-07: "a max of 10 min for the full suit"). `make test-budget` prints
-# both for the cluster's gate; `make gate-result` marks a verdict that came later than SUITE_SECONDS after its push.
+# The time budget (docs/bible.md workflow/module-standard), the one place every gate reads it from: one test file at
+# most TEST_SECONDS (owner, 2026-11-07: "we have a one test max of 60 sec").
 TEST_SECONDS ?= 60
-SUITE_SECONDS = 600
 
 # One file (its path the first argument), in the shell xargs starts: its line, and its path added to $$FAILED.
 define ONE_TEST
@@ -50,41 +47,6 @@ tests: env
 	printf '%s\n' $(TESTS) | xargs -P $(JOBS) -n 1 sh -c "$$ONE_TEST" one; \
 	failed=$$(paste -sd ' ' $$FAILED); rm -f $$FAILED; \
 	if [ -n "$$failed" ]; then echo "failed: $$failed"; exit 1; fi
-
-# The whole suite as module groups, for the cluster's gate (one pod a group, each pod its group's files side by side):
-# every test file `tests` runs plus the harness's and the paper's, grouped by their module's first two path parts (a
-# `tests/` folder counting as its parent), a group of more than GROUP_FILES files by its first three (score/stages:
-# 66 files on one pod's six cores took nine minutes), and `rule`, the test rule's guard over every module. `make test-groups` prints
-# `<group> <file>` per file and `rule` alone; `make test-group GROUP=<group>` runs that group exactly as `make tests
-# TESTS=<its files>` runs them (the guard over its modules first, each file in its sandbox at TEST_SECONDS).
-ALL_TESTS = $(TESTS) $(shell git ls-files '.claude/*/tests/test_*.py' 'paper/*/test_*.py')
-GROUP_FILES = 12
-GROUP_OF = awk -F/ -v most=$(GROUP_FILES) '{n = NF - 1; if ($$n == "tests") n--; two = $$1; if (n >= 2) two = two "/" $$2; three = two; if (n >= 3) three = two "/" $$3; line[NR] = $$0; short[NR] = two; long[NR] = three; files[two]++} END {for (i = 1; i <= NR; i++) print (files[short[i]] > most ? long[i] : short[i]), line[i]}'
-test-groups:
-	@echo rule; printf '%s\n' $(ALL_TESTS) | $(GROUP_OF)
-
-test-budget:
-	@echo "file $(TEST_SECONDS)"; echo "suite $(SUITE_SECONDS)"
-
-test-group:
-	@if [ "$(GROUP)" = rule ]; then $(MAKE) --no-print-directory env && $(PYTHON) $(CURDIR)/tools/test_rule/check.py; exit $$?; fi; \
-	files=$$(printf '%s\n' $(ALL_TESTS) | $(GROUP_OF) | awk -v group="$(GROUP)" '$$1 == group {print $$2}' | paste -sd ' '); \
-	if [ -z "$$files" ]; then echo "no test group '$(GROUP)' (make test-groups lists them)"; exit 2; fi; \
-	$(MAKE) --no-print-directory tests TESTS="$$files"
-
-# The cluster gate's answer for one commit (SHA, default the newest on main): its commit status `cluster/gate`, the time
-# from its push to main (GitHub's activity record) to that answer, `OVER` when that is more than SUITE_SECONDS, and, when
-# it failed, the failing files' tails it posted on the commit. Needs gh logged in.
-SHA ?= main
-REPO_SLUG = $(shell python3 -c "import json; print(json.load(open('.claude/project.json'))['repo'])")
-gate-result:
-	@sha=$$(gh api repos/$(REPO_SLUG)/commits/$(SHA) --jq .sha) && \
-	answer=$$(gh api repos/$(REPO_SLUG)/commits/$$sha/statuses --jq '[.[] | select(.context == "cluster/gate")][0] // {state: "none", description: "no gate answer yet", created_at: ""} | "\(.created_at)\t\(.state)  \(.description)"') && \
-	pushed=$$(gh api "repos/$(REPO_SLUG)/activity?ref=refs/heads/main&per_page=100" --jq "[.[] | select(.after == \"$$sha\")][0].timestamp // empty") && \
-	took=""; if [ -n "$$pushed" ] && [ -n "$${answer%%	*}" ]; then seconds=$$(( $$(date -d "$${answer%%	*}" +%s) - $$(date -d "$$pushed" +%s) )); \
-	took="  push to verdict $$((seconds / 60))m$$(printf %02d $$((seconds % 60)))s"; [ $$seconds -le $(SUITE_SECONDS) ] || took="$$took OVER the $(SUITE_SECONDS) s suite budget"; fi; \
-	echo "$${sha%????????????????????????????}  $${answer#*	}$$took" && \
-	gh api repos/$(REPO_SLUG)/commits/$$sha/comments --jq '[.[] | select(.body | startswith("cluster/gate"))][-1].body // empty'
 
 # Rebuild the paper's PDF and LaTeX from paper/score/source/score.md (pandoc + xelatex or tectonic).
 paper:

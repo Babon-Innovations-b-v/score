@@ -797,12 +797,10 @@ returns data to its parent.
 
 - One agent per area at a time (the concept code, the plan code, the cockpit pages, the reading each have one owner);
   new work on an owned area waits or goes to that agent.
-- An agent runs its one module's test locally only when it is quick, pushes and stops. The full suite runs in the
-  cluster's gate on every push to main, one pod per module group (`make test-groups`, `make test-group GROUP=<g>`),
-  each file under its `TEST_SECONDS` (60), the whole suite from push to verdict under `SUITE_SECONDS` (600, 10 minutes,
-  cold nodes included; the gate marks a run over it red with its time); read its answer and its push-to-verdict time
-  with `make gate-result` (`SHA=<sha>` for an older commit). It
-  never re-runs whole suites on this PC, never waits on the hosted rebuild or a sync, and never releases.
+- An agent runs its one module's test locally only when it is quick, pushes and stops. The push gate
+  (`.claude/hooks/local/pre-push`) runs the touched modules' tests before every push to main, each file under its
+  `TEST_SECONDS` (60); a full `make tests` on this PC is run by hand (owner, 2026-11-13: the cluster's test gate
+  removed, "you have a very diff test system by now"). It never re-runs whole suites on its own, never waits on the hosted rebuild or a sync, and never releases.
 - Work that repeats per scene (readings, plan writings, fixes, checks) runs one process per scene side by side.
 - Never wait in the foreground: anything that takes minutes runs in the background (root `CLAUDE.md`).
 - An agent ends its turn to wait only on work the harness tracks: a command it started with `run_in_background`, or
@@ -824,16 +822,16 @@ failure and fix cycles of past runs, never from a plan; a date given to the owne
 `Not started`, `In Progress`, `Review`, `Done`), set with `.claude/scripts/board-status.py <issue> "<column>"`; triage
 state is a label (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`).
 
-**Before you push.** The test of the module you touched when it is quick, and `python3 docs/adr/tools/check_index.py`; the cluster's gate runs the whole suite on the push (`make gate-result` reads it). The repo works on
+**Before you push.** The test of the module you touched when it is quick, and `python3 docs/adr/tools/check_index.py`; the push gate runs the touched modules' tests, and the whole suite runs only by hand (`make tests`). The repo works on
 `main` only (ADR-0001), so a push is the ship. A push to main is refused when the test rule or a touched module's
 test fails, or when the pushed commit moves a paid row's key (its code, its stage table part or a file it declares,
 `python -m score.stages.moved <main> HEAD`, about a minute) and no pushed commit's `Moved-rows: <row or node> ...:
 <reason>` trailer names it (`.claude/hooks/local/pre-push`, then `pre-push-moved` while `git config score.movedCheck
 true`, which bootstrap sets). Which paid rows a run would buy again (`python -m score moved`, scratch remakes, minutes)
 is asked before a Buy or a run starts, not at the push (owner, 2026-11-07: "shouldnt the rebuy check just be before a
-buy"). Every gated push costs a gate run, so pushes to main are capped per UTC day over every repository on the box
-(`.claude/hooks/push_cap.py`, run by the shared pre-push; limits in `~/.config/harness/push-cap.json`, for env1's
-window 6 a day to 11-12 and 4 after): past the day's limit a push is refused, so work is batched into fewer pushes.
+buy"). The shared pre-push also caps pushes to main per UTC day over the repositories on the box whose push starts a
+paid gate run (`.claude/hooks/push_cap.py`, limits in `~/.config/harness/push-cap.json`); this repository's push
+starts none since its cloud test gate was removed (2026-11-13), so it is listed there as `uncounted`.
 
 **Commits.** Imperative and scoped, `module: description`; a subject that needs "and" is two commits.
 
@@ -866,13 +864,11 @@ The house standard for a module, so a reader can predict the shape of code they 
   in the flat tool folders (`tools/cloud`, `tools/props`, `tools/review`, `tools/usd`) each tool script is a module and
   a top-level test belongs to the script its docstring names first. Its dated allowlist holds only the modules a sweep
   was still reworking on 2026-10-26, and only shrinks.
-- **A test file runs in at most 60 seconds, the whole suite in at most 10 minutes (hard rule, owner 2026-10-21; 60 s and
-  10 min 2026-11-07: "we have a one test max of 60 sec", "a max of 10 min for the full suit").** A small fixture world
+- **A test file runs in at most 60 seconds (hard rule, owner 2026-10-21; 60 s 2026-11-07: "we have a one test max of 60
+  sec").** A small fixture world
   built once per file, never the real store or home, no machine, no network, no whole-store walk, no sleeps; independent
-  cases side by side, no needless subprocess imports. `make tests` (and so the push gate and the cluster's gate) fails a
-  file at `TEST_SECONDS` (60, in the Makefile, the one constant they all read) with its time; the cluster's gate reads
-  `SUITE_SECONDS` (600) from `make test-budget` and marks a commit whose verdict comes later than that after its push
-  red with its time. Speed never comes from a dropped or loosened check, nor from a second test file or function.
+  cases side by side, no needless subprocess imports. `make tests` (and so the push gate) fails a
+  file at `TEST_SECONDS` (60, in the Makefile, the one constant they all read) with its time. Speed never comes from a dropped or loosened check, nor from a second test file or function.
 - **Failures propagate.** A failure the caller can act on raises a typed error; one nothing can act on crashes loudly.
   Swallowing is neither.
 - **A paid step's failure is a gap**, never a retry (`architecture/failure`). A retry is a mend only on a free step or
