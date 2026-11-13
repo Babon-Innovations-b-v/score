@@ -31,21 +31,23 @@ layer's checks after them: strengths, colours, the eye, the fill):
   every measure was NaN, 2026-10-30).
 - measure.veil: the lower rows read as the upper (the measures' table: the veil rows; proved
   2026-11-13).
-- mix.sweep: return 1.0 always (the sweep test).
-- mix.lamp_faults: never "blown" (the sweep test).
+- mix.sweep: return 1.0 always (the measures' table: the sweep rows).
+- mix.lamp_faults: never "blown" (the measures' table: the sweep rows).
 - layer.strengths: write the strength unscaled (the layer's rows).
 - layer.placed_lamps: `free = {path: (lamps_along.laid_at(stage, path, spot), shaped) ...}` -> `free = {path: (spot,
   shaped) ...}` (the layer's rows: a lamp the assembly carried out of a wall with its floor light put back 5 cm inside
   it; light@walkway's spot-2 at 0.079 against its concept's 0.237, 2026-11-12).
-- layer.place_middle: the stage's bound for an inside place too (the layer's rows: the ceiling lamp in its fixture, 2026-10-30).
-- layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the layer's rows: the
-  lamp closed in a post's head, 2026-10-31: kept, every way out stopped).
+- layer.place_middle: the stage's bound for an inside place too (the layer's rows: the ceiling lamp in its fixture,
+  2026-10-30).
+- layer.lamps_through_fixtures: a lamp with no holder of at most FIXTURE_MOST skipped, the old rule (the layer's rows:
+  the lamp closed in a post's head, 2026-10-31: kept, every way out stopped).
 - light.unlit_why: an inside place lit by a sun alone counted lit (the measures' table: the unlit rows).
 - night.is_night: always true; night.scale_of: inside and outside swapped; night.skyglow_of: `within_km` ignored;
   night.roofed: `>= ROOFED_LEAST` -> `> 0`; night.write_layer: `layer.Save()` dropped;
   night.colour: `dark` ignored; night.body_lux: the radius over the distance not squared (the sky
   test: the night, 2026-11-10).
-- light.fill_wanted: ignore `unseen` (the layer's rows: the fill); no fill beside a sun, the old rule (the layer's rows: the fill, 2026-10-30).
+- light.fill_wanted: ignore `unseen` (the layer's rows: the fill); no fill beside a sun, the old rule (the layer's rows:
+  the fill, 2026-10-30).
 - light.body_faults: drop the "not lit from its sun" fault (the measures' table: the disc rows; proved
   2026-11-13).
 - light.judge_exposure: pass with no concept (the measures' table: the verdict rows).
@@ -58,9 +60,9 @@ layer's checks after them: strengths, colours, the eye, the fill):
 - passes.judge_magenta: the share read times 0 (the measures' table: the magenta rows, 2026-10-30; proved
   2026-11-13).
 - mix.sweep: `most` ignored; mix.own_share: the lamp's light left unscaled (`scales.get(group, 1.0) *` dropped) (the
-  sweep test, 2026-11-04).
+  measures' table: the sweep rows, 2026-11-04).
 - mix.own_share: the share read on the pixels' mixed light (`mixed(passes, scales).sum()`), the light no group holds
-  scaled, or left out (the sweep test, 2026-11-10: tube's denoiser noise read as half its light).
+  scaled, or left out (the measures' table: the sweep rows, 2026-11-10: tube's denoiser noise read as half its light).
 - light.strengths: a lamp-lit place's lamps swept only to the top of mix.SCALES, or a daylit place's to the top of
   mix.LAMP_SCALES (the sun-swept test, 2026-11-10: hangar's lamps stopped at x32).
 - light.strengths: `first` always {} (a lamp-lit place's suns not at the floor), or the suns' sweep without
@@ -81,26 +83,26 @@ layer's checks after them: strengths, colours, the eye, the fill):
 - passes.source: `grounded.take_bakes(...)` dropped, or `record.take_ground(...)` dropped (the laid test, 2026-10-29).
 - passes.device_for: `need > card_gb * 2**30` -> `False` (the measures' table: the card rows, 2026-10-29; proved
   2026-11-13).
-- layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the layer's rows: the fill,
-  2026-10-30).
+- layer.write_fill: the fill's height from anywhere but the record's ceiling, e.g. the stage's bound (the layer's rows:
+  the fill, 2026-10-30).
 - light.strengths: `mix.pinned(scale) or` dropped; light.outside_shell: always False; light.one_spot: every lamp its
   own (the sun-swept test, 2026-10-30).
 - mix.fill_sweep: return 1.0 always, the greatest factor for the least, or the place left unjudged; light.strengths:
   the fill's sweep not applied (the shadow test, 2026-10-30).
 - mix.fill_sweep: from the top of SCALES down, or `exposed` left out; light.exposed_within: never more black (the
-  floor test, 2026-10-30).
+  measures' table: the fill floor rows, 2026-10-30).
 - light.strengths: the suns' step down not applied; mix.sun_down: the suns' own scale returned always, the brightness
   rules left out, or from the floor of SCALES up; light.exposed_within: `kinds` ignored (the sunlit wall test,
   2026-10-31).
 - light.look_at: the look's 8-bit levels scaled for the float colour through the table; mix.displayed: the nearest
-  knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the float look
-  test, 2026-10-30).
+  knot (`order=0`); mix.gain: the ratio unsmoothed; passes.passes_faults: no view transform left unsaid (the
+  measures' table: the float look rows, 2026-10-30).
 - mix.tint: return ones (a lamp's light carries no colour into the mix), or the rest of the light left out;
   light.look_at: `colours` ignored; mix.lamp_light: the paint's own hue always, or the black body for every colour;
   mix.white_fit: the distance read in (x, y) for (u, v); mix.balance: the held class swept too, `most` ignored, or kept
-  with any gain; mix.capped: `caps` ignored (the float look test, 2026-11-10); light.shipped_colours: the record
-  colour's luminance left out, light.colours_written: the colour written unscaled, light.group_colours: `emitters`
-  ignored (the layer's rows, 2026-11-10).
+  with any gain; mix.capped: `caps` ignored (the measures' table: the float look rows, 2026-11-10);
+  light.shipped_colours: the record colour's luminance left out, light.colours_written: the colour written unscaled,
+  light.group_colours: `emitters` ignored (the layer's rows, 2026-11-10).
 - light.strengths: a night light swept as a sun (`path not in night_lights` dropped; the sun-swept test, 2026-11-10);
   mix.adaptation_degree: L_A the lux itself, mix.adaptation: the gains inverted, mix.adapting_white: the light no
   group holds counted, mix.tint: the REST entry ignored, light.shipped_colours: a night light's layer luminance left
@@ -108,16 +110,16 @@ layer's checks after them: strengths, colours, the eye, the fill):
 - light.strengths: the fill not swept again after a blown lamp is turned down (the shadow view test, 2026-11-10).
 - light.room_eye: None always, or for a room its concept shows in daylight an eye too (the layer's rows, 2026-11-10).
 - light.balanced_cast: `room` ignored (the joint scale past the caps); scene_record.writer: SIGNAL_LIGHTS left out of
-  the emitter words (the float look test, 2026-11-10).
+  the emitter words (the measures' table: the float look rows, 2026-11-10).
 - night.air_glow: the rods' share read on the sky's own luminance (`seen_dark(at_zenith)`), not the adapted eye's
   (night.eye_dark); mix.surround_factor: SURROUND always (the sky test's night and the layer's rows,
   2026-11-10: the square's sky too blue).
-- light.look_at: the sky's factor left to the smoothing (the float look test, 2026-11-10: the square's sky lit by its
-  lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test, 2026-11-10: the stairwell);
-  light.airless_sky: the concept's sky as painted on an airless body (the look's sky test, 2026-11-10: hangar);
-  light.on_card: the look as it is (the measures' table: the verdict rows, 2026-11-10: the street's black police car);
-  light_passes.surface_of: the glossy colour left out (the measures' table: the surface reflectance row; proved
-  2026-11-13).
+- light.look_at: the sky's factor left to the smoothing (the measures' table: the float look rows, 2026-11-10: the
+  square's sky lit by its lamps' gain); light.seen_inside: the concept's sky as painted (the look's sky test,
+  2026-11-10: the stairwell); light.airless_sky: the concept's sky as painted on an airless body (the look's sky test,
+  2026-11-10: hangar); light.on_card: the look as it is (the measures' table: the verdict rows, 2026-11-10: the street's
+  black police car); light_passes.surface_of: the glossy colour left out (the measures' table: the surface reflectance
+  row; proved 2026-11-13).
 """
 import json
 import math
@@ -212,6 +214,13 @@ def seed_with_old_sky(folder):
     root.Save()
 
 
+def tone_table(low, high, count):
+    """A view transform known by hand: `count` knots a side from 2^low to 2^high, tone (light / (light + 0.05))^0.6."""
+    axis = 2.0 ** np.linspace(low, high, count)
+    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
+    return {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}
+
+
 def test_light_measured_against_design(tmp_path, monkeypatch):
     """The sky a place is lit by is what overhead.py says at its site and time, written by sky.write (a stage) and
     layer.write (the light layer over a seed), and held to it by the gate. The worlds: the house at its spring
@@ -219,7 +228,8 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     Mars' campgrounds in its dust, the square by night, and a seed whose record drew the old sky. Then the measures
     (measure.py) and the views' passes (passes.py, inside/light_passes.py) are read on pictures and passes made here:
     a bank of floodlight panes, a body's disc, a sky, haze, a point in a view, a missing picture's surface colours, the
-    object index pass, a magenta look and two passes jobs past and within their card. Last the layer (layer.py) on
+    object index pass, a magenta look, two passes jobs past and within their card, the sweep (mix.py) on a lamp's
+    passes, a fill on two views of a sun's shadow and a dark render's float look swept 32 times up. Last the layer (layer.py) on
     seeds made here: where each lamp lands (a row each), then on the first row's layer its strengths, colours and eye,
     a read-only input kept, the concept's fill in the open and inside, and a shown place's pictures kept."""
     seen = {"noon": overhead.seen(HOUSE, HOUSE["sites"][0], NOON),
@@ -537,6 +547,113 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
     stages = str(pathlib.Path(haze.__file__).resolve().parents[1])
     lamp, sun = {"path": "/p/Lights/lamp_1"}, {"path": "/p/Lights/sky_sun", "sun": True}
     fill = {"path": "/p/Lights/concept_fill", "sun": True, "fill": True}
+    # the sweep (mix.py) on passes made here: a lamp lighting the left half of a view over a faint ramp no group
+    # holds, its look made by a tone curve known by hand (toned_look); the lamp at twice its strength is the target
+    ramp_rest = np.tile(np.linspace(0.01, 0.1, 60), (40, 1))
+    half_lamp = np.tile(np.linspace(0.0, 4.0, 40)[:, None], (1, 60))
+    half_lamp[:, 30:] = 0.0
+    lamp_passes = {"combined": ramp_rest + half_lamp, "lamp_0": half_lamp, "lamp_1": np.zeros((40, 60))}
+    lamp_views = {"v": (lamp_passes, mix.tone_curve(lamp_passes["combined"], toned_look(lamp_passes["combined"])))}
+    twice = float(toned_look(ramp_rest + 2.0 * half_lamp).mean())
+    twice_share = float(2.0 * half_lamp.sum() / (lamp_passes["combined"] + half_lamp).sum())
+    # 2026-11-10, tube: the combined light is denoised, the groups are not; their pixels' difference is noise that no
+    # scale turns, which at a sun turned down 32 times read as half the light. On the sums it cancels; the light no
+    # group holds (the ramp) stays at its rendered strength
+    even_sun = np.full((40, 60), 2.0)
+    noise = np.where(np.indices((40, 60)).sum(axis=0) % 2 == 0, 3.0, -3.0)
+    noisy = {"combined": ramp_rest + half_lamp + even_sun, "lamp_0": half_lamp + noise, "lamp_1": even_sun - noise}
+    denoised_truth = float(half_lamp.sum() / (half_lamp.sum() + even_sun.sum() / 32.0 + ramp_rest.sum()))
+    denoised = mix.own_share({"v": (noisy, None)}, {"lamp_0": 1.0, "lamp_1": 1.0 / 32.0}, ["lamp_0"])
+    bright = {"combined": ramp_rest + 50.0 * half_lamp, "lamp_0": 50.0 * half_lamp}
+    glaring = {"v": (bright, mix.tone_curve(bright["combined"], np.minimum(bright["combined"], 1.0)))}
+    turned_scale, turned = mix.turned_down(glaring, {}, ["lamp_0"])
+    # 2026-10-30, light@base: its sun, its only light, swept to 1/32 for the bright views, left the shaded walls 53%
+    # black with every view within x2.5. The fill is raised from the floor of SCALES only as far as the views need,
+    # the exposure gate's rule measured on the looks as the light row makes them (light.exposed_within, look_at); a
+    # fill no view needs stays at the floor. Two views of a grey place (its colour its light) under a sun, the left
+    # 40% of the shade view in its shadow, a faint fill, under a tone curve known by hand
+    floor_transform = tone_table(-24.0, 4.0, 57)
+    floor_job = tmp_path / "floor/p-0"
+    floor_job.mkdir(parents=True)
+    np.savez(floor_job / passes.VIEW_TRANSFORM, **floor_transform)
+    floor_ramp = np.tile(np.linspace(0.2, 1.8, 60), (40, 1))
+    shadow = (np.arange(60) < 24)[None, :]
+    fill_views, fill_looks = {}, {}
+    for name, sunlight in (("lit", 0.2 * floor_ramp), ("shade", np.where(shadow, 0.0, 0.2 * floor_ramp))):
+        faint = 1e-4 * floor_ramp
+        colour = np.repeat((sunlight + faint)[..., None], 3, axis=2)
+        shot = floor_job / f"{name}-look.png"
+        Image.fromarray(np.round(mix.displayed(floor_transform, colour) * 255).astype(np.uint8)).save(shot)
+        held = {"lamp_1": light.halved(sunlight), "lamp_2": light.halved(faint),
+                "combined": light.halved(sunlight + faint), "colour": colour,
+                "sky": np.zeros(sunlight.shape, dtype=bool)}  # colour and sky at full size, as saved
+        fill_views[name] = (held, mix.tone_curve(held["combined"], light.luminance_of(shot)))
+        fill_looks[name] = (held, shot)
+    fill_target, no_black, floor = mix.place_brightness(fill_views, {}), {"black": 0.0, "blown": 0.0}, \
+        float(mix.SCALES[0])
+    raised = mix.fill_sweep(fill_views, "lamp_2", fill_target, {"lamp_2": 1.0},
+                            lambda tried: light.exposed_within(fill_looks, no_black, tried))
+    below_raised = float(mix.SCALES[list(mix.SCALES).index(raised) - 1])
+    # the float look (2026-10-30, #36): the mixed look was the render's 8-bit look times the sweep's ratio, so a dark
+    # render swept 32 times up made every level step of Blender's dither a speck (engineroom 72-114 specks per mille,
+    # greenhouse 45-134). The look is the render's float colour times its mixed light, put through the view
+    # transform's table once, at the end: at scale 1 within a level of the render's own look, at 32 times near the
+    # light rendered so, clean
+    float_dir = tmp_path / "float"
+    float_job = float_dir / "passes/p-0"
+    float_job.mkdir(parents=True)
+    unrendered = passes.passes_faults(float_dir)
+    float_transform = tone_table(-16.0, 4.0, 65)
+    np.savez(float_job / passes.VIEW_TRANSFORM, **float_transform)
+    dim = 2.0 ** np.linspace(-14.0, -9.0, 160)[None, :, None] * np.ones((120, 1, 1)) * np.array([1.0, 0.8, 0.6])
+    dim_shown = mix.displayed(float_transform, dim)
+    rng = np.random.default_rng(3)
+    dim_look = float_job / "v-look.png"  # Blender's look: 8 bits, dithered
+    dithered = np.round(dim_shown * 255 + rng.uniform(-1.0, 1.0, dim_shown.shape))
+    Image.fromarray(dithered.clip(0, 255).astype(np.uint8)).save(dim_look)
+    dim_light = light.halved(dim @ np.array([0.2126, 0.7152, 0.0722]))
+    dim_held = {"combined": dim_light, "lamp_0": dim_light * (1.0 + rng.normal(0.0, 0.05, dim_light.shape)),
+                "colour": dim}
+    rendered_look = np.asarray(Image.open(dim_look), float)
+    light.look_at(dim_held, dim_look, {"lamp_0": 32.0}).save(float_dir / "up.png")
+    swept_up = np.asarray(Image.open(float_dir / "up.png"), float)
+    # a lamp's light carries its colour into the mixed look (2026-11-10: greenhouse's lamps swept 25 times up and its
+    # sun 32 times down kept its sunlit render's colour): two lamps, a warm and a cool, each half the light; the warm
+    # one off, the look is the cool one's colour; in the colours rendered at scale 1 the look is the render's
+    warm_light, cool_light = mix.unit_light([1.0, 0.6, 0.3]), mix.unit_light([0.5, 0.7, 1.0])
+    both = {"lamp_0": (warm_light, warm_light), "lamp_1": (cool_light, cool_light)}
+    halves = {"combined": dim_light, "lamp_0": dim_light / 2, "lamp_1": dim_light / 2, "colour": dim}
+    cool_change = cool_light / ((warm_light + cool_light) / 2)
+    warm_off = mix.tint(halves, {"lamp_0": 0.0}, both, light.luminance_of(dim_look)[:dim_light.shape[0],
+                                                                                      :dim_light.shape[1]])
+    # the sky (where the render met no surface) is light no group holds: a lamp swept 32 times up beside it never
+    # brightens it through the smoothing (2026-11-10: the square's sky x1.24 to x1.58 by its lamps turned up)
+    open_sky = np.zeros(dim.shape[:2], bool)
+    open_sky[:, 80:] = True
+    left_lamp = np.ones_like(dim_light)
+    left_lamp[:, 40:] = 0.0  # the lamp lights the left half only; the sky stands right of it
+    sided = {"combined": dim_light, "lamp_0": dim_light * left_lamp, "colour": dim, "sky": open_sky}
+    sided_swept = np.asarray(light.look_at(sided, dim_look, {"lamp_0": 32.0}), float)
+    sided_rendered = np.asarray(light.look_at(sided, dim_look, {}), float)
+    unmasked = np.asarray(light.look_at({**sided, "sky": np.zeros_like(open_sky)}, dim_look, {"lamp_0": 32.0}), float)
+    # a white lamp painted in its glow's saturated tint throws its black body's light: #ffcc88 is about 3570 K, close
+    # to the locus, and its light has more blue than its paint; a magenta grow light keeps its hue; D65 is near white
+    kelvin, duv = mix.white_fit(np.array(layer.scene.colour("#ffcc88")))
+    # the lamps' balance by colour (2026-11-10, greenhouse's warm panels outshining the magenta grow light its concept
+    # shows brightest): the class giving the most light held, another swept to the cast's least gap, kept only where
+    # it brings the cast BALANCE_GAIN nearer; a screen (a faint emitter) or a sun is never raised past its `most`
+    balanced = mix.balance(["panels", "grow"], "panels", lambda tried: abs(np.log2(tried["grow"]) - 3.0))
+    # the balance's estimate brings its lights back to the swept brightness no further than their caps let the looks
+    # (2026-11-10: greenhouse's estimate read 1.2 levels on its screens brought back past their cap, its looks 32.5):
+    # a cool lamp in a grey room beside light no group holds: brought back x4 it reads bluer, at `room` 1 as it stands
+    room_lamp = np.full((32, 32), 0.05)
+    room_view = (np.full((32, 32, 3), 0.02), float_transform, None, {"lamp_0": room_lamp}, np.full((32, 32, 1), 0.1),
+                 np.full((32, 32, 1), 0.1) + room_lamp[..., None] * cool_light)
+    cool_lamps = {"lamp_0": (cool_light, cool_light)}
+    plain_cast = light.balanced_cast([room_view], cool_lamps, {"lamp_0": 1.0})
+    # a warning light or beacon is a signal, a faint emitter, never a room's lamp (garage's amber bulbs, 2026-11-10)
+    from score.stages.scene_record import writer
+    lamps_library = REPO / "data/library/lamps.json"
     for said, measured, expected in (
             ("a bank of lit panes: its halo", grid["halo"], Between(high=0.02)),
             ("a bank of lit panes: its fill", grid["fill"], Between(high=0.1)),
@@ -633,6 +750,81 @@ def test_light_measured_against_design(tmp_path, monkeypatch):
             ("a kit laying none of the yard's shafted rows", floodlit[2], set()),
             ("score/stages put on sys.path", stages in [str(pathlib.Path(entry).resolve()) for entry in sys.path
                                                         if entry], False),
+            ("the lamp swept to the look of twice its strength, the curve past what was rendered",
+             abs(np.log2(mix.sweep(lamp_views, ["lamp_0"], twice) / 2.0)) <= 0.25, True),
+            ("a sweep of no group", mix.sweep(lamp_views, [], twice), 1.0),
+            ("a sun held at its physical strength", mix.sweep(lamp_views, ["lamp_0"], twice, most=mix.SUN_MOST), 1.0),
+            ("the lamp's own share at twice its strength",
+             abs(mix.own_share(lamp_views, {"lamp_0": 2.0}, ["lamp_0"]) - twice_share) < 1e-9, True),
+            ("the own share of a group not rendered", mix.own_share(lamp_views, {}, ["lamp_2"]), None),
+            ("the own share read on the groups' sums, the denoiser's noise cancelled",
+             abs(denoised - denoised_truth) < 1e-9, True),
+            ("a lamp seen in a view lighting nothing",
+             mix.lamp_faults(mix.lamp_measures(lamp_views, {}, ["lamp_1"]), ["v"]), "unlit"),
+            ("a lamp in no view", mix.lamp_faults(mix.lamp_measures(lamp_views, {}, ["lamp_1"]), []), "unseen"),
+            ("a lamp glaring at 50 times", mix.lamp_faults(mix.lamp_measures(glaring, {}, ["lamp_0"]), ["v"]),
+             "blown"),
+            ("the glaring lamp turned down, no longer blown",
+             (turned_scale < 1.0, mix.lamp_faults(turned, ["v"])), (True, None)),
+            ("the shadow's views within x2.5 with no fill: brightness needs none",
+             mix.views_within(fill_views, {"lamp_2": floor}, fill_target), True),
+            ("the shadow black with the fill at the floor", light.exposed_within(fill_looks, no_black,
+                                                                                 {"lamp_2": floor}), False),
+            ("a fill no view needs: kept at the floor",
+             mix.fill_sweep(fill_views, "lamp_2", fill_target, {"lamp_2": 1.0}), floor),
+            ("the fill raised for the shadow's black, exposed within there",
+             (raised > floor, light.exposed_within(fill_looks, no_black, {"lamp_2": raised})), (True, True)),
+            ("the fill one step under its raise: the least raise",
+             light.exposed_within(fill_looks, no_black, {"lamp_2": below_raised}), False),
+            ("no concept picture: no exposure need", light.exposed_within(fill_looks, None, {"lamp_2": floor}), True),
+            ("a folder with nothing rendered", unrendered, ["no passes rendered", "no look rendered",
+                                                            "no view transform"]),
+            ("the view transform between knots, trilinear in log light",
+             np.abs(dim_shown - (dim / (dim + 0.05)) ** 0.6).max() < 0.001, True),
+            ("the float look at scale 1, within a level of the render's own",
+             np.abs(np.asarray(light.look_at(dim_held, dim_look, {}), float) - rendered_look).max() <= 1, True),
+            ("the float look 32 times up, as if rendered so",
+             np.abs(swept_up - mix.displayed(float_transform, 32.0 * dim) * 255).max() < 6, True),
+            ("the float look 32 times up: clean", grain.specks(float_dir / "up.png") < grain.GRAINY_PER_MILLE, True),
+            ("two lamps' colours at scale 1: the render's look",
+             np.abs(np.asarray(light.look_at(halves, dim_look, {}, both), float) -
+                    np.asarray(light.look_at(halves, dim_look, {}), float)).max() <= 1, True),
+            ("the sky beside a lamp swept 32 times up: as rendered, the lamp's side not",
+             (np.abs(sided_swept - sided_rendered)[:, 80:].max() <= 1,
+              np.abs(sided_swept - sided_rendered)[:, :70].max() > 20), (True, True)),
+            ("the sky with no mask: the smoothing reaches it",
+             np.abs(unmasked - sided_rendered)[:, 80:84].max() > 1, True),
+            ("the warm lamp off: the cool one's colour",
+             np.allclose(warm_off, cool_change / float(mix.LUMA @ cool_change), atol=1e-3), True),
+            ("#ffcc88 fitted near the locus at about 3570 K", (3400 < kelvin < 3700, duv < 0.01), (True, True)),
+            ("a yellow bulb's light bluer than its paint",
+             mix.lamp_light(layer.scene.colour("#ffcc00"))[2] > mix.unit_light(layer.scene.colour("#ffcc00"))[2] + 0.1,
+             True),
+            ("a magenta grow light keeps its hue", np.allclose(mix.lamp_light(layer.scene.colour("#ff55ff")),
+                                                               mix.unit_light(layer.scene.colour("#ff55ff"))), True),
+            ("D65 near white", np.allclose(mix.black_body(6504.0) / mix.black_body(6504.0).max(), 1.0, atol=0.07),
+             True),
+            ("the grow light swept to the cast's least gap, held class at 1", balanced,
+             ({"panels": 1.0, "grow": 8.0}, 3.0, 0.0)),
+            ("a balance bringing the cast too little nearer: not kept",
+             mix.balance(["panels", "grow"], "panels", lambda tried: 0.5 * abs(np.log2(tried["grow"]) - 1.0))[0],
+             {"panels": 1.0, "grow": 1.0}),
+            ("a screen swept with the lamps: never past its own share",
+             mix.capped(["panels", "screen"], 8.0, {"panels": 0.5}, {"screen": 1.0}), {"panels": 4.0, "screen": 1.0}),
+            ("a screen never raised past its most",
+             mix.balance(["panels", "screen"], "panels", lambda tried: abs(np.log2(tried["screen"]) - 3.0),
+                         {"screen": 1.0})[0], {"panels": 1.0, "screen": 1.0}),
+            ("a cool lamp's cast brought back: as it stands at room 1, bluer past it",
+             (plain_cast is not None,
+              light.balanced_cast([room_view], cool_lamps, {"lamp_0": 1.0}, keep=204.8, room=1.0) == plain_cast,
+              light.balanced_cast([room_view], cool_lamps, {"lamp_0": 1.0}, keep=204.8)[2] > plain_cast[2] + 3.0),
+             (True, True, True)),
+            ("a warning light: a faint emitter",
+             writer.glow_share({"id": "warning_light", "noun": "light"}, {"glowing": "bulb"}, lamps_library)[1],
+             "emitter"),
+            ("a ceiling lamp: a source",
+             writer.glow_share({"id": "ceiling_lamp", "noun": "lamp"}, {"glowing": "bulb"}, lamps_library)[1],
+             "source"),
             ("the places an accepted record shows, then none accepted", shown, [["wreck"], []])):
         assert expected == measured, (said, measured)
     with pytest.raises(ValueError, match="'spot-1' looks along its own up"):
@@ -1105,38 +1297,6 @@ def toned_look(light_in):
     return light_in / (1.0 + light_in)
 
 
-def test_the_sweep_finds_the_lamps_scale_turns_a_blown_lamp_down_and_names_an_unlit_one():
-    rest = np.tile(np.linspace(0.01, 0.1, 60), (40, 1))
-    lamp = np.tile(np.linspace(0.0, 4.0, 40)[:, None], (1, 60))
-    lamp[:, 30:] = 0.0
-    views_passes = {"combined": rest + lamp, "lamp_0": lamp, "lamp_1": np.zeros((40, 60))}
-    views = {"v": (views_passes, mix.tone_curve(views_passes["combined"], toned_look(views_passes["combined"])))}
-    target = float(toned_look(rest + 2.0 * lamp).mean())
-    assert abs(np.log2(mix.sweep(views, ["lamp_0"], target) / 2.0)) <= 0.25  # the curve past what was rendered
-    assert mix.sweep(views, [], target) == 1.0
-    assert mix.sweep(views, ["lamp_0"], target, most=mix.SUN_MOST) == 1.0  # a sun held at its physical strength
-    share = float(2.0 * lamp.sum() / (views_passes["combined"] + lamp).sum())  # the lamp at twice its strength
-    assert abs(mix.own_share(views, {"lamp_0": 2.0}, ["lamp_0"]) - share) < 1e-9, share
-    assert mix.own_share(views, {}, ["lamp_2"]) is None
-    # 2026-11-10, tube: the combined light is denoised, the groups are not; their pixels' difference is noise that no
-    # scale turns, which at a sun turned down 32 times read as half the light. On the sums it cancels; the light no
-    # group holds (here `rest`) stays at its rendered strength.
-    sun = np.full((40, 60), 2.0)
-    noise = np.where(np.indices((40, 60)).sum(axis=0) % 2 == 0, 3.0, -3.0)
-    noisy = {"combined": rest + lamp + sun, "lamp_0": lamp + noise, "lamp_1": sun - noise}
-    floor = {"lamp_0": 1.0, "lamp_1": 1.0 / 32.0}
-    truth = float(lamp.sum() / (lamp.sum() + sun.sum() / 32.0 + rest.sum()))
-    found = mix.own_share({"v": (noisy, None)}, floor, ["lamp_0"])
-    assert abs(found - truth) < 1e-9, (found, truth)
-    assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), ["v"]) == "unlit"
-    assert mix.lamp_faults(mix.lamp_measures(views, {}, ["lamp_1"]), []) == "unseen"
-    bright = {"combined": rest + 50.0 * lamp, "lamp_0": 50.0 * lamp}
-    glaring = {"v": (bright, mix.tone_curve(bright["combined"], np.minimum(bright["combined"], 1.0)))}
-    assert mix.lamp_faults(mix.lamp_measures(glaring, {}, ["lamp_0"]), ["v"]) == "blown"
-    scale, measures = mix.turned_down(glaring, {}, ["lamp_0"])
-    assert scale < 1.0 and mix.lamp_faults(measures, ["v"]) is None, (scale, measures)
-
-
 def test_the_sun_is_swept_when_the_lamps_stop_at_their_floor_and_lamps_at_one_spot_or_outside_are_judged_so(
         tmp_path, monkeypatch):
     """Faults of 2026-10-30 (#36): airlock's lamps stopped at the sweep's floor while the sun (and fill) carried it
@@ -1278,43 +1438,6 @@ def test_a_view_in_the_suns_shadow_is_lit_by_the_fill_alone_raised_the_least_tha
     assert mix.views_within(views, scales, target) and mix.within(views, scales, target), found["after"]
 
 
-def test_a_fill_the_views_do_not_need_stays_at_the_floor_and_rises_only_as_far_as_their_black_needs(tmp_path):
-    """Fault of 2026-10-30 (#36, light@base): the sun, its only light, swept to 1/32 for the bright views, left the
-    shaded walls 53% black with every view within x2.5. The fill, wherever the concept shows unseen light, is raised
-    from the floor of SCALES only as far as the views need, the exposure gate's rule in that need measured on the looks
-    as the light row makes them (light.exposed_within, look_at); a fill no view needs adds no light: it stays at the
-    floor."""
-    low, high = -24.0, 4.0
-    axis = 2.0 ** np.linspace(low, high, 57)
-    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
-    transform = {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}  # a tone curve known by hand
-    job = tmp_path / "p-0"
-    job.mkdir()
-    np.savez(job / passes.VIEW_TRANSFORM, **transform)
-    ramp = np.tile(np.linspace(0.2, 1.8, 60), (40, 1))
-    shadow = (np.arange(60) < 24)[None, :]  # the left 40% of the shade view: the sun's shadow
-    views, looks = {}, {}
-    for name, sun in (("lit", 0.2 * ramp), ("shade", np.where(shadow, 0.0, 0.2 * ramp))):
-        fill = 1e-4 * ramp
-        colour = np.repeat((sun + fill)[..., None], 3, axis=2)  # a grey place: its colour is its light
-        look = job / f"{name}-look.png"
-        Image.fromarray(np.round(mix.displayed(transform, colour) * 255).astype(np.uint8)).save(look)
-        held = {"lamp_1": light.halved(sun), "lamp_2": light.halved(fill), "combined": light.halved(sun + fill),
-                "colour": colour, "sky": np.zeros(sun.shape, dtype=bool)}  # colour and sky at full size, as saved
-        views[name] = (held, mix.tone_curve(held["combined"], light.luminance_of(look)))
-        looks[name] = (held, look)
-    target, concept, floor = mix.place_brightness(views, {}), {"black": 0.0, "blown": 0.0}, float(mix.SCALES[0])
-    assert mix.views_within(views, {"lamp_2": floor}, target)  # within x2.5 with no fill: brightness needs none
-    assert not light.exposed_within(looks, concept, {"lamp_2": floor})  # but the shadow is black
-    assert mix.fill_sweep(views, "lamp_2", target, {"lamp_2": 1.0}) == floor  # no other need: kept at the floor
-    raised = mix.fill_sweep(views, "lamp_2", target, {"lamp_2": 1.0},
-                            lambda tried: light.exposed_within(looks, concept, tried))
-    lower = float(mix.SCALES[list(mix.SCALES).index(raised) - 1])
-    assert raised > floor and light.exposed_within(looks, concept, {"lamp_2": raised})
-    assert not light.exposed_within(looks, concept, {"lamp_2": lower})  # the least raise
-    assert light.exposed_within(looks, None, {"lamp_2": floor})  # no concept picture: no exposure need
-
-
 def test_a_sun_blowing_out_the_wall_it_lights_is_stepped_down_only_as_far_as_the_views_need_and_the_fill_after(
         tmp_path, monkeypatch):
     """Fault of 2026-10-31 (#36, round 33): camp's sunlit shell read 2.2-4.3% blown in seven views against its concept's
@@ -1361,94 +1484,6 @@ def test_a_sun_blowing_out_the_wall_it_lights_is_stepped_down_only_as_far_as_the
                         lambda tried: light.exposed_within(looks, concept, tried, ("blown",))) == 1.0  # too dark: kept
     monkeypatch.setattr(light, "concept_extremes", lambda place: None)
     assert light.strengths("p", tmp_path / "passes", lamps, tmp_path / "layer", {"inside": False})[0]["lamp_0"] == 1.0
-
-
-def test_a_dark_view_swept_32_times_up_is_its_float_light_through_the_view_transform_not_its_8_bit_look_scaled(
-        tmp_path):
-    """Fault (2026-10-30, #36): the mixed look was the render's 8-bit look times the sweep's ratio, so a dark render
-    swept 32 times up made every level step of Blender's dither a speck (engineroom 72-114 specks per mille, greenhouse
-    45-134). The look is the render's float colour times its mixed light, put through the view transform's table once,
-    at the end: at scale 1 within a level of the render's own look, at 32 times near the light rendered so, clean."""
-    low, high = -16.0, 4.0
-    axis = 2.0 ** np.linspace(low, high, 65)
-    knots = np.stack(np.meshgrid(axis, axis, axis, indexing="ij"), axis=-1)
-    transform = {"table": (knots / (knots + 0.05)) ** 0.6, "low": low, "high": high}  # a tone curve known by hand
-    job = tmp_path / "passes/p-0"
-    job.mkdir(parents=True)
-    assert passes.passes_faults(tmp_path) == ["no passes rendered", "no look rendered", "no view transform"]
-    np.savez(job / passes.VIEW_TRANSFORM, **transform)
-    colour = 2.0 ** np.linspace(-14.0, -9.0, 160)[None, :, None] * np.ones((120, 1, 1)) * np.array([1.0, 0.8, 0.6])
-    shown = mix.displayed(transform, colour)
-    assert np.abs(shown - (colour / (colour + 0.05)) ** 0.6).max() < 0.001  # between knots, trilinear in log light
-    rng = np.random.default_rng(3)
-    look = job / "v-look.png"  # Blender's look: 8 bits, dithered
-    dithered = np.round(shown * 255 + rng.uniform(-1.0, 1.0, shown.shape))
-    Image.fromarray(dithered.clip(0, 255).astype(np.uint8)).save(look)
-    combined = light.halved(colour @ np.array([0.2126, 0.7152, 0.0722]))
-    held = {"combined": combined, "lamp_0": combined * (1.0 + rng.normal(0.0, 0.05, combined.shape)), "colour": colour}
-    assert np.abs(np.asarray(light.look_at(held, look, {}), float) - np.asarray(Image.open(look), float)).max() <= 1
-    light.look_at(held, look, {"lamp_0": 32.0}).save(tmp_path / "up.png")
-    up = np.asarray(Image.open(tmp_path / "up.png"), float)
-    assert np.abs(up - mix.displayed(transform, 32.0 * colour) * 255).max() < 6  # as if rendered 32 times as bright
-    assert grain.specks(tmp_path / "up.png") < grain.GRAINY_PER_MILLE
-    # a lamp's light carries its colour into the mixed look (2026-11-10: greenhouse's lamps swept 25 times up and its
-    # sun 32 times down kept its sunlit render's colour): two lamps, a warm and a cool, each half the light; the warm
-    # one off, the look is the cool one's colour; in the colours rendered at scale 1 the look is the render's
-    warm, cool = mix.unit_light([1.0, 0.6, 0.3]), mix.unit_light([0.5, 0.7, 1.0])
-    both = {"lamp_0": (warm, warm), "lamp_1": (cool, cool)}
-    halves = {"combined": combined, "lamp_0": combined / 2, "lamp_1": combined / 2, "colour": colour}
-    assert np.abs(np.asarray(light.look_at(halves, look, {}, both), float) -
-                  np.asarray(light.look_at(halves, look, {}), float)).max() <= 1
-    # the sky (where the render met no surface) is light no group holds: a lamp swept 32 times up beside it never
-    # brightens it through the smoothing (2026-11-10: the square's sky x1.24 to x1.58 by its lamps turned up)
-    open_sky = np.zeros(colour.shape[:2], bool)
-    open_sky[:, 80:] = True
-    lamp = np.ones_like(combined)
-    lamp[:, 40:] = 0.0  # the lamp lights the left half only; the sky stands right of it
-    sided = {"combined": combined, "lamp_0": combined * lamp, "colour": colour, "sky": open_sky}
-    swept = np.asarray(light.look_at(sided, look, {"lamp_0": 32.0}), float)
-    rendered = np.asarray(light.look_at(sided, look, {}), float)
-    assert np.abs(swept - rendered)[:, 80:].max() <= 1 and np.abs(swept - rendered)[:, :70].max() > 20
-    unmasked = np.asarray(light.look_at({**sided, "sky": np.zeros_like(open_sky)}, look, {"lamp_0": 32.0}), float)
-    assert np.abs(unmasked - rendered)[:, 80:84].max() > 1  # without the mask the smoothing reaches it
-    change = mix.tint(halves, {"lamp_0": 0.0}, both, light.luminance_of(look)[:combined.shape[0], :combined.shape[1]])
-    assert np.allclose(change, cool / ((warm + cool) / 2) / float(mix.LUMA @ (cool / ((warm + cool) / 2))), atol=1e-3)
-    # a white lamp painted in its glow's saturated tint throws its black body's light: #ffcc88 is about 3570 K, close
-    # to the locus, and its light has more blue than its paint; a magenta grow light keeps its hue; D65 is near white
-    painted = np.array(layer.scene.colour("#ffcc88"))
-    kelvin, duv = mix.white_fit(painted)
-    assert 3400 < kelvin < 3700 and duv < 0.01
-    assert mix.lamp_light(layer.scene.colour("#ffcc00"))[2] > mix.unit_light(layer.scene.colour("#ffcc00"))[2] + 0.1
-    assert np.allclose(mix.lamp_light(layer.scene.colour("#ff55ff")), mix.unit_light(layer.scene.colour("#ff55ff")))
-    assert np.allclose(mix.black_body(6504.0) / mix.black_body(6504.0).max(), 1.0, atol=0.07)
-    # the lamps' balance by colour (2026-11-10, greenhouse's warm panels outshining the magenta grow light its concept
-    # shows brightest): the class giving the most light held, another swept to the cast's least gap, kept only where
-    # it brings the cast BALANCE_GAIN nearer
-    chosen, before, after = mix.balance(["panels", "grow"], "panels", lambda found: abs(np.log2(found["grow"]) - 3.0))
-    assert chosen == {"panels": 1.0, "grow": 8.0} and before == 3.0 and after == 0.0
-    assert mix.balance(["panels", "grow"], "panels", lambda found: 0.5 * abs(np.log2(found["grow"]) - 1.0))[0] == \
-        {"panels": 1.0, "grow": 1.0}
-    # a screen swept with the lamps never passes its own share (camp, 2026-11-10: its screens at x32 lit it cool)
-    assert mix.capped(["panels", "screen"], 8.0, {"panels": 0.5}, {"screen": 1.0}) == {"panels": 4.0, "screen": 1.0}
-    # a screen (a faint emitter) or a sun is never raised past its `most`
-    assert mix.balance(["panels", "screen"], "panels", lambda found: abs(np.log2(found["screen"]) - 3.0),
-                       {"screen": 1.0})[0] == {"panels": 1.0, "screen": 1.0}
-    # the balance's estimate brings its lights back to the swept brightness no further than their caps let the looks
-    # (2026-11-10: greenhouse's estimate read 1.2 levels on its screens brought back past their cap, its looks 32.5):
-    # a cool lamp in a grey room beside light no group holds: brought back x4 it reads bluer, at `room` 1 as it stands
-    grey = np.full((32, 32, 3), 0.02)
-    lamp = np.full((32, 32), 0.05)
-    view = (grey, transform, None, {"lamp_0": lamp}, np.full((32, 32, 1), 0.1),
-            np.full((32, 32, 1), 0.1) + lamp[..., None] * cool)
-    lamps = {"lamp_0": (cool, cool)}
-    plain = light.balanced_cast([view], lamps, {"lamp_0": 1.0})
-    assert plain is not None and light.balanced_cast([view], lamps, {"lamp_0": 1.0}, keep=204.8, room=1.0) == plain
-    assert light.balanced_cast([view], lamps, {"lamp_0": 1.0}, keep=204.8)[2] > plain[2] + 3.0
-    # a warning light or beacon is a signal, a faint emitter, never a room's lamp (garage's amber bulbs, 2026-11-10)
-    from score.stages.scene_record import writer
-    library = pathlib.Path(__file__).resolve().parents[3] / "data/library/lamps.json"
-    assert writer.glow_share({"id": "warning_light", "noun": "light"}, {"glowing": "bulb"}, library)[1] == "emitter"
-    assert writer.glow_share({"id": "ceiling_lamp", "noun": "lamp"}, {"glowing": "bulb"}, library)[1] == "source"
 
 
 def test_the_stage_lit_lays_the_bakes_models_and_the_made_ground(tmp_path, monkeypatch):
