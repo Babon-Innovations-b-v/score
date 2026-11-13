@@ -142,7 +142,7 @@ each look baked at its person row's size and drawn from the person that maps it;
 only while its concept stands; a row wears the fabric its words name nearest its measured torso.
 
 Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
-- `look_of`: the pose and colour words kept in the look's name  -> the grouping test.
+- `look_of`: the pose and colour words kept in the look's name  -> the JUDGED look rows (seated astronaut).
 - `crowd_ground`: every plan item taken, not only the row's  -> the crowd ground test (the bench is crowd ground).
 - `persons`: every person given variant 0  -> the cast test ("each its own variant").
 - `placed_spots`: a spot's two plan coordinates swapped  -> the cast test (the spot (1, 1) of a 20 x 10 plan
@@ -176,7 +176,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
 - score/stages/people_clothes.py `fabrics_of`: `if not lab_of:` -> `if False:` (an empty library answers {})  ->
   test_a_row_wears_the_fabric_its_words_name_nearest_its_torso.
 - `worn_by`: `IMPLIED.get(who, ())` -> `()` (astronaut_suit-made), or `wearers = []` (person_spacesuit-made)  ->
-  test_people_rows_are_grouped_into_looks_by_what_they_are_and_wear.
+  the JUDGED look rows (astronaut in spacesuit, person in spacesuit).
 
 --- a ground follows its words then its physics ---
 
@@ -187,12 +187,12 @@ pressure and its zero-albedo temperature, T = T_star sqrt(R_star / 2d): at 1 AU 
 226 K (no liquid at 0.6 kPa, under the triple point's 273 K, but an air over WIND_KPA).
 
 Breaks (each applied once, seen red, reverted), in score/stages/natural_grounds.py:
-- `warmth_k`: `2.0 * child["distance_km"]` read as `child["distance_km"]`  -> the physics test (the hot world, 880 K,
-  is still rock, but the wet one at 393 K boils to rock).
-- `of_body`: `kelvin <= boils` read as `kelvin <= WATER_TRIPLE_K`  -> the physics test (the wet world reads rock).
-- `of_body`: the `kelvin < ICE_K` rule dropped  -> the physics test (the frozen world reads regolith).
-- `of_row`: the MADE words not read  -> the words test (the plaza takes its body's sand).
-- `pressure_kpa`: the reference table not read  -> the words test (the table's airless body has no pressure).
+- `warmth_k`: `2.0 * child["distance_km"]` read as `child["distance_km"]`  -> the JUDGED ground rows (the hot world,
+  880 K, is still rock, but the wet one at 393 K boils to rock).
+- `of_body`: `kelvin <= boils` read as `kelvin <= WATER_TRIPLE_K`  -> the ground: wet row (it reads rock).
+- `of_body`: the `kelvin < ICE_K` rule dropped  -> the ground: frozen row (it reads regolith).
+- `of_row`: the MADE words not read  -> the ground: plaza row (it takes its body's sand).
+- `pressure_kpa`: the reference table not read  -> the ground: the table's pressure row (no pressure).
 
 --- a copy of a read only seed takes a save ---
 
@@ -1279,67 +1279,135 @@ SCENE = {"rows": [row("planter", "planter") | {"count": 11}, row("greens", "plan
 EMPTY_PLANTS = {"rows": 0, "objects": 0, "crops": 0, "beds": 0}
 ONE_PLANT = {"rows": 1, "objects": 1, "crops": 0, "beds": 0}
 
-# (case, judge, what it reads, the kind rules, its answer): a row's kind, a scene's layers, its plants and the rows
-# picked by what their kind does, each read off the words and design alone
+STAR = {"body": "star", "name": "Star", "kelvin": 5772.0, "radius_km": 695700.0}
+AU = 149597870.7
+
+
+def world(name, kpa, distance_km, around="star"):
+    return {"body": name, "name": name.title(), "around": around, "distance_km": distance_km,
+            "surface_pressure_kpa": kpa}
+
+
+def person(name, row_id="row"):
+    """A people row of the deck as a design names it."""
+    return {"id": row_id, "name": name, "noun": "person"}
+
+
+# made-up worlds round a 5772 K star (the module docstring works out their zero-albedo temperatures by hand)
+WET, HOT = world("wet", 101.3, AU), world("hot", 101.3, 0.2 * AU)
+FROZEN, WINDY = world("frozen", 0.0, 5.2 * AU), world("windy", 0.6, 1.52 * AU)
+AIRLESS = world("airless", 0.0, 384400.0, around="wet")  # a moon: its planet's distance from the star
+BODIES = [STAR, WET, HOT, FROZEN, WINDY, AIRLESS]
+UNPRESSED = {"body": "x", "name": "X", "around": "star", "distance_km": AU}
+
+# (case, judge, what it reads, its answer): a row's kind, a scene's layers, its plants, the rows picked by what their
+# kind does, a person's look and a natural ground, each read off the words and design (and a ground's physics) alone;
+# HOUSE among what it reads stands for the house rules
 JUDGED = [
     # the noun decides before the name; with no noun the name's last word; a two-word noun is matched whole
-    ("door panel is a panel", row_kinds.kind_of, ({"id": "door_panel", "name": "door panel", "noun": "panel"},), RULES,
+    ("door panel is a panel", row_kinds.kind_of, ({"id": "door_panel", "name": "door panel", "noun": "panel"}, RULES),
      None),
-    ("airlock door", row_kinds.kind_of, (named("airlock door", "door"),), RULES, "door"),
-    ("gas cylinder by its name", row_kinds.kind_of, ({"id": "gas_cylinder", "name": "gas cylinder"},), RULES, "loose"),
-    ("round hatch by its id", row_kinds.kind_of, ({"id": "round_hatch"},), RULES, "door"),
-    ("floor plate is no plate", row_kinds.kind_of, (named("floor plate", "floor plate"),), PLATES, None),
+    ("airlock door", row_kinds.kind_of, (named("airlock door", "door"), RULES), "door"),
+    ("gas cylinder by its name", row_kinds.kind_of, ({"id": "gas_cylinder", "name": "gas cylinder"}, RULES), "loose"),
+    ("round hatch by its id", row_kinds.kind_of, ({"id": "round_hatch"}, RULES), "door"),
+    ("floor plate is no plate", row_kinds.kind_of, (named("floor plate", "floor plate"), PLATES), None),
     # an opening is a hole that does nothing of its noun; a door read as structure still swings
-    ("opening is no door", row_kinds.kind_of, (HOLE,), RULES, None),
-    ("structure door swings", row_kinds.kind_of, (SWING,), RULES, "door"),
-    ("opening moves nothing", row_kinds.rows_that, ({"rows": [HOLE]}, "moves"), RULES, []),
-    ("opening gives no motion", design_layers.kinds_of, ({"rows": [HOLE]},), RULES, {"light", "sound"}),
-    ("structure door gives motion", design_layers.kinds_of, ({"rows": [SWING]},), RULES, {"motion", "light", "sound"}),
+    ("opening is no door", row_kinds.kind_of, (HOLE, RULES), None),
+    ("structure door swings", row_kinds.kind_of, (SWING, RULES), "door"),
+    ("opening moves nothing", row_kinds.rows_that, ({"rows": [HOLE]}, "moves", RULES), []),
+    ("opening gives no motion", design_layers.kinds_of, ({"rows": [HOLE]}, RULES), {"light", "sound"}),
+    ("structure door gives motion", design_layers.kinds_of, ({"rows": [SWING]}, RULES), {"motion", "light", "sound"}),
     # a lamp read as what holds it is still a lamp; a switch and a fence post are none
-    ("floodlight tower", row_kinds.kind_of, (named("floodlight tower", "tower"),), LAMPS, "lamp"),
-    ("grow light frame", row_kinds.kind_of, ({"id": "grow_light_frame", "noun": "frame"},), LAMPS, "lamp"),
-    ("light switch", row_kinds.kind_of, (named("light switch", "switch"),), LAMPS, None),
-    ("fence post", row_kinds.kind_of, (named("fence post", "post"),), LAMPS, None),
+    ("floodlight tower", row_kinds.kind_of, (named("floodlight tower", "tower"), LAMPS), "lamp"),
+    ("grow light frame", row_kinds.kind_of, ({"id": "grow_light_frame", "noun": "frame"}, LAMPS), "lamp"),
+    ("light switch", row_kinds.kind_of, (named("light switch", "switch"), LAMPS), None),
+    ("fence post", row_kinds.kind_of, (named("fence post", "post"), LAMPS), None),
     # a scene's rows are picked by what their kind does, and a kind can do more than one thing
-    ("loose rows", row_kinds.rows_that, (INVENTORY, "loose"), RULES,
+    ("loose rows", row_kinds.rows_that, (INVENTORY, "loose", RULES),
      [{"id": "kettle", "noun": "kettle", "row_kind": "kettle"}, {"id": "stool", "noun": "chair", "row_kind": "loose"}]),
-    ("emitting rows", row_kinds.rows_that, (INVENTORY, "emits"), RULES,
+    ("emitting rows", row_kinds.rows_that, (INVENTORY, "emits", RULES),
      [{"id": "kettle", "noun": "kettle", "row_kind": "kettle"}]),
-    ("moving rows", row_kinds.rows_that, (INVENTORY, "moves"), RULES,
+    ("moving rows", row_kinds.rows_that, (INVENTORY, "moves", RULES),
      [{"id": "front_door", "noun": "door", "row_kind": "door"}]),
     # the house rules read real words
-    *[(f"house: {name}", row_kinds.kind_of, (named(name, noun),), HOUSE, kind) for name, noun, kind in (
+    *[(f"house: {name}", row_kinds.kind_of, (named(name, noun), HOUSE), kind) for name, noun, kind in (
         ("stove", "stove", "cooker"), ("table lamp", "lamp", "lamp"), ("tracked rover", "rover", "vehicle"),
         ("ceiling light", "light", "lamp"), ("dining chair", "chair", "loose"), ("tv", "tv", "screen"),
         ("laptop", "laptop", "computer"), ("planter bed", "planter", "plant"), ("hatch", "hatch", "door"),
         ("door mat", "mat", None), ("outer wall", "wall", None))],
     # each row shows the layer its kind does: a kettle emits and is loose, a rover and a door built as code move, a
     # crowd acts, and a bare room still has its light and sound
-    ("kettle", design_layers.kinds_of, ({"rows": [row("kettle", "kettle")]},), KINDS,
+    ("kettle", design_layers.kinds_of, ({"rows": [row("kettle", "kettle")]}, KINDS),
      {"effects", "physics", "light", "sound"}),
-    ("rover", design_layers.kinds_of, ({"rows": [row("rover", "rover")]},), KINDS, {"motion", "light", "sound"}),
-    ("code door", design_layers.kinds_of, ({"rows": [row("door", "door", kind="code")]},), KINDS,
+    ("rover", design_layers.kinds_of, ({"rows": [row("rover", "rover")]}, KINDS), {"motion", "light", "sound"}),
+    ("code door", design_layers.kinds_of, ({"rows": [row("door", "door", kind="code")]}, KINDS),
      {"motion", "light", "sound"}),
-    ("crowd", design_layers.kinds_of, ({"rows": [row("crowd", "crowd")]},), KINDS, {"people", "light", "sound"}),
-    ("bare room", design_layers.kinds_of, ({"rows": [row("wall", "wall", kind="code")]},), KINDS, {"light", "sound"}),
+    ("crowd", design_layers.kinds_of, ({"rows": [row("crowd", "crowd")]}, KINDS), {"people", "light", "sound"}),
+    ("bare room", design_layers.kinds_of, ({"rows": [row("wall", "wall", kind="code")]}, KINDS), {"light", "sound"}),
     # crops are plants on a raised planter (a row that grows itself), on a rack, or on a bed by its noun; a potted
     # plant on the floor or on a desk is not
     ("plants on a planter", design_layers.kinds_of,
-     ({"rows": [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]},), KINDS,
+     ({"rows": [row("planter", "planter"), row("greens", "plants", anchor="on:planter")]}, KINDS),
      {"crops", "light", "sound"}),
     ("plants on a rack", design_layers.kinds_of,
-     ({"rows": [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]},), KINDS, {"crops", "light", "sound"}),
+     ({"rows": [row("rack", "rack"), row("greens", "plants", anchor="on:rack")]}, KINDS), {"crops", "light", "sound"}),
     ("plants on a bed", design_layers.kinds_of,
-     ({"rows": [row("bed", "bed", kind="code"), row("greens", "plants", anchor="on:bed")]},), KINDS,
+     ({"rows": [row("bed", "bed", kind="code"), row("greens", "plants", anchor="on:bed")]}, KINDS),
      {"crops", "light", "sound"}),
     ("potted plants", design_layers.kinds_of,
-     ({"rows": [row("desk", "desk"), row("pot", "plant", anchor="on:desk"), row("fern", "plant")]},), KINDS,
+     ({"rows": [row("desk", "desk"), row("pot", "plant", anchor="on:desk"), row("fern", "plant")]}, KINDS),
      {"light", "sound"}),
     # plants are every growing row, and the planter under crops is their bed
-    ("plants and beds", design_layers.plants_of, (SCENE,), KINDS, {"rows": 2, "objects": 7, "crops": 1, "beds": 11}),
-    ("no plants", design_layers.plants_of, ({"rows": [row("desk", "desk")]},), KINDS, EMPTY_PLANTS),
-    *[(f"house plant: {noun}", design_layers.plants_of, ({"rows": [row("green", noun)]},), HOUSE, ONE_PLANT)
+    ("plants and beds", design_layers.plants_of, (SCENE, KINDS), {"rows": 2, "objects": 7, "crops": 1, "beds": 11}),
+    ("no plants", design_layers.plants_of, ({"rows": [row("desk", "desk")]}, KINDS), EMPTY_PLANTS),
+    *[(f"house plant: {noun}", design_layers.plants_of, ({"rows": [row("green", noun)]}, HOUSE), ONE_PLANT)
       for noun in ("tree", "palm", "shrub", "bush", "moss", "fern", "flower")],
+    # one body a look (owner, 2026-10-22): a row's words before where it stands or what it holds, its pose and colour
+    # words left out (its clip and its dress vary it); a garment its who wears, or that says who wears it, is no look
+    *[(f"look: {name}", people_rows.look_of, ("deck", person(name), False), look) for name, look in (
+        ("seated astronaut", "astronaut-made"), ("astronaut standing", "astronaut-made"),
+        ("astronauts", "astronaut-made"), ("astronaut in white suit", "astronaut-made"),
+        ("astronaut in spacesuit", "astronaut-made"), ("person in spacesuit", "astronaut-made"),
+        ("person sitting at a table", "person-made"), ("people on walkway", "person-made"),
+        ("person holding an umbrella", "person-made"), ("person", "person-made"),
+        ("worker in blue jumpsuit", "worker_jumpsuit-made"), ("worker in grey jumpsuit", "worker_jumpsuit-made"),
+        ("person in uniform", "person_uniform-made"))],
+    # a crowd's look by who it is; a named person or the player is a look of its own
+    ("look: crowd of people", people_rows.look_of, ("deck", person("crowd of people"), True), "crowd-made"),
+    ("look: crowd of aliens", people_rows.look_of, ("deck", person("crowd of aliens"), True), "alien-made"),
+    ("look: the player", people_rows.look_of, ("deck", person("the player in a work suit", "hero"), False),
+     "deck_hero-made"),
+    ("look: Nev", people_rows.look_of, ("deck", person("Nev at the console", "hero"), False), "deck_hero-made"),
+    # a body's ground by its physics against water's phases, never its name
+    ("ground: wet", natural_grounds.of_body, (WET, BODIES, {}),
+     ("ocean", "Wet: 101 kPa, 278 K at zero albedo: liquid water stands (boiling at 373 K there)")),
+    ("ground: hot", natural_grounds.of_body, (HOT, BODIES, {}),
+     ("rock", "Hot: 101 kPa, 622 K at zero albedo: over water's boiling at 373 K there, dry to the rock")),
+    ("ground: frozen", natural_grounds.of_body, (FROZEN, BODIES, {}),
+     ("ice", "Frozen: 0 kPa, 122 K at zero albedo: under 150 K, water ice lasts")),
+    ("ground: windy", natural_grounds.of_body, (WINDY, BODIES, {}),
+     ("sand", "Windy: 0.6 kPa, 226 K at zero albedo: an air of at least 0.1 kPa drifts its dust")),
+    ("ground: airless moon", natural_grounds.of_body, (AIRLESS, BODIES, {}),
+     ("regolith", "Airless: 0 kPa, 278 K at zero albedo: airless, its dust ground by impacts")),
+    # a body with no pressure is named so, unless the reference table holds the value the setting lacks
+    ("ground: no pressure", natural_grounds.of_body, (UNPRESSED, [STAR], {}),
+     (None, "X: no surface pressure in the setting")),
+    ("ground: the table's pressure", natural_grounds.of_body,
+     (UNPRESSED, [STAR], {"bodies": {"x": {"surface_pressure_kpa": 0.0}}}),
+     ("regolith", "X: 0 kPa, 278 K at zero albedo: airless, its dust ground by impacts")),
+    # a row's words come first; a made ground's word is no natural one; with no words, its body's physics
+    ("ground: red dunes", natural_grounds.of_row, ({"id": "dunes", "name": "red dunes", "noun": "ground"}, None, [], {}),
+     ("sand", "the row dunes says dunes")),
+    ("ground: sea", natural_grounds.of_row, ({"id": "sea", "noun": "sea"}, WINDY, [STAR, WINDY], {}),
+     ("ocean", "the row sea says sea")),
+    ("ground: plaza", natural_grounds.of_row, ({"id": "plaza", "name": "main plaza", "noun": "plaza"}, WINDY,
+                                               [STAR, WINDY], {}),
+     (None, "the row plaza says plaza: a made ground, no natural one")),
+    ("ground: martian ground", natural_grounds.of_row,
+     ({"id": "g", "name": "martian ground", "noun": "ground"}, WINDY, [STAR, WINDY], {}),
+     ("sand", "Windy: 0.6 kPa, 226 K at zero albedo: an air of at least 0.1 kPa drifts its dust")),
+    ("ground: a plot", natural_grounds.of_row, ({"id": "g", "noun": "ground"}, None, [], {}),
+     (None, "the row g names no ground and stands on no body of the setting")),
 ]
 
 # a place has a layer only by its kept design: the shed keeps one astronaut, the hangar every layer kind, the barn none
@@ -1351,13 +1419,13 @@ HAS_LAYER = [("shed", "people", True), ("shed", "light", True), ("shed", "effect
 
 
 def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, monkeypatch):
-    """Each row's kind is read off its own words and each scene's layers off its kept design, and the stage table
-    holds a row for exactly the layers the assembly's gate waits on; a row's objects are found outside the layers'
-    scopes, anything else a stranger."""
+    """Each row's kind, a person's look and a natural ground are read off its own words (a ground then its body's
+    physics) and each scene's layers off its kept design, and the stage table holds a row for exactly the layers the
+    assembly's gate waits on; a row's objects are found outside the layers' scopes, anything else a stranger."""
     from score.stages import assembly
     house = row_kinds.table()
-    for case, judge, read, rules, answer in JUDGED:
-        assert judge(*read, house if rules is HOUSE else rules) == answer, case
+    for case, judge, read, answer in JUDGED:
+        assert judge(*(house if value is HOUSE else value for value in read)) == answer, case
 
     monkeypatch.setattr(design_layers, "KEPT", tmp_path)
     for place, design in KEPT.items():
@@ -1399,22 +1467,6 @@ def test_every_people_row_maps_to_a_look():
     assert {fields["looks"][0] for place in ("camp", "garage", "airlock") for fields in
             found["places"][place]["rows"].values()} == {"astronaut-made"}
     assert all(look.endswith(f"-{people_rows.OUTFIT}") for look in line), "a row asks for the drawn face"
-
-
-def test_people_rows_are_grouped_into_looks_by_what_they_are_and_wear():
-    """One body a look (owner, 2026-10-22): a row's words before where it stands or what it holds, its pose and
-    colour words left out (its clip and its dress vary it); a named person or the player is a look of its own."""
-    def look(name, crowd=False, row="row"):
-        return people_rows.look_of("deck", {"id": row, "name": name, "noun": "person"}, crowd)
-    assert look("seated astronaut") == look("astronaut standing") == look("astronauts") == "astronaut-made"
-    assert look("person sitting at a table") == look("people on walkway") == look("person holding an umbrella") \
-        == look("person") == "person-made"
-    assert look("worker in blue jumpsuit") == look("worker in grey jumpsuit") == "worker_jumpsuit-made"
-    assert look("person in uniform") == "person_uniform-made" != look("person in spacesuit")
-    assert look("astronaut in white suit") == look("astronaut in spacesuit") == look("person in spacesuit") \
-        == look("astronauts") == "astronaut-made", "a garment its who wears, or that says who wears it, is no look"
-    assert look("crowd of people", crowd=True) == "crowd-made" and look("crowd of aliens", crowd=True) == "alien-made"
-    assert look("the player in a work suit", row="hero") == look("Nev at the console", row="hero") == "deck_hero-made"
 
 
 def test_a_person_row_s_look_is_written_from_the_row_alone():
@@ -1707,46 +1759,6 @@ def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
                                                 ("worker_jumpsuit-made", "jacket_blue", 1)}, "two people, two variants"
     assert {person["name"]: person["surface"] for person in people_rows.cast_record("deck", found)["people"]} == {
         "worker": "jacket_blue", "pilot": None}
-
-
-# --- a ground follows its words then its physics ---
-
-STAR = {"body": "star", "name": "Star", "kelvin": 5772.0, "radius_km": 695700.0}
-
-
-AU = 149597870.7
-
-
-def world(name, kpa, distance_km, around="star"):
-    return {"body": name, "name": name.title(), "around": around, "distance_km": distance_km,
-            "surface_pressure_kpa": kpa}
-
-
-def test_the_physics_pick_ocean_rock_ice_sand_and_regolith():
-    wet, hot = world("wet", 101.3, AU), world("hot", 101.3, 0.2 * AU)
-    frozen, windy = world("frozen", 0.0, 5.2 * AU), world("windy", 0.6, 1.52 * AU)
-    airless = world("airless", 0.0, 384400.0, around="wet")  # a moon: its planet's distance from the star
-    bodies = [STAR, wet, hot, frozen, windy, airless]
-    picked = {body["body"]: natural_grounds.of_body(body, bodies, {})[0] for body in bodies[1:]}
-    assert picked == {"wet": "ocean", "hot": "rock", "frozen": "ice", "windy": "sand", "airless": "regolith"}
-    assert "278 K" in natural_grounds.of_body(wet, bodies, {})[1]
-
-
-def test_a_row_s_words_come_first_and_what_is_missing_is_named():
-    windy = world("windy", 0.6, 1.52 * AU)
-    assert natural_grounds.of_row({"id": "dunes", "name": "red dunes", "noun": "ground"}, None, [], {})[0] == "sand"
-    assert natural_grounds.of_row({"id": "g", "name": "martian ground", "noun": "ground"}, windy, [STAR, windy],
-                                  {})[0] == "sand"  # the physics, never the word "martian"
-    assert natural_grounds.of_row({"id": "g", "noun": "ground"}, None, [], {})[0] is None  # a plot: no physics
-    plaza = natural_grounds.of_row({"id": "plaza", "name": "main plaza", "noun": "plaza"}, windy, [STAR, windy], {})
-    assert plaza == (None, "the row plaza says plaza: a made ground, no natural one")  # people paved it
-    assert natural_grounds.of_row({"id": "sea", "noun": "sea"}, windy, [STAR, windy], {})[0] == "ocean"
-    recipe, why = natural_grounds.of_body({"body": "x", "name": "X", "around": "star", "distance_km": AU},
-                                          [STAR], {})
-    assert recipe is None and "no surface pressure" in why
-    table = {"bodies": {"x": {"surface_pressure_kpa": 0.0}}}  # the reference table's value when the setting has none
-    assert natural_grounds.of_body({"body": "x", "name": "X", "around": "star", "distance_km": AU}, [STAR],
-                                   table)[0] == "regolith"
 
 
 # --- a copy of a read only seed takes a save ---

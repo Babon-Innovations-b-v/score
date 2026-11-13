@@ -138,7 +138,7 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual.py": 6,
     "score/stages/sound/test_a_place_is_heard_as_its_design_says.py": 20,
     "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py": 116,
-    "score/stages/test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.py": 80,
+    "score/stages/test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.py": 77,
     "score/store/backup/test_a_backup_brings_the_home_back_whole.py": 18,
     "score/store/restore/test_the_restore_spends_nothing_and_accepts_nothing_old_by_hand.py": 21,
     "score/store/test_an_output_is_kept_whole_once_and_never_overwritten.py": 17,
