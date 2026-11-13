@@ -79,7 +79,6 @@ MAIN_ONLY = (
     "score/stages/sim_body/inside/resting/test_no_muscle_stands_past_its_resting_length.py",
     "score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py",
     "score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py",
-    "score/stages/sim_body/inside/solvers/test_each_solver_meets_a_hand_worked_answer.py",
 )
 
 # Test files that may print `skipped` (a check not run on this box), each with the reason.
@@ -135,7 +134,6 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/records/test_a_record_keeps_poses_meshes_and_moves_as_worked_by_hand.py": 6,
     "score/stages/sim_body/inside/rra/test_rra_moves_mass_and_torso_by_the_mean_residual.py": 14,
     "score/stages/sim_body/inside/sizing/test_a_sized_group_is_somas_length_and_weight.py": 6,
-    "score/stages/sim_body/inside/solvers/test_each_solver_meets_a_hand_worked_answer.py": 4,
     "score/stages/sim_body/inside/tuning/_adjoint/test_implicit_columns_equal_re_solved_differences.py": 27,
     "score/stages/sim_body/inside/tuning/_paired/test_a_step_counts_only_past_its_noise_floor_on_a_fixed_case_set.py": 6,
     "score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py": 17,
