@@ -356,175 +356,43 @@ class PaidFilm(FakeBackend):
 SCREENS = ["/", "/places/", "/environments/world1/", "/place/alpha/", "/buy/", "/stats/", "/library/"]
 
 
-# === the runner's prices, summed and never made =======================================================================
+# === the runner's prices, summed and never made (rows and blocks in the one test) =====================================
 
-def test_the_runners_prices_are_summed_each_basis_apart_and_a_guess_is_never_measured():
-    """By hand: three measured nodes of EUR 2-3 each in their own basis; guesses 1.0 + 1.5 apart; the film with neither
-    unknown; 3 of 6 nodes measured. Break: state/gaps.py `money_of` counts the guessed nodes as measured."""
-    from score.dashboard.pages import cockpit
-    from score.dashboard.state import gaps
-    from score.dashboard.state.models import GapsPrice
-    price = GapsPrice(made_at="2026-10-19T20:00:00+00:00", nodes={
-        "pixal@alpha": {**MEASURED, "basis": "measured runs"},
-        "bake@alpha": {**MEASURED, "basis": "per unit × counted"},
-        "lists@alpha": {**FORECAST},
-        "sound@alpha": GUESSED, "sound@beta": {**GUESSED, "guess_euros": 1.5},
-        "film@alpha": {**GUESSED, "guess_euros": None, "guess_from": None}})
-    sums = gaps.summed(price.nodes)
-    assert [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in sums["bases"]] == [
-        ("measured runs", 2.0, 3.0, 1), ("per unit × counted", 2.0, 3.0, 1), ("per unit × forecast", 2.0, 3.0, 1)]
-    assert sums["guessed"]["euros"] == 2.5 and sums["guessed"]["nodes"] == 2 and sums["unknown"] == ["film@alpha"]
-    assert cockpit.measured_prices(price) == (3, 6)
-
-
-def test_a_lost_input_read_by_two_places_and_the_world_is_one_gap(world):
-    """One lost seed read by alpha, beta and the environment, plus one lost take at the world: 2 lost inputs, not 4.
-    Break: state/local.py `gaps_total` drops `lost_once`."""
-    lost = {"id": "place:lost:earth-seed:usd-r3", "rule": "place", "prim": None, "kind": None,
-            "sentence": "lost input usd-r3", "picture": None, "row": None, "gates": [], "source": "inputs",
-            "node": None, "work": "earth seed lost", "placed": None, "low": None, "high": None}
-    taken = dict(lost, id="place:lost:pixal:pliers-pf", sentence="lost input pliers-pf", work="take lost")
-    for place, outputs, found in (("alpha", {"assembly@alpha": world.outputs["assembly@alpha"]}, [lost]),
-                                  ("beta", {"assembly@beta": world.outputs["assembly@beta"]}, [lost]),
-                                  ("world", {}, [lost, taken])):
-        folder = world.root / "props/work/checks/gaps" / place
-        folder.mkdir(parents=True, exist_ok=True)
-        (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": found}))
-    total = world.source.gaps_total()
-    assert total.counts == {"lost": 2} and total.unfillable == ["earth seed lost", "take lost"], total
-
-
-def test_a_standalone_checks_findings_stand_only_while_what_they_judged_is_accepted(world, settings, tmp_path):
-    """Gaps are not repeated among the check findings; a library finding over beta's accepted assembly stands, over
-    another output it is not read. Break: state/local.py `check_findings` reads findings.json whole instead of
-    `current_findings`."""
-    a_gaps_finding(world, settings, tmp_path)
-    assert [finding.check for finding in world.source.check_findings("alpha")] == []
-    assert [gap.id for gap in world.source.gaps("alpha")][:1] == ["missing:lamp_1"]
-    folder = world.root / "props/work/checks/library/beta"
-    (folder / "marks").mkdir(parents=True, exist_ok=True)
-    (folder / "marks/beta-0.png").write_bytes(fixture.picture((200, 60, 40)))
-
-    def judged(output):
-        (folder / "findings.json").write_text(json.dumps({"place": "beta", "outputs": {"assembly@beta": output},
-            "findings": [{"rule": "finish not from the library", "prim": "/beta/Objects/crate_1",
-                          "sentence": "3 models (crate) finish not from the library", "picture": "marks/beta-0.png"}]}))
-    judged(world.outputs["assembly@beta"])
-    assert [finding.rule for finding in world.source.check_findings("beta")] == ["finish not from the library"]
-    judged("0" * 64)
-    assert world.source.check_findings("beta") == []
-
-
-def test_a_stale_planless_or_other_codes_price_shows_no_remake_figure(world, settings, tmp_path):
-    """A price made on another commit, other per-unit prices, uncommitted code or none at all gives no figure, the why
-    as hover text. Break: state/local.py `price_stale` ignores `code_moved`."""
-    from score.dashboard.pages import cockpit, views
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
-    assert cockpit.remake(views.batch_of(world.source.world_state()))["why"] == "prepare has not run"
-    here = local.priced_here()
-    for priced_on, said in (({**here, "commit": "0" * 40, "uncommitted": False}, "the code moved"),
-                            ({**here, "per_unit_sha256": "0" * 64, "uncommitted": False}, "per-unit prices"),
-                            ({**here, "uncommitted": True}, "code not committed"), (None, "before the price")):
-        a_gaps_price(world, priced_on=priced_on)
-        world.source.refresh()
-        remake = cockpit.remake(views.batch_of(world.source.world_state()))
-        assert remake["low"] is None and said in remake["why"], (said, remake)
-        assert cockpit.measured_prices(world.source.gaps_price()) == (None, None)
-    assert said in unescape(signed_in().get("/places/").content.decode())
-
-
-def test_a_gaps_check_run_again_puts_the_price_out_of_date_at_once(world, settings, tmp_path):
-    """Not after the 60 s index: the findings newer than the price make it stale on the next read. Break: state/local.py
-    `gaps_price` remembers its read without `gaps_written()` in the key."""
-    from score.dashboard.pages import cockpit as numbers
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
-    assert numbers.measured_prices(world.source.gaps_price()) == (1, 2)
-    findings = world.root / "props/work/checks/gaps/alpha/findings.json"
-    price = world.root / "props/work/checks/gaps-price/world1.json"
-    findings.write_text(findings.read_text())
-    later = price.stat().st_mtime + 2
-    os.utime(findings, (later, later))
-    assert numbers.measured_prices(world.source.gaps_price()) == (None, None)
-    assert "the gaps check ran again at 1 scene since the price was made" in unescape(
-        signed_in().get("/places/").content.decode())
-
-
-def test_a_step_two_places_share_is_in_both_rows_and_in_neither_places_own(world, settings, tmp_path):
-    """The ground (guessed EUR 1) in both chains: alpha's money 1 (sound) + 1 (ground), beta's 1; own: alpha's sound
-    only. Break: state/gaps.py `own_sum` keeps nodes another place's chain also has (`reach[node] == 1` dropped)."""
-    from score.dashboard.state import gaps
-    a_gaps_finding(world, settings, tmp_path)
-    folder = world.root / "props/work/checks/gaps/beta"
-    folder.mkdir(parents=True, exist_ok=True)
-    lamp = {"id": "missing:lamp_1", "rule": "missing", "kind": "generate",
-            "sentence": "a lamp: nothing made for it yet", "picture": None, "row": "lamp", "gates": [],
-            "source": "inventory", "node": "closeup@beta", "work": None, "placed": "spot",
-            "prim": "/beta/Gaps/lamp_1", "low": [0, 0, 0], "high": [1, 1, 1]}
-    (folder / "findings.json").write_text(json.dumps({"place": "beta", "outputs": {
-        "assembly@beta": world.outputs["assembly@beta"]}, "findings": [lamp]}))
-    a_gaps_price(world, nodes={"closeup@alpha": FORECAST, "sound@alpha": GUESSED, "terrain": GUESSED,
-                                "closeup@beta": FORECAST},
-                 chains={"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha", "terrain"],
-                                   "complete@alpha": ["complete@alpha", "sound@alpha", "terrain"]},
-                         "beta": {"closeup@beta": ["closeup@beta", "terrain"]}},
-                 gaps={"alpha": {}, "beta": {}})
-    world.source.refresh()
-    details = {place: world.source.gaps(place) for place in ("alpha", "beta")}
-    rows = {row["place"]: row for row in gaps.per_place(world.source.gaps_price(), details)}
-    assert (rows["alpha"]["money"]["guessed"], rows["beta"]["money"]["guessed"]) == (2.0, 1.0)
-    assert (rows["alpha"]["own"]["guessed"], rows["beta"]["own"]["guessed"]) == (1.0, 0)
-
-
-def test_a_place_never_checked_has_no_price_not_nothing_to_pay():
-    """Break: state/gaps.py `place_row` sums the money of a place never checked."""
-    from score.dashboard.state import gaps
-    price = types.SimpleNamespace(stale=None, not_checked=["gamma"], not_current=[], chains={}, nodes={})
-    row = gaps.place_row("gamma", [], price)
-    assert row["money"] is None and row["rank"] == len(gaps.KINDS) + 1
-
-
-def test_the_plan_goes_through_the_export_whole(world, settings, tmp_path):
-    """The runner's milestones reach the hosted cockpit unchanged. Break: state/local.py `gaps_price` leaves
-    `milestones` out of the GapsPrice."""
-    milestones = [{"key": "ground", "title": "The ground", "stages": [{"stage": "terrain", "nodes": 1, "paid": 1}],
-                   "nodes": 1, "places": 0, "paid": ["terrain"], "likely_euros": 0, "high_euros": 0, "measured": 0,
-                   "set": {"euros": 6.0, "nodes": 1, "from": []}, "unknown": [], "owner": ["the month's books"],
-                   "reads": []},
-                  {"key": "approval", "title": "Your approval of the final video", "owner": ["you approve it"]}]
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world, milestones=milestones)
-    world.source.refresh()
-    building.build(world.source, tmp_path / "export", "2026-10-20T09:00:00+00:00", 50, Spend(), world.root)
-    assert ExportedSource(tmp_path / "export").world_state().gaps_price.milestones == milestones
-
-
-def test_every_place_and_lost_item_has_plain_words():
-    """Break: state/plain.py `lost_item` splits at the last colon."""
-    from score.dashboard.pages import present
-    assert plain.place_words("old_station") == "the old station" and present.place_title("old_station") == "Old station"
-    assert plain.lost_item("place:lost:earth-seed:usd-r3/flat:x") == "usd-r3/flat:x"
-    assert plain.lost_item("place:lost:data:surfaces/launch.json:bake entry far_rocket_1") == (
-        "surfaces/launch.json:bake entry far_rocket_1")
-
-
-def test_keys_outside_the_index_walk_only_their_folder_and_match_the_stores_own_answer(tmp_path):
-    """A prefix outside the index's areas: "concepts/cock" holds cock.json and both cockpit folders, a .partial is never
-    a key. Break: state/index.py `scoped` keeps only keys one folder below the prefix."""
-    from score.dashboard.state.index import scoped
-    from score.store import runtime_store
-    store = runtime_store.FolderStore(tmp_path)
-    for key in ("concepts/cockpit/draws/1.json", "concepts/cockpit2/draws/2.json", "concepts/cock.json",
-                "plans/cockpit/a.json", "concepts/cockpit/draws/3.json.partial"):
-        (tmp_path / key).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / key).write_text("{}")
-    assert sorted(scoped(str(tmp_path), "concepts/cock")) == [
-        "concepts/cock.json", "concepts/cockpit/draws/1.json", "concepts/cockpit2/draws/2.json"]
-    for prefix in ("concepts/cockpit/", "concepts/", "concepts/cockpit/draws/", "nothing/here/"):
-        assert scoped(str(tmp_path), prefix) == store.keys(prefix), prefix
+PRICED = {  # by hand: three measured nodes of EUR 2-3 each in their own basis, guesses 1.0 + 1.5 apart, the film unknown
+    "pixal@alpha": {**MEASURED, "basis": "measured runs"}, "bake@alpha": {**MEASURED, "basis": "per unit × counted"},
+    "lists@alpha": {**FORECAST}, "sound@alpha": GUESSED, "sound@beta": {**GUESSED, "guess_euros": 1.5},
+    "film@alpha": {**GUESSED, "guess_euros": None, "guess_from": None}}
+LOST_ITEMS = ["place:lost:earth-seed:usd-r3/flat:x", "place:lost:data:surfaces/launch.json:bake entry far_rocket_1"]
+KEYS = ["concepts/cockpit/draws/1.json", "concepts/cockpit2/draws/2.json", "concepts/cock.json", "plans/cockpit/a.json",
+        "concepts/cockpit/draws/3.json.partial"]  # a store's files: a prefix outside the index's areas walks its folder
+KEY_PREFIXES = ["concepts/cockpit/", "concepts/", "concepts/cockpit/draws/", "nothing/here/"]
+JUDGED = {  # what the pure judges answer on those rows
+    "bases": [("measured runs", 2.0, 3.0, 1), ("per unit × counted", 2.0, 3.0, 1), ("per unit × forecast", 2.0, 3.0, 1)],
+    "guessed": (2.5, 2), "unknown": ["film@alpha"], "measured of": (3, 6),
+    "never checked: money, rank below every kind": (None, True),
+    "place words": ("the old station", "Old station"),
+    "lost items": ["usd-r3/flat:x", "surfaces/launch.json:bake entry far_rocket_1"],
+    "concepts/cock": ["concepts/cock.json", "concepts/cockpit/draws/1.json", "concepts/cockpit2/draws/2.json"],
+    "prefixes unlike the store's own answer": []}
+HERE = object()  # a row's price made on this checkout as it is
+STALE = [  # (row, the price's priced_on over this checkout's, findings rewritten after it, why there is no figure)
+    ("current", HERE, False, None), ("other commit", {"commit": "0" * 40, "uncommitted": False}, False, "the code moved"),
+    ("other per-unit prices", {"per_unit_sha256": "0" * 64, "uncommitted": False}, False, "per-unit prices"),
+    ("uncommitted", {"uncommitted": True}, False, "code not committed"), ("none", None, False, "before the price"),
+    ("gaps check again", HERE, True, "the gaps check ran again at 1 scene since the price was made"),
+    ("current again", HERE, False, None)]
+LOST = {"id": "place:lost:earth-seed:usd-r3", "rule": "place", "prim": None, "kind": None,
+        "sentence": "lost input usd-r3", "picture": None, "row": None, "gates": [], "source": "inputs",
+        "node": None, "work": "earth seed lost", "placed": None, "low": None, "high": None}
+TAKEN = dict(LOST, id="place:lost:pixal:pliers-pf", sentence="lost input pliers-pf", work="take lost")
+MILESTONES = [{"key": "ground", "title": "The ground", "stages": [{"stage": "terrain", "nodes": 1, "paid": 1}],
+               "nodes": 1, "places": 0, "paid": ["terrain"], "likely_euros": 0, "high_euros": 0, "measured": 0,
+               "set": {"euros": 6.0, "nodes": 1, "from": []}, "unknown": [], "owner": ["the month's books"],
+               "reads": []},
+              {"key": "approval", "title": "Your approval of the final video", "owner": ["you approve it"]}]
+BETA_LAMP = {"id": "missing:lamp_1", "rule": "missing", "kind": "generate", "sentence": "a lamp: nothing made for it yet",
+             "picture": None, "row": "lamp", "gates": [], "source": "inventory", "node": "closeup@beta", "work": None,
+             "placed": "spot", "prim": "/beta/Gaps/lamp_1", "low": [0, 0, 0], "high": [1, 1, 1]}
 
 
 # === the Environment, Place and Stats screens =========================================================================
@@ -3120,7 +2988,7 @@ def deploy_value_ok(line):
 
 # === the one question: what the owner sees and who may act on it =====================================================
 
-def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch):
+def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, tmp_path_factory, monkeypatch):
     """One world (the fixture environment, alpha's gaps checked and priced, the month's books lost) walked through every
     page, then acted on by the owner, a guest, a stranger, a page without its CSRF token and the sync applier. Each
     page answers the owner and sends a stranger to sign in; node ids stay in the details fold; a screen holds at most
@@ -3143,10 +3011,28 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
     `a { color: #ff0000; }`; design/tokens/colours.css sets --color-text-faint to #1a1d22; site/asgi.py mounts
     /static/design at the static folder; tests/viewer_look.py `passes` returns True; `import tools.cloud.ledger` in
     score/dashboard/state/money.py; a comment naming the cloud provider (a stem of tools/cloud/backends) in
-    score/dashboard/state/money.py; a real host (`HOST=cockpit.example.com`) in a score/dashboard/deploy template."""
+    score/dashboard/state/money.py; a real host (`HOST=cockpit.example.com`) in a score/dashboard/deploy template.
+    And the runner's prices, summed and never made: each basis summed apart, a guess never measured, a place never
+    checked has no price; a lost item and a place in plain words; keys outside the index walk only their folder and
+    match the store's own answer; a standalone check's findings stand only while what they judged is accepted; a price
+    on other code, other per-unit prices, uncommitted code, none, or under a gaps check run again shows no figure; a
+    step two places share is in both rows and neither's own; the milestones go through the export whole; a lost input
+    read by two places and the world is one gap.
+    Breaks (each applied once and seen red): state/gaps.py `money_of` counts the guessed nodes as measured;
+    state/gaps.py `place_row` sums the money of a place never checked; state/plain.py `lost_item` splits at the last
+    colon; state/index.py `scoped` keeps only keys one folder below the prefix; state/local.py `check_findings` reads
+    findings.json whole instead of `current_findings`; state/local.py `price_stale` ignores `code_moved`;
+    state/local.py `gaps_price` remembers its read without `gaps_written()` in the key; state/gaps.py `own_sum` keeps
+    nodes another place's chain also has (`reach[node] == 1` dropped); state/local.py `gaps_price` leaves `milestones`
+    out of the GapsPrice; state/local.py `gaps_total` drops `lost_once`."""
+    from score.dashboard.pages import cockpit, present, views
     from score.dashboard.pages.models import BasketItem, ChangeRequest
+    from score.dashboard.state import gaps as gap_rows
+    from score.dashboard.state.index import scoped
+    from score.dashboard.state.models import GapsPrice
     from score.dashboard.state.names import plain as named
     from score.dashboard.tests import viewer_look
+    from score.store import runtime_store
 
     # What the pages are made of, swept before the world is walked; each fault is named by its file, row or link.
     words, cloud, deploy = provider_words(), cloud_modules(), PACKAGE / "deploy"
@@ -3192,6 +3078,24 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
                if (link := viewer_look.view_link({**CAMERA, "frame": frame})) != want]
     if themed:
         faults["theme, tokens served, viewer look"] = themed
+    price = GapsPrice(made_at="2026-10-19T20:00:00+00:00", nodes=PRICED)
+    sums, never = gap_rows.summed(price.nodes), gap_rows.place_row("gamma", [], types.SimpleNamespace(
+        stale=None, not_checked=["gamma"], not_current=[], chains={}, nodes={}))
+    keys = tmp_path_factory.mktemp("keys")
+    for key in KEYS:
+        (keys / key).parent.mkdir(parents=True, exist_ok=True)
+        (keys / key).write_text("{}")
+    judged = {"bases": [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in sums["bases"]],
+              "guessed": (sums["guessed"]["euros"], sums["guessed"]["nodes"]), "unknown": sums["unknown"],
+              "measured of": cockpit.measured_prices(price),
+              "never checked: money, rank below every kind": (never["money"], never["rank"] == len(gap_rows.KINDS) + 1),
+              "place words": (plain.place_words("old_station"), present.place_title("old_station")),
+              "lost items": [plain.lost_item(key) for key in LOST_ITEMS],
+              "concepts/cock": sorted(scoped(str(keys), "concepts/cock")),
+              "prefixes unlike the store's own answer": [prefix for prefix in KEY_PREFIXES if scoped(str(keys), prefix)
+                                                         != runtime_store.FolderStore(keys).keys(prefix)]}
+    if judged != JUDGED:
+        faults["the runner's prices and plain words"] = judged
     assert not faults, faults
 
     guarded_user = get_user_model().objects.create_user("joey", password="a long enough password")
@@ -3205,8 +3109,43 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
         "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
         "light_bytes": 5, "triangles": 12}))
     a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
+
+    # A standalone check's findings stand only while what they judged is accepted, and gaps are not repeated among
+    # them: a library finding over beta's accepted assembly stands, over another output it is not read.
+    library = world.root / "props/work/checks/library/beta"
+    (library / "marks").mkdir(parents=True)
+    (library / "marks/beta-0.png").write_bytes(fixture.picture((200, 60, 40)))
+    stands = []
+    for output in (world.outputs["assembly@beta"], "0" * 64):
+        (library / "findings.json").write_text(json.dumps({"place": "beta", "outputs": {"assembly@beta": output},
+            "findings": [{"rule": "finish not from the library", "prim": "/beta/Objects/crate_1",
+                          "sentence": "3 models (crate) finish not from the library", "picture": "marks/beta-0.png"}]}))
+        stands.append([finding.rule for finding in world.source.check_findings("beta")])
+    assert ([finding.check for finding in world.source.check_findings("alpha")],
+            [gap.id for gap in world.source.gaps("alpha")][:1], stands) == (
+        [], ["missing:lamp_1"], [["finish not from the library"], []])
+
+    # The price of alpha's gaps gives a figure only while made on this checkout over the current findings: another
+    # commit, other per-unit prices, uncommitted code, none at all or the gaps check run again since (on the next read,
+    # not after the index's 60 s) give no figure, the why as hover text; prepare never ran, so no remake figure.
+    findings = world.root / "props/work/checks/gaps/alpha/findings.json"
+    findings_times = (findings.stat().st_atime, findings.stat().st_mtime)
+    for row, priced_on, again, why in STALE:
+        a_gaps_price(world, **({} if priced_on is HERE else {
+            "priced_on": priced_on and {**local.priced_here(), **priced_on}}))
+        os.utime(findings, findings_times)
+        world.source.refresh()
+        before = cockpit.measured_prices(world.source.gaps_price())  # read once, so a remembered read must see a move
+        if again:
+            findings.write_text(findings.read_text())
+            later = (world.root / "props/work/checks/gaps-price/world1.json").stat().st_mtime + 2
+            os.utime(findings, (later, later))
+        remake = cockpit.remake(views.batch_of(world.source.world_state()))
+        said = (remake["why"] == "prepare has not run" if why is None else
+                remake["low"] is None and why in remake["why"] and why in unescape(owner.get("/places/").content.decode()))
+        figure = (1, 2) if why is None else (None, None)
+        assert (said, before, cockpit.measured_prices(world.source.gaps_price())) == (
+            True, (1, 2) if again else figure, figure), (row, remake)
     with pytest.MonkeyPatch.context() as month:
         a_month(month, paid_refused="the month's books are lost")
         for page in dict.fromkeys([*PAGES, *SCREENS]):
@@ -3285,6 +3224,37 @@ def test_cockpit_is_the_owners_true_view(world, settings, tmp_path, monkeypatch)
         assert (advance(user, how, node), bool(seen.advanced(node, world.outputs[node])),
                 set(actions.unseen(plan))) == (state, advanced, waits), (user, how, node)
     assert applying.apply(launch, world.source, PaidFilm()).state == "running"
+
+
+    # The runner's price, split by place and carried whole: a step two places share (the ground, guessed EUR 1) is in
+    # both places' rows and in neither's own; the milestones reach the hosted cockpit unchanged; a lost seed read by
+    # alpha, beta and the environment plus a take lost at the world are 2 lost inputs, not 4.
+    beta = world.root / "props/work/checks/gaps/beta"
+    beta.mkdir(parents=True, exist_ok=True)
+    (beta / "findings.json").write_text(json.dumps({"place": "beta", "outputs": {
+        "assembly@beta": world.outputs["assembly@beta"]}, "findings": [BETA_LAMP]}))
+    a_gaps_price(world, nodes={"closeup@alpha": FORECAST, "sound@alpha": GUESSED, "terrain": GUESSED,
+                                "closeup@beta": FORECAST},
+                 chains={"alpha": {"closeup@alpha": ["closeup@alpha", "complete@alpha", "sound@alpha", "terrain"],
+                                   "complete@alpha": ["complete@alpha", "sound@alpha", "terrain"]},
+                         "beta": {"closeup@beta": ["closeup@beta", "terrain"]}},
+                 gaps={"alpha": {}, "beta": {}}, milestones=MILESTONES)
+    world.source.refresh()
+    rows = {row["place"]: row for row in gap_rows.per_place(world.source.gaps_price(), {
+        place: world.source.gaps(place) for place in ("alpha", "beta")})}
+    building.build(world.source, tmp_path / "export", "2026-10-20T09:00:00+00:00", 50, Spend(), world.root)
+    exported = ExportedSource(tmp_path / "export").world_state().gaps_price.milestones
+    for place, outputs, found in (("alpha", {"assembly@alpha": world.outputs["assembly@alpha"]}, [LOST]),
+                                  ("beta", {"assembly@beta": world.outputs["assembly@beta"]}, [LOST]),
+                                  ("world", {}, [LOST, TAKEN])):
+        folder = world.root / "props/work/checks/gaps" / place
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / "findings.json").write_text(json.dumps({"place": place, "outputs": outputs, "findings": found}))
+    world.source.refresh()
+    total = world.source.gaps_total()
+    assert ([(rows[place]["money"]["guessed"], rows[place]["own"]["guessed"]) for place in ("alpha", "beta")],
+            exported, total.counts, total.unfillable) == (
+        [(2.0, 1.0), (1.0, 0)], MILESTONES, {"lost": 2}, ["earth seed lost", "take lost"])
 
     settings.SCORE_MODE = "hosted"
     owner.post("/place/beta/step/assembly/advance/", {"output": world.outputs["assembly@beta"]})
