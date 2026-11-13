@@ -24,6 +24,8 @@ Format rules: [`.claude/skills/grill/CONTEXT-FORMAT.md`](.claude/skills/grill/CO
 The core depth/seam vocabulary used by `improve-codebase-architecture`, `tdd`, `diagnose`, `to-prd`. Full definitions: the [`codebase-design`](.claude/skills/codebase-design/SKILL.md) skill.
 
 - **module** — anything with an interface and an implementation. _Avoid_: unit, component, service.
+  For counting tests, a module is a folder with code of its own; a `tests` folder and test data (`fixtures`, `cases`) never are, and count for the module above them; in a folder of independent command-line tools (`tools/cloud`, `tools/props`, `tools/review`, `tools/usd`) each top-level tool script is a module.
+- **module group** — a folder whose modules work together, such as `score/dashboard`, `score/stages/sim_body` or `tools/cloud/k8s`. Worked out from the tree, never typed: a folder under which two or more modules sit. A module with two or more modules under it is a group as well: its own code stays the module, and a test of how the modules under it fit counts for the group. The middle of the three test levels (owner, 2026-11-01, as in babon): one test per module, one per module group, the full suite on top. _Avoid_: area, package group, tier, layer (a layer here is a scene's layer).
 - **interface** — everything a caller must know: types, invariants, ordering, errors, config, perf. _Avoid_: API, signature.
 - **implementation** — code inside the module. _Avoid_: internals, body.
 - **depth** — leverage at the interface. _Avoid_: thickness, size.
