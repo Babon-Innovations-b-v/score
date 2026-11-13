@@ -9,9 +9,8 @@ and `uv` are stand-ins that log their calls, and HOME is a scratch folder, so no
 
 The break that turns each test red (applied once each, seen red, reverted):
 
-- test_gate_scope_runs_nothing_only_for_documents: is_document's `BUILT_PREFIXES + CODE_PREFIXES` made
-  `BUILT_PREFIXES`.
-- test_gate_scope_runs_everything_when_asked_or_on_ci: forced_reason's CI branch removed.
+- test_gate_scope_runs_nothing_only_for_documents, one row red per break: is_document's `BUILT_PREFIXES +
+  CODE_PREFIXES` made `BUILT_PREFIXES`; or forced_reason's CI branch removed.
 - test_github_scripts_write_only_their_own_repos_board_and_labels, one row red per break: config()'s `here and repo
   and here != repo` made `False` (another repo's board); main's mutation sent with `o=options[0]["id"]` (moves the
   card); board_item's `node["project"]["number"] == number` made `True` (adds from another board); sync_labels
@@ -19,22 +18,18 @@ The break that turns each test red (applied once each, seen red, reverted):
   taken out of STATUS_OPTIONS, or main's `config.get("owner") or owner` made `owner` (a re-run overwrites the
   hand-edited owner) (gives the board its columns).
 - test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree: is_clean returns True at once; or reap's
-  `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped).
-- test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something: main prints the report also when empty.
-- test_worktree_reap_keeps_a_worktree_a_process_or_a_this_pc_run_uses (an env1 run's code worktree was reaped
-  mid-run and while paused, 2026-10-31): reap's `or entry.name in in_use` dropped; or held_by_processes returns
-  `set()` (only the cwd and locked_cwd worktrees go); or named_by_runs returns `set()` (only registered and paused go).
-- test_the_guard_names_every_home_outside_a_sandbox: outside_temp's `folder == temp` test dropped.
-- test_a_pytest_run_without_a_sandbox_home_stops_before_collecting: pytest_configure's refusal skipped.
-- test_a_sandboxed_test_writes_only_its_own_home: sandbox-home's read_only_command drops `--ro-bind`.
-- test_a_sandbox_removes_what_its_test_leaves_even_when_stopped: run's `finally` drops `shutil.rmtree(temp, ...)`.
-- test_a_test_run_by_hand_removes_its_temp_stores_and_its_empty_home: own_temp's `removed` holds only `[folder]`.
-- test_a_sandbox_home_starts_empty_and_links_nothing_of_the_real_home (owner's rule: tests use small fixtures, never
-  the real store or home, 2026-10-28): make_sandbox links the real home's work/ into the sandbox.
-- test_every_plain_script_test_refuses_first_without_a_sandbox_home (a wording check guarding the owner's rule that
-  no test touches the real home, 2026-10-18): refuse_outside_sandbox's `if refusal:` made `if False:`.
-- test_bootstrap_links_memory_without_losing_any: bootstrap moves the old memory folder aside without copying it.
-- test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once: bootstrap's runtime build ignores PROPS_HOME; or
+  `idle_hours(...) >= IDLE_HOURS` made `True` (a recent unlocked worktree is reaped); or main prints the report also
+  when empty (the idle hook speaks); or (an env1 run's code worktree was reaped mid-run and while paused, 2026-10-31)
+  reap's `or entry.name in in_use` dropped, held_by_processes returns `set()` (only the cwd and locked_cwd worktrees
+  go), or named_by_runs returns `set()` (only registered and paused go).
+- test_a_sandbox_run_writes_only_its_own_empty_home_and_removes_all_it_leaves (owner's rule: tests use small
+  fixtures, never the real store or home, 2026-10-28): sandbox-home's read_only_command drops `--ro-bind`; or run's
+  `finally` drops `shutil.rmtree(temp, ...)`; or make_sandbox links the real home's work/ into the sandbox.
+- test_no_test_starts_outside_a_sandbox_home (the owner's rule that no test touches the real home, 2026-10-18), one
+  guard row red per break: outside_temp's `folder == temp` test dropped; or pytest_configure's refusal skipped; or
+  own_temp's `removed` holds only `[folder]`; or refuse_outside_sandbox's `if refusal:` made `if False:`.
+- test_bootstrap_touches_only_its_links_flags_runtime_and_ssh_lines: bootstrap moves the old memory folder aside
+  without copying it; or its runtime build ignores PROPS_HOME; or
   ssh-agent.sh's `elif github_answers git@github.com` branch dropped (a box whose port 22 works gets the 443
   fallback); or its `grep -qF 'ssh/agent/agent.sock'` made `false` (a re-run writes the ~/.bashrc block twice); or
   use_repo_hooks' `config score.movedCheck true` dropped (the push gate's re-buy check stays off).
@@ -136,25 +131,25 @@ def script(repo, env, name, *args):
 gate_scope = module(SCRIPTS / "gate-scope.py", "gate_scope")
 
 
-@pytest.mark.parametrize("changed,mode", [
-    ({"CONTEXT.md", "docs/bible.md", "src/CLAUDE.md", ".claude/skills/grill/SKILL.md"}, "none"),
-    ({"docs/bible.md", "src/app.py"}, "full"),
-    ({"paper/score/source/score.md"}, "full"),  # the paper's draft is a build input
-    ({".claude/hooks/md_guard.py"}, "full"), ({".claude/scripts/gate-scope.py"}, "full"),
-    ({".claude/settings.json"}, "full"),
-    (None, "full"),  # nothing to compare with
-])
-def test_gate_scope_runs_nothing_only_for_documents(changed, mode):
-    assert gate_scope.plan(changed, "")[0] == mode
-
-
-def test_gate_scope_runs_everything_when_asked_or_on_ci(monkeypatch):
-    monkeypatch.delenv("CI", raising=False)
+@pytest.mark.parametrize("changed,argv,ci,mode", [
+    ({"CONTEXT.md", "docs/bible.md", "src/CLAUDE.md", ".claude/skills/grill/SKILL.md"}, [], None, "none"),
+    ({"docs/bible.md", "src/app.py"}, [], None, "full"),
+    ({"paper/score/source/score.md"}, [], None, "full"),  # the paper's draft is a build input
+    ({".claude/hooks/md_guard.py"}, [], None, "full"), ({".claude/scripts/gate-scope.py"}, [], None, "full"),
+    ({".claude/settings.json"}, [], None, "full"),
+    (None, [], None, "full"),  # nothing to compare with
+    ({"README.md"}, [], None, "none"),  # nothing asked for and not on CI: nothing forces the full gate
+    ({"README.md"}, ["--full"], None, "full"),  # asked for
+    ({"README.md"}, [], "true", "full"),  # on CI
+], ids=["documents", "documents and code", "paper draft", "hook", "gate-scope itself", "settings", "no origin",
+        "readme", "readme --full", "readme on CI"])
+def test_gate_scope_runs_nothing_only_for_documents(monkeypatch, changed, argv, ci, mode):
     monkeypatch.delenv("GATE_FULL", raising=False)
-    assert gate_scope.forced_reason([]) == ""
-    assert gate_scope.plan({"README.md"}, gate_scope.forced_reason(["--full"]))[0] == "full"
-    monkeypatch.setenv("CI", "true")
-    assert gate_scope.plan({"README.md"}, gate_scope.forced_reason([]))[0] == "full"
+    if ci is None:
+        monkeypatch.delenv("CI", raising=False)
+    else:
+        monkeypatch.setenv("CI", ci)
+    assert gate_scope.plan(changed, gate_scope.forced_reason(argv))[0] == mode
 
 
 # board-status and setup-github: every gh call that changes GitHub, run against a stand-in gh. A call is a write
@@ -300,9 +295,9 @@ def main_checkout(tmp_path):
     return main
 
 
-def add_worktree(main, name, pid=None):
+def add_worktree(main, name, pid=None, at="HEAD"):
     path = main / ".claude" / "worktrees" / name
-    git(main, "worktree", "add", "-q", "-b", f"worktree-{name}", str(path))
+    git(main, "worktree", "add", "-q", "-b", f"worktree-{name}", str(path), at)
     if pid is not None:
         git(main, "worktree", "lock", "--reason", f"claude agent {name} (pid {pid} start 1)", str(path))
     return path
@@ -317,52 +312,6 @@ def reap(main, hook=False, this_pc_home=None):
                           capture_output=True, text=True)
 
 
-def test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree(tmp_path):
-    main = main_checkout(tmp_path)
-    gone = add_worktree(main, "gone", dead_pid())
-    dirty = add_worktree(main, "dirty", dead_pid())
-    (dirty / "work.txt").write_text("unsaved")
-    unmerged = add_worktree(main, "unmerged", dead_pid())
-    git(unmerged, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local")
-    live = add_worktree(main, "live", os.getpid())
-    kept = add_worktree(main, "kept")  # unlocked but touched just now: a finished agent's, kept for IDLE_HOURS
-    idle = add_worktree(main, "idle")  # unlocked, clean, merged and untouched for a day: reaped
-    idle_dirty = add_worktree(main, "idle_dirty")  # unlocked and old but holding work: never touched
-    (idle_dirty / "work.txt").write_text("unsaved")
-    admin = pathlib.Path(git(main, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "worktrees"
-    for name in ("idle", "idle_dirty"):
-        for path in (admin / name).rglob("*"):
-            if path.is_file():
-                os.utime(path, (time.time() - 86400, time.time() - 86400))
-    run = reap(main)
-    assert run.returncode == 0
-    assert run.stdout == ("Reaped 2 orphaned worktree(s): gone, idle. Left 2 stale-locked worktree(s) with "
-                          "uncommitted work: dirty, unmerged. Recover or discard by hand.\n")
-    assert not gone.exists() and not idle.exists()
-    assert all(path.exists() for path in (dirty, unmerged, live, kept, idle_dirty))
-    branches = git(main, "branch", "--format=%(refname:short)").split()
-    assert "worktree-gone" not in branches
-    assert {"worktree-dirty", "worktree-unmerged", "worktree-live", "worktree-kept"} <= set(branches)
-    alone = tmp_path / "alone"  # outside a git repo it does nothing
-    alone.mkdir()
-    shutil.copy(SCRIPTS / "worktree-reap.py", alone)
-    run = subprocess.run(["python3", alone / "worktree-reap.py"], capture_output=True, text=True,
-                         env=dict(os.environ, GIT_CEILING_DIRECTORIES=str(tmp_path)))
-    assert (run.returncode, run.stdout) == (0, "")
-
-
-def test_worktree_reap_speaks_json_as_a_hook_and_only_when_it_did_something(tmp_path):
-    main = main_checkout(tmp_path)
-    add_worktree(main, "live", os.getpid())
-    quiet = reap(main, hook=True)
-    assert (quiet.returncode, quiet.stdout) == (0, "")
-    add_worktree(main, "gone", dead_pid())
-    run = reap(main, hook=True)
-    assert run.returncode == 0
-    assert json.loads(run.stdout) == {"hookSpecificOutput": {
-        "hookEventName": "SessionStart", "additionalContext": "Reaped 1 orphaned worktree(s): gone."}}
-
-
 def make_idle(main, *names):
     """Age these worktrees' git admin files a day, past IDLE_HOURS."""
     admin = pathlib.Path(git(main, "rev-parse", "--path-format=absolute", "--git-common-dir")) / "worktrees"
@@ -372,17 +321,30 @@ def make_idle(main, *names):
                 os.utime(path, (time.time() - 86400, time.time() - 86400))
 
 
-def test_worktree_reap_keeps_a_worktree_a_process_or_a_this_pc_run_uses(tmp_path):
+def test_worktree_reap_reaps_only_a_dead_sessions_clean_merged_worktree(tmp_path):
+    """One checkout holding a worktree of every kind, reaped three times: as a hook with nothing to say, by hand,
+    and as a hook again after one more session died."""
     main = main_checkout(tmp_path)
+    live = add_worktree(main, "live", os.getpid())
+    quiet = reap(main, hook=True)
+    assert (quiet.returncode, quiet.stdout) == (0, "")  # a hook with nothing reaped or left says nothing
+    gone = add_worktree(main, "gone", dead_pid())
+    dirty = add_worktree(main, "dirty", dead_pid())
+    (dirty / "work.txt").write_text("unsaved")
+    unmerged = add_worktree(main, "unmerged", dead_pid())
+    git(unmerged, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "local")
+    kept = add_worktree(main, "kept")  # unlocked but touched just now: a finished agent's, kept for IDLE_HOURS
+    idle = add_worktree(main, "idle")  # unlocked, clean, merged and untouched for a day: reaped
+    idle_dirty = add_worktree(main, "idle_dirty")  # unlocked and old but holding work: never touched
+    (idle_dirty / "work.txt").write_text("unsaved")
     cwd = add_worktree(main, "cwd")  # a process works in it (the run's leader, its venv's Python)
     locked_cwd = add_worktree(main, "locked_cwd", dead_pid())  # its session is dead, a process it started is not
     registered = add_worktree(main, "registered")  # a running this-PC run's registry entry names it
     finished = add_worktree(main, "finished")  # only a finished run's entry names it: reaped
-    idle = add_worktree(main, "idle")  # nothing uses it: reaped
     git(main, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "second")
     git(main, "push", "-q", "origin", "main")
     paused = add_worktree(main, "paused")  # checked out at the paused run's commit
-    make_idle(main, "cwd", "registered", "finished", "idle", "paused")
+    make_idle(main, "idle", "idle_dirty", "cwd", "registered", "finished", "paused")
     home = tmp_path / "this-pc"
     (home / "runs").mkdir(parents=True)
     (home / "runs" / "1.json").write_text(json.dumps({"state": "running", "worktree": str(registered.resolve())}))
@@ -391,13 +353,31 @@ def test_worktree_reap_keeps_a_worktree_a_process_or_a_this_pc_run_uses(tmp_path
     workers = [subprocess.Popen(["sleep", "60"], cwd=folder) for folder in (cwd, locked_cwd)]
     try:
         run = reap(main, this_pc_home=home)
+        gone_later = add_worktree(main, "gone_later", dead_pid(), at="HEAD~1")  # off the paused run's commit
+        hooked = reap(main, hook=True, this_pc_home=home)
     finally:
         for worker in workers:
             worker.kill()
             worker.wait()
-    assert (run.returncode, run.stdout) == (0, "Reaped 2 orphaned worktree(s): finished, idle.\n")
-    assert all(path.exists() for path in (cwd, locked_cwd, registered, paused))
-    assert not finished.exists() and not idle.exists()
+    assert (run.returncode, run.stdout) == (0, "Reaped 3 orphaned worktree(s): finished, gone, idle. Left 2 "
+                                               "stale-locked worktree(s) with uncommitted work: dirty, unmerged. "
+                                               "Recover or discard by hand.\n")
+    assert hooked.returncode == 0
+    assert json.loads(hooked.stdout) == {"hookSpecificOutput": {
+        "hookEventName": "SessionStart", "additionalContext": "Reaped 1 orphaned worktree(s): gone_later. Left 2 "
+                                                              "stale-locked worktree(s) with uncommitted work: dirty, "
+                                                              "unmerged. Recover or discard by hand."}}
+    assert not any(path.exists() for path in (gone, idle, finished, gone_later))
+    assert all(path.exists() for path in (dirty, unmerged, live, kept, idle_dirty, cwd, locked_cwd, registered, paused))
+    branches = git(main, "branch", "--format=%(refname:short)").split()
+    assert "worktree-gone" not in branches and "worktree-gone_later" not in branches
+    assert {"worktree-dirty", "worktree-unmerged", "worktree-live", "worktree-kept"} <= set(branches)
+    alone = tmp_path / "alone"  # outside a git repo it does nothing
+    alone.mkdir()
+    shutil.copy(SCRIPTS / "worktree-reap.py", alone)
+    run = subprocess.run(["python3", alone / "worktree-reap.py"], capture_output=True, text=True,
+                         env=dict(os.environ, GIT_CEILING_DIRECTORIES=str(tmp_path)))
+    assert (run.returncode, run.stdout) == (0, "")
 
 
 # sandbox-home and conftest.py: no test reaches the real home, and what a test leaves goes with its sandbox
@@ -418,61 +398,31 @@ def fake_home(tmp_path):
     return real
 
 
-def test_the_guard_names_every_home_outside_a_sandbox(tmp_path):
-    sandbox = tempfile.mkdtemp()
-    assert repo_conftest.sandbox_refusal({}) == "PROPS_HOME is not set"
-    for home in (str(pathlib.Path.home() / ".farm-factory-props"), repo_conftest.system_temp(), "/"):
-        assert "is not a folder of its own" in repo_conftest.sandbox_refusal({"PROPS_HOME": str(home)}), home
-    assert repo_conftest.sandbox_refusal({"PROPS_HOME": sandbox}) is None
-    assert "PROPS_WORK" in repo_conftest.sandbox_refusal({"PROPS_HOME": sandbox, "PROPS_WORK": str(pathlib.Path.home())})
-    assert repo_conftest.sandbox_refusal({"PROPS_HOME": sandbox, "PROPS_WORK": f"{sandbox}/work"}) is None
-    real_store = str(pathlib.Path.home() / ".farm-factory-props" / "store")  # kept.py and preflight.py prefer it
-    assert "SCORE_SPEND_STORE" in repo_conftest.sandbox_refusal({"PROPS_HOME": sandbox, "SCORE_SPEND_STORE": real_store})
-    assert repo_conftest.sandbox_refusal({"PROPS_HOME": sandbox, "SCORE_SPEND_STORE": f"{sandbox}/store"}) is None
-
-
-def test_a_pytest_run_without_a_sandbox_home_stops_before_collecting():
-    target = pathlib.Path(__file__).relative_to(REPO)
-    environ = {name: value for name, value in os.environ.items() if name not in ("PROPS_HOME", "PROPS_WORK")}
-    for home, collected in ((None, False), (str(pathlib.Path.home() / ".farm-factory-props"), False),
-                            (tempfile.mkdtemp(), True)):
-        done = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--collect-only",
-                               str(target)], cwd=REPO, env={**environ, **({"PROPS_HOME": home} if home else {})},
-                              capture_output=True, text=True)
-        said = done.stdout + done.stderr
-        if collected:
-            assert done.returncode == 0 and target.stem in said, said
-        else:
-            assert done.returncode == 4 and "refused" in said and target.stem not in said, said
-
-
-@pytest.mark.skipif(not BUBBLEWRAP, reason="no bubblewrap: the real home cannot be mounted read-only")
-def test_a_sandboxed_test_writes_only_its_own_home(tmp_path):
+def test_a_sandbox_run_writes_only_its_own_empty_home_and_removes_all_it_leaves(tmp_path):
+    """Fault (2026-10-28): the sandbox linked the real home's design/plans and work/, so tests leaned on real data
+    unnoticed; a test lays out its own small fixture instead. One sandboxed command looks at its home, writes there,
+    leaves a temp folder and read-only files; one tries to write the real home; one is stopped mid-run."""
     real = fake_home(tmp_path)
-    said = tmp_path / "home.txt"
-    writes = ("import os, pathlib, sys; home = pathlib.Path(os.environ['PROPS_HOME']);"
-              "assert not (home / 'cloud').exists();"
-              "(home / 'cloud').mkdir(); (home / 'cloud' / 'ledger.jsonl').write_text('mine');"
-              "(home / 'store-tests').mkdir(); (home / 'store-tests' / 'kept').write_text('x');"
-              "os.chmod(home / 'store-tests' / 'kept', 0o444); os.chmod(home / 'store-tests', 0o555);"
-              "pathlib.Path(sys.argv[1]).write_text(str(home))")
-    assert sandbox_home.run([sys.executable, "-c", writes, str(said)], real) == 0
-    assert not pathlib.Path(said.read_text()).exists()  # the sandbox and its read-only files are gone
-    through = f"import pathlib; pathlib.Path({str(real / 'work' / 'seed.txt')!r}).write_text('gone')"
-    assert sandbox_home.run([sys.executable, "-c", through], real) != 0  # a write to the real home fails loudly
+    said = tmp_path / "said.json"
+    works = ("import json, os, pathlib, sys, tempfile; home = pathlib.Path(os.environ['PROPS_HOME']);"
+             "listing = ' '.join(sorted(str(path.relative_to(home)) + ('@' if path.is_symlink() else '')"
+             " for path in home.rglob('*')));"
+             "assert not (home / 'cloud').exists();"
+             "(home / 'cloud').mkdir(); (home / 'cloud' / 'ledger.jsonl').write_text('mine');"
+             "(home / 'store-tests').mkdir(); (home / 'store-tests' / 'kept').write_text('x');"
+             "os.chmod(home / 'store-tests' / 'kept', 0o444); os.chmod(home / 'store-tests', 0o555);"
+             "left = pathlib.Path(tempfile.mkdtemp()); (left / 'kept').write_text('x');"
+             "assert home.parent == pathlib.Path(tempfile.gettempdir()), home;"
+             "pathlib.Path(sys.argv[1]).write_text(json.dumps({'home': str(home), 'listing': listing, 'left': str(left)}))")
+    assert sandbox_home.run([sys.executable, "-c", works, str(said)], real) == 0
+    seen = json.loads(said.read_text())
+    assert seen["listing"] == "store store/cache"  # empty but for its store, nothing of the real home linked
+    assert not pathlib.Path(seen["home"]).exists() and not pathlib.Path(seen["left"]).exists()
+    if BUBBLEWRAP:  # without bubblewrap the real home cannot be mounted read-only
+        through = f"import pathlib; pathlib.Path({str(real / 'work' / 'seed.txt')!r}).write_text('gone')"
+        assert sandbox_home.run([sys.executable, "-c", through], real) != 0  # a write to the real home fails loudly
     assert (real / "cloud" / "ledger.jsonl").read_text() == "{}\n"
     assert (real / "work" / "seed.txt").read_text() == "seed"
-
-
-def test_a_sandbox_removes_what_its_test_leaves_even_when_stopped(tmp_path):
-    real = fake_home(tmp_path)
-    said = tmp_path / "left.txt"
-    leaves = ("import os, pathlib, sys, tempfile; left = pathlib.Path(tempfile.mkdtemp()); (left / 'kept').write_text('x');"
-              "home = pathlib.Path(os.environ['PROPS_HOME']);"
-              "assert home.parent == pathlib.Path(tempfile.gettempdir()), home;"
-              "pathlib.Path(sys.argv[1]).write_text(str(left))")
-    assert sandbox_home.run([sys.executable, "-c", leaves, str(said)], real) == 0
-    assert not pathlib.Path(said.read_text()).exists()
     # a stopped make or a closed terminal (SIGTERM) left the run's temp folder with its stores
     said = tmp_path / "temp.txt"
     waits = "import os, pathlib, sys, time; pathlib.Path(sys.argv[1]).write_text(os.environ['TMPDIR']); time.sleep(60)"
@@ -486,33 +436,6 @@ def test_a_sandbox_removes_what_its_test_leaves_even_when_stopped(tmp_path):
         assert sandbox.wait(20) != 0 and not pathlib.Path(said.read_text()).exists()
     finally:
         sandbox.kill()
-
-
-def test_a_test_run_by_hand_removes_its_temp_stores_and_its_empty_home(tmp_path):
-    """2026-10-26: 529 stores left in /tmp by test files run by hand with PROPS_HOME=$(mktemp -d)."""
-    home = pathlib.Path(tempfile.mkdtemp())
-    said = tmp_path / "left.txt"
-    leaves = ("import pathlib, runpy, sys, tempfile;"
-              f"runpy.run_path({str(REPO / 'conftest.py')!r})['refuse_outside_sandbox']();"
-              "left = pathlib.Path(tempfile.mkdtemp()) / 'store'; left.mkdir(); (left / 'object').write_text('x');"
-              "(left / 'object').chmod(0o444); left.chmod(0o555); pathlib.Path(sys.argv[1]).write_text(str(left))")
-    try:
-        subprocess.run([sys.executable, "-c", leaves, str(said)], check=True, env={**os.environ, "PROPS_HOME": str(home)})
-        assert not pathlib.Path(said.read_text()).exists() and not home.exists()
-    finally:
-        shutil.rmtree(home, ignore_errors=True)
-
-
-def test_a_sandbox_home_starts_empty_and_links_nothing_of_the_real_home(tmp_path):
-    """Fault (2026-10-28): the sandbox linked the real home's design/plans and work/, so tests leaned on real data
-    unnoticed; a test lays out its own small fixture instead."""
-    real = fake_home(tmp_path)
-    said = tmp_path / "listing.txt"
-    lists = ("import os, pathlib, sys; home = pathlib.Path(os.environ['PROPS_HOME']);"
-             "pathlib.Path(sys.argv[1]).write_text(' '.join(sorted(str(path.relative_to(home)) + ('@' if path.is_symlink() else '')"
-             " for path in home.rglob('*'))))")
-    assert sandbox_home.run([sys.executable, "-c", lists, str(said)], real) == 0
-    assert said.read_text() == "store store/cache"
 
 
 # Folders whose every file is in a paid row's code key (score.stages.moved): a test edited there moves paid rows, so
@@ -529,9 +452,59 @@ def plain_script_tests():
             if not name.startswith(KEYED) and (REPO / name).is_file() and MAIN_BLOCK in (REPO / name).read_text()]
 
 
-def test_every_plain_script_test_refuses_first_without_a_sandbox_home(tmp_path):
-    """Fault (2026-10-18 review): conftest.py covered pytest runs only; 146 of 149 plain-script tests ran by hand
-    against the real home. A wording check on each file's `__main__` block, then one run without a home."""
+GUARDED = ("PROPS_HOME", "PROPS_WORK", "SCORE_SPEND_STORE")
+REAL_PROPS = str(pathlib.Path.home() / ".farm-factory-props")
+GUARD_CASES = [  # (id, the guarded variables ({sandbox}: a fresh mkdtemp), the refusal (None: runs), whole or a part)
+    ("no home", {}, "PROPS_HOME is not set", True),
+    ("the real home", {"PROPS_HOME": REAL_PROPS}, "is not a folder of its own", False),
+    ("the system temp", {"PROPS_HOME": "{temp}"}, "is not a folder of its own", False),
+    ("the root", {"PROPS_HOME": "/"}, "is not a folder of its own", False),
+    ("a sandbox", {"PROPS_HOME": "{sandbox}"}, None, True),
+    ("work in the real home", {"PROPS_HOME": "{sandbox}", "PROPS_WORK": str(pathlib.Path.home())}, "PROPS_WORK", False),
+    ("work in the sandbox", {"PROPS_HOME": "{sandbox}", "PROPS_WORK": "{sandbox}/work"}, None, True),
+    # kept.py and preflight.py prefer the real store
+    ("the real spend store", {"PROPS_HOME": "{sandbox}", "SCORE_SPEND_STORE": f"{REAL_PROPS}/store"},
+     "SCORE_SPEND_STORE", False),
+    ("a sandbox spend store", {"PROPS_HOME": "{sandbox}", "SCORE_SPEND_STORE": "{sandbox}/store"}, None, True),
+]
+
+
+def test_no_test_starts_outside_a_sandbox_home(tmp_path):
+    """Faults: a test unlinked the real cloud ledger (2026-10-17); conftest.py covered pytest runs only, so 146 of 149
+    plain-script tests ran by hand against the real home (2026-10-18 review); 529 stores were left in /tmp by test
+    files run by hand with PROPS_HOME=$(mktemp -d) (2026-10-26). Each guarded environment is judged by the guard, by a
+    pytest run and by a plain-script run; then every plain-script test is read for the guard as its first step."""
+    target = pathlib.Path(__file__).relative_to(REPO)
+    clean = {name: value for name, value in os.environ.items() if name not in GUARDED}
+    # a plain script's first step, then the stores it leaves behind in its temp folder
+    leaves = ("import pathlib, runpy, sys, tempfile;"
+              f"runpy.run_path({str(REPO / 'conftest.py')!r})['refuse_outside_sandbox']();"
+              "left = pathlib.Path(tempfile.mkdtemp()) / 'store'; left.mkdir(); (left / 'object').write_text('x');"
+              "(left / 'object').chmod(0o444); left.chmod(0o555); pathlib.Path(sys.argv[1]).write_text(str(left))")
+    for number, (name, guarded, refusal, whole) in enumerate(GUARD_CASES):
+        sandbox = tempfile.mkdtemp()
+        environ = {key: value.format(sandbox=sandbox, temp=repo_conftest.system_temp())
+                   for key, value in guarded.items()}
+        judged = repo_conftest.sandbox_refusal(environ)
+        assert (judged == refusal) if whole or refusal is None else (refusal in (judged or "")), (name, judged)
+        collected = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "--collect-only",
+                                    str(target)], cwd=REPO, env={**clean, **environ}, capture_output=True, text=True)
+        said = collected.stdout + collected.stderr
+        if refusal is None:
+            assert collected.returncode == 0 and target.stem in said, (name, said)
+        else:
+            assert collected.returncode == 4 and "refused" in said and target.stem not in said, (name, said)
+        left = tmp_path / f"left-{number}.txt"
+        try:
+            ran = subprocess.run([sys.executable, "-c", leaves, str(left)], env={**clean, **environ},
+                                 capture_output=True, text=True)
+            if refusal is None:  # it ran, and its stores and its empty home went with it
+                assert ran.returncode == 0, (name, ran.stderr)
+                assert not pathlib.Path(left.read_text()).exists() and not pathlib.Path(sandbox).exists(), name
+            else:
+                assert ran.returncode != 0 and f"refused: {judged}" in ran.stderr and not left.exists(), (name, ran.stderr)
+        finally:
+            shutil.rmtree(sandbox, ignore_errors=True)
     plain = plain_script_tests()
     for path in plain:
         # the lines after the guard; its own line may end in a comment
@@ -541,11 +514,10 @@ def test_every_plain_script_test_refuses_first_without_a_sandbox_home(tmp_path):
             continue  # a pytest run: conftest.py refuses it
         # its first step, inline or through a conftest loaded before (a wrong path to it fails loudly, not silently)
         assert "refuse_outside_sandbox" in guard and '"conftest.py"' in path.read_text(), path
-    environ = {name: value for name, value in os.environ.items() if name not in ("PROPS_HOME", "PROPS_WORK")}
-    environ["HOME"] = str(tmp_path)  # were the refusal gone, the run would reach a scratch home, not the real one
-    for path in plain[:1]:
-        done = subprocess.run([sys.executable, str(path)], cwd=REPO, env=environ, capture_output=True, text=True)
-        assert done.returncode != 0 and "refused: PROPS_HOME is not set" in done.stderr, done.stderr
+    # a real plain-script test run with no home; were the refusal gone, it would reach a scratch home, not the real one
+    done = subprocess.run([sys.executable, str(plain[0])], cwd=REPO, env={**clean, "HOME": str(tmp_path)},
+                          capture_output=True, text=True)
+    assert done.returncode != 0 and "refused: PROPS_HOME is not set" in done.stderr, done.stderr
 
 
 # bootstrap.sh, against a scratch HOME.
@@ -588,35 +560,31 @@ def shell(repo, env, name):
     return subprocess.run(["bash", repo / ".claude" / "scripts" / name], env=env, capture_output=True, text=True)
 
 
-def test_bootstrap_links_memory_without_losing_any(scratch_repo, machine):
+def test_bootstrap_touches_only_its_links_flags_runtime_and_ssh_lines(scratch_repo, machine, tmp_path):
+    """bootstrap.sh run twice on a scratch HOME that already holds a memory folder, then ssh-agent.sh twice on two
+    homes holding a key."""
     home, env = machine
     target = home / ".claude" / "projects" / str(scratch_repo).replace("/", "-") / "memory"
     target.mkdir(parents=True)
     (target / "note.txt").write_text("an old memory")
+    env["PROPS_HOME"] = str(tmp_path / "elsewhere")  # the cloud runner calls PROPS_HOME's env: a moved home moves it
+    runtime = tmp_path / "elsewhere" / "env"
     run = shell(scratch_repo, env, "bootstrap.sh")
     assert run.returncode == 0, run.stderr
     assert target.is_symlink() and target.resolve() == scratch_repo / ".claude" / "memory"
     assert (scratch_repo / ".claude" / "memory" / "note.txt").read_text() == "an old memory"
     assert len(list(target.parent.glob("memory.bak.*"))) == 1
-    assert "memory: already linked" in shell(scratch_repo, env, "bootstrap.sh").stdout
-
-
-def test_bootstrap_sets_the_hooks_and_builds_the_runtime_python_once(scratch_repo, machine, tmp_path):
-    _, env = machine
-    env["PROPS_HOME"] = str(tmp_path / "elsewhere")  # the cloud runner calls PROPS_HOME's env: a moved home moves it
-    runtime = tmp_path / "elsewhere" / "env"
-    run = shell(scratch_repo, env, "bootstrap.sh")
-    assert run.returncode == 0, run.stderr
     assert git(scratch_repo, "config", "core.hooksPath") == ".claude/hooks"
     assert git(scratch_repo, "config", "score.movedCheck") == "true"
     assert "gh: installed but not logged in. Run: gh auth login" in run.stdout
     assert (runtime / "bin" / "python").exists()
-    assert f"runtime python: already at {runtime}" in shell(scratch_repo, env, "bootstrap.sh").stdout
+    again = shell(scratch_repo, env, "bootstrap.sh").stdout
+    assert "memory: already linked" in again and f"runtime python: already at {runtime}" in again
     syncs = [line for line in (tmp_path / "tools.log").read_text().splitlines() if line.startswith("uv ")]
     assert syncs == ["uv sync -q --frozen env=", f"uv sync -q --frozen --no-dev --project {scratch_repo} env={runtime}",
                      "uv sync -q --frozen env="]
     assert "ssh-agent: no ~/.ssh/id_ed25519" in run.stdout  # no key: nothing of ~/.ssh is touched
-    assert not (machine[0] / ".ssh").exists() and not (machine[0] / ".bashrc").exists()
+    assert not (home / ".ssh").exists() and not (home / ".bashrc").exists()
     # ssh-agent.sh with a key, on two scratch homes: one whose port 22 GitHub refuses, one where it works
     for port_22, home in (("refused", tmp_path / "home22refused"), ("ok", tmp_path / "home22ok")):
         (home / ".ssh").mkdir(parents=True)
