@@ -135,7 +135,6 @@ FUNCTION_DEBT = {
     "score/stages/scene_clips/test_a_walk_becomes_constraints_on_its_own_ground.py": 11,
     "score/stages/scene_record/test_a_scene_record_is_written_from_its_design.py": 22,
     "score/stages/shapes_first/test_every_model_goes_through_the_loop.py": 14,
-    "score/stages/shell_split/test_a_shell_splits_into_places_that_tile_and_are_reached.py": 14,
     "score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py": 2,
     "score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py": 8,
     "score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py": 5,
