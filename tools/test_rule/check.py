@@ -192,7 +192,6 @@ FUNCTION_DEBT = {
     "tools/review/test_a_region_is_judged_against_the_games_own_light.py": 4,
     "tools/review/test_the_showcase_cuts_every_film_in_order_within_its_cap.py": 8,
     "tools/review/test_the_style_measure_reads_only_the_models_own_pixels.py": 8,
-    "tools/review/viewer/test_the_web_copy_is_the_stage_whole_and_the_picks_are_kept.py": 6,
     "tools/sound/loudness/test_no_take_leaves_louder_than_the_rule.py": 5,
     "tools/sound/picker/test_picker_puts_in_only_clean_safe_takes.py": 6,
 }
