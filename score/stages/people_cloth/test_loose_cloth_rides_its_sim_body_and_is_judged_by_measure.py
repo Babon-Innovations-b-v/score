@@ -6,7 +6,8 @@ the table by plane stress, and each gate fails its break.
 On one toy person and its garment, made here: a 1 cm square of two triangles with one corner given twice (welded to
 four points, the face that lost a corner dropped), its fitted shell four rig points beside its corners with offsets
 0.01, 0.01, 0.06 and 0.2 m (OFFSET_MOST 0.05: the two corners by the last two loose; a point beside the last that
-no face draws, as a primitive sharing another's points holds, loose and not free), its cloth the cotton row (E 30.54
+no face draws, as a primitive sharing another's points holds, loose and not free; a lone loose triangle beside it
+and a loose flap on one riding corner, hung by no edge, not free), its cloth the cotton row (E 30.54
 N/m, nu 0.3058: lambda 10.3026 N/m, worked by hand), a loose edge pulled 20% past its built and skin length while one
 the skin itself draws long, or one at its built length where the skin draws it short, is not stretched; a two-joint
 skeleton (Hips at 1 m, Shin 0.5 m under it) whose sim poses are its bind (it stays at its bind), then both turned 90
@@ -20,6 +21,8 @@ is not run here (its kernels compile for a minute); the real run's numbers are o
 Breaks that turn the one test red (each applied once and seen red, reverted, 2026-11-13):
 - loose_of's `> limit` made `>= 0.0` (the loose corners).
 - free_points' `& drawn` dropped (the loose point no face of the part draws taken as free).
+- free_points' `>= 2` made `>= 1` (the flap on one riding point taken as free), and its `& hung` dropped (the lone
+  triangle and the flap taken as free), each seen red on its own.
 - welded's `index[faces]` made `faces` (the welded faces).
 - person_worlds' `np.swapaxes(turns[:, segment[parent]], 1, 2) @` dropped (a segment's world turn taken as its turn
   against its parent: the shin turns past the Hips).
@@ -141,6 +144,17 @@ def test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure(tmp_path):
     only_undrawn = np.zeros(len(shared), dtype=bool)
     only_undrawn[-1] = True
     assert not people_cloth.free_points(shared_points, shared_faces, shared_index, only_undrawn).any()
+    # a piece hung on the body by no edge rides the skin: a lone triangle all loose (by the 20 cm offset) and a flap
+    # of two loose points on the square's riding corner (0, 0) alone; the square's loose corners stay free
+    corner = 2 * SIDE
+    hung = np.vstack([glb_points, [[corner, corner, 0.0], [corner + 0.001, corner, 0.0], [corner, corner + 0.001, 0.0],
+                                   [corner, corner, 0.001], [corner + 0.001, corner, 0.001]]])
+    hung_faces = np.vstack([glb_faces, [[5, 6, 7], [0, 8, 9]]])
+    hung_points, hung_welded, hung_index = people_cloth.welded(hung, hung_faces)
+    hung_loose = people_cloth.loose_of(hung, rig, bodies.OFFSET_MOST)
+    assert hung_loose[5:].all() and not hung_loose[0]
+    hung_free = people_cloth.free_points(hung_points, hung_welded, hung_index, hung_loose)
+    assert hung_free.sum() == 2 and not hung_free[hung_index[5:]].any()
 
     # its cloth values from the cotton row by plane stress, the bending over the welded cloth's mean edge
     row = json.loads((people_cloth.REPO / "data/physics/cloth.json").read_text())["recipes"]["cloth"]

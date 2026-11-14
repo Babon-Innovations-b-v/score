@@ -12,6 +12,10 @@ Python.
 - **Loose is measured, never marked by hand**: a point whose rig point stands off the fitted SOMA shell over
   `people_bodies.bodies.OFFSET_MOST`, the shell gate's own loose cloth. No look marks a garment loose, and no design
   today wears a skirt, coat or cape: the astronaut has 6 loose points of 9,504 (its chest front).
+- **Loose cloth hangs by an edge and starts at its hang**: a loose piece joined to the riding cloth by a point or by
+  nothing rides the skin (it would fall or swing round the point for the whole run), and the loose points hang on the
+  body held still at its first frame until they rest before the run (2026-11-14: under the Moon's gravity a boot's
+  lone triangle fell 16.8 m, a flap circled one point, and the built shape had not settled in a 5 s clip).
 - **Cloth values come from the part's library surface**: its recipe (the people line's surface library, read beside)
   and that recipe's row in `data/physics/cloth.json`, each value with its source. A recipe with no row leaves the
   part baked and named. Never type a stiffness, density or damping here, and never tune one or a gate to pass.

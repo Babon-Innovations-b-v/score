@@ -9,18 +9,20 @@ job.json (written by score/stages/people_cloth): {"rate", "gravity", "substeps",
 `<person>/<part>/skinned` frames x points x 3, its points riding the skin), "people": [{"name", "segments": [{"name",
 "points" (its piece of the body surface in the segment's frame), "faces"}], "parts": [{"name", "rest" (points x 3, the
 part as built, at the bind), "faces", "free" (one bool a point: loose, simulated), "material": {"density" kg/m2,
-"mu" N/m, "lambda" N/m, "bending" N (Newton's edge stiffness), "radius" m}}]}]}.
+"mu" N/m, "lambda" N/m, "bending" N (Newton's edge stiffness), "radius" m}}]}], "settle": {"speed" m/s, "seconds"}}.
 
 Each person is a Newton world of its own (every sim-body run stands in the person's own frame, so two would overlap
 and meet). Each segment is a kinematic body carrying its piece of the body surface as a mesh collider, its pose set
 every substep to where the substep ends between the run's frames (positions blended, turns slerped), with the matching
-velocity, so the cloth meets it moving. Each part is one cloth mesh at rest at its built shape; a point not loose has
-no mass and is set every substep to where the skin carries it at the substep's end (it rides the body as the baked
-garment does), a loose one is simulated. No self contact.
+velocity, so the cloth meets it moving. Each part is one cloth mesh at rest at its built shape, let hang first on the
+body held still at its first frame until its loose points rest (`settle`: their mean speed and the most seconds); a
+point not loose has no mass and is set every substep to where the skin carries it at the substep's end (it rides the
+body as the baked garment does), a loose one is simulated. No self contact.
 No damping of the cloth's own: Newton's default (10 N s/m against cotton's 5 N/m shear) held loose points 5 cm behind
 a walking body within 8 frames, 2026-10-27; the implicit step's own loss is the only one, as no source gives cotton's.
 
-out.npz: per part `<person>/<part>` frames x points x 3 (world, metres, the frame's end), plus `engine` (text).
+out.npz: per part `<person>/<part>` frames x points x 3 (world, metres, the frame's end), plus `engine` (text) and
+`settled` (the seconds the loose points hung before the run).
 """
 import json
 import pathlib
@@ -125,36 +127,55 @@ class Scene:
             state.particle_q.assign(points)
             state.particle_qd.zero_()
 
-    def driven(self, frame, share):
+    def driven(self, frame, share, moving=True):
         """The segments' poses and velocities and the riding points `share` of the way from `frame` to the next,
-        written into the state the step reads."""
+        written into the state the step reads; not `moving`, each held still where it stands."""
         body_q, body_qd = self.now.body_q.numpy(), self.now.body_qd.numpy()
         points, speeds = self.now.particle_q.numpy(), self.now.particle_qd.numpy()
         for person in self.people:
             worlds = person["worlds"]
             body_q[person["bodies"]] = blended(worlds, frame, share)
-            body_qd[person["bodies"]] = velocities(worlds, frame, self.rate)
+            body_qd[person["bodies"]] = velocities(worlds, frame, self.rate) * moving
             after = min(frame + 1, len(worlds) - 1)
             for part in person["parts"]:
                 riding = ~part["free"]
                 at = part["skinned"][frame] * (1.0 - share) + part["skinned"][after] * share
                 rows = part["first"] + np.flatnonzero(riding)
                 points[rows] = at[riding]
-                speeds[rows] = (part["skinned"][after] - part["skinned"][frame])[riding] * self.rate
+                speeds[rows] = (part["skinned"][after] - part["skinned"][frame])[riding] * self.rate * moving
         self.now.body_q.assign(body_q)
         self.now.body_qd.assign(body_qd)
         self.now.particle_q.assign(points)
         self.now.particle_qd.assign(speeds)
 
-    def frame(self, frame):
-        """Step from `frame` to the next: SUBSTEPS steps, the body and riding points moved before each."""
+    def frame(self, frame, moving=True):
+        """Step from `frame` to the next: SUBSTEPS steps, the body and riding points moved before each (not
+        `moving`: held still at `frame`)."""
         step = 1.0 / (self.rate * self.substeps)
         for number in range(self.substeps):
-            self.driven(frame, (number + 1) / self.substeps)  # where the step ends: a riding point is not moved by it
+            # where the step ends: a riding point is not moved by it
+            self.driven(frame, (number + 1) / self.substeps * moving, moving)
             self.now.clear_forces()
             self.pipeline.collide(self.now, self.contacts)
             self.solver.step(self.now, self.next, self.control, self.contacts, step)
             self.now, self.next = self.next, self.now
+
+    def settled(self, speed, most_seconds):
+        """The loose points let hang on the body held still at the run's first frame, a frame at a time, until every
+        part's loose points move no faster than `speed` on the mean (m/s) or `most_seconds` pass: the cloth starts the
+        run at its hang, not its built shape. The seconds it took."""
+        for count in range(int(most_seconds * self.rate)):
+            before = self.points()
+            self.frame(0, moving=False)
+            after = self.points()
+            if all(np.linalg.norm(after[key][part["free"]] - before[key][part["free"]], axis=1).mean() * self.rate
+                   <= speed for key, part in self.loose()):
+                return (count + 1) / self.rate
+        return float(int(most_seconds * self.rate)) / self.rate
+
+    def loose(self):
+        """(person/part, its part) of every part."""
+        return [(f"{person['name']}/{part['name']}", part) for person in self.people for part in person["parts"]]
 
     def points(self):
         """Every part's points now ({person/part: points x 3})."""
@@ -167,6 +188,7 @@ def run(job_path, out_path):
     job = json.loads(job_path.read_text())
     motion = dict(np.load(job["motion"]))
     scene = Scene(job, motion)
+    settled = scene.settled(job["settle"]["speed"], job["settle"]["seconds"])
     frames = max(len(person["worlds"]) for person in scene.people)
     found = {key: [value] for key, value in scene.points().items()}
     for frame in range(frames - 1):
@@ -175,7 +197,8 @@ def run(job_path, out_path):
             found[key].append(value)
     engine = (f"newton {newton.__version__} SolverVBD ({job['iterations']} iterations, {job['substeps']} substeps a "
               f"frame, run-to-run deterministic) on {job['device']}")
-    np.savez_compressed(out_path, engine=np.array(engine), **{key: np.asarray(value) for key, value in found.items()})
+    np.savez_compressed(out_path, engine=np.array(engine), settled=np.array(settled),
+                        **{key: np.asarray(value) for key, value in found.items()})
 
 
 if __name__ == "__main__":

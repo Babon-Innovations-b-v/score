@@ -5,21 +5,21 @@ settled on a still body, then baked: their silhouette failed against the referen
 that: the built, dressed garment stays as it is, and only its loose cloth moves, riding a moving body.
 
     make     for each sim body of sim-body's run whose cast look has a dressed body (people-dress-<look>, its optional
-             reads, as the characters layer reads them) and a built one (people-body-<look>: its rig.npz), each
-             garment part of the dressed body.glb (material role `garment`, the far body left out) with loose points
-             its faces draw: a point is loose where the shell gate calls it loose cloth (people_bodies/bodies.py: its
-             rig point's offset off the fitted SOMA shell over OFFSET_MOST, an edge, hem or cap the shell could not
-             follow);
-             every other point of the part rides the skin. The person's skeleton plays the sim body's run: each
-             segment turned against its parent as the sim turned it, on the person's own bones (the asset's way of
-             playing a clip), and the part is skinned on it (its glTF joints and weights); the body surface under the
-             clothes (rig.npz's source surface, the clips rig's weights) is cut into one piece a sim segment, each a
-             mesh collider moving with its segment. Its cloth values come from the part's library surface: the
-             recipe it is made with (surface-library@people), its row in data/physics/cloth.json, never typed here; a
-             part whose recipe has no row is named and left baked. inside/cloth.py runs every part at once in
-             Newton's own Python on this machine's card. Written: people_cloth.json (each person and part: its
-             points, loose points, material, measures, what was left out and why), layers/people_cloth.usdc (each
-             simulated part's baked mesh made invisible and a Mesh in its place, its points every frame:
+             reads, as the characters layer reads them) and a built one (people-body-<look>: its rig.npz), each garment
+             part of the dressed body.glb (material role `garment`, the far body left out) with loose points its faces
+             draw: a point is loose where the shell gate calls it loose cloth (people_bodies/bodies.py: its rig point's
+             offset off the fitted SOMA shell over OFFSET_MOST, an edge, hem or cap the shell could not follow) and hung
+             on the body by an edge (free_points); every other point of the part rides the skin. The person's skeleton
+             plays the sim body's run: each segment turned against its parent as the sim turned it, on the person's own
+             bones (the asset's way of playing a clip), and the part is skinned on it (its glTF joints and weights); the
+             body surface under the clothes (rig.npz's source surface, the clips rig's weights) is cut into one piece a
+             sim segment, each a mesh collider moving with its segment. Its cloth values come from the part's library
+             surface: the recipe it is made with (surface-library@people), its row in data/physics/cloth.json, never
+             typed here; a part whose recipe has no row is named and left baked. inside/cloth.py runs every part at once
+             in Newton's own Python on this machine's card, the loose points first let hang on the body held still at
+             its first frame until they rest (REST_MOST, at most HANG_MOST). Written: people_cloth.json (each person and
+             part: its points, loose points, material, measures, what was left out and why), layers/people_cloth.usdc
+             (each simulated part's baked mesh made invisible and a Mesh in its place, its points every frame:
              /<place>/Characters/<name>/Turned/Cloth/<part>)
     gates    through   no loose point deeper inside the body surface (posed each frame) than the cloth's thickness
                        (bodycloth.MARGIN_MM, the people gates' 3 mm), any frame
@@ -63,6 +63,12 @@ DEVICE = "cuda:0"
 STRETCH_MOST = 0.10
 REST_MOST = 0.01  # m/s
 REST_SECONDS = 0.5
+# The loose points hang on the body held still at its first frame until they rest (REST_MOST) before the run, at most
+# HANG_MOST: the cloth starts at its hang, not its built shape. Under the Moon's 1.624 m/s2 a flap swings slowly and
+# the implicit step loses little a second, so the built shape had not settled within a 5 s standing clip
+# (people-cloth@hangar, worker_blue_5's boot cloth_6: 0.059 m/s at the start, still 0.011 at the end, 2026-11-14).
+# HANG_MOST is a bound on the work, not a gate: cloth still moving then is the rests gate's to judge.
+HANG_MOST = 20.0  # seconds
 SETTLE = 0.5  # seconds let pass before the stretch gate reads: the cloth leaving its built shape for its hang
 STILL = ("standing",)
 WELD = 1e-6  # metres: glTF points this near are one cloth point (a seam split for its normals)
@@ -149,12 +155,28 @@ def free_points(points, faces, index, loose):
     welded faces. A primitive may share its points with another of its mesh and draw only some of them: the
     worker_jumpsuit's cloth primitives 6 and 7 share 2,052 points, and the 56 loose ones are drawn by 6 alone
     (people-cloth@hangar, 2026-11-14); a point no face of the part draws is no cloth of it, has no edge to keep it
-    and is measured by none."""
+    and is measured by none. A loose point is free only where it is hung on the body by an edge: its face is joined,
+    face to face across shared edges, to a face with two riding corners. A piece joined to the rest by a point alone
+    (or by nothing) has no edge to hold it and no bend to stop it: it falls away or swings round that point for the
+    whole run, the implicit step's loss its only damping (people-cloth@hangar 2026-11-14, worker_blue_5's boot
+    cloth_6: one lone triangle of 3 loose points 16.8 m off the skin by the end under Moon gravity, and a flap of 9
+    on one point still circling at 0.18 m/s after 5 s), so it rides the skin as built."""
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
     free = np.zeros(len(points), dtype=bool)
     free[index[loose]] = True
-    drawn = np.zeros(len(points), dtype=bool)
-    drawn[faces.ravel()] = True
-    return free & drawn
+    sides = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    _, side = np.unique(sides, axis=0, return_inverse=True)
+    face = np.tile(np.arange(len(faces)), 3)
+    joined = coo_matrix((np.ones(len(face)), (face, len(faces) + side.ravel())),
+                        shape=(len(faces) + len(sides),) * 2)
+    count, piece = connected_components(joined, directed=False)
+    hinged = (~free[faces]).sum(axis=1) >= 2
+    held = np.zeros(count, dtype=bool)
+    held[piece[:len(faces)][hinged]] = True
+    hung = np.zeros(len(points), dtype=bool)
+    hung[faces[held[piece[:len(faces)]]].ravel()] = True
+    return free & hung
 
 
 def person_worlds(rig, kept, poses):
@@ -342,7 +364,8 @@ def simulated(job_people, motion, sim, out, laid):
     """The job run; each laid part's simulated points (frames x points x 3) set as its `cloth`."""
     np.savez_compressed(out / "motion.npz", **motion)
     job = {"rate": sim["rate"], "gravity": sim["gravity"], "substeps": SUBSTEPS, "iterations": ITERATIONS,
-           "device": DEVICE, "motion": str(out / "motion.npz"), "people": job_people}
+           "device": DEVICE, "motion": str(out / "motion.npz"), "people": job_people,
+           "settle": {"speed": REST_MOST, "seconds": HANG_MOST}}
     (out / "job.json").write_text(json.dumps(job))
     found, seconds = ran(out / "job.json", out / "run.npz")
     for name, parts in laid.items():
@@ -350,7 +373,8 @@ def simulated(job_people, motion, sim, out, laid):
             part["cloth"] = found[f"{name}/{part['label']}"]
     (out / "job.json").unlink()
     (out / "motion.npz").unlink()
-    return str(found["engine"]), seconds
+    hung = f"the loose points hung {float(found['settled']):.2f} s on the still first frame first"
+    return f"{found['engine']}, {hung}", seconds
 
 
 # --- the measures and gates ----------------------------------------------------------------------------------------
