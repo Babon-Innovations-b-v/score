@@ -68,10 +68,10 @@ PART = "SCORE_KEY_TEST_PART"  # set in a part's own pytest (parts_side_by_side):
 PARTS = 4  # this process and three pytest processes of their own
 PART_START = 3  # a part's own start, in seconds: its interpreter, imports and module fixtures
 SECONDS = {  # each test's seconds on a quiet PC (pytest --durations), by its name's start; one not named counts 1
-    "test_a_key_is_made_once_and": 9, "test_a_ready_node_starts": 8, "test_a_run_buys_each": 6,
+    "test_a_key_is_made_once_and": 9, "test_a_ready_node_starts": 8, "test_a_run_buys_each": 10,
     "test_a_failed_output": 5, "test_a_run_imports_its_own": 4.5, "test_an_output_whose_key": 3.7,
     "test_a_node_shares_the_cores": 2.3, "test_a_pass_lists_each": 2.1, "test_a_drive_runs_every": 1.8,
-    "test_a_run_leaves_paid": 1.7, "test_a_run_claims_its_store": 1.7, "test_a_make_is_accepted": 1.3,
+    "test_a_run_claims_its_store": 1.7, "test_a_make_is_accepted": 1.3,
     "test_the_code_version": 0.1, "test_a_node_is_given_room": 0.1, "test_a_pooled_row": 0.1}
 
 
@@ -4439,15 +4439,15 @@ MADE_PASS, AN_ERROR = re.compile("made: pass"), re.compile("error")
 
 
 @dataclasses.dataclass(frozen=True)
-class Leaving:
-    """One drive: the runner `build` gives (the clean -> paint (paid, EUR 0.50) -> count table of free_runner, or the
-    people line's look -> dress (paid, EUR 0) -> cast of people_runner), the places it drives, its whole line or not,
-    where it runs, the stage it leaves out, what each node ends as (a string exactly, a compiled pattern matched from
-    its start), whether paint has a fault report (None: not asked), the first place's first line, the accepted text
-    of a node's file, whether the run's answer holds exactly the nodes named (whole) or at least them, a (stage,
-    place) whose optional reads are none before the drive, and whether a clearance asked fails the drive (free_runner's
-    rows: a free-only run asks none) or is the real one (people_runner's EUR 0 dress)."""
-    build: object
+class Drive:
+    """A priced world then driven (Priced.drive): the places it drives, its whole line or not, where it runs, the
+    stage it leaves out, what each node ends as (a string exactly, a compiled pattern matched from its start), whether
+    paint has a fault report (None: not asked), the first place's first line, the accepted text of a node's file,
+    whether the run's answer holds exactly the nodes named (whole) or at least them, a (stage, place) whose optional
+    reads are none before the drive, and whether a clearance asked fails the drive (free_runner's rows: a free-only
+    run asks none) or is the real one (people_runner's EUR 0 dress). `blocked`: paint's clearance on a fresh world is
+    refused as left for the Buy; `said`: `score run --free` on a fresh world ends with this status and these lines;
+    `held`: the people line, whole or not, holds these nodes, its one buy is dress, and each is held for these places."""
     found: dict
     places: tuple = ("hangar",)
     drive_whole: bool = True
@@ -4459,138 +4459,9 @@ class Leaving:
     whole: bool = False
     unwaited: tuple | None = None
     refused: bool = True
-
-
-LEAVING = {
-    "free-only in the cloud leaves paint for the Buy": Leaving(
-        lambda: free_runner(make_paint, True),
-        {"clean@hangar": ACCEPTED, "paint@hangar": graph.PAID_LEFT, "count@hangar": WAITS_ON_PAINT},
-        reported=False, line="waits at paint@hangar", whole=True),
-    "a left-out stage is not made and its reader waits": Leaving(
-        lambda: free_runner(make_paint, False),
-        {"clean@hangar": ACCEPTED, "paint@hangar": graph.LEFT_OUT,
-         "count@hangar": "not run: reads paint@hangar, left out of this run"},
-        leave_out="paint", reported=False, whole=True),
-    "free-only on this PC's card makes paint with no ticket": Leaving(
-        lambda: free_runner(make_paint_here, True), {"clean@hangar": ACCEPTED, "paint@hangar": ACCEPTED},
-        here=True, texts={"paint@hangar": ("paint.txt", "ticket None")}),
-    "free-only here, too big for the card: left for the Buy, priced": Leaving(
-        lambda: free_runner(make_paint_elsewhere(compute.CLOUD_ONLY_EXIT), True),
-        {"clean@hangar": ACCEPTED, "paint@hangar": (f"{graph.PAID_LEFT} (about EUR 0.50: meshparts.py: a job too big "
-                                                     "for this PC's card, a cloud job)"),
-         "count@hangar": WAITS_ON_PAINT},
-        here=True, reported=False),
-    "free-only here, the tool crashing otherwise is an error with its report": Leaving(
-        lambda: free_runner(make_paint_elsewhere(1), True),
-        {"clean@hangar": ACCEPTED, "paint@hangar": re.compile(r"error: CalledProcessError.*fault report", re.S)},
-        here=True),
-    "the cast waits on its dress and takes it": Leaving(
-        lambda: people_runner("a suit"), {"dress": MADE_PASS}, PLACES, False, refused=False,
-        texts={"cast@hangar": ("cast.txt", "dressed"), "cast@station": ("cast.txt", "dressed")}),
-    "the cast runs without the dress once its line stopped": Leaving(
-        lambda: people_runner("explode"), {"dress": "not run: its line stopped at look@people"}, PLACES, False,
-        refused=False,
-        texts={"cast@hangar": ("cast.txt", "undressed")}),
-    "an errored dress holds the cast, not run": Leaving(
-        lambda: people_runner("a torn suit"),
-        {"dress": AN_ERROR, "cast@hangar": "not run: waits on dress", "cast@station": "not run: waits on dress"},
-        PLACES, False, refused=False),
-    "a cast that leaves the dress unread neither waits on it nor reads it": Leaving(
-        lambda: people_runner("a suit", unread=lambda place: {"dress"} if place == "station" else ()),
-        {"dress": MADE_PASS}, PLACES, False,
-        texts={"cast@hangar": ("cast.txt", "dressed"), "cast@station": ("cast.txt", "undressed")},
-        unwaited=("cast", "station"), refused=False),
-}
-
-
-def test_a_run_leaves_paid_left_out_or_unsettled_reads_with_their_readers_waiting_and_makes_the_rest(
-        monkeypatch, run_registry):
-    """A free-only run makes its free nodes, leaves its paid ones for the Buy (their readers waiting) and ends ok with
-    its list; a run's left-out stage (`score run --leave-out`, SCORE_LEAVE_OUT; 2026-11-10: env1's PC run must not
-    start sim-body rows) is not made and its reader waits on it, and a stage the table does not hold is refused. On
-    this PC's card a free-only run makes its paid nodes with no ticket; one too big for its card (2026-11-02, round 45:
-    people-look-parts-astronaut_spacesuit-made's meshparts needed 24 GB of card on this PC's 16 GB, park.here refused
-    it inside the cloud tool's own process and the row crashed with a fault report) is left for the Buy, priced at its
-    estimate, no fault report, its reader waiting; the same tool crashing otherwise is still an error with its report.
-    The people line's nodes are in the run whole or not, priced, and held for each place that reads them; the cast
-    waits on its dress and takes it, and runs without it once its line stopped; a place whose cast leaves the dress
-    unread (sim-body at a place whose cast wears no pilot: 2026-11-11) neither waits on it nor reads it; a dress
-    that errored (no card answered) holds the cast, not run, rather than let it be made and keyed without it
-    (2026-11-12: palette ran without an errored pixal and re-keyed a place's surfaces).
-    Breaks (each applied once, seen red, reverted), in score/graph/__init__.py:
-    '        if not (self.free_only and stage.paid) or on_this_pc():\n            return False' -> '        if True:\n            return False';
-    `        if stage.name not in self.left_out:` -> `        if True:`
-    (paint is never left out: it runs and asks its refused clearance);
-    '        if self.free_only and on_this_pc():\n            return contextlib.nullcontext()' -> '        if False:\n            return contextlib.nullcontext()';
-    `        if refusal is None or not (self.free_only and stage.paid and on_this_pc()):` -> `        if True:`;
-    'if before not in unread and (' -> 'if True and (';
-    '    return [name for name in optional if name in line and name not in stood and name not in stopped]' -> '    return []'
-    (the cast starts before its dress is settled and is made undressed);
-    '    return [name for name in optional if done.get(name, "").startswith("error")]' -> '    return []'
-    (the cast runs without its errored dress and is made undressed);
-    '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
-    from score import __main__ as command
-    clearance = compute.clearance
-    monkeypatch.setattr(command, "opened_pool", refused_clearance)
-    monkeypatch.delenv(compute.TICKET, raising=False)
-    for name, row in LEAVING.items():
-        monkeypatch.setattr(compute, "clearance", refused_clearance if row.refused else clearance)
-        if row.here:
-            monkeypatch.setenv("SCORE_CLOUD", "local")
-        else:
-            monkeypatch.delenv("SCORE_CLOUD", raising=False)
-        runner = row.build()
-        if row.leave_out:
-            monkeypatch.setenv(command.LEAVE_OUT, row.leave_out)
-        else:
-            monkeypatch.delenv(command.LEAVE_OUT, raising=False)
-        runner.left_out = command.left_out_stages(argparse.Namespace(leave_out=None), runner.stages)
-        if row.unwaited:
-            stage, place = row.unwaited
-            assert runner.optional_nodes(runner.stages[stage], place) == [], (name, f"{stage}@{place} waits on a read")
-        found = runner.drive(list(row.places), say=quiet, whole=row.drive_whole)
-        if row.whole:
-            assert set(found) == set(row.found), (name, found)
-        for node, expected in row.found.items():
-            if isinstance(expected, re.Pattern):
-                assert expected.match(found[node]), (name, node, found)
-            else:
-                assert found[node] == expected, (name, node, found)
-        if row.reported is not None:
-            assert report_of(runner, "paint@hangar").exists() == row.reported, name
-        if row.line:
-            assert runner.lines(["hangar"], whole=False)["hangar"][0] == row.line, (name, runner.lines(["hangar"]))
-        for node, (file, text) in row.texts.items():
-            # paint's text: no clearance was asked (a real paid point inside would refuse)
-            assert accepted_text(runner.store, node, file) == text, (name, node)
-
-    monkeypatch.delenv("SCORE_CLOUD", raising=False)
-    monkeypatch.delenv(command.LEAVE_OUT, raising=False)
-    monkeypatch.setattr(compute, "clearance", refused_clearance)
-    with pytest.raises(graph.Blocked, match="left for the Buy"):
-        free_runner().cleared("paint@hangar", 0.5)
-    said, _, status = run_printing(free_runner(), ["hangar"], free=True)
-    assert status.startswith("ok, free-only, 1 free rows stand, 0 failed, 1 paid rows left for the Buy"), said
-    assert "  left for the Buy: paint@hangar" in said and "  waits on a paid row: count@hangar" in said, said
-    stages = free_runner().stages
-    assert command.left_out_stages(argparse.Namespace(leave_out="count"), stages) == {"count"}
-    with pytest.raises(SystemExit, match="pain is no stage"):
-        command.left_out_stages(argparse.Namespace(leave_out="pain"), stages)
-    assert compute.cloud_only(RuntimeError("wrapped")) is None
-    try:
-        try:
-            raise compute.CloudOnly("a meshparts job needs about 24 GB of card")
-        except compute.CloudOnly as refusal:
-            raise RuntimeError("its row") from refusal
-    except RuntimeError as error:
-        assert str(compute.cloud_only(error)) == "a meshparts job needs about 24 GB of card"
-    people = people_runner("a suit")
-    for whole in (True, False):
-        names = {graph.node_name(*node) for node in people.line_nodes(PLACES, whole)}
-        assert {"look@people", "dress", "cast@hangar", "cast@station"} <= names, (whole, names)
-    assert [buy.node for buy in rebuy.buys(people, people.line_nodes(PLACES, False))] == ["dress"]
-    held = rebuy.held_for(people, people.line_nodes(PLACES, True), set(PLACES))
-    assert held["dress"] == held["look@people"] == set(PLACES) and held["cast@hangar"] == {"hangar"}, held
+    blocked: bool = False
+    said: tuple = ()
+    held: dict = dataclasses.field(default_factory=dict)
 
 
 def make_rung(inputs, out, seed, params):
@@ -4882,7 +4753,8 @@ def a_git_diff(moved):
 
 @dataclasses.dataclass(frozen=True)
 class Priced:
-    """One world a run prices, and the buys it lists, worked out by hand. `made` names the rows made before
+    """One world a run prices, and the buys it lists, worked out by hand. `table` names one of PRICED_TABLES (a hall's
+    runner over it) or is the world's own builder (free_runner's, people_runner's). `made` names the rows made before
     (EVERY: all of them, each accepted automatically); `changes` what moved after: the hall's brief, a row's code,
     the draw's code narrowed with a proof (a kept node), the drop run gathered. `wordings` are the files whose change
     git reports, render asking Google from its cache: () none, each one in turn otherwise (the same buys after each); `asks_from` swaps render's make, `asks` what
@@ -4908,6 +4780,8 @@ class Priced:
     preflights: tuple = ()  # each a Preflight of score preflight on this world
     faults: tuple = ()  # what the preflight's world lacks: "books" unknown, "stock" short
     modules: object = None  # the phase's modules as the preflight imports them; None: the stages' own
+    drive: object = None  # a Drive of the world once priced; None: not driven
+    places: tuple = ("hangar",)  # the places the run prices
 
 
 @dataclasses.dataclass(frozen=True)
@@ -4926,6 +4800,8 @@ FIRST_BUYS = (("render@hangar", 4.0, False), ("bake@hangar", 3.0, False))
 GAP_LINE = {"aside@hangar": True, "complete@hangar": False, "film@hangar": True, "finish@hangar": True,
             "gap@hangar": True, "part@hangar": True, "people@hangar": True}
 CHAIN_ENDS = ["alone", "aside", "film"]
+FREE_BUYS = (("paint@hangar", 0.5, False),)  # free_runner's paint, never made
+PEOPLE_BUYS = (("dress", 0.0, False),)  # people_runner's dress, never made
 CHAIN_BUYS = None  # its buys not asked: a chain row asks what the gap's price covers
 PRICED = {
     "never made: each paid row a buy, no refusal": Priced("bought", FIRST_BUYS, refused=None),
@@ -5003,6 +4879,52 @@ PRICED = {
     "answers the shape check dropped are priced as the output names": Priced(
         "rejected asks", (("render@hangar", 0.134), ("bake@hangar", 3.0)), made=EVERY, changes=("code render",),
         fields=("node", "euros"), wordings=()),
+    # free_runner's clean -> paint (paid, EUR 0.50) -> count and people_runner's look -> dress (paid, EUR 0) -> cast,
+    # priced and then driven
+    "free-only in the cloud leaves paint for the Buy": Priced(
+        lambda: free_runner(make_paint, True), FREE_BUYS, refused=None, listed="buy paint@hangar: EUR 0.50",
+        drive=Drive({"clean@hangar": ACCEPTED, "paint@hangar": graph.PAID_LEFT, "count@hangar": WAITS_ON_PAINT},
+                    reported=False, line="waits at paint@hangar", whole=True, blocked=True, said=(
+                        "ok, free-only, 1 free rows stand, 0 failed, 1 paid rows left for the Buy",
+                        "  left for the Buy: paint@hangar", "  waits on a paid row: count@hangar"))),
+    "a left-out stage is not made and its reader waits": Priced(
+        lambda: free_runner(make_paint, False), FREE_BUYS,
+        drive=Drive({"clean@hangar": ACCEPTED, "paint@hangar": graph.LEFT_OUT,
+                     "count@hangar": "not run: reads paint@hangar, left out of this run"},
+                    leave_out="paint", reported=False, whole=True)),
+    "free-only on this PC's card makes paint with no ticket": Priced(
+        lambda: free_runner(make_paint_here, True), FREE_BUYS,
+        drive=Drive({"clean@hangar": ACCEPTED, "paint@hangar": ACCEPTED}, here=True,
+                    texts={"paint@hangar": ("paint.txt", "ticket None")})),
+    "free-only here, too big for the card: left for the Buy, priced": Priced(
+        lambda: free_runner(make_paint_elsewhere(compute.CLOUD_ONLY_EXIT), True), FREE_BUYS,
+        drive=Drive({"clean@hangar": ACCEPTED,
+                     "paint@hangar": (f"{graph.PAID_LEFT} (about EUR 0.50: meshparts.py: a job too big for this PC's "
+                                      "card, a cloud job)"),
+                     "count@hangar": WAITS_ON_PAINT}, here=True, reported=False)),
+    "free-only here, the tool crashing otherwise is an error with its report": Priced(
+        lambda: free_runner(make_paint_elsewhere(1), True), FREE_BUYS,
+        drive=Drive({"clean@hangar": ACCEPTED,
+                     "paint@hangar": re.compile(r"error: CalledProcessError.*fault report", re.S)}, here=True)),
+    "the cast waits on its dress and takes it": Priced(
+        lambda: people_runner("a suit"), PEOPLE_BUYS, places=PLACES,
+        drive=Drive({"dress": MADE_PASS}, PLACES, False, refused=False,
+                    texts={"cast@hangar": ("cast.txt", "dressed"), "cast@station": ("cast.txt", "dressed")},
+                    held={"dress": set(PLACES), "look@people": set(PLACES), "cast@hangar": {"hangar"},
+                          "cast@station": {"station"}})),
+    "the cast runs without the dress once its line stopped": Priced(
+        lambda: people_runner("explode"), PEOPLE_BUYS, places=PLACES,
+        drive=Drive({"dress": "not run: its line stopped at look@people"}, PLACES, False, refused=False,
+                    texts={"cast@hangar": ("cast.txt", "undressed")})),
+    "an errored dress holds the cast, not run": Priced(
+        lambda: people_runner("a torn suit"), PEOPLE_BUYS, places=PLACES,
+        drive=Drive({"dress": AN_ERROR, "cast@hangar": "not run: waits on dress",
+                     "cast@station": "not run: waits on dress"}, PLACES, False, refused=False)),
+    "a cast that leaves the dress unread neither waits on it nor reads it": Priced(
+        lambda: people_runner("a suit", unread=lambda place: {"dress"} if place == "station" else ()), PEOPLE_BUYS, places=PLACES,
+        drive=Drive({"dress": MADE_PASS}, PLACES, False,
+                    texts={"cast@hangar": ("cast.txt", "dressed"), "cast@station": ("cast.txt", "undressed")},
+                    unwaited=("cast", "station"), refused=False)),
 }
 
 
@@ -5049,12 +4971,14 @@ JUDGED_PLANS = (
                   "pixal@base": "blocked: closeup@base has not run on its current inputs"}},
      ["failing: plan@square: plan@square answered fail: held: the stairwell's doors"]),
 )
+# `score run --leave-out` over free_runner's table: (the stage named, the stages left out or its refusal's text)
+LEAVE_OUTS = (("count", {"count"}), ("pain", "pain is no stage"))
 # A bare name its package put on sys.path is imported through that package (route_views met its own circular import
 # alone): (name, its dotted name).
 DOTTED = (("route_views", "score.stages.surfaces.route_views"), ("json", "json"))
 
 
-def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypatch):
+def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypatch, run_registry):
     """A run lists as a buy each paid row it would make: rows never made at their estimates; a moved brief or code
     as re-buys, over EUR 5 refused without a reason and a given one in the ledger. Rows after a node kept by a proof
     are still buys (fault 2026-10-24: the greenhouse's kept plan hid its prop route); a row reading a kept node
@@ -5091,6 +5015,18 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
     runner of its own stopping there) or starts the renting client passes, as does one whose make finishes; one whose
     make raises first and one past its time box each fail by the node's name and the cause. lock-phase with no
     --stage locks the phase table's stages of that phase (2026-11-06: the door locks a phase by name).
+    A priced world is then driven: a free-only run makes its free nodes, leaves its paid ones for the Buy (their
+    readers waiting) and ends ok with its list; a run's left-out stage (`score run --leave-out`, SCORE_LEAVE_OUT;
+    2026-11-10: env1's PC run must not start sim-body rows) is not made and its reader waits on it, and a stage the
+    table does not hold is refused. On this PC's card a free-only run makes its paid nodes with no ticket; one too big
+    for its card (2026-11-02, round 45: people-look-parts-astronaut_spacesuit-made's meshparts needed 24 GB of card on
+    this PC's 16 GB, park.here refused it inside the cloud tool's own process and the row crashed with a fault report)
+    is left for the Buy, priced at its estimate, no fault report, its reader waiting; the same tool crashing otherwise
+    is still an error with its report. The people line's nodes are in the run whole or not, priced, and held for each
+    place that reads them; the cast waits on its dress and takes it, and runs without it once its line stopped; a
+    place whose cast leaves the dress unread (sim-body at a place whose cast wears no pilot: 2026-11-11) neither waits
+    on it nor reads it; a dress that errored (no card answered) holds the cast, not run, rather than let it be made and
+    keyed without it (2026-11-12: palette ran without an errored pixal and re-keyed a place's surfaces).
     Break: score/graph/chain.py: '            if runner.standing(*before) is not None:' -> '            if True:'
     Break: score/graph/__init__.py: '            del self.store.objects.keys\n            self.remembered = None' ->
     '            del self.store.objects.keys'
@@ -5109,7 +5045,19 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
     Break: score/__main__.py: in preflight_plan, drop the `ANSWERED` failures -> the blocked plan names no failure.
     Break: score/__main__.py: in import_failure, pass `module` for `dotted_name(module)` -> route_views fails to import.
     Break: score/__main__.py: in DryPopen, drop the `client_named` lines -> the renting client's row fails.
-    Break: score/__main__.py: in phase_locked_line, drop the `phases.stages_of` line -> brief is locked too."""
+    Break: score/__main__.py: in phase_locked_line, drop the `phases.stages_of` line -> brief is locked too.
+    Breaks of the drive, in score/graph/__init__.py:
+    '        if not (self.free_only and stage.paid) or on_this_pc():\n            return False' -> '        if True:\n            return False';
+    `        if stage.name not in self.left_out:` -> `        if True:`
+    (paint is never left out: it runs and asks its refused clearance);
+    '        if self.free_only and on_this_pc():\n            return contextlib.nullcontext()' -> '        if False:\n            return contextlib.nullcontext()';
+    `        if refusal is None or not (self.free_only and stage.paid and on_this_pc()):` -> `        if True:`;
+    'if before not in unread and (' -> 'if True and (';
+    '    return [name for name in optional if name in line and name not in stood and name not in stopped]' -> '    return []'
+    (the cast starts before its dress is settled and is made undressed);
+    '    return [name for name in optional if done.get(name, "").startswith("error")]' -> '    return []'
+    (the cast runs without its errored dress and is made undressed);
+    '            for before in self.read_nodes(*reading.pop(), every=True):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others' -> '            for before in self.read_nodes(*reading.pop(), every=False):\n                if node_name(*before) not in names:\n                    names.add(node_name(*before))\n                    reading.append(before)\n        others'"""
     from score import __main__ as command
     books = compute.ledger()
     ledgers = pathlib.Path(tempfile.mkdtemp())
@@ -5117,20 +5065,22 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
     tools = {"provider": types.SimpleNamespace(on_cluster=lambda: False,
                                                cloud=types.SimpleNamespace(offers=lambda classes: offers)),
              "pool": types.SimpleNamespace(shrinking=lambda sizes, hours: [(sizes, 3.6)])}
+    driving = {name: getattr(command, name) for name in ("cloud_tool", "card_rows", "pool_sizes")}  # a drive's own
     monkeypatch.setattr(command, "cloud_tool", tools.get)
     monkeypatch.setattr(command, "card_rows", lambda *args: [("render@hangar", "hangar", 1, False)])
     monkeypatch.setattr(command, "pool_sizes", lambda rows, jobs: {"gpu-24gb": len(rows)})
     monkeypatch.setattr(command, "DRY_SECONDS", 1)
     real_buys = rebuy.buys
+    clearance = compute.clearance
     for number, (name, row) in enumerate(PRICED.items()):
         with monkeypatch.context() as patch:
-            stages = list(PRICED_TABLES[row.table])
+            stages = [] if callable(row.table) else list(PRICED_TABLES[row.table])
             if row.asks_from:
                 module, function = row.asks_from.split(":")
                 stages[1] = dataclasses.replace(stages[1], make=getattr(importlib.import_module(module), function))
                 _code.search_folders.cache_clear()  # its folders on the path, as a run's table import puts them first
                 assert rebuy.asks_google(stages[1]) is row.asks, name
-            runner = a_hall_runner(stages)
+            runner = row.table() if callable(row.table) else a_hall_runner(stages)
             if row.made == EVERY:
                 made(runner)
             for stage in () if row.made == EVERY else row.made:
@@ -5142,7 +5092,7 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
                 moved(runner, change)
             for wording in row.wordings or (None,):
                 patch.setattr(rebuy, "subprocess", a_git_diff({wording}))
-                found = rebuy.buys(runner, list(runner.nodes(["hangar"])))
+                found = rebuy.buys(runner, runner.line_nodes(list(row.places), True))
                 assert row.buys is None or [tuple(getattr(buy, field) for field in row.fields) for buy in found] == \
                     list(row.buys), (name, wording, found)
             assert row.why_has in (found[0].why if row.why_has else ""), (name, found)
@@ -5169,7 +5119,7 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
             patch.setattr(rebuy, "buys", lambda runner, *more: stilled.append(runner.remembered is not None)
                           or real_buys(runner, *more))
             options = argparse.Namespace(stage=None, rebuy_reason=None, detach=False, jobs=2)
-            printed, code = run_command(command.checked_buys, runner, ["hangar"], True, options)
+            printed, code = run_command(command.checked_buys, runner, list(row.places), True, options)
             assert stilled == ([] if row.missing else [True]), (name, stilled)  # bought once, inside a still
             if row.missing:
                 assert printed == "" and code.startswith("refused: these inputs are missing") and all(
@@ -5180,7 +5130,7 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
                 for detach in (True, False):
                     given = argparse.Namespace(**{**vars(options), "rebuy_reason": row.reason[0], "detach": detach})
                     stilled.clear()
-                    printed, code = run_command(command.checked_buys, runner, ["hangar"], True, given)
+                    printed, code = run_command(command.checked_buys, runner, list(row.places), True, given)
                     assert stilled == [True], (name, detach, stilled)
                     assert code is None and f"re-buy reason: {row.reason[0]}" in printed, (name, printed, code)
                     assert books.LEDGER.exists() is not detach, (name, detach)
@@ -5189,7 +5139,7 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
                     node: euros for node, euros, again in row.buys if again}, (name, line)
             assert not books.LEDGER.exists() or row.reason, name
             stilled.clear()
-            planned = command.plan_json(runner, ["hangar"], True, options)
+            planned = command.plan_json(runner, list(row.places), True, options)
             assert [(buy["node"], buy["euros"], buy["price"]["likely_euros"], buy["price"].get("guess_euros"))
                     for buy in planned["buys"]] == [(buy.node, buy.euros, None, buy.euros) if buy.euros else (
                         buy.node, 0.0, 0.0, None) for buy in found], (name, planned["buys"])
@@ -5207,12 +5157,75 @@ def test_a_run_buys_each_paid_key_it_would_make_at_its_price(committed, monkeypa
                     assert command.phase_modules(runner, flight.stages) == ["score.graph._toys", __name__], name
                 given = argparse.Namespace(**{**vars(options), "phase": None,
                                               "stage": list(flight.stages) if flight.stages else None})
-                printed, code = run_command(command.preflight_command, runner, ["hangar"], True, given)
+                printed, code = run_command(command.preflight_command, runner, list(row.places), True, given)
                 summary, *failures = printed.splitlines()
                 assert code == (1 if flight.failures else None) and len(failures) == len(flight.failures) and all(
                     re.match(pattern, line) for pattern, line in zip(flight.failures, failures)), (name, printed)
                 assert all(text in summary for text in flight.says), (name, summary)
             assert all(stilled), (name, stilled)
+            if row.drive is None:
+                continue
+            # the same world driven
+            drive = row.drive
+            for tool, real in driving.items():
+                patch.setattr(command, tool, real)
+            patch.setattr(command, "opened_pool", refused_clearance)
+            patch.delenv(compute.TICKET, raising=False)
+            patch.setattr(compute, "clearance", refused_clearance if drive.refused else clearance)
+            for variable, value in (("SCORE_CLOUD", "local" if drive.here else None),
+                                    (command.LEAVE_OUT, drive.leave_out)):
+                if value:
+                    patch.setenv(variable, value)
+                else:
+                    patch.delenv(variable, raising=False)
+            runner.left_out = command.left_out_stages(argparse.Namespace(leave_out=None), runner.stages)
+            for whole in (True, False) if drive.held else ():
+                names = {graph.node_name(*node) for node in runner.line_nodes(PLACES, whole)}
+                assert set(drive.held) <= names, (name, whole, names)
+            if drive.held:
+                assert [buy.node for buy in rebuy.buys(runner, runner.line_nodes(PLACES, False))] == ["dress"], name
+                held = rebuy.held_for(runner, runner.line_nodes(PLACES, True), set(PLACES))
+                assert {node: held[node] for node in drive.held} == drive.held, (name, held)
+            if drive.unwaited:
+                stage, place = drive.unwaited
+                assert runner.optional_nodes(runner.stages[stage], place) == [], (name, f"{stage}@{place} waits")
+            if drive.blocked:
+                with pytest.raises(graph.Blocked, match="left for the Buy"):
+                    row.table().cleared("paint@hangar", 0.5)
+            found = runner.drive(list(drive.places), say=quiet, whole=drive.drive_whole)
+            if drive.whole:
+                assert set(found) == set(drive.found), (name, found)
+            for node, expected in drive.found.items():
+                if isinstance(expected, re.Pattern):
+                    assert expected.match(found[node]), (name, node, found)
+                else:
+                    assert found[node] == expected, (name, node, found)
+            if drive.reported is not None:
+                assert report_of(runner, "paint@hangar").exists() == drive.reported, name
+            if drive.line:
+                assert runner.lines(["hangar"], whole=False)["hangar"][0] == drive.line, (name, runner.lines(["hangar"]))
+            for node, (file, text) in drive.texts.items():
+                # paint's text: no clearance was asked (a real paid point inside would refuse)
+                assert accepted_text(runner.store, node, file) == text, (name, node)
+            if drive.said:
+                said, _, status = run_printing(row.table(), ["hangar"], free=True)
+                status_said, *lines = drive.said
+                assert status.startswith(status_said) and all(line in said for line in lines), (name, status, said)
+    stages = free_runner().stages
+    for leave_out, expected in LEAVE_OUTS:
+        if isinstance(expected, set):
+            assert command.left_out_stages(argparse.Namespace(leave_out=leave_out), stages) == expected, leave_out
+        else:
+            with pytest.raises(SystemExit, match=expected):
+                command.left_out_stages(argparse.Namespace(leave_out=leave_out), stages)
+    assert compute.cloud_only(RuntimeError("wrapped")) is None
+    try:
+        try:
+            raise compute.CloudOnly("a meshparts job needs about 24 GB of card")
+        except compute.CloudOnly as refusal:
+            raise RuntimeError("its row") from refusal
+    except RuntimeError as error:
+        assert str(compute.cloud_only(error)) == "a meshparts job needs about 24 GB of card"
     for jobs, price in PLAN_PRICES:
         assert command.plan_price(TIMED, jobs) == price, jobs
     for planned, failures in JUDGED_PLANS:
