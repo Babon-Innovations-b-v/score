@@ -6,9 +6,10 @@ that: the built, dressed garment stays as it is, and only its loose cloth moves,
 
     make     for each sim body of sim-body's run whose cast look has a dressed body (people-dress-<look>, its optional
              reads, as the characters layer reads them) and a built one (people-body-<look>: its rig.npz), each
-             garment part of the dressed body.glb (material role `garment`, the far body left out) with loose points:
-             a point is loose where the shell gate calls it loose cloth (people_bodies/bodies.py: its rig point's
-             offset off the fitted SOMA shell over OFFSET_MOST, an edge, hem or cap the shell could not follow);
+             garment part of the dressed body.glb (material role `garment`, the far body left out) with loose points
+             its faces draw: a point is loose where the shell gate calls it loose cloth (people_bodies/bodies.py: its
+             rig point's offset off the fitted SOMA shell over OFFSET_MOST, an edge, hem or cap the shell could not
+             follow);
              every other point of the part rides the skin. The person's skeleton plays the sim body's run: each
              segment turned against its parent as the sim turned it, on the person's own bones (the asset's way of
              playing a clip), and the part is skinned on it (its glTF joints and weights); the body surface under the
@@ -143,6 +144,19 @@ def welded(points, faces):
     return points[first], joined[kept], index
 
 
+def free_points(points, faces, index, loose):
+    """Each welded point free (simulated) or not: loose (`loose`, one a glTF point) and drawn by one of the part's
+    welded faces. A primitive may share its points with another of its mesh and draw only some of them: the
+    worker_jumpsuit's cloth primitives 6 and 7 share 2,052 points, and the 56 loose ones are drawn by 6 alone
+    (people-cloth@hangar, 2026-11-14); a point no face of the part draws is no cloth of it, has no edge to keep it
+    and is measured by none."""
+    free = np.zeros(len(points), dtype=bool)
+    free[index[loose]] = True
+    drawn = np.zeros(len(points), dtype=bool)
+    drawn[faces.ravel()] = True
+    return free & drawn
+
+
 def person_worlds(rig, kept, poses):
     """The person's joint frames in the world every frame (frames x joints x 4 x 4): the sim body's segment poses
     ((frames x segments x 7), segment k the rig's joint kept[k]) give each segment's turn against its parent, played
@@ -260,17 +274,15 @@ def person_job(name, sim, measures, dressed, rig, clips_rig, recipes, table, thi
     laid = []
     for part in garment_parts(document, rest):
         key = f"{part['node']}/{part['name']}_{part['number']}"
-        loose = loose_of(part["points"], rig, bodies.OFFSET_MOST)
-        if not loose.any():
+        points, faces, index = welded(part["points"], part["faces"])
+        free = free_points(points, faces, index, loose_of(part["points"], rig, bodies.OFFSET_MOST))
+        if not free.any():
             continue
         library = document["materials"][part["material"]].get("extras", {}).get("library")
         recipe = recipes.get(library)
         if recipe not in table:
             record["left out"].append(f"{key}: its surface {library!r} (recipe {recipe!r}) has no cloth row")
             continue
-        points, faces, index = welded(part["points"], part["faces"])
-        free = np.zeros(len(points), dtype=bool)
-        free[index[loose]] = True
         joints, weights = np.zeros((len(points), part["joints"].shape[1]), dtype=np.int64), np.zeros(
             (len(points), part["weights"].shape[1]))
         joints[index], weights[index] = part["joints"], part["weights"]
