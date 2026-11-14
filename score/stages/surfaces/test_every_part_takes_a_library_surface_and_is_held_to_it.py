@@ -55,12 +55,12 @@ tests it turned red:
   a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back
 - bake_check.py: `nearest = min(nearest, float(np.linalg.norm(baked - (worn + share * toward))))` -> `nearest =
   min(nearest, float(np.linalg.norm(baked - worn)))`  ->
-  a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt
+  every_part_takes_a_library_surface_and_is_held_to_it (its ON_SURFACE "the wreck's white hull dirtied" row)
 - bake_check.py: `worn = clean + share_worn * (bare - clean) if bare is not None else clean` -> `worn = clean`  ->
-  a_bake_is_held_against_its_surface_worn_as_far_as_its_place_s_wear,
-  wear_passes_only_toward_the_surface_s_bare_colour_and_only_as_far_as_its_place_s_wear
+  every_part_takes_a_library_surface_and_is_held_to_it (its ON_SURFACE "hazard trim worn" and "worn 0.6 toward
+  bare" rows)
 - bake_check.py: `order = np.argsort(colour, axis=0)` -> `order = np.repeat(np.argsort(colour[:, 0])[:, None],
-  colour.shape[1], axis=1)`  -> a_part_s_baked_colour_is_its_area_s_median_on_each_channel
+  colour.shape[1], axis=1)`  -> every_part_takes_a_library_surface_and_is_held_to_it (its AREA_MEDIANS rows)
 - bake_check.py: `owners[chosen] = np.where(found >= 0, chosen[np.maximum(found, 0)], chosen)` -> `owners[chosen] =
   chosen`  -> a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
 - uv_layout.py: `return -0.5 * (` -> `return 0.5 * (`  ->
@@ -105,9 +105,9 @@ tests it turned red:
 - place_line.py: `if normal[1] > -1e-6: # no face` -> `if True: # no face`  ->
   a_tall_cabinet_s_base_step_is_levelled_against_its_footprint
 - place_line.py: `if data.get("foot_traffic", True):` -> `if True:`  ->
-  only_a_place_nobody_walks_bakes_with_no_kick_wear
+  every_part_takes_a_library_surface_and_is_held_to_it (its UNWALKED rows)
 - place_line.py: `CLASSES = "gpu-24gb"` -> `CLASSES = "gpu-24gb,gpu-48gb"`  ->
-  bake_and_paint_rent_one_machine_class_each
+  every_part_takes_a_library_surface_and_is_held_to_it (its RENTED rows)
 - library_reads.py: `for name in entry["variants"]] if bakes else []` -> `for name in entry["variants"]]`  ->
   a_surface_added_anywhere_moves_no_paint_key_and_every_bake_key
 - library_reads.py: `"details": {kind: details.get(kind) for kind in kind_names}}` -> `"details": {}}`  ->
@@ -134,14 +134,15 @@ tests it turned red:
   moved by its model path alone is not kept: the same test (a_look_s_parts_keep_a_people_made_moved_by_its_model_
   path_alone); carry.py `CONTENT_SAME = (...)` -> `()`  -> a key whose params moved carries: the same test
 - finish_parts.py: `found[reached] = face_label[source[reached]]` -> `found[reached] = 0`  ->
-  unvoted_faces_take_the_nearest_voted_label_along_the_surface
+  every_part_takes_a_library_surface_and_is_held_to_it (its shared sphere's walked faces)
 - finish_parts.py: `host = np.flatnonzero(hosts & (face_label == finish))` -> `host = np.flatnonzero(hosts)`  ->
-  a_loose_bit_joins_the_nearest_larger_island_of_its_own_finish
+  every_part_takes_a_library_surface_and_is_held_to_it (its MERGED "loose bit" row)
 - finish_parts.py: `part_of[lost] = island[lost[0]]` -> `part_of[lost] = island[lost]`  ->
-  a_finish_of_crumbs_only_keeps_them_as_one_part_however_small
+  every_part_takes_a_library_surface_and_is_held_to_it (its MERGED "crumbs only" row)
 - finish_parts.py: `return kept_finishes(face_label, labels.without_crumbs(mesh, smoothed), mesh.area_faces)` ->
   `return labels.without_crumbs(mesh, smoothed)`, or kept_finishes `lost = np.union1d(..., shrunk)` -> `lost =
-  np.setdiff1d(np.unique(before), np.unique(after))`  -> cleaning_never_removes_a_finish_whole
+  np.setdiff1d(np.unique(before), np.unique(after))`  -> every_part_takes_a_library_surface_and_is_held_to_it (its
+  shared sphere's cleaned dots and KEPT rows)
 - finish_parts.py: `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish,
   finish[standing])` -> `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]])`  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
@@ -155,40 +156,39 @@ tests it turned red:
   crumb a screen's part took in no stray)  ->
   a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
 - finish_parts.py: `areas[seen & (face_label == label)].sum()` -> `areas[seen].sum()`  ->
-  agreement_counts_against_the_maps
+  every_part_takes_a_library_surface_and_is_held_to_it (its shared sphere's agreement)
 - finish_parts.py: `own = finish.get("colour") and finish["surface"] == finish.get("listed_surface", finish["surface"])`
-  -> `own = finish.get("colour")`  -> a_finish_out_of_order_is_found_and_a_see_through_finish_is_known
+  -> `own = finish.get("colour")`  -> every_part_takes_a_library_surface_and_is_held_to_it (its OUT_OF_ORDER "moved off
+  its listed surface" row)
 - finish_ask.py: `if error.code not in REFUSED: raise` -> `if False: raise`  ->
   an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again
 - finish_parts.py: `if nearest_apart <= COLOUR_DELTA_E:` -> `if False:`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - finish_parts.py: `if not reordered(lighter, darker, every, lightness, wide) and wide:` -> `if not reordered(lighter,
   darker, every, lightness, wide) and False:`  ->
-  a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_colour
+  every_part_takes_a_library_surface_and_is_held_to_it (its IN_ORDER water tank row)
 - finish_parts.py: `if fit and (wide or fit[0] < close_up_apart(finish, every)):` -> `if fit and wide:`  ->
-  a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either
+  every_part_takes_a_library_surface_and_is_held_to_it (its IN_ORDER shelving row)
 - finish_parts.py: `if apart > COLOUR_DELTA_E and coloured_cover(finish, every):` -> `if False:`  ->
-  a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED beacon row)
 - finish_parts.py: `and meaning_kept(record, listed, every[name]))` -> `)`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - finish_parts.py: `and meaning_kept(finish, listed, spec)]` -> `]`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged,
-  a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED rows)
 - finish_parts.py: `return in_named_colour(named, lab, recipe)` -> `return True`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged,
-  a_coloured_see_through_finish_keeps_its_surface_against_its_highlights
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED rows)
 - finish_parts.py: `return painted["recipe"] == listed["recipe"] and hue_kept(` -> `return True and hue_kept(`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - finish_parts.py: `if not look_kept(finish["finish"], ...):` -> `if False:`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - finish_parts.py: `judged = carriers or [finish ...]` -> `judged = [finish ...]` (the largest alone)  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged (base's 'green plants' dome)
+  every_part_takes_a_library_surface_and_is_held_to_it (its MEANING dome rows)
 - finish_parts.py: `or in_named_colour(named, finish["looks"]["painted"]["lab"], ...)` -> `or True`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - score/stages/__init__.py meaning_checked: `if row.name != "surfaces-parts":` -> `if True:`  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - finish_ask.py: `entry = dict(entry, surface=names[codes.index(entry["surface"])])` -> `entry = dict(entry)`  ->
-  a_finish_list_reply_is_parsed_to_library_names
+  every_part_takes_a_library_surface_and_is_held_to_it (a reply parsed to library names)
 - route_views.py: `if record["seen_share"] < SEEN_LEAST * reachable:` -> `if record["seen_share"] < SEEN_LEAST:`  ->
   the_views_cover_every_side_and_find_both_colours
 - route_views.py: `while candidates and len(angles) < MOST_VIEWS and not seen.all():` -> `while False:`  ->
@@ -222,8 +222,9 @@ tests it turned red:
   "parts.npy", part_of[:1].astype(np.int32))`  ->
   the_parts_row_writes_the_methods_interface_each_finish_checked_against_its_colour
 - route_parts.py: `and not lamps.on_stem({"size": built.get("size")})` -> `and True`  ->
-  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour; so does `zip(checked, lit if any(lit) else
-  [True] * len(checked))` -> `zip(checked, [True] * len(checked))` (the light bar's metal end caps glowing)
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows); so does `zip(checked, lit if
+  any(lit) else [True] * len(checked))` -> `zip(checked, [True] * len(checked))` (the light bar's metal end caps
+  glowing)
 - route_bake.py: `surface=route_settings.settings_name(record["surface"], record["settings"])` ->
   `surface=record["surface"]`  ->
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
@@ -251,29 +252,31 @@ tests it turned red:
 - route_recheck.py: `if faults: found[take] = {"colour_faults"` -> `if False: found[take] = {"colour_faults"`  ->
   the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour
 - scene_palette.py: `tokens.setdefault(entry["token"], entry["colour"].lower())` -> `tokens[entry["token"]] =
-  entry["colour"].lower()`  -> the_palette_is_read_from_the_locked_concept_by_one_ask
+  entry["colour"].lower()`  -> every_part_takes_a_library_surface_and_is_held_to_it (its PALETTE_ASKS rows)
 - scene_palette.py: `if parsed["wear"] not in levels or parsed["dirt_token"] not in tokens:` -> `if False:`  ->
-  a_palette_off_the_library_or_unanswered_or_too_narrow_fails_by_name
+  every_part_takes_a_library_surface_and_is_held_to_it (its PALETTE_ASKS rows)
 - scene_palette.py: `left_out="Leave out colours only the people in it wear. " if own else "",` -> `left_out="Leave out
-  colours only the people in it wear. ",`  -> a_line_no_scene_owns_is_asked_over_every_concept
+  colours only the people in it wear. ",`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its PALETTE_ASKS rows)
 - scene_palette.py: `close_ups=CLOSE_UPS.format(count=len(close_ups)) if close_ups else "",` -> `close_ups="",`  ->
-  the_palette_sees_every_take_s_close_up_after_the_concepts
+  every_part_takes_a_library_surface_and_is_held_to_it (its PALETTE_ASKS rows)
 - scene_library.py: `in (surface.get("colours") or {}).items() if setting in needs})` -> `in (surface.get("colours")
   or {}).items()})`, or `"required": list(settings),` -> `"required": [],` (schema; surface-library@tube's
-  rusted_door_steel left its bare out, 2026-11-09)  -> the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_ask
+  rusted_door_steel left its bare out, 2026-11-09)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows)
 - body_faces.py: `"required": needs,` -> `"required": [],`  -> the_face_is_made_from_one_ask_in_the_methods_recipes
 - scene_library.py: `for kind in kinds if not found.get("kinds", {}).get(kind)]` -> `for kind in kinds if False]`  ->
-  a_scene_library_missing_a_kind_or_unanswered_fails_by_name
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows)
 - scene_library.py: `parts.add("stair")` -> `pass`  ->
-  the_shell_a_locked_plan_lays_is_a_kind_the_scene_library_must_cover
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows)
 - scene_library.py: `for name, defaults in method["recipes"].items() if name not in PICTURED}` -> `for name, defaults in
-  method["recipes"].items()}`  -> a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
+  method["recipes"].items()}`  -> every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows, sheets)
 - scene_library.py: `if recipe and row.get("noun"):` -> `if False:`  ->
-  a_scene_s_ground_rows_take_their_natural_ground_by_rule
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows)
 - tools/props/library/library.py: `if missing: raise LibraryEmpty` -> `if False: raise LibraryEmpty`  ->
-  the_empty_library_is_a_named_missing_input
+  every_part_takes_a_library_surface_and_is_held_to_it (the empty library)
 - palette_library.py: `"stair": ("stairs", "stair", "steps", "ramp", "floor")}` -> `"stair": ("stairs", "stair",
-  "steps", "ramp")}`  -> the_scene_s_shell_surfaces_are_its_library_s_for_the_shell_kinds
+  "steps", "ramp")}`  -> every_part_takes_a_library_surface_and_is_held_to_it (its SHELL_PARTS rows)
 - route_ask.py: `compute.require_cleared(f"a Gemini batch ({caller})")` deleted  ->
   paid_asks_refuse_outside_a_cleared_run
 - route_ask.py: `if not all(google_spend.cache_path(finish_ask.LIST_MODEL, body).exists() for body in bodies.values()):`
@@ -335,23 +338,23 @@ tests it turned red:
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
 - scene_library.py: `+ (SHEET_WORDS if take["kind"] in sheets else "")` -> `+ ""` (kinds_of), or `"pile": ["second"]`
   dropped from data/library/materials.json's colour_settings  ->
-  a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows, sheets)
 - scene_library.py: `+ (PICTURE_WORDS if shows_picture(...) else "")` -> `+ ""` (kinds_of), or `in DRAWN for name
   in found["kinds"][kind]` -> `in DRAWN or True for name in found["kinds"][kind]` (library_findings), or
   `for kind in found.get("picture_kinds", [])` -> `for kind, words in kinds.items() if PICTURE_WORDS in words` (a
   library accepted before the marking failed by it)  ->
-  a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows, sheets)
 - scene_library.py: `SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25` -> `0.1, 0.25` (the row's sheet rule off the bake's)  ->
-  a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows, sheets)
 - bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
   a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
 - parts_kept.py: `return found if found["delta_e"] <= record["delta_e"] else record` -> `return found` (kit_kept)  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - parts_kept.py: `finish.get("surface") in glowing and` -> `False and` (lit_kept)  ->
-  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows)
 - parts_kept.py: `if record.get("picked"):` -> `if False:` (kit_kept); or `if finish.get("picked"):` -> `if False:`
   (pick_kept); or `if spec.get("recipe") == "glowing" and` -> `if False and` (glow_kept)  ->
-  a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged
+  every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - check_seen.py: `if surface.split(route_settings.SEPARATOR)[0] in glowing` -> `if False` (lit_as_light)  ->
   every_part_takes_a_library_surface_and_is_held_to_it
 - recheck_picks.py: `if apart > finish_parts.COLOUR_DELTA_E:` -> `if False:` (fitting); or `if picks:` -> `if
@@ -368,7 +371,7 @@ tests it turned red:
 - __init__.py (the table): `make=colour_picks.make_picks,` -> `make=recheck_picks.make_picks,` (picks_applied)  ->
   the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
 - __init__.py (the table): `make=recheck_picks.make_parts,` -> `make=row.make,` (picks_applied)  ->
-  a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour
+  every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows)
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
   every_part_takes_a_library_surface_and_is_held_to_it
 - feet_stand.py: `if refused == [feet.get("rests")] else None` -> `if False else None` (judge_feet)  ->
@@ -376,6 +379,8 @@ tests it turned red:
 - feet_stand.py: `worst = max(worst, outside if outside > BALANCE else 0.0)` -> `worst = max(worst, 0.0)` (off_balance)
   -> a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
 """
+import contextlib
+import copy
 import inspect
 import io
 import itertools
@@ -403,7 +408,8 @@ from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, finish_ask, finish_parts,  # noqa: E402
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
-                                   route_check, route_data, route_list, route_paint, route_parts, route_recheck,
+                                   recheck_picks, route_check, route_data, route_list, route_paint, route_parts,
+                                   route_recheck,
                                    route_settings, route_split, route_views, scene_library, scene_palette,
                                    surface_data, surface_gates)
 from score.store import PROPS_HOME, Store, text_hash  # noqa: E402
@@ -799,7 +805,18 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it():
     close-up colours, the bake check's gate (check_seen.judge_lit, the surfaces-check row's) judges one checks.json of
     every case and names exactly the faults each model's row expects, and the view distance it judges one look at is
     read from the place's scene record and kit. A surface proposed to the library stands as the first proposed of its
-    name, whatever its case; a take's short feet are levelled in the resting check's band."""
+    name, whatever its case; a take's short feet are levelled in the resting check's band. A bake lies on its surface
+    dirtied only as far as its place's dirt and worn only toward its bare colour as far as its place's wear, its colour
+    each channel's area median; the paint's labels become parts (unvoted faces walked, loose bits and crumbs merged, no
+    finish cleaned away whole, agreement counted against the maps, a finish out of order found by its own colour); a
+    place nobody walks bakes with no kicks, and bake and paint each rent one machine class. A listed finish is held
+    to its colour (its family's nearest surface or the room's kit surface only where the list's meaning, recipe, glow
+    and hue, is kept; as the parts row makes it a pick and a nearer listed surface stay), kept in its close-up's
+    lightness order, judged by the list's meaning gate, and a light built in code takes its glowing surface; the
+    parts row makes through the picks row and a list's reply is parsed to library names. The library a part takes
+    from is the scene's own: its palette read by one ask over its locked concept (or a line's every concept and
+    close-up), its surfaces made fresh from that palette by one ask covering every take's kind, ground row and shell
+    kind with no recipe that paints a picture, and the repository's library the method alone, its empty reads named."""
     for case, proposed, stands in PROPOSED:
         store = a_store()
         found = [registry.Registry(store).propose_surface(name, spec, {"take": str(index)})
@@ -847,7 +864,241 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it():
                                ({}, {})):  # its 1.0 m middle side, 2 m from the eye; unbaked: no size, no distance
             laid.write_text(json.dumps(check_seen.laid_kit(record, baked)))
             assert bake_check.seen_degrees({"scene record": scene, "kit": laid}) == degrees, baked
-
+    for case, baked, clean, dirt_colour, dirt, bare, wear, side, bound in ON_SURFACE:
+        distance = bake_check.on_surface(np.array(baked), np.array(clean), None if dirt_colour is None else
+                                         np.array(dirt_colour), dirt, None if bare is None else np.array(bare), wear)
+        assert (distance < bound) if side == "<" else (distance > bound), (case, distance)
+    order = np.argsort(JUNCTION_BOX[:, 0])  # the old pick, the triangle at the area's median L*, was a grey one
+    assert JUNCTION_BOX[order][np.searchsorted(np.cumsum(np.ones(100)), 50.0)].tolist() == GREY
+    for case, areas, middle in AREA_MEDIANS:
+        assert bake_check.area_median(JUNCTION_BOX, areas).tolist() == middle, case
+    # the paint's labels made parts, on one sphere: its top two quarters voted 0 and 1, single faces of finish 1 dotted
+    # over it, and a map saying finish 1 on its front half
+    sphere = trimesh.creation.icosphere(subdivisions=4)
+    middles = sphere.triangles_center
+    seen = np.full(len(sphere.faces), -1)
+    seen[(middles[:, 2] > 0.5) & (middles[:, 0] > 0)], seen[(middles[:, 2] > 0.5) & (middles[:, 0] <= 0)] = 0, 1
+    dots = np.flatnonzero((middles[:, 1] > 0.9) | (middles[:, 0] > 0.97))[::3]
+    dotted = np.zeros(len(sphere.faces), dtype=int)
+    dotted[dots] = 1
+    front = np.where(middles[:, 1] > 0, 1, 0)
+    walked, without = finish_parts.walked(sphere, seen), finish_parts.cleaned(sphere, dotted, 2)
+    agreement = finish_parts.agreement(sphere, without, {"front": front})
+    back = middles[:, 2] < -0.5  # unvoted faces take the nearest voted label along the surface
+    assert (walked >= 0).all() and (walked[back & (middles[:, 0] > 0.3)] == 0).mean() > 0.9, "the back takes 0 by x"
+    assert (walked[back & (middles[:, 0] < -0.3)] == 1).mean() > 0.9, "the back takes 1 by -x"
+    assert (without[dots] == 1).all() and (without[dotted == 0] == 0).mean() > 0.99, "a finish cleaned away whole"
+    assert 0.4 < agreement["front"] < 0.6, agreement  # the paint's finish 1 is only dots: about half the map agrees
+    crumbs = [trimesh.creation.box(extents=extents).apply_translation(centre) for extents, centre, _ in CRUMBS]
+    total = trimesh.util.concatenate([trimesh.creation.box(extents=HOST[0]), *crumbs]).area
+    assert all(crumb.area / total < finish_parts.ISLAND_LEAST for crumb in crumbs), "each stripe a crumb"
+    assert sum(crumb.area for crumb in crumbs) / total >= finish_parts.ISLAND_LEAST, "together over ISLAND_LEAST"
+    for case, pieces, parts, joined in MERGED:
+        boxes = [trimesh.creation.box(extents=extents).apply_translation(centre) for extents, centre, _ in pieces]
+        label = np.concatenate([np.full(len(box.faces), finish) for box, (_, _, finish) in zip(boxes, pieces)])
+        part_of, merged = finish_parts.merged_islands(trimesh.util.concatenate(boxes), label)
+        piece_of = np.repeat(np.arange(len(boxes)), [len(box.faces) for box in boxes])
+        held = np.isin(piece_of, joined)
+        assert len(np.unique(part_of)) == parts and len(np.unique(part_of[held])) == 1, (case, part_of)
+        assert (merged[held] == 1).all(), (case, merged)
+    for case, before, after, areas, kept in KEPT:
+        assert finish_parts.kept_finishes(np.array(before), np.array(after), np.array(areas)).tolist() == kept, case
+    lightness = finish_parts.opaque_lightness(GREYS)
+    for case, lighter, other, out in OUT_OF_ORDER:
+        assert bool(finish_parts.out_of_order(lighter, other, GREYS, lightness)) == out, case
+    for case, finish, through in SEE_THROUGH:
+        assert finish_parts.see_through(finish, SURFACE_FAMILIES) == through, case
+    for case, data, kicks in UNWALKED:
+        painted = place_line.unwalked(SPECS, data)
+        assert (painted is SPECS) if kicks is None else ({spec["kicks"] for spec in painted.values()} == kicks), case
+    for name in RENTED:
+        assert "," not in getattr(place_line, name), (name, "rents more than one machine class")
+    checked = {}
+    for case, take, finishes, measured, surfaces_of, kit, held, expected in CHECKED:
+        with parts_kept.held() if held else contextlib.nullcontext():
+            found = finish_parts.checked_finishes(take, copy.deepcopy(finishes), measured, surfaces_of,
+                                                  *([] if kit is None else [kit]))
+        checked[case] = found
+        assert unlike(found, finishes, expected) == [], (case, found)
+    for case, thing, finishes, surfaces_of, expected in IN_ORDER:
+        found = finish_parts.in_close_up_order({"object": thing}, copy.deepcopy(finishes), surfaces_of)
+        assert unlike(found, finishes, expected) == [], (case, found)
+    plate = checked["as the row makes it, brushed steel seen as the deck plate still takes it"][0]
+    cables = {"object": "thick red cables", "parts": CABLE_PARTS, "finishes": finish_parts.looked(
+        [dict(HANDRAIL, surface="deck_grate", listed_surface="bare_steel", by="the room's kit surface by colour"),
+         dict(plate, listed_surface="bare_steel")], STEELWORK)}
+    with tempfile.TemporaryDirectory() as scratch:
+        for case, take, made, expected in MEANING:
+            record = made(cables)
+            faults = finish_parts.meaning_faults(take, record)
+            assert len(faults) == len(expected) and all(all(word in fault for word in words)
+                                                        for fault, words in zip(faults, expected)), (case, faults)
+            (pathlib.Path(scratch) / "parts.json").write_text(json.dumps({"takes": {take: record}}))
+            verdict = route_parts.judge_meaning(pathlib.Path(scratch), {}, None)
+            assert verdict.answer == (checks.FAIL if expected else checks.PASS), (case, verdict)
+    assert "kept the list's meaning" in [check.name for check in ROWS["surfaces-parts"].checks]
+    with tempfile.TemporaryDirectory() as scratch:
+        mark = pathlib.Path(scratch) / "code.json"
+        for case, take, size, lit in LIT_TAKES:
+            mark.write_text(json.dumps({"route": "code", "size": size}))
+            assert bool(route_parts.lit_take(take, mark)) == lit, case
+    for case, finishes, surfaces_of, held, expected in LIT:
+        with parts_kept.held() if held else contextlib.nullcontext():
+            found = route_parts.lit_finishes(copy.deepcopy(finishes), surfaces_of)
+        assert unlike(found, finishes, expected) == [], (case, found)
+    # the parts row makes through recheck_picks.make_parts, which runs parts_kept.make_parts on the picked list, and
+    # reads the picks row, made from it just before it
+    names = [row.name for row in stages.STAGES]
+    assert inspect.unwrap(ROWS["surfaces-parts"].make) is recheck_picks.make_parts, ROWS["surfaces-parts"].make
+    assert names.index(recheck_picks.ROW) == names.index("surfaces-parts") - 1, names
+    assert recheck_picks.ROW in ROWS["surfaces-parts"].after and recheck_picks.parts_kept is parts_kept
+    assert not ROWS[recheck_picks.ROW].paid and ROWS[recheck_picks.ROW].selects
+    reply = json.dumps({"finishes": [{"parts": "foil", "finish": "gold foil", "surface": "M1", "fits": True},
+                                     {"parts": "legs", "finish": "steel", "surface": "M2", "fits": True}]})
+    assert [entry["surface"] for entry in finish_ask.parsed_list(reply, {"mli_gold": {}, "bare_steel": {}})] == [
+        "mli_gold", "bare_steel"], "a reply's codes are parsed to library names"
+    with tempfile.TemporaryDirectory() as scratch:
+        palettes = {}
+        for index, (case, answer, where, judged, finding, has, lacks, pictures, kept, left_out) in enumerate(
+                PALETTE_ASKS):
+            (pathlib.Path(scratch) / f"palette-{index}").mkdir()
+            out, verdict, asked = palette_asked(pathlib.Path(scratch) / f"palette-{index}", answer, **where)
+            place = where.get("place", "cockpit")
+            assert len(asked) == 1 and list(asked[0]) == [place], (case, asked)  # one ask a scene, in one batch
+            parts = asked[0][place]["contents"][0]["parts"]
+            assert sum("inline_data" in part for part in parts) == pictures == len(parts) - 1, (case, parts)
+            text = parts[-1]["text"]
+            assert all(word in text for word in has) and not any(word in text for word in lacks), (case, text)
+            assert verdict.answer == judged and (finding is None or finding in verdict.findings[0]), (case, verdict)
+            assert (out / "palette.json").exists() == (kept is not None), case
+            made = json.loads((out / "palette.json").read_text()) if kept is not None else {}
+            assert {field: made.get(field) for field in kept or {}} == (kept or {}), (case, made)
+            assert not set(left_out) & set(made), (case, made)
+            palettes[case] = out
+        out = palettes[PALETTE_ASKS[0][0]]
+        palette = json.loads((out / "palette.json").read_text())
+        assert palette_library.wear(palette) == (0.8, 1.0) and scene_palette.palette_faults(out) == []
+        with pytest.raises(library.LibraryEmpty) as empty:  # no surface exists until the surface-library row makes them
+            palette_library.offered(palette)
+        assert "run surface-library first" in str(empty.value), empty.value
+        made = {}
+        for index, (case, answer, on, judged, exact, within, pictured, has, lacks, enums) in enumerate(LIBRARY_ASKS):
+            (pathlib.Path(scratch) / f"library-{index}").mkdir()
+            out, verdict, asked = library_made(pathlib.Path(scratch) / f"library-{index}", answer, **on)
+            assert len(asked) == 1 and list(asked[0]) == ["cockpit"], (case, asked)  # one ask a scene, in one batch
+            body = asked[0]["cockpit"]
+            text = body["contents"][0]["parts"][-1]["text"]
+            assert all(word in text for word in has) and not any(word in text for word in lacks), (case, text)
+            schema = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]
+            for field, (offered, never) in enums.items():
+                enum = set((schema[field].get("items") or schema[field])["enum"])
+                assert set(offered) <= enum and not set(never) & enum, (case, field, enum)
+            assert judged is None or verdict.answer == judged, (case, verdict)
+            assert exact is None or tuple(verdict.findings) == exact, (case, verdict.findings)
+            assert set(within) <= set(verdict.findings), (case, verdict.findings)
+            assert pictured is None or [found for found in verdict.findings if "picture" in found] == pictured, \
+                (case, verdict.findings)
+            assert (out / "materials.json").exists() != isinstance(answer, Exception), case
+            made[case] = out, verdict, body
+        assert "none for it" in made[LIBRARY_ASKS[2][0]][1].findings[0], made[LIBRARY_ASKS[2][0]][1]
+        out, verdict, body = made[LIBRARY_ASKS[0][0]]
+        schema = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]
+        assert schema["properties"]["token"]["enum"] == list(PALETTE["tokens"]) and "colours" in schema["required"]
+        # every surface answers a palette token for every colour setting, so no recipe's setting is left bare
+        colours = schema["properties"]["colours"]
+        assert colours["required"] == ["bare", "second"] == sorted(colours["properties"]), colours
+        assert colours["properties"]["bare"]["enum"] == list(PALETTE["tokens"]), colours
+        materials = json.loads((out / "materials.json").read_text())
+        panel, window = materials["families"]["paint"]["variants"]["hull_panel"], \
+            materials["families"]["glass"]["variants"]["window"]
+        # its recipe's colour settings in its own tokens; a setting the recipe does not name is not taken
+        assert panel["bare"] == "steel" and "second" not in panel and panel["token"] == "hull-trim", panel
+        assert window["roughness"] == 1.0 and panel["seed"] != window["seed"], window  # held to 0 to 1
+        assert materials["kinds"] == {"two_boxes": ["hull_panel"]} and materials["tokens"] == PALETTE["tokens"]
+        assert materials["dirt"] == "regolith" and verdict.measures["surfaces"] == 2, (materials, verdict)
+        assert materials["families"]["paint"]["surface"] == panel["surface"] == "steel_plate"  # the sound layer's
+        # the rows after it read this library through the palette: the take's kind list, its specs in its tokens
+        read = palette_library.read({"finish-route-palette": out.parent / "palette", "surface-library": out})
+        assert set(palette_library.take_surfaces({"kind": "two_boxes"}, read)) == {"hull_panel", "window"}
+        assert palette_library.specs(read)["hull_panel"]["bare"] == palette_library.library_tokens(read)["steel"]
+        # the shell's parts find their surface in it (the earth seed, the scene record, the tiles)
+        shell = json.loads((made[LIBRARY_ASKS[4][0]][0] / "materials.json").read_text())
+        assert {part: palette_library.shell_surface(part, shell) for part in ("deck", "wall", "roof", "stair")} == {
+            "deck": "panel", "wall": "panel", "roof": "panel", "stair": "panel"}
+        marked = {"framed_photo": "framed photo" + scene_library.PICTURE_WORDS, "window_pane": "window pane"}
+        # a library accepted before the marking is never failed by it
+        for case in (LIBRARY_ASKS[6][0], LIBRARY_ASKS[7][0]):
+            old = json.loads((made[case][0] / "materials.json").read_text())
+            assert old.pop("picture_kinds") == ["framed_photo"], (case, old)
+            sounds = {variant.get("surface") for family in old["families"].values()
+                      for variant in family["variants"].values()}
+            assert not [found for found in scene_library.library_findings(old, marked, sounds) if "picture" in found]
+        palette = {"tokens": {}, "wear": {}, "library": str(pathlib.Path(scratch) / "shell.json")}
+        (pathlib.Path(scratch) / "shell.json").write_text(json.dumps({"kinds": SHELL_KINDS}))
+        assert palette_library.shell_surfaces(palette) == ["ceiling_panel", "deck_plate"]
+        for part, surface in SHELL_PARTS:
+            assert palette_library.shell_surface(part, {"kinds": SHELL_KINDS}) == surface, part
+    assert palette_library.shell_surfaces({"tokens": {}, "wear": {}}) == []  # none while no library is read
+    # an open place with a raised level: its level is the floor's kind; one with neither lays no shell
+    level = {"w": 6.0, "d": 4.0, "levels": [{"name": "stage", "points": SQUARE, "height": 0.5}]}
+    assert list(scene_library.shell_kinds(level)) == ["floor"] and scene_library.shell_kinds({"w": 6.0, "d": 4.0}) == {}
+    assert scene_library.shows_picture("Wall posters") and scene_library.shows_picture("oil canvas")
+    assert not scene_library.shows_picture("laser printer") and not scene_library.shows_picture("glass pane")
+    # every old material retired (owner, 2026-10-21): the repository's library is the method alone, and a reader of a
+    # surface gets the missing input named, never a KeyError
+    method = library.theme_library()
+    assert method["families"] == {} and method["tokens"] == {} and method["pictures"] == {}, method
+    assert set(method["recipes"]) and set(method["wear_levels"]) == {"new", "worked", "worn"}
+    assert not [setting for defaults in method["recipes"].values() for setting in defaults
+                if isinstance(defaults[setting], str)], "a recipe default names an old token"
+    assert library.library_specs() == {} and library.variants(method) == {}  # a lookup finds no surface
+    for read in (lambda: library.spec(method, "painted_panel", "hull-trim", {}),
+                 lambda: route_list.palette_library.specs(PALETTE)):
+        with pytest.raises(library.LibraryEmpty) as empty:
+            read()
+        assert library.EMPTY in str(empty.value), empty.value
+    # a flat sheet (stairwell's door mat, quarters' rug and sticky note, 2026-11-08) is marked a sheet in the question
+    # and offered recipes that draw a pile and writing in the library's own colours, its rule the bake's
+    assert method["colour_settings"]["pile"] == method["colour_settings"]["written"] == ["second"]
+    data = {"takes": {"rug-t1": {"kind": "rug", "object": "patterned rug"},
+                      "note-t1": {"kind": "note", "object": "sticky note"},
+                      "crate-t1": {"kind": "crate", "object": "crate"}},
+            "bake": {"models": {"rug_1": "rug-t1", "note_1": "note-t1", "crate_1": "crate-t1"},
+                     "entries": {"rug_1": {"size": [2.0, 0.02, 3.0]}, "note_1": {"size": [0.08, 0.001, 0.08]},
+                                 "crate_1": {"size": [0.6, 0.4, 0.5]}}}}
+    with tempfile.TemporaryDirectory() as temporary:
+        (pathlib.Path(temporary) / "place.json").write_text(json.dumps(data))
+        kinds = scene_library.kinds_of({"surfaces": pathlib.Path(temporary) / "place.json"})
+    assert kinds == {"crate": "crate", "note": "sticky note" + scene_library.SHEET_WORDS,
+                     "rug": "patterned rug" + scene_library.SHEET_WORDS}, kinds
+    from score.stages.props import flat_sheet
+    with prop_data.tools("props/closeup", "props"):
+        import check
+    assert (scene_library.SHEET_FLAT, scene_library.SHEET_MIDDLE) == (flat_sheet.SHEET_SHARE, check.SLENDER_SHARE)
+    for size in ([2.0, 0.02, 3.0], [0.08, 0.001, 0.08], [0.6, 0.4, 0.5], [0.4, 0.01, 4.0], [0.2, 0.517, 0.02]):
+        assert scene_library.sheet_sized(size) == flat_sheet.sheet({"size": size, "name": "rug"}), size
+    # only a line no scene owns reads every locked concept and its takes' close-ups; a scene declares its own, locked
+    # yet or not, so a scene with none (environment 1's launch) blocks on it by name instead of being asked over every
+    # other scene's
+    assert scene_palette.files("people")["concepts"] == "{home}/design/concepts"
+    for scene in ("cockpit", "no-such-scene"):
+        found = scene_palette.files(scene)
+        assert found["concept"] == "{home}/design/concepts/" + f"{scene}.png" and "concepts" not in found, found
+    with tempfile.TemporaryDirectory() as temporary:
+        home = pathlib.Path(temporary)
+        original = route_data.pixal_folder
+        route_data.pixal_folder = lambda: home
+        try:
+            for take in ("astronaut-made-s1", "pilot-made-s1"):
+                (home / f"{take}.svviews").mkdir()
+                Image.new("RGB", (8, 8)).save(home / f"{take}.svviews" / "input.png")
+            found = scene_palette.palette_files("people")
+        finally:
+            route_data.pixal_folder = original
+    assert sorted(name for name in found if name.startswith("close-up ")) == [
+        "close-up astronaut-made-s1", "close-up pilot-made-s1"], found
+    palette = next(row for row in shapes_first.finish_route() if row.name == "finish-route-palette")
+    assert "pixal" in palette.after and not palette.selects, palette.after  # it waits on the row that leaves them
 
 def baked_model(folder, name, mesh):
     """A baked .gltf of `mesh` in `folder/made`: its positions and triangles in one buffer, its .bin beside it."""
@@ -906,6 +1157,335 @@ LEVELLED = [
     ("an access stair's legs over the narrow band", lambda: tank_mesh((0.0, 0.0, 0.12, 0.12), height=1.0), 2.0, None, 2,
      [], None),
 ]
+
+
+# Bakes held to their surface (bake_check.on_surface): (case, its baked Lab, the surface's clean Lab, the place's dirt
+# Lab or None, its dirt, the surface's bare Lab or None, the place's wear, "<" or ">" and the bound the distance keeps).
+WHITE, REGOLITH = [89.6, -1.7, 1.6], [56.8, 0.2, 3.1]
+YELLOW, BARE, SOOT = [80.5, 3.5, 78.8], [66.3, -1.1, -4.5], [13.2, 3.7, 5.9]
+WORN_SIX_TENTHS = [clean + 0.6 * (bare - clean) for clean, bare in zip(YELLOW, BARE)]
+BAKED_TRIM = [73.2, 2.2, 41.3]
+DELTA = bake_check.BAKE_DELTA_E
+ON_SURFACE = [
+    # the wreck: dirt 0.6 in regolith (L* 56.8); its white hull (89.6) bakes to 69.0 and is on its surface
+    ("the wreck's white hull dirtied", [69.0, -0.8, -3.2], WHITE, REGOLITH, 0.6, None, 0.0, "<", 6),
+    ("the same white at a clean place", [69.0, -0.8, -3.2], WHITE, REGOLITH, 0.0, None, 0.0, ">", DELTA),
+    ("baked darker than its dirt reaches", [40.0, 0, 0], WHITE, REGOLITH, 0.6, None, 0.0, ">", DELTA),
+    ("dirt with no dirt colour", [69.0, -0.8, -3.2], WHITE, None, 0.6, None, 0.0, ">", DELTA),
+    # the engine room, worn 0.8, dirt 0.5: its power core's hazard trim 20.1 off its clean yellow, part worn to steel
+    ("the engine room's hazard trim worn", BAKED_TRIM, YELLOW, SOOT, 0.5, BARE, 0.8, "<", 6),
+    ("the hazard trim unworn", BAKED_TRIM, YELLOW, SOOT, 0.5, BARE, 0.0, ">", DELTA),
+    ("the hazard trim with no bare colour", BAKED_TRIM, YELLOW, SOOT, 0.5, None, 0.0, ">", DELTA),
+    ("the hazard trim held to a wrong surface", BAKED_TRIM, [19.2, -0.7, -3.2], SOOT, 0.5, BARE, 0.8, ">", DELTA),
+    # wear has causes (the paper, Appendix D) and passes only toward the bare colour, only as far as the place's wear
+    ("worn through to bare in a place worn 0.4", BARE, YELLOW, None, 0.0, BARE, 0.4, ">", DELTA),
+    ("darkened toward black however worn", [50.0, 3.5, 78.8], YELLOW, None, 0.0, BARE, 0.8, ">", DELTA),
+    ("worn where the surface has no bare colour", WORN_SIX_TENTHS, YELLOW, None, 0.0, None, 0.8, ">", DELTA),
+    ("worn in a place with no wear", WORN_SIX_TENTHS, YELLOW, None, 0.0, BARE, 0.0, ">", DELTA),
+    ("worn 0.6 toward bare in a place worn 0.8", WORN_SIX_TENTHS, YELLOW, None, 0.0, BARE, 0.8, "<", 1),
+]
+
+# Lab's junction_box_1, bake of 2026-10-14: 56% of its crane_yellow_paint's area baked yellow, 15% between, 29% the grey
+# panel at the same L*. A part's baked colour is each channel's own area median: (case, the areas, the median).
+DARKER, BETWEEN, GREY, LIGHTER = [62.0, 2.0, 38.0], [62.9, 0.5, 17.0], [63.5, -0.7, -4.4], [65.0, 2.0, 38.0]
+JUNCTION_BOX = np.array([DARKER] * 28 + [BETWEEN] * 15 + [GREY] * 29 + [LIGHTER] * 28)
+AREA_MEDIANS = [
+    ("every triangle the same area: the yellow the bake wrote", np.ones(100), [63.5, 2.0, 38.0]),
+    ("only the grey panel's triangles have area", np.array([0.0] * 43 + [1.0] * 29 + [0.0] * 28), GREY),
+]
+
+# Loose islands merged (finish_parts.merged_islands): (case, its pieces as (box extents, its centre, its finish), how
+# many parts there are, the pieces that end as one part of finish 1). A crumb stripe is 4 cm, beside a 1 m box.
+CRUMBS = [((0.04,) * 3, (0.6, -0.3 + 0.2 * number, 0), 1) for number in range(4)]
+HOST = ((1, 1, 1), (0, 0, 0), 0)
+MERGED = [
+    ("a loose bit joins the nearest larger island of its own finish",
+     [HOST, ((0.02,) * 3, (0.53, 0, 0), 1), ((1, 1, 1), (3, 0, 0), 1)], 2, [1, 2]),
+    ("a finish of crumbs only keeps them as one part however small", [HOST, *CRUMBS], 2, [1, 2, 3, 4]),
+    ("one crumb alone keeps its finish as a part of its own", [HOST, CRUMBS[0]], 2, [1]),
+]
+
+# A finish the cleaning left (finish_parts.kept_finishes): (case, the labels before, after, the face areas, kept).
+KEPT = [
+    ("a finish left with an island of its size stays as the cleaning left it", [0, 1, 2, 2], [0, 0, 0, 2], [1.0] * 4,
+     [0, 1, 0, 2]),
+    # engineroom desk's paper label (#36)
+    ("a finish left only a face of no area gets its faces back", [0, 1, 1, 0], [0, 0, 1, 0], [1.0, 1.0, 0.0, 1.0],
+     [0, 1, 1, 0]),
+]
+
+# Finishes judged against each other (finish_parts.out_of_order): L* 60 and 70 greys; the campgrounds' power unit's
+# white measured 80.6 on the darker grey. A finish route's finish paints in its own colour while it keeps its listed
+# surface (astronaut-made, 2026-10-23: its white shell in suit-white). (case, the lighter-listed, the other, out of
+# order.)
+GREYS = {"anodized_natural": {"colour": [0.2843] * 3}, "dust_coated_paint": {"colour": [0.4075] * 3}}
+POWER_WHITE = {"surface": "anodized_natural", "measured_lab": [80.6, 1.0, 2.0]}
+DUSTY = {"surface": "dust_coated_paint", "measured_lab": [69.7, 0, 0]}
+SHELL = dict(POWER_WHITE, colour=[0.9131] * 3, listed_surface="anodized_natural")
+FABRIC = dict(DUSTY, colour=[0.4075] * 3, listed_surface="dust_coated_paint")
+OUT_OF_ORDER = [
+    ("a white measured lighter on the darker surface", POWER_WHITE, DUSTY, True),
+    ("the same pair the other way round", DUSTY, POWER_WHITE, False),
+    ("a finish with no measure", POWER_WHITE, dict(DUSTY, measured_lab=None), False),
+    ("a finish route's shell in its own colour on its listed surface", SHELL, FABRIC, False),
+    ("a finish route's shell moved off its listed surface: the library's colour", dict(SHELL, listed_surface="other"),
+     FABRIC, True),
+]
+
+
+# A finish is see-through by its listed surface's family (finish_parts.see_through). (case, the finish, see-through.)
+SURFACE_FAMILIES = {"red_plastic": {"family": "plastic"}, "cast_steel": {"family": "steel"},
+                    "glass": {"family": "glass"}}
+SEE_THROUGH = [
+    ("a lamp dome of red transparent plastic",
+     {"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"}, True),
+    ("a polished reflector", {"finish": "Polished reflective metal", "parts": "internal reflector",
+                              "surface": "cast_steel"}, False),
+    ("a grey painted housing", {"finish": "Grey painted steel", "parts": "housing", "surface": "cast_steel"}, False),
+]
+
+# A place's surface data against its bake specs (place_line.unwalked): a place nobody walks (the wreck's did) bakes
+# with kicks 0; data that says nothing hands its specs back as given, the very same object (recipes.WALKED: kicked as
+# before, 2026-10-13). (case, the surface data, the kicks every spec says, or None: the specs themselves.)
+SPECS = {"dark_panel": {"recipe": "painted_metal"}, "bare_steel": {"recipe": "bare_metal"}}
+UNWALKED = [
+    ("a place nobody walks", {"foot_traffic": False}, {0.0}),
+    ("data that says nothing of walking", {"place": "hub"}, None),
+]
+
+# A batch job runs on its one priced class; no stock is a gap, never another class (#21).
+RENTED = ["CLASSES", "PAINT_CLASSES"]
+
+
+# Finishes held to their colour (finish_parts.checked_finishes): a finish off its colour takes the nearest surface of
+# its family, or the room's kit surface, only where that keeps the list's meaning (the audit of 2026-11-04): its recipe
+# (a handrail never takes the floor's grating, rusted steel never clean hull paint), its glow, and its hue (gold foil
+# never silver, a blue decal never grey frame paint). As the row makes it (parts_kept held), a kit surface further from
+# the close-up than the list's own never takes it over (shiplock's dark locker interior, 2026-11-11), a picked finish
+# keeps its pick (the engine room's crate, 2026-11-13) and is never moved by the order, and a glow in a family of the
+# scene library's coining ("energy": the engine room's core seen white-hot, 2026-11-13) is judged by its own colour.
+# Glass off the lit colour keeps its surface (owner, #8); the beacon's red transparent dome measured pale pink on its
+# brighter half keeps red_plastic, an opaque grey plastic that far off moves, an opaque red one is off its colour.
+CHAIR = {"vinyl_seat": {"family": "plastic", "colour": [0.03, 0.06, 0.10]},
+         "grey_plastic": {"family": "plastic", "colour": [0.35, 0.35, 0.35]},
+         "dark_panel": {"family": "steel", "colour": [0.01, 0.01, 0.01]}}
+LIGHT_GREY = finish_parts.library_lab(CHAIR["grey_plastic"]) + np.array([3.0, 0, 0])
+GREY_STEEL = {"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True}
+STEELWORK = {"bare_steel": {"family": "steel", "recipe": "bare_metal", "colour": [0.30, 0.30, 0.31]},
+             "deck_grate": {"family": "steel", "recipe": "perforated_metal", "colour": [0.30, 0.30, 0.31]},
+             "deck_plate": {"family": "steel", "recipe": "bare_metal", "colour": [0.31, 0.31, 0.32]},
+             "rusted_steel": {"family": "steel", "recipe": "rusted_metal", "colour": [0.25, 0.08, 0.03]},
+             "hull_panel": {"family": "steel", "recipe": "painted_metal", "colour": [0.26, 0.10, 0.05]},
+             "blue_decal": {"family": "paint", "recipe": "painted_metal", "colour": [0.02, 0.06, 0.30]},
+             "seam_paint": {"family": "paint", "recipe": "painted_metal", "colour": [0.05, 0.05, 0.05]},
+             "gold_foil": {"family": "foil", "recipe": "anodized", "colour": [0.60, 0.40, 0.05]},
+             "silver_foil": {"family": "foil", "recipe": "anodized", "colour": [0.20, 0.20, 0.20]}}
+SEEN_STEEL = {name: finish_parts.library_lab(spec) for name, spec in STEELWORK.items()}
+KIT = ["deck_grate", "hull_panel", "seam_paint", "deck_plate"]
+HANDRAIL = {"finish": "steel handrail", "parts": "rails", "surface": "bare_steel", "fits": True}
+BRUSHED = {"finish": "brushed steel", "parts": "frame", "surface": "bare_steel", "fits": True}
+WALKWAY = [HANDRAIL, {"finish": "rusted riveted steel", "parts": "tube", "surface": "rusted_steel", "fits": True},
+           {"finish": "blue decal", "parts": "decal", "surface": "blue_decal", "fits": True}]
+SHELF_PAIR = {"dark_steel": {"family": "steel", "recipe": "bare_metal", "colour": [0.043] * 3},
+              "light_steel": {"family": "steel", "recipe": "bare_metal", "colour": [0.29] * 3}}
+SHELF_FRAME = {"finish": "worn steel frame", "parts": "frame", "surface": "dark_steel", "fits": True, "picked": {}}
+STEEL_BOX = {"finish": "steel box", "parts": "box", "surface": "light_steel", "fits": True}
+# dark at L* 25, light at 61: the frame seen lighter than the box
+SEEN_PAIR = [finish_parts.library_lab(SHELF_PAIR["dark_steel"]) + [20.0, 0, 0],
+             finish_parts.library_lab(SHELF_PAIR["dark_steel"]) + [7.0, 0, 0]]
+CORE = {"core_glow": {"family": "energy", "recipe": "glowing", "colour": [0.07, 0.33, 1.0]}}
+COLUMN = {"finish": "Blue core glow", "parts": "column", "surface": "core_glow", "fits": True}
+REACTOR = {"reactor_glow": {"family": "glass", "recipe": "glowing", "colour": [0.10, 0.45, 1.0]},
+           "side_glazing": {"family": "glass", "recipe": "glass", "colour": [0.005, 0.0225, 0.05]}}
+# the water tank's: its panel 13 L* lighter than its steel in the close-up, painted_panel under bare_steel here
+TANK_LIBRARY = {"painted_panel": {"family": "painted", "colour": [0.30, 0.31, 0.33]},
+                "cream_paint": {"family": "painted", "colour": [0.55, 0.53, 0.46]},
+                "bare_steel": {"family": "steel", "colour": [0.35, 0.36, 0.38]},
+                "glass": {"family": "glass", "colour": [0.6, 0.65, 0.7]}}
+BEACON_LIBRARY = {"red_plastic": {"family": "plastic", "colour": [0.45, 0.02, 0.01]},
+                  "plastic_grey": {"family": "plastic", "colour": [0.33, 0.31, 0.27]}}
+PALE = np.array([70.8, 21.2, 11.5])
+ABSENT = object()
+
+
+class Words(str):
+    """An expected text the found one holds somewhere in it."""
+
+
+# (case, the take, its finishes, their measured L*a*b*, the library, the room's kit or None, parts_kept held, what each
+# found finish holds: {field (dotted reaches in): value}).
+CHECKED = [
+    ("grey vinyl takes the nearest plastic by colour, grey steel far off its black is off its colour",
+     {"kind": "lab_chair", "object": "desk chair"},
+     [{"finish": "grey vinyl", "parts": "seat", "surface": "vinyl_seat", "fits": True}, GREY_STEEL],
+     [LIGHT_GREY, LIGHT_GREY], CHAIR, None, False,
+     [{"surface": "grey_plastic", "by": "nearest of its family by colour"},
+      {"surface": "dark_panel", "by": "off its colour", "fits": False,
+       "new_surface.lab": [round(float(value), 1) for value in LIGHT_GREY]}]),
+    ("a finish in its own token's colour is held to that colour, not its surface's",
+     {"kind": "lab_chair", "object": "desk chair"}, [dict(GREY_STEEL, colour=[0.35, 0.35, 0.35])], [LIGHT_GREY], CHAIR,
+     None, False, [{"surface": "dark_panel", "by": "the list"}]),
+    ("a handrail never takes the grating, rust never the hull paint, a blue decal seen black never the seam paint",
+     {"kind": "walkway", "object": "walkway"}, WALKWAY,
+     [SEEN_STEEL["deck_grate"], SEEN_STEEL["hull_panel"], SEEN_STEEL["seam_paint"]],
+     {name: spec for name, spec in STEELWORK.items() if name != "deck_plate"}, KIT[:3], False,
+     [{"surface": "bare_steel"}, {"surface": "rusted_steel"}, {"surface": "blue_decal", "by": "off its colour"}]),
+    ("brushed steel seen as the room's deck plate takes it", {"kind": "module", "object": "module"}, [BRUSHED],
+     [SEEN_STEEL["deck_plate"]], STEELWORK, KIT, False,
+     [{"surface": "deck_plate", "by": "the room's kit surface by colour"}]),
+    ("gold foil seen silver is off its colour, never silver foil", {"kind": "module", "object": "module"},
+     [{"finish": "gold MLI foil", "parts": "module", "surface": "gold_foil", "fits": True}],
+     [SEEN_STEEL["silver_foil"]], STEELWORK, KIT, False, [{"surface": "gold_foil", "by": "off its colour"}]),
+    ("as the row makes it, a kit surface further than the list's own never takes it over",
+     {"kind": "module", "object": "module"}, [BRUSHED], [SEEN_STEEL["bare_steel"] + [-3.0, 0.0, 0.0]], STEELWORK, KIT,
+     True, [{"surface": "bare_steel", "by": "the list"}]),
+    ("as the row makes it, brushed steel seen as the deck plate still takes it", {"kind": "module", "object": "module"},
+     [BRUSHED], [SEEN_STEEL["deck_plate"]], STEELWORK, KIT, True,
+     [{"surface": "deck_plate", "by": "the room's kit surface by colour"}]),
+    ("as the row makes it, a picked finish keeps its pick, never the kit's", {"kind": "module", "object": "module"},
+     [dict(BRUSHED, picked={"token": "steel-grey"})], [SEEN_STEEL["deck_plate"]], STEELWORK, KIT, True,
+     [{"surface": "bare_steel", "by": "the list"}]),
+    ("unheld, the order moves a frame seen lighter than its box", {"kind": "shelf", "object": "shelf"},
+     [SHELF_FRAME, STEEL_BOX], SEEN_PAIR, SHELF_PAIR, None, False, [{"surface": "light_steel"}, {}]),
+    ("as the row makes it, the order never moves a pick: the other finish moves", {"kind": "shelf", "object": "shelf"},
+     [dict(SHELF_FRAME, picked={"token": "slate"}), STEEL_BOX], SEEN_PAIR, SHELF_PAIR, None, True,
+     [{"surface": "dark_steel"}, {"surface": "dark_steel"}]),
+    ("unheld, a glow of a coined family seen white-hot is off its colour", {"kind": "core", "object": "core"},
+     [COLUMN], [np.array([77.1, 0.7, -2.7])], CORE, None, False, [{"by": "off its colour"}]),
+    ("as the row makes it, a glow of a coined family is judged by its own colour", {"kind": "core", "object": "core"},
+     [COLUMN], [np.array([77.1, 0.7, -2.7])], CORE, None, True, [{"by": "its own colour", "surface": "core_glow"}]),
+    ("a glow seen as glass never takes the glass", {"kind": "reactor", "object": "reactor"},
+     [{"finish": "blue reactor tube", "parts": "tube", "surface": "reactor_glow", "fits": True}],
+     [finish_parts.library_lab(REACTOR["side_glazing"])], REACTOR, None, False,
+     [{"surface": "reactor_glow", "by": "its own colour"}]),
+    ("glass off the lit colour keeps its surface, judged by its own colour and no cover",
+     {"kind": "lamp", "object": "lamp"}, [{"finish": "red lit lens", "parts": "lens", "surface": "glass"}],
+     [np.array([45.0, 60.0, 40.0])], TANK_LIBRARY, None, False,
+     [{"surface": "glass", "by": "its own colour", "cover": ABSENT}]),
+    ("the beacon's see-through dome keeps red against its highlights, an opaque grey moves, an opaque red is off",
+     {"kind": "beacon", "object": "beacon"},
+     [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
+      {"finish": "Grey plastic", "parts": "knob", "surface": "red_plastic"},
+      {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [PALE, PALE, PALE], BEACON_LIBRARY, None,
+     False, [{"surface": "red_plastic", "by": "its own colour", "cover": True},
+             {"surface": "plastic_grey", "by": "nearest of its family by colour"},
+             {"surface": "red_plastic", "by": "off its colour"}]),
+]
+
+# Finishes kept in their close-up's lightness order (finish_parts.in_close_up_order): (case, the object, its finishes,
+# the library, what each found finish holds, or None: it comes back as given). The hangar's parts shelving: its grey
+# plastic bins 27.7 L* over its steel in the close-up, plastic_grey 1.5 under galvanized_steel in the library; the
+# steel, seen at L* 42, takes cast_steel, nearer its close-up colour; with none nearer, the order stays as it was.
+TANK_PANEL = [round(float(value), 1) for value in finish_parts.library_lab(TANK_LIBRARY["cream_paint"]) - [4, 0, 0]]
+TANK_STEEL = [round(float(value), 1) for value in finish_parts.library_lab(TANK_LIBRARY["bare_steel"]) - [8, 0, 0]]
+TANK = [{"finish": "off-white paint", "surface": "painted_panel", "measured_lab": TANK_PANEL, "by": "the list"},
+        {"finish": "steel legs", "surface": "bare_steel", "measured_lab": TANK_STEEL, "by": "the list"}]
+SHELF_LIBRARY = {"galvanized_steel": {"family": "steel", "colour": [0.328, 0.361, 0.397]},
+                 "plastic_grey": {"family": "plastic", "colour": [0.386, 0.332, 0.258]},
+                 "cast_steel": {"family": "steel", "colour": [0.070, 0.084, 0.102]}}
+SHELVING = [{"finish": "Grey steel", "surface": "galvanized_steel", "measured_lab": [41.9, 0.6, -0.6], "by": "the list"},
+            {"finish": "Light grey plastic", "surface": "plastic_grey", "measured_lab": [69.6, 0.2, 0.9],
+             "by": "named again (its material)"}]
+IN_ORDER = [
+    ("the water tank's paint takes cream, keeping the close-up's order", "water tank", TANK, TANK_LIBRARY,
+     [{"surface": "cream_paint", "by": "nearest of its family in order"}, {}]),
+    ("with no cream the paint is off its colour, lighter than its steel", "water tank", TANK,
+     {name: spec for name, spec in TANK_LIBRARY.items() if name != "cream_paint"},
+     [{"by": "off its colour", "new_surface.why": Words("lighter than bare_steel")}, {}]),
+    ("one finish has nothing to order", "x", TANK[1:], TANK_LIBRARY, [None]),
+    ("steel a little out of order takes a nearer surface of its family", "parts shelving", SHELVING, SHELF_LIBRARY,
+     [{"surface": "cast_steel", "by": "nearest of its family in order"},
+      {"surface": "plastic_grey", "by": "named again (its material)"}]),
+    ("with no surface nearer the order stays as it was", "parts shelving",
+     [dict(SHELVING[0], measured_lab=[66.0, -1.0, -4.0]), dict(SHELVING[1], measured_lab=[80.0, 0.0, 0.0])],
+     SHELF_LIBRARY, [None, None]),
+]
+
+# The list's meaning (finish_parts.meaning_faults, the gate "kept the list's meaning"): a finish moved off its recipe,
+# glow or hue, and a take whose largest finish moved off its row name's colour (the hangar's thick red cables as
+# black_hose), unless another finish's own words name that colour; where the finishes of the row's own thing word exist
+# they, not the largest, hold its colour (base's 'green plants' dome, its frame the largest part, its 'plant leaves'
+# green: passes; with no plant finish, or its plants painted grey: fails). (case, the take, its record made from the
+# cables' record, the words each fault holds.)
+CABLE_PARTS = [{"judge": "deck_grate", "words": "steel handrail", "share": 0.7},
+               {"judge": "deck_plate", "words": "brushed steel", "share": 0.3}]
+LATTICE_PAINT = {"recipe": "painted_metal", "lab": [60.9, 0.6, 10.9]}
+LEAF = {"recipe": "rubber", "lab": [40.9, -26.8, 25.5]}
+LATTICE = {"finish": "greenhouse frame lattice", "parts": "dome lattice ribs", "surface": "seam_trim_dark",
+           "listed_surface": "greenhouse_lattice", "by": "the room's kit surface by colour",
+           "looks": {"listed": LATTICE_PAINT, "painted": dict(LATTICE_PAINT, lab=[36.4, 0.5, 5.4])}}
+LEAVES = {"finish": "plant leaves", "parts": "plants growing inside the dome", "surface": "plant_leaves",
+          "listed_surface": "plant_leaves", "by": "the list", "looks": {"listed": LEAF, "painted": LEAF}}
+GREEN_DOME = {"object": "green plants", "finishes": [LATTICE, LEAVES],
+              "parts": [{"judge": "seam_trim_dark", "words": "greenhouse frame lattice", "share": 0.53},
+                        {"judge": "plant_leaves", "words": "plant leaves", "share": 0.003}]}
+MEANING = [
+    ("a handrail moved to the grating, red cables painted steel", "walkway-t1", lambda cables: cables,
+     [("steel handrail",), ("thick red cables",)]),
+    ("a cable sheath's own words claim the red", "walkway-t1", lambda cables: dict(cables, finishes=[
+        *cables["finishes"], {"finish": "cable sheath", "parts": "the red cables on the floor",
+                              "surface": "seam_paint"}]), [("steel handrail",)]),
+    ("a steel walkway of brushed steel on the deck plate", "walkway-t1",
+     lambda cables: dict(cables, object="steel walkway", finishes=cables["finishes"][1:]), []),
+    ("the dome's plants, not its frame, carry the row's green", "dome-t1", lambda cables: GREEN_DOME, []),
+    ("a dome with no plant finish: its frame never holds the green", "dome-t1",
+     lambda cables: dict(GREEN_DOME, finishes=[LATTICE]), [("'green plants' names green",)]),
+    ("a dome whose plants are painted grey", "dome-t1", lambda cables: dict(GREEN_DOME, finishes=[LATTICE, dict(
+        LEAVES, surface="seam_trim_dark", by="the room's kit surface by colour",
+        looks={"listed": LEAF, "painted": dict(LATTICE_PAINT, lab=[36.4, 0.5, 5.4])})]),
+     [(), ("'green plants' names green",)]),
+]
+
+# A light built in code (route_parts.lit_take): (case, the take, its build's size, lit). A stem lamp's post is a post.
+LIT_TAKES = [
+    ("a wall light's bar", {"kind": "light", "object": "wall light"}, [1.0, 0.1, 0.1], True),
+    ("wall pipes the same size", {"kind": "pipe", "object": "wall pipes"}, [1.0, 0.1, 0.1], False),
+    ("a street light's post", {"kind": "light", "object": "street light"}, [0.3, 0.3, 6.0], False),
+]
+# A lit take's finishes (route_parts.lit_finishes) take the glowing surface nearest their colour: (case, its finishes,
+# the library, parts_kept held, what each found finish holds, or None: as given). A light bar listed as its glass tube
+# and its metal end caps: the tube glows, the caps keep their own surface (airlock's wall lamp, 2026-10-29); a strip
+# lamp's diffuser in plastic on a glowing surface glows and its steel housing keeps its steel, as the row makes it
+# (shiplock's lights, 2026-11-11: housings painted as the blue screen), held only while it runs.
+LIGHTS = {"warm": {"recipe": "glowing", "colour": [1.0, 0.8, 0.3]},
+          "cold": {"recipe": "glowing", "colour": [0.3, 0.6, 1.0]},
+          "steel": {"recipe": "bare_metal", "colour": [0.5, 0.5, 0.5]}}
+LIGHT_BAR = {"finish": "light bar", "surface": "steel", "fits": True, "by": "the list",
+             "measured_lab": [float(value) for value in finish_parts.library_lab(LIGHTS["cold"])]}
+DIFFUSER = dict(LIGHT_BAR, finish="white diffuser", family="plastic", surface="warm")
+HOUSING = dict(LIGHT_BAR, finish="dark metal housing", family="steel")
+LIT = [
+    ("a light bar takes the glowing surface nearest its colour", [LIGHT_BAR], LIGHTS, False,
+     [{"surface": "cold", "fits": True, "by": "its light, built in code"}]),
+    ("with no glowing surface it is flagged", [LIGHT_BAR], {"steel": LIGHTS["steel"]}, False,
+     [{"fits": False, "new_surface.why": Words("no glowing surface")}]),
+    ("its glass tube glows, its metal end caps keep their surface",
+     [dict(LIGHT_BAR, family="glass"), dict(LIGHT_BAR, finish="metal end caps", family="steel")], LIGHTS, False,
+     [{"surface": "cold"}, None]),
+    ("as the row makes it, a plastic diffuser glows, its steel housing kept", [DIFFUSER, HOUSING], LIGHTS, True,
+     [{"surface": "cold", "family": "plastic"}, None]),
+    ("unheld, the housing glows too", [DIFFUSER, HOUSING], LIGHTS, False, [{}, {"surface": "cold"}]),
+]
+
+
+def unlike(found, given, expected):
+    """Where `found` finishes differ from `expected` ({field: value}, a dotted field reaching in, Words a text held; None:
+    as `given`): (index, field, found value) of each difference."""
+    differ = []
+    for index, (finish, before, want) in enumerate(zip(found, given, expected, strict=True)):
+        if want is None:
+            differ += [] if finish == before else [(index, "as given", finish)]
+            continue
+        for field, value in want.items():
+            got = finish
+            for step in field.split("."):
+                got = got.get(step, ABSENT) if isinstance(got, dict) else ABSENT
+            if isinstance(value, Words):
+                held = isinstance(got, str) and value in got
+            else:
+                held = got is value if value is ABSENT or isinstance(value, bool) else got == value
+            differ += [] if held else [(index, field, got)]
+    return differ
 
 
 def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
@@ -1093,58 +1673,6 @@ def test_a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back():
         listing = json.loads(pathlib.Path(job["args"][0]).read_text())
         assert listing["paint take"] == "crane-r1" and listing["paint repo"] == str(REPO)  # data may lie elsewhere
         assert json.loads(pathlib.Path(listing["paint records"]).read_text()) == [{"part": 0}]
-
-
-def test_a_bake_is_held_against_its_surface_dirtied_as_far_as_its_place_s_dirt():
-    """The wreck: dirt 0.6 in regolith (L* 56.8); its white hull (89.6) bakes to 69.0 and is on its surface; the same
-    white at a clean place, or baked darker than its dirt reaches, is not; a wrong surface is not."""
-    white, regolith = np.array([89.6, -1.7, 1.6]), np.array([56.8, 0.2, 3.1])
-    baked = np.array([69.0, -0.8, -3.2])
-    assert bake_check.on_surface(baked, white, regolith, 0.6) < 6
-    assert bake_check.on_surface(baked, white, regolith, 0.0) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(np.array([40.0, 0, 0]), white, regolith, 0.6) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(baked, white, None, 0.6) > bake_check.BAKE_DELTA_E
-
-
-def test_a_bake_is_held_against_its_surface_worn_as_far_as_its_place_s_wear():
-    """The engine room, worn 0.8, dirt 0.5: its power core's hazard trim baked a median [73.2, 2.2, 41.3], 20.1 off
-    its clean yellow and part worn to bare steel; worn as far as the place's wear it lies on its surface. Unworn, or
-    with no bare colour, it does not; a wrong surface (dark_panel) still fails."""
-    yellow, bare, soot = np.array([80.5, 3.5, 78.8]), np.array([66.3, -1.1, -4.5]), np.array([13.2, 3.7, 5.9])
-    baked = np.array([73.2, 2.2, 41.3])
-    assert bake_check.on_surface(baked, yellow, soot, 0.5, bare, 0.8) < 6
-    assert bake_check.on_surface(baked, yellow, soot, 0.5, bare, 0.0) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(baked, yellow, soot, 0.5) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(baked, np.array([19.2, -0.7, -3.2]), soot, 0.5, bare, 0.8) > bake_check.BAKE_DELTA_E
-
-
-def test_wear_passes_only_toward_the_surface_s_bare_colour_and_only_as_far_as_its_place_s_wear():
-    """Wear has causes (the paper, Appendix D: the room's wear setting from its use, laid on edges and kicks) and the
-    check allows only what those can lay: a yellow worn all the way to bare steel in a place worn 0.4 lies past its
-    wear; a yellow darkened toward black (no recipe's bare colour) fails however worn its place; a surface with no
-    bare colour has nothing to wear, and in a place with no wear nothing is worn."""
-    yellow, bare = np.array([80.5, 3.5, 78.8]), np.array([66.3, -1.1, -4.5])
-    worn_through = bare.copy()
-    darkened = np.array([50.0, 3.5, 78.8])
-    assert bake_check.on_surface(worn_through, yellow, None, 0.0, bare, 0.4) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(darkened, yellow, None, 0.0, bare, 0.8) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(yellow + 0.6 * (bare - yellow), yellow, None, 0.0, None, 0.8) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(yellow + 0.6 * (bare - yellow), yellow, None, 0.0, bare, 0.0) > bake_check.BAKE_DELTA_E
-    assert bake_check.on_surface(yellow + 0.6 * (bare - yellow), yellow, None, 0.0, bare, 0.8) < 1
-
-
-def test_a_part_s_baked_colour_is_its_area_s_median_on_each_channel():
-    """Lab's junction_box_1, bake of 2026-10-14: 56% of its crane_yellow_paint's area baked yellow, 15% between, 29%
-    the grey panel at the same L*; a triangle picked by its L* alone was a grey one (dE 37 off the yellow), each
-    channel's own median is the yellow the bake wrote."""
-    darker, between, grey, lighter = [62.0, 2.0, 38.0], [62.9, 0.5, 17.0], [63.5, -0.7, -4.4], [65.0, 2.0, 38.0]
-    colour = np.array([darker] * 28 + [between] * 15 + [grey] * 29 + [lighter] * 28)
-    areas = np.ones(len(colour))
-    order = np.argsort(colour[:, 0])  # the old pick: the triangle at the area's median L*
-    assert colour[order][np.searchsorted(np.cumsum(areas[order]), areas.sum() / 2)].tolist() == grey
-    middle = bake_check.area_median(colour, areas)
-    assert middle.tolist() == [63.5, 2.0, 38.0], middle
-    assert bake_check.area_median(colour, np.array([0.0] * 43 + [1.0] * 29 + [0.0] * 28)).tolist() == grey
 
 
 def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model():
@@ -1477,20 +2005,6 @@ def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
     shutil.rmtree(folder)
 
 
-def test_only_a_place_nobody_walks_bakes_with_no_kick_wear():
-    """A place whose surface data says nobody walks it (the wreck's did): its bake's specs say kicks 0. Data that
-    says nothing hands its specs back as given, the very same object (recipes.WALKED: kicked as before), and its bake
-    is the same as before the change (2026-10-13)."""
-    specs = {"dark_panel": {"recipe": "painted_metal"}, "bare_steel": {"recipe": "bare_metal"}}
-    assert {spec["kicks"] for spec in place_line.unwalked(specs, {"foot_traffic": False}).values()} == {0.0}
-    assert place_line.unwalked(specs, {"place": "hub"}) is specs
-
-
-def test_bake_and_paint_rent_one_machine_class_each():
-    """A batch job runs on its one priced class; no stock is a gap, never another class (#21)."""
-    assert "," not in place_line.CLASSES and "," not in place_line.PAINT_CLASSES
-
-
 # --- library_reads ---
 
 ROWS = {row.name: row for row in stages.STAGES}
@@ -1795,68 +2309,6 @@ def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
 
 # --- finish ---
 
-def test_unvoted_faces_take_the_nearest_voted_label_along_the_surface():
-    mesh = trimesh.creation.icosphere(subdivisions=3)
-    seen = np.full(len(mesh.faces), -1)
-    middles = mesh.triangles_center
-    seen[(middles[:, 2] > 0.5) & (middles[:, 0] > 0)] = 0
-    seen[(middles[:, 2] > 0.5) & (middles[:, 0] <= 0)] = 1
-    walked = finish_parts.walked(mesh, seen)
-    assert (walked >= 0).all()
-    back = middles[:, 2] < -0.5
-    assert (walked[back & (middles[:, 0] > 0.3)] == 0).mean() > 0.9
-    assert (walked[back & (middles[:, 0] < -0.3)] == 1).mean() > 0.9
-
-
-def test_a_loose_bit_joins_the_nearest_larger_island_of_its_own_finish():
-    big = trimesh.creation.box(extents=(1, 1, 1))
-    loose = trimesh.creation.box(extents=(0.02, 0.02, 0.02))
-    loose.apply_translation((0.53, 0, 0))
-    far = trimesh.creation.box(extents=(1, 1, 1))
-    far.apply_translation((3, 0, 0))
-    mesh = trimesh.util.concatenate([big, loose, far])
-    label = np.r_[np.zeros(len(big.faces)), np.ones(len(loose.faces)), np.ones(len(far.faces))].astype(int)
-    part_of, merged = finish_parts.merged_islands(mesh, label)
-    bit = slice(len(big.faces), len(big.faces) + len(loose.faces))
-    assert len(np.unique(part_of)) == 2 and (part_of[bit] == part_of[-1]).all() and (merged[bit] == 1).all()
-
-
-def test_a_finish_of_crumbs_only_keeps_them_as_one_part_however_small():
-    host = trimesh.creation.box(extents=(1, 1, 1))
-    bands = []
-    for number in range(4):  # thin stripes beside the box, each a crumb, together over ISLAND_LEAST
-        band = trimesh.creation.box(extents=(0.04, 0.04, 0.04))
-        band.apply_translation((0.6, -0.3 + 0.2 * number, 0))
-        bands.append(band)
-    mesh = trimesh.util.concatenate([host, *bands])
-    band_share = sum(band.area for band in bands) / mesh.area
-    assert all(band.area / mesh.area < finish_parts.ISLAND_LEAST for band in bands)
-    assert band_share >= finish_parts.ISLAND_LEAST
-    label = np.r_[np.zeros(len(host.faces)), np.ones(len(mesh.faces) - len(host.faces))].astype(int)
-    part_of, merged = finish_parts.merged_islands(mesh, label)
-    striped = slice(len(host.faces), None)
-    assert len(np.unique(part_of)) == 2 and (merged[striped] == 1).all() and len(np.unique(part_of[striped])) == 1
-    one = trimesh.util.concatenate([host, bands[0]])  # one crumb alone keeps its finish as a part of its own
-    label = np.r_[np.zeros(len(host.faces)), np.ones(len(bands[0].faces))].astype(int)
-    part_of, merged = finish_parts.merged_islands(one, label)
-    assert len(np.unique(part_of)) == 2 and (merged[len(host.faces):] == 1).all()
-
-
-def test_cleaning_never_removes_a_finish_whole():
-    mesh = trimesh.creation.icosphere(subdivisions=4)
-    middles = mesh.triangles_center
-    label = np.zeros(len(mesh.faces), dtype=int)
-    dots = np.flatnonzero((middles[:, 1] > 0.9) | (middles[:, 0] > 0.97))[::3]  # scattered single faces of finish 1
-    label[dots] = 1
-    without = finish_parts.cleaned(mesh, label, 2)
-    assert (without[dots] == 1).all() and (without[label == 0] == 0).mean() > 0.99
-    kept = finish_parts.kept_finishes(np.array([0, 1, 2, 2]), np.array([0, 0, 0, 2]), np.ones(4))
-    assert kept.tolist() == [0, 1, 0, 2]  # a finish left with an island of its size stays as the cleaning left it
-    # engineroom desk's paper label (#36): left only a face of no area, it gets its faces back
-    kept = finish_parts.kept_finishes(np.array([0, 1, 1, 0]), np.array([0, 0, 1, 0]), np.array([1.0, 1.0, 0.0, 1.0]))
-    assert kept.tolist() == [0, 1, 1, 0]
-
-
 def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
     """astronaut-made-s1, 2026-10-23: the walk left jagged islands of the dark joints over its fabric (stray 0.054).
     A stray joins the finish it borders; a finish with no island of its own size keeps its islands, unless they cover
@@ -1958,36 +2410,6 @@ def test_islands_of_a_detail_finish_sharing_a_part_are_no_stray():
     assert not blotched["pass"] and blotched["stray"] > 0.03, blotched
 
 
-def test_agreement_counts_against_the_maps():
-    mesh = trimesh.creation.icosphere(subdivisions=2)
-    top = mesh.triangles_center[:, 1] > 0
-    face_label = np.zeros(len(mesh.faces), dtype=int)
-    front = np.where(top, 1, 0)  # the map says finish 1 on top, the paint says 0 everywhere
-    agreement = finish_parts.agreement(mesh, face_label, {"front": front})
-    assert 0.4 < agreement["front"] < 0.6, agreement
-
-
-def test_a_finish_out_of_order_is_found_and_a_see_through_finish_is_known():
-    greys = {"anodized_natural": {"colour": [0.2843] * 3}, "dust_coated_paint": {"colour": [0.4075] * 3}}  # L* 60, 70
-    lightness = finish_parts.opaque_lightness(greys)
-    white = {"surface": "anodized_natural", "measured_lab": [80.6, 1.0, 2.0]}  # the campgrounds' power unit
-    dusty = {"surface": "dust_coated_paint", "measured_lab": [69.7, 0, 0]}
-    assert finish_parts.out_of_order(white, dusty, greys, lightness)
-    assert not finish_parts.out_of_order(dusty, white, greys, lightness)
-    assert not finish_parts.out_of_order(white, dict(dusty, measured_lab=None), greys, lightness)
-    # a finish route's finish paints in its own colour (its settings' token) while it keeps its listed surface:
-    # astronaut-made (2026-10-23): its white shell in suit-white, its variant's own token base-grey
-    shell = dict(white, colour=[0.9131] * 3, listed_surface="anodized_natural")
-    fabric = dict(dusty, colour=[0.4075] * 3, listed_surface="dust_coated_paint")
-    assert not finish_parts.out_of_order(shell, fabric, greys, lightness)
-    assert finish_parts.out_of_order(dict(shell, listed_surface="other"), fabric, greys, lightness)  # moved: library's
-    every = {"red_plastic": {"family": "plastic"}, "cast_steel": {"family": "steel"}, "glass": {"family": "glass"}}
-    listed = [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
-              {"finish": "Polished reflective metal", "parts": "internal reflector", "surface": "cast_steel"},
-              {"finish": "Grey painted steel", "parts": "housing", "surface": "cast_steel"}]
-    assert [finish_parts.see_through(finish, every) for finish in listed] == [True, False, False]
-
-
 def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again():
     sys.path.insert(0, str(REPO / "tools/cloud"))
     import google_spend
@@ -2052,218 +2474,14 @@ def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_ask
         google_spend.generate, finish_ask.REFUSED_WAIT = saved
 
 
-def test_a_finish_takes_the_nearest_surface_of_its_family_by_colour_or_is_flagged():
-    """A finish off its colour takes the nearest surface of its family, or the room's kit surface, only where that
-    keeps the list's meaning (the audit of 2026-11-04): its recipe (a handrail never takes the floor's grating, rusted
-    steel never clean hull paint), its glow, and its hue (gold foil never silver, a blue decal never grey frame
-    paint); and the gate "kept the list's meaning" fails a finish moved off them and a take whose largest finish moved
-    off its row name's colour (the hangar's thick red cables as black_hose), unless another finish's own words name
-    that colour; where the finishes of the row's own thing word exist they, not the largest, hold its colour (base's
-    'green plants' dome, its frame the largest part, its 'plant leaves' green: passes; with no plant finish, or its
-    plants painted grey: fails)."""
-    navy, grey, black = [0.03, 0.06, 0.10], [0.35, 0.35, 0.35], [0.01, 0.01, 0.01]
-    library = {"vinyl_seat": {"family": "plastic", "colour": navy},
-               "grey_plastic": {"family": "plastic", "colour": grey},
-               "dark_panel": {"family": "steel", "colour": black}}
-    light_grey = finish_parts.library_lab(library["grey_plastic"]) + np.array([3.0, 0, 0])
-    found = finish_parts.checked_finishes(
-        {"kind": "lab_chair", "object": "desk chair"},
-        [{"finish": "grey vinyl", "parts": "seat", "surface": "vinyl_seat", "fits": True},
-         {"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True}],
-        [light_grey, light_grey], library)
-    assert found[0]["surface"] == "grey_plastic" and found[0]["by"] == "nearest of its family by colour"
-    assert found[1]["surface"] == "dark_panel" and found[1]["by"] == "off its colour" and not found[1]["fits"]
-    assert found[1]["new_surface"]["lab"] == [round(float(value), 1) for value in light_grey]
-    # a finish in its own token's colour (the finish route's settings) is held to that colour, not its surface's
-    tinted = finish_parts.checked_finishes(
-        {"kind": "lab_chair", "object": "desk chair"},
-        [{"finish": "grey steel", "parts": "body", "surface": "dark_panel", "fits": True, "colour": grey}],
-        [light_grey], library)
-    assert tinted[0]["surface"] == "dark_panel" and tinted[0]["by"] == "the list", tinted[0]
-    steel, rust, blue = [0.30, 0.30, 0.31], [0.25, 0.08, 0.03], [0.02, 0.06, 0.30]
-    every = {"bare_steel": {"family": "steel", "recipe": "bare_metal", "colour": steel},
-             "deck_grate": {"family": "steel", "recipe": "perforated_metal", "colour": steel},
-             "deck_plate": {"family": "steel", "recipe": "bare_metal", "colour": [0.31, 0.31, 0.32]},
-             "rusted_steel": {"family": "steel", "recipe": "rusted_metal", "colour": rust},
-             "hull_panel": {"family": "steel", "recipe": "painted_metal", "colour": [0.26, 0.10, 0.05]},
-             "blue_decal": {"family": "paint", "recipe": "painted_metal", "colour": blue},
-             "seam_paint": {"family": "paint", "recipe": "painted_metal", "colour": [0.05, 0.05, 0.05]},
-             "gold_foil": {"family": "foil", "recipe": "anodized", "colour": [0.60, 0.40, 0.05]},
-             "silver_foil": {"family": "foil", "recipe": "anodized", "colour": [0.20, 0.20, 0.20]}}
-    seen = {name: finish_parts.library_lab(spec) for name, spec in every.items()}
-    finishes = [{"finish": "steel handrail", "parts": "rails", "surface": "bare_steel", "fits": True},
-                {"finish": "rusted riveted steel", "parts": "tube", "surface": "rusted_steel", "fits": True},
-                {"finish": "blue decal", "parts": "decal", "surface": "blue_decal", "fits": True},
-                {"finish": "brushed steel", "parts": "frame", "surface": "bare_steel", "fits": True},
-                {"finish": "gold MLI foil", "parts": "module", "surface": "gold_foil", "fits": True}]
-    kit = ["deck_grate", "hull_panel", "seam_paint", "deck_plate"]
-    measured = [seen["deck_grate"], seen["hull_panel"], seen["seam_paint"], seen["deck_plate"],
-                seen["silver_foil"]]
-    found = finish_parts.checked_finishes({"kind": "walkway", "object": "walkway"}, finishes[:3], measured[:3],
-                                          {name: every[name] for name in every if name != "deck_plate"}, kit[:3])
-    assert [finish["surface"] for finish in found] == ["bare_steel", "rusted_steel", "blue_decal"], found
-    assert found[2]["by"] == "off its colour", found[2]  # seen near black: never the grey seam paint
-    plate, foil = (finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finish], [colour], every,
-                                                 kit)[0] for finish, colour in zip(finishes[3:], measured[3:]))
-    assert plate["surface"] == "deck_plate" and plate["by"] == "the room's kit surface by colour", plate
-    # as the row makes it (parts_kept), a kit surface further from the close-up than the list's own never takes it
-    # over (shiplock's dark locker interior, 2026-11-11: frame-charcoal at dE 12.9 painted as the hull panel at 27.6)
-    near_listed = [seen["bare_steel"] + [-3.0, 0.0, 0.0]]
-    with parts_kept.held():
-        kept = finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finishes[3]], near_listed,
-                                             every, kit)[0]
-        plate = finish_parts.checked_finishes({"kind": "module", "object": "module"}, [finishes[3]],
-                                              [seen["deck_plate"]], every, kit)[0]
-    assert kept["surface"] == "bare_steel" and kept["by"] == "the list", kept
-    assert plate["surface"] == "deck_plate" and plate["by"] == "the room's kit surface by colour", plate
-    # a picked finish keeps its pick (the engine room's crate, 2026-11-13: picked steel-grey, the kit took it back
-    # to the deck plate the recheck had failed): never the kit's, and never moved by the order, whose other finish
-    # moves instead (dark at L* 25, light at 61: the picked frame seen lighter than the box, the box takes the dark)
-    picked = dict(finishes[3], picked={"token": "steel-grey"})
-    dark, light = {"family": "steel", "recipe": "bare_metal", "colour": [0.043] * 3}, \
-        {"family": "steel", "recipe": "bare_metal", "colour": [0.29] * 3}
-    pair = {"dark_steel": dark, "light_steel": light}
-    frame = {"finish": "worn steel frame", "parts": "frame", "surface": "dark_steel", "fits": True, "picked": {}}
-    box = {"finish": "steel box", "parts": "box", "surface": "light_steel", "fits": True}
-    seen_pair = [finish_parts.library_lab(dark) + [20.0, 0, 0], finish_parts.library_lab(dark) + [7.0, 0, 0]]
-    moved = finish_parts.checked_finishes({"kind": "shelf", "object": "shelf"}, [dict(frame), dict(box)], seen_pair,
-                                          pair)
-    with parts_kept.held():
-        kept = finish_parts.checked_finishes({"kind": "module", "object": "module"}, [picked], [seen["deck_plate"]],
-                                             every, kit)[0]
-        frame_kept, box_moved = finish_parts.checked_finishes({"kind": "shelf", "object": "shelf"},
-                                                              [dict(frame, picked={"token": "slate"}), dict(box)],
-                                                              seen_pair, pair)
-    assert kept["surface"] == "bare_steel" and kept["by"] == "the list", kept
-    assert moved[0]["surface"] == "light_steel", moved  # without the hold the pick is moved off
-    assert frame_kept["surface"] == "dark_steel" and box_moved["surface"] == "dark_steel", (frame_kept, box_moved)
-    # a glowing surface the scene library put in a family of its own coining ("energy": the engine room's core glow
-    # seen white-hot, 2026-11-13) is judged by its own colour, as a light is, never off its colour
-    core = {"core_glow": {"family": "energy", "recipe": "glowing", "colour": [0.07, 0.33, 1.0]}}
-    column = {"finish": "Blue core glow", "parts": "column", "surface": "core_glow", "fits": True}
-    white = [np.array([77.1, 0.7, -2.7])]
-    assert finish_parts.checked_finishes({"kind": "core", "object": "core"}, [dict(column)], white, core)[0][
-        "by"] == "off its colour"
-    with parts_kept.held():
-        glowing = finish_parts.checked_finishes({"kind": "core", "object": "core"}, [dict(column)], white, core)[0]
-    assert glowing["by"] == "its own colour" and glowing["surface"] == "core_glow", glowing
-    assert foil["surface"] == "gold_foil" and foil["by"] == "off its colour", foil  # never silver_foil
-    lit = {"reactor_glow": {"family": "glass", "recipe": "glowing", "colour": [0.10, 0.45, 1.0]},
-           "side_glazing": {"family": "glass", "recipe": "glass", "colour": [0.005, 0.0225, 0.05]}}
-    tube = finish_parts.checked_finishes({"kind": "reactor", "object": "reactor"}, [
-        {"finish": "blue reactor tube", "parts": "tube", "surface": "reactor_glow", "fits": True}],
-        [finish_parts.library_lab(lit["side_glazing"])], lit)[0]
-    assert tube["surface"] == "reactor_glow" and tube["by"] == "its own colour", tube  # a glow never glass
-    record = {"object": "thick red cables", "finishes": finish_parts.looked(
-        [dict(finishes[0], surface="deck_grate", listed_surface="bare_steel", by="the room's kit surface by colour"),
-         dict(plate, listed_surface="bare_steel")], every),
-        "parts": [{"judge": "deck_grate", "words": "steel handrail", "share": 0.7},
-                  {"judge": "deck_plate", "words": "brushed steel", "share": 0.3}]}
-    faults = finish_parts.meaning_faults("walkway-t1", record)
-    assert len(faults) == 2 and "steel handrail" in faults[0] and "thick red cables" in faults[1], faults
-    claimed = dict(record, finishes=[*record["finishes"], {
-        "finish": "cable sheath", "parts": "the red cables on the floor", "surface": "seam_paint"}])
-    faults = finish_parts.meaning_faults("walkway-t1", claimed)
-    assert len(faults) == 1 and "steel handrail" in faults[0], faults
-    paint = {"recipe": "painted_metal", "lab": [60.9, 0.6, 10.9]}
-    frame = {"finish": "greenhouse frame lattice", "parts": "dome lattice ribs", "surface": "seam_trim_dark",
-             "listed_surface": "greenhouse_lattice", "by": "the room's kit surface by colour",
-             "looks": {"listed": paint, "painted": dict(paint, lab=[36.4, 0.5, 5.4])}}
-    leaf = {"recipe": "rubber", "lab": [40.9, -26.8, 25.5]}
-    leaves = {"finish": "plant leaves", "parts": "plants growing inside the dome", "surface": "plant_leaves",
-              "listed_surface": "plant_leaves", "by": "the list", "looks": {"listed": leaf, "painted": leaf}}
-    dome = {"object": "green plants", "finishes": [frame, leaves],
-            "parts": [{"judge": "seam_trim_dark", "words": "greenhouse frame lattice", "share": 0.53},
-                      {"judge": "plant_leaves", "words": "plant leaves", "share": 0.003}]}
-    assert finish_parts.meaning_faults("dome-t1", dome) == []  # its plants, not its frame, carry the row's green
-    greyed = dict(leaves, surface="seam_trim_dark", by="the room's kit surface by colour",
-                  looks={"listed": leaf, "painted": dict(paint, lab=[36.4, 0.5, 5.4])})
-    for finishes in ([frame], [frame, greyed]):  # no plant part, or its plants painted grey: the frame never holds it
-        faults = finish_parts.meaning_faults("dome-t1", dict(dome, finishes=finishes))
-        assert "'green plants' names green" in faults[-1] and len(faults) == len(finishes), faults
-    folder = pathlib.Path(tempfile.mkdtemp())
-    (folder / "parts.json").write_text(json.dumps({"takes": {"walkway-t1": record}}))
-    assert route_parts.judge_meaning(folder, {}, None).answer == checks.FAIL
-    record["object"], record["finishes"] = "steel walkway", record["finishes"][1:]
-    assert finish_parts.meaning_faults("walkway-t1", record) == []
-    (folder / "parts.json").write_text(json.dumps({"takes": {"walkway-t1": record}}))
-    assert route_parts.judge_meaning(folder, {}, None).answer == checks.PASS
-    shutil.rmtree(folder)
-    parts = {stage.name: stage for stage in stages.STAGES}["surfaces-parts"]
-    assert "kept the list's meaning" in [check.name for check in parts.checks]
 
 
-def test_a_finish_keeps_the_close_ups_lightness_order_and_glass_keeps_its_own_colour():
-    """The water tank: its panel 13 L* lighter than its steel in the close-up, painted_panel under bare_steel in the
-    library; cream_paint keeps the order. Glass off the lit colour keeps its surface (owner, #8)."""
-    every = {"painted_panel": {"family": "painted", "colour": [0.30, 0.31, 0.33]},
-             "cream_paint": {"family": "painted", "colour": [0.55, 0.53, 0.46]},
-             "bare_steel": {"family": "steel", "colour": [0.35, 0.36, 0.38]},
-             "glass": {"family": "glass", "colour": [0.6, 0.65, 0.7]}}
-    panel_lab = [round(float(value), 1) for value in finish_parts.library_lab(every["cream_paint"]) - [4, 0, 0]]
-    steel_lab = [round(float(value), 1) for value in finish_parts.library_lab(every["bare_steel"]) - [8, 0, 0]]
-    found = finish_parts.in_close_up_order({"object": "water tank"}, [
-        {"finish": "off-white paint", "surface": "painted_panel", "measured_lab": panel_lab, "by": "the list"},
-        {"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}], every)
-    assert found[0]["surface"] == "cream_paint" and found[0]["by"] == "nearest of its family in order", found[0]
-    alone = {name: spec for name, spec in every.items() if name != "cream_paint"}
-    flagged = finish_parts.in_close_up_order({"object": "water tank"}, [
-        {"finish": "off-white paint", "surface": "painted_panel", "measured_lab": panel_lab, "by": "the list"},
-        {"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}], alone)
-    assert flagged[0]["by"] == "off its colour" and "lighter than bare_steel" in flagged[0]["new_surface"]["why"]
-    kept = [{"finish": "steel legs", "surface": "bare_steel", "measured_lab": steel_lab, "by": "the list"}]
-    assert finish_parts.in_close_up_order({"object": "x"}, [dict(kept[0])], every) == kept  # nothing to order
-    lit = finish_parts.checked_finishes({"kind": "lamp", "object": "lamp"},
-                                        [{"finish": "red lit lens", "parts": "lens", "surface": "glass"}],
-                                        [np.array([45.0, 60.0, 40.0])], every)
-    assert lit[0]["surface"] == "glass" and lit[0]["by"] == "its own colour" and "cover" not in lit[0], lit[0]
 
 
-def test_a_finish_a_little_out_of_order_keeps_it_by_a_nearer_surface_of_either():
-    """The hangar's parts shelving: its grey plastic bins 27.7 L* over its steel in the close-up, plastic_grey 1.5
-    under galvanized_steel in the library (the steel baked 3 over its colour, the bins 4.5 under it). The steel, seen
-    at L* 42, takes cast_steel, nearer its close-up colour; with none nearer, the order stays as it was."""
-    every = {"galvanized_steel": {"family": "steel", "colour": [0.328, 0.361, 0.397]},
-             "plastic_grey": {"family": "plastic", "colour": [0.386, 0.332, 0.258]},
-             "cast_steel": {"family": "steel", "colour": [0.070, 0.084, 0.102]}}
-
-    def shelving():
-        return [{"finish": "Grey steel", "surface": "galvanized_steel", "measured_lab": [41.9, 0.6, -0.6],
-                 "by": "the list"},
-                {"finish": "Light grey plastic", "surface": "plastic_grey", "measured_lab": [69.6, 0.2, 0.9],
-                 "by": "named again (its material)"}]
-    found = finish_parts.in_close_up_order({"object": "parts shelving"}, shelving(), every)
-    assert found[0]["surface"] == "cast_steel" and found[0]["by"] == "nearest of its family in order", found[0]
-    assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "named again (its material)", found[1]
-    bright = [dict(finish) for finish in shelving()]
-    bright[0]["measured_lab"] = [66.0, -1.0, -4.0]  # the steel seen as light as galvanized_steel: none nearer
-    bright[1]["measured_lab"] = [80.0, 0.0, 0.0]
-    assert finish_parts.in_close_up_order({"object": "parts shelving"}, [dict(finish) for finish in bright],
-                                          every) == bright
 
 
-def test_a_coloured_see_through_finish_keeps_its_surface_against_its_highlights():
-    """The beacon's red transparent dome measured pale pink on its brighter half: it keeps red_plastic, not the
-    nearer plastic_grey; an opaque grey plastic that far off still moves, an opaque red one is off its colour (never
-    grey: the audit of 2026-11-04)."""
-    library = {"red_plastic": {"family": "plastic", "colour": [0.45, 0.02, 0.01]},
-               "plastic_grey": {"family": "plastic", "colour": [0.33, 0.31, 0.27]}}
-    pale = np.array([70.8, 21.2, 11.5])
-    found = finish_parts.checked_finishes(
-        {"kind": "beacon", "object": "beacon"},
-        [{"finish": "Red transparent plastic", "parts": "lamp dome", "surface": "red_plastic"},
-         {"finish": "Grey plastic", "parts": "knob", "surface": "red_plastic"},
-         {"finish": "Red plastic", "parts": "knob", "surface": "red_plastic"}], [pale, pale, pale], library)
-    assert found[0]["surface"] == "red_plastic" and found[0]["by"] == "its own colour" and found[0]["cover"], found[0]
-    assert found[1]["surface"] == "plastic_grey" and found[1]["by"] == "nearest of its family by colour", found[1]
-    assert found[2]["surface"] == "red_plastic" and found[2]["by"] == "off its colour", found[2]
 
 
-def test_a_finish_list_reply_is_parsed_to_library_names():
-    surfaces = {"mli_gold": {}, "bare_steel": {}}
-    reply = json.dumps({"finishes": [{"parts": "foil", "finish": "gold foil", "surface": "M1", "fits": True},
-                                     {"parts": "legs", "finish": "steel", "surface": "M2", "fits": True}]})
-    assert [entry["surface"] for entry in finish_ask.parsed_list(reply, surfaces)] == ["mli_gold", "bare_steel"]
 
 
 # --- route ---
@@ -2775,45 +2993,6 @@ def test_the_parts_row_writes_the_methods_interface_each_finish_checked_against_
         assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass"
 
 
-def test_a_light_built_in_code_takes_the_glowing_surface_nearest_its_colour():
-    with tempfile.TemporaryDirectory() as temporary:
-        mark = pathlib.Path(temporary) / "code.json"
-        mark.write_text(json.dumps({"route": "code", "size": [1.0, 0.1, 0.1]}))
-        assert route_parts.lit_take({"kind": "light", "object": "wall light"}, mark)
-        assert not route_parts.lit_take({"kind": "pipe", "object": "wall pipes"}, mark)
-        mark.write_text(json.dumps({"route": "code", "size": [0.3, 0.3, 6.0]}))  # a stem lamp's post is a post
-        assert not route_parts.lit_take({"kind": "light", "object": "street light"}, mark)
-    every = {"warm": {"recipe": "glowing", "colour": [1.0, 0.8, 0.3]}, "cold": {"recipe": "glowing", "colour":
-             [0.3, 0.6, 1.0]}, "steel": {"recipe": "bare_metal", "colour": [0.5, 0.5, 0.5]}}
-    finish = {"finish": "light bar", "surface": "steel", "fits": True, "by": "the list",
-              "measured_lab": [float(value) for value in route_parts.finish_parts.library_lab(every["cold"])]}
-    (lit,) = route_parts.lit_finishes([finish], every)
-    assert lit["surface"] == "cold" and lit["fits"] and lit["by"] == "its light, built in code", lit
-    (unlit,) = route_parts.lit_finishes([finish], {"steel": every["steel"]})
-    assert unlit["fits"] is False and "no glowing surface" in unlit["new_surface"]["why"], unlit
-    # a light bar listed as its glass tube and its metal end caps (its build carries its crop, so each has its part):
-    # the tube glows, the caps keep their own surface (airlock's wall lamp, 2026-10-29: its caps baked glowing)
-    tube, caps = dict(finish, family="glass"), dict(finish, finish="metal end caps", family="steel")
-    (glows, kept) = route_parts.lit_finishes([tube, caps], every)
-    assert glows["surface"] == "cold" and kept == caps, (glows, kept)
-    # a strip lamp's diffuser listed in plastic on a glowing surface, its housing in steel: as the row makes it
-    # (parts_kept), the diffuser glows and the housing keeps its steel (shiplock's lights, 2026-11-11: housings painted
-    # as the blue screen)
-    diffuser = dict(finish, finish="white diffuser", family="plastic", surface="warm")
-    housing = dict(finish, finish="dark metal housing", family="steel")
-    with parts_kept.held():
-        (glows, kept) = route_parts.lit_finishes([diffuser, housing], every)
-    assert glows["surface"] == "cold" and glows["family"] == "plastic" and kept == housing, (glows, kept)
-    assert route_parts.lit_finishes([diffuser, housing], every)[1]["surface"] == "cold", "held only while it runs"
-    # the row makes through recheck_picks.make_parts, which runs parts_kept.make_parts on the picked list, and reads
-    # the picks row, made from it just before it
-    from score.stages.surfaces import recheck_picks
-    names = [row.name for row in stages.STAGES]
-    made = ROWS["surfaces-parts"].make
-    assert inspect.unwrap(made) is recheck_picks.make_parts, made
-    assert names.index(recheck_picks.ROW) == names.index("surfaces-parts") - 1, names
-    assert recheck_picks.ROW in ROWS["surfaces-parts"].after and recheck_picks.parts_kept is parts_kept
-    assert not ROWS[recheck_picks.ROW].paid and ROWS[recheck_picks.ROW].selects
 
 
 def baked(folder, rows):
@@ -3258,104 +3437,37 @@ def coined(*tokens):
     return [{"token": token, "colour": colour, "what": f"{token} surfaces"} for token, colour in tokens]
 
 
-def test_the_palette_is_read_from_the_locked_concept_by_one_ask():
-    answer = {"palette": coined(("steel", "#9BA2A9"), ("hazard", "#f2c21a"), ("glass", "#24313a"),
-                                ("regolith", "#8b8883"), ("steel", "#000000")),
-              "wear": "worn", "cause": "scuffed decks", "dirt": 1.7, "dirt_token": "regolith"}
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, asked = palette_asked(pathlib.Path(temporary), answer)
-        assert len(asked) == 1 and list(asked[0]) == ["cockpit"], asked  # one ask a scene, in one batch
-        parts = asked[0]["cockpit"]["contents"][0]["parts"]
-        assert len(parts) == 2 and "inline_data" in parts[0] and "locked concept" in parts[1]["text"], parts
-        assert "people in it wear" in parts[1]["text"] and "grime itself" in parts[1]["text"], parts
-        palette = json.loads((out / "palette.json").read_text())
-        # its own tokens in the answer's order, a token named twice keeping its first colour; no old token offered
-        assert palette["tokens"] == {"steel": "#9ba2a9", "hazard": "#f2c21a", "glass": "#24313a",
-                                     "regolith": "#8b8883"}, palette
-        assert palette["wear"] == {"level": "worn", "dirt": 1.0, "dirt_token": "regolith", "cause": "scuffed decks"}
-        assert verdict.answer == "pass" and palette_library.wear(palette) == (0.8, 1.0), verdict
-        assert "sign-red" not in parts[1]["text"] and "hull-trim" not in parts[1]["text"]
-        try:  # no surface exists until the surface-library row makes them: the missing input is named
-            palette_library.offered(palette)
-        except library.LibraryEmpty as empty:
-            assert "run surface-library first" in str(empty), empty
-        else:
-            raise AssertionError("surfaces offered before the scene's surface library was made")
-        assert scene_palette.palette_faults(out) == []
-
-
-def test_a_palette_off_the_library_or_unanswered_or_too_narrow_fails_by_name():
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": coined(("steel", "#9ba2a9")),
-                                                             "wear": "shiny", "cause": "", "dirt": 0.2,
-                                                             "dirt_token": "steel"})
-        assert not (out / "palette.json").exists() and verdict.answer == "fail", verdict
-        assert "no usable answer" in verdict.findings[0], verdict
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = palette_asked(pathlib.Path(temporary), route_ask.google_batch.Unanswered("none for it"))
-        assert verdict.answer == "fail" and "none for it" in verdict.findings[0], verdict
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": coined(("steel", "#9ba2a9")),
-                                                             "wear": "new", "cause": "", "dirt": 0.0,
-                                                             "dirt_token": "steel"})
-        assert verdict.answer == "fail" and "a palette of 1 tokens" in verdict.findings[0], verdict
-    with tempfile.TemporaryDirectory() as temporary:  # a colour not #rrggbb, or a dirt token not its own
-        out, verdict, _ = palette_asked(pathlib.Path(temporary), {"palette": coined(("steel", "grey")), "wear": "new",
-                                                             "cause": "", "dirt": 0.0, "dirt_token": "steel"})
-        assert verdict.answer == "fail" and "no usable answer" in verdict.findings[0], verdict
-
-
-def test_a_line_no_scene_owns_is_asked_over_every_concept():
-    with tempfile.TemporaryDirectory() as temporary:
-        answer = {"palette": coined(*((token, TOKENS[token]) for token in ("steel", "glass", "sign-red", "regolith"))),
-                  "wear": "new", "cause": "fresh", "dirt": 0.0, "dirt_token": "regolith"}
-        out, verdict, asked = palette_asked(pathlib.Path(temporary), answer, place="people", concept=False)
-        parts = asked[0]["people"]["contents"][0]["parts"]
-        assert sum("inline_data" in part for part in parts) == 2 and "every scene" in parts[-1]["text"], parts
-        # the line's own objects, its people, are what its palette covers (astronaut-made, 2026-10-23)
-        assert "skin and hair" in parts[-1]["text"] and "people in it wear" not in parts[-1]["text"], parts
-        assert verdict.answer == "pass" and json.loads((out / "palette.json").read_text())["pictures"] == 2
-    # only a line no scene owns reads every locked concept; a scene declares its own, locked yet or not, so a scene
-    # with none (environment 1's launch) blocks on it by name instead of being asked over every other scene's
-    assert scene_palette.files("people")["concepts"] == "{home}/design/concepts"
-    for scene in ("cockpit", "no-such-scene"):
-        found = scene_palette.files(scene)
-        assert found["concept"] == "{home}/design/concepts/" + f"{scene}.png" and "concepts" not in found, found
-
-
-def test_the_palette_sees_every_take_s_close_up_after_the_concepts():
-    """astronaut-made, 2026-10-23: asked over the concepts alone the people's palette had no brown, and the brown
-    trousers its close-up shows took moon-dust, 20 L* lighter. The close-ups go with the concepts, every take's whatever
-    the object filter keeps, and the row waits on the Pixal3D row that leaves them; with none the ask reads as before."""
-    answer = {"palette": coined(*((token, TOKENS[token]) for token in ("steel", "glass", "sign-red", "regolith"))),
-              "wear": "new", "cause": "fresh", "dirt": 0.0, "dirt_token": "regolith"}
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, asked = palette_asked(pathlib.Path(temporary), answer, place="people", concept=False,
-                                            close_ups=("worker-t1", "pilot-t1"))
-        parts = asked[0]["people"]["contents"][0]["parts"]
-        assert sum("inline_data" in part for part in parts) == 4, parts
-        assert "The last 2 pictures are close-ups" in parts[-1]["text"] and "first 2 pictures" in parts[-1]["text"]
-        assert verdict.answer == "pass" and json.loads((out / "palette.json").read_text())["close_ups"] == 2
-    with tempfile.TemporaryDirectory() as temporary:
-        out, _, asked = palette_asked(pathlib.Path(temporary), answer)
-        text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
-        assert "The picture is the scene's locked concept." in text and "close-up" not in text, text
-        assert "close_ups" not in json.loads((out / "palette.json").read_text())
-    with tempfile.TemporaryDirectory() as temporary:
-        home = pathlib.Path(temporary)
-        original = route_data.pixal_folder
-        route_data.pixal_folder = lambda: home
-        try:
-            for take in ("astronaut-made-s1", "pilot-made-s1"):
-                (home / f"{take}.svviews").mkdir()
-                Image.new("RGB", (8, 8)).save(home / f"{take}.svviews" / "input.png")
-            found = scene_palette.palette_files("people")
-        finally:
-            route_data.pixal_folder = original
-        assert sorted(name for name in found if name.startswith("close-up ")) == [
-            "close-up astronaut-made-s1", "close-up pilot-made-s1"], found
-    palette = next(row for row in shapes_first.finish_route() if row.name == "finish-route-palette")
-    assert "pixal" in palette.after and not palette.selects, palette.after
+STEEL_ONLY = coined(("steel", "#9ba2a9"))
+FRESH = {"palette": coined(*((token, TOKENS[token]) for token in ("steel", "glass", "sign-red", "regolith"))),
+         "wear": "new", "cause": "fresh", "dirt": 0.0, "dirt_token": "regolith"}
+# The palette row, each case made once by its one ask: (case, the answer, where it is asked, its verdict, a word of
+# its first finding, words its question holds, words it never holds, the pictures sent before the question,
+# palette.json's fields (None: none written), fields it leaves out). A scene is asked over its own locked concept
+# and leaves out what only its people wear; a line no scene owns over every concept, its takes' close-ups after
+# them (astronaut-made, 2026-10-23: asked over the concepts alone the people's palette had no brown, and the brown
+# trousers its close-up shows took moon-dust, 20 L* lighter).
+PALETTE_ASKS = [
+    ("its own tokens in its order, a token named twice keeping its first colour, no old token offered",
+     {"palette": coined(("steel", "#9BA2A9"), ("hazard", "#f2c21a"), ("glass", "#24313a"), ("regolith", "#8b8883"),
+                        ("steel", "#000000")),
+      "wear": "worn", "cause": "scuffed decks", "dirt": 1.7, "dirt_token": "regolith"},
+     {}, "pass", None, ("locked concept", "people in it wear", "grime itself", "The picture is the scene's locked "
+                        "concept."), ("sign-red", "hull-trim", "close-up"), 1,
+     {"tokens": {"steel": "#9ba2a9", "hazard": "#f2c21a", "glass": "#24313a", "regolith": "#8b8883"},
+      "wear": {"level": "worn", "dirt": 1.0, "dirt_token": "regolith", "cause": "scuffed decks"}}, ("close_ups",)),
+    ("a wear off the method's levels", {"palette": STEEL_ONLY, "wear": "shiny", "cause": "", "dirt": 0.2,
+                                        "dirt_token": "steel"}, {}, "fail", "no usable answer", (), (), 1, None, ()),
+    ("unanswered", route_ask.google_batch.Unanswered("none for it"), {}, "fail", "none for it", (), (), 1, None, ()),
+    ("too narrow", {"palette": STEEL_ONLY, "wear": "new", "cause": "", "dirt": 0.0, "dirt_token": "steel"}, {},
+     "fail", "a palette of 1 tokens", (), (), 1, {"tokens": {"steel": "#9ba2a9"}}, ()),  # written, judged too narrow
+    ("a colour not #rrggbb", {"palette": coined(("steel", "grey")), "wear": "new", "cause": "", "dirt": 0.0,
+                              "dirt_token": "steel"}, {}, "fail", "no usable answer", (), (), 1, None, ()),
+    ("a line no scene owns, over every concept, covering its people", FRESH, {"place": "people", "concept": False},
+     "pass", None, ("every scene", "skin and hair"), ("people in it wear",), 2, {"pictures": 2}, ()),
+    ("its takes' close-ups after the concepts", FRESH,
+     {"place": "people", "concept": False, "close_ups": ("worker-t1", "pilot-t1")}, "pass", None,
+     ("The last 2 pictures are close-ups", "first 2 pictures"), (), 4, {"close_ups": 2}, ()),
+]
 
 
 def library_made(folder, answer, kinds=("two_boxes",), grounds=None, plan=None):
@@ -3391,202 +3503,78 @@ def library_made(folder, answer, kinds=("two_boxes",), grounds=None, plan=None):
     return out, scene_library.judge_library(out, inputs, {}), asked
 
 
-def test_the_scene_s_surfaces_are_made_fresh_from_its_palette_and_kinds_by_one_ask():
-    answer = {"surfaces": [
+SQUARE = [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]]
+ROOM = {"w": 6.0, "d": 4.0, "outline": SQUARE,
+        "walls": [{"from": one, "to": two, "thick": 0.2, "tall": 2.5}
+                  for one, two in zip(SQUARE, SQUARE[1:] + SQUARE[:1])],
+        "roofs": [{"kind": "flat", "points": SQUARE, "eave": 2.5, "top": 2.5}],
+        "stairs": [{"kind": "stair", "points": [[4.0, 2.0], [5.0, 2.0], [5.0, 4.0], [4.0, 4.0]]}]}
+PANEL = {"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
+         "metal": 0.0, "colours": {"bare": "steel"}, "sound": "steel_plate", "kinds": ["two_boxes"]}
+GLAZED = [{"name": "photo_print_glazed", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.1,
+           "metal": 0.0, "sound": "glass", "kinds": ["framed_photo"]},
+          {"name": "window_glass", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.05,
+           "metal": 0.0, "sound": "glass", "kinds": ["window_pane"]}]
+PHOTO_KINDS = {"kinds": ("framed_photo", "window_pane")}
+GROUND_ROWS = [{"id": "crater_1", "noun": "crater", "name": "large crater", "terrain": True},
+               {"id": "drift", "noun": "drift", "name": "sand drift", "terrain": True},
+               {"id": "hut", "noun": "hut", "name": "hut"}]
+# The surface-library row, each case made once by its one ask over the scene palette and its takes' kinds: (case,
+# the answer, what it is made on, its verdict, its findings exactly (None: unheld), findings it holds, its findings
+# naming a picture (None: unheld), words its question holds, words it never holds, {schema field: (offered, never
+# offered)}). Every kind a take, a ground row of the kept inventory or the shell a locked plan lays is covered by a
+# surface; a ground row with the recipe its words name, else its body's physics (the Moon's: airless, regolith). No
+# recipe that paints a picture is offered or kept (surface-library@people, 2026-10-22: suit_patches as `printed`,
+# with no picture, stopped the bake), and a kind that shows a picture needs a surface that draws one (flat's framed
+# photo as one grey glass sheet, checkout 62).
+LIBRARY_ASKS = [
+    ("made fresh from its palette and kinds", {"surfaces": [
         {"name": "Hull Panel", "family": "Paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
-         "metal": 0.0, "colours": {"bare": "steel", "second": "glass"},
-         "sound": "steel_plate", "kinds": ["two_boxes"]},
+         "metal": 0.0, "colours": {"bare": "steel", "second": "glass"}, "sound": "steel_plate", "kinds": ["two_boxes"]},
         {"name": "window", "family": "glass", "recipe": "glass", "token": "glass", "roughness": 1.6, "metal": 0.0,
-         "sound": "glass", "kinds": []}]}
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        out, verdict, asked = library_made(folder, answer)
-        assert len(asked) == 1 and list(asked[0]) == ["cockpit"], asked  # one ask a scene, in one batch
-        body = asked[0]["cockpit"]
-        text = body["contents"][0]["parts"][-1]["text"]
-        assert "two_boxes: two boxes" in text and "painted_metal" in text and "colours: bare" in text, text
-        assert "steel_grating" in text  # the sound surfaces it may sound like
-        schema = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]
-        assert schema["token"]["enum"] == list(PALETTE["tokens"]) and "glass" in schema["recipe"]["enum"], schema
-        # every surface answers a palette token for every colour setting, so no recipe's setting is left bare
-        surface = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]
-        assert "colours" in surface["required"], surface
-        assert schema["colours"]["required"] == ["bare", "second"] == sorted(schema["colours"]["properties"]), schema
-        assert schema["colours"]["properties"]["bare"]["enum"] == list(PALETTE["tokens"]), schema
-        assert "- bare: the bare stuff under its paint" in text, text
-        made = json.loads((out / "materials.json").read_text())
-        panel = made["families"]["paint"]["variants"]["hull_panel"]
-        # its recipe's colour settings in its own tokens; a setting the recipe does not name is not taken
-        assert panel["bare"] == "steel" and "second" not in panel and panel["token"] == "hull-trim", panel
-        assert made["families"]["glass"]["variants"]["window"]["roughness"] == 1.0  # held to 0 to 1
-        assert made["kinds"] == {"two_boxes": ["hull_panel"]} and made["tokens"] == PALETTE["tokens"], made
-        assert made["dirt"] == "regolith" and panel["seed"] != made["families"]["glass"]["variants"]["window"]["seed"]
-        assert made["families"]["paint"]["surface"] == panel["surface"] == "steel_plate"  # what the sound layer plays
-        assert verdict.answer == "pass" and verdict.measures["surfaces"] == 2, verdict
-        # the rows after it read this library through the palette: the take's kind list, its specs in its tokens
-        palette = palette_library.read({"finish-route-palette": folder / "palette", "surface-library": out})
-        assert set(palette_library.take_surfaces({"kind": "two_boxes"}, palette)) == {"hull_panel", "window"}
-        assert palette_library.specs(palette)["hull_panel"]["bare"] == palette_library.library_tokens(palette)["steel"]
-
-
-def test_a_scene_library_missing_a_kind_or_unanswered_fails_by_name():
-    answer = {"surfaces": [{"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim",
-                            "roughness": 0.4, "metal": 0.0, "kinds": ["two_boxes"]}]}
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = library_made(pathlib.Path(temporary), answer, kinds=("two_boxes", "crate"))
-        assert verdict.answer == "fail", verdict
-        assert {"kind crate has no surface", "panel: token None (bare) is not the palette's",
-                "panel: sound surface None is not known"} <= set(verdict.findings), verdict.findings
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = library_made(pathlib.Path(temporary), route_ask.google_batch.Unanswered("none for it"))
-        assert not (out / "materials.json").exists() and verdict.answer == "fail", verdict
-        assert "none for it" in verdict.findings[0], verdict
-
-
-def test_the_shell_a_locked_plan_lays_is_a_kind_the_scene_library_must_cover():
-    box = [[0.0, 0.0], [6.0, 0.0], [6.0, 4.0], [0.0, 4.0]]
-    room = {"w": 6.0, "d": 4.0, "outline": box,
-            "walls": [{"from": one, "to": two, "thick": 0.2, "tall": 2.5} for one, two in zip(box, box[1:] + box[:1])],
-            "roofs": [{"kind": "flat", "points": box, "eave": 2.5, "top": 2.5}],
-            "stairs": [{"kind": "stair", "points": [[4.0, 2.0], [5.0, 2.0], [5.0, 4.0], [4.0, 4.0]]}]}
-    panel = {"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
-             "metal": 0.0, "colours": {"bare": "steel"}, "sound": "steel_plate",
-             "kinds": ["two_boxes"]}
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, asked = library_made(pathlib.Path(temporary), {"surfaces": [panel]}, plan=room)
-        body = asked[0]["cockpit"]
-        enum = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]["kinds"]
-        assert {"floor", "wall", "roof", "stairs"} <= set(enum["items"]["enum"]), enum  # no take is the shell
-        assert "- wall: the room's walls" in body["contents"][0]["parts"][-1]["text"]
-        assert verdict.answer == "fail" and {"kind floor has no surface", "kind wall has no surface",
-                                             "kind roof has no surface"} <= set(verdict.findings), verdict.findings
-    shell = dict(panel, kinds=["two_boxes", "floor", "wall", "roof", "stairs"])
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, _ = library_made(pathlib.Path(temporary), {"surfaces": [shell]}, plan=room)
-        assert verdict.answer == "pass", verdict
-        made = json.loads((out / "materials.json").read_text())
-        # the shell's parts find their surface in it (the earth seed, the scene record, the tiles)
-        assert {part: palette_library.shell_surface(part, made) for part in ("deck", "wall", "roof", "stair")} == {
-            "deck": "panel", "wall": "panel", "roof": "panel", "stair": "panel"}
-    # an open place with a raised level: its level is the floor's kind; one with neither lays no shell
-    level = {"w": 6.0, "d": 4.0, "levels": [{"name": "stage", "points": box, "height": 0.5}]}
-    assert list(scene_library.shell_kinds(level)) == ["floor"]
-    assert scene_library.shell_kinds({"w": 6.0, "d": 4.0}) == {}
-
-
-def test_a_scene_library_offers_and_keeps_no_recipe_that_paints_a_picture():
-    """surface-library@people (2026-10-22): suit_patches as `printed`, with no picture, stopped the bake. A flat sheet
-    (stairwell's door mat, quarters' rug and sticky note, 2026-11-08) is offered recipes that draw a pile and writing
-    in the library's own colours, and is marked a sheet in the question, so its print is asked for, not one plain
-    colour."""
-    answer = {"surfaces": [{"name": "patches", "family": "fabric", "recipe": "printed", "token": "hull-trim",
-                            "roughness": 0.4, "metal": 0.0, "kinds": ["two_boxes"]}]}
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, asked = library_made(pathlib.Path(temporary), answer)
-        body = asked[0]["cockpit"]
-        enum = body["generationConfig"]["responseSchema"]["properties"]["surfaces"]["items"]["properties"]["recipe"]
-        assert not set(scene_library.PICTURED) & set(enum["enum"]), enum
-        assert {"pile", "written"} <= set(enum["enum"]), enum
-        assert "patches: recipe printed paints a picture, and the library has none" in verdict.findings, verdict
-        text = body["contents"][0]["parts"][-1]["text"]
-        assert "- pile: " in text and "- written: " in text and "(pile; written" in text, text
-    glazed = {"surfaces": [
-        {"name": "photo_print_glazed", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.1,
-         "metal": 0.0, "sound": "glass", "kinds": ["framed_photo"]},
-        {"name": "window_glass", "family": "glass", "recipe": "glass", "token": "hull-trim", "roughness": 0.05,
-         "metal": 0.0, "sound": "glass", "kinds": ["window_pane"]}]}
-    printed_photo = {"surfaces": [{**glazed["surfaces"][0], "recipe": "written",
-                                   "colours": {"second": "hull-trim"}}, glazed["surfaces"][1]]}
-    for answer, failing in ((glazed, ["kind framed_photo shows a picture and no surface of it draws one (written)"]),
-                            (printed_photo, [])):  # flat's framed photo as one grey glass sheet, checkout 62
-        with tempfile.TemporaryDirectory() as temporary:
-            out, verdict, asked = library_made(pathlib.Path(temporary), answer, kinds=("framed_photo", "window_pane"))
-            text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
-            old = json.loads((out / "materials.json").read_text())  # accepted before the marking: never failed by it
-        assert old.pop("picture_kinds") == ["framed_photo"], old
-        marked = {"framed_photo": "framed photo" + scene_library.PICTURE_WORDS, "window_pane": "window pane"}
-        sounds = {variant.get("surface") for family in old["families"].values() for variant in family["variants"].values()}
-        assert not [finding for finding in scene_library.library_findings(old, marked, sounds) if "picture" in finding]
-        assert f"- framed_photo: framed photo{scene_library.PICTURE_WORDS}" in text, text
-        assert "- window_pane: window pane\n" in text and "never its\nglass" in text, text
-        assert [finding for finding in verdict.findings if "picture" in finding] == failing, verdict
-    assert scene_library.shows_picture("Wall posters") and scene_library.shows_picture("oil canvas")
-    assert not scene_library.shows_picture("laser printer") and not scene_library.shows_picture("glass pane")
-    method = library.theme_library()
-    assert method["colour_settings"]["pile"] == method["colour_settings"]["written"] == ["second"]
-    data = {"takes": {"rug-t1": {"kind": "rug", "object": "patterned rug"},
-                      "note-t1": {"kind": "note", "object": "sticky note"},
-                      "crate-t1": {"kind": "crate", "object": "crate"}},
-            "bake": {"models": {"rug_1": "rug-t1", "note_1": "note-t1", "crate_1": "crate-t1"},
-                     "entries": {"rug_1": {"size": [2.0, 0.02, 3.0]}, "note_1": {"size": [0.08, 0.001, 0.08]},
-                                 "crate_1": {"size": [0.6, 0.4, 0.5]}}}}
-    with tempfile.TemporaryDirectory() as temporary:
-        (pathlib.Path(temporary) / "place.json").write_text(json.dumps(data))
-        kinds = scene_library.kinds_of({"surfaces": pathlib.Path(temporary) / "place.json"})
-    assert kinds == {"crate": "crate", "note": "sticky note" + scene_library.SHEET_WORDS,
-                     "rug": "patterned rug" + scene_library.SHEET_WORDS}, kinds
-    from score.stages.props import flat_sheet, prop_data  # the row reads the sheet rule; it is held to the bake's here
-    with prop_data.tools("props/closeup", "props"):
-        import check
-    assert (scene_library.SHEET_FLAT, scene_library.SHEET_MIDDLE) == (flat_sheet.SHEET_SHARE, check.SLENDER_SHARE)
-    for size in ([2.0, 0.02, 3.0], [0.08, 0.001, 0.08], [0.6, 0.4, 0.5], [0.4, 0.01, 4.0], [0.2, 0.517, 0.02]):
-        assert scene_library.sheet_sized(size) == flat_sheet.sheet({"size": size, "name": "rug"}), size
-
-
-def test_a_scene_s_ground_rows_take_their_natural_ground_by_rule():
-    """Each terrain row of the kept inventory is a kind the library covers with the recipe its words name, else its
-    body's physics (the Moon's: airless, regolith); one covered with another recipe fails by name."""
-    rows = [{"id": "crater_1", "noun": "crater", "name": "large crater", "terrain": True},
-            {"id": "drift", "noun": "drift", "name": "sand drift", "terrain": True},
-            {"id": "hut", "noun": "hut", "name": "hut"}]
-    answer = {"surfaces": [
+         "sound": "glass", "kinds": []}]}, {}, "pass", (), (), None,
+     ("two_boxes: two boxes", "painted_metal", "colours: bare", "steel_grating",
+      "- bare: the bare stuff under its paint"),
+     (), {"recipe": (("glass",), ())}),
+    ("a kind with no surface, a token and a sound off the library", {"surfaces": [
+        {"name": "panel", "family": "paint", "recipe": "painted_metal", "token": "hull-trim", "roughness": 0.4,
+         "metal": 0.0, "kinds": ["two_boxes"]}]}, {"kinds": ("two_boxes", "crate")}, "fail", None,
+     ("kind crate has no surface", "panel: token None (bare) is not the palette's",
+      "panel: sound surface None is not known"), None, (), (), {}),
+    ("unanswered", route_ask.google_batch.Unanswered("none for it"), {}, "fail", None, (), None, (), (), {}),
+    ("a locked plan's shell left bare", {"surfaces": [PANEL]}, {"plan": ROOM}, "fail", None,
+     ("kind floor has no surface", "kind wall has no surface", "kind roof has no surface"), None,
+     ("- wall: the room's walls",), (), {"kinds": (("floor", "wall", "roof", "stairs"), ())}),
+    ("a locked plan's shell covered",
+     {"surfaces": [dict(PANEL, kinds=["two_boxes", "floor", "wall", "roof", "stairs"])]},
+     {"plan": ROOM}, "pass", (), (), None, (), (), {}),
+    ("a recipe that paints a picture", {"surfaces": [
+        {"name": "patches", "family": "fabric", "recipe": "printed", "token": "hull-trim", "roughness": 0.4,
+         "metal": 0.0, "kinds": ["two_boxes"]}]}, {}, "fail", None,
+     ("patches: recipe printed paints a picture, and the library has none",), None,
+     ("- pile: ", "- written: ", "(pile; written"), (), {"recipe": (("pile", "written"), scene_library.PICTURED)}),
+    ("a picture shown by a plain glass sheet", {"surfaces": GLAZED}, PHOTO_KINDS, "fail", None, (),
+     ["kind framed_photo shows a picture and no surface of it draws one (written)"],
+     (f"- framed_photo: framed photo{scene_library.PICTURE_WORDS}", "- window_pane: window pane\n", "never its\nglass"),
+     (), {}),
+    ("a picture drawn by its surface", {"surfaces": [{**GLAZED[0], "recipe": "written", "colours": {"second":
+                                                                                                    "hull-trim"}},
+                                                     GLAZED[1]]}, PHOTO_KINDS, None, None, (), [],
+     (f"- framed_photo: framed photo{scene_library.PICTURE_WORDS}", "- window_pane: window pane\n", "never its\nglass"),
+     (), {}),
+    ("ground rows by their natural ground", {"surfaces": [
         {"name": "moon_dust", "family": "regolith", "recipe": "regolith", "token": "hull-trim", "roughness": 0.9,
-         "metal": 0.0, "colours": {"second": "steel"}, "sound": "stone",
-         "kinds": ["two_boxes", "crater"]},
+         "metal": 0.0, "colours": {"second": "steel"}, "sound": "stone", "kinds": ["two_boxes", "crater"]},
         {"name": "drift_paint", "family": "paint", "recipe": "cast_metal", "token": "steel", "roughness": 0.5,
-         "metal": 0.0, "sound": "stone", "kinds": ["drift"]}]}
-    with tempfile.TemporaryDirectory() as temporary:
-        out, verdict, asked = library_made(pathlib.Path(temporary), answer, grounds=rows)
-        text = asked[0]["cockpit"]["contents"][0]["parts"][-1]["text"]
-        assert "- crater: regolith (Moon:" in text and "- drift: sand (the row drift says sand)" in text, text
-        assert "crater: large crater" in text and "hut" not in text  # a ground row is a kind; another row is not
-        assert verdict.answer == "fail" and verdict.findings == ("ground drift has no surface of its recipe sand",), \
-            verdict.findings
-
-
-def test_the_empty_library_is_a_named_missing_input():
-    """Every old material retired (owner, 2026-10-21): the repository's library is the method alone, and a reader
-    of a surface gets the missing input named, never a KeyError."""
-    method = library.theme_library()
-    assert method["families"] == {} and method["tokens"] == {} and method["pictures"] == {}, method
-    assert set(method["recipes"]) and set(method["wear_levels"]) == {"new", "worked", "worn"}
-    assert not [setting for defaults in method["recipes"].values() for setting in defaults
-                if isinstance(defaults[setting], str)], "a recipe default names an old token"
-    assert library.library_specs() == {} and library.variants(method) == {}  # a lookup finds no surface
-    for read in (lambda: library.spec(method, "painted_panel", "hull-trim", {}),
-                 lambda: route_list.palette_library.specs(PALETTE)):
-        try:
-            read()
-        except library.LibraryEmpty as empty:
-            assert library.EMPTY in str(empty), empty
-        else:
-            raise AssertionError("a surface read from the empty library")
-
-
-def test_the_scene_s_shell_surfaces_are_its_library_s_for_the_shell_kinds():
-    """The shell laid from the locked plan and a prop's paint take one answer (palette_library.SHELL_KINDS): each
-    shell part the first variant the scene library gives one of its kinds; none while no library is read."""
-    with tempfile.TemporaryDirectory() as folder:
-        library = pathlib.Path(folder) / "materials.json"
-        library.write_text(json.dumps({"kinds": {"floor": ["deck_plate", "rubber_mat"], "ceiling": ["ceiling_panel"],
-                                                 "wall": [], "crate": ["crate_wood"]}}))
-        palette = {"tokens": {}, "wear": {}, "library": str(library)}
-        assert palette_library.shell_surfaces(palette) == ["ceiling_panel", "deck_plate"]  # no wall surface, no crate
-        content = json.loads(library.read_text())
-        assert palette_library.shell_surface("stair", content) == "deck_plate"  # no stairs kind: the floor's
-        assert palette_library.shell_surface("roof", content) == "ceiling_panel"
-        assert palette_library.shell_surface("wall", content) is None
-    assert palette_library.shell_surfaces({"tokens": {}, "wear": {}}) == []
+         "metal": 0.0, "sound": "stone", "kinds": ["drift"]}]}, {"grounds": GROUND_ROWS}, "fail",
+     ("ground drift has no surface of its recipe sand",), (), None,
+     ("- crater: regolith (Moon:", "- drift: sand (the row drift says sand)", "crater: large crater"), ("hut",), {}),
+]
+# A scene library's shell surfaces: the shell laid from the locked plan and a prop's paint take one answer
+# (palette_library.SHELL_KINDS), each shell part the first variant the library gives one of its kinds: (part, its
+# surface). No wall surface and no crate is a shell surface; a stair with no stairs kind takes the floor's.
+SHELL_KINDS = {"floor": ["deck_plate", "rubber_mat"], "ceiling": ["ceiling_panel"], "wall": [], "crate": ["crate_wood"]}
+SHELL_PARTS = [("stair", "deck_plate"), ("roof", "ceiling_panel"), ("wall", None)]
 
 
 def test_paid_asks_refuse_outside_a_cleared_run(monkeypatch):
