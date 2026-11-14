@@ -777,17 +777,33 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
         TOLERATIONS = [{"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}]
 
         def nodes(self):
-            return []
+            return [{"name": "kosmos-node", "type": "POP2-32C-128G", "zone": "pl-waw-2", "created": 100.0}]
     kubectl = NodesKubectl()
     kubectl.nodes = [{"metadata": {"name": name, "creationTimestamp": "2026-11-06T10:00:00Z",
                                    "labels": {"score.dev/class": "gpu-24gb", "kubernetes.io/hostname": f"host-{name}"}},
                       "status": {"conditions": []}} for name in ("l4-a", "l4-b")]
+    # beside them: a node without zone labels (the provider's record gives them), the conductor's node (its class key
+    # no capability class: no class node, never a crash) and a node seen before its labels came (motor-labval,
+    # 2026-11-08: "no price for ? in ?"), its type and zone taken once they come
+    early = {"metadata": {"name": "early-node", "creationTimestamp": "2026-11-08T19:16:00Z",
+                          "labels": {"score.dev/class": "gpu-24gb"}}, "status": {"conditions": []}}
+    kubectl.nodes += [
+        {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:50:00Z",
+                      "labels": {"score.dev/class": "cpu-32c-128gb"}},
+         "status": {"conditions": [{"type": "Ready", "status": "True", "lastTransitionTime": "2026-10-09T14:50:13Z"}]}},
+        {"metadata": {"name": "conductor-node", "creationTimestamp": "2026-11-07T10:00:00Z",
+                      "labels": {"score.dev/class": "conductor"}}, "status": {"conditions": []}},
+        early]
     run = submit.Run("r-warm", {"one": spec, "two": spec}, kubectl, NodedCluster())
     run.jobs["one"].update(node="l4-a", ran=49_000.0, state="done", submitted=48_000.0)
     job_pod = lambda node, phase: {"metadata": {"labels": {"score.dev/job": "two"}}, "spec": {"nodeName": node},
                                    "status": {"phase": phase}}
     kubectl.all_pods = [job_pod("l4-a", "Succeeded"), job_pod("l4-b", "Running")]
     run.watch_nodes()
+    seen = run.nodes["kosmos-node"]
+    assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
+    assert "conductor-node" not in run.nodes
+    early["metadata"]["labels"].update({submit.INSTANCE_LABEL: "l4-1-24g", submit.ZONE_LABEL: "fr-par-2"})
     submit.hold_idle(run)
     assert kubectl.jobs == {}  # a job still to put on takes the idle node: no hold
     run.jobs["two"].update(node="l4-b", ran=49_500.0, submitted=49_400.0)
@@ -804,6 +820,7 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     run.watch_nodes()
     submit.hold_idle(run)
     assert len(kubectl.jobs) == 1  # one hold an idle spell
+    assert (run.nodes["early-node"]["type"], run.nodes["early-node"]["zone"]) == ("L4-1-24G", "fr-par-2")
     kubectl.all_pods = [job_pod("l4-a", "Running"), job_pod("l4-b", "Succeeded")]
     clock[0] += 60
     run.watch_nodes()
@@ -918,34 +935,6 @@ def a_watched_run(tmp_path, monkeypatch, failing_look):
     return booked, raised.value, kubectl.deleted, looks
 
 
-def test_a_node_without_zone_labels_takes_the_providers_record():
-    class NodeKubectl(FakeKubectl):
-        def json(self, *arguments):
-            return {"items": self.items if arguments[1] == "nodes" else []}
-
-    class BilledCluster(PoolCluster):
-        def nodes(self):
-            return [{"name": "kosmos-node", "type": "POP2-32C-128G", "zone": "pl-waw-2", "created": 100.0}]
-    node = {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:50:00Z",
-                         "labels": {"score.dev/class": "cpu-32c-128gb"}},
-            "status": {"conditions": [{"type": "Ready", "status": "True",
-                                       "lastTransitionTime": "2026-10-09T14:50:13Z"}]}}
-    conductor = {"metadata": {"name": "conductor-node", "creationTimestamp": "2026-11-07T10:00:00Z",
-                              "labels": {"score.dev/class": "conductor"}}, "status": {"conditions": []}}
-    run = submit.Run("r1", {}, NodeKubectl([node, conductor]), BilledCluster())
-    run.watch_nodes()  # the conductor's node, its class key no capability class, is no class node and no crash
-    seen = run.nodes["kosmos-node"]
-    assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
-    assert "conductor-node" not in run.nodes
-    early = {"metadata": {"name": "early-node", "creationTimestamp": "2026-11-08T19:16:00Z",
-                          "labels": {"score.dev/class": "gpu-24gb"}}, "status": {"conditions": []}}
-    run.kubectl.items.append(early)
-    run.watch_nodes()  # seen before its labels came (motor-labval, 2026-11-08: "no price for ? in ?")
-    early["metadata"]["labels"].update({submit.INSTANCE_LABEL: "l4-1-24g", submit.ZONE_LABEL: "fr-par-2"})
-    run.watch_nodes()
-    assert (run.nodes["early-node"]["type"], run.nodes["early-node"]["zone"]) == ("L4-1-24G", "fr-par-2")
-
-
 def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
     monkeypatch.setenv("SCORE_CLOUD", "k8s")
     monkeypatch.delenv("SCORE_K8S_PROVIDER", raising=False)
@@ -1030,14 +1019,6 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
 
 # ==== secrets and the GPU operator ==================================================================================
 
-def test_the_secrets_hold_the_values_by_name():
-    store = {"endpoint": "https://s3.example", "region": "r", "bucket": "b", "access_key": "AK", "secret_key": "SK"}
-    assert base64.b64decode(manifests.store_secret(store)["data"]["SCORE_STORE_SECRET_KEY"]).decode() == "SK"
-    pull = manifests.registry_secret({"endpoint": "rg.example/space", "username": "nologin", "password": "PW"})
-    assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["rg.example"]["password"] == "PW"
-    assert pull["type"] == "kubernetes.io/dockerconfigjson"
-
-
 OPERATOR = {"driver": {"repository": "nvcr.io/nvidia", "image": "driver", "version": "580.126.20",
                        "manager": {"repository": "nvcr.io/nvidia/cloud-native", "image": "k8s-driver-manager",
                                    "version": "v0.11.0"}},
@@ -1050,16 +1031,27 @@ OPERATOR = {"driver": {"repository": "nvcr.io/nvidia", "image": "driver", "versi
 MIRROR = "rg.example/space"
 
 
-def test_the_gpu_operator_is_pointed_at_the_mirror_and_a_mirrored_cluster_is_left_alone():
+def test_the_secrets_hold_the_registry_the_gpu_operator_is_pointed_at():
+    """One store and one registry: the Secrets hold their values by name, and the GPU operator's images are copied
+    into that registry with its pull Secret, the ClusterPolicy pointed there, and a cluster already mirrored left
+    alone."""
+    store = {"endpoint": "https://s3.example", "region": "r", "bucket": "b", "access_key": "AK", "secret_key": "SK"}
+    assert base64.b64decode(manifests.store_secret(store)["data"]["SCORE_STORE_SECRET_KEY"]).decode() == "SK"
+    registry = {"endpoint": MIRROR, "username": "nologin", "password": "PW"}
+    pull = manifests.registry_secret(registry)
+    assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["rg.example"]["password"] == "PW"
+    assert pull["type"] == "kubernetes.io/dockerconfigjson"
+
     pairs = dict(gpu_operator.images(OPERATOR, "ubuntu24.04"))
     assert pairs["nvcr.io/nvidia/driver:580.126.20-ubuntu24.04"] == "driver:580.126.20-ubuntu24.04"
     assert pairs["nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0"] == "k8s-driver-manager:v0.11.0"
-    job = gpu_operator.copy_job(list(pairs.items()), MIRROR)
+    job = gpu_operator.copy_job(list(pairs.items()), registry["endpoint"])
     assert f"{MIRROR}/driver:580.126.20-ubuntu24.04" in job["spec"]["template"]["spec"]["containers"][0]["command"][2]
 
-    patch = gpu_operator.policy_patch(MIRROR, "score-registry")["spec"]
+    secret_name = pull["metadata"]["name"]
+    patch = gpu_operator.policy_patch(registry["endpoint"], secret_name)["spec"]
     assert patch["driver"]["repository"] == MIRROR and patch["driver"]["manager"]["repository"] == MIRROR
-    assert patch["validator"]["imagePullSecrets"] == ["score-registry"]
+    assert patch["validator"]["imagePullSecrets"] == [secret_name]
     assert "imagePullSecrets" not in patch["driver"]["manager"]
     assert not gpu_operator.mirrored(OPERATOR, MIRROR)
 
@@ -1075,5 +1067,5 @@ def test_the_gpu_operator_is_pointed_at_the_mirror_and_a_mirrored_cluster_is_lef
             spec["driver"]["manager"] = dict(OPERATOR["driver"]["manager"], repository=MIRROR)
             return {"items": [{"metadata": {"name": "cluster-policy"}, "spec": spec}]}
     kubectl = Policy()
-    assert gpu_operator.mirror(kubectl, {"endpoint": MIRROR, "username": "u", "password": "p"})
+    assert gpu_operator.mirror(kubectl, registry)
     assert kubectl.calls == [("get", "clusterpolicies.nvidia.com")]  # nothing changed on a live cluster
