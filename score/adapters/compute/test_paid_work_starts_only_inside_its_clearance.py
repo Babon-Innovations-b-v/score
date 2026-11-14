@@ -65,6 +65,8 @@ Each break (applied once, seen red, reverted), in score/adapters/compute/__init_
 - balance left: grant_refusal leaves out GRANT_BUFFER.
 - reading allowance: reading_clearance drops the per-place euros limit.
 - unquoted or too dear grant: grant_refusal drops `<= GRANT_EUROS`.
+- listing walks only its prefix: compute.narrowed_keys's `folder = way[-1] if way else folders.root` becomes
+  `folder = folders.root.parent`.
 - restored grant: restore_grant skips settle_grant.
 - the env1 cap: require_cloud's `why = cap_refusal(None, 0.0, env1=env1, own=(node, key))` becomes `why = None`;
   or guard.cap_refusal's stale check compares only the reading's own time; or cap_stop's env1 ignores GRANT.
@@ -398,15 +400,6 @@ def test_a_stage_row_says_where_its_estimate_is_written():
     assert RENDER.euros_from is None  # no estimate, nothing to say
 
 
-def test_a_count_of_zero_is_free_only_where_its_rule_counts_zero():
-    """A place whose sound takes all stand made counts 0 takes: EUR 0 and no time (COUNTED_ZERO, pixal's takes too); any other rule's
-    0 is nothing counted, so no price (unknown, never free)."""
-    sound = compute.forecast_price("sound@airlock", 0)
-    assert (sound["likely_euros"], sound["high_euros"], sound["units"]) == (0.0, 0.0, 0), sound
-    assert compute.unit_minutes("sound", 0) == {"likely_minutes": 0.0, "high_minutes": 0.0, "cards": 0}
-    assert compute.forecast_price("closeup@airlock", 0) is None and compute.forecast_price("sound@airlock", None) is None
-
-
 def test_the_owners_google_month_is_refused_in_an_agents_process():
     """Only the owner knows what Google billed before its ledger began again (#13): an agent's figure opens nothing."""
     kept = BOOKS.BOOKS
@@ -493,45 +486,6 @@ def clear_in_a_process(runner, ready, sending):
         sending.send("refused")
 
 
-def test_a_started_job_runs_on_as_the_bill_nears_the_stop_and_stops_only_as_a_runaway():
-    """No paid job is killed halfway: past the stop it finishes; only past twice its forecast minutes it is ended."""
-    folder, stopped, clock = pathlib.Path(tempfile.mkdtemp()), [], [0.0]
-    watch = guard.Watch("render@hangar k", 30.0, folder, stop=lambda: stopped.append(1), clock=lambda: clock[0])
-    BILL["euros"] = 10_000.0  # far past any stop: nothing in the watch reads it
-    clock[0] = 59 * 60
-    assert not watch.check() and stopped == []
-    clock[0] = 61 * 60
-    assert watch.check() and watch.check() and stopped == [1]
-    assert "runaway render@hangar k" in (folder / guard.OUTBOX).read_text()
-    unknown = guard.Watch("render@hangar k", None, folder, stop=lambda: stopped.append(2), clock=lambda: 1e9)
-    assert not unknown.check() and stopped == [1]
-    sized = guard.Watch("render@hangar j", 300.0, folder, batches=lambda: [{"high_minutes": 20.0}] * 2,
-                        stop=lambda: stopped.append(3), clock=lambda: clock[0])
-    clock[0] = 81 * 60 + sized.started  # its batches' pre-flights say 40 min high: past 80 it is a runaway
-    assert sized.check() and stopped == [1, 3]
-    # 2026-11-09: light-passes@campgrounds (many lamps) rendered past twice its 3 min average forecast, well inside
-    # its Jobs' own deadlines, and was stopped twice; a run is never stopped before its work's declared deadline
-    wall, declared = [1000.0], [1000.0 + 150 * 60]
-    long = guard.Watch("light-passes@campgrounds k", 3.0, folder, stop=lambda: stopped.append(4),
-                       clock=lambda: clock[0], deadlines=lambda: declared, wall=lambda: wall[0])
-    clock[0], wall[0] = long.started + 120 * 60, 1000.0 + 120 * 60  # forty times its forecast, inside its deadline
-    assert not long.check() and stopped == [1, 3]
-    wall[0] = 1000.0 + 151 * 60  # past its own deadline and its forecast: a runaway
-    assert long.check() and stopped == [1, 3, 4]
-    assert "past every deadline its jobs declared" in (folder / guard.OUTBOX).read_text()
-    BILL["euros"] = 0.0
-
-
-def test_a_runaway_ends_the_makes_own_children_not_the_run():
-    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
-    try:
-        assert child.pid in guard.children(os.getpid())
-        guard.stop_children()
-        assert child.wait(timeout=10) != 0
-    finally:
-        child.kill()
-
-
 def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads(monkeypatch):
     """C22: his money yes and the guard line are one step: `score.review stop` writes the line, and the very next
     clearance is held to it. Without a terminal, or in an agent's process, it writes nothing. A first line recorded on
@@ -579,95 +533,7 @@ def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads(monkey
     assert "pass the EUR 10.00 stop" in compute.stop_room(pc_runner, store, 10.01, {})[2]
 
 
-def test_spend_counts_from_the_worlds_start_across_months():
-    """Spend counts from the world's start across months, and a month's book that fell since the baseline counts 0.
-    2026-11-02: credits given back on October's Google bill after the batch's baseline made its Google growth
-    EUR -838.93, Batch 1 read EUR -635.25 spent and the guard's room grew past its budget. A month's book that fell
-    since the baseline counts 0, never less; one that grew counts its growth, as before."""
-    later = {"bill": 30.0, "ledger": 25.0, "google": 2.0}
-    months = {"2026-10": {"bill": None, "ledger": 300.0, "google": 5.0}, "2026-11": later}
-    start = {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 1.0}
-    assert guard.spent_since(start, months) == (200.0 + 4.0) + (30.0 + 2.0)
-    # its parts, which the cockpit names: the bill over the ledger is cloud less ledger
-    assert guard.spent_parts(start, months) == {"cloud": 230.0, "ledger": 225.0, "google": 6.0}
-
-    # credits given back never count as negative spend
-    start = {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 900.0}
-    months = {"2026-10": {"bill": 150.0, "ledger": 140.0, "google": 61.07}, "2026-11": {"bill": 10.0, "ledger": 8.0,
-                                                                                       "google": 3.5}}
-    assert guard.spent_parts(start, months) == {"cloud": 40.0 + 10.0, "ledger": 40.0 + 8.0, "google": 0.0 + 3.5}
-    assert guard.spent_since(start, months) == 53.5
-
-
-def test_a_reservation_stays_open_while_its_run_lives_or_until_its_runaway_limit():
-    """Fault (2026-10-18 review): a reservation was dropped after 4 h whether or not its run had ended."""
-    hours_ago = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=5)).isoformat()
-    now = datetime.datetime.now(datetime.timezone.utc)
-    assert compute.still_open(hours_ago, {"holder": guard.process_mark(os.getpid())}, now)
-    assert not compute.still_open(hours_ago, {"holder": f"{os.getpid()} 0"}, now)  # a pid since given to another
-    assert not compute.still_open(hours_ago, {"high_minutes": 60.0}, now)
-    assert compute.still_open(hours_ago, {"high_minutes": 200.0}, now)  # twice 200 min is past 5 h
-
-
-def test_a_watch_whose_preflights_cannot_be_read_falls_back_to_its_stages_forecast():
-    """A half written pre-flight line must not end the watch: the run would have no runaway stop left."""
-    def unreadable():
-        raise ValueError("a line half written")
-    stopped, clock = [], [0.0]
-    watch = guard.Watch("render@hangar u", 30.0, pathlib.Path(tempfile.mkdtemp()), batches=unreadable,
-                        stop=lambda: stopped.append(1), clock=lambda: clock[0])
-    clock[0] = 61 * 60
-    assert watch.check() and stopped == [1]
-
-
-def test_a_run_waiting_for_a_warm_pool_card_is_no_runaway():
-    """Benchmark of 2026-10-23: a rough model (12 measured minutes) waited on the pool's first card in a stock
-    trough; the wait is not the run's work, and its minutes count again once a card is taken."""
-    stopped, clock, waits = [], [0.0], [True]
-    watch = guard.Watch("rough-model@hub u", 12.0, pathlib.Path(tempfile.mkdtemp()), stop=lambda: stopped.append(1),
-                        clock=lambda: clock[0], waiting=lambda: waits[0])
-    for minute in range(1, 91):  # an hour and a half waiting
-        clock[0] = minute * 60
-        assert not watch.check()
-    waits[0] = False
-    clock[0] = 90 * 60 + 20 * 60
-    assert not watch.check()
-    clock[0] = 90 * 60 + 25 * 60
-    assert watch.check() and stopped == [1]
-    # 2026-11-08: settle@garage (8 measured minutes, its drops') worked 15 free minutes before its drop's one cluster
-    # job, and was stopped a minute into it; only the minutes a cloud runner runs count
-    paying = [False]
-    free = guard.Watch("settle@garage u", 8.0, pathlib.Path(tempfile.mkdtemp()), stop=lambda: stopped.append(2),
-                       clock=lambda: clock[0], paying=lambda: paying[0])
-    for minute in range(1, 21):  # past twice its 8 minutes before any paid work
-        clock[0] = free.started + minute * 60
-        assert not free.check()
-    paying[0] = True
-    clock[0] = free.started + 36 * 60
-    assert not free.check() and stopped == [1]
-    clock[0] = free.started + 37 * 60
-    assert free.check() and stopped == [1, 2]
-    asleep = [sys.executable, "-c", "import time; time.sleep(60)"]
-    plain = subprocess.Popen(asleep)
-    try:
-        assert not guard.cloud_work_below()
-        runner = subprocess.Popen([*asleep, str(compute.REPO / "tools/cloud/blender_cloud.py")])
-        try:
-            assert guard.cloud_work_below() and not guard.cloud_work_below(plain.pid)
-        finally:
-            runner.kill()
-    finally:
-        plain.kill()
-
-
 QUESTION = "Approve one benchmark batch, P1, of at most EUR 10?"
-
-
-def refused_grant(**given):
-    """Why grant_benchmark refused these arguments."""
-    arguments = {"answer": "Yes", "question": QUESTION, "euros": 10.0, "store": Store.in_folder(tempfile.mkdtemp()),
-                 **given}
-    return refused(lambda: compute.grant_benchmark(**arguments))
 
 
 def as_benchmark(grant_id, run, call):
@@ -680,33 +546,6 @@ def as_benchmark(grant_id, run, call):
     finally:
         os.environ.pop(compute.GRANT)
         os.environ.pop(compute.RUN_ID, None)
-
-
-def test_a_grant_is_a_quoted_benchmark_of_at_most_20_euros():
-    """The owner's standing rule of 2026-10-20: benchmarks only, at most EUR 20, his answer and the question quoted."""
-    assert "at most EUR 20" in refused_grant(euros=20.01)
-    assert "at most EUR 20" in refused_grant(euros=0) and "at most EUR 20" in refused_grant(euros=float("nan"))
-    assert "benchmark only" in refused_grant(purpose="a film")
-    assert "quotes" in refused_grant(answer="  ") and "quotes" in refused_grant(question="")
-    store = Store.in_folder(tempfile.mkdtemp())
-    grant = compute.grant_benchmark("Yes", QUESTION, 20, store=store)
-    assert store.read(f"grants/benchmark/{grant['id']}.json") == grant
-    assert grant["answer"] == "Yes" and grant["question"] == QUESTION and grant["euros"] == 20.0
-    assert "expires" not in grant and grant["google_month"] is None
-
-
-def test_a_grant_may_carry_the_owners_google_month():
-    kept = BOOKS.BOOKS
-    BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
-    try:
-        assert "finite figure" in refused_grant(google_month=-1)
-        assert not BOOKS.BOOKS.exists()
-        grant = compute.grant_benchmark("Yes, and Google is at 412", QUESTION, 5, google_month=412.0,
-                                        store=Store.in_folder(tempfile.mkdtemp()))
-        books = BOOKS.this_months_books()
-        assert books["state"] == "known" and books["google_before"] == 412.0 and grant["id"] in books["google_by"]
-    finally:
-        BOOKS.BOOKS = kept
 
 
 def billed(ticket, euros):
@@ -767,32 +606,6 @@ def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_
         google_spend.LEDGER = kept
 
 
-def test_an_unquoted_or_too_dear_grant_clears_nothing():
-    runner = a_runner("a hall")
-    ledger({"euros": 0.0})
-    clear = lambda: compute.clearance(runner, "render@hangar", 1.0)  # noqa: E731
-    forged = {"id": "forged", "purpose": "benchmark", "euros": 10.0, "answer": "", "question": QUESTION,
-              "at": graph.now(), "single_use": True}
-    runner.store.write_once("grants/benchmark/forged.json", forged)
-    assert "not a quoted benchmark grant" in refused(lambda: as_benchmark("forged", "run-a", clear))
-    runner.store.write_once("grants/benchmark/dear.json", {**forged, "id": "dear", "answer": "Yes", "euros": 50.0})
-    assert "not a quoted benchmark grant" in refused(lambda: as_benchmark("dear", "run-a", clear))
-    assert runner.store.objects.keys("clearances/") == []
-    # the store's listing walks only the prefix's folder and answers as the whole walk did, a link on the way walked
-    # whole (2026-11-06: 16 bake clients walked every blob for one node's clearances). Break: in
-    # compute.narrowed_keys, `folder = way[-1] if way else folders.root` -> `folder = folders.root.parent`
-    root = pathlib.Path(tempfile.mkdtemp())
-    for key in ("clearances/n/k/a.json", "clearances/n/k/b.json", "clearances/n/kk/c.json", "accepts/x.json",
-                "real/d.json", "blobs/e.partial"):
-        (root / key).parent.mkdir(parents=True, exist_ok=True)
-        (root / key).write_text("{}")
-    (root / "link").symlink_to(root / "real")
-    folders = compute.runtime_store.FolderStore(root)
-    for prefix in ("clearances/n/k/", "clearances/n/k", "clearances/", "", "link/", "missing/x/", "blobs/"):
-        assert compute.narrowed_keys(folders, prefix) == compute.WHOLE_WALK(folders, prefix), prefix
-    assert folders.keys("clearances/n/k/") == ["clearances/n/k/a.json", "clearances/n/k/b.json"]
-
-
 def measured_lines(stage, euros, minutes=20.0):
     """The ledger lines of one batch each of four paid runs of `stage`, at these euros, this month."""
     return [{"ticket": f"{stage}@place{number} key{number}", "started": BOOKS.this_month(), "kind": "blender",
@@ -834,6 +647,31 @@ class Says(str):
     """An expected field that holds these words, not only them."""
 
 
+class Holds(str):
+    """An expected field that holds this, as words or as a list's item (OWN: the grant at hand)."""
+
+
+ASLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
+WALL = 1000.0  # a watch's wall clock (epoch seconds) at its start; it runs on with the watch's own clock
+LISTED = ("clearances/n/k/a.json", "clearances/n/k/b.json", "clearances/n/kk/c.json", "accepts/x.json", "real/d.json",
+          "blobs/e.partial")
+
+
+def a_listing():
+    """A folder store holding LISTED, with `link` a link to its `real` folder."""
+    root = pathlib.Path(tempfile.mkdtemp())
+    for key in LISTED:
+        (root / key).parent.mkdir(parents=True, exist_ok=True)
+        (root / key).write_text("{}")
+    (root / "link").symlink_to(root / "real")
+    return compute.runtime_store.FolderStore(root)
+
+
+def books_text():
+    """The books file as it stands, or None while there is none."""
+    return BOOKS.BOOKS.read_text() if BOOKS.BOOKS.exists() else None
+
+
 # One row a world: its brief, the owner's stop line (euros, baseline) or none, the ledger's lines, the bill, an
 # override or a benchmark grant standing; then its steps against the clearance, each answered by the real entry point:
 #   ("submit"|"clear", euros, grant tag, run, expected): a job through compute.submit, or a run through
@@ -863,6 +701,19 @@ class Says(str):
 #     expected the answer's fields (ABSENT: not there; RESERVED: the run_forecast euros of the same ask; a range), or
 #     Exactly the whole answer
 #   ("count", output, rule, units): compute.counted_units of the row's output by the count rule
+#   ("unit_price", node, units, expected): compute.forecast_price, its fields or None; ("minutes", stage, units,
+#     expected): compute.unit_minutes, the whole answer
+#   ("watch", forecast minutes, given, ticks, words): a started run's guard.Watch (`given` its batches' pre-flights,
+#     or "unreadable", and its jobs' deadlines in minutes); each tick (minute, {waiting, paying}, a runaway, stops so
+#     far) one check at that minute of its own clock, its wall clock WALL on; the outbox then holds `words`
+#   ("children",): a plain sleeper and a cloud runner started below this process; guard.stop_children ends both
+#   ("open", hours ago, held, expected): compute.still_open of a reservation (holder "alive": this process's mark,
+#     "reused": its pid on another start)
+#   ("spent", start, months, since, parts): guard.spent_since and guard.spent_parts
+#   ("grant", given, expected, books): compute.grant_benchmark into the row's store; the refusal's words, or the
+#     grant's fields and then the books' (None: the books untouched)
+#   ("forge", id, fields): a grant record written straight into the store, unquoted or too dear
+#   ("listing", prefix, keys): a folder store's narrowed listing is the whole walk's, and these keys where given
 # A trial row's store is a trial's own inside the home (compare.py's): its stop line and reservations are the
 # framework store's, every cleared run's reservations kept there.
 # and what stands after: the outbox's lines, the grant's draws (euros, balance) and balance.
@@ -1135,6 +986,78 @@ ASKS = [
                             ("extend", 4.0, OWN, "run-g", "EUR 3.40 left"),
                             ("bill", 1.25), ("release",)],
                   "draws": [(1.25, 8.75)], "balance": 8.75}, id="a warm pool held longer under a grant"),
+    # environment 1, 2026-10-12 to 18: no paid job is killed halfway; past the stop it finishes (the bill far past any
+    # stop: nothing in the watch reads it), and only past twice its forecast minutes (its batches' pre-flights when
+    # readable, a half written line falling back to the forecast) and past every deadline its jobs declared it is
+    # ended, its make's own children signalled. 2026-11-09: light-passes@campgrounds rendered past twice its 3 min
+    # forecast inside its Jobs' 150 min and was stopped twice. Benchmark of 2026-10-23: a rough model (12 minutes)
+    # waited an hour and a half for the pool's first card; 2026-11-08: settle@garage (8 minutes) worked 15 free
+    # minutes before its one cluster job: only the minutes a cloud runner runs count
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "bill": 10_000.0,
+                  "steps": [("watch", 30.0, {}, [(59, {}, False, 0), (61, {}, True, 1), (61, {}, True, 1)],
+                             ["runaway render@hangar k"]),
+                            ("watch", None, {}, [(1e9 / 60, {}, False, 0)], []),
+                            ("watch", 300.0, {"batches": [{"high_minutes": 20.0}] * 2},
+                             [(79, {}, False, 0), (81, {}, True, 1)], []),
+                            ("watch", 30.0, {"batches": "unreadable"}, [(61, {}, True, 1)], []),
+                            ("watch", 3.0, {"deadlines": [150]}, [(120, {}, False, 0), (151, {}, True, 1)],
+                             ["past every deadline its jobs declared"]),
+                            ("watch", 12.0, {}, [*[(minute, {"waiting": True}, False, 0) for minute in range(1, 91)],
+                                                 (110, {}, False, 0), (115, {}, True, 1)], []),
+                            ("watch", 8.0, {}, [*[(minute, {"paying": False}, False, 0) for minute in range(1, 21)],
+                                                (36, {}, False, 0), (37, {}, True, 1)], []),
+                            ("children",)]}, id="a started job runs on and stops only as a runaway"),
+    # 2026-10-18 review: a reservation was dropped after 4 h whether or not its run had ended
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("open", 5, {"holder": "alive"}, True), ("open", 5, {"holder": "reused"}, False),
+                            ("open", 5, {"high_minutes": 60.0}, False),
+                            ("open", 5, {"high_minutes": 200.0}, True)]},  # twice 200 min is past 5 h
+                 id="a reservation stays open while its run lives or until its runaway limit"),
+    # spend counts from the world's start across months, its parts the cockpit names (the bill over the ledger is cloud
+    # less ledger). 2026-11-02: credits given back on October's Google bill made Batch 1 read EUR -635.25 spent and the
+    # guard's room grew past its budget; a month's book that fell since the baseline counts 0, never less
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("spent", {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 1.0},
+                             {"2026-10": {"bill": None, "ledger": 300.0, "google": 5.0},
+                              "2026-11": {"bill": 30.0, "ledger": 25.0, "google": 2.0}},
+                             (200.0 + 4.0) + (30.0 + 2.0), {"cloud": 230.0, "ledger": 225.0, "google": 6.0}),
+                            ("spent", {"month": "2026-10", "bill": 120.0, "ledger": 100.0, "google": 900.0},
+                             {"2026-10": {"bill": 150.0, "ledger": 140.0, "google": 61.07},
+                              "2026-11": {"bill": 10.0, "ledger": 8.0, "google": 3.5}},
+                             53.5, {"cloud": 40.0 + 10.0, "ledger": 40.0 + 8.0, "google": 0.0 + 3.5})]},
+                 id="spend counts from the world's start across months"),
+    # a place whose sound takes all stand made counts 0 takes: EUR 0 and no time (COUNTED_ZERO); any other rule's 0 is
+    # nothing counted, so no price (unknown, never free)
+    pytest.param({"text": "a hall", "ledger": [],
+                  "steps": [("unit_price", "sound@airlock", 0, {"likely_euros": 0.0, "high_euros": 0.0, "units": 0}),
+                            ("minutes", "sound", 0, {"likely_minutes": 0.0, "high_minutes": 0.0, "cards": 0}),
+                            ("unit_price", "closeup@airlock", 0, None), ("unit_price", "sound@airlock", None, None)]},
+                 id="a count of zero is free only where its rule counts zero"),
+    # the owner's standing rule of 2026-10-20: benchmarks only, at most EUR 20, his answer and the question quoted, no
+    # expiry (2026-10-23); a Google month he gave in the same answer goes into the books as his
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "fresh_books": True,
+                  "steps": [*[("grant", given, words, None) for given, words in (
+                                ({"euros": 20.01}, "at most EUR 20"), ({"euros": 0}, "at most EUR 20"),
+                                ({"euros": float("nan")}, "at most EUR 20"), ({"purpose": "a film"}, "benchmark only"),
+                                ({"answer": "  "}, "quotes"), ({"question": ""}, "quotes"),
+                                ({"google_month": -1}, "finite figure"))],
+                            ("grant", {"euros": 20}, {"answer": "Yes", "question": QUESTION, "euros": 20.0,
+                                                      "expires": ABSENT, "google_month": None}, None),
+                            ("grant", {"answer": "Yes, and Google is at 412", "euros": 5, "google_month": 412.0},
+                             {"euros": 5.0}, {"state": "known", "google_before": 412.0, "google_by": Holds(OWN)})]},
+                 id="a grant is a quoted benchmark of at most EUR 20, its Google month the owner's"),
+    # a grant record that does not quote his answer, or is dearer than EUR 20, clears nothing. The store's listing walks
+    # only the prefix's folder and answers as the whole walk did, a link on the way walked whole (2026-11-06: 16 bake
+    # clients walked every blob for one node's clearances)
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("forge", "forged", {"answer": ""}),
+                            ("clear", 1.0, "forged", "run-a", "not a quoted benchmark grant"),
+                            ("forge", "dear", {"euros": 50.0}),
+                            ("clear", 1.0, "dear", "run-a", "not a quoted benchmark grant"),
+                            ("listing", "clearances/n/k/", ["clearances/n/k/a.json", "clearances/n/k/b.json"]),
+                            *[("listing", prefix, None) for prefix in ("clearances/n/k", "clearances/", "", "link/",
+                                                                       "missing/x/", "blobs/")]]},
+                 id="an unquoted or too dear grant clears nothing"),
 ]
 
 
@@ -1163,6 +1086,8 @@ def agrees(found, expected, grant):
                                                for field, value in expected.items())
     if isinstance(expected, Says):
         return isinstance(found, str) and expected in found
+    if isinstance(expected, Holds):
+        return isinstance(found, (str, list, tuple)) and (grant if expected == OWN else str(expected)) in found
     if isinstance(expected, tuple):
         return expected[0] < found < expected[1]
     return found == (grant if expected == OWN else expected)
@@ -1192,7 +1117,10 @@ def test_paid_work_starts_only_inside_its_clearance(row):
     grant = compute.grant_benchmark("Yes", QUESTION, row["grant"], store=runner.store)["id"] if "grant" in row else None
     home = Store.default() if "trial" in row else runner.store  # the store holding the world's line and reservations
     tickets, cleared, newest = [], 0, None
-    outputs, kept = Outputs(row["outputs"]) if "outputs" in row else None, compute.PER_UNIT
+    outputs, kept, kept_books, listing = Outputs(row["outputs"]) if "outputs" in row else None, compute.PER_UNIT, \
+        BOOKS.BOOKS, None
+    if row.get("fresh_books"):
+        BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
     if "per_unit" in row:
         compute.PER_UNIT = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
         compute.PER_UNIT.write_text(json.dumps({"stages": row["per_unit"]}))
@@ -1201,6 +1129,88 @@ def test_paid_work_starts_only_inside_its_clearance(row):
             if step[0] == "count":
                 _, output, rule, units = step
                 assert compute.counted_units(outputs, output, rule) == units, step
+                continue
+            if step[0] == "unit_price":
+                _, node, units, expected = step
+                answer = compute.forecast_price(node, units)
+                assert (answer is None if expected is None else agrees(answer, expected, grant)), (step, answer)
+                continue
+            if step[0] == "minutes":
+                assert compute.unit_minutes(step[1], step[2]) == step[3], step
+                continue
+            if step[0] == "watch":
+                _, forecast, given, ticks, words = step
+                folder, clock, state, stops = pathlib.Path(tempfile.mkdtemp()), [0.0], {}, []
+
+                def batches():
+                    if given.get("batches") == "unreadable":
+                        raise ValueError("a line half written")
+                    return given.get("batches", [])
+                watch = guard.Watch("render@hangar k", forecast, folder, batches=batches,
+                                    stop=lambda: stops.append(1), clock=lambda: clock[0],
+                                    waiting=lambda: state.get("waiting", False), paying=lambda: state.get("paying", True),
+                                    deadlines=lambda: [WALL + minutes * 60 for minutes in given.get("deadlines", [])],
+                                    wall=lambda: WALL + clock[0])
+                for minute, now, ran_away, stopped in ticks:
+                    clock[0] = minute * 60
+                    state.clear()
+                    state.update(now)
+                    assert watch.check() == ran_away and len(stops) == stopped, (step[:3], minute, stops)
+                told = (folder / guard.OUTBOX).read_text() if (folder / guard.OUTBOX).exists() else ""
+                assert all(said in told for said in words), (step[:3], told)
+                continue
+            if step[0] == "children":
+                plain, cloud = subprocess.Popen(ASLEEP), None
+                try:
+                    assert not guard.cloud_work_below()
+                    cloud = subprocess.Popen([*ASLEEP, str(compute.REPO / "tools/cloud/blender_cloud.py")])
+                    assert guard.cloud_work_below() and not guard.cloud_work_below(plain.pid)
+                    assert {plain.pid, cloud.pid} <= set(guard.children(os.getpid()))
+                    guard.stop_children()
+                    assert plain.wait(timeout=10) != 0 and cloud.wait(timeout=10) != 0
+                finally:
+                    for child in (plain, cloud):
+                        if child is not None:
+                            child.kill()
+                continue
+            if step[0] == "open":
+                _, hours, held, expected = step
+                now = datetime.datetime.now(datetime.timezone.utc)
+                marks = {"alive": guard.process_mark(os.getpid()), "reused": f"{os.getpid()} 0"}
+                held = {**held, **({"holder": marks[held["holder"]]} if "holder" in held else {})}
+                assert compute.still_open((now - datetime.timedelta(hours=hours)).isoformat(), held, now) == expected, \
+                    step
+                continue
+            if step[0] == "spent":
+                _, start, months, since, parts = step
+                assert guard.spent_since(start, months) == since, step
+                assert guard.spent_parts(start, months) == parts, step
+                continue
+            if step[0] == "grant":
+                _, given, expected, books = step
+                arguments = {"answer": "Yes", "question": QUESTION, "euros": 10.0, "store": runner.store, **given}
+                kept_grants, kept_text = runner.store.objects.keys("grants/"), books_text()
+                if isinstance(expected, dict):
+                    made = compute.grant_benchmark(**arguments)
+                    assert runner.store.read(f"grants/benchmark/{made['id']}.json") == made, step
+                    assert agrees(made, expected, made["id"]), (step, made)
+                    assert (books_text() == kept_text if books is None else
+                            agrees(BOOKS.this_months_books(), books, made["id"])), (step, books_text())
+                else:
+                    assert expected in refused(lambda: compute.grant_benchmark(**arguments)), step
+                    assert runner.store.objects.keys("grants/") == kept_grants and books_text() == kept_text, step
+                continue
+            if step[0] == "forge":
+                _, name, fields = step
+                runner.store.write_once(f"grants/benchmark/{name}.json", {
+                    "id": name, "purpose": "benchmark", "euros": 10.0, "answer": "Yes", "question": QUESTION,
+                    "at": graph.now(), "single_use": True, **fields})
+                continue
+            if step[0] == "listing":
+                _, prefix, keys = step
+                listing = listing or a_listing()
+                assert compute.narrowed_keys(listing, prefix) == compute.WHOLE_WALK(listing, prefix), step
+                assert keys is None or listing.keys(prefix) == keys, step
                 continue
             if step[0] in ("price", "forecast"):
                 via, node, estimate, given, expected = step
@@ -1337,10 +1347,11 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                     tickets.append(answer)
                     newest = answer
             else:
+                written = runner.store.objects.keys("clearances/")
                 said = refused(lambda: as_benchmark(tagged, run, ask) if tagged else ask())
                 for words in (expected,) if isinstance(expected, str) else expected:
                     assert words in said, (step, said)
-                assert job_store.keys("") == [], step
+                assert job_store.keys("") == [] and runner.store.objects.keys("clearances/") == written, step
         if "outbox" in row:
             count, words = row["outbox"]
             assert len(outbox(runner)) == count and words in outbox(runner)[0], outbox(runner)
@@ -1351,7 +1362,7 @@ def test_paid_work_starts_only_inside_its_clearance(row):
         if "balance" in row:
             assert compute.grant_balance(runner.store, grant, {}) == row["balance"]
     finally:
-        compute.PER_UNIT = kept
+        compute.PER_UNIT, BOOKS.BOOKS = kept, kept_books
         for ticket in tickets:
             compute.release(ticket)
         BILL["euros"] = 0.0
