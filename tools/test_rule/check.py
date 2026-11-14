@@ -99,7 +99,7 @@ FUNCTION_DEBT = {
     "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 10,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 41,
     "score/review/test_the_owners_word_stands.py": 47,
-    "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 8,
+    "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 3,
     "score/stages/scene_record/test_a_scene_record_is_written_from_its_design.py": 8,
     "score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py": 2,
     "score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py": 8,
