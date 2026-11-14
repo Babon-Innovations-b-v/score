@@ -65,6 +65,11 @@ stands and judges, the laid hub the hub's rows among them, every cast then laid 
 - `cast.short_of`: the packed `not crowd["copies"]` branch dropped  -> the stood casts (the packed
   crowd none of whose spots fit).
 - `driven.bodiless`: `.startswith(NO_BODY)` read as `False` (a person with no body passes)  -> the laid hub.
+- `driven.slowed_down`: its reference's scale left at 1  -> the laid hub on Mars (nev's clip at Earth's pace, the
+  drawn person faster than its sim body: camp's astronaut, 2026-11-14); its time samples left in place  -> the
+  slowed walker (its path at Earth's pace);
+  `driven.lay_sim_body`'s `slowed` scale dropped  -> the same (bram's feet off his slowed sim body's);
+  `driven.write_driven`'s `* slowed` dropped  -> the same; `driven.make`'s `slowed_down` call dropped  -> the same.
 - `cast.made_row`: `row if row in inputs else None` read as `row`  -> the laid hub (a look with no dress row made).
 - `cast.short_of`: its left-out line, or its refused lines, dropped  -> the stood casts (the camp's still and walkway
   left out, or its `off` refused, unnamed).
@@ -463,7 +468,7 @@ CAST_FIELDS = ("id", "plan", "crowd", "people", "stood", "views", "fit", "made",
 CAST = {"plan": None, "crowd": None, "people": [], "stood": {}, "views": [], "fit": None, "made": None,
         "overlapping": [], "faults": [], "findings": [], "part": None, "world": None, "keep": None, "members": (),
         "candidates": [], "copies": None, "placed": {}, "clear": {}, "route": {}, "refused": {}, "laid": [],
-        "looks": {}, "driven": {}}
+        "looks": {}, "driven": {}, "on": "earth"}
 KEEPERS = {None: contextlib.nullcontext, "feet": feet.feet_kept, "walks": walks.walks_kept}
 WALKER_ALONE = {"name": "walker", "character": "bram", "doing": "walking", "turn": 0.0, "pace": 1.333, "path": None,
                 "facing_to": [0.0, 0.0, 9.0]}
@@ -636,7 +641,7 @@ KEPT_CLIP = {"by": "its clip", "why": "its sim body was not run (sim_bodies.json
 # The hub's people stood on the toy floor with its crowd, stood or with no ground, and laid: bram's and nev's dress row
 # given, sev's look none, so sev and each crowd variant named missing; bram driven by his sim body, nev with none on his
 # clip. `named` holds the crowd too: with no variant's body (stood) or no copy stood, the counted gate's (never).
-LAID = [{"id": f"the hub, its crowd {name}", "world": "toy", "members": ("bram", "nev", "sev"), "people": HUB,
+LAID = [{"id": f"the hub, its crowd {name}", "world": "toy", "on": on, "members": ("bram", "nev", "sev"), "people": HUB,
          "crowd": crowd, "made": made, "findings": findings, "laid": ["bram", "nev"], "named": (4, bodiless),
          "placed": {person["name"]: {"at": person["at"]} for person in HUB},
          "looks": {"sev": {"look": "sev/work", "missing": NO_BODY_OF.format("sev-work")},
@@ -645,12 +650,15 @@ LAID = [{"id": f"the hub, its crowd {name}", "world": "toy", "members": ("bram",
                    "crowd-v0": {"missing": NO_BODY_OF.format("crowd-made")},
                    "crowd-v1": {"missing": NO_BODY_OF.format("crowd-made-v1")},
                    "bram": {"motion": {"by": "its sim body"}}, "nev": {"motion": KEPT_CLIP}},
-         "driven": {"bram": (["HeadEnd", "Root"], 0.27)}} for name, crowd, made, findings, missing, bodiless in (
+         "driven": {"bram": (["HeadEnd", "Root"], 0.27)}} for name, crowd, made, findings, missing, bodiless, on in (
     ("stood", dict(HUB_CROWD, spread=[1.5, -4.5, 3.0, 3.0]), (39, 2, None, 2), [],
-     "no variant of its look has an accepted body", 4),
+     "no variant of its look has an accepted body", 4, "earth"),
     ("never stood", dict(HUB_CROWD, grounds=[]), (0, None, None, 0),
      ["the crowd's row makes no item on the plan, so it has no ground (crowd/made)"],
-     "no copy of the crowd stood on its ground (the cast's counted gate: why)", 3))]
+     "no copy of the crowd stood on its ground (the cast's counted gate: why)", 3, "mars"))]
+# Each laid hub's place on its body (data/physics/setting.json's bodies, the hub sited on `on`): its walk slowed by the
+# root of Earth's pull over its own (the Earth walk's Froude number), the Moon's and Mars' gravity the reference table's.
+SLOWED = {"earth": 1.0, "mars": (9.82 / 3.728) ** 0.5}
 
 
 def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_named(tmp_path, monkeypatch):
@@ -957,8 +965,13 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
         short = cast.short_of(json.loads((folder / "cast/cast.json").read_text()))
         assert (short == case["findings"]) if case["part"] is None else (
             case["part"] in short[0] and len(short) == 1), (name, short)
+        setting = json.loads((pathlib.Path(stages.__file__).parents[2] / "data/physics/setting.json").read_text())
+        setting["sites"].append({"place": "hub", "on": case["on"], "latitude": 0.0, "longitude": 0.0, "height_m": 0.0})
+        (folder / "setting.json").write_text(json.dumps(setting))
+        (folder / "within.json").write_text(json.dumps({"within": {}}))
         laid_inputs = {"cast": folder / "cast", "design": tmp_path / "rows.json", "people-dress-bram-work": folder,
-                       driven.SIM_ROW: tmp_path / "sim", driven.CLIPS_ROW: tmp_path}
+                       driven.SIM_ROW: tmp_path / "sim", driven.CLIPS_ROW: tmp_path, "physics": folder / "setting.json",
+                       "within": folder / "within.json"}
         out = folder / "out"
         toy_asset(out / layer.ASSETS, rig)  # the dressed body skel_usd would convert from its row's glb
         driven.make(laid_inputs, out, 0, {})
@@ -988,16 +1001,25 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
         faults = contents.layer_faults(out)
         assert all(any(fault.startswith(f"{person} ({looks[person]['look']})") for fault in faults)
                    for person in bodiless if person in by_name), (name, faults)
-        # each driven by its sim body (its own size: its feet on the sim body's), every other laid one on its clip
+        # each driven by its sim body (its own size: its feet on the sim body's), every other laid one on its clip,
+        # all at the pace of the hub's pull (SLOWED)
         kept = [person for person in laid if person not in case["driven"]] + ([crowded["name"]] if crowded else [])
+        slowed = SLOWED[case["on"]]
+        for person in laid:
+            offset = stage.GetPrimAtPath(f"/hub/Characters/{person}").GetMetadata(
+                "references").GetAddedOrExplicitItems()[0].layerOffset
+            assert (offset.scale, -offset.offset / offset.scale) == (pytest.approx(slowed), pytest.approx(
+                0.2 * (TOY_FRAMES + 1))), (name, person, offset)  # its start, 0.2 of its clip, in clip frames
         for person, (clip_keeps, hips_x) in case["driven"].items():
             motion = looks[person]["motion"]
             assert motion["by"] == "its sim body" and sorted(motion["clip keeps"]) == clip_keeps, (name, motion)
             assert driven.feet_off(out / layer.LAYER, "hub", person, motion) == pytest.approx(0.0, abs=0.002), name
             played = UsdSkel.Animation(stage.GetPrimAtPath(f"/hub/Characters/{person}/SimDriven"))
-            assert played.GetTranslationsAttr().Get(TOY_FRAMES - 1 - motion["start"])[1][0] == pytest.approx(
-                hips_x, abs=1e-4), name
-            assert played.GetTranslationsAttr().Get(TOY_FRAMES + 1 - motion["start"])[1][0] == pytest.approx(0.0)
+            assert motion["slowed"] == pytest.approx(slowed), (name, motion)
+            assert played.GetTranslationsAttr().Get((TOY_FRAMES - 1 - motion["start"]) * slowed)[1][0] == \
+                pytest.approx(hips_x, abs=1e-4), name
+            assert played.GetTranslationsAttr().Get((TOY_FRAMES + 1 - motion["start"]) * slowed)[1][0] == \
+                pytest.approx(0.0)
         for person in laid:
             assert (stage.GetPrimAtPath(f"/hub/Characters/{person}").GetCustomDataByKey("score:motion").startswith(
                 "its clip")) == (person not in case["driven"]), (name, person)
@@ -1015,3 +1037,18 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
         assert not case["driven"] or (verdict.measures["worst foot m"] > 0.3 and verdict.findings[0].startswith(
             f"{next(iter(case['driven']))}: a foot")), (name, verdict)
     assert (spread.grounded, spread.stand_every) == (feet.PLAIN, walks.PLAIN)  # spread's own back once a make ends
+    # a walker's path (cast.py's walked: its transform's time samples) slowed with its clip, its start kept in clip
+    # frames; at Earth's pull the layer is left as it was
+    from pxr import Sdf
+    for slowed, want in ((2.0, ([0.0, 60.0], 2.0, -6.0)), (1.0, ([0.0, 30.0], 1.0, -3.0))):
+        walked = Usd.Stage.CreateInMemory()
+        prim = walked.DefinePrim("/hub/Characters/walker", "SkelRoot")
+        prim.GetReferences().AddReference(Sdf.Reference("../assets/characters/toy.usdc",
+                                                        layerOffset=Sdf.LayerOffset(-3.0)))
+        move = UsdGeom.Xformable(prim).AddTranslateOp()
+        move.Set((0.0, 0.0, 0.0), 0.0)
+        move.Set((0.0, 0.0, 4.0), 30.0)
+        driven.slowed_down(walked.GetRootLayer(), slowed)
+        offset = prim.GetMetadata("references").GetAddedOrExplicitItems()[0].layerOffset
+        assert (move.GetAttr().GetTimeSamples(), offset.scale, offset.offset) == want, (slowed, offset)
+        assert move.GetAttr().Get(want[0][1])[2] == 4.0, slowed

@@ -709,7 +709,7 @@ SCENE_CLIPS = graph.Stage(scene_clips.ROW, "place", scene_clips.make, scene_clip
 # the gap), never a stand-in. Each person's skeleton plays its sim body's simulated motion where the place's sim-body
 # row stands (score/stages/cast/driven.py; an optional read with the rig it reads: without them each keeps its clip).
 CHARACTERS = graph.Stage("characters-layer", "place", characters_driven.make, characters_layer.CONTRACT,
-                         characters_driven.CHECKS, files=characters_layer.files,
+                         characters_driven.CHECKS, files=characters_driven.files,
                          after={"cast": ("cast", 1), **{name: ("people-dress", 1) for name in DRESS_ROWS},
                                 "sim-body": ("sim-body", 2), "people-clips-made": ("people-clips-made", 1)},
                          optional=(*DRESS_ROWS, "sim-body", "people-clips-made"), applies=designed("people"))

@@ -24,7 +24,9 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              machine path, kind KIND, newton_env.sh built there, a warm pool card first; its clips batched onto one
              card where they fit, `batched`; never on this PC but under SCORE_SIM_BODY_LOCAL=1 for tests), under
              the gravity of the body the scene
-             stands on, physics/design.py ground): the model's joint angles fitted to the clip's segment turns and its
+             stands on, physics/design.py ground, its clip played that pull's `slowing` slower than it was made, at
+             the Earth walk's Froude number, as the drawn person plays it; sim_bodies.json `rate` the frames a second
+             it is played at): the model's joint angles fitted to the clip's segment turns and its
              skin's bony landmarks (one solver: mink per frame, scipy's least_squares over the constants), the
              forces that movement needs, shared between the ground's contacts and the muscles (activations and
              forces, static optimisation), what neither can give left over as the pelvis' residual and the joints'
@@ -81,6 +83,7 @@ with its toe), a walker's cast path (the clip plays its own root path from the s
 import concurrent.futures
 import hashlib
 import json
+import math
 import os
 import pathlib
 import shutil
@@ -212,6 +215,21 @@ def gravity_of(place, inputs):
     return design.ground(place, within, json.loads(pathlib.Path(inputs["physics"]).read_text()))
 
 
+def slowing(gravity):
+    """How many times slower than its clip a person moves under `gravity` (m/s²): every clip is an Earth walk
+    (Kimodo's, from motion capture), and a walk under another pull is dynamically similar to it at the same Froude
+    number v² / (g L) (Alexander and Jayes 1983, doi:10.1111/j.1469-7998.1983.tb04266.x; held in reduced gravity by
+    Kram, Domingo and Ferris 1997, doi:10.1242/jeb.200.4.821), so its speed scales by the root of g over Earth's and its
+    time by the inverse: the same poses played that much slower, by the sim body (its run's `rate`) and the drawn person
+    alike (cast/driven.py, motion's routes). Earth's gravity is the reference table's, so an Earth place plays its
+    clip as made (1.0). Refused for no pull at all: nothing walks there."""
+    from score.review import setting
+    if gravity <= 0:
+        raise ValueError(f"a gravity of {gravity:g} m/s² carries no walk")
+    table = setting.reference()
+    return math.sqrt(setting.gravity_of(table["bodies"]["earth"], table["gravity_constant"]) / gravity)
+
+
 def make(inputs, out, seed, params):
     """Every character's sim body run on its clip: sim_bodies.json, measures/, layers/sim_bodies.usda."""
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
@@ -220,7 +238,7 @@ def make(inputs, out, seed, params):
     contacts = contacts_of(inputs[CLIPS_ROW], clips_rig)  # Kimodo's own foot contacts, its motions' (person_rig)
     body, gravity = gravity_of(place, inputs)
     solids = solids_of(inputs, place)
-    job, records, left_out = {"rate": RATE, "gravity": gravity, "people": []}, {}, []
+    job, records, left_out = {"rate": RATE / slowing(gravity), "gravity": gravity, "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
     builds, clips = {}, {}
     scene = scene_clips_of(inputs)
@@ -290,7 +308,7 @@ def make(inputs, out, seed, params):
     shutil.rmtree(out / "clips")
     (out / "job.json").unlink(missing_ok=True)
     (out / RECORD).write_text(json.dumps({"place": place, "on": body, "gravity": gravity, "engine": run["engine"],
-                                          "rate": RATE, "model": {"wheel": MODEL[0].rpartition("/")[2],
+                                          "rate": job["rate"], "model": {"wheel": MODEL[0].rpartition("/")[2],
                                                                   "attribution": ATTRIBUTION}, "bodies": records,
                                           "left out": left_out, **no_singles(cast)}, indent=1))
 

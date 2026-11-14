@@ -13,6 +13,10 @@ unmoved by it.
     sim body  the sim-body row's layer, copied into the characters layer's assets and referenced under the person
               (<person>/SimBody, a guide) at the same start, in the skeleton's frame (the asset's Turned: the sim runs
               in the rig's own frame, which the asset turns)
+    slowed    under a pull other than Earth's every laid person plays its clip `slowing` times slower than it was
+              made (sim_body.slowing, the gravity of the body its place stands on: the Earth walk's Froude number),
+              as its sim body ran it: its body's reference scaled, a walk's path timed that much later, its
+              SimDriven and SimBody laid at the slowed times, so the drawn person and its sim body keep one pace
     keeps     a person the sim body did not run (no sim-body output taken, its clip not in the rig, left out by the
               sim), a person held still and the crowd keep their clip, and characters.json and the prim's
               score:motion say why
@@ -41,6 +45,40 @@ SIM_ASSET = "assets/characters/sim_bodies.usda"
 FEET = ("LeftFoot", "RightFoot")
 FEET_WITHIN = 0.05  # metres
 TRAVELLING = "Hips"  # the joint whose translation carries the clip's travel (prop_build.TRAVELLING_JOINT)
+
+
+def files(place):
+    """layer.py's files and the environment's physics, whose gravity the place's people walk under (slowing_of)."""
+    return {**layer.files(place), "physics": "{data}/physics/setting.json", "within": "{data}/places/within.json"}
+
+
+def slowing_of(place, inputs):
+    """How many times slower than made the place's people play their clips: sim_body.slowing under the gravity of
+    the body the place stands on (sim_body.gravity_of, the sim body's own reading)."""
+    from score.stages import sim_body
+    return sim_body.slowing(sim_body.gravity_of(place, inputs)[1])
+
+
+def slowed_down(layer_of, slowed):
+    """Every laid person and crowd prototype of the characters layer (its own specs, never what they reference)
+    played `slowed` times slower: each reference to a character asset scaled (its clip's start kept in the clip's own
+    frames), every time sample the layer holds (a walk's path) moved that much later. Nothing changes at 1."""
+    from pxr import Sdf
+    if slowed == 1.0:
+        return
+    specs = []
+    layer_of.Traverse(Sdf.Path.absoluteRootPath, specs.append)
+    for path in specs:
+        if path.IsPrimPath():
+            layer_of.GetPrimAtPath(path).referenceList.ModifyItemEdits(lambda item: Sdf.Reference(
+                item.assetPath, item.primPath,
+                Sdf.LayerOffset(item.layerOffset.offset * slowed, item.layerOffset.scale * slowed)))
+        elif path.IsPropertyPath():
+            samples = {time: layer_of.QueryTimeSample(path, time) for time in layer_of.ListTimeSamplesForPath(path)}
+            for time in samples:
+                layer_of.EraseTimeSample(path, time)
+            for time, value in samples.items():
+                layer_of.SetTimeSample(path, time * slowed, value)
 
 
 def sim_of(inputs, out):
@@ -108,9 +146,10 @@ def joint_parents(tokens):
     return [paths.index(path.rpartition("/")[0]) if "/" in path else -1 for path in paths]
 
 
-def write_driven(stage, path, source, sim, single, start_frames):
+def write_driven(stage, path, source, sim, single, start_frames, slowed):
     """<path>/SimDriven: the clip's SkelAnimation with every simulated frame's joints the sim body's (driven_locals),
-    written at the times the person plays them; the skeleton set to play it. Returns the joints that keep the clip."""
+    written at the times the person plays them (`slowed` times slower than the clip's frames); the skeleton set to play
+    it. Returns the joints that keep the clip."""
     from pxr import Gf, UsdSkel, Vt
     from scipy.spatial.transform import Rotation
     tokens = source.GetJointsAttr().Get()
@@ -145,26 +184,26 @@ def write_driven(stage, path, source, sim, single, start_frames):
                 rotations[joint] = Gf.Quatf(float(quat[3]), *map(float, quat[:3]))
                 if joint == hips:
                     translations[joint] = Gf.Vec3f(*map(float, local[:3, 3]))
-        turns.Set(Vt.QuatfArray(rotations), time - start_frames)
-        places.Set(Vt.Vec3fArray(translations), time - start_frames)
+        turns.Set(Vt.QuatfArray(rotations), (time - start_frames) * slowed)
+        places.Set(Vt.Vec3fArray(translations), (time - start_frames) * slowed)
         if shapes:
-            weights.Set(source.GetBlendShapeWeightsAttr().Get(time), time - start_frames)
+            weights.Set(source.GetBlendShapeWeightsAttr().Get(time), (time - start_frames) * slowed)
     stage.OverridePrim(f"{path}/Turned/Skeleton").CreateRelationship("skel:animationSource").SetTargets(
         [animation.GetPath()])
     return [name for name in names if name not in segments]
 
 
-def lay_sim_body(stage, path, place, name, turned, start_frames):
+def lay_sim_body(stage, path, place, name, turned, start_frames, slowed):
     """The sim body referenced from the copied sim layer under the person, in the skeleton's frame (`turned`, the
-    asset's Turned transform) and at the person's start."""
+    asset's Turned transform) and at the person's start, its frames (the clip's) played `slowed` times slower."""
     from pxr import Sdf, UsdGeom
     prim = UsdGeom.Xform.Define(stage, f"{path}/SimBody").GetPrim()
     prim.GetReferences().AddReference(Sdf.Reference(f"../{SIM_ASSET}", f"/{place}/Characters/{name}/SimBody",
-                                                    Sdf.LayerOffset(-start_frames)))
+                                                    Sdf.LayerOffset(-start_frames * slowed, slowed)))
     UsdGeom.Xformable(prim).AddTransformOp().Set(turned)
 
 
-def drive(stage, path, place, single, asset, sim, start_frames):
+def drive(stage, path, place, single, asset, sim, start_frames, slowed):
     """The person's skeleton played from its sim body and the sim body laid beside it (when it has one); what moves
     it, for characters.json and the prim's score:motion."""
     from pxr import Usd, UsdGeom, UsdSkel
@@ -176,19 +215,22 @@ def drive(stage, path, place, single, asset, sim, start_frames):
     else:
         body = Usd.Stage.Open(str(asset))
         source = UsdSkel.Animation(body.GetPrimAtPath(f"/Character/Animations/{single['doing']}"))
-        kept = write_driven(stage, path, source, sim, single, start_frames)
+        kept = write_driven(stage, path, source, sim, single, start_frames, slowed)
         turned = UsdGeom.Xformable(body.GetPrimAtPath("/Character/Turned")).GetLocalTransformation()
-        lay_sim_body(stage, path, place, single["name"], turned, start_frames)
+        lay_sim_body(stage, path, place, single["name"], turned, start_frames, slowed)
         motion = {"by": "its sim body", "frames": len(sim["frames"][single["name"]]), "start": start_frames,
-                  "clip keeps": kept}
+                  "slowed": slowed, "clip keeps": kept}
     stage.GetPrimAtPath(path).SetCustomDataByKey("score:motion", motion["by"] + (f": {why}" if why else ""))
     return motion
 
 
 def laid_from(prim, layer_path):
-    """A laid person's body asset and its clip's start in frames, read off its reference (cast.py's `referenced`)."""
+    """A laid person's body asset, its clip's start in the clip's frames and how many times slower it plays, read off
+    its reference (cast.py's `referenced`, slowed_down's scale)."""
     reference = prim.GetMetadata("references").GetAddedOrExplicitItems()[0]
-    return (pathlib.Path(layer_path).parent / reference.assetPath).resolve(), -reference.layerOffset.offset
+    offset = reference.layerOffset
+    return ((pathlib.Path(layer_path).parent / reference.assetPath).resolve(), -offset.offset / offset.scale,
+            offset.scale)
 
 
 def drive_people(stage, layer_path, place, people, looks, sim):
@@ -197,8 +239,8 @@ def drive_people(stage, layer_path, place, people, looks, sim):
         if "missing" in looks.get(single["name"], {"missing": True}):
             continue
         path = f"/{place}/Characters/{single['name']}"
-        asset, start = laid_from(stage.GetPrimAtPath(path), layer_path)
-        looks[single["name"]]["motion"] = drive(stage, path, place, single, asset, sim, start)
+        asset, start, slowed = laid_from(stage.GetPrimAtPath(path), layer_path)
+        looks[single["name"]]["motion"] = drive(stage, path, place, single, asset, sim, start, slowed)
 
 
 def make(inputs, out, seed, params):
@@ -209,6 +251,7 @@ def make(inputs, out, seed, params):
     cast = json.loads((pathlib.Path(inputs["cast"]) / "cast.json").read_text())
     record = json.loads((out / layer.RECORD).read_text())
     stage = Usd.Stage.Open(str(out / layer.LAYER))
+    slowed_down(stage.GetRootLayer(), slowing_of(cast["place"], inputs))
     drive_people(stage, out / layer.LAYER, cast["place"], cast["characters"], record["looks"], sim_of(inputs, out))
     if cast.get("crowd") and cast["crowd"]["name"] in record["looks"]:
         record["looks"][cast["crowd"]["name"]]["motion"] = {"by": "its clip",
@@ -231,7 +274,7 @@ def feet_off(layer, place, name, motion):
     names = [str(token).rpartition("/")[2] for token in query.GetJointOrder()]
     worst = 0.0
     for frame in range(motion["frames"]):
-        time = frame - motion["start"]
+        time = (frame - motion["start"]) * motion.get("slowed", 1.0)
         joints = query.ComputeJointWorldTransforms(UsdGeom.XformCache(time))
         xforms = UsdGeom.XformCache(time)
         for foot in FEET:

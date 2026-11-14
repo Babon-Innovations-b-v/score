@@ -1,4 +1,6 @@
-"""The sim body stage's layer (layers/sim_bodies.usda): each body's segments, bones and muscles, every frame."""
+"""The sim body stage's layer (layers/sim_bodies.usda): each body's segments, bones and muscles, every frame, its time
+codes the clip's frames at its RATE (a place under another pull plays them slower: sim_bodies.json `rate`, which
+cast/driven.py lays it at)."""
 import numpy as np
 
 from score.stages.sim_body._body import RATE
