@@ -5,7 +5,9 @@ WALK_STEP along that leg, run on by its stride's reach past both ends, standing 
 level ground, its body and its feet's room clear: feet.grounded inside the cast's make) on its start's level and over
 no other person. Camp's astronaut_1, stood clear
 at its spot and facing its plan spot's aim, walked its 5 s clip 0.655 m into the kitchen counter and a wall in
-sim-body (2026-11-13).
+sim-body (2026-11-13). A walker with no clear walk stands at its spot instead, playing the standing clip, `unwalked`
+naming what blocks its walk (as cast.unseated stands a seated person with no seat): street's pedestrian_umbrella_7,
+on its triangular pavement, walked off its 0.75 m kerb (2026-11-14).
 
 Kept apart from the package's other modules and reached only from feet.py, so only the cast's key moves with it.
 """
@@ -18,6 +20,7 @@ from score.stages import scene_clips
 from score.stages.cast import measure, spread
 
 PLAIN = spread.stand_every
+STANDING = "standing"  # the clip a walker with no clear walk plays at its spot (cast.unseated's too)
 # The headings a walker is tried at, degrees off its own (its plan spot's aim), nearest first, every HEADING_STEP.
 HEADING_STEP = 15.0
 TURNS = [0.0] + [sign * step * HEADING_STEP for step in range(1, round(180 / HEADING_STEP)) for sign in (1, -1)] + [
@@ -57,15 +60,16 @@ def walking(single, groups):
 
 def stand_every(singles, groups, crowd_candidates, crowd_count, found):
     """spread.stand_every's people and crowd, each walker (walking) then moved to the nearest start and heading whose
-    whole walk is clear (walk_clear), kept off everyone else's spot and every walk stood before it."""
+    whole walk is clear (walk_clear), kept off everyone else's spot, every walk stood before it and the spot of every
+    walker still to be stood (one with no clear walk stands there: unwalked, so no walk before it runs through it)."""
     placed, copies = PLAIN(singles, groups, crowd_candidates, crowd_count, found)
-    kept = spread.Kept([single["at"] for single in placed if not walking(single, groups) and not single.get("path")])
+    kept = [single["at"] for single in placed if not walking(single, groups) and not single.get("path")]
     stood = []
-    for single in placed:
+    for number, single in enumerate(placed):
         if walking(single, groups):
-            single = walk_clear(single, found, kept)
-            for spot in route(single):
-                kept.add(spot)
+            waiting = [other["at"] for other in placed[number + 1:] if walking(other, groups)]
+            single = walk_clear(single, found, spread.Kept(kept + waiting))
+            kept += [single["at"]] if single.get("unwalked") else route(single)
         stood.append(single)
     return stood, copies
 
@@ -83,8 +87,8 @@ def route(single):
 def walk_clear(single, found, kept):
     """The walker at the nearest start round its spot (spread.NUDGES) and, there, the heading nearest its own
     (TURNS) whose every spot along its leg (`route`, its stride's reach past both ends too) stands (spread.grounded)
-    within measure.FOOT_STEP of the level it was stood on and overlaps no kept body; the walker as it stands when none
-    does (its walk named where the sim body runs it). Street's umbrella walkers, stood on its 0.2 m pavements, took
+    within measure.FOOT_STEP of the level it was stood on and overlaps no kept body; when none does, the walker at its
+    spot playing the standing clip, `unwalked` naming what blocks its walk (blocked). Street's umbrella walkers, stood on its 0.2 m pavements, took
     the road below them when their level was not kept. A start that does not stand there itself is tried at no
     heading."""
     at, turn = single["at"], float(single.get("turn", 0.0))
@@ -105,4 +109,26 @@ def walk_clear(single, found, kept):
                 feet = [next(fits) for _ in walk]
                 if all(kept_level(spot) for spot in feet):
                     return dict(walker, at=feet[BEHIND], turn=round(walker["turn"], 3))
-    return single
+    return dict(single, doing=STANDING, unwalked=blocked(single, found, kept))
+
+
+def blocked(single, found, kept):
+    """What blocks a walker's walk at its own spot and heading, in words: the first spot along it (`route`) that does
+    not stand (spread.grounded; the solids its body runs into there, if any), leaves its level or meets a kept body,
+    and how far along its leg that is; and that no start out to spread.NUDGE_FAR and no heading clears it either."""
+    walk, level = route(single), single["at"][1]
+    why = "no start"
+    for number, (spot, stood) in enumerate(zip(walk, spread.grounded(walk, found))):
+        if stood is None:
+            into = measure.run_into([spot], found)[0]
+            what = f"its body runs into {', '.join(into)}" if into else "no level, dry, clear ground stands it"
+        elif abs(stood[1] - level) > measure.FOOT_STEP:
+            what = f"its feet go {stood[1] - level:+.2f} m off its level"
+        elif kept.overlaps(stood):
+            what = "it meets another person's spot or walk"
+        else:
+            continue
+        why = f"{(number - BEHIND) * measure.WALK_STEP:+.2f} m along its walk at its own heading {what}, and no other start"
+        break
+    return (f"walking in its design, but {why} within {spread.NUDGE_FAR} m at any heading clears its walk: stood at "
+            "its spot")

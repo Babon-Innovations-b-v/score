@@ -29,6 +29,12 @@ stands and judges, the laid hub the hub's rows among them, every cast then laid 
 - `walks.walk_clear`: `at=feet[BEHIND]` read as `feet[0]`  -> the stood casts (each walker stood half a metre back
   of its start).
 - `walks.stand_every`: the walker's `walk_clear` dropped  -> the stood casts (it walks off the floor's end).
+- `walks.stand_every`: `+ waiting` dropped  -> the stood casts (the walkway's first walker walks through the second's
+  spot, and the second stands in its walk).
+- `walks.walk_clear`: its last `return dict(single, doing=STANDING, ...)` read as `return single`  -> the stood casts
+  (the walkway's first walker, and the kerb's, keep walking where they have no clear walk).
+- `walks.blocked`: `elif kept.overlaps(stood):` dropped  -> the stood casts (the walkway's first walker named for
+  ground, not for the second's spot).
 - `walks.walks_kept`: `spread.stand_every = stand_every` dropped  -> the stood casts (the walker stays facing
   -z).
 - `feet.facing_seats`: `turn=` left as it came  -> the stood casts (the sitter faces its chair's back).
@@ -318,14 +324,20 @@ FOOTING = [
 # street's police_car_1 behind pedestrian_umbrella_1's start took its trailing shin 0.093 m in (2026-11-14).
 BEHIND_START = [-2.5, 0.0, 4.0]
 BUMPER = block((-2.8, 0.3, 4.3), (-2.2, 0.6, 4.6))
-# Walker rows, each stood alone: (id, its world, its spot, its spot after or None for not read, its turn after).
+# A walkway 1 m up, 0.8 m wide and 10 m long (one body wide to stand on, nothing in reach to start from but it).
+WALKWAY = block((-4.4, 0.95, -5.0), (-3.6, 1.0, 5.0))
+# Walker rows, each stood alone: (id, its world, its spot, its spot after or None for not read, its turn after, and
+# None for a walker that walks or the `unwalked` naming why one with no clear walk stands at its spot instead).
 WALKS = [
-    ("facing -z it leaves the floor at once", "edge", [-4.0, 0.0, -3.0], [-4.0, 0.0, -3.0], -150.0),
+    ("facing -z it leaves the floor at once", "edge", [-4.0, 0.0, -3.0], [-4.0, 0.0, -3.0], -150.0, None),
     ("up the gentle slope's fall line its feet would leave their start's level", "edge", [-4.0, 0.03, -7.0], None,
-     -90.0),
-    ("no walk on its kerb: never the floor's", "edge", [-3.5, 0.2, 2.5], [-3.5, 0.2, 2.5], 0.0),
-    ("its stride's reach clear behind its start", "edge", BEHIND_START, BEHIND_START, 0.0),
-    ("a bumper in its stride's reach behind its start", "bumper", BEHIND_START, [-2.5, 0.0, 3.55], -15.0),
+     -90.0, None),
+    # street's pedestrian_umbrella_7, on its triangular pavement, walked off its 0.75 m kerb (2026-11-14)
+    ("no walk on its kerb: never the floor's, it stands", "edge", [-3.5, 0.2, 2.5], [-3.5, 0.2, 2.5], 0.0,
+     "walking in its design, but -0.50 m along its walk at its own heading no level, dry, clear ground stands it, and "
+     f"no other start within {spread.NUDGE_FAR} m at any heading clears its walk: stood at its spot"),
+    ("its stride's reach clear behind its start", "edge", BEHIND_START, BEHIND_START, 0.0, None),
+    ("a bumper in its stride's reach behind its start", "bumper", BEHIND_START, [-2.5, 0.0, 3.55], -15.0, None),
 ]
 CHAIRS = {"Objects/chair_back_z": np.concatenate([block((-0.25, 0.0, -0.25), (0.25, 0.45, 0.25)),
                                                   block((-0.25, 0.45, 0.2), (0.25, 1.0, 0.25))]),
@@ -513,10 +525,20 @@ STOOD = [
      "people": [dict(WALKER_ALONE, at=[-4.0, 0.0, -3.0]), standing("worker", [-2.3, 0.0, 0.0])],
      "route": {"walker": ((-np.inf, measure.BODY_RADIUS - 5, -measure.BODY_RADIUS, 5 - measure.BODY_RADIUS), 0.0)},
      "named": (2, 2)},
+    # the first walker's only walk runs through the second's spot: it stands, and the second walks clear of it
+    {"id": "two walkers on a walkway", "world": "walkway", "keep": "walks", "members": ("first", "second"),
+     "people": [dict(WALKER_ALONE, name="first", at=[-4.0, 1.0, 4.0]),
+                dict(WALKER_ALONE, name="second", character="second", at=[-4.0, 1.0, -2.0])],
+     "placed": {"first": {"at": [-4.0, 1.0, 4.0], "doing": "standing", "unwalked": (
+         "walking in its design, but +5.75 m along its walk at its own heading it meets another person's spot or "
+         f"walk, and no other start within {spread.NUDGE_FAR} m at any heading clears its walk: stood at its spot")},
+                "second": {"doing": "walking", "unwalked": None}},
+     "route": {"second": ((-4.4, -5.0, -3.6, 5.0), 1.0)}, "named": (2, 2)},
 ] + [{"id": f"a walker alone: {why}", "world": world, "keep": "walks", "members": ("walker",),
       "people": [dict(WALKER_ALONE, at=start)],
-      "placed": {"walker": dict({"turn": turn}, **({"at": after} if after else {}))}, "named": (1, 1)}
-     for why, world, start, after, turn in WALKS]
+      "placed": {"walker": dict({"turn": turn, "doing": "standing" if unwalked else "walking", "unwalked": unwalked},
+                                **({"at": after} if after else {}))}, "named": (1, 1)}
+     for why, world, start, after, turn, unwalked in WALKS]
 
 
 BRAM = {"character": "bram", "look": "bram_work"}
@@ -743,6 +765,7 @@ def test_people_stand_on_the_ground_clear_of_every_solid_and_each_other_or_are_n
                                                                         [0.5, 0.25, 0.5])).triangles})
         for world, across in (("beds", 3.4), ("wide", 6.0))}}
     worlds["bumper"] = dict(edges, **{"Objects/bumper": BUMPER})
+    worlds["walkway"] = dict(edges, **{"Shell/walkway": WALKWAY})
     cast_rules, cast_check = measure.characters()
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
                                                                  cast_check.HEAD)
