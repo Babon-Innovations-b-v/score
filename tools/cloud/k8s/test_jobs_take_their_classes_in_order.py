@@ -116,304 +116,56 @@ POOLS = {"gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2", "cpu-32c-128gb"}
 
 # ==== classes, Jobs and widening ====================================================================================
 
-TENANT = {"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}
 CARDS = ["gpu-24gb", "gpu-48gb", "gpu-80gb"]
-LONG_NAME = "score-" + "a" * 54 + "-g1"  # 'Run_2026-10-09T15:00' and 80 a's: the end kept, at 63 characters
+LONG_RUN = "Run_2026-10-09T15:00_" + "a" * 80
+LONG_NAME = "score-" + "a" * 52 + "-0-g1"  # LONG_RUN's job 0: the end kept, at 63 characters
 REFUSED = "nor one that holds it"
 DONE = ({"type": "Complete", "status": "True"}, True, "done")
 FAILED_BEFORE_IT_RAN = ({"type": "Failed", "status": "True"}, False, "failed")  # a failure, never a wait to remake
 EXPIRED_AFTER_IT_RAN = ({"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}, True, "failed")
-# job: the job's spec, the cluster's pools and own taints, capacity's late classes, the Job's run and id, how its Job
-# ends (whether its pod ran first), whether the login may read the namespace's quota; then what it takes: the kind it
-# is known by, its classes in order, the late ones, its cards and the name of its last Job (each class added makes it
-# again, and a wait past its deadline once more), or the refusal
+FORBIDDEN = "forbidden"
+TENANTS_OWN = "the tenant module's own taints"  # the row's cluster has tenant.TOLERATIONS; every other row has none
+# a run of five jobs through the door: its jobs' runner settings (kind, the image's kind, classes, attempts), the
+# cluster's pools and own taints, capacity's late classes, the run's name, how its job 0's Job ends (whether its pod
+# ran first), whether the login may read the namespace's quota; then what job 0 takes: the kind it is known by, its
+# classes in order, the late ones, its cards and the name of its last Job (each class added makes it again, and a
+# wait past its deadline once more), or the refusal
 CASES = {
-    "pixal-capacitys-order-a-late-class": (dict(kind="pixal"), POOLS, (), {"pixal": ("gpu-48gb",)}, ("r", "j"), DONE,
+    "pixal-capacitys-order-a-late-class": (dict(kind="pixal"), POOLS, (), {"pixal": ("gpu-48gb",)}, "r", DONE,
                                            "readable", ("pixal", ["gpu-24gb", "gpu-48gb", "gpu-80gb", "gpu-80gb-x2"],
-                                                        {"gpu-48gb"}, 1, "score-r-j-g4")),
-    "meshparts-capacitys-order": (dict(kind="meshparts"), POOLS, (), {}, ("r1", "part"), FAILED_BEFORE_IT_RAN,
-                                  "readable",
-                                  ("meshparts", ["gpu-24gb", "gpu-48gb", "gpu-80gb"], set(), 1, "score-r1-part-g3")),
+                                                        {"gpu-48gb"}, 1, "score-r-0-g4")),
+    "meshparts-capacitys-order": (dict(kind="meshparts"), POOLS, (), {}, "r1", FAILED_BEFORE_IT_RAN, "readable",
+                                  ("meshparts", ["gpu-24gb", "gpu-48gb", "gpu-80gb"], set(), 1, "score-r1-0-g3")),
     "own-classes-preferred-in-their-order": (dict(kind="pixal", classes=["gpu-80gb", "gpu-48gb"], attempt_limit=3),
-                                             POOLS, (), {}, ("run-1", "take_7"), DONE, "forbidden",
-                                             ("pixal", ["gpu-80gb", "gpu-48gb"], set(), 1, "score-run-1-take-7-g2")),
-    "a-bake-never-takes-an-h100": (dict(kind="library", classes=CARDS), POOLS, (), {}, ("r", "j"),
-                                   EXPIRED_AFTER_IT_RAN, "readable",
-                                   ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-r-j-g2")),
-    "a-bake-in-the-blender-image": (dict(kind="blender", capacity_kind="library", classes=CARDS, attempt_limit=1),
-                                    POOLS, (), {}, ("Run_A", "Take_7"), DONE, "readable",
-                                    ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-run-a-take-7-g2")),
-    "a-processor-class-asks-no-card": (dict(kind="blender", classes=["cpu-32c-128gb"]), POOLS, (), {},
-                                       ("run-1", "settle"), DONE, "readable",
-                                       ("blender", ["cpu-32c-128gb"], set(), 0, "score-run-1-settle-g1")),
-    # the tenant's own taint, and its scoped login that may not read the quota
-    "a-tenants-own-taint": (dict(kind="pixal", classes=["gpu-24gb"]), POOLS, (TENANT,), {},
-                            ("Run_2026-10-09T15:00", "a" * 80), DONE, "forbidden",
-                            ("pixal", ["gpu-24gb"], set(), 1, LONG_NAME)),
+                                             POOLS, (), {}, "run-1", DONE, FORBIDDEN,
+                                             ("pixal", ["gpu-80gb", "gpu-48gb"], set(), 1, "score-run-1-0-g2")),
+    "a-bake-never-takes-an-h100": (dict(kind="library", classes=CARDS), POOLS, (), {}, "r2", EXPIRED_AFTER_IT_RAN,
+                                   "readable", ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-r2-0-g2")),
+    "a-bake-in-the-blender-image": (dict(kind="library", image="blender", classes=CARDS, attempt_limit=1), POOLS,
+                                    (), {}, "Run_A", DONE, "readable",
+                                    ("library", ["gpu-24gb", "gpu-48gb"], set(), 1, "score-run-a-0-g2")),
+    "a-processor-class-asks-no-card": (dict(kind="blender", classes=["cpu-32c-128gb"]), POOLS, (), {}, "run-2",
+                                       DONE, "readable", ("blender", ["cpu-32c-128gb"], set(), 0, "score-run-2-0-g1")),
+    # the tenant's own taint, a long run name, and the tenant's scoped login that may not read the quota
+    "a-long-name-and-a-login-that-may-not-read-the-quota": (dict(kind="pixal", classes=["gpu-24gb"]), POOLS,
+                                                            TENANTS_OWN, {}, LONG_RUN, DONE, FORBIDDEN,
+                                                            ("pixal", ["gpu-24gb"], set(), 1, LONG_NAME)),
     # no pool for any of a job's classes: the nearest pool that holds it (#76: settle's 4 cores, the paint's 16, 32)
-    "settles-4-cores-on-the-32-core-pool": (dict(kind="blender", classes=["cpu-4c-32gb"]), POOLS, (), {}, ("r", "j"),
-                                            DONE, "forbidden",
-                                            ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g1")),
+    "settles-4-cores-on-the-32-core-pool": (dict(kind="blender", classes=["cpu-4c-32gb"]), POOLS, (), {}, "r3", DONE,
+                                            FORBIDDEN, ("blender", ["cpu-32c-128gb"], set(), 0, "score-r3-0-g1")),
     "the-smallest-pool-that-holds-it": (dict(kind="blender", classes=["cpu-32c-64gb", "cpu-16c-64gb"]),
-                                        POOLS | {"cpu-64c-256gb"}, (), {}, ("r", "j"), DONE, "readable",
-                                        ("blender", ["cpu-32c-128gb"], set(), 0, "score-r-j-g1")),
-    "a-card-pair-on-the-h100-pair": (dict(kind="pixal", classes=["gpu-24gb-x2"]), POOLS, (), {}, ("r", "j"), DONE,
-                                     "readable", ("pixal", ["gpu-80gb-x2"], set(), 1, "score-r-j-g1")),
-    "only-an-h100-pair-holds-it-never-blender": (dict(kind="blender", classes=["gpu-24gb-x2"]), POOLS, (), {},
-                                                 ("r", "j"), DONE, "readable", REFUSED),
-    "no-pool-holds-it": (dict(kind="blender", classes=["cpu-64c-256gb"]), POOLS, (), {}, ("r", "j"), DONE, "readable",
+                                        POOLS | {"cpu-64c-256gb"}, (), {}, "r4", DONE, "readable",
+                                        ("blender", ["cpu-32c-128gb"], set(), 0, "score-r4-0-g1")),
+    "a-card-pair-on-the-h100-pair": (dict(kind="pixal", classes=["gpu-24gb-x2"]), POOLS, (), {}, "r5", DONE,
+                                     "readable", ("pixal", ["gpu-80gb-x2"], set(), 1, "score-r5-0-g1")),
+    "only-an-h100-pair-holds-it-never-blender": (dict(kind="blender", classes=["gpu-24gb-x2"]), POOLS, (), {}, "r6",
+                                                 DONE, "readable", REFUSED),
+    "no-pool-holds-it": (dict(kind="blender", classes=["cpu-64c-256gb"]), POOLS, (), {}, "r7", DONE, "readable",
                          REFUSED),
 }
 CANNOT_GROW = "pod didn't trigger scale-up: 1 in backoff after failed scale-up"
 QUOTA_REFUSED = "Error creating: pods is forbidden: exceeded quota: score-jobs"
 PARALLEL = 3  # the run's jobs at once: its five jobs go in two rounds
-
-
-class RowCluster:
-    """A cluster of the row's pools and own taints."""
-
-    def __init__(self, pools, tolerations):
-        self.pools, self.TOLERATIONS, self.caps = pools, list(tolerations), []
-
-    def cap_pools(self, euros_left, hours):
-        self.caps.append((euros_left, hours))
-        return {}
-
-    def class_pools(self):
-        return [{"class": name} for name in self.pools]
-
-
-@pytest.mark.parametrize("given, pools, taints, late_classes, named, ends, quota, expected", CASES.values(),
-                         ids=CASES.keys())
-def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, named, ends, quota, expected,
-                                          monkeypatch):
-    """A run of five jobs reads each job's classes (capacity's order, narrowed to the cluster's pools, else the nearest
-    pool that holds them, never one its kind may not take), and is never prepared outside a cleared run. It puts
-    `parallel` jobs on at once, each only while the namespace's quota has room for its pod (every one when the login
-    may not read the quota), on the first class, and adds one class at a time only once the autoscaler said for the
-    grace time that none can grow (a word before the last widening, about a taint, followed by a scale-up, or a quota's
-    refusal does not count) or no node came for NODE_MINUTES while a pod waited, a late class after LATE_MINUTES; a Job
-    that waited past its deadline is made again with the classes so far; that Job requires exactly them, prefers them in
-    order, asks cards only on card classes, bears a Kubernetes name and reads the store and pulls from the registry
-    by the Secrets holding them (its cards from a GPU operator mirrored into that registry); the run is marked waiting
-    until its job runs, and the job takes its Job's end and the node it ran on. A submitter after it takes up the newest generations; the
-    rest go on as room comes; under the owner's override the run stops at what is left of his euros less 10%."""
-    clock = [submit.parse_time("2026-10-09T14:00:00Z")]
-    monkeypatch.setattr(submit.time, "time", lambda: clock[0])
-    monkeypatch.setattr(submit.capacity, "LATE", late_classes)
-    monkeypatch.delenv(submit.compute.TICKET, raising=False)
-    marks = []
-    monkeypatch.setattr(submit.preflight, "mark_waiting", lambda: marks.append("waiting"))
-    monkeypatch.setattr(submit.preflight, "unmark_waiting", lambda: marks.append("ran"))
-    spec = dict(given, image="registry.example/score/score-pixal:1-abc@sha256:00", minutes=30)
-    run_id, job_id = named
-    specs = {job_id: spec, **{f"take-{number}": spec for number in range(1, 5)}}
-    # the tenant's quota (#76), by its own names, 2 of its 24 cards left (QuotaKubectl)
-    kubectl, cluster = QuotaKubectl(quota == "readable"), RowCluster(pools, taints)
-    if expected == REFUSED:
-        with pytest.raises(SystemExit, match=REFUSED):
-            submit.Run(run_id, specs, kubectl, cluster)
-        return
-    kind, order, late, cards, name = expected
-    with pytest.raises(submit.compute.Refused, match="nothing rents outside a cleared run"):
-        submit.prepare(kubectl, cluster)
-    assert cluster.caps == [] and kubectl.jobs == {}  # nothing applied, no pool capped
-    run = submit.Run(run_id, specs, kubectl, cluster)
-    assert list(run.kinds) == [kind] and run.orders[job_id] == (order, late)
-    room = 2 if cards and quota == "readable" else len(specs)  # what the quota lets on of the five
-    submit.submit_more(run, PARALLEL)
-    assert len(kubectl.jobs) == min(PARALLEL, room) and run.jobs[job_id]["submitted"]
-    assert run.held == len(specs) - room  # the card jobs past the quota's 2 cards wait here, not as Jobs
-    label = manifests.label_value(job_id)
-
-    def look(seconds, words=(), waiting=True):
-        """The cluster at `seconds`: the job's pod fitting no node, the autoscaler's `words` on it (reason, message,
-        when), or with `waiting` False no pod at all, the quota having refused each Job's; the run reads it and widens.
-        The classes it may take after."""
-        clock[0] = seconds
-        pod_name = manifests.job_name(run_id, job_id, run.jobs[job_id]["generation"]) + "-pod"
-        kubectl.pods = [{"kind": "Pod", "metadata": {"name": pod_name, "labels": {"score.dev/job": label}}, "spec": {},
-                         "status": {"conditions": [{"type": "PodScheduled", "status": "False",
-                                                    "lastTransitionTime": time_text(seconds)}]}}] if waiting else []
-        kubectl.events = [{"reason": reason, "involvedObject": {"name": pod_name}, "lastTimestamp": time_text(when),
-                           "message": message} for reason, message, when in words] if waiting else [
-            {"reason": "FailedCreate", "involvedObject": {"kind": "Job", "name": made}, "message": QUOTA_REFUSED}
-            for made in kubectl.jobs]
-        jobs, pods, no_grow = run.read()
-        run.update_job(job_id, run.current(job_id, jobs), pods.get(label, []))
-        run.widen(pods, no_grow)
-        assert run.jobs[job_id]["state"] == "waiting"  # a Job with no word yet runs on
-        return run.allowed(job_id)
-
-    first = run.kinds[kind]["first"]
-    for step in range(1, len(order) + 1):
-        assert run.allowed(job_id) == order[:step] and run.jobs[job_id]["generation"] == step - 1, step
-        since = run.kinds[kind]["since"]
-        word = ("NotTriggerScaleUp", CANNOT_GROW, since)
-        grace = since + submit.NO_GROW_GRACE_MINUTES * 60
-        if step % 2:  # the autoscaler said none of the allowed pools can grow
-            assert look(grace - 1, [word]) == order[:step]  # not for the grace time yet
-            if step < len(order) and order[step] in late and grace < first + submit.capacity.LATE_MINUTES * 60:
-                assert look(grace, [word]) == order[:step]  # a late class waits
-                grace = first + submit.capacity.LATE_MINUTES * 60
-            assert look(grace, [word]) == order[:step + 1], step  # one more class, or none left to add
-            continue
-        # no node came: the autoscaler's words that do not count, then NODE_MINUTES with a pod waiting
-        assert look(grace, [("NotTriggerScaleUp", CANNOT_GROW, since - 1)]) == order[:step]  # said before widening
-        noise = [("NotTriggerScaleUp", "pod didn't trigger scale-up: 8 max node group size reached", since + 10),
-                 ("TriggeredScaleUp", "pod triggered scale-up", since + 20),
-                 ("NotTriggerScaleUp", "pod didn't trigger scale-up: 1 node(s) had taint", since + 30)]
-        node_time = since + submit.NODE_MINUTES * 60
-        assert look(node_time - 1, noise) == order[:step]  # a scale-up followed; a taint is no word to widen
-        assert look(node_time, waiting=False) == order[:step]  # nothing waits: a quota's refusal is no word to widen
-        assert look(node_time) == order[:step + 1], step
-    assert run.jobs[job_id]["generation"] == len(order) - 1  # nothing left to add: not made again
-    submit.note_wait(run)  # no job ran yet: its runaway watch leaves the wait out
-    assert marks == ["waiting"]
-
-    expired = kubectl.jobs[manifests.job_name(run_id, job_id, len(order) - 1)]
-    expired["status"] = {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}
-    jobs, _pods, _no_grow = run.read()
-    run.update_job(job_id, run.current(job_id, jobs), [])
-    assert run.jobs[job_id]["state"] == "waiting" and run.jobs[job_id]["generation"] == len(order)  # made again
-    assert manifests.job_name(run_id, job_id, len(order) - 1) in kubectl.deleted
-    job = kubectl.jobs[name]
-    assert job["metadata"]["annotations"]["score.dev/classes"] == ",".join(order)  # the earlier classes kept
-    pod = job["spec"]["template"]["spec"]
-    required = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
-    assert required["nodeSelectorTerms"][0]["matchExpressions"][0]["values"] == order
-    preferred = pod["affinity"]["nodeAffinity"]["preferredDuringSchedulingIgnoredDuringExecution"]
-    assert [term["preference"]["matchExpressions"][0]["values"] for term in preferred] == [[each] for each in order]
-    weights = [term["weight"] for term in preferred]
-    assert weights == sorted(set(weights), reverse=True), weights  # the first weighs most, each less than the last
-    assert {toleration["key"] for toleration in pod["tolerations"]} == {"nvidia.com/gpu", "score.dev/class"} | {
-        taint["key"] for taint in taints} and all(taint in pod["tolerations"] for taint in taints)
-    container = pod["containers"][0]
-    card_ask = {"nvidia.com/gpu": str(cards)} if cards else {}
-    assert container["resources"]["limits"] == dict(manifests.NO_LIMIT, **card_ask)  # past any node's
-    assert container["resources"]["requests"].get("nvidia.com/gpu") == card_ask.get("nvidia.com/gpu")
-    assert container["args"] == [run_id, job_id]
-    assert {"name": "cache", "mountPath": "/cache"} in container["volumeMounts"]
-    assert pod["volumes"][0]["hostPath"]["path"] == "/var/lib/score-cache"
-    assert pod["restartPolicy"] == "Never" and job["spec"]["backoffLimit"] == spec.get("attempt_limit", 3) - 1
-    assert job["metadata"]["name"] == name and len(name) <= 63  # Kubernetes' name rules
-    # one store and one registry: the Job reads the store from the Secret holding its values by name and pulls its
-    # image from the registry with the pull Secret holding its login; a card Job's cards come from a GPU operator
-    # whose images are copied into that registry with that Secret, its ClusterPolicy pointed there (the manager with
-    # no pull secret of its own), a cluster already mirrored left alone
-    store_secret, pull = manifests.store_secret(STORE), manifests.registry_secret(REGISTRY)
-    assert container["envFrom"] == [{"secretRef": {"name": store_secret["metadata"]["name"]}}]
-    assert base64.b64decode(store_secret["data"]["SCORE_STORE_SECRET_KEY"]).decode() == "SK"
-    assert container["image"].startswith(REGISTRY["endpoint"] + "/") and pod["imagePullSecrets"] == [
-        {"name": pull["metadata"]["name"]}] and pull["type"] == "kubernetes.io/dockerconfigjson"
-    assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["registry.example"][
-        "password"] == "PW"
-    if cards:  # the cluster's GPU operator, mirrored once into the registry this Job pulls from, then left alone
-        registry = dict(REGISTRY, endpoint=container["image"].rsplit("/", 1)[0])
-        secret_name = pod["imagePullSecrets"][0]["name"]
-        operator = OperatorKubectl()
-        assert gpu_operator.mirror(operator, registry)
-        secret, copy = operator.applied  # not mirrored yet: the pull Secret, then the copy into the Job's registry
-        assert secret["metadata"]["name"] == secret_name and secret["data"] == pull["data"]
-        copy = copy["spec"]["template"]["spec"]
-        assert copy["volumes"][0]["secret"]["secretName"] == secret_name
-        script = copy["containers"][0]["command"][2]
-        assert (f"nvcr.io/nvidia/driver:580.126.20-ubuntu24.04 {registry['endpoint']}/driver:580.126.20-ubuntu24.04"
-                in script)
-        assert (f"nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0 "
-                f"{registry['endpoint']}/k8s-driver-manager:v0.11.0" in script)
-        driver = operator.spec["driver"]  # the ClusterPolicy as the patch left it
-        assert driver["repository"] == driver["manager"]["repository"] == registry["endpoint"]
-        assert operator.spec["validator"]["imagePullSecrets"] == [secret_name]
-        assert "imagePullSecrets" not in driver["manager"]  # the manager has no pull secret of its own
-        operator.calls.clear()
-        assert gpu_operator.mirror(operator, registry)
-        assert operator.calls == [("get", "clusterpolicies.nvidia.com")]  # nothing changed on a mirrored cluster
-
-    condition, ran, state = ends
-    node = f"node-{order[-1]}" if ran else None  # stock came back on its last class
-    kubectl.pods = [{"kind": "Pod", "metadata": {"name": "p", "labels": {"score.dev/job": label}},
-                     "spec": {"nodeName": node},
-                     "status": {"containerStatuses": [{"state": {"running": {"startedAt": time_text(clock[0])}}}]}}
-                    ] if ran else []
-    jobs, pods, _no_grow = run.read()
-    run.update_job(job_id, run.current(job_id, jobs), pods.get(label, []))
-    submit.note_wait(run)  # its job runs on a node now: its minutes count
-    assert marks == ["waiting", "ran" if ran else "waiting"]
-    job["status"] = {"conditions": [condition]}
-    jobs, pods, _no_grow = run.read()
-    run.update_job(job_id, run.current(job_id, jobs), pods.get(label, []))
-    assert run.jobs[job_id]["state"] == state and run.jobs[job_id]["node"] == node
-    assert run.jobs[job_id]["generation"] == len(order)  # a failed Job, or one that ran past its deadline, is never made again
-
-    # a submitter after this one, given one job more, takes up each job's newest generation, and the kind's classes
-    # so far for a job not made yet
-    again = submit.Run(run_id, {**specs, "other": spec}, kubectl, RowCluster(pools, taints))
-    again.resume()
-    assert {each: (record["generation"], record["submitted"] is not None) for each, record in run.jobs.items()} == {
-        each: (again.jobs[each]["generation"], again.jobs[each]["submitted"] is not None) for each in run.jobs}
-    assert again.jobs[job_id]["generation"] == len(order) and again.allowed("other") == order
-    assert again.jobs["other"]["submitted"] is None
-
-    # its job ended: the next goes on, while the quota has room (the 2 made counted, the ended one's card freed), then
-    # every one the quota holds room for when the run is not held to `parallel`; its runaway watch told the Jobs'
-    # deadlines once a round
-    submit.submit_more(run, PARALLEL)
-    assert len(kubectl.jobs) == min(PARALLEL, room) + 1
-    submit.submit_more(run, None)
-    assert len(kubectl.jobs) == min(len(specs), room + 1) and run.held == len(specs) - len(kubectl.jobs)
-    longest = manifests.deadline_seconds({**spec, "minutes": 90})
-    longer = {**specs, "take-4": {**spec, "minutes": 90}}
-    assert submit.declared_seconds(longer, PARALLEL) == 2 * longest and submit.declared_seconds(longer, None) == longest
-
-    # under the owner's override the run is stopped at what is left of his euros less 10%, read again each look
-    # (labval-motor-20261106, 2026-11-06: EUR 2.47 left, and only the EUR 60 batch cap was checked)
-    allowance = {"name": "labval", "euros": 40.0, "spent": 37.53, "left": 2.47}
-    monkeypatch.setenv(submit.compute.TICKET, "override labval")
-    monkeypatch.setattr(submit.compute, "override_room", lambda store=None: allowance)
-    monkeypatch.setattr(submit, "poll", lambda run: None)
-    live, deleted = [2.0], len(kubectl.deleted)
-    run.live_euros = lambda: live[0]
-    submit.look(run, None)
-    assert len(run.unfinished()) == len(specs) - 1 and cluster.caps == []  # EUR 2.00 fits EUR 2.25 (2.47 less 10%)
-    live[0] = 2.3
-    submit.look(run, None)
-    assert run.unfinished() == [] and len(kubectl.deleted) - deleted == len(specs) - 1
-    assert [record["state"] for record in run.jobs.values()] == [state] + ["stopped"] * (len(specs) - 1)
-    assert cluster.caps == [(0, 1)]  # its pools capped to nothing, as at the batch cap
-    assert "labval" in submit.over_limits(run)
-    allowance["left"] = 100.0
-    assert submit.over_limits(run) is None  # more left than the batch cap: the EUR 60 cap stands
-
-
-class FakeCluster:
-    """A cluster module that records the caps it is given."""
-    KUBECONFIG = "/dev/null"
-
-    def __init__(self):
-        self.caps = []
-
-    def cap_pools(self, euros_left, hours):
-        self.caps.append((euros_left, hours))
-        return {}
-
-
-class PoolCluster(FakeCluster):
-    def class_pools(self):
-        return [{"class": name} for name in POOLS]
-
-
-class FakeKubectl:
-    """kubectl answering with fixed Jobs, and recording what is applied."""
-
-    def __init__(self, items):
-        self.items, self.applied = items, []
-
-    def json(self, *arguments):
-        return {"items": self.items if arguments[1] == "jobs,pods" else []}
-
-    def apply(self, objects):
-        self.applied += objects
 
 
 class LiveKubectl:
@@ -441,28 +193,41 @@ class LiveKubectl:
         return ""
 
 
-class QuotaKubectl(LiveKubectl):
-    """A cluster with one ResourceQuota on the jobs' namespace, the tenant's: 2 of its 24 cards left to the run, its
-    used counting the cards of each Job not yet ended; a login whose Role has no resourcequotas right (`readable`
-    False) is forbidden the read, as the tenant's scoped login is."""
+
+class ClusterKubectl(LiveKubectl):
+    """The tenant cluster as kubectl sees it: its nodes and pods as given, what the submitter applies there, and the
+    commands run, answered with `answer`. Its namespace has the tenant's ResourceQuota when other runs hold `others`
+    of its 24 cards (its used counting the cards of each Job not yet ended; none when `others` is None); a login
+    whose Role has no resourcequotas right (`others` FORBIDDEN) is forbidden the read, as the tenant's scoped login
+    is."""
 
     HARD = {"requests.cpu": "250", "requests.memory": "1200Gi", "requests.nvidia.com/gpu": "24"}
 
-    def __init__(self, readable):
+    def __init__(self, nodes=(), others=None, pods=(), answer=""):
         super().__init__()
-        self.readable = readable
+        self.nodes, self.others, self.pods, self.answer = list(nodes), others, list(pods), answer
 
     def json(self, *arguments):
+        if arguments[1] == "nodes":
+            return {"items": self.nodes}
+        if arguments[1] == "pods":
+            return {"items": self.pods}
         if arguments[1] != "resourcequota":
             return super().json(*arguments)
-        if not self.readable:
+        if self.others is None:
+            return {"items": []}
+        if self.others == FORBIDDEN:
             raise submit.subprocess.CalledProcessError(
                 1, ["kubectl", *arguments], stderr='Error from server (Forbidden): resourcequotas is forbidden: User '
                                                    '"system:serviceaccount:score:score-conductor" cannot list resource')
         cards = sum(int(job["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"].get(
             "nvidia.com/gpu", "0")) for job in self.jobs.values() if not job.get("status", {}).get("conditions"))
-        used = {"requests.cpu": "66070m", "requests.memory": "440Gi", "requests.nvidia.com/gpu": str(22 + cards)}
+        used = {"requests.cpu": "66070m", "requests.memory": "440Gi", "requests.nvidia.com/gpu": str(self.others + cards)}
         return {"items": [{"spec": {"hard": self.HARD}, "status": {"hard": self.HARD, "used": used}}]}
+
+    def run(self, *arguments):
+        self.ran.append(arguments)
+        return self.answer
 
 
 STORE = {"endpoint": "https://s3.example", "region": "r", "bucket": "b", "access_key": "AK", "secret_key": "SK"}
@@ -533,7 +298,7 @@ class Helper:
         return self.store
 
     def image(self, kind):
-        return f"registry.example/score-{kind}:1@sha256:00"
+        return f"registry.example/score/score-{kind}:1@sha256:00"
 
 
 class CountedCopies(offload.FolderBucket):
@@ -546,7 +311,24 @@ class CountedCopies(offload.FolderBucket):
         super().copy_into(key, target, target_key)
 
 
-def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_wants_them(tmp_path, monkeypatch):
+def test_jobs_take_their_classes_in_order(tmp_path, monkeypatch):
+    """Runs through the runners' door (cluster_jobs.run, the real submitter under it) on one tenant cluster, over a
+    folder store. Each job's inputs go up once and its outputs come back where the runner wants them. A run of five
+    jobs reads each job's classes (capacity's order, narrowed to the cluster's pools, else the nearest pool that holds
+    them, never one its kind may not take), and is never prepared outside a cleared run. It puts `parallel` jobs on at
+    once, each only while the namespace's quota has room for its pod (every one when the login may not read the
+    quota), on the first class, and adds one class at a time only once the autoscaler said for the grace time that
+    none can grow (a word before the last widening, about a taint, followed by a scale-up, or a quota's refusal does
+    not count) or no node came for NODE_MINUTES while a pod waited, a late class after LATE_MINUTES; a Job that waited
+    past its deadline is made again with the classes so far; that Job requires exactly them, prefers them in order,
+    asks cards only on card classes, bears a Kubernetes name and reads the store and pulls from the registry by the
+    Secrets holding them (its cards from a GPU operator mirrored into that registry); the run is marked waiting until
+    its job runs, its runaway watch told its Jobs' deadlines once a round, and the job takes its Job's end and the node
+    it ran on. A submitter after it takes up the newest generations; the rest go on as room comes; under the owner's
+    override the run stops at what is left of his euros less 10%. Runs that are lost, stopped or capped book their row
+    from what was last seen and bill only their own nodes, warm holds kept on idle nodes; runs side by side share their
+    nodes; the box's queue takes runs, stop-batch ends only score's Jobs, and the cloud settings say which work goes on
+    the cluster at all."""
     helper = Helper(tmp_path / "store")
     monkeypatch.setattr(cluster_jobs.submitter, "runtime", lambda: helper)
     seen, uploads, fetches = {}, [], []
@@ -604,7 +386,7 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"]) == [1]
     assert seen["wait"] is False and seen["who"] == "test"
     spec = seen["specs"]["0"]
-    assert spec["image"].startswith("registry.example/score-blender") and spec["classes"] == ["gpu-24gb"]
+    assert spec["image"].startswith("registry.example/score/score-blender") and spec["classes"] == ["gpu-24gb"]
     assert spec["kernel_cache"] == "blender-5.0.1" and spec["minutes"] == 3
     assert sorted(entry["path"] for entry in spec["inputs"]) == sorted(
         [str(stage / "place.usda"), str(stage / "textures/wall.png"), str(single), str(linked / "wall.png"),
@@ -618,78 +400,471 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert out_file.read_text() == "made by 0" and (out_folder / "part" / "a.txt").read_text() == "made by 0"
     assert (making / "folder" / "part" / "a.txt").read_text() == "made by 0"
 
-    # never a lost row (#95), the real submitter under the door: its first look puts job 0 on a warm node and
-    # finishes it there, the cluster grown meanwhile; then the looks fail, each retried POLL_RETRIES times, or a
-    # SIGTERM comes. Either way the run's Jobs are deleted by its label, its row is booked from what was last seen
-    # (job 1 unwatched, or stopped), the mark that its node holds no --jobs slot is there at every look and gone
-    # after, and the door still brings back what job 0 made. Its nodes are billed from the run's start and only its
-    # own: the warm node it ran on from the start (its earlier minutes are other runs'), the node grown unused during
-    # it whole (end estimated), never one made before it unused or hosting another run.
-    deletes, booked, looks = [], [], []
-    mark = tmp_path / "waiting" / str(os.getpid())
+    # one tenant cluster under every run from here (SCORE_K8S_PROVIDER=scaleway/tenant, its module loaded as submit
+    # loads it), launched from the conductor's box. A tenant box that cannot read the cluster's project with scw (the
+    # conductor, 2026-11-06): its pools as SCORE_K8S_POOLS gives them (no max given: none), its nodes through
+    # kubectl, never scw. Break: in tenant.nodes, read `scw("k8s", "node", "list", ...)` again; or in
+    # tenant.class_pools, drop the `given is not None` branch. The provider's record of its nodes: a labelled node,
+    # a node not tainted for score (not score's), and a node just joined, its cloud labels not set yet, priced by its
+    # pool (named in its name), never "? in ?". Break: in tenant.nodes, drop the pool_labels fill
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    monkeypatch.setenv("SCORE_K8S_PROVIDER", "scaleway/tenant")
+    monkeypatch.setenv("SCORE_K8S_BOX", "conductor")
+    monkeypatch.delenv("SCORE_K8S_NAMESPACE", raising=False)
+    monkeypatch.setattr(manifests, "NAMESPACE", manifests.NAMESPACE)  # the module's NAMESPACE, undone after
+    tenant = submit.cluster_module()
+    assert tenant.NAME == "tenant"
+    monkeypatch.setattr(tenant, "scw", lambda *words: pytest.fail(f"scw asked: {words}"))
+    monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.01, 1))
+    monkeypatch.setenv(tenant.POOLS, json.dumps([
+        {"name": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "max": 10},
+        {"name": "score-l40s", "class": "gpu-48gb", "type": "L40S-1-48G", "zone": "fr-par-2"}]))  # a judge's card
+    assert tenant.class_pools() == [{"name": "score-l4", "id": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
+                                     "zone": "fr-par-2", "max": 10, "euros_a_minute": 0.01, "unit_minutes": 1},
+                                    {"name": "score-l40s", "id": "score-l40s", "class": "gpu-48gb",
+                                     "type": "L40S-1-48G", "zone": "fr-par-2", "max": 0, "euros_a_minute": 0.01,
+                                     "unit_minutes": 1}]
+    taint = {"key": "tenant", "value": "score", "effect": "NoSchedule"}
+    joined = "scw-babon-score-l4-0a1b"
+    listed = {"items": [
+        {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "cpu-32c-128gb", tenant.POOL_LABEL: "score-pop2",
+                                 tenant.INSTANCE_LABEL: "pop2-32c-128g", tenant.ZONE_LABEL: "pl-waw-2"}},
+         "spec": {"taints": [taint]}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}},
+        {"metadata": {"name": "babons", "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {}, "status": {}},
+        {"metadata": {"name": joined, "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {"taints": [taint]}, "status": {}}]}
+    monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
+    assert tenant.nodes() == [
+        {"name": "kosmos-node", "pool": "score-pop2", "type": "POP2-32C-128G", "zone": "pl-waw-2", "status": "ready",
+         "created": 1791554400.0},
+        {"name": joined, "pool": "score-l4", "type": "L4-1-24G", "zone": "fr-par-2", "status": "not_ready",
+         "created": 1793959200.0}]  # an untainted node is not score's
 
-    class DeletingKubectl(LiveKubectl):
-        def run(self, *arguments):
-            deletes.append(arguments)
-            return ""
+    def cluster_nodes():
+        """The cluster's nodes as kubectl lists them: two L4s, a node without zone labels (the provider's record gives
+        them), the node just joined (its pool's machine and zone), the conductor's node (its class key no capability
+        class: no class node, never a crash), a node seen before its labels came (motor-labval, 2026-11-08: "no price
+        for ? in ?"), and the nodes up before a run of none of its jobs."""
+        made = lambda name, when, label="gpu-24gb", **more: {  # noqa: E731
+            "metadata": {"name": name, "creationTimestamp": when, "labels": {"score.dev/class": label, **more}},
+            "status": {"conditions": []}}
+        nodes = [made(name, "2026-11-06T10:00:00Z", **{"kubernetes.io/hostname": f"host-{name}"})
+                 for name in ("l4-a", "l4-b")]
+        nodes += [{"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:50:00Z",
+                                "labels": {"score.dev/class": "cpu-32c-128gb"}},
+                   "status": {"conditions": [{"type": "Ready", "status": "True",
+                                              "lastTransitionTime": "2026-10-09T14:50:13Z"}]}},
+                  made(joined, "2026-11-06T10:00:00Z"), made("conductor-node", "2026-11-07T10:00:00Z", "conductor"),
+                  made("early-node", "2026-11-08T19:16:00Z")]
+        return nodes + [made(name, "2026-11-01T10:00:00Z") for name in ("grown", "other-run", "side-by-side")]
+
+    # never a lost row (#95), the real submitter under the door, on that cluster. A run's first look finishes job 0;
+    # then the looks fail, each retried POLL_RETRIES times, or a SIGTERM comes, or the run's nodes reach the batch
+    # cap. However it ends, its row is booked from what was last seen (job 1 unwatched, or stopped), the mark that its
+    # node holds no --jobs slot is there at every look and gone after, the door still brings back what job 0 made,
+    # and its unfinished Jobs are deleted: by its label after a failure or a stop (nothing brings their outputs back
+    # now), by name at the cap, its warm holds with them; while it watched it marked them alive for cap_watch's sweep
+    # (2026-11-10: a stopped Buy's Jobs ran on for hours). Break: drop `delete_run_jobs(run)` from submit's `except
+    # BaseException`; break: drop the `beat_alive` in `watch`.
+    # In the "billed" runs job 0 runs on a warm node, the cluster grown meanwhile: the run's nodes are billed from its
+    # start and only its own, the warm node it ran on from the start (its earlier minutes are other runs'), the node
+    # grown unused during it whole (end estimated), never one made before it unused or hosting another run.
+    # In the "warm" runs (owner, 2026-11-06) job 1 first waits for the quota's room: once every job is on the
+    # cluster, an idle node a job ran on is held WARM_MINUTES by a pause pod the autoscaler may not evict, asking no
+    # card, once an idle spell (a hold is no job), billed to its hold's end; the cap's stop ends the holds.
+    clock = [submit.parse_time("2026-11-08T20:00:00Z")]
+    monkeypatch.setattr(submit, "time", type("Clock", (), {
+        "time": staticmethod(lambda: clock[0]), "sleep": staticmethod(lambda seconds: None),
+        "strftime": staticmethod(time.strftime), "gmtime": staticmethod(time.gmtime)}))
+    booked, looks, ran = [], [], []
+    mark = tmp_path / "waiting" / str(os.getpid())
+    kubectl = ClusterKubectl()
     monkeypatch.setattr(cluster_jobs.submitter, "submit", real_submit)
+    real_prepare = submit.prepare
     monkeypatch.setattr(submit, "prepare", lambda kubectl, cluster: None)
-    monkeypatch.setattr(submit, "cluster_module", PricedCluster)
-    monkeypatch.setattr(submit, "cluster_kubectl", lambda cluster: DeletingKubectl())
+    monkeypatch.setattr(submit, "cluster_module", lambda name=None: tenant)
+    monkeypatch.setattr(submit, "cluster_kubectl", lambda cluster: kubectl)
     monkeypatch.setattr(submit.ledger, "record", booked.append)
     monkeypatch.setattr(submit, "POLL_SECONDS", 0)
     monkeypatch.setattr(submit, "CLUSTER_WAITING", tmp_path / "waiting")
+    real_look = submit.look
 
-    def watched(failing_look):
-        """A look that first finishes job 0 on the warm node, then `failing_look`."""
+    # the jobs' classes in order: each row a run of five jobs through the door on that cluster, its pools as the row
+    # gives them, its job 0 driven through the run's looks (one a yield of the row's script); the run is marked waiting
+    # while none of its jobs ran, told its Jobs' deadlines, and stopped at the end under the owner's override
+    marks, deadlines, caps = [], [], []
+    monkeypatch.setattr(submit.preflight, "mark_waiting", lambda: marks.append("waiting"))
+    monkeypatch.setattr(submit.preflight, "unmark_waiting", lambda: marks.append("ran"))
+    monkeypatch.setattr(submit.preflight, "declare_deadline", deadlines.append)
+    monkeypatch.setattr(tenant, "cap_pools", lambda euros_left, hours: caps.append((euros_left, hours)) or {})
+    allowance = {"name": "labval", "euros": 40.0, "spent": 37.53, "left": 2.47}
+    monkeypatch.setattr(submit.compute, "override_room", lambda store=None: allowance)
+    late_before, pools_given, taints_before = submit.capacity.LATE, os.environ[tenant.POOLS], tenant.TOLERATIONS
+
+    def waited(seconds, words=(), waiting=True):
+        """The cluster at `seconds`: job 0's pod fitting no node, the autoscaler's `words` on it (reason, message,
+        when), or with `waiting` False no pod at all, the quota having refused each Job's; then the run's look at it,
+        after which job 0 still waits."""
+        run, = ran
+        clock[0] = seconds
+        pod_name = manifests.job_name(run.run_id, "0", run.jobs["0"]["generation"]) + "-pod"
+        run.kubectl.pods = [{"kind": "Pod", "metadata": {"name": pod_name, "labels": {"score.dev/job": "0"}},
+                             "spec": {}, "status": {"conditions": [{"type": "PodScheduled", "status": "False",
+                                                                    "lastTransitionTime": time_text(seconds)}]}}
+                            ] if waiting else []
+        run.kubectl.events = [{"reason": reason, "involvedObject": {"name": pod_name}, "lastTimestamp": time_text(when),
+                               "message": message} for reason, message, when in words] if waiting else [
+            {"reason": "FailedCreate", "involvedObject": {"kind": "Job", "name": made}, "message": QUOTA_REFUSED}
+            for made in run.kubectl.jobs]
+        yield
+        assert run.jobs["0"]["state"] == "waiting"  # a Job with no word yet runs on
+
+    def classes_taken(row, given, taints, ends, quota, expected):
+        """One row's run, a yield a look of it: job 0 widened class by class, made again past its deadline, then ended
+        as the row says; the run's Jobs and the one after it checked between."""
+        kind, order, late, cards, name = expected
+        run, = ran
+        room = 2 if cards and quota == "readable" else len(run.specs)  # what the quota lets on of the five
+        assert list(run.kinds) == [kind] and run.orders["0"] == (order, late), row
+        assert len(run.kubectl.jobs) == min(PARALLEL, room) and run.jobs["0"]["submitted"], row
+        assert run.held == len(run.specs) - room, row  # the card jobs past the quota's 2 cards wait here, not as Jobs
+        longest = manifests.deadline_seconds(run.specs["4"])  # its runaway watch: the longest Job's once a round
+        assert deadlines == [run.started + 2 * longest] and submit.declared_seconds(run.specs, None) == longest, row
+        first = run.kinds[kind]["first"]
+        for step in range(1, len(order) + 1):
+            assert run.allowed("0") == order[:step] and run.jobs["0"]["generation"] == step - 1, (row, step)
+            since = run.kinds[kind]["since"]
+            word = ("NotTriggerScaleUp", CANNOT_GROW, since)
+            grace = since + submit.NO_GROW_GRACE_MINUTES * 60
+            if step % 2:  # the autoscaler said none of the allowed pools can grow
+                yield from waited(grace - 1, [word])
+                assert run.allowed("0") == order[:step], (row, step)  # not for the grace time yet
+                if step < len(order) and order[step] in late and grace < first + submit.capacity.LATE_MINUTES * 60:
+                    yield from waited(grace, [word])
+                    assert run.allowed("0") == order[:step], (row, step)  # a late class waits
+                    grace = first + submit.capacity.LATE_MINUTES * 60
+                yield from waited(grace, [word])
+                assert run.allowed("0") == order[:step + 1], (row, step)  # one more class, or none left to add
+                continue
+            # no node came: the autoscaler's words that do not count, then NODE_MINUTES with a pod waiting
+            yield from waited(grace, [("NotTriggerScaleUp", CANNOT_GROW, since - 1)])
+            assert run.allowed("0") == order[:step], (row, step)  # said before the last widening
+            noise = [("NotTriggerScaleUp", "pod didn't trigger scale-up: 8 max node group size reached", since + 10),
+                     ("TriggeredScaleUp", "pod triggered scale-up", since + 20),
+                     ("NotTriggerScaleUp", "pod didn't trigger scale-up: 1 node(s) had taint", since + 30)]
+            node_time = since + submit.NODE_MINUTES * 60
+            yield from waited(node_time - 1, noise)
+            assert run.allowed("0") == order[:step], (row, step)  # a scale-up followed; a taint is no word to widen
+            yield from waited(node_time, waiting=False)
+            assert run.allowed("0") == order[:step], (row, step)  # nothing waits: a quota's refusal is no word
+            yield from waited(node_time)
+            assert run.allowed("0") == order[:step + 1], (row, step)
+        assert run.jobs["0"]["generation"] == len(order) - 1, row  # nothing left to add: not made again
+        assert set(marks) == {"waiting"}, (row, marks)  # no job ran yet: its runaway watch leaves the wait out
+
+        kubectl = run.kubectl
+        expired = kubectl.jobs[manifests.job_name(run.run_id, "0", len(order) - 1)]
+        expired["status"] = {"conditions": [{"type": "Failed", "status": "True", "reason": "DeadlineExceeded"}]}
+        kubectl.pods, kubectl.events = [], []
+        yield
+        assert run.jobs["0"]["state"] == "waiting" and run.jobs["0"]["generation"] == len(order), row  # made again
+        assert manifests.job_name(run.run_id, "0", len(order) - 1) in kubectl.deleted, row
+        job = kubectl.jobs[name]
+        assert job["metadata"]["annotations"]["score.dev/classes"] == ",".join(order), row  # the earlier classes kept
+        pod = job["spec"]["template"]["spec"]
+        required = pod["affinity"]["nodeAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"]
+        assert required["nodeSelectorTerms"][0]["matchExpressions"][0]["values"] == order, row
+        preferred = pod["affinity"]["nodeAffinity"]["preferredDuringSchedulingIgnoredDuringExecution"]
+        assert [term["preference"]["matchExpressions"][0]["values"] for term in preferred] == [[each] for each in order]
+        weights = [term["weight"] for term in preferred]
+        assert weights == sorted(set(weights), reverse=True), (row, weights)  # the first weighs most, each less
+        assert {toleration["key"] for toleration in pod["tolerations"]} == {"nvidia.com/gpu", "score.dev/class"} | {
+            taint["key"] for taint in taints} and all(taint in pod["tolerations"] for taint in taints), row
+        container = pod["containers"][0]
+        card_ask = {"nvidia.com/gpu": str(cards)} if cards else {}
+        assert container["resources"]["limits"] == dict(manifests.NO_LIMIT, **card_ask), row  # past any node's
+        assert container["resources"]["requests"].get("nvidia.com/gpu") == card_ask.get("nvidia.com/gpu"), row
+        assert container["args"] == [run.run_id, "0"], row
+        assert {"name": "cache", "mountPath": "/cache"} in container["volumeMounts"], row
+        assert pod["volumes"][0]["hostPath"]["path"] == "/var/lib/score-cache", row
+        assert pod["restartPolicy"] == "Never", row
+        assert job["spec"]["backoffLimit"] == given.get("attempt_limit", cluster_jobs.ATTEMPTS) - 1, row
+        assert job["metadata"]["name"] == name and len(name) <= 63, row  # Kubernetes' name rules
+        # one store and one registry: the Job reads the store from the Secret holding its values by name and pulls
+        # its image from the registry with the pull Secret holding its login; a card Job's cards come from a GPU
+        # operator whose images are copied into that registry with that Secret, its ClusterPolicy pointed there (the
+        # manager with no pull secret of its own), a cluster already mirrored left alone
+        store_secret, pull = manifests.store_secret(STORE), manifests.registry_secret(REGISTRY)
+        assert container["envFrom"] == [{"secretRef": {"name": store_secret["metadata"]["name"]}}], row
+        assert base64.b64decode(store_secret["data"]["SCORE_STORE_SECRET_KEY"]).decode() == "SK"
+        assert container["image"].startswith(REGISTRY["endpoint"] + "/") and pod["imagePullSecrets"] == [
+            {"name": pull["metadata"]["name"]}] and pull["type"] == "kubernetes.io/dockerconfigjson", row
+        assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["registry.example"][
+            "password"] == "PW"
+        if cards:  # the cluster's GPU operator, mirrored once into the registry this Job pulls from, then left alone
+            registry = dict(REGISTRY, endpoint=container["image"].rsplit("/", 1)[0])
+            secret_name = pod["imagePullSecrets"][0]["name"]
+            operator = OperatorKubectl()
+            assert gpu_operator.mirror(operator, registry), row
+            secret, copy = operator.applied  # not mirrored yet: the pull Secret, then the copy into the registry
+            assert secret["metadata"]["name"] == secret_name and secret["data"] == pull["data"], row
+            copy = copy["spec"]["template"]["spec"]
+            assert copy["volumes"][0]["secret"]["secretName"] == secret_name, row
+            script = copy["containers"][0]["command"][2]
+            assert (f"nvcr.io/nvidia/driver:580.126.20-ubuntu24.04 {registry['endpoint']}/driver:580.126.20-ubuntu24.04"
+                    in script), row
+            assert (f"nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0 "
+                    f"{registry['endpoint']}/k8s-driver-manager:v0.11.0" in script), row
+            driver = operator.spec["driver"]  # the ClusterPolicy as the patch left it
+            assert driver["repository"] == driver["manager"]["repository"] == registry["endpoint"], row
+            assert operator.spec["validator"]["imagePullSecrets"] == [secret_name], row
+            assert "imagePullSecrets" not in driver["manager"], row  # the manager has no pull secret of its own
+            operator.calls.clear()
+            assert gpu_operator.mirror(operator, registry), row
+            assert operator.calls == [("get", "clusterpolicies.nvidia.com")], row  # nothing changed on a mirrored one
+
+        condition, ran_first, state = ends
+        node = f"node-{order[-1]}" if ran_first else None  # stock came back on its last class
+        kubectl.pods = [{"kind": "Pod", "metadata": {"name": "p", "labels": {"score.dev/job": "0"}},
+                         "spec": {"nodeName": node},
+                         "status": {"containerStatuses": [{"state": {"running": {"startedAt": time_text(clock[0])}}}]}}
+                        ] if ran_first else []
+        yield
+        assert marks[-1] == ("ran" if ran_first else "waiting"), (row, marks)  # its job runs on a node now: it counts
+        job["status"] = {"conditions": [condition]}
+        if state == "done":
+            submit_run(run.run_id, {"0": run.specs["0"]}, helper.store)  # its done.json, as the job leaves it
+        yield
+        assert run.jobs["0"]["state"] == state and run.jobs["0"]["node"] == node, row
+        assert run.jobs["0"]["generation"] == len(order), row  # a failed Job, or one past its deadline, never made again
+
+        # a submitter after this one, given one job more, takes up each job's newest generation, and the kind's
+        # classes so far for a job not made yet
+        again = submit.Run(run.run_id, {**run.specs, "other": run.specs["0"]}, kubectl, tenant)
+        again.resume()
+        assert {each: (record["generation"], record["submitted"] is not None) for each, record in run.jobs.items()} == {
+            each: (again.jobs[each]["generation"], again.jobs[each]["submitted"] is not None) for each in run.jobs}
+        assert again.jobs["0"]["generation"] == len(order) and again.allowed("other") == order, row
+        assert again.jobs["other"]["submitted"] is None, row
+
+        # its job ended: the next went on at that look, while the quota has room (the 2 made counted, the ended one's
+        # card freed), then every one the quota holds room for when the run is not held to `parallel`
+        assert len(kubectl.jobs) == min(PARALLEL, room) + 1, row
+        submit.submit_more(run, None)
+        assert len(kubectl.jobs) == min(len(run.specs), room + 1) and run.held == len(run.specs) - len(kubectl.jobs)
+
+        # under the owner's override the run is stopped at what is left of his euros less 10%, read again each look
+        # (labval-motor-20261106, 2026-11-06: EUR 2.47 left, and only the EUR 60 batch cap was checked)
+        monkeypatch.setenv(submit.compute.TICKET, "override labval")
+        live, deleted = [2.0], len(kubectl.deleted)
+        run.live_euros = lambda: live[0]
+        yield
+        assert len(run.unfinished()) == len(run.specs) - 1 and caps == [], row  # EUR 2.00 fits EUR 2.25 (2.47 less 10%)
+        live[0] = 2.3
+        yield
+        assert run.unfinished() == [] and len(kubectl.deleted) - deleted == len(run.specs) - 1, row
+        assert [record["state"] for record in run.jobs.values()] == [state] + ["stopped"] * (len(run.specs) - 1), row
+        assert caps == [(0, 1)], row  # its pools capped to nothing, as at the batch cap
+        assert "labval" in submit.over_limits(run), row
+        allowance["left"] = 100.0
+        assert submit.over_limits(run) is None, row  # more left than the batch cap: the EUR 60 cap stands
+
+    def scripted(row, script):
+        """The run's look: the row's script up to its next look, then the submitter's own look; a check the script
+        fails ends the run past the submitter's retries."""
         def look(run, parallel):
-            looks.append(mark.exists())  # the node holds no --jobs slot while it waits (score/graph CLUSTER_WAITERS)
-            if len(looks) > 1:
-                return failing_look()
-            submit_run(run.run_id, {"0": run.specs["0"]}, helper.store)
-            run.jobs["0"].update(node="warm", ran=run.started + 30, state="done")
-            node = {"class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "cards": 1, "jobs": set()}
-            for name, created, ready, gone, hosted in (
-                    ("warm", -6_000, -5_800, 600, False), ("grown", 60, 150, None, False),
-                    ("other-run", -1_000, -900, None, False), ("side-by-side", 60, 150, None, True)):
-                run.nodes[name] = dict(node, created=run.started + created, ready=run.started + ready,
-                                       deleted=gone and run.started + gone, hosted=hosted)
+            looks.append(mark.exists())
+            ran[:] = [run]
+            try:
+                if next(script, "over") == "over":
+                    pytest.fail(f"{row}: a look past the row's script")
+            except Exception as broke:  # noqa: BLE001 - said as the row's failure, never retried as a look's
+                pytest.fail(f"{row}: {type(broke).__name__}: {broke}")
+            real_look(run, parallel)
         return look
 
-    def unreachable():
+    for row, (given, pools, taints, late_classes, run_id, ends, quota, expected) in CASES.items():
+        taints = list(taints_before if taints == TENANTS_OWN else taints)  # the cluster's own: none, or the tenant's
+        monkeypatch.setattr(tenant, "TOLERATIONS", taints)
+        clock[0] = submit.parse_time("2026-10-09T14:00:00Z")
+        monkeypatch.setattr(submit.capacity, "LATE", late_classes)
+        monkeypatch.delenv(submit.compute.TICKET, raising=False)
+        monkeypatch.setenv(tenant.POOLS, json.dumps([{"name": f"score-{name}", "class": name, "type": "L4-1-24G",
+                                                       "zone": "fr-par-2"} for name in sorted(pools)]))
+        allowance["left"] = 2.47
+        for each in (marks, deadlines, caps, booked, looks, ran):
+            each.clear()
+        kubectl = ClusterKubectl(others=22 if quota == "readable" else FORBIDDEN)  # 2 of the quota's 24 cards left
+        with pytest.raises(submit.compute.Refused, match="nothing rents outside a cleared run"):
+            real_prepare(kubectl, tenant)
+        assert caps == [] and kubectl.jobs == {}, row  # nothing applied, no pool capped
+        runner = {"command": ["true"], "code": [], "inputs": [], "outputs": [], "minutes": 30,
+                  **({"attempt_limit": given["attempt_limit"]} if "attempt_limit" in given else {})}
+        five = [runner] * 4 + [dict(runner, minutes=90)]  # its last job the longest
+        door = dict(classes=given.get("classes"), image=given.get("image"), parallel=PARALLEL, name=run_id)
+        if expected == REFUSED:
+            with pytest.raises(SystemExit, match=REFUSED):
+                cluster_jobs.run(given["kind"], five, "test", **door)
+            assert kubectl.jobs == {}, row
+            continue
+        script = classes_taken(row, given, taints, ends, quota, expected)
+        monkeypatch.setattr(submit, "look", scripted(row, script))
+        failed = cluster_jobs.run(given["kind"], five, "test", **door)
+        assert next(script, "over") == "over", row  # the script's last checks, after the run's last look
+        assert failed == [number for number in range(len(five)) if number or ends != DONE], (row, failed)
+        entry, = booked
+        assert entry["batch"] == run_id and entry["who"] == "test", row
+        assert all(looks) and not mark.exists(), row  # its node held no --jobs slot while it waited, and does again
+    monkeypatch.setattr(submit.capacity, "LATE", late_before)
+    monkeypatch.setattr(tenant, "TOLERATIONS", taints_before)
+    monkeypatch.setenv(tenant.POOLS, pools_given)
+    monkeypatch.delenv(submit.compute.TICKET, raising=False)
+
+    cap = [float("inf")]
+    monkeypatch.setattr(submit.ledger, "batch_cap", lambda: (cap[0], "the batch cap"))
+
+    def billed(run):
+        """Job 0 finished on the warm node; the cluster's class nodes as the run saw them."""
+        run.jobs["0"].update(node="warm", ran=run.started + 30, state="done")
+        node = {"class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "cards": 1, "jobs": set()}
+        for name, created, ready, gone, hosted in (
+                ("warm", -6_000, -5_800, 600, False), ("grown", 60, 150, None, False),
+                ("other-run", -1_000, -900, None, False), ("side-by-side", 60, 150, None, True)):
+            run.nodes[name] = dict(node, created=run.started + created, ready=run.started + ready,
+                                   deleted=gone and run.started + gone, hosted=hosted)
+
+    # the warm runs' looks, a minute apart: the cards other runs hold of the quota's 24, the phase of each job's pod
+    # (job 0's on l4-a, job 1's on l4-b), whether a warm hold's pod runs on l4-b, whether the early node's labels came,
+    # and the warm holds made by then
+    warm_steps = [(24, "Succeeded", None, False, False, 0),  # job 1 still to put on takes the idle node: no hold
+                  (23, "Succeeded", "Running", False, False, 1),  # job 1 on, l4-b busy with it: l4-a held
+                  (23, "Succeeded", "Running", False, True, 1),  # one hold an idle spell
+                  (23, "Running", "Succeeded", False, True, 2),  # l4-b idle now; l4-a busy again
+                  (23, "Succeeded", "Succeeded", True, True, 3)]  # a hold is no job: l4-a held again
+
+    def warm(run, step):
+        """The cluster at one of the warm runs' looks, then the run's own look at it."""
+        others, first, second, hold, labelled, holds = step
+        clock[0] += 60
+        kubectl.others = others
+        label = manifests.label_value(run.run_id)
+        if first == "Succeeded" and not kubectl.jobs[manifests.job_name(run.run_id, "0", 0)].get("status"):
+            submit_run(run.run_id, {"0": run.specs["0"]}, helper.store)
+            kubectl.jobs[manifests.job_name(run.run_id, "0", 0)]["status"] = {
+                "conditions": [{"type": "Complete", "status": "True"}]}
+        pod = lambda job, node, phase, began: {  # noqa: E731
+            "kind": "Pod", "metadata": {"name": f"{job}-on-{node}", "labels": {"score.dev/run": label, **job}},
+            "spec": {"nodeName": node},
+            "status": {"phase": phase, "containerStatuses": [{"state": {"running": {"startedAt": time_text(began)}}}]}}
+        kubectl.pods = [pod({"score.dev/job": "0"}, "l4-a", first, run.started + 30)]
+        kubectl.pods += [pod({"score.dev/job": "1"}, "l4-b", second, clock[0])] if second else []
+        kubectl.pods += [pod({"score.dev/warm": "hold"}, "l4-b", "Running", clock[0])] if hold else []
+        if labelled:
+            early = next(node for node in kubectl.nodes if node["metadata"]["name"] == "early-node")
+            early["metadata"]["labels"].update({submit.INSTANCE_LABEL: "l4-1-24g", submit.ZONE_LABEL: "fr-par-2"})
+        real_look(run, None)
+        assert len(warm_holds()) == holds, (run.run_id, step)
+        assert not (hold and run.nodes["l4-b"]["busy"]), (run.run_id, step)  # a hold on it is no job
+
+    def warm_holds():
+        return [job for job in kubectl.jobs.values() if manifests.WARM_LABEL in job["metadata"]["labels"]]
+
+    def unreachable(run):
         raise subprocess.CalledProcessError(1, ["kubectl"], stderr="kubectl get jobs,pods: connection refused")
+
+    def capped(run):
+        clock[0] += 60
+        cap[0] = 0.0
+        real_look(run, None)
+
+    def turned(steps, ending):
+        """The run's look: its steps, one a look, then `ending` at every look after."""
+        def look(run, parallel):
+            looks.append(mark.exists())  # the node holds no --jobs slot while it waits (score/graph CLUSTER_WAITERS)
+            ran[:] = [run]
+            if len(looks) > len(steps):
+                return ending(run)
+            if steps[len(looks) - 1] is None:
+                submit_run(run.run_id, {"0": run.specs["0"]}, helper.store)
+                return billed(run)
+            try:
+                return warm(run, steps[len(looks) - 1])
+            except AssertionError as broke:  # said as the turn's failure, never retried as a look's
+                pytest.fail(f"{run.run_id}: {broke}")
+        return look
+
+    sigterm = lambda run: os.kill(os.getpid(), signal.SIGTERM)  # noqa: E731
     before = signal.getsignal(signal.SIGTERM)
-    for name, failing_look, error, left in (
-            ("lost-run", unreachable, subprocess.CalledProcessError, "unwatched"),
-            ("stopped-direct", lambda: os.kill(os.getpid(), signal.SIGTERM), submit.Stopped, "stopped")):
+    retried = 1 + submit.POLL_RETRIES + 1
+    for name, steps, ending, error, left, count, nodes in (
+            ("lost-run", [None], unreachable, subprocess.CalledProcessError, "unwatched", retried, ["grown", "warm"]),
+            ("stopped-direct", [None], sigterm, submit.Stopped, "stopped", 2, ["grown", "warm"]),
+            ("capped-run", warm_steps, capped, None, "stopped", len(warm_steps) + 1, ["l4-a", "l4-b"]),
+            ("lost-warm", warm_steps, unreachable, subprocess.CalledProcessError, "unwatched",
+             len(warm_steps) + retried - 1, ["l4-a", "l4-b"])):
         out_file.unlink()
-        for record in (deletes, booked, looks):
-            record.clear()
-        monkeypatch.setattr(submit, "look", watched(failing_look))
-        with pytest.raises(error) as raised:
-            cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name=name)
+        booked.clear()
+        looks.clear()
+        clock[0], cap[0] = submit.parse_time("2026-11-08T20:00:00Z"), float("inf")
+        kubectl = ClusterKubectl(cluster_nodes(), others=23 if steps == warm_steps else None)
+        monkeypatch.setattr(submit, "look", turned(steps, ending))
+        if error:
+            with pytest.raises(error) as raised:
+                cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name=name)
+        else:
+            assert cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name=name) == [1]
+        run, = ran
         assert out_file.read_text() == "made by 0", name  # what finished still came back
         assert signal.getsignal(signal.SIGTERM) is before and all(looks) and not mark.exists(), name
-        assert len(looks) == (2 if left == "stopped" else 1 + submit.POLL_RETRIES + 1), (name, looks)
-        assert ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", f"score.dev/run={name}", "--ignore-not-found",
-                "--wait=false", "--cascade=background") in deletes, name
+        assert len(looks) == count, (name, looks)
+        whole = ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", f"score.dev/run={name}", "--ignore-not-found",
+                 "--wait=false", "--cascade=background")
+        assert (whole in kubectl.ran) is (ending is not capped), name
+        beaten = [call for call in kubectl.ran if call[0] == "annotate"]
+        assert beaten and beaten[0][:6] == ("annotate", "jobs", "-n", manifests.NAMESPACE, "-l",
+                                            f"score.dev/run={name}") and beaten[0][-1].startswith(
+            submit.ALIVE_NOTE + "="), name
         entry, = booked
         assert entry["batch"] == name and entry["who"] == "test" and entry["jobs"]["1"]["state"] == left, name
         assert entry["jobs"]["0"]["state"] == "done", name
         rows = {row["node"]: row for row in entry["machines"]}
-        assert sorted(rows) == ["grown", "warm"], (name, rows)
-        assert rows["warm"]["start_wait_minutes"] == 0 and rows["warm"]["minutes"] == 10, rows["warm"]
-        assert not rows["warm"]["unused"] and rows["grown"]["unused"] and rows["grown"]["end_estimated"], rows
-        assert all(row.get("share", 1.0) == 1.0 for row in rows.values())  # a node of this run alone: booked whole
-    assert raised.value.code == 128 + signal.SIGTERM  # the stop exits 143
-    # its own failure deletes its Jobs too (nothing brings their outputs back now), and while it watched it marked
-    # them alive for cap_watch's sweep (2026-11-10: a stopped Buy's Jobs ran on for
-    # hours). Break: drop `delete_run_jobs(run)` from submit's `except BaseException`; break: drop the `beat_alive`
-    # in `watch`.
-    beaten = [call for call in deletes if call[0] == "annotate"]
-    assert beaten and beaten[0][:6] == ("annotate", "jobs", "-n", manifests.NAMESPACE, "-l",
-                                        "score.dev/run=stopped-direct") and beaten[0][-1].startswith(
-        submit.ALIVE_NOTE + "=")
+        assert sorted(rows) == nodes, (name, rows)
+        assert all(row.get("share", 1.0) == 1.0 for row in rows.values()), name  # a node of this run alone: whole
+        made = next(job for job in kubectl.jobs.values() if job["metadata"]["name"].startswith(f"score-{name}-0"))
+        assert made["metadata"]["labels"][manifests.BOX_LABEL] == "conductor", name  # this box's, for its stop
+        if nodes == ["grown", "warm"]:
+            assert rows["warm"]["start_wait_minutes"] == 0 and rows["warm"]["minutes"] == 10, rows["warm"]
+            assert not rows["warm"]["unused"] and rows["grown"]["unused"] and rows["grown"]["end_estimated"], rows
+            continue
+        # the provider's record for a node the cluster lists without zone labels, its pool's machine for the node
+        # just joined, no class node for the conductor's, the early node's type and zone once its labels came.
+        # Break: read the label raw in `watch_nodes`. Break: drop `if seen["type"] == "?":` and its line there
+        seen = run.nodes["kosmos-node"]
+        assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 1791554400.0), name
+        assert (run.nodes[joined]["type"], run.nodes[joined]["zone"]) == ("L4-1-24G", "fr-par-2"), name
+        assert "conductor-node" not in run.nodes
+        assert (run.nodes["early-node"]["type"], run.nodes["early-node"]["zone"]) == ("L4-1-24G", "fr-par-2"), name
+        hold = warm_holds()[0]
+        pod = hold["spec"]["template"]
+        assert pod["metadata"]["annotations"] == {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
+        assert pod["spec"]["nodeSelector"] == {"kubernetes.io/hostname": "host-l4-a"}
+        assert "nvidia.com/gpu" not in pod["spec"]["containers"][0]["resources"]["requests"]  # the next job's card
+        assert tenant.TOLERATIONS[0] in pod["spec"]["tolerations"]
+        assert hold["spec"]["activeDeadlineSeconds"] == submit.WARM_MINUTES * 60  # it ends by itself
+        assert hold["metadata"]["labels"]["score.dev/run"] == name and len(hold["metadata"]["name"]) <= 63
+        assert hold["metadata"]["labels"][manifests.BOX_LABEL] == "conductor"
+        idle = submit.IDLE_ESTIMATE_MINUTES * 60
+        if ending is capped:  # the cap's stop drops the holds: the held node goes at the autoscaler's own time
+            assert [call for call in kubectl.ran if call[0] == "delete"] == [
+                ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", f"score.dev/run={name},score.dev/warm",
+                 "--ignore-not-found", "--wait=false", "--cascade=background")], kubectl.ran
+            assert run.nodes["l4-a"]["deleted"] == clock[0] + idle and run.nodes["l4-a"]["estimated"]
+        else:  # a lost run's held node goes once its hold ends, booked to then
+            assert run.nodes["l4-a"]["deleted"] == clock[0] + submit.WARM_MINUTES * 60 + idle
+        if error is submit.Stopped:
+            assert raised.value.code == 128 + signal.SIGTERM  # the stop exits 143
     assert len(uploads) == 3 and CountedCopies.copies == 1  # the later runs of the same inputs sent nothing
 
     # Under SCORE_K8S_QUEUE: a queue not fresh at submit time is started for later runs and the run goes on today's
@@ -805,24 +980,9 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     spec = cluster_jobs.spec_of(helper, helper.store, "faces", "0", "blender", "blender", ["gpu-24gb"], bake)[0]
     assert spec["minutes"] == pytest.approx(3.5 + cluster_jobs.FACE_MINUTES * 0.2), spec["minutes"]
 
-
-# ==== billing =======================================================================================================
-
-class PricedCluster(PoolCluster):
-    def price(self, machine_type, zone):
-        return 0.013125, 1
-
-
-def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tmp_path):
-    spec = {"kind": "judge", "image": "image", "minutes": 5}
-
-    # runs side by side (2026-11-07: a settle run of one job booked all 23 nodes the cluster grew for 20 runs' pods,
-    # EUR 2.90): each run books its part of a node, by the time its pods held it, or of an unused node by the pods
-    # that waited for it; between them the runs book every node whole, never less
-    class PodsKubectl(FakeKubectl):
-        def json(self, *arguments):
-            return {"items": self.items if arguments[1] == "pods" else []}
-
+    # runs side by side on that cluster (2026-11-07: a settle run of one job booked all 23 nodes the cluster grew for
+    # 20 runs' pods, EUR 2.90): each run books its part of a node, by the time its pods held it, or of an unused node
+    # by the pods that waited for it; between them the runs book every node whole, never less
     def pod(run_id, name, node=None, start=None, end=None, made=0.0, placed=None, wants="gpu-24gb"):
         status = {"phase": "Succeeded" if end else ("Running" if node else "Pending"), "conditions": []}
         if start:
@@ -835,10 +995,16 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
         return {"metadata": {"name": name, "creationTimestamp": time_text(made),
                              "labels": {"score.dev/run": run_id}},
                 "spec": {"nodeName": node, "affinity": manifests.affinity([wants])}, "status": status}
-
-    def side_by_side(run_id, started, pods):
-        """Run `run_id`'s part of each node, the cluster's pods as `pods`."""
-        found = submit.Run(run_id, {"ask": spec}, PodsKubectl(pods), PricedCluster())
+    pods = [pod("r-a", "a", "shared", 10_000.0, 10_300.0, made=9_990.0, placed=10_000.0),
+            pod("r-b", "b", "shared", 10_200.0, 10_600.0, made=10_150.0, placed=10_200.0),
+            pod("r-c", "c-0", made=10_900.0), pod("r-c", "c-1", made=10_900.0),  # waiting: grown-0, grown-1 for them
+            pod("r-a", "a-late", made=11_100.0),  # made after both came up: grew neither
+            pod("r-b", "b-vain", made=10_950.0, wants="gpu-48gb"),  # both waited for vain, which neither took
+            pod("r-d", "d-vain", made=10_980.0, wants="gpu-48gb")]
+    parts = {}
+    for run_id, started in (("r-a", 10_000.0), ("r-b", 10_150.0), ("r-c", 10_850.0), ("r-d", 10_900.0)):
+        found = submit.Run(run_id, {"ask": {"kind": "judge", "image": "image", "minutes": 5}},
+                           ClusterKubectl(pods=pods), tenant)
         found.started = started
         for name, created, deleted, machine_class in (
                 ("shared", 9_900.0, 10_900.0, "gpu-24gb"), ("grown-0", 10_950.0, 11_500.0, "gpu-24gb"),
@@ -846,26 +1012,37 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
             found.nodes[name] = {"class": machine_class, "type": "L4-1-24G", "zone": "fr-par-2", "cards": 1,
                                  "created": created, "ready": None, "deleted": deleted, "jobs": set()}
         found.note_hosts()
-        return {name: found.share(name, seen) for name, seen in found.nodes.items()}
-    pods = [pod("r-a", "a", "shared", 10_000.0, 10_300.0, made=9_990.0, placed=10_000.0),
-            pod("r-b", "b", "shared", 10_200.0, 10_600.0, made=10_150.0, placed=10_200.0),
-            pod("r-c", "c-0", made=10_900.0), pod("r-c", "c-1", made=10_900.0),  # waiting: grown-0, grown-1 for them
-            pod("r-a", "a-late", made=11_100.0),  # made after both came up: grew neither
-            pod("r-b", "b-vain", made=10_950.0, wants="gpu-48gb"),  # both waited for vain, which neither took
-            pod("r-d", "d-vain", made=10_980.0, wants="gpu-48gb")]
-    a_parts, b_parts = side_by_side("r-a", 10_000.0, pods), side_by_side("r-b", 10_150.0, pods)
-    c_parts, d_parts = side_by_side("r-c", 10_850.0, pods), side_by_side("r-d", 10_900.0, pods)
-    assert a_parts["shared"] == pytest.approx(250 / 900)  # alone 200 s, half of 100 s; the tail is b's
-    assert b_parts["shared"] == pytest.approx(650 / 750)  # its window from its start: half of 100 s, then all
-    assert a_parts["shared"] * 900 + b_parts["shared"] * 750 == pytest.approx(900)  # whole between them
-    assert a_parts["grown-0"] == a_parts["grown-1"] == a_parts["vain"] == 0  # grown for others: none of a's
-    assert c_parts["grown-0"] == c_parts["grown-1"] == 1  # its two pods were all that waited for them
-    assert b_parts["vain"] == d_parts["vain"] == 0.5  # two runs' pods waited for it: half each, whole between them
-    assert c_parts["vain"] == b_parts["grown-0"] == d_parts["grown-1"] == 0
-    assert a_parts["vain"] + b_parts["vain"] + c_parts["vain"] + d_parts["vain"] >= 1  # never less than whole
+        parts[run_id[-1]] = {name: found.share(name, seen) for name, seen in found.nodes.items()}
+    shares = [  # (run, node, its part): a alone 200 s of shared then half of 100 s, the tail b's; b's window from
+        # its start, half of 100 s then all; grown-0 and grown-1 grown for c's two pods alone; two runs' pods waited
+        # for vain: half each
+        ("a", "shared", pytest.approx(250 / 900)), ("b", "shared", pytest.approx(650 / 750)),
+        ("a", "grown-0", 0), ("a", "grown-1", 0), ("a", "vain", 0), ("c", "grown-0", 1), ("c", "grown-1", 1),
+        ("b", "vain", 0.5), ("d", "vain", 0.5), ("c", "vain", 0), ("b", "grown-0", 0), ("d", "grown-1", 0)]
+    for run_id, name, part in shares:
+        assert parts[run_id][name] == part, (run_id, name, parts[run_id])
+    assert parts["a"]["shared"] * 900 + parts["b"]["shared"] * 750 == pytest.approx(900)  # whole between them
+    assert sum(parts[run_id]["vain"] for run_id in "abcd") >= 1  # never less than whole
     machine = {"type": "H100-1-80G", "zone": "fr-par-2", "cards": 1, "created": 10_000.0, "ready": 10_150.0,
                "deleted": 10_900.0, "price": 0.01, "unit_minutes": 1, "share": 0.25}
     assert submit.ledger.machine_row(machine)["euros"] == pytest.approx(15 * 0.01 * 0.25)
+
+    # stop-batch: score's Jobs in score-jobs only, and only this box's: another box's runs share score-jobs
+    # (2026-11-06: the conductor's stop ended a sim body run this PC had launched). Break: in
+    # submitter.stop_score_jobs, select by RUN_LABEL alone; or drop BOX_LABEL from labels. The env1 cap's stop reaches
+    # every box's (the plan of 2026-11-09 B4). Break: ignore `every_box`
+    for namespace, every_box, selector in (("score-jobs", False, "score.dev/run,score.dev/box=conductor"),
+                                           ("score-jobs", True, "score.dev/run"), ("score", False, None)):
+        monkeypatch.setattr(manifests, "NAMESPACE", namespace)
+        kubectl = ClusterKubectl(answer="job.batch \"score-r-a-g0\" deleted\n")
+        if selector is None:
+            with pytest.raises(SystemExit, match="score-jobs only"):
+                submit.stop_score_jobs(kubectl, tenant, every_box=every_box)
+            assert kubectl.ran == []
+            continue
+        assert submit.stop_score_jobs(kubectl, tenant, every_box=every_box) == 'job.batch "score-r-a-g0" deleted'
+        assert kubectl.ran == [("delete", "jobs", "-n", "score-jobs", "-l", selector, "--ignore-not-found",
+                                "--wait=false", "--cascade=background")], (every_box, kubectl.ran)
 
     # which work goes on the cluster at all: SCORE_CLOUD=k8s, narrowed by SCORE_CLOUD_KINDS to its kinds (#76), a
     # runner naming no kind known by its script's name, one that cannot be told kept on machines; every other kind
@@ -917,160 +1094,3 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     monkeypatch.setenv("SCORE_CLOUD", "scaleway")
     pool.collect_round("run", {"run_pid": 33}, collecting)  # another run, launched with no cluster
     assert len(rented) == 2 and collecting.refused is None
-
-    # warm nodes (owner, 2026-11-06): once every job is on the cluster, an idle node a job ran on is held WARM_MINUTES
-    # by a pause pod the autoscaler may not evict, asking no card; once an idle spell; billed to its hold's end. The
-    # cluster is a tenant's, its module loaded as submit loads it (SCORE_K8S_PROVIDER=scaleway/tenant)
-    clock = [50_000.0]
-    monkeypatch.setattr(submit.time, "time", lambda: clock[0])
-    monkeypatch.setenv("SCORE_CLOUD", "k8s")
-    monkeypatch.setenv("SCORE_K8S_PROVIDER", "scaleway/tenant")
-    monkeypatch.delenv("SCORE_K8S_NAMESPACE", raising=False)
-    monkeypatch.setattr(manifests, "NAMESPACE", manifests.NAMESPACE)  # the module's NAMESPACE, undone below
-    tenant = submit.cluster_module()
-    assert tenant.NAME == "tenant"
-    # a tenant box that cannot read the cluster's project with scw (the conductor, 2026-11-06): its pools as
-    # SCORE_K8S_POOLS gives them, its nodes through kubectl, never scw. Break: in tenant.nodes, read
-    # `scw("k8s", "node", "list", ...)` again; or in tenant.class_pools, drop the `given is not None` branch
-    monkeypatch.setattr(tenant, "scw", lambda *words: pytest.fail(f"scw asked: {words}"))
-    monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.01, 1))
-    monkeypatch.setenv(tenant.POOLS, json.dumps([
-        {"name": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "max": 10},
-        {"name": "score-l40s", "class": "gpu-48gb", "type": "L40S-1-48G", "zone": "fr-par-2"}]))  # a judge's card
-    assert tenant.class_pools() == [{"name": "score-l4", "id": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
-                                     "zone": "fr-par-2", "max": 10, "euros_a_minute": 0.01, "unit_minutes": 1},
-                                    {"name": "score-l40s", "id": "score-l40s", "class": "gpu-48gb",
-                                     "type": "L40S-1-48G", "zone": "fr-par-2", "max": 0, "euros_a_minute": 0.01,
-                                     "unit_minutes": 1}]  # no max given: none
-    # the provider's record of its nodes: a labelled node (its machine and zone for a node the cluster lists without
-    # zone labels), a node not tainted for score (not score's), and a node just joined, its cloud labels not set yet,
-    # priced by its pool (named in its name), never "? in ?". Break: in tenant.nodes, drop the pool_labels fill
-    taint = {"key": "tenant", "value": "score", "effect": "NoSchedule"}
-    joined = "scw-babon-score-l4-0a1b"
-    listed = {"items": [
-        {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:00:00Z",
-                      "labels": {tenant.CLASS_LABEL: "cpu-32c-128gb", tenant.POOL_LABEL: "score-pop2",
-                                 tenant.INSTANCE_LABEL: "pop2-32c-128g", tenant.ZONE_LABEL: "pl-waw-2"}},
-         "spec": {"taints": [taint]}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}},
-        {"metadata": {"name": "babons", "creationTimestamp": "2026-11-06T10:00:00Z",
-                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {}, "status": {}},
-        {"metadata": {"name": joined, "creationTimestamp": "2026-11-06T10:00:00Z",
-                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {"taints": [taint]}, "status": {}}]}
-    monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
-    assert tenant.nodes() == [
-        {"name": "kosmos-node", "pool": "score-pop2", "type": "POP2-32C-128G", "zone": "pl-waw-2", "status": "ready",
-         "created": 1791554400.0},
-        {"name": joined, "pool": "score-l4", "type": "L4-1-24G", "zone": "fr-par-2", "status": "not_ready",
-         "created": 1793959200.0}]  # an untainted node is not score's
-
-    class NodesKubectl(LiveKubectl):
-        def __init__(self):
-            super().__init__()
-            self.nodes, self.all_pods, self.ran = [], [], []
-
-        def json(self, *arguments):
-            if arguments[1] == "nodes":
-                return {"items": self.nodes}
-            if arguments[1] == "pods":
-                return {"items": self.all_pods}
-            return super().json(*arguments)
-
-        def run(self, *arguments):
-            self.ran.append(arguments)
-            return ""
-
-    kubectl = NodesKubectl()
-    kubectl.nodes = [{"metadata": {"name": name, "creationTimestamp": "2026-11-06T10:00:00Z",
-                                   "labels": {"score.dev/class": "gpu-24gb", "kubernetes.io/hostname": f"host-{name}"}},
-                      "status": {"conditions": []}} for name in ("l4-a", "l4-b")]
-    # beside them: a node without zone labels (the provider's record gives them), the node just joined (its pool's
-    # machine and zone), the conductor's node (its class key no capability class: no class node, never a crash) and a
-    # node seen before its labels came (motor-labval, 2026-11-08: "no price for ? in ?"), its type and zone taken once
-    # they come
-    early = {"metadata": {"name": "early-node", "creationTimestamp": "2026-11-08T19:16:00Z",
-                          "labels": {"score.dev/class": "gpu-24gb"}}, "status": {"conditions": []}}
-    kubectl.nodes += [
-        {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:50:00Z",
-                      "labels": {"score.dev/class": "cpu-32c-128gb"}},
-         "status": {"conditions": [{"type": "Ready", "status": "True", "lastTransitionTime": "2026-10-09T14:50:13Z"}]}},
-        {"metadata": {"name": joined, "creationTimestamp": "2026-11-06T10:00:00Z",
-                      "labels": {"score.dev/class": "gpu-24gb"}}, "status": {"conditions": []}},
-        {"metadata": {"name": "conductor-node", "creationTimestamp": "2026-11-07T10:00:00Z",
-                      "labels": {"score.dev/class": "conductor"}}, "status": {"conditions": []}},
-        early]
-    run = submit.Run("r-warm", {"one": spec, "two": spec}, kubectl, tenant)
-    run.jobs["one"].update(node="l4-a", ran=49_000.0, state="done", submitted=48_000.0)
-    job_pod = lambda node, phase: {"metadata": {"labels": {"score.dev/job": "two"}}, "spec": {"nodeName": node},
-                                   "status": {"phase": phase}}
-    kubectl.all_pods = [job_pod("l4-a", "Succeeded"), job_pod("l4-b", "Running")]
-    run.watch_nodes()
-    seen = run.nodes["kosmos-node"]
-    assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 1791554400.0)
-    assert (run.nodes[joined]["type"], run.nodes[joined]["zone"]) == ("L4-1-24G", "fr-par-2")
-    assert "conductor-node" not in run.nodes
-    early["metadata"]["labels"].update({submit.INSTANCE_LABEL: "l4-1-24g", submit.ZONE_LABEL: "fr-par-2"})
-    submit.hold_idle(run)
-    assert kubectl.jobs == {}  # a job still to put on takes the idle node: no hold
-    run.jobs["two"].update(node="l4-b", ran=49_500.0, submitted=49_400.0)
-    submit.hold_idle(run)
-    hold, = kubectl.jobs.values()  # l4-a idle, l4-b busy with job two
-    pod = hold["spec"]["template"]
-    assert pod["metadata"]["annotations"] == {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
-    assert pod["spec"]["nodeSelector"] == {"kubernetes.io/hostname": "host-l4-a"}
-    assert "nvidia.com/gpu" not in pod["spec"]["containers"][0]["resources"]["requests"]  # the next job's card free
-    assert tenant.TOLERATIONS[0] in pod["spec"]["tolerations"]
-    assert hold["spec"]["activeDeadlineSeconds"] == submit.WARM_MINUTES * 60  # it ends by itself
-    assert hold["metadata"]["labels"]["score.dev/run"] == "r-warm" and len(hold["metadata"]["name"]) <= 63
-    clock[0] += 60
-    run.watch_nodes()
-    submit.hold_idle(run)
-    assert len(kubectl.jobs) == 1  # one hold an idle spell
-    assert (run.nodes["early-node"]["type"], run.nodes["early-node"]["zone"]) == ("L4-1-24G", "fr-par-2")
-    kubectl.all_pods = [job_pod("l4-a", "Running"), job_pod("l4-b", "Succeeded")]
-    clock[0] += 60
-    run.watch_nodes()
-    submit.hold_idle(run)
-    assert len(kubectl.jobs) == 2  # l4-b idle now; l4-a busy again
-    kubectl.all_pods = [job_pod("l4-a", "Succeeded"), job_pod("l4-b", "Succeeded"),
-                        {"metadata": {"labels": {"score.dev/warm": "hold"}}, "spec": {"nodeName": "l4-b"},
-                         "status": {"phase": "Running"}}]
-    clock[0] += 60
-    run.watch_nodes()
-    submit.hold_idle(run)
-    assert len(kubectl.jobs) == 3 and not run.nodes["l4-b"]["busy"]  # a hold is no job: l4-a held again
-    submit.last_seen_scale_down(run)
-    assert run.nodes["l4-a"]["deleted"] == clock[0] + (submit.WARM_MINUTES + submit.IDLE_ESTIMATE_MINUTES) * 60
-    run.nodes["l4-a"]["deleted"] = None
-    submit.stop_run(run, "the batch cap")
-    assert kubectl.ran == [("delete", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-warm,score.dev/warm",
-                            "--ignore-not-found", "--wait=false", "--cascade=background")]
-    submit.last_seen_scale_down(run)
-    assert run.nodes["l4-a"]["deleted"] == clock[0] + submit.IDLE_ESTIMATE_MINUTES * 60  # a stop ends the holds
-    monkeypatch.undo()
-
-    # stop-batch: score's Jobs in score-jobs only
-    class Recording(LiveKubectl):
-        def run(self, *arguments):
-            self.deleted.append(arguments)
-            return "job.batch \"score-r-a-g0\" deleted\n"
-    kubectl = Recording()
-    monkeypatch.setattr(manifests, "NAMESPACE", "score-jobs")
-    assert submit.stop_score_jobs(kubectl, PoolCluster()) == 'job.batch "score-r-a-g0" deleted'
-    # only this box's: another box's runs share score-jobs (2026-11-06: the conductor's stop ended a sim body run this
-    # PC had launched). Break: in submitter.stop_score_jobs, select by RUN_LABEL alone; or drop BOX_LABEL from labels
-    monkeypatch.setenv("SCORE_K8S_BOX", "conductor")
-    kubectl.deleted.clear()
-    assert submit.stop_score_jobs(kubectl, PoolCluster()) == 'job.batch "score-r-a-g0" deleted'
-    assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run,score.dev/box=conductor",
-                                "--ignore-not-found", "--wait=false", "--cascade=background")]
-    # the env1 cap's stop reaches every box's (the plan of 2026-11-09 B4). Break: ignore `every_box`
-    kubectl.deleted.clear()
-    submit.stop_score_jobs(kubectl, PoolCluster(), every_box=True)
-    assert kubectl.deleted == [("delete", "jobs", "-n", "score-jobs", "-l", "score.dev/run",
-                                "--ignore-not-found", "--wait=false", "--cascade=background")]
-    assert manifests.labels("r", "a", "pixal")[manifests.BOX_LABEL] == "conductor"
-    assert manifests.warm_hold("r", "node-1", "host-1", 10, 0)["metadata"]["labels"][manifests.BOX_LABEL] == "conductor"
-    monkeypatch.setattr(manifests, "NAMESPACE", "score")
-    with pytest.raises(SystemExit, match="score-jobs only"):
-        submit.stop_score_jobs(Recording(), PoolCluster())
-

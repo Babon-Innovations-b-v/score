@@ -119,7 +119,6 @@ FUNCTION_DEBT = {
     "tools/blender/inside/test_ink_at_edges_and_each_prim_its_own.py": 5,
     "tools/characters/maker/test_made_as_asked_and_bound_to_its_limbs.py": 59,
     "tools/characters/people/test_body_pieces_hold_together.py": 16,
-    "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 3,
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
 }
