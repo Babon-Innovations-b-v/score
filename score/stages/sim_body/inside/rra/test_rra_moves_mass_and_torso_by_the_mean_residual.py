@@ -55,6 +55,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   `labels == label` made all vertices: region b's half read as a quarter (2026-11-05).
 - rra._cap.smoothed_off's `smoothed(offsets, rate)` dropped: the shake kept; its offsets taken off the zero pose
   instead of `before`: the walk itself low-passed (2026-11-05).
+- (2026-11-14) rra._cap.landed's `smoothed_off(physics, shifted, ...)` made `smoothed_off(physics, np.repeat(shifted[:1],
+  len(shifted), 0), ...)` (the move low-passed off a pose it did not move, as off the fitted path before): the turn-in
+  low-passed (only_the_move_off_the_fitted_path_is_low_passed red).
 - rra._linear.wrenches' `places - summed[:, None] * origin` made `places - origin`, and its `summed[:, None, None] *
   edges` made `edges`: the blended point's columns off its Jacobian's; residuals_kept's key without the masses: moved
   masses read the kept residuals (2026-11-06).
@@ -606,7 +609,9 @@ def a_move_that_puts_bones_out_of_the_skin_is_seen_by_region():
 def only_the_move_off_the_fitted_path_is_low_passed():
     """The legs toy's fitted path walking 1 m/s along x for 60 frames at 30 a second, a found path 1 cm further along
     with a 1 mm shake every other frame: the smoothed path keeps the walk and the centimetre (within 0.2 mm mid-clip)
-    and its shake is under a tenth of a millimetre; a found path equal to the fitted one comes back unchanged."""
+    and its shake is under a tenth of a millimetre; a found path equal to the fitted one comes back unchanged. `landed`
+    on that path moved by a 1 cm turn-in along x over its first three frames, its legs' solve setting y to a 1 mm
+    shake: the turn-in kept on every frame and y the legs' own (within 1e-9 m)."""
     import types
     import numpy as np
     import model
@@ -623,7 +628,16 @@ def only_the_move_off_the_fitted_path_is_low_passed():
     shake = float(np.abs(np.diff(off[10:50], n=2)).max())
     problems += [] if shake < 1e-4 else [f"a shake of {shake} m left"]
     same = rra.smoothed_off(physics, path, path, 30.0)
-    return problems + ([] if np.allclose(same, path, atol=1e-12) else ["an unmoved path changed"])
+    problems += [] if np.allclose(same, path, atol=1e-12) else ["an unmoved path changed"]
+    shifted = path.copy()
+    shifted[:3, 0] += [0.01, 0.005, 0.001]
+
+    def shaken(walked):
+        walked = walked.copy()
+        walked[:, 1] = 0.001 * (-1) ** np.arange(60)
+        return walked
+    kept = rra.landed(physics, shifted, shaken, 30.0)[:, :2] - shaken(shifted)[:, :2]
+    return problems + ([] if np.abs(kept).max() < 1e-9 else [f"landed moved x, y by {np.abs(kept).max(axis=0)} m"])
 
 
 TRUNK_LEGS = LEGS.replace("""      <body name="thigh_l\"""", """      <body name="torso" pos="0 0 0.1">

@@ -40,7 +40,7 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   whose move puts a region's bones over `SKIN_SLACK` further out of SOMA's skin than the fitted path holds them has it
   halved (`fit.FrameSkins`, the skin moved by the same move, as the drawn person plays it, 2026-11-14; 2026-11-05,
   #70: the trunk RRA turns carries the arms and head, and the pickup's hands stood 37.7% outside against the fit's 1.6%), the shares held smooth (`held_share`: eroded, then a Hann average, never
-  above the lowered share), the move off the fitted path low-passed and the feet kept again (`smoothed_off`: the share's
+  above the lowered share), what the legs' solve changed of the move low-passed and the feet kept again (`landed`, 2026-11-14: low-passed again, the move off the fitted path lost its turn at a clip's ends; `smoothed_off`: the share's
   corners and the leg solve shook the shins up to 30 times the clip's jerk, 2026-11-05); the least share is recorded; scaling the whole move down after the solve, as before
   2026-10-28, gave back about half of what it reduced). Nothing is applied to the body. How far it moved is each body's
   `adjusted` record (pelvis cm, each segment's degrees, the largest turn on any frame, mass %, torso centre of mass cm,
