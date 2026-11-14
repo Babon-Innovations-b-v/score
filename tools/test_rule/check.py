@@ -124,7 +124,6 @@ FUNCTION_DEBT = {
     "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 3,
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
-    "tools/props/test_crop_as_pixal3d_does.py": 2,
 }
 
 # The docstring line that excuses a second test function, with its reason after the colon.
