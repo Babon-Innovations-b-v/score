@@ -268,6 +268,17 @@ staying the judged measure; one kernel for the CPU and the card), `_frozen.py` m
 - `following` and `riding` read the bone-group and landmark tables of MyoFullBody itself, so the toy test does not
   reach them; they are checked on the walkers' runs (#70's numbers).
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.
+- **The toes rise as SOMA's** (`_toes.toes_bent`, on the path after its low-pass; 2026-11-14): MyoFullBody's toes
+  ride one hinge 35.5 degrees off the foot's across, SOMA's bend about the across, and the turn goal's nearest hinge
+  turn is the bend times their cosine, so the toes bent about 0.66 of SOMA's and the low-pass took 3 to 4 degrees more
+  off a toe-off: camp's walker's trailing toes' skin stood 4 to 6.4 mm under SOMA's floor (`on floor`, `lands`). Each
+  frame's hinge is set from SOMA's own bend to the turn that raises the toes' tip as SOMA's bend raises SOMA's,
+  asin(sin bend / cos), about the hinge's angle at SOMA's rest (the fitted angles' line on the bends), low-passed as
+  the path is (unfiltered, the walker's turns shook 2.17 against its clip's 2.13), within its range. Three failed
+  first (2026-11-14, same walker): each sinking frame's least
+  extra bend after the low-pass, held smooth from above, lifted standing toes and their push (151 N residual); each
+  frame's own, its corners shook the toes past the clip's jerk (3.2 against 2.1), and scaling the hinge about its
+  median bent the standing toes under (5.2 mm).
 - **The kneecap is not held in the skin** (`_skin.KNEECAP`, #98, 2026-11-07): it rides the quadriceps' tendon where
   MyoFullBody's couplings put it (sizing keeps them), and SOMA's linear-blend skin caves at a bent knee; held there,
   the fit turned the knee to keep it in.
