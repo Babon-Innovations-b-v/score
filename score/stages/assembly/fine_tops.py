@@ -19,7 +19,9 @@ wrench, a plant pot on the keyboard and a picture frame on the other pot leaned 
     FINE                          metres apart the spots are read
     meets(low, high, other)       whether a box reaches into another thing's box or turned outline
     laid(stage, place, entries)   each thing on its holders' top (`entries`, built_tops.held_on's) that does not rest
-                                  where it is laid on the nearest spot where it rests; the fits [{..., "top at"}]
+                                  where it is laid, or reaches into another laid on them (crowding), on the nearest
+                                  spot where it rests clear of the others; the fits [{..., "top at"}]
+    crowding(stage, place, entry, carried, box_of)   the other laid on its holders, no taller, it reaches into, or None
     stacked(stage, place, entry, thing, box_of, carried)   (the move, the name) onto the nearest other's top where
                                   it rests
 """
@@ -29,6 +31,10 @@ from score.stages.assembly import crest_tops, fitting
 
 # How far apart, metres, the spots of a holder's top a thing is tried at are read, each way.
 FINE = 0.005
+# How far, metres, crowding reads boxes as the same: another's top this far over a thing's own is as high (two of one
+# model side by side), and a box this far into another is clear of it (spot lays one at the clear edge, which reads a
+# hair into it once its move is written in single floats).
+SAME = 1e-4
 
 
 def laid(stage, place, entries):
@@ -67,13 +73,13 @@ def one(stage, place, entry, carried):
     field, exact = crest_tops.height_field(surface, box), crest_tops.exact_field(surface, box)
     low_points = np.asarray(triage.low_points(own), float)
     every = np.vstack([own.vertices, own.sample(crest_tops.EVERY, seed=0)])
-    if crest_tops.stands(own, exact, np.zeros(3)):
+    low, high = fitting.world_box(stage, path)
+    if crest_tops.stands(own, exact, np.zeros(3)) and crowding(stage, place, entry, carried, (low, high)) is None:
         return None
     left_out = {entry["name"], *(entry["on"].get("holder") or []), *carried.get(entry["name"], [])}
     things = stage.GetPrimAtPath(f"/{place}/Objects")
     others = [outline_of(stage, str(prim.GetPath())) for prim in (things.GetChildren() if things else [])
               if prim.GetName() not in left_out and prim.IsActive()]
-    low, high = fitting.world_box(stage, path)
     thing = (own, low_points, every, resting.weight_at(own))
     move, on_other = spot(thing, (field, exact), (low, high), box, others), None
     if move is None:
@@ -100,18 +106,44 @@ def beside(stage, place, entry, carried, under, but=()):
     holders alone, quarters' keyboard and books, their boxes 8 to 9 mm into each other's on its desk (fitting.BOARD_CLEAR
     lets a box 1 cm into another), and a book laid 9.5 mm deep over two 1.3 cm wrenches, rested, and leaned 5 to 16
     degrees on each other (settle@quarters, 2026-11-13)."""
-    riders, todo = set(), [entry["name"]]
-    while todo:
-        for rider in carried.get(todo.pop(), []):
-            if rider not in riders:
-                riders.add(rider)
-                todo.append(rider)
-    left_out = {entry["name"], *riders, *but}
+    left_out = {entry["name"], *riding(entry["name"], carried), *but}
     names = [other for holder in entry["on"].get("holder") or [] for other in carried.get(holder, [])
              if other not in left_out and stage.GetPrimAtPath(f"/{place}/Objects/{other}")
              and float(fitting.world_box(stage, f"/{place}/Objects/{other}")[1][1]) < under]
     return [mesh for mesh in (fitting.surface_mesh(stage, f"/{place}/Objects/{other}") for other in dict.fromkeys(names))
             if mesh is not None]
+
+
+def riding(name, carried):
+    """The things riding on a thing (`carried`'s, fitting.with_stacked's), down their chain."""
+    riders, todo = set(), [name]
+    while todo:
+        for rider in carried.get(todo.pop(), []):
+            if rider not in riders:
+                riders.add(rider)
+                todo.append(rider)
+    return riders
+
+
+def crowding(stage, place, entry, carried, box_of):
+    """The first other laid on a thing's holders (`carried`'s, less what rides on it) whose top stands no higher than
+    its own that its box (`box_of`) reaches into (meets), else None: a thing that rests where it is laid is still laid
+    again clear of them. One standing taller over it is the one laid into it, and is laid again itself (`beside` reads
+    this one under it). Lab's two 0.4 m monitors (one model, a box turned 45 degrees in its frame), laid at one corner
+    of its 0.92 m desk bake, their boxes 20 cm into each other and their models into each other: each rested on the
+    desk alone (stands), and the resting check read each one's low points inside the other as its support and its up
+    leaning 8.6 and 6.4 degrees (settle@lab, 2026-11-14)."""
+    left_out = {entry["name"], *riding(entry["name"], carried)}
+    for holder in entry["on"].get("holder") or []:
+        for other in carried.get(holder, []):
+            path = f"/{place}/Objects/{other}"
+            if other in left_out or not stage.GetPrimAtPath(path) or not stage.GetPrimAtPath(path).IsActive():
+                continue
+            found = outline_of(stage, path)
+            low, high = (np.asarray(end, float) for end in box_of)
+            if float(found[1][1]) <= float(high[1]) + SAME and meets(low + SAME, high - SAME, found):
+                return other
+    return None
 
 
 def stacked(stage, place, entry, thing, box_of, carried):

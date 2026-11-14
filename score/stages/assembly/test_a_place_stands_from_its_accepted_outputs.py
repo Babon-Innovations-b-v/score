@@ -2461,6 +2461,9 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     Break: score/stages/assembly/fine_tops.py: laid's `fitting.with_stacked(stage, place, carried, list(by_name))` ->
         `carried` (the cup left at 1.4 m as its computer is laid on the rim), or fitting.py: with_stacked's `<=
         BOARD_BED and` -> `<= -1.0 and` (nothing read standing on anything)
+    Break: score/stages/assembly/fine_tops.py: one's `and crowding(stage, place, entry, carried, (low, high)) is None`
+        dropped (lab's monitor left 0.1 m into the other), or crowding's `float(found[1][1]) <= float(high[1]) + SAME
+        and` dropped (quarters' wrench laid again for the book laid over it)
     Break: score/stages/assembly/fine_tops.py: one's `move, on_other = stacked(stage, place, entry, thing, (low, high),
         carried)` -> `pass` (the third cup left over the slope), or its `float(np.linalg.norm(move)) <
         fitting.MOVE_LEAST)` -> `False)` (the stacked cup laid again where it is)
@@ -2856,6 +2859,23 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert [fit["name"] for fit in fine] == ["cup_42"] and "onto cup_41's top" in fine[0]["words"], fine
     assert 0.0 <= stack_low[1] - fitting.world_box(stage, f"/{TOY}/Objects/cup_41")[1][1] <= 0.01, stack_low
     assert fine_tops.laid(stage, TOY, riding) == []
+    # lab (settle@lab, 2026-11-14): its two monitors, laid at one corner of its desk bake 20 cm into each other, each
+    # rested on the desk alone and was left, and the resting check read each one's foot inside the other as its
+    # support, leaning 8.6 and 6.4 degrees. A thing resting where it is laid that reaches into another laid on its
+    # holders as tall as it is laid again on the nearest spot clear of it: two 0.3 m boxes 0.1 m into each other on a
+    # slab, the first laid clear, the second then left, and left again laid again.
+    faced(f"/{TOY}/Objects/desk_80", [(80.0, 0.0, 0.0), (81.0, 0.03, 0.6)])
+    faced(f"/{TOY}/Objects/monitor_80", [(80.1, 0.03, 0.1), (80.4, 0.33, 0.4)])
+    faced(f"/{TOY}/Objects/monitor_81", [(80.3, 0.03, 0.2), (80.6, 0.33, 0.5)])
+    crowded = [{"name": name, "row": "monitor", "on": {"how": "top", "holder": ["desk_80"]}}
+               for name in ("monitor_80", "monitor_81")]
+    fine = fine_tops.laid(stage, TOY, crowded)
+    boxes = [fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("monitor_80", "monitor_81")]
+    assert [fit["name"] for fit in fine] == ["monitor_80"] and not fitting.reaches_into(*boxes[0], boxes[1]), fine
+    assert abs(boxes[0][0][1] - 0.03) <= 0.01 and np.allclose(boxes[1][0], (80.3, 0.03, 0.2)), boxes
+    again = fine_tops.laid(stage, TOY, crowded)
+    boxes = [fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("monitor_80", "monitor_81")]
+    assert "monitor_81" not in [fit["name"] for fit in again] and not fitting.reaches_into(*boxes[0], boxes[1]), again
     # its mouse (10 x 6 cm), a 5 cm wrench and a plant pot were never found a spot where they rest: no point of a 6 cm
     # thing is BALANCE (5 cm) inside it. A 10 x 6 cm box on a flat slab rests there, its weight a quarter of its 6 cm
     # inside what it touches; hung 5 cm past the slab's edge it does not.
