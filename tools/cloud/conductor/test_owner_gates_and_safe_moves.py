@@ -15,7 +15,7 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   the conductor is never tagged `farm-factory-batch`; a secret value never shows.
   Break: drop `f"zone={ZONE}"` from the server create in `make_server`.
 - prepare.sh's dry run makes nothing; a second run against an scw holding everything creates nothing.
-  Break: `have_secret` in prepare.sh answers no -> secrets are created again.
+  Break: `secret_state` in prepare.sh answers nothing -> secrets are created again.
 - The agents' door refuses a shell, a paid run, the owner's commands and anything under the free-only latch, and runs
   the allowed ones marked as an agent's (`--free` added to a run; a benchmark only under its grant).
   Break: drop `--free` from the door's `run` rewrite in agent_door.py.
@@ -38,9 +38,27 @@ Spending and moving are the owner's (machine.py, agent_door.sh, prepare.sh):
   Break: in `store_push`, `os.replace(part, target)` for `os.link(part, target)` -> the conductor's record replaced.
   Break: in `push_target`, drop the `target.parent.resolve()` check -> a write through a link leaves work/.
   Break: in `store_push`, drop the `not member.isfile()` refusal -> a link member is accepted.
+  Break: in `store_push`, `sorted(parts, key=...)` -> `parts` (a record lands before its listing and blob), or land
+  each member as it is read (a stream cut short leaves the record without its output; 2026-10-31).
   Break: in `store_missing` or `store_push`, drop `evicted_here` -> a blob the conductor evicted into the store bucket
   is listed missing and landed again (#74: the PC sends evicted blobs back).
   Break: in `fault`, drop the `NODE.match` refusal -> `../../logs/x` is read.
+- The door's other reads (READ_ROWS over door_world): the newest warm pool log, each running run's nodes (a resumed
+  run's in its frozen home, a count as the drive's gauge writes it), a resumed run's log followed, every owner outbox,
+  a run's stacks only from a process that catches SIGUSR1 (2026-11-05 to 11-08).
+  Break: in `pool_log`, take `found[:1]`. Break: in `running`, drop the frozen homes' glob, or the count case.
+  Break: in `followed`, return `log` at once. Break: in `outbox`, drop the frozen homes' glob.
+  Break: in `stack`, drop the `catches` refusal. Break: in tools/cloud/batch.py stop_on_signals, drop `stacks_on_ask()`.
+- The door's gaps prints a node's batch gaps and the batch.log lines saying why; its predicted prints the prepared
+  batch's takes that may not stand (2026-10-26). Break: drop `'gaps ('` from GAPS_CODE's words.
+- A Buy's options and its start (BUY_OPTION_ROWS, BUY_ROWS): --place and --leave-place reach its command, a stage
+  with an underscore is left out by name, --max-machines and --take-cheap pass, --cluster only once cluster-check
+  passes (the tenant module's status part of it, the tmpfs settings SCORE_K8S_* only), its run then carrying
+  SCORE_CLOUD=k8s and the kinds.
+  Break: in `buy_started`, drop the `--place` part of `asked`. Break: drop "--leave-place", "--max-machines" or
+  "--take-cheap" from BUY_OPTIONS. Break: STAGE_LIST's `[a-z0-9_-]` -> `[a-z0-9-]`. Break: in `buy_started`, drop
+  `cluster_check(os.environ)`, or `env={**os.environ, **extra}`. Break: in `tenant_status`, drop the
+  `done.returncode != 0` refusal. Break: in `cluster_values`, drop the `name.startswith("SCORE_K8S_")` filter.
 - The env file carries no secret. Break: let SCORE_SYNC_TOKEN through `env_text`.
 - The move: this PC's store units off first (a failed disable is said), its home backed up before the conductor
   restores it, the sync installed after; the PC's home set aside and made read-only last, after the yes is marked.
@@ -52,7 +70,8 @@ Boot (cloud-init, boot.sh, units):
 - The rendered cloud-init passes `cloud-init schema`; the agent's key is bound to the door with no pty or forwarding,
   the owner's is not; no slot is left unfilled; the first boot runs boot.sh through the unit, enabled only once the
   bus is up. Break: drop `no-pty` from `authorized_keys`.
-- Every unit passes `systemd-analyze --user verify`; the sync pass runs the update first, on the system python.
+- Every unit passes `systemd-analyze --user verify` in the home the boot made, the sync's units as rendered for its
+  checkout too; the sync pass runs the update first, on the system python.
 - boot.sh runs against a temp root and again: the data volume formatted once, its mountpoint immutable before the
   mount, the units installed as rendered, the prop environment and the sync's units (install-sync --no-pull, after
   score-update) only after the move; a download that misses its
@@ -60,18 +79,21 @@ Boot (cloud-init, boot.sh, units):
   Break: drop `chattr +i` before the mount in boot.sh. Break: skip the SHA-256 check in boot.sh's download.
   Break: drop `sync_units "$repo"` from boot.sh's user part. Break: drop `resize2fs "$device"` from boot.sh's
   mount_data (a volume grown by `machine.py grow-data` never gets its room).
-- Wording checks guarding owner rules (they read text on purpose): no unit names a path of the owner's PC; boot.sh's
-  gltfpack pin is the one tools/review/viewer/export.py runs. Break: change `GLTFPACK_PIN` in boot.sh.
+- No installed unit names a path of the owner's PC; the boot seeds the npm cache with the gltfpack pin
+  tools/review/viewer/export.py runs. Break: change `GLTFPACK_PIN` in boot.sh.
 
 The health record (health_push.py) errs on busy:
-- It counts claims whose pid lives, parked machines, frozen copies a process works in (a waiting-for-size run's own
-  copy left out), holds a live process keeps; an empty home is idle; a claims file that does not parse raises.
+- Over the data volume the boot mounted: fresh, it is idle; then it counts claims whose pid lives, parked machines,
+  frozen copies a process works in (a waiting-for-size run's own copy left out), holds a live process keeps; a claims
+  file that does not parse raises.
   Break: `return 0` on any error in `active_runs`. Break: drop `copy not in waiting` in `frozen_in_use`.
-- secret_reader.sh finds the secrets project by name; secrets.sh writes the file-shaped secrets whole at 600 in a 700
-  folder, an empty read never replaces a good one, an absent optional billing reader leaves a note, a failed read
-  fails. Break: drop the empty check in secrets.sh.
+- secret_reader.sh, as the boot installed it, finds the secrets project by name; secrets.sh, run as the boot's
+  score-secrets.service and reading through it, writes the file-shaped secrets whole at 600 in a 700 folder (the
+  door's cluster settings read there SCORE_K8S_* only; the door service opens with the token the same vault holds), an empty read never replaces a good one, an absent optional billing reader
+  leaves a note, a failed read fails. Break: drop the empty check in secrets.sh. Break: `asker_reader` hands back
+  the box's own SCORE_SECRET_READER.
 - Claude Code's login (claude_login.py, from secrets.sh): with no claude-code-oauth-token, no `claude` on the PATH, so
-  the adapter's NotHere fires; with the pinned CLI and the secret, `claude` reaches it with the login in
+  the adapter's NotHere fires; with the pinned CLI the boot found and the secret, `claude` reaches it with the login in
   CLAUDE_CODE_OAUTH_TOKEN and no API key, the login in no file and no log line; a `claude` not ours is never removed;
   boot.sh does not reinstall a CLI at its pin. Break: in `environment`, drop `TOKEN_ENV: value`. Break: in `link`,
   `and token() is not None` -> `` (the link stays without the secret, NotHere never fires).
@@ -93,19 +115,24 @@ The checkout moves (update.py):
   Break: `frozen_users` returns []. Break: drop the lock in `main`. Break: `pass_updates_first` always True.
   Break: `units_installed` returns "". Break: `claude_installed` returns "". Break: `released_over` returns the pin
   first. Break: agent_door.release_pinned drops its `run(...)` of update.py.
-  (These cases are rows of CASES in test_the_checkout_moves_only_when_nothing_works_from_it, each break seen red.)
+  (These cases are rows of CASES, each break seen red: the pin read -> unread-pin-moves-nothing; `lock_changed` ->
+  a-pin-reached-moves-and-syncs-nothing; `idle_copies` -> running-run-holds-any-move; the idle-run refusal ->
+  idle-run-holds-a-lock-move; `frozen_users` -> frozen-run-holds-any-move; `pass_updates_first` ->
+  sync-pass-holds-a-lock-move, and returning False -> sync-pass-of-a-unit-updating-first, whose unit is the one
+  rendered for the boot's checkout; `released_over` and release_pinned -> release-followed-before-the-host-builds;
+  `units_installed` -> units-changed-installed; `claude_installed` -> claude-code-pinned-installed.)
 - score_lib's checkout beside it gets the machine's committer when git knows no user.email there, even when nothing
   moves, and an identity it has stays (2026-10-28: every library commit on the conductor failed for want of one).
   Break: in `library_identified`, `.returncode == 0` -> `.returncode == 1` (no identity given; one there overwritten).
 - The pod's door service (door_service.py, #76 step 4) answers with the ssh door's own refusals and allowed commands
   and runs nothing without its token. Break: in door_service.Handler.do_POST drop the `compare_digest` refusal.
 """
-import base64
 import concurrent.futures
 import contextlib
 import datetime
 import fcntl
 import http.server
+import io
 import json
 import os
 import pathlib
@@ -115,6 +142,7 @@ import socket
 import stat
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
@@ -163,77 +191,14 @@ def soon(check, seconds=10):
     return True
 
 
-def owner_keys(folder):
-    """A throwaway key pair standing in for the owner's (dry runs never read the private half)."""
-    private = pathlib.Path(folder) / "owner"
-    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", "owner", "-f", str(private)], check=True)
+def owner_keys(folder, name):
+    """A throwaway key pair standing in for the owner's or the agents' (dry runs never read the private half)."""
+    private = pathlib.Path(folder) / name
+    subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", name, "-f", str(private)], check=True)
     return private
 
 
 # ==== spending and moving are the owner's ===========================================================================
-
-def test_an_agent_is_refused_up_and_move_without_the_owners_open_yes_and_down_without_confirmation(monkeypatch):
-    for marker in AGENT_MARKERS:
-        assert machine.agent_refusal({marker: "1"}), marker
-    assert machine.agent_refusal({}) is None
-    yes = {"id": "y-1", "answer": "yes", "question": "Switch the conductor on?"}
-    marked = {AGENT_MARKERS[0]: "1"}
-    refused, found = machine.step_refusal("up", marked, open_yes=lambda step: None)
-    assert refused and found is None
-    assert machine.step_refusal("up", marked, open_yes=lambda step: yes) == (None, yes)
-    assert machine.step_refusal("move", {}, open_yes=lambda step: yes) == (None, None)  # the owner needs no yes
-    (_, environment), _ = machine.move_steps("scw", yes)
-    assert environment["SCORE_CONDUCTOR_YES"] == "y-1"  # the migrate steps check the same yes
-
-    for marker in AGENT_MARKERS:
-        monkeypatch.delenv(marker, raising=False)
-    scw = machine.Scw(dry=True, say=lambda line: None)
-    with pytest.raises(SystemExit, match="not confirmed"):
-        machine.down(types.SimpleNamespace(with_data=False), scw, say=lambda line: None, answer=lambda question: "no")
-    assert scw.calls == []
-
-
-def test_up_dry_names_project_and_zone_on_every_call_and_makes_none(tmp_path, monkeypatch):
-    printed = []
-    private = owner_keys(tmp_path)
-    options = types.SimpleNamespace(owner_key=str(private), agent_key=f"{private}.pub",
-                                    env_file=str(tmp_path / "none.env"))
-    scw = machine.Scw(dry=True, say=printed.append)
-    real_run = subprocess.run
-
-    def no_scw(arguments, *args, **kwargs):
-        assert arguments[0] != "scw", f"a dry run called scw: {arguments}"
-        return real_run(arguments, *args, **kwargs)
-    monkeypatch.setattr(machine.subprocess, "run", no_scw)
-    machine.up(options, scw, printed.append)
-    calls = scw.calls
-    assert calls and all(f"scw {call}" in printed for call in calls)
-    for call in calls:
-        assert "farm-factory-batch" not in call, call  # the runner's leftover sweeps delete by that tag
-        if not call.startswith("account project list"):
-            assert any(f" {key}=" in f" {call}" for key in ("zone", "region")), f"no zone or region: {call}"
-        if (" list " in f" {call} " or " create " in f" {call} ") and not call.startswith(INSIDE_OWNED):
-            assert "project-id=" in call, f"no project: {call}"
-    server = next(call for call in calls if call.startswith("instance server create"))
-    assert "project-id=<id of project score-conductor>" in server and "tags.0=score-conductor" in server
-    assert any("inbound-default-policy=drop" in call for call in calls)  # only ssh comes in
-    assert all("<secret>" in call for call in calls if ".value=" in call)
-
-    user_data = machine.Scw(dry=True, say=lambda line: None)
-    machine.set_user_data(types.SimpleNamespace(owner_key=str(private), agent_key=None), user_data,
-                          say=lambda line: None)
-    assert any(call.startswith("instance user-data set ") and f"zone={machine.ZONE}" in call
-               for call in user_data.calls)
-    assert not any(" create " in f" {call} " or " delete " in f" {call} " for call in user_data.calls)
-
-    grown = machine.Scw(dry=True, say=lambda line: None)
-    assert machine.grow_data(grown, 100, "his yes", say=lambda line: None) == machine.DATA_GB + 100
-    assert [call for call in grown.calls if call.startswith("block volume update")] == [
-        f"block volume update '<id of the data volume>' size={machine.DATA_GB + 100}GB zone={machine.ZONE}"]
-    for bad in ((0, "his yes"), (100, " ")):
-        with pytest.raises(SystemExit):
-            machine.grow_data(machine.Scw(dry=True, say=lambda line: None), *bad, say=lambda line: None)
-
 
 PREPARE_SECRETS = ("score-conductor-key", "score-conductor-size-key", "score-conductor-size-token",
                    "score-backup-restic-password", "score-cockpit-sync-token", "score-lib-deploy-key")
@@ -262,24 +227,15 @@ def prepare(folder, *arguments, scw_text=None):
                           timeout=60)
 
 
-def test_prepare_dry_makes_nothing_and_a_second_run_creates_nothing(tmp_path):
-    dry, again = tmp_path / "dry", tmp_path / "again"
-    dry.mkdir()
-    again.mkdir()
-    with concurrent.futures.ThreadPoolExecutor(2) as pool:  # the two runs side by side
-        runs = pool.submit(prepare, dry, "--dry"), pool.submit(prepare, again, scw_text=HOLDING_SCW)
-        done, second = (run.result() for run in runs)
-    assert done.returncode == 0, done.stderr
-    assert not (dry / "scw.log").exists()
-    for secret in PREPARE_SECRETS:
-        assert f"scw secret secret create name={secret} " in done.stderr, secret
-    # the conductor's key lives in its own project, which no key but the owner's may read
-    assert "name=score-conductor-key project-id=<new>" in done.stderr
-    assert "data=@<a file in /dev/shm>" in done.stderr and "<value>" not in done.stderr  # values only through a file
-
-    assert second.returncode == 0, second.stderr
-    calls = (again / "scw.log").read_text().splitlines()
-    assert calls and not [call for call in calls if " create" in call], calls
+# prepare.sh: (row, its arguments, the scw it runs against or None, whether it calls scw, words its stderr says,
+# words it never says). The dry run makes nothing; a second run against an scw holding everything creates nothing; the
+# conductor's key lives in its own project, which no key but the owner's may read; values go only through a file.
+PREPARE_ROWS = [
+    ("dry", ("--dry",), None, False, (*(f"scw secret secret create name={secret} " for secret in PREPARE_SECRETS),
+                                      "name=score-conductor-key project-id=<new>", "data=@<a file in /dev/shm>"),
+     ("<value>",)),
+    ("again", (), HOLDING_SCW, True, (), ("<value>",)),
+]
 
 
 # The agents' door, end to end through agent_door.sh: a copy of the door in a fake checkout whose interpreter runs
@@ -330,10 +286,11 @@ def door(tmp_path):
         with concurrent.futures.ThreadPoolExecutor(8) as pool:
             return list(pool.map(lambda asked: through(asked, env_file_text), asks))
 
-    def through_service(asked, env_file_text="", token="door-token"):
-        """The same door through door_service.py (the pod's, #76 step 4): one request with that token."""
+    def through_service(asked, token, opened=None):
+        """The same door through door_service.py (the pod's, #76 step 4), opened by `opened` (default `token`): one
+        request with `token`."""
         record = fresh_record()
-        server = door_service.serve("door-token", 0, environment=environment(asked, env_file_text, record))
+        server = door_service.serve(opened or token, 0, environment=environment(asked, "", record))
         threading.Thread(target=server.serve_forever, kwargs={"poll_interval": POLL}, daemon=True).start()
         try:
             code, _, err = door_service.send(f"http://127.0.0.1:{server.server_address[1]}/", token, asked)
@@ -473,6 +430,300 @@ MOVE_OUT_ROWS = [
 ]
 
 
+# The door's reads, pushes and Buys over one home (door_world): a launch's run log in a frozen home that links the
+# home's logs, store and work, a cloud job's log, fault reports, a node's log, warm pool logs, design files, a record,
+# an evicted blob's mark and a link out of work; beside it a run registry, an empty home and the people routes'
+# candidates.
+FROZEN_HOME = "20261027-0918.home"
+JOB = f"{FROZEN_HOME}/work/cloud/blender-1/job3.log"
+JOB_TAIL = "Traceback: the paint of crane failed"
+LOG = "{home}/frozen/" + FROZEN_HOME + "/logs/score-run-1.log"
+GONE_BLOB, FRESH_BLOB = "a" * 64, "b" * 64  # gone: evicted into the store bucket here (its mark), never sent back
+HOME, BARE, CANDIDATES, REGISTRY, RUNS = "<home>", "<bare>", "<candidates>", "<registry>", "<runs>"
+# Every read: (row, agent_door's reader, its arguments (HOME and the like: that folder; {home} and the like filled in),
+# whether the frozen home still stands (clean-frozen removes it, the logs stay), the job-log tail cap or None, what it
+# answers: REFUSED, ("ends", text), ("lines", the lines after its header), ("is", text) or ("holds", words, never
+# words), and a tag: every read of one tag answers the same text, however it is named, the frozen home there or gone).
+READ_ROWS = [
+    # 2026-10-27: surfaces-bake@campgrounds' eight failed jobs, their logs under the frozen home out of reach
+    ("job-log under a frozen home", "job_log", (JOB, HOME), True, None, ("ends", JOB_TAIL), "job3"),
+    ("job-log whole, as a fault report names it", "job_log", ("{frozen}/work/cloud/blender-1/job3.log", HOME), True,
+     None, ("ends", JOB_TAIL), "job3"),
+    ("job-log, its tail capped", "job_log", (JOB, HOME), True, 12, ("ends", "\ncrane failed"), None),
+    *((f"job-log {why}", "job_log", (asked, HOME), True, None, REFUSED, None) for why, asked in (
+        ("not a cloud log", f"{FROZEN_HOME}/design/x.log"), ("a link out", f"{FROZEN_HOME}/work/cloud/blender-1/escape.log"),
+        ("`..` out", f"{FROZEN_HOME}/work/cloud/../../../store/k.txt"), ("a store file whole", "{home}/store/k.txt"),
+        ("no such log", f"{FROZEN_HOME}/work/cloud/blender-1/job9.log"))),
+    ("job-log, the frozen home gone: read where it lies", "job_log", (JOB, HOME), False, None, ("ends", JOB_TAIL),
+     "job3"),
+    # 2026-10-27: motion@airlock failed in a live run, its fault report and run log out of every agent's reach
+    ("run-log, its last lines", "run_log", (LOG, HOME, 5), True, None,
+     ("lines", [f"line {number}" for number in range(295, 300)]), "run-log"),
+    ("run-log, its home gone: read where it lies", "run_log", (LOG, HOME, 5), False, None,
+     ("lines", [f"line {number}" for number in range(295, 300)]), "run-log"),
+    *((f"run-log elsewhere: {asked}", "run_log", (asked, HOME, 5), False, None, REFUSED, None) for asked in (
+        "{home}/store/k.txt", "{tmp}/logs/score-run-1.log", "{home}/frozen/x/logs/score-run-1.log")),
+    ("fault, its home's report", "fault", (LOG, "motion@airlock", HOME), True, None,
+     ("ends", "motion@airlock: Traceback: no skeleton"), "fault"),
+    ("fault, its home gone", "fault", (LOG, "motion@airlock", HOME), False, None,
+     ("ends", "motion@airlock: Traceback: no skeleton"), "fault"),
+    *((f"fault {node}", "fault", (LOG, node, HOME), False, None, REFUSED, None)
+      for node in ("escape", "../k", "motion@airlock/../../k", "nothing@here", "../faults/motion@airlock")),
+    ("node-log, a node's own log", "node_log", (LOG, "surfaces-bake@hub", HOME), True, None,
+     ("ends", "waiting for a warm pool card"), None),
+    ("node-log `..`", "node_log", (LOG, "../k", HOME), True, None, REFUSED, None),
+    # 2026-11-05: a pool held no machine, nothing said why
+    ("pool-log, no pool", "pool_log", ("{bare}/logs/score-run-1.log", BARE, 5), True, None, REFUSED, None),
+    ("pool-log, the newest changed", "pool_log", (LOG, HOME, 1), True, None, ("lines", ["pool: a heartbeat failed"]),
+     None),
+    # 2026-11-07: Launch 33's first, stopped log was all the door showed of a run resumed after waiting for size
+    ("followed, a resumed run's log", "followed", ("{first}", RUNS), True, None, ("is", "{then}"), None),
+    ("followed, no entry named: itself", "followed", ("{then}", RUNS), True, None, ("is", "{then}"), None),
+    # 2026-11-07: was a light-passes SIGTERM the runaway watch's? 16 slots held, nothing said which (a count since 11-08)
+    ("outbox, a frozen home's too", "outbox", (REGISTRY,), True, None,
+     ("holds", ("[runaway light-passes@hub k] stopped",), ()), None),
+    ("running, a resumed run's nodes in its frozen home, a count", "running", (REGISTRY,), True, None,
+     ("holds", ("a (beat", "1 running: pixal@hub", "2 running: sound@lab, x@y", "d (beat", "27 running"), ("old@z",)),
+     None),
+    # 2026-11-03: one design file read, nothing outside design/props|plans|surfaces, no link out
+    ("design-file", "design_file", ("design/props/lab.json", HOME), True, None, ("is", '{"rows": []}'), None),
+    *((f"design-file {name}", "design_file", (name, HOME), True, None, REFUSED, None) for name in (
+        "design/props/out.json", "design/props/none.json", "cloud/ssh_key", "design/props/../x.json")),
+    # 2026-11-03: a .log under the people routes' candidates only, no link out
+    ("route-log", "route_log", ("officer/made/route/out/chain.log", CANDIDATES), True, None,
+     ("ends", "the route failed\n"), None),
+    *((f"route-log {name}", "route_log", (name, CANDIDATES), True, None, REFUSED, None) for name in (
+        "out.log", "../home/store/objects/records/k1.json", "officer/made/route/out/missing.log")),
+]
+# Asked of store-push --missing before any push: (the paths asked, the answer or REFUSED).
+MISSING_ROWS = [
+    ("store/objects/records/k1.json\nwork/new.glb\n", "work/new.glb\n"),
+    (f"store/objects/blobs/{GONE_BLOB}\nstore/objects/blobs/{FRESH_BLOB}\n", f"store/objects/blobs/{FRESH_BLOB}\n"),
+    ("cloud/ssh_key\n", REFUSED),
+]
+# Every push into the one home, in order (2026-10-27: this PC's run pushes back through the door; 2026-10-31: a
+# settle@airlock record named an output whose listing was missing): (row, its members (name, bytes, tar type), the
+# stream cut at that byte or None, the push's answer or the error it raises, what is linked in place, in that order:
+# blobs before the listings that name them before the records).
+REGULAR = tarfile.REGTYPE
+PUSHED = (("store/objects/records/settle@airlock/k.json", b'{"output": "o"}', REGULAR),
+          ("store/objects/outputs/o.json", b'{"model.usd": "b"}', REGULAR), ("store/objects/blobs/b", b"usd bytes", REGULAR))
+PUSH_ROWS = [
+    ("a cut stream lands nothing", PUSHED, 5 * 512 + 4, tarfile.TarError, []),
+    ("a whole stream lands blob, listing, record", PUSHED, None, (3, sum(len(body) for _, body, _ in PUSHED), 0),
+     ["store/objects/blobs/b", "store/objects/outputs/o.json", "store/objects/records/settle@airlock/k.json"]),
+    ("a file there is kept, a new one added", (("store/objects/records/k1.json", b"this PC's record", REGULAR),
+                                                ("store/objects/records/k2.json", b"made on this PC", REGULAR)), None,
+     (1, len("made on this PC"), 1), ["store/objects/records/k2.json"]),
+    ("a blob evicted here is kept, never landed", ((f"store/objects/blobs/{GONE_BLOB}", b"blob", REGULAR),
+                                                    (f"store/objects/blobs/{FRESH_BLOB}", b"blob", REGULAR)), None,
+     (1, 4, 1), [f"store/objects/blobs/{FRESH_BLOB}"]),
+    *((f"refused: {name} ({kind})", ((name, b"x", kind),), None, "Refused", []) for name, kind in (
+        ("../escape", REGULAR), ("/etc/x", REGULAR), ("store/objects/../../cloud/ssh_key", REGULAR),
+        ("cloud/ssh_key", REGULAR), ("design/props/hub.json", REGULAR), ("work", REGULAR), ("work/out/x", REGULAR),
+        ("work/key", tarfile.SYMTYPE), ("work/key", tarfile.LNKTYPE))),
+]
+# A replacing push (2026-11-03): only under work/pixal/, never while a run is live; (the member, a run live, the
+# refusal's words). None is ever let through here: work/pixal/take.png stays as it was.
+REPLACE_ROWS = [("store/objects/records/k1.json", False, ""), ("work/other.glb", False, ""),
+                ("work/pixal/replaced/x/take.png", False, ""), ("work/pixal/take.png", True, "a run is live")]
+# buy's options after its yes id: (the options, accepted).
+BUY_OPTION_ROWS = [
+    (["--place", "hub,garage", "--leave-place", "square", "--phase", "models"], True),  # a Buy by place, 2026-11-11
+    (["--place", "hub;rm"], False), (["--place", "a", "--place", "b"], False),
+    (["--phase", "models", "--cluster", "pixal,blender"], True), (["--cluster", "pixal", "--cluster", "blender"], False),
+    # 2026-11-10: people-body-person_uniform-made refused the Buy of the people looks' parts alone
+    (["--phase", "people", "--leave-out", "people-body-person_uniform-made,settle"], True),
+    (["--leave-out", "people;rm"], False),
+    (["--max-machines", "cpu-64c-128gb=10,all=30"], True),  # a Buy's machine caps, 2026-11-06
+    (["--max-machines", "cpu=x"], False), (["--max-machines", "a;b=1"], False),
+    (["--take-cheap", "2.5", "--phase", "models"], True),  # --take-cheap's euros, 2026-11-11
+    (["--take-cheap", "cheap"], False), (["--take-cheap", "-1"], False),
+]
+# Every Buy the door starts (2026-11-04: it answers at once, the Buy going on in its own session, its words in its
+# log): (its yes id, buy_started's options, the cluster's settings ("box": every SCORE_K8S_* set; "none": none), what
+# its command prints (it may go on after), the door's answer's start, its log's name, the log's last words or the
+# refusal's words).
+BUY_ROWS = [
+    ("20261104T000000Z", {}, None, "print('checkout 18: launched', flush=True); time.sleep(5)",
+     "buy 20261104T000000Z:", "20261104T000000Z.log", "checkout 18: launched\n"),
+    ("20261106T000000Z", {"phase": "models"}, None, "print('phase')", "buy 20261106T000000Z --phase models:",
+     "20261106T000000Z-models.log", "phase\n"),
+    ("20261106T000000Z", {"phase": "models,surfaces", "leave_out": "sim-body,body-peel"}, None, "print('phases')",
+     "buy 20261106T000000Z --phase models,surfaces --leave-out sim-body,body-peel:",
+     "20261106T000000Z-models+surfaces.log", "phases\n"),
+    ("20261106T000000Z", {"place": "hub,garage", "leave_place": "square"}, None, "print('places')",
+     "buy 20261106T000000Z --place hub,garage --leave-place square:", "20261106T000000Z.log", "places\n"),
+    # the cluster fallback (2026-11-06): refused until cluster-check passes, then its run carries SCORE_CLOUD=k8s
+    ("20261106T000001Z", {"cluster": "pixal,blender"}, "none", "print('never')", None, None, "out of reach"),
+    ("20261106T000002Z", {"phase": "models", "cluster": "pixal,blender"}, "box",
+     "import os; print(os.environ.get('SCORE_CLOUD'), os.environ.get('SCORE_CLOUD_KINDS'))",
+     "buy 20261106T000002Z --phase models --cluster pixal,blender:", "20261106T000002Z-models.log",
+     "k8s pixal,blender\n"),
+]
+
+
+def door_world(folder):
+    """The door's one home and the folders beside it (READ_ROWS' placeholders), each filled; the frozen home."""
+    folder = pathlib.Path(folder)
+    home, registry, candidates, bare = folder / "home", folder / "registry", folder / "candidates", folder / "bare"
+    bare.mkdir(parents=True)
+    files = {
+        "logs/score-run-1.log": "".join(f"line {number}\n" for number in range(300)),
+        "work/cloud/blender-1/job3.log": "x" * 10 + JOB_TAIL,
+        "store/k.txt": "not a log",
+        "store/faults/motion@airlock.txt": "motion@airlock: Traceback: no skeleton\n",
+        "store/logs/surfaces-bake@hub.log": "[cloud] waiting for a warm pool card\n",
+        "store/objects/records/k1.json": "the conductor's record",
+        f"store/evicted/{GONE_BLOB}": '{"size": 4}',
+        "work/pixal/take.png": "old",
+        "design/props/lab.json": '{"rows": []}',
+        f"frozen/{FROZEN_HOME}/design/x.log": "design",
+        "cloud/pools/old/collector.log": "rented\nold pool\n",
+        "cloud/pools/new/collector.log": "rented\npool: a heartbeat failed\n",
+    }
+    for name, text in files.items():
+        (home / name).parent.mkdir(parents=True, exist_ok=True)
+        (home / name).write_text(text)
+    os.utime(home / "cloud/pools/old/collector.log", (1, 1))  # the old pool's log changed first
+    links = {"store/faults/escape.txt": home / "store/k.txt", "work/cloud/blender-1/escape.log": home / "store/k.txt",
+             "work/out": folder / "outside", "design/props/out.json": home / "store/objects/records/k1.json"}
+    frozen = home / "frozen" / FROZEN_HOME
+    for entry in ("logs", "store", "work"):  # a frozen home links the home's entries (graph/frozen.home_copy)
+        links[f"frozen/{FROZEN_HOME}/{entry}"] = home / entry
+    (folder / "outside").mkdir()
+    for name, target in links.items():
+        (home / name).symlink_to(target)
+    (candidates / "officer/made/route/out").mkdir(parents=True)
+    (candidates / "officer/made/route/out/chain.log").write_text("Traceback: the route failed\n")
+    (candidates / "out.log").symlink_to(home / "store/objects/records/k1.json")
+    for runs, name, state, nodes in ((registry / "runs", "a", "running", ["pixal@hub"]),
+                                     (registry / "runs", "d", "running", 27),
+                                     (registry / "frozen" / "c1.home" / "runs", "b", "running", ["sound@lab", "x@y"]),
+                                     (registry / "runs", "c", "ended", ["old@z"])):
+        runs.mkdir(parents=True, exist_ok=True)
+        (runs / f"{name}.json").write_text(json.dumps({"id": name, "state": state, "running": nodes}))
+    first, then = registry / "logs" / "score-run-1.log", registry / "logs" / "score-run-2.log"
+    first.parent.mkdir(parents=True)
+    first.write_text("score run: waiting for size: 16 jobs, 2 cores; registered as w1; score resume starts it\n")
+    then.write_text("heartbeat\n")
+    (registry / "runs" / "w1.json").write_text(json.dumps({"id": "w1", "state": "resumed",
+                                                             "resumed": {"pid": 1, "log": str(then)}}))
+    (registry / "frozen" / "c1.home" / "store").mkdir(parents=True)
+    (registry / "frozen" / "c1.home" / "store" / "owner-outbox.txt").write_text(
+        "[runaway light-passes@hub k] stopped\n")
+    places = {HOME: home, BARE: bare, CANDIDATES: candidates, REGISTRY: registry, RUNS: registry / "runs"}
+    words = {"{home}": str(home), "{frozen}": str(frozen), "{bare}": str(bare), "{tmp}": str(folder),
+             "{first}": str(first), "{then}": str(then)}
+
+    def filled(value):
+        if value in places:
+            return places[value]
+        if not isinstance(value, str):
+            return value
+        for word, text in words.items():
+            value = value.replace(word, text)
+        return value
+    return home, frozen, filled
+
+
+def stream(members, cut=None):
+    """The members (name, bytes, tar type) as a tar stream, cut at byte `cut`; a link member points out of the home."""
+    data = io.BytesIO()
+    with tarfile.open(fileobj=data, mode="w") as archive:
+        for name, body, kind in members:
+            info = tarfile.TarInfo(name)
+            info.type = kind
+            if kind == tarfile.REGTYPE:
+                info.size = len(body)
+                archive.addfile(info, io.BytesIO(body))
+            else:
+                info.linkname = "/home/score/.config/scw/config.yaml"
+                archive.addfile(info)
+    whole = data.getvalue()
+    return io.BytesIO(whole[:cut] if cut else whole)
+
+
+def store_files(home):
+    return {path.relative_to(home).as_posix() for path in (home / "store").rglob("*") if path.is_file()}
+
+
+
+def heredoc(text, end):
+    """The lines of the bootcmd heredoc ending at `end`, indentation removed."""
+    lines = text.splitlines()
+    start = next(index for index, line in enumerate(lines) if line.endswith(f"<< '{end}'"))
+    stop = next(index for index in range(start + 1, len(lines)) if lines[index].strip() == end)
+    return [line[4:] for line in lines[start + 1:stop]]
+
+
+# The owner's machine.py session, dry on one recording scw (owner_session), and the judging around it.
+OWNER_ENV = ("SCORE_OWNER=owner\nSCORE_SYNC_URL=https://cockpit.example\nSCORE_SYNC_TOKEN=secret\n"
+             "SCORE_SECRET_READER=/home/someone/.local/bin/reader\n")
+YES = {"id": "y-1", "answer": "yes", "question": "Switch the conductor on?"}
+# step_refusal: (step, the process's environment, the owner's yes open for it, whether refused, the yes it runs under)
+REFUSAL_ROWS = [
+    *(("up", {marker: "1"}, None, True, None) for marker in AGENT_MARKERS),
+    ("up", {AGENT_MARKERS[0]: "1"}, YES, False, YES),
+    ("move", {}, YES, False, None),  # the owner needs no yes
+]
+# grow_data: (GB added, the owner's yes, the new size or the refusal)
+GROW_ROWS = [(100, "his yes", machine.DATA_GB + 100), (0, "his yes", SystemExit), (100, " ", SystemExit)]
+# pc_units_off: (the units this PC has, systemctl's exit, the systemctl calls, the units switched off or the error)
+UNITS_OFF_ROWS = [
+    (["score-sync.timer", "score-listen.service"], 0,
+     [("disable", "--now", "score-sync.timer", "score-listen.service")], ["score-sync.timer", "score-listen.service"]),
+    ([], 0, [], []),
+    (["score-resume.service"], 1, [("disable", "--now", "score-resume.service")], "Access denied"),
+]
+
+
+def owner_session(folder):
+    """The owner's machine.py session run dry on one recording scw, no scw ever called: down unconfirmed, up with his
+    env file and the agents' key, the user-data set, every GROW_ROWS growth, the move, the stored key's read.
+    {step: (its result or the SystemExit it raised, its scw calls, its printed lines)}, the owner's env file and every
+    cloud-init the session rendered ((owner's key, agents' key, volume), its text)."""
+    folder = pathlib.Path(folder)
+    folder.mkdir(parents=True)
+    private, agent = owner_keys(folder, "owner"), owner_keys(folder, "agent")
+    rendered, render = [], machine.render_cloud_init
+    owner_env = folder / "dashboard.env"
+    owner_env.write_text(OWNER_ENV)
+    printed = []
+    scw = machine.Scw(dry=True, say=printed.append)
+    steps = {}
+    real_run = subprocess.run
+
+    def no_scw(arguments, *args, **kwargs):
+        assert arguments[0] != "scw", f"a dry run called scw: {arguments}"
+        return real_run(arguments, *args, **kwargs)
+
+    def step(name, act):
+        calls, lines = len(scw.calls), len(printed)
+        try:
+            result = act()
+        except SystemExit as error:
+            result = error
+        steps[name] = (result, scw.calls[calls:], printed[lines:])
+    with pytest.MonkeyPatch.context() as patched:
+        for marker in AGENT_MARKERS:
+            patched.delenv(marker, raising=False)
+        patched.setattr(machine.subprocess, "run", no_scw)
+        patched.setattr(machine, "render_cloud_init", lambda *slots: rendered.append((slots, render(*slots)))
+                        or rendered[-1][1])
+        step("down", lambda: machine.down(types.SimpleNamespace(with_data=False), scw, say=printed.append,
+                                          answer=lambda question: "no"))
+        step("up", lambda: machine.up(types.SimpleNamespace(owner_key=str(private), agent_key=f"{agent}.pub",
+                                                            env_file=str(owner_env)), scw, printed.append))
+        step("user-data", lambda: machine.set_user_data(types.SimpleNamespace(owner_key=str(private), agent_key=None),
+                                                        scw, say=printed.append))
+        for gigabytes, yes, _ in GROW_ROWS:
+            step(("grow", gigabytes, yes), lambda: machine.grow_data(scw, gigabytes, yes, say=printed.append))
+        step("move", lambda: machine.move(types.SimpleNamespace(owner_key="~/.ssh/id_ed25519"), scw, printed.append))
+        step("stored key", lambda: machine.stored_key(scw))
+    return steps, owner_env, rendered
+
+
 def argv_matches(argv, want, prefix):
     if argv is None or (len(argv) < len(want) if prefix else len(argv) != len(want)):
         return False
@@ -480,11 +731,152 @@ def argv_matches(argv, want, prefix):
                                    argv[index] == expected) for index, expected in enumerate(want))
 
 
-def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(door):
-    """Every row of DOOR_ROWS asked through agent_door.sh side by side, then held to its outcome; SERVICE_ASKS
-    through the door service as well, and no token opens it; every MOVE_OUT_ROWS view through move-out."""
+def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(door, tmp_path, monkeypatch,
+                                                                          short_path, no_metadata):
+    """Every PREPARE_ROWS run of prepare.sh and every row of DOOR_ROWS asked through agent_door.sh side by side,
+    then held to its outcome; every
+    MOVE_OUT_ROWS view through move-out; the owner's machine.py session (owner_session) held to its gates, its calls,
+    the cloud-init it rendered and the boot unit in it, and its move, its home then set aside, every REFUSAL_ROWS and
+    UNITS_OFF_ROWS case judged; then over one door home (door_world) every MISSING_ROWS ask, PUSH_ROWS push and
+    REPLACE_ROWS replace, every READ_ROWS read before and after its frozen home goes, a node's gaps and the predicted
+    takes, a run's stack, and every BUY_OPTION_ROWS and BUY_ROWS Buy. Every BOOT_ROWS boot of boot.sh, run as the
+    rendered score-boot.service runs it and side by side with all of that, held to its outcome; the first boot's root
+    is the conductor the rest reads: its units verified with the sync's rendered for its checkout; its data volume read
+    by the health record in every HEALTH_ROWS state; one vault read by its installed reader, by its
+    score-secrets.service through it, by Claude Code's login over its CLI, by the door's token (the door service's
+    SERVICE_ASKS asked with it) and the cluster settings the door reads; booted again after the move; then every CASES
+    moment of its checkout, cloned from an origin, through score-update or the door's release-pin."""
     import agent_door
     from score.store.backup import _migrate
+
+    prepared = {}
+    preparing = concurrent.futures.ThreadPoolExecutor(len(PREPARE_ROWS))
+    for row, arguments, scw_text, _, _, _ in PREPARE_ROWS:  # side by side with the door's rows
+        (tmp_path / "prepare" / row).mkdir(parents=True)
+        prepared[row] = preparing.submit(prepare, tmp_path / "prepare" / row, *arguments, scw_text=scw_text)
+
+    for step, environment, open_yes, refused, runs_under in REFUSAL_ROWS:
+        why, found = machine.step_refusal(step, environment, open_yes=lambda asked: open_yes)
+        assert bool(why) is refused and found == runs_under, (step, environment, why, found)
+    steps, owner_env, rendered = owner_session(tmp_path / "machine")
+    down, _, _ = steps["down"]
+    assert isinstance(down, SystemExit) and "not confirmed" in str(down) and steps["down"][1] == [], down
+    every = [(name, call) for name, (_, calls, _) in steps.items() for call in calls]
+    printed = [line for _, _, lines in steps.values() for line in lines]
+    assert every and all(f"scw {call}" in printed for _, call in every)
+    for name, call in every:
+        assert "farm-factory-batch" not in call, call  # the runner's leftover sweeps delete by that tag
+        if not call.startswith("account project list"):
+            assert any(f" {key}=" in f" {call}" for key in ("zone", "region")), f"no zone or region: {call}"
+        if (" list " in f" {call} " or " create " in f" {call} ") and not call.startswith(INSIDE_OWNED):
+            assert "project-id=" in call, f"no project: {call}"
+        assert ".value=" not in call or "<secret>" in call, call
+    _, up_calls, _ = steps["up"]
+    server = next(call for call in up_calls if call.startswith("instance server create"))
+    assert "project-id=<id of project score-conductor>" in server and "tags.0=score-conductor" in server
+    assert any("inbound-default-policy=drop" in call for call in up_calls)  # only ssh comes in
+    _, user_data, _ = steps["user-data"]
+    assert any(call.startswith("instance user-data set ") and f"zone={machine.ZONE}" in call for call in user_data)
+    assert not any(" create " in f" {call} " or " delete " in f" {call} " for call in user_data)
+    # the cloud-init up rendered (and set as user-data, without the agents' key): it passes `cloud-init schema`; the
+    # agents' key is bound to the door with no pty or forwarding, the owner's is not; no slot is left unfilled; the
+    # first boot runs boot.sh through score-boot.service, enabled from the per-boot script once the bus is up
+    ((owner_key, agent_key, volume), text), ((_, no_agent, _), _) = rendered
+    assert owner_key.endswith(" owner\n") and agent_key.endswith(" agent\n") and no_agent is None, rendered
+    assert machine.check_cloud_init(owner_key.strip(), agent_key.strip()) is None
+    door_line = next(line for line in text.splitlines() if agent_key.split()[1] in line)
+    for option in ('command=\\"/usr/local/bin/score-agent-door\\"', "no-pty", "no-port-forwarding",
+                   "no-agent-forwarding"):
+        assert option in door_line, (option, door_line)
+    assert "command=" not in next(line for line in text.splitlines() if owner_key.split()[1] in line)
+    assert f"scsi-0SCW_sbs_volume-{volume}" in text and volume == "<id of the new data volume>", volume
+    assert re.search(r"@[A-Z_]+@", text) is None, "a slot left unfilled"
+    assert "runcmd:" not in text  # the first boot runs boot.sh through the unit, as every later boot does
+    unit = heredoc(text, "UNIT")
+    move, system, user = [line for line in unit if line.startswith("ExecStart=")]
+    assert "checkout -q --detach origin/main" in move and "boot.sh system" in system
+    assert "runuser -u score --" in user and "boot.sh user" in user
+    # the conductor boots as this unit runs boot.sh: every BOOT_ROWS boot without its own parts runs the unit's, side
+    # by side with the door's rows
+    unit_parts = tuple(re.search(r"boot\.sh (\w+)", line).group(1) for line in (system, user))
+
+    def boot(row):
+        name, installed, change, parts = row[:4]
+        root, shims = boot_root(short_path / name, installed=installed)
+        if change:
+            change(root, shims)
+        return (root, shims, *run_boot(short_path / name, root, shims, parts=parts or unit_parts))
+    booting_pool = concurrent.futures.ThreadPoolExecutor(len(BOOT_ROWS))
+    booting = {row[0]: booting_pool.submit(boot, row) for row in BOOT_ROWS}
+    bootcmd = text[text.index("bootcmd:"):]
+    # bootcmd has no bus: it only writes files; the per-boot script (cloud-init's final stage) enables and starts
+    assert not any(line.strip().startswith(("systemctl", "loginctl")) for line in bootcmd.split("<< 'SCRIPT'")[0]
+                   .splitlines())
+    script = heredoc(text, "SCRIPT")
+    assert script.index("systemctl daemon-reload") < script.index("systemctl enable -q score-boot.service")
+    copy = tmp_path / "score-boot.service"
+    copy.write_text("\n".join(unit) + "\n")
+    done = subprocess.run(["systemd-analyze", "verify", str(copy)], capture_output=True, text=True)
+    assert "score-boot.service" not in done.stderr, done.stderr
+    for gigabytes, yes, want in GROW_ROWS:
+        grown, calls, _ = steps[("grow", gigabytes, yes)]
+        resized = [call for call in calls if call.startswith("block volume update")]
+        if want is SystemExit:
+            assert isinstance(grown, SystemExit) and calls == [], (gigabytes, yes, grown)
+        else:
+            assert grown == want and resized == [
+                f"block volume update '<id of the data volume>' size={want}GB zone={machine.ZONE}"], (grown, calls)
+    _, move_calls, move_lines = steps["move"]
+    assert all(call.startswith(("account project list", "instance server list")) for call in move_calls), move_calls
+    disable = move_lines.index(next(line for line in move_lines if "disable --now" in line))
+    assert disable < move_lines.index(next(line for line in move_lines if "--from-pc" in line))
+    _, _, key_lines = steps["stored key"]  # asked of score-conductor's own project, by name
+    assert any("name=score-conductor-key 'project-id=<id of project score-conductor>'" in line for line in key_lines)
+    (local, environment), remote = machine.move_steps("/home/someone/.local/bin/scw", YES)
+    assert local[-3:] == ["score.store.backup", "migrate", "--from-pc"]
+    # the PC reads the backup's password where the conductor does: the conductor's reader, its secrets project
+    assert environment["SCORE_SECRET_READER"] == str(machine.HERE / "secret_reader.sh")
+    assert environment["SCORE_SECRETS_PROJECT"] == machine.SECRETS_PROJECT_NAME
+    assert environment["SCORE_CONDUCTOR_YES"] == "y-1"  # the migrate steps check the same yes
+    assert remote.index("--onto-conductor") < remote.index("boot.sh env") < remote.index("install-sync")
+    assert "--no-pull" in remote
+    text = machine.env_text(owner_env)
+    values = dict(line.split("=", 1) for line in text.splitlines())
+    assert "SCORE_SYNC_TOKEN" not in values and "secret" not in text.replace("secret-reader", "")
+    assert values["SCORE_SECRET_READER"] == "/usr/local/bin/score-secret-reader"  # the conductor's, not the PC's
+    assert values["SCORE_OWNER"] == "owner"
+    for present, exit_code, want_calls, want in UNITS_OFF_ROWS:
+        calls = []
+
+        def systemctl(*args):
+            calls.append(args)
+            return types.SimpleNamespace(returncode=exit_code, stdout="", stderr="Access denied" if exit_code else "")
+        if isinstance(want, str):
+            with pytest.raises(SystemExit, match=want):
+                machine.pc_units_off(present=present, systemctl=systemctl)
+        else:
+            assert machine.pc_units_off(present=present, systemctl=systemctl) == want, present
+        assert calls == want_calls, (present, calls)
+    # after the move the PC's home is set aside read-only, last, once the yes is marked; status reads the health
+    # record with the conductor's own key (the PC's key got HTTP 403, 2026-10-24)
+    home, final, ran, read = tmp_path / "machine" / "props", tmp_path / "machine" / "props.pc-final", [], []
+    (home / "store").mkdir(parents=True)
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(machine, "PROPS_HOME", home)
+        patched.setattr(machine, "PC_FINAL_HOME", final)
+        patched.setattr(machine.conductor_yes, "mark_done", lambda yes, step, store=None: ran.append(
+            ("marked", step, store.objects.root)))
+        patched.setattr(machine, "stored_key", lambda scw: {"access_key": "SCWCON", "secret_key": "s-con"})
+        machine.retire_pc_home(YES, "scw", run=lambda command, **kwargs: ran.append(
+            (command, kwargs.get("env", {}))) or types.SimpleNamespace(returncode=0))
+        record = machine.health_record(types.SimpleNamespace(dry=False),
+                                       read=lambda *args: read.append(args) or b'{"active_runs": 0}')
+    assert final.is_dir() and home.is_dir() and not any(home.iterdir())
+    assert ran[0][0][-1] == "--pc-test-home" and ran[0][1]["SCORE_CONDUCTOR_YES_HOME"] == str(final)
+    assert ran[1][1]["UV_PROJECT_ENVIRONMENT"] == str(home / "env")
+    assert ("marked", "move", final / "store" / "objects") in ran
+    assert ran[-1][0] == ["chmod", "-R", "a-w", str(final)]  # read-only last, after the yes is marked
+    assert record == {"active_runs": 0} and read[0][-2:] == ("SCWCON", "s-con")
     asks = {}
     for asked, env_text, want in DOOR_ROWS:
         assert asked not in asks.get(env_text, {}), f"asked twice: {asked!r}"
@@ -505,14 +897,227 @@ def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(doo
                 else:
                     assert env.get(name) == value, (said, name, env.get(name))
 
+    for row, _, _, calls_scw, says, never in PREPARE_ROWS:
+        done, log = prepared[row].result(), tmp_path / "prepare" / row / "scw.log"
+        assert done.returncode == 0, (row, done.stderr)
+        calls = log.read_text().splitlines() if log.exists() else []
+        assert bool(calls) is calls_scw and not [call for call in calls if " create" in call], (row, calls)
+        assert all(words in done.stderr for words in says), (row, done.stderr)
+        assert not any(words in done.stderr for words in never), (row, done.stderr)
+    preparing.shutdown()
+
+    # ---- the conductor as boot.sh makes it: every BOOT_ROWS boot held to its outcome; the first boot's root is then
+    # the one world the rest reads: its data volume the health record's home, its installed reader and secrets unit
+    # reading the vault the door's token and the cluster's settings come from, its checkout the one score-update moves
+    booted = {name: future.result() for name, future in booting.items()}
+    booting_pool.shutdown()
+    for name, _, _, _, stops, never, made, missing in BOOT_ROWS:
+        root, _, done, calls = booted[name]
+        said = (name, done.stderr + done.stdout)
+        assert (done.returncode == 0) is (stops is None), said
+        assert stops is None or re.search(stops, done.stderr), said
+        assert not [call for call in calls if call.startswith(never)], (name, calls)
+        assert all(os.access(root.joinpath(*BIN, file), os.X_OK) for file in made), said
+        assert not any(root.joinpath(*BIN, file).exists() for file in missing), said
+    root, shims, done, calls = booted["first"]
+    booted_home = root / "home" / "score"
+    assert "mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test" in calls
+    assert "UUID=1111-uuid /home/score/.farm-factory-props ext4" in (root / "etc" / "fstab").read_text()
+    mountpoint = booted_home / ".farm-factory-props"
+    assert calls.index(f"mount {mountpoint}") < calls.index(
+        "resize2fs /dev/disk/by-id/scsi-0SCW_sbs_volume-test")  # a grown volume gets its room at each boot
+    assert calls.index(f"chattr +i {mountpoint}") < calls.index(f"mount {mountpoint}"), \
+        "the bare mountpoint is not made immutable before the data volume is mounted on it"
+    sshd = (root / "etc" / "ssh" / "sshd_config.d" / "50-score-conductor.conf").read_text()
+    assert "PasswordAuthentication no" in sshd and "PermitRootLogin no" in sshd
+    assert not any("--no-dev" in call for call in calls), "the prop environment was built before the move"
+    assert not any("install-sync" in call for call in calls), "the sync's units came before the move"
+    units = booted_home / ".config" / "systemd" / "user"
+    for unit in machine.unit_files():
+        installed = (units / unit.name).read_text()
+        assert installed == machine.rendered_unit(unit), unit.name
+        assert not any(slot in installed for slot in machine.UNIT_SLOTS), unit.name
+        # the conductor's units run on the conductor alone: none names a path of the owner's PC
+        assert "/home/dupe" not in installed and "wsl" not in installed.lower(), unit.name
+    # every installed unit passes `systemd-analyze --user verify` in the home the boot made
+    assert machine.check_units(booted_home) is None
+    # resume and health write into the home, so on the conductor they wait for the move's machine.json
+    waits = "ConditionPathExists=%h/.farm-factory-props/machine.json"
+    assert waits in (units / "score-resume.service.d" / "conductor.conf").read_text().splitlines()
+    assert waits in (units / "score-health.service").read_text().splitlines()
+    # score_lib's web copies run gltfpack offline from the cache the boot seeded: the pin export.py runs
+    pin = re.search(r'^GLTFPACK = "(gltfpack@[0-9.]+)"', (REPO / "tools/review/viewer/export.py").read_text(), re.M)
+    assert f"npm cache add {pin.group(1)}" in calls, calls
+    assert "apt-get remove -y -q nodejs" in calls  # Ubuntu's old node is never found before the pinned one
+    assert "Claude Code 2.1.318 already installed" in done.stdout  # the pinned CLI there is not installed again
+    # the sync's units as install-sync renders them for this checkout pass verify, and the pass updates first
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "score.dashboard.site.settings")  # the sync's modules read them
+    django.setup()
+    from score.dashboard.sync import timer
+    checkout, env_file = booted_home / "projects" / "score", booted_home / ".config" / "score" / "dashboard.env"
+    sync_units = [units / name for name in ("score-sync.service", "score-sync.timer")]  # where install-sync puts them
+    for path in sync_units:
+        path.write_text(timer.unit_text(path.name, checkout, env_file, timer.SECRET, pull=False))
+    verified = subprocess.run(["systemd-analyze", "--user", "verify", *map(str, sync_units)], capture_output=True,
+                              text=True)
+    assert verified.returncode == 0 and not (verified.stderr + verified.stdout).strip(), verified.stderr
+    rendered_sync = sync_units[0].read_text()
+    assert (f"\nExecStartPre=/usr/bin/python3 -I {checkout}/tools/cloud/conductor/update.py --repo {checkout}\n"
+            in rendered_sync)
+
+    # ---- the health record (health_push.record) over the boot's data volume: fresh, it reads idle; every later
+    # HEALTH_ROWS state is built on it, its processes working, its hold held
+    now = datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc)
+    monkeypatch.setenv("SCORE_HEALTH_FILE", str(mountpoint / "conductor" / "health.json"))
+    for name, build, holds, want in HEALTH_ROWS:
+        copies = build(mountpoint)
+        with contextlib.ExitStack() as stack:
+            for copy in copies:
+                process = subprocess.Popen(["sleep", "30"], cwd=mountpoint / "frozen" / copy)
+                stack.callback(process.wait)
+                stack.callback(process.kill)
+            if holds:
+                held = stack.enter_context((mountpoint / "conductor" / "holds" / "film-preview-2.lock").open("a"))
+                fcntl.flock(held, fcntl.LOCK_EX)  # flock is per open file: the record's own open is refused too
+            if isinstance(want, type):
+                with pytest.raises(want):
+                    health_push.record(mountpoint, now)
+                continue
+            record = health_push.record(mountpoint, now)
+        counted = (record["active_runs"], record["parked"], record["frozen"], record["working"], record["health"])
+        assert counted == want and record["written_at"].startswith("2026-10-22T00:00:00"), (name, record)
+        assert health_push.working(mountpoint) == 0, name  # the hold released
+
+    # ---- the secrets: one vault, read by the reader the boot installed, by its score-secrets.service (secrets.sh)
+    # through it, by Claude Code's login over the CLI the boot found, by the door's token and the cluster's settings
+    vault_folder = short_path / "vault"
+    vault, vault_log, runtime = vault_folder / "vault.json", vault_folder / "scw.log", root / "run" / "user" / "1100"
+    for made in (vault_folder, runtime):
+        made.mkdir(parents=True)
+    (vault_folder / "scw.py").write_text(VAULT_SCW)
+    scw = executable(vault_folder / "scw", f'#!/bin/sh\nexec "{sys.executable}" -I "{vault_folder / "scw.py"}" "$@"\n')
+    reader = root.joinpath(*BIN, "score-secret-reader")
+    gcloud = executable(vault_folder / "gcloud",
+                        f"#!/bin/sh\necho \"$CLOUDSDK_CONFIG $*\" > {vault_folder}/gcloud.log\n")
+    env = {**os.environ, "HOME": str(booted_home), "SCORE_SCW": str(scw), "SCORE_SECRETS_PROJECT": "secrets-here",
+           "SCORE_READER_PYTHON": sys.executable, "VAULT": str(vault), "VAULT_LOG": str(vault_log),
+           "XDG_RUNTIME_DIR": str(runtime), "SCORE_GCLOUD": "/bin/false", "SCORE_SECRET_READER": str(reader),
+           "SCORE_LOGIN_PYTHON": sys.executable}
+    started = next(line for line in (units / "score-secrets.service").read_text().splitlines()
+                   if line.startswith("ExecStart="))
+    secrets_command = started.removeprefix("ExecStart=").replace("%h", str(booted_home)).split()
+
+    def hold(*names, **values):
+        """The vault holds `names`, each valued "value of <name>", and `values` (by name, `_` for `-`)."""
+        vault.write_text(json.dumps({**{name: f"value of {name}" for name in names},
+                                     **{name.replace("_", "-"): value for name, value in values.items()}}))
+
+    def read(*arguments, project="secrets-here"):
+        return subprocess.run([str(reader), *arguments], env={**env, "SCORE_SECRETS_PROJECT": project},
+                              capture_output=True, text=True, timeout=30)
+
+    def secrets():
+        return subprocess.run(secrets_command, env=env, capture_output=True, text=True, timeout=30)
+    hold(*HELD)  # no optional secret held
+    done = read("gemini-api-key")
+    assert done.returncode == 0 and done.stdout == "value of gemini-api-key", done.stderr
+    assert "project-id=p-1" in vault_log.read_text().splitlines()[1]  # p-1 is secrets-here's id, p-0 another project's
+    absent = read("--if-present", "google-billing-reader")
+    assert absent.returncode == 0 and absent.stdout == "", absent.stderr
+    assert read("--if-present", "gemini-api-key").stdout == "value of gemini-api-key"
+    refused = read("x", project="missing")
+    assert refused.returncode != 0 and "found 0" in refused.stderr
+    # An agent's `ask` reads the door's token through this reader by the secrets project's name, never the box's own
+    # SCORE_SECRET_READER (2026-11-10: this PC's looked only in babon-ops); the door service opens with that token.
+    # Break: `asker_reader` hands back `[environment["SCORE_SECRET_READER"], TOKEN_SECRET]`.
+    elsewhere = {**env, "SCORE_SECRET_READER": str(vault_folder / "another-projects")}
+    command, found = door_service.asker_reader(elsewhere)
+    assert command[-2:] == [str(HERE / "secret_reader.sh"), door_service.TOKEN_SECRET]
+    door_token = door_service.asker_token(elsewhere)
+    assert door_token == f"value of {door_service.TOKEN_SECRET}"
+    assert door_service.asker_reader({"PATH": ""})[1]["SCORE_SECRETS_PROJECT"] == door_service.SECRETS_PROJECT
+    # secrets.sh: an absent optional billing reader leaves a note and no gcloud; held, every file-shaped secret goes
+    # whole at 600 into a 700 folder on the runtime tmpfs and the note goes; the cluster's settings the door reads
+    # there are SCORE_K8S_* only, and the login's path; an empty read replaces nothing; a failed read fails
+    done = secrets()
+    assert done.returncode == 0 and "skipped" in done.stdout, done.stderr
+    folder = runtime / "score"
+    assert sorted(path.name for path in folder.iterdir()) == ["google-billing-reader.note", "score-lib-deploy-key"]
+    settings = "SCORE_K8S_CONTEXT=c\nPATH=/evil\nSCORE_K8S_KUBECONFIG=/elsewhere\n"
+    hold(*HELD, *OPTIONAL, score_k8s_settings=settings, score_k8s_kubeconfig="{}")
+    env["SCORE_GCLOUD"] = str(gcloud)
+    done = secrets()
+    assert done.returncode == 0, done.stderr
+    assert stat.S_IMODE(folder.stat().st_mode) == 0o700
+    key = folder / "score-lib-deploy-key"
+    assert key.read_text() == "value of score-lib-deploy-key\n" and stat.S_IMODE(key.stat().st_mode) == 0o600
+    assert (folder / "google-billing-reader.json").read_text() == "value of google-billing-reader\n"
+    assert sorted(path.name for path in folder.iterdir()) == ["google-billing-reader.json", "k8s-kubeconfig", "k8s.env",
+                                                              "score-lib-deploy-key"]
+    assert (folder / "k8s.env").read_text() == settings  # the tenant cluster's, optional
+    assert (vault_folder / "gcloud.log").read_text().startswith(f"{folder}/gcloud auth activate-service-account")
+    assert agent_door.cluster_values(folder) == {"SCORE_K8S_CONTEXT": "c",
+                                                 "SCORE_K8S_KUBECONFIG": str(folder / "k8s-kubeconfig")}
+    (folder / "k8s-kubeconfig").unlink()
+    assert agent_door.cluster_values(folder) == {"SCORE_K8S_CONTEXT": "c"}
+    hold(*HELD, *OPTIONAL, score_lib_deploy_key="")
+    refused = secrets()
+    assert refused.returncode != 0 and "empty" in refused.stderr
+    assert key.read_text() == "value of score-lib-deploy-key\n", "an empty read replaced a good key"
+    hold(*HELD, google_billing_reader=None)
+    refused = secrets()
+    assert refused.returncode != 0 and "reading google-billing-reader failed" in refused.stderr
+
+    # Claude Code's login (claude_login.py, run by secrets.sh): no secret -> no `claude` and the adapter's NotHere;
+    # the CLI the boot found at its pin and the secret -> `claude` asks with the login in the CLI's environment alone,
+    # written nowhere.
+    from score.adapters.models import claude_code
+    cli, bin_folder = booted_home / ".local" / "lib" / "claude-code" / "bin" / "claude", booted_home / ".local" / "bin"
+    body = {"contents": [{"parts": [{"text": "which login?"}]}], "generationConfig": {"responseSchema": {
+        "type": "OBJECT", "properties": {"login": {"type": "BOOLEAN"}, "model": {"type": "STRING"}}}}}
+    said = []
+    with pytest.MonkeyPatch.context() as patched:
+        patched.setattr(claude_code, "LEDGER", vault_folder / "home" / "claude-ledger.jsonl")
+        patched.setattr(claude_code, "CACHE", vault_folder / "home" / "claude-cache")
+        for name in ("HOME", "SCORE_SCW", "SCORE_SECRETS_PROJECT", "SCORE_READER_PYTHON", "VAULT", "VAULT_LOG",
+                     "SCORE_SECRET_READER"):
+            patched.setenv(name, env[name])
+        patched.setenv("PATH", str(bin_folder))
+        patched.setenv("ANTHROPIC_API_KEY", "an-api-key")
+        for linked in (False, True, False):
+            hold(*HELD, **({"claude_code_oauth_token": LOGIN} if linked else {}))
+            done = secrets()
+            assert done.returncode == 0, done.stderr
+            said.append(done.stdout + done.stderr)
+            assert (bin_folder / "claude").is_symlink() is linked
+            if not linked:
+                with pytest.raises(claude_code.NotHere, match="runs on this PC"):
+                    claude_code.asked({"one": body}, caller="finish-route-palette")
+        hold(*HELD, claude_code_oauth_token=LOGIN)
+        assert secrets().returncode == 0
+        login_answers = claude_code.asked({"one": body}, caller="finish-route-palette")
+    assert json.loads(login_answers["one"]) == {"login": True, "model": "claude-opus-5-5"}, login_answers
+    written = [path.read_bytes() for folder_read in (vault_folder, runtime, booted_home / ".local")
+               for path in folder_read.rglob("*")
+               if path.is_file() and not path.is_symlink() and path not in (vault, cli)]  # the two hold it
+    assert len(written) > 3 and (vault_folder / "home" / "claude-ledger.jsonl").exists()
+    assert not any(LOGIN.encode() in text for text in written), "the login was written to a file"
+    assert not any(LOGIN in text for text in said), "the login reached a log line"
+    (bin_folder / "claude").unlink()
+    executable(bin_folder / "claude", "#!/bin/sh\n")  # a claude that is not ours is never removed
+    hold(*HELD)
+    assert secrets().returncode == 0 and (bin_folder / "claude").read_text() == "#!/bin/sh\n"
+
+    # the door service opens only with the vault's token, and answers as the ssh door does
     with concurrent.futures.ThreadPoolExecutor(8) as pool:
-        served = dict(zip(SERVICE_ASKS, pool.map(door.service, SERVICE_ASKS)))
+        served = dict(zip(SERVICE_ASKS, pool.map(lambda asked: door.service(asked, door_token), SERVICE_ASKS)))
     for asked, answer in served.items():
         assert answer == answers["", asked], asked
-    code, why, argv, recorded = door.service("status")
+    code, why, argv, recorded = door.service("status", door_token)
     assert code == 0 and argv is not None and "status" in argv and all(recorded.get(name) for name in AGENT_MARKERS)
     with pytest.raises(urllib.error.HTTPError) as refused:
-        door.service("status", token="wrong")
+        door.service("status", "wrong", opened=door_token)
     assert refused.value.code == 403
     with pytest.raises(SystemExit):
         door_service.serve("", 0)  # no token read: the door stays shut
@@ -541,520 +1146,243 @@ def test_the_conductor_acts_only_on_the_owners_word_and_moves_only_when_safe(doo
         else:
             assert len(calls) == 1, calls
 
-
-def test_the_doors_store_push_only_adds_inside_its_folders(tmp_path, monkeypatch):
-    """2026-10-27: the owner's PC pushes a free run's outputs back through the door, never his key on the conductor."""
-    import io
-    import tarfile
-    import agent_door
-    home = tmp_path / "home"
-    (home / "store/objects/records").mkdir(parents=True)
-    (home / "store/objects/records/k1.json").write_text("the conductor's record")
-    (tmp_path / "outside").mkdir()
-    (home / "work").mkdir()
-    (home / "work/out").symlink_to(tmp_path / "outside")
-
-    def stream(*members):
-        data = io.BytesIO()
-        with tarfile.open(fileobj=data, mode="w") as archive:
-            for name, text, kind in members:
-                info = tarfile.TarInfo(name)
-                info.type, info.size = kind, len(text.encode()) if kind == tarfile.REGTYPE else 0
-                info.linkname = "/home/score/.config/scw/config.yaml" if kind != tarfile.REGTYPE else ""
-                archive.addfile(info, io.BytesIO(text.encode()) if kind == tarfile.REGTYPE else None)
-        data.seek(0)
-        return data
-
-    regular = tarfile.REGTYPE
-    added = agent_door.store_push(home, stream(("store/objects/records/k1.json", "this PC's record", regular),
-                                               ("store/objects/records/k2.json", "made on this PC", regular)))
-    assert added == (1, len("made on this PC"), 1)  # the overwrite refused, the new file added
+    home, frozen, filled = door_world(tmp_path / "door")
+    for missing, want in MISSING_ROWS:  # asked before any push lands
+        if want == REFUSED:
+            with pytest.raises(agent_door.Refused):
+                agent_door.store_missing(home, missing)
+        else:
+            assert agent_door.store_missing(home, missing) == want, missing
+    landed, link = [], os.link
+    monkeypatch.setattr(os, "link", lambda source, target: (link(source, target), landed.append(str(target)))[0])
+    for row, members, cut, want, order in PUSH_ROWS:
+        landed.clear()
+        before = store_files(home)
+        if want == "Refused" or isinstance(want, type):
+            with pytest.raises(agent_door.Refused if want == "Refused" else want):
+                agent_door.store_push(home, stream(members, cut))
+        else:
+            assert agent_door.store_push(home, stream(members, cut)) == want, row
+        assert [pathlib.Path(path).relative_to(home).as_posix() for path in landed] == order, row
+        assert store_files(home) == before | set(order), row
+        assert not any((home / "tmp" / "this-pc-push").glob("*")), row
+    monkeypatch.setattr(os, "link", link)
     assert (home / "store/objects/records/k1.json").read_text() == "the conductor's record"
     assert (home / "store/objects/records/k2.json").read_text() == "made on this PC"
-    for name, kind in (("../escape", regular), ("/etc/x", regular), ("store/objects/../../cloud/ssh_key", regular),
-                       ("cloud/ssh_key", regular), ("design/props/hub.json", regular), ("work", regular),
-                       ("work/out/x", regular), ("work/key", tarfile.SYMTYPE), ("work/key", tarfile.LNKTYPE)):
-        with pytest.raises(agent_door.Refused):
-            agent_door.store_push(home, stream((name, "x", kind)))
-    assert not list((tmp_path / "outside").iterdir()) and not (home / "cloud").exists()
-    assert not (home / "work/key").exists() and not (tmp_path / "escape").exists()
-    assert agent_door.store_missing(home, "store/objects/records/k1.json\nwork/new.glb\n") == "work/new.glb\n"
-    gone, fresh = "a" * 64, "b" * 64  # gone: evicted into the store bucket here (its mark), never sent back
-    (home / "store/evicted").mkdir(parents=True)
-    (home / "store/evicted" / gone).write_text('{"size": 4}')
-    asked = f"store/objects/blobs/{gone}\nstore/objects/blobs/{fresh}\n"
-    assert agent_door.store_missing(home, asked) == f"store/objects/blobs/{fresh}\n"
-    assert agent_door.store_push(home, stream((f"store/objects/blobs/{gone}", "blob", regular),
-                                              (f"store/objects/blobs/{fresh}", "blob", regular))) == (1, 4, 1)
-    assert not (home / "store/objects/blobs" / gone).exists() and (home / "store/objects/blobs" / fresh).is_file()
-    with pytest.raises(agent_door.Refused):
-        agent_door.store_missing(home, "cloud/ssh_key\n")
-    # a replacing push (2026-11-03): only under work/pixal/, never while a run is live
-    (home / "work/pixal").mkdir(parents=True)
-    (home / "work/pixal/take.png").write_text("old")
-    for name in ("store/objects/records/k1.json", "work/other.glb", "work/pixal/replaced/x/take.png"):
-        with pytest.raises(agent_door.Refused):
-            agent_door.store_replace(home, stream((name, "x", regular)), "now")
+    assert not list((tmp_path / "door" / "outside").iterdir()) and not (home / "cloud" / "ssh_key").exists()
+    assert not (home / "work/key").exists() and not (tmp_path / "door" / "escape").exists()
+    assert not (home / "store/objects/blobs" / GONE_BLOB).exists()
     from score.conductor import disk
-    with pytest.MonkeyPatch.context() as patched:
-        patched.setattr(disk, "needed", lambda folder: {"frozen/copy"})
-        with pytest.raises(agent_door.Refused, match="a run is live"):
-            agent_door.store_replace(home, stream(("work/pixal/take.png", "new", regular)), "now")
+    for member, live, words in REPLACE_ROWS:
+        with pytest.MonkeyPatch.context() as patched:
+            if live:
+                patched.setattr(disk, "needed", lambda folder: {"frozen/copy"})
+            with pytest.raises(agent_door.Refused, match=words):
+                agent_door.store_replace(home, stream(((member, b"new", REGULAR),)), "now")
     assert (home / "work/pixal/take.png").read_text() == "old"
-    # design-file (2026-11-03): one design file read, nothing outside design/props|plans|surfaces, no link out
-    (home / "design/props").mkdir(parents=True)
-    (home / "design/props/lab.json").write_text('{"rows": []}')
-    (home / "design/props/out.json").symlink_to(home / "store/objects/records/k1.json")
-    assert agent_door.design_file("design/props/lab.json", home) == '{"rows": []}'
-    # route-log (2026-11-03): a .log under the people routes' candidates only, no link out
-    candidates = tmp_path / "candidates"
-    (candidates / "officer/made/route/out").mkdir(parents=True)
-    (candidates / "officer/made/route/out/chain.log").write_text("Traceback: the route failed\n")
-    (candidates / "out.log").symlink_to(home / "store/objects/records/k1.json")
-    assert agent_door.route_log("officer/made/route/out/chain.log", candidates).endswith("the route failed\n")
-    for name in ("out.log", "../home/store/objects/records/k1.json", "officer/made/route/out/missing.log"):
-        with pytest.raises(agent_door.Refused):
-            agent_door.route_log(name, candidates)
-    # buy (2026-11-04) answers at once, the Buy going on in its own session, its words in its log
-    started = time.monotonic()
-    said = agent_door.buy_started("20261104T000000Z", tmp_path, [sys.executable, "-c",
-                                  "import time; print('checkout 18: launched', flush=True); time.sleep(5)"])
-    assert time.monotonic() - started < 2 and "buy-log" in said, said  # never held for the Buy's own time
-    assert soon(lambda: agent_door.buy_log(tmp_path).endswith("checkout 18: launched\n"))
-    said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('phase')"], "models")
-    assert said.startswith("buy 20261106T000000Z --phase models:") and "20261106T000000Z-models.log" in said, said
-    said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('phases')"],
-                                  "models,surfaces", "sim-body,body-peel")
-    assert said.startswith("buy 20261106T000000Z --phase models,surfaces --leave-out sim-body,body-peel:"), said
-    assert "20261106T000000Z-models+surfaces.log" in said, said
-    # a Buy by place (2026-11-11): --place and --leave-place reach its command. Break: in agent_door.buy_started,
-    # drop the `--place` part of `asked`; in buy_options, drop "--leave-place" from BUY_OPTIONS
-    said = agent_door.buy_started("20261106T000000Z", tmp_path, [sys.executable, "-c", "print('places')"],
-                                  place="hub,garage", leave_place="square")
-    assert said.startswith("buy 20261106T000000Z --place hub,garage --leave-place square:"), said
-    assert agent_door.buy_options(["--place", "hub,garage", "--leave-place", "square", "--phase", "models"])
-    assert not agent_door.buy_options(["--place", "hub;rm"])
-    assert not agent_door.buy_options(["--place", "a", "--place", "b"])
-    # the cluster fallback (2026-11-06): cluster-check names every gap, and a Buy with --cluster is refused until it
-    # passes, then its run carries SCORE_CLOUD=k8s and the kinds. Break: in agent_door.buy_started, drop
-    # `cluster_check(os.environ)`; or drop `env={**os.environ, **extra}`
-    with pytest.raises(agent_door.Refused) as gaps:
-        agent_door.cluster_check({"PATH": "", "SCORE_K8S_KUBECONFIG": str(tmp_path / "none")}, kubectl="")
-    for word in ("SCORE_K8S_CONTEXT", "SCORE_K8S_PROVIDER", "no kubectl", "no kubeconfig"):
-        assert word in str(gaps.value), gaps.value
-    kubectl = tmp_path / "kubectl"
-    kubectl.write_text("#!/bin/sh\necho namespace/score-jobs\n")
-    kubectl.chmod(0o755)
-    config = tmp_path / "kubeconfig"
-    config.write_text("{}")
-    box = {"SCORE_K8S_PROVIDER": "scaleway/tenant", "SCORE_K8S_CONTEXT": "c", "SCORE_K8S_CLUSTER": "k",
-           "SCORE_K8S_PROJECT": "p", "SCORE_K8S_KUBECONFIG": str(config), "PATH": str(tmp_path)}
-    real_status = agent_door.tenant_status
-    monkeypatch.setattr(agent_door, "tenant_status", lambda environment: "tenant: 2 class pools")
-    assert agent_door.cluster_check(box) == (f"the tenant cluster answers: namespace/score-jobs through {config}\n"
-                                             "tenant: 2 class pools")
-    # the tenant module's status (its scw reads, which the cost watch makes) is part of the check. Break: in
-    # agent_door.tenant_status, drop the `done.returncode != 0` refusal
-    assert real_status({}, [sys.executable, "-c", "print('pools ok')"]) == "pools ok"
-    with pytest.raises(agent_door.Refused, match="status failed.*403"):
-        real_status({}, [sys.executable, "-c", "import sys; sys.exit('scw: 403 forbidden')"])
-    # the settings secrets.sh wrote to the tmpfs: SCORE_K8S_* only, and the login's path. Break: in
-    # agent_door.cluster_values, drop the `name.startswith("SCORE_K8S_")` filter
-    (tmp_path / "k8s.env").write_text("SCORE_K8S_CONTEXT=c\nPATH=/evil\nSCORE_K8S_KUBECONFIG=/elsewhere\n")
-    assert agent_door.cluster_values(tmp_path) == {"SCORE_K8S_CONTEXT": "c"}
-    (tmp_path / "k8s-kubeconfig").write_text("{}")
-    assert agent_door.cluster_values(tmp_path) == {"SCORE_K8S_CONTEXT": "c",
-                                                   "SCORE_K8S_KUBECONFIG": str(tmp_path / "k8s-kubeconfig")}
-    assert agent_door.buy_options(["--phase", "models", "--cluster", "pixal,blender"])
-    assert not agent_door.buy_options(["--cluster", "pixal", "--cluster", "blender"])
-    # a stage named with an underscore is left out by name (2026-11-10: people-body-person_uniform-made refused the
-    # Buy of the people looks' parts alone). Break: STAGE_LIST's `[a-z0-9_-]` -> `[a-z0-9-]`
-    assert agent_door.buy_options(["--phase", "people", "--leave-out", "people-body-person_uniform-made,settle"])
-    assert not agent_door.buy_options(["--leave-out", "people;rm"])
-    # a Buy's machine caps (2026-11-06). Break: in agent_door.buy_options, drop "--max-machines"
-    assert agent_door.buy_options(["--max-machines", "cpu-64c-128gb=10,all=30"])
-    assert not agent_door.buy_options(["--max-machines", "cpu=x"]) and not agent_door.buy_options(["--max-machines", "a;b=1"])
-    # --take-cheap's euros (2026-11-11). Break: in agent_door.buy_options, drop "--take-cheap" from BUY_OPTIONS
-    assert agent_door.buy_options(["--take-cheap", "2.5", "--phase", "models"])
-    assert not agent_door.buy_options(["--take-cheap", "cheap"]) and not agent_door.buy_options(["--take-cheap", "-1"])
-    shown = [sys.executable, "-c", "import os; print(os.environ.get('SCORE_CLOUD'), os.environ.get('SCORE_CLOUD_KINDS'))"]
-    for name in [name for name in box if name.startswith("SCORE_K8S")]:
-        monkeypatch.delenv(name, raising=False)
-    with pytest.raises(agent_door.Refused, match="out of reach"):
-        agent_door.buy_started("20261106T000001Z", tmp_path, shown, cluster="pixal,blender")
-    for name, value in box.items():
-        monkeypatch.setenv(name, value)
-    said = agent_door.buy_started("20261106T000002Z", tmp_path, shown, "models", cluster="pixal,blender")
-    assert said.startswith("buy 20261106T000002Z --phase models --cluster pixal,blender:"), said
-    assert soon(lambda: agent_door.buy_log(tmp_path).endswith("k8s pixal,blender\n"))
-    # carry (2026-11-03) never runs with a run live
-    monkeypatch.setattr(agent_door, "replace_refusal", lambda home: "a run is live (r1)")
-    with pytest.raises(agent_door.Refused, match="a run is live"):
-        agent_door.carried(["--no-op", "x.py=why"], tmp_path)  # never with a run live
-    for name in ("design/props/out.json", "design/props/none.json", "cloud/ssh_key", "design/props/../x.json"):
-        with pytest.raises(agent_door.Refused):
-            agent_door.design_file(name, home)
+    with pytest.MonkeyPatch.context() as patched:  # carry (2026-11-03) never runs with a run live
+        patched.setattr(agent_door, "replace_refusal", lambda folder: "a run is live (r1)")
+        with pytest.raises(agent_door.Refused, match="a run is live"):
+            agent_door.carried(["--no-op", "x.py=why"], home)
 
-
-def test_the_doors_store_push_lands_what_a_record_names_first_and_a_cut_stream_lands_nothing(tmp_path, monkeypatch):
-    """2026-10-31: a settle@airlock record on the conductor named an output whose listing was missing, and
-    batch-money's page build crashed on it.
-    Break: in `store_push`, `sorted(parts, key=...)` -> `parts` (the record lands before its listing and blob), or
-    land each member as it is read (a stream cut short leaves the record without its output)."""
-    import io
-    import tarfile
-    import agent_door
-    home = tmp_path / "home"
-    home.mkdir()
-    members = (("store/objects/records/settle@airlock/k.json", b'{"output": "o"}'),
-               ("store/objects/outputs/o.json", b'{"model.usd": "b"}'), ("store/objects/blobs/b", b"usd bytes"))
-
-    def stream(cut=False):
-        data = io.BytesIO()
-        with tarfile.open(fileobj=data, mode="w") as archive:
-            for name, body in members:
-                info = tarfile.TarInfo(name)
-                info.size = len(body)
-                archive.addfile(info, io.BytesIO(body))
-        whole = data.getvalue()
-        return io.BytesIO(whole[:5 * 512 + 4] if cut else whole)  # cut inside the last member's bytes
-
-    with pytest.raises(tarfile.TarError):
-        agent_door.store_push(home, stream(cut=True))
-    assert not (home / "store").exists() or not [path for path in (home / "store").rglob("*") if path.is_file()]
-    assert not list((home / "tmp" / "this-pc-push").iterdir())
-    order, link = [], os.link
-    monkeypatch.setattr(os, "link", lambda source, target: (order.append(str(target)), link(source, target))[1])
-    assert agent_door.store_push(home, stream()) == (3, sum(len(body) for _, body in members), 0)
-    assert [pathlib.Path(path).relative_to(home).as_posix() for path in order] == [
-        "store/objects/blobs/b", "store/objects/outputs/o.json", "store/objects/records/settle@airlock/k.json"]
-
-
-def test_the_doors_job_log_reads_only_a_frozen_homes_cloud_logs(tmp_path):
-    """2026-10-27: surfaces-bake@campgrounds' eight failed jobs, their logs under the frozen home out of reach."""
-    import agent_door
-    home = tmp_path / "home"
-    logs = home / "work" / "cloud" / "blender-1"
-    logs.mkdir(parents=True)
-    (logs / "job3.log").write_text("x" * 10 + "Traceback: the paint of crane failed")
-    (home / "store").mkdir()
-    (home / "store" / "secret.txt").write_text("not a log")
-    frozen = home / "frozen" / "20261027-0918.home"
-    frozen.mkdir(parents=True)
-    (frozen / "work").symlink_to(home / "work")  # a frozen home links the home's work (graph/frozen.home_copy)
-    (frozen / "design").mkdir()
-    (frozen / "design" / "x.log").write_text("design")
-    (logs / "escape.log").symlink_to(home / "store" / "secret.txt")
-    said = agent_door.job_log("20261027-0918.home/work/cloud/blender-1/job3.log", home)
-    assert said.endswith("Traceback: the paint of crane failed"), said
-    assert agent_door.job_log(str(frozen / "work/cloud/blender-1/job3.log"), home) == said  # as a fault report names it
-    agent_door.JOB_LOG_CHARACTERS, kept = 12, agent_door.JOB_LOG_CHARACTERS
-    try:
-        assert agent_door.job_log("20261027-0918.home/work/cloud/blender-1/job3.log", home).endswith(
-            "\ncrane failed")
-    finally:
-        agent_door.JOB_LOG_CHARACTERS = kept
-    shutil.rmtree(frozen)  # clean-frozen removed the run's home: its logs are read where they lie
-    assert agent_door.job_log("20261027-0918.home/work/cloud/blender-1/job3.log", home) == said
-    frozen.mkdir()
-    (frozen / "work").symlink_to(home / "work")
-    (frozen / "design").mkdir()
-    (frozen / "design" / "x.log").write_text("design")
-    for asked in ("20261027-0918.home/design/x.log", "20261027-0918.home/work/cloud/blender-1/escape.log",
-                  "20261027-0918.home/work/cloud/../../../store/secret.txt", str(home / "store/secret.txt"),
-                  "20261027-0918.home/work/cloud/blender-1/job9.log"):
-        with pytest.raises(agent_door.Refused):
-            agent_door.job_log(asked, home)
-
-
-def test_the_doors_run_log_and_fault_read_only_the_launchs_home(tmp_path):
-    """2026-10-27: motion@airlock failed in a live run, its fault report and run log out of every agent's reach."""
-    import agent_door
-    home = tmp_path / "home"
-    (home / "logs").mkdir(parents=True)
-    (home / "logs" / "score-run-1.log").write_text("".join(f"line {number}\n" for number in range(300)))
-    (home / "store" / "faults").mkdir(parents=True)
-    (home / "store" / "faults" / "motion@airlock.txt").write_text("motion@airlock: Traceback: no skeleton\n")
-    (home / "store" / "k.txt").write_text("not a report")
-    (home / "store" / "faults" / "escape.txt").symlink_to(home / "store" / "k.txt")
-    frozen = home / "frozen" / "20261027-111210-841490.home"
-    frozen.mkdir(parents=True)
-    for entry in ("logs", "store"):  # a frozen home links the home's entries (graph/frozen.home_copy)
-        (frozen / entry).symlink_to(home / entry)
-    log = str(frozen / "logs" / "score-run-1.log")
-    said = agent_door.run_log(log, home, 5)
-    assert said.splitlines()[1:] == [f"line {number}" for number in range(295, 300)], said
-    assert agent_door.fault(log, "motion@airlock", home).endswith("motion@airlock: Traceback: no skeleton"), log
-    (home / "store" / "logs").mkdir()
-    (home / "store" / "logs" / "surfaces-bake@hub.log").write_text("[cloud] waiting for a warm pool card\n")
-    assert agent_door.node_log(log, "surfaces-bake@hub", home).endswith("waiting for a warm pool card")
-    with pytest.raises(agent_door.Refused):
-        agent_door.node_log(log, "../k", home)
-    # the warm pool's collector log, the newest changed, read too (2026-11-05: a pool held no machine, nothing said why)
-    # Break: in agent_door.pool_log, take found[:1] (the oldest pool's log)
-    with pytest.raises(agent_door.Refused):
-        agent_door.pool_log(log, home, 5)
-    for run, said_last in (("old", "old pool"), ("new", "pool: a heartbeat failed")):
-        (home / "cloud" / "pools" / run).mkdir(parents=True)
-        (home / "cloud" / "pools" / run / "collector.log").write_text(f"rented\n{said_last}\n")
-        time.sleep(0.01)
-    assert agent_door.pool_log(log, home, 1).splitlines()[1:] == ["pool: a heartbeat failed"]
-    # the busiest processes, read only (2026-11-06: sim-body rows ground the conductor's processor, unseen)
-    # each live run's nodes now, from its registry entry, a resumed run's in its frozen home too (2026-11-07: 16 slots
-    # held, nothing said which). Break: in agent_door.running, drop the frozen homes' glob; or drop the count case
-    # (2026-11-08: the drive's gauge writes a count, and the door raised TypeError on it)
-    registry = tmp_path / "running-home"
-    for folder, name, state, nodes in ((registry / "runs", "a", "running", ["pixal@hub"]),
-                                       (registry / "runs", "d", "running", 27),
-                                       (registry / "frozen" / "c1.home" / "runs", "b", "running", ["sound@lab", "x@y"]),
-                                       (registry / "runs", "c", "ended", ["old@z"])):
-        folder.mkdir(parents=True, exist_ok=True)
-        (folder / f"{name}.json").write_text(json.dumps({"id": name, "state": state, "running": nodes}))
-    # a launch whose run waited for size and was resumed is read in its resumed log (2026-11-07: the door showed only
-    # Launch 33's first, stopped log). Break: in agent_door.followed, return `log` at once
-    first, then = registry / "logs" / "score-run-1.log", registry / "logs" / "score-run-2.log"
-    first.parent.mkdir(parents=True)
-    first.write_text("score run: waiting for size: 16 jobs, 2 cores; registered as w1; score resume starts it\\n")
-    then.write_text("heartbeat\\n")
-    (registry / "runs" / "w1.json").write_text(json.dumps({"id": "w1", "state": "resumed",
-                                                             "resumed": {"pid": 1, "log": str(then)}}))
-    assert agent_door.followed(str(first), registry / "runs") == str(then)
-    assert agent_door.followed(str(then), registry / "runs") == str(then)  # no entry named: itself
-    # the owner outbox's last lines, a frozen home's too (2026-11-07: was a light-passes SIGTERM the runaway watch's?)
-    # Break: in agent_door.outbox, drop the frozen homes' glob
-    (registry / "frozen" / "c1.home" / "store").mkdir(parents=True)
-    (registry / "frozen" / "c1.home" / "store" / "owner-outbox.txt").write_text("[runaway light-passes@hub k] stopped\n")
-    assert "[runaway light-passes@hub k] stopped" in agent_door.outbox(registry)
-    now_running = agent_door.running(registry)
-    assert "a (beat" in now_running and "1 running: pixal@hub" in now_running and "2 running: sound@lab, x@y" in now_running, now_running
-    assert "d (beat" in now_running and "27 running" in now_running, now_running
-    assert "old@z" not in now_running
-    seen = agent_door.processes(5).splitlines()
-    assert seen[0].startswith("pid %cpu") and 1 < len(seen) <= 6
-    # a run's process tells where it is: SIGUSR1, its stacks to its dump file (2026-11-06: bake calls spun unseen)
-    # Break: in tools/cloud/batch.py stop_on_signals, drop `stacks_on_ask()`
-    copy = home / "frozen" / "20261106-050000-1"
-    copy.mkdir(parents=True)
-    spin = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO / 'tools/cloud')!r}); "
-                             "import batch; batch.stop_on_signals(); print('armed', flush=True)\n"
-                             "def hashing_inputs():\n    time.sleep(30)\nhashing_inputs()", str(copy)],
-                            env={**os.environ, "PROPS_HOME": str(home)}, stdout=subprocess.PIPE, text=True)
-    try:
-        assert spin.stdout.readline().strip() == "armed"
-        assert "hashing_inputs" in agent_door.stack(spin.pid, home, wait=1.0)
-        with pytest.raises(agent_door.Refused):
-            agent_door.stack(os.getpid(), home)  # no run's process
-        # a run's process with no SIGUSR1 handler is refused and lives on (2026-11-06: the verb ended a score run).
-        # Break: in agent_door.stack, drop the `catches` refusal
-        bare = subprocess.Popen([sys.executable, "-c", "import time; print('up', flush=True); time.sleep(30)",
-                                 str(copy)], stdout=subprocess.PIPE, text=True)
-        assert bare.stdout.readline().strip() == "up"
-        with pytest.raises(agent_door.Refused, match="does not catch SIGUSR1"):
-            agent_door.stack(bare.pid, home, wait=0.2)
-        assert bare.poll() is None
-        bare.kill()
-        bare.wait()
-    finally:
-        spin.kill()
-        spin.wait()
-    shutil.rmtree(frozen)  # the run ended and its home went: both are read where they lie
-    assert agent_door.run_log(log, home, 5) == said
-    assert "no skeleton" in agent_door.fault(log, "motion@airlock", home)
-    for node in ("escape", "../k", "motion@airlock/../../k", "nothing@here"):
-        with pytest.raises(agent_door.Refused):
-            agent_door.fault(log, node, home)
-    for elsewhere in (str(home / "store" / "k.txt"), str(tmp_path / "logs" / "score-run-1.log"),
-                      str(home / "frozen" / "x" / "logs" / "score-run-1.log")):
-        with pytest.raises(agent_door.Refused):
-            agent_door.run_log(elsewhere, home, 5)
-
-
-def test_the_doors_gaps_and_predicted_print_what_the_store_holds(tmp_path, monkeypatch, capsys):
-    """2026-10-26: galley's jars and oven were "Pixal3D made no model" and only batch.log said why."""
-    from unittest import mock
+    tags = {}
+    for row, reader, arguments, standing, cap, want, tag in sorted(READ_ROWS, key=lambda row: not row[3]):
+        if not standing and frozen.exists():
+            shutil.rmtree(frozen)  # the run ended and its home went
+        asked = [filled(argument) for argument in arguments]
+        with pytest.MonkeyPatch.context() as patched:
+            if cap:
+                patched.setattr(agent_door, "JOB_LOG_CHARACTERS", cap)
+            if want == REFUSED:
+                with pytest.raises(agent_door.Refused):
+                    getattr(agent_door, reader)(*asked)
+                continue
+            said = getattr(agent_door, reader)(*asked)
+        kind, *expected = want
+        if kind == "ends":
+            assert said.endswith(expected[0]), (row, said)
+        elif kind == "lines":
+            assert said.splitlines()[1:] == expected[0], (row, said)
+        elif kind == "is":
+            assert said == filled(expected[0]), (row, said)
+        else:
+            assert all(word in said for word in expected[0]) and not any(word in said for word in expected[1]), \
+                (row, said)
+        if tag:
+            tags.setdefault(tag, set()).add(said)
+    assert sorted(tags) == ["fault", "job3", "run-log"] and all(len(said) == 1 for said in tags.values()), tags
+    # a node's batch gaps and the batch.log lines that say why (2026-10-26: galley's jars and oven were "Pixal3D made
+    # no model" and only batch.log said why), and the prepared batch's takes that may not stand, from the same home
     import score.store
-    from agent_door import GAPS_CODE, PREDICTED_CODE
-    files = {"batch-gaps.json": json.dumps({"gaps": [
-        {"name": "jars: Pixal3D made no model", "check": "takes", "faults": ["jars: no galley_jars.glb"]}]}),
-        "batch.log": "[cloud] renting 2 cards\n[cloud] gaps (ran once or never sent, no model; a new batch and a "
-                     "new ask to try again): galley_jars: out of memory\n", "takes.json": "{}"}
-
-    class Kept:
-        """The stored output of one node, its files by name (score.store.Store's reading half)."""
-        objects = mock.Mock(read_bytes=lambda key: files[key.removeprefix("blobs/")].encode())
-
-        def accepted(self, node):
-            return "out1" if node == "pixal@galley" else None
-
-        def listing(self, output):
-            return {name: name for name in files}
-
-        def read_file(self, output, name):
-            return json.loads(files[name])
-    monkeypatch.setattr(score.store.Store, "default", Kept)
-    monkeypatch.setattr(sys, "argv", ["-c", "pixal@galley"])
-    exec(GAPS_CODE, {})
-    lines = capsys.readouterr().out.splitlines()
-    assert "1 batch gaps" in lines[0] and lines[1].startswith("jars: Pixal3D made no model | takes |"), lines
-    assert lines[2:] == ["batch.log: [cloud] gaps (ran once or never sent, no model; a new batch and a new ask to try "
-                         "again): galley_jars: out of memory"], lines
-
-    record = tmp_path / "work" / "checks" / "prepare" / "remake.json"
-    record.parent.mkdir(parents=True)
+    made = tmp_path / "door" / "pixal-output"
+    made.mkdir()
+    (made / "batch-gaps.json").write_text(json.dumps({"gaps": [
+        {"name": "jars: Pixal3D made no model", "check": "takes", "faults": ["jars: no galley_jars.glb"]}]}))
+    (made / "batch.log").write_text("[cloud] renting 2 cards\n[cloud] gaps (ran once or never sent, no model; a new "
+                                    "batch and a new ask to try again): galley_jars: out of memory\n")
+    (made / "takes.json").write_text("{}")
+    output = score.store.Store.in_folder(home / "store").put_tree(made)  # stored in the door home's own store
     take = {"place": "street", "rows": ["street_lamp"], "route": "model", "size": [0.3, 0.3, 6], "inputs": [],
             "status": "bought", "prediction": {"outcome": "predicted gap", "mode": "close-up: every rod failed"}}
-    record.write_text(json.dumps({"takes": [
+    (home / "work/checks/prepare").mkdir(parents=True)
+    (home / "work/checks/prepare/remake.json").write_text(json.dumps({"takes": [
         take, {**take, "rows": ["bench"], "prediction": {"outcome": "pass", "mode": None}},
         {**take, "rows": ["sign"], "status": "input gap", "inputs": ["no box or size"],
          "prediction": {"outcome": "pass", "mode": None}}]}))
-    done = subprocess.run([sys.executable, "-c", PREDICTED_CODE], cwd=REPO, capture_output=True, text=True,
-                          env={**os.environ, "PROPS_HOME": str(tmp_path)}, timeout=60)
-    assert done.returncode == 0, done.stderr
-    lines = done.stdout.splitlines()
+    printed = {}
+    for words in (["gaps", "pixal@galley"], ["predicted"]):  # each as the door runs it, over the one home
+        argv, _ = agent_door.decide(words, False)
+        said = io.StringIO()
+        with pytest.MonkeyPatch.context() as patched, contextlib.redirect_stdout(said):
+            patched.setattr(score.store, "PROPS_HOME", home)
+            # the accept is the runner's or the owner's to write; the node stands accepted on the stored output
+            patched.setattr(score.store.Store, "accepted",
+                            lambda self, node: output if node == "pixal@galley" else None)
+            patched.setattr(sys, "argv", argv[:1] + argv[2:])
+            exec(argv[1], {})
+        printed[words[0]] = said.getvalue().splitlines()
+    lines = printed["gaps"]
+    assert f"accepted output {output}, 1 batch gaps" in lines[0], lines
+    assert lines[1].startswith("jars: Pixal3D made no model | takes |"), lines
+    assert lines[2:] == ["batch.log: [cloud] gaps (ran once or never sent, no model; a new batch and a new ask to try "
+                         "again): galley_jars: out of memory"], lines
+    lines = printed["predicted"]
     assert "3 takes, 2 predicted gap" in lines[0] and len(lines) == 3, lines  # the passing bench is left out
     assert lines[1] == "street | street_lamp | model | [0.3, 0.3, 6] | predicted gap | close-up: every rod failed"
     assert lines[2].endswith("| input gap | no box or size"), lines
+    seen = agent_door.processes(5).splitlines()  # the busiest processes, read only (2026-11-06)
+    assert seen[0].startswith("pid %cpu") and 1 < len(seen) <= 6
+
+    # a run's process tells where it is: SIGUSR1, its stacks to its dump file (2026-11-06: bake calls spun unseen);
+    # one with no SIGUSR1 handler is refused and lives on (2026-11-06: the verb ended a score run)
+    copy = home / "frozen" / "20261106-050000-1"
+    copy.mkdir(parents=True)
+    spin = subprocess.Popen([sys.executable, "-c", f"import sys, time; sys.path.insert(0, {str(REPO / 'tools/cloud')!r}); "
+                             "import batch; batch.stop_on_signals()\n"  # armed once inside: no stack read before
+                             "def hashing_inputs():\n    print('armed', flush=True)\n    time.sleep(30)\n"
+                             "hashing_inputs()", str(copy)],
+                            env={**os.environ, "PROPS_HOME": str(home)}, stdout=subprocess.PIPE, text=True)
+    bare = subprocess.Popen([sys.executable, "-c", "import time; print('up', flush=True); time.sleep(30)", str(copy)],
+                            stdout=subprocess.PIPE, text=True)
+    try:
+        assert spin.stdout.readline().strip() == "armed" and bare.stdout.readline().strip() == "up"
+        assert "hashing_inputs" in agent_door.stack(spin.pid, home, wait=1.0)
+        with pytest.raises(agent_door.Refused):
+            agent_door.stack(os.getpid(), home)  # no run's process
+        with pytest.raises(agent_door.Refused, match="does not catch SIGUSR1"):
+            agent_door.stack(bare.pid, home, wait=0.2)
+        assert bare.poll() is None
+    finally:
+        for process in (spin, bare):
+            process.kill()
+            process.wait()
+
+    for options, accepted in BUY_OPTION_ROWS:
+        assert bool(agent_door.buy_options(options)) is accepted, options
+    with pytest.raises(agent_door.Refused) as gaps:  # cluster-check names every gap
+        agent_door.cluster_check({"PATH": "", "SCORE_K8S_KUBECONFIG": str(tmp_path / "none")}, kubectl="")
+    for word in ("SCORE_K8S_CONTEXT", "SCORE_K8S_PROVIDER", "no kubectl", "no kubeconfig"):
+        assert word in str(gaps.value), gaps.value
+    executable(tmp_path / "k8s" / "kubectl", "#!/bin/sh\necho namespace/score-jobs\n")
+    config = tmp_path / "k8s" / "kubeconfig"
+    config.write_text("{}")
+    box = {"SCORE_K8S_PROVIDER": "scaleway/tenant", "SCORE_K8S_CONTEXT": "c", "SCORE_K8S_CLUSTER": "k",
+           "SCORE_K8S_PROJECT": "p", "SCORE_K8S_KUBECONFIG": str(config), "PATH": str(tmp_path / "k8s")}
+    # the tenant module's status (its scw reads, which the cost watch makes) is part of the check
+    for printed, want in (("print('pools ok')", "pools ok"), ("import sys; sys.exit('scw: 403 forbidden')", REFUSED)):
+        if want == REFUSED:
+            with pytest.raises(agent_door.Refused, match="status failed.*403"):
+                agent_door.tenant_status({}, [sys.executable, "-c", printed])
+        else:
+            assert agent_door.tenant_status({}, [sys.executable, "-c", printed]) == want
+    monkeypatch.setattr(agent_door, "tenant_status", lambda environment: "tenant: 2 class pools")
+    assert agent_door.cluster_check(box) == (f"the tenant cluster answers: namespace/score-jobs through {config}\n"
+                                             "tenant: 2 class pools")
+    for yes, options, cluster, printed, starts, log_name, ends in BUY_ROWS:
+        with pytest.MonkeyPatch.context() as patched:
+            for name, value in box.items():
+                if cluster == "box":
+                    patched.setenv(name, value)
+                elif cluster == "none" and name.startswith("SCORE_K8S"):
+                    patched.delenv(name, raising=False)
+            command = [sys.executable, "-c", f"import time\n{printed}"]
+            if starts is None:
+                with pytest.raises(agent_door.Refused, match=ends):
+                    agent_door.buy_started(yes, home, command, **options)
+                continue
+            started = time.monotonic()
+            said = agent_door.buy_started(yes, home, command, **options)
+        assert time.monotonic() - started < 2, (yes, options)  # never held for the Buy's own time
+        log = re.search(r"result in (\S+) \(the door's buy-log\)$", said).group(1)
+        assert said.startswith(starts) and log.endswith(f"-{log_name}"), said
+        assert soon(lambda: pathlib.Path(log).read_text().endswith(ends)), (said, pathlib.Path(log).read_text())
+    assert agent_door.buy_log(home).endswith(BUY_ROWS[-1][-1])  # the newest Buy's log
 
 
-def test_the_env_file_carries_no_secret(tmp_path):
-    owner_env = tmp_path / "dashboard.env"
-    owner_env.write_text("SCORE_OWNER=owner\nSCORE_SYNC_URL=https://cockpit.example\nSCORE_SYNC_TOKEN=secret\n"
-                         "SCORE_SECRET_READER=/home/someone/.local/bin/reader\n")
-    text = machine.env_text(owner_env)
-    values = dict(line.split("=", 1) for line in text.splitlines())
-    assert "SCORE_SYNC_TOKEN" not in values and "secret" not in text.replace("secret-reader", "")
-    assert values["SCORE_SECRET_READER"] == "/usr/local/bin/score-secret-reader"  # the conductor's, not the PC's
-    assert values["SCORE_OWNER"] == "owner"
+    # after the move (machine.json), every boot syncs the prop environment the rows' PROPS_PYTHON runs in
+    (mountpoint / "machine.json").write_text("{}")
+    again, calls_again = run_boot(short_path / "first", root, shims)
+    assert again.returncode == 0, again.stderr
+    assert f"uv sync -q --frozen --no-dev --project {checkout}" in calls_again
+    # and installs the sync's units with the update before each pass, the checkout moved to the pin first
+    install = f"python -m score.dashboard install-sync --env-file {env_file} --no-pull"
+    assert calls_again.index("systemctl --user start score-update.service") < calls_again.index(install)
+    assert calls_again.count("mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test") == 1
+    assert (root / "etc" / "fstab").read_text().count("UUID=1111-uuid") == 1
 
+    # ---- the checkout (update.py): every CASES moment of the booted conductor, its checkout now a clone of an
+    # origin, its data volume the home, score_lib beside the checkout, its sync unit the one installed above
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    (short_path / "update").mkdir()
+    with checkout_world(short_path / "update", booted_home) as world:
+        commits, world.rendered_sync = world.commits, rendered_sync
+        assert world.sync_unit == sync_units[0] and world.home == mountpoint and world.checkout == checkout
+        with pytest.raises(agent_door.Refused, match="two full shas"):
+            agent_door.decide(["release-pin", commits["a"][:12], commits["lock1"]], False)
+        argv, _ = agent_door.decide(["release-pin", commits["a"], commits["lock1"]], False)
+        assert argv[1:] == [agent_door.RELEASE_PIN, commits["a"], commits["lock1"]], argv
+        places = {"home": world.home, "checkout": world.checkout}
+        for row in CASES:
+            stands(world, row)
+            line = moved(world, row)
+            said = f"{row['name']}: {line}"
+            assert git(world.checkout, "rev-parse", "HEAD") == commits[row["head"]], said
+            assert all(words in line for words in row["has"]), said
+            assert not any(words in line for words in row["lacks"]) and line.endswith(row["ends"]), said
+            asked = [[word.format(**places) for word in call] for call in row["uv"]]
+            uv_calls = world.uv_log.read_text().splitlines() if world.uv_log.exists() else []
+            assert [call.split() for call in uv_calls] == asked, said
+            assert (world.boot_log.read_text().split() if world.boot_log.exists() else []) == list(row["boot"]), said
+            noted = json.loads((world.home / "conductor" / "pin.json").read_text())
+            # the health record says why a checkout lags: the update's own line (the door's adds its note before it)
+            assert (line.endswith(f"; {noted['said']}") if row["release"] else noted["said"] == line), (said, noted)
+            want = row["noted"] if row["noted"] in (ABSENT, None) else commits[row["noted"]]
+            assert noted.get("pin", ABSENT) == want and (want == ABSENT or noted["at"]), (said, noted)
+            if row["email"]:
+                assert git(world.library, "config", "user.email") == row["email"], said
+                assert row["library"] != "none" or git(world.library, "config", "user.name") == "SCORE conductor"
+        # Claude Code already at its pin is not installed again.
+        cli = executable(world.folder / "claude-cli", '#!/bin/sh\necho "9.9.9 (Claude Code)"\n')
+        git(world.checkout, "checkout", "-q", "-f", "--detach", commits["claude"])
+        world.boot_log.unlink(missing_ok=True)
+        assert update.claude_installed(world.checkout, cli) == "" and not world.boot_log.exists()
+        # Two updates take turns on the checkout's lock.
+        called = []
+        with pytest.MonkeyPatch.context() as patched:
+            patched.setattr(update, "update", lambda repo, url: called.append(repo) or "update: at test")
+            with open(world.checkout / ".git" / "score-update.lock", "w") as held:
+                fcntl.flock(held, fcntl.LOCK_EX)
+                second = threading.Thread(target=update.main, args=(["--repo", str(world.checkout)],))
+                second.start()
+                second.join(0.5)
+                assert second.is_alive() and not called
+            second.join(5)
+        assert called == [world.checkout.resolve()]
 
-def test_the_move_switches_this_pc_off_and_backs_it_up_before_the_conductor_restores_it():
-    printed = []
-    scw = machine.Scw(dry=True, say=printed.append)
-    machine.move(types.SimpleNamespace(owner_key="~/.ssh/id_ed25519"), scw, printed.append)
-    (local, environment), remote = machine.move_steps("/home/someone/.local/bin/scw")
-    assert local[-3:] == ["score.store.backup", "migrate", "--from-pc"]
-    # the PC reads the backup's password where the conductor does: the conductor's reader, its secrets project
-    assert environment["SCORE_SECRET_READER"] == str(machine.HERE / "secret_reader.sh")
-    assert environment["SCORE_SECRETS_PROJECT"] == machine.SECRETS_PROJECT_NAME
-    assert remote.index("--onto-conductor") < remote.index("boot.sh env") < remote.index("install-sync")
-    assert "--no-pull" in remote
-    disable = printed.index(next(line for line in printed if "disable --now" in line))
-    assert disable < printed.index(next(line for line in printed if "--from-pc" in line))
-    assert all(call.startswith(("account project list", "instance server list")) for call in scw.calls), scw.calls
-
-    calls = []
-
-    def systemctl(*args):
-        calls.append(args)
-        return types.SimpleNamespace(returncode=0, stdout="", stderr="")
-    assert machine.pc_units_off(present=["score-sync.timer", "score-listen.service"], systemctl=systemctl) == [
-        "score-sync.timer", "score-listen.service"]
-    assert calls == [("disable", "--now", "score-sync.timer", "score-listen.service")]
-    assert machine.pc_units_off(present=[], systemctl=systemctl) == [] and len(calls) == 1
-    with pytest.raises(SystemExit, match="Access denied"):
-        machine.pc_units_off(present=["score-resume.service"], systemctl=lambda *args: types.SimpleNamespace(
-            returncode=1, stdout="", stderr="Access denied"))
-
-
-def test_the_move_sets_the_pcs_home_aside_read_only_last(tmp_path, monkeypatch):
-    home = tmp_path / "props"
-    (home / "store").mkdir(parents=True)
-    final = tmp_path / "props.pc-final"
-    monkeypatch.setattr(machine, "PROPS_HOME", home)
-    monkeypatch.setattr(machine, "PC_FINAL_HOME", final)
-    ran = []
-    monkeypatch.setattr(machine.conductor_yes, "mark_done", lambda yes, step, store=None: ran.append(
-        ("marked", step, store.objects.root)))
-    machine.retire_pc_home({"id": "y-1"}, "scw", run=lambda command, **kwargs: ran.append(
-        (command, kwargs.get("env", {}))) or types.SimpleNamespace(returncode=0))
-    assert final.is_dir() and home.is_dir() and not any(home.iterdir())
-    assert ran[0][0][-1] == "--pc-test-home" and ran[0][1]["SCORE_CONDUCTOR_YES_HOME"] == str(final)
-    assert ran[1][1]["UV_PROJECT_ENVIRONMENT"] == str(home / "env")
-    assert ("marked", "move", final / "store" / "objects") in ran
-    assert ran[-1][0] == ["chmod", "-R", "a-w", str(final)]  # read-only last, after the yes is marked
-
-
-def test_status_reads_the_health_record_with_the_conductors_own_key(monkeypatch):
-    """The PC's own key belongs to another project, so the bucket refuses it (HTTP 403, 2026-10-24)."""
-    monkeypatch.setattr(machine, "stored_key", lambda scw: {"access_key": "SCWCON", "secret_key": "s-con"})
-    read = []
-    record = machine.health_record(types.SimpleNamespace(dry=False),
-                                   read=lambda *args: read.append(args) or b'{"active_runs": 0}')
-    assert record == {"active_runs": 0} and read[0][-2:] == ("SCWCON", "s-con")
-
-    printed = []
-    monkeypatch.undo()  # the real stored_key: it asks score-conductor's own project for the key, by name
-    machine.stored_key(machine.Scw(dry=True, say=printed.append))
-    assert any("name=score-conductor-key 'project-id=<id of project score-conductor>'" in line for line in printed)
 
 
 # ==== boot ==========================================================================================================
-
-def heredoc(text, end):
-    """The lines of the bootcmd heredoc ending at `end`, indentation removed."""
-    lines = text.splitlines()
-    start = next(index for index, line in enumerate(lines) if line.endswith(f"<< '{end}'"))
-    stop = next(index for index in range(start + 1, len(lines)) if lines[index].strip() == end)
-    return [line[4:] for line in lines[start + 1:stop]]
-
-
-def test_cloud_init_passes_its_schema_binds_the_agents_key_to_the_door_and_boots_through_the_unit(tmp_path):
-    assert machine.check_cloud_init() is None
-    text = machine.render_cloud_init("ssh-ed25519 AAAA owner", "ssh-ed25519 BBBB agent", "vol-1")
-    door_line = next(line for line in text.splitlines() if "BBBB" in line)
-    for option in ('command=\\"/usr/local/bin/score-agent-door\\"', "no-pty", "no-port-forwarding",
-                   "no-agent-forwarding"):
-        assert option in door_line, (option, door_line)
-    assert "command=" not in next(line for line in text.splitlines() if "AAAA" in line)
-    assert "scsi-0SCW_sbs_volume-vol-1" in text
-    assert re.search(r"@[A-Z_]+@", text) is None, "a slot left unfilled"
-
-    assert "runcmd:" not in text  # the first boot runs boot.sh through the unit, as every later boot does
-    unit = heredoc(text, "UNIT")
-    move, system, user = [line for line in unit if line.startswith("ExecStart=")]
-    assert "checkout -q --detach origin/main" in move and "boot.sh system" in system
-    assert "runuser -u score --" in user and "boot.sh user" in user
-    bootcmd = text[text.index("bootcmd:"):]
-    # bootcmd has no bus: it only writes files; the per-boot script (cloud-init's final stage) enables and starts
-    assert not any(line.strip().startswith(("systemctl", "loginctl")) for line in bootcmd.split("<< 'SCRIPT'")[0]
-                   .splitlines())
-    script = heredoc(text, "SCRIPT")
-    assert script.index("systemctl daemon-reload") < script.index("systemctl enable -q score-boot.service")
-    copy = tmp_path / "score-boot.service"
-    copy.write_text("\n".join(unit) + "\n")
-    done = subprocess.run(["systemd-analyze", "verify", str(copy)], capture_output=True, text=True)
-    assert "score-boot.service" not in done.stderr, done.stderr
-
-
-def test_every_unit_passes_systemd_verify_and_the_sync_pass_updates_first(tmp_path):
-    assert machine.check_units(machine.fake_home(tmp_path / "units")) is None
-    import django
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "score.dashboard.site.settings")  # the sync's modules read them
-    django.setup()
-    from score.dashboard.sync import timer
-    home = machine.fake_home(tmp_path / "sync")
-    repo, env = home / "projects" / "score", home / "dashboard.env"
-    env.write_text("SCORE_SYNC_URL=https://cockpit.test\n")
-    copies = []
-    for name in ("score-sync.service", "score-sync.timer"):
-        copy = tmp_path / name
-        copy.write_text(timer.unit_text(name, repo, env, timer.SECRET, pull=False))
-        copies.append(str(copy))
-    service = pathlib.Path(copies[0]).read_text()
-    done = subprocess.run(["systemd-analyze", "--user", "verify", *copies], capture_output=True, text=True)
-    assert done.returncode == 0 and not (done.stderr + done.stdout).strip(), done.stderr + done.stdout
-    assert f"\nExecStartPre=/usr/bin/python3 -I {repo}/tools/cloud/conductor/update.py --repo {repo}\n" in service
-
-
-def test_wording_no_unit_names_the_pcs_paths_and_boot_seeds_the_viewers_gltfpack_pin():
-    """Wording checks guarding owner rules: the conductor's units run on the conductor alone, and the web copies run
-    the gltfpack the boot put in the npm cache (two pins that must agree)."""
-    for unit in machine.unit_files():
-        text = unit.read_text()
-        assert "/home/dupe" not in text and "wsl" not in text.lower(), unit.name
-    pin = re.search(r'^GLTFPACK = "(gltfpack@[0-9.]+)"', (REPO / "tools/review/viewer/export.py").read_text(), re.M)
-    assert f'GLTFPACK_PIN="{pin.group(1)}"' in (HERE / "boot.sh").read_text().splitlines()
-
 
 # boot.sh against a temp root. Every command it runs that touches the machine is a shim writing its words to LOG.
 SHIM = """#!/bin/sh
@@ -1078,6 +1406,13 @@ case "$(basename "$0")" in
 esac
 exit 0
 """
+# Claude Code at its pin in user score's ~/.local/lib/claude-code: its version, and asked, whether the login reached
+# it in CLAUDE_CODE_OAUTH_TOKEN with no API key beside it.
+LOGIN = "sk-ant-oat01-" + "q" * 40
+CLAUDE_CLI = ("#!/bin/sh\n[ \"$1\" = --version ] && echo '2.1.318 (Claude Code)' && exit 0\ncat > /dev/null\n"
+              "seen=false; [ \"$CLAUDE_CODE_OAUTH_TOKEN\" = %s ] && seen=true\n"
+              "[ -z \"$ANTHROPIC_API_KEY\" ] || seen=false\nprintf '{\"type\":\"result\",\"is_error\":false,"
+              "\"structured_output\":{\"login\":%%s,\"model\":\"%%s\"}}\\n' \"$seen\" \"$3\"\n" % LOGIN)
 SHIMMED = ("apt-get", "id", "useradd", "loginctl", "blkid", "mkfs.ext4", "mountpoint", "mount", "resize2fs", "chown",
            "systemctl", "runuser", "git", "curl", "chattr", "npx", "npm")
 
@@ -1099,8 +1434,7 @@ def boot_root(folder, installed=True):
         executable(bin_folder / "scw", "#!/bin/sh\necho 'Version          2.65.1'\n")
         executable(bin_folder / "kubectl", "#!/bin/sh\necho 'Client Version: v1.37.1'\n")
         executable(bin_folder / "node", "#!/bin/sh\necho v24.21.0\n")
-        executable(root / "home" / "score" / ".local" / "lib" / "claude-code" / "bin" / "claude",
-                   "#!/bin/sh\necho '2.1.318 (Claude Code)'\n")
+        executable(root / "home" / "score" / ".local" / "lib" / "claude-code" / "bin" / "claude", CLAUDE_CLI)
         (root / "opt" / "google-cloud-sdk").mkdir(parents=True)
         (root / "opt" / "google-cloud-sdk" / "VERSION").write_text("588.0.0")
     home = root / "home" / "score"
@@ -1153,11 +1487,12 @@ def failing_chattr(root, shims):
 
 
 # Each boot of boot.sh against its own temp root: (name, also its folder, kept short for the bus socket; the pinned
-# tools already there; a change to the root or its shims; the parts run; the words its stderr stops with (None: it
+# tools already there; a change to the root or its shims; the parts run, None: those the rendered score-boot.service
+# runs; the words its stderr stops with (None: it
 # boots); calls it never makes (by prefix; "": none at all); files it leaves executable; files it never installs).
 BIN = ("usr", "local", "bin")
 BOOT_ROWS = [
-    ("first", True, None, ("system", "user"), None, ("curl", "npm install"),
+    ("first", True, None, None, None, ("curl", "npm install"),
      ("score-secret-reader", "score-agent-door"), ()),
     ("unpinned", False, None, ("system", "user"), r"does not match its pinned SHA-256",
      ("runuser",), (), ("restic",)),
@@ -1165,65 +1500,6 @@ BOOT_ROWS = [
     ("failing", True, failing_chattr, ("system",), r"boot: stopped at boot.sh line \d+, exit 3: chattr",
      ("mount ",), (), ()),
 ]
-
-
-def test_boot_runs_the_same_every_time_and_stops_on_any_fault(short_path):
-    """Every BOOT_ROWS boot run side by side, each held to its outcome; then the first boot's root held to what it
-    made and booted again after the move (machine.json): the same, plus the prop environment and the sync's units."""
-    def boot(row):
-        name, installed, change, parts = row[:4]
-        root, shims = boot_root(short_path / name, installed=installed)
-        if change:
-            change(root, shims)
-        return (root, shims, *run_boot(short_path / name, root, shims, parts=parts))
-    with concurrent.futures.ThreadPoolExecutor(len(BOOT_ROWS)) as pool:
-        booted = dict(zip((row[0] for row in BOOT_ROWS), pool.map(boot, BOOT_ROWS)))
-    for name, _, _, _, stops, never, made, missing in BOOT_ROWS:
-        root, _, done, calls = booted[name]
-        said = (name, done.stderr + done.stdout)
-        assert (done.returncode == 0) is (stops is None), said
-        assert stops is None or re.search(stops, done.stderr), said
-        assert not [call for call in calls if call.startswith(never)], (name, calls)
-        assert all(os.access(root.joinpath(*BIN, file), os.X_OK) for file in made), said
-        assert not any(root.joinpath(*BIN, file).exists() for file in missing), said
-
-    root, shims, done, calls = booted["first"]
-    tmp_path = short_path / "first"
-    assert "mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test" in calls
-    assert "UUID=1111-uuid /home/score/.farm-factory-props ext4" in (root / "etc" / "fstab").read_text()
-    mountpoint = root / "home" / "score" / ".farm-factory-props"
-    assert calls.index(f"mount {mountpoint}") < calls.index(
-        "resize2fs /dev/disk/by-id/scsi-0SCW_sbs_volume-test")  # a grown volume gets its room at each boot
-    assert calls.index(f"chattr +i {mountpoint}") < calls.index(f"mount {mountpoint}"), \
-        "the bare mountpoint is not made immutable before the data volume is mounted on it"
-    sshd = (root / "etc" / "ssh" / "sshd_config.d" / "50-score-conductor.conf").read_text()
-    assert "PasswordAuthentication no" in sshd and "PermitRootLogin no" in sshd
-    assert not any("--no-dev" in call for call in calls), "the prop environment was built before the move"
-    assert not any("install-sync" in call for call in calls), "the sync's units came before the move"
-    units = root / "home" / "score" / ".config" / "systemd" / "user"
-    for unit in machine.unit_files():
-        installed = (units / unit.name).read_text()
-        assert installed == machine.rendered_unit(unit), unit.name
-        assert not any(slot in installed for slot in machine.UNIT_SLOTS), unit.name
-    # resume and health write into the home, so on the conductor they wait for the move's machine.json
-    waits = "ConditionPathExists=%h/.farm-factory-props/machine.json"
-    assert waits in (units / "score-resume.service.d" / "conductor.conf").read_text().splitlines()
-    assert waits in (units / "score-health.service").read_text().splitlines()
-    assert "npm cache add gltfpack@0.22.0" in calls  # score_lib's web copies run gltfpack offline from the cache
-    assert "apt-get remove -y -q nodejs" in calls  # Ubuntu's old node is never found before the pinned one
-    assert "Claude Code 2.1.318 already installed" in done.stdout  # the pinned CLI there is not installed again
-
-    # after the move (machine.json), every boot syncs the prop environment the rows' PROPS_PYTHON runs in
-    (mountpoint / "machine.json").write_text("{}")
-    again, calls_again = run_boot(tmp_path, root, shims)
-    assert again.returncode == 0, again.stderr
-    assert f"uv sync -q --frozen --no-dev --project {root}/home/score/projects/score" in calls_again
-    # and installs the sync's units with the update before each pass, the checkout moved to the pin first
-    env_file = f"{root}/home/score/.config/score/dashboard.env"
-    install = f"python -m score.dashboard install-sync --env-file {env_file} --no-pull"
-    assert calls_again.index("systemctl --user start score-update.service") < calls_again.index(install)
-    assert calls_again.count("mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test") == 1
-    assert (root / "etc" / "fstab").read_text().count("UUID=1111-uuid") == 1
 
 
 # ==== the health record errs on busy ================================================================================
@@ -1237,7 +1513,7 @@ def no_metadata(monkeypatch):
 def busy_home(home):
     """A home with a claim whose pid lives and one whose pid is gone, a parked machine, three frozen copies (one a
     waiting-for-size run's own), a hold whose holder is gone and the health file; the copies a process will work in."""
-    (home / "runs").mkdir(parents=True)
+    (home / "runs").mkdir(parents=True, exist_ok=True)
     dead = subprocess.Popen(["true"])
     dead.wait()
     (home / "runs" / "active.json").write_text(json.dumps({str(os.getpid()): {}, str(dead.pid): {}}))
@@ -1255,170 +1531,46 @@ def busy_home(home):
 
 def unreadable_home(home):
     """A home whose claims file does not parse."""
-    (home / "runs").mkdir(parents=True)
+    (home / "runs").mkdir(parents=True, exist_ok=True)
     (home / "runs" / "active.json").write_text('{"123": ')
     return ()
 
 
-# Each home the health record reads: (name, its builder, whether a live process holds its film-preview lock while it
+# Each state of the boot's data volume the health record reads, in order, each built on the one before: (name, its builder, whether a live process holds its film-preview lock while it
 # is read, what the record counts as (active_runs, parked, frozen, working, health) or the error it raises). The busy
 # home's run-a has a process in it; the waiting run's copy waits for the grow itself; the left-behind one is idle.
 HEALTH_ROWS = [
-    ("empty home is idle", lambda home: home.mkdir() or (), False, (0, 0, 0, 0, None)),
+    ("the boot's fresh data volume is idle", lambda home: (), False, (0, 0, 0, 0, None)),
     ("busy home counts live claims, parked, frozen in use and holds", busy_home, True, (1, 1, 1, 1, {"disk": 12})),
     ("unreadable claims file is never idle", unreadable_home, False, ValueError),
 ]
 
 
-def test_the_health_record_errs_on_busy(tmp_path, monkeypatch, no_metadata):
-    """Every HEALTH_ROWS home built, its processes working and its hold held, then read by health_push.record."""
-    now = datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc)
-    for name, build, holds, want in HEALTH_ROWS:
-        home = tmp_path / name.replace(" ", "-")
-        copies = build(home)
-        health = home / "conductor" / "health.json"
-        monkeypatch.setenv("SCORE_HEALTH_FILE", str(health))
-        with contextlib.ExitStack() as stack:
-            for copy in copies:
-                process = subprocess.Popen(["sleep", "30"], cwd=home / "frozen" / copy)
-                stack.callback(process.wait)
-                stack.callback(process.kill)
-            if holds:
-                held = stack.enter_context((home / "conductor" / "holds" / "film-preview-2.lock").open("a"))
-                fcntl.flock(held, fcntl.LOCK_EX)  # flock is per open file: the record's own open is refused too
-            if isinstance(want, type):
-                with pytest.raises(want):
-                    health_push.record(home, now)
-                continue
-            record = health_push.record(home, now)
-        counted = (record["active_runs"], record["parked"], record["frozen"], record["working"], record["health"])
-        assert counted == want and record["written_at"].startswith("2026-10-22T00:00:00"), (name, record)
-        assert health_push.working(home) == 0, name  # the hold released
-
-
-SCW_SHIM = """#!/bin/sh
-echo "$*" >> "{log}"
-case "$1 $2" in
-  "account project")
-    echo '[{{"name": "other", "id": "p-0"}}, {{"name": "secrets-here", "id": "p-1"}}]' ;;
-  "secret version")
-    echo '{{"data": "{data}"}}' ;;
-  "secret secret")
-    echo '[{{"name": "gemini-api-key", "id": "s-1"}}]' ;;
-esac
+# The secrets project's account, as the secret reader's scw sees it (run as `python -I` with the call's words): its
+# projects, and the vault VAULT ({name: value}; a value of None fails every read of that secret), each call written
+# to VAULT_LOG.
+VAULT_SCW = r"""import base64, json, os, sys
+words = sys.argv[1:]
+with open(os.environ["VAULT_LOG"], "a") as log:
+    log.write(" ".join(words) + "\n")
+with open(os.environ["VAULT"]) as held:
+    vault = json.load(held)
+named = dict(word.split("=", 1) for word in words if "=" in word)
+secret = named.get("name", named.get("secret-name"))
+if words[:2] == ["account", "project"]:
+    print(json.dumps([{"name": "other", "id": "p-0"}, {"name": "secrets-here", "id": "p-1"}]))
+elif secret in vault and vault[secret] is None:
+    sys.exit(f"scw: reading {secret} failed")
+elif words[:2] == ["secret", "secret"]:
+    print(json.dumps([{"name": secret, "id": "s-" + secret}] if secret in vault else []))
+elif secret not in vault:
+    sys.exit(f"scw: no secret {secret}")
+else:
+    print(json.dumps({"data": base64.b64encode(vault[secret].encode()).decode()}))
 """
-# A secret reader printing each secret's name as its value, past the optional flag.
-READER_SHIM = "#!/bin/sh\n[ \"$1\" = --if-present ] && shift\nprintf 'value of %s' \"$1\"\n"
-
-
-def test_the_secret_reader_finds_the_secrets_project_by_name(tmp_path):
-    log = tmp_path / "scw.log"
-    scw = executable(tmp_path / "scw", SCW_SHIM.format(log=log, data=base64.b64encode(b"the value").decode()))
-    env = {**os.environ, "SCORE_SCW": str(scw), "SCORE_SECRETS_PROJECT": "secrets-here",
-           "SCORE_READER_PYTHON": sys.executable}
-
-    def read(*arguments):
-        return subprocess.run(["sh", str(HERE / "secret_reader.sh"), *arguments], env=env, capture_output=True,
-                              text=True, timeout=30)
-    done = read("gemini-api-key")
-    assert done.returncode == 0 and done.stdout == "the value", done.stderr
-    assert "project-id=p-1" in log.read_text().splitlines()[1]  # p-1 is secrets-here's id, p-0 another project's
-    absent = read("--if-present", "google-billing-reader")
-    assert absent.returncode == 0 and absent.stdout == "", absent.stderr
-    assert read("--if-present", "gemini-api-key").stdout == "the value"
-    # An agent's `ask` reads the door's token through this reader by the secrets project's name, never the box's own
-    # SCORE_SECRET_READER (2026-11-10: this PC's looked only in babon-ops). Break: `asker_reader` hands back
-    # `[environment["SCORE_SECRET_READER"], TOKEN_SECRET]`.
-    command, found = door_service.asker_reader({**env, "SCORE_SECRET_READER": str(tmp_path / "another-projects")})
-    assert command[-2:] == [str(HERE / "secret_reader.sh"), door_service.TOKEN_SECRET]
-    assert door_service.asker_token({**env, "SCORE_SECRET_READER": str(tmp_path / "another-projects")}) == "the value"
-    assert door_service.asker_reader({"PATH": ""})[1]["SCORE_SECRETS_PROJECT"] == door_service.SECRETS_PROJECT
-    env["SCORE_SECRETS_PROJECT"] = "missing"
-    refused = read("x")
-    assert refused.returncode != 0 and "found 0" in refused.stderr
-
-
-def test_secrets_go_whole_and_private_to_the_runtime_folder_and_an_empty_read_replaces_nothing(tmp_path, monkeypatch):
-    runtime = tmp_path / "run"
-    runtime.mkdir()
-    gcloud = executable(tmp_path / "gcloud", f"#!/bin/sh\necho \"$CLOUDSDK_CONFIG $*\" > {tmp_path}/gcloud.log\n")
-    env = {**os.environ, "XDG_RUNTIME_DIR": str(runtime), "SCORE_GCLOUD": str(gcloud),
-           "SCORE_SECRET_READER": str(executable(tmp_path / "reader", READER_SHIM))}
-
-    def secrets():
-        return subprocess.run(["sh", str(HERE / "secrets.sh")], env=env, capture_output=True, text=True, timeout=30)
-    done = secrets()
-    assert done.returncode == 0, done.stderr
-    folder = runtime / "score"
-    assert stat.S_IMODE(folder.stat().st_mode) == 0o700
-    key = folder / "score-lib-deploy-key"
-    assert key.read_text() == "value of score-lib-deploy-key\n" and stat.S_IMODE(key.stat().st_mode) == 0o600
-    assert (folder / "google-billing-reader.json").read_text() == "value of google-billing-reader\n"
-    assert sorted(path.name for path in folder.iterdir()) == ["google-billing-reader.json", "k8s-kubeconfig", "k8s.env",
-                                                              "score-lib-deploy-key"]
-    assert (folder / "k8s.env").read_text() == "value of score-k8s-settings\n"  # the tenant cluster's, optional
-    assert (tmp_path / "gcloud.log").read_text().startswith(f"{folder}/gcloud auth activate-service-account")
-
-    env["SCORE_SECRET_READER"] = str(executable(tmp_path / "empty", "#!/bin/sh\n"))
-    refused = secrets()
-    assert refused.returncode != 0 and "empty" in refused.stderr
-    assert key.read_text() == "value of score-lib-deploy-key\n", "an empty read replaced a good key"
-
-    shutil.rmtree(folder)
-    env.update(SCORE_GCLOUD="/bin/false", SCORE_SECRET_READER=str(executable(
-        tmp_path / "absent", "#!/bin/sh\n[ \"$1\" = --if-present ] && exit 0\nprintf 'value of %s' \"$1\"\n")))
-    done = secrets()
-    assert done.returncode == 0 and "skipped" in done.stdout, done.stderr
-    assert sorted(path.name for path in folder.iterdir()) == ["google-billing-reader.note", "score-lib-deploy-key"]
-    env["SCORE_SECRET_READER"] = str(executable(
-        tmp_path / "failing", "#!/bin/sh\n[ \"$1\" = --if-present ] && exit 1\nprintf 'value of %s' \"$1\"\n"))
-    refused = secrets()
-    assert refused.returncode != 0 and "reading google-billing-reader failed" in refused.stderr
-
-    # Claude Code's login (claude_login.py, run by secrets.sh): no secret -> no `claude` and the adapter's NotHere;
-    # the CLI and the secret -> `claude` asks with the login in the CLI's environment alone, written nowhere.
-    from score.adapters.models import claude_code
-    login = "sk-ant-oat01-" + "q" * 40
-    bin_folder, cli = tmp_path / "bin", tmp_path / "lib" / "claude"
-    executable(cli, "#!/bin/sh\ncat > /dev/null\nseen=false; [ \"$CLAUDE_CODE_OAUTH_TOKEN\" = %s ] && seen=true\n"
-                    "[ -z \"$ANTHROPIC_API_KEY\" ] || seen=false\nprintf '{\"type\":\"result\",\"is_error\":false,"
-                    "\"structured_output\":{\"login\":%%s,\"model\":\"%%s\"}}\\n' \"$seen\" \"$3\"\n" % login)
-    held = executable(tmp_path / "held", "#!/bin/sh\n[ \"$1\" = --if-present ] && shift\n"
-                                        f"[ \"$1\" = claude-code-oauth-token ] && printf {login} && exit 0\n"
-                                        "printf 'value of %s' \"$1\"\n")
-    env.update(SCORE_GCLOUD=str(gcloud), SCORE_LOGIN_PYTHON=sys.executable, SCORE_CLAUDE_CLI=str(cli),
-               SCORE_CLAUDE_LINK=str(bin_folder / "claude"), SCORE_SECRET_READER=str(tmp_path / "absent"))
-    monkeypatch.setattr(claude_code, "LEDGER", tmp_path / "home" / "claude-ledger.jsonl")
-    monkeypatch.setattr(claude_code, "CACHE", tmp_path / "home" / "claude-cache")
-    monkeypatch.setenv("PATH", str(bin_folder))
-    monkeypatch.setenv("SCORE_CLAUDE_CLI", str(cli))
-    monkeypatch.setenv("ANTHROPIC_API_KEY", "an-api-key")
-    body = {"contents": [{"parts": [{"text": "which login?"}]}], "generationConfig": {"responseSchema": {
-        "type": "OBJECT", "properties": {"login": {"type": "BOOLEAN"}, "model": {"type": "STRING"}}}}}
-    said = []
-    for reader, linked in ((tmp_path / "absent", False), (held, True), (tmp_path / "absent", False)):
-        env["SCORE_SECRET_READER"] = str(reader)
-        done = secrets()
-        assert done.returncode == 0, done.stderr
-        said.append(done.stdout + done.stderr)
-        assert (bin_folder / "claude").is_symlink() is linked
-        if not linked:
-            with pytest.raises(claude_code.NotHere, match="runs on this PC"):
-                claude_code.asked({"one": body}, caller="finish-route-palette")
-    monkeypatch.setenv("SCORE_SECRET_READER", str(held))
-    env["SCORE_SECRET_READER"] = str(held)
-    assert secrets().returncode == 0
-    answers = claude_code.asked({"one": body}, caller="finish-route-palette")
-    assert json.loads(answers["one"]) == {"login": True, "model": "claude-opus-5-5"}, answers
-    written = [path.read_bytes() for path in tmp_path.rglob("*")
-               if path.is_file() and not path.is_symlink() and path not in (held, cli)]  # the two stand-ins hold it
-    assert len(written) > 3 and (tmp_path / "home" / "claude-ledger.jsonl").exists()
-    assert not any(login.encode() in text for text in written), "the login was written to a file"
-    assert not any(login in text for text in said), "the login reached a log line"
-    (bin_folder / "claude").unlink()
-    executable(bin_folder / "claude", "#!/bin/sh\n")  # a claude that is not ours is never removed
-    env["SCORE_SECRET_READER"] = str(tmp_path / "absent")
-    assert secrets().returncode == 0 and (bin_folder / "claude").read_text() == "#!/bin/sh\n"
+# The secrets every vault holds, and the optional ones secrets.sh writes when the vault has them.
+HELD = ("score-lib-deploy-key", "gemini-api-key", door_service.TOKEN_SECRET)
+OPTIONAL = ("google-billing-reader", "score-k8s-kubeconfig", "score-k8s-settings")
 
 
 # ==== the checkout moves only when safe =============================================================================
@@ -1430,7 +1582,7 @@ HOSTED = "hosted"  # a cockpit that pins nothing yet (its mode, no commit)
 ABSENT = "absent"  # pin.json holds no pin: the update stopped before it read one
 RUN = b"/x/.venv/bin/python\0-m\0score\0run\0world1\0"
 SYNC_PASS = b"/x/.venv/bin/python\0-m\0score.dashboard\0sync\0"
-UPDATES_FIRST = "[Service]\nExecStartPre=/usr/bin/python3 -I /r/tools/cloud/conductor/update.py --repo /r\n"
+RENDERED = "rendered"  # the sync unit as timer.unit_text renders it for the boot's checkout
 DASHBOARD_SYNC = ["sync", "-q", "--frozen", "--group", "dashboard"]
 PROPS_SYNC = ["{home}/env", "sync", "-q", "--frozen", "--no-dev", "--project", "{checkout}"]
 
@@ -1566,7 +1718,7 @@ CASES = [
     case("sync-pass-holds-a-lock-move", "a", "lock3", processes={6161: (SYNC_PASS, "checkout")},
          has=("not now", "6161", "runs no update")),
     case("sync-pass-of-a-unit-updating-first", "a", "lock3", processes={6161: (SYNC_PASS, "checkout")},
-         sync_unit=UPDATES_FIRST, has=("not now", "6161"), lacks=("runs no update",)),
+         sync_unit=RENDERED, has=("not now", "6161"), lacks=("runs no update",)),
     case("tracked-changes-wait", "lock1", "lock3", dirty=True, noted=ABSENT, has=("tracked changes",)),
     # score_lib's checkout gets the machine's committer when git knows none there, even when nothing moves (2026-10-28).
     case("library-without-identity-given-one", "claude", "claude", library="none",
@@ -1577,20 +1729,23 @@ CASES = [
 
 
 @contextlib.contextmanager
-def checkout_world(folder):
-    """An origin (origin_commits), a checkout of it, a uv and a boot.sh logging their calls, a proc folder, a home
-    with a frozen copy, the sync unit's path, score_lib's place and one cockpit whose answer each case sets."""
+def checkout_world(folder, home):
+    """User score's `home` as boot.sh left it, its checkout replaced by a clone of an origin (origin_commits) in
+    `folder`, with a uv and a boot.sh logging their calls, a proc folder, the data volume as the update's home, the
+    installed sync unit's path, score_lib's place beside the checkout and one cockpit whose answer each case sets."""
     origin = folder / "origin"
     origin.mkdir()
     commits = origin_commits(origin, folder / "boot.log")
-    checkout = folder / "checkout"
+    checkout = home / "projects" / "score"
+    shutil.rmtree(checkout)
     subprocess.run(["git", "clone", "-q", str(origin), str(checkout)], check=True, env={**os.environ, **GIT_ENV})
     uv = executable(folder / "uv", f"#!/bin/sh\necho \"${{UV_PROJECT_ENVIRONMENT:-}} $*\" >> {folder / 'uv.log'}\n")
     answer = {}
     with cockpit(answer) as url:
         yield types.SimpleNamespace(folder=folder, commits=commits, checkout=checkout, uv=uv, url=url, answer=answer,
-                                    home=folder / "home", proc=folder / "proc", sync_unit=folder / "score-sync.service",
-                                    library=folder / "score_lib", uv_log=folder / "uv.log",
+                                    home=home / ".farm-factory-props", proc=folder / "proc",
+                                    sync_unit=home / ".config" / "systemd" / "user" / "score-sync.service",
+                                    library=home / "projects" / "score_lib", uv_log=folder / "uv.log",
                                     boot_log=folder / "boot.log")
 
 
@@ -1621,7 +1776,8 @@ def stands(world, row):
             old = time.time() - update.IDLE_FRESH - 60
             os.utime(entry, (old, old))
     if row["sync_unit"]:
-        world.sync_unit.write_text(row["sync_unit"])
+        rendered = world.rendered_sync if row["sync_unit"] == RENDERED else row["sync_unit"]
+        world.sync_unit.write_text(rendered)
     if row["dirty"]:
         (world.checkout / "uv.lock").write_text("edited")
     if row["library"]:
@@ -1653,67 +1809,3 @@ def moved(world, row):
                                                  str(agent_door.REPO)], ran
     return said
 
-
-def test_the_checkout_moves_only_when_nothing_works_from_it(tmp_path, monkeypatch):
-    """Each case of CASES: the one world set to its moment, the update run once through score-update's call or the
-    door's release-pin, then where the checkout stands, what its line says, what uv and boot.sh were asked, the pin
-    noted for the Machine card and score_lib's committer; then Claude Code at its pin is left alone and two updates
-    take turns on the checkout's lock.
-    Break: fall back to origin/main when the pin read fails -> unread-pin-moves-nothing.
-    Break: `lock_changed` always True -> a-pin-reached-moves-and-syncs-nothing.
-    Break: `idle_copies` drops the `running` test -> running-run-holds-any-move.
-    Break: drop the `if runs and lock_changed` refusal -> idle-run-holds-a-lock-move.
-    Break: `frozen_users` returns [] -> frozen-run-holds-any-move.
-    Break: `pass_updates_first` always True -> sync-pass-holds-a-lock-move.
-    Break: in update.released_over, `return pin, "the cockpit's pin"` first -> release-followed-before-the-host-builds.
-    Break: in agent_door.release_pinned, drop the `run(...)` of update.py -> release-followed-before-the-host-builds.
-    Break: in update.py `units_installed`, return "" always -> units-changed-installed.
-    Break: in update.py `claude_installed`, return "" always -> claude-code-pinned-installed.
-    Break: in `library_identified`, `.returncode == 0` -> `.returncode == 1` -> library-identity-kept.
-    Break: drop the lock in update.main -> two updates no longer take turns."""
-    import agent_door
-    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    with checkout_world(tmp_path) as world:
-        commits = world.commits
-        with pytest.raises(agent_door.Refused, match="two full shas"):
-            agent_door.decide(["release-pin", commits["a"][:12], commits["lock1"]], False)
-        argv, _ = agent_door.decide(["release-pin", commits["a"], commits["lock1"]], False)
-        assert argv[1:] == [agent_door.RELEASE_PIN, commits["a"], commits["lock1"]], argv
-        places = {"home": world.home, "checkout": world.checkout}
-        for row in CASES:
-            stands(world, row)
-            line = moved(world, row)
-            said = f"{row['name']}: {line}"
-            assert git(world.checkout, "rev-parse", "HEAD") == commits[row["head"]], said
-            assert all(words in line for words in row["has"]), said
-            assert not any(words in line for words in row["lacks"]) and line.endswith(row["ends"]), said
-            asked = [[word.format(**places) for word in call] for call in row["uv"]]
-            uv_calls = world.uv_log.read_text().splitlines() if world.uv_log.exists() else []
-            assert [call.split() for call in uv_calls] == asked, said
-            assert (world.boot_log.read_text().split() if world.boot_log.exists() else []) == list(row["boot"]), said
-            noted = json.loads((world.home / "conductor" / "pin.json").read_text())
-            # the health record says why a checkout lags: the update's own line (the door's adds its note before it)
-            assert (line.endswith(f"; {noted['said']}") if row["release"] else noted["said"] == line), (said, noted)
-            want = row["noted"] if row["noted"] in (ABSENT, None) else commits[row["noted"]]
-            assert noted.get("pin", ABSENT) == want and (want == ABSENT or noted["at"]), (said, noted)
-            if row["email"]:
-                assert git(world.library, "config", "user.email") == row["email"], said
-                assert row["library"] != "none" or git(world.library, "config", "user.name") == "SCORE conductor"
-
-        # Claude Code already at its pin is not installed again.
-        cli = executable(world.folder / "claude-cli", '#!/bin/sh\necho "9.9.9 (Claude Code)"\n')
-        git(world.checkout, "checkout", "-q", "-f", "--detach", commits["claude"])
-        world.boot_log.unlink(missing_ok=True)
-        assert update.claude_installed(world.checkout, cli) == "" and not world.boot_log.exists()
-        # Two updates take turns on the checkout's lock.
-        called = []
-        monkeypatch.setattr(update, "update", lambda repo, url: called.append(repo) or "update: at test")
-        with open(world.checkout / ".git" / "score-update.lock", "w") as held:
-            fcntl.flock(held, fcntl.LOCK_EX)
-            second = threading.Thread(target=update.main, args=(["--repo", str(world.checkout)],))
-            second.start()
-            second.join(0.5)
-            assert second.is_alive() and not called
-        second.join(5)
-        assert called == [world.checkout.resolve()]
