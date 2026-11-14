@@ -50,13 +50,13 @@ park.py and spread.py are the pool's own call sites):
   make_room(run_id, plan, alive, crowded[0])` -> `roomed = False`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its pool held two hours): in `extend`,
   `plan.update({"deadline": deadline, "euros": euros})` -> `plan.update({"euros": euros})`.
-- test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go: in `resize`, `sizes = sized(plan["reserved"], cards,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its processor machines lowered by the run): in `resize`, `sizes = sized(plan["reserved"], cards,
   processors)` -> `sizes = dict(plan["reserved"])`. Or, the plan of 2026-11-09 B5, in `idle_down` drop the
   `lowered(...)` call (the idle card's place is rented again), or the `IDLE_MINUTES` test (no card is ever let go).
 - test_a_pool_books_every_card_once_and_deletes_every_card (its stopped taker): in park.py `park`, the delete and
   `pool.left` swapped.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its release side by side): in `at_once`, the threads -> one call after another.
-- test_a_pool_holds_what_its_jobs_can_run_at_once: in `counts_for`, `[:max(0, jobs)]` -> ``; or in `reach`,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its jobs-at-once rows): in `counts_for`, `[:max(0, jobs)]` -> ``; or in `reach`,
   `[row for row in rows if not row[2]]` -> `rows`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its collector's first stop): in `stop_on_signals`, `signal.signal(each,
   signal.SIG_IGN)` -> `pass`.
@@ -79,25 +79,25 @@ park.py and spread.py are the pool's own call sites):
   "closed").exists() and close(path.parent.name)` -> `if False`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (a stop while it releases): in `stop_on_signals`, `if
   batch.STOPPING.is_set():` -> `if False:`.
-- test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does: in `takes`, `if kind in
+- test_a_pool_books_every_card_once_and_deletes_every_card (its takes rows, its render on a processor machine): in `takes`, `if kind in
   capacity.PROCESSOR_KINDS and any(` -> `if any(`.
-- test_a_call_asked_on_smaller_processors_takes_the_pools_bigger_one_and_adds_none: in `takes`, `| no_smaller(classes)`
+- test_a_pool_books_every_card_once_and_deletes_every_card (its checks asked on 16 cores): in `takes`, `| no_smaller(classes)`
   -> ``.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its processor class): in `processor_class`, `iter(stocked +
   offered)` -> `iter(offered)`.
-- test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool: in preflight.py `processor_margin`,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its high minutes beside an unmeasured processor class): in preflight.py `processor_margin`,
   `return max([1] + [capacity.processor_times(name) for name in held])` -> `return 1`.
-- test_a_render_takes_the_pools_processor_machine_before_its_card_and_a_card_when_none_is_free: in park.py
+- test_a_pool_books_every_card_once_and_deletes_every_card (its renders on the processor machines first): in park.py
   `processor_first`, `return bool(record.get("pool")) and` -> `return False and`.
-- test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raises_it: in `sized`, `cards if
+- test_a_pool_books_every_card_once_and_deletes_every_card (its pool opening with no processor machine): in `sized`, `cards if
   provider.cards(name) else processors` -> `cards`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its start-up lead): in `lead_minutes`, drop `+
   LEAD_MARGIN_MINUTES`.
-- test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends: in `trim`, `if not paid_ahead(record, now)}`
+- test_a_pool_books_every_card_once_and_deletes_every_card (its processor machine billed by the hour): in `trim`, `if not paid_ahead(record, now)}`
   -> `if True}`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its hung collector): in `end_collector`, `os.kill(collector,
   signal.SIGKILL)` -> `pass`.
-- test_an_open_pool_whose_collector_is_gone_gets_a_new_one_and_a_closed_pool_none: in `revive`, `plan =
+- test_a_pool_books_every_card_once_and_deletes_every_card (its collector revived): in `revive`, `plan =
   current(run_id)` -> `plan = plan_of(run_id)`.
 """
 import json
@@ -334,12 +334,6 @@ def test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_
     pool.release(run_id)
 
 
-
-
-
-
-
-
 def asker_gone(run_id):
     """The pool's asks as if their asking process had ended."""
     plan = pool.plan_of(run_id)
@@ -368,58 +362,6 @@ def test_a_bigger_disk_is_one_card_beside_the_pool_for_its_claim_alone():
     assert plan["sizes"] == {"gpu-24gb": 2} and plan["disk_gb"] == batch.DISK_GB and not pool.shortfall(
         plan, pool.members(run_id))
     pool.release(run_id)
-
-
-def test_the_run_lowers_its_pool_and_the_idle_cards_past_it_go():
-    """Second Buy of 2026-10-24: 10 L4s held to the end while the card rows were done by 14:38."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 3})
-    assert grow(run_id) == 3
-    pool.resize(run_id, 1, 0)
-    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1}
-    assert grow(run_id) == 0 and len(calls.deleted) == 2
-    pool.resize(run_id, 5, 0)  # never above its opening size
-    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 3}
-    # no idle machine (the plan of 2026-11-09 B5): a card parked idle past IDLE_MINUTES goes with its place, so the
-    # collector does not rent it again and the run's resize does not raise it back
-    assert grow(run_id) == 2 and len(calls.deleted) == 2
-    path = next(park.PARKED.glob("*.json"))
-    path.write_text(json.dumps({**json.loads(path.read_text()),
-                                "parked_at": time.time() - (pool.IDLE_MINUTES + 1) * 60}))
-    assert grow(run_id) == 0 and len(calls.deleted) == 3
-    pool.resize(run_id, 5, 0)
-    assert pool.current(run_id)["sizes"] == pool.current(run_id)["reserved"] == {"gpu-24gb": 2}
-    assert grow(run_id) == 0 and len(calls.deleted) == 3
-    pool.release(run_id)
-
-
-def test_a_pool_holds_what_its_jobs_can_run_at_once():
-    """Second Buy of 2026-10-24: sized on every line at once, 10 L4s and 3 POP2s opened for 8 jobs."""
-    rows = [(f"place-{number}", 3, False) for number in range(12)] + [("place-0", 1, True), ("place-1", 2, True)]
-    assert pool.counts_for(rows, 8) == (pool.MOST_CARDS, 0)  # the eight lines holding most: cards
-    assert pool.counts_for(rows, 2) == (6, 0)
-    assert pool.counts_for([("hub", 2, False), ("hub", 5, False), ("hub", 1, True)], 8) == (5, 1)  # a line's most
-    assert pool.counts_for([("hub", 2, False), ("lab", 3, True)], 1) == (0, 3)
-    assert pool.counts_for([], 8) == (0, 0)
-    # Fault of 2026-11-05 (Batch 1, checkout 29): opened with only processor rows due, its card rows later, the
-    # pool's reserved size (and clearance) held no card, and each L4 asked for let a warm processor machine go.
-    due_later = [("bake-0", 1, True), ("bake-1", 1, True), ("place-0", 1, False)]
-    assert pool.counts_for(due_later, 2) == (0, 2) and pool.reach(due_later, 2) == (1, 2)
-    reserved = {"gpu-24gb": 1, PROCESSOR: 2}
-    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS
-                                            if offer.machine_class in classes])
-    assert [sizes for sizes, _ in pool.shrinking(reserved, 1)] == [reserved, {"gpu-24gb": 1, PROCESSOR: 1},
-                                                                   {"gpu-24gb": 1}]  # not fitting: shrunk as ever
-    calls, run_id = fresh(stock=10, sizes=pool.sized(reserved, 0, 2), reserved=reserved,
-                          euros=pool.holding_euros(reserved, 1))
-    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS
-                                            if offer.machine_class in classes])
-    assert grow(run_id) == 2
-    pool.resize(run_id, 1, 2)  # the card row comes due
-    assert grow(run_id) == 1 and not calls.deleted
-    assert sorted(card["class"] for card in pool.members(run_id)) == sorted(["gpu-24gb", PROCESSOR, PROCESSOR])
-    pool.release(run_id)
-
-
 
 
 BIG = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "available")]
@@ -474,152 +416,23 @@ PROCESSOR = "cpu-48c-96gb"
 PROCESSOR_OFFERS = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, PROCESSOR, 0, "available")]
 
 
-def processor_pool():
-    """A pool of one processor machine, warm, and no card yet."""
-    calls, run_id = fresh(stock=10, sizes={PROCESSOR: 1})
-    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes])
-    assert grow(run_id) == 1
-    return calls, run_id
+def processor_offer(machine_class):
+    return provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, machine_class, 0, "available")
 
 
-def test_a_render_takes_the_pools_processor_machine_a_model_kind_never_does():
-    """The owner, 2026-10-23: bakes and small renders take whichever machine is free first, processor or card;
-    anything that needs a card (Pixal3D and the other models) still takes a card."""
-    calls, run_id = processor_pool()
-    assert claimed(a_run("pixal-waits"), "pixal") is None  # a card only: none warm, and the pool is asked for one
-    plan = pool.current(run_id)
-    assert plan["sizes"] == {PROCESSOR: 1} and [ask["class"] for ask in pool.live_asks(plan)] == ["gpu-24gb"]
-    machine = claimed(a_run("render"), "blender")  # asked on a card, takes the processor machine that is free
-    assert machine["class"] == PROCESSOR and machine["pool"] == run_id
-    assert spread.slots("blender", machine) == [None]  # so Cycles runs on its processor (FARM_CYCLES_CPU)
-    settle = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-32c-128gb", 0, "available")]
-    # asked on processors alone: its own class and the pool's processors no smaller in cores and memory
-    assert pool.takes("blender", settle) == {"cpu-32c-128gb", "cpu-48c-192gb", "cpu-64c-128gb", "cpu-64c-256gb"}
-    checks = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-16c-64gb", 0, "available")]
-    assert PROCESSOR in pool.takes("blender", checks) and "cpu-16c-64gb" in pool.takes("blender", checks)
-    assert pool.takes("library", OFFERS) == {"gpu-24gb", "gpu-48gb", *pool.capacity.PROCESSORS}  # never an H100
-    assert pool.takes("judge", OFFERS) == {"gpu-24gb", "gpu-48gb", "gpu-80gb"}  # a model kind: cards only
-    pool.release(run_id)
+SIXTEEN_CORES = [processor_offer("cpu-16c-64gb")]  # a body's checks, asked on 16 cores
 
 
-def test_a_call_asked_on_smaller_processors_takes_the_pools_bigger_one_and_adds_none():
-    """Fault, 2026-10-23: a body's checks asked on 16 or 32 cores rented a 16-core machine beside the idle 48-core."""
-    calls, run_id = processor_pool()
-    checks = [provider.Offer(CARD_PRICE, 0, "cpu-type", "zone-c", CARD_PRICE, "cpu-16c-64gb", 0, "available")]
-    run = a_run("checks")
-    machine = batch.claim(run, "account", checks, 1, "blender", wanted=lambda: False)
-    assert machine["class"] == PROCESSOR and pool.current(run_id)["sizes"] == {PROCESSOR: 1}
-    assert len(calls.rented) == 1
-    pool.release(run_id)
-
-
+def given_back(*machines):
+    """Each machine back from its claim, healthy: to the pool."""
+    for machine in machines:
+        machine["healthy"] = True
+        batch.delete_machine(machine)
 
 
 def ledger_line(stage, kind, number):
     return {"ticket": f"{stage}@place key{number}", "kind": kind, "wall_minutes": 10.0, "euros": 1.0,
             "machines": [{"unit_seconds": [60.0], "minutes": 10.0, "euros": 1.0, "cards": 1}]}
-
-
-def test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool():
-    """A render measured on cards may land on the pool's processor machine: the runaway watch, at twice its high
-    minutes, never stops it for that. A measured class (the 48-core, faster than an L4: capacity.PROCESSOR_TIMES) keeps
-    the card's minutes; an unmeasured one is held at capacity.PROCESSOR_SLOWER, an upper bound."""
-    import preflight
-    entries = [ledger_line(stage, kind, n) for stage, kind in (("look", "blender"), ("model", "pixal")) for n in range(3)]
-    assert pool.processor_able("look", entries) and not pool.processor_able("model", entries)
-    assert not pool.processor_able("unbought", entries)
-    # a stage whose kind goes to the cluster is sized on no pool machine (#76): by its measured kind, or its own name
-    with pytest.MonkeyPatch.context() as patch:
-        patch.setenv("SCORE_CLOUD", "k8s")
-        patch.setenv("SCORE_CLOUD_KINDS", "pixal,settle")
-        assert pool.on_cluster("model", entries) and pool.on_cluster("settle", entries)
-        assert not pool.on_cluster("look", entries) and not pool.on_cluster("unbought", entries)
-        patch.delenv("SCORE_CLOUD")
-        assert not pool.on_cluster("model", entries)
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    card_only = preflight.node_run(entries, "look")["high_minutes"]
-    pool.release(run_id)
-    calls, run_id = processor_pool()
-    assert pool.capacity.processor_times(PROCESSOR) < 1
-    assert preflight.node_run(entries, "look")["high_minutes"] == card_only  # the card is the slower one
-    pool.release(run_id)
-    calls, run_id = fresh(stock=10, sizes={"cpu-32c-64gb": 1, "gpu-24gb": 1})
-    assert preflight.node_run(entries, "look")["high_minutes"] == card_only * pool.capacity.PROCESSOR_SLOWER
-    assert preflight.node_run(entries, "model")["high_minutes"] == card_only  # a card kind keeps its own
-    pool.release(run_id)
-
-
-def test_a_render_takes_the_pools_processor_machine_before_its_card_and_a_card_when_none_is_free():
-    """Measured 2026-10-23 (#26): the pool's 48-core machine beat its L4 on every Blender job, so renders and bakes
-    take a free processor machine first and a card only when none is; a model kind takes the card."""
-    import blender_cloud  # noqa: F401 - their clean-ups, so their machines go back to the pool
-    import library_bake  # noqa: F401
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1, PROCESSOR: 1})
-    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes])
-    assert grow(run_id) == 2
-    first = claimed(a_run("render-1"), "blender")
-    assert first["class"] == PROCESSOR
-    second = claimed(a_run("render-2"), "library")  # the processor is busy: the card
-    assert second["class"] == "gpu-24gb"
-    for machine in (first, second):
-        machine["healthy"] = True
-        batch.delete_machine(machine)
-    assert claimed(a_run("model"), "pixal")["class"] == "gpu-24gb"
-    assert claimed(a_run("render-3"), "blender")["class"] == PROCESSOR
-    assert len(calls.rented) == 2
-    pool.release(run_id)
-
-
-def test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raises_it():
-    """Batch 1 of 2026-10-24: the pool rented its three processor machines at the start and they sat idle for an hour
-    while only Pixal3D ran; they open at 0 and the run's heartbeat raises them (resize) when a render is near."""
-    reserved = {"gpu-24gb": 1, PROCESSOR: 2}
-    assert pool.sized(reserved, 10, 0) == {"gpu-24gb": 1, PROCESSOR: 0}
-    calls, run_id = fresh(stock=10)  # the fakes installed; this run's own pool opened next
-    pool.release(run_id)
-    run_id = f"run-{time.time_ns()}"
-    PATCHES[0].setenv("SCORE_RUN_ID", run_id)
-    pool.start(run_id, pool.sized(reserved, 10, 0), time.time() + 3600, reserved=reserved)
-    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + PROCESSOR_OFFERS if offer.machine_class in classes])
-    assert grow(run_id) == 1 and len(calls.rented) == 1  # the card alone
-    pool.resize(run_id, 1, 1)
-    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1, PROCESSOR: 1}
-    assert grow(run_id) == 1 and len(calls.rented) == 2
-    pool.resize(run_id, 1, 5)  # never above what it reserved
-    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1, PROCESSOR: 2}
-    pool.resize(run_id, 1, 0)
-    assert grow(run_id) == 0 and len(calls.deleted) == 1  # the idle processor goes once no render is near
-    pool.release(run_id)
-
-
-
-
-def test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends():
-    """A processor machine is billed by the started hour: let go early, its paid minutes are lost and nothing saved."""
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 1})
-    grow(run_id)
-    path = next(park.PARKED.glob("*.json"))
-    record = json.loads(path.read_text())
-    path.write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 20 * 60}))
-    pool.resize(run_id, 0, 0)
-    assert grow(run_id) == 0 and not calls.deleted  # 40 paid minutes left: kept
-    path.write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 58 * 60}))
-    assert grow(run_id) == 0 and len(calls.deleted) == 1  # its paid hour ends: it goes
-    pool.release(run_id)
-
-
-def test_an_open_pool_whose_collector_is_gone_gets_a_new_one_and_a_closed_pool_none():
-    """Fault of 2026-10-26: with its collector gone and the pool open, nothing rents its places and every claim waits
-    on it; the run's heartbeat starts a collector again (revive), never for a pool closed or one whose collector
-    lives."""
-    _, run_id = fresh(stock=1)
-    patch(pool, "spawn_collector", lambda run_id, folder: os.getpid())
-    assert pool.revive(run_id) and pool.plan_of(run_id)["collector"] == os.getpid()
-    assert not pool.revive(run_id)  # it lives
-    with pool.locked(run_id):
-        pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": GONE_PID})
-    pool.close(run_id)
-    assert not pool.revive(run_id) and pool.plan_of(run_id)["collector"] == GONE_PID
 
 
 UNMARKED = ["similar", "unirig", "parts", "closeups", "moss-sound", "unlit"]  # kinds whose set-up writes no mark
@@ -680,17 +493,34 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
     L4 fills its place when it leaves; held two hours, a card a claim asks for is priced for both hours against the
     whole clearance and an idle card makes room for it (review of 2026-10-24: asked cards were rented with no money
     check), and a card too dear for the clearance is refused; released, the pool stays closed (Batch 1 of 2026-10-24:
-    the pool closed at its cleared 4 h with ~550 rows queued).
+    the pool closed at its cleared 4 h with ~550 rows queued); its collector gone, the open pool gets a new one, a
+    live collector or a closed pool none (fault of 2026-10-26).
+
+    Between, a pool reserving one card and two processor machines, opened with the processors alone (Batch 1 of
+    2026-10-24: processors rented at the start sat idle an hour; Batch 1 of 2026-11-05: opened with processor rows
+    only, each L4 asked for later let a warm processor machine go): a model kind waits for a card and asks the pool
+    for one; a render takes a free processor machine before the card and the card when none is free (measured
+    2026-10-23, #26), and a body's checks asked on 16 cores take the pool's 48-core and rent none (fault,
+    2026-10-23); the card row comes due and is rented with no processor let go; the run lowers and raises the
+    processors within what it reserved (second Buy of 2026-10-24: 10 L4s held to the end), one idle past
+    IDLE_MINUTES goes with its place (the plan of 2026-11-09 B5), and one billed by the started hour stays till its
+    paid hour ends. A render stage's high minutes hold on a measured processor class as on its card and stretch to
+    PROCESSOR_SLOWER beside an unmeasured one (a pool of the booking run's), so the runaway watch never stops it.
 
     Before the cards, the pool's own judgements, one row each: its size from the run's planned card work (capped at
     MOST_CARDS); its shrinking one machine at a time, keeping a processor beside its cards while it can, each step
     cheaper; its holding cost, every card warm every hour at its dearest offer, and no price for a class not sold; its
     processor class, the biggest in stock or else the biggest offered, held to the cap and the class quota; a class's
     start-up lead, the median of its measured start-ups plus the margin (the margin alone unmeasured; owner,
-    2026-10-25: "cant u just do the start up earlier then when u need them again"); and a taker killed and not yet
-    reaped holds its card no longer (review of 2026-10-24).
+    2026-10-25: "cant u just do the start up earlier then when u need them again"); a taker killed and not yet
+    reaped holds its card no longer (review of 2026-10-24); the jobs a pool can run at once, card rows due later
+    still reserving their card (second Buy of 2026-10-24, Batch 1 of 2026-11-05); which stages are processor-able
+    or on the cluster (#76); and which classes a claim of each kind takes from the pool.
     """
+    import blender_cloud  # noqa: F401 - their clean-ups, so their machines go back to the pool
     import characters
+    import library_bake  # noqa: F401
+    import preflight
     Cloud(0).install()
     dear = [provider.Offer(CARD_PRICE * 3, 0, "cpu-type", "zone-c", CARD_PRICE * 3, PROCESSOR, 0, "available")]
     offered(OFFERS + dear)
@@ -700,6 +530,17 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
              provider.Offer(1, 0, "t", "z", 1, "cpu-32c-64gb", 0, "available")]
     starts = [started_after("gpu-24gb", 4.0), started_after("gpu-24gb", 6.0), started_after("gpu-24gb", 30.0),
               started_after(PROCESSOR, 2.0), {"kind": pool.HOLD, "machines": [], "euros": 1.0}]
+    measured = [ledger_line(stage, kind, n) for stage, kind in (("look", "blender"), ("model", "pixal")) for n in range(3)]
+    card_only = preflight.node_run(measured, "look")["high_minutes"]  # no pool: a card's own high minutes
+    with pytest.MonkeyPatch.context() as env:
+        env.setenv("SCORE_CLOUD", "k8s")
+        env.setenv("SCORE_CLOUD_KINDS", "pixal,settle")
+        clustered = {stage: pool.on_cluster(stage, measured) for stage in ("model", "settle", "look", "unbought")}
+        env.delenv("SCORE_CLOUD")
+        unclustered = pool.on_cluster("model", measured)
+    rows = [(f"place-{number}", 3, False) for number in range(12)] + [("place-0", 1, True), ("place-1", 2, True)]
+    due_later = [("bake-0", 1, True), ("bake-1", 1, True), ("place-0", 1, False)]
+    reserved = {"gpu-24gb": 1, PROCESSOR: 2}
     zombie = ended_unreaped()
     try:
         judged = [  # (row, what the pool judged, what it should judge)
@@ -735,6 +576,33 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
              {False: pool.LEAD_MARGIN_MINUTES, True: pool.LEAD_MARGIN_MINUTES}),
             ("a zombie holds nothing", pool.process_alive(zombie), False),
             ("a live process holds", pool.process_alive(os.getpid()), True),
+            ("jobs at once: the eight lines holding most, capped", pool.counts_for(rows, 8), (pool.MOST_CARDS, 0)),
+            ("jobs at once: the two lines holding most", pool.counts_for(rows, 2), (6, 0)),
+            ("jobs at once: a line's most", pool.counts_for([("hub", 2, False), ("hub", 5, False), ("hub", 1, True)], 8),
+             (5, 1)),
+            ("jobs at once: one job, its processor line", pool.counts_for([("hub", 2, False), ("lab", 3, True)], 1),
+             (0, 3)),
+            ("jobs at once: no rows", pool.counts_for([], 8), (0, 0)),
+            ("jobs at once: card rows due later", pool.counts_for(due_later, 2), (0, 2)),
+            ("reach: card rows due later still reserve their card", pool.reach(due_later, 2), (1, 2)),
+            ("shrinking a reserved pool not fitting: as ever", [sizes for sizes, _ in pool.shrinking(reserved, 1)],
+             [reserved, {"gpu-24gb": 1, PROCESSOR: 1}, {"gpu-24gb": 1}]),
+            ("a pool opens with no processor machine", pool.sized(reserved, 10, 0), {"gpu-24gb": 1, PROCESSOR: 0}),
+            ("processor-able: a render stage", pool.processor_able("look", measured), True),
+            ("processor-able: a model stage is not", pool.processor_able("model", measured), False),
+            ("processor-able: an unmeasured stage is not", pool.processor_able("unbought", measured), False),
+            ("on the cluster: by its measured kind or its own name", clustered,
+             {"model": True, "settle": True, "look": False, "unbought": False}),
+            ("on the cluster: none without the cluster", unclustered, False),
+            ("the 48-core is measured faster than a card", pool.capacity.processor_times(PROCESSOR) < 1, True),
+            ("a render asked on processors alone: its own class and every one no smaller",
+             pool.takes("blender", [processor_offer("cpu-32c-128gb")]),
+             {"cpu-32c-128gb", "cpu-48c-192gb", "cpu-64c-128gb", "cpu-64c-256gb"}),
+            ("a render asked on smaller processors takes the pool's bigger one and its own",
+             {PROCESSOR, "cpu-16c-64gb"} <= pool.takes("blender", SIXTEEN_CORES), True),
+            ("a render asked on a card: the cards and every processor, never an H100", pool.takes("library", OFFERS),
+             {"gpu-24gb", "gpu-48gb", *pool.capacity.PROCESSORS}),
+            ("a model kind: cards only", pool.takes("judge", OFFERS), {"gpu-24gb", "gpu-48gb", "gpu-80gb"}),
         ]
     finally:
         os.waitpid(zombie, 0)
@@ -841,7 +709,10 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
         hung.wait()
     assert set(tried) == left and tried.count(tried[0]) == 2  # the failed one tried again as a member
     assert pool.current(run_id) is None and not pool.members(run_id) and not park.pool_records(run_id)
-    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})
+    # it may be raised to an unmeasured processor class: a render's high minutes held at PROCESSOR_SLOWER
+    calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2}, reserved={"gpu-24gb": 2, "cpu-32c-64gb": 1})
+    assert preflight.node_run(measured, "look")["high_minutes"] == card_only * pool.capacity.PROCESSOR_SLOWER
+    assert preflight.node_run(measured, "model")["high_minutes"] == card_only  # a card kind keeps its own
     assert grow(run_id) == 2 and grow(run_id) == 0 and len(calls.rented) == 2  # rented once; full, nothing more
     for name in rented_ago(run_id, 30):
         ledger.rent_started("machines", name, {"type": "card-type", "zone": "zone-a", "price": CARD_PRICE}, None)
@@ -889,6 +760,57 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
     assert idle == [run_id] * (len(kinds) + 2)  # each idle spell once: to its take, the last to its delete
     assert abs(pool_euros() - 2 * 30 * CARD_PRICE) <= BOOKED_WITHIN  # struck off: to its delete, still once
     assert claimed(a_run("after"), KINDS[0]) is None and len(calls.rented) == 2  # a claim after the end takes nothing
+    calls, run_id = fresh(stock=10, sizes=pool.sized(reserved, 0, 2), reserved=reserved,
+                          euros=pool.holding_euros(reserved, 1, OFFERS + PROCESSOR_OFFERS))
+    offered(OFFERS + PROCESSOR_OFFERS)  # then a pool reserving a card and two processor machines, its card not due
+    assert grow(run_id) == 2 and len(calls.rented) == 2  # the processor machines alone
+    assert preflight.node_run(measured, "look")["high_minutes"] == card_only  # the measured 48-core is no slower
+    assert claimed(a_run("pixal-waits"), "pixal") is None  # a card only: none warm, and the pool is asked for one
+    plan = pool.current(run_id)
+    assert plan["sizes"] == {"gpu-24gb": 0, PROCESSOR: 2} and [ask["class"] for ask in pool.live_asks(plan)] == [
+        "gpu-24gb"]
+    asker_gone(run_id)
+    render = claimed(a_run("render"), "blender")  # asked on a card, takes a processor machine that is free
+    assert render["class"] == PROCESSOR and render["pool"] == run_id
+    assert spread.slots("blender", render) == [None]  # so Cycles runs on its processor (FARM_CYCLES_CPU)
+    checks = batch.claim(a_run("checks"), "account", SIXTEEN_CORES, 1, "blender", wanted=lambda: False)
+    assert checks["class"] == PROCESSOR and len(calls.rented) == 2  # asked on 16 cores: the pool's 48, none added
+    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 0, PROCESSOR: 2}
+    given_back(render, checks)
+    pool.resize(run_id, 1, 2)  # the card row comes due: the card rented, no warm processor machine let go for it
+    assert grow(run_id) == 1 and not calls.deleted
+    assert sorted(card["class"] for card in pool.members(run_id)) == sorted(["gpu-24gb", PROCESSOR, PROCESSOR])
+    renders = [claimed(a_run(f"bake-{number}"), "library") for number in (1, 2)]
+    card = claimed(a_run("render-1"), "blender")  # every processor machine busy: the card
+    assert [machine["class"] for machine in renders + [card]] == [PROCESSOR, PROCESSOR, "gpu-24gb"]
+    given_back(*renders, card)
+    # the processor machine first, though the card last ran this very kind; a model kind the card
+    render, model = claimed(a_run("render-2"), "blender"), claimed(a_run("model"), "pixal")
+    assert (render["class"], model["class"], len(calls.rented)) == (PROCESSOR, "gpu-24gb", 3)
+    given_back(render, model)
+    pool.resize(run_id, 1, 5)  # never above what it reserved
+    assert pool.current(run_id)["sizes"] == {"gpu-24gb": 1, PROCESSOR: 2}
+    pool.resize(run_id, 1, 0)
+    assert grow(run_id) == 0 and len(calls.deleted) == 2  # the idle processor machines go once no render is near
+    pool.resize(run_id, 1, 5)
+    assert grow(run_id) == 2 and len(calls.rented) == 5  # raised by the run: rented again
+    # no idle machine (the plan of 2026-11-09 B5): one parked idle past IDLE_MINUTES goes with its place, so the
+    # collector does not rent it again and the run's resize does not raise it back
+    processors = [path for path in park.PARKED.glob("*.json") if json.loads(path.read_text())["class"] == PROCESSOR]
+    processors[0].write_text(json.dumps({**json.loads(processors[0].read_text()),
+                                         "parked_at": time.time() - (pool.IDLE_MINUTES + 1) * 60}))
+    assert grow(run_id) == 0 and len(calls.deleted) == 3
+    pool.resize(run_id, 1, 5)
+    assert pool.current(run_id)["sizes"] == pool.current(run_id)["reserved"] == {"gpu-24gb": 1, PROCESSOR: 1}
+    assert grow(run_id) == 0 and len(calls.deleted) == 3
+    # billed by the started hour: let go early its paid minutes are lost and nothing saved
+    record = json.loads(processors[1].read_text())
+    processors[1].write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 20 * 60}))
+    pool.resize(run_id, 1, 0)
+    assert grow(run_id) == 0 and len(calls.deleted) == 3  # 40 paid minutes left: kept
+    processors[1].write_text(json.dumps({**record, "unit_minutes": 60, "created": time.time() - 58 * 60}))
+    assert grow(run_id) == 0 and len(calls.deleted) == 4  # its paid hour ends: it goes
+    pool.release(run_id)
     calls, run_id = fresh(stock=10, sizes={"gpu-24gb": 2})  # last, a pool whose clearance the run sets late
     offered(L4_SHORT + BIG)
     assert grow(run_id) == 0 and not calls.rented  # L4s sold out, its clearance unknown: no larger card either
@@ -921,6 +843,13 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
         pool.want(run_id, BIG, "judge", batch.DISK_GB)
     pool.extend(run_id, plan["started"] + 2 * 3600, 4 * HOUR_OF_L4)
     pool.want(run_id, BIG, "judge", batch.DISK_GB)  # fits now
+    collector = pool.plan_of(run_id)["collector"]  # its collector gone, the open pool gets a new one; a live one none
+    patch(pool, "spawn_collector", lambda run_id, folder: os.getpid())
+    assert pool.revive(run_id) and pool.plan_of(run_id)["collector"] == os.getpid()
+    assert not pool.revive(run_id)
+    with pool.locked(run_id):
+        pool.write_plan(run_id, {**pool.plan_of(run_id), "collector": collector})
     pool.release(run_id)
+    assert not pool.revive(run_id) and pool.plan_of(run_id)["collector"] == collector  # closed: none
     pool.extend(run_id, plan["started"] + 3 * 3600, 6 * HOUR_OF_L4)  # released: stays closed
     assert pool.current(run_id) is None and sorted(calls.deleted) == sorted(calls.rented)
