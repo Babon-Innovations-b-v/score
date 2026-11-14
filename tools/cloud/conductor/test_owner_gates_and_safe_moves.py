@@ -1144,21 +1144,58 @@ def short_path():
         yield pathlib.Path(folder)
 
 
-def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
-    tmp_path = short_path
-    root, shims = boot_root(tmp_path)
-    done, calls = run_boot(tmp_path, root, shims)
-    assert done.returncode == 0, done.stderr + done.stdout
+def no_bus(root, shims):
+    (root / "run" / "dbus" / "system_bus_socket").unlink()
+
+
+def failing_chattr(root, shims):
+    executable(shims / "chattr", "#!/bin/sh\nexit 3\n")
+
+
+# Each boot of boot.sh against its own temp root: (name, also its folder, kept short for the bus socket; the pinned
+# tools already there; a change to the root or its shims; the parts run; the words its stderr stops with (None: it
+# boots); calls it never makes (by prefix; "": none at all); files it leaves executable; files it never installs).
+BIN = ("usr", "local", "bin")
+BOOT_ROWS = [
+    ("first", True, None, ("system", "user"), None, ("curl", "npm install"),
+     ("score-secret-reader", "score-agent-door"), ()),
+    ("unpinned", False, None, ("system", "user"), r"does not match its pinned SHA-256",
+     ("runuser",), (), ("restic",)),
+    ("busless", True, no_bus, ("system",), r"no system bus", ("",), (), ()),
+    ("failing", True, failing_chattr, ("system",), r"boot: stopped at boot.sh line \d+, exit 3: chattr",
+     ("mount ",), (), ()),
+]
+
+
+def test_boot_runs_the_same_every_time_and_stops_on_any_fault(short_path):
+    """Every BOOT_ROWS boot run side by side, each held to its outcome; then the first boot's root held to what it
+    made and booted again after the move (machine.json): the same, plus the prop environment and the sync's units."""
+    def boot(row):
+        name, installed, change, parts = row[:4]
+        root, shims = boot_root(short_path / name, installed=installed)
+        if change:
+            change(root, shims)
+        return (root, shims, *run_boot(short_path / name, root, shims, parts=parts))
+    with concurrent.futures.ThreadPoolExecutor(len(BOOT_ROWS)) as pool:
+        booted = dict(zip((row[0] for row in BOOT_ROWS), pool.map(boot, BOOT_ROWS)))
+    for name, _, _, _, stops, never, made, missing in BOOT_ROWS:
+        root, _, done, calls = booted[name]
+        said = (name, done.stderr + done.stdout)
+        assert (done.returncode == 0) is (stops is None), said
+        assert stops is None or re.search(stops, done.stderr), said
+        assert not [call for call in calls if call.startswith(never)], (name, calls)
+        assert all(os.access(root.joinpath(*BIN, file), os.X_OK) for file in made), said
+        assert not any(root.joinpath(*BIN, file).exists() for file in missing), said
+
+    root, shims, done, calls = booted["first"]
+    tmp_path = short_path / "first"
     assert "mkfs.ext4 -q -L score-data /dev/disk/by-id/scsi-0SCW_sbs_volume-test" in calls
-    assert not any(call.startswith("curl") for call in calls), "a pinned tool already there was downloaded again"
     assert "UUID=1111-uuid /home/score/.farm-factory-props ext4" in (root / "etc" / "fstab").read_text()
     mountpoint = root / "home" / "score" / ".farm-factory-props"
     assert calls.index(f"mount {mountpoint}") < calls.index(
         "resize2fs /dev/disk/by-id/scsi-0SCW_sbs_volume-test")  # a grown volume gets its room at each boot
     assert calls.index(f"chattr +i {mountpoint}") < calls.index(f"mount {mountpoint}"), \
         "the bare mountpoint is not made immutable before the data volume is mounted on it"
-    for name in ("score-secret-reader", "score-agent-door"):
-        assert os.access(root / "usr" / "local" / "bin" / name, os.X_OK), name
     sshd = (root / "etc" / "ssh" / "sshd_config.d" / "50-score-conductor.conf").read_text()
     assert "PasswordAuthentication no" in sshd and "PermitRootLogin no" in sshd
     assert not any("--no-dev" in call for call in calls), "the prop environment was built before the move"
@@ -1175,7 +1212,6 @@ def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
     assert "npm cache add gltfpack@0.22.0" in calls  # score_lib's web copies run gltfpack offline from the cache
     assert "apt-get remove -y -q nodejs" in calls  # Ubuntu's old node is never found before the pinned one
     assert "Claude Code 2.1.318 already installed" in done.stdout  # the pinned CLI there is not installed again
-    assert not any(call.startswith("npm install") for call in calls)
 
     # after the move (machine.json), every boot syncs the prop environment the rows' PROPS_PYTHON runs in
     (mountpoint / "machine.json").write_text("{}")
@@ -1190,30 +1226,6 @@ def test_boot_runs_against_a_temp_root_and_again_the_same(short_path):
     assert (root / "etc" / "fstab").read_text().count("UUID=1111-uuid") == 1
 
 
-def test_boot_stops_on_a_missed_pin_a_missing_bus_or_any_failing_command(short_path):
-    tmp_path = short_path
-    unpinned = tmp_path / "unpinned"
-    root, shims = boot_root(unpinned, installed=False)
-    done, calls = run_boot(unpinned, root, shims)
-    assert done.returncode != 0 and "does not match its pinned SHA-256" in done.stderr
-    assert not (root / "usr" / "local" / "bin" / "restic").exists()
-    assert not any(call.startswith("runuser") for call in calls)
-
-    busless = tmp_path / "busless"
-    root, shims = boot_root(busless)
-    (root / "run" / "dbus" / "system_bus_socket").unlink()
-    done, calls = run_boot(busless, root, shims, parts=("system",))
-    assert done.returncode != 0 and "no system bus" in done.stderr and calls == []
-
-    failing = tmp_path / "failing"
-    root, shims = boot_root(failing)
-    executable(shims / "chattr", "#!/bin/sh\nexit 3\n")
-    done, calls = run_boot(failing, root, shims, parts=("system",))
-    assert done.returncode != 0
-    assert re.search(r"boot: stopped at boot.sh line \d+, exit 3: chattr", done.stderr), done.stderr
-    assert not any(call.startswith("mount ") for call in calls)
-
-
 # ==== the health record errs on busy ================================================================================
 
 @pytest.fixture
@@ -1222,9 +1234,10 @@ def no_metadata(monkeypatch):
     monkeypatch.setattr(health_push, "commercial_type", lambda: None)
 
 
-def test_the_health_record_counts_live_claims_parked_frozen_in_use_and_holds(tmp_path, monkeypatch, no_metadata):
-    home = tmp_path
-    (home / "runs").mkdir()
+def busy_home(home):
+    """A home with a claim whose pid lives and one whose pid is gone, a parked machine, three frozen copies (one a
+    waiting-for-size run's own), a hold whose holder is gone and the health file; the copies a process will work in."""
+    (home / "runs").mkdir(parents=True)
     dead = subprocess.Popen(["true"])
     dead.wait()
     (home / "runs" / "active.json").write_text(json.dumps({str(os.getpid()): {}, str(dead.pid): {}}))
@@ -1237,31 +1250,50 @@ def test_the_health_record_counts_live_claims_parked_frozen_in_use_and_holds(tmp
     (home / "conductor" / "holds").mkdir(parents=True)
     (home / "conductor" / "holds" / "sync-pass-1.lock").write_text("")  # its holder gone
     (home / "conductor" / "health.json").write_text(json.dumps({"disk": 12}))
-    monkeypatch.setenv("SCORE_HEALTH_FILE", str(home / "conductor" / "health.json"))
-    working = [subprocess.Popen(["sleep", "30"], cwd=home / "frozen" / copy) for copy in ("run-a", "run-waiting")]
-    try:
-        with (home / "conductor" / "holds" / "film-preview-2.lock").open("a") as held:
-            fcntl.flock(held, fcntl.LOCK_EX)  # flock is per open file: the record's own open is refused like another's
-            record = health_push.record(home, datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc))
-    finally:
-        for process in working:
-            process.kill()
-            process.wait()
-    # run-a has a process in it; the waiting run's copy waits for the grow itself; the left-behind one is idle
-    assert (record["active_runs"], record["parked"], record["frozen"], record["working"]) == (1, 1, 1, 1)
-    assert record["health"] == {"disk": 12} and record["written_at"].startswith("2026-10-22T00:00:00")
-    assert health_push.working(home) == 0  # the hold released
+    return ("run-a", "run-waiting")
 
 
-def test_an_empty_home_is_idle_and_an_unreadable_claims_file_is_never_idle(tmp_path, no_metadata):
-    now = datetime.datetime.now(datetime.timezone.utc)
-    record = health_push.record(tmp_path, now)
-    assert (record["active_runs"], record["parked"], record["frozen"], record["working"], record["health"]) == (
-        0, 0, 0, 0, None)
-    (tmp_path / "runs").mkdir()
-    (tmp_path / "runs" / "active.json").write_text('{"123": ')
-    with pytest.raises(ValueError):
-        health_push.record(tmp_path, now)
+def unreadable_home(home):
+    """A home whose claims file does not parse."""
+    (home / "runs").mkdir(parents=True)
+    (home / "runs" / "active.json").write_text('{"123": ')
+    return ()
+
+
+# Each home the health record reads: (name, its builder, whether a live process holds its film-preview lock while it
+# is read, what the record counts as (active_runs, parked, frozen, working, health) or the error it raises). The busy
+# home's run-a has a process in it; the waiting run's copy waits for the grow itself; the left-behind one is idle.
+HEALTH_ROWS = [
+    ("empty home is idle", lambda home: home.mkdir() or (), False, (0, 0, 0, 0, None)),
+    ("busy home counts live claims, parked, frozen in use and holds", busy_home, True, (1, 1, 1, 1, {"disk": 12})),
+    ("unreadable claims file is never idle", unreadable_home, False, ValueError),
+]
+
+
+def test_the_health_record_errs_on_busy(tmp_path, monkeypatch, no_metadata):
+    """Every HEALTH_ROWS home built, its processes working and its hold held, then read by health_push.record."""
+    now = datetime.datetime(2026, 10, 22, tzinfo=datetime.timezone.utc)
+    for name, build, holds, want in HEALTH_ROWS:
+        home = tmp_path / name.replace(" ", "-")
+        copies = build(home)
+        health = home / "conductor" / "health.json"
+        monkeypatch.setenv("SCORE_HEALTH_FILE", str(health))
+        with contextlib.ExitStack() as stack:
+            for copy in copies:
+                process = subprocess.Popen(["sleep", "30"], cwd=home / "frozen" / copy)
+                stack.callback(process.wait)
+                stack.callback(process.kill)
+            if holds:
+                held = stack.enter_context((home / "conductor" / "holds" / "film-preview-2.lock").open("a"))
+                fcntl.flock(held, fcntl.LOCK_EX)  # flock is per open file: the record's own open is refused too
+            if isinstance(want, type):
+                with pytest.raises(want):
+                    health_push.record(home, now)
+                continue
+            record = health_push.record(home, now)
+        counted = (record["active_runs"], record["parked"], record["frozen"], record["working"], record["health"])
+        assert counted == want and record["written_at"].startswith("2026-10-22T00:00:00"), (name, record)
+        assert health_push.working(home) == 0, name  # the hold released
 
 
 SCW_SHIM = """#!/bin/sh
