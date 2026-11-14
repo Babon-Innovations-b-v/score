@@ -164,7 +164,11 @@ class RowCluster:
     """A cluster of the row's pools and own taints."""
 
     def __init__(self, pools, tolerations):
-        self.pools, self.TOLERATIONS = pools, list(tolerations)
+        self.pools, self.TOLERATIONS, self.caps = pools, list(tolerations), []
+
+    def cap_pools(self, euros_left, hours):
+        self.caps.append((euros_left, hours))
+        return {}
 
     def class_pools(self):
         return [{"class": name} for name in self.pools]
@@ -179,7 +183,9 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, na
     by a scale-up does not count) or no node came for NODE_MINUTES while a pod waited, a late class after LATE_MINUTES;
     a Job that waited past its deadline is made again with the classes so far; that Job requires exactly them, prefers
     them in order, asks cards only on card classes and bears a Kubernetes name; the run is marked waiting until its job
-    runs, and the job takes its Job's end and the node it ran on."""
+    runs, and the job takes its Job's end and the node it ran on. A submitter after it takes up the newest generation;
+    five such jobs go on only while the namespace's quota has room (all of them when the login may not read it), held
+    to `parallel` at once, and never outside a cleared run, stopped at what is left of the owner's override."""
     clock = [submit.parse_time("2026-10-09T14:00:00Z")]
     monkeypatch.setattr(submit.time, "time", lambda: clock[0])
     monkeypatch.setattr(submit.capacity, "LATE", late_classes)
@@ -284,6 +290,69 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, na
     assert run.jobs[job_id]["state"] == state and run.jobs[job_id]["node"] == node
     assert run.jobs[job_id]["generation"] == len(order)  # a failed Job, or one that ran past its deadline, is never made again
 
+    # a submitter after this one takes up the newest generation, and the kind's classes so far for a job not made yet
+    again = submit.Run(run_id, {job_id: spec, "other": spec}, kubectl, RowCluster(pools, taints))
+    again.resume()
+    assert again.jobs[job_id]["generation"] == len(order) and again.jobs[job_id]["submitted"]
+    assert again.jobs["other"]["submitted"] is None and again.allowed("other") == order
+
+    # five such jobs under the tenant's quota (#76), by its own names, 2 of its 24 cards left: a card job makes 2 and
+    # holds 3, a processor job fits whole; a quota's refusal is no word to widen; the 2 made counted, one card freed
+    quota = QuotaKubectl({"requests.cpu": "250", "requests.memory": "1200Gi", "requests.nvidia.com/gpu": "24"},
+                         {"requests.cpu": "66070m", "requests.memory": "440Gi", "requests.nvidia.com/gpu": "22"})
+    takes = {f"take-{number}": spec for number in range(5)}
+    held = submit.Run("r2", takes, quota, RowCluster(pools, taints))
+    submit.submit_more(held, None)
+    assert len(quota.jobs) == (2 if cards else 5)
+    assert sum(record["submitted"] is None for record in held.jobs.values()) == (3 if cards else 0)
+    quota.events = [{"reason": "FailedCreate", "involvedObject": {"kind": "Job", "name": made},
+                     "message": "Error creating: pods is forbidden: exceeded quota: score-jobs"} for made in quota.jobs]
+    held.kinds[kind]["since"] -= (submit.NODE_MINUTES + 1) * 60
+    _jobs, pods, no_grow = held.read()
+    held.widen(pods, no_grow)
+    assert held.kinds[kind]["step"] == 1
+    quota.used["requests.nvidia.com/gpu"] = "23"
+    submit.submit_more(held, None)
+    assert len(quota.jobs) == (3 if cards else 5)
+
+    # the same five under a login that may not read the quota (every Job goes, as before the quota check), the run
+    # held to `parallel` at once, and its runaway watch told the Jobs' deadlines: the longest once a round
+    scoped, capped = NoQuotaKubectl(), RowCluster(pools, taints)
+    monkeypatch.delenv(submit.compute.TICKET, raising=False)
+    with pytest.raises(submit.compute.Refused, match="nothing rents outside a cleared run"):
+        submit.prepare(scoped, capped)
+    assert capped.caps == [] and scoped.jobs == {}
+    two_at_once = submit.Run("r3", takes, scoped, capped)
+    submit.submit_more(two_at_once, 2)
+    assert len(scoped.jobs) == 2
+    two_at_once.jobs["take-0"]["state"] = "done"
+    submit.submit_more(two_at_once, 2)
+    assert len(scoped.jobs) == 3
+    submit.submit_more(two_at_once, None)
+    assert len(scoped.jobs) == 5
+    longest = manifests.deadline_seconds({**spec, "minutes": 90})
+    longer = {**takes, "take-4": {**spec, "minutes": 90}}
+    assert submit.declared_seconds(longer, 2) == 3 * longest and submit.declared_seconds(longer, None) == longest
+
+    # under the owner's override the run is stopped at what is left of his euros less 10%, read again each look
+    # (labval-motor-20261106, 2026-11-06: EUR 2.47 left, and only the EUR 60 batch cap was checked)
+    room = {"name": "labval", "euros": 40.0, "spent": 37.53, "left": 2.47}
+    monkeypatch.setenv(submit.compute.TICKET, "override labval")
+    monkeypatch.setattr(submit.compute, "override_room", lambda store=None: room)
+    monkeypatch.setattr(submit, "poll", lambda run: None)
+    live = [2.0]
+    two_at_once.live_euros = lambda: live[0]
+    submit.look(two_at_once, None)
+    assert len(two_at_once.unfinished()) == 4 and capped.caps == []  # EUR 2.00 fits EUR 2.25 (2.47 less 10%)
+    live[0] = 2.3
+    submit.look(two_at_once, None)
+    assert two_at_once.unfinished() == [] and len(scoped.deleted) == 4
+    assert [record["state"] for record in two_at_once.jobs.values()] == ["done"] + ["stopped"] * 4
+    assert capped.caps == [(0, 1)]  # its pools capped to nothing, as at the batch cap
+    assert "labval" in submit.over_limits(two_at_once)
+    room["left"] = 100.0
+    assert submit.over_limits(two_at_once) is None  # more left than the batch cap: the EUR 60 cap stands
+
 
 class FakeCluster:
     """A cluster module that records the caps it is given."""
@@ -320,7 +389,7 @@ class LiveKubectl:
     test."""
 
     def __init__(self):
-        self.jobs, self.pods, self.events, self.deleted = {}, [], [], []
+        self.jobs, self.pods, self.events, self.deleted, self.ran = {}, [], [], [], []
 
     def json(self, *arguments):
         if arguments[1] == "jobs,pods":
@@ -334,6 +403,10 @@ class LiveKubectl:
     def delete_job(self, name):
         self.deleted.append(name)
         self.jobs.pop(name, None)
+
+    def run(self, *arguments):
+        self.ran.append(arguments)
+        return ""
 
 
 class NoQuotaKubectl(LiveKubectl):
@@ -362,87 +435,6 @@ class QuotaKubectl(LiveKubectl):
 
 def time_text(seconds):
     return submit.datetime.datetime.fromtimestamp(seconds, submit.datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
-def test_resume_takes_up_the_newest_generation_and_a_run_holds_to_its_parallel_jobs():
-    spec = {"kind": "library", "image": "image", "minutes": 5}
-    made = manifests.job(spec, "r1", "bake", ["gpu-24gb", "gpu-48gb"], 1, generation=2)
-    run = submit.Run("r1", {"bake": spec, "other": spec}, FakeKubectl([made]), PoolCluster())
-    run.resume()
-    assert run.jobs["bake"]["generation"] == 2 and run.jobs["bake"]["submitted"]
-    assert run.jobs["other"]["submitted"] is None and run.allowed("other") == ["gpu-24gb", "gpu-48gb"]
-
-    spec = {"kind": "pixal", "image": "image", "minutes": 30, "classes": ["gpu-24gb"]}
-    kubectl = LiveKubectl()
-    run = submit.Run("r1", {f"take-{number}": spec for number in range(5)}, kubectl, PoolCluster())
-    submit.submit_more(run, 2)
-    assert len(kubectl.jobs) == 2
-    run.jobs["take-0"]["state"] = "done"
-    submit.submit_more(run, 2)
-    assert len(kubectl.jobs) == 3
-    submit.submit_more(run, None)
-    assert len(kubectl.jobs) == 5
-    longest = manifests.deadline_seconds({**spec, "minutes": 90})
-    takes = {**run.specs, "take-4": {**spec, "minutes": 90}}
-    assert submit.declared_seconds(takes, 2) == 3 * longest and submit.declared_seconds(takes, None) == longest
-
-    # quota admission (#76): the tenant's quota by its own names, 2 of its 24 cards left; 5 card jobs make 2, hold 3
-    kubectl = QuotaKubectl({"requests.cpu": "250", "requests.memory": "1200Gi", "requests.nvidia.com/gpu": "24"},
-                           {"requests.cpu": "66070m", "requests.memory": "440Gi", "requests.nvidia.com/gpu": "22"})
-    run = submit.Run("r2", {f"take-{number}": {"kind": "pixal", "image": "image", "minutes": 30}
-                            for number in range(5)}, kubectl, PoolCluster())
-    submit.submit_more(run, None)
-    assert len(kubectl.jobs) == 2 and sum(record["submitted"] is None for record in run.jobs.values()) == 3
-    kubectl.events = [{"reason": "FailedCreate", "involvedObject": {"kind": "Job", "name": name},
-                       "message": "Error creating: pods is forbidden: exceeded quota: score-jobs"}
-                      for name in kubectl.jobs]
-    run.kinds["pixal"]["since"] -= (submit.NODE_MINUTES + 1) * 60
-    _jobs, pods, no_grow = run.read()
-    run.widen(pods, no_grow)
-    assert run.kinds["pixal"]["step"] == 1  # a refused pod is no word that the classes cannot be had
-    kubectl.used["requests.nvidia.com/gpu"] = "23"  # the 2 made counted, one card freed elsewhere
-    submit.submit_more(run, None)
-    assert len(kubectl.jobs) == 3
-    # a login that may not read the quota (the conductor's scoped one): every Job goes, as before the quota check
-    kubectl = NoQuotaKubectl()
-    run = submit.Run("r3", {f"take-{number}": {"kind": "pixal", "image": "image", "minutes": 30}
-                            for number in range(5)}, kubectl, PoolCluster())
-    submit.submit_more(run, None)
-    assert len(kubectl.jobs) == 5
-
-
-def test_nothing_goes_on_the_cluster_outside_a_cleared_run(monkeypatch):
-    monkeypatch.delenv(submit.compute.TICKET, raising=False)
-    cluster = FakeCluster()
-    kubectl = FakeKubectl([])
-    with pytest.raises(submit.compute.Refused, match="nothing rents outside a cleared run"):
-        submit.prepare(kubectl, cluster)
-    assert cluster.caps == [] and kubectl.applied == []
-
-    # under the owner's override a run is stopped at what is left of his euros less 10%, read again each look
-    # (labval-motor-20261106, 2026-11-06: EUR 2.47 left, and only the EUR 60 batch cap was checked)
-    room = {"name": "labval", "euros": 40.0, "spent": 37.53, "left": 2.47}
-    monkeypatch.setenv(submit.compute.TICKET, "override labval")
-    monkeypatch.setattr(submit.compute, "override_room", lambda store=None: room)
-    monkeypatch.setattr(submit, "poll", lambda run: None)
-
-    class StoppingKubectl(LiveKubectl):
-        def run(self, *arguments):
-            return ""
-    run = submit.Run("r1", {"bake": {"kind": "judge", "image": "image", "minutes": 5}}, StoppingKubectl(),
-                     PoolCluster())
-    run.make("bake")
-    live = [2.0]
-    run.live_euros = lambda: live[0]
-    submit.look(run, None)
-    assert run.unfinished() == ["bake"] and run.cluster.caps == []  # EUR 2.00 fits EUR 2.25 (2.47 less 10%)
-    live[0] = 2.3
-    submit.look(run, None)
-    assert run.unfinished() == [] and run.jobs["bake"]["state"] == "stopped" and run.kubectl.deleted
-    assert run.cluster.caps == [(0, 1)]  # its pools capped to nothing, as at the batch cap
-    assert "labval" in submit.over_limits(run)
-    room["left"] = 100.0
-    assert submit.over_limits(run) is None  # more left than the batch cap: the EUR 60 cap stands
 
 
 # ==== the runners' door =============================================================================================
