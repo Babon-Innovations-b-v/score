@@ -4,26 +4,27 @@ claim in one process is free; and, only while card.SHARING is on, two Pixal3D ru
 
 Two runs on one card crash the box, so these are the lock's whole reason. Every case runs on the claim files in the
 sandbox home (PROPS_HOME), never the real one; holders are short sleeping processes, so a wait is measured in seconds.
+Each row of the one test is a card as a run finds it (who holds which claim, whether sharing is on) and what the run
+must then get: whether it waits, which claim it holds, that a step inside it claims again for free, what it says
+while it waits, and that it gives its claim back.
 
-Breaks that turn each test red (each applied once and seen red, 2026-10-26):
-- test_it_claims_the_card_and_gives_it_back: claimed's `finally: _drop_stale_claim(...)` made `finally: pass`.
-- test_it_gives_the_card_back_when_the_run_throws: the same `try/finally` made `yield` then `if True:`.
-- test_a_claim_whose_process_is_gone_is_taken_over: _process_is_alive's `except ProcessLookupError: return False`
-  made `return True`.
-- test_a_claim_that_is_not_a_claim_names_nobody: _read_claim's `except ValueError: return None` made
-  `pid = os.getppid()` (the corrupt claim then names a live process and is never cleared).
-- test_a_process_that_has_exited_holds_nothing: _has_finished_but_not_been_collected returns False always.
-- test_it_waits_for_a_live_holder_and_says_who: _take_claim's `os.O_CREAT | os.O_EXCL | os.O_WRONLY` without O_EXCL.
-- test_claiming_twice_in_one_process_is_free: claimed's own-claim check `if any(_ours(...` made `if False and any(`
-  together with _try_alone's `not _ours(_read_claim(CLAIM)) and ` dropped (either one alone still holds: the inner
-  block finds its own claim and gives back only a claim written with its own words).
-- test_with_sharing_off_a_second_model_run_waits: card.SHARING = True.
-- test_with_sharing_on_a_second_model_run_shares_the_card: _may_share returns False always.
-- test_with_sharing_on_a_model_run_waits_for_one_that_must_be_alone: _may_share made `holder is not None`.
-- test_with_sharing_on_a_run_that_must_be_alone_waits_for_both_models: _wait_for_the_card's `(shared or
-  _read_claim(SECOND_CLAIM) is None)` made `(True)`.
-- test_with_sharing_on_a_third_model_waits: _take_claim without O_EXCL (as above).
+Breaks that turn the test red (each applied once and seen red; row ids in brackets, 2026-11-14):
+- claimed's `finally: _drop_stale_claim(...)` made `finally: pass` [free].
+- the same `try/finally` made `yield` then `if True:` [a run that throws].
+- _process_is_alive's `except ProcessLookupError: return False` made `return True` [a dead holder].
+- _read_claim's `except ValueError: return None` made `pid = os.getppid()` (the corrupt claim then names a live
+  process and is never cleared) [rubbish].
+- _has_finished_but_not_been_collected returns False always [an exited holder].
+- _take_claim's `os.O_CREAT | os.O_EXCL | os.O_WRONLY` without O_EXCL [a live holder, third model].
+- claimed's own-claim check `if any(_ours(...` made `if False and any(` together with _try_alone's
+  `not _ours(_read_claim(CLAIM)) and ` dropped (either one alone still holds: the inner step finds its own claim and
+  gives back only a claim written with its own words) [every row].
+- card.SHARING = True [sharing off].
+- _may_share returns False always [second model shares].
+- _may_share made `holder is not None` [model waits for a picture].
+- _wait_for_the_card's `(shared or _read_claim(SECOND_CLAIM) is None)` made `(True)` [picture waits for both].
 """
+import contextlib
 import os
 import pathlib
 import subprocess
@@ -39,6 +40,31 @@ import card  # noqa: E402
 
 HOLD = 2.0  # how long a holder keeps the card, in seconds
 WAITED = 1.5  # a run that waited for a holder took at least this long
+SHARED_MODEL = f"{card.SHARES}another model"
+
+# Each row: id, sharing on, the claims on the card when the run starts as (claim file, holder kind, what the holder
+# is doing, seconds it lives), what the run is doing, whether it may share, whether its body throws, then the
+# answer: whether it waits, and which claim it holds ("main" for card.CLAIM, "second" for card.SECOND_CLAIM).
+CASES = [
+    ("free", False, (), "a run", False, False, False, "main"),
+    ("a run that throws", False, (), "a run that throws", False, True, False, "main"),
+    ("a dead holder", False, (("main", "gone", "a run that died", 0),), "a later run", False, False, False, "main"),
+    ("rubbish", False, (("main", "rubbish", "", 0),), "a run after rubbish", False, False, False, "main"),
+    ("an exited holder", False, (("main", "zombie", "a run that has already finished", 0),),
+     "the next run", False, False, False, "main"),
+    ("a live holder", False, (("main", "live", "somebody else's prop", HOLD),), "our run", False, False, True, "main"),
+    ("sharing off", False, (("main", "live", SHARED_MODEL, HOLD),), "a second model", True, False, True, "main"),
+    ("second model shares", True, (("main", "live", SHARED_MODEL, HOLD),),
+     "a second model", True, False, False, "second"),
+    ("model waits for a picture", True, (("main", "live", "a picture", HOLD),), "a model", True, False, True, "main"),
+    ("picture waits for both", True,
+     (("main", "live", f"{card.SHARES}a model", 1.0), ("second", "live", SHARED_MODEL, HOLD)),
+     "a picture", False, False, True, "main"),
+    ("third model", True,
+     (("main", "live", f"{card.SHARES}a model", HOLD), ("second", "live", SHARED_MODEL, HOLD)),
+     "a third model", True, False, True, "main"),
+]
+CLAIMS = {"main": card.CLAIM, "second": card.SECOND_CLAIM}
 
 
 @pytest.fixture(autouse=True)
@@ -53,129 +79,62 @@ def quick_lock(monkeypatch):
         claim.unlink(missing_ok=True)
 
 
-@pytest.fixture
-def sharing(monkeypatch):
-    monkeypatch.setattr(card, "SHARING", True)
+def holder_pid(kind, seconds, children):
+    """A process id for a claim to name: a live sleeper, a gone id, an exited but uncollected child, or None."""
+    if kind == "live":
+        process = subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({seconds})"])
+        children.append(process.wait)
+        return process.pid
+    if kind == "gone":
+        return next(pid for pid in range(4000000, 4100000) if not card._process_is_alive(pid))
+    if kind == "zombie":
+        child = os.fork()  # a child that exits at once and is not collected until the end: a zombie
+        if child == 0:
+            os._exit(0)
+        children.append(lambda: os.waitpid(child, 0))
+        time.sleep(0.3)
+        return child
+    return None
 
 
-def quietly(line):
-    """Swallow what a run would print while it waits."""
+def holds(claim):
+    """Whether this process's id is what the claim file names."""
+    return claim.exists() and claim.read_text().split(" ")[0] == str(os.getpid())
 
 
-def holder(seconds=HOLD):
-    """A live process that holds nothing itself, for a claim to name."""
-    return subprocess.Popen([sys.executable, "-c", f"import time; time.sleep({seconds})"])
-
-
-def timed(doing, shared=False, say=quietly):
-    """Seconds a claim waited, and whether it then held the main claim (`CLAIM`) or the second one."""
-    started = time.time()
-    with card.claimed(doing, say=say, shared=shared):
-        waited = time.time() - started
-        main = str(os.getpid()) in (card.CLAIM.read_text() if card.CLAIM.exists() else "")
-        second = str(os.getpid()) in (card.SECOND_CLAIM.read_text() if card.SECOND_CLAIM.exists() else "")
-    return waited, main, second
-
-
-def test_it_claims_the_card_and_gives_it_back():
-    _, main, _ = timed("a run")
-    assert main and not card.CLAIM.exists()
-
-
-def test_it_gives_the_card_back_when_the_run_throws():
-    with pytest.raises(RuntimeError):
-        with card.claimed("a run that throws", say=quietly):
-            raise RuntimeError("the run failed")
-    assert not card.CLAIM.exists()
-
-
-def test_a_claim_whose_process_is_gone_is_taken_over():
-    gone = next(pid for pid in range(4000000, 4100000) if not card._process_is_alive(pid))
-    card.CLAIM.write_text(f"{gone} a run that died")
-    waited, main, _ = timed("a later run")
-    assert main and waited < 1
-
-
-def test_a_claim_that_is_not_a_claim_names_nobody():
-    card.CLAIM.write_text("not a process id at all")
-    waited, main, _ = timed("a run after rubbish")
-    assert main and waited < 1 and not card.CLAIM.exists()
-
-
-def test_a_process_that_has_exited_holds_nothing():
-    """A finished process still answers a signal check until its parent collects it: without the zombie check the
-    card would be held for ever by a run that is already over."""
-    child = os.fork()  # a child that exits at once and is not collected until the end: a zombie
-    if child == 0:
-        os._exit(0)
-    time.sleep(0.3)
-    try:
-        card.CLAIM.write_text(f"{child} a run that has already finished")
-        assert not card._process_is_alive(child)
-        waited, main, _ = timed("the next run")
-        assert main and waited < 1
-    finally:
-        os.waitpid(child, 0)
-
-
-def test_it_waits_for_a_live_holder_and_says_who():
-    running = holder()
-    card.CLAIM.write_text(f"{running.pid} somebody else's prop")
-    said = []
-    waited, main, _ = timed("our run", say=said.append)
-    running.wait()
-    assert waited > WAITED and main
-    assert any(str(running.pid) in line and "somebody else's prop" in line for line in said), said
-
-
-def test_claiming_twice_in_one_process_is_free():
-    with card.claimed("a batch", say=quietly):
-        with card.claimed("a step inside the batch", say=quietly):
-            inner = card.CLAIM.exists()
-        still_held = card.CLAIM.exists()
-    assert inner and still_held and not card.CLAIM.exists()
-
-
-def test_with_sharing_off_a_second_model_run_waits():
+@pytest.mark.parametrize(
+    "sharing, claims, doing, shared, throws, waits, slot", [case[1:] for case in CASES], ids=[case[0] for case in CASES]
+)
+def test_one_run_on_the_card(monkeypatch, sharing, claims, doing, shared, throws, waits, slot):
     assert card.SHARING is False  # off until the owner says the machine is stable (2026-09-30)
-    first = holder()
-    card.CLAIM.write_text(f"{first.pid} {card.SHARES}another model")
-    waited, _, second = timed("a second model", shared=True)
-    first.wait()
-    assert waited > WAITED and not second
-
-
-def test_with_sharing_on_a_second_model_run_shares_the_card(sharing):
-    first = holder()
-    card.CLAIM.write_text(f"{first.pid} {card.SHARES}another model")
-    waited, _, second = timed("a second model", shared=True)
-    first.wait()
-    assert waited < 1 and second and not card.SECOND_CLAIM.exists()
-
-
-def test_with_sharing_on_a_model_run_waits_for_one_that_must_be_alone(sharing):
-    picture = holder()
-    card.CLAIM.write_text(f"{picture.pid} a picture")
-    waited, _, _ = timed("a model", shared=True)
-    picture.wait()
-    assert waited > WAITED
-
-
-def test_with_sharing_on_a_run_that_must_be_alone_waits_for_both_models(sharing):
-    first, second = holder(1.0), holder(HOLD)
-    card.CLAIM.write_text(f"{first.pid} {card.SHARES}a model")
-    card.SECOND_CLAIM.write_text(f"{second.pid} {card.SHARES}another model")
-    waited, main, _ = timed("a picture")
-    first.wait()
-    second.wait()
-    assert waited > WAITED and main
-
-
-def test_with_sharing_on_a_third_model_waits(sharing):
-    first, second = holder(), holder()
-    card.CLAIM.write_text(f"{first.pid} {card.SHARES}a model")
-    card.SECOND_CLAIM.write_text(f"{second.pid} {card.SHARES}another model")
-    waited, _, _ = timed("a third model", shared=True)
-    first.wait()
-    second.wait()
-    assert waited > WAITED
+    monkeypatch.setattr(card, "SHARING", sharing)
+    children, said, seen, pids = [], [], {}, {}
+    try:
+        for slot_name, kind, holder_doing, seconds in claims:
+            pid = pids[slot_name] = holder_pid(kind, seconds, children)
+            CLAIMS[slot_name].write_text("not a process id at all" if pid is None else f"{pid} {holder_doing}")
+            # A claim names somebody only while its process runs; a dead, exited or corrupt one names nobody.
+            assert (card._read_claim(CLAIMS[slot_name]) is None) == (kind != "live"), (slot_name, kind)
+        started = time.time()
+        with pytest.raises(RuntimeError) if throws else contextlib.nullcontext():
+            with card.claimed(doing, say=said.append, shared=shared):
+                seen["waited"] = time.time() - started
+                seen["held"] = [name for name, claim in CLAIMS.items() if holds(claim)]
+                with card.claimed("a step inside the run", say=said.append):
+                    seen["inner"] = holds(CLAIMS[slot])
+                seen["after inner"] = holds(CLAIMS[slot])
+                if throws:
+                    raise RuntimeError("the run failed")
+    finally:
+        for collect in children:
+            collect()
+    assert seen["held"] == [slot], seen
+    assert seen["inner"] and seen["after inner"], seen
+    assert not CLAIMS[slot].exists(), "the run kept the card"
+    if waits:
+        # The run first finds the main claim taken, and says whose it is and what they are on.
+        main_doing = claims[0][2]
+        assert seen["waited"] > WAITED, seen
+        assert any(str(pids["main"]) in line and main_doing in line for line in said), said
+    else:
+        assert seen["waited"] < 1 and said == [], (seen, said)
