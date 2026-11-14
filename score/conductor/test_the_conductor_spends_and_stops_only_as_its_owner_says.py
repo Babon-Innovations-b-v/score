@@ -45,7 +45,21 @@ cluster.drive_job drop the cpu limit (the namespace's default limit of 1 under a
 invalid), or drop its cap at drive_room, or raise DEFAULTS past it (a drive pod asking more than the conductor's
 node leaves never schedules, every Buy failed 2026-11-10); or in cluster.detach drop the delete on TimeoutError (a Job whose pod never starts keeps making it again);
 or in cluster.drive_job let the pods' PROPS_HOME win over the run's (the drive reads the live design, not its frozen
-copy, and a sync pass's plan rewrite stops every line mid-run, env1 2026-11-08).
+copy, and a sync pass's plan rewrite stops every line mid-run, env1 2026-11-08). On the full data disk: in
+disk.collectable_why 'if blob.name in held:' -> 'if False:' (a blob a record names is removed), or in store_gc drop
+'if refused:' and its return (blobs removed under a live run); in sweep 'escalated = force or (record is not None and
+start < WARN_GB)' -> 'escalated = force' (under the warning line the sweep runs its routine only), or in warning drop
+'{last['bigger']}' (the owner is never told the price), or in steps drop the clean-scratch step (a killed make's
+work/motion-scratch copies stay, 2026-11-04), or in clean_scratch drop the score_commands refusal (a live `score
+plan`'s copies are cleared under it, 2026-11-11); in cache_refusal '    if need:\n        return f"a registered run
+needs' -> '    if False:\n        return f"a registered run needs' (the cache is cleared under a waiting run); in
+clean_cache 'relinked = relink_checkouts(home, say) if "checkouts" in names else 0.0' -> 'relinked = 0.0' (checkouts
+grow while a run walks its rows, 2026-10-27); in offload_pixal 'why = held_whole_why(takes, take, folder, home,
+report, written)' -> 'why = None' (a take the library hands back changed is removed), or drop its 'if refused:' and
+return (takes freed under a live run); in take_kept_why drop the 'gone' test (the link to nothing crashes the
+offload), or in alone 'yield False' -> 'yield True' (a second offload or sweep runs beside the first). The free
+end-to-end check is red when a step fails, e.g. the memory guard letting the second node start while the first, short
+of its stage's peak, still runs.
 """
 import datetime
 import io
@@ -146,7 +160,8 @@ SHIMMED = [(("--user", "--scope", "-q", "-p", "MemoryMax=16G", "nice", "x"),
            (("--user", "--", "x", "--slice"), "--slice-inherit --user -- x --slice")]
 # the cluster record of the home, its absence or one naming a namespace -> (--jobs given none, the namespace its pods'
 # logs are read in): a price on the cluster is worked out on the record's jobs, never the node's cores
-RECORDS = [(None, None, "score"), ({"image": "x", "jobs": 12, "namespace": "score-rehearsal"}, 12, "score-rehearsal")]
+RECORDS = [(None, None, "score"), ({"image": "x", "jobs": 12, "namespace": "score-rehearsal"}, 12, "score-rehearsal"),
+           ({"image": "registry.example/score-conductor@sha256:0"}, 8, "score")]  # the defaults under an image alone
 
 # systemd's answer for each unit the health reads
 SHOWN = {"score-sync.timer": ("active", ""), "score-sync.service": ("inactive", "success"),
@@ -162,6 +177,10 @@ def properties(unit):
 
 def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch):
     tmp_path = home
+    # the free end-to-end check (`dry`) runs beside the rest and passes every step in one line (red when a step fails,
+    # e.g. the memory guard letting the second node start while the first, short of its stage's peak, still runs)
+    dry = subprocess.Popen([sys.executable, "-m", "score.conductor", "dry"], cwd=REPO, stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, text=True)
     # the pure answers: a run's memory cap, the drive pod's memory, the size timer's decisions
     for memory, cap in CAPS:  # a detached run is capped in score-runs.slice at the memory less 6 GB
         assert slices.cap_bytes(memory) == cap, memory
@@ -210,16 +229,77 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     # the home's cluster record sets a run's jobs and the namespace whose pods' logs are read (the 2026-11-07
     # rehearsal); with none, the conductor's own (none here: graph.JOBS) and the default namespace
     from score import __main__ as command, graph
+    prefix = slices.scope_prefix("score-run-x")  # a detached run is its own scope in the slice; off a conductor, none
+    assert prefix[:3] == ["systemd-run", "--user", "--scope"] and "--slice=score-runs.slice" in prefix
+    assert "--unit=score-run-x" in prefix and prefix[-1] == "--"
+    assert not slices.usable() and command.run_scope(pathlib.Path("/tmp/score-run-x.log")) == []
     kubectl = []
     for found, jobs, namespace in RECORDS:
         monkeypatch.setattr(cluster, "RECORD", tmp_path / "cluster.json" if found else tmp_path / "no-cluster.json")
         if found:
             (tmp_path / "cluster.json").write_text(json.dumps(found))
+        recorded = cluster.record()
+        assert (recorded is None) if found is None else (recorded["jobs"], recorded["namespace"]) == (jobs, namespace)
+        if found is None:  # off the cluster's home a detached run is no Job
+            assert command.detached_as_pod(["true"], tmp_path / "x.log", {}) is False
         assert command.default_jobs() == (jobs or graph.JOBS), found
         tail = cluster.pod_log("score-listen.service", 5, run=lambda argv, **_: kubectl.append(argv) or
                                subprocess.CompletedProcess(argv, 0, "[listen] up\n", ""))
         assert tail == ["[listen] up"] and kubectl[-1][1:7] == [
             "-n", namespace, "logs", "pod/score-conductor-0", "-c", "conductor"], (found, kubectl[-1])
+    # On the cluster's home (#76) a detached run is a Job of its own, from its frozen copy, beside the conductor's pod,
+    # its command the scope's, no retry, no secret's value in its spec; the pid its pod writes is the run's
+    log, applied = tmp_path / "score-run-20261107T2000Z.log", []
+    (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
+    environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
+                   "KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOME": "/elsewhere",
+                   "PROPS_HOME": "/home/score/.farm-factory-props/frozen/abc.home",
+                   "SCORE_SECRET_READER": "/usr/local/bin/score-secret-reader", "SCORE_SECRETS_PROJECT": "a-project"}
+    name, pid = cluster.detach(recorded, ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"], log,
+                               "/home/score/.farm-factory-props/frozen/abc", environment, tmp_path,
+                               apply=applied.append, wait=lambda log: cluster.started_pid(log, seconds=1))
+    job, = applied
+    assert (name, pid) == ("score-run-20261107t2000z", 4242) and job["spec"]["backoffLimit"] == 0
+    pod_spec = job["spec"]["template"]["spec"]
+    assert pod_spec["restartPolicy"] == "Never" and pod_spec["hostPID"] is True
+    assert pod_spec["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"][0][
+        "topologyKey"] == "kubernetes.io/hostname"
+    box, = pod_spec["containers"]
+    assert box["command"][-8:] == ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"]
+    assert box["workingDir"] == "/home/score/.farm-factory-props/frozen/abc"
+    assert box["command"][2].replace("$$", "$").startswith("echo $$ >")  # as Kubernetes expands it: the shell's pid
+    carried = {variable["name"]: variable.get("value") for variable in box["env"]}
+    assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
+    assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
+    assert carried["SCORE_SECRET_READER"] == "/usr/local/bin/score-secret-reader"  # a secret read by name, in the pod
+    assert carried["SCORE_SECRETS_PROJECT"] == "a-project"
+    assert [variable["name"] for variable in box["env"]].count("HOME") == 1
+    # its home is the run's frozen one (its design as it started), never the pods' live home a sync pass rewrites
+    assert carried["PROPS_HOME"] == "/home/score/.farm-factory-props/frozen/abc.home"
+    assert [variable["name"] for variable in box["env"]].count("PROPS_HOME") == 1
+    # its processor limit is its request, so a namespace's default limit never makes the pod invalid
+    assert box["resources"]["limits"]["cpu"] == box["resources"]["requests"]["cpu"] == "4000m"
+    # DEFAULTS fit the conductor's node beside its own pods and CronJobs, and a record asking more is cut to that room,
+    # never a pod that cannot schedule (2026-11-10: 16 x 0.5 CPU and 64 GB on the 8-core node, every Buy failed)
+    from tools.cloud.k8s import conductor as pods
+    room_cpu, room_memory = pods.drive_room()
+    assert pods.NODE_TYPE == "POP2-HM-8C-64G" and 0 < room_cpu < pods.millicores(pods.NODE_ALLOCATABLE["cpu"])
+    assert 1000 * cluster.DEFAULTS["jobs"] * cluster.DEFAULTS["cpu_per_job"] <= room_cpu
+    assert cluster.DEFAULTS["max_memory_gb"] * cluster.GIB <= room_memory
+    assert pods.memory_bytes(box["resources"]["requests"]["memory"]) <= room_memory
+    greedy = {**recorded, "jobs": 16, "cpu_per_job": 0.5}
+    wants, = cluster.drive_job(greedy, ["true"], log, tmp_path, {}, 64 * cluster.GIB)["spec"]["template"]["spec"][
+        "containers"]
+    assert pods.millicores(wants["resources"]["requests"]["cpu"]) == room_cpu
+    assert pods.memory_bytes(wants["resources"]["requests"]["memory"]) <= room_memory
+    with pytest.raises(TimeoutError):
+        cluster.started_pid(tmp_path / "never.log", seconds=0.01, sleep=lambda seconds: None)
+    deleted = []  # a Job whose pod wrote no pid in time is deleted before the error goes on, never left retrying
+    with pytest.raises(TimeoutError):
+        cluster.detach(recorded, ["/py", "-m", "score", "run", "world1"], tmp_path / "score-run-stuck.log", tmp_path,
+                       {}, tmp_path, apply=applied.append, delete=deleted.append,
+                       wait=lambda log: cluster.started_pid(log, seconds=0.01, sleep=lambda seconds: None))
+    assert [job["metadata"]["name"] for job in deleted] == ["score-run-stuck"]
     monkeypatch.setattr(cluster, "RECORD", tmp_path / "no-cluster.json")
     # in the cluster's conductor pod (#76 step 5) the units come from the cluster's answer, never systemd, and a
     # cluster that does not answer is every unit failed
@@ -447,6 +527,113 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     with pytest.raises(FileNotFoundError):  # read as ended, so working() skips it (store-evict crashed, 2026-11-07)
         disk.said_by(Gone())
 
+    # one full data disk, freed by the cleanups and the sweep (2026-10-27: 0.2 GB free, store/cache 37.5 GB of
+    # checkouts and makes left behind; 2026-10-28: work/pixal held the only copy of every paid take; 2026-10-30:
+    # store/objects 54.7 GB that nothing named, and the owner on the full disk needing him: "this should be routine")
+    base = tmp_path / "full"
+    base.mkdir()
+    full, blobs, named, checked, big_blob = a_full_disk(base)
+    pixal, cache = full / "work" / "pixal", full / "store" / "cache"
+    real = disk.pixal_takes()
+    taken = []
+
+    def taken_in(takes, folder, commit, scratch):
+        taken.extend(takes)
+        return {"new": [f"take/{real.take_id(take)}@1" for take in takes], "unchanged": [], "changed draft": [],
+                "new version": [], "refused": [], "saved": {"committed": "x", "pushed": True, "why": ""}}
+    stand_in = type(real)("pixal_takes")  # the library takes every take in and hands back all but b-s1 whole
+    stand_in.__dict__.update({**real.__dict__, "taken_in": taken_in, "upstream_holds": lambda take: True,
+                              "newest_record": lambda take: {"address": f"take/{real.take_id(take)}@1"},
+                              "read_back": lambda take, folder, scratch:
+                              "b-s1.svviews/input.png came back with other bytes" if take == "b-s1" else None})
+    said, everything = [], {path.name for path in blobs.iterdir()}
+    with monkeypatch.context() as swept:
+        swept.setattr(disk, "pixal_takes", lambda: stand_in)
+        swept.setattr(disk, "REPO", base)
+        swept.setattr(disk, "mount_of", lambda path: full)
+        swept.setattr(disk, "bigger", lambda more, zone: f"{more} GB more, EUR 4.00 a month in {zone}")
+        swept.setattr(disk.offload, "open_bucket", lambda: disk.offload.FolderBucket(base / "bucket"))
+        # a run waits: nothing is removed, but the checkouts' copies become links to their blobs all the same
+        assert "a registered run needs" in disk.store_gc(full, say=said.append)["refused"]
+        done = disk.clean_cache(full, say=said.append)
+        assert done["removed"] == [] and "a registered run needs" in done["refused"] and (cache / "making").exists()
+        assert checked.samefile(big_blob) and any(line.startswith("relinked 1 checkouts") for line in said), said
+        done = disk.offload_pixal(full, commit="0" * 40)
+        assert "a registered run needs" in done["refused"] and (pixal / "a-s1.glb").exists() and not taken, done
+        (full / "runs" / "w.json").unlink()
+        (cache / "making" / "k-2").mkdir()  # a make started a minute ago
+        assert "a make may be in progress" in disk.clean_cache(full, say=said.append)["refused"]
+        (cache / "making" / "k-2").rmdir()
+        os.utime(cache / "making", (time.time() - 2 * disk.YOUNG_SECONDS,) * 2)
+        done = disk.clean_cache(full, names=("making",), say=said.append)
+        assert done["removed"] == ["making"] and checked.exists(), done
+        done = disk.clean_cache(full, say=said.append)
+        assert sorted(done["removed"]) == ["checkouts", "evidence", "pages", "tmpab12"] and done["refused"] is None
+        assert sorted(path.name for path in cache.iterdir()) == ["concepts", "convex-parts", "drops"]
+        assert {path.name for path in blobs.iterdir()} == everything  # the stored objects stay
+        assert any(line.startswith(f"kept {cache / 'drops'}: paid drops") for line in said), said
+        dry_gc = disk.store_gc(full, dry=True, say=said.append)
+        assert dry_gc["removed"] == 1 and {path.name for path in blobs.iterdir()} == everything, dry_gc
+        # one offload and one sweep at a time (2026-10-31: two side by side, FileNotFoundError)
+        with disk.alone(full, "offload-pixal") as first:
+            assert first
+            done = disk.offload_pixal(full, commit="0" * 40)
+        assert "another offload-pixal is running" in done["refused"] and (pixal / "b-s1.glb").exists(), done
+        with disk.alone(full, "sweep"):
+            done = disk.sweep(full, say=said.append)
+        assert "another sweep is running" in done["refused"] and not done["steps"], done
+        assert not (full / "conductor" / "sweep.json").exists()
+        # only the painted takes the library hands back whole are freed: never one changed now, one read back with
+        # other bytes, or one with a file gone (2026-10-31: a link to nothing crashed the offload)
+        done = disk.offload_pixal(full, commit="0" * 40)
+        assert taken == ["a-s1", "b-s1"] and done["freed"] == 1, done
+        assert {why: takes for why, takes in done["kept"].items() if why != "not whole (no raw or final model)"} == {
+            "changed in the last 15 minutes": ["c-s1"],
+            "read back: b-s1.svviews/input.png came back with other bytes": ["b-s1"],
+            "a file is gone or a link to nothing: e-s1-19000.glb": ["e-s1"]}, done
+        assert not list(pixal.glob("a-s1*")), list(pixal.iterdir())
+        assert all((pixal / name).exists() for name in ("b-s1.glb", "c-s1.glb", "d-s1.glb", "e-s1.glb",
+                                                        "b-s1.svviews/input.png"))
+        # the sweep: a live `score plan` (no registered run) judging gates on the scratch copies keeps them
+        plan = subprocess.Popen([*SLEEP, "-m", "score", "plan"])
+        try:
+            assert str(plan.pid) in disk.clean_scratch(full)["refused"] and plan.pid in disk.score_commands()
+            assert (full / disk.MOTION_SCRATCH / "layer-camp-x1").is_dir()
+        finally:
+            plan.kill()
+            plan.wait()
+        swept.setattr(disk, "score_commands", lambda: [])  # this PC's own runs aside
+        swept.setattr(disk, "clean_kept", lambda home, runs_folder, say: {"dropped": 0, "refused": None})
+        swept.setattr(disk, "offload_pixal", lambda home, runs_folder: {"freed": 0, "refused": None, "kept": {}})
+        free = {"gb": 50.0}
+        swept.setattr(disk, "free_gb", lambda path=None: free["gb"])
+        said.clear()
+        done = disk.sweep(full, say=said.append)  # no machine.json: off a conductor, the routine only
+        assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
+            "clean-frozen", "clean-cache", "clean-kept", "laid-plain", "clean-scratch"], done
+        assert list((full / disk.MOTION_SCRATCH).iterdir()) == []  # no run live: the scratch is cleared
+        assert named["orphan"] in {path.name for path in blobs.iterdir()}  # the routine collects no blob
+        (full / "machine.json").write_text(json.dumps({"zone": "fr-par-2"}))
+        free["gb"] = 5.0  # under the warning line on a conductor: every step, store-gc's the blob nothing names
+        done = disk.sweep(full, say=said.append)
+        assert done["escalated"] and [step["step"] for step in done["steps"]][5:] == [
+            "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done  # store-evict never: hours a pass waits
+        assert not (full / "logs" / "old.log").exists() and (full / "logs" / "new.log").exists()
+        left = {path.name for path in blobs.iterdir()}
+        assert left == everything - {named["orphan"]}, done  # what an output, a record, a link or a take names stays
+        gc_said = next(step["said"] for step in done["steps"] if step["step"] == "store-gc")
+        assert "removed 1" in gc_said and "'written in the last day': 1" in gc_said, gc_said
+        assert "linked elsewhere too" in gc_said, gc_said
+        store = Store.in_folder(full / "store")
+        assert all(store.checkout(path.stem) for path in (full / "store" / "objects" / "outputs").glob("*.json"))
+        assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
+        assert sum(line.startswith("sweep ") for line in said) == 5 + 9, said  # a line a step, each with what it freed
+        note = disk.warning(5.0, swept=full / "conductor" / "sweep.json")
+        assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
+        free["gb"] = 12.0  # it reached the floor: nothing is asked
+        assert disk.sweep(full, say=said.append)["bigger"] is None
+        assert "routine sweep" in disk.warning(5.0, swept=full / "conductor" / "sweep.json")
+
     # the size timer, its asks sent through the real ask with the token read by name: the idle clock counts from the
     # last busy pass, a pass drains the shrink (no new pass while the mark is fresh), the shrink is asked once it ended
     # and marks its resize, the idle size takes the drain back, a failed grow takes its resize mark back, and an ask is
@@ -642,6 +829,13 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
             assert list(conductor.HOME.glob("free-only-cleared-*.json"))
     # Owner, 2026-10-25: the next Buy after a stopped batch needs no Allow paid work again
     assert not conductor.free_only()
+    out, err = dry.communicate(timeout=90)
+    lines = out.strip().splitlines()
+    assert len(lines) == 1 and lines[0].startswith("conductor dry: 7 of 7 steps passed; detail "), out + err[-2000:]
+    results = json.loads(pathlib.Path(lines[0].rpartition("detail ")[2]).read_text())
+    assert [result["step"] for result in results] == ["plan", "waiting for size", "resume", "memory guard",
+                                                      "health and logs", "shrink", "kill switch"]
+    assert all(result["ok"] for result in results) and dry.returncode == 0
 
 
 def a_batch(home):
@@ -691,111 +885,28 @@ def a_batch(home):
             "all": [*left, live, node, waiter, begin, starting, passing]}
 
 
-# --- a detached run: its own scope in the slice, a Job of its own on the cluster's home ------------------------------
+# --- disk: the copies no run needs -----------------------------------------------------------------------------------
 
-def test_a_detached_run_is_its_own_scope_in_the_slice_and_off_a_conductor_in_none(tmp_path):
-    from score import __main__ as command
-    prefix = slices.scope_prefix("score-run-x")
-    assert prefix[:3] == ["systemd-run", "--user", "--scope"] and "--slice=score-runs.slice" in prefix
-    assert "--unit=score-run-x" in prefix and prefix[-1] == "--"
-    assert not slices.usable() and command.run_scope(pathlib.Path("/tmp/score-run-x.log")) == []
-    # On the cluster's home (#76) the run is a Job of its own, from its frozen copy, beside the conductor's pod, its
-    # command the scope's, no retry, no secret's value in its spec; the pid its pod writes is the run's; off it, none.
-    assert command.detached_as_pod(["true"], tmp_path / "x.log", {}) is False  # no cluster.json in this home
-    found = cluster.record(_written(tmp_path / "cluster.json", {"image": "registry.example/score-conductor@sha256:0"}))
-    assert found["jobs"] == 8 and found["namespace"] == "score"
-    log, applied = tmp_path / "score-run-20261107T2000Z.log", []
-    (tmp_path / "score-run-20261107T2000Z.log.pid").write_text("4242\n")
-    environment = {"SCORE_FREE_ONLY": "1", "SCORE_SYNC_TOKEN": "s3cret", "SCORE_LIB_KEY": "k", "PATH": "/usr/bin",
-                   "KUBERNETES_SERVICE_HOST": "10.0.0.1", "HOME": "/elsewhere",
-                   "PROPS_HOME": "/home/score/.farm-factory-props/frozen/abc.home",
-                   "SCORE_SECRET_READER": "/usr/local/bin/score-secret-reader", "SCORE_SECRETS_PROJECT": "a-project"}
-    name, pid = cluster.detach(found, ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"], log,
-                               "/home/score/.farm-factory-props/frozen/abc", environment, tmp_path,
-                               apply=applied.append, wait=lambda log: cluster.started_pid(log, seconds=1))
-    job, = applied
-    assert (name, pid) == ("score-run-20261107t2000z", 4242) and job["spec"]["backoffLimit"] == 0
-    pod = job["spec"]["template"]["spec"]
-    assert pod["restartPolicy"] == "Never" and pod["hostPID"] is True
-    assert pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"][0][
-        "topologyKey"] == "kubernetes.io/hostname"
-    box, = pod["containers"]
-    assert box["command"][-8:] == ["/py", "stopped.py", "--", "/py", "-m", "score", "run", "world1"]
-    assert box["workingDir"] == "/home/score/.farm-factory-props/frozen/abc"
-    assert box["command"][2].replace("$$", "$").startswith("echo $$ >")  # as Kubernetes expands it: the shell's pid
-    carried = {variable["name"]: variable.get("value") for variable in box["env"]}
-    assert carried["SCORE_FREE_ONLY"] == "1" and carried["PATH"] == "/usr/bin" and carried["HOME"] == "/home/score"
-    assert not {"SCORE_SYNC_TOKEN", "SCORE_LIB_KEY", "KUBERNETES_SERVICE_HOST"} & set(carried)
-    assert carried["SCORE_SECRET_READER"] == "/usr/local/bin/score-secret-reader"  # a secret read by name, in the pod
-    assert carried["SCORE_SECRETS_PROJECT"] == "a-project"
-    assert [variable["name"] for variable in box["env"]].count("HOME") == 1
-    # its home is the run's frozen one (its design as it started), never the pods' live home a sync pass rewrites
-    assert carried["PROPS_HOME"] == "/home/score/.farm-factory-props/frozen/abc.home"
-    assert [variable["name"] for variable in box["env"]].count("PROPS_HOME") == 1
-    # its processor limit is its request, so a namespace's default limit never makes the pod invalid
-    assert box["resources"]["limits"]["cpu"] == box["resources"]["requests"]["cpu"] == "4000m"
-    # DEFAULTS fit the conductor's node beside its own pods and CronJobs, and a record asking more is cut to that room,
-    # never a pod that cannot schedule (2026-11-10: 16 x 0.5 CPU and 64 GB on the 8-core node, every Buy failed)
-    from tools.cloud.k8s import conductor as pods
-    room_cpu, room_memory = pods.drive_room()
-    assert pods.NODE_TYPE == "POP2-HM-8C-64G" and 0 < room_cpu < pods.millicores(pods.NODE_ALLOCATABLE["cpu"])
-    assert 1000 * cluster.DEFAULTS["jobs"] * cluster.DEFAULTS["cpu_per_job"] <= room_cpu
-    assert cluster.DEFAULTS["max_memory_gb"] * cluster.GIB <= room_memory
-    assert pods.memory_bytes(box["resources"]["requests"]["memory"]) <= room_memory
-    greedy = {**found, "jobs": 16, "cpu_per_job": 0.5}
-    asked = cluster.drive_job(greedy, ["true"], log, tmp_path, {}, 64 * cluster.GIB)
-    wants, = asked["spec"]["template"]["spec"]["containers"]
-    assert pods.millicores(wants["resources"]["requests"]["cpu"]) == room_cpu
-    assert pods.memory_bytes(wants["resources"]["requests"]["memory"]) <= room_memory
-    with pytest.raises(TimeoutError):
-        cluster.started_pid(tmp_path / "never.log", seconds=0.01, sleep=lambda seconds: None)
-    deleted = []  # a Job whose pod wrote no pid in time is deleted before the error goes on, never left retrying
-    with pytest.raises(TimeoutError):
-        cluster.detach(found, ["/py", "-m", "score", "run", "world1"], tmp_path / "score-run-stuck.log", tmp_path,
-                       {}, tmp_path, apply=applied.append, delete=deleted.append,
-                       wait=lambda log: cluster.started_pid(log, seconds=0.01, sleep=lambda seconds: None))
-    assert [job["metadata"]["name"] for job in deleted] == ["score-run-stuck"]
-
-
-def _written(path, found):
-    path.write_text(json.dumps(found))
-    return path
-
-
-# --- the free end-to-end check -----------------------------------------------------------------------------------------
-
-def test_the_dry_check_passes_every_step_in_one_line():
-    """Red when a step fails, e.g. the memory guard letting the second node start while the first, short of its
-    stage's peak, still runs."""
-    done = subprocess.run([sys.executable, "-m", "score.conductor", "dry"], cwd=REPO, capture_output=True, text=True,
-                          timeout=90)
-    lines = done.stdout.strip().splitlines()
-    assert len(lines) == 1 and lines[0].startswith("conductor dry: 7 of 7 steps passed; detail "), \
-        done.stdout + done.stderr[-2000:]
-    results = json.loads(pathlib.Path(lines[0].rpartition("detail ")[2]).read_text())
-    assert [result["step"] for result in results] == ["plan", "waiting for size", "resume", "memory guard",
-                                                      "health and logs", "shrink", "kill switch"]
-    assert all(result["ok"] for result in results) and done.returncode == 0
-
-
-# --- disk: the floor, what fills it, the copies no run needs ---------------------------------------------------------
-
-def gc_home(tmp_path):
-    """A home whose store holds blobs an output, a record, a link, a listing blob and nothing name."""
-    home = tmp_path / "home"
+def a_full_disk(base):
+    """A home whose data disk fills with every kind of thing a cleanup frees or must keep: a store whose blobs an
+    output, a record, a link, a listing blob, a work/pixal take and nothing name (one written now), an output whose
+    checkout is a read-only copy (as an earlier commit made it), a store cache holding every kind of folder (a make's
+    read-only one too), painted takes in work/pixal (one changed now, one with a link to nothing), an old and a new log,
+    a killed make's scratch copy, and a waiting run registered."""
+    home = base / "home"
     store = Store.in_folder(home / "store")
-    made = tmp_path / "made"
+    made = base / "made"
     made.mkdir()
     (made / "listed.bin").write_bytes(b"listed")
     store.put_tree(made)
     blobs = store.objects.path("blobs")
     named = {}
     for name in ("record", "linked", "inner", "orphan", "young", "pixal"):
-        path = tmp_path / f"{name}.bin"
+        path = base / f"{name}.bin"
         path.write_bytes(name.encode() * 100)
         named[name] = file_hash(path)
         store.put_blob(path, named[name])
-    index = tmp_path / "index.json"  # a listing kept as a blob, named by a record: what it names stays too
+    index = base / "index.json"  # a listing kept as a blob, named by a record: what it names stays too
     index.write_text(json.dumps({"inner": named["inner"]}))
     named["index"] = file_hash(index)
     store.put_blob(index, named["index"])
@@ -804,149 +915,46 @@ def gc_home(tmp_path):
         {"pick": named["record"], "index": named["index"]}))
     (home / "dashboard").mkdir()
     (home / "dashboard" / "view.glb").symlink_to(blobs / named["linked"])
-    (home / "work" / "pixal").mkdir(parents=True)
-    os.link(blobs / named["pixal"], home / "work" / "pixal" / "t.glb")
-    (home / "runs").mkdir()
-    old = time.time() - 2 * disk.GC_YOUNG_SECONDS
-    for blob in blobs.iterdir():
-        if blob.name != named["young"]:
-            os.utime(blob, (old, old))
-    return home, blobs, named
-
-
-def test_store_gc_removes_only_blobs_nothing_names_and_only_with_no_run_live(tmp_path):
-    """2026-10-30: store/objects 54.7 GB on a full disk, and nothing collected what no output, record or kept job names.
-    Break: score/conductor/disk.py collectable_why: 'if blob.name in held:' -> 'if False:' (a blob a record names is
-    removed), or store_gc: drop 'if refused:' and its return (blobs removed under a live run)."""
-    home, blobs, named = gc_home(tmp_path)
-    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
-    assert "a registered run needs" in disk.store_gc(home, repo=tmp_path, say=lambda line: None)["refused"]
-    (home / "runs" / "w.json").unlink()
-    before = sorted(path.name for path in blobs.iterdir())
-    dry = disk.store_gc(home, dry=True, repo=tmp_path, say=lambda line: None)
-    assert dry["removed"] == 1 and sorted(path.name for path in blobs.iterdir()) == before, dry  # dry: nothing goes
-    done = disk.store_gc(home, repo=tmp_path, say=lambda line: None)
-    left = {path.name for path in blobs.iterdir()}
-    assert done["removed"] == 1 and named["orphan"] not in left, done
-    assert {named[name] for name in ("record", "linked", "inner", "index", "young", "pixal")} <= left, done
-    assert done["kept"]["written in the last day"] == 1 and "linked elsewhere too" in " ".join(done["kept"]), done
-    assert Store.in_folder(home / "store").checkout(next(iter(
-        path.stem for path in (home / "store" / "objects" / "outputs").glob("*.json"))))  # the output reads whole
-
-
-def test_sweep_frees_room_itself_and_asks_only_for_a_bigger_disk_priced(tmp_path, monkeypatch):
-    """2026-10-30, the owner on the conductor's full disk needing him: "this should be routine".
-    Break: score/conductor/disk.py sweep: 'escalated = force or (record is not None and start < WARN_GB)' ->
-    'escalated = force' (under the warning line the sweep runs its routine only), or warning: drop
-    '{last['bigger']}' (the owner is never told the price), or steps: drop the clean-scratch step (a killed make's
-    work/motion-scratch copies stay, 2026-11-04), or clean_scratch: drop the score_commands refusal (a live `score
-    plan`'s copies are cleared under it, 2026-11-11)."""
-    home, blobs, named = gc_home(tmp_path)
-    monkeypatch.setattr(disk, "REPO", tmp_path)
-    monkeypatch.setattr(disk, "mount_of", lambda path: home)
-    monkeypatch.setattr(disk, "clean_kept", lambda home, runs_folder, say: {"dropped": 0, "refused": None})
-    monkeypatch.setattr(disk, "offload_pixal", lambda home, runs_folder: {"freed": 0, "refused": None, "kept": {}})
-    monkeypatch.setattr(disk, "bigger", lambda more, zone: f"{more} GB more, EUR 4.00 a month in {zone}")
-    monkeypatch.setattr(disk.offload, "open_bucket", lambda: disk.offload.FolderBucket(tmp_path / "bucket"))
-    (home / "logs").mkdir()
-    for name, days in (("old.log", disk.LOG_DAYS + 1), ("new.log", 1)):
-        (home / "logs" / name).write_text(name)
-        os.utime(home / "logs" / name, (time.time() - days * 86400,) * 2)
-    free = {"gb": 50.0}
-    monkeypatch.setattr(disk, "free_gb", lambda path=None: free["gb"])
-    said = []
-    (home / disk.MOTION_SCRATCH / "layer-camp-x1" / "camp").mkdir(parents=True)  # a killed make's seed copy
-    plan = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)", "-m", "score", "plan"])
-    try:  # a live `score plan` (no registered run) judging gates on its copies: they stay
-        assert str(plan.pid) in disk.clean_scratch(home)["refused"] and plan.pid in disk.score_commands()
-        assert (home / disk.MOTION_SCRATCH / "layer-camp-x1").is_dir()
-    finally:
-        plan.kill()
-        plan.wait()
-    monkeypatch.setattr(disk, "score_commands", lambda: [])  # this PC's own runs aside
-    done = disk.sweep(home, say=said.append)  # no machine.json: off a conductor, the routine only
-    assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
-        "clean-frozen", "clean-cache", "clean-kept", "laid-plain", "clean-scratch"], done
-    assert list((home / disk.MOTION_SCRATCH).iterdir()) == []  # no run live: the scratch is cleared
-    (home / "machine.json").write_text(json.dumps({"zone": "fr-par-2"}))
-    free["gb"] = 5.0
-    done = disk.sweep(home, say=said.append)
-    assert done["escalated"] and [step["step"] for step in done["steps"]][5:] == [
-        "relink-pixal", "old-logs", "store-gc", "offload-pixal"], done  # store-evict never: hours a pass waits
-    assert not (home / "logs" / "old.log").exists() and (home / "logs" / "new.log").exists()
-    assert named["orphan"] not in {path.name for path in blobs.iterdir()} and named["record"] in {
-        path.name for path in blobs.iterdir()}
-    assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
-    assert sum(line.startswith("sweep ") for line in said) == 5 + 9, said  # a line a step, each with what it freed
-    note = disk.warning(5.0, swept=home / "conductor" / "sweep.json")
-    assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
-    free["gb"] = 12.0  # it reached the floor: nothing is asked
-    assert disk.sweep(home, say=said.append)["bigger"] is None
-    assert "routine sweep" in disk.warning(5.0, swept=home / "conductor" / "sweep.json")
-
-
-def a_cache(home):
-    """A home whose store cache holds every kind of folder, all old, and one stored object."""
-    cache = home / "store" / "cache"
-    for name in ("making/k-1", "checkouts/o1", "evidence", "pages/n", "tmpab12", "drops/d", "convex-parts",
-                 "concepts/asked"):
-        (cache / name).mkdir(parents=True)
-        (cache / name / "file").write_text(name)
-    (cache / "checkouts" / "o1" / "file").chmod(0o444)
-    (cache / "making" / "k-1").chmod(0o555)
-    (home / "store" / "objects").mkdir()
-    (home / "store" / "objects" / "blob").write_text("kept")
-    (home / "runs").mkdir()
-    old = time.time() - 2 * disk.YOUNG_SECONDS
-    for path in [*cache.rglob("*")]:
-        os.utime(path, (old, old), follow_symlinks=False)
-    return cache
-
-
-def test_clean_cache_removes_only_what_is_made_again_free_and_only_with_no_run_live(tmp_path):
-    """2026-10-27: 0.2 GB free, store/cache 37.5 GB of checkouts and makes left behind.
-    Break: score/conductor/disk.py: '    if need:\n        return f"a registered run needs' -> '    if False:\n        return f"a registered run needs'"""
-    home = tmp_path / "home"
-    cache = a_cache(home)
-    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
-    said = []
-    done = disk.clean_cache(home, say=said.append)
-    assert done["removed"] == [] and "a registered run needs" in done["refused"] and (cache / "making").exists()
-    (home / "runs" / "w.json").unlink()
-    (cache / "making" / "k-2").mkdir()  # a make started a minute ago
-    assert "a make may be in progress" in disk.clean_cache(home, say=said.append)["refused"]
-    (cache / "making" / "k-2").rmdir()
-    os.utime(cache / "making", (time.time() - 2 * disk.YOUNG_SECONDS,) * 2)
-    done = disk.clean_cache(home, names=("making",), say=said.append)
-    assert done["removed"] == ["making"] and (cache / "checkouts" / "o1").exists(), done
-    done = disk.clean_cache(home, say=said.append)
-    assert sorted(done["removed"]) == ["checkouts", "evidence", "pages", "tmpab12"] and done["refused"] is None, said
-    assert sorted(path.name for path in cache.iterdir()) == ["concepts", "convex-parts", "drops"]
-    assert (home / "store" / "objects" / "blob").read_text() == "kept"
-    assert any(line.startswith(f"kept {cache / 'drops'}: paid drops") for line in said), said
-
-
-def test_clean_cache_makes_checkout_copies_links_even_with_a_run_live(tmp_path):
-    """2026-10-27: checkouts grew 16 GB in an hour while a run walked its rows, and clean-cache refused while it ran.
-    Break: score/conductor/disk.py: 'relinked = relink_checkouts(home, say) if "checkouts" in names else 0.0' ->
-    'relinked = 0.0'"""
-    home = tmp_path / "home"
-    store = Store.in_folder(home / "store")
-    made = tmp_path / "made"
-    made.mkdir()
-    (made / "big.bin").write_bytes(b"x" * 4096)
-    output = store.put_tree(made)
+    pixal = home / "work" / "pixal"
+    pixal.mkdir(parents=True)
+    os.link(blobs / named["pixal"], pixal / "t.glb")
+    big = base / "big"
+    big.mkdir()
+    (big / "big.bin").write_bytes(b"x" * 4096)
+    output = store.put_tree(big)
     checked = store.checkout(output) / "big.bin"
     checked.unlink()  # a checkout an earlier commit made as a copy
     checked.write_bytes(b"x" * 4096)
     checked.chmod(0o444)
+    cache = home / "store" / "cache"
+    for name in ("making/k-1", "evidence", "pages/n", "tmpab12", "drops/d", "convex-parts", "concepts/asked"):
+        (cache / name).mkdir(parents=True)
+        (cache / name / "file").write_text(name)
+    (cache / "making" / "k-1").chmod(0o555)
+    (home / "design" / "surfaces").mkdir(parents=True)
+    (home / "design" / "surfaces" / "p.json").write_text(json.dumps(
+        {"takes": {take: {} for take in ("a-s1", "b-s1", "c-s1", "e-s1")}}))
+    for take in ("a-s1", "b-s1", "c-s1", "d-s1", "e-s1"):
+        names = (f"{take}.glb", f"{take}-final.glb") + ((f"{take}.svviews/input.png",) if take != "e-s1" else ())
+        if take != "e-s1":
+            (pixal / f"{take}.svviews").mkdir()
+        for name in names:
+            (pixal / name).write_bytes(take.encode() * 100)
+    (pixal / "e-s1-19000.glb").symlink_to(base / "gone.glb")
+    (home / "logs").mkdir()
+    for name, days in (("old.log", disk.LOG_DAYS + 1), ("new.log", 1)):
+        (home / "logs" / name).write_text(name)
+        os.utime(home / "logs" / name, (time.time() - days * 86400,) * 2)
+    (home / disk.MOTION_SCRATCH / "layer-camp-x1" / "camp").mkdir(parents=True)  # a killed make's seed copy
     (home / "runs").mkdir()
-    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
-    said = []
-    done = disk.clean_cache(home, say=said.append)
-    assert "a registered run needs" in done["refused"] and done["removed"] == [], done
-    assert checked.samefile(store.objects.path(f"blobs/{store.listing(output)['big.bin']}")), said
-    assert any(line.startswith("relinked 1 checkouts") for line in said), said
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(base / "copy")}))
+    old = time.time() - 2 * disk.GC_YOUNG_SECONDS
+    for path in [*cache.rglob("*"), *[path for path in pixal.rglob("*") if not path.name.startswith("c-s1")]]:
+        os.utime(path, (old, old), follow_symlinks=False)
+    for blob in blobs.iterdir():
+        if blob.name != named["young"]:
+            os.utime(blob, (old, old))
+    return home, blobs, named, checked, store.objects.path(f"blobs/{store.listing(output)['big.bin']}")
 
 
 def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(tmp_path):
@@ -1001,91 +1009,6 @@ def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(t
     assert disk.relink_pixal(home)["copied"] == 0 and (pixal / "pipe_1.svviews/input.png").stat().st_nlink == 1
     assert not disk.code_built(pixal / "t.glb", pixal)
     assert "laid-plain" in [name for name, _ in disk.steps(home, home / "runs", print, False)]
-
-
-def test_offload_pixal_frees_only_painted_takes_the_library_hands_back_whole(tmp_path, monkeypatch):
-    """2026-10-28: work/pixal held the only copy of every paid take on one disk.
-    Break: score/conductor/disk.py offload_pixal: 'why = held_whole_why(takes, take, folder, home, report, written)'
-    -> 'why = None' (a take the library hands back changed is removed), or drop 'if refused:' and its return (takes
-    freed under a live run)."""
-    real = disk.pixal_takes()
-    home = tmp_path / "home"
-    pixal = home / "work" / "pixal"
-    (home / "design" / "surfaces").mkdir(parents=True)
-    (home / "design" / "surfaces" / "p.json").write_text(json.dumps({"takes": {"a-s1": {}, "b-s1": {}, "c-s1": {}}}))
-    for take in ("a-s1", "b-s1", "c-s1", "d-s1"):
-        (pixal / f"{take}.svviews").mkdir(parents=True)
-        for name in (f"{take}.glb", f"{take}-final.glb", f"{take}.svviews/input.png"):
-            (pixal / name).write_bytes(take.encode() * 100)
-    old = time.time() - 2 * disk.YOUNG_SECONDS
-    for path in pixal.rglob("*"):
-        if not path.name.startswith("c-s1"):
-            os.utime(path, (old, old))
-    asked = []
-
-    def taken_in(takes, folder, commit, scratch):
-        asked.extend(takes)
-        return {"new": [f"take/{real.take_id(take)}@1" for take in takes], "unchanged": [], "changed draft": [],
-                "new version": [], "refused": [], "saved": {"committed": "x", "pushed": True, "why": ""}}
-    stand_in = type(real)("pixal_takes")
-    stand_in.__dict__.update({**real.__dict__, "taken_in": taken_in, "upstream_holds": lambda take: True,
-                              "newest_record": lambda take: {"address": f"take/{real.take_id(take)}@1"},
-                              "read_back": lambda take, folder, scratch:
-                              "b-s1.svviews/input.png came back with other bytes" if take == "b-s1" else None})
-    monkeypatch.setattr(disk, "pixal_takes", lambda: stand_in)
-    (home / "runs").mkdir()
-    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(tmp_path / "copy")}))
-    done = disk.offload_pixal(home, commit="0" * 40)
-    assert "a registered run needs" in done["refused"] and (pixal / "a-s1.glb").exists() and not asked, done
-    (home / "runs" / "w.json").unlink()
-    done = disk.offload_pixal(home, commit="0" * 40)
-    assert asked == ["a-s1", "b-s1"] and done["freed"] == 1, done
-    kept = {why: takes for why, takes in done["kept"].items() if why != "not whole (no raw or final model)"}
-    assert kept == {"changed in the last 15 minutes": ["c-s1"],  # the repository's people takes are not here: not whole
-                    "read back: b-s1.svviews/input.png came back with other bytes": ["b-s1"]}, done
-    assert not list(pixal.glob("a-s1*")), list(pixal.iterdir())
-    assert all((pixal / name).exists() for name in ("b-s1.glb", "c-s1.glb", "d-s1.glb", "b-s1.svviews/input.png"))
-
-
-def test_offload_pixal_says_a_file_gone_and_one_sweep_or_offload_runs_at_a_time(tmp_path, monkeypatch):
-    """2026-10-31: offload-pixal crashed with FileNotFoundError on work/pixal/crowd-made-s1-19000.glb (a link to
-    nothing, or a file another offload removed under it), so the sweep never freed work/pixal and the disk filled.
-    Break: score/conductor/disk.py take_kept_why: drop the 'gone' test (the link to nothing crashes the offload), or
-    alone: 'yield True' for 'yield False' (a second offload or sweep runs beside the first)."""
-    real = disk.pixal_takes()
-    home = tmp_path / "home"
-    pixal = home / "work" / "pixal"
-    (home / "design" / "surfaces").mkdir(parents=True)
-    (home / "design" / "surfaces" / "p.json").write_text(json.dumps({"takes": {"a-s1": {}, "b-s1": {}}}))
-    pixal.mkdir(parents=True)
-    for take in ("a-s1", "b-s1"):
-        for name in (f"{take}.glb", f"{take}-final.glb"):
-            (pixal / name).write_bytes(take.encode() * 100)
-    (pixal / "a-s1-19000.glb").symlink_to(tmp_path / "gone.glb")
-    old = time.time() - 2 * disk.YOUNG_SECONDS
-    for path in pixal.iterdir():
-        os.utime(path, (old, old), follow_symlinks=False)
-    stand_in = type(real)("pixal_takes")
-    stand_in.__dict__.update({**real.__dict__, "taken_in": lambda takes, folder, commit, scratch: {
-        "new": [f"take/{real.take_id(take)}@1" for take in takes], "refused": [],
-        "saved": {"committed": "x", "pushed": True, "why": ""}}, "upstream_holds": lambda take: True,
-        "newest_record": lambda take: {"address": f"take/{real.take_id(take)}@1"},
-        "read_back": lambda take, folder, scratch: None})
-    monkeypatch.setattr(disk, "pixal_takes", lambda: stand_in)
-    with disk.alone(home, "offload-pixal") as first:
-        assert first
-        done = disk.offload_pixal(home, commit="0" * 40)
-    assert "another offload-pixal is running" in done["refused"] and (pixal / "b-s1.glb").exists(), done
-    done = disk.offload_pixal(home, commit="0" * 40)
-    kept = {why: takes for why, takes in done["kept"].items() if why != "not whole (no raw or final model)"}
-    assert kept == {"a file is gone or a link to nothing: a-s1-19000.glb": ["a-s1"]} and done["freed"] == 1, done
-    assert (pixal / "a-s1.glb").exists() and not (pixal / "b-s1.glb").exists(), done
-    (home / "machine.json").write_text("{}")
-    with disk.alone(home, "sweep"):
-        said = []
-        done = disk.sweep(home, say=said.append)
-    assert "another sweep is running" in done["refused"] and not done["steps"], done
-    assert not (home / "conductor" / "sweep.json").exists()
 
 
 def a_copy(repo, folder, name, home):
