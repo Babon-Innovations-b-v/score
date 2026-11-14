@@ -1228,15 +1228,146 @@ PLACED = [
 ]
 
 
-@pytest.mark.parametrize("design, rows, relations, shell_rows, expected, laid_rows, far_off, judged",
-                         [case[1:] for case in PLACED], ids=[case[0] for case in PLACED])
-def test_each_piece_stands_and_is_named_where_its_plan_and_relations_lay_it(tmp_path, design, rows, relations,
-                                                                            shell_rows, expected, laid_rows, far_off,
-                                                                            judged):
-    """Each object and shell piece of a design stands, turns, is named and is marked as its plan item, its kept
-    relations and the shell's own rows lay it (the cases in PLACED, worked out by hand): past the plan's edge facing
-    in, along its item's long side, at its relation's spot, edge or ramp, naming its holder, or marked unplaced,
-    filling or unheld.
+class EyeIn:
+    """An eye whose (x, z) lies (`inside` True) or does not lie in the box |x| < `half`, `low` < z < `high`."""
+
+    def __init__(self, half, low, high, inside=True):
+        self.half, self.low, self.high, self.inside = half, low, high, inside
+
+    def holds(self, eye, design, size):
+        return (abs(eye[0]) < self.half and self.low < eye[2] < self.high) == self.inside
+
+
+class Within:
+    """An eye whose (x, z) lies less than `metres` from `point`."""
+
+    def __init__(self, point, metres):
+        self.point, self.metres = point, metres
+
+    def holds(self, eye, design, size):
+        return math.hypot(eye[0] - self.point[0], eye[2] - self.point[1]) < self.metres
+
+
+class Matches:
+    """A said text the pattern finds."""
+
+    def __init__(self, pattern):
+        self.pattern = pattern
+
+    def holds(self, said, design, size):
+        return isinstance(said, str) and re.search(self.pattern, said) is not None
+
+
+# The places the views are worked on, each 10 m square round the origin unless said (frame: its middle at the origin).
+GROUND_YARD = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
+               "standing": [{"at": [4.0, 2.0], "level": 0.0, "looks_at": None},
+                            {"at": [4.0, 2.0], "level": 1.0, "looks_at": None}]}
+HATCHED = {"floor": [[0.0, 0.0], [8.0, 6.0]], "floor_height": 0.0, "items": [{"name": "HATCH", "box": [3.0, 2.0, 5.0, 4.0]}],
+           "doorways": [], "standing": [{"at": [4.0, 3.0], "level": 3.0, "looks_at": "HATCH"},
+                                        {"at": [1.0, 1.0], "level": 0.0, "looks_at": None}]}
+CRATED = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 4.0, 1.5, 2.0, 2.0, None, "item"]], "rows": {"CRATE 1": ["crate"]},
+          "people": [[5.0, 3.6], [8.0, 8.0]]}
+CRATES = {"rows": [{"id": "crate", "anchor": "floor", "size": [2.0, 2.0, 1.0], "count": 1}]}
+CRATE_RECORD = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
+                "doorways": [{"name": "door-1", "middle": [0.0, 0.0, -4.5], "inward": [0.0, 0.0, 1.0], "wide": 1.0,
+                              "to": "yard"}],
+                "standing": [{"at": [0.0, -1.4], "level": 0.0, "looks_at": None},
+                             {"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
+WARDROBES = {"rows": [{"id": "wardrobe", "anchor": "floor", "size": [0.6, 2.0, 2.0], "count": 1},
+                      {"id": "bench", "anchor": "floor", "size": [1.0, 0.4, 0.45], "count": 1}]}
+WARDROBED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 3.9, 4.0, 0.6, 2.0, None, "item"],
+                                             ["BENCH 1", 1.2, 1.9, 0.6, 0.4, None, "item"]],
+             "rows": {"WARDROBE 1": ["wardrobe"], "BENCH 1": ["bench"]},
+             "shapes": {"WARDROBE 1": {"tall": 2.0}, "BENCH 1": {"tall": 0.45}},
+             "walls": [{"from": [0.0, 0.0], "to": [10.0, 0.0]}]}
+BOXED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None, "item"],
+                                         ["WARDROBE 2", 4.3, 4.3, 0.3, 1.4, None, "item"],
+                                         ["WARDROBE 3", 5.4, 4.3, 0.3, 1.4, None, "item"],
+                                         ["WARDROBE 4", 4.3, 5.4, 1.4, 0.3, None, "item"]],
+         "rows": {f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
+         "shapes": {f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)}}
+# Each case: a plan, its hand-in rows, its relations (None: none kept) and the shell's own rows by part (None: none),
+# the view record its views are worked from (None: none) with where its made ground is looked for (the terrain row read
+# or not, the place), whether one is made there and whether the eyes are cleared of things (`clear`) and looks of
+# walls and things (`sight`); the objects, shell pieces and views it lays with what each must hold (`field`,
+# `field.sub` or `field.<index>`; a view's `look` is its aim less its eye on the floor, its `heights` the eye's and the
+# aim's): a value equal, a Turned turn, a Starts, Says or Matches text, a Near, EyeIn or Within point, ABSENT, or a
+# tuple of these all; each row named with exactly the pieces that name it in the order laid (a view kept is of row
+# `view`, one left out of row `left out`); its far rows and its laid-as-designed gates. The views' places are 10 m
+# square round the origin unless said (frame: its middle at the origin).
+CASES = [(name, design, rows, relations, shell_rows, None, *laid)
+         for name, design, rows, relations, shell_rows, *laid in PLACED] + [
+    *[(name, None, [], None, None, (GROUND_YARD, terrain, made, ()), {"spot-1": {"eye": [4.0, high, 2.0]},
+                                                                       "spot-2": {"eye": [4.0, 2.6, 2.0]}},
+       {"view": ["spot-1", "spot-2"], "left out": []}, None, None)
+      for name, terrain, made, high in (
+          ("an open place's eye a person's height over its made ground", (True, "yard"), True, 3.6),
+          ("a place the terrain made no ground for stands on its levels", (True, "shed"), False, 1.6),
+          ("no terrain row read stands on its levels", (False, "yard"), False, 1.6))],
+    ("looking straight down, up along the floor's long axis", None, [], None, None,
+     (HATCHED, (False, "shed"), False, ()), {"spot-1": {"up": [1.0, 0.0, 0.0]}, "spot-2": {"up": ABSENT}},
+     {"view": ["spot-1", "spot-2"], "left out": []}, None, None),
+    ("looking straight down on a deep floor", None, [], None, None,
+     ({**HATCHED, "floor": [[0.0, 0.0], [6.0, 8.0]], "standing": HATCHED["standing"][:1]}, (False, "shed"), False, ()),
+     {"spot-1": {"up": [0.0, 0.0, 1.0]}}, {"view": ["spot-1"], "left out": []}, None, None),
+    ("an eye in a thing moves out with its look kept", CRATED, CRATES["rows"], None, None,
+     (CRATE_RECORD, (False, "shed"), False, ("clear",)),
+     {"from-door-1": {"eye": (EyeIn(1.2, -3.7, -1.3, inside=False), Within([0.0, -3.5], 1.5)), "look": [0.0, 8.0],
+                      "heights": [1.6, 1.0]},
+      "spot-1": {"eye": EyeIn(0.05, -1.3, math.inf), "look": [0.0, 1.4], "heights": [1.6, 1.0]},
+      "spot-2": {"eye": [3.0, 1.6, 3.0], "aim": [0.0, 1.0, 0.0]}},
+     {"view": ["from-door-1", "spot-1", "spot-2"], "left out": []}, None, None),
+    ("eyes not cleared stand at their spots", CRATED, CRATES["rows"], None, None,
+     (CRATE_RECORD, (False, "shed"), False, ()),
+     {"spot-1": {"eye": [0.0, 1.6, -1.4]}, "spot-2": {"eye": [3.0, 1.6, 3.0]}},
+     {"view": ["from-door-1", "spot-1", "spot-2"], "left out": []}, None, None),
+    ("a look into a thing close by turns, a low bench and a spot off the plan block none", WARDROBED,
+     WARDROBES["rows"], None, None,
+     ({**CRATE_RECORD, "doorways": [], "standing": [{"at": [-1.25, 0.0], "level": 0.0, "looks_at": None},
+                                                    {"at": [-4.0, -3.2], "level": 0.0, "looks_at": None},
+                                                    {"at": [0.0, -20.0], "level": 0.0, "looks_at": None}]},
+      (False, "shed"), False, ("sight",)),
+     {"spot-1": {"eye": [-1.25, 1.6, 0.0], "from": Matches(r", turned [+-]\d+ degrees off a wall or thing 0\.1\d m ahead$")},
+      "spot-2": {"aim": [0.0, 1.0, 0.0], "from": "plan standing spot 2, looking to the middle"},
+      "spot-3": {"aim": [0.0, 1.0, 0.0], "from": "plan standing spot 3, looking to the middle"}},
+     {"view": ["spot-1", "spot-2", "spot-3"], "left out": []}, None, None),
+    ("a spot boxed in on every side is left out", BOXED, WARDROBES["rows"], None, None,
+     ({**CRATE_RECORD, "floor": [[-5.0, -5.0], [5.0, 4.0]], "doorways": [],
+       "standing": [{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}]}, (False, "shed"), False, ("sight",)),
+     {"spot-1": {"why": Matches("every way it turns")}}, {"view": [], "left out": ["spot-1"]}, None, None),
+]
+
+
+def made_ground(folder):
+    """A terrain folder under `folder` whose moon yard's ground rises 0.5 m a metre east."""
+    from pxr import Usd, UsdGeom
+    ground = Usd.Stage.CreateNew(str(folder / "moon/places/yard.usdc"))
+    UsdGeom.Xform.Define(ground, "/yard")
+    slope = UsdGeom.Mesh.Define(ground, "/yard/Outside/near")
+    slope.CreatePointsAttr([(-10, -5, -10), (10, 5, -10), (10, 5, 10), (-10, -5, 10)])
+    slope.CreateFaceVertexCountsAttr([4])
+    slope.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    ground.Save()
+    return folder
+
+
+def viewed(views, kept):
+    """`views` as laid entries: each of row `view` if `kept`, else `left out`, with its look and heights."""
+    return [{**view, "row": "view" if kept else "left out",
+             "heights": [view["eye"][1], view["aim"][1]] if "aim" in view else ABSENT,
+             "look": [round(view["aim"][0] - view["eye"][0], 3), round(view["aim"][2] - view["eye"][2], 3)]
+             if "aim" in view else ABSENT} for view in views]
+
+
+@pytest.mark.parametrize("design, rows, relations, shell_rows, view, expected, laid_rows, far_off, judged",
+                         [case[1:] for case in CASES], ids=[case[0] for case in CASES])
+def test_each_piece_and_view_stands_where_its_design_lays_it(tmp_path, design, rows, relations, shell_rows, view,
+                                                             expected, laid_rows, far_off, judged):
+    """Each object, shell piece and view of a design stands, turns, is named and is marked as its plan item, its kept
+    relations, the shell's own rows and its standing spots lay it (the cases in CASES, worked out by hand): past the
+    plan's edge facing in, along its item's long side, at its relation's spot, edge or ramp, naming its holder, or
+    marked unplaced, filling or unheld; each view's eye a person's height over what its spot stands on, looking where
+    a person would.
     A far row (FAR_PLAN, FAR_ROWS) is laid along the bearing its concept box is seen at, at the distance its read tall
     rises to its box's height in the framework's view, its pieces square to that bearing, waiting on its take's bake;
     one with no projection to stand it by is named unplaced, never placed by guess nor at the plan item its plan laid
@@ -1374,175 +1505,8 @@ def test_each_piece_stands_and_is_named_where_its_plan_and_relations_lay_it(tmp_
     pole's object; one hung between a pole and an item that lays no object is held by nothing and says so.
     Break: score/stages/scene_record/writer.py: related's `if how == "hung" and len(relation.get("holders") or []) ==
         2:` -> `if False:` (the string with no `on`), or holder_names' `on["holder"] = [of_item[0] for of_item in
-        names]` -> `pass` (no holders named), or its `if all(names):` -> `if any(names):` (held by one pole)"""
-    from score.review import holders
-    from score.stages.scene_record import gates
-    assert writer.design_shell.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders keep them
-    (tmp_path / "plans").mkdir()
-    kept = tmp_path / "plans/shed.json"
-    kept.write_text(json.dumps(design))
-    given = {"plans": tmp_path / "plans"}
-    if relations is not None:  # derived from the kept plan as it stands, unless the case names another plan
-        (tmp_path / "relations.json").write_text(json.dumps(
-            {"plan": hashlib.sha256(kept.read_text().encode()).hexdigest(), **relations}))
-        given["relations"] = tmp_path / "relations.json"
-    relations, left_out = writer.relations_input(given, "shed")
-    assert left_out == (judged or {}).get("left out"), left_out
-    handin = {"rows": rows, "objects": (far_off or {}).get("objects", {})}
-    found = [*writer.design_objects(design, handin, relations),
-             *writer.structure({"place": "shed"}, design, None, shell_rows),
-             *writer.row_entries(design, "shed", None, handin)]
-    assert [row["id"] for row in rows if far.far_object(row, set())] == [row["id"] for row in rows if row.get("far")]
-    if far_off:
-        (tmp_path / "inventory.json").write_text(json.dumps(far_off["inventory"]))
-        laid_far, unplaced = writer.far_objects(design, handin, tmp_path / "inventory.json")
-        assert [entry["row"] for entry in unplaced] == far_off["unplaced"], unplaced
-        found += laid_far
-    laid = {entry["name"]: entry for entry in found}
-    assert len(laid) == len(found), [entry["name"] for entry in found]
-    sizes = {row["id"]: row["size"] for row in rows}
-    for name, wanted in expected.items():
-        entry = laid[name]
-        for path, wants in wanted.items():
-            value = entry
-            for key in path.split("."):
-                value = value[int(key)] if isinstance(value, list) else \
-                    value.get(key, ABSENT) if isinstance(value, dict) else ABSENT
-            for want in wants if isinstance(wants, tuple) else (wants,):
-                if isinstance(want, (Turned, Starts, Near, Says)):
-                    held = want.holds(value, design, sizes.get(entry.get("row")))
-                else:
-                    held = value is want if want is ABSENT or isinstance(want, bool) else value == want
-                assert held, (name, path, value, want)
-    for row, names in laid_rows.items():
-        assert sorted(name for name, entry in laid.items() if entry.get("row") == row) == names, (row, laid)
-    objects = [entry for entry in found if entry.get("kind") == "object"]
-    for name, edit, wanted in (judged or {}).get("faults", []):
-        plan_drawn, held = edit.get("plan", design), edit.get("relations", relations)
-        kinds = {**{row["id"]: row for row in rows}, **judged.get("kinds", {}), **edit.get("kinds", {})}
-        by_name = {entry["name"]: entry for entry in objects}
-        edited = [*objects, *[{**by_name[source], "name": copy} for source, copy, _ in edit.get("copy", [])],
-                  *edit.get("add", [])]
-        moves = {**edit.get("move", {}), **{copy: by for _, copy, by in edit.get("copy", [])}}
-        edited = [json.loads(json.dumps(entry)) for entry in edited]
-        for entry in edited:
-            if entry["name"] in moves:
-                entry["at"] = [at + by for at, by in zip(entry["at"], moves[entry["name"]])]
-            for path, value in edit.get("set", {}).get(entry["name"], {}).items():
-                *outer, last = path.split(".")
-                target = entry
-                for key in outer:
-                    target = target[key]
-                target[last] = value
-        faults = gates.spot_faults(edited) + gates.held_wall_faults(edited, plan_drawn, sizes, kinds) + \
-            gates.bent_faults(edited, plan_drawn) + gates.wall_overlap_faults(edited, plan_drawn, sizes) + \
-            gates.roof_faults(edited, plan_drawn, sizes, held, kinds) + \
-            gates.seat_faults(edited, sizes, kinds, plan_drawn) + \
-            gates.floor_faults(edited, plan_drawn, sizes, held, kinds)
-        assert faults == wanted, (name, faults)
-
-
-class EyeIn:
-    """An eye whose (x, z) lies (`inside` True) or does not lie in the box |x| < `half`, `low` < z < `high`."""
-
-    def __init__(self, half, low, high, inside=True):
-        self.half, self.low, self.high, self.inside = half, low, high, inside
-
-    def holds(self, eye):
-        return (abs(eye[0]) < self.half and self.low < eye[2] < self.high) == self.inside
-
-
-class Within:
-    """An eye whose (x, z) lies less than `metres` from `point`."""
-
-    def __init__(self, point, metres):
-        self.point, self.metres = point, metres
-
-    def holds(self, eye):
-        return math.hypot(eye[0] - self.point[0], eye[2] - self.point[1]) < self.metres
-
-
-class Matches:
-    """A said text the pattern finds."""
-
-    def __init__(self, pattern):
-        self.pattern = pattern
-
-    def holds(self, said):
-        return isinstance(said, str) and re.search(self.pattern, said) is not None
-
-
-# The places the views are worked on, each 10 m square round the origin unless said (frame: its middle at the origin).
-GROUND_YARD = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
-               "standing": [{"at": [4.0, 2.0], "level": 0.0, "looks_at": None},
-                            {"at": [4.0, 2.0], "level": 1.0, "looks_at": None}]}
-HATCHED = {"floor": [[0.0, 0.0], [8.0, 6.0]], "floor_height": 0.0, "items": [{"name": "HATCH", "box": [3.0, 2.0, 5.0, 4.0]}],
-           "doorways": [], "standing": [{"at": [4.0, 3.0], "level": 3.0, "looks_at": "HATCH"},
-                                        {"at": [1.0, 1.0], "level": 0.0, "looks_at": None}]}
-CRATED = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 4.0, 1.5, 2.0, 2.0, None, "item"]], "rows": {"CRATE 1": ["crate"]},
-          "people": [[5.0, 3.6], [8.0, 8.0]]}
-CRATES = {"rows": [{"id": "crate", "anchor": "floor", "size": [2.0, 2.0, 1.0], "count": 1}]}
-CRATE_RECORD = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
-                "doorways": [{"name": "door-1", "middle": [0.0, 0.0, -4.5], "inward": [0.0, 0.0, 1.0], "wide": 1.0,
-                              "to": "yard"}],
-                "standing": [{"at": [0.0, -1.4], "level": 0.0, "looks_at": None},
-                             {"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
-WARDROBES = {"rows": [{"id": "wardrobe", "anchor": "floor", "size": [0.6, 2.0, 2.0], "count": 1},
-                      {"id": "bench", "anchor": "floor", "size": [1.0, 0.4, 0.45], "count": 1}]}
-WARDROBED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 3.9, 4.0, 0.6, 2.0, None, "item"],
-                                             ["BENCH 1", 1.2, 1.9, 0.6, 0.4, None, "item"]],
-             "rows": {"WARDROBE 1": ["wardrobe"], "BENCH 1": ["bench"]},
-             "shapes": {"WARDROBE 1": {"tall": 2.0}, "BENCH 1": {"tall": 0.45}},
-             "walls": [{"from": [0.0, 0.0], "to": [10.0, 0.0]}]}
-BOXED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None, "item"],
-                                         ["WARDROBE 2", 4.3, 4.3, 0.3, 1.4, None, "item"],
-                                         ["WARDROBE 3", 5.4, 4.3, 0.3, 1.4, None, "item"],
-                                         ["WARDROBE 4", 4.3, 5.4, 1.4, 0.3, None, "item"]],
-         "rows": {f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
-         "shapes": {f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)}}
-# Each case: the plan row's record, the design and inventory its clear and sight are worked from (None: neither),
-# where its made ground is looked for (the terrain row read or not, the place) and whether one is made there, whether
-# the eyes are cleared of things (`clear`) and looks of walls and things (`sight`), and the views kept and left out in
-# order with what each must hold (`look` is the aim less the eye on the floor, `heights` the eye's and the aim's): a
-# value equal, an EyeIn or Within eye, Matches said text, ABSENT, or a tuple of these all.
-VIEWED = [
-    ("an open place's eye a person's height over its made ground", GROUND_YARD, None, None, (True, "yard"), True, (),
-     {"spot-1": {"eye": [4.0, 3.6, 2.0]}, "spot-2": {"eye": [4.0, 2.6, 2.0]}}, {}),
-    ("a place the terrain made no ground for stands on its levels", GROUND_YARD, None, None, (True, "shed"), False, (),
-     {"spot-1": {"eye": [4.0, 1.6, 2.0]}, "spot-2": {"eye": [4.0, 2.6, 2.0]}}, {}),
-    ("no terrain row read stands on its levels", GROUND_YARD, None, None, (False, "yard"), False, (),
-     {"spot-1": {"eye": [4.0, 1.6, 2.0]}, "spot-2": {"eye": [4.0, 2.6, 2.0]}}, {}),
-    ("looking straight down, up along the floor's long axis", HATCHED, None, None, (False, "shed"), False, (),
-     {"spot-1": {"up": [1.0, 0.0, 0.0]}, "spot-2": {"up": ABSENT}}, {}),
-    ("looking straight down on a deep floor", {**HATCHED, "floor": [[0.0, 0.0], [6.0, 8.0]],
-                                               "standing": HATCHED["standing"][:1]},
-     None, None, (False, "shed"), False, (), {"spot-1": {"up": [0.0, 0.0, 1.0]}}, {}),
-    ("an eye in a thing moves out with its look kept", CRATE_RECORD, CRATED, CRATES, (False, "shed"), False, ("clear",),
-     {"from-door-1": {"eye": (EyeIn(1.2, -3.7, -1.3, inside=False), Within([0.0, -3.5], 1.5)), "look": [0.0, 8.0],
-                      "heights": [1.6, 1.0]},
-      "spot-1": {"eye": EyeIn(0.05, -1.3, math.inf), "look": [0.0, 1.4], "heights": [1.6, 1.0]},
-      "spot-2": {"eye": [3.0, 1.6, 3.0], "aim": [0.0, 1.0, 0.0]}}, {}),
-    ("eyes not cleared stand at their spots", CRATE_RECORD, CRATED, CRATES, (False, "shed"), False, (),
-     {"from-door-1": {}, "spot-1": {"eye": [0.0, 1.6, -1.4]}, "spot-2": {"eye": [3.0, 1.6, 3.0]}}, {}),
-    ("a look into a thing close by turns, a low bench and a spot off the plan block none",
-     {**CRATE_RECORD, "doorways": [], "standing": [{"at": [-1.25, 0.0], "level": 0.0, "looks_at": None},
-                                                   {"at": [-4.0, -3.2], "level": 0.0, "looks_at": None},
-                                                   {"at": [0.0, -20.0], "level": 0.0, "looks_at": None}]},
-     WARDROBED, WARDROBES, (False, "shed"), False, ("sight",),
-     {"spot-1": {"eye": [-1.25, 1.6, 0.0], "from": Matches(r", turned [+-]\d+ degrees off a wall or thing 0\.1\d m ahead$")},
-      "spot-2": {"aim": [0.0, 1.0, 0.0], "from": "plan standing spot 2, looking to the middle"},
-      "spot-3": {"aim": [0.0, 1.0, 0.0], "from": "plan standing spot 3, looking to the middle"}}, {}),
-    ("a spot boxed in on every side is left out", {**CRATE_RECORD, "floor": [[-5.0, -5.0], [5.0, 4.0]], "doorways": [],
-                                                    "standing": [{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}]},
-     BOXED, WARDROBES, (False, "shed"), False, ("sight",), {}, {"spot-1": {"why": Matches("every way it turns")}}),
-]
-
-
-@pytest.mark.parametrize("record, design, inventory, terrain, made_ground, uses, kept, left",
-                         [case[1:] for case in VIEWED], ids=[case[0] for case in VIEWED])
-def test_each_view_eye_stands_and_looks_where_a_person_would(tmp_path, record, design, inventory, terrain,
-                                                             made_ground, uses, kept, left):
-    """Each view of a place (the cases in VIEWED, worked out by hand) stands its eye a person's height over what its
+        names]` -> `pass` (no holders named), or its `if all(names):` -> `if any(names):` (held by one pole)
+    Each view of a place (the view cases of CASES, worked out by hand) stands its eye a person's height over what its
     spot stands on and looks where a person would see the room: a standing spot at the floor of an open place stands
     on the terrain row's made ground under it (a ground rising 0.5 m a metre east puts the eye at (4, 2) 2 + 1.6 m
     up), a spot on a 1 m deck stays on its deck, and a place the terrain made no ground for stands on its level
@@ -1567,32 +1531,77 @@ def test_each_view_eye_stands_and_looks_where_a_person_would(tmp_path, record, d
     axis as its up, a level look none.
     Break: score/stages/scene_record/writer.py: `return [upright(view, plan["floor"]) for view in found]` ->
         `return found`"""
-    from pxr import Usd, UsdGeom
-    ground = Usd.Stage.CreateNew(str(tmp_path / "moon/places/yard.usdc"))
-    UsdGeom.Xform.Define(ground, "/yard")
-    slope = UsdGeom.Mesh.Define(ground, "/yard/Outside/near")
-    slope.CreatePointsAttr([(-10, -5, -10), (10, 5, -10), (10, 5, 10), (-10, -5, 10)])
-    slope.CreateFaceVertexCountsAttr([4])
-    slope.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-    ground.Save()
-    read, place = terrain
-    under = writer.ground_under({"terrain": str(tmp_path)} if read else {}, place)
-    assert (under is not None) == made_ground, (terrain, under)
-    clear = writer.clear_of(design, inventory) if "clear" in uses else None
-    sight = writer.sight_of(design, inventory) if "sight" in uses else None
-    found_kept, found_left = writer.views_inside(writer.views(record, 1.6, under, clear, sight), design, False)
-    assert [view["name"] for view in found_kept] == list(kept), found_kept
-    assert [view["name"] for view in found_left] == list(left), found_left
-    for view in found_kept if sight else []:
-        assert sight(np.array(view["eye"]), np.array(view["aim"]), 0.0) is None, view
-    for found, expected in ((found_kept, kept), (found_left, left)):
-        for view in found:
-            fields = {**view, "heights": [view["eye"][1], view["aim"][1]] if "aim" in view else ABSENT,
-                      "look": [round(view["aim"][0] - view["eye"][0], 3), round(view["aim"][2] - view["eye"][2], 3)]
-                      if "aim" in view else ABSENT}
-            for field, wants in expected[view["name"]].items():
-                for want in wants if isinstance(wants, tuple) else (wants,):
-                    value = fields.get(field, ABSENT)
-                    held = want.holds(value) if isinstance(want, (EyeIn, Within, Matches)) else \
-                        value is want if want is ABSENT else value == want
-                    assert held, (view["name"], field, value, want)
+    from score.review import holders
+    assert writer.design_shell.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders keep them
+    (tmp_path / "plans").mkdir()
+    kept = tmp_path / "plans/shed.json"
+    kept.write_text(json.dumps(design))
+    given = {"plans": tmp_path / "plans"}
+    if relations is not None:  # derived from the kept plan as it stands, unless the case names another plan
+        (tmp_path / "relations.json").write_text(json.dumps(
+            {"plan": hashlib.sha256(kept.read_text().encode()).hexdigest(), **relations}))
+        given["relations"] = tmp_path / "relations.json"
+    relations, left_out = writer.relations_input(given, "shed")
+    assert left_out == (judged or {}).get("left out"), left_out
+    handin = {"rows": rows, "objects": (far_off or {}).get("objects", {})}
+    found = [*writer.design_objects(design, handin, relations),
+             *writer.structure({"place": "shed"}, design, None, shell_rows),
+             *writer.row_entries(design, "shed", None, handin)] if design else []
+    assert [row["id"] for row in rows if far.far_object(row, set())] == [row["id"] for row in rows if row.get("far")]
+    if far_off:
+        (tmp_path / "inventory.json").write_text(json.dumps(far_off["inventory"]))
+        laid_far, unplaced = writer.far_objects(design, handin, tmp_path / "inventory.json")
+        assert [entry["row"] for entry in unplaced] == far_off["unplaced"], unplaced
+        found += laid_far
+    if view:
+        record, (read, place), ground_made, uses = view
+        under = writer.ground_under({"terrain": str(made_ground(tmp_path))} if read else {}, place)
+        assert (under is not None) == ground_made, (place, under)
+        clear = writer.clear_of(design, {"rows": rows}) if "clear" in uses else None
+        sight = writer.sight_of(design, {"rows": rows}) if "sight" in uses else None
+        views_kept, views_left = writer.views_inside(writer.views(record, 1.6, under, clear, sight), design, False)
+        for kept_view in views_kept if sight else []:
+            assert sight(np.array(kept_view["eye"]), np.array(kept_view["aim"]), 0.0) is None, kept_view
+        found += viewed(views_kept, True) + viewed(views_left, False)
+    laid = {entry["name"]: entry for entry in found}
+    assert len(laid) == len(found), [entry["name"] for entry in found]
+    sizes = {row["id"]: row["size"] for row in rows}
+    for name, wanted in expected.items():
+        entry = laid[name]
+        for path, wants in wanted.items():
+            value = entry
+            for key in path.split("."):
+                value = value[int(key)] if isinstance(value, list) else \
+                    value.get(key, ABSENT) if isinstance(value, dict) else ABSENT
+            for want in wants if isinstance(wants, tuple) else (wants,):
+                if isinstance(want, (Turned, Starts, Near, Says, EyeIn, Within, Matches)):
+                    held = want.holds(value, design, sizes.get(entry.get("row")))
+                else:
+                    held = value is want if want is ABSENT or isinstance(want, bool) else value == want
+                assert held, (name, path, value, want)
+    for row, names in laid_rows.items():
+        assert [name for name, entry in laid.items() if entry.get("row") == row] == names, (row, laid)
+    objects = [entry for entry in found if entry.get("kind") == "object"]
+    for name, edit, wanted in (judged or {}).get("faults", []):
+        plan_drawn, held = edit.get("plan", design), edit.get("relations", relations)
+        kinds = {**{row["id"]: row for row in rows}, **judged.get("kinds", {}), **edit.get("kinds", {})}
+        by_name = {entry["name"]: entry for entry in objects}
+        edited = [*objects, *[{**by_name[source], "name": copy} for source, copy, _ in edit.get("copy", [])],
+                  *edit.get("add", [])]
+        moves = {**edit.get("move", {}), **{copy: by for _, copy, by in edit.get("copy", [])}}
+        edited = [json.loads(json.dumps(entry)) for entry in edited]
+        for entry in edited:
+            if entry["name"] in moves:
+                entry["at"] = [at + by for at, by in zip(entry["at"], moves[entry["name"]])]
+            for path, value in edit.get("set", {}).get(entry["name"], {}).items():
+                *outer, last = path.split(".")
+                target = entry
+                for key in outer:
+                    target = target[key]
+                target[last] = value
+        faults = gates.spot_faults(edited) + gates.held_wall_faults(edited, plan_drawn, sizes, kinds) + \
+            gates.bent_faults(edited, plan_drawn) + gates.wall_overlap_faults(edited, plan_drawn, sizes) + \
+            gates.roof_faults(edited, plan_drawn, sizes, held, kinds) + \
+            gates.seat_faults(edited, sizes, kinds, plan_drawn) + \
+            gates.floor_faults(edited, plan_drawn, sizes, held, kinds)
+        assert faults == wanted, (name, faults)
