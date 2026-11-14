@@ -1,50 +1,51 @@
 """Invariant of spread.py and the claim its slots make (batch.claim): a batch spread over machines runs every share
 once (a batch, CONTEXT.md, owner 2026-10-20): a share whose command failed, or whose machine broke under it, is a
-gap and never handed to another machine; a broken machine takes nothing more; a machine that fails its set-up has
-none rented in its place; each card runs its kind's measured runs at once; machines claimed side by side spread over
-the zones; and a slot that finds no stock asks again until its work is gone, its deadline passes or a stop comes
-(2026-10-09: six of seven slots gave up on their first round and one L4 did all the work).
+gap and never handed to another machine; a share cut off by the machine (signal 9 at its memory cap, a card that
+would not open) runs again once; a broken machine takes nothing more; a machine that fails its set-up has none
+rented in its place; each card runs its kind's measured runs at once; machines claimed side by side spread over the
+zones; an open queue waits for work until it is closed; on this PC's one machine a claim's wait and its set-up are
+not the work's time, a claim refused as too big ends the spread, and a shared claim gives way to one that waits for
+the machine alone; and a slot that finds no stock asks again until its work is gone, its deadline passes or a stop
+comes (2026-10-09: six of seven slots gave up on their first round and one L4 did all the work).
 
-Renting, arming, beating and deleting are stand-ins that rent nothing. The break that turns each red (applied once,
-seen red, reverted):
+Renting, arming, beating and deleting are stand-ins that rent nothing. One rented world (three machines claimed
+through the real batch.claim, an open queue holding every kind of fault) drives spread.on_machines once; a table of
+this PC's claims drives it once a row; a table of stock rounds drives batch.claim once a row; a table of machines
+reads spread.slots. The break that turns each red (applied once, seen red, reverted):
 
-- test_a_failed_share_is_a_gap_and_never_taken_again: in `Shares.failed_job`, `self.failed.append(item)` ->
-  `self.waiting.append(item)`.
-- test_an_open_queue_waits_for_work_until_closed: in `Shares.close`, `self.open = False` -> `pass` (the taker waits
-  out its idle time).
-- test_a_machine_runs_its_kinds_measured_runs_on_each_card: in `slots`, `range(capacity.runs_at_once(kind,
-  machine["class"]))` -> `range(1)`.
-- test_the_machines_share_the_work_and_a_broken_machines_share_is_a_gap: in `work_slot`, the broken machine's
-  `shares.failed_job(share)` (before "its share is a gap") -> `shares.put(share)`; or drop `broken.set()`.
-- test_a_machine_that_fails_its_set_up_is_not_replaced: in `one_machine`, `if not machine.get("pool") or
-  shares.queued() <= 0:` -> `if shares.queued() <= 0:`.
-  Or in `tend`, drop `off_zone_mirror(folder, host)` (the set-up script runs with apt still on Scaleway's zone mirror,
-  Buy 91); or in APT_MIRROR, `archive.ubuntu.com#g` -> `security.ubuntu.com#g`.
-- test_machines_claimed_side_by_side_spread_over_the_zones: in batch.py `claim_from`, `capacity.next_offer(remaining,
-  run.machines + pending, kind)` -> `capacity.next_offer(remaining, run.machines, kind)`.
-- test_a_slot_keeps_asking_until_stock_comes_up: in batch.py `claim_rounds`, `while machine is None and
-  still_wanted(run, wanted):` -> `if machine is None and still_wanted(run, wanted):`.
-- test_a_slot_stops_asking_when_its_work_is_gone: in batch.py `still_wanted`, `return wanted is None or
-  bool(wanted())` -> `return True`.
-- test_a_slot_stops_asking_at_its_deadline_and_on_a_signal: in batch.py `still_wanted`, drop `or time.time() >=
-  run.deadline`.
-- test_a_wait_for_this_pcs_machine_is_not_the_works_time: in `this_pc_waited`, drop `run.deadline += waited` (the
-  share is never run); or `return waited >= THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up); or in
-  `on_machines`, drop `raise run.cloud_only` (a claim refused as too big: the spread returns, nothing raised); or in
-  `tend`, drop the `this_pc_set_up(...)` call (this PC's set-up past the deadline: the share is never taken).
-- test_a_share_killed_for_memory_runs_again_once: in `work_slot`, `if shares.again(share):` -> `if False:` (the
-  killed share is a gap at once); or in `raise_for`, drop `or killed` (a step killed inside is a plain failure).
-- test_a_share_whose_card_would_not_open_runs_again_once: in `work_slot`, `except (MemoryKilled, CardLost)` ->
-  `except MemoryKilled`; or in `raise_for`, `if returncode and card_lost:` -> `if False:`.
-- test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone: in `work_slot`, drop the
-  `provider.cloud.wanted_elsewhere()` check (m1 runs all three); or in `one_machine`, drop `or
-  machine.get("yielded")` (two and three stay waiting).
+- in `Shares.failed_job`, `self.failed.append(item)` -> `self.waiting.append(item)` (the rented world's "plain"
+  runs again).
+- in `Shares.close`, `self.open = False` -> `pass` (the open queue's last slot waits out its idle time).
+- in `slots`, `range(capacity.runs_at_once(kind, machine["class"]))` -> `range(1)` (the slots table).
+- in `work_slot`, the broken machine's `shares.failed_job(share)` (before "its share is a gap") ->
+  `shares.put(share)`; or drop `broken.set()` (m2 takes more after it broke).
+- in `one_machine`, `if not (machine.get("pool") or machine.get("yielded")) or shares.queued() <= 0:` -> `if
+  shares.queued() <= 0:` (m1, whose set-up fails, is rented again). Or in `tend`, drop
+  `off_zone_mirror(folder, host)` (the set-up script runs with apt still on Scaleway's zone mirror, Buy 91); or in
+  APT_MIRROR, `archive.ubuntu.com#g` -> `security.ubuntu.com#g`.
+- in batch.py `claim_from`, `capacity.next_offer(remaining, run.machines + pending, kind)` ->
+  `capacity.next_offer(remaining, run.machines, kind)` (the rented world's three machines in one zone).
+- in batch.py `claim_rounds`, `while machine is None and still_wanted(run, wanted):` -> `while machine is None and
+  still_wanted(run, wanted) and rounds < 1:` (one more round only: the stock row "keeps asking").
+- in batch.py `still_wanted`, `return wanted is None or bool(wanted())` -> `return True` (the stock row "work gone").
+- in batch.py `still_wanted`, drop `or time.time() >= run.deadline` (the stock row "deadline passed").
+- in `this_pc_waited`, drop `run.deadline += waited` (the share is never run); or `return waited >=
+  THIS_PC_WAIT_SECONDS` -> `return False` (the slot gives up); or in `on_machines`, drop `raise run.cloud_only` (a
+  claim refused as too big: the spread returns, nothing raised); or in `tend`, drop the `this_pc_set_up(...)` call
+  (this PC's set-up past the deadline: the share is never taken). The this-PC table's rows.
+- in `work_slot`, `if shares.again(share):` -> `if False:` (a killed share is a gap at once); or in `raise_for`, drop
+  `or killed` (a step killed inside is a plain failure). The rented world's "killed-*" rows.
+- in `work_slot`, `except (MemoryKilled, CardLost)` -> `except MemoryKilled`; or in `raise_for`, `if returncode and
+  card_lost:` -> `if False:`. The rented world's "card-*" rows.
+- in `work_slot`, drop the `provider.cloud.wanted_elsewhere()` check (m1 runs all three); or in `one_machine`, drop
+  `or machine.get("yielded")` (two and three stay waiting). The this-PC table's shared-claim row.
 """
 import pathlib
 import subprocess
 import sys
 import threading
 import time
+from types import SimpleNamespace
 
 import pytest
 
@@ -62,6 +63,7 @@ def cleared(monkeypatch):
     run; renting is faked here and the sandbox has none parked. No warm pool, no stop."""
     monkeypatch.setattr(batch.compute, "require_cleared", lambda what, store=None: {"node": "test"})
     monkeypatch.delenv("SCORE_RUN_ID", raising=False)
+    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)  # preflight.declare_deadline keeps nothing outside one
     batch.STOPPING.clear()
     yield
     batch.STOPPING.clear()
@@ -71,95 +73,158 @@ def offer(machine_class, zone, stock=0):
     return provider.Offer(0.01, stock, f"{machine_class}-type", zone, 0.01, machine_class, 0, "available")
 
 
-def test_a_failed_share_is_a_gap_and_never_taken_again():
-    shares = spread.Shares(["a", "b"])
-    assert shares.take() == "a"
-    shares.failed_job("a")
-    assert shares.take() == "b" and shares.take() is None and shares.failed == ["a"]
+def a_machine(run, name, machine_class, zone):
+    """A rented machine's record, as batch.rent and batch.boot leave it."""
+    return {"folder": run.folder / name, "host": "host", "class": machine_class, "type": "L4", "zone": zone,
+            "created": time.time(), "ready": time.time(), "deleted": None}
 
 
-def test_an_open_queue_waits_for_work_until_closed():
-    shares = spread.Shares(open_queue=True, idle=5)
-    taken = []
-    taker = threading.Thread(target=lambda: taken.append(shares.take()))
-    taker.start()
-    deadline = time.time() + 2
-    while shares.queued() != -1 and time.time() < deadline:
+def until(condition, seconds=5.0):
+    """Whether `condition()` came true within `seconds`."""
+    give_up = time.time() + seconds
+    while not condition() and time.time() < give_up:
         time.sleep(0.01)
-    assert shares.queued() == -1  # one slot waiting for a share
-    shares.put("job")
-    taker.join(2)
-    assert taken == ["job"]
-    began = time.time()
-    threading.Timer(0.2, shares.close).start()
-    assert shares.take() is None and time.time() - began < 3
+    return condition()
 
 
-def test_a_machine_runs_its_kinds_measured_runs_on_each_card():
-    assert spread.slots("pixal", {"class": "gpu-80gb"}) == [0] * 10  # three runs per 24 GB: ten on 80 GB
-    assert spread.slots("judge", {"class": "gpu-80gb-x2"}) == [0, 1]
-    assert spread.slots("blender", {"class": "cpu-32c-128gb"}) == [None]
-    assert spread.slots(None, {"class": "cpu-32c-128gb"}, at_once=4) == [None] * 4
+# The rented world's shares: what each one's command exits with on its first tries (returncode, killed, card_lost),
+# every later try succeeding, and how it ends with how many tries. m2 breaks under its first share, "one".
+FAULTS = {
+    "one": ([], "gap", 1),  # m2 broke under it: a gap, never handed on
+    "two": ([], "done", 1),
+    "three": ([], "done", 1),
+    "plain": ([(1, False, False)], "gap", 1),  # its own command failed: a gap, not tried again
+    "killed-exit": ([(spread.KILLED, False, False)], "done", 2),  # killed by signal 9: run again once
+    "killed-step": ([(1, True, False)], "done", 2),  # a step inside it killed: the same
+    "killed-twice": ([(1, True, False)] * 2, "gap", 2),  # killed again: a gap
+    "card-once": ([(1, False, True)], "done", 2),  # its card would not open: run again once
+    "card-twice": ([(1, False, True)] * 2, "gap", 2),
+    "late": ([], "done", 1),  # put on the open queue after it ran dry
+}
+
+# This PC's claims, one on_machines a row: the backend, the claim's behaviour (`wait_first`: the first claim waits
+# out the run's deadline behind the run's own jobs and gets nothing; `here`: the machine is this PC's own; `turns`:
+# a claim on its shared machine; `refuse`: too big for this PC's card), the set-up's seconds, the run's deadline
+# from now, and what ran (machine, share), how many claims were made and whether the deadline moved on.
+THIS_PC = [
+    SimpleNamespace(row="a claim that waited out the deadline on this PC asks again and the deadline moves on",
+                    backend="local", kind="blender", shares=["one"], count=1, setup=0.0, deadline=0.3,
+                    wait_first=True, done=[("m1", "one")], claims=2, moved=True),
+    SimpleNamespace(row="a rented backend's claim that waited gives up and nothing moves",
+                    backend="scaleway", kind="blender", shares=["two"], count=1, setup=0.0, deadline=0.3,
+                    wait_first=True, done=[], claims=1, moved=False),
+    # 2026-11-10, sound@habitat: 10.2 min of MOSS set-up past a 9-min limit, the take never asked
+    SimpleNamespace(row="a set-up on this PC's machine past the deadline is not the work's time",
+                    backend="scaleway", kind="moss-sound", shares=["three"], count=1, setup=0.4, deadline=0.2,
+                    here=True, done=[("m1", "three")], claims=1, moved=True),
+    SimpleNamespace(row="a rented machine's set-up past the deadline stays in its minutes: the share is a gap",
+                    backend="scaleway", kind="moss-sound", shares=["three"], count=1, setup=0.4, deadline=0.2,
+                    here=False, done=[], claims=1, moved=False),
+    # round 46, 2026-11-02: meshparts' 24 GB claim died in its thread and the tool ended "no card could be rented"
+    SimpleNamespace(row="a claim this PC refuses as too big ends the spread on the refusal",
+                    backend="scaleway", kind="meshparts", shares=["one", "two"], count=2, setup=0.0, deadline=60,
+                    refuse="a meshparts job needs about 24 GB of card and this PC has 16 GB", raised="24 GB",
+                    done=[], claims=2),
+    # env1, 2026-10-29: straight-masks@lab waited 20 min while base's bake kept taking all three turns
+    SimpleNamespace(row="a shared claim gives way to one that waits for the machine alone, each share once",
+                    backend="local", kind="blender", shares=["one", "two", "three"], count=1, setup=0.0, deadline=60,
+                    turns=True, elsewhere=[False, True], done=[("m1", "one"), ("m2", "two"), ("m2", "three")],
+                    claims=2),
+]
+
+# Stock rounds, one batch.claim a row: the reads of the backend's offers after which stock comes up, the caller's
+# `wanted` answers, the deadline from now, a stop signal; whether a machine came, how many reads were made and the
+# classes the first read asked for.
+STOCK = [
+    SimpleNamespace(row="keeps asking until stock comes up", rounds=3, wanted=None, deadline=60, stopping=False,
+                    classes=("gpu-24gb", "gpu-80gb"), machine=True, reads=3, first=["gpu-24gb", "gpu-80gb"]),
+    SimpleNamespace(row="stops asking when its work is gone", rounds=99, wanted=[True, True, False], deadline=60,
+                    stopping=False, classes=("gpu-24gb",), machine=False, reads=1, first=["gpu-24gb"]),
+    SimpleNamespace(row="stops asking once its deadline passed", rounds=99, wanted=None, deadline=-1, stopping=False,
+                    classes=("gpu-24gb",), machine=False, reads=0, first=None),
+    SimpleNamespace(row="stops asking on a stop signal", rounds=99, wanted=None, deadline=60, stopping=True,
+                    classes=("gpu-24gb",), machine=False, reads=0, first=None),
+]
+
+# A machine's slots: the kind, its class, the runner's `at_once`, and the card each slot runs on.
+SLOTS = [
+    ("pixal", "gpu-80gb", None, [0] * 10),  # three runs per 24 GB: ten on 80 GB
+    ("judge", "gpu-80gb-x2", None, [0, 1]),
+    ("blender", "cpu-32c-128gb", None, [None]),
+    (None, "cpu-32c-128gb", 4, [None] * 4),
+]
 
 
-@pytest.fixture
-def fake_machines(monkeypatch, tmp_path):
-    """A run whose claims, arming, beating and deleting are stand-ins that rent nothing."""
-    numbers = iter(range(1, 100))
+def test_spread_runs_every_share_once(monkeypatch, tmp_path):
+    sent, reads, stock, real_claim = [], [], {"rounds": 0, "pause": 0.0}, batch.claim
 
-    def claim(run, account, found, number, kind, disk_gb, wanted=None):
-        machine = {"folder": run.folder / f"m{next(numbers)}", "host": "host", "class": "gpu-24gb", "type": "L4",
-                   "zone": "zone-a", "created": time.time(), "ready": time.time(), "deleted": None}
-        run.machines.append(machine)
-        return machine
-    monkeypatch.setattr(batch, "claim", claim)
+    def rent(run, account, chosen, number, disk_gb):
+        time.sleep(stock["pause"])  # claims side by side overlap while they rent
+        if len(reads) < stock["rounds"]:
+            return None
+        return a_machine(run, f"m{number}", chosen.machine_class, chosen.zone)
+
+    def read(classes):
+        reads.append(sorted(classes))
+        return [offer(machine_class, zone) for machine_class in classes for zone in ("zone-a", "zone-b")]
+    monkeypatch.setattr(batch, "rent", rent)
+    monkeypatch.setattr(batch, "boot", lambda machine: machine["host"])
+    monkeypatch.setattr(batch.cloud, "offers", read)
+    monkeypatch.setattr(batch, "STOCK_RETRY_MINUTES", 0)
     monkeypatch.setattr(batch, "arm_self_delete", lambda *arguments: None)
-    sent = []
-    monkeypatch.setattr(batch, "remote", lambda folder, host, command, **keywords: sent.append(command))
+    monkeypatch.setattr(batch, "remote", lambda folder, host, command, **keywords: sent.append((folder.name, command)))
     monkeypatch.setattr(batch, "delete_machine", lambda machine: machine.update(deleted=time.time()))
     monkeypatch.setattr(batch, "say", lambda line: None)
     monkeypatch.setattr(pictures, "keep_beating", lambda folder, host, stop: None)
-    run = pictures.Run(tmp_path, time.time() + 60)
-    run.sent = sent  # what the machines were sent over ssh
-    return run
 
-
-def test_the_machines_share_the_work_and_a_broken_machines_share_is_a_gap(fake_machines):
-    run, done, broken = fake_machines, [], []
-
-    def do(machine, share, card):
-        if share == "bad":
-            raise spread.JobFailed("its script failed")
-        if machine["folder"].name == "m1" and not broken:
-            broken.append(share)
-            raise ConnectionError("lost")
-        time.sleep(0.05)
-        done.append((machine["folder"].name, share))
-    shares = spread.Shares(["one", "two", "three", "four", "bad"])
-    spread.on_machines(run, None, [], 3, "parts", shares, lambda machine: None, do)
-    assert "m1" not in {name for name, _ in done}  # the broken machine took nothing after
-    assert sorted(share for _, share in done) == sorted({"one", "two", "three", "four"} - set(broken))  # each once
-    assert sorted(shares.failed) == sorted(["bad", *broken]) and not shares.waiting
-    assert len(run.machines) == 3 and all(machine["deleted"] for machine in run.machines)
-
-
-def test_a_machine_that_fails_its_set_up_is_not_replaced(fake_machines):
-    run, done = fake_machines, []
-
-    sent_before_set_up = []
+    # The rented world: three machines claimed side by side through batch.claim; m1 fails its set-up, m2 breaks
+    # under its first share, m3 (set up a moment later) works the rest from an open queue.
+    stock["pause"] = 0.1
+    run = pictures.Run(tmp_path / "rented", time.time() + 60)
+    tries, events, mirrored = {}, [], []
 
     def prepare(machine):
-        sent_before_set_up.extend(run.sent)
+        mirrored.append((machine["folder"].name, spread.APT_MIRROR) in sent)  # apt moved before the set-up
         if machine["folder"].name == "m1":
             raise RuntimeError("a package mirror was mid-sync")
-    shares = spread.Shares(["one", "two"])
-    spread.on_machines(run, None, [], 1, "parts", shares, prepare,
-                       lambda machine, share, card: done.append((machine["folder"].name, share)))
-    # no machine rented in its place: its shares stay waiting, gaps for a new batch and a new ask
-    assert done == [] and len(run.machines) == 1 and list(shares.waiting) == ["one", "two"]
-    # its apt was moved off Scaleway's zone mirror before its set-up ran, security.ubuntu.com left as it is
-    assert sent_before_set_up == [spread.APT_MIRROR], sent_before_set_up
-    apt = run.folder / "etc/apt"
+        if machine["folder"].name == "m3":
+            time.sleep(0.2)
+
+    def do(machine, share, card):
+        tries[share] = tries.get(share, 0) + 1
+        events.append((machine["folder"].name, share))
+        if machine["folder"].name == "m2":
+            raise ConnectionError("lost")
+        exits = FAULTS[share][0]
+        if tries[share] <= len(exits):
+            returncode, killed, card_lost = exits[tries[share] - 1]
+            spread.raise_for(returncode, f"job {share}", killed=killed, card_lost=card_lost)
+        time.sleep(0.05)
+    first = [share for share in FAULTS if share != "late"]
+    shares = spread.Shares(first, open_queue=True, idle=5)
+    offers = [offer("gpu-24gb", zone) for zone in ("zone-a", "zone-b", "zone-c")]
+    spreading = threading.Thread(target=spread.on_machines, args=(run, None, offers, 3, "parts", shares, prepare, do))
+    spreading.start()
+    assert until(lambda: len(shares.done) + len(shares.failed) == len(first) and shares.queued() == -1), \
+        ("the open queue's last slot never came to wait for work", shares.done, shares.failed, shares.queued())
+    shares.put("late")
+    assert until(lambda: "late" in shares.done), shares.waiting
+    began = time.time()
+    shares.close()
+    spreading.join(3)
+    assert not spreading.is_alive() and time.time() - began < 3, "a closed queue's slot waited out its idle time"
+    assert [share for name, share in events if name == "m2"] == ["one"], events  # the broken machine took no more
+    ended = {share: ("done" if share in shares.done else "gap" if share in shares.failed else "waiting", tries[share])
+             for share in tries}
+    assert ended == {share: (end, count) for share, (_, end, count) in FAULTS.items()}, ended
+    assert sorted(shares.done + shares.failed) == sorted(set(shares.done + shares.failed)) and not shares.waiting
+    # no machine rented in place of the one whose set-up failed, each deleted, one a zone
+    assert sorted(machine["folder"].name for machine in run.machines) == ["m1", "m2", "m3"], run.machines
+    assert all(machine["deleted"] for machine in run.machines)
+    assert sorted(machine["zone"] for machine in run.machines) == ["zone-a", "zone-b", "zone-c"], run.machines
+    # each machine's apt was moved off Scaleway's zone mirror before its set-up ran, security.ubuntu.com left alone
+    assert mirrored == [True] * 3 and sorted(sent) == [(f"m{n}", spread.APT_MIRROR) for n in (1, 2, 3)], sent
+    apt = tmp_path / "etc/apt"
     (apt / "sources.list.d").mkdir(parents=True)
     classic = "deb http://fr-par-2.clouds.archive.ubuntu.com/ubuntu noble main\n" \
               "deb http://security.ubuntu.com/ubuntu noble-security main\n"
@@ -167,181 +232,67 @@ def test_a_machine_that_fails_its_set_up_is_not_replaced(fake_machines):
              "Types: deb\nURIs: http://security.ubuntu.com/ubuntu/\nSuites: noble-security\n"
     (apt / "sources.list").write_text(classic)
     (apt / "sources.list.d/ubuntu.sources").write_text(deb822)
-    subprocess.run(["bash", "-c", spread.APT_MIRROR.replace("/etc/apt", str(apt))], check=True)
+    subprocess.run(["bash", "-c", sent[0][1].replace("/etc/apt", str(apt))], check=True)
     assert (apt / "sources.list").read_text() == classic.replace("fr-par-2.clouds.archive", "archive")
     assert (apt / "sources.list.d/ubuntu.sources").read_text() == deb822.replace("nl-ams-2.clouds.archive", "archive")
     assert (apt / "apt.conf.d/80score-retries").read_text() == 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\n'
 
-
-def test_machines_claimed_side_by_side_spread_over_the_zones(tmp_path, monkeypatch):
-    def rent(run, account, chosen, number, disk_gb):
-        time.sleep(0.1)  # the three claims overlap while they rent
-        return {"zone": chosen.zone, "class": chosen.machine_class, "deleted": None}
-    monkeypatch.setattr(batch, "rent", rent)
-    monkeypatch.setattr(batch, "boot", lambda machine: "host")
-    run = pictures.Run(tmp_path, time.time() + 60)
-    offers = [offer("gpu-24gb", zone) for zone in ("zone-a", "zone-b", "zone-c")]
-    claims = [threading.Thread(target=batch.claim, args=(run, None, offers, number, "parts")) for number in range(3)]
-    for claim in claims:
-        claim.start()
-    for claim in claims:
-        claim.join()
-    assert sorted(machine["zone"] for machine in run.machines) == ["zone-a", "zone-b", "zone-c"]
-
-
-@pytest.fixture
-def stock_after(monkeypatch, tmp_path):
-    """Renting stubbed: every offer is out of stock until the backend's offers were read again `rounds[0]` times; no
-    time is waited. Gives the run, the reads and the rounds to set."""
-    reads, rounds = [], [0]
-
-    def rent(run, account, chosen, number, disk_gb):
-        return None if len(reads) < rounds[0] else {"zone": chosen.zone, "class": chosen.machine_class,
-                                                    "deleted": None}
-
-    def read(classes):
-        reads.append(sorted(classes))
-        return [offer(machine_class, zone) for machine_class in classes for zone in ("zone-a", "zone-b")]
-    monkeypatch.setattr(batch, "rent", rent)
-    monkeypatch.setattr(batch, "boot", lambda machine: "host")
-    monkeypatch.setattr(batch.cloud, "offers", read)
-    monkeypatch.setattr(batch, "STOCK_RETRY_MINUTES", 0)
-    monkeypatch.setattr(batch, "say", lambda line: None)
-    return pictures.Run(tmp_path, time.time() + 60), reads, rounds
-
-
-def test_a_slot_keeps_asking_until_stock_comes_up(stock_after):
-    run, reads, rounds = stock_after
-    rounds[0] = 3
-    machine = batch.claim(run, "account", [offer("gpu-24gb", "zone-a"), offer("gpu-80gb", "zone-b")], 1, "parts")
-    assert machine is not None and len(reads) == 3
-    assert reads[0] == ["gpu-24gb", "gpu-80gb"]  # every class the job fits, read again each round
-
-
-def test_a_slot_stops_asking_when_its_work_is_gone(stock_after):
-    run, reads, rounds = stock_after
-    rounds[0] = 99
-    left = [True, True, False]
-    assert batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts", wanted=lambda: left.pop(0)) is None
-    assert len(reads) == 1
-
-
-def test_a_slot_stops_asking_at_its_deadline_and_on_a_signal(stock_after):
-    run, reads, rounds = stock_after
-    rounds[0] = 99
-    run.deadline = time.time() - 1
-    assert batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts") is None and not reads
-    run.deadline = time.time() + 60
-    batch.STOPPING.set()
-    assert batch.claim(run, "account", [offer("gpu-24gb", "zone-a")], 1, "parts") is None
-
-
-
-def test_a_wait_for_this_pcs_machine_is_not_the_works_time(fake_machines, monkeypatch):
-    """On this PC's one machine, a claim that waited out the run's deadline behind the run's own jobs asks again,
-    and the deadline moves on by the wait, so the share runs; on a rented backend nothing moves. A claim this PC
-    refuses as too big for its card ends the spread on that refusal."""
-    run, done, made = fake_machines, [], batch.claim
-    run.deadline = time.time() + 0.3
-    calls = []
-
-    def claim(run, account, found, number, kind, disk_gb, wanted=None):
-        calls.append(time.time())
-        if len(calls) == 1:  # the machine busy with the run's other jobs until the deadline
-            time.sleep(max(0.0, run.deadline - time.time()) + 0.05)
-            return None
-        return made(run, account, found, number, kind, disk_gb, wanted)
-    monkeypatch.setattr(batch, "claim", claim)
+    # This PC's claims, one spread a row.
     monkeypatch.setattr(spread, "THIS_PC_WAIT_SECONDS", 0.2)
-    monkeypatch.setattr(spread.provider.cloud, "NAME", "local")
-    shares = spread.Shares(["one"], deadline=run.deadline)
-    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
-                       lambda machine, share, card: done.append(share))
-    assert done == ["one"] and len(calls) == 2, (done, calls)
-    assert shares.deadline > calls[1] and run.deadline > calls[1]
-    monkeypatch.setattr(spread.provider.cloud, "NAME", "scaleway")
-    calls.clear()
-    before = run.deadline = time.time() + 0.3
-    shares = spread.Shares(["two"], deadline=run.deadline)
-    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
-                       lambda machine, share, card: done.append(share))
-    assert done == ["one"] and len(calls) == 1 and run.deadline == before  # a rented backend gives up as before
-    # a set-up on this PC's machine (its `here`) that runs past the share's deadline is not the work's time either:
-    # the share still runs (2026-11-10, sound@habitat: 10.2 min of MOSS set-up past a 9-min limit, the take never
-    # asked); a rented machine's set-up is paid and stays in its minutes, so there the share is a gap
-    monkeypatch.delenv("SCORE_SPEND_TICKET", raising=False)  # preflight.declare_deadline keeps nothing outside one
-    for here, ran in ((True, ["three"]), (False, [])):
-        monkeypatch.setattr(batch, "claim", lambda run, account, found, number, kind, disk_gb, wanted=None, here=here:
-                            {**made(run, account, found, number, kind, disk_gb, wanted), "here": here})
-        made_here = []
-        run.deadline = time.time() + 0.2
-        shares = spread.Shares(["three"], deadline=run.deadline)
-        spread.on_machines(run, None, [], 1, "moss-sound", shares, lambda machine: time.sleep(0.4),
-                           lambda machine, share, card: made_here.append(share))
-        assert made_here == ran, (here, made_here)
-    # a claim this PC refuses as too big (park.here's compute.CloudOnly, in any slot's thread) ends the spread on the
-    # refusal once its slots are done; no share ran (round 46, 2026-11-02: meshparts' 24 GB claim died in its thread
-    # and the tool ended "no card could be rented", so its paid row crashed instead of being left for the Buy)
-    refused = []
-
-    def refused_claim(run, account, found, number, kind, disk_gb, wanted=None):
-        raise batch.compute.CloudOnly("a meshparts job needs about 24 GB of card and this PC has 16 GB")
-    monkeypatch.setattr(batch, "claim", refused_claim)
-    shares = spread.Shares(["one", "two"], deadline=run.deadline)
-    with pytest.raises(batch.compute.CloudOnly, match="24 GB"):
-        spread.on_machines(run, None, [], 2, "meshparts", shares, lambda machine: None,
-                           lambda machine, share, card: refused.append(share))
-    assert refused == []
-
-
-def test_a_share_killed_for_memory_runs_again_once(fake_machines):
-    """A job killed by signal 9 at the machine's memory cap (2026-10-29: four bakes side by side in a 27 GiB
-    container) is a fault of the run, not its result: its share runs again once; a second death is a gap. A step
-    killed inside the job (`killed`, from its log) counts as one, a plain failure does not."""
-    run, done, deaths = fake_machines, [], {}
-
-    def do(machine, share, card):
-        deaths[share] = deaths.get(share, 0) + 1
-        if share == "once" and deaths[share] == 1 or share == "twice":
-            spread.raise_for(1, f"job {share}", killed=True)
-        done.append(share)
-    shares = spread.Shares(["once", "twice", "fine"])
-    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None, do)
-    assert sorted(done) == ["fine", "once"] and shares.failed == ["twice"] and deaths["twice"] == 2, (done, deaths)
-    with pytest.raises(spread.MemoryKilled):
-        spread.raise_for(spread.KILLED, "job")
-    with pytest.raises(spread.JobFailed) as plain:
-        spread.raise_for(1, "job")
-    assert not isinstance(plain.value, spread.MemoryKilled)
-
-
-def test_a_share_whose_card_would_not_open_runs_again_once(fake_machines):
-    """A job whose card would not open (2026-10-30: settle@airlock's "CUDA error 999" beside a full card, the card
-    fine again a minute later) is the machine's fault: its share runs again once; a second time is a gap."""
-    run, done, tries = fake_machines, [], {}
-
-    def do(machine, share, card):
-        tries[share] = tries.get(share, 0) + 1
-        if share == "once" and tries[share] == 1 or share == "twice":
-            spread.raise_for(1, f"job {share}", card_lost=True)
-        done.append(share)
-    shares = spread.Shares(["once", "twice", "fine"])
-    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None, do)
-    assert sorted(done) == ["fine", "once"] and shares.failed == ["twice"] and tries["twice"] == 2, (done, tries)
-
-
-def test_a_shared_claim_gives_way_to_one_that_waits_for_the_machine_alone(fake_machines, monkeypatch):
-    """On this PC's shared machine a claim whose slot finds another process waiting for the machine alone takes no
-    next share: it lets the machine go, asks again and runs the rest on its next claim, each share once."""
-    run, done, made = fake_machines, [], batch.claim
-
-    def claim(run, account, found, number, kind, disk_gb, wanted=None):
-        return {**made(run, account, found, number, kind, disk_gb, wanted), "turns": 1, "id": "this-pc"}
-    wanted = iter([False, True])
-    monkeypatch.setattr(batch, "claim", claim)
-    monkeypatch.setattr(spread.provider.cloud, "wanted_elsewhere", lambda: next(wanted, False), raising=False)
     monkeypatch.setattr(spread.provider.cloud, "let_go_turn", lambda machine_id: None, raising=False)
-    shares = spread.Shares(["one", "two", "three"])
-    spread.on_machines(run, None, [], 1, "blender", shares, lambda machine: None,
-                       lambda machine, share, card: done.append((machine["folder"].name, share)))
-    assert done == [("m1", "one"), ("m2", "two"), ("m2", "three")], done
+    for case in THIS_PC:
+        calls, ran, numbers, raised = [], [], iter(range(1, 100)), None
+        elsewhere = iter(getattr(case, "elsewhere", []))
+
+        def claim(run, account, found, number, kind, disk_gb, wanted=None, case=case, calls=calls, numbers=numbers):
+            calls.append(time.time())
+            if getattr(case, "refuse", None):
+                raise batch.compute.CloudOnly(case.refuse)
+            if getattr(case, "wait_first", False) and len(calls) == 1:  # busy with the run's jobs past the deadline
+                time.sleep(max(0.0, run.deadline - time.time()) + 0.05)
+                return None
+            machine = {**a_machine(run, f"m{next(numbers)}", "gpu-24gb", "zone-a"),
+                       "here": getattr(case, "here", False)}
+            if getattr(case, "turns", False):
+                machine.update(turns=1, id="this-pc")
+            run.machines.append(machine)
+            return machine
+        monkeypatch.setattr(batch, "claim", claim)
+        monkeypatch.setattr(spread.provider.cloud, "NAME", case.backend)
+        monkeypatch.setattr(spread.provider.cloud, "wanted_elsewhere",
+                            lambda elsewhere=elsewhere: next(elsewhere, False), raising=False)
+        run = pictures.Run(tmp_path / case.row.replace(" ", "-").replace("'", ""), time.time() + case.deadline)
+        before = run.deadline
+        shares = spread.Shares(case.shares, deadline=run.deadline)
+        try:
+            spread.on_machines(run, None, [], case.count, case.kind, shares,
+                               lambda machine, case=case: time.sleep(case.setup),
+                               lambda machine, share, card, ran=ran: ran.append((machine["folder"].name, share)))
+        except batch.compute.CloudOnly as refusal:
+            raised = str(refusal)
+        assert ran == case.done and len(calls) == case.claims, (case.row, ran, calls)
+        assert (raised is not None and getattr(case, "raised", "") in raised) == hasattr(case, "raised"), \
+            (case.row, raised)
+        if getattr(case, "moved", None) is True:
+            assert min(run.deadline, shares.deadline) > max(before, calls[-1]), (case.row, run.deadline, before)
+        if getattr(case, "moved", None) is False:
+            assert run.deadline == before, (case.row, run.deadline, before)
+    monkeypatch.setattr(batch, "claim", real_claim)  # the stock rows ask the real claim
+
+    # Stock rounds, one claim a row: renting is out of stock until the offers were read `rounds` times.
+    stock.update(pause=0.0)
+    for case in STOCK:
+        batch.STOPPING.clear()
+        reads.clear()
+        stock["rounds"] = case.rounds
+        run = pictures.Run(tmp_path / case.row.replace(" ", "-").replace("'", ""), time.time() + case.deadline)
+        if case.stopping:
+            batch.STOPPING.set()
+        answers = list(case.wanted) if case.wanted else None
+        found = [offer(machine_class, zone) for machine_class, zone in zip(case.classes, ("zone-a", "zone-b"))]
+        machine = batch.claim(run, "account", found, 1, "parts", wanted=answers and (lambda: answers.pop(0)))
+        assert (machine is not None) == case.machine and len(reads) == case.reads, (case.row, machine, reads)
+        assert (reads[0] if reads else None) == case.first, (case.row, reads)  # every class the job fits, read again
+
+    for kind, machine_class, at_once, cards in SLOTS:
+        assert spread.slots(kind, {"class": machine_class}, at_once=at_once) == cards, (kind, machine_class)
