@@ -22,6 +22,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 
 - records.paths_of's `at[kept]` made `at`, contact.lowests' `heights[points]` made `heights`, local_turns'
   `above.transpose(0, 2, 1)` made `above`: each a one-pass piece no longer equal to the item-by-item one (2026-11-05).
+- com_height's `centre[1] - floor` made the centre's height over the ground under it (the old reading): the seated
+  stander's centre 0.27 m over the slab, not 0.87 over its floor (2026-11-14).
 
 Run: .venv/bin/python score/stages/sim_body/inside/records/test_a_record_keeps_poses_meshes_and_moves_as_worked_by_hand.py
 """
@@ -244,7 +246,8 @@ def swaying_stance():
 def a_quiet_stance_pushes_its_weight_steadily_under_each_foot():
     """The swaying stance's record: one push a foot (its calcaneus and toes as one, by its Foot segment's name) on
     every frame, and none of `push_faults`: the pushes sum to the weight within 5% on its quiet frames, each centre of
-    pressure on the ground and under its foot's touching skin, no push or centre jumping from frame to frame."""
+    pressure on the ground and under its foot's touching skin, no push or centre jumping from frame to frame; and its
+    centre of mass' height, the residual moment's lever, over its floor (`centre_over_the_floor_under_its_feet`)."""
     import records
     steady, raw, needs, weight, ground = swaying_stance()
     problems = [f"frame {frame}: parts {sorted(touches)}" for frame, touches in enumerate(steady)
@@ -252,7 +255,30 @@ def a_quiet_stance_pushes_its_weight_steadily_under_each_foot():
     measures = records.push_measures(steady, raw, needs, weight, ground)
     if measures["quiet frames"] < len(steady):
         problems.append(f"{measures['quiet frames']} of {len(steady)} frames quiet")
-    return problems + [f"{fault} ({measures})" for fault in records.push_faults(measures)]
+    return (problems + [f"{fault} ({measures})" for fault in records.push_faults(measures)]
+            + centre_over_the_floor_under_its_feet())
+
+
+def centre_over_the_floor_under_its_feet():
+    """The stander's centre of mass' height is over the floor its feet stand on, with or without a seat's slab under
+    its pelvis 0.6 m up (own frame), not over the slab: the residual moment's limit scales with it (Hicks et al.
+    2015), and camp's stool sitters were judged at 0.26 m, cockpit's pilot at 0.31 (2026-11-14)."""
+    import mujoco
+    import numpy as np
+    import records
+    found = mujoco.MjModel.from_xml_string(STANDER)
+    data = mujoco.MjData(found)
+    mujoco.mj_kinematics(found, data)
+    mujoco.mj_comPos(found, data)
+    centre = float(data.subtree_com[found.jnt_bodyid[0]][2])
+    floor = np.array([[[-5.0, 0.0, -5.0], [5.0, 0.0, 5.0], [5.0, 0.0, -5.0]],
+                      [[-5.0, 0.0, -5.0], [-5.0, 0.0, 5.0], [5.0, 0.0, 5.0]]])
+    slab = np.array([[[-0.05, 0.6, -0.05], [0.05, 0.6, 0.05], [0.05, 0.6, -0.05]],
+                     [[-0.05, 0.6, -0.05], [-0.05, 0.6, 0.05], [0.05, 0.6, 0.05]]])
+    found_heights = {name: records.com_height(found, found.qpos0, ground)
+                     for name, ground in (("standing", floor), ("seated", np.concatenate([floor, slab])))}
+    return [f"{name}: {height:.3f} over its ground, not {centre:.3f}" for name, height in found_heights.items()
+            if abs(height - centre) > 1e-6]
 
 
 CHECKS = (a_pose_and_a_turn_read_as_worked_by_hand, near_vertices_merge_and_flat_faces_go,

@@ -95,14 +95,25 @@ def bones_of(model):
 
 
 def com_height(model, qpos, ground):
-    """The centre of mass' height over its ground at a pose (m): the ground a body as high as its bodies' highest
-    origin finds room on (`body_top`: a seated body's mattress under an upper bunk is its seat, not a block)."""
+    """The centre of mass' height at a pose (m) over the floor its feet stand on: the ground under its bodies' lowest
+    origin, as Hicks et al. 2015 measure it over the lab's floor (the residual moment's limit, 1% of the weight times
+    it, is the 1% force at the body's own lever); the ground under the centre itself where none is under that origin.
+    Over the ground under the centre, a seated body's limit was its centre's height over its seat: camp's stool
+    sitters 0.26 m (0.75 N m, the same astronauts standing 2.86), cockpit's pilot 0.31 m (0.38 N m, read "its 0 N m"),
+    2026-11-14, though the floor pushes its feet as far under its pelvis as a stander's. A surface counts as ground
+    where a body as high as its bodies' highest origin finds room on it (`body_top`: a seated body's mattress under
+    an upper bunk is its seat, not a block)."""
     data = mujoco.MjData(model)
     data.qpos[:] = qpos
     mujoco.mj_kinematics(model, data)
     mujoco.mj_comPos(model, data)
-    return float(heights_over((data.subtree_com[model.jnt_bodyid[0]] @ TO_OWN.T)[None], ground,
-                              top=body_top(data.xpos @ TO_OWN.T))[0])
+    placed = data.xpos[1:] @ TO_OWN.T  # every body's origin but the world's
+    centre, top = data.subtree_com[model.jnt_bodyid[0]] @ TO_OWN.T, body_top(placed)
+    lowest = placed[np.argmin(placed[:, 1])]
+    floor = lowest[1] - heights_over(lowest[None], ground, top=top)[0]
+    if np.isnan(floor):
+        return float(heights_over(centre[None], ground, top=top)[0])
+    return float(centre[1] - floor)
 
 
 def adjustment_record(moved_by, kept, shares, step, before, after, segments, follows):

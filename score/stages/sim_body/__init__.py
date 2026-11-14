@@ -59,6 +59,11 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              smooth       the body's SOMA segments' turns against their parents shake no more than the clip's own:
                           the root mean square of their angular jerk (`jerk`) at most the clip's
 
+A seated body (the cast's `seat`, cast.on_support: its seat's top over its feet's floor) plays its clip moved so the
+skin it sits on rests on its seat's surface on every frame (`seated`): nested across the ground where it sits lowest
+(`nest`), then raised onto a higher seat or lowered onto a lower one with its knees opened or bent so its feet stay
+where the clip stood them (`bent_down`).
+
 A climber (the cast's `stairs`, cast.on_stairs: a person its design stands on stairs, on its flight's first tread)
 plays its scene-made clip up or down its flight instead (scene-clips, an optional read: its rig.npz `clip_<clip>` and
 scene_clips.json entry, route_clip: its travel kept along its route and up its steps, only its Hips' height over the
@@ -88,8 +93,8 @@ import numpy as np
 from score import checks, contracts
 from score.stages import layer_base
 from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, contacts_of, mass_of,  # noqa: F401
-                                         person_rig, route_clip, segments_of, soles, stances, standing_height,
-                                         stood, stood_smoothed, surface_under, treads_stood)
+                                         person_rig, route_clip, seated, segments_of, soles, stances,
+                                         standing_height, stood, stood_smoothed, surface_under, treads_stood)
 from score.stages.sim_body._gates import (EMPTY_CAST, FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES,  # noqa: F401
                                           RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT, judge_carries, judge_follows,
                                           judge_lands, judge_on_floor, judge_residual, judge_smooth, measured,
@@ -230,6 +235,11 @@ def make(inputs, out, seed, params):
             builds[row] = (*person_rig(clips_rig, built, contacts), built)
         rig, size, built = builds[row]
         clip = single["doing"]
+        if single.get("seat"):  # a seated body on its seat (cast.on_support's `seat` and `seat_on`)
+            seat_tris = ground_of({key: solids[key] for key in [single.get("seat_on")] if key in solids},
+                                  clip_frames(rig, clip, segments_of(rig)[0]),
+                                  own_frame(single["at"], single.get("turn", 0.0)))[0]
+            rig = dict(rig, **{f"clip_{clip}": seated(rig, rig[f"clip_{clip}"], single["seat"], seat_tris)})
         if single.get("stairs"):
             plan, scene_rig = scene[single["name"]]
             clip = plan["clip"]

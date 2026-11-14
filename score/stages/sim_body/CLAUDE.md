@@ -17,7 +17,9 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   reserves: measured, recorded, gated (`residual`, Hicks et al. 2015), **never applied**.
   Never bring back a helper or any force that holds the body up or on its path: a trip or a float must show as a
   residual that fails. Limits: force 2% of the weight (owner, 2026-10-28, from 5%; Werling et al. 2023's
-  AddBiomechanics results as the benchmark only), moment 1% of it times the centre's height (Hicks 2015).
+  AddBiomechanics results as the benchmark only), moment 1% of it times the centre's height (Hicks 2015) over the floor its feet stand on
+  (`records.com_height`, 2026-11-14: over the ground under the centre a seated body's limit was its height over its
+  seat, camp's stool sitters 0.75 N m against 2.86 standing, cockpit's pilot 0.38).
 - **Residual reduction, OpenSim's RRA** (owner, 2026-10-28; Delp et al. 2007, opensim-core RRATool, Apache-2.0; never
   AddBiomechanics: GPL with a data-sharing clause, neither used nor copied): `inside/rra` `reduced` adjusts
   the fitted path's pelvis and trunk (the root's six dofs and the lumbar leaders, `TRUNK`) and the body's masses and
@@ -139,6 +141,26 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   to -0.1/0.2/0.6; rig walk L -2.2/0.0/14.4 to -0.1/-0.1/0.3, R -2.9/0.4/17.1 to -0.1/0.0/0.6; lunge L
   -3.1/0.4/3.7 to -1.3/-0.1/1.6, R -0.3/16.7/33.0 to -0.1/-0.1/0.7; pickup and standing within 1 mm. One lunge frame
   stays under (L, -5.2 mm, from -19.9 stood): its toe base itself 5 mm under, which no toe bend lifts.
+  Then the clip is stood again (`stood`, 2026-11-14): the correction puts each toe at its height in the build's bind,
+  and a build's bind need not stand its own skin on its floor (people-body-astronaut-made's heel 12 mm and toes 2.7 mm
+  under it), so every made astronaut's standing skin sank 2.5 to 2.9 mm, the worker's 4.6, and their sim bodies 4 to
+  5.4 mm, past `SUNK_MOST`, while the mean body's sank 0.5.
+  Each foot keeps the clip's own turn through the correction (`_body.feet_kept`, 2026-11-14): its toe pin pitched
+  the feet onto their toes, base's made astronauts' standing heels 3 to 5 mm (right 7) over the floor their balls stood
+  on, so on frames whose weight sat behind the balls the ground could not carry it (2.0 to 2.9 N of residual force and
+  N m of moment, the limits 2.5 and 1.25); kept, base and airlock carry theirs with 0 residual. The 4 mm the sim body
+  sank before the re-stand had hidden it: the heel then sat within the contact's 5 mm.
+  A seated body (the cast's `seat`, `seat_on`) has the skin its pelvis and thighs carry rested on its seat's surface on
+  every frame (`_body.seated`): nested first across the ground, at most 0.1 m, where it sits lowest (`_body.nest`:
+  between a bucket seat's bolsters, clear of its back; the pilot's left thigh lay 4 cm into his seat's bolster), then
+  raised onto a higher seat or lowered onto a lower one with its knees opened or bent so its feet stay where the clip
+  stood them and turned as they were (`_body.bent_down`), set on it again while the knees' turn moves its thighs; a
+  rig with no legs (or legs that cannot reach) is raised whole, its feet off the floor, and never lowered. The seated clip sits at its own height (0.397 m on the made
+  astronaut and pilot) whatever the seat (camp's stools 0.498 m, 7 cm into them; cockpit's pilot seat 0.333 m, 6.4 cm
+  over it, carried by his feet alone; quarters' person_desk raised whole hung its feet 10 cm over the floor).
+  A point under a closed piece of the scene (a desk's apron, a bunk's rail over a foot on the floor) is outside it, so
+  that piece is never its ground (`inside/ground` `outside`, 2026-11-14: person_desk's toes read 0.28 m into the
+  apron over them).
   `route_clip`'s treads are not stood by `stood`: `treads_stood` puts a climber's feet on them (below).
   The sim body follows each clip with a jolting start steadied (`inside/eased`, 2026-11-13: Kimodo's standing clip
   starts with a jolt, 1.5 to 3.2 N m of residual moment on frame 2 under Moon gravity); `poses` stay the clip's own.

@@ -43,7 +43,10 @@ the gates; `measure.py` the geometry, `spread.py` how a group and a crowd are st
 - **A stood person's feet keep clear** (`feet.py`, 2026-11-13): a spot spread stands a person on is kept only where a
   cylinder `BODY_RADIUS` round its feet from `FEET_LIFT` to `KNEE` meets no solid but the one it stands on (airlock's
   astronaut stood with a vacuum's low part under its toe, greenhouse's astronaut_4 with a foot under a tank). `feet.make`
-  is the cast's make, wired in the stage table: scene_clips imports this package and through it every row from the
+  is the cast's make, wired in the stage table; it also turns each seated person away from its seat's back
+  (`facing_seats`: the seat's parts over `BACK_OVER` above its top; cockpit's pilot sat facing his seat's back, 2026-11-14),
+  and sits one on a bed (a seat deeper than `DEEP` ahead of it) `EDGE_IN` in from its nearest edge with its feet's room
+  clear, facing out (`edge_seated`; quarters' person_bed sat at its bunk's middle facing along it, 2026-11-14): scene_clips imports this package and through it every row from the
   assembly on, so an edit to `spread.py`, `measure.py` or `__init__.py` moves 242 accepted rows; `feet.py` moves the
   cast's key alone.
 - **Measured on the geometry, never on a box.** Bodies are cast_check's cylinders tested against the triangles of

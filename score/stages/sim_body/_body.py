@@ -30,6 +30,22 @@ STOOD_HZ = 3.0  # the stood move's smoothness, half the path's 6 Hz low pass (in
 # A triangle a foot may stand on faces up at least this much (its normal's up part; a tread, a deck, a ramp up to 60
 # degrees), so a riser or a wall beside the sole is no ground under it (treads_stood).
 UPWARD = 0.5
+# The joints whose skin a seated body sits on: the pelvis and the thighs (`seated`).
+SITS = ("Hips", "LeftLeg", "RightLeg")
+SEAT_BAND = 0.1  # metres round a seat's top its surface under the sitting skin is looked for in (`seated`)
+# A seated body nests in its seat (`nest`): moved across the ground at most NEST_REACH, NEST_STEP at a time, to where
+# it needs the least lift, ties within NEST_SAME the nearest; the seat's surface read on a NEST_CELL grid, a point's
+# its nearest cell's; its skin read at NEST_SAMPLE points for the search; a seat's surface counts at most SEAT_IN over
+# a point of the skin.
+NEST_REACH = 0.1  # metres
+NEST_STEP = 0.01  # metres
+NEST_CELL = 0.005  # metres
+NEST_AGAIN = 3  # times a bent body's sitting skin is set on its seat again (its knees' turn moves its thighs)
+NEST_SAME = 0.001  # metres
+NEST_SAMPLE = 4000
+SEAT_IN = 0.3  # metres
+# Each leg's thigh, shin and foot, the knee bent so a lowered seated body keeps its feet where they were (`bent_down`).
+LEGS = (("LeftLeg", "LeftShin", "LeftFoot"), ("RightLeg", "RightShin", "RightFoot"))
 
 
 def segments_of(rig):
@@ -272,6 +288,162 @@ def stood(rig, local):
     return moved
 
 
+def seated(rig, local, seat, tris):
+    """`local` (a seated clip, its feet stood) moved so the skin it sits on (the skin SITS carry most) rests on its
+    seat (`tris`, its triangles in the body's own frame) on every frame: first across the ground, at most NEST_REACH,
+    to where it sits lowest in the seat (`nest`: between a bucket seat's bolsters, clear of a seat's back), then up or
+    down frame by frame so no point of that skin is under the seat's surface over it and the nearest is on it (`nest`'s
+    lifts, smoothed as `stood` smooths), with its knees bent or opened so its feet stay where the clip stood them
+    (`bent_down`), set on it again while the knees' turn moved its thighs (NEST_AGAIN); where the rig has no legs to
+    bend or they cannot reach, raised whole over a seat higher than the clip's, its feet off the floor, and left as it
+    is over one under it. The seated clip sits at its own height whatever the seat: camp's astronauts sank their
+    thighs 7 cm into their dining stools (0.498 m) and 13.7 cm into an office chair (0.533 m at its middle, 0.539
+    under a thigh), and the cockpit's pilot sat 6.4 cm over his seat's cushion (0.333 m), carried by his feet alone;
+    raised whole, quarters' person_desk hung its feet 10 cm over the floor on its 0.498 m chair; set down on the pilot
+    seat's cushion at the seat's middle, the pilot's left thigh lay 4 cm into its side bolster; set on it at its
+    lowest frame only, he hovered 5 mm over it on the rest, carried by his feet alone, 2026-11-14."""
+    names = [str(name) for name in rig["names"]]
+    weights = np.asarray(rig["weights"], dtype=float)
+    mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in SITS if name in names]))
+    if not len(mine) or not len(tris):
+        return np.asarray(local, dtype=float)
+    points = np.c_[np.asarray(rig["points"], dtype=float)[mine], np.ones(len(mine))]
+    pelvis = weights[mine].argmax(axis=1) == names.index(SITS[0]) if SITS[0] in names else np.ones(len(mine), bool)
+    tris = np.asarray(tris, dtype=float)
+
+    def sitting(clip):
+        """The sitting skin of `clip` (frames x points x 3)."""
+        skinning = played.chained(np.asarray(clip, dtype=float), rig["parents"]) @ np.linalg.inv(
+            np.asarray(rig["bind"]))
+        return np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], points)
+    (across, along), lifts = nest(sitting(local), pelvis, float(seat), tris)
+    shifted = np.array(local, dtype=float)
+    shifted[:, played.TRAVELLING_JOINT, 0, 3] += across
+    shifted[:, played.TRAVELLING_JOINT, 2, 3] += along
+    move = stood_smoothed(lifts)
+    bent = bent_down(rig, shifted, -move, local)
+    for _ in range(NEST_AGAIN if bent is not None else 0):  # the knees' turn moved the thighs: set them on it again
+        more = stood_smoothed(nest(sitting(bent), pelvis, float(seat), tris, 0.0)[1])
+        again = bent_down(rig, bent, -more, local) if np.abs(more).max() > NEST_SAME else None
+        if again is None:
+            break
+        bent = again
+    if bent is not None:
+        return bent
+    if lifts.max() <= 0.0:
+        return np.asarray(local, dtype=float)
+    shifted[:, played.TRAVELLING_JOINT, 1, 3] += lifts.max()
+    return shifted
+
+
+def nest(skin, pelvis, seat, tris, reach=NEST_REACH):
+    """((x, z) shift, each frame's lift) of the sitting skin `skin` (frames x points x 3, the body's own frame) on its
+    seat (`tris`, its top `seat` m up): of the shifts across the ground NEST_STEP apart within `reach` that keep as
+    much of the skin its pelvis carries (`pelvis`, a mask of the points) over the seat, the one needing the least lift
+    on its frames (the nearest of those within NEST_SAME of it); a frame's lift the most the seat's surface stands over
+    a point of its skin there (under 0: lowered onto it; a frame with none over the seat its neighbours'). The seat's
+    surface under a point is its highest crossing at most SEAT_BAND under its top and at most SEAT_BAND over it or
+    SEAT_IN over the point (a back, a bolster the skin is in; never a bunk over it), on a NEST_CELL grid."""
+    import trimesh
+    frames = len(skin)
+    flat, flat_pelvis = skin.reshape(-1, 3), np.tile(pelvis, frames)
+    picked = np.random.default_rng(0).permutation(len(flat))[:NEST_SAMPLE]
+    sample, sample_pelvis = flat[picked], flat_pelvis[picked]
+    margin = reach + NEST_STEP
+    low, high = flat[:, [0, 2]].min(axis=0) - margin, flat[:, [0, 2]].max(axis=0) + margin
+    xs, zs = np.arange(low[0], high[0], NEST_CELL), np.arange(low[1], high[1], NEST_CELL)
+    cells = np.stack(np.meshgrid(xs, zs, indexing="ij"), axis=-1).reshape(-1, 2)
+    mesh = trimesh.Trimesh(vertices=tris.reshape(-1, 3), faces=np.arange(len(tris) * 3).reshape(-1, 3), process=False)
+    origins = np.c_[cells[:, 0], np.full(len(cells), max(flat[:, 1].max(), seat) + SEAT_IN), cells[:, 1]]
+    hits, rays, _ = mesh.ray.intersects_location(origins, np.tile([0.0, -1.0, 0.0], (len(cells), 1)),
+                                                 multiple_hits=True)
+    kept = hits[:, 1] >= seat - SEAT_BAND
+    hits, rays = hits[kept], rays[kept]
+    order = np.argsort(hits[:, 1])
+    crossings = [[] for _ in range(len(cells))]
+    for ray, height in zip(rays[order], hits[order, 1]):
+        crossings[ray].append(height)
+    heights = np.full((len(cells), max(max((len(found) for found in crossings), default=0), 1)), np.nan)
+    for cell, found in enumerate(crossings):
+        heights[cell, :len(found)] = found
+    heights = heights.reshape(len(xs), len(zs), -1)
+
+    def under(points, shift):
+        """How far the seat's surface stands over each of `points` moved by `shift` (nan where none is under it)."""
+        index = np.clip(np.floor((points[:, [0, 2]] + shift - low) / NEST_CELL + 0.5).astype(int), 0,
+                        [len(xs) - 1, len(zs) - 1])
+        found = heights[index[:, 0], index[:, 1]]
+        found = np.where((found <= points[:, 1:2] + SEAT_IN) | (found <= seat + SEAT_BAND), found, np.nan)
+        surface = np.nanmax(np.where(np.isnan(found), -np.inf, found), axis=1)
+        return np.where(np.isfinite(surface), surface - points[:, 1], np.nan)
+
+    def lift(points, counted, shift):
+        """(the lift the seat asks of `points` moved by `shift`, how many of the `counted` ones are over it)."""
+        over = under(points, shift)
+        return (float(np.nanmax(over)) if np.isfinite(over).any() else 0.0), int(np.isfinite(over[counted]).sum())
+    steps = np.arange(-reach, reach + NEST_STEP / 2, NEST_STEP)
+    shifts = np.stack(np.meshgrid(steps, steps, indexing="ij"), axis=-1).reshape(-1, 2)
+    found = [lift(sample, sample_pelvis, shift) for shift in shifts]
+    covered = lift(sample, sample_pelvis, np.zeros(2))[1]
+    kept = [(needed, float(np.hypot(*shift)), index) for index, ((needed, over), shift) in
+            enumerate(zip(found, shifts)) if over >= covered]
+    least = min(needed for needed, _, _ in kept)
+    shift = shifts[min((distance, index) for needed, distance, index in kept if needed <= least + NEST_SAME)[1]]
+    over = under(flat, shift).reshape(frames, -1)
+    lifts = np.array([np.nanmax(row) if np.isfinite(row).any() else np.nan for row in over])
+    known = np.isfinite(lifts)
+    lifts = np.interp(np.arange(frames), np.flatnonzero(known), lifts[known]) if known.any() else np.zeros(frames)
+    return (float(shift[0]), float(shift[1])), lifts
+
+
+def bent_down(rig, local, drop, kept=None):
+    """`local` with its travelling joint `drop` metres lower (one figure, or one a frame; higher where under 0) and
+    each leg's (LEGS) knee bent or opened so its ankle stays where it was (where `kept`, a clip of the same frames,
+    puts it, where given): the knee's inner angle the one the new hip to
+    ankle reach asks (the law of cosines), turned in the leg's own plane, the thigh then turned about the hip onto the
+    ankle, and the foot keeping its turn in the world. None where the rig lacks a leg's joints or a leg cannot reach."""
+    names = [str(name) for name in rig["names"]]
+    if not all(name in names for leg in LEGS for name in leg):
+        return None
+    parents = rig["parents"]
+    before = played.chained(np.asarray(local if kept is None else kept, dtype=float), parents)
+    moved = np.array(local, dtype=float)
+    moved[:, played.TRAVELLING_JOINT, 1, 3] -= drop
+    lowered = played.chained(moved, parents)
+    for thigh, shin, foot in [[names.index(name) for name in leg] for leg in LEGS]:
+        hip, knee, ankle = (lowered[:, joint, :3, 3] for joint in (thigh, shin, foot))
+        wanted = before[:, foot, :3, 3]
+        upper, lower = np.linalg.norm(knee - hip, axis=1), np.linalg.norm(ankle - knee, axis=1)
+        reach = np.linalg.norm(wanted - hip, axis=1)
+        if np.any(reach <= np.abs(upper - lower)) or np.any(reach >= upper + lower):
+            return None
+        inner = np.arccos(np.clip((upper ** 2 + lower ** 2 - reach ** 2) / (2.0 * upper * lower), -1.0, 1.0))
+        back, down = hip - knee, ankle - knee
+        side = np.cross(back, down)
+        if np.any(np.linalg.norm(side, axis=1) < 1e-9):
+            return None
+        now = np.arctan2(np.linalg.norm(side, axis=1), np.einsum("ij,ij->i", back, down))
+        bend = played.turned_about(side / np.linalg.norm(side, axis=1, keepdims=True), inner - now)
+        reached = knee + np.einsum("fij,fj->fi", bend, down)
+        onto = between(reached - hip, wanted - hip)
+        thigh_turn = onto @ lowered[:, thigh, :3, :3]
+        shin_turn = onto @ bend @ lowered[:, shin, :3, :3]
+        moved[:, thigh, :3, :3] = np.swapaxes(lowered[:, parents[thigh], :3, :3], 1, 2) @ thigh_turn
+        moved[:, shin, :3, :3] = np.swapaxes(thigh_turn, 1, 2) @ shin_turn
+        moved[:, foot, :3, :3] = np.swapaxes(shin_turn, 1, 2) @ before[:, foot, :3, :3]
+    return moved
+
+
+def between(start, end):
+    """The least turns (n x 3 x 3) taking each direction `start` (n x 3) onto `end`'s."""
+    start = start / np.linalg.norm(start, axis=1, keepdims=True)
+    end = end / np.linalg.norm(end, axis=1, keepdims=True)
+    axis = np.cross(start, end)
+    length = np.linalg.norm(axis, axis=1)
+    axis = np.where(length[:, None] > 1e-12, axis / np.maximum(length, 1e-12)[:, None], [1.0, 0.0, 0.0])
+    return played.turned_about(axis, np.arctan2(length, np.einsum("ij,ij->i", start, end)))
+
+
 def foot_lowest(rig, local, foot):
     """The lowest point (m, frames) of the skin the FEET entry `foot`'s joints carry most, over `local` on `rig`."""
     names = [str(name) for name in rig["names"]]
@@ -308,6 +480,28 @@ def toes_lifted(rig, local):
     return moved
 
 
+def feet_kept(rig, own, corrected):
+    """`corrected` (Kimodo's correction of the clip `own`, both against their parents on `rig`) with each foot's
+    (FEET's) turn in the world and its toes' turns against it the clip's own: the correction moves the hips and legs
+    and pins each toe at its bind height, and pitched the feet onto their toes doing it (2026-11-14: base's made
+    astronauts' standing heels 3 to 5 mm over the floor their balls stood on, so the ground could not take their
+    weight behind the balls, 2 to 2.9 N of residual force and N m of moment past their limits)."""
+    names = [str(name) for name in rig["names"]]
+    parents = rig["parents"]
+    moved = np.array(corrected, dtype=float)
+    before = played.chained(np.asarray(own, dtype=float), parents)
+    for foot in FEET:
+        if foot[0] not in names:
+            continue
+        joint = names.index(foot[0])
+        above = played.chained(moved, parents)[:, parents[joint], :3, :3]
+        moved[:, joint, :3, :3] = np.swapaxes(above, 1, 2) @ before[:, joint, :3, :3]
+        for toe in foot[1:]:
+            if toe in names:
+                moved[:, names.index(toe), :3, :3] = np.asarray(own, dtype=float)[:, names.index(toe), :3, :3]
+    return moved
+
+
 def person_rig(rig, built, contacts=None):
     """The clips rig at a person's own build, as the people build plays its clips (`tools.characters.played`, the
     people route's one definition: prop_build.py's clip_world and floor_lift): the built body's bind and surface
@@ -319,15 +513,18 @@ def person_rig(rig, built, contacts=None):
     Kimodo's own clips float and sink theirs. Then a clip with Kimodo's foot contacts in `contacts` ({clip: its
     foot_contacts}, `contacts_of`) has Kimodo's own foot correction run on the build's bones (`played.contacted`):
     its feet on their contact frames held at the bind's own ankle and toe heights, so a longer leg meets the floor;
-    and the toes its toe pin carried under the floor with a foot pitched onto them bent back up (`toes_lifted`)."""
+    the toes its toe pin carried under the floor with a foot pitched onto them bent back up (`toes_lifted`); and its
+    standing feet stood on the bind's floor again (`stood`): a build's bind need not stand its own skin on its floor
+    (2026-11-14: people-body-astronaut-made's heel 12 mm and toes 2.7 mm under it), so the bind's toe height the
+    correction puts each toe at sank the standing skin 2.5 to 4.6 mm, the sim body 4 to 5.4 mm, past SUNK_MOST."""
     built, size, lift = played_build(rig, built)
     found = dict(rig, bind=np.asarray(built["bind"]), points=np.asarray(built["source_points"]))
     for key in [key for key in rig if key.startswith("clip_")]:
         clip = key[len("clip_"):]
         found[key] = stood(found, played.clip_local(rig, clip, built["offsets"], rig["parents"], size, lift))
         if clip in (contacts or {}):
-            found[key] = toes_lifted(found, played.contacted(found[key], rig["names"], rig["parents"], found["bind"],
-                                                             contacts[clip]))
+            found[key] = stood(found, toes_lifted(found, feet_kept(found, found[key], played.contacted(
+                found[key], rig["names"], rig["parents"], found["bind"], contacts[clip]))))
     return found, size
 
 
