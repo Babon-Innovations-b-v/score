@@ -41,7 +41,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 # Each OpenBLAS this process loads (score.stages loads numpy's and scipy's) sized at one thread when it loads, before
 # the imports below: a pool sized at load to every core is what a forked node's resize (graph.cap_threads) starts again
 # in the child, every thread spinning idle before it sleeps, about 1.4 s of CPU a node on 24 cores and 235 s of the
-# file's 246 (2026-11-08: 52-61 s on the gate's pod against its 60). The thread tests resize past it (thread_note).
+# file's 246 (2026-11-08: 52-61 s on the gate's pod against its 60). The thread rows resize past it (ONE_NODE).
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 from score import checks, conductor, contracts, graph, review  # noqa: E402
@@ -117,7 +117,7 @@ def one_openblas_thread_a_node(monkeypatch):
     """Each toy node's OpenBLAS pool kept at one thread (an owner's smaller count stands, graph.cap_thread_variables):
     sized to the cores over --jobs, a node forked from this process started that many OpenBLAS threads that spun
     idle, 26 s of CPU for a 4 s test on 24 cores, and on a loaded box with few CPUs the file ran past its 120 s. The
-    thread tests unset it (thread_note)."""
+    thread rows unset it (ONE_NODE)."""
     monkeypatch.setenv("OPENBLAS_NUM_THREADS", "1")
 
 
@@ -814,6 +814,48 @@ A_PASS = re.compile("made: pass")
 STANDS = "made: pass, accepted automatically"
 
 
+# --- reads beside: other places' outputs, an environment's, up to a shell and down to child scenes -----------------
+
+def make_show(inputs, out, seed, params):
+    """Its own clean text, and every other place's read beside, in order."""
+    others = sorted(name for name in inputs if name.startswith("clean@"))
+    own = ["clean"] if "clean" in inputs else []
+    (out / "show.txt").write_text(" ".join((inputs[name] / "clean.txt").read_text() for name in [*own, *others]))
+
+
+SHOW = graph.Stage("show", "place", make_show, TEXT, PASSES, after={"clean": READS}, beside={"clean": READS},
+                   neighbours=lambda place: [other for other in PLACES if other != place])
+
+
+def make_outlined(inputs, out, seed, params):
+    """Its own clean text, after its shell's split where it has one."""
+    shells = [(inputs[name] / "split.txt").read_text() for name in sorted(inputs) if name.startswith("split@")]
+    (out / "outlined.txt").write_text(" ".join([*shells, (inputs["clean"] / "clean.txt").read_text()]))
+
+
+def make_split(inputs, out, seed, params):
+    (out / "split.txt").write_text("SPLIT " + (inputs["outlined"] / "outlined.txt").read_text())
+
+
+def make_tree(inputs, out, seed, params):
+    """Its own clean text, then each child scene's tree in brackets."""
+    held = [(inputs[name] / "tree.txt").read_text() for name in sorted(inputs) if name.startswith("tree@")]
+    (out / "tree.txt").write_text((inputs["clean"] / "clean.txt").read_text() + "".join(f"[{tree}]" for tree in held))
+
+
+OUTLINED = graph.Stage("outlined", "place", make_outlined, TEXT, PASSES, after={"clean": READS},
+                       beside={"split": READS}, upward=True,
+                       neighbours=lambda place: ["station"] if place == "hangar" else [])
+SPLIT = graph.Stage("split", "place", make_split, TEXT, PASSES, after={"outlined": READS})
+HOLDS = {"base": ["hangar"], "hangar": ["station"]}
+TREE = graph.Stage("tree", "place", make_tree, TEXT, PASSES, after={"clean": READS}, beside={"tree": READS},
+                   downward=True, neighbours=lambda place: HOLDS.get(place, []))
+HANGAR_ONLY = dataclasses.replace(COUNT, name="hangar only", applies=lambda place: place == "hangar")
+WHOLE = graph.Stage("whole", "world", make_show, TEXT, PASSES, beside={"clean": READS, "hangar only": READS},
+                    neighbours=lambda place: list(PLACES))
+TWO_PLACES = {"hangar": "a ship in a hall", "station": "a hub"}
+
+
 @dataclasses.dataclass(frozen=True)
 class Step:
     """One run of a Fate's world. Before it: the files written under its data folder ({path: text}); a word limit
@@ -821,8 +863,9 @@ class Step:
     current key. Asked before the run (None or empty: not asked): the fated stage's nodes as the status lists them,
     the inputs named missing for the planned (stage, place) pairs (HOME_TAKE's too, a file the run makes as it goes)
     as (node, input, data path), each place's key files of the fated stage, the nodes a (stage, place) reads earlier.
-    The run's answers (exact: every node it ran), each equal or a pattern it starts with; accepted texts and the
-    status after it. Of the fated node: its notes [(attempt, then, {failed check: measures}, a fix's why)], the
+    The line a drive of its places lists. The run (whole not None: a drive, one job, of the whole environment or not)
+    and its answers (exact: every node it ran), each equal or a pattern it starts with; accepted texts, the accepted
+    outputs a (stage, place)'s key reads beside, and the status after it. Of the fated node: its notes [(attempt, then, {failed check: measures}, a fix's why)], the
     owner's list [(attempt, why, euros)], its records and the standing record's remake why."""
     found: dict
     exact: bool = True
@@ -834,7 +877,10 @@ class Step:
     missing: tuple = None
     keyed: dict = dataclasses.field(default_factory=dict)
     earlier: dict = dataclasses.field(default_factory=dict)
+    line: list = None
+    whole: bool = None
     texts: dict = dataclasses.field(default_factory=dict)
+    beside: dict = dataclasses.field(default_factory=dict)
     status: dict = dataclasses.field(default_factory=dict)
     notes: list = None
     owner: list = None
@@ -845,12 +891,17 @@ class Step:
 @dataclasses.dataclass(frozen=True)
 class Fate:
     """A world: its table (the first row's hangar node is the fated one), its briefs (None: no brief), whether its
-    make's model asks count as cached and whether it runs on this PC's card, and its runs in turn."""
+    make's model asks count as cached and whether it runs on this PC's card, and its runs in turn; the places whose
+    scenes (CLEAN, COUNT) are made and accepted first, given a limit of 10 words; tables of its stages refused as a
+    cycle, and tables that stand."""
     table: tuple
     briefs: dict
     steps: tuple
     cached: bool = False
     here: bool = False
+    accepted: tuple = ()
+    refused: tuple = ()
+    stands: tuple = ()
 
 
 def fated(stage, text, did, notes, owner, records, remade, cached=False, here=False):
@@ -909,7 +960,56 @@ FATES = {
         Step({"maybe@hangar": A_PASS}, exact=False, writes={"hangar/brief.txt": "a hall"}, limit=2,
              texts={"maybe@hangar": ("maybe.txt", "read clean")})),
     ),
+    # Reads beside: a node waits on other places' accepted outputs, keys on them and makes from them; the shown
+    # station's brief rewritten the same keeps the show's key, otherwise stales it. Fault (2026-10-12): a place's
+    # references to the places it shows pointed at old seed files. A stage reading itself beside is a cycle; a chain
+    # read beside with no loop stands.
+    "a place shows the others": Fate((CLEAN, COUNT, SHOW), TWO_PLACES, (
+        Step({"show@hangar": STANDS}, exact=False, whole=False,
+             line=["clean@hangar", "clean@station", "count@hangar", "show@hangar"],
+             earlier={("show", "hangar"): ["clean@hangar", "clean@station"]},
+             texts={"show@hangar": ("show.txt", "A SHIP IN A HALL A HUB")},
+             beside={("show", "hangar"): ("clean@station",)}),
+        Step({}, places=(), writes={"station/brief.txt": "a hub"}, status={"show@hangar": "pass, accepted"}),
+        Step({}, exact=False, places=("station",), writes={"station/brief.txt": "a ring"},
+             limit=10, status={"show@hangar": "to run: clean@station changed, its accepted output is stale: "
+                                              "clean@station moved"})),
+        accepted=PLACES, refused=((CLEAN, dataclasses.replace(SHOW, name="loop", beside={"loop": READS})),),
+        stands=((CLEAN, COUNT, SHOW, dataclasses.replace(SHOW, name="show again", after={"show": READS},
+                                                         beside={"show": READS})),)),
+    # #28: the environment's film reads every place film its script shows, a row only where it applies.
+    "the film reads each place where its row applies": Fate((CLEAN, COUNT, HANGAR_ONLY, WHOLE), TWO_PLACES, (
+        Step({"whole": STANDS}, exact=False, places=PLACES, whole=True,
+             earlier={("whole", None): ["clean@hangar", "hangar only@hangar", "clean@station"]},
+             texts={"whole": ("show.txt", "A SHIP IN A HALL A HUB")},
+             beside={("whole", None): ("clean@hangar", "hangar only@hangar", "clean@station")}),),
+        accepted=PLACES),
+    # Shapes first (CONTEXT.md): an inside place reads its outside shell's split, which reads the shell's own node; a
+    # loop in the table, none in the nodes, refused when not declared upward.
+    "an inside place reads its shell one scale up": Fate((CLEAN, COUNT, OUTLINED, SPLIT), TWO_PLACES, (
+        Step({"outlined@hangar": STANDS}, exact=False, whole=False,
+             earlier={("outlined", "hangar"): ["clean@hangar", "split@station"]},
+             texts={"outlined@hangar": ("outlined.txt", "SPLIT A HUB A SHIP IN A HALL")},
+             beside={("outlined", "hangar"): ("split@station",)}),),
+        accepted=PLACES, refused=((CLEAN, COUNT, dataclasses.replace(OUTLINED, upward=False), SPLIT),)),
+    # A parent scene's tree reads each child scene's tree, the grandchild's made first; refused when not downward.
+    "a parent scene reads its children one scale down": Fate((CLEAN, COUNT, TREE), {"base": "a moon base",
+                                                                                   **TWO_PLACES}, (
+        Step({"tree@base": STANDS}, exact=False, places=("base",), whole=False,
+             earlier={("tree", "base"): ["clean@base", "tree@hangar"]},
+             texts={"tree@base": ("tree.txt", "A MOON BASE[A SHIP IN A HALL[A HUB]]")},
+             beside={("tree", "base"): ("tree@hangar",)}),),
+        accepted=("base", *PLACES), refused=((CLEAN, COUNT, dataclasses.replace(TREE, downward=False)),)),
 }
+
+
+def accept_scenes(world, store, places):
+    """Every scene of `places` (CLEAN, COUNT) made, given a limit of 10 words as its evidence and accepted."""
+    runner = a_runner(world, store)
+    runner.run(list(places))
+    for place in places:
+        give_evidence(store, runner, place, 10)
+    runner.run(list(places))
 
 
 def test_a_failed_output_is_made_once_more_only_when_free_and_its_readers_read_only_what_exists_applies_and_stands(
@@ -932,6 +1032,12 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_its_readers_read_o
     new key (8 words) fails again. Before the run starts, the inputs it could never make are named (node, input, path):
     the hangar's notes and the shed's brief, never a file the run makes as it goes (under {home}), and none once they
     exist (the ship run of 2026-10-14 spent EUR 13.58, then stopped on missing seed records).
+    The worlds read beside: a node reading other places beside waits on their accepted outputs, keys on them and makes
+    from them: a place showing the others, the environment's film reading each place film only where its row applies,
+    an inside place reading its shell's split (a loop in the table, none in the nodes) and a parent scene its
+    children's trees. The shown station's brief rewritten the same keeps the show's key, otherwise stales it. A stage
+    reading itself beside, or a loop through beside not declared upward or downward, is refused as a cycle; a chain
+    read beside with no loop stands.
     Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'
     Break: score/graph/__init__.py: '    def run_node(self, stage, place, given=None):\n' -> the same line, then
     '        with self.still():\n            return self.run_node_whole(stage, place, given)\n\n    def
@@ -951,7 +1057,10 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_its_readers_read_o
     Break: score/graph/__init__.py: '            if not path.exists():\n                raise Blocked(f"{node_name(stage, place)}: its input' -> '            if False:\n                raise Blocked(f"{node_name(stage, place)}: its input'
     Break: score/graph/__init__.py: '                if place is None or stage.applies is None or stage.applies(place):' -> '                if True:'
     Break: score/graph/__init__.py: 'if every or before not in stage.optional or self.usable_now(before, place, wanted)}' -> 'if True}'
-    Break: score/graph/__init__.py: 'if checks.blocks(checks.standing(judgement["verdicts"], waived)) and not on_gaps:' -> 'if checks.blocks(checks.standing(judgement["verdicts"], set())) and not on_gaps:'"""
+    Break: score/graph/__init__.py: 'if checks.blocks(checks.standing(judgement["verdicts"], waived)) and not on_gaps:' -> 'if checks.blocks(checks.standing(judgement["verdicts"], set())) and not on_gaps:'
+    Break: score/graph/__init__.py: '        if beside:  # only a stage that reads beside' -> '        if False:  # only a stage that reads beside'
+    Break: score/graph/__init__.py: 'if place is not None or self.stages[before].applies is None or self.stages[before].applies(other)}' -> '}'
+    Break: score/graph/__init__.py: '        return [*stage.after, *(() if stage.upward or stage.downward else stage.beside)]' -> '        return [*stage.after]'"""
     from score import stages
     from score.stages import physics
     from score.stages.surfaces import route_list
@@ -969,15 +1078,22 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_its_readers_read_o
         data, store, stage = world.roots["data"], a_store(), fate.table[0]
         node = graph.node_name(stage, "hangar")
         rows = {row.name: row for row in (*fate.table, HOME_TAKE)}
+        accept_scenes(world, store, fate.accepted)
+        for stages in fate.refused:
+            with pytest.raises(ValueError, match="cycle"):
+                a_runner(world, store, stages)
+        for stages in fate.stands:
+            a_runner(world, store, stages)
         for number, step in enumerate(fate.steps):
             case = (name, number)
             runner = a_runner(world, store, fate.table)
             runner.cleared = lambda node, euros, forecast=None: contextlib.nullcontext()
             for path, text in step.writes.items():
                 (data / path).write_text(text)
-            if step.limit is not None:  # the fated node made on its current inputs, then its limit as its evidence
-                runner.run(["hangar"])
-                give_evidence(store, runner, "hangar", step.limit)
+            if step.limit is not None:  # the clean nodes made on their current inputs, then the limit as evidence
+                runner.run(list(step.places))
+                for place in step.places:
+                    give_evidence(store, runner, place, step.limit)
             if step.waive:
                 store.write_waiver(node, runner.key(stage, "hangar")["key"], step.waive,
                                    {"by": "owner", "reason": "a long name", "at": graph.now()})
@@ -992,13 +1108,20 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_its_readers_read_o
                 assert set(runner.key(stage, place)["files"]) == files, (case, place)
             for (reader, place), read in step.earlier.items():
                 assert runner.earlier(rows[reader], place) == read, (case, reader, place)
-            found = runner.run(list(step.places))
+            if step.line is not None:
+                assert [graph.node_name(*each) for each in runner.line_nodes(list(step.places), whole=False)] == \
+                    step.line, case
+            found = runner.run(list(step.places)) if step.whole is None else runner.drive(
+                list(step.places), say=quiet, jobs=1, whole=step.whole)
             assert not step.exact or set(found) == set(step.found), (case, found)
             for each, expected in step.found.items():
                 assert (expected.match(found[each]) if isinstance(expected, re.Pattern) else
                         found[each] == expected), (case, each, found)
             for each, (file, text) in step.texts.items():
                 assert accepted_text(store, each, file) == text, (case, each)
+            for (reader, place), names in step.beside.items():
+                assert runner.key(rows[reader], place)["beside"] == {each: store.accepted(each) for each in names}, (
+                    case, reader, place)
             for each, text in step.status.items():
                 assert a_runner(world, store, fate.table).status(["hangar"])[each] == text, (case, each)
             if step.notes is not None:
@@ -1153,145 +1276,6 @@ def test_the_code_version_is_every_repository_file_a_stages_functions_import_and
         assert files == holds if only else holds <= files, (name, sorted(files ^ holds if only else holds - files))
         wrong = {path for path in files if path in refused or path.startswith(folders)}
         assert not wrong, (name, sorted(wrong))
-
-
-# --- reads beside: other places' outputs, an environment's, up to a shell and down to child scenes -----------------
-
-def make_show(inputs, out, seed, params):
-    """Its own clean text, and every other place's read beside, in order."""
-    others = sorted(name for name in inputs if name.startswith("clean@"))
-    own = ["clean"] if "clean" in inputs else []
-    (out / "show.txt").write_text(" ".join((inputs[name] / "clean.txt").read_text() for name in [*own, *others]))
-
-
-SHOW = graph.Stage("show", "place", make_show, TEXT, PASSES, after={"clean": READS}, beside={"clean": READS},
-                   neighbours=lambda place: [other for other in PLACES if other != place])
-
-
-def make_outlined(inputs, out, seed, params):
-    """Its own clean text, after its shell's split where it has one."""
-    shells = [(inputs[name] / "split.txt").read_text() for name in sorted(inputs) if name.startswith("split@")]
-    (out / "outlined.txt").write_text(" ".join([*shells, (inputs["clean"] / "clean.txt").read_text()]))
-
-
-def make_split(inputs, out, seed, params):
-    (out / "split.txt").write_text("SPLIT " + (inputs["outlined"] / "outlined.txt").read_text())
-
-
-def make_tree(inputs, out, seed, params):
-    """Its own clean text, then each child scene's tree in brackets."""
-    held = [(inputs[name] / "tree.txt").read_text() for name in sorted(inputs) if name.startswith("tree@")]
-    (out / "tree.txt").write_text((inputs["clean"] / "clean.txt").read_text() + "".join(f"[{tree}]" for tree in held))
-
-
-OUTLINED = graph.Stage("outlined", "place", make_outlined, TEXT, PASSES, after={"clean": READS},
-                       beside={"split": READS}, upward=True,
-                       neighbours=lambda place: ["station"] if place == "hangar" else [])
-SPLIT = graph.Stage("split", "place", make_split, TEXT, PASSES, after={"outlined": READS})
-HOLDS = {"base": ["hangar"], "hangar": ["station"]}
-TREE = graph.Stage("tree", "place", make_tree, TEXT, PASSES, after={"clean": READS}, beside={"tree": READS},
-                   downward=True, neighbours=lambda place: HOLDS.get(place, []))
-HANGAR_ONLY = dataclasses.replace(COUNT, name="hangar only", applies=lambda place: place == "hangar")
-WHOLE = graph.Stage("whole", "world", make_show, TEXT, PASSES, beside={"clean": READS, "hangar only": READS},
-                    neighbours=lambda place: list(PLACES))
-TWO_PLACES = {"hangar": "a ship in a hall", "station": "a hub"}
-
-
-@dataclasses.dataclass(frozen=True)
-class Beside:
-    """A table whose node reads other places beside: the scenes made and accepted first, the places driven, the node
-    and its file, what it reads earlier and beside, its accepted text worked out by hand from the briefs; tables of
-    the same stages that are refused as a cycle and that stand; the line the drive lists, and the status once the
-    station's brief is rewritten otherwise (None: not asked of this row)."""
-    briefs: dict
-    stages: tuple
-    drive: tuple
-    whole: bool
-    stage: graph.Stage
-    place: str
-    file: str
-    earlier: list
-    beside: tuple
-    text: str
-    refused: tuple = ()
-    stands: tuple = ()
-    line: list = None
-    stale: str = None
-
-
-READ_BESIDE = {
-    # Fault (2026-10-12): a place's references to the places it shows pointed at old seed files.
-    "a place shows the others": Beside(
-        TWO_PLACES, (CLEAN, COUNT, SHOW), ("hangar",), False, SHOW, "hangar", "show.txt",
-        ["clean@hangar", "clean@station"], ("clean@station",), "A SHIP IN A HALL A HUB",
-        refused=((CLEAN, dataclasses.replace(SHOW, name="loop", beside={"loop": READS})),),
-        stands=((CLEAN, COUNT, SHOW, dataclasses.replace(SHOW, name="show again", after={"show": READS},
-                                                         beside={"show": READS})),),
-        line=["clean@hangar", "clean@station", "count@hangar", "show@hangar"],
-        stale="to run: clean@station changed, its accepted output is stale: clean@station moved"),
-    # #28: the environment's film reads every place film its script shows, a row only where it applies.
-    "the film reads each place where its row applies": Beside(
-        TWO_PLACES, (CLEAN, COUNT, HANGAR_ONLY, WHOLE), PLACES, True, WHOLE, None, "show.txt",
-        ["clean@hangar", "hangar only@hangar", "clean@station"],
-        ("clean@hangar", "hangar only@hangar", "clean@station"), "A SHIP IN A HALL A HUB"),
-    # Shapes first (CONTEXT.md): an inside place reads its outside shell's split, which reads the shell's own node.
-    "an inside place reads its shell one scale up": Beside(
-        TWO_PLACES, (CLEAN, COUNT, OUTLINED, SPLIT), ("hangar",), False, OUTLINED, "hangar", "outlined.txt",
-        ["clean@hangar", "split@station"], ("split@station",), "SPLIT A HUB A SHIP IN A HALL",
-        refused=((CLEAN, COUNT, dataclasses.replace(OUTLINED, upward=False), SPLIT),)),
-    # A parent scene's tree reads each child scene's tree, the grandchild's made first.
-    "a parent scene reads its children one scale down": Beside(
-        {"base": "a moon base", **TWO_PLACES}, (CLEAN, COUNT, TREE), ("base",), False, TREE, "base", "tree.txt",
-        ["clean@base", "tree@hangar"], ("tree@hangar",), "A MOON BASE[A SHIP IN A HALL[A HUB]]",
-        refused=((CLEAN, COUNT, dataclasses.replace(TREE, downward=False)),)),
-}
-
-
-def accepted_scenes(briefs):
-    """Every scene made, given a limit of 10 words and accepted; the world and store."""
-    world, store = a_world(briefs), a_store()
-    runner = a_runner(world, store)
-    runner.run(list(briefs))
-    for place in briefs:
-        give_evidence(store, runner, place, 10)
-    runner.run(list(briefs))
-    return world, store
-
-
-@pytest.mark.parametrize("row", READ_BESIDE.values(), ids=READ_BESIDE.keys())
-def test_a_node_reads_other_places_beside_versioned_waited_on_and_only_where_declared(row):
-    """A node reading other places beside waits on their accepted outputs, keys on them and makes from them: a place
-    showing the others, the environment's film reading each place film only where its row applies, an inside place
-    reading its shell's split (a loop in the table, none in the nodes) and a parent scene its children's trees. The
-    shown station's brief rewritten the same keeps the show's key, otherwise stales it. A stage reading itself beside,
-    or a loop through beside not declared upward or downward, is refused as a cycle; a chain read beside with no loop
-    stands.
-    Break: score/graph/__init__.py: '        if beside:  # only a stage that reads beside' -> '        if False:  # only a stage that reads beside'
-    Break: score/graph/__init__.py: 'if place is not None or self.stages[before].applies is None or self.stages[before].applies(other)}' -> '}'
-    Break: score/graph/__init__.py: '        return [*stage.after, *(() if stage.upward or stage.downward else stage.beside)]' -> '        return [*stage.after]'"""
-    world, store = accepted_scenes(row.briefs)
-    runner = a_runner(world, store, row.stages)
-    node = graph.node_name(row.stage, row.place)
-    assert runner.earlier(row.stage, row.place) == row.earlier
-    if row.line is not None:
-        assert [graph.node_name(*each) for each in runner.line_nodes(list(row.drive), whole=False)] == row.line
-    found = runner.drive(list(row.drive), say=quiet, jobs=1, whole=row.whole)
-    assert found[node] == "made: pass, accepted automatically", found
-    assert accepted_text(store, node, row.file) == row.text
-    assert runner.key(row.stage, row.place)["beside"] == {name: store.accepted(name) for name in row.beside}
-    if row.stale is not None:
-        brief(world, "station", row.briefs["station"])
-        assert runner.status([row.place])[node] == "pass, accepted"
-        brief(world, "station", "a ring")
-        runner.run(["station"])
-        give_evidence(store, runner, "station", 10)
-        runner.run(["station"])
-        assert runner.status([row.place])[node] == row.stale
-    for stages in row.refused:
-        with pytest.raises(ValueError, match="cycle"):
-            a_runner(world, store, stages)
-    for stages in row.stands:
-        a_runner(world, store, stages)
 
 
 GATHER = graph.Stage("gather", "world", make_show, TEXT, PASSES, beside={"clean": READS},
@@ -1984,27 +1968,16 @@ def live_openblas_threads():
     return sizes
 
 
-def make_thread_note(inputs, out, seed, params):
-    own = f"{os.environ['OMP_NUM_THREADS']} {os.environ['NUMBA_NUM_THREADS']}"
-    child = subprocess.run([sys.executable, "-c", CHILD_THREADS], capture_output=True, text=True, check=True)
-    pools = " ".join(str(size) for size in live_openblas_threads())
-    (out / "threads.txt").write_text(f"{own}\n{child.stdout.strip()}\n{pools}")
-
-
-def thread_note(jobs, monkeypatch, cores=24):
-    """The thread note one node writes when `jobs` nodes share `cores`, numpy's and scipy's OpenBLAS loaded before the
-    drive forks (as score.stages loads them); and the runner."""
-    import numpy  # noqa: F401
-    import scipy.linalg  # noqa: F401
-    monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)  # the pool sized by the cap (one_openblas_thread_a_node)
-    runner = a_runner(a_world_of(["hangar"])[1], a_store(), (graph.Stage("threads", "place", make_thread_note, TEXT,
-                                                                         MET),))
-    with monkeypatch.context() as patched:
-        patched.setattr(os, "cpu_count", lambda: cores)
-        did = runner.drive(["hangar"], say=quiet, jobs=jobs)["threads@hangar"]
-    if did != ACCEPTED:
-        return did, runner
-    return accepted_text(runner.store, "threads@hangar", "threads.txt").splitlines(), runner
+def noting_threads(seconds):
+    """A make taking `seconds`, then writing its thread note: its own threads, its child's, its loaded OpenBLAS pools'
+    size."""
+    def make(inputs, out, seed, params):
+        time.sleep(seconds)
+        own = f"{os.environ['OMP_NUM_THREADS']} {os.environ['NUMBA_NUM_THREADS']}"
+        child = subprocess.run([sys.executable, "-c", CHILD_THREADS], capture_output=True, text=True, check=True)
+        pools = " ".join(str(size) for size in live_openblas_threads())
+        (out / "threads.txt").write_text(f"{own}\n{child.stdout.strip()}\n{pools}")
+    return make
 
 
 @contextlib.contextmanager
@@ -2012,88 +1985,6 @@ def full_disk(path):
     """graph.logged on a full disk (batch 1, 2026-10-26: the conductor's disk full)."""
     raise OSError(28, "No space left on device")
     yield
-
-
-@dataclasses.dataclass(frozen=True)
-class Threads:
-    """One way a run is started on 24 cores: the owner's OMP_NUM_THREADS (None: unset), the run's arguments and what
-    is broken in its node (BROKEN); then what it ends with, worked out by hand: the run's refusal (its exit and a
-    part of what argparse printed), or its node's note (its own threads, its child's, its loaded OpenBLAS pools'
-    size), or parts of what the node says and of its fault report."""
-    omp: str | None
-    argv: tuple
-    broken: str | None = None
-    refused: str | None = None
-    printed: str = ""
-    note: tuple | None = None
-    said: tuple = ()
-    report: tuple = ()
-
-
-BROKEN = {"cap": ("OPENBLAS_SETTERS", ("no_such_setter",)), "log": ("logged", full_disk)}
-OVER = "refused: 25 jobs of 1 thread(s) each ask for 25 threads on 24 cores; lower --jobs or pass --oversubscribe"
-THREADS = {
-    "24 cores over 6 jobs: 4 threads each, the OpenBLAS loaded before the fork too":
-        Threads(None, ("--jobs", "6"), note=("4 4", "4 4", "4")),
-    "the owner's smaller OMP_NUM_THREADS=1 stands": Threads("1", ("--jobs", "6"), note=("1 4", "1 4", "4")),
-    "an empty OMP_NUM_THREADS is unset": Threads("", ("--jobs", "6"), note=("4 4", "4 4", "4")),
-    "8 jobs: 3 threads each": Threads(None, ("--jobs", "8"), note=("3 3", "3 3", "3")),
-    "24 jobs: one thread each": Threads(None, ("--jobs", "24"), note=("1 1", "1 1", "1")),
-    "25 jobs run oversubscribed only when asked": Threads(None, ("--jobs", "25", "--oversubscribe"),
-                                                          note=("1 1", "1 1", "1")),
-    "25 jobs not asked to oversubscribe are refused": Threads(None, ("--jobs", "25"), refused=OVER),
-    "--jobs 0 is refused by argparse": Threads(None, ("--jobs", "0"), refused="2", printed="at least 1"),
-    "--jobs -2 is refused by argparse": Threads(None, ("--jobs", "-2"), refused="2", printed="at least 1"),
-    **{f"OMP_NUM_THREADS={value!r} is refused before any node": Threads(
-        value, ("--jobs", "6"), refused=f"refused: OMP_NUM_THREADS={value!r} is not a thread count (a whole number "
-                                        "above 0); unset it or set one") for value in ("4,2", "auto", "0")},
-    "a cap that fails says its cause in the node's fault report (review C11: raised before its log opened)":
-        Threads(None, ("--jobs", "6"), broken="cap", said=("pool cannot be capped",),
-                report=("RuntimeError", "  | ", "pool cannot be capped")),
-    "a log that cannot be written still says why the node ended, through the pipe":
-        Threads(None, ("--jobs", "6"), broken="log",
-                said=("OSError: [Errno 28] No space left on device", "raised outside its log", "Traceback")),
-}
-
-
-@pytest.mark.parametrize("row", THREADS.values(), ids=THREADS.keys())
-def test_each_node_and_its_children_share_the_cores_and_a_count_that_cannot_be_kept_is_said(row, monkeypatch):
-    """C11, 2026-10-17: six local nodes each sized their pools to every core; review (C11): OMP_NUM_THREADS '4,2',
-    'auto' and '0' crashed every node, --jobs 0 ended in a ZeroDivisionError, and a cap that raised before the node's
-    log opened ended it 'without saying what it did'; batch 1, 2026-10-26: the conductor's disk full,
-    surfaces-parts@engineroom ended 'without saying what it did' and an empty log. Each row (THREADS) is a run started
-    through score run's own checks on 24 cores, its one node driven when the run is not refused.
-    Break: score/graph/__init__.py: 'os.environ[variable] = str(threads if own is None else min(own, threads))' -> 'os.environ[variable] = str(threads)'
-    Break: score/graph/__init__.py: '        with logged(log):\n            try:\n                cap_threads(threads)' -> '        cap_threads(threads)\n        with logged(log):\n            try:'
-    Break: score/graph/__init__.py: '        except BaseException as error:  # noqa: BLE001 - raised where' -> '        except KeyError as error:  # noqa: BLE001 - raised where'
-    Break: score/graph/__init__.py: '        if own and not (own.isdigit() and int(own) > 0):' -> '        if own and not own.isdigit():'"""
-    from score import __main__ as command
-    if row.omp is None:
-        monkeypatch.delenv("OMP_NUM_THREADS", raising=False)
-    else:
-        monkeypatch.setenv("OMP_NUM_THREADS", row.omp)
-    monkeypatch.setattr(os, "cpu_count", lambda: 24)
-    printed, refused = io.StringIO(), None
-    try:
-        with contextlib.redirect_stderr(printed):
-            options = command.parse(["run", "world1", *row.argv])
-            command.checked_thread_variables()
-            command.checked_threads(options)
-    except SystemExit as refusal:
-        refused = str(refusal.code)
-    assert refused == row.refused and row.printed in printed.getvalue(), (refused, printed.getvalue())
-    if refused:
-        return
-    if row.broken:
-        monkeypatch.setattr(graph, *BROKEN[row.broken])
-    outcome, runner = thread_note(options.jobs, monkeypatch)
-    if row.note:
-        assert outcome[:2] == list(row.note[:2]) and outcome[2].split(), outcome
-        assert set(outcome[2].split()) == {row.note[2]}, outcome
-    else:
-        assert all(part in outcome for part in row.said) and "without saying" not in outcome, outcome
-        report = runner.desk("faults", "threads@hangar", ".txt")
-        assert all(part in report.read_text() for part in row.report), report
 
 
 # --- runs side by side on one store ----------------------------------------------------------------------------------
@@ -3488,32 +3379,93 @@ def a_runner_that_raises():
     return runner
 
 
-# A long node's drive: (id, its node's seconds, its gauges (None: a stage's own drive; "run": score run's gauges of
-# this run's world), the least beats said before the node ends, the end of the first beat (None: no beat at all)).
-BEATS = [
-    ("this-runs-gauges", 0.5, "run", 3, ": rows done 0, running 1, queued 0; this run's rows: paid runs open 1, "
-                                       "EUR 8.15 in the ledger since the run started (rows 2.50, pool 3.50, "
-                                       "model calls 2.15)"),
-    ("a-gauge-that-raises", 0.3, lambda: 1 / 0, 1, "; gauges unreadable: ZeroDivisionError: division by zero"),
-    ("a-stages-own-drive", 0.2, None, 0, None),
-]
+@dataclasses.dataclass(frozen=True)
+class OneNode:
+    """One run of a single hangar node (stage slow: it takes `seconds`, then writes its thread note) started through
+    score run's own checks on 24 cores: the owner's OMP_NUM_THREADS (None: unset), the run's arguments, what is broken
+    in its node (BROKEN) and the gauges its drive is given (None: a stage's own drive; "run": score run's gauges of
+    this run's world). Then what it ends with, worked out by hand: the run's refusal (its exit and a part of what
+    argparse printed); else its node's note (its own threads, its child's, its loaded OpenBLAS pools' size), or parts
+    of what the node ends saying and of its fault report; the least heartbeats said before the node ends and the end
+    of the first (None: no beat at all)."""
+    omp: str | None
+    argv: tuple = ()
+    broken: str | None = None
+    seconds: float = 0
+    gauges: object = None
+    refused: str | None = None
+    printed: str = ""
+    note: tuple | None = None
+    said: tuple = ()
+    report: tuple = ()
+    least: int = 0
+    first: str | None = None
 
 
-def test_a_long_node_has_heartbeats_carrying_only_this_runs_gauges_and_a_gauge_that_fails_is_said(monkeypatch):
-    """Fault (2026-10-16): runs failed or sat idle quietly. Review (C8): a gauge that raised ended the drive; a stage's
-    own drive (no gauges) says no beat; the gauges summed every worktree's batches and every open paid run. Fault of
-    2026-10-24: the heartbeat said EUR 2.31 while the pool and Pro close-ups cost ten times that; 2026-10-25: the
-    gauges were made before the run took its id. The 2-minute beat and 3-minute node scaled to 0.1 s and 0.5 s. A
-    beat of this run's gauges counts its rows 2.50 (k1; k3 is another worktree's, k4 before the run), its pool
-    3.00 + 0.50 (a frozen copy's line of its pool), its calls 2.00 + the unfinished one's estimate 0.15, and one paid
-    run open (other@far's is not this run's).
+BROKEN = {"cap": ("OPENBLAS_SETTERS", ("no_such_setter",)), "log": ("logged", full_disk)}
+OVER = "refused: 25 jobs of 1 thread(s) each ask for 25 threads on 24 cores; lower --jobs or pass --oversubscribe"
+GAUGED = "a long node's beats carry this run's gauges"
+ONE_NODE = {
+    "24 cores over 6 jobs: 4 threads each, the OpenBLAS loaded before the fork too":
+        OneNode(None, ("--jobs", "6"), note=("4 4", "4 4", "4")),
+    "the owner's smaller OMP_NUM_THREADS=1 stands": OneNode("1", ("--jobs", "6"), note=("1 4", "1 4", "4")),
+    "an empty OMP_NUM_THREADS is unset": OneNode("", ("--jobs", "6"), note=("4 4", "4 4", "4")),
+    "a stage's own drive (no gauges) outlives a beat and says none": OneNode(None, ("--jobs", "6"), seconds=0.2,
+                                                                             note=("4 4", "4 4", "4")),
+    "8 jobs: 3 threads each": OneNode(None, ("--jobs", "8"), note=("3 3", "3 3", "3")),
+    "24 jobs: one thread each": OneNode(None, ("--jobs", "24"), note=("1 1", "1 1", "1")),
+    "25 jobs run oversubscribed only when asked": OneNode(None, ("--jobs", "25", "--oversubscribe"),
+                                                          note=("1 1", "1 1", "1")),
+    "25 jobs not asked to oversubscribe are refused": OneNode(None, ("--jobs", "25"), refused=OVER),
+    "--jobs 0 is refused by argparse": OneNode(None, ("--jobs", "0"), refused="2", printed="at least 1"),
+    "--jobs -2 is refused by argparse": OneNode(None, ("--jobs", "-2"), refused="2", printed="at least 1"),
+    **{f"OMP_NUM_THREADS={value!r} is refused before any node": OneNode(
+        value, ("--jobs", "6"), refused=f"refused: OMP_NUM_THREADS={value!r} is not a thread count (a whole number "
+                                        "above 0); unset it or set one") for value in ("4,2", "auto", "0")},
+    "a cap that fails says its cause in the node's fault report (review C11: raised before its log opened)":
+        OneNode(None, ("--jobs", "6"), broken="cap", said=("pool cannot be capped",),
+                report=("RuntimeError", "  | ", "pool cannot be capped")),
+    "a log that cannot be written still says why the node ended, through the pipe":
+        OneNode(None, ("--jobs", "6"), broken="log",
+                said=("OSError: [Errno 28] No space left on device", "raised outside its log", "Traceback")),
+    GAUGED: OneNode(None, seconds=0.5, gauges="run", least=3, first=(
+        ": rows done 0, running 1, queued 0; this run's rows: paid runs open 1, EUR 8.15 in the ledger since the run "
+        "started (rows 2.50, pool 3.50, model calls 2.15)")),
+    "a gauge that raises is said in the beat, the drive going on":
+        OneNode(None, seconds=0.3, gauges=lambda: 1 / 0, least=1,
+                first="; gauges unreadable: ZeroDivisionError: division by zero"),
+}
+
+
+def test_a_node_shares_the_cores_and_beats_with_this_runs_gauges_and_what_cannot_be_kept_is_said(monkeypatch):
+    """C11, 2026-10-17: six local nodes each sized their pools to every core; review (C11): OMP_NUM_THREADS '4,2',
+    'auto' and '0' crashed every node, --jobs 0 ended in a ZeroDivisionError, and a cap that raised before the node's
+    log opened ended it 'without saying what it did'; batch 1, 2026-10-26: the conductor's disk full,
+    surfaces-parts@engineroom ended 'without saying what it did' and an empty log. Fault (2026-10-16): runs failed or
+    sat idle quietly. Review (C8): a gauge that raised ended the drive; a stage's own drive (no gauges) says no beat;
+    the gauges summed every worktree's batches and every open paid run. Fault of 2026-10-24: the heartbeat said EUR
+    2.31 while the pool and Pro close-ups cost ten times that; 2026-10-25: the gauges were made before the run took
+    its id. Each row (ONE_NODE) is a run started through score run's own checks on 24 cores, its one node driven
+    when the run is not refused. The 2-minute beat and 3-minute node scaled to 0.1 s and 0.5 s. A beat of this run's
+    gauges counts its rows 2.50 (k1; k3 is another worktree's, k4 before the run), its pool 3.00 + 0.50 (a frozen
+    copy's line of its pool), its calls 2.00 + the unfinished one's estimate 0.15, and one paid run open (other@far's
+    is not this run's).
+    Break: score/graph/__init__.py: 'os.environ[variable] = str(threads if own is None else min(own, threads))' -> 'os.environ[variable] = str(threads)'
+    Break: score/graph/__init__.py: '        with logged(log):\n            try:\n                cap_threads(threads)' -> '        cap_threads(threads)\n        with logged(log):\n            try:'
+    Break: score/graph/__init__.py: '        except BaseException as error:  # noqa: BLE001 - raised where' -> '        except KeyError as error:  # noqa: BLE001 - raised where'
+    Break: score/graph/__init__.py: '        if own and not (own.isdigit() and int(own) > 0):' -> '        if own and not own.isdigit():'
     Break: score/graph/__init__.py: '            beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None' -> '            beat_in = None'
+    Break: score/graph/__init__.py: 'if gauges and time.monotonic() >= beat_at:\n                say(heartbeat_line(len(done), len(running), len(waiting), gauges))\n                beat_at = time.monotonic() + HEARTBEAT\n            beat_in = max(0.0, beat_at - time.monotonic()) if gauges else None' -> 'if time.monotonic() >= beat_at:\n                say(heartbeat_line(len(done), len(running), len(waiting), gauges))\n                beat_at = time.monotonic() + HEARTBEAT\n            beat_in = max(0.0, beat_at - time.monotonic())'
     Break: score/__main__.py: '        euros = spent_by_run(compute.ledger(), nodes, started, os.environ.get(RUN_ID))' -> '        euros = spent_by_run(compute.ledger(), nodes, started, None)'"""
+    import numpy  # noqa: F401 - numpy's and scipy's OpenBLAS loaded before the drive forks (as score.stages loads them)
+    import scipy.linalg  # noqa: F401
     from score import __main__ as command
+    monkeypatch.delenv("OPENBLAS_NUM_THREADS", raising=False)  # the pool sized by the cap (one_openblas_thread_a_node)
+    monkeypatch.setattr(os, "cpu_count", lambda: 24)
     monkeypatch.setattr(graph, "HEARTBEAT", 0.1)
+    runners = {case: a_runner(a_world_of(["hangar"])[1], a_store(), (graph.Stage(
+        "slow", "place", noting_threads(row.seconds), TEXT, MET),)) for case, row in ONE_NODE.items()}
     books = compute.ledger()
-    runners = {case: slow_runner(seconds) for case, seconds, *_ in BEATS}
-    runner = runners["this-runs-gauges"]
     here = books.origin()["worktree"]
     rows = [{"worktree": here, "ticket": "slow@hangar k1", "started": "2026-10-17T10:00:00Z", "euros": 2.5},
             {"worktree": here, "ticket": "other@far k2", "started": "2026-10-17T10:00:00Z", "euros": 7.0},
@@ -3526,7 +3478,7 @@ def test_a_long_node_has_heartbeats_carrying_only_this_runs_gauges_and_a_gauge_t
     monkeypatch.setattr(books, "entries", lambda: rows)
     held = {graph.now(): {"node": "slow@hangar"}}
     held[graph.now()] = {"node": "other@far"}
-    (runner.store.cache.parent / "reservations.json").write_text(json.dumps(held))
+    (runners[GAUGED].store.cache.parent / "reservations.json").write_text(json.dumps(held))
     google_spend = command.cloud_tool("google_spend")
     monkeypatch.setattr(google_spend, "write", google_spend.write)
     monkeypatch.setattr(books, "record", books.record)
@@ -3536,27 +3488,55 @@ def test_a_long_node_has_heartbeats_carrying_only_this_runs_gauges_and_a_gauge_t
         monkeypatch.delenv(name, raising=False)
     said = {}
     try:
-        gauges = command.run_gauges(runner, runner.line_nodes(["hangar"], False), "2026-10-17T09:00:00Z")  # no id yet
+        gauges = command.run_gauges(runners[GAUGED], runners[GAUGED].line_nodes(["hangar"], False),
+                                    "2026-10-17T09:00:00Z")  # no id yet
         monkeypatch.setenv(command.RUN_ID, "run-g")
         command.tag_ledgers()
         assert os.environ[command.LEDGER_TAG] == "run-g" and "ledger_tag" in os.environ["PYTHONPATH"]
         google_spend.started("gemini-3-pro-image", "pro")  # never finished: its estimate, 0.15
         google_spend.record("gemini-3-pro-image", "pro", {"usageMetadata": {"promptTokenCount": 1000000}},
                             google_spend.started("gemini-3-pro-image", "pro"))  # EUR 2.00
-        for case, _, given, _, _ in BEATS:
-            said[case] = []
-            options = {} if given is None else {"gauges": gauges if given == "run" else given}
-            assert runners[case].drive(["hangar"], say=said[case].append, **options) == {"slow@hangar": ACCEPTED}, (
-                case, said[case])
+        for case, row in ONE_NODE.items():
+            with monkeypatch.context() as patched:
+                if row.omp is None:
+                    patched.delenv("OMP_NUM_THREADS", raising=False)
+                else:
+                    patched.setenv("OMP_NUM_THREADS", row.omp)
+                printed, refused = io.StringIO(), None
+                try:
+                    with contextlib.redirect_stderr(printed):
+                        options = command.parse(["run", "world1", *row.argv])
+                        command.checked_thread_variables()
+                        command.checked_threads(options)
+                except SystemExit as refusal:
+                    refused = str(refusal.code)
+                assert refused == row.refused and row.printed in printed.getvalue(), (case, refused, printed.getvalue())
+                if refused:
+                    continue
+                if row.broken:
+                    patched.setattr(graph, *BROKEN[row.broken])
+                said[case] = []
+                given = {} if row.gauges is None else {"gauges": gauges if row.gauges == "run" else row.gauges}
+                did = runners[case].drive(["hangar"], say=said[case].append, jobs=options.jobs, **given)
+            if row.said:
+                outcome = did["slow@hangar"]
+                assert all(part in outcome for part in row.said) and "without saying" not in outcome, (case, outcome)
+                report = runners[case].desk("faults", "slow@hangar", ".txt")
+                assert all(part in report.read_text() for part in row.report), (case, report)
+            else:
+                assert did == {"slow@hangar": ACCEPTED}, (case, said[case])
+            if row.note:
+                note = accepted_text(runners[case].store, "slow@hangar", "threads.txt").splitlines()
+                assert note[:2] == list(row.note[:2]) and note[2].split(), (case, note)
+                assert set(note[2].split()) == {row.note[2]}, (case, note)
+            if row.first is None:
+                assert not [line for line in said[case] if line.startswith(("heartbeat ", "exit:"))], (case, said[case])
+            else:
+                lines = said[case][:said[case].index(f"slow@hangar: {ACCEPTED}")]
+                beats = [line for line in lines if line.startswith("heartbeat ")]
+                assert len(beats) >= row.least and beats[0].endswith(row.first), (case, said[case])
     finally:
         sys.meta_path[:] = [finder for finder in sys.meta_path if type(finder).__name__ != "Tagging"]
-    for case, _, _, least, first in BEATS:
-        lines = said[case][:said[case].index(f"slow@hangar: {ACCEPTED}")] if first else said[case]
-        beats = [line for line in lines if line.startswith("heartbeat ")]
-        if first is None:
-            assert not [line for line in said[case] if line.startswith(("heartbeat ", "exit:"))], (case, said[case])
-        else:
-            assert len(beats) >= least and beats[0].endswith(first), (case, said[case])
 
 
 # Two pooled worlds: (the rows each row reads, the pooled rows (row, line, cards, on processors), the likely minutes,
