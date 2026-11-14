@@ -194,8 +194,9 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, na
     grace time that none can grow (a word before the last widening, about a taint, followed by a scale-up, or a quota's
     refusal does not count) or no node came for NODE_MINUTES while a pod waited, a late class after LATE_MINUTES; a Job
     that waited past its deadline is made again with the classes so far; that Job requires exactly them, prefers them in
-    order, asks cards only on card classes and bears a Kubernetes name; the run is marked waiting until its job runs,
-    and the job takes its Job's end and the node it ran on. A submitter after it takes up the newest generations; the
+    order, asks cards only on card classes, bears a Kubernetes name and reads the store and pulls from the registry
+    by the Secrets holding them (its cards from a GPU operator mirrored into that registry); the run is marked waiting
+    until its job runs, and the job takes its Job's end and the node it ran on. A submitter after it takes up the newest generations; the
     rest go on as room comes; under the owner's override the run stops at what is left of his euros less 10%."""
     clock = [submit.parse_time("2026-10-09T14:00:00Z")]
     monkeypatch.setattr(submit.time, "time", lambda: clock[0])
@@ -296,6 +297,32 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, na
     assert pod["volumes"][0]["hostPath"]["path"] == "/var/lib/score-cache"
     assert pod["restartPolicy"] == "Never" and job["spec"]["backoffLimit"] == spec.get("attempt_limit", 3) - 1
     assert job["metadata"]["name"] == name and len(name) <= 63  # Kubernetes' name rules
+    # one store and one registry: the Job reads the store from the Secret holding its values by name and pulls its
+    # image from the registry with the pull Secret holding its login; a card Job's cards come from a GPU operator
+    # whose images are copied into that registry with that Secret, its ClusterPolicy pointed there (the manager with
+    # no pull secret of its own), a cluster already mirrored left alone
+    store_secret, pull = manifests.store_secret(STORE), manifests.registry_secret(REGISTRY)
+    assert container["envFrom"] == [{"secretRef": {"name": store_secret["metadata"]["name"]}}]
+    assert base64.b64decode(store_secret["data"]["SCORE_STORE_SECRET_KEY"]).decode() == "SK"
+    assert container["image"].startswith(REGISTRY["endpoint"] + "/") and pod["imagePullSecrets"] == [
+        {"name": pull["metadata"]["name"]}] and pull["type"] == "kubernetes.io/dockerconfigjson"
+    assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["registry.example"][
+        "password"] == "PW"
+    if cards:
+        pairs = dict(gpu_operator.images(OPERATOR, "ubuntu24.04"))
+        assert pairs["nvcr.io/nvidia/driver:580.126.20-ubuntu24.04"] == "driver:580.126.20-ubuntu24.04"
+        assert pairs["nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0"] == "k8s-driver-manager:v0.11.0"
+        copy = gpu_operator.copy_job(list(pairs.items()), REGISTRY["endpoint"])["spec"]["template"]["spec"]
+        assert f"{REGISTRY['endpoint']}/driver:580.126.20-ubuntu24.04" in copy["containers"][0]["command"][2]
+        assert copy["volumes"][0]["secret"]["secretName"] == pull["metadata"]["name"]
+        patch = gpu_operator.policy_patch(REGISTRY["endpoint"], pull["metadata"]["name"])["spec"]
+        assert patch["driver"]["repository"] == patch["driver"]["manager"]["repository"] == REGISTRY["endpoint"]
+        assert patch["validator"]["imagePullSecrets"] == [pull["metadata"]["name"]]
+        assert "imagePullSecrets" not in patch["driver"]["manager"]
+        assert not gpu_operator.mirrored(OPERATOR, REGISTRY["endpoint"])
+        policy = MirroredPolicy()
+        assert gpu_operator.mirror(policy, REGISTRY)
+        assert policy.calls == [("get", "clusterpolicies.nvidia.com")]  # nothing changed on a live cluster
 
     condition, ran, state = ends
     node = f"node-{order[-1]}" if ran else None  # stock came back on its last class
@@ -430,6 +457,32 @@ class QuotaKubectl(LiveKubectl):
             "nvidia.com/gpu", "0")) for job in self.jobs.values() if not job.get("status", {}).get("conditions"))
         used = {"requests.cpu": "66070m", "requests.memory": "440Gi", "requests.nvidia.com/gpu": str(22 + cards)}
         return {"items": [{"spec": {"hard": self.HARD}, "status": {"hard": self.HARD, "used": used}}]}
+
+
+STORE = {"endpoint": "https://s3.example", "region": "r", "bucket": "b", "access_key": "AK", "secret_key": "SK"}
+REGISTRY = {"endpoint": "registry.example/score", "username": "nologin", "password": "PW"}  # the rows' images'
+OPERATOR = {"driver": {"repository": "nvcr.io/nvidia", "image": "driver", "version": "580.126.20",
+                       "manager": {"repository": "nvcr.io/nvidia/cloud-native", "image": "k8s-driver-manager",
+                                   "version": "v0.11.0"}},
+            "toolkit": {"repository": "nvcr.io/nvidia/k8s", "image": "container-toolkit", "version": "v1.19.1"},
+            "devicePlugin": {"repository": "nvcr.io/nvidia", "image": "k8s-device-plugin", "version": "v0.19.3"},
+            "gfd": {"repository": "nvcr.io/nvidia", "image": "k8s-device-plugin", "version": "v0.19.3"},
+            "validator": {"repository": "nvcr.io/nvidia", "image": "gpu-operator", "version": "v26.3.3"},
+            "dcgmExporter": {"repository": "nvcr.io/nvidia/k8s", "image": "dcgm-exporter",
+                             "version": "4.5.3-4.8.2-distroless"}}
+
+
+class MirroredPolicy:
+    """kubectl whose cluster's ClusterPolicy already pulls from the registry."""
+
+    def __init__(self):
+        self.calls = []
+
+    def json(self, *arguments):
+        self.calls.append(arguments)
+        spec = {key: dict(value, repository=REGISTRY["endpoint"]) for key, value in OPERATOR.items()}
+        spec["driver"]["manager"] = dict(OPERATOR["driver"]["manager"], repository=REGISTRY["endpoint"])
+        return {"items": [{"metadata": {"name": "cluster-policy"}, "spec": spec}]}
 
 
 def time_text(seconds):
@@ -1006,57 +1059,3 @@ def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
                         "spec": {"taints": [taint]}, "status": {}}]
     assert tenant.nodes() == [{"name": "scw-babon-score-l4-0a1b", "pool": "score-l4", "type": "L4-1-24G",
                                "zone": "fr-par-2", "status": "not_ready", "created": 1793959200.0}]
-
-
-# ==== secrets and the GPU operator ==================================================================================
-
-OPERATOR = {"driver": {"repository": "nvcr.io/nvidia", "image": "driver", "version": "580.126.20",
-                       "manager": {"repository": "nvcr.io/nvidia/cloud-native", "image": "k8s-driver-manager",
-                                   "version": "v0.11.0"}},
-            "toolkit": {"repository": "nvcr.io/nvidia/k8s", "image": "container-toolkit", "version": "v1.19.1"},
-            "devicePlugin": {"repository": "nvcr.io/nvidia", "image": "k8s-device-plugin", "version": "v0.19.3"},
-            "gfd": {"repository": "nvcr.io/nvidia", "image": "k8s-device-plugin", "version": "v0.19.3"},
-            "validator": {"repository": "nvcr.io/nvidia", "image": "gpu-operator", "version": "v26.3.3"},
-            "dcgmExporter": {"repository": "nvcr.io/nvidia/k8s", "image": "dcgm-exporter",
-                             "version": "4.5.3-4.8.2-distroless"}}
-MIRROR = "rg.example/space"
-
-
-def test_the_secrets_hold_the_registry_the_gpu_operator_is_pointed_at():
-    """One store and one registry: the Secrets hold their values by name, and the GPU operator's images are copied
-    into that registry with its pull Secret, the ClusterPolicy pointed there, and a cluster already mirrored left
-    alone."""
-    store = {"endpoint": "https://s3.example", "region": "r", "bucket": "b", "access_key": "AK", "secret_key": "SK"}
-    assert base64.b64decode(manifests.store_secret(store)["data"]["SCORE_STORE_SECRET_KEY"]).decode() == "SK"
-    registry = {"endpoint": MIRROR, "username": "nologin", "password": "PW"}
-    pull = manifests.registry_secret(registry)
-    assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["rg.example"]["password"] == "PW"
-    assert pull["type"] == "kubernetes.io/dockerconfigjson"
-
-    pairs = dict(gpu_operator.images(OPERATOR, "ubuntu24.04"))
-    assert pairs["nvcr.io/nvidia/driver:580.126.20-ubuntu24.04"] == "driver:580.126.20-ubuntu24.04"
-    assert pairs["nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0"] == "k8s-driver-manager:v0.11.0"
-    job = gpu_operator.copy_job(list(pairs.items()), registry["endpoint"])
-    assert f"{MIRROR}/driver:580.126.20-ubuntu24.04" in job["spec"]["template"]["spec"]["containers"][0]["command"][2]
-
-    secret_name = pull["metadata"]["name"]
-    patch = gpu_operator.policy_patch(registry["endpoint"], secret_name)["spec"]
-    assert patch["driver"]["repository"] == MIRROR and patch["driver"]["manager"]["repository"] == MIRROR
-    assert patch["validator"]["imagePullSecrets"] == [secret_name]
-    assert "imagePullSecrets" not in patch["driver"]["manager"]
-    assert not gpu_operator.mirrored(OPERATOR, MIRROR)
-
-    class Policy:
-        """kubectl whose cluster's ClusterPolicy already pulls from the mirror."""
-
-        def __init__(self):
-            self.calls = []
-
-        def json(self, *arguments):
-            self.calls.append(arguments)
-            spec = {key: dict(value, repository=MIRROR) for key, value in OPERATOR.items()}
-            spec["driver"]["manager"] = dict(OPERATOR["driver"]["manager"], repository=MIRROR)
-            return {"items": [{"metadata": {"name": "cluster-policy"}, "spec": spec}]}
-    kubectl = Policy()
-    assert gpu_operator.mirror(kubectl, registry)
-    assert kubectl.calls == [("get", "clusterpolicies.nvidia.com")]  # nothing changed on a live cluster
