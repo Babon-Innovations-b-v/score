@@ -100,7 +100,8 @@ tests it turned red:
 - flat_fit.py: `if not flat(size):` -> `if True:` (fitted_size), or `laid[thin] = min(laid[thin],
   depth_bound(size[thin]))` -> `pass` (face_fit), or `bake_job.fitted_size = fitted_size` -> `pass` (held), or
   inside/paint_fit.py: `"score/stages/surfaces/flat_fit.py"` -> `".../route_bake.py"`, or __init__.py: the declared
-  `flat_fit.py` -> `route_bake.py`  -> a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row
+  `flat_fit.py` -> `route_bake.py`, or flat_fit.py drops `LIBRARY_TOOLS` from its sys.path (the bake job's own
+  interpreter cannot import library)  -> every_part_takes_a_library_surface_and_is_held_to_it (FACE_FITS, the frame, the crate rows)
 - place_line.py: `if len(under) < 3 or rise <= tolerance or` -> `if True or`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (a hut slopes as one plane)
 - place_line.py: `if normal[1] > -1e-6: # no face` -> `if True: # no face`  ->
@@ -149,16 +150,16 @@ tests it turned red:
   shared sphere's cleaned dots and KEPT rows)
 - finish_parts.py: `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]]) & np.isin(finish,
   finish[standing])` -> `stray = ~standing & ~np.isclose(area, piece_area[piece[face_of]])`  ->
-  a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
+  every_part_takes_a_library_surface_and_is_held_to_it (its STRAYS rows)
 - finish_parts.py: `standing = (area >= least) | fragmented_largest(area, finish, least)` -> `standing = area >= least`,
   or fragmented_largest `return (first | (area >= crumb)) & (area < least) & (total[finish] >= least)` -> `return
   (first | (area >= crumb)) & (area < least)`, or `(first | (area >= crumb))` -> `first` (the hub's right console's
-  screens painted as its steel)  -> a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
+  screens painted as its steel)  -> every_part_takes_a_library_surface_and_is_held_to_it (its STRAYS rows)
 - finish_parts.py: `own = np.where(details | kept, part_of.max() + 1 + island, part_of)` -> `own = part_of`  ->
-  islands_of_a_detail_finish_sharing_a_part_are_no_stray; `details | kept` -> `details` (a screen holding a loose
-  bit or a crumb read as a blotch), or `stray = found["stray"] + taken_crumbs(...)` -> `stray = found["stray"]` (the
-  crumb a screen's part took in no stray)  ->
-  a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named
+  every_part_takes_a_library_surface_and_is_held_to_it (its BLOTCHES detail rows and PARTED rows); `details |
+  kept` -> `details` (a screen holding a loose bit or a crumb read as a blotch), or `stray = found["stray"] +
+  taken_crumbs(...)` -> `stray = found["stray"]` (the crumb a screen's part took in no stray)  -> the same test (its
+  PARTED rows)
 - finish_parts.py: `areas[seen & (face_label == label)].sum()` -> `areas[seen].sum()`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its shared sphere's agreement)
 - finish_parts.py: `own = finish.get("colour") and finish["surface"] == finish.get("listed_surface", finish["surface"])`
@@ -194,11 +195,11 @@ tests it turned red:
 - finish_ask.py: `entry = dict(entry, surface=names[codes.index(entry["surface"])])` -> `entry = dict(entry)`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (a reply parsed to library names)
 - route_views.py: `if record["seen_share"] < SEEN_LEAST * reachable:` -> `if record["seen_share"] < SEEN_LEAST:`  ->
-  the_views_cover_every_side_and_find_both_colours
+  every_part_takes_a_library_surface_and_is_held_to_it (its SEEN rows)
 - route_views.py: `while candidates and len(angles) < MOST_VIEWS and not seen.all():` -> `while False:`  ->
-  the_coverage_check_adds_a_view_for_faces_the_base_views_miss
+  every_part_takes_a_library_surface_and_is_held_to_it (its open tube)
 - route_views.py: `if record.get("model") is None: return [f"{take}: no raw take` -> `if False: return [f"{take}: no raw
-  take`  -> a_model_with_no_file_or_no_take_fails_by_name
+  take`  -> every_part_takes_a_library_surface_and_is_held_to_it (its VIEWS_JUDGED rows)
 - route_list.py: `return (level, cause) if level in levels and cause else (None, None)` -> `return (level, cause) if
   level in levels else (None, None)`  ->
   one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish
@@ -292,12 +293,12 @@ tests it turned red:
 - __init__.py: `after=reads("finish-route-palette", scene_library.ROW, "surfaces-bake", "surfaces-paint",` ->
   `after=reads(scene_library.ROW, "surfaces-bake", "surfaces-paint",`  -> the_route_is_the_default_line
 - bake_job.py: `if inline is None: raise NoEntry` -> `if inline is None: return {"name": model} raise NoEntry`  ->
-  an_entry_the_data_writes_out_is_taken_as_written_and_a_model_with_none_stops_the_bake
+  every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: the model the data writes no entry for)
 - bake_job.py: `return TURNS[min(TURNS, key=misfit)]` -> `return TURNS[0]`  ->
-  a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint
+  every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: a take long along z for a row wide along x)
 - bake_job.py: `return fitted_size(labelled, size, base)` -> `return size` (laid_size: stretched to its row), or
   `np.min(` -> `np.max(` (fit_within: past its row), or refitted's `if fits else entry` -> `if False else entry`  ->
-  a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row
+  every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: the tunnel, the hanging row, the stool; REFITS; fit_within)
 - route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`, or tumble.py: `return f"its design lays it
   lying ({said})"` -> `return None`  -> a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose
 - bake_check.py: `and record["square"]["loose"] > tumble.LOOSE]` -> `and False]`  ->
@@ -308,14 +309,22 @@ tests it turned red:
   tunnel), or `low[across], high[across] = middle - opening / 2, middle + opening / 2` -> the door's own `along`
   unkept  -> a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back
 - bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
-  a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s; -> `if False:`  -> that one and
-  a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s
+  every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: a code build at its own section); -> `if False:`  -> that one and
+  its slender row
 - bake_job.py: `if own and lies(place_route.made_size(labelled, size, 0), size):` -> `if False and lies(...)`
   (measured_turn), or its `square_turn(..., keep_up=False)` -> `square_turn(...)` (the stand step's turn, which keeps
-  the take's up)  -> a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_up
+  the take's up)  -> every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: a code build
+  for a row that lies)
 - surface_data.py: `"bake scripts": "{repo}/tools/props/library/inside", "library": "{data}/library"}` -> `"bake
   scripts": "{repo}/tools/props/library/inside", "library": "{data}/library", "details": "{data}/library/details.json"}`
-  -> every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry
+  -> every_part_takes_a_library_surface_and_is_held_to_it (every place's bake from git)
+- bake_job.py: `if person and not built` -> `if False` (entry_of), or `return tumble.person(row or {}) or
+  person_take(take, inputs)` -> `return person_take(take, inputs)` (drawn_person)  -> every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES:
+  the pilot, the officer)
+- bake_job.py: `base = person_turn(labelled) if person else measured_turn(...)` -> `base = measured_turn(...)`
+  (entry_of), or `return tumble.person(row or {}) or person_take(take, inputs)` -> `return tumble.person(row or {})`
+  (drawn_person), or route_bake.py stood_square: `kept = tumble.PERSON if person else ...` -> `kept = ...`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: a people line look)
 - body_faces.py: `for body in settings.checked(concept(store)["setting"])["bodies"] if body.get("kelvin") is None]` ->
   `for body in settings.checked(concept(store)["setting"])["bodies"]]`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its body-face rows)
@@ -424,6 +433,7 @@ import score.stages.props.prop_data as prop_data  # noqa: E402
 import bake_job  # noqa: E402  (place_line puts its folder and tools/props/library on the path)
 import baked_colour  # noqa: E402  (as route_paint imports it)
 import library  # noqa: E402
+import patchy  # noqa: E402  (on the path finish_parts gives)
 import place_route  # noqa: E402
 import route  # noqa: E402
 
@@ -809,6 +819,74 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert (merged[held] == 1).all(), (case, merged)
     for case, before, after, areas, kept in KEPT:
         assert finish_parts.kept_finishes(np.array(before), np.array(after), np.array(areas)).tolist() == kept, case
+    # patchy paint on that sphere and a loose 5 cm box 3 m off it, each row's finishes laid by mark
+    shape = trimesh.util.concatenate([sphere, trimesh.creation.box(extents=(0.05,) * 3).apply_translation((3, 0, 0))])
+    centres, on_sphere = shape.triangles_center, np.arange(len(shape.faces)) < len(sphere.faces)
+
+    def near(spot, reach):
+        return on_sphere & (np.linalg.norm(centres - spot, axis=1) < reach)
+
+    def share(mask):
+        return shape.area_faces[mask].sum() / shape.area
+
+    def marking(rows, under=None):
+        found = np.zeros(len(shape.faces), dtype=int) if under is None else under.copy()
+        for mark, finish in rows:
+            found[marks[mark]] = finish
+        return found
+
+    marks = {"under": on_sphere & (centres[:, 2] < -0.5), "patch": near((0, 0.99, 0.1), 0.08),
+             "lone": near((0.99, 0, 0.1), 0.08), "loose": ~on_sphere, "piece": ~on_sphere & (centres[:, 0] > 3.02),
+             "crumb": near((0, 0, 1), 0.06), "blotches": np.zeros(len(shape.faces), dtype=bool),
+             "specks": np.zeros(len(shape.faces), dtype=bool), "screens": np.zeros(len(shape.faces), dtype=bool)}
+    plain = marking(LAID_BASE) == 0
+    spots = []  # sphere points apart, so no two specks join into one island
+    for spot in sphere.vertices[::40]:
+        spots += [spot] if all(np.linalg.norm(spot - other) > 0.2 for other in spots) else []
+    for spot in spots[:30]:
+        marks["specks"] |= near(spot, 0.06) & plain
+    for spot in ((-0.7, 0.7, 0.1), (0.7, 0.7, -0.1), (-0.7, -0.7, 0.1), (0.7, -0.7, -0.1)):
+        marks["screens"] |= near(np.array(spot) / np.linalg.norm(spot), 0.12)
+    for spot in ((0, 0, 1), (0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)):
+        marks["blotches"] |= near(spot, 0.18)
+    marks["portholes"] = plain & (near((0, -0.99, 0.1), 0.05) | near((-0.99, 0, 0.1), 0.05))
+    speck_of = patchy.islands(marking(LAID_BASE + [("specks", 2)]), shape.face_adjacency)
+    screen_of = patchy.islands(marking(STRAYS[2][1]), shape.face_adjacency)
+    marks["apart"] = marks["specks"] & ~np.isin(screen_of, screen_of[marks["screens"]])
+    screens = [share(screen_of == screen) for screen in np.unique(screen_of[marks["screens"]])]
+    assert 0 < share(marks["patch"]) < patchy.STRAY_ISLAND and share(marks["portholes"]) < patchy.STRAY_ISLAND
+    assert len(np.unique(speck_of[marks["specks"]])) > 10 and share(marks["specks"]) > patchy.STRAY_ISLAND
+    assert all(share(speck_of == speck) < finish_parts.ISLAND_LEAST for speck in np.unique(speck_of[marks["specks"]]))
+    assert len(screens) == 4 and all(finish_parts.ISLAND_LEAST <= each < patchy.STRAY_ISLAND for each in screens)
+    assert marks["apart"].any(), "a speck no screen's island holds"
+    for case, rows, held, gone, moved, largest, stray in STRAYS:
+        before = marking(rows)
+        found = finish_parts.without_strays(shape, before)
+        assert all((found[marks[mark]] == finish).all() for mark, finish in held), case
+        assert not any((found[marks[mark]] == finish).any() for mark, finish in gone), case
+        assert moved is None or (found[~marks[moved]] == before[~marks[moved]]).all(), case
+        if largest is not None:
+            finish, mark = largest
+            left = np.unique(patchy.islands(found, shape.face_adjacency)[found == finish])
+            assert len(left) == 1 and (found == finish).sum() < marks[mark].sum(), (case, len(left))
+        judged = [finish_parts.patchiness(shape, labels, labels, [BODY_PAINT] * 3) for labels in (before, found)]
+        assert stray is None or judged[1]["pass"], (case, judged)
+        assert stray != "drops" or judged[1]["stray"] < judged[0]["stray"], (case, judged)
+    kept, alone = finish_parts.without_strays(shape, marking(STRAYS[2][1])), None
+    for case, rows, held, most, stray in PARTED:
+        part_of, finish_of = finish_parts.merged_islands(shape, marking(rows, kept))
+        judged = finish_parts.patchiness(shape, finish_of, part_of, [BODY_PAINT] * 3)
+        alone = judged["stray"] if alone is None else alone
+        holding = np.any([marks[mark] for mark in held], axis=0) if held else None
+        assert holding is None or len(np.unique(part_of[holding])) <= most, (case, part_of)
+        assert {"passes": judged["pass"], "as alone": judged["stray"] == alone,
+                "under a screen": 0 < judged["stray"] < min(screens)}[stray], (case, judged, screens)
+    blotched = marking([("blotches", 1)])
+    for case, finishes, parts, passes in BLOTCHES:
+        part_of = blotched if parts == "of their own" else np.zeros(len(shape.faces), dtype=int)
+        judged = finish_parts.patchiness(shape, blotched, part_of, finishes)
+        assert finish_parts.detail_finish(finishes[1]) == passes and judged["pass"] == passes, (case, judged)
+        assert passes or (judged["stray"] > 0.03 and route_split.patchy_fault(judged).startswith("patchy paint: stray"))
     lightness = finish_parts.opaque_lightness(GREYS)
     for case, lighter, other, out in OUT_OF_ORDER:
         assert bool(finish_parts.out_of_order(lighter, other, GREYS, lightness)) == out, case
@@ -1475,6 +1553,133 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     assert judged["unmeasured"].answer == "unknown", judged["unmeasured"]
     assert "texture layout sound" in [check.name for check in stages.bake_checked(
         {row.name: row for row in surfaces.ROWS}["surfaces-check"]).checks]
+    # The bake's entries, laid by a stand-in library's specs and wear and the finish's own turns, its flat rows by
+    # flat_fit.py as the bake's card runs it (its own interpreter, no repo path), every place's bake from git.
+    import flat_fit  # by its bare name, as the bake's card runs it
+    import labels
+    import tumble
+    script = REPO / "score/stages/surfaces/flat_fit.py"
+    started = subprocess.run([sys.executable, "-I", str(script)], cwd=tempfile.gettempdir(), capture_output=True,
+                             text=True, timeout=60)
+    assert "ModuleNotFoundError" not in started.stderr, started.stderr[-600:]
+    finish_turns = {row["take"]: row["turn"] for row in BAKE_ENTRIES if row["turn"] is not None}
+    folder = a_folder()
+    with monkeypatch.context() as stand_in:
+        stand_in.setattr(bake_job, "specs_of", lambda library_name: {})
+        stand_in.setattr(library, "wear_of", lambda place_id, *_: WEAR)
+        stand_in.setattr(labels, "finish_turn", lambda take: finish_turns.get(take, np.eye(3)))
+        stand_in.setattr(place_line.prop_env, "PROPS_HOME", folder)
+        try:
+            rules = a_pose_world(folder / "rules", {})
+            for row in BAKE_ENTRIES:
+                case, place, model, take, want = row["case"], row["place"], row["model"], row["take"], row["want"]
+                labelled = folder / "labelled" / take
+                if row["extents"] is not None:
+                    a_turned_take(labelled, np.eye(3) if row["turn"] is None else row["turn"], row["extents"])
+                if row["code"]:
+                    mark = bake_job.code_mark(take, folder)
+                    mark.parent.mkdir(parents=True)
+                    mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
+                kind = {"takes": {take: {"place": place, "kind": "person"}}} if row["person"] else {}
+                bake = {"models": {model: take}, "entries": {model: row["design"]} if row["design"] else {}}
+                surface_record = {"place": place, "library": place, **kind, "bake": bake}
+                inputs = {"surfaces": a_json_file(folder, f"surfaces-{model}", surface_record)}
+                if row["inventory"]:
+                    inputs[f"inventory {place}"] = a_json_file(folder, f"inventory-{model}", row["inventory"])
+                if row["rules"]:
+                    inputs.update({name: rules[name] for name in ("stance rules", "resting rules")})
+                refusal = bake_job.refusal(model, row["design"])  # entry_of's own checks, run with no take
+                assert refusal is None if "refusal" not in want else want["refusal"] in refusal, (case, refusal)
+                try:
+                    job, (entry,) = place_line.bake_entries(inputs, {take: labelled})
+                except bake_job.NoEntry as refused:
+                    assert want.get("refused", "nothing refused") in str(refused), (case, refused)
+                    continue
+                assert "refused" not in want, (case, entry)
+                assert (job["wear"], job["dirt"]) == WEAR and job["density"] == route.NEAR, (case, job)
+                assert job["faces"] == route.CHUNKY_FACES, (case, job)
+                laid = {key: value for key, value in want.items() if key not in ENTRY_CHECKS}
+                assert {key: entry[key] for key in laid} == laid, (case, entry)
+                assert "yaw" not in want or place_route.yaw_of(entry["base"]) == want["yaw"], (case, entry)
+                if "raw pose" in want:  # turned back by the finish's own turn: the raw take's box again
+                    base = np.array(entry["base"]).reshape(3, 3)
+                    assert np.allclose(base, want["raw pose"], atol=1e-6), (case, base)
+                    raw = np.ptp(route_bake.labelled_points(labelled) @ base.T, axis=0)
+                    assert np.allclose(raw, row["extents"], atol=1e-6), (case, raw)
+                if "kept" in want:  # never stood square
+                    kept = route_bake.stood_square({model: entry}, labelled, take, inputs, person=True)[model]
+                    assert kept["base"] == entry["base"] and kept["stood"]["kept"] == tumble.PERSON, (case, kept)
+            crate = a_box_take(folder / "crate", "crate-t1", (1.0, 0.5, 0.5))
+            for case, degrees, words, size in REFITS:
+                stood = {"crate_1": {"base": bake_job.TURNS[degrees], "size": [1.0, 0.5, 0.5],
+                                     "stood": {"degrees": 9.0}}}
+                refitted = bake_job.refitted(stood, {"crate_1": {"size": [1.0, 1.0, 1.0]}}, crate, **words)
+                assert refitted == stood if size is None else refitted["crate_1"]["size"] == size, (case, refitted)
+            assert bake_job.fit_within([2.0, 1.0, 4.0], [1.0, 1.0, 1.0]) == [0.5, 0.25, 1.0]
+            frame_row = [0.15, 0.2, 0.02]
+            frame = a_box_take(folder / "frame", "frame-t1", (0.15, 0.2, 0.086))
+            assert bake_job.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.035, 0.047, 0.02]
+            assert flat_fit.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
+            for case, made, kit, size in FACE_FITS:
+                assert flat_fit.face_fit(made, kit) == size, case
+            for kit in ([1.0, 1.0, 1.0], [3.0, 1.5, 1.5], [8.0, 0.01, 0.01]):  # chunky, chunky, slender: not flat
+                assert not flat_fit.flat(kit)
+                assert flat_fit.fitted_size(crate, kit, bake_job.TURNS[90]) == bake_job.fitted_size(
+                    crate, kit, bake_job.TURNS[90])
+            with flat_fit.held():  # the bake's entries (laid_size) and its stood takes (refitted) lay by it
+                assert bake_job.laid_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
+                stood_frame = {"frame_1": {"base": bake_job.TURNS[0], "size": [0.035, 0.047, 0.02], "stood": {}}}
+                assert bake_job.refitted(stood_frame, {"frame_1": {"size": frame_row}}, frame)["frame_1"]["size"] == [
+                    0.15, 0.2, 0.06]
+            assert bake_job.fitted_size is flat_fit.FITS, "and lets go"
+            for path in sorted(surface_data.FOLDER.glob("*.json")):  # every place's bake is written from git
+                declared = surface_data.bake_files(path.stem)
+                # the work folder ({seeds}, {home}/work); a designed place's surface data, {home}/design, prepare
+                # writes again
+                assert not any("{home}/work" in pattern or "{seeds}" in pattern
+                               for pattern in declared.values()), path.stem
+                assert "library bake" in declared, path.stem
+                # the old kinds' details and composites retired (2026-10-21): no bake waits on them by name
+                assert not {"details", "composites"} & set(declared), path.stem
+        finally:
+            shutil.rmtree(folder)
+    assert "score/stages/surfaces/flat_fit.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
+    assert ROWS["surfaces-bake"].files("base")["paint bake flat_fit.py"].endswith("score/stages/surfaces/flat_fit.py")
+    # the views row on the two boxes, by the takes its object filter keeps, and its coverage check on an open tube
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        inputs, views = cast_views(folder)
+        record = json.loads((views / "views.json").read_text())
+        for case, takes, answer, finding in VIEWS_JUDGED:
+            made = views if takes == [TAKE] else folder / case
+            if takes != [TAKE]:
+                made.mkdir()
+                route_views.make_views(inputs, made, 7, {"objects": takes})
+            verdict = route_views.judge_views(made, inputs, {})
+            assert verdict.answer == answer, (case, verdict)
+            assert (verdict.findings[0].startswith(finding) if finding else
+                    verdict.measures["views_most"] == len(record[TAKE]["views"])), (case, verdict)
+        assert list(record) == [TAKE], record  # the filter left other-t1 out
+        assert set(route_cast.BASE) <= set(record[TAKE]["views"]), record[TAKE]["views"]
+        assert record[TAKE]["close_up"] == route_data.STAND_IN
+        assert record[TAKE]["paint_faces"] == record[TAKE]["faces"] == 24, record[TAKE]
+        assert record[TAKE]["unseen_faces"] == 0 and record[TAKE]["seen_share"] == 1.0, record[TAKE]
+        assert record[TAKE]["reachable_share"] == 1.0, record[TAKE]
+        assert sorted(tuple(entry["srgb"]) for entry in record[TAKE]["regions"]) == sorted([BLUE, RED])
+        assert (views / TAKE / "regions-bottom.png").exists() and (views / TAKE / "right.png").exists()
+    for case, seen_share, reachable, faulted in SEEN:
+        judged = route_views.take_faults(TAKE, {**record[TAKE], "seen_share": seen_share, "reachable_share": reachable})
+        assert bool(judged) == faulted, (case, judged)
+    tube = trimesh.creation.annulus(0.3, 0.5, 1.0)  # standing up, the base views miss part of its inside
+    angles, casts = route_views.covering_views(tube)
+    based = len(route_cast.BASE)
+    assert list(angles)[:based] == list(route_cast.BASE) and len(angles) > based, angles
+    seen = np.zeros(len(tube.faces), dtype=bool)
+    for index, view in enumerate(angles):
+        hit = casts[view][0][casts[view][0] >= 0]
+        assert index < based or (~seen[hit]).any(), view  # each added view sees faces no chosen view saw
+        seen[hit] = True
+    assert seen.all(), "views added until every face is seen"
 
 def baked_model(folder, name, mesh):
     """A baked .gltf of `mesh` in `folder/made`: its positions and triangles in one buffer, its .bin beside it."""
@@ -1797,6 +2002,57 @@ KEPT = [
     # engineroom desk's paper label (#36)
     ("a finish left only a face of no area gets its faces back", [0, 1, 1, 0], [0, 0, 1, 0], [1.0, 1.0, 0.0, 1.0],
      [0, 1, 1, 0]),
+]
+
+# Patchy paint on the shared sphere and a loose 5 cm box 3 m off it (finish_parts.without_strays): astronaut-made-s1,
+# 2026-10-23, where the walk left jagged islands of the dark joints over its fabric (stray 0.054). A stray joins the
+# finish it borders; a finish with no island of its own size keeps its islands, unless they cover that size together
+# (the cooktop's specks, #36): then its largest island and each island over ISLAND_LEAST (a screen of the hub's right
+# console, likeness@hub 2026-11-06) stand for it and the rest are strays. A whole piece keeps its finish, and a small
+# piece of mixed finishes joins its largest island. Each row lays (mark, finish) over a sphere of finish 0 in order:
+# (case, laid, the marks every face of which ends in that finish, the marks no face of which does, the one mark
+# outside which no face moves, the finish whose largest island alone is left, fewer faces than the mark painted it,
+# and what the cleaning does to patchy.py's stray: "drops" and passes, or "passes").
+LAID_BASE = [("under", 1), ("patch", 1), ("lone", 2), ("loose", 1)]
+STRAYS = [
+    ("a blotch joins the finish round it, a finish nowhere larger keeps its island, a whole piece its finish",
+     LAID_BASE, [("patch", 0), ("lone", 2), ("loose", 1)], [], "patch", None, "drops"),
+    ("a finish in specks only, each under STRAY_ISLAND and over it together (camp kitchen_counter_2's cooktop)",
+     LAID_BASE + [("specks", 2)], [], [], None, (2, "specks"), "passes"),
+    ("islands over ISLAND_LEAST stand (the hub's right console's screens); specks no screen's island holds go",
+     LAID_BASE + [("specks", 2), ("screens", 2)], [("screens", 2)], [("apart", 2)], None, None, None),
+    ("two small islands, small together too, keep their finish (portholes)",
+     LAID_BASE + [("portholes", 3)], [("portholes", 3)], [], None, None, None),
+    ("a small piece of two finishes joins its largest island", LAID_BASE + [("piece", 0)], [("loose", 1)], [], None,
+     None, None),
+]
+
+# The screens' cleaning made parts (finish_parts.merged_islands) and judged (patchiness): (case, laid over the
+# cleaned screens, the marks whose faces end in at most `most` parts, most, the stray: "passes", "as alone" (the
+# first row's), or "under a screen" (above 0, under the smallest screen's share)). Base's glazing held loose glass
+# bits; old_station's tape and foil held crumbs.
+PARTED = [
+    ("the screens alone stand as parts", [], [], None, "passes"),
+    ("a loose bit of screen is taken into a screen's part: that screen is no blotch", [("loose", 2)],
+     ["loose", "screens"], 4, "as alone"),
+    ("a crumb of screen in the paint is taken into a screen's part too", [("crumb", 2)], ["crumb", "screens"], 4,
+     "under a screen"),
+]
+
+# Six blotches of finish 1 over 3% of the sphere in all (finish_parts.patchiness): islands of a detail finish (its
+# family or words: decals, stickers, labels, notes, fittings, rubber) are parts of their own as a lone fitting is
+# (old_station solar_panel_mast, 2026-10-28: its steel fittings, gathered by merged_islands into one part of several
+# islands, read stray 0.032); the same blotches of a body finish fail as patchy paint. (case, the two finishes, the
+# blotches one part with the paint or one part of their own, passes.)
+BODY_PAINT = {"finish": "white paint", "parts": "the body", "family": "paint"}
+HULL_PAINT = {"finish": "white paint", "parts": "the hull", "family": "paint"}
+FITTINGS = {"finish": "bare steel fittings", "parts": "clamps and collars", "family": "steel"}
+CASTERS = {"finish": "black", "parts": "caster wheels", "family": "rubber"}
+BLOTCHES = [
+    ("a body finish's blotches in the paint's part", [BODY_PAINT, BODY_PAINT], "with the paint", False),
+    ("a body finish's blotches as one part of their own", [HULL_PAINT, HULL_PAINT], "of their own", False),
+    ("steel fittings' islands as one part", [HULL_PAINT, FITTINGS], "of their own", True),
+    ("rubber casters' islands as one part", [HULL_PAINT, CASTERS], "of their own", True),
 ]
 
 # Finishes judged against each other (finish_parts.out_of_order): L* 60 and 70 greys; the campgrounds' power unit's
@@ -2454,107 +2710,6 @@ def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
 
 # --- finish ---
 
-def test_a_stray_island_takes_the_finish_round_it_and_patchy_paint_is_named():
-    """astronaut-made-s1, 2026-10-23: the walk left jagged islands of the dark joints over its fabric (stray 0.054).
-    A stray joins the finish it borders; a finish with no island of its own size keeps its islands, unless they cover
-    that size together (the cooktop's specks, #36): then its largest island and each island over ISLAND_LEAST (a
-    screen of the hub's right console) stand for it and the rest are strays. A
-    whole piece keeps its finish, and a small piece of mixed finishes joins its largest island."""
-    import patchy  # on the path finish_parts gives
-    sphere = trimesh.creation.icosphere(subdivisions=4)
-    loose = trimesh.creation.box(extents=(0.05, 0.05, 0.05))
-    loose.apply_translation((3, 0, 0))
-    mesh = trimesh.util.concatenate([sphere, loose])
-    middles = mesh.triangles_center
-    label = np.zeros(len(mesh.faces), dtype=int)
-    on_sphere = np.arange(len(mesh.faces)) < len(sphere.faces)
-    label[on_sphere & (middles[:, 2] < -0.5)] = 1  # finish 1's large island
-    patch = on_sphere & (np.linalg.norm(middles - (0, 0.99, 0.1), axis=1) < 0.08)  # a blotch of finish 1
-    label[patch] = 1
-    lone = on_sphere & (np.linalg.norm(middles - (0.99, 0, 0.1), axis=1) < 0.08)  # finish 2, nowhere larger
-    label[lone] = 2
-    label[~on_sphere] = 1  # a whole piece of the shape
-    assert 0 < mesh.area_faces[patch].sum() / mesh.area < patchy.STRAY_ISLAND
-    body = [{"finish": "white paint", "parts": "the body", "family": "paint"}] * 3
-    before = finish_parts.patchiness(mesh, label, label, body)
-    found = finish_parts.without_strays(mesh, label)
-    assert (found[patch] == 0).all() and (found[lone] == 2).all() and (found[~on_sphere] == 1).all()
-    assert (found[~patch] == label[~patch]).all()
-    after = finish_parts.patchiness(mesh, found, found, body)
-    assert after["stray"] < before["stray"] and after["pass"], (before, after)
-    specks = np.zeros(len(mesh.faces), dtype=bool)  # camp kitchen_counter_2's cooktop (#36): finish 2 in specks only,
-    spots = []  # each under STRAY_ISLAND, over it together; apart, so no two join into one island
-    for spot in sphere.vertices[::40]:
-        spots += [spot] if all(np.linalg.norm(spot - other) > 0.2 for other in spots) else []
-    for spot in spots[:30]:
-        specks |= on_sphere & (np.linalg.norm(middles - spot, axis=1) < 0.06) & (label == 0)
-    speckled = np.where(specks, 2, label)
-    speck_of = patchy.islands(speckled, mesh.face_adjacency)
-    speck_islands = np.unique(speck_of[speckled == 2])
-    assert len(speck_islands) > 10 and mesh.area_faces[specks].sum() / mesh.area > patchy.STRAY_ISLAND
-    assert all(mesh.area_faces[speck_of == speck].sum() / mesh.area < finish_parts.ISLAND_LEAST
-               for speck in speck_islands)  # specks, each under a part's least
-    smoothed = finish_parts.without_strays(mesh, speckled)
-    left = np.unique(patchy.islands(smoothed, mesh.face_adjacency)[smoothed == 2])
-    assert len(left) == 1 and (smoothed == 2).sum() < specks.sum(), len(left)  # its largest island stands for it
-    assert finish_parts.patchiness(mesh, smoothed, smoothed, body)["pass"]
-    screens = np.zeros(len(mesh.faces), dtype=bool)  # the hub's right console (likeness@hub, 2026-11-06): finish 2
-    for spot in ((-0.7, 0.7, 0.1), (0.7, 0.7, -0.1), (-0.7, -0.7, 0.1), (0.7, -0.7, -0.1)):  # in four screens, each
-        screens |= on_sphere & (np.linalg.norm(middles - np.array(spot) / np.linalg.norm(spot), axis=1) < 0.12)
-    screened = np.where(screens, 2, np.where(specks, 2, label))  # an island over ISLAND_LEAST, under STRAY_ISLAND
-    screen_of = patchy.islands(screened, mesh.face_adjacency)
-    shares = [mesh.area_faces[screen_of == screen].sum() / mesh.area for screen in np.unique(screen_of[screens])]
-    assert len(shares) == 4 and all(finish_parts.ISLAND_LEAST <= share < patchy.STRAY_ISLAND for share in shares)
-    kept = finish_parts.without_strays(mesh, screened)
-    apart = specks & ~np.isin(screen_of, screen_of[screens])  # specks no screen's island holds
-    assert (kept[screens] == 2).all() and apart.any() and (kept[apart] != 2).all()  # every screen stands, no speck
-    part_of, finish_of = finish_parts.merged_islands(mesh, kept)
-    unboxed = finish_parts.patchiness(mesh, finish_of, part_of, body)
-    assert unboxed["pass"]
-    part_of, finish_of = finish_parts.merged_islands(mesh, np.where(on_sphere, kept, 2))  # a loose bit of screen,
-    assert len(np.unique(part_of[~on_sphere | screens])) < 5  # taken into a screen's part: that screen is no blotch
-    assert finish_parts.patchiness(mesh, finish_of, part_of, body)["stray"] == unboxed["stray"]  # (base's glazing)
-    crumb = on_sphere & (np.linalg.norm(middles - (0, 0, 1), axis=1) < 0.06)  # a crumb of screen in the paint, taken
-    part_of, finish_of = finish_parts.merged_islands(mesh, np.where(crumb, 2, kept))  # into a screen's part too
-    crumbed = finish_parts.patchiness(mesh, finish_of, part_of, body)  # (old_station's tape and foil crumbs)
-    assert len(np.unique(part_of[crumb | screens])) <= 4 and 0 < crumbed["stray"] < min(shares), (crumbed, shares)
-    portholes =on_sphere & (label == 0) & ((np.linalg.norm(middles - (0, -0.99, 0.1), axis=1) < 0.05)
-                                            | (np.linalg.norm(middles - (-0.99, 0, 0.1), axis=1) < 0.05))
-    assert mesh.area_faces[portholes].sum() / mesh.area < patchy.STRAY_ISLAND  # two islands, small together too
-    assert (finish_parts.without_strays(mesh, np.where(portholes, 3, label))[portholes] == 3).all()
-    piece = (np.arange(len(mesh.faces)) >= len(sphere.faces)) & (middles[:, 0] > 3.02)  # a small piece, two finishes
-    label[piece] = 0
-    assert (finish_parts.without_strays(mesh, label)[~on_sphere] == 1).all()
-    blotched = np.where(np.linalg.norm(middles - (0, 0, 1), axis=1) < 0.18, 1, 0)
-    for spot in ((0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)):  # blotches of each finish over 3%
-        blotched[on_sphere & (np.linalg.norm(middles - spot, axis=1) < 0.18)] = 1
-    blotched[~on_sphere] = 0
-    gated = finish_parts.patchiness(mesh, np.where(on_sphere, blotched, 0), np.zeros(len(mesh.faces), dtype=int), body)
-    assert not gated["pass"] and route_split.patchy_fault(gated).startswith("patchy paint: stray"), gated
-
-
-def test_islands_of_a_detail_finish_sharing_a_part_are_no_stray():
-    """old_station solar_panel_mast, 2026-10-28: its steel fittings, islands under STRAY_ISLAND each, merged_islands
-    gathered into parts of several islands, read stray 0.032. Islands of a detail finish (its family or words: decals,
-    stickers, labels, notes, fittings, rubber) are parts of their own as a lone fitting is; the same blotches of a body
-    finish still fail."""
-    mesh = trimesh.creation.icosphere(subdivisions=4)
-    middles = mesh.triangles_center
-    label = np.zeros(len(mesh.faces), dtype=int)
-    for spot in ((0, 0, 1), (0, 0, -1), (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0)):  # six islands, over 3% in all
-        label[np.linalg.norm(middles - spot, axis=1) < 0.18] = 1
-    part_of = label.copy()  # the six islands one part, as merged_islands leaves a finish with no larger island
-    shell = {"finish": "white paint", "parts": "the hull", "family": "paint"}
-    fittings = {"finish": "bare steel fittings", "parts": "clamps and collars", "family": "steel"}
-    casters = {"finish": "black", "parts": "caster wheels", "family": "rubber"}
-    assert finish_parts.detail_finish(fittings) and finish_parts.detail_finish(casters)
-    assert not finish_parts.detail_finish(shell)
-    for detail in (fittings, casters):
-        assert finish_parts.patchiness(mesh, label, part_of, [shell, detail])["pass"]
-    blotched = finish_parts.patchiness(mesh, label, part_of, [shell, shell])
-    assert not blotched["pass"] and blotched["stray"] > 0.03, blotched
-
-
 def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again():
     sys.path.insert(0, str(REPO / "tools/cloud"))
     import google_spend
@@ -2635,6 +2790,23 @@ RED, BLUE = (200, 30, 30), (150, 120, 220)  # each near its finish's token (sign
 
 
 TAKE, OTHER = "two_boxes-t1", "other-t1"
+
+
+# The views row's verdict (route_views.make_views, judge_views) on the two boxes' place, by the takes its object filter
+# keeps: (case, the takes, the verdict, the start of its first finding, None for a pass).
+VIEWS_JUDGED = [
+    ("the two boxes' take seen on every side", [TAKE], "pass", None),
+    ("a take whose raw model the inputs lack", [OTHER], "fail", f"{OTHER}: no raw take"),
+    ("a filter that keeps none of the place's takes", ["no-such-take"], "fail", "cockpit: no take to work on"),
+]
+
+# A take's seen share judged against what any angle reaches (route_views.take_faults): area inside the model, out of
+# every angle, is no miss (astronaut-made-s1: 49.5% reachable, all of it seen); views seeing under SEEN_LEAST of what
+# any angle sees still are. (case, seen share, reachable share, faulted.)
+SEEN = [
+    ("everything any angle reaches seen", 0.495, 0.495, False),
+    ("under SEEN_LEAST of what the angles reach seen", 0.2, 0.495, True),
+]
 
 
 def two_boxes(folder):
@@ -2788,57 +2960,6 @@ def parted(folder, rows):
     (picks / recheck_picks.FILE).write_text(json.dumps({"takes": {}, "not_picked": {}}))
     recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, out, 7, {"objects": [TAKE]})
     return {**rows, "surfaces-parts": out}
-
-
-def test_the_views_cover_every_side_and_find_both_colours():
-    with tempfile.TemporaryDirectory() as temporary:
-        inputs, views = cast_views(pathlib.Path(temporary))
-        record = json.loads((views / "views.json").read_text())
-        assert list(record) == [TAKE], record  # the filter left other-t1 out
-        assert set(route_cast.BASE) <= set(record[TAKE]["views"]), record[TAKE]["views"]
-        assert record[TAKE]["close_up"] == route_data.STAND_IN
-        assert record[TAKE]["paint_faces"] == record[TAKE]["faces"] == 24, record[TAKE]
-        assert record[TAKE]["unseen_faces"] == 0 and record[TAKE]["seen_share"] == 1.0, record[TAKE]
-        assert sorted(tuple(entry["srgb"]) for entry in record[TAKE]["regions"]) == sorted([BLUE, RED])
-        assert (views / TAKE / "regions-bottom.png").exists() and (views / TAKE / "right.png").exists()
-        verdict = route_views.judge_views(views, inputs, {})
-        assert verdict.answer == "pass" and verdict.measures["views_most"] == len(record[TAKE]["views"]), verdict
-        assert record[TAKE]["reachable_share"] == 1.0, record[TAKE]
-    # area inside the model, out of every angle, is no miss (astronaut-made-s1: 49.5% reachable, all of it seen);
-    # views seeing under SEEN_LEAST of what any angle sees still are
-    inside = {**record[TAKE], "seen_share": 0.495, "reachable_share": 0.495}
-    assert not route_views.take_faults(TAKE, inside)
-    assert route_views.take_faults(TAKE, {**inside, "seen_share": 0.2})
-
-
-def test_the_coverage_check_adds_a_view_for_faces_the_base_views_miss():
-    """An open tube standing up: the base views miss part of its inside, the check adds views until every face is
-    seen, each added view seeing faces no chosen view saw."""
-    mesh = trimesh.creation.annulus(0.3, 0.5, 1.0)
-    angles, casts = route_views.covering_views(mesh)
-    assert list(angles)[:len(route_cast.BASE)] == list(route_cast.BASE) and len(angles) > len(route_cast.BASE), angles
-    seen = np.zeros(len(mesh.faces), dtype=bool)
-    for view in list(angles)[:len(route_cast.BASE)]:
-        seen[casts[view][0][casts[view][0] >= 0]] = True
-    for view in list(angles)[len(route_cast.BASE):]:
-        found = casts[view][0]
-        assert (~seen[found[found >= 0]]).any(), view  # an added view saw something new
-        seen[found[found >= 0]] = True
-    assert seen.all()
-
-
-def test_a_model_with_no_file_or_no_take_fails_by_name():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        inputs = {"surfaces": place_data(folder)}
-        route_views.make_views(inputs, folder, 7, {"objects": [OTHER]})
-        verdict = route_views.judge_views(folder, inputs, {})
-        assert verdict.answer == "fail" and verdict.findings[0].startswith(f"{OTHER}: no raw take"), verdict
-        folder = folder / "none"
-        folder.mkdir()
-        route_views.make_views(inputs, folder, 7, {"objects": ["no-such-take"]})
-        verdict = route_views.judge_views(folder, inputs, {})
-        assert verdict.answer == "fail" and "no take to work on" in verdict.findings[0], verdict
 
 
 def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish():
@@ -4096,16 +4217,8 @@ def test_a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has
 
 
 # The people line's bake takes its specs and wear from the repository's library by place; every old material was
-# retired (2026-10-21), so these entry checks give it a stand-in library's (no surface: the entries are the subject).
+# retired (2026-10-21), so the entry rows give it a stand-in library's (no surface: the entries are the subject).
 WEAR = (0.4, 0.3)
-
-
-@pytest.fixture
-def stand_in_library(monkeypatch):
-    import labels
-    monkeypatch.setattr(bake_job, "specs_of", lambda library_name: {})
-    monkeypatch.setattr(library, "wear_of", lambda place_id, *_: WEAR)
-    monkeypatch.setattr(labels, "finish_turn", lambda take: np.eye(3))  # no finish stood these takes
 
 
 def a_folder():
@@ -4113,7 +4226,7 @@ def a_folder():
     return pathlib.Path(tempfile.mkdtemp(prefix="bake-job-", dir=PROPS_HOME / "store-tests"))
 
 
-def written(folder, name, record):
+def a_json_file(folder, name, record):
     path = folder / f"{name}.json"
     path.write_text(json.dumps(record))
     return path
@@ -4127,276 +4240,113 @@ def a_box_take(folder, take, extents):
     return labelled
 
 
-def test_an_entry_the_data_writes_out_is_taken_as_written_and_a_model_with_none_stops_the_bake(stand_in_library):
-    folder = a_folder()
-    try:
-        written_out = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [0.5, 0.9, 1.1], "faces": 19000, "foot": 0.0}
-        surfaces = written(folder, "surfaces", {"place": "hangar", "library": "hangar", "bake": {
-            "models": {"pedestal_1": "pedestal-t1", "lost_1": "lost-t1"}, "entries": {"pedestal_1": written_out}}})
-        inputs = {"surfaces": surfaces}
-        job, (entry,) = place_line.bake_entries(inputs, {"pedestal-t1": folder / "pedestal-t1"})
-        assert {key: entry[key] for key in written_out} == written_out and entry["regions"] == []
-        assert (job["wear"], job["dirt"]) == WEAR and job["density"] == route.NEAR
-        assert job["faces"] == route.CHUNKY_FACES
-        try:
-            place_line.bake_entries(inputs, {"pedestal-t1": folder / "p", "lost-t1": folder / "l"})
-            raise AssertionError("a model with no entry was baked")
-        except bake_job.NoEntry as refused:
-            assert "no entry for lost_1" in str(refused), refused
-    finally:
-        shutil.rmtree(folder)
+def a_handin(row, take):
+    """A place's hand-in of one row, its object the take `take` made on the prop route."""
+    return {"rows": [row], "objects": {row["id"]: {"route": "prop", "take": take}}}
 
 
-def test_a_design_entry_written_without_a_turn_is_turned_by_its_take_s_measured_footprint(stand_in_library):
-    """A design's take has no hand-set turn: of 0 and 90 degrees, the one whose labelled model's footprint fits its
-    row's wide and deep. A take built long along z for a row wide along x is turned a quarter round; one already wide
-    along x is not; with no take yet the bake is not refused (it measures once the take is there)."""
-    folder = a_folder()
-    try:
-        labelled = a_box_take(folder, "bench-t1", (0.5, 0.9, 2.0))
-        design = {"size": [2.0, 0.9, 0.5], "faces": 19000, "foot": 0.0}
-        surfaces = written(folder, "surfaces", {"place": "hub", "library": "hub", "bake": {
-            "models": {"bench_1": "bench-t1"}, "entries": {"bench_1": design}}})
-        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"bench-t1": labelled})
-        assert entry["base"] == bake_job.TURNS[90] and place_route.yaw_of(entry["base"]) == 90.0, entry
-        assert bake_job.measured_turn(labelled, [0.5, 0.9, 2.0]) == bake_job.TURNS[0]
-        assert bake_job.refusal("bench_1", design) is None
-        assert "the data writes none" in bake_job.refusal("lost_1", None)
-    finally:
-        shutil.rmtree(folder)
+def an_entry_case(case, place, model, take, extents, design, want, *, inventory=None, code=False, person=False,
+                  turn=None, rules=False):
+    """One bake entry row: a model's take (a box of `extents`, None for no take, stood by the finish's `turn`) and
+    the entry its place's surface data writes (`design`, None for none), its hand-in, its code build mark, its
+    `kind` person and its pose rules; `want` the entry's fields laid, or `refused` the bake's refusal."""
+    return {"case": case, "place": place, "model": model, "take": take, "extents": extents, "design": design,
+            "want": want, "inventory": inventory, "code": code, "person": person, "turn": turn, "rules": rules}
 
 
-def test_a_slender_design_entry_keeps_its_take_s_own_proportions_its_longest_side_the_row_s(stand_in_library):
-    """A thin run's row is its thickness on two sides (a sagging string 8 by 0.01 by 0.01) while its take hangs 1 m:
-    the bake lays it as one scale, its longest side the row's, never fitted side by side to the box."""
-    folder = a_folder()
-    try:
-        labelled = a_box_take(folder, "string-t1", (0.05, 1.0, 8.0))
-        design = {"size": [8.0, 0.01, 0.01], "faces": 19000, "foot": 0.0}
-        surfaces = written(folder, "surfaces", {"place": "street", "library": "street", "bake": {
-            "models": {"string_1": "string-t1"}, "entries": {"string_1": design}}})
-        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"string-t1": labelled})
-        assert entry["base"] == bake_job.TURNS[90] and entry["size"] == [8.0, 1.0, 0.05], entry
-    finally:
-        shutil.rmtree(folder)
+WRITTEN_OUT = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [0.5, 0.9, 1.1], "faces": 19000, "foot": 0.0}
+TUNNEL = {"id": "tunnel", "name": "right connecting tunnel", "anchor": "ground", "size": [3.0, 1.5, 1.5],
+          "box": [959, 369, 2578, 1038]}
+CEILING_LAMP = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "box": [927, 603, 994, 725]}
+PILOT = {"id": "pilot", "route": "people", "anchor": "on:pilot_seat", "box": [812, 687, 946, 906],
+         "kit": [0.5, 1.8, 0.3]}
+OFFICER = dict(PILOT, id="officer", box=[0, 0, 10, 100])
+STOOL = {"id": "stool", "name": "stool", "anchor": "floor", "route": "prop", "box": [812, 687, 946, 906],
+         "kit": [0.5, 1.8, 0.3]}
+STOOD = np.array(rolled(8)) @ np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])  # a quarter, leaned
 
 
-def test_a_code_build_bakes_at_its_own_section_its_longest_side_the_row_s(stand_in_library, monkeypatch):
-    """A code build (its take's code.json route "code") whose section is its picture's, not its box's: airlock's locker
-    lamp built 0.046 m across for a 0.4 by 0.1 by 0.1 row (no slender row: its middle side a quarter of its longest).
-    The bake lays it as one scale, its longest side the row's, never fitted side by side to the box (outline 0.813
-    built, 0.409 baked so, 2026-10-29); a Pixal3D take of the same row is laid within its box (laid_size), a build
-    0.15 m tall for its 0.1 m row shrunk as one to 0.267 by 0.1 by 0.031."""
-    folder = a_folder()
-    try:
-        monkeypatch.setattr(place_line.prop_env, "PROPS_HOME", folder)
-        labelled = a_box_take(folder, "lamp-t1", (0.4, 0.15, 0.046))
-        design = {"size": [0.4, 0.1, 0.1], "faces": 5000, "foot": 0.0}
-        surfaces = written(folder, "surfaces", {"place": "airlock", "library": "airlock", "bake": {
-            "models": {"lamp_1": "lamp-t1"}, "entries": {"lamp_1": design}}})
-        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
-        assert entry["size"] == [0.267, 0.1, 0.031], entry  # a Pixal3D take: within its row's box
-        mark = bake_job.code_mark("lamp-t1", folder)
-        mark.parent.mkdir(parents=True)
-        mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
-        _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"lamp-t1": labelled})
-        assert entry["base"] == bake_job.TURNS[0] and entry["size"] == [0.4, 0.15, 0.046], entry
-    finally:
-        shutil.rmtree(folder)
+def a_design(size, faces=19000):
+    return {"size": size, "faces": faces, "foot": 0.0}
 
 
-def test_a_code_build_standing_for_a_row_that_lies_is_laid_along_its_row_never_up(stand_in_library, monkeypatch):
-    """hangar's wall pipes: a row 0.4 by 32 by 0.4 m (x wide, y tall, z deep: it runs 32 m along its wall), its code
-    build made up its receding picture 22 m tall. The bake lays the build's long side on the row's long level side and
-    its thinnest up, never standing 32 m in a 15 m hangar; a build for a row that stands keeps standing."""
-    folder = a_folder()
-    try:
-        monkeypatch.setattr(place_line.prop_env, "PROPS_HOME", folder)
-        labelled = a_box_take(folder, "pipes-t1", (4.9, 22.0, 0.4))
-        mark = bake_job.code_mark("pipes-t1", folder)
-        mark.parent.mkdir(parents=True)
-        mark.write_text(json.dumps({"route": "code", "rule": "thin straight (owner, 2026-10-25)"}))
-        for size, laid in (([0.4, 0.4, 32.0], [7.127, 0.582, 32.0]), ([0.4, 32.0, 0.4], [7.127, 32.0, 0.582])):
-            surfaces = written(folder, "surfaces", {"place": "hangar", "library": "hangar", "bake": {
-                "models": {"pipes_1": "pipes-t1"}, "entries": {"pipes_1": {"size": size, "faces": 19000, "foot": 0.0}}}})
-            _, (entry,) = place_line.bake_entries({"surfaces": surfaces}, {"pipes-t1": labelled})
-            assert entry["size"] == laid, (size, entry)
-    finally:
-        shutil.rmtree(folder)
+# The bake's entries (place_line.bake_entries): an entry the data writes out is taken as written, a model with
+# none stops the bake by name. A design's take has no hand-set turn: of 0 and 90 degrees, the one whose labelled
+# footprint fits its row's wide and deep. A slender row (a sagging string 8 by 0.01 by 0.01, its take hanging 1 m) and
+# a code build (its take's code.json route "code") are laid as one scale, their longest side the row's, never fitted
+# side by side to the box (airlock's locker lamp built 0.046 m across, outline 0.813 built, 0.409 baked so,
+# 2026-10-29); a code build standing for a row that lies (hangar's wall pipes, built 22 m up its receding picture for
+# a 32 m run) is laid along its row, never standing 32 m in a 15 m hangar. A Pixal3D take is laid at its own
+# proportions scaled as one to the largest that fits within its row (#10, 2026-11-08: old_station's tunnel was
+# stretched side by side, outline 0.70 made, 0.466 stretched), a hanging row so too. A person (#36: cockpit's seated
+# pilot was widened to his SAM 3 box, 1.205 m, and his A-pose officer squeezed into 0.5 m) keeps his take's own width
+# for his row's height whatever his box; a stool of the same take and row is laid within its row. A take whose surface
+# data names it a person (`kind`, as people_rows.py writes each look's, its hand-in no objects) is turned back by the
+# finish's own turn into his raw take's pose (#36, 2026-10-31: likeness@people failed 3 of its 9 looks, pilot 0.465,
+# each A-pose body turned a quarter round and leaned), keeps his own width there, and is never stood square.
+BAKE_ENTRIES = [
+    an_entry_case("the data's own entry is taken as written", "hangar", "pedestal_1", "pedestal-t1", None,
+                  WRITTEN_OUT, {**WRITTEN_OUT, "regions": []}),
+    an_entry_case("a model the data writes no entry for stops the bake", "hangar", "lost_1", "lost-t1", None, None,
+                  {"refused": "no entry for lost_1", "refusal": "the data writes none"}),
+    an_entry_case("a take long along z for a row wide along x is turned a quarter round", "hub", "bench_1", "bench-t1",
+                  (0.5, 0.9, 2.0), a_design([2.0, 0.9, 0.5]), {"base": bake_job.TURNS[90], "yaw": 90.0}),
+    an_entry_case("a take already along its row is not turned", "hub", "bench_2", "bench-along-t1", (0.5, 0.9, 2.0),
+                  a_design([0.5, 0.9, 2.0]), {"base": bake_job.TURNS[0]}),
+    an_entry_case("a slender row keeps its take's proportions", "street", "string_1", "string-t1", (0.05, 1.0, 8.0),
+                  a_design([8.0, 0.01, 0.01]), {"base": bake_job.TURNS[90], "size": [8.0, 1.0, 0.05]}),
+    an_entry_case("a Pixal3D take is laid within its row's box", "airlock", "lamp_1", "lamp-t1", (0.4, 0.15, 0.046),
+                  a_design([0.4, 0.1, 0.1], 5000), {"size": [0.267, 0.1, 0.031]}),
+    an_entry_case("a code build bakes at its own section", "airlock", "lamp_2", "lamp-built-t1", (0.4, 0.15, 0.046),
+                  a_design([0.4, 0.1, 0.1], 5000), {"base": bake_job.TURNS[0], "size": [0.4, 0.15, 0.046]},
+                  code=True),
+    an_entry_case("a code build for a row that lies is laid along it", "hangar", "pipes_1", "pipes-t1",
+                  (4.9, 22.0, 0.4), a_design([0.4, 0.4, 32.0]), {"size": [7.127, 0.582, 32.0]}, code=True),
+    an_entry_case("a code build for a row that stands keeps standing", "hangar", "pipes_2", "pipes-up-t1",
+                  (4.9, 22.0, 0.4), a_design([0.4, 32.0, 0.4]), {"size": [7.127, 32.0, 0.582]}, code=True),
+    an_entry_case("a Pixal3D tunnel is laid the largest within its row", "old_station", "tunnel_1", "tunnel-t1",
+                  (3.0, 0.856, 1.589), a_design([3.0, 1.5, 1.5]), {"size": [2.832, 0.808, 1.5]},
+                  inventory=a_handin(TUNNEL, "tunnel-t1")),
+    an_entry_case("a hanging row is laid within it too", "old_station", "ceiling_lamp_1", "ceiling_lamp-t1",
+                  (0.498, 0.868, 0.502), a_design([0.4, 0.5, 0.4]), {"size": [0.287, 0.5, 0.289]},
+                  inventory=a_handin(CEILING_LAMP, "ceiling_lamp-t1")),
+    an_entry_case("a person keeps his take's width for his row's height", "cockpit", "pilot_1", "pilot-t1",
+                  (0.6, 1.0, 0.3), a_design(PILOT["kit"], 5000), {"size": [1.08, 1.8, 0.3]},
+                  inventory=a_handin(PILOT, "pilot-t1"), rules=True),
+    an_entry_case("a person is never squeezed to his row whatever his box", "cockpit", "officer_1", "officer-t1",
+                  (0.58, 1.0, 0.3), a_design(OFFICER["kit"], 5000), {"size": [1.044, 1.8, 0.3]},
+                  inventory=a_handin(OFFICER, "officer-t1"), rules=True),
+    an_entry_case("a thing of the same take and row is laid within its row", "cockpit", "stool_1", "stool-t1",
+                  (0.6, 1.0, 0.3), a_design(STOOL["kit"], 5000), {"size": [0.5, 0.833, 0.25]},
+                  inventory=a_handin(STOOL, "stool-t1"), rules=True),
+    an_entry_case("a people line look stands in his raw take's pose", "people", "pilot-made", "pilot-made-s1",
+                  (0.6, 1.0, 0.3), a_design([0.5, 1.8, 0.3], 5000),
+                  {"size": [1.08, 1.8, 0.3], "raw pose": STOOD.T, "kept": "person"},
+                  inventory={"place": "people", "rows": [{"id": "pilot-made", "prop": "pilot-made",
+                                                          "box": [0, 0, 40, 100]}]},
+                  person=True, turn=STOOD, rules=True),
+]
+ENTRY_CHECKS = {"refused", "refusal", "yaw", "raw pose", "kept"}  # a row's wants beyond the entry's own fields
 
 
-def test_a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row(stand_in_library):
-    """2026-11-08 (#10: the plan wins on space, the model on shape): old_station's connecting tunnel, its take 3 by 0.86
-    by 1.59 m for its 3 by 1.5 by 1.5 m row, was stretched to the row side by side (outline 0.70 as made, 0.466
-    stretched). The bake lays a Pixal3D take at its own proportions scaled as one to the largest that fits within its
-    row: the tunnel 2.832 by 0.808 by 1.5, never past its row on any side, a hanging row (the guard list's) so too; a
-    take stood square by the bake (its `stood`, no `kept`) is laid again within its row at its new turn's proportions
-    (bake_job.refitted), one the stand kept, a code build's and a person's as they were.
-    Break: bake_job.py `laid_size`: `return fitted_size(labelled, size, base)` -> `return size` (stretched to its row)
-    Break: bake_job.py `fit_within`: `np.min(` -> `np.max(` (past its row)
-    Break: bake_job.py `refitted`: `if fits else entry` -> `if False else entry` (stretched to its tumbled fit)
-    Break: flat_fit.py `fitted_size`: `if not flat(size):` -> `if True:` (a flat row as small as its model's depth)
-    Break: flat_fit.py `face_fit`: `laid[thin] = min(laid[thin], depth_bound(size[thin]))` -> `pass` (depth unheld)
-    Break: flat_fit.py `held`: `bake_job.fitted_size = fitted_size` -> `pass` (not held)
-    Break: inside/paint_fit.py `"score/stages/surfaces/flat_fit.py"` -> `".../route_bake.py"`, or __init__.py the
-    declared `flat_fit.py` -> `route_bake.py` (the bake's card job lays by bake_job alone)
-    Break: flat_fit.py drops `LIBRARY_TOOLS` from its sys.path (the bake job's own interpreter cannot import library)"""
-    script = REPO / "score/stages/surfaces/flat_fit.py"  # run as the bake job runs it: its own interpreter, no repo path
-    started = subprocess.run([sys.executable, "-I", str(script)], cwd=tempfile.gettempdir(), capture_output=True,
-                             text=True, timeout=60)
-    assert "ModuleNotFoundError" not in started.stderr, started.stderr[-600:]
-    folder = a_folder()
-    try:
-        def entry_for(row, take_extents, kit):
-            take = f"{row['id']}-t1"
-            a_box_take(folder / row["id"], take, take_extents)
-            handin = written(folder, f"handin-{row['id']}", {"rows": [row], "objects": {row["id"]: {
-                "route": "prop", "take": take}}})
-            surfaces = written(folder, f"surfaces-{row['id']}", {"place": "old_station", "library": "old_station",
-                                                                 "bake": {"models": {f"{row['id']}_1": take},
-                                                                          "entries": {f"{row['id']}_1": {
-                                                                              "size": kit, "faces": 19000,
-                                                                              "foot": 0.0}}}})
-            _, (entry,) = place_line.bake_entries({"surfaces": surfaces, "inventory old_station": handin},
-                                                  {take: folder / row["id"] / "labelled" / take})
-            return entry["size"]
-        tunnel = {"id": "tunnel", "name": "right connecting tunnel", "anchor": "ground", "size": [3.0, 1.5, 1.5],
-                  "box": [959, 369, 2578, 1038]}
-        assert entry_for(tunnel, (3.0, 0.856, 1.589), [3.0, 1.5, 1.5]) == [2.832, 0.808, 1.5]
-        lamp = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "box": [927, 603, 994, 725]}
-        assert entry_for(lamp, (0.498, 0.868, 0.502), [0.4, 0.5, 0.4]) == [0.287, 0.5, 0.289]  # hanging: within too
-        labelled = a_box_take(folder / "crate", "crate-t1", (1.0, 0.5, 0.5))
-        written_entries = {"crate_1": {"size": [1.0, 1.0, 1.0]}}
-        stood = {"crate_1": {"base": bake_job.TURNS[90], "size": [1.0, 0.5, 0.5], "stood": {"degrees": 9.0}}}
-        assert bake_job.refitted(stood, written_entries, labelled)["crate_1"]["size"] == [0.5, 0.5, 1.0]
-        kept = {"crate_1": dict(stood["crate_1"], base=bake_job.TURNS[0])}
-        assert bake_job.refitted(kept, written_entries, labelled)["crate_1"]["size"] == [1.0, 0.5, 0.5]
-        assert bake_job.refitted(stood, written_entries, labelled, built=True) == stood
-        assert bake_job.refitted(stood, written_entries, labelled, person=True) == stood
-        assert bake_job.fit_within([2.0, 1.0, 4.0], [1.0, 1.0, 1.0]) == [0.5, 0.25, 1.0]
-        # a flat row (the model gate's "flat") is laid by its face, its depth held apart (flat_fit.py, #10
-        # 2026-11-12): quarters' picture frame, its take 0.43 deep for its height, was laid 0.039 by 0.046 by 0.02 m
-        # for its 0.15 by 0.2 by 0.02 m row, 6% of its face. Its face now fills the row, its depth held at 6 cm (3
-        # times its row's); a door 10 cm deep for its 5 cm row keeps its 10 cm (under 3 times); a lumpy window 1.1 m
-        # deep for its 2 cm row is 6 cm; a crate's row is not flat and lays as before.
-        import flat_fit  # by its bare name, as the bake's card runs it
-        frame_row, frame_take = [0.15, 0.2, 0.02], (0.15, 0.2, 0.086)
-        frame = a_box_take(folder / "frame", "frame-t1", frame_take)
-        assert bake_job.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.035, 0.047, 0.02]
-        assert flat_fit.fitted_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
-        assert flat_fit.face_fit((1.0, 2.0, 0.1), [1.0, 2.0, 0.05]) == [1.0, 2.0, 0.1]  # a door: as deep as made
-        assert flat_fit.face_fit((1.2, 1.0, 1.1), [1.2, 1.0, 0.02]) == [1.2, 1.0, 0.06]  # a lumpy window: held
-        assert flat_fit.face_fit((0.5, 0.5, 2.0), [2.0, 1.0, 0.1]) == [1.0, 1.0, 0.3]  # the face within on both
-        crate = folder / "crate" / "labelled" / "crate-t1"
-        for row in ([1.0, 1.0, 1.0], [3.0, 1.5, 1.5], [8.0, 0.01, 0.01]):  # chunky, chunky, slender: not flat
-            assert not flat_fit.flat(row)
-            assert flat_fit.fitted_size(crate, row, bake_job.TURNS[90]) == bake_job.fitted_size(
-                crate, row, bake_job.TURNS[90])
-        with flat_fit.held():  # the bake's entries (laid_size) and its stood takes (refitted) lay by it
-            assert bake_job.laid_size(frame, frame_row, bake_job.TURNS[0]) == [0.15, 0.2, 0.06]
-            stood_frame = {"frame_1": {"base": bake_job.TURNS[0], "size": [0.035, 0.047, 0.02], "stood": {}}}
-            assert bake_job.refitted(stood_frame, {"frame_1": {"size": frame_row}}, frame)["frame_1"]["size"] == [
-                0.15, 0.2, 0.06]
-        assert bake_job.fitted_size is flat_fit.FITS, "and lets go"
-        assert "score/stages/surfaces/flat_fit.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
-        bake = {row.name: row for row in stages.STAGES}["surfaces-bake"]
-        assert bake.files("base")["paint bake flat_fit.py"].endswith("score/stages/surfaces/flat_fit.py")
-    finally:
-        shutil.rmtree(folder)
+# The bake job's stood takes (bake_job.refitted): a take stood square by the bake (its `stood`, no `kept`) is laid
+# again within its row at its new turn's proportions, one the stand kept, a code build's and a person's as they were.
+REFITS = [  # (case, its turn, refitted's own words, the size laid or None: as it was)
+    ("stood square: laid again within its row", 90, {}, [0.5, 0.5, 1.0]),
+    ("kept by the stand", 0, {}, [1.0, 0.5, 0.5]),
+    ("a code build's", 90, {"built": True}, None),
+    ("a person's", 90, {"person": True}, None),
+]
 
 
-def test_a_person_keeps_his_take_s_own_width_for_his_row_s_height_and_a_thing_is_laid_within_its_row(
-        stand_in_library):
-    """#36 (2026-10-29): cockpit's seated pilot (his row 0.5 by 0.3 by 1.8 m) was widened to his SAM 3 box, which
-    holds his chair, 1.205 m; his A-pose officer squeezed into 0.5 m, his arms out. A person (tumble.person, read by
-    bake_job.drawn_person) keeps his take's own width for his row's height whatever his box (a take 0.6 wide for its
-    height: 1.08 m at 1.8 m), never squeezed to the row nor stretched to the box; a stool of the same take and row is
-    laid within its row at its own proportions (2026-11-08, laid_size).
-    Break: bake_job.py `entry_of`: `if person and not built` -> `if False`
-    Break: bake_job.py `drawn_person`: `return tumble.person(row or {}) or person_take(take, inputs)` ->
-        `return person_take(take, inputs)`"""
-    folder = a_folder()
-    try:
-        rules = a_pose_world(folder / "rules", {})
-
-        def entry_for(row, take_extents):
-            take = f"{row['id']}-t1"
-            a_box_take(folder / row["id"], take, take_extents)
-            handin = written(folder, f"handin-{row['id']}", {"rows": [row], "objects": {row["id"]: {"route": "prop",
-                                                                                                 "take": take}}})
-            surfaces = written(folder, f"surfaces-{row['id']}", {"place": "cockpit", "library": "cockpit", "bake": {
-                "models": {f"{row['id']}_1": take}, "entries": {f"{row['id']}_1": {"size": row["kit"], "faces": 5000,
-                                                                                     "foot": 0.0}}}})
-            inputs = {"surfaces": surfaces, "inventory cockpit": handin, "stance rules": rules["stance rules"],
-                      "resting rules": rules["resting rules"]}
-            _, (entry,) = place_line.bake_entries(inputs, {take: folder / row["id"] / "labelled" / take})
-            return entry["size"]
-        pilot = {"id": "pilot", "route": "people", "anchor": "on:pilot_seat", "box": [812, 687, 946, 906],
-                 "kit": [0.5, 1.8, 0.3]}
-        assert entry_for(pilot, (0.6, 1.0, 0.3)) == [1.08, 1.8, 0.3]  # his take's own width for his height
-        assert entry_for(dict(pilot, id="officer", box=[0, 0, 10, 100]), (0.58, 1.0, 0.3)) == [1.044, 1.8, 0.3]
-        stool = {"id": "stool", "name": "stool", "anchor": "floor", "route": "prop", "box": [812, 687, 946, 906],
-                 "kit": [0.5, 1.8, 0.3]}
-        assert entry_for(stool, (0.6, 1.0, 0.3)) == [0.5, 0.833, 0.25]  # no person: within its row (laid_size)
-    finally:
-        shutil.rmtree(folder)
-
-
-def test_a_person_stands_in_his_raw_take_s_pose_at_his_own_width_and_a_people_line_look_is_one_by_its_take(
-        stand_in_library, monkeypatch):
-    """#36 (2026-10-31): likeness@people failed 3 of its 9 looks (pilot 0.465) and passed the rest by a hair, each
-    raw Pixal3D take 0.89 against its close-up: the finish's stand had turned each A-pose body a quarter round and a
-    few degrees leaned, and the bake, not knowing the people line's looks for people (their rows carry no route, their
-    hand-in no objects), squeezed his arms into the row's 0.5 m. A take whose surface data names it a person
-    (`kind`, as people_rows.py writes each look's) is one: the bake turns him back by the finish's own turn
-    (labels.finish_turn) into his raw take's pose, keeps his own width for his row's height there, and never stands
-    him square.
-    Break: bake_job.py `entry_of`: `base = person_turn(labelled) if person else measured_turn(...)` ->
-        `base = measured_turn(...)`
-    Break: bake_job.py `drawn_person`: `return tumble.person(row or {}) or person_take(take, inputs)` ->
-        `return tumble.person(row or {})`
-    Break: route_bake.py `stood_square`: `kept = tumble.PERSON if person else ...` -> `kept = ...`"""
-    import labels
-    import tumble
-    quarter, lean = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]]), np.array(rolled(8))
-    stood = lean @ quarter  # the finish's turn: the raw take into the final frame
-    monkeypatch.setattr(labels, "finish_turn", lambda take: stood if take == "pilot-made-s1" else np.eye(3))
-    folder = a_folder()
-    try:
-        labelled = folder / "labelled" / "pilot-made-s1"
-        a_turned_take(labelled, stood, size=(0.6, 1.0, 0.3))  # an A-pose body 0.6 wide for his height, as stood
-        surfaces = written(folder, "surfaces", {"place": "people", "library": "people", "takes": {
-            "pilot-made-s1": {"place": "people", "kind": "person"}}, "bake": {
-            "models": {"pilot-made": "pilot-made-s1"}, "entries": {"pilot-made": {"size": [0.5, 1.8, 0.3],
-                                                                                  "faces": 5000, "foot": 0.0}}}})
-        line = written(folder, "inventory", {"place": "people", "rows": [{"id": "pilot-made", "prop": "pilot-made",
-                                                                          "box": [0, 0, 40, 100]}]})
-        rules = a_pose_world(folder / "rules", {})
-        inputs = {"surfaces": surfaces, "inventory people": line, "stance rules": rules["stance rules"],
-                  "resting rules": rules["resting rules"]}
-        _, (entry,) = place_line.bake_entries(inputs, {"pilot-made-s1": labelled})
-        base = np.array(entry["base"]).reshape(3, 3)
-        assert np.allclose(base, stood.T, atol=1e-6), base  # back in his raw take's pose
-        laid = route_bake.labelled_points(labelled) @ base.T
-        assert np.allclose(np.ptp(laid, axis=0), (0.6, 1.0, 0.3), atol=1e-6), laid
-        assert entry["size"] == [1.08, 1.8, 0.3], entry  # his own width for his height, never the row's 0.5 m
-        kept = route_bake.stood_square({"pilot-made": entry}, labelled, "pilot-made-s1", inputs, person=True)
-        assert kept["pilot-made"]["base"] == entry["base"] and kept["pilot-made"]["stood"]["kept"] == tumble.PERSON
-    finally:
-        shutil.rmtree(folder)
-
-
-def test_every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry(stand_in_library):
-    """Every place's bake declares no file under the work folder; a model no entry can be written for is declared
-    as a file that is never there, naming it (the old kinds' details retired on 2026-10-21, so an old place's laid
-    kit models are each named so)."""
-    for path in sorted(surface_data.FOLDER.glob("*.json")):
-        declared = surface_data.bake_files(path.stem)
-        # the work folder ({seeds}, {home}/work); a designed place's surface data, {home}/design, prepare writes again
-        assert not any("{home}/work" in pattern or "{seeds}" in pattern for pattern in declared.values()), path.stem
-        assert "library bake" in declared, path.stem
-        # the old kinds' details and composites retired (2026-10-21): no bake waits on them by name
-        assert not {"details", "composites"} & set(declared), path.stem
+# A flat row (the model gate's "flat") is laid by its face, its depth held apart (flat_fit.py, #10 2026-11-12):
+# quarters' picture frame, its take 0.43 deep for its height, was laid 0.039 by 0.046 by 0.02 m for its 0.15 by 0.2
+# by 0.02 m row, 6% of its face. Its face now fills the row, its depth held at 6 cm (3 times its row's).
+FACE_FITS = [  # (case, the made size, the row, laid)
+    ("a door 10 cm deep for its 5 cm row keeps its 10 cm", (1.0, 2.0, 0.1), [1.0, 2.0, 0.05], [1.0, 2.0, 0.1]),
+    ("a lumpy window 1.1 m deep for its 2 cm row is 6 cm", (1.2, 1.0, 1.1), [1.2, 1.0, 0.02], [1.2, 1.0, 0.06]),
+    ("the face within its row on both sides", (0.5, 0.5, 2.0), [2.0, 1.0, 0.1], [1.0, 1.0, 0.3]),
+]
 
 
 # --- body_faces ---
