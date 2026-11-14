@@ -1,8 +1,8 @@
 """The scene's ground as the sim body stands on it (pure numpy, the person's own frame, Y up): each point's ground (the
 highest drawn triangle under it, at most REACH_UP over it, or over its body's lowest point or middle (`body_reach`), with
 HEADROOM free over it, or what its body reaches over it where less (`body_top`), or within a knee of its body's lowest
-point (`body_floor`), never one over the point with another between them), its height over it, and each triangle's
-upward normal."""
+point (`body_floor`), never one over the point with another between them nor one of a closed piece the point is
+under, not in (`outside`)), its height over it, and each triangle's upward normal."""
 import numpy as np
 
 # Free height over a surface for a body to stand on it (metres): under less (a table top, a shelf) it is a block.
@@ -11,6 +11,8 @@ HEADROOM = 1.0
 # they agree), so a body the cast stands on a deck stands on the deck, not on the floor under it.
 REACH_UP = 0.3
 SAME = 1e-9  # metres: crossings closer than this are one (a point on an edge two triangles share)
+CORNER = 1e-6  # metres: triangles with corners this near join into one piece (`pieces`)
+_PIECES = {}  # id of a ground array: (the array, its triangles' pieces), worked out once (`pieces`)
 
 
 def _crossings(points, ground):
@@ -74,11 +76,49 @@ def beneath(points, which, heights):
     return over & (heights > np.repeat(lowest, np.diff(np.append(starts, len(which)))) + SAME)
 
 
+def pieces(ground):
+    """Each triangle's piece (an integer): the triangles joined through corners at one place (within a micron), so a
+    closed mesh is one piece whatever its faces' own vertices. Worked out once for each ground array (`_PIECES`)."""
+    kept = _PIECES.get(id(ground))
+    if kept is not None and kept[0] is ground:
+        return kept[1]
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+    corners = np.round(np.asarray(ground, dtype=float).reshape(-1, 3) / CORNER).astype(np.int64)
+    _, corner = np.unique(corners, axis=0, return_inverse=True)
+    corner = corner.reshape(-1, 3)
+    count = int(corner.max()) + 1 if len(corner) else 0
+    rows, cols = np.concatenate([corner[:, 0], corner[:, 1]]), np.concatenate([corner[:, 1], corner[:, 2]])
+    found = connected_components(coo_matrix((np.ones(len(rows)), (rows, cols)), shape=(count, count)),
+                                 directed=False)[1][corner[:, 0]] if count else np.zeros(0, dtype=int)
+    _PIECES[id(ground)] = (ground, found)
+    return found
+
+
+def outside(points, which, heights, triangles, ground):
+    """Whether each crossing (sorted by point, then height) lies over its point with its piece (`pieces`) crossing
+    the upright line over the point an even number of times: the point is outside that piece, under it (a desk's
+    apron, a bunk's rail over a foot on the floor), never in it. Crossings of one piece at one height (an edge two
+    of its triangles share) are one."""
+    if not len(which):
+        return np.zeros(0, dtype=bool)
+    piece = pieces(ground)[triangles]
+    over = heights > points[which, 1]
+    key = which.astype(np.int64) * (int(piece.max()) + 1) + piece
+    order = np.lexsort((heights, key))
+    same = np.append(False, (key[order][1:] == key[order][:-1]) & (np.diff(heights[order]) <= SAME))
+    counted = np.zeros(len(which), dtype=bool)
+    counted[order] = over[order] & ~same
+    keys, index = np.unique(key, return_inverse=True)
+    crossed = np.bincount(index, weights=counted, minlength=len(keys))
+    return over & (crossed[index] % 2 == 0)
+
+
 def standing(points, ground, reach=None, floor=None, top=None):
     """Each point's ground: the highest crossing at most `reach` high (default REACH_UP over the point) with HEADROOM
     free over it, or as much as its body reaches over it where less (`top`, default none: a body's `body_top`), or at
-    most `floor` high (default none: a body's `body_floor`), and not `beneath` it, its height and its triangle (nan and
-    -1 where none is)."""
+    most `floor` high (default none: a body's `body_floor`), and neither `beneath` it nor of a piece it is `outside`
+    of, its height and its triangle (nan and -1 where none is)."""
     reach = points[:, 1] + REACH_UP if reach is None else np.broadcast_to(reach, len(points))
     floor = np.full(len(points), -np.inf) if floor is None else np.broadcast_to(floor, len(points))
     tops = np.full(len(points), np.inf) if top is None else np.broadcast_to(top, len(points))
@@ -89,7 +129,7 @@ def standing(points, ground, reach=None, floor=None, top=None):
     above[np.append(which[1:] != which[:-1], True)] = np.inf  # the top crossing of each point has nothing over it
     room = np.minimum(HEADROOM, tops[which] - heights)  # the free height a surface needs: the body's own over it
     free = (((above - heights >= room) | (heights <= floor[which])) & (heights <= reach[which])
-            & ~beneath(points, which, heights))
+            & ~beneath(points, which, heights) & ~outside(points, which, heights, triangles, ground))
     found, under = np.full(len(points), np.nan), np.full(len(points), -1)
     which, heights, triangles = which[free], heights[free], triangles[free]
     top = which != np.append(which[1:], -1)  # the highest standing crossing of each point

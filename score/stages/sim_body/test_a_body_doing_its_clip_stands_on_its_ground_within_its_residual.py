@@ -26,7 +26,9 @@ layer: each SOMA segment an Xform at its pose every frame holding the bone it ri
 muscles as lines coloured by activation; the record names the model's attribution (MyoSuite, MoBL-ARMS); each body is
 calibrated on the static table (no clip of the rig handed to the run), with the person's mesh for the sizing; and SOMA's
 joints leave the stage unchanged: every frame's `poses` in the measures are the clip's own segment frames bit for bit,
-though the written run moved them 0.6 m (#70: SOMA is the truth). A cast of a crowd and no singles is a valid input: no run, no
+though the written run moved them 0.6 m (#70: SOMA is the truth), but for a seated body's height: one on a seat 2 m
+up raised so the skin its Hips carry rests on it, a legless one on a seat under that skin never lowered, a legged one
+lowered onto it or raised onto a higher one with its knees bent, its feet where and as they were. A cast of a crowd and no singles is a valid input: no run, no
 body, the record's `no bodies` naming why, every gate passing; a cast whose one single's clip the rig lacks still fails
 the output's contract, and so does an empty cast (no singles and no crowd), by name (#70, square, 2026-10-30). Newton and MuJoCo are not run here (the model's run
 takes minutes); the real run's numbers are on #65.
@@ -64,6 +66,25 @@ into its one test, every break below seen red on it again):
   over); its span's weight `1e9` made `1.0` (the Hips jumping 5 cm into the keyframes' span); its
   `speeds[:, index] < STANCE_SPEED` dropped (the swinging foot's Hips pulled down); its `if not len(asked)` return
   dropped (a clip asked nothing refused: min of no frames).
+- its clip on its bind's bones with its feet on its ground, 2026-11-14 (#70, a build's bind under its floor: the
+  correction put its toes at the bind's toe height, the made astronaut's skin 2.5 to 2.9 mm under, its sim body 4 mm):
+  person_rig's `stood(found, toes_lifted(...))` made `toes_lifted(...)` (the corrected floating foot 3 mm under).
+- its clip's feet turned as the clip turns them through Kimodo's correction, 2026-11-14 (#70, base's heels 3 to 5 mm
+  up, 2.9 N of residual): person_rig's `feet_kept(found, found[key], ...)` made the corrected clip alone (the stand-in's
+  10 degree pitch kept: the foot turned 10 degrees off the handed clip).
+- a seated body on its seat's top, 2026-11-14 (camp's astronauts' thighs 7 cm into their stools): make's
+  `seated(...)` call dropped (fay's poses left under her seat); seated's `if lifts.max() <= 0.0: return ...` dropped (ann,
+  legless, lowered under her floor); its `hits[:, 1] >= float(seat) - SEAT_BAND` dropped (the toy raised onto a
+  surface 0.17 m under its seat's top).
+- a seated body lowered onto a seat under it, its feet kept, 2026-11-14 (cockpit's pilot 6.4 cm over his cushion):
+  seated's `bent_down(rig, local, -move) if move else None` made `None` (the legged body left over its seat);
+  bent_down's foot turn left out (the feet turned with the bent shins).
+- a seated body nested in its seat, 2026-11-14 (the cockpit's pilot's thigh 4 cm into his seat's bolster): NEST_REACH
+  made 0.0 (the legged body raised onto the bolster, 2 cm up); bent_down's `local if kept is None else kept` made
+  `local` (its feet nested 3 cm aside with it).
+- a seated body raised onto a seat over it with its feet kept on its floor, 2026-11-14 (quarters' person_desk's feet
+  10 cm over the floor under its 0.498 m chair): seated's `bent_down(rig, local, -move) if move else None` made
+  `... if move < 0.0 else None` (the legged body raised whole, its feet 2 cm up).
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - its model unpacked only as pinned: fetched's sha256 check dropped.
@@ -160,6 +181,26 @@ def toe_rig():
     clip[0, 2, 1, 3] = 0.02 - 0.5 - (clip[0, 2, :3, :3] @ [0.0, -0.06, 0.12])[1]  # the toe base on its bind's height
     return {"names": names, "parents": parents, "bind": bind, "points": np.r_[heel, toes], "weights": weights,
             "clip_tipped": clip}
+
+
+def legged_rig():
+    """A seated body: Root, Hips 0.5 m up, each leg's thigh 0.1 m to its side, its knee 0.4 m ahead and its ankle
+    0.45 m under that; its skin a block the Hips carry, its underside 0.45 m up; its clip `seated`, two frames, the
+    second's Hips 2 cm higher and 1 cm ahead."""
+    names = np.array(["Root", "Hips", "LeftLeg", "LeftShin", "LeftFoot", "RightLeg", "RightShin", "RightFoot"])
+    parents = np.array([-1, 0, 1, 2, 3, 1, 5, 6])
+    clip = np.tile(np.eye(4), (2, 8, 1, 1))
+    clip[:, 1, :3, 3] = [0.0, 0.5, 0.0]
+    for thigh, side in ((2, 0.1), (5, -0.1)):
+        clip[:, thigh, :3, 3] = [side, 0.0, 0.0]
+        clip[:, thigh + 1, :3, 3], clip[:, thigh + 2, :3, 3] = [0.0, 0.0, 0.4], [0.0, -0.45, 0.0]
+    clip[1, 1, :3, 3] = [0.0, 0.52, 0.01]
+    seat = trimesh.creation.box(extents=(0.3, 0.1, 0.2), transform=trimesh.transformations.translation_matrix(
+        (0.0, 0.5, 0.0))).vertices
+    weights = np.zeros((len(seat), len(names)))
+    weights[:, 1] = 1.0
+    return {"names": names, "parents": parents, "bind": sim_body._body.played.chained(clip, parents)[0],
+            "points": seat, "weights": weights, "clip_seated": clip}
 
 
 def frames(count, lowest=0.001, push=1.0, off=0.0, weight=100.0, foot=0.003, foot_push=0.5, residual=(0.6, 0.0, 0.8),
@@ -302,13 +343,15 @@ def rented(seen):
     return types.SimpleNamespace(Machine=Machine, SETUP_MINUTES=8)
 
 
-SINGLES = [{"name": "ann", "doing": "standing", "at": [1.0, 0.0, 2.0], "turn": 30.0, "weight": 50.0},
+SINGLES = [{"name": "ann", "doing": "standing", "at": [1.0, 0.0, 2.0], "turn": 30.0, "weight": 50.0,
+            "seat": 0.1, "seat_on": "Ground/Ground"},  # on a seat under the skin it sits on: never lowered
            {"name": "bob", "doing": "flying", "at": [0.0, 0.0, 0.0]},  # a clip the rig lacks
            {"name": "cid", "doing": "standing", "at": [50.0, 0.0, 50.0]},  # no solid near
            {"name": "dee", "doing": "standing", "at": [1.0, 0.0, 2.0],  # a climber with no scene-made clip
             "stairs": {"way": "up", "flight": "stair_1", "to": [1.0, 1.0, 3.0], "rise": 0.2, "run": 0.2}},
            {"name": "eve", "doing": "standing", "at": [0.0, 0.0, 1.0], "height": 1.8, "sex": "female"},
-           {"name": "fay", "doing": "standing", "at": [2.0, 0.0, 4.0]}]
+           {"name": "fay", "doing": "standing", "at": [2.0, 0.0, 4.0], "seat": 2.0,  # raised onto its seat's top
+            "seat_on": "Ground/Ground"}]
 CROWD = {"name": "crowd"}
 LACKING = "no sim body: the cast names no character whose clip the rig holds"
 # (the cast, its crowd and singles, its model pinned at the wheel's own sha256, the error the make raises, its bodies,
@@ -399,7 +442,7 @@ PLAYED = [
     ("shorter", "walking", "Hips", 1, near([0.5] * 10)),  # lifted by the same 3 cm, not floating 2 cm
     ("shorter", "walking", "LeftFoot", 1, near([0.0] * 10, 1e-9)),
     ("shorter", "walking", "Hips", 0, near(np.linspace(0.0, 1.0, 10))),  # its travel along the ground as it was
-    ("shorter", "floating", "LeftFoot", 1, near([0.0] * 30, 0.999e-3)),  # stood on every frame, not 7 mm up
+    ("shorter", "floating", "LeftFoot", 1, near([0.0] * 30, 0.999e-3)),  # stood on every frame, not 7 mm up nor 3 under
     ("shorter", "floating", "Hips", 0, near([0.5] * 30)),  # Kimodo's correction (its stand-in: 0.5 m along x) kept
     ("shorter", "jumping", "LeftFoot", 1, near([0.0] * 4 + [0.1] * 2 + [0.0] * 4, 1e-6)),  # its flight kept
     ("shorter", "jumping", "Hips", 0, near([0.0] * 10)),  # no correction: Kimodo gave it no contacts
@@ -415,14 +458,21 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     run judged by the gates as its row says; the make run on each cast through the real run's rented cards: who gets a
     body and who is left out by name, each body weighed, stood on its own ground, calibrated, its run on its card, its
     layer written and its SOMA poses kept bit for bit; the price of the clips."""
-    handed, lifted = [], []
+    handed, lifted, corrected = [], [], []
 
     def contacted(local, names, parents, bind, given):
         """Kimodo's correction's stand-in (MotionCorrection is not run here: its numbers are on #70): the clip it is
-        handed with its Root moved 0.5 m along x."""
+        handed with its Root moved 0.5 m along x and 3 mm down, as the correction sinks a build whose bind stands its
+        skin under its floor (people-body-astronaut-made's toes 2.7 mm, 2026-11-14), and its foot pitched 10 degrees
+        onto its toes, as the correction's toe pin pitched base's astronauts' (their heels 3 to 5 mm up)."""
         handed.append((local, len(given)))
         moved = np.array(local)
         moved[:, 0, 0, 3] += 0.5
+        moved[:, 0, 1, 3] -= 0.003
+        pitch = np.radians(10.0)
+        moved[:, 2, :3, :3] = [[1.0, 0.0, 0.0], [0.0, np.cos(pitch), -np.sin(pitch)],
+                               [0.0, np.sin(pitch), np.cos(pitch)]] @ moved[:, 2, :3, :3]
+        corrected.append(moved)
         return moved
     monkeypatch.setattr(sim_body._body.played, "contacted", contacted)
     toes_lifted = sim_body._body.toes_lifted
@@ -430,12 +480,44 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
                         lambda rig, local: lifted.append(local) or toes_lifted(rig, local))
     (tmp_path / "played").mkdir()
     worlds, made = clip_worlds(tmp_path / "played")
+    # a seated body on its seat's surface (the toy's Hips carry its column's top, 1 m up on the bind), never lowered,
+    # its seat's surface looked for only round its seat's top
+    toy, seats, seating = toy_rig(), [], sim_body.seated
+
+    def slab(top):
+        """A seat's top `top` m up over the column and the 0.5 m Kimodo's stand-in moves it, in its own frame."""
+        return trimesh.creation.box(bounds=[(-1.0, top - 0.05, -1.0), (1.0, top, 1.0)]).triangles
+    for seat, top, raised in ((1.0, 1.03, 0.03), (1.0, 0.95, 0.0), (1.2, 1.03, 0.0)):
+        got = sim_body.seated(toy, toy["clip_standing"], seat, slab(top))
+        assert got[:, 1, 1, 3] == pytest.approx(toy["clip_standing"][:, 1, 1, 3] + raised, abs=1e-9), (seat, top)
+    # a legged body over a seat 5 cm under its skin lowered onto it on its lowest frame, its knees bent so its feet
+    # stay where they were and turned as they were
+    legs = legged_rig()
+    for top in (0.40, 0.47):  # lowered onto a low seat, raised onto a high one, its skin's underside on it each frame
+        got = sim_body.seated(legs, legs["clip_seated"], top + 0.02, slab(top))
+        was, now = (sim_body._body.played.chained(clip, legs["parents"]) for clip in (legs["clip_seated"], got))
+        assert now[:, 1, 1, 3] == pytest.approx([top + 0.05] * 2, abs=1e-9), top
+        assert now[:, [4, 7], :3, :] == pytest.approx(was[:, [4, 7], :3, :], abs=1e-9), top
+    # a legged body over a bucket seat's cushion 0.40 m up, a bolster 0.47 m up under its skin's side: nested 3 cm off
+    # the bolster and lowered onto the cushion, its feet where the clip stood them (the cockpit's pilot's thigh 4 cm
+    # into his seat's bolster, 2026-11-14)
+    bucket = np.concatenate([slab(0.40), trimesh.creation.box(bounds=[(0.125, 0.35, -1.0), (0.3, 0.47, 1.0)]).triangles])
+    got = sim_body.seated(legs, legs["clip_seated"], 0.42, bucket)
+    was, now = (sim_body._body.played.chained(clip, legs["parents"]) for clip in (legs["clip_seated"], got))
+    assert now[:, 1, :3, 3] == pytest.approx(was[:, 1, :3, 3] + [-0.03, 0.0, 0.0] - [[0.0, 0.05, 0.0],
+                                                                                      [0.0, 0.07, 0.0]], abs=1e-9)
+    assert now[:, [4, 7], :3, 3] == pytest.approx(was[:, [4, 7], :3, 3], abs=1e-9)
+    monkeypatch.setattr(sim_body, "seated", lambda rig, local, seat, tris: seats.append((seat, len(tris))) or seating(
+        rig, local, seat, slab(seat) if seat == 2.0 else tris))  # fay's seat stood in for 2 m up
     assert sim_body.segments_of(toy_rig()) == ([1, 2], [1, 1, 2, 1, 2])
     assert made["built"] == pytest.approx(1.1) and sim_body.standing_height(worlds["built"]) == pytest.approx(1.1)
     assert made["shorter"] == 1.0 and np.asarray(worlds["shorter"]["bind"]) == pytest.approx(made["short"]["bind"])
     assert list(made["contacts"]) == ["floating"] and made["contacts"]["floating"].shape == (30, 6)
     assert [count for _, count in handed] == [30] and len(lifted) == 2  # the floating clip's, then the tipped foot's
-    assert lifted[0] == pytest.approx(worlds["shorter"]["clip_floating"])  # the corrected clip's toes lifted after
+    chained = sim_body._body.played.chained
+    assert lifted[0][:, 0] == pytest.approx(corrected[0][:, 0])  # the corrected clip's toes lifted after, then stood
+    assert chained(lifted[0], worlds["shorter"]["parents"])[:, 2, :3, :3] == pytest.approx(chained(
+        handed[0][0], worlds["shorter"]["parents"])[:, 2, :3, :3])  # its foot turned as the clip turned it
     assert np.abs(sim_body.clip_frames({**worlds["shorter"], "clip_floating": handed[0][0]}, "floating",
                                        [1, 2])[:, 1, 1, 3]).max() < 0.001  # handed the stood clip
     toe, stored = worlds["toes lifted"], worlds["toe stored"]
@@ -551,6 +633,7 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             assert {check.name: check.judge(folder / "out", {}, {}).answer for check in sim_body.CHECKS} == gates, name
         outs[name] = folder / "out", record, seen
     out, record, seen = outs["the place's"]
+    assert sorted(set(seats)) == [(0.1, 2), (2.0, 2)]  # ann's and fay's seats, the toy ground's two triangles each
 
     # the run: on rented cards of kind sim-body, its clips batched, its files at their paths, its parts gone
     # each make with a body has its one build's standing clip given Kimodo's correction (the place's cast's, then its
@@ -618,9 +701,11 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             sim_body.ACTIVE, abs=1e-6), name
         measures = json.loads((out / f"measures/{name}.json").read_text())
         assert len(measures) == len(clip) == 20, name
+        # fay's seat 2 m up: the skin her Hips carry (the column's top, 0.5 m over them) on it at her lowest frame
+        raised = 2.0 - (clip[:, 0, 1, 3].min() + 0.5) if name == "fay" else 0.0
         for frame, segments in zip(measures, clip):
             for pose, world in zip(frame["poses"], segments):
-                assert pose[:3] == list(world[:3, 3]) and Rotation.from_quat(pose[3:]).as_matrix() == pytest.approx(
+                assert pose[:3] == pytest.approx(list(world[:3, 3] + [0.0, raised, 0.0]), abs=1e-5 if raised else 1e-12) and Rotation.from_quat(pose[3:]).as_matrix() == pytest.approx(
                     world[:3, :3], abs=1e-12), name
 
     # priced from measured minutes: seven clips' high on one card, no clip free, the forecast its cast's singles; the

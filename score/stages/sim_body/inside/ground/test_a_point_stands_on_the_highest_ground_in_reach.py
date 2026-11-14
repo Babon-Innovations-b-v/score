@@ -23,6 +23,11 @@ Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-
 - `beneath`'s return made `over & False`: the foot under the desk stands on its top, 0.75 m into it; made `over`: a
   foot 3 mm into its floor reads 0.2 m over the floor's underside, never sunk; its `+ SAME` dropped: a point 3 mm into a bent
   floor, on the edge its two triangles share (their heights 4e-17 apart), has no ground (nan).
+- standing's `& ~outside(...)` dropped (2026-11-14): the toe on the floor under the closed drawer block reads 0.158 m
+  into its underside (quarters' person_desk's toes under its desk's apron); outside's `% 2 == 0` made `>= 0` (every
+  piece over a point read as one it is under): the shin in the block reads 0.04 m over the block's underside, never
+  sunk; its `~same` dropped: the foot 3 mm into the floor, on the edge its square's two triangles share, reads 0.197 m
+  over the floor's underside.
 - body_floor's `+ REACH_UP` made `+ HEADROOM`: the desk's underside, 0.72 m up, counts as the foot's floor (-0.72).
 - standing's `room = np.minimum(HEADROOM, tops[which] - heights)` made `HEADROOM` (2026-11-13): a body seated on a
   lower bunk's mattress, 0.6 m free under the upper bunk, its own top 0.55 m over the mattress, has no ground under its
@@ -127,12 +132,25 @@ def seated_reach_problems():
                                                      "ground, not 0.4 over the floor"])
 
 
+def drawer_block():
+    """A closed box 0.4 m square round (2, 2) from 0.16 to 0.47 m up, its twelve triangles sharing their corners."""
+    low, high = np.array([1.8, 0.16, 1.8]), np.array([2.2, 0.47, 2.2])
+    corners = np.array([[low[0] if x else high[0], low[1] if y else high[1], low[2] if z else high[2]]
+                        for x in (0, 1) for y in (0, 1) for z in (0, 1)])
+    faces = [(0, 1, 3), (0, 3, 2), (4, 6, 7), (4, 7, 5), (0, 4, 5), (0, 5, 1), (2, 3, 7), (2, 7, 6), (0, 2, 6),
+             (0, 6, 4), (1, 5, 7), (1, 7, 3)]
+    return corners[np.array(faces)]
+
+
 def under_a_desk_problems():
     """A body standing on a floor 0.2 m thick (its top at 0), one foot under a desk (its underside at 0.72 m, its top
     at 0.75 m, 0.72 m free under it: under HEADROOM), its hand at 1.1 m over a counter top at 1.0 m under a cupboard at
     1.5 m: the foot under the desk stands 0 m over the floor, never 0.75 m into the desk's top; a foot 3 mm into the
     floor reads 3 mm into it, never over the floor's underside; the hand stands on the floor, the counter top still a
-    block. A point 3 mm into a bent floor, on the edge its two triangles share, reads 3 mm into it."""
+    block. A point 3 mm into a bent floor, on the edge its two triangles share, reads 3 mm into it. A toe on the floor
+    under a closed drawer block (its underside 0.16 m up, its top 0.47, within a knee of the toe) stands 0.002 m over
+    the floor, never 0.158 into the block's underside (quarters' person_desk's toes under its desk's apron and a bunk's
+    rail over person_bed's foot, 2026-11-14); a shin in the block reads 0.27 m into its top."""
     floor = square(0.0) + square(-0.2)
     room = np.array(floor + square(0.72, 0.0, 1.0) + square(0.75, 0.0, 1.0) + square(1.0, -1.0, -0.5)
                     + square(1.5, -1.0, -0.5))
@@ -142,7 +160,13 @@ def under_a_desk_problems():
     corners = np.array([[0.2, 0.0, 1.6], [1.2, 0.1, 0.9], [1.0, 0.0, 1.5], [0.2, 0.3, 1.0]])  # a bent floor 0.2 thick
     bent = np.array([corners[[0, 1, 2]], corners[[0, 2, 3]]])
     on_edge = corners[0] + (corners[2] - corners[0]) * 0.43 - [0.0, 0.003, 0.0]  # its two triangles cross 4e-17 apart
+    block = drawer_block()
+    toe = np.array([[2.0, 0.002, 2.0], [2.0, 0.2, 2.1]] + [[2.0, height, 1.6] for height in np.linspace(0.5, 1.2, 8)])
+    with_block = np.concatenate([room, block])
+    under_block = ground.heights_over(toe, with_block, ground.body_reach(toe), ground.body_floor(toe),
+                                      ground.body_top(toe))
     found = {"the foot under the desk": (over[0], 0.0), "the foot into the floor": (over[1], -0.003),
+             "the toe under the drawer block": (under_block[0], 0.002), "the shin in the block": (under_block[1], -0.27),
              "the hand over the counter top": (over[3], 1.1),
              "a point into a bent floor on its edge": (
                  ground.heights_over(on_edge[None], np.concatenate([bent, bent - [0.0, 0.2, 0.0]]))[0], -0.003)}

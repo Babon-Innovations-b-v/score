@@ -25,6 +25,16 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `walks.stand_every`: the walker's `walk_clear` dropped  -> the deck edge test (it walks off the floor's end).
 - `walks.walks_kept`: `spread.stand_every = stand_every` dropped  -> the deck edge test (the walker stays facing
   -z).
+- `feet.facing_seats`: `turn=` left as it came  -> the deck edge test (the sitter faces its chair's back).
+- `feet.facing_seats`: `math.atan2(away[0], away[1])` read as `math.atan2(away[1], away[0])`  -> the deck edge test.
+- `feet.seats_faced`: `cast.on_support, cast.dealt = supported, dealt` made `pass`  -> the deck edge test (the
+  sitter dealt at its design's turn, facing its chair's back).
+- `feet.seats_faced`'s dealt: `dict(single, turn=...)` left as `single`  -> the deck edge test (the same).
+- `feet.seat_depth`: `hits[:, 1] >= top - SEAT_BAND` read as `np.abs(hits[:, 1] - top) <= SEAT_BAND`  -> the deck
+  edge test (the bed's pillow ends it: its sitter left at its middle, as quarters' person_bed was).
+- `feet.edge_seated`: its `<= DEEP` return made `return person` always  -> the deck edge test (the bed's sitter left at
+  its middle); `if not into` made `if into` (the walled edge taken)  -> the same; seats_faced's `people.append(turned)`
+  made `people.append(person)`  -> the same (the record's spot left at the bed's middle).
 - `measure.level_under`: `np.abs(row) <= FOOT_STEP` read as `<= 1.0`  -> the deck edge test.
 - `measure.level_under`: `- plane @ np.linalg.pinv(plane)` dropped (the gaps judged off the feet, not off a plane)
   -> the deck edge test (the person on the slope is left out).
@@ -82,6 +92,7 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 import json
 import pathlib
 import sys
+import types
 
 import numpy as np
 import pytest
@@ -288,7 +299,7 @@ def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_o
     assert cast.on_made_ground(record, None) == record
 
 
-def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_level(tmp_path):
+def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_level(tmp_path, monkeypatch):
     """Camp's astronaut_1 and astronaut_2_1 (round 33, 2026-10-30) stood within 0.15 m of a 5.8 cm deck's edge, their
     middles on one level and a foot over the other, and sank into it in sim-body. Nudged, each stands BODY_RADIUS
     clear of the edge; one in the deck's middle stays. Airlock's astronaut (2026-11-13) stood with a vacuum cleaner's
@@ -341,6 +352,45 @@ def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_l
     assert across["turn"] == -90.0, across  # up the gentle slope's fall line its feet would leave their start's level
     assert all(spot[1] == 0.0 and spot[0] <= -measure.BODY_RADIUS and abs(spot[2]) <= 5 - measure.BODY_RADIUS
                for spot in walks.route(beside)), beside
+
+    # cockpit's pilot sat facing his seat's back (2026-11-14): a seated person faces away from its seat's back, one
+    # on a stool keeps its turn
+    def box(low, high):
+        return trimesh.creation.box(bounds=[low, high]).triangles
+    chairs = {"Objects/chair_back_z": np.concatenate([box((-0.25, 0.0, -0.25), (0.25, 0.45, 0.25)),
+                                                      box((-0.25, 0.45, 0.2), (0.25, 1.0, 0.25))]),
+              "Objects/chair_back_x": np.concatenate([box((-0.25, 0.0, -0.25), (0.25, 0.45, 0.25)),
+                                                      box((0.2, 0.45, -0.25), (0.25, 1.0, 0.25))]),
+              "Objects/stool": box((-0.2, 0.0, -0.2), (0.2, 0.45, 0.2))}
+    sitter = {"name": "sitter", "doing": "seated", "at": [0.0, 0.0, 0.0], "seat": 0.45, "turn": 180.0}
+    assert feet.facing_seats(dict(sitter, seat_on="Objects/chair_back_z"), chairs)["turn"] == pytest.approx(0.0)
+    assert feet.facing_seats(dict(sitter, seat_on="Objects/chair_back_x"), chairs)["turn"] == pytest.approx(90.0)
+    assert feet.facing_seats(dict(sitter, seat_on="Objects/stool", turn=33.0), chairs)["turn"] == 33.0
+    record = {"people": [{"name": "sitter", "doing": "seated", "at": [0.0, 0.0, 0.0], "anchor": "on:chair_back_z"}]}
+    with feet.seats_faced():
+        placed = cast.on_support(record, {"Objects/chair_back_z_1": chairs["Objects/chair_back_z"]})
+        monkeypatch.setattr(measure, "characters", lambda: (types.SimpleNamespace(characters_of=lambda record: [
+            {"name": "sitter", "turn": 180.0}, {"name": "other", "turn": 33.0}]), None))
+        singles = cast.dealt(placed, {})
+    assert placed["people"][0]["seat_on"] == "Objects/chair_back_z_1"
+    assert [single["turn"] for single in singles] == [pytest.approx(0.0), 33.0]  # dealt at the turn it faces
+    assert (cast.on_support, cast.dealt) == (feet.SUPPORTED, feet.DEALT)  # cast's own back once the make ends
+    # quarters' person_bed sat at its bunk's middle facing along it, its shins under the bunk's foot (2026-11-14): one
+    # on a bed 1.04 m wide and 1.9 m long, a pillow on it ahead, sits 0.2 m in from a long edge, facing out over it, the
+    # edge whose feet's room is clear (a wall along the other); one on a chair stays where it sat
+    bed = {"Objects/bed": np.concatenate([box((-0.51, 0.0, -0.95), (0.53, 0.45, 0.95)),
+                                          box((-0.4, 0.45, -0.5), (0.4, 0.65, -0.3))]),
+           "Floor/floor": box((-3, -0.1, -3), (3, 0.0, 3))}
+    walled = dict(bed, **{"Shell/wall": box((-1.2, 0.0, -1.0), (-0.9, 2.0, 1.0))})
+    sat = dict(sitter, seat_on="Objects/bed", turn=0.0)
+    assert [feet.edge_seated(sat, bed)[key] for key in ("at", "turn")] == [[-0.3, 0.0, 0.0], pytest.approx(90.0)]
+    assert [feet.edge_seated(sat, walled)[key] for key in ("at", "turn")] == [[0.325, 0.0, 0.0], pytest.approx(-90.0)]
+    assert feet.edge_seated(dict(sitter, seat_on="Objects/chair_back_z", turn=0.0), chairs)["at"] == [0.0, 0.0, 0.0]
+    with feet.seats_faced():
+        placed = cast.on_support({"people": [{"name": "sitter", "doing": "seated", "at": [0.0, 0.0, 0.0],
+                                              "anchor": "on:bed"}]}, {"Objects/bed_1": bed["Objects/bed"],
+                                                                     "Shell/wall": walled["Shell/wall"]})
+    assert placed["people"][0]["at"] == pytest.approx([0.31, 0.0, 0.0], abs=0.01)  # the record's spot the edge's
 
 
 def test_standing_bodies_nearer_than_two_widths_on_one_level_overlap():
