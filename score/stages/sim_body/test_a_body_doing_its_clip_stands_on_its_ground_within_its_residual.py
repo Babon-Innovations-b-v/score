@@ -88,6 +88,9 @@ into its one test, every break below seen red on it again):
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - its model unpacked only as pinned: fetched's sha256 check dropped.
+- its clip played at the Earth walk's Froude number under its place's pull, 2026-11-14 (camp's astronaut on Mars at
+  Earth's pace, Froude 0.53 against 0.20, needing a friction ratio of 0.82): make's `RATE / slowing(gravity)` made
+  `RATE`, or slowing's root dropped (g over Earth's, not its root), or its ratio turned over.
 - no run, no body: make's `if job["people"]:` made `if True:` (a cast with no singles runs; 2026-11-13).
 - its gates on the written runs: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'
@@ -650,6 +653,7 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             [out / f"run-{number}.json", out / f"run-{number}.npz"], sim_body.REPO / sim_body.ENV_SCRIPT)
         assert job["model"] == str(model) and job["adjust"]["follows deg"] == sim_body.FOLLOWED
         assert job["residual"]["force"] == 0.02
+        assert job["rate"] == pytest.approx(30.0 * (1.62 / 9.82) ** 0.5)  # the Moon's walk 2.46 times slower
         for person in job["people"]:
             assert person["segments"] == ["Hips", "LeftFoot"] and "standing" not in person  # the static table (#70)
             assert targets[person["name"]]["points"] == pytest.approx(rig["points"])  # the mesh the sizing reads
@@ -665,6 +669,9 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     # the record: each body weighed (stated, else its height squared times its sex's BMI, else the mean of both at
     # the SOMA body's height) under the scene's gravity, on its ground, calibrated, adjusted; the model attributed
     assert record["engine"] == "rented" and ran[0][5]["people"][0]["kg"] == 50.0
+    assert record["rate"] == pytest.approx(30.0 * (1.62 / 9.82) ** 0.5)  # the frames a second the drawn person plays
+    assert sim_body.slowing(9.82) == 1.0 and sim_body.slowing(3.728) == pytest.approx(1.6230, abs=1e-4)
+    assert pytest.raises(ValueError, sim_body.slowing, 0.0)
     assert {name: body["mass"] for name, body in record["bodies"].items()} == {
         "ann": {"kg": 50.0, "source": "stated weight"},
         "eve": {"kg": pytest.approx(80.35), "source": "estimated", "height": 1.8, "height from": "stated",
