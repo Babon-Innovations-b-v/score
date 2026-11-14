@@ -15,17 +15,17 @@ tests it turned red:
 - registry.py: `return re.sub(r"[^a-z0-9]+", "_", name.lower())` -> `return re.sub(r"[^a-z0-9]+", "_", name)`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (names alike but for case)
 - place_line.py: `record["proposed"] = standing["spec"]` -> `record["proposed"] = row["proposed"]`  ->
-  the_paint_takes_the_method_s_surface_and_records_its_proposal
+  every_part_takes_a_library_surface_and_is_held_to_it
 - surface_data.py: `return not path(place).exists() or bool(takes(place))` -> `return not path(place).exists() or not
-  takes(place)`  -> each_take_is_painted_by_one_place_and_every_claim_is_baked_by_its_place
+  takes(place)`  -> every_part_takes_a_library_surface_and_is_held_to_it
 - __init__.py: `("finish-route-palette", scene_library.ROW, "surfaces-parts"), paid=True` -> `(scene_library.ROW,
-  "surfaces-parts"), paid=True`  -> every_place_s_surface_line_is_rows_of_world_one
+  "surfaces-parts"), paid=True`  -> every_part_takes_a_library_surface_and_is_held_to_it
 - __init__.py: `route_data.shape_files, selects=True),` -> `route_data.library_files, selects=True),`  ->
-  a_method_change_moves_only_the_rows_that_read_the_library
+  every_part_takes_a_library_surface_and_is_held_to_it
 - __init__.py: `after=(), applies=data.paints, **more):` -> `after=(), applies=lambda place: True, **more):`  ->
-  a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows
+  every_part_takes_a_library_surface_and_is_held_to_it
 - surface_gates.py: `except (FileNotFoundError, KeyError, json.JSONDecodeError) as missing:` -> `except (KeyError,
-  json.JSONDecodeError) as missing:`  -> a_gate_that_cannot_read_its_evidence_answers_unknown
+  json.JSONDecodeError) as missing:`  -> every_part_takes_a_library_surface_and_is_held_to_it
 - bake_check.py: `(colour[:, 0] < BLOTCH_L) & (far > BLOTCH_DELTA_E)` -> `(colour[:, 0] < BLOTCH_L)`  ->
   every_part_takes_a_library_surface_and_is_held_to_it
 - bake_check.py: `if finish.get("measured_lab") is not None and not finish.get("cover"):` -> `if
@@ -43,16 +43,17 @@ tests it turned red:
 - place_line.py: `if band < wide: # then` -> `if False: # then`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (an access stair's legs over the narrow band)
 - place_line.py: `if found_row["id"] == row and stands(found_row` -> `if stands(found_row`  ->
-  a_take_another_place_lays_standing_is_levelled_by_its_rows
+  every_part_takes_a_library_surface_and_is_held_to_it (the claimed rack row; laid_shell)
 - place_line.py: `for take, report in found.items() if report.get("feet", {}).get("refused")]` -> `for take, report in
-  found.items() if False]`  -> a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
+  found.items() if False]`  -> every_part_takes_a_library_surface_and_is_held_to_it (a refused tank fails by name)
 - place_line.py: `if row.get("group") == "kit: floor" or row.get("route") == "ground":` -> `if row.get("route") ==
-  "ground":`  -> a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_inventory
-- place_line.py: `if unknown: raise` -> `if False: raise`  -> the_kit_route_s_bake_answers_the_empty_library_by_name
+  "ground":`  -> every_part_takes_a_library_surface_and_is_held_to_it (STANDING: gh_seat)
+- place_line.py: `if unknown: raise` -> `if False: raise`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (the crane-r1 take: its baked folder's dark_panel)
 - inside/paint_take.py: `return os.waitstatus_to_exitcode(status), usage.ru_maxrss / 1e6` -> `return status,
-  usage.ru_maxrss / 1e6`  -> a_killed_paint_on_the_machine_says_its_signal_and_peak
+  usage.ru_maxrss / 1e6`  -> every_part_takes_a_library_surface_and_is_held_to_it (the crane-r1 take: its paint killed)
 - place_line.py: `*inventories, *models, *(REPO` -> `*inventories, *(REPO`  ->
-  a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back
+  every_part_takes_a_library_surface_and_is_held_to_it (the crane-r1 take: its paint job)
 - bake_check.py: `nearest = min(nearest, float(np.linalg.norm(baked - (worn + share * toward))))` -> `nearest =
   min(nearest, float(np.linalg.norm(baked - worn)))`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its ON_SURFACE "the wreck's white hull dirtied" row)
@@ -62,48 +63,51 @@ tests it turned red:
 - bake_check.py: `order = np.argsort(colour, axis=0)` -> `order = np.repeat(np.argsort(colour[:, 0])[:, None],
   colour.shape[1], axis=1)`  -> every_part_takes_a_library_surface_and_is_held_to_it (its AREA_MEDIANS rows)
 - bake_check.py: `owners[chosen] = np.where(found >= 0, chosen[np.maximum(found, 0)], chosen)` -> `owners[chosen] =
-  chosen`  -> a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  chosen`  -> every_part_takes_a_library_surface_and_is_held_to_it (RAY_NAMED: the bowl by its texel)
 - uv_layout.py: `return -0.5 * (` -> `return 0.5 * (`  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  every_part_takes_a_library_surface_and_is_held_to_it (LAYOUTS: mirrored)
 - uv_layout.py: `return shares, int((counts > 1).sum()), int((counts > 0).sum())` -> `return shares, 0, 1`  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  every_part_takes_a_library_surface_and_is_held_to_it (LAYOUTS: overlap)
 - uv_layout.py: `and not (one_surface and measure == "thin")` dropped, or `== 1` -> `<= 2` (judge_layout)  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model (the sticky note fails, or the frame
+  every_part_takes_a_library_surface_and_is_held_to_it (the sticky note fails, or the frame
   passes); `not (one_surface and measure == "thin")` -> `not one_surface`  -> the same (its overlap passes)
 - uv_layout.py: `keys = np.concatenate([geometry["positions"], geometry["uvs"]], axis=1)` -> `keys =
   np.arange(len(geometry["positions"]))[:, None]`  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  every_part_takes_a_library_surface_and_is_held_to_it (the split corner)
 - inside/layout_fit.py: `"overlap": float((counts > 1).sum() / max(int((counts > 0).sum()), 1)),` -> `"overlap":
   0.0,`, or `(width < THIN_TEXELS)` -> `(width < 0)`  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  every_part_takes_a_library_surface_and_is_held_to_it (the bake's measure is the check's)
 - inside/layout_fit.py: `and side * 2 <= largest` dropped, or `rounds is not None and rounds < UNFOLD_ROUNDS` dropped,
   or `(TARGET if rounds else LIMIT)` -> `TARGET`, or `found["thin"] > LIMIT or` dropped, or `polygons[found["shared"]]`
   -> `polygons`  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  every_part_takes_a_library_surface_and_is_held_to_it (NEXT_STEPS rows, the folded faces)
 - __init__.py: `"layout_fit.py")},` -> `)},`, or `return dataclasses.replace(row, make=bake_fitted.make_bake)` ->
   `return row`, or inside/paint_fit.py: `subprocess.run(fitted, check=True)` -> `subprocess.run(chunky, check=True)`,
   or bake_fitted.py: `route_bake.SCRIPT = SCRIPT` dropped  ->
-  a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model
+  every_part_takes_a_library_surface_and_is_held_to_it (the bake's layout_fit row)
 - bake_check.py: `surface = ray_surfaces(geometry, laid, codes, entry["size"], sampled)` -> `surface =
-  np.full(len(middles), -1)`  -> a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
+  np.full(len(middles), -1)`  -> every_part_takes_a_library_surface_and_is_held_to_it (RAY_NAMED rows)
 - bake_check.py: `found.append(round(float(chosen[:, 1].min() - low[1]), 3))` -> `found.append(0.0)`  ->
-  a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out
+  every_part_takes_a_library_surface_and_is_held_to_it (STANCES)
 - place_line.py: `if gaps.max() > most:` -> `if False:`  ->
-  a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused
+  every_part_takes_a_library_surface_and_is_held_to_it (BASES, HALLS)
 - base_level.py: `min(rest[-2], cap)` -> `rest[-2]` (capped), or `return (found, record) if record["rise"] is not None
   else capped(step, cap)(points, *rest)` -> `return capped(step, cap)(points, *rest)` (capped_plane), or
   `place_line.levelled_feet = levelled_feet` -> `pass` (held), or `setattr(place_line, name, step)` -> `pass`
   (capped_base), or inside/paint_fit.py: `"score/stages/surfaces/base_level.py"` -> `".../place_line.py"`, or
   __init__.py: the declared `base_level.py` -> `place_line.py`  ->
-  a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused
+  every_part_takes_a_library_surface_and_is_held_to_it (BASES, HALLS)
 - flat_fit.py: `if not flat(size):` -> `if True:` (fitted_size), or `laid[thin] = min(laid[thin],
   depth_bound(size[thin]))` -> `pass` (face_fit), or `bake_job.fitted_size = fitted_size` -> `pass` (held), or
   inside/paint_fit.py: `"score/stages/surfaces/flat_fit.py"` -> `".../route_bake.py"`, or __init__.py: the declared
   `flat_fit.py` -> `route_bake.py`  -> a_pixal3d_take_is_laid_at_its_own_proportions_the_largest_that_fits_within_its_row
 - place_line.py: `if len(under) < 3 or rise <= tolerance or` -> `if True or`  ->
-  a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level
+  every_part_takes_a_library_surface_and_is_held_to_it (a hut slopes as one plane)
 - place_line.py: `if normal[1] > -1e-6: # no face` -> `if True: # no face`  ->
-  a_tall_cabinet_s_base_step_is_levelled_against_its_footprint
+  every_part_takes_a_library_surface_and_is_held_to_it (a tall cabinet's base step)
+- place_line.py: `and not tumble.keeps_pose(row, ...)` dropped from stands  -> every_part_takes_a_library_surface_and_is_held_to_it (STANDING)
+- place_line.py feet_rows `if HOME in inputs and bake_job.code_built(...)` -> `if False`  -> every_part_takes_a_library_surface_and_is_held_to_it (a code build)
+- place_line.py stands `(row.get("anchor") or "") in` -> `row.get("anchor", "") in`  -> every_part_takes_a_library_surface_and_is_held_to_it (a null anchor)
 - place_line.py: `if data.get("foot_traffic", True):` -> `if True:`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its UNWALKED rows)
 - place_line.py: `CLASSES = "gpu-24gb"` -> `CLASSES = "gpu-24gb,gpu-48gb"`  ->
@@ -239,7 +243,7 @@ tests it turned red:
   `[stated, shown_look_down(target, size)] if` -> `[stated] if`  ->
   the_bake_s_outline_is_the_likeness_gate_s
 - route_bake.py: laid_shell's `if key != "route"` -> `if True`  ->
-  a_take_another_place_lays_standing_is_levelled_by_its_rows
+  every_part_takes_a_library_surface_and_is_held_to_it (the claimed rack row; laid_shell)
 - route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
   records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
   `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
@@ -264,7 +268,7 @@ tests it turned red:
   or {}).items()})`, or `"required": list(settings),` -> `"required": [],` (schema; surface-library@tube's
   rusted_door_steel left its bare out, 2026-11-09)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows)
-- body_faces.py: `"required": needs,` -> `"required": [],`  -> the_face_is_made_from_one_ask_in_the_methods_recipes
+- body_faces.py: `"required": needs,` -> `"required": [],`  -> every_part_takes_a_library_surface_and_is_held_to_it (its FACES moon row)
 - scene_library.py: `for kind in kinds if not found.get("kinds", {}).get(kind)]` -> `for kind in kinds if False]`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows)
 - scene_library.py: `parts.add("stair")` -> `pass`  ->
@@ -314,17 +318,19 @@ tests it turned red:
   -> every_place_s_bake_is_written_from_git_or_blocks_on_a_named_entry
 - body_faces.py: `for body in settings.checked(concept(store)["setting"])["bodies"] if body.get("kelvin") is None]` ->
   `for body in settings.checked(concept(store)["setting"])["bodies"]]`  ->
-  every_body_that_does_not_shine_has_a_paid_row_of_its_own
+  every_part_takes_a_library_surface_and_is_held_to_it (its body-face rows)
+- body_faces.py: `"style": environment_concept.style_now(),` -> `"style": "",`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its body-face rows, no concept locked)
 - body_faces.py: `"recipe": {"type": "STRING", "enum": [recipe]},` -> `"recipe": {"type": "STRING", "enum":
-  list(method["recipes"])},`  -> the_face_is_made_from_one_ask_in_the_methods_recipes
+  list(method["recipes"])},`  -> every_part_takes_a_library_surface_and_is_held_to_it (its FACES moon row)
 - body_faces.py: `failing += [f"recipe {variant['recipe']} is no natural ground"] * (variant["recipe"] not in
-  natural_grounds.RECIPES)` deleted  -> a_face_off_its_palette_or_the_method_fails_and_no_answer_is_named
+  natural_grounds.RECIPES)` deleted  -> every_part_takes_a_library_surface_and_is_held_to_it (the off mars face)
 - body_faces.py: `if recipe is None: raise ValueError` -> `if False: raise ValueError`  ->
-  a_body_whose_physics_the_setting_lacks_gets_no_face
-- claude_asks.py: `"finish-route-list", ` deleted from ROWS  -> the_four_asks_go_to_claude_and_the_faces_stay
-- claude_asks.py: `module.ask = gemini` -> `pass`  -> the_four_asks_go_to_claude_and_the_faces_stay
+  every_part_takes_a_library_surface_and_is_held_to_it (its FACES vesta row)
+- claude_asks.py: `"finish-route-list", ` deleted from ROWS  -> every_part_takes_a_library_surface_and_is_held_to_it (its asks)
+- claude_asks.py: `module.ask = gemini` -> `pass`  -> every_part_takes_a_library_surface_and_is_held_to_it (its asks)
 - claude_asks.py: `again[take] = repaired(bodies[take], answer, off, levels)` -> `pass`  ->
-  a_palette_answer_off_its_own_palette_is_asked_once_more_told_why
+  every_part_takes_a_library_surface_and_is_held_to_it (its REPAIRS rows)
 - place_line.py: `return turn.T` -> `return None` in `recovered_turn`  ->
   the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it
 - place_line.py: `turn @ labels.raw_facing(take)` -> `turn` in `finished_frame`  ->
@@ -347,7 +353,7 @@ tests it turned red:
 - scene_library.py: `SHEET_FLAT, SHEET_MIDDLE = 0.05, 0.25` -> `0.1, 0.25` (the row's sheet rule off the bake's)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows, sheets)
 - bake_check.py: `max(min(size) / BAKE_THIN_VOXELS, surface)` -> `max(size) * BAKE_VOXEL_SHARE` in `bake_voxel`  ->
-  a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part
+  every_part_takes_a_library_surface_and_is_held_to_it (the lantern string's voxel)
 - parts_kept.py: `return found if found["delta_e"] <= record["delta_e"] else record` -> `return found` (kit_kept)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - parts_kept.py: `finish.get("surface") in glowing and` -> `False and` (lit_kept)  ->
@@ -375,9 +381,9 @@ tests it turned red:
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
   every_part_takes_a_library_surface_and_is_held_to_it
 - feet_stand.py: `if refused == [feet.get("rests")] else None` -> `if False else None` (judge_feet)  ->
-  a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
+  every_part_takes_a_library_surface_and_is_held_to_it (FEET_JUDGED)
 - feet_stand.py: `worst = max(worst, outside if outside > BALANCE else 0.0)` -> `worst = max(worst, 0.0)` (off_balance)
-  -> a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name
+  -> every_part_takes_a_library_surface_and_is_held_to_it (a tipped seat)
 """
 import contextlib
 import copy
@@ -433,136 +439,19 @@ def a_store():
     return Store.in_folder(tempfile.mkdtemp())
 
 
-# Library surfaces proposed in turn to one store: (case, [(name, spec)], the proposal each stands as (its index in the
-# list), the first proposed or the first named alike but for case).
+# A take's parts as the method named them, each with the new library surface it proposed or None, painted in turn
+# into one store: (case, [(the method's surface, its proposal)], the proposal each part stands as (its index in the
+# list: the first proposed, or the first named alike but for case; None where the part proposed none)).
 PROPOSED = [
-    ("a second proposal stands as first proposed", [("Aluminium tape, silver", {"stands_in": "galvanized_dull"}),
-                                                    ("Aluminium tape, silver", {"stands_in": "bare_steel"})], [0, 0]),
-    ("names alike but for case stand as one entry", [("Polished Chrome", {"stands_in": "pipe_steel"}),
-                                                     ("polished chrome", {"stands_in": "bare_steel"}),
-                                                     ("Polished brass", {"stands_in": "brass"})], [0, 0, 2]),
+    ("a part takes the method's surface and its proposal stands in for it",
+     [("dark_panel", None), ("galvanized_dull", {"name": "aluminium tape", "description": "shiny",
+                                                 "why": "thinner than steel"})], [None, 1]),
+    ("a second proposal stands as first proposed", [("galvanized_dull", {"name": "Aluminium tape, silver"}),
+                                                    ("bare_steel", {"name": "Aluminium tape, silver"})], [0, 0]),
+    ("names alike but for case stand as one entry", [("pipe_steel", {"name": "Polished Chrome"}),
+                                                     ("bare_steel", {"name": "polished chrome"}),
+                                                     ("brass", {"name": "Polished brass"})], [0, 0, 2]),
 ]
-
-
-def test_the_paint_takes_the_method_s_surface_and_records_its_proposal():
-    store = a_store()
-    rows = [{"part": 0, "judge": "dark_panel", "proposed": None},
-            {"part": 1, "judge": "galvanized_dull", "proposed": {"name": "aluminium tape", "description": "shiny",
-                                                                  "why": "thinner than steel"}}]
-    found = surfaces.place_line.method_surfaces("power_unit-r3", "old_station", rows, registry.Registry(store))
-    assert [record["surface"] for record in found] == ["dark_panel", "galvanized_dull"]
-    assert found[1]["proposed"]["stands_in"] == "galvanized_dull" and found[1]["proposed"]["status"] == "proposed"
-    assert [entry["name"] for entry in store.registry("surfaces")] == ["aluminium tape"]
-
-
-def test_each_take_is_painted_by_one_place_and_every_claim_is_baked_by_its_place():
-    owner = {}
-    records = {path.stem: json.loads(path.read_text()) for path in sorted(surface_data.FOLDER.glob("*.json"))}
-    for place, record in records.items():
-        assert (REPO / "data/kit" / f"{place}.json").exists() or shapes_first.no_place(place), f"{place}: no such place"
-        assert record["takes"] or record.get("nothing"), f"{place}: lists nothing to paint and says not why"
-        assert surface_data.paints(place) == bool(record["takes"]), place
-        for take, entry in record["takes"].items():
-            assert take not in owner, f"{take}: painted by {owner.get(take)} and {place}"
-            owner[take] = place
-            assert {"place", "kind", "object", "library_places"} <= set(entry), f"{place} {take}"
-        bake = record.get("bake")
-        if bake:
-            assert set(bake["models"].values()) <= set(record["takes"]), f"{place}: bakes a take it does not paint"
-    for place, record in records.items():
-        for model, claim in record.get("elsewhere", {}).items():
-            other = records[claim["place"]]
-            assert claim["take"] in other["takes"], f"{place} {model}: {claim['place']} does not paint {claim['take']}"
-            assert claim["take"] in other["bake"]["models"].values(), f"{place} {model}: {claim['place']} bakes none"
-
-
-def test_every_place_s_surface_line_is_rows_of_world_one():
-    names = [stage.name for stage in stages.STAGES]
-    assert {"finish-route-palette", "surface-library", "finish-route-views", "finish-route-list", "finish-route-split",
-            "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck", "surfaces-check"} <= set(names)
-    rows = {stage.name: stage for stage in surfaces.ROWS}
-    assert all(stage.grain == "place" for stage in surfaces.ROWS)
-    # the scene's surfaces made fresh from its palette before anything is listed (owner, 2026-10-21)
-    assert set(rows["surface-library"].after) == {"finish-route-palette"}
-    for row in ("finish-route-list", "surfaces-parts", "finish-route-recheck", "surfaces-check"):
-        assert "surface-library" in rows[row].after, row
-    # the method's interface, painted in the bake at the scene palette's wear and dirt (read from its design)
-    assert set(rows["surfaces-bake"].after) == {"finish-route-palette", "surface-library", "surfaces-parts"}
-    assert set(rows["surfaces-paint"].after) == {"surfaces-bake"}  # the bake's painted takes, the paint's gates
-    assert all(stage.euros for stage in surfaces.ROWS if stage.paid)
-
-
-def test_a_method_change_moves_only_the_rows_that_read_the_library():
-    """The surface-library row and the finish route's list, parts, paint, bake, recheck and check read the method's
-    library (its recipes); its views and split never do, so a recipe's new default makes the scene's surfaces again
-    and re-asks the list, and leaves the renders and their regions where they stood (the split reads the list's
-    answers: identical answers keep its key, the graph's own test). The palette row reads its wear levels alone."""
-    data, home = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
-    for folder in ("library", "definitions"):
-        shutil.copytree(REPO / "data" / folder, data / folder)
-    (data / "surfaces").mkdir()
-    (data / "surfaces/greenhouse.json").write_text(json.dumps({"place": "greenhouse", "library": "greenhouse", "takes": {
-        "crate-t1": {"place": "greenhouse", "kind": "crate", "object": "a crop crate"}},
-        "bake": {"models": {"crate_1": "crate-t1"}}}))  # its own surface data (the old greenhouse's were retired)
-    world = graph.Environment("world1", 1, {"data": str(data), "home": str(home), "repo": str(REPO), "seeds": str(home)})
-    runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
-    for stage in surfaces.ROWS:  # each file a row names, written small in the test's own home
-        for name in runner.files_of(stage, "greenhouse"):
-            path = runner.file_path(stage, name, "greenhouse")
-            if not path.exists():
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(name)
-    before = {stage.name: runner.file_keys(stage, "greenhouse") for stage in surfaces.ROWS}
-    library = json.loads((data / "library" / "materials.json").read_text())
-    library["recipes"]["rubber"]["roughness"] = 0.8
-    (data / "library" / "materials.json").write_text(json.dumps(library))
-    moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
-    assert moved == {"surface-library", "finish-route-list", "surfaces-parts", "surfaces-paint",
-                     "surfaces-bake",
-                     "finish-route-recheck", "surfaces-check"}, moved
-    library["wear_levels"]["scarred"] = 1.0
-    (data / "library" / "materials.json").write_text(json.dumps(library))
-    palette = next(stage for stage in surfaces.ROWS if stage.name == "finish-route-palette")
-    assert runner.file_keys(palette, "greenhouse") != before["finish-route-palette"]
-    shutil.rmtree(data)
-    shutil.rmtree(home)
-
-
-def test_a_place_without_data_blocks_before_anything_is_spent_and_one_with_nothing_to_paint_has_no_rows():
-    kept, surfaces.data.FOLDER = surfaces.data.FOLDER, pathlib.Path(tempfile.mkdtemp())
-    (surfaces.data.FOLDER / "tube.json").write_text(json.dumps({"place": "tube", "takes": {},
-                                                                "nothing": "code-built pieces only"}))
-    try:
-        blocked_without_data()
-    finally:
-        shutil.rmtree(surfaces.data.FOLDER)
-        surfaces.data.FOLDER = kept
-
-
-def blocked_without_data():
-    """A place with no surface data blocks at its first row and its bake; one with data listing nothing has none."""
-    world = graph.Environment("world1", 1, {"data": str(REPO / "data"), "home": tempfile.mkdtemp(), "repo": str(REPO),
-                                      "seeds": tempfile.mkdtemp()})
-    runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
-    rows = {stage.name: stage for stage in surfaces.ROWS}
-    assert "its input surfaces is missing" in runner.node_status(rows["finish-route-views"], "nowhere")
-    assert not any(node.endswith("@tube") for node in runner.status(["tube"]))  # code-built pieces only
-    try:
-        runner.file_keys(rows["surfaces-bake"], "nowhere")
-    except graph.Blocked as block:
-        assert "nowhere.json" in str(block)
-        return
-    raise AssertionError("a place with no data did not block at its bake row")
-
-
-def test_a_gate_that_cannot_read_its_evidence_answers_unknown():
-    folder = pathlib.Path(tempfile.mkdtemp())
-    def judge_takes(output, inputs, evidence):  # a gate that reads its output's takes.json, as the route's do
-        return json.loads((pathlib.Path(output) / "takes.json").read_text())
-    check = surface_gates.guarded("views cast", judge_takes)
-    found = checks.judge(check, folder, {}, None)
-    assert found.answer == checks.UNKNOWN and "takes.json" in found.reason
-    shutil.rmtree(folder)
 
 
 # The seed tray's paper label on black plastic, as baked (greenhouse bake output 439948bc): each of its 65 triangles'
@@ -800,7 +689,7 @@ JUDGED = {
 }
 
 
-def test_every_part_takes_a_library_surface_and_is_held_to_it():
+def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     """Every baked part is held to its library surface and its take's close-up: the finishes' labels give the
     close-up colours, the bake check's gate (check_seen.judge_lit, the surfaces-check row's) judges one checks.json of
     every case and names exactly the faults each model's row expects, and the view distance it judges one look at is
@@ -816,27 +705,44 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it():
     parts row makes through the picks row and a list's reply is parsed to library names. The library a part takes
     from is the scene's own: its palette read by one ask over its locked concept (or a line's every concept and
     close-up), its surfaces made fresh from that palette by one ask covering every take's kind, ground row and shell
-    kind with no recipe that paints a picture, and the repository's library the method alone, its empty reads named."""
-    for case, proposed, stands in PROPOSED:
+    kind with no recipe that paints a picture, and the repository's library the method alone, its empty reads named. Every body
+    that does not shine has a paid face row by the concept in force (today's when none is locked), its face made from
+    one Gemini ask in the method's recipes and held to its palette and method, no face where no answer comes or the
+    setting lacks its physics; the four finish-route asks go to Claude, a refused palette answer asked once more.
+    The paint takes the method's surface and records a part's proposal; a gate that cannot read its evidence answers
+    unknown. The surface line is rows of world one, each take painted by one place and every claim baked by its place;
+    a place without data blocks before anything is spent, one with nothing to paint has no rows, and a method change
+    moves only the rows that read the library. A take that stands on the floor by its rows (its own place's, the
+    claiming place's, a designed place's hand-in) has its short legs, its sloping base and its resting face brought
+    level before its bake, a leg past the band refused and judged a missing leg, and its baked model held to stand."""
+    for case, parts, stands in PROPOSED:  # the paint takes each part's method surface, its proposal to the registry
         store = a_store()
-        found = [registry.Registry(store).propose_surface(name, spec, {"take": str(index)})
-                 for index, (name, spec) in enumerate(proposed)]
+        found = surfaces.place_line.method_surfaces("power_unit-r3", "old_station", [
+            {"part": index, "judge": judge, "proposed": proposal} for index, (judge, proposal) in enumerate(parts)],
+            registry.Registry(store))
+        entries = {registry.entry_id(entry["name"]): entry for entry in store.registry("surfaces")}
+        assert [record["surface"] for record in found] == [judge for judge, _ in parts], (case, found)
+        assert len(entries) == len({first for first in stands if first is not None}), (case, entries)
         for index, first in enumerate(stands):
-            assert found[index] == found[first], (case, index)
-            assert (found[first]["name"], found[first]["spec"]) == proposed[first], (case, index)
-        assert len(store.registry("surfaces")) == len(set(stands)), case
-    for case, mesh, tall, feet_found, levelled, refused, far in LEVELLED:
-        vertices, faces = mesh()
-        points, record = place_line.levelled_feet(vertices, faces, **({"tall": tall} if tall else {}))
-        assert feet_found is None or record["feet"] == feet_found, (case, record)
-        assert len(record["levelled"]) == levelled and (refused is None or record["refused"] == refused), (case, record)
-        assert far is None or abs(points[:, 1][vertices[:, 2] > far].min()) < 1e-9, (case, "its short foot not down")
+            if first is None:
+                assert found[index]["proposed"] is None, (case, index)
+                continue
+            judge, proposal = parts[first]
+            spec = {**proposal, "status": "proposed", "stands_in": judge}
+            entry = entries[registry.entry_id(parts[index][1]["name"])]
+            assert found[index]["proposed"] == spec, (case, index, found[index])
+            assert (entry["name"], entry["spec"], entry["first"]["part"]) == (proposal["name"], spec, first), (
+                case, index, entry)
     for case, (finishes, close_up) in CLOSE_UPS.items():
         assert labelled_close_up(finishes) == close_up, case
+    # the surfaces-check row's gate as check_seen.lit_gates sets it, judged before and after its checks.json is written
+    gate = surface_gates.guarded("baked matches its surfaces", check_seen.judge_lit)
     with tempfile.TemporaryDirectory() as scratch:
+        unread = checks.judge(gate, scratch, {}, None)  # a gate that cannot read its evidence answers unknown
+        assert unread.answer == checks.UNKNOWN and "checks.json" in unread.reason, unread
         records = {model: dict(make(), missing_maps=[]) for model, (make, _) in JUDGED.items()}
         (pathlib.Path(scratch) / "checks.json").write_text(json.dumps(records))
-        found = check_seen.judge_lit(scratch, {}, None)  # a row that reads no scene library counts nothing lit
+        found = checks.judge(gate, scratch, {}, None)  # a row that reads no scene library counts nothing lit
     expected = sum(len(faults) for _, faults in JUDGED.values())
     assert found.answer == checks.FAIL and found.reason == f"{expected} of {len(JUDGED)} faults over the models", found
     for model, (_, faults) in JUDGED.items():
@@ -946,13 +852,100 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it():
         with parts_kept.held() if held else contextlib.nullcontext():
             found = route_parts.lit_finishes(copy.deepcopy(finishes), surfaces_of)
         assert unlike(found, finishes, expected) == [], (case, found)
-    # the parts row makes through recheck_picks.make_parts, which runs parts_kept.make_parts on the picked list, and
-    # reads the picks row, made from it just before it
+    # every place's surface line is rows of world one, each a place's, every paid one priced, waiting on what it reads
+    # (an exact set where the row's waits are all named): the scene's surfaces made fresh from its palette before
+    # anything is listed (owner, 2026-10-21); the parts row made through recheck_picks.make_parts (parts_kept.make_parts
+    # on the picked list) from the free picks row that selects just before it; the bake painting the method's interface
+    # at the scene palette's wear and dirt; the paint reading the bake's painted takes
     names = [row.name for row in stages.STAGES]
+    assert {stage.name for stage in surfaces.ROWS} >= {
+        "finish-route-palette", "surface-library", "finish-route-views", "finish-route-list", "finish-route-split",
+        "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck", "surfaces-check"} and all(
+        stage.name in ROWS and stage.grain == "place" and (stage.euros or not stage.paid) for stage in surfaces.ROWS)
+    for row, waits, exactly in (
+            ("surface-library", {"finish-route-palette"}, True),
+            ("finish-route-list", {"surface-library"}, False),
+            ("surfaces-parts", {"surface-library", recheck_picks.ROW}, False),
+            ("finish-route-recheck", {"surface-library"}, False),
+            ("surfaces-check", {"surface-library"}, False),
+            ("surfaces-bake", {"finish-route-palette", "surface-library", "surfaces-parts"}, True),
+            ("surfaces-paint", {"surfaces-bake"}, True)):
+        assert (set(ROWS[row].after) == waits) if exactly else (waits <= set(ROWS[row].after)), (row, ROWS[row].after)
     assert inspect.unwrap(ROWS["surfaces-parts"].make) is recheck_picks.make_parts, ROWS["surfaces-parts"].make
     assert names.index(recheck_picks.ROW) == names.index("surfaces-parts") - 1, names
-    assert recheck_picks.ROW in ROWS["surfaces-parts"].after and recheck_picks.parts_kept is parts_kept
+    assert recheck_picks.parts_kept is parts_kept
     assert not ROWS[recheck_picks.ROW].paid and ROWS[recheck_picks.ROW].selects
+    # one world's line over three places: the greenhouse paints a crop crate (its own data, the old greenhouse's
+    # retired), the tube lists nothing (code-built pieces only) and has no rows, and nowhere has no data, so it
+    # blocks at its first row and its bake before anything is spent. A method change (a recipe's new default) moves
+    # only the rows that read the library: the scene's surfaces, the list, parts, paint, bake, recheck and check, never
+    # the views and split (the split reads the list's answers: identical answers keep its key, the graph's own test);
+    # the palette row reads the wear levels alone
+    data, home = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
+    for folder in ("library", "definitions"):
+        shutil.copytree(REPO / "data" / folder, data / folder)
+    (data / "surfaces").mkdir()
+    (data / "kit").mkdir()
+    for place in ("greenhouse", "tube"):  # world one's places, each with its kit
+        (data / "kit" / f"{place}.json").write_text("[]")
+    (data / "surfaces/greenhouse.json").write_text(json.dumps({"place": "greenhouse", "library": "greenhouse", "takes": {
+        "crate-t1": {"place": "greenhouse", "kind": "crate", "object": "a crop crate", "library_places": []}},
+        "bake": {"models": {"crate_1": "crate-t1"}}}))
+    (data / "surfaces/tube.json").write_text(json.dumps({"place": "tube", "takes": {},
+                                                         "nothing": "code-built pieces only"}))
+    kept_folder = surfaces.data.FOLDER
+    try:
+        # the repository's surface data and world one's alike: each take painted by one place, every place listing
+        # takes or saying why not (and painting exactly when it lists some), every model claimed elsewhere painted and
+        # baked by its place
+        for folder in (kept_folder, data / "surfaces"):
+            surfaces.data.FOLDER, owner = folder, {}
+            placed = {path.stem: json.loads(path.read_text()) for path in sorted(folder.glob("*.json"))}
+            for place, record in placed.items():
+                assert (folder.parent / "kit" / f"{place}.json").exists() or shapes_first.no_place(place), (
+                    f"{place}: no such place")
+                assert record["takes"] or record.get("nothing"), f"{place}: lists nothing to paint and says not why"
+                assert surfaces.data.paints(place) == bool(record["takes"]), place  # the rows' own module
+                for take, entry in record["takes"].items():
+                    assert take not in owner, f"{take}: painted by {owner.get(take)} and {place}"
+                    owner[take] = place
+                    assert {"place", "kind", "object", "library_places"} <= set(entry), f"{place} {take}"
+                assert not record.get("bake") or set(record["bake"]["models"].values()) <= set(record["takes"]), (
+                    f"{place}: bakes a take it does not paint")
+                for model, claim in record.get("elsewhere", {}).items():
+                    other = placed[claim["place"]]
+                    assert claim["take"] in other["takes"], (
+                        f"{place} {model}: {claim['place']} does not paint {claim['take']}")
+                    assert claim["take"] in other["bake"]["models"].values(), (
+                        f"{place} {model}: {claim['place']} bakes none")
+        world = graph.Environment("world1", 1, {"data": str(data), "home": str(home), "repo": str(REPO),
+                                                "seeds": str(home)})
+        runner = graph.Runner(surfaces.ROWS, world, a_store(), model_record=lambda kind: {"kind": kind})
+        assert "its input surfaces is missing" in runner.node_status(runner.stages["finish-route-views"], "nowhere")
+        assert not any(node.endswith("@tube") for node in runner.status(["tube"]))
+        with pytest.raises(graph.Blocked) as blocked:
+            runner.file_keys(runner.stages["surfaces-bake"], "nowhere")
+        assert "nowhere.json" in str(blocked.value), blocked.value
+        for stage in surfaces.ROWS:  # each file a row names, written small in the world's own home
+            for name in runner.files_of(stage, "greenhouse"):
+                path = runner.file_path(stage, name, "greenhouse")
+                if not path.exists():
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(name)
+        before = {stage.name: runner.file_keys(stage, "greenhouse") for stage in surfaces.ROWS}
+        materials = json.loads((data / "library" / "materials.json").read_text())
+        materials["recipes"]["rubber"]["roughness"] = 0.8
+        (data / "library" / "materials.json").write_text(json.dumps(materials))
+        moved = {stage.name for stage in surfaces.ROWS if runner.file_keys(stage, "greenhouse") != before[stage.name]}
+        assert moved == {"surface-library", "finish-route-list", "surfaces-parts", "surfaces-paint", "surfaces-bake",
+                         "finish-route-recheck", "surfaces-check"}, moved
+        materials["wear_levels"]["scarred"] = 1.0
+        (data / "library" / "materials.json").write_text(json.dumps(materials))
+        assert runner.file_keys(runner.stages["finish-route-palette"], "greenhouse") != before["finish-route-palette"]
+    finally:
+        surfaces.data.FOLDER = kept_folder
+        shutil.rmtree(data)
+        shutil.rmtree(home)
     reply = json.dumps({"finishes": [{"parts": "foil", "finish": "gold foil", "surface": "M1", "fits": True},
                                      {"parts": "legs", "finish": "steel", "surface": "M2", "fits": True}]})
     assert [entry["surface"] for entry in finish_ask.parsed_list(reply, {"mli_gold": {}, "bare_steel": {}})] == [
@@ -1099,6 +1092,389 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it():
         "close-up astronaut-made-s1", "close-up pilot-made-s1"], found
     palette = next(row for row in shapes_first.finish_route() if row.name == "finish-route-palette")
     assert "pixal" in palette.after and not palette.selects, palette.after  # it waits on the row that leaves them
+    # the bodies' faces: with no concept locked the rows read today's (body_faces.concept), every body that does not
+    # shine a paid world row of its own, its physics from the cited table and its ground by them, no name read
+    monkeypatch.setattr(body_faces.environment_concept, "in_force", lambda store: None)
+    faced = body_faces.rows(None)
+    assert [row.name for row in faced] == ["body-face-earth", "body-face-moon", "body-face-mars"]  # not the Sun
+    assert all(row.paid and row.grain == "world" and row.euros == body_faces.FACE_EUROS for row in faced)
+    runner = type("Runner", (), {"store": None})
+    moon = body_faces.body_param("moon")(runner)
+    assert moon["radius_km"] == settings.reference()["bodies"]["moon"]["radius_km"]  # the cited table's value
+    assert "radius 1,737 km" in body_faces.facts_of(moon)
+    grounds = {key: body_faces.ground_param(key)(runner)[0] for key in ("earth", "moon", "mars")}
+    assert grounds == {"earth": "ocean", "moon": "regolith", "mars": "sand"}
+    assert body_faces.style_param(runner) == body_faces.environment_concept.style_now()
+    asked = []
+    for case, body, style, ground, reply, raised, made in FACES:
+        monkeypatch.setattr(body_faces.route_ask, "asked", lambda bodies, caller, case=case, reply=reply:
+                            asked.append((case, bodies, caller)) or {key: reply for key in bodies})
+        with tempfile.TemporaryDirectory() as temporary:
+            out = pathlib.Path(temporary)
+            with pytest.raises(ValueError, match=raised) if raised else contextlib.nullcontext():
+                body_faces.make_face({"library": str(METHOD)}, out, 0, {"body": body, "style": style, "ground": ground})
+            assert (out / "face.json").exists() == bool(made), case
+            assert raised or body_faces.judge_face(out, {}, {}).answer == ("pass" if made else "fail"), case
+            face = json.loads((out / "face.json").read_text()) if made else None
+            assert (face and {field: face[field] for field in made}) == made, (case, face)
+            if made:
+                faced_library = json.loads((out / "materials.json").read_text())
+                assert body_faces.face_findings(body["body"], faced_library) == [], case
+                assert faced_library["families"]["regolith"]["variants"]["moon_face"]["second"] == "crater-dark"
+                assert abs(face["colour"][0] - 0.2541) < 1e-3  # #8a = 138: sRGB to linear
+    assert [(case, caller) for case, _, caller in asked] == [(FACES[0][0], "body-face"), (FACES[1][0], "body-face")]
+    bodies = asked[0][1]  # the moon's one ask: its style, its physics, the recipe its ground names alone
+    schema = bodies["moon"]["generationConfig"]["responseSchema"]["properties"]["face"]
+    assert "worn NASA-punk" in json.dumps(bodies["moon"]) and "airless" in json.dumps(bodies["moon"])
+    assert schema["properties"]["recipe"]["enum"] == ["regolith"], schema
+    assert schema["properties"]["colours"]["required"] == ["second"] and "colours" in schema["required"], schema
+    off = body_faces.library_of("mars", json.dumps(ANSWER), json.loads(METHOD.read_text()))
+    off["families"]["regolith"]["variants"]["mars_face"].update(token="rust", recipe="moon_dust", roughness=1.5)
+    found = body_faces.face_findings("mars", off)
+    for words in ("recipe moon_dust", "token rust", "moon_dust is no natural ground", "roughness 1.5"):
+        assert any(words in fault for fault in found), (words, found)
+    # the stage table's palette, library, list and recheck rows ask the claude-code adapter only for the make's own
+    # call; body-face still asks route_ask (Gemini); a palette answer its palette_of refuses is asked once more
+    sent, first = [], [OFF_PALETTE]
+
+    def claude_asked(bodies, caller):
+        sent.append((caller, bodies))
+        told = any("cannot be used" in part.get("text", "") for body in bodies.values() if body
+                   for part in body["contents"][0]["parts"])
+        return {take: json.dumps(ON_PALETTE if told else first[0]) for take, body in bodies.items() if body}
+    monkeypatch.setattr(claude_asks.claude_code, "asked", claude_asked)
+    for name, module in {"finish-route-palette": scene_palette, "surface-library": scene_library,
+                         "finish-route-list": route_list, "finish-route-recheck": route_recheck}.items():
+        assert ROWS[name].make.__wrapped__.__module__ == module.__name__, name
+        gemini = module.ask
+
+        def asks_once(inputs, out, seed, params, module=module):  # the make, its one batch of asks alone
+            return module.ask({"k": {}})
+        asks_once.__module__ = module.__name__
+        claude_asks.asking_claude(asks_once)({}, None, 0, {})
+        assert module.ask is gemini, name
+    assert [caller for caller, _ in sent] == [scene_palette.CALLER, scene_library.CALLER, route_list.CALLER,
+                                              route_recheck.CALLER]
+    assert not hasattr(ROWS["body-face-earth"].make, "__wrapped__")
+    assert "claude_code" not in inspect.getsource(body_faces) and "route_ask.asked" in inspect.getsource(body_faces)
+    bodies = {"cockpit": scene_palette.palette_body([], LEVELS)}
+    asked_as = copy.deepcopy(bodies)
+    for case, module, answer, asks in REPAIRS:
+        sent.clear()
+        first[0] = answer
+        answers = claude_asks.answered(bodies, module)
+        assert len(sent) == asks and answers, (case, sent)
+        assert module is not scene_palette or scene_palette.palette_of(answers["cockpit"], LEVELS)["wear"][
+            "dirt_token"] == "soot-grime", case  # the told answer kept
+        for _, again in sent[1:]:
+            told = again["cockpit"]["contents"][0]["parts"][-1]["text"]
+            assert "soot-grime" in told and "cannot be used" in told and "worn" in told, (case, told)
+    assert bodies == asked_as  # the first body kept as it was asked
+    import base_level  # by its bare name, as the bake's card runs it
+    import feet  # as the paint reads its feet
+    import feet_stand  # by its bare name, as the table sets it on the row
+    records = {}  # each levelled take's record, judged below
+    for case, mesh, tall, expect in LEVELLED:
+        vertices, faces = mesh()
+        points, record = place_line.levelled_feet(vertices, faces, **({"tall": tall} if tall else {}))
+        records[case] = record
+        assert all(record[key] == expect[key] for key in ("feet", "refused") if key in expect), (case, record)
+        assert "levelled" not in expect or len(record["levelled"]) == expect["levelled"], (case, record)
+        assert "far" not in expect or abs(points[:, 1][vertices[:, 2] > expect["far"]].min()) < 1e-9, (
+            case, "its short foot not down")
+        if "even" in expect:
+            lows = [low for _, low in feet.feet(feet.surface_points(points, faces), expect["even"], 0.05)]
+            assert len(lows) == expect["feet"] and max(lows) - min(lows) < 1e-9, (case, lows)
+        if expect.get("rests"):
+            assert record.get("rests") and resting_lean(vertices, faces) > 1.0 > 0.1 > resting_lean(points, faces), (
+                case, record)
+        elif "rests" in expect:
+            assert "rests" not in record and np.array_equal(points, vertices), (case, record)
+    paint, bake_row = ROWS["surfaces-paint"], ROWS["surfaces-bake"]
+    assert "feet in one plane" in [check.name for check in paint.checks] and paint.make is feet_stand.make_paint
+    judges = {"place_line": place_line.judge_feet, "feet_stand": feet_stand.judge_feet}
+    with tempfile.TemporaryDirectory() as temporary:
+        for case, judge, take, found, model, verdict, named in FEET_JUDGED:
+            folder = pathlib.Path(temporary) / case
+            (folder / "bake" / "entries").mkdir(parents=True)
+            (folder / "bake" / "entries" / f"{take}.json").write_text(json.dumps({take.rsplit("-", 1)[0] + "_1": {}}))
+            if model is not None:
+                baked_model(folder / "bake", take.rsplit("-", 1)[0] + "_1", model())
+            (folder / "painted.json").write_text(json.dumps({"takes": {take: {"feet": records[found] if isinstance(found, str) else found}}}))
+            judged = judges[judge](folder, {"surfaces-bake": folder / "bake"} if judge == "feet_stand" else {}, None)
+            assert judged.answer == verdict and (named is None or named in judged.findings[0]), (case, judged)
+    for case, points, highest, tolerance in STANCES:
+        assert abs(max(bake_check.stance_lows(points)) - highest) <= tolerance, case
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        rows = [{"id": "parts_rack_1", "name": "steel parts rack"}, {"id": "leg_strut", "name": "torn-off landing leg"}]
+        for labels, row, stands in STANDS:
+            (folder / "labels.json").write_text(json.dumps({"feet": labels}))
+            assert bake_check.stands(row, folder, rows, ["torn"]) is stands, (labels, row)
+        (folder / "checks.json").write_text(json.dumps({
+            "parts_rack_1": {"stands": True, "stance_lows": [0.0, 0.221, 0.0, 0.24]},
+            "leg_strut": {"stands": False, "stance_lows": [0.0, 0.3, 0.2, 0.0]},
+            "crate": {"stands": True, "stance_lows": [0.0, 0.01, 0.0, 0.02]}}))
+        verdict = bake_check.judge_stance(folder, {}, None)
+    assert verdict.answer == "fail" and len(verdict.findings) == 1 and "parts_rack_1: a foot 24.0 cm" in verdict.findings[0]
+    assert set(json.loads((REPO / "data/checks/stance.json").read_text())) == {"about", "lies"}
+    steps = {"flattened": place_line.flattened_base, "sloped": place_line.sloped_base}
+    based = {}
+    for case, made, step, arguments, expect in BASES:
+        base = made()
+        points, record = steps[step](base, *arguments)
+        based[case] = record
+        assert all(record[key] == expect[key] for key in ("flattened", "refused") if key in expect), (case, record)
+        rise = expect.get("rise", ABSENT)
+        if isinstance(rise, str):
+            assert record["refused"] == [based[rise]["rise"]], (case, record)
+        elif rise is None:
+            assert record["rise"] is None, (case, record)
+        elif rise is not ABSENT:
+            assert abs(record["rise"] - rise) < 0.01, (case, record)
+        assert "quadrants" not in expect or max(record["quadrants"]) < expect["quadrants"], (case, record)
+        if "down" in expect:
+            under, tolerance = expect["down"]
+            assert np.abs(points[under(base), 1]).max() < tolerance, (case, "not brought down")
+        assert "kept" not in expect or np.allclose(points[expect["kept"](base)], base[expect["kept"](base)]), (
+            case, "a point over the band moved")
+        assert not expect.get("as made") or np.array_equal(points, base), (case, "not left as made")
+        assert not expect.get("above lowest") or points[:, 1].min() >= base[:, 1].min() - 1e-12, (
+            case, "brought down past the lowest point")
+    box = trimesh.creation.box(bounds=((-5.0, 0.0, -5.0), (5.0, 2.0, 5.0))).subdivide().subdivide().subdivide()
+    corner = (box.vertices[:, 0] >= 0) & (box.vertices[:, 2] >= 0) & (box.vertices[:, 1] < 1e-9)
+    for up, tall, moves in HALLS:
+        hall = np.asarray(box.vertices).copy()
+        hall[corner, 1] += up
+        was, _ = place_line.levelled_feet(hall, box.faces, tall)
+        now, report = base_level.levelled_feet(hall, box.faces, tall)
+        assert np.array_equal(was, now) != moves, (up, tall)
+        if moves:  # in metres through its standing height: 8 cm up as the paint left it, level now
+            assert max(bake_check.stance_lows(was * 10.0)) > 0.03 >= max(bake_check.stance_lows(now * 10.0))
+            assert report["flattened"], report
+    slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
+    bottom = np.asarray(slab.vertices)[:, 1] < 1e-9
+    for rise, rough, acts in CAPPED_PLANES:
+        base = np.asarray(slab.vertices).copy()
+        base[bottom, 1] += rise * (base[bottom, 0] + 1.0) / 2.0 + rough * (np.arange(bottom.sum()) % 2)
+        before = place_line.sloped_base(base, 0.5, 0.17, 0.03, 0.4)
+        after = base_level.capped_plane(place_line.sloped_base, 0.005)(base, 0.5, 0.17, 0.03, 0.4)
+        assert (after[1]["rise"] is not None) == acts, (rise, after[1])
+        if before[1]["rise"] is not None:
+            assert np.array_equal(before[0], after[0]), "as the paint brought it down before"
+    assert all(getattr(place_line, name).__module__ == "place_line" for name in base_level.BASE_STEPS), "let go"
+    with base_level.held():
+        assert base_level.place_line.levelled_feet is base_level.levelled_feet, "the bake's paint levels by base_level"
+    assert place_line.levelled_feet is base_level.PAINTS_LEVEL, "and lets go"
+    assert "score/stages/surfaces/base_level.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
+    assert bake_row.files("base")["paint bake base_level.py"].endswith("score/stages/surfaces/base_level.py")
+    # Which takes stand on feet: one surface data folder (the bare surface_data place_line reads) and one inventory,
+    # the greenhouse's hand-in, which the paint declares and reads (keyed on it, never the old concept's
+    # data/inventory file) to tell a take laid loose on the floor from one held. A hangar (the bay) laid an old
+    # station's parts rack (its `elsewhere`, parts_rack_1 to parts_rack_4) on the floor; the old station laid none of
+    # its kind, so the rack was never levelled (2026-10-15): its paint counts the claiming place's standing rows, the
+    # claimed rack row, never another of its rows. A made shell piece of its own place (route "shell", laid in Objects)
+    # standing on the floor or ground is levelled the same way, through the bake's claimed rows (route_bake.laid_shell):
+    # the engineroom's railing and the campgrounds' dome (checkout 68); one on a wall is not. A code build stands as its
+    # code made it, whatever its rows say.
+    rules, shell = REPO / "data/checks/resting.json", ("railing", "dome", "window")
+    folder, design = pathlib.Path(tempfile.mkdtemp()), pathlib.Path(tempfile.mkdtemp())
+    kept = surfaces.data.FOLDER, prop_data.DESIGN
+    surfaces.data.FOLDER, prop_data.DESIGN = folder, design
+    hand_in = design / "greenhouse.json"
+    hand_in.write_text(json.dumps({"place": "greenhouse", "rows": HAND_IN}))
+    (folder / "greenhouse.json").write_text(json.dumps({"place": "greenhouse", "takes": {
+        "gh_crate_ab12": {"place": "greenhouse", "kind": "gh_crate"}}}))
+    (folder / "station.json").write_text(json.dumps({"place": "station", "takes": {
+        "parts_rack-r1": {}, **{f"{piece}-r1": {"place": "station"} for piece in shell}}}))
+    (folder / "station-inventory.json").write_text(json.dumps({"rows": [
+        {"id": "floor_plates", "anchor": "ground", "group": "kit: floor", "route": "plan", "size": [9.0, 9.0, 0.1]},
+        {"id": "wall", "anchor": "on:floor_plates", "route": "plan", "part": "wall"},
+        {"id": "railing", "anchor": "on:floor_plates", "route": "shell", "thing": "prop:railing-r1"},
+        {"id": "dome", "name": "habitat dome", "anchor": "ground", "route": "shell", "thing": "prop:dome-r1"},
+        {"id": "window", "anchor": "on:wall", "route": "shell", "thing": "prop:window-r1"}]}))
+    (folder / "bay.json").write_text(json.dumps({"place": "bay", "takes": {}, "elsewhere": {
+        f"parts_rack_{number}": {"take": "parts_rack-r1", "place": "station"} for number in range(1, 5)}}))
+    mark = folder / "home/work/pixal/cabinet_take.svviews/code.json"
+    mark.parent.mkdir(parents=True)
+    mark.write_text(json.dumps({"route": "code"}))
+    try:
+        assert stages.paint_inventory("greenhouse")[0] == "{home}/design/props/greenhouse.json"
+        assert paint.files("greenhouse")["inventory greenhouse"][0] == "{home}/design/props/greenhouse.json"
+        for entry, take, stands in STANDING:
+            assert place_line.stands_on_feet(entry, hand_in, rules, *([take] if take else [])) is stands, entry
+        crate = {"place": "greenhouse", "kind": "gh_crate"}  # a designed take's kind lacks its take's suffix
+        assert [row["id"] for row in place_line.standing_rows(crate, hand_in, rules, "gh_crate_ab12")] == ["crate"]
+        assert place_line.stands({"id": "crate", "anchor": None}, rules)  # a null anchor stands on the floor, as none
+        inputs = {"surfaces": folder / "station.json", "inventory bay": hand_in, "resting rules": rules}
+        claimed = place_line.claimed_rows("parts_rack-r1", inputs)
+        assert claimed and {row["id"] for row in claimed} == {"parts_rack"}, claimed
+        assert place_line.claimed_rows("parts_rack-r1", dict(inputs, **{"inventory bay": None})) == []
+        inputs["inventory station"] = folder / "station-inventory.json"
+        laid = {piece: [row["id"] for row in route_bake.laid_shell(f"{piece}-r1", inputs)] for piece in shell}
+        assert laid == {"railing": ["railing"], "dome": ["dome"], "window": []}, laid
+        assert route_bake.laid_shell("parts_rack-r1", inputs) == []  # no place of its own: as made
+        cabinet = ({"place": "garage", "kind": "garage_control_cabinet"}, {"inventory garage": hand_in,
+                                                                           "resting rules": rules})
+        assert place_line.feet_rows(*cabinet, "cabinet_take")[0]
+        assert place_line.feet_rows(cabinet[0], {**cabinet[1], place_line.HOME: folder / "home"}, "cabinet_take") == (
+            [], {"skipped": "a code build: it stands as its code made it"})
+    finally:
+        surfaces.data.FOLDER, prop_data.DESIGN = kept
+        shutil.rmtree(folder)
+        shutil.rmtree(design)
+    # The bake's machine side, one take: crane-r1 of the campgrounds, its paint job built, run (killed on its
+    # machine) and its labelled folder baked. Every old material retired (owner, 2026-10-21): the job sends what the
+    # paint reads (its parts, its final model, the code and the library) and brings its labelled folder back; its
+    # listing names the repository (the data may lie elsewhere) and its records; a paint killed on its machine says
+    # its signal and its peak; and the kit route's bake of the folder it brings back, which takes the repository's
+    # library by place, names each painted surface no library holds before anything is rented, never a KeyError.
+    sys.path.insert(0, str(REPO / "score/stages/surfaces/inside"))
+    import layout_fit
+    import paint_take
+    import uv_layout
+    from score.stages.surfaces import bake_fitted
+    work = pathlib.Path(tempfile.mkdtemp())
+    try:
+        out, parts = work / "out", work / "parts"
+        out.mkdir()
+        (work / "surfaces.json").write_text(json.dumps({"place": "campgrounds", "library": "campgrounds", "takes": {
+            "crane-r1": {"place": "campgrounds", "kind": "crane"}}, "bake": {"models": {"crane": "crane-r1"}}}))
+        (work / "inventory.json").write_text(json.dumps({"rows": [{"id": "crane", "anchor": "ground",
+                                                                   "thing": "prop:crane"}]}))
+        inputs = {"surfaces": work / "surfaces.json", "surfaces-parts": parts,
+                  "inventory campgrounds": work / "inventory.json", "resting rules": REPO / "data/checks/resting.json"}
+        job = json.loads(place_line.paint_job(inputs, place_line.prop_env.short(inputs), out, "crane-r1",
+                                              [{"part": 0}]).read_text())
+        assert job["script"] == "score/stages/surfaces/inside/paint_take.py" and job["outputs"] == [
+            str(out / "labelled" / "crane-r1")], job
+        sent = set(job["inputs"])
+        assert {str(parts / "crane-r1"), str(parts / "parts.json"), str(REPO / "score"), str(REPO / "tools/props"),
+                str(REPO / "data/library")} <= sent, sent
+        assert any(path.endswith("work/pixal/crane-r1-final.glb") for path in sent), sent
+        listing = json.loads(pathlib.Path(job["args"][0]).read_text())
+        assert listing["paint take"] == "crane-r1" and listing["paint repo"] == str(REPO), listing
+        assert json.loads(pathlib.Path(listing["paint records"]).read_text()) == [{"part": 0}]
+        # The job's paint, run on its own listing: it lays its unlibraried dark_panel part in the folder the job
+        # brings back, then is killed on its machine.
+        labelled = pathlib.Path(job["outputs"][0])
+        code, peak = paint_take.measured([sys.executable, "-c", (
+            "import json, os, pathlib, signal, sys; named = json.loads(pathlib.Path(sys.argv[1]).read_text()); "
+            "folder = pathlib.Path(sys.argv[2]); folder.mkdir(parents=True); "
+            "(folder / 'dark_panel.ply').write_text(named['paint take']); os.kill(os.getpid(), signal.SIGKILL)"),
+            job["args"][0], str(labelled)], dict(os.environ))
+        assert code == -9 and peak > 0, (code, peak)
+        with pytest.raises(RuntimeError) as refused:
+            place_line.baking_specs("hangar", {}, [labelled])
+        assert "surfaces in no library: ['dark_panel']" in str(refused.value), refused.value
+        # Which part a baked triangle is named by: every RAY_NAMED world laid once, each row's naming read off it.
+        named, sampled_by = {}, {}
+        for world, (boxes, subdivide, geometry, entry) in RAY_WORLDS.items():
+            folder = work / world
+            folder.mkdir()
+            for name, bounds in boxes.items():
+                mesh = trimesh.creation.box(bounds=bounds)
+                (mesh.subdivide_to_size(subdivide) if subdivide else mesh).export(folder / f"{name}.ply")
+            sampled_by[world] = bake_check.sampled_points(geometry, np.array([0, 0]), np.array([0, 0]),
+                                                          np.array([[2, 2], [2, 2]])) if "uvs" in geometry else None
+            named[world] = {sampled: bake_check.baked_surfaces(geometry, folder, entry,
+                                                               *([sampled_by[world]] if sampled else []))
+                            for sampled in ((False, True) if sampled_by[world] else (False,))}
+        for case, world, sampled, expected in RAY_NAMED:
+            names, surface, _ = named[world][sampled]
+            assert [names[index] for index in surface] == expected, (case, surface)
+        assert sampled_by["bowl"][1].tolist() == [0, 0], sampled_by["bowl"]  # both triangles own the one texel
+        assert named["tower"][False][2][0].all(), "both parts lie within the tower triangle's reach"
+        nearest = bake_check.laid_parts(work / "tower", RAY_WORLDS["tower"][3])[1].nearest.on_surface(
+            [[0.4, 1.0, 0.6]])[0][0]
+        assert abs(nearest[0]) <= 0.05 + 1e-9, f"the post lies nearer than the facade behind: {nearest}"
+    finally:
+        shutil.rmtree(work)
+    # The check's reach constants are make_chunky's; street's lantern string (8 m, its wire 1 cm) has its voxel
+    # follow its wire, as make_chunky's voxel_of.
+    import ast
+    found = {node.targets[0].id: eval(compile(ast.Expression(node.value), "make_chunky", "eval")) for node in ast.parse(
+        (REPO / "tools/props/library/inside/make_chunky.py").read_text()).body
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id in ("REACH_VOXELS", "REACH_LEAST", "VOXEL_SHARE", "VOXEL_FINEST", "THIN_VOXELS",
+                                   "SURFACE_VOXELS")}
+    assert (found["REACH_VOXELS"], found["REACH_LEAST"], found["VOXEL_SHARE"], found["VOXEL_FINEST"],
+            found["THIN_VOXELS"], found["SURFACE_VOXELS"]) == (
+        bake_check.BAKE_REACH_VOXELS, bake_check.BAKE_REACH_LEAST, bake_check.BAKE_VOXEL_SHARE,
+        bake_check.BAKE_VOXEL_FINEST, bake_check.BAKE_THIN_VOXELS, bake_check.BAKE_SURFACE_VOXELS), found
+    assert abs(bake_check.bake_voxel([8.0, 0.058, 0.01]) - 0.0025) < 1e-9
+    # #92: each LAYOUTS square beside the sound pair is measured as the bake wrote it and named by its one fault, the
+    # sound one by none; a third of the charts too thin (THIN_SPECK) is named thin. Quarters' sticky note, 2026-11-12:
+    # a model of one surface has no thin-chart fault (its strip's neighbours bake its own finish), every other
+    # measure still counts. A split corner at a hard normal edge (the same position and texture coordinate twice) is
+    # one chart, not two: its width the square's 2 * 512^2 / (4 * 512) texels, a lone half's 150.
+    layouts = {case: [*SOUND, third if third else laid_square(0.5, 0.1, 0.4, 0.4 / (2 * uv_layout.STRETCH))]
+               for case, third, _ in LAYOUTS}
+    layouts["thin"] = [*SOUND, THIN_SPECK]
+    records = {case: uv_layout.layout_record(uv_layout.measure(squares(*layout), [(1024, 1024)]))
+               for case, layout in layouts.items()}
+    for case, _, fault in LAYOUTS:
+        named = uv_layout.faults(records[case])
+        assert named == [] if fault is None else len(named) == 1 and named[0].startswith(uv_layout.WORDS[fault]), (
+            case, named, records[case])
+    assert records["sound"]["median_texels_per_m"] > 300, records["sound"]
+    thin = records["thin"]
+    assert thin["thin"] == round(1 / 3, 4) and [fault for fault in uv_layout.faults(thin) if fault.startswith(
+        uv_layout.WORDS["thin"])], thin
+    assert uv_layout.faults(thin, one_surface=True) == uv_layout.faults({**thin, "thin": 0.0}), thin
+    assert uv_layout.faults({**thin, "overlap": 0.05}, one_surface=True) == uv_layout.faults(
+        {**thin, "thin": 0.0, "overlap": 0.05}), thin
+    split = squares(laid_square(0.1, 0.1, 0.5, 0.5))
+    split["positions"] = np.concatenate([split["positions"], split["positions"][[0, 2]]])
+    split["uvs"] = np.concatenate([split["uvs"], split["uvs"][[0, 2]]])
+    split["triangles"][1] = [4, 5, 3]
+    assert np.allclose(uv_layout.measure(split, [(1024, 1024)])["width"], 256.0)
+    # The bake's own measure (inside/layout_fit.py) is the check's; each NEXT_STEPS layout takes its next step; the
+    # faces a fold lays on one texel are the ones projected again (the two overlapping squares, not the third).
+    fits = {case: layout_fit.measured(*(squares(*layouts[case])[part] for part in ("positions", "uvs", "triangles")),
+                                      1024) for case in ("sound", "overlap", "thin")}
+    for case in fits:
+        assert abs(fits[case]["thin"] - records[case]["thin"]) < 1e-4 and abs(
+            fits[case]["overlap"] - records[case]["overlap"]) < 1e-4, (case, fits[case], records[case])
+    fits["passing"] = {**fits["overlap"], "overlap": 0.0064, "thin": 0.0064}
+    fits["passing, not thin"] = {**fits["passing"], "thin": 0.0}
+    assert [layout_fit.failing(fits[case]) for case in ("passing", "overlap", "thin")] == [False, True, True], fits
+    for case, fit, side, cap, rounds, step in NEXT_STEPS:
+        want = layout_fit.UNFOLD if step == "UNFOLD" else step
+        assert layout_fit.next_step(fits[fit], side, cap, rounds) == want, (case, fits[fit])
+    assert layout_fit.folded_faces(fits["overlap"], np.arange(6) // 2).tolist() == [0, 2], fits["overlap"]["shared"]
+    # The bake runs it: its card job's script inside/paint_fit.py, set on the row alone (so no reader of
+    # route_bake.py moves), declared on its row, the parts row untouched.
+    fitted_row = ROWS["surfaces-bake"]
+    assert fitted_row.make is bake_fitted.make_bake and fitted_row.files("airlock")[
+        "paint bake layout_fit.py"].endswith("score/stages/surfaces/inside/layout_fit.py"), fitted_row.files("airlock")
+    assert ROWS["surfaces-parts"].make is not bake_fitted.make_bake
+    started = (REPO / bake_fitted.SCRIPT).read_text()
+    assert "inside/layout_fit.py" in started.split("fitted = ")[1].split("\n")[0] and started.split(
+        "subprocess.run(")[-1].startswith("fitted,"), started
+    monkeypatch.setattr(route_bake, "make_bake", lambda *given: route_bake.SCRIPT)  # the script card_job reads
+    monkeypatch.setattr(route_bake, "SCRIPT", route_bake.SCRIPT)
+    assert bake_fitted.make_bake({}, None, 0, {}) == bake_fitted.SCRIPT
+    # The check's gate judges every measured model's layout by name; a sticky note of one surface passes its thin
+    # strip, a frame of two does not; a model with no layout measured is unknown.
+    with tempfile.TemporaryDirectory() as temporary:
+        folder = pathlib.Path(temporary)
+        judged = {}
+        for case, written in (
+                ("every layout", {case: {"layout": record} for case, record in records.items() if case != "thin"}),
+                ("one surface", {"note": {"layout": {**thin, "sparse": 0.0}, "surfaces": {"label_yellow": {}}},
+                                 "frame": {"layout": {**thin, "sparse": 0.0},
+                                           "surfaces": {"label_yellow": {}, "dark_steel": {}}}}),
+                ("unmeasured", {"crate": {"missing_maps": ["base_color"]}})):
+            (folder / "checks.json").write_text(json.dumps(written))
+            judged[case] = uv_layout.judge_layout(folder, {}, None)
+    assert judged["every layout"].answer == "fail" and sorted(
+        finding.split(":")[0] for finding in judged["every layout"].findings) == [
+        "mirrored", "outside", "overlap", "sparse", "stretched"], judged["every layout"].findings
+    assert [finding.split(":")[0] for finding in judged["one surface"].findings] == ["frame"], judged["one surface"]
+    assert judged["unmeasured"].answer == "unknown", judged["unmeasured"]
+    assert "texture layout sound" in [check.name for check in stages.bake_checked(
+        {row.name: row for row in surfaces.ROWS}["surfaces-check"]).checks]
 
 def baked_model(folder, name, mesh):
     """A baked .gltf of `mesh` in `folder/made`: its positions and triangles in one buffer, its .bin beside it."""
@@ -1143,20 +1519,229 @@ def fuel_tank():
     return np.asarray(mesh.vertices), np.asarray(mesh.faces)
 
 
-# Takes levelled on their feet: (case, its mesh, its standing height or None, the feet found (None: not judged), how many
-# are levelled, the refused (None: not judged), the far side along z past which its points must reach the floor).
+def garage_cabinet(rise):
+    """The garage's control cabinet (2026-10-15): 1.5 m tall on a plinth rim whose underside rises `rise` across its
+    0.6 m footprint under its floor's level cells (the quadrants and the cells' plane passed it)."""
+    body = trimesh.creation.box(bounds=((-0.3, 0.04, -0.25), (0.3, 1.5, 0.25)))  # its floor 4 cm up, level
+    rim = [trimesh.creation.box(bounds=low_high) for low_high in (
+        ((-0.3, 0.0, -0.25), (0.3, 0.08, -0.2)), ((-0.3, 0.0, 0.2), (0.3, 0.08, 0.25)),
+        ((-0.3, 0.0, -0.25), (-0.25, 0.08, 0.25)), ((0.25, 0.0, -0.25), (0.3, 0.08, 0.25)))]
+    body = body.subdivide().subdivide().subdivide().subdivide()  # its floor dense: cells off the rim's plane
+    mesh = trimesh.util.concatenate([body, *rim])
+    points = np.asarray(mesh.vertices).copy()
+    bottom = points[:, 1] < 1e-9
+    points[bottom, 1] = rise * (points[bottom, 0] + 0.3) / 0.6  # the rim's underside rises along x
+    return points, np.asarray(mesh.faces)
+
+
+def resting_lean(points, faces):
+    """The degrees the face a model rests on (its hull's face under its middle) leans off level."""
+    mesh = trimesh.Trimesh(points, faces, process=False)
+    middle = (mesh.triangles_center * mesh.area_faces[:, None]).sum(axis=0) / mesh.area
+    hull = mesh.convex_hull
+    hits, _, struck = hull.ray.intersects_location([[middle[0], 3.0, middle[2]]], [[0.0, -1.0, 0.0]])
+    return np.degrees(np.arccos(-hull.face_normals[struck[np.argmin(hits[:, 1])]][1]))
+
+
+# Takes levelled on their feet (place_line.levelled_feet): (case, its mesh, its standing height or None, what its record
+# and points must show: "feet" found, how many "levelled", the "refused", the "far" side along z past which its points
+# reach the floor, the "even" foot band its feet's lows then lie level in, whether it "rests" on a face brought level
+# (True) or is left exactly as made (False)).
 LEVELLED = [
     # in 15% of its height the shelf joins the legs into one foot and nothing is levelled
-    ("fluid shelves in the wide band", fluid_shelves, None, 1, 0, None, None),
+    ("fluid shelves in the wide band", fluid_shelves, None, {"feet": 1, "levelled": 0}),
     # capped at 10 cm through its standing height (0.05 here) the four legs are its feet, the short one brought down
-    ("fluid shelves in the capped band", fluid_shelves, 2.0, 4, 1, [], None),
+    ("fluid shelves in the capped band", fluid_shelves, 2.0, {"feet": 4, "levelled": 1, "refused": []}),
     # two feet are levelled as three are: the short foot down on the floor
-    ("a fuel tank on two cradle feet", fuel_tank, 2.0, 2, 1, [], 0.2),
+    ("a fuel tank on two cradle feet", fuel_tank, 2.0, {"feet": 2, "levelled": 1, "refused": [], "far": 0.2}),
     # the hangar's access stair (2026-10-15): two legs ending 29 and 33 cm up, outside the 10 cm band, levelled in the
     # whole band after the narrow one
-    ("an access stair's legs over the narrow band", lambda: tank_mesh((0.0, 0.0, 0.12, 0.12), height=1.0), 2.0, None, 2,
-     [], None),
+    ("an access stair's legs over the narrow band", lambda: tank_mesh((0.0, 0.0, 0.12, 0.12), height=1.0), 2.0,
+     {"levelled": 2, "refused": []}),
+    # the water tank's three short legs are brought down before its bake, its four feet then level
+    ("a water tank's short legs", lambda: tank_mesh((0.0, 0.022, 0.052, 0.127)), None,
+     {"feet": 4, "levelled": 3, "refused": [], "even": 0.15 * 1.6}),
+    # a leg 22 cm up is past what levelling may bring down: refused by its share of the tank's size, a missing leg
+    ("a water tank's missing leg", lambda: tank_mesh((0.0, 0.0, 0.0, 0.22)), None,
+     {"levelled": 0, "refused": [round(0.22 / max(1.6, 1.4 * 2 ** 0.5), 4)]}),
+    # 1.2 cm across 0.6 m (under the 1.5 cm a share of its height lets pass) leans it over 1 degree: the face it rests
+    # on comes down level; a cabinet on a level rim is left as made
+    ("a tall cabinet's base step", lambda: garage_cabinet(0.012), None, {"rests": True}),
+    ("a tall cabinet on a level rim", lambda: garage_cabinet(0.0), None, {"rests": False}),
 ]
+
+
+def upright_seat():
+    return trimesh.creation.box(bounds=((-0.3, 0.0, -0.3), (0.3, 1.0, 0.3)))
+
+
+def tipped_seat():
+    tipped = trimesh.creation.box(bounds=((-0.2, 0.0, -0.2), (0.2, 2.0, 0.2)))
+    tipped.apply_transform(trimesh.transformations.rotation_matrix(math.radians(25.0), [0.0, 0.0, 1.0]))
+    return tipped
+
+
+# A take refused on its resting face alone (cockpit's pilot seat, 2026-11-12: its face rose 18.1% across its base while
+# its weight lay inside what it touches); a flag refused on more.
+SEAT = {"feet": 1, "gaps": [0.0], "levelled": [], "refused": [0.1807], "rests": 0.1807}
+FLAG = {"feet": 1, "gaps": [0.0], "levelled": [], "refused": [0.1511, 0.2263], "rests": 0.2263}
+
+# A painted take's feet judged (case, the judge: place_line's alone or the paint row's feet_stand reading the bake, the
+# take, its feet record or the LEVELLED case whose record it is, its baked model or None, the verdict, a word its
+# finding names or None): a seat refused on its resting face alone passes when its baked model stands by the resting
+# check's measure, fails named when it does not, and every other refusal fails as a missing leg.
+FEET_JUDGED = [
+    ("a levelled tank passes", "place_line", "water_tank-r1", "a water tank's short legs", None, checks.PASS, None),
+    ("a refused tank fails by name", "place_line", "water_tank-r1", "a water tank's missing leg", None, checks.FAIL,
+     "water_tank-r1"),
+    ("a seat resting upright passes", "feet_stand", "pilot_seat-r1", SEAT, upright_seat, checks.PASS, None),
+    ("a tipped seat does not stand", "feet_stand", "pilot_seat-r1", SEAT, tipped_seat, checks.FAIL, "not stand"),
+    ("a flag refused on more is a missing leg", "feet_stand", "pilot_seat-r1", FLAG, upright_seat, checks.FAIL,
+     "missing leg"),
+    ("no bake read: as refused", "feet_stand", "pilot_seat-r1", SEAT, None, checks.FAIL, "missing leg"),
+]
+
+# One inventory every standing question reads: the greenhouse's hand-in ({home}/design/props/<place>.json) rows, which
+# name their take (`prop:<take>`) and stand on the floor the reading made a row of (`on:<floor row>`), beside the old
+# inventories' rows the kinds alone name.
+HAND_IN = [
+    {"id": "floor_plates", "anchor": "ground", "size": [4.0, 5.0, 0.1], "thing": "prop:gh_floor_ab12"},
+    {"id": "crate", "name": "crop crate", "anchor": "on:floor_plates", "thing": "prop:gh_crate_ab12"},
+    {"id": "jar", "name": "seed jar", "anchor": "on:table", "thing": "prop:gh_jar_ab12"},
+    {"id": "table", "name": "work table", "anchor": "floor", "size": [1.5, 0.8, 0.8], "thing": "prop:x"},
+    {"id": "wall", "name": "left wall", "anchor": "on:floor_plates", "route": "shell", "thing": "prop:gh_wall_ab12"},
+    # the cockpit's floor is mounted on its hull, a landing on its stairs: still the floor
+    {"id": "hull", "anchor": "ground", "size": [9.0, 9.0, 3.5], "thing": "prop:gh_hull_ab12"},
+    {"id": "deck", "anchor": "on:hull", "group": "kit: floor", "size": [9.0, 9.0, 0.1], "route": "shell",
+     "thing": "prop:gh_deck_ab12"},
+    {"id": "seat", "name": "pilot seat", "anchor": "on:deck", "thing": "prop:gh_seat_ab12"},
+    {"id": "lamp", "name": "desk lamp", "anchor": "on:hull", "thing": "prop:gh_lamp_ab12"},
+    # a stage on the floor is a floor too; a tin on a box on the floor is held
+    {"id": "stage", "anchor": "on:floor_plates", "size": [8.0, 6.0, 1.2], "thing": "prop:x"},
+    {"id": "drum", "name": "drum kit", "anchor": "on:stage", "thing": "prop:gh_drum_ab12"},
+    {"id": "box", "anchor": "floor", "size": [1.0, 1.0, 1.0], "thing": "prop:x"},
+    {"id": "tin", "name": "tin", "anchor": "on:box", "thing": "prop:gh_tin_ab12"},
+    {"id": "water_tank", "name": "water tank", "anchor": "floor", "thing": "prop:greenhouse_water_tank"},
+    {"id": "cabinet", "anchor": "floor"},
+    {"id": "glove", "name": "hanging glove", "anchor": "on:cabinet", "thing": "prop:lab_hanging_glove"},
+    # a description's word is no class: the guard list reads a row's id and name
+    {"id": "control_cabinet", "anchor": "floor", "thing": "prop:garage_control_cabinet", "name": "control cabinet",
+     "description": "a standing steel control cabinet, cables running up from its top"},
+    {"id": "control_stick", "anchor": "on:main_console", "thing": "prop:cockpit_control_stick",
+     "name": "flight stick set in the console"},
+    {"id": "cairn", "anchor": "floor", "thing": "prop:campgrounds_cairn",
+     "name": "cairn of flat stones stacked into a narrow tower"},
+    {"id": "small_panel", "anchor": "floor", "thing": "prop:wreck_small_panel", "name": "small torn hull panel",
+     "leans": "debris lying tilted on purpose"},
+    # #36, 2026-10-30: old_station's limp floor cables, levelled, fell from outline 0.637 to 0.207
+    {"id": "cables", "anchor": "floor", "thing": "prop:old_station_cables", "name": "floor cables"},
+    # the bay's own: the parts rack an old station's take claims, and a crane beside it
+    {"id": "parts_rack", "name": "parts rack", "anchor": "floor"}, {"id": "crane", "anchor": "floor"},
+]
+
+# Whether a take stands on feet the paint levels (place_line.stands_on_feet over HAND_IN): (its entry, its take or None,
+# stands).
+STANDING = [
+    ({"place": "greenhouse", "kind": "greenhouse_water_tank"}, None, True),
+    ({"place": "lab", "kind": "lab_hanging_glove"}, None, False),  # held on its cabinet, but it hangs: no feet to level
+    ({"place": "greenhouse", "kind": "gh_crate"}, None, False),  # by kind alone no designed row names it
+    ({"place": "greenhouse", "kind": "gh_jar"}, "gh_jar_ab12", False),
+    ({"place": "greenhouse", "kind": "gh_wall"}, "gh_wall_ab12", False),
+    ({"place": "greenhouse", "kind": "gh_floor"}, "gh_floor_ab12", True),
+    ({"place": "greenhouse", "kind": "gh_seat"}, "gh_seat_ab12", True),
+    ({"place": "greenhouse", "kind": "gh_lamp"}, "gh_lamp_ab12", False),
+    ({"place": "greenhouse", "kind": "gh_drum"}, "gh_drum_ab12", True),
+    ({"place": "greenhouse", "kind": "gh_tin"}, "gh_tin_ab12", False),
+    ({"kind": "garage_control_cabinet"}, None, True),
+    ({"kind": "cockpit_control_stick"}, None, False),  # mounted on another object
+    ({"kind": "campgrounds_cairn"}, None, False),  # a pile of stones
+    ({"kind": "wreck_small_panel"}, None, False),  # debris lying tilted on purpose
+    ({"kind": "old_station_cables"}, None, False),  # floor cables keep their pose
+]
+
+# A baked model's stance (bake_check.stance_lows): (case, its points, the highest foot's height, the tolerance).
+STANCE_FEET = [(x, z) for x in (-0.5, 0.5) for z in (-0.3, 0.3)]
+STANCES = [
+    ("four feet on the floor", np.array([[x, 0.0, z] for x, z in STANCE_FEET] + [[0, 1.0, 0]]), 0.0, 0.0),
+    # the hangar's parts rack stood on a middle part, its legs 22 cm up
+    ("the parts rack's legs 22 cm up", np.array([[x, 0.22 if x > 0 else 0.0, z] for x, z in STANCE_FEET]
+                                                + [[0, 1.0, 0]]), 0.22, 1e-6),
+]
+
+# Whether a baked model is held to stand (bake_check.stands): (its paint's feet labels, its row, stands); lying wreckage
+# (a "torn" row) is left out, and so is a take whose paint levelled no feet.
+STANDS = [
+    ({"feet": 4}, "parts_rack_1", True),
+    ({"feet": 4}, "leg_strut", False),
+    ({"skipped": "no floor or held row lays its kind"}, "parts_rack_1", False),
+]
+
+
+def sloped_rack():
+    """The hangar's parts rack: two legs ending 8% of its size over a middle part."""
+    corners = [(x, z) for x in (-0.4, 0.4) for z in (-0.3, 0.3)]
+    return np.array([[x, 0.08 if x > 0 else 0.0, z] for x, z in corners] + [[x, 0.5, z] for x, z in corners]
+                    + [[0.0, 1.0, 0.0]])
+
+
+def level_rack():
+    rack = sloped_rack()
+    rack[:4, 1] = 0.0
+    return rack
+
+
+def diamond_slab():
+    slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
+    slab.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 4, (0, 1, 0)))  # a diamond, as the hut's
+    return np.asarray(slab.vertices).copy()
+
+
+def guard_hut():
+    """The square's guard hut: a slab base rising 8% of its size from one side to the other (8 cm up at its far
+    corner, x = 1.41), each quadrant's lowest point by the middle."""
+    hut = diamond_slab()
+    bottom = hut[:, 1] < 1e-9
+    hut[bottom, 1] += 0.08 * (hut[bottom, 0] + 2 ** 0.5) / 2 ** 1.5
+    return hut
+
+
+RACK_FEET = lambda base: np.arange(len(base)) < 4  # noqa: E731  (the rack's four corners low)
+RACK_OVER = lambda base: np.arange(len(base)) >= 4  # noqa: E731
+HUT_BOTTOM = lambda base: base[:, 1] < 0.081  # noqa: E731  (its base, up to its 8 cm rise)
+HUT_OVER = lambda base: base[:, 1] > 0.5  # noqa: E731
+
+# A base brought down level as one piece (place_line.flattened_base: points, band, tolerance, most) or as one plane
+# through its middle (place_line.sloped_base: points, band, cell, tolerance, most): (case, its points, the step, its
+# arguments, what its record and points must show: "flattened" and "refused" as listed, its "rise" (None: none found;
+# a number: within 1 cm of it; a case: refused at that case's rise), "quadrants" all lower than, the points "down"
+# under 1e-9 (or 1 cm for a slab), those "kept" as made, or "as made" all, and nothing brought down past its
+# "above lowest" point).
+BASES = [
+    ("a rack's far legs come down", sloped_rack, "flattened", (0.25, 0.01, 0.15),
+     {"flattened": [0.08, 0.08], "down": (RACK_FEET, 1e-9), "kept": RACK_OVER}),
+    ("a far gap is refused", sloped_rack, "flattened", (0.25, 0.01, 0.05), {"refused": [0.08, 0.08], "as made": True}),
+    ("a level rack is left", level_rack, "flattened", (0.25, 0.01, 0.15), {"flattened": []}),
+    # the blind spot: each quadrant's lowest lies at x = 0, so the quadrants find nothing
+    ("a hut's quadrants", guard_hut, "flattened", (0.5, 0.03, 0.4), {"quadrants": 0.05}),
+    ("a hut slopes as one plane", guard_hut, "sloped", (0.5, 0.17, 0.03, 0.4),
+     {"rise": 0.08, "refused": [], "down": (HUT_BOTTOM, 0.01), "kept": HUT_OVER, "above lowest": True}),
+    ("a hut's slope past the most", guard_hut, "sloped", (0.5, 0.17, 0.03, 0.05),
+     {"rise": "a hut slopes as one plane"}),
+    ("a level slab", diamond_slab, "sloped", (0.5, 0.17, 0.03, 0.4), {"rise": None}),
+    ("a round bottom", lambda: np.asarray(trimesh.creation.icosphere(4).vertices), "sloped", (0.5, 0.17, 0.03, 0.4),
+     {"rise": None, "as made": True}),
+]
+
+# The bake's paint (base_level.py, run by inside/paint_fit.py) counts a base level within 3 cm through the standing
+# height, as the feet are: a hundredth of base's large hangar (0.84 m) left corners 34 to 60 cm up and "stands level"
+# failed it (2026-11-12). (a hall's corner raised, its standing height, whether base_level moves it): a hall 2 units
+# tall stood 20 m (a hundredth 1.4 m): its corner 8 cm up comes down, 2 cm up stays; stood 0.2 m (a hundredth 1.4 cm,
+# under 3 cm) it levels exactly as before.
+HALLS = [(0.008, 20.0, True), (0.002, 20.0, False), (0.3, 0.2, False), (0.1, 0.2, False)]
+# A sloping plane the paint brought down before is brought down as before (capped alone, its cells' 2 cm of unevenness
+# lie off a 5 mm plane and it found none); one rising 2 cm, under the hundredth, now comes down too: (its rise, its
+# cells' roughness, whether base_level's capped plane finds a rise).
+CAPPED_PLANES = [(0.08, 0.02, True), (0.02, 0.0, True), (0.002, 0.0, False)]
 
 
 # Bakes held to their surface (bake_check.on_surface): (case, its baked Lab, the surface's clean Lab, the place's dirt
@@ -1488,521 +2073,81 @@ def unlike(found, given, expected):
     return differ
 
 
-def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
-    """A hangar laid an old station's parts rack (its `elsewhere`, parts_rack_1 to parts_rack_4) on the floor; the
-    old station laid none of its kind, so the rack was never levelled (2026-10-15). Its paint counts the claiming
-    place's standing rows: the claimed rack row, never another of its rows. A made shell piece of its own place (route
-    "shell", laid in Objects) standing on the floor or ground is levelled the same way, through the bake's claimed
-    rows (route_bake.laid_shell): the engineroom's railing and the campgrounds' dome (checkout 68); one on a wall is
-    not. On surface data of the test's own."""
-    folder, kept = pathlib.Path(tempfile.mkdtemp()), surfaces.data.FOLDER
-    surfaces.data.FOLDER = folder  # the bare surface_data place_line reads (the table's own import)
-    shell = ("railing", "dome", "window")
-    (folder / "station.json").write_text(json.dumps({"place": "station", "takes": {
-        "parts_rack-r1": {}, **{f"{piece}-r1": {"place": "station"} for piece in shell}}}))
-    (folder / "station-inventory.json").write_text(json.dumps({"rows": [
-        {"id": "floor_plates", "anchor": "ground", "group": "kit: floor", "route": "plan", "size": [9.0, 9.0, 0.1]},
-        {"id": "wall", "anchor": "on:floor_plates", "route": "plan", "part": "wall"},
-        {"id": "railing", "anchor": "on:floor_plates", "route": "shell", "thing": "prop:railing-r1"},
-        {"id": "dome", "name": "habitat dome", "anchor": "ground", "route": "shell", "thing": "prop:dome-r1"},
-        {"id": "window", "anchor": "on:wall", "route": "shell", "thing": "prop:window-r1"}]}))
-    (folder / "bay.json").write_text(json.dumps({"place": "bay", "takes": {}, "elsewhere": {
-        f"parts_rack_{number}": {"take": "parts_rack-r1", "place": "station"} for number in range(1, 5)}}))
-    (folder / "inventory.json").write_text(json.dumps({"rows": [
-        {"id": "parts_rack", "name": "parts rack", "anchor": "floor"}, {"id": "crane", "anchor": "floor"}]}))
-    try:
-        inputs = {"surfaces": folder / "station.json", "inventory bay": folder / "inventory.json",
-                  "resting rules": REPO / "data/checks/resting.json"}
-        rows = place_line.claimed_rows("parts_rack-r1", inputs)
-        assert rows and {row["id"] for row in rows} == {"parts_rack"}, rows
-        assert place_line.claimed_rows("parts_rack-r1", dict(inputs, **{"inventory bay": None})) == []
-        inputs["inventory station"] = folder / "station-inventory.json"
-        laid = {piece: [row["id"] for row in route_bake.laid_shell(f"{piece}-r1", inputs)] for piece in shell}
-        assert laid == {"railing": ["railing"], "dome": ["dome"], "window": []}, laid
-        assert route_bake.laid_shell("parts_rack-r1", inputs) == []  # no place of its own: as made
-    finally:
-        surfaces.data.FOLDER = kept
-        shutil.rmtree(folder)
+def squares(*layouts):
+    """One 1 m square a layout (its four corners' texture coordinates, glTF's v down), side by side in x."""
+    corners = [[[x + left, 0.0, z] for x, z in ((0, 0), (1, 0), (1, 1), (0, 1))]
+               for left, _ in zip(itertools.count(2), layouts)]
+    return {"positions": np.array(corners, dtype=float).reshape(-1, 3),
+            "uvs": np.array(layouts, dtype=float).reshape(-1, 2),
+            "triangles": np.array([[base + 0, base + 1, base + 2] if half == 0 else [base + 0, base + 2, base + 3]
+                                   for base in range(0, 4 * len(layouts), 4) for half in (0, 1)]),
+            "maps": np.zeros(2 * len(layouts), dtype=int)}
 
 
-def test_a_take_s_short_legs_are_levelled_before_its_bake_and_a_missing_leg_fails_by_name():
-    import feet
-    vertices, faces = tank_mesh((0.0, 0.022, 0.052, 0.127))
-    points, record = place_line.levelled_feet(vertices, faces)
-    assert record["feet"] == 4 and len(record["levelled"]) == 3 and not record["refused"], record
-    lows = [low for _, low in feet.feet(feet.surface_points(points, faces), 0.15 * 1.6, 0.05)]
-    assert len(lows) == 4 and max(lows) - min(lows) < 1e-9, lows
-    points, refused = place_line.levelled_feet(*tank_mesh((0.0, 0.0, 0.0, 0.22)))
-    assert refused["refused"] == [round(0.22 / max(1.6, 1.4 * 2 ** 0.5), 4)] and not refused["levelled"], refused
-    folder = pathlib.Path(tempfile.mkdtemp())
-    for found, verdict in ((record, checks.PASS), (refused, checks.FAIL)):
-        (folder / "painted.json").write_text(json.dumps({"takes": {"water_tank-r1": {"feet": found}}}))
-        judged = place_line.judge_feet(folder, {}, None)
-        assert judged.answer == verdict and (verdict == checks.PASS or "water_tank-r1" in judged.findings[0]), judged
-    paint = {stage.name: stage for stage in stages.STAGES}["surfaces-paint"]
-    assert "feet in one plane" in [check.name for check in paint.checks]
-    import feet_stand  # by its bare name, as the table sets it on the row
-    assert paint.make is feet_stand.make_paint
-    # a take refused on its resting face alone (cockpit's pilot seat, 2026-11-12: its face rose 18.1% across its base
-    # while its weight lay inside what it touches) passes when its baked model stands by the resting check's measure,
-    # fails named when it does not, and every other refusal fails as a missing leg
-    seat = {"feet": 1, "gaps": [0.0], "levelled": [], "refused": [0.1807], "rests": 0.1807}
-    flag = {"feet": 1, "gaps": [0.0], "levelled": [], "refused": [0.1511, 0.2263], "rests": 0.2263}
-    upright = trimesh.creation.box(bounds=((-0.3, 0.0, -0.3), (0.3, 1.0, 0.3)))
-    tipped = trimesh.creation.box(bounds=((-0.2, 0.0, -0.2), (0.2, 2.0, 0.2)))
-    tipped.apply_transform(trimesh.transformations.rotation_matrix(math.radians(25.0), [0.0, 0.0, 1.0]))
-    for model, found, verdict, named in ((upright, seat, checks.PASS, None), (tipped, seat, checks.FAIL, "not stand"),
-                                         (upright, flag, checks.FAIL, "missing leg"),
-                                         (None, seat, checks.FAIL, "missing leg")):  # no bake read: as refused
-        bake = folder / "bake"
-        shutil.rmtree(bake, ignore_errors=True)
-        (bake / "entries").mkdir(parents=True)
-        (bake / "entries" / "pilot_seat-r1.json").write_text(json.dumps({"pilot_seat_1": {}}))
-        if model is not None:
-            baked_model(bake, "pilot_seat_1", model)
-        (folder / "painted.json").write_text(json.dumps({"takes": {"pilot_seat-r1": {"feet": found}}}))
-        judged = feet_stand.judge_feet(folder, {"surfaces-bake": bake}, None)
-        assert judged.answer == verdict and (named is None or named in judged.findings[0]), (verdict, judged)
-    shutil.rmtree(folder)
-    rules = REPO / "data/checks/resting.json"
-    tank = {"place": "greenhouse", "kind": "greenhouse_water_tank"}
-    glove = {"place": "lab", "kind": "lab_hanging_glove"}  # held on its cabinet, but it hangs: no feet to level
-    inventory = folder.parent / f"{folder.name}-inventory.json"
-    inventory.write_text(json.dumps({"rows": [
-        {"id": "water_tank", "name": "water tank", "anchor": "floor", "thing": "prop:greenhouse_water_tank"},
-        {"id": "cabinet", "anchor": "floor"},
-        {"id": "glove", "name": "hanging glove", "anchor": "on:cabinet", "thing": "prop:lab_hanging_glove"}]}))
-    assert place_line.stands_on_feet(tank, inventory, rules)
-    assert not place_line.stands_on_feet(glove, inventory, rules)
-    inventory.unlink()
+def laid_square(low_u, low_v, wide, tall):
+    """A square's corners laid as the bake winds them: x along u, z up the picture."""
+    return [[low_u, low_v + tall], [low_u + wide, low_v + tall], [low_u + wide, low_v], [low_u, low_v]]
 
 
-def test_a_designed_place_s_paint_reads_its_hand_in_rows_for_feet_never_the_old_inventory():
-    """A designed place's rows are its hand-in's ({home}/design/props/<place>.json, read from its locked concept): the
-    paint declares and reads it to tell a take laid loose on the floor from one held, and keys on it, never on the old
-    concept's data/inventory file. Its rows name their take (`prop:<take>`) and stand on the floor the reading made a
-    row of (`on:<floor row>`)."""
-    paint = {stage.name: stage for stage in stages.STAGES}["surfaces-paint"]
-    kept, prop_data.DESIGN = prop_data.DESIGN, pathlib.Path(tempfile.mkdtemp())  # the hand-ins apart from surfaces'
-    hand_in = prop_data.DESIGN / "greenhouse.json"
-    floor = {"id": "floor_plates", "anchor": "ground", "size": [4.0, 5.0, 0.1], "thing": "prop:gh_floor_ab12"}
-    rows = [floor,
-            {"id": "crate", "name": "crop crate", "anchor": "on:floor_plates", "thing": "prop:gh_crate_ab12"},
-            {"id": "jar", "name": "seed jar", "anchor": "on:table", "thing": "prop:gh_jar_ab12"},
-            {"id": "table", "name": "work table", "anchor": "floor", "size": [1.5, 0.8, 0.8], "thing": "prop:x"},
-            {"id": "wall", "name": "left wall", "anchor": "on:floor_plates", "route": "shell",
-             "thing": "prop:gh_wall_ab12"},
-            # the cockpit's floor is mounted on its hull, a landing on its stairs: still the floor
-            {"id": "hull", "anchor": "ground", "size": [9.0, 9.0, 3.5], "thing": "prop:gh_hull_ab12"},
-            {"id": "deck", "anchor": "on:hull", "group": "kit: floor", "size": [9.0, 9.0, 0.1], "route": "shell",
-             "thing": "prop:gh_deck_ab12"},
-            {"id": "seat", "name": "pilot seat", "anchor": "on:deck", "thing": "prop:gh_seat_ab12"},
-            {"id": "lamp", "name": "desk lamp", "anchor": "on:hull", "thing": "prop:gh_lamp_ab12"},
-            # a stage on the floor is a floor too; a tin on a box on the floor is held
-            {"id": "stage", "anchor": "on:floor_plates", "size": [8.0, 6.0, 1.2], "thing": "prop:x"},
-            {"id": "drum", "name": "drum kit", "anchor": "on:stage", "thing": "prop:gh_drum_ab12"},
-            {"id": "box", "anchor": "floor", "size": [1.0, 1.0, 1.0], "thing": "prop:x"},
-            {"id": "tin", "name": "tin", "anchor": "on:box", "thing": "prop:gh_tin_ab12"}]
-    hand_in.write_text(json.dumps({"place": "greenhouse", "rows": rows}))
-    kept_surfaces, surfaces.data.FOLDER = surfaces.data.FOLDER, pathlib.Path(tempfile.mkdtemp())  # its surface data
-    (surfaces.data.FOLDER / "greenhouse.json").write_text(json.dumps({"place": "greenhouse", "takes": {
-        "gh_crate_ab12": {"place": "greenhouse", "kind": "gh_crate"}}}))
-    try:
-        assert stages.paint_inventory("greenhouse")[0] == "{home}/design/props/greenhouse.json"
-        assert paint.files("greenhouse")["inventory greenhouse"][0] == "{home}/design/props/greenhouse.json"
-        rules = REPO / "data/checks/resting.json"
-        entry = {"place": "greenhouse", "kind": "gh_crate"}  # a designed take's kind lacks its take's suffix
-        assert [row["id"] for row in place_line.standing_rows(entry, hand_in, rules, "gh_crate_ab12")] == ["crate"]
-        assert not place_line.stands_on_feet(entry, hand_in, rules)  # by kind alone no designed row names it
-        assert not place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_jar"}, hand_in, rules, "gh_jar_ab12")
-        assert not place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_wall"}, hand_in, rules,
-                                             "gh_wall_ab12")
-        assert place_line.stands_on_feet({"place": "greenhouse", "kind": "gh_floor"}, hand_in, rules, "gh_floor_ab12")
-        for kind, standing in (("gh_seat", True), ("gh_lamp", False), ("gh_drum", True), ("gh_tin", False)):
-            assert place_line.stands_on_feet({"place": "greenhouse", "kind": kind}, hand_in, rules,
-                                             f"{kind}_ab12") is standing, kind
-    finally:
-        shutil.rmtree(prop_data.DESIGN)
-        shutil.rmtree(surfaces.data.FOLDER)
-        prop_data.DESIGN, surfaces.data.FOLDER = kept, kept_surfaces
+# #92, the texture layout the bake wrote (uv_layout.py): a sound pair of 1 m squares in a 1024 x 1024 picture and a
+# third square beside it: (case, the third square, the one fault it is named by, None: sound). The sparse one is the
+# bake's old hidden share, a face given a twentieth of the density (bake.py HIDDEN_SHARE); the stretched one is
+# twice uv_layout.STRETCH long (its height filled in by the test, the constant read there).
+SOUND = [laid_square(0.1, 0.1, 0.3, 0.3), laid_square(0.1, 0.5, 0.3, 0.3)]
+LAYOUTS = [
+    ("sound", laid_square(0.5, 0.1, 0.3, 0.3), None),
+    ("mirrored", list(reversed(laid_square(0.5, 0.1, 0.3, 0.3))), "mirrored"),
+    ("overlap", laid_square(0.2, 0.2, 0.3, 0.3), "overlap"),
+    ("stretched", None, "stretched"),
+    ("sparse", laid_square(0.5, 0.1, 0.3 * 0.05, 0.3 * 0.05), "sparse"),
+    ("outside", laid_square(0.8, 0.1, 0.3, 0.3), "outside"),
+]
+THIN_SPECK = laid_square(0.5, 0.5, 0.0005, 0.0005)  # a third of the charts too thin (and a speck of the density)
 
+# The bake lays a failing layout again before it bakes (inside/layout_fit.py, 2026-11-12): (case, the measured
+# layout, its side, the cap, the unfolding round, the next step: None keeps it as laid, "UNFOLD" projects the folded
+# faces again, a number is the side doubled). "passing" is the wreck's open hatch (0.64% shared, its unfolding thinned
+# it): a layout the check passes is never unfolded again, only a thin one doubled.
+NEXT_STEPS = [
+    ("a sound layout is kept as made", "sound", 512, 2048, 0, None),
+    ("a fold is projected again", "overlap", 512, 2048, 0, "UNFOLD"),
+    ("a round that shared no fewer stops it", "overlap", 512, 2048, None, None),
+    ("a passing but thin layout gets twice the side", "passing", 512, 2048, 0, 1024),
+    ("a passing layout neither thin is kept", "passing, not thin", 512, 2048, 0, None),
+    ("a passing layout's later round still unfolds", "passing, not thin", 512, 2048, 1, "UNFOLD"),
+    ("a thin layout gets twice the side", "thin", 512, 2048, 0, 1024),
+    ("a thin layout at the cap stays", "thin", 2048, 2048, 0, None),
+]
 
-def test_the_kit_route_s_bake_answers_the_empty_library_by_name():
-    """Every old material retired (owner, 2026-10-21): the kit route's bake, which takes the repository's library by
-    place, names each painted surface no library holds before anything is rented, never a KeyError."""
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary) / "take"
-        folder.mkdir()
-        (folder / "dark_panel.ply").write_text("")
-        try:
-            place_line.baking_specs("hangar", {}, [folder])
-        except RuntimeError as refused:
-            assert "surfaces in no library: ['dark_panel']" in str(refused), refused
-        else:
-            raise AssertionError("a bake was specced from an empty library")
-
-
-def test_a_killed_paint_on_the_machine_says_its_signal_and_peak():
-    sys.path.insert(0, str(REPO / "score/stages/surfaces/inside"))
-    import paint_take
-    code, peak = paint_take.measured([sys.executable, "-c", "import os, signal; os.kill(os.getpid(), signal.SIGKILL)"],
-                                     dict(os.environ))
-    assert code == -9 and peak > 0, (code, peak)
-
-
-def test_a_take_s_paint_job_sends_what_it_reads_and_brings_its_folder_back():
-    with tempfile.TemporaryDirectory() as temporary:
-        out, parts = pathlib.Path(temporary) / "out", pathlib.Path(temporary) / "parts"
-        out.mkdir()
-        own = pathlib.Path(temporary)  # its own surface data and inventory (the old camp grounds' were retired)
-        (own / "surfaces.json").write_text(json.dumps({"place": "campgrounds", "library": "campgrounds", "takes": {
-            "crane-r1": {"place": "campgrounds", "kind": "crane"}}, "bake": {"models": {"crane": "crane-r1"}}}))
-        (own / "inventory.json").write_text(json.dumps({"rows": [{"id": "crane", "anchor": "ground",
-                                                                  "thing": "prop:crane"}]}))
-        inputs = {"surfaces": own / "surfaces.json", "surfaces-parts": parts,
-                  "inventory campgrounds": own / "inventory.json",
-                  "resting rules": REPO / "data/checks/resting.json"}
-        job = json.loads(place_line.paint_job(inputs, place_line.prop_env.short(inputs), out, "crane-r1",
-                                              [{"part": 0}]).read_text())
-        assert job["script"] == "score/stages/surfaces/inside/paint_take.py" and job["outputs"] == [
-            str(out / "labelled" / "crane-r1")]
-        sent = set(job["inputs"])
-        assert {str(parts / "crane-r1"), str(parts / "parts.json"), str(REPO / "score"), str(REPO / "tools/props"),
-                str(REPO / "data/library")} <= sent, sent
-        assert any(path.endswith("work/pixal/crane-r1-final.glb") for path in sent), sent
-        listing = json.loads(pathlib.Path(job["args"][0]).read_text())
-        assert listing["paint take"] == "crane-r1" and listing["paint repo"] == str(REPO)  # data may lie elsewhere
-        assert json.loads(pathlib.Path(listing["paint records"]).read_text()) == [{"part": 0}]
-
-
-def test_a_texel_is_named_by_where_the_bake_wrote_it_and_a_layout_fault_by_its_model():
-    """The flat's bowl stack, bake of 2026-10-13: its glass rims' triangles lie under a texel each, so the texel the
-    check samples for one was baked from the centre's point on a neighbour (enamel), and its glass failed at dE 66.6
-    while the bake was right. The check names the sampled texel by the ray from that point, as the bake did. And the
-    layout the bake wrote (#92, uv_layout.py): a mirrored, overlapping, stretched, sparse (a twentieth of the density,
-    the old hidden share), out-of-picture or too-thin square fails "texture layout sound" by its model, a sound pair
-    passes, a model with no layout measured is unknown."""
-    enamel = trimesh.creation.box(bounds=[[-1.0, 0.0, -0.05], [0.0, 1.0, 0.05]])
-    glass = trimesh.creation.box(bounds=[[0.0, 0.0, -0.05], [1.0, 1.0, 0.05]])
-    # one large triangle over the enamel covering texel (0, 0)'s centre in a 2 x 2 texture, one sliver over the glass
-    # whose middle falls in that texel but not on its centre
-    positions = np.array([[-0.9, 0.1, 0.05], [-0.1, 0.1, 0.05], [-0.5, 0.9, 0.05],
-                          [0.4, 0.4, 0.05], [0.6, 0.4, 0.05], [0.5, 0.6, 0.05]])
-    uvs = np.array([[0.2, 0.0], [0.5, 0.0], [0.2, 0.45], [0.05, 0.05], [0.12, 0.05], [0.05, 0.12]])
-    geometry = {"positions": positions, "uvs": uvs, "triangles": np.array([[0, 1, 2], [3, 4, 5]]),
-                "maps": np.array([0, 0])}
-    entry = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [2.0, 1.0, 0.1]}
-    rows, columns = np.array([0, 0]), np.array([0, 0])
-    points, owners = bake_check.sampled_points(geometry, rows, columns, np.array([[2, 2], [2, 2]]))
-    assert owners.tolist() == [0, 0], owners
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        enamel.export(folder / "enamel_white.ply")
-        glass.export(folder / "glass.ply")
-        names, middle_named, _ = bake_check.baked_surfaces(geometry, folder, entry)
-        names, texel_named, _ = bake_check.baked_surfaces(geometry, folder, entry, (points, owners))
-    assert [names[index] for index in middle_named] == ["enamel_white", "glass"], middle_named
-    assert [names[index] for index in texel_named] == ["enamel_white", "enamel_white"], texel_named
-    # #92: the texture layout the bake wrote, each fault on 1 m squares in a 1024 x 1024 picture, named by its model
-    import uv_layout
-
-    def squares(*layouts):
-        """One 1 m square a layout (its four corners' texture coordinates, glTF's v down), side by side in x."""
-        corners = [[[x + left, 0.0, z] for x, z in ((0, 0), (1, 0), (1, 1), (0, 1))]
-                   for left, _ in zip(itertools.count(2), layouts)]
-        return {"positions": np.array(corners, dtype=float).reshape(-1, 3),
-                "uvs": np.array(layouts, dtype=float).reshape(-1, 2),
-                "triangles": np.array([[base + 0, base + 1, base + 2] if half == 0 else [base + 0, base + 2, base + 3]
-                                       for base in range(0, 4 * len(layouts), 4) for half in (0, 1)]),
-                "maps": np.zeros(2 * len(layouts), dtype=int)}
-
-    def laid(low_u, low_v, wide, tall):
-        # the bake's own winding: x along u, z up the picture
-        return [[low_u, low_v + tall], [low_u + wide, low_v + tall], [low_u + wide, low_v], [low_u, low_v]]
-    sound = [laid(0.1, 0.1, 0.3, 0.3), laid(0.1, 0.5, 0.3, 0.3)]
-    cases = {"sound": [*sound, laid(0.5, 0.1, 0.3, 0.3)],
-             "mirrored": [*sound, [corner for corner in reversed(laid(0.5, 0.1, 0.3, 0.3))]],
-             "overlap": [*sound, laid(0.2, 0.2, 0.3, 0.3)],
-             "stretched": [*sound, laid(0.5, 0.1, 0.4, 0.4 / (2 * uv_layout.STRETCH))],
-             # the bake's old hidden share: a face given a twentieth of the density (bake.py HIDDEN_SHARE)
-             "sparse": [*sound, laid(0.5, 0.1, 0.3 * 0.05, 0.3 * 0.05)],
-             "outside": [*sound, laid(0.8, 0.1, 0.3, 0.3)]}
-    records = {name: uv_layout.layout_record(uv_layout.measure(squares(*layout), [(1024, 1024)]))
-               for name, layout in cases.items()}
-    assert uv_layout.faults(records["sound"]) == [] and records["sound"]["median_texels_per_m"] > 300, records["sound"]
-    for name in ("mirrored", "overlap", "stretched", "sparse", "outside"):
-        named = uv_layout.faults(records[name])
-        assert len(named) == 1 and named[0].startswith(uv_layout.WORDS[name]), (name, named, records[name])
-    thin = uv_layout.layout_record(uv_layout.measure(squares(*sound, laid(0.5, 0.5, 0.0005, 0.0005)), [(1024, 1024)]))
-    assert thin["thin"] == round(1 / 3, 4) and [fault for fault in uv_layout.faults(thin) if fault.startswith(
-        uv_layout.WORDS["thin"])], thin
-    # quarters' sticky note, 2026-11-12: a model of one surface has no thin-chart fault (its strip's neighbours bake
-    # its own finish); the same strip beside a second surface still fails, and every other measure still counts
-    sparse_only = uv_layout.faults({**thin, "thin": 0.0})  # the speck is also a fraction of the squares' density
-    assert uv_layout.faults(thin, one_surface=True) == sparse_only, thin
-    assert uv_layout.faults({**thin, "overlap": 0.05}, one_surface=True) == [
-        *uv_layout.faults({**thin, "thin": 0.0, "overlap": 0.05})], thin
-    # a split corner at a hard normal edge (the same position and texture coordinate twice) is one chart, not two
-    split = squares(laid(0.1, 0.1, 0.5, 0.5))
-    split["positions"] = np.concatenate([split["positions"], split["positions"][[0, 2]]])
-    split["uvs"] = np.concatenate([split["uvs"], split["uvs"][[0, 2]]])
-    split["triangles"][1] = [4, 5, 3]
-    # (its width the square's 2 * 512^2 / (4 * 512) texels, a lone half's 150)
-    assert np.allclose(uv_layout.measure(split, [(1024, 1024)])["width"], 256.0)
-    # the bake lays such a layout again before it bakes (inside/layout_fit.py, 2026-11-12): its own measure is the
-    # check's, a sound layout is kept as made, a fold is projected again, a thin one gets twice the side up to the cap
-    sys.path.insert(0, str(REPO / "score/stages/surfaces/inside"))
-    import layout_fit
-    import route_bake
-    from score.stages.surfaces import bake_fitted
-    fit = {name: layout_fit.measured(*(squares(*cases[name])[part] for part in ("positions", "uvs", "triangles")),
-                                     1024) for name in ("sound", "overlap")}
-    thin_fit = layout_fit.measured(*(squares(*sound, laid(0.5, 0.5, 0.0005, 0.0005))[part]
-                                     for part in ("positions", "uvs", "triangles")), 1024)
-    for found, record in ((fit["sound"], records["sound"]), (fit["overlap"], records["overlap"]), (thin_fit, thin)):
-        assert abs(found["thin"] - record["thin"]) < 1e-4 and abs(found["overlap"] - record["overlap"]) < 1e-4, (
-            found, record)
-    assert layout_fit.next_step(fit["sound"], 512, 2048, 0) is None
-    assert layout_fit.next_step(fit["overlap"], 512, 2048, 0) == layout_fit.UNFOLD
-    assert layout_fit.next_step(fit["overlap"], 512, 2048, None) is None  # a round that shared no fewer stops it
-    # a layout the check passes is never laid again (wreck's open hatch, 0.64% shared: its unfolding thinned it)
-    passing = {**fit["overlap"], "overlap": 0.0064, "thin": 0.0064}
-    assert not layout_fit.failing(passing) and layout_fit.failing(fit["overlap"]) and layout_fit.failing(thin_fit)
-    assert layout_fit.next_step(passing, 512, 2048, 0) == 1024 and layout_fit.next_step(
-        {**passing, "thin": 0.0}, 512, 2048, 0) is None and layout_fit.next_step(
-        {**passing, "thin": 0.0}, 512, 2048, 1) == layout_fit.UNFOLD
-    assert layout_fit.next_step(thin_fit, 512, 2048, 0) == 1024 and layout_fit.next_step(thin_fit, 2048, 2048, 0) is None
-    # the faces a fold lays on one texel are the ones projected again: the two overlapping squares, not the third
-    assert layout_fit.folded_faces(fit["overlap"], np.arange(6) // 2).tolist() == [0, 2], fit["overlap"]["shared"]
-    # and the bake runs it (its card job's script inside/paint_fit.py, set on the row alone, so no reader of
-    # route_bake.py moves), declared on its row
-    bake_row = {row.name: row for row in stages.STAGES}["surfaces-bake"]
-    assert bake_row.make is bake_fitted.make_bake and bake_row.files("airlock")["paint bake layout_fit.py"].endswith(
-        "score/stages/surfaces/inside/layout_fit.py"), bake_row.files("airlock")
-    assert {row.name: row for row in stages.STAGES}["surfaces-parts"].make is not bake_fitted.make_bake
-    started = (REPO / bake_fitted.SCRIPT).read_text()
-    assert "inside/layout_fit.py" in started.split("fitted = ")[1].split("\n")[0] and started.split(
-        "subprocess.run(")[-1].startswith("fitted,"), started
-    made = (route_bake.SCRIPT, route_bake.make_bake)
-    route_bake.make_bake = lambda *given: route_bake.SCRIPT  # the job's script as card_job reads it, nothing rented
-    try:
-        assert bake_fitted.make_bake({}, None, 0, {}) == bake_fitted.SCRIPT
-    finally:
-        route_bake.SCRIPT, route_bake.make_bake = made
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        (folder / "checks.json").write_text(json.dumps({name: {"layout": record} for name, record in records.items()}))
-        verdict = uv_layout.judge_layout(folder, {}, None)
-        (folder / "checks.json").write_text(json.dumps({
-            "note": {"layout": {**thin, "sparse": 0.0}, "surfaces": {"label_yellow": {}}},
-            "frame": {"layout": {**thin, "sparse": 0.0}, "surfaces": {"label_yellow": {}, "dark_steel": {}}}}))
-        one_surface = uv_layout.judge_layout(folder, {}, None)
-        (folder / "checks.json").write_text(json.dumps({"crate": {"missing_maps": ["base_color"]}}))
-        unmeasured = uv_layout.judge_layout(folder, {}, None)
-    assert verdict.answer == "fail" and sorted(finding.split(":")[0] for finding in verdict.findings) == [
-        "mirrored", "outside", "overlap", "sparse", "stretched"], verdict.findings
-    assert [finding.split(":")[0] for finding in one_surface.findings] == ["frame"], one_surface.findings
-    assert unmeasured.answer == "unknown", unmeasured
-    assert "texture layout sound" in [check.name for check in stages.bake_checked(
-        {row.name: row for row in surfaces.ROWS}["surfaces-check"]).checks]
-
-
-def test_a_baked_triangle_beside_a_thin_post_is_named_by_the_bake_s_ray_not_the_nearest_part():
-    """far_city's pencil tower, 2026-10-13: the cut-down copy stands 0.6 m proud of the facade; beside a post, the
-    post's side lies nearer than the facade the bake's ray meets, so the nearest part named the facade's colour
-    post_dark (dE 45). The bake's ray from the triangle inward names the facade; a triangle over the post, the post.
-    The check's reach constants are make_chunky's."""
-    import ast
-    facade = trimesh.creation.box(bounds=[[-5.0, 0.0, -1.0], [5.0, 2.0, 0.0]]).subdivide_to_size(0.1)
-    post = trimesh.creation.box(bounds=[[-0.05, 0.0, 0.0], [0.05, 2.0, 1.0]]).subdivide_to_size(0.1)
-    beside = [[0.3, 0.9, 0.6], [0.5, 0.9, 0.6], [0.4, 1.1, 0.6]]
-    over = [[-0.1, 0.9, 1.6], [0.1, 0.9, 1.6], [0.0, 1.1, 1.6]]
-    geometry = {"positions": np.array(beside + over), "triangles": np.array([[0, 1, 2], [3, 4, 5]])}
-    entry = {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [10.0, 2.0, 2.0]}
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        facade.export(folder / "facade_paint.ply")
-        post.export(folder / "post_dark.ply")
-        names, surface, reach = bake_check.baked_surfaces(geometry, folder, entry)
-        nearest = bake_check.laid_parts(folder, entry)[1].nearest.on_surface([[0.4, 1.0, 0.6]])[0][0]
-    assert abs(nearest[0]) <= 0.05 + 1e-9, f"the post lies nearer than the facade behind: {nearest}"
-    assert [names[index] for index in surface] == ["facade_paint", "post_dark"], surface
-    assert reach[0].all(), "both parts lie within the triangle's reach"
-    found = {node.targets[0].id: eval(compile(ast.Expression(node.value), "make_chunky", "eval")) for node in ast.parse(
-        (REPO / "tools/props/library/inside/make_chunky.py").read_text()).body
-        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name)
-        and node.targets[0].id in ("REACH_VOXELS", "REACH_LEAST", "VOXEL_SHARE", "VOXEL_FINEST", "THIN_VOXELS",
-                                   "SURFACE_VOXELS")}
-    assert (found["REACH_VOXELS"], found["REACH_LEAST"], found["VOXEL_SHARE"], found["VOXEL_FINEST"],
-            found["THIN_VOXELS"], found["SURFACE_VOXELS"]) == (
-        bake_check.BAKE_REACH_VOXELS, bake_check.BAKE_REACH_LEAST, bake_check.BAKE_VOXEL_SHARE,
-        bake_check.BAKE_VOXEL_FINEST, bake_check.BAKE_THIN_VOXELS, bake_check.BAKE_SURFACE_VOXELS)
-    # street's lantern string (8 m, its wire 1 cm): its voxel follows its wire, as make_chunky's voxel_of
-    assert abs(bake_check.bake_voxel([8.0, 0.058, 0.01]) - 0.0025) < 1e-9
-
-
-def test_a_standing_model_with_a_foot_off_the_floor_fails_and_lying_wreckage_is_left_out():
-    """The hangar's parts rack stood on a middle part, its legs 22 cm up."""
-    feet = [(x, z) for x in (-0.5, 0.5) for z in (-0.3, 0.3)]
-    level = np.array([[x, 0.0, z] for x, z in feet] + [[0, 1.0, 0]])
-    rack = np.array([[x, 0.22 if x > 0 else 0.0, z] for x, z in feet] + [[0, 1.0, 0]])
-    assert max(bake_check.stance_lows(level)) == 0.0
-    assert abs(max(bake_check.stance_lows(rack)) - 0.22) < 1e-6
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        (folder / "labels.json").write_text(json.dumps({"feet": {"feet": 4}}))
-        rows = [{"id": "parts_rack_1", "name": "steel parts rack"}, {"id": "leg_strut", "name": "torn-off landing leg"}]
-        assert bake_check.stands("parts_rack_1", folder, rows, ["torn"])
-        assert not bake_check.stands("leg_strut", folder, rows, ["torn"])
-        (folder / "labels.json").write_text(json.dumps({"feet": {"skipped": "no floor or held row lays its kind"}}))
-        assert not bake_check.stands("parts_rack_1", folder, rows, ["torn"])
-        (folder / "checks.json").write_text(json.dumps({
-            "parts_rack_1": {"stands": True, "stance_lows": [0.0, 0.221, 0.0, 0.24]},
-            "leg_strut": {"stands": False, "stance_lows": [0.0, 0.3, 0.2, 0.0]},
-            "crate": {"stands": True, "stance_lows": [0.0, 0.01, 0.0, 0.02]}}))
-        verdict = bake_check.judge_stance(folder, {}, None)
-    assert verdict.answer == "fail" and len(verdict.findings) == 1 and "parts_rack_1: a foot 24.0 cm" in verdict.findings[0]
-    assert set(json.loads((REPO / "data/checks/stance.json").read_text())) == {"about", "lies"}
-
-
-def test_a_base_that_slopes_as_one_piece_is_brought_down_level_and_a_far_gap_is_refused():
-    """The hangar's parts rack: two legs ending 8% of its size over a middle part."""
-    corners = [(x, z) for x in (-0.4, 0.4) for z in (-0.3, 0.3)]
-    rack = np.array([[x, 0.08 if x > 0 else 0.0, z] for x, z in corners] + [[x, 0.5, z] for x, z in corners]
-                    + [[0.0, 1.0, 0.0]])
-    points, record = place_line.flattened_base(rack, 0.25, 0.01, 0.15)
-    assert np.allclose(points[:4, 1], 0.0, atol=1e-9) and record["flattened"] == [0.08, 0.08], record
-    assert np.allclose(points[4:, 1], rack[4:, 1]), "a point over the band does not move"
-    points, record = place_line.flattened_base(rack + [0, 0, 0], 0.25, 0.01, 0.05)
-    assert record["refused"] == [0.08, 0.08] and np.allclose(points, rack)
-    level = rack.copy()
-    level[:4, 1] = 0.0
-    assert place_line.flattened_base(level, 0.25, 0.01, 0.15)[1]["flattened"] == []
-    # the bake's paint (base_level.py, run by inside/paint_fit.py) counts a base level within 3 cm through the standing
-    # height, as the feet are: a hundredth of base's large hangar (0.84 m) left corners 34 to 60 cm up and "stands
-    # level" failed it (2026-11-12). A hall 2 units tall stood 20 m (a hundredth 1.4 m): its corner 8 cm up comes down,
-    # 2 cm up stays; stood 0.2 m (a hundredth 1.4 cm, under 3 cm) it levels exactly as before.
-    import base_level  # by its bare name, as the bake's card runs it
-    box = trimesh.creation.box(bounds=((-5.0, 0.0, -5.0), (5.0, 2.0, 5.0))).subdivide().subdivide().subdivide()
-    corner = (box.vertices[:, 0] >= 0) & (box.vertices[:, 2] >= 0) & (box.vertices[:, 1] < 1e-9)
-    for up, tall, moves in ((0.008, 20.0, True), (0.002, 20.0, False), (0.3, 0.2, False), (0.1, 0.2, False)):
-        hall = np.asarray(box.vertices).copy()
-        hall[corner, 1] += up
-        was, _ = place_line.levelled_feet(hall, box.faces, tall)
-        now, report = base_level.levelled_feet(hall, box.faces, tall)
-        assert np.array_equal(was, now) != moves, (up, tall)
-        if moves:  # in metres through its standing height: 8 cm up as the paint left it, level now
-            assert max(bake_check.stance_lows(was * 10.0)) > 0.03 >= max(bake_check.stance_lows(now * 10.0))
-            assert report["flattened"], report
-    assert all(getattr(place_line, name).__module__ == "place_line" for name in base_level.BASE_STEPS), "let go"
-    # a sloping plane the paint brought down before is brought down as before (capped alone, its cells' 2 cm of
-    # unevenness lie off a 5 mm plane and it found none); one rising 2 cm, under the hundredth, now comes down too
-    slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
-    bottom = np.asarray(slab.vertices)[:, 1] < 1e-9
-    for rise, rough, acts in ((0.08, 0.02, True), (0.02, 0.0, True), (0.002, 0.0, False)):
-        base = np.asarray(slab.vertices).copy()
-        base[bottom, 1] += rise * (base[bottom, 0] + 1.0) / 2.0 + rough * (np.arange(bottom.sum()) % 2)
-        before = place_line.sloped_base(base, 0.5, 0.17, 0.03, 0.4)
-        after = base_level.capped_plane(place_line.sloped_base, 0.005)(base, 0.5, 0.17, 0.03, 0.4)
-        assert (after[1]["rise"] is not None) == acts, (rise, after[1])
-        if before[1]["rise"] is not None:
-            assert np.array_equal(before[0], after[0]), "as the paint brought it down before"
-    with base_level.held():
-        assert base_level.place_line.levelled_feet is base_level.levelled_feet, "the bake's paint levels by base_level"
-    assert place_line.levelled_feet is base_level.PAINTS_LEVEL, "and lets go"
-    assert "score/stages/surfaces/base_level.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
-    bake = {row.name: row for row in stages.STAGES}["surfaces-bake"]
-    assert bake.files("base")["paint bake base_level.py"].endswith("score/stages/surfaces/base_level.py")
-
-
-def test_a_base_sloping_as_one_plane_through_its_middle_is_brought_down_level():
-    """The square's guard hut: a slab base rising 8% of its size from one side to the other, each quadrant's lowest
-    point by the middle (flattened_base finds nothing); a level slab and a round bottom are left as they are."""
-    slab = trimesh.creation.box(bounds=((-1.0, 0.0, -1.0), (1.0, 2.0, 1.0))).subdivide().subdivide().subdivide()
-    slab.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 4, (0, 1, 0)))  # a diamond, as the hut's
-    hut = np.asarray(slab.vertices).copy()
-    bottom, over = hut[:, 1] < 1e-9, hut[:, 1] > 0.5
-    hut[bottom, 1] += 0.08 * (hut[bottom, 0] + 2 ** 0.5) / 2 ** 1.5  # 8 cm up at its far corner, x = 1.41
-    quadrants = place_line.flattened_base(hut, 0.5, 0.03, 0.4)[1]
-    assert max(quadrants["quadrants"]) < 0.05, quadrants  # the blind spot: each quadrant's lowest lies at x = 0
-    points, record = place_line.sloped_base(hut, 0.5, 0.17, 0.03, 0.4)
-    assert abs(record["rise"] - 0.08) < 0.01 and not record["refused"], record
-    assert np.abs(points[bottom, 1]).max() < 0.01 and np.allclose(points[over], hut[over]), "over the band: as made"
-    assert points[:, 1].min() >= hut[:, 1].min() - 1e-12, "nothing comes down past the lowest point"
-    assert place_line.sloped_base(hut, 0.5, 0.17, 0.03, 0.05)[1]["refused"] == [record["rise"]]
-    level = np.asarray(slab.vertices)
-    assert place_line.sloped_base(level, 0.5, 0.17, 0.03, 0.4)[1]["rise"] is None
-    ball = np.asarray(trimesh.creation.icosphere(4).vertices)
-    points, record = place_line.sloped_base(ball, 0.5, 0.17, 0.03, 0.4)
-    assert record["rise"] is None and np.array_equal(points, ball), record
-
-
-def test_a_tall_cabinet_s_base_step_is_levelled_against_its_footprint():
-    """Both ways (the garage's control cabinet, 2026-10-15: 1.5 m tall on a plinth rim whose underside rises across
-    its footprint under its floor's level cells, resting 2.1 degrees over; the quadrants and the cells' plane passed it): the
-    face it rests on comes down level; a cabinet on a level rim is left as made. And its row, described "cables running
-    up from its top" (a description's word is no class: the guard list reads a row's id and name), stands it on the
-    floor, while a stick mounted on a console, a cairn of stones, floor cables and a code build do not.
-    Break: place_line.py `and not tumble.keeps_pose(row, ...)` dropped from stands
-    Break: place_line.py feet_rows `if HOME in inputs and bake_job.code_built(...)` -> `if False`
-    Break: place_line.py stands `(row.get("anchor") or "") in` -> `row.get("anchor", "") in`"""
-
-    def cabinet(rise):
-        body = trimesh.creation.box(bounds=((-0.3, 0.04, -0.25), (0.3, 1.5, 0.25)))  # its floor 4 cm up, level
-        rim = [trimesh.creation.box(bounds=low_high) for low_high in (
-            ((-0.3, 0.0, -0.25), (0.3, 0.08, -0.2)), ((-0.3, 0.0, 0.2), (0.3, 0.08, 0.25)),
-            ((-0.3, 0.0, -0.25), (-0.25, 0.08, 0.25)), ((0.25, 0.0, -0.25), (0.3, 0.08, 0.25)))]
-        body = body.subdivide().subdivide().subdivide().subdivide()  # its floor dense: cells off the rim's plane
-        mesh = trimesh.util.concatenate([body, *rim])
-        points = np.asarray(mesh.vertices).copy()
-        bottom = points[:, 1] < 1e-9
-        points[bottom, 1] = rise * (points[bottom, 0] + 0.3) / 0.6  # the rim's underside rises along x
-        return points, np.asarray(mesh.faces)
-
-    def resting_lean(points, faces):
-        mesh = trimesh.Trimesh(points, faces, process=False)
-        middle = (mesh.triangles_center * mesh.area_faces[:, None]).sum(axis=0) / mesh.area
-        hull = mesh.convex_hull
-        hits, _, struck = hull.ray.intersects_location([[middle[0], 3.0, middle[2]]], [[0.0, -1.0, 0.0]])
-        return np.degrees(np.arccos(-hull.face_normals[struck[np.argmin(hits[:, 1])]][1]))
-
-    points, faces = cabinet(0.012)  # 1.2 cm across 0.6 m: under the 1.5 cm a share of its height lets pass
-    assert resting_lean(points, faces) > 1.0
-    levelled, record = place_line.levelled_feet(points, faces)
-    assert record.get("rests") and resting_lean(levelled, faces) < 0.1, record
-    points, faces = cabinet(0.0)
-    level, record = place_line.levelled_feet(points, faces)
-    assert "rests" not in record and np.array_equal(level, points), record
-    rules = REPO / "data/checks/resting.json"
-    folder = pathlib.Path(tempfile.mkdtemp())
-    rows = [{"id": "control_cabinet", "anchor": "floor", "thing": "prop:garage_control_cabinet",
-             "name": "control cabinet", "description": "a standing steel control cabinet, cables running up from its top"},
-            {"id": "control_stick", "anchor": "on:main_console", "thing": "prop:cockpit_control_stick",
-             "name": "flight stick set in the console"},
-            {"id": "cairn", "anchor": "floor", "thing": "prop:campgrounds_cairn",
-             "name": "cairn of flat stones stacked into a narrow tower"},
-            {"id": "small_panel", "anchor": "floor", "thing": "prop:wreck_small_panel", "name": "small torn hull panel",
-             "leans": "debris lying tilted on purpose"}]
-    (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
-    assert place_line.stands_on_feet({"kind": "garage_control_cabinet"}, folder / "inventory.json", rules)
-    for lying in ("cockpit_control_stick", "campgrounds_cairn"):  # mounted on another object; a pile of stones
-        assert not place_line.stands_on_feet({"kind": lying}, folder / "inventory.json", rules), lying
-    assert not place_line.stands_on_feet({"kind": "wreck_small_panel"}, folder / "inventory.json", rules)
-    # #36, 2026-10-30: old_station's limp floor cables, levelled, fell from outline 0.637 to 0.207; a code build
-    # stands as its code made it, whatever its rows say
-    (folder / "inventory.json").write_text(json.dumps({"rows": [
-        *rows, {"id": "cables", "anchor": "floor", "thing": "prop:old_station_cables", "name": "floor cables"}]}))
-    assert not place_line.stands_on_feet({"kind": "old_station_cables"}, folder / "inventory.json", rules)
-    assert place_line.stands({"id": "crate", "anchor": None}, rules)  # a null anchor stands on the floor, as none
-    mark = folder / "home/work/pixal/cabinet_take.svviews/code.json"
-    mark.parent.mkdir(parents=True)
-    mark.write_text(json.dumps({"route": "code"}))
-    entry = {"place": "garage", "kind": "garage_control_cabinet"}
-    inputs = {"inventory garage": folder / "inventory.json", "resting rules": rules}
-    assert place_line.feet_rows(entry, inputs, "cabinet_take")[0]
-    assert place_line.feet_rows(entry, {**inputs, place_line.HOME: folder / "home"}, "cabinet_take") == (
-        [], {"skipped": "a code build: it stands as its code made it"})
-    shutil.rmtree(folder)
+# Which part a baked triangle is named by (bake_check.baked_surfaces): (case, the world, whether it is named by the
+# texel the bake wrote, the parts it names). The bowl: the flat's bowl stack, bake of 2026-10-13; its glass rim's
+# sliver lies under the texel whose centre the bake took on its enamel neighbour, so the check samples that texel
+# from that point, as the bake did (its glass had failed at dE 66.6 while the bake was right). The tower: far_city's
+# pencil tower, 2026-10-13, its cut-down copy 0.6 m proud of the facade; beside a post, the post's side lies nearer
+# than the facade the bake's ray meets (the nearest part named post_dark, dE 45); the ray inward names the facade, a
+# triangle over the post the post.
+RAY_NAMED = [
+    ("the bowl's triangles by their middles", "bowl", False, ["enamel_white", "glass"]),
+    ("the bowl's triangles by the texel the bake wrote", "bowl", True, ["enamel_white", "enamel_white"]),
+    ("the tower's triangles by the bake's ray", "tower", False, ["facade_paint", "post_dark"]),
+]
+RAY_WORLDS = {
+    "bowl": ({"enamel_white": [[-1.0, 0.0, -0.05], [0.0, 1.0, 0.05]], "glass": [[0.0, 0.0, -0.05], [1.0, 1.0, 0.05]]},
+             None,
+             # one large triangle over the enamel covering texel (0, 0)'s centre in a 2 x 2 texture, one sliver over
+             # the glass whose middle falls in that texel but not on its centre
+             {"positions": np.array([[-0.9, 0.1, 0.05], [-0.1, 0.1, 0.05], [-0.5, 0.9, 0.05],
+                                     [0.4, 0.4, 0.05], [0.6, 0.4, 0.05], [0.5, 0.6, 0.05]]),
+              "uvs": np.array([[0.2, 0.0], [0.5, 0.0], [0.2, 0.45], [0.05, 0.05], [0.12, 0.05], [0.05, 0.12]]),
+              "triangles": np.array([[0, 1, 2], [3, 4, 5]]), "maps": np.array([0, 0])},
+             {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [2.0, 1.0, 0.1]}),
+    "tower": ({"facade_paint": [[-5.0, 0.0, -1.0], [5.0, 2.0, 0.0]], "post_dark": [[-0.05, 0.0, 0.0], [0.05, 2.0, 1.0]]},
+              0.1,
+              {"positions": np.array([[0.3, 0.9, 0.6], [0.5, 0.9, 0.6], [0.4, 1.1, 0.6],
+                                      [-0.1, 0.9, 1.6], [0.1, 0.9, 1.6], [0.0, 1.1, 1.6]]),
+               "triangles": np.array([[0, 1, 2], [3, 4, 5]])},
+              {"base": [1, 0, 0, 0, 1, 0, 0, 0, 1], "size": [10.0, 2.0, 2.0]}),
+}
 
 
 # --- library_reads ---
@@ -4267,115 +4412,40 @@ ANSWER = {"palette": [{"token": "regolith-grey", "colour": "#8a8580"}, {"token":
 GROUND = ["regolith", "Moon: airless, its dust ground by impacts"]
 
 
-def test_every_body_that_does_not_shine_has_a_paid_row_of_its_own(monkeypatch):
-    monkeypatch.setattr(body_faces.environment_concept, "in_force", lambda store: None)
-    rows = body_faces.rows(None)
-    assert [row.name for row in rows] == ["body-face-earth", "body-face-moon", "body-face-mars"]  # not the Sun
-    assert all(row.paid and row.grain == "world" and row.euros == body_faces.FACE_EUROS for row in rows)
-    moon = body_faces.body_param("moon")(type("Runner", (), {"store": None}))
-    assert moon["radius_km"] == settings.reference()["bodies"]["moon"]["radius_km"]  # the cited table's value
-    assert "radius 1,737 km" in body_faces.facts_of(moon)
-    runner = type("Runner", (), {"store": None})
-    grounds = {key: body_faces.ground_param(key)(runner)[0] for key in ("earth", "moon", "mars")}
-    assert grounds == {"earth": "ocean", "moon": "regolith", "mars": "sand"}  # by their physics, no name read
+FACES = [  # (case, body, style, ground, the ask's reply, the make's error or None, the face made's fields or None)
+    ("made from one ask in the method's recipes", {"body": "moon", "name": "Moon", "radius_km": 1737.4},
+     "worn NASA-punk", GROUND, json.dumps(ANSWER), None,
+     {"surface": "moon_face", "family": "regolith", "hex": "#8a8580", "recipe": "regolith", "recipe_by": GROUND[1]}),
+    ("no answer is named", {"body": "mars", "name": "Mars"}, "", GROUND, ValueError("no json"), None, None),
+    ("its physics the setting lacks", {"body": "vesta", "name": "Vesta"}, "",
+     [None, "Vesta: no surface pressure in the setting"], json.dumps(ANSWER),
+     "no natural ground for its face: Vesta: no surface pressure", None),
+]
 
 
-def test_the_face_is_made_from_one_ask_in_the_methods_recipes(tmp_path, monkeypatch):
-    asked = []
-    monkeypatch.setattr(body_faces.route_ask, "asked", lambda bodies, caller: asked.append((bodies, caller)) or
-                        {key: json.dumps(ANSWER) for key in bodies})
-    moon = {"body": "moon", "name": "Moon", "radius_km": 1737.4}
-    body_faces.make_face({"library": str(METHOD)}, tmp_path, 0, {"body": moon, "style": "worn NASA-punk",
-                                                                 "ground": GROUND})
-    (bodies, caller), = asked
-    assert caller == "body-face" and "worn NASA-punk" in json.dumps(bodies["moon"])
-    schema = bodies["moon"]["generationConfig"]["responseSchema"]["properties"]["face"]["properties"]
-    assert schema["recipe"]["enum"] == ["regolith"] and "airless" in json.dumps(bodies["moon"])
-    assert schema["colours"]["required"] == ["second"] and "colours" in \
-        bodies["moon"]["generationConfig"]["responseSchema"]["properties"]["face"]["required"], schema
-    face = json.loads((tmp_path / "face.json").read_text())
-    assert face["surface"] == "moon_face" and face["family"] == "regolith" and face["hex"] == "#8a8580"
-    assert abs(face["colour"][0] - 0.2541) < 1e-3  # #8a = 138: sRGB to linear
-    library = json.loads((tmp_path / "materials.json").read_text())
-    assert library["families"]["regolith"]["variants"]["moon_face"]["second"] == "crater-dark"
-    assert face["recipe"] == "regolith" and face["recipe_by"] == GROUND[1]
-    assert body_faces.face_findings("moon", library) == []
-    assert body_faces.judge_face(tmp_path, {}, {}).answer == "pass"
-
-
-def test_a_face_off_its_palette_or_the_method_fails_and_no_answer_is_named(tmp_path, monkeypatch):
-    method = json.loads(METHOD.read_text())
-    library = body_faces.library_of("mars", json.dumps(ANSWER), method)
-    variant = library["families"]["regolith"]["variants"]["mars_face"]
-    variant.update(token="rust", recipe="moon_dust", roughness=1.5)
-    found = body_faces.face_findings("mars", library)
-    assert any("recipe moon_dust" in fault for fault in found) and any("token rust" in fault for fault in found)
-    assert any("moon_dust is no natural ground" in fault for fault in found)
-    assert any("roughness 1.5" in fault for fault in found)
-    monkeypatch.setattr(body_faces.route_ask, "asked",
-                        lambda bodies, caller: {key: ValueError("no json") for key in bodies})
-    body_faces.make_face({"library": str(METHOD)}, tmp_path, 0, {"body": {"body": "mars", "name": "Mars"}, "style": "",
-                                                                 "ground": GROUND})
-    assert not (tmp_path / "face.json").exists() and body_faces.judge_face(tmp_path, {}, {}).answer == "fail"
-
-
-def test_a_body_whose_physics_the_setting_lacks_gets_no_face(tmp_path):
-    with pytest.raises(ValueError, match="no natural ground for its face: Vesta: no surface pressure"):
-        body_faces.make_face({"library": str(METHOD)}, tmp_path, 0, {
-            "body": {"body": "vesta", "name": "Vesta"}, "style": "",
-            "ground": [None, "Vesta: no surface pressure in the setting"]})
-
-
-def test_the_four_asks_go_to_claude_and_the_faces_stay(monkeypatch):
-    """The stage table's palette, library, list and recheck rows make through claude_asks, their module's ask sending
-    to the claude-code adapter only for the make's own call; body-face still asks route_ask (Gemini)."""
-    rows = {row.name: row for row in stages.STAGES}
-    switched = {"finish-route-palette": scene_palette, "surface-library": scene_library,
-                "finish-route-list": route_list, "finish-route-recheck": route_recheck}
-    sent = []
-    monkeypatch.setattr(claude_asks.claude_code, "asked", lambda bodies, caller: sent.append(caller) or {})
-    for name, module in switched.items():
-        own = rows[name].make.__wrapped__
-        assert own.__module__ == module.__name__, name
-        gemini = module.ask
-        def asks_once(inputs, out, seed, params, module=module):  # the make, its one batch of asks alone
-            return module.ask({"k": {}})
-        asks_once.__module__ = module.__name__
-        claude_asks.asking_claude(asks_once)({}, None, 0, {})
-        assert module.ask is gemini, name
-    assert sent == [scene_palette.CALLER, scene_library.CALLER, route_list.CALLER, route_recheck.CALLER]
-    assert not hasattr(rows["body-face-earth"].make, "__wrapped__")
-    assert "claude_code" not in inspect.getsource(body_faces) and "route_ask.asked" in inspect.getsource(body_faces)
+LEVELS = ["new", "worked", "worn"]
+OFF_PALETTE = {"palette": coined(("steel", "#9ba2a9"), ("hazard", "#f2c21a"), ("glass", "#24313a"),
+                                 ("lamp", "#ffffff")),
+               "wear": "worn", "cause": "scuffed", "dirt": 0.4, "dirt_token": "soot-grime"}  # env1's shiplock, 10-27
+ON_PALETTE = {**OFF_PALETTE, "palette": [*OFF_PALETTE["palette"], *coined(("soot-grime", "#3a3633"))]}
+REPAIRS = [  # (case, the row's module, Claude's first answer, the asks made)
+    ("a palette answer off its own palette is asked once more, told why", scene_palette, OFF_PALETTE, 2),
+    ("a good palette answer is asked once", scene_palette, ON_PALETTE, 1),
+    ("another row's answer is never asked again", scene_library, OFF_PALETTE, 1),
+]
 
 
 
-def test_a_palette_answer_off_its_own_palette_is_asked_once_more_told_why(monkeypatch):
-    """A palette answer whose dirt token is not its own (env1's shiplock, 2026-10-27) is asked once more with the
-    answer and why after the question, and that answer kept; a good answer, and the other rows, ask once."""
-    levels = ["new", "worked", "worn"]
-    off = {"palette": coined(("steel", "#9ba2a9"), ("hazard", "#f2c21a"), ("glass", "#24313a"), ("lamp", "#ffffff")),
-           "wear": "worn", "cause": "scuffed", "dirt": 0.4, "dirt_token": "soot-grime"}
-    fixed = {**off, "palette": [*off["palette"], *coined(("soot-grime", "#3a3633"))]}
-    sent, first = [], [off]
 
-    def asked(bodies, caller):
-        sent.append(bodies)
-        told = any("cannot be used" in part.get("text", "") for body in bodies.values()
-                   for part in body["contents"][0]["parts"])
-        return {take: json.dumps(fixed if told else first[0]) for take in bodies}
-    monkeypatch.setattr(claude_asks.claude_code, "asked", asked)
-    bodies = {"cockpit": scene_palette.palette_body([], levels)}
-    answers = claude_asks.answered(bodies, scene_palette)
-    assert len(sent) == 2 and scene_palette.palette_of(answers["cockpit"], levels)["wear"]["dirt_token"] == "soot-grime"
-    again = sent[1]["cockpit"]["contents"][0]["parts"][-1]["text"]
-    assert "soot-grime" in again and "cannot be used" in again and "worn" in again, again
-    assert bodies["cockpit"]["contents"][0]["parts"][-1]["text"] != again  # the first body kept as it was asked
-    sent.clear()
-    first[0] = fixed
-    assert claude_asks.answered(bodies, scene_palette) and len(sent) == 1, sent  # a good answer: asked once
-    sent.clear()
-    first[0] = off
-    assert claude_asks.answered(bodies, scene_library) and len(sent) == 1, sent  # another row: never asked again
+
+
+
+
+
+
+
+
+
 
 
 
