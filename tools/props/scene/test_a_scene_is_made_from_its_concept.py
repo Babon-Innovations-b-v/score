@@ -8,7 +8,8 @@ its hull with rooms a person fits.
 Every answer below is worked out by hand from a small fixture (a box room 8 m wide, boxes on a 2752 x 1536 concept,
 a lamp at 3 m) or read from the owner's rules, never computed by the code under test.
 
-Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
+Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26; the inventory, duplicate, cut-out and
+lamp breaks again 2026-11-14 on the merged test, the close-up, style, Marble and floor plan breaks later that day):
 - box_check `spread_problems`: `if False:` for the one-quarter check -> test_a_scene_is_made_from_its_concept.
 - box_check `box_problems`: `if False:` for the whole-picture check -> test_a_scene_is_made_from_its_concept.
 - box_check `judge_rows`: drop `if not is_whole(...)` -> test_a_scene_is_made_from_its_concept.
@@ -18,37 +19,28 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - box_check `from_proposals`: `return True` -> test_a_scene_is_made_from_its_concept.
 - box_check `row_verdict`: an unmeasured box `return PASS` -> test_a_scene_is_made_from_its_concept.
 - partition `mapping_problems`: `if False:` for the reasonless drop -> test_a_scene_is_made_from_its_concept.
-- inventory `row_problems`: `if False:` for the unknown view ->
-  test_an_inventory_row_says_where_it_is_seen_and_what_it_is.
-- inventory `approved_inventory`: `if False:` for the approval ->
-  test_the_cloud_refuses_a_missing_or_unapproved_inventory.
-- duplicates `pair_problem`: `if False:` for two takes -> test_one_real_world_object_is_made_once_unless_a_row_says_why.
-- cutsize `route`: `> MIN_CUT_SIDE` -> test_a_cut_out_under_the_limit_never_feeds_the_redraw.
-- closeups `camera_for`: frame at 0.6 in place of FILL -> test_the_front_camera_frames_its_item_upright_from_its_front.
-- closeups `camera_for`: `distance = blocked` (no clearance) ->
-  test_every_camera_stands_inside_the_room_or_is_moved_or_dropped.
-- closeups `label_of`: keep the words after the comma ->
-  test_each_camera_carries_the_items_it_sees_with_their_boxes_and_words.
-- closeups `resolve`: the lowest score wins -> test_a_pixel_has_one_owner_and_a_cut_out_keeps_only_its_pixels.
-- place `read_look`: `if False:` for the kept look ->
-  test_a_scene_s_style_is_its_environment_s_line_and_its_locked_concept_s_look.
-- place `read_look`: `if False:` for the empty answer ->
-  test_a_scene_with_no_locked_concept_or_an_empty_look_is_refused.
+- inventory `row_problems`: `if False:` for the unknown view -> test_a_scene_is_made_from_its_concept.
+- inventory `approved_inventory`: `if False:` for the approval -> test_a_scene_is_made_from_its_concept.
+- duplicates `pair_problem`: `if False:` for two takes -> test_a_scene_is_made_from_its_concept.
+- cutsize `route`: `> MIN_CUT_SIDE` -> test_a_scene_is_made_from_its_concept.
+- closeups `camera_for`: frame at 0.6 in place of FILL -> test_a_scene_is_made_from_its_concept.
+- closeups `camera_for`: `distance = blocked` (no clearance) -> test_a_scene_is_made_from_its_concept.
+- closeups `label_of`: keep the words after the comma -> test_a_scene_is_made_from_its_concept.
+- closeups `resolve`: the lowest score wins -> test_a_scene_is_made_from_its_concept.
+- place `read_look`: `if False:` for the kept look -> test_a_scene_is_made_from_its_concept.
+- place `read_look`: `if False:` for the empty answer -> test_a_scene_is_made_from_its_concept.
 - data/definitions/place.json: the shared rule "Modules, ships and moving parts are built in code." ->
-  test_every_place_keeps_only_its_name_and_style_and_no_shared_rule_sends_a_ship_to_code.
-- lamps `light_at`: no least reach -> test_a_lamp_s_light_is_the_library_s_for_its_mount_never_a_typed_number.
-- lamps `on_stem`: `return False` -> test_a_lamp_is_mounted_as_what_holds_it_and_at_its_head_only_by_its_metres.
-- marble `generate`, and apart `paint`: `pass` for `compute.require_cleared` ->
-  test_no_world_or_painting_is_bought_outside_a_cleared_run.
-- data/definitions/ship_floor.json: a door 0.8 m wide ->
-  test_the_ship_s_floor_plan_fits_its_46_m_hull_with_rooms_a_person_fits.
-- ship_floor `overlap_faults`: `if False:` -> test_an_overlap_a_floor_under_the_keel_and_a_door_to_nowhere_are_faults.
+  test_a_scene_is_made_from_its_concept.
+- lamps `light_at`: no least reach -> test_a_scene_is_made_from_its_concept.
+- lamps `on_stem`: `return False` -> test_a_scene_is_made_from_its_concept.
+- marble `generate`, and apart `paint`: `pass` for `compute.require_cleared` -> test_a_scene_is_made_from_its_concept.
+- data/definitions/ship_floor.json: a door 0.8 m wide -> test_a_scene_is_made_from_its_concept.
+- ship_floor `overlap_faults`: `if False:` -> test_a_scene_is_made_from_its_concept.
 
     PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest tools/props/scene/test_a_scene_is_made_from_its_concept.py
 """
 import copy
 import json
-import math
 import pathlib
 import sys
 
@@ -170,6 +162,116 @@ GATE = [
     ("ground", WHOLE, None, "prop", box_check.UNBOXED, "fail", "whole picture", "fail"),
 ]
 
+# Rows added to the mapped inventory, or changes to the inventory itself, and its shape problems: (case, row or None,
+# the inventory's changes, fragments one problem holds together, how many problems or None).
+SEEN = [10, 20, 300, 400]
+SHAPE = [
+    ("a row on a view the plan lacks", a_row("hood", SEEN, view="v9"), {}, [("row hood", "no box, no row")], None),
+    ("no box and no reason", a_row("hood", None), {}, [("row hood", "no 'unseen'")], None),
+    ("a wrong kind, anchor, size and count",
+     a_row("hood", SEEN, kind="shared", anchor="somewhere", size=[1, 0, 1], count=0), {}, [], 4),
+    ("on a row of the scene", a_row("hood", SEEN, anchor="on:galley"), {}, [], 0),
+    ("on no row of the scene", a_row("hood", SEEN, anchor="on:r7"), {}, [("row hood", "anchor 'on:r7'")], 1),
+    ("a mechanic naming no prop", a_row("hood", SEEN, kind="mechanic", thing="node:Workstation"), {},
+     [("row hood", "mechanic row")], 1),
+    ("a mechanic naming its prop", a_row("hood", SEEN, kind="mechanic", thing="node:Workstation", prop="desk"), {},
+     [], 0),
+    ("migrated without approval", None, {"approved": "", "migrated": "2026-10-06"}, [("approval",)], None),
+]
+
+
+def a_made_row(name, kind="generate", **changes):
+    return {"id": name, "kind": kind, "name": f"the {name}", **changes}
+
+
+# Two places' made rows naming one object, the takes each is made from, and the duplicate problems: (case, hub's row,
+# lab's row, takes, fragments one problem holds together, how many problems or None). The owner, 2026-10-09: no
+# duplicates; reuse first.
+KETTLES = {"hub": {"kettle": "kettle-r1"}, "lab": {"kettle": "kettle-r2"}}
+DUPLICATES = [
+    ("made twice", a_made_row("desklamp"), a_made_row("desklamp"),
+     {"hub": {"desklamp_1": "desklamp-r6"}, "lab": {"desklamp_1": "desklamp-lab1"}}, [("made twice",)], 1),
+    ("one take in both", a_made_row("desklamp"), a_made_row("desklamp"),
+     {"hub": {"desklamp_1": "desklamp-r6"}, "lab": {"desklamp_1": "desklamp-r6"}}, [], 0),
+    ("about to be made again", a_made_row("kettle"), a_made_row("kettle"), {"hub": {"kettle": "kettle-r1"}, "lab": {}},
+     [("not made yet",)], 1),
+    ("far scenery names the same object", a_made_row("far_palm"), a_made_row("palm"),
+     {"hub": {"far_palm": "palm-a"}, "lab": {"palm": "palm-b"}}, [], 1),
+    ("its own model, said why", a_made_row("power_unit"),
+     a_made_row("power_unit", own_model="a battery cabinet, not the small ground power unit"),
+     {"hub": {"power_unit": "power_unit-g1"}, "lab": {"power_unit": "power_unit-r3"}}, [], 0),
+    ("a reuse made from another take", a_made_row("kettle"), a_made_row("kettle", reuse="hub:kettle"), KETTLES,
+     [("made from kettle-r2",)], None),
+    ("a reuse of no row", a_made_row("kettle"), a_made_row("kettle", reuse="hub:pot"), KETTLES,
+     [("no inventory row",)], None),
+    ("built in code", a_made_row("conduit_box", "code"), a_made_row("conduit_box", "code"), {}, [], 0),
+    ("a scene whose takes are not stored", a_made_row("kettle"), a_made_row("kettle"),
+     {"hub": {"kettle": "kettle-r1"}}, [], 0),
+]
+
+# Which way a cut-out is drawn, by its short side (the owner, 2026-10-02: "the low-res ones look shit"): (box, whether
+# a close-up can be made, route). Round one's habitat: the bench and counter cabinet made models, the desk and desk
+# lamp did not.
+ROUTES = [([0, 0, MIN_CUT_SIDE, 2 * MIN_CUT_SIDE], True, "redraw"),
+          ([0, 0, MIN_CUT_SIDE, MIN_CUT_SIDE], False, "redraw"),
+          ([0, 0, MIN_CUT_SIDE - 1, 760], True, "close-up"), ([0, 0, MIN_CUT_SIDE - 1, 760], False, "dropped"),
+          ([274, 371, 508, 616], False, "redraw"), ([926, 443, 1170, 731], False, "redraw"),
+          ([812, 401, 984, 559], False, "dropped"), ([901, 326, 933, 419], False, "dropped")]
+
+LAMP_LIBRARY = {"ceiling": {"high": 0.05, "reach_per_height": 2.0, "least_reach": 1.5, "strength_per_reach": 0.05,
+                            "shadows": True},
+                "wall": {"high": 0.5, "reach_per_height": 1.5, "least_reach": 1.5, "strength_per_reach": 0.04,
+                         "shadows": False},
+                "stands": {"high": 0.5, "reach_per_height": 1.5, "least_reach": 1.5, "strength_per_reach": 0.03,
+                           "shadows": False}}
+# A reading's rows as the creator's kept scene inventories carry them: each anchored on the row it rests on.
+READING = [{"id": "floor_plates", "noun": "floor plates", "anchor": "ground"},
+           {"id": "left_wall", "noun": "wall", "anchor": "on:floor_plates"},
+           {"id": "roof_dome", "noun": "roof", "anchor": "on:left_wall"},
+           {"id": "ceiling_beam", "name": "ceiling beam", "noun": "beam", "anchor": "roof"},
+           {"id": "ribs", "noun": "ribs", "anchor": "on:left_wall"},
+           {"id": "desk", "noun": "desk", "anchor": "floor"},
+           {"id": "loop_a", "noun": "frame", "anchor": "on:loop_b"},
+           {"id": "loop_b", "noun": "frame", "anchor": "on:loop_a"},
+           {"id": "mast", "noun": "mast", "anchor": "ground", "size": [0.3, 0.3, 6.0]}]
+WORDS = {"ceiling": ["ceiling", "roof"], "wall": ["wall", "walls"]}
+
+
+def a_lamp(anchor, name="lamp", noun="lamp", size=None):
+    return {"id": name, "name": name.replace("_", " "), "noun": noun, "anchor": anchor,
+            **({"size": size} if size else {})}
+
+
+# How a lamp is mounted: `on:<row>` is the held row's noun, else its own anchor, else what it is on in turn; a desk
+# lamp stands. A street lamp 5 m tall on 0.4 m, or a light on a 6 m mast, is at its head; a squat tower and a table
+# lamp stand (by their metres only).
+MOUNTS = [(a_lamp("on:roof_dome"), "ceiling"), (a_lamp("on:left_wall"), "wall"), (a_lamp("on:ceiling_beam"), "ceiling"),
+          (a_lamp("on:ribs"), "wall"), (a_lamp("on:desk"), "stands"), (a_lamp("on:loop_a"), "stands"),
+          (a_lamp("on:nothing"), "stands"), (a_lamp("floor"), "stands"),
+          (a_lamp("ground", "street_lamp", size=[0.4, 0.4, 5.0]), "head"),
+          (a_lamp("on:mast", "light", "light", [0.5, 0.3, 0.4]), "head"),
+          (a_lamp("ground", "floodlight_tower", "tower", [3.0, 3.0, 4.0]), "stands"),
+          (a_lamp(None, "table_lamp"), "stands")]
+
+
+def laid(*heights):
+    return [{"kind": "x_lamp", "at": [0.0, height, 0.0]} for height in heights]
+
+
+# A lamp's light is the library's for its mount, never a typed number (owner, 2026-10-21): (row, its laid pieces,
+# light). A ceiling lamp whose pieces hang at 3.0, 3.0 and 3.2 m hangs at their middle, 3.0 m: reach 2.0 x 3.0 = 6.0 m,
+# strength 0.05 x 6.0 = 0.3; a lens part is not where it hangs; a wall lamp at 0.5 m keeps the least reach 1.5 m
+# (strength 0.04 x 1.5 = 0.06); a locker with a typed light is no lamp; a light on the roof is a ceiling lamp (2.5 m:
+# reach 5.0, strength 0.25).
+CEILING_AT_3 = {"strength": 0.3, "reach": 6.0, "high": 0.05, "shadows": True}
+LIGHTS = [(a_lamp("ceiling", "pendant") | {"made": "kit piece"}, laid(3.0, 3.0, 3.2), CEILING_AT_3),
+          (a_lamp("ceiling"), laid(3.0) + [{"kind": "x_lamp", "at": [0.0, 0.0, 0.0], "part": "glow"}], CEILING_AT_3),
+          (a_lamp("wall", "sconce", "light"), laid(0.5), {"strength": 0.06, "reach": 1.5, "high": 0.5,
+                                                         "shadows": False}),
+          (a_lamp("floor", "locker", "locker") | {"light": {"strength": 9.0, "reach": 9.0}}, laid(0.0), None),
+          (a_lamp("on:roof_dome", "roof_light", "light"), laid(2.5), {"strength": 0.25, "reach": 5.0, "high": 0.05,
+                                                                      "shadows": True})]
+
 
 def problems_hold(problems, has, lacks, count):
     """Whether `problems` holds each group of `has` in one line, no line holds any of `lacks`, and there are `count`
@@ -179,6 +281,110 @@ def problems_hold(problems, has, lacks, count):
             and not any(part in line for part in lacks for line in problems)
             and (count is None or exact))
 
+# ---- the close-up cameras ------------------------------------------------------------------------------------------
+
+DOWN = [0, 1, 0]
+
+
+def solid(low, high):
+    """The twelve triangles of a box from corner `low` to corner `high`."""
+    corners = np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])],
+                       dtype=float)
+    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    return np.array([[corners[a], corners[b], corners[c]] for a, b, c, d in faces
+                     for a, b, c in ((a, b, c), (a, c, d))])
+
+
+def box_room(half=4.0):
+    """A closed room in Marble's frame (y down): x and z from -half to half, ceiling at y -1.5, floor at y 1.5."""
+    return solid([-half, -1.5, -half], [half, 1.5, half])
+
+
+def wall_item(**changes):
+    """A rack against the north wall (z = +4), facing south into the room."""
+    return {"id": "rack", "centre": [0.0, 0.55, 3.7], "size": [0.6, 0.6, 1.9], "facing": [0, 0, -1], **changes}
+
+
+def framed(camera, points):
+    """The pixels `points` land on in `camera`'s picture."""
+    view = closeups.view_matrix(camera["eye"], camera["target"], DOWN)
+    return closeups.project(points, view, closeups.lens(camera["fov"], camera["size"]))
+
+
+# The 8 m room's items: the rack, a locker beside it and a rack on the far wall facing back.
+ITEMS = [wall_item(name="equipment rack, 0.6 m"), wall_item(id="locker", name="tall locker", centre=[0.9, 0.55, 3.7]),
+         wall_item(id="far", centre=[0.0, 0.55, -3.7], facing=[0, 0, 1])]
+# A rack's front shot in tighter rooms: (case, item, room, words its note holds or None when it is dropped, the
+# lowest z its eye may stand at, whether its lens is wider than FOV_DEGREES, whether its eye is above the rack's
+# middle; None where the case says nothing of it). A wall 1.4 m behind leaves 0.25 m clearance; a 0.5 m room has
+# nowhere to stand; a wall 1.2 m tall at z 2.8 to 3.0 blocks the level shot, which is raised over it.
+STANDS = [("a wall behind", wall_item(centre=[0.0, 0.55, 1.1]), box_room(half=1.4), "pulled in",
+           -1.4 + closeups.CLEARANCE_M - 1e-6, True, None),
+          ("no room to stand", wall_item(centre=[0.0, 0.55, 0.2]), box_room(half=0.5), None, None, None, None),
+          ("a low wall in the way", wall_item(), np.concatenate([box_room(), solid([-4.0, 0.3, 2.8], [4.0, 1.5, 3.0])]),
+           "raised", None, None, True)]
+
+
+def columns(*spans, shape=(4, 4)):
+    """A mask true over the column `spans` of every row."""
+    mask = np.zeros(shape, bool)
+    for span in spans:
+        mask[:, span] = True
+    return mask
+
+
+# Two masks over a 4 x 4 picture (columns 0-2 and 1-3), their scores, and each pixel's owner: the higher score wins
+# the shared columns, -1 where no mask lies.
+OWNERS = [([columns(slice(0, 3)), columns(slice(1, 4))], [0.6, 0.9], [[0, 1, 1, 1]] * 4),
+          ([columns(slice(0, 3)), columns(slice(1, 4))], [0.9, 0.6], [[0, 0, 0, 1]] * 4),
+          ([columns(shape=(2, 2))], [0.9], [[-1, -1]] * 2)]
+CUT_MASK = np.zeros((50, 50), bool)
+CUT_MASK[10:30, 20:40] = True
+# A cut-out of a 50 x 50 picture: (mask, margin, its shape and how much of it is opaque, or None). 20 x 20 with a 10%
+# margin a side is 24 x 24, its 400 pixels opaque; an empty mask cuts nothing.
+CUTS = [(CUT_MASK, 0.1, ((24, 24, 4), 20 * 20 * 255)), (np.zeros((50, 50), bool), 0.06, None)]
+# How a 2 x 0.5 x 1 m item looks: (turn, tilt, wide, tall, reach, tolerance). Turned 90 degrees it shows its 0.5 m
+# side and reaches half its 2 m width.
+EXTENTS = [(0.0, 0.0, (2.0, 1.0, 0.25), 0.0), (90.0, 0.0, (0.5, 1.0, 1.0), 1e-9)]
+
+# A scene's style asked for without what it needs: (case, scene, the look's answer or None for asking what is
+# unread, the refusal). The garden shed's look coming back empty keeps nothing.
+REFUSED = [("no locked concept, its style", "lab", "x", "no locked concept"),
+           ("no locked concept, what is unread", "lab", None, "no locked concept"),
+           ("an empty look", "garden_shed", " ", "came back empty")]
+
+
+def a_design(folder, scene, sha, colour):
+    """A store in `folder` holding one locked concept of `scene`: its picture (a plain `colour` PNG) and its lock."""
+    _, _, Store = place.design()
+    store = Store.in_folder(folder)
+    objects = pathlib.Path(folder) / "objects"
+    (objects / "blobs").mkdir(parents=True, exist_ok=True)
+    Image.new("RGB", (64, 36), colour).save(objects / "blobs" / sha, "PNG")
+    picks = objects / "concepts" / scene / "picks"
+    picks.mkdir(parents=True, exist_ok=True)
+    (picks / f"{len(list(picks.iterdir())):04d}.json").write_text(json.dumps(
+        {"place": scene, "sha": sha, "by": "owner", "at": "2026-10-21T10:00:00+00:00", "environment": None}))
+    return store
+
+
+# ---- the ship's floor plan -----------------------------------------------------------------------------------------
+
+FLOOR = ship_floor.read_floor()
+# One change to the plan and its faults: (case, space, the field's path, its new value, faults it holds whole, words
+# some fault holds). Storage moved onto the cockpit; the engine room's floor under the keel; the galley's only door
+# led to a bridge the plan lacks.
+REPLANNED = [("as drawn", None, (), None, [], []),
+             ("an overlap", "storage", ("y",), [18.0, 27.2], ["cockpit and nav and storage overlap"], []),
+             ("a floor under the keel", "engine and power room", ("floors",), [[31.5, 2.4]], [],
+              ["over its floor's structure"]),
+             ("a door to nowhere", "galley", ("doors", 0, "leads"), "bridge",
+              ["galley: a door leads to bridge, no space of the plan", "galley: no door to the walkway"], [])]
+
+
+def space_named(floor, name):
+    return next(space for space in ship_floor.spaces(floor) if space["name"] == name)
+
 
 def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
     """A scene's rows stand on boxes measured on its concept. Tiles cover the concept; every SAM 2.1 proposal is mapped
@@ -187,7 +393,16 @@ def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
     blocks an unmeasured one and fails a typed, whole-picture or moved one; boxes typed into one corner fail; the judge
     sees the whole picture and the crop of every box but a kit row's whole picture, once a seed, its majority decides
     and a third seed breaks only a tie; SAM 3 is asked for a row's short name, a box it grounds passes, a loose one is
-    tightened to the thing inside it, and words found elsewhere leave the box to the judge."""
+    tightened to the thing inside it, and words found elsewhere leave the box to the judge. The inventory those rows
+    make says where each row is seen and what it is, and the cloud builds only from it sound and approved; one
+    real-world object across places is made once unless a row says why; a cut-out under the limit never feeds the
+    redraw; a lamp in it is mounted as what holds it, and its light is the library's for that mount. Each item's
+    close-up cameras stand inside the world framing it upright from its turn, carrying the items they see with their
+    boxes and words; a wall behind pulls a camera in, a low wall raises it, no room drops it; a pixel has one owner
+    and a cut-out keeps only its pixels. A scene's style is its environment's line and its locked concept's look,
+    read once a lock and refused without a lock or a look; every place keeps only its name and style. No Marble world
+    or painting is bought outside a cleared run. The ship's floor plan fits its 46 m hull with rooms a person fits,
+    and an overlap, a floor under the keel and a door to nowhere are its faults."""
     picture = tmp_path / "concept.png"
     Image.new("RGB", SIZE, (90, 90, 90)).save(picture)
     monkeypatch.setattr(box_check, "PARTITION", tmp_path / "partition")
@@ -196,9 +411,11 @@ def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
     (folder / "proposals.json").write_text(json.dumps(PROPOSALS))
 
     def the_place():
-        return an_inventory([a_row("galley", None, unseen="x"), a_row("crate", None, unseen="x"),
-                             a_row("wall", None, unseen="x", group="kit: wall", repeats="across the room")],
-                            str(picture))
+        return {"scene": "camp", "place": "camp", "approved": "2026-10-05, plan: w1", "migrated": "",
+                "room": {"shell": "abc", "light": "place", "backdrop": "", "wall_fill": []},
+                **an_inventory([a_row("galley", None, unseen="x"), a_row("crate", None, unseen="x"),
+                                a_row("wall", None, unseen="x", group="kit: wall", repeats="across the room")],
+                               str(picture))}
 
     tiles = [box for _, _, box in partition.tile_boxes(SIZE)]
     assert (min(box[0] for box in tiles), min(box[1] for box in tiles), max(box[2] for box in tiles),
@@ -232,14 +449,15 @@ def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
                                                                      ("wall", CRATE))}))
     verdict = box_check.gate("camp", found)
     assert verdict["result"] == "pass" and {row["result"] for row in verdict["rows"].values()} == {"pass"}, verdict
-    for name, box, source, route, routes, result, why, scene in GATE:
+    for name, box, source, routed, routes, result, why, scene in GATE:
         added = copy.deepcopy(found)
         added["rows"].append(a_row(name, box, **({"box_from": source} if source else {}),
-                                   **({"route": route} if route else {})))
+                                   **({"route": routed} if routed else {})))
         verdict = box_check.gate("camp", added, routes)
-        case = f"{name} routed {route} under {routes}"
+        case = f"{name} routed {routed} under {routes}"
         assert verdict["rows"][name]["result"] == result and why in verdict["rows"][name]["why"], (case, verdict)
-        assert verdict["result"] == scene and verdict["unboxed"] == ([name] if route in routes else []), (case, verdict)
+        passed_unboxed = [name] if routed in routes else []
+        assert verdict["result"] == scene and verdict["unboxed"] == passed_unboxed, (case, verdict)
 
     for case, rows, size, has, lacks, count in MEASURED:
         problems = box_check.measured_problems(an_inventory(rows), {"v1": size})
@@ -294,241 +512,99 @@ def test_a_scene_is_made_from_its_concept(tmp_path, monkeypatch):
     boxes = {row["id"]: row["box"] for row in judged["rows"]}
     assert boxes["wall"] == KEYS["box"] and boxes["keyboard"] == TINY["box"] and boxes["galley"] == GALLEY
 
-
-# ---- the inventory's shape -----------------------------------------------------------------------------------------
-
-def a_scene_row(**changes):
-    row = {"id": "r1", "view": "v1", "box": [10, 20, 300, 400], "name": "white louvred locker",
-           "kind": "generate", "anchor": "wall", "size": [0.6, 0.5, 1.9], "count": 2,
-           "thing": "prop:habitat_locker"}
-    row.update(changes)
-    return row
-
-
-def a_scene(*rows, **changes):
-    found = {"scene": "habitat", "place": "habitat",
-             "plan": {"world": "w1", "seed": 7, "views": [{"id": "v1", "picture": "WORK/v1.png"}]},
-             "approved": "2026-10-05, plan: w1", "migrated": "",
-             "room": {"shell": "abc", "light": "place", "backdrop": "", "wall_fill": []},
-             "rows": list(rows) or [a_scene_row()]}
-    found.update(changes)
-    return found
-
-
-def test_an_inventory_row_says_where_it_is_seen_and_what_it_is():
-    assert inventory.problems(a_scene(), "habitat") == []
-    wrong = inventory.problems(a_scene(a_scene_row(view="v9")), "habitat")
-    assert any("no box, no row" in line for line in wrong), wrong
-    assert inventory.problems(a_scene(a_scene_row(box=None, unseen="behind the camera")), "habitat") == []
-    wrong = inventory.problems(a_scene(a_scene_row(box=None)), "habitat")
-    assert any("no 'unseen'" in line for line in wrong), wrong
-    wrong = inventory.problems(a_scene(a_scene_row(kind="shared", anchor="somewhere", size=[1, 0, 1], count=0)),
-                               "habitat")
-    assert len(wrong) == 4, wrong  # its kind, anchor, size and count each named
-    host = a_scene_row(id="r1", anchor="floor")
-    assert inventory.problems(a_scene(host, a_scene_row(id="r2", anchor="on:r1")), "habitat") == []
-    assert inventory.problems(a_scene(host, a_scene_row(id="r2", anchor="on:r7")), "habitat")
-    assert inventory.problems(a_scene(a_scene_row(kind="mechanic", thing="node:Workstation")), "habitat")
-    assert inventory.problems(a_scene(a_scene_row(kind="mechanic", thing="node:Workstation", prop="desk")),
-                              "habitat") == []
-    wrong = inventory.problems(a_scene(approved="", migrated="2026-10-06"), "habitat")
-    assert any("approval" in line for line in wrong), wrong
-    for scene, found in inventory.every_inventory().items():  # every committed inventory is sound
-        if not found.get("no_place"):  # a line no place owns (the people's looks, #41): no scene's inventory
-            assert inventory.problems(found, scene) == [], scene
-
-
-def test_the_cloud_refuses_a_missing_or_unapproved_inventory(tmp_path):
-    path = tmp_path / "habitat.json"
+    assert inventory.problems(the_place(), "camp") == [] and inventory.problems(found, "camp") == []
+    for case, row, changes, has, count in SHAPE:
+        changed = copy.deepcopy(found) | changes
+        changed["rows"] += [row] if row else []
+        problems = inventory.problems(changed, "camp")
+        assert problems_hold(problems, has, [], count), (case, problems)
+    for scene, kept in inventory.every_inventory().items():  # every committed inventory is sound
+        if not kept.get("no_place"):  # a line no place owns (the people's looks, #41): no scene's inventory
+            assert inventory.problems(kept, scene) == [], scene
+    path = tmp_path / "inventory" / "camp.json"
     with pytest.raises(SystemExit, match="no inventory"):
         inventory.approved_inventory(path)
-    path.write_text(json.dumps(a_scene(approved="")))
+    path.parent.mkdir()
+    path.write_text(json.dumps(found | {"approved": ""}))
     with pytest.raises(SystemExit, match="not approved"):
         inventory.approved_inventory(path)
-    path.write_text(json.dumps(a_scene()))
-    assert inventory.approved_inventory(path)["scene"] == "habitat"
+    path.write_text(json.dumps(found))
+    assert inventory.approved_inventory(path) == found  # the cloud builds from it once approved
 
+    for case, first, second, takes, has, count in DUPLICATES:
+        problems = duplicates.problems({"hub": {"rows": [first]}, "lab": {"rows": [second]}}, takes)
+        assert problems_hold(problems, has, [], count), (case, problems)
 
-# ---- one object made once ------------------------------------------------------------------------------------------
-
-def a_made_row(name, kind="generate", **changes):
-    return {"id": name, "kind": kind, "name": f"the {name}", **changes}
-
-
-def two_places(first, second):
-    return {"hub": {"rows": [first]}, "lab": {"rows": [second]}}
-
-
-def test_one_real_world_object_is_made_once_unless_a_row_says_why():
-    """The owner, 2026-10-09: no duplicates; reuse first."""
-    found = duplicates.problems(two_places(a_made_row("desklamp"), a_made_row("desklamp")),
-                                {"hub": {"desklamp_1": "desklamp-r6"}, "lab": {"desklamp_1": "desklamp-lab1"}})
-    assert len(found) == 1 and "made twice" in found[0], found
-    assert duplicates.problems(two_places(a_made_row("desklamp"), a_made_row("desklamp")),
-                               {"hub": {"desklamp_1": "desklamp-r6"}, "lab": {"desklamp_1": "desklamp-r6"}}) == []
-    found = duplicates.problems(two_places(a_made_row("kettle"), a_made_row("kettle")),
-                                {"hub": {"kettle": "kettle-r1"}, "lab": {}})
-    assert len(found) == 1 and "not made yet" in found[0], found
-    found = duplicates.problems(two_places(a_made_row("far_palm"), a_made_row("palm")),
-                                {"hub": {"far_palm": "palm-a"}, "lab": {"palm": "palm-b"}})
-    assert len(found) == 1, found  # far scenery names the same object
-    second = a_made_row("power_unit", own_model="a battery cabinet, not the small ground power unit")
-    assert duplicates.problems(two_places(a_made_row("power_unit"), second),
-                               {"hub": {"power_unit": "power_unit-g1"}, "lab": {"power_unit": "power_unit-r3"}}) == []
-    models = {"hub": {"kettle": "kettle-r1"}, "lab": {"kettle": "kettle-r2"}}
-    assert any("made from kettle-r2" in line for line in duplicates.problems(
-        two_places(a_made_row("kettle"), a_made_row("kettle", reuse="hub:kettle")), models))
-    assert any("no inventory row" in line for line in duplicates.problems(
-        two_places(a_made_row("kettle"), a_made_row("kettle", reuse="hub:pot")), models))
-    assert duplicates.problems(two_places(a_made_row("conduit_box", "code"), a_made_row("conduit_box", "code")),
-                               {}) == []
-    assert duplicates.problems(two_places(a_made_row("kettle"), a_made_row("kettle")),
-                               {"hub": {"kettle": "kettle-r1"}}) == []  # a scene whose takes are not stored
-
-
-# ---- the cut-out limit ---------------------------------------------------------------------------------------------
-
-def test_a_cut_out_under_the_limit_never_feeds_the_redraw():
-    """The owner, 2026-10-02: "the low-res ones look shit". A box is measured by its short side."""
     assert size_of([10, 20, 110, 320]) == {"width": 100, "height": 300, "short_side": 100, "area": 30000}
-    assert route([0, 0, MIN_CUT_SIDE, 2 * MIN_CUT_SIDE], can_close_up=True) == "redraw"
-    assert route([0, 0, MIN_CUT_SIDE, MIN_CUT_SIDE], can_close_up=False) == "redraw"
-    tall_but_thin = [0, 0, MIN_CUT_SIDE - 1, 760]
-    assert route(tall_but_thin, can_close_up=True) == "close-up"
-    assert route(tall_but_thin, can_close_up=False) == "dropped"
-    bench, counter_cabinet = [274, 371, 508, 616], [926, 443, 1170, 731]  # round one's habitat: these made models
-    desk, desk_lamp = [812, 401, 984, 559], [901, 326, 933, 419]  # and these did not
-    assert [route(box, False) for box in (bench, counter_cabinet, desk, desk_lamp)] == \
-        ["redraw", "redraw", "dropped", "dropped"]
+    for box, can_close_up, expected in ROUTES:
+        assert route(box, can_close_up) == expected, (box, can_close_up)
 
+    for lamp, expected in MOUNTS:
+        assert lamps.mount_of(lamp, READING, WORDS) == expected, lamp
+    for lamp, pieces, expected in LIGHTS:
+        assert lamps.light_of(lamp, pieces, READING, library=LAMP_LIBRARY, words=WORDS) == expected, lamp
+    assert "head" not in lamps.mount_words() and lamps.mounts()["head"]["high"] > 0.9
+    assert {"ceiling", "roof"} <= set(lamps.mount_words()["ceiling"]) and "wall" in lamps.mount_words()["wall"]
+    assert {name: set(lamps.mounts()[name]) for name in LAMP_LIBRARY} == {
+        name: set(lamp) for name, lamp in LAMP_LIBRARY.items()}  # the fixture's lamps carry the library's fields
 
-# ---- the close-up cameras ------------------------------------------------------------------------------------------
-
-DOWN = [0, 1, 0]
-
-
-def solid(low, high):
-    """The twelve triangles of a box from corner `low` to corner `high`."""
-    corners = np.array([[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])],
-                       dtype=float)
-    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
-    return np.array([[corners[a], corners[b], corners[c]] for a, b, c, d in faces
-                     for a, b, c in ((a, b, c), (a, c, d))])
-
-
-def box_room(half=4.0):
-    """A closed room in Marble's frame (y down): x and z from -half to half, ceiling at y -1.5, floor at y 1.5."""
-    return solid([-half, -1.5, -half], [half, 1.5, half])
-
-
-def wall_item(**changes):
-    """A rack against the north wall (z = +4), facing south into the room."""
-    return {"id": "rack", "centre": [0.0, 0.55, 3.7], "size": [0.6, 0.6, 1.9], "facing": [0, 0, -1], **changes}
-
-
-def framed(camera, points):
-    """The pixels `points` land on in `camera`'s picture."""
-    view = closeups.view_matrix(camera["eye"], camera["target"], DOWN)
-    return closeups.project(points, view, closeups.lens(camera["fov"], camera["size"]))
-
-
-def test_the_front_camera_frames_its_item_upright_from_its_front():
-    """In front of the rack (z under 3.7, level with it), its target in the middle of the picture, its front's height
-    filling FILL of the frame, up in the world up in the picture."""
-    item = wall_item()
-    camera = closeups.camera_for(item, box_room(), DOWN, closeups.SHOTS[0])
-    eye = np.array(camera["eye"])
+    room = box_room()
+    planned = closeups.plan(room, ITEMS, DOWN)
+    racks = {camera["shot"]: camera for camera in planned if camera["item"] == "rack"}
+    assert list(racks) == [shot[0] for shot in closeups.SHOTS], planned  # each shot stands inside the room
+    assert not any("raised" in camera["note"] for camera in racks.values()), racks  # at its own tilt, none raised
+    assert all(closeups.inside_room(room, np.array(camera["eye"]), DOWN) for camera in planned)
+    assert racks["left"]["eye"][0] * racks["right"]["eye"][0] < 0 and racks["above"]["eye"][1] < 0.55
+    front = racks["front"]  # in front of the rack, level with it, its target mid-picture, its height FILL, upright
+    eye = np.array(front["eye"])
     assert eye[2] < 3.7 and abs(eye[0]) < 1e-9 and abs(eye[1] - 0.55) < 1e-9
-    pixel, depth = framed(camera, [camera["target"]])
-    assert np.allclose(pixel[0], [camera["size"] / 2] * 2) and depth[0] > 0
-    centre, (wide, deep, tall) = np.array(item["centre"]), item["size"]
-    pixel, _ = framed(camera, [centre + [sx * wide / 2, sy * tall / 2, -deep / 2] for sx in (-1, 1) for sy in (-1, 1)])
-    assert abs((pixel[:, 1].max() - pixel[:, 1].min()) / camera["size"] - closeups.FILL) < 0.02
-    target = np.array(camera["target"])
-    pixel, _ = framed(camera, [target + [0, -0.5, 0], target + [0, 0.5, 0]])
+    pixel, depth = framed(front, [front["target"]])
+    assert np.allclose(pixel[0], [front["size"] / 2] * 2) and depth[0] > 0
+    centre, (wide, deep, tall) = np.array(ITEMS[0]["centre"]), ITEMS[0]["size"]
+    pixel, _ = framed(front, [centre + [sx * wide / 2, sy * tall / 2, -deep / 2] for sx in (-1, 1) for sy in (-1, 1)])
+    assert abs((pixel[:, 1].max() - pixel[:, 1].min()) / front["size"] - closeups.FILL) < 0.02
+    target = np.array(front["target"])
+    pixel, _ = framed(front, [target + [0, -0.5, 0], target + [0, 0.5, 0]])
     assert pixel[0, 1] < pixel[1, 1]
-
-
-def test_every_camera_stands_inside_the_room_or_is_moved_or_dropped():
-    """The four shots stand inside the room (the sides either side of the front, the above one above the item); a
-    wall behind pulls a camera in and widens its lens; a low wall in the way raises it; no room to stand drops it."""
-    room = box_room()
-    cameras = [closeups.camera_for(wall_item(), room, DOWN, shot) for shot in closeups.SHOTS]
-    assert all(camera is not None and closeups.inside_room(room, np.array(camera["eye"]), DOWN) for camera in cameras)
-    assert cameras[1]["eye"][0] * cameras[2]["eye"][0] < 0 and cameras[3]["eye"][1] < 0.55
-    camera = closeups.camera_for(wall_item(centre=[0.0, 0.55, 1.1]), box_room(half=1.4), DOWN, closeups.SHOTS[0])
-    assert camera is not None and camera["note"]
-    assert camera["eye"][2] > -1.4 + closeups.CLEARANCE_M - 1e-6 and camera["fov"] > closeups.FOV_DEGREES
-    assert closeups.camera_for(wall_item(centre=[0.0, 0.55, 0.2]), box_room(half=0.5), DOWN,
-                               closeups.SHOTS[0]) is None
-    walled = np.concatenate([room, solid([-4.0, 0.3, 2.8], [4.0, 1.5, 3.0])])
-    assert closeups.camera_for(wall_item(), walled, DOWN, closeups.SHOTS[0]) is None
-    camera = closeups.camera_or_raised(wall_item(), walled, DOWN, closeups.SHOTS[0])
-    assert camera is not None and "raised" in camera["note"] and camera["eye"][1] < 0.55
-
-
-def test_each_camera_carries_the_items_it_sees_with_their_boxes_and_words():
-    room = box_room()
-    items = [wall_item(name="equipment rack, 0.6 m"),
-             wall_item(id="locker", name="tall locker", centre=[0.9, 0.55, 3.7]),
-             wall_item(id="far", centre=[0.0, 0.55, -3.7], facing=[0, 0, 1])]
-    front = next(camera for camera in closeups.plan(room, items, DOWN)
-                 if camera["item"] == "rack" and camera["shot"] == "front")
     assert "rack" in front["prompts"] and "locker" in front["prompts"] and "far" not in front["prompts"]
     left, top, right, bottom = front["boxes"]["rack"]
     assert left < front["size"] / 2 < right and top < front["size"] / 2 < bottom
     assert abs((bottom - top) / front["size"] - closeups.FILL) < 0.05
     assert front["labels"] == {"rack": "equipment rack", "locker": "tall locker"}
-
-
-def test_a_pixel_has_one_owner_and_a_cut_out_keeps_only_its_pixels():
-    first = np.zeros((4, 4), bool)
-    first[:, :3] = True
-    second = np.zeros((4, 4), bool)
-    second[:, 1:] = True
-    owners = closeups.resolve([first, second], [0.6, 0.9])
-    assert (owners[:, 0] == 0).all() and (owners[:, 1:] == 1).all()
-    owners = closeups.resolve([first, second], [0.9, 0.6])
-    assert (owners[:, :3] == 0).all() and (owners[:, 3] == 1).all()
-    assert (closeups.resolve([np.zeros((2, 2), bool)], [0.9]) == -1).all()
+    for case, item, walls, note, lowest, wider, above in STANDS:
+        camera = closeups.camera_or_raised(item, walls, DOWN, closeups.SHOTS[0])
+        if note is None:
+            assert camera is None, (case, camera)
+            continue
+        assert camera is not None and note in camera["note"], (case, camera)
+        assert note == "raised" or "raised" not in camera["note"], (case, camera)  # found at its own tilt
+        assert closeups.inside_room(walls, np.array(camera["eye"]), DOWN), case
+        assert lowest is None or camera["eye"][2] > lowest, (case, camera)
+        assert wider is None or camera["fov"] > closeups.FOV_DEGREES, (case, camera)
+        assert above is None or camera["eye"][1] < 0.55, (case, camera)
+    for masks, scores, owners in OWNERS:
+        assert (closeups.resolve(masks, scores) == np.array(owners)).all(), scores
     image = np.full((50, 50, 3), 200, np.uint8)
-    mask = np.zeros((50, 50), bool)
-    mask[10:30, 20:40] = True
-    rgba = closeups.cut(image, mask, margin=0.1)  # 20 x 20 and a 10% margin a side
-    assert rgba.shape == (24, 24, 4) and rgba[..., 3].sum() == 20 * 20 * 255
-    assert closeups.cut(image, np.zeros((50, 50), bool)) is None
-    assert closeups.extents([2.0, 0.5, 1.0], 0.0, 0.0) == (2.0, 1.0, 0.25)
-    assert math.isclose(closeups.extents([2.0, 0.5, 1.0], 90.0, 0.0)[0], 0.5, abs_tol=1e-9)
+    for mask, margin, expected in CUTS:
+        rgba = closeups.cut(image, mask, margin=margin)
+        assert (None if rgba is None else (rgba.shape, rgba[..., 3].sum())) == expected, margin
+    for turn, tilt, expected, tolerance in EXTENTS:
+        assert np.allclose(closeups.extents([2.0, 0.5, 1.0], turn, tilt), expected, rtol=0, atol=tolerance), turn
 
-
-# ---- a scene's style, from its design ------------------------------------------------------------------------------
-
-def a_design(folder, scene, sha, colour):
-    """A store in `folder` holding one locked concept of `scene`: its picture (a plain `colour` PNG) and its lock."""
-    _, _, Store = place.design()
-    store = Store.in_folder(folder)
-    objects = pathlib.Path(folder) / "objects"
-    (objects / "blobs").mkdir(parents=True, exist_ok=True)
-    Image.new("RGB", (64, 36), colour).save(objects / "blobs" / sha, "PNG")
-    picks = objects / "concepts" / scene / "picks"
-    picks.mkdir(parents=True, exist_ok=True)
-    (picks / f"{len(list(picks.iterdir())):04d}.json").write_text(json.dumps(
-        {"place": scene, "sha": sha, "by": "owner", "at": "2026-10-21T10:00:00+00:00", "environment": None}))
-    return store
-
-
-def test_a_scene_s_style_is_its_environment_s_line_and_its_locked_concept_s_look(tmp_path):
-    """The owner, 2026-10-21: no per-place prose decides a picture. A scene added in the app is worded from the
-    environment concept's style line, then its locked concept's look, read once by one call on that very picture,
-    kept, and read again only for a new lock."""
     asked = []
 
     def asker(question, picture):
         asked.append((question, picture.getpixel((0, 0))))
         return "  matte  sand-blasted steel, warm amber light "
-    store, looks = a_design(tmp_path, "garden_shed", "a" * 64, (200, 10, 10)), tmp_path / "looks"
+    store, looks = a_design(tmp_path / "design", "garden_shed", "a" * 64, (200, 10, 10)), tmp_path / "looks"
     assert "garden_shed" not in place.places()
-    assert place.unread(["garden_shed"], store, looks) == ["garden_shed"]
+    for case, scene, answer, refusal in REFUSED:
+        with pytest.raises(SystemExit, match=refusal):
+            if answer is None:
+                place.unread([scene], store, looks)
+            else:
+                place.style_text(scene, store, lambda *_, said=answer: said, looks)
+    assert place.unread(["garden_shed"], store, looks) == ["garden_shed"]  # nothing kept for the empty look
     assert place.kept_style("garden_shed", store, looks) is None  # a dry run's words: nothing asked
     environment = place.environment_style(store)
     assert environment and environment == place.design()[1].style_now()  # no EC version kept: today's
@@ -539,29 +615,11 @@ def test_a_scene_s_style_is_its_environment_s_line_and_its_locked_concept_s_look
     assert place.kept_style("garden_shed", store, looks) == style and place.unread(["garden_shed"], store, looks) == []
     kept = json.loads((looks / "garden_shed" / f"{'a' * 64}.json").read_text())
     assert kept["concept"] == "a" * 64 and kept["model"] == place.LOOK_MODEL
-    a_design(tmp_path, "garden_shed", "b" * 64, (10, 10, 200))  # a new lock: its look is read again
+    a_design(tmp_path / "design", "garden_shed", "b" * 64, (10, 10, 200))  # a new lock: its look is read again
     place.style_text("garden_shed", store, asker, looks)
     assert asked[-1][1] == (10, 10, 200) and len(asked) == 2
-
-
-def test_a_scene_with_no_locked_concept_or_an_empty_look_is_refused(tmp_path):
-    store, looks = a_design(tmp_path, "galley", "c" * 64, (0, 0, 0)), tmp_path / "looks"
-    with pytest.raises(SystemExit, match="no locked concept"):
-        place.style_text("lab", store, lambda *_: "x", looks)
-    with pytest.raises(SystemExit, match="no locked concept"):
-        place.unread(["lab"], store, looks)
-    with pytest.raises(SystemExit, match="came back empty"):
-        place.style_text("galley", store, lambda *_: " ", looks)
-    assert place.unread(["galley"], store, looks) == ["galley"]  # nothing kept for an empty answer
-
-
-def test_every_place_keeps_only_its_name_and_style_and_no_shared_rule_sends_a_ship_to_code():
-    """Every place keeps its name and style (its palette, materials, wear, light, pictures and plan were the old
-    concepts' and were retired, 2026-10-21). A wording check guarding the owner's rule of 2026-10-07 (code builds only
-    plain plates, pipes and trims): the shared rule "Modules, ships and moving parts are built in code" was what the
-    hangar's code-built ship cited (design of 2026-10-11, section 9)."""
-    for name, entry in place.places().items():
-        if name == place.SHARED:
+    for name, entry in place.places().items():  # every place keeps only its name and style
+        if name == place.SHARED:  # and no shared rule sends a ship to code (owner, 2026-10-07)
             assert entry["scale"]["eye_height"] == 1.6
             assert not [rule for rule in entry["rules"] if "ship" in rule.lower() and "code" in rule.lower()]
             continue
@@ -569,101 +627,27 @@ def test_every_place_keeps_only_its_name_and_style_and_no_shared_rule_sends_a_sh
         retired = {"plan", "palette", "materials", "wear", "light", "pictures"} & set(entry)
         assert not retired, f"{name} keeps retired fields {sorted(retired)}"
 
-
-# ---- a lamp's light ------------------------------------------------------------------------------------------------
-
-LAMP_LIBRARY = {"ceiling": {"high": 0.05, "reach_per_height": 2.0, "least_reach": 1.5, "strength_per_reach": 0.05,
-                            "shadows": True},
-                "wall": {"high": 0.5, "reach_per_height": 1.5, "least_reach": 1.5, "strength_per_reach": 0.04,
-                         "shadows": False},
-                "stands": {"high": 0.5, "reach_per_height": 1.5, "least_reach": 1.5, "strength_per_reach": 0.03,
-                           "shadows": False}}
-# A reading's rows as the creator's kept scene inventories carry them: each anchored on the row it rests on.
-READING = [{"id": "floor_plates", "noun": "floor plates", "anchor": "ground"},
-           {"id": "left_wall", "noun": "wall", "anchor": "on:floor_plates"},
-           {"id": "roof_dome", "noun": "roof", "anchor": "on:left_wall"},
-           {"id": "ceiling_beam", "name": "ceiling beam", "noun": "beam", "anchor": "roof"},
-           {"id": "ribs", "noun": "ribs", "anchor": "on:left_wall"},
-           {"id": "desk", "noun": "desk", "anchor": "floor"},
-           {"id": "loop_a", "noun": "frame", "anchor": "on:loop_b"},
-           {"id": "loop_b", "noun": "frame", "anchor": "on:loop_a"}]
-WORDS = {"ceiling": ["ceiling", "roof"], "wall": ["wall", "walls"]}
-
-
-def laid(*heights):
-    return [{"kind": "x_lamp", "at": [0.0, height, 0.0]} for height in heights]
-
-
-def test_a_lamp_s_light_is_the_library_s_for_its_mount_never_a_typed_number():
-    """Owner, 2026-10-21: no per-scene list decides what a scene gets. A ceiling lamp whose pieces hang at 3.0, 3.0
-    and 3.2 m hangs at their middle, 3.0 m: reach 2.0 x 3.0 = 6.0 m, strength 0.05 x 6.0 = 0.3; a wall lamp at 0.5 m
-    keeps the least reach 1.5 m (strength 0.04 x 1.5 = 0.06); a lens part is not where it hangs; a locker with a typed
-    light is no lamp; a light on the roof is a ceiling lamp (2.5 m: reach 5.0, strength 0.25)."""
-    row = {"id": "pendant", "noun": "lamp", "anchor": "ceiling", "made": "kit piece"}
-    assert lamps.light_of(row, laid(3.0, 3.0, 3.2), library=LAMP_LIBRARY) == \
-        {"strength": 0.3, "reach": 6.0, "high": 0.05, "shadows": True}
-    assert lamps.light_of({"id": "sconce", "noun": "light", "anchor": "wall"}, laid(0.5), library=LAMP_LIBRARY) == \
-        {"strength": 0.06, "reach": 1.5, "high": 0.5, "shadows": False}
-    pieces = laid(3.0) + [{"kind": "x_lamp", "at": [0.0, 0.0, 0.0], "part": "glow"}]
-    assert lamps.light_of({"id": "lamp", "noun": "lamp", "anchor": "ceiling"}, pieces,
-                          library=LAMP_LIBRARY)["reach"] == 6.0
-    locker = {"id": "locker", "noun": "locker", "anchor": "floor", "light": {"strength": 9.0, "reach": 9.0}}
-    assert lamps.light_of(locker, laid(0.0), library=LAMP_LIBRARY) is None
-    assert lamps.light_of({"id": "roof_light", "noun": "light", "anchor": "on:roof_dome"}, laid(2.5), READING,
-                          library=LAMP_LIBRARY, words=WORDS) == \
-        {"strength": 0.25, "reach": 5.0, "high": 0.05, "shadows": True}
-
-
-def test_a_lamp_is_mounted_as_what_holds_it_and_at_its_head_only_by_its_metres():
-    """`on:<row>`: the held row's noun, else its own anchor, else what it is on in turn; a desk lamp stands. A street
-    lamp 5 m tall on 0.4 m, or a light on a 6 m mast, is at its head; a squat tower and a table lamp stand."""
-    def mount(on):
-        return lamps.mount_of({"id": "lamp", "noun": "lamp", "anchor": on}, READING, WORDS)
-    assert [mount(on) for on in ("on:roof_dome", "on:left_wall", "on:ceiling_beam", "on:ribs", "on:desk",
-                                 "on:loop_a", "on:nothing", "floor")] == \
-        ["ceiling", "wall", "ceiling", "wall", "stands", "stands", "stands", "stands"]
-    rows = READING + [{"id": "mast", "noun": "mast", "anchor": "ground", "size": [0.3, 0.3, 6.0]}]
-    assert lamps.mount_of({"id": "street_lamp", "name": "street lamp", "noun": "lamp", "anchor": "ground",
-                           "size": [0.4, 0.4, 5.0]}, rows, WORDS) == "head"
-    assert lamps.mount_of({"id": "light", "noun": "light", "anchor": "on:mast", "size": [0.5, 0.3, 0.4]}, rows,
-                          WORDS) == "head"
-    assert lamps.mount_of({"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "ground",
-                           "size": [3.0, 3.0, 4.0]}, rows, WORDS) == "stands"
-    assert lamps.mount_of({"id": "table_lamp", "name": "table lamp", "noun": "lamp"}, rows, WORDS) == "stands"
-    assert "head" not in lamps.mount_words() and lamps.mounts()["head"]["high"] > 0.9
-    assert {"ceiling", "roof"} <= set(lamps.mount_words()["ceiling"]) and "wall" in lamps.mount_words()["wall"]
-    for name in ("ceiling", "wall", "stands"):
-        assert set(lamps.mounts()[name]) == set(LAMP_LIBRARY[name]), name
-
-
-# ---- Marble's paid calls -------------------------------------------------------------------------------------------
-
-def test_no_world_or_painting_is_bought_outside_a_cleared_run(tmp_path, monkeypatch):
-    """Fault (design of 2026-10-11, section 6): generate (1,500 to 3,000 credits) and paint (80) called the World API
-    for any caller, outside the runner's gate and the owner's yes."""
     sent = []
     monkeypatch.setattr(marble, "call", lambda *arguments: sent.append(arguments))
     monkeypatch.delenv(marble.compute.TICKET, raising=False)
-    for paid_call in (lambda: marble.generate("lab", tmp_path, marble.MODEL, None),
-                      lambda: marble.paint("lab", tmp_path, tmp_path / "depth.png", 5.0, "words", 7)):
+    world = tmp_path / "world"
+    for paid_call in (lambda: marble.generate("lab", world, marble.MODEL, None),
+                      lambda: marble.paint("lab", world, world / "depth.png", 5.0, "words", 7)):
         with pytest.raises(marble.compute.Refused, match="nothing rents outside a cleared run"):
             paid_call()
     assert sent == [], "the World API was called outside a cleared run"
 
-
-# ---- the ship's floor plan -----------------------------------------------------------------------------------------
-
-FLOOR = ship_floor.read_floor()
-
-
-def room(floor, name):
-    return next(space for space in ship_floor.spaces(floor) if space["name"] == name)
-
-
-def test_the_ship_s_floor_plan_fits_its_46_m_hull_with_rooms_a_person_fits():
-    """No fault; stations front to back to 46 m, a section of five corners widest at the waist; 0.9 x 2.0 m doors,
-    rooms 2.2 to 4 m clear; the seven ship places one space each; the lock behind the side ring, its hull door out."""
-    assert ship_floor.faults(FLOOR) == []
+    for case, name, path, value, lines, words in REPLANNED:
+        floor = copy.deepcopy(FLOOR)
+        if name:
+            held = space_named(floor, name)
+            for step in path[:-1]:
+                held = held[step]
+            held[path[-1]] = value
+        faults = ship_floor.faults(floor)
+        assert (faults == []) == (name is None), (case, faults)
+        assert all(line in faults for line in lines), (case, faults)
+        assert all(any(word in fault for fault in faults) for word in words), (case, faults)
     hull = ship_floor.hull_of(FLOOR)
     assert [row["y"] for row in hull] == sorted(row["y"] for row in hull)
     assert abs(hull[-1]["y"] - 46.0) < 0.1 and FLOOR["length"] == 46.0
@@ -674,19 +658,6 @@ def test_the_ship_s_floor_plan_fits_its_46_m_hull_with_rooms_a_person_fits():
         assert min(size["clear"]) >= 2.2 and max(size["clear"]) < 4.0 and size["narrowest"] >= 1.5, size
     assert sorted(space["place"] for space in ship_floor.spaces(FLOOR)) == \
         sorted(["cockpit", "quarters", "galley", "engineroom", "storage", "shiplock", "walkway"])
-    lock, ring = room(FLOOR, "ship's lock"), FLOOR["hull"]["side_ring"]
+    lock, ring = space_named(FLOOR, "ship's lock"), FLOOR["hull"]["side_ring"]
     assert lock["side"] == ring["side"] and lock["y"][0] < ring["y"] < lock["y"][1]
     assert [door["leads"] for door in lock["doors"] if door["wall"] == "hull"] == ["outside, or a docked craft"]
-
-
-def test_an_overlap_a_floor_under_the_keel_and_a_door_to_nowhere_are_faults():
-    floor = copy.deepcopy(FLOOR)
-    room(floor, "storage")["y"] = [18.0, 27.2]
-    assert "cockpit and nav and storage overlap" in ship_floor.faults(floor)
-    floor = copy.deepcopy(FLOOR)
-    room(floor, "engine and power room")["floors"] = [[31.5, 2.4]]
-    assert any("over its floor's structure" in fault for fault in ship_floor.faults(floor))
-    floor = copy.deepcopy(FLOOR)
-    room(floor, "galley")["doors"][0]["leads"] = "bridge"
-    found = ship_floor.faults(floor)
-    assert "galley: a door leads to bridge, no space of the plan" in found and "galley: no door to the walkway" in found
