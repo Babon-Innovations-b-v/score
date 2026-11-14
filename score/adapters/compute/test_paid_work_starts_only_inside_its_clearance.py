@@ -493,27 +493,6 @@ def clear_in_a_process(runner, ready, sending):
         sending.send("refused")
 
 
-def test_lines_clearing_at_once_never_both_spend_the_stops_last_euros():
-    """Fault (the coordinator, 2026-10-11): lines run side by side and the ledger records a batch only once it is
-    done, so two lines cleared at once could both spend the last euros; the clearing lock and reservations hold."""
-    runner = a_runner("a hall")
-    stop_at(runner, 1.5)
-    ledger({"euros": 90.0})
-    BILL["euros"] = 0.0
-    fork = multiprocessing.get_context("fork")
-    ready, pipes = fork.Event(), [fork.Pipe(duplex=False) for _ in range(6)]
-    processes = [fork.Process(target=clear_in_a_process, args=(runner, ready, sending)) for _, sending in pipes]
-    for process in processes:
-        process.start()
-    for _, sending in pipes:
-        sending.close()  # a process that dies fails the test with EOFError instead of hanging it
-    ready.set()
-    answers = sorted(receiving.recv() for receiving, _ in pipes)
-    for process in processes:
-        process.join()
-    assert answers == ["cleared"] + ["refused"] * 5, answers
-
-
 def test_a_started_job_runs_on_as_the_bill_nears_the_stop_and_stops_only_as_a_runaway():
     """No paid job is killed halfway: past the stop it finishes; only past twice its forecast minutes it is ended."""
     folder, stopped, clock = pathlib.Path(tempfile.mkdtemp()), [], [0.0]
@@ -551,22 +530,6 @@ def test_a_runaway_ends_the_makes_own_children_not_the_run():
         assert child.wait(timeout=10) != 0
     finally:
         child.kill()
-
-
-def test_the_owners_yes_writes_the_new_line_and_keeps_the_worlds_start():
-    """Fault (environment 1): a yes in chat and the guard line an agent typed later disagreed. His yes writes the line."""
-    runner = a_runner("a hall")
-    first = stop_at(runner, 250.0)
-    raised = stop_at(runner, 680.0, baseline={"month": MONTH, "bill": 999.0, "ledger": 999.0, "google": 0.0},
-                     at="2026-10-18T12:00:00+00:00")
-    assert raised["baseline"] == first["baseline"] and raised["before"] == 250.0
-    assert guard.current(runner.store, runner.world.name)["euros"] == 680.0
-    try:
-        as_agent(lambda: guard.set_line(runner.store, runner.world.name, 900.0, "more", "agent",
-                                        "2026-10-18T13:00:00+00:00", START))
-        raise AssertionError("an agent's process wrote a stop line")
-    except PermissionError:
-        pass
 
 
 def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads(monkeypatch):
@@ -755,106 +718,6 @@ def billed(ticket, euros):
     time.sleep(1.05)
 
 
-def test_a_runs_warm_pool_holds_its_cost_on_the_grant_and_draws_what_its_cards_billed():
-    """The owner, 2026-10-23: the pool's idle time is the run's own cost, counted in its grant's balance."""
-    runner = a_runner("a hall")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 100.0
-    stop_at(runner, 1.0)
-    alone = [({"gpu-24gb": 1}, 6.0)]
-    assert "pass the EUR 1.00 stop" in refused(lambda: compute.pool_clearance(runner, "run-p", alone, 4))
-    grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
-    choices = [({"gpu-24gb": 2, "cpu-64c": 3}, 23.0), ({"gpu-24gb": 2}, 6.0), ({"gpu-24gb": 1}, 3.0)]
-    opened = as_benchmark(grant, "run-p", lambda: compute.pool_clearance(runner, "run-p", choices, 4, beside=2.0))
-    assert opened["sizes"] == {"gpu-24gb": 2}  # 23 + 2 passes the EUR 10 grant; 6 + 2 fits, never failing the run
-    assert opened["node"] == compute.POOL and opened["key"] == "run-p" and opened["clearance"]["grant"] == grant
-    assert "EUR 3.40 left" in refused(lambda: as_benchmark(grant, "run-p", clear_render(runner, 4.0)))
-    os.environ[compute.TICKET], os.environ[compute.STORE] = f"{compute.POOL} run-p", str(runner.store.cache.parent)
-    try:
-        assert compute.require_cleared("a pool card", runner.store)["node"] == compute.POOL
-    finally:
-        os.environ.pop(compute.TICKET), os.environ.pop(compute.STORE)
-    billed(opened, 1.25)
-    compute.release(opened)
-    assert compute.grant_balance(runner.store, grant, {}) == 8.75
-
-
-def test_a_warm_pool_reserves_only_its_holding_beyond_the_rows_whose_machine_time_it_bills():
-    """Fault, 2026-10-24 Buy: rows high EUR 360.40 under a EUR 396.46 stop; the pool's whole 4 h holding was reserved
-    beside the rows' high, which already holds the machine time those pool machines run, so 5 of 10 machines opened.
-    Now the pool reserves its holding less the rows it bills (never below nothing), opens whole when that fits, still
-    shrinks when it does not, and what it reserves with the rows covers the most it and they can bill."""
-    runner = a_runner("a hall")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 100.0
-    stop_at(runner, 396.46)
-    full, half, one = {"gpu-24gb": 10, "cpu-64c": 3}, {"gpu-24gb": 3, "cpu-64c": 2}, {"gpu-24gb": 1}
-    choices = [(full, 72.0), (half, 36.0), (one, 3.6)]
-    opened = compute.pool_clearance(runner, "run-buy", choices, 4, beside=360.40, covered=300.0)
-    assert opened["sizes"] == full and opened["clearance"]["euros"] == 0.0 and opened["clearance"]["holding"] == 72.0
-    # what is reserved (pool and rows) covers the pool's whole holding and the rows it does not bill
-    assert opened["clearance"]["euros"] + 360.40 >= 72.0 + (360.40 - 300.0)
-    assert "pass the EUR 396.46 stop" in refused(lambda: clear_render(runner, 400.0)())
-    compute.release(opened)
-    tight = compute.pool_clearance(runner, "run-tight", choices, 4, beside=360.40, covered=20.0, likely=(40.0, 30.0))
-    assert tight["sizes"] == half and tight["clearance"]["euros"] == 16.0  # 52 + 360.40 passes; 16 + 360.40 fits
-    assert tight["clearance"]["beside"] == "high"  # the rows' high fits beside a pool: as before, the likely unread
-    compute.release(tight)
-    assert compute.pool_reserve(72.0, 300.0) == 0.0 and compute.pool_reserve(72.0, 20.0) == 52.0
-    # a phase's preflight works the same choice out dry, reserving and telling nothing (2026-11-06). Break: in
-    # compute.pool_fits, `chosen_pool(choices, beside, covered, likely,` -> `chosen_pool(choices, beside, covered, None,`
-    reservations = compute.covering_store(runner.store).cache.parent / "reservations.json"
-    before = reservations.read_text()
-    assert compute.pool_fits(runner, choices, 360.40, 20.0, (40.0, 30.0)) == (half, "high", None)
-    assert compute.pool_fits(runner, choices, 400.0, 300.0, (40.0, 30.0)) == (full, "likely", None)
-    sizes, by, over = compute.pool_fits(runner, choices, 400.0, 0.0, (395.0, 0.0))
-    assert sizes is None and "pass the EUR 396.46 stop" in over and reservations.read_text() == before
-    # against the room the phase's Buy leaves, not the line as it stands (2026-11-06: an ended batch's line written
-    # back at its spend left no room). Break: in compute.pool_fits, drop the `room is None` branch's other side
-    assert compute.pool_fits(runner, choices, 400.0, 0.0, (395.0, 0.0), room=900.0)[2] is None
-    assert "the phase's Buy leaves" in compute.pool_fits(runner, choices, 400.0, 0.0, (395.0, 0.0), room=10.0)[2]
-    # 2026-11-05: rows' high EUR 400 alone passes the line, a try that may stop at it: the pool sized beside the
-    # rows' likely, the line unchanged, and a row at its high still refused against the pool's reservation
-    stopping = compute.pool_clearance(runner, "run-stop", choices, 4, beside=400.0, covered=300.0, likely=(40.0, 30.0))
-    assert stopping["sizes"] == full and stopping["clearance"]["beside"] == "likely"
-    assert stopping["clearance"]["euros"] == 42.0 and 42.0 + 40.0 <= 396.46
-    assert "pass the EUR 396.46 stop" in refused(lambda: clear_render(runner, 360.0)())  # 42 + 360 passes
-    compute.release(stopping)
-    shrunk = compute.pool_clearance(runner, "run-shrunk", choices, 4, beside=400.0, likely=(340.0, 0.0))
-    assert shrunk["sizes"] == half  # 72 + 340 passes, 36 + 340 fits
-    compute.release(shrunk)
-    assert "pass the EUR 396.46 stop" in refused(  # not even one machine beside the likely: no pool
-        lambda: compute.pool_clearance(runner, "run-none", choices, 4, beside=400.0, likely=(395.0, 0.0)))
-    assert "pass the EUR 396.46 stop" in refused(  # the high fits alone, no pool beside it: no pool, as before
-        lambda: compute.pool_clearance(runner, "run-fits", choices, 4, beside=395.0, likely=(40.0, 0.0)))
-    # the likely counts a not-measured row at nothing, the high at its estimate (2026-11-06, checkout 33: its
-    # estimates in the likely too, EUR 430 against a likely EUR 99.07, and no pool fit). Break: in score/__main__.py
-    # rows_high, `if guessed else 0.0` -> `if True else 0.0`
-    from score.__main__ import rows_high
-    prices = [{"likely_euros": 2.0, "high_euros": 5.0, "cards": 1}, {"likely_euros": None, "high_euros": None,
-                                                                     "guess_euros": 90.0}]
-    assert rows_high(prices) == 95.0 and rows_high(prices, field="likely_euros") == 2.0
-    assert rows_high(prices, pooled=True, field="likely_euros") == 2.0
-
-
-def test_a_warm_pool_held_longer_clears_the_more_in_its_one_reservation():
-    """Batch 1 of 2026-10-24: the pool closed at its cleared 4 h with ~550 rows queued, and every finish after failed.
-    Its run's heartbeat holds it longer (extend_pool): each further holding checked against the stop line with every
-    reservation, added to the pool's own one, and refused once the run's money has no room."""
-    runner = a_runner("a hall")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 100.0
-    stop_at(runner, 20.0)
-    opened = compute.pool_clearance(runner, "run-long", [({"gpu-24gb": 1}, 6.0)], 4)
-    assert compute.extend_pool(runner, opened, 6.0, 4) == 12.0
-    mine = compute.open_reservations(pathlib.Path(opened["reservations"]))[opened["clearance"]["at"]]
-    assert mine["euros"] == 12.0 and mine["holding"] == 12.0 and mine["high_minutes"] == 480
-    assert "pass the EUR 20.00 stop" in refused(lambda: compute.extend_pool(runner, opened, 10.0, 4))
-    assert "pass the EUR 20.00 stop" in refused(clear_render(runner, 9.0))  # 12 held + 9
-    compute.release(opened)
-    assert "has ended" in refused(lambda: compute.extend_pool(runner, opened, 1.0, 4))
-
-
 def test_the_runs_heartbeat_holds_its_pool_longer_only_near_its_end_and_within_its_money():
     from score import __main__ as command
     runner = a_runner("a hall")
@@ -883,27 +746,6 @@ def test_the_runs_heartbeat_holds_its_pool_longer_only_near_its_end_and_within_i
         compute.release(opened)
 
 
-def test_a_warm_pool_held_longer_under_a_grant_holds_the_more_and_draws_its_spend_once():
-    runner = a_runner("a hall")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 100.0
-    stop_at(runner, 1.0)
-    grant = compute.grant_benchmark("Yes", QUESTION, 10.0, store=runner.store)["id"]
-    opened = as_benchmark(grant, "run-g", lambda: compute.pool_clearance(runner, "run-g", [({"gpu-24gb": 1}, 3.0)], 4))
-    as_benchmark(grant, "run-g", lambda: compute.extend_pool(runner, opened, 3.0, 4))  # 3.30 more held: 3.40 left
-    assert "EUR 3.40 left" in refused(
-        lambda: as_benchmark(grant, "run-g", lambda: compute.extend_pool(runner, opened, 4.0, 4)))
-    billed(opened, 1.25)
-    compute.release(opened)
-    assert compute.grant_balance(runner.store, grant, {}) == 8.75  # both holds ended, its spend drawn
-    draws = [runner.store.read(key) for key in runner.store.objects.keys(f"grants/draws/{grant}/")]
-    assert [draw["euros"] for draw in draws] == [1.25], draws  # its real spend, once
-
-
-def clear_render(runner, euros):
-    return lambda: compute.clearance(runner, "render@hangar", euros)
-
-
 def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_carry():
     """A body face's call is ledgered as caller body-face, a close-up's as pro; a call started and never finished
     counts at its estimate; another stage's call, or one outside the run's time, is not its own."""
@@ -923,28 +765,6 @@ def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_
         assert compute.run_spend(store, {**hold, "node": "closeup@hall"}, "2026-10-22T08:01:00+00:00")["google"] == 0.14
     finally:
         google_spend.LEDGER = kept
-
-
-def test_a_scene_inventory_reading_is_cleared_under_the_owners_allowance_alone():
-    """The owner, 2026-10-21: readings run without asking. Cleared with no stop line and no yes, in an agent's process
-    too; its node is the reading's only, within READING_EUROS a place; a grant, when tagged, counts it."""
-    runner = a_runner("a hall")
-    ledger({"euros": 0.0})
-    ticket = as_agent(lambda: compute.reading_clearance(runner.store, ["hall"], 0.3))
-    assert ticket["node"] == compute.READING and "2026-10-21" in ticket["clearance"]["by"]
-    assert runner.store.clearances(compute.READING, ticket["key"])[0]["places"] == ["hall"]
-    with compute.spending(ticket):
-        assert compute.require_cleared("a SAM 3 card", runner.store)["node"] == compute.READING
-    assert "outside the allowance" in refused(lambda: compute.reading_clearance(runner.store, ["a"], 1.5))
-    assert "outside the allowance" in refused(lambda: compute.reading_clearance(runner.store, [], 0.1))
-    writing = as_agent(lambda: compute.reading_clearance(runner.store, ["hall"], 0.05, node=compute.PLAN_WRITING))
-    assert "plan writing runs without asking" in writing["clearance"]["by"]
-    assert "no standing allowance" in refused(
-        lambda: compute.reading_clearance(runner.store, ["hall"], 0.05, node="render@hall"))
-    grant = compute.grant_benchmark("Yes", QUESTION, 1.0, store=runner.store)["id"]
-    clear = lambda euros: lambda: compute.reading_clearance(runner.store, ["a", "b"], euros)  # noqa: E731
-    assert as_benchmark(grant, "reading-1", clear(0.6))["clearance"]["grant"] == grant
-    assert "EUR 0.34 left" in refused(lambda: as_benchmark(grant, "reading-1", clear(0.6)))
 
 
 def test_an_unquoted_or_too_dear_grant_clears_nothing():
@@ -971,27 +791,6 @@ def test_an_unquoted_or_too_dear_grant_clears_nothing():
     for prefix in ("clearances/n/k/", "clearances/n/k", "clearances/", "", "link/", "missing/x/", "blobs/"):
         assert compute.narrowed_keys(folders, prefix) == compute.WHOLE_WALK(folders, prefix), prefix
     assert folders.keys("clearances/n/k/") == ["clearances/n/k/a.json", "clearances/n/k/b.json"]
-
-
-def test_a_grant_used_up_under_the_single_use_rule_holds_its_balance_once_restored():
-    """Before 2026-10-22 a grant's first run took it whole; the owner's yes of that day, applied to one, makes each of
-    its old clearances draw what it really spent and leaves the rest to spend."""
-    runner = a_runner("a hall")
-    ledger({"euros": 0.0})
-    grant = compute.grant_benchmark("Yes", QUESTION, 20.0, store=runner.store)["id"]
-    old = compute.clearance(runner, "render@hangar", 1.5)  # a test store has no stop line
-    compute.release(old)
-    billed(old, 0.16)
-    # as the single-use rule left it: a used mark and its clearance counted
-    runner.store.write_once(f"grants/used/{grant}.json", {"run": "run-a", "at": old["clearance"]["at"]})
-    runner.store.write_once(f"grants/spent/{grant}/1.json",
-                            {field: old["clearance"][field] for field in ("node", "key", "euros", "at")})
-    clear = lambda: compute.clearance(runner, "render@hangar", 1.0)  # noqa: E731
-    assert "single-use rule" in refused(lambda: as_benchmark(grant, "run-b", clear))
-    assert "quotes" in refused(lambda: compute.restore_grant(grant, "", QUESTION, runner.store))
-    restored = compute.restore_grant(grant, "yes", "hold the EUR 20 until it is spent?", runner.store)
-    assert restored["balance"] == 19.84 and runner.store.read(f"grants/restored/{grant}.json") == restored
-    assert as_benchmark(grant, "run-b", clear)
 
 
 def measured_lines(stage, euros, minutes=20.0):
@@ -1025,17 +824,40 @@ TAKE_MAP = {"front": {"attempts": [{}, {}]}, "views": {"t15-090": {"attempts": [
 NAMES = {"finishes": [{"by": "the list"}]}
 OWN = "the row's grant"  # a step tagged with the grant its row made
 SPENT_10K = {"month": MONTH, "bill": 10_000.0, "ledger": 10_000.0, "google": 0.0}
+FULL, HALF, ONE_CARD = {"gpu-24gb": 10, "cpu-64c": 3}, {"gpu-24gb": 3, "cpu-64c": 2}, {"gpu-24gb": 1}
+POOLS = [(FULL, 72.0), (HALF, 36.0), (ONE_CARD, 3.6)]  # a warm pool's choices, largest first, each its 4 h holding
+ROWS = [{"likely_euros": 2.0, "high_euros": 5.0, "cards": 1},  # one measured row, one guessed
+        {"likely_euros": None, "high_euros": None, "guess_euros": 90.0}]
+
+
+class Says(str):
+    """An expected field that holds these words, not only them."""
+
+
 # One row a world: its brief, the owner's stop line (euros, baseline) or none, the ledger's lines, the bill, an
 # override or a benchmark grant standing; then its steps against the clearance, each answered by the real entry point:
 #   ("submit"|"clear", euros, grant tag, run, expected): a job through compute.submit, or a run through
 #     compute.clearance; expected is the refusal's words (a string or a tuple of them), or the cleared record's fields
-#     (a value, or a (low, high) range it lies strictly inside)
+#     (a value, a (low, high) range it lies strictly inside, or Says: words it holds)
+#   ("pool", choices, grant tag, run, expected, given): a warm pool of 4 h through compute.pool_clearance (`given` its
+#     beside, covered and likely); ("reading", euros, grant tag, run, expected, given): a scene inventory reading
+#     through compute.reading_clearance in an agent's process (`given` its places and node); expected the refusal's
+#     words, or the answer's fields as above (nested: the clearance's own)
+#   ("extend", euros, grant tag, run, expected): the newest pool held 4 h longer (compute.extend_pool); expected the
+#     refusal's words, or its one reservation's fields after (the call answering its holding)
+#   ("fits", choices, beside, covered, likely, room, expected): compute.pool_fits worked out dry, (sizes, by, words
+#     of its refusal or None), the reservations untouched
+#   ("rows", given, euros): the Buy's rows' high (score.__main__.rows_high) of ROWS
+#   ("race", processes, cleared): that many processes ask a EUR 1 clearance at once; how many are cleared
 #   ("bill", euros): the newest cleared run's ledger line (billed)
 #   ("release",): the newest cleared run ends (compute.release)
+#   ("used", run): the grant as the single-use rule left it, used up by `run` on the newest clearance
+#   ("restore", answer, question, expected): compute.restore_grant of the row's grant; the refusal's words or fields
 #   ("rent", store given, expected): a rent point (compute.require_cleared) asked under the newest cleared run, told
 #     the runner's store or none; inside compute.spending while the run is open (its reservation ends with it), else
 #     with only its ticket named; expected is the refusal's words or the found clearance's fields
-#   ("stop", euros): the owner writes the world's stop line now
+#   ("stop", euros, baseline, who, expected): the owner (or an agent, refused) writes the world's stop line now;
+#     expected the line's fields, the world's current line then
 #   ("price"|"forecast", node, estimate, asked, expected): compute.run_price or compute.run_forecast on the row's
 #     accepted outputs (its "outputs") and per-unit file (its "per_unit" stages), `asked` its units or guess_from;
 #     expected the answer's fields (ABSENT: not there; RESERVED: the run_forecast euros of the same ask; a range), or
@@ -1115,7 +937,7 @@ ASKS = [
     # likeness) skipped the stop, and their reservations sat in the trial's store where no clearance counted them
     pytest.param({"text": "a hall", "trial": "toy-trial", "ledger": [{"euros": 90.0}],
                   "steps": [("clear", 1.0, None, None, "has no stop line"),
-                            ("stop", 10.0),
+                            ("stop", 10.0, START, "owner", {"euros": 10.0}),
                             ("clear", 6.0, None, None, {"euros": 6.0}),
                             ("clear", 5.0, None, None, "pass the EUR 10.00 stop"),
                             ("rent", False, {"euros": 6.0}),  # the clearance read from the trial's store
@@ -1214,6 +1036,105 @@ ASKS = [
                       ("price", "drop@lab", 9.0, {"units": 4}, {"likely_minutes": None,
                                                                 "minutes_why": "no set-up timed"})]},
                  id="timed on its measured time by the runner's card rule"),
+    # the coordinator, 2026-10-11: lines run side by side and the ledger records a batch only once it is done, so two
+    # lines cleared at once could both spend the last euros; the clearing lock and reservations hold
+    pytest.param({"text": "a hall", "stop": 1.5, "ledger": [{"euros": 90.0}], "steps": [("race", 6, 1)]},
+                 id="lines clearing at once never both spend the stop's last euros"),
+    # environment 1: a yes in chat and the guard line an agent typed later disagreed; his yes writes the line, the
+    # world's start kept
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("stop", 250.0, START, "owner", {"euros": 250.0, "baseline": START}),
+                            ("stop", 680.0, SPENT_10K, "owner", {"euros": 680.0, "baseline": START, "before": 250.0}),
+                            ("stop", 900.0, START, "agent", None)]}, id="the owner's yes writes the line"),
+    # Before 2026-10-22 a grant's first run took it whole; his yes of that day, applied to one, makes each of its old
+    # clearances draw what it really spent and leaves the rest to spend
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "grant": 20.0,
+                  "steps": [("clear", 1.5, None, None, {"euros": 1.5}),  # a test store has no stop line
+                            ("release",), ("bill", 0.16), ("used", "run-a"),
+                            ("clear", 1.0, OWN, "run-b", "single-use rule"),
+                            ("restore", "", "hold the EUR 20 until it is spent?", "quotes"),
+                            ("restore", "yes", "hold the EUR 20 until it is spent?", {"balance": 19.84}),
+                            ("clear", 1.0, OWN, "run-b", {"grant": OWN})]},
+                 id="a grant used up under the single-use rule holds its balance once restored"),
+    # the owner, 2026-10-21: readings run without asking. Cleared with no stop line and no yes, in an agent's process;
+    # its node is the reading's or the plan writing's only, within READING_EUROS a place; a grant, when tagged, counts it
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "grant": 1.0,
+                  "steps": [("reading", 0.3, None, None, {"node": compute.READING, "clearance": {
+                                "by": Says("2026-10-21"), "places": ["hall"]}}, {"places": ["hall"]}),
+                            ("rent", True, {"node": compute.READING}),
+                            ("reading", 1.5, None, None, "outside the allowance", {"places": ["a"]}),
+                            ("reading", 0.1, None, None, "outside the allowance", {"places": []}),
+                            ("reading", 0.05, None, None, {"clearance": {"by": Says("plan writing runs without asking")}},
+                             {"places": ["hall"], "node": compute.PLAN_WRITING}),
+                            ("reading", 0.05, None, None, "no standing allowance",
+                             {"places": ["hall"], "node": "render@hall"}),
+                            ("reading", 0.6, OWN, "reading-1", {"clearance": {"grant": OWN}}, {"places": ["a", "b"]}),
+                            ("reading", 0.6, OWN, "reading-1", "EUR 0.34 left", {"places": ["a", "b"]})]},
+                 id="a scene inventory reading under the owner's allowance alone"),
+    # the owner, 2026-10-23: the pool's idle time is the run's own cost, held on its grant, drawn as its cards billed
+    pytest.param({"text": "a hall", "stop": 1.0, "ledger": [{"euros": 90.0}], "bill": 100.0, "grant": 10.0,
+                  "steps": [("pool", [(ONE_CARD, 6.0)], None, "run-p", "pass the EUR 1.00 stop"),
+                            # 23 + 2 passes the EUR 10 grant; 6 + 2 fits, never failing the run
+                            ("pool", [({"gpu-24gb": 2, "cpu-64c": 3}, 23.0), ({"gpu-24gb": 2}, 6.0), (ONE_CARD, 3.0)],
+                             OWN, "run-p", {"sizes": {"gpu-24gb": 2}, "node": compute.POOL, "key": "run-p",
+                                            "clearance": {"grant": OWN}}, {"beside": 2.0}),
+                            ("clear", 4.0, OWN, "run-p", "EUR 3.40 left"),
+                            ("bill", 1.25),
+                            ("rent", True, {"node": compute.POOL})],  # a pool card's rent point; the pool ends
+                  "draws": [(1.25, 8.75)], "balance": 8.75}, id="a run's warm pool on its grant"),
+    # 2026-10-24 Buy: rows high EUR 360.40 under a EUR 396.46 stop; the pool's whole 4 h holding was reserved beside the
+    # rows' high, which already holds the machine time those pool machines run, so 5 of 10 machines opened. Now the
+    # pool reserves its holding less the rows it bills (never below nothing), opens whole when that fits, still shrinks
+    # when it does not. 2026-11-05: rows' high alone past the line, a try that may stop at it, sizes its pool beside
+    # the rows' likely. 2026-11-06: a phase's preflight works the same choice out dry, against the room its Buy leaves
+    # (an ended batch's line written back at its spend left no room); the likely counts a not-measured row at nothing
+    # (checkout 33: its estimates in the likely too, EUR 430 against a likely EUR 99.07, and no pool fit)
+    pytest.param({"text": "a hall", "stop": 396.46, "ledger": [{"euros": 90.0}], "bill": 100.0,
+                  "steps": [("pool", POOLS, None, "run-buy", {"sizes": FULL, "clearance": {"euros": 0.0, "holding": 72.0}},
+                             {"beside": 360.40, "covered": 300.0}),
+                            ("clear", 400.0, None, None, "pass the EUR 396.46 stop"),
+                            ("release",),
+                            ("pool", POOLS, None, "run-tight", {"sizes": HALF, "clearance": {  # 52 + 360.40 passes
+                                "euros": 16.0, "beside": "high"}},  # 16 + 360.40 fits, the likely unread
+                             {"beside": 360.40, "covered": 20.0, "likely": (40.0, 30.0)}),
+                            ("release",),
+                            ("fits", POOLS, 360.40, 20.0, (40.0, 30.0), None, (HALF, "high", None)),
+                            ("fits", POOLS, 400.0, 300.0, (40.0, 30.0), None, (FULL, "likely", None)),
+                            ("fits", POOLS, 400.0, 0.0, (395.0, 0.0), None, (None, None, "pass the EUR 396.46 stop")),
+                            ("fits", POOLS, 400.0, 0.0, (395.0, 0.0), 900.0, (FULL, "high", None)),
+                            ("fits", POOLS, 400.0, 0.0, (395.0, 0.0), 10.0, (None, None, "the phase's Buy leaves")),
+                            ("pool", POOLS, None, "run-stop", {"sizes": FULL, "clearance": {"beside": "likely",
+                                                                                          "euros": 42.0}},
+                             {"beside": 400.0, "covered": 300.0, "likely": (40.0, 30.0)}),
+                            ("clear", 360.0, None, None, "pass the EUR 396.46 stop"),  # 42 + 360 passes
+                            ("release",),
+                            ("pool", POOLS, None, "run-shrunk", {"sizes": HALF},  # 72 + 340 passes, 36 + 340 fits
+                             {"beside": 400.0, "likely": (340.0, 0.0)}),
+                            ("release",),
+                            ("pool", POOLS, None, "run-none", "pass the EUR 396.46 stop",  # not one beside the likely
+                             {"beside": 400.0, "likely": (395.0, 0.0)}),
+                            ("pool", POOLS, None, "run-fits", "pass the EUR 396.46 stop",  # the high fits alone
+                             {"beside": 395.0, "likely": (40.0, 0.0)}),
+                            ("rows", {}, 95.0), ("rows", {"field": "likely_euros"}, 2.0),
+                            ("rows", {"pooled": True, "field": "likely_euros"}, 2.0)]},
+                 id="a warm pool reserves only its holding beyond the rows it bills"),
+    # Batch 1 of 2026-10-24: the pool closed at its cleared 4 h with ~550 rows queued, and every finish after failed.
+    # Its run's heartbeat holds it longer: each further holding checked against the money with every reservation,
+    # added to the pool's own one, refused once the money has no room or the pool has ended; under a grant the more
+    # is held on it and its spend drawn once
+    pytest.param({"text": "a hall", "stop": 20.0, "ledger": [{"euros": 90.0}], "bill": 100.0,
+                  "steps": [("pool", [(ONE_CARD, 6.0)], None, "run-long", {"sizes": ONE_CARD}),
+                            ("extend", 6.0, None, None, {"euros": 12.0, "holding": 12.0, "high_minutes": 480}),
+                            ("extend", 10.0, None, None, "pass the EUR 20.00 stop"),
+                            ("clear", 9.0, None, None, "pass the EUR 20.00 stop"),  # 12 held + 9
+                            ("release",),
+                            ("extend", 1.0, None, None, "has ended")]}, id="a warm pool held longer"),
+    pytest.param({"text": "a hall", "stop": 1.0, "ledger": [{"euros": 90.0}], "bill": 100.0, "grant": 10.0,
+                  "steps": [("pool", [(ONE_CARD, 3.0)], OWN, "run-g", {"clearance": {"grant": OWN}}),
+                            ("extend", 3.0, OWN, "run-g", {"holding": 6.0}),  # 3.30 more held: 3.40 left
+                            ("extend", 4.0, OWN, "run-g", "EUR 3.40 left"),
+                            ("bill", 1.25), ("release",)],
+                  "draws": [(1.25, 8.75)], "balance": 8.75}, id="a warm pool held longer under a grant"),
 ]
 
 
@@ -1234,14 +1155,30 @@ def a_world(row):
     return runner
 
 
+def agrees(found, expected, grant):
+    """Whether `found` holds the expected fields: nested dicts field by field, OWN the row's grant, Says words it
+    holds, a (low, high) range it lies strictly inside, else the value itself."""
+    if isinstance(expected, dict):
+        return isinstance(found, dict) and all(agrees(found.get(field, ABSENT), value, grant)
+                                               for field, value in expected.items())
+    if isinstance(expected, Says):
+        return isinstance(found, str) and expected in found
+    if isinstance(expected, tuple):
+        return expected[0] < found < expected[1]
+    return found == (grant if expected == OWN else expected)
+
+
 @pytest.mark.parametrize("row", ASKS)
 def test_paid_work_starts_only_inside_its_clearance(row):
     """Every paid start asks the runner's clearance: refused (and nothing written) while a prerequisite failed or is
     not accepted, the run has no estimate or measure, its high would pass the world's stop line with what was spent
-    since the line and everything in flight (less what it ledgered, open overrides too), or a benchmark grant's
-    balance; else cleared at its measured high, kept in the store with no typed yes, the job keyed to it. That high
-    is the price the cockpit shows: its measured runs, else per unit times the units counted or forecast, timed on
-    the card rule, else a guess at the estimate that names where it is written."""
+    since the line and everything in flight (less what it ledgered, open overrides and warm pools too, however many
+    ask at once), or a benchmark grant's balance; else cleared at its measured high, kept in the store with no typed
+    yes, the job keyed to it. A warm pool clears its holding beyond the rows it bills, shrinking to fit, and is held
+    longer only while the money has room; a reading clears under the owner's allowance alone; a grant draws each
+    run's real spend, a restored one too; only the owner writes the stop line, the world's start kept. That high is
+    the price the cockpit shows: its measured runs, else per unit times the units counted or forecast, timed on the
+    card rule, else a guess at the estimate that names where it is written."""
     assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     runner = a_world(row)
     if "stop" in row:
@@ -1260,7 +1197,7 @@ def test_paid_work_starts_only_inside_its_clearance(row):
         compute.PER_UNIT = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
         compute.PER_UNIT.write_text(json.dumps({"stages": row["per_unit"]}))
     try:
-        for step in row["steps"]:
+        for number, step in enumerate(row["steps"]):
             if step[0] == "count":
                 _, output, rule, units = step
                 assert compute.counted_units(outputs, output, rule) == units, step
@@ -1279,15 +1216,66 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                     else:
                         assert found == value, (step, field, answer)
                 continue
+            if step[0] == "rows":
+                from score.__main__ import rows_high
+                assert rows_high(ROWS, **step[1]) == step[2], step
+                continue
+            if step[0] == "fits":
+                _, choices, beside, covered, likely, room, (sizes, by, words) = step
+                reservations = compute.covering_store(runner.store).cache.parent / "reservations.json"
+                before = reservations.read_text() if reservations.exists() else None
+                found = compute.pool_fits(runner, choices, beside, covered, likely, room=room)
+                assert found[:2] == (sizes, by) and (found[2] is None if words is None else words in found[2]), (
+                    step, found)
+                assert (reservations.read_text() if reservations.exists() else None) == before, step
+                continue
+            if step[0] == "race":
+                fork = multiprocessing.get_context("fork")
+                ready, pipes = fork.Event(), [fork.Pipe(duplex=False) for _ in range(step[1])]
+                processes = [fork.Process(target=clear_in_a_process, args=(runner, ready, sending))
+                             for _, sending in pipes]
+                for process in processes:
+                    process.start()
+                for _, sending in pipes:
+                    sending.close()  # a process that dies fails the test with EOFError instead of hanging it
+                ready.set()
+                answers = sorted(receiving.recv() for receiving, _ in pipes)
+                for process in processes:
+                    process.join()
+                assert answers == ["cleared"] * step[2] + ["refused"] * (step[1] - step[2]), answers
+                continue
             if step[0] == "bill":
-                billed(tickets[-1], step[1])
+                billed(newest, step[1])
                 continue
             if step[0] == "release":
                 compute.release(tickets.pop())
                 continue
+            if step[0] == "used":  # as the single-use rule left a grant: a used mark and its clearance counted
+                runner.store.write_once(f"grants/used/{grant}.json", {"run": step[1], "at": newest["clearance"]["at"]})
+                runner.store.write_once(f"grants/spent/{grant}/1.json",
+                                        {field: newest["clearance"][field] for field in ("node", "key", "euros", "at")})
+                continue
+            if step[0] == "restore":
+                _, answer, question, expected = step
+                if isinstance(expected, dict):
+                    restored = compute.restore_grant(grant, answer, question, runner.store)
+                    assert agrees(restored, expected, grant), (step, restored)
+                    assert runner.store.read(f"grants/restored/{grant}.json") == restored, step
+                else:
+                    assert expected in refused(lambda: compute.restore_grant(grant, answer, question, runner.store))
+                continue
             if step[0] == "stop":
-                as_owner(lambda: guard.set_line(home, runner.world.name, step[1], "the row", "owner",
-                                                "2026-10-18T09:00:00+00:00", START))
+                _, euros, baseline, who, expected = step
+                at = f"2026-10-18T{9 + number:02d}:00:00+00:00"
+                was = guard.current(home, runner.world.name)
+                write = lambda: guard.set_line(home, runner.world.name, euros, "the row", who, at, baseline)  # noqa: E731
+                if expected is None:  # an agent's process writes no stop line
+                    with pytest.raises(PermissionError):
+                        as_agent(write)
+                    assert guard.current(home, runner.world.name) == was, step
+                else:
+                    assert agrees(as_owner(write), expected, grant), step
+                    assert guard.current(home, runner.world.name)["euros"] == euros, step
                 continue
             if step[0] == "rent":
                 _, given, expected = step
@@ -1307,25 +1295,39 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                 else:
                     assert expected in said, (step, said)
                 continue
-            via, euros, tag, run, expected = step
+            tagged = grant if step[2] == OWN else step[2]
+            if step[0] == "extend":
+                _, euros, _, run, expected = step
+                extend = lambda: compute.extend_pool(runner, newest, euros, 4)  # noqa: E731
+                if isinstance(expected, dict):
+                    holding = as_benchmark(tagged, run, extend) if tagged else extend()
+                    mine = compute.open_reservations(pathlib.Path(newest["reservations"]))[newest["clearance"]["at"]]
+                    assert holding == mine["holding"] and agrees(mine, expected, grant), (step, holding, mine)
+                else:
+                    said = refused(lambda: as_benchmark(tagged, run, extend) if tagged else extend())
+                    assert expected in said, (step, said)
+                continue
+            via, what, _, run, expected, *more = step
+            given = more[0] if more else {}
             job_store = compute.job_contract.stores.FolderStore(tempfile.mkdtemp())
-            spec = {"kind": "blender", "image": "img", "command": ["true"], "euros": euros}
-            ask = (lambda: compute.submit(runner, "render@hangar", job_store, "run1", "job1", spec)) if via == "submit" \
-                else (lambda: compute.clearance(runner, "render@hangar", euros))
-            tagged = grant if tag == OWN else tag
+            spec = {"kind": "blender", "image": "img", "command": ["true"], "euros": what}
+            ask = {"submit": lambda: compute.submit(runner, "render@hangar", job_store, "run1", "job1", spec),
+                   "clear": lambda: compute.clearance(runner, "render@hangar", what),
+                   "pool": lambda: compute.pool_clearance(runner, run, what, 4, **given),
+                   "reading": lambda: as_agent(lambda: compute.reading_clearance(
+                       runner.store, given["places"], what, node=given.get("node", compute.READING)))}[via]
             if isinstance(expected, dict):
                 answer = as_benchmark(tagged, run, ask) if tagged else ask()
-                cleared += 1
-                key = runner.ticket("render@hangar")["key"]
-                records = runner.store.clearances("render@hangar", key)
-                assert len(records) == cleared, (step, records)
-                for field, value in expected.items():
-                    value = grant if value == OWN else value
-                    if isinstance(value, tuple):
-                        assert value[0] < records[-1][field] < value[1], (step, field, records[-1])
-                    else:
-                        assert records[-1][field] == value, (step, field, records[-1])
-                assert runner.store.spend_yes("render@hangar", key) is None, step
+                if via in ("submit", "clear"):
+                    cleared += 1
+                    key = runner.ticket("render@hangar")["key"]
+                    records = runner.store.clearances("render@hangar", key)
+                    assert len(records) == cleared, (step, records)
+                    assert agrees(records[-1], expected, grant), (step, records[-1])
+                    assert runner.store.spend_yes("render@hangar", key) is None, step
+                else:
+                    records = runner.store.clearances(answer["node"], answer["key"])
+                    assert agrees(answer, expected, grant), (step, answer)
                 if via == "submit":
                     job = compute.job_contract.stores.read_json(job_store, answer)
                     assert job["node"] == "render@hangar" and job["node_key"] == key, (step, job)
