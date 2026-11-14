@@ -16,6 +16,7 @@ score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py
 import hashlib
 import inspect
 import json
+import math
 import pathlib
 import shutil
 import struct
@@ -268,7 +269,7 @@ SUIT = np.array([[deep, up, side] for deep in (0.2, 0.6) for up in np.linspace(0
 # --- the bakes laid over the seed's and the released models ---------------------------------------------------------
 
 def a_baked_place(root):
-    """A place of a crate laid from model `box`, the owner's pick of it the box's hash (sha256 of its .gltf and its
+    """A place of two crates laid from model `box` at x 0 and 3, the owner's pick of it the box's hash (sha256 of its .gltf and its
     buffer's hex digest, worked out here), and two fixtures laid from released files, each a 2 m cube: the rocket,
     whose bake is a 2 m cube, and the tower, whose bake is a 3 m cube (the bake moved its frame); the bake of the box
     is `plank` (another file, another hash). The stage, its inventory and the hashes {model: sha}."""
@@ -283,7 +284,7 @@ def a_baked_place(root):
         return digest.hexdigest()
     hashes = {name: sha(root / f"models/{name}.gltf") for name in ("box", "plank")}
     pick = {"model": "box", "sha256": hashes["box"], "decided": "owner, 2026-10-09: this take"}
-    stage = place_of(root, [("crate", "box", (0, 0, 0))], [row("crate", pick=pick)])
+    stage = place_of(root, [("crate", "box", (0, 0, 0)), ("crate", "box", (3, 0, 0))], [row("crate", pick=pick)])
     for name, baked_size in (("rocket", 2.0), ("tower", 3.0)):
         a_cube_asset(stage.parent / f"assets/fixture_{name}.usdc", 2.0)
         a_cube_asset(stage.parent / f"assets/{name}.usdc", baked_size)
@@ -509,1288 +510,6 @@ def a_solid_box(stage, path, low, high, degrees=0.0):
     mesh.CreateFaceVertexCountsAttr([3] * len(box.faces))
     mesh.CreateFaceVertexIndicesAttr([int(index) for index in box.faces.reshape(-1)])
     mesh.CreateExtentAttr([tuple(map(float, box.bounds[0])), tuple(map(float, box.bounds[1]))])
-
-
-def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
-    """settle@airlock (2026-10-30): its ramp lay beside its porch deck, its end 0.14 m in the deck's slab, two sandbags
-    in the slab and its porch post 0.14 m in wall_3, laid at the plan's estimates; the drop sank and tilted them. The
-    assembly lays a ramp up its way onto its deck (the built static past its level's edge whose top is nearest the
-    level's): its 2 m plank pitched asin(0.158 / 2) = 4.53 degrees from the ground to the deck's 0.158 m top, its high
-    end's foot on the deck's near side at x 3.19. A thing nothing holds that starts inside a deck or wall is moved the
-    least way out: a sandbag 0.158 m into the deck's top up onto it, the post 0.141 m into the wall back to its face
-    at z 6.699, a locker reaching up into a loft deck out past its side (never down under the floor), a 4.2 m cable
-    bundle across a 0.14 m wall 0.34 m past the wall's near side (tube's, 2026-10-30); a ship longer than the place
-    across a wall fits nowhere clear of it and is left as laid, and named; a lamp in the
-    roof's box, a crate in a slanted wall's 5 m box and a stair reaching into its loft deck are left (a roof's and a
-    slanted wall's box hold the room, a stair climbs into its level). The held gate
-    fails one left inside a deck by name and its depth, never a door the record lays in its opening.
-    settle@flat (#72, 2026-11-03): floor things nothing holds, laid at their built size, bigger than the plan's
-    estimates, stood in each other. They are parted on the floor at their built size by the relation solver, never
-    shrunk: a 2.4 m bed and the wardrobe 0.2 m into it, a crate in a kit fixture (which never moves), all kept inside
-    the walls; a table on a 2 cm rug is no overlap and neither moves. habitat (#72, 2026-11-04): bunk beds laid
-    across its inner wall are moved to the nearest free spot in their own room (a bed across a two-room split goes
-    1.75 m round a locker on its own side, never 1.2 m through the wall into the next room); one that fits nowhere
-    in its room at its built size (3.5 m in a 3 m room) is left as laid, and two floor things left inside each other
-    are named by the held gate (a bed in a crate, never a table on its rug).
-    Break: score/stages/assembly/fitting.py: `if not (through(middle, middle + move, walls_near) & ~started).any():`
-        -> `if True:`
-    Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes, shapes)` -> `return faults`
-    Break: score/stages/assembly/fitting.py: held_faults' `and not fills_holder(entry):` -> `:` (the door's window in
-        the wall), or inside_of's `reach_into(corners, shapes.get(name, box_corners(box)))` -> `float(depths(low,
-        high, box).min())` (the turned pipe past the wall's end named inside it), or its `shapes.get(name,
-        box_corners(box))` -> `box_corners(box)` (lab's crate by its slanted wall named in it)
-    Break: score/stages/assembly/fitting.py: held_faults' `distance = min(distance, stacked_off(...` -> `distance =
-        min(distance, np.inf` (garage's stacked box named off its shelf), or off_holder's `above = 0.0 if
-        on_shelves_of(on) else` dropped (storage's bag on its top board named over its unit)
-    Break: score/stages/assembly/fitting.py: crowded_faults' `if entry["name"] in boxes` -> `if entry["name"] in
-        boxes and not entry.get("on")` (two jars held at one spot on their shelf pass, galley 2026-11-03)
-    Break: score/stages/assembly/fitting.py: holders_of's `more = {holder for one in more ...} - seen` -> `more =
-        set()` (a book within a shelf on a desk named inside the desk)
-    Break: score/stages/assembly/fitting.py: `return inside if (np.asarray(inside[:2]) <= middle).all()` -> `return
-        inside if True`
-    Break: score/stages/assembly/fitting.py: `done, fits = set(), parted(stage, place, loose, set(by_name))` -> `done,
-        fits = set(), []`
-    Break: score/stages/assembly/fitting.py: `if crossing({**held, **after}, thin) >= crossing({**held, **boxes},
-        thin):` -> `if True:`
-    Break: score/stages/assembly/fitting.py: `return pivot, np.cross(way, [0.0, 1.0, 0.0]),` -> `return pivot,
-        np.cross([0.0, 1.0, 0.0], way),`
-    Break: score/stages/assembly/fitting.py: `fits += moved_out(stage, place, loose)` -> `fits += []`
-    Break: score/stages/assembly/fitting.py: `fits += floor_clear.off_edges(stage, place, loose) +
-        floor_clear.apart(stage, place, loose)` -> `fits += []` (habitat's plant left across its rug's edge, its lamp
-        in its sofa), or floor_clear.py's leans' `> LEAN_MOST` -> `> 0.0` (the table moved off its rug), or apart's
-        `if not TOUCH < reach <= fitting.HELD_MOST:` -> `if not reach > 0.0:` (the touching crate moved)
-    Break: score/stages/assembly/fitting.py: `and not entry.get("on") and not climbs(entry)]` (fitted's loose) ->
-        `and not entry.get("on")]`
-    Break: score/stages/assembly/fitting.py: `return [(name, box) for name, box in built if name.split("_")[0] in
-        STATICS]` -> `return built`
-    Break: score/stages/assembly/fitting.py: `if not held_in(on) and not climbs(entry):` -> `if True:`
-    Break: score/stages/assembly/fitting.py: climbs' `return "_".join(words) in CLIMBING or words[0] in CLIMBING` ->
-        `return bool(set(words) & set(CLIMBING))` (the step ladder climbs)
-    Break: score/stages/assembly/fitting.py: statics' `or floor_piece(name, box)]` -> `]` (the ladder left inside its
-        landing pad), or floor_piece's `float(box[0][1]) <= HELD_MOST and` dropped (the ceiling beam a static)
-    Break: score/stages/assembly/fitting.py: `back[1] = np.inf` -> `pass`
-    Break: score/stages/assembly/fitting.py: `<= WALL_THICKEST)]` -> `<= 99.0)]`
-    Break: score/stages/assembly/fitting.py: `if depths(low, high, box).min() > HELD_MOST]` -> `if False]`
-    Break: score/stages/assembly/fitting.py: free_spot's `clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]],
-        size[[0, 2]] / 2, outline) <= HELD_MOST` -> `pass` (its free spot found in the slanted corner, the parting is refused: left in the fixture)
-    Break: score/stages/assembly/fitting.py: shallow_out's `if abs(moves[axis]) > HELD_MOST:` -> `if False:` (a car
-        laid across a wall pulled 4 m through it), or straight's `>= STRAIGHT_LEAST *` -> `>= 0.0 *` (moved out of a
-        slanted wall's box)
-    Break: score/stages/assembly/fitting.py: slants' `if not flight(name) and (name.split("_")[0] != "wall"` -> `if
-        (name.split("_")[0] != "wall"` (the crate left on the flight), or free_spot's `outline)[0] >= 0.0` -> `outline)[0]
-        > 0.0` (a point's depth is never over 0: a crate whose middle stands on the flight found no way off it)
-    Break: score/stages/assembly/fitting.py: free_spot's `clear &= on_deck(box[0] + chunk, size, deck)` -> `pass` and
-        parted_boxes' `if (deck := deck_at(boxes[name], floors)) is not None` -> `if False and ...` (greenhouse's desk
-        parted past its deck's edge), or parted's `outlines = {name: outline ...}` -> `outlines = {}` (the desk clear
-        of the railing, in its box, parted)
-    Break: score/stages/assembly/fitting.py: `fits += held_along.carried(stage, place, list(by_name.values()), before)`
-        -> `fits += []` (greenhouse's computer left at its parted desk's edge), or held_along.py's carried `if
-        float(np.linalg.norm(shift)) <= fitting.MOVE_LEAST:` -> `if True:`
-    assembly@walkway (2026-11-12): its ceiling ducts, built 0.069 m longer than the room between walls 1 and 3, were
-    moved out of wall_1 into wall_3; its 4.7 cm floor lights lay wholly in wall_4, 0.0503 m from its face. A 10.06 m
-    duct between walls 10 m apart is narrowed along z to the room, both ends on their walls; a 4.66 cm light in
-    wall_4 is moved 0.0503 m out of it into the room; a 12 m beam (83%) is left at its length.
-    Break: score/stages/assembly/fitting.py: `fits += room_clear.cleared(stage, place, loose)` dropped (the duct left
-        0.06 m in wall_3, the light in wall_4), or room_clear.py's `if room >= length or room < SHRINK_MOST * length:`
-        -> `if room >= length:` (the beam shrunk to 83%), or moved_across's `> float(box[1][axis] - box[0][axis]):`
-        -> `> fitting.HELD_MOST:` (the light left in its wall), or `-> > 100.0:` (the spaceship across wall_5 moved
-        3 m)
-    light@walkway (2026-11-12): the floor lights were moved out of wall_4 and their lamps, laid at their plan spots
-    inside them, left 2.7 cm in the wall, its spot-2 at 0.079 against its concept's 0.237. The light's lamp is carried
-    0.0503 m into the room with it, its record spot kept (lamps_along.laid_at); a lamp in the duct's box, which is
-    narrowed, and one beside the light stay.
-    Break: score/stages/assembly/room_clear.py: `lamps_along.moved_with(stage, place, low, high, foot, 1.0, foot +
-        move)` dropped (the lamp left in wall_4), or lamps_along.py's `if np.any(spot < np.asarray(low) - WITHIN) or
-        ...: continue` -> `if False: continue` (the lamp beside the light carried too)
-    settle@habitat (2026-11-13): its rugs 4 and 7 to 10 lay across its partition walls and under a wall thing, and its
-    bookshelf 2 and bunk bed 2 stood 2 and 4.4 cm into slanted walls, which the parting lets stand (its HELD_MOST); the
-    drop took them as laid inside (its triangles still crossing past a 5 mm nudge) or slid the bed 92 cm. A 2 m rug
-    laid across a partition into a 1.52 m alcove is shrunk to 74% and moved 0.24 m into it, GAP from both walls; a
-    crate 2 cm into a slanted wall is moved (0.03, 0.02) m off it; a rug 4 mm into wall_4 is no overlap to the drop and
-    is left.
-    Break: score/stages/assembly/fitting.py: `fits += floor_free.cleared(stage, place, loose, entries)` dropped (the
-        rug and the crate left in their walls), or floor_free.py's reaches' `< half - NUDGE` -> `< half` (the rug 4 mm
-        in moved), or spot_for's `for scale in scales:` -> `for scale in scales[:1]:` (the alcove's rug left), or
-        free_moves' `reach = half + GAP` -> `reach = half` (the rug and crate left touching their walls)"""
-    import math
-    from pxr import Usd
-    from score.stages.assembly import fitting
-    stage = Usd.Stage.CreateInMemory()
-    for name, low, high in (("deck_2", (3.19, -0.042, 2.0), (8.9, 0.158, 8.0)),
-                            ("wall_3", (0.0, -0.242, 6.699), (7.0, 3.0, 6.999)),
-                            ("roof_1", (-9.0, 2.8, -9.0), (9.0, 3.4, 9.0)),
-                            ("deck_3", (10.0, 2.758, 10.0), (16.0, 2.958, 16.0)),
-                            ("wall_9", (20.0, 0.0, 20.0), (25.0, 3.0, 25.0)),
-                            ("wall_5", (30.0, -0.242, 30.0), (30.14, 3.0, 33.0))):
-        a_built_box(stage, f"/{TOY}/Structure/{name}", low, high)
-    for name, low, high in (("ramp_1", (1.31, 0.0, 4.75), (3.31, 0.209, 5.95)),
-                            ("sandbags_1", (2.9, 0.0, 4.0), (3.5, 0.2, 4.4)),
-                            ("porch_post_1", (0.34, 0.0, 6.36), (1.04, 2.5, 6.84)),
-                            ("lamp_1", (0.0, 2.75, 0.0), (0.5, 2.9, 0.5)),
-                            ("stairs_1", (11.0, 0.0, 8.0), (12.0, 2.997, 10.5)),
-                            ("locker_1", (15.5, 0.0, 12.0), (16.3, 2.9, 12.6)),
-                            ("crate_2", (22.0, 0.0, 22.0), (22.5, 0.5, 22.5)),
-                            ("cable_bundles_1", (29.8, 0.0, 30.0), (34.0, 2.0, 30.4)),  # clear of the ship,
-                            ("spaceship_1", (-1.0, 0.0, 30.5), (33.0, 2.0, 32.5))):  # longer than the place
-        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
-    ramp = {"how": "ramp", "edge": [[3.34, 8.19], [3.34, 2.08]], "up": [1.0, 0.0], "top": 0.2, "why": "up to the deck"}
-    entries = [{"name": "ramp_1", "row": "ramp", "on": ramp},
-               *[{"name": name, "row": name[:-2]} for name in ("sandbags_1", "porch_post_1", "lamp_1", "stairs_1",
-                                                                "locker_1", "crate_2", "cable_bundles_1", "spaceship_1")]]
-    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {entry["name"] for entry in entries})}
-    assert sorted(fits) == ["cable_bundles_1", "locker_1", "porch_post_1", "ramp_1", "sandbags_1"], fits
-    boxes = {name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in fits}
-    low, high = boxes["ramp_1"]
-    pitch = math.asin(0.158 / 2.0)
-    assert abs(fits["ramp_1"]["pitch"] - round(math.degrees(pitch), 2)) < 1e-9, fits["ramp_1"]
-    assert np.allclose([high[0], low[1], high[1]], [3.19, 0.0, 0.158 + 0.209 * math.cos(pitch)], atol=1e-4), boxes
-    assert abs(boxes["sandbags_1"][0][1] - 0.158) < 1e-6 and abs(boxes["porch_post_1"][1][2] - 6.699) < 1e-6, boxes
-    assert np.allclose(boxes["locker_1"][0], (16.0, 0.0, 12.0)), boxes  # out across, never sunk under the floor
-    assert abs(boxes["cable_bundles_1"][0][0] - 30.14) < 1e-6, boxes  # clear past the thin wall's near side
-    boxes.update({name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("stairs_1", "crate_2")})
-    # settle@hangar (2026-11-10): its step ladder, a free-standing object, read as a climbing row and never moved out
-    # of the 0.1 m landing pad it was laid in; a stair, a ladder and a stair's railing still climb
-    assert [fitting.climbs({"row": row}) for row in ("stairs", "ladder", "stair_railing", "step_ladder")] == [
-        True, True, True, False]
-    # ... and the 0.1 m landing pad, a piece laid on the floor (design_shell.floor_pieces), was no static: the ladder
-    # laid at the floor inside it is moved up onto it; 2 cm floor grates hold nothing, and a 0.2 m ceiling beam is
-    # none
-    from pxr import Usd
-    padded = Usd.Stage.CreateInMemory()
-    a_built_box(padded, f"/{TOY}/Structure/landing_pad_1", (0.0, 0.0, 0.0), (4.0, 0.1, 4.0))
-    a_built_box(padded, f"/{TOY}/Objects/step_ladder_1", (1.0, 0.0, 1.0), (1.6, 2.0, 1.4))
-    [moved] = fitting.moved_out(padded, TOY, [{"name": "step_ladder_1", "row": "step_ladder"}])
-    assert moved["holder"] == ["landing_pad_1"] and np.isclose(moved["low"][1], 0.1), moved
-    pieces = [("landing_pad_1", (np.zeros(3), np.array([4.0, 0.1, 4.0]))),
-              ("floor_grates_1", (np.zeros(3), np.array([4.0, 0.02, 4.0]))),
-              ("ceiling_beam_1", (np.array([0.0, 4.4, 0.0]), np.array([4.0, 4.6, 0.3])))]
-    assert [name for name, _ in fitting.statics(pieces)] == ["landing_pad_1", "floor_grates_1"]
-    ship = fitting.world_box(stage, f"/{TOY}/Objects/spaceship_1")
-    assert np.allclose(ship[0], (-1.0, 0.0, 30.5)), ship  # no spot clear of the wall in the place: left as laid, named
-    walls = [{"name": name, "low": list(found[0]), "high": list(found[1])}
-             for name, found in fitting.walls(stage, TOY)]
-    laid = {"walls": walls, "objects": [{"name": name, "low": list(box[0]), "high": list(box[1])}
-                                        for name, box in boxes.items()]}
-    assert fitting.held_faults({"objects": entries}, laid) == [], fitting.held_faults({"objects": entries}, laid)
-    laid["objects"].append({"name": "spaceship_1", "low": list(ship[0]), "high": list(ship[1])})
-    assert fitting.held_faults({"objects": entries}, laid) == [
-        ("spaceship_1", "laid 0.14 m inside wall_5, nothing holding it there", 0.14)], laid
-    door = {"how": "in", "middle": [0.5, 0.0, 6.849], "along": [1.0, 0.0], "wide": 1.0, "tall": 2.0, "why": "opening"}
-    record = {"objects": [{"name": "crate_1"}, {"name": "door_1", "on": door, "fills": True}]}
-    laid = {"walls": walls, "objects": [{"name": "crate_1", "low": [4.0, 0.0, 3.0], "high": [4.5, 0.4, 3.5]},
-                                        {"name": "door_1", "low": [0.0, 0.0, 6.799], "high": [1.0, 2.0, 6.899]}]}
-    assert fitting.held_faults(record, laid) == [
-        ("crate_1", "laid 0.16 m inside deck_2, nothing holding it there", 0.158)], fitting.held_faults(record, laid)
-    # docking_airlock (2026-11-11): its door's window, filling the door hung in its opening, failed as 0.10 m in the
-    # wall; a window on no door it fills is in the wall all the same
-    window = {"name": "window_1", "on": {"how": "within", "holder": ["door_1"]}, "fills": True}
-    framed = {**laid, "objects": [*laid["objects"][1:],
-                                  {"name": "window_1", "low": [0.3, 1.0, 6.8], "high": [0.7, 1.5, 6.89]}]}
-    assert fitting.held_faults({"objects": [record["objects"][1], window]}, framed) == []
-    loose = [fault[0] for fault in fitting.held_faults({"objects": [record["objects"][1], {**window, "fills": False}]},
-                                                       framed)]
-    assert "window_1" in loose, loose
-    # garage (2026-11-11): boxes stacked on the boxes on its shelf units' tops were named 0.33 m off their shelves.
-    # A box standing on one within the same shelf stands on it; one floating over it is still named.
-    shelf = {"how": "within", "holder": ["shelf_1"]}
-    stack = {"objects": [{"name": "shelf_1", "low": [0.0, 0.0, 0.0], "high": [1.0, 1.0, 0.5]},
-                         {"name": "box_1", "low": [0.1, 1.0, 0.1], "high": [0.4, 1.3, 0.4]},
-                         {"name": "box_2", "low": [0.1, 1.3, 0.1], "high": [0.4, 1.6, 0.4]}]}
-    piled = {"objects": [{"name": "shelf_1"}, {"name": "box_1", "on": shelf}, {"name": "box_2", "on": shelf}]}
-    assert fitting.held_faults(piled, stack) == [], fitting.held_faults(piled, stack)
-    stack["objects"][2] = {"name": "box_2", "low": [0.1, 1.5, 0.1], "high": [0.4, 1.8, 0.4]}
-    assert [fault[0] for fault in fitting.held_faults(piled, stack)] == ["box_2"]
-    # storage (2026-11-11): bags on their units' top boards reach 0.07 m over the units' frames; on its shelves that
-    # is no fault, a thing within its holder otherwise is
-    bag = {"objects": [{"name": "shelf_1", "low": [0.0, 0.0, 0.0], "high": [1.0, 1.0, 0.5]},
-                       {"name": "bag_1", "low": [0.1, 0.8, 0.1], "high": [0.4, 1.07, 0.4]}]}
-    shelved = {"how": "within", "holder": ["shelf_1"], "why": f"{fitting.SHELVES}shelf: its reading says 'top shelves'"}
-    assert fitting.held_faults({"objects": [{"name": "shelf_1"}, {"name": "bag_1", "on": shelved}]}, bag) == []
-    assert [fault[0] for fault in fitting.held_faults({"objects": [{"name": "shelf_1"}, {"name": "bag_1", "on": shelf}]},
-                                                      bag)] == ["bag_1"]
-    # lab (2026-11-11): things by its short slanted walls named in them by the walls' world boxes. A slab 1 m long
-    # and 0.1 m thick at 45 degrees: its own box (wall_corners) is that thin slab; a crate in its world box's corner,
-    # clear of the slab, is in no wall by it, and in the wall by the world box alone.
-    from pxr import Usd as _Usd, UsdGeom as _UsdGeom
-    slanted = _Usd.Stage.CreateInMemory()
-    run, out = np.array([1.0, 0.0, 1.0]) / 2 ** 0.5, np.array([-1.0, 0.0, 1.0]) / 2 ** 0.5
-    points = [tuple(float(value) for value in run * along + out * across + [0.0, height, 0.0])
-              for along in (0.0, 1.0) for height in (0.0, 3.0) for across in (0.0, 0.1)]
-    _UsdGeom.Xform.Define(slanted, f"/{TOY}/Structure/wall_1")
-    _UsdGeom.Mesh.Define(slanted, f"/{TOY}/Structure/wall_1/geo").CreatePointsAttr(points)
-    own = fitting.wall_corners(slanted, f"/{TOY}/Structure/wall_1")
-    crate = fitting.box_corners((np.array([0.55, 0.0, 0.0]), np.array([0.7, 1.0, 0.15])))
-    wall_box = (np.min(points, axis=0), np.max(points, axis=0))
-    assert fitting.inside_of(crate.min(axis=0), crate.max(axis=0), [("wall_1", wall_box)], crate,
-                             {"wall_1": own}) == []
-    assert [name for name, _ in fitting.inside_of(crate.min(axis=0), crate.max(axis=0), [("wall_1", wall_box)],
-                                                  crate)] == ["wall_1"]
-    # lab and greenhouse (2026-11-11): pipes and railings turned along slanted walls and stairs failed as inside walls
-    # and each other by their world boxes. A 2.83 m pipe at 45 degrees passing 0.09 m clear of a wall's end stands in
-    # no wall by its turned box (its world box is 0.2 m in it); moved 0.5 m back along the wall it is in it.
-    def pipe(middle):
-        along, up, out = np.array([1.0, 0.0, 1.0]), np.array([0.0, 0.05, 0.0]), np.array([-1.0, 0.0, 1.0]) * 0.05 / 2 ** 0.5
-        corners = [np.asarray(middle, float) + one * along + two * up + three * out
-                   for one in (-1, 1) for two in (-1, 1) for three in (-1, 1)]
-        return {"name": "pipe_1", "low": list(np.min(corners, axis=0)), "high": list(np.max(corners, axis=0)),
-                "corners": [list(point) for point in corners]}
-    end = {"walls": [{"name": "wall_9", "low": [0.0, 0.0, 0.0], "high": [0.2, 3.0, 5.0]}]}
-    assert fitting.held_faults({"objects": [{"name": "pipe_1"}]}, {**end, "objects": [pipe((0.0, 1.0, 5.0))]}) == []
-    through = fitting.held_faults({"objects": [{"name": "pipe_1"}]}, {**end, "objects": [pipe((0.0, 1.0, 4.5))]})
-    assert [fault[0] for fault in through] == ["pipe_1"], through
-    room = Usd.Stage.CreateInMemory()
-    for name, low, high in (("deck_1", (0.0, -0.2, 0.0), (6.0, 0.0, 4.0)), ("wall_1", (6.0, 0.0, 0.0), (6.2, 3.0, 4.0)),
-                            ("wall_2", (-0.2, 0.0, 0.0), (0.0, 3.0, 4.0))):
-        a_built_box(room, f"/{TOY}/Structure/{name}", low, high)
-    a_built_box(room, f"/{TOY}/Fixtures/kit_1", (0.6, 0.0, 0.2), (1.2, 1.0, 0.8))
-    floor = {"bed_1": ((2.0, 0.0, 0.5), (4.4, 0.6, 2.5)), "wardrobe_1": ((4.2, 0.0, 0.5), (5.4, 2.0, 1.1)),
-             "crate_3": ((0.2, 0.0, 0.2), (0.8, 0.5, 0.8)), "rug_1": ((0.2, 0.0, 2.6), (2.2, 0.02, 3.8)),
-             "table_1": ((0.7, 0.0, 2.9), (1.7, 0.8, 3.5))}
-    for name, (low, high) in floor.items():
-        a_built_box(room, f"/{TOY}/Objects/{name}", low, high)
-    entries = [{"name": name, "row": name[:-2]} for name in floor]
-    fits = fitting.fitted(room, TOY, entries, set(floor))
-    assert sorted(fit["name"] for fit in fits if fit["how"] == "parted") == ["bed_1", "crate_3", "wardrobe_1"], fits
-    laid = {name: fitting.world_box(room, f"/{TOY}/Objects/{name}") for name in floor}
-    kit = fitting.world_box(room, f"/{TOY}/Fixtures/kit_1")
-    assert all(np.allclose(laid[name][1] - laid[name][0], np.subtract(high, low)) for name, (low, high) in
-               floor.items()), laid  # at its built size: never shrunk
-    assert np.allclose(kit[0], (0.6, 0.0, 0.2)) and fitting.crossing({**laid, "kit_1": kit}, []) == 0, laid
-    assert all(box[0][0] >= -1e-3 and box[1][0] <= 6.2 + 1e-3 for box in laid.values()), laid  # inside the walls
-    assert all(np.allclose(laid[name][0], floor[name][0]) for name in ("rug_1", "table_1")), laid  # on its rug: left
-    split = Usd.Stage.CreateInMemory()
-    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 4.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 4.0)),
-                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0)), ("wall_4", (0.0, 0.0, 4.0), (6.0, 3.0, 4.1)),
-                            ("wall_5", (3.0, 0.0, 0.0), (3.1, 3.0, 4.0))):  # the inner wall: two rooms
-        a_built_box(split, f"/{TOY}/Structure/{name}", low, high)
-    a_built_box(split, f"/{TOY}/Fixtures/locker_1", (3.1, 0.0, 0.0), (6.0, 2.0, 2.5))
-    across = {"bunk_bed_2": ((2.2, 0.0, 1.0), (4.2, 0.6, 2.0)), "bunk_bed_3": ((-0.2, 0.0, 0.0), (3.3, 0.6, 1.0))}
-    for name, (low, high) in across.items():
-        a_built_box(split, f"/{TOY}/Objects/{name}", low, high)
-    fitting.fitted(split, TOY, [{"name": name, "row": "bunk_bed"} for name in across], set(across))
-    bunks = {name: fitting.world_box(split, f"/{TOY}/Objects/{name}") for name in across}
-    assert np.allclose(bunks["bunk_bed_2"][0], (3.1, 0.0, 2.5)), bunks  # its own room's free spot, not 1.2 m through
-    assert np.allclose(bunks["bunk_bed_3"][0], across["bunk_bed_3"][0]), bunks  # 3.5 m in a 3 m room: left, named
-    # engineroom (2026-11-08): its slanted corner walls, which the parting knew only by the box of the walls, took
-    # core_1 5.48 m into one. A crate laid in a kit fixture beside a slanted corner wall (4, 0) to (6, 2) goes to a
-    # free spot clear of the wall's outline and on the room's side of it, never the 0.6 m out of the fixture
-    # along the wall it stands by into the corner.
-    corner = Usd.Stage.CreateInMemory()
-    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 4.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 4.0)),
-                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0)), ("wall_4", (0.0, 0.0, 4.0), (6.0, 3.0, 4.1))):
-        a_built_box(corner, f"/{TOY}/Structure/{name}", low, high)
-    from pxr import Gf, UsdGeom
-    UsdGeom.Xform.Define(corner, f"/{TOY}/Structure/wall_5").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    slab = UsdGeom.Mesh.Define(corner, f"/{TOY}/Structure/wall_5/geo")
-    side = 0.1 / np.sqrt(2.0)
-    slab.CreatePointsAttr([(x + way * side, y, z - way * side) for x, z in ((4.0, 0.0), (6.0, 2.0)) for way in (1, -1)
-                           for y in (0.0, 3.0)])
-    slab.CreateExtentAttr([(4.0 - side, 0.0, -side), (6.0 + side, 3.0, 2.0 + side)])
-    a_built_box(corner, f"/{TOY}/Fixtures/kit_1", (2.0, 0.0, 0.0), (3.5, 1.0, 1.5))
-    a_built_box(corner, f"/{TOY}/Objects/crate_4", (2.9, 0.0, 0.0), (3.5, 0.5, 0.6))
-    fitting.fitted(corner, TOY, [{"name": "crate_4", "row": "crate"}], {"crate_4"})
-    crate = fitting.world_box(corner, f"/{TOY}/Objects/crate_4")
-    [(outline, _)] = fitting.slants(corner, TOY)
-    assert not np.allclose(crate[0], (2.9, 0.0, 0.0)), crate  # out of the fixture
-    assert fitting.slant_depth(fitting.foot_middle(*crate)[[0, 2]], (0.3, 0.3), outline)[0] <= 0.0, crate
-    assert crate[1][0] - crate[0][2] <= 4.0, crate  # on the room's side of the wall's line
-    assert fitting.crossing({"crate_4": crate}, [], fitting.slants(corner, TOY)) == 0, crate
-    # settle@campgrounds (2026-11-11): its lander and a dome laid 0.65 and 0.76 m into ramp_1 and ramp_2, flights the
-    # record builds as steps, which statics leaves out. A flight turned 45 degrees from (1, 1) up to (3, 3), 0.8 m
-    # wide: a crate laid on its middle is parted clear of its outline; one in its box's corner, 1.2 m off its line,
-    # is clear of it and stays.
-    import builders
-    flown = Usd.Stage.CreateInMemory()
-    steps = builders.stairs((1.0, 0.0, 1.0), (3.0, 1.0, 3.0), 0.8, 5, "s")
-    UsdGeom.Xform.Define(flown, f"/{TOY}/Structure/ramp_6").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    flight = UsdGeom.Mesh.Define(flown, f"/{TOY}/Structure/ramp_6/geo")
-    flight.CreatePointsAttr([tuple(map(float, point)) for point in steps["points"]])
-    flight.CreateExtentAttr([tuple(map(float, steps["points"].min(axis=0))),
-                             tuple(map(float, steps["points"].max(axis=0)))])
-    laid_by = {"crate_5": ((2.3, 0.0, 2.3), (2.9, 0.5, 2.9)), "crate_6": ((2.7, 0.0, 1.0), (3.0, 0.3, 1.3))}
-    for name, (low, high) in laid_by.items():
-        a_built_box(flown, f"/{TOY}/Objects/{name}", low, high)
-    fitting.fitted(flown, TOY, [{"name": name, "row": "crate"} for name in laid_by], set(laid_by))
-    crates = {name: fitting.world_box(flown, f"/{TOY}/Objects/{name}") for name in laid_by}
-    assert not np.allclose(crates["crate_5"][0], laid_by["crate_5"][0]), crates  # parted off the flight
-    assert fitting.crossing(crates, [], fitting.slants(flown, TOY)) == 0, crates
-    # settle@street (2026-11-11): its police car stood 0.044 m into wall_12, too little for the parting to take it.
-    # It is moved back out the way it came, along the floor; one across the wall, or only touching it, is left; a
-    # slanted wall's box is no wall piece's shape.
-    wall_12 = (np.array([4.15, -0.2, -19.3]), np.array([4.45, 3.5, 18.45]))
-    car = (np.array([0.478, 0.2, 8.937]), np.array([4.194, 1.521, 10.868]))
-    assert np.allclose(fitting.shallow_out(*car, wall_12), (-0.044, 0.0, 0.0)), fitting.shallow_out(*car, wall_12)
-    assert fitting.shallow_out(car[0], car[1] + (0.3, 0.0, 0.0), wall_12) is None
-    assert fitting.shallow_out(car[0], car[1] - (0.04, 0.0, 0.0), wall_12) is None
-    assert fitting.straight(wall_12) and not fitting.straight(((1.35, -0.2, -11.89), (2.53, 24.0, -8.72)))
-    # settle@greenhouse (2026-11-11): its railings, 9.4 m chords turned off the floor's axes, have world boxes 3.7 m
-    # deep, and its upper floor stops short of its walls. A desk clear of a railing turned 30 degrees, in its box,
-    # stays (judged by the railing's outline, never its box); of two desks laid in each other at the deck's corner,
-    # the one parted stays on the deck (x and z 0 to 4 at 3 m), never past its edge into the room's 2 m beyond it.
-    decked = Usd.Stage.CreateInMemory()
-    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 6.0, 6.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 6.0, 6.0)),
-                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 6.0, 0.0)), ("wall_4", (0.0, 0.0, 6.0), (6.0, 6.0, 6.1)),
-                            ("deck_2", (0.0, 2.8, 0.0), (4.0, 3.0, 4.0))):
-        a_built_box(decked, f"/{TOY}/Structure/{name}", low, high)
-    UsdGeom.Mesh(decked.GetPrimAtPath(f"/{TOY}/Structure/deck_2/geo")).CreateFaceVertexCountsAttr([4])
-    UsdGeom.Mesh(decked.GetPrimAtPath(f"/{TOY}/Structure/deck_2/geo")).CreateFaceVertexIndicesAttr([2, 3, 7, 6])  # top
-    UsdGeom.Xform.Define(decked, f"/{TOY}/Objects/railing_1").AddTransformOp().Set(
-        Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), 30.0)) * Gf.Matrix4d().SetTranslate(Gf.Vec3d(2.0, 3.5,
-                                                                                                         1.5)))
-    UsdGeom.Cube.Define(decked, f"/{TOY}/Objects/railing_1/geo").AddScaleOp().Set(Gf.Vec3f(2.0, 0.5, 0.01))
-    desks = {"desk_1": ((2.4, 3.0, 2.0), (3.2, 3.5, 2.5)), "desk_2": ((2.8, 3.0, 3.2), (3.8, 3.5, 3.9)),
-             "desk_3": ((3.1, 3.0, 3.3), (3.9, 3.5, 3.95))}
-    for name, (low, high) in desks.items():
-        a_built_box(decked, f"/{TOY}/Objects/{name}", low, high)
-    assert fitting.thin_outline(decked, f"/{TOY}/Objects/railing_1") is not None and fitting.thin_outline(
-        decked, f"/{TOY}/Objects/desk_1") is None
-    fitting.fitted(decked, TOY, [{"name": name, "row": name[:-2]} for name in ("railing_1", *desks)],
-                   {"railing_1", *desks})
-    after = {name: fitting.world_box(decked, f"/{TOY}/Objects/{name}") for name in desks}
-    assert np.allclose(after["desk_1"][0], desks["desk_1"][0]), after  # in the railing's box, clear of it: stays
-    assert not np.allclose(after["desk_2"][0], desks["desk_2"][0]) or not np.allclose(
-        after["desk_3"][0], desks["desk_3"][0]), after  # parted
-    assert all(box[0][0] >= -1e-6 and box[0][2] >= -1e-6 and box[1][0] <= 4.0 + 1e-6 and box[1][2] <= 4.0 + 1e-6
-               for box in after.values()), after  # on the deck
-    assert np.allclose(crates["crate_6"][0], laid_by["crate_6"][0]), crates  # by the outline, never the box
-    record = {"objects": [{"name": name, "row": name[:-2]} for name in ("bed_1", "crate_3", "rug_1", "table_1")]}
-    laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)} for name, (low, high) in
-                                     {**floor, "crate_3": ((2.5, 0.0, 1.0), (3.1, 0.5, 1.6))}.items()]}
-    assert fitting.held_faults(record, laid) == [
-        ("bed_1", "laid 0.50 m inside crate_3 at its built size, nothing holding either there", 0.5)], laid
-    shelf = {"how": "within", "holder": ["shelf_1"], "why": "within shelf"}
-    record = {"objects": [{"name": "desk_1", "row": "desk"},
-                          {"name": "shelf_1", "row": "shelf", "on": {"how": "top", "holder": ["desk_1"]}},
-                          *[{"name": f"jar_{number}", "row": "jar", "on": shelf} for number in (1, 2)],
-                          {"name": "book_1", "row": "book", "on": shelf}]}
-    held = {"desk_1": ((0.0, 0.0, 0.0), (2.0, 0.8, 1.0)), "shelf_1": ((0.2, 0.0, 0.2), (1.8, 0.79, 0.8)),
-            "jar_1": ((0.3, 0.3, 0.3), (0.5, 0.5, 0.5)), "jar_2": ((0.31, 0.3, 0.3), (0.51, 0.5, 0.5)),
-            "book_1": ((1.0, 0.2, 0.3), (1.3, 0.5, 0.6))}
-    laid = {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)}
-                                     for name, (low, high) in held.items()]}
-    found = [fault for fault in fitting.held_faults(record, laid) if "inside" in fault[1]]
-    assert found == [("jar_1", "laid 0.19 m inside jar_2 at its built size", 0.19)], found  # never its shelf or desk
-    # settle@habitat (2026-11-11): its potted plant and table lamp stood across 2 cm rugs' edges and leaned 4.2 and 4.9
-    # degrees once dropped; its sofa, parted, stood 0.047 m into a table lamp, which the parting lets stand. A 0.28 m
-    # plant across a rug's edge is moved 0.11 m wholly off it (the least way: on it is 0.18 m); a 1.2 m table across
-    # it leans under 3 degrees and is left; the lamp is moved 0.047 m out of the sofa, the smaller of the two; a crate
-    # 0.2 m into a chest is the parting's, and one touching 0.02 m into another is left.
-    rugged = Usd.Stage.CreateInMemory()
-    rugs = {"rug_1": ((0.0, 0.0, 0.0), (2.0, 0.02, 2.0)), "plant_1": ((1.9, 0.0, 0.5), (2.18, 0.4, 0.78)),
-            "table_1": ((1.5, 0.0, 1.0), (2.7, 0.75, 1.6)), "sofa_1": ((4.0, 0.0, 0.0), (6.0, 0.9, 0.874)),
-            "lamp_1": ((4.5, 0.0, 0.827), (4.78, 0.5, 1.127)), "chest_1": ((8.0, 0.0, 0.0), (9.0, 0.8, 1.0)),
-            "crate_1": ((8.8, 0.0, 0.2), (9.4, 0.5, 0.8)), "crate_2": ((7.42, 0.0, 2.0), (8.02, 0.5, 2.6)),
-            "chest_2": ((8.0, 0.0, 1.8), (9.0, 0.8, 2.8))}
-    for name, (low, high) in rugs.items():
-        a_built_box(rugged, f"/{TOY}/Objects/{name}", low, high)
-    fits = fitting.fitted(rugged, TOY, [{"name": name, "row": name[:-2]} for name in rugs], set(rugs))
-    assert sorted((fit["name"], fit["how"], fit["moved"]) for fit in fits if fit["how"] != "parted") == [
-        ("lamp_1", "apart", 0.047), ("plant_1", "off edge", 0.11)], fits
-    assert np.allclose(fitting.world_box(rugged, f"/{TOY}/Objects/plant_1")[0], (2.01, 0.0, 0.5)), fits
-    assert np.allclose(fitting.world_box(rugged, f"/{TOY}/Objects/lamp_1")[0], (4.5, 0.0, 0.874)), fits
-    # settle@greenhouse (2026-11-11): desk_6 was parted 1.07 m and computer_4, laid on its top, stayed at its plan spot,
-    # at the desk's edge. A desk laid 0.6 m into a kit fixture is parted 1 m along x; the computer on its top moves
-    # the same 1 m with it, 0.9 m from the desk's near side as laid, never left at that side.
-    desked = Usd.Stage.CreateInMemory()
-    for name, low, high in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 6.0)), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 6.0)),
-                            ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0)), ("wall_4", (0.0, 0.0, 6.0), (6.0, 3.0, 6.1))):
-        a_built_box(desked, f"/{TOY}/Structure/{name}", low, high)
-    a_built_box(desked, f"/{TOY}/Fixtures/kit_1", (2.0, 0.0, 2.0), (4.0, 1.0, 4.0))
-    a_built_box(desked, f"/{TOY}/Objects/desk_6", (3.0, 0.0, 2.5), (4.6, 0.75, 3.3))
-    a_built_box(desked, f"/{TOY}/Objects/computer_4", (3.9, 0.75, 2.7), (4.3, 1.15, 3.0))
-    fits = fitting.fitted(desked, TOY, [{"name": "desk_6", "row": "desk"}, {
-        "name": "computer_4", "row": "computer", "on": {"how": "top", "holder": ["desk_6"]}}], {"desk_6", "computer_4"})
-    desk, computer = (fitting.world_box(desked, f"/{TOY}/Objects/{name}") for name in ("desk_6", "computer_4"))
-    assert np.allclose(desk[0], (4.0, 0.0, 2.5), atol=1e-6), fits
-    assert np.allclose(computer[0], (4.9, 0.75, 2.7), atol=1e-6), fits
-    ducted = Usd.Stage.CreateInMemory()
-    for name, low, high in (("wall_1", (-0.126, -0.2, -0.126), (1.5, 2.5, 0.0)),
-                            ("wall_3", (-0.126, -0.2, 10.0), (1.5, 2.5, 10.126)),
-                            ("wall_4", (-0.126, -0.2, -0.126), (0.0, 2.5, 10.126))):
-        a_built_box(ducted, f"/{TOY}/Shell/{name}", low, high)
-    for name, low, high in (("duct_1", (0.5, 1.7, -0.03), (0.8, 2.3, 10.03)),
-                            ("light_1", (-0.0503, 0.0, 3.0), (-0.0037, 0.06, 3.8)),
-                            ("beam_1", (1.0, 0.5, -0.03), (1.2, 0.7, 11.97))):
-        a_built_box(ducted, f"/{TOY}/Objects/{name}", low, high)
-    from pxr import Gf, UsdGeom, UsdLux
-    for name, at in (("light_lamp", (-0.0270, 0.03, 3.4)), ("duct_lamp", (0.65, 2.0, 5.0)),
-                     ("beside_lamp", (0.3, 0.03, 3.4))):
-        UsdLux.SphereLight.Define(ducted, f"/{TOY}/Lights/{name}").AddTranslateOp().Set(Gf.Vec3d(*at))
-    fits = fitting.fitted(ducted, TOY, [{"name": name, "row": name[:-2]} for name in ("duct_1", "light_1", "beam_1")],
-                          {"duct_1", "light_1", "beam_1"})
-    duct, light, beam = (fitting.world_box(ducted, f"/{TOY}/Objects/{name}") for name in ("duct_1", "light_1",
-                                                                                           "beam_1"))
-    assert np.allclose(duct, ((0.5, 1.7, 0.0), (0.8, 2.3, 10.0)), atol=1e-6), fits
-    assert np.allclose(light, ((0.0, 0.0, 3.0), (0.0466, 0.06, 3.8)), atol=1e-6), fits
-    assert abs(float(beam[1][2] - beam[0][2]) - 12.0) < 1e-6, fits
-    from score.stages.assembly import lamps_along
-    spots = {prim.GetName(): np.array(UsdGeom.Xformable(prim).GetOrderedXformOps()[0].Get())
-             for prim in ducted.GetPrimAtPath(f"/{TOY}/Lights").GetChildren()}
-    lamps = {name: (spot, lamps_along.laid_at(ducted, f"/{TOY}/Lights/{name}", spot)) for name, spot in spots.items()}
-    assert np.allclose(lamps["light_lamp"], ((0.0233, 0.03, 3.4), (-0.027, 0.03, 3.4)), atol=1e-4), lamps
-    assert np.allclose(lamps["duct_lamp"], ((0.65, 2.0, 5.0),) * 2) and np.allclose(
-        lamps["beside_lamp"], ((0.3, 0.03, 3.4),) * 2), lamps
-    walled = Usd.Stage.CreateInMemory()
-    for name, low, high, degrees in (("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 6.0), 0.0),
-                                     ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 6.0), 0.0),
-                                     ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0), 0.0),
-                                     ("wall_4", (0.0, 0.0, 6.0), (6.0, 3.0, 6.1), 0.0),
-                                     ("wall_5", (1.52, 0.0, 2.0), (1.62, 3.0, 6.0), 0.0),
-                                     ("wall_6", (1.0 - 2 ** 0.5 / 2, 0.0, 0.95), (1.0 + 2 ** 0.5 / 2, 3.0, 1.05), 45.0)):
-        a_solid_box(walled, f"/{TOY}/Structure/{name}", low, high, degrees)
-    corner = 2.0 - 0.05 * 2 ** 0.5 + 0.02 * 2 ** 0.5  # the crate's far corner's x + z: 2 cm into wall_6's near face
-    for name, low, high in (("rug_2", (0.0, 0.0, 3.0), (2.0, 0.017, 4.0)),
-                            ("rug_3", (2.0, 0.0, 4.504), (4.0, 0.017, 6.004)),
-                            ("crate_1", (0.5, 0.0, corner - 1.5), (1.0, 0.5, corner - 1.0))):
-        a_solid_box(walled, f"/{TOY}/Objects/{name}", low, high)
-    things = ("rug_2", "rug_3", "crate_1")
-    fits = fitting.fitted(walled, TOY, [{"name": name, "row": name[:-2]} for name in things], set(things))
-    found = {fit["name"]: (fit["how"], fit["moved"], fit["scale"]) for fit in fits
-             if fit["how"] in ("flat clear", "off wall")}
-    assert found == {"rug_2": ("flat clear", 0.24, 0.74), "crate_1": ("off wall", 0.036, 1.0)}, fits
-    rug, crate = (fitting.world_box(walled, f"/{TOY}/Objects/{name}") for name in ("rug_2", "crate_1"))
-    assert np.allclose(rug, ((0.02, 0.0, 3.13), (1.5, 0.017, 3.87)), atol=1e-6), rug
-    assert np.allclose(crate[0][[0, 2]], (0.47, corner - 1.52), atol=1e-6), crate
-
-
-def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
-    """hangar's wall pipes stood 22 m up through its 15 m roof, and the inside-a-static check left roofs out because a
-    dome's box holds the room under it. A roof is read by its mesh: a gable from 3 m eaves at x 0 and 10 to a 5 m ridge
-    at x 5. A lamp under the ridge (its top 4.5 m, the roof 4.8 m over its edge) is inside the roof's box and left; a
-    crate whose top corner reaches 3.6 m where the roof is 3.2 m is moved 0.4 m straight down; a ship 6 m tall 2.6 m
-    up through it at its corner is left as laid (more than 1 m), and the held gate names it and a pipe its wall
-    relation laid against its wall at the eave, 6 m up through the roof, by name and how far; a crate wholly above the
-    roof is not through it, and a box on a loft deck under the eave, 0.42 m through, is left and named, never sunk
-    into its deck. A light hung from the roof, built shorter than its reading (its top 0.4 m under the roof's 4.6 m over
-    its corner, settle@airlock's roof light 0.13 m under its dome), is moved up to 0.01 m under it. A crane hung from
-    the roof built taller than its reading, its box's top 2.1 m over the roof at its x 9 end, is hung down 2.11 m
-    (more than 1 m: its hang sets its height) so its box's top stands 0.01 m under the roof. Of two cranes hung from
-    the roof where a 10 m room holds one, the later is left out, never left in the other; two things on the floor
-    are left as laid (the held gate names them). A valve on its pipe's top inside the pipe run packed over it is
-    stacked onto that run, and the held gate judges it there. Under a frame roof (two 2 m edge strips at 5 m and a
-    front strip, the middle open: hangar's, motion@hangar 2026-11-11) a crane hung by its box, its trolley's top 0.01 m
-    under the roof up in the opening, its girder's ends 0.7 m under the strips touching nothing, is moved 0.69 m up so
-    they stand 0.01 m under them, and 0.02 m out from under the front strip its trolley's lip overhangs by 0.01 m; a lip
-    0.1 m under it (more than 0.05 m) is not moved out, so it hangs by that lip 0.39 m up; one already touching is left.
-    Break: score/stages/assembly/fitting.py: `hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)` ->
-        `hung_up(stage, place, loose) + []` (the crane left hung by its box, touching nothing)
-    Break: score/stages/assembly/fitting.py: part_hang's `if shift is None or float(np.linalg.norm(shift)) >
-        HELD_MOST:` -> `if shift is None:` (the 0.1 m lip moved out), or its `lifts = sorted({...}, reverse=True)` ->
-        `lifts = sorted({...})` (hung by the 0.01 m lip, the ends still 0.31 m under)
-    Break: score/stages/assembly/fitting.py: `fits = moved_down(stage, place, [entry for entry in loose if
-        entry.get("under roof")])` -> `fits = []` (the crane left 2.1 m through the roof), or moved_down's
-        `(drop > OUT_MOST and not hung)` -> `drop > OUT_MOST`
-    Break: score/stages/assembly/fitting.py: hung_up's `under_roof_gap(box_topped(surface_points(` ->
-        `under_roof_gap((surface_points(` is caught by settle9's hangar only: a box's corners are its points
-    Break: score/stages/assembly/fitting.py: parted_boxes' `if shift is None and name in hung:` -> `if False:` (both
-        cranes left as laid in each other), or its `tried -= later` -> `pass` (the later never left out)
-    Break: score/stages/assembly/fitting.py: `fits += stacked_on_runs(stage, place, topped, walled)` dropped, or
-        held_faults' `stacked.get(entry["name"], on.get("holder") or [])` -> `on.get("holder") or []` (the stacked
-        valve named off its holder's top)
-    Break: score/stages/assembly/built_tops.py: stacked_down's `fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0,
-        target)` dropped (hangar's valve left at its pipe's box top, 0.06 m over its surface), or held_faults' `if
-        topped.get(entry["name"]) is not None:` -> `if False:` (the valve let down named off the pipe's box top)
-    Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose)` -> `return fits`
-    Break: score/stages/assembly/fitting.py: `+ hung_up(stage, place, loose)` -> `+ []`
-    Break: score/stages/assembly/fitting.py: hung_up's `(np.inf if at_hang else OUT_MOST + ROOF_CLEAR)` -> `OUT_MOST +
-        ROOF_CLEAR` (quarters' pipe left 4.5 m under the roof), or its `abs(...) <= MOVE_LEAST` -> `True` (the pipe
-        moved off its hang moved up too); hung_up's `+ into_its_room(...)` or `+ clear_of_others(...)` dropped
-        (quarters' pipe left through its wall, then across its lights: caught on quarters' laid seed), or
-        clear_of_others' `shift[axis] += away * ...` -> `shift[axis] += 0.0 * ...` (the pipe left across the lights)
-    Break: score/stages/assembly/fitting.py: roofs' `for scope in ("Structure", "Shell")]` -> `for scope in
-        ("Structure",)]` (the Shell's dome is no roof: its light left under it)
-    Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
-        len(reach) else 0.0`
-    Break: score/stages/assembly/fitting.py: `lowest = height.min(axis=1)` -> `lowest = np.where(np.isfinite(height),
-        height, -np.inf).max(axis=1)` (the roof's highest face over a place, as its box's top)
-    Break: score/stages/assembly/fitting.py: `faults += [(entry["name"], f"laid {found['metres']:.2f} m up through`
-        -> `faults += [] and [(entry["name"], ...`
-    Break: score/stages/assembly/fitting.py: `if not through or drop > OUT_MOST or {name` -> `if not through or drop >
-        OUT_MOST or False and {name`
-    Break: score/stages/assembly/fitting.py: moved_in's `for _, triangles in built)` -> `for _, triangles in
-        built) and False` (tube's screen left up through its vault), or its `for point in fit[key]] for key in
-        ("span", "corners") if key in fit}})` -> `for point in fit[key]] for key in () if key in fit}})` (its face
-        left on the wall's line, the held gate naming it 0.65 m off)
-    Break: score/stages/assembly/fitting.py: `wall_clear.under_roofs(stage, place, walled, fits)` dropped (stairwell's
-        lamp and conduit run left up through its roof), or wall_clear.py's `if float(lowered[0][1]) >= 0.0 and` ->
-        `if` (the run sunk under the floor), or its `if scale < SHRINK_MOST:` -> `if False:` (the 4 m pipe shrunk to
-        75%), or its `foot - out * deep * (1.0 - scale) / 2` -> `foot` (the run's back off its wall)
-    Break: score/stages/assembly/fitting.py: `for box in rooms(leaf)), *climbing] if walled else ()` -> `for box in
-        rooms(leaf))] if walled else ()` (stairwell's electrical box left in its stair railing), or wall_clear.py's
-        climbing `if fitting.climbs(entry) and` -> `if False and`
-    Break: score/stages/assembly/fitting.py: through_roof's `vault_feet.roof_over(points, near)` -> `roof_under(points,
-        near)` (the screen on the bulged vault's wall read 2 m up through it), or vault_feet.py's `arched[:, None] &
-        (found < foot)` -> `found < foot` (the crate read through none), or -> `False` (the screen read through it)
-    Break: score/stages/assembly/fitting.py: `ribs.kept_clear(stage, place, path, entry["on"], clear, others, built)
-        if turned` -> `(clear, built) if turned` (the screen and pipes left in the rib), or ribs.py's `if any(end -
-        begin >= reach for begin, end in free):` -> `if True:` (the pipes shrunk to the 7.8 m beside it), or its
-        `return [*clear, *parts], built` -> `return clear, [*built, *parts]` (the screen stood on the rib's front),
-        or its `front = float((fronts[both] - (backs[both] - box_back)).max())` -> `pass` (the round pipe stood by
-        its box's back, 0.04 m off the rib), or its `and (part := beside(mesh, start, run, out, band, own)) is not
-        None]  # the pieces it crosses there` -> `if (part := ...) is not None]` (the pipe stood on the second rib
-        by its bracket's back, 0.04 m off the first)
-    Break: score/stages/assembly/fitting.py: `+ ribs.kept_off(stage, place, loose, list(by_name.values()))` -> `+ []`
-        (the light left up in the rib, the lamp inside its leg), or ribs.py's `under = [(name, gap) for name, gap in
-        over if gap < fitting.ROOF_CLEAR - fitting.MOVE_LEAST]` -> `under = over` (the light let down again), or
-        `top = topped(*fitting.world_box(stage, path))` -> `top = fitting.box_topped(fitting.surface_points(stage,
-        path))` (the light's corners, at its ends, stand under no rib: left up in it)
-    Break: score/stages/assembly/vault_feet.py: `return fitting.wall_holes(built, on, band)` -> `return found` (the
-        vault-only face one hole its whole length), or its `found = fitting.wall_holes(walls, on, band)` -> `found =
-        fitting.wall_holes(built, on, band)` (the hole behind which the vault stands left unread)"""
-    from pxr import Gf, Sdf, Usd, UsdGeom
-    from score.stages.assembly import fitting
-    stage = Usd.Stage.CreateInMemory()
-    UsdGeom.Xform.Define(stage, f"/{TOY}/Structure/roof_1")
-    roof = UsdGeom.Mesh.Define(stage, f"/{TOY}/Structure/roof_1/geo")
-    roof.CreatePointsAttr([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10), (10, 3, 0), (10, 3, 10),
-                           (0, 3.1, 0), (5, 5.1, 0), (5, 5.1, 10), (0, 3.1, 10), (10, 3.1, 0), (10, 3.1, 10)])
-    roof.CreateFaceVertexCountsAttr([4, 4, 4, 4])
-    roof.CreateFaceVertexIndicesAttr([0, 1, 2, 3, 1, 4, 5, 2, 6, 7, 8, 9, 7, 10, 11, 8])
-    a_built_box(stage, f"/{TOY}/Structure/deck_2", (0.0, 1.8, 8.5), (0.9, 2.0, 9.5))
-    for name, low, high in (("lamp_1", (4.5, 3.5, 4.0), (5.5, 4.5, 5.0)),
-                            ("box_1", (0.2, 2.0, 9.0), (0.6, 3.5, 9.4)),
-                            ("crate_1", (0.5, 2.6, 1.0), (1.5, 3.6, 2.0)),
-                            ("ship_1", (1.0, 0.0, 6.0), (3.0, 6.0, 8.0)),
-                            ("crate_2", (2.0, 5.0, 2.0), (2.5, 5.5, 2.5)),
-                            ("pipes_1", (8.0, 0.0, 4.0), (8.4, 9.0, 4.4)),
-                            ("crane_1", (6.0, 3.5, 1.0), (9.0, 5.5, 3.0)),
-                            ("light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))):
-        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
-    wall = {"how": "wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
-    entries = [*[{"name": name, "row": name[:-2]} for name in ("lamp_1", "crate_1", "ship_1", "crate_2",
-                                                                 "box_1")],
-               {"name": "pipes_1", "row": "pipes", "on": wall}, {"name": "crane_1", "row": "crane", "under roof": True},
-               {"name": "light_1", "row": "light", "under roof": True}]
-    names = {entry["name"] for entry in entries}
-    fitted = fitting.fitted(stage, TOY, entries, names)
-    fits = [fit for fit in fitted if fit["how"] == "down"]
-    assert [(fit["name"], fit["moved"], fit["holder"]) for fit in fits] == [("crane_1", 2.11, ["roof_1"]),
-                                                                            ("crate_1", 0.4, ["roof_1"])], fits
-    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/crane_1")[1], (9.0, 3.39, 3.0)), fits
-    assert [(fit["name"], fit["moved"]) for fit in fitted if fit["how"] == "up"] == [("light_1", 0.39)], fitted
-    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/light_1")[1], (4.4, 4.59, 6.4)), fitted
-    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/crate_1")[1], (1.5, 3.2, 2.0)), fits
-    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/ship_1")[0], (1.0, 0.0, 6.0))
-    through = fitting.through_roofs(stage, TOY, sorted(names))
-    assert [(found["name"], found["metres"]) for found in through] == [("box_1", 0.42), ("pipes_1", 6.0), ("ship_1", 2.6)], through
-    faults = fitting.held_faults({"objects": entries}, {"roofs": through, "objects": [
-        {"name": name, **dict(zip(("low", "high"), fitting.world_box(stage, f"/{TOY}/Objects/{name}")))}
-        for name in ("pipes_1", "ship_1")]})
-    assert [fault for fault in faults if "through" in fault[1]] == [
-        ("ship_1", "laid 2.60 m up through roof_1, nothing holding it there", 2.6),
-        ("pipes_1", "laid 6.00 m up through roof_1, nothing holding it there", 6.0)], faults
-    # an inside place's roof under its Shell (design_shell.py) is a roof too: airlock's dome, its roof light left
-    # 0.13 m under it (settle@airlock, 2026-11-10); a Shell wall is none
-    shelled = Usd.Stage.CreateInMemory()
-    UsdGeom.Xform.Define(shelled, f"/{TOY}/Shell/roof_1")
-    dome = UsdGeom.Mesh.Define(shelled, f"/{TOY}/Shell/roof_1/geo")
-    dome.CreatePointsAttr([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10)])
-    dome.CreateFaceVertexCountsAttr([4])
-    dome.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-    a_built_box(shelled, f"/{TOY}/Shell/wall_1", (0.0, 0.0, 0.0), (0.2, 3.0, 10.0))
-    a_built_box(shelled, f"/{TOY}/Objects/light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))
-    assert [name for name, _ in fitting.roofs(shelled, TOY)] == ["roof_1"]
-    assert [(fit["name"], fit["moved"]) for fit in fitting.hung_up(shelled, TOY, entries[-1:])] == [("light_1", 0.39)]
-    # quarters' wall pipe (settle@quarters, 2026-11-13), read 4 m tall and built 4 m long, 0.33 m tall: the record hung
-    # it 1.43 m under its floor, 3.68 m under its roof. One still at the record's hang is moved up however far (4.49 m
-    # here, the dome 3.4 m up over its end); one moved off its hang is moved OUT_MOST at most, so left
-    a_built_box(shelled, f"/{TOY}/Objects/pipe_1", (1.0, -1.43, 1.0), (4.0, -1.1, 1.2))
-    a_built_box(shelled, f"/{TOY}/Objects/pipe_2", (1.0, -1.43, 3.0), (4.0, -1.1, 3.2))
-    pipes = [{"name": "pipe_1", "row": "pipe", "under roof": True, "at": [2.5, -1.43, 1.1]},
-             {"name": "pipe_2", "row": "pipe", "under roof": True, "at": [2.5, 0.0, 3.1]}]
-    assert [(fit["name"], fit["moved"]) for fit in fitting.hung_up(shelled, TOY, pipes)] == [("pipe_1", 4.49)]
-    # lifted, it ran 1.74 m on through its east wall, its room 4.23 m wide: one lifted into a wall piece is moved along
-    # into the room between it and the piece facing it, then out of a string of lights already hung there; one longer
-    # than that room is left
-    roomed = Usd.Stage.CreateInMemory()
-    for name, low, high in (("wall_1", (-0.2, 0.0, -1.0), (0.0, 2.5, 3.0)), ("wall_2", (4.23, 0.0, -1.0),
-                                                                           (4.39, 2.5, 3.0))):
-        a_built_box(roomed, f"/{TOY}/Shell/{name}", low, high)
-    a_built_box(roomed, f"/{TOY}/Objects/lights_1", (4.18, 2.2, -1.0), (4.23, 2.375, 3.0))
-    shift = fitting.into_its_room(roomed, TOY, np.array([2.0, 2.2, 0.0]), np.array([5.985, 2.5, 0.1]))
-    assert np.allclose(shift, (-1.755, 0.0, 0.0)), shift
-    away = fitting.clear_of_others(roomed, TOY, "pipe_9", np.array([0.245, 2.2, 0.0]), np.array([4.23, 2.5, 0.1]))
-    assert np.allclose(away, (-0.06, 0.0, 0.0)) and not np.any(fitting.into_its_room(
-        roomed, TOY, np.array([-0.5, 2.2, 0.0]), np.array([4.5, 2.5, 0.1]))), away
-    cranes = {name: (np.array([0.0, 3.0, z]), np.array([10.0, 5.0, z + 6.0])) for name, z in (("crane_1", 0.0),
-                                                                                                ("crane_2", 3.0))}
-    sides = [(np.array(low, float), np.array(high, float)) for low, high in (
-        ((-0.5, 0.0, -0.5), (10.5, 6.0, 0.0)), ((-0.5, 0.0, 10.0), (10.5, 6.0, 10.5)),
-        ((-0.5, 0.0, 0.0), (0.0, 6.0, 10.0)), ((10.0, 0.0, 0.0), (10.5, 6.0, 10.0)))]
-    after, left = fitting.parted_boxes(cranes, [], sides, [-0.5, -0.5, 10.5, 10.5], (), {"crane_1", "crane_2"})
-    assert left == {"crane_2"} and list(after) == ["crane_1"], (after, left)
-    assert -0.01 <= after["crane_1"][0][2] and after["crane_1"][1][2] <= 10.01, after
-    after, left = fitting.parted_boxes(cranes, [], sides, [-0.5, -0.5, 10.5, 10.5])
-    assert not left and sorted(after) == ["crane_1", "crane_2"], (after, left)
-    for lip, moved, low in ((1.99, 0.69, (0.5, 4.69, 2.01)), (1.9, 0.39, (0.5, 4.39, 1.9))):
-        frame = Usd.Stage.CreateInMemory()
-        for name, (x0, x1, z0, z1) in (("roof_1", (0, 2, 0, 10)), ("roof_2", (8, 10, 0, 10)), ("roof_3", (2, 8, 0, 2))):
-            UsdGeom.Xform.Define(frame, f"/{TOY}/Structure/{name}")
-            strip = UsdGeom.Mesh.Define(frame, f"/{TOY}/Structure/{name}/geo")
-            strip.CreatePointsAttr([(x0, 5, z0), (x1, 5, z0), (x1, 5, z1), (x0, 5, z1)])
-            strip.CreateFaceVertexCountsAttr([4])
-            strip.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-        a_built_box(frame, f"/{TOY}/Objects/crane_1", (0.5, 4.0, 3.0), (9.5, 4.3, 6.0))  # the girder, its ends under
-        a_built_box(frame, f"/{TOY}/Objects/crane_1/trolley", (4.0, 4.3, 2.1), (6.0, 4.99, 4.0))  # up in the opening
-        a_built_box(frame, f"/{TOY}/Objects/crane_1/lip", (4.0, 4.3, lip), (6.0, 4.6, 2.1))  # under the front strip
-        hung = fitting.fitted(frame, TOY, [{"name": "crane_1", "row": "crane", "under roof": True}], {"crane_1"})
-        assert [(fit["name"], fit["how"], fit["moved"]) for fit in hung] == [("crane_1", "hung", moved)], hung
-        assert np.allclose(fitting.world_box(frame, f"/{TOY}/Objects/crane_1")[0], low), hung
-        assert fitting.hung_by_parts(frame, TOY, [{"name": "crane_1", "row": "crane", "under roof": True}]) == []
-    runs = Usd.Stage.CreateInMemory()
-    for name, low, high in (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),
-                            ("pipe_1", (0.0, 1.45, 0.0), (4.0, 1.85, 0.4)),
-                            ("valve_1", (1.0, 1.4, 0.1), (1.2, 1.7, 0.3)), ("valve_2", (3.0, 1.85, 0.1),
-                                                                            (3.2, 2.15, 0.3))):
-        a_built_box(runs, f"/{TOY}/Objects/{name}", low, high)
-    topped = [{"name": name, "row": "valve", "on": {"how": "top", "holder": [holder]}}
-              for name, holder in (("valve_1", "pipe_3"), ("valve_2", "pipe_1"))]
-    stacked = fitting.stacked_on_runs(runs, TOY, topped, [{"name": "pipe_1"}, {"name": "pipe_3"}])
-    assert [(fit["name"], fit["moved"], fit["holder"]) for fit in stacked] == [("valve_1", 0.45, ["pipe_1"])], stacked
-    laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(runs, f"/{TOY}/Objects/{name}")))}
-                        for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": stacked}
-    assert not fitting.held_faults({"objects": topped[:1]}, laid), laid
-    assert fitting.held_faults({"objects": topped[:1]}, {**laid, "fitted": []})
-    # hangar (2026-11-11): its valve, lifted to the box top of the pipe packed over its own, stood 0.06 m over that
-    # pipe's surface. A pipe built 0.4 m round with a rail up 0.06 m at its far end lets the valve stacked onto it down
-    # to its surface (1.79), and the held gate measures it there.
-    from score.stages.assembly import built_tops
-    from pxr import Gf
-    railed = Usd.Stage.CreateInMemory()
-    built = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 1.45, 0.0), (4.0, 1.79, 0.4)]),
-                                      trimesh.creation.box(bounds=[(3.9, 1.79, 0.0), (4.0, 1.85, 0.4)])])
-    UsdGeom.Xform.Define(railed, f"/{TOY}/Objects/pipe_1").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    pipe = UsdGeom.Mesh.Define(railed, f"/{TOY}/Objects/pipe_1/geo")
-    pipe.CreatePointsAttr([tuple(map(float, point)) for point in built.vertices])
-    pipe.CreateFaceVertexCountsAttr([3] * len(built.faces))
-    pipe.CreateFaceVertexIndicesAttr([int(index) for index in built.faces.ravel()])
-    for name, low, high in (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),
-                            ("valve_1", (1.0, 1.4, 0.1), (1.2, 1.7, 0.3))):
-        a_built_box(railed, f"/{TOY}/Objects/{name}", low, high)
-    stacked = fitting.stacked_on_runs(railed, TOY, topped[:1], [{"name": "pipe_1"}, {"name": "pipe_3"}])
-    down = built_tops.stacked_down(railed, TOY, stacked)
-    assert [(fit["name"], fit["top at"]) for fit in down] == [("valve_1", 1.79)], down
-    assert np.isclose(fitting.world_box(railed, f"/{TOY}/Objects/valve_1")[0][1], 1.79)
-    laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(railed, f"/{TOY}/Objects/{name}")))
-                         } for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": stacked + down}
-    assert not fitting.held_faults({"objects": topped[:1]}, laid), fitting.held_faults({"objects": topped[:1]}, laid)
-    # tube (2026-11-11): its screens and panels laid on its plan walls' lines stood up through its vault, whose sides
-    # curve in over them. Under the gable (3 m at x 10, rising 0.4 m a metre in) a screen on the x 10 wall, its top
-    # 3.3 m, 0.3 m through, is moved 0.65 m into the room, its fit's face with it, and the held gate passes it; the
-    # 9 m pipes no step clears are left, named.
-    vault = Usd.Stage.CreateInMemory()
-    UsdGeom.Xform.Define(vault, f"/{TOY}/Structure/roof_1")
-    arch = UsdGeom.Mesh.Define(vault, f"/{TOY}/Structure/roof_1/geo")
-    arch.CreatePointsAttr([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10), (10, 3, 0), (10, 3, 10)])
-    arch.CreateFaceVertexCountsAttr([4, 4])
-    arch.CreateFaceVertexIndicesAttr([0, 1, 2, 3, 1, 4, 5, 2])
-    a_built_box(vault, f"/{TOY}/Structure/deck_1", (0.0, -0.2, 0.0), (10.0, 0.0, 10.0))
-    floor = UsdGeom.Mesh(vault.GetPrimAtPath(f"/{TOY}/Structure/deck_1/geo"))
-    floor.CreateFaceVertexCountsAttr([4])
-    floor.CreateFaceVertexIndicesAttr([2, 3, 7, 6])
-    a_built_box(vault, f"/{TOY}/Objects/screen_1", (9.8, 2.8, 4.0), (10.0, 3.3, 5.0))
-    a_built_box(vault, f"/{TOY}/Objects/pipes_1", (9.6, 0.0, 6.0), (10.0, 9.0, 6.4))
-    screens = [{"name": name, "row": name[:-2], "on": wall} for name in ("screen_1", "pipes_1")]
-    moved = [{"name": "screen_1", "row": "screen", "how": "wall", "holder": None, "moved": 0.0, "scale": 1.0,
-              "words": "laid wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0],
-              "corners": [[9.8, 4.0], [9.8, 5.0], [10.0, 4.0], [10.0, 5.0]]}]  # as fitted laid it
-    fitting.moved_in(vault, TOY, screens, moved)
-    assert [(fit["name"], fit["moved"]) for fit in moved] == [("screen_1", 0.65)], moved
-    assert np.allclose(moved[0]["span"], [[9.35, 0.0], [9.35, 10.0]]), moved
-    assert np.allclose(fitting.world_box(vault, f"/{TOY}/Objects/screen_1")[1], (9.35, 3.3, 5.0)), moved
-    walled = {"objects": [{"name": "screen_1", **dict(zip(("low", "high"), fitting.world_box(
-        vault, f"/{TOY}/Objects/screen_1")))}], "fitted": moved}
-    assert fitting.held_faults({"objects": screens[:1]}, walled) == [], fitting.held_faults({"objects": screens[:1]},
-                                                                                            walled)
-    # stairwell (2026-11-11): its conduit runs, built 3.1 m tall from the floor of a room 3 m to its flat roof, stood
-    # 0.1 m up through it, which no move into the room clears; its wall lamp 0.15 m. The lamp is moved 0.16 m down so
-    # its top stands 0.01 m under the roof; the run, on the floor, is shrunk to 96% about its foot, its back kept on
-    # its wall; one 4 m tall (75%) is left for the held gate. Its electrical box, laid where a stair railing reaches
-    # its wall, is slid along the wall clear of the railing (the parting never moves a climbing row's things).
-    flat = Usd.Stage.CreateInMemory()
-    UsdGeom.Xform.Define(flat, f"/{TOY}/Structure/roof_1")
-    slab = UsdGeom.Mesh.Define(flat, f"/{TOY}/Structure/roof_1/geo")
-    slab.CreatePointsAttr([(0, 3, -1), (10, 3, -1), (10, 3, 10), (0, 3, 10)])
-    slab.CreateFaceVertexCountsAttr([4])
-    slab.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-    UsdGeom.Xform.Define(flat, f"/{TOY}/Structure/wall_1")
-    back = trimesh.creation.box(bounds=((0.0, 0.0, -0.2), (10.0, 3.0, 0.0)))
-    drawn = UsdGeom.Mesh.Define(flat, f"/{TOY}/Structure/wall_1/geo")
-    drawn.CreatePointsAttr([tuple(map(float, point)) for point in back.vertices])
-    drawn.CreateFaceVertexCountsAttr([3] * len(back.faces))
-    drawn.CreateFaceVertexIndicesAttr([int(index) for index in back.faces.reshape(-1)])
-    for name, low, high in (("conduit_1", (1.0, 0.0, 0.0), (1.1, 3.1, 0.2)),
-                            ("lamp_1", (5.0, 2.5, 0.0), (5.2, 3.15, 0.15)),
-                            ("pipes_2", (7.0, 0.0, 0.0), (7.1, 4.0, 0.1)), ("box_1", (1.9, 1.0, 0.0), (2.3, 1.4, 0.2)),
-                            ("stair_railing_1", (2.0, 0.0, 0.0), (2.1, 1.5, 3.0))):
-        a_built_box(flat, f"/{TOY}/Objects/{name}", low, high)
-    along = {"how": "wall", "span": [[0.0, 0.0], [10.0, 0.0]], "out": [0.0, 1.0], "why": "against its wall"}
-    hung = fitting.fitted(flat, TOY, [*[{"name": name, "row": name[:-2], "on": along}
-                                        for name in ("box_1", "conduit_1", "lamp_1", "pipes_2")],
-                                      {"name": "stair_railing_1", "row": "stair_railing"}],
-                          {"box_1", "conduit_1", "lamp_1", "pipes_2", "stair_railing_1"})
-    boxes = {name: fitting.world_box(flat, f"/{TOY}/Objects/{name}") for name in ("box_1", "conduit_1", "lamp_1",
-                                                                                   "pipes_2")}
-    assert np.allclose(boxes["lamp_1"], ((5.0, 2.34, 0.0), (5.2, 2.99, 0.15)), atol=1e-6), boxes
-    assert np.allclose(boxes["conduit_1"][1][1], 2.99) and np.allclose(boxes["conduit_1"][0][[1, 2]], 0.0), boxes
-    assert np.allclose(boxes["pipes_2"][1][1], 4.0), boxes  # 75%: left
-    assert boxes["box_1"][0][0] >= 2.1 - 1e-6, boxes  # clear of the railing at x 2.0 to 2.1
-    words = {fit["name"]: fit["words"] for fit in hung}
-    assert "moved 0.16 m down under roof_1" in words["lamp_1"] and "shrunk to 96% under roof_1" in \
-        words["conduit_1"], words
-    # tube (2026-11-12): its vault springs from its walls' faces at the floor and bulges out behind them, so over a
-    # spot just behind a wall's face it has a foot a few centimetres up and its arc over it. A screen 1 to 2 m up on
-    # the x 10 wall, its back on the face, is under the arc and through no roof (fitting.moved_in had stood each 5 cm
-    # off its wall, touching nothing); a panel up to 3.3 m still reaches 0.3 m over the arc's 3 m, and a crate 1 to
-    # 1.5 m up out through a steep side, which stands 0.2 m up over its outer edge, 1.3 m.
-    bulged = Usd.Stage.CreateInMemory()
-    UsdGeom.Xform.Define(bulged, f"/{TOY}/Structure/roof_1")
-    belly = UsdGeom.Mesh.Define(bulged, f"/{TOY}/Structure/roof_1/geo")
-    belly.CreatePointsAttr([(9.9, 0, 0), (10.5, 1.5, 0), (10, 3, 0), (5, 5, 0),
-                            (9.9, 0, 10), (10.5, 1.5, 10), (10, 3, 10), (5, 5, 10)])
-    belly.CreateFaceVertexCountsAttr([4, 4, 4])
-    belly.CreateFaceVertexIndicesAttr([0, 1, 5, 4, 1, 2, 6, 5, 2, 3, 7, 6])
-    a_built_box(bulged, f"/{TOY}/Objects/screen_2", (9.8, 1.0, 4.0), (10.0, 2.0, 5.0))
-    a_built_box(bulged, f"/{TOY}/Objects/panel_2", (9.8, 2.5, 6.0), (10.0, 3.3, 7.0))
-    UsdGeom.Xform.Define(bulged, f"/{TOY}/Structure/roof_2")  # a steep side running down past a crate's foot
-    steep = UsdGeom.Mesh.Define(bulged, f"/{TOY}/Structure/roof_2/geo")
-    steep.CreatePointsAttr([(0, 4, 20), (2, 0, 20), (2, 0, 22), (0, 4, 22)])
-    steep.CreateFaceVertexCountsAttr([4])
-    steep.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-    a_built_box(bulged, f"/{TOY}/Objects/crate_2", (0.5, 1.0, 20.5), (1.9, 1.5, 21.5))
-    through = fitting.through_roofs(bulged, TOY, ["screen_2", "panel_2", "crate_2"])
-    assert [(found["name"], found["metres"]) for found in through] == [("panel_2", 0.3), ("crate_2", 1.3)], through
-    # tube (2026-11-12): its ribs are arches (a structure row, `score:row`) standing in front of its walls' faces.
-    # Here one 1.4 to 1.6 m round the floor's middle line, z 2 to 2.2, in front of the x -1.6 wall from 0.3 m up. A
-    # 0.8 m screen 0.6 to 1 m up across it slides along clear of it (to z 2.2); 8 m pipes 0.2 to 0.5 m up, which no
-    # stretch of the 10 m wall holds whole beside it, stand on its front at their top, 0.29 m out (a round pipe on the
-    # x 1.6 wall by its own surface where it crosses the rib, touching it, never by its bracket's back elsewhere nor
-    # on a second rib at z 9.5 it does not reach); a light hung 0.05 m
-    # up in its 1.4 m underside is let down 0.06 m; a lamp laid within its box inside its leg is drawn out to its face.
-    from score.stages.assembly import ribs
-    ribbed = Usd.Stage.CreateInMemory()
-    turns = np.linspace(0.0, np.pi, 33)
-    quads = []
-    for step in range(32):
-        corner = lambda depth, radius, turn: (depth * 2 + radius) * 33 + turn  # noqa: E731
-        quads += [(corner(0, 0, step), corner(0, 0, step + 1), corner(1, 0, step + 1), corner(1, 0, step)),
-                  (corner(0, 1, step), corner(1, 1, step), corner(1, 1, step + 1), corner(0, 1, step + 1)),
-                  (corner(0, 0, step), corner(0, 1, step), corner(0, 1, step + 1), corner(0, 0, step + 1)),
-                  (corner(1, 0, step), corner(1, 0, step + 1), corner(1, 1, step + 1), corner(1, 1, step))]
-    for number, near in ((1, 2.0), (2, 9.5)):  # the second past the pipes' ends, which they do not cross
-        ring = [(-np.cos(turn) * radius, np.sin(turn) * radius, depth) for depth in (near, near + 0.2)
-                for radius in (1.4, 1.6) for turn in turns]  # [depth][radius][turn]
-        UsdGeom.Xform.Define(ribbed, f"/{TOY}/Structure/ribs_{number}").GetPrim().CreateAttribute(
-            "score:row", Sdf.ValueTypeNames.String).Set("ribs")
-        arch = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Structure/ribs_{number}/geo")
-        arch.CreatePointsAttr([tuple(map(float, point)) for point in ring])
-        arch.CreateFaceVertexCountsAttr([4] * len(quads))
-        arch.CreateFaceVertexIndicesAttr([int(index) for quad in quads for index in quad])
-    UsdGeom.Xform.Define(ribbed, f"/{TOY}/Structure/wall_1")
-    side = trimesh.creation.box(bounds=((-1.75, 0.0, 0.0), (-1.6, 3.0, 10.0)))
-    built = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Structure/wall_1/geo")
-    built.CreatePointsAttr([tuple(map(float, point)) for point in side.vertices])
-    built.CreateFaceVertexCountsAttr([3] * len(side.faces))
-    built.CreateFaceVertexIndicesAttr([int(index) for index in side.faces.reshape(-1)])
-    UsdGeom.Xform.Define(ribbed, f"/{TOY}/Structure/wall_2")
-    side = trimesh.creation.box(bounds=((1.6, 0.0, 0.0), (1.75, 3.0, 10.0)))
-    built = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Structure/wall_2/geo")
-    built.CreatePointsAttr([tuple(map(float, point)) for point in side.vertices])
-    built.CreateFaceVertexCountsAttr([3] * len(side.faces))
-    built.CreateFaceVertexIndicesAttr([int(index) for index in side.faces.reshape(-1)])
-    round_pipe = trimesh.creation.cylinder(radius=0.15, height=8.0, sections=48)  # along z
-    round_pipe.apply_translation((1.45, 0.35, 5.0))
-    round_pipe = trimesh.util.concatenate([round_pipe, trimesh.creation.box(bounds=((1.45, 0.2, 5.0),
-                                                                                   (1.6, 0.5, 5.1)))])  # a bracket
-    UsdGeom.Xform.Define(ribbed, f"/{TOY}/Objects/pipes_4").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    drawn = UsdGeom.Mesh.Define(ribbed, f"/{TOY}/Objects/pipes_4/geo")
-    drawn.CreatePointsAttr([tuple(map(float, point)) for point in round_pipe.vertices])
-    drawn.CreateFaceVertexCountsAttr([3] * len(round_pipe.faces))
-    drawn.CreateFaceVertexIndicesAttr([int(index) for index in round_pipe.faces.reshape(-1)])
-    for name, low, high in (("screen_3", (-1.6, 0.6, 1.8), (-1.4, 1.0, 2.6)), ("pipes_3", (-1.6, 0.2, 1.0),
-                                                                                 (-1.4, 0.5, 9.0)),
-                            ("light_3", (-0.1, 1.35, 1.5), (0.1, 1.45, 2.5)),
-                            ("lamp_3", (-1.55, 0.9, 2.05), (-1.45, 1.0, 2.15))):
-        a_built_box(ribbed, f"/{TOY}/Objects/{name}", low, high)
-    left = {"how": "wall", "span": [[-1.6, 10.0], [-1.6, 0.0]], "out": [1.0, 0.0], "why": "against its wall"}
-    right = {"how": "wall", "span": [[1.6, 0.0], [1.6, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
-    fits = fitting.fitted(ribbed, TOY, [{"name": "screen_3", "row": "screen", "on": left},
-                                        {"name": "pipes_3", "row": "pipes", "on": left},
-                                        {"name": "pipes_4", "row": "pipes", "on": right},
-                                        {"name": "light_3", "row": "light", "under roof": True},
-                                        {"name": "lamp_3", "row": "lamp", "on": {
-                                            "how": "within", "holder": ["ribs_1"], "holder scope": "Structure"}}],
-                          {"screen_3", "pipes_3", "pipes_4", "light_3", "lamp_3"})
-    boxes = {name: fitting.world_box(ribbed, f"/{TOY}/Objects/{name}") for name in ("screen_3", "pipes_3", "light_3",
-                                                                                    "lamp_3")}
-    assert np.isclose(boxes["screen_3"][0][2], 2.2, atol=1e-3) and np.isclose(boxes["screen_3"][0][0], -1.6), boxes
-    assert np.isclose(boxes["pipes_3"][0][0], -1.6 + 1.6 - np.sqrt(1.4 ** 2 - 0.5 ** 2), atol=0.01) and \
-        np.isclose(boxes["pipes_3"][1][2] - boxes["pipes_3"][0][2], 8.0), boxes
-    assert np.isclose(boxes["light_3"][1][1], 1.39, atol=0.005) and np.isclose(boxes["lamp_3"][0][0], -0.979,
-                                                                                atol=0.01), boxes
-    assert {fit["name"]: fit["how"] for fit in fits if fit["name"] in ("light_3", "lamp_3")} == {
-        "light_3": "down", "lamp_3": "within"}, fits
-    assert ribs.kept_off(ribbed, TOY, [{"name": "light_3", "row": "light", "under roof": True}], []) == []
-    _, gaps, _ = trimesh.proximity.closest_point(fitting.surface_mesh(ribbed, f"/{TOY}/Structure/ribs_1"),
-                                                 trimesh.sample.sample_surface(fitting.surface_mesh(
-                                                     ribbed, f"/{TOY}/Objects/pipes_4"), 20000, seed=0)[0])
-    assert gaps.min() <= 0.01, gaps.min()  # the round pipe touches the rib, not its box's corner
-    # tube's window holes, 2 m wide in its left wall, open onto its vault 0.42 m behind: read on the walls alone a
-    # hole from z 4 to 6 (to the rays a step past its edges, 3.975 and 6.025) stands in a wall with the vault 0.4 m
-    # behind it; a vault that is its own wall (no wall piece on the face) has no hole.
-    from score.stages.assembly import vault_feet, wall_clear
-    holed = Usd.Stage.CreateInMemory()
-    for name, bounds in (("wall_1", ((-1.75, 0.0, 0.0), (-1.6, 3.0, 4.0))), ("wall_1_2", ((-1.75, 0.0, 6.0),
-                                                                                          (-1.6, 3.0, 10.0)))):
-        piece = trimesh.creation.box(bounds=bounds)
-        UsdGeom.Xform.Define(holed, f"/{TOY}/Structure/{name}")
-        drawn = UsdGeom.Mesh.Define(holed, f"/{TOY}/Structure/{name}/geo")
-        drawn.CreatePointsAttr([tuple(map(float, point)) for point in piece.vertices])
-        drawn.CreateFaceVertexCountsAttr([3] * len(piece.faces))
-        drawn.CreateFaceVertexIndicesAttr([int(index) for index in piece.faces.reshape(-1)])
-    UsdGeom.Xform.Define(holed, f"/{TOY}/Structure/roof_1")
-    behind = UsdGeom.Mesh.Define(holed, f"/{TOY}/Structure/roof_1/geo")
-    behind.CreatePointsAttr([(-2.0, 0.0, 0.0), (-2.0, 3.0, 0.0), (-2.0, 3.0, 10.0), (-2.0, 0.0, 10.0)])
-    behind.CreateFaceVertexCountsAttr([4])
-    behind.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-    face = {"how": "wall", "span": [[-1.6, 0.0], [-1.6, 10.0]], "out": [1.0, 0.0]}
-    everything, bare = fitting.built_walls(holed, TOY), wall_clear.face_walls(holed, TOY)
-    assert fitting.wall_holes(everything, face, (1.0, 1.5)) == []
-    [hole] = vault_feet.wall_holes(everything, bare, face, (1.0, 1.5))
-    assert np.isclose(hole[:, 2].min(), 3.975) and np.isclose(hole[:, 2].max(), 6.025), hole
-    holed.RemovePrim(f"/{TOY}/Structure/wall_1")
-    holed.RemovePrim(f"/{TOY}/Structure/wall_1_2")
-    assert vault_feet.wall_holes(fitting.built_walls(holed, TOY), wall_clear.face_walls(holed, TOY), face,
-                                 (1.0, 1.5)) == []
-
-
-def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():
-    """#36, garage 2026-10-30: hung on its wall's room face, each door swung out, its kind's way, into its own jamb
-    0.05 to 0.08 m, and 10 m pipes laid along the walls stood across both doorways; neither door swung. A 2 m door in
-    the 2.4 m opening of a wall from z -0.276 to 0 (the room to +z) whose own -z way (its kind's swing) points out of
-    the room hangs on the wall's outer face, z -0.276, its hinge at that face's jamb corner; one swinging into the room
-    on the room face, z 0, never on the floor deck's side under it; the held gate passes it on either face. A
-    1 x 2 x 0.1 m door in its 1.2 m opening, in a shell wall from z -0.1 to 0.1 (quarters' walls are its Shell), turned so its own left edge faces +x and its own -z the room, stands on the wall's room
-    face, x -0.4 to 0.6, z 0.05 to 0.15; its swing takes z 0.1 to 1.1 over that span. A 3.2 m pipe laid on the wall
-    across the doorway goes to the longest stretch beside its passage (the 1.2 m opening's), shrunk to 2.4 m, x -3 to
-    -0.6, though it comes first in
-    the record; a lamp on the wall above the door stays; a pipe beside a door swinging out of the room stays. Only a
-    door, hatch or gate swings so (its row kind's motion): a window stands in its opening and claims no swing (tube's
-    wall panel, moved 5.4 m clear of a window, 2026-10-30).
-    Break: score/stages/assembly/fitting.py: `return bool(set(row_kinds.words(row).split()) & nouns)` -> `return
-        True`
-    Break: score/stages/assembly/fitting.py: `faces = [float(high[axis] if opens > 0 else low[axis]) for low, high in
-        reach` -> `faces = [float(low[axis] if opens > 0 else high[axis]) for low, high in reach`
-    Break: score/stages/assembly/fitting.py: `and high[axis] - low[axis] <= 2 * WALL_REACH]` -> `]`
-    Break: score/stages/assembly/fitting.py: `for scope in ("Structure", "Shell")]` -> `for scope in ("Structure",)]`
-    Break: score/stages/assembly/fitting.py: `own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else
-        None, clear)` -> `own_way(stage, path, 0), None, clear)`
-    Break: score/stages/assembly/fitting.py: `for opens in (None, across_it, np.negative(across_it))]` -> `for opens
-        in (None,)]`
-    Break: score/stages/assembly/fitting.py: `if off.max() > 0.0 and off.min() < deep and low[1] < band[1] and
-        high[1] > band[0]:` -> `if off.max() > 0.0 and off.min() < deep:`
-    Break: score/stages/assembly/fitting.py: `(middle, middle + wide) if way[axis // 2] > 0 else (middle - wide,
-        middle)` -> `(middle - wide, middle) if way[axis // 2] > 0 else (middle, middle + wide)`
-    Break: score/stages/assembly/fitting.py: `for name in sorted(by_name, key=lambda name: name not in leaves):` ->
-        `for name in by_name:`
-    Break: score/stages/assembly/fitting.py: fitted's `others = [box for other, box in mounted.items() ...]` -> `others
-        = []` (lamp_2 left in lamp_1), or on_wall's `[*clear, *mounted]` -> `clear` (the cabinet left in the corner)
-    Break: score/stages/assembly/fitting.py: on_wall's `start = start + out * stood_off(...)` dropped (the pipe through
-        hangar's rib), or stood_off's `0.0 < off.max() <= STAND_OFF_MOST` -> `0.0 < off.max()` (stood on the deck's
-        far side), or its `along.min() < reach[1]` dropped (stood on the rib past its reach)
-    Break: score/stages/assembly/fitting.py: mounted_height's `return next((at for at in lower ...), height)` ->
-        `return height` (the pipe shrunk beside the one over it), or its `wanted = min(reach, longest(height, clear))`
-        -> `wanted = reach` (the pipe longer than its wall left in the one over it)
-    Break: score/stages/assembly/fitting.py: on_wall's `reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @
-        out))` -> `reach, deep = across(run, size), across(out, size)` (the turned pipe 1.1 m off its slanted wall), or
-        oriented_corners' `return box @ own[:3, :3] + own[3, :3]` -> its world box's corners
-    Break: score/stages/assembly/fitting.py: on_built_face's `faces.append(origins[ray][[0, 2]] + back[[0, 2]] *
-        float(reach.min()))` -> `faces.append(ends[ray])` (the span left 3 cm in front of its wall), or its `reach <= 2
-        * WALL_REACH` dropped (the span pulled 3 m back onto a far wall), or its `normal = normal if normal @ out >=
-        0.0 else -normal` -> `pass` with the turned face's normal flipped (out into the wall), or slanted_wall's `> 1e-6`
-        -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall), or its `share in
-        (FACE_INSET, 1.0 - FACE_INSET)` -> `share in (0.0, 1.0)` (a span ending past its wall's corner turned onto
-        the wall behind, habitat's wall_9), or its `return face_near(on, height, mesh)` -> `return on, 0.0`
-        (greenhouse's lamp left on its arc's chord, its pipe on the arc's outer face), or along_its_wall's `if deep <=
-        STRAIGHT_LEAST * max(reach, 1e-9):` -> `if True:` (its pipe left sticking out of its wall)
-    Break: score/stages/assembly/fitting.py: stood_off's `0.0 < float(along.min() + along.max()) / 2 < length`
-        dropped (walkway's whole-wall pipe stood on its end walls' front, against the wall across), or off_wall's
-        `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
-        rib's front named off its wall)
-    Break: score/stages/assembly/fitting.py: fit's `if scale < SCALE_LEAST: return CROWDED` dropped (a wall thing with
-        no stretch left shrunk to nothing), or oriented_corners' `or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12`
-        dropped (a prim scaled flat: LinAlgError, Singular matrix)
-    Break: score/stages/assembly/wall_clear.py: face_walls' `if not name.startswith(fitting.ROOF)` -> `if True`
-        (habitat's pipe over its wall's top laid on its dome's rim, 0.3 m behind its wall's face), or fitting.py's
-        `on_built_face(entry["on"], (low[1] + high[1]) / 2, faced())` -> `..., faces())`"""
-    from pxr import Gf, Usd, UsdGeom
-    from score.stages.assembly import wall_clear
-    from score.stages.assembly import fitting
-    walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
-             {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
-             {"name": "deck_1", "low": [-5.0, -0.2, -0.2], "high": [5.0, 0.0, 5.0]}]  # no wall: across the room
-    opening = {"how": "in", "middle": [0.0, 0.0, 0.15], "along": [1.0, 0.0], "wide": 2.4, "tall": 2.66}
-    boxes = [(wall["low"], wall["high"]) for wall in walls]
-    for opens, face in (((0.0, -1.0), -0.276), ((0.0, 1.0), 0.0)):
-        _, target, _, _ = fitting.fit((-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), opening, boxes, left=(-1.0, 0.0),
-                                      opens=opens)
-        assert np.allclose(target, (-0.2, 0.0, face)), (opens, target)
-        record = {"objects": [{"name": "door_1", "on": opening, "fills": True}]}
-        assert fitting.held_faults(record, {"walls": walls, "objects": [
-            {"name": "door_1", "low": [-1.2, 0.0, face - 0.1], "high": [0.8, 2.4, face + 0.1]}]}) == [], face
-    stage = Usd.Stage.CreateInMemory()
-    for name, size, turn, at in (("Objects/pipe_1", (3.2, 1.0, 0.32), 0.0, (0.0, 0.5, 2.0)),
-                                 ("Objects/lamp_1", (0.4, 0.3, 0.1), 0.0, (0.0, 2.45, 0.15)),
-                                 ("Objects/lamp_2", (0.4, 0.3, 0.1), 0.0, (0.1, 2.45, 0.15)),
-                                 ("Objects/door_1", (1.0, 2.0, 0.1), 180.0, (0.0, 1.0, 3.0)),
-                                 ("Shell/wall_2", (1.2, 0.1, 0.2), 0.0, (0.0, -0.05, 0.0))):
-        xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
-        cube = UsdGeom.Cube.Define(stage, f"/{TOY}/{name}/geo")
-        cube.AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
-        xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), turn))
-                                   * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
-    wall = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
-    entries = [{"name": "pipe_1", "row": "pipe", "on": wall}, {"name": "lamp_1", "row": "lamp", "on": wall},
-               {"name": "lamp_2", "row": "lamp", "on": wall},
-               {"name": "door_1", "row": "door", "on": {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0],
-                                                          "wide": 1.2, "tall": 2.2}}]
-    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {"pipe_1", "lamp_1", "lamp_2", "door_1"})}
-    assert sorted(fits) == ["door_1", "lamp_2", "pipe_1"], fits
-    assert np.allclose(fits["lamp_2"]["low"], (0.2, 2.3, 0.1)), fits  # slid along clear of lamp_1, laid before it
-    assert np.allclose(fits["door_1"]["low"], (-0.4, 0.0, 0.05)) and np.allclose(fits["door_1"]["high"],
-                                                                                  (0.6, 2.0, 0.15)), fits
-    swing = fitting.swing_box(stage, f"/{TOY}/Objects/door_1")
-    assert np.allclose(swing[0], (-0.4, 0.0, 0.1)) and np.allclose(swing[1], (0.6, 2.0, 1.1)), swing
-    assert fits["pipe_1"]["scale"] == 0.75 and np.allclose(fits["pipe_1"]["low"], (-3.0, 0.0, 0.1)) \
-        and np.allclose(fits["pipe_1"]["high"], (-0.6, 0.75, 0.34)), fits
-    assert fitting.swings("round_door_left") and fitting.swings("metal_gate_open") and not fitting.swings("windows")
-    out = (np.array([-0.4, 0.0, -0.9]), np.array([0.6, 2.0, 0.1]))
-    scale, target = fitting.on_wall(np.array([-1.6, 0.0, 1.0]), np.array([1.6, 1.0, 1.32]), wall, [out])
-    assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.26)), (scale, target)
-    # habitat (settle@habitat, 2026-11-10): two 3 m pipes 0.45 m tall stood 0.25 m apart on one wall, and kitchen
-    # cabinets on meeting walls, crossed by their own depth. A 4 m pipe 0.45 m tall laid at 2.35 m over one laid at
-    # 2.6 m on the same 6 m wall has no whole stretch at its height: it stands MOUNT_GAP under it, at 2.1 m; with
-    # nothing laid before it, it stays. A 1 m cabinet laid into the corner where one on the meeting wall (x -3 to
-    # -2.6) stands slides along clear of it, x -2.6 to -1.6.
-    pipe = (np.array([-2.0, 2.35, 0.1]), np.array([2.0, 2.8, 0.3]))
-    laid = [(np.array([-2.0, 2.6, 0.1]), np.array([2.0, 3.05, 0.3]))]
-    scale, target = fitting.on_wall(*pipe, wall, (), laid)
-    assert scale == 1.0 and np.allclose(target, (0.0, 2.1, 0.2)), (scale, target)
-    scale, target = fitting.on_wall(*pipe, wall)
-    assert scale == 1.0 and np.allclose(target, (0.0, 2.35, 0.2)), (scale, target)
-    # hangar (2026-11-11): its 32 m pipes ran through the ribs standing 1.5 m out of its walls. A rib standing 0.9 m
-    # out of the face across the pipe's reach stands it on the rib's front; one past its reach, and a deck across the
-    # room, do not
-    rib, past = (np.array([1.0, 0.0, 0.0]), np.array([1.3, 5.0, 1.0])), (np.array([2.5, 0.0, 0.0]), np.array([2.8, 5.0,
-                                                                                                             2.0]))
-    deck = (np.array([-3.0, 2.0, 0.0]), np.array([3.0, 2.5, 10.0]))
-    scale, target = fitting.on_wall(*pipe, wall, built=[rib, past, deck])
-    assert scale == 1.0 and np.allclose(target, (0.0, 2.35, 1.1)), (scale, target)
-    # walkway (2026-11-11): a pipe along its whole wall was stood on the 1.5 m front of the walls meeting it at its
-    # ends, onto the wall across; the walls at the face's ends are no ribs, and the held gate measures a stood pipe
-    # off the rib's front it was laid on (stood_face), by its own turned box (laid_face)
-    ends = [(np.array([-3.13, 0.0, 0.1]), np.array([-3.0, 2.5, 1.6])), (np.array([3.0, 0.0, 0.1]),
-                                                                        np.array([3.13, 2.5, 1.6]))]
-    whole = (np.array([-3.05, 2.35, 0.1]), np.array([3.05, 2.8, 0.3]))
-    scale, target = fitting.on_wall(*whole, wall, built=ends)
-    assert abs(scale - 6 / 6.1) < 1e-9 and np.allclose(target, (0.0, 2.35, 0.1 + 0.1 * 6 / 6.1)), (scale, target)
-    stood = fitting.stood_face(*pipe, wall, None, [rib])
-    assert np.allclose(stood["span"], [[-3.0, 1.0], [3.0, 1.0]]) and fitting.stood_face(*whole, wall, None, ends) \
-        is wall, stood
-    floor = [[x, z] for x in (-2.0, 2.0) for z in (1.0, 1.2)]
-    laid_on = {"objects": [{"name": "pipe_1", "low": [-2.0, 2.35, 1.0], "high": [2.0, 2.8, 1.2]}],
-               "fitted": [{"name": "pipe_1", "how": "wall",
-                           **fitting.laid_face(stood, [[x, 2.35, z] for x, z in floor])}]}
-    assert fitting.held_faults({"objects": [{"name": "pipe_1", "on": wall}]}, laid_on) == []
-    assert fitting.held_faults({"objects": [{"name": "pipe_1", "on": wall}]}, dict(laid_on, fitted=[])) == [
-        ("pipe_1", "0.90 m off where it is laid wall ()", 0.9)]
-    # hub (2026-11-11): a 0.4 m deep pipe turned 45 degrees flush on its slanted wall stands off it by its world box,
-    # never by its own turned box's corners
-    slanted = {"how": "wall", "span": [[0.0, 0.0], [4.0, 4.0]], "out": [0.7071068, -0.7071068]}
-    turned_floor = [[2.0 + along * 0.7071068 + off * 0.7071068, 2.0 + along * 0.7071068 - off * 0.7071068]
-                    for along in (-1.5, 1.5) for off in (0.0, 0.4)]
-    xs, zs = [x for x, _ in turned_floor], [z for _, z in turned_floor]
-    low, high = np.array([min(xs), 0.0, min(zs)]), np.array([max(xs), 0.5, max(zs)])
-    assert fitting.off_wall(low, high, slanted, turned_floor) < 1e-6 < fitting.off_wall(low, high, slanted) - 0.1
-    # hangar's 32 m pipes on its 31.3 m walls: one longer than its wall stands under the one laid before it too
-    long_pipe = (np.array([-3.5, 2.35, 0.1]), np.array([3.5, 2.8, 0.3]))
-    scale, target = fitting.on_wall(*long_pipe, wall, (), [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))])
-    assert abs(scale - 6 / 7) < 1e-9 and np.allclose(target, (0.0, 2.1, 0.1 + 0.1 * 6 / 7)), (scale, target)
-    # habitat's 3 m pipes on its 45 degree walls were laid 1.5 m off them, as deep as their world box: a 3 x 0.45 x
-    # 0.2 m pipe turned along a slanted wall (its face from (0, 0) to (4, 4), out to +x -z) stands with its own box's
-    # back on the face, its middle 0.1 m out; its turned corners read off the stage (oriented_corners)
-    slant = {"how": "wall", "span": [[0.0, 0.0], [4.0, 4.0]], "out": [0.7071068, -0.7071068]}
-    turned = Usd.Stage.CreateInMemory()
-    xform = UsdGeom.Xform.Define(turned, f"/{TOY}/Objects/pipe_9")
-    UsdGeom.Cube.Define(turned, f"/{TOY}/Objects/pipe_9/geo").AddScaleOp().Set(Gf.Vec3f(1.5, 0.225, 0.1))
-    xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -45.0))
-                               * Gf.Matrix4d().SetTranslate(Gf.Vec3d(2.0, 2.0, 2.0)))
-    corners = fitting.oriented_corners(turned, f"/{TOY}/Objects/pipe_9")
-    low, high = fitting.world_box(turned, f"/{TOY}/Objects/pipe_9")
-    scale, target = fitting.on_wall(low, high, slant, (), (), corners)
-    assert scale == 1.0 and np.allclose(target, (2.0 + 0.1 * 0.7071068, low[1], 2.0 - 0.1 * 0.7071068)), target
-    # workshop's slanted walls were built 3 cm behind and 6.5 degrees turned from their things' spans: the span is
-    # put on the built face (a wall face 3 cm behind the slanted span: no turn; one turned 6.5 degrees about the
-    # span's middle: its ends on it, its out the face's, turned 6.5 degrees), and kept where the wall stands 3 m behind
-    # it, past reach
-    behind = np.array([0.7071068, -0.7071068]) * -0.03
-    face = trimesh.Trimesh([[-1.0 + behind[0], 0.0, -1.0 + behind[1]], [5.0 + behind[0], 0.0, 5.0 + behind[1]],
-                            [5.0 + behind[0], 3.0, 5.0 + behind[1]], [-1.0 + behind[0], 3.0, -1.0 + behind[1]]],
-                           [[0, 1, 2], [0, 2, 3]], process=False)
-    moved, degrees = fitting.on_built_face(slant, 1.5, face)
-    assert np.allclose(moved["span"], np.add(slant["span"], behind), atol=1e-6) and abs(degrees) < 1e-6, moved
-    turn = trimesh.transformations.rotation_matrix(np.radians(6.5), [0.0, 1.0, 0.0], [2.0 + behind[0], 0.0,
-                                                                                    2.0 + behind[1]])
-    moved, degrees = fitting.on_built_face(slant, 1.5, face.copy().apply_transform(turn))
-    run = np.subtract(*moved["span"][::-1]) / np.linalg.norm(np.subtract(*moved["span"][::-1]))
-    assert abs(abs(degrees) - 6.5) < 1e-3 and abs(float(run @ moved["out"])) < 1e-6 and float(
-        np.dot(moved["out"], slant["out"])) > 0.99, (moved, degrees)
-    assert fitting.on_built_face(slant, 1.5, face.copy().apply_translation((-2.1213, 0.0, 2.1213))) == (slant, 0.0)
-    # habitat's wall_9 (2026-11-11): its span ends 5 mm past its wall's corner, a wall 0.2 m behind: the face found
-    # is its own wall's, not turned onto the one behind
-    deep = np.array([0.7071068, -0.7071068]) * -0.2
-    corner = trimesh.util.concatenate([trimesh.Trimesh(
-        [[start + way[0], 0.0, start + way[1]], [5.0 + way[0], 0.0, 5.0 + way[1]], [5.0 + way[0], 3.0, 5.0 + way[1]],
-         [start + way[0], 3.0, start + way[1]]], [[0, 1, 2], [0, 2, 3]], process=False)
-        for start, way in ((0.0035, (0.0, 0.0)), (-1.0, deep))])
-    moved, degrees = fitting.on_built_face(slant, 1.5, corner)
-    assert np.allclose(moved["span"], slant["span"], atol=1e-6) and abs(degrees) < 1e-6, (moved, degrees)
-    # greenhouse (2026-11-11): its plan walls an arc, its shell built on its outline's octagon 0.3 to 1.2 m behind the
-    # arc's chords. A face 1.2 m behind the span's middle, turned 20 degrees, is past the face rays' reach: the span is
-    # laid on it, along its run (10 m long here), its out the face's, turned 20 degrees; a face 0.7 m in front of a
-    # span whose out points at it (a pipe on the arc's outer face) takes the span, its out turned round to the room
-    middle, way = np.array([2.0, 2.0]), np.array([0.7071068, -0.7071068])
-
-    def a_face(at, turn):
-        run = np.array([[np.cos(turn), -np.sin(turn)], [np.sin(turn), np.cos(turn)]]) @ np.array([way[1], -way[0]])
-        ends = [at + run * 5.0, at - run * 5.0]
-        return trimesh.Trimesh([[ends[0][0], 0.0, ends[0][1]], [ends[1][0], 0.0, ends[1][1]],
-                                [ends[1][0], 3.0, ends[1][1]], [ends[0][0], 3.0, ends[0][1]]], [[0, 1, 2], [0, 2, 3]],
-                               process=False), run
-
-    for at, turn, toward in ((middle - way * 1.2, np.radians(20.0), 1.0), (middle + way * 0.7, 0.0, -1.0)):
-        built, run = a_face(at, turn)
-        moved, degrees = fitting.on_built_face(slant, 1.5, built)
-        ends = np.asarray(moved["span"], float)
-        assert np.allclose((ends - at) @ np.array([-run[1], run[0]]), 0.0, atol=1e-6), moved  # on the face
-        assert abs(float(np.dot(moved["out"], run))) < 1e-6 and float(np.dot(moved["out"], way)) * toward > 0.9, moved
-        assert np.linalg.norm(ends[1] - ends[0]) > 9.0 and abs(abs(degrees) - (20.0 if toward > 0 else 180.0)) < 1e-3, (
-            moved, degrees)
-    # ... and its 3 m pipes, built lying, stood 3 m out of their wall: one long across its wall is turned along it
-    UsdGeom.Xform.Define(turned, f"/{TOY}/Objects/pipe_10").AddTransformOp().Set(
-        Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -45.0)))
-    UsdGeom.Cube.Define(turned, f"/{TOY}/Objects/pipe_10/geo").AddScaleOp().Set(Gf.Vec3f(1.5, 0.1, 0.1))
-    across_it = {"how": "wall", "span": [[0.0, 0.0], [4.0, -4.0]], "out": [0.7071068, 0.7071068]}
-    assert not fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", slant)
-    assert fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", across_it)
-    assert not fitting.along_its_wall(turned, f"/{TOY}/Objects/pipe_10", across_it)  # along it now
-    # habitat's pipes (2026-11-11), 2.6 m up and 0.44 m tall on walls 2.8 m tall, cast their face rays over the walls'
-    # tops onto the dome's rim 0.3 m behind: a roof is no face. Under its wall's top the face is found as before.
-    domed = Usd.Stage.CreateInMemory()
-    rim = trimesh.Trimesh([[point[0] - 0.3 * 0.7071068, height, point[2] + 0.3 * 0.7071068]
-                           for point in face.vertices[:2] for height in (2.8, 3.5)], [[0, 1, 3], [0, 3, 2]],
-                          process=False)
-    for name, mesh in (("wall_1", face.copy().apply_transform(np.diag([1.0, 2.8 / 3.0, 1.0, 1.0]))), ("roof_1", rim)):
-        UsdGeom.Xform.Define(domed, f"/{TOY}/Structure/{name}")
-        drawn = UsdGeom.Mesh.Define(domed, f"/{TOY}/Structure/{name}/geo")
-        drawn.CreatePointsAttr([tuple(map(float, point)) for point in mesh.vertices])
-        drawn.CreateFaceVertexCountsAttr([3] * len(mesh.faces))
-        drawn.CreateFaceVertexIndicesAttr([int(index) for index in mesh.faces.reshape(-1)])
-    moved, _ = fitting.on_built_face(slant, 2.9, fitting.built_walls(domed, TOY))
-    assert np.allclose(moved["span"], np.add(slant["span"], behind + [-0.3 * 0.7071068, 0.3 * 0.7071068]),
-                       atol=1e-3), moved  # the rim, as it was found before
-    assert fitting.on_built_face(slant, 2.9, wall_clear.face_walls(domed, TOY)) == (slant, 0.0)
-    moved, _ = fitting.on_built_face(slant, 1.5, wall_clear.face_walls(domed, TOY))
-    assert np.allclose(moved["span"], np.add(slant["span"], behind), atol=1e-6), moved
-    a_built_box(domed, f"/{TOY}/Objects/pipe_1", (1.9, 2.7, 1.9), (2.1, 3.1, 2.1))
-    fitting.fitted(domed, TOY, [{"name": "pipe_1", "row": "pipe", "on": slant}], {"pipe_1"})
-    foot = fitting.foot_middle(*fitting.world_box(domed, f"/{TOY}/Objects/pipe_1"))
-    assert float((foot[[0, 2]] - slant["span"][0]) @ slant["out"]) > 0.0, foot  # in front of its wall, not the rim
-    assert fitting.slanted_wall(slant) and fitting.slanted_wall({"out": [0.991393, -0.13092]}) and not \
-        fitting.slanted_wall(wall)
-    corner = [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]
-    scale, target = fitting.on_wall(np.array([-3.0, 1.5, 0.1]), np.array([-2.0, 2.2, 0.5]), wall, (), corner)
-    assert scale == 1.0 and np.allclose(target, (-2.1, 1.5, 0.3)), (scale, target)
-    # habitat's third kitchen cabinet (2026-11-11): its wall taken, floor to top, by those laid before it but for a
-    # stretch of no length at its end ((2.9064, 2.9064)), it was shrunk to 0% and its flat frame broke
-    # oriented_corners' inverse. With no stretch of its wall left it is CROWDED (left as laid); with the wall free it
-    # is laid; a prim scaled flat gives its world box's corners
-    cabinet, whole = (np.array([-0.5, 1.5, 0.1]), np.array([0.5, 2.2, 0.5])), \
-        [(np.array([-3.0, 0.0, 0.1]), np.array([3.0 - 1e-12, 3.0, 0.6]))]
-    assert fitting.fit(*cabinet, wall, mounted=whole) is fitting.CROWDED
-    assert fitting.fit(*cabinet, wall) is None
-    xform.AddScaleOp().Set(Gf.Vec3f(0.0, 0.0, 0.0))
-    low, high = fitting.world_box(turned, f"/{TOY}/Objects/pipe_9")
-    assert np.allclose(fitting.oriented_corners(turned, f"/{TOY}/Objects/pipe_9"),
-                       [[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
-
-
-def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
-    """#36, street 2026-10-30: two drying racks (0.12 m tall) stood 1.3 and 2.3 m inside their facade: its flat front
-    has corners only at its ends, and the corners within the racks' height were a window's back. A facade whose front
-    (z 0) is one box 10 m wide and a window's back 1.9 m inside it, its corners in the rack's height: the rack's back
-    stands on the front, z 0, never on the window's back.
-    Break: score/stages/assembly/fitting.py: `hits, _, _ = mesh.ray.intersects_location(origins, directions,
-        multiple_hits=False)` -> `hits = mesh.vertices[(mesh.vertices[:, 1] >= band[0]) & (mesh.vertices[:, 1] <=
-        band[1])]`
-    Break: score/stages/assembly/fitting.py: touching's `if not MOVE_LEAST < float(gaps[nearest]) <= FACE_REACH:` ->
-        `if True:` (the lantern left under its string's end), or off_faces' `if behind < -MOVE_LEAST:` -> `if False:`
-        (the clothes left in the wall)
-    Break: score/stages/assembly/fitting.py: on_face's `if face is not None and clear:` -> `if False:` (the second
-        panel laid on the first)
-    settle@street (2026-11-11): its 0.4 m red paper lanterns, laid against the side of their 1 cm lantern string,
-    were shrunk to 16% and 2% to fit its height. A 0.4 m lantern the plan stood 15 m off, which the record hangs
-    `below` an 8 m string 1 cm thick and sagging 6 cm a quarter of the way along it, keeps its size, its middle under
-    the string 2 m along it (6 m at three quarters), its top on the string's underside there, and is held there; the
-    rack against the facade is laid as before.
-    Break: score/stages/assembly/fitting.py: `if how == "face" and on.get("below"):` -> `if False:` (the lantern
-        shrunk against the string's side)
-    Break: score/stages/assembly/fitting.py: hung_under's `target[[0, 2]], top = met[0][[0, 2]], float(met[0][1])` ->
-        `pass` (hung under the box's foot, beside the string), or `target[[0, 2]] = foot[[0, 2]] if share is None else
-        hung_run(points, float(share))` -> `target[[0, 2]] = foot[[0, 2]]` (every lantern at the string's end)
-    Break: score/stages/assembly/fitting.py: off_holder's `return hung_off(low, high, box)` -> `pass` (the hung
-        lantern judged off the string's side)
-    settle@lab (2026-11-11): valve_3, laid on pipe_3's room side, hung free 0.41 m off it: the pipe model zig-zags
-    across its 0.9 m box and at the valve's height its tube runs 0.5 m along the face. A 0.2 m valve against a 1 m
-    box's E side whose one tube stands 0.8 m along it and 0.1 m inside is slid along onto the tube's middle, its back on it;
-    one already in front of the tube stays. settle@quarters (2026-11-13): a 1.3 cm wrench against its desk's back was
-    slid 0.2 m up, where only its top met the slanting lower edge of the desk's back panel, inside the desk as laid. A
-    wrench slid to a panel whose lower edge is 0.2125 m up stands with its foot on it too, 0.25 m up.
-    Break: score/stages/assembly/face_spots.py: met's `if None in ends:` -> `if True:` (the valve left on the box's
-        side, touching nothing), or -> `if ends[1] is None:` (the wrench 0.2 m up, its foot under the panel), or
-        fitting.py's `target = face_spots.met(surface, on, box, size * scale, target, clear)` dropped
-    assembly@base (2026-11-12): ramp_front_left_1, a platform on legs, was stood on the toe of its module's own built
-    ramp, a lip reaching 3 m out of the module's face beside its legs, and hung free 0.15 m off it. A 0.2 m cube 1 m in
-    front of a wall's face, beside a 0.2 m wide lip reaching out to it, is pushed in until its back meets the face (its
-    face plane then the face's); one 2.5 cm off the face (touching it), and one 2 m out (past the holder's depth), are
-    left.
-    Break: score/stages/assembly/face_reach.py: met's `<= resting.TOLERANCE:` -> `<= -1.0:` (the touching cube
-        pushed), `if not fitting.MOVE_LEAST < gap <= depth:` -> `if not fitting.MOVE_LEAST < gap:` (the far cube
-        pushed), or gap_in's `least = min(least, ...)` -> `least = least` (nothing pushed)
-    assembly@square (2026-11-12): its lantern strings, hung 6 m up between its buildings, floated where the plan drew
-    them. Between two 8 m buildings 8 m apart, a 10 m string laid along z is turned along the run between them and
-    shrunk to 80%, its ends on both; a 4 m one is laid at its size from the first, the held gate naming it 4 m short
-    of the second; one whose second holder is not laid waits, its prim inactive.
-    Break: score/stages/assembly/fitting.py: `fits += hung_between.laid(stage, place, [entry for entry in entries if
-        entry["name"] in laid])` dropped (the strings left where the plan drew them)
-    Break: score/stages/assembly/hung_between.py: `degrees = (degrees + 90.0) % 180.0 - 90.0` -> `degrees = 0.0` (the
-        string left along z), or `scale = min(1.0, run / max(length, 1e-9))` -> `scale = 1.0` (into both buildings),
-        or laid's `if missing or len(holders) != 2` -> `if len(holders) != 2` (string_3 laid against a holder not laid)
-    Break: score/stages/assembly/fitting.py: off's `return hung_between.off(low, high, boxes)` -> `pass` (the short
-        string judged on the nearer holder's box only, 0 off)"""
-    import trimesh
-    from score.stages.assembly import fitting
-    points, _, indices = boxes_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
-    facade = trimesh.Trimesh(points, [quad[:3] for quad in np.reshape(indices, (-1, 4))]
-                             + [quad[[0, 2, 3]] for quad in np.reshape(indices, (-1, 4))], process=False)
-    on = {"how": "face", "holder": ["facade_1"], "out": [0.0, 1.0]}
-    box = (np.array([-5.0, 0.0, -2.0]), np.array([5.0, 10.0, 0.0]))
-    scale, target, (back, hung) = fitting.on_face(np.array([-0.75, 6.0, 0.5]), np.array([0.75, 6.1, 1.0]), on, box,
-                                                  facade)
-    assert back == 0.0 and np.allclose(target, (0.0, 6.0, 0.25)) and scale == 1.0 and not hung, (back, target)
-    walled = fitting.fit(np.array([-0.75, 6.0, 0.5]), np.array([0.75, 6.1, 1.0]), on, [box], facade)
-    assert walled[0] == 1.0 and np.allclose(walled[1], target) and walled[3] == (0.0, False), walled
-    sag = np.array([[x, 24.06 - 0.06 * (1.0 - (x / 4.0 - 1.0) ** 2), 0.0] for x in np.linspace(0.0, 8.0, 33)])
-    string = trimesh.util.concatenate([trimesh.creation.box(bounds=[(first[0], min(first[1], second[1]), -0.005),
-                                                                    (second[0], max(first[1], second[1]) + 0.01,
-                                                                     0.005)]) for first, second in zip(sag, sag[1:])])
-    strung = (np.asarray(string.bounds[0], float), np.asarray(string.bounds[1], float))
-    lantern = (np.array([9.8, 6.0, -15.2]), np.array([10.2, 6.4, -14.8]))  # where the plan stood it, far off
-    below = {"how": "face", "holder": ["lantern_string_1"], "out": [0.0, 1.0], "below": True, "along": 0.25}
-    scale, target, _, face = fitting.fit(*lantern, below, [strung], string)
-    under = string.vertices[np.abs(string.vertices[:, 0] - 2.0) < 0.13][:, 1].min()
-    assert scale == 1.0 and face is None and abs(target[2]) <= 0.005 and abs(target[0] - 2.0) < 0.13, target
-    assert abs(target[1] + 0.4 - under) < 0.01, (target, under)
-    assert abs(fitting.fit(*lantern, dict(below, along=0.75), [strung], string)[1][0] - 6.0) < 0.13
-    hung_low, hung_high = np.asarray(lantern[0]) - fitting.foot_middle(*lantern) + target, \
-        np.asarray(lantern[1]) - fitting.foot_middle(*lantern) + target
-    assert fitting.off(hung_low, hung_high, below, [strung]) <= fitting.HELD_MOST
-    assert fitting.off(*lantern, below, [strung]) > fitting.HELD_MOST  # left where the plan stood it, 6 m up
-    assert fitting.fit(*lantern, dict(below, below=False), [strung], string)[0] < 0.5  # against its side: shrunk
-    # wreck (2026-11-11): three solar panels on their lander's N face laid at one spot, its built surface 1.5 m
-    # inside its box's side, where the panels laid before it were never measured. A 0.3 m panel at a 2 m holder's
-    # left end, the surface at z 0.9 inside its box (z 0 to 2) and one panel standing on it there, goes beside it.
-    lander = (np.array([0.0, 0.0, 0.0]), np.array([2.0, 1.0, 2.0]))
-    frame = trimesh.creation.box(bounds=[(0.0, 0.0, 0.9), (2.0, 1.0, 1.1)])
-    north = {"how": "face", "holder": ["lander_1"], "out": [0.0, -1.0]}
-    first = np.array([[x, y, z] for x in (0.0, 0.3) for y in (0.0, 0.13) for z in (0.79, 0.9)])
-    _, beside, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame, mounted=[first])
-    _, alone, _, _ = fitting.fit((0.0, 0.0, 0.4), (0.3, 0.13, 0.51), north, [lander], frame)
-    assert np.allclose(beside, (0.45, 0.0, 0.845)) and np.allclose(alone, (0.15, 0.0, 0.845)), (beside, alone)
-    pipe = trimesh.creation.box(bounds=[(-0.2, 0.0, -0.92), (-0.1, 2.5, -0.78)])
-    piped = (np.array([-0.5, 0.0, -1.0]), np.array([0.0, 2.5, 0.0]))
-    east = {"how": "face", "holder": ["pipe_3"], "out": [1.0, 0.0]}
-    _, valve, (valve_back, _) = fitting.on_face(np.array([0.0, 1.5, -0.2]), np.array([0.05, 1.7, 0.0]), east, piped,
-                                                pipe)
-    assert abs(valve_back + 0.1) < 1e-9 and np.allclose(valve, (-0.075, 1.5, -0.8)), (valve, valve_back)
-    _, kept, (kept_back, _) = fitting.on_face(np.array([0.0, 1.5, -0.95]), np.array([0.05, 1.7, -0.75]), east, piped,
-                                              pipe)
-    assert abs(kept_back + 0.1) < 1e-9 and np.allclose(kept, (-0.075, 1.5, -0.85)), kept
-    from score.stages.assembly import face_spots
-    panel = trimesh.creation.box(bounds=[(0.0, 0.2125, 0.9), (0.5, 0.5, 1.0)])
-    wrench = face_spots.met(panel, {"how": "face", "out": [0.0, 1.0]}, (np.zeros(3), np.array([1.0, 0.5, 1.0])),
-                            (0.166, 0.013, 0.05), (0.75, 0.0, 1.025))
-    assert np.allclose(wrench, (0.483, 0.25, 1.025)), wrench
-    # settle@street (2026-11-11): lantern 11, on the 1 cm end of its sagging string, stood 0.045 m under it; hanging
-    # clothes 3 and 4, within a drying rack turned along slanted wall_7, stood 0.05 m behind its face. A 0.1 m cube
-    # 0.04 m under a holder's surface is moved up onto it, one 0.5 m away is left; one 0.05 m behind a wall face along
-    # (1, 1) is moved out along the face's way until it stands in front of it.
-    from pxr import Gf, Usd, UsdGeom
-
-    def a_cube(stage, path, low, high):
-        cube = trimesh.creation.box(bounds=[low, high])
-        UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
-        mesh = UsdGeom.Mesh.Define(stage, f"{path}/geo")
-        mesh.CreatePointsAttr([tuple(map(float, point)) for point in cube.vertices])
-        mesh.CreateFaceVertexCountsAttr([3] * len(cube.faces))
-        mesh.CreateFaceVertexIndicesAttr([int(index) for index in cube.faces.ravel()])
-    placed = Usd.Stage.CreateInMemory()
-    holder = trimesh.creation.box(bounds=[(0.0, 1.0, 0.0), (1.0, 1.1, 0.01)])
-    for name, low in (("lantern_1", (0.4, 0.86, 0.0)), ("lantern_2", (0.4, 0.4, 0.0))):
-        a_cube(placed, f"/{TOY}/Objects/{name}", low, np.add(low, 0.1))
-    assert "onto its holder's surface" in fitting.touching(placed, f"/{TOY}/Objects/lantern_1", holder)
-    assert abs(fitting.world_box(placed, f"/{TOY}/Objects/lantern_1")[1][1] - 1.0) < 1e-6
-    assert fitting.touching(placed, f"/{TOY}/Objects/lantern_2", holder) == ""
-    a_cube(placed, f"/{TOY}/Objects/clothes_1", (1.0, 0.0, 0.9), (1.2, 0.5, 1.1))
-    wall = {"how": "wall", "span": [[0.0, 0.0], [3.0, 3.0]], "out": [-0.7071068, 0.7071068]}
-    assert "out of the wall" in fitting.off_faces(placed, f"/{TOY}/Objects/clothes_1", [wall])
-    corners = trimesh.bounds.corners(np.array(fitting.world_box(placed, f"/{TOY}/Objects/clothes_1")))[:, [0, 2]]
-    assert abs(float((corners @ np.array(wall["out"])).min())) < 1e-6, corners
-    from score.stages.assembly import face_reach
-    module = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.0, 0.0, -0.3), (1.0, 2.0, 0.0)]),
-                                       trimesh.creation.box(bounds=[(0.5, 0.0, 0.0), (0.7, 0.2, 1.0)])])
-    front = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
-    for name, low in (("ramp_1", (0.0, 0.5, 1.0)), ("ramp_2", (-0.5, 0.5, 0.025)), ("ramp_3", (-0.9, 0.5, 2.0))):
-        a_cube(placed, f"/{TOY}/Objects/{name}", low, np.add(low, 0.2))
-    words, face = face_reach.met(placed, f"/{TOY}/Objects/ramp_1", front, module, (1.0, False), "laid")
-    back = fitting.world_box(placed, f"/{TOY}/Objects/ramp_1")[0][2]
-    assert "pushed 0.99 m in" in words and abs(back - 0.005) < 1e-3 and abs(face[0] - back) < 1e-6, (words, back)
-    for name, low in (("ramp_2", 0.025), ("ramp_3", 2.0)):
-        assert face_reach.met(placed, f"/{TOY}/Objects/{name}", front, module, (low, False), "laid") == \
-            ("laid", (low, False)), name
-        assert abs(fitting.world_box(placed, f"/{TOY}/Objects/{name}")[0][2] - low) < 1e-6, name
-    strung = Usd.Stage.CreateInMemory()
-    for name, low, high in (("building_1", (-10.0, 0.0, -5.0), (-2.0, 20.0, 5.0)),
-                            ("building_2", (6.0, 0.0, -5.0), (14.0, 20.0, 5.0)),
-                            ("string_1", (1.9, 6.0, -4.0), (2.1, 6.2, 6.0)),
-                            ("string_2", (0.0, 7.0, 2.9), (4.0, 7.2, 3.1)),
-                            ("string_3", (0.0, 8.0, -1.1), (4.0, 8.2, -0.9))):
-        a_cube(strung, f"/{TOY}/Objects/{name}", low, high)
-    between = [{"name": f"string_{number}", "row": "string",
-                "on": {"how": "between", "holder": ["building_1", f"building_{2 if number < 3 else 3}"]}}
-               for number in (1, 2, 3)]
-    hung = fitting.fitted(strung, TOY, [{"name": "building_1", "row": "building"},
-                                        {"name": "building_2", "row": "building"}, *between],
-                          {"building_1", "building_2", "string_1", "string_2", "string_3"})
-    hows = {fit["name"]: fit["how"] for fit in hung}
-    assert hows == {"string_1": "between", "string_2": "between", "string_3": "waiting"}, hung
-    spans = {name: fitting.world_box(strung, f"/{TOY}/Objects/{name}") for name in ("string_1", "string_2")}
-    assert np.allclose(spans["string_1"], ((-2.0, 6.0, 0.92), (6.0, 6.16, 1.08)), atol=1e-6), spans
-    assert np.allclose(spans["string_2"], ((-2.0, 7.0, 2.9), (2.0, 7.2, 3.1)), atol=1e-6), spans
-    assert not strung.GetPrimAtPath(f"/{TOY}/Objects/string_3").IsActive(), hung
-    buildings = [fitting.world_box(strung, f"/{TOY}/Objects/building_{number}") for number in (1, 2)]
-    assert fitting.off(*spans["string_1"], between[0]["on"], buildings) < 1e-6
-    assert abs(fitting.off(*spans["string_2"], between[1]["on"], buildings) - 4.0) < 1e-6
 
 
 def test_a_monitor_goes_on_its_console_s_top_within_its_span():
@@ -2326,27 +1045,6 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert not railings_held.inside(laid_chord.vertices, [wall]) and "slid -0." in words, words
     assert railings_held.outside_by(laid_chord, under) <= 0.05 < railings_held.outside_by(chord, under), words
     assert railings_held.change(laid_chord, railing_row, [wall], under) is None
-
-
-def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):
-    """Fault (2026-10-12): the garage's fourth pressure gauge moved off the big door's track in its kit, yet the
-    assembly kept the seed's object where the old kit put it. The second crate's kit spot moved to (5, 0, 2): it
-    stands there; the first, unmoved, keeps its transform, and a second run moves nothing.
-    Break: score/stages/assembly/record.py: `if all(abs(now[row][column] - then[row][column]) <= SAME for row in
-        range(4) for column in range(4)):` -> `if True:`"""
-    import ground
-    from pxr import UsdGeom
-    monkeypatch.setattr(ground, "place_ground", lambda place, seat: None)  # laid flat, as export.py --flat lays it
-    stage = place_of(tmp_path, [("crate", "box", (0, 0, 0)), ("crate", "box", (3, 0, 0))], [row("crate")])
-    kit = json.loads((tmp_path / "kit.json").read_text())
-    kit["pieces"][1]["at"] = [5.0, 0.0, 2.0]
-    (tmp_path / "kit.json").write_text(json.dumps(kit))
-    said = record.relay_kit({"kit": tmp_path / "kit.json"}, stage.parent, PLACE)
-    assert said == "; kit: 1 pieces laid at their kit spot (crate_2)", said
-    held = opened(stage)
-    moved = UsdGeom.Xformable(held.GetPrimAtPath(f"/{PLACE}/Objects/crate_2"))
-    assert tuple(moved.ComputeLocalToWorldTransform(0).ExtractTranslation()) == (5.0, 0.0, 2.0)
-    assert record.relay_kit({"kit": tmp_path / "kit.json"}, stage.parent, PLACE) == ""
 
 
 def a_sound_output(folder, uses):
@@ -3606,21 +2304,11 @@ def built_of(*found):
 OPENING = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
 JAMBS = [((4.25, -0.2, -1.0), (4.55, 2.8, 1.0)), ((5.45, -0.2, -1.0), (5.75, 2.8, 1.0))]  # built, 0.3 m thick
 WALL_FACE = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}  # z 0.1 to 6.1 at x 2, room to +x
-FIT = [  # (case, a laid thing's low and high, its relation, its holders, its left, its scale, its foot's middle, words)
-    ("a 1.4 x 2.4 m door in its 1.2 x 2.1 m opening", (0.3, 0.0, 2.95), (1.7, 2.4, 3.05), OPENING, (), None,
-     (1.2 / 1.4, 2.1 / 2.4, 2.1 / 2.4), (5.0, 0.0, 0.0), "narrowed to 86% across"),
-    ("a 1.4 m door between built jambs 0.9 m apart", (0.3, 0.0, 2.95), (1.7, 2.1, 3.05), OPENING, JAMBS, None,
-     (0.9 / 1.4, 1.0, 1.0), (5.0, 0.0, 0.0), None),
-    ("a 0.6 m door there against the jamb its left edge faces", (0.3, 0.0, 2.95), (0.9, 2.1, 3.05), OPENING, JAMBS,
-     (-1.0, 0.0), 1.0, (4.85, 0.0, 0.0), None),
-    ("a wall lamp laid at the room's middle, on its wall's face", (4.4, 0.0, 2.9), (4.6, 0.6, 3.9), WALL_FACE, (), None,
-     1.0, (2.1, 0.0, 3.4), None),
-    ("a 2.4 m door laid on the plan's line of its 2.4 m opening, on the built wall's face", (-1.2, 0.0, 0.05),
-     (1.2, 2.4, 0.25), DOORWAY_1, [(wall["low"], wall["high"]) for wall in DOOR_WALLS], None, 1.0, (0.0, 0.0, 0.0),
-     None),
-    ("a 2 m door there, its hinge on the jamb its own left edge faces", (-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), DOORWAY_1,
-     [(wall["low"], wall["high"]) for wall in DOOR_WALLS], (-1.0, 0.0), 1.0, (-0.2, 0.0, 0.0), None),
-]
+SHELL_WALL = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
+LEAF_WALLS = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
+              {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
+              {"name": "deck_1", "low": [-5.0, -0.2, -0.2], "high": [5.0, 0.0, 5.0]}]  # no wall: across the room
+LEAF_OPENING = {"how": "in", "middle": [0.0, 0.0, 0.15], "along": [1.0, 0.0], "wide": 2.4, "tall": 2.66}
 SLANTED = {"how": "in", "middle": [-2.032, 0.2, -2.7], "along": [0.356, -0.934], "wide": 1.0, "tall": 2.5}
 WALL_2 = (np.array([-2.85, 0.0, -4.4]), np.array([-2.55, 3.5, -1.1]))  # street's straight wall_2, x -2.85 to -2.55
 HOLED = built_of([(-2.85, 0.0, -4.4), (-2.55, 3.5, -3.2)], [(-2.85, 0.0, -2.2), (-2.55, 3.5, -1.1)],
@@ -3673,32 +2361,98 @@ KEPT_OUT = [  # (case, the built walls, how deep before the face (None: the hole
     ("a wall crossing the face at z 5: past it is outside the room", built_of([(0.0, 0.0, 5.0), (0.5, 3.0, 5.1)]), 0.5,
      [(4.975, 6.025)]),
 ]
-ON_WALL = [  # (case, a thing's low and high, the KEPT_OUT case it keeps out of (None: nothing), its foot's middle)
-    ("a 0.5 m screen in the hole", (0.1, 1.0, 2.25), (0.2, 1.5, 2.75), KEPT_OUT[0][0], (0.15, 1.0, 1.725)),
-    ("that screen with nothing to keep out of", (0.1, 1.0, 2.25), (0.2, 1.5, 2.75), None, (0.15, 1.0, 2.5)),
-    ("a 1 m rack 0.5 m deep laid at z 5, before the wall", (0.1, 1.0, 4.5), (0.6, 1.5, 5.5), KEPT_OUT[1][0],
-     (0.35, 1.0, 3.475)),
+SLANT = {"how": "wall", "span": [[0.0, 0.0], [4.0, 4.0]], "out": [0.7071068, -0.7071068]}  # out to +x -z
+PIPE = ((-2.0, 2.35, 0.1), (2.0, 2.8, 0.3))  # a 4 m pipe 0.45 m tall on SHELL_WALL
+OVER = [(np.array([-2.0, 2.6, 0.1]), np.array([2.0, 3.05, 0.3]))]  # one laid at 2.6 m on the same wall
+RIB = (np.array([1.0, 0.0, 0.0]), np.array([1.3, 5.0, 1.0]))  # standing 0.9 m out of SHELL_WALL's face
+ENDS = [(np.array([-3.13, 0.0, 0.1]), np.array([-3.0, 2.5, 1.6])), (np.array([3.0, 0.0, 0.1]),
+                                                                    np.array([3.13, 2.5, 1.6]))]  # walls at its ends
+WHOLE = ((-3.05, 2.35, 0.1), (3.05, 2.8, 0.3))  # a pipe along SHELL_WALL's whole face
+ON_WALL = [  # (case, a thing's low and high (None: its turned cube's), its wall, what it keeps out of (a KEPT_OUT case
+    # or boxes), on_wall's other inputs (mounted, built; turned: (size, at, degrees) of a cube about +y, whose world box
+    # and oriented corners it is laid by), its scale (None: unread), its foot's middle)
+    ("a 0.5 m screen in the hole", (0.1, 1.0, 2.25), (0.2, 1.5, 2.75), ALONG, KEPT_OUT[0][0], {}, None,
+     (0.15, 1.0, 1.725)),
+    ("that screen with nothing to keep out of", (0.1, 1.0, 2.25), (0.2, 1.5, 2.75), ALONG, (), {}, None,
+     (0.15, 1.0, 2.5)),
+    ("a 1 m rack 0.5 m deep laid at z 5, before the wall", (0.1, 1.0, 4.5), (0.6, 1.5, 5.5), ALONG, KEPT_OUT[1][0], {},
+     None, (0.35, 1.0, 3.475)),
+    ("#36 garage: a 3.2 m pipe beside a door swinging out of the room stays", (-1.6, 0.0, 1.0), (1.6, 1.0, 1.32),
+     SHELL_WALL, [(np.array([-0.4, 0.0, -0.9]), np.array([0.6, 2.0, 0.1]))], {}, 1.0, (0.0, 0.0, 0.26)),
+    ("habitat: a 4 m pipe laid at 2.35 m over one at 2.6 m has no whole stretch at its height: MOUNT_GAP under it",
+     *PIPE, SHELL_WALL, (), {"mounted": OVER}, 1.0, (0.0, 2.1, 0.2)),
+    ("that pipe with nothing laid before it stays", *PIPE, SHELL_WALL, (), {}, 1.0, (0.0, 2.35, 0.2)),
+    ("hangar: a rib 0.9 m out of the face across the pipe's reach stands it on the rib's front; one past its reach "
+     "and a deck across the room do not", *PIPE, SHELL_WALL, (),
+     {"built": [RIB, (np.array([2.5, 0.0, 0.0]), np.array([2.8, 5.0, 2.0])),
+                (np.array([-3.0, 2.0, 0.0]), np.array([3.0, 2.5, 10.0]))]}, 1.0, (0.0, 2.35, 1.1)),
+    ("walkway: a pipe along its whole wall is never stood on the walls at the face's ends", *WHOLE, SHELL_WALL, (),
+     {"built": ENDS}, 6 / 6.1, (0.0, 2.35, 0.1 + 0.1 * 6 / 6.1)),
+    ("hangar: a 7 m pipe on its 6 m wall stands under the one laid before it too", (-3.5, 2.35, 0.1), (3.5, 2.8, 0.3),
+     SHELL_WALL, (), {"mounted": [(np.array([-3.0, 2.6, 0.1]), np.array([3.0, 3.05, 0.3]))]}, 6 / 7,
+     (0.0, 2.1, 0.1 + 0.1 * 6 / 7)),
+    ("habitat: a 1 m cabinet laid into the corner slides clear of one on the meeting wall, x -2.6 to -1.6",
+     (-3.0, 1.5, 0.1), (-2.0, 2.2, 0.5), SHELL_WALL, (),
+     {"mounted": [(np.array([-3.0, 1.5, 0.1]), np.array([-2.6, 2.2, 1.1]))]}, 1.0, (-2.1, 1.5, 0.3)),
+    ("habitat: a 3 x 0.45 x 0.2 m pipe turned along its slanted wall stands with its own box's back on the face, "
+     "its middle 0.1 m out", None, None, SLANT, (), {"turned": ((3.0, 0.45, 0.2), (2.0, 2.0, 2.0), -45.0)}, 1.0,
+     (2.0 + 0.1 * 0.7071068, 1.775, 2.0 - 0.1 * 0.7071068)),
 ]
 
 
 def a_fitted_world(prims):
     """An in-memory stage of `prims` under /toy: ("cube", size, at, degrees) an Xform holding a cube of that size,
     turned `degrees` about the up axis, then moved to `at`; ("points", points) a mesh of those points alone; ("box",
-    low, high) an Xform holding a box mesh's corners from `low` to `high` (a_built_box)."""
-    from pxr import Gf, Usd, UsdGeom
+    low, high) an Xform holding a box mesh's corners from `low` to `high` (a_built_box), its optional third item the
+    one face (four of those corners) it is drawn with; ("solid", low, high, degrees) a_solid_box's; ("hull", points) an
+    Xform (one transform op) holding a mesh of those points alone and their extent; ("lamp", at) a sphere light moved to
+    `at`; ("mesh", mesh) an Xform holding that trimesh's faces, its optional third item {"row": its score:row,
+    "held": True for one transform op}; a cube's optional fourth item scales its Xform after its
+    turn and move."""
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux
     stage = Usd.Stage.CreateInMemory()
     for name, (kind, *made) in prims.items():
         if kind == "box":
-            a_built_box(stage, f"/{TOY}/{name}", *made)
+            a_built_box(stage, f"/{TOY}/{name}", *made[:2])
+            if made[2:]:
+                drawn = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{TOY}/{name}/geo"))
+                drawn.CreateFaceVertexCountsAttr([4])
+                drawn.CreateFaceVertexIndicesAttr(list(made[2]))
+            continue
+        if kind == "solid":
+            a_solid_box(stage, f"/{TOY}/{name}", *made)
+            continue
+        if kind == "hull":
+            UsdGeom.Xform.Define(stage, f"/{TOY}/{name}").AddTransformOp().Set(Gf.Matrix4d(1.0))
+            drawn = UsdGeom.Mesh.Define(stage, f"/{TOY}/{name}/geo")
+            points = np.asarray(made[0], dtype=float)
+            drawn.CreatePointsAttr([tuple(map(float, point)) for point in points])
+            drawn.CreateExtentAttr([tuple(map(float, points.min(axis=0))), tuple(map(float, points.max(axis=0)))])
+            continue
+        if kind == "lamp":
+            UsdLux.SphereLight.Define(stage, f"/{TOY}/{name}").AddTranslateOp().Set(Gf.Vec3d(*made[0]))
             continue
         if kind == "points":
             UsdGeom.Mesh.Define(stage, f"/{TOY}/{name}").GetPointsAttr().Set([Gf.Vec3f(*point) for point in made[0]])
             continue
-        size, at, degrees = made
+        if kind == "mesh":
+            xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
+            if made[1:] and made[1].get("row"):
+                xform.GetPrim().CreateAttribute("score:row", Sdf.ValueTypeNames.String).Set(made[1]["row"])
+            if made[1:] and made[1].get("held"):
+                xform.AddTransformOp().Set(Gf.Matrix4d(1.0))
+            drawn = UsdGeom.Mesh.Define(stage, f"/{TOY}/{name}/geo")
+            drawn.CreatePointsAttr([tuple(map(float, point)) for point in made[0].vertices])
+            drawn.CreateFaceVertexCountsAttr([3] * len(made[0].faces))
+            drawn.CreateFaceVertexIndicesAttr([int(index) for index in made[0].faces.reshape(-1)])
+            continue
+        size, at, degrees, *flattened = made
         xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
         UsdGeom.Cube.Define(stage, f"/{TOY}/{name}/geo").AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
         xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), degrees))
                                    * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
+        if flattened:
+            xform.AddScaleOp().Set(Gf.Vec3f(*flattened[0]))
     return stage
 
 
@@ -3707,13 +2461,21 @@ SLANTED_JAMBS = [[x, y, z] for x, z in [RUN * along + NORMAL * deep for along in
                                         for deep in (0.3, 0.5)] for y in (0.0, 2.0)]
 DOORWAY = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.2}
 SLANTED_OPENING = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.6, 0.8], "wide": 1.0, "tall": 2.0}
-SHELL_WALL = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
 FACADE = {"how": "face", "holder": ["facade_1"], "out": [0.0, -1.0]}
+BEHIND = np.array([0.7071068, -0.7071068]) * -0.03  # SLANT's face 3 cm behind its span
+FACE_BEHIND = trimesh.Trimesh([[-1.0 + BEHIND[0], 0.0, -1.0 + BEHIND[1]], [5.0 + BEHIND[0], 0.0, 5.0 + BEHIND[1]],
+                               [5.0 + BEHIND[0], 3.0, 5.0 + BEHIND[1]], [-1.0 + BEHIND[0], 3.0, -1.0 + BEHIND[1]]],
+                              [[0, 1, 2], [0, 2, 3]], process=False)
+RIM = trimesh.Trimesh([[point[0] - 0.3 * 0.7071068, height, point[2] + 0.3 * 0.7071068]
+                       for point in FACE_BEHIND.vertices[:2] for height in (2.8, 3.5)], [[0, 1, 3], [0, 3, 2]],
+                      process=False)  # a dome's rim 0.3 m behind the wall's top
+DOMED = {"Structure/wall_1": ("mesh", FACE_BEHIND.copy().apply_transform(np.diag([1.0, 2.8 / 3.0, 1.0, 1.0]))),
+         "Structure/roof_1": ("mesh", RIM)}  # FACE_BEHIND 2.8 m tall under RIM
 FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's scale (None: unread), foot's middle
     # (its height to 1e-6) and size (None: unread), the
     # names left unfitted, the doors the held gate passes in their openings, how near (atol), a door's passage (name,
     # low, high), the opening's spot on its wall's near face (opens, wall, spot), the width of the opening each named
-    # one is held in when its fit narrowed it (None: its whole one))
+    # one is held in when its fit narrowed it (None: its whole one), a leaf's swing (name, low, high; None: unread))
     ("#36 garage and street: a door, a pipe and lamp on its wall, a shop door and rack on a facade",
      {"Objects/pipe_1": ("cube", (3.2, 1.0, 0.32), (0.0, 0.5, 2.0), 0.0),
       "Objects/lamp_1": ("cube", (0.4, 0.3, 0.1), (0.0, 2.05, 0.15), 0.0),
@@ -3727,7 +2489,7 @@ FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's sc
      {"door_1": (None, (-0.1, 0.0, -0.1), (1.0, 2.0, 0.1)), "pipe_1": (0.75, (-1.8, 0.0, 0.22), (2.4, 0.75, 0.24)),
       "shop_door_1": (None, (2.0, 0.0, 4.75), (1.0, 2.0, 0.1)),
       "drying_rack_1": (1.0, (0.9, 0.0, 4.6), (1.2, 0.1, 0.4))},
-     ["lamp_1"], [], 1e-8, ("door_1", (-0.6, 0.0, -0.9), (0.6, 1.8, 0.85)), None, {}),
+     ["lamp_1"], [], 1e-8, ("door_1", (-0.6, 0.0, -0.9), (0.6, 1.8, 0.85)), None, {}, None),
     ("#36 cockpit: a door turned to swing out of a slanted wall's opening, a deck's corner and a wall under its sill",
      {"Shell/wall_1": ("points", SLANTED_JAMBS),
       "Shell/deck_1": ("points", [(0.72, y, -0.54) for y in (-0.2, 0.0)] + [(-5.0, y, -5.0) for y in (-0.2, 0.0)]),
@@ -3736,7 +2498,7 @@ FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's sc
       "Objects/door_1": ("cube", (1.0, 2.0, 0.1), (0.0, 1.0, 2.0), -53.130102)},
      [("door_1", "door", SLANTED_OPENING)],
      {"door_1": (None, (0.4, 0.0, -0.3), None)}, [], ["door_1"], 1e-3, None,
-     (-NORMAL, "Shell/wall_1", (0.24, 0.0, -0.18)), {}),
+     (-NORMAL, "Shell/wall_1", (0.24, 0.0, -0.18)), {}, None),
     ("tube: windows_2's cut opening overlapping windows_1's, laid before it against a rib",
      {**{f"Structure/{name}": ("box", low, high) for name, (low, high) in (
          ("wall_4_9", ((-1.668, -0.2, 0.336), (-1.532, 0.8, 2.336))),
@@ -3750,8 +2512,114 @@ FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's sc
       for name, middle in (("windows_1", 1.336), ("windows_2", 2.027))],
      {"windows_1": (1.0, (-1.6, 0.8, 1.7785), (0.1022, 0.2439, 0.4756)),
       "windows_2": (1.0, (-1.6, 0.8, 2.3701), (0.1022, 0.2439, 0.4756))},
-     [], ["windows_1", "windows_2"], 1e-4, None, None, {"windows_1": None, "windows_2": 1.0107}),
+     [], ["windows_1", "windows_2"], 1e-4, None, None, {"windows_1": None, "windows_2": 1.0107}, None),
+    ("#36 garage: a door turned so its own left edge faces +x and its -z the room, a pipe across its doorway, a lamp "
+     "laid over one laid before it",
+     {"Objects/pipe_1": ("cube", (3.2, 1.0, 0.32), (0.0, 0.5, 2.0), 0.0),
+      "Objects/lamp_1": ("cube", (0.4, 0.3, 0.1), (0.0, 2.45, 0.15), 0.0),
+      "Objects/lamp_2": ("cube", (0.4, 0.3, 0.1), (0.1, 2.45, 0.15), 0.0),
+      "Objects/door_1": ("cube", (1.0, 2.0, 0.1), (0.0, 1.0, 3.0), 180.0),
+      "Shell/wall_2": ("cube", (1.2, 0.1, 0.2), (0.0, -0.05, 0.0), 0.0)},
+     [("pipe_1", "pipe", SHELL_WALL), ("lamp_1", "lamp", SHELL_WALL), ("lamp_2", "lamp", SHELL_WALL),
+      ("door_1", "door", DOORWAY)],
+     {"door_1": (None, (0.1, 0.0, 0.1), (1.0, 2.0, 0.1)), "lamp_2": (None, (0.4, 2.3, 0.15), (0.4, 0.3, 0.1)),
+      "pipe_1": (0.75, (-1.8, 0.0, 0.22), (2.4, 0.75, 0.24))},
+     ["lamp_1"], ["door_1"], 1e-8, None, None, {}, ("door_1", (-0.4, 0.0, 0.1), (0.6, 2.0, 1.1))),
+    ("habitat: a pipe 2.7 to 3.1 m up on a slanted wall 2.8 m tall, a dome's rim 0.3 m behind it, stands on the "
+     "wall's face, never the rim", {**DOMED, "Objects/pipe_1": ("box", (1.9, 2.7, 1.9), (2.1, 3.1, 2.1))},
+     [("pipe_1", "pipe", SLANT)], {"pipe_1": (1.0, (2.1, 2.7, 1.9), (0.2, 0.4, 0.2))}, [], [], 1e-6, None, None, {},
+     None),
 ]
+HALF = np.sqrt(0.5)
+
+
+def a_slanted_face(at, degrees):
+    """A built face 10 m long and 3 m tall through `at` [x, z], along SLANT's span turned `degrees` about +y, and its
+    run [x, z]."""
+    turn = np.radians(degrees)
+    run = np.array([[np.cos(turn), -np.sin(turn)], [np.sin(turn), np.cos(turn)]]) @ np.array([SLANT["out"][1],
+                                                                                           -SLANT["out"][0]])
+    ends = [at + run * 5.0, at - run * 5.0]
+    return trimesh.Trimesh([[ends[0][0], 0.0, ends[0][1]], [ends[1][0], 0.0, ends[1][1]], [ends[1][0], 3.0, ends[1][1]],
+                            [ends[0][0], 3.0, ends[0][1]]], [[0, 1, 2], [0, 2, 3]], process=False), run
+
+
+MIDDLE = np.array([2.0, 2.0])  # SLANT's span's middle
+TURNED_FACE = FACE_BEHIND.copy().apply_transform(trimesh.transformations.rotation_matrix(
+    np.radians(6.5), [0.0, 1.0, 0.0], [2.0 + BEHIND[0], 0.0, 2.0 + BEHIND[1]]))
+CORNER_FACES = trimesh.util.concatenate([trimesh.Trimesh(
+    [[start + way[0], 0.0, start + way[1]], [5.0 + way[0], 0.0, 5.0 + way[1]], [5.0 + way[0], 3.0, 5.0 + way[1]],
+     [start + way[0], 3.0, start + way[1]]], [[0, 1, 2], [0, 2, 3]], process=False)
+    for start, way in ((0.0035, (0.0, 0.0)), (-1.0, np.array(SLANT["out"]) * -0.2))])  # its own, one 0.2 m behind
+ARC_FACE, ARC_RUN = a_slanted_face(MIDDLE - np.array(SLANT["out"]) * 1.2, 20.0)
+OUTER_FACE, OUTER_RUN = a_slanted_face(MIDDLE + np.array(SLANT["out"]) * 0.7, 0.0)
+BUILT_FACE = [  # (case, the height on_built_face casts at, the built faces (a mesh, or DOMED's "built walls" or "face
+    # walls"), the span SLANT is put on and how near (None: unread; SLANT: SLANT as it was, unturned), its turn's
+    # degrees and how near (None: unread), the line its ends lie on (a point, its run; None: unread), the way its out
+    # faces and its least dot with it (None: unread), its span's least length (None: unread))
+    ("workshop: a face 3 cm behind the slanted span: the span put on it, no turn", 1.5, FACE_BEHIND,
+     (np.add(SLANT["span"], BEHIND), 1e-6), (0.0, 1e-6), None, None, None),
+    ("that face turned 6.5 degrees about the span's middle: its ends on it, its out the face's, turned 6.5 degrees",
+     1.5, TURNED_FACE, None, (6.5, 1e-3),
+     (TURNED_FACE.vertices[0][[0, 2]], (TURNED_FACE.vertices[1] - TURNED_FACE.vertices[0])[[0, 2]]
+      / np.linalg.norm((TURNED_FACE.vertices[1] - TURNED_FACE.vertices[0])[[0, 2]])), (SLANT["out"], 0.99), None),
+    ("that face where the wall stands 3 m behind the span, past reach: the span kept", 1.5,
+     FACE_BEHIND.copy().apply_translation((-2.1213, 0.0, 2.1213)), SLANT, None, None, None, None),
+    ("habitat's wall_9: a span ending 5 mm past its wall's corner keeps its own wall's face, never the one behind",
+     1.5, CORNER_FACES, (SLANT["span"], 1e-6), (0.0, 1e-6), None, None, None),
+    ("greenhouse: a face 1.2 m behind the span's middle turned 20 degrees, past the face rays' reach: the span laid "
+     "along it, its out the face's", 1.5, ARC_FACE, None, (20.0, 1e-3),
+     (MIDDLE - np.array(SLANT["out"]) * 1.2, ARC_RUN), (SLANT["out"], 0.9), 9.0),
+    ("a face 0.7 m in front of a span whose out points at it (a pipe on the arc's outer face) takes the span, its out "
+     "turned round to the room", 1.5, OUTER_FACE, None, (180.0, 1e-3),
+     (MIDDLE + np.array(SLANT["out"]) * 0.7, OUTER_RUN), (np.negative(SLANT["out"]), 0.9), 9.0),
+    ("habitat: face rays cast over a wall's top meet the dome's rim among the built walls, as found before", 2.9,
+     "built walls", (np.add(SLANT["span"], BEHIND + [-0.3 * 0.7071068, 0.3 * 0.7071068]), 1e-3), None, None, None,
+     None),
+    ("a roof is no face: over its wall's top the span is kept", 2.9, "face walls", SLANT, None, None, None, None),
+    ("under its wall's top its face is found as before", 1.5, "face walls", (np.add(SLANT["span"], BEHIND), 1e-6),
+     None, None, None, None),
+]
+ACROSS_IT = {"how": "wall", "span": [[0.0, 0.0], [4.0, -4.0]], "out": [0.7071068, 0.7071068]}
+WALL_TURNS = [  # (case, the wall a 3 m pipe built lying, turned -45 degrees about +y, is asked along in this order,
+    # whether along_its_wall turns it along that wall)
+    ("greenhouse: along the slanted wall it lies on: left", SLANT, False),
+    ("across the wall it is on, 3 m out of it: turned along it", ACROSS_IT, True),
+    ("along that wall now: left", ACROSS_IT, False),
+]
+OWN_CORNERS = [  # (case, a cube (size, at, degrees about +y, the scale its Xform takes after), its oriented corners
+    # (None: its world box's, in order))
+    ("a 3 x 0.45 x 0.2 m pipe turned -45 degrees: its own box's corners, turned with it",
+     ((3.0, 0.45, 0.2), (2.0, 2.0, 2.0), -45.0, (1.0, 1.0, 1.0)),
+     [[2.0 + along * HALF, height, 2.0 + across * HALF] for height in (1.775, 2.225)
+      for along, across in ((-1.4, -1.6), (-1.6, -1.4))] + [[2.0 + along * HALF, height, 2.0 + across * HALF]
+                                                           for height in (1.775, 2.225)
+                                                           for along, across in ((1.6, 1.4), (1.4, 1.6))]),
+    ("habitat's third cabinet: that pipe scaled flat has no own box: its world box's corners",
+     ((3.0, 0.45, 0.2), (2.0, 2.0, 2.0), -45.0, (0.0, 0.0, 0.0)), None),
+]
+TURNED_FLOOR = [[2.0 + along * 0.7071068 + off * 0.7071068, 2.0 + along * 0.7071068 - off * 0.7071068]
+                for along in (-1.5, 1.5) for off in (0.0, 0.4)]  # hub: a 0.4 m deep pipe turned flush on SLANT
+WALL_OFF = [  # (case, whether off_wall reads TURNED_FLOOR's pipe by its turned floor corners, the bounds its metres lie
+    # within, both open)
+    ("hub: a 0.4 m deep pipe turned 45 degrees flush on its slanted wall, by its own turned box", True,
+     (-np.inf, 1e-6)),
+    ("that pipe by its world box, 0.1 m and more off", False, (0.1 + 1e-6, np.inf)),
+]
+WALL_HELD = [  # (case, a pipe's box as planned on SHELL_WALL, the built pieces before its face, the span stood_face
+    # moves it to (None: SHELL_WALL itself), its box as laid, whether its fit gives the held gate its laid face
+    # (laid_face), the gate's faults)
+    ("walkway: a pipe stood on the rib's front it was laid on is measured off that front", PIPE, [RIB],
+     [[-3.0, 1.0], [3.0, 1.0]], ((-2.0, 2.35, 1.0), (2.0, 2.8, 1.2)), True, []),
+    ("that pipe with no laid face is measured off its wall", PIPE, [RIB], [[-3.0, 1.0], [3.0, 1.0]],
+     ((-2.0, 2.35, 1.0), (2.0, 2.8, 1.2)), False, [("pipe_1", "0.90 m off where it is laid wall ()", 0.9)]),
+    ("a pipe along its whole wall stands on its own face, never the front of the walls at its ends", WHOLE, ENDS, None,
+     WHOLE, True, []),
+]
+SWINGS = [("round_door_left", True), ("metal_gate_open", True), ("windows", False)]  # (row, whether it swings as a
+# leaf: a door, hatch or gate does; a window stands in its opening)
+SLANTED_WALLS = [(SHELL_WALL, False), (SLANT, True), ({"out": [0.991393, -0.13092]}, True)]  # (relation, slanted:
+# workshop's tools on a span 7.5 degrees off x are)
 RECESSED = [  # (case, the rack's relation, whether it hangs in the shop door's recess cut in its facade)
     ("a rack laid on the facade", FACADE, False),
     ("a rack whose relation names the door the recess was cut for", {**FACADE, "room": 0.0}, True),
@@ -3801,6 +2669,625 @@ PASSED = [  # (case, its solid boxes (path: low, high), its entries (name, row, 
           ("a tunnel 1.2 m off, past OUT_MOST, is left", laid_off("glass_tunnel_2", "glass_tunnel", 1.2), {}, -7.4),
           ("a tunnel already within GAP is left", laid_off("glass_tunnel_3", "glass_tunnel", 0.004), {}, -6.204))],
 ]
+
+
+def quads_mesh(boxes):
+    """A trimesh of whole boxes (low, high), each side of boxes_mesh split into two triangles."""
+    points, _, indices = boxes_mesh(boxes)
+    quads = np.reshape(indices, (-1, 4))
+    return trimesh.Trimesh(points, [quad[:3] for quad in quads] + [quad[[0, 2, 3]] for quad in quads], process=False)
+
+
+def a_sagging_string():
+    """An 8 m lantern string 1 cm thick along x at 24 m up, sagging 6 cm at its middle: one thin box a 0.25 m step."""
+    sag = np.array([[x, 24.06 - 0.06 * (1.0 - (x / 4.0 - 1.0) ** 2), 0.0] for x in np.linspace(0.0, 8.0, 33)])
+    return trimesh.util.concatenate([trimesh.creation.box(bounds=[(first[0], min(first[1], second[1]), -0.005),
+                                                                  (second[0], max(first[1], second[1]) + 0.01, 0.005)])
+                                     for first, second in zip(sag, sag[1:])])
+
+
+# a facade, its front z 0, a window's back 1.9 m inside it
+RACK_FACADE = quads_mesh([((-5.0, 0.0, -0.3), (5.0, 10.0, 0.0)), ((-0.5, 6.0, -2.0), (0.5, 6.1, -1.9))])
+STRING = a_sagging_string()
+UNDER_STRING = float(STRING.vertices[np.abs(STRING.vertices[:, 0] - 2.0) < 0.13][:, 1].min())  # its underside 2 m on
+LANTERN = ((9.8, 6.0, -15.2), (10.2, 6.4, -14.8))  # a 0.4 m lantern where the plan stood it, far off its string
+BELOW = {"how": "face", "holder": ["lantern_string_1"], "out": [0.0, 1.0], "below": True, "along": 0.25}
+EAST = {"how": "face", "holder": ["pipe_3"], "out": [1.0, 0.0]}
+NORTH = {"how": "face", "holder": ["lander_1"], "out": [0.0, -1.0]}
+PANEL_LAID = [[x, y, z] for x in (0.0, 0.3) for y in (0.0, 0.13) for z in (0.79, 0.9)]  # a panel on the lander's frame
+ANY = "unchecked"
+FIT = [  # (case, a laid thing's low and high, its relation, its holders' boxes, fit's other inputs (left, opens,
+    # mounted, its face holder's surface), its scale (None: unchecked), its foot's middle (None or CROWDED: fit's
+    # answer; ANY: unchecked), words, the walls the held gate passes it in (None: unread), how far its foot may stand
+    # from that middle on each axis (None: np.allclose), the scale it is shrunk below (None: unchecked), its face (the
+    # plane its back is on, within what (None: exactly), whether it hangs (None: unchecked); None: no face; ANY:
+    # unchecked), whether it is held laid there and not where the plan stood it)
+    ("a 1.4 x 2.4 m door in its 1.2 x 2.1 m opening", (0.3, 0.0, 2.95), (1.7, 2.4, 3.05), OPENING, (), {},
+     (1.2 / 1.4, 2.1 / 2.4, 2.1 / 2.4), (5.0, 0.0, 0.0), "narrowed to 86% across", None, None, None, ANY, False),
+    ("a 1.4 m door between built jambs 0.9 m apart", (0.3, 0.0, 2.95), (1.7, 2.1, 3.05), OPENING, JAMBS, {},
+     (0.9 / 1.4, 1.0, 1.0), (5.0, 0.0, 0.0), None, None, None, None, ANY, False),
+    ("a 0.6 m door there against the jamb its left edge faces", (0.3, 0.0, 2.95), (0.9, 2.1, 3.05), OPENING, JAMBS,
+     {"left": (-1.0, 0.0)}, 1.0, (4.85, 0.0, 0.0), None, None, None, None, ANY, False),
+    ("a wall lamp laid at the room's middle, on its wall's face", (4.4, 0.0, 2.9), (4.6, 0.6, 3.9), WALL_FACE, (), {},
+     1.0, (2.1, 0.0, 3.4), None, None, None, None, ANY, False),
+    ("a 2.4 m door laid on the plan's line of its 2.4 m opening, on the built wall's face", (-1.2, 0.0, 0.05),
+     (1.2, 2.4, 0.25), DOORWAY_1, [(wall["low"], wall["high"]) for wall in DOOR_WALLS], {}, 1.0, (0.0, 0.0, 0.0),
+     None, None, None, None, ANY, False),
+    ("a 2 m door there, its hinge on the jamb its own left edge faces", (-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), DOORWAY_1,
+     [(wall["low"], wall["high"]) for wall in DOOR_WALLS], {"left": (-1.0, 0.0)}, 1.0, (-0.2, 0.0, 0.0), None, None,
+     None, None, ANY, False),
+    *[(f"#36 garage: a 2 m door whose own -z way points {way} hangs on the wall's {face} face, its hinge at that "
+       "face's jamb corner, never on the deck's side", (-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), LEAF_OPENING,
+       [(wall["low"], wall["high"]) for wall in LEAF_WALLS], {"left": (-1.0, 0.0), "opens": opens}, 1.0,
+       (-0.2, 0.0, z), None, LEAF_WALLS, None, None, ANY, False)
+      for way, face, opens, z in (("out of the room", "outer", (0.0, -1.0), -0.276),
+                                  ("into the room", "room", (0.0, 1.0), 0.0))],
+    ("habitat: a cabinet whose wall is taken, floor to top, but for a stretch of no length is crowded, never shrunk "
+     "to 0%", (-0.5, 1.5, 0.1), (0.5, 2.2, 0.5), SHELL_WALL, (),
+     {"mounted": [(np.array([-3.0, 0.0, 0.1]), np.array([3.0 - 1e-12, 3.0, 0.6]))]}, None, fitting.CROWDED, None,
+     None, None, None, ANY, False),
+    ("that cabinet with its wall free stands where it is laid", (-0.5, 1.5, 0.1), (0.5, 2.2, 0.5), SHELL_WALL, (), {},
+     None, None, None, None, None, None, ANY, False),
+    ("#36 street: a drying rack on a facade whose window's back is within its height stands on the front, z 0",
+     (-0.75, 6.0, 0.5), (0.75, 6.1, 1.0), {"how": "face", "holder": ["facade_1"], "out": [0.0, 1.0]},
+     [((-5.0, 0.0, -2.0), (5.0, 10.0, 0.0))], {"surface": RACK_FACADE}, 1.0, (0.0, 6.0, 0.25), None, None, None,
+     None, (0.0, None, False), False),
+    ("street: a lantern hung below its sagging string a quarter along keeps its size, its top on the underside there",
+     *LANTERN, BELOW, [tuple(STRING.bounds)], {"surface": STRING}, 1.0, (2.0, UNDER_STRING - 0.4, 0.0), None, None,
+     (0.13, 0.01, 0.005), None, None, True),
+    ("that lantern three quarters along hangs 6 m along", *LANTERN, {**BELOW, "along": 0.75}, [tuple(STRING.bounds)],
+     {"surface": STRING}, None, (6.0, 0.0, 0.0), None, None, (0.13, np.inf, np.inf), None, ANY, False),
+    ("that lantern against its string's side is shrunk", *LANTERN, {**BELOW, "below": False}, [tuple(STRING.bounds)],
+     {"surface": STRING}, None, ANY, None, None, None, 0.5, ANY, False),
+    ("wreck: a solar panel at its lander's left end, where one already stands on its built frame, goes beside it",
+     (0.0, 0.0, 0.4), (0.3, 0.13, 0.51), NORTH, [((0.0, 0.0, 0.0), (2.0, 1.0, 2.0))],
+     {"surface": trimesh.creation.box(bounds=[(0.0, 0.0, 0.9), (2.0, 1.0, 1.1)]), "mounted": [np.array(PANEL_LAID)]},
+     None, (0.45, 0.0, 0.845), None, None, None, None, ANY, False),
+    ("that panel alone stands at the end", (0.0, 0.0, 0.4), (0.3, 0.13, 0.51), NORTH,
+     [((0.0, 0.0, 0.0), (2.0, 1.0, 2.0))], {"surface": trimesh.creation.box(bounds=[(0.0, 0.0, 0.9), (2.0, 1.0, 1.1)])},
+     None, (0.15, 0.0, 0.845), None, None, None, None, ANY, False),
+    *[(f"lab: a valve {where} on its zig-zag pipe's E side stands its back on the tube, 0.1 m in", (0.0, 1.5, low),
+       (0.05, 1.7, low + 0.2), EAST, [((-0.5, 0.0, -1.0), (0.0, 2.5, 0.0))],
+       {"surface": trimesh.creation.box(bounds=[(-0.2, 0.0, -0.92), (-0.1, 2.5, -0.78)])}, None,
+       (-0.075, 1.5, middle), None, None, None, None, (-0.1, 1e-9, None), False)
+      for where, low, middle in (("beside the tube is slid along onto its middle", -0.2, -0.8),
+                                 ("already in front of the tube stays", -0.95, -0.85))],
+]
+NUDGED = [  # (case, a thing's name, low and high, how it is met to its holder (onto: the holder's surface; out: of
+    # the slanted wall; in: to the module's face), the words it says (None: left), the least its box's corners stand
+    # along a way, within what)
+    ("street: a lantern 0.04 m under its holder's surface is moved up onto it", "lantern_1", (0.4, 0.86, 0.0),
+     (0.5, 0.96, 0.1), "onto", "onto its holder's surface", ((0.0, -1.0, 0.0), -1.0, 1e-6)),
+    ("one 0.5 m away is left", "lantern_2", (0.4, 0.4, 0.0), (0.5, 0.5, 0.1), "onto", None,
+     ((0.0, 1.0, 0.0), 0.4, 1e-6)),
+    ("street: clothes 0.05 m behind a wall face along (1, 1) are moved out along its way to stand in front of it",
+     "clothes_1", (1.0, 0.0, 0.9), (1.2, 0.5, 1.1), "out", "out of the wall", ((-0.7071068, 0.0, 0.7071068), 0.0,
+                                                                                 1e-6)),
+    ("base: a cube 1 m out beside a lip reaching out of its module's face is pushed in until its back meets the face",
+     "ramp_1", (0.0, 0.5, 1.0), (0.2, 0.7, 1.2), "in", "pushed 0.99 m in", ((0.0, 0.0, 1.0), 0.005, 1e-3)),
+    *[(f"one {where} is left", name, (low[0], 0.5, low[1]), (low[0] + 0.2, 0.7, low[1] + 0.2), "in", None,
+       ((0.0, 0.0, 1.0), low[1], 1e-6))
+      for where, name, low in (("2.5 cm off the face, touching it", "ramp_2", (-0.5, 0.025)),
+                               ("2 m out, past the holder's depth", "ramp_3", (-0.9, 2.0)))],
+]
+NUDGE_HOLDER = trimesh.creation.box(bounds=[(0.0, 1.0, 0.0), (1.0, 1.1, 0.01)])
+NUDGE_WALL = {"how": "wall", "span": [[0.0, 0.0], [3.0, 3.0]], "out": [-0.7071068, 0.7071068]}
+NUDGE_MODULE = trimesh.util.concatenate([trimesh.creation.box(bounds=[(-1.0, 0.0, -0.3), (1.0, 2.0, 0.0)]),
+                                         trimesh.creation.box(bounds=[(0.5, 0.0, 0.0), (0.7, 0.2, 1.0)])])
+NUDGE_FRONT = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
+STRUNG_BUILDINGS = {"building_1": ((-10.0, 0.0, -5.0), (-2.0, 20.0, 5.0)),
+                    "building_2": ((6.0, 0.0, -5.0), (14.0, 20.0, 5.0))}  # 8 m tall, 8 m apart
+STRUNG = [  # (case, a string's name, its low and high as the plan drew it, its holders, how it is fitted, its box
+    # after (None: inactive), how far off its holders the held gate measures it)
+    ("square: a 10 m string along z between two buildings 8 m apart is turned along the run, shrunk to 80%, its ends "
+     "on both", "string_1", (1.9, 6.0, -4.0), (2.1, 6.2, 6.0), ["building_1", "building_2"], "between",
+     ((-2.0, 6.0, 0.92), (6.0, 6.16, 1.08)), 0.0),
+    ("a 4 m one is laid at its size from the first, 4 m short of the second", "string_2", (0.0, 7.0, 2.9),
+     (4.0, 7.2, 3.1), ["building_1", "building_2"], "between", ((-2.0, 7.0, 2.9), (2.0, 7.2, 3.1)), 4.0),
+    ("one whose second holder is not laid waits, its prim inactive", "string_3", (0.0, 8.0, -1.1), (4.0, 8.2, -0.9),
+     ["building_1", "building_3"], "waiting", None, None),
+]
+
+
+def four_walls(tall, deep):
+    """A room's four walls 0.1 m thick round x 0 to 6 and z 0 to `deep`, `tall` high, as a_fitted_world's boxes."""
+    return {"Structure/wall_1": ("box", (-0.1, 0.0, 0.0), (0.0, tall, deep)),
+            "Structure/wall_2": ("box", (6.0, 0.0, 0.0), (6.1, tall, deep)),
+            "Structure/wall_3": ("box", (0.0, 0.0, -0.1), (6.0, tall, 0.0)),
+            "Structure/wall_4": ("box", (0.0, 0.0, deep), (6.0, tall, deep + 0.1))}
+
+
+def boxes_at(scope, found):
+    """Each (name, low, high) of `found` as a_fitted_world's box under `scope`."""
+    return {f"{scope}/{name}": ("box", low, high) for name, low, high in found}
+
+
+ALLCLOSE = (1e-8, 1e-5)  # numpy's own closeness, absolute and relative
+
+
+def left(*paths_and_boxes):
+    """Each (path, low, high) of `paths_and_boxes` standing as laid, as numpy's allclose reads it."""
+    return {path: (low, high, ALLCLOSE) for path, low, high in paths_and_boxes}
+
+
+import builders  # noqa: E402
+
+NAN = np.nan
+PITCH = math.asin(0.158 / 2.0)  # the ramp's 2 m plank from the ground up to its deck's 0.158 m top
+RAMP = {"how": "ramp", "edge": [[3.34, 8.19], [3.34, 2.08]], "up": [1.0, 0.0], "top": 0.2, "why": "up to the deck"}
+FLIGHT = builders.stairs((1.0, 0.0, 1.0), (3.0, 1.0, 3.0), 0.8, 5, "s")["points"]  # turned 45 degrees, 0.8 m wide
+SLAB_SIDE = 0.1 / np.sqrt(2.0)  # engineroom's slanted corner wall, (4, 0) to (6, 2), 0.1 m thick
+CORNER_SLAB = [(x + way * SLAB_SIDE, y, z - way * SLAB_SIDE) for x, z in ((4.0, 0.0), (6.0, 2.0)) for way in (1, -1)
+               for y in (0.0, 3.0)]
+CRATE_CORNER = 2.0 - 0.05 * 2 ** 0.5 + 0.02 * 2 ** 0.5  # the crate's far corner's x + z: 2 cm into wall_6's near face
+RAMP_BUILT = (("deck_2", (3.19, -0.042, 2.0), (8.9, 0.158, 8.0)), ("wall_3", (0.0, -0.242, 6.699), (7.0, 3.0, 6.999)),
+              ("roof_1", (-9.0, 2.8, -9.0), (9.0, 3.4, 9.0)), ("deck_3", (10.0, 2.758, 10.0), (16.0, 2.958, 16.0)),
+              ("wall_9", (20.0, 0.0, 20.0), (25.0, 3.0, 25.0)), ("wall_5", (30.0, -0.242, 30.0), (30.14, 3.0, 33.0)))
+CLEARED = [  # (case, its prims (a_fitted_world's), its entries (name, row, relation or None), every fit it makes in
+    # order (name, how, moved, scale, holder, pitch), the boxes things stand in after (path: low, high (NaN: unread),
+    # within: an absolute tolerance, per coordinate or one, or an (absolute, relative) pair), the things that cross
+    # nothing after (slanted walls' outlines too), the thin outlines read before (path: whether found), the lamps
+    # carried (path: their spot, their record spot), the held gate's faults over the boxes under Objects and what
+    # stands up through its roofs (None: not judged), and optionally what its fits say (name: words in them)
+    ("settle@airlock: a ramp up onto its deck; a sandbag, a post, a locker and a cable bundle moved the least way out "
+     "of a deck or wall; a ship longer than the place across a wall left and named; a lamp in the roof's box, a stair "
+     "into its loft and a crate in a slanted wall's box left",
+     {**boxes_at("Structure", RAMP_BUILT),
+      **boxes_at("Objects", (("ramp_1", (1.31, 0.0, 4.75), (3.31, 0.209, 5.95)),
+                             ("sandbags_1", (2.9, 0.0, 4.0), (3.5, 0.2, 4.4)),
+                             ("porch_post_1", (0.34, 0.0, 6.36), (1.04, 2.5, 6.84)),
+                             ("lamp_1", (0.0, 2.75, 0.0), (0.5, 2.9, 0.5)),
+                             ("stairs_1", (11.0, 0.0, 8.0), (12.0, 2.997, 10.5)),
+                             ("locker_1", (15.5, 0.0, 12.0), (16.3, 2.9, 12.6)),
+                             ("crate_2", (22.0, 0.0, 22.0), (22.5, 0.5, 22.5)),
+                             ("cable_bundles_1", (29.8, 0.0, 30.0), (34.0, 2.0, 30.4)),  # clear of the ship,
+                             ("spaceship_1", (-1.0, 0.0, 30.5), (33.0, 2.0, 32.5))))},  # longer than the place
+     [("ramp_1", "ramp", RAMP), *[(name, name[:-2], None) for name in (
+         "sandbags_1", "porch_post_1", "lamp_1", "stairs_1", "locker_1", "crate_2", "cable_bundles_1", "spaceship_1")]],
+     [("porch_post_1", "parted", 0.141, 1.0, None, None), ("cable_bundles_1", "parted", 0.34, 1.0, None, None),
+      ("sandbags_1", "out", 0.158, 1.0, ["deck_2"], None), ("locker_1", "out", 0.5, 1.0, ["deck_3"], None),
+      ("ramp_1", "ramp", 0.114, 1.0, None, round(math.degrees(PITCH), 2))],
+     {"Objects/ramp_1": ((NAN, 0.0, NAN), (3.19, 0.158 + 0.209 * math.cos(PITCH), NAN), (1e-4, 1e-5)),
+      "Objects/sandbags_1": ((NAN, 0.158, NAN), (NAN, NAN, NAN), 1e-6),
+      "Objects/porch_post_1": ((NAN, NAN, NAN), (NAN, NAN, 6.699), 1e-6),
+      "Objects/locker_1": ((16.0, 0.0, 12.0), (NAN, NAN, NAN), ALLCLOSE),  # out across, never sunk under the floor
+      "Objects/cable_bundles_1": ((30.14, NAN, NAN), (NAN, NAN, NAN), 1e-6),  # clear past the thin wall's near side
+      **left(("Objects/stairs_1", (11.0, 0.0, 8.0), (12.0, 2.997, 10.5)),
+             ("Objects/crate_2", (22.0, 0.0, 22.0), (22.5, 0.5, 22.5)),
+             ("Objects/spaceship_1", (-1.0, 0.0, 30.5), (33.0, 2.0, 32.5)))},  # no spot clear of the wall: left
+     [], {}, {}, [("spaceship_1", "laid 0.14 m inside wall_5, nothing holding it there", 0.14)]),
+    ("settle@hangar: a step ladder laid at the floor inside its 0.1 m landing pad (a floor piece, a static) is moved "
+     "up onto it",
+     {**boxes_at("Structure", (("landing_pad_1", (0.0, 0.0, 0.0), (4.0, 0.1, 4.0)),)),
+      **boxes_at("Objects", (("step_ladder_1", (1.0, 0.0, 1.0), (1.6, 2.0, 1.4)),))},
+     [("step_ladder_1", "step_ladder", None)], [("step_ladder_1", "out", 0.1, 1.0, ["landing_pad_1"], None)],
+     {"Objects/step_ladder_1": ((NAN, 0.1, NAN), (NAN, NAN, NAN), ALLCLOSE)},
+     [], {}, {}, None),
+    ("settle@flat: a bed, the wardrobe 0.2 m into it and a crate in a kit fixture parted at their built size inside "
+     "the walls, the fixture never moved; a table on its 2 cm rug left",
+     {**boxes_at("Structure", (("deck_1", (0.0, -0.2, 0.0), (6.0, 0.0, 4.0)),
+                               ("wall_1", (6.0, 0.0, 0.0), (6.2, 3.0, 4.0)),
+                               ("wall_2", (-0.2, 0.0, 0.0), (0.0, 3.0, 4.0)))),
+      **boxes_at("Fixtures", (("kit_1", (0.6, 0.0, 0.2), (1.2, 1.0, 0.8)),)),
+      **boxes_at("Objects", (("bed_1", (2.0, 0.0, 0.5), (4.4, 0.6, 2.5)),
+                             ("wardrobe_1", (4.2, 0.0, 0.5), (5.4, 2.0, 1.1)),
+                             ("crate_3", (0.2, 0.0, 0.2), (0.8, 0.5, 0.8)),
+                             ("rug_1", (0.2, 0.0, 2.6), (2.2, 0.02, 3.8)),
+                             ("table_1", (0.7, 0.0, 2.9), (1.7, 0.8, 3.5))))},
+     [(name, name[:-2], None) for name in ("bed_1", "wardrobe_1", "crate_3", "rug_1", "table_1")],
+     [("bed_1", "parted", 0.221, 1.0, None, None), ("wardrobe_1", "parted", 0.035, 1.0, None, None),
+      ("crate_3", "parted", 0.2, 1.0, None, None)],
+     {"Objects/bed_1": ((1.778912, 0.0, 0.49972), (4.178912, 0.6, 2.49972), 1e-5),  # at its built size: never shrunk
+      "Objects/wardrobe_1": ((4.235096, 0.0, 0.499805), (5.435097, 2.0, 1.099805), 1e-5),  # inside the walls
+      "Objects/crate_3": ((0.0, 0.0, 0.2), (0.6, 0.5, 0.8), 1e-6),  # out of the fixture
+      **left(("Fixtures/kit_1", (0.6, 0.0, 0.2), (1.2, 1.0, 0.8)), ("Objects/rug_1", (0.2, 0.0, 2.6), (2.2, 0.02, 3.8)),
+             ("Objects/table_1", (0.7, 0.0, 2.9), (1.7, 0.8, 3.5)))},  # on its rug: left
+     ["Fixtures/kit_1", "Objects/bed_1", "Objects/wardrobe_1", "Objects/crate_3", "Objects/rug_1", "Objects/table_1"],
+     {}, {}, None),
+    ("habitat: a bunk bed across its inner wall goes 1.75 m round a locker in its own room, never through the wall; "
+     "one 3.5 m long in a 3 m room is left",
+     {**four_walls(3.0, 4.0),
+      **boxes_at("Structure", (("wall_5", (3.0, 0.0, 0.0), (3.1, 3.0, 4.0)),)),  # the inner wall: two rooms
+      **boxes_at("Fixtures", (("locker_1", (3.1, 0.0, 0.0), (6.0, 2.0, 2.5)),)),
+      **boxes_at("Objects", (("bunk_bed_2", (2.2, 0.0, 1.0), (4.2, 0.6, 2.0)),
+                             ("bunk_bed_3", (-0.2, 0.0, 0.0), (3.3, 0.6, 1.0))))},
+     [("bunk_bed_2", "bunk_bed", None), ("bunk_bed_3", "bunk_bed", None)],
+     [("bunk_bed_2", "parted", 1.749, 1.0, None, None)],
+     {"Objects/bunk_bed_2": ((3.1, 0.0, 2.5), (NAN, NAN, NAN), ALLCLOSE),  # its own room's free spot
+      **left(("Objects/bunk_bed_3", (-0.2, 0.0, 0.0), (3.3, 0.6, 1.0)))}, [], {}, {}, None),
+    ("engineroom: a crate in a kit fixture by a slanted corner wall goes to a free spot clear of the wall's outline on "
+     "the room's side, never along the wall into the corner",
+     {**four_walls(3.0, 4.0), "Structure/wall_5": ("hull", CORNER_SLAB),
+      **boxes_at("Fixtures", (("kit_1", (2.0, 0.0, 0.0), (3.5, 1.0, 1.5)),)),
+      **boxes_at("Objects", (("crate_4", (2.9, 0.0, 0.0), (3.5, 0.5, 0.6)),))},
+     [("crate_4", "crate", None)], [("crate_4", "parted", 1.5, 1.0, None, None)],
+     {"Objects/crate_4": ((1.4, 0.0, 0.0), (2.0, 0.5, 0.6), 1e-6)}, ["Objects/crate_4"], {}, {}, None),
+    ("settle@campgrounds: a crate on a flight's middle parted clear of its outline; one in its box's corner, 1.2 m off "
+     "its line, left",
+     {"Structure/ramp_6": ("hull", FLIGHT),
+      **boxes_at("Objects", (("crate_5", (2.3, 0.0, 2.3), (2.9, 0.5, 2.9)),
+                             ("crate_6", (2.7, 0.0, 1.0), (3.0, 0.3, 1.3))))},
+     [("crate_5", "crate", None), ("crate_6", "crate", None)], [("crate_5", "parted", 0.983, 1.0, None, None)],
+     {"Objects/crate_5": ((2.3, 0.0, 3.282843), (2.9, 0.5, 3.882843), 1e-5),
+      **left(("Objects/crate_6", (2.7, 0.0, 1.0), (3.0, 0.3, 1.3)))},  # by the outline, never the box
+     ["Objects/crate_5", "Objects/crate_6"], {}, {}, None),
+    ("settle@greenhouse: a desk clear of a railing turned 30 degrees, in its box, stays; of two desks in each other at "
+     "the deck's corner, the one parted stays on the deck",
+     {**four_walls(6.0, 6.0), "Structure/deck_2": ("box", (0.0, 2.8, 0.0), (4.0, 3.0, 4.0), (2, 3, 7, 6)),  # its top
+      "Objects/railing_1": ("cube", (4.0, 1.0, 0.02), (2.0, 3.5, 1.5), 30.0),
+      **boxes_at("Objects", (("desk_1", (2.4, 3.0, 2.0), (3.2, 3.5, 2.5)), ("desk_2", (2.8, 3.0, 3.2), (3.8, 3.5, 3.9)),
+                             ("desk_3", (3.1, 3.0, 3.3), (3.9, 3.5, 3.95))))},
+     [(name, name[:-2], None) for name in ("railing_1", "desk_1", "desk_2", "desk_3")],
+     [("desk_2", "parted", 0.432, 1.0, None, None), ("desk_3", "parted", 1.3, 1.0, None, None)],
+     {"Objects/desk_2": ((2.599977, 3.0, 2.816941), (3.599977, 3.5, 3.516941), 1e-5),  # on the deck
+      "Objects/desk_3": ((1.799977, 3.0, 3.3), (2.599977, 3.5, 3.95), 1e-5),
+      **left(("Objects/desk_1", (2.4, 3.0, 2.0), (3.2, 3.5, 2.5)))},  # in the railing's box, clear of it
+     [], {"Objects/railing_1": True, "Objects/desk_1": False}, {}, None),
+    ("settle@habitat: a plant across a rug's edge moved 0.11 m wholly off it, a table across it left; a lamp moved "
+     "0.047 m out of a sofa; a crate 0.2 m into a chest parted, one touching another left",
+     boxes_at("Objects", (("rug_1", (0.0, 0.0, 0.0), (2.0, 0.02, 2.0)), ("plant_1", (1.9, 0.0, 0.5), (2.18, 0.4, 0.78)),
+                          ("table_1", (1.5, 0.0, 1.0), (2.7, 0.75, 1.6)),
+                          ("sofa_1", (4.0, 0.0, 0.0), (6.0, 0.9, 0.874)),
+                          ("lamp_1", (4.5, 0.0, 0.827), (4.78, 0.5, 1.127)),
+                          ("chest_1", (8.0, 0.0, 0.0), (9.0, 0.8, 1.0)), ("crate_1", (8.8, 0.0, 0.2), (9.4, 0.5, 0.8)),
+                          ("crate_2", (7.42, 0.0, 2.0), (8.02, 0.5, 2.6)),
+                          ("chest_2", (8.0, 0.0, 1.8), (9.0, 0.8, 2.8)))),
+     [(name, name[:-2], None) for name in ("rug_1", "plant_1", "table_1", "sofa_1", "lamp_1", "chest_1", "crate_1",
+                                           "crate_2", "chest_2")],
+     [("chest_1", "parted", 0.226, 1.0, None, None), ("crate_1", "parted", 0.04, 1.0, None, None),
+      ("plant_1", "off edge", 0.11, 1.0, None, None), ("lamp_1", "apart", 0.047, 1.0, ["sofa_1"], None)],
+     {"Objects/plant_1": ((2.01, 0.0, 0.5), (NAN, NAN, NAN), ALLCLOSE),
+      "Objects/lamp_1": ((4.5, 0.0, 0.874), (NAN, NAN, NAN), ALLCLOSE),
+      **left(("Objects/table_1", (1.5, 0.0, 1.0), (2.7, 0.75, 1.6)),
+             ("Objects/crate_2", (7.42, 0.0, 2.0), (8.02, 0.5, 2.6)))},
+     [], {}, {}, None),
+    ("settle@greenhouse: a desk 0.6 m into a kit fixture parted 1 m along x, the computer on its top carried with it",
+     {**four_walls(3.0, 6.0), **boxes_at("Fixtures", (("kit_1", (2.0, 0.0, 2.0), (4.0, 1.0, 4.0)),)),
+      **boxes_at("Objects", (("desk_6", (3.0, 0.0, 2.5), (4.6, 0.75, 3.3)),
+                             ("computer_4", (3.9, 0.75, 2.7), (4.3, 1.15, 3.0))))},
+     [("desk_6", "desk", None), ("computer_4", "computer", {"how": "top", "holder": ["desk_6"]})],
+     [("desk_6", "parted", 1.0, 1.0, None, None), ("computer_4", "carried", 1.0, 1.0, ["desk_6"], None)],
+     {"Objects/desk_6": ((4.0, 0.0, 2.5), (NAN, NAN, NAN), (1e-6, 1e-5)),
+      "Objects/computer_4": ((4.9, 0.75, 2.7), (NAN, NAN, NAN), (1e-6, 1e-5))}, [], {}, {}, None),
+    ("assembly@walkway: a 10.06 m duct between walls 10 m apart narrowed to the room; a light in wall_4 moved 0.0503 m "
+     "out, its lamp carried with it; a 12 m beam left at its length; a lamp in the duct's box and one beside the light "
+     "stay",
+     {**boxes_at("Shell", (("wall_1", (-0.126, -0.2, -0.126), (1.5, 2.5, 0.0)),
+                           ("wall_3", (-0.126, -0.2, 10.0), (1.5, 2.5, 10.126)),
+                           ("wall_4", (-0.126, -0.2, -0.126), (0.0, 2.5, 10.126)))),
+      **boxes_at("Objects", (("duct_1", (0.5, 1.7, -0.03), (0.8, 2.3, 10.03)),
+                             ("light_1", (-0.0503, 0.0, 3.0), (-0.0037, 0.06, 3.8)),
+                             ("beam_1", (1.0, 0.5, -0.03), (1.2, 0.7, 11.97)))),
+      "Lights/light_lamp": ("lamp", (-0.0270, 0.03, 3.4)), "Lights/duct_lamp": ("lamp", (0.65, 2.0, 5.0)),
+      "Lights/beside_lamp": ("lamp", (0.3, 0.03, 3.4))},
+     [(name, name[:-2], None) for name in ("duct_1", "light_1", "beam_1")],
+     [("duct_1", "out", 0.03, 1.0, ["wall_1"], None), ("beam_1", "out", 0.03, 1.0, ["wall_1"], None),
+      ("duct_1", "out", 0.03, 0.994, None, None), ("light_1", "out", 0.05, 1.0, None, None)],
+     {"Objects/duct_1": ((0.5, 1.7, 0.0), (0.8, 2.3, 10.0), (1e-6, 1e-5)),
+      "Objects/light_1": ((0.0, 0.0, 3.0), (0.0466, 0.06, 3.8), (1e-6, 1e-5)),
+      "Objects/beam_1": ((NAN, NAN, 0.0), (NAN, NAN, 12.0), 1e-6)}, [], {},
+     {"Lights/light_lamp": ((0.0233, 0.03, 3.4), (-0.027, 0.03, 3.4), (1e-4, 1e-5)),
+      "Lights/duct_lamp": ((0.65, 2.0, 5.0), (0.65, 2.0, 5.0), ALLCLOSE),
+      "Lights/beside_lamp": ((0.3, 0.03, 3.4), (0.3, 0.03, 3.4), ALLCLOSE)}, None),
+    ("settle@habitat: a 2 m rug across a partition into a 1.52 m alcove shrunk to 74% and moved 0.24 m into it; a "
+     "crate 2 cm into a slanted wall moved off it; a rug 4 mm into a wall left",
+     {**{f"Structure/{name}": ("solid", low, high, degrees) for name, low, high, degrees in (
+         ("wall_1", (-0.1, 0.0, 0.0), (0.0, 3.0, 6.0), 0.0), ("wall_2", (6.0, 0.0, 0.0), (6.1, 3.0, 6.0), 0.0),
+         ("wall_3", (0.0, 0.0, -0.1), (6.0, 3.0, 0.0), 0.0), ("wall_4", (0.0, 0.0, 6.0), (6.0, 3.0, 6.1), 0.0),
+         ("wall_5", (1.52, 0.0, 2.0), (1.62, 3.0, 6.0), 0.0),
+         ("wall_6", (1.0 - 2 ** 0.5 / 2, 0.0, 0.95), (1.0 + 2 ** 0.5 / 2, 3.0, 1.05), 45.0))},
+      **{f"Objects/{name}": ("solid", low, high, 0.0) for name, low, high in (
+          ("rug_2", (0.0, 0.0, 3.0), (2.0, 0.017, 4.0)), ("rug_3", (2.0, 0.0, 4.504), (4.0, 0.017, 6.004)),
+          ("crate_1", (0.5, 0.0, CRATE_CORNER - 1.5), (1.0, 0.5, CRATE_CORNER - 1.0)))}},
+     [(name, name[:-2], None) for name in ("rug_2", "rug_3", "crate_1")],
+     [("crate_1", "off wall", 0.036, 1.0, None, None), ("rug_2", "flat clear", 0.24, 0.74, None, None)],
+     {"Objects/rug_2": ((0.02, 0.0, 3.13), (1.5, 0.017, 3.87), (1e-6, 1e-5)),
+      "Objects/crate_1": ((0.47, NAN, CRATE_CORNER - 1.52), (NAN, NAN, NAN), (1e-6, 1e-5))}, [], {}, {}, None),
+]
+
+
+def fanned(points, faces):
+    """A trimesh of `points` whose `faces` (each a list of corner indices) are fanned into triangles from their first
+    corner, as fitting.mesh_triangles reads a drawn mesh."""
+    return trimesh.Trimesh(points, [(face[0], face[corner], face[corner + 1]) for face in faces
+                                    for corner in range(1, len(face) - 1)], process=False)
+
+
+GABLE = fanned([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10), (10, 3, 0), (10, 3, 10), (0, 3.1, 0), (5, 5.1, 0),
+                (5, 5.1, 10), (0, 3.1, 10), (10, 3.1, 0), (10, 3.1, 10)],
+               [(0, 1, 2, 3), (1, 4, 5, 2), (6, 7, 8, 9), (7, 10, 11, 8)])  # 3 m eaves at x 0 and 10, a ridge at x 5
+ARCH = fanned([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10), (10, 3, 0), (10, 3, 10)], [(0, 1, 2, 3), (1, 4, 5, 2)])
+DOME = fanned([(0, 3, 0), (5, 5, 0), (5, 5, 10), (0, 3, 10)], [(0, 1, 2, 3)])  # airlock's, under its Shell
+SHELLED = {"Shell/roof_1": ("mesh", DOME), "Shell/wall_1": ("box", (0.0, 0.0, 0.0), (0.2, 3.0, 10.0)),
+           "Objects/light_1": ("box", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))}
+STRIPS = {f"Structure/{name}": ("mesh", fanned([(x0, 5, z0), (x1, 5, z0), (x1, 5, z1), (x0, 5, z1)], [(0, 1, 2, 3)]))
+          for name, (x0, x1, z0, z1) in (("roof_1", (0, 2, 0, 10)), ("roof_2", (8, 10, 0, 10)),
+                                         ("roof_3", (2, 8, 0, 2)))}  # hangar's frame roof, its middle open
+
+
+def a_frame_crane(up, lip):
+    """STRIPS with a crane under them, raised `up`: its girder's ends under the side strips, its trolley up in the
+    opening, its lip from z `lip` under the front strip."""
+    return {**STRIPS, **boxes_at("Objects", (("crane_1", (0.5, 4.0 + up, 3.0), (9.5, 4.3 + up, 6.0)),
+                                              ("crane_1/trolley", (4.0, 4.3 + up, 2.1), (6.0, 4.99 + up, 4.0)),
+                                              ("crane_1/lip", (4.0, 4.3 + up, lip), (6.0, 4.6 + up, 2.1))))}
+
+
+RING_TURNS = np.linspace(0.0, np.pi, 33)
+RING_QUADS = [quad for step in range(32) for quad in (
+    (step, step + 1, 66 + step + 1, 66 + step), (33 + step, 99 + step, 99 + step + 1, 33 + step + 1),
+    (step, 33 + step, 33 + step + 1, step + 1), (66 + step, 66 + step + 1, 99 + step + 1, 99 + step))]
+
+
+def a_rib(near):
+    """tube's rib: an arch 1.4 to 1.6 m round the floor's middle line, z `near` to `near` + 0.2, its corners
+    [depth][radius][turn]."""
+    return fanned([(-np.cos(turn) * radius, np.sin(turn) * radius, depth) for depth in (near, near + 0.2)
+                   for radius in (1.4, 1.6) for turn in RING_TURNS], RING_QUADS)
+
+
+ROUND_PIPE = trimesh.util.concatenate([
+    trimesh.creation.cylinder(radius=0.15, height=8.0, sections=48).apply_translation((1.45, 0.35, 5.0)),
+    trimesh.creation.box(bounds=((1.45, 0.2, 5.0), (1.6, 0.5, 5.1)))])  # along z, a bracket on it
+GABLE_WALL = {"how": "wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
+FLAT_WALL = {"how": "wall", "span": [[0.0, 0.0], [10.0, 0.0]], "out": [0.0, 1.0], "why": "against its wall"}
+RIB_LEFT = {"how": "wall", "span": [[-1.6, 10.0], [-1.6, 0.0]], "out": [1.0, 0.0], "why": "against its wall"}
+RIB_RIGHT = {"how": "wall", "span": [[1.6, 0.0], [1.6, 10.0]], "out": [-1.0, 0.0], "why": "against its wall"}
+ROOF_HUNG = {"under roof": True}
+VAULT = {"Structure/roof_1": ("mesh", ARCH),
+         "Structure/deck_1": ("box", (0.0, -0.2, 0.0), (10.0, 0.0, 10.0), (2, 3, 7, 6)),
+         **boxes_at("Objects", (("screen_1", (9.8, 2.8, 4.0), (10.0, 3.3, 5.0)),
+                                ("pipes_1", (9.6, 0.0, 6.0), (10.0, 9.0, 6.4))))}  # tube's gable over its x 10 wall
+UNDER_ROOFS = [  # CLEARED's rows under roofs
+    ("hangar: under a gable roof a lamp under the ridge and a box on a loft deck under the eave left, a crate 0.4 m up "
+     "through it moved down, a ship 2.6 m up through it left; a light hung from it moved up and a crane moved down to "
+     "0.01 m under it; the ship, the box and a pipe laid on its wall 6 m through it named",
+     {"Structure/roof_1": ("mesh", GABLE), "Structure/deck_2": ("box", (0.0, 1.8, 8.5), (0.9, 2.0, 9.5)),
+      **boxes_at("Objects", (("lamp_1", (4.5, 3.5, 4.0), (5.5, 4.5, 5.0)), ("box_1", (0.2, 2.0, 9.0), (0.6, 3.5, 9.4)),
+                             ("crate_1", (0.5, 2.6, 1.0), (1.5, 3.6, 2.0)),
+                             ("ship_1", (1.0, 0.0, 6.0), (3.0, 6.0, 8.0)),
+                             ("crate_2", (2.0, 5.0, 2.0), (2.5, 5.5, 2.5)),
+                             ("pipes_1", (8.0, 0.0, 4.0), (8.4, 9.0, 4.4)),
+                             ("crane_1", (6.0, 3.5, 1.0), (9.0, 5.5, 3.0)),
+                             ("light_1", (4.0, 3.8, 6.0), (4.4, 4.2, 6.4))))},
+     [*[(name, name[:-2], None) for name in ("lamp_1", "crate_1", "ship_1", "crate_2", "box_1")],
+      ("pipes_1", "pipes", GABLE_WALL), ("crane_1", "crane", None, ROOF_HUNG), ("light_1", "light", None, ROOF_HUNG)],
+     [("crane_1", "down", 2.11, 1.0, ["roof_1"], None), ("pipes_1", "wall", 1.6, 1.0, None, None),
+      ("crate_1", "down", 0.4, 1.0, ["roof_1"], None), ("light_1", "up", 0.39, 1.0, ["roof_1"], None)],
+     {"Objects/crane_1": ((NAN, NAN, NAN), (9.0, 3.39, 3.0), ALLCLOSE),
+      "Objects/light_1": ((NAN, NAN, NAN), (4.4, 4.59, 6.4), ALLCLOSE),
+      "Objects/crate_1": ((NAN, NAN, NAN), (1.5, 3.2, 2.0), ALLCLOSE),
+      "Objects/ship_1": ((1.0, 0.0, 6.0), (NAN, NAN, NAN), ALLCLOSE),
+      "Objects/pipes_1": ((9.6, 0.0, 4.0), (10.0, 9.0, 4.4), ALLCLOSE),  # on its wall at the eave, 6 m up through
+      **left(("Objects/lamp_1", (4.5, 3.5, 4.0), (5.5, 4.5, 5.0)), ("Objects/box_1", (0.2, 2.0, 9.0), (0.6, 3.5, 9.4)),
+             ("Objects/crate_2", (2.0, 5.0, 2.0), (2.5, 5.5, 2.5)))},  # wholly above the roof: not through it
+     [], {}, {}, [("ship_1", "laid 2.60 m up through roof_1, nothing holding it there", 2.6),
+                  ("box_1", "laid 0.42 m up through roof_1, nothing holding it there", 0.42),
+                  ("pipes_1", "laid 6.00 m up through roof_1, nothing holding it there", 6.0)]),
+    ("settle@airlock: a light left 0.13 m under its Shell's dome moved up to 0.01 m under it; settle@quarters: a pipe "
+     "still at the record's hang 1.43 m under the floor moved up however far, one moved off its hang left",
+     {**SHELLED, **boxes_at("Objects", (("pipe_1", (1.0, -1.43, 1.0), (4.0, -1.1, 1.2)),
+                                         ("pipe_2", (1.0, -1.43, 3.0), (4.0, -1.1, 3.2))))},
+     [("light_1", "light", None, ROOF_HUNG), ("pipe_1", "pipe", None, {**ROOF_HUNG, "at": [2.5, -1.43, 1.1]}),
+      ("pipe_2", "pipe", None, {**ROOF_HUNG, "at": [2.5, 0.0, 3.1]})],
+     [("light_1", "up", 0.39, 1.0, ["roof_1"], None), ("pipe_1", "up", 4.49, 1.0, ["roof_1"], None)],
+     {"Objects/light_1": ((NAN, NAN, NAN), (4.4, 4.59, 6.4), ALLCLOSE),
+      "Objects/pipe_1": ((1.0, 3.06, 1.0), (4.0, 3.39, 1.2), ALLCLOSE),  # the dome 3.4 m up over its end
+      **left(("Objects/pipe_2", (1.0, -1.43, 3.0), (4.0, -1.1, 3.2)))}, [], {}, {}, []),
+    *[(f"motion@hangar: under a frame roof a crane hung by its box, its trolley up in the opening, hung by its lip "
+       f"from z {lip}", a_frame_crane(0.0, lip), [("crane_1", "crane", None, ROOF_HUNG)],
+       [("crane_1", "hung", moved, 1.0, ["roof_1", "roof_2", "roof_3"], None)],
+       {"Objects/crane_1": (low, (NAN, NAN, NAN), ALLCLOSE)}, [], {}, {}, None)
+      for lip, moved, low in ((1.99, 0.69, (0.5, 4.69, 2.01)), (1.9, 0.39, (0.5, 4.39, 1.9)))],
+    ("stairwell: under its flat roof a wall lamp moved down 0.01 m under it, a conduit run shrunk to 96% about its "
+     "foot, its back kept on its wall, a 4 m pipe left; an electrical box slid along its wall clear of a stair railing",
+     {"Structure/roof_1": ("mesh", fanned([(0, 3, -1), (10, 3, -1), (10, 3, 10), (0, 3, 10)], [(0, 1, 2, 3)])),
+      "Structure/wall_1": ("mesh", trimesh.creation.box(bounds=((0.0, 0.0, -0.2), (10.0, 3.0, 0.0)))),
+      **boxes_at("Objects", (("conduit_1", (1.0, 0.0, 0.0), (1.1, 3.1, 0.2)),
+                             ("lamp_1", (5.0, 2.5, 0.0), (5.2, 3.15, 0.15)),
+                             ("pipes_2", (7.0, 0.0, 0.0), (7.1, 4.0, 0.1)), ("box_1", (1.9, 1.0, 0.0), (2.3, 1.4, 0.2)),
+                             ("stair_railing_1", (2.0, 0.0, 0.0), (2.1, 1.5, 3.0))))},
+     [*[(name, name[:-2], FLAT_WALL) for name in ("box_1", "conduit_1", "lamp_1", "pipes_2")],
+      ("stair_railing_1", "stair_railing", None)],
+     [("box_1", "wall", 0.2, 1.0, None, None), ("conduit_1", "wall", 0.0, 0.9645, None, None),
+      ("lamp_1", "wall", 0.16, 1.0, None, None)],
+     {"Objects/lamp_1": ((5.0, 2.34, 0.0), (5.2, 2.99, 0.15), 1e-6),
+      "Objects/conduit_1": ((NAN, 0.0, 0.0), (NAN, 2.99, NAN), ALLCLOSE),
+      "Objects/pipes_2": ((NAN, NAN, NAN), (NAN, 4.0, NAN), ALLCLOSE),
+      "Objects/box_1": ((2.1, NAN, NAN), (NAN, NAN, NAN), 1e-6)},  # clear of the railing at x 2.0 to 2.1
+     [], {}, {}, [("pipes_2", "laid 1.00 m up through roof_1, nothing holding it there", 1.0)],
+     {"lamp_1": "moved 0.16 m down under roof_1", "conduit_1": "shrunk to 96% under roof_1"}),
+    ("tube: a screen on its wall 0.3 m up through its gable moved 0.65 m into the room; 9 m pipes no step clears "
+     "left, named", VAULT,
+     [("screen_1", "screen", GABLE_WALL), ("pipes_1", "pipes", GABLE_WALL)],
+     [("screen_1", "wall", 0.65, 1.0, None, None)],
+     {"Objects/screen_1": ((NAN, NAN, NAN), (9.35, 3.3, 5.0), ALLCLOSE),
+      **left(("Objects/pipes_1", (9.6, 0.0, 6.0), (10.0, 9.0, 6.4)))}, [], {}, {},
+     [("pipes_1", "laid 6.00 m up through roof_1, nothing holding it there", 6.0)]),
+    ("tube: by its ribs a screen slid along clear, 8 m pipes no stretch holds whole stood on a rib's front, a round "
+     "pipe by its own surface touching it; a light hung up in a rib let down, a lamp inside its leg drawn out",
+     {"Structure/ribs_1": ("mesh", a_rib(2.0), {"row": "ribs"}),
+      "Structure/ribs_2": ("mesh", a_rib(9.5), {"row": "ribs"}),
+      "Structure/wall_1": ("mesh", trimesh.creation.box(bounds=((-1.75, 0.0, 0.0), (-1.6, 3.0, 10.0)))),
+      "Structure/wall_2": ("mesh", trimesh.creation.box(bounds=((1.6, 0.0, 0.0), (1.75, 3.0, 10.0)))),
+      "Objects/pipes_4": ("mesh", ROUND_PIPE, {"held": True}),
+      **boxes_at("Objects", (("screen_3", (-1.6, 0.6, 1.8), (-1.4, 1.0, 2.6)), ("pipes_3", (-1.6, 0.2, 1.0),
+                                                                               (-1.4, 0.5, 9.0)),
+                             ("light_3", (-0.1, 1.35, 1.5), (0.1, 1.45, 2.5)),
+                             ("lamp_3", (-1.55, 0.9, 2.05), (-1.45, 1.0, 2.15))))},
+     [("screen_3", "screen", RIB_LEFT), ("pipes_3", "pipes", RIB_LEFT), ("pipes_4", "pipes", RIB_RIGHT),
+      ("light_3", "light", None, ROOF_HUNG),
+      ("lamp_3", "lamp", {"how": "within", "holder": ["ribs_1"], "holder scope": "Structure"})],
+     [("screen_3", "wall", 0.4, 1.0, None, None), ("pipes_3", "wall", 0.294, 1.0, None, None),
+      ("pipes_4", "wall", 0.251, 1.0, None, None), ("light_3", "down", 0.065, 1.0, ["ribs_1"], None),
+      ("lamp_3", "within", 0.572, 1.0, ["ribs_1"], None)],
+     {"Objects/screen_3": ((-1.6, NAN, 2.2), (NAN, NAN, NAN), (((1e-8, 0.0, 1e-3), (0.0, 0.0, 0.0)), 1e-5)),
+      "Objects/pipes_3": ((-1.6 + 1.6 - np.sqrt(1.4 ** 2 - 0.5 ** 2), NAN, 1.0), (NAN, NAN, 9.0),
+                          (((0.01, 0.0, 1e-8), (0.0, 0.0, 1e-8)), 1e-5)),  # 0.29 m out on the rib's front, 8 m long
+      "Objects/light_3": ((NAN, NAN, NAN), (NAN, 1.39, NAN), 0.005),
+      "Objects/lamp_3": ((-0.979, NAN, NAN), (NAN, NAN, NAN), 0.01),
+      "Objects/pipes_4": ((1.049335, 0.2, 1.0), (1.349335, 0.5, 9.0), 1e-5)},  # its surface touching the rib
+     [], {}, {}, None),
+]
+ROOM_PIECES = {"Shell/wall_1": ("box", (-0.2, 0.0, -1.0), (0.0, 2.5, 3.0)),
+               "Shell/wall_2": ("box", (4.23, 0.0, -1.0), (4.39, 2.5, 3.0)),
+               "Objects/lights_1": ("box", (4.18, 2.2, -1.0), (4.23, 2.375, 3.0))}  # quarters' room, 4.23 m wide
+ROOMED = [  # (case, a lifted pipe's low and high, its move into its room, then its move out of the lights hung there)
+    ("quarters: a pipe lifted 1.74 m on through its east wall", (2.0, 2.2, 0.0), (5.985, 2.5, 0.1), (-1.755, 0.0, 0.0),
+     (-0.06, 0.0, 0.0)),
+    ("one longer than its room left", (-0.5, 2.2, 0.0), (4.5, 2.5, 0.1), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)),
+]
+ROOM_SIDES = [(np.array(low, float), np.array(high, float)) for low, high in (
+    ((-0.5, 0.0, -0.5), (10.5, 6.0, 0.0)), ((-0.5, 0.0, 10.0), (10.5, 6.0, 10.5)),
+    ((-0.5, 0.0, 0.0), (0.0, 6.0, 10.0)), ((10.0, 0.0, 0.0), (10.5, 6.0, 10.0)))]
+PARTED = [  # (case, its cranes 10 m wide (name: z from, to), those hung from the roof (None: none named), those left
+    # out, those kept (name: z from, to after))
+    ("two cranes hung from the roof where a 10 m room holds one: the later left out", {"crane_1": (0.0, 6.0),
+     "crane_2": (3.0, 9.0)}, {"crane_1", "crane_2"}, {"crane_2"}, {"crane_1": (0.0, 6.0)}),
+    ("the same two, neither hung, left", {"crane_1": (0.0, 6.0), "crane_2": (3.0, 9.0)}, None, set(),
+     {"crane_1": (0.0, 6.0), "crane_2": (3.0, 9.0)}),
+    ("three hung where the room holds two: the second, tried before the first, tried again after it and never left "
+     "in it", {"crane_1": (0.0, 3.0), "crane_2": (2.0, 7.0), "crane_3": (5.0, 8.0)}, {"crane_1", "crane_2", "crane_3"},
+     {"crane_3"}, {"crane_1": (0.0, 3.0), "crane_2": (3.0, 8.0)}),
+]
+VALVES = {"valve_1": ("pipe_3", (1.0, 1.4, 0.1), (1.2, 1.7, 0.3)), "valve_2": ("pipe_1", (3.0, 1.85, 0.1),
+                                                                                 (3.2, 2.15, 0.3))}
+STACKED = [  # (case, its pipes, its valves on their tops, their stacking (name, moved, holder), their letting down
+    # (name, top at), the first valve's foot after)
+    ("a valve on its pipe's top inside the pipe run packed over it stacked onto that run",
+     boxes_at("Objects", (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),
+                          ("pipe_1", (0.0, 1.45, 0.0), (4.0, 1.85, 0.4)))),
+     ["valve_1", "valve_2"], [("valve_1", 0.45, ["pipe_1"])], [], 1.85),
+    ("hangar: one stacked onto a pipe 0.4 m round with a rail up 0.06 m at its far end let down to its surface",
+     {"Objects/pipe_1": ("mesh", trimesh.util.concatenate([
+         trimesh.creation.box(bounds=[(0.0, 1.45, 0.0), (4.0, 1.79, 0.4)]),
+         trimesh.creation.box(bounds=[(3.9, 1.79, 0.0), (4.0, 1.85, 0.4)])]), {"held": True}),
+      **boxes_at("Objects", (("pipe_3", (0.0, 1.0, 0.0), (4.0, 1.4, 0.4)),))},
+     ["valve_1"], [("valve_1", 0.45, ["pipe_1"])], [("valve_1", 1.79)], 1.79),
+]
+BULGED = {"Structure/roof_1": ("mesh", fanned([(9.9, 0, 0), (10.5, 1.5, 0), (10, 3, 0), (5, 5, 0), (9.9, 0, 10),
+                                                (10.5, 1.5, 10), (10, 3, 10), (5, 5, 10)],
+                                               [(0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6)])),
+          "Structure/roof_2": ("mesh", fanned([(0, 4, 20), (2, 0, 20), (2, 0, 22), (0, 4, 22)], [(0, 1, 2, 3)])),
+          **boxes_at("Objects", (("screen_2", (9.8, 1.0, 4.0), (10.0, 2.0, 5.0)),
+                                 ("panel_2", (9.8, 2.5, 6.0), (10.0, 3.3, 7.0)),
+                                 ("crate_2", (0.5, 1.0, 20.5), (1.9, 1.5, 21.5))))}
+THROUGH = [  # (case, its prims, the roofs read, what stands up through them (name, metres))
+    ("airlock: the dome under its Shell a roof, its Shell wall none; a light under the dome through nothing", SHELLED,
+     ["roof_1"], []),
+    ("tube: its vault springs from its walls' faces and bulges behind them: a screen under its arc through nothing, a "
+     "panel 0.3 m over its 3 m, a crate 1.3 m out through a steep side", BULGED, ["roof_1", "roof_2"],
+     [("crate_2", 1.3), ("panel_2", 0.3)]),
+]
+VAULT_BEHIND = {"Structure/roof_1": ("mesh", fanned([(-2.0, 0.0, 0.0), (-2.0, 3.0, 0.0), (-2.0, 3.0, 10.0),
+                                                     (-2.0, 0.0, 10.0)], [(0, 1, 2, 3)]))}
+HOLED_WALL = {**{f"Structure/{name}": ("mesh", trimesh.creation.box(bounds=bounds)) for name, bounds in (
+    ("wall_1", ((-1.75, 0.0, 0.0), (-1.6, 3.0, 4.0))), ("wall_1_2", ((-1.75, 0.0, 6.0), (-1.6, 3.0, 10.0))))},
+    **VAULT_BEHIND}
+WALL_HOLES = [  # (case, its prims, the holes read on every built wall, those read on the face walls (z from, to))
+    ("tube: a 2 m window hole in its left wall, its vault 0.4 m behind", HOLED_WALL, 0, [(3.975, 6.025)]),
+    ("a vault that is its own wall has no hole", VAULT_BEHIND, 0, []),
+]
+SCREEN_LAID = {"name": "screen_1", "row": "screen", "how": "wall", "holder": None, "moved": 0.0, "scale": 1.0,
+               "words": "laid wall", "span": [[10.0, 0.0], [10.0, 10.0]], "out": [-1.0, 0.0],
+               "corners": [[9.8, 4.0], [9.8, 5.0], [10.0, 4.0], [10.0, 5.0]]}  # on its wall's line, its face read
+MOVED_IN = [  # (case, its world, its wall things, their fits as laid, those after moved_in (name, moved, span))
+    ("tube: a screen laid on its wall's line with its face read moved 0.65 m in, its face with it, so the held gate "
+     "passes it", VAULT, ["screen_1"], [SCREEN_LAID], [("screen_1", 0.65, [[9.35, 0.0], [9.35, 10.0]])]),
+]
+
+RAMP_WALLS = [{"name": name, "low": list(low), "high": list(high)} for name, low, high in RAMP_BUILT]
+RAMP_DOOR = {"name": "door_1", "on": {"how": "in", "middle": [0.5, 0.0, 6.849], "along": [1.0, 0.0], "wide": 1.0,
+                                      "tall": 2.0, "why": "opening"}, "fills": True}
+DOOR_LAID = {"name": "door_1", "low": [0.0, 0.0, 6.799], "high": [1.0, 2.0, 6.899]}
+WINDOW = {"name": "window_1", "on": {"how": "within", "holder": ["door_1"]}, "fills": True}
+FRAMED = {"walls": RAMP_WALLS,
+          "objects": [DOOR_LAID, {"name": "window_1", "low": [0.3, 1.0, 6.8], "high": [0.7, 1.5, 6.89]}]}
+ON_SHELF = {"how": "within", "holder": ["shelf_1"]}
+PILED = [{"name": "shelf_1"}, {"name": "box_1", "on": ON_SHELF}, {"name": "box_2", "on": ON_SHELF}]
+SHELF_UNIT = {"name": "shelf_1", "low": [0.0, 0.0, 0.0], "high": [1.0, 1.0, 0.5]}
+PILE = [SHELF_UNIT, {"name": "box_1", "low": [0.1, 1.0, 0.1], "high": [0.4, 1.3, 0.4]}]
+BAG = [SHELF_UNIT, {"name": "bag_1", "low": [0.1, 0.8, 0.1], "high": [0.4, 1.07, 0.4]}]
+WALL_END = [{"name": "wall_9", "low": [0.0, 0.0, 0.0], "high": [0.2, 3.0, 5.0]}]
+
+
+def a_turned_pipe(middle):
+    """A 2.83 m pipe 0.1 m round turned 45 degrees about the up axis, its middle at `middle`, as laid (its box and its
+    own corners)."""
+    along, up, out = np.array([1.0, 0.0, 1.0]), np.array([0.0, 0.05, 0.0]), np.array([-1.0, 0.0, 1.0]) * 0.05 / 2 ** 0.5
+    corners = [np.asarray(middle, float) + one * along + two * up + three * out
+               for one in (-1, 1) for two in (-1, 1) for three in (-1, 1)]
+    return {"name": "pipe_1", "low": list(np.min(corners, axis=0)), "high": list(np.max(corners, axis=0)),
+            "corners": [list(point) for point in corners]}
+
+
+FLOOR_THINGS = {"bed_1": ((2.0, 0.0, 0.5), (4.4, 0.6, 2.5)), "crate_3": ((2.5, 0.0, 1.0), (3.1, 0.5, 1.6)),
+                "rug_1": ((0.2, 0.0, 2.6), (2.2, 0.02, 3.8)), "table_1": ((0.7, 0.0, 2.9), (1.7, 0.8, 3.5))}
+WITHIN_SHELF = {"how": "within", "holder": ["shelf_1"], "why": "within shelf"}
+SHELVED_DESK = {"desk_1": ((0.0, 0.0, 0.0), (2.0, 0.8, 1.0)), "shelf_1": ((0.2, 0.0, 0.2), (1.8, 0.79, 0.8)),
+                "jar_1": ((0.3, 0.3, 0.3), (0.5, 0.5, 0.5)), "jar_2": ((0.31, 0.3, 0.3), (0.51, 0.5, 0.5)),
+                "book_1": ((1.0, 0.2, 0.3), (1.3, 0.5, 0.6))}
+HELD_FAULTS = [  # (case, its record's objects, its laid file, the faults held_faults names)
+    ("a crate laid 0.16 m in a deck is named by its depth; a door the record lays in its opening never",
+     [{"name": "crate_1"}, RAMP_DOOR],
+     {"walls": RAMP_WALLS,
+      "objects": [{"name": "crate_1", "low": [4.0, 0.0, 3.0], "high": [4.5, 0.4, 3.5]}, DOOR_LAID]},
+     [("crate_1", "laid 0.16 m inside deck_2, nothing holding it there", 0.158)]),
+    ("docking_airlock: a window filling the door hung in its opening is in no wall", [RAMP_DOOR, WINDOW], FRAMED, []),
+    ("a window on no door it fills is in the wall all the same", [RAMP_DOOR, {**WINDOW, "fills": False}], FRAMED,
+     [("window_1", "laid 0.09 m inside wall_3, nothing holding it there", 0.09)]),
+    ("garage: a box standing on a box within the same shelf stands on it", PILED,
+     {"objects": [*PILE, {"name": "box_2", "low": [0.1, 1.3, 0.1], "high": [0.4, 1.6, 0.4]}]}, []),
+    ("garage: one floating 0.2 m over it is named", PILED,
+     {"objects": [*PILE, {"name": "box_2", "low": [0.1, 1.5, 0.1], "high": [0.4, 1.8, 0.4]}]},
+     [("box_2", "0.50 m off where it is laid within ()", 0.5)]),
+    ("storage: a bag on its unit's top board, 0.07 m over its frame, is held on its shelves",
+     [{"name": "shelf_1"}, {"name": "bag_1", "on": {**ON_SHELF, "why": f"{fitting.SHELVES}shelf: its reading says 'top "
+                                                                          f"shelves'"}}], {"objects": BAG}, []),
+    ("storage: within its holder otherwise, the bag is named", [{"name": "shelf_1"}, {"name": "bag_1", "on": ON_SHELF}],
+     {"objects": BAG}, [("bag_1", "0.07 m off where it is laid within ()", 0.07)]),
+    ("lab: a pipe turned 45 degrees passing 0.09 m clear of a wall's end stands in no wall by its own corners",
+     [{"name": "pipe_1"}], {"walls": WALL_END, "objects": [a_turned_pipe((0.0, 1.0, 5.0))]}, []),
+    ("lab: moved 0.5 m back along the wall it is in it", [{"name": "pipe_1"}],
+     {"walls": WALL_END, "objects": [a_turned_pipe((0.0, 1.0, 4.5))]},
+     [("pipe_1", "laid 0.10 m inside wall_9, nothing holding it there", 0.1)]),
+    ("habitat: a bed left 0.5 m in a crate is named, never a table on its rug",
+     [{"name": name, "row": name[:-2]} for name in FLOOR_THINGS],
+     {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)}
+                               for name, (low, high) in FLOOR_THINGS.items()]},
+     [("bed_1", "laid 0.50 m inside crate_3 at its built size, nothing holding either there", 0.5)]),
+    ("galley: two jars at one spot on their shelf are named in each other; a book within a shelf on a desk never in "
+     "the desk",
+     [{"name": "desk_1", "row": "desk"},
+      {"name": "shelf_1", "row": "shelf", "on": {"how": "top", "holder": ["desk_1"]}},
+      *[{"name": f"jar_{number}", "row": "jar", "on": WITHIN_SHELF} for number in (1, 2)],
+      {"name": "book_1", "row": "book", "on": WITHIN_SHELF}],
+     {"walls": [], "objects": [{"name": name, "low": list(low), "high": list(high)}
+                               for name, (low, high) in SHELVED_DESK.items()]},
+     [("shelf_1", "0.80 m off where it is laid top ()", 0.8),
+      ("jar_1", "laid 0.19 m inside jar_2 at its built size", 0.19)]),
+]
+CLIMBS = [("stairs", True), ("ladder", True), ("stair_railing", True), ("step_ladder", False)]  # (row, whether it
+# climbs: settle@hangar's step ladder, a free-standing thing, never)
+STATICS = [  # (a floor piece, its box, whether it is a static: a 0.1 m landing pad and 2 cm grates are, a beam is none)
+    ("landing_pad_1", (0.0, 0.0, 0.0), (4.0, 0.1, 4.0), True),
+    ("floor_grates_1", (0.0, 0.0, 0.0), (4.0, 0.02, 4.0), True),
+    ("ceiling_beam_1", (0.0, 4.4, 0.0), (4.0, 4.6, 0.3), False)]
+SLAB_RUN, SLAB_OUT = np.array([1.0, 0.0, 1.0]) / 2 ** 0.5, np.array([-1.0, 0.0, 1.0]) / 2 ** 0.5
+LAB_SLAB = [tuple(float(value) for value in SLAB_RUN * along + SLAB_OUT * across + [0.0, height, 0.0])
+            for along in (0.0, 1.0) for height in (0.0, 3.0) for across in (0.0, 0.1)]  # 1 m long, 0.1 m thick, 45 deg
+INSIDE = [  # (case, whether the wall's own corners are read, the walls a crate in its world box's corner is inside)
+    ("lab: by the slab's own corners, a crate clear of it is in no wall", True, []),
+    ("by its world box alone it is in the wall", False, ["wall_1"])]
+WALL_12 = ((4.15, -0.2, -19.3), (4.45, 3.5, 18.45))
+CAR = ((0.478, 0.2, 8.937), (4.194, 1.521, 10.868))
+SHALLOW = [  # (case, a thing's low and high, the wall's box, how far it is moved back out (None: left))
+    ("settle@street: a police car 0.044 m into wall_12 is moved back out the way it came", *CAR, WALL_12,
+     (-0.044, 0.0, 0.0)),
+    ("one across the wall is left", CAR[0], (4.494, 1.521, 10.868), WALL_12, None),
+    ("one only touching it is left", CAR[0], (4.154, 1.521, 10.868), WALL_12, None)]
+STRAIGHT = [(WALL_12, True), (((1.35, -0.2, -11.89), (2.53, 24.0, -8.72)), False)]  # (a wall's box, whether it is a
+# straight wall piece's shape: a slanted wall's box is none)
 
 
 def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
@@ -3903,7 +3390,12 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     (its rules, its kit, the seed's inventory found by name in the declared folder, earth-seed's own); each suit of HUNG
     is hung on its locker's back; the baked place's crate carries its bake's hash and the seed's as repaint_of, so the
     owner's pick still holds and breaks without it, its rocket laid from a released file takes the bake of its model,
-    and its tower, whose bake moved the frame, is refused.
+    and its tower, whose bake moved the frame, is refused. Its kit (2026-10-12: the garage's fourth pressure gauge moved
+    off the big door's track in its kit, yet the assembly kept the seed's object where the old kit put it) moves its
+    second crate's spot to (5, 0, 2): relayed, that crate stands there, the first, unmoved, keeps its transform, and a
+    second relay moves nothing.
+    Break: score/stages/assembly/record.py: `if all(abs(now[row][column] - then[row][column]) <= SAME for row in
+        range(4) for column in range(4)):` -> `if True:`
     Break: score/stages/assembly/resting_within.py: `rules_file=inputs["resting rules"]` -> `rules_file=assembly.REPO /
         "data/checks/resting.json"` (the sunk plate, no kit group named)
     Break: score/stages/__init__.py: `"resting": resting_within.judge_resting` -> `"resting": assembly.judge_resting`,
@@ -4118,12 +3610,358 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         `found |= set(next(([top] for top in []`
     Break: score/stages/assembly/ground_finish.py: `lay_surface(stage, place, surface, library)` -> `None`
     Break: score/stages/assembly/ground_finish.py: `return palette_library.shell_surface("deck", library) if made else
-        None` -> `return None`"""
-    for case, low, high, on, holders, left, scale, foot, words in FIT:
-        laid_scale, laid_at, said, _ = fitting.fit(low, high, on, holders, left=left)
-        assert (laid_scale == scale if isinstance(scale, float) else np.allclose(laid_scale, scale)), \
+        None` -> `return None`
+    #36, garage 2026-10-30 (FIT's doors in LEAF_OPENING, FITTED's garage door turned to the room, ON_WALL, BUILT_FACE,
+    WALL_TURNS, OWN_CORNERS, WALL_OFF, WALL_HELD, SWINGS, SLANTED_WALLS): hung on its wall's room face, each door swung
+    out, its kind's way, into its own jamb 0.05 to 0.08 m, and 10 m pipes laid along the walls stood across both
+    doorways; neither door swung. A 2 m door in the 2.4 m opening of a wall from z -0.276 to 0 (the room to +z) whose
+    own -z way (its kind's swing) points out of the room hangs on the wall's outer face, z -0.276, its hinge at that
+    face's jamb corner; one swinging into the room on the room face, z 0, never on the floor deck's side under it; the
+    held gate passes it on either face. A 1 x 2 x 0.1 m door in its 1.2 m opening, in a shell wall from z -0.1 to 0.1
+    (quarters' walls are its Shell), turned so its own left edge faces +x and its own -z the room, stands on the wall's
+    room face, x -0.4 to 0.6, z 0.05 to 0.15; its swing takes z 0.1 to 1.1 over that span. A 3.2 m pipe laid on the wall
+    across the doorway goes to the longest stretch beside its passage (the 1.2 m opening's), shrunk to 2.4 m, x -3 to
+    -0.6, though it comes first in the record; a lamp on the wall above the door stays; a pipe beside a door swinging
+    out of the room stays. Only a door, hatch or gate swings so (its row kind's motion): a window stands in its opening
+    and claims no swing (tube's wall panel, moved 5.4 m clear of a window, 2026-10-30).
+    Break: score/stages/assembly/fitting.py: `return bool(set(row_kinds.words(row).split()) & nouns)` -> `return
+        True`
+    Break: score/stages/assembly/fitting.py: `faces = [float(high[axis] if opens > 0 else low[axis]) for low, high in
+        reach` -> `faces = [float(low[axis] if opens > 0 else high[axis]) for low, high in reach`
+    Break: score/stages/assembly/fitting.py: `and high[axis] - low[axis] <= 2 * WALL_REACH]` -> `]`
+    Break: score/stages/assembly/fitting.py: `for scope in ("Structure", "Shell")]` -> `for scope in ("Structure",)]`
+    Break: score/stages/assembly/fitting.py: `own_way(stage, path, 0), own_way(stage, path, 2) if name in leaves else
+        None, clear)` -> `own_way(stage, path, 0), None, clear)`
+    Break: score/stages/assembly/fitting.py: `for opens in (None, across_it, np.negative(across_it))]` -> `for opens
+        in (None,)]`
+    Break: score/stages/assembly/fitting.py: `if off.max() > 0.0 and off.min() < deep and low[1] < band[1] and
+        high[1] > band[0]:` -> `if off.max() > 0.0 and off.min() < deep:`
+    Break: score/stages/assembly/fitting.py: `(middle, middle + wide) if way[axis // 2] > 0 else (middle - wide,
+        middle)` -> `(middle - wide, middle) if way[axis // 2] > 0 else (middle, middle + wide)`
+    Break: score/stages/assembly/fitting.py: `for name in sorted(by_name, key=lambda name: name not in leaves):` ->
+        `for name in by_name:`
+    Break: score/stages/assembly/fitting.py: fitted's `others = [box for other, box in mounted.items() ...]` -> `others
+        = []` (lamp_2 left in lamp_1), or on_wall's `[*clear, *mounted]` -> `clear` (the cabinet left in the corner)
+    Break: score/stages/assembly/fitting.py: on_wall's `start = start + out * stood_off(...)` dropped (the pipe through
+        hangar's rib), or stood_off's `0.0 < off.max() <= STAND_OFF_MOST` -> `0.0 < off.max()` (stood on the deck's
+        far side), or its `along.min() < reach[1]` dropped (stood on the rib past its reach)
+    Break: score/stages/assembly/fitting.py: mounted_height's `return next((at for at in lower ...), height)` ->
+        `return height` (the pipe shrunk beside the one over it), or its `wanted = min(reach, longest(height, clear))`
+        -> `wanted = reach` (the pipe longer than its wall left in the one over it)
+    Break: score/stages/assembly/fitting.py: on_wall's `reach, deep = float(np.ptp(floor @ run)), float(np.ptp(floor @
+        out))` -> `reach, deep = across(run, size), across(out, size)` (the turned pipe 1.1 m off its slanted wall), or
+        oriented_corners' `return box @ own[:3, :3] + own[3, :3]` -> its world box's corners
+    Break: score/stages/assembly/fitting.py: on_built_face's `faces.append(origins[ray][[0, 2]] + back[[0, 2]] *
+        float(reach.min()))` -> `faces.append(ends[ray])` (the span left 3 cm in front of its wall), or its `reach <= 2
+        * WALL_REACH` dropped (the span pulled 3 m back onto a far wall), or its `normal = normal if normal @ out >=
+        0.0 else -normal` -> `pass` with the turned face's normal flipped (out into the wall), or slanted_wall's `> 1e-6`
+        -> `> 0.15` (workshop's tools on a span 7.5 degrees off x left 4 cm in their wall), or its `share in
+        (FACE_INSET, 1.0 - FACE_INSET)` -> `share in (0.0, 1.0)` (a span ending past its wall's corner turned onto
+        the wall behind, habitat's wall_9), or its `return face_near(on, height, mesh)` -> `return on, 0.0`
+        (greenhouse's lamp left on its arc's chord, its pipe on the arc's outer face), or along_its_wall's `if deep <=
+        STRAIGHT_LEAST * max(reach, 1e-9):` -> `if True:` (its pipe left sticking out of its wall)
+    Break: score/stages/assembly/fitting.py: stood_off's `0.0 < float(along.min() + along.max()) / 2 < length`
+        dropped (walkway's whole-wall pipe stood on its end walls' front, against the wall across), or off_wall's
+        `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
+        rib's front named off its wall)
+    Break: score/stages/assembly/fitting.py: fit's `if scale < SCALE_LEAST: return CROWDED` dropped (a wall thing with
+        no stretch left shrunk to nothing), or oriented_corners' `or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12`
+        dropped (a prim scaled flat: LinAlgError, Singular matrix)
+    Break: score/stages/assembly/wall_clear.py: face_walls' `if not name.startswith(fitting.ROOF)` -> `if True`
+        (habitat's pipe over its wall's top laid on its dome's rim, 0.3 m behind its wall's face), or fitting.py's
+        `on_built_face(entry["on"], (low[1] + high[1]) / 2, faced())` -> `..., faces())`
+    Each face thing of FIT is fitted against its face (fitting.fit), each of NUDGED met to its holder (fitting.touching,
+    off_faces, face_reach.met) on one stage, and the strings of STRUNG fitted between their buildings on another
+    (fitting.fitted, then fitting.off). #36, street 2026-10-30: two drying racks (0.12 m tall) stood 1.3 and 2.3 m
+    inside their facade: its flat front has corners only at its ends, and the corners within the racks' height were a
+    window's back. FIT: a facade whose front (z 0) is one box 10 m wide and a window's back 1.9 m inside it, its
+    corners in the rack's height: the rack's back stands on the front, z 0, never on the window's back.
+    Break: score/stages/assembly/fitting.py: `hits, _, _ = mesh.ray.intersects_location(origins, directions,
+        multiple_hits=False)` -> `hits = mesh.vertices[(mesh.vertices[:, 1] >= band[0]) & (mesh.vertices[:, 1] <=
+        band[1])]`
+    Break: score/stages/assembly/fitting.py: touching's `if not MOVE_LEAST < float(gaps[nearest]) <= FACE_REACH:` ->
+        `if True:` (the lantern left under its string's end), or off_faces' `if behind < -MOVE_LEAST:` -> `if False:`
+        (the clothes left in the wall)
+    Break: score/stages/assembly/fitting.py: on_face's `if face is not None and clear:` -> `if False:` (the second
+        panel laid on the first)
+    settle@street (2026-11-11): its 0.4 m red paper lanterns, laid against the side of their 1 cm lantern string,
+    were shrunk to 16% and 2% to fit its height. A 0.4 m lantern the plan stood 15 m off, which the record hangs
+    `below` an 8 m string 1 cm thick and sagging 6 cm a quarter of the way along it, keeps its size, its middle under
+    the string 2 m along it (6 m at three quarters), its top on the string's underside there, and is held there; the
+    rack against the facade is laid as before.
+    Break: score/stages/assembly/fitting.py: `if how == "face" and on.get("below"):` -> `if False:` (the lantern
+        shrunk against the string's side)
+    Break: score/stages/assembly/fitting.py: hung_under's `target[[0, 2]], top = met[0][[0, 2]], float(met[0][1])` ->
+        `pass` (hung under the box's foot, beside the string), or `target[[0, 2]] = foot[[0, 2]] if share is None else
+        hung_run(points, float(share))` -> `target[[0, 2]] = foot[[0, 2]]` (every lantern at the string's end)
+    Break: score/stages/assembly/fitting.py: off_holder's `return hung_off(low, high, box)` -> `pass` (the hung
+        lantern judged off the string's side)
+    settle@lab (2026-11-11): valve_3, laid on pipe_3's room side, hung free 0.41 m off it: the pipe model zig-zags
+    across its 0.9 m box and at the valve's height its tube runs 0.5 m along the face. A 0.2 m valve against a 1 m
+    box's E side whose one tube stands 0.8 m along it and 0.1 m inside is slid along onto the tube's middle, its back on it;
+    one already in front of the tube stays. settle@quarters (2026-11-13): a 1.3 cm wrench against its desk's back was
+    slid 0.2 m up, where only its top met the slanting lower edge of the desk's back panel, inside the desk as laid. A
+    wrench slid to a panel whose lower edge is 0.2125 m up stands with its foot on it too, 0.25 m up.
+    Break: score/stages/assembly/face_spots.py: met's `if None in ends:` -> `if True:` (the valve left on the box's
+        side, touching nothing), or -> `if ends[1] is None:` (the wrench 0.2 m up, its foot under the panel), or
+        fitting.py's `target = face_spots.met(surface, on, box, size * scale, target, clear)` dropped
+    assembly@base (2026-11-12): ramp_front_left_1, a platform on legs, was stood on the toe of its module's own built
+    ramp, a lip reaching 3 m out of the module's face beside its legs, and hung free 0.15 m off it. A 0.2 m cube 1 m in
+    front of a wall's face, beside a 0.2 m wide lip reaching out to it, is pushed in until its back meets the face (its
+    face plane then the face's); one 2.5 cm off the face (touching it), and one 2 m out (past the holder's depth), are
+    left.
+    Break: score/stages/assembly/face_reach.py: met's `<= resting.TOLERANCE:` -> `<= -1.0:` (the touching cube
+        pushed), `if not fitting.MOVE_LEAST < gap <= depth:` -> `if not fitting.MOVE_LEAST < gap:` (the far cube
+        pushed), or gap_in's `least = min(least, ...)` -> `least = least` (nothing pushed)
+    assembly@square (2026-11-12): its lantern strings, hung 6 m up between its buildings, floated where the plan drew
+    them. Between two 8 m buildings 8 m apart, a 10 m string laid along z is turned along the run between them and
+    shrunk to 80%, its ends on both; a 4 m one is laid at its size from the first, the held gate naming it 4 m short
+    of the second; one whose second holder is not laid waits, its prim inactive.
+    Break: score/stages/assembly/fitting.py: `fits += hung_between.laid(stage, place, [entry for entry in entries if
+        entry["name"] in laid])` dropped (the strings left where the plan drew them)
+    Break: score/stages/assembly/hung_between.py: `degrees = (degrees + 90.0) % 180.0 - 90.0` -> `degrees = 0.0` (the
+        string left along z), or `scale = min(1.0, run / max(length, 1e-9))` -> `scale = 1.0` (into both buildings),
+        or laid's `if missing or len(holders) != 2` -> `if len(holders) != 2` (string_3 laid against a holder not laid)
+    Break: score/stages/assembly/fitting.py: off's `return hung_between.off(low, high, boxes)` -> `pass` (the short
+        string judged on the nearer holder's box only, 0 off)
+    Each world of CLEARED is fitted through fitting.fitted: every fit it makes in order, the boxes its things stand in
+    after, the things that cross nothing, the thin outlines, the lamps carried and the held gate's faults over what it
+    laid are read; each of HELD_FAULTS is judged by held_faults, and CLIMBS, STATICS, INSIDE, SHALLOW and STRAIGHT by
+    climbs, statics, inside_of, shallow_out and straight.
+    settle@airlock (2026-10-30): its ramp lay beside its porch deck, its end 0.14 m in the deck's slab, two sandbags
+    in the slab and its porch post 0.14 m in wall_3, laid at the plan's estimates; the drop sank and tilted them. The
+    assembly lays a ramp up its way onto its deck (the built static past its level's edge whose top is nearest the
+    level's): its 2 m plank pitched asin(0.158 / 2) = 4.53 degrees from the ground to the deck's 0.158 m top, its high
+    end's foot on the deck's near side at x 3.19. A thing nothing holds that starts inside a deck or wall is moved the
+    least way out: a sandbag 0.158 m into the deck's top up onto it, the post 0.141 m into the wall back to its face
+    at z 6.699, a locker reaching up into a loft deck out past its side (never down under the floor), a 4.2 m cable
+    bundle across a 0.14 m wall 0.34 m past the wall's near side (tube's, 2026-10-30); a ship longer than the place
+    across a wall fits nowhere clear of it and is left as laid, and named; a lamp in the
+    roof's box, a crate in a slanted wall's 5 m box and a stair reaching into its loft deck are left (a roof's and a
+    slanted wall's box hold the room, a stair climbs into its level). The held gate
+    fails one left inside a deck by name and its depth, never a door the record lays in its opening.
+    settle@flat (#72, 2026-11-03): floor things nothing holds, laid at their built size, bigger than the plan's
+    estimates, stood in each other. They are parted on the floor at their built size by the relation solver, never
+    shrunk: a 2.4 m bed and the wardrobe 0.2 m into it, a crate in a kit fixture (which never moves), all kept inside
+    the walls; a table on a 2 cm rug is no overlap and neither moves. habitat (#72, 2026-11-04): bunk beds laid
+    across its inner wall are moved to the nearest free spot in their own room (a bed across a two-room split goes
+    1.75 m round a locker on its own side, never 1.2 m through the wall into the next room); one that fits nowhere
+    in its room at its built size (3.5 m in a 3 m room) is left as laid, and two floor things left inside each other
+    are named by the held gate (a bed in a crate, never a table on its rug).
+    Break: score/stages/assembly/fitting.py: `if not (through(middle, middle + move, walls_near) & ~started).any():`
+        -> `if True:`
+    Break: score/stages/assembly/fitting.py: `return faults + crowded_faults(record, boxes, shapes)` -> `return faults`
+    Break: score/stages/assembly/fitting.py: held_faults' `and not fills_holder(entry):` -> `:` (the door's window in
+        the wall), or inside_of's `reach_into(corners, shapes.get(name, box_corners(box)))` -> `float(depths(low,
+        high, box).min())` (the turned pipe past the wall's end named inside it), or its `shapes.get(name,
+        box_corners(box))` -> `box_corners(box)` (lab's crate by its slanted wall named in it)
+    Break: score/stages/assembly/fitting.py: held_faults' `distance = min(distance, stacked_off(...` -> `distance =
+        min(distance, np.inf` (garage's stacked box named off its shelf), or off_holder's `above = 0.0 if
+        on_shelves_of(on) else` dropped (storage's bag on its top board named over its unit)
+    Break: score/stages/assembly/fitting.py: crowded_faults' `if entry["name"] in boxes` -> `if entry["name"] in
+        boxes and not entry.get("on")` (two jars held at one spot on their shelf pass, galley 2026-11-03)
+    Break: score/stages/assembly/fitting.py: holders_of's `more = {holder for one in more ...} - seen` -> `more =
+        set()` (a book within a shelf on a desk named inside the desk)
+    Break: score/stages/assembly/fitting.py: `return inside if (np.asarray(inside[:2]) <= middle).all()` -> `return
+        inside if True`
+    Break: score/stages/assembly/fitting.py: `done, fits = set(), fits + parted(stage, place, loose, set(by_name))` ->
+        `done, fits = set(), fits`
+    Break: score/stages/assembly/fitting.py: `if crossing({**held, **after}, thin, slanted) >= crossing({**held,
+        **boxes}, thin, slanted):` -> `if True:`
+    Break: score/stages/assembly/fitting.py: `return pivot, np.cross(way, [0.0, 1.0, 0.0]),` -> `return pivot,
+        np.cross([0.0, 1.0, 0.0], way),`
+    Break: score/stages/assembly/fitting.py: `fits += moved_out(stage, place, loose)` -> `fits += []`
+    Break: score/stages/assembly/fitting.py: `fits += floor_clear.off_edges(stage, place, loose) +
+        floor_clear.apart(stage, place, loose)` -> `fits += []` (habitat's plant left across its rug's edge, its lamp
+        in its sofa), or floor_clear.py's leans' `> LEAN_MOST` -> `> 0.0` (the table moved off its rug), or apart's
+        `if not TOUCH < reach <= fitting.HELD_MOST:` -> `if not reach > 0.0:` (the touching crate moved)
+    Break: score/stages/assembly/fitting.py: `and not entry.get("on") and not climbs(entry)]` (fitted's loose) ->
+        `and not entry.get("on")]`
+    Break: score/stages/assembly/fitting.py: statics' `if (name.split("_")[0] in STATICS and (` -> `if True or
+        (name.split("_")[0] in STATICS and (`
+    Break: score/stages/assembly/fitting.py: `if not held_in(on) and not climbs(entry) and not fills_holder(entry):` ->
+        `if True:`
+    Break: score/stages/assembly/fitting.py: climbs' `return "_".join(words) in CLIMBING or words[0] in CLIMBING` ->
+        `return bool(set(words) & set(CLIMBING))` (the step ladder climbs)
+    Break: score/stages/assembly/fitting.py: statics' `or floor_piece(name, box)]` -> `]` (the ladder left inside its
+        landing pad), or floor_piece's `float(box[0][1]) <= HELD_MOST and` dropped (the ceiling beam a static)
+    Break: score/stages/assembly/fitting.py: `back[1] = np.inf` -> `pass`
+    Break: score/stages/assembly/fitting.py: statics' `<= WALL_THICKEST))` -> `<= 99.0))`
+    Break: score/stages/assembly/fitting.py: `if depths(low + shift, high + shift, box).min() > HELD_MOST]` -> `if
+        False]` (the PASSED table's)
+    Break: score/stages/assembly/fitting.py: free_spot's `clear &= slant_depth(middle[[0, 2]] + chunk[:, [0, 2]],
+        size[[0, 2]] / 2, outline) <= HELD_MOST` -> `pass` (its free spot found in the slanted corner, the parting is refused: left in the fixture)
+    Break: score/stages/assembly/fitting.py: shallow_out's `if abs(moves[axis]) > HELD_MOST:` -> `if False:` (a car
+        laid across a wall pulled 4 m through it), or straight's `>= STRAIGHT_LEAST *` -> `>= 0.0 *` (moved out of a
+        slanted wall's box)
+    Break: score/stages/assembly/fitting.py: slants' `if not flight(name) and (name.split("_")[0] != "wall"` -> `if
+        (name.split("_")[0] != "wall"` (the crate left on the flight), or free_spot's `outline)[0] >= 0.0` -> `outline)[0]
+        > 0.0` (a point's depth is never over 0: a crate whose middle stands on the flight found no way off it)
+    Break: score/stages/assembly/fitting.py: free_spot's `clear &= on_deck(box[0] + chunk, size, deck)` -> `pass` and
+        parted_boxes' `if (deck := deck_at(boxes[name], floors)) is not None` -> `if False and ...` (greenhouse's desk
+        parted past its deck's edge), or parted's `outlines = {name: outline ...}` -> `outlines = {}` (the desk clear
+        of the railing, in its box, parted)
+    Break: score/stages/assembly/fitting.py: `fits += held_along.carried(stage, place, list(by_name.values()), before)`
+        -> `fits += []` (greenhouse's computer left at its parted desk's edge), or held_along.py's carried `if
+        float(np.linalg.norm(shift)) <= fitting.MOVE_LEAST:` -> `if True:`
+    assembly@walkway (2026-11-12): its ceiling ducts, built 0.069 m longer than the room between walls 1 and 3, were
+    moved out of wall_1 into wall_3; its 4.7 cm floor lights lay wholly in wall_4, 0.0503 m from its face. A 10.06 m
+    duct between walls 10 m apart is narrowed along z to the room, both ends on their walls; a 4.66 cm light in
+    wall_4 is moved 0.0503 m out of it into the room; a 12 m beam (83%) is left at its length.
+    Break: score/stages/assembly/fitting.py: `fits += room_clear.cleared(stage, place, loose)` dropped (the duct left
+        0.06 m in wall_3, the light in wall_4), or room_clear.py's `if room >= length or room < SHRINK_MOST * length:`
+        -> `if room >= length:` (the beam shrunk to 83%), or moved_across's `> float(box[1][axis] - box[0][axis]):`
+        -> `> fitting.HELD_MOST:` (the light left in its wall), or `-> > 100.0:` (the spaceship across wall_5 moved
+        3 m)
+    light@walkway (2026-11-12): the floor lights were moved out of wall_4 and their lamps, laid at their plan spots
+    inside them, left 2.7 cm in the wall, its spot-2 at 0.079 against its concept's 0.237. The light's lamp is carried
+    0.0503 m into the room with it, its record spot kept (lamps_along.laid_at); a lamp in the duct's box, which is
+    narrowed, and one beside the light stay.
+    Break: score/stages/assembly/room_clear.py: `lamps_along.moved_with(stage, place, low, high, foot, 1.0, foot +
+        move)` dropped (the lamp left in wall_4), or lamps_along.py's `if np.any(spot < np.asarray(low) - WITHIN) or
+        ...: continue` -> `if False: continue` (the lamp beside the light carried too)
+    settle@habitat (2026-11-13): its rugs 4 and 7 to 10 lay across its partition walls and under a wall thing, and its
+    bookshelf 2 and bunk bed 2 stood 2 and 4.4 cm into slanted walls, which the parting lets stand (its HELD_MOST); the
+    drop took them as laid inside (its triangles still crossing past a 5 mm nudge) or slid the bed 92 cm. A 2 m rug
+    laid across a partition into a 1.52 m alcove is shrunk to 74% and moved 0.24 m into it, GAP from both walls; a
+    crate 2 cm into a slanted wall is moved (0.03, 0.02) m off it; a rug 4 mm into wall_4 is no overlap to the drop and
+    is left.
+    Break: score/stages/assembly/fitting.py: `fits += floor_free.cleared(stage, place, loose, entries)` dropped (the
+        rug and the crate left in their walls), or floor_free.py's reaches' `< half - NUDGE` -> `< half` (the rug 4 mm
+        in moved), or spot_for's `for scale in scales:` -> `for scale in scales[:1]:` (the alcove's rug left), or
+        free_moves' `reach = half + GAP` -> `reach = half` (the rug and crate left touching their walls)
+    The worlds of UNDER_ROOFS are CLEARED's rows under roofs (hangar's wall pipes stood 22 m up through its 15 m roof,
+    and the inside-a-static check left roofs out because a dome's box holds the room under it), each fitted world also
+    leaving nothing hung by its parts or kept off its ribs, its held gate reading what stands up through its roofs. A
+    roof is read by its mesh: a gable from 3 m eaves at x 0 and 10 to a 5 m ridge at x 5. A lamp under the ridge (its
+    top 4.5 m, the roof 4.8 m over its edge) is inside the roof's box and left; a crate whose top corner reaches 3.6 m
+    where the roof is 3.2 m is moved 0.4 m straight down; a ship 6 m tall 2.6 m up through it at its corner is left as
+    laid (more than 1 m), and the held gate names it and a pipe its wall relation laid against its wall at the eave, 6 m
+    up through the roof, by name and how far; a crate wholly above the roof is not through it, and a box on a loft deck
+    under the eave, 0.42 m through, is left and named, never sunk into its deck. A light hung from the roof, built
+    shorter than its reading (its top 0.4 m under the roof's 4.6 m over its corner, settle@airlock's roof light 0.13 m
+    under its Shell's dome), is moved up to 0.01 m under it. A crane hung from the roof built taller than its reading,
+    its box's top 2.1 m over the roof at its x 9 end, is hung down 2.11 m (more than 1 m: its hang sets its height) so
+    its box's top stands 0.01 m under the roof. quarters' wall pipe still at the record's hang, 1.43 m under its floor,
+    is moved up however far (4.49 m); one moved off its hang is left. Under a frame roof (two 2 m edge strips at 5 m and
+    a front strip, the middle open: hangar's, motion@hangar 2026-11-11) a crane hung by its box, its trolley's top 0.01
+    m under the roof up in the opening, its girder's ends 0.7 m under the strips touching nothing, is moved 0.69 m up so
+    they stand 0.01 m under them, and 0.02 m out from under the front strip its trolley's lip overhangs by 0.01 m; a lip
+    0.1 m under it (more than 0.05 m) is not moved out, so it hangs by that lip 0.39 m up. Under stairwell's flat roof 3
+    m up its wall lamp, 0.15 m through, is moved 0.16 m down; its conduit run 3.1 m tall is shrunk to 96% about its
+    foot, its back kept on its wall; a 4 m pipe (75%) is left for the held gate; its electrical box, laid where a stair
+    railing reaches its wall, is slid along clear of the railing. Under tube's gable a screen on the x 10 wall 0.3 m
+    through is moved 0.65 m into the room, its fit's face with it, and the held gate passes it; 9 m pipes no step clears
+    are left, named. By tube's ribs (arches, a structure row) a screen slides along clear of one, 8 m pipes no stretch
+    of the wall holds whole beside it stand on its front 0.29 m out (a round pipe by its own surface where it crosses
+    the rib, touching it, never by its bracket's back nor on a second rib it does not reach), a light hung 0.05 m up in
+    its underside is let down, a lamp within its leg is drawn out to its face. Each pipe of ROOMED, lifted into a wall
+    piece, is moved along into the room between it and the piece facing it, then out of a string of lights hung there;
+    one longer than that room is left. Of PARTED's two cranes hung from the roof where a 10 m room holds one, the later
+    is left out, never left in the other. Each valve of STACKED on its pipe's top inside the pipe run packed over it is
+    stacked onto that run, let down to the run's surface (hangar, 2026-11-11: lifted to its box top, 0.06 m over a pipe
+    with a rail at its far end), and the held gate judges it there and names it without that fit. A screen of MOVED_IN
+    laid on its wall's line, its face read, is moved into the room by moved_in, its face with it, and the held gate
+    passes it there. Each world of THROUGH reads its roofs (airlock's Shell dome one, its Shell wall none) and what
+    stands up through them: tube's vault springs from its walls' faces and bulges behind them, so a screen just in front
+    of a wall is under its arc, a panel up to 3.3 m 0.3 m over it, a crate out through a steep side 1.3 m. Each of
+    WALL_HOLES reads tube's window holes on its walls alone: a hole from z 4 to 6 (3.975 to 6.025 to the rays) in a wall
+    with the vault 0.4 m behind it; a vault that is its own wall has none.
+    Break: score/stages/assembly/fitting.py: `hung_up(stage, place, loose) + hung_by_parts(stage, place, loose)` ->
+        `hung_up(stage, place, loose) + []` (the crane left hung by its box, touching nothing)
+    Break: score/stages/assembly/fitting.py: part_hang's `if shift is None or float(np.linalg.norm(shift)) >
+        HELD_MOST:` -> `if shift is None:` (the 0.1 m lip moved out), or its `lifts = sorted({...}, reverse=True)` ->
+        `lifts = sorted({...})` (hung by the 0.01 m lip, the ends still 0.31 m under)
+    Break: score/stages/assembly/fitting.py: `fits = moved_down(stage, place, [entry for entry in loose if
+        entry.get("under roof")])` -> `fits = []` (the crane moved down after the crate, by the later moved_down: the
+        fits read in order), or moved_down's
+        `(drop > OUT_MOST and not hung)` -> `drop > OUT_MOST`
+    Break: score/stages/assembly/fitting.py: hung_up's `under_roof_gap(box_topped(surface_points(` ->
+        `under_roof_gap((surface_points(` is caught by settle9's hangar only: a box's corners are its points
+    Break: score/stages/assembly/fitting.py: parted_boxes' `if shift is None and name in hung:` -> `if False:` (both
+        cranes left as laid in each other), or its `tried -= later` -> `pass` (of three, the second left 0.11 m in the
+        first)
+    Break: score/stages/assembly/fitting.py: held_faults' `stacked.get(entry["name"], on.get("holder") or [])` ->
+        `on.get("holder") or []` (the stacked valve named off its holder's top)
+    Break: score/stages/assembly/built_tops.py: stacked_down's `fitting.moved_by(stage.GetPrimAtPath(path), foot, 1.0,
+        target)` dropped (hangar's valve left at its pipe's box top, 0.06 m over its surface), or held_faults' `if
+        topped.get(entry["name"]) is not None:` -> `if False:` (the valve let down named off the pipe's box top)
+    Break: score/stages/assembly/fitting.py: `return fits + moved_down(stage, place, loose) + \\` -> `return fits + []
+        + \\`
+    Break: score/stages/assembly/fitting.py: `hung_up(stage, place, loose) + hung_by_parts(` -> `[] + hung_by_parts(`
+    Break: score/stages/assembly/fitting.py: hung_up's `(np.inf if at_hang else OUT_MOST + ROOF_CLEAR)` -> `OUT_MOST +
+        ROOF_CLEAR` (quarters' pipe left 4.5 m under the roof), or its `abs(...) <= MOVE_LEAST` -> `True` (the pipe
+        moved off its hang moved up too); hung_up's `+ into_its_room(...)` or `+ clear_of_others(...)` dropped
+        (quarters' pipe left through its wall, then across its lights: caught on quarters' laid seed), or
+        clear_of_others' `shift[axis] += away * ...` -> `shift[axis] += 0.0 * ...` (the pipe left across the lights)
+    Break: score/stages/assembly/fitting.py: roofs' `for scope in ("Structure", "Shell")]` -> `for scope in
+        ("Structure",)]` (the Shell's dome is no roof: its light left under it)
+    Break: score/stages/assembly/fitting.py: `if len(reach) and reach.min() < 0 < reach.max() else 0.0` -> `if
+        len(reach) else 0.0`
+    Break: score/stages/assembly/fitting.py: `lowest = height.min(axis=1)` -> `lowest = np.where(np.isfinite(height),
+        height, -np.inf).max(axis=1)` (the roof's highest face over a place, as its box's top)
+    Break: score/stages/assembly/fitting.py: `faults += [(entry["name"], f"laid {found['metres']:.2f} m up through`
+        -> `faults += [] and [(entry["name"], ...`
+    Break: score/stages/assembly/fitting.py: `if not through or (drop > OUT_MOST and not hung) or {name` -> `if not
+        through or (drop > OUT_MOST and not hung) or False and {name`
+    Break: score/stages/assembly/fitting.py: moved_in's `for _, triangles in built)` -> `for _, triangles in
+        built) and False` (tube's screen left up through its vault), or its `for point in fit[key]] for key in
+        ("span", "corners") if key in fit}})` -> `for point in fit[key]] for key in () if key in fit}})` (its face
+        left on the wall's line: MOVED_IN)
+    Break: score/stages/assembly/fitting.py: `wall_clear.under_roofs(stage, place, walled, fits)` dropped (stairwell's
+        lamp and conduit run left up through its roof), or wall_clear.py's `if float(lowered[0][1]) >= 0.0 and` ->
+        `if` (the run sunk under the floor), or its `if scale < SHRINK_MOST:` -> `if False:` (the 4 m pipe shrunk to
+        75%), or its `foot - out * deep * (1.0 - scale) / 2` -> `foot` (the run's back off its wall)
+    Break: score/stages/assembly/fitting.py: `for box in rooms(leaf)), *climbing] if walled else ()` -> `for box in
+        rooms(leaf))] if walled else ()` (stairwell's electrical box left in its stair railing), or wall_clear.py's
+        climbing `if fitting.climbs(entry) and` -> `if False and`
+    Break: score/stages/assembly/fitting.py: through_roof's `vault_feet.roof_over(points, near)` -> `roof_under(points,
+        near)` (the screen on the bulged vault's wall read 2 m up through it), or vault_feet.py's `arched[:, None] &
+        (found < foot)` -> `found < foot` (the crate read through none), or -> `False` (the screen read through it)
+    Break: score/stages/assembly/fitting.py: `ribs.kept_clear(stage, place, path, entry["on"], clear, others, built)
+        if turned` -> `(clear, built) if turned` (the screen and pipes left in the rib), or ribs.py's `if any(end -
+        begin >= reach for begin, end in free):` -> `if True:` (the pipes shrunk to the 7.8 m beside it), or its
+        `return [*clear, *parts], built` -> `return clear, [*built, *parts]` (the screen stood on the rib's front),
+        or its `front = float((fronts[both] - (backs[both] - box_back)).max())` -> `pass` (the round pipe stood by
+        its box's back, 0.04 m off the rib)
+    Break: score/stages/assembly/fitting.py: `+ ribs.kept_off(stage, place, loose, list(by_name.values()))` -> `+ []`
+        (the light left up in the rib, the lamp inside its leg), or ribs.py's `under = [(name, gap) for name, gap in
+        over if gap < fitting.ROOF_CLEAR - fitting.MOVE_LEAST]` -> `under = over` (the light let down again), or
+        `top = topped(*fitting.world_box(stage, path))` -> `top = fitting.box_topped(fitting.surface_points(stage,
+        path))` (the light's corners, at its ends, stand under no rib: left up in it)
+    Break: score/stages/assembly/vault_feet.py: `found = fitting.wall_holes(walls, on, band)` -> `found =
+        fitting.wall_holes(built, on, band)` (the hole behind which the vault stands left unread)"""
+    for case, low, high, on, holders, more, scale, foot, words, walls, within, below, face, held in FIT:
+        boxes = [tuple(np.asarray(end, float) for end in box) for box in holders]
+        laid = fitting.fit(low, high, on, boxes, **more)
+        if foot is None or foot is fitting.CROWDED:
+            assert laid is foot, f"{case}: fit {laid}"
+            continue
+        laid_scale, laid_at, said, laid_face = laid
+        assert scale is None or (laid_scale == scale if isinstance(scale, float) else np.allclose(laid_scale, scale)), \
             f"{case}: scaled {laid_scale}"
-        assert np.allclose(laid_at, foot) and (words is None or words in said), f"{case}: laid at {laid_at}, {said}"
+        assert below is None or laid_scale < below, f"{case}: scaled {laid_scale}"
+        assert foot is ANY or (np.allclose(laid_at, foot) if within is None else
+                               bool(np.all(np.abs(laid_at - foot) < within))), f"{case}: laid at {laid_at}"
+        assert words is None or words in said, f"{case}: said {said}"
+        if face is None or face is ANY:
+            assert face is ANY or laid_face is None, f"{case}: its face {laid_face}"
+        else:
+            back, near, hangs = face
+            assert (laid_face[0] == back if near is None else abs(laid_face[0] - back) < near) and \
+                (hangs is None or laid_face[1] == hangs), f"{case}: its face {laid_face}"
+        if held:
+            moved = laid_at - fitting.foot_middle(np.array(low), np.array(high))
+            assert fitting.off(np.add(low, moved), np.add(high, moved), on, boxes) <= fitting.HELD_MOST, \
+                f"{case}: off where it is laid"
+            assert fitting.off(np.array(low), np.array(high), on, boxes) > fitting.HELD_MOST, \
+                f"{case}: held where the plan stood it"
+        if walls is not None:
+            size = np.subtract(high, low) * laid_scale
+            door = {"name": "door_1", "low": list(laid_at - size * (0.5, 0.0, 0.5)),
+                    "high": list(laid_at + size * (0.5, 1.0, 0.5))}
+            assert fitting.held_faults({"objects": [{"name": "door_1", "on": on, "fills": True}]},
+                                       {"walls": walls, "objects": [door]}) == [], f"{case}: not held at {door}"
     for case, opening, piece, mesh, walled, degrees, within in HOLE_WALL:
         laid_along, turned = fitting.hole_wall(opening, [piece], mesh)
         assert laid_along == walled and abs(turned - degrees) <= within, f"{case}: {laid_along}, {turned} degrees"
@@ -4148,10 +3986,17 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
                           else fitting.walls_ahead(mesh, ALONG, band, deep))
         found = [(round(float(run[:, 2].min()), 3), round(float(run[:, 2].max()), 3)) for run in kept_out[case]]
         assert found == spans, f"{case}: {found}"
-    for case, low, high, keeping, foot in ON_WALL:
-        _, laid_at = fitting.on_wall(np.array(low), np.array(high), ALONG, kept_out[keeping] if keeping else ())
-        assert np.allclose(laid_at, foot), f"{case}: laid at {laid_at}"
-    for case, prims, things, boxes, unfitted, held, near, passage, near_face, openings in FITTED:
+    for case, low, high, wall, keeping, more, scale, foot in ON_WALL:
+        more = dict(more)
+        if "turned" in more:
+            turned = a_fitted_world({"Objects/pipe": ("cube", *more.pop("turned"))})
+            low, high = fitting.world_box(turned, f"/{TOY}/Objects/pipe")
+            more["corners"] = fitting.oriented_corners(turned, f"/{TOY}/Objects/pipe")
+        laid_scale, laid_at = fitting.on_wall(np.array(low), np.array(high), wall,
+                                              kept_out[keeping] if isinstance(keeping, str) else keeping, **more)
+        assert (scale is None or laid_scale == scale) and np.allclose(laid_at, foot), \
+            f"{case}: laid {laid_scale} at {laid_at}"
+    for case, prims, things, boxes, unfitted, held, near, passage, near_face, openings, swing in FITTED:
         stage = a_fitted_world(prims)
         entries = [{"name": name, "row": kind, "on": on} for name, kind, on in things]
         fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {name for name, _, _ in things})}
@@ -4170,6 +4015,10 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         assert fitting.held_faults(record, laid) == [], f"{case}: not held in their openings"
         for name, wide in openings.items():
             assert (fits[name].get("opening") or {}).get("wide") == wide, f"{case}: {name} held in {fits[name]}"
+        if swing:
+            name, low, high = swing
+            found = fitting.swing_box(stage, f"/{TOY}/Objects/{name}")
+            assert np.allclose(found[0], low) and np.allclose(found[1], high), f"{case}: {name}'s swing {found}"
         if passage:
             name, low, high = passage
             [on] = [on for thing, _, on in things if thing == name]
@@ -4181,6 +4030,51 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
             [on] = [on for _, _, on in things if on["how"] == "in"]
             found = fitting.opening_spot(on, opens=opens, points=[np.array(prims[wall][1])])
             assert np.allclose(found, spot), f"{case}: the near face's spot {found}"
+    from score.stages.assembly import wall_clear
+    domed = a_fitted_world(DOMED)
+    built_faces = {"built walls": fitting.built_walls(domed, TOY), "face walls": wall_clear.face_walls(domed, TOY)}
+    for case, height, built, span, degrees, line, facing, longest in BUILT_FACE:
+        moved, turned = fitting.on_built_face(SLANT, height, built_faces[built] if isinstance(built, str) else built)
+        ends = np.asarray(moved["span"], float)
+        if span is SLANT:
+            assert (moved, turned) == (SLANT, 0.0), f"{case}: put on {moved}, {turned}"
+        else:
+            assert span is None or np.allclose(ends, span[0], atol=span[1]), f"{case}: put on {moved}"
+        run = (ends[1] - ends[0]) / np.linalg.norm(ends[1] - ends[0])
+        assert abs(float(run @ moved["out"])) < 1e-6, f"{case}: its out {moved}"
+        assert degrees is None or abs(abs(turned) - degrees[0]) < degrees[1], f"{case}: turned {turned}"
+        assert line is None or np.allclose((ends - line[0]) @ np.array([-line[1][1], line[1][0]]), 0.0, atol=1e-6), \
+            f"{case}: off its face {moved}"
+        assert facing is None or float(np.dot(moved["out"], facing[0])) > facing[1], f"{case}: facing {moved}"
+        assert longest is None or np.linalg.norm(ends[1] - ends[0]) > longest, f"{case}: its span {moved}"
+    lying = a_fitted_world({"Objects/pipe_10": ("cube", (3.0, 0.2, 0.2), (0.0, 0.0, 0.0), -45.0)})
+    for case, on, turns in WALL_TURNS:
+        assert bool(fitting.along_its_wall(lying, f"/{TOY}/Objects/pipe_10", on)) == turns, case
+    for case, cube, corners in OWN_CORNERS:
+        owned = a_fitted_world({"Objects/pipe": ("cube", *cube)})
+        low, high = fitting.world_box(owned, f"/{TOY}/Objects/pipe")
+        found = fitting.oriented_corners(owned, f"/{TOY}/Objects/pipe")
+        assert np.allclose(found, corners if corners is not None else [
+            [x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])]), \
+            f"{case}: {found}"
+    xs, zs = [x for x, _ in TURNED_FLOOR], [z for _, z in TURNED_FLOOR]
+    for case, by_corners, (least, most) in WALL_OFF:
+        off = fitting.off_wall(np.array([min(xs), 0.0, min(zs)]), np.array([max(xs), 0.5, max(zs)]), SLANT,
+                               TURNED_FLOOR if by_corners else None)
+        assert least < off < most, f"{case}: {off} off"
+    for case, planned, built, span, (low, high), faced, faults in WALL_HELD:
+        stood = fitting.stood_face(np.array(planned[0]), np.array(planned[1]), SHELL_WALL, None, built)
+        assert (stood is SHELL_WALL if span is None else np.allclose(stood["span"], span)), f"{case}: stood {stood}"
+        floor = [[x, low[1], z] for x in (low[0], high[0]) for z in (low[2], high[2])]
+        fitted = [{"name": "pipe_1", "how": "wall", **fitting.laid_face(stood, floor)}] if faced else []
+        found = fitting.held_faults({"objects": [{"name": "pipe_1", "on": SHELL_WALL}]},
+                                    {"objects": [{"name": "pipe_1", "low": list(low), "high": list(high)}],
+                                     "fitted": fitted})
+        assert found == faults, f"{case}: {found}"
+    for row, swings in SWINGS:
+        assert fitting.swings(row) == swings, row
+    for on, slanted in SLANTED_WALLS:
+        assert fitting.slanted_wall(on) == slanted, on
     from pxr import Usd
     for case, prims, things, passed, highs, held in PASSED:
         stage = Usd.Stage.CreateInMemory()
@@ -4204,6 +4098,159 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         hung = fitting.on_face(np.array([1.4, 0.0, 4.4]), np.array([2.6, 0.1, 4.8]), on, facade_box, None,
                                [recess])[2][1]
         assert bool(hung) == hangs, f"{case}: hangs {hung}"
+    from score.stages.assembly import face_reach, face_spots
+    panel = trimesh.creation.box(bounds=[(0.0, 0.2125, 0.9), (0.5, 0.5, 1.0)])  # quarters: a desk's back panel
+    wrench = face_spots.met(panel, {"how": "face", "out": [0.0, 1.0]}, (np.zeros(3), np.array([1.0, 0.5, 1.0])),
+                            (0.166, 0.013, 0.05), (0.75, 0.0, 1.025))
+    assert np.allclose(wrench, (0.483, 0.25, 1.025)), f"a wrench slid to a panel 0.2125 m up stands at {wrench}"
+    nudged = Usd.Stage.CreateInMemory()
+    for _, name, low, high, _, _, _ in NUDGED:
+        a_solid_box(nudged, f"/{TOY}/Objects/{name}", low, high)
+    for case, name, low, high, meets, said, (way, least, within) in NUDGED:
+        path = f"/{TOY}/Objects/{name}"
+        if meets == "in":
+            words, face = face_reach.met(nudged, path, NUDGE_FRONT, NUDGE_MODULE, (low[2], False), "laid")
+        elif meets == "onto":
+            words, face = fitting.touching(nudged, path, NUDGE_HOLDER), None
+        else:
+            words, face = fitting.off_faces(nudged, path, [NUDGE_WALL]), None
+        corners = trimesh.bounds.corners(np.array(fitting.world_box(nudged, path)))
+        stands = float((corners @ np.array(way)).min())
+        assert abs(stands - least) < within, f"{case}: stands at {stands}"
+        if said is None:
+            assert (words, face) == (("laid", (low[2], False)) if meets == "in" else ("", None)), f"{case}: {words}"
+        else:
+            assert said in words and (meets != "in" or abs(face[0] - stands) < 1e-6), f"{case}: {words}, {face}"
+    strung = Usd.Stage.CreateInMemory()
+    for name, (low, high) in STRUNG_BUILDINGS.items():
+        a_solid_box(strung, f"/{TOY}/Objects/{name}", low, high)
+    for _, name, low, high, _, _, _, _ in STRUNG:
+        a_solid_box(strung, f"/{TOY}/Objects/{name}", low, high)
+    hung = fitting.fitted(strung, TOY, [*[{"name": name, "row": "building"} for name in STRUNG_BUILDINGS],
+                                        *[{"name": name, "row": "string", "on": {"how": "between", "holder": holders}}
+                                          for _, name, _, _, holders, _, _, _ in STRUNG]],
+                          {*STRUNG_BUILDINGS, *[name for _, name, *_ in STRUNG]})
+    hows = {fit["name"]: fit["how"] for fit in hung}
+    assert hows == {name: how for _, name, _, _, _, how, _, _ in STRUNG}, hung
+    buildings = [fitting.world_box(strung, f"/{TOY}/Objects/{name}") for name in STRUNG_BUILDINGS]
+    for case, name, _, _, holders, _, span, off in STRUNG:
+        if span is None:
+            assert not strung.GetPrimAtPath(f"/{TOY}/Objects/{name}").IsActive(), f"{case}: {hung}"
+            continue
+        found = fitting.world_box(strung, f"/{TOY}/Objects/{name}")
+        assert np.allclose(found, span, atol=1e-6), f"{case}: spans {found}"
+        measured = fitting.off(*found, {"how": "between", "holder": holders}, buildings)
+        assert abs(measured - off) < 1e-6, f"{case}: {measured} off"
+    from pxr import UsdGeom
+    from score.stages.assembly import lamps_along
+    from score.stages.assembly import built_tops, ribs, vault_feet, wall_clear
+    for case, prims, things, made, stands, apart, outlined, lamps, faults, *said in CLEARED + UNDER_ROOFS:
+        stage = a_fitted_world(prims)
+        entries = [{"name": name, "row": kind, **({"on": on} if on else {}), **(more[0] if more else {})}
+                   for name, kind, on, *more in things]
+        outlines = {path: fitting.thin_outline(stage, f"/{TOY}/{path}") is not None for path in outlined}
+        assert outlines == outlined, f"{case}: thin outlines {outlines}"
+        fits = fitting.fitted(stage, TOY, entries, {entry["name"] for entry in entries})
+        found = [(fit["name"], fit["how"], fit["moved"], fit["scale"], fit.get("holder"), fit.get("pitch"))
+                 for fit in fits]
+        assert found == made, f"{case}: fitted {found}"
+        words = {fit["name"]: fit["words"] for fit in fits}
+        assert all(fragment in words[name] for name, fragment in (said[0] if said else {}).items()), \
+            f"{case}: said {words}"
+        assert fitting.hung_by_parts(stage, TOY, entries) == [] and ribs.kept_off(stage, TOY, entries, []) == [], \
+            f"{case}: fitted, still hung by its parts or kept off its ribs"
+        boxes = {path: fitting.world_box(stage, f"/{TOY}/{path}") for path in stands}
+        for path, (low, high, within) in stands.items():
+            wanted = np.array([low, high], dtype=float)
+            read = ~np.isnan(wanted)
+            near, ratio = within if isinstance(within, tuple) else (within, 0.0)
+            assert np.all(np.abs(np.asarray(boxes[path])[read] - wanted[read])
+                          <= np.broadcast_to(np.asarray(near, float), wanted.shape)[read] + ratio * np.abs(
+                              wanted[read])), f"{case}: {path} stands {boxes[path]}"
+        assert fitting.crossing({path.split("/")[-1]: boxes[path] for path in apart}, [],
+                                fitting.slants(stage, TOY)) == 0, f"{case}: crossing {boxes}"
+        for path, (spot, at, within) in lamps.items():
+            now = np.array(UsdGeom.Xformable(stage.GetPrimAtPath(f"/{TOY}/{path}")).GetOrderedXformOps()[0].Get())
+            laid_at = lamps_along.laid_at(stage, f"/{TOY}/{path}", now)
+            assert np.allclose((now, laid_at), (spot, at), atol=within[0], rtol=within[1]), \
+                f"{case}: {path} at {now}, {laid_at}"
+        if faults is not None:
+            laid = {"walls": [{"name": name, "low": list(low), "high": list(high)}
+                              for name, (low, high) in fitting.walls(stage, TOY)],
+                    "objects": [{"name": path.split("/")[-1], "low": list(boxes[path][0]), "high": list(boxes[path][1])}
+                                for path in stands if path.startswith("Objects/")], "fitted": fits,
+                    "roofs": fitting.through_roofs(stage, TOY, [path.split("/")[-1] for path in stands
+                                                                if path.startswith("Objects/")])}
+            judged = fitting.held_faults({"objects": entries}, laid)
+            assert judged == faults, f"{case}: {judged}"
+    for case, objects, laid, faults in HELD_FAULTS:
+        found = fitting.held_faults({"objects": objects}, laid)
+        assert found == faults, f"{case}: {found}"
+    for row, climbs in CLIMBS:
+        assert fitting.climbs({"row": row}) == climbs, row
+    pieces = [(name, (np.array(low), np.array(high))) for name, low, high, _ in STATICS]
+    assert [name for name, _ in fitting.statics(pieces)] == [name for name, *_, static in STATICS if static]
+    slab = a_fitted_world({"Structure/wall_1": ("hull", LAB_SLAB)})
+    crate = fitting.box_corners((np.array([0.55, 0.0, 0.0]), np.array([0.7, 1.0, 0.15])))
+    wall_box = (np.min(LAB_SLAB, axis=0), np.max(LAB_SLAB, axis=0))
+    for case, own, walls in INSIDE:
+        shapes = {"wall_1": fitting.wall_corners(slab, f"/{TOY}/Structure/wall_1")} if own else None
+        found = fitting.inside_of(crate.min(axis=0), crate.max(axis=0), [("wall_1", wall_box)], crate, shapes)
+        assert [name for name, _ in found] == walls, f"{case}: {found}"
+    for case, low, high, wall, moved in SHALLOW:
+        out = fitting.shallow_out(np.array(low), np.array(high), tuple(np.array(end) for end in wall))
+        assert (out is None if moved is None else np.allclose(out, moved)), f"{case}: moved {out}"
+    for wall, straight in STRAIGHT:
+        assert bool(fitting.straight(tuple(np.array(end) for end in wall))) == straight, wall
+    roomed = a_fitted_world(ROOM_PIECES)
+    for case, low, high, into, away in ROOMED:
+        shift = fitting.into_its_room(roomed, TOY, np.array(low), np.array(high))
+        clear = fitting.clear_of_others(roomed, TOY, "pipe_9", np.array(low) + shift, np.array(high) + shift)
+        assert np.allclose(shift, into) and np.allclose(clear, away), f"{case}: {shift}, {clear}"
+    for case, cranes, hung, gone, kept in PARTED:
+        after, left_out = fitting.parted_boxes({name: (np.array([0.0, 3.0, low]), np.array([10.0, 5.0, high]))
+                                                for name, (low, high) in cranes.items()}, [], ROOM_SIDES,
+                                               [-0.5, -0.5, 10.5, 10.5], *(((), hung) if hung else ()))
+        assert left_out == gone and sorted(after) == sorted(kept) and all(
+            np.allclose((after[name][0][2], after[name][1][2]), spans) for name, spans in kept.items()), \
+            f"{case}: {after}, {left_out}"
+    for case, pipes, valves, stacked, down, foot in STACKED:
+        stage = a_fitted_world({**pipes, **{f"Objects/{name}": ("box", *VALVES[name][1:]) for name in valves}})
+        topped = [{"name": name, "row": "valve", "on": {"how": "top", "holder": [VALVES[name][0]]}} for name in valves]
+        fits = fitting.stacked_on_runs(stage, TOY, topped, [{"name": "pipe_1"}, {"name": "pipe_3"}])
+        lowered = built_tops.stacked_down(stage, TOY, fits)
+        assert [(fit["name"], fit["moved"], fit["holder"]) for fit in fits] == stacked and [
+            (fit["name"], fit["top at"]) for fit in lowered] == down, f"{case}: {fits}, {lowered}"
+        assert np.isclose(fitting.world_box(stage, f"/{TOY}/Objects/valve_1")[0][1], foot), case
+        laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(
+            stage, f"/{TOY}/Objects/{name}")))} for name in ("pipe_3", "pipe_1", "valve_1")], "fitted": fits + lowered}
+        judged = fitting.held_faults({"objects": topped[:1]}, laid)
+        assert not judged and fitting.held_faults({"objects": topped[:1]}, {**laid, "fitted": []}), f"{case}: {judged}"
+    for case, prims, roofs, through in THROUGH:
+        stage = a_fitted_world(prims)
+        found = fitting.through_roofs(stage, TOY, sorted(path.split("/")[-1] for path in prims
+                                                         if path.startswith("Objects/")))
+        assert [name for name, _ in fitting.roofs(stage, TOY)] == roofs and [
+            (one["name"], one["metres"]) for one in found] == through, f"{case}: {found}"
+    for case, prims, names, laid_fits, after in MOVED_IN:
+        stage = a_fitted_world(prims)
+        walled = [{"name": name, "row": name[:-2], "on": GABLE_WALL} for name in names]
+        fits = [dict(fit) for fit in laid_fits]
+        fitting.moved_in(stage, TOY, walled, fits)
+        assert [(fit["name"], fit["moved"]) for fit in fits] == [(name, moved) for name, moved, _ in after] and all(
+            np.allclose(fit["span"], span) for fit, (_, _, span) in zip(fits, after)), f"{case}: {fits}"
+        held = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(
+            stage, f"/{TOY}/Objects/{name}")))} for name in names], "fitted": fits}
+        judged = fitting.held_faults({"objects": walled}, held)
+        assert judged == [], f"{case}: {judged}"
+    face = {"how": "wall", "span": [[-1.6, 0.0], [-1.6, 10.0]], "out": [1.0, 0.0]}
+    for case, prims, built_holes, holes in WALL_HOLES:
+        stage = a_fitted_world(prims)
+        everything = fitting.built_walls(stage, TOY)
+        found = vault_feet.wall_holes(everything, wall_clear.face_walls(stage, TOY), face, (1.0, 1.5))
+        assert len(fitting.wall_holes(everything, face, (1.0, 1.5))) == built_holes and len(found) == len(holes) \
+            and all(np.isclose(hole[:, 2].min(), low) and np.isclose(hole[:, 2].max(), high)
+                    for hole, (low, high) in zip(found, holes)), f"{case}: {found}"
     for case in LAYERED:
         name = case["name"]
         output, inputs = layered(tmp_path / "layered", case)
@@ -4313,7 +4360,21 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         assert hung is not None and hung[:2] == (axis, sign) and abs(hung[2] - moved) < 1e-9, f"{name}: {hung}"
     import picks
     from pxr import Sdf
+    import ground
+    from pxr import UsdGeom
     baked_stage, inventory, hashes = a_baked_place(tmp_path / "baked")
+    kit_file = tmp_path / "baked/kit.json"
+    kit = json.loads(kit_file.read_text())
+    kit["pieces"][1]["at"] = [5.0, 0.0, 2.0]
+    kit_file.write_text(json.dumps(kit))
+    with monkeypatch.context() as patched:  # laid flat, as export.py --flat lays it
+        patched.setattr(ground, "place_ground", lambda place, seat: None)
+        relayed = [assembly.record.relay_kit({"kit": kit_file}, baked_stage.parent, PLACE) for _ in range(2)]
+    assert relayed == ["; kit: 1 pieces laid at their kit spot (crate_2)", ""], relayed
+    relaid_stage = opened(baked_stage)
+    for name, at in (("crate_1", (0.0, 0.0, 0.0)), ("crate_2", (5.0, 0.0, 2.0))):
+        relaid = UsdGeom.Xformable(relaid_stage.GetPrimAtPath(f"/{PLACE}/Objects/{name}"))
+        assert tuple(relaid.ComputeLocalToWorldTransform(0).ExtractTranslation()) == at, name
     base = baked_stage.parent / assembly.BASE_LAYER
     assembly.lay_fixtures_baked(base, "rocket")
     assembly.stamp_baked_hash(base, "box", tmp_path / "baked/models/plank.gltf")
