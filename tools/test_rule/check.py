@@ -119,7 +119,7 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/tuning/_paired/test_a_step_counts_only_past_its_noise_floor_on_a_fixed_case_set.py": 6,
     "score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py": 17,
     "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py": 106,
-    "score/stages/test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.py": 41,
+    "score/stages/test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.py": 35,
     "tools/blender/inside/test_ink_at_edges_and_each_prim_its_own.py": 5,
     "tools/characters/maker/test_made_as_asked_and_bound_to_its_limbs.py": 59,
     "tools/characters/people/test_body_pieces_hold_together.py": 16,
