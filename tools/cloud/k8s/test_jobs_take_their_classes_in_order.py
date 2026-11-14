@@ -308,21 +308,27 @@ def test_jobs_take_their_classes_in_order(given, pools, taints, late_classes, na
         {"name": pull["metadata"]["name"]}] and pull["type"] == "kubernetes.io/dockerconfigjson"
     assert json.loads(base64.b64decode(pull["data"][".dockerconfigjson"]))["auths"]["registry.example"][
         "password"] == "PW"
-    if cards:
-        pairs = dict(gpu_operator.images(OPERATOR, "ubuntu24.04"))
-        assert pairs["nvcr.io/nvidia/driver:580.126.20-ubuntu24.04"] == "driver:580.126.20-ubuntu24.04"
-        assert pairs["nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0"] == "k8s-driver-manager:v0.11.0"
-        copy = gpu_operator.copy_job(list(pairs.items()), REGISTRY["endpoint"])["spec"]["template"]["spec"]
-        assert f"{REGISTRY['endpoint']}/driver:580.126.20-ubuntu24.04" in copy["containers"][0]["command"][2]
-        assert copy["volumes"][0]["secret"]["secretName"] == pull["metadata"]["name"]
-        patch = gpu_operator.policy_patch(REGISTRY["endpoint"], pull["metadata"]["name"])["spec"]
-        assert patch["driver"]["repository"] == patch["driver"]["manager"]["repository"] == REGISTRY["endpoint"]
-        assert patch["validator"]["imagePullSecrets"] == [pull["metadata"]["name"]]
-        assert "imagePullSecrets" not in patch["driver"]["manager"]
-        assert not gpu_operator.mirrored(OPERATOR, REGISTRY["endpoint"])
-        policy = MirroredPolicy()
-        assert gpu_operator.mirror(policy, REGISTRY)
-        assert policy.calls == [("get", "clusterpolicies.nvidia.com")]  # nothing changed on a live cluster
+    if cards:  # the cluster's GPU operator, mirrored once into the registry this Job pulls from, then left alone
+        registry = dict(REGISTRY, endpoint=container["image"].rsplit("/", 1)[0])
+        secret_name = pod["imagePullSecrets"][0]["name"]
+        operator = OperatorKubectl()
+        assert gpu_operator.mirror(operator, registry)
+        secret, copy = operator.applied  # not mirrored yet: the pull Secret, then the copy into the Job's registry
+        assert secret["metadata"]["name"] == secret_name and secret["data"] == pull["data"]
+        copy = copy["spec"]["template"]["spec"]
+        assert copy["volumes"][0]["secret"]["secretName"] == secret_name
+        script = copy["containers"][0]["command"][2]
+        assert (f"nvcr.io/nvidia/driver:580.126.20-ubuntu24.04 {registry['endpoint']}/driver:580.126.20-ubuntu24.04"
+                in script)
+        assert (f"nvcr.io/nvidia/cloud-native/k8s-driver-manager:v0.11.0 "
+                f"{registry['endpoint']}/k8s-driver-manager:v0.11.0" in script)
+        driver = operator.spec["driver"]  # the ClusterPolicy as the patch left it
+        assert driver["repository"] == driver["manager"]["repository"] == registry["endpoint"]
+        assert operator.spec["validator"]["imagePullSecrets"] == [secret_name]
+        assert "imagePullSecrets" not in driver["manager"]  # the manager has no pull secret of its own
+        operator.calls.clear()
+        assert gpu_operator.mirror(operator, registry)
+        assert operator.calls == [("get", "clusterpolicies.nvidia.com")]  # nothing changed on a mirrored cluster
 
     condition, ran, state = ends
     node = f"node-{order[-1]}" if ran else None  # stock came back on its last class
@@ -472,17 +478,39 @@ OPERATOR = {"driver": {"repository": "nvcr.io/nvidia", "image": "driver", "versi
                              "version": "4.5.3-4.8.2-distroless"}}
 
 
-class MirroredPolicy:
-    """kubectl whose cluster's ClusterPolicy already pulls from the registry."""
+class OperatorKubectl:
+    """kubectl of a cluster whose GPU operator still pulls from nvcr.io, on Ubuntu 24.04 nodes: what is applied is
+    recorded, the copy Job completes at once and a merge patch changes the ClusterPolicy."""
 
     def __init__(self):
-        self.calls = []
+        self.spec, self.calls, self.applied = json.loads(json.dumps(OPERATOR)), [], []
 
     def json(self, *arguments):
         self.calls.append(arguments)
-        spec = {key: dict(value, repository=REGISTRY["endpoint"]) for key, value in OPERATOR.items()}
-        spec["driver"]["manager"] = dict(OPERATOR["driver"]["manager"], repository=REGISTRY["endpoint"])
-        return {"items": [{"metadata": {"name": "cluster-policy"}, "spec": spec}]}
+        if arguments[1] == "nodes":
+            return {"items": [{"metadata": {"labels": {"feature.node.kubernetes.io/system-os_release.ID": "ubuntu",
+                                                       "feature.node.kubernetes.io/system-os_release.VERSION_ID":
+                                                           "24.04"}}}]}
+        if arguments[1] == "job":
+            return {"status": {"conditions": [{"type": "Complete", "status": "True"}]}}
+        return {"items": [{"metadata": {"name": "cluster-policy"}, "spec": self.spec}]}
+
+    def apply(self, objects):
+        self.applied += objects
+
+    def run(self, *arguments):
+        self.calls.append(arguments)
+        if arguments[0] == "patch":
+            merge(self.spec, json.loads(arguments[-1])["spec"])
+
+
+def merge(target, patch):
+    """A JSON merge patch applied to `target` in place."""
+    for key, value in patch.items():
+        if isinstance(value, dict):
+            merge(target.setdefault(key, {}), value)
+        else:
+            target[key] = value
 
 
 def time_text(seconds):
