@@ -45,30 +45,35 @@ Breaks that turn it red (each applied once and seen red, then reverted):
   laptop).
 - `measure.seat_spots`: the `- BODY_RADIUS` dropped (spots to the seat's very ends)  -> the stood test (85 spots
   across the bench, not 13 along it).
-- `cast.overlaps`: `< measure.KNEE` read as `< 100`  -> the overlap test (bodies on two levels overlap).
+- `cast.overlaps`: `< measure.KNEE` read as `< 100`  -> the apart test (bodies on two levels overlap).
 - `cast.off_ground`: `> STAND_SLACK` read as `> 1.0`  -> the stood test (a body 0.10 m off judged standing).
-- `cast.short_of`: the packed `not crowd["copies"]` branch dropped  -> the packed crowd test.
-- `driven.bodiless`: `.startswith(NO_BODY)` read as `False` (a person with no body passes)  -> the no dressed body test.
-- `cast.made_row`: `row if row in inputs else None` read as `row`  -> the made test (a look with no dress row made).
-- `spread.on_ground`: `not grounds or` read as `True or`  -> the grounds test (spots between the two grounds).
-- `spread.far_enough`: `< FAR_SHARE` read as `<= 1.0`  -> the views test (the copy before the door kept).
-- `cast.plan_views`: the `unaimed` refusal dropped  -> the unaimed-spot test.
-- `cast.on_levels`: `at[1] + min(heights)` read as `at[1]`  -> the levels test.
-- `cast.off_flight`: the spot's height left out (`at - foot` over x and z only)  -> the levels test (the man, on his
+- `cast.short_of`: the packed `not crowd["copies"]` branch dropped  -> the crowd test (the packed crowd none of whose spots fit).
+- `driven.bodiless`: `.startswith(NO_BODY)` read as `False` (a person with no body passes)  -> the dressed body test.
+- `cast.made_row`: `row if row in inputs else None` read as `row`  -> the dressed body test (a look with no dress row made).
+- `spread.on_ground`: `not grounds or` read as `True or`  -> the crowd test (spots between the two grounds).
+- `spread.far_enough`: `< FAR_SHARE` read as `<= 1.0`  -> the crowd test (the copy before the door kept).
+- `cast.plan_views`: the `unaimed` refusal dropped  -> the crowd test (the spot aimed off its items).
+- `cast.on_levels`: `at[1] + min(heights)` read as `at[1]`  -> the stood test.
+- `cast.off_flight`: the spot's height left out (`at - foot` over x and z only)  -> the stood test (the man, on his
   3 m landing, goes onto the flight under him, nearer across the floor).
-- `cast.stairs_of`: `"down" if "down" in words` read as `"up"`  -> the levels test.
-- `cast.on_stairs`: `(lowest, highest) if ... == "up"` read as `(highest, lowest)`  -> the levels test.
-- `cast.off_the_plan`: `not any(...)` read as `False`  -> the levels test (the spot off the plan stood).
+- `cast.stairs_of`: `"down" if "down" in words` read as `"up"`  -> the stood test.
+- `cast.on_stairs`: `(lowest, highest) if ... == "up"` read as `(highest, lowest)`  -> the stood test.
+- `cast.off_the_plan`: `not any(...)` read as `False`  -> the stood test (the spot off the plan stood).
 - `cast.on_made_ground`: `ground > at[1]` read as `False`  -> the stood test (the one under the rise found
   nothing under it).
-- `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the layer test (it reaches for
+- `layer.make`: `if row is None or row not in inputs:` read as `if row is None:`  -> the dressed body test (it reaches for
   a body that is not there instead of naming the gap).
 - `driven.size_over_sim`: `/ float(body["size"]["of the rig"])` dropped  -> the sim body test (the 1.1 body's sim
   hips raised 10% again: feet off).
 - `driven.write_driven`: Hips' simulated translation not written  -> the sim body test (the clip's path kept).
 - `driven.lay_sim_body`: the Turned transform not set  -> the sim body test (the sim body mirrored off the skin).
-- `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the feet-leave test.
-- tools/characters/cast_check.py `repeated_people`: `len(names) > 1` read as `> 9`  -> the variants test.
+- `driven.judge_on_its_sim_body`: `> FEET_WITHIN` read as `> 1.0`  -> the sim body test (the skeleton turned back to its clip's hips).
+- tools/characters/cast_check.py `repeated_people`: `len(names) > 1` read as `> 9`  -> the apart test.
+- tools/characters/cast.py `kit_mix`: `if not builds or name in builds` dropped, or `(kit or {}).get("plain") or`
+  dropped  -> the apart test (a kit group wears a build or outfit off its kit).
+- tools/characters/cast.py `look_of`: the head and hair parts left out  -> the apart test (two kit draws of one build
+  in other hair the same person).
+- `measure.KNEE` changed off cast_check's  -> the apart test (the copied body sizes disagree).
 - `measure.seat_top`: `SEAT_LOW <=` dropped (the crate's floor face a seat)  -> the stood test (the second
   seated person seated on the crate).
 - `cast.on_support`: `taken.add(name)` dropped  -> the stood test (two people on one stool).
@@ -80,12 +85,12 @@ Breaks that turn it red (each applied once and seen red, then reverted):
   the ground); `people_rows.cast_record`: `"anchor"` dropped  -> the stood test (nobody supported).
 - `cast.unseated`: `doing="standing"` dropped  -> the stood test (one with no seat stays seated, off members).
 - `cast.judge_standing`: the unseated findings dropped  -> the stood test (stood for want of a seat unnamed).
-- `cast.on_stairs`: `runs[flight["name"]] != (0, ...)` dropped from the flight's order  -> the levels test (the man
+- `cast.on_stairs`: `runs[flight["name"]] != (0, ...)` dropped from the flight's order  -> the stood test (the man
   under the deck).
-- `cast.on_stairs`: `runs[flight["name"]] or` dropped (the whole flight walked, its clear run unread)  -> the levels
+- `cast.on_stairs`: `runs[flight["name"]] or` dropped (the whole flight walked, its clear run unread)  -> the stood
   test (the woman on the tread under the slab).
 - `stages.GAP_GATES`: `"characters-layer": ("bodies",)` dropped, or `driven.judge_bodies`'s finding not starting
-  "<name>: "  -> the no-dressed-body test (a gap naming both people no longer moves the fail).
+  "<name>: "  -> the dressed body test (a gap naming every one with no body no longer moves the fail).
 - `cast.planned`: `"spots": spots` dropped (the plan's spots not handed to the cast record)  -> the stood test
   (the climber at the plan's middle, off its spot (0, 0, -3)).
 """
@@ -156,15 +161,15 @@ def seat_place(folder):
 
 def made_place(folder):
     """Place `camp` with a base.usda of no solid of its own and the terrain row's made ground
-    (world/places/camp.usdc): a rise 2 m up over x -5 to 0 and a hollow 1 m down over x 0 to 5 (wreck's made ground,
-    an earth seed whose plan lays no shell). Returns the terrain row's inputs."""
+    (world/places/camp.usdc): a rise 2 m up over x -5 to 0 and a hollow 1 m down over x 0 to 5, both over z 6 to 14,
+    past the seats (wreck's made ground, an earth seed whose plan lays no shell). Returns the terrain row's inputs."""
     folder.mkdir()
     base = Usd.Stage.CreateNew(str(folder / "base.usda"))
     UsdGeom.Xform.Define(base, "/camp")
     base.Save()
     ground = Usd.Stage.CreateNew(str(folder / "world/places/camp.usdc"))
-    mesh(ground, "/camp/Ground/rise", [(-5, 2, -5), (0, 2, -5), (0, 2, 5), (-5, 2, 5)], [(0, 1, 2, 3)])
-    mesh(ground, "/camp/Ground/hollow", [(0, -1, -5), (5, -1, -5), (5, -1, 5), (0, -1, 5)], [(0, 1, 2, 3)])
+    mesh(ground, "/camp/Ground/rise", [(-5, 2, 6), (0, 2, 6), (0, 2, 14), (-5, 2, 14)], [(0, 1, 2, 3)])
+    mesh(ground, "/camp/Ground/hollow", [(0, -1, 6), (5, -1, 6), (5, -1, 14), (0, -1, 14)], [(0, 1, 2, 3)])
     ground.Save()
     return {"terrain": str(folder)}
 
@@ -177,7 +182,7 @@ NOTHING = {"gap": None, "on": None, "water": False}
 MEASURED = [
     ("toy", [[0.5, 0.0, 0.5], [3.0, 0.0, 3.0]], [None, FLOOR], [["Objects/crate"], []]),
     ("bare", [[0.0, 0.0, 0.0], [1.0, 0.0, 1.0]], [NOTHING, NOTHING], [[], []]),
-    ("made", [[-2.0, 2.0, 0.0]], [{"gap": 0.0, "on": "Ground/rise", "water": False}], [[]]),
+    ("made", [[-2.0, 2.0, 10.0]], [{"gap": 0.0, "on": "Ground/rise", "water": False}], [[]]),
 ]
 # What is wrong with where a body's feet are: (the body's measure, the finding, whether the finding is the whole of it).
 OFF_GROUND = [
@@ -190,14 +195,73 @@ OFF_GROUND = [
 ]
 
 
+# The plan the camp's people are dealt from (#76: never a copy in rows.json that drifts from it): 20 m square cornered
+# at (-5, -5) in the place's frame, its middle (5, 0, 5), its untagged spot (5, 2) at (0, 0, -3) for the seat rows, a
+# 3 m landing over x 10 to 12, z -5 to -3, a flight up from it (3 to 4.5 m) and one down from 1.5 m to the floor drawn
+# from its high end (the stairwell's, Batch 1 and 2026-11-04), and each other row's own spot: the man on the landing
+# by his flight, the woman and one on no stairs on the floor, one on the landing, one under the made ground's rise
+# (-2, 0, 10), one over its hollow (2, 0, 10), and one off the plan (16, 0, -4) (the hangar's workers, 2026-11-04).
+PLAN = {"w": 20.0, "d": 20.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [-5.0, 0.0, -5.0]}},
+        "levels": [{"height": 3.0, "points": [[15.0, 0.0], [17.0, 0.0], [17.0, 2.0], [15.0, 2.0]]}],
+        "stairs": [{"kind": "stair", "points": [[17.0, 0.0], [18.0, 0.0], [18.0, 2.0], [17.0, 2.0]], "from": 3.0,
+                    "to": 4.5, "angle": 270.0, "steps": 3},
+                   {"kind": "stair", "points": [[16.6, 2.0], [17.6, 2.0], [17.6, 4.0], [16.6, 4.0]], "from": 1.5,
+                    "to": 0.0, "angle": 90.0, "steps": 3}],
+        "people": [[5.0, 2.0, 0], [16.9, 1.95, 0, "man"], [18.0, 3.0, 0, "woman"], [18.0, 3.0, 0, "still"],
+                   [16.0, 1.0, 0, "walkway"], [3.0, 15.0, 0, "hill"], [7.0, 15.0, 0, "dip"], [21.0, 1.0, 0, "off"]]}
+SITTER = {"name": "astronaut", "where": "sitting at dining table", "anchor": "on:stool_1", "looks": ["astro-made"] * 2}
+STANDER = {"name": "person in uniform", "where": "by the console", "looks": ["person-made"]}
+DESIGN = {"places": {"camp": {"concept": "a" * 64, "rows": {
+    "sitter": SITTER, "unlaid": dict(SITTER, anchor="on:chair", looks=["astro-made"]),
+    "climber": dict(SITTER, anchor="on:crate", where="standing", looks=["astro-made"]),
+    "man": {"name": "man walking up stairs", "where": "middle flight of stairs", "looks": ["man-made"]},
+    "woman": {"name": "woman walking down stairs", "where": "bottom flight of stairs", "looks": ["woman-made"]},
+    "still": STANDER, "walkway": STANDER, "hill": STANDER, "dip": STANDER, "off": STANDER}}}}
+UP_TOP, DOWN_TOP = [12.5, 4.5, -4.6667], [12.1, 1.5, -2.6667]  # the last tread up the high flight, the low one's top
+DOWN_FOOT = [12.1, 0.5, -1.3333]  # the low flight's lowest tread
+# The stairs the camp's solids leave clear: (id, the solids over them, the man's flight, spot and last tread, the
+# woman's). A deck 1.5 m over the man's flight (the stairwell's 3 m deck over its flight from the 1.5 m landing,
+# 2026-11-10): he walks up the nearest flight he walks clear, the low one. A slab over the low flight's top tread too
+# (its stacked flights, no flight clear end to end, 2026-11-10): the woman walks its clear treads, the man the nearest
+# flight whole, for the clear gate to name.
+DECK = ("Shell/deck_2", [1.2, 0.2, 2.0], [12.5, 5.1, -4.0])
+SLAB = ("Shell/deck_4", [1.2, 0.2, 0.5], [12.1, 3.1, -2.67])
+STAIR_WORLDS = [
+    ("clear", [], ("stair_1", [12.5, 3.5, -3.3333], UP_TOP), ("stair_2", DOWN_TOP, DOWN_FOOT)),
+    ("under a deck", [DECK], ("stair_2", DOWN_FOOT, DOWN_TOP), ("stair_2", DOWN_TOP, DOWN_FOOT)),
+    ("under a deck and a slab", [DECK, SLAB], ("stair_1", [12.5, 3.5, -3.3333], UP_TOP),
+     ("stair_2", [12.1, 1.0, -2.0], DOWN_FOOT)),
+]
+
+
+def stood_cast(found, height):
+    """The camp's people as cast.make stands them before they are spread apart (its bake left out): dealt their plan
+    spots, each its stairs read off its row, raised to its level and onto the made ground (`height`), the ones off the
+    plan refused, then each on its stairs and its support among `found`. Returns (record, refused)."""
+    from score.stages import people_rows
+    record = cast.on_made_ground(cast.on_levels(cast.with_stairs(people_rows.cast_record(
+        "camp", cast.planned(DESIGN, "camp", PLAN)), "camp", DESIGN), PLAN), height)
+    refused = cast.off_the_plan(record, PLAN)
+    record = dict(record, people=[person for person in record["people"] if person["name"] not in refused])
+    return cast.on_support(cast.on_stairs(record, PLAN, found), found), refused
+
+
 def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_out(tmp_path):
     """Every spot is measured on its place's solids (its made ground too; a base with none stands nobody, and runs
-    into nothing), and each body's feet judged within the slack, never in water, a seated one on its seat. A seated
-    person (its design anchors it on a seat) sits on the nearest seat of its anchor's row not taken,
-    its feet on the seat's floor under its middle, measured from its seat's top and clear of all but its own seat; one
-    whose row lays no seat it sits on is named; a standing one is raised onto the top of its anchor under it, and one
-    under a rise of the made ground onto it (wreck's astronaut_3, round 33, 2026-10-30: its plan spot at 0 lay under a
-    3.9 m rise, the knee's ray down found nothing and it was left out); one over a hollow stays."""
+    into nothing), and each body's feet judged within the slack, never in water, a seated one on its seat. Each person
+    stands at its row's plan spot facing the plan's middle. A seated person (its design anchors it on a seat) sits on
+    the nearest seat of its anchor's row not taken, its feet on the seat's floor under its middle, measured from its
+    seat's top and clear of all but its own seat; one whose row lays no seat it sits on is named; a standing one is
+    raised onto the top of its anchor under it, and one under a rise of the made ground onto it (wreck's astronaut_3,
+    round 33, 2026-10-30: its plan spot at 0 lay under a 3.9 m rise, the knee's ray down found nothing and it was left
+    out); one over a hollow stays. One on a raised level stands at its height (the stairwell's walkway people on its
+    3 m landing, Batch 1, 2026-10-25); one outside every level stays down. One its row's words stand on stairs (up,
+    down, or none) goes onto the flight nearest its spot over its height that it walks clear (the stairwell's man,
+    on its 3 m landing, onto the flight up from it, not the one nearer across the floor under him; the woman, on the
+    floor, onto the one from 0 to 1.5 m, its foot its low end though the plan draws it from 1.5 m, 2026-11-04), on its
+    first tread the way it walks, facing its last; nobody else moves. One outside the plan's outline and off every
+    level is refused by name."""
+    from score.stages import people_rows
     seats = seat_place(tmp_path)
     found = toy_place(tmp_path)
     inputs = made_place(tmp_path / "made")
@@ -216,22 +280,35 @@ def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_o
         assert (judged == finding) if whole else (finding in judged), (body, judged)
     assert measure.seat_top(seats["Objects/stool_1_1"]) == ([3.2, 0.0, 3.2], 0.45)
     assert measure.seat_top(seats["Objects/crate_1"]) is None  # its top 1 m up: no seat
-    from score.stages import people_rows
-    row = {"name": "astronaut", "where": "sitting at dining table", "anchor": "on:stool_1", "looks": ["astro-made"] * 2}
-    assert people_rows.doing_of(row) == "seated" and people_rows.doing_of(dict(row, anchor="on:floor")) == "sitting"
-    # where each stands is the plan's (its people spot (5, 2) of a 10 m plan cornered at (-5, -5): (0, 0, -3)),
-    # never a copy in rows.json that drifts from it (#76: airlock's astronaut outside its outline, 2026-11-08)
-    plan = {"w": 10.0, "d": 10.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [-5.0, 0.0, -5.0]}},
-            "people": [[5.0, 2.0, 0]]}
-    design = {"places": {"camp": {"concept": "a" * 64,
-                                  "rows": {"sitter": row, "unlaid": dict(row, anchor="on:chair", looks=["astro-made"]),
-                                           "climber": dict(row, anchor="on:crate", where="standing",
-                                                           looks=["astro-made"])}}}}
-    assert "spots" not in design["places"]["camp"] and cast.planned(design, "wreck", plan) == design
-    planned = people_rows.cast_record("camp", cast.planned(design, "camp", plan))
-    assert {tuple(person["facing_to"]) for person in planned["people"]} == {(0.0, 0.0, 0.0)}  # the plan's middle
-    record = cast.on_support(planned, seats)
+    doings = people_rows.doing_of(SITTER), people_rows.doing_of(dict(SITTER, anchor="on:floor"))
+    assert doings == ("seated", "sitting"), doings
+    assert "spots" not in DESIGN["places"]["camp"] and cast.planned(DESIGN, "wreck", PLAN) == DESIGN
+    height = writer.ground_under(inputs, "camp")
+    for name, over, man_on, woman_on in STAIR_WORLDS:
+        solids = dict(seats, **{solid: trimesh.creation.box(extents=size, transform=trimesh.transformations
+                                                             .translation_matrix(middle)).triangles
+                                for solid, size, middle in over})
+        record, refused = stood_cast(solids, height)
+        people = {person["name"]: person for person in record["people"]}
+        for person, (flight, at, last), way in ((people["man"], man_on, "up"), (people["woman"], woman_on, "down")):
+            walk = person["stairs"]
+            assert (walk["way"], walk["flight"], person["at"], walk["to"], person["facing_to"]) == (
+                way, flight, at, last, last), (name, person)
+            assert (walk["rise"], walk["run"]) == (0.5, 0.6667), (name, walk)  # each flight 1.5 m up 2 m in 3
+        assert cast.climbers_of(record) == {"man", "woman"}, name
+        assert list(refused) == ["off"], (name, refused)
+    assert cast.short_of({"left_out": [], "refused": refused, "crowd": None}) == [f"off refused: {refused['off']}"]
+    record, _ = stood_cast(seats, height)
     people = {person["name"]: person for person in record["people"]}
+    assert {tuple(person["facing_to"]) for person in record["people"]
+            if not person["stairs"]} == {(5.0, 0.0, 5.0)}  # the plan's middle
+    assert (people["walkway"]["at"], people["still"]["at"], people["still"]["stairs"]) == (
+        [11.0, 3.0, -4.0], [13.0, 0.0, -2.0], None), people
+    # under the rise it stands on it; over the hollow it stays, for spread.grounded to lower
+    assert (people["hill"]["at"], people["dip"]["at"]) == ([-2.0, 2.0, 10.0], [2.0, 0.0, 10.0]), people
+    assert spread.grounded([[-2.0, 0.0, 10.0]], made) == [None]
+    assert spread.grounded([people["hill"]["at"], people["dip"]["at"]], made) == [[-2.0, 2.0, 10.0], [2.0, -1.0, 10.0]]
+    assert cast.on_made_ground(record, None) == record
     assert (people["sitter_1"]["at"], people["sitter_1"]["seat"], people["sitter_1"]["seat_on"]) == (
         [3.2, 0.0, 3.2], 0.45, "Objects/stool_1_1"), people["sitter_1"]
     assert people["sitter_2"]["seat"] is None and people["unlaid"]["seat"] is None  # the stool taken; no chair laid
@@ -291,12 +368,6 @@ def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_o
     wide = dict(found, **{"Objects/beds": trimesh.creation.box(
         extents=[6.0, 0.5, 6.0], transform=trimesh.transformations.translation_matrix([0.5, 0.25, 0.5])).triangles})
     assert spread.stand_every([inside], {"worker_1"}, [], 0, wide)[0] == []
-    record = {"people": [{"name": "up", "at": [-2.0, 0.0, 0.0]}, {"name": "down", "at": [2.0, 0.0, 0.0]}]}
-    assert spread.grounded([person["at"] for person in record["people"]], made)[0] is None
-    raised = cast.on_made_ground(record, writer.ground_under(inputs, "camp"))["people"]
-    assert [person["at"] for person in raised] == [[-2.0, 2.0, 0.0], [2.0, 0.0, 0.0]]
-    assert spread.grounded([person["at"] for person in raised], made) == [[-2.0, 2.0, 0.0], [2.0, -1.0, 0.0]]
-    assert cast.on_made_ground(record, None) == record
 
 
 def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_level(tmp_path, monkeypatch):
@@ -393,241 +464,241 @@ def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_l
     assert placed["people"][0]["at"] == pytest.approx([0.31, 0.0, 0.0], abs=0.01)  # the record's spot the edge's
 
 
-def test_standing_bodies_nearer_than_two_widths_on_one_level_overlap():
-    singles = [dict(person, doing="standing") for person in (
-        {"name": "a", "at": [0.0, 0.0, 0.0]}, {"name": "b", "at": [0.3, 0.0, 0.0]},
-        {"name": "c", "at": [3.0, 0.0, 0.0]}, {"name": "d", "at": [3.1, 3.0, 0.0]})]  # d a landing over c
-    assert cast.overlaps(singles, None) == [["a", "b"]]
-
-
-def test_a_designs_crowd_without_ground_is_named_short():
-    unread = {"look": "kit_m_avg/coat-grey", "asked": None, "grounds": None, "copies": []}
-    assert "not read from the plan yet" in cast.short_of({"left_out": [], "crowd": unread})[0]
-    assert cast.short_of({"left_out": [], "crowd": dict(unread, grounds=[])}) == [
-        "the crowd's row makes no item on the plan, so it has no ground (kit_m_avg/coat-grey)"]
-
-
-def test_a_crowd_asks_its_count_else_its_ground_packed_and_is_short_only_when_none_fit():
-    """SAM 3 counted: that many; one mass it could not part: every lattice spot of its ground, then the copies that
-    fit (a lattice spot on a stall is no copy short; none fitting is); no ground: nothing."""
-    assert cast.asked_of({"count": 40, "spread": [0, 0, 5, 5]}, [{}] * 90) == 40
-    assert cast.asked_of({"count": None, "spread": [0, 0, 5, 5]}, [{}] * 90) == 90
-    assert cast.asked_of({"count": 3, "spread": None}, []) is None
-    packed = {"look": "crowd/made", "asked": 90, "packed": True, "grounds": [[0, 0, 5, 5]], "copies": [{}] * 90}
-    stood = cast.stood_crowd(packed, [{}] * 70)
-    assert (stood["asked"], stood["spots"], len(stood["copies"])) == (70, 90, 70)
-    assert cast.short_of({"left_out": [], "crowd": stood}) == []
-    assert cast.short_of({"left_out": [], "crowd": cast.stood_crowd(packed, [])}) == [
-        "none of the crowd's 90 spots on its ground fit (crowd/made)"]
-    counted = cast.stood_crowd(dict(packed, asked=40, packed=False), [{}] * 30)
-    assert cast.short_of({"left_out": [], "crowd": counted}) == ["30 of the crowd's 40 fit"]
-
-
 CROWD = {"seed": 3, "count": None, "facing_to": [0.0, 0.0, -10.0], "turn_jitter": 0.1, "height_jitter": 0.0,
-         "doing": ["standing"], "shares": [1.0], "phases": 1, "palettes": [0], "palette_shares": [1.0]}
-
-
-def test_a_crowd_lattice_stands_only_on_its_grounds_and_keeps_bodies_apart():
-    """Two grounds 2 m wide, 6 m apart: no spot between them; on an open 6 m square no two closer than two widths."""
-    grounds = dict(CROWD, spread=[0.0, 0.0, 10.0, 4.0], grounds=[[0.0, 0.0, 2.0, 4.0], [8.0, 0.0, 2.0, 4.0]])
-    spots = [copy["at"] for copy in spread.lattice(grounds, [])]
-    assert all(spot[0] <= 2.0 or spot[0] >= 8.0 for spot in spots), spots
-    assert any(spot[0] <= 2.0 for spot in spots) and any(spot[0] >= 8.0 for spot in spots)
-    spots = [copy["at"] for copy in spread.lattice(dict(CROWD, spread=[0.0, 0.0, 6.0, 6.0]), [])]
-    nearest = min(((a[0] - b[0]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5 for number, a in enumerate(spots)
-                  for b in spots[number + 1:])
-    assert len(spots) > 100 and nearest >= 2 * measure.BODY_RADIUS, (len(spots), nearest)
-
-
-def plan_views_of(tmp_path, plan):
-    (tmp_path / "plan.json").write_text(json.dumps(plan))
-    return cast.plan_views({"plan": tmp_path, "places": PLACES})
-
-
+         "doing": ["standing"], "shares": [1.0], "phases": 1, "palettes": [0], "palette_shares": [1.0],
+         "name": "crowd", "character": "crowd", "look": "crowd_made"}
+KIT_CROWD = {"name": "crowd", "character": "kit_m_avg", "look": "kit_m_avg_coat-grey", "doing": ["idle"],
+             "count": None}
+# Two grounds 2 m wide, 6 m apart, on a 10 m spread.
+STRIPS = dict(CROWD, spread=[-5.0, -5.0, 10.0, 10.0], grounds=[[-5.0, -5.0, 2.0, 10.0], [3.0, -5.0, 2.0, 10.0]])
 ROOM = {"inside": True, "floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
         "doorways": [{"name": "door-1", "middle": [0.0, 0.0, 5.0], "inward": [0.0, 0.0, -1.0], "wide": 1.0,
                       "sill": 0.0, "head": 2.1, "to": None}],
         "standing": [{"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
+ROOM_VIEWS = [("from-door-1", 0.0, 4.0), ("spot-1", 3.0, 3.0)]
+# The camp's accepted plan (2026-10-21): a spot looking at its kit's objects, no plan items.
+UNAIMED = {"place": "camp", "inside": True, "floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
+           "doors": [], "standing": [{"at": [1.0, 4.0], "level": 0.0, "looks_at": "SEFA'S BUNK"}]}
+FAR_DOWN = 10.0  # metres down a view (its fov 80) past which a body fills under FAR_SHARE of its frame
+# A crowd as its plan views it and the place stands it: (id, plan.json or None for no plan row, the crowd's row or None
+# for a cast with none, the views (name, eye x, eye z) or the name the plan's refusal holds, the candidates the place
+# fits (None: never stood), what the cast makes of it (its candidates, asked, spots, copies) or None for no crowd, and
+# its short findings, or None with the part its one finding holds).
+CROWDS = [
+    ("no crowd", UNAIMED, None, "SEFA'S BUNK", None, None, [], None),
+    ("unread", UNAIMED, KIT_CROWD, "SEFA'S BUNK", None, (0, None, None, 0), None, "not read from the plan yet"),
+    ("no ground", UNAIMED, dict(KIT_CROWD, count=3, grounds=[]), "SEFA'S BUNK", None, (0, None, None, 0),
+     ["the crowd's row makes no item on the plan, so it has no ground (kit_m_avg/coat-grey)"], None),
+    ("aimed off its items", UNAIMED, STRIPS, "SEFA'S BUNK", None, None, None, None),
+    ("packed on two grounds, some fit", ROOM, STRIPS, ROOM_VIEWS, 20, (30, 20, 30, 20), [], None),
+    ("packed outdoors, none fit", dict(ROOM, inside=False), STRIPS, ROOM_VIEWS[1:], 0, (56, 0, 56, 0),
+     ["none of the crowd's 56 spots on its ground fit (crowd/made)"], None),
+    ("counted down a door's view, short", ROOM, dict(CROWD, spread=[-1.0, -25.0, 2.0, 50.0], count=40), ROOM_VIEWS,
+     30, (318, 40, None, 30), ["30 of the crowd's 40 fit"], None),
+    ("counted on an open square, no plan row", None, dict(CROWD, spread=[0.0, 0.0, 6.0, 6.0], count=3), [], 3,
+     (143, 3, None, 3), [], None),
+]
 
 
-def test_a_crowd_keeps_clear_of_its_plans_views(tmp_path):
-    """The views are its plan's (the plan row's output), never a hand-written record's: a room's one inside its door
-    and one from its standing spot, an outdoor plan's from its standing spot only, no plan row none; a copy right
-    before a view is dropped, one far down it or behind it kept."""
+def on_its_line(view, at):
+    """(how far sideways of a view's line, how far down it) a copy stands, metres over the floor."""
+    eye, aim = np.asarray(view["eye"], float)[[0, 2]], np.asarray(view["aim"], float)[[0, 2]]
+    forward = (aim - eye) / np.linalg.norm(aim - eye)
+    towards = np.asarray(at, float)[[0, 2]] - eye
+    return abs(towards[0] * forward[1] - towards[1] * forward[0]), float(towards @ forward)
+
+
+def test_a_crowd_stands_on_its_grounds_apart_clear_of_its_plans_views_and_is_short_only_when_none_fit(tmp_path):
+    """A crowd's candidates are its lattice's spots on its grounds only (none between two), no two nearer than two
+    body widths, kept off its plan's views: one right before a view is dropped, one far down it or behind it kept. The
+    views are its plan's (the plan row's output), never a hand-written record's: a room's one inside its door and one
+    from its standing spot, an outdoor plan's from its standing spot only, no plan row none; a spot aimed off its
+    plan's items is refused by name, never a bare StopIteration, and stops only a crowd with ground: a cast with no
+    crowd, or a crowd with no ground, never reads them. SAM 3 counted: it asks that many; one mass it could not part:
+    every candidate of its ground, then the copies that fit (a candidate on a stall is no copy short; none fitting
+    is); no ground: nothing; a design's crowd with no ground, or not read from its plan yet, is named short."""
     eye = json.loads(PLACES.read_text())["shared"]["scale"]["eye_height"]
-    views = plan_views_of(tmp_path, ROOM)
-    assert [(view["name"], view["eye"]) for view in views] == [("from-door-1", [0.0, eye, 4.0]),
-                                                              ("spot-1", [3.0, eye, 3.0])]
-    assert [view["name"] for view in plan_views_of(tmp_path, dict(ROOM, inside=False))] == ["spot-1"]
-    assert cast.plan_views({"places": PLACES}) == []
-    view = {"eye": [0.0, 1.6, 0.0], "aim": [0.0, 1.6, -10.0], "fov": 70}
-    near, far, behind = {"at": [0.0, 0.0, -4.0]}, {"at": [0.0, 0.0, -20.0]}, {"at": [0.0, 0.0, 4.0]}
-    assert spread.far_enough([near, far, behind], [view]) == [far, behind]
+    for name, plan, crowd, views, fit, made, findings, part in CROWDS:
+        inputs = {"places": PLACES}
+        if plan is not None:
+            (tmp_path / name).mkdir()
+            (tmp_path / name / "plan.json").write_text(json.dumps(plan))
+            inputs["plan"] = tmp_path / name
+        record = {"people": [], **({"crowd": crowd} if crowd else {})}
+        if isinstance(views, str):
+            with pytest.raises(ValueError, match=views):
+                cast.plan_views(inputs)
+        else:
+            assert [(view["name"], view["eye"]) for view in cast.plan_views(inputs)] == [
+                (view, [x, eye, z]) for view, x, z in views], name
+        if isinstance(views, str) and crowd and crowd.get("spread"):
+            with pytest.raises(ValueError, match=views):
+                cast.crowd_of(record, [], inputs)
+            continue
+        found = cast.crowd_of(record, [], inputs)
+        if found is not None:
+            spots = [copy["at"] for copy in found["copies"]]
+            # on its grounds only, each holding some (a crowd with none stands anywhere on its spread)
+            on = [[left <= at[0] <= left + wide and near <= at[2] <= near + long
+                   for left, near, wide, long in crowd.get("grounds") or []] for at in spots]
+            assert not crowd.get("grounds") or (all(map(any, on)) and all(map(any, zip(*on)))), (name, spots)
+            nearest = min([np.hypot(a[0] - b[0], a[2] - b[2]) for number, a in enumerate(spots)
+                           for b in spots[number + 1:]], default=np.inf)
+            assert nearest >= 2 * measure.BODY_RADIUS, (name, nearest)
+            for view in [] if isinstance(views, str) else cast.plan_views(inputs):
+                assert all(spread.frame_share(view, at) < spread.FAR_SHARE for at in spots), (name, view["name"])
+                down = [on_its_line(view, at)[1] for at in spots if on_its_line(view, at)[0] < 0.3]
+                assert all(depth < 0 or depth > FAR_DOWN for depth in down), (name, view["name"], down)
+            if fit is not None:
+                found = cast.stood_crowd(found, found["copies"][:fit])
+            assert (len(spots), found["asked"], found.get("spots"), len(found["copies"])) == made, (name, found)
+        else:
+            assert made is None, name
+        short = cast.short_of({"left_out": [], "crowd": found})
+        assert (short == findings) if part is None else (part in short[0] and len(short) == 1), (name, short)
 
 
-def test_a_plan_spot_aimed_off_its_items_stops_only_a_crowd_with_ground(tmp_path):
-    """The camp's accepted plan (2026-10-21) has spots looking at its kit's objects, no plan items: refused by name,
-    never a bare StopIteration; a cast with no crowd, or a crowd with no ground, never reads them."""
-    plan = {"place": "camp", "inside": True, "floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
-            "doors": [], "standing": [{"at": [1.0, 4.0], "level": 0.0, "looks_at": "SEFA'S BUNK"}]}
-    with pytest.raises(ValueError, match="SEFA'S BUNK"):
-        plan_views_of(tmp_path, plan)
-    inputs = {"plan": tmp_path, "places": PLACES}
-    crowd = {"name": "crowd", "character": "kit_m_avg", "look": "kit_m_avg_far", "doing": ["idle"], "count": None}
-    assert cast.crowd_of({"people": []}, [], inputs) is None
-    assert cast.crowd_of({"people": [], "crowd": crowd}, [], inputs)["copies"] == []
+BRAM = {"character": "bram", "look": "bram_work"}
+KIT = {"character": "kit_m_avg", "worn": ["plain_coat_grey", "head_f1"]}
+IN_BLUE = "people-dress-bram-work-in-jacket_blue"
+# A look made by its own usable dress row, and none other: (id, the character, its row's fabric, its variant, the
+# dress rows usable, its look, the row it is made by or None for not made).
+MADE = [
+    ("plain", BRAM, None, 0, ["people-dress-bram-work"], ("bram", "work"), "people-dress-bram-work"),
+    ("no row usable", BRAM, None, 0, [], ("bram", "work"), None),
+    ("plain for a fabric", BRAM, "jacket_blue", 0, ["people-dress-bram-work"], ("bram", "work"), None),
+    ("its fabric", BRAM, "jacket_blue", 0, [IN_BLUE], ("bram", "work"), IN_BLUE),
+    ("fabric for a variant", BRAM, "jacket_blue", 2, [IN_BLUE], ("bram", "work"), None),
+    ("its variant", BRAM, "jacket_blue", 2, [f"{IN_BLUE}-v2"], ("bram", "work"), f"{IN_BLUE}-v2"),
+    ("kit outfit", KIT, None, 0, ["people-dress-kit_m_avg-coat-grey"], ("kit_m_avg", "coat-grey"),
+     "people-dress-kit_m_avg-coat-grey"),
+    ("no look", {"character": "bram"}, None, 0, ["people-dress-bram-work"], None, None),
+]
+# A dress row's name and what it is of, both ways: (the cast's look, fabric, variant, the row or None for no look).
+DRESS_ROWS = [
+    ("bram/work", "jacket_blue", 2, f"{IN_BLUE}-v2"),
+    ("bram/work", "jacket_blue", 0, IN_BLUE),
+    ("astronaut/made", None, 0, "people-dress-astronaut-made"),
+    (None, "jacket_blue", 0, None),
+]
+CROWD_COPIES = [{"palette": 0}, {"palette": 1}]
+# The characters layer's crowd and what it names of it: (id, its stood copies, the crowd's missing, the people with
+# no body of their look: bram, nev, both variants and, stood, the crowd itself).
+LAID = [
+    ("stood", CROWD_COPIES, "no variant of its look has an accepted body", 5),
+    ("never stood", [], "no copy of the crowd stood on its ground", 4),
+]
 
 
-def test_a_spot_on_a_raised_level_stands_at_its_height():
-    """The stairwell's walkway people on its 3 m landing (Batch 1, 2026-10-25); one outside every level stays down.
-    A person its design stands on stairs goes onto the flight nearest its spot over its height (2026-11-04: the
-    stairwell's man walking up, on its 3 m landing, onto the flight up from it, not the one nearer across the floor
-    under him; the woman walking down, on the floor, onto the one from 0 to 1.5 m, its foot its low end though the
-    plan draws it from 1.5 m), on its
-    first tread the way it walks, facing its last; nobody else moves. Which way it walks is read off its row's words
-    (up, down, or no stairs at all). One outside the plan's outline and off every level is refused by
-    name."""
-    plan = {"w": 4.0, "d": 4.0, "frame": {"anchor": {"plan": [0.0, 0.0], "place": [10.0, 0.0, -5.0]}},
-            "levels": [{"height": 3.0, "points": [[0.0, 0.0], [2.0, 0.0], [2.0, 2.0], [0.0, 2.0]]}]}
-    record = {"people": [{"name": "up", "at": [11.0, 0.0, -4.0]}, {"name": "down", "at": [13.0, 0.0, -2.0]}]}
-    assert [person["at"] for person in cast.on_levels(record, plan)["people"]] == [[11.0, 3.0, -4.0],
-                                                                                  [13.0, 0.0, -2.0]]
-    assert [cast.stairs_of(row) for row in (
-        {"name": "man walking up stairs", "where": "middle flight of stairs"},
-        {"name": "woman walking down stairs", "where": "bottom flight of stairs"},
-        {"name": "person in uniform", "where": "by the console"})] == ["up", "down", None]
-    design = {"places": {"well": {"concept": "c", "rows": {
-        "man": {"name": "man walking up stairs", "looks": ["man-made"]},
-        "pair": {"name": "people standing", "looks": ["person-made", "person-made"]}}}}}
-    dealt = cast.with_stairs({"people": [{"name": "man"}, {"name": "pair_1"}]}, "well", design)["people"]
-    assert [person["stairs"] for person in dealt] == ["up", None], dealt
-    stairs = {**plan, "stairs": [
-        {"kind": "stair", "points": [[2.0, 0.0], [3.0, 0.0], [3.0, 2.0], [2.0, 2.0]], "from": 3.0, "to": 4.5,
-         "angle": 270.0, "steps": 3},
-        {"kind": "stair", "points": [[1.6, 2.0], [2.6, 2.0], [2.6, 4.0], [1.6, 4.0]], "from": 1.5, "to": 0.0,
-         "angle": 90.0, "steps": 3}]}
-    record = {"people": [{"name": "man", "at": [11.9, 0.0, -3.05], "stairs": "up", "facing_to": [0.0, 0.0, 0.0]},
-                         {"name": "woman", "at": [13.0, 0.0, -2.0], "stairs": "down", "facing_to": [0.0, 0.0, 0.0]},
-                         {"name": "still", "at": [13.0, 0.0, -2.0], "stairs": None}]}
-    man, woman, still = cast.on_stairs(cast.on_levels(record, stairs), stairs)["people"]
-    assert (man["at"], man["facing_to"], man["stairs"]["flight"]) == ([12.5, 3.5, -3.3333], [12.5, 4.5, -4.6667],
-                                                                      "stair_1"), man
-    assert (woman["at"], woman["facing_to"], woman["stairs"]["to"]) == ([12.1, 1.5, -2.6667], [12.1, 0.5, -1.3333],
-                                                                        [12.1, 0.5, -1.3333]), woman
-    assert (woman["stairs"]["way"], woman["stairs"]["rise"], woman["stairs"]["run"]) == ("down", 0.5, 0.6667), woman
-    assert still == record["people"][2] and cast.climbers_of(cast.on_stairs(record, stairs)) == {"man", "woman"}
-    # a deck 1.5 m over the man's flight (the stairwell's 3 m deck over its flight from the 1.5 m landing, 2026-11-10):
-    # he walks up the nearest flight he walks clear, the low one; the woman's flight is clear and stays hers
-    deck = {"Shell/deck_2": trimesh.creation.box(extents=[1.2, 0.2, 2.0], transform=trimesh.transformations
-                                                 .translation_matrix([12.5, 5.1, -4.0])).triangles}
-    man, woman, _ = cast.on_stairs(cast.on_levels(record, stairs), stairs, deck)["people"]
-    assert (man["stairs"]["flight"], man["at"], woman["stairs"]["flight"]) == ("stair_2", [12.1, 0.5, -1.3333],
-                                                                               "stair_2"), man
-    # a slab over the low flight's top tread too (the stairwell's stacked flights, no flight clear end to end,
-    # 2026-11-10): the woman walks its clear treads, the man the nearest flight whole, for the clear gate to name
-    slab = trimesh.creation.box(extents=[1.2, 0.2, 0.5], transform=trimesh.transformations
-                                .translation_matrix([12.1, 3.1, -2.67])).triangles
-    man, woman, _ = cast.on_stairs(cast.on_levels(record, stairs), stairs, {**deck, "Shell/deck_4": slab})["people"]
-    assert (man["stairs"]["flight"], man["at"]) == ("stair_1", [12.5, 3.5, -3.3333]), man
-    assert (woman["stairs"]["flight"], woman["at"], woman["stairs"]["to"]) == ("stair_2", [12.1, 1.0, -2.0],
-                                                                               [12.1, 0.5, -1.3333]), woman
-    # a spot off the 4 m plan and off its level is refused by name (the hangar's workers on Outside/near, 2026-11-04)
-    record["people"].append({"name": "off", "at": [15.0, 0.0, -4.0]})
-    refused = cast.off_the_plan(record, plan)
-    assert list(refused) == ["off"], refused
-    assert cast.short_of({"left_out": [], "refused": refused, "crowd": None}) == [f"off refused: {refused['off']}"]
-
-
-def test_a_look_is_made_only_by_its_own_usable_dress_row():
-    """The plain dress row, `-in-<surface>` for a row's own fabric, `-v<n>` for a person's own variant; none other."""
-    look = cast.look_of({"character": "bram", "look": "bram_work"})
-    assert look == ("bram", "work")
-    assert cast.made_row(look, None, 0, {"people-dress-bram-work": "accepted"}) == "people-dress-bram-work"
-    assert cast.made_row(look, None, 0, {}) is None
-    assert cast.made_row(look, "jacket_blue", 0, {"people-dress-bram-work": "accepted"}) is None
-    assert cast.made_row(look, "jacket_blue", 0, {"people-dress-bram-work-in-jacket_blue": "a"}) == \
-        "people-dress-bram-work-in-jacket_blue"
-    assert cast.made_row(look, "jacket_blue", 2, {"people-dress-bram-work-in-jacket_blue": "a"}) is None
-    assert cast.made_row(look, "jacket_blue", 2, {"people-dress-bram-work-in-jacket_blue-v2": "a"}) == \
-        "people-dress-bram-work-in-jacket_blue-v2"
-    assert layer.dressed_of("people-dress-bram-work-in-jacket_blue-v2") == ("bram-work", "jacket_blue", 2)
-    assert layer.dressed_of("people-dress-astronaut-made") == ("astronaut-made", None, 0)
-    assert cast.made_row(None, None, 0, {}) is None
-    worn = {"character": "kit_m_avg", "worn": ["plain_coat_grey", "head_f1"]}
-    assert cast.look_of(worn) == ("kit_m_avg", "coat-grey")
-    assert layer.body_row("bram/work", "jacket_blue") == "people-dress-bram-work-in-jacket_blue"
-    assert layer.body_row(None, "jacket_blue") is None
-
-
-def test_a_person_with_no_dressed_body_is_left_out_and_named_never_laid_in_a_stand_in(tmp_path):
-    """The characters layer with no dress row given: nobody laid, each named, its bodies gate failing with each person
-    with no body as a finding (the owner's GAP rule), and complete's people check (tools/usd/contents.py) failing each
-    by name."""
-    (tmp_path / "cast").mkdir()
-    bram = {"name": "bram", "character": "bram", "look": "bram/work", "at": [1.0, 0.0, 2.0], "turn": 90.0,
-            "doing": "standing", "start": 0.0}
-    (tmp_path / "cast/cast.json").write_text(json.dumps({"place": "hub", "characters": [bram, dict(bram, name="nev")],
-                                                         "crowd": None}))
-    (tmp_path / "rows.json").write_text(json.dumps({"places": {"hub": {"concept": "a test", "rows": {}}}, "new": {}}))
-    inputs = {"cast": tmp_path / "cast", "design": tmp_path / "rows.json"}
-    out = tmp_path / "out"
-    out.mkdir()
-    layer.make(inputs, out, 0, {})
-    assert layer.layer_faults(out) == []
-    stage = Usd.Stage.Open(str(out / layer.LAYER))
-    assert not stage.GetPrimAtPath("/hub/Characters").GetChildren()
-    verdict = layer.judge_laid(out, inputs, None)
-    assert verdict.answer == checks.PASS and verdict.measures["missing"] == 2, verdict
-    bodies = driven.judge_bodies(out, inputs, None)
-    assert bodies.answer == checks.FAIL and bodies.measures["no body"] == 2, bodies
-    # a recorded gap of the place naming both moves the fail to complete; one naming only bram keeps it
-    assert "bodies" in stages.GAP_GATES["characters-layer"]
-    gap = {"name": "people with no body", "row": "characters-layer", "check": "bodies", "decided": "a test"}
-    assert gaps.moved(bodies, [dict(gap, objects=["bram", "nev"])]).answer == checks.PASS
-    assert gaps.moved(bodies, [dict(gap, objects=["bram"])]).answer == checks.FAIL
-    assert bodies.findings[0] == "bram: bram/work, no accepted body of its look (people-dress-bram-work)"
-    assert verdict.findings[0] == "bram (bram/work): no accepted body of its look (people-dress-bram-work)"
+def test_a_person_or_crowd_variant_with_no_dressed_body_is_left_out_and_named_never_laid_in_a_stand_in(tmp_path):
+    """A look is made only by its own usable dress row: the plain row, `-in-<surface>` for its row's fabric, `-v<n>`
+    for a person's own variant, none other. The characters layer with no dress row given lays nobody: each person and
+    each crowd variant named with the row it lacks, never worn by another, the crowd named for its variants or for no
+    copy stood; its bodies gate fails each with no body (a crowd never stood is the counted gate's, not a body's) as a
+    finding (the owner's GAP rule), and complete's people check (tools/usd/contents.py) fails each by name."""
+    for name, character, surface, variant, usable, look, made in MADE:
+        found = cast.look_of(character)
+        assert (found, cast.made_row(found, surface, variant, dict.fromkeys(usable, "a"))) == (look, made), name
+    for look, surface, variant, row in DRESS_ROWS:
+        assert layer.body_row(look, surface, variant) == row, look
+        assert row is None or layer.dressed_of(row) == (look.replace("/", "-"), surface, variant), row
     sys.path.insert(0, str(REPO / "tools/usd"))
     import contents
-    assert [fault for fault in contents.layer_faults(out) if fault.startswith("nev (bram/work)")]
+    bram = {"name": "bram", "character": "bram", "look": "bram/work", "at": [1.0, 0.0, 2.0], "turn": 90.0,
+            "doing": "standing", "start": 0.0}
+    design = {"places": {"hub": {"concept": "a" * 64, "rows": {"crowd": {"crowd": "crowd-made", "count": 2}}}},
+              "new": {}}
+    gap = {"name": "people with no body", "row": "characters-layer", "check": "bodies", "decided": "a test"}
+    assert "bodies" in stages.GAP_GATES["characters-layer"]
+    for name, copies, crowd_missing, bodiless in LAID:
+        folder = tmp_path / name
+        (folder / "cast").mkdir(parents=True)
+        crowd = {"name": "crowd", "character": "crowd", "look": "crowd/made", "copies": copies}
+        (folder / "cast/cast.json").write_text(json.dumps({"place": "hub", "crowd": crowd,
+                                                           "characters": [bram, dict(bram, name="nev")]}))
+        (folder / "rows.json").write_text(json.dumps(design))
+        inputs = {"cast": folder / "cast", "design": folder / "rows.json"}
+        out = folder / "out"
+        out.mkdir()
+        layer.make(inputs, out, 0, {})
+        assert layer.layer_faults(out) == [], name
+        assert not Usd.Stage.Open(str(out / layer.LAYER)).GetPrimAtPath("/hub/Characters").GetChildren(), name
+        looks = json.loads((out / layer.RECORD).read_text())["looks"]
+        assert crowd_missing in looks["crowd"]["missing"], (name, looks)
+        assert [looks[f"crowd-v{variant}"]["missing"] for variant in (0, 1)] == [
+            "no accepted body of its look (people-dress-crowd-made)",
+            "no accepted body of its look (people-dress-crowd-made-v1)"], (name, looks)
+        verdict = layer.judge_laid(out, inputs, None)
+        assert verdict.answer == checks.PASS and verdict.measures["missing"] == 5, (name, verdict)
+        assert verdict.findings[0] == "bram (bram/work): no accepted body of its look (people-dress-bram-work)"
+        bodies = driven.judge_bodies(out, inputs, None)
+        assert bodies.answer == checks.FAIL and bodies.measures["no body"] == bodiless, (name, bodies)
+        assert bodies.findings[0] == "bram: bram/work, no accepted body of its look (people-dress-bram-work)"
+        # a recorded gap of the place naming every one with no body moves the fail to complete; one naming only bram
+        # keeps it
+        named = [finding.partition(":")[0] for finding in bodies.findings]
+        assert gaps.moved(bodies, [dict(gap, objects=named)]).answer == checks.PASS, (name, named)
+        assert gaps.moved(bodies, [dict(gap, objects=["bram"])]).answer == checks.FAIL, name
+        assert [fault for fault in contents.layer_faults(out) if fault.startswith("nev (bram/work)")], name
 
 
-def test_a_crowd_variant_with_no_body_is_named_and_never_worn_by_another():
-    crowd = {"name": "crowd", "look": "crowd/made", "copies": [{"palette": 0}, {"palette": 1}]}
-    looks = layer.laid_crowd(None, "/square/Characters", crowd, {"palettes": [0, 1]}, {}, None, {})
-    assert looks["crowd-v0"]["missing"] == "no accepted body of its look (people-dress-crowd-made)"
-    assert looks["crowd-v1"]["missing"] == "no accepted body of its look (people-dress-crowd-made-v1)"
-    assert looks["crowd"]["missing"] == "no variant of its look has an accepted body"
-    unstood = layer.laid_crowd(None, "/square/Characters", dict(crowd, copies=[]), {"palettes": [0]}, {}, None, {})
-    assert "no copy of the crowd stood" in unstood["crowd"]["missing"]
+def standing(name, at, **more):
+    """A person of their own character standing at `at`, facing +z."""
+    return {"name": name, "character": name, "doing": "standing", "at": at, "facing_to": [0.0, 0.0, 9.0], **more}
 
 
-def test_the_cast_check_judges_each_person_where_they_were_stood_and_one_variant_twice_is_one_person_twice():
-    """A person dealt a spot on another's walk is judged where they were stood (cast_check, 9cc854cf); each person of
-    a look its own variant (owner, 2026-10-25: "Each one looks different"), the same variant twice the same person."""
-    walker = {"name": "walker", "character": "bram", "doing": "walking", "at": [0.0, 0.0, 0.0],
-              "facing_to": [4.0, 0.0, 0.0], "path": [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]}
-    standing = {"name": "worker", "character": "worker", "doing": "standing", "at": [2.0, 0.0, 0.0],
-                "facing_to": [0.0, 0.0, 9.0]}
-    assert cast.checked_cast({"people": [walker, standing]}, []) != []
-    assert cast.checked_cast({"people": [walker, standing]}, [{"name": "worker", "at": [2.0, 0.0, 5.0]}]) == []
-    copy = {"character": "worker", "look": "worker_made", "doing": "standing", "facing_to": [0.0, 0.0, 9.0]}
-    record = {"people": [dict(copy, name="worker_1", at=[0.0, 0.0, 0.0], variant=0),
-                         dict(copy, name="worker_2", at=[3.0, 0.0, 0.0], variant=1)]}
-    assert cast.checked_cast(record, []) == []
-    same = {"people": [dict(person, variant=0) for person in record["people"]]}
-    assert cast.checked_cast(same, []) == ["worker_1 and worker_2 are the same person (worker)"]
+def drawn(name, seed, at):
+    """A person of KIT_GROUP standing at `at`, drawn from its kit by `seed` in its plain outfit."""
+    return standing(name, at, seed=seed)
 
 
-def test_a_group_wears_only_its_kit_and_the_copied_body_sizes_agree():
-    """measure.py copies cast_check's body sizes so tools/characters stays off the import path (the overlay's rule)."""
+WALKER = {"name": "walker", "character": "bram", "doing": "walking", "at": [0.0, 0.0, 0.0],
+          "facing_to": [4.0, 0.0, 0.0], "path": [[0.0, 0.0, 0.0], [4.0, 0.0, 0.0]]}
+VARIANTS = [standing("worker_1", [0.0, 0.0, 0.0], character="worker", look="worker_made", variant=0),
+            standing("worker_2", [3.0, 0.0, 0.0], character="worker", look="worker_made", variant=1)]
+# A group held to two builds and one plain outfit (the square's front row), drawn by KIT_SEEDS seeds.
+KIT_GROUP = {"builds": ["m_avg", "w_slim"], "plain": ["uniform_olive"]}
+KIT_SEEDS = 200
+# People as their record holds them and where the cast stood them: (id, the record's people, the spots they were stood
+# on by name, the standing bodies that overlap, the cast check's faults).
+APART = [
+    ("near on one level", [standing("a", [0.0, 0.0, 0.0]), standing("b", [0.3, 0.0, 0.0]),
+                           standing("c", [3.0, 0.0, 0.0]), standing("d", [3.1, 3.0, 0.0])],  # d on a landing over c
+     {}, [["a", "b"]], []),
+    ("dealt a spot on a walk", [WALKER, standing("worker", [2.0, 0.0, 0.0])], {}, [],
+     ["walker walks 0.60 m from worker after 1.05 s (people keep 0.65 m apart)"]),
+    ("stood off the walk", [WALKER, standing("worker", [2.0, 0.0, 0.0])], {"worker": [2.0, 0.0, 5.0]}, [], []),
+    ("each its own variant", VARIANTS, {}, [], []),
+    ("one variant twice", [dict(person, variant=0) for person in VARIANTS], {}, [],
+     ["worker_1 and worker_2 are the same person (worker)"]),
+    ("a kit group, one build and face, each its own hair", [drawn("k0", 0, [0.0, 0.0, 0.0]),
+                                                           drawn("k2", 2, [2.0, 0.0, 0.0])], {}, [], []),
+    ("a kit group, one face twice", [drawn("k0", 0, [0.0, 0.0, 0.0]), drawn("k140", 140, [2.0, 0.0, 0.0])], {}, [],
+     ["k0 and k140 are the same person (kit_m_avg, hair_side_f1, head_f1)"]),
+]
+
+
+def test_people_stand_apart_on_their_level_judged_where_they_were_stood_and_each_their_own_person():
+    """Standing bodies nearer than two widths on one level overlap (by their feet: one on a landing over another does
+    not), by the body sizes measure.py copies from cast_check (so tools/characters stays off the import path, the
+    overlay's rule) and cast_check judges walks by. A person dealt a spot on another's walk is judged where they were
+    stood (cast_check, 9cc854cf); each person of a look its own variant (owner, 2026-10-25: "Each one looks
+    different"), the same variant twice the same person; a group drawn from its kit wears only its kit's builds and
+    plain outfit, two draws of one face and hair the same person."""
     cast_rules, cast_check = measure.characters()
-    kit = {"builds": ["m_avg", "w_slim"], "plain": ["uniform_olive"]}
-    mixes = [cast_rules.kit_mix(seed, kit) for seed in range(200)]
-    assert {mix["character"] for mix in mixes} == {"kit_m_avg", "kit_w_slim"}
-    assert {mix["worn"]["plain"][0] for mix in mixes} == {"plain_uniform_olive"}
     assert (measure.BODY_RADIUS, measure.KNEE, measure.HEAD) == (cast_check.BODY_RADIUS, cast_check.KNEE,
                                                                  cast_check.HEAD)
+    mixes = [cast_rules.kit_mix(seed, KIT_GROUP) for seed in range(KIT_SEEDS)]
+    assert {mix["character"] for mix in mixes} == {"kit_m_avg", "kit_w_slim"}
+    assert {mix["worn"]["plain"][0] for mix in mixes} == {"plain_uniform_olive"}
+    for name, people, stood, overlapping, faults in APART:
+        people = [person if "seed" not in person else dict(
+            person, character=mixes[person["seed"]]["character"], worn=mixes[person["seed"]]["worn"]["plain"])
+            for person in people]
+        singles = [dict(person, at=stood.get(person["name"], person["at"])) for person in people]
+        stood_on = [{"name": person, "at": at} for person, at in stood.items()]
+        assert (cast.overlaps(singles, None), cast.checked_cast({"people": people}, stood_on)) == (
+            overlapping, faults), name
 
 
 # --- a person driven by its sim body (driven.py) -------------------------------------------------------------------
@@ -756,7 +827,9 @@ TOY_PERSON = {"name": "bram", "character": "bram", "look": "bram/work", "at": [1
 def test_a_person_moves_by_its_sim_body_its_feet_on_its_sim_bodys_and_one_without_keeps_its_clip(tmp_path):
     """Bram's sim body walked his hips 0.3 m and swung his left leg: his skeleton plays it (his feet within FEET_WITHIN
     of the sim body's, which stands beside him in his skeleton's frame, both from his clip's start), the joints with
-    no segment and the frames after the sim's keep the clip's; nev has no sim body and keeps his clip, named."""
+    no segment and the frames after the sim's keep the clip's; nev has no sim body and keeps his clip, named. The same
+    layer with bram's skeleton turned back to its clip's hips while his sim body walked off fails `on its sim body`
+    by name."""
     out, stage = laid_driven(tmp_path, [TOY_PERSON, dict(TOY_PERSON, name="nev", character="nev")])
     record = json.loads((out / layer.RECORD).read_text())["looks"]
     assert record["bram"]["motion"]["by"] == "its sim body"
@@ -775,11 +848,6 @@ def test_a_person_moves_by_its_sim_body_its_feet_on_its_sim_bodys_and_one_withou
     verdict = driven.judge_on_its_sim_body(out, {}, None)
     assert verdict.answer == checks.PASS and verdict.measures["driven"] == 1, verdict
     assert verdict.findings == ("nev keeps its clip: its sim body was not run (sim_bodies.json's `left out` says why)",)
-
-
-def test_a_person_whose_feet_leave_its_sim_bodys_fails(tmp_path):
-    """A skeleton that kept its clip's hips while its sim body walked off fails `on its sim body` by name."""
-    out, stage = laid_driven(tmp_path, [TOY_PERSON])
     stage.GetPrimAtPath("/hub/Characters/bram/Turned/Skeleton").GetRelationship("skel:animationSource").SetTargets(
         ["/hub/Characters/bram/Animations/standing"])
     stage.GetRootLayer().Save()
