@@ -250,10 +250,10 @@ tests it turned red:
   glowing)
 - route_bake.py: `surface=route_settings.settings_name(record["surface"], record["settings"])` ->
   `surface=record["surface"]`  ->
-  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
-- route_bake.py: made_of's `return out / f".bake-{take}-made"` -> `return out / "made"`; or in make_bake,
-  `gathered(made_of(out, take), out / "made")` -> `pass`  -> a_take_s_bake_job_moves_only_with_its_own_take,
-  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+  every_part_takes_a_library_surface_and_is_held_to_it (its bake: the spec of each part)
+- route_bake.py: made_of's `return out / f".bake-{take}-made"` -> `return out / "made"`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its bake jobs: each job's outputs its own); in make_bake, `gathered(made_of(out, take), out / "made")` ->
+  `pass`  -> every_part_takes_a_library_surface_and_is_held_to_it (its bake gathered where its readers find it)
 - route_bake.py: in stood_square `if turned < made:` -> `if False:`, or `if CLOSEUP in inputs:` -> `if False:`; or
   in card_job drop `**{CLOSEUP: str(path) for path in closeup}`  -> every_part_takes_a_library_surface_and_is_held_to_it
   (its STAND_SQUARE close-up rows and the card job's listing)
@@ -265,15 +265,16 @@ tests it turned red:
   every_part_takes_a_library_surface_and_is_held_to_it (the claimed rack row; laid_shell)
 - route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
   records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
-  `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
+  `for name, path in short.items()}`  -> every_part_takes_a_library_surface_and_is_held_to_it (its bake jobs: an
+  unchanged take's job moved with another take's parts)
 - route_check.py: `library.by_library = lambda name: {**palette_library.specs(palette), **baked}` -> `library.by_library
   = lambda name: {**palette_library.specs(palette)}`  -> every_part_takes_a_library_surface_and_is_held_to_it (the spec the bake baked)
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its WORDED rows)
 - route_recheck.py: `wrong = failed(finishes, answers)` -> `wrong = []`  ->
-  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+  every_part_takes_a_library_surface_and_is_held_to_it (its RECHECKS rows)
 - route_recheck.py: `if faults: found[take] = {"colour_faults"` -> `if False: found[take] = {"colour_faults"`  ->
-  the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour
+  every_part_takes_a_library_surface_and_is_held_to_it (its RECHECKS row never asked)
 - scene_palette.py: `tokens.setdefault(entry["token"], entry["colour"].lower())` -> `tokens[entry["token"]] =
   entry["colour"].lower()`  -> every_part_takes_a_library_surface_and_is_held_to_it (its PALETTE_ASKS rows)
 - scene_palette.py: `if parsed["wear"] not in levels or parsed["dirt_token"] not in tokens:` -> `if False:`  ->
@@ -332,11 +333,16 @@ tests it turned red:
 - route_bake.py `squared_again`: `elif turned:` -> `elif False:`; or `square = not (...) and (not turned or degrees
   <= tumble.DEGREES)` -> `square = not (degrees > tumble.DEGREES and loose > tumble.LOOSE)`; or `elif measured <
   SQUARE_ROUNDS:` -> `elif False:`  -> every_part_takes_a_library_surface_and_is_held_to_it (its SQUARE_AGAIN rows)
-- route_bake.py: `opening = min(span, float(recess["wide"]) + room * (1.0 if room_side else 2.0))` -> `opening =
-  min(span, float(recess["wide"]))`  -> a_swinging_door_at_full_open_touches_nothing_in_its_recess
+- route_bake.py: `opening = min(inside, float(recess["wide"]) + room * (1.0 if room_side else 2.0))` -> `opening =
+  min(inside, float(recess["wide"]))`  -> every_part_takes_a_library_surface_and_is_held_to_it (its DOORS row of the
+  door hinged left at full open)
 - route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth = 2 * half + RECESS_OUT` (a
   tunnel), or `low[across], high[across] = middle - opening / 2, middle + opening / 2` -> the door's own `along`
-  unkept  -> a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back
+  unkept  -> every_part_takes_a_library_surface_and_is_held_to_it (its DOORS rows: base's garage door, its back)
+- route_bake.py: `inside = span - 2 * RECESS_BACK` -> `inside = span` (2026-10-29)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its DOORS rows of a door at its face's end)
+- score/review/holders/__init__.py: `RECESS_WALL = 0.05` -> `RECESS_WALL = 0.0`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its DOORS row of a door at its face's end)
 - bake_job.py: `if built or slender(size):` -> `if slender(size):` (laid_size)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: a code build at its own section); -> `if False:`  -> that one and
   its slender row
@@ -370,16 +376,16 @@ tests it turned red:
 - claude_asks.py: `again[take] = repaired(bodies[take], answer, off, levels)` -> `pass`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its REPAIRS rows)
 - place_line.py: `return turn.T` -> `return None` in `recovered_turn`  ->
-  the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it
+  every_part_takes_a_library_surface_and_is_held_to_it (its PAINT_TURNS rows)
 - place_line.py: `turn @ labels.raw_facing(take)` -> `turn` in `finished_frame`  ->
-  the_paint_lays_a_raw_still_facing_plus_z_on_its_final_by_the_recovered_turn
+  every_part_takes_a_library_surface_and_is_held_to_it (its PAINT_TURNS row of the raw take facing +Z)
 - baked_colour.py: `and entry["off"] > OFF_SHARE` -> `and entry["off"] > 1.0`  ->
-  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONSOLES rows)
 - baked_colour.py: `moved &= np.linalg.norm(seen - np.asarray(shade[1:]), axis=1) > OFF_AB` -> `pass`  ->
-  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONSOLES rows)
 - route_paint.py: `("colour against the close-up", baked_colour.judge_colour)` -> `("colour against the close-up",
   place_line.judge_concept_colour)`  ->
-  the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONSOLES rows)
 - scene_library.py: `+ (SHEET_WORDS if take["kind"] in sheets else "")` -> `+ ""` (kinds_of), or `"pile": ["second"]`
   dropped from data/library/materials.json's colour_settings  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_ASKS rows, sheets)
@@ -404,16 +410,17 @@ tests it turned red:
 - recheck_picks.py: `if apart > finish_parts.COLOUR_DELTA_E:` -> `if False:` (fitting); or `if picks:` -> `if
   False:` (make_parts); or `(out / batch_gaps.FILE).unlink(missing_ok=True)` -> `pass` (make_picks); or `or
   token_apart(...) > finish_parts.COLOUR_DELTA_E]` -> `or False]` (judge_picks)  ->
-  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+  every_part_takes_a_library_surface_and_is_held_to_it (its PICKS and REMADE rows)
 - recheck_picks.py: `if pick["token"] not in tokens:` -> `if False:` (placing); or `if highest >= count:` -> `if
   False:` (split_fits); or `OVERLAP = 0.5` -> `OVERLAP = 0.2`; or `return same[0] if len(same) == 1 else None` ->
-  `return index` (finish_for)  -> the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+  `return index` (finish_for)  -> every_part_takes_a_library_surface_and_is_held_to_it
+  (its REMADE and FINISH_FOR rows)
 - colour_picks.py: `return fits[0] if fits and fits[0][0] <= finish_parts.COLOUR_DELTA_E else None` -> `return
   fits[0] if fits else None` (nearest_token); or `if finish_parts.hue_kept(` -> `if True or finish_parts.hue_kept(`
   (nearest_token); or `if why != NOT_ASKED:` -> `if True:` (make_picks)  ->
-  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+  every_part_takes_a_library_surface_and_is_held_to_it (its PICKS and COLOUR_FITTING rows)
 - __init__.py (the table): `make=colour_picks.make_picks,` -> `make=recheck_picks.make_picks,` (picks_applied)  ->
-  the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
+  every_part_takes_a_library_surface_and_is_held_to_it (the picks row made through colour_picks.make_picks)
 - __init__.py (the table): `make=recheck_picks.make_parts,` -> `make=row.make,` (picks_applied)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows)
 - check_seen.py: `"pieces": [...]` -> `"pieces": []` (laid_kit)  ->
@@ -448,8 +455,9 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 
 from score import checks, graph, stages  # noqa: E402
 from score.adapters import compute  # noqa: E402
-from score.review import setting as settings  # noqa: E402
+from score.review import holders, setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
+from score.stages.assembly import fitting as assembly_fitting  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, finish_ask, finish_parts,  # noqa: E402
                                    library_reads, palette_library, parts_kept, place_line, registry, route_ask,
                                    route_bake, route_cast,
@@ -1533,6 +1541,168 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     assert place_line.levelled_feet is base_level.PAINTS_LEVEL, "and lets go"
     assert "score/stages/surfaces/base_level.py" in (REPO / "score/stages/surfaces/inside/paint_fit.py").read_text()
     assert bake_row.files("base")["paint bake base_level.py"].endswith("score/stages/surfaces/base_level.py")
+    # one world of the two boxes listed, split and parted (the colour check held wide, 1000, or at 0.5) carries the
+    # recheck (RECHECKS), the picks row and the parts it makes (PICKS, REMADE, FINISH_FOR, COLOUR_FITTING), then the
+    # bake and the paint's colour gate on it (CONSOLES)
+    from score.stages.surfaces import colour_picks
+    world = pathlib.Path(tempfile.mkdtemp())
+    split_of = {}
+    for listing in (two_finish_answer, grey_over_blue):
+        (world / listing.__name__).mkdir()
+        split_of[listing] = split(world / listing.__name__,
+                                  listed(world / listing.__name__, lambda views, take, listing=listing: listing(views))[0])
+    parts_of = {}
+    for delta in (1000.0, 0.5):
+        with monkeypatch.context() as held:
+            held.setattr(finish_parts, "COLOUR_DELTA_E", delta)
+            (world / f"parts {delta}").mkdir()
+            parts_of[delta] = parted(world / f"parts {delta}", split_of[two_finish_answer])
+    for case, delta, answer, (asks, passed, suggested, fault, faulted), (judged, finding) in RECHECKS:
+        out = world / f"recheck {case}"
+        with monkeypatch.context() as held:
+            held.setattr(finish_parts, "COLOUR_DELTA_E", delta)
+            record, verdict, asked = recheck_made(parts_of[delta], out, answer)
+        assert len(asked) == asks and record["asked"] is bool(asks) and record["passed"] is passed, (case, record)
+        assert record["suggested"] == suggested and bool(record["colour_faults"]) is faulted, (case, record)
+        assert record["fault"] is None if fault is None else record["fault"].startswith(fault), (case, record)
+        assert verdict.answer == judged and (finding is None or finding in verdict.findings[0]), (case, verdict)
+        assert (out / TAKE / "checked-front.png").exists() is bool(asks), case
+    for case, listing, change, token, not_picked, by in PICKS:
+        answer = None if change is None else {"finishes": [{**FAILING_RED, **change},
+                                                           {"finish": 2, "matches": True, "why": "blue"}]}
+        asked, picked, made, plain = picks_made(split_of[listing], world / f"picks {case}", answer)
+        found = json.loads((picked[recheck_picks.ROW] / "picks.json").read_text())
+        record = json.loads(made)["takes"][TAKE]
+        assert (TAKE in asked) is (answer is not None), (case, asked)  # a take the free colour check failed: unasked
+        assert not (picked[recheck_picks.ROW] / "batch-gaps.json").exists(), case  # a recheck fail is a pick, no gap
+        verdict = recheck_picks.judge_picks(picked[recheck_picks.ROW], split_of[listing], {})
+        assert verdict.answer == "pass" and verdict.measures["picked_takes"] == (token is not None), (case, verdict)
+        assert [finish["by"] for finish in record["finishes"]] == by, (case, record["finishes"])
+        if token is None:  # the parts made as they were, byte for byte, so nothing after them moves
+            assert found["takes"] == {} and not_picked in found["not_picked"][TAKE] and made == plain, (case, found)
+            continue
+        pick = found["takes"][TAKE]["1"]
+        assert pick["token"] == token and pick["delta_e"] <= finish_parts.COLOUR_DELTA_E, (case, found)
+        red = record["finishes"][0]
+        assert red["settings"]["token"] == token and red["settings"]["roughness"] == 0.2, red
+        assert red["settings"]["seed"] == pick["was"]["settings"]["seed"] and red["picked"]["why"], red
+        assert red["delta_e"] <= finish_parts.COLOUR_DELTA_E, red  # the parts' own check
+        assert {row["settings"]["token"] for row in record["parts"] if row["words"] == "red paint"} == {token}, case
+        assert made != plain, case
+        kept_pick, kept_rows, kept_plain = pick, picked, json.loads(plain)
+    other = world / "other list"  # the list cut to its first finish: the split was made on another list
+    shutil.copytree(kept_rows["finish-route-list"], other)
+    entry = json.loads((other / f"{TAKE}.json").read_text())
+    (other / f"{TAKE}.json").chmod(0o644)
+    (other / f"{TAKE}.json").write_text(json.dumps({**entry, "finishes": entry["finishes"][:1]}))
+    for case, number, change, (token, dropped, gate, refused) in REMADE:
+        takes = {} if change is None else {TAKE: {number: dict(kept_pick, **change)}}
+        if refused is not None:
+            with pytest.raises(ValueError, match=refused):
+                remade_parts({**kept_rows, "finish-route-list": other}, takes, world)
+            continue
+        made, picks = remade_parts(kept_rows, takes, world)
+        assert recheck_picks.judge_picks(picks, kept_rows, {}).answer == gate, case
+        if dropped is None:
+            assert made["takes"][TAKE]["finishes"][0]["settings"]["token"] == token, (case, made)
+            assert "picks_dropped" not in made, (case, made)
+        else:
+            assert dropped in made["picks_dropped"][TAKE][0] and made["takes"] == kept_plain["takes"], (case, made)
+    for case, name, number, taken, expected in FINISH_FOR:
+        assert recheck_picks.finish_for(name, number, FINISH_LIST, taken) == expected, case
+    tokens = library.token_colours({"tokens": TOKENS})
+    seen_blue = finish_parts.library_lab({"colour": tokens["bay-three"]}).tolist()
+    off = {"finish": "blue steel", "surface": "bare_steel", "by": "off its colour", "measured_lab": seen_blue,
+           "delta_e": 55.5, "settings": {"token": "steel", "roughness": 0.4, "metal": 1.0, "seed": 3},
+           "looks": {"listed": {"recipe": "bare_metal",
+                                "lab": finish_parts.library_lab({"colour": tokens["steel"]}).tolist()}}}
+    fitting = {"finish": "red paint", "surface": "red_paint", "by": "the list",
+               "measured_lab": off["looks"]["listed"]["lab"]}
+    for case, beside, words, picked_as, why in COLOUR_FITTING:
+        found, given = colour_picks.colour_fitting([fitting] * beside + [dict(off, finish=words)], tokens)
+        if picked_as is None:
+            assert found == {} and why in given, (case, found, given)
+            continue
+        key, token = picked_as
+        assert given is None and list(found) == [key] and found[key]["token"] == token, (case, found, given)
+        assert found[key]["by"] == colour_picks.BY, (case, found)
+        assert (found[key]["roughness"], found[key]["metal"]) == (0.4, 1.0), (case, found)
+        assert colour_picks.recheck_picks.with_pick(off, found[key], tokens)["settings"]["token"] == token, case
+    assert inspect.unwrap(ROWS[colour_picks.recheck_picks.ROW].make) is colour_picks.make_picks
+    # the bake paints and bakes each take in one card job with the list's settings, and the paint takes it over
+    with monkeypatch.context() as held:
+        held.setattr(finish_parts, "COLOUR_DELTA_E", 1000.0)  # every finish keeps its listed surface, so its settings
+        rows = parts_of[1000.0]
+        inputs, out, calls = bake_made(world, rows)
+    parts = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]["parts"]
+    assert all(row["settings"] for row in parts), parts
+    assert len(calls) == 1 and pathlib.Path(calls[0]["command"][1]).name == "blender_cloud.py", calls
+    assert calls[0]["command"][-1] == route_bake.place_line.CLASSES  # the bake's cards, one call
+    (job,) = calls[0]["jobs"]
+    assert job["script"] == route_bake.SCRIPT and str(route_bake.made_of(out, TAKE)) in job["outputs"], job
+    assert (out / "made" / "two_boxes.gltf").read_text() == "{}"  # gathered where its readers find it
+    records = calls[0]["files"][f".bake-{TAKE}-records.json"]
+    head = calls[0]["files"][f".bake-{TAKE}-head.json"]
+    assert head["models"] == ["two_boxes"], head
+    assert (head["wear"], head["dirt"]) == (0.4, 0.3), head  # the scene palette's, not place.json's
+    for record, row in zip(records, parts):
+        assert record["surface"] == route_settings.settings_name(row["judge"], row["settings"]), record
+        spec = head["specs"][record["surface"]]
+        assert spec["library"] == row["judge"] and spec["token"] == row["settings"]["token"], spec
+        assert spec["colour"] == tokens[row["settings"]["token"]], spec
+        assert spec["roughness"] == row["settings"]["roughness"] == 1.0, spec  # the list's 1.4, clipped
+        assert spec["seed"] == row["settings"]["seed"] and spec.get("wear") == row["settings"].get("wear"), spec
+    # the blue finish's own wear (a cause given) rides its spec; the red one's level without a cause is not taken
+    assert sorted(spec.get("wear", 0) for spec in head["specs"].values() if "settings" in spec) == [0, 0.8]
+    assert json.loads((out / "specs.json").read_text()) == head["specs"]
+    assert json.loads((out / "baked.json").read_text())["two_boxes"]["parts"] == TAKE
+    assert not list(out.glob(".bake-*"))  # the jobs' files are gone
+    assert route_bake.bake_faults(out) == [] and route_bake.judge_baked(out, inputs, {}).answer == "pass"
+    # the measure runs in the prop environment on the baked .gltf; here in-process on the console's triangles
+    gate = next(check for check in route_paint.paint_gates() if check.name == baked_colour.GATE)
+    assert inspect.unwrap(next(check for check in ROWS["surfaces-paint"].checks
+                               if check.name == baked_colour.GATE).judge) is baked_colour.judge_colour
+    monkeypatch.setattr(baked_colour, "measured", lambda inputs, made: baked_colour.measure_step(
+        baked_colour.prop_env.short(inputs), made))
+    for case, rusted, offs, (judged, baked_off, findings), gap_checks in CONSOLES:
+        with monkeypatch.context() as held:
+            held.setattr(baked_colour, "measure_model", lambda model, entry, bake, specs: console_bake(rusted))
+            painting = world / f"paint {case}"
+            painting.mkdir()
+            route_paint.make_paint({"surfaces-bake": out}, painting, 7, {})
+            verdict = gate.judge(painting, {"surfaces-bake": out}, {})
+        painted = json.loads((painting / "painted.json").read_text())
+        measure = painted["takes"][TAKE].pop(baked_colour.FIELD)
+        assert painted == json.loads((out / "painted.json").read_text()), case  # the bake's, its measure beside
+        assert (painting / "labelled" / TAKE / "labels.json").exists(), case
+        assert {surface: entry["off"] for surface, entry in measure["two_boxes"].items()} == offs, (case, measure)
+        assert (verdict.answer, verdict.measures["baked off"], verdict.findings) == (judged, baked_off, findings), \
+            (case, verdict)
+        gaps = painting / "batch-gaps.json"
+        assert ([gap["check"] for gap in json.loads(gaps.read_text())["gaps"]] if gaps.exists() else None) == \
+            gap_checks, case
+    assert gate.judge(out, {"surfaces-bake": out}, {}).answer == "unknown"  # the bake's own, no measure
+    # a take's bake job carries its own parts and its own specs alone, so its kept content moves when its own take
+    # changes and never when another take of the place does (#36, 2026-10-30: each job carried the place's whole
+    # parts.json, the parts output's folder and every take's specs, so one retaken take baked every take of its place
+    # again); each brings its models back into a folder of its own (#36: every take brought back the row's one `made`
+    # folder and named the others as its peers): OTHER a copy of the take, its first part's roughness 0.6, then 0.2
+    kept_jobs, brought = stages.kept_module(), []
+    with monkeypatch.context() as held:
+        held.setattr(finish_parts, "COLOUR_DELTA_E", 1000.0)  # every finish keeps its listed surface and settings
+        held.setattr(route_bake, "BAKE_REPO", ())  # the repository's folders: the same for every take
+        held.setattr(route_bake.place_line, "PAINT_REPO", ())
+        held.setenv(kept_jobs.CODE, "surfaces-bake@cockpit row-code")
+        rows["surfaces"].write_text(json.dumps(dict(json.loads(rows["surfaces"].read_text()), library="cockpit",
+                                                    bake={"models": {"two_boxes": TAKE, "other_box": OTHER}})))
+        jobs_before, jobs_after = (
+            bake_jobs(rows, two_take_parts(rows, world / f"two takes {rough}", rough), world / f"bake {rough}",
+                      kept_jobs, held, brought) for rough in (0.6, 0.2))
+    assert sorted(jobs_before) == sorted(jobs_after) == sorted([TAKE, OTHER]), (jobs_before, jobs_after)
+    assert jobs_before[TAKE] == jobs_after[TAKE], "an unchanged take's bake job moved with another take's parts"
+    assert jobs_before[OTHER] != jobs_after[OTHER], "a changed take's bake job did not move"
+    assert not [(one, two) for first, second in itertools.combinations(brought, 2) for one in first for two in second
+                if one.is_relative_to(two) or two.is_relative_to(one)], brought  # each job's outputs its own
     # Which takes stand on feet: one surface data folder (the bare surface_data place_line reads) and one inventory,
     # the greenhouse's hand-in, which the paint declares and reads (keyed on it, never the old concept's
     # data/inventory file) to tell a take laid loose on the floor from one held. A hangar (the bay) laid an old
@@ -2189,6 +2359,54 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert gate["look_down"] in downs, (case, gate, downs)
         assert max(take_outline.best(points, triangles, take_outline.cut(closeup), down) for down in downs) == \
             max(gate["ways"]), (case, gate)
+    # a moving door's holder bakes with its recess cut, a side wall and a back kept, the door clear in it (DOORS)
+    holders_were = json.loads(json.dumps(DOOR_HOLDERS))
+    for case, relations, holder, wanted, below, edges in DOORS:
+        found = route_bake.recessed(DOOR_HOLDERS, {"relations": relations})
+        assert DOOR_HOLDERS == holders_were, case  # the entries as they were
+        assert all(entry["cuts"] == [] for model, entry in found.items() if model != holder), (case, found)
+        [cut] = found[holder]["cuts"]
+        assert cut == {"recess": wanted}, (case, cut)
+        recess = next(relation["recess"] for relation in relations if "recess" in relation)
+        axis, across = (0, 2) if recess["axis"] == "x" else (2, 0)
+        size, (low, high) = DOOR_HOLDERS[holder]["size"], cut["recess"]
+        assert -size[across] / 2 + route_bake.RECESS_BACK - 1e-9 <= low[across], (case, cut)  # a side wall each end
+        assert high[across] <= size[across] / 2 - route_bake.RECESS_BACK + 1e-9, (case, cut)
+        inner = low[axis] if recess["side"] > 0 else high[axis]
+        assert recess["side"] * inner + size[axis] / 2 >= route_bake.RECESS_BACK - 1e-9, (case, cut)  # its back
+        assert below is None or assembly_fitting.beside(recess, 0)[0] == pytest.approx(below), (case, recess)
+        for along, bound, edge, least, most in edges:
+            clear = edge - low[along] if bound == "low" else high[along] - edge
+            assert clear >= least - 1e-9 and (most is None or clear <= most + 1e-9), (case, along, bound, clear)
+    # the paint reads each take's finish turn off its final model and lays a raw take by it (PAINT_TURNS)
+    turning = pathlib.Path(tempfile.mkdtemp())
+    with prop_data.tools("props"):
+        import glb_file
+        import labels
+        monkeypatch.setattr(labels, "PIXAL", turning)
+        crate = trimesh.creation.box([0.6, 0.3, 0.2])
+        crate.vertices[0] += [0.05, 0.02, 0.0]  # not symmetric: one turn only fits it
+        crate.export(turning / "crate_1-5000.glb")
+        raw = trimesh.creation.box([0.5, 0.87, 0.3])
+        raw.vertices = (raw.vertices + [0.1, 0.0, 0.0]) @ STOOL_TILT.T @ labels.HALF_TURN.T  # off its middle
+        raw.export(turning / "stool_1.glb")
+        document, views = glb_file.read(turning / "stool_1.glb")
+        document["asset"]["extras"] = {labels.FACING_KEY: "+Z"}
+        glb_file.write(document, views, turning / "stool_1.glb")
+        slimmed = raw.copy()
+        slimmed.vertices = slimmed.vertices @ labels.HALF_TURN.T
+        slimmed.export(turning / "stool_1-5000.glb")
+        finished = {"crate_1": (crate, CRATE_TURN.T), "stool_1": (slimmed, STOOL_TILT)}  # the stool's tilt taken off
+        for case, take, moved, turn, laid in PAINT_TURNS:
+            final = finished[take][0].copy()
+            final.vertices = finished[take][0].vertices @ finished[take][1] + [0.0, 0.0, moved]
+            final.export(turning / f"{take}-final.glb")
+            found = place_line.recovered_turn(turning, take)
+            assert (found is None) if turn is None else np.allclose(found, turn, atol=1e-6), (case, found)
+            if laid:
+                matrix, _, bounds = place_line.finished_frame(raw, take)
+                on = trimesh.transform_points(raw.vertices, matrix)
+                assert np.allclose([on.min(0), on.max(0)], bounds, atol=0.01), (case, on.min(0), on.max(0), bounds)
 
 
 def baked_model(folder, name, mesh):
@@ -3520,7 +3738,7 @@ def test_a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part()
         assert {row["words"] for row in found["parts"]} == {"red paint", "blue paint", "green label"}, found["parts"]
 
 
-def baked(folder, rows):
+def bake_made(folder, rows):
     """The bake made through the rows, the cloud call faked: each take's job writes back its labelled take, its
     models' entries and a baked model into its own made folder. The bake's inputs, its output and the calls made
     (with the jobs' files)."""
@@ -3576,75 +3794,16 @@ def console_bake(rusted):
                                      {"hull": [CONSOLE_GREY], "trim": [CONSOLE_COPPER], "label": [HAZARD_TOKEN]})
 
 
-def test_the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over(
-        monkeypatch):
-    """... and the paint's colour gate holds what the bake made (baked_colour.py): each baked surface measured on the
-    bake's own map against its close-up, so the hub's console baked 53% rust on a grey token fails there, a batch gap
-    of its take, while one baked right passes; a take the bake made models for with no measure cannot be told."""
-    colours = library.token_colours({"tokens": TOKENS})
-    finish_parts = route_parts.finish_parts
-    kept = finish_parts.COLOUR_DELTA_E
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        finish_parts.COLOUR_DELTA_E = 1000.0  # held wide: every finish keeps its listed surface, so its settings
-        try:
-            rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
-            inputs, out, calls = baked(folder, rows)
-        finally:
-            finish_parts.COLOUR_DELTA_E = kept
-        parts = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]["parts"]
-        assert all(row["settings"] for row in parts), parts
-        assert len(calls) == 1 and pathlib.Path(calls[0]["command"][1]).name == "blender_cloud.py", calls
-        assert calls[0]["command"][-1] == route_bake.place_line.CLASSES  # the bake's cards, one call
-        (job,) = calls[0]["jobs"]
-        assert job["script"] == route_bake.SCRIPT and str(route_bake.made_of(out, TAKE)) in job["outputs"], job
-        assert (out / "made" / "two_boxes.gltf").read_text() == "{}"  # gathered where its readers find it
-        records = calls[0]["files"][f".bake-{TAKE}-records.json"]
-        head = calls[0]["files"][f".bake-{TAKE}-head.json"]
-        assert head["models"] == ["two_boxes"], head
-        assert (head["wear"], head["dirt"]) == (0.4, 0.3), head  # the scene palette's, not place.json's
-        for record, row in zip(records, parts):
-            assert record["surface"] == route_settings.settings_name(row["judge"], row["settings"]), record
-            spec = head["specs"][record["surface"]]
-            assert spec["library"] == row["judge"] and spec["token"] == row["settings"]["token"], spec
-            assert spec["colour"] == colours[row["settings"]["token"]], spec
-            assert spec["roughness"] == row["settings"]["roughness"] == 1.0, spec  # the list's 1.4, clipped
-            assert spec["seed"] == row["settings"]["seed"] and spec.get("wear") == row["settings"].get("wear"), spec
-        # the blue finish's own wear (a cause given) rides its spec; the red one's level without a cause is not taken
-        assert sorted(spec.get("wear", 0) for spec in head["specs"].values() if "settings" in spec) == [0, 0.8]
-        assert json.loads((out / "specs.json").read_text()) == head["specs"]
-        assert json.loads((out / "baked.json").read_text())["two_boxes"]["parts"] == TAKE
-        assert not list(out.glob(".bake-*"))  # the jobs' files are gone
-        assert route_bake.bake_faults(out) == [] and route_bake.judge_baked(out, inputs, {}).answer == "pass"
-        # the measure runs in the prop environment on the baked .gltf; here in-process on the console's triangles
-        monkeypatch.setattr(baked_colour, "measured",
-                            lambda inputs, made: baked_colour.measure_step(baked_colour.prop_env.short(inputs), made))
-        gate = next(check for check in route_paint.paint_gates() if check.name == baked_colour.GATE)
-        assert inspect.unwrap(next(check for check in ROWS["surfaces-paint"].checks
-                                   if check.name == baked_colour.GATE).judge) is baked_colour.judge_colour
-        found = {}
-        for rusted in (False, True):
-            monkeypatch.setattr(baked_colour, "measure_model", lambda model, entry, bake, specs: console_bake(rusted))
-            paint = folder / f"paint-{rusted}"
-            paint.mkdir()
-            route_paint.make_paint({"surfaces-bake": out}, paint, 7, {})
-            painted = json.loads((paint / "painted.json").read_text())
-            measure = painted["takes"][TAKE].pop(baked_colour.FIELD)
-            assert painted == json.loads((out / "painted.json").read_text())  # the bake's, with its measure beside
-            assert (paint / "labelled" / TAKE / "labels.json").exists()
-            found[rusted] = (measure, gate.judge(paint, {"surfaces-bake": out}, {}),
-                             json.loads((paint / "batch-gaps.json").read_text()) if (paint / "batch-gaps.json").exists()
-                             else None)
-        measure, verdict, gaps = found[False]
-        assert {surface: entry["off"] for surface, entry in measure["two_boxes"].items()} == {
-            "hull": 0.0, "trim": 0.0, "label": 0.0}, measure
-        assert verdict.answer == "pass" and verdict.measures["baked off"] == 0 and gaps is None, (verdict, gaps)
-        measure, verdict, gaps = found[True]
-        assert measure["two_boxes"]["hull"]["off"] == 0.53, measure
-        assert verdict.answer == "fail" and verdict.findings == (
-            f"{TAKE}: two_boxes hull bakes 53% of its area over 20 a*b* off its close-up's {CONSOLE_GREY}",), verdict
-        assert [gap["check"] for gap in gaps["gaps"]] == [baked_colour.GATE], gaps
-        assert gate.judge(out, {"surfaces-bake": out}, {}).answer == "unknown"  # the bake's own, no measure
+# The paint's colour gate on the bake (baked_colour.judge_colour), each baked surface measured on the bake's own map
+# against its close-up, its measure faked to the console's triangles: (case, rusted, each surface's share baked off,
+# (the verdict, its "baked off", its findings), the batch gaps' checks or None for no gap file).
+CONSOLES = [
+    ("a console baked right: its grey, its copper trim 12 off, its hazard label its token", False,
+     {"hull": 0.0, "trim": 0.0, "label": 0.0}, ("pass", 0, ()), None),
+    ("the hub's right console baked 53% rust on a grey token: a batch gap of its take", True, {"hull": 0.53},
+     ("fail", 1, (f"{TAKE}: two_boxes hull bakes 53% of its area over 20 a*b* off its close-up's {CONSOLE_GREY}",)),
+     [baked_colour.GATE]),
+]
 
 
 def two_take_parts(rows, folder, rough):
@@ -3659,114 +3818,65 @@ def two_take_parts(rows, folder, rough):
     return folder
 
 
-def test_a_take_s_bake_job_moves_only_with_its_own_take(monkeypatch):
-    """A take's bake job carries its own parts and its own specs alone, so its content (the kept job it finds,
-    tools/cloud/kept.py) moves when its own take changes and never when another take of the place does (#36,
-    2026-10-30: each job carried the place's whole parts.json, the parts output's folder and every take's specs, so
-    one retaken take baked every take of its place again). Each brings its models back into a folder of its own, so
-    no kept take is baked again for another one beside it on its machine (#36, 2026-10-30: every take brought back
-    the row's one `made` folder and named the others as its peers)."""
-    kept = stages.kept_module()
-    monkeypatch.setattr(route_bake, "BAKE_REPO", ())  # the repository's folders: the same for every take
-    monkeypatch.setattr(route_bake.place_line, "PAINT_REPO", ())
-    monkeypatch.setenv(kept.CODE, "surfaces-bake@cockpit row-code")
-    finish_parts = route_parts.finish_parts
-    monkeypatch.setattr(finish_parts, "COLOUR_DELTA_E", 1000.0)  # every finish keeps its listed surface and settings
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
-        data = json.loads(rows["surfaces"].read_text())
-        rows["surfaces"].write_text(json.dumps(dict(data, library="cockpit",
-                                                    bake={"models": {"two_boxes": TAKE, "other_box": OTHER}})))
+def bake_jobs(rows, parts, out, kept, held, brought):
+    """{take: its job's kept content (tools/cloud/kept.py)} of the bake made from `parts` into `out`, the cloud call
+    faked to bring nothing back; each job's outputs appended to `brought`."""
+    found = {}
 
-        def contents(parts, out):
-            """{take: its job's kept content} of the bake made from `parts` into `out`, the cloud call faked."""
-            found = {}
-
-            def run(command, **_):
-                for path in (pathlib.Path(path) for path in command if str(path).endswith("-job.json")):
-                    job = json.loads(path.read_text())
-                    found[json.loads(pathlib.Path(job["args"][0]).read_text())[route_bake.place_line.TAKE]] = \
-                        kept.identity(job, "system")[1]
-                    brought.append([pathlib.Path(output) for output in job["outputs"]])
-                return subprocess.CompletedProcess(command, 1, "", "faked")
-            out.mkdir()
-            monkeypatch.setenv(kept.MAKING, str(out))
-            monkeypatch.setattr(route_bake.subprocess, "run", run)
-            inputs = {"surfaces": rows["surfaces"], "surfaces-parts": parts,
-                      "finish-route-palette": rows["finish-route-palette"], "surface-library": rows["surface-library"],
-                      "resting rules": REPO / "data/checks/resting.json"}
-            with pytest.raises(RuntimeError, match="paint and bake failed"):  # nothing came back: no take baked
-                route_bake.make_bake(inputs, out, 7, {})
-            return found
-        brought = []
-        before = contents(two_take_parts(rows, folder / "parts-before", 0.6), folder / "bake-before")
-        after = contents(two_take_parts(rows, folder / "parts-after", 0.2), folder / "bake-after")
-    assert sorted(before) == sorted(after) == sorted([TAKE, OTHER]), (before, after)
-    assert before[TAKE] == after[TAKE], "an unchanged take's bake job moved with another take's parts"
-    assert before[OTHER] != after[OTHER], "a changed take's bake job did not move"
-    assert not [(one, two) for first, second in itertools.combinations(brought, 2) for one in first for two in second
-                if one.is_relative_to(two) or two.is_relative_to(one)], brought  # each job's outputs its own
+    def run(command, **_):
+        for path in (pathlib.Path(path) for path in command if str(path).endswith("-job.json")):
+            job = json.loads(path.read_text())
+            found[json.loads(pathlib.Path(job["args"][0]).read_text())[route_bake.place_line.TAKE]] = \
+                kept.identity(job, "system")[1]
+            brought.append([pathlib.Path(output) for output in job["outputs"]])
+        return subprocess.CompletedProcess(command, 1, "", "faked")
+    out.mkdir()
+    held.setenv(kept.MAKING, str(out))
+    held.setattr(route_bake.subprocess, "run", run)
+    inputs = {"surfaces": rows["surfaces"], "surfaces-parts": parts, "finish-route-palette": rows["finish-route-palette"],
+              "surface-library": rows["surface-library"], "resting rules": REPO / "data/checks/resting.json"}
+    with pytest.raises(RuntimeError, match="paint and bake failed"):  # nothing came back: no take baked
+        route_bake.make_bake(inputs, out, 7, {})
+    return found
 
 
-def rechecked(folder, answer, wide=True):
-    """The recheck made through the rows (the colour check held wide unless `wide` is False), its one batch faked to
-    answer `answer` (a dict, or an exception the batch holds): the take's record, its verdict and the batches asked."""
-    finish_parts = route_parts.finish_parts
-    kept = finish_parts.COLOUR_DELTA_E
-    finish_parts.COLOUR_DELTA_E = 1000.0 if wide else 0.5
+def recheck_made(rows, out, answer):
+    """The recheck made on the parted `rows` into `out`, its one batch faked to answer `answer` (a dict, or an exception
+    the batch holds): the take's record, its verdict and the batches asked."""
     asked = []
     original = route_recheck.ask
     route_recheck.ask = lambda bodies: asked.append(bodies) or {
         take: answer if isinstance(answer, Exception) else json.dumps(answer) for take in bodies}
     try:
-        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
-        out = folder / "recheck"
         out.mkdir()
         route_recheck.make_recheck(rows, out, 7, {"objects": [TAKE]})
-        record = json.loads((out / "recheck.json").read_text())[TAKE]
-        return record, route_recheck.judge_recheck(out, rows, {}), asked
     finally:
         route_recheck.ask = original
-        finish_parts.COLOUR_DELTA_E = kept
+    return json.loads((out / "recheck.json").read_text())[TAKE], route_recheck.judge_recheck(out, rows, {}), asked
 
 
-def recheck_picks_judged(folder):
-    """The picks row's gate on the picks in folder/picks, read with the rows' palette and library."""
-    from score.stages.surfaces import recheck_picks
-    return recheck_picks.judge_picks(folder / "picks", {"finish-route-palette": folder / "palette",
-                                                         "surface-library": folder / "surface-library"}, {})
-
-
-def picked_parts(folder, answer, listing=two_finish_answer):
-    """The picks row made through the rows as the table sets it (colour_picks.make_picks) on the list `listing`
-    answers, its one ask faked to answer `answer`, then the parts made with its picks: the picks, their verdict, the
-    parts' record of the take, the parts' record made without the picks row, and the rows' inputs."""
-    from score.stages.surfaces import colour_picks, recheck_picks
+def picks_made(rows, folder, answer):
+    """The picks row made on the split `rows` into folder/picks as the table sets it (colour_picks.make_picks), its one
+    ask faked to answer `answer`, then the parts made with its picks and without the picks row: the takes asked, the
+    rows' inputs with the picks, and the parts' parts.json bytes with and without the picks."""
+    from score.stages.surfaces import colour_picks
     original, asked = recheck_picks.ask, []
     recheck_picks.ask = lambda bodies: asked.extend(bodies) or {take: json.dumps(answer) for take in bodies}
+    picks, made, plain = folder / "picks", folder / "parts", folder / "plain"
+    for path in (picks, made, plain):
+        path.mkdir(parents=True)
     try:
-        rows = split(folder, listed(folder, lambda views, take: listing(views))[0])
-        picks = folder / "picks"
-        picks.mkdir()
         colour_picks.make_picks(rows, picks, 7, {"objects": [TAKE]})
     finally:
         recheck_picks.ask = original
-    assert (TAKE in asked) is (answer is not None), asked  # a take the free colour check failed is never asked
-    assert not (picks / "batch-gaps.json").exists()  # a recheck fail here is a pick, never a gap
-    made, plain = folder / "parts", folder / "plain"
-    made.mkdir()
-    plain.mkdir()
-    recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, made, 7, {"objects": [TAKE]})
+    picked = {**rows, recheck_picks.ROW: picks}
+    recheck_picks.make_parts(picked, made, 7, {"objects": [TAKE]})
     parts_kept.make_parts(rows, plain, 7, {"objects": [TAKE]})
-    return (json.loads((picks / "picks.json").read_text()), recheck_picks.judge_picks(picks, rows, {}),
-            json.loads((made / "parts.json").read_text())["takes"][TAKE], (made / "parts.json").read_bytes(),
-            (plain / "parts.json").read_bytes(), {**rows, recheck_picks.ROW: picks})
+    return asked, picked, (made / "parts.json").read_bytes(), (plain / "parts.json").read_bytes()
 
 
 def remade_parts(rows, takes, folder):
-    """surfaces-parts made again on `rows` with the picks file holding `takes`: its parts.json."""
-    from score.stages.surfaces import recheck_picks
+    """surfaces-parts made again on `rows` with the picks file holding `takes`: its parts.json and the picks folder."""
     picks, out = folder / "picks again", folder / "parts again"
     shutil.rmtree(picks, ignore_errors=True)
     shutil.rmtree(out, ignore_errors=True)
@@ -3774,121 +3884,105 @@ def remade_parts(rows, takes, folder):
     out.mkdir()
     (picks / recheck_picks.FILE).write_text(json.dumps({"takes": takes, "not_picked": {}}))
     recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, out, 7, {"objects": [TAKE]})
-    return json.loads((out / "parts.json").read_text())
+    return json.loads((out / "parts.json").read_text()), picks
 
 
-def test_the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked():
-    with tempfile.TemporaryDirectory() as temporary:
-        record, verdict, asked = rechecked(pathlib.Path(temporary),
-                                           {"finishes": [{"finish": 1, "matches": True, "why": "red"},
-                                                         {"finish": 2, "matches": True, "why": "blue"}]})
-        assert len(asked) == 1 and record["passed"] and verdict.answer == "pass", (record, verdict)
-    with tempfile.TemporaryDirectory() as temporary:
-        record, verdict, asked = rechecked(pathlib.Path(temporary), {"finishes": [
-            {"finish": 1, "matches": False, "why": "too dull", "token": "alarm", "roughness": 0.2},
-            {"finish": 2, "matches": True, "why": "blue"}]})
-        assert len(asked) == 1 and not record["passed"], record
-        assert record["suggested"] == {"red paint": {"token": "alarm", "roughness": 0.2}}, record["suggested"]
-        assert verdict.answer == "fail" and "too dull" in verdict.findings[0], verdict
-        assert (pathlib.Path(temporary) / "recheck" / TAKE / "checked-front.png").exists()
-    # #118 point 3: the picks row applies a suggestion whose token lies within dE 32 of the finish's close-up colour
-    # (red_pipes' rust-brown for the list's copper), so the parts, the bake and the recheck after it take it
-    failing = {"finish": 1, "matches": False, "why": "painted, not copper", "token": "alarm", "roughness": 0.2,
+def grey_over_blue(views):
+    """The two boxes' list with "grey paint" (hull-trim) listed over the blue box: off its colour."""
+    return {**two_finish_answer(views), "finishes": [finish_entry("red paint", wear="worn"),
+                                                     finish_entry("grey paint", token="hull-trim")]}
+
+
+# The recheck on the two boxes' parts (route_recheck.make_recheck), its one batch faked: (case, the parts' colour check
+# (finish_parts.COLOUR_DELTA_E: held wide, or at 0.5 so a finish lies off its colour), the batch's answer, (the batches
+# asked, the take passed, its suggestion, its fault's start or None for none, colour faults found), (the verdict, a
+# word of its first finding or None)).
+RECHECKS = [
+    ("both finishes match: one ask, a pass", 1000.0,
+     {"finishes": [{"finish": 1, "matches": True, "why": "red"}, {"finish": 2, "matches": True, "why": "blue"}]},
+     (1, True, {}, None, False), ("pass", None)),
+    ("the red too dull: a fail with its fitting suggestion", 1000.0,
+     {"finishes": [{"finish": 1, "matches": False, "why": "too dull", "token": "alarm", "roughness": 0.2},
+                   {"finish": 2, "matches": True, "why": "blue"}]},
+     (1, False, {"red paint": {"token": "alarm", "roughness": 0.2}}, "red paint: too dull", False), ("fail", "too dull")),
+    ("the batch gave no answer for the take: a gap", 1000.0,
+     route_ask.google_batch.Unanswered("the batch gave no answer for it"),
+     (1, False, {}, "no usable answer", False), ("fail", None)),
+    ("a take the free colour check fails is never asked", 0.5, {"finishes": []},
+     (0, False, {}, "the free colour check, not asked", True), ("fail", "the free colour check, not asked")),
+]
+
+
+# #118 point 3: the red finish the recheck fails, suggesting alarm (red_pipes' rust-brown for the list's copper).
+FAILING_RED = {"finish": 1, "matches": False, "why": "painted, not copper", "token": "alarm", "roughness": 0.2,
                "metal": 0.1}
-    with tempfile.TemporaryDirectory() as temporary:
-        found, verdict, record, made, plain, rows = picked_parts(pathlib.Path(temporary), {"finishes": [
-            failing, {"finish": 2, "matches": True, "why": "blue"}]})
-        pick = found["takes"][TAKE]["1"]
-        assert pick["token"] == "alarm" and pick["delta_e"] <= finish_parts.COLOUR_DELTA_E, found
-        assert verdict.answer == "pass" and verdict.measures["picked_takes"] == 1, verdict
-        red = record["finishes"][0]
-        assert red["settings"]["token"] == "alarm" and red["settings"]["roughness"] == 0.2, red
-        assert red["settings"]["seed"] == pick["was"]["settings"]["seed"] and red["picked"]["why"], red
-        assert red["by"] == "the list" and red["delta_e"] <= finish_parts.COLOUR_DELTA_E, red  # the parts' own check
-        assert {row["settings"]["token"] for row in record["parts"] if row["words"] == "red paint"} == {"alarm"}
-        assert made != plain
-        # a pick is placed on the finish its words name, never by its number alone: one numbered 2 naming "Red
-        # Paint!" lies on the list's red paint; one naming no finish of this list (a remake pairing the picks with
-        # another list, 2026-11-12: "brown plastic" on flat's "brown plastic cord and switch") or a token the scene
-        # library lacks (galley's brushed-steel) is dropped by name, and the parts still make, as without the pick
-        from score.stages.surfaces import recheck_picks
-        moved = remade_parts(rows, {TAKE: {"2": dict(pick, finish="Red  Paint!")}}, pathlib.Path(temporary))
-        assert moved["takes"][TAKE]["finishes"][0]["settings"]["token"] == "alarm" and "picks_dropped" not in moved
-        for wrong, why in (({"finish": "blue paint coat and trim"}, "no finish of the list is it"),
-                           ({"token": "brushed-steel"}, "brushed-steel is no token of the scene library")):
-            dropped = remade_parts(rows, {TAKE: {"1": dict(pick, **wrong)}}, pathlib.Path(temporary))
-            assert why in dropped["picks_dropped"][TAKE][0], dropped.get("picks_dropped")
-            assert dropped["takes"] == json.loads(plain)["takes"], wrong
-        listing = [{"finish": "rusty painted steel"}, {"finish": "brown plastic cord and switch"},
-                   {"finish": "weathered galvanised sheet steel"}, {"finish": "brushed stainless steel"}]
-        assert [recheck_picks.finish_for(name, number, listing, set()) for name, number in (
-            ("Rusty grey painted steel", 3), ("Weathered galvanised sheet-steel housing", 0), ("brown plastic", 1),
-            ("bare brushed steel sheet and tube", 3))] == [0, 2, None, None]
-        assert recheck_picks.finish_for("rusty painted steel", 0, listing, {0}) is None  # one pick a finish
-        # a split whose faces carry a finish its list lacks (made on another list: docking_airlock's IndexError) is
-        # refused by name before anything is made
-        other = pathlib.Path(temporary) / "other list"
-        shutil.copytree(rows["finish-route-list"], other)
-        entry = json.loads((other / f"{TAKE}.json").read_text())
-        (other / f"{TAKE}.json").chmod(0o644)
-        (other / f"{TAKE}.json").write_text(json.dumps({**entry, "finishes": entry["finishes"][:1]}))
-        with pytest.raises(ValueError, match="made on another list"):
-            remade_parts({**rows, "finish-route-list": other}, {}, pathlib.Path(temporary))
-        # a pick lying off the close-up's colour is refused by the gate
-        picks = pathlib.Path(temporary) / "picks" / "picks.json"
-        picks.chmod(0o644)
-        picks.write_text(json.dumps({**found, "takes": {TAKE: {"1": dict(pick, measured_lab=[90.0, -40.0, 60.0])}}}))
-        assert recheck_picks_judged(pathlib.Path(temporary)).answer == "fail"
-    # and none is applied when its token lies off the close-up's colour, or a failing finish names no token: the
-    # parts are then made as they were, byte for byte, so nothing after them moves
-    for wrong, why in (({"token": "bay-three"}, "lies dE"), ({"metal": None}, "no library token")):
-        with tempfile.TemporaryDirectory() as temporary:
-            found, verdict, record, made, plain, _ = picked_parts(pathlib.Path(temporary), {"finishes": [
-                {**failing, **wrong}, {"finish": 2, "matches": True, "why": "blue"}]})
-            assert not found["takes"] and why in found["not_picked"][TAKE], found
-            assert made == plain and verdict.answer == "pass", verdict
-    # #118 group C: a take the free colour check failed, which the recheck never asks, is picked on the scene
-    # library's token nearest its off finish's close-up colour within dE 32 among those keeping what the list meant
-    # (finish_parts.hue_kept): "blue steel" listed in plain steel, seen blue, takes bay-three, its recipe, roughness and
-    # metal its list's; "grey steel" seen blue keeps no grey token near it, nor does a finish with no colour words
-    # move off its listed hue (a dim close-up pulled foliage to a ground grey, 2026-11-12): no pick, a gap by name
-    from score.stages.surfaces import colour_picks
-    tokens = library.token_colours({"tokens": TOKENS})
-    steel = finish_parts.library_lab({"colour": tokens["steel"]}).tolist()
-    seen_blue = finish_parts.library_lab({"colour": tokens["bay-three"]}).tolist()
-    off = {"finish": "blue steel", "surface": "bare_steel", "by": "off its colour", "measured_lab": seen_blue,
-           "delta_e": 55.5, "settings": {"token": "steel", "roughness": 0.4, "metal": 1.0, "seed": 3},
-           "looks": {"listed": {"recipe": "bare_metal", "lab": steel}}}
-    fitting = {"finish": "red paint", "surface": "red_paint", "by": "the list", "measured_lab": steel}
-    found, why = colour_picks.colour_fitting([fitting, off], tokens)
-    assert why is None and list(found) == ["2"] and found["2"]["token"] == "bay-three", (found, why)
-    assert found["2"]["by"] == colour_picks.BY and (found["2"]["roughness"], found["2"]["metal"]) == (0.4, 1.0), found
-    assert colour_picks.recheck_picks.with_pick(off, found["2"], tokens)["settings"]["token"] == "bay-three"
-    for words in ("grey steel", "steel"):
-        found, why = colour_picks.colour_fitting([dict(off, finish=words)], tokens)
-        assert not found and "no library token of its listed hue" in why, (words, found, why)
-    # through the rows: "grey paint" listed over the blue box is off its colour, never asked, and not picked; its
-    # parts come out byte for byte as without the picks row
-    off_list = lambda views: {**two_finish_answer(views), "finishes": [
-        finish_entry("red paint", wear="worn"), finish_entry("grey paint", token="hull-trim")]}
-    with tempfile.TemporaryDirectory() as temporary:
-        found, verdict, record, made, plain, _ = picked_parts(pathlib.Path(temporary), None, off_list)
-        assert not found["takes"] and "no library token of its listed hue" in found["not_picked"][TAKE], found
-        assert record["finishes"][1]["by"] == "off its colour" and made == plain, record["finishes"][1]
-    # the table makes the picks row through colour_picks.make_picks
-    assert inspect.unwrap(ROWS[colour_picks.recheck_picks.ROW].make) is colour_picks.make_picks
 
 
-def test_the_recheck_makes_an_unanswered_take_a_gap_and_never_asks_a_take_off_its_colour():
-    with tempfile.TemporaryDirectory() as temporary:
-        record, verdict, asked = rechecked(pathlib.Path(temporary),
-                                           route_ask.google_batch.Unanswered("the batch gave no answer for it"))
-        assert len(asked) == 1 and record["asked"] and record["fault"].startswith("no usable answer"), record
-        assert verdict.answer == "fail", verdict
-    with tempfile.TemporaryDirectory() as temporary:
-        record, verdict, asked = rechecked(pathlib.Path(temporary), {"finishes": []}, wide=False)
-        assert not asked and not record["asked"] and record["colour_faults"], (record, asked)
-        assert verdict.answer == "fail" and "the free colour check, not asked" in verdict.findings[0], verdict
+# The picks row (colour_picks.make_picks) and the parts made with it: a suggestion whose token lies within dE 32 of the
+# finish's close-up colour is applied, so the parts, the bake and the recheck after it take it; none is applied when
+# its token lies off the close-up's colour or the failing finish names no token, nor for a take the free colour check
+# failed that keeps no token of its listed hue (group C), and the parts are then made as without the picks row:
+# (case, the list's answer, FAILING_RED's changes or None for no ask, the pick's token or None, the not-picked words
+# or None, each finish's `by` in the parts made with the picks).
+PICKS = [
+    ("the red's suggested alarm lies within dE 32 of its close-up: picked", two_finish_answer, {}, "alarm", None,
+     ["the list", "the list"]),
+    ("bay-three lies off the red's close-up colour: not picked", two_finish_answer, {"token": "bay-three"}, None,
+     "lies dE", ["the list", "the list"]),
+    ("a failing finish naming no token: not picked", two_finish_answer, {"metal": None}, None, "no library token",
+     ["the list", "the list"]),
+    ("grey paint listed over the blue box is off its colour: never asked, not picked", grey_over_blue, None, None,
+     "no library token of its listed hue", ["the list", "off its colour"]),
+]
+
+
+# surfaces-parts made again on the picked row's rows with its red pick changed: a pick lies on the finish its words
+# name, never by its number alone; one naming no finish of this list (a remake pairing the picks with another list,
+# 2026-11-12: "brown plastic" on flat's "brown plastic cord and switch") or a token the scene library lacks (galley's
+# brushed-steel) is dropped by name and the parts still make, as without the pick; the picks gate refuses a pick off
+# its close-up's colour; a split whose faces carry a finish its list lacks (docking_airlock's IndexError) is refused
+# by name before anything is made: (case, the pick's number, its changes or None for no pick on the list cut to its
+# first finish, (the red finish's token, the dropped pick's words or None, the picks gate's verdict, the refusal's
+# words or None)).
+REMADE = [
+    ("a pick numbered 2 naming 'Red  Paint!' lies on the list's red paint", "2", {"finish": "Red  Paint!"},
+     ("alarm", None, "pass", None)),
+    ("a pick naming no finish of the list is dropped by name", "1", {"finish": "blue paint coat and trim"},
+     (None, "no finish of the list is it", "pass", None)),
+    ("a pick on a token the scene library lacks is dropped by name", "1", {"token": "brushed-steel"},
+     (None, "brushed-steel is no token of the scene library", "fail", None)),
+    ("a pick lying off its close-up's colour fails the picks gate", "1", {"measured_lab": [90.0, -40.0, 60.0]},
+     ("alarm", None, "fail", None)),
+    ("a split made on another list is refused by name", "1", None, (None, None, None, "made on another list")),
+]
+
+
+# recheck_picks.finish_for on flat's list: (case, the pick's finish words, its number, the finishes already taken, the
+# finish it lies on or None).
+FINISH_LIST = [{"finish": "rusty painted steel"}, {"finish": "brown plastic cord and switch"},
+               {"finish": "weathered galvanised sheet steel"}, {"finish": "brushed stainless steel"}]
+FINISH_FOR = [
+    ("its words with one more colour word", "Rusty grey painted steel", 3, set(), 0),
+    ("its words hyphenated, with a noun more", "Weathered galvanised sheet-steel housing", 0, set(), 2),
+    ("words that are part of a finish's", "brown plastic", 1, set(), None),
+    ("words of no finish, the number a finish's", "bare brushed steel sheet and tube", 3, set(), None),
+    ("its finish taken already: one pick a finish", "rusty painted steel", 0, {0}, None),
+]
+
+
+# colour_picks.colour_fitting (#118 group C): a take the free colour check failed, which the recheck never asks, is
+# picked on the scene library's token nearest its off finish's close-up colour within dE 32 among those keeping what
+# the list meant (finish_parts.hue_kept); a dim close-up pulled foliage to a ground grey, 2026-11-12: (case, a finish
+# fitting its colour listed first, the off finish's words (listed in plain steel, seen bay-three), (its key, the
+# token picked) or None, the why's words or None).
+COLOUR_FITTING = [
+    ("blue steel seen blue takes bay-three, its recipe, roughness and metal its list's", True, "blue steel",
+     ("2", "bay-three"), None),
+    ("grey steel seen blue keeps no grey token near it", False, "grey steel", None,
+     "no library token of its listed hue"),
+    ("a finish with no colour words never moves off its listed hue", False, "steel", None,
+     "no library token of its listed hue"),
+]
 
 
 def palette_asked(folder, answer, place="cockpit", concept=True, close_ups=()):
@@ -4183,68 +4277,44 @@ OUTLINE_SIZES = [("a row seen at its look-down", "made", [1.0, 0.6, 0.4]),
 KEPT_POSES = ("kept", "kept from", "outline kept")
 
 
-def test_a_swinging_door_at_full_open_touches_nothing_in_its_recess():
-    """#72: a 6 m wide, 0.5 m thick door hinged on its left (the model's -x) swings a quarter turn into its 12 m
-    module through its S face (z 6). At 90 degrees it lies along the hinge side, from x -3.5 to -3 and z 0 to 6: its
-    recess, widened on that side by its thickness plus 5 cm (x -3.55 to 3), and its swing's 6.05 m deep, holds it with
-    5 cm clear of the side wall and of the back.
-    Break: score/stages/surfaces/route_bake.py: `opening = min(span, float(recess["wide"]) + room * (1.0 if room_side
-        else 2.0))` -> `opening = min(span, float(recess["wide"]))`"""
-    swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": 0.0, "wide": 6.0, "room": 0.55,
-             "room_side": -1.0, "tall": 8.0, "base": 0.0, "depth": 6.05}
-    low, high = (np.array(corner) for corner in route_bake.recess_box([12.0, 12.0, 12.0], swing))
-    door_low, door_high = np.array([-3.5, 0.0, 0.0]), np.array([-3.0, 8.0, 6.0])  # at 90 degrees
-    clear = np.concatenate([door_low - low, high - door_high])[[0, 2, 3, 5]]  # its sides and its back
-    assert (clear[[0, 1]] >= 0.05 - 1e-9).all() and (clear[[2, 3]] >= 0.0).all(), (low, high)
-
-
-def test_a_door_at_its_face_s_end_clears_the_kept_side_wall_at_full_open_as_it_clears_the_back():
-    """#36 (2026-10-29): base's garage door stands at its 12 m module's W end; kept a side wall (RECESS_BACK) inside
-    the face, its recess took the 5 cm the door's room had for clearance, and at full open the door lay flush against
-    the wall. Its room is its 0.5 m thickness, the clearance and the wall (score/review/holders RECESS_MARGIN,
-    RECESS_WALL); the assembly keeps door and room within the face (its hinge edge at -6 + 0.6), so at full open the
-    door (x -5.9 to -5.4) clears the wall (the recess from -5.95) by 5 cm, as its 6.05 m deep swing clears the back.
-    Break: score/review/holders/__init__.py: `RECESS_WALL = 0.05` -> `RECESS_WALL = 0.0`
-    Break: score/stages/surfaces/route_bake.py: `inside = span - 2 * RECESS_BACK` -> `inside = span`"""
-    from score.review import holders
-    from score.stages.assembly import fitting
-    room = 0.5 + holders.RECESS_MARGIN + holders.RECESS_WALL  # as holders.recess_of gives a swing (its own test)
-    swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": -7.695, "wide": 6.0, "room": room,
-             "room_side": -1.0, "room_way": [-1.0, 0.0], "tall": 8.0, "base": 0.0, "depth": 6.05}
-    low, high = route_bake.recess_box([12.0, 12.0, 12.0], swing)
-    below, _ = fitting.beside(swing, 0)
-    hinge = -6.0 + below  # where the assembly lays the door's hinge edge (fitting.on_holder)
-    assert below == pytest.approx(room) and low[0] >= -6.0 + route_bake.RECESS_BACK - 1e-9, (below, low)
-    assert hinge - 0.5 - low[0] == pytest.approx(holders.RECESS_MARGIN), (hinge, low)  # clear of the side wall
-    assert high[0] - (hinge + 6.0) >= holders.RECESS_MARGIN - 1e-9, (hinge, high)  # and of the latch side
-
-
-def test_a_moving_door_s_holder_bakes_with_a_recess_behind_it_and_the_recess_has_a_back():
-    """#72 (base's garage door swings on its 12 m module's S face): the relation's recess is cut into the holder's
-    entry when the job is written. The 6 m door, its middle 7.695 m left of the module's, is kept within the face's
-    span less a side wall (RECESS_BACK) at its end (x -5.95 to 0.05: flush with the span's end, base's recess cut its
-    module's W side wall away, 2026-10-29), 8 m tall, its swing's 6.05 m deep from 5 cm out of the face (z 6.05 to
-    -0.05): a recess with a back, never through the module (z -6). A sliding door's recess is its thickness deep, with
-    its width of room along the face; a static door's holder (no recess) bakes as it was.
-    Break: score/stages/surfaces/route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth
-        = 2 * half + RECESS_OUT`
-    Break: score/stages/surfaces/route_bake.py: `low[across], high[across] = middle - opening / 2, middle + opening / 2`
-        -> `low[across], high[across] = float(recess["along"]) - opening / 2, float(recess["along"]) + opening / 2`
-    Break: score/stages/surfaces/route_bake.py: `inside = span - 2 * RECESS_BACK` -> `inside = span` (2026-10-29)"""
-    entries = {"module_1": {"size": [12.0, 12.0, 12.0], "cuts": []}, "shed_1": {"size": [4.0, 3.0, 4.0], "cuts": []}}
-    swing = {"model": "module_1", "axis": "z", "side": 1.0, "along": -7.695, "wide": 6.0, "room": 0.0, "tall": 8.0,
-             "base": 0.0, "depth": 6.05}
-    found = route_bake.recessed(entries, {"relations": [{"item": "GARAGE DOOR 1", "row": "garage_door", "recess": swing},
-                                                      {"item": "SHUTTER 1", "row": "shutter"}]})
-    [cut] = found["module_1"]["cuts"]
-    assert cut == {"recess": [[-5.95, 0.0, -0.05], [0.05, 8.0, 6.05]]}, cut
-    assert cut["recess"][0][2] > -6.0 + route_bake.RECESS_BACK - 1e-9  # its back: the module stands behind it
-    assert cut["recess"][0][0] >= -6.0 + route_bake.RECESS_BACK - 1e-9  # its side: the W wall stands beside it
-    assert found["shed_1"]["cuts"] == [] and entries["module_1"]["cuts"] == []
-    slide = {**swing, "model": "shed_1", "axis": "x", "side": -1.0, "along": 0.0, "wide": 1.0, "room": 1.0,
-             "tall": 2.0, "depth": 0.15}
-    [cut] = route_bake.recessed(entries, {"relations": [{"recess": slide}]})["shed_1"]["cuts"]
-    assert cut == {"recess": [[-2.05, 0.0, -0.5], [-1.85, 2.0, 1.5]]}, cut
+# A moving door's recess (route_bake.recessed, each recess a relation names cut into its holder's entry when the job is
+# written, by route_bake.recess_box): a recess within its face's span less a side wall (RECESS_BACK) at each end, from
+# 5 cm out of the face to its depth, never past RECESS_BACK of the model's far side (a back), each holder entry left as
+# it was and a holder no relation names cut nowhere. #72: a 6 m wide, 0.5 m thick door hinged on its left (-x) swings a
+# quarter turn into its 12 m module through its S face (z 6), at 90 degrees lying x -3.5 to -3 and z 0 to 6: its
+# recess, widened on that side by its thickness plus 5 cm and its swing's 6.05 m deep, holds it 5 cm clear of the side
+# and the back. #36 (2026-10-29): base's garage door at its module's W end lay flush against the kept side wall at full
+# open, the recess having taken the 5 cm its room had for clearance: its room is its 0.5 m thickness, the clearance and
+# the wall (score/review/holders RECESS_MARGIN, RECESS_WALL), the assembly keeps door and room within the face (its
+# hinge edge at -6 plus the room fitting.beside keeps below it), so at full open the door clears the wall by 5 cm and,
+# closed, its latch side by as much. #72 (base's garage door, its middle 7.695 m left of the module's, room 0): kept
+# flush with the span's end (base's recess cut its module's W side wall away, 2026-10-29), a static door's relation
+# beside it cuts nothing; a sliding door's recess is its thickness deep, with its width of room along the face:
+# (case, the relations, the holder, its cut wanted, the room the assembly keeps below the door or None, the door's
+# edges as each lies against the cut: (axis, the cut's bound, the edge, its least clearance, its most or None)).
+DOOR_HOLDERS = {"module_1": {"size": [12.0, 12.0, 12.0], "cuts": []}, "shed_1": {"size": [4.0, 3.0, 4.0], "cuts": []}}
+GARAGE_SWING = {"model": "module_1", "axis": "z", "side": 1.0, "along": -7.695, "wide": 6.0, "room": 0.0, "tall": 8.0,
+                "base": 0.0, "depth": 6.05}
+END_ROOM = 0.5 + holders.RECESS_MARGIN + holders.RECESS_WALL  # as holders.recess_of gives a swing (its own test)
+END_HINGE = -6.0 + END_ROOM  # where the assembly lays the door's hinge edge (fitting.on_holder)
+DOORS = [
+    ("a 6 m door hinged left at full open lies 5 cm clear of its recess's side and back",
+     [{"recess": dict(GARAGE_SWING, along=0.0, room=0.55, room_side=-1.0)}], "module_1",
+     [[-3.55, 0.0, -0.05], [3.0, 8.0, 6.05]], None,
+     [(0, "low", -3.5, 0.05, None), (2, "low", 0.0, 0.05, None), (0, "high", -3.0, 0.0, None),
+      (2, "high", 6.0, 0.0, None)]),
+    ("a door at its face's end clears the kept side wall at full open by its margin, and its latch side",
+     [{"recess": dict(GARAGE_SWING, room=END_ROOM, room_side=-1.0, room_way=[-1.0, 0.0])}], "module_1",
+     [[-5.95, 0.0, -0.05], [0.65, 8.0, 6.05]], END_ROOM,
+     [(0, "low", END_HINGE - 0.5, holders.RECESS_MARGIN, holders.RECESS_MARGIN),
+      (0, "high", END_HINGE + 6.0, holders.RECESS_MARGIN, None)]),
+    ("base's garage door is cut flush with its span's end, a static door beside it cuts nothing",
+     [{"item": "GARAGE DOOR 1", "row": "garage_door", "recess": GARAGE_SWING}, {"item": "SHUTTER 1", "row": "shutter"}],
+     "module_1", [[-5.95, 0.0, -0.05], [0.05, 8.0, 6.05]], None, []),
+    ("a sliding door's recess is its thickness deep, its width of room along the face",
+     [{"recess": dict(GARAGE_SWING, model="shed_1", axis="x", side=-1.0, along=0.0, wide=1.0, room=1.0, tall=2.0,
+                      depth=0.15)}], "shed_1", [[-2.05, 0.0, -0.5], [-1.85, 2.0, 1.5]], None, []),
+]
 
 
 # The people line's bake takes its specs and wear from the repository's library by place; every old material was
@@ -4416,63 +4486,19 @@ REPAIRS = [  # (case, the row's module, Claude's first answer, the asks made)
 ]
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-def test_the_paint_reads_the_finish_s_turn_off_the_final_model_whatever_code_stood_it(tmp_path):
-    """A take stood by a turn no option of today's glb_file gives (30 degrees round up here; the airlock's four, stood
-    before glb_file.squared changed, 48939c57) has that turn read back exactly off its final model's vertices; a final
-    that is not its finished file's vertices turned gets none, and the replay decides."""
-    import math
-    import trimesh
-    mesh = trimesh.creation.box([0.6, 0.3, 0.2])
-    mesh.vertices[0] += [0.05, 0.02, 0.0]  # not symmetric: one turn only fits it
-    angle = math.radians(30)
-    turn = np.array([[math.cos(angle), 0.0, math.sin(angle)], [0.0, 1.0, 0.0], [-math.sin(angle), 0.0, math.cos(angle)]])
-    mesh.export(tmp_path / "crate_1-5000.glb")
-    stood = mesh.copy()
-    stood.vertices = mesh.vertices @ turn.T
-    stood.export(tmp_path / "crate_1-final.glb")
-    with prop_data.tools("props"):
-        assert np.allclose(place_line.recovered_turn(tmp_path, "crate_1"), turn, atol=1e-6)
-        stood.vertices = stood.vertices + [0.0, 0.0, 0.05]  # moved off its finished file: no exact turn
-        stood.export(tmp_path / "crate_1-final.glb")
-        assert place_line.recovered_turn(tmp_path, "crate_1") is None
-
-
-def test_the_paint_lays_a_raw_still_facing_plus_z_on_its_final_by_the_recovered_turn(tmp_path, monkeypatch):
-    """A raw image-to-3dlab left facing +Z (its stamp), whose finish turn is recovered off its final model, is turned
-    back half round before that turn, as the finish turned it before slimming: laid on its final, not tipped over
-    (galley's sink and workshop's desk lay on their backs, 2026-10-30)."""
-    import trimesh
-    with prop_data.tools("props"):
-        import glb_file
-        import labels
-        monkeypatch.setattr(labels, "PIXAL", tmp_path)
-        tilt = trimesh.transformations.rotation_matrix(math.radians(30), [1, 0, 0])[:3, :3]
-        raw = trimesh.creation.box([0.5, 0.87, 0.3])
-        raw.vertices = (raw.vertices + [0.1, 0.0, 0.0]) @ tilt.T @ labels.HALF_TURN.T  # off its middle: a half turn shows
-        raw.export(tmp_path / "stool_1.glb")
-        document, views = glb_file.read(tmp_path / "stool_1.glb")
-        document["asset"]["extras"] = {labels.FACING_KEY: "+Z"}
-        glb_file.write(document, views, tmp_path / "stool_1.glb")
-        slimmed = raw.copy()
-        slimmed.vertices = slimmed.vertices @ labels.HALF_TURN.T
-        slimmed.export(tmp_path / "stool_1-5000.glb")
-        final = slimmed.copy()
-        final.vertices = slimmed.vertices @ tilt  # stood: its tilt taken off
-        final.export(tmp_path / "stool_1-final.glb")
-        matrix, _, bounds = place_line.finished_frame(raw, "stool_1")
-    laid = trimesh.transform_points(raw.vertices, matrix)
-    assert np.allclose([laid.min(0), laid.max(0)], bounds, atol=0.01), (laid.min(0), laid.max(0), bounds)
+# The paint reads a finish's turn off the final model (place_line.recovered_turn) whatever code stood it, and lays a
+# raw take by it (place_line.finished_frame): a take stood by a turn no option of today's glb_file gives (30 degrees
+# round up; the airlock's four, stood before glb_file.squared changed, 48939c57) has that turn read back exactly off
+# its final model's vertices; a final that is not its finished file's vertices turned gets none, and the replay
+# decides; a raw image-to-3d take left facing +Z (its stamp), whose finish turn is recovered off its final model, is
+# turned back half round before that turn, as the finish turned it before slimming: laid on its final, not tipped
+# over (galley's sink and workshop's desk lay on their backs, 2026-10-30): (case, the take, its final moved off its
+# finished file by (z metres), the turn read back or None, laid on its final's bounds by finished_frame).
+CRATE_TURN = np.array([[math.cos(math.radians(30)), 0.0, math.sin(math.radians(30))], [0.0, 1.0, 0.0],
+                       [-math.sin(math.radians(30)), 0.0, math.cos(math.radians(30))]])
+STOOL_TILT = trimesh.transformations.rotation_matrix(math.radians(30), [1, 0, 0])[:3, :3]
+PAINT_TURNS = [
+    ("a take stood by a turn no option of glb_file gives has it read back exactly", "crate_1", 0.0, CRATE_TURN, False),
+    ("a final moved off its finished file's vertices turned gets no turn", "crate_1", 0.05, None, False),
+    ("a raw take still facing +Z is laid on its final by its recovered turn", "stool_1", 0.0, STOOL_TILT.T, True),
+]
