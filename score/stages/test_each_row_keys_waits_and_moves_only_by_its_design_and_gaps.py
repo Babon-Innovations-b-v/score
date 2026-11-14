@@ -19,7 +19,7 @@ The worked example on environment 1's round-three seeds (the hangar's) went with
 ever skipped since; the runner's own make-twice-and-rerun-on-change rules are held by score/graph's test.
 
 Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and score/graph/_code.py:
-- score/graph/_code.py `FRAMEWORK` without `score/stages/__init__.py`  -> the terrain key test (the table moves
+- score/graph/_code.py `FRAMEWORK` without `score/stages/__init__.py`  -> the KEYED terrain rows (the table moves
   terrain's key).
 - `FRAMEWORK` without `tools/cloud/provider.py`, or without `tools/cloud/secret_store.py`  -> the KEYED machinery rows.
 - `broken_ask`: `return None` first  -> the Claude ask of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (a
@@ -57,37 +57,38 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `remade_same`: always True (`return True`)  -> the plan row's make (its own plan redrawn still carries); its
   `runner.foreseen[...] = ...` dropped  -> the same (the redrawn plan not foreseen).
 - `part_moved`: the part compared whole (`old, new = store.listing(then), listing`)  ->
-  test_terrain_s_code_version_moves_with_its_own_code_only (hub's light passes made again); `part_standing`: a moved
-  read with no part rule let through (`any(...)` dropped)  -> the same test (scene-record moved, still kept);
-  score/graph/rebuy.py `to_make`: the foreseen reads not let through (`foreseen = []`)  -> the same test (rebuy's hub).
+  the remade readers (hub's light passes made again); `part_standing`: a moved read with no part rule let through
+  (`any(...)` dropped)  -> the same (scene-record moved, still kept); score/graph/rebuy.py `to_make`: the foreseen
+  reads not let through (`foreseen = []`)  -> the same (rebuy's hub).
 - score/graph/rebuy.py `to_make`: the `remade` hook not asked (`if False and ...`), or `remade_over_foreseen` lending no
-  terrain (`runner.kept_as.update(then)` -> `pass`)  -> test_terrain_s_code_version_moves_with_its_own_code_only (the
-  scene record made the same re-bought); `remade_kept.carries`: remade_same dropped  -> the same test (surfaces-parts);
-  `part_foreseen`: a place row's remake not read (`placed = False`)  -> the same test (the sound over moves.json).
-- `stamp_read`: the stamp compared whole (`return found or ...`)  -> the same test (the seed remade elsewhere made
-  again); its inputs' hashes dropped, or `seed_kept` comparing no layer (`any(...)` dropped)  -> the same test (a seed
+  terrain (`runner.kept_as.update(then)` -> `pass`)  -> the remade readers (the scene
+  record made the same re-bought); `remade_kept.carries`: remade_same dropped  -> the same (surfaces-parts);
+  `part_foreseen`: a place row's remake not read (`placed = False`)  -> the same (the sound over moves.json).
+- `stamp_read`: the stamp compared whole (`return found or ...`)  -> the remade readers (the seed remade elsewhere
+  made again); its inputs' hashes dropped, or `seed_kept` comparing no layer (`any(...)` dropped)  -> the same (a seed
   of another inventory or layer kept).
-- `made_again`: the store's cache not read (`if False and kept is not None ...`)  -> the same test (a key remade in
+- `made_again`: the store's cache not read (`if False and kept is not None ...`)  -> the remade readers (a key remade in
   each run).
-- `made_again`: its scratch made in /tmp (`dir=scratch_home(...)` dropped), or `linkable` copying nothing
-  (`return dict(inputs)`)  -> the same test (a remake linking an input of another device).
+- `made_again`: its scratch made in /tmp (`dir=scratch_home(...)` dropped)  -> the remade readers (an input beside
+  the store's cache copied, not linked, and no scratch left in the cache); `linkable` copying nothing (`return
+  dict(inputs)`)  -> the same (a remake linking an input of another device).
 - `ahead_workers`: the room not counted (`int(ROOM() // REMAKE_PEAK)` -> `jobs`), or `made_again` starting a remake
-  past the floor (`if ROOM() < REMAKE_PEAK` -> `if False`)  -> the same test (the capped remakes side by side, or made
-  with no room).
+  past the floor (`if ROOM() < REMAKE_PEAK` -> `if False`)  -> the remade readers (the capped remakes side by side, or
+  made with no room).
 - the surfaces-check row's `"stance rules"` file dropped  -> the check_step reads (every key surfaces-check hands).
-- `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  -> the PER_PLACE cast kit rows of
-  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (stale: green on a04dfcd33's own cast test too,
-  2026-11-14; the sandbox home has no earth seed, so nothing is read from one).
+- `earth_seeded.declared`: the seed-read filter turned round (`read_from_seed(path, place) is not None`)  -> the
+  PER_PLACE cast kit rows (the kit no seed reads is dropped; dropping the filter whole stays green, as the sandbox home
+  has no earth seed, so nothing is read from one).
 - `earth_place`: always True  -> the PER_PLACE cast kit rows (the cockpit's cast declares no kit of its own).
 - data/checks/row-kinds.json: its "about" naming `{home}/work/old`  -> the data's work-folder paths (a wording
   check guarding the rule above).
 - `MOTION_LAYER`: growth's `crops-layer` written `crops`  -> the motion layer patterns that name no row.
-- score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> the terrain test and the KEYED rows above, and the push
-  gate's TREE_EDITS framework-only row.
+- score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> the KEYED terrain rows and the rows
+  above, and the push gate's TREE_EDITS framework-only row.
 - `scripts_declared`: the row returned as it was  -> the started-scripts check (every
   row that starts a script, surfaces-bake's recipes.py among them); score/graph/_code.py `script_imports`: the files
   beside a script dropped  -> the same test (make_chunky.py's bake.py, pieces.py ...); `STARTED_LEFT` with a row that
-  starts nothing  -> the same test; `reads_recipes` always False  -> the dress row's vendored-recipes WIRED row of
+  starts nothing (`plan` added)  -> the same test; `reads_recipes` always False  -> the dress row's vendored-recipes WIRED row of
   test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.
 - `set_aside`: `if not aside.exists():` -> `if True:`  -> the rejected takes (the retake set aside again over the
   old); `retake_pending` without `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`  -> the
@@ -105,9 +106,9 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   batch_gaps.of(inputs, output) if batch else []`  -> the lean gate's counter row; score/stages/gaps.py moved: `if not
   said:` -> `if True:`  -> the lean gate's mixed faults row.
 - score/stages/surfaces/route_views.py `view_take`: a read of a file no argument names added (`(REPO /
-  "data/library/materials.json").read_text()`)  -> test_each_per_take_function_opens_only_its_arguments_its_code_and_python
-  (kept.call would hand back a take made from that file's old bytes); the same in route_split.py `split_take` or
-  route_parts.py `parts_take`  -> the same test.
+  "data/library/materials.json").read_text()`)  -> the per-take reads of
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (kept.call would hand back a take made from that
+  file's old bytes); the same in route_split.py `split_take` or route_parts.py `parts_take`  -> the same.
 
 --- a scenes layers are read off its design, and a rows kind comes from its own words ---
 
@@ -405,11 +406,6 @@ def code_after_editing(stage, edited):
     return [part + "+edit" if path in hashed and part == f"{edited} {hashed[path]}" else part for part in version]
 
 
-def terrain_code_after_editing(edited):
-    """Terrain's code version as if the repository file `edited` had changed."""
-    return code_after_editing(stages.TERRAIN, edited)
-
-
 PAINT_BLIND = ["finish-route-views", "finish-route-list", "finish-route-split", "finish-route-recheck", "terrain"]
 MACHINERY = ("tools/cloud/pool.py", "tools/cloud/spread.py", "tools/cloud/provider.py", "tools/cloud/backends/scaleway.py",
              "tools/cloud/ledger.py", "tools/cloud/google_spend.py", "tools/cloud/preflight.py",
@@ -450,177 +446,15 @@ KEYED = [
     *[(edited, ["*"], {"complete"}) for edited in ("tools/usd/complete.py", "tools/usd/contents.py",
                                                    "tools/usd/reach.py", "score/stages/complete/__init__.py")],
     ("tools/usd/snap.py", ["*"], {"complete", "settle", "light", "light-layer", "light-passes"}),
+    # another line's edits to the runner, the stage table or another stage's module leave terrain's key alone (they
+    # re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it
+    *[(edited, ["terrain"], set()) for edited in (
+        "score/stages/__init__.py", "score/graph/__init__.py", "score/review/__init__.py",
+        "score/adapters/compute/__init__.py", "score/stages/effects/__init__.py", "score/stages/assembly/__init__.py",
+        "score/stages/surfaces/__init__.py")],
+    *[(edited, ["terrain"], EVERY) for edited in ("score/stages/terrain/__init__.py", "score/stages/terrain/design.py",
+                                                  "score/stages/terrain/outside.py")],
 ]
-
-
-def test_terrain_s_code_version_moves_with_its_own_code_only():
-    """Another line's edits to the runner, the stage table or another stage's module leave terrain's key alone (they
-    re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it. And terrain made
-    again elsewhere than a place's own layer moves none of that place's readers: its light passes keep their accepted
-    output (made, or foreseen by rebuy before terrain is made), and its sound keeps over a motion whose moves.json
-    stands; a place whose layer changed, or a read with no part rule moved, is made again (the square redrawn listed
-    every place's light passes and sound, 2026-11-07)."""
-    before = terrain_code_after_editing("nothing")
-    for unrelated in ("score/stages/__init__.py", "score/graph/__init__.py", "score/review/__init__.py",
-                      "score/adapters/compute/__init__.py", "score/stages/effects/__init__.py",
-                      "score/stages/assembly/__init__.py", "score/stages/surfaces/__init__.py"):
-        assert terrain_code_after_editing(unrelated) == before, unrelated
-    for own in ("score/stages/terrain/__init__.py", "score/stages/terrain/design.py",
-                "score/stages/terrain/outside.py"):
-        assert terrain_code_after_editing(own) != before, own
-    rows = {row.name: row for row in stages.STAGES}
-    listings = {"T0": {"moon/ground.json": "g0", "moon/places/hub.usdc": "h", "moon/places/base.usdc": "b0"},
-                "T1": {"moon/ground.json": "g1", "moon/places/hub.usdc": "h", "moon/places/base.usdc": "b1"},
-                "M0": {"moves.json": "m", "layer.usda": "l0"}, "M1": {"moves.json": "m", "layer.usda": "l1"}}
-    own = {"code": "c", "contract": "s", "expects": {}, "params": {}, "seed": 1, "files": {}, "models": {}}
-    record = {**own, "key": "k0", "output": "out", "after": {"terrain": "T0", "scene-record": "S0", "motion": "M0"}}
-    store = types.SimpleNamespace(accepted=lambda node: "out", records=lambda node: [record], listing=listings.get)
-
-    def key(stage, place):
-        if stage.name != "terrain":
-            raise graph.Blocked("terrain is not made on its key yet")
-        return {"key": "KT"}
-    runner = types.SimpleNamespace(store=store, stages=rows, key=key, own_parts=lambda stage, place: own)
-    passes = rows["light-passes"]
-    for moved_after, place, kept in (({"terrain": "T1"}, "hub", True), ({"terrain": "T1"}, "base", False),
-                                     ({"terrain": "T1", "scene-record": "S1"}, "hub", False)):
-        keyed = {**own, "key": "k1", "after": {**record["after"], **moved_after}}
-        assert passes.files.carries(runner, passes, place, keyed) is kept, (moved_after, place)
-    assert rows["sound"].files.carries(runner, rows["sound"], "hub", {**own, "after": {**record["after"],
-                                                                                        "motion": "M1"}})
-    assert not rows["ground-fit"].files.__dict__.get("carries")  # it reads its body's whole ground.json
-    stages.FORESIGHTS["terrain", "KT"] = listings["T1"]
-    try:
-        assert rebuy.to_make(runner, passes, "hub", ["terrain"], {"terrain": True}) is rebuy.KEPT
-        assert rebuy.to_make(runner, passes, "base", ["terrain"], {"terrain": True}) == {}
-        # A free row whose code moved (0fcfc2b2's triage.py), made again over the terrain it read (its place's layer
-        # foreseen the same), keeps when it gives its accepted output; a motion made otherwise keeps the sound while
-        # its moves.json stands (883d65f2 listed every place's light passes and sound, 2026-11-07).
-        with tempfile.TemporaryDirectory() as folder:
-            made = pathlib.Path(folder)
-            contracts.stamp(TOY, made)
-            (made / "record.json").write_text("{}")
-            accepted = store_tree_hash(made)
-
-            def make(written):
-                def made_now(inputs, out, seed, params):
-                    (out / "record.json").write_text(written)
-                return made_now
-            lent = {**own, "code": "c2"}
-            same_store = types.SimpleNamespace(accepted=lambda node: accepted, records=lambda node: [
-                {**record, "output": accepted}], listing=listings.get)
-
-            def worked_out(stage, place):
-                if lending.kept_as.get("terrain") != "T0":
-                    raise graph.Blocked("terrain is not made on its key yet")
-                return {**lent, "key": "k2", "after": {**record["after"]}}
-            lending = types.SimpleNamespace(store=same_store, stages=rows, key=key, own_parts=lambda stage, place: lent,
-                                            worked_out_key=worked_out, input_paths=lambda stage, place, keyed: {},
-                                            kept_as={}, foreseen={}, foreseen_listing={})
-            for written, kept in (("{}", True), ('{"moved": 1}', False)):
-                row = dataclasses.replace(rows["scene-record"], make=make(written), contract=TOY)
-                assert (rebuy.to_make(lending, row, "hub", ["terrain"], {"terrain": True}) is rebuy.KEPT) is kept
-                assert lending.kept_as == {}, "the lent terrain is handed back"
-            assert rows["surfaces-parts"].files.carries(lending, dataclasses.replace(
-                rows["surfaces-parts"], make=make("{}"), contract=TOY), "hub", {**lent, "key": "k2", "after": {}})
-        # The earth seed made again keeps where only its inputs.json's stamp of when and where differs (fcc59e40's
-        # seed code moved every place's scene record and light passes); another inventory or layer is made again.
-        def stamp(at, home, sha):
-            return {"at": at, "inventory": f"{home}/inventory/hub.json", "inputs": {f"{home}/inventory/hub.json": sha},
-                    "models": {"crate": {"file": f"{home}/crate.gltf", "sha256": "c", "mtime": at}}}
-
-        def seed_make(layer, written):
-            def made_now(inputs, out, seed, params):
-                (out / "hub").mkdir()
-                (out / "hub/base.usda").write_text(layer)
-                (out / "hub/inputs.json").write_text(json.dumps(written))
-            return made_now
-        with tempfile.TemporaryDirectory() as folder:
-            made = pathlib.Path(folder)
-            seed_make("ground", stamp(1, "/frozen", "i"))({}, made, 0, {})
-            contracts.stamp(TOY, made)
-            accepted = store_tree_hash(made)
-            listed = {name: hashlib.sha256((made / name).read_bytes()).hexdigest() for name in
-                      ("hub/base.usda", "hub/inputs.json", contracts.STAMP)}
-            seed_store = types.SimpleNamespace(accepted=lambda node: accepted, listing=lambda output: listed,
-                                               read_file=lambda output, name: json.loads((made / name).read_text()))
-            seeding = types.SimpleNamespace(store=seed_store, input_paths=lambda stage, place, keyed: {})
-            for number, (layer, written, kept) in enumerate((("ground", stamp(2, "/home/pc", "i"), True),
-                                                             ("ground", stamp(2, "/home/pc", "j"), False),
-                                                             ("decks", stamp(1, "/frozen", "i"), False))):
-                seed = dataclasses.replace(rows["earth-seed"], make=seed_make(layer, written), contract=TOY)
-                assert seed.files.carries(seeding, seed, "hub", {"key": f"s{number}", "seed": 0, "params": {}}) is kept
-            # A remake is kept in the store's cache by node and key: a later run asks it of the cache, never makes it
-            # again (each run made them all again: score moved 45 s -> 10 min, 2026-11-07); a failed one is not kept.
-            makes = []
-
-            def counted(inputs, out, seed, params):
-                makes.append(1)
-                seed_make("ground", stamp(2, "/home/pc", "i"))(inputs, out, seed, params)
-
-            def failing(inputs, out, seed, params):
-                raise RuntimeError("no memory")
-            with tempfile.TemporaryDirectory() as cache:
-                for run, make in enumerate((failing, counted, counted, failing)):
-                    stages.SEEDS_KEPT.clear()
-                    stages.FAILED.clear()
-                    cached = types.SimpleNamespace(store=types.SimpleNamespace(**vars(seed_store), cache=cache),
-                                                   input_paths=seeding.input_paths)
-                    seed = dataclasses.replace(rows["earth-seed"], make=make, contract=TOY)
-                    assert seed.files.carries(cached, seed, "hub", {"key": "cached", "seed": 0, "params": {}}) is \
-                        (run > 0), run
-                assert makes == [1], makes
-            # Side by side only as many remakes as fit the memory room (a scope's cap counted); a small cap makes
-            # them one at a time, every one made, none failed; none is started past the floor (the conductor's 10 GB
-            # scope was killed twice by this pass's remakes, 2026-11-07).
-            for room, workers, made in ((3 * 2**30, 1, 2), (2**30, 0, 0)):
-                makes.clear()
-                stages.FAILED.clear()
-                stages.ROOM = lambda: room
-                with tempfile.TemporaryDirectory() as cache:
-                    ahead = types.SimpleNamespace(
-                        store=types.SimpleNamespace(**vars(seed_store), cache=cache, record=lambda node, key: None),
-                        remembered=None, kept_as={}, read_nodes=lambda stage, place, every=False: [],
-                        worked_out_key=lambda stage, place: {"key": f"ahead-{place}", "seed": 0, "params": {}},
-                        input_paths=seeding.input_paths)
-                    seed = dataclasses.replace(rows["earth-seed"], make=counted, contract=TOY)
-                    assert stages.ahead_workers(2) == workers, room
-                    stages.remakes_ahead(ahead, [(seed, "hub"), (seed, "base")])
-                    assert (len(makes), stages.FAILED) == (made, set()), room
-                    assert len(list(pathlib.Path(cache).rglob("ahead-*.json"))) == made, room
-            # A remake hard-linking an input (the light rows' `cp -al` of their seed) is made beside the store's
-            # cache, and an input no link reaches from there (another device) is copied: made in /tmp, every such
-            # remake failed with EXDEV on the conductor and this PC and counted as moved (2026-11-07).
-            stages.ROOM = lambda: 64 * 2**30
-            real_link = os.link
-            with tempfile.TemporaryDirectory() as cache, tempfile.TemporaryDirectory() as elsewhere:
-                def device_link(source, target):
-                    if str(source).startswith(cache) != str(target).startswith(cache):
-                        raise OSError(errno.EXDEV, "Invalid cross-device link")
-                    real_link(source, target)
-                for there in (cache, elsewhere):
-                    (pathlib.Path(there) / "seed").mkdir()
-                    (pathlib.Path(there) / "seed/base.usda").write_text("ground")
-                    stages.FAILED.clear()
-
-                    def linking(inputs, out, seed, params):
-                        os.link(pathlib.Path(inputs["seed"]) / "base.usda", out / "base.usda")
-                    linked = types.SimpleNamespace(
-                        store=types.SimpleNamespace(cache=cache, record=lambda node, key: None),
-                        input_paths=lambda stage, place, keyed: {"seed": str(pathlib.Path(there) / "seed")})
-                    row = dataclasses.replace(rows["earth-seed"], make=linking, contract=TOY)
-                    with mock.patch.object(os, "link", device_link):
-                        made = stages.made_again(linked, row, "hub", {"key": f"linked-{there == cache}", "seed": 0,
-                                                                     "params": {}})
-                    assert made is not None and "base.usda" in made["listing"], there
-                    assert (pathlib.Path(there) / "seed/base.usda").read_text() == "ground"
-                assert not any((pathlib.Path(cache) / "remaking").iterdir()), "the scratch is cleaned after"
-        sound = rows["sound"]
-        for moves, kept in (("m", True), ("m2", False)):
-            runner.foreseen_listing = {"motion@hub": {"moves.json": moves, "layer.usda": "l2"}}
-            assert (rebuy.to_make(runner, sound, "hub", ["motion@hub"], {"motion@hub": True}) is rebuy.KEPT) is kept
-    finally:
-        del stages.FORESIGHTS["terrain", "KT"]
 
 
 LOOK = "person_uniform-made"
@@ -1003,6 +837,52 @@ JUDGED = [
      (None, "the row g names no ground and stands on no body of the setting")),
 ]
 
+# (case, row, place, judged by, moved reads, its code, made again as, key, kept): a row made again elsewhere than a
+# place's own layer moves none of that place's readers. Terrain redrawn, the hub's light passes keep their accepted
+# output (made, or foreseen by rebuy before terrain is made) and its sound keeps over a motion whose moves.json stands;
+# a place whose layer changed, or a read with no part rule moved, is made again (the square redrawn listed every
+# place's light passes and sound, 2026-11-07). A free row whose code moved (0fcfc2b2's triage.py), made again over the
+# terrain it read, keeps when it gives its accepted output. The earth seed made again keeps where only its
+# inputs.json's stamp of when and where differs (fcc59e40's seed code moved every place's scene record and light
+# passes); another inventory or layer is made again. A remake is kept in the store's cache by node and key: a later
+# run asks it of the cache, never makes it again (each run made them all again: score moved 45 s -> 10 min,
+# 2026-11-07); a failed one is not kept. "kept" for rebuy is rebuy.KEPT, "made" any other answer.
+REMADE_READS = [
+    ("terrain redrawn: the hub's light passes", "light-passes", "hub", "carries", {"terrain": "T1"}, "c", None, "k1",
+     True),
+    ("terrain redrawn: the base's own layer moved", "light-passes", "base", "carries", {"terrain": "T1"}, "c", None,
+     "k1", False),
+    ("a read with no part rule moved", "light-passes", "hub", "carries", {"terrain": "T1", "scene-record": "S1"}, "c",
+     None, "k1", False),
+    ("motion's layer moved, its moves.json stands", "sound", "hub", "carries", {"motion": "M1"}, "c", None, "k1",
+     True),
+    ("ground-fit reads its body's whole ground.json", "ground-fit", "hub", "carries", {"terrain": "T1"}, "c", None,
+     "k1", False),
+    ("terrain foreseen: the hub's light passes", "light-passes", "hub", "to_make", {"terrain": "T1"}, "c", None, "k1",
+     rebuy.KEPT),
+    ("terrain foreseen: the base's light passes", "light-passes", "base", "to_make", {"terrain": "T1"}, "c", None,
+     "k1", {}),
+    ("motion foreseen, its moves.json stands", "sound", "hub", "to_make", {"motion@hub": "M2"}, "c", None, "k1",
+     rebuy.KEPT),
+    ("motion foreseen, its moves.json moved", "sound", "hub", "to_make", {"motion@hub": "M3"}, "c", None, "k1",
+     "made"),
+    ("the scene record's code moved, made again the same", "scene-record", "hub", "to_make", {"terrain": "T1"}, "c2",
+     "same", "k2", rebuy.KEPT),
+    ("the scene record's code moved, made again another", "scene-record", "hub", "to_make", {"terrain": "T1"}, "c2",
+     "other", "k3", "made"),
+    ("surfaces-parts made again the same", "surfaces-parts", "hub", "carries", {}, "c2", "same", "k4", True),
+    ("the earth seed made elsewhere: its stamp alone differs", "earth-seed", "hub", "carries", {}, "c",
+     "stamped elsewhere", "s0", True),
+    ("the earth seed of another inventory", "earth-seed", "hub", "carries", {}, "c", "another inventory", "s1", False),
+    ("the earth seed of another layer", "earth-seed", "hub", "carries", {}, "c", "another layer", "s2", False),
+    ("a failed remake is not kept", "earth-seed", "hub", "carries", {}, "c", "failing", "cached", False),
+    ("a remake made once, kept in the cache", "earth-seed", "hub", "carries", {}, "c", "counted", "cached", True),
+    ("a later run asks it of the cache", "earth-seed", "hub", "carries", {}, "c", "counted", "cached", True),
+    ("asked of the cache, its make never run", "earth-seed", "hub", "carries", {}, "c", "failing", "cached", True),
+]
+# (the memory room, remakes side by side, remakes made): two of the earth seed's remakes ahead
+AHEAD_ROOMS = [(3 * 2**30, 1, 2), (2**30, 0, 0)]
+
 # a place has a layer only by its kept design: the shed keeps one astronaut, the hangar every layer kind, the barn none
 KEPT = {"shed": {"rows": [row("pilot", "astronaut")]},
         "hangar": {"rows": [row("pilot", "astronaut"), row("kettle", "kettle"), row("hatch", "door", kind="code"),
@@ -1019,7 +899,9 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     each by name, and an owner's gap is never dropped unless retired on a passing output. A failed paid take is a gap
     carried down its line. The push gate names the paid rows a change moves, refuses a push to main only for those no
     trailer names, and its hook runs the check from the right checkout, home and python and leaves nothing behind.
-    A row's code version moves with its own code alone, and a Claude ask cut short is never a row's output; each row waits on, reads beside and applies where its design and its reads
+    A row's code version moves with its own code alone, a row made again elsewhere than a place's own layer moves
+    none of its readers, a per-take function reads only what its key holds, and a Claude ask cut short is never a
+    row's output; each row waits on, reads beside and applies where its design and its reads
     say, and no base row waits on the prop route. A row's key holds every script it starts; a place is a scene whose
     design is done, a parent before its children; a take the owner rejected is set aside once and retaken, and one
     the surface line left out is a batch gap by its reason, never a missing model."""
@@ -1093,6 +975,146 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     table = {stage.name: stage for stage in stages.STAGES}
     assert all(hasattr(table[name].files, "same_reads") for name in ("rough-model", "rough-align"))
     assert hasattr(table["props-inputs"].files, "carries")
+
+    # a row made again elsewhere than a place's own layer moves none of that place's readers (REMADE_READS), each
+    # judged on one world: an accepted record over terrain T0, scene record S0 and motion M0; the terrain's,
+    # motion's and earth seed's listings; the scene record's and earth seed's accepted outputs; one store cache the
+    # remakes are kept in and made beside
+    shown = {"T0": {"moon/ground.json": "g0", "moon/places/hub.usdc": "h", "moon/places/base.usdc": "b0"},
+             "T1": {"moon/ground.json": "g1", "moon/places/hub.usdc": "h", "moon/places/base.usdc": "b1"},
+             "M0": {"moves.json": "m", "layer.usda": "l0"}, "M1": {"moves.json": "m", "layer.usda": "l1"},
+             "M2": {"moves.json": "m", "layer.usda": "l2"}, "M3": {"moves.json": "m2", "layer.usda": "l2"}}
+    parts = {"code": "c", "contract": "s", "expects": {}, "params": {}, "seed": 1, "files": {}, "models": {}}
+    terrain_record = {**parts, "key": "k0", "output": "out",
+                      "after": {"terrain": "T0", "scene-record": "S0", "motion": "M0"}}
+    remade = tmp_path / "remade"
+    remade.mkdir()
+    contracts.stamp(TOY, remade)
+    (remade / "record.json").write_text("{}")
+
+    def writing(text):
+        def made_now(inputs, out, seed, params):
+            (out / "record.json").write_text(text)
+        return made_now
+
+    def stamped(at, home, sha):
+        return {"at": at, "inventory": f"{home}/inventory/hub.json", "inputs": {f"{home}/inventory/hub.json": sha},
+                "models": {"crate": {"file": f"{home}/crate.gltf", "sha256": "c", "mtime": at}}}
+
+    def seeding(layer_text, stamp):
+        def made_now(inputs, out, seed, params):
+            (out / "hub").mkdir()
+            (out / "hub/base.usda").write_text(layer_text)
+            (out / "hub/inputs.json").write_text(json.dumps(stamp))
+        return made_now
+    seeded = tmp_path / "seeded"
+    seeded.mkdir()
+    seeding("ground", stamped(1, "/frozen", "i"))({}, seeded, 0, {})
+    contracts.stamp(TOY, seeded)
+    seed_output = store_tree_hash(seeded)
+    seed_listing = {name: hashlib.sha256((seeded / name).read_bytes()).hexdigest() for name in
+                    ("hub/base.usda", "hub/inputs.json", contracts.STAMP)}
+    accepted = {"scene-record": store_tree_hash(remade), "surfaces-parts": store_tree_hash(remade),
+                "earth-seed": seed_output}
+    remakes = []
+
+    def counted_seed(inputs, out, seed, params):
+        remakes.append(1)
+        seeding("ground", stamped(2, "/home/pc", "i"))(inputs, out, seed, params)
+
+    def failing_seed(inputs, out, seed, params):
+        raise RuntimeError("no memory")
+    makes = {"same": writing("{}"), "other": writing('{"moved": 1}'), "counted": counted_seed,
+             "failing": failing_seed, "stamped elsewhere": seeding("ground", stamped(2, "/home/pc", "i")),
+             "another inventory": seeding("ground", stamped(2, "/home/pc", "j")),
+             "another layer": seeding("decks", stamped(1, "/frozen", "i"))}
+    now = {}  # the case the world is judging: its code, key, moved reads and inputs
+
+    def terrain_key(stage, place):
+        if stage.name != "terrain":
+            raise graph.Blocked("terrain is not made on its key yet")
+        return {"key": "KT"}
+
+    def owned(stage, place):
+        return {**parts, "code": now["code"]}
+
+    def worked_out(stage, place):
+        if "terrain" in now["moved"] and world.kept_as.get("terrain") != "T0":
+            raise graph.Blocked("terrain is not made on its key yet")
+        return {**owned(stage, place), "key": f"{now['key']}-{place}", "after": {**terrain_record["after"]}}
+
+    def output_of(node):
+        return accepted.get(node.split("@")[0], "out")
+    cache = tmp_path / "store_cache"
+    world = types.SimpleNamespace(
+        store=types.SimpleNamespace(
+            accepted=output_of, records=lambda node: [{**terrain_record, "output": output_of(node)}],
+            listing=lambda output: seed_listing if output == seed_output else shown.get(output),
+            read_file=lambda output, name: json.loads((seeded / name).read_text()), cache=str(cache),
+            record=lambda node, key: None),
+        stages=table, key=terrain_key, own_parts=owned, worked_out_key=worked_out,
+        input_paths=lambda stage, place, keyed: dict(now["inputs"]), kept_as={}, foreseen={}, foreseen_listing={},
+        remembered=None, read_nodes=lambda stage, place, every=False: [])
+    for case, name, place, judged_by, moved_reads, code, made_as, key, expected in REMADE_READS:
+        now.update(code=code, key=key, moved=moved_reads, inputs={})
+        for kept in (world.kept_as, world.foreseen, world.foreseen_listing, stages.FAILED, stages.SEEDS_KEPT):
+            kept.clear()
+        row = table[name] if made_as is None else dataclasses.replace(table[name], make=makes[made_as], contract=TOY)
+        with monkeypatch.context() as patch:
+            if judged_by == "carries":
+                carries = getattr(row.files, "carries", None)
+                judged = bool(carries) and carries(world, row, place, {
+                    **owned(row, place), "key": key, "after": {**terrain_record["after"], **moved_reads}})
+            else:
+                for node, listing in moved_reads.items():
+                    if node == "terrain":  # made on its own key: rebuy's foresight of it
+                        patch.setitem(stages.FORESIGHTS, ("terrain", "KT"), shown[listing])
+                    else:
+                        world.foreseen_listing[node] = shown[listing]
+                judged = rebuy.to_make(world, row, place, list(moved_reads), dict.fromkeys(moved_reads, True))
+                assert world.kept_as == {}, (case, "the lent terrain is handed back")
+        assert (judged is expected if isinstance(expected, bool) or expected is rebuy.KEPT
+                else judged is not rebuy.KEPT if expected == "made" else judged == expected), (case, judged)
+    assert remakes == [1], remakes  # the cached remake made once, its failed makes never kept
+    # side by side only as many remakes as fit the memory room (a scope's cap counted); a small cap makes them one at
+    # a time, every one made, none failed; none is started past the floor (the conductor's 10 GB scope was killed
+    # twice by this pass's remakes, 2026-11-07)
+    seed_row = dataclasses.replace(table["earth-seed"], make=counted_seed, contract=TOY)
+    for room, workers, made_count in AHEAD_ROOMS:
+        remakes.clear()
+        stages.FAILED.clear()
+        now.update(code="c", key=f"ahead{room}", moved={}, inputs={})
+        monkeypatch.setattr(stages, "ROOM", lambda room=room: room)
+        assert stages.ahead_workers(2) == workers, room
+        stages.remakes_ahead(world, [(seed_row, "hub"), (seed_row, "base")])
+        assert (len(remakes), stages.FAILED) == (made_count, set()), room
+        assert len(list(cache.rglob(f"ahead{room}-*.json"))) == made_count, room
+    # a remake hard-linking an input (the light rows' `cp -al` of their seed) is made beside the store's cache, so an
+    # input there is linked as it is, and an input no link reaches from there (another device) is copied: made in
+    # /tmp, every such remake failed with EXDEV on the conductor and this PC and counted as moved (2026-11-07)
+    monkeypatch.setattr(stages, "ROOM", lambda: 64 * 2**30)
+    real_link, handed = os.link, []
+
+    def device_link(source, target):
+        if str(source).startswith(str(cache)) != str(target).startswith(str(cache)):
+            raise OSError(errno.EXDEV, "Invalid cross-device link")
+        real_link(source, target)
+
+    def linking(inputs, out, seed, params):
+        handed.append(pathlib.Path(inputs["seed"]))
+        os.link(pathlib.Path(inputs["seed"]) / "base.usda", out / "base.usda")
+    link_row = dataclasses.replace(table["earth-seed"], make=linking, contract=TOY)
+    for there, copied in ((cache, False), (tmp_path / "elsewhere", True)):
+        (there / "seed").mkdir(parents=True)
+        (there / "seed/base.usda").write_text("ground")
+        stages.FAILED.clear()
+        now.update(inputs={"seed": str(there / "seed")})
+        with mock.patch.object(os, "link", device_link):
+            relinked = stages.made_again(world, link_row, "hub", {"key": f"linked-{copied}", "seed": 0, "params": {}})
+        assert relinked is not None and "base.usda" in relinked["listing"], there
+        assert (handed[-1] != there / "seed") is copied, (there, handed[-1])
+        assert (there / "seed/base.usda").read_text() == "ground"
+    assert not any((cache / "remaking").iterdir()), "the scratch is cleaned after"
 
     # the table wires each row to wait on, read beside, declare and apply where its design and its reads say
     from score.stages import people
@@ -1352,6 +1374,11 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
                if _code.REPO / "score/stages/gaps.py" in _code.source_files(graph.code_functions(ROWS[name]))}
     assert hashing == {"complete"}, hashing  # moving a verdict re-makes nothing, the paid paint above all
 
+    # kept.call hands a take back whenever its function, its arguments and the files they name, the row's code and
+    # this Python are the same (the table's PER_TAKE, owner, 2026-10-29), so each function it keeps must read nothing
+    # else: every per-take call from here on (the views below, and the surface line's list, split and parts after
+    # them) is traced, and each file it opens must be one its arguments name, the repository's Python or Python's own
+    per_take = per_take_traced(monkeypatch)
     # a failed paid take is a gap carried down its line: the batch brought the crate's take back and not the hatch's;
     # its row names the gap, its gate still fails it and the table moves exactly that fault
     out, inputs = pixal_made({"crate-s1"})
@@ -1393,6 +1420,19 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
                                                                      "hatch: Pixal3D made no model"}
     (views / batch_gaps.FILE).write_text(json.dumps({"gaps": []}))
     assert route_views.judge_views(views, {}, None).answer == checks.FAIL
+    # the surface line's own fixtures carry its two boxes' takes on through the views, list, split and parts: each
+    # PER_TAKE row's function was called, read its inputs through the traced opens, and opened nothing else
+    fixtures_path = REPO / "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py"
+    spec = importlib.util.spec_from_file_location("surface_line_fixtures", fixtures_path)
+    fixtures = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(fixtures)
+    surface_line = tmp_path / "surface_line"
+    surface_line.mkdir()
+    listed_rows, _ = fixtures.listed(surface_line, lambda views, take: fixtures.two_finish_answer(views))
+    fixtures.parted(surface_line, fixtures.split(surface_line, listed_rows))
+    for name, (function_name, _) in stages.PER_TAKE.items():
+        seen = per_take[function_name]
+        assert seen["calls"] and seen["opened"] and not seen["strays"], (name, function_name, seen)
 
     # a take the owner rejected is set aside once and retaken (owner, 2026-10-28: a failing object remade once,
     # free): its files moved aside once (the other takes, and a take its name starts, kept), named by its take or its
@@ -2615,6 +2655,34 @@ PYTHON_HOMES = tuple(pathlib.Path(folder).resolve() for folder in {sys.prefix, s
 SYSTEM_FOLDERS = tuple(pathlib.Path(folder) for folder in ("/proc", "/sys", "/dev"))
 
 
+def per_take_traced(patch):
+    """Each per-take function of the table (PER_TAKE) wrapped where its row's make finds it, each call counted with
+    the files it opened and those its arguments do not name: {function name: {"calls", "opened", "strays"}}."""
+    if not getattr(sys, "per_take_hook", False):
+        sys.addaudithook(opened_hook)
+        sys.per_take_hook = True
+    traced, by_name = {}, {stage.name: stage for stage in stages.STAGES}
+    for name, (function_name, _) in stages.PER_TAKE.items():
+        namespace = inspect.unwrap(by_name[name].make).__globals__
+        seen = traced.setdefault(function_name, {"calls": 0, "opened": 0, "strays": []})
+        if getattr(namespace[function_name], "seen", None) is seen:
+            continue  # two rows' makes find it in one module
+
+        def tracing(*arguments, function=namespace[function_name], seen=seen):
+            seen["calls"] += 1
+            OPENED.clear()
+            TRACING.append(function)
+            try:
+                return function(*arguments)
+            finally:
+                TRACING.clear()
+                seen["opened"] += len(OPENED)
+                seen["strays"] += [path for path in OPENED if outside_its_key(path, argument_paths(list(arguments)))]
+        tracing.seen = seen
+        patch.setitem(namespace, function_name, tracing)
+    return traced
+
+
 def opened_hook(event, arguments):
     if event == "open" and TRACING and isinstance(arguments[0], (str, bytes, os.PathLike)):
         OPENED.append(os.fsdecode(arguments[0]))
@@ -2638,40 +2706,3 @@ def outside_its_key(path, named):
     return not (any(path == folder or path.is_relative_to(folder) for folder in (*named, *PYTHON_HOMES,
                                                                                   *SYSTEM_FOLDERS))
                 or path.is_relative_to(REPO) and (path.suffix in (".py", ".pyc") or "__pycache__" in path.parts))
-
-
-def test_each_per_take_function_opens_only_its_arguments_its_code_and_python(tmp_path, monkeypatch):
-    """kept.call hands a take back whenever its function, its arguments and the files they name, the row's code and
-    this Python are the same (the table's PER_TAKE, owner, 2026-10-29), so each function it keeps must read nothing
-    else: run on the surface line's own fixtures (views, list, split and parts of its two boxes), every file each
-    per-take call opens is one its arguments name, the repository's Python or Python's own."""
-    fixtures_path = REPO / "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py"
-    spec = importlib.util.spec_from_file_location("surface_line_fixtures", fixtures_path)
-    fixtures = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(fixtures)
-    if not getattr(sys, "per_take_hook", False):
-        sys.addaudithook(opened_hook)
-        sys.per_take_hook = True
-    rows = {row.name: row for row in stages.STAGES}
-    called, opened = [], {}
-    for name, (function_name, _) in stages.PER_TAKE.items():
-        namespace = inspect.unwrap(rows[name].make).__globals__
-        function = namespace[function_name]
-
-        def traced(*arguments, function=function, function_name=function_name):
-            called.append(function_name)
-            OPENED.clear()
-            TRACING.append(function_name)
-            try:
-                return function(*arguments)
-            finally:
-                TRACING.clear()
-                found = list(OPENED)
-                opened[function_name] = opened.get(function_name, 0) + len(found)
-                strays = [path for path in found if outside_its_key(path, argument_paths(list(arguments)))]
-                assert not strays, f"{function_name} opened files its key does not hold: {strays}"
-        monkeypatch.setitem(namespace, function_name, traced)
-    rows_made, _ = fixtures.listed(tmp_path, lambda views, take: fixtures.two_finish_answer(views))
-    fixtures.parted(tmp_path, fixtures.split(tmp_path, rows_made))
-    assert set(called) == {"view_take", "split_take", "parts_take"}, called
-    assert all(opened.values()), opened  # each read its inputs through the traced opens
