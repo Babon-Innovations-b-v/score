@@ -21,11 +21,12 @@ ever skipped since; the runner's own make-twice-and-rerun-on-change rules are he
 Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and score/graph/_code.py:
 - score/graph/_code.py `FRAMEWORK` without `score/stages/__init__.py`  -> the terrain key test (the table moves
   terrain's key).
-- `FRAMEWORK` without `tools/cloud/provider.py`, or without `tools/cloud/secret_store.py`  -> the run machinery test.
-- `broken_ask`: `return None` first  -> the surface library test (a Claude stream with no result line kept as the
-  row's gap, surface-library@galley 2026-11-12); `startswith("no result line")` -> `True`  -> the same test (an
-  answer's own "no structured answer" raised as broken); `asking_claude(unbroken_asks(row.make))` ->
-  `unbroken_asks(asking_claude(row.make))`  -> the same test (the claude rows' keys lose claude_asks.py).
+- `FRAMEWORK` without `tools/cloud/provider.py`, or without `tools/cloud/secret_store.py`  -> the KEYED machinery rows.
+- `broken_ask`: `return None` first  -> the Claude ask of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (a
+  Claude stream with no result line kept as the row's gap, surface-library@galley 2026-11-12);
+  `startswith("no result line")` -> `True`  -> the same ask (an answer's own "no structured answer" raised as broken);
+  `asking_claude(unbroken_asks(row.make))` -> `unbroken_asks(asking_claude(row.make))`  -> the KEYED claude rows
+  (their keys lose claude_asks.py).
 - the light layer no longer given the body faces' reads (`FACE_READS`)  -> the light layer test.
 - `worn`: `applies` true at every place  -> the two dress row tests.
 - `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
@@ -40,18 +41,15 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   (an earth place's surfaces-check read no scene record, so 46 of env1's models had no view distance, 2026-11-12);
   `True`  -> the same test (a place the scene-record row writes nothing for would wait on it).
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
-  surface_data`)  -> test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line.
-- score/stages/surfaces/scene_library.py judge_library: `from score.stages.assembly import stage_file` added  ->
-  test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly.
-- score/stages/surfaces/route_views.py: `import place_line` added  ->
-  test_the_paint_bake_and_check_code_moves_only_their_own_rows.
-- score/stages/assembly/baked.py: `import complete as stage_inputs`  ->
-  test_the_completion_gate_s_code_moves_only_complete_and_settle and
-  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its GAPPED_GATES rows).
+  surface_data`)  -> the KEYED earth-seed rows.
+- score/stages/surfaces/scene_library.py judge_library: `from score.stages.assembly import stage_file` added  -> the KEYED surface-library rows.
+- score/stages/surfaces/route_views.py: `import place_line` added  -> the KEYED place_line.py row.
+- score/stages/assembly/baked.py: `import complete as stage_inputs`  -> the KEYED completion gate rows of
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps, and its GAPPED_GATES rows.
 - score/stages/shapes_first/__init__.py: the palette's optional Pixal3D read dropped (`optional=row.optional`)  ->
   test_no_base_or_layer_row_must_wait_on_the_prop_route.
-- `creator_plan`: the concept declared whether it is kept or not (`if True:`)  ->
-  test_the_plan_row_keeps_the_plan_stages_code_version.
+- `creator_plan`: the concept declared whether it is kept or not (`if True:`)  -> the plan row's code version in
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.
 - `plan_as_kit`: the plan not handed over as its kit (`{**arguments[position]}`)  ->
   test_the_plan_row_maps_a_place_with_no_kit.
 - `remade_same`: always True (`return True`)  -> test_the_plan_row_maps_a_place_with_no_kit (its own plan redrawn
@@ -81,7 +79,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   test_the_environment_data_names_no_path_into_the_work_folder (a wording check guarding the rule above).
 - `MOTION_LAYER`: growth's `crops-layer` written `crops`  ->
   test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer.
-- score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> every code-version test above, and the push
+- score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> the terrain test and the KEYED rows above, and the push
   gate's TREE_EDITS framework-only row.
 - `scripts_declared`: the row returned as it was  -> test_every_script_a_row_starts_by_path_is_in_its_key (every
   row that starts a script, surfaces-bake's recipes.py among them); score/graph/_code.py `script_imports`: the files
@@ -395,6 +393,49 @@ def terrain_code_after_editing(edited):
     return code_after_editing(stages.TERRAIN, edited)
 
 
+PAINT_BLIND = ["finish-route-views", "finish-route-list", "finish-route-split", "finish-route-recheck", "terrain"]
+MACHINERY = ("tools/cloud/pool.py", "tools/cloud/spread.py", "tools/cloud/provider.py", "tools/cloud/backends/scaleway.py",
+             "tools/cloud/ledger.py", "tools/cloud/google_spend.py", "tools/cloud/preflight.py",
+             "tools/cloud/secret_store.py", "score/adapters/compute/guard.py", "score/dashboard/__init__.py")
+EVERY = "every row asked"
+# (the file edited, the rows asked (name patterns, "*" the whole table), the rows of those its edit moves): a row's code
+# version moves with its own code and what it imports alone
+KEYED = [
+    # earth-seed reads a place's surface data through surface_data.py alone, never the surface line's package (its
+    # __init__ pulled the whole line in, 2026-10-21)
+    *[(edited, ["earth-seed"], set()) for edited in ("score/stages/surfaces/__init__.py",
+                                                     "score/stages/surfaces/place_line.py")],
+    ("score/stages/surfaces/surface_data.py", ["earth-seed"], EVERY),
+    # surface-library's key holds no assembly (the library check's import through the assembly package re-keyed all
+    # 27 rows on each fitting.py edit, 2026-10-30); its own check (judge_library) moves it
+    *[(edited, ["surface-library*"], set()) for edited in ("score/stages/assembly/fitting.py",
+                                                           "score/stages/assembly/__init__.py")],
+    ("score/stages/surfaces/scene_library.py", ["surface-library*"], EVERY),
+    # the table's Claude-ask wrapper keys no claude row
+    ("score/stages/__init__.py", list(claude_asks.ROWS), set()),
+    # the surface line's paint, bake and check code, the resting triage, the settle and the pick check leave the
+    # finish route's paid rows and terrain alone (each re-bought on the water tank's fix, 2026-10-12, through the
+    # surfaces __init__ and complete.py); the paint and bake rows move with place_line.py, the check with bake_check.py
+    ("score/stages/surfaces/place_line.py", [*PAINT_BLIND, "surfaces-paint", "surfaces-bake"],
+     {"surfaces-paint", "surfaces-bake"}),
+    ("score/stages/surfaces/bake_check.py", [*PAINT_BLIND, "surfaces-check"], {"surfaces-check"}),
+    *[(edited, PAINT_BLIND, set()) for edited in ("tools/props/library/feet.py", "tools/usd/triage.py",
+                                                  "tools/usd/settle.py", "tools/usd/picks.py")],
+    # what only decides where and how a job runs (the warm pool, spreading, the provider and its backend, the ledgers,
+    # forecasts, money guards, the cockpit) moves no row (a body made again for EUR 0.30 by warm-pool edits, owner
+    # 2026-10-23); a maker's own code and a runner module that sends its scripts up still do
+    *[(edited, ["*"], set()) for edited in MACHINERY],
+    *[(edited, ["people-body-*"], EVERY) for edited in ("score/stages/people_bodies/bodies.py",
+                                                        "tools/cloud/similar.py")],
+    # the completion gate moves the complete row and no other: the assembly, neighbours and likeness read the inputs
+    # record's helpers from stage_inputs.py (each re-made by a gate edit before 2026-10-12); snap.py is the settle's
+    # too (settling/held.py) and the light rows' (camera_paths.place_scenes reads each place's meshes with read_place)
+    *[(edited, ["*"], {"complete"}) for edited in ("tools/usd/complete.py", "tools/usd/contents.py",
+                                                   "tools/usd/reach.py", "score/stages/complete/__init__.py")],
+    ("tools/usd/snap.py", ["*"], {"complete", "settle", "light", "light-layer", "light-passes"}),
+]
+
+
 def test_terrain_s_code_version_moves_with_its_own_code_only():
     """Another line's edits to the runner, the stage table or another stage's module leave terrain's key alone (they
     re-made terrain under the effects line, 2026-10-12); its own module and what it imports move it. And terrain made
@@ -565,122 +606,6 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
         del stages.FORESIGHTS["terrain", "KT"]
 
 
-def test_the_earth_rows_key_on_the_surface_data_reader_not_the_surface_line():
-    """earth-seed reads a place's surface data through surface_data.py alone: an edit to the surface
-    line's rows leaves its key, an edit to the reader moves it (its package's __init__ pulled the whole line in,
-    2026-10-21)."""
-    table = {stage.name: stage for stage in stages.STAGES}
-    for name in ("earth-seed",):
-        before = code_after_editing(table[name], "nothing")
-        for unrelated in ("score/stages/surfaces/__init__.py", "score/stages/surfaces/place_line.py"):
-            assert code_after_editing(table[name], unrelated) == before, (name, unrelated)
-        assert code_after_editing(table[name], "score/stages/surfaces/surface_data.py") != before, name
-
-
-def test_the_surface_library_rows_key_on_the_root_stage_reader_not_the_assembly(tmp_path, monkeypatch):
-    """surface-library's key holds no assembly: an edit to the assembly's fitting leaves every place's key, an edit to
-    its own check (judge_library, scene_library.py) moves it (the library check's import through the assembly package
-    re-keyed all 27 rows on each fitting.py edit, 2026-10-30). The library check (score/stages/library/checks.py) is
-    the library@ rows', not this row's: it was in this key only through score/review and the store, which 68416f67
-    took out. A Claude ask whose stream ends without its result line is never the row's output: the make raises
-    AskBroken (a ConnectionError), the adapter keeps nothing and a later run asks again, while a real answer is kept
-    and read back as before and the model's own "no structured answer" stays the take's gap (surface-library@galley,
-    2026-11-12, was kept as a fail and never asked again); that wrapper is the table's, so it keys no claude row."""
-    rows = [stage for stage in stages.STAGES if stage.name.startswith("surface-library")]
-    assert rows
-    for row in rows:
-        before = code_after_editing(row, "nothing")
-        for unrelated in ("score/stages/assembly/fitting.py", "score/stages/assembly/__init__.py"):
-            assert code_after_editing(row, unrelated) == before, (row.name, unrelated)
-        assert code_after_editing(row, "score/stages/surfaces/scene_library.py") != before, row.name
-    for row in (stage for stage in stages.STAGES if stage.name.split("@")[0] in claude_asks.ROWS):
-        own = _code.start_files(graph.code_functions(row))
-        assert REPO / "score/stages/surfaces/claude_asks.py" in own, row.name
-        assert code_after_editing(row, "score/stages/__init__.py") == code_after_editing(row, "nothing"), row.name
-    from score.adapters.models import claude_code
-    monkeypatch.setattr(claude_code, "CACHE", tmp_path / "cache")
-    monkeypatch.setattr(claude_code, "LEDGER", tmp_path / "ledger.jsonl")
-    monkeypatch.setattr(claude_code.shutil, "which", lambda name: "/usr/bin/claude")
-    answered = json.dumps({"type": "result", "is_error": False, "structured_output": {"surfaces": []}, "usage": {}})
-    unstructured = json.dumps({"type": "result", "is_error": True, "subtype": "error_during_execution",
-                               "result": "schema not met"})
-    cut = json.dumps({"type": "assistant", "request_id": "req_cut", "message": {"content": []}})
-    streams = {"kept": answered, "cut": cut, "unstructured": unstructured}
-    monkeypatch.setattr(claude_code.subprocess, "run", lambda command, input, **_: subprocess.CompletedProcess(
-        command, 0, streams[json.loads(input)["message"]["content"][0]["text"]] + "\n", ""))
-
-    def body(text):
-        return {"contents": [{"parts": [{"text": text}]}],
-                "generationConfig": {"responseSchema": {"type": "OBJECT", "properties": {}}}}
-
-    def make(inputs, out, seed, params):
-        out.update(claude_code.asked({text: body(text) for text in inputs}, "surface-library"))
-    made = {}
-    stages.unbroken_asks(make)(["kept", "unstructured"], made, 0, {})
-    assert made["kept"] == json.dumps({"surfaces": []}) and isinstance(made["unstructured"], claude_code.Unanswered)
-    assert [path.read_text() for path in (tmp_path / "cache").iterdir()] == [made["kept"]]
-    with pytest.raises(stages.AskBroken, match="no result line"):
-        stages.unbroken_asks(make)(["kept", "cut"], {}, 0, {})
-    assert len(list((tmp_path / "cache").iterdir())) == 1 and claude_code.asked.__name__ == "asked"
-    streams["kept"] = cut  # read back from the cache, never asked again
-    assert stages.unbroken_asks(make)(["kept"], made, 0, {}) is None and made["kept"] == json.dumps({"surfaces": []})
-
-
-def test_the_paint_bake_and_check_code_moves_only_their_own_rows():
-    """Editing the surface line's paint, bake and check code (place_line.py, bake_check.py, feet.py), the resting
-    triage, the settle, the pick check or the completion gate leaves the paid rows that do not run them alone: the
-    finish route's views, list, split and recheck and terrain (each re-bought on the water
-    tank's fix, 2026-10-12, through the surfaces __init__ and complete.py); the paint, bake and check rows move. The
-    free effects layer is made over the scene record as the assembly writes it (layer_base.py, 2026-10-21: its
-    effects ride the design's objects), so like the motion and light rows it reads the exporter's code."""
-    table = {stage.name: stage for stage in stages.STAGES}
-    edited = ("score/stages/surfaces/place_line.py", "score/stages/surfaces/bake_check.py",
-              "tools/props/library/feet.py", "tools/usd/triage.py", "tools/usd/settle.py", "tools/usd/picks.py",
-              "tools/usd/complete.py")
-    for name in ("finish-route-views", "finish-route-list", "finish-route-split", "finish-route-recheck",
-                 "terrain"):
-        before = code_after_editing(table[name], "nothing")
-        for path in edited:
-            assert code_after_editing(table[name], path) == before, (name, path)
-    for name in ("surfaces-paint", "surfaces-bake"):
-        assert code_after_editing(table[name], edited[0]) != code_after_editing(table[name], "nothing"), name
-    assert code_after_editing(table["surfaces-check"], edited[1]) != code_after_editing(table["surfaces-check"],
-                                                                                       "nothing")
-
-
-def test_run_machinery_moves_no_row_and_a_maker_moves_its_own():
-    """Code that only decides where and how a job runs (the warm pool, spreading, the provider and its backend, the
-    ledgers, forecasts, money guards, the cockpit) moves no row's code version (a body made again for EUR 0.30 by
-    warm-pool edits, owner 2026-10-23); a maker's own code and a runner module that sends its scripts up still do."""
-    machinery = ("tools/cloud/pool.py", "tools/cloud/spread.py", "tools/cloud/provider.py",
-                 "tools/cloud/backends/scaleway.py", "tools/cloud/ledger.py",
-                 "tools/cloud/google_spend.py", "tools/cloud/preflight.py",
-                 "tools/cloud/secret_store.py", "score/adapters/compute/guard.py", "score/dashboard/__init__.py")
-    moved = {(stage.name, path) for stage in stages.STAGES for path in machinery
-             if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
-    assert not moved, sorted(moved)
-    bodies = [stage for stage in stages.STAGES if stage.name.startswith("people-body-")]
-    assert bodies
-    for maker in ("score/stages/people_bodies/bodies.py", "tools/cloud/similar.py"):
-        assert all(code_after_editing(stage, maker) != code_after_editing(stage, "nothing") for stage in bodies), maker
-
-
-def test_the_completion_gate_s_code_moves_only_complete_and_settle():
-    """Editing the completion gate (complete.py, its contents checks, reach and snap, the complete stage) moves the
-    complete row and no other: the assembly, neighbours and likeness read the inputs record's helpers from
-    stage_inputs.py, not complete.py (each re-made by a gate edit before 2026-10-12). snap.py is not the gate's alone:
-    the settle row snaps held objects with it (score/stages/settling/held.py) and the light rows read each place's
-    meshes with its read_place (camera_paths.place_scenes, clearing every view since 0655ea38), so a snap edit moves
-    those and no other."""
-    gate = ("tools/usd/complete.py", "tools/usd/contents.py", "tools/usd/reach.py",
-            "score/stages/complete/__init__.py")
-    moved = {path: {stage.name for stage in stages.STAGES
-                    if code_after_editing(stage, path) != code_after_editing(stage, "nothing")}
-             for path in (*gate, "tools/usd/snap.py")}
-    assert all(moved[path] == {"complete"} for path in gate), moved
-    assert moved["tools/usd/snap.py"] == {"complete", "settle", "light", "light-layer", "light-passes"}, moved
-
-
 def test_the_light_layer_reads_and_waits_on_every_body_face_row():
     """light-layer@hub, 2026-10-23: read as optional, the face rows were in no place's line and the layer failed its
     sky-elements gate with no face drawn."""
@@ -831,17 +756,6 @@ def test_a_place_is_a_scene_whose_design_is_done(tmp_path):
     # nor has a part of another scene's outside: the scene it is part of builds it (the owner, 2026-10-21)
     (root / "places/within.json").write_text(json.dumps({"parts": {"new": {"of": "laid", "as": "far off"}}}))
     assert stages.places(world, store) == ["laid"]
-
-
-def test_the_plan_row_keeps_the_plan_stages_code_version():
-    """The plan row is the scene record's plan step as it stands (its code version kept), reading no kit: its files
-    are the step's own."""
-    plain = graph.Stage("plan", "place", stages.scene_record.plan.make, stages.scene_record.plan.PLACE_PLAN,
-                        stages.scene_record.plan.CHECKS, files=stages.scene_record.plan.files)
-    assert code_after_editing(stages.PLAN, "nothing") == code_after_editing(plain, "nothing")
-    assert stages.earth_seed.locked_plan("launch") is None
-    assert stages.PLAN.files("launch") == stages.scene_record.plan.files("launch")
-    assert "kit" not in stages.PLAN.files("launch")
 
 
 def test_the_plan_row_maps_a_place_with_no_kit(tmp_path):
@@ -1432,8 +1346,58 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     accepted gap moves only the faults it names and is read only by complete and the row it names; complete fails
     each by name, and an owner's gap is never dropped unless retired on a passing output. A failed paid take is a gap
     carried down its line. The push gate names the paid rows a change moves, refuses a push to main only for those no
-    trailer names, and its hook runs the check from the right checkout, home and python and leaves nothing behind."""
+    trailer names, and its hook runs the check from the right checkout, home and python and leaves nothing behind.
+    A row's code version moves with its own code alone, and a Claude ask cut short is never a row's output."""
     from score.stages import assembly
+    for edited, asked, moving in KEYED:
+        scope = [stage for stage in stages.STAGES if any(fnmatch.fnmatch(stage.name, name) for name in asked)]
+        assert scope, (edited, asked)
+        found = {stage.name for stage in scope
+                 if code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
+        assert found == ({stage.name for stage in scope} if moving == EVERY else moving), (edited, asked, found)
+    # the claude rows hold their ask's own code; the plan row is the scene record's plan step as it stands (its code
+    # version kept), reading no kit: its files are the step's own
+    for stage in (stage for stage in stages.STAGES if stage.name.split("@")[0] in claude_asks.ROWS):
+        own = _code.start_files(graph.code_functions(stage))
+        assert REPO / "score/stages/surfaces/claude_asks.py" in own, stage.name
+    plain = graph.Stage("plan", "place", stages.scene_record.plan.make, stages.scene_record.plan.PLACE_PLAN,
+                        stages.scene_record.plan.CHECKS, files=stages.scene_record.plan.files)
+    assert code_after_editing(stages.PLAN, "nothing") == code_after_editing(plain, "nothing")
+    assert stages.earth_seed.locked_plan("launch") is None
+    assert stages.PLAN.files("launch") == stages.scene_record.plan.files("launch")
+    assert "kit" not in stages.PLAN.files("launch")
+
+    # a Claude ask whose stream ends without its result line is never the row's output: the make raises AskBroken (a
+    # ConnectionError), the adapter keeps nothing and a later run asks again, while a real answer is kept and read
+    # back and the model's own "no structured answer" stays the take's gap (surface-library@galley, 2026-11-12, was
+    # kept as a fail and never asked again)
+    from score.adapters.models import claude_code
+    with monkeypatch.context() as patch:  # subprocess.run is everyone's: the git calls below run unpatched
+        patch.setattr(claude_code, "CACHE", tmp_path / "asks")
+        patch.setattr(claude_code, "LEDGER", tmp_path / "ledger.jsonl")
+        patch.setattr(claude_code.shutil, "which", lambda name: "/usr/bin/claude")
+        cut = json.dumps({"type": "assistant", "request_id": "req_cut", "message": {"content": []}})
+        streams = {"kept": json.dumps({"type": "result", "is_error": False, "structured_output": {"surfaces": []},
+                                       "usage": {}}), "cut": cut,
+                   "unstructured": json.dumps({"type": "result", "is_error": True,
+                                               "subtype": "error_during_execution", "result": "schema not met"})}
+        patch.setattr(claude_code.subprocess, "run", lambda command, input, **_: subprocess.CompletedProcess(
+            command, 0, streams[json.loads(input)["message"]["content"][0]["text"]] + "\n", ""))
+
+        def asking(inputs, out, seed, params):
+            out.update(claude_code.asked({text: {"contents": [{"parts": [{"text": text}]}], "generationConfig": {
+                "responseSchema": {"type": "OBJECT", "properties": {}}}} for text in inputs}, "surface-library"))
+        asked = {}
+        stages.unbroken_asks(asking)(["kept", "unstructured"], asked, 0, {})
+        answer = json.dumps({"surfaces": []})
+        assert asked["kept"] == answer and isinstance(asked["unstructured"], claude_code.Unanswered)
+        assert [path.read_text() for path in (tmp_path / "asks").iterdir()] == [asked["kept"]]
+        with pytest.raises(stages.AskBroken, match="no result line"):
+            stages.unbroken_asks(asking)(["kept", "cut"], {}, 0, {})
+        assert len(list((tmp_path / "asks").iterdir())) == 1 and claude_code.asked.__name__ == "asked"
+        streams["kept"] = cut  # read back from the cache, never asked again
+        assert stages.unbroken_asks(asking)(["kept"], asked, 0, {}) is None and asked["kept"] == answer
+
     house = row_kinds.table()
     for case, judge, read, answer in JUDGED:
         assert judge(*(house if value is HOUSE else value for value in read)) == answer, case
