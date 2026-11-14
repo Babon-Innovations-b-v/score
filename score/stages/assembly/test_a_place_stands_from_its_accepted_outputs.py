@@ -32,7 +32,7 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import (baked, fitting, made_waiting, neighbours, record, resting_within,  # noqa: E402
+from score.stages.assembly import (baked, fitting, made_waiting, neighbours, record,  # noqa: E402
                                      scene_tree, sounds)
 
 TOY = "toy"
@@ -188,337 +188,115 @@ def opened(root):
 
 # --- the resting gate reads the world's declared files --------------------------------------------------------------
 
-def a_window_in_its_door(root):
-    """A place of a door and a window laid 30 cm into it, both 1 m boxes on the floor, as the stage's output, its
-    inventory of the two rows in the world's declared folder; the output and that folder's world data."""
+def a_resting_place(root, case):
+    """A place of the case's pieces (1 m boxes) and inventory rows as the stage's output, its inputs record naming the
+    design inventory as the case has it (by default by full path as earth-seed lays it), the record laying the case's
+    objects; the output and the world data the stage declares, its rules naming the case's kit groups, its inventory
+    folder holding the place's rows."""
     (root / "made").mkdir(parents=True)
-    rows = [row("door"), row("window")]
-    stage = place_of(root / "made", [("door", "box", (6, 0, 0)), ("window", "box", (6.3, 0, 0))], rows)
+    stage = place_of(root / "made", case["pieces"], case["rows"])
     output = root / "output"
     shutil.copytree(stage.parent, output)
-    inputs_record = json.loads((output / "inputs.json").read_text())
-    (output / "inputs.json").write_text(json.dumps(
-        {**inputs_record, "inventory": str(root / f"home/design/inventory/{stage.stem}.json")}))
-    inputs = world_data(root / "world", stage.stem, [])
-    (inputs["inventories"] / f"{stage.stem}.json").write_text(json.dumps({"rows": rows}))
-    return output, inputs
-
-
-def a_sunk_plate(root):
-    """A place holding one floor plate sunk 40 cm (a kit piece's false alarm under the repository's rules), as the
-    stage's output, its inputs record naming the design inventory by full path as earth-seed lays it."""
-    (root / "made").mkdir()
-    stage = place_of(root / "made", [("plate", "box", (6, -0.4, 0))], [row("plate", group="kit: floor")])
-    output = root / "output"
-    shutil.copytree(stage.parent, output)
-    inputs_record = json.loads((output / "inputs.json").read_text())
-    (output / "inputs.json").write_text(json.dumps(
-        {**inputs_record, "inventory": str(root / f"home/design/inventory/{stage.stem}.json")}))
-    return output, stage.stem
-
-
-def world_data(root, place, fixed_in_kit):
-    """The world's data the stage declares: rules (the kit groups as given), kit and inventory."""
-    data = root / "data"
+    named = case.get("inventory", str(root / f"home/design/inventory/{stage.stem}.json"))
+    inputs_record = {name: value for name, value in json.loads((output / "inputs.json").read_text()).items()
+                     if name != "inventory"}
+    (output / "inputs.json").write_text(json.dumps({**inputs_record, **({"inventory": named} if named else {})}))
+    if "record" in case:
+        (output / record.RECORD).write_text(json.dumps({"objects": case["record"]}))
+    data = root / "world/data"
     for part in ("checks", "kit", "inventory"):
         (data / part).mkdir(parents=True)
     rules = json.loads((REPO / "data/checks/resting.json").read_text())
-    (data / "checks/resting.json").write_text(json.dumps({**rules, "fixed_in_kit": fixed_in_kit}))
-    (data / "kit" / f"{place}.json").write_text(json.dumps({"kinds": {}}))
-    (data / "inventory" / f"{place}.json").write_text(json.dumps({"rows": [row("plate", group="kit: floor")]}))
-    return {"resting rules": data / "checks/resting.json", "kit": data / "kit" / f"{place}.json",
-            "inventories": data / "inventory"}
+    (data / "checks/resting.json").write_text(json.dumps({**rules, "fixed_in_kit": case["fixed in kit"]}))
+    (data / "kit" / f"{stage.stem}.json").write_text(json.dumps({"kinds": {}}))
+    (data / "inventory" / f"{stage.stem}.json").write_text(json.dumps({"rows": case["rows"]}))
+    return output, {"resting rules": data / "checks/resting.json", "kit": data / "kit" / f"{stage.stem}.json",
+                    "inventories": data / "inventory"}
 
 
-def resting(output, inputs):
-    evidence = output.parent / "settled.json"
-    evidence.write_text(json.dumps({"objects": {}}))
-    return resting_within.judge_resting(output, inputs, evidence)
+# Fault (review of step 0, 2026-10-11): the judge read the repository's resting.json, so a world whose rules were
+# elsewhere was judged on files its key did not cover. Fault (Buy of 2026-10-24): the assembly declared
+# {data}/inventory while every designed seed is laid from {home}/design/inventory and records that full path, so no
+# resting gate was judged. A floor plate sunk 40 cm (a kit piece's false alarm under the repository's rules) passes
+# where the world's rules name its kit group and fails by name where they name none; a seed naming no inventory in the
+# declared folder, or none at all, is unknown. Round 32's docking airlock (2026-11-11): its door's window and its suit
+# in its locker, laid within their holders by the plan, failed as overlaps "still inside after the nudge": a window the
+# record lays 30 cm within its door passes; the same pair with no planned relation, or laid on it, still fails.
+SUNK = {"pieces": [("plate", "box", (6, -0.4, 0))], "rows": [row("plate", group="kit: floor")]}
+PAIR = {"pieces": [("door", "box", (6, 0, 0)), ("window", "box", (6.3, 0, 0))], "rows": [row("door"), row("window")],
+        "fixed in kit": []}
+DOOR_1 = {"name": "door_1", "row": "door"}
+RESTED = [
+    {"name": "the sunk plate, its kit group named", **SUNK, "fixed in kit": ["kit: floor"], "answer": checks.PASS},
+    {"name": "the sunk plate, no kit group named", **SUNK, "fixed in kit": [], "answer": checks.FAIL,
+     "finding": "plate"},
+    {"name": "the sunk plate naming an inventory elsewhere", **SUNK, "fixed in kit": ["kit: floor"],
+     "inventory": "/elsewhere/rows.json", "answer": checks.UNKNOWN, "reason": "rows.json"},
+    {"name": "the sunk plate naming no inventory", **SUNK, "fixed in kit": ["kit: floor"], "inventory": "",
+     "answer": checks.UNKNOWN, "reason": "(none named)"},
+    {"name": "a window in its door, no planned relation", **PAIR, "record": [DOOR_1], "answer": checks.FAIL,
+     "finding": "overlaps"},
+    {"name": "a window laid within its door", **PAIR, "answer": checks.PASS,
+     "record": [DOOR_1, {"name": "window_1", "row": "window", "on": {"how": "within", "holder": ["door_1"]}}]},
+    {"name": "a window laid on its door's top", **PAIR, "answer": checks.FAIL,
+     "record": [DOOR_1, {"name": "window_1", "row": "window", "on": {"how": "top", "holder": ["door_1"]}}]},
+]
 
 
-def test_the_resting_gate_judges_the_world_files_the_stage_declares(tmp_path):
-    """Fault (review of step 0, 2026-10-11): the judge read the repository's resting.json, so a world whose rules were
-    elsewhere was judged on files its key did not cover. The sunk plate passes where the world's rules name its kit
-    group, fails by name where they name none, and a seed naming no inventory in the folder is unknown.
-    Break: score/stages/assembly/resting_within.py: `rules_file=inputs["resting rules"]` -> `rules_file=assembly.REPO /
-        "data/checks/resting.json"`
-    Round 32's docking airlock (2026-11-11): its door's window and its suit in its locker, laid within their holders by
-    the plan, failed as overlaps "still inside after the nudge". A window the record lays within its door passes; the
-    same pair with no planned relation, or laid on it, still fails as overlapping; the table's assembly row judges
-    resting so.
-    Break: score/stages/__init__.py: `"resting": resting_within.judge_resting` -> `"resting": assembly.judge_resting`
-    Break: score/stages/assembly/resting_within.py: `and not planned_overlap(fault, within)]` -> `]`
-    Break: score/stages/assembly/resting_within.py: laid_within's `== "within"}` -> `in ("within", "top")}`"""
-    output, place = a_sunk_plate(tmp_path)
-    kit_floor = world_data(tmp_path / "kept", place, ["kit: floor"])
-    pair, pair_world = a_window_in_its_door(tmp_path / "pair")
-    (pair / record.RECORD).write_text(json.dumps({"objects": [{"name": "door_1", "row": "door"}]}))
-    alone = resting(pair, pair_world)
-    assert alone.answer == checks.FAIL and any("overlaps" in finding for finding in alone.findings), alone
-    for how, answer in (("within", checks.PASS), ("top", checks.FAIL)):
-        laid = {"name": "window_1", "row": "window", "on": {"how": how, "holder": ["door_1"]}}
-        (pair / record.RECORD).write_text(json.dumps({"objects": [{"name": "door_1", "row": "door"}, laid]}))
-        assert resting(pair, pair_world).answer == answer, (how, resting(pair, pair_world))
-    from score import stages
-    judges = {check.name: inspect.unwrap(check.judge) for check in stages.ASSEMBLY.checks}
-    assert judges["resting"] is resting_within.judge_resting, judges
-    assert resting(output, kit_floor).answer == checks.PASS
-    verdict = resting(output, world_data(tmp_path / "changed", place, []))
-    assert verdict.answer == checks.FAIL and "plate" in " ".join(verdict.findings), verdict
-    inputs_record = json.loads((output / "inputs.json").read_text())
-    (output / "inputs.json").chmod(0o644)
-    (output / "inputs.json").write_text(json.dumps({**inputs_record, "inventory": "/elsewhere/rows.json"}))
-    assert resting(output, kit_floor).answer == checks.UNKNOWN
+# --- a hanging one against its holder's back ------------------------------------------------------------------------
+
+# Round 32's docking airlock: spacesuit_left_1, laid within its locker at the plan's base, hung 4.1 cm off the
+# locker's back and touched nothing (hangs free). A hanging one moves along its holder's back way until its built
+# surface meets the holder's inside back face (hung_back): the back is opposite the side the holder's surface leaves
+# open across it (an open-fronted locker, +x), else opposite the side toward the room's middle (a closed one). A suit
+# 0.2 to 0.6 m deep in a locker 1 m deep, 2 m high and 0.8 m across: (axis, sign, how far it moves) by its walls and
+# the room's middle.
+STEPS, ACROSS = np.linspace(0.0, 2.0, 41), np.linspace(0.0, 0.8, 17)
+LOCKER_BACK = [[0.0, up, side] for up in STEPS for side in ACROSS]
+LOCKER_SIDES = [[deep, up, side] for deep in np.linspace(0.0, 1.0, 21) for up in STEPS for side in (0.0, 0.8)]
+LOCKER_FRONT = [[1.0, up, side] for up in STEPS for side in ACROSS]
+HUNG = [
+    ("open-fronted, the room's middle behind its back", LOCKER_BACK + LOCKER_SIDES, [-5.0, 0.4], (0, -1.0, 0.2)),
+    ("closed, the room's middle before it", LOCKER_BACK + LOCKER_SIDES + LOCKER_FRONT, [5.0, 0.4], (0, -1.0, 0.2)),
+    ("closed, the room's middle behind its back", LOCKER_BACK + LOCKER_SIDES + LOCKER_FRONT, [-5.0, 0.4],
+     (0, 1.0, 0.4)),
+]
+SUIT = np.array([[deep, up, side] for deep in (0.2, 0.6) for up in np.linspace(0.1, 1.9, 37)
+                 for side in np.linspace(0.2, 0.6, 9)])
 
 
-def test_a_hanging_one_is_hung_on_its_holder_s_inside_back_face():
-    """Round 32's docking airlock: spacesuit_left_1, laid within its locker at the plan's base, hung 4.1 cm off the
-    locker's back and touched nothing (hangs free). A hanging one moves along its holder's back way until its built
-    surface meets the holder's inside back face, its height and its place across kept (hung_back): the back is
-    opposite the side the holder's surface leaves open across it (an open-fronted locker, +x), else opposite the side
-    toward the room's middle (a closed one).
-    Break: score/stages/assembly/fitting.py: back_way's `return axis, -sign` -> `return axis, sign`
-    Break: score/stages/assembly/fitting.py: back_way's `if not np.any(across & (sign * (points[:, axis] -
-        middle[axis]) > 0)):` -> `if False:` (an open front read as closed, the room's middle behind the back)"""
-    steps = np.linspace(0.0, 2.0, 41)
-    across = np.linspace(0.0, 0.8, 17)
-    back = np.array([[0.0, up, side] for up in steps for side in across])
-    sides = np.array([[deep, up, side] for deep in np.linspace(0.0, 1.0, 21) for up in steps for side in (0.0, 0.8)])
-    front = np.array([[1.0, up, side] for up in steps for side in across])
-    suit = np.array([[deep, up, side] for deep in (0.2, 0.6) for up in np.linspace(0.1, 1.9, 37)
-                     for side in np.linspace(0.2, 0.6, 9)])
-    low, high = suit.min(axis=0), suit.max(axis=0)
-    opened = fitting.hung_back(suit, np.concatenate([back, sides]), low, high, room_middle=[-5.0, 0.4])
-    assert opened[:2] == (0, -1.0) and abs(opened[2] - 0.2) < 1e-9, opened
-    closed = np.concatenate([back, sides, front])
-    assert fitting.hung_back(suit, closed, low, high, room_middle=[5.0, 0.4])[:2] == (0, -1.0)
-    toward_back = fitting.hung_back(suit, closed, low, high, room_middle=[-5.0, 0.4])
-    assert toward_back[:2] == (0, 1.0) and abs(toward_back[2] - 0.4) < 1e-9, toward_back
+# --- the bakes laid over the seed's and the released models ---------------------------------------------------------
 
-
-def test_the_declared_inventory_folder_is_the_one_earth_seed_lays_from(tmp_path):
-    """Fault (Buy of 2026-10-24): the assembly declared {data}/inventory while every designed seed is laid from
-    {home}/design/inventory and records that full path, so no resting gate was judged and every drop run raised after
-    its clearance. The seed's recorded file is found by name in the declared folder; a seed naming none has none.
-    Break: score/stages/assembly/__init__.py: `"inventories": "{home}/design/inventory"` -> `"inventories":
-        "{data}/inventory"`
-    Break: score/stages/assembly/__init__.py: `return pathlib.Path(inventories) / pathlib.Path(named).name if named else
-        None` -> `return pathlib.Path(named) if named else None`"""
-    from score.stages import earth_seed
-    laid_from = pathlib.Path(earth_seed.design_files("hub")["design inventory"])
-    assert str(laid_from.parent) == assembly.FILES["inventories"], (laid_from, assembly.FILES["inventories"])
-    (tmp_path / "inputs.json").write_text(json.dumps({"inventory": str(tmp_path / "home/design/inventory/hub.json")}))
-    assert assembly.declared_inventory(tmp_path, tmp_path / "world") == tmp_path / "world/hub.json"
-    (tmp_path / "inputs.json").write_text(json.dumps({}))
-    assert assembly.declared_inventory(tmp_path, tmp_path / "world") is None
-
-
-# --- the bakes ------------------------------------------------------------------------------------------------------
-
-def test_a_baked_model_carries_its_hash_and_keeps_the_owner_s_pick(tmp_path):
-    """After the assembly takes a bake, the object carries the baked file's hash (sha256 of its .gltf and its buffer's
-    hex digest, worked out here) and the seed's as `repaint_of`, so the owner's pick of the seed's model still holds;
-    the same hash without the seed's beside it breaks the pick (the greenhouse's water tank, 2026-10-12).
-    Break: score/stages/assembly/baked.py: `before.get("score:repaint_of") or before.get("score:model_sha256")` ->
-        `None`"""
-    import picks
-    from pxr import Sdf
-    (tmp_path / "models").mkdir()
-    box_gltf(tmp_path / "models")
-    box_gltf(tmp_path / "models", "plank")  # stands for the bake of the box: another file, another hash
+def a_baked_place(root):
+    """A place of a crate laid from model `box`, the owner's pick of it the box's hash (sha256 of its .gltf and its
+    buffer's hex digest, worked out here), and two fixtures laid from released files, each a 2 m cube: the rocket,
+    whose bake is a 2 m cube, and the tower, whose bake is a 3 m cube (the bake moved its frame); the bake of the box
+    is `plank` (another file, another hash). The stage, its inventory and the hashes {model: sha}."""
+    from pxr import Sdf, Usd, UsdGeom
+    (root / "models").mkdir(parents=True)
+    box_gltf(root / "models")
+    box_gltf(root / "models", "plank")
 
     def sha(gltf):
         digest = hashlib.sha256(gltf.read_bytes())
         digest.update(hashlib.sha256(gltf.with_suffix(".bin").read_bytes()).hexdigest().encode())
         return digest.hexdigest()
-    seed_hash = sha(tmp_path / "models/box.gltf")
-    pick = {"model": "box", "sha256": seed_hash, "decided": "owner, 2026-10-09: this take"}
-    stage = place_of(tmp_path, [("crate", "box", (0, 0, 0))], [row("crate", pick=pick)])
-    inventory = json.loads((tmp_path / "inventory.json").read_text())
-    assembly.stamp_baked_hash(stage.parent / assembly.BASE_LAYER, "box", tmp_path / "models/plank.gltf")
-    held = opened(stage)
-    prim = held.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")
-    assert prim.GetAttribute("score:model_sha256").Get() == sha(tmp_path / "models/plank.gltf")
-    assert prim.GetAttribute("score:repaint_of").Get() == seed_hash
-    assert picks.check(stage, inventory) == ([], 1)
-    layer = Sdf.Layer.FindOrOpen(str(stage.parent / assembly.BASE_LAYER))
-    spec = layer.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")
-    spec.RemoveProperty(spec.attributes["score:repaint_of"])
-    layer.Save()
-    found, _ = picks.check(stage, inventory)
-    assert len(found) == 1 and "not the owner's pick" in found[0]["why"], found
-
-
-def test_a_fixture_laid_from_a_released_file_takes_the_bake_of_its_model(tmp_path):
-    """Fault (complete@launch, 2026-10-15): the rocket, laid from the released models/rockets/rocket.gltf, kept the
-    seed's paint, the bake matched only by name. It now references the baked asset, named by its model; a bake that
-    moved the frame (a 3 m cube for a 2 m one) is refused.
-    Break: score/stages/assembly/baked.py: `abs(old_box[end][axis] - new_box[end][axis]) > BOX_TOLERANCE` -> `False`"""
-    from pxr import Sdf, Usd, UsdGeom
-    out = tmp_path
-    (out / "assets").mkdir()
-    (out / "layers").mkdir()
-    a_cube_asset(out / "assets/fixture_rocket.usdc", 2.0)
-    a_cube_asset(out / "assets/rocket.usdc", 2.0)
-    base = Usd.Stage.CreateNew(str(out / "layers/base.usda"))
-    prim = UsdGeom.Xform.Define(base, "/toy/Fixtures/rocket").GetPrim()
-    prim.GetReferences().AddReference("../assets/fixture_rocket.usdc")
-    prim.CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set("models/rockets/rocket.gltf")
+    hashes = {name: sha(root / f"models/{name}.gltf") for name in ("box", "plank")}
+    pick = {"model": "box", "sha256": hashes["box"], "decided": "owner, 2026-10-09: this take"}
+    stage = place_of(root, [("crate", "box", (0, 0, 0))], [row("crate", pick=pick)])
+    for name, baked_size in (("rocket", 2.0), ("tower", 3.0)):
+        a_cube_asset(stage.parent / f"assets/fixture_{name}.usdc", 2.0)
+        a_cube_asset(stage.parent / f"assets/{name}.usdc", baked_size)
+    base = Usd.Stage.Open(str(stage.parent / assembly.BASE_LAYER))
+    for name in ("rocket", "tower"):
+        prim = UsdGeom.Xform.Define(base, f"/{PLACE}/Fixtures/{name}").GetPrim()
+        prim.GetReferences().AddReference(f"../assets/fixture_{name}.usdc")
+        prim.CreateAttribute("score:model", Sdf.ValueTypeNames.String).Set(f"models/{name}s/{name}.gltf")
     base.GetRootLayer().Save()
-    assembly.lay_fixtures_baked(out / assembly.BASE_LAYER, "rocket")
-    spec = Sdf.Layer.FindOrOpen(str(out / assembly.BASE_LAYER)).GetPrimAtPath("/toy/Fixtures/rocket")
-    assert [ref.assetPath for ref in spec.referenceList.prependedItems] == ["../assets/rocket.usdc"]
-    assert spec.attributes["score:model"].default == "rocket"
-    spec.referenceList.prependedItems = [Sdf.Reference("../assets/fixture_rocket.usdc")]
-    spec.attributes["score:model"].default = "models/rockets/rocket.gltf"
-    spec.layer.Save()
-    a_cube_asset(out / "assets/rocket.usdc", 3.0)
-    with pytest.raises(ValueError, match="moved the model's frame"):
-        assembly.lay_fixtures_baked(out / assembly.BASE_LAYER, "rocket")
+    return stage, json.loads((root / "inventory.json").read_text()), hashes
 
 
 # --- layers, record and sound ---------------------------------------------------------------------------------------
-
-def test_a_layer_is_held_in_its_place_and_the_root_plays_as_long_as_it(tmp_path):
-    """A layer stage's layer goes between the others in record.ORDER (light over motion over effects), replacing the
-    seed's of the same name, and the root's range grows to the layer's 480 frames; the light stage's live lamps (a
-    layer and no assets, 2026-10-13) leave no stale assets/light behind.
-    Break: score/stages/assembly/record.py: `return ORDER.index(stem) if stem in ORDER else ORDER.index("base") - 0.5`
-        -> `return 0`
-    Break: score/stages/assembly/__init__.py: `stage_root.endTimeCode = max(taken.endTimeCode, stage_root.endTimeCode if
-        stage_root.HasEndTimeCode() else 0)` -> `pass`
-    Break: score/stages/assembly/__init__.py: `shutil.rmtree(root.parent / assets, ignore_errors=True)` -> `pass`"""
-    from pxr import Sdf
-    root = a_toy(tmp_path / "out")
-    made = tmp_path / "motion"
-    (made / "layers").mkdir(parents=True)
-    layer = Sdf.Layer.CreateNew(str(made / "layers/motion.usda"))
-    layer.timeCodesPerSecond, layer.startTimeCode, layer.endTimeCode = 24.0, 0.0, 480.0
-    layer.Save()
-    assembly.take_layer(made, root, "layers/motion.usda", None)
-    (made / "layers/light.usda").write_text("#usda 1.0\n")
-    (made / "assets/light").mkdir(parents=True)
-    (made / "assets/light/earth.png").write_bytes(b"png")
-    assembly.take_layer(made, root, "layers/light.usda", "assets/light")
-    found = Sdf.Layer.FindOrOpen(str(root))
-    found.Reload()
-    assert list(found.subLayerPaths) == [f"./layers/{name}.usda" for name in
-                                         ("edit", "characters", "sound", "light", "motion", "effects", "base")]
-    assert found.endTimeCode == 480.0 and (root.parent / "assets/light/earth.png").exists()
-    live = tmp_path / "live"
-    (live / "layers").mkdir(parents=True)
-    (live / "layers/light.usda").write_text("#usda 1.0\n")
-    assembly.take_layer(live, root, "layers/light.usda", "assets/light")
-    assert not (root.parent / "assets/light").exists()
-
-
-def test_a_light_the_motion_layer_animates_plays_its_keyframes(tmp_path):
-    """A lamp whose strength the motion layer keys (0 then 50 at frame 12) and the light layer sets (20) plays the
-    motion's keys on the assembled stage (the airlock's cycle light, 2026-10-16); a lamp the motion leaves alone keeps
-    20. Both taken layers come in read-only and neither file changes (the store's files are never edited).
-    Break: score/stages/assembly/__init__.py: `held.insert(held.index(f"./{LAYERS['light'][1]}"), f"./{MOTION_KEYS}")`
-        -> `held.append(f"./{MOTION_KEYS}")`"""
-    from pxr import Usd, UsdLux
-    root = a_toy(tmp_path / "out")
-    sums = {}
-    for name, keyed in (("light", False), ("motion", True)):
-        made = tmp_path / name
-        (made / "layers").mkdir(parents=True)
-        stage = Usd.Stage.CreateNew(str(made / f"layers/{name}.usda"))
-        for lamp in ("cycle", "steady"):
-            if keyed and lamp == "steady":
-                continue
-            strength = UsdLux.SphereLight.Define(stage, f"/{TOY}/Lights/{lamp}").CreateIntensityAttr()
-            if keyed:
-                strength.Set(0.0, 0)
-                strength.Set(50.0, 12)
-            else:
-                strength.Set(20.0)
-        stage.GetRootLayer().Save()
-        (made / f"layers/{name}.usda").chmod(0o444)
-        assembly.take_layer(made, root, f"layers/{name}.usda", None)
-        sums[name] = hashlib.sha256((made / f"layers/{name}.usda").read_bytes()).hexdigest()
-    assert opened(root).GetPrimAtPath(f"/{TOY}/Lights/cycle").GetAttribute(
-        "inputs:intensity").GetNumTimeSamples() == 0  # the plain light value hides the keys before
-    assembly.motion_over_light(root)
-    stage = opened(root)
-    cycle = stage.GetPrimAtPath(f"/{TOY}/Lights/cycle").GetAttribute("inputs:intensity")
-    assert cycle.GetNumTimeSamples() == 2 and cycle.Get(12) == 50.0, cycle.Get(12)
-    assert stage.GetPrimAtPath(f"/{TOY}/Lights/steady").GetAttribute("inputs:intensity").Get() == 20.0
-    for name, digest in sums.items():
-        for folder in (tmp_path / name, root.parent):
-            assert hashlib.sha256((folder / f"layers/{name}.usda").read_bytes()).hexdigest() == digest, (name, folder)
-
-
-def test_a_tube_s_lamps_hang_on_every_bay_of_its_way():
-    """A walkway tube 6 m long with 2 m bays lays its bay piece three times, each with its spot, as the exporter lays
-    them; a room's pieces stand as laid.
-    Break: score/stages/assembly/record.py: `if "bay" not in kit or not record.get("tube_length"):` -> `if True:`"""
-    kit = {"bay": 2.0, "pieces": [{"kind": "tube_bay", "tube_part": "bay"}]}
-    laid = assembly.laid_pieces(kit, {"tube_length": 6.0})
-    assert len(laid) == 3 and all("spot" in piece for piece in laid), laid
-    assert assembly.laid_pieces({"pieces": kit["pieces"]}, {}) == kit["pieces"]
-
-
-def test_a_waiting_entry_whose_row_the_bake_made_is_laid_on_its_spot_and_no_longer_named(tmp_path):
-    """The camp grounds' cairn (2026-10-13): once the surface line has baked its row, the assembly lays that model
-    where the entry stands. The baked cairn spans 2 x 2 x 0.5 m; turned 90 degrees about y it spans 0.5 x 2 x 2, its
-    foot at the spot's 0.5, its middle over (3, -2).
-    Break: score/stages/assembly/made_waiting.py: `move = Gf.Vec3d(at[0] - (least[0] + most[0]) / 2, at[1] - least[1],
-        at[2] - (least[2] + most[2]) / 2)` -> `move = Gf.Vec3d(*at)`
-    Break: score/stages/assembly/made_waiting.py: `root.RemoveProperty(WAITING)` -> `pass`
-    Break: score/stages/assembly/made_waiting.py: `on_pads.turned(entry, record, placement(entry, low, high), low,
-        high)` -> `placement(entry, low, high)` (the ship left across its pad)
-    Break: score/stages/assembly/on_pads.py: `if entry.get("on") or entry.get("fills") or entry.get("under roof"):` ->
-        `if entry.get("on"):` (the crane turned), `and on_piece(footprint(turn, low, high), outline).all():` -> `:`
-        (the barge turned), `if not on_piece(laid, outline).all() and` -> `if` (the cart turned), or
-        `float(entry.get("low", -1.0)) >= 0.0` -> `False` (no pad)"""
-    from pxr import Gf, UsdGeom
-    root = a_toy(tmp_path / "out")
-    cairn = {"objects": [{"name": "cairn", "model": "models/none/none.glb", "row": "cairn", "at": [3.0, 0.5, -2.0],
-                          "rotation": [0.0, 0.7071068, 0.0, 0.7071068], "waiting": "no released model"}]}
-    assembly.take_record(a_record(tmp_path, cairn), root.parent, TOY)
-    an_asset(root.parent / "assets/cairn.usdc",
-             [(-1.0, -1.0, -0.25), (1.0, -1.0, -0.25), (1.0, 1.0, 0.25), (-1.0, 1.0, 0.25)], [4], [0, 1, 2, 3])
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"cairn": {}}))
-    assert made_waiting.lay(root.parent, TOY, tmp_path / "bake") == ["cairn"]
-    stage = opened(root)
-    prim = stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn")
-    box = UsdGeom.BBoxCache(0, [UsdGeom.Tokens.default_]).ComputeWorldBound(prim).ComputeAlignedRange()
-    middle = (box.GetMin() + box.GetMax()) / 2
-    assert Gf.IsClose(box.GetMin()[1], 0.5, 1e-5) and Gf.IsClose(middle[0], 3.0, 1e-5), box
-    assert Gf.IsClose(middle[2], -2.0, 1e-5) and Gf.IsClose(box.GetSize()[2], 2.0, 1e-4), box
-    assert prim.GetAttribute("score:row").Get() == "cairn"
-    assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
-    # settle@hangar (2026-11-13): its 28 m ship, laid across the hall over its landing pad laid along the hall, stood
-    # half on the pad and half on the deck, tipping. On a 2 x 6 m pad 0.1 m high, a 6 x 1 m ship laid across it is
-    # turned a quarter onto it about its middle; one hung from the roof and one too long to fit turned are left as
-    # laid, and one wholly on it stays.
-    root = a_toy(tmp_path / "padded")
-    pad = {"name": "pad_1", "builder": "slab", "row": "pad", "low": 0.0, "high": 0.1, "surface": "floor_plate",
-           "points": [[-1.0, -3.0], [1.0, -3.0], [1.0, 3.0], [-1.0, 3.0]]}
-    things = {"ship": ({}, [0.0, 0.1, 0.0], 3.0), "crane": ({"under roof": True}, [0.0, 0.1, 0.0], 3.0),
-              "barge": ({}, [0.0, 0.1, 0.0], 3.5), "cart": ({}, [0.0, 0.1, 0.0], 0.25)}
-    entries = [{"name": name, "row": name, "at": at, "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "no model", **said}
-               for name, (said, at, _) in things.items()]
-    assembly.take_record(a_record(tmp_path / "padded", {"structure": [pad], "objects": entries}), root.parent, TOY)
-    for name, (_, _, half) in things.items():
-        an_asset(root.parent / f"assets/{name}.usdc", [(-half, 0.0, -0.5), (half, 0.0, -0.5), (half, 1.0, 0.5)],
-                 [3], [0, 1, 2])
-    (tmp_path / "padded/bake").mkdir()
-    (tmp_path / "padded/bake/baked.json").write_text(json.dumps({name: {} for name in things}))
-    made_waiting.lay(root.parent, TOY, tmp_path / "padded/bake")
-    stage = opened(root)
-    spans = {}
-    for name in things:
-        box = UsdGeom.BBoxCache(0, [UsdGeom.Tokens.default_]).ComputeWorldBound(
-            stage.GetPrimAtPath(f"/{TOY}/Fixtures/{name}")).ComputeAlignedRange()
-        spans[name] = [round(box.GetMin()[axis], 3) for axis in (0, 2)] + [round(box.GetMax()[axis], 3)
-                                                                          for axis in (0, 2)]
-    assert spans == {"ship": [-0.5, -3.0, 0.5, 3.0], "crane": [-3.0, -0.5, 3.0, 0.5],
-                     "barge": [-3.5, -0.5, 3.5, 0.5], "cart": [-0.25, -0.5, 0.25, 0.5]}, spans
-
 
 BOX_FACES = [0, 1, 3, 2, 4, 6, 7, 5, 0, 4, 5, 1, 2, 3, 7, 6, 0, 2, 6, 4, 1, 5, 7, 3]  # a box's six sides, of its corners
 
@@ -537,271 +315,176 @@ def a_box_asset(path, low, high):
     an_asset(path, *boxes_mesh([(low, high)]))
 
 
-def test_base_s_garage_door_lands_on_its_module_s_front_face(tmp_path):
-    """Fault (motion@base, 2026-10-29): base's garage door stood 0.17 m off its module's front and 4.7 m of its 6 m
-    past the module's corner, laid at its plan item's middle; its motion check failed it. Laid by its relation (on the
-    module's S face, `out` +z) at their built sizes, the 12 m module from 26.254 to 38.254 across and to 39.4 in front,
-    the 6 x 8 x 0.5 m door stands with its back on z 39.4, its foot on the floor; at the module's corner it is shifted
-    in so its recess's 0.55 m of room on its hinge side (-x) fits the face too: its middle from 24.5585 to 26.254 +
-    0.55 + 3 = 29.804 (score, 2026-10-29: never swinging round the corner); LAID names the fit.
-    Break: score/stages/assembly/fitting.py: `target[side] = kept_within(foot[side], hold_low[side] + below,
-        hold_high[side] - above,` -> `target[side] = kept_within(foot[side], hold_low[side], hold_high[side],`
-    Break: score/stages/assembly/made_waiting.py: `laid_by_relations(stage, out, place, record, objects, baked)` -> `pass`
-    Break: score/stages/assembly/fitting.py: `target[axis] = face + sign * half[axis]` -> `target[axis] = foot[axis]`"""
-    root = a_toy(tmp_path / "out")
-    entries = [{"name": "square_module_front_right_1", "row": "square_module_front_right", "bake": "module_1",
-                "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
-               {"name": "garage_door_1", "row": "garage_door", "bake": "door_1", "at": [24.5585, 0.0, 39.8395],
-                "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake",
-                "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0], "room": 0.55,
-                       "room_way": [-1.0, 0.0],
-                       "why": "against its module's side the concept shows it on"}}]
-    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
-    a_box_asset(root.parent / "assets/module_1.usdc", (-6.0, 0.0, -6.0), (6.0, 12.0, 6.0))
-    a_box_asset(root.parent / "assets/door_1.usdc", (-3.0, 0.0, -0.25), (3.0, 8.0, 0.25))
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"module_1": {}, "door_1": {}}))
-    made_waiting.lay(root.parent, TOY, tmp_path / "bake")
-    from score.stages.assembly import fitting
-    low, high = fitting.world_box(opened(root), f"/{TOY}/Objects/garage_door_1")
-    assert np.allclose(low, (26.804, 0.0, 39.4), atol=1e-4) and np.allclose(high, (32.804, 8.0, 39.9), atol=1e-4), (
-        low, high)
-    [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
-    assert fit["name"] == "garage_door_1" and fit["how"] == "face" and fit["scale"] == 1.0, fit
-    held = assembly.judge_held(root.parent, {}, None)
-    assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
+# The laid toy (made_waiting.lay over one accepted record whose rows the bake made). The camp grounds' cairn
+# (2026-10-13): the baked cairn spans 2 x 2 x 0.5 m; turned 90 degrees about y it spans 0.5 x 2 x 2, its foot at the
+# spot's 0.5, its middle over (3, -2). settle@hangar (2026-11-13): its 28 m ship, laid across the hall over its landing
+# pad laid along the hall, stood half on the pad and half on the deck, tipping; on a 2 x 6 m pad 0.1 m high, a 6 x 1 m
+# ship laid across it is turned a quarter onto it about its middle; one hung from the roof (the crane) and one too long
+# to fit turned (the barge) are left as laid, and one wholly on it (the cart) stays. Base's garage door (motion@base,
+# 2026-10-29: it stood 0.17 m off its module's front and 4.7 m of its 6 m past the module's corner, laid at its plan
+# item's middle): laid by its relation (on the module's S face, `out` +z) at their built sizes, the 12 m module from
+# 26.254 to 38.254 across and to 39.4 in front, the 6 x 8 x 0.5 m door stands with its back on z 39.4, its foot on the
+# floor, shifted in from the module's corner so its recess's 0.55 m of room on its hinge side (-x) fits the face too:
+# its middle from 24.5585 to 26.254 + 0.55 + 3 = 29.804 (score, 2026-10-29: never swinging round the corner). The
+# built garage door (#36, motion@base), 100 m along x: the module's box reaches z 39.43 only by a 0.39 m lip above the
+# doorway, so a door laid on the box's side hung in the air, and the bake cut the recess from the row's 6 m (6.6 with
+# its room) while the built 8.30 m door covered solid wall past it. Its module's face stands at z 39.0 below 8 m and
+# its lip at 39.4 above, the bake's recess runs x 126.304 to 132.904 (its own -5.95 to 0.65) at the module's corner,
+# 8 m tall, and the 8 x 8 x 0.5 m door with 0.6 m of room on its hinge side (-x) is shrunk to 6 / 8 = 0.75 to fit the
+# recess less its room; it hangs in the recess as a door in its opening does (round 32: hung 0.6 m off the jamb, the
+# shrunk door touched nothing once it swung): its hinge edge at the recess's -x jamb (x 126.304 to 132.304), its middle
+# on the face, z 39.0 (38.8125 to 39.1875), from the recess's foot.
+BUILT = 100.0  # the built garage's module stands this far along x from the plain one
+LAID_AT = {  # each laid entry: (its scope, its world box's low and high, the tolerance it stands within)
+    "cairn": ("Fixtures", (2.75, 0.5, -3.0), (3.25, 2.5, -1.0), 1e-5),
+    "ship": ("Fixtures", (-0.5, 0.1, -3.0), (0.5, 1.1, 3.0), 5e-4),
+    "crane": ("Fixtures", (-3.0, 0.1, -0.5), (3.0, 1.1, 0.5), 5e-4),
+    "barge": ("Fixtures", (-3.5, 0.1, -0.5), (3.5, 1.1, 0.5), 5e-4),
+    "cart": ("Fixtures", (-0.25, 0.1, -0.5), (0.25, 1.1, 0.5), 5e-4),
+    "garage_door_1": ("Objects", (26.804, 0.0, 39.4), (32.804, 8.0, 39.9), 1e-4),
+    "garage_door_2": ("Objects", (BUILT + 26.304, 0.0, 38.8125), (BUILT + 32.304, 6.0, 39.1875), 1e-4)}
 
 
-def test_base_s_built_garage_door_goes_in_its_recess_on_the_face_round_it(tmp_path):
-    """#36, motion@base: the module's box reaches z 39.43 only by a 0.39 m lip above the doorway, its face round the
-    recess at 39.039, so the door laid on the box's side hung in the air; and the bake cut the recess from the row's
-    6 m (6.6 with its room), while the built door, 8.30 m, covered solid wall past it. Here the module's face stands at
-    z 39.0 below 8 m and its lip at 39.4 above, the bake's recess runs x 26.304 to 32.904 (its own -5.95 to 0.65) at
-    the module's corner, 8 m tall, and the 8 x 8 x 0.5 m door with 0.6 m of room on its hinge side (-x) is shrunk to
-    6 / 8 = 0.75 to fit the recess less its room. It hangs in the recess as a door in its opening does (motion@base,
-    round 32: hung 0.6 m off the jamb, its back on the face, the shrunk door touched nothing once it swung): its hinge
-    edge at the recess's -x jamb (x 26.304 to 32.304, no room left beside it on the face, none needed), its middle on
-    the face, z 39.0 (38.8125 to 39.1875), from the recess's foot; LAID names the plane its back is on and that it
-    hangs in its recess, and the held gate measures it there.
-    Break: score/stages/assembly/fitting.py: `face = front_face(surface, axis, sign, side, span, (target[1], target[1]
-        + size[1] * scale))` -> `face = None`
-    Break: score/stages/assembly/fitting.py: `if cut is not None:` -> `if False:`
-    Break: score/stages/assembly/made_waiting.py: `{model: entry.get("cuts") for model, entry in (baked or
-        {}).items()}` -> `{}`
-    Break: score/stages/assembly/fitting.py: `target[side] = cut[0][side] + half_wide if below > above else` ->
-        `target[side] = (cut[0][side] + below + cut[1][side] - above) / 2 if True else`
-    Break: score/stages/assembly/fitting.py: `target[axis] = face if cut is not None else face + sign * half[axis]` ->
-        `target[axis] = face + sign * half[axis]`
-    Break: score/stages/assembly/fitting.py: `**({"room": 0.0} if fitted_on.get("hung") else {})` -> `**{}`"""
-    root = a_toy(tmp_path / "out")
-    entries = [{"name": "square_module_front_right_1", "row": "square_module_front_right", "bake": "module_1",
-                "at": [32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake"},
-               {"name": "garage_door_1", "row": "garage_door", "bake": "door_1", "at": [24.5585, 0.0, 39.8395],
-                "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object", "waiting": "bake",
-                "on": {"how": "face", "holder": ["square_module_front_right_1"], "out": [0.0, 1.0], "room": 0.6,
-                       "room_way": [-1.0, 0.0], "why": "against its module's side the concept shows it on"}}]
-    assembly.take_record(a_record(tmp_path, {"objects": entries}), root.parent, TOY)
-    an_asset(root.parent / "assets/module_1.usdc", *boxes_mesh([
+def a_laid_toy(root):
+    """The laid toy: a toy whose accepted record holds the cairn, the pad's four things and the two garages, each
+    waiting on a model the bake made (the built module's bake naming its recess cut); the toy's root after
+    made_waiting.lay, and the models it said it laid."""
+    out = a_toy(root / "out")
+    pad = {"name": "pad_1", "builder": "slab", "row": "pad", "low": 0.0, "high": 0.1, "surface": "floor_plate",
+           "points": [[-1.0, -3.0], [1.0, -3.0], [1.0, 3.0], [-1.0, 3.0]]}
+    things = {"ship": ({}, 3.0), "crane": ({"under roof": True}, 3.0), "barge": ({}, 3.5), "cart": ({}, 0.25)}
+    entries = [{"name": "cairn", "model": "models/none/none.glb", "row": "cairn", "at": [3.0, 0.5, -2.0],
+                "rotation": [0.0, 0.7071068, 0.0, 0.7071068], "waiting": "no released model"},
+               *({"name": name, "row": name, "at": [0.0, 0.1, 0.0], "rotation": [0.0, 0.0, 0.0, 1.0],
+                  "waiting": "no model", **said} for name, (said, _) in things.items())]
+    for number, (along, room) in enumerate(((0.0, 0.55), (BUILT, 0.6)), start=1):
+        entries += [{"name": f"square_module_front_right_{number}", "row": "square_module_front_right",
+                     "bake": f"module_{number}", "at": [along + 32.254, 0.0, 33.4], "rotation": [0.0, 0.0, 0.0, 1.0],
+                     "kind": "object", "waiting": "bake"},
+                    {"name": f"garage_door_{number}", "row": "garage_door", "bake": f"door_{number}",
+                     "at": [along + 24.5585, 0.0, 39.8395], "rotation": [0.0, 0.0, 0.0, 1.0], "kind": "object",
+                     "waiting": "bake", "on": {"how": "face", "holder": [f"square_module_front_right_{number}"],
+                                               "out": [0.0, 1.0], "room": room, "room_way": [-1.0, 0.0],
+                                               "why": "against its module's side the concept shows it on"}}]
+    assembly.take_record(a_record(root, {"structure": [pad], "objects": entries}), out.parent, TOY)
+    assets = out.parent / "assets"
+    an_asset(assets / "cairn.usdc",
+             [(-1.0, -1.0, -0.25), (1.0, -1.0, -0.25), (1.0, 1.0, 0.25), (-1.0, 1.0, 0.25)], [4], [0, 1, 2, 3])
+    for name, (_, half) in things.items():
+        an_asset(assets / f"{name}.usdc", [(-half, 0.0, -0.5), (half, 0.0, -0.5), (half, 1.0, 0.5)], [3], [0, 1, 2])
+    a_box_asset(assets / "module_1.usdc", (-6.0, 0.0, -6.0), (6.0, 12.0, 6.0))
+    a_box_asset(assets / "door_1.usdc", (-3.0, 0.0, -0.25), (3.0, 8.0, 0.25))
+    an_asset(assets / "module_2.usdc", *boxes_mesh([
         ((-6.0, 0.0, -6.0), (-5.95, 8.0, 5.6)), ((0.65, 0.0, -6.0), (6.0, 8.0, 5.6)),  # the body beside the recess
         ((-5.95, 0.0, -6.0), (0.65, 8.0, -0.05)), ((-6.0, 8.0, -6.0), (6.0, 12.0, 6.0))]))  # its back, the lip
-    a_box_asset(root.parent / "assets/door_1.usdc", (-4.0, 0.0, -0.25), (4.0, 8.0, 0.25))
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/baked.json").write_text(json.dumps(
-        {"module_1": {"cuts": [{"recess": [[-5.95, 0.0, -0.05], [0.65, 8.0, 6.05]]}]}, "door_1": {"cuts": []}}))
-    made_waiting.lay(root.parent, TOY, tmp_path / "bake")
-    from score.stages.assembly import fitting
-    low, high = fitting.world_box(opened(root), f"/{TOY}/Objects/garage_door_1")
-    assert np.allclose(low, (26.304, 0.0, 38.8125), atol=1e-4) and np.allclose(high, (32.304, 6.0, 39.1875),
-                                                                                atol=1e-4), (low, high)
-    [fit] = json.loads((root.parent / made_waiting.LAID).read_text())["fitted"]
-    assert fit["scale"] == 0.75 and fit["face"] == 38.8125 and fit["hung"], fit
-    held = assembly.judge_held(root.parent, {}, None)
-    assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
+    a_box_asset(assets / "door_2.usdc", (-4.0, 0.0, -0.25), (4.0, 8.0, 0.25))
+    (root / "bake").mkdir()
+    (root / "bake/baked.json").write_text(json.dumps(
+        {"cairn": {}, **{name: {} for name in things}, "module_1": {}, "door_1": {},
+         "module_2": {"cuts": [{"recess": [[-5.95, 0.0, -0.05], [0.65, 8.0, 6.05]]}]}, "door_2": {"cuts": []}}))
+    return out, made_waiting.lay(out.parent, TOY, root / "bake")
 
 
-def test_a_door_stands_on_its_built_wall_s_face_and_one_short_of_its_opening_is_named(tmp_path):
-    """#36: hangar's and garage's shell walls stand 0.15 m behind the plan's line, so a door laid on the line hung 0.04
-    to 0.15 m in front of its wall and left its jamb and sill as it swung (motion@garage grounded). A 2.4 x 2.4 x 0.2 m
-    door in its 2.4 m wide, 2.66 m tall opening at z 0.15, the built wall's sill and lintel from z -0.276 to 0 (its
-    jamb beside the opening never counts), stands with its middle on the wall's room face, z 0; the held gate measures
-    it there, passes it there and fails one left on the plan's line 0.15 m off. A 2 m door, narrower than its opening,
-    stands against the jamb its own left edge faces, its hinge on its jamb (motion@garage: the 2.01 m round door,
-    centred in its 2.41 m opening, swung on a hinge 0.2 m off its jamb), and passes there. Each is named 0.26 m short
-    of its opening's height (hangar's doorway, a wall panel shrunk to 0.72 m tall) among the gate's findings, which
-    never fail it: only a take made again, a paid one, mends it (coordinator, 2026-10-30).
-    Break: score/stages/assembly/fitting.py: `spot[axis] = face` -> `pass`
-    Break: score/stages/assembly/fitting.py: `if wide is not None and abs(lined) >= 0.9` -> `if False and abs(lined)
-        >= 0.9`
-    Break: score/stages/assembly/fitting.py: `for way in (None, on["along"], np.negative(on["along"]))]` -> `for way in
-        (None,)]`
-    Break: score/stages/assembly/fitting.py: `if short > HELD_MOST:` -> `if False:`
-    Break: score/stages/assembly/held_apart.py: `*(f"{name}: {words}" for name, words, _ in
-        fitting.short_doors(record, laid))))` -> `))`
-    Break: score/stages/assembly/fitting.py: `held = [boxes[name] for name in on.get("holder") or [] if name in
-        boxes] if on["how"] != "in" else walls` -> `... else []`
-    Break: score/stages/assembly/opening_walls.py: `if near(own) or not near(2 - own):` -> `if True:` (the collar
-        door left along z), or `-> if not near(2 - own):` (the side door turned onto the sill across its wall's end)
-    Break: score/stages/assembly/opening_free.py: `if not taken:` -> `if True:` (tube's windows_2 left on windows_1's
-        jamb), or its `if finish - begin >= wide - 1e-9]` -> `]` (laid in the 0.23 m stretch past a box it never
-        fits); fitting.py's `for key in ("middle", "along", "wide")` -> `("middle", "along")` (the gate judges it off
-        its whole opening)"""
-    from score import stages
-    from score.stages.assembly import fitting
-    walls = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
-             {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
-             {"name": "wall_1_3", "low": [-1.2, 2.66, -0.276], "high": [1.2, 4.6, 0.0]}]
-    on = {"how": "in", "middle": [0.0, 0.0, 0.15], "along": [1.0, 0.0], "wide": 2.4, "tall": 2.66, "why": "opening 1"}
-    scale, target, _, _ = fitting.fit((-1.2, 0.0, 0.05), (1.2, 2.4, 0.25), on,
-                                      [(wall["low"], wall["high"]) for wall in walls])
-    assert scale == 1.0 and np.allclose(target, (0.0, 0.0, 0.0)), (scale, target)
-    _, target, _, _ = fitting.fit((-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), on,
-                                  [(wall["low"], wall["high"]) for wall in walls], left=(-1.0, 0.0))
-    assert np.allclose(target, (-0.2, 0.0, 0.0)), target  # its own left edge, its hinge, on the -x jamb
-    narrow = {"objects": [{"name": "door_3", "on": on, "fills": True}]}
-    assert fitting.held_faults(narrow, {"walls": walls, "objects": [
-        {"name": "door_3", "low": [-1.2, 0.0, -0.1], "high": [0.8, 2.4, 0.1]}]}) == []
-    record = {"objects": [{"name": "door_1", "on": on, "fills": True}, {"name": "door_2", "on": on, "fills": True}]}
-    laid = {"walls": walls, "objects": [{"name": "door_1", "low": [-1.2, 0.0, -0.1], "high": [1.2, 2.4, 0.1]},
-                                        {"name": "door_2", "low": [-1.2, 0.0, 0.05], "high": [1.2, 2.4, 0.25]}]}
-    assert fitting.held_faults(record, laid) == [("door_2", "0.15 m off where it is laid in (opening 1)", 0.15)], \
-        fitting.held_faults(record, laid)
-    short = "too small for its opening: 0.26 m short of its 2.66 m height"
-    assert fitting.short_doors(record, laid) == [("door_1", short, 0.26), ("door_2", short, 0.26)]
-    one = {"objects": record["objects"][:1]}
-    (tmp_path / made_waiting.LAID).write_text(json.dumps({**laid, "objects": laid["objects"][:1]}))
-    (tmp_path / assembly.RECORD).parent.mkdir(parents=True, exist_ok=True)
-    (tmp_path / assembly.RECORD).write_text(json.dumps(one))
-    [held] = [check.judge for check in stages.ASSEMBLY.checks if check.name == "held"]
-    verdict = held(tmp_path, {}, None)
-    assert verdict.answer == checks.PASS and f"door_1: {short}" in verdict.findings, verdict
-    # tube (2026-11-12): its plan draws only its long walls; its end opening (middle x 0, z 0), given the left wall's
-    # way (z) 1.6 m off, is turned onto the end wall its shell built across it (its sill and lintel along x, their
-    # line at z -0.3), a quarter turn; one on its own wall keeps its way.
-    from score.stages.assembly import opening_walls
-    ends = [((-1.1, -0.2, -0.45), (1.1, 0.0, -0.15)), ((-1.1, 2.6, -0.45), (1.1, 3.0, -0.15)),
-            ((-1.668, -0.2, -0.45), (-1.532, 3.2, 10.49))]
-    collar = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.0, 1.0], "wide": 2.2, "tall": 2.6}
-    turned, degrees = opening_walls.across(collar, 0.0, ends)
-    assert turned["along"] == [1.0, 0.0] and np.allclose(turned["middle"], (0.0, 0.0, -0.3)) and \
-        abs(degrees) == 90.0, (turned, degrees)
-    side = {**collar, "middle": [-1.6, 0.0, 5.0]}
-    assert opening_walls.across(side, 0.0, ends) == (side, 0.0)
-    # tube (2026-11-12): windows_2's cut opening (z 1.03 to 3.03) overlaps windows_1's, laid before it against the
-    # rib at z 1.22 (to z 1.70); it is laid in the stretch windows_1 leaves free (1.70 to 3.03), never in one too
-    # short for it, and the held gate judges it in that stretch; one on the far wall, or none, leaves the opening
-    # as it is, and so does one that leaves no stretch it fits (held_clear and the gate judge it as laid).
-    from score.stages.assembly import opening_free
-    window = {"how": "in", "middle": [-1.6, 0.8, 2.027], "along": [0.0, 1.0], "wide": 2.0, "tall": 0.8}
-    own = (np.array((-1.6511, 0.8, 1.789)), np.array((-1.5489, 1.0439, 2.2646)))
-    first, far = ((-1.6511, 0.8, 1.221), (-1.5489, 1.0439, 1.6966)), ((1.5489, 0.8, 1.221), (1.6511, 1.0439, 1.6966))
-    rib = ((-1.6511, 0.8, 1.0), (-1.5489, 1.0439, 1.221))
-    free = opening_free.free_part(window, *own, [rib, first])
-    assert np.allclose(free["middle"], (-1.6, 0.8, 2.3618)) and free["wide"] == 1.3304, free
-    assert all(opening_free.free_part(window, *own, before) is window
-               for before in ([far], [], [((-1.6511, 0.8, 1.0), (-1.5489, 1.0439, 2.8))])), "left as it is"
-    from pxr import Usd
-    hull = Usd.Stage.CreateInMemory()
-    built = {"wall_4_9": ((-1.668, -0.2, 0.336), (-1.532, 0.8, 2.336)), "wall_4_7": ((-1.668, -0.2, 1.027),
-                                                                                  (-1.532, 0.8, 3.027)),
-             "wall_4_8": ((-1.668, 1.6, 0.336), (-1.532, 3.2, 3.027)), "structural_ribs_2": ((-1.6, 0.0, 1.021),
-                                                                                           (1.6, 3.2, 1.221)),
-             "structural_ribs_3": ((-1.6, 0.0, 2.724), (1.6, 3.2, 2.924))}
-    for name, (low, high) in built.items():
-        a_built_box(hull, f"/{TOY}/Structure/{name}", low, high)
-    cut = {"windows_1": 1.336, "windows_2": 2.027}
-    for name, middle in cut.items():
-        a_built_box(hull, f"/{TOY}/Objects/{name}", (-1.6511, 0.8, middle - 0.2378), (-1.5489, 1.0439, middle + 0.2378))
-    entries = [{"name": name, "row": "windows", "on": {**window, "middle": [-1.6, 0.8, middle]}}
-               for name, middle in cut.items()]
-    laid = {fit["name"]: fit for fit in fitting.fitted(hull, TOY, entries, set(cut))}
-    assert laid["windows_2"]["low"][2] >= laid["windows_1"]["high"][2] - 1e-4 and laid["windows_2"]["opening"][
-        "wide"] < 2.0 and "opening" not in laid["windows_1"], laid
-    beside = {"objects": [{"name": name, "low": fit["low"], "high": fit["high"]} for name, fit in laid.items()],
-              "walls": [{"name": name, "low": low, "high": high} for name, (low, high) in built.items()],
-              "fitted": list(laid.values())}
-    assert fitting.held_faults({"objects": entries}, beside) == [], beside
+HELD_FACE = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
+HELD_NARROW = {"how": "face", "holder": ["shed_1"], "out": [0.0, 1.0], "room": 0.55, "room_way": [1.0, 0.0]}
+FRONT, BACK = ({"how": "face", "holder": ["facade_1"], "out": [0.0, way]} for way in (1.0, -1.0))
 
 
-def test_the_held_gate_names_each_object_not_where_what_holds_it_puts_it():
-    """#72, so it never comes back silently: the `held` gate fails by name on a door laid 1 m beside its module's
-    face (its measure 1.0 m), a door or window in no opening and on no holder, one held by nothing and one left at the
-    room's middle, and a 6 m door on a 6 m face with 0.55 m of recess room beside it (0.55 m too narrow); the door
-    laid on the face passes.
-    Break: score/stages/assembly/fitting.py: `if narrow > HELD_MOST:` -> `if False:`
-    Break: score/stages/assembly/fitting.py: `elif distance > HELD_MOST:` -> `elif False:`
-    Break: score/stages/assembly/fitting.py: `if entry.get("fills") and not (on and on["how"] in ("in", "face",
-        "within", "top")):` -> `if False:`
-    Break: score/stages/assembly/fitting.py: placement_faults' `if wrong:` -> `if False:`; on_holder's
-        `hold_low[1] if on.get("under") else` dropped (cables under a desk left up in it)
-    Break: score/stages/assembly/fitting.py: off_holder's `above = min(max(0.0, high[1] - hold_high[1]), abs(low[1] -
-        hold_high[1]))` -> `above = max(0.0, high[1] - hold_high[1])` (a box on its shelf unit's top off it)"""
-    from score.stages.assembly import fitting
-    face = {"how": "face", "holder": ["module_1"], "out": [0.0, 1.0]}
-    narrow = {"how": "face", "holder": ["shed_1"], "out": [0.0, 1.0], "room": 0.55, "room_way": [1.0, 0.0]}
-    record = {"objects": [{"name": "door_1", "on": face}, {"name": "door_2", "on": face}, {"name": "door_3", "on": narrow},
-                          {"name": "window_1", "fills": True}, {"name": "lamp_1", "unheld": "its holder lays nothing"},
-                          {"name": "crate_1", "unplaced": "left on the walls item"}]}
-    box = {"low": [0.0, 0.0, 0.0], "high": [1.0, 2.0, 0.0]}
-    laid = {"objects": [{"name": "module_1", "low": [-6.0, 0.0, -6.0], "high": [6.0, 12.0, 6.0]},
-                        {"name": "door_1", "low": [-3.0, 0.0, 6.0], "high": [3.0, 8.0, 6.5]},
-                        {"name": "door_2", "low": [-3.0, 0.0, 7.0], "high": [3.0, 8.0, 7.5]},
-                        {"name": "shed_1", "low": [20.0, 0.0, 0.0], "high": [26.0, 9.0, 4.0]},
-                        {"name": "door_3", "low": [20.0, 0.0, 4.0], "high": [26.0, 8.0, 4.5]},
-                        *[{"name": name, **box} for name in ("window_1", "lamp_1", "crate_1")]]}
-    faults = {name: (words, distance) for name, words, distance in fitting.held_faults(record, laid)}
-    assert sorted(faults) == ["crate_1", "door_2", "door_3", "lamp_1", "window_1"], faults
-    assert ("door_3", "its holder's face is 0.55 m too narrow for it and its recess", 0.55) in \
-        fitting.held_faults(record, laid), faults
-    assert faults["door_2"][1] == 1.0 and faults["window_1"][0].startswith("a door or window in no opening"), faults
-    assert faults["crate_1"][0].startswith("at the room middle") and faults["lamp_1"][0].startswith("held by nothing")
-    # its relation against its reading's placement word: cables said under the desk, laid on its top, fail; held
-    # under it, laid at its foot, they pass (quarters, 2026-11-04)
-    rows = {"desk": {"id": "desk"}, "cables": {"id": "cables", "anchor": "on:desk", "where": "under desk"}}
-    top = {"how": "top", "holder": ["desk_1"], "holder row": "desk"}
-    under = {"how": "within", "under": True, "holder": ["desk_1"], "holder row": "desk"}
-    assert fitting.placement_faults({"objects": [{"name": "cables_1", "row": "cables", "on": top}]}, rows) == [
-        ("cables_1", "laid top desk, though its reading says 'under desk' (under)", None)]
-    assert fitting.placement_faults({"objects": [{"name": "cables_1", "row": "cables", "on": under}]}, rows) == []
-    desk = (np.array([0.0, 0.0, 0.0]), np.array([1.2, 0.75, 0.6]))
-    scale, foot = fitting.on_holder(np.array([0.2, 0.5, 0.1]), np.array([0.6, 0.6, 0.3]), "within", under, desk)
-    assert scale == 1.0 and abs(foot[1]) < 1e-9, foot  # at the desk's foot, never left 0.5 m up in it
-    assert fitting.off_holder(np.array([0.2, 0.5, 0.1]), np.array([0.6, 0.6, 0.3]), "within", under, desk) == 0.5
-    # one within its shelf unit laid on its top stands off nothing (on_boards); one through the top, its foot inside
-    # 0.2 m under it, stands off it
-    unit = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
-    assert fitting.off_holder(np.array([0.3, 2.0, 0.1]), np.array([0.7, 2.404, 0.5]), "within", {}, unit) == 0.0
-    assert abs(fitting.off_holder(np.array([0.3, 1.8, 0.1]), np.array([0.7, 2.204, 0.5]), "within", {}, unit)
-               - 0.2) < 1e-9
+def at_facade(along, z):
+    """A 1 m door's laid box on the facade, its middle `along` x, its back at `z`."""
+    return {"low": [along - 0.5, 0.0, z], "high": [along + 0.5, 2.1, z + 0.1]}
 
 
-def test_the_held_gate_names_two_objects_overlapping_on_one_face(tmp_path):
-    """#36, street's three restaurant doors: two 1 m doors laid on one facade's +z face 0.58 m apart overlap by
-    0.42 m and fail by name; a third 0.58 m further on overlaps only the second; a sign above the doors (no height
-    shared) and a door on the facade's -z face at the same spot pass, as do doors held side by side.
-    Break: score/stages/assembly/held_apart.py: `if along > fitting.HELD_MOST and tall > fitting.HELD_MOST:` -> `if False:`
-    Break: score/stages/__init__.py: `judge=held_apart.judge_held` -> `judge=check.judge`"""
-    from score import stages
-    from score.stages.assembly import held_apart
-    front, back = ({"how": "face", "holder": ["facade_1"], "out": [0.0, way]} for way in (1.0, -1.0))
-    names = ("door_1", "door_2", "door_3", "sign_1", "door_4")
-    record = {"objects": [{"name": name, "on": back if name == "door_4" else front} for name in names]}
-    door = lambda along, z: {"low": [along - 0.5, 0.0, z], "high": [along + 0.5, 2.1, z + 0.1]}  # noqa: E731
-    laid = {"holders": [{"name": "facade_1", "low": [0.0, 0.0, -1.0], "high": [10.0, 9.0, 0.0]}],
-            "objects": [{"name": "door_1", **door(2.609, 0.0)}, {"name": "door_2", **door(3.189, 0.0)},
-                        {"name": "door_3", **door(3.769, 0.0)}, {"name": "door_4", **door(2.609, -1.1)},
-                        {"name": "sign_1", "low": [2.0, 2.5, 0.0], "high": [4.0, 3.0, 0.1]}]}
-    assert held_apart.overlapping(record, laid) == [
-        ("door_1", "overlaps door_2 by 0.42 m along their holder's face", 0.42),
-        ("door_2", "overlaps door_3 by 0.42 m along their holder's face", 0.42)], held_apart.overlapping(record, laid)
-    (tmp_path / made_waiting.LAID).write_text(json.dumps(laid))
-    (tmp_path / assembly.RECORD).parent.mkdir(parents=True, exist_ok=True)
-    (tmp_path / assembly.RECORD).write_text(json.dumps(record))
-    [held] = [check.judge for check in stages.ASSEMBLY.checks if check.name == "held"]
-    verdict = held(tmp_path, {}, None)
-    assert verdict.answer == checks.FAIL and verdict.measures["overlapping"] == 2, verdict
-    assert "door_1: overlaps door_2 by 0.42 m along their holder's face" in verdict.findings, verdict
-    apart = {**laid, "objects": [{"name": "door_1", **door(2.0, 0.0)}, {"name": "door_2", **door(3.2, 0.0)}]}
-    assert held_apart.overlapping(record, apart) == []
+ITEM = {"low": [0.0, 0.0, 0.0], "high": [1.0, 2.0, 0.0]}
+# #72: a door laid on its module's face (door_1), one 1 m beside it (door_2), a 6 m door on a 6 m face with 0.55 m of
+# recess room (door_3), a window in no opening, a lamp held by nothing, a crate left at the room's middle; #36,
+# street's three restaurant doors: entries 1 to 3 on the facade's +z face 0.58 m apart, a sign above them (no height
+# shared) and entry_4 on its -z face at entry_1's spot.
+HELD_RECORD = {"objects": [
+    {"name": "door_1", "on": HELD_FACE}, {"name": "door_2", "on": HELD_FACE}, {"name": "door_3", "on": HELD_NARROW},
+    {"name": "window_1", "fills": True}, {"name": "lamp_1", "unheld": "its holder lays nothing"},
+    {"name": "crate_1", "unplaced": "left on the walls item"},
+    *({"name": name, "on": BACK if name == "entry_4" else FRONT}
+      for name in ("entry_1", "entry_2", "entry_3", "sign_1", "entry_4"))]}
+HELD_LAID = {"holders": [{"name": "facade_1", "low": [40.0, 0.0, -1.0], "high": [50.0, 9.0, 0.0]}],
+             "objects": [{"name": "module_1", "low": [-6.0, 0.0, -6.0], "high": [6.0, 12.0, 6.0]},
+                         {"name": "door_1", "low": [-3.0, 0.0, 6.0], "high": [3.0, 8.0, 6.5]},
+                         {"name": "door_2", "low": [-3.0, 0.0, 7.0], "high": [3.0, 8.0, 7.5]},
+                         {"name": "shed_1", "low": [20.0, 0.0, 0.0], "high": [26.0, 9.0, 4.0]},
+                         {"name": "door_3", "low": [20.0, 0.0, 4.0], "high": [26.0, 8.0, 4.5]},
+                         *({"name": name, **ITEM} for name in ("window_1", "lamp_1", "crate_1")),
+                         {"name": "entry_1", **at_facade(42.609, 0.0)}, {"name": "entry_2", **at_facade(43.189, 0.0)},
+                         {"name": "entry_3", **at_facade(43.769, 0.0)}, {"name": "entry_4", **at_facade(42.609, -1.1)},
+                         {"name": "sign_1", "low": [42.0, 2.5, 0.0], "high": [44.0, 3.0, 0.1]}]}
+HELD_FINDINGS = [  # what the held gate names, in its order: the relations' faults (fitting.held_faults), then each
+    # pair overlapping on one face (held_apart.overlapping); door_1, on its face, and entry_3, sign_1 and entry_4 pass
+    ("door_2", "1.00 m off where it is laid face ()", 1.0),
+    ("door_3", "its holder's face is 0.55 m too narrow for it and its recess", 0.55),
+    ("door_3", "0.55 m off where it is laid face ()", 0.55),
+    ("window_1", "a door or window in no opening and on no holder", None),
+    ("lamp_1", "held by nothing: its holder lays nothing", None),
+    ("crate_1", "at the room middle: left on the walls item", None),
+    ("entry_1", "laid 0.10 m inside entry_2 at its built size", 0.1),  # 0.42 x 2.1 x 0.1 m into each other
+    ("entry_2", "laid 0.10 m inside entry_3 at its built size", 0.1),
+    ("door_1", "overlaps door_2 by 6.00 m along their holder's face", 6.0),  # two 6 m doors on module_1's +z face
+    ("entry_1", "overlaps entry_2 by 0.42 m along their holder's face", 0.42),
+    ("entry_2", "overlaps entry_3 by 0.42 m along their holder's face", 0.42)]
+# #36: a 2.4 m wide, 2.66 m tall opening at z 0.15 in a built wall whose sill and lintel run z -0.276 to 0 (wall_1
+# its jamb beside the opening); a 2.4 x 2.4 x 0.2 m door stands on the wall's room face, z 0 (door_1), one is left on
+# the plan's line 0.15 m off (door_2), a 2 m one against its -x jamb (door_3).
+DOOR_WALLS = [{"name": "wall_1", "low": [-5.0, -0.2, -0.276], "high": [-1.2, 4.6, 0.0]},
+              {"name": "wall_1_2", "low": [-1.2, -0.2, -0.276], "high": [1.2, 0.0, 0.0]},
+              {"name": "wall_1_3", "low": [-1.2, 2.66, -0.276], "high": [1.2, 4.6, 0.0]}]
+DOORWAY_1 = {"how": "in", "middle": [0.0, 0.0, 0.15], "along": [1.0, 0.0], "wide": 2.4, "tall": 2.66,
+             "why": "opening 1"}
+DOORS_IN = {name: {"name": name, "low": [-1.2, 0.0, z], "high": [high, 2.4, z + 0.2]}
+            for name, z, high in (("door_1", -0.1, 1.2), ("door_2", 0.05, 1.2), ("door_3", -0.1, 0.8))}
+SHORT = "too small for its opening: 0.26 m short of its 2.66 m height"
+
+
+def in_doorway(*names):
+    """The record and the laid file of the named doors of DOORS_IN, each filling DOORWAY_1, among DOOR_WALLS."""
+    return ({"objects": [{"name": name, "on": DOORWAY_1, "fills": True} for name in names]},
+            {"walls": DOOR_WALLS, "objects": [DOORS_IN[name] for name in names]})
+
+
+AGAINST = {"how": "wall", "span": [[0.0, 6.4685], [7.0, 6.4685]], "out": [0.0, 1.0], "why": "against the wall"}
+TUNNEL_RECORD = {"objects": [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": AGAINST},
+                             {"name": "pipe_1", "row": "pipe", "on": AGAINST}]}
+TUNNEL_LAID = {"walls": [{"name": "wall_3", "low": [0.0, -0.242, 6.4805], "high": [7.0, 4.6, 6.7565]},
+                         {"name": "deck_1", "low": [0.0, -0.242, 0.0], "high": [7.0, -0.042, 6.4]}],
+               "objects": [{"name": "glass_tunnel_1", "low": [1.0, 0.0, 6.4685], "high": [5.0, 2.5, 9.0]},
+                           {"name": "pipe_1", "low": [5.5, 0.0, 6.4685], "high": [6.0, 2.5, 6.9685]}]}
+HELD_JUDGED = [  # (case, its record and laid file, the held gate's answer and measures, the faults it names
+    # (fitting.held_faults, then held_apart.overlapping), the doors it names short of their openings)
+    ("#72 and #36's held world", (HELD_RECORD, HELD_LAID), checks.FAIL,
+     {"not held": 8, "worst off": 1.0, "overlapping": 3}, HELD_FINDINGS, []),
+    ("a door on the built wall's face and one on the plan's line", in_doorway("door_1", "door_2"), checks.FAIL,
+     {"not held": 1, "worst off": 0.15, "overlapping": 0},
+     [("door_2", "0.15 m off where it is laid in (opening 1)", 0.15)],
+     [("door_1", SHORT, 0.26), ("door_2", SHORT, 0.26)]),
+    ("the door on the built wall's face alone", in_doorway("door_1"), checks.PASS,
+     {"not held": 0, "worst off": 0.0, "overlapping": 0}, [], [("door_1", SHORT, 0.26)]),
+    ("a narrow door against its jamb", in_doorway("door_3"), checks.PASS,
+     {"not held": 0, "worst off": 0.0, "overlapping": 0}, [], [("door_3", SHORT, 0.26)]),
+    ("a tunnel and a pipe against their wall, both reaching into it", (TUNNEL_RECORD, TUNNEL_LAID), checks.FAIL,
+     {"not held": 1, "worst off": 0.276, "overlapping": 0},
+     [("pipe_1", "laid 0.28 m inside wall_3, nothing holding it there", 0.276)], []),
+]
+DESK = (np.array([0.0, 0.0, 0.0]), np.array([1.2, 0.75, 0.6]))
+UNIT = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
+TOP = {"how": "top", "holder": ["desk_1"], "holder row": "desk"}
+UNDER = {"how": "within", "under": True, "holder": ["desk_1"], "holder row": "desk"}
+PLACED = [  # (case, the cables' relation, the placement faults its reading's "under desk" names; quarters, 2026-11-04)
+    ("cables laid on the desk's top", TOP, [("cables_1", "laid top desk, though its reading says 'under desk' (under)",
+                                            None)]),
+    ("cables held under the desk", UNDER, [])]
+OFF = [  # (case, a laid box's low and high, its relation, its holder's box, how far it stands off it within what,
+    # whether on_holder stands it at the holder's foot)
+    ("cables under the desk, laid 0.5 m up in it", [0.2, 0.5, 0.1], [0.6, 0.6, 0.3], UNDER, DESK, 0.5, 0.0, True),
+    ("a box within its shelf unit laid on its top", [0.3, 2.0, 0.1], [0.7, 2.404, 0.5], {}, UNIT, 0.0, 0.0, False),
+    ("a box through its shelf unit's top, its foot 0.2 m in", [0.3, 1.8, 0.1], [0.7, 2.204, 0.5], {}, UNIT, 0.2, 1e-9,
+     False)]
 
 
 def a_built_box(stage, path, low, high):
@@ -1270,123 +953,6 @@ def test_a_ramp_rests_up_on_its_deck_and_nothing_starts_inside_a_deck_or_wall():
     assert np.allclose(crate[0][[0, 2]], (0.47, corner - 1.52), atol=1e-6), crate
 
 
-def test_a_tunnel_against_its_wall_passes_into_it_and_a_pipe_does_not():
-    """held@garage, @habitat, @workshop (2026-10-30): a glass tunnel or corridor tube the concept shows meeting its
-    module's wall from outside, laid against that wall, reached 0.09 to 0.30 m into the built wall; it joins the place
-    through it, as a door stands in its opening, so the held gate excuses its wall, never a deck. A pipe laid against
-    the same wall that reaches into it is still named.
-    Break: score/stages/assembly/fitting.py: `if not (passes(entry) and static.split("_")[0] == "wall")]` -> `]`
-    Break: score/stages/assembly/fitting.py: `set(str(entry.get("row") or "").split("_")) & set(PASSING))` ->
-        `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`
-    Break: score/stages/assembly/fitting.py: moved_past's `**laid_face({**entry["on"], ...` -> `**{}` (workshop's
-        front tunnel named 1.48 m off the wall it was moved out past)
-    Break: score/stages/assembly/fitting.py: in_room's `return room[0] <= point[0] <= room[2] and room[1] <=
-        point[2] <= room[3]` -> `return False` (the cabinet in the room is pushed through its wall), or its `if
-        len(decks):` -> `if False:` (workshop's tunnel past its round room's floor left in its wall)
-    Break: score/stages/assembly/fitting.py: past_walls' `for _ in built:` -> `for _ in built[:1]:` (the second
-        tunnel is moved 1.5 m into deck_2)
-    Break: score/stages/assembly/fitting.py: moved_past's `max(OUT_MOST, across(entry["on"]["out"], high - low))` ->
-        `OUT_MOST` (the tunnel, 1.5 m in, is left)
-    Break: score/stages/assembly/fitting.py: fitted's `fits += passages.drawn_in(stage, place, walled)` dropped
-        (workshop's tunnel left 0.2 m off its wall, touching nothing)
-    Break: score/stages/assembly/passages.py: drawn_back's `moved += distance - GAP / 2` -> `moved += distance` (the
-        tunnel drawn onto the wall's face, 0 m off it), or drawn_in's `**stood_on(...)` -> `**{}` (the drawn tunnel
-        named 0.2 m off the face it was laid on), or drawn_in's `if fitting.passes(entry)` -> `if True` (the pipe
-        drawn back onto the wall too)"""
-    from score.stages.assembly import fitting
-    against = {"how": "wall", "span": [[0.0, 6.4685], [7.0, 6.4685]], "out": [0.0, 1.0], "why": "against the wall"}
-    record = {"objects": [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": against},
-                          {"name": "pipe_1", "row": "pipe", "on": against}]}
-    laid = {"walls": [{"name": "wall_3", "low": [0.0, -0.242, 6.4805], "high": [7.0, 4.6, 6.7565]},
-                      {"name": "deck_1", "low": [0.0, -0.242, 0.0], "high": [7.0, -0.042, 6.4]}],
-            "objects": [{"name": "glass_tunnel_1", "low": [1.0, 0.0, 6.4685], "high": [5.0, 2.5, 9.0]},
-                        {"name": "pipe_1", "low": [5.5, 0.0, 6.4685], "high": [6.0, 2.5, 6.9685]}]}
-    assert fitting.held_faults(record, laid) == [
-        ("pipe_1", "laid 0.28 m inside wall_3, nothing holding it there", 0.276)], fitting.held_faults(record, laid)
-    # workshop (settle@workshop, 2026-11-10): its front glass tunnel, laid out from a chord 1.48 m inside its round
-    # wall's hatch alcove, stood through the alcove's walls. A tunnel laid outside its room (its middle past the
-    # walls' box) reaching into a wall is moved out along its `out` past each wall it reaches into, up to its own
-    # depth (3.3 m, moved 1.5 m); a cabinet in the room reaching into the same wall is left as fitted.
-    from pxr import Usd
-    stage = Usd.Stage.CreateInMemory()
-    a_built_box(stage, f"/{TOY}/Structure/wall_1", (-1.0, 0.0, -6.2), (1.0, 3.0, -5.9))
-    a_built_box(stage, f"/{TOY}/Structure/wall_2", (0.8, 0.0, -6.2), (1.0, 3.0, -5.6))
-    a_built_box(stage, f"/{TOY}/Structure/wall_3", (-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))
-    out = {"how": "wall", "span": [[-2.5, -4.7], [2.5, -4.7]], "out": [0.0, -1.0], "why": "against the wall"}
-    for name, low, high in (("glass_tunnel_1", (-2.0, 0.0, -8.0), (2.0, 2.5, -4.7)),
-                            ("cabinet_1", (-0.5, 0.0, -6.0), (0.5, 2.0, -5.0))):
-        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
-    entries = [{"name": "glass_tunnel_1", "row": "glass_tunnel", "on": out},
-               {"name": "cabinet_1", "row": "cabinet", "on": {**out, "out": [0.0, 1.0]}}]
-    fits = fitting.moved_past(stage, TOY, entries)
-    assert [(fit["name"], fit["how"], fit["moved"], fit["holder"]) for fit in fits] == [
-        ("glass_tunnel_1", "past", 1.5, ["wall_1", "wall_2"])], fits
-    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/glass_tunnel_1")[1], (2.0, 2.5, -6.2))
-    walled = {"objects": [{"name": "glass_tunnel_1", **dict(zip(("low", "high"), fitting.world_box(
-        stage, f"/{TOY}/Objects/glass_tunnel_1")))}], "fitted": fits}  # held off the face it was moved out to
-    assert fitting.held_faults({"objects": entries[:1]}, walled) == [], fitting.held_faults({"objects": entries[:1]},
-                                                                                            walled)
-    assert np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/cabinet_1")[0], (-0.5, 0.0, -6.0))
-    # past the walls 1.5 m out it would reach into a deck's raised edge farther out, 4.5 m in all: more than its
-    # depth, left
-    a_built_box(stage, f"/{TOY}/Structure/deck_2", (-1.0, -0.2, -9.2), (1.0, 0.1, -9.0))
-    a_built_box(stage, f"/{TOY}/Objects/glass_tunnel_2", (-2.0, 0.0, -8.0), (2.0, 2.5, -4.7))
-    assert fitting.moved_past(stage, TOY, [{**entries[0], "name": "glass_tunnel_2"}]) == []
-    # workshop (2026-11-11): its round room's walls' box held its tunnels outside it, so they were left across its
-    # doors. A tunnel past the room's floor (deck_1, z -5 to 5) inside the walls' box (z -6.2 to 5.2) reaching into
-    # wall_1 is outside the room and moved out past it; on a stage with no deck it reads in the room and is left.
-    from pxr import UsdGeom
-    for decked in (True, False):
-        room = Usd.Stage.CreateInMemory()
-        a_built_box(room, f"/{TOY}/Structure/wall_1", (-5.0, 0.0, -6.2), (5.0, 3.0, -5.9))
-        a_built_box(room, f"/{TOY}/Structure/wall_3", (-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))
-        if decked:
-            a_built_box(room, f"/{TOY}/Structure/deck_1", (-5.0, -0.2, -5.0), (5.0, 0.0, 5.0))
-            floor = UsdGeom.Mesh(room.GetPrimAtPath(f"/{TOY}/Structure/deck_1/geo"))
-            floor.CreateFaceVertexCountsAttr([4])
-            floor.CreateFaceVertexIndicesAttr([2, 3, 7, 6])  # its top
-        a_built_box(room, f"/{TOY}/Objects/glass_tunnel_1", (-1.0, 0.0, -7.0), (1.0, 2.5, -5.0))
-        moved = fitting.moved_past(room, TOY, entries[:1])
-        assert [fit["name"] for fit in moved] == (["glass_tunnel_1"] if decked else []), (decked, moved)
-    # workshop (settle@workshop, 2026-11-11): its glass tunnels stood outside its twelve built walls on its plan's
-    # eight facets, 0.06 to 0.19 m off the nearest, touching nothing. Laid with its back on its span 0.2 m out of
-    # wall_1's outer face, a tunnel is drawn back along its `out` until it stands within GAP of the wall, never in it,
-    # and the held gate judges it on the face it now stands on; a pipe laid so is no passage and is left; a tunnel
-    # 1.2 m off (past OUT_MOST) is left, as is one already within GAP.
-    from pxr import Gf
-    from score.stages.assembly import passages
-
-    def solid(stage, path, low, high):
-        """A box mesh from `low` to `high` with its faces, under an Xform at `path`."""
-        box = trimesh.creation.box(bounds=[low, high])
-        UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
-        mesh = UsdGeom.Mesh.Define(stage, f"{path}/geo")
-        mesh.CreatePointsAttr([tuple(map(float, point)) for point in box.vertices])
-        mesh.CreateFaceVertexCountsAttr([3] * len(box.faces))
-        mesh.CreateFaceVertexIndicesAttr([int(index) for index in box.faces.reshape(-1)])
-        mesh.CreateExtentAttr([low, high])
-
-    for off, name, row, moved in ((0.2, "glass_tunnel_1", "glass_tunnel", 0.2), (0.2, "pipe_1", "pipe", None),
-                                  (1.2, "glass_tunnel_2", "glass_tunnel", None),
-                                  (0.004, "glass_tunnel_3", "glass_tunnel", None)):
-        room = Usd.Stage.CreateInMemory()
-        solid(room, f"/{TOY}/Structure/wall_1", (-5.0, 0.0, -6.2), (5.0, 3.0, -5.9))
-        solid(room, f"/{TOY}/Structure/wall_3", (-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))
-        solid(room, f"/{TOY}/Objects/{name}", (-2.0, 0.0, -9.2 - off), (2.0, 2.5, -6.2 - off))
-        entry = {"name": name, "row": row, "on": {"how": "wall", "span": [[-2.5, -6.2 - off], [2.5, -6.2 - off]],
-                                                  "out": [0.0, -1.0], "why": "against the wall"}}
-        fits = [fit for fit in fitting.fitted(room, TOY, [entry], {name}) if fit["how"] == "drawn"]
-        far = -6.2 - float(fitting.world_box(room, f"/{TOY}/Objects/{name}")[1][2])
-        if moved is None:
-            assert not fits and abs(far - off) < 1e-6, (name, fits, far)
-            continue
-        assert [(fit["name"], round(fit["moved"], 2)) for fit in fits] == [(name, moved)] and \
-            0.0 < far <= passages.GAP, (fits, far)
-        laid = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(
-            room, f"/{TOY}/Objects/{name}")))}], "fitted": fits}
-        assert fitting.held_faults({"objects": [entry]}, laid) == [], fitting.held_faults({"objects": [entry]}, laid)
-
-
 def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_under_its_dome_is_left():
     """hangar's wall pipes stood 22 m up through its 15 m roof, and the inside-a-static check left roofs out because a
     dome's box holds the room under it. A roof is read by its mesh: a gable from 3 m eaves at x 0 and 10 to a 5 m ridge
@@ -1798,58 +1364,6 @@ def test_a_thing_up_through_a_roof_s_surface_is_moved_down_or_named_and_one_unde
                                  (1.0, 1.5)) == []
 
 
-def test_a_door_goes_in_its_opening_narrowed_to_fit():
-    """A 1.4 x 0.1 x 2.4 m door laid off its wall goes in its 1.2 m wide, 2.1 m tall opening: shrunk to 2.1 / 2.4 for
-    its height, then held across its width alone to the opening's 1.2 m (1.2 / 1.4 of its own), its foot's middle on
-    the opening's middle at its sill. Between built jambs 0.3 m thick centred on the opening's ends (the lab's entry
-    passage, motion@lab round 35: 1.264 m clear in a 1.896 m opening) it is held to the 0.9 m clear between them, and
-    a 0.6 m door there stands against the jamb its own left edge faces, not the plan's opening end.
-    Break: score/stages/assembly/fitting.py: `scale[run_axis] *= (end - start) / wide` -> `pass`
-    Break: score/stages/assembly/fitting.py: `            start = max(start, far)` -> `            pass`
-    Break: score/stages/assembly/fitting.py: hole_wall's `if not inside:` -> `if True:` (laid in an uncut wall), or
-        its `along[axis // 2] = 1.0 if` -> `along[2 - axis // 2] = 1.0 if` (turned across its wall), or its `if
-        own_jambs(on, mesh, height):` -> `if False:` (moved out of its own slanted wall)
-    Break: score/stages/assembly/fitting.py: opening_clear's `floor = max(` -> `floor = min(` (its sill left in the
-        pavement), or its `reach.append(float(met.min())` -> `reach.append(float(met.max())` (held past the fold)"""
-    from score.stages.assembly import fitting
-    opening = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
-    scale, target, words, _ = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.4, 3.05), opening)
-    assert np.allclose(scale, (1.2 / 1.4, 2.1 / 2.4, 2.1 / 2.4)), scale
-    assert np.allclose(target, (5.0, 0.0, 0.0)), target
-    assert "narrowed to 86% across" in words, words
-    jambs = [((4.25, -0.2, -1.0), (4.55, 2.8, 1.0)), ((5.45, -0.2, -1.0), (5.75, 2.8, 1.0))]
-    scale, target, _, _ = fitting.fit((0.3, 0.0, 2.95), (1.7, 2.1, 3.05), opening, jambs)
-    assert np.allclose(scale, (0.9 / 1.4, 1.0, 1.0)) and np.allclose(target, (5.0, 0.0, 0.0)), (scale, target)
-    _, target, _, _ = fitting.fit((0.3, 0.0, 2.95), (0.9, 2.1, 3.05), opening, jambs, left=(-1.0, 0.0))
-    assert np.allclose(target, (4.85, 0.0, 0.0)), target
-    # settle@street (2026-11-11): its restaurant door 2's plan opening lies on a slanted plan wall, 0.67 m off the
-    # straight wall_2 the kit's shell cut its 1 m hole in (z -3.2 to -2.2 at x -2.85 to -2.55); laid slanted across
-    # it, it stood 0.15 m in the wall. It is laid along that wall in its hole, turned 20.9 degrees; with no hole cut
-    # there, as it is.
-    def boxes(*found):
-        return trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in found])
-    holed = boxes([(-2.85, 0.0, -4.4), (-2.55, 3.5, -3.2)], [(-2.85, 0.0, -2.2), (-2.55, 3.5, -1.1)],
-                  [(-2.85, 0.0, -3.2), (-2.55, 0.2, -2.2)], [(-2.85, 2.7, -3.2), (-2.55, 3.5, -2.2)])
-    piece = (np.array([-2.85, 0.0, -4.4]), np.array([-2.55, 3.5, -1.1]))
-    slanted = {"how": "in", "middle": [-2.032, 0.2, -2.7], "along": [0.356, -0.934], "wide": 1.0, "tall": 2.5}
-    walled, degrees = fitting.hole_wall(slanted, [piece], holed)
-    assert np.allclose(walled["middle"], (-2.7, 0.2, -2.7)) and walled["along"] == [0.0, -1.0], walled
-    assert abs(degrees - 20.87) < 0.05, degrees
-    solid = boxes([(-2.85, 0.0, -4.4), (-2.55, 3.5, -1.1)])
-    assert fitting.hole_wall(slanted, [piece], solid) == (slanted, 0.0)
-    # one cut in its own slanted wall (a wall stands on its line just past its end) stays in it
-    jamb = boxes([(-1.9, 0.0, -3.4), (-1.7, 3.5, -3.1)])
-    own = trimesh.util.concatenate([holed, jamb])
-    assert fitting.hole_wall(slanted, [piece], own) == (slanted, 0.0)
-    # ... and its roller shutters, 0.35 m deep: one cut with its sill 0.2 m under the pavement before it, the facade
-    # folding back across its far end. A 3 m shutter along x: its floor is the pavement's top, its clear run ends at
-    # the fold 1.2 m along, and nothing stands the other way.
-    shutter = trimesh.creation.box(bounds=[(-1.5, 0.0, -0.175), (1.5, 3.0, 0.175)])
-    around = boxes([(-2.0, 0.0, 0.0), (2.0, 0.2, 1.0)], [(1.2, 0.0, -1.0), (1.3, 3.0, 1.0)])
-    floor, start, end = fitting.opening_clear(np.asarray(shutter.vertices), {"along": [1.0, 0.0]}, around)
-    assert abs(floor - 0.2) < 1e-6 and abs(end - 1.2) < 1e-6 and start == -np.inf, (floor, start, end)
-
-
 def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_its_swing():
     """#36, garage 2026-10-30: hung on its wall's room face, each door swung out, its kind's way, into its own jamb
     0.05 to 0.08 m, and 10 m pipes laid along the walls stood across both doorways; neither door swung. A 2 m door in
@@ -2111,75 +1625,6 @@ def test_a_leaf_hangs_on_the_face_it_swings_to_and_a_wall_s_things_keep_out_of_i
                        [[x, y, z] for x in (low[0], high[0]) for y in (low[1], high[1]) for z in (low[2], high[2])])
 
 
-def test_nothing_laid_stands_in_a_doorway_s_passage_or_a_facade_door_s_swing():
-    """#36, garage 2026-10-30: its doors swung out of the room clear, but pipes laid along the walls inside ran across
-    both doorways, so nobody could walk through; street's drying racks, laid on their facade under its doors (hung on
-    the facade, no opening), stood in the doors' swing either way. A 1 x 2 x 0.1 m door in its 1.2 m opening of a
-    shell wall from z -0.1 to 0.1, swinging out of the room (to -z), hangs on the outer face against its left jamb,
-    x -0.6 to 0.4, z -0.15 to -0.05; its
-    passage is the opening's width, x -0.6 to 0.6, a person's 1.8 m from its foot, and a step (0.75 m) beyond either
-    face, z -0.9 to 0.85. A 3.2 m pipe laid on the wall's room face across the doorway, out of the door's swing but in
-    its passage, goes to the longest stretch beside it, shrunk to 2.4 m, x -3 to -0.6; a lamp on the wall over the
-    doorway at 1.9 to 2.2 m, above the passage, stays. A 1 x 2 x 0.1 m shop door laid on a facade box (x -3 to 3, its
-    face toward the street z 4.8), swinging to the street, stands x 1.5 to 2.5 on it; a 1.2 m drying rack laid on the
-    facade at its foot goes to the nearest stretch of the face out of its swing that holds it, x 0.3 to 1.5, whole;
-    it never hangs in a recess the bake cut in the facade, which only a thing whose relation names one (its `room`:
-    the door it was cut for) hangs in (street's racks hung in its doors' recesses).
-    Break: score/stages/assembly/fitting.py: `recess_of(recesses, axis, sign, foot, box) if "room" in on else None` ->
-        `recess_of(recesses, axis, sign, foot, box)`
-    Break: score/stages/assembly/fitting.py: `return swing_box(stage, path), passage_box(*world_box(stage, path),
-        by_name[leaf]["on"], built)` -> `return (swing_box(stage, path),)`
-    Break: score/stages/assembly/fitting.py: `low[axis], high[axis] = min([low[axis], *faces]) - STEP,
-        max([high[axis], *faces]) + STEP` -> `low[axis], high[axis] = min([low[axis], *faces]), max([high[axis],
-        *faces])`
-    Break: score/stages/assembly/fitting.py: `high[1] = low[1] + PASSAGE_TALL` -> `pass` (the passage as tall as the
-        door: the lamp over it moved)
-    Break: score/stages/assembly/fitting.py: `if how in ("wall", "face") and name not in leaves else ()` -> `if how ==
-        "wall" and name not in leaves else ()`
-    Break: score/stages/assembly/fitting.py: `entry["on"]["how"] in ("in", "face") and swings(entry["row"])` ->
-        `entry["on"]["how"] == "in" and swings(entry["row"])`
-    Break: score/stages/assembly/fitting.py: `scale, target, face = on_face(low, high, on, box, surface, recesses,
-        clear)` -> `scale, target, face = on_face(low, high, on, box, surface, recesses)`"""
-    from pxr import Gf, Usd, UsdGeom
-    from score.stages.assembly import fitting
-    stage = Usd.Stage.CreateInMemory()
-    for name, size, at in (("Objects/pipe_1", (3.2, 1.0, 0.32), (0.0, 0.5, 2.0)),
-                           ("Objects/lamp_1", (0.4, 0.3, 0.1), (0.0, 2.05, 0.15)),
-                           ("Objects/door_1", (1.0, 2.0, 0.1), (0.0, 1.0, 3.0)),
-                           ("Shell/wall_2", (1.2, 0.1, 0.2), (0.0, -0.05, 0.0)),
-                           ("Objects/facade_1", (6.0, 3.0, 0.4), (0.0, 1.5, 5.0)),
-                           ("Objects/shop_door_1", (1.0, 2.0, 0.1), (2.0, 1.0, 3.0)),
-                           ("Objects/drying_rack_1", (1.2, 0.1, 0.4), (2.0, 0.05, 3.0))):
-        xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
-        cube = UsdGeom.Cube.Define(stage, f"/{TOY}/{name}/geo")
-        cube.AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
-        xform.AddTransformOp().Set(Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
-    wall = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
-    facade = {"how": "face", "holder": ["facade_1"], "out": [0.0, -1.0]}
-    doorway = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.2}
-    entries = [{"name": "pipe_1", "row": "pipe", "on": wall}, {"name": "lamp_1", "row": "lamp", "on": wall},
-               {"name": "drying_rack_1", "row": "drying_rack", "on": facade},
-               {"name": "shop_door_1", "row": "shop_door", "on": facade},
-               {"name": "door_1", "row": "door", "on": doorway}]
-    fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {entry["name"] for entry in entries})}
-    assert np.allclose(fits["door_1"]["low"], (-0.6, 0.0, -0.15)) and np.allclose(fits["door_1"]["high"],
-                                                                                   (0.4, 2.0, -0.05)), fits
-    passage = fitting.passage_box(*fitting.world_box(stage, f"/{TOY}/Objects/door_1"), doorway,
-                                  [box for _, box in fitting.walls(stage, TOY)])
-    assert np.allclose(passage[0], (-0.6, 0.0, -0.9)) and np.allclose(passage[1], (0.6, 1.8, 0.85)), passage
-    assert fits["pipe_1"]["scale"] == 0.75 and np.allclose(fits["pipe_1"]["low"], (-3.0, 0.0, 0.1)) \
-        and np.allclose(fits["pipe_1"]["high"], (-0.6, 0.75, 0.34)), fits
-    assert "lamp_1" not in fits, fits
-    assert np.allclose(fits["shop_door_1"]["low"], (1.5, 0.0, 4.7)), fits
-    assert fits["drying_rack_1"]["scale"] == 1.0 and np.allclose(fits["drying_rack_1"]["low"], (0.3, 0.0, 4.4)) \
-        and np.allclose(fits["drying_rack_1"]["high"], (1.5, 0.1, 4.8)), fits
-    box, recess = (np.array([-3.0, 0.0, 4.8]), np.array([3.0, 3.0, 5.2])), (np.array([1.5, 0.0, 4.8]),
-                                                                              np.array([2.5, 2.1, 5.0]))
-    rack = (np.array([1.4, 0.0, 4.4]), np.array([2.6, 0.1, 4.8]))
-    assert not fitting.on_face(*rack, facade, box, None, [recess])[2][1]  # a rack never hangs in a door's recess
-    assert fitting.on_face(*rack, dict(facade, room=0.0), box, None, [recess])[2][1]  # the door it was cut for does
-
-
 def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     """#36, street 2026-10-30: two drying racks (0.12 m tall) stood 1.3 and 2.3 m inside their facade: its flat front
     has corners only at its ends, and the corners within the racks' height were a window's back. A facade whose front
@@ -2346,47 +1791,6 @@ def test_a_thing_on_a_face_stands_on_its_front_never_inside_it():
     buildings = [fitting.world_box(strung, f"/{TOY}/Objects/building_{number}") for number in (1, 2)]
     assert fitting.off(*spans["string_1"], between[0]["on"], buildings) < 1e-6
     assert abs(fitting.off(*spans["string_2"], between[1]["on"], buildings) - 4.0) < 1e-6
-
-
-def test_a_door_in_a_slanted_wall_hangs_on_the_face_it_swings_to():
-    """#36, cockpit 2026-10-30: its rear doors, in an opening of a slanted wall (its boxes say nothing of its faces),
-    stood on the plan's line 0.37 m in front of the built wall and swung their kind's way into its jamb. A 1 m opening
-    at the origin along (0.6, 0.8), its built wall's jambs from 0.3 to 0.5 m across it the way (0.8, -0.6): a door
-    turned so its own -z points that way (its kind's swing) stands with its foot middle on the far face, (0.4, -0.3);
-    one swinging the other way on the near face, (0.24, -0.18); the held gate passes it there. A deck's corner 0.9 m
-    out beside it is no wall face (camp's dome door, by no built wall, was hung on its deck's corner), nor is a wall
-    under its sill 0.8 m out (greenhouse's door, in its dome, was hung on the tops of the walls under it, motion round 34).
-    Break: score/stages/assembly/fitting.py: `surface = wall_points(stage, place)` -> `surface = None`
-    Break: score/stages/assembly/fitting.py: `or wall[beside, 1].max() < head - WALL_REACH:` -> `or False:`
-    Break: score/stages/assembly/fitting.py: `spot[[0, 2]] += way * float(max(faces))` -> `spot[[0, 2]] += way *
-        float(min(faces))`
-    Break: score/stages/assembly/fitting.py: `return float(np.linalg.norm(off - normal * np.clip(off @ normal, -2 *
-        WALL_REACH, 2 * WALL_REACH)))` -> `return float(np.linalg.norm(off))`"""
-    from pxr import Gf, Usd, UsdGeom
-    from score.stages.assembly import fitting
-    run, normal = np.array([0.6, 0.8]), np.array([0.8, -0.6])
-    jambs = [run * along + normal * deep for along in (-1.5, -0.5, 0.5, 1.5) for deep in (0.3, 0.5)]
-    points = np.array([[x, y, z] for x, z in jambs for y in (0.0, 2.0)])
-    stage = Usd.Stage.CreateInMemory()
-    UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/wall_1").GetPointsAttr().Set([Gf.Vec3f(*point) for point in points])
-    corner = normal * 0.9  # a deck's corner beside the opening, no wall
-    UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/deck_1").GetPointsAttr().Set(
-        [Gf.Vec3f(corner[0], y, corner[1]) for y in (-0.2, 0.0)] + [Gf.Vec3f(-5.0, y, -5.0) for y in (-0.2, 0.0)])
-    under = [run * along + normal * 0.8 for along in (-0.5, 0.5)]  # a wall under the sill, out beside it
-    UsdGeom.Mesh.Define(stage, f"/{TOY}/Shell/wall_2").GetPointsAttr().Set(
-        [Gf.Vec3f(x, y, z) for x, z in under for y in (-2.0, 0.0)])
-    xform = UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/door_1")
-    UsdGeom.Cube.Define(stage, f"/{TOY}/Objects/door_1/geo").AddScaleOp().Set(Gf.Vec3f(0.5, 1.0, 0.05))
-    xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), -53.130102))
-                               * Gf.Matrix4d().SetTranslate(Gf.Vec3d(0.0, 1.0, 2.0)))
-    opening = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.6, 0.8], "wide": 1.0, "tall": 2.0}
-    fits = fitting.fitted(stage, TOY, [{"name": "door_1", "row": "door", "on": opening}], {"door_1"})
-    middle = (np.array(fits[0]["low"]) + np.array(fits[0]["high"])) / 2
-    assert np.allclose(middle[[0, 2]], (0.4, -0.3), atol=1e-3) and abs(fits[0]["low"][1]) < 1e-6, fits
-    assert np.allclose(fitting.opening_spot(opening, opens=-normal, points=[points]), (0.24, 0.0, -0.18)), "near face"
-    record = {"objects": [{"name": "door_1", "on": opening, "fills": True}]}
-    assert fitting.held_faults(record, {"walls": [], "objects": [{"name": "door_1", "low": fits[0]["low"],
-                                                                  "high": fits[0]["high"]}]}) == [], fits
 
 
 def test_a_monitor_goes_on_its_console_s_top_within_its_span():
@@ -2924,50 +2328,6 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert railings_held.change(laid_chord, railing_row, [wall], under) is None
 
 
-def test_a_wall_item_stands_on_its_named_face():
-    """A 1 x 0.6 x 0.2 m wall lamp laid at the room's middle (the walls item) stands with its back on its wall's face
-    (z 0.1 to 6.1 at x 2, the room to +x), 0.1 m out from it, slid along to the face's nearest point.
-    Break: score/stages/assembly/fitting.py: `spot = start + run * along + out * across(out, size) * scale / 2` ->
-        `spot = start + run * along`
-    Break: score/stages/assembly/fitting.py: fitted's `clear = [*clear, *wall_holes(faces(), entry["on"], ...)]` ->
-        `pass` is caught by the sweep's walkway only; wall_holes' `open_at = ~near...` -> `open_at = near...` (walkway's
-        and shiplock's screens hung in the holes cut through their walls)
-    Break: score/stages/assembly/fitting.py: walls_ahead's `<= deep]] = True` -> `<= 0.0]] = True` (the rack left in
-        the wall folding back in front of its face), or its `taken |= alongs >= past if` -> `taken |= False if` (the
-        face past the wall crossing it left free)"""
-    from score.stages.assembly import fitting
-    on = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}
-    scale, target, _, _ = fitting.fit((4.4, 0.0, 2.9), (4.6, 0.6, 3.9), on)
-    assert scale == 1.0 and np.allclose(target, (2.1, 0.0, 3.4)), target
-    # walkway and shiplock (2026-11-11): screens hung in holes cut through their walls. A wall with a 1 m hole (z 2 to
-    # 3) at the thing's height: the hole is found and a 0.5 m screen laid in it goes beside it; with nothing to keep
-    # out of it stays.
-    import trimesh
-    holed = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (0.1, 3.0, 2.0)]),
-                                      trimesh.creation.box(bounds=[(0.0, 0.0, 3.0), (0.1, 3.0, 6.0)])])
-    along = {"how": "wall", "span": [[0.1, 0.0], [0.1, 6.0]], "out": [1.0, 0.0]}
-    holes = fitting.wall_holes(holed, along, (1.0, 1.5))
-    assert [(round(float(hole[:, 2].min()), 3), round(float(hole[:, 2].max()), 3)) for hole in holes] == [
-        (1.975, 3.025)]  # a step's margin past its outermost open rays
-    screen = (np.array([0.1, 1.0, 2.25]), np.array([0.2, 1.5, 2.75]))
-    assert np.allclose(fitting.on_wall(*screen, along, holes)[1], (0.15, 1.0, 1.725))
-    assert np.allclose(fitting.on_wall(*screen, along, ())[1], (0.15, 1.0, 2.5))
-    # settle@street (2026-11-11): its drying rack 3, on its slanted wall_7 where wall_8 folds back in front of it,
-    # stood 0.05 m in wall_8. A wall 0.2 m in front of the face from z 4 to 6: the run it stands before is found, and
-    # a 1 m rack 0.5 m deep laid at z 5 goes before it.
-    ahead = trimesh.creation.box(bounds=[(0.3, 0.0, 4.0), (0.4, 3.0, 6.0)])
-    taken = fitting.walls_ahead(ahead, along, (1.0, 1.5), 0.5)
-    assert [(round(float(run[:, 2].min()), 3), round(float(run[:, 2].max()), 3)) for run in taken] == [
-        (3.975, 6.025)], taken
-    rack = (np.array([0.1, 1.0, 4.5]), np.array([0.6, 1.5, 5.5]))
-    assert np.allclose(fitting.on_wall(*rack, along, taken)[1], (0.35, 1.0, 3.475))
-    assert fitting.walls_ahead(ahead, along, (1.0, 1.5), 0.1) == []
-    # ... and past where a wall crosses the face itself (wall_8 folding back across wall_7's end): outside the room
-    across = trimesh.creation.box(bounds=[(0.0, 0.0, 5.0), (0.5, 3.0, 5.1)])
-    assert [(round(float(run[:, 2].min()), 3), round(float(run[:, 2].max()), 3))
-            for run in fitting.walls_ahead(across, along, (1.0, 1.5), 0.5)] == [(4.975, 6.025)]
-
-
 def test_a_kit_piece_moved_since_the_seed_stands_at_its_kit_spot(tmp_path, monkeypatch):
     """Fault (2026-10-12): the garage's fourth pressure gauge moved off the big door's track in its kit, yet the
     assembly kept the seed's object where the old kit put it. The second crate's kit spot moved to (5, 0, 2): it
@@ -3000,140 +2360,103 @@ def a_sound_output(folder, uses):
     return folder
 
 
-def test_the_sound_layer_is_the_sound_stage_s_and_a_sound_placed_nowhere_is_said(tmp_path):
-    """Fault (2026-10-12): the assembly kept the seed's sound layer, so camp, launch and square failed complete's sound
-    check. The layer is written from the accepted output: the room tone under Sound/Room, the hum at the fan's row, the
-    door's sound at its own second (2.5 s, 2.5 x the stage's rate in frames), each file under its world name, the layer
-    in the sound's slot of ORDER; a hum on a row the stage lacks is named.
-    Break: score/stages/assembly/sounds.py: `start=float(use["at"]) * rate` -> `start=float(use["at"])`
-    Break: score/stages/assembly/sounds.py: `if not target or not target.IsActive():` -> `if not target:`
-    Break: score/stages/assembly/sounds.py: `unplaced.append(f"{use['sound']} (object): no prim of the row or name
-        {use['on']} on the stage")` -> `pass`"""
-    from pxr import UsdMedia
-    root = a_toy(tmp_path / "out")
-    uses = [{"sound": "tone", "role": "room", "on": None, "from": "places.json"},
-            {"sound": "hum", "role": "object", "on": "fan", "from": "row fan"},
-            {"sound": "hum", "role": "motion", "on": f"/{TOY}/Objects/door_1", "at": 2.5, "loops_until": None,
-             "from": "door"},
-            {"sound": "hum", "role": "object", "on": "pump", "from": "row pump"}]
-    unplaced = sounds.take(a_sound_output(tmp_path / "sound", uses), root, {"sounds": tmp_path / "none.json"})
-    assert unplaced == ["hum (object): no prim of the row or name pump on the stage"], unplaced
-    stage = opened(root)
-    tone = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Sound/Room/tone"))
-    assert tone.GetFilePathAttr().Get().path == "../assets/sound/tone.ogg"
-    assert (root.parent / "assets/sound/tone.ogg").read_bytes() == b"tone"
-    assert stage.GetPrimAtPath(f"/{TOY}/Objects/fan_1/Sound")
-    door = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Objects/door_1/Sound_0"))
-    assert door.GetStartTimeAttr().Get().GetValue() == 2.5 * stage.GetTimeCodesPerSecond()
-    assert stage.GetRootLayer().subLayerPaths[2] == "./layers/sound.usda"
-    # hangar (2026-11-11): its second crane, left out by the fitting (inactive), crashed the assembly defining its
-    # motion's sound under it; it is a sound placed nowhere, named
-    left = a_toy(tmp_path / "left")
-    held = opened(left)
-    held.GetPrimAtPath(f"/{TOY}/Objects/door_1").SetActive(False)
-    held.GetRootLayer().Save()
-    unplaced = sounds.take(a_sound_output(tmp_path / "left-sound", uses[2:3]), left, {"sounds": tmp_path / "none.json"})
-    assert unplaced == [f"hum (motion): no moving prim /{TOY}/Objects/door_1 on the stage"], unplaced
+# --- the layer stages taken over a read-only seed ---------------------------------------------------------------------
+
+# The sound output's uses over the layered seed: the room tone, the hum at the fan's row, the door's sound at its own
+# second, a hum on a row the stage lacks (the pump), and a motion's sound on the door the fitting left out (hangar's
+# second crane, 2026-11-11: inactive, it crashed the assembly defining its sound under it).
+USES = [{"sound": "tone", "role": "room", "on": None, "from": "places.json"},
+        {"sound": "hum", "role": "object", "on": "fan", "from": "row fan"},
+        {"sound": "hum", "role": "motion", "on": f"/{TOY}/Objects/door_1", "at": 2.5, "loops_until": None,
+         "from": "door"},
+        {"sound": "hum", "role": "object", "on": "pump", "from": "row pump"},
+        {"sound": "hum", "role": "motion", "on": f"/{TOY}/Objects/door_2", "at": 1.0, "loops_until": None,
+         "from": "door"}]
+# Each layer stage's lamps: {lamp: {frame or None (a plain value): strength}}; the motion keys the cycle lamp 0 then 50
+# at frame 12 (the airlock's cycle light, 2026-10-16) and the light sets both lamps 20.
+LAMPS = {"effects": {}, "light": {"cycle": {None: 20.0}, "steady": {None: 20.0}},
+         "motion": {"cycle": {0: 0.0, 12: 50.0}}}
 
 
-def test_the_assembly_of_a_read_only_seed_saves_its_copied_base_and_takes_a_read_only_layer(tmp_path):
-    """A seed from the store is read-only; its copy takes the record's save over the base and a layer stage's
-    read-only layer in place of the seed's (Batch 1, 2026-10-25: every assembly refused the save).
-    Break: score/stages/assembly/__init__.py: `shutil.copytree(source, out / part, copy_function=shutil.copyfile)` ->
-        `shutil.copytree(source, out / part)`"""
-    read_only_toy(tmp_path / "store" / TOY)
-    effects = tmp_path / "effects"
-    (effects / "layers").mkdir(parents=True)
-    (effects / "layers/effects.usda").write_text("#usda 1.0\n")
-    (effects / "layers/effects.usda").chmod(0o444)
-    (tmp_path / "surfaces.json").write_text(json.dumps({}))
-    out = tmp_path / "out"
-    out.mkdir()
-    assembly.make_from_seed({"seed": tmp_path / "store" / TOY, "effects-layer": effects,
-                             "surfaces": tmp_path / "surfaces.json", **a_record(tmp_path, ONE_LAMP)},
-                            out, tmp_path / "store" / TOY, {})
-    stage = opened(out / f"{TOY}.usda")
-    assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and not stage.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
-    assert all(path.stat().st_mode & 0o200 for path in out.rglob("*") if path.is_file())
-
-
-def test_a_place_s_made_ground_takes_the_surface_its_scene_library_gives_its_row(tmp_path):
-    """Hub (#36, assembly@hub placeholders): the terrain's made ground came in as /<place>/Outside/near and far, its
-    finish named missing, drawn with no material. Each mesh of it is bound in the taken (read-only) ground layer to
-    the surface the scene's surface library gives its row's kind (lunar_surface, a ground: lunar_regolith, laid under
-    the place's Library by the earth seed), its missing note gone, so the placeholder gate passes it; a row the
-    library gives none (the sea) keeps its finish named missing.
-    Break: score/stages/assembly/__init__.py: `finish_ground(inputs, out / root.name, folder.name)` -> `None`
-    Break: score/stages/assembly/ground_finish.py: `prim.RemoveProperty("score:surface:missing")` -> `None`"""
-    from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
-    from score.stages.terrain import outside
-    import placeholders
-    a_toy(tmp_path / "store" / TOY)
-    base = Usd.Stage.Open(str(tmp_path / "store" / TOY / "layers/base.usda"))
-    shader = UsdShade.Shader.Define(base, f"/{TOY}/Library/lunar_regolith/surface")
-    shader.CreateIdAttr("UsdPreviewSurface")
-    shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.34, 0.28, 0.22))
-    UsdShade.Material.Define(base, f"/{TOY}/Library/lunar_regolith").CreateSurfaceOutput().ConnectToSource(
-        shader.ConnectableAPI(), "surface")
+def a_layered_seed(root):
+    """The toy seed as a store checkout holds it (every file read-only, no assets/ folder), its base also holding a
+    second door the fitting left out (inactive), and the accepted outputs over it: the record (ONE_LAMP), an effects
+    layer, a motion layer of 480 frames and a light layer (LAMPS, the light's earth picture under assets/light), each
+    read-only, and a sound output played by USES; the seed and make_from_seed's inputs."""
+    from pxr import Usd, UsdGeom, UsdLux
+    seed = a_toy(root / "store" / TOY)
+    base = Usd.Stage.Open(str(seed.parent / "layers/base.usda"))
+    UsdGeom.Xform.Define(base, f"/{TOY}/Objects/door_2").GetPrim().SetActive(False)
     base.GetRootLayer().Save()
-    for path in (tmp_path / "store" / TOY).rglob("*"):
+    for path in seed.parent.rglob("*"):
         if path.is_file():
             path.chmod(0o444)
-    inputs = a_record(tmp_path, ONE_LAMP)
-    (tmp_path / "terrain/moon/places").mkdir(parents=True)
-    ground = Usd.Stage.CreateNew(str(tmp_path / "terrain/moon/places" / f"{TOY}.usdc"))
-    points, triangles = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float), np.array([[0, 2, 1]])
-    outside.write(ground, TOY, {"near": (points, triangles), "far": (points, triangles)}, "lunar_surface",
-                  ["regolith", "the test's"], (points, triangles, "sea", ["ocean", "the test's"]))
-    ground.GetRootLayer().Save()
-    (tmp_path / "terrain/moon/places" / f"{TOY}.usdc").chmod(0o444)
-    (tmp_path / "inventory").mkdir()
-    (tmp_path / "inventory" / f"{TOY}.json").write_text(json.dumps({"rows": [
-        {"id": "lunar_surface", "noun": "ground", "terrain": True}, {"id": "sea", "noun": "sea", "terrain": True}]}))
-    (tmp_path / "library").mkdir()
-    (tmp_path / "library/materials.json").write_text(json.dumps({"kinds": {"ground": ["lunar_regolith"],
-                                                                           "wall": ["hull_paint"]}}))
-    (tmp_path / "surfaces.json").write_text(json.dumps({}))
-    out = tmp_path / "out"
-    out.mkdir()
-    assembly.make_from_seed({"seed": tmp_path / "store" / TOY, "surfaces": tmp_path / "surfaces.json",
-                             "inventories": tmp_path / "inventory", "surface-library": tmp_path / "library",
-                             **inputs}, out, tmp_path / "store" / TOY, {})
-    stage = opened(out / f"{TOY}.usda")
-    for name in ("near", "far"):
-        prim = stage.GetPrimAtPath(f"/{TOY}/Outside/{name}")
-        bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
-        assert bound.GetPath() == f"/{TOY}/Library/lunar_regolith" and not prim.HasAttribute("score:surface:missing")
-    water = stage.GetPrimAtPath(f"/{TOY}/Outside/water")
-    assert not UsdShade.MaterialBindingAPI(water).ComputeBoundMaterial()[0]
-    assert water.GetAttribute("score:surface:missing").Get()
-    faults = [fault["prim"] for fault in placeholders.check(out / f"{TOY}.usda")]
-    assert faults == [f"/{TOY}/Outside/water"], faults
+    for name, lamps in LAMPS.items():
+        (root / name / "layers").mkdir(parents=True)
+        stage = Usd.Stage.CreateNew(str(root / name / f"layers/{name}.usda"))
+        for lamp, keys in lamps.items():
+            strength = UsdLux.SphereLight.Define(stage, f"/{TOY}/Lights/{lamp}").CreateIntensityAttr()
+            for frame, value in keys.items():
+                strength.Set(value) if frame is None else strength.Set(value, frame)
+        if name == "motion":
+            layer = stage.GetRootLayer()
+            layer.timeCodesPerSecond, layer.startTimeCode, layer.endTimeCode = 24.0, 0.0, 480.0
+        stage.GetRootLayer().Save()
+        (root / name / f"layers/{name}.usda").chmod(0o444)
+    (root / "light/assets/light").mkdir(parents=True)
+    (root / "light/assets/light/earth.png").write_bytes(b"png")
+    (root / "surfaces.json").write_text(json.dumps({}))
+    return seed, {"seed": seed.parent, "effects-layer": root / "effects", "motion": root / "motion",
+                  "light": root / "light", "sound": a_sound_output(root / "sound", USES),
+                  "sounds": root / "none.json", "surfaces": root / "surfaces.json", **a_record(root, ONE_LAMP)}
 
 
-def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp_path, monkeypatch):
-    """Airlock (#36): a room the base holds stands on the base's made ground, its row base's lunar_surface, which the
-    room's own inventory and surface library lack, so it stayed drawn with no material. The assembly reads beside the
-    surface library of the scene holding the row (ground_scenes: the base, its ground's top scene; none for the base
-    itself), lays that library's surface under the room's own Library (it has none of that name) and binds the
-    ground to it, so the placeholder gate passes. The flat's ground is the square's plaza, a made ground the
-    square's library was asked no kind for: it takes that library's floor, the ground people walk on; a natural
-    ground the library names no kind for takes none.
-    Break: score/stages/assembly/ground_finish.py: `found |= set(next(([top] for top in sorted(ground["tops"])` ->
-        `found |= set(next(([top] for top in []`
-    Break: score/stages/assembly/ground_finish.py: `lay_surface(stage, place, surface, library)` -> `None`
-    Break: score/stages/assembly/ground_finish.py: `return palette_library.shell_surface("deck", library) if made else
-        None` -> `return None`"""
-    square = {"kinds": {"floor": ["plaza_floor_tiles"], "sea": ["bay_water"]}}
-    assert assembly.ground_surface({"id": "plaza", "name": "main plaza", "noun": "plaza"}, square) == \
-        "plaza_floor_tiles"
-    assert assembly.ground_surface({"id": "sea", "name": "sea", "noun": "sea"}, square) == "bay_water"
-    assert assembly.ground_surface({"id": "dunes", "name": "red dunes", "noun": "dunes"}, square) is None
-    from pxr import Usd, UsdShade
+# --- the made ground's surface ---------------------------------------------------------------------------------------
+
+# A made ground's triangle and the libraries a ground row takes its surface from: the toy's own (it holds
+# lunar_regolith in the seed's Library), and the base's, its recipe and token laid under the toy's Library.
+TRIANGLE = (np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float), np.array([[0, 2, 1]]))
+OWN_LIBRARY = {"kinds": {"ground": ["lunar_regolith"], "wall": ["hull_paint"]}}
+BASE_LIBRARY = {"recipes": {"regolith": {"roughness": 0.95}}, "tokens": {"regolith-tan": "#8a7350"},
+                "families": {"regolith": {"variants": {"lunar_regolith": {"recipe": "regolith",
+                                                                          "token": "regolith-tan"}}}},
+                "kinds": {"ground": ["lunar_regolith"]}}
+# Each toy on the base's ground (the base's plan holding it, its inventory the ground row lunar_surface): its own
+# inventory's rows, the seed's Library holding lunar_regolith or not, its terrain's made grounds and water, its
+# surface libraries; then the other scenes it and the base read beside (ground_scenes), the made grounds bound to
+# Library/lunar_regolith (and its recipe), the water left with its finish missing, the placeholder gate's faults.
+GROUNDED = [
+    # Hub (#36, assembly@hub placeholders): the terrain's made ground came in as /<place>/Outside/near and far, its
+    # finish named missing, drawn with no material. Its own row lunar_surface (a ground) takes its own library's
+    # lunar_regolith; the sea, which the library gives none, keeps its finish named missing. With its own ground row
+    # and water it reads no other scene's library; the base, with no water of its own, reads its sea's beside.
+    {"name": "the hub's own library", "rows": [{"id": "lunar_surface", "noun": "ground", "terrain": True},
+                                               {"id": "sea", "noun": "sea", "terrain": True}],
+     "seed library": True, "grounds": ("near", "far"), "sea": True, "libraries": {"surface-library": OWN_LIBRARY},
+     "beside": [], "base beside": [TOY], "bound": ("near", "far"), "faults": [f"/{TOY}/Outside/water"]},
+    # Airlock (#36): a room the base holds stands on the base's made ground, which its own inventory and library lack,
+    # so it stayed drawn with no material: it reads the base's library beside, lays its surface under its own Library
+    # and binds the ground to it.
+    {"name": "the airlock on the base's ground", "rows": [{"id": "hatch", "noun": "hatch"}], "seed library": False,
+     "grounds": ("near",), "sea": False, "libraries": {"surface-library@base": BASE_LIBRARY}, "beside": ["base"],
+     "base beside": [],
+     "bound": ("near",), "recipe": "regolith", "faults": []},
+]
+# What a scene library gives a ground row (ground_surface): the square's, asked for its floor and its sea; its plaza, a
+# made ground it was asked no kind for, takes its floor, the red dunes, a natural ground it names no kind for, none.
+SQUARE = {"kinds": {"floor": ["plaza_floor_tiles"], "sea": ["bay_water"]}}
+GROUND_SURFACE = [({"id": "plaza", "name": "main plaza", "noun": "plaza"}, "plaza_floor_tiles"),
+                  ({"id": "sea", "name": "sea", "noun": "sea"}, "bay_water"),
+                  ({"id": "dunes", "name": "red dunes", "noun": "dunes"}, None)]
+
+
+def a_grounded_toy(root, case, monkeypatch):
+    """A GROUNDED case's read-only toy seed on the base's ground (the creator's kept design under root/home/design,
+    design_layers.KEPT pointed there), its terrain's made ground and its libraries; make_from_seed's inputs."""
+    from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
     from score.stages import design_layers
     from score.stages.terrain import outside
-    import placeholders
-    design = tmp_path / "home/design"
+    design = root / "home/design"
     for folder in ("plans", "sky", "inventory"):
         (design / folder).mkdir(parents=True)
     (design / "plans/base.json").write_text(json.dumps({"w": 20.0, "d": 20.0, "structure": ["lunar_surface"],
@@ -3144,33 +2467,33 @@ def test_a_room_s_made_ground_takes_the_surface_of_the_scene_holding_its_row(tmp
                                                       "setting": {"bodies": [{"body": "moon", "radius_km": 1737.4}]}}))
     (design / "inventory/base.json").write_text(json.dumps({"rows": [
         {"id": "lunar_surface", "noun": "ground", "terrain": True}]}))
-    (design / f"inventory/{TOY}.json").write_text(json.dumps({"rows": [{"id": "hatch", "noun": "hatch"}]}))
+    (design / f"inventory/{TOY}.json").write_text(json.dumps({"rows": case["rows"]}))
     monkeypatch.setattr(design_layers, "KEPT", design / "inventory")
-    assert assembly.ground_scenes(TOY) == ["base"] and assembly.ground_scenes("base") == []
-    read_only_toy(tmp_path / "store" / TOY)
-    inputs = a_record(tmp_path, ONE_LAMP)
-    (tmp_path / "terrain/moon/places").mkdir(parents=True)
-    ground = Usd.Stage.CreateNew(str(tmp_path / "terrain/moon/places" / f"{TOY}.usdc"))
-    points, triangles = np.array([[0, 0, 0], [1, 0, 0], [0, 0, 1]], float), np.array([[0, 2, 1]])
-    outside.write(ground, TOY, {"near": (points, triangles)}, "lunar_surface", ["regolith", "the test's"])
+    seed = a_toy(root / "store" / TOY).parent
+    if case["seed library"]:
+        base = Usd.Stage.Open(str(seed / "layers/base.usda"))
+        shader = UsdShade.Shader.Define(base, f"/{TOY}/Library/lunar_regolith/surface")
+        shader.CreateIdAttr("UsdPreviewSurface")
+        shader.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(0.34, 0.28, 0.22))
+        UsdShade.Material.Define(base, f"/{TOY}/Library/lunar_regolith").CreateSurfaceOutput().ConnectToSource(
+            shader.ConnectableAPI(), "surface")
+        base.GetRootLayer().Save()
+    for path in seed.rglob("*"):
+        if path.is_file():
+            path.chmod(0o444)
+    inputs = a_record(root, ONE_LAMP)
+    (root / "terrain/moon/places").mkdir(parents=True)
+    ground = Usd.Stage.CreateNew(str(root / "terrain/moon/places" / f"{TOY}.usdc"))
+    outside.write(ground, TOY, dict.fromkeys(case["grounds"], TRIANGLE), "lunar_surface", ["regolith", "the test's"],
+                  *([(*TRIANGLE, "sea", ["ocean", "the test's"])] if case["sea"] else []))
     ground.GetRootLayer().Save()
-    (tmp_path / "base-library").mkdir()
-    (tmp_path / "base-library/materials.json").write_text(json.dumps({
-        "recipes": {"regolith": {"roughness": 0.95}}, "tokens": {"regolith-tan": "#8a7350"},
-        "families": {"regolith": {"variants": {"lunar_regolith": {"recipe": "regolith", "token": "regolith-tan"}}}},
-        "kinds": {"ground": ["lunar_regolith"]}}))
-    (tmp_path / "surfaces.json").write_text(json.dumps({}))
-    out = tmp_path / "out"
-    out.mkdir()
-    assembly.make_from_seed({"seed": tmp_path / "store" / TOY, "surfaces": tmp_path / "surfaces.json",
-                             "inventories": design / "inventory", "surface-library@base": tmp_path / "base-library",
-                             **inputs}, out, tmp_path / "store" / TOY, {})
-    stage = opened(out / f"{TOY}.usda")
-    near = stage.GetPrimAtPath(f"/{TOY}/Outside/near")
-    bound = UsdShade.MaterialBindingAPI(near).ComputeBoundMaterial()[0]
-    assert bound.GetPath() == f"/{TOY}/Library/lunar_regolith", bound
-    assert bound.GetPrim().GetAttribute("score:recipe").Get() == "regolith"
-    assert placeholders.check(out / f"{TOY}.usda") == []
+    (root / "terrain/moon/places" / f"{TOY}.usdc").chmod(0o444)
+    for name, content in case["libraries"].items():
+        (root / name).mkdir()
+        (root / name / "materials.json").write_text(json.dumps(content))
+        inputs[name] = root / name
+    (root / "surfaces.json").write_text(json.dumps({}))
+    return {"seed": seed, "surfaces": root / "surfaces.json", "inventories": design / "inventory", **inputs}
 
 
 def a_thing_on_legs(folder, name, short, linked_to=None):
@@ -4240,6 +3563,211 @@ def the_recorded_toy(root):
     return seed, inputs
 
 
+def built_of(*found):
+    """One built-walls mesh of the boxes `found` ((low, high) each)."""
+    return trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in found])
+
+
+OPENING = {"how": "in", "middle": [5.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.1}
+JAMBS = [((4.25, -0.2, -1.0), (4.55, 2.8, 1.0)), ((5.45, -0.2, -1.0), (5.75, 2.8, 1.0))]  # built, 0.3 m thick
+WALL_FACE = {"how": "wall", "span": [[2.0, 0.1], [2.0, 6.1]], "out": [1.0, 0.0]}  # z 0.1 to 6.1 at x 2, room to +x
+FIT = [  # (case, a laid thing's low and high, its relation, its holders, its left, its scale, its foot's middle, words)
+    ("a 1.4 x 2.4 m door in its 1.2 x 2.1 m opening", (0.3, 0.0, 2.95), (1.7, 2.4, 3.05), OPENING, (), None,
+     (1.2 / 1.4, 2.1 / 2.4, 2.1 / 2.4), (5.0, 0.0, 0.0), "narrowed to 86% across"),
+    ("a 1.4 m door between built jambs 0.9 m apart", (0.3, 0.0, 2.95), (1.7, 2.1, 3.05), OPENING, JAMBS, None,
+     (0.9 / 1.4, 1.0, 1.0), (5.0, 0.0, 0.0), None),
+    ("a 0.6 m door there against the jamb its left edge faces", (0.3, 0.0, 2.95), (0.9, 2.1, 3.05), OPENING, JAMBS,
+     (-1.0, 0.0), 1.0, (4.85, 0.0, 0.0), None),
+    ("a wall lamp laid at the room's middle, on its wall's face", (4.4, 0.0, 2.9), (4.6, 0.6, 3.9), WALL_FACE, (), None,
+     1.0, (2.1, 0.0, 3.4), None),
+    ("a 2.4 m door laid on the plan's line of its 2.4 m opening, on the built wall's face", (-1.2, 0.0, 0.05),
+     (1.2, 2.4, 0.25), DOORWAY_1, [(wall["low"], wall["high"]) for wall in DOOR_WALLS], None, 1.0, (0.0, 0.0, 0.0),
+     None),
+    ("a 2 m door there, its hinge on the jamb its own left edge faces", (-1.0, 0.0, 0.05), (1.0, 2.4, 0.25), DOORWAY_1,
+     [(wall["low"], wall["high"]) for wall in DOOR_WALLS], (-1.0, 0.0), 1.0, (-0.2, 0.0, 0.0), None),
+]
+SLANTED = {"how": "in", "middle": [-2.032, 0.2, -2.7], "along": [0.356, -0.934], "wide": 1.0, "tall": 2.5}
+WALL_2 = (np.array([-2.85, 0.0, -4.4]), np.array([-2.55, 3.5, -1.1]))  # street's straight wall_2, x -2.85 to -2.55
+HOLED = built_of([(-2.85, 0.0, -4.4), (-2.55, 3.5, -3.2)], [(-2.85, 0.0, -2.2), (-2.55, 3.5, -1.1)],
+              [(-2.85, 0.0, -3.2), (-2.55, 0.2, -2.2)], [(-2.85, 2.7, -3.2), (-2.55, 3.5, -2.2)])  # its 1 m hole
+ACROSS_X = {**SLANTED, "middle": [-2.7, 0.2, -2.032], "along": [-0.934, 0.356]}  # the same, mirrored x for z
+HOLE_WALL = [  # (case, an opening, the wall pieces, the built walls, its relation laid there, the degrees it turns
+    # within what)
+    ("street's door 2 in the hole wall_2 has", SLANTED, WALL_2, HOLED,
+     {**SLANTED, "middle": [-2.7, 0.2, -2.7], "along": [0.0, -1.0]}, 20.87, 0.049),
+    ("no hole cut in wall_2", SLANTED, WALL_2, built_of([(-2.85, 0.0, -4.4), (-2.55, 3.5, -1.1)]), SLANTED, 0.0, 0.0),
+    ("that hole with a post standing in it across the door's middle", SLANTED, WALL_2, trimesh.util.concatenate(
+        [HOLED, built_of([(-2.85, 0.0, -2.8), (-2.55, 3.5, -2.6)])]), SLANTED, 0.0, 0.0),
+    ("one cut in its own slanted wall, a wall on its line past its end", SLANTED, WALL_2, trimesh.util.concatenate(
+        [HOLED, built_of([(-1.9, 0.0, -3.4), (-1.7, 3.5, -3.1)])]), SLANTED, 0.0, 0.0),
+    ("the door 2 mirrored, its wall running along x", ACROSS_X,
+     (np.array([-4.4, 0.0, -2.85]), np.array([-1.1, 3.5, -2.55])), built_of(
+        [(-4.4, 0.0, -2.85), (-3.2, 3.5, -2.55)], [(-2.2, 0.0, -2.85), (-1.1, 3.5, -2.55)],
+        [(-3.2, 0.0, -2.85), (-2.2, 0.2, -2.55)], [(-3.2, 2.7, -2.85), (-2.2, 3.5, -2.55)]),
+     {**ACROSS_X, "middle": [-2.7, 0.2, -2.7], "along": [-1.0, 0.0]}, -20.87, 0.049),
+]
+COLLAR_ENDS = [((-1.1, -0.2, -0.45), (1.1, 0.0, -0.15)), ((-1.1, 2.6, -0.45), (1.1, 3.0, -0.15)),  # its sill, lintel
+               ((-1.668, -0.2, -0.45), (-1.532, 3.2, 10.49))]  # and its left wall
+COLLAR = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.0, 1.0], "wide": 2.2, "tall": 2.6}
+ACROSS = [  # (case, an opening, the built pieces about it, the way it is laid along, its middle, the degrees it
+    # turns; opening_walls.across)
+    ("tube's end opening given its left wall's way", COLLAR, COLLAR_ENDS, [1.0, 0.0], (0.0, 0.0, -0.3), 90.0),
+    ("an opening on its own wall", {**COLLAR, "middle": [-1.6, 0.0, 5.0]}, COLLAR_ENDS, [0.0, 1.0], (-1.6, 0.0, 5.0),
+     0.0),
+    ("an opening on its own wall at its end, a sill running across it", {**COLLAR, "middle": [-1.6, 0.0, -0.3]},
+     [((-1.7, -0.2, -0.45), (1.1, 0.0, -0.15)), COLLAR_ENDS[2]], [0.0, 1.0], (-1.6, 0.0, -0.3), 0.0),
+]
+TUBE_WINDOW = {"how": "in", "middle": [-1.6, 0.8, 2.027], "along": [0.0, 1.0], "wide": 2.0, "tall": 0.8}
+TUBE_OWN = (np.array((-1.6511, 0.8, 1.789)), np.array((-1.5489, 1.0439, 2.2646)))  # windows_2's laid box
+FIRST_WINDOW = ((-1.6511, 0.8, 1.221), (-1.5489, 1.0439, 1.6966))  # windows_1, laid against the rib
+FREE_PART = [  # (case, the boxes laid before windows_2, its free opening's middle and width (None: left as it is))
+    ("windows_1 against the rib at z 1.22", [((-1.6511, 0.8, 1.0), (-1.5489, 1.0439, 1.221)), FIRST_WINDOW],
+     (-1.6, 0.8, 2.3618), 1.3304),
+    ("one on the far wall", [((1.5489, 0.8, 1.221), (1.6511, 1.0439, 1.6966))], None, None),
+    ("none", [], None, None),
+    ("one leaving no stretch it fits", [((-1.6511, 0.8, 1.0), (-1.5489, 1.0439, 2.8))], None, None),
+]
+ALONG = {"how": "wall", "span": [[0.1, 0.0], [0.1, 6.0]], "out": [1.0, 0.0]}  # a face at x 0.1, z 0 to 6
+KEPT_OUT = [  # (case, the built walls, how deep before the face (None: the holes through it), the runs found in z)
+    ("a 1 m hole, z 2 to 3, a step's margin past its open rays", built_of([(0.0, 0.0, 0.0), (0.1, 3.0, 2.0)],
+                                                                      [(0.0, 0.0, 3.0), (0.1, 3.0, 6.0)]),
+     None, [(1.975, 3.025)]),
+    ("a wall 0.2 m before the face, z 4 to 6, within 0.5 m", built_of([(0.3, 0.0, 4.0), (0.4, 3.0, 6.0)]), 0.5,
+     [(3.975, 6.025)]),
+    ("that wall, beyond 0.1 m", built_of([(0.3, 0.0, 4.0), (0.4, 3.0, 6.0)]), 0.1, []),
+    ("a wall crossing the face at z 5: past it is outside the room", built_of([(0.0, 0.0, 5.0), (0.5, 3.0, 5.1)]), 0.5,
+     [(4.975, 6.025)]),
+]
+ON_WALL = [  # (case, a thing's low and high, the KEPT_OUT case it keeps out of (None: nothing), its foot's middle)
+    ("a 0.5 m screen in the hole", (0.1, 1.0, 2.25), (0.2, 1.5, 2.75), KEPT_OUT[0][0], (0.15, 1.0, 1.725)),
+    ("that screen with nothing to keep out of", (0.1, 1.0, 2.25), (0.2, 1.5, 2.75), None, (0.15, 1.0, 2.5)),
+    ("a 1 m rack 0.5 m deep laid at z 5, before the wall", (0.1, 1.0, 4.5), (0.6, 1.5, 5.5), KEPT_OUT[1][0],
+     (0.35, 1.0, 3.475)),
+]
+
+
+def a_fitted_world(prims):
+    """An in-memory stage of `prims` under /toy: ("cube", size, at, degrees) an Xform holding a cube of that size,
+    turned `degrees` about the up axis, then moved to `at`; ("points", points) a mesh of those points alone; ("box",
+    low, high) an Xform holding a box mesh's corners from `low` to `high` (a_built_box)."""
+    from pxr import Gf, Usd, UsdGeom
+    stage = Usd.Stage.CreateInMemory()
+    for name, (kind, *made) in prims.items():
+        if kind == "box":
+            a_built_box(stage, f"/{TOY}/{name}", *made)
+            continue
+        if kind == "points":
+            UsdGeom.Mesh.Define(stage, f"/{TOY}/{name}").GetPointsAttr().Set([Gf.Vec3f(*point) for point in made[0]])
+            continue
+        size, at, degrees = made
+        xform = UsdGeom.Xform.Define(stage, f"/{TOY}/{name}")
+        UsdGeom.Cube.Define(stage, f"/{TOY}/{name}/geo").AddScaleOp().Set(Gf.Vec3f(*(side / 2 for side in size)))
+        xform.AddTransformOp().Set(Gf.Matrix4d().SetRotate(Gf.Rotation(Gf.Vec3d(0, 1, 0), degrees))
+                                   * Gf.Matrix4d().SetTranslate(Gf.Vec3d(*at)))
+    return stage
+
+
+RUN, NORMAL = np.array([0.6, 0.8]), np.array([0.8, -0.6])  # the slanted wall's run and the way across it
+SLANTED_JAMBS = [[x, y, z] for x, z in [RUN * along + NORMAL * deep for along in (-1.5, -0.5, 0.5, 1.5)
+                                        for deep in (0.3, 0.5)] for y in (0.0, 2.0)]
+DOORWAY = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [1.0, 0.0], "wide": 1.2, "tall": 2.2}
+SLANTED_OPENING = {"how": "in", "middle": [0.0, 0.0, 0.0], "along": [0.6, 0.8], "wide": 1.0, "tall": 2.0}
+SHELL_WALL = {"how": "wall", "span": [[-3.0, 0.1], [3.0, 0.1]], "out": [0.0, 1.0]}
+FACADE = {"how": "face", "holder": ["facade_1"], "out": [0.0, -1.0]}
+FITTED = [  # (case, its prims, its entries (name, row, relation), each fit's scale (None: unread), foot's middle
+    # (its height to 1e-6) and size (None: unread), the
+    # names left unfitted, the doors the held gate passes in their openings, how near (atol), a door's passage (name,
+    # low, high), the opening's spot on its wall's near face (opens, wall, spot), the width of the opening each named
+    # one is held in when its fit narrowed it (None: its whole one))
+    ("#36 garage and street: a door, a pipe and lamp on its wall, a shop door and rack on a facade",
+     {"Objects/pipe_1": ("cube", (3.2, 1.0, 0.32), (0.0, 0.5, 2.0), 0.0),
+      "Objects/lamp_1": ("cube", (0.4, 0.3, 0.1), (0.0, 2.05, 0.15), 0.0),
+      "Objects/door_1": ("cube", (1.0, 2.0, 0.1), (0.0, 1.0, 3.0), 0.0),
+      "Shell/wall_2": ("cube", (1.2, 0.1, 0.2), (0.0, -0.05, 0.0), 0.0),
+      "Objects/facade_1": ("cube", (6.0, 3.0, 0.4), (0.0, 1.5, 5.0), 0.0),
+      "Objects/shop_door_1": ("cube", (1.0, 2.0, 0.1), (2.0, 1.0, 3.0), 0.0),
+      "Objects/drying_rack_1": ("cube", (1.2, 0.1, 0.4), (2.0, 0.05, 3.0), 0.0)},
+     [("pipe_1", "pipe", SHELL_WALL), ("lamp_1", "lamp", SHELL_WALL), ("drying_rack_1", "drying_rack", FACADE),
+      ("shop_door_1", "shop_door", FACADE), ("door_1", "door", DOORWAY)],
+     {"door_1": (None, (-0.1, 0.0, -0.1), (1.0, 2.0, 0.1)), "pipe_1": (0.75, (-1.8, 0.0, 0.22), (2.4, 0.75, 0.24)),
+      "shop_door_1": (None, (2.0, 0.0, 4.75), (1.0, 2.0, 0.1)),
+      "drying_rack_1": (1.0, (0.9, 0.0, 4.6), (1.2, 0.1, 0.4))},
+     ["lamp_1"], [], 1e-8, ("door_1", (-0.6, 0.0, -0.9), (0.6, 1.8, 0.85)), None, {}),
+    ("#36 cockpit: a door turned to swing out of a slanted wall's opening, a deck's corner and a wall under its sill",
+     {"Shell/wall_1": ("points", SLANTED_JAMBS),
+      "Shell/deck_1": ("points", [(0.72, y, -0.54) for y in (-0.2, 0.0)] + [(-5.0, y, -5.0) for y in (-0.2, 0.0)]),
+      "Shell/wall_2": ("points", [(x, y, z) for x, z in [RUN * along + NORMAL * 0.8 for along in (-0.5, 0.5)]
+                                  for y in (-2.0, 0.0)]),
+      "Objects/door_1": ("cube", (1.0, 2.0, 0.1), (0.0, 1.0, 2.0), -53.130102)},
+     [("door_1", "door", SLANTED_OPENING)],
+     {"door_1": (None, (0.4, 0.0, -0.3), None)}, [], ["door_1"], 1e-3, None,
+     (-NORMAL, "Shell/wall_1", (0.24, 0.0, -0.18)), {}),
+    ("tube: windows_2's cut opening overlapping windows_1's, laid before it against a rib",
+     {**{f"Structure/{name}": ("box", low, high) for name, (low, high) in (
+         ("wall_4_9", ((-1.668, -0.2, 0.336), (-1.532, 0.8, 2.336))),
+         ("wall_4_7", ((-1.668, -0.2, 1.027), (-1.532, 0.8, 3.027))),
+         ("wall_4_8", ((-1.668, 1.6, 0.336), (-1.532, 3.2, 3.027))),
+         ("structural_ribs_2", ((-1.6, 0.0, 1.021), (1.6, 3.2, 1.221))),
+         ("structural_ribs_3", ((-1.6, 0.0, 2.724), (1.6, 3.2, 2.924))))},
+      **{f"Objects/{name}": ("box", (-1.6511, 0.8, middle - 0.2378), (-1.5489, 1.0439, middle + 0.2378))
+         for name, middle in (("windows_1", 1.336), ("windows_2", 2.027))}},
+     [(name, "windows", {**TUBE_WINDOW, "middle": [-1.6, 0.8, middle]})
+      for name, middle in (("windows_1", 1.336), ("windows_2", 2.027))],
+     {"windows_1": (1.0, (-1.6, 0.8, 1.7785), (0.1022, 0.2439, 0.4756)),
+      "windows_2": (1.0, (-1.6, 0.8, 2.3701), (0.1022, 0.2439, 0.4756))},
+     [], ["windows_1", "windows_2"], 1e-4, None, None, {"windows_1": None, "windows_2": 1.0107}),
+]
+RECESSED = [  # (case, the rack's relation, whether it hangs in the shop door's recess cut in its facade)
+    ("a rack laid on the facade", FACADE, False),
+    ("a rack whose relation names the door the recess was cut for", {**FACADE, "room": 0.0}, True),
+]
+OUTWARD = {"how": "wall", "span": [[-2.5, -4.7], [2.5, -4.7]], "out": [0.0, -1.0], "why": "against the wall"}
+ROOM = {"Structure/wall_1": ((-5.0, 0.0, -6.2), (5.0, 3.0, -5.9)),
+        "Structure/wall_3": ((-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))}
+ALCOVE = {"Structure/wall_1": ((-1.0, 0.0, -6.2), (1.0, 3.0, -5.9)),
+          "Structure/wall_2": ((0.8, 0.0, -6.2), (1.0, 3.0, -5.6)),
+          "Structure/wall_3": ((-5.0, 0.0, 5.0), (5.0, 3.0, 5.2))}
+
+
+def laid_off(name, row, off):
+    """A thing of this row laid with its back on its span `off` out of ROOM's wall_1 (outer face z -6.2), 3 m deep;
+    its prim's box and its entry."""
+    span = {"how": "wall", "span": [[-2.5, -6.2 - off], [2.5, -6.2 - off]], "out": [0.0, -1.0],
+            "why": "against the wall"}
+    return {f"Objects/{name}": ((-2.0, 0.0, -9.2 - off), (2.0, 2.5, -6.2 - off))}, (name, row, span)
+
+
+PASSED = [  # (case, its solid boxes (path: low, high), its entries (name, row, relation), the fits that pass or draw
+    # a thing through or to its wall (name: how, moved, holders), each thing's high corner after, the things
+    # held_faults then finds held). workshop, settle@workshop 2026-11-10 and 11-11
+    ("a tunnel laid out of its round room's alcove, through the alcove's walls, and a cabinet in the room",
+     {**ALCOVE, "Objects/glass_tunnel_1": ((-2.0, 0.0, -8.0), (2.0, 2.5, -4.7)),
+      "Objects/cabinet_1": ((-0.5, 0.0, -6.0), (0.5, 2.0, -5.0))},
+     [("glass_tunnel_1", "glass_tunnel", OUTWARD), ("cabinet_1", "cabinet", {**OUTWARD, "out": [0.0, 1.0]})],
+     {"glass_tunnel_1": ("past", 1.5, ["wall_1", "wall_2"])}, {"glass_tunnel_1": (2.0, 2.5, -6.2)},
+     ["glass_tunnel_1"]),
+    ("the same tunnel past the walls would reach a deck's raised edge farther out, more than its depth",
+     {**ALCOVE, "Structure/deck_2": ((-1.0, -0.2, -9.2), (1.0, 0.1, -9.0)),
+      "Objects/glass_tunnel_2": ((-2.0, 0.0, -8.0), (2.0, 2.5, -4.7))},
+     [("glass_tunnel_2", "glass_tunnel", OUTWARD)], {}, {"glass_tunnel_2": (2.0, 2.5, -4.7)}, []),
+    ("a tunnel past its room's floor, inside its walls' box, reaching into wall_1",
+     {**ROOM, "Structure/deck_1": ((-5.0, -0.2, -5.0), (5.0, 0.0, 5.0)),
+      "Objects/glass_tunnel_1": ((-1.0, 0.0, -7.0), (1.0, 2.5, -5.0))},
+     [("glass_tunnel_1", "glass_tunnel", OUTWARD)], {"glass_tunnel_1": ("past", 1.5, ["wall_1"])},
+     {"glass_tunnel_1": (1.0, 2.5, -6.2)}, ["glass_tunnel_1"]),
+    ("that tunnel in a room with no deck reads in the room",
+     {**ROOM, "Objects/glass_tunnel_1": ((-1.0, 0.0, -7.0), (1.0, 2.5, -5.0))},
+     [("glass_tunnel_1", "glass_tunnel", OUTWARD)], {}, {"glass_tunnel_1": (1.0, 2.5, -4.7)}, []),
+    *[(case, {**ROOM, **prims}, [entry], drawn, {entry[0]: (2.0, 2.5, high)}, list(drawn))
+      for case, (prims, entry), drawn, high in (
+          ("a tunnel laid 0.2 m out of its wall's face is drawn back to within GAP of it",
+           laid_off("glass_tunnel_1", "glass_tunnel", 0.2), {"glass_tunnel_1": ("drawn", 0.198, None)}, -6.2025),
+          ("a pipe laid so is no passage and is left", laid_off("pipe_1", "pipe", 0.2), {}, -6.4),
+          ("a tunnel 1.2 m off, past OUT_MOST, is left", laid_off("glass_tunnel_2", "glass_tunnel", 1.2), {}, -7.4),
+          ("a tunnel already within GAP is left", laid_off("glass_tunnel_3", "glass_tunnel", 0.004), {}, -6.204))],
+]
+
+
 def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     """A place waits on every layer its design needs, shows its neighbours from their own outputs, and stands each
     child scene at its hold on its plan: each place of LAYERED is judged by the layers gate; each world of NEIGHBOURED
@@ -4311,7 +3839,336 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     Break: score/stages/assembly/scene_tree.py: `if plan is None:` -> `if False:` (no plan read)
     Break: score/stages/assembly/scene_tree.py: `if above:` -> `if False:` (the nook holding the yard)
     Break: score/stages/assembly/scene_tree.py: `named.update({f"plan {child}": plan_pattern(child) for child in
-        held(place)})` -> `pass` (the yard's declared plans)"""
+        held(place)})` -> `pass` (the yard's declared plans)
+    The layered seed (a read-only seed from the store; Batch 1, 2026-10-25: every assembly refused the save) is made
+    through make_from_seed: its copy takes the record over the base, each layer stage's read-only layer between the
+    others in record.ORDER (light over motion over effects) in place of the seed's of the same name, the root playing
+    the motion's 480 frames; the cycle lamp the motion keys and the light sets plays the motion's keys (the airlock's
+    cycle light, 2026-10-16) while the steady one keeps 20, and no taken layer file changes; the sound layer is the
+    sound stage's (camp, launch and square kept the seed's, 2026-10-12): the room tone under Sound/Room, the hum at the
+    fan's row, the door's sound at its own second (2.5 x the stage's rate in frames), each file under its world name,
+    the hum on a row the stage lacks and the motion on the door left out named as placed nowhere. The light stage's live
+    lamps taken after (a layer and no assets, 2026-10-13) leave no stale assets/light behind. A walkway tube 6 m long
+    with 2 m bays lays its bay piece three times, each with its spot; a room's pieces stand as laid.
+    Break: score/stages/assembly/__init__.py: `shutil.copytree(source, out / part, copy_function=shutil.copyfile)` ->
+        `shutil.copytree(source, out / part)`
+    Break: score/stages/assembly/record.py: `return ORDER.index(stem) if stem in ORDER else ORDER.index("base") - 0.5`
+        -> `return 0`
+    Break: score/stages/assembly/__init__.py: `stage_root.endTimeCode = max(taken.endTimeCode, stage_root.endTimeCode if
+        stage_root.HasEndTimeCode() else 0)` -> `pass`
+    Break: score/stages/assembly/__init__.py: `shutil.rmtree(root.parent / assets, ignore_errors=True)` -> `pass`
+    Break: score/stages/assembly/__init__.py: `held.insert(held.index(f"./{LAYERS['light'][1]}"), f"./{MOTION_KEYS}")`
+        -> `held.append(f"./{MOTION_KEYS}")`
+    Break: score/stages/assembly/sounds.py: `start=float(use["at"]) * rate` -> `start=float(use["at"])`
+    Break: score/stages/assembly/sounds.py: `if not target or not target.IsActive():` -> `if not target:`
+    Break: score/stages/assembly/sounds.py: `unplaced.append(f"{use['sound']} (object): no prim of the row or name
+        {use['on']} on the stage")` -> `pass`
+    Break: score/stages/assembly/record.py: `if "bay" not in kit or not record.get("tube_length"):` -> `if True:`
+    Each place of RESTED is judged by the resting gate the stage's table names, on the world files the stage declares
+    (its rules, its kit, the seed's inventory found by name in the declared folder, earth-seed's own); each suit of HUNG
+    is hung on its locker's back; the baked place's crate carries its bake's hash and the seed's as repaint_of, so the
+    owner's pick still holds and breaks without it, its rocket laid from a released file takes the bake of its model,
+    and its tower, whose bake moved the frame, is refused.
+    Break: score/stages/assembly/resting_within.py: `rules_file=inputs["resting rules"]` -> `rules_file=assembly.REPO /
+        "data/checks/resting.json"` (the sunk plate, no kit group named)
+    Break: score/stages/__init__.py: `"resting": resting_within.judge_resting` -> `"resting": assembly.judge_resting`,
+        or resting_within.py: `and not planned_overlap(fault, within)]` -> `]` (a window laid within its door)
+    Break: score/stages/assembly/resting_within.py: laid_within's `== "within"}` -> `in ("within", "top")}` (a window
+        laid on its door's top)
+    Break: score/stages/assembly/__init__.py: `"inventories": "{home}/design/inventory"` -> `"inventories":
+        "{data}/inventory"` (earth-seed's folder)
+    Break: score/stages/assembly/__init__.py: `return pathlib.Path(inventories) / pathlib.Path(named).name if named else
+        None` -> `return pathlib.Path(named) if named else None` (the sunk plate, its kit group named)
+    Break: score/stages/assembly/fitting.py: back_way's `return axis, -sign` -> `return axis, sign`
+    Break: score/stages/assembly/fitting.py: back_way's `if not np.any(across & (sign * (points[:, axis] -
+        middle[axis]) > 0)):` -> `if False:` (open-fronted, the room's middle behind its back)
+    Break: score/stages/assembly/baked.py: `before.get("score:repaint_of") or before.get("score:model_sha256")` ->
+        `None` (the crate's pick)
+    Break: score/stages/assembly/baked.py: `abs(old_box[end][axis] - new_box[end][axis]) > BOX_TOLERANCE` -> `False`
+        (the tower)
+    The laid toy's waiting entries, their rows made by the bake, are laid by made_waiting.lay where LAID_AT stands
+    them (the cairn on its spot, the ship turned onto its pad, the garage doors on their modules' faces) and named no
+    longer; LAID names each garage door's fit (the built one's plane and that it hangs in its recess), and the held
+    gate measures both there.
+    Break: score/stages/assembly/made_waiting.py: `move = Gf.Vec3d(at[0] - (least[0] + most[0]) / 2, at[1] - least[1],
+        at[2] - (least[2] + most[2]) / 2)` -> `move = Gf.Vec3d(*at)` (the cairn)
+    Break: score/stages/assembly/made_waiting.py: `root.RemoveProperty(WAITING)` -> `pass`
+    Break: score/stages/assembly/made_waiting.py: `on_pads.turned(entry, record, placement(entry, low, high), low,
+        high)` -> `placement(entry, low, high)` (the ship left across its pad)
+    Break: score/stages/assembly/on_pads.py: `if entry.get("on") or entry.get("fills") or entry.get("under roof"):` ->
+        `if entry.get("on"):` (the crane turned), `and on_piece(footprint(turn, low, high), outline).all():` -> `:`
+        (the barge turned), `if not on_piece(laid, outline).all() and` -> `if` (the cart turned), or
+        `float(entry.get("low", -1.0)) >= 0.0` -> `False` (no pad)
+    Break: score/stages/assembly/fitting.py: `target[side] = kept_within(foot[side], hold_low[side] + below,
+        hold_high[side] - above,` -> `target[side] = kept_within(foot[side], hold_low[side], hold_high[side],`
+        (garage_door_1)
+    Break: score/stages/assembly/made_waiting.py: `laid_by_relations(stage, out, place, record, objects, baked)` -> `pass`
+    Break: score/stages/assembly/fitting.py: `target[axis] = face + sign * half[axis]` -> `target[axis] = foot[axis]`
+        (garage_door_1)
+    Break: score/stages/assembly/fitting.py: `face = front_face(surface, axis, sign, side, span, (target[1], target[1]
+        + size[1] * scale))` -> `face = None` (garage_door_2)
+    Break: score/stages/assembly/fitting.py: `if cut is not None:` -> `if False:` (garage_door_2)
+    Break: score/stages/assembly/made_waiting.py: `{model: entry.get("cuts") for model, entry in (baked or
+        {}).items()}` -> `{}` (garage_door_2)
+    Break: score/stages/assembly/fitting.py: `target[side] = cut[0][side] + half_wide if below > above else` ->
+        `target[side] = (cut[0][side] + below + cut[1][side] - above) / 2 if True else` (garage_door_2)
+    Break: score/stages/assembly/fitting.py: `target[axis] = face if cut is not None else face + sign * half[axis]` ->
+        `target[axis] = face + sign * half[axis]` (garage_door_2)
+    Break: score/stages/assembly/fitting.py: `**({"room": 0.0} if fitted_on.get("hung") else {})` -> `**{}`
+        (garage_door_2)
+    The held world (#72, so it never comes back silently; #36, street's three restaurant doors) is judged by the
+    `held` gate the stage's table names: it fails by name on a door laid 1 m beside its module's face (1.0 m), a door
+    on a face 0.55 m too narrow for it and its recess, a window in no opening, a lamp held by nothing, a crate left at
+    the room's middle, and two doors laid on one facade face 0.58 m apart (overlapping 0.42 m); the door on its face,
+    a sign above the doors, a door on the facade's other face and doors held side by side pass. Cables said under
+    their desk fail laid on its top and pass held under it, laid at its foot; a box within its shelf unit laid on its
+    top stands off nothing, one through its top stands off it.
+    Break: score/stages/assembly/fitting.py: `if narrow > HELD_MOST:` -> `if False:` (door_3)
+    Break: score/stages/assembly/fitting.py: `elif distance > HELD_MOST:` -> `elif False:` (door_2)
+    Break: score/stages/assembly/fitting.py: `if entry.get("fills") and not (on and on["how"] in ("in", "face",
+        "within", "top")):` -> `if False:` (window_1)
+    Break: score/stages/assembly/fitting.py: placement_faults' `if wrong:` -> `if False:`; on_holder's
+        `hold_low[1] if on.get("under") else` dropped (cables under a desk left up in it)
+    Break: score/stages/assembly/fitting.py: off_holder's `min(max(0.0, high[1] - hold_high[1]), abs(low[1] -
+        hold_high[1]))` -> `max(0.0, high[1] - hold_high[1])` (a box on its shelf unit's top off it)
+    Break: score/stages/assembly/held_apart.py: `if along > fitting.HELD_MOST and tall > fitting.HELD_MOST:` -> `if
+        False:` (the entries)
+    Break: score/stages/__init__.py: `judge={"held": held_apart.judge_held,` -> `judge={"held": check.judge,` (the
+        entries named by the relations' faults alone)
+    Each world of HELD_JUDGED is judged so too, and by held_faults, held_apart.overlapping and short_doors. #36:
+    hangar's and garage's shell walls stand 0.15 m behind the plan's line, so a door laid on the line hung 0.04 to 0.15
+    m in front of its wall and left its jamb and sill as it swung (motion@garage grounded). A 2.4 x 2.4 x 0.2 m door in
+    DOORWAY_1, 2.4 m wide and 2.66 m tall at z 0.15, the built wall's sill and lintel from z -0.276 to 0 (its jamb
+    beside the opening never counts), is fitted (FIT) with its middle on the wall's room face, z 0; the held gate
+    measures it there, passes it there and fails one left on the plan's line 0.15 m off. A 2 m door, narrower than its
+    opening, stands against the jamb its own left edge faces, its hinge on its jamb (motion@garage: the 2.01 m round
+    door, centred in its 2.41 m opening, swung on a hinge 0.2 m off its jamb), and passes there. Each is named 0.26 m
+    short of its opening's height (hangar's doorway, a wall panel shrunk to 0.72 m tall) among the gate's findings,
+    which never fail it: only a take made again, a paid one, mends it (coordinator, 2026-10-30). Tube (2026-11-12):
+    its plan draws only its long walls; its end opening of ACROSS (middle x 0, z 0), given the left wall's way (z) 1.6
+    m off, is turned onto the end wall its shell built across it (its sill and lintel along x, their line at z -0.3), a
+    quarter turn; one on its own wall keeps its way. Its windows_2's cut opening (z 1.03 to 3.03) overlaps windows_1's,
+    laid before it against the rib at z 1.22 (to z 1.70); of FREE_PART it is laid in the stretch windows_1 leaves free
+    (1.70 to 3.03), never in one too short for it; one on the far wall, or none, leaves the opening as it is, and so
+    does one that leaves no stretch it fits; its world in FITTED is fitted so and the held gate judges it in that
+    stretch.
+    Break: score/stages/assembly/fitting.py: `spot[axis] = face` -> `pass`
+    Break: score/stages/assembly/fitting.py: `if wide is not None and abs(lined) >= 0.9` -> `if False and abs(lined)
+        >= 0.9`
+    Break: score/stages/assembly/fitting.py: `for way in (None, on["along"], np.negative(on["along"]))]` -> `for way in
+        (None,)]`
+    Break: score/stages/assembly/fitting.py: `if short > HELD_MOST:` -> `if False:`
+    Break: score/stages/assembly/held_apart.py: `*(f"{name}: {words}" for name, words, _ in
+        fitting.short_doors(record, laid))))` -> `))`
+    Break: score/stages/assembly/fitting.py: held_faults' `held = walls if on["how"] in ("in", "ramp") else` ->
+        `held = [] if on["how"] in ("in", "ramp") else`
+    Break: score/stages/assembly/opening_walls.py: `if near(own) or not near(2 - own):` -> `if True:` (the collar
+        door left along z), or `-> if not near(2 - own):` (the side door turned onto the sill across its wall's end)
+    Break: score/stages/assembly/opening_free.py: `if not taken:` -> `if True:` (tube's windows_2 left on windows_1's
+        jamb), or its `if finish - begin >= wide - 1e-9]` -> `]` (laid in the 0.23 m stretch past a box it never
+        fits); fitting.py's `for key in ("middle", "along", "wide")` -> `("middle", "along")` (the gate judges it off
+        its whole opening)
+    Each thing of FIT is fitted by its relation: a door shrunk to its opening's height and held across its width
+    alone to it (or to the clear between its built jambs, the lab's entry passage, motion@lab round 35), its foot's
+    middle at the opening's middle on its sill, a narrow one against the jamb its left edge faces; a wall lamp with
+    its back on its wall's face, slid along to the face's nearest point. An opening of HOLE_WALL on a slanted plan
+    wall (settle@street, 2026-11-11: restaurant door 2 stood 0.15 m in wall_2) is laid along the straight wall its
+    hole is cut in, turned 20.9 degrees (mirrored, along x, -20.9), and left as it is with no hole there, a post
+    standing in the hole across its middle, or cut in its own slanted wall. A roller shutter's clear run stands on
+    the higher of the pavement's two steps under it and ends at the nearer of the facade folding back across it and
+    a wall past that. KEPT_OUT finds the holes through a wall (walkway and shiplock's screens, 2026-11-11) and the
+    walls standing before its face (street's drying rack 3 stood 0.05 m in wall_8), and each thing of ON_WALL laid
+    there keeps out of them.
+    Break: score/stages/assembly/fitting.py: `scale[run_axis] *= (end - start) / wide` -> `pass`
+    Break: score/stages/assembly/fitting.py: `            start = max(start, far)` -> `            pass`
+    Break: score/stages/assembly/fitting.py: hole_wall's `if not inside:` -> `if True:` (laid in an uncut wall), or
+        its `along[axis // 2] = 1.0 if` -> `along[2 - axis // 2] = 1.0 if` (turned across its wall), or its `if
+        own_jambs(on, mesh, height):` -> `if False:` (moved out of its own slanted wall)
+    Break: score/stages/assembly/fitting.py: opening_clear's `floor = max(` -> `floor = min(` (its sill left in the
+        pavement), or its `reach.append(float(met.min())` -> `reach.append(float(met.max())` (held past the fold)
+    Break: score/stages/assembly/fitting.py: `spot = start + run * along + out * deep * scale / 2` ->
+        `spot = start + run * along`
+    Break: score/stages/assembly/fitting.py: fitted's `clear = [*clear, *wall_holes(faces(), entry["on"], ...)]` ->
+        `pass` is caught by the sweep's walkway only; wall_holes' `open_at = ~near...` -> `open_at = near...` (walkway's
+        and shiplock's screens hung in the holes cut through their walls)
+    Break: score/stages/assembly/fitting.py: walls_ahead's `<= deep]] = True` -> `<= 0.0]] = True` (the rack left in
+        the wall folding back in front of its face), or its `taken |= alongs >= past if` -> `taken |= False if` (the
+        face past the wall crossing it left free)
+    held@garage, @habitat, @workshop (2026-10-30): a glass tunnel or corridor tube the concept shows meeting its
+    module's wall from outside, laid against that wall, reached 0.09 to 0.30 m into the built wall; it joins the place
+    through it, as a door stands in its opening, so the held gate excuses its wall, never a deck. A pipe laid against
+    the same wall that reaches into it is still named (HELD_JUDGED's tunnel and pipe). Each world of PASSED is fitted
+    through fitting.fitted and its things judged by held_faults where they then stand. workshop (settle@workshop,
+    2026-11-10): its front glass tunnel, laid out from a chord 1.48 m inside its round wall's hatch alcove, stood
+    through the alcove's walls. A tunnel laid outside its room (its middle past the walls' box) reaching into a wall is
+    moved out along its `out` past each wall it reaches into, up to its own depth (3.3 m, moved 1.5 m), and held off
+    the face it was moved out to; a cabinet in the room reaching into the same wall is not; past the walls 1.5 m out a
+    tunnel that would reach into a deck's raised edge farther out, 4.5 m in all, more than its depth, is left.
+    workshop (2026-11-11): its round room's walls' box held its tunnels outside it, so they were left across its doors.
+    A tunnel past the room's floor (deck_1, z -5 to 5) inside the walls' box (z -6.2 to 5.2) reaching into wall_1 is
+    outside the room and moved out past it; in a room with no deck it reads in the room and is left. settle@workshop
+    (2026-11-11): its glass tunnels stood outside its twelve built walls on its plan's eight facets, 0.06 to 0.19 m off
+    the nearest, touching nothing. Laid with its back on its span 0.2 m out of wall_1's outer face, a tunnel is drawn
+    back along its `out` until it stands within GAP of the wall (GAP / 2 off), never in it, and the held gate judges it
+    on the face it now stands on; a pipe laid so is no passage and is left; a tunnel 1.2 m off (past OUT_MOST) is left,
+    as is one already within GAP.
+    Break: score/stages/assembly/fitting.py: `if not (passes(entry) and static.split("_")[0] == "wall")]` -> `]`
+    Break: score/stages/assembly/fitting.py: `set(str(entry.get("row") or "").split("_")) & set(PASSING))` ->
+        `set(str(entry.get("row") or "").split("_")) & set(CLIMBING))`
+    Break: score/stages/assembly/fitting.py: moved_past's `**laid_face({**entry["on"], ...` -> `**{}` (workshop's
+        front tunnel named 1.48 m off the wall it was moved out past)
+    Break: score/stages/assembly/fitting.py: in_room's `return room[0] <= point[0] <= room[2] and room[1] <=
+        point[2] <= room[3]` -> `return False` (the cabinet in the room is pushed through its wall), or its `if
+        len(decks):` -> `if False:` (workshop's tunnel past its round room's floor left in its wall)
+    Break: score/stages/assembly/fitting.py: past_walls' `for _ in built:` -> `for _ in built[:1]:` (the second
+        tunnel is moved 1.5 m into deck_2)
+    Break: score/stages/assembly/fitting.py: moved_past's `max(OUT_MOST, across(entry["on"]["out"], high - low))` ->
+        `OUT_MOST` (the tunnel, 1.5 m in, is left)
+    Break: score/stages/assembly/fitting.py: fitted's `fits += passages.drawn_in(stage, place, walled)` dropped
+        (workshop's tunnel left 0.2 m off its wall, touching nothing)
+    Break: score/stages/assembly/passages.py: drawn_back's `moved += distance - GAP / 2` -> `moved += distance` (the
+        tunnel drawn onto the wall's face, 0 m off it), or drawn_in's `**stood_on(...)` -> `**{}` (the drawn tunnel
+        named 0.2 m off the face it was laid on), or drawn_in's `if fitting.passes(entry)` -> `if True` (the pipe
+        drawn back onto the wall too)
+    Each world of FITTED is fitted through fitting.fitted. #36, garage 2026-10-30: its doors swung out of the room
+    clear, but pipes laid along the walls inside ran across both doorways, so nobody could walk through; street's
+    drying racks, laid on their facade under its doors (hung on the facade, no opening), stood in the doors' swing
+    either way. A 1 x 2 x 0.1 m door in its 1.2 m opening of a shell wall from z -0.1 to 0.1, swinging out of the room
+    (to -z), hangs on the outer face against its left jamb, x -0.6 to 0.4, z -0.15 to -0.05; its passage is the
+    opening's width, x -0.6 to 0.6, a person's 1.8 m from its foot, and a step (0.75 m) beyond either face, z -0.9 to
+    0.85. A 3.2 m pipe laid on the wall's room face across the doorway, out of the door's swing but in its passage,
+    goes to the longest stretch beside it, shrunk to 2.4 m, x -3 to -0.6; a lamp on the wall over the doorway at 1.9
+    to 2.2 m, above the passage, stays. A 1 x 2 x 0.1 m shop door laid on a facade box (x -3 to 3, its face toward the
+    street z 4.8), swinging to the street, stands x 1.5 to 2.5 on it; a 1.2 m drying rack laid on the facade at its
+    foot goes to the nearest stretch of the face out of its swing that holds it, x 0.3 to 1.5, whole; it never hangs
+    in a recess the bake cut in the facade (RECESSED), which only a thing whose relation names one (its `room`: the
+    door it was cut for) hangs in (street's racks hung in its doors' recesses). #36, cockpit 2026-10-30: its rear
+    doors, in an opening of a slanted wall (its boxes say nothing of its faces), stood on the plan's line 0.37 m in
+    front of the built wall and swung their kind's way into its jamb. A 1 m opening at the origin along (0.6, 0.8),
+    its built wall's jambs from 0.3 to 0.5 m across it the way (0.8, -0.6): a door turned so its own -z points that
+    way (its kind's swing) stands with its foot middle on the far face, (0.4, -0.3), and the held gate passes it
+    there; one swinging the other way on the near face, (0.24, -0.18). A deck's corner 0.9 m out beside it is
+    no wall face (camp's dome door, by no built wall, was hung on its deck's corner), nor is a wall under its sill
+    0.8 m out (greenhouse's door, in its dome, was hung on the tops of the walls under it, motion round 34).
+    Break: score/stages/assembly/fitting.py: `recess_of(recesses, axis, sign, foot, box) if "room" in on else None` ->
+        `recess_of(recesses, axis, sign, foot, box)`
+    Break: score/stages/assembly/fitting.py: `return swing_box(stage, path), passage_box(*world_box(stage, path),
+        by_name[leaf]["on"], built)` -> `return (swing_box(stage, path),)`
+    Break: score/stages/assembly/fitting.py: `low[axis], high[axis] = min([low[axis], *faces]) - STEP,
+        max([high[axis], *faces]) + STEP` -> `low[axis], high[axis] = min([low[axis], *faces]), max([high[axis],
+        *faces])`
+    Break: score/stages/assembly/fitting.py: `high[1] = low[1] + PASSAGE_TALL` -> `pass` (the passage as tall as the
+        door: the lamp over it moved)
+    Break: score/stages/assembly/fitting.py: `walled = how in ("wall", "face") and name not in leaves` -> `walled =
+        how == "wall" and name not in leaves`
+    Break: score/stages/assembly/fitting.py: `entry["on"]["how"] in ("in", "face") and swings(entry["row"])` ->
+        `entry["on"]["how"] == "in" and swings(entry["row"])`
+    Break: score/stages/assembly/fitting.py: `scale, target, face = on_face(low, high, on, box, surface, recesses,
+        [*clear, *mounted])` -> `scale, target, face = on_face(low, high, on, box, surface, recesses)`
+    Break: score/stages/assembly/fitting.py: `surface = wall_points(stage, place)` -> `surface = None`
+    Break: score/stages/assembly/fitting.py: `or wall[beside, 1].max() < head - WALL_REACH:` -> `or False:`
+    Break: score/stages/assembly/fitting.py: `spot[[0, 2]] += way * float(max(faces))` -> `spot[[0, 2]] += way *
+        float(min(faces))`
+    Break: score/stages/assembly/fitting.py: `return float(np.linalg.norm(off - normal * np.clip(off @ normal, -2 *
+        WALL_REACH, 2 * WALL_REACH)))` -> `return float(np.linalg.norm(off))`
+    Each toy of GROUNDED is made through make_from_seed: each mesh of its terrain's made ground is bound in the taken
+    (read-only) ground layer to the surface its row's kind takes from the library of the scene holding that row (its
+    own, else one read beside: ground_scenes, the base, its ground's top scene; none for the base itself), laid under
+    its own Library where it lacks it, its missing note gone, so the placeholder gate passes it; a row no library gives
+    a surface (the sea) keeps its finish named missing. Each row of GROUND_SURFACE takes what the square's library
+    gives it.
+    Break: score/stages/assembly/__init__.py: `finish_ground(inputs, out / root.name, folder.name)` -> `None`
+    Break: score/stages/assembly/ground_finish.py: `prim.RemoveProperty("score:surface:missing")` -> `None`
+    Break: score/stages/assembly/ground_finish.py: `found |= set(next(([top] for top in sorted(ground["tops"])` ->
+        `found |= set(next(([top] for top in []`
+    Break: score/stages/assembly/ground_finish.py: `lay_surface(stage, place, surface, library)` -> `None`
+    Break: score/stages/assembly/ground_finish.py: `return palette_library.shell_surface("deck", library) if made else
+        None` -> `return None`"""
+    for case, low, high, on, holders, left, scale, foot, words in FIT:
+        laid_scale, laid_at, said, _ = fitting.fit(low, high, on, holders, left=left)
+        assert (laid_scale == scale if isinstance(scale, float) else np.allclose(laid_scale, scale)), \
+            f"{case}: scaled {laid_scale}"
+        assert np.allclose(laid_at, foot) and (words is None or words in said), f"{case}: laid at {laid_at}, {said}"
+    for case, opening, piece, mesh, walled, degrees, within in HOLE_WALL:
+        laid_along, turned = fitting.hole_wall(opening, [piece], mesh)
+        assert laid_along == walled and abs(turned - degrees) <= within, f"{case}: {laid_along}, {turned} degrees"
+    from score.stages.assembly import opening_free, opening_walls
+    for case, opening, ends, along, middle, degrees in ACROSS:
+        turned, turn = opening_walls.across(opening, 0.0, ends)
+        assert turned["along"] == along and np.allclose(turned["middle"], middle) and abs(turn) == degrees and \
+            (turned == opening) == (degrees == 0.0), f"{case}: {turned}, {turn} degrees"
+    for case, before, middle, wide in FREE_PART:
+        free = opening_free.free_part(TUBE_WINDOW, *TUBE_OWN, before)
+        assert (free is TUBE_WINDOW if middle is None else np.allclose(free["middle"], middle)
+                and free["wide"] == wide), f"{case}: {free}"
+    shutter = trimesh.creation.box(bounds=[(-1.5, 0.0, -0.175), (1.5, 3.0, 0.175)])  # 3 m along x, 0.35 m deep
+    around = built_of([(-2.0, 0.0, 0.0), (2.0, 0.2, 1.0)], [(-2.0, 0.0, -1.0), (2.0, 0.1, 0.0)],  # pavement, a step
+                      [(1.2, 0.0, 0.0), (1.3, 3.0, 1.0)], [(1.6, 0.0, -1.0), (1.7, 3.0, 0.0)])  # the fold, a wall past
+    floor, start, end = fitting.opening_clear(np.asarray(shutter.vertices), {"along": [1.0, 0.0]}, around)
+    assert abs(floor - 0.2) < 1e-6 and abs(end - 1.2) < 1e-6 and start == -np.inf, (floor, start, end)
+    kept_out = {}
+    for case, mesh, deep, spans in KEPT_OUT:
+        band = (1.0, 1.5)
+        kept_out[case] = (fitting.wall_holes(mesh, ALONG, band) if deep is None
+                          else fitting.walls_ahead(mesh, ALONG, band, deep))
+        found = [(round(float(run[:, 2].min()), 3), round(float(run[:, 2].max()), 3)) for run in kept_out[case]]
+        assert found == spans, f"{case}: {found}"
+    for case, low, high, keeping, foot in ON_WALL:
+        _, laid_at = fitting.on_wall(np.array(low), np.array(high), ALONG, kept_out[keeping] if keeping else ())
+        assert np.allclose(laid_at, foot), f"{case}: laid at {laid_at}"
+    for case, prims, things, boxes, unfitted, held, near, passage, near_face, openings in FITTED:
+        stage = a_fitted_world(prims)
+        entries = [{"name": name, "row": kind, "on": on} for name, kind, on in things]
+        fits = {fit["name"]: fit for fit in fitting.fitted(stage, TOY, entries, {name for name, _, _ in things})}
+        for name, (scale, foot, size) in boxes.items():
+            low, high = np.array(fits[name]["low"]), np.array(fits[name]["high"])
+            stood = fitting.foot_middle(low, high)
+            assert (scale is None or fits[name]["scale"] == scale) and abs(stood[1] - foot[1]) < 1e-6 \
+                and np.allclose(stood[[0, 2]], np.array(foot)[[0, 2]], atol=near) \
+                and (size is None or np.allclose(high - low, size, atol=near)), f"{case}: {name} fitted {fits[name]}"
+        assert not set(unfitted) & set(fits), f"{case}: moved {sorted(set(unfitted) & set(fits))}"
+        record = {"objects": [{"name": name, "on": on, "fills": True} for name, _, on in things if name in held]}
+        laid = {"walls": [{"name": wall, "low": list(low), "high": list(high)}
+                          for wall, (low, high) in fitting.walls(stage, TOY)],
+                "objects": [{"name": name, "low": fits[name]["low"], "high": fits[name]["high"]} for name in held],
+                "fitted": list(fits.values())}
+        assert fitting.held_faults(record, laid) == [], f"{case}: not held in their openings"
+        for name, wide in openings.items():
+            assert (fits[name].get("opening") or {}).get("wide") == wide, f"{case}: {name} held in {fits[name]}"
+        if passage:
+            name, low, high = passage
+            [on] = [on for thing, _, on in things if thing == name]
+            found = fitting.passage_box(*fitting.world_box(stage, f"/{TOY}/Objects/{name}"), on,
+                                        [box for _, box in fitting.walls(stage, TOY)])
+            assert np.allclose(found[0], low) and np.allclose(found[1], high), f"{case}: {name}'s passage {found}"
+        if near_face:
+            opens, wall, spot = near_face
+            [on] = [on for _, _, on in things if on["how"] == "in"]
+            found = fitting.opening_spot(on, opens=opens, points=[np.array(prims[wall][1])])
+            assert np.allclose(found, spot), f"{case}: the near face's spot {found}"
+    from pxr import Usd
+    for case, prims, things, passed, highs, held in PASSED:
+        stage = Usd.Stage.CreateInMemory()
+        for path, (low, high) in prims.items():
+            a_solid_box(stage, f"/{TOY}/{path}", low, high)
+        entries = [{"name": name, "row": kind, "on": on} for name, kind, on in things]
+        fits = fitting.fitted(stage, TOY, entries, {name for name, _, _ in things})
+        found = {fit["name"]: (fit["how"], fit["moved"], fit["holder"]) for fit in fits
+                 if fit["how"] in ("past", "drawn")}
+        assert found == passed, f"{case}: {fits}"
+        stood = {name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in highs}
+        for name, high in highs.items():
+            assert np.allclose(stood[name][1], high, atol=1e-6), f"{case}: {name} stands {stood[name]}"
+        laid = {"objects": [{"name": name, "low": list(stood[name][0]), "high": list(stood[name][1])} for name in held],
+                "fitted": fits}
+        record = {"objects": [entry for entry in entries if entry["name"] in held]}
+        assert fitting.held_faults(record, laid) == [], f"{case}: {fitting.held_faults(record, laid)}"
+    facade_box = (np.array([-3.0, 0.0, 4.8]), np.array([3.0, 3.0, 5.2]))
+    recess = (np.array([1.5, 0.0, 4.8]), np.array([2.5, 2.1, 5.0]))
+    for case, on, hangs in RECESSED:
+        hung = fitting.on_face(np.array([1.4, 0.0, 4.4]), np.array([2.6, 0.1, 4.8]), on, facade_box, None,
+                               [recess])[2][1]
+        assert bool(hung) == hangs, f"{case}: hangs {hung}"
     for case in LAYERED:
         name = case["name"]
         output, inputs = layered(tmp_path / "layered", case)
@@ -4400,6 +4257,46 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         found = {row["id"]: row.get("support")
                  for row in assembly.resting_rows(case["inventory"], case["record"])["rows"]}
         assert found == case["supports"], f"{case['name']}: {found}"
+    from score import stages
+    from score.stages import earth_seed
+    laid_from = pathlib.Path(earth_seed.design_files("hub")["design inventory"])
+    assert str(laid_from.parent) == assembly.FILES["inventories"], (laid_from, assembly.FILES["inventories"])
+    judge_resting = {check.name: inspect.unwrap(check.judge) for check in stages.ASSEMBLY.checks}["resting"]
+    for number, case in enumerate(RESTED):
+        name = case["name"]
+        output, world = a_resting_place(tmp_path / "rested" / str(number), case)
+        evidence = output.parent / "settled.json"
+        evidence.write_text(json.dumps({"objects": {}}))
+        verdict = judge_resting(output, world, evidence)
+        assert verdict.answer == case["answer"], f"{name}: {verdict.answer}, {verdict.reason}, {verdict.findings}"
+        if "finding" in case:
+            assert case["finding"] in " ".join(verdict.findings), f"{name}: {verdict.findings}"
+        if "reason" in case:
+            assert case["reason"] in verdict.reason, f"{name}: {verdict.reason}"
+    for name, walls, middle, (axis, sign, moved) in HUNG:
+        hung = fitting.hung_back(SUIT, np.array(walls), SUIT.min(axis=0), SUIT.max(axis=0), room_middle=middle)
+        assert hung is not None and hung[:2] == (axis, sign) and abs(hung[2] - moved) < 1e-9, f"{name}: {hung}"
+    import picks
+    from pxr import Sdf
+    baked_stage, inventory, hashes = a_baked_place(tmp_path / "baked")
+    base = baked_stage.parent / assembly.BASE_LAYER
+    assembly.lay_fixtures_baked(base, "rocket")
+    assembly.stamp_baked_hash(base, "box", tmp_path / "baked/models/plank.gltf")
+    with pytest.raises(ValueError, match="moved the model's frame"):
+        assembly.lay_fixtures_baked(base, "tower")
+    held_stage = opened(baked_stage)
+    crate = held_stage.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")
+    assert crate.GetAttribute("score:model_sha256").Get() == hashes["plank"]
+    assert crate.GetAttribute("score:repaint_of").Get() == hashes["box"]
+    assert picks.check(baked_stage, inventory) == ([], 1)
+    spec = Sdf.Layer.FindOrOpen(str(base)).GetPrimAtPath(f"/{PLACE}/Fixtures/rocket")
+    assert [ref.assetPath for ref in spec.referenceList.prependedItems] == ["../assets/rocket.usdc"]
+    assert spec.attributes["score:model"].default == "rocket"
+    spec = spec.layer.GetPrimAtPath(f"/{PLACE}/Objects/crate_1")
+    spec.RemoveProperty(spec.attributes["score:repaint_of"])
+    spec.layer.Save()
+    found, _ = picks.check(baked_stage, inventory)
+    assert len(found) == 1 and "not the owner's pick" in found[0]["why"], found
     import export
     from score.stages.assembly import grounded
     recorded = tmp_path / "recorded"
@@ -4452,3 +4349,112 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     geometry = export.model_geometry(export.model_file(renamed, "parts_rack_1"))
     assert len(geometry["positions"]) == 3, geometry
     assert assembly.renamed_model(made, "parts_rack", "parts_rack", recorded / "x") == made
+    from pxr import UsdMedia
+    layered_seed, inputs = a_layered_seed(tmp_path / "layered_seed")
+    sums = {name: hashlib.sha256((inputs[name] / f"layers/{name}.usda").read_bytes()).hexdigest()
+            for name in ("light", "motion")}
+    out = tmp_path / "layered_seed/out"
+    out.mkdir()
+    assembly.make_from_seed(inputs, out, layered_seed.parent, {})
+    root = out / f"{TOY}.usda"
+    held = Sdf.Layer.FindOrOpen(str(root))
+    held.Reload()
+    assert list(held.subLayerPaths) == [f"./layers/{name}.usda" for name in (
+        "edit", "characters", "sound", "motion_keys", "light", "motion", "effects", "base")], list(held.subLayerPaths)
+    assert held.endTimeCode == 480.0 and (out / "assets/light/earth.png").read_bytes() == b"png", held.endTimeCode
+    assert all(path.stat().st_mode & 0o200 for path in out.rglob("*") if path.is_file())
+    for name, digest in sums.items():
+        for folder in (inputs[name], out):
+            assert hashlib.sha256((folder / f"layers/{name}.usda").read_bytes()).hexdigest() == digest, (name, folder)
+    stage = opened(root)
+    assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and not stage.GetPrimAtPath(f"/{TOY}/Structure/old_wall")
+    cycle = stage.GetPrimAtPath(f"/{TOY}/Lights/cycle").GetAttribute("inputs:intensity")
+    assert cycle.GetNumTimeSamples() == 2 and cycle.Get(12) == 50.0, cycle.Get(12)
+    assert stage.GetPrimAtPath(f"/{TOY}/Lights/steady").GetAttribute("inputs:intensity").Get() == 20.0
+    tone = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Sound/Room/tone"))
+    assert tone.GetFilePathAttr().Get().path == "../assets/sound/tone.ogg"
+    assert (out / "assets/sound/tone.ogg").read_bytes() == b"tone"
+    assert stage.GetPrimAtPath(f"/{TOY}/Objects/fan_1/Sound")
+    door = UsdMedia.SpatialAudio(stage.GetPrimAtPath(f"/{TOY}/Objects/door_1/Sound_0"))
+    assert door.GetStartTimeAttr().Get().GetValue() == 2.5 * stage.GetTimeCodesPerSecond()
+    unplaced = json.loads((out / "origin.json").read_text())["unplaced sounds"]
+    assert unplaced == ["hum (object): no prim of the row or name pump on the stage",
+                        f"hum (motion): no moving prim /{TOY}/Objects/door_2 on the stage"], unplaced
+    live = tmp_path / "layered_seed/live"
+    (live / "layers").mkdir(parents=True)
+    (live / "layers/light.usda").write_text("#usda 1.0\n")
+    assembly.take_layer(live, root, "layers/light.usda", "assets/light")
+    assert not (out / "assets/light").exists()
+    tube = {"bay": 2.0, "pieces": [{"kind": "tube_bay", "tube_part": "bay"}]}
+    bays = assembly.laid_pieces(tube, {"tube_length": 6.0})
+    assert len(bays) == 3 and all("spot" in piece for piece in bays), bays
+    assert assembly.laid_pieces({"pieces": tube["pieces"]}, {}) == tube["pieces"]
+    laid_toy, laid = a_laid_toy(tmp_path / "laid")
+    assert laid == ["cairn", "ship", "crane", "barge", "cart", "module_1", "door_1", "module_2", "door_2"], laid
+    stage = opened(laid_toy)
+    for name, (scope, low, high, tolerance) in LAID_AT.items():
+        stood = fitting.world_box(stage, f"/{TOY}/{scope}/{name}")
+        assert np.allclose(stood, (low, high), atol=tolerance), f"the laid toy: {name} stands {stood}"
+    assert stage.GetPrimAtPath(f"/{TOY}/Fixtures/cairn").GetAttribute("score:row").Get() == "cairn"
+    assert not stage.GetPrimAtPath(f"/{TOY}").HasAttribute(assembly.WAITING)
+    fits = {fit["name"]: fit for fit in json.loads((laid_toy.parent / made_waiting.LAID).read_text())["fitted"]}
+    assert sorted(fits) == ["garage_door_1", "garage_door_2"], fits
+    assert fits["garage_door_1"]["how"] == "face" and fits["garage_door_1"]["scale"] == 1.0, fits
+    assert fits["garage_door_2"]["scale"] == 0.75 and fits["garage_door_2"]["face"] == 38.8125 and \
+        fits["garage_door_2"]["hung"], fits
+    held = assembly.judge_held(laid_toy.parent, {}, None)
+    assert held.answer == checks.PASS and held.measures == {"not held": 0, "worst off": 0.0}, held
+    from score.stages.assembly import held_apart
+    [judge_held] = [check.judge for check in stages.ASSEMBLY.checks if check.name == "held"]
+    for number, (case, (held_record, held_laid), answer, measures, faults, short) in enumerate(HELD_JUDGED):
+        held_out = tmp_path / f"held_{number}"
+        (held_out / assembly.RECORD).parent.mkdir(parents=True)
+        (held_out / assembly.RECORD).write_text(json.dumps(held_record))
+        (held_out / made_waiting.LAID).write_text(json.dumps(held_laid))
+        verdict = judge_held(held_out, {}, None)
+        assert verdict.answer == answer and verdict.measures == measures, f"{case}: {verdict}"
+        assert verdict.findings == tuple(f"{name}: {words}" for name, words, _ in (*faults, *short)), \
+            f"{case}: {verdict.findings}"
+        measured = [*fitting.held_faults(held_record, held_laid), *held_apart.overlapping(held_record, held_laid)]
+        assert measured == faults and fitting.short_doors(held_record, held_laid) == short, f"{case}: {measured}"
+    apart = {**HELD_LAID, "objects": [{"name": "entry_1", **at_facade(42.0, 0.0)},
+                                      {"name": "entry_2", **at_facade(43.2, 0.0)}]}
+    assert held_apart.overlapping(HELD_RECORD, apart) == []
+    rows = {"desk": {"id": "desk"}, "cables": {"id": "cables", "anchor": "on:desk", "where": "under desk"}}
+    for case, on, faults in PLACED:
+        found = fitting.placement_faults({"objects": [{"name": "cables_1", "row": "cables", "on": on}]}, rows)
+        assert found == faults, f"{case}: {found}"
+    for case, low, high, on, holder, off, within, at_foot in OFF:
+        low, high = np.array(low), np.array(high)
+        stands = fitting.off_holder(low, high, "within", on, holder)
+        assert abs(stands - off) <= within, f"{case}: stands {stands} off"
+        if at_foot:
+            scale, foot = fitting.on_holder(low, high, "within", on, holder)
+            assert scale == 1.0 and abs(foot[1]) < 1e-9, f"{case}: laid {scale} at {foot}"
+    import placeholders
+    from pxr import UsdShade
+    for row, surface in GROUND_SURFACE:
+        assert assembly.ground_surface(row, SQUARE) == surface, row
+    for case in GROUNDED:
+        root = tmp_path / "grounded" / case["name"].replace(" ", "_")
+        inputs = a_grounded_toy(root, case, monkeypatch)
+        beside = (assembly.ground_scenes(TOY), assembly.ground_scenes("base"))
+        assert beside == (case["beside"], case["base beside"]), f"{case['name']}: reads {beside} beside"
+        out = root / "out"
+        out.mkdir()
+        assembly.make_from_seed(inputs, out, inputs["seed"], {})
+        stage = opened(out / f"{TOY}.usda")
+        for name in case["bound"]:
+            prim = stage.GetPrimAtPath(f"/{TOY}/Outside/{name}")
+            bound = UsdShade.MaterialBindingAPI(prim).ComputeBoundMaterial()[0]
+            assert bound.GetPath() == f"/{TOY}/Library/lunar_regolith" and \
+                not prim.HasAttribute("score:surface:missing"), f"{case['name']}: {name} bound to {bound}"
+            if "recipe" in case:
+                assert bound.GetPrim().GetAttribute("score:recipe").Get() == case["recipe"], case["name"]
+        water = stage.GetPrimAtPath(f"/{TOY}/Outside/water")
+        assert bool(water) == case["sea"], case["name"]
+        if case["sea"]:
+            assert not UsdShade.MaterialBindingAPI(water).ComputeBoundMaterial()[0]
+            assert water.GetAttribute("score:surface:missing").Get()
+        faults = [fault["prim"] for fault in placeholders.check(out / f"{TOY}.usda")]
+        assert faults == case["faults"], f"{case['name']}: {faults}"
