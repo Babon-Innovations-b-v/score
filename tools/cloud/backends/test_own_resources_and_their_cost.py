@@ -96,6 +96,11 @@ The invariants, each with the break that turns its test red (each applied once a
   that waited YIELD_SECONDS asks side shares back: `run` stops its command's session, gives its share back, waits and
   starts the command again once the card is free. The container's claims hold their share from take to delete and
   wait as for a busy machine while it has no room. A rented machine sizes it to its own card (SCORE_CARD_BUDGET_GB, SCORE_CARD_DESKTOP_GB).
+  A waiter that fits goes past an earlier one of its rank that does not, until that one has waited BACKFILL_SECONDS,
+  and one that can never fit beside the shares of an earlier priority keeps nothing out (rounds 38 and 41).
+  Break: in `blocks`, drop `or now - waiter["since"] >= BACKFILL_SECONDS` -> the MOSS claim is passed for ever; or
+  return True for the same rank -> the Blender claims wait behind MOSS again; or drop `and could_fit(waiter, held)`
+  -> the likeness claim waits behind segment for ever.
   Break: read `BUDGET_GB` as the constant 13.5 again -> the rented card's 78 GB is capped at this PC's; or
   `> BUDGET_GB` -> `> BUDGET_GB * 2` in `take` -> the side job joins two Blender claims; or drop `ahead or` ->
   the side job starts before the waiting env-run claim; or drop `"film": 1` from `RANK` -> a run frozen before the rename
@@ -134,7 +139,8 @@ The invariants, each with the break that turns its test red (each applied once a
   while its card does not fit; the run's cap here is as many claims as fit by those shares (claims_at_once), never a
   fixed one. Break: `(kind in SHARED or kind in BESIDE)` -> `kind in SHARED` in `claimed` -> the sim-body claim
   waits on the bakes' lock; or drop `memory_share = measured_memory` in `take` -> it holds the whole memory and
-  waits; or `at_once() if at_once else max(...)` -> `max(...)` in `capacity.caps` -> the cap reads 20.
+  waits; or `at_once() if at_once else max(...)` -> `max(...)` in `capacity.caps` -> the cap reads 20; or one
+  machine id for every claim in `take` -> the sim-body claim is the bakes' own handed back.
 - A claim's memory is its container's highest anon reading while it holds its share, counted for its kind only from
   claims alone in that container. Break: drop the `card_queue.watch_memory(...)` call in `local.take` -> memory
   unmeasured; or drop `and not any(beside(...))` in `card_queue.read_memory` -> 5.0 GB from the two claims together;
@@ -703,58 +709,6 @@ def test_this_pc_marks_a_claim_that_waits_holding_none_and_drops_the_mark_once_i
     local.delete(held["id"], local.ZONE)
 
 
-def test_this_pc_refuses_a_job_by_its_measured_need_not_its_kind(monkeypatch, tmp_path):
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "memory_cap", lambda: "35g")
-    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)  # never the PC's own containers
-    with pytest.raises(ValueError, match="17 GB of card"):
-        local.take("characters", "key")  # the whole machine: Kimodo's encoder on the card
-    with pytest.raises(ValueError, match="40.0 GB of memory"):
-        local.take("characters", "key", {"card_gb": 4, "memory_gb": 40})
-    assert local.take("characters", "key", {"card_gb": 4, "memory_gb": 17})["here"]
-
-
-def test_this_pc_runs_a_job_past_its_container_alone_in_the_container_raised_for_it(monkeypatch, tmp_path):
-    import os
-    import capacity
-    import local
-    import spread
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
-    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
-    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
-    monkeypatch.setattr(capacity.provider, "cloud", local)
-    room = [20 * 2**30]
-    monkeypatch.setattr(local, "alone_room", lambda name=None: room[0])
-    calls = []
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
-    updates = lambda: [call[call.index("--memory") + 1] for call in calls if call[0] == "update"]  # noqa: E731
-    base = {"memory_gb": 29.8e9 / 2**30}
-    shared = local.take("blender", "key")
-    assert shared["turns"] == 3
-    assert local.take("blender", "key", base) is None  # it waits for the shared claim to leave
-    local.delete(shared["id"], local.ZONE)
-    assert local.take("blender", "key", base) is None and "35g" not in updates()  # 20 GiB free: it waits
-    (local.wanting() / str(os.getpid())).rename(local.wanting() / str(os.getppid()))  # as another live process's
-    assert local.take("blender", "key") is None  # its want keeps new Blender claims out meanwhile
-    room[0] = 33 * 2**30
-    alone = local.take("blender", "key", base)
-    assert alone["turns"] == 1 and spread.slots("blender", alone) == [0] and updates()[-1] == "35g"
-    assert local.take("blender", "key") is None
-    local.delete(alone["id"], local.ZONE)
-    assert updates()[-1] == "27g"  # back to the shared cap once it leaves
-    with pytest.raises(ValueError, match="with the job alone"):
-        local.take("blender", "key", {"memory_gb": 40})
-    (local.wanting() / str(os.getppid())).unlink()  # that want is gone
-    small = local.take("blender", "key", {"memory_gb": 6})
-    assert small["turns"] == 3
-    local.delete(small["id"], local.ZONE)
-
-
 def test_this_pc_container_leaves_room_for_wsl_and_the_runs_own_steps(monkeypatch):
     import local
     pages = {"SC_PAGE_SIZE": 4096, "SC_PHYS_PAGES": 43 * 2**30 // 4096}
@@ -857,39 +811,92 @@ def test_card_turn_gives_the_card_to_its_slots_of_card_calls_at_a_time(tmp_path)
         assert not beside.is_alive()
 
 
-def test_a_waiting_sim_body_share_goes_before_the_env_run_s_next_claims(card_queue_folder):
-    bake = card_queue.take("bake@lab", 9.7, "env-run", "blender")
-    assert bake and card_queue.take("sim-body-l1", 6, "sim-body") is None  # 9.7 + 6 passes 13.5: it waits
-    assert card_queue.take("similar", 1, "env-run") is None  # it would fit, but the sim body waits first
-    card_queue.release(bake)
-    tuning = card_queue.take("sim-body-l1", 6, "sim-body")
-    assert tuning and card_queue.take("similar", 1, "env-run")  # beside it, once it has its share
+# The card queue's admission as a run asks it (13.5 GB of card, 27 GiB of memory): (row, steps). A step is ("take",
+# share's name or None, job, card GB, priority, group, memory GiB, whether it is admitted), ("release", name),
+# ("drop", job, priority: a waiter that stopped asking), ("backfill", BACKFILL_SECONDS), ("status", the pattern its
+# status line matches) or ("sized", environment, BUDGET_GB and DESKTOP_GB as a fresh process reads them).
+QUEUE_ASKS = [
+    ("a waiting sim body share goes before the env run's next claims", [
+        ("take", "bake", "bake@lab", 9.7, "env-run", "blender", 0, True),
+        ("take", None, "sim-body-l1", 6, "sim-body", None, 0, False),  # 9.7 + 6 passes 13.5: it waits
+        ("take", None, "similar", 1, "env-run", None, 0, False),  # it would fit, but the sim body waits first
+        ("release", "bake"),
+        ("take", "tuning", "sim-body-l1", 6, "sim-body", None, 0, True),
+        ("take", None, "similar", 1, "env-run", None, 0, True)]),  # beside it, once it has its share
+    ("never past the card; a waiting env-run claim keeps side jobs off", [
+        ("take", "first", "bake@lab", 9.7, "env-run", "blender", 0, True),
+        ("take", "second", "bake@hub", 9.7, "env-run", "blender", 0, True),  # one group: the card's turns are shared
+        ("take", None, "sim-body", 6, "other", None, 0, False),  # 9.7 + 6 passes 13.5
+        ("release", "first"), ("release", "second"),
+        ("take", "side", "sim-body", 6, "other", None, 0, True),
+        ("take", None, "pixal", 10.8, "env-run", None, 0, False),  # 6 + 10.8 passes it: the env-run claim waits
+        ("take", None, "proof", 1, "other", None, 0, False),  # it would fit, but the env-run claim asked first
+        # a run frozen before the rename still writes "film": env-run's rank, so it goes past the Pixal3D claim of its
+        # rank that does not fit (blocks), as the proof may not
+        ("take", "old", "old-run", 1, "film", None, 0, True),
+        ("release", "old"),
+        ("status", r"2 waiting"),  # the env-run claim and the proof
+        ("release", "side"),
+        ("take", "film", "pixal", 10.8, "env-run", None, 0, True),
+        ("take", None, "tuning", None, "other", None, 0, False),  # unmeasured: the whole card
+        ("release", "film"),
+        ("status", r"^card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 2 waiting; \d+\.\d GB free; "
+                   r"score-this-pc 3GiB / 27GiB")]),
+    ("a rented card is sized to its own card, no desktop on it", [
+        ("sized", {"SCORE_CARD_BUDGET_GB": "78", "SCORE_CARD_DESKTOP_GB": "0"}, ["78.0", "0.0"])]),
+    # round 38, 2026-10-31: sim body's 3 GB and one Blender claim's 9.7 GB held 12.7 of 13.5 GB; a MOSS claim (10 GB)
+    # waited first, and two more Blender claims, which join their group's held share and add no card, waited behind it
+    # while the card stood nearly idle
+    ("a claim that fits goes past an earlier one that does not, but never for long", [
+        ("take", "tuning", "sim-body-l1d", 3, "sim-body", None, 0, True),
+        ("take", "bakes", "this-pc blender", 9.7, "env-run", "blender", 8, True),
+        ("take", None, "this-pc moss-sound", 10, "env-run", None, 20, False),  # 3 + 9.7 + 10: it waits
+        # joins the group's card share: it fits, MOSS does not, MOSS has waited under the bound
+        ("take", "second", "other blender", 9.7, "env-run", "blender", 8, True),
+        ("take", None, "small proof", 1, "env-run", None, 1, False),  # 1 more passes 13.5: it waits too
+        ("drop", "small proof", "env-run"),
+        ("backfill", 0),  # MOSS has waited long enough: nothing passes it now
+        ("take", None, "third blender", 9.7, "env-run", "blender", 8, False),
+        ("drop", "third blender", "env-run"),
+        ("release", "bakes"), ("release", "second"),
+        ("take", None, "this-pc moss-sound", 10, "env-run", None, 20, True)]),  # the group gone, MOSS fits
+    # round 41, 2026-10-31: sim body held 3 GB; a segment claim asked the whole 13.5 GB, which can never fit beside it,
+    # and once it had waited BACKFILL_SECONDS every likeness claim queued behind it with the card idle
+    ("a claim that cannot fit beside an earlier priority keeps nothing out", [
+        ("take", "tuning", "sim-body-l1d", 3, "sim-body", None, 0, True),
+        ("take", None, "this-pc segment", None, "env-run", None, 0, False),  # the whole card: it waits
+        ("backfill", 0),
+        # segment cannot fit until the sim body share goes: it keeps nothing out meanwhile
+        ("take", "likeness", "this-pc similar", 0.8, "env-run", None, 1, True),
+        ("release", "likeness"), ("release", "tuning"),
+        ("take", None, "this-pc segment", None, "env-run", None, 0, True)])]  # alone on the card, it fits
 
 
-def test_the_card_queue_never_passes_the_card_and_a_waiting_env_run_claim_keeps_side_jobs_off(card_queue_folder):
-    first = card_queue.take("bake@lab", 9.7, "env-run", "blender")
-    second = card_queue.take("bake@hub", 9.7, "env-run", "blender")  # the same group: the card's turns are shared
-    assert first and second
-    assert card_queue.take("sim-body", 6, "other") is None  # 9.7 + 6 passes 13.5
-    card_queue.release(first)
-    card_queue.release(second)
-    side = card_queue.take("sim-body", 6, "other")
-    assert side and card_queue.take("pixal", 10.8, "env-run") is None  # 6 + 10.8 passes it: the env-run claim waits
-    assert card_queue.take("proof", 1, "other") is None  # it would fit, but the env-run claim asked first
-    old = card_queue.take("old-run", 1, "film")  # a run frozen before the rename still writes "film": env-run's rank,
-    assert old  # so it goes past the Pixal3D claim of its rank that does not fit (blocks), as the proof may not
-    card_queue.release(old)
-    assert "2 waiting" in card_queue.status()  # the env-run claim and the proof
-    card_queue.release(side)
-    film = card_queue.take("pixal", 10.8, "env-run")
-    assert film and card_queue.take("tuning", None, "other") is None  # unmeasured: the whole card
-    card_queue.release(film)
-    assert re.match(r"card 0\.0 of 13\.5 GB held, memory 0\.0 of 27 GiB, 2 waiting; \d+\.\d GB free; score-this-pc 3GiB / 27GiB",
-                    card_queue.status())
-    sized = subprocess.run([sys.executable, "-c", "import card_queue; print(card_queue.BUDGET_GB, card_queue.DESKTOP_GB)"],
-                           cwd=card_queue.__file__.rpartition("/")[0], capture_output=True, text=True, check=True,
-                           env={**os.environ, "SCORE_CARD_BUDGET_GB": "78", "SCORE_CARD_DESKTOP_GB": "0"})
-    assert sized.stdout.split() == ["78.0", "0.0"]  # a rented card's whole size, no desktop on it
+@pytest.mark.parametrize("row, steps", QUEUE_ASKS, ids=[row for row, _ in QUEUE_ASKS])
+def test_the_card_queue_admits_a_share_only_while_it_fits_and_no_waiter_before_it_blocks_it(row, steps, monkeypatch,
+                                                                                               card_queue_folder):
+    shares = {}
+    for number, step in enumerate(steps, 1):
+        where = f"{row}, step {number}: {step}"
+        if step[0] == "take":
+            _, name, job, card_gb, priority, group, memory, admitted = step
+            share = card_queue.take(job, card_gb, priority, group, memory=memory)
+            assert bool(share) == admitted, where
+            shares[name] = share
+        elif step[0] == "release":
+            card_queue.release(shares.pop(step[1]))
+        elif step[0] == "drop":
+            card_queue.release(card_queue.WAITING.pop(step[1:]))
+        elif step[0] == "backfill":
+            monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", step[1])
+        elif step[0] == "status":
+            assert re.search(step[1], card_queue.status()), (where, card_queue.status())
+        else:
+            sized = subprocess.run([sys.executable, "-c",
+                                    "import card_queue; print(card_queue.BUDGET_GB, card_queue.DESKTOP_GB)"],
+                                   cwd=card_queue.__file__.rpartition("/")[0], capture_output=True, text=True,
+                                   check=True, env={**os.environ, **step[1]})
+            assert sized.stdout.split() == step[2], where
 
 
 def until(done, seconds=30):
@@ -900,41 +907,122 @@ def until(done, seconds=30):
     return done()
 
 
-def test_a_claim_that_fits_goes_past_an_earlier_one_that_does_not_but_never_for_long(monkeypatch, card_queue_folder):
-    """Round 38, 2026-10-31: sim body's 3 GB and one Blender claim's 9.7 GB held 12.7 of 13.5 GB of the card; a MOSS
-    claim (10 GB) waited first, and two more Blender claims, which join their group's held share and add no card, waited
-    behind it while the card stood nearly idle. A waiter that fits goes past one of its rank that does not, until that
-    one has waited BACKFILL_SECONDS; one that fits keeps its turn.
-    Break: in `blocks`, drop `or now - waiter["since"] >= BACKFILL_SECONDS` -> the MOSS claim is passed for ever; or
-    return True for the same rank -> the Blender claims wait behind MOSS again."""
-    tuning = card_queue.take("sim-body-l1d", 3, "sim-body")
-    bakes = card_queue.take("this-pc blender", 9.7, "env-run", "blender", memory=8)
-    assert tuning and bakes
-    assert card_queue.take("this-pc moss-sound", 10, "env-run", memory=20) is None  # 3 + 9.7 + 10: it waits
-    second = card_queue.take("other blender", 9.7, "env-run", "blender", memory=8)
-    assert second  # joins the group's card share: it fits, MOSS does not, MOSS has waited under the bound
-    assert card_queue.take("small proof", 1, "env-run", memory=1) is None  # 1 more passes 13.5: it waits too
-    card_queue.release(card_queue.WAITING.pop(("small proof", "env-run")))
-    monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)  # MOSS has waited long enough: nothing passes it now
-    assert card_queue.take("third blender", 9.7, "env-run", "blender", memory=8) is None
-    card_queue.release(card_queue.WAITING.pop(("third blender", "env-run")))
-    for share in (bakes, second):
-        card_queue.release(share)
-    assert card_queue.take("this-pc moss-sound", 10, "env-run", memory=20)  # the group gone, MOSS fits
+# This PC's claims judged by their measured need alone, before anything is held: (kind, need, the words of its
+# refusal, or True when it takes this PC). Kimodo's encoder on the card is the whole characters machine.
+REFUSED = [("characters", None, "17 GB of card"),
+           ("characters", {"card_gb": 4, "memory_gb": 40}, "40.0 GB of memory"),
+           ("blender", {"memory_gb": 40}, "with the job alone"),
+           ("characters", {"card_gb": 4, "memory_gb": 17}, True)]  # a characters run of clip steps fits
+ALONE = {"memory_gb": 29.8e9 / 2**30}  # base's light passes, round 31: past the container's 27 GiB
+ROUTE = {"card_gb": 1, "memory_gb": 3}
 
 
-def test_a_claim_that_cannot_fit_beside_an_earlier_priority_keeps_nothing_out(monkeypatch, card_queue_folder):
-    """Round 41, 2026-10-31: sim body held 3 GB; a segment claim asked the whole 13.5 GB, which can never fit beside
-    it, and once it had waited BACKFILL_SECONDS every likeness claim queued behind it with the card idle.
-    Break: in `blocks`, drop `and could_fit(waiter, held)` -> the likeness claim waits behind segment for ever."""
-    tuning = card_queue.take("sim-body-l1d", 3, "sim-body")
-    assert tuning and card_queue.take("this-pc segment", None, "env-run") is None  # the whole card: it waits
-    monkeypatch.setattr(card_queue, "BACKFILL_SECONDS", 0)
-    likeness = card_queue.take("this-pc similar", 0.8, "env-run", memory=1)
-    assert likeness  # segment cannot fit until the sim body share goes: it keeps nothing out meanwhile
-    card_queue.release(likeness)
-    card_queue.release(tuning)
-    assert card_queue.take("this-pc segment", None, "env-run")  # alone on the card, it fits
+def test_this_pc_takes_a_claim_only_while_its_measured_need_fits_beside_what_is_held(monkeypatch, tmp_path):
+    """One PC's day of claims, in its container 27g (35g with a job alone, 20 GiB of room free for one at first):
+    refusals by need, a side job's card share, kinds side by side in their own containers, a Blender job past the
+    container alone in the container raised for it, and sim body's measured share beside the bakes."""
+    import capacity
+    import local
+    import spread
+    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
+    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
+    monkeypatch.setattr(local, "memory_cap", lambda: "27g")
+    monkeypatch.setattr(local, "alone_cap", lambda: "35g")
+    room = [20 * 2**30]
+    monkeypatch.setattr(local, "alone_room", lambda name=None: room[0])
+    monkeypatch.setattr(capacity.provider, "cloud", local)
+    monkeypatch.delenv("SCORE_MAX_MACHINES", raising=False)
+    started, calls = [], []
+    monkeypatch.setattr(local, "running", lambda public_key, name=None: started.append(name) or "172.17.0.2")
+    monkeypatch.setattr(local, "docker", lambda *arguments, **_: calls.append(arguments))
+    updates = lambda: [call[call.index("--memory") + 1] for call in calls if call[0] == "update"]  # noqa: E731
+    drop = lambda kind: card_queue.release(card_queue.WAITING.pop((f"this-pc {kind}", "env-run")))  # noqa: E731
+
+    for kind, need, expected in REFUSED:
+        if expected is True:
+            clips = local.take(kind, "key", need)
+            assert clips["here"], (kind, need)
+            local.delete(clips["id"], local.ZONE)
+        else:
+            with pytest.raises(ValueError, match=expected):
+                local.take(kind, "key", need)
+
+    # a side job holds 6 GB of the card: claims hold their measured share beside it, or wait holding none
+    side = card_queue.take("sim-body", 6, "other")
+    likeness = local.take("similar", "key")  # DINOv2's measured 0.8 GB fits beside it
+    beside = card_queue.take("side memory", 1, "other", memory=20)  # it holds its measured 1.3 GB, not all 27
+    assert likeness and beside
+    card_queue.release(beside)
+    local.delete(likeness["id"], local.ZONE)
+    bake = local.take("library", "key")  # the library bakes' measured 1.4 GB fits beside it too
+    assert bake
+    local.delete(bake["id"], local.ZONE)
+    assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
+    assert local.queued("pixal") and not local.queued("blender")  # in the queue: park.here holds its minutes
+    with local.container_lock("score-this-pc-pixal").open("a+") as probe:
+        assert local.got(probe, True)  # its container's lock was let go
+    card_queue.release(side)
+    pixal = local.take("pixal", "key")  # unmeasured memory: the whole of it
+    assert pixal and card_queue.take("sim-body", 6, "other") is None  # the claim holds its card share
+    assert local.take("characters", "key", ROUTE) is None  # and all the memory: no kind beside it
+    assert not local.queued("pixal")
+    assert until(lambda: local.CARDS[pixal["id"]].card_peak)  # the card read while it holds it
+    local.delete(pixal["id"], local.ZONE)
+    drop("characters")  # that claim stopped asking
+    after = card_queue.take("sim-body", 6, "other")
+    assert after
+    card_queue.release(after)
+    assert "this-pc pixal: 1 takes, card 6.39 GB (1 alone)" in card_queue.measured()  # the claim was measured
+
+    # claims of different kinds run side by side, each in its own container, while they fit
+    before = len(started)
+    bakes = local.take("blender", "key")  # three turns: 3 x 6.7 + 2 = 22.1 GiB, 9.7 GB of card
+    route = local.take("characters", "key", ROUTE)  # 25.1 GiB and 10.7 GB: it fits
+    assert bakes["turns"] == 3 and bakes["id"].startswith("score-this-pc:"), bakes
+    assert route["id"].startswith("score-this-pc-characters:"), route
+    assert started[before:] == ["score-this-pc", "score-this-pc-characters"]
+    assert local.take("blender", "key", ALONE) is None  # a Blender job past 27g waits for the shared claim to leave
+    assert local.take("pixal", "key") is None  # unmeasured: the whole memory, so it waits for both
+    drop("pixal")
+    local.delete(route["id"], local.ZONE)
+    local.delete(bakes["id"], local.ZONE)
+
+    # the Blender job past the container runs alone, once the room it needs is free
+    assert local.take("blender", "key", ALONE) is None and "35g" not in updates()  # 20 GiB free: it waits
+    (local.wanting() / str(os.getpid())).rename(local.wanting() / str(os.getppid()))  # as another live process's
+    assert local.take("blender", "key") is None  # its want keeps new Blender claims out meanwhile
+    room[0] = 33 * 2**30
+    alone = local.take("blender", "key", ALONE)
+    assert alone["turns"] == 1 and spread.slots("blender", alone) == [0] and updates()[-1] == "35g", alone
+    assert local.take("blender", "key") is None
+    local.delete(alone["id"], local.ZONE)
+    assert updates()[-1] == "27g"  # back to the shared cap once it leaves
+    (local.wanting() / str(os.getppid())).unlink()  # that want is gone
+    small = local.take("blender", "key", {"memory_gb": 6})
+    assert small["turns"] == 3, small
+    local.delete(small["id"], local.ZONE)
+
+    # the run did not ask for containers of their own: one, as before
+    monkeypatch.setattr(local, "OWN", False)
+    bakes = local.take("blender", "key")
+    assert bakes["id"].startswith("score-this-pc:") and local.take("characters", "key", ROUTE) is None
+    local.delete(bakes["id"], local.ZONE)
+
+    # sim body's claims measured by the queue: its measured share goes beside the bakes
+    with (card_queue.QUEUE / "measures.jsonl").open("a") as measures:
+        for card_gb, memory_gb in ((3.6, 3.12), (2.9, 2.4), (3.2, 2.9), (2.6, 2.1), (3.4, 2.7)):
+            measures.write(json.dumps({"job": "this-pc sim-body", "card_gb": card_gb, "alone": True, "cores": 9.7,
+                                       "memory_gb": memory_gb, "memory_alone": True}) + "\n")
+    bakes = local.take("blender", "key")  # 9.7 GB of card, 22.1 GiB
+    body = local.take("sim-body", "key", {"memory_gb": 1.86})  # beside them: 3.6 GB, 3.12 GB x 1.5 = 4.4 GiB
+    assert body["id"].startswith("score-this-pc:") and body["id"] != bakes["id"], (body, bakes)
+    assert [round(share["memory_gb"], 1) for share in card_queue.live("held") if share["job"] == "this-pc sim-body"] \
+        == [4.4]
+    assert local.take("sim-body", "key") is None  # a second sim body: 16.9 GB of card does not fit, it waits
+    drop("sim-body")
+    assert capacity.run_cap() == local.claims_at_once() == 2  # similar's 0.8 and sim-body's 3.6; the bakes' 9.7 not
+    local.delete(body["id"], local.ZONE)
+    local.delete(bakes["id"], local.ZONE)
 
 
 def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_after(monkeypatch, card_queue_folder,
@@ -965,34 +1053,6 @@ def test_a_side_job_gives_the_card_way_to_a_film_claim_waiting_and_starts_again_
     holder.stdin.close()
     assert holder.wait(30) == 0 and card_queue.take("pixal", 10.8, "env-run")  # it ended: its share is free
     assert card_queue.measured().startswith("tuning: 2 takes, card 6.39 GB (2 alone), cores ")  # both runs measured
-
-
-def test_this_pc_claims_hold_their_card_share_and_wait_while_a_side_job_holds_the_card(monkeypatch, tmp_path):
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: "172.17.0.2")
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
-    side = card_queue.take("sim-body", 6, "other")
-    likeness = local.take("similar", "key")  # DINOv2's measured 0.8 GB fits beside it
-    beside = card_queue.take("side memory", 1, "other", memory=20)  # it holds its measured 1.3 GB, not all 27
-    assert likeness and beside
-    card_queue.release(beside)
-    local.delete(likeness["id"], "this-pc")
-    bake = local.take("library", "key")  # the library bakes' measured 1.4 GB fits beside it too
-    assert bake
-    local.delete(bake["id"], "this-pc")
-    assert local.take("pixal", "key") is None  # 6 + 10.8 passes the card: it waits, holding no claim
-    assert local.queued("pixal") and not local.queued("blender")  # in the queue: park.here holds its minutes
-    with local.container_lock("score-this-pc-pixal").open("a+") as probe:
-        assert local.got(probe, True)  # its container's lock was let go
-    card_queue.release(side)
-    machine = local.take("pixal", "key")
-    assert machine and card_queue.take("sim-body", 6, "other") is None  # the claim holds its share
-    assert not local.queued("pixal")
-    assert until(lambda: local.CARDS[machine["id"]].card_peak)  # the card read while it holds it
-    local.delete(machine["id"], "this-pc")
-    assert card_queue.take("sim-body", 6, "other")
-    assert "this-pc pixal: 1 takes, card 6.39 GB (1 alone)" in card_queue.measured()  # the claim was measured
 
 
 def test_this_pc_claims_memory_is_read_from_its_container_and_counted_only_alone_there(monkeypatch, tmp_path):
@@ -1047,46 +1107,3 @@ def test_this_pc_container_keeps_cores_for_the_pc_and_a_measured_claim_to_its_me
     calls.clear()  # a sim-body chain's memory_gb is blender_cloud's Blender prediction (2 GB), never its measure
     local.delete(local.take("sim-body", "key", {"memory_gb": 1.86})["id"], "this-pc")
     assert not [call for call in calls if call[:2] == ("update", "--memory") and call[2] != "27g"]  # not 3g
-
-
-def test_this_pc_claims_of_different_kinds_run_side_by_side_each_in_its_own_container_while_they_fit(monkeypatch,
-                                                                                                       tmp_path):
-    import local
-    monkeypatch.setattr(local, "LOCK", tmp_path / "this-pc.lock")
-    monkeypatch.setattr(local, "RUNS_AT_ONCE", {"pixal": 1, "blender": 3})
-    started = []
-    monkeypatch.setattr(local, "running", lambda public_key, name=None: started.append(name) or "172.17.0.2")
-    monkeypatch.setattr(local, "docker", lambda *arguments, **_: None)
-    bakes = local.take("blender", "key")  # three turns: 3 x 6.7 + 2 = 22.1 GiB, 9.7 GB of card
-    route = local.take("characters", "key", {"card_gb": 1, "memory_gb": 3})  # 25.1 GiB and 10.7 GB: it fits
-    assert bakes["id"].startswith("score-this-pc:") and route["id"].startswith("score-this-pc-characters:")
-    assert started == ["score-this-pc", "score-this-pc-characters"]
-    assert local.take("pixal", "key") is None  # unmeasured: the whole memory, so it waits for both
-    local.delete(route["id"], local.ZONE)
-    local.delete(bakes["id"], local.ZONE)
-    alone = local.take("pixal", "key")
-    assert alone and local.take("characters", "key", {"card_gb": 1, "memory_gb": 3}) is None  # now it holds it all
-    local.delete(alone["id"], local.ZONE)
-    card_queue.release(card_queue.WAITING.pop(("this-pc characters", "env-run")))  # that claim stopped asking
-    monkeypatch.setattr(local, "OWN", False)  # the run did not ask for containers of their own: one, as before
-    bakes = local.take("blender", "key")
-    assert bakes["id"].startswith("score-this-pc:") and local.take("characters", "key", {"card_gb": 1,
-                                                                                          "memory_gb": 3}) is None
-    local.delete(bakes["id"], local.ZONE)
-    with (card_queue.QUEUE / "measures.jsonl").open("a") as measures:  # sim-body's claims, measured by the queue
-        for card_gb, memory_gb in ((3.6, 3.12), (2.9, 2.4), (3.2, 2.9), (2.6, 2.1), (3.4, 2.7)):
-            measures.write(json.dumps({"job": "this-pc sim-body", "card_gb": card_gb, "alone": True, "cores": 9.7,
-                                       "memory_gb": memory_gb, "memory_alone": True}) + "\n")
-    bakes = local.take("blender", "key")  # 9.7 GB of card, 22.1 GiB
-    body = local.take("sim-body", "key", {"memory_gb": 1.86})  # beside them: 3.6 GB, 3.12 GB x 1.5 = 4.4 GiB
-    assert body["id"].startswith("score-this-pc:") and body["id"] != bakes["id"]
-    assert [round(share["memory_gb"], 1) for share in card_queue.live("held") if share["job"] == "this-pc sim-body"] \
-        == [4.4]
-    assert local.take("sim-body", "key") is None  # a second sim body: 16.9 GB of card does not fit, it waits
-    card_queue.release(card_queue.WAITING.pop(("this-pc sim-body", "env-run")))
-    import capacity
-    monkeypatch.setattr(capacity.provider, "cloud", local)
-    monkeypatch.delenv("SCORE_MAX_MACHINES", raising=False)
-    assert capacity.run_cap() == local.claims_at_once() == 2  # similar's 0.8 and sim-body's 3.6; the bakes' 9.7 not
-    local.delete(body["id"], local.ZONE)
-    local.delete(bakes["id"], local.ZONE)
