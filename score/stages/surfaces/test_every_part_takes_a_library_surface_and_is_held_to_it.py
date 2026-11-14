@@ -224,14 +224,15 @@ tests it turned red:
   in listed["finishes"]})` (the finishes counted by their colour, not their labels)  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the blue box listed in red)
 - route_views.py `laid_close_up`: `if fit < cast.CLOSE_UP_FIT:` -> `if True:` (no close-up ever laid)  ->
-  a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part (2026-10-29)
+  every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows,
+  2026-10-29)
 - route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
   REGIONS, seed=seed, minit="++")[0]`  -> every_part_takes_a_library_surface_and_is_held_to_it (its red among
   greys and rust)
 - route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
-  a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part
+  every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
 - route_split.py: `return close_up_only(votes, per_map)` -> `return votes`  ->
-  a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part
+  every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of a finish only the close-up shows)
 - route_list.py: `failing.append(f"{take}: no finish list" + (f" ({asked['unanswered'][take]})"` ->
   `failing.append(f"{take}: no finish list" + ("" if True else f" ({asked['unanswered'][take]})"`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the batch that ended)
@@ -2051,15 +2052,22 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert not np.isin(per_pixel["front"][0, :-40], per_pixel["front"][0, -40:]).any(), seed
     # the list, split and parts rows on the two boxes, each world's batches faked (LISTED)
     worlds = {}
-    for case, (colours, answer, again, takes, laid), (asks, used, again_words), list_judged, split_judged, parts in \
-            LISTED:
+    for case, (colours, answer, again, takes, laid), (asks, used, again_words, past_views, last_words), \
+            list_judged, split_judged, parts in LISTED:
         folder = pathlib.Path(tempfile.mkdtemp())
         with monkeypatch.context() as tinted:
             tinted.setattr(sys.modules[__name__], "RED", colours[0])
             tinted.setattr(sys.modules[__name__], "BLUE", colours[1])
-            rows, asked = worlds[case] = listed(folder, answer, takes, again)
+            rows, asked = worlds[case] = listed(folder, answer, takes, again, labelled_close_up=laid == "views")
             assert len(asked) == asks and all(sorted(batch) == sorted(takes) for batch in asked[:1]), (case, asked)
             assert again_words is None or again_words in asked[1][TAKE]["contents"][0]["parts"][-1]["text"], case
+            viewed = json.loads((rows["finish-route-views"] / "views.json").read_text())[TAKE]
+            laid_record = viewed["close_up_laid"]
+            assert laid_record["laid"] == (laid == "views") and (
+                not laid_record["laid"] or laid_record["fit"] >= route_cast.CLOSE_UP_FIT), (case, laid_record)
+            parts_asked = asked[0][TAKE]["contents"][0]["parts"]
+            assert len(parts_asked) == 2 * len(viewed["views"]) + past_views, (case, len(parts_asked))
+            assert last_words is None or last_words in parts_asked[-1]["text"], case
             written = rows["finish-route-list"] / f"{TAKE}.json"
             assert written.exists() == (used is not None), case
             if used is not None:
@@ -2070,7 +2078,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
             assert list_judged[1] is None or list(verdict.findings) == [list_judged[1]], (case, verdict)
             if split_judged is None:
                 continue
-            if laid:
+            if laid == "split":
                 rows = {**rows, **close_up_of(folder, rows[f"model {TAKE}"])}
             rows = split(folder, rows)
             worlds[case] = rows, asked
@@ -2083,28 +2091,34 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
                 continue
             assert record["fault"] is None and record["unassigned"] == record["disagree"] == 0, (case, record)
             finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy")
+            mesh = route_split.model_of(rows["finish-route-views"] / TAKE)
+            label_faces = (mesh.triangles_center[:, 0] < 0) & (mesh.face_normals[:, 2] > 0.9) & (laid == "views")
+            assert (finish_of[label_faces] == 2).all() and (finish_of[~label_faces] != 2).all(), (case, finish_of)
             faces = np.load(rows["finish-route-views"] / TAKE / "faces.npz")["front"]
             seen_colours = np.load(rows["finish-route-views"] / TAKE / "colours.npz")["front"]
-            reds = np.unique(faces[(faces >= 0) & (seen_colours == colours[0]).all(-1)])
+            reds = np.setdiff1d(faces[(faces >= 0) & (seen_colours == colours[0]).all(-1)], np.flatnonzero(label_faces))
             assert set(finish_of[reds]) == {0} and sorted(np.bincount(finish_of)) == counts, (case, finish_of)
             if parts is None:
                 continue
-            by, kept, texture_off, fault_count, fault_words = parts
+            words, by, kept, unmeasured, texture_off, fault_count, fault_words = parts
             rows = parted(folder, rows)
             found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())
             record = found["takes"][TAKE]
             assert record["method"] == "finish-route" and found["left_out"] == {}, (case, found)
-            assert {row["words"] for row in record["parts"]} == {"red paint", "blue paint"}, (case, record["parts"])
+            assert {row["words"] for row in record["parts"]} == words, (case, record["parts"])
             assert [finish["by"] for finish in record["finishes"]] == by, (case, record["finishes"])
             assert all(record["finishes"][index]["surface"] == surface for index, surface in kept.items()), case
-            assert all(finish["measured_lab"] is not None for finish in record["finishes"]), (case, record)
+            assert {finish["finish"] for finish in record["finishes"] if finish["measured_lab"] is None} == unmeasured, (
+                case, record["finishes"])
             assert all(finish["delta_e"] <= finish_parts.COLOUR_DELTA_E for finish in record["finishes"]
-                       if finish["by"] == "the list"), (case, record["finishes"])
-            assert record["colour_from"].startswith("close-up") == laid, (case, record["colour_from"])
+                       if finish["by"] == "the list" and finish["finish"] not in unmeasured), (
+                case, record["finishes"])
+            assert record["colour_from"].startswith("close-up") == (laid is not None), (case, record["colour_from"])
             assert len(np.load(rows["surfaces-parts"] / TAKE / "parts.npy")) == 24, case
             assert surfaces.finish_parts.parts_faults(rows["surfaces-parts"]) == [], case
             assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass", case
-            textured = route_parts.seen_colours(rows["finish-route-views"] / TAKE, finish_of.astype(int), 2)
+            textured = route_parts.seen_colours(rows["finish-route-views"] / TAKE, finish_of.astype(int),
+                                                len(record["finishes"]))
             assert all(np.linalg.norm(colour - finish_parts.library_lab(finish)) > finish_parts.COLOUR_DELTA_E
                        for colour, finish in zip(textured, record["finishes"])) == texture_off, (case, textured)
             if fault_count is not None:
@@ -2113,8 +2127,7 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     # one batch asks every take, library first, each object its own seed, the list's wear taken only with a cause
     rows, asked = worlds["every finish labels its region, two takes in one batch"]
     body = asked[0][TAKE]
-    count = len(json.loads((rows["finish-route-views"] / "views.json").read_text())[TAKE]["views"])
-    assert "serviceTier" not in body and len(body["contents"][0]["parts"]) == 2 * count + 2  # close-up, views, text
+    assert "serviceTier" not in body  # its parts' count (two a view, then two) is the LISTED row's
     found = json.loads((rows["finish-route-list"] / f"{TAKE}.json").read_text())
     seed = route_list.take_seed(7, TAKE)
     assert seed != route_list.take_seed(7, OTHER)  # each object's wear and dirt pattern its own
@@ -3444,18 +3457,20 @@ def libraried(folder):
 VIEWS_MADE = {}  # {(takes, the model's bytes): a views output made once}: the make casts 120 views, about 2.5 s
 
 
-def cast_views(folder, takes=(TAKE,)):
+def cast_views(folder, takes=(TAKE,), labelled_close_up=False):
     """The views row's make on the two boxes (each take named the same model), the object filter keeping `takes`;
-    the inputs carry the scene palette. Made once a module for the same takes and model (VIEWS_MADE), copied after."""
+    the inputs carry the scene palette, and with `labelled_close_up` the two boxes' own close-up and camera with the
+    GREEN label (close_up_of). Made once a module for the same takes, model and close-up (VIEWS_MADE), copied after."""
     views = folder / "views"
     model = two_boxes(folder)
     inputs = {"surfaces": place_data(folder), "finish-route-palette": paletted(folder),
-              "surface-library": libraried(folder), **{f"model {take}": model for take in takes}}
-    made = VIEWS_MADE.get((takes, model.read_bytes()))
+              "surface-library": libraried(folder), **{f"model {take}": model for take in takes},
+              **(close_up_of(folder, model, label=True) if labelled_close_up else {})}
+    made = VIEWS_MADE.get((takes, model.read_bytes(), labelled_close_up))
     if made is None:
         views.mkdir()
         route_views.make_views(inputs, views, 7, {"objects": list(takes)})
-        made = VIEWS_MADE[takes, model.read_bytes()] = pathlib.Path(tempfile.mkdtemp()) / "views"
+        made = VIEWS_MADE[takes, model.read_bytes(), labelled_close_up] = pathlib.Path(tempfile.mkdtemp()) / "views"
         shutil.copytree(views, made)
     else:
         shutil.copytree(made, views)
@@ -3493,11 +3508,11 @@ def two_finish_answer(views, finish_of_colour=lambda view, colour: 1 if colour =
     return {"finishes": finishes, "labels": labelled(views, finish_of_colour)}
 
 
-def listed(folder, answer, takes=(TAKE,), again=None):
+def listed(folder, answer, takes=(TAKE,), again=None, labelled_close_up=False):
     """The views and list rows made with the list's batch faked to answer `answer(views, take)` (a dict, or an
     exception the batch holds), every ask after the first `again(views, take)` when given: the rows' inputs and the
     batches asked."""
-    inputs, views = cast_views(folder, takes)
+    inputs, views = cast_views(folder, takes, labelled_close_up)
     asked = []
     original = route_list.ask
 
@@ -3618,6 +3633,18 @@ def blue_in_steel(views, take):
                                                     finish_entry("blue paint", surface=steel, token="steel")])
 
 
+def close_up_labelled(views, take):
+    """Every region shown in every view, the laid close-up's among them, labelled by its colour: the red box's (in
+    the texture's or the close-up's light) the red finish, the blue box's the blue, the GREEN label a third finish."""
+    record = json.loads((views / "views.json").read_text())[take]
+    finish_of_srgb = {RED: 1, LIT_RED: 1, BLUE: 2, LIT_BLUE: 2, GREEN: 3}
+    shown = route_list.regions_shown(views / take, route_list.labelled_views(views / take, record["views"]))
+    labels = [{"view": view, "region": region + 1, "finish": finish_of_srgb[tuple(record["regions"][region]["srgb"])]}
+              for view, regions in shown.items() for region in regions]
+    return {"finishes": [finish_entry("red paint"), finish_entry("blue paint", token="bay-three"),
+                         finish_entry("green label")], "labels": labels}
+
+
 def batch_expired(views, take):
     """The two boxes' take lost with its batch, the other answered."""
     if take == TAKE:
@@ -3663,79 +3690,47 @@ SPLIT_VOTES = [
 
 
 LISTED = [
-    ("every finish labels its region, two takes in one batch", ((RED, BLUE), red_and_blue, None, (TAKE, OTHER),
-                                                                False),
-     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), None),
-    ("every finish labels its region, parted", ((RED, BLUE), red_and_blue, None, (TAKE,), False),
-     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]),
-     (["the list", "the list"], {}, False, None, None)),
+    ("every finish labels its region, two takes in one batch", ((RED, BLUE), red_and_blue, None, (TAKE, OTHER), None),
+     (1, {0, 1}, None, 2, None), ("pass", None), ("pass", None, [12, 12]), None),
+    ("every finish labels its region, parted", ((RED, BLUE), red_and_blue, None, (TAKE,), None),
+     (1, {0, 1}, None, 2, None), ("pass", None), ("pass", None, [12, 12]),
+     ({"red paint", "blue paint"}, ["the list", "the list"], {}, set(), False, None, None)),
     ("the blue box listed in red: the split decides by the labels alone", ((RED, BLUE), blue_in_red, None, (TAKE,),
-                                                                            False),
-     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), None),
-    ("the blue box's region left out: unassigned, a gap", ((RED, BLUE), blue_left_out, None, (TAKE,), False),
-     (2, {0}, "finish 2 (blue paint) but labels no region"), ("pass", None), ("fail", "unassigned", None), None),
+                                                                            None),
+     (1, {0, 1}, None, 2, None), ("pass", None), ("pass", None, [12, 12]), None),
+    ("the blue box's region left out: unassigned, a gap", ((RED, BLUE), blue_left_out, None, (TAKE,), None),
+     (2, {0}, "finish 2 (blue paint) but labels no region", 2, None), ("pass", None), ("fail", "unassigned", None),
+     None),
     ("the blue finish labels no region, asked once more and labelled", ((RED, BLUE), all_red, red_and_blue,
-                                                                        (TAKE,), False),
-     (2, {0, 1}, "finish 2 (blue paint) but labels no region"), ("pass", None), ("pass", None, [12, 12]), None),
+                                                                        (TAKE,), None),
+     (2, {0, 1}, "finish 2 (blue paint) but labels no region", 2, None), ("pass", None), ("pass", None, [12, 12]),
+     None),
     ("asked once more and the red now labels none: no fewer, the first stands", ((RED, BLUE), all_red, all_blue,
-                                                                                (TAKE,), False),
-     (2, {0}, "finish 2 (blue paint) but labels no region"), ("pass", None), None, None),
+                                                                                (TAKE,), None),
+     (2, {0}, "finish 2 (blue paint) but labels no region", 2, None), ("pass", None), None, None),
     ("a texture shaded off its tokens, the close-up near them", ((SHADED_RED, SHADED_BLUE), red_and_blue, None,
-                                                                 (TAKE,), True),
-     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), (["the list", "the list"], {}, True, 0, None)),
-    ("the blue box as bare steel, off its colour", ((RED, BLUE), blue_in_steel, None, (TAKE,), True),
-     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), (["the list", "off its colour"],
-                                                                  {1: "bare_steel"}, False, 1, "bare_steel")),
-    ("the two boxes' batch ended: a gap named by the list", ((RED, BLUE), batch_expired, None, (TAKE, OTHER), False),
-     (1, None, None),
+                                                                 (TAKE,), "split"),
+     (1, {0, 1}, None, 2, None), ("pass", None), ("pass", None, [12, 12]),
+     ({"red paint", "blue paint"}, ["the list", "the list"], {}, set(), True, 0, None)),
+    ("the blue box as bare steel, off its colour", ((RED, BLUE), blue_in_steel, None, (TAKE,), "split"),
+     (1, {0, 1}, None, 2, None), ("pass", None), ("pass", None, [12, 12]),
+     ({"red paint", "blue paint"}, ["the list", "off its colour"], {1: "bare_steel"}, set(), False, 1,
+      "bare_steel")),
+    ("the two boxes' batch ended: a gap named by the list", ((RED, BLUE), batch_expired, None, (TAKE, OTHER), None),
+     (1, None, None, 2, None),
      ("fail", f"{TAKE}: no finish list (no usable answer: Unanswered('the batch ended JOB_STATE_EXPIRED'))"), None,
      None),
+    # greenhouse desk (2026-10-29): the close-up showed a red DANGER label, a blue decal and teal screens the raw
+    # take's texture lacks, so no region of any view had them and no part owned them. The close-up, laid on the model
+    # through its camera, is one more view of the regions: its GREEN label (on the red box's front, in no texture) has
+    # a region, the list labels it (the laid close-up's regions the ask's last part), its faces take that finish and
+    # it is a part; the finishes the views do show stay voted.
+    ("a finish only the close-up shows gets its region, its faces and a part", ((RED, BLUE), close_up_labelled, None,
+                                                                                (TAKE,), "views"),
+     (1, {0, 1, 2}, None, 3, "the view named close-up"), ("pass", None), ("pass", None, [2, 10, 12]),
+     ({"red paint", "blue paint", "green label"}, ["the list", "the list", "off its colour"], {},
+      {"red paint"}, False, None, None)),
 ]
-
-
-def test_a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part():
-    """greenhouse desk (2026-10-29): the close-up shows a red DANGER label, a blue decal and teal screens that the raw
-    take's texture lacks, so no region of any view had them and no part owned them. The close-up, laid on the model
-    through its camera, is one more view of the regions: its green label (on the red box's front, in no texture) has a
-    region, the list labels it, and its faces take that finish; the finishes the views do show stay voted."""
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        views = folder / "views"
-        views.mkdir()
-        model = two_boxes(folder)
-        inputs = {"surfaces": place_data(folder), "finish-route-palette": paletted(folder),
-                  "surface-library": libraried(folder), f"model {TAKE}": model,
-                  **close_up_of(folder, model, label=True)}
-        route_views.make_views(inputs, views, 7, {"objects": [TAKE]})
-        record = json.loads((views / "views.json").read_text())[TAKE]
-        assert record["close_up_laid"]["laid"] and record["close_up_laid"]["fit"] >= route_cast.CLOSE_UP_FIT, record
-        assert list(GREEN) in [entry["srgb"] for entry in record["regions"]], record["regions"]
-        finish_of_srgb = {RED: 1, LIT_RED: 1, BLUE: 2, LIT_BLUE: 2, GREEN: 3}
-        shown = route_list.regions_shown(views / TAKE, route_list.labelled_views(views / TAKE, record["views"]))
-        assert route_views.CLOSE_UP in shown
-        labels = [{"view": view, "region": region + 1,
-                   "finish": finish_of_srgb[tuple(record["regions"][region]["srgb"])]}
-                  for view, regions in shown.items() for region in regions]
-        answer = {"finishes": [finish_entry("red paint"), finish_entry("blue paint", token="bay-three"),
-                               finish_entry("green label")], "labels": labels}
-        asked, original = [], route_list.ask
-        route_list.ask = lambda bodies: asked.append(bodies) or {take: json.dumps(answer) for take in bodies}
-        try:
-            out = folder / "list"
-            out.mkdir()
-            route_list.make_list({**inputs, "finish-route-views": views}, out, 7, {"objects": [TAKE]})
-        finally:
-            route_list.ask = original
-        body = asked[0][TAKE]
-        assert len(body["contents"][0]["parts"]) == 2 * len(record["views"]) + 3  # the laid close-up's regions last
-        assert "the view named close-up" in body["contents"][0]["parts"][-1]["text"]
-        rows = parted(folder, split(folder, {**inputs, "finish-route-views": views, "finish-route-list": out}))
-        finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy")
-        mesh = route_split.model_of(views / TAKE)
-        front = (mesh.triangles_center[:, 0] < 0) & (mesh.face_normals[:, 2] > 0.9)
-        assert (finish_of[front] == 2).all() and (finish_of[~front] != 2).all(), finish_of
-        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
-        assert {row["words"] for row in found["parts"]} == {"red paint", "blue paint", "green label"}, found["parts"]
 
 
 def bake_made(folder, rows):
