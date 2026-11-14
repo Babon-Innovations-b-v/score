@@ -744,31 +744,32 @@ REMADE = "automatic free remake, attempt 2, after "
 GAPS = "its accepted gaps name 2 objects, at most 1 passes on to the film"
 
 # A failed output's fate, one row a world: (id, stage, the hangar's brief, its make asks a cache, this PC's card,
-# what the run did, the notes [(attempt, then, {failed check: measures})], the owner's list [(attempt, why, euros)],
-# the records under the node, the standing record's remake why). Worked out by hand from the toy rows: PICK fails
+# what the run did, the notes [(attempt, then, {failed check: measures}, a fix's why)], the owner's list
+# [(attempt, why, euros)], the records under the node, the standing record's remake why). Worked out by hand from the toy rows: PICK fails
 # only on its own first seed; SHOUT fails on "!" whatever its seed; parts fails always; gaps count the brief's words.
 FATES = [
     ("free-remake-passes", PICK, "a ship", False, None,
      f"made: fail; {REMADE}first-seed: made: pass, accepted automatically",
-     [(1, "remake", FIRST_SEED), (2, "done", {})], [], 2, f"{REMADE}first-seed"),
+     [(1, "remake", FIRST_SEED, None), (2, "done", {}, None)], [], 2, f"{REMADE}first-seed"),
     ("free-remake-fails-again", SHOUT, "a ship!", False, None,
      f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
-     [(1, "remake", {"shout": {}}), (2, "owner", {"shout": {}})], [(2, "both attempts failed", 0.0)], 2,
+     [(1, "remake", {"shout": {}}, None), (2, "owner", {"shout": {}}, None)], [(2, "both attempts failed", 0.0)], 2,
      f"{REMADE}shout"),
     ("paid-off-this-pc", PAID_SHOUT, "a ship!", False, None,
      "made: fail; a paid remake: on the owner's list, priced",
-     [(1, "owner", {"shout": {}})], [(1, "its remake is paid", 0.4)], 1, None),
+     [(1, "owner", {"shout": {}}, None)], [(1, "its remake is paid", 0.4)], 1, None),
     ("paid-on-this-pcs-card", PAID_SHOUT, "a ship!", False, "local",
      f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
-     [(1, "remake", {"shout": {}}), (2, "owner", {"shout": {}})], [(2, "both attempts failed", 0.4)], 2,
+     [(1, "remake", {"shout": {}}, None), (2, "owner", {"shout": {}}, None)], [(2, "both attempts failed", 0.4)], 2,
      f"{REMADE}shout"),
     ("cached-asks", PICK, "a ship", True, None, f"made: fail; {graph.SAME_ANSWER}",
-     [(1, "fix", FIRST_SEED)], [], 1, None),
+     [(1, "fix", FIRST_SEED, graph.SAME_ANSWER)], [], 1, None),
     ("check-of-inputs", UNSEEDED_PARTS, "a ship", False, None,
-     f"made: fail; {graph.SAME_INPUTS}: crate: no lid", [(1, "fix", {"parts": {}})], [], 1, None),
+     f"made: fail; {graph.SAME_INPUTS}: crate: no lid",
+     [(1, "fix", {"parts": {}}, f"{graph.SAME_INPUTS}: crate: no lid")], [], 1, None),
     ("one-gap-object", GAPPED_ROW, "hatch hatch", False, None, "made: fail, accepted automatically", [], [], 1, None),
     ("two-gap-objects", GAPPED_ROW, "hatch ship", False, None, f"made: fail; {GAPS}: on the owner's list, priced",
-     [(1, "owner", {graph.GAPPED: {"gaps": 2}})], [(1, GAPS, 0.0)], 1, None),
+     [(1, "owner", {graph.GAPPED: {"gaps": 2}}, None)], [(1, GAPS, 0.0)], 1, None),
 ]
 
 
@@ -794,7 +795,11 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_fo
     Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and not stage.seeded else'
     Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and asks_cached(stage) else'
     Break: score/stages/__init__.py: '"light", "motion", "sim-body")' -> '"light", "motion")'
-    Break: score/graph/__init__.py: 'then = "owner" if too_many_gaps(failed) else then' -> 'then = then'"""
+    Break: score/graph/__init__.py: 'then = "owner" if too_many_gaps(failed) else then' -> 'then = then'
+    Break: score/graph/__init__.py: 'entry["why"] = fix_why(stage, entry["failed"])' -> 'entry["why"] = ", ".join(
+    entry["failed"])' (the note's why names the checks, not the findings)
+    Break: score/graph/__init__.py: 'self.evidence_state(stage, record["output"])) is not None:' -> '... is not None
+    and False:' (a later run judges the standing output again)"""
     from score import stages
     from score.stages import physics
     from score.stages.surfaces import route_list
@@ -814,7 +819,8 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_fo
         assert runner.run(["hangar"]) == {node: did}, name
         written = noted(runner, "notes")
         assert [(entry["attempt"], entry["then"], {check: verdict["measures"] for check, verdict in
-                 entry["failed"].items()}) for entry in written] == notes, (name, written)
+                 entry["failed"].items()}, entry["why"] if entry["then"] == "fix" else None)
+                for entry in written] == notes, (name, written)
         listed = noted(runner, "owner-list")
         assert [(entry["node"], entry["attempt"], entry["why"], entry["euros"]) for entry in listed] == \
             [(node, *entry) for entry in owner], (name, listed)
@@ -824,6 +830,8 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_fo
         assert store.accepted(node) == (record["output"] if stands else None), name
         runner.drive(["hangar"], say=quiet)
         assert noted(runner, "notes") == written and noted(runner, "owner-list") == listed, name
+        assert len(store.records(node)) == records, (name, store.records(node))
+        assert not stands or a_runner(world, store, (stage,)).run(["hangar"]) == {node: "fresh"}, name
         if written and not stands:  # a noted node that does not stand: every attempt in its fault report
             text = report_of(runner, node).read_text()
             assert all(f"attempt {entry['attempt']} (key " in text for entry in written if entry["failed"]), name
