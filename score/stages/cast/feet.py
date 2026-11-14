@@ -22,7 +22,7 @@ import numpy as np
 import trimesh
 
 from score.stages import cast
-from score.stages.cast import measure, spread, walks
+from score.stages.cast import measure, seated, spread, walks
 
 # measure.FOOT_STEP: the footprint's own ground lies within it of one plane (measure.level_under), so a floor the feet
 # stand on is never in their way.
@@ -49,9 +49,9 @@ SEAT_BAND = 0.1  # metres: a seat's surface this far under its top still carries
 
 def make(inputs, out, seed, params):
     """cast.make, its people stood round their spots on near-level ground with their feet's room clear (feet_kept),
-    its walkers where their whole walk is (walks.walks_kept) and its seated people facing away from their seat's back
-    (seats_faced)."""
-    with feet_kept(), walks.walks_kept(), seats_faced():
+    its walkers where their whole walk is (walks.walks_kept), its seated people facing away from their seat's back
+    where their legs and head have room (seats_faced), and the clear gate measuring that room (seated.room_measured)."""
+    with feet_kept(), walks.walks_kept(), seats_faced(), seated.room_measured():
         cast.make(inputs, out, seed, params)
 
 
@@ -75,12 +75,20 @@ def seats_faced():
 
     def supported(record, found):
         """cast.on_support's record, each seated person turned away from its seat's back and sat at a bed's edge
-        (`edge_seated`), its turn kept in `faced`."""
+        (`edge_seated`), then moved where its legs and head have room, or stood (seated.roomed), its turn kept in
+        `faced`."""
         placed = SUPPORTED(record, found)
+        designed = {person["name"]: person for person in record.get("people", [])}
+        taken = {person["seat_on"] for person in placed.get("people", []) if person.get("seat_on")}
+
+        def sat(person):
+            return edge_seated(facing_seats(person, found), found)
         people = []
         for person in placed.get("people", []):
-            turned = edge_seated(facing_seats(person, found), found)
-            if turned is not person:
+            turned = seated.roomed(sat(person), designed[person["name"]], taken, found, sat)
+            if turned.get("seat_on") != person.get("seat_on"):
+                taken = (taken - {person.get("seat_on")}) | ({turned["seat_on"]} if turned.get("seat_on") else set())
+            if turned is not person and turned.get("doing") == "seated":
                 faced[person["name"]] = turned["turn"]
             people.append(turned)
         return dict(placed, people=people) if "people" in placed else placed
