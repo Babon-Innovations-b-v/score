@@ -266,22 +266,6 @@ def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monke
     assert compute.cap_refusal(runner.store, 1e6) is None  # a closed cap refuses nothing
 
 
-def test_the_judge_timeout_is_an_operational_setting_outside_every_key():
-    """120 s by default, SCORE_JUDGE_TIMEOUT read when the call is made; the models adapter's keyed record holds no
-    time limit (a limit decides whether an answer comes back, never what it says)."""
-    from score.adapters import models
-    saved = os.environ.pop(compute.JUDGE_TIMEOUT, None)
-    try:
-        assert compute.judge_timeout() == 120.0
-        os.environ[compute.JUDGE_TIMEOUT] = "90"
-        assert compute.judge_timeout() == 90.0
-    finally:
-        os.environ.pop(compute.JUDGE_TIMEOUT, None)
-        if saved is not None:
-            os.environ[compute.JUDGE_TIMEOUT] = saved
-    assert not any("timeout" in setting for setting in models.api_record("gemini-judge"))
-
-
 def run_line(number, euros, minutes):
     """One paid run of the render stage on one card with two jobs."""
     machine = {"cards": 1, "minutes": minutes, "euros": euros, "unit_seconds": [60, 60], "setup_minutes": 1.0}
@@ -309,135 +293,11 @@ def make_takes(inputs, out, seed, params):
     (out / "takes.json").write_text(json.dumps({"a-s1": 1, "b-s1": 2, "c-s1": (inputs["brief"] / "brief.txt").read_text()}))
 
 
-def test_a_retake_is_cleared_and_priced_for_its_own_takes_not_every_take_of_its_place():
-    """Fault (#36, 2026-10-30): a retake (graph.Stage.retakes) remakes only the takes the owner's reject names, yet its
-    clearance drew per unit times every take the output accepted before the rejected one made (pixal@cockpit: 11
-    takes, EUR 2.58, for one at EUR 0.23), and the Buy's price the same. A make that is no retake keeps that price."""
-    saved, kept = BOOKS.entries, compute.PER_UNIT
-    folder = pathlib.Path(tempfile.mkdtemp())
-    compute.PER_UNIT = folder / "per-unit.json"
-    compute.PER_UNIT.write_text(json.dumps({"stages": {"render": {
-        "stage": "render", "unit": "model", "count": {"json_keys": "takes.json"}, "also": [], "likely_euros": 0.2,
-        "high_euros": 0.5, "runs": 40, "sources": {}, "forecast": {"rule": "one", "source": "a toy's"}}}}))
-    made = graph.Stage("render", "place", make_takes, TEXT, (checks.Check("said", lambda *_: checks.Verdict(
-        "said", checks.PASS, "made")),), after={"brief": ("toy-text", 1)}, retakes=True)
-    runner = a_runner("a hall")
-    for text in ("a hall", "a wide hall"):  # two accepted makes: the reject puts the earlier one back
-        (runner.world.roots["data"] / "hangar.txt").write_text(text)
-        runner = graph.Runner([BRIEF, made], runner.world, runner.store)
-        runner.run_node(BRIEF, "hangar")
-        runner.run_node(made, "hangar")
-    paid = dataclasses.replace(made, paid=True)
-    share = compute.BILL_SHARE
-    from score.__main__ import selected_price
-    from score.stages.complete.gaps import price
-    planned, buy = price.planned_units, types.SimpleNamespace(node="render@hangar", euros=9.0)
-    try:
-        BOOKS.entries = lambda: []
-        whole = graph.Runner([BRIEF, paid], runner.world, runner.store)
-        assert compute.retake_takes(whole, "render@hangar") is None
-        assert compute.planned_forecast(whole, "render@hangar", 9.0)["euros"] == round(1.5 * share, 4)
-        price.planned_units = lambda *_: 3  # the Buy's plan counts the place's every take
-        assert selected_price(whole, buy)["high_euros"] == round(1.5 * share, 4)
-        price.planned_units = planned
-        review.reject(runner.store, "render@hangar", runner.store.accepted("render@hangar"), "owner", "a block",
-                      takes=("b-s1",))
-        retake = graph.Runner([BRIEF, paid], runner.world, runner.store)
-        assert compute.retake_takes(retake, "render@hangar") == ["b-s1"]
-        assert compute.planned_forecast(retake, "render@hangar", 9.0)["euros"] == round(0.5 * share, 4)
-        price.planned_units = lambda *_: 3
-        assert selected_price(retake, buy)["high_euros"] == round(0.5 * share, 4)
-    finally:
-        BOOKS.entries, compute.PER_UNIT, price.planned_units = saved, kept, planned
-
-
-def test_a_measured_settle_run_is_not_timed_below_the_runs_it_is_read_from():
-    """The repository's per-unit file on the paper ledger's settle lines: one drop run's likely minutes within a
-    minute of the runs' median wall minutes, and its high at or above their HIGH quantile (the set-up in the machine
-    counted, not only the start wait)."""
-    sys.path.insert(0, str(compute.REPO / "tools/costs"))
-    import per_unit
-    paper = compute.REPO / "paper/evidence/cloud/ledger.jsonl"
-    walls = [line["wall_minutes"] for line, _ in per_unit.ledger_lines([paper])
-             if per_unit.matches(line, per_unit.SPECS["settle"]["cloud"])]
-    timed = compute.unit_minutes("settle", 1)
-    assert abs(timed["likely_minutes"] - statistics.median(walls)) <= 1.0, (timed, sorted(walls))
-    assert timed["high_minutes"] >= per_unit.quantile(walls, per_unit.HIGH), (timed, sorted(walls))
-
-
-def test_pixal_s_time_holds_its_finish_of_every_take():
-    """Buy of 2026-10-24: pixal finished its takes on machines of their own after its batch, and the forecast held
-    the batch alone. The per-unit file's pixal time holds its finish step (`then`), read from the blender lines its
-    node ran, and unit_minutes adds that step on its own machines: at least a set-up and a finish job more."""
-    sys.path.insert(0, str(compute.REPO / "tools/costs"))
-    import per_unit
-    then = compute.per_unit("pixal")["time"]["then"]
-    assert then["kind"] == per_unit.SPECS["pixal"]["then"]["kind"] and "unit_seconds" in then, then
-    with_finish = compute.unit_minutes("pixal", 20)
-    likely, high = compute.then_minutes(then, 20)
-    assert likely >= then["setup_minutes"]["likely"] + then["unit_seconds"]["likely"] / 60, (likely, then)
-    assert high >= likely and compute.then_minutes({"why": "none"}, 20) == (0.0, 0.0)
-    line = {"kind": "blender", "ticket": "pixal@yard k", "jobs": ["a", "b"], "machines": [
-        {"started": True, "start_wait_minutes": 0.5, "setup_minutes": 1.0, "unit_seconds": [40.0, 50.0]}]}
-    found = per_unit.then_times([(line, "test line 1"), ({**line, "ticket": "settle@yard k"}, "test line 2")],
-                                "pixal", "blender")
-    assert found["lines"] == 1 and found["unit_seconds"]["likely"] == 45.0, found
-    assert with_finish["likely_minutes"] is not None, with_finish
-
-
-def test_a_stage_row_says_where_its_estimate_is_written():
-    """A paid row records the line that builds it (through a helper that hands its euros on), so a guess names it;
-    a row made from another by dataclasses.replace keeps the first's line unless its estimate changed."""
-    def row(name, **more):
-        return graph.Stage(name, "place", make_nothing, TEXT, **more)
-
-    built = row("render", paid=True, euros=2.0)
-    line = sys._getframe().f_lineno - 1
-    assert built.euros_from == f"score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py:{line}", built.euros_from
-    assert dataclasses.replace(built, name="render-again").euros_from == built.euros_from
-    moved = dataclasses.replace(built, euros=3.0)
-    assert moved.euros_from == f"score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py:{sys._getframe().f_lineno - 1}"
-    assert RENDER.euros_from is None  # no estimate, nothing to say
-
-
-def test_the_owners_google_month_is_refused_in_an_agents_process():
-    """Only the owner knows what Google billed before its ledger began again (#13): an agent's figure opens nothing."""
-    kept = BOOKS.BOOKS
-    BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
-    os.environ["CLAUDECODE"] = os.environ.get("CLAUDECODE", "1")
-    try:
-        compute.owners_google_month(400.0)
-    except compute.Refused as refusal:
-        assert "owner" in str(refusal)
-    else:
-        raise AssertionError("an agent wrote the owner's Google month")
-    finally:
-        written, BOOKS.BOOKS = BOOKS.BOOKS.exists(), kept
-    assert not written
-
-
-def test_the_cockpits_google_line_is_the_bill_else_the_owners_figure_else_no_figure():
-    """The cockpit's Google month (`score spend`'s line): the billing export's bill once read back, else the owner's
-    books figure plus the ledger since, else no figure at all, never the call ledger alone (it showed EUR 0.00 for a
-    month Google billed about EUR 1,030)."""
-    from score import __main__ as command
-    kept = BOOKS.BOOKS
-    BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
-    month = BOOKS.this_month()
-    try:
-        BOOKS.write_books({"month": month, "state": "lost", "google_unread": "the export holds no rows yet"})
-        unread = command.google_line()
-        assert unread["euros"] is None and unread["partial"] and unread["origin"] == "the export holds no rows yet"
-        BOOKS.write_books({"month": month, "state": "known", "google_before": 1030.0, "google_at": "t"})
-        assert command.google_line()["euros"] == 1030.0 + google_spend.month_euros(month)
-        BOOKS.write_books({"month": month, "state": "known", "google_bill": 1031.5, "google_bill_at": "t",
-                           "google_before": 1030.0})
-        billed = command.google_line()
-        assert billed["euros"] == 1031.5 and not billed["partial"] and "billing export" in billed["origin"]
-        days = command.ledger_days(month)
-        assert days[0]["day"] == f"{month}-01" and set(days[-1]) == {"day", "cloud", "models"}
-    finally:
-        BOOKS.BOOKS = kept
+MADE_TAKES = graph.Stage("render", "place", make_takes, TEXT, (checks.Check("said", lambda *_: checks.Verdict(
+    "said", checks.PASS, "made")),), after={"brief": ("toy-text", 1)}, retakes=True)  # a retake's stage, unpaid
+PAID_TAKES = dataclasses.replace(MADE_TAKES, paid=True)
+SPENT_PIXAL = {"kind": "blender", "ticket": "pixal@yard k", "jobs": ["a", "b"], "machines": [
+    {"started": True, "start_wait_minutes": 0.5, "setup_minutes": 1.0, "unit_seconds": [40.0, 50.0]}]}
 
 
 def ledger(*lines):
@@ -557,55 +417,6 @@ def billed(ticket, euros):
     time.sleep(1.05)
 
 
-def test_the_runs_heartbeat_holds_its_pool_longer_only_near_its_end_and_within_its_money():
-    from score import __main__ as command
-    runner = a_runner("a hall")
-    ledger({"euros": 90.0})
-    BILL["euros"] = 100.0
-    stop_at(runner, 13.0)
-    opened = compute.pool_clearance(runner, "run-beat", [({"gpu-24gb": 1}, 6.0)], 4)
-    plan, extended = {"deadline": time.time() + 7200}, []
-    fake = types.SimpleNamespace(current=lambda run_id: plan, holding_euros=lambda sizes, hours: 6.0,
-                                 extend=lambda run_id, deadline, euros: extended.append((deadline, euros)))
-    kept = command.cloud_tool, os.environ.get(compute.RUN_ID)
-    command.cloud_tool, os.environ[compute.RUN_ID] = (lambda name: fake), "run-beat"
-    command.POOL_TICKET[:] = [opened]
-    try:
-        command.extend_pool(runner)
-        assert not extended  # two hours left: not yet
-        plan["deadline"] = time.time() + 600
-        command.extend_pool(runner)
-        hours = compute.ledger().BATCH_HOURS
-        assert extended == [(plan["deadline"] + hours * 3600, 12.0)], extended
-        command.extend_pool(runner)  # 12 held + 6 passes the EUR 13 stop: the pool ends at its cleared end
-        assert len(extended) == 1 and "pass the EUR 13.00 stop" in opened["refused"]
-    finally:
-        command.cloud_tool, command.POOL_TICKET[:] = kept[0], []
-        os.environ.pop(compute.RUN_ID) if kept[1] is None else os.environ.update({compute.RUN_ID: kept[1]})
-        compute.release(opened)
-
-
-def test_a_run_draws_its_stages_gemini_calls_in_its_time_under_the_callers_they_carry():
-    """A body face's call is ledgered as caller body-face, a close-up's as pro; a call started and never finished
-    counts at its estimate; another stage's call, or one outside the run's time, is not its own."""
-    import google_spend
-    kept, google_spend.LEDGER = google_spend.LEDGER, pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"
-    try:
-        ledger({"euros": 0.0})
-        lines = [("10:00:30+02:00", "finished", "body-face", 0.03), ("10:00:40+02:00", "finished", "pro", 0.14),
-                 ("10:00:50+02:00", "started", "body-face", None), ("10:05:00+02:00", "finished", "body-face", 9.0)]
-        google_spend.LEDGER.write_text("".join(json.dumps(
-            {"time": f"2026-10-22T{at}", "call": f"c{index}", "state": state, "caller": caller, "euros": euros,
-             "model": "gemini-3.1-pro-preview", "estimate": 0.05}) + "\n" for index, (at, state, caller, euros)
-            in enumerate(lines)))
-        hold = {"node": "body-face-earth", "key": "k", "at": "2026-10-22T08:00:00+00:00"}
-        store = Store.in_folder(tempfile.mkdtemp())
-        assert compute.run_spend(store, hold, "2026-10-22T08:01:00+00:00")["google"] == 0.08
-        assert compute.run_spend(store, {**hold, "node": "closeup@hall"}, "2026-10-22T08:01:00+00:00")["google"] == 0.14
-    finally:
-        google_spend.LEDGER = kept
-
-
 def measured_lines(stage, euros, minutes=20.0):
     """The ledger lines of one batch each of four paid runs of `stage`, at these euros, this month."""
     return [{"ticket": f"{stage}@place{number} key{number}", "started": BOOKS.this_month(), "kind": "blender",
@@ -672,6 +483,18 @@ def books_text():
     return BOOKS.BOOKS.read_text() if BOOKS.BOOKS.exists() else None
 
 
+def a_stage_row(name, **more):
+    """A row of the render stage's shape, built through a helper that hands its euros on."""
+    return graph.Stage(name, "place", make_nothing, TEXT, **more)
+
+
+GEMINI = "gemini-3.1-pro-preview"
+RUN_CALLS = [("2026-10-22T10:00:30+02:00", "finished", "body-face", 0.03),  # a run's calls: 08:00 to 08:01 UTC
+             ("2026-10-22T10:00:40+02:00", "finished", "pro", 0.14),
+             ("2026-10-22T10:00:50+02:00", "started", "body-face", None),  # never finished: at its estimate
+             ("2026-10-22T10:05:00+02:00", "finished", "body-face", 9.0)]  # after the run's time
+
+
 # One row a world: its brief, the owner's stop line (euros, baseline) or none, the ledger's lines, the bill, an
 # override or a benchmark grant standing; then its steps against the clearance, each answered by the real entry point:
 #   ("submit"|"clear", euros, grant tag, run, expected): a job through compute.submit, or a run through
@@ -714,6 +537,24 @@ def books_text():
 #     grant's fields and then the books' (None: the books untouched)
 #   ("forge", id, fields): a grant record written straight into the store, unquoted or too dear
 #   ("listing", prefix, keys): a folder store's narrowed listing is the whole walk's, and these keys where given
+#   ("timeout", setting, seconds): compute.judge_timeout with SCORE_JUDGE_TIMEOUT at that setting (None: unset);
+#     the models adapter's keyed record holds no time limit
+#   ("row", fields, replaced, line): a stage row built with these fields, then dataclasses.replace'd; the line the
+#     replaced row names ("built", "replaced", or None: no estimate, nothing named)
+#   ("heartbeat", run, seconds left, euros, refused): the run's heartbeat (score.__main__.extend_pool) on the newest
+#     pool with its plan's end that far off; the holdings it extends by now, and the words its refusal left or None
+#   ("drawn", node, euros): the Google euros compute.run_spend draws for a run of `node` from 08:00 to 08:01 UTC
+#     on 2026-10-22, on the row's "google_calls" (time, state, caller, euros)
+#   ("google_month", euros, words): an agent's process gives the owner's Google month: refused, the books untouched
+#   ("google_line", books, expected): this month's books written so, the cockpit's Google line (score.__main__)
+#   ("days",): the cockpit's ledger days of this month, from its first day, each its cloud and models
+#   ("retake", takes, euros): a paid retake's stage on the row's "takes" makes: compute.retake_takes, then the
+#     clearance's planned_forecast and the Buy's selected_price (its plan counting 3 takes) both at `euros`
+#   ("reject takes", takes): the owner's reject of the accepted make names these takes
+#   ("ledger timed", stage): the repository's unit_minutes against the paper ledger's runs of that stage
+#   ("finish", stage, units): the repository's per-unit finish step (`then`) and the minutes it adds
+#   ("then", then, units, minutes): compute.then_minutes; ("then times", lines, stage, count, likely): the per-unit
+#     tool's finish times read from these ledger lines
 # A trial row's store is a trial's own inside the home (compare.py's): its stop line and reservations are the
 # framework store's, every cleared run's reservations kept there.
 # and what stands after: the outbox's lines, the grant's draws (euros, balance) and balance.
@@ -1058,6 +899,63 @@ ASKS = [
                             *[("listing", prefix, None) for prefix in ("clearances/n/k", "clearances/", "", "link/",
                                                                        "missing/x/", "blobs/")]]},
                  id="an unquoted or too dear grant clears nothing"),
+    # a time limit decides whether an answer comes back, never what it says: read when the call is made
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("timeout", None, 120.0), ("timeout", "90", 90.0), ("timeout", None, 120.0)]},
+                 id="the judge timeout is an operational setting outside every key"),
+    # a paid row records the line that builds it, so a guess names it; a row made from another by dataclasses.replace
+    # keeps the first's line unless its estimate changed
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("row", {"paid": True, "euros": 2.0}, {"name": "render-again"}, "built"),
+                            ("row", {"paid": True, "euros": 2.0}, {"euros": 3.0}, "replaced"),
+                            ("row", {"paid": True}, {"name": "render-again"}, None)]},
+                 id="a stage row says where its estimate is written"),
+    # its run's heartbeat holds the pool longer only once its end is near, and only while the money has room
+    pytest.param({"text": "a hall", "stop": 13.0, "ledger": [{"euros": 90.0}], "bill": 100.0,
+                  "steps": [("pool", [(ONE_CARD, 6.0)], None, "run-beat", {"sizes": ONE_CARD}),
+                            ("heartbeat", "run-beat", 7200, [], None),  # two hours left: not yet
+                            ("heartbeat", "run-beat", 600, [12.0], None),
+                            # 12 held + 6 passes the EUR 13 stop: the pool ends at its cleared end
+                            ("heartbeat", "run-beat", 600, [], "pass the EUR 13.00 stop")]},
+                 id="the run's heartbeat holds its pool longer only near its end and within its money"),
+    # a body face's call is ledgered as caller body-face, a close-up's as pro; a call started and never finished counts
+    # at its estimate; another stage's call, or one outside the run's time, is not its own
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "google_calls": RUN_CALLS,
+                  "steps": [("drawn", "body-face-earth", 0.08), ("drawn", "closeup@hall", 0.14)]},
+                 id="a run draws its stage's Gemini calls in its time under the callers they carry"),
+    # only the owner knows what Google billed before its ledger began again (#13): an agent's figure opens nothing.
+    # The cockpit's Google month is the billing export's bill once read back, else the owner's books figure plus the
+    # ledger since, else no figure, never the call ledger alone (it showed EUR 0.00 for a month billed about 1,030)
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}], "fresh_books": True,
+                  "google_calls": [(f"{MONTH}-02T09:00:00+00:00", "finished", "pro", 2.5)],
+                  "steps": [("google_month", 400.0, "owner"),
+                            ("google_line", {"state": "lost", "google_unread": "the export holds no rows yet"},
+                             {"euros": None, "partial": True, "origin": "the export holds no rows yet"}),
+                            ("google_line", {"state": "known", "google_before": 1030.0, "google_at": "t"},
+                             {"euros": 1032.5}),
+                            ("google_line", {"state": "known", "google_bill": 1031.5, "google_bill_at": "t",
+                                             "google_before": 1030.0},
+                             {"euros": 1031.5, "partial": False, "origin": Says("billing export")}),
+                            ("days",)]},
+                 id="the owner's Google month is his, the cockpit's line the bill else his figure else none"),
+    # #36, 2026-10-30: a retake remakes only the takes the owner's reject names, yet its clearance drew per unit times
+    # every take the output accepted before the rejected one made (pixal@cockpit: 11 takes, EUR 2.58, for one at EUR
+    # 0.23), and the Buy's price the same. A make that is no retake keeps that price
+    pytest.param({"text": "a hall", "ledger": [], "takes": ("a hall", "a wide hall"),
+                  "per_unit": {"render": per_unit_stage("render", forecast={"rule": "one", "source": "a toy's"})},
+                  "steps": [("retake", None, round(1.5 * SHARE, 4)),
+                            ("reject takes", ("b-s1",)),
+                            ("retake", ["b-s1"], round(0.5 * SHARE, 4))]},
+                 id="a retake is cleared and priced for its own takes, not every take of its place"),
+    # the repository's per-unit file: a settle run's likely minutes within a minute of the paper ledger's settle runs'
+    # median wall minutes and its high at or above their HIGH quantile (the set-up in the machine counted, not only the
+    # start wait). Buy of 2026-10-24: pixal finished its takes on machines of their own after its batch and the forecast
+    # held the batch alone; pixal's time holds its finish step (`then`), read from the blender lines its node ran, and
+    # unit_minutes adds it: at least a set-up and a finish job more
+    pytest.param({"text": "a hall", "ledger": [],
+                  "steps": [("ledger timed", "settle"), ("finish", "pixal", 20), ("then", {"why": "none"}, 20, (0.0, 0.0)),
+                            ("then times", [SPENT_PIXAL, {**SPENT_PIXAL, "ticket": "settle@yard k"}], "pixal", 1, 45.0)]},
+                 id="a stage is timed on the runs it is read from, pixal's finish of every take too"),
 ]
 
 
@@ -1073,6 +971,11 @@ def a_world(row):
     world = row.get("framework", row.get("trial", "toy"))
     runner = graph.Runner([BRIEF, RENDER], graph.Environment(world, 1, {"data": data}), store)
     runner.run_node(BRIEF, "hangar")
+    for text in row.get("takes", ()):  # accepted makes of a retake's stage: a reject puts the earlier one back
+        (data / "hangar.txt").write_text(text)
+        made = graph.Runner([BRIEF, MADE_TAKES], runner.world, store)
+        made.run_node(BRIEF, "hangar")
+        made.run_node(MADE_TAKES, "hangar")
     if row.get("reject"):
         review.reject(store, "brief@hangar", store.accepted("brief@hangar"), "owner", "the wrong hall")
     return runner
@@ -1103,7 +1006,10 @@ def test_paid_work_starts_only_inside_its_clearance(row):
     longer only while the money has room; a reading clears under the owner's allowance alone; a grant draws each
     run's real spend, a restored one too; only the owner writes the stop line, the world's start kept. That high is
     the price the cockpit shows: its measured runs, else per unit times the units counted or forecast, timed on the
-    card rule, else a guess at the estimate that names where it is written."""
+    card rule, else a guess at the estimate that names where it is written; a retake's price its own takes alone.
+    The run's heartbeat holds its pool longer near its end within the money; a run draws only its own Gemini calls;
+    the Google month is the owner's alone and the cockpit's line the bill else his figure; the judge's time limit
+    stays outside every key."""
     assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     runner = a_world(row)
     if "stop" in row:
@@ -1121,11 +1027,129 @@ def test_paid_work_starts_only_inside_its_clearance(row):
         BOOKS.BOOKS, None
     if row.get("fresh_books"):
         BOOKS.BOOKS = pathlib.Path(tempfile.mkdtemp()) / "books.json"
+    kept_calls, beats = google_spend.LEDGER, {"plan": {}, "extended": []}
+    if "google_calls" in row:
+        google_spend.LEDGER = pathlib.Path(tempfile.mkdtemp()) / "google-ledger.jsonl"
+        google_spend.LEDGER.write_text("".join(json.dumps(
+            {"time": at, "call": f"c{index}", "state": state, "caller": caller, "euros": euros, "model": GEMINI,
+             "estimate": 0.05}) + "\n" for index, (at, state, caller, euros) in enumerate(row["google_calls"])))
     if "per_unit" in row:
         compute.PER_UNIT = pathlib.Path(tempfile.mkdtemp()) / "per-unit.json"
         compute.PER_UNIT.write_text(json.dumps({"stages": row["per_unit"]}))
     try:
         for number, step in enumerate(row["steps"]):
+            if step[0] == "timeout":
+                from score.adapters import models
+                _, setting, seconds = step
+                saved = os.environ.pop(compute.JUDGE_TIMEOUT, None)
+                try:
+                    if setting is not None:
+                        os.environ[compute.JUDGE_TIMEOUT] = setting
+                    assert compute.judge_timeout() == seconds, step
+                finally:
+                    os.environ.pop(compute.JUDGE_TIMEOUT, None)
+                    if saved is not None:
+                        os.environ[compute.JUDGE_TIMEOUT] = saved
+                assert not any("timeout" in name for name in models.api_record("gemini-judge")), step
+                continue
+            if step[0] == "row":
+                _, fields, replaced, named = step
+                here = "score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py"
+                built, built_at = a_stage_row("render", **fields), f"{here}:{sys._getframe().f_lineno}"
+                moved, moved_at = dataclasses.replace(built, **replaced), f"{here}:{sys._getframe().f_lineno}"
+                assert built.euros_from == (built_at if "euros" in fields else None), (step, built.euros_from)
+                assert moved.euros_from == {"built": built_at, "replaced": moved_at, None: None}[named], (
+                    step, moved.euros_from)
+                continue
+            if step[0] == "heartbeat":
+                from score import __main__ as command
+                _, run, seconds, euros, words = step
+                beats["plan"]["deadline"] = time.time() + seconds
+                before = len(beats["extended"])
+                fake = types.SimpleNamespace(current=lambda run_id: beats["plan"] if run_id == run else None,
+                                             holding_euros=lambda sizes, hours: 6.0,
+                                             extend=lambda run_id, deadline, more: beats["extended"].append(
+                                                 (run_id, deadline, more)))
+                saved = command.cloud_tool, os.environ.get(compute.RUN_ID)
+                command.cloud_tool, os.environ[compute.RUN_ID] = (lambda name: fake), run
+                command.POOL_TICKET[:] = [newest]
+                try:
+                    command.extend_pool(runner)
+                finally:
+                    command.cloud_tool, command.POOL_TICKET[:] = saved[0], []
+                    os.environ.pop(compute.RUN_ID) if saved[1] is None else os.environ.update({compute.RUN_ID: saved[1]})
+                hours = compute.ledger().BATCH_HOURS
+                assert beats["extended"][before:] == [(run, beats["plan"]["deadline"] + hours * 3600, more)
+                                                      for more in euros], (step, beats["extended"])
+                assert ("refused" not in newest if words is None else words in newest.get("refused", "")), (
+                    step, newest.get("refused"))
+                continue
+            if step[0] == "drawn":
+                hold = {"node": step[1], "key": "k", "at": "2026-10-22T08:00:00+00:00"}
+                assert compute.run_spend(runner.store, hold, "2026-10-22T08:01:00+00:00")["google"] == step[2], step
+                continue
+            if step[0] == "retake":
+                from score.__main__ import selected_price
+                from score.stages.complete.gaps import price
+                _, takes, euros = step
+                paid = graph.Runner([BRIEF, PAID_TAKES], runner.world, runner.store)
+                assert compute.retake_takes(paid, "render@hangar") == takes, step
+                assert compute.planned_forecast(paid, "render@hangar", 9.0)["euros"] == euros, step
+                planned, price.planned_units = price.planned_units, lambda *_: 3  # the Buy's plan: the place's every take
+                try:
+                    buy = types.SimpleNamespace(node="render@hangar", euros=9.0)
+                    assert selected_price(paid, buy)["high_euros"] == euros, step
+                finally:
+                    price.planned_units = planned
+                continue
+            if step[0] == "reject takes":
+                review.reject(runner.store, "render@hangar", runner.store.accepted("render@hangar"), "owner", "a block",
+                              takes=step[1])
+                continue
+            if step[0] in ("ledger timed", "finish", "then", "then times"):
+                sys.path.insert(0, str(compute.REPO / "tools/costs"))
+                import per_unit
+            if step[0] == "ledger timed":
+                paper = compute.REPO / "paper/evidence/cloud/ledger.jsonl"
+                walls = [line["wall_minutes"] for line, _ in per_unit.ledger_lines([paper])
+                         if per_unit.matches(line, per_unit.SPECS[step[1]]["cloud"])]
+                timed = compute.unit_minutes(step[1], 1)
+                assert abs(timed["likely_minutes"] - statistics.median(walls)) <= 1.0, (timed, sorted(walls))
+                assert timed["high_minutes"] >= per_unit.quantile(walls, per_unit.HIGH), (timed, sorted(walls))
+                continue
+            if step[0] == "finish":
+                _, stage, units = step
+                then = compute.per_unit(stage)["time"]["then"]
+                assert then["kind"] == per_unit.SPECS[stage]["then"]["kind"] and "unit_seconds" in then, then
+                likely, high = compute.then_minutes(then, units)
+                assert likely >= then["setup_minutes"]["likely"] + then["unit_seconds"]["likely"] / 60, (likely, then)
+                assert high >= likely and compute.unit_minutes(stage, units)["likely_minutes"] is not None, step
+                continue
+            if step[0] == "then":
+                assert compute.then_minutes(step[1], step[2]) == step[3], step
+                continue
+            if step[0] == "then times":
+                _, lines, stage, count, likely = step
+                found = per_unit.then_times([(line, f"test line {index}") for index, line in enumerate(lines)], stage,
+                                            "blender")
+                assert found["lines"] == count and found["unit_seconds"]["likely"] == likely, found
+                continue
+            if step[0] == "google_month":
+                kept_text = books_text()
+                assert step[2] in refused(lambda: as_agent(lambda: compute.owners_google_month(step[1]))), step
+                assert books_text() == kept_text, (step, books_text())
+                continue
+            if step[0] == "google_line":
+                from score import __main__ as command
+                BOOKS.write_books({"month": MONTH, **step[1]})
+                line = command.google_line()
+                assert agrees(line, step[2], grant), (step, line)
+                continue
+            if step[0] == "days":
+                from score import __main__ as command
+                days = command.ledger_days(MONTH)
+                assert days[0]["day"] == f"{MONTH}-01" and set(days[-1]) == {"day", "cloud", "models"}, days
+                continue
             if step[0] == "count":
                 _, output, rule, units = step
                 assert compute.counted_units(outputs, output, rule) == units, step
@@ -1362,7 +1386,7 @@ def test_paid_work_starts_only_inside_its_clearance(row):
         if "balance" in row:
             assert compute.grant_balance(runner.store, grant, {}) == row["balance"]
     finally:
-        compute.PER_UNIT, BOOKS.BOOKS = kept, kept_books
+        compute.PER_UNIT, BOOKS.BOOKS, google_spend.LEDGER = kept, kept_books, kept_calls
         for ticket in tickets:
             compute.release(ticket)
         BILL["euros"] = 0.0
