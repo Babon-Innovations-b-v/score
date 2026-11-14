@@ -1,8 +1,9 @@
 """The cast's walkers stood where their whole walk keeps clear: a person playing the walking clip on no path and no
 flight walks a straight leg the way it faces for the clip's own length (scene_clips.legs_of: the walking sentence's
 seconds at its pace, the leg the scene-made clip walks), so its spot and its heading are chosen together, every
-WALK_STEP along that leg standing as spread.grounded stands a spot (on level ground, its body and its feet's room clear:
-feet.grounded inside the cast's make) on its start's level and over no other person. Camp's astronaut_1, stood clear
+WALK_STEP along that leg, run on by its stride's reach past both ends, standing as spread.grounded stands a spot (on
+level ground, its body and its feet's room clear: feet.grounded inside the cast's make) on its start's level and over
+no other person. Camp's astronaut_1, stood clear
 at its spot and facing its plan spot's aim, walked its 5 s clip 0.655 m into the kitchen counter and a wall in
 sim-body (2026-11-13).
 
@@ -10,6 +11,8 @@ Kept apart from the package's other modules and reached only from feet.py, so on
 """
 import contextlib
 import gc
+
+import numpy as np
 
 from score.stages import scene_clips
 from score.stages.cast import measure, spread
@@ -24,6 +27,14 @@ TURNS = [0.0] + [sign * step * HEADING_STEP for step in range(1, round(180 / HEA
 # test, passed 8 GB), and each test's ray meshes (measure.ground_under's, 13 a spot through level_under and tilt_under)
 # are freed only by a collection (camp's make passed 6.8 GB at one start a test, 23 MB a test held).
 BATCH, WALKED = 24, 4
+# How far past its leg's ends a walker's legs reach (metres): the walking clip starts and ends mid-stride, its trailing
+# foot behind its hips on its first frame and its leading foot ahead of them on its last. Street's
+# pedestrian_umbrella_1, its leg clear from its start on, swung its right shin 0.34 m behind its start into
+# police_car_1's bumper and sank it 0.093 m in sim-body, pedestrian_umbrella_3 its trailing feet 0.117 m into
+# red_white_barrier_16 (2026-11-14). A multiple of measure.WALK_STEP, so the leg's
+# start is one of its spots (BEHIND of them before it).
+STRIDE_REACH = 0.5
+BEHIND = round(STRIDE_REACH / measure.WALK_STEP)
 
 
 @contextlib.contextmanager
@@ -60,16 +71,22 @@ def stand_every(singles, groups, crowd_candidates, crowd_count, found):
 
 
 def route(single):
-    """The spots every measure.WALK_STEP along a walker's leg (scene_clips.legs_of), its start first."""
-    return measure.walk_spots(scene_clips.legs_of(single))
+    """The spots every measure.WALK_STEP along a walker's leg (scene_clips.legs_of) run on STRIDE_REACH past both its
+    ends, the way it walks: its start, as it is, the BEHIND-th spot."""
+    leg = [np.asarray(point, dtype=float) for point in scene_clips.legs_of(single)]
+    way = leg[-1] - leg[0]
+    way = way / max(float(np.linalg.norm(way)), 1e-9)
+    return (measure.walk_spots([leg[0] - way * STRIDE_REACH, leg[0]])[:BEHIND]
+            + measure.walk_spots([*leg, leg[-1] + way * STRIDE_REACH]))
 
 
 def walk_clear(single, found, kept):
     """The walker at the nearest start round its spot (spread.NUDGES) and, there, the heading nearest its own
-    (TURNS) whose every spot along its leg stands (spread.grounded) within measure.FOOT_STEP of the level it was stood
-    on and overlaps no kept body; the walker as it stands when none does (its walk named where the sim body runs it).
-    Street's umbrella walkers, stood on its 0.2 m pavements, took the road below them when their level was not kept.
-    A start that does not stand there itself is tried at no heading."""
+    (TURNS) whose every spot along its leg (`route`, its stride's reach past both ends too) stands (spread.grounded)
+    within measure.FOOT_STEP of the level it was stood on and overlaps no kept body; the walker as it stands when none
+    does (its walk named where the sim body runs it). Street's umbrella walkers, stood on its 0.2 m pavements, took
+    the road below them when their level was not kept. A start that does not stand there itself is tried at no
+    heading."""
     at, turn = single["at"], float(single.get("turn", 0.0))
 
     def kept_level(spot):
@@ -87,5 +104,5 @@ def walk_clear(single, found, kept):
             for walker, walk in zip(tries, walks):
                 feet = [next(fits) for _ in walk]
                 if all(kept_level(spot) for spot in feet):
-                    return dict(walker, at=feet[0], turn=round(walker["turn"], 3))
+                    return dict(walker, at=feet[BEHIND], turn=round(walker["turn"], 3))
     return single
