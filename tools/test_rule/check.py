@@ -96,7 +96,6 @@ FUNCTION_DEBT_DATE = "2026-11-01"
 FUNCTION_DEBT = {
     ".claude/hooks/tests/test_hooks_block_only_their_rule_and_fail_open.py": 12,
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
-    "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
     "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 41,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 41,
     "score/review/test_the_owners_word_stands.py": 103,
