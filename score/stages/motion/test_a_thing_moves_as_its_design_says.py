@@ -4,11 +4,12 @@ left edge and shuts again, the fan turns a whole number of times a round, the ro
 reason, and every gate passes; with nobody in the scene the door stands shut; two seeds make the same moves, so
 the row is unseeded; a moving row with no object fails `designed`, left out by name where a batch gap or the accepted plan's
 gap names it; a door whose swing strikes is swung the other
-way, else stands with its strike; a hatch lying flat stands; a rocket climbs off the Moon at its push less its
+way, or less far down to sixty degrees, else stands with its strike; a hatch lying flat stands; a rocket climbs off the Moon at its push less its
 body's pull and stands where its push would not lift it, and a flag on an airless body hangs still. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
 down: each passes, and one known fault each fails by name. Expected spots are worked out by hand below.
 
-Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+The worlds of one shape are rows of one case table, fed through the one parametrized test at the end; each test names
+the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/motion/test_a_thing_moves_as_its_design_says.py
 """
@@ -100,11 +101,15 @@ def a_sky(on, gravity):
                                                                          "reference": on, "gravity": gravity}]}}
 
 
-def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,), sky=a_sky("earth", 9.82)):
+FLOOR = {"floor": ((-6.0, -0.1, -6.0), (6.0, 0.0, 6.0))}
+
+
+def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,), sky=a_sky("earth", 9.82), designed=DESIGNED,
+               structure=FLOOR):
     folder = pathlib.Path(folder)
     (folder / "inventory.json").write_text(json.dumps({"rows": rows}))
     (folder / "sky.json").write_text(json.dumps(sky))
-    seed = a_seed(folder, {"floor": ((-6.0, -0.1, -6.0), (6.0, 0.0, 6.0))}, [*DESIGNED, *extra])
+    seed = a_seed(folder, structure, [*designed, *extra])
     (folder / "cast").mkdir(exist_ok=True)
     (folder / "cast/cast.json").write_text(json.dumps({"characters": list(cast)}))
     return {"design": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
@@ -135,95 +140,11 @@ def middle_at(output, inputs, prim, seconds):
     return np.asarray(bound.ComputeAlignedRange().GetMidpoint())
 
 
-def test_the_door_swings_the_fan_turns_the_rover_stands_and_every_gate_passes(tmp_path):
-    """The hatch kind's cited range is 15 to 53 degrees a second: the door swings at its middle, 34, so 90 degrees
-    take 2.647 s. The cast's walker comes within a metre of it from 2.21 to 3.79 s: it opens from 0 (2.21 - 2.647 is
-    before the start), stands open at 3 s, shuts from 3.7 s (its route read every 0.1 s), played once (no loop). The ceiling fan's is 400 to 1080:
-    the middle 740 is 41.1 turns in the 20 s round, so 41 turns, 738 a second. Shut, the leaf's middle stands at its
-    own spot (3, 1, 1); its hinge is its left edge, (2.55, 1, 1); a quarter turn about the upright there (rotateY +90:
-    x to -z) carries the middle 0.45 m from +x of the hinge to -z of it: (2.55, 1, 0.55).
-    Break: score/stages/motion/from_design.py: `turns = max(1, round(middle_speed(motion_kind, "angular") * ROUND /
-        360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`
-    Break: score/stages/motion/from_design.py: `opens = max(free, enter - travel)` -> `opens = max(free, enter)`"""
-    inputs = toy_inputs(tmp_path)
-    out, record = made(inputs, tmp_path)
-    found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
-    door = f"/{PLACE}/Objects/door_1"
-    shut, opened = middle_at(out, inputs, door, 8.0), middle_at(out, inputs, door, 3.0)
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
-    moves = {entry["name"]: entry for entry in record["moves"]}
-    assert sorted(moves) == ["door_1", "fan_1"] and list(record["still"]) == [f"/{PLACE}/Objects/rover_1"]
-    assert moves["door_1"]["swing"]["speed"] == 34.0 and moves["door_1"]["swing"]["angle"] == 90.0
-    assert moves["door_1"]["swing"]["moves"] == [[0.0, "open"], [3.7, "shut"]] and not moves["door_1"]["loop"], \
-        moves["door_1"]["swing"]
-    assert moves["fan_1"]["spin"]["speed"] == 738.0
-    assert np.allclose(shut, (3.0, 1.0, 1.0), atol=1e-6), shut
-    assert np.allclose(opened, (2.55, 1.0, 0.55), atol=1e-4), opened
-
 
 OPEN_DOOR = ("open_door_1", (-4.0, 0.0, 0.0), (-0.45, 0.0, -0.05), (0.45, 2.0, 0.05))
 SLIDING_DOOR = ("sliding_door_1", (-4.0, 0.0, 4.0), (-0.6, 0.0, -0.05), (0.6, 2.1, 0.05))
 WORDED = [{"id": "open_door", "name": "open apartment door", "noun": "door"},
           {"id": "sliding_door", "name": "sliding door", "noun": "door"}]
-
-
-def test_with_nobody_walking_through_the_doors_stand_as_their_words_say(tmp_path):
-    """Fault (the audit of 2026-11-04, 22 doors in 12 places): every door swung open at 2 s and shut at 10 s each
-    20 s round wherever the inventory held any person, with nobody walking through. The astronaut sits, so no walker
-    passes: the door stands shut with its rule's reason, the open apartment door stands posed open (its row's words),
-    the sliding door stands shut, and `passed` and `rests` pass. The old fixed clock (a swing open at 2 s, shut at 10
-    s, every round) written into the record fails `passed`, with no walker near; the sliding door written as a swing
-    fails `rests`; no cast at all leaves every door standing.
-    Break: score/stages/motion/from_design.py: `elif not served(rule, inventory, kinds) or spans == []:`
-        -> `elif not served(rule, inventory, kinds):`
-    Break: score/stages/motion/__init__.py: `if not any(enter <= end and leave >= begin for enter, leave in near):`
-        -> `if False:`
-    Break: score/stages/motion/__init__.py: `if said & set(NOT_ONE_LEAF) and path in swings:` -> `if False:`
-    Break: score/stages/motion/from_design.py: `return dict(rule, rests="open") if said & set(base.get("open_words",
-        ())) else rule` -> `return rule`"""
-    inputs = toy_inputs(tmp_path, ROWS + WORDED, (OPEN_DOOR, SLIDING_DOOR), cast=(SEATED,))
-    out, record = made(inputs, tmp_path)
-    assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
-    assert record["still"][f"/{PLACE}/Objects/door_1"].startswith("nobody passes through it")
-    assert record["still"][f"/{PLACE}/Objects/sliding_door_1"].startswith("nobody passes through it")
-    assert [entry["name"] for entry in record["posed"]] == ["open_door_1"], record["posed"]
-    assert record["still"][f"/{PLACE}/Objects/open_door_1"].startswith("it stands open")
-    assert middle_at(out, inputs, f"/{PLACE}/Objects/open_door_1", 5.0)[2] < -0.4  # turned off its wall line
-    for name in ("passed", "rests", "moving area", "covered"):
-        verdict = judge(name, out, inputs)
-        assert verdict.answer == checks.PASS, (name, verdict.reason, verdict.findings)
-    clock = {"name": "door_1", "prim": f"/{PLACE}/Objects/door_1", "row": "door", "kind": "hatch", "on": "rail",
-             "start": 0.0, "length": 20.0, "loop": True,
-             "swing": {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 34.0, "starts": "shut",
-                       "moves": [[2.0, "open"], [10.0, "shut"]]}}
-    slid = dict(clock, name="sliding_door_1", prim=f"/{PLACE}/Objects/sliding_door_1", row="sliding_door")
-    (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*record["moves"], clock, slid])))
-    verdict = judge("passed", out, inputs)
-    assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(
-        "door_1: off its rest from 2.0 to 12.6 s, and no walker"), verdict.findings
-    verdict = judge("rests", out, inputs)
-    assert verdict.answer == checks.FAIL and any("sliding_door_1: its row says sliding, yet it swings" in line
-                                                 for line in verdict.findings), verdict.findings
-    (tmp_path / "alone").mkdir()
-    alone = toy_inputs(tmp_path / "alone", cast=())
-    _, record = made(alone, tmp_path / "alone")
-    assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
-
-
-def test_the_make_never_reads_its_seed_so_a_failure_is_noted_never_remade(tmp_path):
-    """Two seeds make the same record and layer, so the table marks the row unseeded: a failed output is noted for a
-    fix upstream, never remade with a fresh seed (motion@base, 2026-10-29: both attempts the same output).
-    Break: score/stages/__init__.py: `"light", "motion")` -> `"light")`"""
-    from score import stages
-    inputs, outs = toy_inputs(tmp_path), []
-    for seed in (0, 1778076555):
-        out = tmp_path / f"out-{seed}"
-        out.mkdir()
-        motion.make(inputs, out, seed, {})
-        outs.append([(out / name).read_bytes() for name in (motion.RECORD, "layers/motion.usda")])
-    assert outs[0] == outs[1]
-    assert not next(row for row in stages.STAGES if row.name == "motion").seeded
 
 
 def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
@@ -360,53 +281,6 @@ def table_judge(name, out, inputs):
     return next(check for check in row.checks if check.name == name).judge(out, inputs, None)
 
 
-def test_a_moving_row_whose_take_the_bake_left_out_carries_its_gap(tmp_path):
-    """Fault (env1 on this PC, 2026-10-28, motion@garage): the bake's job for the vehicle lift's take failed in the
-    batch, a batch gap naming the take only, and `designed` stopped the line on the lift having no object. The crane's
-    take is named by a carried bake gap: `designed` still fails it by name, the motion output carries the bake's gap
-    and its own naming the row, and the table moves the fault (stages.BATCH_GATES), so the line goes on.
-    Break: score/stages/motion/from_design.py: `names = {row["id"], str(row.get("thing", "")).split(":", 1)[-1]}`
-    -> `names = {row["id"]}`"""
-    crane = {"id": "crane", "name": "crane", "noun": "crane", "thing": "prop:toy_crane_b26f85f9"}
-    inputs = toy_inputs(tmp_path, ROWS + [crane])
-    (tmp_path / "bake").mkdir()
-    (tmp_path / "bake/batch-gaps.json").write_text(json.dumps({"gaps": [{
-        "name": "toy_crane_b26f85f9: not baked", "row": "surfaces-bake", "check": "baked",
-        "objects": ["toy_crane_b26f85f9"], "faults": ["toy_crane_b26f85f9: its bake job brought nothing back"],
-        "reason": "the take's bake job ran once in the batch and failed"}]}))
-    inputs["surfaces-bake"] = tmp_path / "bake"
-    out, record = made(inputs, tmp_path)
-    assert judge("designed", out, inputs).answer == checks.FAIL
-    assert record["left_out"] == {"crane": ["toy_crane_b26f85f9: not baked"]}, record["left_out"]
-    carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
-    assert carried == ["toy_crane_b26f85f9: not baked", "crane: no object, so it does not move"], carried
-    verdict = table_judge("designed", out, inputs)
-    assert verdict.answer == checks.PASS and "moved to complete" in verdict.reason, (verdict.reason, verdict.findings)
-
-
-def test_a_moving_row_the_accepted_plan_places_none_of_is_left_out_by_its_plan_gap(tmp_path):
-    """Fault (motion@hangar, 2026-10-29): the floor hatch's row was read with no box, the accepted plan placed none of
-    it ("floor hatch: 1 in the concept, 0 on the plan"), and `designed` stopped the line on it having no object. The
-    crane's row is named by the plan's `placed` gap: `designed` still fails it by name, the record leaves it out by
-    that gap, which names where its source fix waits (#36), and the table moves the fault, so the line goes on; the
-    plan's other gaps leave nothing out.
-    Break: score/stages/motion/__init__.py: `planned = from_design.plan_gaps(read_json(inputs["plan"])) if "plan" in
-    inputs else []` -> `planned = []`"""
-    inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
-    inputs["plan"] = tmp_path / "plan.json"
-    inputs["plan"].write_text(json.dumps({"gaps": [
-        {"kind": "placed", "item": "crane", "row": "crane", "words": "crane: 1 in the concept, 0 on the plan"},
-        {"kind": "outside", "item": "FAN 1", "row": "fan", "words": "fan 1 sticks out of the place"}]}))
-    out, record = made(inputs, tmp_path)
-    assert judge("designed", out, inputs).answer == checks.FAIL
-    assert record["left_out"] == {"crane": ['crane: the accepted plan\'s gap "crane: 1 in the concept, 0 on the plan" '
-                                            f"(its source fix: {from_design.PLAN_FIX})"]}, record["left_out"]
-    assert "issues/36#issuecomment-" in from_design.PLAN_FIX
-    carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
-    assert carried == ["crane: no object, so it does not move"], carried
-    verdict = table_judge("designed", out, inputs)
-    assert verdict.answer == checks.PASS and "moved to complete" in verdict.reason, (verdict.reason, verdict.findings)
-
 
 def a_baked_door(bake, paint, out, models=None):
     """The bake's door_1 written as the assembly's asset of it (baked.take_bake's place, its repaint left out): a leaf
@@ -416,36 +290,6 @@ def a_baked_door(bake, paint, out, models=None):
     box(stage, "/door_1/leaf", (-0.45, 0.0, -0.05), (0.45, 2.0, 0.05))
     stage.GetRootLayer().Save()
 
-
-def test_a_design_s_door_waiting_on_its_bake_stands_on_the_stage_and_swings(tmp_path, monkeypatch):
-    """Fault (Batch 1, 2026-10-27, 24 places): the scene record's design objects wait on the surface line's bake, and
-    the motion stage read no bake, so every moving row had no object and `designed` failed it. The door's object
-    waits in the accepted record, held in its opening as the writer's record holds a door (`on`: since #72 a thing
-    nothing holds laid in a wall is parted out of it); the bake made its model, so it stands on the stage, swings, and
-    `designed` passes.
-    Break: score/stages/layer_base.py: `grounded.take_bakes(inputs, folder, seed.name)` -> `pass`"""
-    import score.stages.assembly.baked as baked
-    monkeypatch.setattr(baked, "take_bake", a_baked_door)
-    inputs = toy_inputs(tmp_path, ROWS, extra=())
-    shutil.rmtree(inputs["seed"].parent)
-    inputs["seed"] = a_seed(tmp_path, {}, [thing for thing in DESIGNED if thing[0] != "door_1"])
-    door = {"name": "door_1", "row": "door", "bake": "door_1", "kind": "object", "at": [3.0, 0.0, 1.0],
-            "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model door_1 comes from the surface line's bake",
-            "on": {"how": "in", "middle": [3.0, 0.0, 1.0], "along": [1.0, 0.0], "wide": 0.9, "tall": 2.0,
-                   "why": "opening"}}
-    (tmp_path / "record/record").mkdir(parents=True)
-    (tmp_path / f"record/record/{PLACE}.json").write_text(json.dumps({"place": PLACE, "objects": [door]}))
-    (tmp_path / "bake/made").mkdir(parents=True)
-    (tmp_path / "bake/baked.json").write_text(json.dumps({"door_1": {}}))
-    (tmp_path / "bake/made/door_1.gltf").write_text("{}")
-    (tmp_path / "kit.json").write_text(json.dumps({"pieces": []}))
-    (tmp_path / "surfaces.json").write_text("{}")
-    inputs.update({"scene-record": tmp_path / "record", "kit": tmp_path / "kit.json", "surfaces-bake": tmp_path / "bake",
-                   "surfaces-paint": tmp_path, "surfaces": tmp_path / "surfaces.json"})
-    out, record = made(inputs, tmp_path)
-    verdict = judge("designed", out, inputs)
-    assert record["missing"] == [] and verdict.answer == checks.PASS, (record["missing"], verdict.findings)
-    assert f"/{PLACE}/Objects/door_1" in [entry["prim"] for entry in record["moves"]], record
 
 
 # A post standing in the quarter the door sweeps opening its rule's way (rotateY +90: from +x of its hinge (2.55, 1)
@@ -462,45 +306,6 @@ PAST = ("wall_5", (-2.9, 0.0, 3.9), (-0.2, 0.0, -0.1), (0.2, 1.0, 0.1))
 SLIDER = {"name": "astronaut_2", "doing": "walking", "at": [-4.0, 0.0, 0.0], "turn": 0.0, "pace": 1.333,
           "path": [[-4.0, 0.0, 0.0], [-4.0, 0.0, 6.0]]}
 
-
-def test_a_door_that_strikes_its_rule_s_way_is_fitted_to_swing_the_other_way(tmp_path):
-    """The post in its rule's way: swung -90 instead, said fitted, clear passes; a quarter turn the other way (rotateY
-    -90: x to +z) carries the middle 0.45 m from +x of the hinge to +z of it: (2.55, 1, 1.45). Fault (the audit of
-    2026-11-04): a sliding door swung as one hinged leaf. The sliding door slides its own 1.2 m width along its wall
-    at its kind's middle 0.29 m a second (4.138 s) for the walker passing it (within a metre from 2.2 to 3.7 s), so it
-    opens from 0 and shuts as soon as it is open; its rule's way (+x) strikes the post, so it slides -x, said fitted:
-    its middle at x -4.58 at 2 s; every gate passes.
-    Break: score/stages/motion/__init__.py: `kept.append(fit(first[prim], left[prim].pop(0)))` -> `still[prim] =
-        "struck"`
-    Break: score/stages/motion/from_design.py: `variant = next((entry["motion"] for entry in kinds[row["row_kind"]]
-        .get("variants", []) if said & set(entry["words"])), {})` -> `variant = {}`"""
-    inputs = toy_inputs(tmp_path, ROWS + WORDED[1:], extra=(POST, SLIDING_DOOR, BEHIND, PAST), cast=(WALKER, SLIDER))
-    out, record = made(inputs, tmp_path)
-    found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
-    opened = middle_at(out, inputs, f"/{PLACE}/Objects/door_1", 3.0)
-    slid = middle_at(out, inputs, f"/{PLACE}/Objects/sliding_door_1", 2.0)
-    moves = {entry["name"]: entry for entry in record["moves"]}
-    assert moves["door_1"]["swing"]["angle"] == -90.0 and "fitted by the clear gate" in moves["door_1"]["from"]
-    assert moves["sliding_door_1"]["slide"]["by"] == [-1.2, 0.0, 0.0], moves["sliding_door_1"]["slide"]
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
-    assert np.allclose(opened, (2.55, 1.0, 1.45), atol=1e-4), opened
-    assert moves["sliding_door_1"]["slide"]["moves"] == [[0.0, "open"], [4.138, "shut"]]
-    assert np.allclose(slid, (-4.58, 1.05, 4.0), atol=1e-4), slid
-
-
-def test_a_door_that_strikes_every_way_stands_with_its_strike(tmp_path):
-    """Posts both ways: at 60 degrees, the least tried, the leaf still sweeps a post's corner (48 degrees round, 0.67 m
-    out) either way, so it stands with its strike as the reason and clear passes.
-    Break: score/stages/motion/__init__.py: `still[prim] = f"it strikes at every way it was tried, so it stands:
-        {struck[prim]}"` -> `still[prim] = "struck"`"""
-    inputs = toy_inputs(tmp_path, extra=(POST, MIRROR))
-    out, record = made(inputs, tmp_path)
-    clear = judge("clear", out, inputs)
-    assert sorted(entry["name"] for entry in record["moves"]) == ["fan_1"]
-    reason = record["still"][f"/{PLACE}/Objects/door_1"]
-    assert reason.startswith("it strikes at every way it was tried") and "wall_" in reason, reason
-    assert clear.answer == checks.PASS, (clear.reason, clear.findings)
 
 
 def parted(folder, name, at, row, turn=0.0):
@@ -524,86 +329,6 @@ def parted(folder, name, at, row, turn=0.0):
         drawn.GetFaceVertexIndicesAttr().Set([int(index) for index in mesh.faces.flatten()])
     stage.GetRootLayer().Save()
 
-
-def test_a_hatch_lying_flat_stands_and_a_parted_build_moves_its_parts(tmp_path):
-    """A floor hatch 0.6 m across and 0.1 m tall would turn about a level line: it stands, said so, and one in one
-    piece whose words say open stands open as its model is built (wreck's open hatch, 2026-11-08: `rests` failed it
-    as shut, a pose no swing could give it), which `rests` passes, and fails by name once it is written moving. Built with its
-    parts apart (#19, score/stages/props/moving_parts), a double door 1.6 m wide turned a quarter about up at (3, 0,
-    -2), across the walker's route, swings its two leaves on their own pivots (its outer edges) the opposite ways, so
-    both open to its own +x (the world's -z), for the walker passing it from 4.5 s (within a metre of a leaf, read
-    every 0.1 s) and shut after it; the door itself never swings as one leaf, and every gate passes over it; an open
-    floor hatch so built stands posed open, its lid turned up 90 degrees on its level hinge (its middle 0.2 m up),
-    and a shut one on the walker's route (at (3, 0, 3.5)) lifts its lid on that hinge as the walker comes and lowers
-    it after, turning about its own x axis only.
-    Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif
-        False:`
-    Break: score/stages/motion/from_design.py: `still[path] = LYING_OPEN if rule.get("rests") == "open" else LYING`
-        -> `still[path] = LYING`
-    Break: score/stages/motion/__init__.py: `under(path, posed) or (opened and built)` -> `under(path, posed)`
-    Break: score/stages/motion/__init__.py: `if opened and (not off or under(path, moving)):` -> `if opened and not
-        off:` (the open hatch written moving passes)
-    Break: score/stages/motion/from_design.py: `if rule["move"] in ("swing", "split") and hinged(stage, path):` ->
-        `if False:` (the double door is unmade, covered fails)
-    Break: tools/usd/motion_layer.py: `return own_pivot(stage, move)` -> `return own_side(stage, move, [0.0, 0.0,
-        0.0])` (a leaf turns about its middle)
-    Break: score/stages/motion/check.py: `tilt = max(tilt_of(turn, axis) for turn in turns)` -> `tilt =
-        max(tilt_of(turn) for turn in turns)` (follows fails the lid's level hinge as tipping off the
-        upright)
-    Break: score/stages/motion/__init__.py: `moved = {path for path in moving_row_prims(stage, place, inputs) if
-        under(path, moving)} | moving` -> `moved = moving`
-    Break: score/stages/motion/from_design.py: `moves += [[at_least(opens), "open"], [at_least(shuts), "shut"]]` ->
-        `moves += [[round(opens, 3), "open"], [round(shuts, 3), "shut"]]` (the walked lid's shut rounds to before its
-        opening ends, and its layer is refused)"""
-    flat = ("hatch_1", (-1.0, 0.0, -1.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
-    flat_open = ("open_flat_1", (1.0, 0.0, -4.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
-    inputs = toy_inputs(tmp_path, ROWS + [{"id": "hatch", "name": "floor hatch", "noun": "hatch"},
-                                          {"id": "open_flat", "name": "open hatch", "noun": "hatch"}],
-                        extra=(flat, flat_open))
-    out, record = made(inputs, tmp_path)
-    assert sorted(entry["name"] for entry in record["moves"]) == ["door_1", "fan_1"]
-    assert record["still"][f"/{PLACE}/Objects/hatch_1"] == from_design.LYING
-    assert record["still"][f"/{PLACE}/Objects/open_flat_1"] == from_design.LYING_OPEN
-    verdict = judge("rests", out, inputs)
-    assert verdict.answer == checks.PASS, (verdict.reason, verdict.findings)
-    lifted = {"name": "open_flat_1", "prim": f"/{PLACE}/Objects/open_flat_1", "row": "open_flat", "kind": "hatch",
-              "on": "rail", "start": 0.0, "length": 20.0, "loop": True,
-              "slide": {"by": [0.0, 0.5, 0.0], "speed": 0.5, "starts": "shut", "moves": [[2.0, "open"]]}}
-    (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*record["moves"], lifted])))
-    verdict = judge("rests", out, inputs)
-    assert verdict.answer == checks.FAIL and verdict.findings == (
-        f"/{PLACE}/Objects/open_flat_1: its row says open (\"open hatch\"), yet it stands shut or moves",), \
-        verdict.findings
-    folder = tmp_path / "parted"
-    folder.mkdir()
-    double = {"id": "double_door", "name": "double door", "noun": "door", "size": [1.6, 0.1, 2.1]}
-    lid = {"id": "open_hatch", "name": "open floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
-    walked = {"id": "floor_hatch", "name": "floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
-    inputs = toy_inputs(folder, ROWS + [double, lid, walked])
-    parted(folder, "double_door_1", (3.0, 0.0, -2.0), double, turn=90.0)
-    parted(folder, "open_hatch_1", (-1.0, 0.0, -1.0), lid)
-    parted(folder, "floor_hatch_1", (3.0, 0.0, 3.5), walked)
-    out, record = made(inputs, folder)
-    found = {check.name: check.judge(out, inputs, None) for check in motion.CHECKS}
-    moves = {entry["name"]: entry for entry in record["moves"]}
-    door = f"/{PLACE}/Objects/double_door_1"
-    assert sorted(moves) == ["door_1", "double_door_1.leaf_left", "double_door_1.leaf_right", "fan_1",
-                             "floor_hatch_1.lid"], sorted(moves)
-    assert (moves["floor_hatch_1.lid"]["swing"]["axis"], moves["floor_hatch_1.lid"]["swing"]["angle"]) == ("x", -90.0)
-    left, right = moves["double_door_1.leaf_left"]["swing"], moves["double_door_1.leaf_right"]["swing"]
-    assert (left["angle"], right["angle"], left["axis"], left["about"]) == (90.0, -90.0, "y", {"pivot": True})
-    assert left["moves"] == [[1.853, "open"], [6.1, "shut"]], left["moves"]  # 4.5 less 90 / 34; the walk ends at 6.1
-    shut = middle_at(out, inputs, f"{door}/leaf_left__hinge_y", 0.0)
-    opened = middle_at(out, inputs, f"{door}/leaf_left__hinge_y", 5.0)
-    other = middle_at(out, inputs, f"{door}/leaf_right__hinge_yn", 5.0)
-    assert opened[2] < shut[2] - 0.3 and other[2] < shut[2] - 0.3, (shut, opened, other)  # both open to -z
-    assert [entry["name"] for entry in record["posed"]] == ["open_hatch_1.lid"], record["posed"]
-    raised = middle_at(out, inputs, f"/{PLACE}/Objects/open_hatch_1/lid__hinge_xn", 5.0)
-    lifted = middle_at(out, inputs, f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 2.0)
-    down = middle_at(out, inputs, f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 15.0)
-    assert raised[1] > 0.2 and lifted[1] > 0.2 and down[1] < 0.1, (raised, lifted, down)
-    assert all(verdict.answer == checks.PASS for verdict in found.values()), {
-        name: (verdict.reason, verdict.findings) for name, verdict in found.items() if verdict.answer != checks.PASS}
 
 
 def a_flag(stage, path):
@@ -838,19 +563,6 @@ def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
         "(no part of it has a library surface whose recipe the cloth table holds)") and not found["cloth"], found
 
 
-def test_a_swing_is_tried_its_rule_s_way_and_the_other_down_to_sixty_degrees():
-    """90 either way, then 10 less each time, down to 60 included.
-    Break: score/stages/motion/__init__.py: `sizes = np.arange(abs(float(angle)), FIT_LEAST - 1e-9, -FIT_STEP)` ->
-        `sizes = np.arange(abs(float(angle)), FIT_LEAST, -FIT_STEP)`"""
-    assert motion.swing_angles(90.0) == [90.0, -90.0, 80.0, -80.0, 70.0, -70.0, 60.0, -60.0]
-
-
-def test_a_speed_is_the_middle_of_its_kind_s_cited_range():
-    """15 to 53 degrees a second: 34; 0.08 to 0.4 m a second: 0.24.
-    Break: score/stages/motion/from_design.py: `return (float(low) + float(high)) / 2` -> `return float(high)`"""
-    assert from_design.middle_speed({"angular": [15.0, 53.0]}, "angular") == 34.0
-    assert abs(from_design.middle_speed({"linear": [0.08, 0.4]}, "linear") - 0.24) < 1e-12
-
 
 # --- the motion check on a written record ---------------------------------------------------------------------------
 
@@ -931,30 +643,322 @@ def recorded(change):
 # The cart's path laid out to x = 9, through the wall at x = 8.
 THROUGH = recorded(lambda record: record["moves"][0]["path"].update(points=[[0, 0], [9, 0], [9, 3], [0, 3]]))
 
-# Each case: the record its layer is written from, the record it is judged against, an edit made to the written layer,
-# the gates judged, their answer, and patterns each matching some finding line of every failing gate.
-CHECK_CASES = [
-    ("a true motion", RECORD, RECORD, None, ("follows", "steps", "moving area", "clear"), checks.PASS, ()),
-    ("the cart judged against a path its layer does not drive", RECORD,
-     recorded(lambda record: record["moves"][0]["path"]["points"].__setitem__(2, [4.0, 4.0])), None, ("follows",),
-     checks.FAIL, (r"off its path's curve",)),
-    ("the door judged against a 60 degree swing it does not make", RECORD,
-     recorded(lambda record: record["moves"][1]["swing"].update(angle=60.0)), None, ("follows",), checks.FAIL,
-     (r"swings 90\.0 degrees, its record 60\.0",)),
-    ("a frame of the cart thrown 2 m aside", RECORD, RECORD, a_frame_thrown_aside, ("steps",), checks.FAIL,
-     (r"^cart_round: jumps",)),
-    ("a stray crate moving and the door standing still", RECORD, RECORD, a_stray_crate_and_a_still_door,
-     ("moving area",), checks.FAIL, (rf"^/{PLACE}/Objects/crate_1: moves, yet no record moves it$",
-                                     rf"^/{PLACE}/Objects/door_1: its record moves it, yet it stands still in the stage$")),
-    ("the cart's path laid through the wall", THROUGH, THROUGH, None, ("clear",), checks.FAIL, (r"Structure/wall",)),
+
+# A thin post 0.6 m out from the door's hinge at 70 degrees of its rule's way (rotateY +90, toward -z): the leaf turned
+# 70 degrees or more sweeps through it, turned 60 it stays 0.05 m clear; with MIRROR the other way strikes at every
+# angle, so the swing is fitted to 60 degrees its rule's way, the least it is tried at.
+STOP = ("wall_6", (2.755, 0.0, 0.436), (-0.02, 0.0, -0.02), (0.02, 1.0, 0.02))
+CRANE = {"id": "crane", "name": "crane", "noun": "crane"}
+HATCHES = [{"id": "hatch", "name": "floor hatch", "noun": "hatch"}, {"id": "open_flat", "name": "open hatch", "noun": "hatch"}]
+FLAT = ("hatch_1", (-1.0, 0.0, -1.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
+FLAT_OPEN = ("open_flat_1", (1.0, 0.0, -4.0), (-0.3, 0.0, -0.3), (0.3, 0.1, 0.3))
+DOUBLE = {"id": "double_door", "name": "double door", "noun": "door", "size": [1.6, 0.1, 2.1]}
+LID = {"id": "open_hatch", "name": "open floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
+WALKED = {"id": "floor_hatch", "name": "floor hatch", "noun": "hatch", "size": [0.6, 0.6, 0.1]}
+WAITING_DOOR = {"name": "door_1", "row": "door", "bake": "door_1", "kind": "object", "at": [3.0, 0.0, 1.0],
+                "rotation": [0.0, 0.0, 0.0, 1.0], "waiting": "its model door_1 comes from the surface line's bake",
+                "on": {"how": "in", "middle": [3.0, 0.0, 1.0], "along": [1.0, 0.0], "wide": 0.9, "tall": 2.0,
+                       "why": "opening"}}
+
+
+def objects(*names):
+    """The prim paths of the toy's objects."""
+    return [f"/{PLACE}/Objects/{name}" for name in names]
+
+
+def gate(answer, *findings, reason=None):
+    """A gate's expected verdict: its answer, patterns each found in its findings (one per line, re.M), and a pattern
+    found in its reason."""
+    return {"answer": answer, "findings": findings, "reason": reason}
+
+
+def exactly(text):
+    """A pattern matching `text` whole."""
+    return re.compile(re.escape(text) + r"\Z", re.S)
+
+
+def starting(text, then=""):
+    """A pattern matching a text that starts with `text`, then holds `then` (a pattern) somewhere after."""
+    return re.compile(re.escape(text) + ".*" + then + ".*", re.S)
+
+
+def holding(text):
+    """A pattern matching a text that holds `text`."""
+    return re.compile(".*" + re.escape(text) + ".*", re.S)
+
+
+EVERY = "every gate"
+MOVED_ON = holding("moved to complete")
+# The hatch kind's swing on the old fixed clock (a swing open at 2 s, shut at 10 s, every round) and a sliding door
+# written as that swing; an open hatch written lifting.
+CLOCK = {"name": "door_1", "prim": f"/{PLACE}/Objects/door_1", "row": "door", "kind": "hatch", "on": "rail",
+         "start": 0.0, "length": 20.0, "loop": True,
+         "swing": {"about": {"side": [-1.0, 0.0, 0.0]}, "angle": 90.0, "speed": 34.0, "starts": "shut",
+                   "moves": [[2.0, "open"], [10.0, "shut"]]}}
+LIFTED = {"name": "open_flat_1", "prim": f"/{PLACE}/Objects/open_flat_1", "row": "open_flat", "kind": "hatch",
+          "on": "rail", "start": 0.0, "length": 20.0, "loop": True,
+          "slide": {"by": [0.0, 0.5, 0.0], "speed": 0.5, "starts": "shut", "moves": [[2.0, "open"]]}}
+LEAF = f"/{PLACE}/Objects/double_door_1/leaf_left__hinge_y"
+CARRIED_BAKE_GAP = {"gaps": [{
+    "name": "toy_crane_b26f85f9: not baked", "row": "surfaces-bake", "check": "baked", "objects": ["toy_crane_b26f85f9"],
+    "faults": ["toy_crane_b26f85f9: its bake job brought nothing back"],
+    "reason": "the take's bake job ran once in the batch and failed"}]}
+PLAN = {"gaps": [{"kind": "placed", "item": "crane", "row": "crane", "words": "crane: 1 in the concept, 0 on the plan"},
+                 {"kind": "outside", "item": "FAN 1", "row": "fan", "words": "fan 1 sticks out of the place"}]}
+
+# Each case is one world and what it must show. The world: `toy` (toy_inputs' arguments: the design made into the
+# record and layer by motion.make), with `files` written into its folder, `inputs` pointing at them, `parted` builds
+# laid on its base layer; or `written` (the checked place's layer written from one record, judged against another,
+# an edit made to the written layer). What it shows: `record` (paths into the record, `moves` and `posed` by name, to a
+# value or a pattern; a dict is compared by its sorted keys to a list), `carried` (the output's batch gaps' names),
+# `middles` (a prim's middle at a second: near a spot, or one axis under or over a number or another middle),
+# `gates` (gate name, `table:` for the stage table's, `every gate` for each motion gate, to its verdict), `rewrites`
+# (moves added to or dropped from the record and the gates judged on it), and `reseeded` (made again with another
+# seed: the same bytes).
+CASES = [
+    ("a door swings on its hinge for the walker, the fan turns and the rover stands", {
+        "toy": {}, "reseeded": True,
+        "record": [(("moves",), ["door_1", "fan_1"]), (("still",), objects("rover_1")),
+                   (("moves", "door_1", "swing", "speed"), 34.0), (("moves", "door_1", "swing", "angle"), 90.0),
+                   (("moves", "door_1", "swing", "moves"), [[0.0, "open"], [3.7, "shut"]]),
+                   (("moves", "door_1", "loop"), False), (("moves", "fan_1", "spin", "speed"), 738.0)],
+        "middles": [(f"/{PLACE}/Objects/door_1", 8.0, None, "near", ((3.0, 1.0, 1.0), 1e-6)),
+                    (f"/{PLACE}/Objects/door_1", 3.0, None, "near", ((2.55, 1.0, 0.55), 1e-4))],
+        "gates": {EVERY: gate(checks.PASS)}}),
+    ("with nobody walking the doors stand as their words say", {
+        "toy": {"rows": ROWS + WORDED, "extra": (OPEN_DOOR, SLIDING_DOOR), "cast": (SEATED,)},
+        "record": [(("moves",), ["fan_1"]),
+                   (("still", f"/{PLACE}/Objects/door_1"), starting("nobody passes through it")),
+                   (("still", f"/{PLACE}/Objects/sliding_door_1"), starting("nobody passes through it")),
+                   (("posed",), ["open_door_1"]),
+                   (("still", f"/{PLACE}/Objects/open_door_1"), starting("it stands open"))],
+        "middles": [(f"/{PLACE}/Objects/open_door_1", 5.0, 2, "<", -0.4)],  # turned off its wall line
+        "gates": {name: gate(checks.PASS) for name in ("passed", "rests", "moving area", "covered")},
+        "rewrites": [({"add": [CLOCK, dict(CLOCK, name="sliding_door_1", prim=f"/{PLACE}/Objects/sliding_door_1",
+                                           row="sliding_door")]},
+                      {"passed": gate(checks.FAIL, r"\A" + re.escape("door_1: off its rest from 2.0 to 12.6 s, and no walker")),
+                       "rests": gate(checks.FAIL, re.escape("sliding_door_1: its row says sliding, yet it swings"))})]}),
+    ("with no cast at all every door stands", {"toy": {"cast": ()}, "record": [(("moves",), ["fan_1"])]}),
+    ("a door that strikes its rule's way swings the other, a sliding door slides the other way", {
+        "toy": {"rows": ROWS + WORDED[1:], "extra": (POST, SLIDING_DOOR, BEHIND, PAST), "cast": (WALKER, SLIDER)},
+        "record": [(("moves", "door_1", "swing", "angle"), -90.0),
+                   (("moves", "door_1", "from"), holding("fitted by the clear gate")),
+                   (("moves", "sliding_door_1", "slide", "by"), [-1.2, 0.0, 0.0]),
+                   (("moves", "sliding_door_1", "slide", "moves"), [[0.0, "open"], [4.138, "shut"]])],
+        "middles": [(f"/{PLACE}/Objects/door_1", 3.0, None, "near", ((2.55, 1.0, 1.45), 1e-4)),
+                    (f"/{PLACE}/Objects/sliding_door_1", 2.0, None, "near", ((-4.58, 1.05, 4.0), 1e-4))],
+        "gates": {EVERY: gate(checks.PASS)}}),
+    ("a door that strikes every way stands with its strike", {
+        "toy": {"extra": (POST, MIRROR)},
+        "record": [(("moves",), ["fan_1"]), (("still", f"/{PLACE}/Objects/door_1"),
+                                             starting("it strikes at every way it was tried", "wall_"))],
+        "gates": {"clear": gate(checks.PASS)}}),
+    ("a door clear only at sixty degrees its rule's way swings sixty", {
+        "toy": {"extra": (STOP, MIRROR)},
+        "record": [(("moves", "door_1", "swing", "angle"), 60.0),
+                   (("moves", "door_1", "from"), holding("fitted by the clear gate: 60 degrees its rule's way"))],
+        "gates": {"clear": gate(checks.PASS)}}),
+    ("a hatch lying flat stands, one whose words say open stands open", {
+        "toy": {"rows": ROWS + HATCHES, "extra": (FLAT, FLAT_OPEN)},
+        "record": [(("moves",), ["door_1", "fan_1"]),
+                   (("still", f"/{PLACE}/Objects/hatch_1"), exactly(from_design.LYING)),
+                   (("still", f"/{PLACE}/Objects/open_flat_1"), exactly(from_design.LYING_OPEN))],
+        "gates": {"rests": gate(checks.PASS)},
+        "rewrites": [({"add": [LIFTED]}, {"rests": gate(checks.FAIL, r"\A" + re.escape(
+            f"/{PLACE}/Objects/open_flat_1: its row says open (\"open hatch\"), yet it stands shut or moves") + r"\Z")})]}),
+    ("a parted build moves its parts: a double door's leaves, a walked hatch's lid", {
+        "toy": {"rows": ROWS + [DOUBLE, LID, WALKED]},
+        "parted": [("double_door_1", (3.0, 0.0, -2.0), DOUBLE, 90.0), ("open_hatch_1", (-1.0, 0.0, -1.0), LID, 0.0),
+                   ("floor_hatch_1", (3.0, 0.0, 3.5), WALKED, 0.0)],
+        "record": [(("moves",), ["door_1", "double_door_1.leaf_left", "double_door_1.leaf_right", "fan_1",
+                                 "floor_hatch_1.lid"]),
+                   (("moves", "floor_hatch_1.lid", "swing", "axis"), "x"),
+                   (("moves", "floor_hatch_1.lid", "swing", "angle"), -90.0),
+                   (("moves", "double_door_1.leaf_left", "swing", "angle"), 90.0),
+                   (("moves", "double_door_1.leaf_right", "swing", "angle"), -90.0),
+                   (("moves", "double_door_1.leaf_left", "swing", "axis"), "y"),
+                   (("moves", "double_door_1.leaf_left", "swing", "about"), {"pivot": True}),
+                   # 4.5 less 90 / 34; the walk ends at 6.1
+                   (("moves", "double_door_1.leaf_left", "swing", "moves"), [[1.853, "open"], [6.1, "shut"]]),
+                   (("posed",), ["open_hatch_1.lid"])],
+        "middles": [(LEAF, 5.0, 2, "<", (LEAF, 0.0, -0.3)),  # both leaves open to -z
+                    (f"/{PLACE}/Objects/double_door_1/leaf_right__hinge_yn", 5.0, 2, "<", (LEAF, 0.0, -0.3)),
+                    (f"/{PLACE}/Objects/open_hatch_1/lid__hinge_xn", 5.0, 1, ">", 0.2),
+                    (f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 2.0, 1, ">", 0.2),
+                    (f"/{PLACE}/Objects/floor_hatch_1/lid__hinge_xn", 15.0, 1, "<", 0.1)],
+        "gates": {EVERY: gate(checks.PASS)}}),
+    ("a moving row whose take the bake left out carries its gap", {
+        "toy": {"rows": ROWS + [dict(CRANE, thing="prop:toy_crane_b26f85f9")]},
+        "files": {"bake/batch-gaps.json": CARRIED_BAKE_GAP}, "inputs": {"surfaces-bake": "bake"},
+        "record": [(("left_out",), {"crane": ["toy_crane_b26f85f9: not baked"]})],
+        "carried": ["toy_crane_b26f85f9: not baked", "crane: no object, so it does not move"],
+        "gates": {"designed": gate(checks.FAIL), "table:designed": gate(checks.PASS, reason=MOVED_ON)}}),
+    ("a moving row the accepted plan places none of is left out by its plan gap", {
+        "toy": {"rows": ROWS + [CRANE]}, "files": {"plan.json": PLAN}, "inputs": {"plan": "plan.json"},
+        "record": [(("left_out", "crane"), [re.compile(  # its source fix waits on #36
+            re.escape("crane: the accepted plan's gap \"crane: 1 in the concept, 0 on the plan\" (its source fix: ")
+            + r"(?=[^)]*issues/36#issuecomment-)" + re.escape(from_design.PLAN_FIX) + r"\)\Z")])],
+        "carried": ["crane: no object, so it does not move"],
+        "gates": {"designed": gate(checks.FAIL), "table:designed": gate(checks.PASS, reason=MOVED_ON)}}),
+    ("a design's door waiting on its bake stands on the stage and swings", {
+        "toy": {"designed": [thing for thing in DESIGNED if thing[0] != "door_1"], "structure": {}},
+        "files": {f"record/record/{PLACE}.json": {"place": PLACE, "objects": [WAITING_DOOR]},
+                  "bake/baked.json": {"door_1": {}}, "bake/made/door_1.gltf": {}, "kit.json": {"pieces": []},
+                  "surfaces.json": {}},
+        "inputs": {"scene-record": "record", "kit": "kit.json", "surfaces-bake": "bake", "surfaces-paint": ".",
+                   "surfaces": "surfaces.json"},
+        "record": [(("missing",), []), (("moves",), ["door_1", "fan_1"])],
+        "gates": {"designed": gate(checks.PASS)}}),
+    ("the checked place's true motion", {
+        "written": (RECORD, RECORD, None),
+        "gates": {name: gate(checks.PASS) for name in ("follows", "steps", "moving area", "clear")}}),
+    ("the cart judged against a path its layer does not drive", {
+        "written": (RECORD, recorded(lambda record: record["moves"][0]["path"]["points"].__setitem__(2, [4.0, 4.0])),
+                    None),
+        "gates": {"follows": gate(checks.FAIL, r"off its path's curve")}}),
+    ("the door judged against a 60 degree swing it does not make", {
+        "written": (RECORD, recorded(lambda record: record["moves"][1]["swing"].update(angle=60.0)), None),
+        "gates": {"follows": gate(checks.FAIL, r"swings 90\.0 degrees, its record 60\.0")}}),
+    ("a frame of the cart thrown 2 m aside", {
+        "written": (RECORD, RECORD, a_frame_thrown_aside), "gates": {"steps": gate(checks.FAIL, r"^cart_round: jumps")}}),
+    ("a stray crate moving and the door standing still", {
+        "written": (RECORD, RECORD, a_stray_crate_and_a_still_door),
+        "gates": {"moving area": gate(checks.FAIL, rf"^/{PLACE}/Objects/crate_1: moves, yet no record moves it$",
+                                      rf"^/{PLACE}/Objects/door_1: its record moves it, yet it stands still in the "
+                                      "stage$")}}),
+    ("the cart's path laid through the wall", {
+        "written": (THROUGH, THROUGH, None), "gates": {"clear": gate(checks.FAIL, r"Structure/wall")}}),
 ]
 
 
-@pytest.mark.parametrize("case", CHECK_CASES, ids=[case[0] for case in CHECK_CASES])
-def test_a_thing_moves_as_its_design_says(tmp_path, case):
-    """The motion check (check.py, #23) holds every move to its record: on the checked place, the cart driven round
-    its path, the door swung 90 degrees on its hinge and the hatch slid down pass follows, steps, moving area and
-    clear; each known fault, written into the record the gate reads or into the layer, fails its gate by name.
+def world(folder, case):
+    """The case's world made: (its output, its inputs, its record)."""
+    if "written" in case:
+        laid, against, edit = case["written"]
+        seed, out = checked_place(folder, laid)
+        if edit:
+            edit(out)
+        (out / motion.RECORD).write_text(json.dumps(against))
+        return out, {"kinds": REPO / "data/checks/motion.json", "seed": seed}, against
+    inputs = toy_inputs(folder, **case["toy"])
+    for name, spec in case.get("files", {}).items():
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
+        (folder / name).write_text(json.dumps(spec))
+    inputs.update({key: folder / name for key, name in case.get("inputs", {}).items()})
+    for name, at, row, turn in case.get("parted", ()):
+        parted(folder, name, at, row, turn)
+    out, record = made(inputs, folder)
+    return out, inputs, record
+
+
+def dug(record, path):
+    """The record's value at `path`, its moves and posed read by name."""
+    value = dict(record, moves={entry["name"]: entry for entry in record["moves"]},
+                 posed=[entry["name"] for entry in record.get("posed", [])])
+    for key in path:
+        value = value[key]
+    return value
+
+
+def matches(value, expected):
+    """Whether `value` is `expected`: a pattern matched whole, a list item by item, a dict to a list by its sorted
+    keys, else equal."""
+    if isinstance(expected, re.Pattern):
+        return isinstance(value, str) and expected.fullmatch(value) is not None
+    if isinstance(expected, list) and isinstance(value, dict):
+        return sorted(value) == expected
+    if isinstance(expected, list) and any(isinstance(item, re.Pattern) for item in expected):
+        return isinstance(value, list) and len(value) == len(expected) and all(map(matches, value, expected))
+    return value == expected
+
+
+def judged_all(out, inputs, expected):
+    """{gate: verdict} of the expected gates, `every gate` judging each motion gate."""
+    from score import stages
+    names = [check.name for check in motion.CHECKS] if EVERY in expected else [name for name in expected]
+    table = {check.name: check for check in stages.accepted_gaps(stages.MOTION).checks}
+    return {name: (table[name.split(":", 1)[1]] if name.startswith("table:") else
+                   next(check for check in motion.CHECKS if check.name == name)).judge(out, inputs, None)
+            for name in names}
+
+
+def gate_faults(out, inputs, expected):
+    """The expected gates whose verdict differs, with why."""
+    faults = {}
+    for name, verdict in judged_all(out, inputs, expected).items():
+        want = expected.get(name, expected.get(EVERY))
+        joined = "\n".join(verdict.findings)
+        unmatched = [pattern for pattern in want["findings"] if not re.search(pattern, joined, re.M)]
+        if verdict.answer != want["answer"] or unmatched or (
+                want["reason"] and not want["reason"].fullmatch(verdict.reason)):
+            faults[name] = (verdict.answer, verdict.reason, verdict.findings, unmatched)
+    return faults
+
+
+def middle_faults(out, inputs, expected):
+    """The expected middles that are not where the case says."""
+    faults = []
+    for prim, second, axis, how, reference in expected:
+        middle = middle_at(out, inputs, prim, second)
+        if how == "near":
+            right = np.allclose(middle, reference[0], atol=reference[1])
+        else:
+            bound = (middle_at(out, inputs, reference[0], reference[1])[axis] + reference[2]
+                     if isinstance(reference, tuple) else reference)
+            right = middle[axis] < bound if how == "<" else middle[axis] > bound
+        if not right:
+            faults.append((prim, second, how, reference, middle))
+    return faults
+
+
+@pytest.mark.parametrize("case", [case for _, case in CASES], ids=[name for name, _ in CASES])
+def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
+    """Each world is made through motion.make from its design (or, for the motion check, check.py #23, its layer written
+    from a record on the checked place), then its record, carried gaps, middles and gates are held to the case; a record
+    rewritten with a known fault fails its gate by name. The bake is not run: its door is written here (a_baked_door).
+    Break: score/stages/motion/from_design.py: `turns = max(1, round(middle_speed(motion_kind, "angular") * ROUND /
+        360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`
+    Break: score/stages/motion/from_design.py: `opens = max(free, enter - travel)` -> `opens = max(free, enter)`
+    Break: score/stages/motion/from_design.py: `return (float(low) + float(high)) / 2` -> `return float(high)`
+    Break: score/stages/__init__.py: `"light", "motion", "sim-body")` -> `"light", "sim-body")`
+    Break: score/stages/motion/from_design.py: `elif not served(rule, inventory, kinds) or spans == []:`
+        -> `elif not served(rule, inventory, kinds):`
+    Break: score/stages/motion/__init__.py: `if not any(enter <= end and leave >= begin for enter, leave in near):`
+        -> `if False:`
+    Break: score/stages/motion/__init__.py: `if said & set(NOT_ONE_LEAF) and path in swings:` -> `if False:`
+    Break: score/stages/motion/from_design.py: `return dict(rule, rests="open") if said & set(base.get("open_words",
+        ())) else rule` -> `return rule`
+    Break: score/stages/motion/__init__.py: `kept.append(fit(first[prim], left[prim].pop(0)))` -> `still[prim] =
+        "struck"`
+    Break: score/stages/motion/from_design.py: `variant = next((entry["motion"] for entry in kinds[row["row_kind"]]
+        .get("variants", []) if said & set(entry["words"])), {})` -> `variant = {}`
+    Break: score/stages/motion/__init__.py: `still[prim] = f"it strikes at every way it was tried, so it stands:
+        {struck[prim]}"` -> `still[prim] = "struck"`
+    Break: score/stages/motion/__init__.py: `sizes = np.arange(abs(float(angle)), FIT_LEAST - 1e-9, -FIT_STEP)` ->
+        `sizes = np.arange(abs(float(angle)), FIT_LEAST, -FIT_STEP)`
+    Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif
+        False:`
+    Break: score/stages/motion/from_design.py: `still[path] = LYING_OPEN if rule.get("rests") == "open" else LYING`
+        -> `still[path] = LYING`
+    Break: score/stages/motion/__init__.py: `under(path, posed) or (opened and built)` -> `under(path, posed)`
+    Break: score/stages/motion/__init__.py: `if opened and (not off or under(path, moving)):` -> `if opened and not
+        off:` (the open hatch written moving passes)
+    Break: score/stages/motion/from_design.py: `if rule["move"] in ("swing", "split") and hinged(stage, path):` ->
+        `if False:` (the double door is unmade, covered fails)
+    Break: tools/usd/motion_layer.py: `return own_pivot(stage, move)` -> `return own_side(stage, move, [0.0, 0.0,
+        0.0])` (a leaf turns about its middle)
+    Break: score/stages/motion/check.py: `tilt = max(tilt_of(turn, axis) for turn in turns)` -> `tilt =
+        max(tilt_of(turn) for turn in turns)` (follows fails the lid's level hinge as tipping off the upright)
+    Break: score/stages/motion/__init__.py: `moved = {path for path in moving_row_prims(stage, place, inputs) if
+        under(path, moving)} | moving` -> `moved = moving`
+    Break: score/stages/motion/from_design.py: `moves += [[at_least(opens), "open"], [at_least(shuts), "shut"]]` ->
+        `moves += [[round(opens, 3), "open"], [round(shuts, 3), "shut"]]` (the walked lid's shut rounds to before its
+        opening ends, and its layer is refused)
+    Break: score/stages/motion/from_design.py: `names = {row["id"], str(row.get("thing", "")).split(":", 1)[-1]}`
+        -> `names = {row["id"]}`
+    Break: score/stages/motion/__init__.py: `planned = from_design.plan_gaps(read_json(inputs["plan"])) if "plan" in
+        inputs else []` -> `planned = []`
+    Break: score/stages/layer_base.py: `grounded.take_bakes(inputs, folder, seed.name)` -> `pass`
     Break: score/stages/motion/check.py: `if abs(reached - wanted) > ANGLE_MOST:` -> `if abs(reached - wanted) >= 0:`
     Break: score/stages/motion/check.py: `faults.append(f"{name}: {off.max():.2f} m off its path's curve at its frame
         {int(off.argmax())}")` -> `pass`
@@ -966,12 +970,26 @@ def test_a_thing_moves_as_its_design_says(tmp_path, case):
         STILL_MOST]` -> `still = []`
     Break: score/stages/motion/__init__.py: `faults.append((path, f"{path}: reaches {worst:.2f} m into {where[0]} at
         {where[1] / rate:.2f} s"))` -> `pass`"""
-    name, laid, against, edit, gates, answer, patterns = case
-    seed, out = checked_place(tmp_path, laid)
-    if edit:
-        edit(out)
-    for gate in gates:
-        verdict = judged(out, seed, against, gate)
-        assert verdict.answer == answer, (name, gate, verdict.reason, verdict.findings)
-        unmatched = [pattern for pattern in patterns if not any(re.search(pattern, line) for line in verdict.findings)]
-        assert unmatched == [], (name, gate, unmatched, verdict.findings)
+    import score.stages.assembly.baked as baked
+    from score import stages
+    monkeypatch.setattr(baked, "take_bake", a_baked_door)
+    out, inputs, record = world(tmp_path, case)
+    wrong = [(path, dug(record, path)) for path, expected in case.get("record", ()) if not matches(dug(record, path),
+                                                                                                   expected)]
+    assert wrong == [], wrong
+    if "carried" in case:
+        carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
+        assert carried == case["carried"], carried
+    assert middle_faults(out, inputs, case.get("middles", ())) == []
+    assert gate_faults(out, inputs, case.get("gates", {})) == {}
+    for change, expected in case.get("rewrites", ()):
+        moves = [entry for entry in record["moves"] if entry["name"] not in change.get("drop", ())]
+        (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*moves, *change.get("add", ())])))
+        assert gate_faults(out, inputs, expected) == {}, change
+    if case.get("reseeded"):
+        again = tmp_path / "again"
+        again.mkdir()
+        motion.make(inputs, again, 1778076555, {})
+        assert [(again / name).read_bytes() == (out / name).read_bytes()
+                for name in (motion.RECORD, "layers/motion.usda")] == [True, True]
+        assert not next(row for row in stages.STAGES if row.name == "motion").seeded
