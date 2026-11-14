@@ -199,6 +199,35 @@ def contacted(local, names, parents, bind, contacts):
     feet held from skating; `contacts` Kimodo's foot_contacts for the clip. The rig's floor is the bind's own, never
     Kimodo's lowest toe plus 2 cm. Needs Kimodo's motion_correction (vendor/kimodo/MotionCorrection, its prebuilt wheel
     installed by `uv sync`), refused by name without it."""
+    contacts = foot_contacts(contacts)
+    if len(contacts) != len(local):
+        raise ValueError(f"{len(contacts)} frames of foot contacts for a clip of {len(local)}")
+    none = np.zeros(len(local), dtype=np.float32)
+    return corrected(local, names, parents, bind, contacts, local, (none, none))
+
+
+def pinned(local, names, parents, bind, foot, frames, rise):
+    """`local` with the foot `foot` (FEET's name) moved up `rise` (m, one a frame) on its `frames` (a mask) by Kimodo's
+    own end-effector pin (MotionCorrection's correct_motion, as post_process_motion calls it for a foot constraint): the
+    leg's two-bone IK puts the ankle there, the foot turned as before, the leg's turns eased into and out of the pinned
+    frames; no contact pinned to a floor, the other foot and the Hips' height as they were. A foot asked onto a ground
+    of its own on each frame (a climber's treads), where Kimodo's contact pins hold one floor height."""
+    frames = np.asarray(frames, dtype=np.float32)
+    if len(frames) != len(local) or len(np.atleast_1d(rise)) not in (1, len(local)):
+        raise ValueError(f"{len(frames)} pinned frames and {len(np.atleast_1d(rise))} rises for a clip of {len(local)}")
+    if foot not in FEET:
+        raise ValueError(f"{foot} is no foot of {FEET}")
+    target = np.array(local, dtype=float)
+    target[:, TRAVELLING_JOINT, 1, 3] += np.broadcast_to(np.asarray(rise, dtype=float), len(local))
+    none = np.zeros(len(local), dtype=np.float32)
+    masks = (frames, none) if foot == FEET[0] else (none, frames)
+    return corrected(local, names, parents, bind, np.zeros((len(local), 4), dtype=np.float32), target, masks)
+
+
+def corrected(local, names, parents, bind, contacts, target, feet):
+    """`local` through Kimodo's MotionCorrection `correct_motion` on the build's bones: `contacts` its four contact
+    channels (foot_contacts), `target` the clip whose pose a foot pinned on a frame is put at, `feet` the left and right
+    foot's pin masks (frames each). Refused by name without motion_correction."""
     from scipy.spatial.transform import Rotation
 
     try:
@@ -209,22 +238,25 @@ def contacted(local, names, parents, bind, contacts):
             from missing
 
     names = [str(name) for name in names]
-    contacts = foot_contacts(contacts)
-    if len(contacts) != len(local):
-        raise ValueError(f"{len(contacts)} frames of foot contacts for a clip of {len(local)}")
     joints = kimodo_joints(names, parents)
     kimodo, hips, rest = to_kimodo(local, bind, joints, parents)
+    aimed, aimed_hips, _ = to_kimodo(target, bind, joints, parents)
     frames, count = kimodo.shape[:2]
-    quats = np.ascontiguousarray(Rotation.from_matrix(kimodo.reshape(-1, 3, 3)).as_quat(scalar_first=True)
-                                 .astype(np.float32).ravel())
+
+    def quaternions(turns):
+        return np.ascontiguousarray(Rotation.from_matrix(turns.reshape(-1, 3, 3)).as_quat(scalar_first=True)
+                                    .astype(np.float32).ravel())
+
+    quats = quaternions(kimodo)
     root = np.ascontiguousarray(hips.astype(np.float32).ravel())
     none = np.zeros(frames, dtype=np.float32)
     rest_rows = [list(map(float, rest[0]))] + [list(map(float, rest[place] - rest[parent]))
                                                for place, (_, parent) in enumerate(joints) if parent >= 0]
     tags = [names[own] for own, _ in joints]
+    left, right = (np.ascontiguousarray(np.asarray(mask, dtype=np.float32)) for mask in feet)
     motion_correction.correct_motion(
-        root, quats, np.zeros(frames * 3, dtype=np.float32), np.tile(np.float32([1, 0, 0, 0]), frames * count),
-        none, none, none, none, none, none, np.ascontiguousarray(contacts.ravel()),
+        root, quats, np.ascontiguousarray(aimed_hips.astype(np.float32).ravel()), quaternions(aimed),
+        none, none, none, left, right, none, np.ascontiguousarray(np.asarray(contacts, dtype=np.float32).ravel()),
         [parent for _, parent in joints], rest_rows, [[0.0, 0.0, 0.0, 1.0]] * count,
         tags.index("LeftHand"), tags.index("RightHand"), tags.index("LeftFoot"), tags.index("RightFoot"),
         CONTACT_THRESHOLD, ROOT_MARGIN, False)

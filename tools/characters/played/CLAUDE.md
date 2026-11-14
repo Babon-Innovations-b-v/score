@@ -23,5 +23,10 @@ venv): `laid`, `chained`, `fk`, `clip_local`, `clip_world` and `floor_lift`, the
   lying as the bind's does; the sim body's `toes_lifted` takes the least share that puts the foot's skin on its
   floor. Holding the heel only while the foot is flat does nothing here: the correction marks the ankle in contact
   whenever the toe is.
+- **A foot put on a ground of its own frame by frame** (`pinned`, 2026-11-14): the same correct_motion with one
+  foot's end-effector pin and no contacts (Kimodo's contact pins hold one floor height, its minHeight), the target the
+  clip with its Hips moved up the rise, so the leg's two-bone IK puts the ankle there, the foot turned as before;
+  `contacted` and `pinned` share `corrected` (contacted's output unchanged bit for bit on the five clips, 2026-11-14).
+  The sim body's `treads_stood` uses it for a climber's treads.
 - Readers: the sim body (`score/stages/sim_body` `person_rig`, `clip_frames`), and through it the film's layer peel.
 - This folder is in no row's declared files: its readers' keys follow it by import.

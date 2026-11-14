@@ -63,7 +63,9 @@ A climber (the cast's `stairs`, cast.on_stairs: a person its design stands on st
 plays its scene-made clip up or down its flight instead (scene-clips, an optional read: its rig.npz `clip_<clip>` and
 scene_clips.json entry, route_clip: its travel kept along its route and up its steps, only its Hips' height over the
 route's ground scaled by the build), so the ground pushes it on each tread; one with none taken is left out by name,
-never walked flat through its steps (2026-11-04).
+never walked flat through its steps (2026-11-04). Kimodo held its feet on their treads only at its keyframes, so each
+foot, on every frame it stands, is put on the ground under its sole by Kimodo's own end-effector pin (treads_stood,
+2026-11-14).
 
 Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
 with no activation dynamics), clips made for the ground for any walker but a climber (a flat-ground clip meets a step
@@ -86,7 +88,7 @@ from score import checks, contracts
 from score.stages import layer_base
 from score.stages.sim_body._body import (BODY, RATE, body_row, clip_frames, contacts_of, mass_of,  # noqa: F401
                                          person_rig, route_clip, segments_of, soles, stances, standing_height,
-                                         stood, stood_smoothed)
+                                         stood, stood_smoothed, surface_under, treads_stood)
 from score.stages.sim_body._gates import (EMPTY_CAST, FOLLOWED, LAYER, MOVE_MOST, NO_SINGLES,  # noqa: F401
                                           RECORD, RESIDUAL_FORCE, RESIDUAL_MOMENT, judge_carries, judge_follows,
                                           judge_lands, judge_on_floor, judge_residual, judge_smooth, measured,
@@ -237,6 +239,9 @@ def make(inputs, out, seed, params):
         if not len(ground):
             left_out.append(f"{single['name']}: no solid of the place within {REACH} m of its clip's path to stand on")
             continue
+        if single.get("stairs"):  # its feet on its treads between Kimodo's keyframes (treads_stood)
+            rig = dict(rig, **{f"clip_{clip}": treads_stood(rig, rig[f"clip_{clip}"], ground)})
+            worlds = clip_frames(rig, clip, kept)
         mass = mass_of(single, standing_height(rig))
         targets = out / "clips" / f"{single['name']}.npz"
         np.savez_compressed(targets, world=worlds, ground=ground, points=rig["points"], faces=rig["faces"],
