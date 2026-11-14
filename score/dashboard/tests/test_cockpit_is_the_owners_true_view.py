@@ -347,7 +347,26 @@ JUDGED = {  # what the pure judges answer on those rows
     "place words": ("the old station", "Old station"),
     "lost items": ["usd-r3/flat:x", "surfaces/launch.json:bake entry far_rocket_1"],
     "concepts/cock": ["concepts/cock.json", "concepts/cockpit/draws/1.json", "concepts/cockpit2/draws/2.json"],
-    "prefixes unlike the store's own answer": []}
+    "prefixes unlike the store's own answer": [],
+    # by hand: the 3rd grew 5.5 - 4.0 = 1.5 whole; the 2nd's growth not known (no day before), its ledger 0.3; the 5th
+    # misses a line: none; a ledger 0 says nothing; a month's first day is its whole reading
+    "spend by day": [("01", 1.0, False), ("02", 0.3, False), ("03", 1.5, True), ("04", 0.7, False), ("05", None, False),
+                     ("06", None, False)],
+    "a first day": [{"day": "2026-10-01", "euros": 2.0, "whole": True}],
+    "day chart: ticks, bars, gap days": ([0, 1.0, 2.0], 4, ["05", "06"]), "unplaced of 10, of none": (6.5, None),
+    "scale tops": [1.0, 1.0, 5, 2500, 20000],
+    "3D of a withdrawn library place, then a draft": [(None, None), ("/library-files/files/ab12", "library")]}
+SPEND_BILLS = [{"day": "2026-10-02", "cloud": 2.0, "models": 0.5}, {"day": "2026-10-03", "cloud": 3.5, "models": 0.5},
+               {"day": "2026-10-05", "cloud": 5.0, "models": None}]
+SPEND_LEDGER = [{"day": "2026-10-01", "cloud": 1.0, "models": 0.0}, {"day": "2026-10-02", "cloud": 0.3, "models": 0.0},
+                {"day": "2026-10-04", "cloud": 0.5, "models": 0.2}, {"day": "2026-10-06", "cloud": 0, "models": 0.0}]
+SCALES = (0, 0.4, 3, 2119.85, 12408)
+
+
+def library_holding(state):
+    """A library holding place alpha in `state`, its web copy ab12 (state/screens.py `web3d_link`)."""
+    entry = types.SimpleNamespace(kind="place", entry_id="alpha", state=state, web3d=types.SimpleNamespace(sha="ab12"))
+    return types.SimpleNamespace(entries=lambda: [entry])
 HERE = object()  # a row's price made on this checkout as it is
 STALE = [  # (row, the price's priced_on over this checkout's, findings rewritten after it, why there is no figure)
     ("current", HERE, False, None), ("other commit", {"commit": "0" * 40, "uncommitted": False}, False, "the code moved"),
@@ -369,149 +388,7 @@ BETA_LAMP = {"id": "missing:lamp_1", "rule": "missing", "kind": "generate", "sen
              "placed": "spot", "prim": "/beta/Gaps/lamp_1", "low": [0, 0, 0], "high": [1, 1, 1]}
 
 
-# === the Environment, Place and Stats screens =========================================================================
-
-def test_the_environment_tiles_carry_each_places_worst_gap_and_its_concept_and_the_top_bar_the_buys_figure(
-        world, settings, tmp_path, monkeypatch, read):
-    """alpha: 4 gaps, worst a route step, its concept; beta: none, its concept lost (never a render). The top bar: the
-    cloud bill read, the model bill not ("at least"), no stop; what Buy buys, EUR 2-3, 0.2 h. Break: state/gaps.py
-    `place_row` takes the mildest kind as the worst (KINDS reversed)."""
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world, eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
-    a_remake(world)
-    world.source.refresh()
-    a_month(monkeypatch)
-    html = signed_in().get("/places/").content.decode()
-    tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', html, re.S))
-    assert set(tiles) == {"alpha", "beta"}
-    assert "tone-gap-route" in tiles["alpha"] and "<b data-v>4</b>" in tiles["alpha"]
-    assert "tone-done" in tiles["beta"] and "<b data-v>0</b>" in tiles["beta"]
-    assert '<img src="/thumbs/' in tiles["alpha"] and "<img" not in tiles["beta"] and "concept missing" in tiles["beta"]
-    top = html[html.index('<section class="topbar">'):html.index('<section class="ptiles"')]
-    assert "<small>&ge;</small> <small>EUR</small> 12.50" in top and "not read: Model calls" in top
-    assert "250" not in top and "stop" not in top  # owner rule: no stop shown
-    assert "<small>EUR</small> 2&ndash;3<small>, about 0.2 h" in top
-
-
-def test_the_environment_shows_outside_places_and_opens_each_to_what_sits_inside(world, settings, tmp_path, read):
-    """alpha within beta within the yard: one yard tile summing alpha's gaps, then beta, then alpha alone; a shell
-    holding no place shows not. Break: pages/cockpit.py `tiles` drops its `parent_of(...) == at` filter."""
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    (world.data / "places/within.json").write_text(json.dumps({
-        "shells": {"yard": {"name": "Yard"}, "empty": {"name": "Empty"}},
-        "within": {"beta": {"within": "yard"}, "alpha": {"within": "beta"}}}))
-    owner = signed_in()
-
-    def tiles(page):
-        html = owner.get(page).content.decode()
-        return re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S), html
-    found, _ = tiles("/places/")
-    assert [href for href, _ in found] == ["/places/?in=yard"]
-    assert "<b data-v>Beta, 1 room</b>" in found[0][1] and "tone-gap-route" in found[0][1]
-    found, _ = tiles("/places/?in=yard")
-    assert [href for href, _ in found] == ["/places/?in=beta"] and "<b data-v>+1</b>" in found[0][1]
-    found, html = tiles("/places/?in=beta")
-    assert [href for href, _ in found] == ["/place/alpha/"]
-    assert "Outside" not in html  # owner rule (2026-10-20): never an "Outside" card beside its inside places
-    head = html[html.index('<section class="phead"'):html.index('<section class="ptiles"')]
-    assert '<h1 class="phead-name" data-v>Beta</h1>' in head and "tone-gap-route" in head
-    assert owner.get("/places/?in=alpha").status_code == 404 and owner.get("/places/?in=empty").status_code == 404
-
-
-def test_the_remake_on_every_page_is_what_buy_buys_and_its_time_a_floor_while_a_step_is_untimed(world, settings,
-                                                                                                tmp_path):
-    """Owner, 2026-10-24: Home said EUR 900-1031 while Buy said 162-314. The remake is batch.now: the basket's close-up,
-    EUR 2-3, 10-20 min; with an untimed sound added, no hours, at least the close-up's. Break: pages/cockpit.py `remake`
-    gives `at_least_hours` None."""
-    from score.dashboard.pages import cockpit, views
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    a_remake(world)
-    world.source.refresh()
-    state = world.source.world_state()
-    remake = cockpit.remake(views.batch_of(state))
-    assert (remake["low"], remake["high"], remake["hours"], remake["unknown"]) == (2.0, 3.0, 0.2, 0)
-    untimed = {"likely_euros": 1.0, "high_euros": 1.0, "basis": "per unit × forecast", "likely_minutes": None}
-    items = [{**item, "nodes": {**item["nodes"], "sound@alpha": untimed}}
-             for item in records.items(settings.SCORE_HOME / "proposals")]
-    remake = cockpit.remake(screens.batch(state, items))
-    assert remake["hours"] is None and (remake["at_least_hours"], remake["untimed"]) == (0.2, 1)
-
-
-def test_stats_are_numbers_and_a_partial_bill_is_unknown_not_a_figure(world, settings, tmp_path, monkeypatch, read):
-    """The cloud line 12.50; the model bill partly counted: AI calls and Total unknown; 1 of 2 steps measured; beta
-    complete; the gaps by kind; the days from the bills' growth. No stop, no controls (owner rules). Break:
-    pages/cockpit.py `known` reads a partial line's euros as a figure."""
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
-    a_month(monkeypatch, bill_days=[{"day": "2026-10-02", "cloud": 2.0, "models": 0.5},
-                                    {"day": "2026-10-03", "cloud": 3.5, "models": 0.5}],
-            days=[{"day": "2026-10-01", "cloud": 1.0, "models": 0.0}])
-    html = signed_in().get("/stats/").content.decode()
-    cards = dict(re.findall(r'<div class="num-label">(?:<i [^>]*></i>)?(?:<span data-v>)?([^<]+)(?:</span>)?</div>\s*'
-                            r'<div class="num-value[^"]*"[^>]*>(.*?)</div>', html, re.S))
-    assert cards["Cloud compute"] == "<small>EUR</small> 12.50"
-    assert cards["AI calls"] == "unknown" and cards["Total"] == "unknown"
-    assert cards["Steps with a measured price"] == "1<small> of 2</small>"
-    assert cards["Places complete"] == "1<small> of 2</small>"
-    assert [cards[label] for label in ("not made yet", "failing a check", "steps of the route still to do",
-                                       "inputs lost")] == ["2", "1", "1", "0"]
-    assert "<title>2026-10-01: EUR 1.00, at least" in html and "<title>2026-10-03: EUR 1.50</title>" in html
-    assert "stop" not in html.lower()
-    main = html[html.index("<main>"):]
-    assert "<form" not in main and "<button" not in main
-
-
-def test_spend_by_day_takes_the_bills_growth_else_the_ledger_else_a_gap():
-    """By hand: the 3rd grew 5.5 - 4.0 = 1.5 whole; the 2nd's growth not known (no day before), its ledger 0.3; the 5th
-    misses a line: none; a ledger 0 says nothing. Break: pages/cockpit.py `spend_by_day` takes a missing day before as
-    0.0 (its whole reading as the day's growth)."""
-    from score.dashboard.pages import cockpit
-    bills = [{"day": "2026-10-02", "cloud": 2.0, "models": 0.5}, {"day": "2026-10-03", "cloud": 3.5, "models": 0.5},
-             {"day": "2026-10-05", "cloud": 5.0, "models": None}]
-    ledger = [{"day": "2026-10-01", "cloud": 1.0, "models": 0.0}, {"day": "2026-10-02", "cloud": 0.3, "models": 0.0},
-              {"day": "2026-10-04", "cloud": 0.5, "models": 0.2}, {"day": "2026-10-06", "cloud": 0, "models": 0.0}]
-    days = cockpit.spend_by_day(bills, ledger, "2026-10", datetime.date(2026, 10, 6))
-    assert [(day["day"][-2:], day["euros"], day["whole"]) for day in days] == [
-        ("01", 1.0, False), ("02", 0.3, False), ("03", 1.5, True), ("04", 0.7, False), ("05", None, False),
-        ("06", None, False)]
-    first = cockpit.spend_by_day([{"day": "2026-10-01", "cloud": 1.0, "models": 1.0}], [], "2026-10",
-                                 datetime.date(2026, 10, 1))
-    assert first == [{"day": "2026-10-01", "euros": 2.0, "whole": True}]
-    chart = cockpit.day_chart(days)
-    assert [tick["euros"] for tick in chart["ticks"]] == [0, 1.0, 2.0]
-    assert len(chart["bars"]) == 4 and [gap["day"][-2:] for gap in chart["gaps"]] == ["05", "06"]
-    assert cockpit.unplaced(10.0, days) == 6.5 and cockpit.unplaced(None, days) is None
-    assert [cockpit.scale_top(value) for value in (0, 0.4, 3, 2119.85, 12408)] == [1.0, 1.0, 5, 2500, 20000]
-
-
-def test_the_place_screen_draws_its_top_level_and_a_branch_loads_its_items_priced_with_his_one_action(
-        world, settings, tmp_path, read):
-    """Gaps (2 lamps) and Objects load as they open; the lamp's chain EUR 2-3 with a guessed sound "+"; its one action
-    the waiting close-up's accept; the crate failing, its chain unknown; no action for a guest. Break: pages/cockpit.py
-    `gap_action` drops its accept of a waiting output."""
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
-    owner = signed_in()
-    html = owner.get("/place/alpha/").content.decode()
-    assert re.search(r'<span class="node-label" data-v>Gaps</span><span class="node-count" data-v>2</span>', html)
-    assert 'data-title="lamp"' not in html  # only the top level is drawn
-    assert 'data-title="place:plan" data-state="route" data-tone="gap-route" data-price="unknown"' in html
-    [lamp] = owner.get("/place/alpha/branch/?path=Gaps").json()
-    assert (lamp["label"], lamp["count"], lamp["tone"]) == ("lamp", 2, "gap-missing")
-    panel = lamp["panel"]
-    assert (panel["state"], panel["gap"], panel["price"]) == ("missing", "missing:lamp_1", "EUR 2.00–3.00 +")
-    assert (panel["action"], panel["action_label"]) == ("/api/decisions", "Accept")
-    assert json.loads(panel["body"]) == {"node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"],
-                                         "decision": "accept"}
-    [crate] = owner.get("/place/alpha/branch/?path=Objects").json()
-    assert crate["panel"]["state"] == "failing" and crate["panel"]["price"] == "unknown"
-    assert "action" not in signed_in("guest").get("/place/alpha/branch/?path=Gaps").json()[0]["panel"]
-    assert owner.get("/place/alpha/branch/?path=Nowhere").status_code == 404
-
+# === a scene item's click, in a browser ===============================================================================
 
 PLAYWRIGHT = "playwright@1.62.1"  # viewer_look.py's: its Chromium (1234) is the one installed in ~/.cache/ms-playwright
 SHELL = pathlib.Path.home() / ".cache/ms-playwright/chromium_headless_shell-1234/chrome-headless-shell-linux64"
@@ -551,48 +428,6 @@ def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(
     assert found["reloaded"] == {"open": True, "title": "lamp", "steps": 3}
     assert found["posted"] == [{"url": "/api/decisions", "csrf": "token", "body": {
         "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
-
-
-# === the 3D viewer ====================================================================================================
-
-def test_the_viewer_frames_its_gaps_with_or_without_a_web_copy_and_names_each_layers_step(world, settings, tmp_path,
-                                                                                        read):
-    """No marks unless asked; asked, the three boxed gaps (the plan has no box); framing one names its row's line; the
-    light layer links to its step; no copy: gaps alone, no viewer script. Break: pages/present.py `gap_marks` keeps
-    findings with no box."""
-    a_gaps_finding(world, settings, tmp_path)
-    owner = signed_in()
-    assert "view3d.js" not in owner.get("/view/alpha").content.decode()  # no copy yet
-    framed = owner.get("/view/alpha?gaps=1&gap=missing:lamp_2").content.decode()
-    given = view_data(framed)
-    assert given["gap"] == "missing:lamp_2" and given["gaps_only"] is True
-    lamp = next(mark for mark in given["marks"] if mark["id"] == "missing:lamp_2")
-    assert lamp["sentence"].startswith("A lamp should be in the alpha")
-    assert lamp["url"] == "/place/alpha/#gap-missing:lamp_1"
-    (world.root / "web/alpha").mkdir(parents=True)
-    (world.root / "web/alpha/alpha.json").write_text(json.dumps({
-        "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
-        "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
-        "light_bytes": 5, "triangles": 12}))
-    assert view_data(owner.get("/view/alpha").content.decode())["marks"] == []
-    given = view_data(owner.get("/view/alpha?gaps=1").content.decode())
-    assert [{name: mark[name] for name in ("id", "low", "high", "kind")} for mark in given["marks"]] == [
-        {"id": "missing:lamp_1", "low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"},
-        {"id": "missing:lamp_2", "low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
-        {"id": "gate:complete/painted:crate_1", "low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}]
-    assert given["gaps_only"] is False
-    assert given["layers"]["light"] == {"label": "light sweep", "url": "/place/alpha/step/light/"}
-    assert "edit" in given["order"] and "edit" not in given["layers"]  # the owner's own edits: no step made them
-    assert signed_in("other").get("/view/nowhere").status_code == 404
-
-
-def test_the_step_page_shows_its_own_picture_and_what_it_read(world):
-    """Break: templates/pages/step.html drops the "reads:" caption."""
-    detail = world.source.step_detail("alpha", "assembly")
-    owner = signed_in()
-    assert f'src="{detail.picture.url}"' in owner.get("/place/alpha/step/assembly/").content.decode()
-    html = owner.get("/place/alpha/step/demo-film/").content.decode()
-    assert "reads: OpenUSD stage" in html and "reads: completion" in html  # the stage table's reads of demo-film
 
 
 # === screens' data (state/screens.py) =================================================================================
@@ -718,17 +553,6 @@ def test_a_place_shows_no_numbers_until_its_inventory_is_read_from_its_locked_co
     concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T11-00-00.json",
                       {"place": "alpha", "sha": None, "by": "joey", "at": "2026-10-20T11:00:00+00:00"})
     assert (alpha()["design"], alpha()["progress"]) == ("draw", None)
-
-
-def test_a_withdrawn_library_place_is_no_3d_for_its_place_screen():
-    """Owner, 2026-10-21. Break: state/screens.py `web3d_link` drops its withdrawn check."""
-    no_copy = types.SimpleNamespace(web3d=lambda place: False)
-    entry = types.SimpleNamespace(kind="place", entry_id="alpha", state="withdrawn",
-                                  web3d=types.SimpleNamespace(sha="ab12"))
-    shelf_of = types.SimpleNamespace(entries=lambda: [entry])
-    assert screens.web3d_link(no_copy, "alpha", shelf_of) == (None, None)
-    entry.state = "draft"
-    assert screens.web3d_link(no_copy, "alpha", shelf_of) == ("/library-files/files/ab12", "library")
 
 
 # === the Buy screen ===================================================================================================
@@ -2598,6 +2422,21 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     state/local.py `gaps_price` remembers its read without `gaps_written()` in the key; state/gaps.py `own_sum` keeps
     nodes another place's chain also has (`reach[node] == 1` dropped); state/local.py `gaps_price` leaves `milestones`
     out of the GapsPrice; state/local.py `gaps_total` drops `lost_once`.
+    And the pure judges of the cockpit's numbers: the spend by day takes the bills' growth, else the ledger, else a
+    gap, its chart's ticks and its scale; a withdrawn library place is no 3D for its place screen.
+    Breaks (each applied once and seen red): pages/cockpit.py `spend_by_day` takes a missing day before as 0.0 (its
+    whole reading as the day's growth); state/screens.py `web3d_link` drops its withdrawn check.
+    And the 3D viewer, the Environment, Place and Stats screens and the step page over alpha's gaps priced and
+    prepare's record (the blocks after the library): the gaps framed with or without a web copy, each layer's step
+    named; each place's worst gap and its concept on its tile, the top bar the Buy's figure; the remake on every page
+    what Buy buys, its time a floor while a step is untimed; stats numbers, a partial bill unknown, not a figure; the
+    place screen's top level and a branch's items priced with his one action; outside places opened to what sits
+    inside; the step page's own picture and what it read.
+    Breaks (each applied once and seen red): pages/present.py `gap_marks` keeps findings with no box; state/gaps.py
+    `place_row` takes the mildest kind as the worst (KINDS reversed); pages/cockpit.py `remake` gives
+    `at_least_hours` None; pages/cockpit.py `known` reads a partial line's euros as a figure; pages/cockpit.py
+    `gap_action` drops its accept of a waiting output; pages/cockpit.py `tiles` drops its `parent_of(...) == at`
+    filter; templates/pages/step.html drops the "reads:" caption.
     And the library, on a copy of the file's shelf: its kinds counted from its entries, no entry until a branch opens;
     a branch a page at a time; folders by name then place, one newest locked version, no withdrawn entry; each item
     played live from its own files; an algorithm's real example, else why not; the export carries light copies only,
@@ -2705,6 +2544,8 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     for key in KEYS:
         (keys / key).parent.mkdir(parents=True, exist_ok=True)
         (keys / key).write_text("{}")
+    days = cockpit.spend_by_day(SPEND_BILLS, SPEND_LEDGER, "2026-10", datetime.date(2026, 10, 6))
+    chart = cockpit.day_chart(days)
     judged = {"bases": [(entry["basis"], entry["likely"], entry["high"], entry["nodes"]) for entry in sums["bases"]],
               "guessed": (sums["guessed"]["euros"], sums["guessed"]["nodes"]), "unknown": sums["unknown"],
               "measured of": cockpit.measured_prices(price),
@@ -2713,7 +2554,16 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
               "lost items": [plain.lost_item(key) for key in LOST_ITEMS],
               "concepts/cock": sorted(scoped(str(keys), "concepts/cock")),
               "prefixes unlike the store's own answer": [prefix for prefix in KEY_PREFIXES if scoped(str(keys), prefix)
-                                                         != runtime_store.FolderStore(keys).keys(prefix)]}
+                                                         != runtime_store.FolderStore(keys).keys(prefix)],
+              "spend by day": [(day["day"][-2:], day["euros"], day["whole"]) for day in days],
+              "a first day": cockpit.spend_by_day([{"day": "2026-10-01", "cloud": 1.0, "models": 1.0}], [], "2026-10",
+                                                  datetime.date(2026, 10, 1)),
+              "day chart: ticks, bars, gap days": ([tick["euros"] for tick in chart["ticks"]], len(chart["bars"]),
+                                                   [gap["day"][-2:] for gap in chart["gaps"]]),
+              "unplaced of 10, of none": (cockpit.unplaced(10.0, days), cockpit.unplaced(None, days)),
+              "scale tops": [cockpit.scale_top(value) for value in SCALES],
+              "3D of a withdrawn library place, then a draft": [screens.web3d_link(types.SimpleNamespace(
+                  web3d=lambda place: False), "alpha", library_holding(state)) for state in ("withdrawn", "draft")]}
     if judged != JUDGED:
         faults["the runner's prices and plain words"] = judged
     assert not faults, faults
@@ -2853,13 +2703,123 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     guarded = Client(enforce_csrf_checks=True)
     guarded.force_login(guarded_user)
     owner, guest = signed_in(), signed_in("guest")
-    copy = world.root / "web" / "alpha"  # the library's place check below made it first
-    copy.mkdir(parents=True, exist_ok=True)
+    items = a_gaps_finding(world, settings, tmp_path)
+
+    # The 3D viewer over alpha's gaps: with no web copy (the library's place check above made one; gone here), the gaps
+    # alone and no viewer script, framing one naming its row's line; with a copy, no marks unless asked, asked the
+    # three boxed gaps (the plan has no box), the light layer linked to its step, the owner's edits no step's.
+    copy = world.root / "web" / "alpha"
+    (copy / "alpha.json").unlink()
+    alone, framed = (owner.get(f"/view/alpha{query}").content.decode() for query in (
+        "", "?gaps=1&gap=missing:lamp_2"))
     (copy / "alpha.json").write_text(json.dumps({
         "place": "alpha", "from_output": world.outputs["assembly@alpha"], "made_at": "2026-10-18T12:00:00Z",
         "objects": [{"name": "Lamp", "layer": "light", "low": [0, 0, 0], "high": [1, 1, 1]}], "bytes": 10,
         "light_bytes": 5, "triangles": 12}))
-    items = a_gaps_finding(world, settings, tmp_path)
+    unasked, asked = (view_data(owner.get(f"/view/alpha{query}").content.decode()) for query in ("", "?gaps=1"))
+    framed = view_data(framed)
+    marked = next(mark for mark in framed["marks"] if mark["id"] == "missing:lamp_2")
+    assert ("view3d.js" in alone, framed["gap"], framed["gaps_only"], marked["sentence"].startswith(
+        "A lamp should be in the alpha"), marked["url"], unasked["marks"],
+        [{name: mark[name] for name in ("id", "low", "high", "kind")} for mark in asked["marks"]], asked["gaps_only"],
+        asked["layers"]["light"], "edit" in asked["order"], "edit" in asked["layers"],
+        signed_in("other").get("/view/nowhere").status_code) == (
+        False, "missing:lamp_2", True, True, "/place/alpha/#gap-missing:lamp_1", [],
+        [{"id": "missing:lamp_1", "low": [0, 0, 0], "high": [1, 1, 1], "kind": "missing"},
+         {"id": "missing:lamp_2", "low": [2, 0, 0], "high": [3, 1, 1], "kind": "missing"},
+         {"id": "gate:complete/painted:crate_1", "low": [4, 0, 0], "high": [5, 1, 1], "kind": "gate"}], False,
+        {"label": "light sweep", "url": "/place/alpha/step/light/"}, True, False, 404)
+
+    # The Environment, Place and Stats screens over alpha's gaps priced on this checkout (the close-up per unit times
+    # its forecast, the sound guessed) and prepare's record, the month's model bill partly counted. The tiles: alpha's
+    # 4 gaps, worst a route step, its concept; beta none, its concept lost (never a render). The top bar: the cloud
+    # bill read, the model bill not ("at least"), no stop; what Buy buys (the remake is batch.now: the close-up, EUR
+    # 2-3, 10-20 min), and with an untimed sound added no hours, at least the close-up's. Stats: AI calls and Total
+    # unknown, 1 of 2 steps measured, beta complete, the gaps by kind, the days from the bills' growth, no stop and no
+    # controls. The place screen: Gaps (2 lamps) and Objects load as they open, the lamp's chain EUR 2-3 with the
+    # guessed sound "+", its one action the waiting close-up's accept, the crate failing and its chain unknown, no
+    # action for a guest. The step page: its own picture and what it read. Outside places: alpha within beta within
+    # the yard is one yard tile summing alpha's gaps, then beta, then alpha alone; a shell holding no place shows not.
+    a_gaps_price(world, eta={"likely_minutes": 95.0, "high_minutes": 130.0, "unknown": []})
+    a_remake(world)
+    world.source.refresh()
+    state = world.source.world_state()
+    untimed = {"likely_euros": 1.0, "high_euros": 1.0, "basis": "per unit × forecast", "likely_minutes": None}
+    remakes = [cockpit.remake(views.batch_of(state)), cockpit.remake(screens.batch(state, [
+        {**item, "nodes": {**item["nodes"], "sound@alpha": untimed}} for item in items]))]
+    with pytest.MonkeyPatch.context() as month:
+        a_month(month, bill_days=[{"day": "2026-10-02", "cloud": 2.0, "models": 0.5},
+                                  {"day": "2026-10-03", "cloud": 3.5, "models": 0.5}],
+                days=[{"day": "2026-10-01", "cloud": 1.0, "models": 0.0}])
+        places, stats = (owner.get(page).content.decode() for page in ("/places/", "/stats/"))
+    tiles = dict(re.findall(r'<a class="ptile" href="/place/(\w+)/"(.*?)</a>', places, re.S))
+    top = places[places.index('<section class="topbar">'):places.index('<section class="ptiles"')]
+    cards = dict(re.findall(r'<div class="num-label">(?:<i [^>]*></i>)?(?:<span data-v>)?([^<]+)(?:</span>)?</div>\s*'
+                            r'<div class="num-value[^"]*"[^>]*>(.*?)</div>', stats, re.S))
+    stats_main = stats[stats.index("<main>"):]
+    [lamp] = owner.get("/place/alpha/branch/?path=Gaps").json()
+    [crate] = owner.get("/place/alpha/branch/?path=Objects").json()
+    place_html, step = owner.get("/place/alpha/").content.decode(), world.source.step_detail("alpha", "assembly")
+    film_step = owner.get("/place/alpha/step/demo-film/").content.decode()
+    shown = {
+        "tiles": (sorted(tiles), "tone-gap-route" in tiles["alpha"], "<b data-v>4</b>" in tiles["alpha"],
+                  "tone-done" in tiles["beta"], "<b data-v>0</b>" in tiles["beta"], '<img src="/thumbs/' in tiles["alpha"],
+                  "<img" in tiles["beta"], "concept missing" in tiles["beta"]),
+        "top bar: bills, stop, what Buy buys": ("<small>&ge;</small> <small>EUR</small> 12.50" in top,
+                                                "not read: Model calls" in top, "250" in top, "stop" in top,
+                                                "<small>EUR</small> 2&ndash;3<small>, about 0.2 h" in top),
+        "remakes": ((remakes[0]["low"], remakes[0]["high"], remakes[0]["hours"], remakes[0]["unknown"]),
+                    (remakes[1]["hours"], remakes[1]["at_least_hours"], remakes[1]["untimed"])),
+        "stats cards": [cards[label] for label in (
+            "Cloud compute", "AI calls", "Total", "Steps with a measured price", "Places complete", "not made yet",
+            "failing a check", "steps of the route still to do", "inputs lost")],
+        "stats days, stop, controls": ("<title>2026-10-01: EUR 1.00, at least" in stats,
+                                       "<title>2026-10-03: EUR 1.50</title>" in stats, "stop" in stats.lower(),
+                                       "<form" in stats_main, "<button" in stats_main),
+        "place top level": (bool(re.search(r'<span class="node-label" data-v>Gaps</span><span class="node-count" '
+                                           r'data-v>2</span>', place_html)), 'data-title="lamp"' in place_html,
+                            'data-title="place:plan" data-state="route" data-tone="gap-route" data-price="unknown"'
+                            in place_html),
+        "lamp": (lamp["label"], lamp["count"], lamp["tone"], lamp["panel"]["state"], lamp["panel"]["gap"],
+                 lamp["panel"]["price"], lamp["panel"]["action"], lamp["panel"]["action_label"],
+                 json.loads(lamp["panel"]["body"])),
+        "crate": (crate["panel"]["state"], crate["panel"]["price"]),
+        "guest's lamp action, a branch nowhere": (
+            "action" in guest.get("/place/alpha/branch/?path=Gaps").json()[0]["panel"],
+            owner.get("/place/alpha/branch/?path=Nowhere").status_code),
+        "step page": (f'src="{step.picture.url}"' in owner.get("/place/alpha/step/assembly/").content.decode(),
+                      "reads: OpenUSD stage" in film_step, "reads: completion" in film_step)}  # demo-film's reads
+    within = world.data / "places/within.json"
+    within.write_text(json.dumps({"shells": {"yard": {"name": "Yard"}, "empty": {"name": "Empty"}},
+                                  "within": {"beta": {"within": "yard"}, "alpha": {"within": "beta"}}}))
+    outside = {}
+    for at in ("", "?in=yard", "?in=beta"):
+        html = owner.get(f"/places/{at}").content.decode()
+        outside[at] = re.findall(r'<a class="ptile" href="([^"]+)"(.*?)</a>', html, re.S)
+    head = html[html.index('<section class="phead"'):html.index('<section class="ptiles"')]
+    shown["outside places"] = (
+        [href for href, _ in outside[""]], "<b data-v>Beta, 1 room</b>" in outside[""][0][1],
+        "tone-gap-route" in outside[""][0][1], [href for href, _ in outside["?in=yard"]],
+        "<b data-v>+1</b>" in outside["?in=yard"][0][1], [href for href, _ in outside["?in=beta"]],
+        "Outside" in html,  # owner rule (2026-10-20): never an "Outside" card beside its inside places
+        '<h1 class="phead-name" data-v>Beta</h1>' in head, "tone-gap-route" in head,
+        [owner.get(f"/places/?in={shell}").status_code for shell in ("alpha", "empty")])
+    within.unlink()
+    world.source.refresh()
+    assert shown == {
+        "tiles": (["alpha", "beta"], True, True, True, True, True, False, True),
+        "top bar: bills, stop, what Buy buys": (True, True, False, False, True),  # owner rule: no stop shown
+        "remakes": ((2.0, 3.0, 0.2, 0), (None, 0.2, 1)),
+        "stats cards": ["<small>EUR</small> 12.50", "unknown", "unknown", "1<small> of 2</small>",
+                        "1<small> of 2</small>", "2", "1", "1", "0"],
+        "stats days, stop, controls": (True, True, False, False, False),
+        "place top level": (True, False, True),  # only the top level is drawn
+        "lamp": ("lamp", 2, "gap-missing", "missing", "missing:lamp_1", "EUR 2.00–3.00 +", "/api/decisions", "Accept",
+                 {"node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}),
+        "crate": ("failing", "unknown"), "guest's lamp action, a branch nowhere": (False, 404),
+        "step page": (True, True, True),
+        "outside places": (["/places/?in=yard"], True, True, ["/places/?in=beta"], True, ["/place/alpha/"], False,
+                           True, True, [404, 404])}
 
     # The screens' data (state/screens.py) over alpha's gaps priced and prepare's record, moment by moment
     # (SCREEN_MOMENTS): each moment's record written, then every "source:path" it names read from what the screens,

@@ -99,7 +99,7 @@ FUNCTION_DEBT = {
     "score/conductor/test_the_conductor_spends_and_stops_only_as_its_owner_says.py": 2,
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
     "score/dashboard/sync/test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks.py": 29,
-    "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 50,
+    "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 41,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 41,
     "score/review/test_the_owners_word_stands.py": 103,
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 31,
