@@ -27,19 +27,21 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
   `startswith("no result line")` -> `True`  -> the same ask (an answer's own "no structured answer" raised as broken);
   `asking_claude(unbroken_asks(row.make))` -> `unbroken_asks(asking_claude(row.make))`  -> the KEYED claude rows
   (their keys lose claude_asks.py).
-- the light layer no longer given the body faces' reads (`FACE_READS`)  -> the light layer test.
-- `worn`: `applies` true at every place  -> the two dress row tests.
-- `held_scenes`: the batch's places not intersected  -> the scene tree test (the dome counts).
-- `filmed_places`: the batch's places listed with `places(world1())` again, not `plans.once`  -> the scene tree
-  test (two listings a moment; a drive pass rebuilt all 81 plans per call, 2026-11-11).
+- the light layer no longer given the body faces' reads (`FACE_READS`)  -> the light-layer WIRED rows.
+- `worn`: `applies` true at every place  -> the PER_PLACE dress rows (the square, the hold, nowhere).
+- `people.dress_row`: the surface or variant left out of its params  -> the dress rows' params WIRED rows.
+- `held_scenes`: the batch's places not intersected  -> the scene-tree rows of the places world (the dome counts).
+- `filmed_places`: the batch's places listed with `places(world1())` again, not `plans.once`  -> the same rows
+  (two listings a moment; a drive pass rebuilt all 81 plans per call, 2026-11-11).
 - `batch_places`: the listing not kept across moments (`kept_while_read_stands` -> `make()`), or kept whatever it read
-  (`all(...)` -> `True`), or `heard` hearing no folder listed (`os.scandir` dropped)  -> the scene tree test (each
-  drive pass listed all 81 plans again, 35 s, 2026-11-11; a new record kept the old listing).
-- `places`: the `merged` scenes not taken out  -> the place test.
-- `ship_place`: always False  -> the ship place test.
-- `seen_from_record`: `ship_place(place)` alone (`or scene_record.written(place)` dropped)  -> the ship place test
-  (an earth place's surfaces-check read no scene record, so 46 of env1's models had no view distance, 2026-11-12);
-  `True`  -> the same test (a place the scene-record row writes nothing for would wait on it).
+  (`all(...)` -> `True`), or `heard` hearing no folder listed (`os.scandir` dropped)  -> the places world's
+  kept listing (each drive pass listed all 81 plans again, 35 s, 2026-11-11; a new record kept the old listing).
+- `places`: the `merged` scenes not taken out  -> the places world's merged row.
+- `ship_place`: always False  -> the PER_PLACE ship_place rows.
+- `seen_from_record`: `ship_place(place)` alone (`or scene_record.written(place)` dropped)  -> the PER_PLACE
+  surfaces-check neighbours rows (an earth place's surfaces-check read no scene record, so 46 of env1's models had no
+  view distance, 2026-11-12); `True`  -> the same rows (a place the scene-record row writes nothing for would wait on
+  it).
 - score/stages/earth_seed/__init__.py: surface_data imported through its package (`from score.stages.surfaces import
   surface_data`)  -> the KEYED earth-seed rows.
 - score/stages/surfaces/scene_library.py judge_library: `from score.stages.assembly import stage_file` added  -> the KEYED surface-library rows.
@@ -47,13 +49,13 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - score/stages/assembly/baked.py: `import complete as stage_inputs`  -> the KEYED completion gate rows of
   test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps, and its GAPPED_GATES rows.
 - score/stages/shapes_first/__init__.py: the palette's optional Pixal3D read dropped (`optional=row.optional`)  ->
-  test_no_base_or_layer_row_must_wait_on_the_prop_route.
+  the finish-route-palette WIRED row of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.
 - `creator_plan`: the concept declared whether it is kept or not (`if True:`)  -> the plan row's code version in
   test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.
-- `plan_as_kit`: the plan not handed over as its kit (`{**arguments[position]}`)  ->
-  test_the_plan_row_maps_a_place_with_no_kit.
-- `remade_same`: always True (`return True`)  -> test_the_plan_row_maps_a_place_with_no_kit (its own plan redrawn
-  still carries); its `runner.foreseen[...] = ...` dropped  -> the same test (the redrawn plan not foreseen).
+- `plan_as_kit`: the plan not handed over as its kit (`{**arguments[position]}`)  -> the plan row's make with no
+  kit.
+- `remade_same`: always True (`return True`)  -> the plan row's make (its own plan redrawn still carries); its
+  `runner.foreseen[...] = ...` dropped  -> the same (the redrawn plan not foreseen).
 - `part_moved`: the part compared whole (`old, new = store.listing(then), listing`)  ->
   test_terrain_s_code_version_moves_with_its_own_code_only (hub's light passes made again); `part_standing`: a moved
   read with no part rule let through (`any(...)` dropped)  -> the same test (scene-record moved, still kept);
@@ -72,20 +74,36 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `ahead_workers`: the room not counted (`int(ROOM() // REMAKE_PEAK)` -> `jobs`), or `made_again` starting a remake
   past the floor (`if ROOM() < REMAKE_PEAK` -> `if False`)  -> the same test (the capped remakes side by side, or made
   with no room).
-- the surfaces-check row's `"stance rules"` file dropped  -> test_the_check_reads_every_input_check_step_reads.
-- `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  ->
-  test_the_cast_crowds_from_its_plan_never_a_hand_written_record.
-- data/checks/row-kinds.json: its "about" naming `{home}/work/old`  ->
-  test_the_environment_data_names_no_path_into_the_work_folder (a wording check guarding the rule above).
-- `MOTION_LAYER`: growth's `crops-layer` written `crops`  ->
-  test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer.
+- the surfaces-check row's `"stance rules"` file dropped  -> the check_step reads (every key surfaces-check hands).
+- `earth_seeded.declared`: the seed-read filter dropped (`return dict(found)`)  -> the PER_PLACE cast kit rows of
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (stale: green on a04dfcd33's own cast test too,
+  2026-11-14; the sandbox home has no earth seed, so nothing is read from one).
+- `earth_place`: always True  -> the PER_PLACE cast kit rows (the cockpit's cast declares no kit of its own).
+- data/checks/row-kinds.json: its "about" naming `{home}/work/old`  -> the data's work-folder paths (a wording
+  check guarding the rule above).
+- `MOTION_LAYER`: growth's `crops-layer` written `crops`  -> the motion layer patterns that name no row.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> the terrain test and the KEYED rows above, and the push
   gate's TREE_EDITS framework-only row.
-- `scripts_declared`: the row returned as it was  -> test_every_script_a_row_starts_by_path_is_in_its_key (every
+- `scripts_declared`: the row returned as it was  -> the started-scripts check (every
   row that starts a script, surfaces-bake's recipes.py among them); score/graph/_code.py `script_imports`: the files
   beside a script dropped  -> the same test (make_chunky.py's bake.py, pieces.py ...); `STARTED_LEFT` with a row that
-  starts nothing  -> the same test; `reads_recipes` always False  ->
-  test_a_row_reading_the_recipes_declares_the_vendored_libraries_they_import.
+  starts nothing  -> the same test; `reads_recipes` always False  -> the dress row's vendored-recipes WIRED row of
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.
+- `set_aside`: `if not aside.exists():` -> `if True:`  -> the rejected takes (the retake set aside again over the
+  old); `retake_pending` without `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`  -> the
+  handed-record rows; set_aside's `objects[name]["take"] if name in objects else name` made `name`  -> the reject
+  naming the object (checkout 66, 2026-11-09).
+- `parts_reseeded`: `stamp.read_text() == str(seed)` made `True`, or its folder kept without a stamp  -> the look's
+  parts bought again at a new seed.
+- `retaking`: `pixal_row.seed_of = lambda take: ...` -> `pass`  -> the retake's seeds (2, 3) asked; `sheet_remakes(seeds,
+  inputs, out)` -> `pass`  -> the sheet's take not built in code.
+- `leaving_out`: `batch_gaps.write(out, [*found, *left_out_gaps(inputs, found)])` -> `pass`  -> the likeness's
+  left-out gaps; `LEFT_OUT = ("likeness", "motion")` -> `("likeness",)`  -> the motion WRAPPED row.
+- `designed_motion`: `found = {**found, "props": prop_data.keyed(place)}` -> `pass`  -> motion's files at a
+  designed place.
+- `gap_moved`: `carried = tied(batch_gaps.of(inputs, output), inputs) if batch else []` -> `carried =
+  batch_gaps.of(inputs, output) if batch else []`  -> the lean gate's counter row; score/stages/gaps.py moved: `if not
+  said:` -> `if True:`  -> the lean gate's mixed faults row.
 - score/stages/surfaces/route_views.py `view_take`: a read of a file no argument names added (`(REPO /
   "data/library/materials.json").read_text()`)  -> test_each_per_take_function_opens_only_its_arguments_its_code_and_python
   (kept.call would hand back a take made from that file's old bytes); the same in route_split.py `split_take` or
@@ -142,38 +160,37 @@ only while its concept stands; a row wears the fabric its words name nearest its
 
 Breaks (each applied once, seen red, reverted), in score/stages/people_rows.py:
 - `look_of`: the pose and colour words kept in the look's name  -> the JUDGED look rows (seated astronaut).
-- `crowd_ground`: every plan item taken, not only the row's  -> the crowd ground test (the bench is crowd ground).
-- `persons`: every person given variant 0  -> the cast test ("each its own variant").
-- `placed_spots`: a spot's two plan coordinates swapped  -> the cast test (the spot (1, 1) of a 20 x 10 plan
+- `crowd_ground`: every plan item taken, not only the row's  -> the CROWD_GROUNDS rows (the bench is crowd ground).
+- `persons`: every person given variant 0  -> the deck's cast ("each its own variant").
+- `placed_spots`: a spot's two plan coordinates swapped  -> the deck's cast (the spot (1, 1) of a 20 x 10 plan
   stands at (-9, 0, -4)).
-- `placed_spots`: the row tag dropped  -> the cast test (the pilot dealt the officer's spot, its row id first).
-- `dealt_spots`: `own = tagged.get(person["row"]) or untagged` read as `own = untagged`  -> the cast test (the pilot
-  on the view's spot).
-- `refreshed_place`: a kept pick taken with no `why`  -> the refresh test.
-- `crowd_look`: `needed = 0` (the crowd word alone decides)  -> the crowd look test ("crowd of aliens").
-- `mapping_rows`: `if look not in mapped or ...` read as `if look in mapped and ...` (no look mapped)  ->
-  test_every_people_row_maps_to_a_look, test_a_person_row_s_look_is_written_from_the_row_alone,
-  test_each_line_row_is_drawn_from_the_person_that_maps_it and
-  test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size.
-- `mapping_rows`: a sitting row ranked like a standing one  -> test_a_person_row_s_look_is_written_from_the_row_alone
-  (drawn from the seated copilot), and the drawn-from and line tests.
-- score/stages/complete/prepare/groups.py `stood_beyond`: `and anchors[row_id] not in found` dropped  ->
-  test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own.
-- `mapping_rows`: `said` left out of `rank` (`return standing, fields.get("share") or 0.0`)  ->
-  test_a_person_row_s_look_is_written_from_the_row_alone (the astronaut drawn from the "person in spacesuit").
-- `size_of`: `person_sized` not asked (`if origin:`)  ->
-  test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the crowd's extent as one person).
-- score/stages/people_refresh.py `drawn_from`: the tallest box read with `min`  -> test_each_line_row_is_drawn_from_the_person_that_maps_it.
-- `described`: the spec's description left out (`"name": clothes`)  ->
-  test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size (the line's data no longer as rows.json writes it).
+- `placed_spots`: the row tag dropped  -> the swapped cast (the pilot dealt the officer's spot, its row id first).
+- `dealt_spots`: `own = tagged.get(person["row"]) or untagged` read as `own = untagged`  -> the deck's cast (the
+  pilots on the place's middle).
+- `refreshed_place`: a kept pick taken with no `why`  -> the refresh rows (a pick with no why kept).
+- `crowd_look`: `needed = 0` (the crowd word alone decides)  -> the CROWD_LOOKS rows ("crowd of aliens").
+- `mapping_rows`: `if look not in mapped or ...` read as `if look in mapped and ...` (no look mapped)  -> the home's
+  people rows mapping the astronaut, the designed specs and the line's data.
+- `mapping_rows`: a sitting row ranked like a standing one  -> the designed specs (the pilot drawn from the seated
+  copilot).
+- score/stages/complete/prepare/groups.py `stood_beyond`: `and anchors[row_id] not in found` dropped  -> the deck's
+  beyond rows (the man on its own stairs left out).
+- `mapping_rows`: `said` left out of `rank` (`return standing, fields.get("share") or 0.0`)  -> the designed specs
+  (the astronaut drawn from the "person in spacesuit").
+- `size_of`: `person_sized` not asked (`if origin:`)  -> the line's crowd look (the crowd's extent as one person).
+- score/stages/people_refresh.py `drawn_from`: the tallest box read with `min`  -> the toy kept inventories' astronaut
+  (drawn from SAM 3's tallest instance).
+- `described`: the spec's description left out (`"name": clothes`)  -> the line's data (no longer as rows.json
+  writes it).
 - score/stages/props/closeup_row.py `inventory_rows`: the words the clothes alone (`row.get("clothes", row["name"])`)
-  -> test_each_line_rows_close_up_words_say_who_the_look_is.
-- score/stages/people_clothes.py `worn`: the nearest fabric read with `max`  ->
-  test_a_row_wears_the_fabric_its_words_name_nearest_its_torso.
-- score/stages/people_clothes.py `said_colour`: `return []`  -> test_a_row_wears_the_fabric_its_words_name_nearest_its_torso
-  (the shaded white suit dressed in the dark seam cloth).
-- score/stages/people_clothes.py `fabrics_of`: `if not lab_of:` -> `if False:` (an empty library answers {})  ->
-  test_a_row_wears_the_fabric_its_words_name_nearest_its_torso.
+  -> the line's close-up words.
+- score/stages/people_clothes.py `worn`: the nearest fabric read with `max`  -> the DRESSED rows.
+- score/stages/people_clothes.py `said_colour`: `return []`  -> the DRESSED shaded white suit row (dressed in the dark
+  seam cloth).
+- score/stages/people_clothes.py `worn`: drop the `if not candidates:` return  -> the DRESSED names no fabric row (a
+  measured torso whose words name no fabric wears its look's own paint).
+- score/stages/people_clothes.py `fabrics_of`: `if not lab_of:` -> `if False:` (an empty library answers {})  -> the
+  library with no fabric (NoFabrics).
 - `worn_by`: `IMPLIED.get(who, ())` -> `()` (astronaut_suit-made), or `wearers = []` (person_spacesuit-made)  ->
   the JUDGED look rows (astronaut in spacesuit, person in spacesuit).
 
@@ -199,7 +216,7 @@ The copy of a seed a layer is written over takes a save, though the store's seed
 modes (layer_base.py `writable`).
 
 Breaks (each applied once, seen red, reverted), in score/stages/layer_base.py:
-- `writable`: its chmod left out (the function body made `return`)  -> a PermissionError on the save.
+- `writable`: its chmod left out (the function body made `return`)  -> a PermissionError on the seed's save.
 
 --- an accepted gap moves only its named faults ---
 
@@ -606,117 +623,101 @@ def test_terrain_s_code_version_moves_with_its_own_code_only():
         del stages.FORESIGHTS["terrain", "KT"]
 
 
-def test_the_light_layer_reads_and_waits_on_every_body_face_row():
-    """light-layer@hub, 2026-10-23: read as optional, the face rows were in no place's line and the layer failed its
-    sky-elements gate with no face drawn."""
-    layer = next(row for row in stages.STAGES if row.name == "light-layer")
-    faces = {row.name for row in stages.BODY_FACES}
-    assert faces and faces <= set(layer.after) and not faces & set(layer.optional)
+LOOK = "person_uniform-made"
+FACES = {row.name for row in stages.BODY_FACES}
+WORN = {row.name for row in stages.STAGES if row.name.startswith("people-dress-") and "-in-" in row.name}
+DRESS = next(row.name for row in stages.STAGES if row.name.startswith("people-dress-"))
+PROP_ROUTE = {"closeup", "pixal"}
+KIT = ["{data}/kit/{place}.json"]
+# (row (a table row's name, or a dress row's (look, surface, variant)), field, relation, expected): what a row waits
+# on, reads beside, declares and keys its neighbours by. A field is the row's own, "waits" every row it waits on
+# through reads that are not optional, "files" what it declares for no place; "holds" every member of a set or item
+# of a map, "lacks" each of a set, "==" the very value, "is" the very function
+WIRED = [
+    # light-layer@hub, 2026-10-23: read as optional, the face rows were in no place's line and the layer failed its
+    # sky-elements gate with no face drawn
+    ("light-layer", "after", "holds", FACES),
+    ("light-layer", "optional", "lacks", FACES),
+    # Buy of 2026-10-24: the scene palette, which the surface library and so the base read, waited on Pixal3D, so one
+    # crashed close-up stopped the square's earth seed, scene record, light and tiles
+    ("finish-route-palette", "optional", "holds", {"pixal"}),
+    # every place the scene-record row writes a record for reads it beside for its surfaces-check's view distance
+    ("surfaces-check", "beside", "==", {"scene-record": ("scene-record", 1)}),
+    ("surfaces-check", "neighbours", "is", stages.own_record),
+    # every place's cast, the ship's and the earth's alike, takes its views from its plan row, never a hand-written
+    # record; it waits on each look worn in a fabric (the base's astronauts in white suits, 2026-11-04)
+    ("cast", "after", "holds", {"plan": ("place-plan", 2), "scene-record": ("scene-record", 1)}),
+    ("cast", "after", "holds", WORN),
+    # Buy of 2026-10-24: through every read that is not optional, neither the earth seed nor the scene record reaches
+    # the prop route's rows. The light rows do, on purpose since 2026-10-29: they light the place as the assembly lays
+    # it, its bakes in (light/passes.LAID), so they wait on the bake as the assembly does
+    ("earth-seed", "waits", "lacks", PROP_ROUTE),
+    ("scene-record", "waits", "lacks", PROP_ROUTE),
+    # recipes.py imports the vendored ProcFunc and Infinigen2 in Blender; a row declaring the library's code (the dress
+    # rows: tools/props/library) declares both, so re-vendoring makes its bakes again
+    (DRESS, "files", "holds", set(stages.VENDORED_RECIPES.values())),
+    # the row a design would add for a look worn in a fabric carries the fabric, a person's own variant its number
+    ((LOOK, "jacket_blue", 0), "params", "==", {"surface": "jacket_blue"}),
+    ((LOOK, None, 1), "params", "==", {"variant": 1}),
+    # owner, 2026-10-28 (a failing object remade once, free): pixal retakes a take his reject names
+    ("pixal", "retakes", "==", True),
+]
+# Today's designs dress no line look in a fabric of its own, so the made-up world below dresses the uniformed look:
+# in a blue jacket on the deck, in its own paint in the hold, as two persons in the hall; it writes a scene record for
+# the hub alone (the dress row read where a design dresses its look so; captain, 2026-10-13: the concept decides the
+# clothes, no hand-kept list of coloured places)
+TOY_DRESSED = {"deck": {(LOOK, "jacket_blue", 0)}, "hold": {(LOOK, None, 0)},
+               "hall": {(LOOK, None, 0), (LOOK, None, 1)}}
+TOY_RECORDS = {"hub"}
+# (world, row (a table row's name, a dress row's (look, surface, variant), or None for the table itself, or the cast
+# stage's own module), the question asked of it, the place, its answer). Every place's cast, the ship's and the
+# earth's alike, declares no old scene record (data/scene/<place>.json, the game's shots) and no views file under
+# work/; its kit is its own place's, which earth_seeded reads from its earth seed once it has one (the design's kit,
+# for its scene record): the sandbox home has none, so each declares its kit
+PER_PLACE = [
+    ("design", f"people-dress-{LOOK}", "applies", "tube", True),  # the tube's "person in uniform" names no fabric
+    ("design", f"people-dress-{LOOK}", "applies", "square", False),
+    ("design", None, "ship_place", "cockpit", True),  # by its place.json mark, on a home with no work folder
+    ("design", None, "ship_place", "hub", False),
+    ("toy", (LOOK, "jacket_blue", 0), "applies", "deck", True),
+    ("toy", (LOOK, "jacket_blue", 0), "applies", "hold", False),
+    ("toy", (LOOK, "jacket_blue", 0), "applies", "nowhere", False),
+    ("toy", (LOOK, None, 0), "applies", "hold", True),
+    ("toy", (LOOK, None, 0), "applies", "deck", False),
+    ("toy", (LOOK, None, 1), "applies", "hall", True),  # a person's own variant where they stand
+    ("toy", (LOOK, None, 1), "applies", "hold", False),
+    ("toy", "surfaces-check", "neighbours", "hub", ["hub"]),
+    ("toy", "surfaces-check", "neighbours", "cockpit", ["cockpit"]),  # a ship place reads its own still
+    ("toy", "surfaces-check", "neighbours", "people", []),  # no scene record written: nothing to wait on
+    *[("design", row, question, place, answer) for place in ("cockpit", "square", "hub")
+      for row, question, answer in (("cast", "old records", []), ("cast", "kit", KIT), (stages.cast, "kit", KIT))],
+]
 
 
-def test_no_base_or_layer_row_must_wait_on_the_prop_route():
-    """Buy of 2026-10-24: one crashed close-up stopped the square's earth seed, scene record, light and tiles, since
-    the scene palette, which the surface library and so the base read, waited on Pixal3D. Through every read that is
-    not optional, neither the earth seed nor the scene record reaches the prop route's rows. The light rows do, on
-    purpose since 2026-10-29: they light the place as the assembly lays it, its bakes in (light/passes.LAID), so they
-    wait on the bake as the assembly does."""
-    table = {stage.name: stage for stage in stages.STAGES}
-    prop_route = {"closeup", "pixal"}
-
-    def reached(name, seen):
-        for before in table[name].after:
-            if before not in table[name].optional and before not in seen:
-                seen.add(before)
-                reached(before, seen)
-        return seen
-    for start in ("earth-seed", "scene-record"):
-        assert not reached(start, set()) & prop_route, (start, reached(start, set()) & prop_route)
-    assert "pixal" in table["finish-route-palette"].optional
+def declared_paths(row, place):
+    """The path patterns a row (or a stage module) declares for a place; a (path, part) pattern counts by its path."""
+    return [str(pattern[0] if isinstance(pattern, tuple) else pattern) for pattern in row.files(place).values()]
 
 
-def test_a_dress_row_is_read_where_a_design_dresses_its_look_so():
-    """A dress row is read where a place's design dresses its look so: `-in-<surface>` where a person row's words
-    name a fabric near its torso (people_clothes.py), the plain row where the look wears its own paint; no
-    hand-kept list of coloured places (captain, 2026-10-13: the concept decides the clothes)."""
-    table = {stage.name: stage for stage in stages.STAGES}
-    plain = table["people-dress-person_uniform-made"]
-    assert plain.applies("tube") and not plain.applies("square")  # the tube's "person in uniform" names no fabric
-    worn =[stage for stage in stages.STAGES if stage.name.startswith("people-dress-") and "-in-" in stage.name]
-    assert worn, "the base's astronauts in white suits wear their look in the white fabric (2026-11-04)"
-    for stage in worn:
-        _, surface, variant = stages.characters_layer.dressed_of(stage.name)
-        assert stage.params == {"surface": surface, **({"variant": variant} if variant else {})}, stage.params
-        assert stage.name in table["cast"].after
+def waits(table, name, seen=None):
+    """Every row `name` waits on through reads that are not optional."""
+    seen = set() if seen is None else seen
+    for before in table[name].after:
+        if before not in table[name].optional and before not in seen:
+            seen.add(before)
+            waits(table, before, seen)
+    return seen
 
 
-def test_a_worn_dress_row_applies_only_where_its_look_wears_that_fabric():
-    """Today's designs dress no line look in a fabric of its own, so the table above holds no `-in-` row: the row a
-    design would add applies where a person row wears its look in that fabric, and the plain row no longer there."""
-    from unittest import mock
-
-    from score.stages import people
-    worn_row, plain_row = (stages.worn(people.dress_row("person_uniform-made", surface))
-                           for surface in ("jacket_blue", None))
-    second = stages.worn(people.dress_row("person_uniform-made", None, 1))
-    dressed = {"deck": {("person_uniform-made", "jacket_blue", 0)}, "hold": {("person_uniform-made", None, 0)},
-               "hall": {("person_uniform-made", None, 0), ("person_uniform-made", None, 1)}}
-    with mock.patch.object(stages.characters_layer, "dressed_looks", lambda place: dressed.get(place, set())):
-        assert worn_row.applies("deck") and not worn_row.applies("hold") and not worn_row.applies("nowhere")
-        assert plain_row.applies("hold") and not plain_row.applies("deck")
-        assert second.applies("hall") and not second.applies("hold"), "a person's own variant where they stand"
-    assert worn_row.params == {"surface": "jacket_blue"} and second.params == {"variant": 1}
-
-
-def test_a_parent_scene_s_tree_reads_the_trees_of_its_child_scenes_of_the_batch(tmp_path):
-    """scene-tree@<scene> reads its own assembly and, beside, the tree of each child scene its plan lays out that is a
-    scene of the batch (one in design is none: the tree's gate names it); a place of every scene but a line no place
-    owns; the library reads it, so a scene is complete once its tree stands. The batch's places are listed once a
-    moment and kept across moments until a file or folder the listing read changes."""
-    table = {stage.name: stage for stage in stages.STAGES}
-    row = table["scene-tree"]
-    assert row.downward and row.after == {"assembly": ("openusd-stage", 1)}
-    assert row.beside == {"scene-tree": ("openusd-stage", 1)} and row.neighbours is stages.held_scenes
-    assert not row.applies("people") and row.applies("hangar") and "scene-tree" in table["library"].after
-    held, listed, world = stages.scene_tree.held, stages.places, stages.world1
-    film = stages.demo_film_final.shown_places, stages.demo_film_final.peeled_places
-    listings = []  # each listing of the batch's places: once a moment, however many rows' reads ask (filmed_places)
-    try:
-        stages.scene_tree.held = lambda place: {"base": ["hangar", "lab", "dome"]}.get(place, [])
-        stages.places = lambda world, store=None: listings.append(1) or ["base", "hangar", "lab"]
-        stages.world1 = lambda: None
-        stages.demo_film_final.shown_places = lambda place=None: ["lab", "dome"]
-        stages.demo_film_final.peeled_places = lambda place=None: ["hangar"]
-        assert stages.held_scenes("base") == ["hangar", "lab"] and stages.held_scenes("lab") == []
-        stages.KEPT_LISTINGS.clear()
-        with stages.plans.one_moment():
-            assert stages.filmed_places() == ["hangar", "lab"] and stages.filmed_places() == ["hangar", "lab"]
-            assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
-        with stages.plans.one_moment():  # the next moment: nothing the listing read changed (it read nothing here)
-            assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
-    finally:
-        stages.scene_tree.held, stages.places, stages.world1 = held, listed, world
-        stages.demo_film_final.shown_places, stages.demo_film_final.peeled_places = film
-        stages.KEPT_LISTINGS.clear()
-    plan, records, made = tmp_path / "within.json", tmp_path / "plans" / "base" / "edits", []
-    records.mkdir(parents=True)
-    plan.write_text("{}")
-
-    def listing():  # a listing reading a file and a folder of records, as places() reads within.json and plans
-        made.append(1)
-        return plan.read_text() if plan.exists() else None, sorted(path.name for path in records.parent.parent.rglob("*"))
-    first = stages.kept_while_read_stands("toy", listing)
-    (tmp_path / "unread.txt").write_text("a write beside, never read")
-    assert stages.kept_while_read_stands("toy", listing) is first and len(made) == 1, "read again though nothing changed"
-    for change in (lambda: plan.write_text('{"merged": {}}'), lambda: (records / "e1.json").write_text("{}"),
-                   lambda: (tmp_path / "plans" / "lab").mkdir(), plan.unlink):
-        change()
-        stages.kept_while_read_stands("toy", listing)
-    assert len(made) == 5, f"a changed file, a new record, a new place's folder or a gone file kept the listing: {made}"
-    assert stages.kept_while_read_stands("toy", listing) == (None, ["base", "e1.json", "edits", "lab"]) and len(made) == 5
-    stages.KEPT_LISTINGS.clear()
-    assert stages.parent_first({"cockpit", "hangar", "base", "hub", "wreck", "camp"},
-                               {"cockpit": "hangar", "hangar": "base", "hub": "base", "camp": "campgrounds"}) == [
-        "base", "hangar", "cockpit", "hub", "camp", "wreck"]
+# what each PER_PLACE question asks of its row at a place
+ASKED = {
+    "applies": lambda row, place: bool(row.applies(place)),
+    "ship_place": lambda row, place: bool(row.ship_place(place)),
+    "neighbours": lambda row, place: row.neighbours(place),
+    "kit": lambda row, place: [path for path in declared_paths(row, place) if path.startswith("{data}/kit")],
+    "old records": lambda row, place: [path for path in declared_paths(row, place)
+                                       if path.startswith("{data}/scene") or "world1-r4" in path],
+}
 
 
 def designed(store, place):
@@ -734,127 +735,12 @@ def designed(store, place):
                               "plan": {"title": place.upper(), "w": 3.0, "d": 3.0, "items": [], "doors": []}})
 
 
-def test_a_place_is_a_scene_whose_design_is_done(tmp_path):
-    """No kit or plan filed in the data names a place since 2026-10-21: a place is a scene of the design whose concept
-    is locked, its inventory read and its plan written; one only drawn is still in design."""
-    root = tmp_path
-    store = Store.in_folder(root / "store")
-    for part in ("kit/old.json", "plans/old.json"):  # an old filed kit and plan: no place
-        (root / part).parent.mkdir(parents=True, exist_ok=True)
-        (root / part).write_text("{}")
-    designed(store, "laid")
-    designed(store, "new")
-    from score.review import concepts
-    concepts.recorded(store, "concepts/drawn/draws/2026-10-20T08-00-00.json",
-                      {"place": "drawn", "sha": "d" * 64, "by": "joey", "at": "2026-10-20T08:00:00+00:00"})
-    world = graph.Environment("world1", 3, {"data": str(root)})
-    assert stages.places(world, store) == ["laid", "new"]
-    # a scene merged into another has no stage line, though its design is done
-    (root / "places").mkdir()
-    (root / "places/within.json").write_text(json.dumps({"merged": {"new": {"into": "laid"}}}))
-    assert stages.places(world, store) == ["laid"]
-    # nor has a part of another scene's outside: the scene it is part of builds it (the owner, 2026-10-21)
-    (root / "places/within.json").write_text(json.dumps({"parts": {"new": {"of": "laid", "as": "far off"}}}))
-    assert stages.places(world, store) == ["laid"]
-
-
-def test_the_plan_row_maps_a_place_with_no_kit(tmp_path):
-    """With no kit laid, the plan row's make names the place by its plan and its `mapped` gate judges it."""
-    root = tmp_path
-    (root / "plans").mkdir()
-    (root / "out").mkdir()
-    plan = {"title": "NEW ROOM", "w": 3.0, "d": 3.0, "corner": 0.0, "height": "walls 2.5 m", "doors": [],
-            "items": [["DESK", 1.0, 1.0, 1.0, 0.6, "S", "item"]], "rows": {"DESK": ["desk"]}, "leads": {},
-            "elements": [{"element": "a desk", "rows": ["desk"]}, {"element": "a poster", "drop": "printed"}]}
-    (root / "plans/new_room.json").write_text(json.dumps(plan))
-    (root / "inventory.json").write_text(json.dumps({"rows": [{"id": "desk"}], "room": {"layout": {}}}))
-    inputs = {"plan": str(root / "plans/new_room.json"), "inventory": str(root / "inventory.json"),
-              "plans": str(root / "plans")}
-    stages.PLAN.make(inputs, root / "out", 0, {})
-    assert json.loads((root / "out/plan.json").read_text())["place"] == "new_room"
-    verdict = stages.PLAN.checks[0].judge(root / "out", inputs, {})
-    assert verdict.answer == checks.PASS, verdict.reason
-    # Made again on a moved key (another place's plan redrawn), it is the same output while its own plan stands, so
-    # its readers key as before; its own plan redrawn, it is not.
-    contracts.stamp(stages.PLAN.contract, root / "out")
-    accepted = store_tree_hash(root / "out")
-    runner = types.SimpleNamespace(store=types.SimpleNamespace(accepted=lambda node: accepted),
-                                   input_paths=lambda stage, place, keyed: inputs, foreseen={})
-    keyed = {"seed": 0, "params": {}}
-    assert stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed) and runner.foreseen == {}
-    (root / "plans/new_room.json").write_text(json.dumps({**plan, "w": 4.0}))
-    assert not stages.PLAN.files.carries(runner, stages.PLAN, "new_room", keyed)
-    # The remake that differs is foreseen, so the rows reading what it kept (the floor, carry.CONTENT_RULES) keep.
-    ROW_OF = {row.name: row for row in stages.STAGES}
-    assert runner.foreseen["plan@new_room"]["plan.json"]["place"] == "new_room"
-    assert all(hasattr(ROW_OF[name].files, "same_reads") for name in ("rough-model", "rough-align"))
-    assert hasattr(ROW_OF["props-inputs"].files, "carries")
-
-
 def inputs_read(function):
     """The constant keys a function reads as inputs["<key>"]."""
     import ast
     tree = ast.parse(inspect.getsource(function))
     return {node.slice.value for node in ast.walk(tree) if isinstance(node, ast.Subscript)
             and isinstance(node.value, ast.Name) and node.value.id == "inputs" and isinstance(node.slice, ast.Constant)}
-
-
-def test_the_check_reads_every_input_check_step_reads():
-    """surfaces-check hands check_step every key it reads (the crops' twin's stance rules were missing, 2026-10-16:
-    KeyError at greenhouse), shortened as the prop environment hands them over (prop_env.short)."""
-    bake_check, prop_env = sys.modules["bake_check"], sys.modules["prop_env"]
-    read = inputs_read(bake_check.check_step) | inputs_read(bake_check.data_of)
-    row = next(row for row in stages.STAGES if row.name == "surfaces-check")
-    # only the keys matter here: a declared file may be (path, part), the part the runner reads
-    handed = prop_env.short(dict.fromkeys([*row.files("greenhouse"), *row.after], "."))
-    assert read <= set(handed), read - set(handed)
-
-
-def test_a_ship_place_is_read_from_git(monkeypatch):
-    """On a home with no work folder: the cockpit is a ship place by its place.json mark and the hub is not. Every
-    place the scene-record row writes a record for, the hub too, reads it beside for its surfaces-check's view
-    distance; a place it writes none for reads nothing beside, a ship place its own still."""
-    assert not (PROPS_HOME / "work/usd-ship/cockpit").exists()
-    assert stages.ship_place("cockpit") and not stages.ship_place("hub")
-    row = next(row for row in stages.STAGES if row.name == "surfaces-check")
-    assert row.beside == {"scene-record": ("scene-record", 1)} and row.neighbours is stages.own_record
-    monkeypatch.setattr(stages.scene_record, "written", lambda place: place == "hub")
-    assert row.neighbours("hub") == ["hub"] and row.neighbours("cockpit") == ["cockpit"]
-    assert row.neighbours("people") == [], "no scene record written: nothing to wait on"
-
-
-def test_the_cast_crowds_from_its_plan_never_a_hand_written_record():
-    """Every place's cast, the ship's and the earth's alike, takes its views from its plan row (an `after`) and
-    declares no old scene record (data/scene/<place>.json, the game's shots) and no views file under work/; its kit
-    is its own place's, which earth_seeded reads from its earth seed (the design's kit, for its scene record)."""
-    row = next(row for row in stages.STAGES if row.name == "cast")
-    assert row.after["plan"] == ("place-plan", 2) and row.after["scene-record"] == ("scene-record", 1)
-    for place in ("cockpit", "square", "hub"):
-        declared = row.files(place)
-        paths = [pattern[0] if isinstance(pattern, tuple) else pattern for pattern in declared.values()]
-        assert not any(path.startswith("{data}/scene") or "world1-r4" in path for path in paths), (place, declared)
-        kit = ["{data}/kit/{place}.json"]  # its own place's: declared, or read from its earth seed once it has one
-        assert [path for path in stages.cast.files(place).values() if str(path).startswith("{data}/kit")] == kit
-        kept = [] if stages.earth_place(place) else kit
-        assert [path for path in paths if path.startswith("{data}/kit")] == kept, declared
-
-
-def test_the_environment_data_names_no_path_into_the_work_folder():
-    """A wording check guarding a rule: the work folder is no store (it went with the old disk, 2026-10-19), so no
-    environment data file names a path into it; the last ones went with the old hand-ins (2026-10-21)."""
-    found = subprocess.run(["git", "grep", "-l", "-E", r"\{home\}/work/|score-coordinator", "--", "data"], cwd=REPO,
-                           capture_output=True, text=True).stdout.split()
-    assert not found, f"paths into the work folder (make them a row's output, or a gap): {found}"
-
-
-def test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer():
-    import fnmatch
-    names = [row.name for row in stages.STAGES]
-    empty = [pattern for patterns in stages.MOTION_LAYER.values() for pattern in patterns
-             if not fnmatch.filter(names, pattern)]
-    assert not empty, f"motion layer patterns that name no row of the table: {empty}"
-    old = [name for name in names if name.startswith("machines")]
-    assert not old, f"rows under the old machines name (the motion layer's models now): {old}"
 
 
 @functools.cache
@@ -939,232 +825,18 @@ def left(row):
     return any(fnmatch.fnmatch(row.name, pattern) for pattern in stages.STARTED_LEFT)
 
 
-def test_every_script_a_row_starts_by_path_is_in_its_key():
-    """A script a row's make starts by path (a nested Blender's --python, a blender_cloud or env job's script, a
-    Newton Python, a subprocess of a repo script) is run apart, so no import keys it: it is a declared file of the
-    row (the table's scripts_declared, or its own), with every file it imports, or a change to it never makes the
-    row again and an output accepted on old code stays (make_chunky's bake scripts' recipes.py, 2026-10-28). Read
-    here on its own, from each row's code: every one not keyed is named with its row; a STARTED_LEFT row, left
-    because its re-make would buy again in the cloud, still has one (else it leaves the list)."""
-    found = {(row.name, script, by) for row in stages.STAGES for script, by in unkeyed_scripts(row)
-             if "{repo}/" + script not in getattr(row.files, "started", dict)()}
-    named = [f"{name}: {script} (named by {by})" for name, script, by in sorted(found)
-             if not left(next(row for row in stages.STAGES if row.name == name))]
-    assert not named, "scripts run apart that no key follows (declare them in the row's files):\n" + "\n".join(named)
-    unheld = [row.name for row in stages.STAGES if left(row) and not any(name == row.name for name, _, _ in found)]
-    assert not unheld, f"STARTED_LEFT rows with nothing left undeclared: {unheld}"
-
-
-def test_a_row_reading_the_recipes_declares_the_vendored_libraries_they_import():
-    """recipes.py imports the vendored ProcFunc and Infinigen2 in Blender; a row declaring the library's code (the
-    dress rows: tools/props/library) declares both, so re-vendoring makes its bakes again."""
-    dress = next(row for row in stages.STAGES if row.name.startswith("people-dress-"))
-    assert set(stages.VENDORED_RECIPES.values()) <= set(dress.files(None).values())
-
-
-def test_a_take_the_owner_rejected_is_set_aside_once_and_retaken_without_moving_the_pixal_row(tmp_path):
-    """Owner, 2026-10-28 (a failing object remade once, free): the table wires pixal to retake with its code version
-    as it was; a take his reject names has its files moved aside once (the other takes and a take its name starts
-    kept), is asked at its seed plus the attempt, and stays out of takes_back until its retake is made (its mark, or
-    the library's newest record holding another raw model than the one set aside: checkout 18, 2026-11-04, four made
-    retakes with no mark left out on the cloud machine); a code build's take is refused.
-    Break: score/stages/__init__.py: '        if not aside.exists():' -> '        if True:'; retake_pending without
-    `and not retake_handed(...)`, or retake_handed's `!=` on the size made `==`; or set_aside's `objects[name]["take"] if
-    name in objects else name` made `name` (a reject naming the object, checkout 66, 2026-11-09).
-    So is a look's parts made at a new seed (the owner's reject, a free remake): its candidate parts folder is set aside
-    and bought again, never copied out as it was (people-look-parts-man_stair-made gave its rejected bdb60d93 again,
-    checkout 89, 2026-11-11), a make at its own seed keeps it, and no parts row's code version moves.
-    Break: parts_reseeded's `stamp.read_text() == str(seed)` made `True`, or its folder kept without a stamp."""
-    parts_row = next(row for row in stages.STAGES if row.name.startswith("people-look-parts-"))
-    assert graph.stage_code(parts_row) == graph.stage_code(dataclasses.replace(parts_row,
-                                                                               make=inspect.unwrap(parts_row.make)))
-    bought = []
-    def parts_make(inputs, out, seed, params):
-        made = tmp_path / "candidates" / "man" / params["outfit"] / "parts" / "take"
-        if not (made / "parts.npz").exists():
-            made.mkdir(parents=True, exist_ok=True)
-            (made / "parts.npz").write_text(f"seed {seed}")
-            bought.append(seed)
-    (tmp_path / "man.json").write_text(json.dumps({"name": "man"}))
-    old_parts = tmp_path / "candidates" / "man" / "made" / "parts" / "take"
-    old_parts.mkdir(parents=True)
-    (old_parts / "parts.npz").write_text("rejected")
-    sys.path.insert(0, str(stages.people.bodies.MAKER))
-    import prop_person
-    with mock.patch.object(prop_person, "CANDIDATES", tmp_path / "candidates"):
-        for seed in (5, 5, 6):
-            stages.parts_reseeded(parts_make)({"spec": str(tmp_path / "man.json")}, tmp_path, seed, {"outfit": "made"})
-    assert bought == [5, 6] and (old_parts / "parts.npz").read_text() == "seed 6"
-    assert (old_parts.parent.with_name("parts.misfit") / "take" / "parts.npz").read_text() == "seed 5"
-    row = next(row for row in stages.STAGES if row.name == "pixal")
-    assert row.retakes and graph.stage_code(row) == graph.stage_code(dataclasses.replace(row,
-                                                                                          make=inspect.unwrap(row.make)))
-    for name in ("stool_1.glb", "stool_1-final.glb", "stool_1-5000.glb", "stool_1.json", "stool_10.glb", "seat_1.glb"):
-        (tmp_path / name).write_text("old")
-    (tmp_path / "stool_1.svviews").mkdir()
-    (tmp_path / "pipe_1.svviews").mkdir()
-    (tmp_path / "pipe_1.svviews" / "code.json").write_text("{}")
-    objects = {"stool": {"take": "stool_1"}, "seat": {"take": "seat_1"}, "pipe": {"take": "pipe_1"}}
-    retake = {"takes": ["stool_1"], "attempt": 1, "after": "k"}
-    assert stages.set_aside(retake, objects, tmp_path) == {"stool_1": 2}
-    aside = tmp_path / stages.RETAKEN / "stool_1-r1"
-    assert sorted(path.name for path in aside.iterdir()) == [
-        "stool_1-5000.glb", "stool_1-final.glb", "stool_1.glb", "stool_1.json", "stool_1.svviews"]
-    assert sorted(path.name for path in tmp_path.glob("*.glb")) == ["seat_1.glb", "stool_10.glb"]
-    assert stages.retake_pending("stool_1", tmp_path) and not stages.retake_pending("stool_10", tmp_path)
-    (tmp_path / "stool_1.glb").write_text("new")
-    stages.set_aside(retake, objects, tmp_path)
-    assert (tmp_path / "stool_1.glb").read_text() == "new" and (aside / "stool_1.glb").read_text() == "old"
-    def record(raw):
-        return {"files": {"stool_1.glb": {"bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest()}}}
-    assert stages.retake_pending("stool_1", tmp_path, record(b"old")) and stages.retake_pending("stool_1", tmp_path, {})
-    assert not stages.retake_pending("stool_1", tmp_path, record(b"new"))
-    assert not stages.retake_pending("stool_1", tmp_path, record(b"olD"))
-    (aside / stages.RETAKE_MADE).touch()
-    assert not stages.retake_pending("stool_1", tmp_path)
-    with pytest.raises(ValueError, match="pipe_1"):
-        stages.set_aside({**retake, "takes": ["pipe_1"]}, objects, tmp_path)
-    assert stages.set_aside({**retake, "takes": ["stool"]}, objects, tmp_path) == {"stool_1": 2}  # named by its object
-
-
-def test_the_retaking_make_asks_a_retake_at_its_new_seed_and_marks_it_made(tmp_path):
-    """The pixal make under a retake (stages.retaking) asks Pixal3D's seed of a named take as set_aside gave it and of
-    any other take as its name gives it, its own seed_of put back after; a retake made is marked so; with no retake the
-    make runs as it is.
-    Break: score/stages/__init__.py: '        pixal_row.seed_of = lambda take: seeds[take] if take in seeds else named(take)' -> '        pass'"""
-    pixal = pixal_row.take_files("-")[0].parent
-    pixal.mkdir(parents=True, exist_ok=True)
-    asked = []
-
-    def make(inputs, out, seed, params):
-        asked.append((pixal_row.seed_of("crate_7"), pixal_row.seed_of("seat-s3")))
-        for suffix in pixal_row.SUFFIXES:
-            pixal.joinpath(f"crate_7{suffix}").write_text("new")
-    handin = tmp_path / "handin.json"
-    handin.write_text(json.dumps({"objects": {"crate": {"route": "prop", "take": "crate_7"},
-                                              "seat": {"route": "prop", "take": "seat-s3"}}}))
-    inventory = tmp_path / "inventory.json"
-    inventory.write_text(json.dumps({"rows": [{"id": "crate", "size": [0.5, 0.5, 0.5]}]}))
-    inputs = {"props": handin, "inventory": inventory, "closeup": tmp_path / "closeup"}
-    stages.retaking(make)(inputs, tmp_path, 1, {"retake": {"takes": ["crate_7"], "attempt": 1, "after": "k"}})
-    assert asked == [(2, 3)] and pixal_row.seed_of("crate_7") == 1
-    assert (pixal / stages.RETAKEN / "crate_7-r1" / stages.RETAKE_MADE).exists()
-    stages.retaking(make)(inputs, tmp_path, 1, {})
-    assert asked[-1] == (1, 3)
-
-
-def test_a_take_the_surface_line_left_out_is_a_batch_gap_by_its_reason_never_a_missing_model(tmp_path):
-    """Owner, 2026-10-29: a take the surfaces-parts row leaves out never vanishes silently. The likeness make, wrapped
-    in the table (its code version as it was), names each left-out take a batch gap with its reason and the rows it
-    stands for, once, beside the gaps it carries; a take a gap already names is not named again.
-    Break: score/stages/__init__.py: '        batch_gaps.write(out, [*found, *left_out_gaps(inputs, found)])' ->
-    '        pass'"""
-    row = next(row for row in stages.STAGES if row.name == "likeness")
-    assert graph.stage_code(row) == graph.stage_code(dataclasses.replace(row, make=inspect.unwrap(row.make)))
-    bake = tmp_path / "bake"
-    bake.mkdir()
-    (bake / "painted.json").write_text(json.dumps({"takes": {}, "left_out": {
-        "crane_7": "patchy paint: stray 0.031 > 0.03", "hatch_2": "hatch_2: not baked"}}))
-    handin = tmp_path / "handin.json"
-    handin.write_text(json.dumps({"objects": {"crane": {"route": "prop", "take": "crane_7", "rows": ["crane"]},
-                                              "hatch": {"route": "prop", "take": "hatch_2"}}}))
-
-    def make(inputs, out, seed, params):
-        batch_gaps.write(out, [batch_gaps.gap("hatch_2: not baked", "surfaces-bake", "baked", ("hatch_2", "hatch"),
-                                              [], "its bake job failed")])
-    out = tmp_path / "out"
-    out.mkdir()
-    stages.leaving_out(make)({"surfaces-bake": bake, "props": handin}, out, 1, {})
-    found = {entry["name"]: entry for entry in batch_gaps.read([out])}
-    assert sorted(found) == ["crane_7: left out: patchy paint: stray 0.031 > 0.03", "hatch_2: not baked"], found
-    assert found["crane_7: left out: patchy paint: stray 0.031 > 0.03"]["objects"] == ["crane", "crane_7"]
-
-
-def test_a_gap_naming_a_take_alone_moves_its_rows_likeness_faults_by_the_hand_in(tmp_path):
-    """likeness@camp, 2026-10-30: the split's patchy-paint gap named camp_kitchen_counter_5393e7f9 alone, and the
-    likeness gates failed the kitchen_counter row as "no model" though the gap was carried. The table ties each carried
-    gap's take to the rows the place's hand-in (`props`) says it stands for, so the row's fault moves by name; a fault
-    no gap's take stands for still fails, its reason naming the gap of the fault that is one (likeness@quarters,
-    2026-11-08: "box: no model" named no gap beside the rug's own fault).
-    Break: score/stages/__init__.py: 'carried = tied(batch_gaps.of(inputs, output), inputs) if batch else []' ->
-    'carried = batch_gaps.of(inputs, output) if batch else []'
-    Break: score/stages/gaps.py moved: 'if not said:' -> 'if True:'"""
-    lean = next(check for row in stages.STAGES if row.name == "likeness" for check in row.checks
-                if check.name == "lean")
-    split = tmp_path / "split"
-    split.mkdir()
-    batch_gaps.write(split, [batch_gaps.gap("counter_7: not one finish a face", "finish-route-split",
-                                            "one finish a face", ("counter_7",), [], "patchy paint")])
-    handin = tmp_path / "handin.json"
-    handin.write_text(json.dumps({"objects": {"counter": {"route": "prop", "take": "counter_7", "rows": ["counter"]},
-                                              "crate": {"route": "prop", "take": "crate_2"}}}))
-    out = tmp_path / "out"
-    out.mkdir()
-    missing = {"missing": "no model", "route": "prop"}
-    (out / "likeness.json").write_text(json.dumps({"objects": {"counter": missing}}))
-    inputs = {"finish-route-split": split, "props": handin}
-    assert lean.judge(out, inputs, None).answer == checks.PASS
-    (out / "likeness.json").write_text(json.dumps({"objects": {"counter": missing, "crate": missing}}))
-    mixed = lean.judge(out, inputs, None)
-    assert mixed.answer == checks.FAIL and "counter_7: not one finish a face" in mixed.reason, mixed
-    assert len(mixed.findings) == 2, mixed  # the crate's fault and the counter's both still shown
-
-
-def test_motion_names_the_takes_the_surface_line_left_out_from_its_designed_place_s_hand_in(monkeypatch):
-    """motion@hangar, 2026-10-29: the overhead crane's take was left out for patchy paint, a gap carried only to the
-    likeness, and `designed` stopped the line on the crane having no object. The motion make is wrapped by
-    leaving_out (its code version as it was) and reads a designed place's hand-in and its accepted plan where it
-    stands; a place without either keeps its files.
-    Break: score/stages/__init__.py: 'LEFT_OUT = ("likeness", "motion")' -> 'LEFT_OUT = ("likeness",)'
-    Break: score/stages/__init__.py: '            found = {**found, "props": prop_data.keyed(place)}' -> '            pass'"""
-    row = next(row for row in stages.STAGES if row.name == "motion")
-    assert graph.stage_code(row) == graph.stage_code(dataclasses.replace(row, make=inspect.unwrap(row.make)))
-    chain, make = [], row.make
-    while make is not None:
-        chain.append(make.__code__)
-        make = getattr(make, "__wrapped__", None)
-    assert stages.leaving_out(len).__code__ in chain, chain
-    bare = row.files("toy")
-    monkeypatch.setattr(stages.prop_data, "designed", lambda place: True)
-    monkeypatch.setattr(stages, "plan_written", lambda place: True)
-    found = row.files("toy")
-    assert found["props"] == stages.prop_data.keyed("toy") and found["plan"] == "{home}/design/plans/toy.json", found
-    assert "props" not in bare and "plan" not in bare, bare
-
-
-def test_a_rejected_sheet_is_remade_as_its_flat_sheet_build_never_a_new_seed(tmp_path):
-    """A sheet's take the owner's reject names (flat_sheet.sheet: a paper pinned to a wall) is remade in code from its
-    own close-up (stages.sheet_remakes) before the make runs, so Pixal3D is never asked again for it and the retake is
-    marked made; its mark says why.
-    Break: score/stages/__init__.py: '        sheet_remakes(seeds, inputs, out)' -> '        pass'"""
-    import score.stages.props.flat_sheet as flat_sheet
-    import score.stages.props.thin_straight as thin_straight
-    from PIL import Image
-    pixal = pixal_row.take_files("-")[0].parent
-    pixal.mkdir(parents=True, exist_ok=True)
-    for suffix in ("-final.glb", "-4000.glb", ".glb"):
-        pixal.joinpath(f"note_3{suffix}").write_text("old")
-    pixal.joinpath("note_3.svviews").mkdir(exist_ok=True)
-    handin = tmp_path / "handin.json"
-    handin.write_text(json.dumps({"objects": {"note": {"route": "prop", "take": "note_3"}}}))
-    inventory = tmp_path / "inventory.json"
-    inventory.write_text(json.dumps({"rows": [{"id": "note", "size": [0.2, 0.01, 0.3]}]}))
-    surfaces = tmp_path / "surfaces.json"
-    surfaces.write_text(json.dumps({"bake": {"models": {"note_1": "note_3"}, "entries": {"note_1": {"faces": 4000}}}}))
-    (tmp_path / "closeup/closeups").mkdir(parents=True)
-    picture = Image.new("RGB", (100, 140), (120, 120, 120))
-    picture.paste((240, 235, 220), (20, 20, 80, 120))
-    picture.save(tmp_path / "closeup/closeups/note.png")
-    asked = []
-
-    def make(inputs, out, seed, params):
-        asked.append(flat_sheet.built("note_3", pixal))
-    inputs = {"props": handin, "inventory": inventory, "closeup": tmp_path / "closeup", "surfaces": surfaces}
-    stages.retaking(make)(inputs, tmp_path, 1, {"retake": {"takes": ["note_3"], "attempt": 1, "after": "k"}})
-    assert asked == [True]
-    assert pixal_row.finished("note_3", 4000)
-    assert (pixal / stages.RETAKEN / "note_3-r1" / stages.RETAKE_MADE).exists()
-    assert "reject" in json.loads((pixal / "note_3.svviews" / thin_straight.MARK).read_text())["why"]
+# (row name pattern, the table's wrapper round its make): each row the table wraps keeps its code version as it was,
+# and its make runs through the wrapper. The owner's reject retakes pixal's takes (retaking) and a look's parts at a
+# new seed (parts_reseeded); a take the surface line left out is a batch gap of the likeness and of motion (leaving_out;
+# motion@hangar, 2026-10-29: the crane's left-out take stopped `designed` on a missing object)
+WRAPPED = [("people-look-parts-*", stages.parts_reseeded), ("pixal", stages.retaking),
+           ("likeness", stages.leaving_out), ("motion", stages.leaving_out)]
+# one place's hand-in, read by the likeness's left-out gaps and its lean gate: the crane's take left out for patchy
+# paint, the hatch's not baked, the counter's named alone by a split gap, the crate with no gap
+HANDIN = {"objects": {"crane": {"route": "prop", "take": "crane_7", "rows": ["crane"]},
+                      "hatch": {"route": "prop", "take": "hatch_2"},
+                      "counter": {"route": "prop", "take": "counter_7", "rows": ["counter"]},
+                      "crate": {"route": "prop", "take": "crate_2"}}}
 
 
 # --- a scenes layers are read off its design, and a rows kind comes from its own words ---
@@ -1347,7 +1019,10 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     each by name, and an owner's gap is never dropped unless retired on a passing output. A failed paid take is a gap
     carried down its line. The push gate names the paid rows a change moves, refuses a push to main only for those no
     trailer names, and its hook runs the check from the right checkout, home and python and leaves nothing behind.
-    A row's code version moves with its own code alone, and a Claude ask cut short is never a row's output."""
+    A row's code version moves with its own code alone, and a Claude ask cut short is never a row's output; each row waits on, reads beside and applies where its design and its reads
+    say, and no base row waits on the prop route. A row's key holds every script it starts; a place is a scene whose
+    design is done, a parent before its children; a take the owner rejected is set aside once and retaken, and one
+    the surface line left out is a batch gap by its reason, never a missing model."""
     from score.stages import assembly
     for edited, asked, moving in KEYED:
         scope = [stage for stage in stages.STAGES if any(fnmatch.fnmatch(stage.name, name) for name in asked)]
@@ -1355,6 +1030,28 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
         found = {stage.name for stage in scope
                  if code_after_editing(stage, edited) != code_after_editing(stage, "nothing")}
         assert found == ({stage.name for stage in scope} if moving == EVERY else moving), (edited, asked, found)
+    # a script a row's make starts by path (a nested Blender's --python, a cloud or env job's script, a subprocess of
+    # a repo script) is run apart, so no import keys it: it is a declared file of the row, with every file it imports,
+    # or an output accepted on old code stays (make_chunky's bake scripts' recipes.py, 2026-10-28); a STARTED_LEFT
+    # row, left because its re-make would buy again in the cloud, still has one (else it leaves the list)
+    started = {(stage.name, script, by) for stage in stages.STAGES for script, by in unkeyed_scripts(stage)
+               if "{repo}/" + script not in getattr(stage.files, "started", dict)()}
+    unkeyed = [f"{name}: {script} (named by {by})" for name, script, by in sorted(started)
+               if not left(next(stage for stage in stages.STAGES if stage.name == name))]
+    assert not unkeyed, "scripts run apart that no key follows (declare them in the row's files):\n" + "\n".join(unkeyed)
+    unheld = [stage.name for stage in stages.STAGES if left(stage) and not any(name == stage.name
+                                                                               for name, _, _ in started)]
+    assert not unheld, f"STARTED_LEFT rows with nothing left undeclared: {unheld}"
+    # a row the table wraps keeps its code version as it was, and its make runs through the wrapper
+    for pattern, wrapper in WRAPPED:
+        wrapped = next(stage for stage in stages.STAGES if fnmatch.fnmatch(stage.name, pattern))
+        assert graph.stage_code(wrapped) == graph.stage_code(dataclasses.replace(wrapped,
+                                                                                 make=inspect.unwrap(wrapped.make)))
+        chain, make = [], wrapped.make
+        while make is not None:
+            chain.append(getattr(make, "__code__", None))
+            make = getattr(make, "__wrapped__", None)
+        assert wrapper(len).__code__ in chain, (pattern, wrapper.__name__)
     # the claude rows hold their ask's own code; the plan row is the scene record's plan step as it stands (its code
     # version kept), reading no kit: its files are the step's own
     for stage in (stage for stage in stages.STAGES if stage.name.split("@")[0] in claude_asks.ROWS):
@@ -1366,6 +1063,168 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     assert stages.earth_seed.locked_plan("launch") is None
     assert stages.PLAN.files("launch") == stages.scene_record.plan.files("launch")
     assert "kit" not in stages.PLAN.files("launch")
+    # with no kit laid, the plan row's make names the place by its plan and its `mapped` gate judges it; made again on
+    # a moved key (another place's plan redrawn) it is the same output while its own plan stands, so its readers key
+    # as before; its own plan redrawn, it is not, and the remake that differs is foreseen, so the rows reading what it
+    # kept (the floor, carry.CONTENT_RULES) keep
+    drawn = tmp_path / "plan_row"
+    (drawn / "plans").mkdir(parents=True)
+    (drawn / "out").mkdir()
+    plan = {"title": "NEW ROOM", "w": 3.0, "d": 3.0, "corner": 0.0, "height": "walls 2.5 m", "doors": [],
+            "items": [["DESK", 1.0, 1.0, 1.0, 0.6, "S", "item"]], "rows": {"DESK": ["desk"]}, "leads": {},
+            "elements": [{"element": "a desk", "rows": ["desk"]}, {"element": "a poster", "drop": "printed"}]}
+    (drawn / "plans/new_room.json").write_text(json.dumps(plan))
+    (drawn / "inventory.json").write_text(json.dumps({"rows": [{"id": "desk"}], "room": {"layout": {}}}))
+    plan_inputs = {"plan": str(drawn / "plans/new_room.json"), "inventory": str(drawn / "inventory.json"),
+                   "plans": str(drawn / "plans")}
+    stages.PLAN.make(plan_inputs, drawn / "out", 0, {})
+    assert json.loads((drawn / "out/plan.json").read_text())["place"] == "new_room"
+    verdict = stages.PLAN.checks[0].judge(drawn / "out", plan_inputs, {})
+    assert verdict.answer == checks.PASS, verdict.reason
+    contracts.stamp(stages.PLAN.contract, drawn / "out")
+    plan_output = store_tree_hash(drawn / "out")
+    planner = types.SimpleNamespace(store=types.SimpleNamespace(accepted=lambda node: plan_output),
+                                    input_paths=lambda stage, place, keyed: plan_inputs, foreseen={})
+    assert stages.PLAN.files.carries(planner, stages.PLAN, "new_room", {"seed": 0, "params": {}})
+    assert planner.foreseen == {}
+    (drawn / "plans/new_room.json").write_text(json.dumps({**plan, "w": 4.0}))
+    assert not stages.PLAN.files.carries(planner, stages.PLAN, "new_room", {"seed": 0, "params": {}})
+    assert planner.foreseen["plan@new_room"]["plan.json"]["place"] == "new_room"
+    table = {stage.name: stage for stage in stages.STAGES}
+    assert all(hasattr(table[name].files, "same_reads") for name in ("rough-model", "rough-align"))
+    assert hasattr(table["props-inputs"].files, "carries")
+
+    # the table wires each row to wait on, read beside, declare and apply where its design and its reads say
+    from score.stages import people
+
+    def row_of(name):
+        return (stages if name is None else table[name] if isinstance(name, str)
+                else stages.worn(people.dress_row(*name)) if isinstance(name, tuple) else name)
+    for name, field, relation, expected in WIRED:
+        value = (waits(table, name) if field == "waits" else set(row_of(name).files(None).values())
+                 if field == "files" else getattr(row_of(name), field))
+        if relation == "is":
+            assert value is expected, (name, field, value)
+            continue
+        assert expected, (name, field, "the case names nothing")
+        if relation == "==":
+            assert value == expected, (name, field, value)
+        elif relation == "lacks":
+            assert not set(expected) & set(value), (name, field, set(expected) & set(value))
+        else:
+            assert (expected.items() <= dict(value).items() if isinstance(expected, dict)
+                    else set(expected) <= set(value)), (name, field, value)
+    # surfaces-check hands check_step every key it reads (the crops' twin's stance rules were missing, 2026-10-16:
+    # KeyError at greenhouse), shortened as the prop environment hands them over (prop_env.short); only the keys
+    # matter: a declared file may be (path, part), the part the runner reads
+    bake_check, prop_env = sys.modules["bake_check"], sys.modules["prop_env"]
+    read = inputs_read(bake_check.check_step) | inputs_read(bake_check.data_of)
+    handed = prop_env.short(dict.fromkeys([*table["surfaces-check"].files("greenhouse"),
+                                           *table["surfaces-check"].after], "."))
+    assert read <= set(handed), read - set(handed)
+    # the table and the data name only what stands: every motion layer pattern a row of the table, no row under the
+    # old machines name (the motion layer's models now), and no environment data file a path into the work folder,
+    # which is no store (it went with the old disk, 2026-10-19; the last ones went with the old hand-ins, 2026-10-21)
+    empty = [pattern for patterns in stages.MOTION_LAYER.values() for pattern in patterns
+             if not fnmatch.filter(table, pattern)]
+    assert not empty, f"motion layer patterns that name no row of the table: {empty}"
+    old = [name for name in table if name.startswith("machines")]
+    assert not old, f"rows under the old machines name (the motion layer's models now): {old}"
+    into_work = subprocess.run(["git", "grep", "-l", "-E", r"\{home\}/work/|score-coordinator", "--", "data"],
+                               cwd=REPO, capture_output=True, text=True).stdout.split()
+    assert not into_work, f"paths into the work folder (make them a row's output, or a gap): {into_work}"
+    assert not (PROPS_HOME / "work/usd-ship/cockpit").exists()
+    for world in ("design", "toy"):
+        with contextlib.ExitStack() as patches:
+            if world == "toy":
+                patches.enter_context(mock.patch.object(stages.characters_layer, "dressed_looks",
+                                                        lambda place: TOY_DRESSED.get(place, set())))
+                patches.enter_context(mock.patch.object(stages.scene_record, "written",
+                                                        lambda place: place in TOY_RECORDS))
+            for case_world, name, question, place, answer in PER_PLACE:
+                if case_world == world:
+                    found = ASKED[question](row_of(name), place)
+                    assert found == answer, (world, name, question, place, found)
+    # a worn row of the table carries the fabric and variant its name says
+    for name in WORN:
+        _, surface, variant = stages.characters_layer.dressed_of(name)
+        assert table[name].params == {"surface": surface, **({"variant": variant} if variant else {})}, \
+            (name, table[name].params)
+
+    # a place is a scene of the design whose concept is locked, its inventory read and its plan written (no filed kit
+    # or plan names one since 2026-10-21); one only drawn is still in design, and a scene merged into another or a
+    # part of another scene's outside has no line (the scene it is part of builds it, the owner, 2026-10-21)
+    root = tmp_path / "places_world"
+    store = Store.in_folder(root / "store")
+    for part in ("kit/old.json", "plans/old.json"):
+        (root / part).parent.mkdir(parents=True, exist_ok=True)
+        (root / part).write_text("{}")
+    designed(store, "laid")
+    designed(store, "new")
+    from score.review import concepts
+    concepts.recorded(store, "concepts/drawn/draws/2026-10-20T08-00-00.json",
+                      {"place": "drawn", "sha": "d" * 64, "by": "joey", "at": "2026-10-20T08:00:00+00:00"})
+    environment = graph.Environment("world1", 3, {"data": str(root)})
+    within = root / "places/within.json"
+    for written_within, listed in ((None, ["laid", "new"]), ({"merged": {"new": {"into": "laid"}}}, ["laid"]),
+                                   ({"parts": {"new": {"of": "laid", "as": "far off"}}}, ["laid"])):
+        if written_within is not None:
+            within.parent.mkdir(exist_ok=True)
+            within.write_text(json.dumps(written_within))
+        assert stages.places(environment, store) == listed, written_within
+    # scene-tree@<scene> reads its own assembly and, beside, the tree of each child scene its plan lays out that is a
+    # scene of the batch (one in design is none: the tree's gate names it); a place of every scene but a line no
+    # place owns; the library reads it, so a scene is complete once its tree stands
+    tree_row = table["scene-tree"]
+    assert tree_row.downward and tree_row.after == {"assembly": ("openusd-stage", 1)}
+    assert tree_row.beside == {"scene-tree": ("openusd-stage", 1)} and tree_row.neighbours is stages.held_scenes
+    assert not tree_row.applies("people") and tree_row.applies("hangar") and "scene-tree" in table["library"].after
+    # the batch's places are listed once a moment, however many rows' reads ask (filmed_places), and kept across
+    # moments until a file or folder the listing read changes
+    listings = []
+    with monkeypatch.context() as patch:
+        patch.setattr(stages.scene_tree, "held", lambda place: {"base": ["hangar", "lab", "dome"]}.get(place, []))
+        patch.setattr(stages, "places", lambda world, store=None: listings.append(1) or ["base", "hangar", "lab"])
+        patch.setattr(stages, "world1", lambda: None)
+        patch.setattr(stages.demo_film_final, "shown_places", lambda place=None: ["lab", "dome"])
+        patch.setattr(stages.demo_film_final, "peeled_places", lambda place=None: ["hangar"])
+        assert stages.held_scenes("base") == ["hangar", "lab"] and stages.held_scenes("lab") == []
+        stages.KEPT_LISTINGS.clear()
+        try:
+            with stages.plans.one_moment():
+                assert stages.filmed_places() == ["hangar", "lab"] and stages.filmed_places() == ["hangar", "lab"]
+                assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
+            with stages.plans.one_moment():  # the next moment: nothing the listing read changed (it read nothing)
+                assert stages.held_scenes("base") == ["hangar", "lab"] and len(listings) == 2, listings
+        finally:
+            stages.KEPT_LISTINGS.clear()
+    # a listing reading the places world's within.json and its folder of plans, as places() does
+    records, listed_again = root / "plans" / "base" / "edits", []
+    records.mkdir(parents=True)
+
+    def listing():
+        listed_again.append(1)
+        return (within.read_text() if within.exists() else None,
+                sorted(path.name for path in (root / "plans").rglob("*")))
+    try:
+        first = stages.kept_while_read_stands("toy", listing)
+        (root / "unread.txt").write_text("a write beside, never read")
+        assert stages.kept_while_read_stands("toy", listing) is first and len(listed_again) == 1, \
+            "read again though nothing changed"
+        for change in (lambda: within.write_text('{"merged": {}}'), lambda: (records / "e1.json").write_text("{}"),
+                       lambda: (root / "plans" / "lab").mkdir(), within.unlink):
+            change()
+            stages.kept_while_read_stands("toy", listing)
+        assert len(listed_again) == 5, \
+            f"a changed file, a new record, a new place's folder or a gone file kept the listing: {listed_again}"
+        assert stages.kept_while_read_stands("toy", listing) == (
+            None, ["base", "e1.json", "edits", "lab", "old.json"]) and len(listed_again) == 5
+    finally:
+        stages.KEPT_LISTINGS.clear()
+    # a parent scene comes before its children
+    assert stages.parent_first({"cockpit", "hangar", "base", "hub", "wreck", "camp"},
+                               {"cockpit": "hangar", "hangar": "base", "hub": "base", "camp": "campgrounds"}) == [
+        "base", "hangar", "cockpit", "hub", "camp", "wreck"]
 
     # a Claude ask whose stream ends without its result line is never the row's output: the make raises AskBroken (a
     # ConnectionError), the adapter keeps nothing and a later run asks again, while a real answer is kept and read
@@ -1535,6 +1394,146 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     (views / batch_gaps.FILE).write_text(json.dumps({"gaps": []}))
     assert route_views.judge_views(views, {}, None).answer == checks.FAIL
 
+    # a take the owner rejected is set aside once and retaken (owner, 2026-10-28: a failing object remade once,
+    # free): its files moved aside once (the other takes, and a take its name starts, kept), named by its take or its
+    # object (checkout 66, 2026-11-09), and out of takes_back until its retake is made: its mark, or the library's
+    # newest record holding another raw model than the one set aside (checkout 18, 2026-11-04); a code build's take
+    # is refused
+    rejected = tmp_path / "rejected"
+    rejected.mkdir()
+    for name in ("stool_1.glb", "stool_1-final.glb", "stool_1-5000.glb", "stool_1.json", "stool_10.glb", "seat_1.glb"):
+        (rejected / name).write_text("old")
+    (rejected / "stool_1.svviews").mkdir()
+    (rejected / "pipe_1.svviews").mkdir()
+    (rejected / "pipe_1.svviews" / "code.json").write_text("{}")
+    objects = {"stool": {"take": "stool_1"}, "seat": {"take": "seat_1"}, "pipe": {"take": "pipe_1"}}
+    retake = {"takes": ["stool_1"], "attempt": 1, "after": "k"}
+    assert stages.set_aside(retake, objects, rejected) == {"stool_1": 2}
+    aside = rejected / stages.RETAKEN / "stool_1-r1"
+    assert sorted(path.name for path in aside.iterdir()) == [
+        "stool_1-5000.glb", "stool_1-final.glb", "stool_1.glb", "stool_1.json", "stool_1.svviews"]
+    assert sorted(path.name for path in rejected.glob("*.glb")) == ["seat_1.glb", "stool_10.glb"]
+    assert stages.retake_pending("stool_1", rejected) and not stages.retake_pending("stool_10", rejected)
+    (rejected / "stool_1.glb").write_text("new")
+    stages.set_aside(retake, objects, rejected)
+    assert (rejected / "stool_1.glb").read_text() == "new" and (aside / "stool_1.glb").read_text() == "old"
+    for raw, pending in ((b"old", True), (None, True), (b"new", False), (b"olD", False)):
+        handed = {} if raw is None else {"files": {"stool_1.glb": {"bytes": len(raw),
+                                                                   "sha256": hashlib.sha256(raw).hexdigest()}}}
+        assert stages.retake_pending("stool_1", rejected, handed) is pending, raw
+    (aside / stages.RETAKE_MADE).touch()
+    assert not stages.retake_pending("stool_1", rejected)
+    with pytest.raises(ValueError, match="pipe_1"):
+        stages.set_aside({**retake, "takes": ["pipe_1"]}, objects, rejected)
+    assert stages.set_aside({**retake, "takes": ["stool"]}, objects, rejected) == {"stool_1": 2}
+    # the pixal make under a retake (retaking) asks Pixal3D's seed of a named take as set_aside gave it and of any
+    # other take as its name gives it, its own seed_of put back after; a sheet's take (flat_sheet.sheet: a paper
+    # pinned to a wall) is remade in code from its own close-up before the make runs, never a new seed, its mark
+    # saying why; each retake made is marked so; with no retake the make runs as it is
+    import score.stages.props.flat_sheet as flat_sheet
+    import score.stages.props.thin_straight as thin_straight
+    from PIL import Image
+    pixal = pixal_row.take_files("-")[0].parent
+    pixal.mkdir(parents=True, exist_ok=True)
+    for suffix in ("-final.glb", "-4000.glb", ".glb"):
+        pixal.joinpath(f"note_3{suffix}").write_text("old")
+    pixal.joinpath("note_3.svviews").mkdir(exist_ok=True)
+    retaken = tmp_path / "retaken"
+    (retaken / "closeup/closeups").mkdir(parents=True)
+    picture = Image.new("RGB", (100, 140), (120, 120, 120))
+    picture.paste((240, 235, 220), (20, 20, 80, 120))
+    picture.save(retaken / "closeup/closeups/note.png")
+    retake_inputs = {
+        "props": written(retaken, "handin.json", {"objects": {"crate": {"route": "prop", "take": "crate_7"},
+                                                              "seat": {"route": "prop", "take": "seat-s3"},
+                                                              "note": {"route": "prop", "take": "note_3"}}}),
+        "inventory": written(retaken, "inventory.json", {"rows": [{"id": "crate", "size": [0.5, 0.5, 0.5]},
+                                                                  {"id": "note", "size": [0.2, 0.01, 0.3]}]}),
+        "surfaces": written(retaken, "surfaces.json", {"bake": {"models": {"note_1": "note_3"},
+                                                                "entries": {"note_1": {"faces": 4000}}}}),
+        "closeup": retaken / "closeup"}
+    asked = []
+
+    def retake_make(inputs, out, seed, params):
+        asked.append((pixal_row.seed_of("crate_7"), pixal_row.seed_of("seat-s3"), flat_sheet.built("note_3", pixal)))
+        for suffix in pixal_row.SUFFIXES:
+            pixal.joinpath(f"crate_7{suffix}").write_text("new")
+    stages.retaking(retake_make)(retake_inputs, retaken, 1, {"retake": {"takes": ["crate_7", "note_3"], "attempt": 1,
+                                                                        "after": "k"}})
+    assert asked == [(2, 3, True)] and pixal_row.seed_of("crate_7") == 1 and pixal_row.finished("note_3", 4000)
+    for take in ("crate_7", "note_3"):
+        assert (pixal / stages.RETAKEN / f"{take}-r1" / stages.RETAKE_MADE).exists(), take
+    assert "reject" in json.loads((pixal / "note_3.svviews" / thin_straight.MARK).read_text())["why"]
+    stages.retaking(retake_make)(retake_inputs, retaken, 1, {})
+    assert asked[-1] == (1, 3, True)
+    # so is a look's parts made at a new seed (the owner's reject, a free remake): its candidate parts folder is set
+    # aside and bought again, never copied out as it was (people-look-parts-man_stair-made gave its rejected bdb60d93
+    # again, checkout 89, 2026-11-11), and a make at its own seed keeps it
+    bought = []
+
+    def parts_make(inputs, out, seed, params):
+        made = retaken / "candidates" / "man" / params["outfit"] / "parts" / "take"
+        if not (made / "parts.npz").exists():
+            made.mkdir(parents=True, exist_ok=True)
+            (made / "parts.npz").write_text(f"seed {seed}")
+            bought.append(seed)
+    old_parts = retaken / "candidates" / "man" / "made" / "parts" / "take"
+    old_parts.mkdir(parents=True)
+    (old_parts / "parts.npz").write_text("rejected")
+    sys.path.insert(0, str(stages.people.bodies.MAKER))
+    import prop_person
+    with mock.patch.object(prop_person, "CANDIDATES", retaken / "candidates"):
+        for seed in (5, 5, 6):
+            stages.parts_reseeded(parts_make)({"spec": str(written(retaken, "man.json", {"name": "man"}))}, retaken,
+                                              seed, {"outfit": "made"})
+    assert bought == [5, 6] and (old_parts / "parts.npz").read_text() == "seed 6"
+    assert (old_parts.parent.with_name("parts.misfit") / "take" / "parts.npz").read_text() == "seed 5"
+
+    # a take the surface line left out never vanishes silently (owner, 2026-10-29): the likeness make names each
+    # left-out take a batch gap with its reason and the rows it stands for, once, beside the gaps it carries; a take a
+    # gap already names is not named again
+    handin = written(tmp_path, "left_out_handin.json", HANDIN)
+    bake = tmp_path / "left_out_bake"
+    bake.mkdir()
+    written(bake, "painted.json", {"takes": {}, "left_out": {"crane_7": "patchy paint: stray 0.031 > 0.03",
+                                                             "hatch_2": "hatch_2: not baked"}})
+
+    def likeness_make(inputs, out, seed, params):
+        batch_gaps.write(out, [batch_gaps.gap("hatch_2: not baked", "surfaces-bake", "baked", ("hatch_2", "hatch"),
+                                              [], "its bake job failed")])
+    likeness = tmp_path / "left_out_likeness"
+    likeness.mkdir()
+    stages.leaving_out(likeness_make)({"surfaces-bake": bake, "props": handin}, likeness, 1, {})
+    found = {entry["name"]: entry for entry in batch_gaps.read([likeness])}
+    assert sorted(found) == ["crane_7: left out: patchy paint: stray 0.031 > 0.03", "hatch_2: not baked"], found
+    assert found["crane_7: left out: patchy paint: stray 0.031 > 0.03"]["objects"] == ["crane", "crane_7"]
+    # the likeness's lean gate ties each carried gap's take to the rows the hand-in says it stands for, so a gap
+    # naming a take alone moves its row's fault (likeness@camp, 2026-10-30); a fault no gap's take stands for still
+    # fails, its reason naming the gap of the fault that is one (likeness@quarters, 2026-11-08)
+    lean = next(check for check in ROWS["likeness"].checks if check.name == "lean")
+    split = tmp_path / "left_out_split"
+    split.mkdir()
+    batch_gaps.write(split, [batch_gaps.gap("counter_7: not one finish a face", "finish-route-split",
+                                            "one finish a face", ("counter_7",), [], "patchy paint")])
+    missing = {"missing": "no model", "route": "prop"}
+    for faults, answer, findings in (({"counter": missing}, checks.PASS, None),
+                                     ({"counter": missing, "crate": missing}, checks.FAIL, 2)):
+        written(likeness, "likeness.json", {"objects": faults})
+        judged = lean.judge(likeness, {"finish-route-split": split, "props": handin}, None)
+        assert judged.answer == answer, (faults, judged)
+        if findings:  # the crate's fault and the counter's both still shown
+            assert "counter_7: not one finish a face" in judged.reason and len(judged.findings) == findings, judged
+    # motion reads a designed place's hand-in and its accepted plan where it stands, so it names its left-out takes
+    # too; a place without either keeps its files
+    bare = ROWS["motion"].files("toy")
+    with monkeypatch.context() as patch:
+        patch.setattr(stages.prop_data, "designed", lambda place: True)
+        patch.setattr(stages, "plan_written", lambda place: True)
+        motion_files, designed_handin = ROWS["motion"].files("toy"), stages.prop_data.keyed("toy")
+    assert motion_files["props"] == designed_handin, motion_files
+    assert motion_files["plan"] == "{home}/design/plans/toy.json", motion_files
+    assert "props" not in bare and "plan" not in bare, bare
+
     # the fixture line runs on to complete apart from the batch's gap, which complete lists with the batch run that
     # decided it; a take lost with no batch gap still stops the line
     for brief, says in LINES:
@@ -1684,321 +1683,213 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
         if loose:
             (repo / "loose.txt").unlink()
 
-
-# --- every designed person is a look of the line ---
-
-def test_every_people_row_maps_to_a_look():
+    # every designed person is a look of the people line, written from the design alone: every people row of the
+    # home's designs maps to looks the line holds, one look (one body) for the camp's, the garage's and the airlock's
+    # astronauts, each look asking for the drawn face
+    sys.path.insert(0, str(REPO / "tools/characters/maker"))
+    import spec as specs
+    import copy
+    import numpy as np
+    from score.stages import people_clothes
+    from score.stages.complete.prepare import groups
+    from score.stages.props import closeup_row
     found = people_rows.read()
     line = people_rows.line_looks()
-    for place, entry in found["places"].items():
-        for row, fields in entry["rows"].items():
+    for place, held_entry in found["places"].items():
+        for row_id, fields in held_entry["rows"].items():
             if "crowd" in fields:
-                assert fields["crowd"] in line, (place, row)
+                assert fields["crowd"] in line, (place, row_id)
             else:
-                assert len(fields["looks"]) == fields["count"], (place, row)  # a look for each person
-                assert all(look in line for look in fields["looks"]), (place, row)  # every person can be made
-    # one body a look (owner, 2026-10-22): the camp's, the garage's and the airlock's astronauts are one look
+                assert len(fields["looks"]) == fields["count"], (place, row_id)  # a look for each person
+                assert all(look in line for look in fields["looks"]), (place, row_id)  # every person can be made
     assert people_rows.mapping_rows(found)["astronaut-made"]
     assert {fields["looks"][0] for place in ("camp", "garage", "airlock") for fields in
             found["places"][place]["rows"].values()} == {"astronaut-made"}
     assert all(look.endswith(f"-{people_rows.OUTFIT}") for look in line), "a row asks for the drawn face"
 
-
-def test_a_person_row_s_look_is_written_from_the_row_alone():
-    """#26: a design's person is made from its row, never a hand-written character file: who by the row's words, the
-    build by its metres, face, hair and clothes as the concept draws them; a spec the maker takes."""
-    sys.path.insert(0, str(REPO / "tools/characters/maker"))
-    import spec as specs
-    found = {"places": {"deck": {"concept": "abcdef0123", "rows": {
-        "pilot": {"name": "pilot in a red suit", "noun": "person", "count": 2, "size": [0.3, 0.4, 1.7],
-                  "where": "standing at the console", "share": 0.2, "looks": ["pilot_suit-made"] * 2},
-        "guest": {"name": "seated guest", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
-                  "where": "sitting on a sofa", "looks": ["guest-made"]},
-        "copilot": {"name": "seated pilot in a suit", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
-                    "where": "sitting at the console", "share": 0.5, "looks": ["pilot_suit-made"]},
-        "crowd": {"name": "crowd of people", "noun": "crowd", "count": 1, "size": [8.0, 9.0, 1.8],
-                  "crowd": "crowd-made"}}}}}
-    surfaces = json.loads(people_rows.LINE_FILES["surfaces"].read_text())
-    made = people_rows.designed_specs(found, surfaces)
-    assert set(made) == {"pilot_suit-made", "guest-made", "crowd-made"}
-    pilot = made["pilot_suit-made"]  # drawn from its largest standing person, never the bigger seated one
-    assert pilot["name"] == "pilot_suit" and pilot["outfits"] == ["made"] and "abcdef01" in pilot["approved"]
-    assert pilot["description"] == "pilot in a red suit, a slim build, as drawn in the deck concept", pilot
-    assert people_rows.size_of("pilot_suit-made", found) == ([0.3, 0.4, 1.7], "deck/pilot")
-    assert "a broad build" in made["guest-made"]["description"]  # seated: its narrower side, 0.7 m
-    assert made["crowd-made"]["description"].startswith("one person of the crowd of people, an average build")
-    assert all(not specs.problems_of(spec) for spec in made.values()), [specs.problems_of(s) for s in made.values()]
-    # a row read into a look by its garment wears it and draws it only where no row's words name it
-    found["places"]["deck"]["rows"]["suited"] = {"name": "person in spacesuit", "noun": "person", "count": 1,
-                                                 "size": [0.5, 0.5, 1.8], "share": 0.9, "looks": ["astronaut-made"]}
-    assert people_rows.origin_of("astronaut-made", found)[1] == "suited"
-    found["places"]["deck"]["rows"]["astronaut"] = {"name": "astronaut", "noun": "astronaut", "count": 1,
-                                                    "size": [0.6, 0.4, 1.8], "share": 0.1, "looks": ["astronaut-made"]}
-    assert people_rows.origin_of("astronaut-made", found)[1] == "astronaut", "drawn from the lab's bare-headed bust"
-    assert people_rows.member_size("crowd-made", found) == ([0.55, 0.55, 1.8], "deck/crowd")
-    props, inventory, lined = people_rows.with_designed(made, {"objects": {}}, {"rows": []}, surfaces)
-    take = lined["bake"]["models"]["pilot_suit-made"]
-    assert take == "pilot_suit-made-s1" and props["objects"]["pilot_suit-made"]["take"] == take
-    assert lined["takes"][take]["spec"] == "data/people/specs/pilot_suit.json"
-    assert lined["takes"][take]["outfit"] == "made" and {row["id"] for row in inventory["rows"]} == set(made)
-    assert all(entry["spec"].startswith("data/people/specs/") for entry in surfaces["takes"].values()), \
-        "every look on the line is written from a design's row (the hand-made makes were retired, 2026-10-21)"
-
-
-def test_a_crowd_s_ground_is_the_plan_items_its_row_makes():
-    plan = {"w": 20.0, "d": 10.0, "items": [["CROWD 1", 2.0, 1.0, 6.0, 4.0, None, "item"],
-                                            ["BENCH 1", 0.0, 0.0, 1.0, 1.0, "N", "item"]],
-            "rows": {"CROWD 1": ["crowd"], "BENCH 1": ["bench"]}}
-    assert people_rows.crowd_ground(plan, "crowd") == [[-8.0, -4.0, 6.0, 4.0]]  # unframed: the plan's middle at 0
-    assert people_rows.crowd_ground(plan, "pilot") == [] and people_rows.crowd_ground(None, "crowd") == []
-    inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [
-        {"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"}]}
-    entry = people_rows.refreshed_place("deck", inventory, plan, None, {})
-    crowd = people_rows.crowd_record("crowd", entry["rows"]["crowd"], entry)
-    assert crowd["spread"] == [-8.0, -4.0, 6.0, 4.0] and crowd["grounds"] == [[-8.0, -4.0, 6.0, 4.0]]
-    assert crowd["count"] is None and crowd["seed"] == 0x0badcafe and crowd["facing_to"] == entry["middle"]
-    # its palettes the variants of its look's body it wears, a few, never more than SAM 3 counted people in it
-    assert crowd["palettes"] == list(range(people_rows.CROWD_VARIANTS)) and sum(crowd["palette_shares"]) == 1.0
-    counted = {**entry["rows"]["crowd"], "count": 30}
-    assert people_rows.crowd_record("crowd", counted, entry)["count"] == 30
-    assert people_rows.crowd_record("crowd", {**counted, "count": 3}, entry)["palettes"] == [0, 1, 2]
-
-
-def test_a_people_row_the_plan_shows_beyond_the_place_is_not_its_own():
-    """groups.current routes a people row the plan shows beyond the place to the backdrop, unless it stands on a row
-    laid here (2026-10-26: the stairwell's man and woman on its own stairs, listed beyond, were made by nothing)."""
-    from score.stages.complete.prepare import groups
-    plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {}, "beyond": ["far_crowd", "man", "far_stage", "singer"]}
-    rows = [{"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "count": 3, "route": "people",
-             "anchor": "ground"},
-            {"id": "pilot", "name": "pilot in a red suit", "noun": "pilot", "count": 1, "route": "people",
-             "anchor": "floor"},
-            {"id": "stairs", "route": "prop", "anchor": "floor"},
-            {"id": "man", "name": "man on the stairs", "noun": "man", "count": 1, "route": "people",
-             "anchor": "on:stairs"},
-            {"id": "far_stage", "route": "prop", "anchor": "ground"},
-            {"id": "singer", "name": "singer on the far stage", "noun": "singer", "count": 1, "route": "people",
-             "anchor": "on:far_stage"}]
-    beyond = groups.stood_beyond(rows, set(plan["beyond"]))
-    assert beyond == {"far_crowd", "far_stage", "singer"}, beyond  # the man stands on the place's own stairs
-    inventory = {"concept_pick": {"sha256": "0badcafe"}, "rows": [groups.routed(row, set(), beyond) for row in rows]}
-    assert set(people_rows.refreshed_place("deck", inventory, plan, None, {})["rows"]) == {"pilot", "man"}
-
-
-def test_each_person_stands_on_a_plan_spot_each_its_own_variant_of_the_look():
-    """Each person of a row is dealt its row's own plan people spots in turn (a plan unframed: its middle at 0, so the
-    spot (1, 1) of a 20 x 10 m plan stands at (-9, 0, -4)), a view's untagged spot only to a row with none of its
-    own, and each person of one look wears its own variant of the body (owner, 2026-10-25: "Each one looks
-    different")."""
-    inventory = {"concept_pick": {"sha256": "one"}, "rows": [
-        {"id": "pilot", "name": "person in uniform", "noun": "person", "count": 3, "size": [0.5, 0.3, 1.8],
-         "route": "people"}]}
-    plan = {"w": 20.0, "d": 10.0, "items": [], "rows": {},
-            "people": [[1.0, 1.0, 0, "pilot"], [3.0, 2.0, 0, "pilot"], [5.0, 3.0, 0, "pilot"]]}
-    entry = people_rows.refreshed_place("deck", inventory, plan, None, {})
-    people = people_rows.cast_record("deck", {"places": {"deck": {**entry, "concept": "one"}}})["people"]
-    assert [person["at"] for person in people] == [[-9.0, 0.0, -4.0], [-7.0, 0.0, -3.0], [-5.0, 0.0, -2.0]]
-    assert {person["look"] for person in people} == {"person_uniform_made"}
-    assert sorted(person["variant"] for person in people) == [0, 1, 2]
-    # a tagged spot reaches its own row whatever the order of the row ids; an untagged (view) spot only a row with
-    # none tagged (the cockpit's pilot and officer swapped, the street's diner on the pavement, 2026-11-04)
-    rows = {row: {"looks": ["person_uniform-made"]} for row in ("b_officer", "a_pilot", "c_guest")}
-    spots, _ = people_rows.placed_spots({"w": 20.0, "d": 10.0, "people": [[11.0, 6.0, 0, "b_officer"],
-                                                                         [19.0, 14.0], [12.0, 7.0, 0, "a_pilot"]]})
-    entry = {"concept": "one", "rows": rows, "spots": spots}
-    people = people_rows.cast_record("deck", {"places": {"deck": entry}})["people"]
-    assert {person["name"]: person["at"] for person in people} == {
-        "a_pilot": [2.0, 0.0, 2.0], "b_officer": [1.0, 0.0, 1.0], "c_guest": [9.0, 0.0, 9.0]}, people
-
-
-def test_the_line_holds_the_mapped_looks_each_baked_at_its_rows_size(tmp_path):
+    # the line's data is exactly what rows.json maps (run python -m score.stages.people_refresh), each look baked at
+    # its person row's size: kept inventories holding the boxes the line already draws from give the line back
     records = {name: json.loads(path.read_text()) for name, path in people_rows.LINE_FILES.items()}
-    # the kept inventories are the home's, never read by a test: each holds the box the line already draws from
-    for row in records["inventory"]["rows"]:
-        if row.get("view"):
-            place, row_id = people_rows.size_of(row["id"])[1].split("/", 1)
-            path = tmp_path / f"{place}.json"
-            held = json.loads(path.read_text()) if path.exists() else {"rows": []}
-            path.write_text(json.dumps({"rows": held["rows"] + [{"id": row_id, "box": row["box"]}]}))
-    props, inventory, surfaces = people_refresh.line_rows(people_rows.read(), records["props"], records["inventory"],
-                                                       records["surfaces"], tmp_path)
+    held = {}
+    for line_row in records["inventory"]["rows"]:
+        if line_row.get("view"):
+            place, row_id = people_rows.size_of(line_row["id"])[1].split("/", 1)
+            held.setdefault(place, []).append({"id": row_id, "box": line_row["box"]})
+    props, inventory, surfaces = people_refresh.line_rows(
+        found, *copy.deepcopy([records["props"], records["inventory"], records["surfaces"]]),
+        kept_inventories(tmp_path / "kept-line", held))
     assert (props, inventory, surfaces) == (records["props"], records["inventory"], records["surfaces"]), \
         "the line's data is not written from rows.json: run python -m score.stages.people_refresh"
     assert set(props["objects"]) == people_rows.every_look()  # every look the designs map, each on the line
     assert set(surfaces["bake"]["entries"]) == set(surfaces["bake"]["models"]) == set(props["objects"])
+    assert all(entry["spec"].startswith("data/people/specs/") for entry in surfaces["takes"].values()), \
+        "every look on the line is written from a design's row (the hand-made makes were retired, 2026-10-21)"
     assert people_rows.size_of("person_uniform-made")[1] == "tube/person_right"  # the larger of the tube's two rows
     size, origin = people_rows.size_of("crowd-made")
     assert people_rows.person_sized(size) and origin == "square/crowd"  # one member, never the crowd's extent
-    walkway = {"name": "people on walkway", "noun": "people", "count": 5, "size": [10.0, 30.0, 1.8], "share": 0.06,
-               "looks": ["person-made"] * 5}  # five people standing apart on 10 x 30 m
-    found = {"places": {"deck": {"concept": "0badcafe", "rows": {"walkway_crowd": walkway}}}}
-    size, origin = people_rows.size_of("person-made", found)
-    assert people_rows.person_sized(size) and origin == "deck/walkway_crowd", (size, origin)
-
-
-def test_each_line_row_is_drawn_from_the_person_that_maps_it():
-    """#26: the shared loop draws each look's close-up from the picked design's person row that maps it (its view the
-    kept concept, its box SAM 3's, grounded), so no take row and no work folder stands before the line; the line is
-    approved by those picks, as the Pixal3D batch takes a design."""
-    import tempfile
-    records = {name: json.loads(path.read_text()) for name, path in people_rows.LINE_FILES.items()}
-    with tempfile.TemporaryDirectory() as held:
-        kept = pathlib.Path(held)
-        (kept / "tube.json").write_text(json.dumps({"rows": [{"id": "person_right", "box": [1, 2, 3, 4]}]}))
-        boxes = [[number, 0, number + 1, 2 + number % 3] for number in range(5)]
-        (kept / "garage.json").write_text(json.dumps({"rows": [{"id": "astronaut", "box": boxes[0],
-                                                                 "boxes": boxes}]}))
-        props, inventory, _ = people_refresh.line_rows(people_rows.read(), records["props"], records["inventory"],
-                                                    records["surfaces"], kept)
-    rows = {row["id"]: row for row in inventory["rows"]}
-    right = rows["person_uniform-made"]
-    assert right["view"] == "tube" and right["box"] == [1, 2, 3, 4]
-    assert right["grounded"] and right["prop"] == "person_uniform-made"
-    assert rows["crowd-made"]["view"] is None, "the square keeps no inventory here"
-    assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
-                                          for place in ("garage", "tube")]
-    assert inventory["approved"]["by"] == "the creator's pick"
-    assert inventory["approved"]["places"] == ["garage", "tube"]
-    assert "closeup" not in props["objects"]["person_uniform-made"]
-    # a look drawn from the tallest of its row's SAM 3 instances: its largest person
-    assert rows["astronaut-made"]["view"] == "garage" and rows["astronaut-made"]["box"] == boxes[2]
-
-
-def test_each_line_rows_close_up_words_say_who_the_look_is():
-    """#26: the first people benchmark drew its player, a Chinese man in his thirties by his spec, as someone else:
-    the close-up's words were the reading's clothes alone. Every look's words start with its spec's description."""
-    from score.stages.props import closeup_row
-    inventory = json.loads(people_rows.LINE_FILES["inventory"].read_text())
+    # each close-up's words say who the look is (#26: the first people benchmark drew its player, a Chinese man in
+    # his thirties by his spec, as someone else): its spec's description, then its clothes
     rows = {row["id"]: row for row in inventory["rows"]}
     words = {row["id"]: row["words"] for row in closeup_row.inventory_rows(inventory, people_rows.every_look())}
     assert words["person_uniform-made"].startswith("person in uniform, an average build")
     for look, said in words.items():
-        assert said == f"{people_rows.description_of(look)}; {rows[look]['clothes']}"
+        assert said == f"{people_rows.description_of(look)}; {rows[look]['clothes']}", look
+    # each line row is drawn from the picked design's person row that maps it (its view the kept concept, its box SAM
+    # 3's tallest instance, grounded), so no take row and no work folder stands before the line; the line is approved
+    # by those picks
+    boxes = [[number, 0, number + 1, 2 + number % 3] for number in range(5)]
+    props, inventory, _ = people_refresh.line_rows(
+        found, *copy.deepcopy([records["props"], records["inventory"], records["surfaces"]]),
+        kept_inventories(tmp_path / "kept-toy", {"tube": [{"id": "person_right", "box": [1, 2, 3, 4]}],
+                                                 "garage": [{"id": "astronaut", "box": boxes[0], "boxes": boxes}]}))
+    rows = {row["id"]: row for row in inventory["rows"]}
+    right = rows["person_uniform-made"]
+    assert (right["view"], right["box"], right["prop"]) == ("tube", [1, 2, 3, 4], "person_uniform-made") and \
+        right["grounded"], right
+    assert rows["crowd-made"]["view"] is None, "the square keeps no inventory here"
+    assert (rows["astronaut-made"]["view"], rows["astronaut-made"]["box"]) == ("garage", boxes[2])  # its tallest
+    assert inventory["plan"]["views"] == [{"id": place, "picture": f"{{home}}/design/concepts/{place}.png"}
+                                          for place in ("garage", "tube")]
+    assert inventory["approved"]["by"] == "the creator's pick" and inventory["approved"]["places"] == ["garage", "tube"]
+    assert "closeup" not in props["objects"]["person_uniform-made"]
+    # a design's person is made from its row, never a hand-written character file: who by the row's words, the build
+    # by its metres, a spec the maker takes, and a take on the line
+    specs_made = people_rows.designed_specs(DESIGNED, records["surfaces"])
+    assert set(specs_made) == {"pilot_suit-made", "guest-made", "crowd-made"}
+    pilot = specs_made["pilot_suit-made"]
+    assert pilot["name"] == "pilot_suit" and pilot["outfits"] == ["made"] and "abcdef01" in pilot["approved"]
+    assert pilot["description"] == "pilot in a red suit, a slim build, as drawn in the deck concept", pilot
+    assert people_rows.size_of("pilot_suit-made", DESIGNED) == ([0.3, 0.4, 1.7], "deck/pilot")
+    assert "a broad build" in specs_made["guest-made"]["description"]  # seated: its narrower side, 0.7 m
+    assert specs_made["crowd-made"]["description"].startswith("one person of the crowd of people, an average build")
+    assert all(not specs.problems_of(spec) for spec in specs_made.values()), \
+        [specs.problems_of(spec) for spec in specs_made.values()]
+    redesigned = copy.deepcopy(DESIGNED)
+    deck = redesigned["places"]["deck"]["rows"]
+    # a row read into a look by its garment wears it and draws it only where no row's words name it
+    deck["suited"] = {"name": "person in spacesuit", "noun": "person", "count": 1, "size": [0.5, 0.5, 1.8],
+                      "share": 0.9, "looks": ["astronaut-made"]}
+    assert people_rows.origin_of("astronaut-made", redesigned)[1] == "suited"
+    deck["astronaut"] = {"name": "astronaut", "noun": "astronaut", "count": 1, "size": [0.6, 0.4, 1.8], "share": 0.1,
+                         "looks": ["astronaut-made"]}
+    assert people_rows.origin_of("astronaut-made", redesigned)[1] == "astronaut", \
+        "drawn from the lab's bare-headed bust"
+    assert people_rows.member_size("crowd-made", redesigned) == ([0.55, 0.55, 1.8], "deck/crowd")
+    # five people standing apart on 10 x 30 m are baked at one member's size
+    deck["walkway_crowd"] = {"name": "people on walkway", "noun": "people", "count": 5, "size": [10.0, 30.0, 1.8],
+                             "share": 0.06, "looks": ["person-made"] * 5}
+    size, origin = people_rows.size_of("person-made", redesigned)
+    assert people_rows.person_sized(size) and origin == "deck/walkway_crowd", (size, origin)
+    props, inventory, lined = people_rows.with_designed(specs_made, {"objects": {}}, {"rows": []}, records["surfaces"])
+    take = lined["bake"]["models"]["pilot_suit-made"]
+    assert take == "pilot_suit-made-s1" and props["objects"]["pilot_suit-made"]["take"] == take
+    assert lined["takes"][take]["spec"] == "data/people/specs/pilot_suit.json"
+    assert lined["takes"][take]["outfit"] == "made" and {row["id"] for row in inventory["rows"]} == set(specs_made)
 
-
-def test_a_refresh_keeps_the_choices_of_the_same_concept():
-    inventory = {"concept_pick": {"sha256": "one"}, "rows": [
-        {"id": "pilot", "name": "person", "noun": "person", "count": 2, "size": [0.5, 0.3, 1.8], "route": "people"},
-        {"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"},
-        {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop"}]}
-    fresh = people_rows.refreshed_place("deck", inventory, None, None, {})
-    assert fresh["rows"]["pilot"]["looks"] == ["person-made", "person-made"] and "chair" not in fresh["rows"]
-    assert fresh["rows"]["crowd"]["crowd"] == "crowd-made", \
-        "a crowd takes no look drawn from another scene's row"
-    fresh["rows"]["pilot"]["looks"] = ["deck_pilot-made", "person-made"]
-    assert people_rows.refreshed_place("deck", inventory, None, fresh, {})["rows"]["pilot"]["looks"][0] == \
-        "person-made", "a pick with no why is no hand-made choice: read again from the design"
-    fresh["rows"]["pilot"]["why"] = "the owner's pick: the player"
-    assert people_rows.refreshed_place("deck", inventory, None, fresh, {})["rows"]["pilot"]["looks"][0] == \
-        "deck_pilot-made"
-    redrawn = {**inventory, "concept_pick": {"sha256": "two"}}
-    assert people_rows.refreshed_place("deck", redrawn, None, fresh, {})["rows"]["pilot"]["looks"][0] == "person-made"
-
-
-def test_a_crowds_look_is_read_off_its_words():
-    """No city square's coats on every crowd: the people line's look sharing the most of the row's words, a crowd
-    word only between looks that share no other, a new look when none shares a word."""
-    import tempfile
-    with tempfile.TemporaryDirectory() as held:
-        citizen, astronaut = pathlib.Path(held) / "citizen.json", pathlib.Path(held) / "astronaut.json"
-        citizen.write_text(json.dumps({"description": "a man in his thirties, an ordinary citizen in the crowd"}))
-        astronaut.write_text(json.dumps({"description": "a man in his thirties, an astronaut of a Moon base"}))
-        line = {"citizen-coat": {"object": "a person in a plain mid grey coat", "far_only": True,
-                                 "spec": str(citizen)},
-                "astronaut-work": {"object": "a person in a dark navy one-piece work suit", "spec": str(astronaut)}}
-
-        def look(name, noun):
-            return people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, line)
-        assert look("crowd of people", "people") == "citizen-coat"  # "an ordinary citizen in the crowd"
-        assert look("crowd of astronauts", "crowd") == "astronaut-work"  # "an astronaut of a Moon base"
-        assert look("flock of penguins", "penguin") == "flock_penguin-made"  # its own words' (designed_specs)
-        # who the row names decides, never its crowd word alone: a city crowd's look is no one else's crowd
-        assert look("crowd of aliens", "crowd") == "alien-made"
-        assert look("crowd of martian colonists", "crowd") == "martian_colonist-made"
-        assert look("crowd of shoppers in grey coats", "crowd") == "citizen-coat"
-        # a look drawn from another scene's crowd row is that row's own, however its words match
-        drawn = pathlib.Path(held) / "crowd.json"
-        drawn.write_text(json.dumps({"description": "one person of the crowd of people, as drawn in the square "
-                                                    "concept"}))
-        square = {"square_crowd-drawn": {"object": "one person of the crowd of people", "far_only": True,
-                                         "spec": str(people_rows.SPECS / "square_crowd.json")},
-                  "people-made": {"object": "one person of the crowd of people", "far_only": True,
-                                  "spec": str(drawn)}}
-        row = {"id": "crowd", "name": "crowd of people", "noun": "crowd"}
-        assert people_rows.crowd_look("moon", row, square) == "crowd-made"
-        assert people_rows.crowd_look("moon", row, {**line, **square}) == "citizen-coat"
-
-
-def a_concept(fabric_lab_colour, box):
-    """A 100 x 100 concept, dark, the box's torso painted the given sRGB (0..255)."""
-    import numpy as np
-    picture = np.full((100, 100, 3), 20, dtype=np.uint8)
-    left, top, right, bottom = box
-    picture[top:bottom, left:right] = fabric_lab_colour
-    return picture
-
-
-def test_a_row_wears_the_fabric_its_words_name_nearest_its_torso():
-    """The concept decides the clothes, per row: of the people fabrics its name names, the nearest its measured torso
-    within people_clothes.WITHIN; a row naming none, or one whose torso is far from every named fabric, wears its
-    look's own paint; and the cast and the dress rows follow the row (no hand-kept list of places)."""
-    import numpy as np
-    from score.stages import people_clothes
+    # the deck's refresh: a people row the plan shows beyond the place is not its own unless it stands on a row laid
+    # here; a crowd stands on the plan items its row makes; each person on its row's own plan spot, each of one look its
+    # own variant (owner, 2026-10-25: "Each one looks different"); the worker wears the fabric its words name nearest
+    # its torso, the pilot, naming none, its look's own paint
     labels = people_clothes.labels()
-    # the people's fabrics as their surface library gives them (every old surface retired on 2026-10-21: stand-ins)
-    blue = np.array([38, 64, 150], dtype=np.uint8)
 
     def lab(srgb):
         return [float(value) for value in labels.lab(np.array(srgb, dtype=float)[None] / 255)[0]]
-    fabrics = {"jacket_blue": lab(blue), "suit_light_blue": lab([150, 180, 220]), "suit_grey": lab([128, 128, 128])}
-    # the fabrics are the people line's own library's (surface-library@people), and an empty one is refused: the
-    # repository's, read until 2026-11-04, holds none, so no row's clothes were ever chosen
-    surfaces = {"jacket_blue": {"family": "fabric", "colour": [0.02, 0.05, 0.3]}, "boot": {"family": "rubber",
-                                                                                         "colour": [0.1, 0.1, 0.1]}}
-    assert set(people_clothes.fabrics_of(surfaces)) == {"jacket_blue"}
-    try:
-        people_clothes.fabrics_of({"boot": surfaces["boot"]})
-        raise AssertionError("a library with no fabric chose no row's clothes in silence")
-    except people_clothes.NoFabrics:
-        pass
-    box = [20, 10, 60, 90]
-    inventory = {"concept_pick": {"sha256": "one"}, "rows": [
-        {"id": "worker", "name": "worker in blue jumpsuit", "where": "near the light", "noun": "worker", "count": 1,
-         "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [box]},
-        {"id": "pilot", "name": "person", "where": "left", "noun": "person", "count": 1, "size": [0.5, 0.3, 1.8],
-         "route": "people", "box": box}]}
-    entry = people_rows.refreshed_place("deck", inventory, None, None, fabrics, a_concept(blue, box))
-    worker, pilot = entry["rows"]["worker"]["dress"], entry["rows"]["pilot"]["dress"]
-    assert worker["surface"] == "jacket_blue" and worker["de"] < 1 and worker["figures"] == 1, worker
-    assert "suit_light_blue" in worker["named"] and not any("light" in name and "blue" not in name
-                                                            for name in worker["named"]), worker
+    beyond = groups.stood_beyond(DECK_ROWS, set(DECK_PLAN["beyond"]))
+    assert beyond == {"far_crowd", "far_stage", "singer"}, beyond  # the man stands on the place's own stairs
+    reading = {"concept_pick": {"sha256": "0badcafe"}, "rows": [groups.routed(row, set(), beyond) for row in DECK_ROWS]}
+    fabrics = {name: lab(srgb) for name, srgb in FABRICS.items()}
+    deck_entry = people_rows.refreshed_place("deck", reading, DECK_PLAN, None, fabrics, a_concept(BLUE))
+    assert set(deck_entry["rows"]) == {"crowd", "pilot", "worker", "man"}, set(deck_entry["rows"])
+    assert deck_entry["rows"]["crowd"]["crowd"] == "crowd-made", "a crowd takes no look drawn from another scene's row"
+    for plan, row_id, ground in CROWD_GROUNDS:
+        assert people_rows.crowd_ground(plan, row_id) == ground, (row_id, ground)
+    deck = {"places": {"deck": deck_entry}}
+    cast = people_rows.cast_record("deck", deck)
+    assert {person["name"]: (person["at"], person["look"], person["variant"], person["surface"])
+            for person in cast["people"]} == {
+        "man": ([0.0, 0.0, 0.0], "man_made", 0, None),
+        "pilot_1": ([-9.0, 0.0, -4.0], "person_uniform_made", 0, None),
+        "pilot_2": ([-7.0, 0.0, -3.0], "person_uniform_made", 1, None),
+        "pilot_3": ([-5.0, 0.0, -2.0], "person_uniform_made", 2, None),
+        "worker": ([0.0, 0.0, 0.0], "worker_jumpsuit_made", 0, "jacket_blue")}, cast["people"]
+    crowd = cast["crowd"]
+    assert crowd["spread"] == CROWD_SPREAD and crowd["grounds"] == [CROWD_SPREAD], crowd
+    assert crowd["seed"] == 0x0badcafe and crowd["facing_to"] == deck_entry["middle"], crowd
+    assert sum(crowd["palette_shares"]) == 1.0, crowd
+    for count, counted, palettes in CROWD_COUNTS:
+        record = people_rows.crowd_record("crowd", {**deck_entry["rows"]["crowd"], "count": count}, deck_entry)
+        assert (record["count"], record["palettes"]) == (counted, palettes), (count, record)
+    variants = {("crowd-made", None, variant) for variant in range(people_rows.CROWD_VARIANTS)}
+    assert people_rows.dressed_looks("deck", deck) == {
+        ("man-made", None, 0), ("worker_jumpsuit-made", "jacket_blue", 0),
+        *{("person_uniform-made", None, variant) for variant in range(3)}, *variants}
+    dressed = {("worker_jumpsuit-made", "jacket_blue", 0), ("person_uniform-made", None, 1),
+               ("person_uniform-made", None, 2), *(variants - {("crowd-made", None, 0)})}
+    assert people_rows.every_dressed(deck) == dressed
+    twice = copy.deepcopy(deck)
+    twice["places"]["deck"]["rows"]["worker"]["looks"] = ["worker_jumpsuit-made"] * 2
+    assert people_rows.every_dressed(twice) == dressed | {("worker_jumpsuit-made", "jacket_blue", 1)}, \
+        "two people, two variants"
+    # a tagged spot reaches its own row whatever the order of the row ids; an untagged (view) spot only a row with
+    # none tagged (the cockpit's pilot and officer swapped, the street's diner on the pavement, 2026-11-04)
+    spots, _ = people_rows.placed_spots({"w": 20.0, "d": 10.0, "people": [[11.0, 6.0, 0, "b_officer"],
+                                                                         [19.0, 14.0], [12.0, 7.0, 0, "a_pilot"]]})
+    swapped = {"concept": "one", "spots": spots,
+               "rows": {row_id: {"looks": ["person_uniform-made"]} for row_id in ("b_officer", "a_pilot", "c_guest")}}
+    assert {person["name"]: person["at"] for person in
+            people_rows.cast_record("deck", {"places": {"deck": swapped}})["people"]} == {
+        "a_pilot": [2.0, 0.0, 2.0], "b_officer": [1.0, 0.0, 1.0], "c_guest": [9.0, 0.0, 9.0]}
+    # a refresh keeps a hand-made choice (one recorded with its why) only while its concept stands
+    old = copy.deepcopy(deck_entry)
+    old["rows"]["pilot"]["looks"] = ["deck_pilot-made", "person_uniform-made", "person_uniform-made"]
+    for why, concept, look in ((None, "0badcafe", "person_uniform-made"), ("the owner's pick: the player", "0badcafe",
+                                                                           "deck_pilot-made"),
+                               ("the owner's pick: the player", "two", "person_uniform-made")):
+        if why:
+            old["rows"]["pilot"]["why"] = why
+        again = people_rows.refreshed_place("deck", {**reading, "concept_pick": {"sha256": concept}}, DECK_PLAN, old,
+                                            fabrics, None)
+        assert again["rows"]["pilot"]["looks"][0] == look, (why, concept, again["rows"]["pilot"])
+    # the fabrics are the people line's own library's (surface-library@people): its fabric family alone, and an
+    # empty one is refused (the repository's, read until 2026-11-04, held none, so no row's clothes were chosen)
+    library = {"jacket_blue": {"family": "fabric", "colour": [0.02, 0.05, 0.3]},
+               "boot": {"family": "rubber", "colour": [0.1, 0.1, 0.1]}}
+    assert set(people_clothes.fabrics_of(library)) == {"jacket_blue"}
+    with pytest.raises(people_clothes.NoFabrics):
+        people_clothes.fabrics_of({"boot": library["boot"]})
+    for case, dress_row, given, torso, surface, near in DRESSED:
+        dress = people_rows.refreshed_place("deck", {**reading, "rows": [dress_row]}, None, None,
+                                            {name: lab(srgb) for name, srgb in given.items()},
+                                            a_concept(torso))["rows"][dress_row["id"]]["dress"]
+        measured = (None if dress["de"] is None else "near" if dress["de"] < 1
+                    else "far" if dress["de"] > people_clothes.WITHIN else "between")
+        assert (dress["surface"], measured) == (surface, near), (case, dress)
+        assert (dress["torso_lab"] is None) is (torso is None), (case, dress)
+    worker, pilot = deck_entry["rows"]["worker"]["dress"], deck_entry["rows"]["pilot"]["dress"]
+    assert worker["figures"] == 1 and "suit_light_blue" in worker["named"] and not any(
+        "light" in name and "blue" not in name for name in worker["named"]), worker
     assert pilot["surface"] is None and pilot["named"] == [], pilot
-    # a colour the words say is theirs: a white suit in a dim concept is the white fabric, never a dark one nearer
-    fabrics_white = {"white_suit": lab([235, 235, 235]), "suit_seam": lab([60, 60, 60])}
-    white = {**inventory["rows"][0], "id": "astronaut", "name": "astronaut in white suit", "noun": "astronaut"}
-    shaded = people_rows.refreshed_place("deck", {**inventory, "rows": [white]}, None, None, fabrics_white,
-                                         a_concept([70, 70, 72], box))["rows"]["astronaut"]["dress"]
-    assert shaded["surface"] == "white_suit", shaded
-    orange = a_concept([230, 90, 20], box)
-    far = people_rows.refreshed_place("deck", inventory, None, None, fabrics, orange)["rows"]["worker"]["dress"]
-    assert far["surface"] is None and far["de"] > people_clothes.WITHIN, far
-    unseen = people_rows.refreshed_place("deck", inventory, None, None, fabrics, None)["rows"]["worker"]["dress"]
-    assert unseen["surface"] is None and unseen["torso_lab"] is None, unseen
-    found = {"places": {"deck": {**entry, "concept": "one"}}}
-    assert people_rows.dressed_looks("deck", found) == {("worker_jumpsuit-made", "jacket_blue", 0),
-                                                        ("person-made", None, 0)}
-    assert people_rows.every_dressed(found) == {("worker_jumpsuit-made", "jacket_blue", 0)}
-    worker_row = {**entry["rows"]["worker"], "looks": ["worker_jumpsuit-made"] * 2}
-    twice = {"places": {"deck": {**entry, "concept": "one", "rows": {**entry["rows"], "worker": worker_row}}}}
-    assert people_rows.every_dressed(twice) == {("worker_jumpsuit-made", "jacket_blue", 0),
-                                                ("worker_jumpsuit-made", "jacket_blue", 1)}, "two people, two variants"
-    assert {person["name"]: person["surface"] for person in people_rows.cast_record("deck", found)["people"]} == {
-        "worker": "jacket_blue", "pilot": None}
+    # a crowd's look is read off its words (no city square's coats on every crowd)
+    (tmp_path / "citizen.json").write_text(json.dumps({"description": "a man in his thirties, an ordinary citizen in the "
+                                                                      "crowd"}))
+    (tmp_path / "astronaut.json").write_text(json.dumps({"description": "a man in his thirties, an astronaut of a Moon "
+                                                                        "base"}))
+    (tmp_path / "drawn.json").write_text(json.dumps({"description": "one person of the crowd of people, as drawn in "
+                                                                    "the square concept"}))
+    plain_line = {"citizen-coat": {"object": "a person in a plain mid grey coat", "far_only": True,
+                                   "spec": str(tmp_path / "citizen.json")},
+                  "astronaut-work": {"object": "a person in a dark navy one-piece work suit",
+                                     "spec": str(tmp_path / "astronaut.json")}}
+    square = {"square_crowd-drawn": {"object": "one person of the crowd of people", "far_only": True,
+                                     "spec": str(people_rows.SPECS / "square_crowd.json")},
+              "people-made": {"object": "one person of the crowd of people", "far_only": True,
+                              "spec": str(tmp_path / "drawn.json")}}
+    lines = {"line": plain_line, "square": square, "both": {**plain_line, **square}}
+    for name, noun, read, look in CROWD_LOOKS:
+        assert people_rows.crowd_look("moon", {"id": "crowd", "name": name, "noun": noun}, lines[read]) == look, \
+            (name, noun, read)
 
-
-# --- a copy of a read only seed takes a save ---
-
-def test_a_built_layer_copy_of_a_read_only_seed_is_writable(tmp_path):
+    # the copy of a seed a layer is written over takes a save, though the store's seed is read-only
     folder = tmp_path / "seed"
     (folder / "layers").mkdir(parents=True)
     (folder / "layers" / "base.usda").write_text("#usda 1.0\n")
@@ -2007,6 +1898,98 @@ def test_a_built_layer_copy_of_a_read_only_seed_is_writable(tmp_path):
     layer_base.writable(folder)
     (folder / "layers" / "base.usda").write_text("#usda 1.0\n")
     (folder / "layers" / "new.usda").write_text("#usda 1.0\n")
+
+
+# --- every designed person is a look of the line ---
+
+TORSO = [20, 10, 60, 90]  # the box of the worker's torso in a 100 x 100 concept
+FAR_ROWS = [{"id": "far_crowd", "name": "crowd of people", "noun": "crowd", "count": 3, "route": "people",
+             "anchor": "ground"},
+            {"id": "stairs", "route": "prop", "anchor": "floor"},
+            {"id": "man", "name": "man on the stairs", "noun": "man", "count": 1, "route": "people",
+             "anchor": "on:stairs"},
+            {"id": "far_stage", "route": "prop", "anchor": "ground"},
+            {"id": "singer", "name": "singer on the far stage", "noun": "singer", "count": 1, "route": "people",
+             "anchor": "on:far_stage"}]
+# the deck as its design reads: a crowd on the plan item its row makes, three people in uniform on their own plan
+# spots, a worker in a blue jumpsuit whose torso the concept paints, a chair, and the rows the plan shows beyond the
+# place (a man on the deck's own stairs is the deck's; 2026-10-26: the stairwell's man and woman were made by nothing)
+DECK_ROWS = [{"id": "crowd", "name": "crowd of people", "noun": "people", "count": 1, "route": "people"},
+             {"id": "pilot", "name": "person in uniform", "noun": "person", "count": 3, "size": [0.5, 0.3, 1.8],
+              "route": "people"},
+             {"id": "worker", "name": "worker in blue jumpsuit", "where": "near the light", "noun": "worker",
+              "count": 1, "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [TORSO]},
+             {"id": "chair", "name": "chair", "noun": "chair", "count": 1, "route": "prop", "anchor": "floor"},
+             *FAR_ROWS]
+DECK_PLAN = {"w": 20.0, "d": 10.0, "items": [["CROWD 1", 2.0, 1.0, 6.0, 4.0, None, "item"],
+                                             ["BENCH 1", 0.0, 0.0, 1.0, 1.0, "N", "item"]],
+             "rows": {"CROWD 1": ["crowd"], "BENCH 1": ["bench"]},
+             "beyond": ["far_crowd", "man", "far_stage", "singer"],
+             "people": [[1.0, 1.0, 0, "pilot"], [3.0, 2.0, 0, "pilot"], [5.0, 3.0, 0, "pilot"]]}
+CROWD_SPREAD = [-8.0, -4.0, 6.0, 4.0]  # the CROWD item's box in the place's frame (unframed: the plan's middle at 0)
+# (plan, row, its crowd ground): the plan items the row makes, none for another row or no plan
+CROWD_GROUNDS = [(DECK_PLAN, "crowd", [CROWD_SPREAD]), (DECK_PLAN, "pilot", []), (None, "crowd", [])]
+# (the crowd row's count, the crowd's count, its palettes): SAM 3's people when it told them apart, and never more
+# variants of its look's body than it counted
+CROWD_COUNTS = [(1, None, list(range(people_rows.CROWD_VARIANTS))), (30, 30, list(range(people_rows.CROWD_VARIANTS))),
+                (3, 3, [0, 1, 2])]
+# the people line's fabrics as sRGB stand-ins (every old surface retired on 2026-10-21)
+BLUE = [38, 64, 150]
+FABRICS = {"jacket_blue": BLUE, "suit_light_blue": [150, 180, 220], "suit_grey": [128, 128, 128]}
+WHITES = {"white_suit": [235, 235, 235], "suit_seam": [60, 60, 60]}
+WHITE = {"id": "astronaut", "name": "astronaut in white suit", "noun": "astronaut", "count": 1,
+         "size": [0.5, 0.3, 1.8], "route": "people", "boxes": [TORSO]}
+# (case, the row, the fabrics, the torso's sRGB or None for no concept kept, the fabric worn, its dE: "near" under 1,
+# "far" over people_clothes.WITHIN, "between" within it, None unmeasured): the fabric its words name nearest the torso
+# within WITHIN, a colour the words say theirs (a white suit in a dim concept is the white fabric, never the dark one
+# nearer); a row naming none wears its look's own paint though its torso (one `box`) is measured
+DRESSED = [("blue torso", DECK_ROWS[2], FABRICS, BLUE, "jacket_blue", "near"),
+           ("orange torso", DECK_ROWS[2], FABRICS, [230, 90, 20], None, "far"),
+           ("no concept", DECK_ROWS[2], FABRICS, None, None, None),
+           ("shaded white suit", WHITE, WHITES, [70, 70, 72], "white_suit", "between"),
+           ("names no fabric", {"id": "pilot", "name": "person", "noun": "person", "count": 1,
+                                "size": [0.5, 0.3, 1.8], "route": "people", "box": TORSO}, FABRICS, BLUE, None, None)]
+# (the crowd's words, its noun, the line it reads, its look): the look sharing the most of the row's words, a crowd
+# word only between looks that share no other, a new look when none shares one; who the row names decides, never its
+# crowd word alone; a look drawn from another scene's crowd row is that row's own, however its words match
+CROWD_LOOKS = [("crowd of people", "people", "line", "citizen-coat"),  # "an ordinary citizen in the crowd"
+               ("crowd of astronauts", "crowd", "line", "astronaut-work"),  # "an astronaut of a Moon base"
+               ("flock of penguins", "penguin", "line", "flock_penguin-made"),  # its own words' (designed_specs)
+               ("crowd of aliens", "crowd", "line", "alien-made"),
+               ("crowd of martian colonists", "crowd", "line", "martian_colonist-made"),
+               ("crowd of shoppers in grey coats", "crowd", "line", "citizen-coat"),
+               ("crowd of people", "crowd", "square", "crowd-made"),
+               ("crowd of people", "crowd", "both", "citizen-coat")]
+# a design's people as people_rows.read() gives them, made into specs from the rows alone (#26): the pilot drawn from
+# its largest standing person, never the bigger seated one
+DESIGNED = {"places": {"deck": {"concept": "abcdef0123", "rows": {
+    "pilot": {"name": "pilot in a red suit", "noun": "person", "count": 2, "size": [0.3, 0.4, 1.7],
+              "where": "standing at the console", "share": 0.2, "looks": ["pilot_suit-made"] * 2},
+    "guest": {"name": "seated guest", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
+              "where": "sitting on a sofa", "looks": ["guest-made"]},
+    "copilot": {"name": "seated pilot in a suit", "noun": "person", "count": 1, "size": [0.7, 0.9, 1.3],
+                "where": "sitting at the console", "share": 0.5, "looks": ["pilot_suit-made"]},
+    "crowd": {"name": "crowd of people", "noun": "crowd", "count": 1, "size": [8.0, 9.0, 1.8],
+              "crowd": "crowd-made"}}}}}
+
+
+def a_concept(srgb):
+    """A 100 x 100 concept, dark, the torso box painted the given sRGB (0..255); None stays None (no concept kept)."""
+    import numpy as np
+    if srgb is None:
+        return None
+    picture = np.full((100, 100, 3), 20, dtype=np.uint8)
+    left, top, right, bottom = TORSO
+    picture[top:bottom, left:right] = srgb
+    return picture
+
+
+def kept_inventories(folder, rows):
+    """A folder of kept inventories, {place: [rows]} each written as <place>.json."""
+    folder.mkdir()
+    for place, held in rows.items():
+        (folder / f"{place}.json").write_text(json.dumps({"rows": held}))
+    return folder
 
 
 # --- an accepted gap moves only its named faults ---
