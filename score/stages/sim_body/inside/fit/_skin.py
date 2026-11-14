@@ -447,14 +447,32 @@ class FrameSkins:
         self.device = card_device()  # every frame's marks at once on the card where there is one (#70, 2026-11-05)
         faces = warp.array(envelope(rig).ravel(), dtype=int, device=self.device)
         self.model, self.data, self.bones = model, mujoco.MjData(model), bone_meshes(model)
+        self.rig, self.segments = rig, segments
+        self.worlds = self.posed = np.asarray(worlds, dtype=float)
         self.meshes = [warp.Mesh(points=warp.array(skin(rig, segments, world).astype(np.float32), dtype=warp.vec3,
                                                    device=self.device), indices=faces, support_winding_number=True)
-                       for world in np.asarray(worlds, dtype=float)]
+                       for world in self.worlds]
         self.labels = np.array([scored(region(name)) for _, kept, name in self.bones for _ in kept])
 
-    def outside(self, path):
+    def posed_at(self, worlds):
+        """Each frame's skin posed again on `worlds` (frames x segments x 4 x 4) where they differ from the last
+        posed: its points set and its mesh refitted."""
+        for mesh, world, before in zip(self.meshes, worlds, self.posed):
+            if not np.array_equal(world, before):
+                mesh.points.assign(skin(self.rig, self.segments, world).astype(np.float32))
+                mesh.refit()
+        self.posed = worlds
+
+    def outside(self, path, moves=None):
         """Whether each kept bone vertex lies outside its frame's skin on `path` (MuJoCo's qpos on `model`, one a
-        frame of `worlds`): frames x vertices."""
+        frame of `worlds`): frames x vertices. `moves` (frames x segments x 4 x 4), when given, is each segment's
+        move off the pose the skin was given (`worlds`), and the skin is the drawn person moved by it: RRA moves the
+        kinematics the drawn person plays (the characters layer drives the person's skeleton by the sim body's
+        segments, `score/stages/cast/driven.py`), as OpenSim's RRA adjusts the kinematics it tracks, so its bones are
+        judged against the skin moved with them (#70, 2026-11-14: against the unmoved skin the camp walker's move,
+        within the owner's 2 cm and 5 degrees, was cut to 1.5% of itself and 85 of its 150 frames stayed over the
+        residual's limits)."""
+        self.posed_at(self.worlds if moves is None else moves @ self.worlds)
         points = []
         for qpos in path:
             self.data.qpos[:] = qpos
