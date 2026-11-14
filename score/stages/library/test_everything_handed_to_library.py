@@ -19,21 +19,33 @@ render that never passes) and a store of its own; the machine's score_lib checko
     the report's shape        the shared example, as the library writes it, is on the contract field for field
                               (both repositories read it), and every report the node stores is; a covered row without
                               its keys leaves the node broken
-    a slow library            a run past its timeout is a transient error (tried again by the runner)
-    no frozen copy named      inside a run's frozen copy, the library's command (a library row's, the handover
-                              process's) and handed.spawn's process name no copy in words or environment, and a child
-                              the command left running ends with its row (2026-11-05: on the conductor they kept the
-                              copy busy, so every carry, clean-cache and clean-frozen refused)
+    a slow library            a run past its timeout is a transient error, tried again by the runner (a row of the
+                              runner's seams)
+    no frozen copy named      a row of the runner's seams inside a run's frozen copy: the library's command (a library
+                              row's, the handover process's) and handed.spawn's process name no copy in words or
+                              environment; in every row a child the command left running ends with its row
+                              (2026-11-05: on the conductor they kept the copy busy, so every carry, clean-cache and
+                              clean-frozen refused)
+    a run's stop              a row of the runner's seams: a SIGTERM while the place's handover runs reaches the
+                              command in its own session, then is handled as before
     the defaults              the environment wins over the defaults, a library the defaults alone name is found; the
                               cloud's store only when no blob folder is set (rows of the runner's seams)
-    the real table            the two rows read every row of their grain but straight-masks, the showcase renders
-                              optional, both free, and no row reads them (owner, 2026-10-22: no paid preview)
-    pictures                  a lost picture never stops the others; a 404 is not asked again until the bytes change
-    the invariant             each mismatch (not handed, not in library, moved on, shown nowhere, not pushed) gives
-                              exactly its problem on small fixed sets, equal sets none; one row an environment through
-                              the sweep's chain: the library folder read into rows, a library-free decision (dated, its
-                              own environment) standing for a library, the cockpit's findings with the entry's picture
-    demos                     a demo off the shape says what; one with no example or that fails is missing with why
+    the gate                  on the runner's toy table and the real one the two library rows read every row of their
+                              grain (on the real table, but straight-masks), the showcase renders optional, both free,
+                              and no row reads them (owner, 2026-10-22: no paid preview); on the toy table (a list baked
+                              into a bake, a seed from the world's terrain, an assembly laying the library-finish
+                              check's fixture) what each library node reads is held through what it was made into, and
+                              the assembly's every finish traced (rows of the runner's seams)
+    pictures and demos        after each run at the runner's seams, from the library folder the handover left: every
+                              picture (each handed entry's too), viewer file and demo made into the one library cache;
+                              a lost picture never stops the others; a 404 is not asked again (by the pictures or a
+                              demo reading it) until the bytes change; a demo off the shape says what; one whose
+                              example is lost or that fails is missing with why; no library, no pictures, said so
+    the invariant             after each run at the runner's seams, the sweep's chain over its store and the library
+                              folder the handover left: each mismatch (not handed, not in library, moved on, shown
+                              nowhere, not pushed) gives exactly its problem, an agreeing library none; the library
+                              folder read into rows, a library-free decision (dated, its own environment) standing for
+                              a library as the node reads it too, the cockpit's findings with the entry's picture
 
 Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - checks.uncovered: an output not in the handover left out of the findings (coverage).
@@ -43,9 +55,11 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
 - invariant: `if now == row["output"]` -> `if True` (moved on never found).
 - invariant.newest: keep the oldest version, not the newest (history is not counted).
 - sweep.library_free: take a decision with no date (library free).
-- pictures.held_or_why: ask a file marked lost again (pictures).
-- demos.shape_problem: accept any shape kind (demos).
-- library.rows: the place row reads straight-masks too (the real table).
+- pictures.held_or_why: ask a file marked lost again (pictures and demos).
+- demos.shape_problem: accept any shape kind (pictures and demos).
+- library.rows: the place row reads straight-masks too (the gate, the real table).
+- checks.held_through: always False (the gate: the list held through its bake fails, 2026-11-14).
+- checks.judge_traced: no untraced finish ever found (the gate: the bad fixture's photo passes, 2026-11-14).
 - graph.Runner conclude: drop `self.hand_accepted()` after an automatic accept; hand_on_accept True by default;
   handed.hand_waiting: no record_failure; handed.drain: hand once (`while` -> `if` and no second look after the
   lock, together); handed.covered: count an unpushed report; web.hand_accept: say started without starting (every
@@ -55,6 +69,8 @@ Breaks that turn these red (each applied once, seen red, reverted, 2026-10-26):
   named, 2026-11-05).
 - backend.passed_on: its `os.killpg(group, number)` dropped, or `return {}` always (a run's stop never reaches the command in
   its own session: review of 2026-11-05).
+- backend.run: a run past TIMEOUT raises RuntimeError, not TimeoutError (a slow library is never tried again,
+  2026-11-14).
 """
 import json
 import os
@@ -70,7 +86,7 @@ from score import checks, contracts, graph
 from score.conductor import disk
 from score.stages import library
 from score.review import web
-from score.stages.library import backend, checks as library_checks, demos, handed, handover, invariant, pictures, sweep
+from score.stages.library import backend, demos, handed, handover, invariant, pictures, sweep, traced
 from score.store import Store
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -82,30 +98,45 @@ TOY = contracts.Contract("toy-text", 1, lambda folder: [] if any(folder.glob("*.
 
 # The fake library: writes handover.json from reads.json as its mode file says, and writes down each call's words and
 # the blob store its environment names.
-FAKE = '''import json, os, pathlib, sys
+FAKE = '''import json, os, pathlib, signal, subprocess, sys, time
 words = sys.argv[1:]
 here = pathlib.Path(__file__).parent
 seen = {name: os.environ.get(name) for name in ("SCORE_LIB_BLOBS_DIR", "SCORE_LIB_S3_BUCKET", "SCORE_LIB_S3_PREFIX",
                                                "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")}
+child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])  # left running for its row to end
 with (here / "calls.txt").open("a") as calls:
-    calls.write(json.dumps({"words": words, "environment": seen}) + "\\n")
+    said = {"words": words, "environment": seen, "all": dict(os.environ), "child": child.pid}
+    calls.write(json.dumps(said) + "\\n")
 value = lambda option: words[words.index(option) + 1] if option in words else None
 out = pathlib.Path(value("--out"))
 mode = (here / "mode.txt").read_text().strip()
+if mode == "slow" and not (here / "slowed").exists():  # the first call runs past the timeout, once
+    (here / "slowed").touch()
+    time.sleep(30)
+if mode == "stop" and "--place" in words:  # the run is stopped while the place's handover runs
+    os.kill(os.getppid(), signal.SIGTERM)
+    time.sleep(30)
 reads = json.loads((out / "reads.json").read_text())
 covered = [{"node": row["node"], "output": row["output"], "entries": [f"layer/{row['node']}@1"], "exception": None,
             "why": ""} for row in reads]
 if mode == "miss-one":
-    covered = covered[1:]
+    covered = [row for row in covered if not row["node"].startswith("made@")]
+if mode.startswith("bare:"):  # these rows' outputs hold no entry of their own
+    bare = mode.split(":")[1].split(",")
+    covered = [dict(row, entries=[], why="no exporter takes it") if row["node"].split("@")[0] in bare else row
+               for row in covered]
 if mode == "exception":
     covered = [dict(row, entries=[], exception="E1") for row in covered]
 copy = None if mode == "no-copy" else {"sha256": "0" * 64, "role": "gltf"}
-entries = [{"address": "model/rover@1", "kind": "model", "state": "draft", "status": "new", "node": "made@garage",
-            "output": "1" * 64, "source": "", "copy": copy, "copy_why": "no copies command in this library yet",
-            "quality": {"score": 0.8, "measures": {}}, "quality_why": ""}]
+named = json.loads((here / "named.json").read_text())  # the place's handover names these entries; pushed or not
+entries = [{"address": address, "kind": address.split("/")[0], "state": "draft", "status": "new",
+            "node": "made@garage", "output": "1" * 64, "source": "", "copy": copy,
+            "copy_why": "no copies command in this library yet", "quality": {"score": 0.8, "measures": {}},
+            "quality_why": ""} for address in (named["addresses"] if "--place" in words else [])]
+saved = {"committed": "c" * 40, "pushed": named["pushed"], "why": "" if named["pushed"] else "no remote"}
 report = {"schema": "library-handover", "version": 1, "backend": "command", "library": "fake", "world": value("--world"),
           "place": value("--place"), "commit": value("--commit"), "command": words, "covered": covered,
-          "entries": entries, "refused": [], "saved": {"committed": "c" * 40, "pushed": True, "why": ""}}
+          "entries": entries, "refused": [], "saved": saved}
 if mode == "example":  # the shared example as the library writes it, only this run's own words put in
     report = dict(json.loads((here / "example.json").read_text()), world=value("--world"), place=value("--place"),
                   commit=value("--commit"), command=words)
@@ -132,6 +163,12 @@ def make_text(inputs, out, seed, params):
     (out / "made.txt").write_text(pathlib.Path(inputs["brief"]).read_text())
 
 
+def make_assembly(inputs, out, seed, params):
+    """The place's assembled stage: the library-finish check's fixture its brief names (data/checks/library)."""
+    fixture = REPO / "data/checks/library" / pathlib.Path(inputs["brief"]).read_text()
+    (out / "fixture.usda").write_text(fixture.read_text())
+
+
 def judge_always(output, inputs, evidence):
     return checks.Verdict("ok", checks.PASS, "always")
 
@@ -140,23 +177,32 @@ def judge_never(output, inputs, evidence):
     return checks.Verdict("ok", checks.FAIL, "a showcase render that never passes here")
 
 
-GROUND = graph.Stage("surfaces-ground", "world", make_text, TOY, (checks.Check("ok", judge_always),),
-                     files={"brief": "{data}/briefs/ground.txt"})
-MADE = graph.Stage("made", "place", make_text, TOY, (checks.Check("ok", judge_always),),
-                   files={"brief": "{data}/briefs/{place}.txt"})
+PASSING = (checks.Check("ok", judge_always),)
+GROUND = graph.Stage("surfaces-ground", "world", make_text, TOY, PASSING, files={"brief": "{data}/briefs/ground.txt"})
+TERRAIN = graph.Stage("terrain", "world", make_text, TOY, PASSING, files={"brief": "{data}/briefs/terrain.txt"})
+MADE = graph.Stage("made", "place", make_text, TOY, PASSING, files={"brief": "{data}/briefs/{place}.txt"})
 FILM = graph.Stage("demo-film", "place", make_text, TOY, (checks.Check("ok", judge_never),),
                    files={"brief": "{data}/briefs/{place}.txt"}, after={"made": ("toy-text", 1)})
+# a list baked into a bake, a seed made from the world's terrain, the place's assembled stage
+LIST = graph.Stage("list", "place", make_text, TOY, PASSING, files={"brief": "{data}/briefs/list.txt"})
+BAKE = graph.Stage("bake", "place", make_text, TOY, PASSING, files={"brief": "{data}/briefs/bake.txt"},
+                   after={"list": ("toy-text", 1)})
+SEED = graph.Stage("seed", "place", make_text, TOY, PASSING, files={"brief": "{data}/briefs/seed.txt"},
+                   after={"terrain": ("toy-text", 1)})
+ASSEMBLY = graph.Stage("assembly", "place", make_assembly, contracts.Contract("toy-usd", 1, lambda folder: []),
+                       PASSING, files={"brief": "{data}/briefs/assembly.txt"})
+PLACE_MADE = (MADE, LIST, BAKE, SEED, ASSEMBLY)  # the place rows that pass
+TABLE = (GROUND, TERRAIN, FILM, *PLACE_MADE)
 
 
-def world_data(root, free=False, exceptions=None):
-    """The toy environment's data folder: its record, the briefs, the library-free decisions; and beside it the home
-    with its one place's kept plan."""
+def world_data(root, free=(), exceptions=None, fixture="good.usda"):
+    """The toy environment's data folder: its record, the briefs (the assembly's the fixture it lays), the
+    library-free decisions `free`; and beside it the home with its one place's kept plan."""
     data = root / "data"
     (root / "home/design/plans").mkdir(parents=True, exist_ok=True)
     (root / f"home/design/plans/{PLACE}.json").write_text(json.dumps({"leads": {}}))
     for path, content in {"definitions/world.json": {"name": WORLD, "seed": 7},
-                          "checks/library-free.json": {"worlds": [{"world": WORLD, "why": "a toy", "who": "@owner",
-                                                                   "when": "2026-10-18"}] if free else []}}.items():
+                          "checks/library-free.json": {"worlds": list(free)}}.items():
         (data / path).parent.mkdir(parents=True, exist_ok=True)
         (data / path).write_text(json.dumps(content))
     if exceptions is not None:
@@ -164,27 +210,62 @@ def world_data(root, free=False, exceptions=None):
     (data / "briefs").mkdir()
     (data / "briefs/ground.txt").write_text("the ground")
     (data / f"briefs/{PLACE}.txt").write_text("the garage")
+    for name in ("terrain", "list", "bake", "seed"):
+        (data / f"briefs/{name}.txt").write_text(f"the {name}")
+    (data / "briefs/assembly.txt").write_text(fixture)
     return data
 
 
-def toy_runner(root, free=False, exceptions=None):
-    """A runner over the toy table and its library rows, in a folder and store of its own."""
-    data = world_data(root, free, exceptions)
-    table = (GROUND, MADE, FILM)
-    return graph.Runner((*table, *library.rows(table, data)),
+def toy_runner(root, free=(), exceptions=None, store=None, fixture="good.usda"):
+    """A runner over the toy table and its library rows, in a folder of its own, its store the home's (or `store`)."""
+    data = world_data(root, free, exceptions, fixture)
+    return graph.Runner((*TABLE, *library.rows(TABLE, data)),
                         graph.Environment(WORLD, 7, {"data": str(data), "home": str(root / "home")}),
-                        Store.in_folder(root / "store"))
+                        Store.in_folder(store or root / "home/store"))
 
 
-def fake_library(root, monkeypatch, mode="full", found="environment", blobs=False):
+def frozen_run(home, monkeypatch):
+    """A run's frozen copy and its home as graph/frozen.py lays them out (the copy's home's store a link to the real
+    one), this process's environment and the library's repository naming them (the copy a repository of its own, as
+    the run reads its commit there); the store folder as the run names it."""
+    copy = home / "frozen/run-1"
+    copy.mkdir(parents=True)
+    subprocess.run(["git", "init", "-q", str(copy)], check=True)
+    subprocess.run(["git", "-C", str(copy), "-c", "user.name=run", "-c", "user.email=run@copy", "commit", "-q",
+                    "--allow-empty", "-m", "the run's commit"], check=True)
+    monkeypatch.setattr(library, "REPO", copy)
+    (home / "store").mkdir(parents=True)
+    pathlib.Path(f"{copy}.home").mkdir()
+    pathlib.Path(f"{copy}.home/store").symlink_to(home / "store")
+    monkeypatch.setenv("SCORE_FROZEN", str(copy))
+    monkeypatch.setenv("PROPS_HOME", f"{copy}.home")
+    monkeypatch.setenv("PYTHONPATH", f"{copy}/score/stages/props/ledger_tag{os.pathsep}/elsewhere")
+    return pathlib.Path(f"{copy}.home/store")
+
+
+def fixture_library(root):
+    """The library folder `root` holding the entries the good fixture names (the library-finish check's own test's)."""
+    for kind, entry_id in (("surface", "bare_steel"), ("surface", "deck"), ("model", "crate_1"), ("kit", "fixture"),
+                           ("light", "lamp"), ("sound", "hum")):
+        folder = root / "entries" / kind / entry_id / "1"
+        folder.mkdir(parents=True)
+        (folder / "entry.json").write_text(json.dumps({"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1",
+                                                       "kind": kind, "id": entry_id, "version": 1, "state": "draft",
+                                                       "files": {}, "provenance": {}}))
+    return root
+
+
+def fake_library(root, monkeypatch, mode="full", found="environment", blobs=False, named=(), pushed=True):
     """The fake library's folder under `root`, its folder and command set where `found` says: in the environment over
     defaults naming another library, or in the defaults alone; with `blobs` a blob folder in the environment over a
-    default one. Its calls file."""
+    default one; the addresses its place handover names and whether it pushes. Its calls file."""
     folder = root / "library"
     folder.mkdir(parents=True)
     (folder / "handover.py").write_text(FAKE)
     (folder / "mode.txt").write_text(mode)
+    (folder / "named.json").write_text(json.dumps({"addresses": list(named), "pushed": pushed}))
     (folder / "example.json").write_text((HERE / "handover_example.json").read_text())
+    fixture_library(folder)
     ours = {"SCORE_LIB_ROOT": str(folder), "SCORE_LIB_COMMAND": f"{sys.executable} {folder / 'handover.py'}"}
     defaults = ours if found == "defaults" else {"SCORE_LIB_ROOT": "/a/library", "SCORE_LIB_COMMAND": "lib --x"}
     if found == "environment":
@@ -195,6 +276,18 @@ def fake_library(root, monkeypatch, mode="full", found="environment", blobs=Fals
         monkeypatch.setenv("SCORE_LIB_BLOBS_DIR", str(root / "blobs"))
     monkeypatch.setattr(backend.library_files, "defaults", lambda: defaults)
     return folder / "calls.txt"
+
+
+def driven(runner):
+    """Each node of the garage run as the drive runs it (Runner.run_retrying: a transient error tried again); {node:
+    what it did, a raised error's words as the drive gives them}."""
+    did = {}
+    for stage, place in runner.nodes([PLACE]):
+        try:
+            did[graph.node_name(stage, place)] = runner.run_retrying(stage, place)
+        except Exception as error:  # noqa: BLE001 - the drive's own words for a node that raised (drive_node)
+            did[graph.node_name(stage, place)] = f"error: {type(error).__name__}: {error}"
+    return did
 
 
 def library_output(runner, place=PLACE):
@@ -209,65 +302,302 @@ def library_output(runner, place=PLACE):
 
 EXCEPTION_E1 = {"id": "E1", "place": PLACE, "prim": "/garage/*", "what": "a toy", "why": "a test",
                 "allowed_by": "@owner", "allowed_on": "2026-10-18"}
+DATED = {"world": WORLD, "why": "a toy", "who": "@owner", "when": "2026-10-18"}
+NO_LIBRARY = {"configured": (checks.FAIL, "is", "no library configured"),
+              "handed": (checks.FAIL, "has", f"made@{PLACE}"), "traced": (checks.UNKNOWN, "has", "SCORE_LIB_ROOT"),
+              "saved": (checks.FAIL, "has", "no library configured")}
+NEITHER_HANDED = {"world": ["not handed"], PLACE: ["not handed"]}
+NOT_CONFIGURED_SAID = ((PLACE, 0, "sentence", "has", "no library is configured"),)
+MADE_OUTPUT = "made"  # an entry's output: the one made@garage stands accepted with
+PICTURE, PICTURE_SHA = b"\x89PNG fake picture bytes", "ab" + "0" * 62
+LIBRARY = ({"address": "model/rover@1"}, {"address": "model/rover@2"})  # the garage's one entry, two versions
+NAMED = ("model/rover@2",)
 
 
-def seam(name, mode=None, free=False, exceptions=None, verdicts=None, accepted=True, calls=2, found="environment",
-         blobs=False, broken=None):
+def row(address, made, node=f"made@{PLACE}", output=MADE_OUTPUT, state="draft", place=PLACE, world=WORLD):
+    """One library row as the invariant reads it (sweep.entry_row's shape, its picture left out); `made` the output
+    MADE_OUTPUT stands for."""
+    kind, rest = address.split("/")
+    entry_id, version = rest.split("@")
+    return {"address": address, "kind": kind, "id": entry_id, "version": int(version), "state": state,
+            "world": world, "place": place, "node": node, "output": made if output == MADE_OUTPUT else output}
+
+
+def write_entry(root, blobs, spec, made):
+    """One library entry's folder from a row spec, its picture's bytes in the blob folder."""
+    entry = row(**spec, made=made)
+    (blobs / "blobs" / PICTURE_SHA[:2]).mkdir(parents=True, exist_ok=True)
+    (blobs / "blobs" / PICTURE_SHA[:2] / PICTURE_SHA).write_bytes(PICTURE)
+    folder = root / "entries" / entry["kind"] / entry["id"] / str(entry["version"])
+    folder.mkdir(parents=True)
+    (folder / "entry.json").write_text(json.dumps({
+        "schema": "score-lib-entry/1", "address": entry["address"], "kind": entry["kind"], "id": entry["id"],
+        "version": entry["version"], "state": entry["state"], "picture": {"file": "picture.png"},
+        "files": {"picture.png": {"sha256": PICTURE_SHA}},
+        "provenance": {key: entry[key] for key in ("world", "place", "node", "output")}}))
+
+
+def seam(name, mode=None, free=(), exceptions=None, verdicts=None, accepted=True, calls=2, found="environment",
+         blobs=False, broken=None, frozen=False, timeout=None, stopped=None, fixture="good.usda", library=LIBRARY,
+         named=NAMED, pushed=True, hangar=False, problems=None, said=()):
     """One toy environment at the runner's seams: the fake library's mode (None: no library command), a library-free
     decision, the written exceptions; the library node's verdicts that do not pass (check: (answer, "is"/"has",
-    reason text), every other verdict passes), whether its library nodes are accepted automatically, and how often
-    the library's command ran (each node once; a failed output is made once more, an unknown one is not); where the
-    library's settings are found (fake_library) and whether a blob folder is set; `broken`: why a report off the
-    contract leaves both library nodes broken, with no output."""
-    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, found, blobs, broken, id=name)
+    reason text[, the nodes its findings name]), every other verdict passes), whether its library nodes are accepted
+    automatically, and how often the library's command ran (each node once; a failed output is made once more, an unknown one is not, a timed-out
+    run is tried again); where the library's settings are found (fake_library) and whether a blob folder is set;
+    `broken`: why a report off the contract leaves both library nodes broken, with no output; `frozen`: the run in a
+    frozen copy (frozen_run); `timeout`: the handover's TIMEOUT; `stopped`: the place node's error when the run is
+    stopped (SIGTERM) while its handover runs; `fixture`: the library-finish check's fixture the assembly lays.
+    The sweep after the run: `library` the entries the library folder holds once handed (row specs; none without a
+    library), `named` the addresses the place's handover names and `pushed` whether it pushed, `hangar` a second
+    place with no library node; the invariant's rules found where (`problems`, empty places left out) and what they
+    say (`said`: (where, index, field, "is"/"has", text))."""
+    swept = {"library": library if mode else (), "hangar": hangar, "problems": problems or {}, "said": said}
+    return pytest.param(mode, free, exceptions, verdicts or {}, accepted, calls, found, blobs, broken, frozen, timeout,
+                        stopped, fixture, named, pushed, swept, id=name)
 
 
-@pytest.mark.parametrize("mode, free, exceptions, verdicts, accepted, calls, found, blobs, broken", (
-    seam("no library configured", verdicts={"configured": (checks.FAIL, "is", "no library configured"),
-                                            "handed": (checks.FAIL, "has", f"made@{PLACE}"),
-                                            "saved": (checks.FAIL, "has", "no library configured")}, accepted=False),
-    seam("a library-free environment", free=True),
-    seam("a configured library", mode="full"),
-    seam("a library found by its defaults, the environment's blob folder over theirs", mode="full", found="defaults",
-         blobs=True),
-    seam("an output the handover misses", mode="miss-one",
-         verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}")}, accepted=False, calls=4),
-    seam("a written exception covers it", mode="exception", exceptions=[EXCEPTION_E1]),
-    seam("an exception the data does not write covers nothing", mode="exception",
-         verdicts={"handed": (checks.FAIL, "has", "E1")}, accepted=False, calls=4),
-    seam("a missing copy is unknown, never a pass", mode="no-copy",
-         verdicts={"copies": (checks.UNKNOWN, "has", "model/rover@1")}, accepted=False),
-    seam("the shared example report is on the contract", mode="example",
-         verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}"),
-                   "refused": (checks.FAIL, "has", "model old_crate from pixal@garage: no take file in the output"),
-                   "quality": (checks.UNKNOWN, "has", "surface/brushed_steel@1")}, accepted=False, calls=4),
-    seam("a covered row without its keys is off the contract", mode="keyless",
-         broken="covered row 1 lacks entries, exception, output, why"),
-))
+@pytest.mark.parametrize(
+    "mode, free, exceptions, verdicts, accepted, calls, found, blobs, broken, frozen, timeout, stopped, fixture, "
+    "named, pushed, swept", (
+        seam("no library configured", verdicts=NO_LIBRARY, accepted=False, problems=NEITHER_HANDED,
+             said=NOT_CONFIGURED_SAID),
+        seam("an undated library-free decision is no decision", free=({**DATED, "when": ""},), verdicts=NO_LIBRARY,
+             accepted=False, problems=NEITHER_HANDED, said=NOT_CONFIGURED_SAID),
+        seam("another environment's library-free decision", free=({**DATED, "world": "world2"},), verdicts=NO_LIBRARY,
+             accepted=False, problems=NEITHER_HANDED, said=NOT_CONFIGURED_SAID),
+        seam("a library-free environment", free=(DATED,)),
+        seam("a configured library, a place with no library node and a handover that did not push", mode="full",
+             hangar=True, pushed=False,
+             problems={"hangar": ["not handed"], PLACE: ["not pushed"], "world": ["not pushed"]},
+             said=(("hangar", 0, "sentence", "is",
+                    "The hangar is not handed to the library yet (library@hangar: nothing stands accepted)."),
+                   (PLACE, 0, "sentence", "is",
+                    "The library's last handover of the garage did not push: no remote."))),
+        seam("a library found by its defaults, the environment's blob folder over theirs; history and a repo-made "
+             "entry never move", mode="full", found="defaults", blobs=True,
+             library=({"address": "model/rover@1", "output": "out-0"}, {"address": "model/rover@2"},
+                      {"address": "surface/steel@1", "node": None, "output": None}),
+             named=("model/rover@2", "surface/steel@1")),
+        seam("an output the handover misses", mode="miss-one",
+             verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}", {f"made@{PLACE}"})}, accepted=False, calls=3,
+             problems={PLACE: ["not handed"]}),
+        seam("a list no entry holds is held through the bake made from it; an entry whose output moved on",
+             mode="bare:list", verdicts={"handed": (checks.PASS, "has", "(1 held through")},
+             library=(*LIBRARY[:1], {"address": "model/rover@2", "output": "out-old"}), problems={PLACE: ["moved on"]},
+             said=((PLACE, 0, "sentence", "is",
+                    "model/rover@2 was made from an output the garage no longer holds (made@garage)."),)),
+        seam("an output made into nothing held fails, and a finish from a photo is named", mode="bare:list,bake,made",
+             fixture="bad.usda", verdicts={"handed": (checks.FAIL, "has", "holds no entry: no exporter takes it",
+                                                      {f"list@{PLACE}", f"bake@{PLACE}", f"made@{PLACE}"}),
+                                          "traced": (checks.FAIL, "has", "photo_of_a_crate.png")},
+             accepted=False, calls=3, problems={PLACE: ["not handed"]}),
+        seam("a written exception covers it; an address the library lacks or holds withdrawn", mode="exception",
+             exceptions=[EXCEPTION_E1], library=(*LIBRARY, {"address": "model/cart@1", "state": "withdrawn"}),
+             named=("model/rover@2", "model/crate@1", "model/cart@1"),
+             problems={PLACE: ["not in library", "not in library"]},
+             said=((PLACE, 0, "address", "is", "model/crate@1"), (PLACE, 1, "address", "is", "model/cart@1"),
+                   (PLACE, 1, "sentence", "has", "withdrawn"))),
+        seam("an exception the data does not write covers nothing", mode="exception",
+             verdicts={"handed": (checks.FAIL, "has", "E1")}, accepted=False, calls=4, problems=NEITHER_HANDED),
+        seam("a missing copy is unknown, never a pass", mode="no-copy",
+             verdicts={"copies": (checks.UNKNOWN, "has", "model/rover@2")}, accepted=False,
+             problems={PLACE: ["not handed"]}),
+        seam("the shared example report is on the contract", mode="example",
+             verdicts={"handed": (checks.FAIL, "has", f"made@{PLACE}"),
+                       "refused": (checks.FAIL, "has", "model old_crate from pixal@garage: no take file in the output"),
+                       "quality": (checks.UNKNOWN, "has", "surface/brushed_steel@1")}, accepted=False, calls=4,
+             problems=NEITHER_HANDED),
+        seam("a covered row without its keys is off the contract", mode="keyless",
+             broken="covered row 1 lacks entries, exception, output, why", problems=NEITHER_HANDED),
+        seam("inside a run's frozen copy, nothing the library runs names it; a newest entry no handover names",
+             mode="full", frozen=True,
+             library=(*LIBRARY, {"address": "model/old_crate@1"}, {"address": "model/tank@1", "world": "world2"},
+                      {"address": "model/hut@1", "place": "hangar"}),
+             problems={PLACE: ["shown nowhere"], "world": ["shown nowhere"]},
+             said=((PLACE, 0, "address", "is", "model/old_crate@1"),  # the hangar has no library node: shown on the
+                   ("world", 0, "address", "is", "model/hut@1"))),  # environment
+        seam("a slow library is a transient error, tried again; an entry whose node no longer has an accepted output",
+             mode="slow", calls=3, timeout=2,
+             library=(*LIBRARY[:1], {"address": "model/rover@2", "node": f"demo-film@{PLACE}"}),
+             problems={PLACE: ["moved on"]}, said=((PLACE, 0, "sentence", "has", "no longer has accepted"),)),
+        seam("a run's stop reaches the command in its own session", mode="stop", timeout=3,
+             stopped="the library's handover command exited -15", problems={PLACE: ["not handed"]}),
+    ))
 def test_the_library_node_hands_everything_by_the_librarys_command_once_and_names_what_it_misses(
-        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls, found, blobs, broken):
-    called = fake_library(tmp_path, monkeypatch, mode, found, blobs) if mode else None
-    runner = toy_runner(tmp_path, free=free, exceptions=exceptions)
-    asked = []
-    monkeypatch.setattr(handed, "spawn", lambda store, job: asked.append(job))
-    did = runner.run([PLACE])
-    assert asked == [] and not (tmp_path / "store" / handed.FOLDER).exists()  # handing accepts is off unless asked
+        tmp_path, monkeypatch, mode, free, exceptions, verdicts, accepted, calls, found, blobs, broken, frozen,
+        timeout, stopped, fixture, named, pushed, swept):
+    home = tmp_path / "home"
+    called = fake_library(tmp_path, monkeypatch, mode, found, blobs, named, pushed) if mode else None
+    runner = toy_runner(tmp_path, free=free, exceptions=exceptions,
+                        store=frozen_run(home, monkeypatch) if frozen else None, fixture=fixture)
+    monkeypatch.setattr(traced, "KEPT_PLANS", home / "design/plans")  # every place's bakes: the toy home's places
+    fetches = []  # the files the cockpit's pictures and demos ask the library for
+
+    def fetched(address, named):
+        """The cache's path of every file but the ground's picture and the crate's web copy, which the store lost."""
+        fetches.append((address, named))
+        if (address, named) in (("ground/lost@1", "b.png"), ("model/crate@1", "web3d/light.glb")):
+            raise backend.library_files.LibraryUnreachable(LOST)
+        return pathlib.Path(named)
+
+    monkeypatch.setattr(pictures, "fetched", fetched)
+    monkeypatch.setattr(backend.library_files, "cache_folder", lambda: tmp_path / "cache")
+    from score import stages
+    # the library rows read every row of their grain (on the real table, but straight-masks: only prepare's prediction
+    # reads it, score/stages/__init__.py), the showcase renders optional, the environment's film never holds the world
+    # row up, both free, and no row reads them
+    for table, unread, optional, world_optional in ((tuple(runner.stages.values()), set(), {FILM.name}, ()),
+                                                    (stages.STAGES, {"straight-masks"}, set(library.SHOWCASE),
+                                                     ("environment-film",))):
+        rows = {row.name: row for row in table}
+        place, world = rows[library.PLACE_ROW], rows[library.WORLD_ROW]
+        assert not place.paid and not world.paid
+        assert set(place.after) == {row.name for row in table if row.grain == "place"} - {library.PLACE_ROW, *unread}
+        assert set(world.after) == {row.name for row in table if row.grain == "world"} - {library.WORLD_ROW}
+        assert set(place.optional) | set(world.optional) == optional and world.optional == world_optional
+        assert not [row.name for row in table if library.PLACE_ROW in row.after or library.WORLD_ROW in row.after]
+    monkeypatch.setattr(graph, "RETRY_WAIT", 0)
+    if timeout:
+        monkeypatch.setattr(backend, "TIMEOUT", timeout)
+    asked = []  # the handover processes handed.spawn starts: their words and environment
+    monkeypatch.setattr(handed, "subprocess", type(sys)("subprocess"))
+    handed.subprocess.DEVNULL, handed.subprocess.STDOUT = subprocess.DEVNULL, subprocess.STDOUT
+    handed.subprocess.Popen = lambda words, **given: asked.append((words, given["env"]))
+    heard = []
+    before = signal.signal(signal.SIGTERM, lambda number, frame: heard.append(number))
+    try:
+        did = driven(runner)
+    finally:
+        signal.signal(signal.SIGTERM, before)
+    assert asked == [] and not (home / "store" / handed.FOLDER).exists()  # handing accepts is off unless asked
+    assert heard == ([signal.SIGTERM] if stopped else []), heard  # the stop handled as before, once passed on
+    said = [json.loads(line) for line in called.read_text().splitlines()] if mode else []
+    deadline = time.monotonic() + 5
+    while any(running(call["child"]) for call in said) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert not [call["child"] for call in said if running(call["child"])], "a child of the handover outlived its row"
+    # neither the command's words nor its environment name a frozen copy; a copy's path moved to the main checkout's,
+    # the copy home's to the real home
+    assert all(copies_named(home, call["words"], call["all"]) == [] for call in said), said
+    assert all("SCORE_FROZEN" not in call["all"] for call in said), said
+    if frozen:
+        assert all(call["all"]["PROPS_HOME"] == str(home) for call in said), said
+        assert all(call["all"]["PYTHONPATH"] == f"{backend.main_checkout()}/score/stages/props/ledger_tag"
+                   f"{os.pathsep}/elsewhere" for call in said), said
+        # the copy named as the library's repository moved to the main checkout, in its words and its environment
+        assert all(call["words"][call["words"].index("--repo") + 1] == str(backend.main_checkout())
+                   and call["all"]["SCORE_REPO"] == str(backend.main_checkout()) for call in said), said
+        assert disk.working(home / "frozen") == {}  # the conductor's own count: nothing works in the copy
+    # the sweep's chain on the same environment: the library folder (its entries as the handover left them) read into
+    # rows, the library-free decision, the invariant's problems, each place's findings.json with the entry's picture
+    library_root, blob_root, swept_out = tmp_path / "library", tmp_path / "blobs", tmp_path / "swept"
+    made = runner.store.accepted(f"made@{PLACE}")
+    for spec in swept["library"]:
+        write_entry(library_root, blob_root, spec, made)
+    rows = sweep.library_rows(str(library_root) if mode else "")
+    ordered = sorted(swept["library"], key=lambda spec: spec["address"].replace("@", "/"))
+    assert [line for line in rows if line["world"]] == [dict(row(**spec, made=made), picture=PICTURE_SHA)
+                                                        for spec in ordered], rows
+    configured = (backend.kind(backend.settings()) != backend.NONE
+                  or sweep.library_free(WORLD, tmp_path / "data/checks/library-free.json"))
+    held = sweep.handed_of(runner.store, [PLACE, *(["hangar"] if swept["hangar"] else [])])
+    problems = invariant.problems(WORLD, held, rows, {line["node"]: runner.store.accepted(line["node"])
+                                                      for line in rows if line["node"]}, configured)
+    assert {where: [item["rule"] for item in items] for where, items in problems.items() if items} == (
+        swept["problems"]), problems
+    assert set(problems) == set(held), problems
+    for where, index, field, how, text in swept["said"]:
+        told = problems[where][index][field]
+        assert (told == text if how == "is" else text in told), (where, index, field, told)
+    for where, node in held.items():
+        sweep.written(where, node, problems[where], rows, str(blob_root), swept_out / where)
+        on_disk = json.loads((swept_out / where / "findings.json").read_text())
+        rules = swept["problems"].get(where, [])
+        stands = runner.store.accepted(node["node"])
+        assert on_disk["answer"] == ("fail" if rules else "pass"), on_disk
+        assert on_disk["outputs"] == ({node["node"]: stands} if stands else {}), on_disk
+        assert [finding["rule"] for finding in on_disk["findings"]] == rules, on_disk
+        for finding in on_disk["findings"]:
+            assert set(finding) == {"rule", "prim", "name", "sentence", "picture"}, finding
+            if finding["name"] in {line["address"] for line in rows if line["world"]}:  # its picture beside it
+                assert (swept_out / where / finding["picture"]).read_bytes() == PICTURE, finding
+            else:
+                assert finding["picture"] is None, finding
+    # the cockpit's files from the same library folder: the pictures and the item pages' viewer files of every kind
+    # fetched into the library cache, a lost one never stopping the others; every demo made from that cache; a file
+    # lost before never asked again, by the pictures or a demo, until its entry names new bytes
+    if not mode:
+        assert pictures.run() == ("library pictures: no library folder (SCORE_LIB_ROOT, or the score_lib checkout "
+                                  "beside score)")
+    else:
+        for address in ("model/crate@1", "surface/brass@1", "sound/drone@1", "effect/smoke@1"):
+            picture_entry(library_root, address, VIEWER)
+        picture_entry(library_root, "place/flat@1", {"a.png": "picture", "web3d/light.glb": "web3d"}, picture="a.png")
+        picture_entry(library_root, "ground/lost@1", {"b.png": "picture"}, picture="b.png")
+        # what an item page's viewer plays of each kind: the light web copy, then a model's close-up, a surface's
+        # material and print, a sound's first four takes, an effect's settings; a place's only its web copy
+        viewed = [("effect/smoke@1", "web3d/light.glb"), ("effect/smoke@1", "settings.json"),
+                  ("model/crate@1", "web3d/light.glb"), ("model/crate@1", "closeup.png"),
+                  ("place/flat@1", "web3d/light.glb"),
+                  *[("sound/drone@1", named) for named in ("web3d/light.glb", "a.ogg", "b.ogg", "c.ogg", "d.ogg")],
+                  *[("surface/brass@1", named) for named in ("web3d/light.glb", "material.usda", "print.png")]]
+        assert pictures.viewed(library_root, None) == viewed
+        shown = len(swept["library"])  # every handed entry's own picture beside the two here
+        assert pictures.run() == (f"library pictures (every kind) in the cache: {shown + 1} of {shown + 2} (1 not "
+                                  f"fetched, first: ground/lost@1: {LOST}); viewer files: 12 of 13 (1 not fetched, "
+                                  f"first: model/crate@1: {LOST})")
+        assert sorted(fetches) == sorted([*((spec["address"], "picture.png") for spec in swept["library"]),
+                                          ("ground/lost@1", "b.png"), ("place/flat@1", "a.png"), *viewed]), fetches
+        fetches.clear()
+        assert pictures.run() == (f"library pictures (every kind) in the cache: {shown + 1} of {shown + 2} (1 not "
+                                  "fetched, first: ground/lost@1: b.png lost (404 before)); viewer files: 12 of 13 (1 "
+                                  "not fetched, first: model/crate@1: web3d/light.glb lost (404 before))")
+        # every demo made from the same cache: the real modules found by their algorithm, a fake one an algorithm here
+        real = demos.modules()
+        assert "surface_recipes" in real and all(module.ALGORITHM == name for name, module in real.items())
+        fakes = {}
+        for name, (made_by, _) in DEMO_CASES.items():
+            fakes[name] = type(sys)(name)
+            fakes[name].made = made_by
+        monkeypatch.setattr(demos, "modules", lambda: fakes)
+        line = demos.run()
+        assert line.startswith(f"library demos: 1 of 5 made into {demos.path()} (not made: "), line
+        assert all(f"{name}: {expected['missing'][:120]}" in line
+                   for name, (_, expected) in DEMO_CASES.items() if "missing" in expected), line
+        assert json.loads(demos.path().read_text()) == {name: expected for name, (_, expected) in DEMO_CASES.items()}
+        assert ("ground/lost@1", "b.png") not in fetches and ("model/crate@1", "web3d/light.glb") not in fetches
+        picture_entry(library_root, "model/crate@1", VIEWER, sha="b" * 64)  # new bytes: asked again
+        fetches.clear()
+        pictures.run()
+        assert ("model/crate@1", "web3d/light.glb") in fetches and ("ground/lost@1", "b.png") not in fetches, fetches
     if broken:
         stage = runner.stages[library.PLACE_ROW]
         assert runner.store.record(graph.node_name(stage, PLACE), runner.key(stage, PLACE)["key"]) is None
         assert did[f"library@{PLACE}"] == did["library-world"] == (
             f"broken: off its contract library-handover v1: {broken}"), did
         return
+    if stopped:
+        assert stopped in did[f"library@{PLACE}"] and len(said) == calls, (did, said)
+        return
     output, found = library_output(runner)
+    # what each read was made into, read here (the showcase render that never passed read without) and beyond
+    assert {read["node"]: (read["into"], read["beyond"]) for read in handover.handed(output)} == {
+        f"made@{PLACE}": (["demo-film"], []), f"list@{PLACE}": (["bake"], []), f"bake@{PLACE}": ([], []),
+        f"seed@{PLACE}": ([], []), f"assembly@{PLACE}": ([], [])}, handover.handed(output)
+    world_reads = handover.handed(library_output(runner, None)[0])
+    assert {read["node"]: (read["into"], read["beyond"]) for read in world_reads} == {
+        GROUND.name: ([], []), TERRAIN.name: ([], ["seed"])}, world_reads
     shared = handover.report(output)  # the library's report or score's own, on the contract field for field
     assert shared["backend"] == ("command" if mode else "none")
     assert sorted(shared) == sorted(handover.KEYS) and sorted(shared["saved"]) == sorted(handover.SAVED_KEYS), shared
     assert all(sorted(line) == sorted(keys) for area, keys in handover.ROWS.items() for line in shared[area]), shared
     assert set(verdicts) <= set(found), found
     for check, verdict in found.items():
-        answer, how, text = verdicts.get(check, (checks.PASS, "has", ""))
+        answer, how, text, *nodes = verdicts.get(check, (checks.PASS, "has", ""))
         told = verdict["reason"]
         assert verdict["answer"] == answer and (told == text if how == "is" else text in told), (check, verdict)
+        assert not nodes or {finding.split(" ")[0] for finding in verdict["findings"]} == nodes[0], (check, verdict)
     waiting = dict(library.world_completion(runner, [PLACE]))
     if accepted:
         assert did[f"library@{PLACE}"].endswith("accepted automatically"), did
@@ -278,10 +608,9 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
         assert f"library@{PLACE}" in waiting, waiting
         assert "not complete" in library.completion_line(WORLD, list(waiting.items()))
     if mode is None:
-        assert ("library-world" in waiting) is not free, waiting
+        assert ("library-world" in waiting) is not configured, waiting  # the node and the sweep read one decision
         return
     # the library's own command with the template's words, for the place's node and for the environment's
-    said = [json.loads(line) for line in called.read_text().splitlines()]
     words = [call["words"] for call in said]
     assert len(words) == calls, words
     place_words = next(said for said in words if "--place" in said)
@@ -306,12 +635,9 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     assert moved(MADE.name) == route, "a stage off the route moved the route"
     assert moved(GROUND.name) != route, "a route stage's code did not move it"
     assert runner.key(runner.stages[library.PLACE_ROW], PLACE)["params"]["route"] == route  # in the key
-    assert after("--store") == str((tmp_path / "store/objects").resolve())
+    assert after("--store") == str((home / "store/objects").resolve())
     assert place_words[:3] == ["--root", str(tmp_path / "library"), "handover"], place_words  # the setting's own root
     assert "--world" in world_words, world_words
-    # the showcase render that never passed is read without
-    assert handover.handed(output) == [{"node": f"made@{PLACE}", "output": handover.handed(output)[0]["output"],
-                                        "into": ["demo-film"], "beyond": []}]
     again = runner.run([PLACE])
     assert again[f"library@{PLACE}"] == "fresh", again
     assert len(called.read_text().splitlines()) == calls, "a second run called the library again"
@@ -321,20 +647,26 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     # failing handover keeps the accept and the next one covers it
     store, nodes = runner.store, lambda: handed.nodes_of(runner.stages.values(), [PLACE])
     (tmp_path / f"data/briefs/{PLACE}.txt").write_text("the garage, again")
+    (tmp_path / "library/named.json").write_text(json.dumps({"addresses": list(named), "pushed": True}))  # remote back
     runner.hand_on_accept = True
     assert runner.run([PLACE])[f"made@{PLACE}"].endswith("accepted automatically")
     made = store.accepted(f"made@{PLACE}")
-    assert asked and {job["route"] for job in asked} == {route}, asked  # the run's accepts started the handover
-    assert handed.waiting(store, WORLD, nodes()) == {None: [(GROUND.name, store.accepted(GROUND.name))],
-                                                     PLACE: [(f"made@{PLACE}", made)]}
-    job = {"world": WORLD, "seed": 7, "commit": asked[0]["commit"], "route": route, "repo": str(REPO)}
+    spawned = [dict(zip(words[3::2], words[4::2])) for words, _ in asked]  # --world, --commit, --route
+    assert asked and {job["--route"] for job in spawned} == {route}, asked  # the run's accepts started the handover
+    # the detached handover process names no frozen copy either, its home the real one
+    assert all(copies_named(home, words, environment) == [] for words, environment in asked), asked
+    assert all(environment["PROPS_HOME"] == str(home.resolve()) for _, environment in asked), asked
+    every = {None: [(row.name, store.accepted(row.name)) for row in (GROUND, TERRAIN)],
+             PLACE: [(node, store.accepted(node)) for node in (f"{row.name}@{PLACE}" for row in PLACE_MADE)]}
+    assert handed.waiting(store, WORLD, nodes()) == every
+    job = {"world": WORLD, "seed": 7, "commit": spawned[0]["--commit"], "route": route, "repo": str(library.REPO)}
     library_command = backend.settings()["SCORE_LIB_COMMAND"]
     monkeypatch.setenv("SCORE_LIB_COMMAND", f"{sys.executable} -c 'import sys; sys.exit(3)'")
     handed.drain(store, WORLD, lambda: job, nodes, say=lambda line: None)
     assert store.accepted(f"made@{PLACE}") == made  # a failed handover never loses the accept
     assert "exited 3" in handed.failure(store, WORLD, PLACE)["error"]
     line = handed.status_line(store, WORLD, nodes())
-    assert "2 accepted outputs not in the library yet (world 1, garage 1); failing: " in line, line
+    assert "7 accepted outputs not in the library yet (world 2, garage 5); failing: " in line, line
     monkeypatch.setenv("SCORE_LIB_COMMAND", library_command)
     loops, hand_waiting = [], handed.hand_waiting
     monkeypatch.setattr(handed, "hand_waiting", lambda *given: loops.append(
@@ -348,138 +680,7 @@ def test_the_library_node_hands_everything_by_the_librarys_command_once_and_name
     report = json.loads((handed.place_folder(store, WORLD, PLACE) / handover.REPORT).read_text())
     report["saved"]["pushed"] = False
     handover.write(handed.place_folder(store, WORLD, PLACE) / handover.REPORT, report)
-    assert handed.waiting(store, WORLD, nodes()) == {PLACE: [(f"made@{PLACE}", made)]}  # not pushed: not handed
-
-
-def fixture_inputs(root, fixture):
-    """The gate's inputs over the library-finish check's fixture stage (data/checks/library/<fixture>), laid as a
-    place named "fixture" with an assembly of that one stage, and an empty output folder for the handover's files."""
-    data = world_data(root)
-    (root / "home/design/plans/fixture.json").write_text("{}")
-    assembled = root / "assembly"
-    assembled.mkdir()
-    (assembled / "fixture.usda").write_text((REPO / "data/checks/library" / fixture).read_text())
-    output = root / "output"
-    output.mkdir()
-    return output, {"world record": data / "definitions/world.json", "library free": data / "checks/library-free.json",
-                    "place record": root / "home/design/plans/fixture.json", "assembly": assembled}
-
-
-def fixture_library(root):
-    """A library folder holding the entries the good fixture names (the library-finish check's own test's)."""
-    for kind, entry_id in (("surface", "bare_steel"), ("surface", "deck"), ("model", "crate_1"), ("kit", "fixture"),
-                           ("light", "lamp"), ("sound", "hum")):
-        folder = root / "entries" / kind / entry_id / "1"
-        folder.mkdir(parents=True)
-        (folder / "entry.json").write_text(json.dumps({"schema": "score-lib-entry/1", "address": f"{kind}/{entry_id}@1",
-                                                       "kind": kind, "id": entry_id, "version": 1, "state": "draft",
-                                                       "files": {}, "provenance": {}}))
-    return root
-
-
-# The place row's gate on one handover folder: the assembled fixture stage, whether a library folder is set, which
-# outputs an entry holds; `traced`'s (answer, text in its reason) and `handed`'s (answer, the nodes its findings name,
-# text in its reason).
-GATE_CASES = (
-    ("no library; the list held through the bake made from it", "good.usda", False, {"bake", "film"},
-     (checks.UNKNOWN, "SCORE_LIB_ROOT"), (checks.PASS, set(), "(1 held through")),
-    ("the good fixture traced; neither the list nor the bake it was made into held", "good.usda", True, {"film"},
-     (checks.PASS, ""), (checks.FAIL, {f"list@{PLACE}", f"bake@{PLACE}"}, "")),
-    ("the bad fixture names its photo; an output made into nothing held", "bad.usda", True, {"bake"},
-     (checks.FAIL, "photo_of_a_crate.png"), (checks.FAIL, {f"film@{PLACE}"}, "")),
-)
-
-
-def test_the_gate_holds_an_output_through_what_it_was_made_into_and_traces_every_finish(tmp_path, monkeypatch):
-    table = [graph.Stage("terrain", "world", make_text, TOY), graph.Stage("list", "place", make_text, TOY),
-             graph.Stage("bake", "place", make_text, TOY, after={"list": ("toy-text", 1)}),
-             graph.Stage("seed", "place", make_text, TOY, after={"terrain": ("toy-text", 1)}),
-             graph.Stage("film", "place", make_text, TOY)]
-    relation = library.made_into(table)
-    place = {"place record": str(tmp_path / f"{PLACE}.json")}
-    reads = library.reads_of({**place, **{name: str(tmp_path / (name[0] * 3)) for name in ("list", "bake", "film")}},
-                             relation)
-    assert {read["node"]: (read["into"], read["beyond"]) for read in reads} == {
-        f"list@{PLACE}": (["bake"], []), f"bake@{PLACE}": ([], []), f"film@{PLACE}": ([], [])}, reads
-    assert library.reads_of({"terrain": str(tmp_path / "ttt")}, relation)[0]["beyond"] == ["seed"]
-    shelf = fixture_library(tmp_path / "library")
-    gate = [check for check in library_checks.CHECKS if check.name in ("handed", "traced")]
-    for index, (name, fixture, shelved, held, traced, handed_) in enumerate(GATE_CASES):
-        output, inputs = fixture_inputs(tmp_path / str(index), fixture)
-        handover.write(output / handover.READS, reads)
-        handover.write(output / handover.REPORT, {"covered": [
-            {"node": read["node"], "output": read["output"], "exception": None, "why": "no exporter takes it",
-             "entries": [f"layer/{read['node']}@1"] if read["node"].split("@")[0] in held else []}
-            for read in reads]})
-        if shelved:
-            monkeypatch.setenv("SCORE_LIB_ROOT", str(shelf))
-        else:
-            monkeypatch.delenv("SCORE_LIB_ROOT", raising=False)
-        found = {check.name: checks.judge(check, output, inputs, None) for check in gate}
-        answer, text = traced
-        assert found["traced"].answer == answer and text in found["traced"].reason, (name, found["traced"])
-        answer, nodes, text = handed_
-        assert found["handed"].answer == answer and text in found["handed"].reason, (name, found["handed"])
-        assert {finding.split(" ")[0] for finding in found["handed"].findings} == nodes, (name, found["handed"])
-
-
-def test_a_slow_library_is_a_transient_error_and_no_handover_leaves_a_process_naming_a_frozen_copy(
-        tmp_path, monkeypatch):
-    # a run's frozen copy and its home, as graph/frozen.py lays them out, and the run's environment naming them
-    home, copy = tmp_path / "home", tmp_path / "home/frozen/run-1"
-    (home / "frozen/run-1.home/store/objects").mkdir(parents=True)
-    copy.mkdir()
-    monkeypatch.setenv("SCORE_FROZEN", str(copy))
-    monkeypatch.setenv("PROPS_HOME", f"{copy}.home")
-    monkeypatch.setenv("PYTHONPATH", f"{copy}/score/stages/props/ledger_tag{os.pathsep}/elsewhere")
-    seen = tmp_path / "seen.json"
-    (tmp_path / "lingers.py").write_text(  # the library's command leaving a child running, its words and environment
-        "import json, os, subprocess, sys\n"
-        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
-        f"open({str(seen)!r}, 'w').write(json.dumps({{'words': sys.argv, 'environment': dict(os.environ), "
-        "'child': child.pid}))\n")
-    backend.run([sys.executable, str(tmp_path / "lingers.py"), "--repo", str(copy), "--out",
-                 f"{copy}.home/store/cache/making/k"], {"SCORE_LIB_ROOT": str(tmp_path)},
-                f"{copy}.home/store/objects", str(copy))
-    said = json.loads(seen.read_text())
-    assert copies_named(home, said["words"], said["environment"]) == [], said  # neither words nor environment
-    assert said["words"][said["words"].index("--repo") + 1] == str(backend.main_checkout())
-    assert said["environment"]["PROPS_HOME"] == str(home)
-    deadline = time.monotonic() + 5
-    while running(said["child"]) and time.monotonic() < deadline:
-        time.sleep(0.05)
-    assert not running(said["child"]), "a child of the handover outlived its row"
-    assert disk.working(home / "frozen") == {}  # the conductor's own count: nothing works in the copy
-
-    (tmp_path / "slow.py").write_text("import time; time.sleep(5)")
-    monkeypatch.setattr(backend, "TIMEOUT", 1)
-    with pytest.raises(TimeoutError) as raised:
-        backend.run([sys.executable, str(tmp_path / "slow.py")], {"SCORE_LIB_ROOT": str(tmp_path)}, tmp_path,
-                    tmp_path)
-    assert graph.transient(raised.value)
-
-    # the run's stop reaches the command in its own session: passed on to its group, then handled as before
-    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"], start_new_session=True)
-    heard = []
-    before = signal.signal(signal.SIGTERM, lambda number, frame: heard.append(number))
-    try:
-        passed = backend.passed_on(child.pid)
-        os.kill(os.getpid(), signal.SIGTERM)
-        assert child.wait(5) == -signal.SIGTERM and heard == [signal.SIGTERM], (child.poll(), heard)
-        for number, handler in passed.items():
-            signal.signal(number, handler)
-    finally:
-        signal.signal(signal.SIGTERM, before)
-        child.kill()
-
-
-    # the detached handover process a run's accept starts (handed.spawn) names no frozen copy either
-    started, checkout = [], backend.main_checkout()
-    monkeypatch.setattr(backend, "main_checkout", lambda: checkout)
-    monkeypatch.setattr(handed.subprocess, "Popen", lambda words, **given: started.append((words, given)))
-    handed.spawn(Store.in_folder(home / "store"), {"world": WORLD, "commit": "c" * 40, "route": "r"})
-    (words, given), = started
-    assert copies_named(home, words, given["env"]) == [], given["env"]
+    assert handed.waiting(store, WORLD, nodes()) == {PLACE: every[PLACE]}  # not pushed: not handed
 
 
 def copies_named(home, words, environment):
@@ -502,21 +703,7 @@ def running(pid):
         return False
 
 
-def test_the_real_tables_library_rows_read_every_row_free_and_nothing_reads_them():
-    from score import stages
-    rows = {row.name: row for row in stages.STAGES}
-    place, world = rows[library.PLACE_ROW], rows[library.WORLD_ROW]
-    assert not place.paid and not world.paid
-    # straight-masks is added after the library rows: only prepare's prediction reads it (score/stages/__init__.py)
-    assert set(place.after) == {row.name for row in stages.STAGES if row.grain == "place"} - {
-        library.PLACE_ROW, stages.masks_row.STAGE.name}
-    assert set(world.after) == {row.name for row in stages.STAGES if row.grain == "world"} - {library.WORLD_ROW}
-    assert set(place.optional) | set(world.optional) == set(library.SHOWCASE), (place.optional, world.optional)
-    assert world.optional == ("environment-film",)  # the environment's film never holds it up
-    assert not [row.name for row in stages.STAGES if library.PLACE_ROW in row.after or library.WORLD_ROW in row.after]
-
-
-# --- the pictures ---------------------------------------------------------------------------------------------------
+# --- the cockpit's files from the library ----------------------------------------------------------------------
 
 LOST = "HeadObject: An error occurred (404) when calling it"
 VIEWER = {"web3d/light.glb": "web3d", "web3d/full.glb": "web3d", "material.usda": "usd", "print.png": "texture",
@@ -541,180 +728,8 @@ def picture_entry(root, address, files, picture=None, sha="f" * 64):
     (folder / "entry.json").write_text(json.dumps(record))
 
 
-def test_every_picture_and_viewer_file_is_fetched_and_a_lost_one_never_stops_the_others_nor_is_asked_again(
-        tmp_path, monkeypatch):
-    root = tmp_path / "lib"
-    for address in ("model/crate@1", "surface/steel@1", "sound/hum@1", "effect/smoke@1"):
-        picture_entry(root, address, VIEWER)
-    picture_entry(root, "place/flat@1", {"a.png": "picture", "web3d/light.glb": "web3d"}, picture="a.png")
-    picture_entry(root, "ground/lost@1", {"b.png": "picture"}, picture="b.png")
-    asked = []
-
-    def fetched(address, named):
-        """The cache's path of every file but the ground's picture and the crate's web copy, which the store lost."""
-        asked.append((address, named))
-        if (address, named) in (("ground/lost@1", "b.png"), ("model/crate@1", "web3d/light.glb")):
-            raise backend.library_files.LibraryUnreachable(LOST)
-        return pathlib.Path(named)
-
-    monkeypatch.setattr(pictures, "fetched", fetched)
-    monkeypatch.setattr(backend, "settings", lambda: {"SCORE_LIB_ROOT": str(root)})
-    monkeypatch.setattr(backend.library_files, "cache_folder", lambda: tmp_path / "cache")
-    # what an item page's viewer plays of each kind: the light web copy, then a model's close-up, a surface's
-    # material and print, a sound's first four takes, an effect's settings; a place's only its web copy
-    viewed = [("effect/smoke@1", "web3d/light.glb"), ("effect/smoke@1", "settings.json"),
-              ("model/crate@1", "web3d/light.glb"), ("model/crate@1", "closeup.png"),
-              ("place/flat@1", "web3d/light.glb"),
-              *[("sound/hum@1", named) for named in ("web3d/light.glb", "a.ogg", "b.ogg", "c.ogg", "d.ogg")],
-              *[("surface/steel@1", named) for named in ("web3d/light.glb", "material.usda", "print.png")]]
-    assert pictures.viewed(root, None) == viewed
-    assert pictures.run() == (f"library pictures (every kind) in the cache: 1 of 2 (1 not fetched, first: "
-                              f"ground/lost@1: {LOST}); viewer files: 12 of 13 (1 not fetched, first: "
-                              f"model/crate@1: {LOST})")
-    assert sorted(asked) == sorted([("ground/lost@1", "b.png"), ("place/flat@1", "a.png"), *viewed]), asked
-    asked.clear()
-    assert pictures.run() == ("library pictures (every kind) in the cache: 1 of 2 (1 not fetched, first: "
-                              "ground/lost@1: b.png lost (404 before)); viewer files: 12 of 13 (1 not fetched, first: "
-                              "model/crate@1: web3d/light.glb lost (404 before))")
-    assert ("ground/lost@1", "b.png") not in asked and ("model/crate@1", "web3d/light.glb") not in asked, asked
-    picture_entry(root, "model/crate@1", VIEWER, sha="b" * 64)  # new bytes: asked again
-    asked.clear()
-    pictures.run()
-    assert ("model/crate@1", "web3d/light.glb") in asked and ("ground/lost@1", "b.png") not in asked, asked
-
-
-# --- the invariant on small fixed sets ------------------------------------------------------------------------------
-
-LIB_WORLD = "world1"
-PICTURE, PICTURE_SHA = b"\x89PNG fake picture bytes", "ab" + "0" * 62
-LIBRARY = ({"address": "model/rover@1"}, {"address": "model/rover@2"})  # the garage's one entry, two versions
-DATED = {"why": "a test", "who": "@owner", "when": "2026-10-18"}
-UNCONFIGURED = {"world": ["not handed"], "garage": ["not handed"]}
-NOT_CONFIGURED_SAID = (("garage", 0, "sentence", "has", "no library is configured"),)
-
-
-def row(address, node="pixal@garage", output="out-1", state="draft", place="garage", world=LIB_WORLD):
-    """One library row as the invariant reads it (sweep.entry_row's shape, its picture left out)."""
-    kind, rest = address.split("/")
-    entry_id, version = rest.split("@")
-    return {"address": address, "kind": kind, "id": entry_id, "version": int(version), "state": state,
-            "world": world, "place": place, "node": node, "output": output}
-
-
-def report(*addresses, pushed=True):
-    return {"entries": [{"address": address, "node": "pixal@garage"} for address in addresses],
-            "saved": {"committed": "abc", "pushed": pushed, "why": "" if pushed else "no remote"}}
-
-
-def held(node, report_of=None):
-    return {"node": node, "output": "lib-out" if report_of else None,
-            "why": "" if report_of else "nothing stands accepted", "report": report_of}
-
-
-def write_entry(root, blobs, spec):
-    """One library entry's folder from a row spec, its picture's bytes in the blob folder."""
-    entry = row(**spec)
-    (blobs / "blobs" / PICTURE_SHA[:2]).mkdir(parents=True, exist_ok=True)
-    (blobs / "blobs" / PICTURE_SHA[:2] / PICTURE_SHA).write_bytes(PICTURE)
-    folder = root / "entries" / entry["kind"] / entry["id"] / str(entry["version"])
-    folder.mkdir(parents=True)
-    (folder / "entry.json").write_text(json.dumps({
-        "schema": "score-lib-entry/1", "address": entry["address"], "kind": entry["kind"], "id": entry["id"],
-        "version": entry["version"], "state": entry["state"], "picture": {"file": "picture.png"},
-        "files": {"picture.png": {"sha256": PICTURE_SHA}},
-        "provenance": {key: entry[key] for key in ("world", "place", "node", "output")}}))
-
-
-def case(name, expect, said=(), library=LIBRARY, free=(), garage=("model/rover@2",), pushed=True, hangar=False,
-         accepted=None):
-    """One environment and library: the library's entries (None: no library folder), the library-free decisions,
-    what the garage's handover names and whether it pushed, a hangar with no library node, the accepted outputs; the
-    rules found where (empty places left out) and what the problems say: (where, index, field, "is"/"has", text)."""
-    world = {"library": library, "free": free, "garage": garage, "pushed": pushed, "hangar": hangar,
-             "accepted": {"pixal@garage": "out-1"} if accepted is None else accepted}
-    return pytest.param(world, expect, said, id=name)
-
-
-@pytest.mark.parametrize("world, expect, said", (
-    case("agree", {}),
-    case("no library", UNCONFIGURED, NOT_CONFIGURED_SAID, library=None),
-    case("an undated free decision is no decision", UNCONFIGURED, NOT_CONFIGURED_SAID, library=None,
-         free=({"world": LIB_WORLD, **DATED, "when": ""},)),
-    case("another environment's free decision", UNCONFIGURED, NOT_CONFIGURED_SAID, library=None,
-         free=({"world": "world2", **DATED},)),
-    case("a dated free decision configures", {"garage": ["not in library"]},
-         (("garage", 0, "address", "is", "model/rover@2"),), library=None, free=({"world": LIB_WORLD, **DATED},)),
-    case("a place with no accepted library node", {"hangar": ["not handed"]},
-         (("hangar", 0, "sentence", "is",
-           "The hangar is not handed to the library yet (library@hangar: nothing stands accepted)."),), hangar=True),
-    case("an address the library lacks or holds withdrawn", {"garage": ["not in library", "not in library"]},
-         (("garage", 0, "address", "is", "model/crate@1"), ("garage", 1, "address", "is", "model/cart@1"),
-          ("garage", 1, "sentence", "has", "withdrawn")),
-         library=(*LIBRARY, {"address": "model/cart@1", "state": "withdrawn"}),
-         garage=("model/rover@2", "model/crate@1", "model/cart@1")),
-    case("moved on", {"garage": ["moved on"]},
-         (("garage", 0, "sentence", "is",
-           "model/rover@2 was made from an output the garage no longer holds (pixal@garage)."),),
-         accepted={"pixal@garage": "out-2"}),
-    case("no longer accepted", {"garage": ["moved on"]}, (("garage", 0, "sentence", "has", "no longer has accepted"),),
-         accepted={"pixal@garage": None}),
-    case("a repo-made entry never moves", {}, library=(*LIBRARY, {"address": "surface/steel@1", "node": None,
-                                                                  "output": None}),
-         garage=("model/rover@2", "surface/steel@1")),
-    case("a newest entry no handover names", {"garage": ["shown nowhere"], "world": ["shown nowhere"]},
-         (("garage", 0, "address", "is", "model/old_crate@1"),
-          ("world", 0, "address", "is", "model/hut@1")),  # the hangar has no library node: shown on the environment
-         library=(*LIBRARY, {"address": "model/old_crate@1"}, {"address": "model/tank@1", "world": "world2"},
-                  {"address": "model/hut@1", "place": "hangar"})),
-    case("history is not counted", {}, library=({"address": "model/rover@1", "output": "out-0"},
-                                                {"address": "model/rover@2"})),
-    case("not pushed", {"garage": ["not pushed"]},
-         (("garage", 0, "sentence", "is", "The library's last handover of the garage did not push: no remote."),),
-         pushed=False),
-))
-def test_every_mismatch_between_handover_library_and_store_is_named_where_the_cockpit_reads_it(
-        tmp_path, world, expect, said):
-    """The sweep's chain on one environment: the library folder read into rows, the library-free decision, the
-    invariant's problems, each place's findings.json with the entry's picture beside it."""
-    root, blobs, out, free = tmp_path / "library", tmp_path / "blobs", tmp_path / "out", tmp_path / "free.json"
-    for spec in world["library"] or ():
-        write_entry(root, blobs, spec)
-    rows = sweep.library_rows(str(root) if world["library"] is not None else "")
-    assert rows == [dict(row(**spec), picture=PICTURE_SHA) for spec in sorted(
-        world["library"] or (), key=lambda spec: row(**spec)["address"].replace("@", "/"))], rows
-    free.write_text(json.dumps({"worlds": list(world["free"])}))
-    configured = world["library"] is not None or sweep.library_free(LIB_WORLD, free)
-    handed = {"world": held("library-world", report()),
-              "garage": held("library@garage", report(*world["garage"], pushed=world["pushed"]))}
-    if world["hangar"]:
-        handed["hangar"] = held("library@hangar")
-    found = invariant.problems(LIB_WORLD, handed, rows, world["accepted"], configured)
-    assert {where: [item["rule"] for item in items] for where, items in found.items() if items} == expect, found
-    assert set(found) == set(handed), found
-    for where, index, field, how, text in said:
-        told = found[where][index][field]
-        assert (told == text if how == "is" else text in told), (where, index, field, told)
-    addresses = {entry["address"] for entry in rows}
-    for where, node in handed.items():
-        sweep.written(where, node, found[where], rows, str(blobs), out / where)
-        on_disk = json.loads((out / where / "findings.json").read_text())
-        assert on_disk["answer"] == ("fail" if expect.get(where) else "pass"), on_disk
-        assert on_disk["outputs"] == ({node["node"]: "lib-out"} if node["report"] else {}), on_disk
-        assert [finding["rule"] for finding in on_disk["findings"]] == expect.get(where, []), on_disk
-        for finding in on_disk["findings"]:
-            assert set(finding) == {"rule", "prim", "name", "sentence", "picture"}, finding
-            if finding["name"] in addresses:  # the entry's picture copied beside its findings
-                assert (out / where / finding["picture"]).read_bytes() == PICTURE, finding
-            else:
-                assert finding["picture"] is None, finding
-
-
-# --- the demos ------------------------------------------------------------------------------------------------------
-
 GOOD = {"example": "the greenhouse's beds", "view": "plan", "bounds": [0, 0, 1, 1],
         "steps": [{"label": "The beds", "shapes": [{"kind": "area", "points": [[0, 0], [1, 0], [1, 1]], "tone": "c1"}]}]}
-
-
 OFF = {**GOOD, "view": "film", "steps": [{"label": "x", "shapes": [{"kind": "blob", "points": [[0, 0]]},
                                                                  {"kind": "dots", "points": [], "tone": "pink"}]}]}
 
@@ -726,31 +741,15 @@ def raises(error):
     return made
 
 
-# Each algorithm's demo as its module makes it, and what demos.json holds for it.
+# Each algorithm's demo as its module makes it from the library cache, and what demos.json holds for it: a demo whose
+# example file the store lost is missing with the cache's own why, and never asks the store again.
 DEMO_CASES = {
-    "on the shape": (lambda inputs: GOOD, GOOD),
+    "on the shape": (lambda inputs: inputs.library("place/flat@1", "a.png") and GOOD, GOOD),
     "off the shape": (lambda inputs: OFF,
                       {"missing": "its demo is off the shape: view 'film'; shape kind 'blob'; tone 'pink'"}),
     "relief": (lambda inputs: {**GOOD, "view": "relief"},
                {"missing": "its demo is off the shape: relief without heights"}),
-    "no example": (raises(demos.NoExample("nothing kept")), {"missing": "nothing kept"}),
+    "no example": (lambda inputs: inputs.library("ground/lost@1", "b.png") and GOOD,
+                   {"missing": "ground/lost@1: b.png lost (404 before)"}),
     "fails": (raises(KeyError("beds")), {"missing": "its demo failed: KeyError: 'beds'"}),
 }
-
-
-def test_a_demo_off_the_shape_or_without_an_example_is_missing_with_why_and_never_stops_the_others(
-        tmp_path, monkeypatch):
-    monkeypatch.setattr(backend.library_files, "cache_folder", lambda: tmp_path / "cache")
-    real = demos.modules()
-    assert "surface_recipes" in real and all(module.ALGORITHM == name for name, module in real.items())
-    fakes = {}
-    for name, (made, _) in DEMO_CASES.items():
-        fakes[name] = type(sys)(name)
-        fakes[name].made = made
-    monkeypatch.setattr(demos, "modules", lambda: fakes)
-    line = demos.run()
-    assert line.startswith(f"library demos: 1 of 5 made into {demos.path()} (not made: "), line
-    assert all(f"{name}: {expected['missing'][:120]}" in line
-               for name, (_, expected) in DEMO_CASES.items() if "missing" in expected), line
-    made = json.loads(demos.path().read_text())
-    assert made == {name: expected for name, (_, expected) in DEMO_CASES.items()}, made
