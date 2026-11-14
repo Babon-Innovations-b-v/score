@@ -73,6 +73,7 @@ Each break (applied once, seen red, reverted), in score/adapters/compute/__init_
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python score/adapters/compute/test_paid_work_starts_only_inside_its_clearance.py
 """
+import contextlib
 import dataclasses
 import datetime
 import json
@@ -147,123 +148,12 @@ BRIEF = graph.Stage("brief", "place", make_brief, TEXT, (checks.Check("said", ju
 RENDER = graph.Stage("render", "place", make_nothing, TEXT, after={"brief": ("toy-text", 1)}, paid=True)
 
 
-def month_spent(euros):
-    """Set the ledger's month to have cost `euros` so far."""
-    BOOKS.entries = lambda: [{"started": BOOKS.this_month(), "euros": euros}]
-
-
-def a_runner(text):
-    """A runner whose brief stage ran once (a passing brief is accepted by the runner then)."""
-    data, store = pathlib.Path(tempfile.mkdtemp()), Store.in_folder(tempfile.mkdtemp())
-    (data / "hangar.txt").write_text(text)
-    runner = graph.Runner([BRIEF, RENDER], graph.Environment("toy", 1, {"data": data}), store)
-    runner.run_node(BRIEF, "hangar")
-    return runner
-
-
 def refused(call):
     try:
         call()
     except compute.Refused as refusal:
         return str(refusal)
     raise AssertionError("taken")
-
-
-def test_a_rent_point_refuses_outside_a_cleared_run_or_the_owners_override(monkeypatch):
-    """Fault (design of 2026-10-11, section 6): blender_cloud.py, detached.py, the runners and demo.py rented with no
-    gate, so a run that skipped the runner could spend. Every rent point now asks require_cleared first. Fault
-    (labval-motor-20261106, 2026-11-06): an override's euros were never held against what was booked under it, so
-    a run with EUR 2.47 left could spend EUR 5; now a run under one clears only while what its lines booked (its
-    open machines to their deadlines) and the run's high plus 10% fit, and a batch under it may spend only what is
-    left less 10% (ledger.batch_cap, the machines' deadline and the cluster's stop), past the EUR 60 batch cap too
-    (#98: MOTOR's 720-trial validation is one run)."""
-    month_spent(0)
-    runner = a_runner("a hall")
-    os.environ.pop(compute.TICKET, None)
-    assert "nothing rents outside a cleared run" in refused(lambda: compute.require_cleared("a batch", runner.store))
-    ticket = runner.ticket("render@hangar")
-    with compute.spending(ticket):  # a key the runner hands out, but never cleared
-        assert os.environ[compute.TICKET] == f"render@hangar {ticket['key']}"
-        assert "did not clear" in refused(lambda: compute.require_cleared("a batch", runner.store))
-    with compute.spending(compute.clearance(runner, "render@hangar", 1.0)):
-        assert compute.require_cleared("a batch", runner.store)["euros"] == 1.0
-        # a rent point told no store (a batch's own process) finds the clearance in the runner's store, a trial's too
-        assert compute.require_cleared("a batch")["euros"] == 1.0
-    assert compute.TICKET not in os.environ and compute.STORE not in os.environ
-    runner.store.write_spend_yes(compute.OVERRIDE, "repaint-six", {"euros": 3.0, "at": graph.now()})
-    with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
-        assert compute.require_cleared("a batch", runner.store)["euros"] == 3.0
-    began = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    BOOKS.entries = lambda: [  # EUR 2 booked, a machine open 30 min at EUR 0.01 a minute, another ticket's EUR 9
-        {"started": began, "ticket": "override repaint-six", "batch": "sim-1", "euros": 2.0},
-        {"started": began, "ticket": "override repaint-six", "kind": BOOKS.RENT_STARTED, "batch": "rent-m1",
-         "run": "sim-2", "name": "m1", "price": 0.01, "deadline": BOOKS.moment(began) + 1800, "euros": 0.0},
-        {"started": began, "ticket": "run-7 surfaces-paint", "batch": "paint", "euros": 9.0}]
-    monkeypatch.setenv(compute.STORE, str(runner.store.cache.parent))
-    with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
-        assert compute.override_room() == {"name": "repaint-six", "euros": 3.0, "spent": 2.3, "left": 0.7}
-        assert compute.require_cleared("a batch", runner.store, high=0.6)["euros"] == 3.0  # 0.66 fits 0.70
-        assert "EUR 0.70 left" in refused(lambda: compute.require_cleared("a batch", runner.store, high=0.65))
-        cap, words = BOOKS.batch_cap()
-        assert round(cap, 4) == round(0.7 / 1.1, 4) and "repaint-six" in words
-        assert round(BOOKS.minutes_allowed(0.01), 1) == 63.6  # its machines' watchdogs delete them at EUR 0.64
-        assert "repaint-six" in BOOKS.refusal(65, 0.01)
-    BOOKS.entries = lambda: [{"started": began, "ticket": "override repaint-six", "batch": "sim-1", "euros": 3.0}]
-    with compute.spending({"node": compute.OVERRIDE, "key": "repaint-six"}):
-        assert "EUR 0.00 left" in refused(lambda: compute.require_cleared("a batch", runner.store))
-        assert BOOKS.minutes_allowed(0.01) == 0.0
-    runner.store.write_spend_yes(compute.OVERRIDE, "whole-validation", {"euros": 330.0, "at": graph.now()})
-    with compute.spending({"node": compute.OVERRIDE, "key": "whole-validation"}):  # one run past the EUR 60 cap
-        assert round(BOOKS.batch_cap()[0], 4) == 300.0
-    assert BOOKS.batch_cap()[0] == BOOKS.BATCH_EUROS  # outside an override the batch cap stands
-    # the env1 cap (the plan of 2026-11-09, B2): the whole bill's counter past the line refuses every rent point, an
-    # override or a grant with euros left is refused while the cap is open, a start whose high (plus 10% and the
-    # standing to the finish) would pass the line is refused, an unread or stale bill refuses (fails closed), and the
-    # stop lines keep their batch project's baseline beside the whole bill
-    book, now, written = guard.FolderBook(os.environ[guard.CAP_BOOK]), time.time(), []
-    monkeypatch.setattr(guard, "running_under_agent", lambda: False)
-
-    def iso(seconds):
-        return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).isoformat()
-
-    def reading(counter, **more):
-        written.append(1)  # each newer than the last, so it is the newest
-        guard.cap_write(book, "readings", {"at": iso(now - 60 + len(written) / 100), "unread": None,
-                                           "counter": counter, "whole": 2500.0, **more})
-    guard.set_cap(book, {"euros": 300.0, "line": 255.0, "start": iso(now - 3600), "by": "joey",
-                         "at": iso(now - 3600), "baseline": {"whole": 2000.0, "lines": {}},
-                         "finish": iso(now + 86400), "standing_per_day": 10.0, "month_cap": 2970.0})
-    try:
-        assert "has no reading" in refused(lambda: compute.clearance(runner, "render@hangar", 1.0))
-        reading(100.0)
-        with compute.spending(compute.clearance(runner, "render@hangar", 1.0)):
-            assert compute.require_cloud("a batch")["euros"] == 1.0
-            reading(256.0)  # a babon-platform SCORE line grew past the cap
-            assert "255.00 stop line" in refused(lambda: compute.require_cloud("a batch"))
-            assert "255.00 stop line" in compute.cap_stop()  # the cluster's poll stops too
-            reading(100.0)
-            with monkeypatch.context() as later:  # no pass for 20 minutes
-                later.setattr(time, "time", lambda: now + 20 * 60)
-                assert "fails closed" in refused(lambda: compute.require_cloud("a batch"))
-            reading(100.0, unread="Unread: no line", good_at=iso(now - 20 * 60))
-            assert "fails closed" in refused(lambda: compute.require_cloud("a batch"))
-            reading(100.0, whole=2970.0)
-            assert "November cap" in refused(lambda: compute.require_cloud("a batch"))
-        reading(200.0)
-        assert "this start's high EUR 50.00" in refused(lambda: compute.clearance(runner, "render@hangar", 50.0))
-        with compute.spending({"node": compute.OVERRIDE, "key": "whole-validation"}):  # euros left, cap open: C10
-            assert "no other paid run" in refused(lambda: compute.require_cloud("a batch"))
-            assert "no other paid run" in compute.cap_stop()
-        monkeypatch.setenv(compute.GRANT, "grant-1")  # a benchmark grant's run with its balance left: C10 too
-        assert "no other paid run" in compute.cap_stop()
-        monkeypatch.delenv(compute.GRANT)
-        assert guard.spent_since(START, {MONTH: {"bill": 150.0, "ledger": 90.0, "google": 0.0, "bill_all": 9e3}}) \
-            == 50.0  # a stop line's spend: its batch project's bill, never the whole bill beside it
-        monkeypatch.setattr(provider, "billing", lambda: types.SimpleNamespace(NAME="plain"))
-        assert compute.cloud_bill_all() == {"bill_all": None, "bill_all_unread": "the plain backend reads no whole bill"}
-    finally:
-        guard.set_cap(book, {**guard.current_cap(book), "open": False, "at": iso(time.time() + 1)})
-    assert compute.cap_refusal(runner.store, 1e6) is None  # a closed cap refuses nothing
 
 
 def run_line(number, euros, minutes):
@@ -344,53 +234,6 @@ def clear_in_a_process(runner, ready, sending):
         sending.send("cleared")
     except compute.Refused:
         sending.send("refused")
-
-
-def test_the_owners_stop_command_writes_the_line_the_next_clearance_reads(monkeypatch):
-    """C22: his money yes and the guard line are one step: `score.review stop` writes the line, and the very next
-    clearance is held to it. Without a terminal, or in an agent's process, it writes nothing. A first line recorded on
-    this PC (SCORE_CLOUD=local, his yes in chat through this_pc.py) starts from the cloud's bill, so the cloud's guard
-    finds exactly its euros of room."""
-    from score.review import __main__ as review_command
-    from score.review import web
-    assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
-    world = "toy-stop"
-    try:
-        review_command.main(["stop", world, "5", "--reason", "films"])  # no terminal here
-        raise AssertionError("written without a terminal")
-    except SystemExit as refusal:
-        assert "own terminal" in str(refusal)
-    store = Store.default()
-    assert guard.current(store, world) is None
-    review_command.owner_at_terminal = lambda: None  # his own terminal
-    try:
-        as_agent(lambda: review_command.main(["stop", world, "5", "--reason", "films"]))
-        raise AssertionError("an agent's process wrote a stop line")
-    except SystemExit as refusal:
-        assert "only the owner" in str(refusal)
-    ledger({"euros": 40.0})
-    BILL["euros"] = 50.0
-    as_owner(lambda: review_command.main(["stop", world, "5", "--reason", "films"]))
-    line = guard.current(store, world)
-    assert line["euros"] == 5.0 and line["baseline"]["bill"] == 50.0 and line["reason"] == "films"
-    data = pathlib.Path(tempfile.mkdtemp())
-    (data / "hangar.txt").write_text("a hall")
-    runner = graph.Runner([BRIEF, RENDER], graph.Environment(world, 1, {"data": data}), store)
-    runner.run_node(BRIEF, "hangar")
-    assert "pass the EUR 5.00 stop" in refused(lambda: compute.clearance(runner, "render@hangar", 6.0))
-    as_owner(lambda: review_command.main(["stop", world, "8", "--reason", "films, raised"]))
-    assert compute.clearance(runner, "render@hangar", 6.0)  # the yes is the line: no one copies it anywhere
-    BILL["euros"] = 0.0
-    scaleway = types.SimpleNamespace(NAME="scaleway", account=lambda: "ours", month_spend=lambda account: 388.73)
-    this_pc = types.SimpleNamespace(NAME="local", account=lambda: "this-pc", month_spend=lambda account: 0.0)
-    monkeypatch.setattr(compute, "cloud_bill", CLOUD_BILL)
-    monkeypatch.setattr(provider, "load", lambda name=None: scaleway)
-    monkeypatch.setattr(provider, "cloud", this_pc)  # the yes recorded on this PC
-    as_owner(lambda: web.stop(store, "toy-stop-pc", 10.0, "his yes in chat", "joey"))
-    monkeypatch.setattr(provider, "cloud", scaleway)  # checked by the cloud's guard
-    pc_runner = graph.Runner([BRIEF, RENDER], graph.Environment("toy-stop-pc", 1, {"data": data}), store)
-    assert compute.stop_room(pc_runner, store, 10.0, {})[1:] == (0.0, None)
-    assert "pass the EUR 10.00 stop" in compute.stop_room(pc_runner, store, 10.01, {})[2]
 
 
 QUESTION = "Approve one benchmark batch, P1, of at most EUR 10?"
@@ -482,7 +325,12 @@ class Near(tuple):
     """An expected number within (value, tolerance), its ends included."""
 
 
+class Rounds(tuple):
+    """An expected number equal to (value, places) once both are rounded to those places."""
+
+
 PRESENT = "a value, not None"  # an expected field that is there and not None
+ANYTHING = "any value at all"  # an expected item whose value this answer does not pin
 
 
 ASLEEP = [sys.executable, "-c", "import time; time.sleep(60)"]
@@ -499,6 +347,11 @@ def a_listing():
         (root / key).write_text("{}")
     (root / "link").symlink_to(root / "real")
     return compute.runtime_store.FolderStore(root)
+
+
+def iso(seconds):
+    """An epoch time as the cap's records write it."""
+    return datetime.datetime.fromtimestamp(seconds, datetime.timezone.utc).isoformat()
 
 
 def books_text():
@@ -532,6 +385,20 @@ PIXAL_THEN = compute.per_unit("pixal")["time"]["then"]  # the repository's per-u
 TODAY = datetime.datetime.now(datetime.timezone.utc).date()
 MONTH_DAYS = [(datetime.date.fromisoformat(f"{MONTH}-01") + datetime.timedelta(days=offset)).isoformat()
               for offset in range((TODAY - datetime.date.fromisoformat(f"{MONTH}-01")).days + 1)]
+BEGAN = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())  # an override's lines' start: this run's
+BOOKED_UNDER_OVERRIDE = [  # EUR 2 booked, a machine open 30 min at EUR 0.01 a minute, another ticket's EUR 9
+    {"started": BEGAN, "ticket": "override repaint-six", "batch": "sim-1", "euros": 2.0},
+    {"started": BEGAN, "ticket": "override repaint-six", "kind": BOOKS.RENT_STARTED, "batch": "rent-m1", "run": "sim-2",
+     "name": "m1", "price": 0.01, "deadline": BOOKS.moment(BEGAN) + 1800, "euros": 0.0},
+    {"started": BEGAN, "ticket": "run-7 surfaces-paint", "batch": "paint", "euros": 9.0}]
+SIX = ("override", "repaint-six")  # a hold under the owner's override of that name
+WHOLE = ("override", "whole-validation")
+CAP_OPEN = {"euros": 300.0, "line": 255.0, "by": "joey", "baseline": {"whole": 2000.0, "lines": {}},
+            "standing_per_day": 10.0, "month_cap": 2970.0}  # the env1 cap (the plan of 2026-11-09, B2)
+STOP = ["--reason", "films"]
+SCALEWAY = types.SimpleNamespace(NAME="scaleway", account=lambda: "ours", month_spend=lambda account: 388.73)
+THIS_PC = types.SimpleNamespace(NAME="local", account=lambda: "this-pc", month_spend=lambda account: 0.0)
+PLAIN = types.SimpleNamespace(NAME="plain")
 
 
 # One row a world: its brief, the owner's stop line (euros, baseline) or none, the ledger's lines, the bill, an
@@ -556,8 +423,20 @@ MONTH_DAYS = [(datetime.date.fromisoformat(f"{MONTH}-01") + datetime.timedelta(d
 #   ("used", run): the grant as the single-use rule left it, used up by `run` on the newest clearance
 #   ("restore", answer, question, expected): compute.restore_grant of the row's grant; the refusal's words or fields
 #   ("rent", store given, expected): a rent point (compute.require_cleared) asked under the newest cleared run, told
-#     the runner's store or none; inside compute.spending while the run is open (its reservation ends with it), else
-#     with only its ticket named; expected is the refusal's words or the found clearance's fields
+#     the runner's store or none; inside the held ticket while one is held, else inside compute.spending while the run
+#     is open (its reservation ends with it), else with only its ticket named, else with no ticket at all; expected is
+#     the refusal's words or the found clearance's fields
+#   ("hold", whose) ... ("let go",): compute.spending held open across the steps between: the newest cleared run's
+#     ticket, a ticket the runner hands out but never cleared ("uncleared"), or ("override", name) the owner's
+#     override with the runner's store named; letting go leaves no ticket and no store named
+#   ("override", name, euros): the owner's override yes; ("ledger", lines): the ledger from now on
+#   ("cap", fields or None): the env1 cap opened at these fields (its start an hour ago, its finish a day on) or
+#     closed; ("cap reading", counter, fields): its watcher's newest reading a minute ago (good_at: seconds from now)
+#   ("command", arguments, who, expected): `score.review stop <world> ...` with no terminal, or at his terminal by an
+#     agent or the owner; expected the words it exits on (nothing written), or the world's line's fields then
+#   ("line", expected): the world's current stop line; ("web stop", euros): the owner's yes in chat recorded on this
+#     PC (the cockpit's stop), checked after by the cloud's guard; ("room", euros, expected): compute.stop_room's
+#     spend and refusal for a job at those euros
 #   ("stop", euros, baseline, who, expected): the owner (or an agent, refused) writes the world's stop line now;
 #     expected the line's fields, the world's current line then
 #   ("price"|"forecast", node, estimate, asked, expected): compute.run_price or compute.run_forecast on the row's
@@ -580,7 +459,8 @@ MONTH_DAYS = [(datetime.date.fromisoformat(f"{MONTH}-01") + datetime.timedelta(d
 #   ("listing", prefix, keys): a folder store's narrowed listing is the whole walk's, and these keys where given
 #   ("answers", call, arguments, expected, given): one judging call at its inputs (RUNNER_AT and STORE_AT filled in
 #     from the row's world), `given` its environment ({name: value, None: unset}) and this month's books written
-#     first; expected its answer as agrees reads it, or Refuses: a refusal with those words, the books untouched
+#     first, `later` seconds past the cap's opening on the clock, `patch` its (object, name, value)s; expected its
+#     answer as agrees reads it, or Refuses: a refusal with those words, the books untouched
 #   ("buy", euros, expected): the Buy's price of render@hangar (score.__main__.selected_price, its plan counting 3
 #     takes); expected its fields
 #   ("reject", node, takes): the owner's reject of the node's accepted output, naming these takes
@@ -998,6 +878,87 @@ ASKS = [
                             ("clear", 9.0, None, None, {"euros": round(0.5 * SHARE, 4)}),
                             ("buy", 9.0, {"high_euros": round(0.5 * SHARE, 4)})]},
                  id="a retake is cleared and priced for its own takes, not every take of its place"),
+    # design of 2026-10-11, section 6: blender_cloud.py, detached.py, the runners and demo.py rented with no gate, so a
+    # run that skipped the runner could spend; every rent point asks require_cleared first. labval-motor-20261106,
+    # 2026-11-06: an override's euros were never held against what was booked under it, so a run with EUR 2.47 left
+    # could spend EUR 5; now a run under one clears only while what its lines booked (its open machines to their
+    # deadlines) and the run's high plus 10% fit, and a batch under it may spend only what is left less 10%
+    # (ledger.batch_cap, the machines' deadline and the cluster's stop), past the EUR 60 batch cap too (#98: MOTOR's
+    # 720-trial validation is one run)
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("rent", True, "nothing rents outside a cleared run"),
+                            ("hold", "uncleared"), ("rent", True, "did not clear"), ("let go",),
+                            ("clear", 1.0, None, None, {"euros": 1.0}),
+                            ("hold", "newest"), ("rent", True, {"euros": 1.0}),
+                            ("rent", False, {"euros": 1.0}), ("let go",),  # a batch's own process names no store
+                            ("override", "repaint-six", 3.0),
+                            ("hold", SIX), ("rent", True, {"euros": 3.0}), ("let go",),
+                            ("ledger", BOOKED_UNDER_OVERRIDE), ("hold", SIX),
+                            ("answers", compute.override_room, (), Exactly(
+                                {"name": "repaint-six", "euros": 3.0, "spent": 2.3, "left": 0.7})),
+                            ("answers", compute.require_cleared, ("a batch", STORE_AT, 0.6), {"euros": 3.0}),  # 0.66
+                            ("answers", compute.require_cleared, ("a batch", STORE_AT, 0.65), Refuses("EUR 0.70 left")),
+                            ("answers", BOOKS.batch_cap, (), [Rounds((0.7 / 1.1, 4)), Says("repaint-six")]),
+                            ("answers", BOOKS.minutes_allowed, (0.01,), Rounds((63.6, 1))),  # deleted at EUR 0.64
+                            ("answers", BOOKS.refusal, (65, 0.01), Says("repaint-six")), ("let go",),
+                            ("ledger", [{"started": BEGAN, "ticket": "override repaint-six", "batch": "sim-1",
+                                         "euros": 3.0}]), ("hold", SIX),
+                            ("answers", compute.require_cleared, ("a batch", STORE_AT), Refuses("EUR 0.00 left")),
+                            ("answers", BOOKS.minutes_allowed, (0.01,), 0.0), ("let go",),
+                            ("override", "whole-validation", 330.0), ("hold", WHOLE),  # one run past the EUR 60 cap
+                            ("answers", BOOKS.batch_cap, (), [Rounds((300.0, 4)), ANYTHING]), ("let go",),
+                            ("answers", BOOKS.batch_cap, (), [BOOKS.BATCH_EUROS, ANYTHING])]},  # outside, it stands
+                 id="a rent point refuses outside a cleared run or the owner's override"),
+    # the env1 cap (the plan of 2026-11-09, B2): the whole bill's counter past the line refuses every rent point, an
+    # override or a grant with euros left is refused while the cap is open, a start whose high (plus 10% and the
+    # standing to the finish) would pass the line is refused, an unread or stale bill refuses (fails closed), and the
+    # stop lines keep their batch project's baseline beside the whole bill
+    pytest.param({"text": "a hall", "ledger": [{"euros": 0.0}],
+                  "steps": [("override", "whole-validation", 330.0), ("cap", CAP_OPEN),
+                            ("clear", 1.0, None, None, "has no reading"),
+                            ("cap reading", 100.0, {}), ("clear", 1.0, None, None, {"euros": 1.0}), ("hold", "newest"),
+                            ("answers", compute.require_cloud, ("a batch",), {"euros": 1.0}),
+                            ("cap reading", 256.0, {}),  # a babon-platform SCORE line grew past the cap
+                            ("answers", compute.require_cloud, ("a batch",), Refuses("255.00 stop line")),
+                            ("answers", compute.cap_stop, (), Says("255.00 stop line")),  # the cluster's poll too
+                            ("cap reading", 100.0, {}),
+                            ("answers", compute.require_cloud, ("a batch",), Refuses("fails closed"),
+                             {"later": 20 * 60}),  # no pass for 20 minutes
+                            ("cap reading", 100.0, {"unread": "Unread: no line", "good_at": -20 * 60}),
+                            ("answers", compute.require_cloud, ("a batch",), Refuses("fails closed")),
+                            ("cap reading", 100.0, {"whole": 2970.0}),
+                            ("answers", compute.require_cloud, ("a batch",), Refuses("November cap")), ("let go",),
+                            ("cap reading", 200.0, {}),
+                            ("clear", 50.0, None, None, "this start's high EUR 50.00"),
+                            ("hold", WHOLE),  # euros left, cap open: C10
+                            ("answers", compute.require_cloud, ("a batch",), Refuses("no other paid run")),
+                            ("answers", compute.cap_stop, (), Says("no other paid run")), ("let go",),
+                            ("answers", compute.cap_stop, (), Says("no other paid run"),  # a grant's run: C10 too
+                             {"env": {compute.GRANT: "grant-1"}}),
+                            ("answers", guard.spent_since, (START, {MONTH: {  # its batch project's bill, not the whole
+                                "bill": 150.0, "ledger": 90.0, "google": 0.0, "bill_all": 9e3}}), 50.0),
+                            ("answers", compute.cloud_bill_all, (), Exactly(
+                                {"bill_all": None, "bill_all_unread": "the plain backend reads no whole bill"}),
+                             {"patch": [(provider, "billing", lambda: PLAIN)]}),
+                            ("cap", None), ("answers", compute.cap_refusal, (STORE_AT, 1e6), None)]},  # closed
+                 id="the env1 cap refuses every rent point past its line or unread"),
+    # C22: his money yes and the guard line are one step: `score.review stop` writes the line, and the very next
+    # clearance is held to it. Without a terminal, or in an agent's process, it writes nothing
+    pytest.param({"text": "a hall", "framework": "toy-stop", "ledger": [{"euros": 40.0}], "bill": 50.0,
+                  "steps": [("command", ["5", *STOP], "no terminal", "own terminal"), ("line", None),
+                            ("command", ["5", *STOP], "agent", "only the owner"), ("line", None),
+                            ("command", ["5", *STOP], "owner", {"euros": 5.0, "baseline": {"bill": 50.0},
+                                                                "reason": "films"}),
+                            ("clear", 6.0, None, None, "pass the EUR 5.00 stop"),
+                            ("command", ["8", "--reason", "films, raised"], "owner", {"euros": 8.0}),
+                            ("clear", 6.0, None, None, {"euros": 6.0})]},  # the yes is the line: no one copies it
+                 id="the owner's stop command writes the line the next clearance reads"),
+    # a first line recorded on this PC (SCORE_CLOUD=local, his yes in chat through this_pc.py) starts from the cloud's
+    # bill, so the cloud's guard finds exactly its euros of room
+    pytest.param({"text": "a hall", "framework": "toy-stop-pc", "ledger": [{"euros": 40.0}],
+                  "steps": [("web stop", 10.0), ("room", 10.0, [0.0, None]),
+                            ("room", 10.01, [0.0, Says("pass the EUR 10.00 stop")])]},
+                 id="a stop line recorded on this PC starts from the cloud's bill"),
 ]
 
 
@@ -1038,6 +999,10 @@ def agrees(found, expected, grant):
                 and all(agrees(item, value, grant) for item, value in zip(found, expected)))
     if expected is PRESENT:
         return found not in (ABSENT, None)
+    if expected is ANYTHING:
+        return True
+    if isinstance(expected, Rounds):
+        return round(found, expected[1]) == round(expected[0], expected[1])
     if isinstance(expected, Says):
         return isinstance(found, str) and expected in found
     if isinstance(expected, Holds):
@@ -1056,7 +1021,7 @@ def agrees(found, expected, grant):
 
 
 @pytest.mark.parametrize("row", ASKS)
-def test_paid_work_starts_only_inside_its_clearance(row):
+def test_paid_work_starts_only_inside_its_clearance(row, monkeypatch):
     """Every paid start asks the runner's clearance: refused (and nothing written) while a prerequisite failed or is
     not accepted, the run has no estimate or measure, its high would pass the world's stop line with what was spent
     since the line and everything in flight (less what it ledgered, open overrides and warm pools too, however many
@@ -1068,7 +1033,9 @@ def test_paid_work_starts_only_inside_its_clearance(row):
     card rule, else a guess at the estimate that names where it is written; a retake's price its own takes alone.
     The run's heartbeat holds its pool longer near its end within the money; a run draws only its own Gemini calls;
     the Google month is the owner's alone and the cockpit's line the bill else his figure; the judge's time limit
-    stays outside every key."""
+    stays outside every key. A rent point refuses outside a cleared run that is still open or the owner's override
+    with room left, and while the env1 cap is past its line, unread or open to another run; the owner's stop command,
+    or his yes recorded on this PC, is the line the next clearance reads."""
     assert SANDBOX["sandbox_refusal"](os.environ) is None, "run in a sandbox home"
     runner = a_world(row)
     if "stop" in row:
@@ -1081,7 +1048,8 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                                                                    "at": graph.now()})
     grant = compute.grant_benchmark("Yes", QUESTION, row["grant"], store=runner.store)["id"] if "grant" in row else None
     home = Store.default() if "trial" in row else runner.store  # the store holding the world's line and reservations
-    tickets, cleared, newest = [], {}, None
+    tickets, cleared, newest, kept_open, held_open = [], {}, None, contextlib.ExitStack(), False
+    cap = {"book": guard.FolderBook(os.environ[guard.CAP_BOOK]), "now": time.time(), "readings": 0, "open": False}
     outputs, kept, kept_books, listing = Outputs(row["outputs"]) if "outputs" in row else None, compute.PER_UNIT, \
         BOOKS.BOOKS, None
     if row.get("fresh_books"):
@@ -1106,7 +1074,13 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                     BOOKS.write_books({"month": MONTH, **given["books"]})
                 saved = {name: os.environ.pop(name, None) for name in given.get("env", {})}
                 os.environ.update({name: value for name, value in given.get("env", {}).items() if value is not None})
+                patched = contextlib.ExitStack()
                 try:
+                    patch = patched.enter_context(monkeypatch.context())
+                    for owner, name, value in given.get("patch", []):
+                        patch.setattr(owner, name, value)
+                    if "later" in given:
+                        patch.setattr(time, "time", lambda: cap["now"] + given["later"])
                     if isinstance(expected, Refuses):
                         kept_text = books_text()
                         said = refused(lambda: call(*filled))
@@ -1115,6 +1089,7 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                         found = call(*filled)
                         assert agrees(found, expected, grant), (step, found)
                 finally:
+                    patched.close()
                     for name, value in saved.items():
                         os.environ.pop(name, None)
                         if value is not None:
@@ -1296,10 +1271,18 @@ def test_paid_work_starts_only_inside_its_clearance(row):
             if step[0] == "rent":
                 _, given, expected = step
                 rent = lambda: compute.require_cleared("a batch", *([runner.store] if given else []))  # noqa: E731
-                if newest in tickets:
+                if held_open or newest is None:  # inside the held ticket, or with no ticket at all
+                    named = None if held_open else os.environ.pop(compute.TICKET, None)
+                    try:
+                        said = rent() if isinstance(expected, dict) else refused(rent)
+                    finally:
+                        if named is not None:
+                            os.environ[compute.TICKET] = named
+                elif newest in tickets:
                     tickets.remove(newest)
                     with compute.spending(newest):
                         said = rent() if isinstance(expected, dict) else refused(rent)
+                    assert compute.TICKET not in os.environ and compute.STORE not in os.environ, step
                 else:
                     os.environ[compute.TICKET] = f"{newest['node']} {newest['key']}"
                     try:
@@ -1310,6 +1293,77 @@ def test_paid_work_starts_only_inside_its_clearance(row):
                     assert all(said[field] == value for field, value in expected.items()), (step, said)
                 else:
                     assert expected in said, (step, said)
+                continue
+            if step[0] == "hold":
+                if step[1] == "newest":
+                    tickets.remove(newest)
+                    kept_open.enter_context(compute.spending(newest))
+                elif step[1] == "uncleared":  # a key the runner hands out, but never cleared
+                    ticket = runner.ticket("render@hangar")
+                    kept_open.enter_context(compute.spending(ticket))
+                    assert os.environ[compute.TICKET] == f"render@hangar {ticket['key']}", step
+                else:
+                    kept_open.enter_context(monkeypatch.context()).setenv(compute.STORE, str(runner.store.cache.parent))
+                    kept_open.enter_context(compute.spending({"node": compute.OVERRIDE, "key": step[1][1]}))
+                held_open = True
+                continue
+            if step[0] == "let go":
+                kept_open.close()
+                held_open = False
+                assert compute.TICKET not in os.environ and compute.STORE not in os.environ, step
+                continue
+            if step[0] == "override":
+                runner.store.write_spend_yes(compute.OVERRIDE, step[1], {"euros": step[2], "at": graph.now()})
+                continue
+            if step[0] == "ledger":
+                ledger(*step[1])
+                continue
+            if step[0] == "cap":
+                monkeypatch.setattr(guard, "running_under_agent", lambda: False)
+                guard.set_cap(cap["book"], {**guard.current_cap(cap["book"]), "open": False, "at": iso(time.time() + 1)}
+                              if step[1] is None else {**step[1], "start": iso(cap["now"] - 3600),
+                                                       "at": iso(cap["now"] - 3600), "finish": iso(cap["now"] + 86400)})
+                cap["open"] = step[1] is not None
+                continue
+            if step[0] == "cap reading":
+                cap["readings"] += 1  # each newer than the last, so it is the newest
+                fields = {**step[2], **({"good_at": iso(cap["now"] + step[2]["good_at"])} if "good_at" in step[2]
+                                        else {})}
+                guard.cap_write(cap["book"], "readings", {"at": iso(cap["now"] - 60 + cap["readings"] / 100),
+                                                          "unread": None, "counter": step[1], "whole": 2500.0,
+                                                          **fields})
+                continue
+            if step[0] == "command":
+                from score.review import __main__ as review_command
+                _, arguments, who, expected = step
+                was = guard.current(home, runner.world.name)
+                stop = lambda: review_command.main(["stop", runner.world.name, *arguments])  # noqa: E731
+                with monkeypatch.context() as at_terminal:
+                    if who != "no terminal":
+                        at_terminal.setattr(review_command, "owner_at_terminal", lambda: None)  # his own terminal
+                    if isinstance(expected, dict):
+                        as_owner(stop)
+                        assert agrees(guard.current(home, runner.world.name), expected, grant), step
+                    else:
+                        with pytest.raises(SystemExit) as refusal:
+                            as_agent(stop) if who == "agent" else stop()
+                        assert expected in str(refusal.value), (step, refusal.value)
+                        assert guard.current(home, runner.world.name) == was, step
+                continue
+            if step[0] == "line":
+                assert agrees(guard.current(home, runner.world.name), step[1], grant), step
+                continue
+            if step[0] == "web stop":
+                from score.review import web
+                monkeypatch.setattr(compute, "cloud_bill", CLOUD_BILL)
+                monkeypatch.setattr(provider, "load", lambda name=None: SCALEWAY)
+                monkeypatch.setattr(provider, "cloud", THIS_PC)  # the yes recorded on this PC
+                as_owner(lambda: web.stop(home, runner.world.name, step[1], "his yes in chat", "joey"))
+                monkeypatch.setattr(provider, "cloud", SCALEWAY)  # checked by the cloud's guard
+                continue
+            if step[0] == "room":
+                found = compute.stop_room(runner, home, step[1], {})[1:]
+                assert agrees(found, step[2], grant), (step, found)
                 continue
             tagged = grant if step[2] == OWN else step[2]
             if step[0] == "extend":
@@ -1389,6 +1443,9 @@ def test_paid_work_starts_only_inside_its_clearance(row):
         if "balance" in row:
             assert compute.grant_balance(runner.store, grant, {}) == row["balance"]
     finally:
+        kept_open.close()
+        if cap["open"]:
+            guard.set_cap(cap["book"], {**guard.current_cap(cap["book"]), "open": False, "at": iso(time.time() + 1)})
         compute.PER_UNIT, BOOKS.BOOKS, google_spend.LEDGER = kept, kept_books, kept_calls
         for ticket in tickets:
             compute.release(ticket)
@@ -1398,13 +1455,10 @@ def test_paid_work_starts_only_inside_its_clearance(row):
 if __name__ == "__main__":
     SANDBOX["refuse_outside_sandbox"]()
     no_cloud_and_books_open(pytest.MonkeyPatch())  # this process only: never undone
-    for name, test in list(globals().items()):
-        if name.startswith("test_"):
-            marks = [mark for mark in getattr(test, "pytestmark", []) if mark.name == "parametrize"]
-            for case in [param.values for param in marks[0].args[1]] if marks else [None]:
-                patch = pytest.MonkeyPatch()  # a test that takes pytest's monkeypatch gets its own, undone after it
-                try:
-                    test(*case) if case else test(*[patch for _ in test.__code__.co_varnames[:test.__code__.co_argcount]])
-                finally:
-                    patch.undo()
-            print("ok", name)
+    for case in ASKS:
+        patch = pytest.MonkeyPatch()  # pytest's monkeypatch for the row, undone after it
+        try:
+            test_paid_work_starts_only_inside_its_clearance(*case.values, patch)
+        finally:
+            patch.undo()
+    print("ok test_paid_work_starts_only_inside_its_clearance")
