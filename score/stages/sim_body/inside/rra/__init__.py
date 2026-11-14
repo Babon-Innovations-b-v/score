@@ -80,14 +80,15 @@ def residuals_kept(physics, states, kept):
     return kept[key]
 
 
-def reduced(physics, path, rate, limits, most, land, fitted, riders):
+def reduced(physics, path, rate, clip_rate, limits, most, land, fitted, riders):
     """OpenSim's residual reduction (RRA: Delp et al. 2007, IEEE TBME 54(11):1940-50, doi:10.1109/TBME.2007.901024;
     opensim-core's RRATool, Apache-2.0) on the fitted path, in our own stack: RRA_ROUNDS times, the model step
     (`reweighed`) on the mean residual, then the pelvis' and trunk's path (`adjusted_leads`) moved so the ground
     explains the movement: one least squares over every frame of the residual (force over `limits[0]`, moment over
     `limits[1]`), the lumbar's moments beyond the fitted path's (over `limits[1]`: `demands`) and the move (over its
-    cap, TRACK its weight: RRA's tracking), the move low-passed by construction (`filter_matrix`), its feet kept where
-    they stood by the legs (`land`: `Footing.footed`), and bounded inside the solve by the owner's per-frame cap
+    cap, TRACK its weight: RRA's tracking), the move low-passed by construction (`filter_matrix`, on `clip_rate`: the
+    clip's own time; `rate` the time it is played at, the dynamics'), its feet kept where they stood by the legs
+    (`land`: `Footing.footed`), and bounded inside the solve by the owner's per-frame cap
     (`cap_rows`: every segment's turn within `most[1]` and the pelvis within `most[0]` of the fitted path, all rounds
     together; `within_balls`), taken only when it lowers that cost as measured (halved up to RRA_HALVINGS times, else
     the rounds end; a path's residuals at the masses as they stand worked out once, `residuals_kept`, and the step's
@@ -99,7 +100,7 @@ def reduced(physics, path, rate, limits, most, land, fitted, riders):
     scale = np.concatenate([np.full(3, limits[0]), np.full(3, limits[1])])
     scale = np.tile(np.concatenate([scale, np.full(width - 6, limits[1])]), count)
     track = np.sqrt(TRACK) / np.tile([most[0]] * 3 + [most[1]] * (width - 3), count)
-    smooth = np.kron(filter_matrix(count, rate), np.eye(width))
+    smooth = np.kron(filter_matrix(count, clip_rate), np.eye(width))
     total, current, recommended = np.zeros(count * width), path, []
     home = model.body_ipos[body_index(model, "torso")].copy()
     made = (model.body_mass.copy(), model.body_inertia.copy())

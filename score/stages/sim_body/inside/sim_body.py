@@ -4,7 +4,9 @@ copy of the scene's ground (#65).
 
     <env>/bin/python score/stages/sim_body/inside/sim_body.py <job.json> <out.json>
 
-job.json (written by score/stages/sim_body): {"rate", "gravity", "model" (the fetched model's folder), "residual"
+job.json (written by score/stages/sim_body): {"rate" (the frames a second the clip is played at), "clip rate" (the
+frames a second it was made at: the path's low-passes run on the clip's own time), "gravity", "model" (the fetched
+model's folder), "residual"
 ({"force", "moment"}: the limits' shares of the weight, and of it times the centre's height), "adjust" ({"move most
 m", "turn most deg", "follows deg"}: RRA's caps; optional "feet kept", default true: false skips `Footing`, RRA's move
 of the pelvis and trunk taken as it is, the legs as the fit stands them: an experiment, #98), optional "eased start"
@@ -29,8 +31,13 @@ here moves, scales or grounds SOMA.
   once per SOMA body); then the person's file is written again with the found constants and every frame's pose
   fitted on it, the constants held. MyoFullBody's root follows the markers on SOMA's skin; nothing is grounded. How closely the path follows SOMA
   (each joint's mm, each group's degrees, split at a range limit or not) is the model record's `fit`.
-- The fitted path carried onto Newton's model by joint name and low-passed at CUTOFF (Winter's 6 Hz, zero lag)
-  before it is differentiated; velocities and accelerations its central differences.
+- The fitted path carried onto Newton's model by joint name and low-passed at CUTOFF (Winter's 6 Hz, zero lag) of
+  the clip's own time (the job's "clip rate"), before it is differentiated; velocities and accelerations its central
+  differences at the rate it is played at. A clip played slower under a weaker pull (the stage's `slowing`) is the same
+  movement at its frequencies over the slowing (dynamic similarity), so its low-passes (the path's, the toes', RRA's
+  move and shares) take the same frames as on Earth: at 6 Hz of the played time camp's walker on Mars (18.48 frames a
+  second) kept 6 to 9.7 Hz of its clip's movement and shook 4.23 degrees a frame cubed against its clip's 2.13
+  (2026-11-14).
 - OpenSim's residual reduction (RRA: Delp et al. 2007, doi:10.1109/TBME.2007.901024; opensim-core's RRATool,
   Apache-2.0), in our own stack (`reduced`): RRA_ROUNDS times, the body's mass changed by the mean upward residual and
   the torso's centre of mass moved under the mean residual moment (RRATool::adjustCOMToReduceResiduals), then the
@@ -268,11 +275,11 @@ def run_person(job, person, out_path):
     physics = Physics(model, ground, None, parts_of(model, bodies))
     # MOTOR's path is smooth already: its jerk is the chain's low-pass (`motor.jerk_weights`)
     qpath = (np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)]) if job.get("motor")
-             else filtered(model, physics.couplings, carried(own, model, angles), job["rate"]))
+             else filtered(model, physics.couplings, carried(own, model, angles), job["clip rate"]))
     # the toes bent as SOMA's rise, after the low-pass (MOTOR's path is its own)
     qpath = fit.toes_bent(model, qpath, rig, segments, worlds,
                           [(foot, toe, bodies[toe]) for foot, toe in FEET_SIDES if foot in segments and toe in segments],
-                          job["rate"])
+                          job["clip rate"])
     fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     skin = skin_of(rig, segments, bodies, riding, fitted_poses, worlds, ground)
     physics.skin = credited(physics, skin, qpath, targets["stance"] if "stance" in targets.files else None, bodies)
@@ -327,7 +334,8 @@ def run_person(job, person, out_path):
         return footed
 
     riders = (segments, bodies, riding, parents)
-    adjusted, moves, step = reduced(physics, qpath, job["rate"], limits, most, land, fitted_poses, riders)
+    adjusted, moves, step = reduced(physics, qpath, job["rate"], job["clip rate"], limits, most, land, fitted_poses,
+                                    riders)
     seconds["RRA, rounds"] = time.perf_counter() - since - seconds.get("footing", 0.0)
     footed_before = seconds.get("footing", 0.0)
     since = said(person["name"], "RRA's rounds", since)
@@ -337,7 +345,7 @@ def run_person(job, person, out_path):
     own_model = mujoco.MjModel.from_xml_path(str(path))  # MuJoCo's own compile: its meshes and muscle names
     # its bones measured on MuJoCo's own compile (Newton is given no meshes); its qpos is Newton's in the same order
     skins = fit.FrameSkins(own_model, rig, segments, worlds)
-    adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["rate"],
+    adjusted, shares = within_frames(physics, qpath, kept * moves, land, fitted_poses, riders, most, job["clip rate"],
                                      skins)
     seconds["RRA, follows and frame caps"] = (time.perf_counter() - since
                                               - (seconds.get("footing", 0.0) - footed_before))

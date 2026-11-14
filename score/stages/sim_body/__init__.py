@@ -26,7 +26,8 @@ on the scene's own ground (CONTEXT.md "sim body"), for a place whose design show
              the gravity of the body the scene
              stands on, physics/design.py ground, its clip played that pull's `slowing` slower than it was made, at
              the Earth walk's Froude number, as the drawn person plays it; sim_bodies.json `rate` the frames a second
-             it is played at): the model's joint angles fitted to the clip's segment turns and its
+             it is played at, the job's `clip rate` RATE, the one its path is low-passed on): the model's joint angles
+             fitted to the clip's segment turns and its
              skin's bony landmarks (one solver: mink per frame, scipy's least_squares over the constants), the
              forces that movement needs, shared between the ground's contacts and the muscles (activations and
              forces, static optimisation), what neither can give left over as the pelvis' residual and the joints'
@@ -240,7 +241,8 @@ def make(inputs, out, seed, params):
     contacts = contacts_of(inputs[CLIPS_ROW], clips_rig)  # Kimodo's own foot contacts, its motions' (person_rig)
     body, gravity = gravity_of(place, inputs)
     solids = solids_of(inputs, place)
-    job, records, left_out = {"rate": RATE / slowing(gravity), "gravity": gravity, "people": []}, {}, []
+    job, records, left_out = {"rate": RATE / slowing(gravity), "clip rate": RATE, "gravity": gravity,
+                               "people": []}, {}, []
     (out / "clips").mkdir(parents=True)
     builds, clips = {}, {}
     scene = scene_clips_of(inputs)

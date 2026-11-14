@@ -99,6 +99,9 @@ into its one test, every break below seen red on it again):
 - its clip played at the Earth walk's Froude number under its place's pull, 2026-11-14 (camp's astronaut on Mars at
   Earth's pace, Froude 0.53 against 0.20, needing a friction ratio of 0.82): make's `RATE / slowing(gravity)` made
   `RATE`, or slowing's root dropped (g over Earth's, not its root), or its ratio turned over.
+- its path low-passed on its clip's own time, 2026-11-14 (camp's walker on Mars at 6 Hz of the played 18.48 frames a
+  second shook 4.23 degrees a frame cubed against its clip's 2.13): make's job `"clip rate": RATE` made
+  `RATE / slowing(gravity)`.
 - no run, no body: make's `if job["people"]:` made `if True:` (a cast with no singles runs; 2026-11-13).
 - its gates on the written runs: judge_on_floor's `> SUNK_MOST` made `> 1.0`; judge_lands'
   `> LANDED` made `> 1.0`; landings' `push >= CONTACT * weight` made `push >= 0`; judge_carries'
@@ -703,6 +706,7 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
         assert job["model"] == str(model) and job["adjust"]["follows deg"] == sim_body.FOLLOWED
         assert job["residual"]["force"] == 0.02
         assert job["rate"] == pytest.approx(30.0 * (1.62 / 9.82) ** 0.5)  # the Moon's walk 2.46 times slower
+        assert job["clip rate"] == 30.0  # its low-passes on the clip's own time, the same frames as on Earth
         for person in job["people"]:
             assert person["segments"] == ["Hips", "LeftFoot"] and "standing" not in person  # the static table (#70)
             assert targets[person["name"]]["points"] == pytest.approx(rig["points"])  # the mesh the sizing reads
