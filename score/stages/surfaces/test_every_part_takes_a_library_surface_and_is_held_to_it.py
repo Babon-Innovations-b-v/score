@@ -114,30 +114,40 @@ tests it turned red:
 - place_line.py: `CLASSES = "gpu-24gb"` -> `CLASSES = "gpu-24gb,gpu-48gb"`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its RENTED rows)
 - library_reads.py: `for name in entry["variants"]] if bakes else []` -> `for name in entry["variants"]]`  ->
-  a_surface_added_anywhere_moves_no_paint_key_and_every_bake_key
+  every_part_takes_a_library_surface_and_is_held_to_it (its KEY_MOVES "a surface variant added anywhere" row)
 - library_reads.py: `"details": {kind: details.get(kind) for kind in kind_names}}` -> `"details": {}}`  ->
-  a_kinds_details_move_the_paint_key_and_place_json_keys_neither
+  every_part_takes_a_library_surface_and_is_held_to_it (its KEY_MOVES "kind's details" row)
 - library_reads.py: `"library": (wide["library"], library_part(kinds(record), bakes)),` -> `"library": wide["library"],`
-  -> the_paint_and_bake_rows_and_their_twins_key_the_library_by_part
-- library_reads.py: `if why:` -> `if False:`  -> a_bake_model_with_no_written_entry_is_declared_missing_by_name
+  -> every_part_takes_a_library_surface_and_is_held_to_it (its LIBRARY_BY_PART rows)
+- library_reads.py: `if why:` -> `if False:`  -> every_part_takes_a_library_surface_and_is_held_to_it (a bake model
+  with no written entry declared missing by name)
 - carry.py: `if record.get("uncommitted", True) or not record.get("commit"):` -> `if not record.get("commit"):`  ->
-  a_record_from_an_uncommitted_tree_or_a_changed_code_without_proof_never_carries
+  every_part_takes_a_library_surface_and_is_held_to_it (its WHY_NOT rows)
+- carry.py standing: `if record is None: return None, f"its accepted output` -> `if False:` (why_not read off a None
+  record)  -> every_part_takes_a_library_surface_and_is_held_to_it (an accepted output with no record in this store)
 - carry.py: `if not str(proof.get("no-ops", {}).get(name, "")).strip()]` -> `if False]`  ->
-  a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions
-- carry.py: `str(folder), commit],` -> `str(folder), "HEAD"],`  -> a_proof_speaks_from_the_code_rows_had_at_its_commit
-- props/same_content.py: `return PROPS_HOME.joinpath(*parts[index + 1:])` -> `return path`  -> a closeup whose
-  props-inputs moved by path text alone is not kept: a_proof_carries_only_when_it_names_every_changed_file_for_these_
-  code_versions (content_keeps_only_the_same_pictures)
-- props/same_content.py: `return files[name]` -> `return str(path)`  -> one whose picture really changed is kept: the
-  same test; or its `if not files.get(name): raise` dropped (a record with no hash read by today's bytes on disk)
-- carry.py: `if contents[0] != contents[1]:` -> `if False:`  -> the same test
-- rough_model/same_content.py: `"floor": plan["floor"], ` dropped  -> a plan with another floor keeps rough-align:
-  a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions (a_plan_redrawn_on_the_same_floor_
-  keeps_the_rough_align); carry.py `if any(record.get(part) != keyed.get(part) for part in CONTENT_SAME):` -> `if
-  False:`  -> a key whose seed moved carries: the same test
-- people/same_content.py: `entry["model"] = in_output(entry["model"])` -> `pass`  -> a look's parts whose people-made
-  moved by its model path alone is not kept: the same test (a_look_s_parts_keep_a_people_made_moved_by_its_model_
-  path_alone); carry.py `CONTENT_SAME = (...)` -> `()`  -> a key whose params moved carries: the same test
+  every_part_takes_a_library_surface_and_is_held_to_it (its PROOFS rows)
+- carry.py: `str(folder), commit],` -> `str(folder), "HEAD"],`  -> every_part_takes_a_library_surface_and_is_held_to_it
+  (codes_at at 548ab076 and its parent)
+- props/same_content.py: `return PROPS_HOME.joinpath(*parts[index + 1:])` -> `return path`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT closeup moved by path text alone)
+- props/same_content.py: `return files[name]` -> `return str(path)` (a closeup whose picture really changed kept), or
+  its `if not files.get(name): raise` dropped (a record with no hash read by today's bytes on disk)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT closeup rows)
+- carry.py: `if contents[0] != contents[1]:` -> `if False:`  -> every_part_takes_a_library_surface_and_is_held_to_it
+  (its CONTENT_KEPT rows whose content differs); carry.py changes_by_content `return None, None, why` ->
+  `return None, {}, why`  -> the same (a content proof, even an empty one, given beside a why)
+- rough_model/same_content.py: `"floor": plan["floor"], ` dropped  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT "a plan with another floor" row); carry.py
+  `if any(record.get(part) != keyed.get(part) for part in CONTENT_SAME):` -> `if False:`  -> the same (its "seed
+  moved too" row)
+- people/same_content.py: `entry["model"] = in_output(entry["model"])` -> `pass`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT people-made moved by its model path alone);
+  carry.py `CONTENT_SAME = (...)` -> `()`  -> the same (its "params moved too" row)
+- score/graph/__init__.py Runner.same_earlier: `return hasattr(stage.files, "same_earlier") and
+  stage.files.same_earlier(self, stage, place, record, keyed)` -> `return True`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its CONTENT_KEPT rows: a row with no content rule held only
+  while its earlier outputs stand)
 - finish_parts.py: `found[reached] = face_label[source[reached]]` -> `found[reached] = 0`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its shared sphere's walked faces)
 - finish_parts.py: `host = np.flatnonzero(hosts & (face_label == finish))` -> `host = np.flatnonzero(hosts)`  ->
@@ -166,7 +176,7 @@ tests it turned red:
   -> `own = finish.get("colour")`  -> every_part_takes_a_library_surface_and_is_held_to_it (its OUT_OF_ORDER "moved off
   its listed surface" row)
 - finish_ask.py: `if error.code not in REFUSED: raise` -> `if False: raise`  ->
-  an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again
+  every_part_takes_a_library_surface_and_is_held_to_it (its GENERATED rows asked again)
 - finish_parts.py: `if nearest_apart <= COLOUR_DELTA_E:` -> `if False:`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its CHECKED and MEANING rows)
 - finish_parts.py: `if not reordered(lighter, darker, every, lightness, wide) and wide:` -> `if not reordered(lighter,
@@ -202,30 +212,38 @@ tests it turned red:
   take`  -> every_part_takes_a_library_surface_and_is_held_to_it (its VIEWS_JUDGED rows)
 - route_list.py: `return (level, cause) if level in levels and cause else (None, None)` -> `return (level, cause) if
   level in levels else (None, None)`  ->
-  one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish
+  every_part_takes_a_library_surface_and_is_held_to_it (its LISTED batch of two takes)
 - route_split.py: `if found["unassigned"] > UNASSIGNED_MOST:` -> `if False:`, and apart -> `if found["unassigned"]
   > 0:` (no tolerance) and -> `if found["unassigned"] > 2 * UNASSIGNED_MOST:` (loosened past the measure)  ->
-  an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view
+  every_part_takes_a_library_surface_and_is_held_to_it (its SPLIT_SHARES rows and the LISTED row leaving the blue box
+  out)
 - route_split.py: `own = np.where((votes.sum(1) > 0) & ~tied, votes.argmax(1), -1)` -> `own = np.where(votes.sum(1) >
   0, votes.argmax(1), -1)`; and, apart, `votes[seen, label[seen]] += square * (` -> `votes[seen, label[seen]] += 1.0 * (`
-  -> an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view
-- route_split.py `split_take`: the old colour check put back, a fault when a labelled region's sRGB lies over
-  150 from its finish's token colour (`fault = split_fault(found) or next(...)`)  ->
-  the_split_decides_by_the_labels_alone
+  -> every_part_takes_a_library_surface_and_is_held_to_it (its SPLIT_VOTES and SQUARED rows)
+- route_split.py `split_take`: `count = len(listed["finishes"])` -> `count = len({entry["settings"]["token"] for entry
+  in listed["finishes"]})` (the finishes counted by their colour, not their labels)  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the blue box listed in red)
 - route_views.py `laid_close_up`: `if fit < cast.CLOSE_UP_FIT:` -> `if True:` (no close-up ever laid)  ->
   a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part (2026-10-29)
 - route_views.py: `centres = merged_centres(every, fine_centres(every, seed))` -> `centres = kmeans2(every,
-  REGIONS, seed=seed, minit="++")[0]`  -> a_small_colour_far_from_the_rest_keeps_a_region_of_its_own
+  REGIONS, seed=seed, minit="++")[0]`  -> every_part_takes_a_library_surface_and_is_held_to_it (its red among
+  greys and rust)
 - route_views.py: `every_faces[CLOSE_UP], every_colours[CLOSE_UP] = laid` -> `pass`  ->
   a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part
 - route_split.py: `return close_up_only(votes, per_map)` -> `return votes`  ->
   a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part
 - route_list.py: `failing.append(f"{take}: no finish list" + (f" ({asked['unanswered'][take]})"` ->
   `failing.append(f"{take}: no finish list" + ("" if True else f" ({asked['unanswered'][take]})"`  ->
-  a_take_with_no_usable_answer_is_a_gap_named_by_the_list
+  every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the batch that ended)
+- route_list.py: `answers.update(followed_up(answers, bodies, ...))` dropped, and apart, followed_up `<
+  first[take][1]:` -> `<= first[take][1]:`  -> every_part_takes_a_library_surface_and_is_held_to_it (its LISTED
+  rows asked once more)
 - route_parts.py: `np.save(folders["out"] / "parts.npy", part_of.astype(np.int32))` -> `np.save(folders["out"] /
   "parts.npy", part_of[:1].astype(np.int32))`  ->
-  the_parts_row_writes_the_methods_interface_each_finish_checked_against_its_colour
+  every_part_takes_a_library_surface_and_is_held_to_it (its parted LISTED rows)
+- route_parts.py `finish_colours`: `if fit >= cast.CLOSE_UP_FIT:` -> `if False:` (the views' light-baked texture
+  read, never the close-up)  -> every_part_takes_a_library_surface_and_is_held_to_it (its LISTED row of the shaded
+  texture)
 - route_parts.py: `and not lamps.on_stem({"size": built.get("size")})` -> `and True`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (its LIT_TAKES and LIT rows); so does `zip(checked, lit if
   any(lit) else [True] * len(checked))` -> `zip(checked, [True] * len(checked))` (the light bar's metal end caps
@@ -237,21 +255,21 @@ tests it turned red:
   `gathered(made_of(out, take), out / "made")` -> `pass`  -> a_take_s_bake_job_moves_only_with_its_own_take,
   the_bake_paints_and_bakes_each_take_in_one_card_job_with_the_lists_settings_and_the_paint_takes_it_over
 - route_bake.py: in stood_square `if turned < made:` -> `if False:`, or `if CLOSEUP in inputs:` -> `if False:`; or
-  in card_job drop `**{CLOSEUP: str(path) for path in closeup}`  -> a_pixal_take_is_turned_only_when_its_turn_outlines_
-  its_close_up_at_least_as_well
+  in card_job drop `**{CLOSEUP: str(path) for path in closeup}`  -> every_part_takes_a_library_surface_and_is_held_to_it
+  (its STAND_SQUARE close-up rows and the card job's listing)
 - take_outline.py: `* 1.05` -> `* 1.2` in `silhouette`; or `ndimage.binary_fill_holes(labels == largest)` -> `labels
   == largest` in `cut`; or in `look_down`, `closeup_check().look_down(size)` -> `15.0`; or in `look_downs`,
   `[stated, shown_look_down(target, size)] if` -> `[stated] if`  ->
-  the_bake_s_outline_is_the_likeness_gate_s
+  every_part_takes_a_library_surface_and_is_held_to_it (its OUTLINE_SIZES rows)
 - route_bake.py: laid_shell's `if key != "route"` -> `if True`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (the claimed rack row; laid_shell)
 - route_bake.py: own_parts' `return folder` -> `return short["parts"]`; or `dict(job_head(data, short, {take:
   records[take]}),` -> `dict(job_head(data, short, records),`; or card_job's `for name, path in world.items()}` ->
   `for name, path in short.items()}`  -> a_take_s_bake_job_moves_only_with_its_own_take
 - route_check.py: `library.by_library = lambda name: {**palette_library.specs(palette), **baked}` -> `library.by_library
-  = lambda name: {**palette_library.specs(palette)}`  -> the_check_holds_each_surface_against_the_spec_the_bake_baked
+  = lambda name: {**palette_library.specs(palette)}`  -> every_part_takes_a_library_surface_and_is_held_to_it (the spec the bake baked)
 - route_recheck.py: `**({"colour": tokens[settings["token"]]} if settings.get("token") in tokens else {}),` deleted  ->
-  the_recheck_words_a_finish_in_the_token_it_is_drawn_and_baked_in
+  every_part_takes_a_library_surface_and_is_held_to_it (its WORDED rows)
 - route_recheck.py: `wrong = failed(finishes, answers)` -> `wrong = []`  ->
   the_recheck_sorts_one_answer_into_pass_or_a_gap_and_its_fitting_suggestion_is_picked
 - route_recheck.py: `if faults: found[take] = {"colour_faults"` -> `if False: found[take] = {"colour_faults"`  ->
@@ -283,15 +301,16 @@ tests it turned red:
 - palette_library.py: `"stair": ("stairs", "stair", "steps", "ramp", "floor")}` -> `"stair": ("stairs", "stair",
   "steps", "ramp")}`  -> every_part_takes_a_library_surface_and_is_held_to_it (its SHELL_PARTS rows)
 - route_ask.py: `compute.require_cleared(f"a Gemini batch ({caller})")` deleted  ->
-  paid_asks_refuse_outside_a_cleared_run
+  every_part_takes_a_library_surface_and_is_held_to_it (its ASKED row of an uncached ask)
 - route_ask.py: `if not all(google_spend.cache_path(finish_ask.LIST_MODEL, body).exists() for body in bodies.values()):`
-  -> `if True:`  -> paid_asks_refuse_outside_a_cleared_run
+  -> `if True:`  -> every_part_takes_a_library_surface_and_is_held_to_it (its ASKED rows the cache answers whole)
 - route_ask.py: `google_spend.cache_path(finish_ask.LIST_MODEL, body).unlink(missing_ok=True)` -> `pass`  ->
-  an_answer_that_does_not_parse_is_a_gap_dropped_from_the_cache
+  every_part_takes_a_library_surface_and_is_held_to_it (its ASKED row that does not parse)
 - __init__.py: `route_data.shape_files, selects=True),` -> `route_data.shape_files),`  ->
-  the_object_filter_keys_only_a_selecting_row
+  every_part_takes_a_library_surface_and_is_held_to_it (the object filter)
 - __init__.py: `after=reads("finish-route-palette", scene_library.ROW, "surfaces-bake", "surfaces-paint",` ->
-  `after=reads(scene_library.ROW, "surfaces-bake", "surfaces-paint",`  -> the_route_is_the_default_line
+  `after=reads(scene_library.ROW, "surfaces-bake", "surfaces-paint",`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (the rows' waits)
 - bake_job.py: `if inline is None: raise NoEntry` -> `if inline is None: return {"name": model} raise NoEntry`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: the model the data writes no entry for)
 - bake_job.py: `return TURNS[min(TURNS, key=misfit)]` -> `return TURNS[0]`  ->
@@ -300,9 +319,19 @@ tests it turned red:
   `np.min(` -> `np.max(` (fit_within: past its row), or refitted's `if fits else entry` -> `if False else entry`  ->
   every_part_takes_a_library_surface_and_is_held_to_it (BAKE_ENTRIES: the tunnel, the hanging row, the stool; REFITS; fit_within)
 - route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`, or tumble.py: `return f"its design lays it
-  lying ({said})"` -> `return None`  -> a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose
+  lying ({said})"` -> `return None`  -> every_part_takes_a_library_surface_and_is_held_to_it (its STAND_SQUARE rows)
 - bake_check.py: `and record["square"]["loose"] > tumble.LOOSE]` -> `and False]`  ->
-  the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lying_one_out
+  every_part_takes_a_library_surface_and_is_held_to_it (its `stands square` verdict)
+- tumble.py: `if built:` -> `if False:`, or route_bake.py `rules, rows, built)` -> `rules, rows)`; or tumble.py
+  `square_turn`: `if order[1] == up or not keep_up)` -> `if True)`  -> every_part_takes_a_library_surface_and_is_held_to_it (its STAND_SQUARE rows: a code
+  build, the L desk)
+- tumble.py `hangs`: `return f"anchored {anchor}"` -> `return None`; or `NO_UP = ("ground debris", "cable")` ->
+  `NO_UP = ("ground debris",)`; or `person`: `return row.get("route") == PEOPLE` -> `return False`; or bake_check.py
+  `keeps_pose_of`: `or (entry.get("stood") or {}).get("kept")` dropped  -> every_part_takes_a_library_surface_and_is_held_to_it (its KEEPS_POSE
+  rows, the lamp's STAND_SQUARE row, the undone valves)
+- route_bake.py `squared_again`: `elif turned:` -> `elif False:`; or `square = not (...) and (not turned or degrees
+  <= tumble.DEGREES)` -> `square = not (degrees > tumble.DEGREES and loose > tumble.LOOSE)`; or `elif measured <
+  SQUARE_ROUNDS:` -> `elif False:`  -> every_part_takes_a_library_surface_and_is_held_to_it (its SQUARE_AGAIN rows)
 - route_bake.py: `opening = min(span, float(recess["wide"]) + room * (1.0 if room_side else 2.0))` -> `opening =
   min(span, float(recess["wide"]))`  -> a_swinging_door_at_full_open_touches_nothing_in_its_recess
 - route_bake.py: `depth = min(float(recess["depth"]), 2 * half - RECESS_BACK)` -> `depth = 2 * half + RECESS_OUT` (a
@@ -418,6 +447,7 @@ from trimesh.visual.material import PBRMaterial
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
 from score import checks, graph, stages  # noqa: E402
+from score.adapters import compute  # noqa: E402
 from score.review import setting as settings  # noqa: E402
 from score.stages import shapes_first, surfaces  # noqa: E402
 from score.stages.surfaces import (bake_check, body_faces, carry, check_seen, claude_asks, finish_ask, finish_parts,  # noqa: E402
@@ -431,6 +461,7 @@ from score.store import PROPS_HOME, Store, text_hash  # noqa: E402
 import score.stages.props.prop_data as prop_data  # noqa: E402
 
 import bake_job  # noqa: E402  (place_line puts its folder and tools/props/library on the path)
+import tumble  # noqa: E402
 import baked_colour  # noqa: E402  (as route_paint imports it)
 import library  # noqa: E402
 import patchy  # noqa: E402  (on the path finish_parts gives)
@@ -699,6 +730,56 @@ JUDGED = {
 }
 
 
+
+def refused(code):
+    """An HTTP refusal Google answers with `code`."""
+    return urllib.error.HTTPError("url", code, "refused", {}, io.BytesIO())
+
+
+# finish_ask.generated over the faults Google answers in turn before "answered": (case, the faults, what reaches the
+# row (None for the answer), the asks made); `room` is called before every one
+GENERATED = [
+    ("a timeout reaches the row at once", (TimeoutError("The read operation timed out"),), TimeoutError, 1),
+    ("rate and full service refusals are asked again", (refused(429), refused(503)), None, 3),
+    ("failing and gateway refusals are asked again (audit, 2026-10-22: these stopped the row)",
+     (refused(500), refused(504)), None, 3),
+    ("a bad request reaches the row asked once", (refused(400),), urllib.error.HTTPError, 1),
+    ("refused every time is no answer", (refused(429), refused(503), refused(429)), finish_ask.NoAnswer,
+     finish_ask.REFUSED_ASKS),
+    ("a lost connection is no answer", (urllib.error.URLError(ConnectionRefusedError(111, "refused")),),
+     finish_ask.NoAnswer, 1),
+]
+
+
+def answered(text):
+    """A Gemini response whose one part is `text`."""
+    return {"candidates": [{"content": {"parts": [{"text": text}]}, "finishReason": "STOP"}]}
+
+
+# route_ask.asked over one batch of bodies ({"ask": name}) outside a cleared run, the cache holding `cached`'s
+# responses: (case, cached, the bodies asked, what it answers (an exception raised, or {name: text, or the Unanswered
+# class}), the bodies whose answer stays cached, the keys google_batch was sent)
+ASKED = [
+    ("an uncached ask outside a cleared run is refused before any batch is sent", {"cached": answered("{}")},
+     ("cached", "uncached"), compute.Refused, {"cached"}, []),
+    ("a batch the cache answers whole runs with no clearance and no key (fault, 2026-10-29: body-face-earth refused "
+     "in a free-only run although the cache held its answer)", {"cached": answered("{}")}, ("cached",),
+     {"cached": "{}"}, {"cached"}, [None]),
+    ("an answer that does not parse is a gap dropped from the cache (fault, 2026-10-25, surface-library@camp: a "
+     "malformed answer kept, every later try read it back)",
+     {"broken": answered('{"surfaces": [{,}]}'), "good": answered('{"surfaces": []}')}, ("broken", "good"),
+     {"broken": route_ask.google_batch.Unanswered, "good": '{"surfaces": []}'}, {"good"}, [None]),
+]
+
+# route_recheck.finish_lines on a glass-brown finish of suit_patches (red by default): (case, its settings, words its
+# line holds, words it lacks); astronaut-made-s1 (2026-10-22): glass-brown patches were worded red
+WORDED = [
+    ("a finish worded in the token it is drawn and baked in", {"token": "glass-brown", "roughness": 0.9, "metal": 0.0},
+     ("roughness 0.90",), ("drawn red",)),
+    ("a finish with no settings worded in its surface's colour", None, ("drawn red",), ()),
+]
+
+
 def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     """Every baked part is held to its library surface and its take's close-up: the finishes' labels give the
     close-up colours, the bake check's gate (check_seen.judge_lit, the surfaces-check row's) judges one checks.json of
@@ -724,7 +805,18 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     a place without data blocks before anything is spent, one with nothing to paint has no rows, and a method change
     moves only the rows that read the library. A take that stands on the floor by its rows (its own place's, the
     claiming place's, a designed place's hand-in) has its short legs, its sloping base and its resting face brought
-    level before its bake, a leg past the band refused and judged a missing leg, and its baked model held to stand."""
+    level before its bake, a leg past the band refused and judged a missing leg, and its baked model held to stand.
+    The list asks every take in one batch (a lost answer a gap the list names), and once more a take whose answer
+    lists a finish it labels no region with; the split gives each face one finish by the labels alone, the one the
+    views that see it most squarely give, unassigned area over its tolerance a gap; a small colour far from the rest
+    keeps a region of its own; and a finish is held against its close-up's colour, never the light-baked texture.
+    The paint and bake rows key the library by part (a variant added anywhere moves every bake, a kind's details the
+    paint); an accepted output carries only from a committed tree, its code change proved a no-op file by changed
+    file at the code its commit had, or over earlier outputs that hand its row the same content by its content rule.
+    A rolled take is stood square before it is laid, unless one guard list (by row kind, anchor and words) or its
+    code keeps the pose it was made in, or its Pixal3D close-up outlines its made pose better; the bake measures each
+    copy again as baked and undoes a turn that cannot square it; `stands square` fails a tumbled bake by name with
+    its angle and leaves a kept one out; the bake's outline is the likeness gate's."""
     for case, parts, stands in PROPOSED:  # the paint takes each part's method surface, its proposal to the registry
         store = a_store()
         found = surfaces.place_line.method_surfaces("power_unit-r3", "old_station", [
@@ -763,6 +855,28 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     # finish route's check is bake_check's against the bake's specs (route_check.py), through check_seen.py
     assert inspect.unwrap(ROWS["surfaces-check"].make) is check_seen.make_check
     assert abs(bake_check.noticed([50, 0, 0], [55.155, 0, 0], 10.0) - 1.0) < 0.01, "ND(50) of L* at 6 degrees"
+    # route_check holds each surface against the spec the bake baked, the library's own surfaces kept, at the scene
+    # palette's wear, dirt and dirt colour (nothing of place.json's); a surface with its own wear is measured at it,
+    # the others at the place's
+    seen = {}
+    with tempfile.TemporaryDirectory() as temporary, pytest.MonkeyPatch.context() as held:
+        bake = pathlib.Path(temporary)
+        (bake / "specs.json").write_text(json.dumps({"painted_panel__sign_red_r100_m000": {"colour": [1, 0, 0]}}))
+        for name in ("by_library", "resolved", "wear_of"):  # the check sets these for the scene; put back after
+            held.setattr(library, name, getattr(library, name))
+        held.setattr(route_check.bake_check, "check_model", route_check.bake_check.check_model)
+        held.setattr(route_check.bake_check, "check_step", lambda inputs, out: seen.update(
+            library=library.by_library("cockpit"), resolved=library.resolved("cockpit"), wear=library.wear_of("cockpit")))
+        route_check.check_step({"bake": bake, "finish-route-palette": paletted(bake),
+                                "surface-library": libraried(bake)}, bake)
+    assert seen["library"]["painted_panel__sign_red_r100_m000"] == {"colour": [1, 0, 0]}, seen["library"]
+    assert "painted_panel" in seen["library"] and seen["wear"] == (0.4, 0.3) and seen["resolved"] == {}, seen
+    assert seen["library"]["painted_panel"]["dirt_colour"] == library.token_colours({"tokens": TOKENS})["regolith"]
+    checked = route_check.own_wear_checked(
+        lambda name, entry, labelled, made, materials, dirt=0.0, wear=0.0: {
+            "surfaces": {surface: {"wear": wear} for surface in materials}})(
+        "m", {}, None, None, {"a": {}, "b": {"wear": 0.8}}, 0.2, 0.4)
+    assert checked["surfaces"] == {"a": {"wear": 0.4}, "b": {"wear": 0.8}}, checked
     desk = [{"model": "models/hub_kit/comms_1.gltf", "at": [2.0, 0.0, 0.0], "yaw": 90.0,
              "children": [{"model": "models/hub_kit/headset_1.gltf", "at": [1.0, 0.5, 0.0]}]}]
     spots = list(bake_check.object_spots(desk, {"headset_1": {"size": [0.2, 0.2, 0.1]}}))
@@ -935,17 +1049,23 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     # anything is listed (owner, 2026-10-21); the parts row made through recheck_picks.make_parts (parts_kept.make_parts
     # on the picked list) from the free picks row that selects just before it; the bake painting the method's interface
     # at the scene palette's wear and dirt; the paint reading the bake's painted takes
+    # (the route the default line, its paid rows the palette, library, list, bake and recheck, none reading
+    # data/definitions/place.json: a scene's palette comes from its design)
     names = [row.name for row in stages.STAGES]
-    assert {stage.name for stage in surfaces.ROWS} >= {
+    assert [stage.name for stage in surfaces.ROWS] == [
         "finish-route-palette", "surface-library", "finish-route-views", "finish-route-list", "finish-route-split",
-        "surfaces-parts", "surfaces-paint", "surfaces-bake", "finish-route-recheck", "surfaces-check"} and all(
+        "surfaces-parts", "surfaces-bake", "surfaces-paint", "finish-route-recheck", "surfaces-check"] and all(
         stage.name in ROWS and stage.grain == "place" and (stage.euros or not stage.paid) for stage in surfaces.ROWS)
+    assert [stage.name for stage in surfaces.ROWS if stage.paid] == [
+        "finish-route-palette", "surface-library", "finish-route-list", "surfaces-bake", "finish-route-recheck"]
+    assert not [stage.name for stage in surfaces.ROWS
+                if "places" in (stage.files("cockpit") if callable(stage.files) else stage.files)]
     for row, waits, exactly in (
             ("surface-library", {"finish-route-palette"}, True),
-            ("finish-route-list", {"surface-library"}, False),
-            ("surfaces-parts", {"surface-library", recheck_picks.ROW}, False),
-            ("finish-route-recheck", {"surface-library"}, False),
-            ("surfaces-check", {"surface-library"}, False),
+            ("finish-route-list", {"finish-route-palette", "surface-library"}, False),
+            ("surfaces-parts", {"finish-route-palette", "surface-library", recheck_picks.ROW}, False),
+            ("finish-route-recheck", {"finish-route-palette", "surface-library"}, False),
+            ("surfaces-check", {"finish-route-palette", "surface-library"}, False),
             ("surfaces-bake", {"finish-route-palette", "surface-library", "surfaces-parts"}, True),
             ("surfaces-paint", {"surfaces-bake"}, True)):
         assert (set(ROWS[row].after) == waits) if exactly else (waits <= set(ROWS[row].after)), (row, ROWS[row].after)
@@ -1020,10 +1140,25 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         materials["wear_levels"]["scarred"] = 1.0
         (data / "library" / "materials.json").write_text(json.dumps(materials))
         assert runner.file_keys(runner.stages["finish-route-palette"], "greenhouse") != before["finish-route-palette"]
+        # the object filter keys only a selecting row: the views take it, sorted, and no take's model file; the paint
+        # never
+        views = runner.stages["finish-route-views"]
+        assert runner.params_of(views) == {}, runner.params_of(views)
+        runner.objects = frozenset({"b", "a"})
+        assert runner.params_of(views) == {"objects": ["a", "b"]} and runner.params_of(
+            runner.stages["surfaces-paint"]) == {}
+        assert not any(name.startswith("model ") for name in runner.files_of(views, "greenhouse"))
     finally:
         surfaces.data.FOLDER = kept_folder
         shutil.rmtree(data)
         shutil.rmtree(home)
+    # world one's default line runs the route at a place, and none of the rows it replaced
+    line = [graph.node_name(*node) for node in graph.Runner(stages.STAGES, stages.world1(), a_store()).line_nodes(
+        ["cockpit"], False)]
+    assert all(f"{row.name}@cockpit" in line for row in surfaces.ROWS), line
+    assert not [name for name in line if name.split("@")[0] in (
+        "surfaces-inputs", "surfaces-turntable", "surfaces-lists", "surfaces-maps", "surfaces-names",
+        "surfaces-segvigen", "finish-route-fill")], line
     reply = json.dumps({"finishes": [{"parts": "foil", "finish": "gold foil", "surface": "M1", "fits": True},
                                      {"parts": "legs", "finish": "steel", "surface": "M2", "fits": True}]})
     assert [entry["surface"] for entry in finish_ask.parsed_list(reply, {"mli_gold": {}, "bare_steel": {}})] == [
@@ -1248,6 +1383,58 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
             told = again["cockpit"]["contents"][0]["parts"][-1]["text"]
             assert "soot-grime" in told and "cannot be used" in told and "worn" in told, (case, told)
     assert bodies == asked_as  # the first body kept as it was asked
+    # an ask's answer (finish_ask.generated, GENERATED): a refusal is asked again, at most REFUSED_ASKS times in all,
+    # the room checked before every send; anything else reaches the row, a lost connection as no answer
+    sys.path.insert(0, str(REPO / "tools/cloud"))
+    import google_spend
+    with pytest.MonkeyPatch.context() as asking:  # Google's faked answers end with this block
+        asking.setattr(finish_ask, "REFUSED_WAIT", 0)
+        for case, faults, raised, asks in GENERATED:
+            tiers, rooms = [], []
+
+            def answer(model, body, key, timeout, caller, cache, faults=faults, tiers=tiers):
+                tiers.append(body.get("serviceTier"))
+                if len(tiers) <= len(faults):
+                    raise faults[len(tiers) - 1]
+                return "answered"
+            asking.setattr(google_spend, "generate", answer)
+            with pytest.raises(raised) if raised else contextlib.nullcontext():
+                found = finish_ask.generated(finish_ask.LIST_MODEL, {"serviceTier": "flex"}, "key", 1, "test", False,
+                                             room=lambda rooms=rooms: rooms.append(1))
+                assert found == "answered", (case, found)
+            assert tiers == ["flex"] * asks and len(rooms) == asks, (case, tiers, rooms)
+        # a batch's answers (route_ask.asked, ASKED), outside a cleared run: Gemini is sent a batch (and the key read)
+        # only when the cache cannot answer it whole and the run is cleared; an answer that does not parse is a gap
+        real, sent = route_ask.google_batch.generate, []
+        asking.delenv(compute.TICKET, raising=False)
+        asking.setattr(route_ask.finish_ask, "secret_key", lambda: "key")
+        asking.setattr(route_ask.google_batch, "generate",
+                       lambda model, batch, key, caller: sent.append(key) or (
+                           real(model, batch, key, caller) if key is None else {}))  # only the cache, never Google
+        for case, cached, names, expected, kept, sent_keys in ASKED:
+            sent.clear()
+            batch = {name: {"ask": name} for name in names}
+            for name, response in cached.items():
+                route_ask.google_spend.keep(route_ask.google_spend.cache_path(finish_ask.LIST_MODEL, batch[name]),
+                                            response)
+            if isinstance(expected, type):
+                with pytest.raises(expected):
+                    route_ask.asked(batch, "test")
+            else:
+                found = route_ask.asked(batch, "test")
+                assert found.keys() == expected.keys() and all(
+                    isinstance(found[name], want) if isinstance(want, type) else found[name] == want
+                    for name, want in expected.items()), (case, found)
+            assert {name for name in names if route_ask.google_spend.cache_path(
+                finish_ask.LIST_MODEL, batch[name]).exists()} == kept, case
+            assert sent == sent_keys, (case, sent)
+    # the recheck's question words each finish in the token it is drawn and baked in (WORDED)
+    for case, given, holds, lacks in WORDED:
+        line = route_recheck.finish_lines(
+            [{"finish": "brown fabric", "parts": "patches", "surface": "suit_patches", "settings": given}],
+            {"suit_patches": {"family": "fabric", "colour": [1.0, 0.0, 0.0]}},
+            {"glass-brown": [0.31855, 0.13287, 0.0331]})
+        assert all(words in line for words in holds) and not any(words in line for words in lacks), (case, line)
     import base_level  # by its bare name, as the bake's card runs it
     import feet  # as the paint reads its feet
     import feet_stand  # by its bare name, as the table sets it on the row
@@ -1502,11 +1689,11 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
     assert uv_layout.faults(thin, one_surface=True) == uv_layout.faults({**thin, "thin": 0.0}), thin
     assert uv_layout.faults({**thin, "overlap": 0.05}, one_surface=True) == uv_layout.faults(
         {**thin, "thin": 0.0, "overlap": 0.05}), thin
-    split = squares(laid_square(0.1, 0.1, 0.5, 0.5))
-    split["positions"] = np.concatenate([split["positions"], split["positions"][[0, 2]]])
-    split["uvs"] = np.concatenate([split["uvs"], split["uvs"][[0, 2]]])
-    split["triangles"][1] = [4, 5, 3]
-    assert np.allclose(uv_layout.measure(split, [(1024, 1024)])["width"], 256.0)
+    cornered = squares(laid_square(0.1, 0.1, 0.5, 0.5))
+    cornered["positions"] = np.concatenate([cornered["positions"], cornered["positions"][[0, 2]]])
+    cornered["uvs"] = np.concatenate([cornered["uvs"], cornered["uvs"][[0, 2]]])
+    cornered["triangles"][1] = [4, 5, 3]
+    assert np.allclose(uv_layout.measure(cornered, [(1024, 1024)])["width"], 256.0)
     # The bake's own measure (inside/layout_fit.py) is the check's; each NEXT_STEPS layout takes its next step; the
     # faces a fold lays on one texel are the ones projected again (the two overlapping squares, not the third).
     fits = {case: layout_fit.measured(*(squares(*layouts[case])[part] for part in ("positions", "uvs", "triangles")),
@@ -1680,6 +1867,329 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it(monkeypatch):
         assert index < based or (~seen[hit]).any(), view  # each added view sees faces no chosen view saw
         seen[hit] = True
     assert seen.all(), "views added until every face is seen"
+    # k-means once spent its eight regions on a texture's greys (greenhouse desk, 2026-10-29): a grey ramp, a ramp of
+    # rust and 40 red pixels, and under every seed the red keeps a region of its own, the greys and the rust the rest
+    greys = np.repeat(np.linspace(50, 210, 20000)[:, None], 3, axis=1)
+    rust = np.stack([np.linspace(90, 170, 3000), np.linspace(70, 120, 3000), np.linspace(50, 80, 3000)], axis=1)
+    pixels = np.concatenate([greys, rust, np.tile([[200, 30, 30]], (40, 1))]).astype(np.uint8)
+    red = route_cast.lab_of(np.array([[200, 30, 30]]))[0]
+    for seed in range(7, 12):
+        centres, per_pixel = route_views.colour_regions({"front": pixels.reshape(1, -1, 3)},
+                                                        {"front": np.zeros((1, len(pixels)), dtype=int)}, seed)
+        assert len(centres) <= route_views.REGIONS and np.linalg.norm(centres - red, axis=1).min() < 5, (seed, centres)
+        assert len(np.unique(per_pixel["front"][0, -40:])) == 1  # one region holds the red, and only the red
+        assert not np.isin(per_pixel["front"][0, :-40], per_pixel["front"][0, -40:]).any(), seed
+    # the list, split and parts rows on the two boxes, each world's batches faked (LISTED)
+    worlds = {}
+    for case, (colours, answer, again, takes, laid), (asks, used, again_words), list_judged, split_judged, parts in \
+            LISTED:
+        folder = pathlib.Path(tempfile.mkdtemp())
+        with monkeypatch.context() as tinted:
+            tinted.setattr(sys.modules[__name__], "RED", colours[0])
+            tinted.setattr(sys.modules[__name__], "BLUE", colours[1])
+            rows, asked = worlds[case] = listed(folder, answer, takes, again)
+            assert len(asked) == asks and all(sorted(batch) == sorted(takes) for batch in asked[:1]), (case, asked)
+            assert again_words is None or again_words in asked[1][TAKE]["contents"][0]["parts"][-1]["text"], case
+            written = rows["finish-route-list"] / f"{TAKE}.json"
+            assert written.exists() == (used is not None), case
+            if used is not None:
+                labels = json.loads(written.read_text())["labels"]
+                assert {finish for regions in labels.values() for finish in regions.values()} == used, (case, labels)
+            verdict = route_list.judge_list(rows["finish-route-list"], rows, {})
+            assert verdict.answer == list_judged[0], (case, verdict)
+            assert list_judged[1] is None or list(verdict.findings) == [list_judged[1]], (case, verdict)
+            if split_judged is None:
+                continue
+            if laid:
+                rows = {**rows, **close_up_of(folder, rows[f"model {TAKE}"])}
+            rows = split(folder, rows)
+            worlds[case] = rows, asked
+            answer_was, finding, counts = split_judged
+            verdict = route_split.judge_split(rows["finish-route-split"], rows, {})
+            assert verdict.answer == answer_was and (finding is None or finding in verdict.findings[0]), (case, verdict)
+            record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
+            if counts is None:
+                assert record["fault"] and not (rows["finish-route-split"] / TAKE).exists(), (case, record)
+                continue
+            assert record["fault"] is None and record["unassigned"] == record["disagree"] == 0, (case, record)
+            finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy")
+            faces = np.load(rows["finish-route-views"] / TAKE / "faces.npz")["front"]
+            seen_colours = np.load(rows["finish-route-views"] / TAKE / "colours.npz")["front"]
+            reds = np.unique(faces[(faces >= 0) & (seen_colours == colours[0]).all(-1)])
+            assert set(finish_of[reds]) == {0} and sorted(np.bincount(finish_of)) == counts, (case, finish_of)
+            if parts is None:
+                continue
+            by, kept, texture_off, fault_count, fault_words = parts
+            rows = parted(folder, rows)
+            found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())
+            record = found["takes"][TAKE]
+            assert record["method"] == "finish-route" and found["left_out"] == {}, (case, found)
+            assert {row["words"] for row in record["parts"]} == {"red paint", "blue paint"}, (case, record["parts"])
+            assert [finish["by"] for finish in record["finishes"]] == by, (case, record["finishes"])
+            assert all(record["finishes"][index]["surface"] == surface for index, surface in kept.items()), case
+            assert all(finish["measured_lab"] is not None for finish in record["finishes"]), (case, record)
+            assert all(finish["delta_e"] <= finish_parts.COLOUR_DELTA_E for finish in record["finishes"]
+                       if finish["by"] == "the list"), (case, record["finishes"])
+            assert record["colour_from"].startswith("close-up") == laid, (case, record["colour_from"])
+            assert len(np.load(rows["surfaces-parts"] / TAKE / "parts.npy")) == 24, case
+            assert surfaces.finish_parts.parts_faults(rows["surfaces-parts"]) == [], case
+            assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass", case
+            textured = route_parts.seen_colours(rows["finish-route-views"] / TAKE, finish_of.astype(int), 2)
+            assert all(np.linalg.norm(colour - finish_parts.library_lab(finish)) > finish_parts.COLOUR_DELTA_E
+                       for colour, finish in zip(textured, record["finishes"])) == texture_off, (case, textured)
+            if fault_count is not None:
+                faults = close_up_judged(folder, record["finishes"])
+                assert len(faults) == fault_count and all(fault_words in fault for fault in faults), (case, faults)
+    # one batch asks every take, library first, each object its own seed, the list's wear taken only with a cause
+    rows, asked = worlds["every finish labels its region, two takes in one batch"]
+    body = asked[0][TAKE]
+    count = len(json.loads((rows["finish-route-views"] / "views.json").read_text())[TAKE]["views"])
+    assert "serviceTier" not in body and len(body["contents"][0]["parts"]) == 2 * count + 2  # close-up, views, text
+    found = json.loads((rows["finish-route-list"] / f"{TAKE}.json").read_text())
+    seed = route_list.take_seed(7, TAKE)
+    assert seed != route_list.take_seed(7, OTHER)  # each object's wear and dirt pattern its own
+    assert found["finishes"][0]["settings"] == {"token": "sign-red", "roughness": 1.0, "metal": 0.0, "seed": seed}
+    assert found["finishes"][1]["settings"]["wear"] == 0.8 and found["finishes"][1]["settings"]["seed"] == seed + 1
+    assert found["finishes"][1]["wear_cause"] == "walked path" and found["finishes"][0]["wear_level"] is None
+    # the ask offers the whole library filtered by the scene palette's tokens, and its wear
+    question = body["contents"][0]["parts"][-1]["text"]
+    offered = body["generationConfig"]["responseSchema"]["properties"]["finishes"]["items"]["properties"]
+    palette = route_list.palette_library.read(rows)
+    assert offered["token"]["enum"] == [token for token in route_list.palette_library.library_tokens(palette)
+                                         if token in PALETTE["tokens"]], offered["token"]
+    assert len(offered["surface"]["enum"]) == len(route_list.palette_library.take_surfaces(
+        {"kind": "two_boxes"}, palette)) and "Wear is the scene's level (worked)" in question
+    assert "token tarp" not in question and "token sign-red" in question
+    own = json.loads((rows["finish-route-list"] / "questions.json").read_text())["own_wear"]
+    assert len(own) == 2 and "worn (walked path" in own[0], own
+    assert (worlds["the two boxes' batch ended: a gap named by the list"][0]["finish-route-list"]
+            / f"{OTHER}.json").exists()  # the other take of the batch listed
+    # a face takes the finish the views that see it most squarely give, a tie the finish round it (SPLIT_VOTES); views
+    # disagreeing are recorded, never a gap, and unassigned area up to route_split.UNASSIGNED_MOST walks (SPLIT_SHARES)
+    mesh = trimesh.creation.icosphere(subdivisions=3)
+    apart = {"right": np.zeros(len(mesh.faces), dtype=int), "top": np.ones(len(mesh.faces), dtype=int)}
+    votes = route_split.squared_votes(mesh, apart, route_split.cast.BASE, 2)
+    for case, axis, view in SQUARED:
+        assert (votes[np.abs(mesh.face_normals[:, axis]) > 0.9].argmax(1) == view).all(), case
+    found = route_split.shares(mesh, apart, route_split.finish_parts.voted(apart, 2))
+    assert found["disagree"] == 1.0 and route_split.split_fault(found) is None, found  # recorded, no gap
+    for case, shares, fault in SPLIT_SHARES:
+        judged = route_split.split_fault(shares)
+        assert judged is None if fault is None else fault in judged, (case, judged)
+    patch = np.linalg.norm(mesh.triangles_center - (0, 0, 1), axis=1) < 0.4
+    assert mesh.area_faces[patch].sum() / mesh.area > 0.02  # over a stray's size, so only the tie decides it
+    for case, picked, patched, finish in SPLIT_VOTES:
+        voted = np.zeros((len(mesh.faces), 2))
+        voted[:, 1] = 1.0  # finish 1 everywhere, so a tie read by argmax alone (finish 0) shows
+        chosen = patch if picked == "patch" else np.arange(len(mesh.faces)) == 7
+        voted[chosen] = patched
+        assert (route_split.voted_finishes(mesh, voted, 2)[1][chosen] == finish).all(), case
+    # the keys the paint and bake rows take from the library, edit after edit to a copy of it
+    hub_data(monkeypatch)
+    data = a_copy()
+    try:
+        before = {row: keys(row, "hub", data) for row in ("surfaces-paint", "surfaces-bake")}
+        for case, name, change, moves in KEY_MOVES:
+            edit(data / "library" / name, change)
+            now = {row: keys(row, "hub", data) for row in before}
+            for row, moved in moves.items():
+                assert (now[row] != before[row]) is moved, (case, row)
+            before = now
+    finally:
+        shutil.rmtree(data)
+    for row, place, by_part in LIBRARY_BY_PART:
+        files = ROWS[row].files(place)
+        assert isinstance(files["library"], tuple) is by_part and "places" not in files, (row, place)
+        wide = getattr(ROWS[row].files, "wide", None) if by_part else True  # the parts read the library whole
+        assert wide(place) if callable(wide) else wide, (row, place)
+    # a bake row's model its data writes no entry for is a file that is never there, naming it; one written is none
+    refused = library_reads.bake_refusals({"bake": {"models": {"bench_1": "bench-t1", "lost_1": "lost-t1"},
+                                                    "entries": {"bench_1": {"size": [2.0, 0.9, 0.5]}}}},
+                                          {"surfaces": "{home}/design/surfaces/hub.json"})
+    assert list(refused) == ["bake entry lost_1"] and "no entry for lost_1" in refused["bake entry lost_1"], refused
+    # the carry: an accepted record carries only from a committed tree, its code change proved a no-op for these
+    # code versions, file by changed file; one whose record this store lacks is named, never read off None
+    paint = ROWS["surfaces-paint"]
+    for case, changes, why in WHY_NOT:
+        assert carry.why_not(StubRunner(), paint, "hub", a_record(**changes), {}) == why, case
+    orphan = StubRunner()
+    orphan.store.accepted = lambda node: "a" * 64
+    orphan.store.records = lambda node: []
+    assert carry.standing(orphan, paint, "hub", {}) == \
+        (None, f"its accepted output {'a' * 12} has no record in this store")
+    record = a_record()
+    changed = carry.changed_files(paint, record["commit"])
+    assert changed
+    (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
+    folder = pathlib.Path(tempfile.mkdtemp(prefix="carry-proof-", dir=PROPS_HOME / "work"))
+    try:
+        full = {"made with code": "old code", "code now": carry.wide_code(paint),
+                "no-ops": {name: "its change leaves the parts and surfaces as they were" for name in changed},
+                "free rows": {}}
+        for case, written, fault in PROOFS:
+            (folder / "proof.json").write_text(json.dumps(written(full, changed)))
+            assert carry.proof_fault(StubRunner(folder / "proof.json"), paint, record) == (
+                fault and fault.format(changed=", ".join(changed))), case
+    finally:
+        shutil.rmtree(folder)
+    # an accepted output kept over a key moved by an earlier output of the same content, by its row's content rule
+    (PROPS_HOME / PICTURE).parent.mkdir(parents=True, exist_ok=True)
+    (PROPS_HOME / PICTURE).write_bytes(b"the concept")
+    try:
+        for case, name, now_given, moved, differs, carries in CONTENT_KEPT:
+            runner, row, record, keyed, now, foreseen = content_world(name, now_given, moved)
+            place, part, read, node_read, _, _, rule = READS[name]
+            node, why_text = graph.node_name(row, place), differs and differs.format(now=now[:12], home=PROPS_HOME)
+            found, content, why = carry.changes_by_content(runner, row, place, keyed)
+            assert why == why_text, (case, why)
+            assert found == ((record, CHANGED) if differs is None else None), (case, found)
+            assert differs is None or content is None, (case, content)
+            hooked = carries is not None
+            assert graph.Runner.same_earlier(runner, row, place, record, keyed) is (hooked and differs is None), case
+            assert graph.Runner.same_earlier(runner, ROWS["surfaces-paint"], place, record, keyed) is False, case
+            assert graph.Runner.same_earlier(runner, row, place, record, record) is True, case  # nothing moved
+            if hooked:
+                assert row.files.carries(runner, row, place, keyed) is carries, case
+            if foreseen is not None:  # rebuy, foreseeing that remake, keeps it alike
+                runner.foreseen = {node_read: foreseen}
+                assert row.files.same_reads(runner, row, place, [node_read]) is (differs is None), case
+            if differs is not None or (hooked and not carries):
+                continue
+            assert content == {read: {"from": record[part][read], "to": now, "rule": rule}}, (case, content)
+            kept = row.files.carried(runner, row, place, keyed) if hooked else carry.kept_by_content(
+                runner, row, place, keyed, record, "no-op-n", {"no-ops": {CHANGED[0]: "reads the same pictures"},
+                                                               "same content": content})
+            assert runner.store.record(node, keyed["key"]) == kept and kept["output"] == record["output"], case
+            assert kept[part] == keyed[part] and kept["carried"]["same content"] == content, (case, kept)
+    finally:
+        shutil.rmtree(PROPS_HOME / PICTURE.rpartition("/")[0])
+    # codes_at works the rows' code out at a commit: 548ab076 changed place_line.py alone (and its test), so the
+    # paint's code moved from its parent and the parts' did not (a record carries only when made from the code at the
+    # proof's commit); the two checkouts worked out side by side, each importing its whole stage table (about 3 s)
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(2) as pool:
+        before, after = pool.map(carry.codes_at, ("548ab076^", "548ab076"))
+    assert before["surfaces-paint"] != after["surfaces-paint"]
+    assert before["surfaces-parts"] == after["surfaces-parts"]
+
+    # A take stands square before it is laid (STAND_SQUARE), kept in the pose it was made in by one guard list (KEEPS_POSE),
+    # its Pixal3D close-up deciding by outline, measured again as baked (SQUARE_AGAIN), and the check fails a tumbled
+    # bake by name; the bake's outline is the likeness gate's. Each row's laid take is measured as check_step measures
+    # a baked model (its `square` and `keeps_pose`), and `stands square` judges them all.
+    import take_outline
+    world = a_folder()
+    bed_take = a_turned_take(world / "bed_square", rolled(40))
+    bed_square = np.array(route_bake.stood_square({"bed_1": {"base": IDENTITY, "size": [2.0, 1.0, 0.6]}}, bed_take,
+                                                  "bed_take", a_pose_world(world / "bed_world", BED))["bed_1"]["base"])
+    closeups, baked = {}, {}
+    for index, (case, row, model, take, roll, size, row_size, built, close_up, expected) in enumerate(STAND_SQUARE):
+        labelled = a_turned_take(world / f"take{index}", rolled(roll), size=size)
+        inputs = a_pose_world(world / f"place{index}", row)
+        entry = {"base": IDENTITY, "size": row_size}
+        if close_up is not None:
+            points, triangles = route_bake.labelled_mesh(labelled)
+            pose = np.eye(3) if close_up == "made" else bed_square.reshape(3, 3)
+            mask = take_outline.silhouette(route_bake.fitted(points @ pose.T, row_size), triangles, 0, 15.0)
+            middle = np.argwhere(mask).mean(axis=0).astype(int)
+            mask[middle[0] - 4:middle[0] + 4, middle[1] - 4:middle[1] + 4] = False  # a hole the cut fills
+            assert not mask[:4, :4].any()
+            mask[:4, :4] = True  # a speck the cut drops
+            inputs[route_bake.CLOSEUP] = closeups[close_up] = a_closeup(world / f"closeup{index}.png", mask)
+        stood = route_bake.stood_square({model: entry}, labelled, take, inputs, built=built)
+        stood = stood[model]
+        kind, why = expected[0], (stood.get("stood") or {}).get("kept")
+        laid = route_bake.labelled_points(labelled) @ np.array(stood["base"]).reshape(3, 3).T
+        baked[f"{model} ({index})"] = {"square": dict(zip(("degrees", "loose"), tumble.measure(laid))),
+                                       "keeps_pose": bake_check.keeps_pose_of(model, {"parts": take, **stood}, [row],
+                                                                              inputs)}
+        if kind == "square":
+            assert tumble.measure(laid)[0] < 1.0 and np.allclose(np.ptp(laid, axis=0), expected[1], atol=0.02), (
+                case, np.ptp(laid, axis=0))
+            assert expected[2] is None or stood["stood"]["degrees"] > expected[2], (case, stood)
+        elif kind in ("kept", "kept from"):
+            assert stood["base"] == IDENTITY and (why == expected[1] if kind == "kept" else
+                                                  why.startswith(expected[1])), (case, stood)
+            left_out = bake_check.keeps_pose_of(model, {"parts": take, "stood": stood["stood"]}, [row], inputs)
+            assert left_out.startswith(expected[1]), (case, left_out)
+        elif kind == "same":
+            assert stood == entry, (case, stood)
+        else:
+            outline = stood["stood"]["outline"]
+            if kind == "outline kept":
+                assert stood["base"] == IDENTITY and outline["made"] > outline["turned"], (case, stood)
+                assert why == (f"turned square its outline against its close-up was {outline['turned']}, under its "
+                               f"made pose's {outline['made']}: kept as made"), (case, stood)
+            else:
+                assert np.array(stood["base"]).tolist() == bed_square.tolist() and why is None, (case, stood)
+                assert outline["turned"] >= outline["made"], (case, stood)
+    rules = tumble.rules_of({"stance rules": REPO / "data/checks/stance.json",
+                             "resting rules": REPO / "data/checks/resting.json"})
+    for case, row, rows, expected in KEEPS_POSE:
+        why = tumble.keeps_pose(row, rules, rows) if rows else tumble.keeps_pose(row, rules)
+        assert (why is None if expected is None else bool(why) if expected is True else
+                why == expected[1] if expected[0] == "is" else why.startswith(expected[1])), (case, why)
+    # a model whose bake undid its own turn is left out by its `stood` alone, with no row of its own
+    undone = {"parts": "valves_take", "stood": {"kept": "its turn left it 12.35 degrees off its frame as baked: kept "
+                                                        "as made"}}
+    assert bake_check.keeps_pose_of("pipe_valves_1", undone, [], a_pose_world(world / "valves", {})).startswith(
+        "its turn left it 12.35"), undone
+    # the Pixal3D close-up reaches the bake's card job listing
+    files = [world / name for name in ("records.json", "claimed.json", "head.json")]
+    files[2].write_text(json.dumps({"models": ["bed_1"]}))
+    pixal = world / "home/work/pixal"
+    (pixal / "bed_take.svviews").mkdir(parents=True)
+    a_closeup(pixal / "bed_take.svviews/input.png", np.ones((4, 4), bool))
+    with monkeypatch.context() as home:
+        home.setattr(route_bake.prop_env, "PROPS_HOME", world / "home")
+        job = json.loads(route_bake.card_job({"parts": world, "inventory here": world / "bed_world/handin.json"},
+                                             world, "bed_take", (*files, world)).read_text())
+    listing = json.loads(pathlib.Path(job["args"][0]).read_text())
+    assert listing[route_bake.CLOSEUP] == str(pixal / "bed_take.svviews/input.png") in job["inputs"], listing
+    degrees, loose = tumble.measure(UNSTEADY)
+    assert degrees > tumble.DEGREES and loose < tumble.LOOSE, (degrees, loose)
+    for case, entries, copies, measured, again_expected, after in SQUARE_AGAIN:
+        measured = route_bake.SQUARE_ROUNDS if measured == "last" else measured
+        found, again = route_bake.squared_again(copy.deepcopy(entries), copies, measured)
+        assert again == again_expected, (case, again)
+        for name, (base, kept) in after.items():
+            turn = np.array(found[name]["base"]).reshape(3, 3)
+            if base == "square":
+                assert tumble.measure(copies[name] @ turn.T)[0] < 1.0, (case, name, found)
+                assert found[name]["stood"]["made"] == IDENTITY, (case, found)
+                assert found[name]["stood"]["baked"] == [list(tumble.measure(copies[name]))], (case, found)
+                # its copy baked again as turned: square, so done, its turn kept
+                done, again = route_bake.squared_again(found, {name: copies[name] @ turn.T}, measured + 1)
+                assert again == [] and done[name]["base"] == found[name]["base"], (case, done)
+                assert "kept" not in done[name]["stood"], (case, done)
+            else:
+                assert found[name]["base"] == (IDENTITY if base == "made" else entries[name]["base"]), (case, found)
+            assert kept is None or found[name]["stood"]["kept"] == kept.format(degrees=degrees), (case, found)
+    # `stands square` fails a baked model more than tumble.DEGREES off its frame (its frame box over tumble.LOOSE times
+    # its own) by name with its angle (#36: base's module baked 32 degrees off and passed every gate); the rows above
+    # stand square or keep their pose, a row whose design keeps its pose left out, said why
+    (world / "square").mkdir()
+    (world / "square/checks.json").write_text(json.dumps({
+        "module_1": {"square": {"degrees": 32.06, "loose": 1.742}}, **baked}))
+    found = bake_check.judge_square(world / "square", {}, None)
+    kept = sorted(name for name, (*_, expected) in zip(baked, STAND_SQUARE) if expected[0] in KEPT_POSES)
+    assert found.answer == checks.FAIL and found.measures["failing"] == 1, found
+    assert found.findings == ("module_1: stands 32.1 degrees off its frame (its frame box 1.74 times its own)",
+                              *(f"{name}: left out, {baked[name]['keeps_pose']}" for name in kept)), found.findings
+    assert "rear_1 (1): left out, its design lays it lying (crashed)" in found.findings, found.findings
+    # the bake's best outline is the gate's best of its YAWS ways (before the gate's fine search round it), and its cut
+    # fills the close-ups' holes and drops their specks as pixal_cut does
+    from score.stages.props import likeness, likeness_row
+    trimesh.Trimesh(*route_bake.labelled_mesh(world / "take6")).export(world / "take.glb")
+    points, triangles = likeness.gltf_mesh(world / "take.glb")
+    for case, close_up, size in OUTLINE_SIZES:
+        closeup = closeups[close_up]
+        gate = likeness_row.whole_best_way(world / "take.glb", likeness_row.pixal_cut(closeup, world / "cuts", "take"),
+                                           size)
+        downs = take_outline.look_downs(size, take_outline.cut(closeup))
+        assert gate["look_down"] in downs, (case, gate, downs)
+        assert max(take_outline.best(points, triangles, take_outline.cut(closeup), down) for down in downs) == \
+            max(gate["ways"]), (case, gate)
+
 
 def baked_model(folder, name, mesh):
     """A baked .gltf of `mesh` in `folder/made`: its positions and triangles in one buffer, its .bin beside it."""
@@ -2406,10 +2916,7 @@ RAY_WORLDS = {
 }
 
 
-# --- library_reads ---
-
-ROWS = {row.name: row for row in stages.STAGES}
-
+# --- library_reads and carry ---
 
 def a_copy():
     """data/library copied into a folder of its own: the data folder."""
@@ -2419,14 +2926,14 @@ def a_copy():
     return data
 
 
-@pytest.fixture
-def hub(monkeypatch, tmp_path):
-    """The hub's surface data of the test's own: one crate take, baked."""
-    (tmp_path / "hub.json").write_text(json.dumps({"place": "hub", "library": "hub", "takes": {
+def hub_data(monkeypatch):
+    """The hub's surface data of the test's own, in a folder of its own: one crate take, baked."""
+    folder = pathlib.Path(tempfile.mkdtemp())
+    (folder / "hub.json").write_text(json.dumps({"place": "hub", "library": "hub", "takes": {
         "crate-t1": {"place": "hub", "kind": "crate", "object": "a crate", "library_places": ["hub"]}},
         "bake": {"models": {"crate_1": "crate-t1"}, "entries": {"crate_1": {"size": [1.0, 1.0, 1.0]}}}}))
     for data in (surfaces.data, surface_data):
-        monkeypatch.setattr(data, "FOLDER", tmp_path)
+        monkeypatch.setattr(data, "FOLDER", folder)
 
 
 def keys(row, place, data):
@@ -2439,41 +2946,27 @@ def edit(path, change):
     path.write_text(json.dumps(found, indent=1))
 
 
-def test_a_surface_added_anywhere_moves_no_paint_key_and_every_bake_key(hub):
-    """The paint paints the surfaces its records name; the bake's job, written from git (bake_job.py), carries every
-    variant of the library as its specs, so a variant added anywhere moves every bake."""
-    data = a_copy()
-    try:
-        before = {row: keys(row, "hub", data) for row in ("surfaces-paint", "surfaces-bake")}
-        added = {"recipe": "painted_metal", "token": "hull-trim", "bare": "hull"}
-        edit(data / "library/materials.json",
-             lambda library: library["families"].setdefault("painted", {"variants": {}})["variants"].update(
-                 brand_new_panel=added))
-        assert keys("surfaces-paint", "hub", data) == before["surfaces-paint"]
-        assert keys("surfaces-bake", "hub", data) != before["surfaces-bake"]
-    finally:
-        shutil.rmtree(data)
+# The hub's library keys as one edit after another to the copied library moves them: (case, the library file, its
+# edit, {row: whether its key moves}). The paint paints the surfaces its records name; the bake's job, written from git
+# (bake_job.py), carries every variant of the library as its specs, so a variant added anywhere moves every bake; a
+# kind's details move the paint.
+KEY_MOVES = [
+    ("a surface variant added anywhere", "materials.json",
+     lambda library: library["families"].setdefault("painted", {"variants": {}})["variants"].update(
+         brand_new_panel={"recipe": "painted_metal", "token": "hull-trim", "bare": "hull"}),
+     {"surfaces-paint": False, "surfaces-bake": True}),
+    ("the hub's one take's kind's details", "details.json",
+     lambda details: details.setdefault("crate", {}).update(wall=0.123), {"surfaces-paint": True}),
+]
 
-
-def test_a_kinds_details_move_the_paint_key_and_place_json_keys_neither(hub):
-    data = a_copy()
-    try:
-        kind = "crate"  # the hub's one take's kind
-        before = keys("surfaces-paint", "hub", data)
-        edit(data / "library/details.json", lambda details: details.setdefault(kind, {}).update(wall=0.123))
-        assert keys("surfaces-paint", "hub", data) != before
-        for row in ("surfaces-paint", "surfaces-bake"):
-            assert "places" not in ROWS[row].files("hub"), row
-    finally:
-        shutil.rmtree(data)
-
-
-def test_the_paint_and_bake_rows_and_their_twins_key_the_library_by_part():
-    for name, place in (("surfaces-paint", "hub"), ("surfaces-bake", "hub"), ("surfaces-paint", "people")):
-        files = ROWS[name].files(place)
-        assert isinstance(files["library"], tuple), name
-        assert ROWS[name].files.wide(place) if callable(ROWS[name].files.wide) else ROWS[name].files.wide
-    assert not isinstance(ROWS["surfaces-parts"].files("hub")["library"], tuple)  # surfaces-names left the line
+# Which rows key the library by part (a tuple of the wide read and the part), each with a wide twin, and none keyed on
+# place json: (row, place, keyed by part). surfaces-names left the line, so the parts read the library whole.
+LIBRARY_BY_PART = [
+    ("surfaces-paint", "hub", True),
+    ("surfaces-bake", "hub", True),
+    ("surfaces-paint", "people", True),
+    ("surfaces-parts", "hub", False),
+]
 
 
 class StubStore:
@@ -2499,294 +2992,150 @@ def a_record(**changes):
             "files": {}, **changes}
 
 
-def test_a_bake_model_with_no_written_entry_is_declared_missing_by_name():
-    """A bake row's model its data writes no entry for is a file that is never there, naming it; one written out, or
-    a design's written without a turn, is none."""
-    record = {"bake": {"models": {"bench_1": "bench-t1", "lost_1": "lost-t1"},
-                       "entries": {"bench_1": {"size": [2.0, 0.9, 0.5]}}}}
-    refused = library_reads.bake_refusals(record, {"surfaces": "{home}/design/surfaces/hub.json"})
-    assert list(refused) == ["bake entry lost_1"] and "no entry for lost_1" in refused["bake entry lost_1"], refused
+# Why the paint's accepted record does not carry (carry.why_not): (case, the record's changes, why).
+WHY_NOT = [
+    ("made from a tree with changes not committed", {"uncommitted": True},
+     "made from a tree with changes not committed"),
+    ("its code changed with no proof", {}, "its code changed since, with no proof its result is the same"),
+]
+
+# A proof of the paint's code change (carry.proof_fault): (case, the proof as written from the full one and the files
+# changed since the record's commit, its fault, {changed} those files). The full one names every changed file a no-op
+# for these code versions.
+PROOFS = [
+    ("every changed file named a no-op", lambda full, changed: full, None),
+    ("its no-ops say nothing", lambda full, changed: {**full, "no-ops": {name: "" for name in changed}},
+     "its proof does not say why these changes leave the result as it is: {changed}"),
+    ("for other code versions", lambda full, changed: {**full, "code now": "another code"},
+     "its proof is for other code versions"),
+]
+
+PICTURE = "work/carry-content/hub.png"  # a concept picture under PROPS_HOME, written as b"the concept"
+FROZEN = "frozen/20261031-021736-1.home/" + PICTURE  # the same picture's path into a run's frozen home
+LOOK = "people-look-parts-"  # the first row of a look's parts
+FROZEN_GLTF = ("/home/someone/.score/frozen/20261110-101556-1.home/store/cache/checkouts/" + "b" * 64
+               + "/made/astronaut-made.gltf")
 
 
-def test_a_record_from_an_uncommitted_tree_or_a_changed_code_without_proof_never_carries():
-    """Break: carry.standing reads why_not off a None record (an accepted output whose record this store lacks) and
-    raises instead of naming it."""
-    row = ROWS["surfaces-paint"]
-    assert carry.why_not(StubRunner(), row, "hub", a_record(uncommitted=True), {}) == \
-        "made from a tree with changes not committed"
-    assert carry.why_not(StubRunner(), row, "hub", a_record(), {}) == \
-        "its code changed since, with no proof its result is the same"
-    orphan = StubRunner()
-    orphan.store.accepted = lambda node: "a" * 64
-    orphan.store.records = lambda node: []
-    assert carry.standing(orphan, row, "hub", {}) == \
-        (None, f"its accepted output {'a' * 12} has no record in this store")
-
-
-def test_a_proof_carries_only_when_it_names_every_changed_file_for_these_code_versions():
-    row = ROWS["surfaces-paint"]
-    record = a_record()
-    changed = carry.changed_files(row, record["commit"])
-    assert changed
-    (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
-    folder = pathlib.Path(tempfile.mkdtemp(prefix="carry-proof-", dir=PROPS_HOME / "work"))
-    try:
-        proof = folder / "proof.json"
-        full = {"made with code": "old code", "code now": carry.wide_code(row),
-                "no-ops": {name: "its change leaves the parts and surfaces as they were" for name in changed},
-                "free rows": {}}
-        proof.write_text(json.dumps(full))
-        assert carry.proof_fault(StubRunner(proof), row, record) is None
-        proof.write_text(json.dumps({**full, "no-ops": {name: "" for name in changed}}))
-        assert carry.proof_fault(StubRunner(proof), row, record).startswith("its proof does not say why")
-        proof.write_text(json.dumps({**full, "code now": "another code"}))
-        assert carry.proof_fault(StubRunner(proof), row, record) == "its proof is for other code versions"
-    finally:
-        shutil.rmtree(folder)
-    content_keeps_only_the_same_pictures()
-    a_plan_redrawn_on_the_same_floor_keeps_the_rough_align()
-    a_look_s_parts_keep_a_people_made_moved_by_its_model_path_alone()
-
-
-def props_inputs_output(store, concept, picture_sha, key):
-    """A props-inputs@hub output whose one row names `concept`, recorded under `key` as read from a picture of
-    `picture_sha`; its output."""
+def props_inputs_output(store, key, given):
+    """A props-inputs@hub output whose one row names given["concept"] (a path under PROPS_HOME, made absolute when it
+    names the frozen home), recorded under `key` as read from a picture of given["sha"]'s text hash ("" for no hash);
+    (its output, None)."""
     folder = pathlib.Path(tempfile.mkdtemp())
+    concept = str(PROPS_HOME / given["concept"]) if given["concept"].startswith("frozen/") else given["concept"]
     row = {"id": "desk", "scene": "hub", "view": "v1", "concept": concept, "drawn": None, "layer": "objects"}
     (folder / "rows.json").write_text(json.dumps({"rows": [row], "not_in_inventory": []}))
     (folder / "contract.json").write_text("{}")
     output = store.put_tree(folder)
-    store.write_record("props-inputs@hub", key, {"output": output, "files": {"view v1": picture_sha},
-                                                 "finished": "2026-11-04T00:00"})
-    return output
+    store.write_record("props-inputs@hub", key, {"output": output, "files": {
+        "view v1": text_hash(given["sha"]) if given["sha"] else ""}, "finished": "2026-11-04T00:00"})
+    return output, None
 
 
-def content_case(then_concept, now_concept, now_sha):
-    """(changes_by_content of closeup@hub, its runner, keyed and record) in a store of its own: the accepted close-up
-    made from a props-inputs output naming `then_concept` (a picture read as "the concept"), its key now after one
-    naming `now_concept` read as `now_sha`; its code moved by closeup_row.py alone."""
-    store = a_store()
-    then = props_inputs_output(store, then_concept, text_hash("the concept"), "k-then")
-    now = props_inputs_output(store, now_concept, now_sha, "k-now")
-    record = {**a_record(), "node": "closeup@hub", "after": {"props-inputs": then}, "finished": "2026-11-04T00:00"}
-    store.write_record("closeup@hub", record["key"], record)
-    store.write_accept("closeup@hub", {"output": record["output"], "key": record["key"], "at": "2026-11-04T00:00"})
-
-    class Runner(StubRunner):
-        def changes_since(self, stage, place, keyed):
-            return (record, ["score/stages/props/closeup_row.py"]) if keyed["after"] == record["after"] else None
-    runner = Runner()
-    runner.store = store
-    keyed = {**record, "key": "n" * 64, "after": {"props-inputs": now}}
-    return carry.changes_by_content(runner, ROWS["closeup"], "hub", keyed), runner, keyed, record
-
-
-def content_keeps_only_the_same_pictures():
-    """A closeup whose props-inputs moved by path text alone (655e0465, #75: an absolute path into a run's frozen
-    home, now relative to PROPS_HOME) is kept, its record naming the content proof; one whose picture really
-    changed, or whose path resolves to no file, is not."""
-    (PROPS_HOME / "work").mkdir(parents=True, exist_ok=True)
-    folder = pathlib.Path(tempfile.mkdtemp(prefix="carry-content-", dir=PROPS_HOME / "work"))
-    try:
-        picture = folder / "hub.png"
-        picture.write_bytes(b"the concept")
-        relative = str(picture.relative_to(PROPS_HOME))
-        frozen = str(PROPS_HOME / "frozen/20261031-021736-1.home" / relative)
-        (found, content, why), runner, keyed, record = content_case(frozen, relative, text_hash("the concept"))
-        assert why is None and found == (record, ["score/stages/props/closeup_row.py"]), why
-        assert content == {"props-inputs": {"from": record["after"]["props-inputs"],
-                                            "to": keyed["after"]["props-inputs"],
-                                            "rule": "score.stages.props.same_content.props_inputs"}}
-        proof = {"no-ops": {"score/stages/props/closeup_row.py": "reads the same pictures"}, "same content": content}
-        kept = carry.kept_by_content(runner, ROWS["closeup"], "hub", keyed, record, "no-op-n", proof)
-        assert runner.store.record("closeup@hub", keyed["key"]) == kept and kept["after"] == keyed["after"]
-        assert kept["carried"]["same content"] == content
-        assert content_case(frozen, relative, text_hash("another concept"))[0] == \
-            (None, None, "props-inputs's output holds other content (rows.json)")
-        why = content_case(frozen, "design/nowhere/hub.png", text_hash("the concept"))[0][2]
-        assert "resolves to no file" in why, why
-        why = content_case(frozen, relative, "")[0][2]  # the new record holds no hash: never read off the disk
-        assert "holds no hash" in why, why
-    finally:
-        shutil.rmtree(folder)
-
-
-def plan_output(store, key, **changes):
-    """A plan@hub output (its plan.json: the hub's floor, one item, `changes` over them) recorded under `key`."""
+def plan_output(store, key, given):
+    """A plan@hub output (its plan.json: the hub's floor, one item, `given` over them) recorded under `key`; (its
+    output, its plan.json as a foreseen remake hands it)."""
     plan = {"place": "hub", "floor": [[0, 0], [6, 4]], "floor_height": 0.0, "walls": {"high": 3.0},
-            "items": [{"name": "LAMP 1", "box": [0, 0, 1, 1]}], **changes}
+            "items": [{"name": "LAMP 1", "box": [0, 0, 1, 1]}], **given}
     folder = pathlib.Path(tempfile.mkdtemp())
     (folder / "plan.json").write_text(json.dumps(plan))
     output = store.put_tree(folder)
     store.write_record("plan@hub", key, {"output": output, "finished": "2026-11-07T00:00"})
-    return output, plan
+    return output, {"plan.json": plan}
 
 
-def a_plan_redrawn_on_the_same_floor_keeps_the_rough_align():
-    """rough-align reads its plan's place, floor and heights alone (carry.CONTENT_RULES): its accepted output carries
-    to a key moved by a plan redrawn without an item (the square, 2026-11-07), and rebuy, foreseeing that plan, keeps
-    it; a plan with another floor carries nothing, nor a key whose other parts moved. Under a phase lock its code may
-    have moved too: the lock holds it over the same plan content (Runner.same_earlier, the row's same_earlier: 516021df
-    cut surplus screens off lab's, hub's and camp's plans, and their rough models, held by the models lock, were made
-    again), never over another floor; a row with no content rule is held only while its earlier outputs stand.
-    Break: score/graph/__init__.py: '        return hasattr(stage.files, "same_earlier") and stage.files.same_earlier(self, stage, place, record, keyed)' -> '        return True'"""
-    store, row = a_store(), ROWS["rough-align"]
-    then, _ = plan_output(store, "k-then")
-    record = {**a_record(), "node": "rough-align@hub", "after": {"plan": then}, "finished": "2026-11-07T00:00"}
-    store.write_record("rough-align@hub", record["key"], record)
-    store.write_accept("rough-align@hub", {"output": record["output"], "key": record["key"], "at": "2026-11-07T00:00"})
-    runner = StubRunner()
-    runner.store = store
-    for changes, same in (({"items": []}, True), ({"floor": [[0, 0], [7, 4]]}, False)):
-        now, plan = plan_output(store, f"k-{same}", **changes)
-        keyed = {**record, "key": f"n-{same}", "after": {"plan": now}}
-        runner.foreseen = {"plan@hub": {"plan.json": plan}}
-        assert row.files.carries(runner, row, "hub", keyed) is same, changes
-        assert row.files.same_reads(runner, row, "hub", ["plan@hub"]) is same, changes
-        assert graph.Runner.same_earlier(runner, row, "hub", record, keyed) is same, changes  # the phase lock's
-        assert graph.Runner.same_earlier(runner, ROWS["surfaces-paint"], "hub", record, keyed) is False  # no rule
-    assert graph.Runner.same_earlier(runner, ROWS["surfaces-paint"], "hub", record, record) is True  # nothing moved
-    now, _ = plan_output(store, "k-same", items=[])
-    keyed = {**record, "key": "n-same", "after": {"plan": now}}
-    assert not row.files.carries(runner, row, "hub", {**keyed, "seed": 1})
-    kept = row.files.carried(runner, row, "hub", keyed)
-    assert store.record("rough-align@hub", "n-same") == kept and kept["output"] == record["output"]
-    assert kept["carried"]["same content"]["plan"]["rule"] == "score.stages.rough_model.same_content.plan_floor"
-
-
-def people_made_output(store, key, model, labelled=b"the painted take"):
-    """A people-made@people output handing on one look baked as `model`, its labelled take `labelled`, recorded
-    under `key`; its output."""
+def people_made_output(store, key, given):
+    """A people-made@people output handing on one look baked as given["model"], its labelled take given["labelled"],
+    recorded under `key`; (its output, None)."""
     folder = pathlib.Path(tempfile.mkdtemp())
     (folder / "labelled").mkdir()
-    (folder / "labelled" / "astronaut-made-s1.npz").write_bytes(labelled)
+    (folder / "labelled" / "astronaut-made-s1.npz").write_bytes(given["labelled"])
     (folder / "made.json").write_text(json.dumps({"astronaut-made": {
-        "take": "astronaut-made-s1", "model": model, "labelled": "labelled/astronaut-made-s1.npz"}}))
+        "take": "astronaut-made-s1", "model": given["model"], "labelled": "labelled/astronaut-made-s1.npz"}}))
     output = store.put_tree(folder)
     store.write_record("people-made@people", key, {"output": output, "finished": "2026-11-10T00:00"})
-    return output
+    return output, None
 
 
-def a_look_s_parts_keep_a_people_made_moved_by_its_model_path_alone():
-    """A look's parts read people-made beside, by its content (people/same_content.py): its accepted output carries to
-    a key moved by a people-made whose model is written in its bake output where it was an absolute path into a run's
-    frozen home (2026-11-10: the 9 accepted look-parts, about EUR 15); one whose labelled take is other bytes, or a
-    key whose other parts moved, carries nothing."""
+# Each reading row's earlier output, by the content rule it reads it with: (place, its key part, the input's name in
+# it, the node that made it, its maker, what its accepted output was made from, the rule).
+READS = {
+    "closeup": ("hub", "after", "props-inputs", "props-inputs@hub", props_inputs_output,
+                {"concept": FROZEN, "sha": "the concept"}, "score.stages.props.same_content.props_inputs"),
+    "rough-align": ("hub", "after", "plan", "plan@hub", plan_output, {},
+                    "score.stages.rough_model.same_content.plan_floor"),
+    LOOK: (None, "beside", "people-made@people", "people-made@people", people_made_output,
+           {"model": FROZEN_GLTF, "labelled": b"the painted take"}, "score.stages.people.same_content.people_made"),
+}
+
+# An accepted output whose key moved by an earlier output (and maybe another key part) kept by content alone, or not
+# (carry.changes_by_content; a row with content hooks by its carries, carried, same_reads and same_earlier): (case,
+# the reading row, the earlier output now, another key part moved, why the content differs or None, whether it
+# carries, None for a row with no content hook, kept only through a proof). {now} is the new output's first 12,
+# {home} PROPS_HOME. A closeup whose props-inputs moved by path text alone (655e0465, #75: an absolute path into a
+# run's frozen home, now relative to PROPS_HOME) is kept; rough-align reads its plan's place, floor and heights alone
+# (the square, 2026-11-07); a look's parts read people-made beside by its content (2026-11-10: the 9 accepted
+# look-parts, about EUR 15, re-keyed by a model path into a run's frozen home).
+CONTENT_KEPT = [
+    ("a closeup whose props-inputs moved by path text alone", "closeup", {"concept": PICTURE, "sha": "the concept"},
+     {}, None, None),
+    ("a closeup whose picture really changed", "closeup", {"concept": PICTURE, "sha": "another concept"}, {},
+     "props-inputs's output holds other content (rows.json)", None),
+    ("a closeup whose picture's path resolves to no file", "closeup",
+     {"concept": "design/nowhere/hub.png", "sha": "the concept"}, {},
+     "props-inputs's output {now}: row desk's concept design/nowhere/hub.png resolves to no file "
+     "({home}/design/nowhere/hub.png)", None),
+    ("a closeup whose new record holds no hash, never read off the disk", "closeup",
+     {"concept": PICTURE, "sha": ""}, {}, "props-inputs's output {now}: row desk's concept: its record holds no hash "
+     "for view v1", None),
+    ("a plan redrawn without an item", "rough-align", {"items": []}, {}, None, True),
+    ("a plan with another floor", "rough-align", {"floor": [[0, 0], [7, 4]]}, {},
+     "plan's output holds other content (floor)", False),
+    ("a plan redrawn without an item, the key's seed moved too", "rough-align", {"items": []}, {"seed": 1}, None,
+     False),
+    ("a people-made moved by its model path alone", LOOK,
+     {"model": "made/astronaut-made.gltf", "labelled": b"the painted take"}, {}, None, True),
+    ("a people-made whose labelled take is other bytes", LOOK,
+     {"model": "made/astronaut-made.gltf", "labelled": b"another painted take"}, {},
+     "people-made@people's output holds other content (files)", False),
+    ("a people-made moved by its model path alone, the key's params moved too", LOOK,
+     {"model": "made/astronaut-made.gltf", "labelled": b"the painted take"}, {"params": {"take": "another"}}, None,
+     False),
+]
+CHANGED = ["score/stages/props/closeup_row.py"]  # the repository files changes_since names
+
+
+class ContentRunner(StubRunner):
+    """A runner over `store` whose changes_since names CHANGED while the earlier outputs are the record's."""
+    def __init__(self, store, record):
+        super().__init__()
+        self.store, self.record = store, record
+
+    def changes_since(self, stage, place, keyed):
+        same = all(keyed.get(part) == self.record.get(part) for part in ("after", "beside"))
+        return (self.record, CHANGED) if same else None
+
+
+def content_world(name, now_given, moved):
+    """A store of its own holding `name`'s accepted output made from READS' earlier output, and the earlier output
+    `now_given` makes; (its runner, the reading row, the accepted record, the moved key, the new output, its
+    foreseen remake)."""
+    place, part, read, node_read, made, then_given, _ = READS[name]
+    row = ROWS[name] if name in ROWS else next(row for each, row in ROWS.items() if each.startswith(name))
+    node = graph.node_name(row, place)
     store = a_store()
-    row = next(row for name, row in ROWS.items() if name.startswith("people-look-parts-"))
-    frozen = ("/home/someone/.score/frozen/20261110-101556-1.home/store/cache/checkouts/" + "b" * 64
-              + "/made/astronaut-made.gltf")
-    then = people_made_output(store, "k-then", frozen)
-    record = {**a_record(), "node": row.name, "beside": {"people-made@people": then}, "finished": "2026-11-10T00:00"}
-    store.write_record(row.name, record["key"], record)
-    store.write_accept(row.name, {"output": record["output"], "key": record["key"], "at": "2026-11-10T00:00"})
-    runner = StubRunner()
-    runner.store = store
-    for labelled, same in ((b"the painted take", True), (b"another painted take", False)):
-        now = people_made_output(store, f"k-{same}", "made/astronaut-made.gltf", labelled)
-        keyed = {**record, "key": f"n-{same}", "beside": {"people-made@people": now}}
-        assert row.files.carries(runner, row, None, keyed) is same, labelled
-    now = people_made_output(store, "k-same", "made/astronaut-made.gltf")
-    keyed = {**record, "key": "n-same", "beside": {"people-made@people": now}}
-    assert not row.files.carries(runner, row, None, {**keyed, "params": {"take": "another"}})
-    kept = row.files.carried(runner, row, None, keyed)
-    assert store.record(row.name, "n-same") == kept and kept["output"] == record["output"]
-    assert kept["beside"] == keyed["beside"], kept
-    assert kept["carried"]["same content"]["people-made@people"]["rule"] == \
-        "score.stages.people.same_content.people_made", kept
-
-
-def test_a_proof_speaks_from_the_code_rows_had_at_its_commit():
-    """codes_at works the rows' code out at a commit: 548ab076 changed place_line.py alone (and its test), so the
-    paint's code moved from its parent and the parts' did not (a record carries only when made from the code at the
-    proof's commit). The two checkouts are worked out side by side: each imports its whole stage table, about 3 s
-    apiece (46d5873's tree, the pair before, took 27 s apiece)."""
-    from concurrent.futures import ThreadPoolExecutor
-    with ThreadPoolExecutor(2) as pool:
-        before, after = pool.map(carry.codes_at, ("548ab076^", "548ab076"))
-    assert before["surfaces-paint"] != after["surfaces-paint"]
-    assert before["surfaces-parts"] == after["surfaces-parts"]
-
-
-# --- finish ---
-
-def test_an_ask_is_made_once_a_timeout_reaches_the_row_and_only_a_refusal_is_asked_again():
-    sys.path.insert(0, str(REPO / "tools/cloud"))
-    import google_spend
-    asked = []
-
-    def answering(*faults):
-        def answer(model, body, key, timeout, caller, cache):
-            asked.append(body.get("serviceTier"))
-            if len(asked) <= len(faults):
-                raise faults[len(asked) - 1]
-            return "answered"
-        return answer
-
-    def refusal(code):
-        return urllib.error.HTTPError("url", code, "refused", {}, io.BytesIO())
-    saved = google_spend.generate, finish_ask.REFUSED_WAIT
-    finish_ask.REFUSED_WAIT = 0
-    try:
-        google_spend.generate = answering(TimeoutError("The read operation timed out"))
-        try:
-            finish_ask.generated(finish_ask.LIST_MODEL, {"serviceTier": "flex"}, "key", 1, "test", False)
-        except TimeoutError:
-            pass
-        else:
-            raise AssertionError("a timeout reaches the row")
-        assert asked == ["flex"], asked
-        asked.clear()
-        google_spend.generate = answering(refusal(429), refusal(503))
-        assert finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False) == "answered"
-        assert len(asked) == 3, asked
-        asked.clear()
-        google_spend.generate = answering(refusal(500), refusal(504))  # audit, 2026-10-22: these stopped the row
-        assert finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False) == "answered"
-        assert len(asked) == 3, asked
-        asked.clear()
-        google_spend.generate = answering(refusal(400))
-        try:
-            finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False)
-        except urllib.error.HTTPError:
-            pass
-        assert len(asked) == 1, asked
-        asked.clear()
-        rooms = []
-        google_spend.generate = answering(refusal(429), refusal(503), refusal(429))
-        try:
-            finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False, room=lambda: rooms.append(1))
-        except finish_ask.NoAnswer:
-            pass
-        else:
-            raise AssertionError("refused every time is no answer")
-        assert len(asked) == finish_ask.REFUSED_ASKS == len(rooms), (asked, rooms)
-        asked.clear()
-        google_spend.generate = answering(urllib.error.URLError(ConnectionRefusedError(111, "refused")))
-        try:
-            finish_ask.generated(finish_ask.LIST_MODEL, {}, "key", 1, "test", False)
-        except finish_ask.NoAnswer:
-            pass
-        else:
-            raise AssertionError("a lost connection is no answer")
-        assert len(asked) == 1, asked
-    finally:
-        google_spend.generate, finish_ask.REFUSED_WAIT = saved
-
-
-
-
-
-
-
-
-
-
+    then, _ = made(store, "k-then", then_given)
+    record = {**a_record(), "node": node, part: {read: then}, "finished": "2026-11-04T00:00"}
+    store.write_record(node, record["key"], record)
+    store.write_accept(node, {"output": record["output"], "key": record["key"], "at": "2026-11-04T00:00"})
+    now, foreseen = made(store, "k-now", now_given)
+    keyed = {**record, "key": "n" * 64, part: {read: now}, **moved}
+    return ContentRunner(store, record), row, record, keyed, now, foreseen
 
 
 # --- route ---
 
-RED, BLUE = (200, 30, 30), (150, 120, 220)  # each near its finish's token (sign-red, bay-three): the colour check
+RED, BLUE = (200, 30, 30), (150, 120, 220)  # each near its finish's token (sign-red, bay-three)
 
 
 TAKE, OTHER = "two_boxes-t1", "other-t1"
@@ -2926,15 +3275,21 @@ def two_finish_answer(views, finish_of_colour=lambda view, colour: 1 if colour =
     return {"finishes": finishes, "labels": labelled(views, finish_of_colour)}
 
 
-def listed(folder, answer, takes=(TAKE,)):
+def listed(folder, answer, takes=(TAKE,), again=None):
     """The views and list rows made with the list's batch faked to answer `answer(views, take)` (a dict, or an
-    exception the batch holds): the rows' inputs and the batches asked."""
+    exception the batch holds), every ask after the first `again(views, take)` when given: the rows' inputs and the
+    batches asked."""
     inputs, views = cast_views(folder, takes)
     asked = []
     original = route_list.ask
-    route_list.ask = lambda bodies: asked.append(bodies) or {
-        take: (answer(views, take) if isinstance(answer(views, take), Exception) else json.dumps(answer(views, take)))
-        for take in bodies}
+
+    def answered(bodies):
+        asked.append(bodies)
+        now = again if again is not None and len(asked) > 1 else answer
+        return {take: (now(views, take) if isinstance(now(views, take), Exception) else json.dumps(now(views, take)))
+                for take in bodies}
+
+    route_list.ask = answered
     try:
         out = folder / "list"
         out.mkdir()
@@ -2960,126 +3315,6 @@ def parted(folder, rows):
     (picks / recheck_picks.FILE).write_text(json.dumps({"takes": {}, "not_picked": {}}))
     recheck_picks.make_parts({**rows, recheck_picks.ROW: picks}, out, 7, {"objects": [TAKE]})
     return {**rows, "surfaces-parts": out}
-
-
-def test_one_batch_lists_every_take_library_first_and_the_split_gives_every_face_one_finish():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        rows, asked = listed(folder, lambda views, take: two_finish_answer(views), takes=(TAKE, OTHER))
-        assert len(asked) == 1 and sorted(asked[0]) == [OTHER, TAKE], asked  # one batch, one ask a take
-        body = asked[0][TAKE]
-        count = len(json.loads((rows["finish-route-views"] / "views.json").read_text())[TAKE]["views"])
-        assert "serviceTier" not in body and len(body["contents"][0]["parts"]) == 2 * count + 2  # close-up, views, text
-        found = json.loads((rows["finish-route-list"] / f"{TAKE}.json").read_text())
-        seed = route_list.take_seed(7, TAKE)
-        assert seed != route_list.take_seed(7, OTHER)  # each object's wear and dirt pattern its own
-        assert found["finishes"][0]["settings"] == {"token": "sign-red", "roughness": 1.0, "metal": 0.0, "seed": seed}
-        assert found["finishes"][1]["settings"]["wear"] == 0.8 and found["finishes"][1]["settings"]["seed"] == seed + 1
-        assert found["finishes"][1]["wear_cause"] == "walked path" and found["finishes"][0]["wear_level"] is None
-        assert route_list.judge_list(rows["finish-route-list"], rows, {}).answer == "pass"
-        # the ask offers the whole library filtered by the scene palette's tokens, and its wear
-        question = body["contents"][0]["parts"][-1]["text"]
-        offered = body["generationConfig"]["responseSchema"]["properties"]["finishes"]["items"]["properties"]
-        palette = route_list.palette_library.read(rows)
-        assert offered["token"]["enum"] == [token for token in route_list.palette_library.library_tokens(palette)
-                                             if token in PALETTE["tokens"]], offered["token"]
-        assert len(offered["surface"]["enum"]) == len(route_list.palette_library.take_surfaces(
-            {"kind": "two_boxes"}, palette)) and "Wear is the scene's level (worked)" in question
-        assert "token tarp" not in question and "token sign-red" in question
-        own = json.loads((rows["finish-route-list"] / "questions.json").read_text())["own_wear"]
-        assert len(own) == 2 and "worn (walked path" in own[0], own
-        rows = split(folder, rows)
-        record = json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]
-        assert record["fault"] is None and record["unassigned"] == record["disagree"] == 0, record
-        finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy")
-        faces = np.load(rows["finish-route-views"] / TAKE / "faces.npz")["front"]
-        colours = np.load(rows["finish-route-views"] / TAKE / "colours.npz")["front"]
-        red = np.unique(faces[(faces >= 0) & (colours == RED).all(-1)])
-        assert set(finish_of[red]) == {0} and sorted(np.unique(finish_of)) == [0, 1], finish_of
-        assert sorted(np.bincount(finish_of)) == [12, 12], finish_of
-        assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "pass"
-
-
-def test_an_unassigned_face_is_a_gap_and_views_that_disagree_are_settled_by_the_squarer_view():
-    """Owner, 2026-10-28: views disagreeing on 1.2 to 5.8% of eleven takes is a split decision, never a gap. A face
-    takes the finish the views that see it most squarely give; a tie takes the finish round it. Unassigned area up to
-    route_split.UNASSIGNED_MOST (quarters box's 0.01%, 2026-11-08) walks to its nearest label; over it is a gap."""
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        blue_left_out = lambda views, take: two_finish_answer(views, lambda view, colour: 1 if colour == RED else None)
-        rows = split(folder, listed(folder, blue_left_out)[0])
-        verdict = route_split.judge_split(rows["finish-route-split"], rows, {})
-        assert verdict.answer == "fail" and "unassigned" in verdict.findings[0], verdict
-        assert not (rows["finish-route-split"] / TAKE).exists()
-    mesh = trimesh.creation.icosphere(subdivisions=3)
-    apart = {"right": np.zeros(len(mesh.faces), dtype=int), "top": np.ones(len(mesh.faces), dtype=int)}
-    votes = route_split.squared_votes(mesh, apart, route_split.cast.BASE, 2)
-    found = route_split.shares(mesh, apart, route_split.finish_parts.voted(apart, 2))
-    assert found["disagree"] == 1.0 and route_split.split_fault(found) is None, found  # recorded, no gap
-    sliver = {"unseen": 0.5, "disagree": 0.0, "unassigned": route_split.UNASSIGNED_MOST}
-    assert route_split.split_fault(sliver) is None, sliver  # quarters box's share: walked, no gap
-    over = dict(sliver, unassigned=round(route_split.UNASSIGNED_MOST + 0.0001, 4))
-    assert "unassigned" in route_split.split_fault(over), over  # just over what a real take showed: still a gap
-    unvoted = np.zeros((len(mesh.faces), 2))
-    unvoted[:, 1] = 1.0
-    unvoted[7] = 0.0  # seen in a region no label reaches: no vote
-    assert route_split.voted_finishes(mesh, unvoted, 2)[1][7] == 1  # its nearest label's finish
-    normals = mesh.face_normals
-    side, up = np.abs(normals[:, 0]) > 0.9, np.abs(normals[:, 1]) > 0.9
-    assert (votes[side].argmax(1) == 0).all() and (votes[up].argmax(1) == 1).all()  # the squarer view wins
-    even = np.zeros((len(mesh.faces), 2))
-    even[:, 1] = 1.0  # finish 1 round it, so a tie read by argmax alone (finish 0) shows
-    patch = np.linalg.norm(mesh.triangles_center - (0, 0, 1), axis=1) < 0.4
-    assert mesh.area_faces[patch].sum() / mesh.area > 0.02  # over a stray's size, so only the tie decides it
-    even[patch] = 0.5  # tied between the two finishes
-    finish_of = route_split.voted_finishes(mesh, even, 2)[1]
-    assert (finish_of[patch] == 1).all()  # the finish round it
-    even[patch, 0] = 0.6
-    assert (route_split.voted_finishes(mesh, even, 2)[1][patch] == 0).all()  # not tied: its own finish
-
-
-def test_a_finish_the_list_labels_no_region_with_is_asked_after_once(tmp_path):
-    """#36, 2026-10-30: habitat's dining table listed its cloth runner and labelled no region with it, so the split
-    gave it no face. Such a take is asked once more, its answer and the finish told; the answer kept where it labels
-    the finish, the first where it still does not. A take whose every finish labels a region is asked once.
-    Break: route_list.py `answers.update(followed_up(answers, bodies, ...))` dropped
-    Break: route_list.py followed_up `< first[take][1]:` -> `<= first[take][1]:`"""
-    def made(folder, again):
-        folder.mkdir()
-        inputs, views = cast_views(folder)
-        first = two_finish_answer(views, lambda view, colour: 1)  # the blue region labelled red: blue labels none
-        asked, original = [], route_list.ask
-        route_list.ask = lambda bodies: asked.append(bodies) or {
-            take: json.dumps(two_finish_answer(views, again) if len(asked) > 1 else first) for take in bodies}
-        try:
-            (folder / "list").mkdir()
-            route_list.make_list({**inputs, "finish-route-views": views}, folder / "list", 7, {"objects": [TAKE]})
-        finally:
-            route_list.ask = original
-        labels = json.loads((folder / "list" / f"{TAKE}.json").read_text())["labels"]
-        return asked, {finish for regions in labels.values() for finish in regions.values()}
-
-    asked, used = made(tmp_path / "labels", lambda view, colour: 1 if colour == RED else 2)
-    assert len(asked) == 2 and "finish 2 (blue paint) but labels no region" in asked[1][TAKE]["contents"][0][
-        "parts"][-1]["text"], asked
-    assert used == {0, 1}, used
-    asked, used = made(tmp_path / "still", lambda view, colour: 2)  # now red labels none: no fewer, the first stands
-    assert len(asked) == 2 and used == {0}, used
-    (tmp_path / "every").mkdir()
-    _, asked = listed(tmp_path / "every", lambda views, take: two_finish_answer(views))
-    assert len(asked) == 1, asked
-
-
-def test_the_split_decides_by_the_labels_alone():
-    """The paper: the views are split into colour regions only so the list can label them. The blue box listed in
-    red is split, its colour judged after the split against the close-up, never against a texture region here."""
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        far = lambda views, take: dict(two_finish_answer(views), finishes=[
-            finish_entry("red paint"), finish_entry("blue paint", token="sign-red")])  # the blue box in red
-        rows = split(folder, listed(folder, far)[0])
-        assert json.loads((rows["finish-route-split"] / "split.json").read_text())[TAKE]["fault"] is None
-        assert route_split.judge_split(rows["finish-route-split"], rows, {}).answer == "pass"
 
 
 LIT_RED, LIT_BLUE = (180, 40, 30), (155, 125, 222)  # the close-up's colours, near sign-red and bay-three
@@ -3126,65 +3361,118 @@ def close_up_judged(folder, finishes):
                                                      "close_up": bake_check.close_up_colours(labelled)})
 
 
-def test_a_finish_is_held_against_its_colour_in_the_close_up_never_the_light_baked_texture():
-    """Batch 1 try 4 (2026-10-25): 134 takes were gaps for a surface over dE 32 from a raw texture region, whose colours
-    carry the picture's light. The boxes' texture is shaded over the limit from their tokens; the close-up shows
-    them near: each keeps its listed surface and the bake check passes it. A wrong surface (the blue box as bare
-    steel) is still off its colour, and the bake check still fails it against the close-up."""
-    global RED, BLUE
-    kept = RED, BLUE
-    RED, BLUE = SHADED_RED, SHADED_BLUE
-    finish_parts = route_parts.finish_parts
-    try:
-        with tempfile.TemporaryDirectory() as temporary:
-            folder = pathlib.Path(temporary)
-            rows = listed(folder, lambda views, take: two_finish_answer(views))[0]
-            rows = parted(folder, split(folder, {**rows, **close_up_of(folder, rows[f"model {TAKE}"])}))
-            record = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
-            assert record["colour_from"].startswith("close-up"), record["colour_from"]
-            assert [finish["by"] for finish in record["finishes"]] == ["the list"] * 2, record["finishes"]
-            assert all(finish["delta_e"] <= finish_parts.COLOUR_DELTA_E for finish in record["finishes"])
-            finish_of = np.load(rows["finish-route-split"] / TAKE / "finish.npy").astype(int)
-            textured = route_parts.seen_colours(rows["finish-route-views"] / TAKE, finish_of, 2)
-            assert all(np.linalg.norm(colour - finish_parts.library_lab(finish)) > finish_parts.COLOUR_DELTA_E
-                       for colour, finish in zip(textured, record["finishes"])), textured  # what the split failed
-            assert close_up_judged(folder, record["finishes"]) == []
-        with tempfile.TemporaryDirectory() as temporary:
-            folder = pathlib.Path(temporary)
-            library = folder / "library"
-            library.mkdir()
-            palette = route_parts.palette_library.read({"finish-route-palette": paletted(library),
-                                                        "surface-library": libraried(library)})
-            import part_judge
-            steel = part_judge.code(list(route_parts.palette_library.take_surfaces({"kind": "two_boxes"},
-                                                                                   palette)).index("bare_steel"))
-            wrong = lambda views, take: dict(two_finish_answer(views), finishes=[
-                finish_entry("red paint"), finish_entry("blue paint", surface=steel, token="steel")])
-            rows = listed(folder, wrong)[0]
-            rows = parted(folder, split(folder, {**rows, **close_up_of(folder, rows[f"model {TAKE}"])}))
-            finishes = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]["finishes"]
-            assert finishes[1]["surface"] == "bare_steel" and finishes[1]["by"] == "off its colour", finishes[1]
-            faults = close_up_judged(folder, finishes)
-            assert len(faults) == 1 and "bare_steel" in faults[0], faults
-    finally:
-        RED, BLUE = kept
+def red_and_blue(views, take):
+    """Each box's region labelled its own finish."""
+    return two_finish_answer(views)
 
 
-def test_a_small_colour_far_from_the_rest_keeps_a_region_of_its_own():
-    """greenhouse desk (2026-10-29): k-means spent its eight regions on the texture's greys, L* 21 to 62, and its red
-    label had none. A grey ramp, a ramp of rust and 40 red pixels: under every seed the red keeps a region of its
-    own, the greys and the rust share the rest."""
-    greys = np.repeat(np.linspace(50, 210, 20000)[:, None], 3, axis=1)
-    rust = np.stack([np.linspace(90, 170, 3000), np.linspace(70, 120, 3000), np.linspace(50, 80, 3000)], axis=1)
-    pixels = np.concatenate([greys, rust, np.tile([[200, 30, 30]], (40, 1))]).astype(np.uint8)
-    colours = {"front": pixels.reshape(1, -1, 3)}
-    faces = {"front": np.zeros((1, len(pixels)), dtype=int)}
-    red = route_cast.lab_of(np.array([[200, 30, 30]]))[0]
-    for seed in range(7, 12):
-        centres, per_pixel = route_views.colour_regions(colours, faces, seed)
-        assert len(centres) <= route_views.REGIONS and np.linalg.norm(centres - red, axis=1).min() < 5, (seed, centres)
-        assert len(np.unique(per_pixel["front"][0, -40:])) == 1  # one region holds the red, and only the red
-        assert not np.isin(per_pixel["front"][0, :-40], per_pixel["front"][0, -40:]).any(), seed
+def blue_left_out(views, take):
+    """The red box's region labelled, the blue box's left out."""
+    return two_finish_answer(views, lambda view, colour: 1 if colour == RED else None)
+
+
+def all_red(views, take):
+    """Both boxes' regions labelled the red finish: the blue finish labels none."""
+    return two_finish_answer(views, lambda view, colour: 1)
+
+
+def all_blue(views, take):
+    """Both boxes' regions labelled the blue finish: the red finish labels none."""
+    return two_finish_answer(views, lambda view, colour: 2)
+
+
+def blue_in_red(views, take):
+    """The blue box listed in the red token, its labels its own."""
+    return dict(two_finish_answer(views), finishes=[finish_entry("red paint"), finish_entry("blue paint",
+                                                                                           token="sign-red")])
+
+
+def blue_in_steel(views, take):
+    """The blue box listed as bare steel (a wrong surface), its labels its own."""
+    import part_judge
+    with tempfile.TemporaryDirectory() as temporary:
+        library = pathlib.Path(temporary)
+        palette = route_parts.palette_library.read({"finish-route-palette": paletted(library),
+                                                    "surface-library": libraried(library)})
+        steel = part_judge.code(list(route_parts.palette_library.take_surfaces({"kind": "two_boxes"},
+                                                                               palette)).index("bare_steel"))
+    return dict(two_finish_answer(views), finishes=[finish_entry("red paint"),
+                                                    finish_entry("blue paint", surface=steel, token="steel")])
+
+
+def batch_expired(views, take):
+    """The two boxes' take lost with its batch, the other answered."""
+    if take == TAKE:
+        return route_ask.google_batch.Unanswered("the batch ended JOB_STATE_EXPIRED")
+    return two_finish_answer(views)
+
+
+# The list, split and parts rows on the two boxes (route_list.make_list, route_split.make_split,
+# recheck_picks.make_parts), the list's batch faked: (case, (the boxes' colours, the first answer, the answer every
+# later ask gets or None for the same, the takes, a close-up laid), (the batches asked, the finishes the take's labels
+# use or None for no list written, the follow-up ask's words or None), (the list's verdict, its finding or None),
+# (the split's verdict, its finding or None, the faces each finish takes) or None for no split, (each finish's `by`,
+# the surfaces finishes keep by index, the views' texture off every finish's colour, the close-up faults' count and
+# words) or None for no parts.)
+# Batch 1 try 4 (2026-10-25): 134 takes were gaps for a surface over dE 32 from a raw texture region, whose colours
+# carry the picture's light: a finish is held against the close-up's colour, never the light-baked texture.
+# #36, 2026-10-30: habitat's dining table listed its cloth runner and labelled no region with it, so the split gave
+# it no face: such a take is asked once more, the answer kept where it labels the finish, the first where it still
+# does not. Owner, 2026-10-28: unassigned area over route_split.UNASSIGNED_MOST is a gap. The paper: the views are
+# split into colour regions only so the list can label them; the split decides by the labels alone.
+# route_split.squared_votes on a sphere whose right view labels every face finish 0 and top view finish 1: (case,
+# the axis its faces' normals lie along, the finish the squarer view gives).
+SQUARED = [
+    ("a side face takes the right view's finish", 0, 0),
+    ("an upward face takes the top view's finish", 1, 1),
+]
+
+# route_split.split_fault on a take's shares: (case, shares, the fault's words or None for no gap).
+SPLIT_SHARES = [
+    ("unassigned at the quarters box's share: walked, no gap",
+     {"unseen": 0.5, "disagree": 0.0, "unassigned": route_split.UNASSIGNED_MOST}, None),
+    ("unassigned just over what a real take showed: a gap",
+     {"unseen": 0.5, "disagree": 0.0, "unassigned": round(route_split.UNASSIGNED_MOST + 0.0001, 4)}, "unassigned"),
+]
+
+# route_split.voted_finishes on that sphere voted finish 1 everywhere but the faces named: (case, the faces, their
+# votes, the finish they take).
+SPLIT_VOTES = [
+    ("a face seen in a region no label reaches takes its nearest label's finish", "face 7", [0.0, 0.0], 1),
+    ("a patch tied between the two finishes takes the finish round it", "patch", [0.5, 0.5], 1),
+    ("a patch not tied takes its own finish", "patch", [0.6, 0.5], 0),
+]
+
+
+LISTED = [
+    ("every finish labels its region, two takes in one batch", ((RED, BLUE), red_and_blue, None, (TAKE, OTHER),
+                                                                False),
+     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), None),
+    ("every finish labels its region, parted", ((RED, BLUE), red_and_blue, None, (TAKE,), False),
+     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]),
+     (["the list", "the list"], {}, False, None, None)),
+    ("the blue box listed in red: the split decides by the labels alone", ((RED, BLUE), blue_in_red, None, (TAKE,),
+                                                                            False),
+     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), None),
+    ("the blue box's region left out: unassigned, a gap", ((RED, BLUE), blue_left_out, None, (TAKE,), False),
+     (2, {0}, "finish 2 (blue paint) but labels no region"), ("pass", None), ("fail", "unassigned", None), None),
+    ("the blue finish labels no region, asked once more and labelled", ((RED, BLUE), all_red, red_and_blue,
+                                                                        (TAKE,), False),
+     (2, {0, 1}, "finish 2 (blue paint) but labels no region"), ("pass", None), ("pass", None, [12, 12]), None),
+    ("asked once more and the red now labels none: no fewer, the first stands", ((RED, BLUE), all_red, all_blue,
+                                                                                (TAKE,), False),
+     (2, {0}, "finish 2 (blue paint) but labels no region"), ("pass", None), None, None),
+    ("a texture shaded off its tokens, the close-up near them", ((SHADED_RED, SHADED_BLUE), red_and_blue, None,
+                                                                 (TAKE,), True),
+     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), (["the list", "the list"], {}, True, 0, None)),
+    ("the blue box as bare steel, off its colour", ((RED, BLUE), blue_in_steel, None, (TAKE,), True),
+     (1, {0, 1}, None), ("pass", None), ("pass", None, [12, 12]), (["the list", "off its colour"],
+                                                                  {1: "bare_steel"}, False, 1, "bare_steel")),
+    ("the two boxes' batch ended: a gap named by the list", ((RED, BLUE), batch_expired, None, (TAKE, OTHER), False),
+     (1, None, None),
+     ("fail", f"{TAKE}: no finish list (no usable answer: Unanswered('the batch ended JOB_STATE_EXPIRED'))"), None,
+     None),
+]
 
 
 def test_a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part():
@@ -3230,35 +3518,6 @@ def test_a_finish_only_the_close_up_shows_gets_its_region_its_faces_and_a_part()
         assert (finish_of[front] == 2).all() and (finish_of[~front] != 2).all(), finish_of
         found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())["takes"][TAKE]
         assert {row["words"] for row in found["parts"]} == {"red paint", "blue paint", "green label"}, found["parts"]
-
-
-def test_a_take_with_no_usable_answer_is_a_gap_named_by_the_list():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        lost = route_ask.google_batch.Unanswered("the batch ended JOB_STATE_EXPIRED")
-        rows, _ = listed(folder, lambda views, take: lost if take == TAKE else two_finish_answer(views),
-                         takes=(TAKE, OTHER))
-        assert not (rows["finish-route-list"] / f"{TAKE}.json").exists()
-        assert (rows["finish-route-list"] / f"{OTHER}.json").exists()
-        verdict = route_list.judge_list(rows["finish-route-list"], rows, {})
-        assert verdict.answer == "fail" and list(verdict.findings) == [
-            f"{TAKE}: no finish list (no usable answer: Unanswered('the batch ended JOB_STATE_EXPIRED'))"], verdict
-
-
-def test_the_parts_row_writes_the_methods_interface_each_finish_checked_against_its_colour():
-    with tempfile.TemporaryDirectory() as temporary:
-        folder = pathlib.Path(temporary)
-        rows = parted(folder, split(folder, listed(folder, lambda views, take: two_finish_answer(views))[0]))
-        found = json.loads((rows["surfaces-parts"] / "parts.json").read_text())
-        record = found["takes"][TAKE]
-        assert record["method"] == "finish-route" and found["left_out"] == {}, found
-        assert {row["words"] for row in record["parts"]} == {"red paint", "blue paint"}, record["parts"]
-        assert all(entry["measured_lab"] is not None and entry["by"] for entry in record["finishes"]), record
-        assert len(np.load(rows["surfaces-parts"] / TAKE / "parts.npy")) == 24
-        assert surfaces.finish_parts.parts_faults(rows["surfaces-parts"]) == []
-        assert route_parts.judge_parts(rows["surfaces-parts"], rows, {}).answer == "pass"
-
-
 
 
 def baked(folder, rows):
@@ -3450,33 +3709,6 @@ def test_a_take_s_bake_job_moves_only_with_its_own_take(monkeypatch):
                 if one.is_relative_to(two) or two.is_relative_to(one)], brought  # each job's outputs its own
 
 
-def test_the_check_holds_each_surface_against_the_spec_the_bake_baked():
-    with tempfile.TemporaryDirectory() as temporary:
-        bake = pathlib.Path(temporary)
-        (bake / "specs.json").write_text(json.dumps({"painted_panel__sign_red_r100_m000": {"colour": [1, 0, 0]}}))
-        seen = {}
-        kept = (route_check.bake_check.check_step, library.by_library, library.resolved, library.wear_of,
-                route_check.bake_check.check_model)
-        route_check.bake_check.check_step = lambda inputs, out: seen.update(
-            library=library.by_library("cockpit"), resolved=library.resolved("cockpit"), wear=library.wear_of("cockpit"))
-        try:
-            route_check.check_step({"bake": bake, "finish-route-palette": paletted(bake),
-                                    "surface-library": libraried(bake)}, bake)
-        finally:
-            (route_check.bake_check.check_step, library.by_library, library.resolved, library.wear_of,
-             route_check.bake_check.check_model) = kept
-        assert seen["library"]["painted_panel__sign_red_r100_m000"] == {"colour": [1, 0, 0]}
-        assert "painted_panel" in seen["library"]  # the library's own surfaces stay
-        # the scene's wear, dirt and dirt colour are its scene palette's, nothing of place.json's
-        assert seen["wear"] == (0.4, 0.3) and seen["resolved"] == {}, seen["wear"]
-        assert seen["library"]["painted_panel"]["dirt_colour"] == library.token_colours({"tokens": TOKENS})["regolith"]
-    # a surface with its own wear is measured at it, the others at the place's
-    measured = lambda name, entry, labelled, made, materials, dirt=0.0, wear=0.0: {
-        "surfaces": {surface: {"wear": wear} for surface in materials}}
-    checked = route_check.own_wear_checked(measured)("m", {}, None, None, {"a": {}, "b": {"wear": 0.8}}, 0.2, 0.4)
-    assert checked["surfaces"] == {"a": {"wear": 0.4}, "b": {"wear": 0.8}}, checked
-
-
 def rechecked(folder, answer, wide=True):
     """The recheck made through the rows (the colour check held wide unless `wide` is False), its one batch faked to
     answer `answer` (a dict, or an exception the batch holds): the take's record, its verdict and the batches asked."""
@@ -3497,17 +3729,6 @@ def rechecked(folder, answer, wide=True):
     finally:
         route_recheck.ask = original
         finish_parts.COLOUR_DELTA_E = kept
-
-
-def test_the_recheck_words_a_finish_in_the_token_it_is_drawn_and_baked_in():
-    """astronaut-made-s1 (2026-10-22): glass-brown patches on suit_patches (red by default) were worded red."""
-    surfaces = {"suit_patches": {"family": "fabric", "colour": [1.0, 0.0, 0.0]}}
-    tokens = {"glass-brown": [0.31855, 0.13287, 0.0331]}
-    finish = {"finish": "brown fabric", "parts": "patches", "surface": "suit_patches",
-              "settings": {"token": "glass-brown", "roughness": 0.9, "metal": 0.0}}
-    line = route_recheck.finish_lines([finish], surfaces, tokens)
-    assert "roughness 0.90" in line and "drawn red" not in line, line
-    assert "drawn red" in route_recheck.finish_lines([dict(finish, settings=None)], surfaces, tokens)
 
 
 def recheck_picks_judged(folder):
@@ -3843,81 +4064,6 @@ SHELL_KINDS = {"floor": ["deck_plate", "rubber_mat"], "ceiling": ["ceiling_panel
 SHELL_PARTS = [("stair", "deck_plate"), ("roof", "ceiling_panel"), ("wall", None)]
 
 
-def test_paid_asks_refuse_outside_a_cleared_run(monkeypatch):
-    """An uncached request is refused outside a cleared run; a batch the cache answers whole runs with no clearance
-    and no key (fault, 2026-10-29: body-face-earth refused in a free-only run although the cache held its answer)."""
-    from score.adapters import compute
-    sent, real = [], route_ask.google_batch.generate
-    monkeypatch.delenv(compute.TICKET, raising=False)
-    monkeypatch.setattr(route_ask.google_batch, "generate", lambda *asked: sent.append(asked) or {})
-    monkeypatch.setattr(route_ask.finish_ask, "secret_key", lambda: "key")
-    cached, uncached = {"ask": "cached"}, {"ask": "uncached"}
-    answer = {"candidates": [{"content": {"parts": [{"text": "{}"}]}, "finishReason": "STOP"}]}
-    route_ask.google_spend.keep(route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, cached), answer)
-    with pytest.raises(compute.Refused):
-        route_ask.asked({TAKE: cached, "other": uncached}, "test")
-    assert not sent, "a Gemini batch was sent outside a cleared run"
-    monkeypatch.setattr(route_ask.google_batch, "generate",
-                        lambda model, asked, key, caller: sent.append(key) or real(model, asked, key, caller))
-    assert route_ask.asked({TAKE: cached}, "test") == {TAKE: "{}"}
-    assert sent == [None], "a batch the cache answers asked for the key"
-
-
-def test_an_answer_that_does_not_parse_is_a_gap_dropped_from_the_cache():
-    """Fault (2026-10-25, surface-library@camp): a malformed JSON answer was kept in the cache, so every later try read
-    the same broken answer back."""
-    from score.adapters import compute
-    broken = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": [{,}]}'}]}, "finishReason": "STOP"}]}
-    good = {"candidates": [{"content": {"parts": [{"text": '{"surfaces": []}'}]}, "finishReason": "STOP"}]}
-    bodies = {"broken": {"ask": 1}, "good": {"ask": 2}}
-    kept = compute.require_cleared, route_ask.google_batch.generate, route_ask.finish_ask.secret_key
-    compute.require_cleared = lambda what, store=None: {"node": "test"}
-    route_ask.google_batch.generate = lambda model, asked, key, caller: {"broken": broken, "good": good}
-    route_ask.finish_ask.secret_key = lambda: "key"
-    try:
-        for body, response in zip(bodies.values(), (broken, good)):
-            route_ask.google_spend.keep(route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, body),
-                                        response)
-        found = route_ask.asked(bodies, "test")
-    finally:
-        compute.require_cleared, route_ask.google_batch.generate, route_ask.finish_ask.secret_key = kept
-    assert isinstance(found["broken"], route_ask.google_batch.Unanswered) and found["good"] == '{"surfaces": []}'
-    assert not route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, bodies["broken"]).exists()
-    assert route_ask.google_spend.cache_path(route_ask.finish_ask.LIST_MODEL, bodies["good"]).exists()
-
-
-def test_the_object_filter_keys_only_a_selecting_row():
-    from score.stages import world1
-    with tempfile.TemporaryDirectory() as temporary:
-        runner = graph.Runner(surfaces.ROWS, world1(), Store.in_folder(temporary))
-        views = runner.stages["finish-route-views"]
-        assert runner.params_of(views) == {}
-        runner.objects = frozenset({"b", "a"})
-        assert runner.params_of(views) == {"objects": ["a", "b"]}
-        assert runner.params_of(runner.stages["surfaces-paint"]) == {}
-        assert not any(name.startswith("model ") for name in runner.files_of(views, "old_station"))
-
-
-def test_the_route_is_the_default_line():
-    assert [row.name for row in surfaces.ROWS] == [
-        "finish-route-palette", "surface-library", "finish-route-views", "finish-route-list", "finish-route-split",
-        "surfaces-parts", "surfaces-bake", "surfaces-paint", "finish-route-recheck", "surfaces-check"]
-    assert [row.name for row in surfaces.ROWS if row.paid] == [
-        "finish-route-palette", "surface-library", "finish-route-list", "surfaces-bake", "finish-route-recheck"]
-    # no row of the route reads data/definitions/place.json: a scene's palette comes from its design
-    for row in surfaces.ROWS:
-        assert "places" not in (row.files("cockpit") if callable(row.files) else row.files), row.name
-    for name in ("finish-route-list", "surfaces-parts", "surfaces-bake", "finish-route-recheck", "surfaces-check"):
-        assert "finish-route-palette" in next(row for row in surfaces.ROWS if row.name == name).after, name
-    with tempfile.TemporaryDirectory() as temporary:
-        runner = graph.Runner(stages.STAGES, stages.world1(), Store.in_folder(temporary))
-        line = [graph.node_name(*node) for node in runner.line_nodes(["cockpit"], False)]
-        assert all(f"{row.name}@cockpit" in line for row in surfaces.ROWS), line
-        gone = ("surfaces-inputs", "surfaces-turntable", "surfaces-lists", "surfaces-maps", "surfaces-names",
-                "surfaces-segvigen", "finish-route-fill")
-        assert not [name for name in line if name.split("@")[0] in gone], line
-
-
 # --- bake_job ---
 
 def a_turned_take(folder, turn, size=(2.0, 1.0, 0.6)):
@@ -3944,100 +4090,6 @@ def a_pose_world(folder, row):
             "resting rules": REPO / "data/checks/resting.json"}
 
 
-def test_a_rolled_take_is_stood_square_and_a_lying_one_keeps_its_pose(tmp_path):
-    """#36 (2026-10-29: 154 of env1's 406 baked models stood tumbled, camp's bunk bed rolled 44 degrees): a 2 x 1 x
-    0.6 m take rolled 40 degrees over, its row 2 m wide, 1 m tall and 0.6 m deep, is stood square before it is laid:
-    within a degree of its frame, its box back on its row's proportions. A row whose design lays it lying (wreck's
-    crashed rocket section) keeps the turn it was made in, saying why; one standing square already is left as it is.
-    A code build keeps the pose its code made (#36, 2026-10-30: quarters' string lights, leaned by its close-up's
-    look-down, were turned 34 degrees off it, outline 0.544 to 0.101).
-    Break: score/stages/surfaces/route_bake.py: `if kept or not tumble.tumbled(laid):` -> `if True:`
-    Break: score/stages/surfaces/tumble.py: `return f"its design lays it lying ({said})"` -> `return None`
-    Break: score/stages/surfaces/tumble.py: `if built:` -> `if False:`, or route_bake.py `rules, rows, built)` ->
-        `rules, rows)`
-    Break: score/stages/surfaces/tumble.py `square_turn`: `if order[1] == up or not keep_up)` -> `if True)`"""
-    import tumble
-    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-    entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
-    labelled = a_turned_take(tmp_path / "rolled", rolled(40))
-    stood = route_bake.stood_square({"bed_1": entry}, labelled, "bed_take",
-                                    a_pose_world(tmp_path, {"id": "bed", "name": "bunk bed", "thing": "prop:bed_take"}))
-    turn = np.array(stood["bed_1"]["base"]).reshape(3, 3)
-    laid = route_bake.labelled_points(labelled) @ turn.T
-    assert tumble.measure(laid)[0] < 1.0 and np.allclose(np.ptp(laid, axis=0), (2.0, 1.0, 0.6), atol=0.02), laid
-    assert stood["bed_1"]["stood"]["degrees"] > 30.0, stood
-    lying = route_bake.stood_square({"rear_1": entry}, labelled, "rear_take", a_pose_world(
-        tmp_path / "wreck", {"id": "rear", "name": "crashed rocket rear section", "thing": "prop:rear_take"}))
-    assert lying["rear_1"]["base"] == identity and lying["rear_1"]["stood"]["kept"].startswith("its design lays it "
-                                                                                                  "lying (crashed)")
-    square = a_turned_take(tmp_path / "square", rolled(0))
-    assert route_bake.stood_square({"bed_1": entry}, square, "bed_take", a_pose_world(
-        tmp_path / "again", {"id": "bed", "thing": "prop:bed_take"}))["bed_1"] == entry
-    built = route_bake.stood_square({"lights_1": entry}, labelled, "lights_take", a_pose_world(
-        tmp_path / "code", {"id": "string_lights", "thing": "prop:lights_take"}), built=True)
-    assert built["lights_1"]["base"] == identity and built["lights_1"]["stood"]["kept"] == tumble.CODE_BUILD, built
-    # a row drawn flatter than its take (an L desk 0.7 x 0.42 x 0.6 tilted 30 degrees, its row 1.5 x 1.0 x 0.8): its
-    # tilt taken off on the up it stands on, never laid on its back by the row's proportions
-    desk = a_turned_take(tmp_path / "desk", rolled(30), size=(0.7, 0.42, 0.6))
-    stood = route_bake.stood_square({"desk_1": {"base": identity, "size": [1.5, 1.0, 0.8]}}, desk, "desk_take",
-                                    a_pose_world(tmp_path / "desk_row", {"id": "desk", "thing": "prop:desk_take"}))
-    laid = route_bake.labelled_points(desk) @ np.array(stood["desk_1"]["base"]).reshape(3, 3).T
-    assert np.allclose(np.ptp(laid, axis=0), (0.7, 0.42, 0.6), atol=0.02), np.ptp(laid, axis=0)
-
-
-def test_the_check_fails_a_tumbled_bake_by_name_with_its_angle_and_leaves_a_lying_one_out(tmp_path):
-    """#36: base's module baked 32 degrees off its frame and passed every gate. `stands square` fails a baked model
-    more than tumble.DEGREES off its frame (its frame box over tumble.LOOSE times its own) by name with its angle; a
-    row whose design keeps its pose is left out, said why.
-    Break: score/stages/surfaces/bake_check.py: `and record["square"]["loose"] > tumble.LOOSE]` -> `and False]`"""
-    (tmp_path / "checks.json").write_text(json.dumps({
-        "module_1": {"square": {"degrees": 32.06, "loose": 1.742}},
-        "bed_1": {"square": {"degrees": 0.4, "loose": 1.002}},
-        "rear_1": {"square": {"degrees": 43.4, "loose": 1.215}, "keeps_pose": "its design lays it lying (crashed)"}}))
-    found = bake_check.judge_square(tmp_path, {}, None)
-    assert found.answer == checks.FAIL and found.measures["failing"] == 1, found
-    assert found.findings == ("module_1: stands 32.1 degrees off its frame (its frame box 1.74 times its own)",
-                              "rear_1: left out, its design lays it lying (crashed)"), found.findings
-
-
-def test_one_guard_list_keeps_people_hanging_rows_cable_and_debris_in_their_pose_by_kind_anchor_and_words(tmp_path):
-    """#36 (2026-10-29): the bake turned garage's ceiling lamp (`on:ceiling_beam`) 50 degrees and hangar's limp floor
-    cables 31, and widened cockpit's seated pilot to his box with its chair. One guard list, read by row kind, anchor
-    and words, never by a name: a person (the people route), a hanging row (the resting rules' hanging words, or its
-    anchor the ceiling, by word or by its holder's ceiling group), a cable and ground debris (no up), a lying one; a
-    stool on the floor is not kept. The bake keeps the lamp's pose and its check leaves the same rows out.
-    Break: tumble.py `hangs`: `return f"anchored {anchor}"` -> `return None`
-    Break: tumble.py: `NO_UP = ("ground debris", "cable")` -> `NO_UP = ("ground debris",)`
-    Break: tumble.py `person`: `return row.get("route") == PEOPLE` -> `return False`
-    Break: bake_check.py `keeps_pose_of`: `or (entry.get("stood") or {}).get("kept")` dropped"""
-    import tumble
-    rules = tumble.rules_of({"stance rules": REPO / "data/checks/stance.json",
-                             "resting rules": REPO / "data/checks/resting.json"})
-    rows = [{"id": "ceiling_panels", "group": "kit: ceiling"}]
-    assert tumble.keeps_pose({"id": "pilot", "route": "people", "anchor": "on:pilot_seat"}, rules) == tumble.PERSON
-    assert tumble.keeps_pose({"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam"},
-                             rules).startswith("it hangs (anchored on:ceiling_beam)")
-    assert tumble.keeps_pose({"id": "light_1", "name": "light", "anchor": "on:ceiling_panels"}, rules, rows)
-    assert tumble.keeps_pose({"id": "glove", "name": "hanging glove", "anchor": "on:cabinet"}, rules)
-    assert tumble.keeps_pose({"id": "floor_cables", "name": "thick red cables", "anchor": "floor"},
-                             rules) == "no up (cables): it rests as it was made"
-    assert tumble.keeps_pose({"id": "rocks", "name": "rubble pile"}, rules)
-    assert tumble.keeps_pose({"id": "rear", "name": "crashed rocket rear section"}, rules)
-    assert tumble.keeps_pose({"id": "stool", "name": "stool", "anchor": "floor", "route": "prop"}, rules) is None
-    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-    labelled = a_turned_take(tmp_path / "lamp", rolled(40))
-    lamp = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "thing": "prop:lamp_take"}
-    inputs = a_pose_world(tmp_path / "garage", lamp)
-    stood = route_bake.stood_square({"ceiling_lamp_1": {"base": identity, "size": [2.0, 1.0, 0.6]}}, labelled,
-                                    "lamp_take", inputs)["ceiling_lamp_1"]
-    assert stood["base"] == identity and stood["stood"]["kept"].startswith("it hangs"), stood
-    entry = {"parts": "lamp_take", "stood": stood["stood"]}
-    assert bake_check.keeps_pose_of("ceiling_lamp_1", entry, [lamp], inputs).startswith("it hangs")
-    undone = {"parts": "valves_take", "stood": {"kept": "its turn left it 12.35 degrees off its frame as baked: kept "
-                                                        "as made"}}
-    assert bake_check.keeps_pose_of("pipe_valves_1", undone, [], inputs).startswith("its turn left it 12.35")
-
-
 def a_closeup(path, mask):
     """A Pixal3D input: `mask` as its alpha over grey, at `path`."""
     alpha = np.where(mask, 255, 0).astype(np.uint8)
@@ -4045,111 +4097,90 @@ def a_closeup(path, mask):
     return path
 
 
-def test_the_bake_s_outline_is_the_likeness_gate_s(tmp_path):
-    """The bake scores a take's outline on the card, where likeness.py cannot load (tools/usd/compare.py pulls in pxr):
-    take_outline's best outline is likeness_row.whole_best_way's best of its YAWS ways (before the gate's fine search
-    round it) over pixal_cut's cut, for a row seen at its look-down
-    and one lying flat seen from above, and its cut fills the cut-out's holes and drops its specks as pixal_cut does."""
-    from score.stages.props import likeness, likeness_row
-    import take_outline
-    mesh = trimesh.creation.box(extents=(1.0, 0.4, 0.6))
-    mesh.vertices = mesh.vertices @ np.asarray(rolled(25), float).T
-    mesh.export(tmp_path / "take.glb")
-    points, triangles = likeness.gltf_mesh(tmp_path / "take.glb")
-    mask = np.zeros((300, 300), bool)
-    mask[60:240, 40:200] = True
-    mask[120:150, 90:120] = False  # a hole the cut fills
-    mask[10:14, 280:284] = True  # a speck the cut drops
-    closeup = a_closeup(tmp_path / "input.png", mask)
-    for size in ([1.0, 0.6, 0.4], [2.0, 2.0, 0.1]):
-        gate = likeness_row.whole_best_way(tmp_path / "take.glb",
-                                           likeness_row.pixal_cut(closeup, tmp_path / "cuts", "take"), size)
-        downs = take_outline.look_downs(size, take_outline.cut(closeup))
-        assert gate["look_down"] in downs, (size, gate, downs)
-        assert max(take_outline.best(points, triangles, take_outline.cut(closeup), down) for down in downs) == \
-            max(gate["ways"]), (size, gate)
+IDENTITY = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+BED = {"id": "bed", "name": "bunk bed", "thing": "prop:bed_take"}
+LAMP = {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam", "thing": "prop:lamp_take"}
 
 
-def test_a_pixal_take_is_turned_only_when_its_turn_outlines_its_close_up_at_least_as_well(tmp_path):
-    """#36 (2026-10-30): lab's desk_divider, a Pixal3D take, outlined its close-up 0.467 as made and 0.296 after the
-    stand-square turned it 20 degrees. A tumbled Pixal3D take (its close-up in its job) whose made pose outlines its
-    close-up better keeps it, `stood` saying why with both outlines; one whose turned pose outlines it at least as well
-    is turned; the close-up reaches the job's listing."""
-    import take_outline
-    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-    entry = {"base": identity, "size": [2.0, 1.0, 0.6]}
-    labelled = a_turned_take(tmp_path / "rolled", rolled(40))
-    points, triangles = route_bake.labelled_mesh(labelled)
-    world = a_pose_world(tmp_path, {"id": "bed", "name": "bunk bed", "thing": "prop:bed_take"})
-    square = route_bake.stood_square({"bed_1": entry}, labelled, "bed_take", world)["bed_1"]  # with no close-up
-    turn = np.array(square["base"]).reshape(3, 3)
-    for pose, name in ((np.eye(3), "made"), (turn, "turned")):
-        mask = take_outline.silhouette(route_bake.fitted(points @ pose.T, entry["size"]), triangles, 0, 15.0)
-        closeup = a_closeup(tmp_path / f"{name}.png", mask)
-        stood = route_bake.stood_square({"bed_1": entry}, labelled, "bed_take",
-                                        {**world, route_bake.CLOSEUP: closeup})["bed_1"]
-        outline = stood["stood"]["outline"]
-        if name == "made":
-            assert stood["base"] == identity and outline["made"] > outline["turned"], stood
-            assert stood["stood"]["kept"] == (f"turned square its outline against its close-up was "
-                                              f"{outline['turned']}, under its made pose's {outline['made']}: kept "
-                                              "as made"), stood
-        else:
-            assert stood["base"] == square["base"] and "kept" not in stood["stood"], stood
-            assert outline["turned"] >= outline["made"], stood
-    short = {"parts": tmp_path, "inventory here": world["inventory here"]}
-    files = [tmp_path / name for name in ("records.json", "claimed.json", "head.json")]
-    files[2].write_text(json.dumps({"models": ["bed_1"]}))
-    pixal = tmp_path / "home/work/pixal"
-    (pixal / "bed_take.svviews").mkdir(parents=True)
-    a_closeup(pixal / "bed_take.svviews/input.png", np.ones((4, 4), bool))
-    original = route_bake.prop_env.PROPS_HOME
-    route_bake.prop_env.PROPS_HOME = tmp_path / "home"
-    try:
-        job = json.loads(route_bake.card_job(short, tmp_path, "bed_take", (*files, tmp_path)).read_text())
-    finally:
-        route_bake.prop_env.PROPS_HOME = original
-    listing = json.loads(pathlib.Path(job["args"][0]).read_text())
-    assert listing[route_bake.CLOSEUP] == str(pixal / "bed_take.svviews/input.png") in job["inputs"], listing
+# #36 (2026-10-29: 154 of env1's 406 baked models stood tumbled, camp's bunk bed rolled 44 degrees; the bake turned
+# garage's ceiling lamp 50 degrees; 2026-10-30: quarters' string lights, leaned by its close-up's look-down, were
+# turned 34 degrees off it, outline 0.544 to 0.101; lab's desk_divider, a Pixal3D take, outlined its close-up 0.467 as
+# made and 0.296 turned). route_bake.stood_square on one labelled box take a row: (case, its hand-in row, model, take,
+# the take's roll in degrees and its (x, y, z) size, the model's row size, built in code, its close-up (None, or the
+# pose it is drawn from: "made" or "turned" square), what it stands as). "square": its box within a degree of its frame
+# and back on these proportions, turned at least this many degrees (or None); "kept"/"kept from": its made pose kept,
+# `stood` saying exactly this or starting with it, and the bake check leaving it out for the same reason; "same": left
+# as it was; "outline kept"/"outline turned": kept as made with both outlines named, or turned as with no close-up.
+STAND_SQUARE = [
+    ("a 2 x 1 x 0.6 m take rolled 40 degrees is stood square", BED, "bed_1", "bed_take", 40, (2.0, 1.0, 0.6),
+     [2.0, 1.0, 0.6], False, None, ("square", (2.0, 1.0, 0.6), 30.0)),
+    ("a row whose design lays it lying keeps the turn it was made in",
+     {"id": "rear", "name": "crashed rocket rear section", "thing": "prop:rear_take"}, "rear_1", "rear_take", 40,
+     (2.0, 1.0, 0.6), [2.0, 1.0, 0.6], False, None, ("kept from", "its design lays it lying (crashed)")),
+    ("one standing square already is left as it is", {"id": "bed", "thing": "prop:bed_take"}, "bed_1", "bed_take", 0,
+     (2.0, 1.0, 0.6), [2.0, 1.0, 0.6], False, None, ("same",)),
+    ("a code build keeps the pose its code made", {"id": "string_lights", "thing": "prop:lights_take"}, "lights_1",
+     "lights_take", 40, (2.0, 1.0, 0.6), [2.0, 1.0, 0.6], True, None, ("kept", tumble.CODE_BUILD)),
+    ("an L desk drawn flatter than its take has its tilt taken off on the up it stands on, never laid on its back",
+     {"id": "desk", "thing": "prop:desk_take"}, "desk_1", "desk_take", 30, (0.7, 0.42, 0.6), [1.5, 1.0, 0.8], False,
+     None, ("square", (0.7, 0.42, 0.6), None)),
+    ("a ceiling lamp anchored on a beam hangs: its pose kept", LAMP, "ceiling_lamp_1", "lamp_take", 40,
+     (2.0, 1.0, 0.6), [2.0, 1.0, 0.6], False, None, ("kept from", "it hangs")),
+    ("a Pixal3D take whose made pose outlines its close-up better keeps it", BED, "bed_1", "bed_take", 40,
+     (2.0, 1.0, 0.6), [2.0, 1.0, 0.6], False, "made", ("outline kept",)),
+    ("a Pixal3D take whose turned pose outlines its close-up at least as well is turned", BED, "bed_1", "bed_take", 40,
+     (2.0, 1.0, 0.6), [2.0, 1.0, 0.6], False, "turned", ("outline turned",)),
+]
 
+# The one guard list (tumble.keeps_pose), read by row kind, anchor and words, never by a name: (case, row, the place's
+# rows, why it keeps its pose: None, any reason (True), ("is", exactly) or ("from", its start)). A person (the people
+# route), a hanging row (the resting rules' hanging words, or its anchor the ceiling, by word or by its holder's
+# ceiling group), a cable and ground debris (no up), a lying one; a stool on the floor is not kept. #36 (2026-10-29):
+# hangar's limp floor cables were turned 31 degrees, cockpit's seated pilot widened to his box with its chair.
+KEEPS_POSE = [
+    ("a person", {"id": "pilot", "route": "people", "anchor": "on:pilot_seat"}, [], ("is", tumble.PERSON)),
+    ("a lamp anchored on a ceiling beam", {"id": "ceiling_lamp", "name": "ceiling lamp", "anchor": "on:ceiling_beam"},
+     [], ("from", "it hangs (anchored on:ceiling_beam)")),
+    ("a light on its holder's ceiling group", {"id": "light_1", "name": "light", "anchor": "on:ceiling_panels"},
+     [{"id": "ceiling_panels", "group": "kit: ceiling"}], True),
+    ("a glove hanging by its words", {"id": "glove", "name": "hanging glove", "anchor": "on:cabinet"}, [], True),
+    ("floor cables have no up", {"id": "floor_cables", "name": "thick red cables", "anchor": "floor"}, [],
+     ("is", "no up (cables): it rests as it was made")),
+    ("ground debris has no up", {"id": "rocks", "name": "rubble pile"}, [], True),
+    ("a crashed rocket section lies", {"id": "rear", "name": "crashed rocket rear section"}, [], True),
+    ("a stool on the floor is not kept", {"id": "stool", "name": "stool", "anchor": "floor", "route": "prop"}, [], None),
+]
 
-def test_a_take_is_measured_again_as_baked_and_turned_until_square_and_a_turn_that_cannot_square_it_is_undone():
-    """#36 (2026-10-29): habitat's stove stood 7.1 degrees on its labelled take and was not turned, then 12.6 degrees
-    baked (fitted to its size, remeshed, its feet levelled) and failed `stands square`; hangar's pipe valves were
-    turned from 32.8 to 12.4 degrees on their unsteady box and kept that turn. The bake measures each copy as it bakes
-    with the check's own measure: a stove copy 12.6 degrees off, never turned, is turned again (its copy then square)
-    and baked again; a square one is done; one the bake turned that is still more than tumble.DEGREES off after the
-    last measuring takes back the turn it was made in, saying why.
-    Break: route_bake.py `squared_again`: `elif turned:` -> `elif False:`
-    Break: route_bake.py `squared_again`: `square = not (...) and (not turned or degrees <= tumble.DEGREES)` -> `square
-        = not (degrees > tumble.DEGREES and loose > tumble.LOOSE)`
-    Break: route_bake.py `squared_again`: `elif measured < route_bake.SQUARE_ROUNDS:` -> `elif False:`"""
-    import tumble
-    identity = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
-    box = trimesh.creation.box(extents=(0.8, 0.9, 0.6)).vertices
-    tilted = box @ np.array(rolled(12.6)).T
-    entries = {"stove_1": {"base": identity, "size": [0.8, 0.9, 0.6]},
-               "oven_1": {"base": identity, "size": [0.8, 0.9, 0.6]}}
-    found, again = route_bake.squared_again(entries, {"stove_1": tilted, "oven_1": box}, 1)
-    assert again == ["stove_1"] and found["oven_1"]["base"] == identity, (found, again)
-    turn = np.array(found["stove_1"]["base"]).reshape(3, 3)
-    assert tumble.measure(tilted @ turn.T)[0] < 1.0 and found["stove_1"]["stood"]["made"] == identity
-    assert found["stove_1"]["stood"]["baked"] == [list(tumble.measure(tilted))]
-    done, again = route_bake.squared_again(found, {"stove_1": tilted @ turn.T}, 2)
-    assert again == [] and done["stove_1"]["base"] == found["stove_1"]["base"] and "kept" not in done["stove_1"]["stood"]
-    turned = {"pipe_valves_1": {"base": [round(value, 6) for value in np.array(rolled(20)).reshape(-1)],
-                                "size": [0.8, 0.9, 0.6], "stood": {"made": identity}}}
-    # an unsteady box, as the valves': a round blob's oriented box stands over 10 degrees off, its frame box as tight
-    still = trimesh.creation.icosphere(subdivisions=3).vertices * np.array([0.5, 0.42, 0.3]) @ np.array(rolled(12.35)).T
-    degrees, loose = tumble.measure(still)
-    assert degrees > tumble.DEGREES and loose < tumble.LOOSE, (degrees, loose)
-    unsquared, again = route_bake.squared_again(turned, {"pipe_valves_1": still}, route_bake.SQUARE_ROUNDS)
-    assert again == [] and unsquared["pipe_valves_1"]["base"] == identity, unsquared
-    assert unsquared["pipe_valves_1"]["stood"]["kept"] == (f"its turn left it {degrees} degrees off its frame as "
-                                                           "baked: kept as made"), unsquared
-    loose_only = box @ np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]).T
-    assert route_bake.squared_again(turned, {"pipe_valves_1": loose_only}, route_bake.SQUARE_ROUNDS)[0][
-        "pipe_valves_1"]["base"] == turned["pipe_valves_1"]["base"]  # square as baked: its turn stays
+# route_bake.squared_again, the check's own measure on each copy as it bakes (#36, 2026-10-29: habitat's stove stood
+# 7.1 degrees on its labelled take and was not turned, then 12.6 baked and failed `stands square`; hangar's pipe
+# valves were turned from 32.8 to 12.4 degrees on their unsteady box and kept that turn): (case, the entries (copied),
+# each copy's points by name, the measuring round, the copies to bake again, each model's base after: "made" (as
+# made), "turned" (the turn it had), "square" (a turn that stands its copy within a degree), its `kept` or None).
+STOVE_BOX = trimesh.creation.box(extents=(0.8, 0.9, 0.6)).vertices
+VALVES = {"pipe_valves_1": {"base": [round(value, 6) for value in np.array(rolled(20)).reshape(-1)],
+                            "size": [0.8, 0.9, 0.6], "stood": {"made": IDENTITY}}}
+# an unsteady box, as the valves': a round blob's oriented box stands over 10 degrees off, its frame box as tight
+UNSTEADY = trimesh.creation.icosphere(subdivisions=3).vertices * np.array([0.5, 0.42, 0.3]) @ np.array(rolled(12.35)).T
+SQUARE_AGAIN = [
+    ("a copy 12.6 degrees off, never turned, is turned and baked again; a square one is done",
+     {"stove_1": {"base": IDENTITY, "size": [0.8, 0.9, 0.6]}, "oven_1": {"base": IDENTITY, "size": [0.8, 0.9, 0.6]}},
+     {"stove_1": STOVE_BOX @ np.array(rolled(12.6)).T, "oven_1": STOVE_BOX}, 1, ["stove_1"],
+     {"stove_1": ("square", None), "oven_1": ("made", None)}),
+    ("one the bake turned still off after the last measuring takes back the turn it was made in", VALVES,
+     {"pipe_valves_1": UNSTEADY}, "last", [], {"pipe_valves_1": ("made", "its turn left it {degrees} degrees off its "
+                                                                         "frame as baked: kept as made")}),
+    ("one the bake turned that is square as baked keeps its turn", VALVES, {"pipe_valves_1": STOVE_BOX}, "last", [],
+     {"pipe_valves_1": ("turned", None)}),
+]
+
+# take_outline (scored on the card, where likeness.py cannot load: tools/usd/compare.py pulls in pxr) against the
+# likeness gate's likeness_row.whole_best_way over pixal_cut's cut, on the bed's take and its STAND_SQUARE close-ups:
+# (case, the close-up's pose, the row's size).
+OUTLINE_SIZES = [("a row seen at its look-down", "made", [1.0, 0.6, 0.4]),
+                 ("one lying flat seen from above", "made", [2.0, 2.0, 0.1]),
+                 ("one lying flat seen from above, its close-up turned", "turned", [2.0, 2.0, 0.1])]
+# STAND_SQUARE's outcomes whose made pose is kept, so `stands square` leaves them out
+KEPT_POSES = ("kept", "kept from", "outline kept")
 
 
 def test_a_swinging_door_at_full_open_touches_nothing_in_its_recess():
