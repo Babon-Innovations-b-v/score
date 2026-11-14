@@ -3737,7 +3737,7 @@ def an_entry(folder, name, **fields):
 STARTS = '#!/bin/sh\necho "detached: started in $(pwd) with $*"; echo started >> "$PWD/starts"\n'
 
 
-@run_ahead("test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlier_boot_cut_off_unchanged")
+@run_ahead("test_a_run_claims_its_store_beside_live_runs_of_its_commit_ends_stopped_unless_cut_off_and_resume_starts_only_that")
 def a_dry_resume():
     """`score resume --dry` in a home of its own over six runs' entries, two of a worktree of their own: the home,
     the worktree, its commit and the process."""
@@ -3789,10 +3789,22 @@ class Driving:
         os.kill(os.getpid(), signal.SIGINT)
 
 
-def test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlier_boot_cut_off_unchanged(
-        monkeypatch, run_registry):
-    """One registry: runs registered by score run itself end by the ENDINGS, the machine reboots, and resume starts
-    again only what the boot cut off.
+def test_a_run_claims_its_store_beside_live_runs_of_its_commit_ends_stopped_unless_cut_off_and_resume_starts_only_that(
+        other, monkeypatch, run_registry):
+    """One registry folder through its runs' lives: score run claims the store beside the live runs (CLAIMS) and, once
+    claimed, drives registered in that folder (running while it drives, ended after); runs registered by score run end
+    by the ENDINGS, the machine reboots, and resume starts again only what the boot cut off, never the claimed run that
+    ended; the claims sit beside the entries all along and are never read as a run.
+    Fault (2026-10-17): two runs at different code over one store re-made each other's rows for 6 hours. A dead
+    pid, a reused one (another start time) or a released run frees the store; the claims are never read as a run.
+    Review of C10: every place reads environment nodes (terrain), so comparing every planned node refused the second
+    `score run --place` always; only nodes a run would make count. Fault (2026-10-28): the run's start listed its line
+    nodes three times (claim, gauges, drive), each outside a still, and the claim worked out every key in a still of
+    its own: 35 s of one core before the first node. The claim lists them once, inside the still its would_make works
+    in, and the gauges take that list. A toy table: terrain read by each place's build.
+    Break: score/graph/runs.py: '            if entry.get("started") is not None and start_time(int(pid)) == entry["started"]}' -> '            }'
+    Break: score/graph/runs.py: '        return [node_name(stage, place) for stage, place in nodes if runner.standing(stage, place) is not None]' -> '        return [node_name(stage, place) for stage, place in nodes]'
+    Break: score/__main__.py: '    with runner.still(), plans.one_moment():' -> '    with plans.one_moment():'
     C9 review: Ctrl-C, a kill or a closed session left a run `running`, for resume to buy again what the owner
     stopped; and score run wrote its entry before the stopping signals were handled, so a Ctrl-C in between left it
     `running` too. A SIGTERM while the machine shuts down, or in a resize the size timer asked for, leaves it as it was;
@@ -3822,8 +3834,81 @@ def test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlie
     Break: in runs.cut_at_this_boot, drop `and not size.entry_alive(entry)` (a live drive started twice).
     Break: in runs.restart_cut, drop the `cut_before` refusal (a run cut by its memory resumed for ever)."""
     from score import __main__ as command
+    folder = run_registry
+    data, world = a_world_of(["airlock", "camp"])
+    terrain = graph.Stage("terrain", "world", made_once(data), TEXT, MET)
+    build = graph.Stage("build", "place", make_seen, TEXT, MET, after={"terrain": READS})
+    runner = a_runner(world, a_store(), (terrain, build))
+    pids = {"other": other.pid, "me": os.getpid(), "dead": a_dead_pid()}
+    worktrees = {"other": "/work/one", "me": "/work/two", "dead": "/work/one"}
+    listed, judged, seen = [], [], []
+    line_nodes, would_make, claim_refusal = runner.line_nodes, runs.would_make, runs.claim_refusal
+    options, drive = argparse.Namespace(stage=None, detach=True, free=True, jobs=2), runner.drive
+
+    def driving(*arguments, **given):  # the registry as score run's drive sees it
+        seen.append(({entry["state"] for entry in runs.entries(folder).values()}, runs.stranded(folder)))
+        return drive(*arguments, **given)
+
+    def listing(*arguments, **options):
+        listed.append(runner.remembered is not None)
+        return line_nodes(*arguments, **options)
+
+    def making(*arguments):
+        judged.append(runner.remembered is not None)
+        return would_make(*arguments)
+    monkeypatch.setattr(runner, "line_nodes", listing)
+    monkeypatch.setattr(runs, "would_make", making)
+    monkeypatch.setattr(runner, "drive", driving)
+    monkeypatch.setattr(runs, "claim_refusal", lambda commit, nodes: claim_refusal(commit, nodes, folder=folder))
+    for step, (done, who, commit, nodes, answer) in enumerate(CLAIMS):
+        expected = answer and answer.format(other=other.pid)
+        if done == "claim":
+            assert runs.claim(commit, list(nodes), pids[who], worktree=worktrees[who], folder=folder) == expected, step
+            if expected:  # registering nothing, the check before detaching gives the same refusal
+                assert claim_refusal(commit, list(nodes), folder=folder) == expected, step
+        elif done == "unclaim":
+            runs.unclaim(pids[who], folder=folder)
+        elif done == "reused":
+            entries = json.loads((folder / runs.ACTIVE).read_text())
+            entries[str(pids[who])]["started"] = "1"
+            (folder / runs.ACTIVE).write_text(json.dumps(entries))
+        elif done == "terrain":
+            airlock = runner.line_nodes(["airlock"], False)
+            assert would_make(runner, airlock) == ["terrain", "build@airlock"], step
+            assert runner.run_node(terrain, None) == ACCEPTED, step
+            assert would_make(runner, airlock) == ["build@airlock"], step
+        else:  # score run itself: its claim, then, claimed, its drive registered in the same folder
+            listed.clear(), judged.clear()
+            monkeypatch.setattr(command, "run_commit", lambda *arguments, commit=commit: commit)
+            said = io.StringIO()
+            with contextlib.redirect_stderr(said):
+                try:
+                    chosen = command.claim(runner, [who], False, options)
+                    code = None
+                except SystemExit as stop:
+                    code = stop.code
+            assert listed == [True] and judged == [True], (step, listed, judged)
+            assert (code, said.getvalue()) == ((stopped.REFUSED, expected + "\n") if expected else (None, "")), step
+            assert would_make(runner, line_nodes([who], False)) == list(nodes), step
+            if code is None:
+                assert [graph.node_name(*node) for node in chosen] == ["terrain", "build@camp"], chosen
+                command.run_gauges(runner, chosen, "2026-10-28T09:00:00Z")
+                assert runner.remembered is None  # the still is closed before the drive opens its own
+                made = command.driven(runner, [who], False, options, ["run", "world1", "--place", who, "--detach",
+                                                                      "--jobs", "2"])
+                assert made == {"terrain": "fresh", "build@camp": ACCEPTED}, made  # it makes only what it claimed
+                assert would_make(runner, line_nodes([who], False)) == [], step
+                assert seen == [({runs.RUNNING}, {})], seen  # registered running while it drives, never stranded
+            assert [entry["state"] for entry in runs.entries(folder).values()] == (
+                [runs.ENDED] if code is None else []), step
+    # the claimed run's own entry, the only one: other's claim stands beside it in active.json, never read as a run
+    (path, entry), = runs.entries(folder).items()
+    assert json.loads((folder / runs.ACTIVE).read_text()).keys() == {str(other.pid)}
+    assert entry["argv"] == ["run", "world1", "--place", "camp", "--jobs", "2"] and entry["pid"] == os.getpid()
+    assert entry["worktree"] == str(REPO) and entry["commit"] == git_out("rev-parse", "HEAD")[0] and entry["state"] == runs.ENDED
+    assert entry["boot"] == runs.boot_id() and runs.stranded(folder) == {}
     home, worktree, commit, done = ahead(
-        "test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlier_boot_cut_off_unchanged")
+        "test_a_run_claims_its_store_beside_live_runs_of_its_commit_ends_stopped_unless_cut_off_and_resume_starts_only_that")
     assert done.returncode == 0, done.stderr
     assert done.stdout.strip().splitlines() == [
         f"would resume cut-off: worktree={worktree} commit={commit[:12]} argv=run world1 --place hangar",
@@ -3831,21 +3916,16 @@ def test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlie
         f"its worktree is at {commit[:12]}, not the commit that registered it"], done.stdout
     assert {entry["state"] for entry in runs.entries(home / "runs").values()} == {runs.RUNNING, runs.ENDED,
                                                                                    runs.STOPPED}
-    folder = run_registry
-    path = runs.register(["run", "world1", "--detach", "--jobs", "2"])
-    entry = json.loads(path.read_text())
-    assert entry["argv"] == ["run", "world1", "--jobs", "2"] and entry["pid"] == os.getpid()
-    assert entry["worktree"] == str(REPO) and entry["commit"] == git_out("rev-parse", "HEAD")[0] and entry["state"] == runs.RUNNING
-    assert entry["boot"] == runs.boot_id() and runs.stranded(folder) == {}
     monkeypatch.setattr(runs, "HEARTBEAT", 0.05)
     for gauge, says in ((None, {}), (lambda: {"running": 0, "buys": 0}, {"running": 0, "buys": 0})):
         os.utime(path, (1, 1))
         with runs.beating(path, gauge):
             time.sleep(0.3)
         entry = json.loads(path.read_text())
-        assert path.stat().st_mtime > 1 and entry["argv"] == ["run", "world1", "--jobs", "2"], gauge
+        assert path.stat().st_mtime > 1 and entry["argv"] == ["run", "world1", "--place", "camp", "--jobs", "2"], gauge
         assert {name: entry[name] for name in ("running", "buys") if name in entry} == says, gauge
-    path.unlink()
+        assert entry["state"] == runs.ENDED, gauge
+    drove = path.rename(folder / "ending-drove.json")  # an ended run: the reboot below never starts it again
     handlers = {number: signal.getsignal(number) for number in (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)}
     written = runs.written
 
@@ -3920,10 +4000,11 @@ def test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlie
         "still waiting for size: it asks for 16 jobs" in line for line in left), said
     assert not old.exists() and new.exists() and any(str(old) in line for line in said), said
     states = {path.stem: entry["state"] for path, entry in runs.entries(folder).items()}
-    assert states == {**{f"ending-{number}": runs.STOPPED for number in range(len(ENDINGS))},
+    assert states == {**{f"ending-{number}": runs.STOPPED for number in range(len(ENDINGS))}, "ending-drove": runs.ENDED,
                       "ending-3": runs.RESUMED, "ending-4": runs.WAITING, "cut-off": runs.RESUMED,
                       "waiting": runs.WAITING, "waiting-this-boot": runs.WAITING}, states
     assert set(runs.stranded(folder)) == {folder / "waiting.json", resizes_kill}
+    assert (folder / runs.ACTIVE).exists() and folder / runs.ACTIVE not in runs.entries(folder) and drove.exists()
     monkeypatch.setattr(os, "cpu_count", lambda: 16)
     said.clear()
     runs.resume(False, said.append, folder=folder, swept=())
@@ -4030,76 +4111,6 @@ CLAIMS = (
     ("claim", "other", "aaa111", ("build@airlock",), None),  # terrain stands: neither place would make it now
     ("run", "camp", "aaa111", ("build@camp",), None),
 )
-
-
-def test_a_run_claims_its_store_only_beside_live_runs_of_its_commit_that_make_other_nodes(other, monkeypatch):
-    """Fault (2026-10-17): two runs at different code over one store re-made each other's rows for 6 hours. A dead
-    pid, a reused one (another start time) or a released run frees the store; the claims are never read as a run.
-    Review of C10: every place reads environment nodes (terrain), so comparing every planned node refused the second
-    `score run --place` always; only nodes a run would make count. Fault (2026-10-28): the run's start listed its line
-    nodes three times (claim, gauges, drive), each outside a still, and the claim worked out every key in a still of
-    its own: 35 s of one core before the first node. The claim lists them once, inside the still its would_make works
-    in, and the gauges take that list. A toy table: terrain read by each place's build.
-    Break: score/graph/runs.py: '            if entry.get("started") is not None and start_time(int(pid)) == entry["started"]}' -> '            }'
-    Break: score/graph/runs.py: '        return [node_name(stage, place) for stage, place in nodes if runner.standing(stage, place) is not None]' -> '        return [node_name(stage, place) for stage, place in nodes]'
-    Break: score/__main__.py: '    with runner.still(), plans.one_moment():' -> '    with plans.one_moment():'"""
-    from score import __main__ as command
-    data, world = a_world_of(["airlock", "camp"])
-    terrain = graph.Stage("terrain", "world", made_once(data), TEXT, MET)
-    build = graph.Stage("build", "place", make_seen, TEXT, MET, after={"terrain": READS})
-    runner = a_runner(world, a_store(), (terrain, build))
-    folder = pathlib.Path(tempfile.mkdtemp()) / "runs"
-    pids = {"other": other.pid, "me": os.getpid(), "dead": a_dead_pid()}
-    worktrees = {"other": "/work/one", "me": "/work/two", "dead": "/work/one"}
-    listed, judged = [], []
-    line_nodes, would_make, claim_refusal = runner.line_nodes, runs.would_make, runs.claim_refusal
-
-    def listing(*arguments, **options):
-        listed.append(runner.remembered is not None)
-        return line_nodes(*arguments, **options)
-
-    def making(*arguments):
-        judged.append(runner.remembered is not None)
-        return would_make(*arguments)
-    monkeypatch.setattr(runner, "line_nodes", listing)
-    monkeypatch.setattr(runs, "would_make", making)
-    monkeypatch.setattr(runs, "claim_refusal", lambda commit, nodes: claim_refusal(commit, nodes, folder=folder))
-    for step, (done, who, commit, nodes, answer) in enumerate(CLAIMS):
-        expected = answer and answer.format(other=other.pid)
-        if done == "claim":
-            assert runs.claim(commit, list(nodes), pids[who], worktree=worktrees[who], folder=folder) == expected, step
-            if expected:  # registering nothing, the check before detaching gives the same refusal
-                assert claim_refusal(commit, list(nodes), folder=folder) == expected, step
-        elif done == "unclaim":
-            runs.unclaim(pids[who], folder=folder)
-        elif done == "reused":
-            entries = json.loads((folder / runs.ACTIVE).read_text())
-            entries[str(pids[who])]["started"] = "1"
-            (folder / runs.ACTIVE).write_text(json.dumps(entries))
-        elif done == "terrain":
-            airlock = runner.line_nodes(["airlock"], False)
-            assert would_make(runner, airlock) == ["terrain", "build@airlock"], step
-            assert runner.run_node(terrain, None) == ACCEPTED, step
-            assert would_make(runner, airlock) == ["build@airlock"], step
-        else:
-            listed.clear(), judged.clear()
-            monkeypatch.setattr(command, "run_commit", lambda *arguments, commit=commit: commit)
-            said = io.StringIO()
-            with contextlib.redirect_stderr(said):
-                try:
-                    chosen = command.claim(runner, [who], False, argparse.Namespace(stage=None, detach=True, free=True))
-                    code = None
-                except SystemExit as stop:
-                    code = stop.code
-            assert listed == [True] and judged == [True], (step, listed, judged)
-            assert (code, said.getvalue()) == ((stopped.REFUSED, expected + "\n") if expected else (None, "")), step
-            if not expected:
-                assert [graph.node_name(*node) for node in chosen] == ["terrain", "build@camp"], chosen
-            assert would_make(runner, line_nodes([who], False)) == list(nodes), step
-    command.run_gauges(runner, chosen, "2026-10-28T09:00:00Z")
-    assert runner.remembered is None  # the still is closed before the drive opens its own
-    entry = an_entry(folder, "20261017T080000-1")
-    assert (folder / runs.ACTIVE).exists() and list(runs.entries(folder).values()) == [entry]
 
 
 # --- a run's frozen copy of the code and its design (#45) -----------------------------------------------------------
