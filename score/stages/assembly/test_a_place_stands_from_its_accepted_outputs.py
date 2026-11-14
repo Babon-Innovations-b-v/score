@@ -2796,8 +2796,10 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     Campgrounds' habitat domes (2026-11-11) stood on flat ground with eleven rim feet 3.1 to 8.8 cm up and its
     communications towers with a leg 3.4 cm up, feet the paint links into one (3% of the footprint's diagonal) and
     the resting check reads apart (5 cm): a floor thing's own asset is laid with a leg 5 cm short brought down onto
-    its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's and an asset linked
-    from elsewhere are left as they are.
+    its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's, one the scene record
+    attaches on its holder's top (the workshop's lamp, its robotic arm's head, turned 44 degrees and cut 13 cm of its
+    20 cm, 2026-11-14) and an asset linked from elsewhere are left as they are.
+    Break: score/stages/assembly/even_feet.py: `and said_row(prim) not in attached` dropped (the attached one levelled)
     Break: score/stages/assembly/even_feet.py: `if foot - lowest > most and not` -> `if False and not`
     Break: score/stages/assembly/big_bases.py: sole_cut's `for spare in (SPARE, 0.0):` -> `for spare in (0.0,):` (the
         cabinet left on a leg 2.7 cm short)
@@ -2814,6 +2816,10 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
         np.inf:` (laid again, moved 5 mm down into the walls), `found[entry["name"]] = between - CLEAR` -> `=
         between` (moved 0.5 m), or let_down's `fits.append({**fit, "top at": ...} if one ==
         name else fit)` -> `fits.append(fit)` (the held gate measures it off the hall's box top)
+    Break: score/stages/assembly/roof_tops.py: downs' `roofed, fixed = roofs(rows, record), attached(record)` ->
+        `roofed, fixed = roofs(rows, record), set()` (the attached slab left), attached's `and entry.get("rests") ==
+        "attached"` dropped (the standing slab let down), or downs' `under = laid_under(...) if ... else []` -> `under =
+        []` (the slab on its post let down through it)
     Break: score/stages/assembly/big_bases.py: deep_cut's `deepest = DEEP * float(np.ptp(points[:, 1]))` -> `deepest
         = 9.0` (the 4 m post cut level), or levelled's `stood, sole = sole_cut(stood, triangles)` -> `sole = []` (the
         hall left on its corners), or sole_cut's `SOLE * float(np.ptp(points[:, 1]))` -> `1.0` (the shed cut level)
@@ -2870,6 +2876,7 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
     (tmp_path / "elsewhere").mkdir()
     for name, short, how, legs in (("table", 0.05, "floor", [0.0] * 4), ("stool", 0.02, "floor", [0.0, 0.0, 0.0, 0.02]),
                                    ("rack", 0.05, "fixed", [0.0, 0.0, 0.0, 0.05]),
+                                   ("head", 0.05, "attached", [0.0, 0.0, 0.0, 0.05]),
                                    ("shelf", 0.05, "linked", [0.0, 0.0, 0.0, 0.05])):
         source = a_thing_on_legs(tmp_path / "elsewhere", name, short) if how == "linked" else None
         root = a_thing_on_legs(tmp_path / name, name, short,
@@ -2879,6 +2886,13 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
             Sdf.AttributeSpec(layer.GetPrimAtPath(f"/{TOY}/Objects/{name}_1"), "score:fixed",
                               Sdf.ValueTypeNames.Bool).default = True
             layer.Save()
+        if how == "attached":  # the record attaches it on its holder's top: it stands as baked
+            layer = Sdf.Layer.FindOrOpen(str(root))
+            Sdf.AttributeSpec(layer.GetPrimAtPath(f"/{TOY}/Objects/{name}_1"), "score:row",
+                              Sdf.ValueTypeNames.String).default = name
+            layer.Save()
+            (tmp_path / name / record.RECORD).write_text(json.dumps({"objects": [
+                {"name": f"{name}_1", "row": name, "on": {"how": "top", "holder": ["arm_1"]}, "rests": "attached"}]}))
         grounded.take_bakes(bake, tmp_path / name, TOY)
         assert lowest_legs(root.parent / "assets" / f"{name}.usdc") == (legs, legs[-1]), name
     # assembly@old_station (2026-11-12): its hub stood on a foot at its back edge 16 to 24 cm under its legs, its
@@ -3147,6 +3161,27 @@ def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(t
                                json.loads((place.parent / made_waiting.LAID).read_text())) == []
     place = a_roofed_place(tmp_path / "roofed-object")
     assert lay_roofs(place.parent, TOY, [rows[0], {**rows[1], "part": "object"}]) == []
+    # assembly@workshop (2026-11-14): its lamp, attached on its robotic arm's top as the arm's head, was left at the
+    # arm's box top and floated 0.24 m. The same slab read as an object the record attaches on the hall's top is let
+    # down so, as attached; one the record lays on the top unattached is not. assembly@hangar (2026-11-14): its pipe
+    # valves, attached on their pipe's top and packed onto the pipe over it, were let down 0.66 m through that pipe:
+    # the attached slab whose fin already stands on a post laid under it (not its record's holder) stays.
+    for name, rests, moved in (("attached", {"rests": "attached"}, [("roof_1", 0.495, 1.205)]), ("standing", {}, []),
+                               ("on-a-post", {"rests": "attached"}, [])):
+        place = a_roofed_place(tmp_path / f"roofed-{name}")
+        laid_record = json.loads((place.parent / record.RECORD).read_text())
+        laid_record["objects"][1].update(rests)
+        (place.parent / record.RECORD).write_text(json.dumps(laid_record))
+        if name == "on-a-post":
+            base = Usd.Stage.Open(str(place.parent / "layers/base.usda"))
+            a_solid_box(base, f"/{TOY}/Objects/post_1", (-0.05, 0.0, -0.5), (0.05, 1.7, 0.5))
+            base.GetRootLayer().Save()
+            laid = json.loads((place.parent / made_waiting.LAID).read_text())
+            laid["objects"].append({"name": "post_1", "low": [-0.05, 0.0, -0.5], "high": [0.05, 1.7, 0.5]})
+            (place.parent / made_waiting.LAID).write_text(json.dumps(laid))
+        fits = lay_roofs(place.parent, TOY, [rows[0], {**rows[1], "part": "object"}])
+        assert [(fit["name"], fit["moved"], fit["top at"]) for fit in fits] == moved, (name, fits)
+        assert all(fit["words"].endswith("onto the holder it is attached to") for fit in fits), fits
     # assembly@wreck (2026-11-12): its spherical tank, laid 0.26 m off the middle of its 1 m dent, was turned 7.9
     # degrees with the dent's side and leaned. A 0.6 m box laid 0.25 m off the middle of a round dent 1 m deep (a
     # sphere's cap 1.25 m round) is slid to where the ground under it is level, at the dent's middle; one on the flat

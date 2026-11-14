@@ -11,11 +11,13 @@ foot to it, where the resting check links them within 5 cm. Levelled here, not i
 bake a change there makes again.
 
     evened(folder, place)   [(model, the gaps brought down, metres)]: each model a floor thing of the place lays
-                            (its anchor the floor, not mounted or fixed), from an asset of the folder's own
+                            (its anchor the floor, not mounted or fixed, nor attached on its holder's top by the
+                            scene record: roof_tops.attached), from an asset of the folder's own
                             (assets/<model>.usdc, a copy, never a link into the store), at one size wherever it is
                             laid, with a foot off: its drawn mesh's feet brought down and its collision hull made
                             again round it; saved in place
 """
+import json
 import os
 import pathlib
 import sys
@@ -34,16 +36,21 @@ SAME_SIZE = 0.01
 
 def evened(folder, place):
     """Each floor thing's model of the place at `folder` with every foot down (level_feet), in its own asset:
-    [(model, the gaps brought down)], the models with none left out."""
+    [(model, the gaps brought down)], the models with none left out. A thing the scene record attaches on its
+    holder's top stands as its bake made it: the workshop's lamp, its robotic arm's head (2026-11-14), was turned 44
+    degrees and cut 13 cm of its 20 cm here, as a floor thing whose foot does not hold it."""
     from pxr import Usd, UsdGeom
-    from score.stages.assembly import laid_flat
+    from score.stages.assembly import laid_flat, roof_tops
+    from score.stages.assembly.record import RECORD
+    record_path = pathlib.Path(folder) / RECORD
+    attached = roof_tops.attached(json.loads(record_path.read_text())) if record_path.is_file() else set()
     stage = Usd.Stage.Open(str(pathlib.Path(folder) / f"{place}.usda"))
     laid_flat.flattened(stage, folder, place)  # a slab on its edge laid down first: its footing and feet as it lies
     things = stage.GetPrimAtPath(f"/{place}/Objects")
     sizes = {}
     for prim in (things.GetChildren() if things else []):
         geo = prim.GetChild("geo")
-        if geo.IsValid() and geo.IsA(UsdGeom.Mesh) and floor_thing(prim):
+        if geo.IsValid() and geo.IsA(UsdGeom.Mesh) and floor_thing(prim) and said_row(prim) not in attached:
             matrix = np.asarray(UsdGeom.Xformable(geo).ComputeLocalToWorldTransform(Usd.TimeCode.Default()))
             sizes.setdefault(own_asset(geo, folder), []).append(np.linalg.norm(matrix[:3, :3], axis=1))
     found = []
@@ -55,6 +62,11 @@ def evened(folder, place):
         if levelled:
             found.append((asset.stem, levelled))
     return found
+
+
+def said_row(prim):
+    """A laid thing's row (score:row), None where it says none."""
+    return prim.GetAttribute("score:row").Get() if prim.HasAttribute("score:row") else None
 
 
 def floor_thing(prim):

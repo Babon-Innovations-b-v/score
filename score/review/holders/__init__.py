@@ -52,7 +52,9 @@ Each relation of a row whose reading's `where` says how it rests on what holds i
 `leaning`, its foot on the floor and its top against its holder (a board leaning against a wall: never on its
 holder's top or within it, never at a mount height, and one the reading anchors on the floor against the nearest wall
 of a plan with walls), which the settle leans there and fails where it falls or floats; `attached`, fixed to its
-holder so it would stay put were that turned over (a ramp attached to its lander), which the settle holds as laid.
+holder so it would stay put were that turned over (a ramp attached to its lander), which the settle holds as laid;
+a fitting on a run (on_run) and a thing on its holder's top the plan draws as its part (part_of: the workshop's
+lamp, its robotic arm's head) are attached whatever their words say.
 
 A row whose things the concept shows on several rows of its named holder's footing (hub's 38 monitors on four consoles,
 the reading naming one bank: one anchor a row) has each item held by the nearest of them on the plan (seen_holders):
@@ -89,6 +91,9 @@ WINDOW_SILL = 0.9
 TOP_SHARE = 0.25
 # A holder is a run (a pipe, a rail, a cable run) where its longest side is at least this many times each other side.
 RUN_SHARE = 10.0
+# A thing on its holder's top is its part (part_of) where the plan draws its item over at least this share of its
+# holder item's footprint, its row's own footprint under this share of what the plan draws.
+PART_SHARE = 0.5
 FACES = {"N": (0.0, -1.0), "S": (0.0, 1.0), "E": (1.0, 0.0), "W": (-1.0, 0.0)}
 WALL_WORDS = {"wall", "walls", "facade", "panel", "partition", "side", "bulkhead"}
 FLOOR_WORDS = {"floor", "deck", "plates", "plate", "grating", "plaza", "ground", "platform", "terrain", "regolith",
@@ -463,6 +468,28 @@ def on_run(row, holder_row):
     return all(longest >= RUN_SHARE * other for other in sorted(holder)[:2]) and float(size[2]) > float(holder[2])
 
 
+def part_of(item, holder_item, row, holder_row):
+    """Whether a thing on its holder's top is a part of it, fixed to it: the plan draws its item over its holder's
+    footprint (within the holder item's box, at least PART_SHARE of it) and not at its own size (the row's footprint
+    under PART_SHARE of its item's), and the row is smaller than its holder on every side. The workshop's lamp
+    (2026-11-14), its row 'head size' 0.4 x 0.4 x 0.2 m, its concept box within its robotic arm's, the plan's item the
+    arm's 2.5 x 2.4 m footprint: the arm's head, which stood on the arm's end tipped 57 degrees (a desk lamp's foot
+    4.5 cm under weight 7 cm beside it). Never a monitor on its desk (an item of its own size), a roof over its hub
+    (its own size near its holder's), a thing with no size."""
+    size, holder = (found.get("size") if isinstance(found.get("size"), list) and len(found["size"]) == 3 else None
+                    for found in (row, holder_row))
+    if size is None or holder is None:
+        return False
+    x, y, wide, deep = (float(value) for value in item[1:5])
+    hx, hy, held_wide, held_deep = (float(value) for value in holder_item[1:5])
+    within = hx - 1e-6 <= x and hy - 1e-6 <= y and x + wide <= hx + held_wide + 1e-6 and \
+        y + deep <= hy + held_deep + 1e-6
+    drawn, under = wide * deep, held_wide * held_deep
+    return within and under > 0.0 and drawn >= PART_SHARE * under and \
+        float(size[0]) * float(size[1]) < PART_SHARE * drawn and all(float(own) < float(other)
+                                                                      for own, other in zip(size, holder))
+
+
 def across_run(row, holder_row):
     """Whether a row is a fitting on a standing run wider than the run is thick (a valve on a standing pipe): its
     holder's height (size[2]) at least RUN_SHARE times each of its other sides, and the row's footprint wider than
@@ -510,6 +537,10 @@ def held(item, row, holder_row, holder_items, items, turn, room=None, plan_top=F
                        f"{row.get('where')!r}"}
     if said != "side" and on_top(row, holder_row) and fits_over(row, holder_row, room) \
             and not design_shell.fills_opening(row):
+        if part_of(item, items[nearest], row, holder_row):  # its holder's part, fixed to it, never standing on it
+            return {"how": "top", "holder": nearest, "rests": ATTACHED,
+                    "why": f"on {holder_row['id']}'s top in the concept, its part: the plan draws it over its "
+                           "holder's footprint, not its own size"}
         return {"how": "top", "holder": nearest, "why": f"on {holder_row['id']}'s top in the concept"}
     if rests(row) != LEANING and inside(item, items[nearest]):
         if on_run(row, holder_row):  # a fitting on its run is attached to it, never standing on its round top

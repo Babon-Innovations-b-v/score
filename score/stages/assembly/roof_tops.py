@@ -10,10 +10,19 @@ top) and its hangar roof opening on the large hangar (a slab with a fin hanging 
 hangar's open middle) were judged standing (`held`): laid at the hub's and the hangar's box top, they floated 0.26
 and 2.98 m over the surface under them, and no spot of either top held their weight.
 
+A thing the scene record says is attached on its holder's top (its `rests`, holders: a fitting on a run, a part
+the plan draws over its holder's footprint) is let down so too: it is fixed to its holder already (mounted.
+resting_as_laid), and no spot of a top need hold its weight. assembly@workshop, 2026-11-14: its lamp, the robotic arm's
+head, was left at the arm's box top and floated 0.24 m over the arm under it.
+
     roofs(rows, record)          {row id: "fixed"} of the inventory `rows` that are roof pieces on their holder's top
+    attached(record)             {row ids} of the scene record's rows whose every object is attached on its
+                                 holder's top
     gap(own, holders)            the least gap, metres, straight down from a thing's surface to its holders' surface
                                  (and up from theirs to its), inf where none is under it
-    downs(stage, place, record, rows)   {name: metres} each roof piece more than TOLERANCE over its holders is let down
+    downs(stage, place, record, rows, boxes)   {name: metres} each roof piece or attached thing more than TOLERANCE
+                                        over its holders (an attached thing's: also what is laid under it) is let down
+    laid_under(name, boxes)      the things laid under a thing's footprint, below its bottom
     let_down(folder, place, rows)       each such piece of the place at `folder` moved down with what it holds; the
                                         fits [{name, how "roofed", ..., "top at"}], laid.json written again
 """
@@ -39,6 +48,16 @@ def roofs(rows, record):
     return {row["id"]: "fixed" for row in rows or [] if row.get("part") in ROOF_PARTS and row["id"] in topped}
 
 
+def attached(record):
+    """The row ids of the scene `record` whose every object it lays on its holder's top and says is attached to it
+    (its `rests`, holders.ATTACHED)."""
+    rows = {}
+    for entry in (record or {}).get("objects") or []:
+        rows.setdefault(entry["row"], []).append((entry.get("on") or {}).get("how") == "top"
+                                                 and entry.get("rests") == "attached")
+    return {row_id for row_id, fixed in rows.items() if all(fixed)}
+
+
 def gap(own, holders):
     """The least gap (metres) between the mesh `own` and the mesh `holders` under it, straight down from its surface
     points and straight up from theirs within its footprint; inf where nothing of either meets the other."""
@@ -56,18 +75,22 @@ def gap(own, holders):
     return float(gaps.min()) if len(gaps) else float("inf")
 
 
-def downs(stage, place, record, rows):
-    """{name: metres} each roof piece (roofs) is let down by: its gap to its holders less CLEAR, where that gap is
-    over TOLERANCE."""
+def downs(stage, place, record, rows, boxes=None):
+    """{name: metres} each roof piece (roofs) and each thing attached on its holder's top (attached) is let down by:
+    its gap to its holders less CLEAR, where that gap is over TOLERANCE. An attached thing's holders are its record's
+    and every thing laid under its footprint (`boxes`, laid.json's {name: {low, high}}): one the laying already stood
+    on another (hangar's valves packed onto the pipe over theirs) is not let down through it."""
     import trimesh
-    pieces = roofs(rows, record)
+    roofed, fixed = roofs(rows, record), attached(record)
     found = {}
     for entry in record.get("objects") or []:
-        if entry["row"] not in pieces or not stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}"):
+        if entry["row"] not in {**roofed, **dict.fromkeys(fixed)} or \
+                not stage.GetPrimAtPath(f"/{place}/Objects/{entry['name']}"):
             continue
         own = fitting.surface_mesh(stage, f"/{place}/Objects/{entry['name']}")
+        under = laid_under(entry["name"], boxes or {}) if entry["row"] in fixed and entry["row"] not in roofed else []
         meshes = [mesh for mesh in (fitting.surface_mesh(stage, f"/{place}/Objects/{holder}")
-                                    for holder in entry["on"].get("holder") or []
+                                    for holder in dict.fromkeys([*(entry["on"].get("holder") or []), *under])
                                     if stage.GetPrimAtPath(f"/{place}/Objects/{holder}")) if mesh is not None]
         if own is None or not meshes:
             continue
@@ -77,10 +100,23 @@ def downs(stage, place, record, rows):
     return found
 
 
+def laid_under(name, boxes):
+    """The names of the things laid (`boxes`, {name: {low, high}}) whose box meets the footprint of `name`'s and
+    starts below its bottom."""
+    own = boxes.get(name)
+    if own is None:
+        return []
+    low, high = own["low"], own["high"]
+    return [other for other, box in boxes.items() if other != name and box["low"][1] < low[1]
+            and box["low"][0] <= high[0] and box["high"][0] >= low[0] and box["low"][2] <= high[2]
+            and box["high"][2] >= low[2]]
+
+
 def let_down(folder, place, rows=None):
-    """Each roof piece of the place at `folder` (by the inventory `rows`) moved down onto its holders (downs), what it
-    holds moved with it; the base layer saved and laid.json's boxes and fits written again, the piece's fit its
-    "top at" (the held gate measures it there). The fits, [] and nothing written when none moves."""
+    """Each roof piece and attached thing of the place at `folder` (by the inventory `rows` and its record) moved down
+    onto its holders (downs), what it holds moved with it; the base layer saved and laid.json's boxes and fits written
+    again, the piece's fit its "top at" (the held gate measures it there). The fits, [] and nothing written when none
+    moves."""
     from pxr import Gf, Sdf, Usd
     folder = pathlib.Path(folder)
     laid_path, record_path = folder / made_waiting.LAID, folder / RECORD
@@ -92,15 +128,17 @@ def let_down(folder, place, rows=None):
     stage.SetEditTarget(Usd.EditTarget(layer))
     entries = {entry["name"]: entry for entry in record.get("objects") or []}
     holding = fitting.holders_of(record)
-    fits = []
-    for name, drop in sorted(downs(stage, place, record, rows).items()):
+    fits, roofed = [], roofs(rows, record)
+    boxes = {entry["name"]: entry for entry in laid.get("objects") or [] if "low" in entry and "high" in entry}
+    for name, drop in sorted(downs(stage, place, record, rows, boxes).items()):
+        onto = "whose roof it is" if entries[name]["row"] in roofed else "it is attached to"
         held = [other for other in parting.carried(name, holding)
                 if other in entries and stage.GetPrimAtPath(f"/{place}/Objects/{other}")]
         for one in (name, *held):
             path = f"/{place}/Objects/{one}"
             fitting.changed_by(stage.GetPrimAtPath(path), Gf.Matrix4d(on_ground.moved([0.0, -drop, 0.0]).tolist()))
             fit = fitting.laid_fit(stage, path, entries[one], "roofed", None, drop, 1.0,
-                                   f"let down {drop:.2f} m onto the holder whose roof it is"
+                                   f"let down {drop:.2f} m onto the holder {onto}"
                                    + ("" if one == name else f" with {name}, which holds it"))
             fits.append({**fit, "top at": fit["low"][1]} if one == name else fit)
     if not fits:
