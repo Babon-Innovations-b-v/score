@@ -201,7 +201,12 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   `treads_stood` (2026-11-14, the stairwell's person_woman: her sole 4.2 cm into a tread between keyframes) puts each
   foot, on every frame it stands, on the ground under it: a foot any skin point of which is in the highest up-facing
   surface under it below its ankle (`surface_under`) lifted till none is, a still one within `STANCE_HIGH` over it
-  lowered onto it, by Kimodo's own end-effector pin (`played.pinned`), never the Hips. Before the first keyframe and
+  lowered onto it, by Kimodo's own end-effector pin (`played.pinned`). A walk has no flight: on a frame no foot does
+  either, the foot nearest its ground within `STANCE_HIGH` is lowered onto it too (`carrying`). Kimodo's two-bone IK
+  stops a straight leg at 0.999 of its reach, so her carrying foot stayed 4 to 7 mm over her tread with the other in
+  the air (frames 4 and 72 to 74, 977 N of residual): where a pin asks more than `REACH_MOST` of its leg the Hips come
+  down first, by the least that covers it, smoothed as `stood` smooths (`within_reach`; up to 8 mm between her
+  keyframes, 18 mm after her last). Before the first keyframe and
   after the last Kimodo was asked no foot nor hip height and stood her over the landing on a straight leg (17 cm at
   frame 0, 2 to 4 cm on frames 8 to 19 and 101 to 103), out of the pin's reach: `ends_stood` first moves the Hips there
   only, as `stood` does on a flat floor (each frame's lowest still sole, any height, onto its ground, smoothed, the

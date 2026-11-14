@@ -73,7 +73,9 @@ route's ground scaled by the build), so the ground pushes it on each tread; one 
 never walked flat through its steps (2026-11-04). Kimodo held its feet on their treads only at its keyframes, so each
 foot, on every frame it stands, is put on the ground under its sole by Kimodo's own end-effector pin (treads_stood,
 2026-11-14); before its first keyframe and after its last, where Kimodo was asked no foot nor hip height, its Hips are
-first moved so its standing feet rest on that ground (ends_stood, as `stood` does on a flat clip's floor).
+first moved so its standing feet rest on that ground (ends_stood, as `stood` does on a flat clip's floor); a walk has
+no flight, so on a frame no foot stands the one nearest its tread carries, and where a straight leg cannot reach its
+tread the Hips come down first (treads_stood's carrying and within_reach, 2026-11-14).
 
 Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
 with no activation dynamics), clips made for the ground for any walker but a climber (a flat-ground clip meets a step
