@@ -131,7 +131,7 @@ FUNCTION_DEBT = {
     "tools/cloud/backends/test_own_resources_and_their_cost.py": 19,
     "tools/cloud/conductor/test_owner_gates_and_safe_moves.py": 23,
     "tools/cloud/k8s/test_jobs_take_their_classes_in_order.py": 3,
-    "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 29,
+    "tools/cloud/test_batch_pays_once_inside_its_limits_and_leaves_no_machine.py": 21,
     "tools/cloud/test_blender_cloud_runs_a_job_as_written.py": 10,
     "tools/cloud/test_park_holds_a_machine_only_while_it_pays_off.py": 24,
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,

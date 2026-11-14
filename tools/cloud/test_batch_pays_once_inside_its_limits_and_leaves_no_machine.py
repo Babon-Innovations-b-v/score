@@ -8,23 +8,12 @@ No machine is rented: the backend, ssh and the clock are stand-ins, and the dyin
 Expected numbers are worked out by hand in the tests. The break that turns each red (applied once, seen red,
 reverted):
 
-- test_a_list_names_each_model_once_with_its_options: in `read_list`, `if len(set(names)) != len(names):` -> `if
-  False:`.
-- test_a_batch_builds_only_an_approved_inventorys_rows: in `from_the_inventory`, `if strays:` -> `if False:`.
-- test_a_batch_builds_a_character_only_when_its_spec_is_approved: in `from_the_characters`, `if not
-  spec.get("approved"):` -> `if False:`.
 - test_a_short_fleet_rents_more_as_stock_comes_up: in `keep_the_fleet`, `if short > 0 and not fleet.no_more_work() and`
   -> `if False and` (a short fleet never asks again).
 - test_a_fleet_waits_out_an_open_pool_but_never_a_closed_one: in `keep_the_fleet`, `if alive or not pool_open() or
   pool_closed():` -> `if alive or not pool_open():`.
-- test_nothing_is_ordered_while_the_backend_says_there_is_no_stock: in `rent`, `if offer.stock_word in NO_STOCK:` ->
-  `if False:`.
 - test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadline: in `claim_rounds`, `min(stock_wait_
   minutes(rounds) * 60, max(0.0, run.deadline - time.time()))` -> `stock_wait_minutes(rounds) * 60`.
-- test_a_runs_rent_fees_are_its_machines_disk_and_address_lines_failed_rents_included: in ledger.py
-  `machines_record`, drop `names |= {row["name"] for row in attempts if row.get("name")}`.
-- test_a_pool_card_is_replaced_only_when_it_died_and_only_once_in_set_up: in `Fleet.replaces`, `return
-  self.setup_deaths == 1` -> `return True`.
 - test_a_failed_job_is_a_gap_and_never_sent_again: in `collect`, `fleet.gaps(failed, ...)` -> `fleet.again([{"name":
   name} for name in failed])`.
 - test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_gap: in `stop_overdue`, `stopped.add(name)` -> `pass`.
@@ -36,8 +25,6 @@ reverted):
   `QUIET_MINUTES * 6000`.
 - test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on: in `claim_from`, `if not isinstance(error,
   OutOfStock):` -> `if False:`.
-- test_nothing_is_rented_outside_a_cleared_run: in `rent`, drop `compute.require_cleared(f"a {machine_type} in
-  {zone}")`.
 - test_a_rent_writes_its_started_line_before_the_order_is_sent: in backends/scaleway.py `create`, drop the
   `ledger.rent_started(...)` call before the order.
 - test_a_batch_whose_runner_dies_deletes_its_machines: in score/graph's `watch_runner`, `os.killpg(runner_pid,
@@ -49,7 +36,6 @@ reverted):
   os.environ.get("SCORE_RUN_ID"):` -> `if False:`.
 - test_a_dead_runners_group_is_sent_one_stop_however_many_nodes_see_it: in score/graph's `watch_runner`, drop `and
   stopped.claim_stop(mark)`.
-- test_cluster_groups_run_their_takes_side_by_side: in `cluster_line`, `" || ".join(` -> `" && ".join(`.
 
 The runners' shared steps (batch.priced and spread.tended/tend, as every runner calls them): each
 runner says its estimate before it rents, the euros it says are its machines at the dearest offer it may take for
@@ -62,8 +48,15 @@ implementation), and their euros are checked against count x minutes x price wor
 The break that turns each red (applied once, seen red, reverted):
 
 - test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine (a table of judged rows: the limits, the bill, the
-  cards taken, the month's open machines, the classes, the fleet's size, the rate, leftovers and a job's deadline; and
-  each runner priced inside, past the limits and on a dear month): in ledger.py `refusal`, `estimated_minutes >
+  cards taken, the month's open machines, the classes, the fleet's size, the rate, leftovers and a job's deadline, the
+  models a list names, the inventory rows and character specs a batch builds, a run's rent fees, its cluster groups,
+  the orders it sends (none without stock, none outside a cleared run) and the pool cards it replaces; and each runner
+  priced inside, past the limits and on a dear month): in `rent`, `if offer.stock_word in NO_STOCK:` -> `if False:`,
+  or drop `compute.require_cleared(f"a {machine_type} in {zone}")`; in `Fleet.replaces`, `return self.setup_deaths ==
+  1` -> `return True`; in `read_list`, `if len(set(names)) !=
+  len(names):` -> `if False:`; in `from_the_inventory`, `if strays:` -> `if False:`; in `from_the_characters`, `if
+  not spec.get("approved"):` -> `if False:`; in ledger.py `machines_record`, drop `names |= {row["name"] for row in
+  attempts if row.get("name")}`; in `cluster_line`, `" || ".join(` -> `" && ".join(`; in ledger.py `refusal`, `estimated_minutes >
   BATCH_HOURS * 60` -> `estimated_minutes > BATCH_HOURS * 600`, or `if euros > cap:` -> `if False:`; in `month_total`,
   the `+ sum(open_euros(line, now) ...)` term -> `+ 0`; in `open_rents`, `("disk-and-address", RENT_REFUSED)` ->
   `("disk-and-address",)`; in batch.py `affordable`, `found = [offer for offer in found if offer.per_card <
@@ -151,16 +144,6 @@ def l4(zone="zone-a", stock_word="available"):
     return provider.Offer(0.01, 0, "L4", zone, 0.01, "gpu-24gb", 0, stock_word)
 
 
-def refusal_of(call, *arguments):
-    try:
-        call(*arguments)
-    except SystemExit as refused:
-        return str(refused)
-    return None
-
-
-
-
 def started_line(name, minutes_ago, deadline_in=None, price=0.02, run="pixal-7"):
     """A rent-started line for machine `name` of `run`, ordered `minutes_ago` before NOW."""
     line = {"started": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(NOW - minutes_ago * 60)),
@@ -169,76 +152,6 @@ def started_line(name, minutes_ago, deadline_in=None, price=0.02, run="pixal-7")
     if deadline_in is not None:
         line["deadline"] = NOW + deadline_in * 60
     return line
-
-
-
-
-def test_a_list_names_each_model_once_with_its_options(tmp_path):
-    picture = tmp_path / "crate.png"
-    picture.write_bytes(b"")
-    listing = tmp_path / "list.txt"
-    listing.write_text(f"# approved 2026-09-29\ncrate {picture} --faces 12000 --feet\n\nbarrel {picture}  # tall\n")
-    models = batch.read_list(listing)
-    assert [model.name for model in models] == ["crate", "barrel"]
-    assert models[0].faces == 12000 and models[0].feet and not models[1].feet
-    listing.write_text(f"crate {picture}\ncrate {picture}\n")
-    assert "twice" in refusal_of(batch.read_list, listing)
-
-
-
-
-
-
-
-
-def test_a_batch_builds_only_an_approved_inventorys_rows(tmp_path):
-    picture = tmp_path / "locker.png"
-    picture.write_bytes(b"")
-    listing = tmp_path / "list.txt"
-    listing.write_text(f"habitat-locker {picture}\nlocker-b {picture}\nr2 {picture}\n")
-    models = batch.read_list(listing)
-    path = tmp_path / "hub.json"
-    rows = [{"id": "r1", "view": "v1", "box": [0, 0, 9, 9], "name": "locker", "kind": "generate", "anchor": "wall",
-             "size": [0.6, 0.5, 1.9], "count": 1, "thing": "prop:locker"},
-            {"id": "r2", "view": "v1", "box": [0, 0, 9, 9], "name": "desk", "kind": "mechanic", "anchor": "floor",
-             "size": [1.6, 0.8, 0.75], "count": 1, "thing": "node:Workstation", "prop": "desk"},
-            {"id": "keyboard", "view": "v1", "box": [0, 0, 9, 9], "name": "keyboard", "kind": "code",
-             "anchor": "wall", "size": [0.4, 0.03, 0.15], "count": 1, "thing": "gear:keyboard"}]
-    inventory = {"scene": "hub", "place": "habitat", "plan": {"views": [{"id": "v1"}]}, "approved": "", "migrated": "",
-                 "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []}, "rows": rows}
-    assert "no inventory" in refusal_of(batch.from_the_inventory, models, [path])
-    path.write_text(json.dumps(inventory))
-    assert "not approved" in refusal_of(batch.from_the_inventory, models, [path])
-    # approved, a place named by no place.json entry too: Pixal3D is worded by nothing
-    for place in ("habitat", "no_such_place"):
-        path.write_text(json.dumps(dict(inventory, approved="2026-10-05", place=place)))
-        assert batch.from_the_inventory(models, [path]) >= {"r1", "locker", "r2", "desk"}
-    listing.write_text(f"no_such_row {picture}\n")
-    assert "on no row" in refusal_of(batch.from_the_inventory, batch.read_list(listing), [path])
-    # a designed place's hand-in is approved by the creator's pick, its rows taken as they stand
-    designed = {**inventory, "approved": {"by": batch.DESIGNED, "concept": "c" * 64}, "room": {},
-                "rows": [{**rows[0], "anchor": "ground", "box": None}]}
-    path.write_text(json.dumps(designed))
-    listing.write_text(f"habitat-locker {picture}\n")
-    assert batch.from_the_inventory(batch.read_list(listing), [path]) >= {"r1"}
-    path.write_text(json.dumps({**designed, "scene": "lab"}))  # a hand-in under another place's name: page A's rules
-    refused = refusal_of(batch.from_the_inventory, batch.read_list(listing), [path])
-    assert refused and ("not sound" in refused or "not approved" in refused)
-
-
-def test_a_batch_builds_a_character_only_when_its_spec_is_approved(tmp_path):
-    picture = tmp_path / "tang.png"
-    picture.write_bytes(b"")
-    spec = {"name": "fish_tang", "kind": "animal", "picture": str(picture), "body": "fish"}
-    path = tmp_path / "fish_tang.json"
-    path.write_text(json.dumps(spec))
-    assert "not approved" in refusal_of(batch.from_the_characters, [path])
-    path.write_text(json.dumps(dict(spec, approved="owner", picture=None)))
-    assert "no picture" in refusal_of(batch.from_the_characters, [path])
-    path.write_text(json.dumps(dict(spec, approved="owner, 2026-10-09")))
-    models = batch.from_the_characters([path])
-    assert [(options.name, options.picture) for options in models] == [("fish_tang", str(picture))]
-    assert "share a name" in refusal_of(batch.from_the_characters, [path, path])
 
 
 
@@ -301,18 +214,6 @@ def test_a_fleet_waits_out_an_open_pool_but_never_a_closed_one(monkeypatch):
     assert fleet.deadline == deadline and time.time() >= deadline  # its own time, never stretched
 
 
-def test_nothing_is_ordered_while_the_backend_says_there_is_no_stock(monkeypatch, tmp_path):
-    """pixal@people, 2026-10-22: the fleet ordered at the provider's shortage every round for over an hour, each
-    order a machine that never started and billed its disk and address (EUR 2.19 in all)."""
-    ordered = []
-    monkeypatch.setattr(batch.cloud, "create", lambda *arguments: ordered.append(arguments) or (None, "refused"))
-    monkeypatch.setattr(batch.compute, "require_cleared", lambda what: None)
-    fleet = types.SimpleNamespace(folder=tmp_path, deadline=time.time() + 60, attempts=[])
-    for word in batch.NO_STOCK:
-        assert batch.rent(fleet, "account", l4(stock_word=word), 1) is None
-    assert ordered == [] and fleet.attempts == []
-
-
 def test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadline(monkeypatch):
     assert [batch.stock_wait_minutes(rounds) for rounds in range(6)] == [3, 6, 12, 24, 30, 30]
     waits, rounds = [], []
@@ -340,34 +241,11 @@ def test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadli
     assert marks[0] == "waiting" and marks[-1] == "done" and marks.count("waiting") >= 2, marks
 
 
-def test_a_runs_rent_fees_are_its_machines_disk_and_address_lines_failed_rents_included(monkeypatch, tmp_path):
-    monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
-    for name, euros in (("batch-1-1", 0.005), ("batch-1-1", 0.005), ("batch-1-2", 0.005), ("batch-2-1", 1.0)):
-        ledger.record({"started": "2026-10-22T10:00:00Z", "batch": f"disk-and-address-{euros}", "name": name,
-                       "kind": "disk-and-address", "euros": euros})
-    attempts = [batch.refused_row(l4(), "out of stock", "batch-1-1"), batch.refused_row(l4(), "refused")]
-    record = ledger.machines_record([], attempts, 0.0)
-    # batch-1-1's two lines, not batch-1-2 (no attempt of its) nor batch-2-1; none in the run's own euros
-    assert round(record["rent_fees"], 6) == 0.01 and record["euros"] == 0.0
-
-
 def one_shot_fleet(names, tmp_path):
     models = [types.SimpleNamespace(name=name, picture="/pics/p.png", seed=1) for name in names]
     folder = tmp_path / f"fleet-{len(list(tmp_path.iterdir()))}"
     folder.mkdir()
     return batch.Fleet(models, folder, None, 0, "test", finish=False), models
-
-
-def test_a_pool_card_is_replaced_only_when_it_died_and_only_once_in_set_up(monkeypatch, tmp_path):
-    """Review of the warm pool (2026-10-23): every failure of a pool card put its jobs back and took the next card,
-    so a set-up that always fails took card after card until the deadline."""
-    fleet, _ = one_shot_fleet(["crate"], tmp_path)
-    monkeypatch.setattr(batch, "answers", lambda machine: True)
-    assert not fleet.replaces({"generating_began": 1.0})  # it answers: the fault is the job's
-    monkeypatch.setattr(batch, "answers", lambda machine: False)
-    assert fleet.replaces({"generating_began": 1.0})  # it died while working
-    assert fleet.replaces({"generating_began": None})  # the first that died in set-up
-    assert not fleet.replaces({"generating_began": None})  # a second: no more taken
 
 
 def test_a_failed_job_is_a_gap_and_never_sent_again(tmp_path):
@@ -496,22 +374,6 @@ def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on(monkeypatch
     assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a", "zone-b"]
 
 
-
-
-def test_nothing_is_rented_outside_a_cleared_run(monkeypatch, tmp_path):
-    """Fault (design of 2026-10-11): rent ordered a machine for any caller, so the runners could spend without the
-    runner's gate or the owner's yes."""
-    ordered = []
-    monkeypatch.setattr(batch.cloud, "create", lambda *arguments: ordered.append(arguments) or (None, "refused"))
-    monkeypatch.setattr(batch, "month_spent", lambda account: 0.0)
-    monkeypatch.delenv(compute.TICKET, raising=False)
-    fleet = types.SimpleNamespace(folder=tmp_path, deadline=time.time() + 60, attempts=[])
-    try:
-        batch.rent(fleet, None, l4(), 0)
-        raise AssertionError("a machine was ordered outside a cleared run")
-    except compute.Refused as refusal:
-        assert "nothing rents outside a cleared run" in str(refusal)
-    assert ordered == []
 
 
 def test_a_rent_writes_its_started_line_before_the_order_is_sent(monkeypatch, tmp_path):
@@ -703,22 +565,6 @@ def test_a_dead_runners_group_is_sent_one_stop_however_many_nodes_see_it(tmp_pat
     assert signals == "x", f"the group was sent {len(signals)} stops"
 
 
-def test_cluster_groups_run_their_takes_side_by_side():
-    takes = [types.SimpleNamespace(name=f"crate-{number}", picture="/pics/crate.png", seed=number)
-             for number in range(4)]
-    groups = batch.groups_of(takes, 3)
-    assert [[take.name for take in group] for group in groups] == [["crate-0", "crate-1", "crate-2"], ["crate-3"]]
-    line = batch.cluster_line(groups[0])
-    assert line.count("pixal-run scripts/pixal3d_generate.py /work/in/crate-") == 3 and line.count(") &") == 3
-    # the job fails only when no take made its model
-    assert line.endswith("wait; test -f /work/out/crate-0.glb || test -f /work/out/crate-1.glb || "
-                         "test -f /work/out/crate-2.glb")
-    job = batch.cluster_job(groups[0], pathlib.Path("/w/group0/out"))
-    assert [entry["path"] for entry in job["inputs"]] == [f"/work/in/crate-{number}.png" for number in range(3)]
-    assert job["outputs"] == [{"path": "/work/out", "local": "/w/group0/out"}]
-    assert job["minutes"] == 3 * batch.cluster_job(groups[1], pathlib.Path("/w/group1/out"))["minutes"]
-
-
 # --- the runners' shared steps: each says and keeps inside its estimate, and deletes every machine it tends ---
 
 def offers(scale=1.0):
@@ -755,19 +601,33 @@ SAID = re.compile(r"on (\d+|one) (?:machine|card)s?: about (\d+) min, €([\d.]+
 
 
 class Stopped(str):
-    """A call's SystemExit, as its message."""
+    """A call's SystemExit (or a run's compute.Refused), as its message; `by` the exception's class."""
+
+    def __new__(cls, stop):
+        stopped = super().__new__(cls, stop)
+        stopped.by = type(stop)
+        return stopped
 
 
 class Refused:
-    """The expected outcome of a refusal holding every one of `words`: a stop (SystemExit), or with `raised=False` a
-    refusal line returned."""
+    """The expected outcome of a refusal holding every one of `words` (with `either=True`, one of them): a stop
+    (SystemExit), or with `raised=False` a refusal line returned."""
 
-    def __init__(self, *words, raised=True):
-        self.words, self.raised = words, raised
+    def __init__(self, *words, raised=True, either=False, by=SystemExit):
+        self.words, self.raised, self.either, self.by = words, raised, either, by
 
     def holds(self, outcome, said):
-        return (isinstance(outcome, str) and isinstance(outcome, Stopped) == self.raised
-                and all(word in outcome for word in self.words))
+        if not isinstance(outcome, str) or isinstance(outcome, Stopped) != self.raised:
+            return False
+        return (not self.raised or issubclass(outcome.by, self.by)) and (any if self.either else all)(
+            word in outcome for word in self.words)
+
+
+class Including(frozenset):
+    """The expected outcome of a call returning a set that holds at least these."""
+
+    def holds(self, outcome, said):
+        return not isinstance(outcome, Stopped) and isinstance(outcome, (set, frozenset)) and outcome >= self
 
 
 class Estimate:
@@ -790,7 +650,7 @@ class Estimate:
 
 def holds(expected, outcome, said):
     """Whether a call's `outcome` (and the lines it `said`) is the `expected` one: a matcher's, or equal."""
-    if isinstance(expected, (Refused, Estimate)):
+    if isinstance(expected, (Refused, Estimate, Including)):
         return expected.holds(outcome, said)
     return not isinstance(outcome, Stopped) and outcome == expected
 
@@ -812,7 +672,7 @@ def priced(runner, pricing):
     spent, scale, past = PRICINGS[pricing]
     stubs = ((batch, "offers", lambda classes: offers(scale)), (batch, "month_spent", lambda account: spent))
     expected = Refused("refused", "€60") if past else Estimate(recorded, spent)
-    return case(f"{runner}-{pricing}", estimate, expected, stubs)
+    return case(f"{runner}-{pricing}", lambda here: estimate(), expected, stubs)
 
 
 # 20 H100s for 180 min is EUR 172, 20 L4s EUR 47: the H100 is left out
@@ -841,56 +701,196 @@ THIS_PC = ((batch, "cloud", local),)
 ENTRIES = ((ledger, "entries", lambda: [{"started": "2026-09-30T17:56:47Z", "models_done": 5, "card_minutes": 25},
                                         {"started": "2026-09-30T17:35:47Z", "models_done": 3, "card_minutes": 380}]),)
 LATER, HOST = 2e9, socket.gethostname()
+# A list of models (its pictures in the row's folder), an inventory and a character spec, written where a row reads them.
+LOCKERS = "habitat-locker {picture}\nlocker-b {picture}\nr2 {picture}\n"
+ROWS = [{"id": "r1", "view": "v1", "box": [0, 0, 9, 9], "name": "locker", "kind": "generate", "anchor": "wall",
+         "size": [0.6, 0.5, 1.9], "count": 1, "thing": "prop:locker"},
+        {"id": "r2", "view": "v1", "box": [0, 0, 9, 9], "name": "desk", "kind": "mechanic", "anchor": "floor",
+         "size": [1.6, 0.8, 0.75], "count": 1, "thing": "node:Workstation", "prop": "desk"},
+        {"id": "keyboard", "view": "v1", "box": [0, 0, 9, 9], "name": "keyboard", "kind": "code", "anchor": "wall",
+         "size": [0.4, 0.03, 0.15], "count": 1, "thing": "gear:keyboard"}]
+INVENTORY = {"scene": "hub", "place": "habitat", "plan": {"views": [{"id": "v1"}]}, "approved": "", "migrated": "",
+             "room": {"shell": "", "light": "place", "backdrop": "", "wall_fill": []}, "rows": ROWS}
+APPROVED = {**INVENTORY, "approved": "2026-10-05"}
+# a designed place's hand-in is approved by the creator's pick, its rows taken as they stand
+DESIGNED = {**INVENTORY, "approved": {"by": batch.DESIGNED, "concept": "c" * 64}, "room": {},
+            "rows": [{**ROWS[0], "anchor": "ground", "box": None}]}
+TANG = {"name": "fish_tang", "kind": "animal", "picture": "tang.png", "body": "fish"}
+# two disk-and-address lines of batch-1-1, one of batch-1-2 (no attempt of its) and one of batch-2-1
+FEES = [("batch-1-1", 0.005), ("batch-1-1", 0.005), ("batch-1-2", 0.005), ("batch-2-1", 1.0)]
+TAKES = [types.SimpleNamespace(name=f"crate-{number}", picture="/pics/crate.png", seed=number) for number in range(4)]
+
+
+def a_list(here, text):
+    """The models of list `text`, its pictures `{picture}` in `here`."""
+    (here / "p.png").write_bytes(b"")
+    (here / "list.txt").write_text(text.format(picture=here / "p.png"))
+    return batch.read_list(here / "list.txt")
+
+
+def written(here, name, content=None):
+    """The path of `name` in `here`, holding `content` as JSON (nothing written for None)."""
+    if content is not None:
+        (here / name).write_text(json.dumps(content))
+    return here / name
+
+
+def a_character(here, **changes):
+    """The path of the tang's spec in `here` with `changes`, its picture there (None: no picture)."""
+    (here / "tang.png").write_bytes(b"")
+    spec = {**TANG, **changes}
+    if spec["picture"]:
+        spec["picture"] = str(here / spec["picture"])
+    return written(here, "fish_tang.json", spec)
+
+
+def listed(models):
+    return [model.name for model in models], models[0].faces, [model.feet for model in models]
+
+
+def built(models, here):
+    return [(model.name, pathlib.Path(model.picture).relative_to(here).as_posix()) for model in models]
+
+
+def fees_of(attempts):
+    """A run's rent fees and euros, with `FEES` in its ledger."""
+    for name, euros in FEES:
+        ledger.record({"started": "2026-10-22T10:00:00Z", "batch": f"disk-and-address-{euros}", "name": name,
+                       "kind": "disk-and-address", "euros": euros})
+    record = ledger.machines_record([], attempts, 0.0)
+    return round(record["rent_fees"], 6), record["euros"]
+
+
+def never_ordered(*arguments):
+    raise AssertionError(f"a machine was ordered: {arguments}")
+
+
+def a_fleet(here):
+    return types.SimpleNamespace(folder=here, deadline=time.time() + 60, attempts=[])
+
+
+def no_stock_rents(fleet):
+    """What rent gives for an offer of each word the backend's stock read uses for none, and the attempts it wrote."""
+    return [batch.rent(fleet, "account", l4(stock_word=word), 1) for word in batch.NO_STOCK], fleet.attempts
+
+
+# Review of the warm pool (2026-10-23): every failure of a pool card put its jobs back and took the next card, so a
+# set-up that always fails took card after card until the deadline. The cards that failed, in order: one that answers
+# (the fault is the job's), one that died while working, the first that died in set-up, and a second (none taken).
+POOL_FAILURES = [{"generating_began": 1.0, "answers": True}, {"generating_began": 1.0, "answers": False},
+                 {"generating_began": None, "answers": False}, {"generating_began": None, "answers": False}]
+
+
+def side_by_side(line):
+    """How many takes a cluster line starts, how many in the background, and the test it ends on after `wait`."""
+    return (line.count("pixal-run scripts/pixal3d_generate.py /work/in/crate-"), line.count(") &"),
+            line.rsplit("wait; ", 1)[1])
+
+
 HIGH = json.loads((REPO / "data" / "costs" / "per-unit.json").read_text())["stages"]["pixal"]["time"]["unit_seconds"]
 CASES = [
-    case("90-min-inside", lambda: ledger.refusal(90, L4), None),
-    case("241-min-past-4h", lambda: ledger.refusal(241, L4), Refused("4 h", raised=False)),
-    case("eur63-past-eur60", lambda: ledger.refusal(210, 0.3), Refused("€60", raised=False)),
-    case("minutes-allowed-l4", lambda: ledger.minutes_allowed(L4), 240),
-    case("minutes-allowed-dear", lambda: round(ledger.minutes_allowed(0.3)), 200),
-    case("override-eur3-past", lambda: ledger.refusal(30, 0.1), Refused("override labval", raised=False), OVERRIDE,
+    case("90-min-inside", lambda here: ledger.refusal(90, L4), None),
+    case("241-min-past-4h", lambda here: ledger.refusal(241, L4), Refused("4 h", raised=False)),
+    case("eur63-past-eur60", lambda here: ledger.refusal(210, 0.3), Refused("€60", raised=False)),
+    case("minutes-allowed-l4", lambda here: ledger.minutes_allowed(L4), 240),
+    case("minutes-allowed-dear", lambda here: round(ledger.minutes_allowed(0.3)), 200),
+    case("override-eur3-past", lambda here: ledger.refusal(30, 0.1), Refused("override labval", raised=False), OVERRIDE,
          OVERRIDE_TICKET),
-    case("override-eur2-inside", lambda: ledger.refusal(20, 0.1), None, OVERRIDE, OVERRIDE_TICKET),
-    case("override-watchdog-minutes", lambda: round(ledger.minutes_allowed(0.1), 1), 22.5, OVERRIDE, OVERRIDE_TICKET),
-    case("billed-by-started-minute", lambda: ledger.cost(1.2, L4), 2 * L4),
-    case("dearest-left-out", lambda: [offer.machine_class for offer in batch.affordable(FOUND, minutes=180, cards=20)],
+    case("override-eur2-inside", lambda here: ledger.refusal(20, 0.1), None, OVERRIDE, OVERRIDE_TICKET),
+    case("override-watchdog-minutes", lambda here: round(ledger.minutes_allowed(0.1), 1), 22.5, OVERRIDE, OVERRIDE_TICKET),
+    case("billed-by-started-minute", lambda here: ledger.cost(1.2, L4), 2 * L4),
+    case("dearest-left-out", lambda here: [offer.machine_class for offer in batch.affordable(FOUND, minutes=180, cards=20)],
          ["gpu-24gb"]),
-    case("all-affordable", lambda: batch.affordable(FOUND, minutes=30, cards=2), FOUND),
-    case("month-of-batches", lambda: ledger.month_total("2026-09", MONTHS), 1.5),
-    case("month-running", lambda: round(ledger.month_total(MONTH, RUNNING, now=NOW), 2), 1.2),
-    case("open-running", lambda: ledger.open_rents(RUNNING, NOW), RUNNING),
-    case("month-died-to-deadline", lambda: round(ledger.month_total(MONTH, DIED, now=NOW), 2), 4.8),
-    case("open-all-closed", lambda: ledger.open_rents(STARTED + CLOSING, NOW), []),
-    case("refusal-closes-its-own", lambda: ledger.open_rents(STARTED + CLOSING[2:], NOW), [STARTED[0], STARTED[2]]),
-    case("month-closed", lambda: round(ledger.month_total(MONTH, STARTED + CLOSING, now=NOW), 2), 1.6),
-    case("this-pcs-card-classes", lambda: batch.check_classes(batch.capacity.classes_for("pixal")), None, THIS_PC),
-    case("misnamed-class", lambda: batch.check_classes(["gpu-24gb", "gpu24"]), Refused("not a capability class"),
+    case("all-affordable", lambda here: batch.affordable(FOUND, minutes=30, cards=2), FOUND),
+    case("month-of-batches", lambda here: ledger.month_total("2026-09", MONTHS), 1.5),
+    case("month-running", lambda here: round(ledger.month_total(MONTH, RUNNING, now=NOW), 2), 1.2),
+    case("open-running", lambda here: ledger.open_rents(RUNNING, NOW), RUNNING),
+    case("month-died-to-deadline", lambda here: round(ledger.month_total(MONTH, DIED, now=NOW), 2), 4.8),
+    case("open-all-closed", lambda here: ledger.open_rents(STARTED + CLOSING, NOW), []),
+    case("refusal-closes-its-own", lambda here: ledger.open_rents(STARTED + CLOSING[2:], NOW), [STARTED[0], STARTED[2]]),
+    case("month-closed", lambda here: round(ledger.month_total(MONTH, STARTED + CLOSING, now=NOW), 2), 1.6),
+    case("this-pcs-card-classes", lambda here: batch.check_classes(batch.capacity.classes_for("pixal")), None, THIS_PC),
+    case("misnamed-class", lambda here: batch.check_classes(["gpu-24gb", "gpu24"]), Refused("not a capability class"),
          THIS_PC),
     # 229 models at 3.95 card minutes each, 3 at once, in an hour: 5 min set-up and an 11.85 min last run leave 43.15
     # min of work for 904.55 card minutes, 21 cards; 5 + 229 * 3.95 / 21 + 11.85 = 59.9 min
-    case("fleet-of-21", lambda: batch.cards_needed(229, 3, 60, 3.95), 21),
-    case("fleet-ends-in-its-hour", lambda: round(batch.expected_minutes(229, 21, 3, 3.95)), 60),
-    case("fleet-of-1", lambda: batch.cards_needed(5, 3, 60, 3.95), 1),
-    case("aim-too-short", lambda: batch.cards_needed(10, 6, 20, 3.95), Refused("too short")),  # 5 + 23.7: over 20
+    case("fleet-of-21", lambda here: batch.cards_needed(229, 3, 60, 3.95), 21),
+    case("fleet-ends-in-its-hour", lambda here: round(batch.expected_minutes(229, 21, 3, 3.95)), 60),
+    case("fleet-of-1", lambda here: batch.cards_needed(5, 3, 60, 3.95), 1),
+    case("aim-too-short", lambda here: batch.cards_needed(10, 6, 20, 3.95), Refused("too short")),  # 5 + 23.7: over 20
     # one card, 3 models at 18.7 card minutes, 3 at once: 5 + 56.1 + 56.1 = 117.2 min, aimed for, not refused
-    case("capped-aims-for-what-it-can", lambda: round(batch.aimed_minutes(3, 1, 3, 18.7, 60), 1), 117.2),
-    case("uncapped-keeps-its-aim", lambda: batch.aimed_minutes(5, 20, 3, 3.95, 60), 60),
-    case("minutes-of-the-last-started", lambda: batch.card_minutes_per_model(), 5, ENTRIES),
-    case("leftover-unlabelled", lambda: batch.is_leftover([], 1e9), True),
-    case("leftover-past-deadline", lambda: batch.is_leftover([f"deadline={1e9 - 1:.0f}"], 1e9), True),
-    case("not-leftover-process-alive", lambda: batch.is_leftover(
+    case("capped-aims-for-what-it-can", lambda here: round(batch.aimed_minutes(3, 1, 3, 18.7, 60), 1), 117.2),
+    case("uncapped-keeps-its-aim", lambda here: batch.aimed_minutes(5, 20, 3, 3.95, 60), 60),
+    case("minutes-of-the-last-started", lambda here: batch.card_minutes_per_model(), 5, ENTRIES),
+    case("leftover-unlabelled", lambda here: batch.is_leftover([], 1e9), True),
+    case("leftover-past-deadline", lambda here: batch.is_leftover([f"deadline={1e9 - 1:.0f}"], 1e9), True),
+    case("not-leftover-process-alive", lambda here: batch.is_leftover(
         [f"deadline={LATER:.0f}", f"host={HOST}", f"pid={os.getpid()}"], 1e9), False),
-    case("leftover-process-gone", lambda: batch.is_leftover(
+    case("leftover-process-gone", lambda here: batch.is_leftover(
         [f"deadline={LATER:.0f}", f"host={HOST}", "pid=999999999"], 1e9), True),
-    case("not-leftover-other-host", lambda: batch.is_leftover(
+    case("not-leftover-other-host", lambda here: batch.is_leftover(
         [f"deadline={LATER:.0f}", "host=elsewhere", "pid=999999999"], 1e9), False),
-    case("job-deadline-from-high", lambda: batch.job_deadline_seconds(), batch.DEADLINE_FACTOR * HIGH["high"]),
+    case("job-deadline-from-high", lambda here: batch.job_deadline_seconds(), batch.DEADLINE_FACTOR * HIGH["high"]),
+    case("list-names-once-with-options", lambda here: listed(a_list(
+        here, "# approved 2026-09-29\ncrate {picture} --faces 12000 --feet\n\nbarrel {picture}  # tall\n")),
+        (["crate", "barrel"], 12000, [True, False])),
+    case("list-names-a-model-twice", lambda here: a_list(here, "crate {picture}\ncrate {picture}\n"), Refused("twice")),
+    case("no-inventory", lambda here: batch.from_the_inventory(a_list(here, LOCKERS), [written(here, "hub.json")]),
+         Refused("no inventory")),
+    case("inventory-not-approved", lambda here: batch.from_the_inventory(
+        a_list(here, LOCKERS), [written(here, "hub.json", INVENTORY)]), Refused("not approved")),
+    # approved, a place named by no place.json entry too: Pixal3D is worded by nothing
+    *(case(f"inventory-approved-{place}", lambda here, place=place: batch.from_the_inventory(
+        a_list(here, LOCKERS), [written(here, "hub.json", {**APPROVED, "place": place})]),
+        Including({"r1", "locker", "r2", "desk"})) for place in ("habitat", "no_such_place")),
+    case("list-model-on-no-row", lambda here: batch.from_the_inventory(
+        a_list(here, "no_such_row {picture}\n"), [written(here, "hub.json", APPROVED)]), Refused("on no row")),
+    case("designed-inventory", lambda here: batch.from_the_inventory(
+        a_list(here, "habitat-locker {picture}\n"), [written(here, "hub.json", DESIGNED)]), Including({"r1"})),
+    # a hand-in under another place's name: page A's rules
+    case("designed-under-another-name", lambda here: batch.from_the_inventory(
+        a_list(here, "habitat-locker {picture}\n"), [written(here, "hub.json", {**DESIGNED, "scene": "lab"})]),
+        Refused("not sound", "not approved", either=True)),
+    case("character-not-approved", lambda here: batch.from_the_characters([a_character(here)]), Refused("not approved")),
+    case("character-no-picture", lambda here: batch.from_the_characters([a_character(
+        here, approved="owner", picture=None)]), Refused("no picture")),
+    case("character-approved", lambda here: built(batch.from_the_characters([a_character(
+        here, approved="owner, 2026-10-09")]), here), [("fish_tang", "tang.png")]),
+    case("characters-share-a-name", lambda here: batch.from_the_characters(
+        [a_character(here, approved="owner, 2026-10-09")] * 2), Refused("share a name")),
+    # batch-1-1's two lines, not batch-1-2 nor batch-2-1; none in the run's own euros
+    case("rent-fees-failed-rents-included", lambda here: fees_of(
+        [batch.refused_row(l4(), "out of stock", "batch-1-1"), batch.refused_row(l4(), "refused")]), (0.01, 0.0)),
+    case("cluster-groups-of-three", lambda here: [[take.name for take in group] for group in batch.groups_of(TAKES, 3)],
+         [["crate-0", "crate-1", "crate-2"], ["crate-3"]]),
+    # the takes side by side, and the job fails only when no take made its model
+    case("cluster-takes-side-by-side", lambda here: side_by_side(batch.cluster_line(batch.groups_of(TAKES, 3)[0])),
+         (3, 3, "test -f /work/out/crate-0.glb || test -f /work/out/crate-1.glb || test -f /work/out/crate-2.glb")),
+    case("cluster-job-files", lambda here: (lambda job: ([entry["path"] for entry in job["inputs"]], job["outputs"]))(
+        batch.cluster_job(batch.groups_of(TAKES, 3)[0], pathlib.Path("/w/group0/out"))),
+        ([f"/work/in/crate-{number}.png" for number in range(3)], [{"path": "/work/out", "local": "/w/group0/out"}])),
+    # a group of three asks three times the minutes of a group of one
+    case("cluster-job-minutes-per-take", lambda here: [batch.cluster_job(group, pathlib.Path("/w/out"))["minutes"]
+                                                       for group in batch.groups_of(TAKES, 3)],
+         [3 * batch.cluster_job(TAKES[3:], pathlib.Path("/w/out"))["minutes"],
+          batch.cluster_job(TAKES[3:], pathlib.Path("/w/out"))["minutes"]]),
+    # pixal@people, 2026-10-22: the fleet ordered at the provider's shortage every round for over an hour, each order
+    # a machine that never started and billed its disk and address (EUR 2.19 in all)
+    case("nothing-ordered-without-stock", lambda here: no_stock_rents(a_fleet(here)), ([None] * len(batch.NO_STOCK), []),
+         ((batch.cloud, "create", never_ordered), (compute, "require_cleared", lambda what: None))),
+    # Fault (design of 2026-10-11): rent ordered a machine for any caller, without the runner's gate or the owner's yes
+    case("nothing-rented-outside-a-cleared-run", lambda here: batch.rent(a_fleet(here), None, l4(), 0),
+         Refused("nothing rents outside a cleared run", by=compute.Refused),
+         ((batch.cloud, "create", never_ordered), (batch, "month_spent", lambda account: 0.0))),
+    case("pool-card-replaced-once-in-set-up", lambda here: (lambda fleet: [
+        fleet.replaces(machine) for machine in POOL_FAILURES])(one_shot_fleet(["crate"], here)[0]),
+         [False, True, True, False], ((batch, "answers", lambda machine: machine["answers"]),)),
     *(priced(runner, pricing) for runner in ESTIMATES for pricing in PRICINGS),
 ]
 
 
 @pytest.mark.parametrize("call, expected, stubs, env", CASES)
-def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, call, expected, stubs, env):
+def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, tmp_path, call, expected, stubs, env):
     """Every limit, price and clock a batch judges by gives its expected answer: the 4 h and EUR 60 limits (an
     override's room), the started-minute bill, the cards it may take, the month's open machines, the classes it checks,
     the fleet it sizes, the rate it estimates by, the machines left over and a job's deadline; and each runner says
@@ -899,13 +899,14 @@ def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, 
     said = []
     monkeypatch.setattr(batch, "say", said.append)
     monkeypatch.delenv(compute.TICKET, raising=False)  # no measured pre-flight, no override but a row's
+    monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")  # never the home's ledger
     for target, attribute, value in stubs:
         monkeypatch.setattr(target, attribute, value)
     for name, value in env.items():
         monkeypatch.setenv(name, value)
     try:
-        outcome = call()
-    except SystemExit as stop:
+        outcome = call(tmp_path)
+    except (SystemExit, compute.Refused) as stop:
         outcome = Stopped(stop)
     assert holds(expected, outcome, said), (outcome, said)
 
