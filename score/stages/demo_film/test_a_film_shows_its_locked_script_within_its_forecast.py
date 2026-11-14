@@ -156,6 +156,10 @@ WALKS = [{"cut": "title", "shows": {"world": "toy"}, "sound": "bed", "text": "To
          {"cut": "walk-through", "shows": {"place": "beta"}, "sound": "place", "text": "Beta", "seconds": 7.0}]
 CROWD_PEEL = {"cut": "body-peel", "shows": {"place": "square"}, "seconds": 5.0}
 LAB_PEEL = {"cut": "body-peel", "shows": {"place": "lab"}, "seconds": 5.0}
+# The peels a locked script asks: a body peel of alpha wide and a close-up of its walker, a place peel of beta.
+PEELED = [{"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 5.0},
+          {"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 4.0, "close": "walker"},
+          {"cut": "place-peel", "shows": {"place": "beta"}, "seconds": 5.0}]
 LAB_HANGAR = [{"cut": "walk-through", "shows": {"place": place}, "seconds": 7.0} for place in ("lab", "hangar")]
 NO_ROW_YET = "every fault a cut no row makes yet"
 NO_DESIGN_PEELED = ["the design of lab shows people and no layer peel shows them",
@@ -192,9 +196,55 @@ SCRIPTS = [
      [NO_DESIGN_PEELED[1], CROWD_UNPLACED, "hangar is walked through and no place peel shows it"], []),
     ("lab and hangar walked, lab layer and hangar place peeled",
      a_script([*LAB_HANGAR, LAB_PEEL, {"cut": "place-peel", "shows": {"place": "hangar"}, "seconds": 5.0}]), True,
-     [NO_DESIGN_PEELED[1], CROWD_UNPLACED], [])]
+     [NO_DESIGN_PEELED[1], CROWD_UNPLACED], []),
+    ("body and place peels over a bed, one a close-up", dict(a_script(PEELED), bed="sound/hum"), False, [], [])]
 
-def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatch, still_film):
+# The cut (final.py): a title, a screen take the free preview records, the two walk-throughs, a body and a place peel
+# and a hero still: 2 + 3 + 7 + 7 + 5 + 5 + 3 less six half-second transitions, 29 s.
+TAKE = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
+CUT_PEELS = [{"cut": "body-peel", "shows": {"place": "alpha"}, "sound": "place", "seconds": 5.0,
+              "captions": [{"from": 0.3, "to": 4.7, "line": "Alpha", "text": "clothed, bare mesh, sim body"}]},
+             {"cut": "place-peel", "shows": {"place": "beta"}, "sound": "place", "seconds": 5.0}]
+STILL = {"cut": "hero-still", "shows": {"place": "alpha"}, "sound": "bed", "text": "Alpha", "seconds": 3.0}
+
+WALKER = {"doing": "walking"}
+STREET = [dict(WALKER, name="ann"), {"name": "bo", "doing": "standing"}, dict(WALKER, name="cy"),
+          dict(WALKER, name="di")]
+# (the close-up's case, the cast, the scene-made clips, the walker it follows or `refused: <why>`): the walker whose
+# clip crosses the most relief, the first on a tie; one walker needs no record, several do, none is refused.
+CLOSE_WALKERS = [
+    ("the most relief, the first of a tie", STREET,
+     {"clips": [{"name": "ann", "relief": 0.02}, {"name": "cy", "relief": 0.31}, {"name": "di", "relief": 0.31}]},
+     "cy"),
+    ("one walker, no record", STREET[:2], None, "ann"),
+    ("several walkers, no record", STREET, None, "refused: no scene-made clips"),
+    ("no walker", STREET[1:2], None, "refused: no walker")]
+
+# The fogged hall's planned frames as film_one deals them (wide SIZE[0], one frame code apart): (view, its eye, its aim,
+# the blur its frame is drawn with: None, "open" (SHUTTER towards the next frame of its shot) or "streak" (shortened
+# so nothing streaks further than MOST_STREAK of the width)). Half a frame open, never for a camera standing still, a
+# shot's last frame, or across a cut.
+FORWARD = [0, 1.6 - 0.04 * 0.4 / 5.016, 5 - 0.04 * 5 / 5.016]  # 4 cm along the line of sight, as walkway's walk
+SIDEWAYS = [0.02, FORWARD[1], FORWARD[2] - 0.02]
+BLUR_SHOT = [("shot0-000", [0, 1.6, 5], [0, 1.2, 0], None),  # standing still into the next frame
+             ("shot0-001", [0, 1.6, 5], [0, 1.2, 0], "open"),  # a straight walk forward
+             ("shot0-002", FORWARD, [0, 1.2, 0], "open"),  # a step aside
+             ("shot0-003", SIDEWAYS, [0, 1.2, 0], "streak"),  # a fast turn
+             ("shot0-004", SIDEWAYS, [0.6, 1.2, 0], None),  # its shot's last frame, the cut after it
+             ("shot1-000", [3, 1.6, 3], [0, 1.2, 0], None)]
+
+# A peel's shot of 120 frames: (frame, the pass shown, the pass coming, the share it has risen (low, high: exact when
+# equal), how far the push arrows have faded in): clothed, mesh and sim body in thirds, each next rising over the
+# wipe, the arrows in with the sim body's.
+WIPES = [(0, 0, 0, (0.0, 0.0), 0.0), (40, 0, 1, (0.4, 0.6), 0.0), (60, 1, 1, (0.0, 0.0), 0.0),
+         (80, 1, 2, (0.4, 0.6), (0.0, 1.0)), (119, 2, 2, (0.0, 0.0), 1.0)]
+# (a shot's seconds, the record's rate and frames, its last frame or `refused: <why>`): never longer than the record.
+SOURCE_FRAMES = [(5.0, 30.0, 150, 149), (5.5, 30.0, 150, "refused: outlasts")]
+# (its clip, where its points go from the bind): the bare mesh is the rig's points carried by its clip and weights.
+SKINS = [("still", [0.0, 0.0, 0.0]), ("step", [0.0, 0.0, 1.0])]
+
+
+def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatch, still_film, small_cut):
     """One world (a cockpit home holding TOUR locked, a fogged hall's stage, a yard's, a plain, a fogged and a glassed
     scan) driven through the rows' own entries.
 
@@ -214,9 +264,12 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     compared. A film's record keeps the longest walk-through showing it, and a plan whose shots show less is refused
     before its frames are rented (fault 2026-10-25: a 3.5 s film Blocked the 7 s walk-through after everything was
     bought); a film shown only as a hero still keeps one shot. The frames ask cards only, planned at SIZE over the jobs
-    the forecast sizes, no review frames, each job's deadline its frames at the forecast's high (the fogged hall's 2
-    frames a job at 17 minutes plus 10 to set up, 44), each job drawing into a folder of its own (blender_cloud's
-    shared_outputs), its first frame kept as concept.png.
+    the forecast sizes, no review frames, each job's deadline its frames at the forecast's high (the fogged hall's 3
+    frames a job at 17 minutes plus 10 to set up, 61), each job drawing into a folder of its own (blender_cloud's
+    shared_outputs) and drawn by film_frames, its first frame kept as concept.png. Each frame blurs by how fast its
+    picture moves towards the next frame of its shot (BLUR_SHOT): half a frame open (180 degrees), shorter where the
+    picture would streak further than MOST_STREAK of its width, none for a camera standing still or a shot's last
+    frame, never across a cut.
 
     Break: score/stages/demo_film/__init__.py: `return films().get(place, {}).get("place") == place` -> `return True`
     Break: score/stages/demo_film/__init__.py: `found["people"] = ("{data}/people/rows.json",
@@ -243,6 +296,12 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/__init__.py: `job["minutes"] = round(JOB_LEAD_MINUTES + frame_minutes * len(views))`
         -> `job["minutes"] = JOB_LEAD_MINUTES`
     Break: score/stages/demo_film/__init__.py: drop `own_folders(jobs)` in film_one
+    Break: score/stages/demo_film/__init__.py: `return 0.0 if speed < STILL_PIXELS else round(min(SHUTTER, MOST_STREAK *
+        wide / speed), 3)` -> `return 0.0 if speed < STILL_PIXELS else SHUTTER`
+    Break: score/stages/demo_film/__init__.py: `(later if demo.shot_of(later) == demo.shot_of(view) else None)` ->
+        `later`
+    Break: score/stages/demo_film/__init__.py: `+ wide / 2.0 * abs(along) / distance)` -> `)` (a straight walk
+        forward, 4 cm a frame as walkway's walk-through, unblurred)
 
     Its cameras (CAMERA_FILMS over one record): no camera named starts at the record's first, the second shot its
     `then` or the record camera furthest from the first; its own spots are added to the record's copy, record
@@ -298,7 +357,63 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     Break: score/stages/demo_film/final.py: `all("crowd" in fields` -> `any("crowd" in fields`
     Break: score/stages/demo_film/final.py: `for place in crowds if place in peeled or place not in placed]` ->
         `for place in crowds if False]`
-    Break: score/stages/demo_film/peel_rows.py: `and not final.crowd_only(place)` -> `` (a crowd's layer peel a node)"""
+    Break: score/stages/demo_film/peel_rows.py: `and not final.crowd_only(place)` -> `` (a crowd's layer peel a node)
+
+    The cut (TAKE, CUT_PEELS, STILL): a lock with a recorded segment and no preview wants it, a preview of the very
+    lock does not, one recorded from another script (the take now 4 s) wants it again and Blocks the cut by name; a
+    peel the node does not hold Blocks by name; two place films at very different loudness, the take and the peels
+    cut into one 29 s film, each segment from its own film, take or peel, exposure matched (a film at the middle
+    keeps gain 1, a dark one brought up at most GAIN_RANGE's top), the whole at TARGET_LUFS passing; a card held
+    still is planned, a walk-through held still is not; a place cut at 3.5 s fails. The close-up's walker
+    (CLOSE_WALKERS) is the one crossing the most relief, by rule.
+
+    The peels: rows only where a locked script peels a place, keyed on that script, its shots the script's (a close-up
+    where a segment names one, the longest segment's seconds), and the environment's film names a peel as a cut a row
+    makes. A shot is the record's own frames, refused when longer (SOURCE_FRAMES); it shows clothed, mesh and sim body
+    in thirds, each next rising from the bottom over the wipe, the push arrows fading in with the sim body's (WIPES).
+    The bare mesh is the rig's points carried by its clip and skin weights (SKINS); every body the ground pushes gets an
+    arrow from its centre of pressure along its push, METRES_PER_NEWTON a newton (a seated pelvis as its feet, a sixth
+    on the Moon), none for one barely touching, and a record written before its touches is refused; the arrows stand
+    where the person stands, in the film's push colour; the ground is what is underfoot (level, below their heads). A
+    person with no dressed body is left out where an accepted bodies gap names them (CAST's gaps; cockpit 2026-11-11,
+    its officer and pilot), refused by name where none does. Its forecast prices each pass's frame as a measured film
+    frame, a fogged stage's passes high, its high never under its cards' own time; the fogged hall's place peel is made
+    from its finished stage, its frames dealt over the forecast's cards, each slice its own frames into its own folder,
+    all joined, and judged on its film.
+
+    Break: score/stages/demo_film/final.py: `for kind in ("black", "frozen"))` -> `for kind in ("black", "black"))`
+        -> a still card fails the gate as frozen; or `            if not any(start - 1e-3` -> `            if True or not
+        any(start - 1e-3` -> a still card's stretch is kept as a fault.
+    Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`
+    Break: score/stages/demo_film/final.py: `return f"{segment['cut']}@{segment['shows']['place']}", "close" if
+        segment.get("close") else "wide"` -> `return f"demo-film@{segment['shows']['place']}", "wide"`
+    Break: score/stages/demo_film/final.py: `    if stale:` -> `    if False:`
+    Break: score/stages/demo_film/final.py: `return round(min(GAIN_RANGE[1], max(GAIN_RANGE[0], (middle - 16.0) /
+        max(luma - 16.0, 1.0))), 3)` -> `return 1.0`
+    Break: score/stages/demo_film/final.py: `if recorded(script) and (made is None or stale_segments(script, made)):` ->
+        `if recorded(script) and made is None:`
+    Break: score/stages/demo_film/peel.py: `relief.get(name, -1.0)` -> `-relief.get(name, -1.0)`
+    Break: score/stages/demo_film/peel.py: `@ np.linalg.inv(np.asarray(rig["bind"], dtype=float))` -> `` (in skinned)
+    Break: score/stages/demo_film/peel.py: `arrows = pushes(frames, touching(frames))` ->
+        `arrows = pushes(frames, [body for body in touching(frames) if body.startswith("calcn")])`
+    Break: score/stages/demo_film/peel.py: `arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]` ->
+        `arrows[index, number] = [*centre, 0.0, np.linalg.norm(force) * METRES_PER_NEWTON, 0.0]`
+    Break: score/stages/demo_film/peel.py: `begins = (len(PASSES) - 1) * third - wipe / 2` -> `begins = 0`
+    Break: score/stages/demo_film/peel_rows.py: `if single["name"] in gapped: return None` -> `if False: return None`
+    Break: score/stages/demo_film/peel.py: `if found[-1] >= record_frames:` -> `if False:`
+    Break: score/stages/demo_film/peel.py: `edge = round(tall * (1 - share))` -> `edge = round(tall * share)`
+    Break: score/stages/demo_film/peel.py: `edges = np.linspace(0, count, min(parts, count) + 1).round().astype(int)`
+        -> `edges = np.array([0, count // parts])`
+    Break: score/stages/demo_film/peel_rows.py: `high = sum(demo_film.FOG_FRAME_MINUTES if slowed else likely *
+        demo_film.FRAME_SPREAD for slowed in slow_passes)` -> `high = likely * demo_film.FRAME_SPREAD`
+    Break: score/stages/demo_film/peel_rows.py: `"high_euros": round(max(per_render * frames * high / likely, card_high *
+        card_euros_a_minute()), 2),` -> `"high_euros": round(per_render * frames * high / likely, 2),`
+    Break: score/stages/demo_film/peel_rows.py: `shot = CLOSE if cut == final.PEEL and segment.get("close") else
+        WIDE` -> `shot = WIDE`
+    Break: score/stages/demo_film/final.py: `MADE = (*WORDS, WALK, STILL, *RECORDED, *PEELS)` -> `MADE = (*WORDS,
+        WALK, STILL, *RECORDED)`
+    Break: score/stages/demo_film/peel.py: `return triangles[level & (lengths > 0) & (triangles[:, :, 2].max(axis=1)
+        < top)]` -> `return triangles[level & (lengths > 0)]`"""
     from score import stages
     from score.store import Store
     sys.path.insert(0, str(REPO / "tools/cloud"))
@@ -327,6 +442,7 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     assert not any(name.startswith("film ") for name in found), "no per-place film record"
     assert demo_film.extra_files("hall")["script tour"] == "{dashboard}/films/locked/tour.json"
     assert all((REPO / path).exists() for path in demo_film.TOOLS)
+    assert "tool " + demo_film.FRAMES_SCRIPT in demo_film.common_files("launch")
     (tmp_path / "data/films").mkdir(parents=True)
     starter = [{"cut": "walk-through", "seconds": 4.0, "shows": {"place": place}} for place in ("alpha", "hall")]
     (tmp_path / "data/films/env.json").write_text(json.dumps({"segments": starter}))
@@ -379,8 +495,8 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         planned.append((tuple(size), jobs_each))
         (work / "views").mkdir(parents=True, exist_ok=True)
         (work / "jobs").mkdir(parents=True, exist_ok=True)
-        views = [{"name": f"shot0-{number:03d}", "eye": [0, 1.6, 0], "aim": [0, 1.6, -1], "fov": 70}
-                 for number in range(4)]
+        views = [{"name": name, "eye": eye, "aim": aim, "up": [0, 1, 0], "fov": 75, "frame": number}
+                 for number, (name, eye, aim, _) in enumerate(BLUR_SHOT)]
         written = demo.film_jobs(work, "hall", stages / "hall/hall.usda", [], views, "look", 2, size, ink)
         (work / "views/hall.json").write_text(json.dumps({"size": list(size), "views": views, "moves": []}))
         return written
@@ -392,6 +508,21 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         assert all(view["look_only"] for job in asked for view in job["views"])
         loaded = [json.loads(path.read_text()) for path in jobs]
         assert blender_cloud.shared_outputs(loaded) is None, blender_cloud.shared_outputs(loaded)
+        assert all(job["script"] == demo_film.FRAMES_SCRIPT for job in loaded)
+        blurs = {view["name"]: view.get("blur") for job in asked for view in job["views"]}
+        wide = demo_film.SIZE[0]
+        for (name, eye, aim, blur), later in zip(BLUR_SHOT, [*BLUR_SHOT[1:], None]):
+            if blur is None:
+                assert blurs[name] is None, (name, blurs[name])
+                continue
+            assert blurs[name]["eye"] == later[1] and blurs[name]["codes"] == 1, (name, blurs[name])
+            speed = demo_film.picture_speed({"eye": eye, "aim": aim, "fov": 75}, {"eye": later[1], "aim": later[2]},
+                                            wide)
+            if blur == "open":
+                assert blurs[name]["shutter"] == demo_film.SHUTTER, (name, blurs[name]["shutter"])
+            else:
+                assert abs(blurs[name]["shutter"] - demo_film.MOST_STREAK * wide / speed) < 1e-3 and speed > 40, \
+                    (name, speed)
         for job, listing in zip(loaded, asked):
             frames = pathlib.Path(job["args"][2])
             frames.mkdir(parents=True)
@@ -408,7 +539,7 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
     demo_film.film_one(stage, "hall", {"place": "hall", "camera": "door", "final": True}, tmp_path / "filmed",
                        tmp_path / "log")
     assert planned == [(demo_film.SIZE, demo_film.forecast(stage / "hall.usda", 1)["jobs"])], planned
-    assert deadlines == [44, 44], deadlines
+    assert deadlines == [61, 61], deadlines
     assert Image.open(tmp_path / "filmed/concept.png").size == demo_film.SIZE
 
     # two record cameras: two shots; the clearance reserves the very forecast the make holds each film to
@@ -510,19 +641,89 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
             demo_film.refuse_peopleless(name, stage_path, film, 2)
 
     # how many people a design stands, less those an accepted bodies gap names
+    # (and whom its peel leaves out: a person with no dressed body is left out where a bodies gap names them, refused
+    # by name where none does)
+    import numpy as np
+    from score.stages import sim_body
+    from score.stages.demo_film import peel, peel_rows
     people = tmp_path / "people"
-    people.mkdir()
+    (people / "clips").mkdir(parents=True)
+    np.savez(people / "clips/rig.npz", names=np.array(["hips"]))
     for name, count, read, gaps, place, expected in CAST:
         square = {"rows": {"leader": {"looks": ["leader-drawn"]}, "crowd": {"crowd": "far-coat", "count": count}}}
         (people / "rows.json").write_text(json.dumps({"places": {"square": square}}))
         (people / "gaps.json").write_text(json.dumps({"gaps": gaps}))
-        gapped = demo_film.gapped_people({"gaps": str(people / "gaps.json")} if gaps else {})
+        given = {"gaps": str(people / "gaps.json")} if gaps else {}
+        gapped = demo_film.gapped_people(given)
         assert demo_film.cast_people(place, people / "rows.json" if read else None, gapped) == expected, name
+        person_of = peel_rows.people_of({sim_body.CLIPS_ROW: str(people / "clips"), **given})
+        for person in square["rows"]:
+            if person in gapped:
+                assert person_of({"name": person, "look": person}, {"clip": "idle"}) is None, (name, person)
+            else:
+                with pytest.raises(ValueError, match=f"{person}: no accepted dressed body"):
+                    person_of({"name": person, "look": person}, {"clip": "idle"})
+
+    # the environment's film cut from a locked script: its recorded take from the free preview of that very lock (a
+    # preview recorded from another script wants making again and Blocks the cut), its peels the peel rows', two place
+    # films at very different loudness matched in exposure and brought to one loudness, the gate holding the pacing
+    from score.stages import design_layers
+    monkeypatch.setattr(design_layers, "KEPT", tmp_path / "no-designs")  # no kept design shows people: no peel owed
+    cut_script = dict(a_script([WALKS[0], TAKE, *WALKS[1:], *CUT_PEELS, STILL]), size=small_cut)
+    moved = dict(cut_script, segments=[WALKS[0], dict(TAKE, seconds=4.0), *cut_script["segments"][2:]])
+    locked_in(home, monkeypatch, ("toy", cut_script), ("plain", a_script(WALKS)))
+    assert final.previews_wanted() == ["toy"]
+    preview = home / final.PREVIEWS / "toy.json"
+    preview.parent.mkdir(parents=True)
+    preview.write_text(json.dumps({"script": cut_script}))
+    assert final.previews_wanted() == []
+    locked_in(home, monkeypatch, ("toy", moved))
+    assert final.previews_wanted() == ["toy"]
+    cutting = tmp_path / "cutting"
+    cutting.mkdir()
+    (cutting / "toy.json").write_text(json.dumps(cut_script))
+    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                    f"testsrc2=size={SMALL_CUT[0]}x{SMALL_CUT[1]}:rate=24:duration=3", "-pix_fmt", "yuv420p",
+                    str(cutting / "002.mp4")], check=True)
+    inputs = {"script toy": cutting / "toy.json", "preview toy": preview, "take toy 2": cutting / "002.mp4",
+              "demo-film@alpha": a_film(cutting / "alpha", 330, 0.05),
+              "demo-film@beta": a_film(cutting / "beta", 440, 0.6), "place-peel@beta": a_peel(cutting / "beta-peel")}
+    assert final.takes("toy", cut_script, inputs) == {2: cutting / "002.mp4"}
+    assert set(final.recorded_files("toy", cut_script)) == {"preview toy", "take toy 2"}
+    with pytest.raises(graph.Blocked, match="segment\\(s\\) 2 of the free preview"):
+        final.takes("toy", moved, inputs)
+    with pytest.raises(graph.Blocked, match="segment 5: no accepted peel body-peel@alpha/wide"):
+        final.peels(cut_script, inputs)
+    inputs["body-peel@alpha"] = a_peel(cutting / "alpha-peel")
+    assert final.matched_gain(116.0, 116.0) == 1.0 and final.matched_gain(40.0, 200.0) == final.GAIN_RANGE[1]
+    out = tmp_path / "cut"
+    out.mkdir()
+    final.make(inputs, out, 0, {})
+    assert final.output_faults(out) == []
+    timeline = json.loads((out / "toy" / "timeline.json").read_text())
+    assert [(segment["cut"], segment["film"]) for segment in timeline["segments"]] == [
+        ("title", None), ("screen-take", None), ("walk-through", "demo-film@alpha"),
+        ("walk-through", "demo-film@beta"), ("body-peel", "body-peel@alpha"), ("place-peel", "place-peel@beta"),
+        ("hero-still", "demo-film@alpha")], timeline["segments"]
+    assert timeline["segments"][2]["exposure_gain"] == 1.0 and timeline["seconds"] == 29.0, timeline
+    verdict = final.judge(out, inputs, {})
+    assert verdict.answer == checks.PASS, verdict
+    # a card held still is planned (a 7 s card read frozen at 1280x720); a walk-through held still is not
+    _, _, film_checks = final.cut_tools()
+    measured = film_checks.video_checks
+    for stretch, faults in (([0.0, 2.0], []), ([9.0, 13.0], ["toy: frozen [[9.0, 13.0]]"])):
+        monkeypatch.setattr(film_checks, "video_checks", lambda *given, stretch=stretch: {  # the cut measured above
+            "black": [], "frozen": [stretch], "failures": [f"frozen {[stretch]}"]})
+        assert final.film_faults(out / "toy") == faults
+    monkeypatch.setattr(film_checks, "video_checks", measured)
+    timeline["segments"][2]["seconds"] = 3.5  # the 18 Oct cut's pace, written into the record
+    (out / "toy" / "timeline.json").write_text(json.dumps(timeline))
+    verdict = final.judge(out, inputs, {})
+    assert verdict.answer == checks.FAIL and "toy: alpha: on screen 3.5 s, under 7 s" in verdict.findings, verdict
 
     # which scripts are cut: against the kept designs (lab and stairwell stand people with sim bodies, hangar none,
     # square a crowd alone), its plan faults and the owner's pacing; locked, the places its films show
-    from score.stages import design_layers, people_rows
-    from score.stages.demo_film import peel_rows
+    from score.stages import people_rows
     designs = tmp_path / "designs"
     designs.mkdir()
     for place in ("lab", "stairwell", "hangar", "square"):
@@ -548,43 +749,113 @@ def test_a_film_shows_its_locked_script_within_its_forecast(tmp_path, monkeypatc
         final.require_yes(final.scripts())
         assert final.shown_places() == sorted({segment["shows"]["place"] for segment in script["segments"]
                                                if segment["cut"] in ("walk-through", "hero-still")}), name
-    locked_in(home, monkeypatch, ("toy", a_script([*WALKS, CROWD_PEEL, dict(CROWD_PEEL, shows={"place": "lab"})])))
+    # the peels are rows: only a place a locked script peels has one, keyed on that script, a crowd's never a body
+    # peel's; its shots the script's (a close-up where a segment names one, the longest segment's seconds)
+    peeling = a_script([*WALKS, CROWD_PEEL, LAB_PEEL, *PEELED])
+    locked_in(home, monkeypatch, ("toy", peeling))
     assert not peel_rows.applies_body("square") and peel_rows.applies_body("lab"), "no node that cannot draw"
+    assert peel_rows.applies_body("alpha") and not peel_rows.applies_body("beta") and peel_rows.applies_place("beta")
+    assert final.peeled_places() == ["alpha", "beta", "lab", "square"]
+    assert peel_rows.body_files("alpha")["script toy"] == "{dashboard}/films/locked/toy.json"
+    assert "script toy" not in peel_rows.place_files("alpha")
+    assert all((REPO / path).exists() for path in peel_rows.TOOLS)
     assert {"design lab", "design stairwell", "design hangar"} <= set(final.files()), "a design gaining people moves it"
+    (tmp_path / "peeling.json").write_text(json.dumps(peeling))
+    assert peel_rows.shots_of({"script toy": tmp_path / "peeling.json"}, "alpha", final.PEEL) == {"wide": 5.0,
+                                                                                                  "close": 4.0}
+    assert peel_rows.shots_of({"script toy": tmp_path / "peeling.json"}, "beta", final.PLACE_PEEL) == {"wide": 5.0}
 
+    # the close-up's walker by rule, never by hand
+    for name, characters, clips, expected in CLOSE_WALKERS:
+        cast = {"place": "street", "characters": characters}
+        if expected.startswith("refused: "):
+            with pytest.raises(ValueError, match=expected.removeprefix("refused: ")):
+                peel.close_walker(cast, clips)
+        else:
+            assert peel.close_walker(cast, clips) == expected, name
 
-def test_a_frame_blurs_by_how_fast_its_picture_moves_towards_the_next_frame_of_its_shot(tmp_path):
-    """The camera's motion blur: half a frame open (180 degrees), shorter where the picture would streak further than
-    MOST_STREAK of its width, none for a camera standing still or a shot's last frame, never across a cut; the jobs
-    drawn by film_frames.
-    Break: score/stages/demo_film/__init__.py: `return 0.0 if speed < STILL_PIXELS else round(min(SHUTTER, MOST_STREAK *
-        wide / speed), 3)` -> `return 0.0 if speed < STILL_PIXELS else SHUTTER`
-    Break: score/stages/demo_film/__init__.py: `(later if demo.shot_of(later) == demo.shot_of(view) else None)` ->
-        `later`
-    Break: score/stages/demo_film/__init__.py: `+ wide / 2.0 * abs(along) / distance)` -> `)` (a straight walk
-        forward, 4 cm a frame as walkway's walk-through, unblurred)"""
-    wide = demo_film.SIZE[0]
-    first = {"name": "shot0-000", "eye": [0, 1.6, 5], "aim": [0, 1.2, 0], "up": [0, 1, 0], "fov": 75, "frame": 0}
-    walked = dict(first, name="shot0-001", eye=[0.02, 1.6, 4.98], frame=1)
-    turned = dict(first, name="shot0-001", aim=[0.6, 1.2, 0], frame=1)
-    assert demo_film.blur_of(first, dict(first, name="shot0-001", frame=1), wide) is None, "a camera standing still"
-    assert demo_film.blur_of(first, None, wide) is None, "a shot's last frame"
-    forward = dict(first, name="shot0-001", eye=[0, 1.6 - 0.04 * 0.4 / 5.016, 5 - 0.04 * 5 / 5.016], frame=1)
-    assert demo_film.blur_of(first, forward, wide)["shutter"] == demo_film.SHUTTER, "a straight walk forward"
-    slow = demo_film.blur_of(first, walked, wide)
-    assert slow["shutter"] == demo_film.SHUTTER and slow["codes"] == 1 and slow["eye"] == walked["eye"], slow
-    fast = demo_film.blur_of(first, turned, wide)
-    speed = demo_film.picture_speed(first, turned, wide)
-    assert speed > 40 and abs(fast["shutter"] - demo_film.MOST_STREAK * wide / speed) < 1e-3, (speed, fast)
-    views = [first, walked, dict(walked, name="shot1-000", eye=[3, 1.6, 3], frame=2)]
-    listing, job = tmp_path / "views.json", tmp_path / "job.json"
-    listing.write_text(json.dumps({"size": list(demo_film.SIZE), "views": views}))
-    job.write_text(json.dumps({"script": "tools/blender/inside/usd_views.py", "args": ["stage", str(listing), "out"]}))
-    demo_film.motion_blurred([job], views, wide)
-    blurred = json.loads(listing.read_text())["views"]
-    assert "blur" in blurred[0] and "blur" not in blurred[1] and "blur" not in blurred[2], "never across a cut"
-    assert json.loads(job.read_text())["script"] == demo_film.FRAMES_SCRIPT
-    assert "tool " + demo_film.FRAMES_SCRIPT in demo_film.common_files("launch")
+    # a peel's frames: the record's own, wiped up in thirds, the push arrows fading in with the sim body
+    for seconds, rate, frames, last in SOURCE_FRAMES:
+        if isinstance(last, str):
+            with pytest.raises(ValueError, match=last.removeprefix("refused: ")):
+                peel.source_frames(seconds, rate, frames)
+        else:
+            assert peel.source_frames(seconds, rate, frames)[-1] == last, seconds
+    fade = peel.arrow_fade(120)
+    for frame, shown, coming, (low, high), faded in WIPES:
+        found = peel.stage_of(frame, 120)
+        assert found[:2] == (shown, coming) and (found[2] == low if low == high else low < found[2] < high), (frame,
+                                                                                                         found)
+        assert (fade[frame] == faded if isinstance(faded, float) else faded[0] < fade[frame] < faded[1]), frame
+    pictures = [Image.new("RGB", SMALL, colour) for colour in ((255, 0, 0), (0, 255, 0), (0, 0, 255))]
+    frame = peel.wiped(pictures, 36, 120)  # a fifth of the way up: the mesh below, the clothed above
+    assert frame.getpixel((5, SMALL[1] - 2)) == (0, 255, 0) and frame.getpixel((5, SMALL[1] // 2)) == (255, 0, 0)
+
+    # what a body peel draws: the clip rig's own surface, an arrow at every body the ground pushes from its centre of
+    # pressure along its push (a seated body's pelvis on its seat, as its feet; METRES_PER_NEWTON a newton, so a
+    # sixth on the Moon), none for a body barely touching, standing where the person stands in the film's push colour
+    rig = toy_rig()
+    for clip, moved in SKINS:
+        assert np.allclose(peel.skinned(rig, clip)[0], rig["points"] + moved), clip
+    seated = {"touches": {"pelvis": [0.0, 520.0, 30.0, 0.0, 0.45, 0.1], "calcn_r": [5.0, 140.0, 0.0, 0.1, 0.0, 0.5],
+                          "calcn_l": [0.0, 0.5, 0.0, -0.1, 0.0, 0.5]}}
+    rig["clip_sitting"] = np.concatenate([rig["clip_still"], rig["clip_still"]])
+    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "sitting"}
+    drawn = peel.person_arrays(record, rig, [seated, seated], [0, 1])
+    where = sim_body.own_frame(record["at"], record["turn"])
+    assert drawn["arrow_start"].shape == (2, 2, 3)  # the seat's push and the planted foot's; a foot barely touching none
+    seat = where[:3, :3] @ np.array([0.0, 0.45, 0.1]) + where[:3, 3]
+    assert np.allclose(drawn["arrow_start"][1, 0], peel.points_to_z(seat))
+    assert np.allclose(drawn["arrow_vector"][1, 0], peel.points_to_z(where[:3, :3] @ np.array([0.0, 0.52, 0.03])))
+    bodies = peel.touching([seated])
+    moon = peel.pushes([{"touches": {"pelvis": [0.0, 520.0 / 6, 5.0, 0.0, 0.45, 0.1]}}], bodies)
+    assert np.isclose(moon[0, 0, 4] * 6, peel.pushes([seated], bodies)[0, 0, 4]) and np.isnan(moon[0, 1]).all()
+    with pytest.raises(ValueError, match="no `touches`"):
+        peel.touching([{"feet": {"calcn_r": [0.0, 700.0]}}])
+    linear = np.array(peel.push_colour())
+    srgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
+    from score.stages.demo_film import lettering
+    assert np.allclose(srgb, np.array(lettering.token("film-push")[:3]) / 255.0, atol=2e-3)
+    floor, roof = [[0, 0, 0], [1, 0, 0], [0, 1, 0]], [[0, 0, 2.5], [0, 1, 2.5], [1, 0, 2.5]]
+    wall = [[0, 0, 0], [1, 0, 0], [0, 0, 2]]
+    person = {"points": np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]])}
+    assert peel.underfoot(np.array([floor, roof, wall], dtype=float), [person]).tolist() == [floor], "level, below heads"
+
+    # a peel's forecast prices each pass's frame as a measured film frame, a fogged stage's passes high, its high
+    # never under its cards' own time
+    plain = peel_rows.forecast({"wide": 5.0}, [False, False, False])
+    fogged = peel_rows.forecast({"wide": 5.0}, [True, True, False])
+    assert plain["frames"] == 120 and plain["renders"] == 360
+    assert plain["card_minutes"] == round(360 * demo.FRAME_MINUTES)
+    assert plain["euros"] == round(demo_film.LIKELY_EUROS * 360 / 192, 2)
+    assert fogged["high_frame_minutes"] == 2 * demo_film.FOG_FRAME_MINUTES + demo.FRAME_MINUTES * demo_film.FRAME_SPREAD
+    assert fogged["high_euros"] > 5 * plain["high_euros"]
+    cards = plain["jobs"] * (8 + demo_film.JOB_LEAD_MINUTES) + 120 * plain["high_frame_minutes"]
+    assert plain["high_euros"] >= round(cards * peel_rows.card_euros_a_minute(), 2) > plain["euros"]
+
+    # the fogged hall's place peel, made from its finished stage: its frames dealt over the forecast's cards, each
+    # slice its own frames into its own folder, all joined, judged on its film
+    (tmp_path / "hall-peel.json").write_text(json.dumps(
+        dict(peeling, segments=[{"cut": "place-peel", "shows": {"place": "hall"}, "seconds": 1.0}])))
+    monkeypatch.setattr(demo_film, "SIZE", SMALL)
+    monkeypatch.setattr(peel_rows, "forecast", lambda shots, passes, slow=None: dict(plain, jobs=3))
+
+    def drawn_here(cloud, node, out):  # the cards' part, drawn here: each slice its own frames, in its own folder
+        for path in cloud:
+            job = json.loads(pathlib.Path(json.loads(path.read_text())["args"][0]).read_text())
+            for frame in range(*job["frames"]):
+                for number, name in enumerate(job["passes"]):
+                    (pathlib.Path(job["out"]) / name).mkdir(parents=True, exist_ok=True)
+                    Image.new("RGB", SMALL, (60 * number, 90, 30 + frame)).save(
+                        pathlib.Path(job["out"]) / name / f"{frame:04d}.png")
+    monkeypatch.setattr(peel_rows, "render", drawn_here)
+    peeled = tmp_path / "peeled"
+    peeled.mkdir()
+    peel_rows.make_place({"assembly": stage, "script toy": tmp_path / "hall-peel.json"}, peeled, 0, {})
+    made = json.loads((peeled / "peel.json").read_text())
+    assert made["shots"]["wide"]["frames"] == 24 and peel_rows.output_faults(peeled) == []
+    assert peel_rows.judge(peeled, {}, {}).answer == checks.PASS
+    assert not (peeled / ".work").exists()
 
 
 # --- the film gate --------------------------------------------------------------------------------------------------
@@ -690,105 +961,6 @@ def a_peel(folder, shot="wide"):
     return folder
 
 
-def test_a_cut_runs_at_one_loudness_and_its_gate_holds_the_pacing(tmp_path, monkeypatch, small_cut):
-    """Two place films at very different loudness and two peels cut into one 24 s film (2 + 7 + 7 + 5 + 5 less four
-    half-second transitions), each segment from its own film or peel (a peel its row's, read beside, and Blocked by
-    name while it is missing); the whole at TARGET_LUFS passes; a place cut at 3.5 s fails.
-    Break: score/stages/demo_film/final.py: `for kind in ("black", "frozen"))` -> `for kind in ("black", "black"))`
-        -> a still card fails the gate as frozen; or `            if not any(start - 1e-3` -> `            if True or not
-        any(start - 1e-3` -> a still card's stretch is kept as a fault.
-    Break: score/stages/demo_film/final.py: `gain = TARGET_LUFS - loudness` -> `gain = 0.0`
-    Break: score/stages/demo_film/final.py: `return f"{segment['cut']}@{segment['shows']['place']}", "close" if
-        segment.get("close") else "wide"` -> `return f"demo-film@{segment['shows']['place']}", "wide"`"""
-    from score.stages import design_layers
-    monkeypatch.setattr(design_layers, "KEPT", tmp_path / "designs")  # no kept design shows people: no peel owed
-    script = tmp_path / "toy.json"
-    peels = [{"cut": "body-peel", "shows": {"place": "alpha"}, "sound": "place", "seconds": 5.0,
-              "captions": [{"from": 0.3, "to": 4.7, "line": "Alpha", "text": "clothed, bare mesh, sim body"}]},
-             {"cut": "place-peel", "shows": {"place": "beta"}, "sound": "place", "seconds": 5.0}]
-    script.write_text(json.dumps(dict(a_script([*WALKS, *peels]), size=small_cut)))
-    inputs = {"script toy": script, "demo-film@alpha": a_film(tmp_path / "alpha", 330, 0.05),
-              "demo-film@beta": a_film(tmp_path / "beta", 440, 0.6),
-              "place-peel@beta": a_peel(tmp_path / "beta-peel")}
-    with pytest.raises(graph.Blocked, match="segment 4: no accepted peel body-peel@alpha/wide"):
-        final.peels(a_script([*WALKS, *peels]), inputs)
-    inputs["body-peel@alpha"] = a_peel(tmp_path / "alpha-peel")
-    out = tmp_path / "out"
-    out.mkdir()
-    final.make(inputs, out, 0, {})
-    assert final.output_faults(out) == []
-    timeline = json.loads((out / "toy" / "timeline.json").read_text())
-    assert [segment["film"] for segment in timeline["segments"]] == [None, "demo-film@alpha", "demo-film@beta",
-                                                                    "body-peel@alpha", "place-peel@beta"]
-    assert timeline["seconds"] == 24.0
-    verdict = final.judge(out, inputs, {})
-    assert verdict.answer == checks.PASS, verdict
-    # a card held still is planned (a 7 s card read frozen at 1280x720); a walk-through held still is not
-    _, _, film_checks = final.cut_tools()
-    measured = film_checks.video_checks
-    for stretch, faults in (([0.0, 2.0], []), ([9.0, 13.0], ["toy: frozen [[9.0, 13.0]]"])):
-        monkeypatch.setattr(film_checks, "video_checks", lambda *given, stretch=stretch: {  # the cut measured above
-            "black": [], "frozen": [stretch], "failures": [f"frozen {[stretch]}"]})
-        assert final.film_faults(out / "toy") == faults
-    monkeypatch.setattr(film_checks, "video_checks", measured)
-    timeline["segments"][1]["seconds"] = 3.5  # the 18 Oct cut's pace, written into the record
-    (out / "toy" / "timeline.json").write_text(json.dumps(timeline))
-    verdict = final.judge(out, inputs, {})
-    assert verdict.answer == checks.FAIL and "toy: alpha: on screen 3.5 s, under 7 s" in verdict.findings, verdict
-
-
-def test_a_recorded_segment_is_cut_from_the_preview_s_take_of_that_very_segment(tmp_path, small_cut):
-    """A screen take is the free preview's take only while the preview was recorded from the segment the lock holds
-    (a take recorded at 3 s for a segment now 4 s is Blocked); films are matched in exposure (a film at the middle
-    keeps gain 1, a dark one is brought up at most GAIN_RANGE's top); the cut is 2 + 3 + 7 + 3 less three half-second
-    transitions, 13.5 s.
-    Break: score/stages/demo_film/final.py: `    if stale:` -> `    if False:`
-    Break: score/stages/demo_film/final.py: `return round(min(GAIN_RANGE[1], max(GAIN_RANGE[0], (middle - 16.0) /
-        max(luma - 16.0, 1.0))), 3)` -> `return 1.0`"""
-    take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
-    script = dict(a_script([WALKS[0], take, WALKS[1]]), size=small_cut)
-    (tmp_path / "toy.json").write_text(json.dumps({"script": script}))
-    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    f"testsrc2=size={SMALL_CUT[0]}x{SMALL_CUT[1]}:rate=24:duration=3", "-pix_fmt", "yuv420p",
-                    str(tmp_path / "002.mp4")],
-                   check=True)
-    subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
-                    "sine=frequency=220:duration=5", str(tmp_path / "bed.wav")], check=True)
-    inputs = {"preview toy": tmp_path / "toy.json", "take toy 2": tmp_path / "002.mp4"}
-    assert final.takes("toy", script, inputs) == {2: tmp_path / "002.mp4"}
-    assert set(final.recorded_files("toy", script)) == {"preview toy", "take toy 2"}
-    moved = dict(script, segments=[WALKS[0], dict(take, seconds=4.0), WALKS[1]])
-    with pytest.raises(graph.Blocked, match="segment\\(s\\) 2 of the free preview"):
-        final.takes("toy", moved, inputs)
-    assert final.matched_gain(116.0, 116.0) == 1.0 and final.matched_gain(40.0, 200.0) == final.GAIN_RANGE[1]
-    alpha = a_film(tmp_path / "alpha", 330, 0.2) / "film.mp4"
-    still = {"cut": "hero-still", "shows": {"place": "alpha"}, "sound": "bed", "text": "Alpha", "seconds": 3.0}
-    out = tmp_path / "out"
-    final.cut_one(dict(script, segments=[*script["segments"], still]), {3: alpha, 4: alpha}, out,
-                  {2: tmp_path / "002.mp4"}, tmp_path / "bed.wav")
-    timeline = json.loads((out / "timeline.json").read_text())
-    assert [segment["cut"] for segment in timeline["segments"]] == ["title", "screen-take", "walk-through",
-                                                                    "hero-still"]
-    assert timeline["segments"][2]["exposure_gain"] == 1.0 and timeline["seconds"] == 13.5
-
-
-def test_a_locked_script_with_recorded_segments_wants_its_preview_until_it_is_made_from_the_lock(tmp_path,
-                                                                                                    monkeypatch):
-    """A lock with a recorded segment and no preview wants it; a preview of the very lock, or a script with no
-    recorded segment, does not; a preview recorded from another script (the take now 4 s) wants it again.
-    Break: score/stages/demo_film/final.py: `if recorded(script) and (made is None or stale_segments(script, made)):` ->
-        `if recorded(script) and made is None:`"""
-    take = {"cut": "screen-take", "shows": {"page": "/"}, "sound": "bed", "seconds": 3.0}
-    script = a_script([WALKS[0], take, WALKS[1]])
-    locked_in(tmp_path, monkeypatch, ("toy", script), ("plain", a_script(WALKS)))
-    assert final.previews_wanted() == ["toy"]
-    (tmp_path / final.PREVIEWS).mkdir(parents=True)
-    (tmp_path / final.PREVIEWS / "toy.json").write_text(json.dumps({"script": script}))
-    assert final.previews_wanted() == []
-    locked_in(tmp_path, monkeypatch, ("toy", dict(script, segments=[WALKS[0], dict(take, seconds=4.0), WALKS[1]])))
-    assert final.previews_wanted() == ["toy"]
-
-
 def toy_rig():
     """Two joints (a root at the floor, a hip 1 m over it) and three points: one on each joint, one shared half and
     half; a clip `still` at the bind and `step` with the root moved 1 m along z."""
@@ -802,167 +974,3 @@ def toy_rig():
     return {"names": np.array(["Root", "Hips"]), "parents": np.array([-1, 0]), "bind": bind,
             "points": np.array([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.5, 0.0]]),
             "weights": np.array([[1.0, 0.0], [0.0, 1.0], [0.5, 0.5]]), "clip_still": local, "clip_step": step}
-
-
-def test_a_peel_draws_the_clip_rigs_own_surface_and_the_records_own_push():
-    """The bare mesh is the rig's points carried by its clip and skin weights (at the bind, the points themselves);
-    every body the ground pushes gets an arrow from its centre of pressure along its push, METRES_PER_NEWTON long a
-    newton: a seated body's pelvis on its seat as its feet on the floor, so the same body's arrow on the Moon is a
-    sixth of Earth's; a body pushed PUSHED or less has none, and a record written before it held its touches is
-    refused. The arrows stand where the person stands (its spot and turn), fade in with the sim body's wipe and take
-    the film's own push colour.
-    Break: score/stages/demo_film/peel.py: `@ np.linalg.inv(np.asarray(rig["bind"], dtype=float))` -> `` (in skinned)
-    Break: score/stages/demo_film/peel.py: `arrows = pushes(frames, touching(frames))` ->
-        `arrows = pushes(frames, [body for body in touching(frames) if body.startswith("calcn")])`
-    Break: score/stages/demo_film/peel.py: `arrows[index, number] = [*centre, *(force * METRES_PER_NEWTON)]` ->
-        `arrows[index, number] = [*centre, 0.0, np.linalg.norm(force) * METRES_PER_NEWTON, 0.0]`
-    Break: score/stages/demo_film/peel.py: `begins = (len(PASSES) - 1) * third - wipe / 2` -> `begins = 0`
-    And cockpit (2026-11-11): its officer and pilot, accepted gaps with no body of their look, refused the peel by
-    name. One a bodies gap names is left out (None); one no gap names is still refused.
-    Break: score/stages/demo_film/peel_rows.py: `if single["name"] in gapped: return None` -> `if False: return None`"""
-    import tempfile
-    import numpy as np
-    from score.stages import sim_body
-    from score.stages.demo_film import lettering, peel, peel_rows
-    folder = pathlib.Path(tempfile.mkdtemp())
-    (folder / "clips").mkdir()
-    np.savez(folder / "clips" / "rig.npz", names=np.array(["hips"]))
-    (folder / "gaps.json").write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies",
-                                                            "objects": ["officer"]}]}))
-    person_of = peel_rows.people_of({sim_body.CLIPS_ROW: str(folder / "clips"), "gaps": str(folder / "gaps.json")})
-    assert person_of({"name": "officer", "look": "officer"}, {"clip": "idle"}) is None
-    with pytest.raises(ValueError, match="pilot: no accepted dressed body"):
-        person_of({"name": "pilot", "look": "pilot"}, {"clip": "idle"})
-    shutil.rmtree(folder)
-    rig = toy_rig()
-    assert np.allclose(peel.skinned(rig, "still")[0], rig["points"])
-    assert np.allclose(peel.skinned(rig, "step")[0], rig["points"] + [0.0, 0.0, 1.0])
-    seated = {"touches": {"pelvis": [0.0, 520.0, 30.0, 0.0, 0.45, 0.1], "calcn_r": [5.0, 140.0, 0.0, 0.1, 0.0, 0.5],
-                          "calcn_l": [0.0, 0.5, 0.0, -0.1, 0.0, 0.5]}}
-    rig["clip_sitting"] = np.concatenate([rig["clip_still"], rig["clip_still"]])
-    record = {"at": [2.0, 0.0, 1.0], "turn": 30.0, "clip": "sitting"}
-    drawn = peel.person_arrays(record, rig, [seated, seated], [0, 1])
-    where = sim_body.own_frame(record["at"], record["turn"])
-    assert drawn["arrow_start"].shape == (2, 2, 3)  # the seat's push and the planted foot's; a foot barely touching none
-    seat = where[:3, :3] @ np.array([0.0, 0.45, 0.1]) + where[:3, 3]
-    assert np.allclose(drawn["arrow_start"][1, 0], peel.points_to_z(seat))
-    assert np.allclose(drawn["arrow_vector"][1, 0], peel.points_to_z(where[:3, :3] @ np.array([0.0, 0.52, 0.03])))
-    bodies = peel.touching([seated])
-    moon = peel.pushes([{"touches": {"pelvis": [0.0, 520.0 / 6, 5.0, 0.0, 0.45, 0.1]}}], bodies)
-    assert np.isclose(moon[0, 0, 4] * 6, peel.pushes([seated], bodies)[0, 0, 4]) and np.isnan(moon[0, 1]).all()
-    with pytest.raises(ValueError, match="no `touches`"):
-        peel.touching([{"feet": {"calcn_r": [0.0, 700.0]}}])
-    fade = peel.arrow_fade(120)
-    assert fade[60] == 0.0 and fade[-1] == 1.0 and 0.0 < fade[80] < 1.0  # in with the sim body's wipe at 80
-    linear = np.array(peel.push_colour())
-    srgb = np.where(linear <= 0.0031308, linear * 12.92, 1.055 * linear ** (1 / 2.4) - 0.055)
-    assert np.allclose(srgb, np.array(lettering.token("film-push")[:3]) / 255.0, atol=2e-3)
-
-
-def test_a_peel_never_outlasts_its_record_and_wipes_up_at_each_third(tmp_path, monkeypatch):
-    """A shot is the record's own frames, refused when longer; it shows clothed, mesh and sim body in thirds, each
-    next one rising from the bottom over the wipe. The peels are rows (peel_rows.py): only a place a locked script
-    peels has one, keyed on that script; its shots are the scripts' (a close-up where a segment names one, the
-    longest segment's seconds); its forecast prices each pass's frame as a measured film frame, a fogged stage's
-    passes high, its high never under its cards' own time; its frames are dealt over the forecast's cards, each
-    slice its own frames into its own folder, all of them joined; a body peel's ground is what is underfoot (level,
-    below their heads: no wall, no roof); a place peel is made from its finished stage and judged on its film, and the
-    environment's film names it as a cut a row makes.
-    Break: score/stages/demo_film/peel.py: `if found[-1] >= record_frames:` -> `if False:`
-    Break: score/stages/demo_film/peel.py: `edge = round(tall * (1 - share))` -> `edge = round(tall * share)`
-    Break: score/stages/demo_film/peel.py: `edges = np.linspace(0, count, min(parts, count) + 1).round().astype(int)`
-        -> `edges = np.array([0, count // parts])`
-    Break: score/stages/demo_film/peel_rows.py: `high = sum(demo_film.FOG_FRAME_MINUTES if slowed else likely *
-        demo_film.FRAME_SPREAD for slowed in slow_passes)` -> `high = likely * demo_film.FRAME_SPREAD`
-    Break: score/stages/demo_film/peel_rows.py: `"high_euros": round(max(per_render * frames * high / likely, card_high *
-        card_euros_a_minute()), 2),` -> `"high_euros": round(per_render * frames * high / likely, 2),`
-    Break: score/stages/demo_film/peel_rows.py: `shot = CLOSE if cut == final.PEEL and segment.get("close") else
-        WIDE` -> `shot = WIDE`
-    Break: score/stages/demo_film/final.py: `MADE = (*WORDS, WALK, STILL, *RECORDED, *PEELS)` -> `MADE = (*WORDS,
-        WALK, STILL, *RECORDED)`
-    Break: score/stages/demo_film/peel.py: `return triangles[level & (lengths > 0) & (triangles[:, :, 2].max(axis=1)
-        < top)]` -> `return triangles[level & (lengths > 0)]`"""
-    from score.stages.demo_film import peel, peel_rows
-    assert peel.source_frames(5.0, 30.0, 150)[-1] == 149
-    with pytest.raises(ValueError, match="outlasts"):
-        peel.source_frames(5.5, 30.0, 150)
-    count = 120
-    assert peel.stage_of(0, count) == (0, 0, 0.0) and peel.stage_of(60, count) == (1, 1, 0.0)
-    assert peel.stage_of(119, count) == (2, 2, 0.0)
-    shown, coming, share = peel.stage_of(40, count)
-    assert (shown, coming) == (0, 1) and 0.4 < share < 0.6
-    pictures = [Image.new("RGB", SMALL, colour) for colour in ((255, 0, 0), (0, 255, 0), (0, 0, 255))]
-    frame = peel.wiped(pictures, 36, count)  # a fifth of the way up: the mesh below, the clothed above
-    assert frame.getpixel((5, SMALL[1] - 2)) == (0, 255, 0) and frame.getpixel((5, SMALL[1] // 2)) == (255, 0, 0)
-    peeled = a_script([{"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 5.0},
-                       {"cut": "body-peel", "shows": {"place": "alpha"}, "seconds": 4.0, "close": "walker"},
-                       {"cut": "place-peel", "shows": {"place": "beta"}, "seconds": 5.0}])
-    assert not any("no row makes" in fault for fault in final.plan_faults(peeled))
-    import numpy as np
-    floor, roof = [[0, 0, 0], [1, 0, 0], [0, 1, 0]], [[0, 0, 2.5], [0, 1, 2.5], [1, 0, 2.5]]
-    wall = [[0, 0, 0], [1, 0, 0], [0, 0, 2]]
-    person = {"points": np.array([[[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]])}
-    assert peel.underfoot(np.array([floor, roof, wall], dtype=float), [person]).tolist() == [floor]
-    locked_in(tmp_path / "home", monkeypatch, ("toy", peeled))
-    assert peel_rows.applies_body("alpha") and not peel_rows.applies_body("beta") and peel_rows.applies_place("beta")
-    assert final.peeled_places() == ["alpha", "beta"]
-    assert peel_rows.body_files("alpha")["script toy"] == "{dashboard}/films/locked/toy.json"
-    assert "script toy" not in peel_rows.place_files("alpha")
-    assert all((REPO / path).exists() for path in peel_rows.TOOLS)
-    (tmp_path / "toy.json").write_text(json.dumps(peeled))
-    inputs = {"script toy": tmp_path / "toy.json"}
-    assert peel_rows.shots_of(inputs, "alpha", final.PEEL) == {"wide": 5.0, "close": 4.0}
-    assert peel_rows.shots_of(inputs, "beta", final.PLACE_PEEL) == {"wide": 5.0}
-    demo, _ = demo_film.film_tools()
-    plain = peel_rows.forecast({"wide": 5.0}, [False, False, False])
-    fogged = peel_rows.forecast({"wide": 5.0}, [True, True, False])
-    assert plain["frames"] == 120 and plain["renders"] == 360
-    assert plain["card_minutes"] == round(360 * demo.FRAME_MINUTES)
-    assert plain["euros"] == round(demo_film.LIKELY_EUROS * 360 / 192, 2)
-    assert fogged["high_frame_minutes"] == 2 * demo_film.FOG_FRAME_MINUTES + demo.FRAME_MINUTES * demo_film.FRAME_SPREAD
-    assert fogged["high_euros"] > 5 * plain["high_euros"]
-    cards = plain["jobs"] * (8 + demo_film.JOB_LEAD_MINUTES) + 120 * plain["high_frame_minutes"]
-    assert plain["high_euros"] >= round(cards * peel_rows.card_euros_a_minute(), 2) > plain["euros"]
-    stage = tmp_path / "stage"
-    stage.mkdir()
-    (stage / "hall.usda").write_text(PLAIN)
-    (stage / "scene.json").write_text(json.dumps({"views": [{"name": "door", "eye": [0, 1.6, 4], "aim": [0, 1.6, 0]}]}))
-    small = dict(final.scripts()["toy"], segments=[{"cut": "place-peel", "shows": {"place": "hall"}, "seconds": 1.0}])
-    (tmp_path / "toy.json").write_text(json.dumps(small))
-    monkeypatch.setattr(demo_film, "SIZE", SMALL)
-    monkeypatch.setattr(peel_rows, "forecast", lambda shots, passes, slow=None: dict(plain, jobs=3))
-
-    def drawn_here(cloud, node, out):  # the cards' part, drawn here: each slice its own frames, in its own folder
-        for path in cloud:
-            job = json.loads(pathlib.Path(json.loads(path.read_text())["args"][0]).read_text())
-            for frame in range(*job["frames"]):
-                for number, name in enumerate(job["passes"]):
-                    (pathlib.Path(job["out"]) / name).mkdir(parents=True, exist_ok=True)
-                    Image.new("RGB", SMALL, (60 * number, 90, 30 + frame)).save(
-                        pathlib.Path(job["out"]) / name / f"{frame:04d}.png")
-    monkeypatch.setattr(peel_rows, "render", drawn_here)
-    out = tmp_path / "peeled"
-    out.mkdir()
-    peel_rows.make_place({"assembly": stage, "script toy": tmp_path / "toy.json"}, out, 0, {})
-    record = json.loads((out / "peel.json").read_text())
-    assert record["shots"]["wide"]["frames"] == 24 and peel_rows.output_faults(out) == []
-    verdict = peel_rows.judge(out, {}, {})
-    assert verdict.answer == checks.PASS, verdict
-    assert not (out / ".work").exists()
-
-
-def test_a_close_up_follows_the_walker_on_the_most_uneven_ground():
-    """The close-up's walker by rule, never by hand: the cast's walker whose scene-made clip crosses the most relief,
-    the first on a tie; one walker needs no record, several do, none is refused.
-    Break: score/stages/demo_film/peel.py: `relief.get(name, -1.0)` -> `-relief.get(name, -1.0)`"""
-    from score.stages.demo_film import peel
-    walker = {"doing": "walking"}
-    cast = {"place": "street", "characters": [dict(walker, name="ann"), {"name": "bo", "doing": "standing"},
-                                              dict(walker, name="cy"), dict(walker, name="di")]}
-    clips = {"clips": [{"name": "ann", "relief": 0.02}, {"name": "cy", "relief": 0.31}, {"name": "di", "relief": 0.31}]}
-    assert peel.close_walker(cast, clips) == "cy"
-    assert peel.close_walker(dict(cast, characters=cast["characters"][:2])) == "ann"
-    with pytest.raises(ValueError, match="no scene-made clips"):
-        peel.close_walker(cast)
-    with pytest.raises(ValueError, match="no walker"):
-        peel.close_walker(dict(cast, characters=[cast["characters"][1]]))
