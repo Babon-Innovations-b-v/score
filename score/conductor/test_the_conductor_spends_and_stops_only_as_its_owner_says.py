@@ -64,8 +64,8 @@ False:' (a take a run is writing is linked), or in relink_pixal 'if laid_by_a_ro
 (a people look's take linked, so its row copies a file onto itself: 2026-11-03, SameFileError), or in laid_by_a_row
 drop 'or code_built(path, pixal)' (a code build's take linked: 2026-11-05, every pixal row refused on input.png); in
 asked_by 'return code == entry["code"] and entry["system"]' -> 'return False and entry["system"]' (the crate's views,
-still asked for, are swept), or its 'and \\\n            all(input_stands(' -> 'or ...' (the lamp's views, made from
-its old model, stay). The free
+still asked for, are swept), or drop its 'and \\\n            all(input_stands(' (the lamp's views, made from its
+old model, stay). The free
 end-to-end check is red when a step fails, e.g. the memory guard letting the second node start while the first, short
 of its stage's peak, still runs.
 """
@@ -541,11 +541,9 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     base = tmp_path / "full"
     base.mkdir()
     full, blobs, named, checked, big_blob, raw, copies = a_full_disk(base)
-    pixal, cache = full / "work" / "pixal", full / "store" / "cache"
-    models = base / "models"  # the models a per-take kept call (the finish route's views) is made from
-    models.mkdir()
-    for take in ("crate", "lamp"):
-        (models / f"{take}.glb").write_text(f"{take} model")
+    pixal, cache, models = full / "work" / "pixal", full / "store" / "cache", base / "models"
+    look, built = pixal / "officer-made-s1.svviews/input.png", [
+        pixal / "pipe_1.svviews/input.png", pixal / "pipe_1-final.glb", pixal / "pipe_1-2000.glb"]
     real = disk.pixal_takes()
     taken = []
 
@@ -565,23 +563,30 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         swept.setattr(disk, "mount_of", lambda path: full)
         swept.setattr(disk, "bigger", lambda more, zone: f"{more} GB more, EUR 4.00 a month in {zone}")
         swept.setattr(disk.offload, "open_bucket", lambda: disk.offload.FolderBucket(base / "bucket"))
-        # a run waits: of the frozen copies only the dead run's is removed, with its home, never what they link to;
-        # nothing while an entry does not parse
+        # the routine sweep while a run waits and a process works in a copy: of the frozen copies only the dead run's is
+        # removed, with its home, never what they link to, and nothing while an entry does not parse; the kept jobs
+        # wait for the run, and a people look's and a code build's take files linked to their blob are copied plain
         worker = subprocess.Popen(SLEEP, cwd=frozen.home_of(copies["3-worked"]))
         try:
             time.sleep(0.3)
-            done = disk.clean(full, say=said.append)
-            assert done["removed"] == ["1-dead"] and done["failed"] == [], said
-            assert sorted(done["kept"]) == ["2-waiting", "3-worked", "4-young"], done
-            assert not copies["1-dead"].exists() and not frozen.home_of(copies["1-dead"]).exists()
-            assert copies["2-waiting"].exists() and copies["3-worked"].exists()
-            assert {path.name for path in blobs.iterdir()} == everything and (full / "design" / "plan.json").exists()
-            assert str(copies["1-dead"]) not in frozen.git(base / "checkout", "worktree", "list")
-            (full / "runs" / "broken.json").write_text("{")
-            with pytest.raises(disk.Unprovable):
-                disk.clean(full, say=said.append)
-            assert copies["2-waiting"].exists()
-            (full / "runs" / "broken.json").unlink()
+            for row, entry, frozen_words, laid, gone in [
+                    ("an entry does not parse", "{", "refused: ", "copied 4", []),
+                    ("a run waits", None, "removed 1, kept 3, failed 0,", "copied 0", ["1-dead"])]:
+                if entry:
+                    (full / "runs" / "broken.json").write_text(entry)
+                said.clear()
+                done = {step["step"]: step["said"] for step in disk.sweep(full, say=said.append)["steps"]}
+                (full / "runs" / "broken.json").unlink(missing_ok=True)
+                assert done["clean-frozen"].startswith(frozen_words) and done["laid-plain"] == laid, (row, done)
+                assert sorted(name for name, path in copies.items() if not path.exists()) == gone, (row, said)
+                assert not any(frozen.home_of(copies[name]).exists() for name in gone), row
+                assert all(str(copies[name]) not in frozen.git(base / "checkout", "worktree", "list") for name in gone)
+                assert all(f"removed {name}" in said for name in gone) and all(
+                    any(line.startswith(f"kept {name}: ") for line in said) for name in copies
+                    if name not in gone and entry is None), (row, said)
+                assert {path.name for path in blobs.iterdir()} == everything and (full / "design" / "plan.json").exists()
+                assert entry or "a registered run needs" in done["clean-kept"], (row, done)
+                assert all(path.stat().st_nlink == 1 and os.access(path, os.W_OK) for path in [look, *built]), row
         finally:
             worker.kill()
             worker.wait()
@@ -604,51 +609,26 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         assert sorted(path.name for path in cache.iterdir()) == ["concepts", "convex-parts", "drops"]
         assert {path.name for path in blobs.iterdir()} == everything  # the stored objects stay
         assert any(line.startswith(f"kept {cache / 'drops'}: paid drops") for line in said), said
-        # 2026-10-29: kept jobs outlive their outputs, so they are swept once no current key could ask for them: never
-        # one still asked for (the crate's views), never by age; the lamp's, made from its old model, and every one
-        # once the row's code moved
+        # the toy per-take row's kept calls (the crate's and the lamp's views), made once, swept by the routine below
         swept.setenv("PROPS_HOME", str(full))
-        from score import checks, contracts, stages
+        from score import stages
         kept = stages.kept_module()
         for name in (kept.MAKING, kept.CODE):
             swept.delenv(name, raising=False)
         swept.setenv(kept.STORE, str(full / "store"))
-
-        def make_views(inputs, out, seed, params):
-            (out / "views.json").write_text(json.dumps({take: take_views(inputs[f"model {take}"], out / take)
-                                                        for take in ("crate", "lamp")}))
-
-        def runner(params):
-            row = graph.Stage("toy-views", "place", stages.per_take_kept(make_views, "take_views",
-                                                                         lambda found: found[1]),
-                              contracts.Contract("toy-views", 1, lambda folder: []),
-                              (checks.Check("views", lambda output, inputs, evidence: checks.Verdict(
-                                  "views", checks.PASS, "made")),),
-                              files={f"model {take}": str(models / f"{take}.glb") for take in ("crate", "lamp")},
-                              params=params)
-            return graph.Runner([row], graph.Environment("toy", 1, {}), Store.in_folder(str(full / "store")))
-        made = runner({})
+        made = a_views_runner(full, models, {})
         made.run_node(made.stages["toy-views"], "airlock")
         os.utime(cache / "making", (time.time() - 2 * disk.YOUNG_SECONDS,) * 2)  # no make in progress
-        systems = {kept.digest(kept.python_system())}
-        assert disk.clean_kept(full, runner=runner({}), systems=systems, say=said.append)["dropped"] == 0
-        (models / "lamp.glb").write_text("lamp model, fixed")
-        assert disk.clean_kept(full, runner=runner({}), systems=systems, say=said.append)["dropped"] == 1
-        assert [entry["record"] for _, entry in kept.entries()] == [{"views": 3}]  # the crate's, still asked for
-        done = disk.clean_kept(full, runner=runner({"views": "finer"}), systems=systems, say=said.append)
-        assert done["dropped"] == 1 and done["refused"] is None and not list(kept.entries())  # the row's code moved
-        everything = {path.name for path in blobs.iterdir()}  # the toy row's output stays stored
-        dry_gc = disk.store_gc(full, dry=True, say=said.append)
-        assert dry_gc["removed"] == 1 and {path.name for path in blobs.iterdir()} == everything, dry_gc
         # one offload and one sweep at a time (2026-10-31: two side by side, FileNotFoundError)
         with disk.alone(full, "offload-pixal") as first:
             assert first
             done = disk.offload_pixal(full, commit="0" * 40)
         assert "another offload-pixal is running" in done["refused"] and (pixal / "b-s1.glb").exists(), done
+        record = (full / "conductor" / "sweep.json").read_text()
         with disk.alone(full, "sweep"):
             done = disk.sweep(full, say=said.append)
         assert "another sweep is running" in done["refused"] and not done["steps"], done
-        assert not (full / "conductor" / "sweep.json").exists()
+        assert (full / "conductor" / "sweep.json").read_text() == record  # a refused sweep writes no record
         # only the painted takes the library hands back whole are freed: never one changed now, one read back with
         # other bytes, or one with a file gone (2026-10-31: a link to nothing crashed the offload)
         done = disk.offload_pixal(full, commit="0" * 40)
@@ -663,26 +643,22 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         # relink-pixal: only an old file whose bytes the store holds becomes a link to its blob, nothing is removed;
         # a people look's or a code build's take file stays a plain copy (a row copies over it: 2026-11-03,
         # SameFileError; 2026-11-05, input.png Permission denied), one linked before copied back
+        for path in [look, *built]:  # linked before the rule (the sweeps above made them plain once already)
+            path.unlink()
+            os.link(raw, path)
         done = disk.relink_pixal(full)
         assert done["relinked"] == 2 and (pixal / "r.glb").samefile(raw) and (pixal / "r.svviews/input.png").samefile(
             raw), done
         assert done["kept"] == {"not held in the store": 10, "changed in the last 15 minutes": 3,
                                 "not a regular file": 1, "already a link to its blob": 1,
                                 "a people look's take, copied over by its row": 5}, done
-        look, built = pixal / "officer-made-s1.svviews/input.png", [
-            pixal / "pipe_1.svviews/input.png", pixal / "pipe_1-final.glb", pixal / "pipe_1-2000.glb"]
         assert done["copied"] == 4 and all(path.stat().st_nlink == 1 for path in [look, *built]), done
         assert (pixal / "r-final.glb").read_bytes() == b"only here" and (pixal / "young.glb").stat().st_nlink == 1
         assert (pixal / "r.glb").read_bytes() == b"raw" * 1000 and not list(pixal.rglob("*.partial"))
         again = disk.relink_pixal(full)
         assert again["kept"]["already a link to its blob"] == 3 and again["copied"] == 0, again
         assert not look.samefile(raw) and look.read_bytes() == b"raw" * 1000 and os.access(look, os.W_OK)
-        for path in [look, *built]:  # linked before the rule: every sweep pass copies it back, the disk low or not
-            path.unlink()
-            os.link(raw, path)
-        assert disk.laid_plain(full) == {"copied": 4} and all(
-            path.stat().st_nlink == 1 and os.access(path, os.W_OK) for path in [look, *built])
-        assert disk.relink_pixal(full)["copied"] == 0 and not disk.code_built(pixal / "t.glb", pixal)
+        assert not disk.code_built(pixal / "t.glb", pixal)
         # the sweep: a live `score plan` (no registered run) judging gates on the scratch copies keeps them
         plan = subprocess.Popen([*SLEEP, "-m", "score", "plan"])
         try:
@@ -692,16 +668,35 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
             plan.kill()
             plan.wait()
         swept.setattr(disk, "score_commands", lambda: [])  # this PC's own runs aside
-        swept.setattr(disk, "clean_kept", lambda home, runs_folder, say: {"dropped": 0, "refused": None})
         swept.setattr(disk, "offload_pixal", lambda home, runs_folder: {"freed": 0, "refused": None, "kept": {}})
         free = {"gb": 50.0}
         swept.setattr(disk, "free_gb", lambda path=None: free["gb"])
+        # the sweep's clean-kept works out the toy row's keys (its runner, this Python the one system): 2026-10-29,
+        # kept jobs outlive their outputs, so they are swept once no current key could ask for them: never one still
+        # asked for (the crate's views), never by age; the lamp's, made from its old model, and every one once the
+        # row's code moved
+        params = {}
+        swept.setattr(stages, "runner", lambda store=None, world=None: a_views_runner(full, models, params))
+        swept.setattr(disk, "blender_system", kept.python_system)
         said.clear()
-        done = disk.sweep(full, say=said.append)  # no machine.json: off a conductor, the routine only
-        assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
-            "clean-frozen", "clean-cache", "clean-kept", "laid-plain", "clean-scratch"], done
-        assert list((full / disk.MOTION_SCRATCH).iterdir()) == []  # no run live: the scratch is cleared
-        assert named["orphan"] in {path.name for path in blobs.iterdir()}  # the routine collects no blob
+        for row, edit, moved, dropped, left in [
+                ("every kept call still asked for", None, {}, "dropped 0,", [{"views": 3}, {"views": 3}]),
+                ("the lamp's model fixed", "lamp", {}, "dropped 1,", [{"views": 3}]),  # the crate's, still asked for
+                ("the row's code moved", None, {"views": "finer"}, "dropped 1,", [])]:
+            if edit:
+                (models / f"{edit}.glb").write_text(f"{edit} model, fixed")
+            params.clear()
+            params.update(moved)
+            done = disk.sweep(full, say=said.append)  # no machine.json: off a conductor, the routine only
+            assert not done["escalated"] and [step["step"] for step in done["steps"]] == [
+                "clean-frozen", "clean-cache", "clean-kept", "laid-plain", "clean-scratch"], (row, done)
+            assert done["steps"][2]["said"].startswith(dropped), (row, done)
+            assert [entry["record"] for _, entry in kept.entries()] == left, row
+            assert list((full / disk.MOTION_SCRATCH).iterdir()) == []  # no run live: the scratch is cleared
+            assert named["orphan"] in {path.name for path in blobs.iterdir()}  # the routine collects no blob
+        everything = {path.name for path in blobs.iterdir()}  # the toy row's output stays stored
+        dry_gc = disk.store_gc(full, dry=True, say=said.append)
+        assert dry_gc["removed"] == 1 and {path.name for path in blobs.iterdir()} == everything, dry_gc
         (full / "machine.json").write_text(json.dumps({"zone": "fr-par-2"}))
         free["gb"] = 5.0  # under the warning line on a conductor: every step, store-gc's the blob nothing names
         done = disk.sweep(full, say=said.append)
@@ -716,7 +711,7 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         store = Store.in_folder(full / "store")
         assert all(store.checkout(path.stem) for path in (full / "store" / "objects" / "outputs").glob("*.json"))
         assert done["bigger"] == "50 GB more, EUR 4.00 a month in fr-par-2" and done["fills"], done
-        assert sum(line.startswith("sweep ") for line in said) == 5 + 9, said  # a line a step, each with what it freed
+        assert sum(line.startswith("sweep ") for line in said) == 3 * 5 + 9, said  # a line a step, each with what it freed
         note = disk.warning(5.0, swept=full / "conductor" / "sweep.json")
         assert "could not reach it" in note and "50 GB more, EUR 4.00 a month" in note, note
         free["gb"] = 12.0  # it reached the floor: nothing is asked
@@ -983,7 +978,7 @@ def a_full_disk(base):
     read-only one too), painted takes in work/pixal (one changed now, one with a link to nothing), an old and a new log,
     a killed make's scratch copy, and a waiting run registered. Beside the painted takes, takes the store holds (a raw
     model and its input picture, a young one), a final model only work/pixal holds, a people look's and a code build's
-    take files linked to their blob; and four frozen copies of a checkout: a dead run's, the waiting run's, one a
+    take files linked to their blob; a crate's and a lamp's models a toy per-take row reads; and four frozen copies of a checkout: a dead run's, the waiting run's, one a
     process works in, one made now."""
     home = base / "home"
     store = Store.in_folder(home / "store")
@@ -1052,6 +1047,9 @@ def a_full_disk(base):
         os.utime(home / "logs" / name, (time.time() - days * 86400,) * 2)
     (home / disk.MOTION_SCRATCH / "layer-camp-x1" / "camp").mkdir(parents=True)  # a killed make's seed copy
     (home / "design" / "plan.json").write_text("{}")
+    (base / "models").mkdir()  # the models a per-take kept call (the finish route's views) is made from
+    for take in ("crate", "lamp"):
+        (base / "models" / f"{take}.glb").write_text(f"{take} model")
     repo = base / "checkout"
     subprocess.run(["git", "init", "-q", str(repo)], check=True)
     subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
@@ -1071,6 +1069,23 @@ def a_full_disk(base):
         if blob.name != named["young"]:
             os.utime(blob, (old, old))
     return home, blobs, named, checked, store.objects.path(f"blobs/{store.listing(output)['big.bin']}"), raw, copies
+
+
+def a_views_runner(home, models, params):
+    """A runner over one toy per-take row in `home`'s store: the crate's and the lamp's views, one kept call a take,
+    made from `models` under `params`."""
+    from score import checks, contracts, graph, stages
+
+    def make_views(inputs, out, seed, params):
+        (out / "views.json").write_text(json.dumps({take: take_views(inputs[f"model {take}"], out / take)
+                                                    for take in ("crate", "lamp")}))
+    row = graph.Stage("toy-views", "place", stages.per_take_kept(make_views, "take_views", lambda found: found[1]),
+                      contracts.Contract("toy-views", 1, lambda folder: []),
+                      (checks.Check("views", lambda output, inputs, evidence: checks.Verdict(
+                          "views", checks.PASS, "made")),),
+                      files={f"model {take}": str(models / f"{take}.glb") for take in ("crate", "lamp")},
+                      params=dict(params))
+    return graph.Runner([row], graph.Environment("toy", 1, {}), Store.in_folder(str(home / "store")))
 
 
 def a_copy(repo, folder, name, home):
