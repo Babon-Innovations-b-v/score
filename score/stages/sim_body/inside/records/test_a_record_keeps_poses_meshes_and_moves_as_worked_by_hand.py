@@ -119,7 +119,8 @@ def the_one_pass_pieces_equal_the_item_by_item_ones():
     """The record's one-pass pieces give bit for bit what one item at a time gave before them (#70, 2026-11-05): the
     muscles' paths gathered at once (a pulley's break left out, the tendons in the order asked) against each tendon's
     own slice, the poses and turns in one rotation call against one call each, and the skin's lowest points placed
-    once against the skin placed again for each foot."""
+    once against the skin placed again for each foot, and the steadied centres set on their ground at once
+    (`centres_set_on_at_once`)."""
     import mujoco
     import numpy as np
     import contact
@@ -176,7 +177,37 @@ def the_one_pass_pieces_equal_the_item_by_item_ones():
     found = contact.lowests(stander, data, skin, ground, parts)
     if found != wanted or wanted[1]["off"] is not None or wanted[1]["some"] is None:
         problems.append(f"lowests {found}, not {wanted}")
-    return problems
+    return problems + centres_set_on_at_once()
+
+
+def centres_set_on_at_once():
+    """`steadied` sets every centre on its ground in one `heights_over` (2026-11-14): the same record bit for bit as
+    each centre's ground found alone, a foot's on the floor and a seated pelvis' on its slab 0.6 m up, frame by
+    frame."""
+    import numpy as np
+    import records
+    floor = np.array([[[-5.0, 0.0, -5.0], [5.0, 0.0, 5.0], [5.0, 0.0, -5.0]],
+                      [[-5.0, 0.0, -5.0], [-5.0, 0.0, 5.0], [5.0, 0.0, 5.0]]])
+    slab = np.array([[[-0.3, 0.6, -0.3], [0.3, 0.6, 0.3], [0.3, 0.6, -0.3]],
+                     [[-0.3, 0.6, -0.3], [-0.3, 0.6, 0.3], [0.3, 0.6, 0.3]]])
+    ground = np.concatenate([floor, slab])
+    sway = np.sin(np.arange(12) / 3.0)
+    raw = [{"LeftFoot": (np.array([0.0, 300.0, 0.0]), np.array([0.6 + 0.01 * swayed, 0.004, 0.1]), 300.0,
+                         np.array([[0.58, 0.0, 0.1], [0.62, 0.0, 0.1]])),
+            **({"Pelvis": (np.array([0.0, 400.0, 0.0]), np.array([0.01 * swayed, 0.603, 0.0]), 400.0,
+                           np.array([[-0.02, 0.6, 0.0], [0.02, 0.6, 0.0]]))} if frame < 9 else {})}
+           for frame, swayed in enumerate(sway)]
+    at_once = records.steadied(raw, RATE, ground)
+    whole = records.heights_over
+    records.heights_over = lambda points, ground, top: np.array(
+        [whole(point[None], ground, top=height)[0] for point, height in zip(points, top)])
+    try:
+        alone = records.steadied(raw, RATE, ground)
+    finally:
+        records.heights_over = whole
+    heights = sorted({round(touches[part][4], 4) for touches in at_once for part in touches})
+    return ([] if at_once == alone and heights == [0.0, 0.6] else
+            [f"centres set on at once {at_once[:2]}, alone {alone[:2]}; heights {heights}, not [0.0, 0.6]"])
 
 
 STANDER = """<mujoco model="stander">
