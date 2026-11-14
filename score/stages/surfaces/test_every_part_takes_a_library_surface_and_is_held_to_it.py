@@ -10,9 +10,10 @@ Each test makes its own small world in a temporary folder or under $PROPS_HOME; 
 
 Breaks (each applied once, seen red, reverted), in score/stages/surfaces/ unless named; old -> new  -> the
 tests it turned red:
-- registry.py: `if standing is None:` -> `if True:`  -> a_proposed_library_surface_stands_as_first_proposed
+- registry.py: `if standing is None:` -> `if True:`  -> every_part_takes_a_library_surface_and_is_held_to_it (a second
+  proposal stands as first proposed)
 - registry.py: `return re.sub(r"[^a-z0-9]+", "_", name.lower())` -> `return re.sub(r"[^a-z0-9]+", "_", name)`  ->
-  names_alike_but_for_case_stand_as_one_entry
+  every_part_takes_a_library_surface_and_is_held_to_it (names alike but for case)
 - place_line.py: `record["proposed"] = standing["spec"]` -> `record["proposed"] = row["proposed"]`  ->
   the_paint_takes_the_method_s_surface_and_records_its_proposal
 - surface_data.py: `return not path(place).exists() or bool(takes(place))` -> `return not path(place).exists() or not
@@ -36,10 +37,11 @@ tests it turned red:
 - bake_check.py: `if apart >= 1: return []` -> `if apart >= 0: return []`  ->
   every_part_takes_a_library_surface_and_is_held_to_it
 - place_line.py: `band = wide if not tall else min(FOOT_BAND, FOOT_BAND_METRES / tall) * height` -> `band = wide`  ->
-  a_tall_take_s_feet_are_found_in_the_resting_check_s_band
-- place_line.py: `if record["feet"] == 2:` -> `if False:`  -> a_take_on_two_feet_has_its_short_one_levelled
+  every_part_takes_a_library_surface_and_is_held_to_it (fluid shelves in the capped band)
+- place_line.py: `if record["feet"] == 2:` -> `if False:`  ->
+  every_part_takes_a_library_surface_and_is_held_to_it (a fuel tank on two cradle feet)
 - place_line.py: `if band < wide: # then` -> `if False: # then`  ->
-  a_tall_take_s_leg_ending_over_the_narrow_band_is_still_levelled
+  every_part_takes_a_library_surface_and_is_held_to_it (an access stair's legs over the narrow band)
 - place_line.py: `if found_row["id"] == row and stands(found_row` -> `if stands(found_row`  ->
   a_take_another_place_lays_standing_is_levelled_by_its_rows
 - place_line.py: `for take, report in found.items() if report.get("feet", {}).get("refused")]` -> `for take, report in
@@ -425,23 +427,15 @@ def a_store():
     return Store.in_folder(tempfile.mkdtemp())
 
 
-def test_a_proposed_library_surface_stands_as_first_proposed():
-    store = a_store()
-    first = registry.Registry(store).propose_surface("Aluminium tape, silver", {"stands_in": "galvanized_dull"},
-                                                     {"take": "a"})
-    second = registry.Registry(store).propose_surface("Aluminium tape, silver", {"stands_in": "bare_steel"},
-                                                      {"take": "b"})
-    assert first["spec"] == second["spec"] == {"stands_in": "galvanized_dull"}
-    assert len(store.registry("surfaces")) == 1
-
-
-def test_names_alike_but_for_case_stand_as_one_entry():
-    store = a_store()
-    first = registry.Registry(store).propose_surface("Polished Chrome", {"stands_in": "pipe_steel"}, {"take": "a"})
-    second = registry.Registry(store).propose_surface("polished chrome", {"stands_in": "bare_steel"}, {"take": "b"})
-    assert second == first and len(store.registry("surfaces")) == 1
-    other = registry.Registry(store).propose_surface("Polished brass", {"stands_in": "brass"}, {"take": "c"})
-    assert other["name"] == "Polished brass" and len(store.registry("surfaces")) == 2
+# Library surfaces proposed in turn to one store: (case, [(name, spec)], the proposal each stands as (its index in the
+# list), the first proposed or the first named alike but for case).
+PROPOSED = [
+    ("a second proposal stands as first proposed", [("Aluminium tape, silver", {"stands_in": "galvanized_dull"}),
+                                                    ("Aluminium tape, silver", {"stands_in": "bare_steel"})], [0, 0]),
+    ("names alike but for case stand as one entry", [("Polished Chrome", {"stands_in": "pipe_steel"}),
+                                                     ("polished chrome", {"stands_in": "bare_steel"}),
+                                                     ("Polished brass", {"stands_in": "brass"})], [0, 0, 2]),
+]
 
 
 def test_the_paint_takes_the_method_s_surface_and_records_its_proposal():
@@ -804,7 +798,22 @@ def test_every_part_takes_a_library_surface_and_is_held_to_it():
     """Every baked part is held to its library surface and its take's close-up: the finishes' labels give the
     close-up colours, the bake check's gate (check_seen.judge_lit, the surfaces-check row's) judges one checks.json of
     every case and names exactly the faults each model's row expects, and the view distance it judges one look at is
-    read from the place's scene record and kit."""
+    read from the place's scene record and kit. A surface proposed to the library stands as the first proposed of its
+    name, whatever its case; a take's short feet are levelled in the resting check's band."""
+    for case, proposed, stands in PROPOSED:
+        store = a_store()
+        found = [registry.Registry(store).propose_surface(name, spec, {"take": str(index)})
+                 for index, (name, spec) in enumerate(proposed)]
+        for index, first in enumerate(stands):
+            assert found[index] == found[first], (case, index)
+            assert (found[first]["name"], found[first]["spec"]) == proposed[first], (case, index)
+        assert len(store.registry("surfaces")) == len(set(stands)), case
+    for case, mesh, tall, feet_found, levelled, refused, far in LEVELLED:
+        vertices, faces = mesh()
+        points, record = place_line.levelled_feet(vertices, faces, **({"tall": tall} if tall else {}))
+        assert feet_found is None or record["feet"] == feet_found, (case, record)
+        assert len(record["levelled"]) == levelled and (refused is None or record["refused"] == refused), (case, record)
+        assert far is None or abs(points[:, 1][vertices[:, 2] > far].min()) < 1e-9, (case, "its short foot not down")
     for case, (finishes, close_up) in CLOSE_UPS.items():
         assert labelled_close_up(finishes) == close_up, case
     with tempfile.TemporaryDirectory() as scratch:
@@ -865,37 +874,38 @@ def tank_mesh(ends, height=1.6):
     return np.asarray(mesh.vertices), np.asarray(mesh.faces)
 
 
-def test_a_tall_take_s_feet_are_found_in_the_resting_check_s_band():
-    """The garage's fluid shelves (2026-10-15): a shelf unit 1.0 tall in its own frame, 2.0 m standing, its bottom
-    shelf 0.06 up over four legs, one ending 0.02 up (4 cm). In 15% of its height the shelf joins the legs into one
-    foot and nothing is levelled; capped at 10 cm through its standing height (0.05 here) the four legs are its feet and
-    the short one is brought down."""
+def fluid_shelves():
+    """The garage's fluid shelves (2026-10-15): a shelf unit 1.0 tall in its own frame, its bottom shelf 0.06 up over
+    four legs, one ending 0.02 up (4 cm)."""
     vertices, faces = tank_mesh((0.0, 0.0, 0.0, 0.02), height=1.0)
     vertices[vertices[:, 1] == 0.3, 1] = 0.06  # the body (and the legs' tops) down to a bottom shelf 0.06 up
-    _, wide = place_line.levelled_feet(vertices, faces)
-    assert wide["feet"] == 1 and not wide["levelled"], wide
-    _, capped = place_line.levelled_feet(vertices, faces, tall=2.0)
-    assert capped["feet"] == 4 and len(capped["levelled"]) == 1 and not capped["refused"], capped
+    return vertices, faces
 
 
-def test_a_take_on_two_feet_has_its_short_one_levelled():
+def fuel_tank():
     """The engine room's fuel tank (2026-10-15): an upright tank on two cradle feet, one 5.9 cm up, tipped onto it
-    when dropped; two feet are levelled as three are."""
+    when dropped."""
     body = trimesh.creation.box(bounds=((-0.4, 0.3, -0.4), (0.4, 2.0, 0.4)))
     cradle = [trimesh.creation.box(bounds=((-0.5, end, along - 0.08), (0.5, 0.3, along + 0.08)))
               for along, end in ((-0.3, 0.0), (0.3, 0.059))]
     mesh = trimesh.util.concatenate([body, *cradle])
-    points, record = place_line.levelled_feet(np.asarray(mesh.vertices), np.asarray(mesh.faces), tall=2.0)
-    assert record["feet"] == 2 and len(record["levelled"]) == 1 and not record["refused"], record
-    assert abs(points[:, 1][np.asarray(mesh.vertices)[:, 2] > 0.2].min()) < 1e-9, "the short foot down on the floor"
+    return np.asarray(mesh.vertices), np.asarray(mesh.faces)
 
 
-def test_a_tall_take_s_leg_ending_over_the_narrow_band_is_still_levelled():
-    """The hangar's access stair (2026-10-15): two legs ending 29 and 33 cm up, outside the 10 cm band, were left as
-    they were once the band was capped; levelled in the whole band after the narrow one, they come down."""
-    vertices, faces = tank_mesh((0.0, 0.0, 0.12, 0.12), height=1.0)
-    _, record = place_line.levelled_feet(vertices, faces, tall=2.0)
-    assert len(record["levelled"]) == 2 and not record["refused"], record
+# Takes levelled on their feet: (case, its mesh, its standing height or None, the feet found (None: not judged), how many
+# are levelled, the refused (None: not judged), the far side along z past which its points must reach the floor).
+LEVELLED = [
+    # in 15% of its height the shelf joins the legs into one foot and nothing is levelled
+    ("fluid shelves in the wide band", fluid_shelves, None, 1, 0, None, None),
+    # capped at 10 cm through its standing height (0.05 here) the four legs are its feet, the short one brought down
+    ("fluid shelves in the capped band", fluid_shelves, 2.0, 4, 1, [], None),
+    # two feet are levelled as three are: the short foot down on the floor
+    ("a fuel tank on two cradle feet", fuel_tank, 2.0, 2, 1, [], 0.2),
+    # the hangar's access stair (2026-10-15): two legs ending 29 and 33 cm up, outside the 10 cm band, levelled in the
+    # whole band after the narrow one
+    ("an access stair's legs over the narrow band", lambda: tank_mesh((0.0, 0.0, 0.12, 0.12), height=1.0), 2.0, None, 2,
+     [], None),
+]
 
 
 def test_a_take_another_place_lays_standing_is_levelled_by_its_rows():
