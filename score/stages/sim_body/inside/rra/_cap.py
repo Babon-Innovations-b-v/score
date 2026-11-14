@@ -145,7 +145,9 @@ def skin_excess(found, fitted, labels):
 def within_frames(physics, path, moves, land, fitted, riders, most, rate, skins):
     """The adjusted path held within `most` of the fitted path on every frame, all rounds together (owner, 2026-10-28:
     each segment's turn at most 5 degrees and the pelvis at most 2 cm off the fitted motion), and with no region's
-    bones further out of SOMA's skin than the fitted path holds them on that frame (`skins`, `fit.FrameSkins`: by
+    bones further out of SOMA's skin, moved with them as the drawn person is (`FrameSkins.outside`'s `moves`: each
+    segment's pose on the path over its fitted pose), than the fitted path holds them on that frame (`skins`,
+    `fit.FrameSkins`: by
     over SKIN_SLACK of the region; #70, 2026-11-05: the trunk turned by RRA carries the arms and head with it, and the
     pickup's hands stood 37.7% outside the skin against the fit's 1.6%): each frame's share of the move (`moves`,
     frames x adjusted) lowered by how far it is over its cap (`_frame_excess`), halved where it puts bones out, the
@@ -157,7 +159,8 @@ def within_frames(physics, path, moves, land, fitted, riders, most, rate, skins)
     for _ in range(FRAME_ROUNDS):
         found = land(smoothed_off(physics, path, land(moved(physics, path, share[:, None] * moves, adjusted)), rate))
         over = _frame_excess(physics.model, path, found, fitted, riders, most)
-        out = skin_excess(skins.outside(found), kept_in, skins.labels) > SKIN_SLACK
+        drawn = posed_path(physics.model, found, *riders[:3]) @ np.linalg.inv(fitted)
+        out = skin_excess(skins.outside(found, drawn), kept_in, skins.labels) > SKIN_SLACK
         if over.max() <= 1.0 and not out.any():
             return found, share
         lowered = np.where(over > 1.0, share * FRAME_MARGIN / np.maximum(over, 1.0), share)

@@ -136,6 +136,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   one another's measure, the angles off measuring every ask (a_pose_measured_once_gives_the_same_fit red).
 - (2026-11-07) bone_meshes' `and KNEECAP not in ...` dropped: the kneecap's 4 vertices held in the skin too
   (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
+- (2026-11-14) FrameSkins.outside's `moves @ self.worlds` made `self.worlds`: the bones judged against the skin
+  unmoved by RRA's move (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
+- (2026-11-14) FrameSkins.posed_at's `mesh.refit()` dropped: the moved points never reach the winding query
+  (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -984,7 +988,9 @@ def pocket_head(gap=0.01, deep=0.02):
 def a_frames_skin_marks_the_bones_out_of_it_frame_by_frame():
     """`FrameSkins` (RRA's frame check): a 1 cm bone on a femur at the origin, a 10 cm cube of skin on its first frame
     round it and on its second 1 m along x: every bone vertex inside on the first frame and outside on the second, each
-    labelled thigh; a kneecap on it (patella_r) is not among the bones held in the skin."""
+    labelled thigh; a kneecap on it (patella_r) is not among the bones held in the skin; the skin moved by its
+    segment's move (`moves`, RRA's move as the drawn person plays it) 1 m back holds the bone inside on both frames,
+    and asked again without a move it stands where it was posed."""
     import mujoco
     import numpy as np
     from fit import _skin
@@ -999,6 +1005,12 @@ def a_frames_skin_marks_the_bones_out_of_it_frame_by_frame():
     skins = _skin.FrameSkins(model, rig, ["Head"], worlds)
     out = skins.outside(np.tile(model.qpos0, (2, 1)))
     problems = [] if out.shape[1] == 4 and not out[0].any() and out[1].all() else [f"outside {out.tolist()}"]
+    moves = np.tile(np.eye(4), (2, 1, 1, 1))
+    moves[1, 0, 0, 3] = -1.0
+    moved = skins.outside(np.tile(model.qpos0, (2, 1)), moves)
+    problems += [] if not moved.any() else [f"outside with the skin moved back {moved.tolist()}"]
+    again = skins.outside(np.tile(model.qpos0, (2, 1)))
+    problems += [] if np.array_equal(again, out) else [f"outside asked again without a move {again.tolist()}"]
     return problems + ([] if list(skins.labels) == ["thigh"] * 4 else [f"labels {list(skins.labels)}"])
 
 

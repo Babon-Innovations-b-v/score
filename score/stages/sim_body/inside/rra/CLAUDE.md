@@ -48,7 +48,12 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
   region (`fit.FrameSkins`, `skin_excess`, `SKIN_SLACK`), its shares smooth (`held_share`) and the move off the fitted
   path low-passed with the feet kept again (`smoothed_off`) (2026-11-05, #70): the freed joints' pickup kept 0.75 of a
   move that turned the arms and head with the trunk, its hands 37.7% outside the skin, its shins 30 times the clip's
-  jerk.
+  jerk. The skin is the drawn person moved by the same move (`FrameSkins.outside`'s `moves`: each segment's pose on
+  the path over its fitted pose; 2026-11-14): RRA adjusts the kinematics the drawn person plays (the characters layer
+  drives its skeleton by the sim body's segments), as OpenSim's RRA adjusts the kinematics it tracks, so the check
+  compares like with like. Against the unmoved skin camp's walker kept 1.5% of a move within the owner's 2 cm and 5
+  degrees and 86 of its 150 frames stayed over the residual's limits; against the moved skin it kept at least 0.915 of
+  it and 44 stayed over.
 - `cap_rows` moves, lands and poses the path moved by `total` and each column's nudge of it as one stacked path
   (`moved` takes copies x frames, each frame's couplings' map once; the run's `land` takes whole copies of the clip,
   each against the fitted path), so on the card every nudge's legs are one solve, not one a column; `sensitivities`
