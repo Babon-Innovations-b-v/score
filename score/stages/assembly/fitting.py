@@ -1366,8 +1366,9 @@ def off(low, high, on, holders=()):
 def held_faults(record, laid):
     """[(object, what is wrong, metres or None)] of the record's design objects as the assembly laid them (`laid`,
     made_waiting.LAID): off where their relation puts them (more than HELD_MOST; a face one off the face it was laid
-    on, an opening's by the built walls), a door whose holder's face is too narrow for it and its recess (the
-    shortfall), a door or window in no opening and on no holder, held by nothing (`unheld`), left at the room's
+    on, an opening's by the built walls, a wall one by its own turned box: habitat's pipe_6, left turned 11 degrees
+    flush on its slanted wall where the record laid it, stood 0.59 m off it by its world box, 2026-11-14), a door
+    whose holder's face is too narrow for it and its recess (the shortfall), a door or window in no opening and on no holder, held by nothing (`unheld`), left at the room's
     middle (`unplaced`), or two things left inside each other, held or not (crowded_faults). One stacked on the run
     packed over its holder (stacked_on_runs: its fit's how "stacked") is judged on that run."""
     boxes = {entry["name"]: (entry["low"], entry["high"]) for entry in [*laid.get("objects", []),
@@ -1400,6 +1401,8 @@ def held_faults(record, laid):
                 on = dict(on, **{"top at": topped[entry["name"]]})
             if on["how"] == "wall" and entry["name"] in walled:  # on the face it was laid on, by its own box
                 on = dict(on, **{key: walled[entry["name"]][key] for key in ("span", "out", "corners")})
+            elif on["how"] == "wall" and entry["name"] in shapes:  # left where the record laid it (no fit gave its
+                on = dict(on, corners=shapes[entry["name"]][:, [0, 2]])  # face): by its own turned box all the same
             if on["how"] == "in" and entry["name"] in holed:  # in the straight wall its hole was cut in (hole_wall)
                 on = dict(on, **holed[entry["name"]])
             low, high = (np.asarray(end, float) for end in boxes[entry["name"]])

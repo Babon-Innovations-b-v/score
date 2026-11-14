@@ -2210,6 +2210,12 @@ WALL_HELD = [  # (case, a pipe's box as planned on SHELL_WALL, the built pieces 
     ("a pipe along its whole wall stands on its own face, never the front of the walls at its ends", WHOLE, ENDS, None,
      WHOLE, True, []),
 ]
+TURNED_HELD = [  # (case, how far TURNED_FLOOR's pipe, laid with no fit, stands out off SLANT, the gate's faults)
+    ("habitat: a pipe left turned flush on its slanted wall where the record laid it is held, by its own turned box",
+     0.0, []),
+    ("that pipe 0.3 m out off its slanted wall is named, by its own turned box", 0.3,
+     [("pipe_1", "0.30 m off where it is laid wall ()", 0.3)]),
+]
 SWINGS = [("round_door_left", True), ("metal_gate_open", True), ("windows", False)]  # (row, whether it swings as a
 # leaf: a door, hatch or gate does; a window stands in its opening)
 SLANTED_WALLS = [(SHELL_WALL, False), (SLANT, True), ({"out": [0.991393, -0.13092]}, True)]  # (relation, slanted:
@@ -3290,7 +3296,8 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     Break: score/stages/assembly/fitting.py: stood_off's `0.0 < float(along.min() + along.max()) / 2 < length`
         dropped (walkway's whole-wall pipe stood on its end walls' front, against the wall across), or off_wall's
         `if corners is not None:` -> `if False:` (hub's turned pipe off its slanted wall by its world box), or held_faults' `on = dict(on, **{key: walled[...]...})` dropped (a pipe stood on its
-        rib's front named off its wall)
+        rib's front named off its wall), or held_faults' `elif on["how"] == "wall" and entry["name"] in shapes:` ->
+        `elif False:` (habitat's pipe_6, flush on its slanted wall where the record laid it, named 0.59 m off it)
     Break: score/stages/assembly/fitting.py: fit's `if scale < SCALE_LEAST: return CROWDED` dropped (a wall thing with
         no stretch left shrunk to nothing), or oriented_corners' `or abs(float(np.linalg.det(own[:3, :3]))) < 1e-12`
         dropped (a prim scaled flat: LinAlgError, Singular matrix)
@@ -3871,6 +3878,13 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         found = fitting.held_faults({"objects": [{"name": "pipe_1", "on": SHELL_WALL}]},
                                     {"objects": [{"name": "pipe_1", "low": list(low), "high": list(high)}],
                                      "fitted": fitted})
+        assert found == faults, f"{case}: {found}"
+    for case, out, faults in TURNED_HELD:
+        corners = [[x + out * SLANT["out"][0], height, z + out * SLANT["out"][1]] for x, z in TURNED_FLOOR
+                   for height in (2.6, 3.0)]
+        low, high = np.min(corners, axis=0), np.max(corners, axis=0)
+        found = fitting.held_faults({"objects": [{"name": "pipe_1", "on": SLANT}]}, {"objects": [
+            {"name": "pipe_1", "low": list(low), "high": list(high), "corners": corners}]})
         assert found == faults, f"{case}: {found}"
     for row, swings in SWINGS:
         assert fitting.swings(row) == swings, row
