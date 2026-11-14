@@ -5,7 +5,7 @@ pages (Django), the API (FastAPI) and pages/, state/screens.py, state/batch_run.
 the fixture environment (tests/fixture.py), a tiny library folder, written logs and pools, stand-in models: no call
 is made, nothing is spent, no real store or home is read.
 
-Each test's docstring names the code break that turns it red; each was applied once and seen red (2026-10-26).
+The test's docstring names the code breaks that turn it red; each was applied once and seen red (2026-10-26).
 Wording checks guard owner rules and say which (numbers not prose #42, node ids only in the details fold, no stop shown,
 a guess never a price, the theme's tokens, and the package's own rule that no file names or imports a
 provider: the list of names is built from the repository's own cloud backends and API kinds, so this file names none)."""
@@ -401,35 +401,6 @@ def chromium_runs():
                                                                  text=True).stdout
 
 
-@pytest.mark.skipif(not chromium_runs(), reason="no headless Chromium that runs on this machine")
-def test_a_click_on_a_scene_item_opens_its_panel_frames_it_and_posts_its_action(world, settings, tmp_path, read):
-    """In a browser: a branch loaded once, the panel filled, the 3D view told to frame its gap, its Accept the owner's
-    JSON request with the CSRF token, the panel a history step of its own. Break: static/pages/dash.js never posts the
-    `{gap}` message to the viewer frame (`if (false)`)."""
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world)
-    world.source.refresh()
-    owner = signed_in()
-    branch = "/place/alpha/branch/?path=Gaps"
-    job = tmp_path / "click.json"
-    job.write_text(json.dumps({
-        "page": "/place/alpha/", "html": owner.get("/place/alpha/").content.decode(), "branch": "Gaps",
-        "item": "lamp", "branches": {branch: owner.get(branch).json()},
-        "dash": str(REPO / "score/dashboard/pages/static/pages/dash.js")}))
-    done = subprocess.run(["npx", "-y", "-p", PLAYWRIGHT, "node", str(pathlib.Path(__file__).with_name(
-        "screens_click.mjs")), str(job)], capture_output=True, text=True, timeout=120)
-    assert done.returncode == 0, done.stderr[-3000:]
-    found = json.loads(done.stdout.strip().splitlines()[-1])
-    assert found["before"] == 0 and found["fetched"] == [branch]
-    assert (found["open"], found["title"], found["state"], found["price"], found["button"]) == (
-        True, "lamp", "missing", "EUR 2.00–3.00 +", "Accept")
-    assert json.loads(found["framed"]) == {"gap": "missing:lamp_1"}
-    assert found["back"] == {"open": False, "hash": ""} and found["forward"] == {"open": True, "title": "lamp"}
-    assert found["reloaded"] == {"open": True, "title": "lamp", "steps": 3}
-    assert found["posted"] == [{"url": "/api/decisions", "csrf": "token", "body": {
-        "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}]
-
-
 # === screens' data (state/screens.py) =================================================================================
 
 ABSENT = "(absent)"  # a path not there (picked)
@@ -504,7 +475,8 @@ SCREEN_MOMENTS = [  # (moment, prepare's record then, what else is written, {"so
     ("no design approved", {"approved": ()}, None, {  # owner, 2026-10-20: "design decides inventory"
         "batch:now.steps": 0, "batch:now.stop": None, "batch:layers": [], "remake money:likely": None,
         "remake money:approved": 0, "remake money:in_design": 2, "design:approved": [],
-        "design:places.*.design.plan": ["remake", "remake"]}),
+        "design:places.*.design.plan": ["remake", "remake"],
+        "buy page:approved": "0", "buy page:euros on top": False, "buy page:offered": False}),
     ("alpha's inventory read", {"approved": (), "inventory": READ_ALPHA}, None, {  # an estimate that buys nothing
         "remake money:estimate": {"likely": 10.0, "high": 12.0, "unpriced": ["likeness-calibration"], "places": 1,
                                   "waiting": 1, "eta": {"likely_minutes": None, "high_minutes": None,
@@ -514,106 +486,28 @@ SCREEN_MOMENTS = [  # (moment, prepare's record then, what else is written, {"so
      {"remake money:estimate.likely": None, "remake money:estimate.stale": NOT_COMMITTED}),
     ("alpha approved", {"approved": ("alpha",)}, None, {
         "remake money:likely": 12.0, "remake money:high": 15.0, "remake money:in_design": 1,
-        "remake money:eta.at_least_minutes": None}),  # the runner times the whole remake only
+        "remake money:eta.at_least_minutes": None,  # the runner times the whole remake only
+        "buy page:older": True}),  # the basket (2026-10-19 08:00) is older than the price: Buy disabled
+    ("alpha approved, the basket current", {"approved": ("alpha",)}, "basket now", {
+        # the close-up EUR 2-3, its stop the high + 10%, settle and the sound waiting; a layer a line, no step's name;
+        # a post with no key unprocessable, the Benchmarks item not in the basket, a guest refused and offered no Buy
+        "buy page:older": False, "buy page:now": (True, True, True, True),
+        "buy page:layers": [("Models", "2"), ("Motion", "1"), ("Sound", "1")], "buy page:step names": False,
+        "buy page:posts": (422, 409, True, 403, False)}),
     ("a choice on another version", {}, "choice", {"api buy:chosen": 0, "api buy:items.0.choice": None}),
     ("plants", {}, "plants", {  # owner, 2026-10-24: every growing row is a plant, the planter its bed
         "plants:world": {"alpha": {"rows": 2, "objects": 4, "crops": 1, "beds": 4}},
         "plants:batch": {"rows": 2, "objects": 4, "crops": 1, "beds": 4, "places": ["alpha"]}, "plants:none": None})]
 
 
-def test_a_place_shows_no_numbers_until_its_inventory_is_read_from_its_locked_concept(drafting):
-    """Owner, 2026-10-20 ("inventory can't exist" before the lock): drawing, no ring, its card opens its concept; once
-    designed, numbers; findings older than the lock: check; another lock or an unlock: nothing counts. Break:
-    state/screens.py `inventory_current` drops its sha equality."""
-    from score.review import concepts
-    world = drafting
+# === the books buttons on the Buy screen (owner rule, 2026-10-20) =====================================================
 
-    def alpha():
-        world.source.refresh()
-        return next(place for place in screens.environment(world.source, MONTH)["places"] if place["place"] == "alpha")
-    assert (alpha()["design"], alpha()["progress"], alpha()["gaps"]) == ("draw", None, None)
-    html = signed_in().get("/places/").content.decode()
-    assert "data-v>0/3</b>" in html and 'class="ring' not in html
-    assert 'href="/place/alpha/"' not in html and 'class="ptile" href="/concept/alpha/"' in html
-    assert signed_in("joey2").get("/place/alpha/").status_code == 404
-    fixture.designed(world.store, "alpha", fixture.concept_of(world.store, "alpha"), world.root / "props")
-    shown = alpha()
-    assert shown["design"] is None and shown["progress"]["needed"] > 0 and shown["gaps"] is not None
-    findings = world.root / "props/work/checks/gaps/alpha/findings.json"
-    findings.parent.mkdir(parents=True)
-    findings.write_text("{}")
-    os.utime(findings, (1760000000, 1760000000))  # checked before the lock
-    assert alpha()["design"] == "check"
-    findings.unlink()
-    concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T10-00-00.json",
-                      {"place": "alpha", "sha": "o" * 64, "by": "joey", "at": "2026-10-20T10:00:00+00:00"})
-    shown = alpha()
-    assert (shown["design"], shown["progress"], shown["gaps"]) == ("read", None, None)
-    assert screens.place(world.source, "alpha", None)["items"] == []
-    concepts.recorded(world.store, "concepts/alpha/picks/2026-10-20T11-00-00.json",
-                      {"place": "alpha", "sha": None, "by": "joey", "at": "2026-10-20T11:00:00+00:00"})
-    assert (alpha()["design"], alpha()["progress"]) == ("draw", None)
-
-
-# === the Buy screen ===================================================================================================
-
-def test_the_buy_screen_is_design_first_and_buys_only_approved_places_once_the_basket_is_current(
-        world, settings, tmp_path, monkeypatch):
-    """No design approved: no price, nothing to buy; alpha's approved: Buy disabled while the basket is older than the
-    price, then the close-up EUR 2-3, stop 3.30, two steps waiting; a layer a line; the plants counted; a guest has no
-    Buy and is refused; the Benchmarks item is not in the basket. Break: pages/basket.py `buy_yes` skips its owner
-    check."""
-    a_month(monkeypatch)
-    a_gaps_finding(world, settings, tmp_path)
-    a_gaps_price(world, nodes={"settle@alpha": SETTLE, "sound@alpha": {
-        "likely_euros": None, "high_euros": None, "guess_euros": 1.0, "basis": "not measured yet"}},
-        eta={"likely_minutes": None, "high_minutes": None, "at_least_minutes": 20.0, "unknown": [{"node": "sound"}]})
-    a_remake(world, approved=())
-    world.source.refresh()
-    owner = signed_in()
-    html = owner.get("/buy/").content.decode()
-    top = html[html.index('<div class="topbar">'):html.index('<ul class="buy-layers buy-design">')]
-    assert "0 <small>of</small> 2 <small>approved</small>" in top and "EUR" not in top
-    assert 'data-url="/buy/yes/"' not in html
-    a_remake(world, approved=("alpha",))
-    world.source.refresh()
-    top = owner.get("/buy/").content.decode().split('<ul class="buy-layers buy-design">')[0]
-    assert re.search(r'<button type="button" class="primary big" disabled title="the basket \(2026-10-19 08:00\) is '
-                     r'older than the price', top)
-    from score import graph
-    root = settings.SCORE_HOME / "proposals"
-    records.put_index(root, {**records.index(root), "made_at": graph.now()})
-    html = owner.get("/buy/").content.decode()
-    buy_now = html.split('<ul class="buy-layers buy-design">')[0].split(">Buy now<")[1]
-    assert '"batch": "now"' in html and "<small>EUR</small> 2.00&ndash;3.00" in buy_now
-    assert "<small>stop EUR</small> 3.30" in buy_now and "+ 2 <small>steps wait</small>" in buy_now
-    layers = re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)</span>', html)
-    assert layers == [("Models", "2"), ("Motion", "1"), ("Sound", "1")]
-    assert not re.search(r"calibration|lost concept|<details", html)  # no step's own name
-    assert owner.post("/buy/yes/", "{}", content_type="application/json").status_code == 422
-    refused = owner.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
-    assert refused.status_code == 409 and refused.json()["detail"].startswith("refused")
-    assert signed_in("guest").post("/buy/yes/", {"key": "a" * 32}, content_type="application/json").status_code == 403
-    assert 'data-url="/buy/yes/"' not in signed_in("guest2").get("/buy/").content.decode()
-
-
-def test_the_buy_screen_shows_the_books_buttons_only_while_needed_and_only_to_the_owner(world, monkeypatch):
-    """Owner rule (2026-10-20): no Basket link; the model calls' figure button while that bill is not read; the
-    read-back while paid work is refused. Break: pages/views.py gives `figure` True whatever the model bill."""
-    a_month(monkeypatch)
-    owner = signed_in()
-    html = owner.get("/buy/").content.decode()
-    assert 'href="/basket/"' not in html.split('<main')[-1] and "/api/money/read-back" not in html
-    assert ">Model calls figure</button>" in html
-    lines = [CostLine(source="cloud", label="Cloud compute", euros=12.5),
-             CostLine(source="models", label="Model calls", euros=1030.0)]
-    monkeypatch.setattr(actions, "spend", lambda: Spend(ceiling=250.0, month="2026-10", lines=lines))
-    assert "/api/money/books-figure" not in owner.get("/buy/").content.decode()
-    a_month(monkeypatch, paid_refused="the month's books are lost")
-    html = owner.get("/buy/").content.decode()
-    assert 'data-post="/api/money/read-back"' in html and 'data-post="/api/money/books-figure"' in html
-    guest = signed_in("guest").get("/buy/").content.decode()
-    assert "/api/money/read-back" not in guest and "/api/money/books-figure" not in guest
+BOOKS = [  # (row, the model calls' bill (None: partly counted), why paid work is refused, who) -> on his Buy screen:
+    #        (a Basket link, the model calls' figure button, the read-back, the books figure posted)
+    ("model bill not read", None, None, "joey", (False, True, False, True)),
+    ("model bill read", 1030.0, None, "joey", (False, False, False, False)),
+    ("books lost", None, "the month's books are lost", "joey", (False, True, True, True)),
+    ("books lost, a guest", None, "the month's books are lost", "guest", (False, False, False, False))]
 
 
 # === the basket =======================================================================================================
@@ -1063,141 +957,16 @@ def drawn(owner, place, **body):
     return owner.post(f"/concept/{place}/draw/", json.dumps(body), content_type="application/json")
 
 
-def test_a_locked_concepts_page_shows_its_reading_boxed_and_its_euros_reach_the_totals(drafting):
-    """A box of [0, 0, 48, 30] px on a 96 x 60 picture is 50% by 50%; another lock: the reading counts for nothing;
-    every reading's euros on the Environment and Stats. Break: pages/concepts.py `reading_view` divides a box's width by
-    the picture's height."""
-    from score.dashboard.state import screens as screen
-    from score.review import concepts as drawing
-    from score.review import reading
-    world = drafting
-    assert "concept-inventory" not in signed_in().get("/concept/alpha/").content.decode()  # not locked: none
-    alpha = fixture.concept_of(world.store, "alpha")
-    drawing.pick(world.store, "alpha", alpha, "joey")
-    rows = [{"id": "drum", "name": "fuel drum", "noun": "drum", "kind": "generate", "terrain": False, "count": 2,
-             "size_words": "waist", "anchor": "ground", "where": "left", "boxes": [[0, 0, 48, 30]],
-             "box": [0, 0, 48, 30]}]
-    reading.kept(world.store, {"place": "alpha", "concept": alpha, "at": "2026-10-21T08:00:00+00:00", "by": "joey",
-                               "method": reading.METHOD, "size": [96, 60], "inventory": {"rows": rows},
-                               "gaps": [{"kind": "size", "row": "drum", "words": "its size in metres not read"}],
-                               "skipped": [{"name": "crate", "row": None, "why": reading.ONLY_SAM,
-                                            "box": [48, 30, 96, 60]}],
-                               "merged": [{"name": "blue drum", "row": "blue", "into": "drum"}],
-                               "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13},
-                               "seconds": {"rows": 20.0, "boxes": 30.0, "card": 550.0}})
-    world.source.refresh()
-    page = signed_in().get("/concept/alpha/").content.decode()
-    assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 1 gaps, EUR 0.13, 10.0 min" in page
-    assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
-    assert 'class="concept-box skipped"' in page and 'style="left:50.0%;top:50.0%' in page
-    assert "skipped 1, merged 1</button>" in page
-    assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/places/").content.decode()
-    assert screen.design_state(world.source.world_state(), "alpha") == "plan"  # read: its plan is next
-    drawing.recorded(world.store, "concepts/alpha/picks/2099-01-01T10-00-00.json",
-                     {"place": "alpha", "sha": "o" * 64, "by": "joey", "at": "2099-01-01T10:00:00+00:00"})
-    world.source.refresh()
-    page = signed_in("joey3").get("/concept/alpha/").content.decode()
-    assert "data-v>fuel drum</span>" not in page and "data-v>to read</span>" in page
-
-
 # === the plan review and the environment's plan =======================================================================
-
-@pytest.fixture
-def planned(drafting, monkeypatch, tmp_path):
-    """alpha's concept locked and its inventory read from it, plans reading the fixture's data."""
-    from score.review import plans
-    monkeypatch.setattr(plans, "DATA", drafting.data)
-    monkeypatch.setattr(plans, "KEPT", tmp_path / "kept")
-    monkeypatch.setattr(plans, "KEPT_INVENTORY", tmp_path / "kept-inventory")
-    monkeypatch.setattr(plans, "KEPT_CONCEPT", tmp_path / "kept-concepts")
-    return drafting
-
 
 def plan_data(html):
     return json.loads(html.split('<script id="plan-data" type="application/json">')[1].split("</script>")[0])
-
-
-def test_no_plan_before_the_inventory_counts_then_his_keep_is_his_own_where_the_plan_stage_reads_it(planned):
-    """Owner, 2026-10-20 and 2026-10-21: no plan before it counts; no Approve; his Keep kept as edited and written where
-    the plan stage reads it; anyone else refused. Break: pages/plans.py `asked_of` skips its owner check."""
-    from score.review import plans
-    owner = signed_in()
-    html = owner.get("/plan/alpha/", follow=True).content.decode()
-    assert "after the inventory" in html and "plan-drawing" not in html
-    fixture.an_inventory_read(planned.store, planned.data, "alpha", fixture.concept_of(planned.store, "alpha"))
-    planned.source.refresh()
-    html = owner.get("/plan/alpha/", follow=True).content.decode()
-    assert 'id="plan-drawing"' in html and "Approve" not in html
-    assert "data-v>R1 1: no size</span>" in html  # its row gives no size: a gap shown, never hidden
-    plan = plan_data(html)
-    plan["items"][0][1] = 2.5
-    refused = signed_in("joey2").post("/plan/alpha/keep/", json.dumps({"plan": plan}), content_type="application/json")
-    assert refused.status_code == 403 and plans.current(planned.store, "alpha")["how"] != "edited"
-    answer = owner.post("/plan/alpha/keep/", json.dumps({"plan": plan}), content_type="application/json")
-    assert answer.status_code == 200, answer.content
-    assert plans.current(planned.store, "alpha")["how"] == "edited"
-    assert json.loads((plans.KEPT / "alpha.json").read_text())["items"][0][1] == 2.5
-
-
-def test_an_inside_place_he_names_gets_a_card_and_a_concept_page(planned):
-    """Break: score/review/plans.py keeps a named place's spaces (no `_`)."""
-    from score.review import plans
-    fixture.an_inventory_read(planned.store, planned.data, "alpha", fixture.concept_of(planned.store, "alpha"))
-    planned.source.refresh()
-    owner = signed_in()
-    assert owner.post("/plan/alpha/named/", json.dumps({"names": ["Back Room", "loft"]}),
-                      content_type="application/json").status_code == 200
-    assert plans.named(planned.store, "alpha") == ["back_room", "loft"]
-    plan = plans.current(planned.store, "alpha")["plan"]
-    assert [hold["place"] for hold in plan["holds"]] == ["back_room", "loft"]
-    kept = owner.post("/plan/alpha/keep/", json.dumps({"plan": plan}), content_type="application/json")
-    assert kept.status_code == 200
-    planned.source.refresh()
-    assert 'href="/concept/loft/"' in signed_in("joey2").get("/places/?in=alpha").content.decode()
-    assert owner.get("/concept/loft/").status_code == 200 and owner.get("/concept/attic/").status_code == 404
 
 
 def drawing_png():
     buffer = io.BytesIO()
     Image.new("RGB", (600, 600), (255, 255, 255)).save(buffer, "PNG")
     return buffer.getvalue()
-
-
-def test_make_plan_is_his_yes_at_the_price_shown_and_writes_the_plan_with_its_gaps(planned, monkeypatch):
-    """A lamp row across the room (6 x 0.4 m at 100 units a metre) cuts the north spot off its door: a gap said plainly.
-    Break: pages/plans.py `plan_write` sends EUR 0, not the price he saw."""
-    from score.dashboard.pages import concepts
-    from score.review import plan_drawing, plan_writing, plans, web
-    monkeypatch.setattr(concepts, "in_background", concepts.applied_here)
-    fixture.an_inventory_read(planned.store, planned.data, "alpha", fixture.concept_of(planned.store, "alpha"),
-                              size=[6.0, 0.4, 0.8])
-    planned.source.refresh()
-    answer = {"outline": [[0, 0], [600, 0], [600, 400], [0, 400]],
-              "items": [{"row": "r1", "box_2d": [180, 0, 220, 600], "tall": 0.8}], "people": [[100, 100], [500, 350]],
-              "openings": [{"kind": "door", "at": [300, 400], "wide": 90, "angle": 0, "swing": "left", "sill": 0.0,
-                            "head": 2.1, "to": "outside"}]}
-    asked = []
-
-    def written(store, place, euros, by):
-        asked.append(euros)
-        finished = {"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(answer)}]}}
-        record, = plan_writing.write(store, [place], by, ask=lambda body: ({"candidates": [finished],
-                                                                            "usageMetadata": {}}, 1.0))
-        return json.loads(plan_writing.said(record))
-    monkeypatch.setattr(web, "plan_write", written)
-    monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.04)
-    monkeypatch.setattr(plan_drawing, "called", lambda wording, pictures, frame: (drawing_png(), 0.13, 1.0))
-    monkeypatch.setattr(plan_writing, "cleared", lambda *found, **named: contextlib.nullcontext())
-    monkeypatch.setattr("score.adapters.compute.require_cleared", lambda what, store=None: None)
-    owner = signed_in()
-    price = plan_writing.price(planned.store)
-    assert f"EUR {price:.2f}" in owner.get("/plan/alpha/", follow=True).content.decode()
-    sent = owner.post("/plan/alpha/write/", json.dumps({"euros": price}), content_type="application/json")
-    assert sent.status_code == 200, sent.content
-    assert asked == [price] and plans.current(planned.store, "alpha")["how"] == "written"
-    planned.source.refresh()
-    html = owner.get("/plan/alpha/", follow=True).content.decode()
-    assert 'id="plan-write"' not in html and "the standing spot (north-west) cannot be reached on foot" in html
 
 
 def a_draw(world, place, room):
@@ -1222,27 +991,6 @@ def hosted_page(world, tmp_path, monkeypatch, settings, page):
     monkeypatch.setattr(state, "source", lambda: source)
     settings.SCORE_MODE = "hosted"
     return signed_in("joey2").get(page).content.decode(), source.world_state()
-
-
-def test_a_merged_scene_has_no_card_and_a_draw_on_a_moved_room_is_out_of_date_hosted_too(planned, tmp_path,
-                                                                                         monkeypatch, settings):
-    """Owner, 2026-10-21 ("nav again showed up here"; "all below would become need for redrawn"). Break:
-    score/review/plans.py `moved_draws` never finds a room moved."""
-    from score.review import plans
-    fixture.an_inventory_read(planned.store, planned.data, "alpha", fixture.concept_of(planned.store, "alpha"))
-    (planned.data / "places/within.json").write_text(json.dumps({"shells": {},
-                                                                 "within": {"beta": {"within": "alpha"}}}))
-    a_draw(planned, "beta", {"place": "beta", "x": 90.0, "y": 90.0, "w": 1.0, "d": 1.0})
-    assert plans.room_of(planned.store, "beta") is not None
-    html, shown = hosted_page(planned, tmp_path, monkeypatch, settings, "/places/?in=alpha")
-    assert shown.plan_changed == ["beta"] and "beta" not in shown.concepts
-    tile = html[html.index('href="/concept/beta/"'):].split('<div class="ptile-box">')[0]
-    assert "plan changed" in tile and "<img" not in tile and "Review" not in tile
-    (planned.data / "places/within.json").write_text(json.dumps({
-        "shells": {}, "within": {}, "merged": {"beta": {"into": "alpha"}}}))
-    settings.SCORE_MODE = "local"
-    html, shown = hosted_page(planned, tmp_path / "again", monkeypatch, settings, "/places/")
-    assert shown.removed == ["beta"] and 'href="/concept/beta/"' not in html and "beta" not in shown.concept_undrawn
 
 
 # === the environment concept ==========================================================================================
@@ -1842,12 +1590,14 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     named; each place's worst gap and its concept on its tile, the top bar the Buy's figure; the remake on every page
     what Buy buys, its time a floor while a step is untimed; stats numbers, a partial bill unknown, not a figure; the
     place screen's top level and a branch's items priced with his one action; outside places opened to what sits
-    inside; the step page's own picture and what it read.
+    inside; the step page's own picture and what it read; in a headless browser (when one runs here), the lamp's click
+    loads its branch once, fills the panel, frames its gap in the 3D view and posts its Accept with the CSRF token.
     Breaks (each applied once and seen red): pages/present.py `gap_marks` keeps findings with no box; state/gaps.py
     `place_row` takes the mildest kind as the worst (KINDS reversed); pages/cockpit.py `remake` gives
     `at_least_hours` None; pages/cockpit.py `known` reads a partial line's euros as a figure; pages/cockpit.py
     `gap_action` drops its accept of a waiting output; pages/cockpit.py `tiles` drops its `parent_of(...) == at`
-    filter; templates/pages/step.html drops the "reads:" caption.
+    filter; templates/pages/step.html drops the "reads:" caption; static/pages/dash.js never posts the `{gap}`
+    message to the viewer frame (`if (false)`; red only where the browser runs).
     And the library, on a copy of the file's shelf: its kinds counted from its entries, no entry until a branch opens;
     a branch a page at a time; folders by name then place, one newest locked version, no withdrawn entry; each item
     played live from its own files; an algorithm's real example, else why not; the export carries light copies only,
@@ -1867,13 +1617,19 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     what waits with no euros; guesses and untimed kinds kept apart, refused on a basket older than the price; nothing
     bought at a place whose design is not approved (the people's line goes with the places whose cast reads it); an
     estimate from the read inventories that buys nothing, no figure on code not committed; every plant counted; the
-    stats count only measured prices; every screen route answers and an unknown place is 404.
+    stats count only measured prices; every screen route answers and an unknown place is 404. The Buy page in those
+    moments is design first: no design approved, no price and no Buy; alpha's approved, Buy disabled while the basket
+    is older than the price, then the close-up EUR 2-3, stop 3.30, two steps waiting, a layer a line and no step's
+    name; a guest has no Buy and is refused, and the Benchmarks item is not in the basket. Its books buttons (BOOKS,
+    owner rule 2026-10-20): no Basket link; the model calls' figure button while that bill is not read; the read-back
+    while paid work is refused; neither to a guest.
     Breaks (each applied once and seen red): state/screens.py `remake_money` leaves `rest` out of the whole;
     `estimate` keeps its figure while stale (`current = True`); `remake_money` drops prepare's `stale`; `chain_price`
     prices every node of the record, not the chain's; `buy` sets the stop at the high, without BUFFER; `now_items`
     keeps items waiting on a missing input; `buy_refusals` never says the basket is older than the price; `now_items`
     drops `approved and for_approved(...)`; `for_approved` ignores an item's `for`; `plants_total` leaves `beds` out;
-    `stats` counts every basis as measured; api/routes.py `place_screen` drops its unknown-place 404.
+    `stats` counts every basis as measured; api/routes.py `place_screen` drops its unknown-place 404; pages/basket.py
+    `buy_yes` skips its owner check; pages/views.py gives `figure` True whatever the model bill.
     And the run monitor, over its own judging rows, a batch of two tries and one batch on a fresh copy of the world
     (BATCH_MOMENTS): read from its log, its rows and its pool; a relaunch goes on where the checkout was and adds the
     first run's money and clock, its parked machines shown; the state follows the result line, the checkout and the
@@ -1946,7 +1702,16 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     read them, a visitor's refused.
     Breaks (each applied once and seen red): templates/pages/basket_item.html words the guess as "cost about EUR
     2.70"; pages/basket.py `choose` skips its version check; sync/applying.py `apply_answer` skips its `from_owner`
-    check; pages/basket.py's marks put `removed` on the after side."""
+    check; pages/basket.py's marks put `removed` on the after side.
+    And a place's design on a fresh drafting copy, from its draw to its plan: no numbers and no plan until its
+    inventory is read from its locked concept; its reading boxed on the concept page, its euros in the totals; his
+    Keep his own, the inside places he names a card and a concept page each, Make plan his yes at the price shown,
+    the plan written with its gaps; findings older than the lock a check; a draw on a moved room out of date and a
+    merged scene no card, hosted too; another lock or an unlock: nothing counts.
+    Breaks (each applied once and seen red): state/screens.py `inventory_current` drops its sha equality;
+    pages/concepts.py `reading_view` divides a box's width by the picture's height; pages/plans.py `asked_of` skips
+    its owner check; score/review/plans.py keeps a named place's spaces (no `_`); pages/plans.py `plan_write` sends
+    EUR 0, not the price he saw; score/review/plans.py `moved_draws` never finds a room moved."""
     from score.dashboard.pages import cockpit, present, views
     from score.dashboard.pages.models import BasketItem, ChangeRequest
     from score.dashboard.state import gaps as gap_rows
@@ -2284,9 +2049,32 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
         "outside places": (["/places/?in=yard"], True, True, ["/places/?in=beta"], True, ["/place/alpha/"], False,
                            True, True, [404, 404])}
 
+    # The same lamp clicked in a headless browser (when one runs here): the Gaps branch loaded once, the panel filled,
+    # the 3D view told to frame its gap, its Accept the owner's JSON request with the CSRF token, the panel a history
+    # step of its own.
+    if chromium_runs():
+        branch = "/place/alpha/branch/?path=Gaps"
+        job = tmp_path / "click.json"
+        job.write_text(json.dumps({
+            "page": "/place/alpha/", "html": owner.get("/place/alpha/").content.decode(), "branch": "Gaps",
+            "item": "lamp", "branches": {branch: owner.get(branch).json()},
+            "dash": str(REPO / "score/dashboard/pages/static/pages/dash.js")}))
+        done = subprocess.run(["npx", "-y", "-p", PLAYWRIGHT, "node", str(pathlib.Path(__file__).with_name(
+            "screens_click.mjs")), str(job)], capture_output=True, text=True, timeout=120)
+        assert done.returncode == 0, done.stderr[-3000:]
+        found = json.loads(done.stdout.strip().splitlines()[-1])
+        assert (found["before"], found["fetched"], found["open"], found["title"], found["state"], found["price"],
+                found["button"], json.loads(found["framed"]), found["back"], found["forward"], found["reloaded"],
+                found["posted"]) == (
+            0, [branch], True, "lamp", "missing", "EUR 2.00–3.00 +", "Accept", {"gap": "missing:lamp_1"},
+            {"open": False, "hash": ""}, {"open": True, "title": "lamp"}, {"open": True, "title": "lamp", "steps": 3},
+            [{"url": "/api/decisions", "csrf": "token", "body": {
+                "node": "closeup@alpha", "output": world.outputs["closeup@alpha waiting"], "decision": "accept"}}])
+
     # The screens' data (state/screens.py) over alpha's gaps priced and prepare's record, moment by moment
     # (SCREEN_MOMENTS): each moment's record written, then every "source:path" it names read from what the screens,
     # the screen routes and the Buy and Places pages answer on that one world.
+    from score import graph
     from score.dashboard.checkout import flow, pricing
     from score.dashboard.launch.backend import GroupPlan
     from score.dashboard.site.asgi import inner
@@ -2298,6 +2086,8 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
                "for": held} for ident, places, nodes, held in PEOPLE]
     inventory = world.source.props_home / "design" / "inventory" / "alpha.json"
     kept_inventory = inventory.read_bytes() if inventory.is_file() else None
+    proposals = settings.SCORE_HOME / "proposals"
+    basket_made = records.index(proposals)["made_at"]
 
     def month_api(path):
         """The screen route's answer with the month read as MONTH (its FastAPI dependency)."""
@@ -2336,6 +2126,27 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
         return {"unknowns": after.count(">unknown</span>"), "range": "&ndash;" in after,
                 "offered": 'data-url="/buy/yes/"' in html, "disabled": f'disabled title="{NOT_COMMITTED}' in after}
 
+    def buy_page(state):
+        """The Buy page as the owner reads it, and its Buy yes posted by the owner and by guests."""
+        html = owner.get("/buy/").content.decode()
+        top = html.split('<ul class="buy-layers buy-design">')[0]
+        now = top.split(">Buy now<")[-1]
+        refused = owner.post("/buy/yes/", {"key": "a" * 32, "batch": "benchmarks"}, content_type="application/json")
+        return {"approved": re.findall(r"(\d+) <small>of</small> 2 <small>approved</small>", top)[0],
+                "euros on top": "EUR" in top[top.index('<div class="topbar">'):],
+                "offered": 'data-url="/buy/yes/"' in html,
+                "older": bool(re.search(r'<button type="button" class="primary big" disabled title="the basket '
+                                        r'\(2026-10-19 08:00\) is older than the price', top)),
+                "now": ('"batch": "now"' in html, "<small>EUR</small> 2.00&ndash;3.00" in now,
+                        "<small>stop EUR</small> 3.30" in now, "+ 2 <small>steps wait</small>" in now),
+                "layers": re.findall(r'<span class="node-label" data-v>(\w+)</span><span class="buy-n" data-v>(\d+)'
+                                     r'</span>', html),
+                "step names": bool(re.search(r"calibration|lost concept|<details", html)),
+                "posts": (owner.post("/buy/yes/", "{}", content_type="application/json").status_code,
+                          refused.status_code, refused.json()["detail"].startswith("refused"),
+                          guest.post("/buy/yes/", {"key": "a" * 32}, content_type="application/json").status_code,
+                          'data-url="/buy/yes/"' in signed_in("guest2").get("/buy/").content.decode())}
+
     def tiles(state):
         found = {"offered": 'data-url="/buy/yes/"' in owner.get("/buy/").content.decode()}
         for page, start, end in (("/buy/", ">After design<", '<ul class="buy-layers buy-design">'),
@@ -2368,12 +2179,14 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
                                  "exported blocked": WorldState.model_validate_json(world.source.world_state(
                                      MONTH).model_dump_json()).remake.counts["blocked"]},
         "api buy": lambda state: month_api("buy").json(), "people": people_bought, "buy now": buy_now,
-        "tiles": tiles, "plants": plants}
+        "tiles": tiles, "plants": plants, "buy page": buy_page}
     for moment, record, written, want in SCREEN_MOMENTS:
         a_remake(world, **record)
         if written == "choice":
             BasketChoice.objects.create(item=records.items(settings.SCORE_HOME / "proposals")[0]["id"],
                                         version="0" * 16, choice="buy", by="joey")
+        if written == "basket now":
+            records.put_index(proposals, {**records.index(proposals), "made_at": graph.now()})
         if written == "plants":
             inventory.parent.mkdir(parents=True, exist_ok=True)
             inventory.write_text(json.dumps({"rows": PLANTS}))
@@ -2391,6 +2204,7 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     else:
         inventory.write_bytes(kept_inventory)
     BasketChoice.objects.all().delete()
+    records.put_index(proposals, {**records.index(proposals), "made_at": basket_made})
     world.source.refresh()
 
     # A standalone check's findings stand only while what they judged is accepted, and gaps are not repeated among
@@ -2429,6 +2243,21 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
         figure = (1, 2) if why is None else (None, None)
         assert (said, before, cockpit.measured_prices(world.source.gaps_price())) == (
             True, (1, 2) if again else figure, figure), (row, remake)
+    # The books buttons: the model calls' figure while that bill is not read, the read-back while paid work is
+    # refused, and only to the owner; never a Basket link.
+    for row, models, refused, who, want in BOOKS:
+        with pytest.MonkeyPatch.context() as month:
+            a_month(month, **({"paid_refused": refused} if refused else {}))
+            if models is not None:
+                month.setattr(actions, "spend", lambda: Spend(ceiling=250.0, month="2026-10", lines=[
+                    CostLine(source="cloud", label="Cloud compute", euros=12.5),
+                    CostLine(source="models", label="Model calls", euros=models)]))
+            html = signed_in(who).get("/buy/").content.decode()
+        # A button shown is a form the page script posts (data-post); a button not shown leaves no trace of its URL.
+        as_forms = [f'data-post="/api/money/{url}"' in html for url in ("read-back", "books-figure")]
+        as_urls = [f"/api/money/{url}" in html for url in ("read-back", "books-figure")]
+        assert ('href="/basket/"' in html.split("<main")[-1], ">Model calls figure</button>" in html,
+                *as_forms) == want and as_urls == as_forms, (row, as_forms, as_urls)
     with pytest.MonkeyPatch.context() as month:
         a_month(month, paid_refused="the month's books are lost")
         for page in dict.fromkeys([*PAGES, *SCREENS]):
@@ -3212,3 +3041,153 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     owner.post("/basket/answer/", recommended)
     assert records.answers(basket)["ship-room-concepts"]["1"]["answer"] == "One deck, as in your cutaway picture."
     assert visitor.post("/basket/answer/", recommended).status_code == 403
+
+    # A place's design, on a fresh drafting copy (alpha drawn, nothing locked), walked once from its draw to its plan
+    # (owner, 2026-10-20 and 2026-10-21: "inventory can't exist" before the lock): while drawing no numbers and no plan,
+    # its card opening its concept; locked and read, its reading boxed on the concept page and its euros in the totals,
+    # its plan next; its plan only once the inventory counts, no Approve, anyone else's Keep refused; the inside places
+    # he names laid in it; a draw on a moved room out of date and a merged scene no card, hosted too; his Make plan at
+    # the price shown, the plan written with its gaps said plainly; his Keep (an edit replaces the plan Make plan
+    # offers to write, so it comes last) gives the places he named a card and a concept page each and is kept as he
+    # edited it where the plan stage reads it; designed, numbers, and findings older than the lock a check; then
+    # another lock or an unlock: nothing counts.
+    from score.dashboard import state as served_state
+    from score.review import concepts as drawing
+    from score.review import plan_drawing, plan_writing, plans, reading
+    design = copy_of(built_once[False], tmp_path_factory.mktemp("design"), monkeypatch)
+    store, owner = design.store, signed_in()
+    kept_in = tmp_path_factory.mktemp("plans")
+    monkeypatch.setattr(plans, "DATA", design.data)
+    monkeypatch.setattr(plans, "KEPT", kept_in / "kept")
+    monkeypatch.setattr(plans, "KEPT_INVENTORY", kept_in / "kept-inventory")
+    monkeypatch.setattr(plans, "KEPT_CONCEPT", kept_in / "kept-concepts")
+
+    def alpha_now():
+        design.source.refresh()
+        return next(place for place in screens.environment(design.source, MONTH)["places"] if place["place"] == "alpha")
+
+    def kept_plan(poster, plan):
+        return poster.post("/plan/alpha/keep/", json.dumps({"plan": plan}), content_type="application/json")
+    assert (alpha_now()["design"], alpha_now()["progress"], alpha_now()["gaps"]) == ("draw", None, None)
+    html = owner.get("/places/").content.decode()
+    assert "data-v>0/3</b>" in html and 'class="ring' not in html
+    assert 'href="/place/alpha/"' not in html and 'class="ptile" href="/concept/alpha/"' in html
+    assert signed_in("joey2").get("/place/alpha/").status_code == 404
+    assert "concept-inventory" not in owner.get("/concept/alpha/").content.decode()  # not locked: no reading
+    html = owner.get("/plan/alpha/", follow=True).content.decode()
+    assert "after the inventory" in html and "plan-drawing" not in html  # no plan before the inventory counts
+    # locked and read: a box of [0, 0, 48, 30] px on its 96 x 60 picture is 50% by 50%
+    alpha = fixture.concept_of(store, "alpha")
+    drawing.pick(store, "alpha", alpha, "joey")
+    drum = {"id": "drum", "name": "fuel drum", "noun": "drum", "kind": "generate", "terrain": False, "count": 2,
+            "size_words": "waist", "anchor": "ground", "where": "left", "boxes": [[0, 0, 48, 30]], "box": [0, 0, 48, 30]}
+    reading.kept(store, {"place": "alpha", "concept": alpha, "at": "2026-10-21T08:00:00+00:00", "by": "joey",
+                         "method": reading.METHOD, "size": [96, 60], "inventory": {"rows": [drum]},
+                         "gaps": [{"kind": "size", "row": "drum", "words": "its size in metres not read"}],
+                         "skipped": [{"name": "crate", "row": None, "why": reading.ONLY_SAM, "box": [48, 30, 96, 60]}],
+                         "merged": [{"name": "blue drum", "row": "blue", "into": "drum"}],
+                         "euros": {"rows": 0.03, "boxes": 0.1, "total": 0.13},
+                         "seconds": {"rows": 20.0, "boxes": 30.0, "card": 550.0}})
+    design.source.refresh()
+    page = owner.get("/concept/alpha/").content.decode()
+    assert "data-v>fuel drum</span>" in page and "&times;2" in page and "1 rows, 1 gaps, EUR 0.13, 10.0 min" in page
+    assert 'style="left:0.0%;top:0.0%;width:50.0%;height:50.0%"' in page
+    assert 'class="concept-box skipped"' in page and 'style="left:50.0%;top:50.0%' in page
+    assert "skipped 1, merged 1</button>" in page
+    assert "inventories EUR</small> 0.13" in signed_in("joey2").get("/places/").content.decode()
+    assert screens.design_state(design.source.world_state(), "alpha") == "plan"  # read: its plan is next
+    # read again by today's method (its lamp row gives no size): the plan; anyone else's Keep refused; the inside
+    # places he names, their spaces made `_`, laid in it
+    fixture.an_inventory_read(store, design.data, "alpha", alpha)
+    design.source.refresh()
+    html = owner.get("/plan/alpha/", follow=True).content.decode()
+    assert 'id="plan-drawing"' in html and "Approve" not in html
+    assert "data-v>R1 1: no size</span>" in html  # its row gives no size: a gap shown, never hidden
+    plan = plan_data(html)
+    plan["items"][0][1] = 2.5
+    assert kept_plan(signed_in("joey2"), plan).status_code == 403 and plans.current(store, "alpha")["how"] != "edited"
+    assert owner.post("/plan/alpha/named/", json.dumps({"names": ["Back Room", "loft"]}),
+                      content_type="application/json").status_code == 200
+    assert plans.named(store, "alpha") == ["back_room", "loft"]
+    holding = plans.current(store, "alpha")["plan"]
+    assert [hold["place"] for hold in holding["holds"]] == ["back_room", "loft"]
+    # beta drawn on a room inside alpha, the room since moved: out of date, no card picture; then merged: no card
+    within = design.data / "places/within.json"
+    within_before = within.read_text() if within.exists() else None
+    within.write_text(json.dumps({"shells": {}, "within": {"beta": {"within": "alpha"}}}))
+    a_draw(design, "beta", {"place": "beta", "x": 90.0, "y": 90.0, "w": 1.0, "d": 1.0})
+    assert plans.room_of(store, "beta") is not None
+    html, shown = hosted_page(design, tmp_path_factory.mktemp("moved"), monkeypatch, settings, "/places/?in=alpha")
+    assert shown.plan_changed == ["beta"] and "beta" not in shown.concepts
+    tile = html[html.index('href="/concept/beta/"'):].split('<div class="ptile-box">')[0]
+    assert "plan changed" in tile and "<img" not in tile and "Review" not in tile
+    within.write_text(json.dumps({"shells": {}, "within": {}, "merged": {"beta": {"into": "alpha"}}}))
+    settings.SCORE_MODE = settings.LOCAL
+    html, shown = hosted_page(design, tmp_path_factory.mktemp("merged"), monkeypatch, settings, "/places/")
+    assert shown.removed == ["beta"] and 'href="/concept/beta/"' not in html and "beta" not in shown.concept_undrawn
+    settings.SCORE_MODE = settings.LOCAL
+    if within_before is None:
+        within.unlink()
+    else:
+        within.write_text(within_before)
+    monkeypatch.setattr(served_state, "source", lambda: design.source)
+    # read again, its lamp row across the room (6 x 0.4 m at 100 units a metre) cutting the north spot off its door:
+    # Make plan is his yes at the price shown and writes the plan with that gap said plainly
+    fixture.an_inventory_read(store, design.data, "alpha", alpha, size=[6.0, 0.4, 0.8])
+    design.source.refresh()
+    written_plan = {"outline": [[0, 0], [600, 0], [600, 400], [0, 400]],
+                    "items": [{"row": "r1", "box_2d": [180, 0, 220, 600], "tall": 0.8}],
+                    "people": [[100, 100], [500, 350]],
+                    "openings": [{"kind": "door", "at": [300, 400], "wide": 90, "angle": 0, "swing": "left",
+                                  "sill": 0.0, "head": 2.1, "to": "outside"}]}
+    write_asked = []
+
+    def written(store, place, euros, by):
+        write_asked.append(euros)
+        finished = {"finishReason": "STOP", "content": {"parts": [{"text": json.dumps(written_plan)}]}}
+        record, = plan_writing.write(store, [place], by, ask=lambda body: ({"candidates": [finished],
+                                                                            "usageMetadata": {}}, 1.0))
+        return json.loads(plan_writing.said(record))
+    monkeypatch.setattr(review_web, "plan_write", written)
+    monkeypatch.setattr(plan_writing, "call_euros", lambda found: 0.04)
+    monkeypatch.setattr(plan_drawing, "called", lambda wording, pictures, frame: (drawing_png(), 0.13, 1.0))
+    monkeypatch.setattr(plan_writing, "cleared", lambda *found, **named: contextlib.nullcontext())
+    monkeypatch.setattr("score.adapters.compute.require_cleared", lambda what, store=None: None)
+    price = plan_writing.price(store)
+    assert f"EUR {price:.2f}" in owner.get("/plan/alpha/", follow=True).content.decode()
+    sent_plan = owner.post("/plan/alpha/write/", json.dumps({"euros": price}), content_type="application/json")
+    assert sent_plan.status_code == 200, sent_plan.content
+    assert write_asked == [price] and plans.current(store, "alpha")["how"] == "written"
+    design.source.refresh()
+    html = owner.get("/plan/alpha/", follow=True).content.decode()
+    assert 'id="plan-write"' not in html and "the standing spot (north-west) cannot be reached on foot" in html
+    # his Keep: the places he named a card and a concept page each, a name he never gave none; his edit kept as edited
+    assert kept_plan(owner, plans.current(store, "alpha")["plan"]).status_code == 200
+    design.source.refresh()
+    assert 'href="/concept/loft/"' in signed_in("joey2").get("/places/?in=alpha").content.decode()
+    assert owner.get("/concept/loft/").status_code == 200 and owner.get("/concept/attic/").status_code == 404
+    answer = kept_plan(owner, plan)
+    assert answer.status_code == 200, answer.content
+    assert plans.current(store, "alpha")["how"] == "edited"
+    assert json.loads((plans.KEPT / "alpha.json").read_text())["items"][0][1] == 2.5
+    # designed: numbers; findings checked before the lock: check
+    shown = alpha_now()
+    assert shown["design"] is None and shown["progress"]["needed"] > 0 and shown["gaps"] is not None
+    findings = design.root / "props/work/checks/gaps/alpha/findings.json"
+    findings.parent.mkdir(parents=True)
+    findings.write_text("{}")
+    os.utime(findings, (1760000000, 1760000000))  # checked before the lock
+    assert alpha_now()["design"] == "check"
+    findings.unlink()
+    # another lock: the reading counts for nothing; an unlock: drawing again
+    assert "data-v>lamp</span>" in owner.get("/concept/alpha/").content.decode()
+    drawing.recorded(store, "concepts/alpha/picks/2099-01-01T10-00-00.json",
+                     {"place": "alpha", "sha": "o" * 64, "by": "joey", "at": "2099-01-01T10:00:00+00:00"})
+    shown = alpha_now()
+    assert (shown["design"], shown["progress"], shown["gaps"]) == ("read", None, None)
+    assert screens.place(design.source, "alpha", None)["items"] == []
+    page = signed_in("joey3").get("/concept/alpha/").content.decode()
+    assert "data-v>lamp</span>" not in page and "data-v>to read</span>" in page
+    drawing.recorded(store, "concepts/alpha/picks/2099-01-01T11-00-00.json",
+                     {"place": "alpha", "sha": None, "by": "joey", "at": "2099-01-01T11:00:00+00:00"})
+    assert (alpha_now()["design"], alpha_now()["progress"]) == ("draw", None)
