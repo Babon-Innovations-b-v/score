@@ -50,6 +50,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   longer.
 - (2026-11-06) Sized.spec's `self.sized.copy()` made `self.sized`: the first file's spec is written on again, the
   lunate's record differs.
+- (2026-11-14) Sized's `phantoms_light(spec)` made `pass`: the phantom keeps MoBL's 1 kg m^2.
+- (2026-11-14) phantoms_light's `if PHANTOM in body.name` made `if True`: the blade under it loses its inertia.
 
 Run: .venv/bin/python score/stages/sim_body/inside/myo/test_the_persons_file_builds_in_newton_as_mujoco_compiles_it.py
 """
@@ -160,6 +162,7 @@ def toy_body():
           <joint name="sternoclavicular_r2_l" type="hinge" axis="0 0 1"/>
           <geom type="sphere" size="0.02" mass="1"/>
           <body name="clavphant_l" pos="0.05 0 0">
+          <inertial pos="0 0 0" mass="0.001" diaginertia="1 1 1"/>
           <joint name="unrotscap_r2_l" type="hinge" axis="0 0 1"/>
           <geom type="sphere" size="0.02" mass="1"/>
           <body name="blade_l">
@@ -296,7 +299,8 @@ def every_muscle_keeps_its_published_parameters_in_newton():
 
 def the_neck_thorax_and_girdle_move():
     """The written file's neck, head and torso carry `myo._movable`'s joints with their ranges, and the girdle's
-    joint leads on GIRDLE's range, its phantom the one coupling left, at -1 on it."""
+    joint leads on GIRDLE's range, its phantom the one coupling left, at -1 on it; the phantom, written with MoBL's
+    1 g and 1 kg m^2, weighs as a 1 g body (`phantoms_light`), the body under it keeps its own."""
     import numpy as np
     from myo._movable import CERVICAL, GIRDLE, NECK, THORACIC
     with tempfile.TemporaryDirectory() as folder:
@@ -315,6 +319,11 @@ def the_neck_thorax_and_girdle_move():
     problems += [f"{name}: at {compiled.jnt_pos[compiled.joint(name).id]}, its turn at {compiled.jnt_pos[turn]}"
                  for name, _, _ in CERVICAL[2] if name in names
                  and not np.allclose(compiled.jnt_pos[compiled.joint(name).id], compiled.jnt_pos[turn])]
+    phantom, blade = compiled.body("clavphant_l"), compiled.body("blade_l")
+    problems += [] if phantom.inertia.max() < 1e-3 and phantom.mass[0] < 0.01 else [
+        f"phantom inertia {phantom.inertia}, mass {phantom.mass}"]
+    problems += [] if blade.mass[0] > 0.1 and blade.inertia.max() > 2e-4 else [  # its own: 5.5e-4 here
+        f"blade inertia {blade.inertia}, mass {blade.mass}"]
     return problems + ([] if tied == [("unrotscap_r2_l", "sternoclavicular_r2_l", [0.0, -1.0, 0.0, 0.0, 0.0])] else
                        [f"couplings {tied}"])
 

@@ -10,7 +10,8 @@ model with:
   muscle scaling: optimal fibre and tendon slack length with the path); its peak isometric force kept (#64: strength
   does not scale here); then its tendon slack length lengthened where it stands stretched (`resting`);
 - #60's import fixes (`_fixes`): names without '-' or spaces, every muscle's full gain, bias and dynamics parameters,
-  explicit inertials, a body with several joints split into 1 g wrapper bodies (one joint each), Euler written out.
+  explicit inertials, a body with several joints split into 1 g wrapper bodies (one joint each), Euler written out,
+  MoBL's shoulder phantoms weighed as the 1 g bodies they are (`phantoms_light`, not MoBL's 1 kg m^2).
 """
 import pathlib
 
@@ -18,7 +19,7 @@ import mujoco
 
 import resting
 from calibration import fingers
-from myo._fixes import full_muscles, multi_joint_bodies, renamed, split
+from myo._fixes import full_muscles, multi_joint_bodies, phantoms_light, renamed, split
 from myo._movable import movable
 from myo._rested import rested
 from sizing import WRAPPER_KG, assumed, balanced, kept_bodies, path_lengths, sized, ungrouped_kg
@@ -69,6 +70,7 @@ class Sized:
         spec = _fresh(source)
         self.wrappers = multi_joint_bodies(spec)
         sized(spec, self.model, self.scales, kg, self.wrappers)
+        phantoms_light(spec)  # after the sizing, which writes each body's inertia from the published model's
         self.sized = spec
         self.rest = path_lengths(_fresh(source).compile())  # the published model's paths at the same rest
 

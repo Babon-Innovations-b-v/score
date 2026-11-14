@@ -47,4 +47,10 @@ several joints split into 1 g wrappers, Euler written out, the floor gone).
   template hand's shape; each joint's axis and anchor carried so every pose is reached as before, its range moved by
   its turn. On the source's spec before sizing (one bone group, one scale); the muscles' length scale is read against
   the same rested source (`_fresh(source).compile()`), so a finger muscle's range does not scale by its rest turn.
+- **MoBL's shoulder phantoms weigh as the 1 g bodies they are** (`_fixes.phantoms_light`, 2026-11-14, after the
+  sizing, which writes each body's inertia from the published model's): MoBL-ARMS gives clavphant, scapphant,
+  humphant and humphant1 1 kg m^2 on every axis (the OpenSim model and MyoFullBody alike), a placeholder no 1 g body
+  has; turning with the thorax they asked camp's walker for 24 to 42 N m of vertical moment its soles could not give
+  (its frames over the residual limits after RRA 28, then 7).
+  They take WRAPPER_INERTIA, myo_sim's own floor for a welded phantom (MyoHub/myo_sim PR #152).
 - Its test runs in Newton's own Python by subprocess and prints `skipped` where no env is built.
