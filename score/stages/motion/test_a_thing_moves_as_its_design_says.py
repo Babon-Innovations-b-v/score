@@ -8,8 +8,8 @@ way, or less far down to sixty degrees, else stands with its strike; a hatch lyi
 body's pull and stands where its push would not lift it, and a flag on an airless body hangs still. The check (check.py, #23), on a cart driven round a closed path, a door swung on its hinge and a hatch slid
 down: each passes, and one known fault each fails by name. Expected spots are worked out by hand below.
 
-The worlds of one shape are rows of one case table, fed through the one parametrized test at the end; each test names
-the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+Every world is a row of one case table, fed through the one parametrized test at the end; its docstring names
+the break that turns each red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/motion/test_a_thing_moves_as_its_design_says.py
 """
@@ -118,16 +118,17 @@ def toy_inputs(folder, rows=ROWS, extra=(), cast=(WALKER,), sky=a_sky("earth", 9
             "sky": folder / "sky.json", "bodies": REPO / "data/physics/bodies.json"}
 
 
-def made(inputs, folder):
+def made(inputs, folder, by_table=False):
+    """The motion row's output made from `inputs`: motion.make, its layer faultless, or the stage table's make."""
     out = pathlib.Path(folder) / "out"
     out.mkdir()
-    motion.make(inputs, out, 0, {})
-    assert motion.layer_faults(out) == []
+    if by_table:
+        from score import stages
+        stages.MOTION.make(inputs, out, 0, {})
+    else:
+        motion.make(inputs, out, 0, {})
+        assert motion.layer_faults(out) == []
     return out, json.loads((out / motion.RECORD).read_text())
-
-
-def judge(name, out, inputs):
-    return next(check for check in motion.CHECKS if check.name == name).judge(out, inputs, None)
 
 
 def middle_at(output, inputs, prim, seconds):
@@ -147,102 +148,9 @@ WORDED = [{"id": "open_door", "name": "open apartment door", "noun": "door"},
           {"id": "sliding_door", "name": "sliding door", "noun": "door"}]
 
 
-def test_a_row_that_moves_with_no_object_fails_designed(tmp_path):
-    """A crane row moves and no object of it stands on the stage: `designed` fails naming it. Standing on a camp's
-    terrain (the place's Terrain scope, no thing under it: motion@campgrounds, 2026-11-08), the crane slewing about its
-    middle is mounted on that ground and `grounded` passes it; lifted 0.5 m off it, it fails touching nothing.
-    A recorded gap of the crane (data/checks/gaps, the env1 plan's C6: a #88 maker not built) moves `designed`'s fault.
-    Break: score/stages/motion/__init__.py: `faults += list(record.get("missing", []))` -> `pass`
-    Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` in GAP_GATES dropped, and BATCH_GATES'
-        `"motion": ("designed",)` -> `"motion": ()` (the gap moves nothing)
-    Break: score/stages/motion/__init__.py: `found = rail_faults(entry, shape, surfaces["ground"], others, rate,
-        seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`
-    The camp's ground is the terrain row's made ground, its own layer (places/camp.usdc under /<place>/Outside), not
-    in the place's stage (motion@campgrounds, 2026-11-10): standing on it the crane passes, lifted off it it fails.
-    Break: score/stages/motion/__init__.py: `*space.made_ground_meshes(inputs.get("terrain"), place), ` -> ``
-    A crane the hand-in marks shown from another place (motion@street, 2026-11-10: its distant flags and rocket are
-    the square's) is that place's to move, so `designed` passes it here naming where; one marked shown from no place
-    still fails.
-    Break: score/stages/motion/shown_rows.py: `if row_of(line) not in shown` -> `if True`
-    The sea (motion@square, 2026-11-10): the terrain lays it as one water sheet, /<place>/Outside/water, that only its
-    score:row names; the table's make finds it by that tag on the build with the made ground and keys the library's
-    ripple into its points (deep-water waves of 5, 4 and 2.5 s: 39.07, 25.0 and 9.77 m long on the Earth's 9.82
-    m/s/s), so `designed` and `covered` pass, the sheet rises and falls and stands at the round's end as it started;
-    motion's own make, which finds objects by name alone, leaves the sea missing. Untagged it fails `designed`; with
-    its ripple's keys gone it fails `covered`.
-    Break: score/stages/motion/tagged_rows.py: `if tag and tag.HasAuthoredValue() and tag.Get() == row:` -> `if False:`
-    Break: score/stages/motion/water_rows.py: `ripple.write(layer, path, ripple.keyed(...), why)` -> `pass`
-    Break: score/stages/motion/ripple.py: `number = omega * omega / float(gravity)` -> `number = omega / float(gravity)`"""
-    from score import stages
-    inputs = toy_inputs(tmp_path, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}])
-    out, _ = made(inputs, tmp_path)
-    verdict = judge("designed", out, inputs)
-    assert verdict.answer == checks.FAIL
-    assert verdict.findings == ("crane: moves (swing), and no object of it stands on the stage",), verdict.findings
-    assert table_judge("designed", out, inputs).answer == checks.FAIL, "no batch gap names the crane, so its fault stays"
-    gapped = dict(inputs, gaps=a_gap(tmp_path / "gaps.json", "designed", ["crane"]))
-    assert table_judge("designed", out, gapped).answer == checks.PASS, "a recorded gap of the crane moves its fault"
-    for shown, answer in (({"place": "square", "row": "crane"}, checks.PASS), (None, checks.FAIL)):
-        (tmp_path / "handin.json").write_text(json.dumps({"rows": [{"id": "crane", "shown": shown}]}))
-        verdict = table_judge("designed", out, dict(inputs, props=tmp_path / "handin.json"))
-        assert verdict.answer == answer and ("square's crane" in verdict.reason) == bool(shown), (shown, verdict)
-    for rises, answer in ((0.0, checks.PASS), (0.5, checks.FAIL)):
-        folder = tmp_path / f"camp_{rises:g}"
-        folder.mkdir()
-        inputs = toy_inputs(folder, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}],
-                            extra=(("crane_1", (9.5, rises, 0.0), (-1.0, 0.0, -0.5), (1.0, 3.0, 0.5)),))
-        stage = Usd.Stage.Open(str(inputs["seed"] / "layers/base.usda"))
-        box(stage, f"/{PLACE}/Terrain/ground", (7.0, -0.1, -4.0), (12.0, 0.0, 4.0))
-        stage.GetRootLayer().Save()
-        out, record = made(inputs, folder)
-        assert "crane_1" in {entry["name"] for entry in record["moves"]}, record
-        verdict = judge("grounded", out, inputs)
-        assert verdict.answer == answer and all(line.startswith("crane_1: on a rail, yet it touches nothing")
-                                                for line in verdict.findings), (rises, verdict.reason, verdict.findings)
-    for rises, answer in ((0.0, checks.PASS), (0.5, checks.FAIL)):
-        folder = tmp_path / f"made_{rises:g}"
-        folder.mkdir()
-        inputs = toy_inputs(folder, ROWS + [{"id": "crane", "name": "crane", "noun": "crane"}],
-                            extra=(("crane_1", (9.5, rises, 0.0), (-1.0, 0.0, -0.5), (1.0, 3.0, 0.5)),))
-        (folder / "terrain/mars/places").mkdir(parents=True)
-        ground = Usd.Stage.CreateNew(str(folder / f"terrain/mars/places/{PLACE}.usdc"))
-        box(ground, f"/{PLACE}/Outside/near", (7.0, -0.1, -4.0), (12.0, 0.0, 4.0))
-        ground.GetRootLayer().Save()
-        out, _ = made(inputs, folder)
-        verdict = judge("grounded", out, dict(inputs, terrain=folder / "terrain"))
-        assert verdict.answer == answer, (rises, verdict.reason, verdict.findings)
-    for tagged in (False, True):
-        folder = tmp_path / f"sea_{tagged}"
-        inputs = a_sea(folder, tagged)
-        out = folder / "out"
-        out.mkdir()
-        stages.MOTION.make(inputs, out, 0, {})
-        verdict = table_judge("designed", out, inputs)
-        assert (verdict.answer == checks.PASS) == tagged, (tagged, verdict.reason, verdict.findings)
-        if not tagged:
-            assert verdict.findings == ("sea: moves (ripple), and no object of it stands on the stage",), verdict
-    assert judge("designed", out, inputs).answer == checks.FAIL, "by name alone the sea has no object"
-    entry, = json.loads((out / "ripples.json").read_text())["ripples"]
-    assert (entry["prim"], entry["row"]) == (f"/{PLACE}/Outside/water", "sea"), entry
-    assert [wave["length"] for wave in entry["waves"]] == [39.0725, 25.0064, 9.7681], entry["waves"]
-    verdict = table_judge("covered", out, inputs)
-    assert verdict.answer == checks.PASS and verdict.measures["tagged moved"] == 1, (verdict.reason, verdict.findings)
-    rises = [sea_heights(out, inputs, second) for second in (0.0, 1.0, 20.0)]
-    assert np.allclose(rises[0], rises[2], atol=1e-6) and np.abs(rises[1] - rises[0]).max() > 0.05, rises
-    layer = Sdf.Layer.FindOrOpen(str(out / "layers/motion.usda"))
-    layer.GetPrimAtPath(f"/{PLACE}/Outside/water").RemoveProperty(
-        layer.GetAttributeAtPath(f"/{PLACE}/Outside/water.points"))
-    layer.Save()
-    verdict = table_judge("covered", out, inputs)
-    assert verdict.answer == checks.FAIL and verdict.findings == (
-        f"/{PLACE}/Outside/water (sea): its ripple keys its points still (0 keys)",), verdict.findings
-
-
-def a_sea(folder, tagged):
-    """A place with a sea row whose only object is its terrain's water sheet (outside.write_mesh's form: 41 by 41
-    points 0.5 m apart, a metre under the floor), naming the row in its score:row where `tagged`."""
-    folder.mkdir()
-    inputs = toy_inputs(folder, ROWS + [{"id": "sea", "name": "sea", "noun": "sea"}])
+def a_sea(folder, inputs, tagged):
+    """The place's terrain holding a water sheet (outside.write_mesh's form: 41 by 41 points 0.5 m apart, a metre under
+    the floor), naming the sea row in its score:row where `tagged`."""
     (folder / "terrain/earth/places").mkdir(parents=True)
     ground = Usd.Stage.CreateNew(str(folder / f"terrain/earth/places/{PLACE}.usdc"))
     spots = np.stack(np.meshgrid(np.arange(41) * 0.5, np.arange(41) * 0.5, indexing="ij"), axis=-1).reshape(-1, 2)
@@ -258,27 +166,19 @@ def a_sea(folder, tagged):
     return dict(inputs, terrain=folder / "terrain")
 
 
-def sea_heights(out, inputs, second):
-    """The sea sheet's heights at a second, its motion layer over the terrain's ground."""
+def sheet_heights(out, ground, prim, second):
+    """A sheet's heights at a second, its motion layer over the ground file it stands in."""
     root = Sdf.Layer.CreateAnonymous(".usda")
-    root.subLayerPaths = [str(out / "layers/motion.usda"), str(inputs["terrain"] / f"earth/places/{PLACE}.usdc")]
+    root.subLayerPaths = [str(out / "layers/motion.usda"), str(ground)]
     stage = Usd.Stage.Open(root)
-    points = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{PLACE}/Outside/water")).GetPointsAttr()
+    points = UsdGeom.Mesh(stage.GetPrimAtPath(prim)).GetPointsAttr()
     return np.asarray(points.Get(second * 24.0), dtype=float)[:, 1]
 
 
-def a_gap(path, check, objects):
+def a_gap(check, objects):
     """A place's gaps file (score/stages/gaps.py) with one accepted gap moving `check`'s faults of `objects`."""
-    path.write_text(json.dumps({"gaps": [{"name": "not built yet", "row": "motion", "check": check, "objects": objects,
-                                          "reason": "no maker builds it (#88)", "decided": "test", "faults": []}]}))
-    return path
-
-
-def table_judge(name, out, inputs):
-    """A gate as the stage table runs it, batch gaps moved (stages.accepted_gaps, BATCH_GATES)."""
-    from score import stages
-    row = stages.accepted_gaps(stages.MOTION)
-    return next(check for check in row.checks if check.name == name).judge(out, inputs, None)
+    return {"gaps": [{"name": "not built yet", "row": "motion", "check": check, "objects": objects,
+                      "reason": "no maker builds it (#88)", "decided": "test", "faults": []}]}
 
 
 
@@ -353,11 +253,10 @@ def a_flag(stage, path):
         subset.GetPrim().CreateAttribute("score:surface", Sdf.ValueTypeNames.String).Set(name)
 
 
-def flag_inputs(folder, recipe="cloth"):
-    """The toy place with a red flag's row and one flag at (4, 0, -4) whose cloth's library surface is made with
-    `recipe`, its surface bake's specs and the flag cloth's files."""
+def flag_inputs(folder, inputs, recipe):
+    """The toy place's inputs with one flag at (4, 0, -4) whose cloth's library surface is made with `recipe`, its
+    surface bake's specs and the flag cloth's files."""
     from score.stages.motion import cloth
-    inputs = toy_inputs(folder, ROWS + [{"id": "flag", "name": "red flag", "noun": "flag"}])
     stage = Usd.Stage.Open(str(inputs["seed"] / "layers/base.usda"))
     UsdGeom.Xform.Define(stage, f"/{PLACE}/Objects/flag_1").AddTranslateOp().Set(Gf.Vec3d(4.0, 0.0, -4.0))
     a_flag(stage, f"/{PLACE}/Objects/flag_1/geo")
@@ -383,184 +282,14 @@ def a_written_run(turn):
     return ran
 
 
-def waved_out(inputs, folder, run):
-    """The motion row's output for the flag place, its flag waved by `run`: motion.make, then cloth.waved."""
+def waved(inputs, out, record, run):
+    """The flag place's record with its flag waved by `run` over the made output (cloth.waved), written as the
+    output's."""
     from score.stages.motion import cloth
-    out, record = made(inputs, folder)
     with motion.built(inputs) as source:
         found = cloth.waved(record, inputs, source, out / "layers/motion.usda", run)
     (out / motion.RECORD).write_text(json.dumps(found))
-    return out, record, found
-
-
-def test_covered_asks_for_the_design_s_moving_rows_only(tmp_path):
-    """A ship named as an old record's moving kind, on a craft row that stands with its written reason, is not asked
-    for (3 moving kinds: door, fan, rover); the design's door taken out of the record (neither moved nor standing with
-    a reason) fails by name. Fault (the audit of 2026-11-04): a row no kind moves was invisible to every gate (the
-    launching rocket, flags, a body of water, 102 screens). A launching rocket in the sky over Earth climbs straight
-    up at the middle of its kind's cited push, (11.13 + 13.84) / 2 = 12.485 m/s/s, less Earth's 9.82: 2.665 m/s/s,
-    so 0.5 * 2.665 * 20^2 = 533 m risen in the 20 s round, and `speeds`, `grounded` and the check pass it; its
-    exhaust (no effect kind makes it) and a wind turbine (a moving word no kind moves) each fail `covered` by name,
-    and a design holding only the turbine has the motion row, so the fault is judged; a screen is not among them, its
-    picture the screens stage's (data/checks/screens.json `read_by` over row-kinds.json's null, #88). A launch written with no pull taken off climbs at the whole 12.485 m/s/s, which with Earth's pull is a
-    push of 22.3, over the kind's: `speeds` fails it. On the Moon (3e-13 kPa of air, the reference table's) the flag hangs still with its reason and the
-    rocket (12.485 over 1.624) climbs off its pad on the floor, `grounded` reading it once it has risen half a metre; under a body pulling 15 m/s/s it stands, its push not lifting it.
-    Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not
-        in still]` -> `if False]`
-    Break: score/stages/motion/from_design.py: `unmade.append(f"{path}: {rule['move']}, which no writer makes:
-        {rule['why']}")` -> `still[path] = rule["why"]`
-    Break: score/stages/row_kinds.py: `if heard and not done & {"moves", "loose"} and not (kind and
-        kinds[kind].get("stands")):` -> `if False:`
-    Break: score/stages/design_layers.py: `return found | {"motion"} if row_kinds.uncovered(inventory, kinds) else
-        found` -> `return found`
-    Break: score/stages/motion/__init__.py: in coverage, `**read_json(inputs["screens"])["read_by"]` dropped (the
-        screen fails `covered` again)
-    Break: score/stages/motion/from_design.py: `"climb": {"lift": 0.0, "push": round(push, 4), "pull":
-        float(body["gravity"])},` -> `"climb": {"lift": 0.0, "push": round(push, 4), "pull": 0.0},`
-    Break: score/stages/motion/__init__.py: `push = 2.0 * risen / (seconds - lift) ** 2 + float(body["gravity"])` ->
-        `push = 2.0 * risen / (seconds - lift) ** 2 + float(entry["climb"]["pull"])`
-    Break: score/stages/motion/from_design.py: `return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust")
-        else []` -> `return []`
-    Break: score/stages/motion/from_design.py: `elif rule.get("airless") and airless(body):` -> `elif False:`
-    A recorded gap naming the exhaust's rocket and the turbine moves `covered`'s faults; one naming the turbine alone
-    leaves the rocket's fault failing it.
-    Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` -> `"motion": ("designed",),`
-    Break: score/stages/motion/__init__.py: `for moment in np.arange(np.ceil(climbed_from(entry)), seconds + 1e-9,
-        1.0):` ->
-        `for moment in np.arange(0.0, seconds + 1e-9, 1.0):`
-    The library's exhaust (data/effects/exhaust.json, motion@square 2026-11-12) drawn for the launch takes its line
-    off `unmade`: its flame 0.67 rocket heights at 3 s (2.01 m under the 3 m rocket), its core 0.2 (0.6 m), its smoke
-    column of puffs, its flame held under the climbing rocket's foot, so `covered` passes with only the turbine's gap;
-    one drawn at 0.3 rocket heights (under the footage's 0.45), its flame taken off the layer and the whole exhaust
-    taken off each fail it by name.
-    Break: score/stages/motion/exhaust.py: `move.Set(Gf.Vec3d(*foot_at(stage, rocket, code)), code)` ->
-        `move.Set(Gf.Vec3d(*foot_at(stage, rocket, 0.0)), code)`
-    Break: score/stages/motion/exhaust.py: `if not low <= share <= high:` -> `if False:`
-    Break: score/stages/motion/exhaust.py: `if not prim or prim.GetAttribute("score:effect:kind").Get() != KIND:` ->
-        `if False:`
-    Break: score/stages/__init__.py: `"covered": exhaust.judge_covered` dropped from MOTION_JUDGES
-    A red flag on its pole on Earth (#88), its cloth's library surface made with the cloth table's `cloth` recipe: the
-    rigid make leaves it unmade, and the flag cloth (cloth.py) waves it from a run written here (Newton is not run):
-    its unmade line goes, its cloth grid pins the 21 nodes on the pole's line, its 8 pole points ride the pole and
-    its 99 cloth points the cloth, and the table's `covered` passes it waving as UsdSkel skins it, `moving area`,
-    `steps`, `follows` and `designed` passing too; a run that stands still fails `covered` by the flag's name; a flag
-    whose surface's recipe the cloth table does not hold keeps its unmade line, with why.
-    Break: score/stages/motion/cloth.py: `if off.max() < MOVED_LEAST:` -> `if False:`
-    Break: score/stages/motion/cloth.py: `for line in record["unmade"] if line.split(":", 1)[0] not in waving]` ->
-        `for line in record["unmade"]]`
-    Break: score/stages/motion/cloth.py: `if recipe in table)` -> `if recipe)`
-    Break: score/stages/motion/cloth_layer.py: `skeleton.SetInfo("apiSchemas", ...)` dropped (the skeleton plays no
-        animation: the flag stands)
-    Break: score/stages/motion/cloth_rig.py: `"pinned": index[:, 0] == 0` -> `"pinned": index[:, 0] < 0`
-    Break: score/stages/__init__.py: `motion_cloth.covering(exhaust.judge_covered)` -> `exhaust.judge_covered`"""
-    from score.stages import design_layers
-    ship = ("ship_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
-    inputs = toy_inputs(tmp_path, ROWS + [{"id": "ship", "name": "ship", "noun": "ship"}], extra=(ship,))
-    out, record = made(inputs, tmp_path)
-    kept = judge("covered", out, inputs)
-    (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[entry for entry in record["moves"]
-                                                                    if entry["name"] != "door_1"])))
-    dropped = judge("covered", out, inputs)
-    assert kept.answer == checks.PASS and kept.measures["moving kinds"] == 3, (kept.reason, kept.findings)
-    assert dropped.answer == checks.FAIL and dropped.findings == (f"/{PLACE}/Objects/door_1 (door)",), dropped.findings
-    unmade = [{"id": "rocket", "name": "launching rocket", "noun": "rocket"},
-              {"id": "turbine", "name": "wind turbine", "noun": "turbine"},
-              {"id": "screen", "name": "wall screen", "noun": "screen"}]
-    rocket = ("rocket_1", (-4.0, 10.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))  # in the sky, as the reading anchors it
-    (tmp_path / "unmade").mkdir()
-    inputs = toy_inputs(tmp_path / "unmade", ROWS + unmade, extra=(rocket,))
-    out, record = made(inputs, tmp_path / "unmade")
-    verdict = judge("covered", out, inputs)
-    launch = next(entry for entry in record["moves"] if entry["name"] == "rocket_1")
-    risen = middle_at(out, inputs, f"/{PLACE}/Objects/rocket_1", 20.0) - middle_at(out, inputs,
-                                                                                  f"/{PLACE}/Objects/rocket_1", 0.0)
-    assert launch["climb"] == {"lift": 0.0, "push": 12.485, "pull": 9.82} and not launch["loop"], launch
-    assert np.allclose(risen, [0.0, 533.0, 0.0], atol=0.01), risen
-    for name in ("speeds", "grounded", "follows", "steps"):
-        assert judge(name, out, inputs).answer == checks.PASS, (name, judge(name, out, inputs).findings)
-    assert abs(judge("speeds", out, inputs).measures["rocket_1 push"] - 12.485) < 0.01
-    assert verdict.answer == checks.FAIL, verdict.reason
-    assert [line.split(":", 2)[:2] for line in verdict.findings] == [
-        [f"/{PLACE}/Objects/rocket_1", " exhaust, its exhaust's flame and smoke under it, which no effect kind makes "
-         "yet (data/checks/effects.json measures no rocket exhaust on footage)"], ["turbine", " \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move and no written reason to stand (data/checks/row-kinds.json)"]], verdict.findings
-    assert "motion" in design_layers.kinds_of({"rows": [unmade[1]]})
-    for objects, answer in (([f"/{PLACE}/Objects/rocket_1", "turbine"], checks.PASS), (["turbine"], checks.FAIL)):
-        gapped = dict(inputs, gaps=a_gap(tmp_path / "unmade" / "gaps.json", "covered", objects))
-        assert table_judge("covered", out, gapped).answer == answer, (objects, table_judge("covered", out, gapped))
-    exhausted = dict(inputs, exhaust=REPO / "data/effects/exhaust.json",
-                     gaps=a_gap(tmp_path / "unmade" / "turbine.json", "covered", ["turbine"]))
-    short = json.loads(exhausted["exhaust"].read_text())
-    (tmp_path / "short.json").write_text(json.dumps(dict(short, flame=dict(short["flame"], length=[[3.0, 0.3]]))))
-    shutil.copytree(out, tmp_path / "short")
-    for folder, recipe in ((out, exhausted["exhaust"]), (tmp_path / "short", tmp_path / "short.json")):
-        with motion.built(exhausted) as source:
-            exhaust.write(dict(exhausted, exhaust=recipe), folder, source)
-    drawn = json.loads((out / motion.RECORD).read_text())
-    rocket_exhaust = drawn["exhaust"][f"/{PLACE}/Objects/rocket_1"]
-    assert not [line for line in drawn["unmade"] if "rocket_1" in line], drawn["unmade"]
-    assert rocket_exhaust["flame"]["length"][1] == [3.0, 2.01] and rocket_exhaust["core"]["length"] == [[3.0, 0.6]]
-    assert rocket_exhaust["puffs"] > 1, rocket_exhaust
-    passed = table_judge("covered", out, exhausted)
-    assert passed.answer == checks.PASS and passed.measures["exhausts"] == 1, (passed.reason, passed.findings)
-    shortened = table_judge("covered", tmp_path / "short", exhausted)
-    assert shortened.answer == checks.FAIL and "flame length 3 s after lift-off 0.30" in " ".join(
-        shortened.findings), shortened.findings
-    flame = f"/{PLACE}/Effects/rocket_1_exhaust/flame"
-    layer = Sdf.Layer.FindOrOpen(str(out / "layers/motion.usda"))
-    Usd.Stage.Open(layer).RemovePrim(flame)
-    layer.Save()
-    dropped = table_judge("covered", out, exhausted)
-    assert dropped.answer == checks.FAIL and dropped.findings[-1].endswith("its flame is not drawn"), dropped.findings
-    Usd.Stage.Open(layer).RemovePrim(f"/{PLACE}/Effects/rocket_1_exhaust")
-    layer.Save()
-    gone = table_judge("covered", out, exhausted)
-    assert gone.answer == checks.FAIL and gone.findings[-1].endswith("stands on the stage"), gone.findings
-    unpulled = dict(record, moves=[dict(entry, climb=dict(entry["climb"], pull=0.0)) if "climb" in entry else entry
-                                   for entry in record["moves"]])
-    (tmp_path / "unpulled").mkdir()
-    (tmp_path / "unpulled" / motion.RECORD).write_text(json.dumps(unpulled))
-    motion.write_motion(dict(inputs, moves=tmp_path / "unpulled" / motion.RECORD), tmp_path / "unpulled",
-                        inputs["seed"])
-    shutil.copy(out / "moved.json", tmp_path / "unpulled" / "moved.json")
-    assert judge("speeds", tmp_path / "unpulled", inputs).answer == checks.FAIL
-    flag = [{"id": "flag", "name": "flag", "noun": "flag"}, unmade[0]]
-    for name, sky in (("moon", a_sky("moon", 1.624)), ("heavy", a_sky("heavy", 15.0))):
-        (tmp_path / name).mkdir()
-        pad = ("rocket_1", (-4.0, 0.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
-        flagged = toy_inputs(tmp_path / name, ROWS + flag, extra=(pad, ("flag_1", (4.0, 0.0, -4.0),
-                                                                       (-0.5, 0.0, -0.05), (0.5, 1.0, 0.05))), sky=sky)
-        lifted, found = made(flagged, tmp_path / name)
-        moved = [entry["name"] for entry in found["moves"]]
-        if name == "moon":
-            assert found["still"].get(f"/{PLACE}/Objects/flag_1", "").startswith(
-                "it hangs still: no air stands on its body to wave it (Moon: 3e-13 kPa)"), found["still"]
-            assert "rocket_1" in moved and judge("grounded", lifted, flagged).answer == checks.PASS
-        else:
-            assert "rocket_1" not in moved and "does not lift it off" in found["still"][f"/{PLACE}/Objects/rocket_1"]
-    flag = f"/{PLACE}/Objects/flag_1"
-    for name, turn in (("waving", 0.5), ("standing", 0.0)):
-        (tmp_path / name).mkdir()
-        flagged = flag_inputs(tmp_path / name)
-        out, rigid, found = waved_out(flagged, tmp_path / name, a_written_run(turn))
-        verdict = table_judge("covered", out, flagged)
-        assert [line.split(":", 1)[0] for line in rigid["unmade"]] == [flag], rigid["unmade"]
-        assert found["unmade"] == [] and found["cloth"][flag]["mesh"] == f"{flag}/geo", found
-        run = found["cloth runs"][found["cloth"][flag]["run"]]
-        assert run["recipe"] == "cloth" and run["measures"]["pinned nodes"] == 21, run
-        assert run["measures"]["pole points"] == 8 and run["measures"]["cloth points"] == 99, run["measures"]
-        if name == "waving":
-            assert verdict.answer == checks.PASS and verdict.measures["waving cloth"] == 1, (verdict.reason,
-                                                                                            verdict.findings)
-            for gate in ("moving area", "steps", "follows", "designed"):
-                assert table_judge(gate, out, flagged).answer == checks.PASS, table_judge(gate, out, flagged)
-        else:
-            assert verdict.answer == checks.FAIL and verdict.findings[0].startswith(
-                f"{flag}: its cloth reaches only 0.000 m off its start"), verdict.findings
-    (tmp_path / "metal").mkdir()
-    unwoven = flag_inputs(tmp_path / "metal", recipe="metal")
-    _, _, found = waved_out(unwoven, tmp_path / "metal", a_written_run(0.5))
-    assert len(found["unmade"]) == 1 and found["unmade"][0].endswith(
-        "(no part of it has a library surface whose recipe the cloth table holds)") and not found["cloth"], found
+    return found
 
 
 
@@ -596,13 +325,6 @@ def checked_place(folder, record=RECORD):
     motion.write_motion({"kinds": REPO / "data/checks/motion.json", "seed": seed, "moves": out / motion.RECORD}, out,
                         seed)
     return seed, out
-
-
-def judged(output, seed, record, name):
-    """The named gate judged against `record` as the output's record."""
-    (pathlib.Path(output) / motion.RECORD).write_text(json.dumps(record))
-    check = next(check for check in motion.CHECKS if check.name == name)
-    return check.judge(output, {"kinds": REPO / "data/checks/motion.json", "seed": seed}, None)
 
 
 def motion_layer(output):
@@ -666,10 +388,15 @@ def objects(*names):
     return [f"/{PLACE}/Objects/{name}" for name in names]
 
 
-def gate(answer, *findings, reason=None):
-    """A gate's expected verdict: its answer, patterns each found in its findings (one per line, re.M), and a pattern
-    found in its reason."""
-    return {"answer": answer, "findings": findings, "reason": reason}
+def gate(answer, *findings, reason=None, measures=None):
+    """A gate's expected verdict: its answer, patterns each found in its findings (one per line, re.M), a pattern
+    found in its reason, and its measures ({name: value, or (value, how far off it may be)})."""
+    return {"answer": answer, "findings": findings, "reason": reason, "measures": measures or {}}
+
+
+def whole(text):
+    """A findings pattern: `text` is the gate's one finding."""
+    return r"\A" + re.escape(text) + r"\Z"
 
 
 def exactly(text):
@@ -685,6 +412,26 @@ def starting(text, then=""):
 def holding(text):
     """A pattern matching a text that holds `text`."""
     return re.compile(".*" + re.escape(text) + ".*", re.S)
+
+
+def lacking(text):
+    """A pattern matching a text that does not hold `text`."""
+    return re.compile("(?!.*" + re.escape(text) + ").*", re.S)
+
+
+def ending(text):
+    """A pattern matching a text that ends with `text`."""
+    return re.compile(".*" + re.escape(text) + r"\Z", re.S)
+
+
+def over(least):
+    """A record value's test: a number over `least`."""
+    return lambda value: value > least
+
+
+def none_naming(name):
+    """A record value's test: lines none of which names `name`."""
+    return lambda lines: not [line for line in lines if name in line]
 
 
 EVERY = "every gate"
@@ -706,15 +453,108 @@ CARRIED_BAKE_GAP = {"gaps": [{
 PLAN = {"gaps": [{"kind": "placed", "item": "crane", "row": "crane", "words": "crane: 1 in the concept, 0 on the plan"},
                  {"kind": "outside", "item": "FAN 1", "row": "fan", "words": "fan 1 sticks out of the place"}]}
 
+CRANED = ROWS + [CRANE]
+NO_CRANE = "crane: moves (swing), and no object of it stands on the stage"
+
+
+def a_crane(rises):
+    """A crane lifted `rises` off the 5 by 8 m ground east of the floor that it slews on."""
+    return ("crane_1", (9.5, rises, 0.0), (-1.0, 0.0, -0.5), (1.0, 3.0, 0.5))
+
+
+EAST = ((7.0, -0.1, -4.0), (12.0, 0.0, 4.0))
+# Every finding of `grounded` names the crane touching nothing (none at all passes too).
+UNTOUCHED = r"\A(?:crane_1: on a rail, yet it touches nothing[^\n]*(?:\n|\Z))*\Z"
+SHIP = ("ship_1", (-4.0, 0.0, 0.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+UNMADE = [{"id": "rocket", "name": "launching rocket", "noun": "rocket"},
+          {"id": "turbine", "name": "wind turbine", "noun": "turbine"},
+          {"id": "screen", "name": "wall screen", "noun": "screen"}]
+ROCKET = f"/{PLACE}/Objects/rocket_1"
+SKY_ROCKET = ("rocket_1", (-4.0, 10.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))  # in the sky, as the reading anchors it
+PAD = ("rocket_1", (-4.0, 0.0, -4.0), (-0.5, 0.0, -0.5), (0.5, 3.0, 0.5))
+POLE = ("flag_1", (4.0, 0.0, -4.0), (-0.5, 0.0, -0.05), (0.5, 1.0, 0.05))
+FLAG = f"/{PLACE}/Objects/flag_1"
+RED_FLAG = {"id": "flag", "name": "red flag", "noun": "flag"}
+# The rocket's and the turbine's `covered` lines, each to its second field (what follows a further colon is free).
+UNCOVERED = (r"\A" + re.escape(f"{ROCKET}: exhaust, its exhaust's flame and smoke under it, which no effect kind makes "
+                               "yet (data/checks/effects.json measures no rocket exhaust on footage)") + r"(?::[^\n]*)?\n"
+             + re.escape("turbine: \"wind turbine\" names a moving thing (turbine), and its kind (none) gives it no move "
+                         "and no written reason to stand (data/checks/row-kinds.json)") + r"(?::[^\n]*)?\Z")
+EXHAUSTED = {"inputs": {"exhaust": REPO / "data/effects/exhaust.json", "gaps": "gaps.json"},
+             "files": {"gaps.json": a_gap("covered", ["turbine"])}}
+WATER = f"/{PLACE}/Outside/water"
+# A waved flag's record: its unmade line gone, its cloth on its mesh from one cloth run pinning the 21 nodes on the
+# pole's line, its 8 pole points riding the pole and its 99 cloth points the cloth.
+RIGGED = [(("unmade",), []), (("cloth", FLAG, "mesh"), f"{FLAG}/geo"), (("cloth runs", "*", "recipe"), ["cloth"]),
+          (("cloth runs", "*", "measures", "pinned nodes"), [21]), (("cloth runs", "*", "measures", "pole points"), [8]),
+          (("cloth runs", "*", "measures", "cloth points"), [99])]
+
+
+def a_layer_prim_dropped(prim):
+    """An edit: `prim` taken off the output's motion layer."""
+    def drop(out, inputs, record):
+        layer = motion_layer(out)
+        Usd.Stage.Open(layer).RemovePrim(prim)
+        layer.Save()
+    return drop
+
+
+def keys_dropped(attribute):
+    """An edit: `attribute`'s keys taken off the output's motion layer."""
+    def drop(out, inputs, record):
+        layer = motion_layer(out)
+        layer.GetPrimAtPath(attribute.rsplit(".", 1)[0]).RemoveProperty(layer.GetAttributeAtPath(attribute))
+        layer.Save()
+    return drop
+
+
+def an_exhaust_drawn(out, inputs, record):
+    """An edit: the launches' exhaust drawn from the inputs' recipe into the output (exhaust.write)."""
+    with motion.built(inputs) as source:
+        exhaust.write(inputs, out, source)
+
+
+def a_short_exhaust_drawn(out, inputs, record):
+    """An edit: a copy of the output with the exhaust drawn from a recipe whose flame is 0.3 rocket heights at 3 s;
+    the copy is judged."""
+    library = json.loads(inputs["exhaust"].read_text())
+    recipe = out.parent / "short.json"
+    recipe.write_text(json.dumps(dict(library, flame=dict(library["flame"], length=[[3.0, 0.3]]))))
+    short = out.parent / "short"
+    shutil.copytree(out, short)
+    with motion.built(inputs) as source:
+        exhaust.write(dict(inputs, exhaust=recipe), short, source)
+    return short
+
+
+def the_pull_taken_off(out, inputs, record):
+    """An edit: the made record's launches written with no pull taken off, its layer written from it in a folder of
+    its own, which is judged."""
+    unpulled = dict(record, moves=[dict(entry, climb=dict(entry["climb"], pull=0.0)) if "climb" in entry else entry
+                                   for entry in record["moves"]])
+    folder = out.parent / "unpulled"
+    folder.mkdir()
+    (folder / motion.RECORD).write_text(json.dumps(unpulled))
+    motion.write_motion(dict(inputs, moves=folder / motion.RECORD), folder, inputs["seed"])
+    shutil.copy(out / "moved.json", folder / "moved.json")
+    return folder
+
+
 # Each case is one world and what it must show. The world: `toy` (toy_inputs' arguments: the design made into the
-# record and layer by motion.make), with `files` written into its folder, `inputs` pointing at them, `parted` builds
-# laid on its base layer; or `written` (the checked place's layer written from one record, judged against another,
-# an edit made to the written layer). What it shows: `record` (paths into the record, `moves` and `posed` by name, to a
-# value or a pattern; a dict is compared by its sorted keys to a list), `carried` (the output's batch gaps' names),
-# `middles` (a prim's middle at a second: near a spot, or one axis under or over a number or another middle),
-# `gates` (gate name, `table:` for the stage table's, `every gate` for each motion gate, to its verdict), `rewrites`
-# (moves added to or dropped from the record and the gates judged on it), and `reseeded` (made again with another
-# seed: the same bytes); `angles` (a swing's rule angle to the angles it is tried at, in order).
+# record and layer by motion.make, or by the stage table's make where `by table`), with `files` written into its
+# folder, `inputs` pointing at them, `boxes` drawn into its base layer or a ground file of their own, `parted` builds
+# laid on its base layer, a terrain's water sheet where `sea` (tagged or not), a flag cloth where `flag` (its recipe,
+# and a written run's swing waving it after the make); or `written` (the checked place's layer written from one
+# record, judged against another, an edit made to the written layer). What it shows: `record` (paths into the record,
+# `moves` and `posed` by name, `*` over each item, to a value, a pattern or a test; a dict is compared by its sorted
+# keys to a list), `made` (the same on the make's record before the flag waves), `output` (the same into an output
+# file), `carried` (the output's batch gaps' names), `middles` (a prim's middle at a second: near a spot, risen from
+# another second by a vector, or one axis under or over a number or another middle), `sheet` (a sheet's heights at
+# two seconds the same, or apart by more than a height), `gates` (gate name, `table:` for the stage table's, `every
+# gate` for each motion gate, to its verdict), `layers` (rows whose design has the motion row), `steps` (in order:
+# moves added to or dropped from the record, files written, inputs changed, an edit made to the output, which may
+# hand back another folder to judge; then what it shows), `reseeded` (made again with another seed: the same bytes)
+# and `angles` (a swing's rule angle to the angles it is tried at, in order).
 CASES = [
     ("a door swings on its hinge for the walker, the fan turns and the rover stands", {
         "toy": {}, "reseeded": True,
@@ -734,10 +574,11 @@ CASES = [
                    (("still", f"/{PLACE}/Objects/open_door_1"), starting("it stands open"))],
         "middles": [(f"/{PLACE}/Objects/open_door_1", 5.0, 2, "<", -0.4)],  # turned off its wall line
         "gates": {name: gate(checks.PASS) for name in ("passed", "rests", "moving area", "covered")},
-        "rewrites": [({"add": [CLOCK, dict(CLOCK, name="sliding_door_1", prim=f"/{PLACE}/Objects/sliding_door_1",
+        "steps": [({"add": [CLOCK, dict(CLOCK, name="sliding_door_1", prim=f"/{PLACE}/Objects/sliding_door_1",
                                            row="sliding_door")]},
-                      {"passed": gate(checks.FAIL, r"\A" + re.escape("door_1: off its rest from 2.0 to 12.6 s, and no walker")),
-                       "rests": gate(checks.FAIL, re.escape("sliding_door_1: its row says sliding, yet it swings"))})]}),
+                      {"gates": {
+                          "passed": gate(checks.FAIL, r"\A" + re.escape("door_1: off its rest from 2.0 to 12.6 s, and no walker")),
+                          "rests": gate(checks.FAIL, re.escape("sliding_door_1: its row says sliding, yet it swings"))}})]}),
     ("with no cast at all every door stands", {"toy": {"cast": ()}, "record": [(("moves",), ["fan_1"])]}),
     ("a door that strikes its rule's way swings the other, a sliding door slides the other way", {
         "toy": {"rows": ROWS + WORDED[1:], "extra": (POST, SLIDING_DOOR, BEHIND, PAST), "cast": (WALKER, SLIDER)},
@@ -765,8 +606,8 @@ CASES = [
                    (("still", f"/{PLACE}/Objects/hatch_1"), exactly(from_design.LYING)),
                    (("still", f"/{PLACE}/Objects/open_flat_1"), exactly(from_design.LYING_OPEN))],
         "gates": {"rests": gate(checks.PASS)},
-        "rewrites": [({"add": [LIFTED]}, {"rests": gate(checks.FAIL, r"\A" + re.escape(
-            f"/{PLACE}/Objects/open_flat_1: its row says open (\"open hatch\"), yet it stands shut or moves") + r"\Z")})]}),
+        "steps": [({"add": [LIFTED]}, {"gates": {"rests": gate(checks.FAIL, whole(
+            f"/{PLACE}/Objects/open_flat_1: its row says open (\"open hatch\"), yet it stands shut or moves"))}})]}),
     ("a parted build moves its parts: a double door's leaves, a walked hatch's lid", {
         "toy": {"rows": ROWS + [DOUBLE, LID, WALKED]},
         "parted": [("double_door_1", (3.0, 0.0, -2.0), DOUBLE, 90.0), ("open_hatch_1", (-1.0, 0.0, -1.0), LID, 0.0),
@@ -829,43 +670,169 @@ CASES = [
                                       "stage$")}}),
     ("the cart's path laid through the wall", {
         "written": (THROUGH, THROUGH, None), "gates": {"clear": gate(checks.FAIL, r"Structure/wall")}}),
+    ("a moving row with no object fails designed, unless a batch gap or a hand-in showing it from elsewhere names it", {
+        "toy": {"rows": CRANED},
+        "gates": {"designed": gate(checks.FAIL, whole(NO_CRANE)), "table:designed": gate(checks.FAIL)},
+        "steps": [({"files": {"gaps.json": a_gap("designed", ["crane"])}, "inputs": {"gaps": "gaps.json"}},
+                   {"gates": {"table:designed": gate(checks.PASS)}}),
+                  ({"files": {"handin.json": {"rows": [{"id": "crane", "shown": {"place": "square", "row": "crane"}}]}},
+                    "inputs": {"props": "handin.json"}},
+                   {"gates": {"table:designed": gate(checks.PASS, reason=holding("square's crane"))}}),
+                  ({"files": {"handin.json": {"rows": [{"id": "crane", "shown": None}]}}, "inputs": {"props": "handin.json"}},
+                   {"gates": {"table:designed": gate(checks.FAIL, reason=lacking("square's crane"))}})]}),
+    ("a crane standing on the camp's terrain slews on it", {
+        "toy": {"rows": CRANED, "extra": (a_crane(0.0),)}, "boxes": {"base": [(f"/{PLACE}/Terrain/ground", *EAST)]},
+        "record": [(("moves",), ["crane_1", "door_1", "fan_1"])],
+        "gates": {"grounded": gate(checks.PASS, UNTOUCHED)}}),
+    ("a crane lifted off the camp's terrain touches nothing", {
+        "toy": {"rows": CRANED, "extra": (a_crane(0.5),)}, "boxes": {"base": [(f"/{PLACE}/Terrain/ground", *EAST)]},
+        "record": [(("moves",), ["crane_1", "door_1", "fan_1"])],
+        "gates": {"grounded": gate(checks.FAIL, UNTOUCHED)}}),
+    ("a crane standing on the made ground slews on it", {
+        "toy": {"rows": CRANED, "extra": (a_crane(0.0),)},
+        "boxes": {f"terrain/mars/places/{PLACE}.usdc": [(f"/{PLACE}/Outside/near", *EAST)]},
+        "steps": [({"inputs": {"terrain": "terrain"}}, {"gates": {"grounded": gate(checks.PASS)}})]}),
+    ("a crane lifted off the made ground touches nothing", {
+        "toy": {"rows": CRANED, "extra": (a_crane(0.5),)},
+        "boxes": {f"terrain/mars/places/{PLACE}.usdc": [(f"/{PLACE}/Outside/near", *EAST)]},
+        "steps": [({"inputs": {"terrain": "terrain"}}, {"gates": {"grounded": gate(checks.FAIL)}})]}),
+    ("the sea its score:row names rises and falls on the library's ripple", {
+        "toy": {"rows": ROWS + [{"id": "sea", "name": "sea", "noun": "sea"}]}, "sea": True, "by table": True,
+        "output": [("ripples.json", ("ripples", "*", "prim"), [WATER]), ("ripples.json", ("ripples", "*", "row"), ["sea"]),
+                   ("ripples.json", ("ripples", "*", "waves", "*", "length"), [[39.0725, 25.0064, 9.7681]])],
+        "sheet": (WATER, f"terrain/earth/places/{PLACE}.usdc", [("same", 0.0, 20.0, 1e-6), ("apart", 0.0, 1.0, 0.05)]),
+        "gates": {"table:designed": gate(checks.PASS), "designed": gate(checks.FAIL),  # by name alone it has no object
+                  "table:covered": gate(checks.PASS, measures={"tagged moved": 1})},
+        "steps": [({"edit": keys_dropped(f"{WATER}.points")}, {"gates": {"table:covered": gate(
+            checks.FAIL, whole(f"{WATER} (sea): its ripple keys its points still (0 keys)"))}})]}),
+    ("an untagged sea has no object", {
+        "toy": {"rows": ROWS + [{"id": "sea", "name": "sea", "noun": "sea"}]}, "sea": False, "by table": True,
+        "gates": {"table:designed": gate(checks.FAIL, whole("sea: moves (ripple), and no object of it stands on the stage"))}}),
+    ("an old record's moving kind on a standing row is not asked for; the design's door taken out is", {
+        "toy": {"rows": ROWS + [{"id": "ship", "name": "ship", "noun": "ship"}], "extra": (SHIP,)},
+        "gates": {"covered": gate(checks.PASS, measures={"moving kinds": 3})},
+        "steps": [({"drop": ["door_1"]}, {"gates": {"covered": gate(checks.FAIL, whole(f"/{PLACE}/Objects/door_1 (door)"))}})]}),
+    ("a rocket climbs at its push less Earth's pull, and its exhaust, drawn or not, holds covered", {
+        "toy": {"rows": ROWS + UNMADE, "extra": (SKY_ROCKET,)},
+        "record": [(("moves", "rocket_1", "climb"), {"lift": 0.0, "push": 12.485, "pull": 9.82}),
+                   (("moves", "rocket_1", "loop"), False)],
+        "middles": [(ROCKET, 20.0, None, "risen", (0.0, (0.0, 533.0, 0.0), 0.01))],
+        "gates": {"speeds": gate(checks.PASS, measures={"rocket_1 push": (12.485, 0.01)}), "grounded": gate(checks.PASS),
+                  "follows": gate(checks.PASS), "steps": gate(checks.PASS), "covered": gate(checks.FAIL, UNCOVERED)},
+        "layers": [UNMADE[1]],
+        "steps": [({"files": {"gaps.json": a_gap("covered", [ROCKET, "turbine"])}, "inputs": {"gaps": "gaps.json"}},
+                   {"gates": {"table:covered": gate(checks.PASS)}}),
+                  ({"files": {"gaps.json": a_gap("covered", ["turbine"])}, "inputs": {"gaps": "gaps.json"}},
+                   {"gates": {"table:covered": gate(checks.FAIL)}}),
+                  (dict(EXHAUSTED, edit=a_short_exhaust_drawn), {"gates": {"table:covered": gate(
+                      checks.FAIL, re.escape("flame length 3 s after lift-off 0.30"))}}),
+                  (dict(EXHAUSTED, edit=an_exhaust_drawn), {
+                      "record": [(("unmade",), none_naming("rocket_1")),
+                                 (("exhaust", ROCKET, "flame", "length", 1), [3.0, 2.01]),
+                                 (("exhaust", ROCKET, "core", "length"), [[3.0, 0.6]]),
+                                 (("exhaust", ROCKET, "puffs"), over(1))],
+                      "gates": {"table:covered": gate(checks.PASS, measures={"exhausts": 1})}}),
+                  (dict(EXHAUSTED, edit=a_layer_prim_dropped(f"/{PLACE}/Effects/rocket_1_exhaust/flame")),
+                   {"gates": {"table:covered": gate(checks.FAIL, r"its flame is not drawn\Z")}}),
+                  (dict(EXHAUSTED, edit=a_layer_prim_dropped(f"/{PLACE}/Effects/rocket_1_exhaust")),
+                   {"gates": {"table:covered": gate(checks.FAIL, r"stands on the stage\Z")}}),
+                  ({"edit": the_pull_taken_off}, {"gates": {"speeds": gate(checks.FAIL)}})]}),
+    ("on the Moon the flag hangs still and the rocket climbs off its pad", {
+        "toy": {"rows": ROWS + [{"id": "flag", "name": "flag", "noun": "flag"}, UNMADE[0]], "extra": (PAD, POLE),
+                "sky": a_sky("moon", 1.624)},
+        "record": [(("still", FLAG), starting("it hangs still: no air stands on its body to wave it (Moon: 3e-13 kPa)")),
+                   (("moves",), ["door_1", "fan_1", "rocket_1"])],
+        "gates": {"grounded": gate(checks.PASS)}}),
+    ("under a heavy pull the rocket stands on its pad", {
+        "toy": {"rows": ROWS + [{"id": "flag", "name": "flag", "noun": "flag"}, UNMADE[0]], "extra": (PAD, POLE),
+                "sky": a_sky("heavy", 15.0)},
+        "record": [(("still", ROCKET), holding("does not lift it off")), (("moves",), ["door_1", "fan_1"])]}),
+    ("a red flag's cloth waves on its pole", {
+        "toy": {"rows": ROWS + [RED_FLAG]}, "flag": ("cloth", 0.5),
+        "made": [(("unmade",), [starting(f"{FLAG}:")])],
+        "record": RIGGED,
+        "gates": {"table:covered": gate(checks.PASS, measures={"waving cloth": 1}), **{
+            f"table:{name}": gate(checks.PASS) for name in ("moving area", "steps", "follows", "designed")}}}),
+    ("a red flag whose run stands still fails covered", {
+        "toy": {"rows": ROWS + [RED_FLAG]}, "flag": ("cloth", 0.0),
+        "made": [(("unmade",), [starting(f"{FLAG}:")])],
+        "record": RIGGED,
+        "gates": {"table:covered": gate(checks.FAIL, r"\A" + re.escape(f"{FLAG}: its cloth reaches only 0.000 m off its start"))}}),
+    ("a flag whose surface no cloth recipe makes keeps its unmade line", {
+        "toy": {"rows": ROWS + [RED_FLAG]}, "flag": ("metal", 0.5),
+        "record": [(("unmade",), [ending("(no part of it has a library surface whose recipe the cloth table holds)")]),
+                   (("cloth",), {})]}),
 ]
 
 
+def boxes_drawn(folder, inputs, boxes):
+    """Boxes ({file: [(prim, low, high)]}) drawn into the seed's base layer (`base`) or a new stage file of their own."""
+    for name, drawn in boxes.items():
+        target = inputs["seed"] / "layers/base.usda" if name == "base" else folder / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        stage = Usd.Stage.Open(str(target)) if name == "base" else Usd.Stage.CreateNew(str(target))
+        for prim, low, high in drawn:
+            box(stage, prim, low, high)
+        stage.GetRootLayer().Save()
+
+
 def world(folder, case):
-    """The case's world made: (its output, its inputs, its record)."""
+    """The case's world made: (its output, its inputs, its record, the make's record before any flag waves)."""
     if "written" in case:
         laid, against, edit = case["written"]
         seed, out = checked_place(folder, laid)
         if edit:
             edit(out)
         (out / motion.RECORD).write_text(json.dumps(against))
-        return out, {"kinds": REPO / "data/checks/motion.json", "seed": seed}, against
+        return out, {"kinds": REPO / "data/checks/motion.json", "seed": seed}, against, against
     inputs = toy_inputs(folder, **case["toy"])
-    for name, spec in case.get("files", {}).items():
-        (folder / name).parent.mkdir(parents=True, exist_ok=True)
-        (folder / name).write_text(json.dumps(spec))
-    inputs.update({key: folder / name for key, name in case.get("inputs", {}).items()})
+    written(folder, inputs, case)
+    boxes_drawn(folder, inputs, case.get("boxes", {}))
+    if "sea" in case:
+        inputs = a_sea(folder, inputs, case["sea"])
+    if "flag" in case:
+        inputs = flag_inputs(folder, inputs, case["flag"][0])
     for name, at, row, turn in case.get("parted", ()):
         parted(folder, name, at, row, turn)
-    out, record = made(inputs, folder)
-    return out, inputs, record
+    out, record = made(inputs, folder, case.get("by table", False))
+    if "flag" in case:
+        return out, inputs, waved(inputs, out, record, a_written_run(case["flag"][1])), record
+    return out, inputs, record, record
 
 
-def dug(record, path):
-    """The record's value at `path`, its moves and posed read by name."""
-    value = dict(record, moves={entry["name"]: entry for entry in record["moves"]},
-                 posed=[entry["name"] for entry in record.get("posed", [])])
-    for key in path:
+def written(folder, inputs, change):
+    """The change's `files` written into the world's folder and `inputs` pointed at them (a path given whole is kept)."""
+    for name, spec in change.get("files", {}).items():
+        (folder / name).parent.mkdir(parents=True, exist_ok=True)
+        (folder / name).write_text(json.dumps(spec))
+    inputs.update({key: name if isinstance(name, pathlib.Path) else folder / name
+                   for key, name in change.get("inputs", {}).items()})
+    return inputs
+
+
+def walked(value, path):
+    """The value at `path` into `value`, `*` mapping the rest of the path over each item (a dict's values)."""
+    for at, key in enumerate(path):
+        if key == "*":
+            items = value.values() if isinstance(value, dict) else value
+            return [walked(item, path[at + 1:]) for item in items]
         value = value[key]
     return value
 
 
+def dug(record, path):
+    """The record's value at `path`, its moves and posed read by name."""
+    return walked(dict(record, moves={entry["name"]: entry for entry in record["moves"]},
+                       posed=[entry["name"] for entry in record.get("posed", [])]), path)
+
+
 def matches(value, expected):
-    """Whether `value` is `expected`: a pattern matched whole, a list item by item, a dict to a list by its sorted
-    keys, else equal."""
+    """Whether `value` is `expected`: a pattern matched whole, a test passed, a list item by item, a dict to a list by
+    its sorted keys, else equal."""
     if isinstance(expected, re.Pattern):
         return isinstance(value, str) and expected.fullmatch(value) is not None
+    if callable(expected):
+        return expected(value)
     if isinstance(expected, list) and isinstance(value, dict):
         return sorted(value) == expected
     if isinstance(expected, list) and any(isinstance(item, re.Pattern) for item in expected):
@@ -890,10 +857,19 @@ def gate_faults(out, inputs, expected):
         want = expected.get(name, expected.get(EVERY))
         joined = "\n".join(verdict.findings)
         unmatched = [pattern for pattern in want["findings"] if not re.search(pattern, joined, re.M)]
-        if verdict.answer != want["answer"] or unmatched or (
+        measured = {key: verdict.measures.get(key) for key, value in want["measures"].items()
+                    if not measured_as(verdict.measures.get(key), value)}
+        if verdict.answer != want["answer"] or unmatched or measured or (
                 want["reason"] and not want["reason"].fullmatch(verdict.reason)):
-            faults[name] = (verdict.answer, verdict.reason, verdict.findings, unmatched)
+            faults[name] = (verdict.answer, verdict.reason, verdict.findings, unmatched, measured)
     return faults
+
+
+def measured_as(value, expected):
+    """Whether a gate's measure is the expected one: equal, or within its (value, how far off) span."""
+    if isinstance(expected, tuple):
+        return value is not None and abs(value - expected[0]) < expected[1]
+    return value == expected
 
 
 def middle_faults(out, inputs, expected):
@@ -903,6 +879,8 @@ def middle_faults(out, inputs, expected):
         middle = middle_at(out, inputs, prim, second)
         if how == "near":
             right = np.allclose(middle, reference[0], atol=reference[1])
+        elif how == "risen":
+            right = np.allclose(middle - middle_at(out, inputs, prim, reference[0]), reference[1], atol=reference[2])
         else:
             bound = (middle_at(out, inputs, reference[0], reference[1])[axis] + reference[2]
                      if isinstance(reference, tuple) else reference)
@@ -912,11 +890,133 @@ def middle_faults(out, inputs, expected):
     return faults
 
 
+def sheet_faults(out, folder, expected):
+    """The sheet's pairs of seconds whose heights are not as the case says: the same within a span, or apart by more
+    than a height somewhere."""
+    if not expected:
+        return []
+    prim, ground, pairs = expected
+    faults = []
+    for how, first, second, size in pairs:
+        heights = [sheet_heights(out, folder / ground, prim, at) for at in (first, second)]
+        right = (np.allclose(*heights, atol=size) if how == "same" else
+                 np.abs(heights[1] - heights[0]).max() > size)
+        if not right:
+            faults.append((how, first, second, size, heights))
+    return faults
+
+
+def shown_faults(out, inputs, folder, made_record, expected):
+    """What the output shows that the case's `expected` (record, made, output, carried, middles, sheet, gates) does
+    not: each part's misses, empty when it all holds."""
+    record = json.loads((out / motion.RECORD).read_text())
+    found = {
+        "record": [(path, dug(record, path)) for path, want in expected.get("record", ())
+                   if not matches(dug(record, path), want)],
+        "made": [(path, dug(made_record, path)) for path, want in expected.get("made", ())
+                 if not matches(dug(made_record, path), want)],
+        "output": [(name, path, walked(json.loads((out / name).read_text()), path))
+                   for name, path, want in expected.get("output", ())
+                   if not matches(walked(json.loads((out / name).read_text()), path), want)],
+        "carried": ([entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
+                    if "carried" in expected else None),
+        "middles": middle_faults(out, inputs, expected.get("middles", ())),
+        "sheet": sheet_faults(out, folder, expected.get("sheet")),
+        "gates": gate_faults(out, inputs, expected.get("gates", {}))}
+    if found["carried"] == expected.get("carried"):
+        del found["carried"]
+    return {part: misses for part, misses in found.items() if misses}
+
+
 @pytest.mark.parametrize("case", [case for _, case in CASES], ids=[name for name, _ in CASES])
 def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
     """Each world is made through motion.make from its design (or, for the motion check, check.py #23, its layer written
     from a record on the checked place), then its record, carried gaps, middles and gates are held to the case; a record
     rewritten with a known fault fails its gate by name. The bake is not run: its door is written here (a_baked_door).
+    A crane row moves and no object of it stands on the stage: `designed` fails naming it. Standing on a camp's
+    terrain (the place's Terrain scope, no thing under it: motion@campgrounds, 2026-11-08), the crane slewing about its
+    middle is mounted on that ground and `grounded` passes it; lifted 0.5 m off it, it fails touching nothing.
+    A recorded gap of the crane (data/checks/gaps, the env1 plan's C6: a #88 maker not built) moves `designed`'s fault.
+    Break: score/stages/motion/__init__.py: `faults += list(record.get("missing", []))` -> `pass`
+    Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` in GAP_GATES dropped, and BATCH_GATES'
+        `"motion": ("designed",)` -> `"motion": ()` (the gap moves nothing)
+    Break: score/stages/motion/__init__.py: `found = rail_faults(entry, shape, surfaces["ground"], others, rate,
+        seconds)` -> `found = rail_faults(entry, shape, stills, others, rate, seconds)`
+    The camp's ground is the terrain row's made ground, its own layer (places/camp.usdc under /<place>/Outside), not
+    in the place's stage (motion@campgrounds, 2026-11-10): standing on it the crane passes, lifted off it it fails.
+    Break: score/stages/motion/__init__.py: `*space.made_ground_meshes(inputs.get("terrain"), place), ` -> ``
+    A crane the hand-in marks shown from another place (motion@street, 2026-11-10: its distant flags and rocket are
+    the square's) is that place's to move, so `designed` passes it here naming where; one marked shown from no place
+    still fails.
+    Break: score/stages/motion/shown_rows.py: `if row_of(line) not in shown` -> `if True`
+    The sea (motion@square, 2026-11-10): the terrain lays it as one water sheet, /<place>/Outside/water, that only its
+    score:row names; the table's make finds it by that tag on the build with the made ground and keys the library's
+    ripple into its points (deep-water waves of 5, 4 and 2.5 s: 39.07, 25.0 and 9.77 m long on the Earth's 9.82
+    m/s/s), so `designed` and `covered` pass, the sheet rises and falls and stands at the round's end as it started;
+    motion's own make, which finds objects by name alone, leaves the sea missing. Untagged it fails `designed`; with
+    its ripple's keys gone it fails `covered`.
+    Break: score/stages/motion/tagged_rows.py: `if tag and tag.HasAuthoredValue() and tag.Get() == row:` -> `if False:`
+    Break: score/stages/motion/water_rows.py: `ripple.write(layer, path, ripple.keyed(...), why)` -> `pass`
+    Break: score/stages/motion/ripple.py: `number = omega * omega / float(gravity)` -> `number = omega / float(gravity)`
+    A ship named as an old record's moving kind, on a craft row that stands with its written reason, is not asked
+    for (3 moving kinds: door, fan, rover); the design's door taken out of the record (neither moved nor standing with
+    a reason) fails by name. Fault (the audit of 2026-11-04): a row no kind moves was invisible to every gate (the
+    launching rocket, flags, a body of water, 102 screens). A launching rocket in the sky over Earth climbs straight
+    up at the middle of its kind's cited push, (11.13 + 13.84) / 2 = 12.485 m/s/s, less Earth's 9.82: 2.665 m/s/s,
+    so 0.5 * 2.665 * 20^2 = 533 m risen in the 20 s round, and `speeds`, `grounded` and the check pass it; its
+    exhaust (no effect kind makes it) and a wind turbine (a moving word no kind moves) each fail `covered` by name,
+    and a design holding only the turbine has the motion row, so the fault is judged; a screen is not among them, its
+    picture the screens stage's (data/checks/screens.json `read_by` over row-kinds.json's null, #88). A launch written with no pull taken off climbs at the whole 12.485 m/s/s, which with Earth's pull is a
+    push of 22.3, over the kind's: `speeds` fails it. On the Moon (3e-13 kPa of air, the reference table's) the flag hangs still with its reason and the
+    rocket (12.485 over 1.624) climbs off its pad on the floor, `grounded` reading it once it has risen half a metre; under a body pulling 15 m/s/s it stands, its push not lifting it.
+    Break: score/stages/motion/__init__.py: `if path not in moved and path not in still and path.rsplit("/", 1)[-1] not
+        in still]` -> `if False]`
+    Break: score/stages/motion/from_design.py: `unmade.append(f"{path}: {rule['move']}, which no writer makes:
+        {rule['why']}")` -> `still[path] = rule["why"]`
+    Break: score/stages/row_kinds.py: `if heard and not done & {"moves", "loose"} and not (kind and
+        kinds[kind].get("stands")):` -> `if False:`
+    Break: score/stages/design_layers.py: `return found | {"motion"} if row_kinds.uncovered(inventory, kinds) else
+        found` -> `return found`
+    Break: score/stages/motion/__init__.py: in coverage, `**read_json(inputs["screens"])["read_by"]` dropped (the
+        screen fails `covered` again)
+    Break: score/stages/motion/from_design.py: `"climb": {"lift": 0.0, "push": round(push, 4), "pull":
+        float(body["gravity"])},` -> `"climb": {"lift": 0.0, "push": round(push, 4), "pull": 0.0},`
+    Break: score/stages/motion/__init__.py: `push = 2.0 * risen / (seconds - lift) ** 2 + float(body["gravity"])` ->
+        `push = 2.0 * risen / (seconds - lift) ** 2 + float(entry["climb"]["pull"])`
+    Break: score/stages/motion/from_design.py: `return [f"{path}: exhaust, {rule['exhaust']}"] if rule.get("exhaust")
+        else []` -> `return []`
+    Break: score/stages/motion/from_design.py: `elif rule.get("airless") and airless(body):` -> `elif False:`
+    A recorded gap naming the exhaust's rocket and the turbine moves `covered`'s faults; one naming the turbine alone
+    leaves the rocket's fault failing it.
+    Break: score/stages/__init__.py: `"motion": ("designed", "covered"),` -> `"motion": ("designed",),`
+    Break: score/stages/motion/__init__.py: `for moment in np.arange(np.ceil(climbed_from(entry)), seconds + 1e-9,
+        1.0):` ->
+        `for moment in np.arange(0.0, seconds + 1e-9, 1.0):`
+    The library's exhaust (data/effects/exhaust.json, motion@square 2026-11-12) drawn for the launch takes its line
+    off `unmade`: its flame 0.67 rocket heights at 3 s (2.01 m under the 3 m rocket), its core 0.2 (0.6 m), its smoke
+    column of puffs, its flame held under the climbing rocket's foot, so `covered` passes with only the turbine's gap;
+    one drawn at 0.3 rocket heights (under the footage's 0.45), its flame taken off the layer and the whole exhaust
+    taken off each fail it by name.
+    Break: score/stages/motion/exhaust.py: `move.Set(Gf.Vec3d(*foot_at(stage, rocket, code)), code)` ->
+        `move.Set(Gf.Vec3d(*foot_at(stage, rocket, 0.0)), code)`
+    Break: score/stages/motion/exhaust.py: `if not low <= share <= high:` -> `if False:`
+    Break: score/stages/motion/exhaust.py: `if not prim or prim.GetAttribute("score:effect:kind").Get() != KIND:` ->
+        `if False:`
+    Break: score/stages/__init__.py: `"covered": exhaust.judge_covered` dropped from MOTION_JUDGES
+    A red flag on its pole on Earth (#88), its cloth's library surface made with the cloth table's `cloth` recipe: the
+    rigid make leaves it unmade, and the flag cloth (cloth.py) waves it from a run written here (Newton is not run):
+    its unmade line goes, its cloth grid pins the 21 nodes on the pole's line, its 8 pole points ride the pole and
+    its 99 cloth points the cloth, and the table's `covered` passes it waving as UsdSkel skins it, `moving area`,
+    `steps`, `follows` and `designed` passing too; a run that stands still fails `covered` by the flag's name; a flag
+    whose surface's recipe the cloth table does not hold keeps its unmade line, with why.
+    Break: score/stages/motion/cloth.py: `if off.max() < MOVED_LEAST:` -> `if False:`
+    Break: score/stages/motion/cloth.py: `for line in record["unmade"] if line.split(":", 1)[0] not in waving]` ->
+        `for line in record["unmade"]]`
+    Break: score/stages/motion/cloth.py: `if recipe in table)` -> `if recipe)`
+    Break: score/stages/motion/cloth_layer.py: `skeleton.SetInfo("apiSchemas", ...)` dropped (the skeleton plays no
+        animation: the flag stands)
+    Break: score/stages/motion/cloth_rig.py: `"pinned": index[:, 0] == 0` -> `"pinned": index[:, 0] < 0`
+    Break: score/stages/__init__.py: `motion_cloth.covering(exhaust.judge_covered)` -> `exhaust.judge_covered`
     Break: score/stages/motion/from_design.py: `turns = max(1, round(middle_speed(motion_kind, "angular") * ROUND /
         360.0))` -> `turns = middle_speed(motion_kind, "angular") * ROUND / 360.0`
     Break: score/stages/motion/from_design.py: `opens = max(free, enter - travel)` -> `opens = max(free, enter)`
@@ -975,22 +1075,21 @@ def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
         {where[1] / rate:.2f} s"))` -> `pass`"""
     import score.stages.assembly.baked as baked
     from score import stages
+    from score.stages import design_layers
     monkeypatch.setattr(baked, "take_bake", a_baked_door)
-    out, inputs, record = world(tmp_path, case)
-    wrong = [(path, dug(record, path)) for path, expected in case.get("record", ()) if not matches(dug(record, path),
-                                                                                                   expected)]
-    assert wrong == [], wrong
+    out, inputs, record, made_record = world(tmp_path, case)
+    assert shown_faults(out, inputs, tmp_path, made_record, case) == {}
     if "angles" in case:
         assert motion.swing_angles(case["angles"][0]) == case["angles"][1], motion.swing_angles(case["angles"][0])
-    if "carried" in case:
-        carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
-        assert carried == case["carried"], carried
-    assert middle_faults(out, inputs, case.get("middles", ())) == []
-    assert gate_faults(out, inputs, case.get("gates", {})) == {}
-    for change, expected in case.get("rewrites", ()):
-        moves = [entry for entry in record["moves"] if entry["name"] not in change.get("drop", ())]
-        (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*moves, *change.get("add", ())])))
-        assert gate_faults(out, inputs, expected) == {}, change
+    for rows in case.get("layers", ()):
+        assert "motion" in design_layers.kinds_of({"rows": [rows]}), rows
+    for change, expected in case.get("steps", ()):
+        if "add" in change or "drop" in change:
+            moves = [entry for entry in record["moves"] if entry["name"] not in change.get("drop", ())]
+            (out / motion.RECORD).write_text(json.dumps(dict(record, moves=[*moves, *change.get("add", ())])))
+        stepped = written(tmp_path, dict(inputs), change)
+        judged = change["edit"](out, stepped, record) if "edit" in change else None
+        assert shown_faults(judged or out, stepped, tmp_path, made_record, expected) == {}, change
     if case.get("reseeded"):
         again = tmp_path / "again"
         again.mkdir()
