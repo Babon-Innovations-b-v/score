@@ -57,7 +57,7 @@ def make(inputs, out, seed, params):
     on_ground.stood(out, assembly.stage_file(out).stem)
     floor_down.let_down(out, assembly.stage_file(out).stem)
     railings_held.laid(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))  # held, off the walls
-    tops_levelled.laid(out, assembly.stage_file(out).stem)
+    tops_levelled.laid(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))  # a roof piece left
     roof_tops.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
     face_down.let_down(out, assembly.stage_file(out).stem, inventory_rows(inputs, out))
     release()

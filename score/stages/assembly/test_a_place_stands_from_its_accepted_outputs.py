@@ -1467,6 +1467,10 @@ LET_DOWN = [
     {"case": "wreck's hatch at a lying hull's box top, 0.6 m off its crest", "made": (a_topped_place, {}),
      "lays": tops_levelled.laid, "said": ("name",), "fits": [("hatch_1",)], "lows": {"hatch_1": 2.0},
      "within": 0.01, "middle": {"hatch_1": ((None, 0.0), 0.15)}, "laid": ("hatch_1", None, 1e-3)},
+    {"case": "base's roof piece over the hall left unslid by the tops' laying", "made": (a_roofed_place, {}),
+     "lays": tops_levelled.laid, "rows": ROOF_ROWS, "said": ("name",), "fits": [], "lows": {"roof_1": 1.7}},
+    {"case": "that slab, its row an object, laid by the tops' laying", "made": (a_roofed_place, {}),
+     "lays": tops_levelled.laid, "rows": ROOF_OBJECT, "said": ("name",), "fits": [("roof_1",)]},
     {"case": "base's roof opening 0.5 m over the hall it spans", "made": (a_roofed_place, {}),
      "lays": roof_tops.let_down, "rows": ROOF_ROWS, "said": ("name", "moved", "top at"),
      "fits": [("roof_1", 0.495, 1.205)], "lows": {"roof_1": 1.205}, "from": {"roof_1": (-1.5, -0.5)},
@@ -3635,10 +3639,13 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         `faced_standing(record)`
     Break: score/stages/assembly/face_down.py: tip_drop's `<= 0.0:` -> `<= np.inf:` (the tipping wrench
         left), or downs' `elif gap <= on_ground.TOLERANCE:` -> `elif False:` (caught on quarters' laid seed)
-    Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`, or
-        `railings_held.laid(folder, seed.name, inventory_rows(inputs))` -> `pass`
+    Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name, inventory_rows(inputs))` ->
+        `pass`, or `railings_held.laid(folder, seed.name, inventory_rows(inputs))` -> `pass`
     Break: score/stages/assembly/tops_levelled.py: `fits = crest_tops.laid_on(stage, place, entries)` -> `fits = []`,
         or `layer.Save()` -> `pass`
+    Break: score/stages/assembly/tops_levelled.py: `and entry["row"] not in roofed]` -> `]` (base's roof piece slid
+        across its hall's top for a spot its weight rests on), or `and entry["row"] not in roofed]` -> `and not
+        rows]` (the slab whose row is an object left too)
     Break: score/stages/assembly/grounded.py: `level_spot.slid(folder, seed.name)` -> `pass`
     Break: score/stages/assembly/level_spot.py: spot's `if level(low + shift, high + shift, ground):` -> `if True:`
         (slid 2 cm, still on the dent's side), or `or level(low, high, ground):` -> `` (the crate on flat ground slid

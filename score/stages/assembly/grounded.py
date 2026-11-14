@@ -50,7 +50,7 @@ def grounded_seed(inputs, folder):
     on_ground.stood(folder, seed.name)  # on its made ground, as the assembly's make stands them (wired.make)
     floor_down.let_down(folder, seed.name)  # a floor thing laid past what the settle lets down onto what is under it
     railings_held.laid(folder, seed.name, inventory_rows(inputs))  # a railing to its row's height, off the walls
-    tops_levelled.laid(folder, seed.name)  # a thing on its holder's curved top laid again on its levelled model
+    tops_levelled.laid(folder, seed.name, inventory_rows(inputs))  # on its holder's curved top, its levelled model
     roof_tops.let_down(folder, seed.name, inventory_rows(inputs))  # a roof piece onto the holder it roofs
     # a face thing of a row its inventory leaves standing onto what is under it, as wired.make (tube's wall lamps on
     # its ribs are mounted, so left)

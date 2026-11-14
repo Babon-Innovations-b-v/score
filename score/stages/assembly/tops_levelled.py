@@ -7,27 +7,35 @@ its crest 4.4 m up), was left at the hull's box top, 5.16 m, and floated 1.74 m 
 fitting the hatch's own model had a foot 5 cm off (no spot on the crest passed the triage's measure); even_feet then
 brought that foot down, and on the levelled model the crest holds it.
 
-    laid(folder, place)   each thing of the place at `folder` on its holders' top or within them (built_tops.held_on)
-                          that does not rest where it is laid on the nearest spot of their top where it rests
-                          (crest_tops.laid_on); the fits, the base layer saved and laid.json written again, [] and
-                          nothing written when none moves
+A roof piece (roof_tops.roofs, by the inventory `rows`) is part of its holder's roof, never a loose thing resting on
+its own weight: it is left here, and roof_tops.let_down lets it straight down onto what it roofs. assembly@base,
+2026-11-14: its glass pyramid roof, at the central hub's box top over the hub's domed top, was slid 1.12 m across it
+by fine_tops to a spot where its weight rested, 0.06 m past the hub's side, and the held gate named it twice.
+
+    laid(folder, place, rows)   each thing of the place at `folder` on its holders' top or within them
+                          (built_tops.held_on), but a roof piece of the inventory `rows`, that does not rest where it
+                          is laid on the nearest spot of their top where it rests (crest_tops.laid_on); the fits, the
+                          base layer saved and laid.json written again, [] and nothing written when none moves
 """
 import json
 import pathlib
 
 from score.stages.assembly import (BASE_LAYER, RECORD, built_tops, crest_tops, fine_tops, fitting, flush_tops,
-                                   made_waiting)
+                                   made_waiting, roof_tops)
 
 
-def laid(folder, place):
-    """Each thing of the place at `folder` on its holders' top laid again where it rests (module docstring)."""
+def laid(folder, place, rows=None):
+    """Each thing of the place at `folder` on its holders' top, but a roof piece of the inventory `rows`, laid again
+    where it rests (module docstring)."""
     from pxr import Sdf, Usd
     folder = pathlib.Path(folder)
     laid_path, record_path = folder / made_waiting.LAID, folder / RECORD
     if not laid_path.exists() or not record_path.exists():
         return []
     record = json.loads(record_path.read_text())
-    entries = [entry for entry in record.get("objects") or [] if built_tops.held_on(entry)]
+    roofed = roof_tops.roofs(rows, record)  # let straight down onto what it roofs (roof_tops), never slid
+    entries = [entry for entry in record.get("objects") or []
+               if built_tops.held_on(entry) and entry["row"] not in roofed]
     if not entries:
         return []
     stage = Usd.Stage.Open(str(folder / f"{place}.usda"))
