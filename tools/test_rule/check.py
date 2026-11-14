@@ -94,7 +94,7 @@ MAY_SKIP = {
 # functions) at their count that day; only ever shrinks.
 FUNCTION_DEBT_DATE = "2026-11-01"
 FUNCTION_DEBT = {
-    "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 7,
+    "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 4,
     "score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py": 2,
     "score/stages/sim_body/inside/calibration/test_the_calibration_lays_each_bone_along_its_segment.py": 8,
     "score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py": 5,
