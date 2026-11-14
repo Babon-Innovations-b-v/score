@@ -33,8 +33,9 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import (baked, fitting, made_waiting, neighbours, record,  # noqa: E402
-                                     scene_tree, sounds)
+from score.stages.assembly import (baked, face_down, fitting, floor_down, level_spot, made_waiting,  # noqa: E402
+                                     neighbours, on_ground, record, roof_tops, scene_tree, sounds,
+                                     tops_levelled)
 
 TOY = "toy"
 PLACE = "wreck"  # a place the environment knows (export lays its ground); its layout and inventory here are the test's
@@ -486,6 +487,85 @@ OFF = [  # (case, a laid box's low and high, its relation, its holder's box, how
     ("a box within its shelf unit laid on its top", [0.3, 2.0, 0.1], [0.7, 2.404, 0.5], {}, UNIT, 0.0, 0.0, False),
     ("a box through its shelf unit's top, its foot 0.2 m in", [0.3, 1.8, 0.1], [0.7, 2.204, 0.5], {}, UNIT, 0.2, 1e-9,
      False)]
+CONSOLE = ((0.0, 0.0, 0.0), (3.0, 1.0, 0.8))
+NARROW_CONSOLE = ((0.0, 0.0, 0.0), (0.4, 1.0, 0.8))
+CONSOLE_TOP = {"how": "top", "holder": ["console_1"]}
+WITHIN_SHELF = {"how": "within", "holder": ["shelf_1"]}
+# engineroom (2026-11-08): a shelf unit 1 x 2 x 0.5 m (UNIT), its 2 cm boards 0.4 m apart (tops at 0.02, 0.42 ... 1.62)
+# and its top at 2.0; galley (2026-11-08) the same with an upright 4 cm divider at its middle
+BOARDS = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.4 * level, 0.0), (1.0, 0.4 * level + 0.02, 0.5)])
+                                   for level in range(5)]
+                                  + [trimesh.creation.box(bounds=[(0.0, 1.98, 0.0), (1.0, 2.0, 0.5)])])
+DIVIDED = trimesh.util.concatenate([BOARDS, trimesh.creation.box(bounds=[(0.48, 0.0, 0.0), (0.52, 1.98, 0.5)])])
+BOARD_BOX = ((0.35, 0.7, 0.1), (0.65, 1.0, 0.4))  # a 0.3 m box laid at 0.7, through the board at 0.8
+BOARD_FIRST = ((0.35, 0.82, 0.1), (0.65, 1.12, 0.4))  # it laid on the board at 0.82
+BOARD_SECOND = ((0.35, 0.42, 0.1), (0.65, 0.72, 0.4))  # it laid on the board at 0.42
+# garage (2026-11-11): a unit 1 x 0.42 x 0.5 m (its board's top at 0.02, its top at 0.42) whose own 0.25 m blocks fill
+# its board but for x 0.49 to 0.82, a stretch the slide's 0.31 m steps from the box's spot step over
+PACKED = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
+    [(0.0, 0.0, 0.0), (1.0, 0.02, 0.5)], [(0.0, 0.40, 0.0), (1.0, 0.42, 0.5)],
+    [(0.0, 0.02, 0.0), (0.49, 0.27, 0.5)], [(0.82, 0.02, 0.0), (1.0, 0.27, 0.5)])])
+LOW_UNIT = ((0.0, 0.0, 0.0), (1.0, 0.42, 0.5))
+# galley (settle@galley, 2026-11-11): corner shelves (in UNIT's box) whose boards fill 0.6 m of it, a 3 cm strut at 1 m
+CORNER = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, level, 0.0), (0.6, level + 0.02, 0.5)])
+                                   for level in (0.6, 1.6, 1.98)]
+                                  + [trimesh.creation.box(bounds=[(0.81, 0.98, 0.0), (0.84, 1.0, 0.5)])])
+# garage (settle@garage, 2026-11-10): 14 boxes within three shelf units all went to the nearest, 12 piled at two spots
+# of it. Units 0.4 x 0.5 x 0.5 m with one board (top at 0.02) and their top at 0.5, the far one at x 1 to 1.4.
+ONE_BOARD = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (0.4, 0.02, 0.5)]),
+                                      trimesh.creation.box(bounds=[(0.0, 0.48, 0.0), (0.4, 0.5, 0.5)])])
+SHELF_HELD = [("unit_far", (np.array([1.0, 0.0, 0.0]), np.array([1.4, 0.5, 0.5]))),
+              ("unit_near", (np.array([0.0, 0.0, 0.0]), np.array([0.4, 0.5, 0.5])))]
+SHELF_SURFACES = {"unit_near": ONE_BOARD, "unit_far": ONE_BOARD.copy().apply_translation((1.0, 0.0, 0.0))}
+SHELF_BOX = ((0.025, 0.1, 0.05), (0.375, 0.4, 0.45))
+NEAR_FULL = [((0.025, 0.02, 0.05), (0.375, 0.32, 0.45)), ((0.025, 0.5, 0.05), (0.375, 0.8, 0.45))]
+FAR_FULL = [((low[0] + 1.0, *low[1:]), (high[0] + 1.0, *high[1:])) for low, high in NEAR_FULL]
+BOTH_STACKED = {name: [*boxes, ((boxes[1][0][0], 0.8, boxes[1][0][2]), (boxes[1][1][0], 1.1, boxes[1][1][2]))]
+                for name, boxes in (("unit_near", NEAR_FULL), ("unit_far", FAR_FULL))}
+SHELVED = [  # (case, a laid box, the boxes taken on each unit, the unit it goes to (None: crowded), its foot's middle)
+    ("a 0.3 m box goes on the nearest unit's board", SHELF_BOX, {}, "unit_near", (0.2, 0.02, 0.25)),
+    ("its board and top taken, onto the next unit's board, at its near end", SHELF_BOX, {"unit_near": NEAR_FULL},
+     "unit_far", (1.175, 0.02, 0.25)),
+    ("both units full, stacked on the box on the nearest unit's top (garage's three units hold 7 of its 14, "
+     "2026-11-11)", SHELF_BOX, {"unit_near": NEAR_FULL, "unit_far": FAR_FULL}, "unit_near", (0.2, 0.8, 0.25)),
+    ("a box stacked on each top too, crowded, never piled at its target", SHELF_BOX, BOTH_STACKED, None,
+     fitting.CROWDED),
+    ("camp (settle@camp, 2026-11-12): a flat tray (0.35 x 0.172 x 0.4 m: its height at most piled.FLAT of its narrower "
+     "side), every board, top and stacking spot taken, piles on the stacked box of the nearest unit",
+     ((0.025, 0.1, 0.05), (0.375, 0.272, 0.45)), BOTH_STACKED, "unit_near", (0.2, 1.1, 0.25)),
+]
+SHELVES_OF = [  # (case, a thing's relation, whether it is on its holder's shelves: laid on its boards)
+    ("a jar on the shelves of its shelf", {"how": "within", "why": "on the shelves of shelf: its reading says 'on "
+                                                                   "shelves'"}, True),
+    ("galley's sink in its counter, laid as the plan draws it", {"how": "within", "why": "within kitchen_counter: the "
+                                                                                         "plan lays it inside"}, False),
+]
+THIN = (np.array([0.0, 0.0, 0.0]), np.array([0.17, 0.013, 0.05]))  # quarters' 1.3 cm wrench (settle@quarters, 11-13)
+MEETS = [  # (case, a box's low and high, the boxes it may meet, whether it meets one: reaches past a quarter of the
+    # thinner one's size along a way where that is under BOARD_CLEAR)
+    ("a wrench let down 9 mm into the other", (0.0, 0.004, 0.04), (0.17, 0.017, 0.09), [THIN], True),
+    ("a book's corner 5 mm into it", (0.13, 0.008, 0.03), (0.29, 0.05, 0.23), [THIN], True),
+    ("a wrench on its top", (0.0, 0.013, 0.0), (0.17, 0.026, 0.05), [THIN], False),
+    ("0.2 m boxes 9 mm into each other", (0.0, 0.191, 0.0), (0.2, 0.39, 0.2),
+     [(np.zeros(3), np.array([0.2, 0.2, 0.2]))], False),
+]
+DIAGONAL = (np.array([0.0, 0.0, 0.0]), np.array([4.0, 1.0, 4.0]),
+            np.array([(0.05, -0.05), (4.05, 3.95), (3.95, 4.05), (-0.05, 0.05)]))  # a 0.1 m strip along x = z
+OUTLINED = [  # (case, a thing's low and high, a railing's box and outline, whether it meets it; greenhouse's railings run
+    # diagonally, their world boxes over the desks: a thing meets a thin one turned off the floor's axes by its outline)
+    ("a thing beside the diagonal railing, inside its box", (2.5, 0.0, 0.5), (3.0, 0.5, 1.0), DIAGONAL, False),
+    ("a thing on it", (1.8, 0.0, 1.8), (2.3, 0.5, 2.3), DIAGONAL, True),
+    ("the thing beside it, the railing with no outline, by its box", (2.5, 0.0, 0.5), (3.0, 0.5, 1.0),
+     (*DIAGONAL[:2], None), True),
+]
+RAILING = {"id": "railing", "name": "metal railings", "noun": "railing", "anchor": "on:upper_floor",
+           "size": [50.0, 0.1, 1.0]}
+RAILINGS = [  # (case, a row, whether railings_held holds it: railing_hold's rule, a slender railing that does not climb)
+    ("a railing on its upper floor", RAILING, True),
+    ("a stair's railing, which climbs", {**RAILING, "name": "stair railing", "anchor": "on:staircase"}, False),
+    ("a squat railing", {**RAILING, "size": [2.0, 1.0, 1.0]}, False),
+    ("a pipe", {**RAILING, "name": "metal pipe", "noun": "pipe"}, False),
+]
 
 
 def a_built_box(stage, path, low, high):
@@ -513,33 +593,10 @@ def a_solid_box(stage, path, low, high, degrees=0.0):
 
 
 def test_a_monitor_goes_on_its_console_s_top_within_its_span():
-    """A 0.5 x 0.4 x 0.1 m monitor laid 2 m off its 3 x 1 x 0.8 m console (x 0 to 3, top at 1 m) stands on its top,
-    moved in to x 3 - 0.25 = 2.75, z kept at 0.4, its foot at 1 m; a console narrower than it shrinks it to fit.
-    Break: score/stages/assembly/fitting.py: `target[1] = hold_high[1] if how == "top" else` -> `target[1] = foot[1]
-        if how == "top" else`
-    Break: score/stages/assembly/fitting.py: on_boards' `if clear_of(hits, foot, tall) and not meets_any(...)` ->
-        `if not meets_any(...)` (the box at 0.7 laid on the board under it, 0.42, through the next)
-    Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` reached first (`found =
-        rests or tops` -> `found = []`): the box through the board named crowded
-    Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` -> `return target` (the
-        box on a full unit piled at its target, garage 2026-11-10), or shelved's `for holder, box in sorted(held,
-        key=distance)` -> `for holder, box in held[:1]` (the far unit never tried), or its `for stack in (False, True)`
-        -> `for stack in (False,)` (the box on two full units crowded, not stacked), or stacked_spots' `or float(low[1]) >
-        hold_high[1] + BOARD_BED` dropped (a box stacked on a stacked one)
-    Break: score/stages/assembly/fitting.py: on_boards' `meets_any(*footprint(placed), taken)` -> `False` (the twin on
-        its first)
-    Break: score/stages/assembly/fitting.py: on_boards' `if not len(hits[0]) or (standing and clear_of(` -> `if not
-        len(hits[0]) or (clear_of(` (the box laid between boards left over the board under it)
-    Break: score/stages/assembly/fitting.py: crosses' `return bool(np.any(...))` -> `return False` (the box left
-        across the divider)
-    Break: score/stages/assembly/fitting.py: on_boards' `if not any(float(spot[1]) < inside for spot in rests):` ->
-        `if False:` (the box on the packed unit's top, its board's clear stretch stepped over: garage 2026-11-11)
-    Break: score/stages/assembly/fitting.py: supported's `return all(` -> `return True or all(` (galley's jars left on
-        the strut and over the board's edge), or on_boards' `and float(target[1]) <= hold_low[1] + BOARD_BED` dropped
-        (the jar left at 1.5 m over no board), or slid_spots' `for axis in (0, 2):` -> `for axis in (2,):` (the jar
-        past the boards never slid across onto one)
-    Break: score/stages/assembly/fitting.py: on_shelves_of's `return str(on.get("why") or "").startswith(SHELVES)` ->
-        `return True`
+    """Things laid on tops: three boxes spread along their two units' run, screens in rows on a desk, a monitor let
+    down from its desk's box top onto its slab, a pile onto a module's crest, a box laid flush on a sloped slab, a
+    computer onto its desk's rim, a book among a wrench, a cup riding its computer, two monitors laid clear, a 6 cm
+    box resting by its balance, and a railing's chord held, slid and drawn back.
     Break: score/stages/assembly/fitting.py: spread_on_tops' `target[axis], target[1] = at + gap + longs[name] / 2,
         top` -> `target[1] = top` (the boxes left in each other)
     Break: score/stages/assembly/fitting.py: spread_on_tops' `if gap < BOARD_CLEAR:` -> `if False:` (four boxes
@@ -566,20 +623,14 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         `lift = np.max(...) + CLEAR` -> `lift = np.max(...) + CLEAR + triage.TOLERANCE` (the sieve passes the crest
         by: the pile left over it), or its `& (most - weights[:, axis] >= triage.BALANCE - SLACK)` dropped
         (rest asked along the ridge's strip)
-    Break: score/stages/assembly/fitting.py: shelved's `for stack in (False, True, piled.PILE):` -> `for stack in
-        (False, True):` (camp's tray crowded), or piled.py: spots' `if not flat(size): return []` dropped (garage's
-        box piled on its stacked one)
     Break: score/stages/assembly/flush_tops.py: laid's `if sloped is None or not triage.LEAN_MOST < sloped[1] <=
         SLOPE_MOST:` -> `if sloped is None:` (the box laid flush on the 30-degree slab), or crest_tops.py: stands'
         `triage.lean(turn, ...)` -> `triage.lean(np.eye(4), ...)` (the box left upright on the 15-degree slab)
     Break: score/stages/assembly/fine_tops.py: spot's `if crest_tops.stands(mesh, exact, move):` -> `if False:` (the
         computer left over the desk's slope), its `xs = np.arange(hold_low[0], ...)`, `zs = ...` -> each
-        `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left), or meets'
-        `return overlap(square, np.asarray(outline, float)) > fitting.BOARD_CLEAR` -> `return True` (the box beside the
-        diagonal railing read as in it)
+        `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left)
     Break: score/stages/assembly/fine_tops.py: one's `found + beside(stage, place, entry, carried, ...)` -> `found`
-        (the book left leaning on the wrench), or fitting.py: reaches_into's `np.minimum(BOARD_CLEAR, thinner / 4)` ->
-        `BOARD_CLEAR` (the wrenches read clear) or -> `np.minimum(BOARD_CLEAR, thinner / 2)` (the book's corner read clear), beside's `< under]` -> `< -1.0]`, or crest_tops.py: stands' `points[:,
+        (the book left leaning on the wrench), or beside's `< under]` -> `< -1.0]`, or crest_tops.py: stands' `points[:,
         1] - tops` -> `np.maximum(points[:, 1] - tops, 0.0)` (the book's points in the wrench read at their own height)
     Break: score/stages/assembly/fine_tops.py: laid's `fitting.with_stacked(stage, place, carried, list(by_name))` ->
         `carried` (the cup left at 1.4 m as its computer is laid on the rim), or fitting.py: with_stacked's `<=
@@ -595,107 +646,7 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
         6 cm box read not resting on the flat slab), or balance's `/ 4` -> `/ 0.5` (the box over the edge read resting)
     Break: score/stages/assembly/railings_held.py: held_up's `keep = min(1.0, ...)` -> `keep = 1.0` (the chord left 4.5
         m tall), cut_back's `if not inside(points[near], hulls):` -> `if True:` (its end left in the wall), change's
-        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening),
-        or held's `and not CLIMBED & set(climbing)` dropped (the stair's railing held)"""
-    from score.stages.assembly import fitting
-    console = (np.array([0.0, 0.0, 0.0]), np.array([3.0, 1.0, 0.8]))
-    on = {"how": "top", "holder": ["console_1"]}
-    scale, target, _, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [console])
-    assert scale == 1.0 and np.allclose(target, (2.75, 1.0, 0.4)), target
-    narrow = (np.array([0.0, 0.0, 0.0]), np.array([0.4, 1.0, 0.8]))
-    scale, target, _, _ = fitting.fit((4.5, 0.0, 0.35), (5.0, 0.4, 0.45), on, [narrow])
-    assert abs(scale - 0.8) < 1e-9 and np.allclose(target, (0.2, 1.0, 0.4)), (scale, target)
-    # engineroom (2026-11-08): boxes laid within their shelf unit at the plan's base, through its boards. A shelf
-    # unit 1 x 2 x 0.5 m, its 2 cm boards 0.4 m apart (tops at 0.02, 0.42 ... 1.62) and its top at 2.0: a 0.3 m box
-    # laid at 0.7 through the board at 0.8 goes onto the nearest board it fits on, 0.82; its twin laid at the same
-    # spot onto the board under, 0.42, and a third, both taken, slid along the unit (0.3 m and BOARD_CLEAR) onto the
-    # board at 0.82; a 0.404 m box fits between no boards and
-    # goes on the top; one laid between them over no board goes down onto the board under it, one on a board is left.
-    unit = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.4 * level, 0.0),
-                                                                  (1.0, 0.4 * level + 0.02, 0.5)])
-                                     for level in range(5)] + [trimesh.creation.box(bounds=[(0.0, 1.98, 0.0),
-                                                                                            (1.0, 2.0, 0.5)])])
-    shelf = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
-    within = {"how": "within", "holder": ["shelf_1"]}
-    _, target, _, _ = fitting.fit((0.35, 0.7, 0.1), (0.65, 1.0, 0.4), within, [shelf], unit)
-    assert np.allclose(target, (0.5, 0.82, 0.25)), target
-    first = ((0.35, 0.82, 0.1), (0.65, 1.12, 0.4))
-    _, twin, _, _ = fitting.fit((0.35, 0.7, 0.1), (0.65, 1.0, 0.4), within, [shelf], unit, clear=[first])
-    assert np.allclose(twin, (0.5, 0.42, 0.25)), twin
-    _, third, _, _ = fitting.fit((0.35, 0.7, 0.1), (0.65, 1.0, 0.4), within, [shelf], unit,
-                                 clear=[first, ((0.35, 0.42, 0.1), (0.65, 0.72, 0.4))])
-    assert np.allclose(third, (0.81, 0.82, 0.25)), third
-    _, target, _, _ = fitting.fit((0.3, 0.5, 0.05), (0.7, 0.904, 0.45), within, [shelf], unit)
-    assert np.allclose(target, (0.5, 2.0, 0.25)), target
-    _, target, _, _ = fitting.fit((0.35, 0.45, 0.1), (0.65, 0.75, 0.4), within, [shelf], unit)
-    assert np.allclose(target, (0.5, 0.42, 0.25)), target
-    assert fitting.fit((0.35, 0.42, 0.1), (0.65, 0.72, 0.4), within, [shelf], unit) is None
-    # galley (2026-11-08): jars laid on a board through a side the rays straight down never meet; a box on the board
-    # at 0.42 across an upright 4 cm divider at the unit's middle is slid along clear of it
-    divided = trimesh.util.concatenate([unit, trimesh.creation.box(bounds=[(0.48, 0.0, 0.0), (0.52, 1.98, 0.5)])])
-    _, target, _, _ = fitting.fit((0.35, 0.42, 0.1), (0.65, 0.72, 0.4), within, [shelf], divided)
-    assert np.allclose(target, (0.81, 0.42, 0.25)), target
-    # garage (2026-11-11): its shelf units carry their own boxes on their boards, a clear stretch beside them the
-    # slide's 0.31 m steps from the box's spot step over. A unit 1 x 0.42 x 0.5 m (its board's top at 0.02, its top
-    # at 0.42) whose own 0.25 m blocks fill its board but for x 0.49 to 0.82 lays a 0.3 m box laid at x 0.5 on that
-    # stretch of its board, not on its top.
-    packed = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
-        [(0.0, 0.0, 0.0), (1.0, 0.02, 0.5)], [(0.0, 0.40, 0.0), (1.0, 0.42, 0.5)],
-        [(0.0, 0.02, 0.0), (0.49, 0.27, 0.5)], [(0.82, 0.02, 0.0), (1.0, 0.27, 0.5)])])
-    low_unit = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 0.42, 0.5]))
-    _, target, _, _ = fitting.fit((0.35, 0.1, 0.1), (0.65, 0.4, 0.4), within, [low_unit], packed)
-    assert 0.63 < target[0] < 0.68 and np.allclose(target[1:], (0.02, 0.25)), target
-    # galley (settle@galley, 2026-11-11): corner shelves whose boards fill 0.6 m of its 1 m box. A jar laid at 1.5 m
-    # past the boards, over none, one on a 3 cm strut and one half over a board's edge each go onto a board under the
-    # inner half of their footprint; one at the unit's foot over none, and one on a board, are left.
-    corner = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, level, 0.0), (0.6, level + 0.02, 0.5)])
-                                       for level in (0.6, 1.6, 1.98)]
-                                      + [trimesh.creation.box(bounds=[(0.81, 0.98, 0.0), (0.84, 1.0, 0.5)])])
-    corners = (np.array([0.0, 0.0, 0.0]), np.array([1.0, 2.0, 0.5]))
-    for foot, wanted in (((0.85, 1.5), (0.57, 1.62)), ((0.775, 1.0), (0.495, 0.62)), ((0.55, 0.62), (0.49, 0.62))):
-        _, target, _, _ = fitting.fit((foot[0], foot[1], 0.2), (foot[0] + 0.1, foot[1] + 0.15, 0.3), within, [corners],
-                                      corner)
-        assert np.allclose(target, (*wanted, 0.25)), (foot, target)
-    for foot in ((0.85, 0.0), (0.2, 1.62)):
-        assert fitting.fit((foot[0], foot[1], 0.2), (foot[0] + 0.1, foot[1] + 0.15, 0.3), within, [corners],
-                           corner) is None, foot
-    # garage (settle@garage, 2026-11-10): 14 boxes within three shelf units all went to the nearest, 12 piled at two
-    # spots of it. A unit 0.4 x 0.5 x 0.5 m with one board (top at 0.02) and its top at 0.5 takes a 0.3 m box on its
-    # board, then on its top; with both taken the box goes onto the board of the next unit out (x 1 to 1.4); with
-    # that one full too it is stacked on the box on the nearest unit's top (garage's three units hold 7 of its 14,
-    # 2026-11-11), and with a box stacked on each top too it is crowded, never piled at its target.
-    one_board = trimesh.util.concatenate([trimesh.creation.box(bounds=[(0.0, 0.0, 0.0), (0.4, 0.02, 0.5)]),
-                                          trimesh.creation.box(bounds=[(0.0, 0.48, 0.0), (0.4, 0.5, 0.5)])])
-    near, far = one_board, one_board.copy().apply_translation((1.0, 0.0, 0.0))
-    held = [("unit_far", (np.array([1.0, 0.0, 0.0]), np.array([1.4, 0.5, 0.5]))),
-            ("unit_near", (np.array([0.0, 0.0, 0.0]), np.array([0.4, 0.5, 0.5])))]
-    surfaces = {"unit_near": near, "unit_far": far}
-    laid = ((0.025, 0.1, 0.05), (0.375, 0.4, 0.45))
-    full = [((0.025, 0.02, 0.05), (0.375, 0.32, 0.45)), ((0.025, 0.5, 0.05), (0.375, 0.8, 0.45))]
-    holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get, {})
-    assert holder == "unit_near" and np.allclose(target, (0.2, 0.02, 0.25)), (holder, target)
-    holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": full})
-    assert holder == "unit_far" and np.allclose(target, (1.175, 0.02, 0.25)), (holder, target)  # its near end
-    far_full = [((low[0] + 1.0, *low[1:]), (high[0] + 1.0, *high[1:])) for low, high in full]
-    holder, (_, target, _, _) = fitting.shelved(*laid, within, held, surfaces.get,
-                                                {"unit_near": full, "unit_far": far_full})
-    assert holder == "unit_near" and np.allclose(target, (0.2, 0.8, 0.25)), (holder, target)
-
-    def piled(boxes):
-        return [*boxes, ((boxes[1][0][0], 0.8, boxes[1][0][2]), (boxes[1][1][0], 1.1, boxes[1][1][2]))]
-
-    assert fitting.shelved(*laid, within, held, surfaces.get, {"unit_near": piled(full), "unit_far": piled(far_full)}) \
-        == (None, fitting.CROWDED)
-    # camp (settle@camp, 2026-11-12): its plant rack's model holds plants on every board, so of its four trays one
-    # went on its top, one stacked on that, and two were left crowded, floating and leaning. A flat tray (0.35 x 0.172
-    # x 0.4 m: its height at most piled.FLAT of its narrower side), every board, top and stacking spot taken, piles on
-    # the stacked box of the nearest unit; the 0.3 m box above never piles.
-    tray = ((0.025, 0.1, 0.05), (0.375, 0.272, 0.45))
-    holder, (_, target, _, _) = fitting.shelved(*tray, within, held, surfaces.get,
-                                                {"unit_near": piled(full), "unit_far": piled(far_full)})
-    assert holder == "unit_near" and np.allclose(target, (0.2, 1.1, 0.25)), (holder, target)
-    # only a thing on its holder's shelves is laid on its boards (galley's sink in its counter, its stove top on it,
-    # are laid as the plan draws them)
+        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening)"""
     # workshop (settle@workshop, 2026-11-10): seven 0.408 m storage boxes on two 1.5 m shelf units side by side, each
     # kept within its nearest unit, boxes 6 and 7 one in the other. Three 0.3 m boxes on two 0.5 m units (tops at 1 m,
     # x 0 to 1), two meeting, are spread evenly along the 1 m run in their order: gaps of 0.025 m; a fourth would not
@@ -747,8 +698,6 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert float(np.linalg.norm(shift)) > 0.01 and np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/paper_1")[0],
                                                                np.array([6.3, 1.1, 0.1]) + shift), shift
     assert fitting.packed_rows([0.3] * 7, [0.3] * 7, 1.0, 0.4) is None
-    assert fitting.on_shelves_of({"how": "within", "why": "on the shelves of shelf: its reading says 'on shelves'"})
-    assert not fitting.on_shelves_of({"how": "within", "why": "within kitchen_counter: the plan lays it inside"})
     # lab, quarters, flat, workshop (settle@<place>, 2026-11-11): things on a desk laid on its box's top, the top of a
     # divider standing over it, floated over the desk's surface or leaned on an edge, past the settle's 30 cm snap. A
     # desk 1 x 0.6 m, its 3 cm slab's top at 0.75 and a divider up to 1.2 m along its back (z 0.5 to 0.6): a monitor
@@ -916,13 +865,6 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert [fit["name"] for fit in fine] == ["computer_40"] and abs(low[1] - 1.0) <= 0.01, (fine, low)
     assert 0.65 - 1e-6 <= (low[2] + high[2]) / 2 <= 0.69 and high[2] > 0.74, (low, high)
     assert fine_tops.laid(stage, TOY, computers) == []
-    # its railings run diagonally, their world boxes over the desks: a thing meets a thin one turned off the floor's
-    # axes by its outline (a 0.1 m strip along x = z), never by the box round it.
-    diagonal = (np.array([0.0, 0.0, 0.0]), np.array([4.0, 1.0, 4.0]),
-                np.array([(0.05, -0.05), (4.05, 3.95), (3.95, 4.05), (-0.05, 0.05)]))
-    assert not fine_tops.meets(np.array([2.5, 0.0, 0.5]), np.array([3.0, 0.5, 1.0]), diagonal)
-    assert fine_tops.meets(np.array([1.8, 0.0, 1.8]), np.array([2.3, 0.5, 2.3]), diagonal)
-    assert fine_tops.meets(np.array([2.5, 0.0, 0.5]), np.array([3.0, 0.5, 1.0]), (*diagonal[:2], None))
     # quarters (settle@quarters, 2026-11-13): a book laid 9.5 mm deep over a 1.3 cm wrench on its desk (fitting's
     # BOARD_CLEAR lets a box 1 cm into another) rested on the desk alone and leaned 7.9 degrees on the wrench. A thing
     # is judged on what it stands among lower than its top too: a 0.2 m book with one edge over a 1.3 cm wrench on a
@@ -941,15 +883,6 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     assert [fit["name"] for fit in fine] == ["book_70"], fine
     assert crest_tops.stands(fitting.surface_mesh(stage, f"/{TOY}/Objects/book_70"), among, np.zeros(3))
     assert fine_tops.laid(stage, TOY, over) == []
-    # its two wrenches, 1.3 cm thick, were let down one 9 mm into the other, and a book's corner 5 mm into one: boxes
-    # reach into each other past a quarter of the thinner one's size along a way where that is under BOARD_CLEAR;
-    # 0.2 m boxes 9 mm into each other do not
-    thin = (np.array([0.0, 0.0, 0.0]), np.array([0.17, 0.013, 0.05]))
-    assert fitting.meets_any(np.array([0.0, 0.004, 0.04]), np.array([0.17, 0.017, 0.09]), [thin])
-    assert fitting.meets_any(np.array([0.13, 0.008, 0.03]), np.array([0.29, 0.05, 0.23]), [thin])  # a book's corner
-    assert not fitting.meets_any(np.array([0.0, 0.013, 0.0]), np.array([0.17, 0.026, 0.05]), [thin])
-    assert not fitting.meets_any(np.array([0.0, 0.191, 0.0]), np.array([0.2, 0.39, 0.2]), [
-        (np.zeros(3), np.array([0.2, 0.2, 0.2]))])
     # its plant pot, stacked on a book (built_tops.stacked_spot) when the desk had no spot left, was left 0.69 m over
     # the desk's corner once the book was laid on a spot where it rests. What stands on a thing's top moves with it: a
     # cup on a computer over the slope of a desk whose rim (x 42 to 42.3) has no room beside it rides it onto the rim.
@@ -1017,19 +950,9 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
     # 0.12 and 0.14 m into its walls, the first and fifth over its stair's opening once held. A chord 9.4 m along x = z,
     # 4.5 m tall, on a floor at 3 m that ends 0.9 m short of its middle, one end in a wall box, is held to 1 m, slid
     # back along itself until its weight stands within the check's 5 cm of the floor's edge, and drawn back until it
-    # stands railings_held.CLEAR off the wall; laid again it is left. railing_hold's rule holds: a stair's railing,
-    # which climbs, and a squat one are not held.
+    # stands railings_held.CLEAR off the wall; laid again it is left.
     from scipy.spatial import ConvexHull
     from score.stages.assembly import railings_held
-    import score.stages.props.railing_hold as railing_hold
-    import score.stages.props.thin_straight as thin_straight
-    railing_row = {"id": "railing", "name": "metal railings", "noun": "railing", "anchor": "on:upper_floor",
-                   "size": [50.0, 0.1, 1.0]}
-    for kept in (railing_row, {**railing_row, "name": "stair railing", "anchor": "on:staircase"},
-                 {**railing_row, "size": [2.0, 1.0, 1.0]}, {**railing_row, "name": "metal pipe", "noun": "pipe"}):
-        assert railings_held.held(kept) == (thin_straight.profile(kept) == "railing" and not railing_hold.climbs(kept)
-                                            and thin_straight.slender(kept["size"])), kept
-    assert railings_held.held(railing_row) and not railings_held.held({**railing_row, "anchor": "on:staircase"})
     way = np.array([1.0, 0.0, 1.0]) / np.sqrt(2.0)
     chord = trimesh.creation.box(extents=(9.4, 4.5, 0.1))
     chord.apply_transform(trimesh.transformations.rotation_matrix(np.radians(-45.0), (0.0, 1.0, 0.0)))
@@ -1038,13 +961,13 @@ def test_a_monitor_goes_on_its_console_s_top_within_its_span():
 
     def under(points):
         return np.where(points @ way > -0.9, np.inf, np.abs(points[:, 1] - 3.0))
-    whole, words = railings_held.change(chord, railing_row, [wall], under)
+    whole, words = railings_held.change(chord, RAILING, [wall], under)
     laid_chord = chord.copy()
     laid_chord.apply_transform(whole.T)
     assert np.isclose(np.ptp(laid_chord.vertices[:, 1]), 1.0) and np.isclose(laid_chord.bounds[0, 1], 3.0), words
     assert not railings_held.inside(laid_chord.vertices, [wall]) and "slid -0." in words, words
     assert railings_held.outside_by(laid_chord, under) <= 0.05 < railings_held.outside_by(chord, under), words
-    assert railings_held.change(laid_chord, railing_row, [wall], under) is None
+    assert railings_held.change(laid_chord, RAILING, [wall], under) is None
 
 
 def a_sound_output(folder, uses):
@@ -1485,413 +1408,230 @@ def lowest_legs(asset):
     return legs, round(float(hull[(hull[:, 0] > 0.5) & (hull[:, 2] > 0.5), 1].min()), 4)
 
 
-def test_the_settle_s_seed_is_laid_from_a_read_only_seed_with_no_assets_folder(tmp_path, monkeypatch):
-    """The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
-    settle) is laid with its record written over the copied base and an assets folder of its own.
-    Break: score/stages/assembly/grounded.py: `(folder / "assets").mkdir()` -> `pass`
-    Break: score/stages/assembly/grounded.py: `parting.parted(folder, seed.name)` -> `pass` (the settle dropped
-        airlock's control pedestal in its wall pipes, which the assembly parts: settle@airlock, 2026-11-10)
-    Campgrounds' habitat domes (2026-11-11) stood on flat ground with eleven rim feet 3.1 to 8.8 cm up and its
-    communications towers with a leg 3.4 cm up, feet the paint links into one (3% of the footprint's diagonal) and
-    the resting check reads apart (5 cm): a floor thing's own asset is laid with a leg 5 cm short brought down onto
-    its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's, one the scene record
-    attaches on its holder's top (the workshop's lamp, its robotic arm's head, turned 44 degrees and cut 13 cm of its
-    20 cm, 2026-11-14) and an asset linked from elsewhere are left as they are.
-    Break: score/stages/assembly/even_feet.py: `and said_row(prim) not in attached` dropped (the attached one levelled)
-    Break: score/stages/assembly/even_feet.py: `if foot - lowest > most and not` -> `if False and not`
-    Break: score/stages/assembly/big_bases.py: sole_cut's `for spare in (SPARE, 0.0):` -> `for spare in (0.0,):` (the
-        cabinet left on a leg 2.7 cm short)
-    Break: score/stages/assembly/even_feet.py: `or os.stat(path).st_nlink != 1` -> `` (a write through a link)
-    Break: score/stages/assembly/even_feet.py: `and not said("score:fixed")` -> ``
-    Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`
-    Break: score/stages/assembly/big_bases.py: levelled's `stood = footing.cut_at(points, cut) if cut else ...` ->
-        `stood = np.asarray(points, dtype=np.float64)` (the hub left on its post's foot, the tower on its slope)
-    Break: score/stages/assembly/big_bases.py: upright's `stood = (points - middle) @ turn.T` -> `stood = points -
-        middle` (the beam left leaning), or `key=lambda way: -way[1]):` -> `key=lambda way: -way[1])[:1]:` (the
-        angle left on its leg tips)
-    Break: score/stages/assembly/grounded.py: `roof_tops.let_down(folder, seed.name, inventory_rows(inputs))` -> `pass`
-    Break: score/stages/assembly/roof_tops.py: downs' `if on_ground.TOLERANCE < between < np.inf:` -> `if between <
-        np.inf:` (laid again, moved 5 mm down into the walls), `found[entry["name"]] = between - CLEAR` -> `=
-        between` (moved 0.5 m), or let_down's `fits.append({**fit, "top at": ...} if one ==
-        name else fit)` -> `fits.append(fit)` (the held gate measures it off the hall's box top)
-    Break: score/stages/assembly/roof_tops.py: downs' `roofed, fixed = roofs(rows, record), attached(record)` ->
-        `roofed, fixed = roofs(rows, record), set()` (the attached slab left), attached's `and entry.get("rests") ==
-        "attached"` dropped (the standing slab let down), or downs' `under = laid_under(...) if ... else []` -> `under =
-        []` (the slab on its post let down through it)
-    Break: score/stages/assembly/big_bases.py: deep_cut's `deepest = DEEP * float(np.ptp(points[:, 1]))` -> `deepest
-        = 9.0` (the 4 m post cut level), or levelled's `stood, sole = sole_cut(stood, triangles)` -> `sole = []` (the
-        hall left on its corners), or sole_cut's `SOLE * float(np.ptp(points[:, 1]))` -> `1.0` (the shed cut level)
-    Break: score/stages/assembly/big_bases.py: outlines's within `return any(...)` -> `return True` (the foot beside
-        the sole read inside it)
-    Break: score/stages/assembly/footing.py: cut_at's `points[points[:, 1] <= lowest + cut, 1] = lowest` dropped (the
-        hub's legs left 0.15 m up)
-    Break: score/stages/assembly/even_feet.py: `plated = post_plate.based(root, scale)` -> `plated = []` (the flag left
-        tipping on its pole), or post_foot's `if across > POST or wide < ...` -> `if wide < ...` (the lamp's 0.2 m
-        foot read as a post and given a plate), or stood's `turned = (points - pivot) @ turn.T + pivot` -> `turned =
-        points` (the pole left leaning), or standing_post's `<= LEAN_MOST` -> `<= 90.0` (the pipe stood on its leg), or
-        joined's `subset.GetIndicesAttr().Set(...)` dropped (the plate in no part)
-    Break: score/stages/assembly/even_feet.py: `laid_flat.flattened(stage, folder, place)` -> `pass` (the slab left
-        standing), or laid_flat's `if axis is None or footing.stands(...)` -> `if axis is None` (the board laid down),
-        or clear_side's `if all(not meets(...))` -> `if True` (the slab laid down into the crate)
-    Break: score/stages/assembly/grounded.py: `on_ground.stood(folder, seed.name)` -> `pass`
-    Break: score/stages/assembly/on_ground.py: `if record.get("inside") or not` -> `if not`, `if over_deck(pivot,
-        decks):` -> `if False:`, `and at_floor(entry)` -> `` (square's podium let down off its stage), `for one in
-        (name, *held):` -> `for one in (name,):`, `turn = turn_onto(up, normal)` -> `turn = np.eye(4)`, `if leans <=
-        LEAN_MOST and abs(` -> `if False and abs(`, or `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
-    Break: score/stages/assembly/grounded.py: `face_down.let_down(folder, seed.name)` -> `pass`
-    Break: score/stages/assembly/grounded.py: `floor_down.let_down(folder, seed.name)` -> `pass`
-    Break: score/stages/assembly/floor_down.py: downs' `if DRIFT_MOST < gap < float("inf"):` -> `if gap <
-        float("inf"):` (the crate let down too), `found[entry["name"]] = gap - CLEAR` -> `= gap`, `and
-        even_feet.floor_thing(prim)` -> `` (the rack let down), `for one in (name, *held):` -> `for one in (name,):`,
-        `if name not in held and below(` -> `if name != entry["name"] and below(` (the ship held up by its seat), `or
-        entry.get("under roof"):` -> `:` (the crane let down), or
-        let_down's `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
-    Break: score/stages/assembly/face_down.py: `and entry["row"] not in hanging` -> `` (the sign let down too),
-        `if on_ground.TOLERANCE < gap < np.inf:` -> `if gap < np.inf:` (a second let down moves panel_1 again: 0),
-        `for one in (name, *held):` -> `for one in (name,):`, gap_under's `if len(rays):` -> `if False:` (the panel
-        let down through the step onto the ground), or downs' `points = points[points[:, 1] <= ...]` -> `pass` (let
-        down 0.1 m onto the rail its back rests on)
-    Break: score/stages/assembly/face_down.py: faced_standing's `and given.get(entry["row"]) in STANDING` -> `` (the
-        panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows)` ->
-        `faced_standing(record)`
-    Break: score/stages/assembly/face_down.py: tip_drop's `<= 0.0:` -> `<= np.inf:` (the tipping wrench
-        left), or downs' `elif gap <= on_ground.TOLERANCE:` -> `elif False:` (caught on quarters' laid seed)
-    Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`, or
-        `railings_held.laid(folder, seed.name, inventory_rows(inputs))` -> `pass`
-    Break: score/stages/assembly/tops_levelled.py: `fits = crest_tops.laid_on(stage, place, entries)` -> `fits = []`,
-        or `layer.Save()` -> `pass`
-    Break: score/stages/assembly/grounded.py: `level_spot.slid(folder, seed.name)` -> `pass`
-    Break: score/stages/assembly/level_spot.py: spot's `if level(low + shift, high + shift, ground):` -> `if True:`
-        (slid 2 cm, still on the dent's side), or `or level(low, high, ground):` -> `` (the crate on flat ground slid
-        too: it is level where it is)"""
-    from pxr import Sdf
-    from score.stages.assembly import (face_down, floor_down, grounded, level_spot, made_waiting, on_ground, parting,
-                                       roof_tops, tops_levelled)
-    monkeypatch.setattr(baked, "take_bake", lambda *args: None)
-    monkeypatch.setattr(baked, "claimed_bakes", lambda *args: [])
-    monkeypatch.setattr(made_waiting, "lay", lambda *args: [])
-    bake = {"surfaces-bake": str(tmp_path / "bake"), "surfaces-paint": str(tmp_path / "paint")}
-    (tmp_path / "elsewhere").mkdir()
-    for name, short, how, legs in (("table", 0.05, "floor", [0.0] * 4), ("stool", 0.02, "floor", [0.0, 0.0, 0.0, 0.02]),
-                                   ("rack", 0.05, "fixed", [0.0, 0.0, 0.0, 0.05]),
-                                   ("head", 0.05, "attached", [0.0, 0.0, 0.0, 0.05]),
-                                   ("shelf", 0.05, "linked", [0.0, 0.0, 0.0, 0.05])):
-        source = a_thing_on_legs(tmp_path / "elsewhere", name, short) if how == "linked" else None
-        root = a_thing_on_legs(tmp_path / name, name, short,
-                               linked_to=source and source.parent / "assets" / f"{name}.usdc")
-        if how == "fixed":
-            layer = Sdf.Layer.FindOrOpen(str(root))
-            Sdf.AttributeSpec(layer.GetPrimAtPath(f"/{TOY}/Objects/{name}_1"), "score:fixed",
-                              Sdf.ValueTypeNames.Bool).default = True
-            layer.Save()
-        if how == "attached":  # the record attaches it on its holder's top: it stands as baked
-            layer = Sdf.Layer.FindOrOpen(str(root))
-            Sdf.AttributeSpec(layer.GetPrimAtPath(f"/{TOY}/Objects/{name}_1"), "score:row",
-                              Sdf.ValueTypeNames.String).default = name
-            layer.Save()
-            (tmp_path / name / record.RECORD).write_text(json.dumps({"objects": [
-                {"name": f"{name}_1", "row": name, "on": {"how": "top", "holder": ["arm_1"]}, "rests": "attached"}]}))
-        grounded.take_bakes(bake, tmp_path / name, TOY)
-        assert lowest_legs(root.parent / "assets" / f"{name}.usdc") == (legs, legs[-1]), name
-    # assembly@old_station (2026-11-12): its hub stood on a foot at its back edge 16 to 24 cm under its legs, its
-    # weight 1.75 m outside what it touched, and its power cables, one 10 m cable on edge, tipped whatever its foot.
-    # A 2 m table whose legs end 0.15 m over the foot of a post at its back edge stands on its legs and the post, its
-    # top as made; the table on its legs alone, and a 4 m board 2 m tall and 0.18 m thick on its whole edge, are left
-    # as made; a slab 0.1 m thick on a 1 m foot at one end lies down on its broad side, toward the side clear of the
-    # crate beside it.
-    def under(name, at, along, across):
-        asset = Usd.Stage.Open(str(tmp_path / name / "assets" / f"{name}.usdc"))
-        points = np.asarray(asset.GetPrimAtPath(f"/{name}/geo").GetAttribute("points").Get())
-        part = points[(np.abs(points[:, 0] - at[0]) <= along) & (np.abs(points[:, 2] - at[1]) <= across)]
-        return round(float(part[:, 1].min()), 3), round(float(np.ptp(points[:, 1])), 3), points
+# --- the settle's grounded seed -------------------------------------------------------------------------------------
 
-    from pxr import Usd
-    box = trimesh.creation.box
-    shift = trimesh.transformations.translation_matrix
-    legs = [box((0.1, 0.45, 0.1), shift((x, 0.375, z))) for x in (-0.9, 0.9) for z in (-0.9, 0.9)]
-    post = box((0.1, 0.65, 0.1), shift((0.0, 0.325, -0.95)))
-    slab = trimesh.util.concatenate([box((1.0, 0.1, 0.1), shift((-1.5, 0.05, 0.0))),
-                                     box((3.0, 1.7, 0.1), shift((0.5, 1.15, 0.0)))])
-    for name, mesh, beside in (("hub", trimesh.util.concatenate([box((2.0, 0.1, 2.0), shift((0, 0.65, 0))), *legs,
-                                                                   post]), ()),
-                               ("bench", trimesh.util.concatenate([box((2.0, 0.1, 2.0), shift((0, 0.65, 0))), *legs]),
-                                ()),
-                               ("board", box((4.0, 2.0, 0.18), shift((0.0, 1.0, 0.0))), ()),
-                               ("cable", slab, [((0.0, 0.0, -1.95), (6.0, 0.5, -1.0))])):
-        a_floor_thing(tmp_path / name, name, mesh, beside=beside)
-        grounded.take_bakes(bake, tmp_path / name, TOY)
-    leg, tall, points = under("hub", (0.9, 0.9), 0.051, 0.051)
-    assert leg == 0.0 and under("hub", (0.0, -0.95), 0.051, 0.051)[0] == 0.0 and tall == 0.7, (leg, tall)
-    assert np.isclose(points[:, 1].max(), 0.7) and np.isclose(points[points[:, 1] > 0.55, 1].min(), 0.6), points
-    assert under("bench", (0.9, 0.9), 0.051, 0.051)[:2] == (0.15, 0.55) and under("board", (0, 0), 9, 9)[1] == 2.0
-    _, tall, points = under("cable", (0.0, 0.0), 9.0, 9.0)
-    assert tall == 0.1 and np.isclose(points[:, 2].min(), -1.95, atol=0.06) and points[:, 2].max() <= 0.06, points
-    # base (2026-11-12): its connecting tubes, a code build leaned 33 degrees, stood on legs at one side, its central
-    # hub's bottom sloped 6 m across it, and its hangar and greenhouse dome stood with hundreds of feet 3 to 10 cm up
-    # on bands the triage samples coarsely, which the feet's stretch read again apart. A 4 m beam leaned 20 degrees is
-    # laid level, its middle across and its lowest where they were; a 9 m tower whose bottom slopes 0.9 m is cut level,
-    # a 4 m one (an eighth of it under the slope) left; a 4 m floor whose inner corners stand 0.15 m up under a roof
-    # 3.5 m up is cut level, under one 2 m up (a twentieth of it under the corners) left, the triage's band sampled as
-    # coarsely as on the dome (4,000 points over 21 m^2); a foot is inside a touching foot's outline as the triage
-    # reads it.
-    import triage
-    from score.stages.assembly import big_bases
-    beam = box((4.0, 0.6, 0.6), trimesh.transformations.rotation_matrix(np.radians(20), (0, 0, 1)))
-    beam.apply_translation((0.3, -beam.bounds[0][1], 0.1))
-    towers = {}
-    for tall in (9.0, 4.0):
-        towers[tall] = box((2.0, tall, 2.0))
-        corners = np.array(towers[tall].vertices)
-        corners[(corners[:, 1] < 0) & (corners[:, 0] < 0), 1] += 0.9
-        towers[tall].vertices = corners - (0.0, corners[:, 1].min(), 0.0)
-    for name, mesh in (("beam", beam), ("tower", towers[9.0]), ("post", towers[4.0])):
-        a_floor_thing(tmp_path / name, name, mesh)
-        grounded.take_bakes(bake, tmp_path / name, TOY)
-    _, tall, points = under("beam", (0.0, 0.0), 9.0, 9.0)
-    assert np.isclose(tall, 0.6) and np.allclose((points.min(axis=0) + points.max(axis=0))[[0, 2]] / 2, (0.3, 0.1),
-                                                 atol=1e-5) and np.isclose(points[:, 1].min(), 0.0), points
-    assert sorted({round(float(height), 3) for height in under("tower", (0, 0), 9, 9)[2][:, 1]}) == [0.0, 9.0]
-    assert sorted({round(float(height), 3) for height in under("post", (0, 0), 9, 9)[2][:, 1]}) == [0.0, 0.9, 4.0]
-    monkeypatch.setattr(triage, "FOOT_SAMPLES", (400, 4000))
+def box_at(extents, middle):
+    """A trimesh box of `extents` whose middle is at `middle`."""
+    return trimesh.creation.box(extents, trimesh.transformations.translation_matrix(middle))
+
+
+def turned_by(mesh, degrees, axis, about=(0.0, 0.0, 0.0)):
+    """`mesh` turned `degrees` about `axis` through `about`, in place; the mesh."""
+    mesh.apply_transform(trimesh.transformations.rotation_matrix(np.radians(degrees), axis, about))
+    return mesh
+
+
+def on_zero(mesh):
+    """`mesh` moved up or down until its lowest point is at 0; the mesh."""
+    mesh.apply_translation((0.0, -mesh.bounds[0][1], 0.0))
+    return mesh
+
+
+def a_sloped_bottom(tall):
+    """A 2 m square tower `tall` m high whose bottom rises 0.9 m across its -x half, its lowest at 0."""
+    tower = trimesh.creation.box((2.0, tall, 2.0))
+    corners = np.array(tower.vertices)
+    corners[(corners[:, 1] < 0) & (corners[:, 0] < 0), 1] += 0.9
+    tower.vertices = corners - (0.0, corners[:, 1].min(), 0.0)
+    return tower
+
+
+def a_floor_under(roof):
+    """A 4 m floor of 0.15 m bumps (its inner corners up in a checkerboard) under a 0.2 m roof `roof` m up."""
     across = np.arange(-2.0, 2.001, 1.0)
     corners = [(x, 0.15 if (row + column) % 2 and 0 < row < 4 and 0 < column < 4 else 0.0, z)
                for row, x in enumerate(across) for column, z in enumerate(across)]
     cells = [face for row in range(4) for column in range(4) for face in (
         [row * 5 + column, row * 5 + column + 1, (row + 1) * 5 + column + 1],
         [row * 5 + column, (row + 1) * 5 + column + 1, (row + 1) * 5 + column])]
-    for name, roof in (("hall", 3.5), ("shed", 2.0)):
-        a_floor_thing(tmp_path / name, name, trimesh.util.concatenate([trimesh.Trimesh(corners, cells, process=False),
-                                                                      box((4.0, 0.2, 4.0), shift((0, roof, 0)))]))
-        grounded.take_bakes(bake, tmp_path / name, TOY)
-    assert sorted({round(float(height), 3) for height in under("hall", (0, 0), 1.5, 1.5)[2][:, 1]})[:2] == [0.0, 3.4]
-    assert 0.15 in {round(float(height), 3) for height in under("shed", (0, 0), 1.5, 1.5)[2][:, 1]}
-    sole = np.array([(x, 0.0, z) for x in (0.0, 1.0) for z in (0.0, 1.0)])
-    for foot in (np.array([(0.4, 0.05, 0.4), (0.6, 0.05, 0.4), (0.5, 0.05, 0.6)]), np.array([(1.4, 0.05, 0.4)] * 3)):
-        assert big_bases.outlines([sole])(foot) == triage.within_a_foot(foot, [sole]) == (foot[0, 0] < 1.0)
-    # base, later that day: its greenhouse dome, its sole cut 0.60 m, kept a foot 2.99 cm up its model (a face rising
-    # out of its sole), read 3.03 cm over its ground. A 2 m cabinet on four legs, one 2.7 cm short (within the check's
-    # 3 cm, under its spare), has its sole cut level 0.05 m.
-    legs = [box((0.1, 0.6 - lift, 0.1), shift((x, 0.3 + lift / 2, z))) for x, z, lift in (
-        (-0.9, -0.9, 0.0), (-0.9, 0.9, 0.0), (0.9, -0.9, 0.0), (0.9, 0.9, 0.027))]
-    a_floor_thing(tmp_path / "cabinet", "cabinet", trimesh.util.concatenate([box((2.0, 1.4, 2.0), shift((0, 1.3, 0))),
-                                                                             *legs]))
-    grounded.take_bakes(bake, tmp_path / "cabinet", TOY)
-    assert under("cabinet", (0.9, 0.9), 0.051, 0.051)[:2] == (0.0, 2.0), under("cabinet", (0.9, 0.9), 0.051, 0.051)
-    # base, later that day: its tube, retaken from its picture, lay 22 degrees off its frame, squashed in depth; on its
-    # box axis nearest up no footing holds it, on its next one a cut of 0.09 m does. A 4 m angle (a 2 m top on a 1 m
-    # leg at one end) leaned 20 degrees, which stood on its leg tips, is turned 70 degrees onto its leg's outer face.
-    angle = trimesh.util.concatenate([box((2.0, 0.2, 4.0), shift((1.0, 0.9, 0.0))), box((0.2, 0.8, 4.0),
-                                                                                        shift((0.1, 0.4, 0.0)))])
-    angle.apply_transform(trimesh.transformations.rotation_matrix(np.radians(20), (0, 0, 1)))
-    stood, turned = big_bases.upright(angle.vertices - (0.0, angle.bounds[0][1], 0.0), angle.faces)
-    assert turned == [70.0] and np.allclose(np.ptp(stood, axis=0), (1.0, 2.0, 4.0), atol=1e-6), (turned, stood)
-    # square (2026-11-12): its 41 red flags stood on a pole 1.5 cm wide at its foot leaning 10 degrees, their cloth
-    # 0.42 m to one side, their weight (the triage's: by surface area) 0.18 m outside the pole's foot. A 0.5 m pole so
-    # leaned with a 0.4 m cloth on it stands upright on a plate in the pole's part that holds it, its texture places,
-    # normals and parts carried; a pole on a 0.2 m foot under a head to one side (no thin post), and a 3 m pipe on a
-    # thin leg leaning 60 degrees (no post standing), are left as made.
-    from pxr import UsdGeom, Vt
-    from score.stages.assembly import post_plate
-    for name, head, lean in (("flag", box((0.4, 0.3, 0.004), shift((0.2075, 0.35, 0.0))), 10),
-                             ("lamp", trimesh.util.concatenate([box((0.2, 0.01, 0.2), shift((0.0, 0.005, 0.0))), box(
-                                 (0.8, 0.02, 0.1), shift((0.4, 0.5, 0.0)))]), 0),
-                             ("pipe", box((3.0, 0.05, 0.05), shift((1.4, 0.53, 0.0))), 0)):
-        pole = box((0.015, 0.5, 0.015), shift((0.0, 0.25, 0.0)))
-        if name == "pipe":
-            pole.apply_transform(trimesh.transformations.rotation_matrix(np.radians(60), (0, 0, 1), (0, 0.25, 0)))
-        mesh = trimesh.util.concatenate([pole, head])
-        mesh.apply_transform(trimesh.transformations.rotation_matrix(np.radians(lean), (1, 0, 0)))
-        mesh.apply_translation((0.0, -mesh.bounds[0][1], 0.0))
-        a_floor_thing(tmp_path / name, name, mesh)
-        asset = Usd.Stage.Open(str(tmp_path / name / "assets" / f"{name}.usdc"))
-        geo = UsdGeom.Mesh(asset.GetPrimAtPath(f"/{name}/geo"))
-        geo.CreateNormalsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(mesh.vertex_normals, dtype=np.float32)))
-        UsdGeom.PrimvarsAPI(geo).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray,
-                                               UsdGeom.Tokens.vertex).Set([(0.25, 0.75)] * len(mesh.vertices))
-        for part, faces in (("pole_iron", range(len(pole.faces))),
-                            ("flag_cloth", range(len(pole.faces), len(mesh.faces)))):
-            UsdGeom.Subset.CreateGeomSubset(geo, part, UsdGeom.Tokens.face, Vt.IntArray(list(faces)), "materialBind")
-        asset.GetRootLayer().Save()
-        grounded.take_bakes(bake, tmp_path / name, TOY)
-    flag = Usd.Stage.Open(str(tmp_path / "flag" / "assets" / "flag.usdc"))
-    geo = UsdGeom.Mesh(flag.GetPrimAtPath("/flag/geo"))
-    points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
-    triangles = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
-    parts = {subset.GetPrim().GetName(): np.asarray(subset.GetIndicesAttr().Get())
-             for subset in UsdGeom.Subset.GetAllGeomSubsets(geo)}
-    pole = points[np.unique(triangles[parts["pole_iron"][:12]])]
-    plate = points[16:]
-    assert len(points) == 16 + 4 * post_plate.SEGMENTS + 2 and len(parts["pole_iron"]) == 12 + 4 * post_plate.SEGMENTS
-    assert np.ptp(pole[:, 2]) < 0.016 and np.isclose(pole[:, 1].min(), post_plate.THICK, atol=1e-4), pole
-    assert np.isclose(plate[:, 1].min(), 0.0, atol=1e-4) and 0.05 <= np.ptp(plate[:, 0]) / 2 <= 0.3, plate
-    assert big_bases.holds_as_made(points, triangles) and len(geo.GetNormalsAttr().Get()) == len(points)
-    assert list(UsdGeom.PrimvarsAPI(geo).GetPrimvar("st").Get())[-1] == (0.25, 0.75)
-    assert len(Usd.Stage.Open(str(tmp_path / "lamp" / "assets" / "lamp.usdc")).GetPrimAtPath(
-        "/lamp/geo").GetAttribute("points").Get()) == 24
-    assert len(Usd.Stage.Open(str(tmp_path / "pipe" / "assets" / "pipe.usdc")).GetPrimAtPath(
-        "/pipe/geo").GetAttribute("points").Get()) == 16
-    read_only_toy(tmp_path / "store" / TOY)
-    parted, stood, downed, topped, levelled = [], [], [], [], []
-    monkeypatch.setattr(parting, "parted", lambda folder, place: parted.append((folder, place)) or [])
-    restore, lay_down, lay_tops, slide = on_ground.stood, face_down.let_down, tops_levelled.laid, level_spot.slid
-    lay_roofs, roofed = roof_tops.let_down, []
-    monkeypatch.setattr(roof_tops, "let_down", lambda folder, place, rows: roofed.append((folder, place)) or [])
-    monkeypatch.setattr(level_spot, "slid", lambda folder, place: levelled.append((folder, place)) or [])
-    monkeypatch.setattr(tops_levelled, "laid", lambda folder, place: topped.append((folder, place)) or [])
-    from score.stages.assembly import railings_held
-    railed = []
-    monkeypatch.setattr(railings_held, "laid", lambda folder, place, rows: railed.append((folder, place)) or [])
-    monkeypatch.setattr(on_ground, "stood", lambda folder, place: stood.append((folder, place)) or [])
-    monkeypatch.setattr(face_down, "let_down", lambda folder, place, rows: downed.append((folder, place)) or [])
-    lay_floored, floored = floor_down.let_down, []
-    monkeypatch.setattr(floor_down, "let_down", lambda folder, place: floored.append((folder, place)) or [])
-    root = grounded.grounded_seed({"seed": tmp_path / "store" / TOY, **a_record(tmp_path, ONE_LAMP)},
-                                  tmp_path / "settle")
-    stage = opened(root)
-    assert stage.GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
-    assert parted == [(tmp_path / "settle", TOY)], parted  # parted as the assembly's make parts (wired.make)
-    assert stood == [(tmp_path / "settle", TOY)], stood  # on its made ground, as the assembly's make stands them
-    assert levelled == downed == topped == roofed == railed == floored == [(tmp_path / "settle", TOY)], downed
-    # settle@hangar (2026-11-13): its spaceship, laid at the plan's keel height on its landing gear (1.039 m) though
-    # its model stands on its own feet, floated 0.94 m: past the settle's 0.3 m, kept as laid, failing rested and
-    # resting. A 2 m ship laid 1 m over a built floor is let down onto it, less the snap's 2 mm, the cube on its top
-    # the lamp on its face and the seat within it with it; a crate 0.2 m over it (the settle's), a fixed rack and a
-    # crane hung from the roof (settle@hangar's, let down 1.39 m off its roof, hanging free) are left, and a second
-    # let down moves nothing.
-    from pxr import Usd
-    place = a_floored_place(tmp_path / "floored")
-    fits = lay_floored(place.parent, TOY)
-    stage = Usd.Stage.Open(str(place))
-    low = {name: on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/{name}"))[:, 1].min()
-           for name in ("ship_1", "cube_1", "crate_1", "rack_1", "lamp_1", "seat_1", "crane_1")}
-    assert [(fit["name"], fit["how"], round(fit["moved"], 3)) for fit in fits] == [
-        ("ship_1", "floored", 0.998), ("cube_1", "floored", 0.998), ("lamp_1", "floored", 0.998),
-        ("seat_1", "floored", 0.998)], fits
-    assert np.allclose(list(low.values()), [0.002, 1.002, 0.2, 1.0, 0.002, 0.502, 3.0]), low
-    laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
-    assert np.isclose(laid["ship_1"]["low"][1], 0.002, atol=1e-3) and lay_floored(place.parent, TOY) == [], laid
-    # assembly@wreck (2026-11-12): every thing laid at the plan's floor, 0 m, over a made ground from -4.8 to +4.0 m
-    # under them. On a ground rising 0.2 m a metre north from 1 m at z 0, a 1 m box laid at 0 m is turned
-    # atan(0.2) = 11.31 degrees with the slope and let down onto it, every corner of its foot on the ground and the
-    # cube on its top moved with it; one over a built deck and one the record lays on a 3.3 m level (square's podium)
-    # are left, a second stand moves nothing, and an enclosed place is left whole.
-    from pxr import Usd
-    for inside in (False, True):
-        place = a_sloped_place(tmp_path / f"sloped-{inside}", inside)
-        fits = restore(place.parent, TOY)
-        stage = Usd.Stage.Open(str(place))
+    return trimesh.util.concatenate([trimesh.Trimesh(corners, cells, process=False), box_at((4.0, 0.2, 4.0),
+                                                                                            (0, roof, 0))])
 
-        def corners(name):
-            prim = stage.GetPrimAtPath(f"/{TOY}/Objects/{name}")
-            return on_ground.world_points(prim), on_ground.up_of(prim)
-        crate, up = corners("crate_1")
-        foot = crate[crate[:, 1] <= np.sort(crate[:, 1])[3] + 1e-6]
-        cube, _ = corners("cube_1")
-        if inside:
-            assert fits == [] and np.isclose(crate[:, 1].min(), 0.0) and np.allclose(up, [0, 1, 0]), fits
-            continue
-        assert [(fit["name"], fit["how"]) for fit in fits] == [("crate_1", "grounded"), ("cube_1", "grounded")], fits
-        assert np.isclose(np.degrees(np.arccos(up[1])), 11.31, atol=0.01) and up[2] > 0, up
-        assert np.allclose(foot[:, 1], 1.0 - 0.2 * foot[:, 2], atol=1e-4), foot
-        assert np.allclose(cube.mean(axis=0), crate.mean(axis=0) + 0.6 * up, atol=1e-4), (cube, crate)
-        case, _ = corners("case_1")
-        assert np.isclose(case[:, 1].min(), 0.0) and np.isclose(corners("podium_1")[0][:, 1].min(), 3.3), case
-        laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
-        assert np.isclose(laid["crate_1"]["low"][1], crate[:, 1].min(), atol=1e-3), laid
-        assert restore(place.parent, TOY) == []
-    # assembly@wreck (2026-11-12): solar_panels_5, laid 0.41 m up its lander's side clear of solar_panels_4, floated:
-    # its row (two panels within the lander) is judged standing. A panel laid on its crate's side 0.5 m up is let
-    # down 0.4 m onto the 0.1 m step under it, and the cube on its top with it; a sign whose every object is on a
-    # face (judged by touching) and the panel within the crate are left, and a second let down moves nothing.
-    place = a_faced_place(tmp_path / "faced")
-    fits = lay_down(place.parent, TOY)
-    stage = Usd.Stage.Open(str(place))
-    low = {name: on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/{name}"))[:, 1].min()
-           for name in ("panel_1", "panel_2", "sign_1", "cube_2")}
-    assert [(fit["name"], round(fit["moved"], 3)) for fit in fits] == [("panel_1", 0.4), ("cube_2", 0.4)], fits
-    assert np.allclose([low["panel_1"], low["panel_2"], low["sign_1"], low["cube_2"]], [0.1, 0.2, 0.6, 0.5]), low
-    laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
-    assert np.isclose(laid["panel_1"]["low"][1], 0.1, atol=1e-3) and lay_down(place.parent, TOY) == [], laid
-    # quarters' flat wrench (settle@quarters, 2026-11-13), its back edge on its desk's panel 0.25 m up, the rest of it
-    # over the floor, tipped: a foot touching only along one edge, its weight 6 cm past it, is let down by the least
-    # gap of the rest (0.25 m); one standing on four points round its weight, and one touching nowhere, are not
-    flat = np.array([(x, 0.25, z) for x in (0.0, 0.04, 0.08, 0.12, 0.16) for z in (0.0, 0.06, 0.12)])
-    edge = np.where(flat[:, 2] == 0.0, 0.005, 0.25)
-    assert np.isclose(face_down.tip_drop(flat, edge, (0.08, 0.06)), 0.25)
-    assert face_down.tip_drop(flat, np.full(len(flat), 0.005), (0.08, 0.06)) == 0.0
-    assert face_down.tip_drop(flat, np.full(len(flat), np.inf), (0.08, 0.06)) == 0.0
-    # assembly@tube (2026-11-12): its wall lamps, a row on its structural ribs (a structure row on its wall panels),
-    # four within a rib and seven on a rib's side, were let down 1.3 to 2.2 m from 2 m up, lamps 5 to 7 into the deck:
-    # the resting gate judges the row mounted on its ribs by the inventory, by touching. The same panel, its row on a
-    # rib built into a wall by the inventory, is left 0.5 m up its crate's side; its row on the crate, let down.
-    rows = [{"id": "crate", "noun": "crate", "anchor": "on:rib"}, {"id": "hull_wall", "noun": "wall"},
-            {"id": "rib", "noun": "rib", "part": "structure", "anchor": "on:hull_wall"}]
-    for holder, moved in (("rib", []), ("crate", [("panel_1", 0.4), ("cube_2", 0.4)])):
-        place = a_faced_place(tmp_path / f"faced-on-{holder}")
-        fits = lay_down(place.parent, TOY, [*rows, {"id": "panel", "noun": "wall lamp", "anchor": f"on:{holder}"}])
-        assert [(fit["name"], round(fit["moved"], 3)) for fit in fits] == moved, (holder, fits)
-    # assembly@wreck (2026-11-12): its open hatch, left at its rocket half's box top in the fitting (its model a foot
-    # off until even_feet levelled it), floated 1.74 m over the hull. A 0.2 m box at the box top of a hull lying on
-    # its side (radius 1 m, crest 2 m up), 0.6 m off the crest (0.2 m over the hull there), is laid on the crest, its
-    # foot on it; laid again it moves no more.
-    place = a_topped_place(tmp_path / "topped")
-    fits = lay_tops(place.parent, TOY)
-    stage = Usd.Stage.Open(str(place))
-    hatch = on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/hatch_1"))
-    assert [fit["name"] for fit in fits] == ["hatch_1"], fits
-    assert abs(hatch[:, 2].mean()) < 0.15 and abs(hatch[:, 1].min() - 2.0) < 0.01, hatch.min(axis=0)
-    laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
-    assert np.isclose(laid["hatch_1"]["low"][1], hatch[:, 1].min(), atol=1e-3) and lay_tops(place.parent, TOY) == []
-    # assembly@base (2026-11-12): its hangar roof opening, a slab with a fin hanging 2.7 m under it into the hangar's
-    # open middle, was left at the hangar's box top and floated 2.98 m. A 3 m slab with a fin 0.8 m under it, laid
-    # 0.5 m over the two walls of a hall it spans (the fin between them), is let down onto the walls' tops, its fin
-    # into the hall, nothing slid across; its row read as an object, or laid again, it moves no more.
-    rows = [{"id": "hall", "noun": "building"}, {"id": "roof", "part": "opening", "anchor": "on:hall"}]
-    place = a_roofed_place(tmp_path / "roofed")
-    fits = lay_roofs(place.parent, TOY, rows)
-    stage = Usd.Stage.Open(str(place))
-    roof = on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/roof_1"))
-    assert [(fit["name"], fit["moved"], fit["top at"]) for fit in fits] == [("roof_1", 0.495, 1.205)], fits
-    assert np.isclose(roof[:, 1].min(), 1.205) and np.allclose(roof[:, [0, 2]].min(axis=0), (-1.5, -0.5)), roof
-    laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())["objects"]}
-    assert np.isclose(laid["roof_1"]["low"][1], 1.205) and lay_roofs(place.parent, TOY, rows) == [], laid
-    assert fitting.held_faults(json.loads((place.parent / record.RECORD).read_text()),
-                               json.loads((place.parent / made_waiting.LAID).read_text())) == []
-    place = a_roofed_place(tmp_path / "roofed-object")
-    assert lay_roofs(place.parent, TOY, [rows[0], {**rows[1], "part": "object"}]) == []
-    # assembly@workshop (2026-11-14): its lamp, attached on its robotic arm's top as the arm's head, was left at the
-    # arm's box top and floated 0.24 m. The same slab read as an object the record attaches on the hall's top is let
-    # down so, as attached; one the record lays on the top unattached is not. assembly@hangar (2026-11-14): its pipe
-    # valves, attached on their pipe's top and packed onto the pipe over it, were let down 0.66 m through that pipe:
-    # the attached slab whose fin already stands on a post laid under it (not its record's holder) stays.
-    for name, rests, moved in (("attached", {"rests": "attached"}, [("roof_1", 0.495, 1.205)]), ("standing", {}, []),
-                               ("on-a-post", {"rests": "attached"}, [])):
-        place = a_roofed_place(tmp_path / f"roofed-{name}")
-        laid_record = json.loads((place.parent / record.RECORD).read_text())
-        laid_record["objects"][1].update(rests)
-        (place.parent / record.RECORD).write_text(json.dumps(laid_record))
-        if name == "on-a-post":
-            base = Usd.Stage.Open(str(place.parent / "layers/base.usda"))
-            a_solid_box(base, f"/{TOY}/Objects/post_1", (-0.05, 0.0, -0.5), (0.05, 1.7, 0.5))
-            base.GetRootLayer().Save()
-            laid = json.loads((place.parent / made_waiting.LAID).read_text())
-            laid["objects"].append({"name": "post_1", "low": [-0.05, 0.0, -0.5], "high": [0.05, 1.7, 0.5]})
-            (place.parent / made_waiting.LAID).write_text(json.dumps(laid))
-        fits = lay_roofs(place.parent, TOY, [rows[0], {**rows[1], "part": "object"}])
-        assert [(fit["name"], fit["moved"], fit["top at"]) for fit in fits] == moved, (name, fits)
-        assert all(fit["words"].endswith("onto the holder it is attached to") for fit in fits), fits
-    # assembly@wreck (2026-11-12): its spherical tank, laid 0.26 m off the middle of its 1 m dent, was turned 7.9
-    # degrees with the dent's side and leaned. A 0.6 m box laid 0.25 m off the middle of a round dent 1 m deep (a
-    # sphere's cap 1.25 m round) is slid to where the ground under it is level, at the dent's middle; one on the flat
-    # ground beside it is left, and slid again neither moves.
-    place = a_dented_place(tmp_path / "dented")
-    fits = slide(place.parent, TOY)
-    stage = Usd.Stage.Open(str(place))
-    tank = on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/tank_1"))
-    middle = (tank.min(axis=0) + tank.max(axis=0)) / 2
-    assert [fit["name"] for fit in fits] == ["tank_1"] and np.hypot(middle[0], middle[2]) < 0.1, (fits, middle)
-    crate = on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/crate_1"))
-    assert np.isclose(crate[:, 0].min(), 2.7) and slide(place.parent, TOY) == [], crate.min(axis=0)
+
+def a_pole(head, lean, tipped=False):
+    """A 0.5 m pole 1.5 cm thick (its first 12 faces) holding `head`, leaned `lean` degrees about x, the pole itself
+    tipped 60 degrees about z when `tipped`, standing on 0."""
+    pole = box_at((0.015, 0.5, 0.015), (0.0, 0.25, 0.0))
+    if tipped:
+        turned_by(pole, 60, (0, 0, 1), (0, 0.25, 0))
+    return on_zero(turned_by(trimesh.util.concatenate([pole, head]), lean, (1, 0, 0)))
+
+
+LEGS = [box_at((0.1, 0.45, 0.1), (x, 0.375, z)) for x in (-0.9, 0.9) for z in (-0.9, 0.9)]  # 0.15 m off the floor
+BENCH = trimesh.util.concatenate([box_at((2.0, 0.1, 2.0), (0, 0.65, 0)), *LEGS])  # a 2 m top on legs short of it
+# Each floor thing the settle takes its bake over (grounded.take_bakes, the bake's own take a no-op) and what its
+# asset is then: `made` a mesh, or the short of a thing_on_legs leg; `how` the thing is laid (floor, fixed by the
+# seed, attached by the record on its holder's top, its asset linked from elsewhere, or with normals, texture places
+# and parts on a 12-face pole); `coarse` the triage's foot bands sampled as on the dome. `wanted`: `legs` its legs'
+# and hull's lowest (lowest_legs), `under` its lowest inside each (middle x z, half along, half across) window, `tall`
+# its height, `top` its highest, `above` (a height, the lowest point over it), `heights` / `first heights` / `has
+# height` its distinct heights (all of them, the lowest of them, one of them), `middle` its middle
+# across (x z, within), `bottom` its lowest, `lies` (its least z, within, its most z at most), `points` how many,
+# `plated` its pole stood on a plate.
+BAKED = [
+    {"case": "a table with a leg 5 cm short", "name": "table", "made": 0.05, "how": "floor",
+     "wanted": {"legs": [0.0] * 4}},
+    {"case": "a stool with a leg 2 cm short, within the check's 3 cm", "name": "stool", "made": 0.02, "how": "floor",
+     "wanted": {"legs": [0.0, 0.0, 0.0, 0.02]}},
+    {"case": "a fixed rack", "name": "rack", "made": 0.05, "how": "fixed", "wanted": {"legs": [0.0, 0.0, 0.0, 0.05]}},
+    {"case": "an arm's head the record attaches on its top", "name": "head", "made": 0.05, "how": "attached",
+     "wanted": {"legs": [0.0, 0.0, 0.0, 0.05]}},
+    {"case": "a shelf whose asset is linked from elsewhere", "name": "shelf", "made": 0.05, "how": "linked",
+     "wanted": {"legs": [0.0, 0.0, 0.0, 0.05]}},
+    {"case": "old_station's hub: a table whose legs end 0.15 m over the foot of a post at its back edge", "name": "hub",
+     "made": trimesh.util.concatenate([BENCH, box_at((0.1, 0.65, 0.1), (0.0, 0.325, -0.95))]), "how": "floor",
+     "wanted": {"under": [((0.9, 0.9), 0.051, 0.051, 0.0), ((0.0, -0.95), 0.051, 0.051, 0.0)], "tall": 0.7,
+                "top": 0.7, "above": (0.55, 0.6)}},
+    {"case": "that table on its legs alone", "name": "bench", "made": BENCH, "how": "floor",
+     "wanted": {"under": [((0.9, 0.9), 0.051, 0.051, 0.15)], "tall": 0.55}},
+    {"case": "a 4 m board 2 m tall on its whole edge", "name": "board", "made": box_at((4.0, 2.0, 0.18), (0, 1.0, 0)),
+     "how": "floor", "wanted": {"tall": 2.0}},
+    {"case": "old_station's cable: a slab on a 1 m foot at one end, a crate beside it", "name": "cable",
+     "made": trimesh.util.concatenate([box_at((1.0, 0.1, 0.1), (-1.5, 0.05, 0.0)),
+                                       box_at((3.0, 1.7, 0.1), (0.5, 1.15, 0.0))]),
+     "beside": [((0.0, 0.0, -1.95), (6.0, 0.5, -1.0))], "how": "floor",
+     "wanted": {"tall": 0.1, "lies": (-1.95, 0.06, 0.06)}},
+    {"case": "base's tube: a 4 m beam leaned 20 degrees", "name": "beam", "how": "floor",
+     "made": on_zero(turned_by(trimesh.creation.box((4.0, 0.6, 0.6)), 20, (0, 0, 1))).apply_translation(
+         (0.3, 0.0, 0.1)),
+     "wanted": {"tall": 0.6, "middle": ((0.3, 0.1), 1e-5), "bottom": 0.0}},
+    {"case": "base's hub: a 9 m tower whose bottom slopes 0.9 m", "name": "tower", "made": a_sloped_bottom(9.0),
+     "how": "floor", "wanted": {"heights": [0.0, 9.0]}},
+    {"case": "a 4 m one, an eighth of it under the slope", "name": "post", "made": a_sloped_bottom(4.0), "how": "floor",
+     "wanted": {"heights": [0.0, 0.9, 4.0]}},
+    {"case": "base's hangar: a floor whose inner corners stand 0.15 m up under a roof 3.5 m up", "name": "hall",
+     "made": a_floor_under(3.5), "how": "floor", "coarse": True,
+     "wanted": {"first heights": [0.0, 3.4]}},
+    {"case": "under one 2 m up", "name": "shed", "made": a_floor_under(2.0), "how": "floor", "coarse": True,
+     "wanted": {"has height": 0.15}},
+    {"case": "base's dome: a 2 m cabinet on four legs, one 2.7 cm short", "name": "cabinet", "how": "floor",
+     "coarse": True, "made": trimesh.util.concatenate([box_at((2.0, 1.4, 2.0), (0, 1.3, 0)), *[
+         box_at((0.1, 0.6 - lift, 0.1), (x, 0.3 + lift / 2, z))
+         for x, z, lift in ((-0.9, -0.9, 0.0), (-0.9, 0.9, 0.0), (0.9, -0.9, 0.0), (0.9, 0.9, 0.027))]]),
+     "wanted": {"under": [((0.9, 0.9), 0.051, 0.051, 0.0)], "tall": 2.0}},
+    {"case": "square's flag: a 0.5 m pole leaned 10 degrees with a 0.4 m cloth on it", "name": "flag", "how": "parted",
+     "coarse": True, "made": a_pole(box_at((0.4, 0.3, 0.004), (0.2075, 0.35, 0.0)), 10),
+     "wanted": {"plated": True}},
+    {"case": "a pole on a 0.2 m foot under a head to one side", "name": "lamp", "how": "parted", "coarse": True,
+     "made": a_pole(trimesh.util.concatenate([box_at((0.2, 0.01, 0.2), (0.0, 0.005, 0.0)),
+                                              box_at((0.8, 0.02, 0.1), (0.4, 0.5, 0.0))]), 0),
+     "wanted": {"points": 24}},
+    {"case": "a 3 m pipe on a thin leg leaning 60 degrees", "name": "pipe", "how": "parted", "coarse": True,
+     "made": a_pole(box_at((3.0, 0.05, 0.05), (1.4, 0.53, 0.0)), 0, tipped=True), "wanted": {"points": 16}},
+]
+
+
+def a_baked_thing(folder, case):
+    """A BAKED case's place in `folder`: its floor thing from its own asset, laid as its `how` says. The asset's
+    path."""
+    from pxr import Sdf, Usd, UsdGeom, Vt
+    name, made = case["name"], case["made"]
+    if not isinstance(made, float):
+        a_floor_thing(folder, name, made, beside=case.get("beside", ()))
+    else:
+        source = a_thing_on_legs(folder.parent / "elsewhere", name, made) if case["how"] == "linked" else None
+        a_thing_on_legs(folder, name, made, linked_to=source and source.parent / "assets" / f"{name}.usdc")
+    asset = folder / "assets" / f"{name}.usdc"
+    if case["how"] in ("fixed", "attached"):
+        layer = Sdf.Layer.FindOrOpen(str(folder / f"{TOY}.usda"))
+        said = ("score:fixed", Sdf.ValueTypeNames.Bool, True) if case["how"] == "fixed" else (
+            "score:row", Sdf.ValueTypeNames.String, name)
+        Sdf.AttributeSpec(layer.GetPrimAtPath(f"/{TOY}/Objects/{name}_1"), *said[:2]).default = said[2]
+        layer.Save()
+    if case["how"] == "attached":  # the record attaches it on its holder's top: it stands as baked
+        (folder / record.RECORD).write_text(json.dumps({"objects": [
+            {"name": f"{name}_1", "row": name, "on": {"how": "top", "holder": ["arm_1"]}, "rests": "attached"}]}))
+    if case["how"] == "parted":
+        stage = Usd.Stage.Open(str(asset))
+        geo = UsdGeom.Mesh(stage.GetPrimAtPath(f"/{name}/geo"))
+        geo.CreateNormalsAttr(Vt.Vec3fArray.FromNumpy(np.asarray(made.vertex_normals, dtype=np.float32)))
+        UsdGeom.PrimvarsAPI(geo).CreatePrimvar("st", Sdf.ValueTypeNames.TexCoord2fArray,
+                                               UsdGeom.Tokens.vertex).Set([(0.25, 0.75)] * len(made.vertices))
+        for part, faces in (("pole_iron", range(12)), ("flag_cloth", range(12, len(made.faces)))):
+            UsdGeom.Subset.CreateGeomSubset(geo, part, UsdGeom.Tokens.face, Vt.IntArray(list(faces)), "materialBind")
+        stage.GetRootLayer().Save()
+    return asset
+
+
+def window(points, middle, along, across):
+    """The `points` within `along` of `middle`'s x and `across` of its z."""
+    return points[(np.abs(points[:, 0] - middle[0]) <= along) & (np.abs(points[:, 2] - middle[1]) <= across)]
+
+
+def heights_of(points):
+    """The distinct heights of `points`, to the millimetre, lowest first."""
+    return sorted({round(float(height), 3) for height in points[:, 1]})
+
+
+SOLE = np.array([(x, 0.0, z) for x in (0.0, 1.0) for z in (0.0, 1.0)])
+FEET = [  # (case, a foot of three points beside SOLE, whether it is inside the sole's outline as the triage reads it)
+    ("a foot within the sole", np.array([(0.4, 0.05, 0.4), (0.6, 0.05, 0.4), (0.5, 0.05, 0.6)]), True),
+    ("a foot 0.4 m past its edge", np.array([(1.4, 0.05, 0.4)] * 3), False),
+]
+# quarters' flat wrench (settle@quarters, 2026-11-13): a flat foot 0.16 x 0.12 m at 0.25 m, its weight at (0.08, 0.06)
+FLAT = np.array([(x, 0.25, z) for x in (0.0, 0.04, 0.08, 0.12, 0.16) for z in (0.0, 0.06, 0.12)])
+TIPS = [  # (case, the gap under each point of FLAT, the drop face_down.tip_drop lets it down by)
+    ("touching only along its back edge, its weight 6 cm past it: down by the least gap of the rest",
+     np.where(FLAT[:, 2] == 0.0, 0.005, 0.25), 0.25),
+    ("standing on every point round its weight", np.full(len(FLAT), 0.005), 0.0),
+    ("touching nowhere", np.full(len(FLAT), np.inf), 0.0),
+]
+ROOF_ROWS = [{"id": "hall", "noun": "building"}, {"id": "roof", "part": "opening", "anchor": "on:hall"}]
+ROOF_OBJECT = [ROOF_ROWS[0], {**ROOF_ROWS[1], "part": "object"}]
+RIBBED = [{"id": "crate", "noun": "crate", "anchor": "on:rib"}, {"id": "hull_wall", "noun": "wall"},
+          {"id": "rib", "noun": "rib", "part": "structure", "anchor": "on:hull_wall"}]
+# Each place one of the grounded seed's layers lays again, as the settle lays it: `made` its builder and inputs,
+# `lays` the layer (with `rows` its inventory when it reads one), `rests` written into the roof's record entry and
+# `post` a post laid under the roof's fin. `said`, of each fit it answers, the fields `fits` lists (floats rounded to
+# `places` when given), every fit's words ending `words`; `lows` each object's lowest after it (within `within`, or
+# np.isclose), `up` its up turned that many degrees toward +z, `on slope` its foot's corners on y = base - rise z,
+# `rides` (the thing it rides, how far up its up), `middle` its middle across (x z, None unread) within a distance,
+# `from` its least x and z (None unread), `laid` laid.json's low of it (None: its lowest) within a distance (None:
+# np.isclose), `held` the held gate passes the record as laid. Laid again, each moves nothing.
+LET_DOWN = [
+    {"case": "hangar's ship 1 m over a built floor", "made": (a_floored_place, {}), "lays": floor_down.let_down,
+     "said": ("name", "how", "moved"), "places": 3,
+     "fits": [("ship_1", "floored", 0.998), ("cube_1", "floored", 0.998), ("lamp_1", "floored", 0.998),
+              ("seat_1", "floored", 0.998)],
+     "lows": {"ship_1": 0.002, "cube_1": 1.002, "crate_1": 0.2, "rack_1": 1.0, "lamp_1": 0.002, "seat_1": 0.502,
+              "crane_1": 3.0}, "laid": ("ship_1", 0.002, 1e-3)},
+    {"case": "wreck's box at 0 m over a ground rising 0.2 m a metre north", "made": (a_sloped_place, {}),
+     "lays": on_ground.stood, "said": ("name", "how"), "fits": [("crate_1", "grounded"), ("cube_1", "grounded")],
+     "lows": {"case_1": 0.0, "podium_1": 3.3}, "up": {"crate_1": 11.31}, "on slope": {"crate_1": (1.0, 0.2)},
+     "rides": {"cube_1": ("crate_1", 0.6)}, "laid": ("crate_1", None, 1e-3)},
+    {"case": "that box in an enclosed place", "made": (a_sloped_place, {"inside": True}), "lays": on_ground.stood,
+     "said": ("name",), "fits": [], "lows": {"crate_1": 0.0}, "up": {"crate_1": 0.0}},
+    {"case": "wreck's panel 0.5 m up its crate's side", "made": (a_faced_place, {}), "lays": face_down.let_down,
+     "said": ("name", "moved"), "places": 3, "fits": [("panel_1", 0.4), ("cube_2", 0.4)],
+     "lows": {"panel_1": 0.1, "panel_2": 0.2, "sign_1": 0.6, "cube_2": 0.5}, "laid": ("panel_1", 0.1, 1e-3)},
+    {"case": "tube's wall lamp, its row on a rib built into a wall", "made": (a_faced_place, {}),
+     "lays": face_down.let_down, "rows": [*RIBBED, {"id": "panel", "noun": "wall lamp", "anchor": "on:rib"}],
+     "said": ("name", "moved"), "places": 3, "fits": []},
+    {"case": "that lamp, its row on the crate", "made": (a_faced_place, {}), "lays": face_down.let_down,
+     "rows": [*RIBBED, {"id": "panel", "noun": "wall lamp", "anchor": "on:crate"}], "said": ("name", "moved"),
+     "places": 3, "fits": [("panel_1", 0.4), ("cube_2", 0.4)]},
+    {"case": "wreck's hatch at a lying hull's box top, 0.6 m off its crest", "made": (a_topped_place, {}),
+     "lays": tops_levelled.laid, "said": ("name",), "fits": [("hatch_1",)], "lows": {"hatch_1": 2.0},
+     "within": 0.01, "middle": {"hatch_1": ((None, 0.0), 0.15)}, "laid": ("hatch_1", None, 1e-3)},
+    {"case": "base's roof opening 0.5 m over the hall it spans", "made": (a_roofed_place, {}),
+     "lays": roof_tops.let_down, "rows": ROOF_ROWS, "said": ("name", "moved", "top at"),
+     "fits": [("roof_1", 0.495, 1.205)], "lows": {"roof_1": 1.205}, "from": {"roof_1": (-1.5, -0.5)},
+     "laid": ("roof_1", 1.205, None), "held": True},
+    {"case": "that slab, its row read as an object", "made": (a_roofed_place, {}), "lays": roof_tops.let_down,
+     "rows": ROOF_OBJECT, "said": ("name",), "fits": []},
+    {"case": "workshop's lamp: that object the record attaches on the hall's top", "made": (a_roofed_place, {}),
+     "lays": roof_tops.let_down, "rows": ROOF_OBJECT, "rests": {"rests": "attached"},
+     "said": ("name", "moved", "top at"), "fits": [("roof_1", 0.495, 1.205)],
+     "words": "onto the holder it is attached to"},
+    {"case": "that object the record lays on the top unattached", "made": (a_roofed_place, {}),
+     "lays": roof_tops.let_down, "rows": ROOF_OBJECT, "rests": {}, "said": ("name",), "fits": []},
+    {"case": "hangar's valve: the attached slab whose fin stands on a post laid under it", "made": (a_roofed_place, {}),
+     "lays": roof_tops.let_down, "rows": ROOF_OBJECT, "rests": {"rests": "attached"}, "post": True,
+     "said": ("name",), "fits": []},
+    {"case": "wreck's tank 0.25 m off the middle of a 1 m dent", "made": (a_dented_place, {}), "lays": level_spot.slid,
+     "said": ("name",), "fits": [("tank_1",)], "middle": {"tank_1": ((0.0, 0.0), 0.1)},
+     "from": {"crate_1": (2.7, None)}},
+]
 
 
 # --- the layers gate ------------------------------------------------------------------------------------------------
@@ -2752,6 +2492,39 @@ FIT = [  # (case, a laid thing's low and high, its relation, its holders' boxes,
        (-0.075, 1.5, middle), None, None, None, None, (-0.1, 1e-9, None), False)
       for where, low, middle in (("beside the tube is slid along onto its middle", -0.2, -0.8),
                                  ("already in front of the tube stays", -0.95, -0.85))],
+    ("a 0.5 x 0.4 x 0.1 m monitor laid 2 m off its 3 x 1 x 0.8 m console stands on its top, moved in to x 3 - 0.25 = "
+     "2.75, z kept at 0.4", (4.5, 0.0, 0.35), (5.0, 0.4, 0.45), CONSOLE_TOP, [CONSOLE], {}, 1.0, (2.75, 1.0, 0.4),
+     None, None, None, None, ANY, False),
+    ("that monitor on a console narrower than it is shrunk to fit", (4.5, 0.0, 0.35), (5.0, 0.4, 0.45), CONSOLE_TOP,
+     [NARROW_CONSOLE], {}, 0.8, (0.2, 1.0, 0.4), None, None, None, None, ANY, False),
+    *[(f"engineroom: a {case} within its shelf unit", low, high, WITHIN_SHELF, [UNIT], {"surface": BOARDS, **more},
+       None, foot, None, None, None, None, ANY, False) for case, low, high, more, foot in (
+        ("0.3 m box laid at 0.7 through the board at 0.8 goes onto the nearest board it fits on, 0.82",
+         *BOARD_BOX, {}, (0.5, 0.82, 0.25)),
+        ("twin laid at that spot, the first there, goes onto the board under, 0.42", *BOARD_BOX,
+         {"clear": [BOARD_FIRST]}, (0.5, 0.42, 0.25)),
+        ("third laid there, both taken, slides along the unit (0.3 m and BOARD_CLEAR) onto the board at 0.82",
+         *BOARD_BOX, {"clear": [BOARD_FIRST, BOARD_SECOND]}, (0.81, 0.82, 0.25)),
+        ("0.404 m box fits between no boards and goes on the top", (0.3, 0.5, 0.05), (0.7, 0.904, 0.45), {},
+         (0.5, 2.0, 0.25)),
+        ("box laid between boards over no board goes down onto the board under it", (0.35, 0.45, 0.1),
+         (0.65, 0.75, 0.4), {}, (0.5, 0.42, 0.25)),
+        ("box on a board is left", *BOARD_SECOND, {}, None))],
+    ("galley: a box on the board at 0.42 across an upright 4 cm divider at the unit's middle is slid along clear of "
+     "it", *BOARD_SECOND, WITHIN_SHELF, [UNIT], {"surface": DIVIDED}, None, (0.81, 0.42, 0.25), None, None, None, None,
+     ANY, False),
+    ("garage: a 0.3 m box laid at x 0.5 in a unit whose own blocks fill its board but for x 0.49 to 0.82 goes on that "
+     "stretch of its board, not on its top", (0.35, 0.1, 0.1), (0.65, 0.4, 0.4), WITHIN_SHELF, [LOW_UNIT],
+     {"surface": PACKED}, None, (0.655, 0.02, 0.25), None, None, (0.025, 1e-9, 1e-9), None, ANY, False),
+    *[(f"galley's corner shelves: a jar laid {case}", (foot[0], foot[1], 0.2), (foot[0] + 0.1, foot[1] + 0.15, 0.3),
+       WITHIN_SHELF, [UNIT], {"surface": CORNER}, None, None if wanted is None else (*wanted, 0.25), None, None, None,
+       None, ANY, False) for case, foot, wanted in (
+        ("at 1.5 m past the boards, over none, goes onto the board under its footprint's inner half", (0.85, 1.5),
+         (0.57, 1.62)),
+        ("on a 3 cm strut goes onto a board", (0.775, 1.0), (0.495, 0.62)),
+        ("half over a board's edge goes onto it", (0.55, 0.62), (0.49, 0.62)),
+        ("at the unit's foot over no board is left", (0.85, 0.0), None),
+        ("on a board is left", (0.2, 1.62), None))],
 ]
 NUDGED = [  # (case, a thing's name, low and high, how it is met to its holder (onto: the holder's surface; out: of
     # the slanted wall; in: to the module's face), the words it says (None: left), the least its box's corners stand
@@ -3930,13 +3703,130 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         `top = topped(*fitting.world_box(stage, path))` -> `top = fitting.box_topped(fitting.surface_points(stage,
         path))` (the light's corners, at its ends, stand under no rib: left up in it)
     Break: score/stages/assembly/vault_feet.py: `found = fitting.wall_holes(walls, on, band)` -> `found =
-        fitting.wall_holes(built, on, band)` (the hole behind which the vault stands left unread)"""
+        fitting.wall_holes(built, on, band)` (the hole behind which the vault stands left unread)
+    The settle's grounded seed of a store checkout (read-only, no assets/ folder: Batch 1, 2026-10-25, every
+    settle) is laid with its record written over the copied base and an assets folder of its own.
+    Break: score/stages/assembly/grounded.py: `(folder / "assets").mkdir()` -> `pass`
+    Break: score/stages/assembly/grounded.py: `parting.parted(folder, seed.name)` -> `pass` (the settle dropped
+        airlock's control pedestal in its wall pipes, which the assembly parts: settle@airlock, 2026-11-10)
+    Campgrounds' habitat domes (2026-11-11) stood on flat ground with eleven rim feet 3.1 to 8.8 cm up and its
+    communications towers with a leg 3.4 cm up, feet the paint links into one (3% of the footprint's diagonal) and
+    the resting check reads apart (5 cm): a floor thing's own asset is laid with a leg 5 cm short brought down onto
+    its lowest, its hull with it; a leg 2 cm short (within the check's 3 cm), a fixed thing's, one the scene record
+    attaches on its holder's top (the workshop's lamp, its robotic arm's head, turned 44 degrees and cut 13 cm of its
+    20 cm, 2026-11-14) and an asset linked from elsewhere are left as they are.
+    Break: score/stages/assembly/even_feet.py: `and said_row(prim) not in attached` dropped (the attached one levelled)
+    Break: score/stages/assembly/even_feet.py: `if foot - lowest > most and not` -> `if False and not`
+    Break: score/stages/assembly/big_bases.py: sole_cut's `for spare in (SPARE, 0.0):` -> `for spare in (0.0,):` (the
+        cabinet left on a leg 2.7 cm short)
+    Break: score/stages/assembly/even_feet.py: `or os.stat(path).st_nlink != 1` -> `` (a write through a link)
+    Break: score/stages/assembly/even_feet.py: `and not said("score:fixed")` -> ``
+    Break: score/stages/assembly/grounded.py: `even_feet.evened(folder, place)` -> `pass`
+    Break: score/stages/assembly/big_bases.py: levelled's `stood = footing.cut_at(points, cut) if cut else ...` ->
+        `stood = np.asarray(points, dtype=np.float64)` (the hub left on its post's foot, the tower on its slope)
+    Break: score/stages/assembly/big_bases.py: upright's `stood = (points - middle) @ turn.T` -> `stood = points -
+        middle` (the beam left leaning), or `key=lambda way: -way[1]):` -> `key=lambda way: -way[1])[:1]:` (the
+        angle left on its leg tips)
+    Break: score/stages/assembly/grounded.py: `roof_tops.let_down(folder, seed.name, inventory_rows(inputs))` -> `pass`
+    Break: score/stages/assembly/roof_tops.py: downs' `if on_ground.TOLERANCE < between < np.inf:` -> `if between <
+        np.inf:` (laid again, moved 5 mm down into the walls), `found[entry["name"]] = between - CLEAR` -> `=
+        between` (moved 0.5 m), or let_down's `fits.append({**fit, "top at": ...} if one ==
+        name else fit)` -> `fits.append(fit)` (the held gate measures it off the hall's box top)
+    Break: score/stages/assembly/roof_tops.py: downs' `roofed, fixed = roofs(rows, record), attached(record)` ->
+        `roofed, fixed = roofs(rows, record), set()` (the attached slab left), attached's `and entry.get("rests") ==
+        "attached"` dropped (the standing slab let down), or downs' `under = laid_under(...) if ... else []` -> `under =
+        []` (the slab on its post let down through it)
+    Break: score/stages/assembly/big_bases.py: deep_cut's `deepest = DEEP * float(np.ptp(points[:, 1]))` -> `deepest
+        = 9.0` (the 4 m post cut level), or levelled's `stood, sole = sole_cut(stood, triangles)` -> `sole = []` (the
+        hall left on its corners), or sole_cut's `SOLE * float(np.ptp(points[:, 1]))` -> `1.0` (the shed cut level)
+    Break: score/stages/assembly/big_bases.py: outlines's within `return any(...)` -> `return True` (the foot beside
+        the sole read inside it)
+    Break: score/stages/assembly/footing.py: cut_at's `points[points[:, 1] <= lowest + cut, 1] = lowest` dropped (the
+        hub's legs left 0.15 m up)
+    Break: score/stages/assembly/even_feet.py: `plated = post_plate.based(root, scale)` -> `plated = []` (the flag left
+        tipping on its pole), or post_foot's `if across > POST or wide < ...` -> `if wide < ...` (the lamp's 0.2 m
+        foot read as a post and given a plate), or stood's `turned = (points - pivot) @ turn.T + pivot` -> `turned =
+        points` (the pole left leaning), or standing_post's `<= LEAN_MOST` -> `<= 90.0` (the pipe stood on its leg), or
+        joined's `subset.GetIndicesAttr().Set(...)` dropped (the plate in no part)
+    Break: score/stages/assembly/even_feet.py: `laid_flat.flattened(stage, folder, place)` -> `pass` (the slab left
+        standing), or laid_flat's `if axis is None or footing.stands(...)` -> `if axis is None` (the board laid down),
+        or clear_side's `if all(not meets(...))` -> `if True` (the slab laid down into the crate)
+    Break: score/stages/assembly/grounded.py: `on_ground.stood(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/on_ground.py: `if record.get("inside") or not` -> `if not`, `if over_deck(pivot,
+        decks):` -> `if False:`, `and at_floor(entry)` -> `` (square's podium let down off its stage), `for one in
+        (name, *held):` -> `for one in (name,):`, `turn = turn_onto(up, normal)` -> `turn = np.eye(4)`, `if leans <=
+        LEAN_MOST and abs(` -> `if False and abs(`, or `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
+    Break: score/stages/assembly/grounded.py: `face_down.let_down(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/grounded.py: `floor_down.let_down(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/floor_down.py: downs' `if DRIFT_MOST < gap < float("inf"):` -> `if gap <
+        float("inf"):` (the crate let down too), `found[entry["name"]] = gap - CLEAR` -> `= gap`, `and
+        even_feet.floor_thing(prim)` -> `` (the rack let down), `for one in (name, *held):` -> `for one in (name,):`,
+        `if name not in held and below(` -> `if name != entry["name"] and below(` (the ship held up by its seat), `or
+        entry.get("under roof"):` -> `:` (the crane let down), or
+        let_down's `laid_path.write_text(json.dumps(laid, indent=1))` -> `pass`
+    Break: score/stages/assembly/face_down.py: `and entry["row"] not in hanging` -> `` (the sign let down too),
+        `if on_ground.TOLERANCE < gap < np.inf:` -> `if gap < np.inf:` (a second let down moves panel_1 again: 0),
+        `for one in (name, *held):` -> `for one in (name,):`, gap_under's `if len(rays):` -> `if False:` (the panel
+        let down through the step onto the ground), or downs' `points = points[points[:, 1] <= ...]` -> `pass` (let
+        down 0.1 m onto the rail its back rests on)
+    Break: score/stages/assembly/face_down.py: faced_standing's `and given.get(entry["row"]) in STANDING` -> `` (the
+        panel on a rib built into a wall let down too), or downs' `faced_standing(record, rows)` ->
+        `faced_standing(record)`
+    Break: score/stages/assembly/face_down.py: tip_drop's `<= 0.0:` -> `<= np.inf:` (the tipping wrench
+        left), or downs' `elif gap <= on_ground.TOLERANCE:` -> `elif False:` (caught on quarters' laid seed)
+    Break: score/stages/assembly/grounded.py: `tops_levelled.laid(folder, seed.name)` -> `pass`, or
+        `railings_held.laid(folder, seed.name, inventory_rows(inputs))` -> `pass`
+    Break: score/stages/assembly/tops_levelled.py: `fits = crest_tops.laid_on(stage, place, entries)` -> `fits = []`,
+        or `layer.Save()` -> `pass`
+    Break: score/stages/assembly/grounded.py: `level_spot.slid(folder, seed.name)` -> `pass`
+    Break: score/stages/assembly/level_spot.py: spot's `if level(low + shift, high + shift, ground):` -> `if True:`
+        (slid 2 cm, still on the dent's side), or `or level(low, high, ground):` -> `` (the crate on flat ground slid
+        too: it is level where it is)
+    Each row of FIT is laid through fitting.fit (a monitor on its console's top, boxes within shelf units onto their
+    boards), each of SHELVED through fitting.shelved (the unit it goes to among several, stacked or crowded), and
+    each of SHELVES_OF, MEETS, OUTLINED and RAILINGS judged by fitting.on_shelves_of, fitting.meets_any,
+    fine_tops.meets and railings_held.held.
+    Break: score/stages/assembly/fitting.py: `target[1] = hold_high[1] if how == "top" else` -> `target[1] = foot[1]
+        if how == "top" else`
+    Break: score/stages/assembly/fitting.py: on_boards' `if clear_of(hits, foot, tall) and not meets_any(...)` ->
+        `if not meets_any(...)` (the box at 0.7 laid on the board under it, 0.42, through the next)
+    Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` reached first (`found =
+        rests or tops` -> `found = []`): the box through the board named crowded
+    Break: score/stages/assembly/fitting.py: on_boards' `return None` after `if not found:` -> `return target` (the
+        box on a full unit piled at its target, garage 2026-11-10), or shelved's `for holder, box in sorted(held,
+        key=distance)` -> `for holder, box in held[:1]` (the far unit never tried), or its `for stack in (False, True)`
+        -> `for stack in (False,)` (the box on two full units crowded, not stacked), or stacked_spots' `or float(low[1]) >
+        hold_high[1] + BOARD_BED` dropped (a box stacked on a stacked one)
+    Break: score/stages/assembly/fitting.py: on_boards' `meets_any(*footprint(placed), taken)` -> `False` (the twin on
+        its first)
+    Break: score/stages/assembly/fitting.py: on_boards' `if not len(hits[0]) or (standing and clear_of(` -> `if not
+        len(hits[0]) or (clear_of(` (the box laid between boards left over the board under it)
+    Break: score/stages/assembly/fitting.py: crosses' `return bool(np.any(...))` -> `return False` (the box left
+        across the divider)
+    Break: score/stages/assembly/fitting.py: on_boards' `if not any(float(spot[1]) < inside for spot in rests):` ->
+        `if False:` (the box on the packed unit's top, its board's clear stretch stepped over: garage 2026-11-11)
+    Break: score/stages/assembly/fitting.py: supported's `return all(` -> `return True or all(` (galley's jars left on
+        the strut and over the board's edge), or on_boards' `and float(target[1]) <= hold_low[1] + BOARD_BED` dropped
+        (the jar left at 1.5 m over no board), or slid_spots' `for axis in (0, 2):` -> `for axis in (2,):` (the jar
+        past the boards never slid across onto one)
+    Break: score/stages/assembly/fitting.py: on_shelves_of's `return str(on.get("why") or "").startswith(SHELVES)` ->
+        `return True`
+    Break: score/stages/assembly/fitting.py: shelved's `for stack in (False, True, piled.PILE):` -> `for stack in
+        (False, True):` (camp's tray crowded), or piled.py: spots' `if not flat(size): return []` dropped (garage's
+        box piled on its stacked one)
+    Break: score/stages/assembly/fine_tops.py: meets' `return overlap(square, np.asarray(outline, float)) >
+        fitting.BOARD_CLEAR` -> `return True` (OUTLINED: the box beside the diagonal railing read as in it)
+    Break: score/stages/assembly/fitting.py: reaches_into's `np.minimum(BOARD_CLEAR, thinner / 4)` -> `BOARD_CLEAR`
+        (MEETS: the wrenches read clear) or -> `np.minimum(BOARD_CLEAR, thinner / 2)` (the book's corner read clear)
+    Break: score/stages/assembly/railings_held.py: held's `and not CLIMBED & set(climbing)` dropped (RAILINGS: the
+        stair's railing held)"""
     for case, low, high, on, holders, more, scale, foot, words, walls, within, below, face, held in FIT:
         boxes = [tuple(np.asarray(end, float) for end in box) for box in holders]
         laid = fitting.fit(low, high, on, boxes, **more)
         if foot is None or foot is fitting.CROWDED:
             assert laid is foot, f"{case}: fit {laid}"
             continue
+        assert laid is not None and laid is not fitting.CROWDED, f"{case}: fit {laid}"
         laid_scale, laid_at, said, laid_face = laid
         assert scale is None or (laid_scale == scale if isinstance(scale, float) else np.allclose(laid_scale, scale)), \
             f"{case}: scaled {laid_scale}"
@@ -4527,6 +4417,23 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         if at_foot:
             scale, foot = fitting.on_holder(low, high, "within", on, holder)
             assert scale == 1.0 and abs(foot[1]) < 1e-9, f"{case}: laid {scale} at {foot}"
+    for case, laid, taken, holder, foot in SHELVED:
+        found = fitting.shelved(*laid, WITHIN_SHELF, SHELF_HELD, SHELF_SURFACES.get, taken)
+        assert found == (None, fitting.CROWDED) if foot is fitting.CROWDED else (
+            found[0] == holder and np.allclose(found[1][1], foot)), f"{case}: {found}"
+    for case, on, shelves in SHELVES_OF:
+        assert bool(fitting.on_shelves_of(on)) == shelves, case
+    for case, low, high, boxes, meets in MEETS:
+        assert bool(fitting.meets_any(np.array(low), np.array(high), boxes)) == meets, case
+    from score.stages.assembly import fine_tops, railings_held
+    for case, low, high, railing, meets in OUTLINED:
+        assert bool(fine_tops.meets(np.array(low), np.array(high), railing)) == meets, case
+    import score.stages.props.railing_hold as railing_hold
+    import score.stages.props.thin_straight as thin_straight
+    for case, railing_row, held in RAILINGS:
+        assert railings_held.held(railing_row) == held == (thin_straight.profile(railing_row) == "railing" and not
+                                                           railing_hold.climbs(railing_row)
+                                                           and thin_straight.slender(railing_row["size"])), case
     import placeholders
     from pxr import UsdShade
     for row, surface in GROUND_SURFACE:
@@ -4554,3 +4461,140 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
             assert water.GetAttribute("score:surface:missing").Get()
         faults = [fault["prim"] for fault in placeholders.check(out / f"{TOY}.usda")]
         assert faults == case["faults"], f"{case['name']}: {faults}"
+    from pxr import Usd, UsdGeom
+    import triage
+    from score.stages.assembly import big_bases, grounded, parting, post_plate, railings_held
+    settled = tmp_path / "settled"
+    bake = {"surfaces-bake": str(settled / "bake"), "surfaces-paint": str(settled / "paint")}
+    with monkeypatch.context() as patched:
+        patched.setattr(baked, "take_bake", lambda *args: None)
+        patched.setattr(baked, "claimed_bakes", lambda *args: [])
+        patched.setattr(made_waiting, "lay", lambda *args: [])
+        for case in BAKED:
+            name, wanted = case["name"], case["wanted"]
+            with monkeypatch.context() as sampled:
+                if case.get("coarse"):  # as coarsely as on the dome (4,000 points over 21 m^2)
+                    sampled.setattr(triage, "FOOT_SAMPLES", (400, 4000))
+                asset = a_baked_thing(settled / name, case)
+                grounded.take_bakes(bake, settled / name, TOY)
+            made = Usd.Stage.Open(str(asset))
+            geo = UsdGeom.Mesh(made.GetPrimAtPath(f"/{name}/geo"))
+            points = np.asarray(geo.GetPointsAttr().Get(), dtype=np.float64)
+            if "legs" in wanted:
+                assert lowest_legs(asset) == (wanted["legs"], wanted["legs"][-1]), case["case"]
+            for middle, along, across, low in wanted.get("under", ()):
+                found = round(float(window(points, middle, along, across)[:, 1].min()), 3)
+                assert found == low, f"{case['case']}: its lowest at {middle} {found}"
+            assert "tall" not in wanted or round(float(np.ptp(points[:, 1])), 3) == wanted["tall"], case["case"]
+            assert "top" not in wanted or np.isclose(points[:, 1].max(), wanted["top"]), case["case"]
+            if "above" in wanted:
+                over, lowest = wanted["above"]
+                assert np.isclose(points[points[:, 1] > over, 1].min(), lowest), f"{case['case']}: {points}"
+            heights = heights_of(points)
+            assert heights == wanted.get("heights", heights), f"{case['case']}: {heights}"
+            assert heights[:len(wanted.get("first heights", ()))] == wanted.get("first heights", []), case["case"]
+            assert "has height" not in wanted or wanted["has height"] in heights, f"{case['case']}: {heights}"
+            if "middle" in wanted:
+                across, within = wanted["middle"]
+                assert np.allclose((points.min(axis=0) + points.max(axis=0))[[0, 2]] / 2, across, atol=within), \
+                    f"{case['case']}: {points}"
+            assert "bottom" not in wanted or np.isclose(points[:, 1].min(), wanted["bottom"]), case["case"]
+            if "lies" in wanted:  # down on its broad side, toward the side clear of the crate beside it
+                least, within, most = wanted["lies"]
+                assert np.isclose(points[:, 2].min(), least, atol=within) and points[:, 2].max() <= most, points
+            assert "points" not in wanted or len(points) == wanted["points"], f"{case['case']}: {len(points)}"
+            if wanted.get("plated"):  # upright on a plate in the pole's part, its places, normals and parts carried
+                triangles = np.asarray(geo.GetFaceVertexIndicesAttr().Get()).reshape(-1, 3)
+                parts = {subset.GetPrim().GetName(): np.asarray(subset.GetIndicesAttr().Get())
+                         for subset in UsdGeom.Subset.GetAllGeomSubsets(geo)}
+                pole, plate = points[np.unique(triangles[parts["pole_iron"][:12]])], points[16:]
+                assert len(points) == 16 + 4 * post_plate.SEGMENTS + 2, len(points)
+                assert len(parts["pole_iron"]) == 12 + 4 * post_plate.SEGMENTS, parts
+                assert np.ptp(pole[:, 2]) < 0.016 and np.isclose(pole[:, 1].min(), post_plate.THICK, atol=1e-4), pole
+                assert np.isclose(plate[:, 1].min(), 0.0, atol=1e-4) and 0.05 <= np.ptp(plate[:, 0]) / 2 <= 0.3, plate
+                assert big_bases.holds_as_made(points, triangles) and len(geo.GetNormalsAttr().Get()) == len(points)
+                assert list(UsdGeom.PrimvarsAPI(geo).GetPrimvar("st").Get())[-1] == (0.25, 0.75)
+        for case, foot, inside in FEET:
+            assert big_bases.outlines([SOLE])(foot) == triage.within_a_foot(foot, [SOLE]) == inside, case
+        # base's tube, retaken from its picture, lay 22 degrees off its frame: a 4 m angle (a 2 m top on a 1 m leg at
+        # one end) leaned 20 degrees, standing on its leg tips, is turned 70 degrees onto its leg's outer face
+        angle = turned_by(trimesh.util.concatenate([box_at((2.0, 0.2, 4.0), (1.0, 0.9, 0.0)),
+                                                    box_at((0.2, 0.8, 4.0), (0.1, 0.4, 0.0))]), 20, (0, 0, 1))
+        stood, turn = big_bases.upright(angle.vertices - (0.0, angle.bounds[0][1], 0.0), angle.faces)
+        assert turn == [70.0] and np.allclose(np.ptp(stood, axis=0), (1.0, 2.0, 4.0), atol=1e-6), (turn, stood)
+        for case, gaps, drop in TIPS:
+            assert np.isclose(face_down.tip_drop(FLAT, gaps, (0.08, 0.06)), drop, rtol=1e-5, atol=0.0), case
+        # the settle's seed, a read-only store checkout with no assets folder, is laid with its record over the copied
+        # base, an assets folder of its own, and each of its layers, as the assembly's make lays them (wired.make)
+        read_only_toy(settled / "store" / TOY)
+        layers = {"parted": (parting, "parted"), "stood": (on_ground, "stood"), "slid": (level_spot, "slid"),
+                  "railed": (railings_held, "laid"), "topped": (tops_levelled, "laid"),
+                  "roofed": (roof_tops, "let_down"), "downed": (face_down, "let_down"),
+                  "floored": (floor_down, "let_down")}
+        called = {said: [] for said in layers}
+        for said, (module, laying) in layers.items():
+            patched.setattr(module, laying, lambda folder, place, *rows, said=said: called[said].append(
+                (folder, place)) or [])
+        root = grounded.grounded_seed({"seed": settled / "store" / TOY, **a_record(settled, ONE_LAMP)},
+                                      settled / "settle")
+    assert opened(root).GetPrimAtPath(f"/{TOY}/Lights/light_1") and (root.parent / "assets").is_dir()
+    assert called == {said: [(settled / "settle", TOY)] for said in layers}, called
+    for case in LET_DOWN:
+        builder, given = case["made"]
+        place = builder(settled / case["case"].replace(" ", "_").replace("'", ""), **given)
+        if "rests" in case:
+            laid_record = json.loads((place.parent / assembly.record.RECORD).read_text())
+            laid_record["objects"][1].update(case["rests"])
+            (place.parent / assembly.record.RECORD).write_text(json.dumps(laid_record))
+        if case.get("post"):
+            base = Usd.Stage.Open(str(place.parent / "layers/base.usda"))
+            a_solid_box(base, f"/{TOY}/Objects/post_1", (-0.05, 0.0, -0.5), (0.05, 1.7, 0.5))
+            base.GetRootLayer().Save()
+            laid = json.loads((place.parent / made_waiting.LAID).read_text())
+            laid["objects"].append({"name": "post_1", "low": [-0.05, 0.0, -0.5], "high": [0.05, 1.7, 0.5]})
+            (place.parent / made_waiting.LAID).write_text(json.dumps(laid))
+        rows = (case["rows"],) if "rows" in case else ()
+        fits = case["lays"](place.parent, TOY, *rows)
+        said = [tuple(round(fit[key], case["places"]) if case.get("places") and isinstance(fit[key], float)
+                      else fit[key] for key in case["said"]) for fit in fits]
+        assert said == case["fits"], f"{case['case']}: {fits}"
+        assert all(fit["words"].endswith(case.get("words", "")) for fit in fits), f"{case['case']}: {fits}"
+        stage = Usd.Stage.Open(str(place))
+        world = {name: on_ground.world_points(stage.GetPrimAtPath(f"/{TOY}/Objects/{name}"))
+                 for name in {*case.get("lows", {}), *case.get("up", {}), *case.get("rides", {}),
+                              *[held for held, _ in case.get("rides", {}).values()], *case.get("middle", {}),
+                              *case.get("from", {}), *([case["laid"][0]] if "laid" in case else [])}}
+        for name, low in case.get("lows", {}).items():
+            found = world[name][:, 1].min()
+            assert (abs(found - low) < case["within"] if "within" in case else np.isclose(found, low)), \
+                f"{case['case']}: {name} at {found}"
+        for name, degrees in case.get("up", {}).items():
+            up = on_ground.up_of(stage.GetPrimAtPath(f"/{TOY}/Objects/{name}"))
+            assert (np.isclose(np.degrees(np.arccos(up[1])), degrees, atol=0.01) and up[2] > 0 if degrees else
+                    np.allclose(up, [0, 1, 0])), f"{case['case']}: {name} up {up}"
+        for name, (base, rise) in case.get("on slope", {}).items():
+            foot = world[name][world[name][:, 1] <= np.sort(world[name][:, 1])[3] + 1e-6]
+            assert np.allclose(foot[:, 1], base - rise * foot[:, 2], atol=1e-4), f"{case['case']}: {foot}"
+        for name, (holder, up_by) in case.get("rides", {}).items():
+            up = on_ground.up_of(stage.GetPrimAtPath(f"/{TOY}/Objects/{holder}"))
+            assert np.allclose(world[name].mean(axis=0), world[holder].mean(axis=0) + up_by * up, atol=1e-4), \
+                f"{case['case']}: {name} rides off {holder}"
+        for name, (across, within) in case.get("middle", {}).items():
+            middle = (world[name].min(axis=0) + world[name].max(axis=0))[[0, 2]] / 2
+            off = [middle[axis] - at for axis, at in enumerate(across) if at is not None]
+            assert np.linalg.norm(off) < within, f"{case['case']}: {name} at {middle}"
+        for name, least in case.get("from", {}).items():
+            found = world[name][:, [0, 2]].min(axis=0)
+            assert all(np.isclose(found[axis], at) for axis, at in enumerate(least) if at is not None), \
+                f"{case['case']}: {name} from {found}"
+        if "laid" in case:
+            name, low, within = case["laid"]
+            laid = {entry["name"]: entry for entry in json.loads((place.parent / made_waiting.LAID).read_text())[
+                "objects"]}
+            low = world[name][:, 1].min() if low is None else low
+            assert np.isclose(laid[name]["low"][1], low, **({"atol": within} if within else {})), \
+                f"{case['case']}: laid.json's {laid[name]}"
+        assert not case.get("held") or fitting.held_faults(
+            json.loads((place.parent / assembly.record.RECORD).read_text()),
+            json.loads((place.parent / made_waiting.LAID).read_text())) == [], case["case"]
+        assert case["lays"](place.parent, TOY, *rows) == [], f"{case['case']}: laid again"
