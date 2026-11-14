@@ -27,6 +27,9 @@ SOLE = 0.01  # m: a foot's sole is its skin within this of its lowest point
 TOE_STEPS = 32
 TOE_FLOOR = 1e-4  # m: a foot's skin this little under its floor is on it
 STOOD_HZ = 3.0  # the stood move's smoothness, half the path's 6 Hz low pass (inside/fit, Winter 2009)
+# A triangle a foot may stand on faces up at least this much (its normal's up part; a tread, a deck, a ramp up to 60
+# degrees), so a riser or a wall beside the sole is no ground under it (treads_stood).
+UPWARD = 0.5
 
 
 def segments_of(rig):
@@ -89,6 +92,72 @@ def route_clip(rig, built, scene_rig, plan):
     hips = played.TRAVELLING_JOINT
     local[:, hips, 1, 3] = ground + (local[:, hips, 1, 3] - ground) * size + lift
     return local
+
+
+def surface_under(ground, points, ceilings):
+    """The highest ground surface (m) at each point's place across the floor (`points` n x 3) under its ceiling
+    (`ceilings`, m, one a point): of the triangles (`ground` n x 3 x 3) facing up (UPWARD) whose span across the floor
+    holds it; -inf where none does."""
+    ground, points = np.asarray(ground, dtype=float), np.asarray(points, dtype=float)
+    normals = np.cross(ground[:, 1] - ground[:, 0], ground[:, 2] - ground[:, 0])
+    normals /= np.maximum(np.linalg.norm(normals, axis=1, keepdims=True), 1e-12)
+    flat = ground[np.abs(normals[:, 1]) >= UPWARD]
+    found = np.full(len(points), -np.inf)
+    if not len(flat) or not len(points):
+        return found
+    corner, one, two = flat[:, 0, [0, 2]], flat[:, 1, [0, 2]] - flat[:, 0, [0, 2]], flat[:, 2, [0, 2]] - flat[:, 0, [0, 2]]
+    area = one[:, 0] * two[:, 1] - one[:, 1] * two[:, 0]
+    keep = np.abs(area) > 1e-12
+    flat, corner, one, two, area = flat[keep], corner[keep], one[keep], two[keep], area[keep]
+    for start in range(0, len(points), 256):
+        offset = points[None, start:start + 256, [0, 2]] - corner[:, None]
+        first = (offset[..., 0] * two[:, None, 1] - offset[..., 1] * two[:, None, 0]) / area[:, None]
+        second = (one[:, None, 0] * offset[..., 1] - one[:, None, 1] * offset[..., 0]) / area[:, None]
+        inside = (first >= -1e-9) & (second >= -1e-9) & (first + second <= 1 + 1e-9)
+        heights = (flat[:, None, 0, 1] + first * (flat[:, None, 1, 1] - flat[:, None, 0, 1])
+                   + second * (flat[:, None, 2, 1] - flat[:, None, 0, 1]))
+        heights = np.where(inside & (heights <= np.asarray(ceilings, dtype=float)[None, start:start + 256]), heights,
+                           -np.inf)
+        found[start:start + 256] = heights.max(axis=0)
+    return found
+
+
+def treads_stood(rig, local, ground):
+    """`local` (a climber's scene-made clip, route_clip's) with each foot, on every frame it stands, put on the ground
+    under it (`ground`, the triangles it may touch in its own frame, ground_of's): Kimodo's foot keyframes hold a foot
+    on its tread only at its stance's middle, made with no post-processing (scene_clips: its contact pins hold one
+    floor), so between them its sole sank and floated (the stairwell's person_woman, 2026-11-14: her left sole 4.2 cm
+    into her second tread as it came down flat, frame 35, 1.4 cm under at her keyframe). The ground under each point of
+    a foot's skin is the highest surface under it below its ankle (`surface_under`). A foot any point of which is in
+    its ground stands on it, lifted till none is; one whose sole moves slower than STANCE_SPEED within STANCE_HIGH over
+    its ground stands too, lowered onto it. Each is moved by Kimodo's own end-effector pin (`played.pinned`: the leg's
+    IK, the foot turned as before, eased in and out), never the Hips."""
+    names = [str(name) for name in rig["names"]]
+    weights, points = np.asarray(rig["weights"], dtype=float), np.asarray(rig["points"], dtype=float)
+    ground = np.asarray(ground, dtype=float)
+    moved = np.array(local, dtype=float)
+    _, speeds, _ = soles(rig, moved)
+    for index, foot in enumerate(FEET):
+        mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in foot if name in names]))
+        if not len(mine) or foot[0] not in played.FEET:
+            continue
+        world = played.chained(moved, rig["parents"])
+        skinning = world @ np.linalg.inv(np.asarray(rig["bind"]))
+        placed = np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], np.c_[points[mine], np.ones(len(mine))])
+        low, high = placed[..., [0, 2]].reshape(-1, 2).min(axis=0), placed[..., [0, 2]].reshape(-1, 2).max(axis=0)
+        near = ground[((ground[:, :, [0, 2]].max(axis=1) >= low) & (ground[:, :, [0, 2]].min(axis=1) <= high)).all(axis=1)]
+        ankle = world[:, names.index(foot[0]), 1, 3]
+        under = np.array([surface_under(near, placed[frame], np.full(len(mine), ankle[frame])) - placed[frame, :, 1]
+                          for frame in range(len(moved))])
+        held = np.isfinite(under)
+        depth = np.where(held, under, -np.inf).max(axis=1)  # its deepest point into its ground (m, under 0: over it)
+        gap = np.where(held, -under, np.inf).min(axis=1)  # its lowest point over its ground
+        sunk = depth > 0.0
+        resting = ~sunk & np.isfinite(gap) & (speeds[:, index] < STANCE_SPEED) & (gap < STANCE_HIGH)
+        if sunk.any() or resting.any():
+            moved = played.pinned(moved, names, rig["parents"], rig["bind"], foot[0], sunk | resting,
+                                  np.where(sunk, depth, np.where(resting, -gap, 0.0)))
+    return moved
 
 
 def soles(rig, local):

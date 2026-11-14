@@ -54,6 +54,11 @@ into its one test, every break below seen red on it again):
 - its clip on its bind's bones with its feet on its ground, 2026-11-06 (#70, the toes Kimodo's toe pin sank):
   person_rig's `toes_lifted(found, ...)` dropped (the corrected clip's toes never lifted); toes_lifted's
   `moved[low] = played.toward_flat(...)` dropped (the tipped foot's toes 1 cm under); its share made 0 (the same).
+- a climber's feet on the ground under them, 2026-11-14 (her sole 4.2 cm into the stairwell's tread between Kimodo's
+  keyframes): treads_stood's `sunk = depth > 0.0` made `depth > 1.0` (the swinging foot 2 cm in left there);
+  `gap < STANCE_HIGH` made `gap < 1.0` (the foot 4 cm over pulled down); `speeds[:, index] < STANCE_SPEED` dropped (the
+  swinging foot pulled down); surface_under's `>= UPWARD` made `>= 0.0` (the steep face read as ground); its
+  `heights <= ceilings` dropped (the shelf over the ankle read as its ground).
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - its model unpacked only as pinned: fetched's sha256 check dropped.
@@ -432,6 +437,44 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     assert toe["clip_tipped"][1] == pytest.approx(stored["clip_tipped"][1])  # a foot on its floor left as it is
     assert sim_body._body.played.chained(toe["clip_tipped"], toe["parents"])[:, 3, :3, 3] == pytest.approx(
         sim_body._body.played.chained(stored["clip_tipped"], stored["parents"])[:, 3, :3, 3])  # the toe base kept
+    # a climber's foot put on the ground under it on the frames it stands (treads_stood, 2026-11-14): the toe rig's
+    # still foot (its skin down to y = 0, its ankle 8 cm up) over a tread with a face too steep to stand on and a
+    # shelf over its ankle, by Kimodo's pin stood in (it moves the LeftFoot up its rise on its pinned frames)
+    pins = []
+
+    def pinned(local, names, parents, bind, foot, frames, rise):
+        pins.append((foot, np.asarray(frames, dtype=bool), np.asarray(rise, dtype=float)))
+        moved = np.array(local)
+        moved[:, 2, 1, 3] += np.where(frames, rise, 0.0)
+        return moved
+    monkeypatch.setattr(sim_body._body.played, "pinned", pinned)
+
+    def square(height, half=1.0):
+        return np.array([[[-half, height, -half], [half, height, -half], [half, height, half]],
+                         [[-half, height, -half], [half, height, half], [-half, height, half]]])
+    # a face too steep to stand on (63 degrees) under the foot's left edge, 5 cm up there: no ground
+    steep = np.array([[[-0.05, 0.03, -1.0], [0.0, 0.13, -1.0], [0.0, 0.13, 1.0]],
+                      [[-0.05, 0.03, -1.0], [0.0, 0.13, 1.0], [-0.05, 0.03, 1.0]]])
+    foot = toe_rig()
+    still = np.repeat(foot["clip_tipped"][1:], 6, axis=0)
+    swinging = np.array(still)
+    swinging[:, 1, 0, 3] = np.arange(6) * 0.02  # 0.6 m/s along x
+    for name, clip, ground, wanted in (
+            ("sunk 2 cm, a steep face under it, a shelf over its ankle", still,
+             np.r_[square(0.02), steep, square(0.5, 0.1)], [0.02] * 6),
+            ("standing 2 cm over its tread", still, square(-0.02), [-0.02] * 6),
+            ("4 cm over its tread: not standing", still, square(-0.04), None),
+            ("swinging 2 cm over: not standing", swinging, square(-0.02), None),
+            ("swinging 2 cm into it", swinging, square(0.02), [0.02] * 6)):
+        pins.clear()
+        stood_on = sim_body._body.treads_stood(foot, clip, ground)
+        assert [pin[0] for pin in pins] == (["LeftFoot"] if wanted else []), name
+        if wanted:
+            assert pins[0][1].tolist() == [True] * 6 and pins[0][2] == pytest.approx(wanted), name
+            lowest = sim_body._body.foot_lowest(foot, stood_on, sim_body._body.FEET[0])
+            assert lowest == pytest.approx(np.array(wanted), abs=1e-9), name  # its skin on its tread
+    assert sim_body.surface_under(square(0.02, 0.1), [[0.5, 0.0, 0.0], [0.0, 0.0, 0.0]], [0.08, 0.01]).tolist() == [
+        -np.inf, -np.inf]  # beyond the tread, or the tread over its ceiling: no ground under it
     for world, clip, what, axis, (low, high) in PLAYED:
         rig = worlds[world]
         if what == "sole":

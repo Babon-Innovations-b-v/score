@@ -139,7 +139,7 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   to -0.1/0.2/0.6; rig walk L -2.2/0.0/14.4 to -0.1/-0.1/0.3, R -2.9/0.4/17.1 to -0.1/0.0/0.6; lunge L
   -3.1/0.4/3.7 to -1.3/-0.1/1.6, R -0.3/16.7/33.0 to -0.1/-0.1/0.7; pickup and standing within 1 mm. One lunge frame
   stays under (L, -5.2 mm, from -19.9 stood): its toe base itself 5 mm under, which no toe bend lifts.
-  `route_clip`'s treads are not stood.
+  `route_clip`'s treads are not stood by `stood`: `treads_stood` puts a climber's feet on them (below).
   The sim body follows each clip with a jolting start steadied (`inside/eased`, 2026-11-13: Kimodo's standing clip
   starts with a jolt, 1.5 to 3.2 N m of residual moment on frame 2 under Moon gravity); `poses` stay the clip's own.
 - **Its frame is the skin's**: the person's spot and turn, then the dressed body's Turned (`TURNED`, 180 degrees about
@@ -171,6 +171,11 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   cast.on_stairs) plays scene-clips' clip of it up or down its treads (`route_clip`: travel kept on the route, only
   the Hips' height over the route's ground scaled by the build), so its ground's push lands on each step; with none
   taken it is left out by name (`left_out_why`), never walked flat through its steps.
+  Kimodo held its feet on their treads only at its keyframes (made with no post-processing, scene_clips), so
+  `treads_stood` (2026-11-14, the stairwell's person_woman: her sole 4.2 cm into a tread between keyframes) puts each
+  foot, on every frame it stands, on the ground under it: a foot any skin point of which is in the highest up-facing
+  surface under it below its ankle (`surface_under`) lifted till none is, a still one within `STANCE_HIGH` over it
+  lowered onto it, by Kimodo's own end-effector pin (`played.pinned`), never the Hips.
 - **One Newton environment**: `score/stages/physics/inside/newton_env.sh` (declared as `sim env`), built once at
   `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. mink, qpsolvers and daqp are pinned
   there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.
