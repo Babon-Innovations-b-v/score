@@ -33,9 +33,9 @@ sys.path.insert(0, str(REPO / "tools/usd"))
 
 from score import checks  # noqa: E402
 from score.stages import assembly  # noqa: E402
-from score.stages.assembly import (baked, face_down, fitting, floor_down, level_spot, made_waiting,  # noqa: E402
-                                     neighbours, on_ground, record, roof_tops, scene_tree, sounds,
-                                     tops_levelled)
+from score.stages.assembly import (baked, built_tops, crest_tops, face_down, fine_tops, fitting,  # noqa: E402
+                                     floor_down, flush_tops, level_spot, made_waiting, neighbours, on_ground,
+                                     record, roof_tops, scene_tree, sounds, tops_levelled)
 
 TOY = "toy"
 PLACE = "wreck"  # a place the environment knows (export lays its ground); its layout and inventory here are the test's
@@ -592,382 +592,236 @@ def a_solid_box(stage, path, low, high, degrees=0.0):
     mesh.CreateExtentAttr([tuple(map(float, box.bounds[0])), tuple(map(float, box.bounds[1]))])
 
 
-def test_a_monitor_goes_on_its_console_s_top_within_its_span():
-    """Things laid on tops: three boxes spread along their two units' run, screens in rows on a desk, a monitor let
-    down from its desk's box top onto its slab, a pile onto a module's crest, a box laid flush on a sloped slab, a
-    computer onto its desk's rim, a book among a wrench, a cup riding its computer, two monitors laid clear, a 6 cm
-    box resting by its balance, and a railing's chord held, slid and drawn back.
-    Break: score/stages/assembly/fitting.py: spread_on_tops' `target[axis], target[1] = at + gap + longs[name] / 2,
-        top` -> `target[1] = top` (the boxes left in each other)
-    Break: score/stages/assembly/fitting.py: spread_on_tops' `if gap < BOARD_CLEAR:` -> `if False:` (four boxes
-        spread one in the next)
-    Break: score/stages/assembly/fitting.py: top_run's `if any(lows[after, axis] > highs[before, axis] +
-        BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)
-    Break: score/stages/assembly/fitting.py: spread_on_tops' `if len(rows) > 1: target[side] = across_at` -> `if False:`
-        (hub's screens left in one another across the desk), or packed_rows' `BOARD_CLEAR * (len(rows) + 1) > depth:`
-        -> `> 9.0:` (seven boxes in rows deeper than the top), or `carry(stage, place, carried, name, ...)` dropped
-        (quarters' papers left where their book stood)
-    Break: score/stages/assembly/fitting.py: off's `if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not
-        None:` -> `if False:` (workshop's box spread over two units' meeting named 0.2 m off one)
-    Break: score/stages/assembly/built_tops.py: rest's `if height > foot + reach or np.any(...)` -> `if height > foot +
-        reach:` (the keyboard on the slab's underside), or spot's `tries += sorted(...)` dropped (the lamp left across
-        the divider), or let_down's `fitting.carry(...)` dropped (the paper left at 1.5 m), or held_on's `not
-        fitting.on_shelves_of(on) and` dropped (the jar on the shelves let down), or rest's `if reach <=
-        fitting.BOARD_BED and np.any(...)` -> `if False:` (the box under the slab on its shelf), or let_down's `if
-        laid is None and not within:` -> `if False:` (the crate left over the divider)
-    Break: score/stages/assembly/fitting.py: off_holder's `float(on.get("top at", hold_high[1]))` -> `hold_high[1]`
-        (the monitor let down onto the slab named 0.45 m off its desk's top)
-    Break: score/stages/assembly/crest_tops.py: rest's `lift = float(np.nanmax(np.concatenate(...))) + CLEAR` -> `lift
-        = CLEAR` (the pile left 0.4 m over the crest), or one's `if here is not None and abs(here - CLEAR) <=
-        fitting.MOVE_LEAST and stands(...):` -> `if False:` (the pile resting on the crest laid again), or may_rest's
-        `lift = np.max(...) + CLEAR` -> `lift = np.max(...) + CLEAR + triage.TOLERANCE` (the sieve passes the crest
-        by: the pile left over it), or its `& (most - weights[:, axis] >= triage.BALANCE - SLACK)` dropped
-        (rest asked along the ridge's strip)
-    Break: score/stages/assembly/flush_tops.py: laid's `if sloped is None or not triage.LEAN_MOST < sloped[1] <=
-        SLOPE_MOST:` -> `if sloped is None:` (the box laid flush on the 30-degree slab), or crest_tops.py: stands'
-        `triage.lean(turn, ...)` -> `triage.lean(np.eye(4), ...)` (the box left upright on the 15-degree slab)
-    Break: score/stages/assembly/fine_tops.py: spot's `if crest_tops.stands(mesh, exact, move):` -> `if False:` (the
-        computer left over the desk's slope), its `xs = np.arange(hold_low[0], ...)`, `zs = ...` -> each
-        `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left)
-    Break: score/stages/assembly/fine_tops.py: one's `found + beside(stage, place, entry, carried, ...)` -> `found`
-        (the book left leaning on the wrench), or beside's `< under]` -> `< -1.0]`, or crest_tops.py: stands' `points[:,
-        1] - tops` -> `np.maximum(points[:, 1] - tops, 0.0)` (the book's points in the wrench read at their own height)
-    Break: score/stages/assembly/fine_tops.py: laid's `fitting.with_stacked(stage, place, carried, list(by_name))` ->
-        `carried` (the cup left at 1.4 m as its computer is laid on the rim), or fitting.py: with_stacked's `<=
-        BOARD_BED and` -> `<= -1.0 and` (nothing read standing on anything)
-    Break: score/stages/assembly/fine_tops.py: one's `and crowding(stage, place, entry, carried, (low, high)) is None`
-        dropped (lab's monitor left 0.1 m into the other), or crowding's `float(found[1][1]) <= float(high[1]) + SAME
-        and` dropped (quarters' wrench laid again for the book laid over it)
-    Break: score/stages/assembly/fine_tops.py: one's `move, on_other = stacked(stage, place, entry, thing, (low, high),
-        carried)` -> `pass` (the third cup left over the slope), or its `float(np.linalg.norm(move)) <
-        fitting.MOVE_LEAST)` -> `False)` (the stacked cup laid again where it is)
-    Break: score/stages/assembly/crest_tops.py: stands' `balance(moved.vertices)` -> `triage.BALANCE`, rest's `<
-        balance(every)` -> `< triage.BALANCE` or may_rest's `inside = ..., balance(low)` -> `..., triage.BALANCE` (the
-        6 cm box read not resting on the flat slab), or balance's `/ 4` -> `/ 0.5` (the box over the edge read resting)
-    Break: score/stages/assembly/railings_held.py: held_up's `keep = min(1.0, ...)` -> `keep = 1.0` (the chord left 4.5
-        m tall), cut_back's `if not inside(points[near], hulls):` -> `if True:` (its end left in the wall), change's
-        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening)"""
+def a_meshed(stage, path, mesh):
+    """An Xform at `path` (one transform op) holding `mesh` with its faces."""
+    from pxr import Gf, UsdGeom
+    UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
+    geo = UsdGeom.Mesh.Define(stage, f"{path}/geo")
+    geo.CreatePointsAttr([tuple(map(float, point)) for point in mesh.vertices])
+    geo.CreateFaceVertexCountsAttr([3] * len(mesh.faces))
+    geo.CreateFaceVertexIndicesAttr([int(index) for index in mesh.faces.ravel()])
+
+
+def solid(low, high):
+    """A box mesh from `low` to `high`."""
+    return trimesh.creation.box(bounds=[low, high])
+
+
+def a_counter(degrees, at):
+    """camp's kitchen counter: a 1 x 0.1 x 1 m slab from x `at`, its top at 1 m, turned `degrees` about z."""
+    slab = solid((at, 0.9, 0.0), (at + 1.0, 1.0, 1.0))
+    slab.apply_transform(trimesh.transformations.rotation_matrix(np.radians(degrees), (0.0, 0.0, 1.0),
+                                                                 (at + 0.5, 0.95, 0.5)))
+    return slab
+
+
+def on_top(name, *holders, how="top", why=None):
+    """A design object `name` (its row its name's stem) laid `how` on `holders`."""
+    return {"name": name, "row": name.split("_")[0],
+            "on": {"how": how, "holder": list(holders), **({"why": why} if why else {})}}
+
+
+def depths_apart(one, other):
+    """Whether two boxes meet nowhere by fitting.depths."""
+    return float(fitting.depths(*one, other).min()) <= 0.0
+
+
+def not_reaching(one, other):
+    """Whether the first box reaches into the second nowhere."""
+    return not fitting.reaches_into(*one, other)
+
+
+# a desk 1 x 0.6 m from x 8, its 3 cm slab's top at 0.75 on two 5 cm sides, a divider up to 1.2 m along its back (z 0.5
+# to 0.6)
+DIVIDED_DESK = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
+    [(8.0, 0.72, 0.0), (9.0, 0.75, 0.6)], [(8.0, 0.0, 0.0), (8.05, 0.72, 0.6)],
+    [(8.95, 0.0, 0.0), (9.0, 0.72, 0.6)], [(8.0, 0.75, 0.5), (9.0, 1.2, 0.6)])])
+# old_station's module: a 2 m cylinder lying along z, its crest at x 21, y 2
+LYING_MODULE = trimesh.creation.cylinder(radius=1.0, height=4.0, sections=64)
+LYING_MODULE.apply_translation((21.0, 1.0, 2.0))
+# greenhouse's desk (x 40 to 41): a 40 degree slope from 0.1 m at z 0 to 0.6 m at z 0.6, then a 0.14 m rim at 1 m to
+# its front, z 0.74; the same desk at x 42 to 42.3, its rim no room beside a computer
+SLOPED_DESK = trimesh.util.concatenate([
+    trimesh.convex.convex_hull(np.array([(x, y, z) for x in (40.0, 41.0) for y, z in (
+        (0.0, 0.0), (0.1, 0.0), (0.6, 0.6), (0.0, 0.6))], float)),
+    trimesh.creation.box(bounds=[(40.0, 0.0, 0.6), (41.0, 1.0, 0.74)])])
+NARROW_DESK = SLOPED_DESK.copy()
+NARROW_DESK.vertices[:, 0] = np.where(NARROW_DESK.vertices[:, 0] > 40.5, 42.3, 42.0)
+WORKSHOP_BOXES = [on_top(f"box_{number}", "unit_1", "unit_2") for number in (1, 2, 3)]
+HUB_SCREENS = [on_top(f"screen_{number}", "desk_1") for number in range(6)]
+DIVIDED_THINGS = [on_top("monitor_9", "desk_3"), on_top("paper_9", "monitor_9"), on_top("lamp_9", "desk_3"),
+                  *[on_top(name, "desk_3", how="within", why="within desk: the plan lays it inside")
+                    for name in ("keyboard_9", "bin_9")]]
+BAGS = [on_top("bags_9", "module_9")]
+MAKERS = [on_top(f"maker_{number}", f"counter_{number}") for number in range(2)]
+COMPUTERS = [on_top("computer_40", "desk_40")]
+OVER_WRENCH = [on_top(name, "desk_70") for name in ("wrench_70", "book_70")]
+RIDING = [on_top(name, "desk_41") for name in ("computer_41", "cup_41")]
+CROWDED = [on_top(name, "desk_80") for name in ("monitor_80", "monitor_81")]
+TALL = [on_top(name, "platform_91") for name in ("cabinet_91", "vase_91")]
+EXACT = {"rtol": 0.0, "atol": 0.0}
+WITHIN_CM = {"rtol": 0.0, "atol": 0.01}
+ALL = (0, 1, 2)
+ON_TOPS = [  # the steps of one stage world of things laid on tops, in order: the prims each adds (a (low, high) box of
+    # points or a mesh with faces), the fitter it lays its things by (None: nothing laid), and what it finds: "fits"
+    # the things it fits, "left" ones it must not, "near" (name, low|high|middle, axes, at, np.allclose's tolerance),
+    # "within" (name, low|high|middle, axes, least, most), "top at" a fit's (at, None its own foot; np.isclose's
+    # tolerance), "words" in a fit's words, "carried" a thing moved by its holder's shift (that more than its least),
+    # "apart" pairs judged apart, "on" a thing's foot at another's top plus a gap, "centred" its middle over another's,
+    # "up" a thing's up within degrees of a direction, "stands" crest_tops.stands among what is under, "stacked"
+    # fitting.with_stacked asked before the lay, "held" the held gate on the boxes laid (with the fits, or without).
     # workshop (settle@workshop, 2026-11-10): seven 0.408 m storage boxes on two 1.5 m shelf units side by side, each
     # kept within its nearest unit, boxes 6 and 7 one in the other. Three 0.3 m boxes on two 0.5 m units (tops at 1 m,
-    # x 0 to 1), two meeting, are spread evenly along the 1 m run in their order: gaps of 0.025 m; a fourth would not
-    # fit and leaves them as laid; a unit standing 0.2 m apart makes no one run.
-    from pxr import Usd
-    stage = Usd.Stage.CreateInMemory()
-    a_built_box(stage, f"/{TOY}/Objects/unit_1", (0.0, 0.0, 0.0), (0.5, 1.0, 0.4))
-    a_built_box(stage, f"/{TOY}/Objects/unit_2", (0.5, 0.0, 0.0), (1.0, 1.0, 0.4))
-    for name, start in (("box_1", 0.0), ("box_2", 0.5), ("box_3", 0.55)):
-        a_built_box(stage, f"/{TOY}/Objects/{name}", (start, 1.0, 0.0), (start + 0.3, 1.2, 0.4))
-    top = {"how": "top", "holder": ["unit_1", "unit_2"]}
-    boxes = [{"name": f"box_{number}", "row": "box", "on": top} for number in (1, 2, 3)]
-    fits = fitting.spread_on_tops(stage, TOY, boxes)
-    assert sorted(fit["name"] for fit in fits) == ["box_1", "box_2", "box_3"], fits
-    lows = [float(fitting.world_box(stage, f"/{TOY}/Objects/box_{number}")[0][0]) for number in (1, 2, 3)]
-    assert np.allclose(lows, (0.025, 0.35, 0.675)), lows
-    spread = {"objects": [{"name": name, **dict(zip(("low", "high"), fitting.world_box(stage, f"/{TOY}/Objects/{name}")))}
-                          for name in ("unit_1", "unit_2", "box_1", "box_2", "box_3")]}
-    assert fitting.held_faults({"objects": boxes}, spread) == [], fitting.held_faults({"objects": boxes}, spread)
-    assert fitting.spread_on_tops(stage, TOY, boxes) == []  # spread: none meets another
-    a_built_box(stage, f"/{TOY}/Objects/box_4", (0.6, 1.0, 0.0), (0.9, 1.2, 0.4))
-    assert fitting.spread_on_tops(stage, TOY, [*boxes, {"name": "box_4", "row": "box", "on": top}]) == []
-    assert fitting.top_run([(np.zeros(3), np.array([0.5, 1.0, 0.4])),
-                            (np.array([0.7, 0.0, 0.0]), np.array([1.2, 1.0, 0.4]))]) is None
-    # hub (2026-11-11): 16 monitors on its 1.75 x 0.81 m console laid at one spot. Six 0.3 x 0.1 m screens at one
-    # spot of a 1 x 0.4 m desk top are spread in two rows of three, none meeting another; seven 0.3 x 0.3 m boxes
-    # need three rows 0.9 m deep and are left for the held gate.
-    a_built_box(stage, f"/{TOY}/Objects/desk_1", (3.0, 0.0, 0.0), (4.0, 0.8, 0.4))
-    on_desk = {"how": "top", "holder": ["desk_1"]}
-    for number in range(6):
-        a_built_box(stage, f"/{TOY}/Objects/screen_{number}", (3.3, 0.8, 0.1), (3.6, 1.1, 0.2))
-    screens = [{"name": f"screen_{number}", "row": "screen", "on": on_desk} for number in range(6)]
-    assert len(fitting.spread_on_tops(stage, TOY, screens)) == 6
-    laid = [fitting.world_box(stage, f"/{TOY}/Objects/screen_{number}") for number in range(6)]
-    assert all(float(fitting.depths(*laid[one], laid[other]).min()) <= 0.0 for one in range(6)
-               for other in range(one + 1, 6)), laid
-    assert all(3.0 <= low[0] and high[0] <= 4.0 and 0.0 <= low[2] and high[2] <= 0.4 for low, high in laid), laid
+    # x 0 to 1), two meeting, are spread evenly along the 1 m run in their order: gaps of 0.025 m.
+    {"case": "workshop's boxes spread along their units' run",
+     "adds": {"unit_1": ((0.0, 0.0, 0.0), (0.5, 1.0, 0.4)), "unit_2": ((0.5, 0.0, 0.0), (1.0, 1.0, 0.4)),
+              **{name: ((start, 1.0, 0.0), (start + 0.3, 1.2, 0.4))
+                 for name, start in (("box_1", 0.0), ("box_2", 0.5), ("box_3", 0.55))}},
+     "lays": fitting.spread_on_tops, "things": WORKSHOP_BOXES, "fits": ["box_1", "box_2", "box_3"],
+     "near": [(f"box_{number}", "low", (0,), at, {}) for number, at in ((1, 0.025), (2, 0.35), (3, 0.675))],
+     "held": (["box_1", "box_2", "box_3"], ["unit_1", "unit_2", "box_1", "box_2", "box_3"], False)},
+    {"case": "workshop's boxes spread: none meets another", "lays": fitting.spread_on_tops,
+     "things": WORKSHOP_BOXES, "fits": []},
+    {"case": "a fourth box that would not fit leaves them as laid",
+     "adds": {"box_4": ((0.6, 1.0, 0.0), (0.9, 1.2, 0.4))},
+     "lays": fitting.spread_on_tops, "things": [*WORKSHOP_BOXES, on_top("box_4", "unit_1", "unit_2")], "fits": []},
+    # hub (2026-11-11): 16 monitors on its 1.75 x 0.81 m console laid at one spot. Six 0.3 x 0.1 m screens at one spot
+    # of a 1 x 0.4 m desk top are spread in two rows of three, none meeting another, all on the top
+    {"case": "hub's screens spread in rows",
+     "adds": {"desk_1": ((3.0, 0.0, 0.0), (4.0, 0.8, 0.4)),
+              **{thing["name"]: ((3.3, 0.8, 0.1), (3.6, 1.1, 0.2)) for thing in HUB_SCREENS}},
+     "lays": fitting.spread_on_tops, "things": HUB_SCREENS, "fits": sorted(thing["name"] for thing in HUB_SCREENS),
+     "apart": [(depths_apart, [thing["name"] for thing in HUB_SCREENS])],
+     "within": [spec for thing in HUB_SCREENS for spec in (
+         (thing["name"], "low", (0, 2), (3.0, 0.0), (np.inf, np.inf)),
+         (thing["name"], "high", (0, 2), (-np.inf, -np.inf), (4.0, 0.4)))]},
     # quarters (2026-11-11): papers on a book stayed where the book stood before the desk's things were spread
-    a_built_box(stage, f"/{TOY}/Objects/desk_2", (6.0, 0.0, 0.0), (7.0, 0.8, 0.4))
-    on_second = {"how": "top", "holder": ["desk_2"]}
-    a_built_box(stage, f"/{TOY}/Objects/paper_1", (6.3, 1.1, 0.1), (6.4, 1.11, 0.2))  # on tray_2, which is spread
-    paper = {"name": "paper_1", "row": "paper", "on": {"how": "top", "holder": ["tray_2"]}}
-    for name in ("tray_1", "tray_2"):
-        a_built_box(stage, f"/{TOY}/Objects/{name}", (6.3, 0.8, 0.1), (6.6, 1.1, 0.2))
-    before = fitting.world_box(stage, f"/{TOY}/Objects/tray_2")[0]
-    fitting.spread_on_tops(stage, TOY, [{"name": "tray_1", "row": "tray", "on": on_second},
-                                        {"name": "tray_2", "row": "tray", "on": on_second}, paper])
-    shift = fitting.world_box(stage, f"/{TOY}/Objects/tray_2")[0] - before
-    assert float(np.linalg.norm(shift)) > 0.01 and np.allclose(fitting.world_box(stage, f"/{TOY}/Objects/paper_1")[0],
-                                                               np.array([6.3, 1.1, 0.1]) + shift), shift
-    assert fitting.packed_rows([0.3] * 7, [0.3] * 7, 1.0, 0.4) is None
+    {"case": "quarters' paper carried on its spread tray",
+     "adds": {"desk_2": ((6.0, 0.0, 0.0), (7.0, 0.8, 0.4)), "paper_1": ((6.3, 1.1, 0.1), (6.4, 1.11, 0.2)),
+              "tray_1": ((6.3, 0.8, 0.1), (6.6, 1.1, 0.2)), "tray_2": ((6.3, 0.8, 0.1), (6.6, 1.1, 0.2))},
+     "lays": fitting.spread_on_tops, "things": [on_top("tray_1", "desk_2"), on_top("tray_2", "desk_2"),
+                                                on_top("paper_1", "tray_2")],
+     "carried": {"paper_1": ("tray_2", 0.01)}},
     # lab, quarters, flat, workshop (settle@<place>, 2026-11-11): things on a desk laid on its box's top, the top of a
-    # divider standing over it, floated over the desk's surface or leaned on an edge, past the settle's 30 cm snap. A
-    # desk 1 x 0.6 m, its 3 cm slab's top at 0.75 and a divider up to 1.2 m along its back (z 0.5 to 0.6): a monitor
-    # laid on its box top (1.2) goes down onto the slab, the paper on it with it, and the held gate measures it there;
-    # a lamp across the divider's front is slid off it onto the slab; a keyboard laid within the desk across the slab
-    # (0.7 to 0.76) goes onto the slab's top, never its underside; one within it at its foot is left.
-    from score.stages.assembly import built_tops
-    from pxr import Gf, UsdGeom
-    built = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
-        [(8.0, 0.72, 0.0), (9.0, 0.75, 0.6)], [(8.0, 0.0, 0.0), (8.05, 0.72, 0.6)],
-        [(8.95, 0.0, 0.0), (9.0, 0.72, 0.6)], [(8.0, 0.75, 0.5), (9.0, 1.2, 0.6)])])
-    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/desk_3").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    desk = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/desk_3/geo")
-    desk.CreatePointsAttr([tuple(map(float, point)) for point in built.vertices])
-    desk.CreateFaceVertexCountsAttr([3] * len(built.faces))
-    desk.CreateFaceVertexIndicesAttr([int(index) for index in built.faces.ravel()])
-    on_third = {"how": "top", "holder": ["desk_3"]}
-    for name, low, high in (("monitor_9", (8.1, 1.2, 0.1), (8.4, 1.5, 0.3)),
-                            ("paper_9", (8.2, 1.5, 0.15), (8.3, 1.51, 0.25)),
-                            ("lamp_9", (8.6, 1.2, 0.35), (8.8, 1.5, 0.55)),
-                            ("keyboard_9", (8.5, 0.7, 0.05), (8.9, 0.76, 0.2)), ("bin_9", (8.3, 0.0, 0.2), (8.5, 0.3, 0.4))):
-        a_built_box(stage, f"/{TOY}/Objects/{name}", low, high)
-    in_desk = {"how": "within", "holder": ["desk_3"], "why": "within desk: the plan lays it inside"}
-    things = [{"name": "monitor_9", "row": "monitor", "on": on_third},
-              {"name": "paper_9", "row": "paper", "on": {"how": "top", "holder": ["monitor_9"]}},
-              {"name": "lamp_9", "row": "lamp", "on": on_third},
-              {"name": "keyboard_9", "row": "keyboard", "on": in_desk},
-              {"name": "bin_9", "row": "bin", "on": in_desk}]
-    assert all(built_tops.held_on(thing) for thing in things)
-    assert not built_tops.held_on({"name": "jar_1", "on": {"how": "within", "holder": ["shelf_1"],
-                                                           "why": "on the shelves of shelf: its reading says so"}})
-    fits = {fit["name"]: fit for fit in built_tops.let_down(stage, TOY, things)}
-    assert sorted(fits) == ["keyboard_9", "lamp_9", "monitor_9"], fits  # the paper carried on its monitor
-    laid = {name: fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("monitor_9", "paper_9", "lamp_9",
-                                                                                  "keyboard_9", "bin_9", "desk_3")}
-    assert np.allclose(laid["monitor_9"][0], (8.1, 0.75, 0.1)) and fits["monitor_9"]["top at"] == 0.75, laid
-    assert np.allclose(laid["paper_9"][0], (8.2, 1.05, 0.15)), laid["paper_9"]
-    assert np.allclose(laid["lamp_9"][0][1], 0.75) and laid["lamp_9"][1][2] <= 0.5 + 1e-6, laid["lamp_9"]
-    assert np.allclose(laid["keyboard_9"][0], (8.5, 0.75, 0.05)) and np.allclose(laid["bin_9"][0], (8.3, 0.0, 0.2))
-    on_desk_laid = {"objects": [{"name": name, "low": low, "high": high} for name, (low, high) in laid.items()],
-                    "fitted": list(fits.values())}
-    assert fitting.held_faults({"objects": things[:1] + things[2:4]}, on_desk_laid) == []
+    # divider standing over it, floated over the desk's surface or leaned on an edge, past the settle's 30 cm snap: a
+    # monitor laid on its box top (1.2) goes down onto the slab, the paper on it with it, and the held gate measures it
+    # there; a lamp across the divider's front is slid off it onto the slab; a keyboard laid within the desk across the
+    # slab (0.7 to 0.76) goes onto the slab's top, never its underside; one within it at its foot is left.
+    {"case": "things let down from the divided desk's box top",
+     "adds": {"desk_3": DIVIDED_DESK, "monitor_9": ((8.1, 1.2, 0.1), (8.4, 1.5, 0.3)),
+              "paper_9": ((8.2, 1.5, 0.15), (8.3, 1.51, 0.25)), "lamp_9": ((8.6, 1.2, 0.35), (8.8, 1.5, 0.55)),
+              "keyboard_9": ((8.5, 0.7, 0.05), (8.9, 0.76, 0.2)), "bin_9": ((8.3, 0.0, 0.2), (8.5, 0.3, 0.4))},
+     "lays": built_tops.let_down, "things": DIVIDED_THINGS, "fits": ["keyboard_9", "lamp_9", "monitor_9"],
+     "near": [("monitor_9", "low", ALL, (8.1, 0.75, 0.1), {}), ("paper_9", "low", ALL, (8.2, 1.05, 0.15), {}),
+              ("lamp_9", "low", (1,), 0.75, {}), ("keyboard_9", "low", ALL, (8.5, 0.75, 0.05), {}),
+              ("bin_9", "low", ALL, (8.3, 0.0, 0.2), {})],
+     "within": [("lamp_9", "high", (2,), -np.inf, 0.5 + 1e-6)], "top at": {"monitor_9": (0.75, EXACT)},
+     "held": (["monitor_9", "lamp_9", "keyboard_9"],
+              ["monitor_9", "paper_9", "lamp_9", "keyboard_9", "bin_9", "desk_3"], True)},
     # workshop's seventh storage box, its shelving units' tops full, straddled their meeting and tipped: a crate laid
     # over the desk's back divider, the desk's slab full of plates, stands on the nearest plate laid there before it
-    def faced(path, bounds):
-        made = trimesh.creation.box(bounds=bounds)
-        UsdGeom.Xform.Define(stage, path).AddTransformOp().Set(Gf.Matrix4d(1.0))
-        geo = UsdGeom.Mesh.Define(stage, f"{path}/geo")
-        geo.CreatePointsAttr([tuple(map(float, point)) for point in made.vertices])
-        geo.CreateFaceVertexCountsAttr([3] * len(made.faces))
-        geo.CreateFaceVertexIndicesAttr([int(index) for index in made.faces.ravel()])
-
-    on_full = {"how": "top", "holder": ["desk_3"]}
-    trays = [((8.0, 0.75, 0.0), (8.5, 0.8, 0.45)), ((8.5, 0.75, 0.0), (9.0, 0.8, 0.45))]
-    for number, bounds in enumerate(trays):
-        faced(f"/{TOY}/Objects/plate_{number}", bounds)
-    a_built_box(stage, f"/{TOY}/Objects/crate_9", (8.1, 1.2, 0.45), (8.4, 1.3, 0.6))
-    crowd = [{"name": f"plate_{number}", "row": "plate", "on": on_full} for number in range(2)] + [
-        {"name": "crate_9", "row": "crate", "on": on_full}]
-    crated = {fit["name"]: fit for fit in built_tops.let_down(stage, TOY, crowd)}
-    assert list(crated) == ["crate_9"] and np.isclose(crated["crate_9"]["top at"], 0.8), crated
-    assert "onto plate_0's built surface" in crated["crate_9"]["words"], crated
-    # quarters' mug, its desk's top at its spot no rest, went 0.3 m down onto the shelf under the top: a box over a
-    # slab with a shelf under it and a 4 cm post through its spot slides along the slab, never down onto the shelf
-    shelved_slab = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
-        [(0.0, 0.0, 0.0), (1.0, 0.03, 0.6)], [(0.0, -0.3, 0.0), (1.0, -0.28, 0.6)],
-        [(0.48, 0.03, 0.28), (0.52, 0.23, 0.32)])])
-    found, slid = built_tops.spot(shelved_slab, (0.4, 0.23, 0.2), (0.6, 0.43, 0.4),
-                                  (np.zeros(3), np.array([1.0, 0.23, 0.6])))
-    assert np.isclose(found[1], 0.03) and slid > 0.0 and (found[0] + 0.1 <= 0.48 or found[0] - 0.1 >= 0.52
-                                                          or found[2] + 0.1 <= 0.28 or found[2] - 0.1 >= 0.32), found
+    {"case": "a crate over the full desk stands on its nearest plate",
+     "adds": {"plate_0": solid((8.0, 0.75, 0.0), (8.5, 0.8, 0.45)),
+              "plate_1": solid((8.5, 0.75, 0.0), (9.0, 0.8, 0.45)),
+              "crate_9": ((8.1, 1.2, 0.45), (8.4, 1.3, 0.6))},
+     "lays": built_tops.let_down, "things": [on_top("plate_0", "desk_3"), on_top("plate_1", "desk_3"),
+                                             on_top("crate_9", "desk_3")],
+     "fits": ["crate_9"], "top at": {"crate_9": (0.8, {})}, "words": {"crate_9": "onto plate_0's built surface"}},
     # old_station (2026-11-12): sandbags laid at the corners of its modules' curved tops floated 0.06 to 1.03 m over
-    # them, no flat spot under their inner half. A 1.2 x 0.3 x 0.6 m pile 0.4 m over the corner of a 2 m cylinder
-    # lying along z (its crest at x 21, y 2), which let_down leaves, is slid toward the crest until its middle stands
-    # 5 cm inside the crest's 0.48 m strip it touches within 3 cm (x 20.81 to 21.19), its foot let down onto the
-    # crest; laid again, it stays where it rests.
-    from score.stages.assembly import crest_tops
-    tube = trimesh.creation.cylinder(radius=1.0, height=4.0, sections=64)
-    tube.apply_translation((21.0, 1.0, 2.0))
-    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/module_9").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    module = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/module_9/geo")
-    module.CreatePointsAttr([tuple(map(float, point)) for point in tube.vertices])
-    module.CreateFaceVertexCountsAttr([3] * len(tube.faces))
-    module.CreateFaceVertexIndicesAttr([int(index) for index in tube.faces.ravel()])
-    faced(f"/{TOY}/Objects/bags_9", [(20.0, 2.4, 0.0), (21.2, 2.7, 0.6)])
-    piled = [{"name": "bags_9", "row": "bags", "on": {"how": "top", "holder": ["module_9"]}}]
-    assert built_tops.let_down(stage, TOY, piled) == []
-    crest = crest_tops.laid_on(stage, TOY, piled)
-    low, high = fitting.world_box(stage, f"/{TOY}/Objects/bags_9")
-    assert [fit["name"] for fit in crest] == ["bags_9"] and abs(low[1] - 2.0) <= 0.01, (crest, low)
-    assert 20.8 <= (low[0] + high[0]) / 2 <= 21.2 and np.isclose(crest[0]["top at"], low[1], atol=1e-3), (low, high)
-    assert crest_tops.laid_on(stage, TOY, piled) == []
-    # base (2026-11-12): its hangar's roof opening was asked of rest at 1.5 million spots on the hangar's top, none
-    # holding it, 3 hours. The sieve's first pass (may_rest) leaves the spot found by asking rest at every one; on a
-    # 20 m ridge, where the pile touches a strip too narrow to stand balanced on, it asks rest at none.
-    import triage
-    ridge = trimesh.convex.convex_hull(np.array([(x, y, z) for x, y in ((0, 0), (2, 0), (1, 1)) for z in (0, 20)],
-                                                float))
-
-    def pile_spot(holder, at):
-        pile = trimesh.creation.box((1.2, 0.3, 0.6))
-        pile.apply_translation(at)
-        hold = tuple(holder.bounds)
-        thing = (pile, np.asarray(triage.low_points(pile), float),
-                 np.vstack([pile.vertices, pile.sample(crest_tops.EVERY, seed=0)]))
-        fields = crest_tops.height_field(holder, hold), crest_tops.exact_field(holder, hold)
-        return crest_tops.spot(thing, fields, tuple(pile.bounds), hold, [])
-    sieve, rest, asked = crest_tops.may_rest, crest_tops.rest, []
-    try:
-        crest_tops.rest = lambda *args: asked.append(args) or rest(*args)
-        on_ridge, ridge_asked = pile_spot(ridge, (1.0, 2.0, 10.0)), len(asked)
-        sieved = pile_spot(tube, (20.6, 2.55, 0.3))
-        crest_tops.may_rest = lambda low, weight, field, shifts: np.ones(len(shifts), bool)
-        unsieved = pile_spot(tube, (20.6, 2.55, 0.3))
-    finally:
-        crest_tops.may_rest, crest_tops.rest = sieve, rest
-    assert on_ridge is None and ridge_asked == 0, (on_ridge, ridge_asked)
-    assert sieved is not None and np.array_equal(sieved, unsieved), (sieved, unsieved)
+    # them, no flat spot under their inner half. A 1.2 x 0.3 x 0.6 m pile 0.4 m over the module's corner, which let_down
+    # leaves, is slid toward the crest until its middle stands 5 cm inside the crest's 0.48 m strip it touches within 3
+    # cm (x 20.81 to 21.19), its foot let down onto the crest; laid again, it stays where it rests.
+    {"case": "the pile over the module's curved top, let down", "adds": {
+        "module_9": LYING_MODULE, "bags_9": solid((20.0, 2.4, 0.0), (21.2, 2.7, 0.6))},
+     "lays": built_tops.let_down, "things": BAGS, "fits": []},
+    {"case": "the pile laid on the module's crest", "lays": crest_tops.laid_on, "things": BAGS, "fits": ["bags_9"],
+     "near": [("bags_9", "low", (1,), 2.0, WITHIN_CM)], "within": [("bags_9", "middle", (0,), 20.8, 21.2)],
+     "top at": {"bags_9": (None, {"atol": 1e-3})}},
+    {"case": "the pile on the crest laid again", "lays": crest_tops.laid_on, "things": BAGS, "fits": []},
     # camp (settle@camp, 2026-11-12): its kitchen counter's model leans 16 degrees in its frame, its top one plane
     # sloping 18 degrees with no level spot, and the coffee maker let down onto it leaned 18.3 degrees. A 0.2 x 0.1 x
-    # 0.2 m box laid upright 0.3 m over a 1 x 0.1 x 1 m slab turned 15 degrees about z is laid flush on it, its up
-    # along the slab's, and laid again it is left; over a slab turned 30 degrees (past flush_tops.SLOPE_MOST) it is
-    # left upright.
-    from score.stages.assembly import flush_tops
-    for number, (degrees, at) in enumerate(((15.0, 30.0), (30.0, 33.0))):
-        slab = trimesh.creation.box(bounds=[(at, 0.9, 0.0), (at + 1.0, 1.0, 1.0)])
-        slab.apply_transform(trimesh.transformations.rotation_matrix(np.radians(degrees), (0.0, 0.0, 1.0),
-                                                                     (at + 0.5, 0.95, 0.5)))
-        UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/counter_{number}").AddTransformOp().Set(Gf.Matrix4d(1.0))
-        counter = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/counter_{number}/geo")
-        counter.CreatePointsAttr([tuple(map(float, point)) for point in slab.vertices])
-        counter.CreateFaceVertexCountsAttr([3] * len(slab.faces))
-        counter.CreateFaceVertexIndicesAttr([int(index) for index in slab.faces.ravel()])
-        faced(f"/{TOY}/Objects/maker_{number}", [(at + 0.4, 1.3, 0.4), (at + 0.6, 1.4, 0.6)])
-    makers = [{"name": f"maker_{number}", "row": "maker", "on": {"how": "top", "holder": [f"counter_{number}"]}}
-              for number in range(2)]
-    flush = flush_tops.laid(stage, TOY, makers)
-    turned = np.asarray(UsdGeom.Xformable(stage.GetPrimAtPath(f"/{TOY}/Objects/maker_0"))
-                        .ComputeLocalToWorldTransform(0))[1, :3]
-    slab_up = (-np.sin(np.radians(15.0)), np.cos(np.radians(15.0)), 0.0)
-    assert [fit["name"] for fit in flush] == ["maker_0"] and np.degrees(np.arccos(np.clip(
-        turned @ slab_up / np.linalg.norm(turned), -1.0, 1.0))) < 1.0, (flush, turned)
-    assert flush_tops.laid(stage, TOY, makers) == []
+    # 0.2 m box laid upright 0.3 m over a slab turned 15 degrees is laid flush on it, its up along the slab's, and laid
+    # again it is left; over a slab turned 30 degrees (past flush_tops.SLOPE_MOST) it is left upright.
+    {"case": "makers laid flush on their sloped counters",
+     "adds": {"counter_0": a_counter(15.0, 30.0), "maker_0": solid((30.4, 1.3, 0.4), (30.6, 1.4, 0.6)),
+              "counter_1": a_counter(30.0, 33.0), "maker_1": solid((33.4, 1.3, 0.4), (33.6, 1.4, 0.6))},
+     "lays": flush_tops.laid, "things": MAKERS, "fits": ["maker_0"],
+     "up": {"maker_0": ((-np.sin(np.radians(15.0)), np.cos(np.radians(15.0)), 0.0), 1.0)}},
+    {"case": "the flush maker laid again", "lays": flush_tops.laid, "things": MAKERS, "fits": []},
     # greenhouse (settle@greenhouse, 2026-11-13): its desk's top is sloping bowls but for its front rim, and its four
-    # computers were left over the bowls, leaning 51 degrees once let down. A desk whose top (x 40 to 41) is a 40
-    # degree slope from 0.1 m at z 0 to 0.6 m at z 0.6, then a 0.14 m rim at 1 m to its front, z 0.74: a 0.2 m box laid
-    # over the slope stands on the rim, its middle at z 0.65 to 0.69 (its weight triage.BALANCE inside what it
-    # touches), its front past the desk's; crest_tops keeps its footprint within the desk (its middle at most 0.64,
-    # 0.04 inside the rim) and leaves it. Laid again it is left.
-    from score.stages.assembly import fine_tops
-    rim = trimesh.util.concatenate([
-        trimesh.convex.convex_hull(np.array([(x, y, z) for x in (40.0, 41.0) for y, z in (
-            (0.0, 0.0), (0.1, 0.0), (0.6, 0.6), (0.0, 0.6))], float)),
-        trimesh.creation.box(bounds=[(40.0, 0.0, 0.6), (41.0, 1.0, 0.74)])])
-    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/desk_40").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    desk = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/desk_40/geo")
-    desk.CreatePointsAttr([tuple(map(float, point)) for point in rim.vertices])
-    desk.CreateFaceVertexCountsAttr([3] * len(rim.faces))
-    desk.CreateFaceVertexIndicesAttr([int(index) for index in rim.faces.ravel()])
-    faced(f"/{TOY}/Objects/computer_40", [(40.4, 1.2, 0.3), (40.6, 1.4, 0.5)])
-    computers = [{"name": "computer_40", "row": "computer", "on": {"how": "top", "holder": ["desk_40"]}}]
-    assert crest_tops.laid_on(stage, TOY, computers) == []
-    fine = fine_tops.laid(stage, TOY, computers)
-    low, high = fitting.world_box(stage, f"/{TOY}/Objects/computer_40")
-    assert [fit["name"] for fit in fine] == ["computer_40"] and abs(low[1] - 1.0) <= 0.01, (fine, low)
-    assert 0.65 - 1e-6 <= (low[2] + high[2]) / 2 <= 0.69 and high[2] > 0.74, (low, high)
-    assert fine_tops.laid(stage, TOY, computers) == []
+    # computers were left over the bowls, leaning 51 degrees once let down. A 0.2 m box laid over the slope stands on
+    # the rim, its middle at z 0.65 to 0.69 (its weight triage.BALANCE inside what it touches), its front past the
+    # desk's; crest_tops keeps its footprint within the desk (its middle at most 0.64, 0.04 inside the rim) and leaves
+    # it. Laid again it is left.
+    {"case": "the computer over the desk's slope, on crests", "adds": {
+        "desk_40": SLOPED_DESK, "computer_40": solid((40.4, 1.2, 0.3), (40.6, 1.4, 0.5))},
+     "lays": crest_tops.laid_on, "things": COMPUTERS, "fits": []},
+    {"case": "the computer laid on the desk's rim", "lays": fine_tops.laid, "things": COMPUTERS,
+     "fits": ["computer_40"], "near": [("computer_40", "low", (1,), 1.0, WITHIN_CM)],
+     "within": [("computer_40", "middle", (2,), 0.65 - 1e-6, 0.69),
+                ("computer_40", "high", (2,), np.nextafter(0.74, np.inf), np.inf)]},
+    {"case": "the computer on the rim laid again", "lays": fine_tops.laid, "things": COMPUTERS, "fits": []},
     # quarters (settle@quarters, 2026-11-13): a book laid 9.5 mm deep over a 1.3 cm wrench on its desk (fitting's
     # BOARD_CLEAR lets a box 1 cm into another) rested on the desk alone and leaned 7.9 degrees on the wrench. A thing
     # is judged on what it stands among lower than its top too: a 0.2 m book with one edge over a 1.3 cm wrench on a
-    # slab, leaning 3.4 degrees on it as laid, is laid where it rests among them, the wrench left; laid again both are
-    # left.
-    faced(f"/{TOY}/Objects/desk_70", [(70.0, 0.0, 0.0), (71.0, 0.03, 0.6)])
-    faced(f"/{TOY}/Objects/wrench_70", [(70.4, 0.03, 0.15), (70.57, 0.043, 0.2)])
-    faced(f"/{TOY}/Objects/book_70", [(70.39, 0.0335, 0.15), (70.59, 0.0765, 0.35)])
-    over = [{"name": name, "row": name.split("_")[0], "on": {"how": "top", "holder": ["desk_70"]}}
-            for name in ("wrench_70", "book_70")]
-    under = trimesh.util.concatenate([fitting.surface_mesh(stage, f"/{TOY}/Objects/{name}")
-                                      for name in ("desk_70", "wrench_70")])
-    among = crest_tops.exact_field(under, fitting.world_box(stage, f"/{TOY}/Objects/desk_70"))
-    assert not crest_tops.stands(fitting.surface_mesh(stage, f"/{TOY}/Objects/book_70"), among, np.zeros(3))
-    fine = fine_tops.laid(stage, TOY, over)
-    assert [fit["name"] for fit in fine] == ["book_70"], fine
-    assert crest_tops.stands(fitting.surface_mesh(stage, f"/{TOY}/Objects/book_70"), among, np.zeros(3))
-    assert fine_tops.laid(stage, TOY, over) == []
+    # slab, leaning 3.4 degrees on it as laid, is laid where it rests among them, its foot on the wrench's top (never
+    # at the slab's, 8 mm into the wrench), the wrench left; laid again both are left.
+    {"case": "the book over the wrench, as laid", "adds": {
+        "desk_70": solid((70.0, 0.0, 0.0), (71.0, 0.03, 0.6)),
+        "wrench_70": solid((70.4, 0.03, 0.15), (70.57, 0.043, 0.2)),
+        "book_70": solid((70.39, 0.0335, 0.15), (70.59, 0.0765, 0.35))},
+     "lays": None, "things": OVER_WRENCH, "stands": [("book_70", ("desk_70", "wrench_70"), "desk_70", False)]},
+    {"case": "the book laid among the wrench", "lays": fine_tops.laid, "things": OVER_WRENCH, "fits": ["book_70"],
+     "stands": [("book_70", ("desk_70", "wrench_70"), "desk_70", True)],
+     "on": {"book_70": ("wrench_70", 0.005, {"rtol": 0.0, "atol": 0.005})}},
+    {"case": "the book among the wrench laid again", "lays": fine_tops.laid, "things": OVER_WRENCH, "fits": []},
     # its plant pot, stacked on a book (built_tops.stacked_spot) when the desk had no spot left, was left 0.69 m over
     # the desk's corner once the book was laid on a spot where it rests. What stands on a thing's top moves with it: a
-    # cup on a computer over the slope of a desk whose rim (x 42 to 42.3) has no room beside it rides it onto the rim.
-    assert fitting.with_stacked(stage, TOY, {"desk_40": ["computer_40"]}, ["computer_40", "paper_9"]) == {
-        "desk_40": ["computer_40"]}
-    shifted = rim.copy()
-    shifted.vertices[:, 0] = np.where(shifted.vertices[:, 0] > 40.5, 42.3, 42.0)
-    UsdGeom.Xform.Define(stage, f"/{TOY}/Objects/desk_41").AddTransformOp().Set(Gf.Matrix4d(1.0))
-    desk = UsdGeom.Mesh.Define(stage, f"/{TOY}/Objects/desk_41/geo")
-    desk.CreatePointsAttr([tuple(map(float, point)) for point in shifted.vertices])
-    desk.CreateFaceVertexCountsAttr([3] * len(shifted.faces))
-    desk.CreateFaceVertexIndicesAttr([int(index) for index in shifted.faces.ravel()])
-    faced(f"/{TOY}/Objects/computer_41", [(42.05, 1.2, 0.3), (42.25, 1.4, 0.5)])
-    faced(f"/{TOY}/Objects/cup_41", [(42.09, 1.4, 0.34), (42.21, 1.5, 0.46)])
-    assert fitting.with_stacked(stage, TOY, {}, ["computer_41", "cup_41"]) == {"computer_41": ["cup_41"]}
-    riding = [{"name": name, "row": name.split("_")[0], "on": {"how": "top", "holder": ["desk_41"]}}
-              for name in ("computer_41", "cup_41")]
-    fine = fine_tops.laid(stage, TOY, riding)
-    low, high = fitting.world_box(stage, f"/{TOY}/Objects/computer_41")
-    cup_low, cup_high = fitting.world_box(stage, f"/{TOY}/Objects/cup_41")
-    assert [fit["name"] for fit in fine] == ["computer_41"] and abs(low[1] - 1.0) <= 0.01, (fine, low)
-    assert np.isclose(cup_low[1], high[1]) and np.allclose((cup_low + cup_high)[[0, 2]] / 2,
-                                                           (low + high)[[0, 2]] / 2), (cup_low, low, high)
-    # a third thing, over the slope, the rim and the computer's top full, stands on the cup's top where it rests
-    # there; laid again, all three are left
-    faced(f"/{TOY}/Objects/cup_42", [(42.09, 1.2, 0.2), (42.21, 1.3, 0.32)])
-    riding.append({"name": "cup_42", "row": "cup", "on": {"how": "top", "holder": ["desk_41"]}})
-    fine = fine_tops.laid(stage, TOY, riding)
-    stack_low = fitting.world_box(stage, f"/{TOY}/Objects/cup_42")[0]
-    assert [fit["name"] for fit in fine] == ["cup_42"] and "onto cup_41's top" in fine[0]["words"], fine
-    assert 0.0 <= stack_low[1] - fitting.world_box(stage, f"/{TOY}/Objects/cup_41")[1][1] <= 0.01, stack_low
-    assert fine_tops.laid(stage, TOY, riding) == []
+    # cup on a computer over the slope of a desk whose rim has no room beside it rides it onto the rim.
+    {"case": "the cup rides its computer onto the narrow rim", "adds": {
+        "desk_41": NARROW_DESK, "computer_41": solid((42.05, 1.2, 0.3), (42.25, 1.4, 0.5)),
+        "cup_41": solid((42.09, 1.4, 0.34), (42.21, 1.5, 0.46))},
+     "stacked": [({"desk_40": ["computer_40"]}, ["computer_40", "paper_9"], {"desk_40": ["computer_40"]}),
+                 ({}, ["computer_41", "cup_41"], {"computer_41": ["cup_41"]})],
+     "lays": fine_tops.laid, "things": RIDING, "fits": ["computer_41"],
+     "near": [("computer_41", "low", (1,), 1.0, WITHIN_CM)], "on": {"cup_41": ("computer_41", 0.0, {})},
+     "centred": {"cup_41": "computer_41"}},
+    # a third thing, over the slope, the rim and the computer's top full, stands on the cup's top where it rests there;
+    # laid again, all three are left
+    {"case": "a third thing stacked on the cup", "adds": {"cup_42": solid((42.09, 1.2, 0.2), (42.21, 1.3, 0.32))},
+     "lays": fine_tops.laid, "things": [*RIDING, on_top("cup_42", "desk_41")], "fits": ["cup_42"],
+     "words": {"cup_42": "onto cup_41's top"}, "on": {"cup_42": ("cup_41", 0.005, {"rtol": 0.0, "atol": 0.005})}},
+    {"case": "the stack laid again", "lays": fine_tops.laid, "things": [*RIDING, on_top("cup_42", "desk_41")],
+     "fits": []},
     # lab (settle@lab, 2026-11-14): its two monitors, laid at one corner of its desk bake 20 cm into each other, each
     # rested on the desk alone and was left, and the resting check read each one's foot inside the other as its
     # support, leaning 8.6 and 6.4 degrees. A thing resting where it is laid that reaches into another laid on its
     # holders as tall as it is laid again on the nearest spot clear of it: two 0.3 m boxes 0.1 m into each other on a
     # slab, the first laid clear, the second then left, and left again laid again.
-    faced(f"/{TOY}/Objects/desk_80", [(80.0, 0.0, 0.0), (81.0, 0.03, 0.6)])
-    faced(f"/{TOY}/Objects/monitor_80", [(80.1, 0.03, 0.1), (80.4, 0.33, 0.4)])
-    faced(f"/{TOY}/Objects/monitor_81", [(80.3, 0.03, 0.2), (80.6, 0.33, 0.5)])
-    crowded = [{"name": name, "row": "monitor", "on": {"how": "top", "holder": ["desk_80"]}}
-               for name in ("monitor_80", "monitor_81")]
-    fine = fine_tops.laid(stage, TOY, crowded)
-    boxes = [fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("monitor_80", "monitor_81")]
-    assert [fit["name"] for fit in fine] == ["monitor_80"] and not fitting.reaches_into(*boxes[0], boxes[1]), fine
-    assert abs(boxes[0][0][1] - 0.03) <= 0.01 and np.allclose(boxes[1][0], (80.3, 0.03, 0.2)), boxes
-    again = fine_tops.laid(stage, TOY, crowded)
-    boxes = [fitting.world_box(stage, f"/{TOY}/Objects/{name}") for name in ("monitor_80", "monitor_81")]
-    assert "monitor_81" not in [fit["name"] for fit in again] and not fitting.reaches_into(*boxes[0], boxes[1]), again
-    # its mouse (10 x 6 cm), a 5 cm wrench and a plant pot were never found a spot where they rest: no point of a 6 cm
-    # thing is BALANCE (5 cm) inside it. A 10 x 6 cm box on a flat slab rests there, its weight a quarter of its 6 cm
-    # inside what it touches; hung 5 cm past the slab's edge it does not.
-    import resting
-    slab = trimesh.creation.box(bounds=[(60.0, 0.0, 0.0), (61.0, 0.03, 0.6)])
-    flat = crest_tops.exact_field(slab, tuple(slab.bounds))
-    mouse = trimesh.creation.box(bounds=[(60.4, 0.035, 0.2), (60.5, 0.075, 0.26)])
-    low_points = np.asarray(triage.low_points(mouse), float)
-    weight = resting.weight_at(mouse)
-    assert np.isclose(crest_tops.balance(mouse.vertices), 0.015) and crest_tops.balance(slab.vertices) == 0.05
-    assert crest_tops.stands(mouse, flat, np.zeros(3)) and crest_tops.rest(low_points, np.asarray(
-        mouse.vertices), weight, flat, np.zeros(2)) is not None, crest_tops.balance(mouse.vertices)
-    assert crest_tops.may_rest(low_points, weight, flat, np.zeros((1, 2)))[0]
-    assert not crest_tops.stands(mouse, flat, np.array([0.55, 0.0, 0.0]))
-    # its railing row, 1 m tall, built 4.5 m (its bake's parts from before railing_hold) as 9.4 m chords whose ends ran
-    # 0.12 and 0.14 m into its walls, the first and fifth over its stair's opening once held. A chord 9.4 m along x = z,
-    # 4.5 m tall, on a floor at 3 m that ends 0.9 m short of its middle, one end in a wall box, is held to 1 m, slid
-    # back along itself until its weight stands within the check's 5 cm of the floor's edge, and drawn back until it
-    # stands railings_held.CLEAR off the wall; laid again it is left.
-    from scipy.spatial import ConvexHull
-    from score.stages.assembly import railings_held
-    way = np.array([1.0, 0.0, 1.0]) / np.sqrt(2.0)
-    chord = trimesh.creation.box(extents=(9.4, 4.5, 0.1))
-    chord.apply_transform(trimesh.transformations.rotation_matrix(np.radians(-45.0), (0.0, 1.0, 0.0)))
-    chord.apply_translation((0.0, 5.25, 0.0))
-    wall = ConvexHull(np.array([(x, y, z) for x in (2.6, 4.0) for y in (2.8, 8.0) for z in (2.0, 5.0)], float))
-
-    def under(points):
-        return np.where(points @ way > -0.9, np.inf, np.abs(points[:, 1] - 3.0))
-    whole, words = railings_held.change(chord, RAILING, [wall], under)
-    laid_chord = chord.copy()
-    laid_chord.apply_transform(whole.T)
-    assert np.isclose(np.ptp(laid_chord.vertices[:, 1]), 1.0) and np.isclose(laid_chord.bounds[0, 1], 3.0), words
-    assert not railings_held.inside(laid_chord.vertices, [wall]) and "slid -0." in words, words
-    assert railings_held.outside_by(laid_chord, under) <= 0.05 < railings_held.outside_by(chord, under), words
-    assert railings_held.change(laid_chord, RAILING, [wall], under) is None
+    {"case": "lab's monitors laid clear of each other", "adds": {
+        "desk_80": solid((80.0, 0.0, 0.0), (81.0, 0.03, 0.6)),
+        "monitor_80": solid((80.1, 0.03, 0.1), (80.4, 0.33, 0.4)),
+        "monitor_81": solid((80.3, 0.03, 0.2), (80.6, 0.33, 0.5))},
+     "lays": fine_tops.laid, "things": CROWDED, "fits": ["monitor_80"],
+     "apart": [(not_reaching, ["monitor_80", "monitor_81"])],
+     "near": [("monitor_80", "low", (1,), 0.03, WITHIN_CM), ("monitor_81", "low", ALL, (80.3, 0.03, 0.2), {})]},
+    {"case": "lab's monitors laid again", "lays": fine_tops.laid, "things": CROWDED, "left": ["monitor_81"],
+     "apart": [(not_reaching, ["monitor_80", "monitor_81"])]},
+    # a thing resting on another more than a metre over their holder's top reads not resting where it lies (the
+    # holder's surface is read from 1 m over the holder's box, crest_tops.exact_field: from inside the other) and is
+    # found resting on the other's top within MOVE_LEAST of where it lies: a vase 5 mm over a 1.2 m cabinet filling its
+    # 3 cm platform is left where it rests.
+    {"case": "the vase on the tall cabinet left where it rests", "adds": {
+        "platform_91": solid((91.0, 0.0, 0.0), (91.3, 0.03, 0.3)),
+        "cabinet_91": solid((91.0, 0.03, 0.0), (91.3, 1.23, 0.3)),
+        "vase_91": solid((91.1, 1.235, 0.1), (91.2, 1.335, 0.2))},
+     "lays": fine_tops.laid, "things": TALL, "fits": []},
+]
+HELD_ON = [  # (case, a design object, whether built_tops lets it down: held on a top or within, never on shelves)
+    *[(thing["name"], thing, True) for thing in DIVIDED_THINGS],
+    ("a jar on the shelves", {"name": "jar_1", "on": {"how": "within", "holder": ["shelf_1"],
+                                                      "why": "on the shelves of shelf: its reading says so"}}, False),
+]
 
 
 def a_sound_output(folder, uses):
@@ -3819,7 +3673,64 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
     Break: score/stages/assembly/fitting.py: reaches_into's `np.minimum(BOARD_CLEAR, thinner / 4)` -> `BOARD_CLEAR`
         (MEETS: the wrenches read clear) or -> `np.minimum(BOARD_CLEAR, thinner / 2)` (the book's corner read clear)
     Break: score/stages/assembly/railings_held.py: held's `and not CLIMBED & set(climbing)` dropped (RAILINGS: the
-        stair's railing held)"""
+        stair's railing held)
+    The steps of ON_TOPS lay things on tops on one stage world in order, each through its fitter (fitting's
+    spread_on_tops, built_tops.let_down, crest_tops.laid_on, flush_tops.laid, fine_tops.laid): three boxes spread
+    along their two units' run, screens in rows on a desk, a monitor let down from its desk's box top onto its slab, a
+    crate onto the plate filling its desk, a pile onto a module's crest, a box laid flush on a sloped slab, a computer
+    onto its desk's rim, a book onto a wrench, a cup riding its computer and a cup stacked on it, two monitors laid
+    clear, each laid again and left, and a vase left on a tall cabinet; HELD_ON is judged by built_tops.held_on, a box over a shelved slab spotted by
+    built_tops.spot, a pile asked on a ridge and a crest through the sieve, a 6 cm box by its balance, and a railing's
+    chord held, slid and drawn back.
+    Break: score/stages/assembly/fitting.py: spread_on_tops' `target[axis], target[1] = along, top` -> `target[1] =
+        top` (the boxes left in each other)
+    Break: score/stages/assembly/fitting.py: top_run's `if any(lows[after, axis] > highs[before, axis] +
+        BOARD_CLEAR ...)` -> `if False:` (boxes spread over the gap between units)
+    Break: score/stages/assembly/fitting.py: spread_on_tops' `if len(rows) > 1: target[side] = across_at` -> `if False:`
+        (hub's screens left in one another across the desk), or packed_rows' `BOARD_CLEAR * (len(rows) + 1) > depth:`
+        -> `> 9.0:` (seven boxes in rows deeper than the top, the fourth box spread one in the next), or `carry(stage, place, carried, name, ...)` dropped
+        (quarters' papers left where their book stood)
+    Break: score/stages/assembly/fitting.py: off's `if on["how"] == "top" and len(boxes) > 1 and top_run(boxes) is not
+        None:` -> `if False:` (workshop's box spread over two units' meeting named 0.2 m off one)
+    Break: score/stages/assembly/built_tops.py: rest's `if height > foot + reach or np.any(...)` -> `if height > foot +
+        reach:` (the keyboard on the slab's underside), or spot's `tries += sorted(...)` dropped (the lamp left across
+        the divider), or let_down's `fitting.carry(...)` dropped (the paper left at 1.5 m), or held_on's `not
+        fitting.on_shelves_of(on) and` dropped (the jar on the shelves let down), or rest's `if reach <=
+        fitting.BOARD_BED and np.any(...)` -> `if False:` (the box under the slab on its shelf), or let_down's `if
+        laid is None and not within:` -> `if False:` (the crate left over the divider)
+    Break: score/stages/assembly/fitting.py: off_holder's `float(on.get("top at", hold_high[1]))` -> `hold_high[1]`
+        (the monitor let down onto the slab named 0.45 m off its desk's top)
+    Break: score/stages/assembly/crest_tops.py: rest's `lift = float(np.nanmax(np.concatenate(...))) + CLEAR` -> `lift
+        = CLEAR` (the pile left 0.4 m over the crest), or one's `if here is not None and abs(here - CLEAR) <=
+        fitting.MOVE_LEAST and stands(...):` -> `if False:` (the pile resting on the crest laid again), or may_rest's
+        `lift = np.max(...) + CLEAR` -> `lift = np.max(...) + CLEAR + triage.TOLERANCE` (the sieve passes the crest
+        by: the pile left over it), or its `& (most - weights[:, axis] >= inside - SLACK)` dropped
+        (rest asked along the ridge's strip)
+    Break: score/stages/assembly/flush_tops.py: laid's `if sloped is None or not triage.LEAN_MOST < sloped[1] <=
+        SLOPE_MOST:` -> `if sloped is None:` (the box laid flush on the 30-degree slab), or crest_tops.py: stands'
+        `triage.lean(turn, ...)` -> `triage.lean(np.eye(4), ...)` (the box left upright on the 15-degree slab)
+    Break: score/stages/assembly/fine_tops.py: spot's `if crest_tops.stands(mesh, exact, move):` -> `if False:` (the
+        computer left over the desk's slope), its `xs = np.arange(hold_low[0], ...)`, `zs = ...` -> each
+        `fitting.kept_within(...)` of it as crest_tops.spot keeps them (its middle at most 0.64 m: left)
+    Break: score/stages/assembly/fine_tops.py: one's `found + beside(stage, place, entry, carried, ...)` -> `found`
+        or beside's `< under]` -> `< -1.0]` (the book laid on the slab alone, its foot 8 mm into the wrench's box, not
+        on its top), or crest_tops.py: stands' `points[:, 1] - tops` -> `np.maximum(points[:, 1] - tops, 0.0)` (the
+        book's points in the wrench read at their own height)
+    Break: score/stages/assembly/fine_tops.py: laid's `fitting.with_stacked(stage, place, carried, list(by_name))` ->
+        `carried` (the cup left at 1.4 m as its computer is laid on the rim), or fitting.py: with_stacked's `<=
+        BOARD_BED and` -> `<= -1.0 and` (nothing read standing on anything)
+    Break: score/stages/assembly/fine_tops.py: one's `and crowding(stage, place, entry, carried, (low, high)) is None`
+        dropped (lab's monitor left 0.1 m into the other), or crowding's `float(found[1][1]) <= float(high[1]) + SAME
+        and` dropped (quarters' wrench laid again for the book laid over it)
+    Break: score/stages/assembly/fine_tops.py: one's `move, on_other = stacked(stage, place, entry, thing, (low, high),
+        carried)` -> `pass` (the third cup left over the slope), or its `float(np.linalg.norm(move)) <
+        fitting.MOVE_LEAST)` -> `False)` (the vase on the tall cabinet laid again where it rests)
+    Break: score/stages/assembly/crest_tops.py: stands' `balance(moved.vertices)` -> `triage.BALANCE`, rest's `<
+        balance(every)` -> `< triage.BALANCE` or may_rest's `inside = ..., balance(low)` -> `..., triage.BALANCE` (the
+        6 cm box read not resting on the flat slab), or balance's `/ 4` -> `/ 0.5` (the box over the edge read resting)
+    Break: score/stages/assembly/railings_held.py: held_up's `keep = min(1.0, ...)` -> `keep = 1.0` (the chord left 4.5
+        m tall), cut_back's `if not inside(points[near], hulls):` -> `if True:` (its end left in the wall), change's
+        `if outside_by(laid_mesh, under) <= triage.BALANCE - BALANCE_SPARE:` -> `if True:` (left over the opening)"""
     for case, low, high, on, holders, more, scale, foot, words, walls, within, below, face, held in FIT:
         boxes = [tuple(np.asarray(end, float) for end in box) for box in holders]
         laid = fitting.fit(low, high, on, boxes, **more)
@@ -4033,7 +3944,7 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         assert abs(measured - off) < 1e-6, f"{case}: {measured} off"
     from pxr import UsdGeom
     from score.stages.assembly import lamps_along
-    from score.stages.assembly import built_tops, ribs, vault_feet, wall_clear
+    from score.stages.assembly import ribs, vault_feet, wall_clear
     for case, prims, things, made, stands, apart, outlined, lamps, faults, *said in CLEARED + UNDER_ROOFS:
         stage = a_fitted_world(prims)
         entries = [{"name": name, "row": kind, **({"on": on} if on else {}), **(more[0] if more else {})}
@@ -4425,7 +4336,7 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         assert bool(fitting.on_shelves_of(on)) == shelves, case
     for case, low, high, boxes, meets in MEETS:
         assert bool(fitting.meets_any(np.array(low), np.array(high), boxes)) == meets, case
-    from score.stages.assembly import fine_tops, railings_held
+    from score.stages.assembly import railings_held
     for case, low, high, railing, meets in OUTLINED:
         assert bool(fine_tops.meets(np.array(low), np.array(high), railing)) == meets, case
     import score.stages.props.railing_hold as railing_hold
@@ -4434,6 +4345,145 @@ def test_a_place_stands_from_its_accepted_outputs(tmp_path, monkeypatch):
         assert railings_held.held(railing_row) == held == (thin_straight.profile(railing_row) == "railing" and not
                                                            railing_hold.climbs(railing_row)
                                                            and thin_straight.slender(railing_row["size"])), case
+    # its railing row, 1 m tall, built 4.5 m (its bake's parts from before railing_hold) as 9.4 m chords whose ends ran
+    # 0.12 and 0.14 m into its walls, the first and fifth over its stair's opening once held. A chord 9.4 m along x = z,
+    # 4.5 m tall, on a floor at 3 m that ends 0.9 m short of its middle, one end in a wall box, is held to 1 m, slid
+    # back along itself until its weight stands within the check's 5 cm of the floor's edge, and drawn back until it
+    # stands railings_held.CLEAR off the wall; laid again it is left.
+    from scipy.spatial import ConvexHull
+    way = np.array([1.0, 0.0, 1.0]) / np.sqrt(2.0)
+    chord = trimesh.creation.box(extents=(9.4, 4.5, 0.1))
+    chord.apply_transform(trimesh.transformations.rotation_matrix(np.radians(-45.0), (0.0, 1.0, 0.0)))
+    chord.apply_translation((0.0, 5.25, 0.0))
+    wall = ConvexHull(np.array([(x, y, z) for x in (2.6, 4.0) for y in (2.8, 8.0) for z in (2.0, 5.0)], float))
+
+    def under(points):
+        return np.where(points @ way > -0.9, np.inf, np.abs(points[:, 1] - 3.0))
+    whole, words = railings_held.change(chord, RAILING, [wall], under)
+    laid_chord = chord.copy()
+    laid_chord.apply_transform(whole.T)
+    assert np.isclose(np.ptp(laid_chord.vertices[:, 1]), 1.0) and np.isclose(laid_chord.bounds[0, 1], 3.0), words
+    assert not railings_held.inside(laid_chord.vertices, [wall]) and "slid -0." in words, words
+    assert railings_held.outside_by(laid_chord, under) <= 0.05 < railings_held.outside_by(chord, under), words
+    assert railings_held.change(laid_chord, RAILING, [wall], under) is None
+    import triage
+    from pxr import UsdGeom
+    tops = Usd.Stage.CreateInMemory()
+
+    def box_of(name):
+        return fitting.world_box(tops, f"/{TOY}/Objects/{name}")
+
+    def where(name, which):
+        low, high = box_of(name)
+        return {"low": low, "high": high, "middle": (low + high) / 2}[which]
+    for step in ON_TOPS:
+        case = step["case"]
+        for name, shape in step.get("adds", {}).items():
+            if isinstance(shape, trimesh.Trimesh):
+                a_meshed(tops, f"/{TOY}/Objects/{name}", shape)
+            else:
+                a_built_box(tops, f"/{TOY}/Objects/{name}", *shape)
+        for carried, names, stacked in step.get("stacked", ()):
+            found = fitting.with_stacked(tops, TOY, carried, names)
+            assert found == stacked, f"{case}: {names} stacked {found}"
+        before = {name: box_of(name)[0] for carried, (holder, _) in step.get("carried", {}).items()
+                  for name in (carried, holder)}
+        fits = step["lays"](tops, TOY, step["things"]) if step["lays"] else []
+        fitted = {fit["name"]: fit for fit in fits}
+        assert "fits" not in step or sorted(fitted) == step["fits"], f"{case}: {fits}"
+        assert not set(fitted) & set(step.get("left", ())), f"{case}: {fits}"
+        for name, which, axes, at, tolerance in step.get("near", ()):
+            found = where(name, which)[list(axes)]
+            assert np.allclose(found, at, **tolerance), f"{case}: {name}'s {which} at {found}"
+        for name, which, axes, least, most in step.get("within", ()):
+            found = where(name, which)[list(axes)]
+            assert np.all(least <= found) and np.all(found <= most), f"{case}: {name}'s {which} at {found}"
+        for name, (at, tolerance) in step.get("top at", {}).items():
+            at = box_of(name)[0][1] if at is None else at
+            assert np.isclose(fitted[name]["top at"], at, **tolerance), f"{case}: {fitted[name]}"
+        for name, said in step.get("words", {}).items():
+            assert said in fitted[name]["words"], f"{case}: {fitted[name]}"
+        for name, (holder, least) in step.get("carried", {}).items():
+            shift = box_of(holder)[0] - before[holder]
+            assert float(np.linalg.norm(shift)) > least and np.allclose(box_of(name)[0], before[name] + shift), \
+                f"{case}: {name} at {box_of(name)[0]}, {holder} moved {shift}"
+        for judge, names in step.get("apart", ()):
+            assert all(judge(box_of(one), box_of(other)) for number, one in enumerate(names)
+                       for other in names[number + 1:]), f"{case}: {[box_of(name) for name in names]}"
+        for name, (holder, gap, tolerance) in step.get("on", {}).items():
+            assert np.isclose(box_of(name)[0][1], box_of(holder)[1][1] + gap, **tolerance), \
+                f"{case}: {name} at {box_of(name)}, {holder} at {box_of(holder)}"
+        for name, holder in step.get("centred", {}).items():
+            assert np.allclose(where(name, "middle")[[0, 2]], where(holder, "middle")[[0, 2]]), \
+                f"{case}: {name} at {box_of(name)}, {holder} at {box_of(holder)}"
+        for name, (up, degrees) in step.get("up", {}).items():
+            turned = np.asarray(UsdGeom.Xformable(tops.GetPrimAtPath(f"/{TOY}/Objects/{name}"))
+                                .ComputeLocalToWorldTransform(0))[1, :3]
+            assert np.degrees(np.arccos(np.clip(turned @ up / np.linalg.norm(turned), -1.0, 1.0))) < degrees, \
+                f"{case}: {name} up {turned}"
+        for name, below, holder, stands in step.get("stands", ()):
+            among = crest_tops.exact_field(trimesh.util.concatenate([
+                fitting.surface_mesh(tops, f"/{TOY}/Objects/{other}") for other in below]), box_of(holder))
+            assert crest_tops.stands(fitting.surface_mesh(tops, f"/{TOY}/Objects/{name}"), among,
+                                     np.zeros(3)) == stands, f"{case}: {name} stands {not stands}"
+        if "held" in step:
+            judged, laid, with_fits = step["held"]
+            measured = fitting.held_faults(
+                {"objects": [thing for thing in step["things"] if thing["name"] in judged]},
+                {"objects": [{"name": name, **dict(zip(("low", "high"), box_of(name)))} for name in laid],
+                 **({"fitted": fits} if with_fits else {})})
+            assert measured == [], f"{case}: {measured}"
+    for case, entry, held in HELD_ON:
+        assert bool(built_tops.held_on(entry)) == held, case
+    assert fitting.top_run([(np.zeros(3), np.array([0.5, 1.0, 0.4])),
+                            (np.array([0.7, 0.0, 0.0]), np.array([1.2, 1.0, 0.4]))]) is None  # 0.2 m apart: no run
+    assert fitting.packed_rows([0.3] * 7, [0.3] * 7, 1.0, 0.4) is None  # seven 0.3 m boxes need 0.9 m of a 0.4 m top
+    # quarters' mug, its desk's top at its spot no rest, went 0.3 m down onto the shelf under the top: a box over a
+    # slab with a shelf under it and a 4 cm post through its spot slides along the slab, never down onto the shelf
+    shelved_slab = trimesh.util.concatenate([trimesh.creation.box(bounds=bounds) for bounds in (
+        [(0.0, 0.0, 0.0), (1.0, 0.03, 0.6)], [(0.0, -0.3, 0.0), (1.0, -0.28, 0.6)],
+        [(0.48, 0.03, 0.28), (0.52, 0.23, 0.32)])])
+    found, slid = built_tops.spot(shelved_slab, (0.4, 0.23, 0.2), (0.6, 0.43, 0.4),
+                                  (np.zeros(3), np.array([1.0, 0.23, 0.6])))
+    assert np.isclose(found[1], 0.03) and slid > 0.0 and (found[0] + 0.1 <= 0.48 or found[0] - 0.1 >= 0.52
+                                                          or found[2] + 0.1 <= 0.28 or found[2] - 0.1 >= 0.32), found
+    # base (2026-11-12): its hangar's roof opening was asked of rest at 1.5 million spots on the hangar's top, none
+    # holding it, 3 hours. The sieve's first pass (may_rest) leaves the spot found by asking rest at every one; on a
+    # 20 m ridge, where the pile touches a strip too narrow to stand balanced on, it asks rest at none.
+    ridge = trimesh.convex.convex_hull(np.array([(x, y, z) for x, y in ((0, 0), (2, 0), (1, 1)) for z in (0, 20)],
+                                                float))
+
+    def pile_spot(holder, at):
+        pile = trimesh.creation.box((1.2, 0.3, 0.6))
+        pile.apply_translation(at)
+        hold = tuple(holder.bounds)
+        thing = (pile, np.asarray(triage.low_points(pile), float),
+                 np.vstack([pile.vertices, pile.sample(crest_tops.EVERY, seed=0)]))
+        fields = crest_tops.height_field(holder, hold), crest_tops.exact_field(holder, hold)
+        return crest_tops.spot(thing, fields, tuple(pile.bounds), hold, [])
+    rest, asked = crest_tops.rest, []
+    with monkeypatch.context() as patched:
+        patched.setattr(crest_tops, "rest", lambda *args: asked.append(args) or rest(*args))
+        on_ridge, ridge_asked = pile_spot(ridge, (1.0, 2.0, 10.0)), len(asked)
+        sieved = pile_spot(LYING_MODULE, (20.6, 2.55, 0.3))
+        patched.setattr(crest_tops, "may_rest", lambda low, weight, field, shifts: np.ones(len(shifts), bool))
+        unsieved = pile_spot(LYING_MODULE, (20.6, 2.55, 0.3))
+    assert on_ridge is None and ridge_asked == 0, (on_ridge, ridge_asked)
+    assert sieved is not None and np.array_equal(sieved, unsieved), (sieved, unsieved)
+    # lab's mouse (10 x 6 cm), a 5 cm wrench and a plant pot were never found a spot where they rest: no point of a 6
+    # cm thing is BALANCE (5 cm) inside it. A 10 x 6 cm box on a flat slab rests there, its weight a quarter of its 6 cm
+    # inside what it touches; hung 5 cm past the slab's edge it does not.
+    import resting
+    slab = trimesh.creation.box(bounds=[(60.0, 0.0, 0.0), (61.0, 0.03, 0.6)])
+    flat = crest_tops.exact_field(slab, tuple(slab.bounds))
+    mouse = trimesh.creation.box(bounds=[(60.4, 0.035, 0.2), (60.5, 0.075, 0.26)])
+    low_points = np.asarray(triage.low_points(mouse), float)
+    weight = resting.weight_at(mouse)
+    assert np.isclose(crest_tops.balance(mouse.vertices), 0.015) and crest_tops.balance(slab.vertices) == 0.05
+    assert crest_tops.stands(mouse, flat, np.zeros(3)) and crest_tops.rest(low_points, np.asarray(
+        mouse.vertices), weight, flat, np.zeros(2)) is not None, crest_tops.balance(mouse.vertices)
+    assert crest_tops.may_rest(low_points, weight, flat, np.zeros((1, 2)))[0]
+    assert not crest_tops.stands(mouse, flat, np.array([0.55, 0.0, 0.0]))
     import placeholders
     from pxr import UsdShade
     for row, surface in GROUND_SURFACE:
