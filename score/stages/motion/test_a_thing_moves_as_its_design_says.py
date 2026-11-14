@@ -714,7 +714,7 @@ PLAN = {"gaps": [{"kind": "placed", "item": "crane", "row": "crane", "words": "c
 # `middles` (a prim's middle at a second: near a spot, or one axis under or over a number or another middle),
 # `gates` (gate name, `table:` for the stage table's, `every gate` for each motion gate, to its verdict), `rewrites`
 # (moves added to or dropped from the record and the gates judged on it), and `reseeded` (made again with another
-# seed: the same bytes).
+# seed: the same bytes); `angles` (a swing's rule angle to the angles it is tried at, in order).
 CASES = [
     ("a door swings on its hinge for the walker, the fan turns and the rover stands", {
         "toy": {}, "reseeded": True,
@@ -757,6 +757,7 @@ CASES = [
         "toy": {"extra": (STOP, MIRROR)},
         "record": [(("moves", "door_1", "swing", "angle"), 60.0),
                    (("moves", "door_1", "from"), holding("fitted by the clear gate: 60 degrees its rule's way"))],
+        "angles": (90.0, [90.0, -90.0, 80.0, -80.0, 70.0, -70.0, 60.0, -60.0]),
         "gates": {"clear": gate(checks.PASS)}}),
     ("a hatch lying flat stands, one whose words say open stands open", {
         "toy": {"rows": ROWS + HATCHES, "extra": (FLAT, FLAT_OPEN)},
@@ -795,7 +796,7 @@ CASES = [
         "gates": {"designed": gate(checks.FAIL), "table:designed": gate(checks.PASS, reason=MOVED_ON)}}),
     ("a moving row the accepted plan places none of is left out by its plan gap", {
         "toy": {"rows": ROWS + [CRANE]}, "files": {"plan.json": PLAN}, "inputs": {"plan": "plan.json"},
-        "record": [(("left_out", "crane"), [re.compile(  # its source fix waits on #36
+        "record": [(("left_out",), ["crane"]), (("left_out", "crane"), [re.compile(  # its source fix waits on #36
             re.escape("crane: the accepted plan's gap \"crane: 1 in the concept, 0 on the plan\" (its source fix: ")
             + r"(?=[^)]*issues/36#issuecomment-)" + re.escape(from_design.PLAN_FIX) + r"\)\Z")])],
         "carried": ["crane: no object, so it does not move"],
@@ -936,6 +937,8 @@ def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
         {struck[prim]}"` -> `still[prim] = "struck"`
     Break: score/stages/motion/__init__.py: `sizes = np.arange(abs(float(angle)), FIT_LEAST - 1e-9, -FIT_STEP)` ->
         `sizes = np.arange(abs(float(angle)), FIT_LEAST, -FIT_STEP)`
+    Break: score/stages/motion/__init__.py: `for size in sizes for sign in (1.0, -1.0)]` -> `for sign in (1.0, -1.0)
+        for size in sizes]` (every angle its rule's way is tried before any the other way)
     Break: score/stages/motion/from_design.py: `elif rule["move"] == "swing" and not upright(stage, path):` -> `elif
         False:`
     Break: score/stages/motion/from_design.py: `still[path] = LYING_OPEN if rule.get("rests") == "open" else LYING`
@@ -977,6 +980,8 @@ def test_a_thing_moves_as_its_design_says(tmp_path, monkeypatch, case):
     wrong = [(path, dug(record, path)) for path, expected in case.get("record", ()) if not matches(dug(record, path),
                                                                                                    expected)]
     assert wrong == [], wrong
+    if "angles" in case:
+        assert motion.swing_angles(case["angles"][0]) == case["angles"][1], motion.swing_angles(case["angles"][0])
     if "carried" in case:
         carried = [entry["name"] for entry in json.loads((out / "batch-gaps.json").read_text())["gaps"]]
         assert carried == case["carried"], carried
