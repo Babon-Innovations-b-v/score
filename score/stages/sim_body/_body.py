@@ -122,36 +122,81 @@ def surface_under(ground, points, ceilings):
     return found
 
 
-def treads_stood(rig, local, ground):
+def foot_over(rig, local, ground, foot):
+    """A foot's skin (`foot`, FEET's joints) against the ground under it (`ground`, the triangles it may touch, its
+    highest surface under each point below its ankle, `surface_under`), a frame each: (its deepest point into its
+    ground, m, under 0 where it is over it; its lowest point over its ground, m), -inf and inf where none is under it;
+    None for a foot the rig has no skin or pin for."""
+    names = [str(name) for name in rig["names"]]
+    weights, points = np.asarray(rig["weights"], dtype=float), np.asarray(rig["points"], dtype=float)
+    mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in foot if name in names]))
+    if not len(mine) or foot[0] not in played.FEET:
+        return None
+    world = played.chained(local, rig["parents"])
+    skinning = world @ np.linalg.inv(np.asarray(rig["bind"]))
+    placed = np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], np.c_[points[mine], np.ones(len(mine))])
+    low, high = placed[..., [0, 2]].reshape(-1, 2).min(axis=0), placed[..., [0, 2]].reshape(-1, 2).max(axis=0)
+    near = ground[((ground[:, :, [0, 2]].max(axis=1) >= low) & (ground[:, :, [0, 2]].min(axis=1) <= high)).all(axis=1)]
+    ankle = world[:, names.index(foot[0]), 1, 3]
+    under = np.array([surface_under(near, placed[frame], np.full(len(mine), ankle[frame])) - placed[frame, :, 1]
+                      for frame in range(len(local))])
+    held = np.isfinite(under)
+    return np.where(held, under, -np.inf).max(axis=1), np.where(held, -under, np.inf).min(axis=1)
+
+
+def ends_stood(rig, local, ground, asked):
+    """`local` (a climber's scene-made clip) with its Hips moved up or down, before Kimodo's first foot keyframe and
+    after its last (`asked`, the frames scene-clips asked a foot on its tread), so its standing feet rest on the ground
+    under them: Kimodo was asked no foot there and no hip height (its root2d holds the hips along the floor only, a
+    foot keyframe pins their height), and with no ground of its own it stood the stairwell's person_woman on nothing
+    (2026-11-14: her left sole 17 cm over the landing at frame 0, 2 to 4 cm on frames 8 to 19, her leg straight, so no
+    pin of the foot could reach it; 2 to 3 cm on frames 101 to 103, after her last keyframe at 93). As `stood` does on
+    the bind's floor: on each frame there a foot stands (its sole slower than STANCE_SPEED, any height: Kimodo had no
+    ground to stand it within STANCE_HIGH of), its lowest standing sole is brought to its ground, a frame no foot stands
+    on taking the move straight between its neighbours', the move between the keyframes held at none, the whole
+    smoothed as `stood` smooths (STOOD_HZ); a clip asked no foot is left as it is."""
+    moved = np.array(local, dtype=float)
+    if not len(asked):
+        return moved
+    _, speeds, _ = soles(rig, moved)
+    gaps = np.full((len(moved), len(FEET)), np.inf)
+    for index, foot in enumerate(FEET):
+        over = foot_over(rig, moved, np.asarray(ground, dtype=float), foot)
+        if over is not None:
+            gaps[:, index] = np.where(speeds[:, index] < STANCE_SPEED, over[1], np.inf)
+    frames = np.arange(len(moved))
+    free = (frames < min(asked)) | (frames > max(asked))
+    lowest = gaps.min(axis=1)
+    known = ~free | np.isfinite(lowest)
+    wanted = np.interp(frames, frames[known], np.where(free, -lowest, 0.0)[known])
+    bend = np.diff(np.eye(len(wanted)), 2, axis=0)
+    smooth = (2.0 * np.sin(np.pi * STOOD_HZ / RATE)) ** -4
+    weight = np.where(free, 1.0, 1e9)  # the keyframes' span held where Kimodo put it
+    move = np.linalg.solve(np.diag(weight) + smooth * bend.T @ bend, weight * wanted)
+    moved[:, played.TRAVELLING_JOINT, 1, 3] += np.where(free, move, 0.0)
+    return moved
+
+
+def treads_stood(rig, local, ground, asked=()):
     """`local` (a climber's scene-made clip, route_clip's) with each foot, on every frame it stands, put on the ground
     under it (`ground`, the triangles it may touch in its own frame, ground_of's): Kimodo's foot keyframes hold a foot
     on its tread only at its stance's middle, made with no post-processing (scene_clips: its contact pins hold one
     floor), so between them its sole sank and floated (the stairwell's person_woman, 2026-11-14: her left sole 4.2 cm
-    into her second tread as it came down flat, frame 35, 1.4 cm under at her keyframe). The ground under each point of
-    a foot's skin is the highest surface under it below its ankle (`surface_under`). A foot any point of which is in
-    its ground stands on it, lifted till none is; one whose sole moves slower than STANCE_SPEED within STANCE_HIGH over
-    its ground stands too, lowered onto it. Each is moved by Kimodo's own end-effector pin (`played.pinned`: the leg's
-    IK, the foot turned as before, eased in and out), never the Hips."""
+    into her second tread as it came down flat, frame 35, 1.4 cm under at her keyframe), and before the first keyframe
+    and after the last (`asked`, its keyframes' frames) her Hips stood her over it, which `ends_stood` puts right
+    first. The ground under each point of a foot's skin is the highest surface under it below its ankle (`foot_over`).
+    A foot any point of which is in its ground stands on it, lifted till none is; one whose sole moves slower than
+    STANCE_SPEED within STANCE_HIGH over its ground stands too, lowered onto it. Each is moved by Kimodo's own
+    end-effector pin (`played.pinned`: the leg's IK, the foot turned as before, eased in and out), never the Hips."""
     names = [str(name) for name in rig["names"]]
-    weights, points = np.asarray(rig["weights"], dtype=float), np.asarray(rig["points"], dtype=float)
     ground = np.asarray(ground, dtype=float)
-    moved = np.array(local, dtype=float)
+    moved = ends_stood(rig, local, ground, asked)
     _, speeds, _ = soles(rig, moved)
     for index, foot in enumerate(FEET):
-        mine = np.flatnonzero(np.isin(weights.argmax(axis=1), [names.index(name) for name in foot if name in names]))
-        if not len(mine) or foot[0] not in played.FEET:
+        over = foot_over(rig, moved, ground, foot)
+        if over is None:
             continue
-        world = played.chained(moved, rig["parents"])
-        skinning = world @ np.linalg.inv(np.asarray(rig["bind"]))
-        placed = np.einsum("pj,fjab,pb->fpa", weights[mine], skinning[..., :3, :], np.c_[points[mine], np.ones(len(mine))])
-        low, high = placed[..., [0, 2]].reshape(-1, 2).min(axis=0), placed[..., [0, 2]].reshape(-1, 2).max(axis=0)
-        near = ground[((ground[:, :, [0, 2]].max(axis=1) >= low) & (ground[:, :, [0, 2]].min(axis=1) <= high)).all(axis=1)]
-        ankle = world[:, names.index(foot[0]), 1, 3]
-        under = np.array([surface_under(near, placed[frame], np.full(len(mine), ankle[frame])) - placed[frame, :, 1]
-                          for frame in range(len(moved))])
-        held = np.isfinite(under)
-        depth = np.where(held, under, -np.inf).max(axis=1)  # its deepest point into its ground (m, under 0: over it)
-        gap = np.where(held, -under, np.inf).min(axis=1)  # its lowest point over its ground
+        depth, gap = over
         sunk = depth > 0.0
         resting = ~sunk & np.isfinite(gap) & (speeds[:, index] < STANCE_SPEED) & (gap < STANCE_HIGH)
         if sunk.any() or resting.any():
