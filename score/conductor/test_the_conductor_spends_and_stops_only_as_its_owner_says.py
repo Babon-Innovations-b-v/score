@@ -57,7 +57,15 @@ clean_cache 'relinked = relink_checkouts(home, say) if "checkouts" in names else
 grow while a run walks its rows, 2026-10-27); in offload_pixal 'why = held_whole_why(takes, take, folder, home,
 report, written)' -> 'why = None' (a take the library hands back changed is removed), or drop its 'if refused:' and
 return (takes freed under a live run); in take_kept_why drop the 'gone' test (the link to nothing crashes the
-offload), or in alone 'yield False' -> 'yield True' (a second offload or sweep runs beside the first). The free
+offload), or in alone 'yield False' -> 'yield True' (a second offload or sweep runs beside the first); in
+relinked_or_why '    if not blob.is_file():\n        return "not held in the store"' -> '    if False:\n        return
+"not held in the store"' (a take the store lacks is lost), or '    if now - status.st_mtime < YOUNG_SECONDS:' -> '    if
+False:' (a take a run is writing is linked), or in relink_pixal 'if laid_by_a_row(path, pixal):' -> 'if False:'
+(a people look's take linked, so its row copies a file onto itself: 2026-11-03, SameFileError), or in laid_by_a_row
+drop 'or code_built(path, pixal)' (a code build's take linked: 2026-11-05, every pixal row refused on input.png); in
+asked_by 'return code == entry["code"] and entry["system"]' -> 'return False and entry["system"]' (the crate's views,
+still asked for, are swept), or its 'and \\\n            all(input_stands(' -> 'or ...' (the lamp's views, made from
+its old model, stay). The free
 end-to-end check is red when a step fails, e.g. the memory guard letting the second node start while the first, short
 of its stage's peak, still runs.
 """
@@ -532,8 +540,12 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
     # store/objects 54.7 GB that nothing named, and the owner on the full disk needing him: "this should be routine")
     base = tmp_path / "full"
     base.mkdir()
-    full, blobs, named, checked, big_blob = a_full_disk(base)
+    full, blobs, named, checked, big_blob, raw, copies = a_full_disk(base)
     pixal, cache = full / "work" / "pixal", full / "store" / "cache"
+    models = base / "models"  # the models a per-take kept call (the finish route's views) is made from
+    models.mkdir()
+    for take in ("crate", "lamp"):
+        (models / f"{take}.glb").write_text(f"{take} model")
     real = disk.pixal_takes()
     taken = []
 
@@ -553,7 +565,27 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         swept.setattr(disk, "mount_of", lambda path: full)
         swept.setattr(disk, "bigger", lambda more, zone: f"{more} GB more, EUR 4.00 a month in {zone}")
         swept.setattr(disk.offload, "open_bucket", lambda: disk.offload.FolderBucket(base / "bucket"))
-        # a run waits: nothing is removed, but the checkouts' copies become links to their blobs all the same
+        # a run waits: of the frozen copies only the dead run's is removed, with its home, never what they link to;
+        # nothing while an entry does not parse
+        worker = subprocess.Popen(SLEEP, cwd=frozen.home_of(copies["3-worked"]))
+        try:
+            time.sleep(0.3)
+            done = disk.clean(full, say=said.append)
+            assert done["removed"] == ["1-dead"] and done["failed"] == [], said
+            assert sorted(done["kept"]) == ["2-waiting", "3-worked", "4-young"], done
+            assert not copies["1-dead"].exists() and not frozen.home_of(copies["1-dead"]).exists()
+            assert copies["2-waiting"].exists() and copies["3-worked"].exists()
+            assert {path.name for path in blobs.iterdir()} == everything and (full / "design" / "plan.json").exists()
+            assert str(copies["1-dead"]) not in frozen.git(base / "checkout", "worktree", "list")
+            (full / "runs" / "broken.json").write_text("{")
+            with pytest.raises(disk.Unprovable):
+                disk.clean(full, say=said.append)
+            assert copies["2-waiting"].exists()
+            (full / "runs" / "broken.json").unlink()
+        finally:
+            worker.kill()
+            worker.wait()
+        # nothing is removed, but the checkouts' copies become links to their blobs all the same
         assert "a registered run needs" in disk.store_gc(full, say=said.append)["refused"]
         done = disk.clean_cache(full, say=said.append)
         assert done["removed"] == [] and "a registered run needs" in done["refused"] and (cache / "making").exists()
@@ -572,6 +604,40 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         assert sorted(path.name for path in cache.iterdir()) == ["concepts", "convex-parts", "drops"]
         assert {path.name for path in blobs.iterdir()} == everything  # the stored objects stay
         assert any(line.startswith(f"kept {cache / 'drops'}: paid drops") for line in said), said
+        # 2026-10-29: kept jobs outlive their outputs, so they are swept once no current key could ask for them: never
+        # one still asked for (the crate's views), never by age; the lamp's, made from its old model, and every one
+        # once the row's code moved
+        swept.setenv("PROPS_HOME", str(full))
+        from score import checks, contracts, stages
+        kept = stages.kept_module()
+        for name in (kept.MAKING, kept.CODE):
+            swept.delenv(name, raising=False)
+        swept.setenv(kept.STORE, str(full / "store"))
+
+        def make_views(inputs, out, seed, params):
+            (out / "views.json").write_text(json.dumps({take: take_views(inputs[f"model {take}"], out / take)
+                                                        for take in ("crate", "lamp")}))
+
+        def runner(params):
+            row = graph.Stage("toy-views", "place", stages.per_take_kept(make_views, "take_views",
+                                                                         lambda found: found[1]),
+                              contracts.Contract("toy-views", 1, lambda folder: []),
+                              (checks.Check("views", lambda output, inputs, evidence: checks.Verdict(
+                                  "views", checks.PASS, "made")),),
+                              files={f"model {take}": str(models / f"{take}.glb") for take in ("crate", "lamp")},
+                              params=params)
+            return graph.Runner([row], graph.Environment("toy", 1, {}), Store.in_folder(str(full / "store")))
+        made = runner({})
+        made.run_node(made.stages["toy-views"], "airlock")
+        os.utime(cache / "making", (time.time() - 2 * disk.YOUNG_SECONDS,) * 2)  # no make in progress
+        systems = {kept.digest(kept.python_system())}
+        assert disk.clean_kept(full, runner=runner({}), systems=systems, say=said.append)["dropped"] == 0
+        (models / "lamp.glb").write_text("lamp model, fixed")
+        assert disk.clean_kept(full, runner=runner({}), systems=systems, say=said.append)["dropped"] == 1
+        assert [entry["record"] for _, entry in kept.entries()] == [{"views": 3}]  # the crate's, still asked for
+        done = disk.clean_kept(full, runner=runner({"views": "finer"}), systems=systems, say=said.append)
+        assert done["dropped"] == 1 and done["refused"] is None and not list(kept.entries())  # the row's code moved
+        everything = {path.name for path in blobs.iterdir()}  # the toy row's output stays stored
         dry_gc = disk.store_gc(full, dry=True, say=said.append)
         assert dry_gc["removed"] == 1 and {path.name for path in blobs.iterdir()} == everything, dry_gc
         # one offload and one sweep at a time (2026-10-31: two side by side, FileNotFoundError)
@@ -594,6 +660,29 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
         assert not list(pixal.glob("a-s1*")), list(pixal.iterdir())
         assert all((pixal / name).exists() for name in ("b-s1.glb", "c-s1.glb", "d-s1.glb", "e-s1.glb",
                                                         "b-s1.svviews/input.png"))
+        # relink-pixal: only an old file whose bytes the store holds becomes a link to its blob, nothing is removed;
+        # a people look's or a code build's take file stays a plain copy (a row copies over it: 2026-11-03,
+        # SameFileError; 2026-11-05, input.png Permission denied), one linked before copied back
+        done = disk.relink_pixal(full)
+        assert done["relinked"] == 2 and (pixal / "r.glb").samefile(raw) and (pixal / "r.svviews/input.png").samefile(
+            raw), done
+        assert done["kept"] == {"not held in the store": 10, "changed in the last 15 minutes": 3,
+                                "not a regular file": 1, "already a link to its blob": 1,
+                                "a people look's take, copied over by its row": 5}, done
+        look, built = pixal / "officer-made-s1.svviews/input.png", [
+            pixal / "pipe_1.svviews/input.png", pixal / "pipe_1-final.glb", pixal / "pipe_1-2000.glb"]
+        assert done["copied"] == 4 and all(path.stat().st_nlink == 1 for path in [look, *built]), done
+        assert (pixal / "r-final.glb").read_bytes() == b"only here" and (pixal / "young.glb").stat().st_nlink == 1
+        assert (pixal / "r.glb").read_bytes() == b"raw" * 1000 and not list(pixal.rglob("*.partial"))
+        again = disk.relink_pixal(full)
+        assert again["kept"]["already a link to its blob"] == 3 and again["copied"] == 0, again
+        assert not look.samefile(raw) and look.read_bytes() == b"raw" * 1000 and os.access(look, os.W_OK)
+        for path in [look, *built]:  # linked before the rule: every sweep pass copies it back, the disk low or not
+            path.unlink()
+            os.link(raw, path)
+        assert disk.laid_plain(full) == {"copied": 4} and all(
+            path.stat().st_nlink == 1 and os.access(path, os.W_OK) for path in [look, *built])
+        assert disk.relink_pixal(full)["copied"] == 0 and not disk.code_built(pixal / "t.glb", pixal)
         # the sweep: a live `score plan` (no registered run) judging gates on the scratch copies keeps them
         plan = subprocess.Popen([*SLEEP, "-m", "score", "plan"])
         try:
@@ -892,7 +981,10 @@ def a_full_disk(base):
     output, a record, a link, a listing blob, a work/pixal take and nothing name (one written now), an output whose
     checkout is a read-only copy (as an earlier commit made it), a store cache holding every kind of folder (a make's
     read-only one too), painted takes in work/pixal (one changed now, one with a link to nothing), an old and a new log,
-    a killed make's scratch copy, and a waiting run registered."""
+    a killed make's scratch copy, and a waiting run registered. Beside the painted takes, takes the store holds (a raw
+    model and its input picture, a young one), a final model only work/pixal holds, a people look's and a code build's
+    take files linked to their blob; and four frozen copies of a checkout: a dead run's, the waiting run's, one a
+    process works in, one made now."""
     home = base / "home"
     store = Store.in_folder(home / "store")
     made = base / "made"
@@ -922,6 +1014,11 @@ def a_full_disk(base):
     big.mkdir()
     (big / "big.bin").write_bytes(b"x" * 4096)
     output = store.put_tree(big)
+    takes = base / "takes"  # 2026-10-28: 16 GB free of 91, work/pixal 20.5 GB, most of it kept nowhere else
+    takes.mkdir()
+    (takes / "raw.glb").write_bytes(b"raw" * 1000)
+    (takes / "new.glb").write_bytes(b"new" * 1000)
+    raw = store.objects.path(f"blobs/{store.listing(store.put_tree(takes))['raw.glb']}")
     checked = store.checkout(output) / "big.bin"
     checked.unlink()  # a checkout an earlier commit made as a copy
     checked.write_bytes(b"x" * 4096)
@@ -941,74 +1038,39 @@ def a_full_disk(base):
         for name in names:
             (pixal / name).write_bytes(take.encode() * 100)
     (pixal / "e-s1-19000.glb").symlink_to(base / "gone.glb")
+    for name in ("r.svviews", "officer-made-s1.svviews", "pipe_1.svviews"):
+        (pixal / name).mkdir()
+    for name, data in (("r.glb", b"raw" * 1000), ("young.glb", b"new" * 1000), ("r-final.glb", b"only here"),
+                       ("r.svviews/input.png", b"raw" * 1000), ("pipe_1.svviews/code.json", b"{}")):
+        (pixal / name).write_bytes(data)
+    for name in ("officer-made-s1.svviews/input.png", "pipe_1.svviews/input.png", "pipe_1-final.glb",
+                 "pipe_1-2000.glb"):  # a people look's and a code build's take files, linked to the blob
+        os.link(raw, pixal / name)
     (home / "logs").mkdir()
     for name, days in (("old.log", disk.LOG_DAYS + 1), ("new.log", 1)):
         (home / "logs" / name).write_text(name)
         os.utime(home / "logs" / name, (time.time() - days * 86400,) * 2)
     (home / disk.MOTION_SCRATCH / "layer-camp-x1" / "camp").mkdir(parents=True)  # a killed make's seed copy
+    (home / "design" / "plan.json").write_text("{}")
+    repo = base / "checkout"
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
+                    "--allow-empty", "-m", "one"], check=True)
+    (home / "frozen").mkdir()
+    copies = {name: a_copy(repo, home / "frozen", name, home) for name in ("1-dead", "2-waiting", "3-worked")}
+    copies["4-young"] = home / "frozen" / "4-young"
+    copies["4-young"].mkdir()
     (home / "runs").mkdir()
-    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(base / "copy")}))
+    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(copies["2-waiting"])}))
+    (home / "runs" / "e.json").write_text(json.dumps({"state": "ended", "worktree": str(copies["1-dead"])}))
     old = time.time() - 2 * disk.GC_YOUNG_SECONDS
-    for path in [*cache.rglob("*"), *[path for path in pixal.rglob("*") if not path.name.startswith("c-s1")]]:
+    for path in [*cache.rglob("*"),
+                 *[path for path in pixal.rglob("*") if not path.name.startswith(("c-s1", "young"))]]:
         os.utime(path, (old, old), follow_symlinks=False)
     for blob in blobs.iterdir():
         if blob.name != named["young"]:
             os.utime(blob, (old, old))
-    return home, blobs, named, checked, store.objects.path(f"blobs/{store.listing(output)['big.bin']}")
-
-
-def test_relink_pixal_links_only_old_takes_the_store_holds_and_removes_nothing(tmp_path):
-    """2026-10-28: 16 GB free of 91, work/pixal 20.5 GB, most of it kept nowhere else.
-    Break: score/conductor/disk.py: '    if not blob.is_file():\n        return "not held in the store"' -> '    if False:
-    \n        return "not held in the store"' (a take the store lacks is lost), or '    if now - status.st_mtime <
-    YOUNG_SECONDS:' -> '    if False:' (a take a run is writing is linked), or 'if laid_by_a_row(path, pixal):' -> 'if
-    False:' (a people look's take linked, so its row copies a file onto itself: 2026-11-03, SameFileError)"""
-    home = tmp_path / "home"
-    store = Store.in_folder(home / "store")
-    made = tmp_path / "made"
-    made.mkdir()
-    (made / "raw.glb").write_bytes(b"raw" * 1000)
-    (made / "new.glb").write_bytes(b"new" * 1000)
-    output = store.put_tree(made)
-    pixal = home / "work" / "pixal"
-    (pixal / "t.svviews").mkdir(parents=True)
-    for name, data in (("t.glb", b"raw" * 1000), ("young.glb", b"new" * 1000), ("t-final.glb", b"only here"),
-                       ("t.svviews/input.png", b"raw" * 1000)):
-        (pixal / name).write_bytes(data)
-    old = time.time() - 2 * disk.YOUNG_SECONDS
-    for name in ("t.glb", "t-final.glb", "t.svviews/input.png"):
-        os.utime(pixal / name, (old, old))
-    for blob in store.objects.path("blobs").iterdir():  # a linked file shows its blob's time
-        os.utime(blob, (old, old))
-    done = disk.relink_pixal(home)
-    blob = store.objects.path(f"blobs/{store.listing(output)['raw.glb']}")
-    assert done["relinked"] == 2 and (pixal / "t.glb").samefile(blob) and (pixal / "t.svviews/input.png").samefile(blob)
-    assert done["kept"] == {"not held in the store": 1, "changed in the last 15 minutes": 1}, done
-    assert (pixal / "t-final.glb").read_bytes() == b"only here" and (pixal / "young.glb").stat().st_nlink == 1
-    assert (pixal / "t.glb").read_bytes() == b"raw" * 1000 and not list(pixal.rglob("*.partial"))
-    assert disk.relink_pixal(home)["kept"]["already a link to its blob"] == 2
-    # a people look's take file stays a plain copy, and one linked before is copied back
-    (pixal / "officer-made-s1.svviews").mkdir()
-    look = pixal / "officer-made-s1.svviews/input.png"
-    os.link(blob, look)
-    again = disk.relink_pixal(home)
-    assert again["copied"] == 1 and look.stat().st_nlink == 1 and not look.samefile(blob), again
-    assert look.read_bytes() == b"raw" * 1000 and os.access(look, os.W_OK)
-    assert disk.relink_pixal(home)["copied"] == 0 and look.stat().st_nlink == 1
-    look.unlink()
-    os.link(blob, look)  # linked before the rule: every sweep pass copies it back, the disk low or not
-    assert disk.laid_plain(home) == {"copied": 1} and look.stat().st_nlink == 1
-    # a code build's take files too (2026-11-05: linked, every pixal row's rebuild was refused on input.png)
-    # Break: in disk.py `laid_by_a_row`, drop "or code_built(path, pixal)".
-    (pixal / "pipe_1.svviews").mkdir()
-    (pixal / "pipe_1.svviews/code.json").write_text("{}")
-    built = [pixal / "pipe_1.svviews/input.png", pixal / "pipe_1-final.glb", pixal / "pipe_1-2000.glb"]
-    for path in built:
-        os.link(blob, path)
-    assert disk.laid_plain(home)["copied"] == 3 and all(os.access(path, os.W_OK) for path in built)
-    assert disk.relink_pixal(home)["copied"] == 0 and (pixal / "pipe_1.svviews/input.png").stat().st_nlink == 1
-    assert not disk.code_built(pixal / "t.glb", pixal)
-    assert "laid-plain" in [name for name, _ in disk.steps(home, home / "runs", print, False)]
+    return home, blobs, named, checked, store.objects.path(f"blobs/{store.listing(output)['big.bin']}"), raw, copies
 
 
 def a_copy(repo, folder, name, home):
@@ -1022,45 +1084,6 @@ def a_copy(repo, folder, name, home):
     os.utime(path, (old, old))
     os.utime(frozen.home_of(path), (old, old))
     return path
-
-
-def test_clean_frozen_removes_only_the_copies_no_run_needs_and_never_what_they_link_to(tmp_path):
-    repo, home = tmp_path / "checkout", tmp_path / "home"
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
-    subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q",
-                    "--allow-empty", "-m", "one"], check=True)
-    (home / "store").mkdir(parents=True)
-    (home / "store" / "object").write_text("kept")
-    (home / "design").mkdir()
-    (home / "design" / "plan.json").write_text("{}")
-    (home / "runs").mkdir()
-    folder = home / "frozen"
-    folder.mkdir()
-    dead, waiting, worked = (a_copy(repo, folder, name, home) for name in ("1-dead", "2-waiting", "3-worked"))
-    young = folder / "4-young"
-    young.mkdir()
-    (home / "runs" / "w.json").write_text(json.dumps({"state": runs.WAITING, "worktree": str(waiting)}))
-    (home / "runs" / "e.json").write_text(json.dumps({"state": "ended", "worktree": str(dead)}))
-    process = subprocess.Popen(SLEEP, cwd=frozen.home_of(worked))
-    try:
-        time.sleep(0.3)
-        said = []
-        done = disk.clean(home, say=said.append)
-        assert done["removed"] == ["1-dead"] and done["failed"] == [], said
-        assert sorted(done["kept"]) == ["2-waiting", "3-worked", "4-young"]
-        assert not dead.exists() and not frozen.home_of(dead).exists() and waiting.exists() and worked.exists()
-        assert (home / "store" / "object").read_text() == "kept" and (home / "design" / "plan.json").exists()
-        assert str(dead) not in frozen.git(repo, "worktree", "list")
-        (home / "runs" / "broken.json").write_text("{")
-        with pytest.raises(disk.Unprovable):
-            disk.clean(home, say=said.append)
-        assert waiting.exists()
-    finally:
-        process.kill()
-        process.wait()
-        for path in folder.rglob("*"):
-            if path.is_dir() and not path.is_symlink():
-                path.chmod(0o755)
 
 
 def a_library_checkout(tmp_path):
@@ -1122,49 +1145,3 @@ def take_views(source, folder):
     folder.mkdir(parents=True)
     (folder / "views.npz").write_text(f"views of {pathlib.Path(source).read_text()}")
     return {"views": 3}
-
-
-def test_clean_kept_drops_only_the_kept_no_current_key_asks_for(tmp_path, monkeypatch):
-    """2026-10-29: kept jobs outlive their outputs, so they are swept once no current key could ask for them: never
-    one still asked for, never by age.
-    Break: score/conductor/disk.py asked_by: 'return code == entry["code"] and entry["system"]' -> 'return False and
-    entry["system"]' (the crate's views, still asked for, are swept); or drop 'and \\\n            all(input_stands('
-    (the lamp's views, made from its old model, stay)."""
-    from score import checks, contracts, graph, stages
-    kept = stages.kept_module()
-    home, models = tmp_path / "home", tmp_path / "pixal"
-    (home / "runs").mkdir(parents=True)
-    models.mkdir()
-    for take in ("crate", "lamp"):
-        (models / f"{take}.glb").write_text(f"{take} model")
-    for name in (kept.MAKING, kept.CODE):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv("PROPS_HOME", str(home))
-    monkeypatch.setenv(kept.STORE, str(home / "store"))
-
-    def make_views(inputs, out, seed, params):
-        (out / "views.json").write_text(json.dumps({take: take_views(inputs[f"model {take}"], out / take)
-                                                    for take in ("crate", "lamp")}))
-
-    def row(params):
-        return graph.Stage("toy-views", "place", stages.per_take_kept(make_views, "take_views", lambda found: found[1]),
-                           contracts.Contract("toy-views", 1, lambda folder: []),
-                           (checks.Check("views", lambda output, inputs, evidence: checks.Verdict(
-                               "views", checks.PASS, "made")),),
-                           files={f"model {take}": str(models / f"{take}.glb") for take in ("crate", "lamp")},
-                           params=params)
-
-    def runner(params):
-        return graph.Runner([row(params)], graph.Environment("toy", 1, {}), Store.in_folder(str(home / "store")))
-
-    made = runner({})
-    made.run_node(made.stages["toy-views"], "airlock")
-    old = time.time() - 2 * disk.YOUNG_SECONDS
-    os.utime(home / "store" / "cache" / "making", (old, old))  # no make in progress
-    systems, said = {kept.digest(kept.python_system())}, []
-    assert disk.clean_kept(home, runner=runner({}), systems=systems, say=said.append)["dropped"] == 0
-    (models / "lamp.glb").write_text("lamp model, fixed")
-    assert disk.clean_kept(home, runner=runner({}), systems=systems, say=said.append)["dropped"] == 1
-    assert [entry["record"] for _, entry in kept.entries()] == [{"views": 3}]  # the crate's, still asked for
-    done = disk.clean_kept(home, runner=runner({"views": "finer"}), systems=systems, say=said.append)
-    assert done["dropped"] == 1 and done["refused"] is None and not list(kept.entries())  # the row's code moved
