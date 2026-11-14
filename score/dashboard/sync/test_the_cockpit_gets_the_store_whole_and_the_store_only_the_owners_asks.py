@@ -26,42 +26,43 @@ Breaks that turn this red (each applied once and seen red, then reverted):
 - applying.apply_decision: the owner check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - applying.OWNER_FIGURES: a "month" kind added -> test_the_cockpit_gets_the_store_whole_...
 - pages/actions.owner_figure_off_why: the agent check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
-- pages/actions.set_books_figure: the amount check -> `if False:` -> test_the_hosted_buttons_queue_the_owners_...
+- pages/actions.set_books_figure: the amount check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - pages/actions.scene_name: the name check -> `if False:`; or library_actions.carried_out: the refusal dropped ->
   test_the_cockpit_gets_the_store_whole_...
 - pages/actions.record_change: no inbox write -> test_the_cockpit_gets_the_store_whole_...
 - client.sync_pass: `applied = []` -> test_the_cockpit_gets_the_store_whole_...
 - client.sync_pass: a `usd_sweep()` also inside the pricing lock -> test_the_cockpit_gets_the_store_whole_...
-- client.step_run: `err` without "out of time after ..." -> test_a_step_out_of_time_is_ended_and_says_so
+- client.step_run: `err` without "out of time after ..." -> test_the_cockpit_gets_the_store_whole_...
 - client.design_moved: the copy check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - client.sync_pass: the basket not made -> test_the_cockpit_gets_the_store_whole_...
 - client.sync_pass: the moved-checkout words never said -> test_the_cockpit_gets_the_store_whole_...
 - client.sync_pass: the tree refusal ignored -> test_the_cockpit_gets_the_store_whole_...
-- client.tree_refusal: uncommitted changes ignored -> test_the_tree_check_wants_every_tracked_file_committed_...
-- state/exported.made_words: "export of" for "state from" -> test_hosted_pages_render_from_the_export_with_its_time
-- client.readings_fixed: the places not given -> test_a_pass_fixes_no_reading_that_holds_no_part_of_another_rows_thing
-- client.asked_of_readings: the Stop everything check -> `if False:` -> test_a_pass_asks_the_parts_of_a_locked_place_...
-- client.light_read: asks the unparted places -> test_a_pass_asks_the_light_of_a_locked_place_read_before_it_...
-- client.film_previews: "" for none wanted -> test_a_pass_makes_the_free_preview_of_each_locked_script_...
-- client.step_run: the group not ended -> test_a_step_leaves_nothing_running_after_it
-- listen.round_once: no kinds asked -> test_a_hosted_buy_is_applied_by_the_listener_and_its_launch_followed
-- listen.answered_here: a Buy left for the pass not kept in `left` -> test_a_buy_whose_price_needs_a_pass_...
-- client.buy_waits: the pass's pricing ignored -> test_a_buy_during_a_pass_waits_only_for_a_basket_on_another_commit
-- listen.round_once: the stopping check -> `if False:` -> test_a_slow_request_never_holds_back_the_next_and_a_stop_...
-- client.figures_moved: the basket's commit check -> `if False:` -> test_the_figures_must_price_this_commit_...
-- listen.batch_pushed: `if live:` alone -> test_the_batch_record_is_sent_while_it_lives_and_once_as_it_ends
-- endpoints.note: a claimed request noted too -> test_the_hosted_side_notes_skips_and_serves_the_newer_batch_record
-- state/exported.store_batch: the machine check -> `if False:` -> test_a_moved_or_reset_store_shows_no_old_batch
-- release.message: the subject not cut -> test_a_release_pins_the_pushed_head_in_one_commit_of_the_hosts_style
+- client.tree_refusal: uncommitted changes ignored -> test_the_cockpit_gets_the_store_whole_...
+- state/exported.made_words: "export of" for "state from" -> test_the_cockpit_gets_the_store_whole_...
+- client.readings_fixed: `reading_fixes.said(...)` -> `str(...)` (its words never said) ->
+  test_the_cockpit_gets_the_store_whole_...
+- client.asked_of_readings: the Stop everything check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- client.light_read: asks the unparted places -> test_the_cockpit_gets_the_store_whole_...
+- client.film_previews: "" for none wanted -> test_the_cockpit_gets_the_store_whole_...
+- client.step_run: the group not ended -> test_the_cockpit_gets_the_store_whole_...
+- listen.round_once: no kinds asked -> test_the_cockpit_gets_the_store_whole_...
+- listen.answered_here: a Buy left for the pass not kept in `left` -> test_the_cockpit_gets_the_store_whole_...
+- client.buy_waits: the pass's pricing ignored -> test_the_cockpit_gets_the_store_whole_...
+- listen.round_once: the stopping check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- client.figures_moved: the basket's commit check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- listen.batch_pushed: `if live:` alone -> test_the_cockpit_gets_the_store_whole_...
+- endpoints.note: a claimed request noted too -> test_the_cockpit_gets_the_store_whole_...
+- state/exported.store_batch: the machine check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- release.message: the subject not cut -> test_the_cockpit_gets_the_store_whole_...
 - release.release: `moved = ""` (the conductor's checkout left on the old pin, its door running old code) -> the same
-- release.score_commit: the refusal not raised -> test_a_release_refuses_a_commit_not_pushed_or_a_checkout_...
-- release.inside: the ".." check dropped -> test_a_release_refuses_a_dockerfile_path_outside_the_host_...
-- release.pinned: `if not found:` -> test_a_dockerfile_must_pin_exactly_one_commit
-- timer.env_refusal: the reader check -> `if False:` -> test_the_install_refuses_an_env_file_without_its_url_...
-- timer.install: no listener restart -> test_the_install_writes_both_units_filled_and_enables_the_timer
-- timer.unquoted: `return value` -> test_a_quoted_reader_is_read_as_systemd_reads_it_...
-- timer.unit_text: the pull never replaced -> test_the_units_render_for_the_conductors_user_and_no_pull_...
-- timer.dashboard_refusal: the dashboard diff -> `if False:` -> test_without_a_host_the_install_checks_the_commit_...
+- release.score_commit: the refusal not raised -> test_the_cockpit_gets_the_store_whole_...
+- release.inside: the ".." check dropped -> test_the_cockpit_gets_the_store_whole_...
+- release.pinned: `if not found:` -> test_the_cockpit_gets_the_store_whole_...
+- timer.env_refusal: the reader check -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
+- timer.install: no listener restart -> test_the_cockpit_gets_the_store_whole_...
+- timer.unquoted: `return value` -> test_the_cockpit_gets_the_store_whole_...
+- timer.unit_text: the pull never replaced -> test_the_cockpit_gets_the_store_whole_...
+- timer.dashboard_refusal: the dashboard diff -> `if False:` -> test_the_cockpit_gets_the_store_whole_...
 - review/web.as_owner_deciding: `with markers_lifted():` -> `with contextlib.nullcontext():` ->
   test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.refusal: the `now != yes["target"]` check -> `if False:` ->
@@ -84,10 +85,10 @@ Breaks that turn this red (each applied once and seen red, then reverted):
   test_the_cockpit_gets_the_store_whole_...
 - chat_decisions.apply: the `handed_back(store, yes_id, applied.detail)` after a refused apply dropped (a yes the
   cockpit refused stays used, 2026-11-05) -> test_the_cockpit_gets_the_store_whole_...
-- state/exported.py: `import numpy` at its top -> test_hosted_renders_every_page_light
-- launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_hosted_renders_every_page_light,
-  test_every_module_the_hosted_image_holds_imports_from_it_alone
+- state/exported.py: `import numpy` at its top -> test_the_cockpit_gets_the_store_whole_...
+- launch/localrun.py: `from score.graph import runs` at its top (93fec2b1) -> test_the_cockpit_gets_the_store_whole_...
 """
+import contextlib
 import datetime
 import gzip
 import hashlib
@@ -99,8 +100,10 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import types
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import ANY
 
 import pytest
@@ -166,8 +169,8 @@ def answered(web, row, headers):
     return web.request(method, path, headers=headers, **({kind: body} if body is not None else {}))
 
 
-def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(owner_books, tmp_path, settings,
-                                                                             monkeypatch):
+def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(owner_books, repositories, tmp_path,
+                                                                             settings, monkeypatch):
     """The fixture world exported twice and once under a tiny cap, then the hosted side's sync routes driven through one
     exchange table (uploads, refusals, commits, the request states) and every route asked with a wrong token, then
     pushed to pass after pass (late, slow, unchanged, new code, an old format); then the store side applies one request
@@ -175,7 +178,14 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     no button sends, then the owner's own), a refused request writing nothing; then sync passes against a hosted side
     in memory (two refused, three that push as the design copy moves); then his decisions made in chat
     through one table of decision kinds (each with a twin asked before its target changed) and one of yeses never
-    recorded."""
+    recorded; then the pass's own steps through tables (the parts and light asked, the film previews, a step's
+    leftovers and its time); then the release and the timer's install on one score checkout and host (the env files,
+    the refusals before the release, the release, the installs with and without the pull, the checkouts that feed
+    nothing); then the listener on a store home of its own (the pass's figures judged through one table, a Buy's
+    rounds through another, a slow draw beside a Stop everything, the batch record sent); then the hosted image's tree
+    rendering that first export and importing every module, light. The hosted part also notes, skips and claims a
+    Buy, keeps the batch record sent, shows the batch record through one table of stores, exports and records, and
+    renders the pages and queues the owner's buttons from the first export."""
     world = owner_books
     one, small = exported(world, tmp_path / "one"), exported(world, tmp_path / "small", cap_mb=0.02)
     exported(world, tmp_path / "two")
@@ -214,6 +224,8 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     web, bearer, home = hosted_client(), {"Authorization": f"Bearer {TOKEN}"}, settings.SCORE_HOME
     shutil.rmtree(home / "export", ignore_errors=True)
     request = SyncRequest.objects.create(kind="change", user="joey", payload={"stage": "closeup", "words": "redder"})
+    buy = SyncRequest.objects.create(kind="checkout", user="joey", payload={})
+    sent = {"checkout": 4, "state": "running", "read_at": "2026-10-24T13:09:00+00:00"}
     data, empty, liar = b"abcdefgh", sha_of(b"{}"), sha_of(b"something else")
     manifests = {made: f'{{"made_at": "{made}", "format": 3}}'.encode() for made in ("a", "b", "c")}
     exchanges = [  # in order: (what, (method, path, body), status, the answer's JSON or None)
@@ -230,7 +242,13 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
         ("the chunk where told", gzipped_put(sha_of(data), 3, 8, data[3:]), 200, {"have": 8, "done": True}),
         ("a wrong hash", gzipped_put(liar, 0, 8, data), 400, None),
         ("more than its size", gzipped_put(liar, 0, 2, data), 400, None),
-        ("the request waits", ("GET", "/api/sync/requests?state=waiting", None), 200, None),
+        ("a waiting Buy noted", ("POST", f"/api/sync/requests/{buy.pk}/note", {"detail": "waits"}), 200, None),
+        ("the requests wait", ("GET", "/api/sync/requests?state=waiting", None), 200, None),
+        ("the Buy skipped", ("GET", f"/api/sync/requests?skip={buy.pk}", None), 200, None),
+        ("the Buy claimed", ("POST", f"/api/sync/requests/{buy.pk}/claim", None), 200, None),
+        ("a claimed Buy noted", ("POST", f"/api/sync/requests/{buy.pk}/note", {"detail": "x"}), 409, None),
+        ("a batch record", ("PUT", "/api/sync/batch-run", json.dumps(sent).encode()), 200, {"kept": sent["read_at"]}),
+        ("a batch record not an object", ("PUT", "/api/sync/batch-run", b"[]"), 400, None),
         *[(f"request {state}", ("POST", f"/api/sync/requests/{request.pk}", {"state": state}), 200, None)
           for state in ("picked_up", "running", "done")],
         ("request nonsense", ("POST", f"/api/sync/requests/{request.pk}", {"state": "nonsense"}), 422, None),
@@ -248,18 +266,85 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     exchanged(exchanges)
     assert (home / "blobs" / sha_of(data)).read_bytes() == data  # whole, before a commit sweeps it unused
     exchanged(exports)
-    assert [item["id"] for item in answers["the request waits"].json()] == [request.pk]
+    # a note leaves the Buy waiting with its words; a skipped one is not listed; a claimed one takes no note
+    assert [(item["id"], item["state"], item["detail"]) for item in answers["the requests wait"].json()] == [
+        (request.pk, "waiting", ""), (buy.pk, "waiting", "waits")]
+    assert [item["id"] for item in answers["the Buy skipped"].json()] == [request.pk]
     request.refresh_from_db()
-    assert request.state == "done"
+    buy.refresh_from_db()
+    assert request.state == "done" and (buy.state, buy.detail) == ("picked_up", "waits")
     assert not (home / "blobs" / liar).exists() and not (home / "blobs" / f"{liar}.part").exists()
     # only the three good commits landed, the oldest swept with the blob no kept export uses
     assert sorted(path.name for path in (home / "export").iterdir()) == ["b", "c", "current"]
     assert [(home / "blobs" / sha_of(body)).exists() for body in manifests.values()] == [False, True, True]
     routes = [("POST", "/api/sync/lacking", {"files": {sha_of(b"x"): 1}}), gzipped_put(sha_of(b"x"), 0, 1, b"x"),
-              commit("n", {}), ("GET", "/api/sync/pin", None), ("GET", "/api/sync/requests?state=done", None)]
+              commit("n", {}), ("GET", "/api/sync/pin", None), ("GET", "/api/sync/requests?state=done", None),
+              ("PUT", "/api/sync/batch-run", b"{}")]
     for wrong in ({}, {"Authorization": "Bearer wrong"}):
         for route in routes:
             assert answered(web, route, wrong).status_code == 401, (wrong, route)
+
+    # the batch record shown: only the store's machine's, the export's or the one the listener sent since, whichever
+    # was read later, and none of a checkout before a reset (owner 2026-10-24: a moved or reset store kept showing an
+    # old batch)
+    kept, machine_record = home / "request-files" / "batch-run.json", home / "store-machine.json"
+    pushed_pc = {"checkout": 4, "state": "finished", "read_at": "2026-10-24T22:22:00+00:00", "machine": "pc"}
+    earlier = {"checkout": 4, "read_at": "2026-10-24T22:10:00+00:00"}
+    running = {"checkout": 4, "state": "running", "read_at": "2026-10-24T13:00:00+00:00"}
+    reads = [  # (what, the store's machine record, the listener's record (KEPT: the one sent above), the export's
+        #          record, the export's machine, when it was made, the record shown)
+        ("the newer one sent", None, KEPT, running, "", "2026-10-24T12:55:00+00:00", {**sent, "machine": ""}),
+        ("the export's own", None, None, running, "", "2026-10-24T12:55:00+00:00", running),
+        ("a Buy since the export", {"name": "pc"}, pushed_pc, None, "pc", "2026-10-24T22:00:00+00:00", pushed_pc),
+        ("a reset: no checkout in it", {"name": "pc"}, pushed_pc, None, "pc", "2026-10-24T22:30:00+00:00", None),
+        ("the later of the two", {"name": "pc"}, pushed_pc, earlier, "pc", "2026-10-24T22:30:00+00:00", pushed_pc),
+        ("moved: the PC's sent record", {"name": "conductor", "before": "pc"}, pushed_pc, None, "conductor",
+         "2026-10-24T22:00:00+00:00", None),
+        ("moved: the PC's export", {"name": "conductor", "before": "pc"}, pushed_pc, earlier, "pc",
+         "2026-10-24T12:55:00+00:00", None),
+        ("moved: a record whose machine is unknown", {"name": "conductor", "before": "pc"},
+         {key: value for key, value in pushed_pc.items() if key != "machine"}, None, "conductor",
+         "2026-10-24T22:00:00+00:00", None),
+    ]
+    for what, store_machine, pushed_run, run, machine, made_at, shown in reads:
+        machine_record.unlink(missing_ok=True)
+        if store_machine:
+            machine_record.write_text(json.dumps(store_machine))
+        if pushed_run is not KEPT:
+            kept.unlink(missing_ok=True)
+            if pushed_run:
+                kept.write_text(json.dumps(pushed_run))
+        assert export_with_batch(tmp_path, kept.parent, run, machine, made_at).batch_run() == shown, what
+    machine_record.unlink()
+    kept.unlink()
+
+    # the hosted pages render from the export with its time, and each money button and decision is a signed-in owner
+    # request in the outbox, with his name, the time and the figure; anyone else's is refused at the door
+    from score.dashboard import state
+    from score.dashboard.pages import actions, library_actions
+    owner, stranger = Client(), Client()
+    owner.force_login(get_user_model().objects.create_user("joey", password="a long enough password"))
+    stranger.force_login(get_user_model().objects.create_user("mallory", password="a long enough password"))
+    with monkeypatch.context() as patch:
+        patch.setattr(state, "source", lambda: source)
+        for page in ("/", "/places/", "/environments/world1/", "/place/alpha/", "/place/alpha/step/closeup/",
+                     "/world/step/terrain/", "/requests/"):
+            assert "state from 2026-10-18 12:00" in owner.get(page).content.decode(), page
+        owner.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
+        asks = [  # (what, the button's answer, how it starts)
+            ("his books figure", actions.set_books_figure("joey", 12.5), "queued"),
+            ("his read back", actions.read_books_back("joey"), "queued"),
+            ("his waiver", actions.waive_check("joey", "beta", "closeup", "abc", "looks", "fine"), "queued"),
+            ("a figure not an amount", actions.set_books_figure("joey", "nan-ish"), "refused"),
+        ]
+        for what, said, words in asks:
+            assert said.startswith(words), (what, said)
+        assert stranger.post("/world/step/terrain/waive/", {"output": "x", "check": "looks",
+                                                            "reason": "r"}).status_code == 403
+    queued = {item.kind: item for item in SyncRequest.objects.exclude(pk__in=(request.pk, buy.pk))}
+    assert set(queued) == {"books-figure", "read-back", "waiver", "decision"}
+    assert queued["books-figure"].user == "joey" and queued["books-figure"].payload["euros"] == 12.5
+    assert queued["books-figure"].created
     shutil.rmtree(home / "export")  # its names sort after the dated exports the passes below swap in
 
     # the store side pushes the world's export here, pass after pass: one over its time before its first file sends
@@ -311,7 +396,6 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
     assert os.readlink(current) == "2026-10-18T160000+0000"  # never swapped in
     shutil.rmtree(exports)
 
-    from score.dashboard.pages import actions, library_actions
     from score.review import web as review_web
     agent_started = actions.agent_started
     settings.SCORE_MODE, settings.SCORE_LIB_ROOT = settings.LOCAL, tmp_path
@@ -543,6 +627,271 @@ def test_the_cockpit_gets_the_store_whole_and_the_store_only_the_owners_asks(own
                                 **given)
         assert why in str(refused.value), (decision, target, given, str(refused.value))
 
+    # the pass's own steps, on the same world: no reading is fixed; the parts and the light of each locked place are
+    # asked once (one call a place, under the reading's clearance) and never while Stop everything holds; each locked
+    # script's free preview is made, none wanted said so, a failure to read the locks said and not raised; a step's
+    # leftovers end with it, and a step out of time is ended and says so
+    from score.review import reading
+    from score.stages.demo_film import final
+    from score.store import Store
+    monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
+    monkeypatch.setattr("score.adapters.compute.books_refusal", lambda: None)
+    monkeypatch.delenv("SCORE_BENCHMARK_GRANT", raising=False)
+    assert client.readings_fixed(world.source.store_root) == "readings: none to fix"
+    store = Store.in_folder(world.source.store_root)
+    unlit = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
+    asks = [  # (the pass's step, its words, the places it leaves unread, an answer of one row, its scene, euros a call)
+        (client.parts_read, "parts", reading.unparted, "object", None, 0.05),
+        (client.light_read, "light", reading.unlit, unlit, {"daylight": True, "unseen": False, "unseen_colour": ""},
+         0.04),
+    ]
+    for step, label, unread, row_answer, scene, euros in asks:
+        places, asked = unread(store, ["alpha", "beta"]), []
+        assert places, label
+
+        def ask(store, place, folder, row_answer=row_answer, scene=scene, euros=euros, asked=asked):
+            asked.append(place)
+            rows = {row["id"]: row_answer for row in reading.reading_of(store, place)["inventory"]["rows"]}
+            return (rows if scene is None else {"rows": rows, "scene": scene}), euros, 1.0
+        monkeypatch.setattr(client, "free_only_followed", lambda: True)
+        assert step(world.source.store_root, ask=None) == (
+            f"{label} not read for {len(places)} places: refused, Stop everything holds (free only)")
+        monkeypatch.setattr(client, "free_only_followed", lambda: False)
+        assert step(world.source.store_root, ask=ask) == f"{label} read: {len(places)} places, " \
+            f"EUR {euros * len(places):.2f}"
+        assert sorted(asked) == sorted(places) and unread(store, places) == [], label
+        assert step(world.source.store_root, ask=ask) == f"{label}: none missing" and len(asked) == len(places), label
+        assert scene is None or reading.concept_light(store, places[0])["scene"] == scene
+    previews = [  # (the films final.previews_wanted names, the pattern of the pass's words, the films rendered)
+        (lambda: ["one", "two"], re.escape("film-preview one: made; film-preview two: made"), ["one", "two"]),
+        (lambda: [], re.escape("film previews: none wanted"), []),
+        (lambda: json.loads("{"), re.escape("film previews failed: JSONDecodeError") + ".*", []),
+    ]
+    for wanted, words, films in previews:
+        rendered = []
+        monkeypatch.setattr(final, "previews_wanted", wanted)
+        said = client.film_previews(lambda film, rendered=rendered: rendered.append(film)
+                                    or f"film-preview {film}: made")
+        assert re.fullmatch(words, said) and rendered == films, said
+    settings.SCORE_REPO = tmp_path
+    # the leftover lets go of the step's output, so only the group's end can stop it
+    leftover = ("import subprocess, time; print(subprocess.Popen(['sleep', '60'], stdout=subprocess.DEVNULL, "
+                "stderr=subprocess.DEVNULL).pid, flush=True)")
+    steps = [  # (what, the step's program, its limit, its exit is 0, its last error line or None)
+        ("a step with a leftover", leftover, None, True, None),  # 2026-10-25: chrome-headless stayed after the pass
+        ("a step out of its time", leftover + "; time.sleep(60)", 1, False, "out of time after 1 s"),
+    ]
+    for what, program, limit, ok, error in steps:
+        done = client.step_run([sys.executable, "-c", program], grace=2, **({"limit": limit} if limit else {}))
+        assert (done.returncode == 0) == ok and (error is None or done.stderr.strip().splitlines()[-1] == error), what
+        stat = pathlib.Path(f"/proc/{int(done.stdout)}/stat")  # its output kept
+
+        def ended(stat=stat):
+            try:
+                return stat.read_text().rpartition(")")[2].split()[0] == "Z"
+            except FileNotFoundError:
+                return True
+        deadline = time.monotonic() + 2  # a kill lands a moment after it is sent: at most 2 s, never the minute
+        while not ended() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert ended(), what
+
+    # the release and the timer's install, on a score checkout with two pushed commits and a host pinning the first:
+    # the install refuses what cannot feed the cockpit and writes nothing; the release refuses a Dockerfile path
+    # outside the host or one not pinning exactly one commit, pins the pushed head in one commit of the host's style
+    # and moves the conductor; then the install writes and enables its units, with the pull or, with --no-pull, the
+    # conductor's update in its place; a checkout with changes or a commit not pushed feeds neither the pass nor a
+    # release
+    score, host, first = repositories
+    head, config = git(score, "git", "rev-parse", "HEAD"), tmp_path / "config"
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(config))
+    env, bare, quoted = an_env_file(tmp_path), an_env_file(tmp_path / "bare", reader=False), tmp_path / "quoted.env"
+    quoted.write_text(env.read_text().replace("SCORE_SECRET_READER=", 'SCORE_SECRET_READER="').replace(
+        "read-secret\n", 'read-secret"\n'))  # read as systemd reads it
+    for path, words in ((tmp_path / "none.env", re.escape(f"no env file at {tmp_path / 'none.env'}")),
+                        (bare, ".*SCORE_SECRET_READER.*"), (quoted, None)):
+        refused = timer.env_refusal(path)
+        assert (refused is None) if words is None else re.fullmatch(words, refused), (path, refused)
+    for given, why in (({"host": host, "dockerfile": DOCKERFILE},  # a cockpit on another dashboard
+                        "whose dashboard is not this checkout's: release this commit first"),
+                       ({"opener": Pin(None)}, "reports no commit"),  # not /healthz: the proxy answers that itself
+                       ({"opener": Pin(first)}, "whose dashboard is not this checkout's")):
+        with pytest.raises(release.Refused, match=why):
+            timer.install(score, env, systemctl=lambda *args: None, **given)
+    assert not config.exists()  # nothing written
+    for path in (str(host / DOCKERFILE), "../host/" + DOCKERFILE):
+        with pytest.raises(release.Refused, match="inside the host's repository"):
+            release.release(score, host, path, SUBJECT)
+    for text in ("FROM x\n", "ARG SCORE_COMMIT=" + "a" * 40 + "\nARG SCORE_COMMIT=" + "b" * 40 + "\n"):
+        with pytest.raises(release.Refused, match="expected one"):
+            release.pinned(text)
+    assert release.repinned("ARG SCORE_COMMIT=" + "a" * 40 + "\n", "c" * 40) == "ARG SCORE_COMMIT=" + "c" * 40 + "\n"
+    assert client.tree_refusal(score) is None
+    asked = []
+    said = release.release(score, host, DOCKERFILE, SUBJECT + " {not a slot}", trailers=[TRAILER],
+                           door=lambda repo, command: asked.append((repo, command)) or (0, "update: moved"))
+    assert f"moved from score {first[:8]} to {head[:8]}" in said, said
+    assert asked == [(score, f"release-pin {head} {first}")] and said.endswith("; the conductor: update: moved"), said
+    assert "NOT moved (door exit 1: no door)" in release.conductor_moved(score, head, first, lambda *_: (1, "no door"))
+    git(host, "git", "fetch", "-q", "origin", "main")
+    assert git(host, "git", "show", f"FETCH_HEAD:{DOCKERFILE}") == f"FROM x\nARG SCORE_COMMIT={head}\nRUN y"
+    subject, body, trailer = git(host, "git", "log", "-1", "--format=%B", "FETCH_HEAD").split("\n\n")
+    assert subject == f"dashboards: the cockpit at score {head[:8]} (#1) {{not a slot}}" and trailer == TRAILER
+    assert body == f"{head[:8]} " + ("dashboard: the second, a subject " + "long " * 30)[:release.SUBJECT_WIDTH]
+    assert git(host, "git", "worktree", "list").count("\n") == 0  # its own worktree is gone
+    assert "already pins" in release.release(score, host, DOCKERFILE, SUBJECT)
+    called, units = [], config / "systemd/user"
+    timer.install(score, env, host, DOCKERFILE, systemctl=lambda *args: called.append(args))
+    assert called == [("daemon-reload",), ("enable", "--now", "score-sync.timer", "score-listen.service"),
+                      ("restart", "score-listen.service")]
+    pulled = {name: (units / name).read_text().splitlines() for name in timer.UNITS}
+    with pytest.raises(release.Refused, match="systemctl --user daemon-reload failed: no user manager"):
+        timer.install(score, quoted, host, DOCKERFILE, systemctl=lambda *args: "no user manager")
+    cockpit = Pin(head)
+    said = timer.install(score, env, systemctl=lambda *args: None, pull=False, opener=cockpit)
+    assert cockpit.asked == [("https://cockpit.test/api/sync/pin", "Bearer token")] and "no pull before a pass" in said
+    unpulled = {name: (units / name).read_text().splitlines() for name in timer.UNITS}
+    pull = f"ExecStartPre=/usr/bin/git -C {score} pull -q --ff-only"
+    update = f"ExecStartPre=/usr/bin/python3 -I {score}/tools/cloud/conductor/update.py --repo {score}"
+    assert pull in pulled["score-sync.service"] and update not in pulled["score-sync.service"]
+    assert pull not in unpulled["score-sync.service"] and update in unpulled["score-sync.service"]
+    # --no-pull puts the update in the pull's place and changes nothing else
+    assert {name: [update if line == pull else line for line in lines] for name, lines in pulled.items()} == unpulled
+    service = [line for line in unpulled["score-sync.service"] if not line.startswith("#")]
+    assert not any("<" in line for lines in unpulled.values() for line in lines if not line.startswith("#"))
+    assert f"EnvironmentFile={env}" in service and f"WorkingDirectory={score}" in service
+    start = next(line for line in service if line.startswith("ExecStart="))
+    assert '"$$SCORE_SECRET_READER" "score-cockpit-sync-token"' in start
+    assert f'"{score}/.venv/bin/python" -m score.dashboard sync' in start
+    assert f"WorkingDirectory={score}" in unpulled["score-listen.service"]
+    assert "WSL" not in "\n".join(unpulled["score-listen.service"])
+    conductor = "/home/score/projects/score", "/home/score/.config/score/dashboard.env"
+    for name in timer.UNITS:  # the same templates fill in for the conductor's user
+        assert "/home/dupe" not in timer.unit_text(name, *conductor, timer.SECRET, pull=False), name
+    unpushed = "is not on origin's main: push it first"
+    checkouts = [  # (what, the change to the checkout, the pass's and the release's refusal, the commit named too)
+        ("changes not committed", lambda: (score / "score/dashboard/a.py").write_text("a = 3\n"),
+         "has changes not committed", False),
+        ("a commit not pushed", lambda: committed(score, "score/dashboard/a.py", "a = 3\n", "dashboard: not pushed"),
+         unpushed, True),
+    ]
+    for what, change, why, named in checkouts:
+        change()
+        assert why in client.tree_refusal(score), what
+        for given_commit in (None, git(score, "git", "rev-parse", "HEAD")) if named else (None,):
+            with pytest.raises(release.Refused, match=why):
+                release.release(score, host, DOCKERFILE, SUBJECT, given_commit)
+    git(host, "git", "fetch", "-q", "origin", "main")
+    assert git(host, "git", "show", f"FETCH_HEAD:{DOCKERFILE}") == f"FROM x\nARG SCORE_COMMIT={head}\nRUN y"
+
+    # the listener, on a store home of its own: a Buy waits for the next pass while the pass's figures do not price
+    # this commit (during a pass, which makes prepare's figure and the price again on this commit, only for a basket
+    # on another commit), said on the request and not asked again, else it is applied and its launch followed; a slow
+    # request never holds back the next, and once stopping nothing more is claimed; the batch record is sent while it
+    # lives and once as it ends
+    settings.SCORE_HOME = tmp_path / "listener"
+    monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
+    monkeypatch.setattr(applying, "apply", real)
+    here, code = local.priced_here(), []
+    monkeypatch.setattr(client, "head", lambda repo: code[-1])
+    lone = types.SimpleNamespace(props_home=settings.SCORE_HOME, world=types.SimpleNamespace(name="world1"))
+    checks, short = lone.props_home / "work" / local.CHECKS, here["commit"][:8]
+
+    def figured(made):
+        """The pass's figures as `made`: none, prepare's on other code and the basket before it, or all standing."""
+        shutil.rmtree(checks, ignore_errors=True)
+        shutil.rmtree(settings.SCORE_HOME / "proposals", ignore_errors=True)
+        if made == "none":
+            return
+        (checks / local.GAPS_PRICE).mkdir(parents=True)
+        (checks / local.GAPS_PRICE / "world1.json").write_text(json.dumps({"priced_on": here}))
+        remake = ({"priced_on": {**here, "commit": "b" * 40}, "made_at": "2026-10-24T13:00:05.123456+00:00"}
+                  if made == "moved" else {"priced_on": here, "made_at": "2026-10-24T12:59:00+00:00"})
+        (checks / local.REMAKE).parent.mkdir(parents=True, exist_ok=True)
+        (checks / local.REMAKE).write_text(json.dumps(remake))
+        records.put_index(settings.SCORE_HOME / "proposals", {"made_at": "2026-10-24T13:00:00Z",
+                                                              "commit": here["commit"]})
+    not_made = ["the runner's price: it is not made yet", "prepare's figure: it is not made yet",
+                f"the basket was made on commit None, the code is at {short}"]
+    moved = f"prepare's figure: the code moved since it was made (commit bbbbbbbb, now {short})"
+    before = "the basket was made at 2026-10-24T13:00:00Z, before prepare's figure (2026-10-24T13:00:05.123456+00:00)"
+    other = f"the basket was made on commit {short}, the code is at cccccccc"
+    judged = [  # (the figures, the code's commit, during a pass, what figures_moved says, why a Buy waits or None)
+        ("none", here["commit"], False, not_made, "; ".join(not_made)),
+        ("none", here["commit"], True, not_made, "; ".join(not_made)),
+        ("moved", here["commit"], False, [moved, before], f"{moved}; {before}"),
+        ("moved", here["commit"], True, [moved, before], None),
+        ("moved", "c" * 40, True, [moved, other, before], other),
+        ("stand", here["commit"], False, [], None),
+        ("stand", "c" * 40, False, [other], other),
+    ]
+    for made, now, during, said, waits in judged:
+        figured(made)
+        code.append(now)
+        with client.pricing_now() if during else contextlib.nullcontext():
+            assert client.pass_pricing() == during, (made, now, during)
+            assert client.figures_moved(lone, now) == said, (made, now, during)
+            assert client.buy_waits(lone) == waits, (made, now, during)
+    assert not client.pass_pricing()
+    monkeypatch.setattr(applying, "apply_checkout", lambda item: applying.Applied("running", "launched", launch_id=9))
+    listened, left, noted = Listened([BUY]), set(), [(5, f"waits for the next sync pass: {other}")]
+    rounds = [  # (what, the code's commit, a listener started afresh, its answer, the notes, the claims, skipped ids)
+        ("a basket on another commit", "c" * 40, False, [], noted, [], []),
+        ("the Buy left for the pass, not asked again", "c" * 40, False, [], noted, [], [5]),
+        ("the figures standing", here["commit"], True, [(5, "running")], noted, [5], []),
+    ]
+    for what, now, afresh, answer, notes, claims, skipped in rounds:
+        code.append(now)
+        left = set() if afresh else left
+        assert listen.round_once(listened, lone, left) == answer, what
+        assert (listened.notes, listened.claims, listened.skips[-1]) == (notes, claims, skipped), what
+    assert listened.reports == [(5, "running")] and client.tracked() == {"5": 9} and left == set()
+    let_go = threading.Event()
+
+    def slow_draw(item, source, chosen=None):
+        if item["kind"] == "concept-draw":
+            let_go.wait(5)
+        return applying.Applied("done", "")
+    monkeypatch.setattr(applying, "apply", slow_draw)
+    draw, stop, busy = {"id": 1, "kind": "concept-draw"}, {"id": 2, "kind": "stop-everything"}, set()
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        listened.items = [draw]
+        assert listen.round_once(listened, lone, left, pool, busy) == [] and busy == {1}
+        listened.items = [draw, stop]  # the draw is skipped while it is answered
+        assert listen.round_once(listened, lone, left, pool, busy) == [] and listened.skips[-1] == [1]
+        deadline = time.monotonic() + 2.5
+        while (2, "done") not in listened.reports and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert listened.reports[1:] == [(2, "done")]  # Stop everything answered while the draw still is
+        stopping = threading.Event()
+        stopping.set()
+        listened.items = [{"id": 3, "kind": "stop-everything"}]
+        assert listen.round_once(listened, lone, left, pool, busy, stopping) == []
+        let_go.set()
+    assert listened.reports[1:] == [(2, "done"), (1, "done")] and listened.claims == [5, 1, 2] and busy == set()
+    states, live = iter([None, "running", "waiting", "finished", "finished"]), False
+    batches = types.SimpleNamespace(batch_run=lambda read_at: (lambda state: state and {
+        "state": state, "read_at": read_at})(next(states)))
+    for _ in range(5):
+        live = listen.batch_pushed(listened, batches, live)
+    assert listened.runs == ["running", "waiting", "finished"]
+
+    # a hosted process stays light: the image's files alone render every page of the export above, with nothing
+    # heavy loaded and under MOST_MB, and every dashboard module but the store-side ones imports there (owner rule:
+    # hosted never imports score.stages, score.store, numpy or usd-core; 2026-10-26 a top-level score.graph import
+    # crash-looped the image)
+    hosted = tmp_path / "hosted"
+    (hosted / "export").mkdir(parents=True)
+    (hosted / "export" / "current").symlink_to(tmp_path / "one")
+    done = subprocess.run([sys.executable, "-I", "-c", CHILD, str(hosted_tree(tmp_path)),
+                           json.dumps(sorted(STORE_SIDE))], env=hosted_env(hosted), cwd=tmp_path, capture_output=True,
+                          text=True)
+    assert done.returncode == 0, done.stderr[-3000:]
+    light = json.loads(done.stdout.strip().splitlines()[-1])
+    assert set(light["codes"].values()) == {200}, light["codes"]
+    assert light["heavy"] == [] and light["missing"] == {}, (light["heavy"], light["missing"])
+    assert light["rss_mb"] < MOST_MB, light["rss_mb"]
+
 
 def picked(record, *paths):
     """The values at the dotted `paths` of a record (a dict of dicts)."""
@@ -578,28 +927,6 @@ def owner_books(world, monkeypatch, settings):
     world.books.unlink(missing_ok=True)
 
 
-def test_the_hosted_buttons_queue_the_owners_request_and_refuse_anyone_else(world, settings):
-    """Hosted, each money button is a signed-in owner request in the outbox, with his name, the time and the
-    figure; anyone else's is refused at the door."""
-    from score.dashboard.pages import actions
-    settings.SCORE_MODE = settings.HOSTED
-    try:
-        assert actions.set_books_figure("joey", 12.5).startswith("queued")
-        assert actions.read_books_back("joey").startswith("queued")
-        assert actions.waive_check("joey", "beta", "closeup", "abc", "looks", "fine").startswith("queued")
-        assert actions.set_books_figure("joey", "nan-ish").startswith("refused")
-    finally:
-        settings.SCORE_MODE = settings.LOCAL
-    queued = {item.kind: item for item in SyncRequest.objects.all()}
-    assert set(queued) == {"books-figure", "read-back", "waiver"}
-    figure = queued["books-figure"]
-    assert figure.user == "joey" and figure.payload["euros"] == 12.5 and figure.created
-    user = get_user_model().objects.create_user("mallory", password="a long enough password")
-    pages = Client()
-    pages.force_login(user)
-    assert pages.post("/world/step/terrain/waive/", {"output": "x", "check": "looks", "reason": "r"}).status_code == 403
-
-
 class Hosted:
     """A stand-in for the hosted dashboard's endpoints, in memory."""
 
@@ -631,161 +958,10 @@ class Hosted:
         self.reports.append((request_id, state))
 
 
-def test_a_step_out_of_time_is_ended_and_says_so(settings, tmp_path):
-    """A pass step given a limit (the USD check) is ended with its group when the limit runs out, its exit nonzero
-    and its last error line saying so, so the pass goes on."""
-    settings.SCORE_REPO = tmp_path
-    done = client.step_run([sys.executable, "-c", "import time; print('began', flush=True); time.sleep(60)"],
-                           grace=2, limit=1)
-    assert done.returncode != 0 and done.stdout.strip() == "began"
-    assert done.stderr.strip().splitlines()[-1] == "out of time after 1 s"
-
-
-def a_checkout(tmp_path):
-    """A clone of a bare origin with one commit pushed to its main: (origin, clone)."""
-
-    def run(*args, cwd=tmp_path):
-        subprocess.run(args, cwd=cwd, check=True, capture_output=True)
-    origin, clone = tmp_path / "origin.git", tmp_path / "clone"
-    run("git", "init", "-q", "--bare", "-b", "main", str(origin))
-    run("git", "clone", "-q", str(origin), str(clone))
-    (clone / "a.txt").write_text("a")
-    run("git", "add", "a.txt", cwd=clone)
-    run("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "a", cwd=clone)
-    run("git", "push", "-q", "origin", "HEAD:main", cwd=clone)
-    return origin, clone
-
-
-def test_the_tree_check_wants_every_tracked_file_committed_and_the_commit_on_origins_main(tmp_path):
-    _, clone = a_checkout(tmp_path)
-    assert client.tree_refusal(clone) is None
-    (clone / "a.txt").write_text("b")
-    assert "has changes not committed" in client.tree_refusal(clone)
-    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-am", "b"], cwd=clone,
-                   check=True)
-    assert "is not on origin's main: push it first" in client.tree_refusal(clone)
-
-
-def test_hosted_pages_render_from_the_export_with_its_time(world, tmp_path, settings, monkeypatch, read):
-    exported(world, tmp_path / "export")
-    from score.dashboard import state
-    source = ExportedSource(tmp_path / "export")
-    monkeypatch.setattr(state, "source", lambda: source)
-    settings.SCORE_MODE = "hosted"
-    user = get_user_model().objects.create_user("joey", password="a long enough password")
-    pages = Client()
-    pages.force_login(user)
-    for page in ("/", "/places/", "/environments/world1/", "/place/alpha/", "/place/alpha/step/closeup/", "/world/step/terrain/", "/requests/"):
-        html = pages.get(page).content.decode()
-        assert "state from 2026-10-18 12:00" in html, page
-    pages.post("/place/alpha/step/closeup/decide/", {"decision": "reject", "output": "x", "reason": "no"})
-    assert SyncRequest.objects.filter(kind="decision").exists()
-
-
-def test_a_pass_fixes_no_reading_that_holds_no_part_of_another_rows_thing(world):
-    """client.readings_fixed: the fixture's readings hold no row inside another row's thing, so none is fixed."""
-    assert client.readings_fixed(world.source.store_root) == "readings: none to fix"
-
-
-def test_a_pass_asks_the_parts_of_a_locked_place_read_before_parts_once_and_never_under_stop_everything(
-        world, monkeypatch):
-    """client.parts_read: the fixture's readings have no parts, so the first pass asks them (one call a place, under
-    the reading's clearance, the owner's standing allowance) before the gaps, plans, prepare and price; a second pass
-    asks nothing; while Stop everything holds nothing is asked and the pass's words say why."""
-    from score.review import reading
-    from score.store import Store
-    monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
-    monkeypatch.setattr("score.adapters.compute.books_refusal", lambda: None)
-    monkeypatch.delenv("SCORE_BENCHMARK_GRANT", raising=False)
-    store = Store.in_folder(world.source.store_root)
-    places = reading.unparted(store, ["alpha", "beta"])
-    assert places
-    monkeypatch.setattr(client, "free_only_followed", lambda: True)
-    assert client.parts_read(world.source.store_root, ask=None) == (
-        f"parts not read for {len(places)} places: refused, Stop everything holds (free only)")
-    monkeypatch.setattr(client, "free_only_followed", lambda: False)
-    asked = []
-
-    def ask(store, place, folder):
-        asked.append(place)
-        return {row["id"]: "object" for row in reading.reading_of(store, place)["inventory"]["rows"]}, 0.05, 1.0
-    assert client.parts_read(world.source.store_root, ask=ask) == f"parts read: {len(places)} places, " \
-        f"EUR {0.05 * len(places):.2f}"
-    assert sorted(asked) == sorted(places) and reading.unparted(store, places) == []
-    assert client.parts_read(world.source.store_root, ask=ask) == "parts: none missing" and len(asked) == len(places)
-
-
-def test_a_pass_asks_the_light_of_a_locked_place_read_before_it_once_and_never_under_stop_everything(
-        world, monkeypatch):
-    """client.light_read: the fixture's readings have no concept light, so the first pass asks it (one call a place,
-    under the reading's clearance) before the plans are kept; a second pass asks nothing; while Stop everything holds
-    nothing is asked and the pass's words say why."""
-    from score.review import reading
-    from score.store import Store
-    monkeypatch.setattr("score.adapters.compute.require_books", lambda what: None)  # the books' own test
-    monkeypatch.setattr("score.adapters.compute.books_refusal", lambda: None)
-    monkeypatch.delenv("SCORE_BENCHMARK_GRANT", raising=False)
-    store = Store.in_folder(world.source.store_root)
-    places = reading.unlit(store, ["alpha", "beta"])
-    assert places
-    monkeypatch.setattr(client, "free_only_followed", lambda: True)
-    assert client.light_read(world.source.store_root, ask=None) == (
-        f"light not read for {len(places)} places: refused, Stop everything holds (free only)")
-    monkeypatch.setattr(client, "free_only_followed", lambda: False)
-    asked = []
-
-    def ask(store, place, folder):
-        asked.append(place)
-        rows = {row["id"]: {"glows": False, "glowing": "", "colour": "", "brightness": 0}
-                for row in reading.reading_of(store, place)["inventory"]["rows"]}
-        return {"rows": rows, "scene": {"daylight": True, "unseen": False, "unseen_colour": ""}}, 0.04, 1.0
-    assert client.light_read(world.source.store_root, ask=ask) == f"light read: {len(places)} places, " \
-        f"EUR {0.04 * len(places):.2f}"
-    assert sorted(asked) == sorted(places) and reading.unlit(store, places) == []
-    assert reading.concept_light(store, places[0])["scene"]["daylight"] is True
-    assert client.light_read(world.source.store_root, ask=ask) == "light: none missing" and len(asked) == len(places)
-
-
-def test_a_pass_makes_the_free_preview_of_each_locked_script_that_wants_one(monkeypatch):
-    """client.film_previews: every film final.previews_wanted names is rendered, each said in the pass's words; none
-    wanted is said so, and a failure to read the locks is said, not raised."""
-    from score.stages.demo_film import final
-    rendered = []
-    monkeypatch.setattr(final, "previews_wanted", lambda: ["one", "two"])
-    assert client.film_previews(lambda film: rendered.append(film) or f"film-preview {film}: made") == \
-        "film-preview one: made; film-preview two: made"
-    assert rendered == ["one", "two"]
-    monkeypatch.setattr(final, "previews_wanted", lambda: [])
-    assert client.film_previews(rendered.append) == "film previews: none wanted"
-    monkeypatch.setattr(final, "previews_wanted", lambda: json.loads("{"))
-    assert client.film_previews(rendered.append).startswith("film previews failed: JSONDecodeError")
-
-
-def test_a_step_leaves_nothing_running_after_it(settings, tmp_path):
-    """A pass step's leftovers (a film preview's Chromium) end with the step (2026-10-25: chrome-headless stayed
-    after the pass); its output and exit code are kept. The leftover lets go of the step's output, so the step itself
-    ends at once and only the group's end can stop it (holding the pipe, it would end on its own after its minute)."""
-    settings.SCORE_REPO = tmp_path
-    left = ("import subprocess; print(subprocess.Popen(['sleep', '60'], stdout=subprocess.DEVNULL, "
-            "stderr=subprocess.DEVNULL).pid)")
-    done = client.step_run([sys.executable, "-c", left], grace=2)
-    assert done.returncode == 0
-    stat = pathlib.Path(f"/proc/{int(done.stdout)}/stat")
-
-    def ended():
-        try:
-            return stat.read_text().rpartition(")")[2].split()[0] == "Z"
-        except FileNotFoundError:
-            return True
-    # a kill lands a moment after it is sent: wait at most 2 s for it, never the leftover's minute
-    deadline = time.monotonic() + 2
-    while not ended() and time.monotonic() < deadline:
-        time.sleep(0.02)
-    assert ended()
-
 
 # --- the listener --------------------------------------------------------------------------------------------------
 
+KEPT = "the listener's record as the hosted side kept it"
 BUY = {"id": 5, "kind": "checkout", "user": "joey", "payload": {"key": "k", "items": []}}
 
 
@@ -815,160 +991,16 @@ class Listened:
         self.runs.append(run["state"])
 
 
-def test_a_hosted_buy_is_applied_by_the_listener_and_its_launch_followed(monkeypatch, settings, tmp_path):
-    settings.SCORE_HOME = tmp_path
-    monkeypatch.setattr(client, "buy_waits", lambda source: None)
-    monkeypatch.setattr(applying, "apply_checkout", lambda item: applying.Applied("running", "launched", launch_id=9))
-    hosted = Listened([BUY])
-    assert listen.round_once(hosted, None) == [(5, "running")]
-    assert hosted.claims == [5] and hosted.reports == [(5, "running")] and client.tracked() == {"5": 9}
-
-
-def test_a_buy_whose_price_needs_a_pass_is_said_so_and_left_waiting_for_it(monkeypatch):
-    monkeypatch.setattr(client, "buy_waits", lambda source: "the basket was made on commit aaaaaaaa")
-    hosted, left = Listened([BUY]), set()
-    assert listen.round_once(hosted, None, left) == [] and left == {5}
-    assert hosted.claims == [] and hosted.notes == [(5, "waits for the next sync pass: the basket was made on commit "
-                                                        "aaaaaaaa")]
-    monkeypatch.setattr(client, "buy_waits", lambda source: pytest.fail("asked again"))
-    assert listen.round_once(hosted, None, left) == [] and hosted.skips[-1] == [5]  # an old hosted side ignores skip
-
-
-def test_a_buy_during_a_pass_waits_only_for_a_basket_on_another_commit(monkeypatch, settings, tmp_path):
-    """A pass makes prepare's figure and the price again on the same commit for about 15 minutes; the last pass's
-    stand meanwhile (owner, 2026-10-25: "this process is stupid"), a basket on another commit does not."""
-    settings.SCORE_HOME = tmp_path
-    monkeypatch.setattr(client, "tree_refusal", lambda repo: None)
-    remade = ["prepare's figure: the code moved since it was made",
-              "the basket was made at 2026-10-25T09:00:00Z, before prepare's figure (2026-10-25T09:05:00Z)"]
-    monkeypatch.setattr(client, "figures_moved", lambda source, now: list(remade))
-    assert client.buy_waits(None).startswith("prepare's figure")
-    with client.pricing_now():
-        assert client.pass_pricing() and client.buy_waits(None) is None
-        remade.append("the basket was made on commit aaaaaaaa, the code is at bbbbbbbb")
-        assert client.buy_waits(None) == remade[-1]
-    assert not client.pass_pricing()
-
-
-def test_a_slow_request_never_holds_back_the_next_and_a_stop_claims_nothing(monkeypatch):
-    """The listener's pool: a draw still answering does not keep Stop everything waiting for it; once SIGTERM set
-    `stopping`, nothing more is claimed and what was claimed is answered before the process ends."""
-    import threading
-    from concurrent.futures import ThreadPoolExecutor
-    release, answered = threading.Event(), []
-
-    def answer(remote, item, source, chosen=None):
-        if item["kind"] == "concept-draw":
-            release.wait(5)
-        answered.append(item["id"])
-        return applying.Applied("done", "")
-    monkeypatch.setattr(client, "answered", answer)
-    draw, stop = {"id": 1, "kind": "concept-draw"}, {"id": 2, "kind": "stop-everything"}
-    hosted, busy, left = Listened([draw]), set(), set()
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        assert listen.round_once(hosted, None, left, pool, busy) == [] and busy == {1}
-        hosted.items = [draw, stop]  # the draw is skipped while it is answered
-        listen.round_once(hosted, None, left, pool, busy)
-        assert hosted.skips[-1] == [1]
-        for _ in range(50):
-            if answered == [2]:
-                break
-            threading.Event().wait(0.05)
-        assert answered == [2]
-        stopping = threading.Event()
-        stopping.set()
-        hosted.items = [{"id": 3, "kind": "stop-everything"}]
-        assert listen.round_once(hosted, None, left, pool, busy, stopping) == []
-        release.set()
-    assert answered == [2, 1] and busy == set()
-
-
-def test_the_figures_must_price_this_commit_and_the_basket_come_after_prepare(settings, tmp_path):
-    settings.SCORE_HOME = tmp_path
-    source = types.SimpleNamespace(props_home=tmp_path, world=types.SimpleNamespace(name="world1"))
-    here = local.priced_here()
-    found = client.figures_moved(source, here["commit"])
-    assert found[:2] == ["the runner's price: it is not made yet", "prepare's figure: it is not made yet"]
-    checks = tmp_path / "work" / local.CHECKS
-    (checks / local.GAPS_PRICE).mkdir(parents=True)
-    (checks / local.REMAKE).parent.mkdir(parents=True)
-    (checks / local.GAPS_PRICE / "world1.json").write_text(json.dumps({"priced_on": here}))
-    (checks / local.REMAKE).write_text(json.dumps({"priced_on": {**here, "commit": "b" * 40},
-                                                   "made_at": "2026-10-24T13:00:05.123456+00:00"}))
-    records.put_index(tmp_path / "proposals", {"made_at": "2026-10-24T13:00:00Z", "commit": here["commit"]})
-    found = client.figures_moved(source, here["commit"])
-    assert len(found) == 2 and found[0].startswith("prepare's figure: the code moved since it was made")
-    assert found[1].startswith("the basket was made at 2026-10-24T13:00:00Z, before prepare's figure")
-    (checks / local.REMAKE).write_text(json.dumps({"priced_on": here, "made_at": "2026-10-24T12:59:00+00:00"}))
-    assert client.figures_moved(source, here["commit"]) == []
-    assert client.figures_moved(source, "c" * 40) == [
-        f"the basket was made on commit {here['commit'][:8]}, the code is at cccccccc"]
-
-
-def test_the_batch_record_is_sent_while_it_lives_and_once_as_it_ends():
-    states = iter([None, "running", "waiting", "finished", "finished"])
-
-    class Source:
-        def batch_run(self, read_at):
-            state = next(states)
-            return state and {"state": state, "read_at": read_at}
-    hosted, source, live = Listened([]), Source(), False
-    for _ in range(5):
-        live = listen.batch_pushed(hosted, source, live)
-    assert hosted.runs == ["running", "waiting", "finished"]
-
-
-def test_the_hosted_side_notes_skips_and_serves_the_newer_batch_record(settings, tmp_path):
-    from score.dashboard.site.asgi import app
-    # all through the settings fixture: an override_settings decorator ends before the fixture's own overrides are
-    # undone, which then put the hosted mode back for every later test file (concept_test, run after it)
-    settings.SCORE_MODE, settings.SCORE_SYNC_TOKEN, settings.SCORE_HOME = "hosted", TOKEN, tmp_path
-    web, bearer = TestClient(app, base_url="http://127.0.0.1:8780"), {"Authorization": f"Bearer {TOKEN}"}
-    buy = SyncRequest.objects.create(kind="checkout", user="joey", payload={})
-    assert web.post(f"/api/sync/requests/{buy.pk}/note", json={"detail": "waits"}, headers=bearer).status_code == 200
-    buy.refresh_from_db()
-    assert (buy.state, buy.detail) == ("waiting", "waits")
-    assert web.get(f"/api/sync/requests?skip={buy.pk}", headers=bearer).json() == []
-    assert web.post(f"/api/sync/requests/{buy.pk}/claim", headers=bearer).status_code == 200
-    assert web.post(f"/api/sync/requests/{buy.pk}/note", json={"detail": "x"}, headers=bearer).status_code == 409
-    source = export_with_batch(tmp_path, {"checkout": 4, "state": "running", "read_at": "2026-10-24T13:00:00+00:00"})
-    assert source.batch_run()["read_at"] == "2026-10-24T13:00:00+00:00"
-    sent = {"checkout": 4, "state": "running", "read_at": "2026-10-24T13:09:00+00:00"}
-    assert web.put("/api/sync/batch-run", content=json.dumps(sent), headers=bearer).status_code == 200
-    assert source.batch_run() == {**sent, "machine": ""}
-    assert web.put("/api/sync/batch-run", content=b"[]", headers=bearer).status_code == 400
-    assert web.put("/api/sync/batch-run", content=b"{}").status_code == 401
-
-
-def export_with_batch(tmp_path, run, machine="", made_at="2026-10-24T12:55:00+00:00"):
-    """An export from `machine` made at `made_at` carrying the batch record `run` (None: no checkout in it)."""
+def export_with_batch(tmp_path, results, run, machine="", made_at="2026-10-24T12:55:00+00:00"):
+    """An export from `machine` made at `made_at` carrying the batch record `run` (None: no checkout in it), read with
+    the listener's records in `results`."""
     export = tmp_path / "export"
     export.mkdir(exist_ok=True)
     (export / "manifest.json").write_text(json.dumps({"made_at": made_at, "machine": machine}))
     (export / "batch-run.json").unlink(missing_ok=True)
     if run:
         (export / "batch-run.json").write_text(json.dumps(run))
-    return ExportedSource(export, tmp_path / "request-files")
-
-
-def test_a_moved_or_reset_store_shows_no_old_batch(settings, tmp_path):
-    """Owner 2026-10-24 ("can u fix that"): the page kept the PC's batch after the move to the conductor, and a
-    batch from before a store reset; a record shows only from the store's machine and of its newest checkout."""
-    settings.SCORE_HOME = tmp_path
-    (tmp_path / "store-machine.json").write_text(json.dumps({"name": "pc"}))
-    (tmp_path / "request-files").mkdir()
-    pushed = tmp_path / "request-files" / "batch-run.json"
-    pushed.write_text(json.dumps({"checkout": 4, "state": "finished", "read_at": "2026-10-24T22:22:00+00:00",
-                                  "machine": "pc"}))
-    assert export_with_batch(tmp_path, None, "pc", "2026-10-24T22:00:00+00:00").batch_run()["checkout"] == 4  # a Buy since
-    assert export_with_batch(tmp_path, None, "pc", "2026-10-24T22:30:00+00:00").batch_run() is None  # reset: no checkout
-    assert export_with_batch(tmp_path, {"checkout": 4, "read_at": "2026-10-24T22:10:00+00:00"}, "pc",
-                    "2026-10-24T22:30:00+00:00").batch_run()["read_at"] == "2026-10-24T22:22:00+00:00"
-    (tmp_path / "store-machine.json").write_text(json.dumps({"name": "conductor", "before": "pc"}))
-    assert export_with_batch(tmp_path, None, "conductor", "2026-10-24T22:00:00+00:00").batch_run() is None  # the PC's
-    assert export_with_batch(tmp_path, {"checkout": 4, "read_at": "2026-10-24T22:10:00+00:00"}, "pc").batch_run() is None
-    pushed.write_text(json.dumps({"checkout": 4, "state": "finished", "read_at": "2026-10-24T22:22:00+00:00"}))
-    assert export_with_batch(tmp_path, None, "conductor", "2026-10-24T22:00:00+00:00").batch_run() is None  # whose unknown
+    return ExportedSource(export, results)
 
 
 # --- the release and the timer's install --------------------------------------------------------------------------
@@ -1014,123 +1046,16 @@ def repositories(tmp_path):
     return score, host, first
 
 
-def test_a_release_pins_the_pushed_head_in_one_commit_of_the_hosts_style(repositories, tmp_path):
-    score, host, first = repositories
-    head = git(score, "git", "rev-parse", "HEAD")
-    asked = []
-    said = release.release(score, host, DOCKERFILE, SUBJECT, trailers=[TRAILER],
-                           door=lambda repo, command: asked.append((repo, command)) or (0, "update: moved"))
-    assert f"moved from score {first[:8]} to {head[:8]}" in said, said
-    assert asked == [(score, f"release-pin {head} {first}")] and said.endswith("; the conductor: update: moved"), said
-    assert "NOT moved (door exit 1: no door)" in release.conductor_moved(score, head, first, lambda *_: (1, "no door"))
-    git(host, "git", "fetch", "-q", "origin", "main")
-    pinned = git(host, "git", "show", f"FETCH_HEAD:{DOCKERFILE}")
-    assert pinned == f"FROM x\nARG SCORE_COMMIT={head}\nRUN y"
-    words = git(host, "git", "log", "-1", "--format=%B", "FETCH_HEAD")
-    subject, body, trailer = words.split("\n\n")
-    assert subject == f"dashboards: the cockpit at score {head[:8]} (#1)" and trailer == TRAILER
-    assert body == f"{head[:8]} " + ("dashboard: the second, a subject " + "long " * 30)[:release.SUBJECT_WIDTH]
-    assert git(host, "git", "worktree", "list").count("\n") == 0  # its own worktree is gone
-    assert "already pins" in release.release(score, host, DOCKERFILE, SUBJECT)
 
-
-def test_a_release_refuses_a_commit_not_pushed_or_a_checkout_with_changes(repositories):
-    score, host, _ = repositories
-    (score / "score/dashboard/a.py").write_text("a = 3\n")
-    with pytest.raises(release.Refused, match="has changes not committed"):
-        release.release(score, host, DOCKERFILE, SUBJECT)
-    local = committed(score, "score/dashboard/a.py", "a = 3\n", "dashboard: not pushed")
-    for commit in (None, local):
-        with pytest.raises(release.Refused, match="is not on origin's main: push it first"):
-            release.release(score, host, DOCKERFILE, SUBJECT, commit)
-    assert "ARG SCORE_COMMIT=" in (host / DOCKERFILE).read_text()
-
-
-def test_a_release_refuses_a_dockerfile_path_outside_the_host_and_keeps_other_braces(repositories):
-    score, host, _ = repositories
-    for path in (str(host / DOCKERFILE), "../host/" + DOCKERFILE):
-        with pytest.raises(release.Refused, match="inside the host's repository"):
-            release.release(score, host, path, SUBJECT)
-    release.release(score, host, DOCKERFILE, "cockpit {short} {not a slot}")
-    git(host, "git", "fetch", "-q", "origin", "main")
-    assert git(host, "git", "log", "-1", "--format=%s", "FETCH_HEAD").endswith(" {not a slot}")
-
-
-def test_a_dockerfile_must_pin_exactly_one_commit():
-    for text in ("FROM x\n", "ARG SCORE_COMMIT=" + "a" * 40 + "\nARG SCORE_COMMIT=" + "b" * 40 + "\n"):
-        with pytest.raises(release.Refused, match="expected one"):
-            release.pinned(text)
-    assert release.repinned("ARG SCORE_COMMIT=" + "a" * 40 + "\n", "c" * 40) == "ARG SCORE_COMMIT=" + "c" * 40 + "\n"
-
-
-def an_env_file(tmp_path, reader=True):
-    path = tmp_path / "sync.env"
-    script = tmp_path / "read-secret"
+def an_env_file(folder, reader=True):
+    """An env file in `folder` naming the cockpit's URL and, when `reader`, a secret reader that prints "token"."""
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / "sync.env"
+    script = folder / "read-secret"
     script.write_text("#!/bin/sh\necho token\n")
     script.chmod(0o755)
     path.write_text("SCORE_SYNC_URL=https://cockpit.test\n" + (f"SCORE_SECRET_READER={script}\n" if reader else ""))
     return path
-
-
-def test_the_install_refuses_an_env_file_without_its_url_or_reader_and_a_cockpit_on_another_dashboard(
-        repositories, tmp_path, monkeypatch):
-    score, host, _ = repositories
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    assert timer.env_refusal(tmp_path / "none.env") == f"no env file at {tmp_path / 'none.env'}"
-    assert "SCORE_SECRET_READER" in timer.env_refusal(an_env_file(tmp_path, reader=False))
-    with pytest.raises(release.Refused, match="whose dashboard is not this checkout's: release this commit first"):
-        timer.install(score, an_env_file(tmp_path), host, DOCKERFILE, systemctl=lambda *args: None)
-    assert not (tmp_path / "config").exists()  # nothing written
-
-
-def test_the_install_writes_both_units_filled_and_enables_the_timer(repositories, tmp_path, monkeypatch):
-    score, host, _ = repositories
-    release.release(score, host, DOCKERFILE, SUBJECT)
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    called = []
-    timer.install(score, an_env_file(tmp_path), host, DOCKERFILE, systemctl=lambda *args: called.append(args))
-    assert called == [("daemon-reload",), ("enable", "--now", "score-sync.timer", "score-listen.service"),
-                      ("restart", "score-listen.service")]
-    listener = (tmp_path / "config/systemd/user/score-listen.service").read_text()
-    assert "<" not in "".join(line for line in listener.splitlines() if not line.startswith("#"))
-    service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
-    lines = [line for line in service.splitlines() if not line.startswith("#")]
-    assert not any("<" in line for line in lines), lines  # every slot filled
-    assert f"EnvironmentFile={tmp_path / 'sync.env'}" in lines and f"WorkingDirectory={score}" in lines
-    start = next(line for line in lines if line.startswith("ExecStart="))
-    assert '"$$SCORE_SECRET_READER" "score-cockpit-sync-token"' in start
-
-
-def test_a_quoted_reader_is_read_as_systemd_reads_it_and_a_failed_user_manager_is_said(repositories, tmp_path,
-                                                                                         monkeypatch):
-    score, host, _ = repositories
-    release.release(score, host, DOCKERFILE, SUBJECT)
-    env = an_env_file(tmp_path)
-    env.write_text(env.read_text().replace("SCORE_SECRET_READER=", 'SCORE_SECRET_READER="').replace(
-        "read-secret\n", 'read-secret"\n'))
-    assert timer.env_refusal(env) is None
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    with pytest.raises(release.Refused, match="systemctl --user daemon-reload failed: no user manager"):
-        timer.install(score, env, host, DOCKERFILE, systemctl=lambda *args: "no user manager")
-
-
-def test_the_units_render_for_the_conductors_user_and_no_pull_runs_the_update_in_the_pulls_place():
-    """On the conductor the same templates fill in for user score; --no-pull puts the conductor's update in place of
-    the sync unit's pull before each pass (so every pass starts on the cockpit's pin) and changes nothing else."""
-    repo, env = "/home/score/projects/score", "/home/score/.config/score/dashboard.env"
-    pulled = timer.unit_text("score-sync.service", repo, env, timer.SECRET).splitlines()
-    unpulled = timer.unit_text("score-sync.service", repo, env, timer.SECRET, pull=False).splitlines()
-    pull = f"ExecStartPre=/usr/bin/git -C {repo} pull -q --ff-only"
-    update = f"ExecStartPre=/usr/bin/python3 -I {repo}/tools/cloud/conductor/update.py --repo {repo}"
-    assert pull in pulled and update not in pulled
-    assert [update if line == pull else line for line in pulled] == unpulled
-    lines = [line for line in unpulled if not line.startswith("#")]
-    assert not any("<" in line for line in lines) and not any("/home/dupe" in line for line in unpulled)
-    assert f"WorkingDirectory={repo}" in lines and f"EnvironmentFile={env}" in lines
-    assert any(line.startswith("ExecStart=") and f'"{repo}/.venv/bin/python" -m score.dashboard sync' in line
-               for line in lines)
-    listener = timer.unit_text("score-listen.service", repo, env, timer.SECRET, pull=False)
-    assert f"WorkingDirectory={repo}" in listener and "WSL" not in listener
 
 
 class Pin:
@@ -1143,23 +1068,6 @@ class Pin:
     def __call__(self, request, timeout):
         self.asked.append((request.full_url, request.get_header("Authorization")))
         return io.BytesIO(self.body)
-
-
-def test_without_a_host_the_install_checks_the_commit_the_cockpits_pin_reports(repositories, tmp_path, monkeypatch):
-    """Not /healthz: the hosting proxy answers that with a body of its own, so it never names the commit."""
-    score, _, first = repositories
-    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
-    for commit, why in ((None, "reports no commit"), (first, "whose dashboard is not this checkout's")):
-        with pytest.raises(release.Refused, match=why):
-            timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, opener=Pin(commit))
-    assert not (tmp_path / "config").exists()  # nothing written
-    cockpit = Pin(git(score, "git", "rev-parse", "HEAD"))
-    said = timer.install(score, an_env_file(tmp_path), systemctl=lambda *args: None, pull=False, opener=cockpit)
-    assert cockpit.asked == [("https://cockpit.test/api/sync/pin", "Bearer token")]
-    assert "no pull before a pass" in said
-    service = (tmp_path / "config/systemd/user/score-sync.service").read_text()
-    assert "\nExecStartPre=/usr/bin/git" not in service and f"WorkingDirectory={score}" in service
-    assert f"\nExecStartPre=/usr/bin/python3 -I {score}/tools/cloud/conductor/update.py --repo {score}\n" in service
 
 
 # --- a hosted process stays light ----------------------------------------------------------------------------------
@@ -1192,15 +1100,8 @@ heavy = [name for name in ("numpy", "pxr", "score.stages", "score.store", "score
 heavy += [name for name in sys.modules if name.startswith("score.") and not name.startswith("score.dashboard")]
 # VmHWM, this process's own peak (ru_maxrss keeps the forking parent's peak across exec)
 rss = int(next(line for line in open("/proc/self/status") if line.startswith("VmHWM")).split()[1]) / 1024
-print(json.dumps({"codes": codes, "heavy": heavy, "rss_mb": rss}))
-"""
-
-
-WALK = """
-import importlib, json, pkgutil, sys
-sys.path.insert(0, sys.argv[1])
-import django
-django.setup()
+# then every dashboard module but the store-side ones, imported from the hosted tree alone
+import importlib, pkgutil
 import score.dashboard
 store_side = set(json.loads(sys.argv[2]))
 missing = {}
@@ -1213,7 +1114,7 @@ for found in pkgutil.walk_packages(score.dashboard.__path__, "score.dashboard.")
         importlib.import_module(found.name)
     except ImportError as error:
         missing[found.name] = str(error)
-print(json.dumps(missing))
+print(json.dumps({"codes": codes, "heavy": heavy, "rss_mb": rss, "missing": missing}))
 """
 
 
@@ -1238,29 +1139,3 @@ def hosted_tree(tmp_path):
 def hosted_env(home):
     return {**os.environ, "SCORE_DASHBOARD_MODE": "hosted", "SCORE_STORE_WRITABLE": "0",
             "SCORE_DASHBOARD_HOME": str(home), "DJANGO_SETTINGS_MODULE": "score.dashboard.site.settings"}
-
-
-# owner rule: hosted mode never imports score.stages, score.store, numpy or usd-core (dashboard overlay); the pages
-# render from the hosted image's files alone (2026-10-26: a top-level score.graph import crash-looped the image)
-def test_hosted_renders_every_page_light(world, tmp_path):
-    home = tmp_path / "hosted"
-    exported(world, home / "export" / "one")
-    (home / "export" / "current").symlink_to("one")
-    done = subprocess.run([sys.executable, "-I", "-c", CHILD, str(hosted_tree(tmp_path))], env=hosted_env(home),
-                          cwd=tmp_path, capture_output=True, text=True)
-    assert done.returncode == 0, done.stderr[-3000:]
-    found = json.loads(done.stdout.strip().splitlines()[-1])
-    assert set(found["codes"].values()) == {200}, found["codes"]
-    assert found["heavy"] == [], found["heavy"]
-    assert found["rss_mb"] < MOST_MB, found["rss_mb"]
-
-
-def test_every_module_the_hosted_image_holds_imports_from_it_alone(tmp_path):
-    """Every dashboard module but the store-side ones imports in the hosted tree alone, so none the hosted process
-    may load reaches score.graph, score.conductor or anything else the image lacks."""
-    tree, home = hosted_tree(tmp_path), tmp_path / "hosted"
-    home.mkdir()
-    done = subprocess.run([sys.executable, "-I", "-c", WALK, str(tree), json.dumps(sorted(STORE_SIDE))],
-                          env=hosted_env(home), cwd=tmp_path, capture_output=True, text=True)
-    assert done.returncode == 0, done.stderr[-3000:]
-    assert json.loads(done.stdout.strip().splitlines()[-1]) == {}
