@@ -15,6 +15,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest -q score/graph/test_a_ke
 import argparse
 import concurrent.futures
 import contextlib
+import ctypes
 import dataclasses
 import datetime
 import functools
@@ -34,6 +35,7 @@ import threading
 import time
 import types
 import urllib.error
+from xml.etree import ElementTree
 
 import pytest
 
@@ -60,6 +62,105 @@ BOOKS_FOLDER = tempfile.mkdtemp()
 
 def quiet(line):
     pass
+
+
+PART = "SCORE_KEY_TEST_PART"  # set in a part's own pytest (parts_side_by_side): it runs its tests itself
+PARTS = 4  # this process and three pytest processes of their own
+PART_START = 3  # a part's own start, in seconds: its interpreter, imports and module fixtures
+SECONDS = {  # each test's seconds on a quiet PC (pytest --durations), by its name's start; one not named counts 1
+    "test_a_key_is_made_once_and": 9, "test_a_ready_node_starts": 8, "test_a_run_buys_each": 6,
+    "test_a_failed_output": 5, "test_a_run_imports_its_own": 4.5, "test_an_output_whose_key": 3.7,
+    "test_a_node_shares_the_cores": 2.3, "test_a_pass_lists_each": 2.1, "test_a_drive_runs_every": 1.8,
+    "test_a_run_leaves_paid": 1.7, "test_a_run_claims_its_store": 1.7, "test_a_make_is_accepted": 1.3,
+    "test_the_code_version": 0.1, "test_a_node_is_given_room": 0.1, "test_a_pooled_row": 0.1}
+
+
+def seconds_of(item):
+    return next((seconds for start, seconds in SECONDS.items() if item.name.startswith(start)), 1)
+
+
+class Part:
+    """Tests of this file run by a pytest process of its own, its own home beside it, started at once; each test's
+    outcome read from its report when the test's turn comes here."""
+
+    def __init__(self, items, root):
+        self.names = [item.name for item in items]
+        folder = pathlib.Path(tempfile.mkdtemp())
+        (folder / "home" / "store" / "cache").mkdir(parents=True)
+        self.report, self.log = folder / "report.xml", folder / "log.txt"
+        with self.log.open("w") as log:
+            self.process = subprocess.Popen(
+                [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", f"--junitxml={self.report}",
+                 *(item.nodeid for item in items)], cwd=root, stdout=log, stderr=subprocess.STDOUT,
+                env={**os.environ, PART: "1", "PROPS_HOME": str(folder / "home")},
+                preexec_fn=lambda: ctypes.CDLL(None).prctl(1, signal.SIGKILL))  # PR_SET_PDEATHSIG: ends with this
+        self.cases = None
+
+    def outcome(self, name):
+        """The test's outcome in the part: passed (None), else what failed or why it was skipped, as pytest said."""
+        if self.cases is None:
+            self.process.wait()
+            cases = ElementTree.parse(self.report).iter("testcase") if self.report.exists() else ()
+            self.cases = {case.get("name"): case for case in cases}
+        case = self.cases.get(name)
+        if case is None:
+            tail = "\n".join(self.log.read_text(errors="replace").splitlines()[-30:])
+            return "failed", f"the part (exit {self.process.returncode}) did not report {name}:\n{tail}"
+        for kind in ("failure", "error", "skipped"):
+            found = case.find(kind)
+            if found is not None:
+                return kind, f"{found.get('message', '')}\n{found.text or ''}"
+        return None
+
+    def stand_in(self, name):
+        """What runs here in the test's place: the test's outcome in the part, as this test's."""
+        def outcome(**_):
+            said = self.outcome(name)
+            if said and said[0] == "skipped":
+                pytest.skip(said[1])
+            if said:
+                pytest.fail(f"in its part: {said[1]}", pytrace=False)
+        return outcome
+
+    def end(self):
+        if self.process.poll() is None:
+            self.process.kill()
+        self.process.wait()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def parts_side_by_side(request):
+    """This file's tests in PARTS processes side by side: this one runs the leading tests up to its share of the
+    seconds (SECONDS), the rest are dealt, longest first, to the least loaded of PARTS - 1 pytest processes of their
+    own, started at once; each of those tests runs here as its part's outcome (Part.stand_in). One after another the
+    file took 50 s on a quiet PC and 61-68 s under a paid run's load, past its 60 s budget; the tests share nothing
+    but this file's code, each laying out its own stores, homes and repositories."""
+    if os.environ.get(PART):
+        yield
+        return
+    items = [item for item in request.session.items if item.module is request.module]
+    share = (sum(map(seconds_of, items)) + PART_START * (PARTS - 1)) / PARTS
+    here, taken = 1, seconds_of(items[0]) if items else 0
+    while here < len(items) and taken + seconds_of(items[here]) <= share:
+        taken += seconds_of(items[here])
+        here += 1
+    dealt = [[PART_START, []] for _ in range(PARTS - 1)]
+    for item in sorted(items[here:], key=seconds_of, reverse=True):
+        least = min(dealt, key=lambda part: part[0])
+        least[0] += seconds_of(item)
+        least[1].append(item)
+    parts = [Part(sorted(chosen, key=items.index), request.config.rootpath) for _, chosen in dealt if chosen]
+    for part in parts:
+        for item in items:
+            if item.name in part.names:
+                item.obj = part.stand_in(item.name)
+                ELSEWHERE.add(item.name)
+    yield
+    for part in parts:
+        part.end()
+
+
+ELSEWHERE = set()  # the tests a part runs (parts_side_by_side)
 
 
 @pytest.fixture(autouse=True)
@@ -151,10 +252,10 @@ def run_ahead(test):
 
 @pytest.fixture(scope="module", autouse=True)
 def waiting_parts_run_ahead(request):
-    """The waiting parts (run_ahead) of the tests this session runs, started at once one after another in a thread
-    of their own: most of their time is a grace, a delete or a process's start waited out, which the tests before
-    them use (in the cluster gate they were 21 s of the file's 89)."""
-    chosen = {item.name for item in request.session.items}
+    """The waiting parts (run_ahead) of the tests this process runs (a part's run there: parts_side_by_side), started
+    at once one after another in a thread of their own: most of their time is a grace, a delete or a process's start
+    waited out, which the tests before them use (in the cluster gate they were 21 s of the file's 89)."""
+    chosen = {item.name for item in request.session.items} - ELSEWHERE
     with concurrent.futures.ThreadPoolExecutor(1) as pool:
         AHEAD.update({test: pool.submit(part) for test, part in WAITING_PARTS.items() if test in chosen})
         yield
