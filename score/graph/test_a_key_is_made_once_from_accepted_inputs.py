@@ -746,7 +746,7 @@ def one_tree_one_code_archive():
     assert pod.code_archive(folder, repo).read_bytes() != first
 
 
-# --- a failed output is made once more when that is free (owner, 2026-10-28: "the goal was getting to the film") -----
+# --- a failed output's fate (owner, 2026-10-28: "the goal was getting to the film") and what its readers read -------
 
 # a free node's failed output is made once more (the toy make ignores the seed, so it fails again)
 SECOND_FAILURE = ("judged again, output kept: fail; automatic free remake, attempt 2, after words: made: fail; "
@@ -783,58 +783,155 @@ def judge_gaps(output, inputs, evidence):
                           tuple(f"{name}: no model: {name}: none" for name in objects))
 
 
+def make_maybe(inputs, out, seed, params):
+    (out / "maybe.txt").write_text("read clean" if "clean" in inputs else "clean not usable: left out")
+
+
+def make_tally(inputs, out, seed, params):
+    (out / "tally.txt").write_text("read clean" if "clean" in inputs else "read without clean")
+
+
+def place_briefs(place):
+    """The hangar reads a second file only it has."""
+    return {"brief": "{data}/{place}/brief.txt", **({"notes": "{data}/hangar/notes.txt"} if place == "hangar" else {})}
+
+
 SHOUT = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("shout", judge_shout),),
                     files={"brief": "{data}/{place}/brief.txt"})
 PAID_SHOUT = dataclasses.replace(SHOUT, paid=True, euros=0.4)
 UNSEEDED_PARTS = graph.Stage("pick", "place", make_seeded, TEXT, (checks.Check("parts", judge_parts),), seeded=False)
 GAPPED_ROW = graph.Stage("gapped", "place", make_seeded, TEXT, (checks.Check(graph.GAPPED, judge_gaps),),
                          files={"brief": "{data}/{place}/brief.txt"}, seeded=False)
+# clean (no node at the dock; the hangar's also reads notes), maybe (reads clean optionally), tally (reads clean)
+READ_CLEAN = (dataclasses.replace(CLEAN, files=place_briefs, applies=lambda place: place != "dock"),
+              graph.Stage("maybe", "place", make_maybe, TEXT, PASSES, after={"clean": READS}, optional=("clean",)),
+              graph.Stage("tally", "place", make_tally, TEXT, PASSES, after={"clean": READS}))
+HOME_TAKE = graph.Stage("taken", "place", make_clean, TEXT, PASSES, files={"take": "{home}/takes/{place}.glb"})
 FIRST_SEED = {"first-seed": {"seed": graph.node_seed(7, "pick", "hangar")}}  # the node's own seed, by hand
 REMADE = "automatic free remake, attempt 2, after "
 GAPS = "its accepted gaps name 2 objects, at most 1 passes on to the film"
-
-# A failed output's fate, one row a world: (id, stage, the hangar's brief, its make asks a cache, this PC's card,
-# what the run did, the notes [(attempt, then, {failed check: measures}, a fix's why)], the owner's list
-# [(attempt, why, euros)], the records under the node, the standing record's remake why). Worked out by hand from the toy rows: PICK fails
-# only on its own first seed; SHOUT fails on "!" whatever its seed; parts fails always; gaps count the brief's words.
-FATES = [
-    ("free-remake-passes", PICK, "a ship", False, None,
-     f"made: fail; {REMADE}first-seed: made: pass, accepted automatically",
-     [(1, "remake", FIRST_SEED, None), (2, "done", {}, None)], [], 2, f"{REMADE}first-seed"),
-    ("free-remake-fails-again", SHOUT, "a ship!", False, None,
-     f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
-     [(1, "remake", {"shout": {}}, None), (2, "owner", {"shout": {}}, None)], [(2, "both attempts failed", 0.0)], 2,
-     f"{REMADE}shout"),
-    ("paid-off-this-pc", PAID_SHOUT, "a ship!", False, None,
-     "made: fail; a paid remake: on the owner's list, priced",
-     [(1, "owner", {"shout": {}}, None)], [(1, "its remake is paid", 0.4)], 1, None),
-    ("paid-on-this-pcs-card", PAID_SHOUT, "a ship!", False, "local",
-     f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
-     [(1, "remake", {"shout": {}}, None), (2, "owner", {"shout": {}}, None)], [(2, "both attempts failed", 0.4)], 2,
-     f"{REMADE}shout"),
-    ("cached-asks", PICK, "a ship", True, None, f"made: fail; {graph.SAME_ANSWER}",
-     [(1, "fix", FIRST_SEED, graph.SAME_ANSWER)], [], 1, None),
-    ("check-of-inputs", UNSEEDED_PARTS, "a ship", False, None,
-     f"made: fail; {graph.SAME_INPUTS}: crate: no lid",
-     [(1, "fix", {"parts": {}}, f"{graph.SAME_INPUTS}: crate: no lid")], [], 1, None),
-    ("one-gap-object", GAPPED_ROW, "hatch hatch", False, None, "made: fail, accepted automatically", [], [], 1, None),
-    ("two-gap-objects", GAPPED_ROW, "hatch ship", False, None, f"made: fail; {GAPS}: on the owner's list, priced",
-     [(1, "owner", {graph.GAPPED: {"gaps": 2}}, None)], [(1, GAPS, 0.0)], 1, None),
-]
+A_PASS = re.compile("made: pass")
+STANDS = "made: pass, accepted automatically"
 
 
-def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_for_a_fix_or_the_owner(monkeypatch):
-    """Owner, 2026-10-28: "the goal was getting to the film". A free node's failed output is made once more with a
-    fresh seed: a pass is accepted, its record and the remake log naming the failed check with its measures; a second
-    failure, or a paid remake off this PC, goes on the owner's list at its price with every attempt in its fault
-    report (on this PC's card a paid row is remade). A failed row of cached model asks ("it should only actually
-    retry if the prompt changed"; the finish route's list asks through the cached Claude and Google routes, the stage
-    table's own files do not count) or a check of inputs (likeness@airlock 2026-10-29: a row whose make never uses its
-    seed, remade, failed the same way and went to the owner's list) is noted once for a source fix, its failing
-    objects named, never remade, never listed; the table marks its check rows and sim-body (no random start,
-    2026-10-30). A row failing only on accepted gaps naming one object is accepted; two go on the owner's list with
-    the count (shiplock's complete, nine gap objects accepted automatically 2026-11-12). A later drive of any of
-    them remakes, notes and lists nothing more.
+@dataclasses.dataclass(frozen=True)
+class Step:
+    """One run of a Fate's world. Before it: the files written under its data folder ({path: text}); a word limit
+    given as the fated node's evidence (between a run that makes it and this one); a waiver of that check for its
+    current key. Asked before the run (None or empty: not asked): the fated stage's nodes as the status lists them,
+    the inputs named missing for the planned (stage, place) pairs (HOME_TAKE's too, a file the run makes as it goes)
+    as (node, input, data path), each place's key files of the fated stage, the nodes a (stage, place) reads earlier.
+    The run's answers (exact: every node it ran), each equal or a pattern it starts with; accepted texts and the
+    status after it. Of the fated node: its notes [(attempt, then, {failed check: measures}, a fix's why)], the
+    owner's list [(attempt, why, euros)], its records and the standing record's remake why."""
+    found: dict
+    exact: bool = True
+    places: tuple = ("hangar",)
+    writes: dict = dataclasses.field(default_factory=dict)
+    limit: int = None
+    waive: str = None
+    listed: tuple = None
+    missing: tuple = None
+    keyed: dict = dataclasses.field(default_factory=dict)
+    earlier: dict = dataclasses.field(default_factory=dict)
+    texts: dict = dataclasses.field(default_factory=dict)
+    status: dict = dataclasses.field(default_factory=dict)
+    notes: list = None
+    owner: list = None
+    records: int = None
+    remade: str = None
+
+
+@dataclasses.dataclass(frozen=True)
+class Fate:
+    """A world: its table (the first row's hangar node is the fated one), its briefs (None: no brief), whether its
+    make's model asks count as cached and whether it runs on this PC's card, and its runs in turn."""
+    table: tuple
+    briefs: dict
+    steps: tuple
+    cached: bool = False
+    here: bool = False
+
+
+def fated(stage, text, did, notes, owner, records, remade, cached=False, here=False):
+    """A world of one row at the hangar, run once."""
+    return Fate((stage,), {"hangar": text}, (Step({f"{stage.name}@hangar": did}, notes=notes, owner=owner,
+                                                  records=records, remade=remade),), cached, here)
+
+
+# Worked out by hand from the toy rows: PICK fails only on its own first seed; SHOUT fails on "!" whatever its seed;
+# parts fails always; gaps count the brief's words; clean's words fail over the limit (the hangar's 7, then 8, then 2
+# words against 2), and its readers read it only once it stands.
+FATES = {
+    "free-remake-passes": fated(PICK, "a ship", f"made: fail; {REMADE}first-seed: made: pass, accepted automatically",
+                                [(1, "remake", FIRST_SEED, None), (2, "done", {}, None)], [], 2,
+                                f"{REMADE}first-seed"),
+    "free-remake-fails-again": fated(
+        SHOUT, "a ship!", f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
+        [(1, "remake", {"shout": {}}, None), (2, "owner", {"shout": {}}, None)], [(2, "both attempts failed", 0.0)], 2,
+        f"{REMADE}shout"),
+    "paid-off-this-pc": fated(PAID_SHOUT, "a ship!", "made: fail; a paid remake: on the owner's list, priced",
+                              [(1, "owner", {"shout": {}}, None)], [(1, "its remake is paid", 0.4)], 1, None),
+    "paid-on-this-pcs-card": fated(
+        PAID_SHOUT, "a ship!", f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
+        [(1, "remake", {"shout": {}}, None), (2, "owner", {"shout": {}}, None)], [(2, "both attempts failed", 0.4)], 2,
+        f"{REMADE}shout", here=True),
+    "cached-asks": fated(PICK, "a ship", f"made: fail; {graph.SAME_ANSWER}",
+                         [(1, "fix", FIRST_SEED, graph.SAME_ANSWER)], [], 1, None, cached=True),
+    "check-of-inputs": fated(UNSEEDED_PARTS, "a ship", f"made: fail; {graph.SAME_INPUTS}: crate: no lid",
+                             [(1, "fix", {"parts": {}}, f"{graph.SAME_INPUTS}: crate: no lid")], [], 1, None),
+    "one-gap-object": fated(GAPPED_ROW, "hatch hatch", "made: fail, accepted automatically", [], [], 1, None),
+    "two-gap-objects": fated(GAPPED_ROW, "hatch ship", f"made: fail; {GAPS}: on the owner's list, priced",
+                             [(1, "owner", {graph.GAPPED: {"gaps": 2}}, None)], [(1, GAPS, 0.0)], 1, None),
+    "readers-of-a-failing-clean": Fate(READ_CLEAN, {"hangar": "a ship in a very long hall", "station": "a hub",
+                                                    "dock": None, "shed": None}, (
+        # the hangar's notes are not written yet; the shed has no brief; the dock has no clean
+        Step({"clean@hangar": re.compile("blocked: clean@hangar: its input notes"),
+              "clean@shed": re.compile("blocked: clean@shed: its input brief is missing"),
+              "tally@dock": STANDS, "maybe@hangar": A_PASS}, exact=False, places=("hangar", "station", "dock", "shed"),
+             listed=("clean@hangar", "clean@station", "clean@shed"),
+             missing=((("clean", "hangar"), ("clean", "station"), ("clean", "shed"), ("taken", "hangar")),
+                      (("clean@hangar", "notes", "hangar/notes.txt"), ("clean@shed", "brief", "shed/brief.txt"))),
+             earlier={("tally", "dock"): [], ("tally", "hangar"): ["clean@hangar"]},
+             texts={"tally@dock": ("tally.txt", "read without clean")}),
+        # clean unknown: no word limit yet
+        Step({"tally@hangar": re.compile("blocked: clean@hangar answered unknown"), "maybe@hangar": "fresh"},
+             exact=False, writes={"hangar/notes.txt": "notes"},
+             missing=((("clean", "hangar"), ("clean", "station")), ()),
+             keyed={"hangar": {"brief", "notes"}, "station": {"brief"}}),
+        Step({"clean@hangar": SECOND_FAILURE, "maybe@hangar": "fresh",
+              "tally@hangar": "blocked: clean@hangar answered fail: words: 7 words, limit 2"}, limit=2,
+             texts={"maybe@hangar": ("maybe.txt", "clean not usable: left out")}),
+        Step({"clean@hangar": "fresh, accepted automatically", "tally@hangar": STANDS}, exact=False, waive="words",
+             status={"clean@hangar": "fail, waived: words, accepted"}),
+        Step({"tally@hangar": "blocked: clean@hangar answered fail: words: 8 words, limit 2"}, exact=False,
+             writes={"hangar/brief.txt": "a ship in a very long dark hall"}, limit=2),
+        Step({"maybe@hangar": A_PASS}, exact=False, writes={"hangar/brief.txt": "a hall"}, limit=2,
+             texts={"maybe@hangar": ("maybe.txt", "read clean")})),
+    ),
+}
+
+
+def test_a_failed_output_is_made_once_more_only_when_free_and_its_readers_read_only_what_exists_applies_and_stands(
+        monkeypatch):
+    """Owner, 2026-10-28: "the goal was getting to the film". Every world's runs go through one runner, its fated
+    node's notes, owner's list, records and standing judged alike, a later drive of it adding nothing.
+    A free node's failed output is made once more with a fresh seed: a pass is accepted, its record and the remake log
+    naming the failed check with its measures; a second failure, or a paid remake off this PC, goes on the owner's list
+    at its price with every attempt in its fault report (on this PC's card a paid row is remade). A failed row of
+    cached model asks ("it should only actually retry if the prompt changed"; the finish route's list asks through the
+    cached Claude and Google routes, the stage table's own files do not count) or a check of inputs (likeness@airlock
+    2026-10-29: a row whose make never uses its seed, remade, failed the same way and went to the owner's list) is
+    noted once for a source fix, its failing objects named, never remade, never listed; the table marks its check rows
+    and sim-body (no random start, 2026-10-30). A row failing only on accepted gaps naming one object is accepted; two
+    go on the owner's list with the count (shiplock's complete, nine gap objects accepted automatically 2026-11-12). A
+    later drive of any of them remakes, notes and lists nothing more.
+    The readers' world of four places: a missing input blocks its node and each place is keyed on its own files; the
+    dock's tally reads without clean; maybe leaves clean out while it is blocked, unknown or failed and takes it once it
+    stands; a failed clean (7 words, limit 2) blocks tally until the owner's waiver for that key, which is shown, and a
+    new key (8 words) fails again. Before the run starts, the inputs it could never make are named (node, input, path):
+    the hangar's notes and the shed's brief, never a file the run makes as it goes (under {home}), and none once they
+    exist (the ship run of 2026-10-14 spent EUR 13.58, then stopped on missing seed records).
     Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'
     Break: score/graph/__init__.py: '    def run_node(self, stage, place, given=None):\n' -> the same line, then
     '        with self.still():\n            return self.run_node_whole(stage, place, given)\n\n    def
@@ -849,7 +946,12 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_fo
     Break: score/graph/__init__.py: 'entry["why"] = fix_why(stage, entry["failed"])' -> 'entry["why"] = ", ".join(
     entry["failed"])' (the note's why names the checks, not the findings)
     Break: score/graph/__init__.py: 'self.evidence_state(stage, record["output"])) is not None:' -> '... is not None
-    and False:' (a later run judges the standing output again)"""
+    and False:' (a later run judges the standing output again)
+    Break: score/graph/__init__.py: '                if not pattern.startswith(("{data}", "{repo}")):' -> '                if False:'
+    Break: score/graph/__init__.py: '            if not path.exists():\n                raise Blocked(f"{node_name(stage, place)}: its input' -> '            if False:\n                raise Blocked(f"{node_name(stage, place)}: its input'
+    Break: score/graph/__init__.py: '                if place is None or stage.applies is None or stage.applies(place):' -> '                if True:'
+    Break: score/graph/__init__.py: 'if every or before not in stage.optional or self.usable_now(before, place, wanted)}' -> 'if True}'
+    Break: score/graph/__init__.py: 'if checks.blocks(checks.standing(judgement["verdicts"], waived)) and not on_gaps:' -> 'if checks.blocks(checks.standing(judgement["verdicts"], set())) and not on_gaps:'"""
     from score import stages
     from score.stages import physics
     from score.stages.surfaces import route_list
@@ -859,115 +961,74 @@ def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_fo
     assert {row.name for row in stages.STAGES if not row.seeded} == set(stages.UNSEEDED)
     assert not next(row for row in stages.STAGES if row.name == "sim-body").seeded  # its remakes were byte-identical
     asks = graph.CACHED_ASKS
-    for name, stage, text, cached, here, did, notes, owner, records, remade in FATES:
-        monkeypatch.setattr(graph, "CACHED_ASKS", {pathlib.Path(__file__).resolve()} if cached else asks)
-        monkeypatch.setattr(graph, "on_this_pc", lambda: here == "local")
-        world, store = a_world({"hangar": text}), a_store()
-        runner = a_runner(world, store, (stage,))
-        monkeypatch.setattr(runner, "cleared", lambda node, euros, forecast=None: contextlib.nullcontext())
-        node = f"{stage.name}@hangar"
-        assert runner.run(["hangar"]) == {node: did}, name
-        written = noted(runner, "notes")
-        assert [(entry["attempt"], entry["then"], {check: verdict["measures"] for check, verdict in
-                 entry["failed"].items()}, entry["why"] if entry["then"] == "fix" else None)
-                for entry in written] == notes, (name, written)
-        listed = noted(runner, "owner-list")
-        assert [(entry["node"], entry["attempt"], entry["why"], entry["euros"]) for entry in listed] == \
-            [(node, *entry) for entry in owner], (name, listed)
-        record = store.record(node, runner.key(stage, "hangar")["key"])
-        assert len(store.records(node)) == records and record.get("remake", {}).get("why") == remade, (name, record)
-        stands = did.endswith("accepted automatically")
-        assert store.accepted(node) == (record["output"] if stands else None), name
+    for name, fate in FATES.items():
+        monkeypatch.setattr(graph, "CACHED_ASKS", {pathlib.Path(__file__).resolve()} if fate.cached else asks)
+        monkeypatch.setattr(graph, "on_this_pc", lambda here=fate.here: here)
+        world = a_world(fate.briefs)
+        world = graph.Environment("toy", 7, {**world.roots, "home": str(tempfile.mkdtemp())})
+        data, store, stage = world.roots["data"], a_store(), fate.table[0]
+        node = graph.node_name(stage, "hangar")
+        rows = {row.name: row for row in (*fate.table, HOME_TAKE)}
+        for number, step in enumerate(fate.steps):
+            case = (name, number)
+            runner = a_runner(world, store, fate.table)
+            runner.cleared = lambda node, euros, forecast=None: contextlib.nullcontext()
+            for path, text in step.writes.items():
+                (data / path).write_text(text)
+            if step.limit is not None:  # the fated node made on its current inputs, then its limit as its evidence
+                runner.run(["hangar"])
+                give_evidence(store, runner, "hangar", step.limit)
+            if step.waive:
+                store.write_waiver(node, runner.key(stage, "hangar")["key"], step.waive,
+                                   {"by": "owner", "reason": "a long name", "at": graph.now()})
+            if step.listed is not None:
+                assert [each for each in runner.status(step.places) if each.startswith(f"{stage.name}@")] == list(
+                    step.listed), case
+            if step.missing is not None:
+                planned, named = step.missing
+                assert runner.missing_inputs([(rows[row], place) for row, place in planned]) == [
+                    f"{each}: {given} ({data / path})" for each, given, path in named], case
+            for place, files in step.keyed.items():
+                assert set(runner.key(stage, place)["files"]) == files, (case, place)
+            for (reader, place), read in step.earlier.items():
+                assert runner.earlier(rows[reader], place) == read, (case, reader, place)
+            found = runner.run(list(step.places))
+            assert not step.exact or set(found) == set(step.found), (case, found)
+            for each, expected in step.found.items():
+                assert (expected.match(found[each]) if isinstance(expected, re.Pattern) else
+                        found[each] == expected), (case, each, found)
+            for each, (file, text) in step.texts.items():
+                assert accepted_text(store, each, file) == text, (case, each)
+            for each, text in step.status.items():
+                assert a_runner(world, store, fate.table).status(["hangar"])[each] == text, (case, each)
+            if step.notes is not None:
+                written = noted(runner, "notes")
+                assert [(entry["attempt"], entry["then"], {check: verdict["measures"] for check, verdict in
+                         entry["failed"].items()}, entry["why"] if entry["then"] == "fix" else None)
+                        for entry in written] == step.notes, (case, written)
+            if step.owner is not None:
+                listed = noted(runner, "owner-list")
+                assert [(entry["node"], entry["attempt"], entry["why"], entry["euros"]) for entry in listed] == \
+                    [(node, *entry) for entry in step.owner], (case, listed)
+            if isinstance(step.found.get(node), str):  # the fated node made on its inputs: its record and standing
+                record = store.record(node, runner.key(stage, "hangar")["key"])
+                assert step.records is None or (len(store.records(node)) == step.records and record.get(
+                    "remake", {}).get("why") == step.remade), (case, record)
+                stands = step.found[node].endswith("accepted automatically")
+                assert store.accepted(node) == (record["output"] if stands else None), case
+        written, listed, records = noted(runner, "notes"), noted(runner, "owner-list"), len(store.records(node))
         runner.drive(["hangar"], say=quiet)
         assert noted(runner, "notes") == written and noted(runner, "owner-list") == listed, name
         assert len(store.records(node)) == records, (name, store.records(node))
-        assert not stands or a_runner(world, store, (stage,)).run(["hangar"]) == {node: "fresh"}, name
+        stands = store.accepted(node) is not None
+        fresh = a_runner(world, store, fate.table).run(["hangar"]) if stands else {node: "fresh"}
+        assert fresh[node] == "fresh" and set(fresh.values()) == {"fresh"}, (name, fresh)
         if written and not stands:  # a noted node that does not stand: every attempt in its fault report
             text = report_of(runner, node).read_text()
             assert all(f"attempt {entry['attempt']} (key " in text for entry in written if entry["failed"]), name
             assert all(f"{entry['why']}: on the owner's list, priced EUR {entry['euros']:.2f}" in text
                        for entry in listed) and all(entry["why"] in text for entry in written[-1:]
                                                      if entry["then"] == "fix"), (name, text)
-
-
-def make_maybe(inputs, out, seed, params):
-    (out / "maybe.txt").write_text("read clean" if "clean" in inputs else "clean not usable: left out")
-
-
-def make_tally(inputs, out, seed, params):
-    (out / "tally.txt").write_text("read clean" if "clean" in inputs else "read without clean")
-
-
-def place_briefs(place):
-    """The hangar reads a second file only it has."""
-    return {"brief": "{data}/{place}/brief.txt", **({"notes": "{data}/hangar/notes.txt"} if place == "hangar" else {})}
-
-
-def test_a_node_reads_only_inputs_that_exist_apply_and_stand_and_a_failed_gate_passes_only_waived_for_its_key():
-    """One world of four places and one table: clean (no node at the dock; the hangar's also reads notes), maybe
-    (reads clean optionally) and tally (reads clean). A missing input blocks its node and each place is keyed on its own
-    files; the dock's tally reads without clean; maybe leaves clean out while it is blocked, unknown or failed and takes
-    it once it stands; a failed clean (7 words, limit 2) blocks tally until the owner's waiver for that key, which is
-    shown, and a new key (8 words) fails again. Before the run starts, the inputs it could never make are named (node,
-    input, path): the hangar's notes and the shed's brief, never a file the run makes as it goes (under {home}), and
-    none once they exist (the ship run of 2026-10-14 spent EUR 13.58, then stopped on missing seed records).
-    Break: score/graph/__init__.py: '                if not pattern.startswith(("{data}", "{repo}")):' -> '                if False:'
-    Break: score/graph/__init__.py: '            if not path.exists():\n                raise Blocked(f"{node_name(stage, place)}: its input' -> '            if False:\n                raise Blocked(f"{node_name(stage, place)}: its input'
-    Break: score/graph/__init__.py: '                if place is None or stage.applies is None or stage.applies(place):' -> '                if True:'
-    Break: score/graph/__init__.py: 'if every or before not in stage.optional or self.usable_now(before, place, wanted)}' -> 'if True}'
-    Break: score/graph/__init__.py: 'if checks.blocks(checks.standing(judgement["verdicts"], waived)) and not on_gaps:' -> 'if checks.blocks(checks.standing(judgement["verdicts"], set())) and not on_gaps:'"""
-    places = ("hangar", "station", "dock", "shed")
-    world = a_world({"hangar": "a ship in a very long hall", "station": "a hub", "dock": None, "shed": None})
-    world = graph.Environment("toy", 7, {**world.roots, "home": str(tempfile.mkdtemp())})
-    data = world.roots["data"]
-    clean = dataclasses.replace(CLEAN, files=place_briefs, applies=lambda place: place != "dock")
-    taken = graph.Stage("taken", "place", make_seen, TEXT, SEEN, files={"take": "{home}/takes/{place}.glb"})
-    maybe = graph.Stage("maybe", "place", make_maybe, TEXT, PASSES, after={"clean": READS}, optional=("clean",))
-    tally = graph.Stage("tally", "place", make_tally, TEXT, PASSES, after={"clean": READS})
-    store, table = a_store(), (clean, maybe, tally)
-    runner = a_runner(world, store, table)
-    assert [node for node in runner.status(places) if node.startswith("clean@")] == [
-        "clean@hangar", "clean@station", "clean@shed"]
-    planned = [(clean, "hangar"), (clean, "station"), (clean, "shed"), (taken, "hangar")]
-    assert runner.missing_inputs(planned) == [f"clean@hangar: notes ({data / 'hangar/notes.txt'})",
-                                              f"clean@shed: brief ({data / 'shed/brief.txt'})"]
-    found = runner.run(places)  # the hangar's notes are not written yet; the shed has no brief
-    assert found["clean@hangar"].startswith("blocked: clean@hangar: its input notes"), found
-    assert found["clean@shed"].startswith("blocked: clean@shed: its input brief is missing"), found
-    assert found["tally@dock"] == "made: pass, accepted automatically", found
-    assert accepted_text(store, "tally@dock", "tally.txt") == "read without clean"
-    assert runner.earlier(tally, "dock") == [] and runner.earlier(tally, "hangar") == ["clean@hangar"]
-    assert found["maybe@hangar"].startswith("made: pass"), found
-    (data / "hangar" / "notes.txt").write_text("notes")
-    assert runner.missing_inputs([(clean, "hangar"), (clean, "station")]) == []
-    assert set(runner.key(clean, "hangar")["files"]) == {"brief", "notes"}
-    assert set(runner.key(clean, "station")["files"]) == {"brief"}
-    found = a_runner(world, store, table).run(["hangar"])  # clean unknown: no word limit yet
-    assert found["tally@hangar"].startswith("blocked: clean@hangar answered unknown"), found
-    assert found["maybe@hangar"] == "fresh", found
-    output = give_evidence(store, a_runner(world, store, table), "hangar", 2)  # 7 words: clean fails
-    found = a_runner(world, store, table).run(["hangar"])
-    assert found == {"clean@hangar": SECOND_FAILURE, "maybe@hangar": "fresh",
-                     "tally@hangar": "blocked: clean@hangar answered fail: words: 7 words, limit 2"}, found
-    assert accepted_text(store, "maybe@hangar", "maybe.txt") == "clean not usable: left out"
-    key = runner.key(clean, "hangar")["key"]
-    store.write_waiver("clean@hangar", key, "words", {"by": "owner", "reason": "a long name", "at": graph.now()})
-    found = a_runner(world, store, table).run(["hangar"])
-    assert found["clean@hangar"] == "fresh, accepted automatically", found
-    assert found["tally@hangar"] == "made: pass, accepted automatically", found
-    assert store.accepted("clean@hangar") == output
-    assert a_runner(world, store, table).status(["hangar"])["clean@hangar"] == "fail, waived: words, accepted"
-    brief(world, "hangar", "a ship in a very long dark hall")
-    a_runner(world, store, table).run(["hangar"])
-    give_evidence(store, a_runner(world, store, table), "hangar", 2)
-    found = a_runner(world, store, table).run(["hangar"])
-    assert found["tally@hangar"] == "blocked: clean@hangar answered fail: words: 8 words, limit 2", found
-    brief(world, "hangar", "a hall")
-    a_runner(world, store, table).run(["hangar"])
-    give_evidence(store, a_runner(world, store, table), "hangar", 2)
-    found = a_runner(world, store, table).run(["hangar"])
-    assert found["maybe@hangar"].startswith("made: pass"), found
-    assert accepted_text(store, "maybe@hangar", "maybe.txt") == "read clean"
 
 
 def make_writing(inputs, out, seed, params):
@@ -1572,13 +1633,14 @@ def gather_limit(output, inputs, folder):
     return path
 
 
-def a_driven_runner(briefs, euros=None, more=(), applies=None):
+def a_driven_runner(briefs, euros=None, more=(), applies=None, world=None):
     """clean (gated on a gathered limit of 5 words and on shouting) and count, each where `applies` (None: every
-    place), with `more` stages after them."""
+    place), with `more` stages after them, in `world` (None: a world of `briefs`)."""
     clean = graph.Stage("clean", "place", make_clean, TEXT, (WORDS, checks.Check("shout", judge_shout)),
                         files={"brief": "{data}/{place}/brief.txt"}, gatherers={"words": (gather_limit, euros)},
                         applies=applies)
-    return a_runner(a_world(briefs), a_store(), (clean, dataclasses.replace(COUNT, applies=applies), *more))
+    return a_runner(world or a_world(briefs), a_store(), (clean, dataclasses.replace(COUNT, applies=applies),
+                                                          *more))
 
 
 def gathered(runner):
@@ -1628,106 +1690,6 @@ GAP_PLACES = ("gap", "flaw")  # the completion line's places: complete, film (re
 ERRED = {"boom": ("error: RuntimeError: the cleaner fell over", True),
          "halt": ("error: SystemExit: the cleaner quit: no such material", True),
          "bare": ("blocked: clean@bare: its input brief is missing", False)}  # (said, traceback in its report)
-
-
-def test_a_drive_runs_every_line_to_its_end_and_a_node_that_does_not_stand_stops_only_its_readers(monkeypatch):
-    """One drive of ten places under clean (a gathered word limit and no shouting), count, echo (reads only the
-    brief), tally (reads clean and echo) and names (pier only, always fails), and at the gap and flaw places instead
-    complete (failing its accepted gap, and a fault no gap names at flaw), film (reads it gapped) and seal (does not);
-    then hangar is put right, station's brief moves, and a second drive runs. A world whose limit is paid gathers it
-    inside the runner's clearance.
-    The overseer, 2026-10-15: demo-film runs on a place whose complete fails only on its accepted gaps; the gate
-    still fails by name, a reader not reading it gapped stops, and a fault no gap names stops both.
-    sound@square, 2026-10-20: one failed sound stopped every later row of the square's line, though none read it.
-    Batch 1 try 4, 2026-10-25: twenty lines stopped on "has not run on its current inputs", nothing said why.
-    surfaces-lists@lab, 2026-10-12: a SystemExit in a make ended its process with exit code 1 and nothing said; an
-    error's line is its cause and its report, the traceback in its node's log, never one raised outside the log.
-    2026-10-27: the folders of makes that failed stayed in store/cache/making and helped fill the conductor's disk.
-    Break: score/graph/__init__.py: '                wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place, self.ran)' -> '                wanted = []'
-    Break: score/graph/__init__.py: '        if report.exists():\n            report.unlink()\n        return did, True' -> '        return did, True'
-    Break: score/graph/__init__.py: '        if not cause.endswith(NOT_RUN):' -> '        if True:'
-    Break: score/graph/__init__.py: '        return sorted(blocking) if blocking and blocking <= missing else []' -> '        return sorted(missing)'
-    Break: score/graph/__init__.py: '            except (Exception, SystemExit) as error:  # noqa: BLE001 - a SystemExit too' -> '            except Exception as error:  # noqa: BLE001 - a SystemExit too'
-    Break: score/graph/__init__.py: '        finally:\n            gone(out)' -> '        finally:\n            pass'
-    Break: score/graph/__init__.py: '                    waits = [stopped[before] for before in earlier if before in stopped and before not in passes]' -> '                    waits = list(stopped.values())'
-    Break: score/graph/__init__.py: '        with self.cleared(node_name(stage, place), euros) if euros else contextlib.nullcontext():' -> '        with contextlib.nullcontext():'
-    Break: score/graph/__init__.py: '                    passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}' -> '                    passes = set()'"""
-    monkeypatch.setattr(compute.ledger(), "entries", lambda: [])
-    ungapped, gapped = (lambda place: place not in GAP_PLACES), (lambda place: place in GAP_PLACES)
-    echo = graph.Stage("echo", "place", make_echo, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"},
-                       applies=ungapped)
-    tally = graph.Stage("tally", "place", make_count, TEXT, PASSES, after={"clean": READS, "echo": READS},
-                        applies=ungapped)
-    names = graph.Stage("names", "place", make_failing, TEXT, PASSES, applies=lambda place: place == "pier")
-    complete = graph.Stage("complete", "place", make_clean, TEXT,
-                           (checks.Check(graph.GAPPED, judge_gapped), checks.Check("other", judge_brief_fault)),
-                           files={"brief": "{data}/{place}/brief.txt"}, applies=gapped)
-    film = graph.Stage("film", "place", make_film, TEXT, MET, after={"complete": READS}, gapped=("complete",),
-                       applies=gapped)
-    seal = graph.Stage("seal", "place", make_film, TEXT, MET, after={"complete": READS}, applies=gapped)
-    runner = a_driven_runner(DRIVEN, more=(echo, tally, names, complete, film, seal), applies=ungapped)
-    places = list(DRIVEN)
-    found = runner.drive(places, say=quiet)
-    assert found["complete@gap"].startswith("made: fail, accepted automatically; fault report"), found
-    assert found["film@gap"] == ACCEPTED, found
-    for place in GAP_PLACES:  # seal does not read complete gapped; at flaw a fault no gap names stops film too
-        assert found[f"seal@{place}"] == f"not run: its line stopped at complete@{place}", found
-    assert found["film@flaw"] == "not run: its line stopped at complete@flaw", found
-    assert runner.store.accepts("complete@gap")[-1]["status"] == "complete apart from accepted gaps (1)"
-    assert runner.status(["gap"])["complete@gap"] == "complete apart from accepted gaps (1), accepted"
-    assert "stale" not in runner.status(["gap"])["film@gap"]
-    assert runner.run_node(film, "flaw").startswith("blocked: complete@flaw answered fail"), found
-    assert runner.store.accepted("complete@flaw") is None
-    stopped = "not run: its line stopped at clean@{}"
-    for place in ("dock", "station", "pier"):
-        assert found[f"clean@{place}"] == ("made: unknown; gathered words: judged again, output kept: pass, accepted "
-                                           "automatically"), (place, found)
-        assert found[f"count@{place}"] == found[f"echo@{place}"] == found[f"tally@{place}"] == ACCEPTED, (place, found)
-    assert found["clean@hangar"].startswith("made: unknown; gathered words: judged again, output kept: fail"), found
-    assert found["echo@hangar"] == ACCEPTED, found
-    assert found["count@hangar"] == found["tally@hangar"] == stopped.format("hangar"), found
-    assert found["clean@loud"].startswith(
-        "made: fail; automatic free remake, attempt 2, after shout: made: fail;"), found
-    assert found["names@pier"].startswith("error: RuntimeError: names failed"), found
-    for place, (said, raised) in ERRED.items():  # a raise's line is exactly its cause; a missing input's names its path
-        did, ending = found[f"clean@{place}"], f"; fault report {report_of(runner, f'clean@{place}')}"
-        assert did == said + ending if raised else did.startswith(said) and did.endswith(ending), found
-        assert found[f"count@{place}"] == stopped.format(place), found
-    assert len(gathered(runner)) == 4  # dock, station, hangar and pier: loud's other gate fails, the rest never made
-    faults = runner.store.cache.parent / "faults"
-    assert {report.stem for report in faults.iterdir()} >= {f"clean@{place}" for place in ("hangar", "loud", *ERRED)}
-    assert not any(report.stem.endswith(("@dock", "@station")) for report in faults.iterdir()), list(faults.iterdir())
-    report = report_of(runner, "clean@hangar").read_text()
-    assert "why its line stopped: clean@hangar answered fail: words: 8 words, limit 5" in report, report
-    assert '  words: fail: 8 words, limit 5\n    measures: {"words": 8}\n    - 3 words too many' in report, report
-    assert "cleaning" in report and "python -m score run toy --place hangar" in report, report
-    assert "shout: fail: shouts" in report_of(runner, "clean@loud").read_text()
-    for place, (said, traceback) in ERRED.items():
-        report = report_of(runner, f"clean@{place}").read_text()
-        assert said.split(": ", 2)[-1] in report and (not traceback or "Traceback" in report), report
-    making = runner.store.cache / "making"
-    assert not making.exists() or not list(making.iterdir()), list(making.iterdir())
-    lines = runner.lines(places)
-    assert lines["hangar"][0] == f"stopped at clean@hangar: fault report {report_of(runner, 'clean@hangar')}", lines
-    assert lines["dock"][0] == lines["station"][0] == "done", lines
-
-    brief(runner.world, "hangar", "a ship")
-    brief(runner.world, "station", "a ship")
-    cause = runner.standing(COUNT, "station")
-    assert cause == "clean@station has not run on its current inputs", cause
-    report = runner.fault_report(COUNT, "station", f"blocked: {cause}", cause).read_text()
-    assert "what moved its key since its last record: brief changed" in report, report
-    again = runner.drive(places, say=quiet)
-    assert again["count@hangar"] == again["count@station"] == ACCEPTED, again
-    assert not report_of(runner, "clean@hangar").exists()
-    assert {again[f"{stage}@dock"] for stage in ("clean", "count", "echo", "tally")} == {"fresh"}, again
-    assert len(gathered(runner)) == 4  # hangar and station now clean to dock's "A SHIP", whose limit stands
-
-    paid = a_driven_runner({"dock": "a ship"}, euros=0.2)
-    assert paid.drive(["dock"], say=quiet)["count@dock"] == ACCEPTED
-    key = paid.key(paid.stages["clean"], "dock")["key"]
-    assert [ticket for _, ticket in gathered(paid)] == [f"clean@dock {key}"]
-    assert paid.store.clearances("clean@dock", key)[0]["euros"] == 0.2
 
 
 # --- lines side by side ----------------------------------------------------------------------------------------------
@@ -1841,56 +1803,133 @@ TRANSIENT = {"a timeout": (TimeoutError(), True), "a reset connection": (Connect
              "a ValueError": (ValueError(), False)}
 
 
-def test_a_drive_runs_what_reads_nothing_of_each_other_side_by_side_once_and_ends_whatever_its_nodes_leave(
+def test_a_drive_runs_every_line_to_its_end_side_by_side_and_a_node_that_does_not_stand_stops_only_its_readers(
         tmp_path, monkeypatch):
-    """One drive, under a 20 s alarm, of one world of two places. meet (each place's waits until the other place's
-    started), first and second (hangar only, each waiting until the other started) are run one at a time only if the
-    drive runs one node at a time; ground (the environment) is read by both places' build; sky (the environment, read
-    by no place) and other (a place row the run leaves) wait for a make that never starts, so a drive that ran either
-    would take MEETING_SECONDS and fail. Beside them each ENDED row is a hangar-only stage of its own, ending as the
-    row says; TRANSIENT's rows are graph.transient's answers.
-    Fault (owner, 2026-10-11: nothing waits for the slowest): the drive ran one node at a time.
+    """One drive, under a 20 s alarm, of one world of ten places (DRIVEN) under one table. Every place's line: clean
+    (a gathered word limit and no shouting), count, echo (reads only the brief), tally (reads clean
+    and echo) and names (pier only, always fails), and at the gap and flaw places instead complete (failing its
+    accepted gap, and a fault no gap names at flaw), film (reads it gapped) and seal (does not). Side by side at
+    hangar and station: meet (each place's waits until the other place's started), first and second (hangar only,
+    each waiting until the other started) are run one at a time only if the drive runs one node at a time; ground
+    (the environment) is read by both places' build; sky (the environment, read by no place) and other (a place row
+    the drive leaves out) wait for a make that never starts, so a drive that ran either would take MEETING_SECONDS
+    and fail. Beside them each ENDED row is a hangar-only stage of its own reading nothing, ending as the row says
+    whatever hangar's clean did; TRANSIENT's rows are graph.transient's answers. Then hangar is put right, station's
+    brief moves, and a second drive runs. A world whose limit is paid gathers it inside the runner's clearance.
+    Fault (owner, 2026-10-11): agents walked every job through its steps by hand, polling each cloud step; and
+    nothing waits for the slowest: the drive ran one node at a time.
+    The overseer, 2026-10-15: demo-film runs on a place whose complete fails only on its accepted gaps; the gate
+    still fails by name, a reader not reading it gapped stops, and a fault no gap names stops both.
+    sound@square, 2026-10-20: one failed sound stopped every later row of the square's line, though none read it.
+    Batch 1 try 4, 2026-10-25: twenty lines stopped on "has not run on its current inputs", nothing said why.
+    surfaces-lists@lab, 2026-10-12: a SystemExit in a make ended its process with exit code 1 and nothing said; an
+    error's line is its cause and its report, the traceback in its node's log, never one raised outside the log.
+    2026-10-27: the folders of makes that failed stayed in store/cache/making and helped fill the conductor's disk.
     Eight places' maps on the image model's HTTP 500s, 2026-10-12; a paid node's failure is a gap (ADR-0005).
     Fault (2026-10-12): two `score run`s did all their work and never exited. And a node's process answers a SIGUSR1
     with its stacks in <home>/logs/stacks/<its pid>.txt, going on (2026-11-07: a forked node had no dump).
+    Break: score/graph/__init__.py: '                wanted = [] if did.startswith(("blocked", "broken", PAID_LEFT)) else self.gatherable(stage, place, self.ran)' -> '                wanted = []'
+    Break: score/graph/__init__.py: '        if report.exists():\n            report.unlink()\n        return did, True' -> '        return did, True'
+    Break: score/graph/__init__.py: '        if not cause.endswith(NOT_RUN):' -> '        if True:'
+    Break: score/graph/__init__.py: '        return sorted(blocking) if blocking and blocking <= missing else []' -> '        return sorted(missing)'
+    Break: score/graph/__init__.py: '            except (Exception, SystemExit) as error:  # noqa: BLE001 - a SystemExit too' -> '            except Exception as error:  # noqa: BLE001 - a SystemExit too'
+    Break: score/graph/__init__.py: '        finally:\n            gone(out)' -> '        finally:\n            pass'
+    Break: score/graph/__init__.py: '                    waits = [stopped[before] for before in earlier if before in stopped and before not in passes]' -> '                    waits = list(stopped.values())'
+    Break: score/graph/__init__.py: '        with self.cleared(node_name(stage, place), euros) if euros else contextlib.nullcontext():' -> '        with contextlib.nullcontext():'
+    Break: score/graph/__init__.py: '                    passes = {before for before in on_gaps if before.partition("@")[0] in stage.gapped}' -> '                    passes = set()'
     Break: score/graph/__init__.py: 'JOBS = 8' -> 'JOBS = 1'
     Break: score/graph/__init__.py: '        chosen = found if whole else' -> '        chosen = found if True else'
     Break: score/graph/__init__.py: '                if stage.paid or attempt == RETRIES or not transient(error):' -> '                if attempt == RETRIES or not transient(error):'
     Break: score/graph/__init__.py: '        sys.stderr.flush()\n        os._exit(0)' -> '        sys.stderr.flush()\n        sys.exit(0)'
     Break: score/graph/__init__.py: '        stacks_on_ask()\n        threading' -> '        threading'"""
+    monkeypatch.setattr(compute.ledger(), "entries", lambda: [])
     monkeypatch.setattr(graph, "RETRY_WAIT", 0)
     monkeypatch.setenv("PROPS_HOME", str(tmp_path))
-    data, world = a_world_of(PLACES)
-    hangar_only = dict(applies=lambda place: place == "hangar")
-    ended = [graph.Stage(row.stage, "place", row.make, TEXT, MET, paid=row.paid, euros=0.1, **hangar_only)
-             for row in ENDED.values()]
-    table = (graph.Stage("ground", "world", made_once(data), TEXT, MET),
-             graph.Stage("sky", "world", meeting(data, "sky", ["never"]), TEXT, MET),
-             graph.Stage("meet", "place", meet_the_other_places(data), TEXT, MET, files={"place": "{data}/{place}"}),
-             graph.Stage("first", "place", meeting(data, "first", ["second"]), TEXT, MET, **hangar_only),
-             graph.Stage("second", "place", meeting(data, "second", ["first"]), TEXT, MET, **hangar_only),
-             graph.Stage("build", "place", make_on_ground, TEXT, MET, after={"ground": READS}),
-             graph.Stage("other", "place", meeting(data, "other", ["never"]), TEXT, MET), *ended)
-    runner = a_runner(world, a_store(), table)
-    runner.cleared = lambda node, euros, forecast=None: contextlib.nullcontext()  # no clearance to buy here
+    world = a_world(DRIVEN)
+    data, places = world.roots["data"], list(DRIVEN)
+    ungapped, gapped = (lambda place: place not in GAP_PLACES), (lambda place: place in GAP_PLACES)
+    side_by_side, hangar_only = (lambda place: place in PLACES), dict(applies=lambda place: place == "hangar")
+    echo = graph.Stage("echo", "place", make_echo, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"},
+                       applies=ungapped)
+    tally = graph.Stage("tally", "place", make_count, TEXT, PASSES, after={"clean": READS, "echo": READS},
+                        applies=ungapped)
+    names = graph.Stage("names", "place", make_failing, TEXT, PASSES, applies=lambda place: place == "pier")
+    complete = graph.Stage("complete", "place", make_clean, TEXT,
+                           (checks.Check(graph.GAPPED, judge_gapped), checks.Check("other", judge_brief_fault)),
+                           files={"brief": "{data}/{place}/brief.txt"}, applies=gapped)
+    film = graph.Stage("film", "place", make_film, TEXT, MET, after={"complete": READS}, gapped=("complete",),
+                       applies=gapped)
+    seal = graph.Stage("seal", "place", make_film, TEXT, MET, after={"complete": READS}, applies=gapped)
+    beside = (graph.Stage("ground", "world", made_once(data), TEXT, MET),
+              graph.Stage("sky", "world", meeting(data, "sky", ["never"]), TEXT, MET),
+              graph.Stage("meet", "place", meet_the_other_places(data), TEXT, MET, files={"place": "{data}/{place}"},
+                          applies=side_by_side),
+              graph.Stage("first", "place", meeting(data, "first", ["second"]), TEXT, MET, **hangar_only),
+              graph.Stage("second", "place", meeting(data, "second", ["first"]), TEXT, MET, **hangar_only),
+              graph.Stage("build", "place", make_on_ground, TEXT, MET, after={"ground": READS}, applies=side_by_side),
+              graph.Stage("other", "place", meeting(data, "other", ["never"]), TEXT, MET),
+              *(graph.Stage(row.stage, "place", row.make, TEXT, MET, paid=row.paid, euros=0.1, **hangar_only)
+                for row in ENDED.values()))
+    runner = a_driven_runner(DRIVEN, more=(echo, tally, names, complete, film, seal, *beside),
+                             applies=ungapped, world=world)
+    only = [name for name in runner.stages if name not in ("sky", "other")]
     signal.signal(signal.SIGALRM, hung)
     started = time.monotonic()
     signal.alarm(20)
     try:
-        found = runner.drive(PLACES, say=quiet, whole=False,
-                             only=["meet", "first", "second", "build", *(row.stage for row in ENDED.values())])
+        found = runner.drive(places, say=quiet, whole=False, only=only)
     finally:
         signal.alarm(0)
     assert time.monotonic() - started < MEETING_SECONDS
     met = ["ground", "meet@hangar", "meet@station", "first@hangar", "second@hangar", "build@hangar", "build@station"]
-    assert sorted(found) == sorted(met + [f"{row.stage}@hangar" for row in ENDED.values()]), found
+    assert sorted(found) == sorted(
+        [f"{stage}@{place}" for place in places if place not in GAP_PLACES for stage in ("clean", "count", "echo",
+                                                                                          "tally")]
+        + [f"{stage}@{place}" for place in GAP_PLACES for stage in ("complete", "film", "seal")]
+        + ["names@pier", *met] + [f"{row.stage}@hangar" for row in ENDED.values()]), found
     assert {found[node] for node in met} == {ACCEPTED}, found
-    assert [node for node in found if node.startswith(("ground", "build"))] == ["ground", "build@hangar",
-                                                                                "build@station"], found
+    assert [node for node in found if node.startswith(("ground", "build"))] == ["ground", "build@station",
+                                                                                "build@hangar"], found  # DRIVEN's order
     assert (data / "ground-made.txt").read_text() == "made\n"
-    assert set(runner.lines(["hangar"], whole=False)) == {"world", "hangar"}
-    assert list(runner.lines(["hangar"], whole=False)["world"][1]) == ["ground"]
-    assert set(runner.lines(["hangar"], whole=False, only=["build"])["hangar"][1]) == {"build@hangar"}
+    assert found["complete@gap"].startswith("made: fail, accepted automatically; fault report"), found
+    assert found["film@gap"] == ACCEPTED, found
+    for place in GAP_PLACES:  # seal does not read complete gapped; at flaw a fault no gap names stops film too
+        assert found[f"seal@{place}"] == f"not run: its line stopped at complete@{place}", found
+    assert found["film@flaw"] == "not run: its line stopped at complete@flaw", found
+    assert runner.store.accepts("complete@gap")[-1]["status"] == "complete apart from accepted gaps (1)"
+    assert runner.status(["gap"])["complete@gap"] == "complete apart from accepted gaps (1), accepted"
+    assert "stale" not in runner.status(["gap"])["film@gap"]
+    assert runner.run_node(film, "flaw").startswith("blocked: complete@flaw answered fail"), found
+    assert runner.store.accepted("complete@flaw") is None
+    stopped = "not run: its line stopped at clean@{}"
+    for place in ("dock", "station", "pier"):
+        assert found[f"clean@{place}"] == ("made: unknown; gathered words: judged again, output kept: pass, accepted "
+                                           "automatically"), (place, found)
+        assert found[f"count@{place}"] == found[f"echo@{place}"] == found[f"tally@{place}"] == ACCEPTED, (place, found)
+    assert found["clean@hangar"].startswith("made: unknown; gathered words: judged again, output kept: fail"), found
+    assert found["echo@hangar"] == ACCEPTED, found
+    assert found["count@hangar"] == found["tally@hangar"] == stopped.format("hangar"), found
+    assert found["clean@loud"].startswith(
+        "made: fail; automatic free remake, attempt 2, after shout: made: fail;"), found
+    assert found["names@pier"].startswith("error: RuntimeError: names failed"), found
+    for place, (said, raised) in ERRED.items():  # a raise's line is exactly its cause; a missing input's names its path
+        did, ending = found[f"clean@{place}"], f"; fault report {report_of(runner, f'clean@{place}')}"
+        assert did == said + ending if raised else did.startswith(said) and did.endswith(ending), found
+        assert found[f"count@{place}"] == stopped.format(place), found
+    assert len(gathered(runner)) == 4  # dock, station, hangar and pier: loud's other gate fails, the rest never made
+    faults = runner.store.cache.parent / "faults"
+    assert {report.stem for report in faults.iterdir()} >= {f"clean@{place}" for place in ("hangar", "loud", *ERRED)}
+    assert not any(report.stem.endswith(("@dock", "@station")) for report in faults.iterdir()), list(faults.iterdir())
+    report = report_of(runner, "clean@hangar").read_text()
+    assert "why its line stopped: clean@hangar answered fail: words: 8 words, limit 5" in report, report
+    assert '  words: fail: 8 words, limit 5\n    measures: {"words": 8}\n    - 3 words too many' in report, report
+    assert "cleaning" in report and "python -m score run toy --place hangar" in report, report
+    assert "shout: fail: shouts" in report_of(runner, "clean@loud").read_text()
+    for place, (said, traceback) in ERRED.items():
+        report = report_of(runner, f"clean@{place}").read_text()
+        assert said.split(": ", 2)[-1] in report and (not traceback or "Traceback" in report), report
+    making = runner.store.cache / "making"
+    assert not making.exists() or not list(making.iterdir()), list(making.iterdir())
     for name, row in ENDED.items():
         node = f"{row.stage}@hangar"
         log = runner.desk("logs", node, ".log").read_text()
@@ -1904,6 +1943,30 @@ def test_a_drive_runs_what_reads_nothing_of_each_other_side_by_side_once_and_end
             assert row.stacks in (tmp_path / "logs" / "stacks" / f"{pid}.txt").read_text(), name
     assert {name: graph.transient(error) for name, (error, _) in TRANSIENT.items()} == {
         name: expected for name, (_, expected) in TRANSIENT.items()}
+    lines = runner.lines(places, whole=False, only=only)
+    assert lines["hangar"][0] == f"stopped at clean@hangar: fault report {report_of(runner, 'clean@hangar')}", lines
+    assert lines["dock"][0] == lines["station"][0] == "done", lines
+    assert set(runner.lines(["hangar"], whole=False)) == {"world", "hangar"}
+    assert list(runner.lines(["hangar"], whole=False)["world"][1]) == ["ground"]
+    assert set(runner.lines(["hangar"], whole=False, only=["build"])["hangar"][1]) == {"build@hangar"}
+
+    brief(world, "hangar", "a ship")
+    brief(world, "station", "a ship")
+    cause = runner.standing(COUNT, "station")
+    assert cause == "clean@station has not run on its current inputs", cause
+    report = runner.fault_report(COUNT, "station", f"blocked: {cause}", cause).read_text()
+    assert "what moved its key since its last record: brief changed" in report, report
+    again = runner.drive(places, say=quiet, whole=False, only=only)
+    assert again["count@hangar"] == again["count@station"] == ACCEPTED, again
+    assert not report_of(runner, "clean@hangar").exists()
+    assert {again[f"{stage}@dock"] for stage in ("clean", "count", "echo", "tally")} == {"fresh"}, again
+    assert len(gathered(runner)) == 4  # hangar and station now clean to dock's "A SHIP", whose limit stands
+
+    paid = a_driven_runner({"dock": "a ship"}, euros=0.2)
+    assert paid.drive(["dock"], say=quiet)["count@dock"] == ACCEPTED
+    key = paid.key(paid.stages["clean"], "dock")["key"]
+    assert [ticket for _, ticket in gathered(paid)] == [f"clean@dock {key}"]
+    assert paid.store.clearances("clean@dock", key)[0]["euros"] == 0.2
 
 
 CHILD_THREADS = "import os; print(os.environ['OMP_NUM_THREADS'], os.environ['NUMBA_NUM_THREADS'])"
@@ -2535,145 +2598,6 @@ def make_big(inputs, out, seed, params):
 BIG = 300 * 2**20
 
 
-def test_a_node_waiting_on_a_claim_holds_no_job_slot_and_its_stage_starts_no_other(
-        monkeypatch, tmp_path):
-    """2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
-    rows of other stages kept out; then the slots the waiters freed went to yet more waiting bake rows. Two slow
-    `late` nodes, every running one waiting on a claim, and two slow `other` nodes that claim nothing, at --jobs 1:
-    a waiting late node holds no slot, so an other node runs beside it (two at once), and while it waits no second late
-    node starts (one at once); off this PC the same, since a claim waiting on a warm pool machine marks itself too
-    (2026-11-06, checkout 36 on the conductor: 15 of 16 slots held by bake clients waiting on 3 pool machines). A fresh
-    mark of a process in a node's tree makes it a waiter, a stale one does not.
-    Break: score/graph/__init__.py: 'if busy + len(ready) >= jobs or queued[stage.name] or (' ->
-    'if busy + len(ready) >= jobs or (' -> two late nodes at once on this PC.
-    #76, 2026-11-07: the slots were held by nodes whose jobs were on the cluster, no score pod Running. A node waiting
-    on a cluster run (submitter.watch's mark in CLUSTER_WAITING) holds no slot either, up to REMOTE_EXCUSED (48) apart
-    from the claims' five: at --jobs 16, 20 `remote` nodes all waiting on the cluster and 4 `cpu` nodes beside them run
-    at once; 60 cluster waiters excuse 48; a waiter whose mark is gone (its run returned) holds its slot again.
-    Break: score/graph/__init__.py: 'min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, remote_excused())' ->
-    'min(claim_waiting + cluster_waiting, WAITERS_EXCUSED)' -> at most one cpu node beside the 20 remote ones.
-    #76 build spec S8: under the box's queue up to IN_FLIGHT waiters hold no slot (20 remote nodes, REMOTE_EXCUSED
-    scaled from 48 to 16, and 16 cpu nodes at once at --jobs 16); a node's queue priority is the count of waiting
-    nodes that read it, through any others, handed to its process; the drive writes its expected work by image kind
-    for the queue, and removes it at its end.
-    Break: score/graph/__init__.py: 'min(cluster_waiting, remote_excused())' -> 'min(cluster_waiting, REMOTE_EXCUSED)'
-    (pod waiters counted as slots past 16) -> 12 cpu nodes beside the 20. Break: 'order.get(node, 0)' -> '0'.
-    Break: score/graph/__init__.py: 'pod_expect([stage for stage, _ in waiting])' -> 'pass'."""
-    briefs = {"hangar": "a ship", "station": "a hub"}
-    late = graph.Stage("late", "place", make_briefly, TEXT, PASSES)
-    other = graph.Stage("other", "place", make_briefly, TEXT, PASSES)
-    faked(monkeypatch, [100 * FLOOR])
-    monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, 0))
-    monkeypatch.setattr(graph, "MEMORY_POLL", 0.01)
-    stage_of = {}  # pid: the stage its node runs
-    monkeypatch.setattr(graph, "CLAIM_WAITERS", lambda pids: {pid for pid in pids if stage_of[pid] == "late"})
-    wait = graph.FORK_WAIT
-
-    def most_at_once(runner):
-        running, most, start = {}, [0, 0], runner.start
-
-        def counted_start(stage, place, threads, given=None, priority=0):
-            begun = start(stage, place, threads, given, priority)
-            for pipe, (_, _, process) in begun.items():
-                stage_of[process.pid], running[pipe] = stage.name, stage.name
-            most[0] = max(most[0], len(running))
-            most[1] = max(most[1], list(running.values()).count("late"))
-            return begun
-
-        def counted_wait(connections, timeout=None):
-            finished = wait(connections, timeout=timeout)
-            for connection in finished:
-                running.pop(connection)
-            return finished
-        runner.start = counted_start
-        monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
-        found = runner.drive(tuple(briefs), say=quiet, jobs=1)
-        assert set(found) == {f"{name}@{place}" for place in briefs for name in ("late", "other")}, found
-        return tuple(most)
-    monkeypatch.setenv(*graph.THIS_PC)
-    assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (2, 1)
-    monkeypatch.setenv(graph.THIS_PC[0], "scaleway")  # off this PC the same: a warm pool's waiting claim marks too
-    assert most_at_once(a_runner(a_world(briefs), a_store(), (late, other))) == (2, 1)
-    monkeypatch.setattr(graph, "WAITING_CLAIMS", tmp_path)
-    (tmp_path / str(os.getpid())).touch()
-    assert graph.claim_waiters([os.getppid()]) == {os.getppid()}
-    os.utime(tmp_path / str(os.getpid()), (0, time.time() - graph.WAIT_FRESH_SECONDS - 1))
-    assert graph.claim_waiters([os.getppid()]) == set()
-
-    # cluster waits: 20 remote nodes waiting on the cluster and 4 cpu nodes, --jobs 16
-    remote = graph.Stage("remote", "place", make_slow, TEXT, PASSES)
-    cpu = graph.Stage("cpu", "place", make_slow, TEXT, PASSES)
-    monkeypatch.setattr(graph, "CLAIM_WAITERS", lambda pids: set())
-    monkeypatch.setattr(graph, "CLUSTER_WAITERS", lambda pids: {pid for pid in pids if stage_of.get(pid) == "remote"})
-
-    def cpus_beside(remotes, cpus):
-        """How many cpu nodes ran beside `remotes` remote nodes all waiting on the cluster, at --jobs 16."""
-        places = {f"place{number}": f"a place {number}" for number in range(remotes)}
-        runner = a_runner(a_world(places), a_store(), (remote, cpu))
-        beside, start, both = [0], runner.start, {}
-
-        def counted_start(stage, place, threads, given=None, priority=0):
-            begun = start(stage, place, threads, given, priority)
-            for pipe, (_, _, process) in begun.items():
-                stage_of[process.pid], both[pipe] = stage.name, stage.name
-            if list(both.values()).count("remote") == len(places):
-                beside[0] = max(beside[0], list(both.values()).count("cpu"))
-            for _, _, process in begun.values():
-                (STARTED[0] / str(process.pid)).touch()  # counted: its node may end
-            return begun
-
-        def counted_wait(connections, timeout=None):
-            finished = wait(connections, timeout=timeout)
-            for connection in finished:
-                both.pop(connection)
-            return finished
-        runner.start = counted_start
-        monkeypatch.setattr(graph, "FORK_WAIT", counted_wait)
-        some = [f"cpu@{place}" for place in list(places)[:cpus]]
-        STARTED[:] = [pathlib.Path(tempfile.mkdtemp()), remotes + cpus]
-        found = runner.drive(tuple(places), say=quiet, jobs=16, whole=False, only=["remote", *some])
-        assert set(found.values()) == {ACCEPTED} and len(found) == remotes + cpus, found
-        return beside[0]
-    assert cpus_beside(20, 4) == 4
-    assert graph.slots_held(70, 0, 60) == 22 and graph.slots_held(70, 8, 60) == 17
-    # #76 S8: under the box's queue (SCORE_K8S_QUEUE) it admits within the quota, so up to IN_FLIGHT (400) waiters,
-    # pod makes among them, hold no slot: 20 remote nodes, past REMOTE_EXCUSED (48 scaled to 16: fewer nodes forked),
-    # and 16 cpu nodes beside them.
-    monkeypatch.setenv("SCORE_K8S_QUEUE", "1")
-    with monkeypatch.context() as scaled:
-        scaled.setattr(graph, "REMOTE_EXCUSED", 16)
-        assert cpus_beside(20, 16) == 16
-    assert graph.slots_held(216, 0, 200) == 16 and graph.slots_held(500, 0, 450) == 100
-    monkeypatch.delenv("SCORE_K8S_QUEUE")
-    # A node's queue priority is how many waiting nodes read it, through any number of others (pod.downstream), handed
-    # to its process (SCORE_QUEUE_PRIORITY, SCORE_QUEUE_PLACE); the drive writes what it expects for the queue's
-    # workers, {image kind: waiting nodes} (pod.expect), gone once it ends.
-    from score.graph import pod
-    reads = {"b@x": ["a@x"], "c@x": ["b@x"], "d@x": ["a@x", "b@x"], "e@y": ["z"]}
-    assert pod.downstream(reads, ["a@x", "b@x", "z", "c@x"]) == {"a@x": 3, "b@x": 2, "z": 1, "c@x": 0}
-    queued = graph.Stage("clean", "place", make_queued, TEXT, PASSES, files={"brief": "{data}/{place}/brief.txt"})
-    tail = graph.Stage("tail", "place", make_briefly, TEXT, PASSES, after={"count": READS})
-    monkeypatch.setattr(graph, "pod_dispatching", lambda: True)
-    monkeypatch.setattr(graph, "FORK_WAIT", wait)
-    monkeypatch.setattr(pod, "IMAGE_OF", {"count": "runner"})
-    monkeypatch.setattr(pod, "QUEUE_FOLDER", tmp_path / "queue")
-    expected, real_expect = [], pod.expect
-    monkeypatch.setattr(pod, "expect", lambda waiting: expected.append(
-        json.loads(path.read_text()) if (path := real_expect(waiting)).exists() else None))
-    store = a_store()
-    found = a_runner(a_world({"hangar": "a ship", "station": "a hub"}), store, (queued, COUNT, tail)).drive(
-        ("hangar", "station"), say=quiet, jobs=4)
-    assert set(found.values()) == {ACCEPTED}, found
-    assert accepted_text(store, "clean@hangar", "clean.txt") == "2 hangar", accepted_text(store, "clean@hangar", "clean.txt")
-    assert expected[0] == {"runner": 2} and not list((tmp_path / "queue" / "expected").iterdir())
-    monkeypatch.setattr(graph, "CLUSTER_WAITING", tmp_path / "cluster")
-    (tmp_path / "cluster").mkdir()
-    (tmp_path / "cluster" / str(os.getpid())).touch()
-    assert graph.cluster_waiters([os.getppid()]) == {os.getppid()}
-    (tmp_path / "cluster" / str(os.getpid())).unlink()  # its run returned: it holds its slot again
-    assert graph.cluster_waiters([os.getppid()]) == set()
-
-
 SHIP_AND_HUB = {"hangar": "a ship", "station": "a hub"}
 CLEAN_AND_COUNT = ("clean@hangar", "clean@station", "count@hangar", "count@station")
 ALL_MADE = dict.fromkeys(CLEAN_AND_COUNT, "made")  # made and accepted automatically, its words gathered or not
@@ -2693,7 +2617,13 @@ class Drive:
     `refused` stage's, refused); the stages started in turn; the most nodes and the most clean nodes running at once;
     whether it waited for memory (a "memory: " line said and every reading taken); the reading every node started on;
     each stage's peak kept after it; whether the last start and the drive's end came inside the tight spell; the least
-    the kept client tree is after it (None: none kept); the grown client stages. A None pins nothing."""
+    the kept client tree is after it (None: none kept); the grown client stages. A None pins nothing.
+    The slots: the nodes of the `claiming` stages wait on a claim and those of the `on_cluster` stages on a cluster
+    run; `queue` runs it under the box's queue (SCORE_K8S_QUEUE), `remote_excused` scales REMOTE_EXCUSED; `only` and
+    `whole` as drive takes them. It pins the most nodes of the `counted` stage at once (`most`), `beside` (a stage,
+    another, the most of the other running while every node of the first runs), with `pod_queue` its pod stages
+    dispatched and the first expectation it writes for the queue's workers (gone once it ends), and `texts` the
+    accepted text of a node's file."""
     stages: tuple | None = None
     briefs: dict = dataclasses.field(default_factory=lambda: SHIP_AND_HUB)
     again: bool = False
@@ -2721,6 +2651,16 @@ class Drive:
     ended_in_spell: bool | None = None
     kept_over: int | None = None
     grown: frozenset = frozenset()
+    counted: str = "clean"
+    claiming: frozenset = frozenset()
+    on_cluster: frozenset = frozenset()
+    queue: bool = False
+    remote_excused: int | None = None
+    only: tuple | None = None
+    whole: bool = True
+    beside: tuple | None = None
+    pod_queue: dict | None = None
+    texts: dict = dataclasses.field(default_factory=dict)
 
 
 def outcome_fits(expected, line):
@@ -2744,9 +2684,38 @@ QUICK_CLIENT = graph.Stage("client", "place", make_briefly, TEXT, PASSES)
 LARGE_CLIENT = graph.Stage("client", "place", make_big, TEXT, PASSES)
 BIG_LATE_SMALL = {"big": 3 * FLOOR, "late": TENTH, "small": TENTH}
 NEVER = ("can never start here", "21.0 GB in all")
+CLAIMING = graph.Stage("claiming", "place", make_briefly, TEXT, PASSES)
+OTHER = graph.Stage("other", "place", make_briefly, TEXT, PASSES)
+REMOTE = graph.Stage("remote", "place", make_slow, TEXT, PASSES)
+CPU = graph.Stage("cpu", "place", make_slow, TEXT, PASSES)
+QUEUED = graph.Stage("clean", "place", make_queued, TEXT, PASSES, files=BRIEFED)
+TAIL = graph.Stage("tail", "place", make_briefly, TEXT, PASSES, after={"count": READS})
+TWENTY = {f"place{number}": f"a place {number}" for number in range(20)}
+ROOMY = (100 * FLOOR,)
+
+
+def remotes_and_cpus(cpus):
+    """The drive of TWENTY's remote nodes and `cpus` cpu nodes, each accepted."""
+    cpu_nodes = tuple(f"cpu@{place}" for place in list(TWENTY)[:cpus])
+    return {"only": ("remote", *cpu_nodes), "outcomes": dict.fromkeys(
+        (*(f"remote@{place}" for place in TWENTY), *cpu_nodes), "accepted")}
 
 # In turn: a row with `again` drives the runner of the row before it; the last one's runner is asked CONFIRMING.
 DRIVES = {
+    "a node waiting on a claim holds no slot: an other node runs beside it at --jobs 1, no second claiming one": Drive(
+        (CLAIMING, OTHER), readings=ROOMY, jobs=1, this_pc=True, claiming=frozenset({"claiming"}),
+        counted="claiming", most=(2, 1)),
+    "off this PC the same: a claim waiting on a warm pool machine marks itself too": Drive(
+        (CLAIMING, OTHER), readings=ROOMY, jobs=1, claiming=frozenset({"claiming"}), counted="claiming", most=(2, 1)),
+    "20 remote nodes waiting on the cluster hold no slot: 4 cpu nodes run beside them at --jobs 16": Drive(
+        (REMOTE, CPU), TWENTY, readings=ROOMY, jobs=16, on_cluster=frozenset({"remote"}), whole=False,
+        beside=("remote", "cpu", 4), **remotes_and_cpus(4)),
+    "under the box's queue 20 remote nodes, past REMOTE_EXCUSED (scaled to 16), leave 16 cpu nodes beside them": Drive(
+        (REMOTE, CPU), TWENTY, readings=ROOMY, jobs=16, on_cluster=frozenset({"remote"}), whole=False, queue=True,
+        remote_excused=16, beside=("remote", "cpu", 16), **remotes_and_cpus(16)),
+    "pod stages dispatched: clean@hangar's queue priority is the 2 waiting nodes that read it": Drive(
+        (QUEUED, COUNT, TAIL), readings=ROOMY, pod_queue={"runner": 2}, texts={"clean@hangar": ("clean.txt",
+                                                                                               "2 hangar")}),
     "big at the head waits, late starts first and small once late stands, big once the room is there": Drive(
         (BIG_STAGE, LATE, SMALL), peaks=BIG_LATE_SMALL, closes=("small", 2), spell=3,
         started=("late", "late", "small", "small", "big", "big")),
@@ -2795,12 +2764,39 @@ DRIVES = {
 
 # A running clean node's room by its process's `making` flag: confirming its record, CHECK_PEAK; making, clean's peak.
 CONFIRMING = ((0, graph.CHECK_PEAK), (1, int(1.5 * FLOOR)))
+# The --jobs slots held: (under the box's queue, running nodes, waiting on a claim, waiting on the cluster, held).
+SLOTS = ((False, 70, 0, 60, 22), (False, 70, 8, 60, 17), (True, 216, 0, 200, 16), (True, 500, 0, 450, 100))
+# A waiter's mark in its folder, then made stale or gone: (graph's folder, its reader, how the mark ends).
+MARKS = (("WAITING_CLAIMS", "claim_waiters", "stale"), ("CLUSTER_WAITING", "cluster_waiters", "gone"))
 
 
-def test_a_ready_node_starts_on_room_for_what_it_will_take_and_one_that_can_never_fit_is_refused(monkeypatch):
-    """A ready node starts only once memory holds what it is expected to take; one that does not fit waits alone, a
-    node the machine can never hold is refused at once with why, and a container client's node on this PC is expected
-    at its own read tree.
+def test_a_ready_node_starts_on_a_slot_it_holds_and_room_for_what_it_will_take_and_one_that_never_fits_is_refused(
+        monkeypatch, tmp_path):
+    """A ready node starts only on a --jobs slot and once memory holds what it is expected to take; a node waiting on
+    a claim or a cluster run holds no slot; one that does not fit waits alone, a node the machine can never hold is
+    refused at once with why, and a container client's node on this PC is expected at its own read tree.
+    2026-10-29: all 8 job slots held by surfaces-bake rows, 3 running a take and 5 waiting for one, about 60 ready
+    rows of other stages kept out; then the slots the waiters freed went to yet more waiting bake rows. Two slow
+    `claiming` nodes, every running one waiting on a claim, and two slow `other` nodes that claim nothing, at --jobs 1:
+    a waiting claiming node holds no slot, so an other node runs beside it (two at once), and while it waits no second
+    claiming node starts (one at once); off this PC the same, since a claim waiting on a warm pool machine marks itself
+    too (2026-11-06, checkout 36 on the conductor: 15 of 16 slots held by bake clients waiting on 3 pool machines). A
+    fresh mark of a process in a node's tree makes it a waiter, a stale one does not (MARKS).
+    Break: score/graph/__init__.py: 'if busy + len(ready) >= jobs or queued[stage.name] or (' ->
+    'if busy + len(ready) >= jobs or (' -> two claiming nodes at once on this PC.
+    #76, 2026-11-07: the slots were held by nodes whose jobs were on the cluster, no score pod Running. A node waiting
+    on a cluster run (submitter.watch's mark in CLUSTER_WAITING) holds no slot either, up to REMOTE_EXCUSED (48) apart
+    from the claims' five: at --jobs 16, 20 `remote` nodes all waiting on the cluster and 4 `cpu` nodes beside them run
+    at once; 60 cluster waiters excuse 48 (SLOTS); a waiter whose mark is gone (its run returned) holds its slot again.
+    Break: score/graph/__init__.py: 'min(claim_waiting, WAITERS_EXCUSED) - min(cluster_waiting, remote_excused())' ->
+    'min(claim_waiting + cluster_waiting, WAITERS_EXCUSED)' -> at most one cpu node beside the 20 remote ones.
+    #76 build spec S8: under the box's queue up to IN_FLIGHT waiters hold no slot (20 remote nodes, REMOTE_EXCUSED
+    scaled from 48 to 16, and 16 cpu nodes at once at --jobs 16); a node's queue priority is the count of waiting
+    nodes that read it, through any others, handed to its process; the drive writes its expected work by image kind
+    for the queue, and removes it at its end.
+    Break: score/graph/__init__.py: 'min(cluster_waiting, remote_excused())' -> 'min(cluster_waiting, REMOTE_EXCUSED)'
+    (pod waiters counted as slots past 16) -> 12 cpu nodes beside the 20. Break: 'order.get(node, 0)' -> '0'.
+    Break: score/graph/__init__.py: 'pod_expect([stage for stage, _ in waiting])' -> 'pass'.
     2026-10-28: one ready node at the head that did not fit held 122 small ready nodes behind it, five of eight
     slots empty for 29 min; 2026-10-29: once it had waited ten turns it held every node behind it again (108 ready,
     2 running). big (kept peak 3 floors) comes before late (0.1 floor, 0.4 s a node) and small (0.1 floor, reads
@@ -2857,8 +2853,25 @@ def test_a_ready_node_starts_on_room_for_what_it_will_take_and_one_that_can_neve
     monkeypatch.setattr(graph, "CONTAINED", lambda pid: False)  # no client runs now: the running ones charge peaks
     read = []
     monkeypatch.setattr(graph, "CONTAINER_READ", lambda: read.append(1))  # this PC's own container is never touched
+    from score.graph import pod
     wait, drive_pid, runner = graph.FORK_WAIT, os.getpid(), None
-    for name, row in DRIVES.items():
+    dispatching, excused, stage_of = graph.pod_dispatching, graph.REMOTE_EXCUSED, {}  # pid: the stage its node runs
+    monkeypatch.setattr(pod, "IMAGE_OF", {"count": "runner"})
+    monkeypatch.setattr(pod, "QUEUE_FOLDER", tmp_path / "queue")
+    expected, real_expect = [], pod.expect
+    monkeypatch.setattr(pod, "expect", lambda waiting: expected.append(
+        json.loads(path.read_text()) if (path := real_expect(waiting)).exists() else None))
+    for number, (name, row) in enumerate(DRIVES.items()):
+        monkeypatch.setattr(graph, "CLAIM_WAITERS", lambda pids, row=row: {
+            pid for pid in pids if stage_of.get(pid) in row.claiming})
+        monkeypatch.setattr(graph, "CLUSTER_WAITERS", lambda pids, row=row: {
+            pid for pid in pids if stage_of.get(pid) in row.on_cluster})
+        monkeypatch.setattr(graph, "pod_dispatching", (lambda: True) if row.pod_queue else dispatching)
+        monkeypatch.setattr(graph, "REMOTE_EXCUSED", row.remote_excused or excused)
+        if row.queue:
+            monkeypatch.setenv("SCORE_K8S_QUEUE", "1")
+        else:
+            monkeypatch.delenv("SCORE_K8S_QUEUE", raising=False)
         monkeypatch.setenv(graph.THIS_PC[0], graph.THIS_PC[1] if row.this_pc else "scaleway")
         monkeypatch.setattr(graph, "HELD", lambda pids, drive=row.held[0], node=row.held[1]: dict.fromkeys(
             pids, drive if os.getpid() == drive_pid else node))
@@ -2876,14 +2889,25 @@ def test_a_ready_node_starts_on_room_for_what_it_will_take_and_one_that_can_neve
             path.parent.mkdir(parents=True, exist_ok=True)
             path.unlink() if written is None else path.write_text(json.dumps(written))
         # (stage, when, the reading it started on): the spell runs from the opening start, a slow fork waits on none
-        started, taken, running, seen, start = [], [], {}, [0, 0], runner.start
+        started, taken, running, seen, start = [], [], {}, [0, 0, 0], runner.start
+        outcomes = row.outcomes or {f"{stage.name}@{place}": "refused" if stage.name == row.refused else "accepted"
+                                    for stage in row.stages for place in row.briefs}
+        if row.beside:  # make_slow holds each node until the drive started every one it should hold at once
+            STARTED[:] = [tmp_path / f"started-{number}", len(outcomes)]
+            STARTED[0].mkdir()
 
         def counted_start(stage, place, threads, given=None, priority=0, start=start, started=started, taken=taken,
-                          running=running, seen=seen):
+                          running=running, seen=seen, row=row):
             started.append((stage.name, time.monotonic(), taken[-1] if taken else "nothing read"))
             begun = start(stage, place, threads, given, priority)
             running.update(dict.fromkeys(begun, stage.name))
-            seen[:] = max(seen[0], len(running)), max(seen[1], list(running.values()).count("clean"))
+            stage_of.update({process.pid: stage.name for _, _, process in begun.values()})
+            names = list(running.values())
+            every = row.beside and names.count(row.beside[0]) == len(row.briefs)
+            seen[:] = (max(seen[0], len(running)), max(seen[1], names.count(row.counted)),
+                       max(seen[2], names.count(row.beside[1])) if every else seen[2])
+            for _, _, process in begun.values() if row.beside else ():
+                (STARTED[0] / str(process.pid)).touch()  # counted: its node may end
             return begun
 
         def counted_wait(connections, timeout=None, running=running):
@@ -2912,10 +2936,9 @@ def test_a_ready_node_starts_on_room_for_what_it_will_take_and_one_that_can_neve
             return taken[-1]
         monkeypatch.setattr(graph, "AVAILABLE", available)
         said = []
-        found = runner.drive(PLACES, say=said.append, jobs=row.jobs)
+        expected.clear()
+        found = runner.drive(tuple(row.briefs), say=said.append, jobs=row.jobs, whole=row.whole, only=row.only)
         ended, until = time.monotonic(), spell_end()
-        outcomes = row.outcomes or {f"{stage.name}@{place}": "refused" if stage.name == row.refused else "accepted"
-                                    for stage in row.stages for place in PLACES}
         assert set(found) == set(outcomes), (name, found)
         for node, line in found.items():
             assert outcome_fits(outcomes[node], line), (name, node, line)
@@ -2932,14 +2955,39 @@ def test_a_ready_node_starts_on_room_for_what_it_will_take_and_one_that_can_neve
         assert (trees.get("client", -1) >= row.kept_over if row.kept_over is not None else "client" not in trees), (
             name, trees)
         assert (runner.client_grown(), read) == (set(row.grown), []), (name, runner.client_grown(), read)
+        assert row.beside is None or seen[2] == row.beside[2], (name, seen)
+        for node, (file, words) in row.texts.items():
+            assert accepted_text(runner.store, node, file) == words, (name, node)
+        assert row.pod_queue is None or (expected[0] == row.pod_queue and not list(
+            (tmp_path / "queue" / "expected").iterdir())), (name, expected)
 
     monkeypatch.setattr(graph, "HELD", lambda pids: dict.fromkeys(pids, TENTH))
     flag = types.SimpleNamespace(value=0)
     alive = {0: (types.SimpleNamespace(name="clean", grain="place"), "hangar",
                  types.SimpleNamespace(pid=11, is_alive=lambda: True, making=flag))}
-    for making, expected in CONFIRMING:
+    for making, reserved in CONFIRMING:
         flag.value = making
-        assert runner.coming(alive, {"clean": int(1.5 * FLOOR)}, {}, {}) == [(expected, TENTH)], making
+        assert runner.coming(alive, {"clean": int(1.5 * FLOOR)}, {}, {}) == [(reserved, TENTH)], making
+
+    for queue, held, claim_waiting, cluster_waiting, slots in SLOTS:
+        if queue:
+            monkeypatch.setenv("SCORE_K8S_QUEUE", "1")
+        else:
+            monkeypatch.delenv("SCORE_K8S_QUEUE", raising=False)
+        assert graph.slots_held(held, claim_waiting, cluster_waiting) == slots, (queue, held, cluster_waiting)
+    reads = {"b@x": ["a@x"], "c@x": ["b@x"], "d@x": ["a@x", "b@x"], "e@y": ["z"]}  # through any number of others
+    assert pod.downstream(reads, ["a@x", "b@x", "z", "c@x"]) == {"a@x": 3, "b@x": 2, "z": 1, "c@x": 0}
+    for folder, reader, ending in MARKS:
+        monkeypatch.setattr(graph, folder, tmp_path / folder)
+        (tmp_path / folder).mkdir()
+        mark = tmp_path / folder / str(os.getpid())
+        mark.touch()
+        assert getattr(graph, reader)([os.getppid()]) == {os.getppid()}, folder
+        if ending == "stale":
+            os.utime(mark, (0, time.time() - graph.WAIT_FRESH_SECONDS - 1))
+        else:
+            mark.unlink()  # its run returned: it holds its slot again
+        assert getattr(graph, reader)([os.getppid()]) == set(), (folder, ending)
 
 
 def a_container_job(proc, sshd, session, kind, resident_gb, high_gb):
@@ -3689,7 +3737,7 @@ def an_entry(folder, name, **fields):
 STARTS = '#!/bin/sh\necho "detached: started in $(pwd) with $*"; echo started >> "$PWD/starts"\n'
 
 
-@run_ahead("test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree")
+@run_ahead("test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlier_boot_cut_off_unchanged")
 def a_dry_resume():
     """`score resume --dry` in a home of its own over six runs' entries, two of a worktree of their own: the home,
     the worktree, its commit and the process."""
@@ -3705,121 +3753,6 @@ def a_dry_resume():
     done = subprocess.run([sys.executable, "-m", "score", "resume", "--dry"], cwd=REPO, capture_output=True,
                           text=True, env={**ENVIRON, "PROPS_HOME": str(home)})
     return home, worktree, commit, done
-
-
-def test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree(monkeypatch):
-    """C9: PC reboots lost runs; review: resume ran whatever a worktree had checked out days later, a run the owner
-    stopped, one OOM-killed long before. Listed by `score resume --dry` (marking none): the cut-off run; skipped: one
-    whose worktree moved on. Started detached from its own worktree and marked resumed, never twice, even by two
-    resumes at once; one moved on, changed, gone, silent over 12 h before the boot or whose restart fails is marked
-    unresumable with why. The first resume also removes an earlier boot's partial write (C9 review: a write cut by a
-    reboot leaves its .partial file, and nothing removed it) and keeps one of this boot (a write going on now).
-    Break: score/graph/runs.py: '    if not entry.get("commit") or head != entry["commit"]:' -> '    if not entry.get("commit"):'
-    Break: score/graph/runs.py: '    with locked(folder / ".resume.lock"):' -> '    with contextlib.nullcontext():'
-    The conductor: a run asking for 16 jobs waits for the grow; a resume on 2 cores leaves it, one on 16 starts it and
-    keeps the resumed run's pid and log on the entry, so the cockpit follows its launch to the resumed run's end.
-    Break: score/graph/runs.py: '    if entry.get("state") == WAITING and entry.get("jobs", 0) > (os.cpu_count() or 1):' -> '    if False:'
-    Break: score/graph/runs.py: '    started = STARTED.search(done.stdout)' -> '    started = None'
-    On the cluster's home (#76) a run its drive pod's cut left `running` at this boot is started again once, a second
-    cut from the same frozen copy is unresumable, a live one is left, and off the cluster's home none is taken.
-    Break: in runs.cut_at_this_boot, drop `and not size.entry_alive(entry)` (a live drive started twice).
-    Break: in runs.restart_cut, drop the `cut_before` refusal (a run cut by its memory resumed for ever)."""
-    home, worktree, commit, done = ahead(
-        "test_resume_starts_only_a_run_an_earlier_boot_cut_off_from_its_own_unchanged_worktree")
-    assert done.returncode == 0, done.stderr
-    assert done.stdout.strip().splitlines() == [
-        f"would resume cut-off: worktree={worktree} commit={commit[:12]} argv=run world1 --place hangar",
-        f"would skip other-commit: worktree={worktree} commit=c0ffee argv=run world1 --place hangar: "
-        f"its worktree is at {commit[:12]}, not the commit that registered it"], done.stdout
-    assert {entry["state"] for entry in runs.entries(home / "runs").values()} == {runs.RUNNING, runs.ENDED,
-                                                                                   runs.STOPPED}
-    folder = pathlib.Path(tempfile.mkdtemp())
-    worktree, commit = a_worktree(STARTS.replace("#!/bin/sh\n", "#!/bin/sh\nsleep 0.3; "))  # a race to win
-    entry = an_entry(folder, "cut-off", worktree=str(worktree), commit=commit)
-    assert runs.restart_command(entry) == [str(worktree / ".venv/bin/python"), "-m", "score", *entry["argv"],
-                                           "--detach"]
-    sizing, sizing_commit = a_worktree('#!/bin/sh\necho "detached: started pid=4242 log=/logs/$*"\n')
-    an_entry(folder, "waiting", worktree=str(sizing), commit=sizing_commit, state=runs.WAITING, jobs=16,
-             argv=["run", "world1", "--jobs", "16"])
-    an_entry(folder, "waiting-this-boot", state=runs.WAITING, jobs=16, boot=runs.boot_id())
-    assert set(runs.stranded(folder)) == {folder / "cut-off.json", folder / "waiting.json"}
-    objects = pathlib.Path(tempfile.mkdtemp())
-    old = partial_of(objects / "records/clean@hangar/k1.json")
-    old.write_text("{")
-    os.utime(old, (runs.boot_time() - 60, runs.boot_time() - 60))
-    new = partial_of(objects / "records/clean@hangar/k2.json")
-    new.write_text("{")
-    said, found = [], []
-    monkeypatch.setattr(os, "cpu_count", lambda: 2)
-    both = [threading.Thread(target=lambda: found.append(runs.resume(False, said.append, folder=folder,
-                                                                     swept=(objects,)))) for _ in range(2)]
-    for each in both:
-        each.start()
-    for each in both:
-        each.join()
-    assert sorted(found) == [1, 2] and (worktree / "starts").read_text().splitlines() == ["started"], (found, said)
-    assert [line for line in said if line.startswith("resumed cut-off")] == [
-        line for line in said if f"started in {worktree} with -m score run" in line] and len(
-        [line for line in said if line.startswith("resumed")]) == 1, said
-    left = [line for line in said if line.startswith("left waiting")]
-    assert len(left) == 2 and all("still waiting for size: it asks for 16 jobs" in line for line in left), said
-    assert not old.exists() and new.exists() and any(str(old) in line for line in said), said
-    assert runs.entries(folder)[folder / "cut-off.json"]["state"] == runs.RESUMED
-    assert runs.entries(folder)[folder / "waiting.json"]["state"] == runs.WAITING
-    assert list(runs.stranded(folder)) == [folder / "waiting.json"]
-    monkeypatch.setattr(os, "cpu_count", lambda: 16)
-    said.clear()
-    runs.resume(False, said.append, folder=folder, swept=())
-    assert said[0].startswith("resumed waiting") and "--jobs 16 --detach" in said[0], said
-    resumed = runs.entries(folder)[folder / "waiting.json"]
-    assert resumed["state"] == runs.RESUMED and resumed["jobs"] == 16, resumed
-    assert resumed["resumed"] == {"pid": 4242, "log": "/logs/-m score run world1 --jobs 16 --detach"}, resumed
-    assert [entry["id"] for entry in runs.waiting(folder).values()] == ["waiting-this-boot"]
-    assert runs.stranded(folder) == {}
-    (worktree / "starts").unlink()
-    an_entry(folder, "moved-on", worktree=str(worktree), commit="c0ffee")
-    an_entry(folder, "orphan", worktree=str(folder / "gone"))
-    an_entry(folder, "killed-days-ago", worktree=str(worktree), commit=commit)
-    silent = runs.boot_time() - runs.RESUME_WINDOW - 60
-    os.utime(folder / "killed-days-ago.json", (silent, silent))
-    runs.resume(False, said.append, folder=folder, swept=())
-    (worktree / "stage.py").write_text("changed = True\n")
-    an_entry(folder, "changed", worktree=str(worktree), commit=commit)
-    runs.resume(False, said.append, folder=folder, swept=())
-    refusing, refused_commit = a_worktree('#!/bin/sh\necho "refused: re-buys over EUR 5" >&2; exit 1\n')
-    an_entry(folder, "refused", worktree=str(refusing), commit=refused_commit)
-    runs.resume(False, said.append, folder=folder, swept=())
-    assert not (worktree / "starts").exists(), said
-    whys = {path.stem: entry.get("why", "") for path, entry in runs.entries(folder).items()
-            if entry["state"] == runs.UNRESUMABLE}
-    assert set(whys) == {"moved-on", "orphan", "killed-days-ago", "changed", "refused"}, whys
-    for name, why in (("moved-on", "not the commit that registered it"), ("orphan", "worktree is gone"),
-                      ("killed-days-ago", "last sign of life"), ("changed", "changes not committed"),
-                      ("refused", "refused: re-buys")):
-        assert why in whys[name], (name, whys[name])
-    assert runs.stranded(folder) == {}  # never tried again
-    assert sorted(line.split(":")[0] for line in runs.unresumable(folder)) == sorted(whys)
-    from score.conductor import cluster
-    cut_folder = pathlib.Path(tempfile.mkdtemp())
-    worktree, commit = a_worktree(STARTS)
-    gone = {"worktree": str(worktree), "commit": commit, "boot": runs.boot_id(), "pid": 2 ** 22 + 11}
-    an_entry(cut_folder, "cut-on-the-vm", **gone)
-    assert runs.resume(False, said.append, folder=cut_folder, swept=()) == 0  # off the cluster's home: never taken
-    monkeypatch.setattr(cluster, "RECORD", cut_folder / "cluster.json")
-    (cut_folder / "cluster.json").write_text('{"namespace": "score"}')
-    (cut_folder / "cut-on-the-vm.json").unlink()
-    an_entry(cut_folder, "cut-pod", **gone)
-    an_entry(cut_folder, "live-pod", worktree=str(worktree), commit=commit, boot=runs.boot_id(), pid=os.getpid(),
-             started=datetime.datetime.now(datetime.timezone.utc).isoformat())
-    assert runs.resume(False, said.append, folder=cut_folder, swept=()) == 1
-    states = {path.stem: entry for path, entry in runs.entries(cut_folder).items()}
-    assert states["cut-pod"]["state"] == runs.RESUMED and states["cut-pod"]["cut"], said[-1]
-    assert states["live-pod"]["state"] == runs.RUNNING and (worktree / "starts").read_text().count("started") == 1
-    an_entry(cut_folder, "cut-again", **gone)
-    runs.resume(False, said.append, folder=cut_folder, swept=())
-    again = runs.entries(cut_folder)[cut_folder / "cut-again.json"]
-    assert again["state"] == runs.UNRESUMABLE and "cut again" in again["why"], again
-    assert (worktree / "starts").read_text().count("started") == 1
 
 
 @dataclasses.dataclass(frozen=True)
@@ -3856,24 +3789,54 @@ class Driving:
         os.kill(os.getpid(), signal.SIGINT)
 
 
-def test_a_registered_run_says_it_lives_and_its_ending_leaves_it_stopped_unless_a_shutdown_or_resize_ended_it(
+def test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlier_boot_cut_off_unchanged(
         monkeypatch, run_registry):
-    """C9 review: Ctrl-C, a kill or a closed session left a run `running`, for resume to buy again what the owner
+    """One registry: runs registered by score run itself end by the ENDINGS, the machine reboots, and resume starts
+    again only what the boot cut off.
+    C9 review: Ctrl-C, a kill or a closed session left a run `running`, for resume to buy again what the owner
     stopped; and score run wrote its entry before the stopping signals were handled, so a Ctrl-C in between left it
     `running` too. A SIGTERM while the machine shuts down, or in a resize the size timer asked for, leaves it as it was;
     the owner's SIGTERM outside one, or to a run registered after the ask, stops it. While a run drives its entry is
     touched, so resume knows it was alive, and with its gauges says how many nodes the run runs and how many paid rows
-    it would buy, which the conductor's checkout update reads (tools/cloud/conductor/update.py idle_copies).
+    it would buy, which the conductor's checkout update reads (tools/cloud/conductor/update.py idle_copies). After the
+    reboot the shutdown's kill is resumed with the cut-off run, the resize's kill waits for size with the waiting run,
+    and no run that ended stopped is ever started again.
     Break: score/graph/runs.py: '    if number == signal.SIGTERM and (shutting_down() or conductor.resizing(registered=registered_at(path))):' -> '    if shutting_down() or conductor.resizing(registered=registered_at(path)):'
     Break: score/__main__.py: '        if code > 128 and path.exists():' -> '        if False:'
     Break: score/graph/runs.py: '                noted(path, gauge)' -> '                pass'
-    Break: score/graph/runs.py: '**(gauge() if gauge else {})}' -> '}' -> the entry never says what the run does."""
+    Break: score/graph/runs.py: '**(gauge() if gauge else {})}' -> '}' -> the entry never says what the run does.
+    C9: PC reboots lost runs; review: resume ran whatever a worktree had checked out days later, a run the owner
+    stopped, one OOM-killed long before. Listed by `score resume --dry` (marking none): the cut-off run; skipped: one
+    whose worktree moved on. Started detached from its own worktree and marked resumed, never twice, even by two
+    resumes at once; one moved on, changed, gone, silent over 12 h before the boot or whose restart fails is marked
+    unresumable with why. The first resume also removes an earlier boot's partial write (C9 review: a write cut by a
+    reboot leaves its .partial file, and nothing removed it) and keeps one of this boot (a write going on now).
+    Break: score/graph/runs.py: '    if not entry.get("commit") or head != entry["commit"]:' -> '    if not entry.get("commit"):'
+    Break: score/graph/runs.py: '    with locked(folder / ".resume.lock"):' -> '    with contextlib.nullcontext():'
+    The conductor: a run asking for 16 jobs waits for the grow; a resume on 2 cores leaves it, one on 16 starts it and
+    keeps the resumed run's pid and log on the entry, so the cockpit follows its launch to the resumed run's end.
+    Break: score/graph/runs.py: '    if entry.get("state") == WAITING and entry.get("jobs", 0) > (os.cpu_count() or 1):' -> '    if False:'
+    Break: score/graph/runs.py: '    started = STARTED.search(done.stdout)' -> '    started = None'
+    On the cluster's home (#76) a run its drive pod's cut left `running` at this boot is started again once, a second
+    cut from the same frozen copy is unresumable, a live one is left, and off the cluster's home none is taken.
+    Break: in runs.cut_at_this_boot, drop `and not size.entry_alive(entry)` (a live drive started twice).
+    Break: in runs.restart_cut, drop the `cut_before` refusal (a run cut by its memory resumed for ever)."""
     from score import __main__ as command
+    home, worktree, commit, done = ahead(
+        "test_a_run_ends_stopped_unless_cut_off_and_resume_starts_only_what_an_earlier_boot_cut_off_unchanged")
+    assert done.returncode == 0, done.stderr
+    assert done.stdout.strip().splitlines() == [
+        f"would resume cut-off: worktree={worktree} commit={commit[:12]} argv=run world1 --place hangar",
+        f"would skip other-commit: worktree={worktree} commit=c0ffee argv=run world1 --place hangar: "
+        f"its worktree is at {commit[:12]}, not the commit that registered it"], done.stdout
+    assert {entry["state"] for entry in runs.entries(home / "runs").values()} == {runs.RUNNING, runs.ENDED,
+                                                                                   runs.STOPPED}
+    folder = run_registry
     path = runs.register(["run", "world1", "--detach", "--jobs", "2"])
     entry = json.loads(path.read_text())
     assert entry["argv"] == ["run", "world1", "--jobs", "2"] and entry["pid"] == os.getpid()
     assert entry["worktree"] == str(REPO) and entry["commit"] == git_out("rev-parse", "HEAD")[0] and entry["state"] == runs.RUNNING
-    assert entry["boot"] == runs.boot_id() and runs.stranded(run_registry) == {}
+    assert entry["boot"] == runs.boot_id() and runs.stranded(folder) == {}
     monkeypatch.setattr(runs, "HEARTBEAT", 0.05)
     for gauge, says in ((None, {}), (lambda: {"running": 0, "buys": 0}, {"running": 0, "buys": 0})):
         os.utime(path, (1, 1))
@@ -3892,7 +3855,7 @@ def test_a_registered_run_says_it_lives_and_its_ending_leaves_it_stopped_unless_
         return path
     monkeypatch.setattr(conductor, "RESIZING", pathlib.Path(tempfile.mkdtemp()) / "resizing.json")
     try:
-        for name, ending in ENDINGS.items():
+        for number, (name, ending) in enumerate(ENDINGS.items()):
             monkeypatch.setattr(runs, "shutting_down", lambda: ending.down)
             monkeypatch.setattr(runs, "written", written_then_stopped if ending.drive == "registering" else written)
             if ending.drive:
@@ -3908,13 +3871,116 @@ def test_a_registered_run_says_it_lives_and_its_ending_leaves_it_stopped_unless_
                     asked = runs.registered_at(path) - 60 if ending.marked == 60 else time.time() + ending.marked
                     conductor.RESIZING.write_text(json.dumps({"action": "grow", "at": asked}))
                 runs.stopped_by(path, ending.signal)
-            assert [entry["state"] for entry in runs.entries(run_registry).values()] == [ending.state], name
+            ended = {path: entry for path, entry in runs.entries(folder).items() if not path.stem.startswith("ending-")}
+            assert [entry["state"] for entry in ended.values()] == [ending.state], name
             conductor.RESIZING.unlink(missing_ok=True)
-            for path in run_registry.glob("*.json"):
-                path.unlink()
+            for path in ended:  # kept for the reboot under a name of its own (two in one second share an id)
+                path.rename(folder / f"ending-{number}.json")
     finally:
+        monkeypatch.setattr(runs, "written", written)  # the reboot's resume writes as it would
         for number, handler in handlers.items():
             signal.signal(number, handler)
+    worktree, commit = a_worktree(STARTS.replace("#!/bin/sh\n", "#!/bin/sh\nsleep 0.3; "))  # a race to win
+    sizing, sizing_commit = a_worktree('#!/bin/sh\necho "detached: started pid=4242 log=/logs/$*"\n')
+    for path in folder.glob("ending-*.json"):  # the machine reboots under the registry
+        entry = json.loads(path.read_text())
+        tree, at = (sizing, sizing_commit) if entry["state"] == runs.WAITING else (worktree, commit)
+        path.write_text(json.dumps({**entry, "id": path.stem, "boot": EARLIER_BOOT, "worktree": str(tree),
+                                    "commit": at}))
+    entry = an_entry(folder, "cut-off", worktree=str(worktree), commit=commit)
+    assert runs.restart_command(entry) == [str(worktree / ".venv/bin/python"), "-m", "score", *entry["argv"],
+                                           "--detach"]
+    an_entry(folder, "waiting", worktree=str(sizing), commit=sizing_commit, state=runs.WAITING, jobs=16,
+             argv=["run", "world1", "--jobs", "16"])
+    an_entry(folder, "waiting-this-boot", state=runs.WAITING, jobs=16, boot=runs.boot_id())
+    shutdowns_kill, resizes_kill = folder / "ending-3.json", folder / "ending-4.json"  # ENDINGS' 4th and 5th
+    assert set(runs.stranded(folder)) == {folder / "cut-off.json", folder / "waiting.json", shutdowns_kill,
+                                          resizes_kill}
+    objects = pathlib.Path(tempfile.mkdtemp())
+    old = partial_of(objects / "records/clean@hangar/k1.json")
+    old.write_text("{")
+    os.utime(old, (runs.boot_time() - 60, runs.boot_time() - 60))
+    new = partial_of(objects / "records/clean@hangar/k2.json")
+    new.write_text("{")
+    said, found = [], []
+    monkeypatch.setattr(os, "cpu_count", lambda: 2)
+    both = [threading.Thread(target=lambda: found.append(runs.resume(False, said.append, folder=folder,
+                                                                     swept=(objects,)))) for _ in range(2)]
+    for each in both:
+        each.start()
+    for each in both:
+        each.join()
+    assert sorted(found) == [2, 4] and (worktree / "starts").read_text().splitlines() == ["started"] * 2, (
+        found, said)
+    resumed = [line for line in said if line.startswith("resumed")]
+    assert sorted(line.split(":")[0] for line in resumed) == ["resumed cut-off", "resumed ending-3"] and all(
+        f"started in {worktree} with -m score run" in line for line in resumed), said
+    left = [line for line in said if line.startswith("left")]
+    assert sorted(line.split(":")[0] for line in left) == ["left ending-4"] * 2 + ["left waiting"] * 2 and all(
+        "still waiting for size: it asks for 16 jobs" in line for line in left), said
+    assert not old.exists() and new.exists() and any(str(old) in line for line in said), said
+    states = {path.stem: entry["state"] for path, entry in runs.entries(folder).items()}
+    assert states == {**{f"ending-{number}": runs.STOPPED for number in range(len(ENDINGS))},
+                      "ending-3": runs.RESUMED, "ending-4": runs.WAITING, "cut-off": runs.RESUMED,
+                      "waiting": runs.WAITING, "waiting-this-boot": runs.WAITING}, states
+    assert set(runs.stranded(folder)) == {folder / "waiting.json", resizes_kill}
+    monkeypatch.setattr(os, "cpu_count", lambda: 16)
+    said.clear()
+    runs.resume(False, said.append, folder=folder, swept=())
+    assert [line.split(":")[0] for line in said] == ["resumed ending-4", "resumed waiting"] and all(
+        "--jobs 16 --detach" in line for line in said), said
+    for path in (resizes_kill, folder / "waiting.json"):
+        resumed = runs.entries(folder)[path]
+        assert resumed["state"] == runs.RESUMED and resumed["jobs"] == 16, resumed
+        assert resumed["resumed"] == {"pid": 4242, "log": "/logs/-m score run world1 --jobs 16 --detach"}, resumed
+    assert [entry["id"] for entry in runs.waiting(folder).values()] == ["waiting-this-boot"]
+    assert runs.stranded(folder) == {}
+    (worktree / "starts").unlink()
+    an_entry(folder, "moved-on", worktree=str(worktree), commit="c0ffee")
+    an_entry(folder, "orphan", worktree=str(folder / "gone"))
+    an_entry(folder, "killed-days-ago", worktree=str(worktree), commit=commit)
+    silent = runs.boot_time() - runs.RESUME_WINDOW - 60
+    os.utime(folder / "killed-days-ago.json", (silent, silent))
+    runs.resume(False, said.append, folder=folder, swept=())
+    (worktree / "stage.py").write_text("changed = True\n")
+    an_entry(folder, "changed", worktree=str(worktree), commit=commit)
+    runs.resume(False, said.append, folder=folder, swept=())
+    refusing, refused_commit = a_worktree('#!/bin/sh\necho "refused: re-buys over EUR 5" >&2; exit 1\n')
+    an_entry(folder, "refused", worktree=str(refusing), commit=refused_commit)
+    runs.resume(False, said.append, folder=folder, swept=())
+    assert not (worktree / "starts").exists(), said
+    whys = {path.stem: entry.get("why", "") for path, entry in runs.entries(folder).items()
+            if entry["state"] == runs.UNRESUMABLE}
+    assert set(whys) == {"moved-on", "orphan", "killed-days-ago", "changed", "refused"}, whys
+    for name, why in (("moved-on", "not the commit that registered it"), ("orphan", "worktree is gone"),
+                      ("killed-days-ago", "last sign of life"), ("changed", "changes not committed"),
+                      ("refused", "refused: re-buys")):
+        assert why in whys[name], (name, whys[name])
+    assert runs.stranded(folder) == {}  # never tried again
+    assert sorted(line.split(":")[0] for line in runs.unresumable(folder)) == sorted(whys)
+    assert [path.stem for path, entry in runs.entries(folder).items() if entry["state"] == runs.STOPPED] == [
+        f"ending-{number}" for number in (0, 1, 2, 5, 6, 7, 8, 9)]  # the stopped runs: never started, never judged
+    from score.conductor import cluster
+    cut_folder = pathlib.Path(tempfile.mkdtemp())
+    worktree, commit = a_worktree(STARTS)
+    gone = {"worktree": str(worktree), "commit": commit, "boot": runs.boot_id(), "pid": 2 ** 22 + 11}
+    an_entry(cut_folder, "cut-on-the-vm", **gone)
+    assert runs.resume(False, said.append, folder=cut_folder, swept=()) == 0  # off the cluster's home: never taken
+    monkeypatch.setattr(cluster, "RECORD", cut_folder / "cluster.json")
+    (cut_folder / "cluster.json").write_text('{"namespace": "score"}')
+    (cut_folder / "cut-on-the-vm.json").unlink()
+    an_entry(cut_folder, "cut-pod", **gone)
+    an_entry(cut_folder, "live-pod", worktree=str(worktree), commit=commit, boot=runs.boot_id(), pid=os.getpid(),
+             started=datetime.datetime.now(datetime.timezone.utc).isoformat())
+    assert runs.resume(False, said.append, folder=cut_folder, swept=()) == 1
+    states = {path.stem: entry for path, entry in runs.entries(cut_folder).items()}
+    assert states["cut-pod"]["state"] == runs.RESUMED and states["cut-pod"]["cut"], said[-1]
+    assert states["live-pod"]["state"] == runs.RUNNING and (worktree / "starts").read_text().count("started") == 1
+    an_entry(cut_folder, "cut-again", **gone)
+    runs.resume(False, said.append, folder=cut_folder, swept=())
+    again = runs.entries(cut_folder)[cut_folder / "cut-again.json"]
+    assert again["state"] == runs.UNRESUMABLE and "cut again" in again["why"], again
+    assert (worktree / "starts").read_text().count("started") == 1
 
 
 # --- one commit per store (C10): a live run of another commit, or of the same commit making the same nodes, refuses
