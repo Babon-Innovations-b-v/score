@@ -82,7 +82,7 @@ Breaks (each applied once, seen red, reverted), in score/stages/__init__.py and 
 - `MOTION_LAYER`: growth's `crops-layer` written `crops`  ->
   test_the_motion_layer_names_only_rows_of_the_table_and_no_old_layer.
 - score/graph/_code.py `source_files`: FRAMEWORK not left out (`set()`)  -> every code-version test above, and the push
-  gate's test_a_framework_only_edit_lists_nothing.
+  gate's TREE_EDITS framework-only row.
 - `scripts_declared`: the row returned as it was  -> test_every_script_a_row_starts_by_path_is_in_its_key (every
   row that starts a script, surfaces-bake's recipes.py among them); score/graph/_code.py `script_imports`: the files
   beside a script dropped  -> the same test (make_chunky.py's bake.py, pieces.py ...); `STARTED_LEFT` with a row that
@@ -231,8 +231,8 @@ Breaks (each applied once, seen red, reverted), in score/stages/gaps.py:
   model's row from any name (`number.isdigit()` dropped); or `all` read as `any` over a gap's objects  ->
   test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its people batch gaps).
 - score/stages/__init__.py `gap_moved`: `judged.__wrapped__ = check.judge` dropped  ->
-  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its GAPPED_GATES rows; and the batch section's two table-move
-  tests).
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its GAPPED_GATES rows; its Pixal3D take and its
+  paint's table moves).
 - data/checks/gaps/garage.json: its pipe entry deleted; or this file's `dropped`: `if entry.get("passed")` dropped  ->
   test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its DROPPED rows and the tree's own records;
   2026-10-29: 37aa882c dropped the owner's pipe gap by itself).
@@ -250,16 +250,19 @@ Fault (#10, 2026-10-21): a failed close-up or Pixal3D job failed the next free g
 the owner, though his yes to the batch had already decided that a failure is a gap.
 
 Breaks (each applied once, seen red, reverted), in score/stages/batch_gaps.py:
-- `batch_gaps.read`: `found.setdefault(...)` read as `found[entry["name"]] = ...` with `decided` dropped  -> the
-  Pixal3D test (no `decided`).
-- `batch_gaps.of`: the inputs' folders left out (only `output`)  -> the views tests and the fixture line (the gap is
-  not carried, so complete has nothing to list).
-- `batch_gaps.objects`: returns an empty set  -> the Pixal3D test (the table no longer moves the hatch's fault).
-- `batch_gaps.write`: writes `{"gaps": []}`  -> every test reading a written gap.
+- `batch_gaps.read`: `found.setdefault(...)` read as `found[entry["name"]] = ...` with `decided` dropped  ->
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its Pixal3D take: no `decided`).
+- `batch_gaps.of`: the inputs' folders left out (only `output`)  ->
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its views and its fixture line: the gap is not
+  carried, so complete has nothing to list).
+- `batch_gaps.objects`: returns an empty set  -> test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its
+  Pixal3D take: the table no longer moves the hatch's fault).
+- `batch_gaps.write`: writes `{"gaps": []}`  -> test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (every
+  written gap it reads).
 - score/stages/surfaces/route_paint.py: `if found:` read as `if True:` (a gaps file written always)  ->
-  test_a_clean_paint_writes_no_gaps_file.
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (its clean paint).
 - a fault no batch gap names, and a take lost with none: the gaps section's `moved` break (`all` read as `any`)  ->
-  test_a_fault_no_batch_gap_names_still_fails_the_gate and test_a_take_lost_with_no_batch_gap_still_stops_its_line.
+  test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps (the changed crate take; the LINES lost-crate row).
 
 --- push gate names the paid rows it moves ---
 
@@ -282,40 +285,41 @@ hook refused every push over drift already on main, refused branch deletions and
 row; its second form let a framework-only push through unchecked and only warned of a move no file explains. On
 2026-11-07 cb8b4557 moved a paid images row through images.json, a world the snapshot did not cover.
 
+Its checks are the push-gate part of test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps: TREE_EDITS rows
+on the toy's working tree, its trailer commit and pre-push check, its framework move, PUSH_LINES, ROW_NAMED and the
+hook's HOOK_CASES rows.
+
 Breaks (each applied once, seen red, reverted), in score/stages/moved.py and .claude/hooks/local/pre-push-moved:
-- `total`: `sum(row.euros ...)` read as `sum(0 * row.euros ...)`  -> the price-and-why test ("about EUR 3.00").
-- `main_pushes`: `ref == MAIN and` dropped  -> test_only_pushes_to_main_are_checked.
-- `trailer_nodes`: `and why.strip()` dropped  -> test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason.
-- `unnamed_paid`: `not row_named(...)` read as `row_named(...)`  -> test_a_trailer_lets_only_the_rows_it_names_go;
-  its `row["paid"] and` dropped  -> test_a_push_is_refused_only_for_the_paid_rows_it_moves (a free row refused).
-- `row_named`: `node.partition("@")[0] in names` read as `node.startswith(row)`  ->
-  test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason (bake2 names bake).
-- `moved_rows`: its `before[name].get("table") != row.get("table")` dropped  -> test_a_move_no_file_explains_is_refused.
-- `edited_into_framework`: `after - before` read as `before - after`  -> the framework-move test.
-- .claude/hooks/local/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the changed-tree hook test
-  (the checkout is left behind).
-- score/__main__.py `moved_check`: `> 0` read as `>= 0`  -> test_nothing_changed_lists_nothing_and_passes.
-- score/graph/_code.py `source_files`: FRAMEWORK not left out  -> test_a_framework_only_edit_lists_nothing.
-- score/graph/rebuy.py `buys`: `if remade[name]` read as `if not remade[name]`  ->
-  test_a_row_moved_through_what_it_reads_is_listed.
-- score/__main__.py `pre_push_check`: `if remote == moved.ZERO` check dropped  ->
-  test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree.
-- `snapshot`: `shutil.rmtree(holder)` made `pass`, or its `worktree remove` made `pass`  ->
-  test_moved_of_an_unknown_commit_or_a_failing_tree_raises_and_leaves_nothing_behind and
-  test_a_hook_that_runs_out_of_time_leaves_no_process_or_checkout_behind.
-- `tree_is_at`: the `git status --porcelain` check dropped  ->
-  test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree.
-- the hook's `= true ] || exit 0` read as `|| true`  -> test_the_hook_is_off_until_the_owner_turns_it_on.
+- `total`: `sum(row.euros ...)` read as `sum(0 * row.euros ...)`  -> the TREE_EDITS file-one-paid-row-reads row
+  ("about EUR 3.00").
+- `main_pushes`: `ref == MAIN and` dropped  -> the PUSH_LINES rows.
+- `trailer_nodes`: `and why.strip()` dropped  -> the ROW_NAMED rows ("bake@hangar:  ").
+- `unnamed_paid`: `not row_named(...)` read as `row_named(...)`  -> the trailer commit (render let go, bake refused);
+  its `row["paid"] and` dropped  -> the TREE_EDITS row moved through what it reads (the free draw row refused).
+- `row_named`: `node.partition("@")[0] in names` read as `node.startswith(row)`  -> the ROW_NAMED rows (bake2 names
+  bake).
+- `moved_rows`: its `before[name].get("table") != row.get("table")` dropped  -> the TREE_EDITS move no file explains.
+- `edited_into_framework`: `after - before` read as `before - after`  -> the framework move.
+- .claude/hooks/local/pre-push-moved: its `trap '... worktree remove ...' EXIT` line made a no-op  -> the HOOK_CASES
+  changed-tree row (the checkout is left behind).
+- score/__main__.py `moved_check`: `> 0` read as `>= 0`  -> the TREE_EDITS nothing-changed row.
+- score/graph/_code.py `source_files`: FRAMEWORK not left out  -> the TREE_EDITS framework-only row.
+- score/graph/rebuy.py `buys`: `if remade[name]` read as `if not remade[name]`  -> the TREE_EDITS row moved through
+  what it reads.
+- score/__main__.py `pre_push_check`: `if remote == moved.ZERO` check dropped  -> the pre-push check of an unknown
+  main.
+- `snapshot`: `shutil.rmtree(holder)` made `pass`, or its `worktree remove` made `pass`  -> the snapshot of an unknown
+  commit or a failing tree, and the HOOK_CASES out-of-time row.
+- `tree_is_at`: the `git status --porcelain` check dropped  -> the pre-push check of a changed tree.
+- the hook's `= true ] || exit 0` read as `|| true`  -> the HOOK_CASES off row.
 - the hook's `[ ! -d "$home/store/objects" ]` dropped, or its candidate loop's `break` dropped (this PC's run home
-  read over a default home holding a store)  -> test_the_hook_is_off_until_the_owner_turns_it_on.
-- the hook's `[ "$remote_ref" = refs/heads/main ] &&` dropped  ->
-  test_the_hook_passes_deletions_tags_and_other_branches_at_once.
-- the hook's `rm -rf "$checkout"` dropped  -> test_the_hook_refuses_and_leaves_nothing_when_no_worktree_can_be_made.
-- the hook's `grep -qs -- "--pre-push"` read as `grep -qs -- ""`  ->
-  test_the_hook_skips_a_commit_made_before_score_moved.
-- the hook's `|| echo 3600` read as `|| echo 900`  -> test_the_hook_gives_the_check_an_hour_unless_told_otherwise.
-- the hook's main-checkout python (`$(git rev-parse --git-common-dir)/..`) read as `$repo`  ->
-  test_a_worktree_hook_uses_the_main_checkouts_python.
+  read over a default home holding a store)  -> the HOOK_CASES home rows.
+- the hook's `[ "$remote_ref" = refs/heads/main ] &&` dropped  -> the HOOK_CASES tag and other-branch rows.
+- the hook's `rm -rf "$checkout"` dropped  -> the HOOK_CASES no-worktree row (its TMPDIR not empty).
+- the hook's `grep -qs -- "--pre-push"` read as `grep -qs -- ""`  -> the HOOK_CASES before-score-moved row.
+- the hook's `|| echo 3600` read as `|| echo 900`  -> every HOOK_CASES row that runs the check.
+- the hook's main-checkout python (`$(git rev-parse --git-common-dir)/..`) read as `$repo`  -> the HOOK_CASES
+  worktree row.
 """
 
 import ast
@@ -1426,7 +1430,9 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     physics) and each scene's layers off its kept design, and the stage table holds a row for exactly the layers the
     assembly's gate waits on; a row's objects are found outside the layers' scopes, anything else a stranger. An
     accepted gap moves only the faults it names and is read only by complete and the row it names; complete fails
-    each by name, and an owner's gap is never dropped unless retired on a passing output."""
+    each by name, and an owner's gap is never dropped unless retired on a passing output. A failed paid take is a gap
+    carried down its line. The push gate names the paid rows a change moves, refuses a push to main only for those no
+    trailer names, and its hook runs the check from the right checkout, home and python and leaves nothing behind."""
     from score.stages import assembly
     house = row_kinds.table()
     for case, judge, read, answer in JUDGED:
@@ -1522,6 +1528,197 @@ def test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps(tmp_path, mon
     hashing = {name for name in ("assembly", "surfaces-check", "surfaces-paint", "complete")
                if _code.REPO / "score/stages/gaps.py" in _code.source_files(graph.code_functions(ROWS[name]))}
     assert hashing == {"complete"}, hashing  # moving a verdict re-makes nothing, the paid paint above all
+
+    # a failed paid take is a gap carried down its line: the batch brought the crate's take back and not the hatch's;
+    # its row names the gap, its gate still fails it and the table moves exactly that fault
+    out, inputs = pixal_made({"crate-s1"})
+    found = batch_gaps.read([out])
+    assert [entry["name"] for entry in found] == ["hatch: Pixal3D made no model"], found
+    assert set(found[0]["objects"]) == {"hatch", "hatch-s1"} and found[0]["row"] == "pixal"
+    assert found[0]["decided"] == f"the batch run (pixal, output {out.name})"
+    takes = next(check for check in ROWS["pixal"].checks if check.name == "takes")
+    raw = takes.judge.__wrapped__(out, inputs, None)
+    assert raw.answer == checks.FAIL and all(finding.startswith("hatch: ") for finding in raw.findings), raw
+    gated = takes.judge(out, inputs, None)
+    assert gated.answer == checks.PASS and gated.findings == raw.findings, gated
+    assert "moved to complete as accepted gaps: hatch: Pixal3D made no model (the batch run" in gated.reason
+    # the views leave the gap's take out and carry its gap on
+    views = out.parent / "views"
+    views.mkdir()
+    route_views.make_views({"surfaces": inputs["surfaces"], "pixal": out}, views, 0, {})
+    assert list(json.loads((views / "views.json").read_text())) == ["crate-s1"]
+    assert [entry["name"] for entry in batch_gaps.read([views])] == ["hatch: Pixal3D made no model"]
+    # a fault no batch gap names still fails the gate: the made take changed since
+    pixal_row.take_files("crate-s1")[1].write_text("changed since it was made")
+    assert takes.judge(out, inputs, None).answer == checks.FAIL
+    # every take a batch gap: the views pass with their gaps carried (finish-route-views@people, 2026-10-21, failed it
+    # as "no take to work on"), and the same empty views with no gap still fail
+    for path in [path for entry in OBJECTS.values() for path in pixal_row.take_files(entry["take"])]:
+        if path.is_dir():
+            shutil.rmtree(path)
+        elif path.exists():
+            path.unlink()
+    out, inputs = pixal_made(set())
+    views = out.parent / "views"
+    views.mkdir()
+    route_views.make_views({"surfaces": inputs["surfaces"], "pixal": out}, views, 0, {})
+    assert json.loads((views / "views.json").read_text()) == {}
+    verdict = route_views.judge_views(views, {}, None)
+    assert verdict.answer == checks.PASS and verdict.measures["left_out"] == 2, verdict
+    assert "crate: Pixal3D made no model" in verdict.reason and "hatch: Pixal3D made no model" in verdict.reason
+    assert {entry["name"] for entry in batch_gaps.read([views])} == {"crate: Pixal3D made no model",
+                                                                     "hatch: Pixal3D made no model"}
+    (views / batch_gaps.FILE).write_text(json.dumps({"gaps": []}))
+    assert route_views.judge_views(views, {}, None).answer == checks.FAIL
+
+    # the fixture line runs on to complete apart from the batch's gap, which complete lists with the batch run that
+    # decided it; a take lost with no batch gap still stops the line
+    for brief, says in LINES:
+        runner = fixture_line(brief)
+        found = runner.drive(["dock"], say=lambda line: None)
+        assert {node: found[node] for node in says} == says, (brief, found)
+        if brief == "the batch":
+            assert found["complete@dock"].startswith("made: fail, accepted automatically"), found
+            assert runner.status(["dock"])["complete@dock"] == "complete apart from accepted gaps (1), accepted"
+            judgement = review.newest_judgement(runner.store, review.record_of(runner.store, "complete@dock"))
+            listed = judgement["verdicts"][graph.GAPPED]
+            assert "hatch: Pixal3D made no model (the Pixal3D job ran once and failed; the batch run (pixal, output" \
+                in listed["reason"] and listed["findings"] == ["hatch: Pixal3D made no model: hatch: no hatch-s1.glb"]
+
+    # a take the paint fails is a gap and the table moves its fault alone; the check's model over its budget a gap of
+    # it and its take; a fault no gap names still stops; a clean paint writes no gaps file
+    from score.stages.surfaces import route_check
+    measured_clean(monkeypatch)
+    surfaces = tmp_path / "surfaces"
+    surfaces.mkdir()
+    baked, records = painted(surfaces)
+    inputs = {"surfaces-bake": baked}
+    paint = surfaces / "paint"
+    paint.mkdir()
+    ROWS["surfaces-paint"].make(inputs, paint, 0, {})
+    found = batch_gaps.read([paint])
+    assert [entry["name"] for entry in found] == ["crate-s1: colour against the close-up"], found
+    colour = next(check for check in ROWS["surfaces-paint"].checks if check.name == "colour against the close-up")
+    assert colour.judge.__wrapped__(paint, inputs, None).answer == checks.FAIL
+    gated = colour.judge(paint, inputs, None)
+    assert gated.answer == checks.PASS and "moved to complete" in gated.reason, gated
+    monkeypatch.setattr(route_check.prop_env, "handover",
+                        lambda module, step, given, out: written(out, "checks.json", records))
+    check = surfaces / "check"
+    check.mkdir()
+    route_check.make_check({**inputs, "surfaces-paint": paint}, check, 0, {})
+    names = {entry["name"]: entry for entry in batch_gaps.read([check])}
+    assert set(names) == {"crate-s1: colour against the close-up", "crate: triangles within budget"}, names
+    assert set(names["crate: triangles within budget"]["objects"]) == {"crate", "crate-s1"}
+    budget = next(check for check in ROWS["surfaces-check"].checks if check.name == "triangles within budget")
+    assert budget.judge(check, {**inputs, "surfaces-paint": paint}, None).answer == checks.PASS
+    written(check, "checks.json", {**records, "hatch": dict(records["hatch"], triangles=5000)})
+    assert budget.judge(check, {**inputs, "surfaces-paint": paint}, None).answer == checks.FAIL
+    written(baked, "painted.json", {"takes": {"hatch-s1": {"unnamed_parts": 0, "unnamed_share": 0.0, "finishes": [],
+                                                           "feet": {}}}, "left_out": {}})
+    clean = surfaces / "clean-paint"
+    clean.mkdir()
+    ROWS["surfaces-paint"].make({"surfaces-bake": baked}, clean, 0, {})
+    assert not (clean / batch_gaps.FILE).exists()
+
+    # the push gate: on a toy repository with every row made and accepted, each working-tree edit is listed by
+    # `score moved` as the paid rows it buys again, with price and why, and refused at a push only for a paid row moved
+    main = command()
+    with toy() as repo:
+        store = made(repo)
+        before = snap(repo, store)
+        for case, files, table, buys, moved_now, refusal in TREE_EDITS:
+            for name, text in files.items():
+                (repo / name).write_text(text)
+            if buys is not None:
+                found = rebought(repo, store, **table)
+                assert [(row.node, row.euros, row.why) for row in found["toy"]] == buys, (case, found)
+                printed, code = exit_code(main.moved_check, found)
+                assert code == (moved.MOVED_EXIT if buys else 0), (case, printed)
+                assert f"about EUR {sum(euros for _, euros, _ in buys):.2f}" in printed, (case, printed)
+                assert all(f"toy {node}: EUR {euros:.2f}, {why}" in printed for node, euros, why in buys), printed
+            found = moved.moved_rows(before, snap(repo, store, **table))
+            assert moves(found) == moved_now, (case, found)
+            printed, code = exit_code(main.pushed_check, found, [])
+            assert code == (moved.MOVED_EXIT if refusal else 0), (case, printed)
+            assert all(said in printed for said in refusal), (case, printed)
+            git(repo, "checkout", "--", ".")
+        # an unknown commit, or one whose tree cannot work out a snapshot (the toy has no score), raises and leaves
+        # no checkout behind
+        checkouts = set(repo.parent.glob("moved-*"))
+        for commit in ("f" * 40, git(repo, "rev-parse", "HEAD")):
+            with pytest.raises(subprocess.CalledProcessError):
+                moved.snapshot(commit)
+        assert set(repo.parent.glob("moved-*")) == checkouts and len(git(repo, "worktree", "list").splitlines()) == 1
+        # a pushed commit's trailer lets only the rows it names go; the pre-push check works it out on a clean
+        # checkout of the pushed commit against main's, never on a changed tree or an unknown main
+        line, tip = pushed(repo, "data: a brighter hall and a new make\n\nMoved-rows: bake@hangar: the owner asked",
+                           {"bake.txt": "a hall's brighter light", "toy_render.py": RENDER_MAKE + "\n# moved\n"})
+        sys.modules.pop("toy_render", None)
+        found = moved.moved_rows(before, snap(repo, store))
+        assert sorted(found) == ["bake", "render"], found
+        reasons = moved.pushed_reasons(moved.main_pushes([line]))
+        assert reasons == ["bake@hangar: the owner asked"]
+        assert moved.pushed_reasons([(tip, moved.ZERO)]) == reasons  # a new remote ref: commits on no remote yet
+        bases = []
+        moved.moved = lambda base, head=None: bases.append((base, head)) or found
+        (repo / "draw.txt").write_text("not committed")
+        printed, code = exit_code(main.pre_push_check, [line])
+        assert code != 0 and "clean checkout" in printed and bases == [], printed
+        git(repo, "checkout", "--", "draw.txt")
+        printed, code = exit_code(main.pre_push_check, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
+        assert code != 0 and "not known" in printed and bases == [], printed
+        printed, code = exit_code(main.pre_push_check, [line])
+        assert code == moved.MOVED_EXIT and "Moved-rows: render: <why>" in printed, printed
+        assert bases == [(line.split()[3], None)]
+        printed, code = exit_code(main.pushed_check, found, reasons + ["render: a new make"])
+        assert code == 0 and "Moved-rows: bake@hangar: the owner asked" in printed, printed
+        # a module moved into FRAMEWORK and edited in the same change makes the rows that read it again (no narrowing
+        # carry): it is named, a plain move is not
+        (repo / "score/graph").mkdir(parents=True)
+        declared = repo / "score/graph/_code.py"
+        declared.write_text("FRAMEWORK = {REPO / name for name in ()}\n")
+        first = pushed(repo, "helpers", {"plain.py": "A = 1\n", "edited.py": "B = 1\n"})[1]
+        declared.write_text("FRAMEWORK = {REPO / name for name in ('plain.py', 'edited.py')}\n")
+        second = pushed(repo, "helpers into the framework", {"edited.py": "B = 2\n"})[1]
+        assert moved.edited_into_framework(first, second) == ["edited.py"]
+    for lines, pushes in PUSH_LINES:
+        assert moved.main_pushes(lines) == pushes, lines
+    printed, code = exit_code(main.pre_push_check, NOT_MAIN)
+    assert code == 0 and "nothing pushed to main" in printed, printed
+    for row_name, reasons, is_named in ROW_NAMED:
+        assert moved.row_named(row_name, reasons) is is_named, (row_name, reasons)
+
+    # the hook runs the check only for a push to main once the owner turned it on, from the right checkout, home and
+    # python, within its time, and leaves no checkout, process or temporary file behind
+    hooks = hook_world()
+    for case, name, where, line, on, limit, loose, exit_with, env, code, said, record, timeout in HOOK_CASES:
+        repo = hooks[name]
+        values = {**hooks, "tip": git(repo, "rev-parse", "HEAD")}
+        configured(repo, "score.movedCheck", "true" if on else None)
+        configured(repo, "score.movedTimeout", limit)
+        trees = git(repo, "worktree", "list")
+        if loose:
+            (repo / "loose.txt").write_text("not committed")
+        line = placed(line, values)
+        ran, printed, wrote, given, temp = hook(values[where], [line], exit_with,
+                                                   {key: placed(value, values) for key, value in env.items()})
+        assert ran == code and (said in printed if said else printed == ""), (case, ran, printed)
+        assert given == timeout, (case, given)
+        if record is None:
+            assert wrote is None, (case, wrote)
+        elif record == ENDED:
+            assert isinstance(wrote, int) and gone(wrote), (case, wrote)
+        else:
+            for key, value in record.items():
+                if value == GONE:
+                    assert wrote[key] != str(repo) and not pathlib.Path(wrote[key]).exists(), (case, wrote)
+                else:
+                    assert wrote[key] == placed(value, values), (case, key, wrote)
+        assert list(temp.iterdir()) == [] and git(repo, "worktree", "list") == trees, case
+        assert sorted(path.name for path in repo.parent.iterdir()) == ["repo"], case
+        if loose:
+            (repo / "loose.txt").unlink()
 
 
 # --- every designed person is a look of the line ---
@@ -2057,58 +2254,6 @@ def pixal_made(made):
     return out, inputs
 
 
-def test_a_take_the_batch_made_no_model_of_is_a_gap_its_gate_still_fails_and_the_table_moves():
-    out, inputs = pixal_made({"crate-s1"})
-    found = batch_gaps.read([out])
-    assert [entry["name"] for entry in found] == ["hatch: Pixal3D made no model"], found
-    assert set(found[0]["objects"]) == {"hatch", "hatch-s1"} and found[0]["row"] == "pixal"
-    assert found[0]["decided"] == f"the batch run (pixal, output {out.name})"
-    gate = next(check for check in ROWS["pixal"].checks if check.name == "takes")
-    raw = gate.judge.__wrapped__(out, inputs, None)
-    assert raw.answer == checks.FAIL and all(finding.startswith("hatch: ") for finding in raw.findings), raw
-    moved = gate.judge(out, inputs, None)
-    assert moved.answer == checks.PASS and moved.findings == raw.findings, moved
-    assert "moved to complete as accepted gaps: hatch: Pixal3D made no model (the batch run" in moved.reason
-
-
-def test_a_fault_no_batch_gap_names_still_fails_the_gate():
-    out, inputs = pixal_made({"crate-s1"})
-    (pixal_row.take_files("crate-s1")[1]).write_text("changed since it was made")
-    gate = next(check for check in ROWS["pixal"].checks if check.name == "takes")
-    assert gate.judge(out, inputs, None).answer == checks.FAIL
-
-
-def test_the_views_leave_a_batch_gap_s_take_out_and_carry_its_gap():
-    out, inputs = pixal_made({"crate-s1"})
-    views = out.parent / "views"
-    views.mkdir()
-    route_views.make_views({"surfaces": inputs["surfaces"], "pixal": out}, views, 0, {})
-    assert list(json.loads((views / "views.json").read_text())) == ["crate-s1"]
-    assert [entry["name"] for entry in batch_gaps.read([views])] == ["hatch: Pixal3D made no model"]
-
-
-def test_the_views_pass_with_their_gaps_carried_when_every_take_is_a_batch_gap():
-    """finish-route-views@people, 2026-10-21: every take was left out by carried batch gaps, and the views gate
-    failed it as "no take to work on", stopping the line the batch rule says runs on with its gaps."""
-    for path in [path for entry in OBJECTS.values() for path in pixal_row.take_files(entry["take"])]:
-        if path.is_dir():  # an earlier test's takes, under this sandbox's home
-            shutil.rmtree(path)
-        elif path.exists():
-            path.unlink()
-    out, inputs = pixal_made(set())
-    views = out.parent / "views"
-    views.mkdir()
-    route_views.make_views({"surfaces": inputs["surfaces"], "pixal": out}, views, 0, {})
-    assert json.loads((views / "views.json").read_text()) == {}
-    verdict = route_views.judge_views(views, {}, None)
-    assert verdict.answer == checks.PASS and verdict.measures["left_out"] == 2, verdict
-    assert "crate: Pixal3D made no model" in verdict.reason and "hatch: Pixal3D made no model" in verdict.reason
-    assert {entry["name"] for entry in batch_gaps.read([views])} == {"crate: Pixal3D made no model",
-                                                                     "hatch: Pixal3D made no model"}
-    (views / batch_gaps.FILE).write_text(json.dumps({"gaps": []}))  # the same empty views with no gap still fail
-    assert route_views.judge_views(views, {}, None).answer == checks.FAIL
-
-
 # The fixture batch: the prop route's rows by their table names, each a toy make, wrapped by the table's own gap
 # mover (stages.accepted_gaps) as the real rows are.
 TOY = contracts.Contract("toy", 1, lambda folder: [])
@@ -2168,23 +2313,10 @@ def fixture_line(brief):
                         model_record=lambda kind: {})
 
 
-def test_a_failed_pixal_take_leaves_its_place_s_line_running_to_complete_apart_from_its_gaps():
-    runner = fixture_line("the batch")
-    found = runner.drive(["dock"], say=lambda line: None)
-    for node in ("pixal@dock", "likeness@dock"):
-        assert found[node] == "made: pass, accepted automatically", found
-    assert found["complete@dock"].startswith("made: fail, accepted automatically"), found
-    assert runner.status(["dock"])["complete@dock"] == "complete apart from accepted gaps (1), accepted"
-    judgement = review.newest_judgement(runner.store, review.record_of(runner.store, "complete@dock"))
-    listed = judgement["verdicts"][graph.GAPPED]
-    assert "hatch: Pixal3D made no model (the Pixal3D job ran once and failed; the batch run (pixal, output" \
-        in listed["reason"] and listed["findings"] == ["hatch: Pixal3D made no model: hatch: no hatch-s1.glb"]
-
-
-def test_a_take_lost_with_no_batch_gap_still_stops_its_line():
-    runner = fixture_line("the batch lost the crate")
-    found = runner.drive(["dock"], say=lambda line: None)
-    assert found["likeness@dock"] == "not run: its line stopped at pixal@dock", found
+# (brief, what the line says at its nodes): the batch's gap carried on to complete; a take lost with no gap stops it
+LINES = [("the batch", {"pixal@dock": "made: pass, accepted automatically",
+                        "likeness@dock": "made: pass, accepted automatically"}),
+         ("the batch lost the crate", {"likeness@dock": "not run: its line stopped at pixal@dock"})]
 
 
 def painted(folder):
@@ -2213,86 +2345,7 @@ def measured_clean(monkeypatch):
                         lambda inputs, out: baked_colour.measure_step(baked_colour.prop_env.short(inputs), out))
 
 
-def test_a_take_the_paint_or_check_fails_is_a_gap_and_the_table_moves_its_fault_alone(monkeypatch):
-    from score.stages.surfaces import route_check
-    measured_clean(monkeypatch)
-    folder = pathlib.Path(tempfile.mkdtemp())
-    try:
-        baked, records = painted(folder)
-        inputs = {"surfaces-bake": baked}
-        paint = folder / "paint"
-        paint.mkdir()
-        ROWS["surfaces-paint"].make(inputs, paint, 0, {})
-        found = batch_gaps.read([paint])
-        assert [entry["name"] for entry in found] == ["crate-s1: colour against the close-up"], found
-        gate = next(check for check in ROWS["surfaces-paint"].checks if check.name == "colour against the close-up")
-        assert gate.judge.__wrapped__(paint, inputs, None).answer == checks.FAIL
-        moved = gate.judge(paint, inputs, None)
-        assert moved.answer == checks.PASS and "moved to complete" in moved.reason, moved
-        # the check: its step faked to write checks.json; the model over its budget is a gap of it and its take
-        handover = route_check.prop_env.handover
-        route_check.prop_env.handover = lambda module, step, given, out: written(out, "checks.json", records)
-        check = folder / "check"
-        check.mkdir()
-        try:
-            route_check.make_check({**inputs, "surfaces-paint": paint}, check, 0, {})
-        finally:
-            route_check.prop_env.handover = handover
-        names = {entry["name"]: entry for entry in batch_gaps.read([check])}
-        assert set(names) == {"crate-s1: colour against the close-up", "crate: triangles within budget"}, names
-        assert set(names["crate: triangles within budget"]["objects"]) == {"crate", "crate-s1"}
-        gate = next(check for check in ROWS["surfaces-check"].checks if check.name == "triangles within budget")
-        assert gate.judge(check, {**inputs, "surfaces-paint": paint}, None).answer == checks.PASS
-        # a fault no gap names still stops: the clean model over its budget too
-        written(check, "checks.json", {**records, "hatch": dict(records["hatch"], triangles=5000)})
-        assert gate.judge(check, {**inputs, "surfaces-paint": paint}, None).answer == checks.FAIL
-    finally:
-        shutil.rmtree(folder)
-
-
-def test_a_clean_paint_writes_no_gaps_file(monkeypatch):
-    measured_clean(monkeypatch)
-    folder = pathlib.Path(tempfile.mkdtemp())
-    try:
-        baked, _ = painted(folder)
-        written(baked, "painted.json", {"takes": {"hatch-s1": {"unnamed_parts": 0, "unnamed_share": 0.0,
-                                                               "finishes": [], "feet": {}}}, "left_out": {}})
-        paint = folder / "paint"
-        paint.mkdir()
-        ROWS["surfaces-paint"].make({"surfaces-bake": baked}, paint, 0, {})
-        assert not (paint / batch_gaps.FILE).exists()
-    finally:
-        shutil.rmtree(folder)
-
-
 # --- push gate names the paid rows it moves ---
-
-def test_a_file_moved_into_framework_and_edited_in_the_same_change_is_named():
-    """A module moved into FRAMEWORK and edited in the same change makes the rows that read it again (no narrowing
-    carry): it is named, a plain move is not."""
-    repo = pathlib.Path(tempfile.mkdtemp(prefix="moved_repo_")).resolve()
-    (repo / "score" / "graph").mkdir(parents=True)
-    declared = repo / "score" / "graph" / "_code.py"
-
-    def commit(framework, helpers):
-        declared.write_text(f"FRAMEWORK = {{REPO / name for name in {framework!r}}}\n")
-        for name, text in helpers.items():
-            (repo / name).write_text(text)
-        for command in (["add", "."], ["-c", "user.name=test", "-c", "user.email=test@test", "commit", "-qm", "step"],
-                        ["rev-parse", "HEAD"]):
-            done = subprocess.run(["git", "-C", str(repo), *command], check=True, capture_output=True, text=True)
-        return done.stdout.strip()
-
-    subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)
-    saved = _code.REPO
-    _code.REPO = repo
-    try:
-        first = commit((), {"plain.py": "A = 1\n", "edited.py": "B = 1\n"})
-        second = commit(("plain.py", "edited.py"), {"edited.py": "B = 2\n"})
-        assert moved.edited_into_framework(first, second) == ["edited.py"]
-    finally:
-        _code.REPO = saved
-
 
 TEXT = contracts.Contract("toy-text", 1, lambda folder: [])
 
@@ -2387,7 +2440,7 @@ def made(repo):
     return store
 
 
-def rows(repo, store, **table):
+def rebought(repo, store, **table):
     runner = a_runner(repo, store, **table)
     return {"toy": moved.rebuys(runner, list(runner.nodes(["hangar"])))}
 
@@ -2412,143 +2465,46 @@ def pushed(repo, message, files):
     return f"refs/heads/main {tip} refs/heads/main {base}", tip
 
 
-def test_nothing_changed_lists_nothing_and_passes():
-    with toy() as repo:
-        found = rows(repo, made(repo))
-        assert found == {"toy": []} and exit_code(command().moved_check, found)[1] == 0
-
-
-def test_a_file_read_by_one_paid_row_lists_that_row_with_its_price_and_why():
-    with toy() as repo:
-        store = made(repo)
-        (repo / "bake.txt").write_text("a hall's brighter light")
-        found = rows(repo, store)
-        assert [(row.node, row.euros, row.why) for row in found["toy"]] == [("bake@hangar", 3.0, "brief changed")]
-        printed, code = exit_code(command().moved_check, found)
-        assert code == moved.MOVED_EXIT and "toy bake@hangar: EUR 3.00, brief changed" in printed
-        assert "about EUR 3.00" in printed
-
-
-def test_a_framework_only_edit_lists_nothing():
-    with toy() as repo:
-        store = made(repo)
-        (repo / "toy_frame.py").write_text('WORD = "made by the framework: "\n')
-        assert rows(repo, store) == {"toy": []}
-
-
-def test_a_row_moved_through_what_it_reads_is_listed():
-    with toy() as repo:
-        store = made(repo)
-        (repo / "draw.txt").write_text("a hall's new plan")
-        found = rows(repo, store)
-        assert [(row.node, row.euros, row.why) for row in found["toy"]] == [("film@hangar", 2.0, "reads draw@hangar")]
-
-
-def test_only_pushes_to_main_are_checked():
-    tip, base = "a" * 40, "b" * 40
-    lines = [f"refs/heads/main {moved.ZERO} refs/heads/main {base}",  # a deletion
-             f"refs/tags/v1 {tip} refs/tags/v1 {moved.ZERO}",
-             f"refs/heads/side {tip} refs/heads/side {base}"]
-    assert moved.main_pushes(lines) == []
-    printed, code = exit_code(command().pre_push_check, lines)
-    assert code == 0 and "nothing pushed to main" in printed
-    assert moved.main_pushes(lines + [f"HEAD {tip} refs/heads/main {base}"]) == [(tip, base)]
-
-
 def snap(repo, store, **table):
     """moved.row_entry of every toy row: the snapshot the toy's working tree gives."""
     runner = a_runner(repo, store, **table)
     return {row.name: moved.row_entry(runner, row, ["hangar"], repo) for row in runner.stages.values()}
 
 
-def test_a_push_is_refused_only_for_the_paid_rows_it_moves():
-    """A declared file moves its paid row, refused with no trailer; nothing moved, or only a free row, lets the push
-    go (a paid row reading it is a run's re-buy question, before it starts, not the push's)."""
-    with toy() as repo:
-        store = made(repo)
-        before = snap(repo, store)
-        assert moved.moved_rows(before, snap(repo, store)) == {}
-        (repo / "bake.txt").write_text("a hall's brighter light")
-        found = moved.moved_rows(before, snap(repo, store))
-        assert list(found) == ["bake"] and found["bake"]["paid"] and found["bake"]["files"] == {"bake.txt": ["hangar"]}
-        printed, code = exit_code(command().pushed_check, found, [])
-        assert code == moved.MOVED_EXIT and "bake (paid): bake.txt (1 places)" in printed
-        assert "Moved-rows: bake: <why>" in printed
-        (repo / "bake.txt").write_text("a hall's light")
-        (repo / "draw.txt").write_text("a hall's new plan")
-        found = moved.moved_rows(before, snap(repo, store))
-        assert list(found) == ["draw"] and exit_code(command().pushed_check, found, [])[1] == 0
+def moves(found):
+    """moved.moved_rows' answer as {row: (paid, its code moved, its moved files)}."""
+    return {name: (row["paid"], row["code"], row["files"]) for name, row in found.items()}
 
 
-def test_a_move_no_file_explains_is_refused():
-    """A stage table edit (a row's params here; a contract, a model or an after alike) moves the row with no file of
-    its own changed: refused like any other."""
-    with toy() as repo:
-        store = made(repo)
-        found = moved.moved_rows(snap(repo, store), snap(repo, store, bake_params={"light": 2}))
-        assert list(found) == ["bake"] and found["bake"]["code"] and found["bake"]["files"] == {}
-        printed, code = exit_code(command().pushed_check, found, [])
-        assert code == moved.MOVED_EXIT and "Moved-rows: bake: <why>" in printed
+# (case, files written over the toy's commit, the table's change, the paid rows `score moved` lists (node, euros, why),
+# the rows the push gate finds moved, what its refusal says (none: the push goes)): a declared file moves its paid
+# row; a framework-only edit nothing; a free row's file the paid row reading it (a run's re-buy question before it
+# starts, never the push's); a table edit (a row's params here; a contract, a model or an after alike) moves the row
+# with no file of its own changed, refused like any other
+TREE_EDITS = [
+    ("nothing changed", {}, {}, [], {}, []),
+    ("a file one paid row reads", {"bake.txt": "a hall's brighter light"}, {}, [("bake@hangar", 3.0, "brief changed")],
+     {"bake": (True, False, {"bake.txt": ["hangar"]})}, ["bake (paid): bake.txt (1 places)", "Moved-rows: bake: <why>"]),
+    ("a framework-only edit", {"toy_frame.py": 'WORD = "made by the framework: "\n'}, {}, [], {}, []),
+    ("a row moved through what it reads", {"draw.txt": "a hall's new plan"}, {}, [("film@hangar", 2.0, "reads draw@hangar")],
+     {"draw": (False, False, {"draw.txt": ["hangar"]})}, []),
+    ("a move no file explains", {}, {"bake_params": {"light": 2}}, None, {"bake": (True, True, {})},
+     ["Moved-rows: bake: <why>"]),
+]
 
+# (git's pre-push lines, the (local sha, remote sha) pushes to main among them): a deletion, a tag and another branch
+# are none
+TIP, BASE = "a" * 40, "b" * 40
+NOT_MAIN = [f"refs/heads/main {moved.ZERO} refs/heads/main {BASE}", f"refs/tags/v1 {TIP} refs/tags/v1 {moved.ZERO}",
+            f"refs/heads/side {TIP} refs/heads/side {BASE}"]
+PUSH_LINES = [(NOT_MAIN, []), (NOT_MAIN + [f"HEAD {TIP} refs/heads/main {BASE}"], [(TIP, BASE)])]
 
-def test_moved_of_an_unknown_commit_or_a_failing_tree_raises_and_leaves_nothing_behind():
-    with toy() as repo:
-        left = set(repo.parent.glob("moved-*"))
-        for commit in ("f" * 40, git(repo, "rev-parse", "HEAD")):  # no such commit; the toy has no score to run
-            with pytest.raises(subprocess.CalledProcessError):
-                moved.snapshot(commit)
-        assert set(repo.parent.glob("moved-*")) == left
-        assert len(git(repo, "worktree", "list").splitlines()) == 1
-
-
-def test_a_trailer_lets_only_the_rows_it_names_go():
-    with toy() as repo:
-        store = made(repo)
-        before = snap(repo, store)
-        line, tip = pushed(repo, "data: a brighter hall and a new make\n\nMoved-rows: bake@hangar: the owner asked",
-                           {"bake.txt": "a hall's brighter light", "toy_render.py": RENDER_MAKE + "\n# moved\n"})
-        sys.modules.pop("toy_render", None)
-        found = moved.moved_rows(before, snap(repo, store))
-        assert sorted(found) == ["bake", "render"], found
-        pushes = moved.main_pushes([line])
-        reasons = moved.pushed_reasons(pushes)
-        assert reasons == ["bake@hangar: the owner asked"]
-        printed, code = exit_code(command().pushed_check, found, reasons)
-        assert code == moved.MOVED_EXIT and "Moved-rows: render: <why>" in printed
-        assert moved.pushed_reasons([(tip, moved.ZERO)]) == reasons  # a new remote ref: commits on no remote yet
-        printed, code = exit_code(command().pushed_check, found, reasons + ["render: a new make"])
-        assert code == 0 and "Moved-rows: bake@hangar: the owner asked" in printed
-
-
-def test_a_trailer_names_a_row_only_among_its_nodes_and_with_a_reason():
-    """"Moved-rows: <row or node> ...: <reason>": a row with no reason, or one only in another row's reason, is not
-    named; an environment's prefix may be left off."""
-    assert moved.row_named("bake", ["bake@hangar film@hangar: the owner asked"])
-    assert moved.row_named("film", ["bake, film: the owner asked"])
-    assert moved.row_named("images:image-proof-runner", ["image-proof-runner: a new build"])
-    assert not moved.row_named("bake", ["bake@hangar"])
-    assert not moved.row_named("bake", ["bake@hangar:  "])
-    assert not moved.row_named("bake", ["film@hangar: it reads bake@hangar"])
-    assert not moved.row_named("bake", ["bake2@hangar: another row"])
-
-
-def test_pre_push_checks_the_pushed_commit_against_mains_not_a_changed_tree():
-    with toy() as repo:
-        line, tip = pushed(repo, "data: a brighter hall", {"bake.txt": "a hall's brighter light"})
-        main = command()
-        bases = []
-        found = {"bake": {"paid": True, "code": False, "files": {"bake.txt": ["hangar"]}, "places": ["hangar"]}}
-        moved.moved = lambda base, head=None: bases.append((base, head)) or found
-        (repo / "draw.txt").write_text("not committed")
-        printed, code = exit_code(main.pre_push_check, [line])
-        assert code != 0 and "clean checkout" in printed and bases == []
-        git(repo, "checkout", "--", "draw.txt")
-        printed, code = exit_code(main.pre_push_check, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
-        assert code != 0 and "not known" in printed and bases == []
-        printed, code = exit_code(main.pre_push_check, [line])
-        assert code == moved.MOVED_EXIT and "Moved-rows: bake: <why>" in printed
-        assert bases == [(line.split()[3], None)]
-
+# (row, Moved-rows trailer values, named): "<row or node> ...: <reason>" names a row by its name or a node of it, an
+# environment's prefix left off or not; never with no reason, only in another row's reason, or by another row's prefix
+ROW_NAMED = [("bake", ["bake@hangar film@hangar: the owner asked"], True), ("film", ["bake, film: the owner asked"], True),
+             ("images:image-proof-runner", ["image-proof-runner: a new build"], True),
+             ("bake", ["bake@hangar"], False), ("bake", ["bake@hangar:  "], False),
+             ("bake", ["film@hangar: it reads bake@hangar"], False), ("bake", ["bake2@hangar: another row"], False)]
 
 HOOK = REPO / ".claude/hooks/local/pre-push-moved"
 
@@ -2588,81 +2544,38 @@ def hook_repo(command_text=RECORDER):
     return repo
 
 
-def hook(where, push_lines, exit_with=0, temp=None, env=None):
+def stalled_repo():
+    """A hook repository whose score command works out a commit in a checkout of its own while its child sleeps,
+    with this environment's own python (a bare link to it would leave the venv)."""
+    repo = hook_repo(STALLED)
+    python = repo / ".venv/bin/python"
+    python.unlink()
+    python.write_text(f'#!/usr/bin/env bash\nexec {sys.executable} "$@"\n')
+    python.chmod(0o755)
+    return repo
+
+
+def hook(where, push_lines, exit_with=0, env=None):
     """Run .claude/hooks/local/pre-push-moved in `where` (with `env` added to its environment, a None value taken out
-    of it; PROPS_HOME a home holding a store unless `env` names one); (its exit code, its output, the recorder's record
-    or None)."""
-    record = pathlib.Path(tempfile.mkdtemp()) / "record.json"
-    home = pathlib.Path(tempfile.mkdtemp())
-    (home / "store/objects").mkdir(parents=True)
+    of it; PROPS_HOME a home holding a store unless `env` names one; TMPDIR an empty folder of its own; `timeout` a
+    shim recording the limit it was given); (its exit code, its output, the recorder's record or None, the timeout's
+    limit or None, its TMPDIR)."""
+    scratch = pathlib.Path(tempfile.mkdtemp())
+    record, limit, temp, shim, home = (scratch / "record.json", scratch / "limit.txt", scratch / "tmp", scratch / "shim",
+                                       scratch / "home")
+    for folder in (temp, shim, home / "store/objects"):
+        folder.mkdir(parents=True)
+    (shim / "timeout").write_text(f'#!/usr/bin/env bash\necho "$1" > "$TIMEOUT_RECORD"\n'
+                                  f'exec {shutil.which("timeout")} "$@"\n')
+    (shim / "timeout").chmod(0o755)
     environment = {**os.environ, "PROPS_HOME": str(home), "HOOK_RECORD": str(record), "HOOK_EXIT": str(exit_with),
-                   **({"TMPDIR": str(temp)} if temp else {}), **(env or {})}
+                   "TMPDIR": str(temp), "PATH": f"{shim}:{os.environ['PATH']}", "TIMEOUT_RECORD": str(limit),
+                   **(env or {})}
     ran = subprocess.run(["bash", str(HOOK), "origin", "toy"], cwd=where, input="\n".join(push_lines) + "\n",
                          capture_output=True, text=True,
                          env={name: value for name, value in environment.items() if value is not None})
-    return ran.returncode, ran.stdout + ran.stderr, json.loads(record.read_text()) if record.exists() else None
-
-
-def test_the_hook_is_off_until_the_owner_turns_it_on():
-    repo = hook_repo()
-    tip = git(repo, "rev-parse", "HEAD")
-    line = f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"
-    assert hook(repo, [line]) == (0, "", None)
-    git(repo, "config", "score.movedCheck", "true")
-    code, _, record = hook(repo, [line])
-    assert code == 0 and record["cwd"] == str(repo) and record["argv"] == ["moved", "--pre-push"]
-    assert record["stdin"] == line + "\n"
-    assert hook(repo, [line], exit_with=3)[0] == 3
-    bare = pathlib.Path(tempfile.mkdtemp())  # a home with no store: nothing to read places from, said, not checked
-    code, printed, record = hook(repo, [line], env={"PROPS_HOME": str(bare)})
-    assert code == 0 and "no home with a store" in printed and record is None, printed
-    pulled = pathlib.Path(tempfile.mkdtemp())  # no PROPS_HOME, no default home: this PC's run home is read
-    (pulled / "store/objects").mkdir(parents=True)
-    code, printed, record = hook(repo, [line], env={"PROPS_HOME": None, "HOME": str(bare),
-                                                    "SCORE_THIS_PC_HOME": str(pulled)})
-    assert code == 0 and record["home"] == str(pulled), printed
-    (bare / ".farm-factory-props/store/objects").mkdir(parents=True)  # the default home, once it holds a store, first
-    code, printed, record = hook(repo, [line], env={"PROPS_HOME": None, "HOME": str(bare),
-                                                    "SCORE_THIS_PC_HOME": str(pulled)})
-    assert code == 0 and record["home"] == str(bare / ".farm-factory-props"), printed
-
-
-def test_the_hook_passes_deletions_tags_and_other_branches_at_once():
-    repo = hook_repo()
-    git(repo, "config", "score.movedCheck", "true")
-    tip = git(repo, "rev-parse", "HEAD")
-    for line in (f"(delete) {moved.ZERO} refs/heads/main {tip}", f"refs/tags/v1 {tip} refs/tags/v1 {moved.ZERO}",
-                 f"refs/heads/side {tip} refs/heads/side {moved.ZERO}"):
-        assert hook(repo, [line], exit_with=3) == (0, "", None), line
-
-
-def test_the_hook_checks_a_changed_tree_in_a_worktree_of_the_pushed_commit():
-    repo = hook_repo()
-    git(repo, "config", "score.movedCheck", "true")
-    tip = git(repo, "rev-parse", "HEAD")
-    (repo / "loose.txt").write_text("not committed")
-    code, _, record = hook(repo, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
-    assert code == 0 and record["cwd"] != str(repo)
-    assert not pathlib.Path(record["cwd"]).exists()  # removed afterwards
-    assert len(git(repo, "worktree", "list").splitlines()) == 1
-
-
-def test_the_hook_refuses_and_leaves_nothing_when_no_worktree_can_be_made():
-    repo = hook_repo()
-    git(repo, "config", "score.movedCheck", "true")
-    temp = pathlib.Path(tempfile.mkdtemp())
-    code, printed, record = hook(repo, [f"refs/heads/main {'f' * 40} refs/heads/main {moved.ZERO}"], temp=temp)
-    assert code != 0 and record is None and "refused" in printed
-    assert list(temp.iterdir()) == [] and len(git(repo, "worktree", "list").splitlines()) == 1
-
-
-def test_the_hook_skips_a_commit_made_before_score_moved():
-    repo = hook_repo()
-    git(repo, "config", "score.movedCheck", "true")
-    (repo / "score/__main__.py").write_text(RECORDER.replace("score moved --pre-push", "an older command"))
-    tip = committed(repo, "before score moved")
-    code, printed, record = hook(repo, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
-    assert code == 0 and "predates score moved" in printed and record is None
+    return (ran.returncode, ran.stdout + ran.stderr, json.loads(record.read_text()) if record.exists() else None,
+            limit.read_text().strip() if limit.exists() else None, temp)
 
 
 def gone(pid):
@@ -2676,51 +2589,75 @@ def gone(pid):
     return False
 
 
-def test_a_hook_that_runs_out_of_time_leaves_no_process_or_checkout_behind():
-    """score.movedTimeout ends the check with SIGTERM while it works out a commit in a checkout of its own: the child
-    it started ends and the checkout is removed, its folder and git's record of it alike (review, 2026-10-17: SIGTERM
-    killed the Python before its `finally` ran, leaving 10 to 12 moved-* worktrees)."""
-    repo = hook_repo(STALLED)
-    python = repo / ".venv/bin/python"  # this environment's own python (a bare link to it would leave the venv)
-    python.unlink()
-    python.write_text(f'#!/usr/bin/env bash\nexec {sys.executable} "$@"\n')
-    python.chmod(0o755)
-    git(repo, "config", "score.movedCheck", "true")
-    git(repo, "config", "score.movedTimeout", "15")
-    tip = git(repo, "rev-parse", "HEAD")
-    code, printed, sleeper = hook(repo, [f"refs/heads/main {tip} refs/heads/main {tip}"],
-                                  env={"SCORE_REPO": str(REPO)})  # the sleeper's record is its pid
-    assert code != 0 and "ran past 15 s" in printed and isinstance(sleeper, int), printed
-    assert gone(sleeper)
-    assert sorted(path.name for path in repo.parent.iterdir()) == ["repo"]
-    assert len(git(repo, "worktree", "list", "--porcelain").split("worktree ")) == 2
+GONE = "a checkout of the pushed commit, removed afterwards"
+ENDED = "the pid of a child that has ended"
+MAIN_LINE = "refs/heads/main {tip} refs/heads/main {zero}"
+
+# (case, repository, run in, its push line, score.movedCheck, score.movedTimeout, a loose file, the score command's
+# exit, environment, the hook's exit, what it says (empty: nothing), the record its score command wrote, the
+# timeout's limit): the hook is off until the owner turns it on and passes deletions, tags and other branches at once;
+# it runs the command in this checkout at the pushed commit, else in a worktree of it, removed afterwards, and
+# refuses when none can be made; a commit made before score moved is not checked; it reads the places from PROPS_HOME,
+# else the default home once it holds a store, else this PC's run home, and with none goes on, said; a worktree runs
+# the main checkout's python; the check has an hour unless told otherwise, and one that runs out of time ends its child
+HOOK_CASES = [
+    ("off", "repo", "repo", MAIN_LINE, False, None, False, 0, {}, 0, "", None, None),
+    ("on", "repo", "repo", MAIN_LINE, True, None, False, 0, {}, 0, "",
+     {"cwd": "{repo}", "argv": ["moved", "--pre-push"], "stdin": MAIN_LINE + "\n",
+      "python": "{repo}/.venv/bin/python"}, "3600"),
+    ("its exit passed on", "repo", "repo", MAIN_LINE, True, None, False, 3, {}, 3, "", {"cwd": "{repo}"}, "3600"),
+    ("a deletion", "repo", "repo", "(delete) {zero} refs/heads/main {tip}", True, None, False, 3, {}, 0, "", None, None),
+    ("a tag", "repo", "repo", "refs/tags/v1 {tip} refs/tags/v1 {zero}", True, None, False, 3, {}, 0, "", None, None),
+    ("another branch", "repo", "repo", "refs/heads/side {tip} refs/heads/side {zero}", True, None, False, 3, {}, 0, "",
+     None, None),
+    ("a changed tree", "repo", "repo", MAIN_LINE, True, None, True, 0, {}, 0, "", {"cwd": GONE}, "3600"),
+    ("no worktree can be made", "repo", "repo", "refs/heads/main {unknown} refs/heads/main {zero}", True, None, False,
+     0, {}, 1, "refused", None, None),
+    ("before score moved", "repo", "repo", "refs/heads/main {older} refs/heads/main {zero}", True, None, False, 0, {}, 0,
+     "predates score moved", None, None),
+    ("no home with a store", "repo", "repo", MAIN_LINE, True, None, False, 0, {"PROPS_HOME": "{bare}"}, 0,
+     "no home with a store", None, None),
+    ("this PC's run home", "repo", "repo", MAIN_LINE, True, None, False, 0,
+     {"PROPS_HOME": None, "HOME": "{bare}", "SCORE_THIS_PC_HOME": "{pulled}"}, 0, "", {"home": "{pulled}"}, "3600"),
+    ("the default home first", "repo", "repo", MAIN_LINE, True, None, False, 0,
+     {"PROPS_HOME": None, "HOME": "{homed}", "SCORE_THIS_PC_HOME": "{pulled}"}, 0, "",
+     {"home": "{homed}/.farm-factory-props"}, "3600"),
+    ("a worktree", "repo", "tree", MAIN_LINE, True, None, False, 0, {}, 0, "",
+     {"cwd": "{tree}", "python": "{repo}/.venv/bin/python"}, "3600"),
+    ("out of time", "stalled", "stalled", "refs/heads/main {tip} refs/heads/main {tip}", True, "15", False, 0,
+     {"SCORE_REPO": str(REPO)}, 124, "ran past 15 s", ENDED, "15"),
+]
 
 
-def test_the_hook_gives_the_check_an_hour_unless_told_otherwise():
-    """Two commits worked out, every world each, took past 15 minutes under load (review, 2026-10-17): the default
-    must not refuse every push to main."""
-    repo = hook_repo()
-    git(repo, "config", "score.movedCheck", "true")
-    shim = pathlib.Path(tempfile.mkdtemp())
-    (shim / "timeout").write_text(f'#!/usr/bin/env bash\necho "$1" > "$TIMEOUT_RECORD"\n'
-                                  f'exec {shutil.which("timeout")} "$@"\n')
-    (shim / "timeout").chmod(0o755)
-    limit = shim / "limit.txt"
-    tip = git(repo, "rev-parse", "HEAD")
-    code, _, _ = hook(repo, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"],
-                      env={"PATH": f"{shim}:{os.environ['PATH']}", "TIMEOUT_RECORD": str(limit)})
-    assert code == 0 and limit.read_text().strip() == "3600"
+def placed(value, world):
+    """`value` with every {name} of `world` filled in (a list's items alike)."""
+    if isinstance(value, list):
+        return [placed(item, world) for item in value]
+    return value.format(**world) if isinstance(value, str) else value
 
 
-def test_a_worktree_hook_uses_the_main_checkouts_python():
-    repo = hook_repo()
-    git(repo, "config", "score.movedCheck", "true")
-    tree = pathlib.Path(tempfile.mkdtemp()).resolve() / "tree"
+def hook_world():
+    """The hook's two repositories, the worktree of the first, its commit made before score moved, and the homes the
+    hook reads from: no store, this PC's run home and a default home holding a store; {name: path or commit}."""
+    repo, stalled = hook_repo(), stalled_repo()
+    folders = {name: pathlib.Path(tempfile.mkdtemp()).resolve() for name in ("bare", "pulled", "homed", "trees")}
+    (folders["pulled"] / "store/objects").mkdir(parents=True)
+    (folders["homed"] / ".farm-factory-props/store/objects").mkdir(parents=True)
+    tree = folders.pop("trees") / "tree"
     git(repo, "worktree", "add", "-q", "--detach", str(tree))
-    tip = git(tree, "rev-parse", "HEAD")
-    code, _, record = hook(tree, [f"refs/heads/main {tip} refs/heads/main {moved.ZERO}"])
-    assert code == 0 and record["cwd"] == str(tree) and record["python"] == str(repo / ".venv/bin/python")
-    shutil.rmtree(tree)
+    tip = git(repo, "rev-parse", "HEAD")
+    git(repo, "checkout", "-q", "-b", "older")
+    (repo / "score/__main__.py").write_text(RECORDER.replace("score moved --pre-push", "an older command"))
+    older = committed(repo, "before score moved")
+    git(repo, "checkout", "-q", "-")
+    return {"repo": repo, "stalled": stalled, "tree": tree, "tip": tip, "older": older, "zero": moved.ZERO,
+            "unknown": "f" * 40, **folders}
+
+
+def configured(repo, key, value):
+    """Set git config `key` to `value` in `repo`, or take it out when None."""
+    words = ["config", key, value] if value is not None else ["config", "--unset-all", key]
+    subprocess.run(["git", "-C", str(repo), *words], capture_output=True, check=value is not None)
 
 
 # --- a per-take function the table keeps reads only what its key holds -------------------------------------------------
