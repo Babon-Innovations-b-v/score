@@ -9,7 +9,8 @@ file too loud `level`, a MOSS take under the CLAP floor `likeness`, a Freesound 
 `no freesound`. Its takes: one a brief, one card a batch, a shared take made once, a lost take a gap on every place
 that plays it, never asked again.
 
-Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once and seen red.
+Each test names the break that turns it red (`Break: <file>: `old` -> `new``); each was applied once, seen red and
+reverted.
 
 Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/stages/sound/test_a_place_is_heard_as_its_design_says.py
     (reads the sounds' bytes from the library; the one test that plays them is skipped where no library is
@@ -100,37 +101,6 @@ BEDS = [
 ]
 
 
-@pytest.mark.parametrize("place, heard, sounds, missing, kept", BEDS, ids=[row[0] for row in BEDS])
-def test_a_place_is_heard_as_its_design_says(toy, place, heard, sounds, missing, kept):
-    """A place's bed comes from its design alone: how it is heard, the tones it plays, and what its design lacks,
-    named, never guessed. The `bed` gate passes a decided bed and fails an undecided one naming what lacks; its bed gap
-    says what lacks, or that a decided bed is still to make, the sound row's to make only where the design is kept
-    (the plaza), else naming the work, never a node the table lacks (the hut).
-    Break: score/stages/sound/beds.py: `found["shape"] = plan.get("shape")` -> `found["shape"] = None`
-    Break: score/stages/sound/beds.py: `found["grounded"] = not plan.get("ground_free")` -> `found["grounded"] =
-        True`
-    Break: score/stages/sound/beds.py: `None if kpa is None else "suit" if kpa < ARMSTRONG_KPA else "open")`
-        -> `None if kpa is None else "open")`
-    Break: score/stages/sound/beds.py: `found["missing"].append(f"{ground} has no surface pressure")` -> `pass`
-    Break: score/stages/sound/beds.py: `found["missing"].append("no site in the setting holds it")` -> `pass`
-    Break: score/stages/sound/gates.py: `    if bed["sounds"]:` -> `    if True:`
-    Break: score/stages/sound/needs.py: `"node": f"sound@{place}" if made_here else None,` -> `"node":
-        f"sound@{place}",`"""
-    data, design = toy
-    found = beds.of_place(place, beds.paths(place, data, design))
-    assert (found["facts"].get("heard"), found["sounds"], found["facts"]["missing"]) == (heard, sounds, missing), found
-    verdict = gates.judge_bed(None, beds.paths(place, data, design), None)
-    assert (verdict.answer, verdict.findings) == (checks.PASS if sounds else checks.FAIL, tuple(missing)), verdict
-    gap = {gap["id"]: gap for gap in needs.gaps(place, data, design)}["sound:bed:room"]
-    assert place in beds.places(design) and needs.sounded(place, design) == kept
-    if missing:
-        assert all(lack in gap["work"] for lack in missing) and gap["node"] is None, gap
-    else:
-        assert "still to make" in gap["sentence"], gap
-        if kept:
-            assert gap["node"] == f"sound@{place}" and gap["work"] is None, gap
-        else:
-            assert gap["node"] is None and gap["work"], gap
 
 
 # --- the sound row's make, gates and takes ----------------------------------------------------------------------------
@@ -187,102 +157,228 @@ def toy_design(folder):
     return inputs
 
 
-def toy_recorded(folder, drop_on=()):
-    """The toy scene's sound record (sound.uses_of, nothing made), every sound with a file, the uses at any of
-    `drop_on` left out; its inputs and output folder."""
+FETCHED = {"file": "sound/roar@1/roar.ogg", "source": "https://freesound.org/people/someone/sounds/1/",
+           "author": "someone", "licence": "CC0 1.0"}
+ROAR = {"roar": {"files": [], "made_by": "recording", "credits": [FETCHED], "chosen_by": "scoring"}}
+FLOORED = {"square_pa": {"made_by": "moss", "clap": 0.1248, "files": []},
+           "base_hum": {"made_by": "moss", "clap": 0.45, "files": []}}
+CALLED = [{"sound": "square_pa", "role": "object", "on": "pa", "from": "places.json objects"},
+          {"sound": "lost_take", "role": "room", "on": None, "from": "places.json"}]
+LOST_DOOR_AND_VOICE = {"door_open", "door_shut", "crew_talk"}
+DOOR_PRIM = "/toy/Objects/hatch_1"
+CREW_TALK = {"sound": "crew_talk", "role": "object", "on": "pilot"}
+MOVED = "moved to complete as accepted gaps"
+
+# The sound row's records and how its gates judge them. Each row a world: the toy design (a door the motion row swings,
+# a person it stands) heard where `where` stands it (None: the hub's room; "moon": outside on the Moon, through the
+# suit; "earth": a room on Earth's breathable air), or none (`design` false: only `uses` and `sounds`); its record as
+# the make writes it (sound.all_uses, each design sound with a file), the uses on or of `silent` left out, `uses`
+# added, `sounds` over its sounds, `lost` the batch's takes that did not come back (sound.take_gaps). `gates` are judged
+# (a name: gates.judge_<name>; "table <name>": the stage table's check, which moves a lost take's faults to its gap),
+# each to `answer`, its findings fullmatching `findings` in order and its reason holding `reason`, where given; the
+# record plays `voiced` ({row: its sounds}) and names `unheard`, and the batch's gaps are `gaps` ({name: its faults}).
+VERDICTS = [
+    # #29, the audit of 2026-11-04: objects, doors and every person's crew_talk played as if through air where the bed
+    # played the suit, and a sealed module's crew talk in a Hong Kong flat.
+    {"id": "outside on the Moon the door is unheard and the voice the helmet radio's", "where": "moon",
+     "gates": ("events", "voices", "heard", "suits"), "answer": checks.PASS,
+     "voiced": {"pilot": ["helmet_radio_talk"]}, "unheard": {(DOOR_PRIM, "door_open"), (DOOR_PRIM, "door_shut")}},
+    {"id": "the door's latch and crew talk written back on the Moon fail heard", "where": "moon",
+     "hear_unheard": True, "uses": [CREW_TALK], "gates": ("heard",), "answer": checks.FAIL,
+     "findings": [f"{DOOR_PRIM}:.*", "pilot:.*"]},
+    {"id": "in a room on Earth's air the voice is room talk", "where": "earth", "gates": ("suits",),
+     "answer": checks.PASS, "voiced": {"pilot": ["room_talk"]}},
+    {"id": "crew talk written into a room on Earth's air fails suits", "where": "earth", "uses": [CREW_TALK],
+     "gates": ("suits",), "answer": checks.FAIL,
+     "findings": [re.escape("pilot: crew_talk heard here as air breathable (written for sealed)")]},
+    {"id": "the door and the person sounding pass events and voices", "gates": ("events", "voices"),
+     "answer": checks.PASS},
+    {"id": "a silent moving thing fails events", "silent": {DOOR_PRIM, "pilot"}, "gates": ("events",),
+     "answer": checks.FAIL, "findings": [".*hatch_1.*"]},
+    {"id": "people with no voice fail voices", "silent": {DOOR_PRIM, "pilot"}, "gates": ("voices",),
+     "answer": checks.FAIL},
+    # cockpit (2026-11-11): its pilot a bodies gap, no voice wanted
+    {"id": "a person a bodies gap leaves unlaid wants no voice", "silent": {DOOR_PRIM, "pilot"},
+     "gapped": ["pilot"], "gates": ("voices",), "answer": checks.PASS},
+    {"id": "with no voice named none plays", "voices": {"people": None}, "gates": (), "voiced": {"pilot": []}},
+    {"id": "a sound the record lacks and a lost row fail sources", "gates": ("sources",), "answer": checks.FAIL,
+     "uses": [{"sound": "no_such_sound", "role": "object", "on": "hatch", "from": "the test"},
+              {"sound": "door_open", "role": "object", "on": "no_such_row", "from": "the test"}],
+     "findings": [".*no_such_sound.*", ".*no_such_row.*"]},
+    # a room tone made 18 dB too loud: a full-scale sine of its brief's length
+    {"id": "a loud file fails level", "design": False, "loud": "tone.wav", "gates": ("level",),
+     "answer": checks.FAIL,
+     "findings": ["tone: tone.wav peaks at .* dBTP", "tone: tone.wav at .* LUFS, off its room target .*"],
+     "sounds": {"tone": {"files": ["files/tone.wav"], "category": "room", "brief_seconds": 5, "made_by": "moss",
+                         "credits": []}}},
+    {"id": "a MOSS take a hundredth under the CLAP floor fails likeness", "design": False, "gates": ("likeness",),
+     "answer": checks.FAIL, "sounds": {"hum": {"files": [], "made_by": "moss", "clap": gates.CLAP_FLOOR - 0.01,
+                                               "credits": [], "chosen_by": "scoring"}}},
+    # the owner's exception (2026-10-20, #29): a CC0 Freesound recording with its row in data/sound/licences.json
+    {"id": "a CC0 Freesound recording with its licence row passes no freesound", "design": False, "sounds": ROAR,
+     "licences": [FETCHED], "gates": ("no_freesound",), "answer": checks.PASS},
+    {"id": "a Freesound recording chosen by scoring with no licence row fails no freesound", "design": False,
+     "sounds": ROAR, "licences": [], "gates": ("no_freesound",), "answer": checks.FAIL},
+    {"id": "a Freesound recording under another licence fails no freesound", "design": False, "sounds": ROAR,
+     "licences": [dict(FETCHED, licence="CC BY 4.0")], "gates": ("no_freesound",), "answer": checks.FAIL},
+    # sound@square, 2026-10-20: two takes back under the CLAP floor failed likeness and stopped the line, though the
+    # batch rule makes each a gap
+    {"id": "a take under the floor or not back is a batch gap, likeness's own answer standing", "design": False,
+     "uses": CALLED, "silent": {"lost_take"}, "sounds": FLOORED, "lost": ["square_pa", "lost_take"],
+     "gates": ("likeness",), "answer": checks.FAIL,
+     "gaps": {"square_pa: MOSS take under the CLAP floor": None,
+              "lost_take: no MOSS take came back": ["lost_take: no sound (room, places.json)"]}},
+    {"id": "the table's likeness moves a take under the floor to its gap", "design": False, "uses": CALLED,
+     "silent": {"lost_take"}, "sounds": FLOORED, "lost": ["square_pa", "lost_take"], "gates": ("table likeness",),
+     "answer": checks.PASS, "reason": f"{MOVED}: square_pa"},
+    {"id": "a picked sound under the floor is no take of this batch and still fails", "design": False,
+     "uses": CALLED, "silent": {"lost_take"}, "sounds": {**FLOORED, "base_hum": dict(FLOORED["base_hum"], clap=0.2)},
+     "lost": ["square_pa", "lost_take"], "gates": ("table likeness",), "answer": checks.FAIL},
+    # try 4, 2026-10-25: moving.json and voices.json named no sound, so every place with motion or people stopped its
+    # line; now a take not back leaves its door and person silent, a gap naming each
+    {"id": "a door and a voice silent by lost takes fail their own gates", "silent": LOST_DOOR_AND_VOICE,
+     "lost": sorted(LOST_DOOR_AND_VOICE), "gates": ("events", "voices"), "answer": checks.FAIL},
+    {"id": "the table's events and voices move a lost take's silence to its gap", "silent": LOST_DOOR_AND_VOICE,
+     "lost": sorted(LOST_DOOR_AND_VOICE), "gates": ("table events", "table voices"), "answer": checks.PASS,
+     "reason": MOVED},
+    {"id": "a door silent with no take lost still fails the table's events", "silent": LOST_DOOR_AND_VOICE,
+     "gates": ("table events",), "answer": checks.FAIL},
+]
+
+
+def standing_where(inputs, folder, where):
+    """The toy design's inputs as `where` stands it: outside on the Moon (an outdoor plan on a site of the Moon), or in a
+    room on Earth's breathable air; the house's voices table (by hearing)."""
+    inputs["setting"] = pathlib.Path(folder) / "setting.json"
+    inputs["setting"].write_text(json.dumps({"bodies": [{"body": where, "reference": where}], "plots": [],
+                                             "sites": [{"place": "toy", "on": where}]}))
+    plan = {"shell": "outdoor"} if where == "moon" else {"shell": "kit", "inside": True}
+    inputs["plan"].write_text(json.dumps({**plan, "leads": {}, "rows": {}}))
+    inputs["voices"] = REPO / "data/sound/voices.json"
+
+
+def world_of(row, folder):
+    """`row`'s world (VERDICTS): its inputs, its output folder with the record and the batch's gaps written."""
+    from score.stages import batch_gaps
+    folder = pathlib.Path(folder)
     inputs = toy_design(folder)
-    uses = [use for use in sound.uses_of("toy", inputs) if use["on"] not in drop_on]
-    out = pathlib.Path(folder) / "out"
-    out.mkdir()
-    (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": uses,
-                                                "sounds": {use["sound"]: {"files": ["files/x.wav"]} for use in uses}}))
+    if row.get("where"):
+        standing_where(inputs, folder, row["where"])
+    if "voices" in row:
+        inputs["voices"].write_text(json.dumps(row["voices"]))
+    designed, unheard = sound.all_uses("toy", inputs) if row.get("design", True) else ([], [])
+    written_back = [dict(unheard[0])] if row.get("hear_unheard") else []
+    played = [use for use in designed + written_back + row.get("uses", [])
+              if use["on"] not in row.get("silent", ()) and use["sound"] not in row.get("silent", ())]
+    sounds = {use["sound"]: {"files": ["files/x.wav"]} for use in designed if use in played}
+    sounds.update(row.get("sounds", {}))
+    out = folder / "out"
+    (out / "files").mkdir(parents=True)
+    (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": played, "unheard": unheard,
+                                                "sounds": sounds}))
+    if row.get("loud"):
+        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=5",
+                        "-af", "volume=18dB", str(out / "files" / row["loud"])], check=True)
+    if row.get("lost"):
+        batch_gaps.write(out, sound.take_gaps(row["lost"], sounds, designed + row.get("uses", [])))
+    if "licences" in row:
+        inputs["licences"] = folder / "licences.json"
+        inputs["licences"].write_text(json.dumps(row["licences"]))
+    if row.get("gapped"):
+        inputs["gaps"] = str(folder / "gaps.json")
+        (folder / "gaps.json").write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies",
+                                                                "objects": row["gapped"]}]}))
     return inputs, out
 
 
-def heard_on_the_moon(folder, moves=None):
-    """The toy scene standing outside on the Moon (an outdoor plan on a site of the Moon: heard through a suit), the
-    house's voices table (by hearing); its inputs."""
-    inputs = toy_design(folder)
-    inputs["plan"].write_text(json.dumps({"shell": "outdoor", "leads": {}, "rows": {}}))
-    inputs["setting"] = pathlib.Path(folder) / "setting.json"
-    inputs["setting"].write_text(json.dumps({"bodies": [{"body": "moon", "reference": "moon"}], "plots": [],
-                                             "sites": [{"place": "toy", "on": "moon"}]}))
-    inputs["voices"] = REPO / "data/sound/voices.json"
-    return inputs
+def judge_of(gate):
+    """The judge `gate` names (VERDICTS): gates.judge_<name>, or the stage table's check of "table <name>"."""
+    from score import stages
+    if gate.startswith("table "):
+        return next(check for table in stages.STAGES if table.name == "sound" for check in table.checks
+                    if check.name == gate.removeprefix("table ")).judge
+    return getattr(gates, f"judge_{gate}")
 
 
-def recorded(inputs, folder):
-    """The scene's sound record as the make writes it (all_uses, every sound with a file), its output."""
-    uses, unheard = sound.all_uses("toy", inputs)
-    out = pathlib.Path(folder) / "out"
-    out.mkdir()
-    (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": uses, "unheard": unheard,
-                                                "sounds": {use["sound"]: {"files": ["files/x.wav"]} for use in uses}}))
-    return out
-
-
-def test_a_silent_moving_thing_fails_events_and_people_with_no_voice_fail_voices():
-    """#29: the motion row's swinging door and the person the design stands; the door silent fails events, the
-    person's voice left out fails voices; with no voice named, none plays. Fault (the audit of 2026-11-04): objects,
-    doors and every person's 'crew_talk' played as if heard through air where the bed rightly played the suit, and a
-    sealed module's crew talk played in a Hong Kong flat. Outside on the Moon the door's sounds are named unheard
-    (events passes on them), the voice is the helmet radio's (voices passes), and `heard` passes; the door's latch
-    and crew talk written back into the record fail `heard`. In a room on Earth's breathable air the voice is
-    room_talk, and crew talk (written for a sealed module) written in fails `suits`.
+def test_a_place_is_heard_as_its_design_says(toy):
+    """A place's bed comes from its design alone (BEDS): how it is heard, the tones it plays, and what its design lacks,
+    named, never guessed. The `bed` gate passes a decided bed and fails an undecided one naming what lacks; its bed gap
+    says what lacks, or that a decided bed is still to make, the sound row's to make only where the design is kept
+    (the plaza), else naming the work, never a node the table lacks (the hut). Its record plays and its gates judge
+    each world of VERDICTS as that row says.
+    Break: score/stages/sound/beds.py: `found["shape"] = plan.get("shape")` -> `found["shape"] = None`
+    Break: score/stages/sound/beds.py: `found["grounded"] = not plan.get("ground_free")` -> `found["grounded"] =
+        True`
+    Break: score/stages/sound/beds.py: `None if kpa is None else "suit" if kpa < ARMSTRONG_KPA else "open")`
+        -> `None if kpa is None else "open")`
+    Break: score/stages/sound/beds.py: `found["missing"].append(f"{ground} has no surface pressure")` -> `pass`
+    Break: score/stages/sound/beds.py: `found["missing"].append("no site in the setting holds it")` -> `pass`
+    Break: score/stages/sound/gates.py: `    if bed["sounds"]:` -> `    if True:`
+    Break: score/stages/sound/needs.py: `"node": f"sound@{place}" if made_here else None,` -> `"node":
+        f"sound@{place}",`
     Break: score/stages/sound/gates.py: `if not sounding & set(event["prims"])]` -> `if False]`
     Break: score/stages/sound/__init__.py: `if not people or not voice:` -> `if not people:`
     Break: score/stages/sound/__init__.py: `if bed["facts"].get("heard") == "suit":` -> `if False:`
     Break: score/stages/sound/gates.py: `if facts.get(key) not in values]` -> `if False]`
     Break: score/stages/sound/__init__.py: `for entry in voices.get("by_hearing", []):` -> `for entry in []:`
     Break: score/stages/sound/gates.py: people_of's `if name not in gapped]` -> `]` (cockpit's gapped pilot wanted a
-        voice)"""
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = heard_on_the_moon(folder)
-        out = recorded(inputs, folder)
-        record = gates.record_of(out)
-        assert {(use["on"], use["sound"]) for use in record["unheard"]} == {
-            ("/toy/Objects/hatch_1", "door_open"), ("/toy/Objects/hatch_1", "door_shut")}, record["unheard"]
-        assert [use["sound"] for use in record["uses"] if use["on"] == "pilot"] == ["helmet_radio_talk"], record
-        for judge in (gates.judge_events, gates.judge_voices, gates.judge_heard, gates.judge_suits):
-            verdict = judge(out, inputs, None)
-            assert verdict.answer == checks.PASS, (verdict.reason, verdict.findings)
-        record["uses"] += [dict(record["unheard"][0]), {"sound": "crew_talk", "role": "object", "on": "pilot"}]
-        (out / gates.RECORD).write_text(json.dumps(record))
-        heard = gates.judge_heard(out, inputs, None)
-        assert heard.answer == checks.FAIL and [line.split(":")[0] for line in heard.findings] == [
-            "/toy/Objects/hatch_1", "pilot"], heard.findings
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = heard_on_the_moon(folder)
-        inputs["setting"].write_text(json.dumps({"bodies": [{"body": "earth", "reference": "earth"}], "plots": [],
-                                                 "sites": [{"place": "toy", "on": "earth"}]}))
-        inputs["plan"].write_text(json.dumps({"shell": "kit", "inside": True, "leads": {}, "rows": {}}))
-        out = recorded(inputs, folder)
-        voices = [use["sound"] for use in gates.record_of(out)["uses"] if use["on"] == "pilot"]
-        assert voices == ["room_talk"], voices
-        assert gates.judge_suits(out, inputs, None).answer == checks.PASS
-        record = gates.record_of(out)
-        record["uses"].append({"sound": "crew_talk", "role": "object", "on": "pilot"})
-        (out / gates.RECORD).write_text(json.dumps(record))
-        suits = gates.judge_suits(out, inputs, None)
-        assert suits.answer == checks.FAIL and suits.findings == (
-            "pilot: crew_talk heard here as air breathable (written for sealed)",), suits.findings
-    with tempfile.TemporaryDirectory() as folder:
-        inputs, out = toy_recorded(folder)
-        assert gates.judge_events(out, inputs, None).answer == checks.PASS
-        assert gates.judge_voices(out, inputs, None).answer == checks.PASS
-    with tempfile.TemporaryDirectory() as folder:
-        inputs, out = toy_recorded(folder, ("/toy/Objects/hatch_1", "pilot"))
-        events, voices = gates.judge_events(out, inputs, None), gates.judge_voices(out, inputs, None)
-        gaps = pathlib.Path(folder) / "gaps.json"  # cockpit (2026-11-11): its pilot a bodies gap, no voice wanted
-        gaps.write_text(json.dumps({"gaps": [{"row": "characters-layer", "check": "bodies", "objects": ["pilot"]}]}))
-        gapped = gates.judge_voices(out, {**inputs, "gaps": str(gaps)}, None)
-    assert events.answer == checks.FAIL and any("hatch_1" in line for line in events.findings), events
-    assert voices.answer == checks.FAIL, voices
-    assert gapped.answer == checks.PASS, gapped
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = toy_design(folder)
-        inputs["voices"].write_text(json.dumps({"people": None}))
-        assert not [use for use in sound.uses_of("toy", inputs) if use["on"] == "pilot"], "no voice named, none plays"
+        voice)
+    Break: score/stages/sound/gates.py: `if not record["sounds"].get(use["sound"], {}).get("files")]` -> `if False]`
+    Break: score/stages/sound/gates.py: `            faults += found` -> `            pass`
+    Break: score/stages/sound/gates.py: `if sound.get("clap") is not None and sound["clap"] < CLAP_FLOOR]` -> `if
+        False]`
+    Break: score/stages/sound/gates.py: `    if left:` -> `    if False:`
+    Break: score/stages/sound/gates.py:
+        `if FREESOUND in row.get("source", "") and row.get("licence", "").startswith("CC0")}`
+        -> `if FREESOUND in row.get("source", "")}`
+    Break: score/stages/sound/gates.py:
+        `all(credit["file"] in rows for credit in sound["credits"] if FREESOUND in credit.get("source", ""))}`
+        -> `True}`
+    Break: score/stages/sound/__init__.py:
+        `elif sounds[name].get("clap") is not None and sounds[name]["clap"] < gates.CLAP_FLOOR:` -> `elif False:`
+    Break: score/stages/sound/__init__.py: `return [use.get("event") if use["role"] == "motion" else use["on"] for use
+        in uses`
+        -> `return [use["on"] for use in uses`"""
+    data, design = toy
+    for place, heard, sounds, missing, kept in BEDS:
+        found = beds.of_place(place, beds.paths(place, data, design))
+        assert (found["facts"].get("heard"), found["sounds"], found["facts"]["missing"]) == (heard, sounds, missing), (
+            place, found)
+        verdict = gates.judge_bed(None, beds.paths(place, data, design), None)
+        assert (verdict.answer, verdict.findings) == (checks.PASS if sounds else checks.FAIL, tuple(missing)), (
+            place, verdict)
+        gap = {gap["id"]: gap for gap in needs.gaps(place, data, design)}["sound:bed:room"]
+        assert place in beds.places(design) and needs.sounded(place, design) == kept, place
+        if missing:
+            assert all(lack in gap["work"] for lack in missing) and gap["node"] is None, (place, gap)
+        else:
+            assert "still to make" in gap["sentence"], (place, gap)
+            if kept:
+                assert gap["node"] == f"sound@{place}" and gap["work"] is None, (place, gap)
+            else:
+                assert gap["node"] is None and gap["work"], (place, gap)
+    from score.stages import batch_gaps
+    for row in VERDICTS:
+        with tempfile.TemporaryDirectory() as folder:
+            inputs, out = world_of(row, folder)
+            record = gates.record_of(out)
+            for on, voiced in row.get("voiced", {}).items():
+                assert [use["sound"] for use in record["uses"] if use["on"] == on] == voiced, (row["id"], record)
+            if "unheard" in row:
+                assert {(use["on"], use["sound"]) for use in record["unheard"]} == row["unheard"], (row["id"], record)
+            if "gaps" in row:
+                found = {entry["name"]: entry for entry in batch_gaps.read([out])}
+                assert set(found) == set(row["gaps"]), (row["id"], found)
+                assert all(faults is None or found[name]["faults"] == faults
+                           for name, faults in row["gaps"].items()), (row["id"], found)
+            for gate in row["gates"]:
+                verdict = judge_of(gate)(out, inputs, None)
+                assert verdict.answer == row["answer"], (row["id"], gate, verdict.reason, verdict.findings)
+                if "findings" in row:
+                    assert len(verdict.findings) == len(row["findings"]) and all(
+                        re.fullmatch(wanted, line) for wanted, line in zip(row["findings"], verdict.findings)), (
+                        row["id"], gate, verdict.findings)
+                assert row.get("reason", "") in verdict.reason, (row["id"], gate, verdict.reason)
 
 
 def needs_of_toy(folder, named):
@@ -331,86 +427,6 @@ def test_needs_name_what_the_library_does_not_answer():
         found, gaps = needs_of_toy(folder, named=True)
     assert found[("event", "hatch")]["state"] == needs.MAKE and found[("voice", "people")]["state"] == needs.MAKE, found
 
-
-def test_a_missing_sound_and_a_lost_row_fail_sources():
-    """A use of a sound the record lacks and an object sound at a row the place does not hold: two faults.
-    Break: score/stages/sound/gates.py: `if not record["sounds"].get(use["sound"], {}).get("files")]` -> `if False]`"""
-    with tempfile.TemporaryDirectory() as folder:
-        inputs, out = toy_recorded(folder)
-        record = gates.record_of(out)
-        played = record["uses"][0]["sound"]
-        record["uses"] += [{"sound": "no_such_sound", "role": "object", "on": "hatch", "from": "the test"},
-                           {"sound": played, "role": "object", "on": "no_such_row", "from": "the test"}]
-        (out / gates.RECORD).write_text(json.dumps(record))
-        verdict = gates.judge_sources(out, inputs, None)
-    assert verdict.answer == checks.FAIL and len(verdict.findings) == 2, verdict
-
-
-def toy_record(folder, sounds):
-    """A sound record of `sounds` ({name: fields}) in `folder`, its output."""
-    out = pathlib.Path(folder) / "out"
-    out.mkdir(exist_ok=True)
-    (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": [], "sounds": sounds}))
-    return out
-
-
-def test_a_loud_file_fails_level():
-    """A room tone made 18 dB too loud (a full-scale sine of its brief's length) is off its category's target.
-    Break: score/stages/sound/gates.py: `            faults += found` -> `            pass`"""
-    with tempfile.TemporaryDirectory() as folder:
-        files = pathlib.Path(folder) / "out/files"
-        files.mkdir(parents=True)
-        subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=220:duration=5",
-                        "-af", "volume=18dB", str(files / "tone.wav")], check=True)
-        out = toy_record(folder, {"tone": {"files": ["files/tone.wav"], "category": "room", "brief_seconds": 5,
-                                           "made_by": "moss", "credits": []}})
-        verdict = gates.judge_level(out, {}, None)
-    assert verdict.answer == checks.FAIL and any("tone" in line for line in verdict.findings), verdict
-
-
-FETCHED = {"file": "sound/roar@1/roar.ogg", "source": "https://freesound.org/people/someone/sounds/1/",
-           "author": "someone", "licence": "CC0 1.0"}
-
-
-def test_a_low_match_fails_likeness_and_a_fetched_pick_fails_no_freesound():
-    """A MOSS take a hundredth under the CLAP floor fails likeness; a Freesound recording chosen by scoring, with no
-    licence row, fails no freesound.
-    Break: score/stages/sound/gates.py: `if sound.get("clap") is not None and sound["clap"] < CLAP_FLOOR]` -> `if
-        False]`
-    Break: score/stages/sound/gates.py: `    if left:` -> `    if False:`"""
-    with tempfile.TemporaryDirectory() as folder:
-        out = toy_record(folder, {"hum": {"files": [], "made_by": "moss", "clap": gates.CLAP_FLOOR - 0.01,
-                                          "credits": [], "chosen_by": "scoring"},
-                                  "roar": {"files": [], "made_by": "recording", "credits": [FETCHED],
-                                           "chosen_by": "scoring"}})
-        licences = pathlib.Path(folder) / "licences.json"
-        licences.write_text("[]")
-        assert gates.judge_likeness(out, {}, None).answer == checks.FAIL
-        assert gates.judge_no_freesound(out, {"licences": licences}, None).answer == checks.FAIL
-
-
-def test_a_cc0_freesound_file_passes_with_its_licence_row_and_fails_without_or_under_another_licence():
-    """The owner's exception (2026-10-20, #29): a Freesound recording under CC0 with its row in
-    data/sound/licences.json passes `no freesound`; with no row, or a row of another licence, it fails.
-    Break: score/stages/sound/gates.py:
-        `if FREESOUND in row.get("source", "") and row.get("licence", "").startswith("CC0")}`
-        -> `if FREESOUND in row.get("source", "")}`
-    Break: score/stages/sound/gates.py:
-        `all(credit["file"] in rows for credit in sound["credits"] if FREESOUND in credit.get("source", ""))}`
-        -> `True}`"""
-    row = FETCHED
-    record = {"place": "toy", "uses": [], "sounds": {"roar": {"credits": [row], "chosen_by": "scoring"}}}
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        (folder / gates.RECORD).write_text(json.dumps(record))
-        licences = folder / "licences.json"
-
-        def answer(rows):
-            licences.write_text(json.dumps(rows))
-            return gates.judge_no_freesound(folder, {"licences": licences}, None).answer
-        assert answer([row]) == checks.PASS
-        assert answer([]) == checks.FAIL
-        assert answer([dict(row, licence="CC BY 4.0")]) == checks.FAIL
 
 
 @contextlib.contextmanager
@@ -821,34 +837,6 @@ def test_no_card_had_by_the_deadline_is_a_gap_asked_once():
     assert len(attempts) == 1, attempts
 
 
-def test_a_take_the_batch_brought_under_the_floor_or_not_at_all_is_a_gap_and_likeness_moves_it():
-    """sound@square, 2026-10-20: two MOSS takes of the batch came back under the CLAP floor (square_pa 0.12,
-    leader_speech 0.26) and failed `likeness`, stopping the line though the batch rule makes each a gap. Each take made
-    here under the floor, or not back, is a named batch gap; the table's likeness moves the first; a picked sound under
-    the floor is no take of this batch and still fails.
-    Break: score/stages/sound/__init__.py:
-        `elif sounds[name].get("clap") is not None and sounds[name]["clap"] < gates.CLAP_FLOOR:` -> `elif False:`"""
-    from score import stages
-    from score.stages import batch_gaps
-    likeness = next(check for row in stages.STAGES if row.name == "sound" for check in row.checks
-                    if check.name == "likeness")
-    uses = [{"sound": "square_pa", "role": "object", "on": "pa", "from": "places.json objects"},
-            {"sound": "lost_take", "role": "room", "on": None, "from": "places.json"}]
-    sounds = {"square_pa": {"made_by": "moss", "clap": 0.1248, "files": []},
-              "base_hum": {"made_by": "moss", "clap": 0.45, "files": []}}
-    with tempfile.TemporaryDirectory() as folder:
-        out = pathlib.Path(folder)
-        (out / gates.RECORD).write_text(json.dumps({"place": "toy", "sounds": sounds, "uses": uses[:1]}))
-        batch_gaps.write(out, sound.take_gaps(["square_pa", "lost_take"], sounds, uses))
-        found = {entry["name"]: entry for entry in batch_gaps.read([out])}
-        assert set(found) == {"square_pa: MOSS take under the CLAP floor", "lost_take: no MOSS take came back"}, found
-        assert found["lost_take: no MOSS take came back"]["faults"] == ["lost_take: no sound (room, places.json)"]
-        assert gates.judge_likeness(out, {}, None).answer == checks.FAIL  # the gate's own answer stands
-        moved = likeness.judge(out, {}, None)
-        assert moved.answer == checks.PASS and "moved to complete as accepted gaps: square_pa" in moved.reason, moved
-        sounds["base_hum"]["clap"] = 0.2
-        (out / gates.RECORD).write_text(json.dumps({"place": "toy", "sounds": sounds, "uses": uses[:1]}))
-        assert likeness.judge(out, {}, None).answer == checks.FAIL
 
 
 def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap():
@@ -874,35 +862,6 @@ def test_a_take_that_did_not_come_back_leaves_its_uses_out_with_its_gap():
         assert gates.judge_sources(out, inputs, None).answer == checks.UNKNOWN
 
 
-def test_a_moving_thing_or_a_voice_left_silent_by_a_lost_take_is_its_gap_and_events_and_voices_move_it():
-    """try 4, 2026-10-25: moving.json and voices.json named no sound, so every place with motion or people failed
-    `events` or `voices` and stopped its line. Their briefs are named now and made in the batch: a take that does not
-    come back leaves its door and its person silent, a gap that names each, and the table's events and voices gates
-    move those faults to it; a moving thing no part names a sound for still fails.
-    Break: score/stages/sound/__init__.py: `return [use.get("event") if use["role"] == "motion" else use["on"] for use
-        in uses`
-        -> `return [use["on"] for use in uses`"""
-    from score import stages
-    from score.stages import batch_gaps
-    table = {row.name: row for row in stages.STAGES}["sound"]
-    gated = {check.name: check for check in table.checks}
-    with tempfile.TemporaryDirectory() as folder:
-        inputs = toy_design(folder)
-        uses = sound.uses_of("toy", inputs)
-        lost = {"door_open", "door_shut", "crew_talk"}
-        kept = [use for use in uses if use["sound"] not in lost]
-        out = pathlib.Path(folder) / "out"
-        out.mkdir()
-        (out / gates.RECORD).write_text(json.dumps({"place": "toy", "uses": kept, "sounds": {
-            use["sound"]: {"files": ["files/x.wav"]} for use in kept}}))
-        batch_gaps.write(out, sound.take_gaps(sorted(lost), {}, uses))
-        assert gates.judge_events(out, inputs, None).answer == checks.FAIL  # the gates' own answers stand
-        assert gates.judge_voices(out, inputs, None).answer == checks.FAIL
-        for name in ("events", "voices"):
-            moved = gated[name].judge(out, inputs, None)
-            assert moved.answer == checks.PASS and "moved to complete as accepted gaps" in moved.reason, moved
-        (out / batch_gaps.FILE).unlink()  # no take lost: the door is silent because no sound is named for it
-        assert gated["events"].judge(out, inputs, None).answer == checks.FAIL  # silent with no gap: still a fail
 
 
 def test_the_environment_names_a_brief_for_every_moving_part_it_plays_and_for_the_voice():
