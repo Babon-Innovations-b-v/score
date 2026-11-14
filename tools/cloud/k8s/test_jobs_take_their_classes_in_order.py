@@ -53,7 +53,7 @@ invariant with the break that turns it red (each applied once and seen red):
   a node whose `score.dev/class` names no capability class (the conductor's) is no class node, never a crash.
   Break: read the label raw in `watch_nodes` (`provider.cards('conductor')` raises). A node seen before its labels
   takes its type and zone when they come. Break: drop `if seen["type"] == "?":` and its line in `watch_nodes`.
-  Break: `created = seen["created"]` in `node_machines`. Runs side by side book each node at their part, whole
+  Break: `created = seen["created"]` in `node_machines`. Break: drop the `hosted` return in `Run.share`. Runs side by side book each node at their part, whole
   between them: a node shared by the time each run's pods held it (a gap to the run that held it last, before any
   hold to the first), an unused node by the pods that waited for its class when it came up; a run whose pods came
   after books none of it. Break: `paid += right - left` (no split) in `held_share`. Break: return the fallback
@@ -551,6 +551,7 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     monkeypatch.setattr(cluster_jobs.submitter, "runtime", lambda: helper)
     seen, uploads, fetches = {}, [], []
     real_upload = helper.store.upload
+    real_submit = cluster_jobs.submitter.submit
     monkeypatch.setattr(helper.store, "upload", lambda source, key: (uploads.append(key), real_upload(source, key)))
     kept = Store.in_folder(tmp_path / "home")  # the framework's store: one output whose only blob is evicted
     made = tmp_path / "made"
@@ -617,16 +618,79 @@ def test_inputs_go_up_at_their_paths_and_outputs_come_back_where_the_runner_want
     assert out_file.read_text() == "made by 0" and (out_folder / "part" / "a.txt").read_text() == "made by 0"
     assert (making / "folder" / "part" / "a.txt").read_text() == "made by 0"
 
-    def watch_lost(run, specs, store, wait_scale_down=True, who=None, parallel=None):
-        """Job 0 finished, then the watch failed (#95)."""
-        submit_run(run, specs, store, wait_scale_down, who, parallel)
-        raise RuntimeError("the control plane did not answer")
-    monkeypatch.setattr(cluster_jobs.submitter, "submit", watch_lost)
-    out_file.unlink()
-    with pytest.raises(RuntimeError, match="did not answer"):
-        cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"])
-    assert out_file.read_text() == "made by 0"  # what finished still came back
-    assert len(uploads) == 3 and CountedCopies.copies == 1  # the second run of the same inputs sent nothing
+    # never a lost row (#95), the real submitter under the door: its first look puts job 0 on a warm node and
+    # finishes it there, the cluster grown meanwhile; then the looks fail, each retried POLL_RETRIES times, or a
+    # SIGTERM comes. Either way the run's Jobs are deleted by its label, its row is booked from what was last seen
+    # (job 1 unwatched, or stopped), the mark that its node holds no --jobs slot is there at every look and gone
+    # after, and the door still brings back what job 0 made. Its nodes are billed from the run's start and only its
+    # own: the warm node it ran on from the start (its earlier minutes are other runs'), the node grown unused during
+    # it whole (end estimated), never one made before it unused or hosting another run.
+    deletes, booked, looks = [], [], []
+    mark = tmp_path / "waiting" / str(os.getpid())
+
+    class DeletingKubectl(LiveKubectl):
+        def run(self, *arguments):
+            deletes.append(arguments)
+            return ""
+    monkeypatch.setattr(cluster_jobs.submitter, "submit", real_submit)
+    monkeypatch.setattr(submit, "prepare", lambda kubectl, cluster: None)
+    monkeypatch.setattr(submit, "cluster_module", PricedCluster)
+    monkeypatch.setattr(submit, "cluster_kubectl", lambda cluster: DeletingKubectl())
+    monkeypatch.setattr(submit.ledger, "record", booked.append)
+    monkeypatch.setattr(submit, "POLL_SECONDS", 0)
+    monkeypatch.setattr(submit, "CLUSTER_WAITING", tmp_path / "waiting")
+
+    def watched(failing_look):
+        """A look that first finishes job 0 on the warm node, then `failing_look`."""
+        def look(run, parallel):
+            looks.append(mark.exists())  # the node holds no --jobs slot while it waits (score/graph CLUSTER_WAITERS)
+            if len(looks) > 1:
+                return failing_look()
+            submit_run(run.run_id, {"0": run.specs["0"]}, helper.store)
+            run.jobs["0"].update(node="warm", ran=run.started + 30, state="done")
+            node = {"class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "cards": 1, "jobs": set()}
+            for name, created, ready, gone, hosted in (
+                    ("warm", -6_000, -5_800, 600, False), ("grown", 60, 150, None, False),
+                    ("other-run", -1_000, -900, None, False), ("side-by-side", 60, 150, None, True)):
+                run.nodes[name] = dict(node, created=run.started + created, ready=run.started + ready,
+                                       deleted=gone and run.started + gone, hosted=hosted)
+        return look
+
+    def unreachable():
+        raise subprocess.CalledProcessError(1, ["kubectl"], stderr="kubectl get jobs,pods: connection refused")
+    before = signal.getsignal(signal.SIGTERM)
+    for name, failing_look, error, left in (
+            ("lost-run", unreachable, subprocess.CalledProcessError, "unwatched"),
+            ("stopped-direct", lambda: os.kill(os.getpid(), signal.SIGTERM), submit.Stopped, "stopped")):
+        out_file.unlink()
+        for record in (deletes, booked, looks):
+            record.clear()
+        monkeypatch.setattr(submit, "look", watched(failing_look))
+        with pytest.raises(error) as raised:
+            cluster_jobs.run("blender", jobs, who="test", classes=["gpu-24gb"], name=name)
+        assert out_file.read_text() == "made by 0", name  # what finished still came back
+        assert signal.getsignal(signal.SIGTERM) is before and all(looks) and not mark.exists(), name
+        assert len(looks) == (2 if left == "stopped" else 1 + submit.POLL_RETRIES + 1), (name, looks)
+        assert ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", f"score.dev/run={name}", "--ignore-not-found",
+                "--wait=false", "--cascade=background") in deletes, name
+        entry, = booked
+        assert entry["batch"] == name and entry["who"] == "test" and entry["jobs"]["1"]["state"] == left, name
+        assert entry["jobs"]["0"]["state"] == "done", name
+        rows = {row["node"]: row for row in entry["machines"]}
+        assert sorted(rows) == ["grown", "warm"], (name, rows)
+        assert rows["warm"]["start_wait_minutes"] == 0 and rows["warm"]["minutes"] == 10, rows["warm"]
+        assert not rows["warm"]["unused"] and rows["grown"]["unused"] and rows["grown"]["end_estimated"], rows
+        assert all(row.get("share", 1.0) == 1.0 for row in rows.values())  # a node of this run alone: booked whole
+    assert raised.value.code == 128 + signal.SIGTERM  # the stop exits 143
+    # its own failure deletes its Jobs too (nothing brings their outputs back now), and while it watched it marked
+    # them alive for cap_watch's sweep (2026-11-10: a stopped Buy's Jobs ran on for
+    # hours). Break: drop `delete_run_jobs(run)` from submit's `except BaseException`; break: drop the `beat_alive`
+    # in `watch`.
+    beaten = [call for call in deletes if call[0] == "annotate"]
+    assert beaten and beaten[0][:6] == ("annotate", "jobs", "-n", manifests.NAMESPACE, "-l",
+                                        "score.dev/run=stopped-direct") and beaten[0][-1].startswith(
+        submit.ALIVE_NOTE + "=")
+    assert len(uploads) == 3 and CountedCopies.copies == 1  # the later runs of the same inputs sent nothing
 
     # Under SCORE_K8S_QUEUE: a queue not fresh at submit time is started for later runs and the run goes on today's
     # path; a queue gone stale while the run waits gives it back, cancelled there, its jobs not done adopted by
@@ -751,26 +815,6 @@ class PricedCluster(PoolCluster):
 
 def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tmp_path):
     spec = {"kind": "judge", "image": "image", "minutes": 5}
-    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster())
-    run.started = 10_000.0
-    run.jobs["ask"].update(node="warm", ran=10_030.0, state="done")
-    run.nodes["warm"] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
-                         "created": 4_000.0, "ready": 4_200.0, "deleted": 10_600.0, "jobs": set()}
-    machine, = submit.node_machines(run, "judge")
-    assert machine["created"] == 10_000.0 and machine["ready"] == 10_000.0  # its earlier minutes are other runs'
-    row = submit.ledger.machine_row(machine)
-    assert row["start_wait_minutes"] == 0 and row["minutes"] == 10
-
-    run = submit.Run("r1", {"ask": spec}, FakeKubectl([]), PricedCluster())
-    run.started = 10_000.0
-    run.jobs["ask"].update(node="first", ran=10_200.0, state="done")
-    for name in ("first", "second"):
-        run.nodes[name] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
-                           "created": 10_060.0, "ready": 10_150.0, "deleted": 10_660.0, "jobs": set()}
-    run.nodes["other-run"] = dict(run.nodes["first"], created=9_000.0)
-    run.nodes["side-by-side"] = dict(run.nodes["first"], hosted=True)
-    assert sorted((machine["node"], machine["unused"]) for machine in submit.node_machines(run, "judge")) == [
-        ("first", False), ("second", True)]
 
     # runs side by side (2026-11-07: a settle run of one job booked all 23 nodes the cluster grew for 20 runs' pods,
     # EUR 2.90): each run books its part of a node, by the time its pods held it, or of an unused node by the pods
@@ -819,9 +863,8 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     assert b_parts["vain"] == d_parts["vain"] == 0.5  # two runs' pods waited for it: half each, whole between them
     assert c_parts["vain"] == b_parts["grown-0"] == d_parts["grown-1"] == 0
     assert a_parts["vain"] + b_parts["vain"] + c_parts["vain"] + d_parts["vain"] >= 1  # never less than whole
-    rows = [submit.ledger.machine_row(machine) for machine in submit.node_machines(run, "judge")]
-    assert all(row.get("share", 1.0) == 1.0 for row in rows)  # a node of this run alone: booked whole as before
-    machine = dict(run.nodes["first"], created=10_000.0, deleted=10_900.0, price=0.01, unit_minutes=1, share=0.25)
+    machine = {"type": "H100-1-80G", "zone": "fr-par-2", "cards": 1, "created": 10_000.0, "ready": 10_150.0,
+               "deleted": 10_900.0, "price": 0.01, "unit_minutes": 1, "share": 0.25}
     assert submit.ledger.machine_row(machine)["euros"] == pytest.approx(15 * 0.01 * 0.25)
 
     # which work goes on the cluster at all: SCORE_CLOUD=k8s, narrowed by SCORE_CLOUD_KINDS to its kinds (#76), a
@@ -1005,32 +1048,6 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     assert run.nodes["l4-a"]["deleted"] == clock[0] + submit.IDLE_ESTIMATE_MINUTES * 60  # a stop ends the holds
     monkeypatch.undo()
 
-    # never a lost row (#95): a look that keeps failing is retried, then the row is booked from the last look
-    def unreachable():
-        raise subprocess.CalledProcessError(1, ["kubectl"], stderr="kubectl get jobs,pods: connection refused")
-    booked, error, deleted, looks = a_watched_run(tmp_path, monkeypatch, unreachable)
-    assert isinstance(error, subprocess.CalledProcessError) and len(looks) == 1 + submit.POLL_RETRIES + 1
-    # its own failure deletes its Jobs too (nothing brings their outputs back now), and while it watched it marked
-    # them alive for cap_watch's sweep (2026-11-10: a stopped Buy's Jobs ran on for hours). Break: drop
-    # `delete_run_jobs(run)` from submit's `except BaseException`; break: drop the `beat_alive` in `watch`.
-    assert ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-lost", "--ignore-not-found",
-            "--wait=false", "--cascade=background") in deleted
-    beaten = [call for call in deleted if call[0] == "annotate"]
-    assert beaten and beaten[0][:6] == ("annotate", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-lost") \
-        and beaten[0][-1].startswith(submit.ALIVE_NOTE + "=")
-    entry, = booked
-    assert entry["batch"] == "r-lost" and entry["who"] == "test" and entry["jobs"]["ask"]["state"] == "unwatched"
-    assert [row["node"] for row in entry["machines"]] == ["n1"] and entry["machines"][0]["end_estimated"]
-
-    # a stop: the run's Jobs deleted (every generation, by its label), its row booked, the process ends 143
-    booked, error, deleted, looks = a_watched_run(tmp_path / "stop", monkeypatch,
-                                                  lambda: os.kill(os.getpid(), signal.SIGTERM))
-    assert isinstance(error, submit.Stopped) and error.code == 128 + signal.SIGTERM and len(looks) == 2
-    assert ("delete", "jobs", "-n", manifests.NAMESPACE, "-l", "score.dev/run=r-lost", "--ignore-not-found",
-            "--wait=false", "--cascade=background") in deleted
-    entry, = booked
-    assert entry["jobs"]["ask"]["state"] == "stopped" and [row["node"] for row in entry["machines"]] == ["n1"]
-
     # stop-batch: score's Jobs in score-jobs only
     class Recording(LiveKubectl):
         def run(self, *arguments):
@@ -1057,41 +1074,3 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     with pytest.raises(SystemExit, match="score-jobs only"):
         submit.stop_score_jobs(Recording(), PoolCluster())
 
-
-def a_watched_run(tmp_path, monkeypatch, failing_look):
-    """submit() of one job over stubs, its first look putting the job on a node and `failing_look` after: the rows
-    booked, the error it raised, the kubectl deletes and the looks made."""
-    (tmp_path / "store").mkdir(parents=True)
-    helper = Helper(tmp_path / "store")
-    booked, looks = [], []
-    monkeypatch.setattr(submit, "runtime", lambda: helper)
-    monkeypatch.setattr(submit, "prepare", lambda kubectl, cluster: None)
-    monkeypatch.setattr(submit.ledger, "record", booked.append)
-    monkeypatch.setattr(submit.time, "sleep", lambda seconds: None)
-
-    monkeypatch.setattr(submit, "CLUSTER_WAITING", tmp_path / "waiting")
-    mark = tmp_path / "waiting" / str(os.getpid())
-
-    def look(run, parallel):
-        looks.append(mark.exists())  # the node holds no --jobs slot while it waits (score/graph CLUSTER_WAITERS)
-        if len(looks) == 1:
-            run.jobs["ask"].update(node="n1", ran=time.time())
-            run.nodes["n1"] = {"class": "gpu-80gb", "type": "H100-1-80G", "zone": "fr-par-2", "cards": 1,
-                               "created": time.time(), "ready": time.time(), "deleted": None, "jobs": set()}
-            return
-        failing_look()
-    monkeypatch.setattr(submit, "look", look)
-
-    class DeletingKubectl(LiveKubectl):
-        def run(self, *arguments):
-            self.deleted.append(arguments)
-            return ""
-    kubectl = DeletingKubectl()
-    before = signal.getsignal(signal.SIGTERM)
-    spec = {"kind": "judge", "image": "image", "minutes": 5, "command": ["true"]}
-    helper.write_job(helper.store, "r-lost", "ask", spec)
-    with pytest.raises(BaseException) as raised:
-        submit.submit("r-lost", {"ask": spec}, helper.store, kubectl=kubectl, cluster=PricedCluster(), who="test")
-    assert signal.getsignal(signal.SIGTERM) is before  # the handler before is put back
-    assert all(looks) and not mark.exists()  # marked at every look, the mark gone after the error
-    return booked, raised.value, kubectl.deleted, looks
