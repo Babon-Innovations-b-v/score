@@ -175,7 +175,11 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   `treads_stood` (2026-11-14, the stairwell's person_woman: her sole 4.2 cm into a tread between keyframes) puts each
   foot, on every frame it stands, on the ground under it: a foot any skin point of which is in the highest up-facing
   surface under it below its ankle (`surface_under`) lifted till none is, a still one within `STANCE_HIGH` over it
-  lowered onto it, by Kimodo's own end-effector pin (`played.pinned`), never the Hips.
+  lowered onto it, by Kimodo's own end-effector pin (`played.pinned`), never the Hips. Before the first keyframe and
+  after the last Kimodo was asked no foot nor hip height and stood her over the landing on a straight leg (17 cm at
+  frame 0, 2 to 4 cm on frames 8 to 19 and 101 to 103), out of the pin's reach: `ends_stood` first moves the Hips there
+  only, as `stood` does on a flat floor (each frame's lowest still sole, any height, onto its ground, smoothed, the
+  keyframes' span held).
 - **One Newton environment**: `score/stages/physics/inside/newton_env.sh` (declared as `sim env`), built once at
   `$PROPS_HOME/envs/newton_env`; never a second env or a pip install of its own. mink, qpsolvers and daqp are pinned
   there for the fit (#70); the script is declared by physics-trial, settle and effects too, so a pin moves their keys.

@@ -65,7 +65,8 @@ scene_clips.json entry, route_clip: its travel kept along its route and up its s
 route's ground scaled by the build), so the ground pushes it on each tread; one with none taken is left out by name,
 never walked flat through its steps (2026-11-04). Kimodo held its feet on their treads only at its keyframes, so each
 foot, on every frame it stands, is put on the ground under its sole by Kimodo's own end-effector pin (treads_stood,
-2026-11-14).
+2026-11-14); before its first keyframe and after its last, where Kimodo was asked no foot nor hip height, its Hips are
+first moved so its standing feet rest on that ground (ends_stood, as `stood` does on a flat clip's floor).
 
 Not here: muscles driving a forward simulation (the movement is given; the muscles are the forces that would make it,
 with no activation dynamics), clips made for the ground for any walker but a climber (a flat-ground clip meets a step
@@ -239,8 +240,9 @@ def make(inputs, out, seed, params):
         if not len(ground):
             left_out.append(f"{single['name']}: no solid of the place within {REACH} m of its clip's path to stand on")
             continue
-        if single.get("stairs"):  # its feet on its treads between Kimodo's keyframes (treads_stood)
-            rig = dict(rig, **{f"clip_{clip}": treads_stood(rig, rig[f"clip_{clip}"], ground)})
+        if single.get("stairs"):  # its feet on its treads between and beyond Kimodo's keyframes (treads_stood)
+            asked = [fall["frame"] for fall in plan["footfalls"]]
+            rig = dict(rig, **{f"clip_{clip}": treads_stood(rig, rig[f"clip_{clip}"], ground, asked)})
             worlds = clip_frames(rig, clip, kept)
         mass = mass_of(single, standing_height(rig))
         targets = out / "clips" / f"{single['name']}.npz"

@@ -59,6 +59,11 @@ into its one test, every break below seen red on it again):
   `gap < STANCE_HIGH` made `gap < 1.0` (the foot 4 cm over pulled down); `speeds[:, index] < STANCE_SPEED` dropped (the
   swinging foot pulled down); surface_under's `>= UPWARD` made `>= 0.0` (the steep face read as ground); its
   `heights <= ceilings` dropped (the shelf over the ankle read as its ground).
+- a climber's feet on the ground before Kimodo's first keyframe and after its last, 2026-11-14 (her sole 17 cm over the
+  stairwell's landing at frame 0, out of the pin's reach): ends_stood's `free` made all False (the ends left 8 cm
+  over); its span's weight `1e9` made `1.0` (the Hips jumping 5 cm into the keyframes' span); its
+  `speeds[:, index] < STANCE_SPEED` dropped (the swinging foot's Hips pulled down); its `if not len(asked)` return
+  dropped (a clip asked nothing refused: min of no frames).
 - its clip chained down the tree: played.chained's `world[:, parents[joint]] @ local[:, joint]` made
   `local[:, joint] @ world[:, parents[joint]]` (2026-10-29: clip_frames chains through it).
 - its model unpacked only as pinned: fetched's sha256 check dropped.
@@ -473,6 +478,21 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
             assert pins[0][1].tolist() == [True] * 6 and pins[0][2] == pytest.approx(wanted), name
             lowest = sim_body._body.foot_lowest(foot, stood_on, sim_body._body.FEET[0])
             assert lowest == pytest.approx(np.array(wanted), abs=1e-9), name  # its skin on its tread
+    # before Kimodo's first foot keyframe and after its last its Hips stood her over the landing out of the pin's reach
+    # (ends_stood, 2026-11-14): the still foot 8 cm over its tread on 30 frames, keyframes at 10 and 20, is lowered
+    # onto it on the frames outside them by its Hips alone, the keyframes' span left as Kimodo made it; a swinging foot
+    # stands on no frame, so nothing moves
+    long_still, long_swinging = np.repeat(still[:1], 30, axis=0), np.repeat(still[:1], 30, axis=0)
+    long_swinging[:, 1, 0, 3] = np.arange(30) * 0.02
+    ended = sim_body._body.ends_stood(foot, long_still, square(-0.08), [10, 20])
+    lowest = sim_body._body.foot_lowest(foot, ended, sim_body._body.FEET[0])
+    assert lowest[[0, 1, 2, 27, 28, 29]] == pytest.approx(-0.08, abs=0.005)  # on its tread at the clip's ends
+    assert ended[10:21] == pytest.approx(long_still[10:21], abs=1e-6)  # the keyframes' span as Kimodo made it
+    hips = ended[:, 1, 1, 3]
+    assert abs(hips[9] - hips[10]) < 0.025 and abs(hips[21] - hips[20]) < 0.025  # eased into it
+    assert np.abs(ended[:, 2:] - long_still[:, 2:]).max() == 0.0  # only the Hips moved
+    assert sim_body._body.ends_stood(foot, long_swinging, square(-0.08), [10, 20]) == pytest.approx(long_swinging)
+    assert sim_body._body.ends_stood(foot, long_still, square(-0.08), []) == pytest.approx(long_still)
     assert sim_body.surface_under(square(0.02, 0.1), [[0.5, 0.0, 0.0], [0.0, 0.0, 0.0]], [0.08, 0.01]).tolist() == [
         -np.inf, -np.inf]  # beyond the tread, or the tread over its ceiling: no ground under it
     for world, clip, what, axis, (low, high) in PLAYED:
