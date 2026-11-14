@@ -116,7 +116,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 - test_the_click_writes_its_yes_at_the_price_shown_then_discusses_inside_it:
     web.py: `price = discuss.price() if price is None or abs(float(euros) - price) > 0.005:` made `price =
     discuss.price() if price is None:`
-- test_a_calls_cost_is_read_from_its_token_usage:
+- test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
     discuss.py: `return round(google_spend.dollars(concepts.PROMPT_MODEL, usage)` made `return round(100 *
     google_spend.dollars(concepts.PROMPT_MODEL, usage)`
 - test_environment_1s_concept_is_todays_data_shown_locked:
@@ -193,7 +193,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 - test_sites_on_different_grounds_are_never_compared:
     environment_plan.py: `for site in setting["sites"] if site["on"] == key]` made `for site in setting["sites"]]`;
     and `if placed.get(site["place"], {}).get("on") != world["on"]: continue` made `if False: continue`
-- test_sites_on_a_plot_are_moved_clear_across_it:
+- test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
     environment_plan.py: `fixed[axis]) + CLEAR_M)` made `fixed[axis]))`
 - test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map:
     environment_plan.py: `"metres": round(radius * great_angle(one, two) if radius else` made `"metres":
@@ -250,7 +250,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
 - test_the_lights_words_are_a_file_the_ask_reads_that_no_paid_rows_code_holds:
     reading.py: `{"text": LIGHT_ASKED.read_text().format(` made `{"text": WORDS.format(`, the file's words put back
     in reading.py as `WORDS` (the words in code again)
-- test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it:
+- test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
     reading_fixes.py: `INSIDE = 0.9` made `INSIDE = 0.5`; `if len(named) == 1 and` made `if named and` (a sitter
     on "a stool" anchored on one of two); `people_rows.seat_of(` made `bool(` (anchored on the table);
     `if row["id"] in people and said and not people_rows.seat_of(row)` made `if row["id"] in people and said` (a
@@ -311,9 +311,9 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     plans.py: `if size and (abs(size[0] - hold["w"]) > 0.001 or abs(size[1] - hold["d"]) > 0.001):` made `if False:`
 - test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
     plan_writing.py: `if row_id not in placed and parent in placed:` made `if False:`
-- test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap:
+- test_the_owners_word_stands (folded 2026-11-14 into its GAP_WORDS rows; each break applied again then, seen red):
     plan_checks.py: `if (mask & other_mask).sum() > OVERLAP * min(mask.sum(), other_mask.sum())]` made `if False]`
-- test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap (2026-11-04, #87):
+- test_the_owners_word_stands (folded 2026-11-14 into its GAP_WORDS and its stair core's rows; each break applied again then, seen red):
     plan_checks.py: stair_gaps' `if slope > STEEPEST:` made `if False:`
     plan_writing.py: fits' `return not any(plan_checks.too_close(samples, share, low, high, other) for other in laid)`
     made `return True`
@@ -339,7 +339,7 @@ and plans_pass_test.py on 2026-10-27, their breaks applied then. The Square's wo
     for its 2.2 m row)
 - test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a_named_gap:
     plan_writing.py (2026-11-04, #72): write_now's `if again else to_write(store, places)` made `to_write(...)` alone
-- test_a_footprint_answered_as_box_2d_is_measured_from_its_box:
+- test_the_owners_word_stands (folded 2026-11-14 into its JUDGED rows; each break applied again then, seen red):
     plan_writing.py: `keys[0]: left + wide / 2 if middle else left` made `keys[0]: left`
     plan_writing.py (2026-11-03, #72): `found = rows_scale(answer, inventory)` moved under the held branch's return
     of its box each way (`(skeleton["w"] / (extent[2] - extent[0]), skeleton["d"] / (extent[3] - extent[1]))`), and
@@ -565,8 +565,10 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     works out for him stands against answers known apart from the code: environment 1's setting from the cited table,
     a house's and an invented body's, each setting off its shape a refused row; and each sky (the Moon's phases, the Sun
     at Greenwich, a house's sun path) a row read through the same overhead. A reading's rows are what both readers
-    agree on and an answer off its schema is refused, each a row through the same judge; a written plan's gaps against
-    its concept are rows read through the same plan check."""
+    agree on and an answer off its schema is refused, each a row through the same judge, as are a reading's fixes
+    (parts, seats), a call's cost, sites cleared on a plot and a footprint measured from its boxes; a written plan's
+    gaps against its concept, its reach, inside places and stairs are rows read through the same plan check, and the
+    writer lays the stair core's flights with none."""
     def page():
         return review.page(tally.store, NODE).read_text()
 
@@ -765,14 +767,17 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
             assert want is None or holds(answer, want), (row_name, answer)
         assert merged is None or got[2] == merged, (row_name, got[2])  # the merged column exactly, no extra key
     assert reading.inside_rows(INSIDE_ROWS, {"hangar"}) == {"hangar", "ship", "hatch"}  # an inside place's own, kept
-    for row_name, function, arguments, want in READ_ANSWERS:
+    for row_name, function, arguments, want in [*READ_ANSWERS, *SEATED_AND_PARTED, *PRICED_AND_CLEARED, *MEASURED]:
+        function = getattr(reading, function) if isinstance(function, str) else function
         if isinstance(want, Refusal):
             with pytest.raises(concepts.Refused, match=want):
-                getattr(reading, function)(*arguments)
+                function(*arguments)
                 pytest.fail(f"{row_name}: taken")
         else:
-            answer = getattr(reading, function)(*arguments)
+            answer = function(*arguments)
             assert holds(answer, want), (row_name, answer)
+    seated = reading_fixes.seats_added(ALONE)[0]  # the bench added: its sitter seated, no part merged
+    assert reading_fixes.seats_missing(seated) == {} and reading_fixes.parts_apart(seated, SIZE)[1] == []
     parts = reading.parts_schema(["drum", "mast"])["properties"]["parts"]  # the parts ask answers under a schema
     assert parts["required"] == ["drum", "mast"] and parts["properties"]["mast"]["enum"] == list(reading.PARTS)
 
@@ -780,6 +785,11 @@ def test_the_owners_word_stands(tally, tmp_path, monkeypatch):
     for row_name, plan, inventory, kinds, want in GAP_WORDS:
         words = [gap["words"] for gap in plan_checks.checked(plan, inventory) if kinds is None or gap["kind"] in kinds]
         assert (want <= set(words)) if isinstance(want, set) else words == want, (row_name, words)
+    stairs, levels = plan_writing.flights_laid(STAIR_CORE)  # the writer lays the core's flights with no stair gap
+    assert not plan_checks.stair_gaps({**STAIR_CORE, "stairs": stairs, "levels": levels})
+    assert all(0.15 <= (stair["to"] - stair["from"]) / stair["steps"] <= 0.19 and 0.25 <= plan_checks.flight(
+        stair)[3] / stair["steps"] <= 0.30 for stair in stairs), stairs
+    assert [level["name"] for level in levels] == ["landing at 1.5 m", "landing at 3 m"], levels
 
 
 
@@ -1344,9 +1354,6 @@ def test_the_click_writes_its_yes_at_the_price_shown_then_discusses_inside_it(st
         web.concept_discuss(store, "campgrounds", {"base": first["sha"], "question": "why?"}, 0.03, "joey", run=run)
 
 
-def test_a_calls_cost_is_read_from_its_token_usage():
-    usage = {"usageMetadata": {"promptTokenCount": 2700, "candidatesTokenCount": 200, "thoughtsTokenCount": 1700}}
-    assert 0.02 < discuss.call_euros(usage) < 0.04
 
 
 # --- the environment concept: his locked version is what every draw reads ---------------------------------------------
@@ -1769,11 +1776,6 @@ def test_sites_on_different_grounds_are_never_compared(store, monkeypatch):
     assert not any("overlap" in gap or "one spot" in gap for gap in plan["gaps"])
 
 
-def test_sites_on_a_plot_are_moved_clear_across_it():
-    sites = [{"place": "barn", "x": 0.0, "y": 0.0, "footprint": [[-20, -10], [20, -10], [20, 10], [-20, 10]]},
-             {"place": "shed", "x": 0.0, "y": 15.0, "footprint": [[-2, -2], [2, -2], [2, 2], [-2, 2]]}]
-    barn, shed = environment_plan.cleared(sites, None)
-    assert barn == sites[0] and shed["x"] == 0.0 and shed["y"] == 10.0 + 2.0 + environment_plan.CLEAR_M
 
 
 def test_sites_kilometres_apart_on_the_moon_are_that_far_on_its_map(store, scene_plans):
@@ -2004,13 +2006,41 @@ def wanted_key_holds(got, key, value):
     return key in got and holds(got[key], value)
 
 
+class Exactly:
+    """A wanted value that must equal the answer whole, no key more."""
+
+    def __init__(self, value):
+        self.value = value
+
+
+class Between:
+    """A wanted number strictly between low and high."""
+
+    def __init__(self, low, high):
+        self.low, self.high = low, high
+
+
+class Said:
+    """A wanted value that is words: a non-empty string."""
+
+
+SAID = Said()
+
+
 def holds(got, want):
     """Whether an answer holds what a row wants: each wanted key of a dict present and holding (NONE_OR_MISSING for a
-    key read through .get), each item of a list in order and no more, any other value equal."""
+    key read through .get), each item of a list (or a tuple's) in order and no more, an Exactly equal whole, a Between
+    inside its bounds, SAID non-empty words, any other value equal."""
+    if isinstance(want, Exactly):
+        return got == want.value
+    if isinstance(want, Between):
+        return want.low < got < want.high
+    if isinstance(want, Said):
+        return isinstance(got, str) and bool(got.strip())
     if isinstance(want, dict):
         return isinstance(got, dict) and all(wanted_key_holds(got, key, value) for key, value in want.items())
     if isinstance(want, list):
-        return isinstance(got, list) and len(got) == len(want) and all(map(holds, got, want))
+        return isinstance(got, (list, tuple)) and len(got) == len(want) and all(map(holds, got, want))
     return got == want
 
 
@@ -2304,39 +2334,49 @@ HANDLE = row("handle", "handle", [250, 830, 260, 840], [[830, 250, 840, 260]], a
 CREW = row("crew", "person", [100, 500, 300, 600], [[500, 100, 600, 300]], where="sitting on a bench", part="object")
 
 
-def test_only_a_row_both_readers_put_inside_another_rows_thing_is_a_part_of_it():
-    rows = [FRIDGE, DOOR,
-            row("chair", "chair", [500, 500, 700, 700], [[500, 500, 700, 700]]),  # a person sits in it: 60% inside
-            row("person", "person", [480, 500, 680, 700], [[500, 480, 700, 600]]),
-            row("desk", "desk", [0, 0, 100, 100], [[0, 0, 100, 100]]),
-            row("laptop", "laptop", [0, 0, 90, 90], [[10, 10, 50, 50]], anchor="on:desk")]  # stands on it: its own
-    kept, merged = reading_fixes.parts_apart(rows, SIZE)
-    assert [item["id"] for item in kept] == ["fridge", "chair", "person", "desk", "laptop"]
-    assert merged == [{"name": "door", "row": "door", "into": "fridge"}]
-    # a row sitting on or at one seat another row is, anchored elsewhere, is anchored on it; at no seat, or two, it stays
-    sitters = [row("bench", "bench", None, []), row("table", "table", None, []),
-               row("stool_1", "stool", None, [], name="dining stool"), row("stool_2", "stool", None, [], name="stool"),
-               row("astronaut", "person", None, [], name="seated astronaut", where="sitting on bench 1"),
-               row("diner", "person", None, [], name="person sitting at a table"),
-               row("eater", "person", None, [], where="sitting at dining table"),
-               row("visitor", "person", None, [], where="sitting on a stool"),  # two stools: which, unread
-               row("pilot", "person", None, [], where="sitting on the bench", anchor="on:bench")]
-    assert reading_fixes.seats_named(sitters) == {"astronaut": "on:bench", "eater": "on:stool_1"}
-    # a person sitting on or at a seat no row holds gets that seat added under it, sized from it, and sits on it; one
-    # whose seat a row holds (one or two), one on the floor, and one already on a seat get none
-    assert reading_fixes.seats_missing(sitters) == {"diner": "chair"}
-    alone = [row("floor_plates", "floor", None, []),
-             row("crew", "astronaut", [400, 400, 600, 500], [[400, 400, 500, 600]], name="seated astronaut",
-                 where="sitting on bench", anchor="on:floor_plates", size=[0.6, 0.6, 1.4]),
-             row("kid", "person", None, [], where="sitting on the floor"), row("pilot_seat", "seat", None, []),
-             row("pilot", "person", None, [], where="sitting on a stool", anchor="on:pilot_seat")]
-    seated, added = reading_fixes.seats_added(alone)
-    assert added == {"crew": "on:crew_bench"} and [item["id"] for item in seated] == [
-        "floor_plates", "crew", "crew_bench", "kid", "pilot_seat", "pilot"]
-    bench = seated[2]
-    assert (bench["anchor"], bench["size"], bench["region"], bench["seat_for"]) == (
-        "on:floor_plates", [0.6, 0.6, 0.49], [500.0, 400, 600, 500], "crew") and bench["added"]["reason"]
-    assert reading_fixes.seats_missing(seated) == {} and reading_fixes.parts_apart(seated, SIZE)[1] == []
+PARTED = [FRIDGE, DOOR,
+          row("chair", "chair", [500, 500, 700, 700], [[500, 500, 700, 700]]),  # a person sits in it: 60% inside
+          row("person", "person", [480, 500, 680, 700], [[500, 480, 700, 600]]),
+          row("desk", "desk", [0, 0, 100, 100], [[0, 0, 100, 100]]),
+          row("laptop", "laptop", [0, 0, 90, 90], [[10, 10, 50, 50]], anchor="on:desk")]  # stands on it: its own
+SITTERS = [row("bench", "bench", None, []), row("table", "table", None, []),
+           row("stool_1", "stool", None, [], name="dining stool"), row("stool_2", "stool", None, [], name="stool"),
+           row("astronaut", "person", None, [], name="seated astronaut", where="sitting on bench 1"),
+           row("diner", "person", None, [], name="person sitting at a table"),
+           row("eater", "person", None, [], where="sitting at dining table"),
+           row("visitor", "person", None, [], where="sitting on a stool"),  # two stools: which, unread
+           row("pilot", "person", None, [], where="sitting on the bench", anchor="on:bench")]
+ALONE = [row("floor_plates", "floor", None, []),
+         row("crew", "astronaut", [400, 400, 600, 500], [[400, 400, 500, 600]], name="seated astronaut",
+             where="sitting on bench", anchor="on:floor_plates", size=[0.6, 0.6, 1.4]),
+         row("kid", "person", None, [], where="sitting on the floor"), row("pilot_seat", "seat", None, []),
+         row("pilot", "person", None, [], where="sitting on a stool", anchor="on:pilot_seat")]
+SEATED_AND_PARTED = [  # (row, the reading fix, its arguments, the outcome as `holds` reads it)
+    ("only a row both readers put inside another row's thing is a part of it", reading_fixes.parts_apart,
+     (PARTED, SIZE), [[{"id": "fridge"}, {"id": "chair"}, {"id": "person"}, {"id": "desk"}, {"id": "laptop"}],
+                      Exactly([{"name": "door", "row": "door", "into": "fridge"}])]),
+    ("a sitter on or at one seat a row is, anchored elsewhere, is anchored on it; at no seat, or two, it stays",
+     reading_fixes.seats_named, (SITTERS,), Exactly({"astronaut": "on:bench", "eater": "on:stool_1"})),
+    ("a sitter at a seat no row holds gets one; at a held seat, on the floor or already seated none",
+     reading_fixes.seats_missing, (SITTERS,), Exactly({"diner": "chair"})),
+    ("a seated astronaut on the floor gets a bench added under him, sized from him", reading_fixes.seats_added,
+     (ALONE,), [[{"id": "floor_plates"}, {"id": "crew"},
+                 {"id": "crew_bench", "anchor": "on:floor_plates", "size": [0.6, 0.6, 0.49],
+                  "region": [500.0, 400, 600, 500], "seat_for": "crew", "added": {"reason": SAID}},
+                 {"id": "kid"}, {"id": "pilot_seat"}, {"id": "pilot"}], Exactly({"crew": "on:crew_bench"})]),
+]
+
+PRICED_AND_CLEARED = [  # (row, the judging function, its arguments, the outcome as `holds` reads it)
+    ("a call's cost is read from its token usage", discuss.call_euros,
+     ({"usageMetadata": {"promptTokenCount": 2700, "candidatesTokenCount": 200, "thoughtsTokenCount": 1700}},),
+     Between(0.02, 0.04)),
+    ("sites on a plot are moved clear across it, the shed past the barn's edge", environment_plan.cleared,
+     ([{"place": "barn", "x": 0.0, "y": 0.0, "footprint": [[-20, -10], [20, -10], [20, 10], [-20, 10]]},
+       {"place": "shed", "x": 0.0, "y": 15.0, "footprint": [[-2, -2], [2, -2], [2, 2], [-2, 2]]}], None),
+     [Exactly({"place": "barn", "x": 0.0, "y": 0.0, "footprint": [[-20, -10], [20, -10], [20, 10], [-20, 10]]}),
+      {"x": 0.0, "y": 10.0 + 2.0 + environment_plan.CLEAR_M}]),
+]
+
 
 
 def test_a_reading_holding_a_part_is_fixed_once_free_its_children_moved(store, tmp_path):
@@ -3126,63 +3166,47 @@ def test_the_answer_is_a_plan_of_the_stage_tables_schema_and_each_failed_check_a
     assert "bench 1 and crate 1 stand in each other (north)" not in words  # his move, checked again
 
 
-def test_a_door_walled_in_or_an_inside_place_overlapping_another_is_a_gap():
-    plan = {"w": 6.0, "d": 4.0, "doors": [["S", 3.0, 1.0, "DOOR"]], "people": [[1.0, 1.0]],
-            "items": [["WALL OF CRATES 1", 0.0, 2.0, 6.0, 0.6, None, "item"]], "rows": {"WALL OF CRATES 1": ["crate"]},
-            "holds": [{"place": "a", "x": 0, "y": 0, "w": 3, "d": 2}, {"place": "b", "x": 2, "y": 0, "w": 3, "d": 2},
-                      {"place": "c", "x": 5, "y": 3, "w": 3, "d": 3}]}
-    inventory = {"rows": [{"id": "crate", "anchor": "floor", "count": 1}]}
-    words = [gap["words"] for gap in plan_checks.checked(plan, inventory)]
-    assert any(word.startswith("the standing spot (north-west)") and "reached" in word for word in words) or \
-        any(word.startswith("the door on the south wall") and "reached" in word for word in words)
-    assert "a and b overlap" in words and "c sticks out of the place" in words
-    plan["shapes"] = {"WALL OF CRATES 1": {"shape": "rect", "tall": 0.05}}  # a cable on the floor: walked over
-    assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
-    plan["shapes"] = {}
-    plan["items"][0][3] = 4.0  # a way round the crates: every door and spot reached
-    assert not [word for word in plan_checks.checked(plan, inventory) if "reached" in word]
-    # the stairwell's flights (#87): 1.5 m over a 1 m run, one over the next in one lane, one through the east wall;
-    # the writer builds each from its rise, lays them inside the core's walls apart and a landing where they turn
-    core = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "levels": [],
-            "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
-                      {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
-            "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
-                        "to": 1.5, "angle": 270.0, "steps": 9},
-                       {"kind": "stair", "points": [[0.2, 1.5], [1.4, 1.5], [1.4, 2.5], [0.2, 2.5]], "from": 3.0,
-                        "to": 1.5, "angle": 270.0, "steps": 9},
-                       {"kind": "stair", "points": [[2.2, 3.0], [3.2, 3.0], [3.2, 4.0], [2.2, 4.0]], "from": 3.0,
-                        "to": 4.5, "angle": 270.0, "steps": 9}]}
-    words = [gap["words"] for gap in plan_checks.checked(core, {"rows": []}) if gap["kind"] == "stairs"]
-    assert "stair 1 rises 1.5 m over a 1.00 m run, 56 degrees (steeper than 42)" in words, words
-    assert "stair 1 and stair 2 overlap, under 2 m apart" in words and "stair 3 lies past its walls (south-east)" \
-        in words, words
-    stairs, levels = plan_writing.flights_laid(core)
-    assert not plan_checks.stair_gaps({**core, "stairs": stairs, "levels": levels})
-    assert all(0.15 <= (stair["to"] - stair["from"]) / stair["steps"] <= 0.19 and 0.25 <= plan_checks.flight(
-        stair)[3] / stair["steps"] <= 0.30 for stair in stairs), stairs
-    assert [level["name"] for level in levels] == ["landing at 1.5 m", "landing at 3 m"], levels
+WALLED = {"w": 6.0, "d": 4.0, "doors": [["S", 3.0, 1.0, "DOOR"]], "people": [[1.0, 1.0]],
+          "items": [["WALL OF CRATES 1", 0.0, 2.0, 6.0, 0.6, None, "item"]], "rows": {"WALL OF CRATES 1": ["crate"]},
+          "holds": [{"place": "a", "x": 0, "y": 0, "w": 3, "d": 2}, {"place": "b", "x": 2, "y": 0, "w": 3, "d": 2},
+                    {"place": "c", "x": 5, "y": 3, "w": 3, "d": 3}]}
+CRATE_ROW = {"rows": [{"id": "crate", "anchor": "floor", "count": 1}]}
+# the stairwell's flights (#87): 1.5 m over a 1 m run, one over the next in one lane, one through the east wall;
+# the writer builds each from its rise, lays them inside the core's walls apart and a landing where they turn
+STAIR_CORE = {"w": 2.8, "d": 5.0, "doors": [], "items": [], "rows": {}, "levels": [],
+              "walls": [{"from": [0, 0], "to": [2.8, 0], "thick": 0.2}, {"from": [2.8, 0], "to": [2.8, 5.0], "thick": 0.2},
+                        {"from": [2.8, 5.0], "to": [0, 5.0], "thick": 0.2}, {"from": [0, 5.0], "to": [0, 0], "thick": 0.2}],
+              "stairs": [{"kind": "stair", "points": [[0.2, 2.0], [1.4, 2.0], [1.4, 3.0], [0.2, 3.0]], "from": 0.0,
+                          "to": 1.5, "angle": 270.0, "steps": 9},
+                         {"kind": "stair", "points": [[0.2, 1.5], [1.4, 1.5], [1.4, 2.5], [0.2, 2.5]], "from": 3.0,
+                          "to": 1.5, "angle": 270.0, "steps": 9},
+                         {"kind": "stair", "points": [[2.2, 3.0], [3.2, 3.0], [3.2, 4.0], [2.2, 4.0]], "from": 3.0,
+                          "to": 4.5, "angle": 270.0, "steps": 9}]}
 
 
-def test_a_footprint_answered_as_box_2d_is_measured_from_its_box():
-    answer = {"outline": [[0, 0], [1000, 0], [1000, 1000], [0, 1000]],
-              "items": [{"row": "bench", "box_2d": [100, 200, 160, 400]}],
-              "places": [{"place": "nook", "box_2d": [500, 500, 700, 800]}]}
-    inventory = {"rows": [{"id": "bench", "size": [2.0, 0.6, 0.9]}]}
-    found, skeleton, how = plan_writing.measured(answer, {"w": 1.0, "d": 1.0}, inventory, held=False)
-    assert how == {"metres a unit": [0.01, 0.01], "by": "its rows' metres"}
-    assert (skeleton["w"], skeleton["d"]) == (10, 10)
-    assert {key: found["items"][0][key] for key in ("x", "y", "wide", "deep")} == {"x": 3.0, "y": 1.3, "wide": 2.0,
-                                                                                    "deep": 0.6}
-    assert {key: found["places"][0][key] for key in ("x", "y", "w", "d")} == {"x": 5.0, "y": 5.0, "w": 3.0, "d": 2.0}
+
+BOX_2D = {"outline": [[0, 0], [1000, 0], [1000, 1000], [0, 1000]],
+          "items": [{"row": "bench", "box_2d": [100, 200, 160, 400]}],
+          "places": [{"place": "nook", "box_2d": [500, 500, 700, 800]}]}
+BENCH_METRES = {"rows": [{"id": "bench", "size": [2.0, 0.6, 0.9]}]}
+HELD_BOX = {"w": 2.0, "d": 6.0, "doors": [["S", 1.0, 0.9, "DOOR"], ["E", 3.0, 0.9, "DOOR"]]}
+ROWS_METRES = Exactly({"metres a unit": [0.01, 0.01], "by": "its rows' metres"})
+MEASURED = [  # (row, the footprint measure, its arguments: answer, skeleton, inventory, held; found, skeleton, how)
+    ("a footprint answered as box_2d is measured from its box", plan_writing.measured,
+     (BOX_2D, {"w": 1.0, "d": 1.0}, BENCH_METRES, False),
+     [{"items": [{"x": 3.0, "y": 1.3, "wide": 2.0, "deep": 0.6}], "places": [{"x": 5.0, "y": 5.0, "w": 3.0, "d": 2.0}]},
+      {"w": 10, "d": 10}, ROWS_METRES]),
     # a held place keeps its own size: its rows' metres both ways and its drawn outline, never its holder's box shape
     # (#72: the Square's 2.145 x 6.609 m strip stretched the flat 2.3x across); its doors keep their share of the wall
-    box = {"w": 2.0, "d": 6.0, "doors": [["S", 1.0, 0.9, "DOOR"], ["E", 3.0, 0.9, "DOOR"]]}
-    found, skeleton, how = plan_writing.measured(answer, box, inventory, held=True)
-    assert how == {"metres a unit": [0.01, 0.01], "by": "its rows' metres"}
-    assert (skeleton["w"], skeleton["d"]) == (10, 10) and found["items"][0]["wide"] == 2.0
-    assert skeleton["doors"] == [["S", 5.0, 0.9, "DOOR"], ["E", 5.0, 0.9, "DOOR"]]
-    found, skeleton, how = plan_writing.measured(answer, box, {"rows": []}, held=True)  # no row tells: its box's floor
-    assert how["metres a unit"][0] == how["metres a unit"][1] and (skeleton["w"], skeleton["d"]) == (3.464, 3.464)
+    ("a held place keeps its rows' metres and its doors their share of the wall", plan_writing.measured,
+     (BOX_2D, HELD_BOX, BENCH_METRES, True),
+     [{"items": [{"wide": 2.0}]}, {"w": 10, "d": 10, "doors": [["S", 5.0, 0.9, "DOOR"], ["E", 5.0, 0.9, "DOOR"]]},
+      ROWS_METRES]),
+    ("a held place no row tells is measured by its box's floor, the same both ways", plan_writing.measured,
+     (BOX_2D, HELD_BOX, {"rows": []}, True),
+     [{}, {"w": 3.464, "d": 3.464}, {"metres a unit": [0.00346, 0.00346]}]),
+]
+
 
 
 CONCEPT_ROWS = {"picture": [1000, 1000], "rows": [  # a hub in the middle, a dome left, a hangar behind, a tube hub-dome
@@ -3230,6 +3254,15 @@ GAP_WORDS = [  # (row, a written plan, its inventory, the gap kinds read or None
     ("a person on its spot and a thing seen far off are no gaps; a row not laid is", DINER, DINER_ROWS, None,
      ["stage: 1 in the concept, 0 on the plan"]),
     ("a row marked beyond the place is no gap", {**DINER, "beyond": ["stage"]}, DINER_ROWS, None, []),
+    ("a wall of crates walls the standing spot in; inside places overlapping or sticking out", WALLED, CRATE_ROW, None,
+     {"the standing spot (north-west) cannot be reached on foot", "a and b overlap", "c sticks out of the place"}),
+    ("a cable on the floor is walked over", {**WALLED, "shapes": {"WALL OF CRATES 1": {"shape": "rect", "tall": 0.05}}},
+     CRATE_ROW, {"reach"}, []),
+    ("a way round the crates: every door and spot reached",
+     {**WALLED, "items": [["WALL OF CRATES 1", 0.0, 2.0, 4.0, 0.6, None, "item"]]}, CRATE_ROW, {"reach"}, []),
+    ("a flight too steep, two overlapping, one past its walls", STAIR_CORE, {"rows": []}, {"stairs"},
+     {"stair 1 rises 1.5 m over a 1.00 m run, 56 degrees (steeper than 42)", "stair 1 and stair 2 overlap, under 2 m apart",
+      "stair 3 lies past its walls (south-east)"}),
 ]
 
 
