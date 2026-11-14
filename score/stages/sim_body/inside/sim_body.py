@@ -201,11 +201,12 @@ def fitted_person(job, person, rig, worlds, path):
     return record, scales, fitting.model, angles, motion
 
 
-def skin_of(rig, segments, bodies, riding, fitted, worlds):
+def skin_of(rig, segments, bodies, riding, fitted, worlds, ground):
     """The person's drawn skin the ground pushes (`contact.Skin`): SOMA's mesh at its bind, its weights on the
     segments, each segment riding its bone from its group's start (`landmarks.at_starts`, as `riding` stands it),
     laid on SOMA's skin over the clip (`Skin.registered`: `fitted` each segment's frame on the fitted path,
-    `posed_path`; `worlds` SOMA's segment frames, the targets')."""
+    `posed_path`; `worlds` SOMA's segment frames, the targets'), the feet's by their soles where they stand on
+    `ground`."""
     names = [str(name) for name in rig["names"]]
     joints = [names.index(segment) for segment in segments]
     table = groups()
@@ -213,7 +214,8 @@ def skin_of(rig, segments, bodies, riding, fitted, worlds):
     skin = Skin(rig["points"], np.asarray(rig["weights"], dtype=float)[:, joints], starts,
                 [bodies[segment] for segment in segments], [riding[segment] for segment in segments])
     soma = np.asarray(worlds, dtype=float) @ np.linalg.inv(np.asarray(rig["bind"], dtype=float)[joints]) @ starts
-    return skin.registered(fitted, soma)
+    return skin.registered(fitted, soma, ground,
+                           [index for index, segment in enumerate(segments) if segment.endswith(FEET)])
 
 
 def credited(physics, skin, path, stance, bodies):
@@ -272,7 +274,7 @@ def run_person(job, person, out_path):
                           [(foot, toe, bodies[toe]) for foot, toe in FEET_SIDES if foot in segments and toe in segments],
                           job["rate"])
     fitted_poses = posed_path(model, qpath, segments, bodies, riding)
-    skin = skin_of(rig, segments, bodies, riding, fitted_poses, worlds)
+    skin = skin_of(rig, segments, bodies, riding, fitted_poses, worlds, ground)
     physics.skin = credited(physics, skin, qpath, targets["stance"] if "stance" in targets.files else None, bodies)
     feet = {segment: np.flatnonzero(skin.owners == bodies[segment]) for segment in segments if segment.endswith(FEET)}
     weight = sum(model.body_mass) * job["gravity"]

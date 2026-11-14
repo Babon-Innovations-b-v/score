@@ -22,6 +22,10 @@ to 27 mm inside his skin, which sat 10 mm into his floor, so the floor carried 0
   turn and shift (Kabsch over its points and REGISTERED_FRAMES frames of the fitted path) that best lays its carried
   skin on SOMA's. Carried from MyoFullBody's ankle, a foot's skin stood 5 to 11 mm over SOMA's and turned 4 to 6
   degrees on LabValidation; laid, within about 1 mm. Nothing moves the body: only where its skin rides its bones.
+  A foot's segments are laid by their sole where SOMA's stands (`sole_of`, 2026-11-14): over the frames its drawn skin
+  stands within GAP of the ground, the points within GAP of that frame's lowest; laid over its whole skin and clip,
+  the swing outweighed the stance and camp's walker's standing sole stood 2.3 mm under SOMA's on the median, 5.5 at
+  most (the skin 4.8 mm into the floor against `on floor`'s 3 mm); by its sole 0.6 and 3.1.
 - **A foot the video shows standing is pushed from its sole** (#98, `Skin.credited`, the job's targets' `stance`,
   frames x 2: tools/labval's GEM-X static contact or the stage's own stance): on those frames its points are measured
   from its lowest point (at most STANCE_HIGH, 5 cm, tuned on subjects 2 to 5's plates) instead of the ground, on `pushes`, `pushes_all` and

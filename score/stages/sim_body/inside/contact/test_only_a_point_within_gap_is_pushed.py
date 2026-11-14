@@ -33,6 +33,9 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - pushes' backs dropped (`leaned(...)[:0]`): the ball 3 mm off the upright back is pushed by nothing, as cockpit's
   pilot's chest on his seat's back was; pushes_all's backs dropped: its state differs from `pushes`'; touching_all's
   backs dropped: the balance's state differs.
+- registered's `if segment in soles and ground is not None:` made `if False:`: the foot is laid over its lifted
+  frames too, off the standing riding.
+- sole_of's `(lowest[:, None] <= GAP) &` dropped: the lifted frames' lowest corners count as sole, off it.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -127,7 +130,8 @@ def only_a_point_within_gap_is_pushed():
     """The ball's skin (5 cm) with its bottom 4 mm over the ground: its one lowest point is pushed, along the four
     edges of the friction pyramid (normal up, plus or minus FRICTION across), each a fifth long (1 mm left of GAP's
     5); 6 mm over it, nothing is pushed. A foot seen standing is pushed from its sole
-    (`seen_standing_problems`); a registered skin lies on SOMA's (`registered_skin_problems`); a back pushes a
+    (`seen_standing_problems`); a registered skin lies on SOMA's, a foot's by its sole where it stands
+    (`registered_skin_problems`); a back pushes a
     point leaning on it (`leaning_problems`)."""
     import numpy as np
     near, far = pushed(0.054, flat()), pushed(0.056, flat())
@@ -308,7 +312,41 @@ def registered_skin_problems():
         carried.append([built_model.own_pose(model, data, 1)])
     carried = np.array(carried)
     found = skin.registered(carried, carried @ offset)
-    return [] if np.allclose(found.riding[0], offset, atol=1e-9) else [f"riding {np.round(found.riding[0], 4)}"]
+    problems = [] if np.allclose(found.riding[0], offset, atol=1e-9) else [f"riding {np.round(found.riding[0], 4)}"]
+    return problems + sole_registered_problems()
+
+
+def sole_registered_problems():
+    """A foot's skin (a 10 cm box, its frame 5 cm behind its middle) SOMA stands flat on the ground on three frames,
+    its sole 2 mm up and turned about up, and lifts 25 cm, tilted, on three: carried off SOMA's by one turn and shift
+    standing and another lifted. Laid as a foot (`soles`), its riding is the standing one (to 1e-9), so its sole lies
+    on SOMA's; laid as any segment it is neither, the lifted frames counted as much as the standing."""
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    import contact
+    corners = np.array([[x, y, z] for x in (-0.05, 0.05) for y in (-0.05, 0.05) for z in (-0.05, 0.05)])
+    bind = np.eye(4)
+    bind[:3, 3] = [-0.05, 0.0, 0.0]
+    skin = contact.Skin(corners, np.ones((len(corners), 1)), [bind], [1], [np.eye(4)])
+
+    def move(turn, place):
+        found = np.eye(4)
+        found[:3, :3], found[:3, 3] = Rotation.from_rotvec(turn).as_matrix(), place
+        return found
+    standing, lifted = move([0.02, -0.04, 0.03], [0.004, -0.003, 0.002]), move([0.1, 0.05, -0.08], [0.02, 0.01, -0.03])
+    soma, offsets = [], []
+    for frame in range(6):
+        up = frame < 3
+        drawn = move([0.0, 0.2 * frame, 0.0], [0.3 * frame, 0.052, 0.1]) if up else move(
+            [0.3, 0.1 * frame, 0.0], [0.3 * frame, 0.3, 0.1])
+        soma.append([drawn @ bind])
+        offsets.append(standing if up else lifted)
+    soma = np.array(soma)
+    carried = soma @ np.linalg.inv(np.array(offsets))[:, None]
+    as_foot = skin.registered(carried, soma, flat(), [0]).riding[0]
+    as_any = skin.registered(carried, soma, flat()).riding[0]
+    return ([] if np.allclose(as_foot, standing, atol=1e-9) else [f"as a foot: riding {np.round(as_foot, 4)}"]) + (
+        [] if not np.allclose(as_any, standing, atol=1e-4) else ["as any segment: the standing riding"])
 
 
 def leaning_problems():

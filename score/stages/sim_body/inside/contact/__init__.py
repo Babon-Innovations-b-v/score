@@ -44,14 +44,16 @@ class Skin:
         self.owners = np.asarray(self.bodies)[self.weights.argmax(axis=1)]  # the body a point's force is booked on
         self.credit = None  # frames x points: how far over its ground each point is pushed from (`credited`)
 
-    def registered(self, carried, soma):
+    def registered(self, carried, soma, ground=None, soles=()):
         """This skin with each segment's riding moved by the one rigid turn and shift that best lays the segment's
         skin, as the fitted path carries it, on SOMA's own over the clip (Kabsch: the least squares over the points the
         segment carries most, on REGISTERED_FRAMES frames spread over the clip): `carried` each segment's frame
         riding its bone (frames x segments x 4 x 4, `model.posed_path`), `soma` SOMA's segment frames standing where
         `binds` stands each one (frames x segments x 4 x 4). The fit follows SOMA's markers, not its joints: carried
         from MyoFullBody's ankle, a foot's skin stood 5 to 11 mm over SOMA's on the median, turned 4 to 6 degrees
-        (#98, 2026-11-07, LabValidation's subjects 2, 3 and 5), so the ground missed feet SOMA stood on."""
+        (#98, 2026-11-07, LabValidation's subjects 2, 3 and 5), so the ground missed feet SOMA stood on. A segment of
+        `soles` (the feet's, by index) is laid by its sole where it stands (`sole_of`) on `ground` (the drawn
+        triangles) instead."""
         frames = np.unique(np.linspace(0, len(carried) - 1, min(REGISTERED_FRAMES, len(carried))).astype(int))
         riding = np.array(self.riding)
         for segment in range(len(self.bodies)):
@@ -59,13 +61,34 @@ class Skin:
             if len(mine) < 3:
                 continue
             local = self.points[mine] @ self.unbound[segment, :3, :3].T + self.unbound[segment, :3, 3]
-            seen = np.linalg.inv(carried[frames, segment]) @ soma[frames, segment]  # SOMA's frame in the carried one
-            wanted = (np.einsum("fij,pj->fpi", seen[:, :3, :3], local) + seen[:, None, :3, 3]).reshape(-1, 3)
-            given = np.tile(local, (len(frames), 1))
-            riding[segment] = riding[segment] @ kabsch(given, wanted)
+            seen = np.linalg.inv(carried[:, segment]) @ soma[:, segment]  # SOMA's frame in the carried one
+            wanted = np.einsum("fij,pj->fpi", seen[:, :3, :3], local) + seen[:, None, :3, 3]
+            kept = np.zeros(wanted.shape[:2], dtype=bool)
+            kept[frames] = True
+            if segment in soles and ground is not None:
+                kept = self.sole_of(soma, mine, ground, kept)
+            riding[segment] = riding[segment] @ kabsch(np.broadcast_to(local, wanted.shape)[kept], wanted[kept])
         found = Skin(self.points, self.weights, np.linalg.inv(self.unbound), self.bodies, riding)
         found.credit = self.credit
         return found
+
+    def sole_of(self, soma, mine, ground, spread):
+        """Which of the points `mine` lay a foot's segment on SOMA's (frames x points): on every frame SOMA's drawn
+        skin of them stands within GAP of `ground`, those within GAP of that frame's lowest, so the skin the ground
+        carries the foot by lies where SOMA's does; `spread` (the segment's whole skin on REGISTERED_FRAMES frames)
+        where it never stands on three. Laid over its whole skin, camp's walker's standing sole stood 2.3 mm under
+        SOMA's on the median and 5.5 mm at most (2026-11-14): the fit misses the foot's turn by a degree or two, and
+        the swing's frames outweighed the stance's."""
+        moves = soma @ self.unbound  # frames x segments x 4 x 4: each segment's move from the bind
+        drawn = np.einsum("ps,fsij,pj->fpi", self.weights[mine], moves[:, :, :3, :3], self.points[mine],
+                          optimize=True) + np.einsum("ps,fsi->fpi", self.weights[mine], moves[:, :, :3, 3])
+        points = drawn.reshape(-1, 3)
+        low, high = points[:, [0, 2]].min(axis=0), points[:, [0, 2]].max(axis=0)
+        under = np.all((ground[:, :, [0, 2]].max(axis=1) >= low) & (ground[:, :, [0, 2]].min(axis=1) <= high), axis=1)
+        heights = heights_over(points, ground[under]).reshape(drawn.shape[:2])  # nan off the ground
+        lowest = np.nanmin(np.where(np.isnan(heights), np.inf, heights), axis=1)
+        sole = (lowest[:, None] <= GAP) & (heights <= lowest[:, None] + GAP)
+        return sole if sole.sum() >= 3 else spread
 
     def credited(self, lowest, stance, feet):
         """This skin's `credit` set: on each frame a foot is seen standing (`stance`, frames x feet) and its lowest
