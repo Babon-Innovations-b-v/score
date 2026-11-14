@@ -25,6 +25,20 @@
    "faults": [
     "robotic_arm: outline 0.364 under 0.5 (prop route)"
    ]
+  },
+  {
+   "name": "lamp_1: the retaken lamp tips in every upright pose",
+   "row": "assembly",
+   "check": "resting",
+   "objects": [
+    "lamp_1"
+   ],
+   "reason": "The workshop lamp's retaken model stands its weight 7 cm outside a 4.5 cm foot, so the settle lays it tipped in every upright pose (leans 57.5 degrees, tips 0.118; 1 of the place's objects with faults, as laid) on settle@workshop's make and its automatic free remake (output ebfd48bb1940, 2026-11-14 on 586b98306). It is the same lamp as this place's likeness gap, so the place still has one gap object. Its second fail makes it a gap: the settle's resting is waived for that output (decide 20261114T053951661704Z) and this entry moves the same fault from the assembly's resting gate to complete, which fails it by name.",
+   "decided": "owner (@JoeyKardolus), his standing rule of 2026-11-09: \"EVERY FAIL GETS ONE PAID RETAKE, IF FAIL AGAIN, GAP\", applied by the env1 run session with the score session, 2026-11-14 ~05:40 UTC",
+   "faults": [
+    "lamp_1: leans 57.4697: its up axis leans 57.5 degrees from what it stands on",
+    "lamp_1: tips 0.118: its weight falls outside what it touches"
+   ]
   }
  ],
  "retired": [
