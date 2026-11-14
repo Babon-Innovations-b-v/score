@@ -10,6 +10,14 @@ HEADROOM = 1.0
 # How far over a point its ground may lie (metres): the cast's KNEE (score/stages/cast/measure.py; the test checks
 # they agree), so a body the cast stands on a deck stands on the deck, not on the floor under it.
 REACH_UP = 0.3
+# A drawn triangle whose upward normal's height is under this (steeper than 60 degrees) is a back, not a floor: a
+# point is near it along its normal (`leaning`), not along the upright line (2026-11-14, cockpit's pilot: his chest
+# and shoulder blades 0 to 3.5 mm into his seat's back, never pushed, so his weight, 8 mm behind the three skin points
+# on his cushion, left 0.95 N m of residual over its 0.76 on frames 136 and 137).
+STEEP = 0.5
+CELL = 0.03  # metres: the grid `leaning` finds each point's steep triangles on
+BIG_CELLS = 20_000  # a steep triangle whose box spans more CELLs than this is measured against the points directly
+PAIRS = 4_000_000  # (point, triangle) pairs `leaning` measures at once
 SAME = 1e-9  # metres: crossings closer than this are one (a point on an edge two triangles share)
 CORNER = 1e-6  # metres: triangles with corners this near join into one piece (`pieces`)
 _PIECES = {}  # id of a ground array: (the array, its triangles' pieces), worked out once (`pieces`)
@@ -140,6 +148,104 @@ def standing(points, ground, reach=None, floor=None, top=None):
 def heights_over(points, ground, reach=None, floor=None, top=None):
     """Each point's height over its ground (`standing`'s reach, floor and top); nan where it has none."""
     return points[:, 1] - standing(points, ground, reach, floor, top)[0]
+
+
+def leaning(points, ground, centres, within, floor):
+    """Each point's back (a steep drawn triangle, its upward normal's height under STEEP: a seat's back, a wall, a
+    console's front, which `standing` measures along the upright line and so never as near), the nearest one whose
+    plane the point lies within `within` metres of, in front of it or in it, its foot on the plane inside the
+    triangle: its distance from the plane towards its body's middle (`centres`, each point's, the side the back
+    pushes it to; under 0 in it), its triangle, that unit normal and the foot (nan and -1 where it has none). A point
+    at most `floor` high (each point's, its body's `body_floor`: a knee over its lowest point) has none: a riser or a
+    console's foot the toe meets is no back, and a trip on it shows as residual."""
+    points = np.asarray(points, dtype=float)
+    centres = np.broadcast_to(np.asarray(centres, dtype=float), points.shape)
+    raised = points[:, 1] > np.broadcast_to(floor, len(points)) if len(points) else np.zeros(0, dtype=bool)
+    found, under = np.full(len(points), np.nan), np.full(len(points), -1)
+    turned, feet = np.full((len(points), 3), np.nan), np.full((len(points), 3), np.nan)
+    if not len(points) or not len(ground):
+        return found, under, turned, feet
+    up = normals(ground)
+    candidates = np.flatnonzero(raised)
+    if not len(candidates):
+        return found, under, turned, feet
+    pairs = _near_steep(points[candidates], ground, up, within)
+    for point, triangle in pairs:
+        corners = ground[triangle]
+        normal = up[triangle] * np.where(np.einsum("ij,ij->i", centres[candidates[point]] - corners[:, 0],
+                                                   up[triangle]) < 0.0, -1.0, 1.0)[:, None]
+        distance = np.einsum("ij,ij->i", points[candidates[point]] - corners[:, 0], normal)
+        close = np.abs(distance) <= within
+        point, triangle, corners, normal, distance = (values[close] for values in
+                                                      (point, triangle, corners, normal, distance))
+        foot = points[candidates[point]] - distance[:, None] * normal
+        edge1, edge2, offset = corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0], foot - corners[:, 0]
+        dot11, dot12, dot22 = (np.einsum("ij,ij->i", one, two) for one, two in
+                               ((edge1, edge1), (edge1, edge2), (edge2, edge2)))
+        dot1, dot2 = np.einsum("ij,ij->i", offset, edge1), np.einsum("ij,ij->i", offset, edge2)
+        det = dot11 * dot22 - dot12 ** 2
+        flat = np.abs(det) > 1e-18  # a triangle with no area holds no foot
+        safe = np.where(flat, det, 1.0)
+        one, two = (dot22 * dot1 - dot12 * dot2) / safe, (dot11 * dot2 - dot12 * dot1) / safe
+        inside = flat & (one >= 0) & (two >= 0) & (one + two <= 1)
+        point, triangle, normal, distance, foot = (values[inside] for values in
+                                                   (point, triangle, normal, distance, foot))
+        if not len(point):
+            continue
+        order = np.lexsort((triangle, np.abs(distance), point))  # each point's nearest, then its first triangle
+        first = order[np.append(True, point[order][1:] != point[order][:-1])]
+        mine = candidates[point[first]]
+        better = np.abs(distance[first]) < np.nan_to_num(np.abs(found[mine]), nan=np.inf)
+        first, mine = first[better], mine[better]
+        found[mine], under[mine] = distance[first], triangle[first]
+        turned[mine], feet[mine] = normal[first], foot[first]
+    return found, under, turned, feet
+
+
+def _near_steep(points, ground, up, within):
+    """The (point, triangle) pairs `leaning` measures, in chunks of at most PAIRS: each point with every steep
+    triangle (STEEP) whose box, widened by `within`, holds the point's CELL of a grid over the points' box, near the
+    triangle's plane; a triangle whose box spans over BIG_CELLS cells (a long slanted wall) with every point in its
+    box within `within` of its plane, one triangle at a time."""
+    low, high = points.min(axis=0) - within, points.max(axis=0) + within
+    lows, highs = ground.min(axis=1) - within, ground.max(axis=1) + within
+    steep = np.flatnonzero((up[:, 1] < STEEP) & (lows <= high).all(axis=1) & (highs >= low).all(axis=1))
+    if not len(steep):
+        return
+    shape = np.floor((high - low) / CELL).astype(np.int64) + 1
+    first_cell = np.floor((np.maximum(lows[steep], low) - low) / CELL).astype(np.int64)
+    spans = np.floor((np.minimum(highs[steep], high) - low) / CELL).astype(np.int64) - first_cell + 1
+    counts = spans.prod(axis=1)
+    for triangle in steep[counts > BIG_CELLS]:
+        boxed = np.flatnonzero(((points >= lows[triangle]) & (points <= highs[triangle])).all(axis=1))
+        boxed = boxed[np.abs((points[boxed] - ground[triangle, 0]) @ up[triangle]) <= within]
+        yield boxed, np.full(len(boxed), triangle)
+    small = counts <= BIG_CELLS
+    steep, first_cell, spans, counts = steep[small], first_cell[small], spans[small], counts[small]
+    owner = np.repeat(np.arange(len(steep)), counts)
+    local = np.arange(counts.sum()) - np.repeat(np.cumsum(counts) - counts, counts)
+    deep, tall = spans[owner, 2], spans[owner, 1]
+    cells = first_cell[owner] + np.stack([local // (tall * deep), (local // deep) % tall, local % deep], axis=1)
+    # a cell whose middle stands further than `within` and half its diagonal off the triangle's plane holds no point
+    # near it (a long slanted wall's box is the whole room)
+    middles = low + (cells + 0.5) * CELL
+    held = np.abs(np.einsum("ij,ij->i", middles - ground[steep[owner], 0], up[steep[owner]])) <= within + CELL * 0.87
+    cells, owner = cells[held], owner[held]
+    keys = (cells[:, 0] * shape[1] + cells[:, 1]) * shape[2] + cells[:, 2]
+    order = np.argsort(keys, kind="stable")
+    keys, triangles = keys[order], steep[owner[order]]
+    mine = np.floor((points - low) / CELL).astype(np.int64)
+    mine = (mine[:, 0] * shape[1] + mine[:, 1]) * shape[2] + mine[:, 2]
+    starts, ends = np.searchsorted(keys, mine, side="left"), np.searchsorted(keys, mine, side="right")
+    many = ends - starts
+    near = np.flatnonzero(many)
+    bounds = np.searchsorted(np.cumsum(many[near]), np.arange(PAIRS, many[near].sum() + PAIRS, PAIRS), side="right")
+    for chunk in np.split(near, np.unique(bounds[:-1])):
+        counted = many[chunk]
+        point = np.repeat(chunk, counted)
+        at = np.arange(counted.sum()) - np.repeat(np.cumsum(counted) - counted, counted) + np.repeat(starts[chunk],
+                                                                                                    counted)
+        yield point, triangles[at]
 
 
 def normals(ground):

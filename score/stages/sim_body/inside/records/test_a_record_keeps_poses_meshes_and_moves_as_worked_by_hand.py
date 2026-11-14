@@ -2,7 +2,7 @@
 its parent in degrees, a mesh's near vertices merged with its flat faces dropped, RRA's `adjusted` record's pelvis
 centimetres, least share and mass percent, the arrays named for the person, and a swaying quiet stance's pushes one a
 foot, summing to its weight, each centre on the ground under its foot and none jumping frame to frame (`push_faults`,
-on the solve's own pushes through `steadied`). It runs in Newton's own Python
+on the solve's own pushes through `steadied`), and a back's centre kept on the back. It runs in Newton's own Python
 (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh, built at $PROPS_HOME/envs/newton_env): with none
 built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -22,6 +22,8 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 
 - records.paths_of's `at[kept]` made `at`, contact.lowests' `heights[points]` made `heights`, local_turns'
   `above.transpose(0, 2, 1)` made `above`: each a one-pass piece no longer equal to the item-by-item one (2026-11-05).
+- steadied's `if pressed.min() - PRESSED <= set_on <= pressed.max() + PRESSED:` made `if True:` (2026-11-14): the
+  chest's centre on its seat's back is dropped 0.8 m onto the floor under it.
 - com_height's `centre[1] - floor` made the centre's height over the ground under it (the old reading): the seated
   stander's centre 0.27 m over the slab, not 0.87 over its floor (2026-11-14).
 
@@ -256,7 +258,22 @@ def a_quiet_stance_pushes_its_weight_steadily_under_each_foot():
     if measures["quiet frames"] < len(steady):
         problems.append(f"{measures['quiet frames']} of {len(steady)} frames quiet")
     return (problems + [f"{fault} ({measures})" for fault in records.push_faults(measures)]
-            + centre_over_the_floor_under_its_feet())
+            + centre_over_the_floor_under_its_feet() + a_backs_centre_stays_on_the_back())
+
+
+def a_backs_centre_stays_on_the_back():
+    """A chest leaning on an upright back (its face at z = -0.1, 0.8 m over a floor at 0), pushed forward 20 N on
+    every frame from its two touching points: its steadied centre stays on the back, 0.8 m up, never dropped onto the
+    floor under it (cockpit's pilot's seat's back, 2026-11-14)."""
+    import numpy as np
+    import records
+    floor = np.array([[[-5.0, 0.0, -5.0], [5.0, 0.0, 5.0], [5.0, 0.0, -5.0]],
+                      [[-5.0, 0.0, -5.0], [-5.0, 0.0, 5.0], [5.0, 0.0, 5.0]]])
+    under = np.array([[-0.05, 0.8, -0.1], [0.05, 0.8, -0.1]])
+    raw = [{"Chest": (np.array([0.0, 0.0, 20.0]), np.array([0.0, 0.8, -0.1]), 20.0, under)} for _ in range(10)]
+    found = [touches["Chest"][3:] for touches in records.steadied(raw, RATE, floor)]
+    return [f"the back's centre at {centre}, not on the back" for centre in found
+            if not np.allclose(centre, [0.0, 0.8, -0.1], atol=1e-6)][:1]
 
 
 def centre_over_the_floor_under_its_feet():

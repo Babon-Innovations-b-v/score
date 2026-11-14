@@ -2,7 +2,8 @@
 of the drawn ground, whichever drawn surface that is (a seat as a floor), inside a friction pyramid when slow and
 sliding against its slip when fast, a point blended over two bodies moving with both by its weights, its push's
 directions as long as it is near, so a point's push fades to nothing at GAP (worked by hand); every state's pushes at
-once (`pushes_all`, the card's) are each state's own, and so are the balance's touching points (`touching_all`).
+once (`pushes_all`, the card's) are each state's own, and so are the balance's touching points (`touching_all`);
+a back the skin leans on within GAP pushes it along the back's normal, the same in all three.
 It runs in Newton's own Python (MuJoCo pinned there; score/stages/physics/inside/newton_env.sh, built at
 $PROPS_HOME/envs/newton_env): with none built there, as in `make tests`' sandbox home, it prints `skipped`.
 
@@ -28,6 +29,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
 - credited's `<= STANCE_HIGH` made `<= 1.0`: the foot 60 mm up is pushed from its sole.
 - pushes_all's `- credit[state]` dropped: its state differs from `pushes`'.
 - kabsch's `middle_wanted - turn @ middle_given` made `middle_wanted - middle_given`: the registered riding is off.
+2026-11-14:
+- pushes' backs dropped (`leaned(...)[:0]`): the ball 3 mm off the upright back is pushed by nothing, as cockpit's
+  pilot's chest on his seat's back was; pushes_all's backs dropped: its state differs from `pushes`'; touching_all's
+  backs dropped: the balance's state differs.
 
 Run: .venv/bin/python score/stages/sim_body/inside/contact/test_only_a_point_within_gap_is_pushed.py
 """
@@ -122,7 +127,8 @@ def only_a_point_within_gap_is_pushed():
     """The ball's skin (5 cm) with its bottom 4 mm over the ground: its one lowest point is pushed, along the four
     edges of the friction pyramid (normal up, plus or minus FRICTION across), each a fifth long (1 mm left of GAP's
     5); 6 mm over it, nothing is pushed. A foot seen standing is pushed from its sole
-    (`seen_standing_problems`); a registered skin lies on SOMA's (`registered_skin_problems`)."""
+    (`seen_standing_problems`); a registered skin lies on SOMA's (`registered_skin_problems`); a back pushes a
+    point leaning on it (`leaning_problems`)."""
     import numpy as np
     near, far = pushed(0.054, flat()), pushed(0.056, flat())
     problems = [] if len(near) == 1 and len(near[0][2]) == 4 else [f"4 mm over: {len(near)} points pushed"]
@@ -130,7 +136,7 @@ def only_a_point_within_gap_is_pushed():
                                 sorted([[0.0, 0.1, 0.2], [0.0, -0.1, 0.2], [0.1, 0.0, 0.2], [-0.1, 0.0, 0.2]])):
         problems.append(f"4 mm over: edges {[edge.tolist() for edge in near[0][2]]}")
     return problems + ([] if not far else [f"6 mm over: {len(far)} points pushed"]) + seen_standing_problems() + \
-        registered_skin_problems()
+        registered_skin_problems() + leaning_problems()
 
 
 def a_seat_carries_the_skin_on_it():
@@ -303,6 +309,50 @@ def registered_skin_problems():
     carried = np.array(carried)
     found = skin.registered(carried, carried @ offset)
     return [] if np.allclose(found.riding[0], offset, atol=1e-9) else [f"riding {np.round(found.riding[0], 4)}"]
+
+
+def leaning_problems():
+    """The ball 1 m up beside an upright back (its face 3 mm off the skin's point that way, the floor far under it),
+    its skin with a point 0.5 m under it (its body's lowest, so the ball is over a knee above it):
+    the back pushes that one point along its normal towards the ball (MuJoCo's -x, two fifths long: 2 mm left of
+    GAP) from the face; 6 mm off, nothing; `pushes_all` and `touching_all` on both states push what `pushes` does
+    (cockpit's pilot leaning on his seat's back, 2026-11-14)."""
+    import mujoco
+    import numpy as np
+    import contact
+    import ground as grounds
+    problems, states, wanted = [], {"xpos": [], "xmat": [], "cdof": [], "cvel": [], "subtree_com": [], "qvel": []}, []
+    face = SKIN + 0.003
+    back = np.array([[[face, 0.0, -1.0], [face, 2.0, 1.0], [face, 2.0, -1.0]],
+                     [[face, 0.0, -1.0], [face, 0.0, 1.0], [face, 2.0, 1.0]]])
+    room = np.concatenate([flat(), back])
+    model, data = ball_at(1.0)
+    ball = skin_of(model, data)
+    # a point 0.5 m under the ball, as a foot under a chest: the back stands over a knee above the body's lowest point
+    skin = contact.Skin(np.vstack([ball.points, ball.points.mean(axis=0) - [0.0, 0.5, 0.0]]),
+                        np.vstack([ball.weights, [[1.0]]]), np.linalg.inv(ball.unbound), ball.bodies, ball.riding)
+    for off, count in ((0.003, 1), (0.006, 0)):
+        data.qpos[0] = 0.003 - off
+        mujoco.mj_forward(model, data)
+        found = contact.pushes(model, data, room, grounds.normals(room), skin)
+        wanted.append(found)
+        for name in states:
+            states[name].append(getattr(data, name).copy())
+        if len(found) != count:
+            problems.append(f"{off * 1000:.0f} mm off the back: {len(found)} points pushed, not {count}")
+        elif count and not (np.allclose(np.mean(found[0][2], axis=0), [-0.4, 0.0, 0.0])
+                            and np.allclose(found[0][3], [face, 0.0, 1.0])):
+            problems.append(f"3 mm off the back: edges {np.round(found[0][2], 3).tolist()} at {found[0][3]}")
+    arrays = {name: np.array(values) for name, values in states.items()}
+    every, _ = contact.pushes_all(model, arrays, room, grounds.normals(room), skin, contact.Chains(model))
+    touching = contact.touching_all(model, arrays, room, grounds.normals(room), skin)
+    for state, (mine, (places, _, edges, counts), theirs) in enumerate(zip(every, touching, wanted[:1] + [[]])):
+        if len(mine) != len(theirs) or len(places) != len(theirs) or any(
+                not np.allclose(one[2], other[2], atol=1e-12) or not np.allclose(one[1], other[1], atol=1e-12)
+                or not np.allclose(edge[:number], other[2], atol=1e-12)
+                for one, other, edge, number in zip(mine, theirs, edges, counts)):
+            problems.append(f"state {state}: every state's pushes on the back differ from its own")
+    return problems
 
 
 CHECKS = (only_a_point_within_gap_is_pushed, a_seat_carries_the_skin_on_it, a_fast_point_slides_against_its_slip,
