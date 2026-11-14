@@ -140,6 +140,10 @@ Breaks (each applied once with the env linked into a sandbox home, seen red, rev
   unmoved by RRA's move (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
 - (2026-11-14) FrameSkins.posed_at's `mesh.refit()` dropped: the moved points never reach the winding query
   (a_frames_skin_marks_the_bones_out_of_it_frame_by_frame red).
+- (2026-11-14) _toes.elevated's `np.sin(bends) / cosine` made `np.sin(bends)`: the hinge turned as far as SOMA's
+  bend, its tip 0.81 of SOMA's rise (the_frames_hold_the_bones_inside_the_skin red).
+- (2026-11-14) _toes.rest_angle's intercept `[0][0]` made `[0][1]`: the hinge turned about its slope, not its rest
+  (the_frames_hold_the_bones_inside_the_skin red).
 
 Run: .venv/bin/python score/stages/sim_body/inside/fit/test_the_solver_gives_back_the_pose_and_constants_that_made_its_targets.py
 """
@@ -654,7 +658,8 @@ def the_frames_hold_the_bones_inside_the_skin():
     outside (root mean square over the frames) falls to under a quarter of the frames' without them, and the
     frames' whole cost (`_constants.Problem`'s turns and markers, plus the skin rows: `_skin.skin_cost` times each
     point's depth) is lower there than at the frames fitted without the skin: the skin task moves the pose to the
-    joint optimum, never away from it."""
+    joint optimum, never away from it. The toes, whose hinge cannot follow SOMA's bend, rise as SOMA's do
+    (`the_toes_rise_as_somas`)."""
     import numpy as np
     import fit
     from fit import _skin
@@ -674,7 +679,8 @@ def the_frames_hold_the_bones_inside_the_skin():
                  + _skin.skin_cost(found.shape[1]) ** 2 * float(np.sum(found ** 2))
                  for problem, found in zip(problems_at, depths)]
     problems = [] if inside < 0.25 * outside else [f"bones {1000 * inside:.2f} mm outside held, {1000 * outside:.2f} free"]
-    return problems + ([] if costs[0] < costs[1] else [f"the held frames' cost {costs[0]:.6f} over the free {costs[1]:.6f}"])
+    problems += [] if costs[0] < costs[1] else [f"the held frames' cost {costs[0]:.6f} over the free {costs[1]:.6f}"]
+    return problems + the_toes_rise_as_somas()
 
 
 def a_pose_measured_once_gives_the_same_fit():
@@ -1194,6 +1200,39 @@ def a_step_the_cost_cannot_see_is_judged_by_its_gradient():
     return ([] if taken is not unknowns else ["the step that lowers the gradient is refused"]) + (
         [] if refused is unknowns else ["the step that raises the gradient is taken"]) + (
         [] if unseen is unknowns else ["a step the cost cannot see is taken by descended"])
+
+
+TOES = ('<mujoco><compiler angle="radian"/><worldbody><body name="calcn_l"><freejoint/><geom size="0.02" mass="1"/>'
+        '<body name="toes_l" pos="0.1 0 0"><joint name="mtp_angle_l" type="hinge" axis="0.580954 0.813936 0" '
+        'range="-0.698132 0.698132" limited="true"/><geom size="0.01" mass="0.1"/></body></body></worldbody></mujoco>')
+
+
+def the_toes_rise_as_somas():
+    """`toes_bent` on a foot whose toes ride one hinge 35.5 degrees off its across (cos 0.814), SOMA's toes bending
+    about the across by 0 to 0.5 radians over 31 frames and 0.9 on the last, the fitted hinge at 0.1 less the bend
+    times that cosine (the turn nearest the bend): every frame's hinge at 0.1 less the turn that raises the toes' tip
+    as SOMA's bend raises SOMA's (asin(sin bend / 0.814)), low-passed as the path is (`solvers.smoothed`), the last
+    stopped at its range's end, and every other coordinate as it was."""
+    import mujoco
+    import numpy as np
+    from scipy.spatial.transform import Rotation
+    from fit import _toes
+    model = mujoco.MjModel.from_xml_string(TOES)
+    segments = ["LeftFoot", "LeftToeBase"]
+    rig = {"names": np.array(segments), "bind": np.tile(np.eye(4), (2, 1, 1))}
+    bends = np.append(0.5 * np.sin(np.linspace(0.0, np.pi, 30)) ** 2, 0.9)
+    worlds = np.tile(np.eye(4), (31, 2, 1, 1))
+    worlds[:, 1, :3, :3] = Rotation.from_rotvec(bends[:, None] * [0.0, 0.0, 1.0]).as_matrix()
+    path = np.tile(model.qpos0, (31, 1))
+    path[:, 7] = 0.1 - 0.813936 * bends
+    from solvers import smoothed
+    found = _toes.toes_bent(model, path, rig, segments, worlds, [("LeftFoot", "LeftToeBase", 2)], 30.0)
+    wanted = np.clip(smoothed(0.1 - np.arcsin(np.clip(np.sin(bends) / 0.813936, -1.0, 1.0)), 30.0), -0.698132,
+                     0.698132)
+    problems = [] if np.allclose(found[:, 7], wanted, atol=1e-6) else [
+        f"the hinge {np.round(found[:, 7], 4).tolist()}, wanted {np.round(wanted, 4).tolist()}"]
+    return problems + ([] if np.array_equal(np.delete(found, 7, axis=1), np.delete(path, 7, axis=1))
+                       else ["a coordinate other than the toes' hinge moved"])
 
 
 CHECKS = (an_end_read_in_the_skin_holds_its_bones_off_somas_joint, a_turn_is_judged_on_the_calibration_table_as_it_stands, a_bone_point_outside_the_skin_lies_as_deep_as_its_distance, a_skin_crossing_itself_tells_inside_by_its_winding_number, only_what_the_data_tells_is_an_inside_unknown, a_middle_end_sits_on_the_common_holder, each_marker_weighs_its_trust_and_the_markers_goal_the_turns_goal,

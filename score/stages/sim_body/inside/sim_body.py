@@ -267,6 +267,10 @@ def run_person(job, person, out_path):
     # MOTOR's path is smooth already: its jerk is the chain's low-pass (`motor.jerk_weights`)
     qpath = (np.array([physics.couplings.apply(qpos) for qpos in carried(own, model, angles)]) if job.get("motor")
              else filtered(model, physics.couplings, carried(own, model, angles), job["rate"]))
+    # the toes bent as SOMA's rise, after the low-pass (MOTOR's path is its own)
+    qpath = fit.toes_bent(model, qpath, rig, segments, worlds,
+                          [(foot, toe, bodies[toe]) for foot, toe in FEET_SIDES if foot in segments and toe in segments],
+                          job["rate"])
     fitted_poses = posed_path(model, qpath, segments, bodies, riding)
     skin = skin_of(rig, segments, bodies, riding, fitted_poses, worlds)
     physics.skin = credited(physics, skin, qpath, targets["stance"] if "stance" in targets.files else None, bodies)
