@@ -120,7 +120,6 @@ def test_the_style_measure_reads_only_the_models_own_pixels(tmp_path, monkeypatc
 
 if __name__ == "__main__":
     import runpy
-
     import pytest
     runpy.run_path(str(HERE.parents[1] / "conftest.py"))["refuse_outside_sandbox"]()
     raise SystemExit(pytest.main([__file__, "-q"]))
