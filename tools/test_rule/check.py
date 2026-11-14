@@ -139,7 +139,6 @@ FUNCTION_DEBT = {
     "tools/props/closeup/test_only_a_clean_closeup_goes_on.py": 25,
     "tools/props/library/test_pieces_keep_true_shape_and_library_paint.py": 40,
     "tools/props/scene/test_a_scene_is_made_from_its_concept.py": 17,
-    "tools/props/test_crop_as_pixal3d_does.py": 2,
     "tools/props/test_one_run_on_the_card.py": 12,
     "tools/sound/loudness/test_no_take_leaves_louder_than_the_rule.py": 5,
 }
