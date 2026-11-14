@@ -14,6 +14,7 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest
 import json
 import math
 import pathlib
+import re
 import sys
 import tempfile
 import numpy as np
@@ -271,10 +272,24 @@ HANDIN = {"rows": [{"id": "bench", "route": "prop", "size": [2.0, 0.6, 0.9], "co
           "objects": {"bench": {"rows": ["bench", "ceiling_lamp"]}}}
 # The base's site at its scene time (data/physics/setting.json): the Sun stands over its horizon then.
 SKY = {"site": {"on": "moon", "latitude": 55.0, "longitude": 0.0, "height_m": 0.0}, "time": "2099-10-01T14:00:00Z"}
+# The shed furnished whole: a rail run the plan draws once as a polygon counting three, 0.5 m up, and two arched
+# ribs (design_shell.arched: a tube's ribs, a band of the shell) across it, each 8 x 0.2 m, at plan y 1 and 4.
+RIB = {"id": "structural_ribs", "name": "arched structural ribs", "noun": "ribs", "part": "structure",
+       "route": "plan", "size": [3.2, 0.2, 3.2], "count": 2}
+FURNISHED = {**WRITTEN, "items": [*WRITTEN["items"], ["RAIL", 1.0, 4.0, 3.0, 1.0, None, "item"],
+                                  ["RIBS 1", 0.0, 1.0, 8.0, 0.2, None, "item"],
+                                  ["RIBS 2", 0.0, 4.0, 8.0, 0.2, None, "item"]],
+             "rows": {**WRITTEN["rows"], "RAIL": ["rail"], "RIBS 1": ["structural_ribs"],
+                      "RIBS 2": ["structural_ribs"]},
+             "shapes": {**WRITTEN["shapes"], "RAIL": {"shape": "polygon", "points": [[0, 0], [1, 0], [1, 1], [0, 1]],
+                                                      "count": 3, "base": 0.5}}}
+FURNISHED_HANDIN = {"rows": [*HANDIN["rows"], {"id": "rail", "route": "prop", "size": [1.0, 0.1, 1.0]}, RIB],
+                    "objects": {**HANDIN["objects"], "rail": {"rows": ["rail"]}}}
 
 
-def written(folder, design, yard=YARD, site=SITE):
-    """scene-record@shed written into `folder` from its design `design`: (the record's output, the writer's inputs)."""
+def written(folder, design, yard=YARD, site=SITE, handin=HANDIN):
+    """scene-record@shed written into `folder` from its design `design` and the batch's hand-in `handin`: (the
+    record's output, the writer's inputs)."""
     from score.review import setting
     from score.stages.scene_record import writer
     folder = pathlib.Path(folder)
@@ -282,7 +297,7 @@ def written(folder, design, yard=YARD, site=SITE):
     (folder / "plans/site.json").write_text(json.dumps(site))
     (folder / "inventory.json").write_text(json.dumps({**INVENTORY, "rows": [*INVENTORY["rows"], LAMP_ROW]}))
     (folder / "sky.json").write_text(json.dumps({**SKY, "place": "shed", "top": "site", "setting": setting.now()}))
-    (folder / "hand-in.json").write_text(json.dumps(HANDIN))
+    (folder / "hand-in.json").write_text(json.dumps(handin))
     inputs = {**inputs, "plan": out, "sky": folder / "sky.json", "hand-in": folder / "hand-in.json",
               "row kinds": REPO / "data/checks/row-kinds.json",
               "lamp library": REPO / "data/library/lamps.json", "places": REPO / "data/definitions/place.json",
@@ -350,11 +365,78 @@ def test_the_record_is_written_from_the_design():
     open one on the Moon (no dust) none; the file is a declared input.
     Break: score/stages/scene_record/writer.py: `return found if dome is None else {**found, "sky_dome": dome}` ->
         `return found`
-    Break: score/stages/scene_record/writer.py: `if not found:` -> `if inside(design) or not found:` (camp's domes)"""
+    Break: score/stages/scene_record/writer.py: `if not found:` -> `if inside(design) or not found:` (camp's domes)
+    Fault (2026-10-25): the record laid no object of a designed place, so the assembly placed none of its models.
+    Each prop row's plan item gets its object `<row>_<n>` over its middle at its shape's base, waiting on its take's
+    model (`<first row>_1`); a run the plan draws once as a polygon counting three lays three pieces along it, each
+    its long side along the path; a row with no size waits named; the plan's own floor is named on its deck.
+    Break: score/stages/scene_record/writer.py: `            base = float(shape.get("base") or 0.0)` ->
+        `            base = 0.0`
+    Break: score/stages/scene_record/writer.py: `return [along(path, (number + 0.5) / pieces) for number in
+        range(pieces)]`
+        -> `return [along(path, 0.5) for number in range(pieces)]`
+    2026-11-04: the lab's 10 pipes on 6 plan items laid 6. A row counting 5 on two items lays 3 and 2.
+    Break: score/stages/scene_record/writer.py pieces_of: `for turn in range(max(short, 0)):` -> `for turn in
+        range(0):` (two pipes laid for five)
+    Break: score/stages/scene_record/writer.py design_objects: `pieces_of(counted(row, design), laid)` ->
+        `pieces_of(row, laid)` (the five laid again where the plan dropped three)
+    Batch 1's retry: the tube's ribs, their box the whole picture, framed no close-up. The shell lays an arched
+    structure row (design_shell.arched) as an `arch` at each plan item tied to it, at the row's size, named its row,
+    painted as a wall; a block of no band, or a row of no structure, is not arched.
+    Break: score/stages/scene_record/writer.py: `way = np.array([1.0, 0.0]) if wide >= deep else np.array([0.0, 1.0])`
+        -> `way = np.array([0.0, 1.0])`
+    Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
+    when the library names no stair), and a part it gives none, or every part while no library is made, carries no
+    surface and says why; the scene builder names that on the mesh and binds nothing.
+    Break: score/stages/scene_record/writer.py: `    return dict(entry, surface=surface)` -> `    return dict(entry,
+        surface="deck_plate")`
+    Break: score/stages/earth_seed/design_shell.py: `return f"{place}: the scene's surface library is not made (run
+        surface-library first): its {kind} has none"`
+        -> `return f"{place}: no surface"`
+    Break: score/stages/earth_seed/design_shell.py: `return next((name for name in found if set(name.split("_")) &
+        set(words)), found[0])` -> `return found[0]` (docking_airlock's floor painted with its ochre edging)
+    The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
+    stands the holder at its own plan's middle, a place it holds beside where it holds it, each once.
+    Break: score/stages/scene_record/writer.py: `if name in stood_already or name == place:` -> `if name == place:`
+    The lit shed: a 1 by 1 by 10 m floodlight tower (a stem by its metres) read as a tower (the reading's noun) gets
+    one library lamp near its top over its middle, a light switch none (score/stages/row_kinds.py held_by).
+    Break: score/stages/scene_record/writer.py: `high = base + tall * share` -> `high = base + share`
+    An engine room's core (a machine: its row kind does not glow) its concept shows glowing blue at half the
+    brightest light gets the library's lamp over its plan item in that blue at half the lamp's strength; the engine
+    its concept shows dark and the starry sky (the physics') get none (reading.concept_light, kept as
+    {home}/design/light/<place>.json).
+    Break: score/stages/scene_record/writer.py:
+        `"energy": round(energy * light["strength"] * (float(glow["brightness"]) if glow else 1.0), 4),`
+        -> `"energy": round(energy * light["strength"], 4),`
+    Break: score/stages/scene_record/writer.py:
+        `for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}`
+        -> `for row in inventory["rows"] if row["id"] in shown}`
+    Break: score/stages/scene_record/concept_light.py: `PROPS_HOME / "design" / "light"` -> `PROPS_HOME / "light"`
+        (the row reads its concept light where plans.keep keeps none)
+    Break: score/stages/scene_record/writer.py pieces_of: `counts[turn % len(counts)] += 1` -> `pass` (four counted
+        screens on two items lay two lamps)
+    Break: score/stages/scene_record/writer.py glow_share: `return (float(emitter["share"]), "emitter") if said &` ->
+        `return (1.0, "source") if said &` (a screen throws a lamp's light)
+    Break: score/stages/scene_record/writer.py: `set(emitter["words"]) | CONTROL_FACES | SIGNAL_LIGHTS` ->
+        `set(emitter["words"]) | SIGNAL_LIGHTS` (a door's keypad throws a lamp's light: shiplock, 2026-11-10)
+    Engineroom (#36): a glowing wall panel the plan draws as the whole room (7 x 5 m of the 8 x 6 m shed), held on
+    the west wall at its middle (plan 0, 3), has its lamp on that wall's face (x 0.1) 0.1 m out into the room, at
+    plan (0.2, 3), as high as the wall mount says on the shed's 3 m walls (1.5 m), never over the room's middle; the
+    plan-matched gate takes it there, off its item's box, and fails it moved off its wall; one on the east wall read
+    as three has three lamps spread along the face, at the middles of its thirds (plan y 1, 3 and 5).
+    Break: score/stages/scene_record/writer.py: `walled = relation is not None and relation.get("how") == "wall" and
+        room` -> `walled = False`
+    Break: score/stages/scene_record/gates.py: `if light.get("against"):` -> `if False:`
+    Break: score/stages/scene_record/writer.py: `if pieces == 1 else length * (piece + 0.5) / pieces` -> `if True
+        else 0.0` (three panels' lamps on one spot)"""
+    from pxr import Usd
     from score.review import overhead
+    from score.stages.earth_seed import design_shell
     from score.stages.scene_record import gates, writer
+    sys.path.insert(0, str(REPO / "tools/usd"))
+    import scene
     with tempfile.TemporaryDirectory() as folder:
-        output, inputs = written(folder, WRITTEN)
+        output, inputs = written(folder, FURNISHED, handin=FURNISHED_HANDIN)
         place, record = writer.record_in(output)
         names = {entry["name"] for entry in record["structure"]}
         assert place == "shed" and record["inside"] and {"wall_1", "deck_1", "roof_1", "stair_1"} <= names, names
@@ -412,6 +494,85 @@ def test_the_record_is_written_from_the_design():
         verdict = gates.judge_plan_matched(output, inputs, {})
         assert verdict.answer == checks.FAIL and verdict.findings == (
             "shell row landing_pad (floor) is built by no piece of the shell",), verdict.findings
+        pathlib.Path(inputs["hand-in"]).write_text(json.dumps(handin))
+        # every prop row's plan item has its object over its middle at its shape's base, waiting on its take's model:
+        # the bench item (1, 1) 2 x 0.6 m at (-2, -1.7) on the shed centred on its 8 x 6 m, the lamp sharing the
+        # bench's take at its 2.7 m base, the rail run three pieces along its polygon 0.5 m up, each its long side
+        # along the path; the plan's own floor is named on its deck; the arched ribs are no object
+        found = {entry["name"]: entry for entry in record["objects"]}
+        assert sorted(found) == ["bench_1", "ceiling_lamp_1", "rail_1", "rail_2", "rail_3"], sorted(found)
+        bench = found["bench_1"]
+        assert bench["at"] == [-2.0, 0.0, -1.7] and bench["bake"] == "bench_1" and bench["row"] == "bench", bench
+        assert bench["rotation"] == [0.0, 0.0, 0.0, 1.0] and "surface line's bake" in bench["waiting"], bench
+        assert found["ceiling_lamp_1"]["bake"] == "bench_1" and found["ceiling_lamp_1"]["at"] == [0.0, 2.7, 0.0]
+        rails = [found[f"rail_{number}"] for number in (1, 2, 3)]
+        assert all(rail["at"][1] == 0.5 for rail in rails) and len({tuple(rail["at"]) for rail in rails}) == 3, rails
+        assert rails[0]["at"] == [-1.6667, 0.5, 1.0] and rails[0]["rotation"] == [0.0, 0.0, 0.0, 1.0], rails[0]
+        deck = next(entry for entry in record["structure"] if entry["name"].startswith("deck"))
+        assert deck["row"] == "shed_floor", deck
+        # each arched rib is the shell's band at its plan item, at its row's size, named its row: the first rib's
+        # item (0, 1) lies east-west across the shed, its 3.2 m span centred at plan x 4, its feet at -1.6 and 1.6,
+        # z -1.9; a block of no band, or a row of no structure, is not arched
+        assert design_shell.arched(RIB) and not design_shell.arched({**RIB, "size": [3.2, 2.0, 3.2]})
+        assert not design_shell.arched({**RIB, "part": "object"})
+        ribs = [entry for entry in record["structure"] if entry["builder"] == "arch"]
+        assert [entry["name"] for entry in ribs] == ["structural_ribs_1", "structural_ribs_2"], ribs
+        assert all(entry["row"] == "structural_ribs" and entry["plain"] == "shell" for entry in ribs), ribs
+        assert ribs[0]["feet"] == [[-1.6, -1.9], [1.6, -1.9]] and ribs[0]["low"] == 0.0, ribs[0]
+        # no surface library row read: every part of the shell carries no surface and says why, none painted
+        # another way; with the scene's library made each takes its kind's, a stair the floor's, a roof the
+        # library names none for carries none and says why
+        assert all(entry["surface"] is None and "not made" in entry["surface_missing"]
+                   for entry in record["structure"]), record["structure"]
+        made_library = pathlib.Path(folder) / "library"
+        made_library.mkdir()
+        (made_library / "materials.json").write_text(json.dumps({"kinds": {"wall": ["painted_panel"],
+                                                                          "floor": ["deck_plate"]}}))
+        plan_record = json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text())
+        surfaces = {entry["name"]: entry for entry in writer.record_of(
+            plan_record, FURNISHED, {**inputs, writer.LIBRARY_ROW: made_library})["structure"]}
+        assert {surfaces["wall_1"]["surface"], surfaces["deck_1"]["surface"], surfaces["stair_1"]["surface"]} == \
+            {"painted_panel", "deck_plate"} and surfaces["stair_1"]["surface"] == "deck_plate", surfaces
+        roof = surfaces["roof_1"]
+        assert roof["surface"] is None and "names no surface for the kinds a roof takes" in roof["surface_missing"]
+        edged = {"kinds": {"floor": ["hazard_frame_paint", "deck_floor_plate", "floor_vent_grate"],
+                           "wall": ["hull_panel", "hull_recess"]}}
+        assert [design_shell.surface_for(kind, edged) for kind in ("deck", "wall", "roof")] == [
+            "deck_floor_plate", "hull_panel", None]  # the floor's own, never its edging; a wall's first; a roof none
+        # the scene builder lays the ribs as their band, named their row, and names the roof's missing surface on its
+        # mesh, binding nothing
+        stage = Usd.Stage.CreateInMemory()
+        scene.write_structure(stage, "shed", [roof, *ribs])
+        built = scene.built_meshes(ribs[0])[0]["points"]
+        assert np.allclose(built.min(0), [-1.6, 0.0, -2.0]) and np.allclose(built.max(0), [1.6, 3.2, -1.8]), built
+        assert stage.GetPrimAtPath("/shed/Structure/structural_ribs_1").GetAttribute("score:row").Get() == \
+            "structural_ribs"
+        mesh = stage.GetPrimAtPath("/shed/Structure/roof_1")
+        assert "roof takes" in mesh.GetAttribute("score:surface:missing").Get(), mesh
+        assert not mesh.HasRelationship("material:binding"), mesh
+        # the places a backdrop row of the hand-in is shown from stand once each: the yard already stood by its
+        # door, the site (the palm's holder) at its own plan's middle
+        shown = {"rows": [{"id": "palm_tree", "route": "skyline", "shown": {"place": "site", "row": "palm_tree"}},
+                          {"id": "far_shed", "route": "skyline", "shown": {"place": "yard", "row": "shed"}}]}
+        stood = writer.places_of("shed", plan_record, FURNISHED, inputs["plans"], shown)
+        assert [entry["name"] for entry in stood] == ["yard", "site"], stood
+        assert stood[1]["at"] == [10.0, 0.0, -5.0] and "palm_tree" in stood[1]["from"], stood[1]
+    # a row with no size waits named; a row counting 5 on two items lays 3 and 2, and 2 where the plan dropped three
+    unsized = {**FURNISHED_HANDIN, "rows": [{**row, "size": None} if row["id"] == "rail" else row
+                                            for row in FURNISHED_HANDIN["rows"]]}
+    [rail] = [entry for entry in writer.design_objects(FURNISHED, unsized) if entry["name"] == "rail_1"]
+    assert "row rail has no size" in rail["waiting"], rail
+    pipes = {**FURNISHED, "items": [*FURNISHED["items"], ["PIPE 1", 5.0, 1.0, 1.0, 0.2, None, "item"],
+                                    ["PIPE 2", 5.0, 3.0, 1.0, 0.2, None, "item"]],
+             "rows": {**FURNISHED["rows"], "PIPE 1": ["pipe"], "PIPE 2": ["pipe"]}}
+    piped = {"rows": [*FURNISHED_HANDIN["rows"], {"id": "pipe", "route": "prop", "size": [1.0, 0.1, 0.1], "count": 5}],
+             "objects": {**FURNISHED_HANDIN["objects"], "pipe": {"rows": ["pipe"]}}}
+    dropped = {**pipes, "dropped": [{"item": "pipe", "why": "3 more of it than the place's free floor holds",
+                                     "laid": 2}]}  # settle@engineroom, 2026-11-09
+    for laid_plan, wanted in ((pipes, ["plan item 'PIPE 1'"] * 3 + ["plan item 'PIPE 2'"] * 2),
+                              (dropped, ["plan item 'PIPE 1'", "plan item 'PIPE 2'"])):
+        laid = writer.design_objects(laid_plan, piped)
+        assert [entry["from"].split(",")[0] for entry in laid if entry["row"] == "pipe"] == wanted, laid
     nowhere = json.loads(json.dumps(WRITTEN))
     nowhere["openings"][0]["to"] = "moon_city"
     with tempfile.TemporaryDirectory() as folder:
@@ -489,112 +650,89 @@ def test_the_record_is_written_from_the_design():
     assert writer.environment(WRITTEN, on_mars, dust)["sky_dome"] == dome  # seen through its glass and openings
     assert "sky_dome" not in writer.environment(yard, {**on_mars, "site": {**on_mars["site"], "on": "moon"}}, dust)
     assert writer.files("yard")["dust"] == "{data}/physics/dust.json"
-
-
-def test_an_open_place_s_view_eye_stands_a_person_s_height_over_its_made_ground(tmp_path):
-    """A standing spot at the floor of an open place stands on the terrain row's made ground under it: a ground
-    rising 0.5 m a metre east puts the eye at (4, 2) 2 + 1.6 m up; a spot on a 1 m deck stays on its deck, and a
-    place the terrain made no ground for stands on its level (wreck's spot-3 and spot-6 eyes stood 2.6 and 4.3 m
-    under its ground, their views black, 2026-10-30).
-    Break: score/stages/scene_record/writer.py: `return spot["level"] if under is None else under` ->
-        `return spot["level"]`"""
-    from pxr import Usd, UsdGeom
-    from score.stages.scene_record import writer
-    ground = Usd.Stage.CreateNew(str(tmp_path / "moon/places/yard.usdc"))
-    UsdGeom.Xform.Define(ground, "/yard")
-    slope = UsdGeom.Mesh.Define(ground, "/yard/Outside/near")
-    slope.CreatePointsAttr([(-10, -5, -10), (10, 5, -10), (10, 5, 10), (-10, -5, 10)])
-    slope.CreateFaceVertexCountsAttr([4])
-    slope.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
-    ground.Save()
-    yard = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
-            "standing": [{"at": [4.0, 2.0], "level": 0.0, "looks_at": None},
-                         {"at": [4.0, 2.0], "level": 1.0, "looks_at": None}]}
-    under = writer.ground_under({"terrain": str(tmp_path)}, "yard")
-    assert [view["eye"][1] for view in writer.views(yard, 1.6, under)] == [3.6, 2.6]
-    assert writer.ground_under({"terrain": str(tmp_path)}, "shed") is None and writer.ground_under({}, "yard") is None
-    assert [view["eye"][1] for view in writer.views(yard, 1.6)] == [1.6, 2.6]
-
-
-def test_a_view_eye_where_a_person_would_stand_in_a_thing_moves_out_with_its_look_kept():
-    """Wreck's spot-5, 2026-10-30: a view's eye stands where a person would. On a 10 m plan (frame: its middle at the
-    origin) a doorway's eye 1 m in lands in a 2 m crate, and a person spot stands against it: each eye moves to the
-    nearest floor where a 0.5 m person stands in nothing, its aim moved by the same offset; a spot clear of the crate
-    stays where it is, and its own person spot never counts against it.
-    Break: score/stages/scene_record/writer.py: `if not standing.stands_in(spot, size, walls_things, grid, others):`
-        -> `if True:`; and `eye, aim = eye + [offset[0], 0.0, offset[1]], aim + offset` -> `eye = eye + [offset[0],
-        0.0, offset[1]]`"""
-    from score.stages.scene_record import writer
-    design = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 4.0, 1.5, 2.0, 2.0, None, "item"]],
-              "rows": {"CRATE 1": ["crate"]}, "people": [[5.0, 3.6], [8.0, 8.0]]}
-    inventory = {"rows": [{"id": "crate", "anchor": "floor", "size": [2.0, 2.0, 1.0], "count": 1}]}
-    record = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
-              "doorways": [{"name": "door-1", "middle": [0.0, 0.0, -4.5], "inward": [0.0, 0.0, 1.0], "wide": 1.0,
-                            "to": "yard"}],
-              "standing": [{"at": [0.0, -1.4], "level": 0.0, "looks_at": None},
-                           {"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
-    found = writer.views(record, 1.6, clear=writer.clear_of(design, inventory))
-    door, against, clear = found
-    assert door["eye"][2] <= -3.5 - 0.25 + 0.05 or door["eye"][2] >= -1.5 + 0.25 - 0.05 or abs(door["eye"][0]) >= 1.2
-    offset = np.subtract(door["eye"], [0.0, 1.6, -3.5])
-    assert math.hypot(offset[0], offset[2]) < 1.5 and door["aim"] == [round(offset[0], 3), 1.0,
-                                                                       round(4.5 + offset[2], 3)], door
-    assert against["eye"][2] >= -1.5 + 0.25 - 0.05 and abs(against["eye"][0]) < 0.05, against
-    assert against["aim"] == [against["eye"][0], 1.0, round(against["eye"][2] + 1.4, 3)], against
-    assert clear["eye"] == [3.0, 1.6, 3.0] and clear["aim"] == [0.0, 1.0, 0.0]
-    assert [view["eye"] for view in writer.views(record, 1.6)][1:] == [[0.0, 1.6, -1.4], [3.0, 1.6, 3.0]]
-
-
-def test_a_view_looking_into_a_thing_close_by_turns_to_the_nearest_clear_way_or_is_left_out():
-    """Flat's spot-2, 2026-10-31: its eye 0.45 m off its wardrobe, aimed at the middle, saw only the wardrobe. On a
-    10 m plan (frame: its middle at the origin) a spot 0.15 m west of a 2 m tall wardrobe looking east at the middle
-    turns to the nearest way clear for a metre (+-15 degrees will not do: the wardrobe is 2 m deep), its eye kept; a
-    spot boxed in by wardrobes on every side is left out with why; a low bench in its look does not block it, nor
-    does anything for an eye off the plan (galley's and hangar's spots past their plans, 2026-10-31).
-    Break: score/stages/scene_record/writer.py: `if hit is None:` -> `if True:`; and `if (cell >= 0).all() and (cell
-        < grid.shape).all() and point[1] - base < tops[tuple(cell)]:` -> `if point[1] - base < tops[grid.cell_of(spot)]:`"""
-    from score.stages.scene_record import writer
-    wardrobe = ["WARDROBE 1", 3.9, 4.0, 0.6, 2.0, None, "item"]
-    design = {"w": 10.0, "d": 10.0, "items": [wardrobe, ["BENCH 1", 1.2, 1.9, 0.6, 0.4, None, "item"]],
-              "rows": {"WARDROBE 1": ["wardrobe"], "BENCH 1": ["bench"]},
-              "shapes": {"WARDROBE 1": {"tall": 2.0}, "BENCH 1": {"tall": 0.45}}}
-    inventory = {"rows": [{"id": "wardrobe", "anchor": "floor", "size": [0.6, 2.0, 2.0], "count": 1},
-                          {"id": "bench", "anchor": "floor", "size": [1.0, 0.4, 0.45], "count": 1}]}
-    record = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
-              "standing": [{"at": [-1.25, 0.0], "level": 0.0, "looks_at": None},
-                           {"at": [-4.0, -3.2], "level": 0.0, "looks_at": None}]}
-    beside, over_bench = writer.views(record, 1.6, sight=writer.sight_of(design, inventory))
-    assert beside["eye"] == [-1.25, 1.6, 0.0] and beside["aim"] != [0.0, 1.0, 0.0], beside
-    sight = writer.sight_of(design, inventory)
-    assert sight(np.array(beside["eye"]), np.array([0.0, 1.0, 0.0]), 0.0) < 0.2
-    assert sight(np.array(beside["eye"]), np.array(beside["aim"]), 0.0) is None and "turned" in beside["from"]
-    assert over_bench["aim"] == [0.0, 1.0, 0.0], over_bench
-    walled = writer.sight_of(dict(design, walls=[{"from": [0.0, 0.0], "to": [10.0, 0.0]}]), inventory)
-    assert walled(np.array([0.0, 1.6, -20.0]), np.array([0.0, 1.0, -30.0]), 0.0) is None  # off its plan: nothing
-    boxed = dict(design, items=[["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None, "item"], ["WARDROBE 2", 4.3, 4.3, 0.3, 1.4, None, "item"],
-                                ["WARDROBE 3", 5.4, 4.3, 0.3, 1.4, None, "item"], ["WARDROBE 4", 4.3, 5.4, 1.4, 0.3, None, "item"]],
-                 rows={f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
-                 shapes={f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)})
-    alone = dict(record, standing=[{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}])
-    kept, left = writer.views_inside(writer.views(dict(alone, floor=[[-5.0, -5.0], [5.0, 4.0]]), 1.6,
-                                                  sight=writer.sight_of(boxed, inventory)), boxed, False)
-    assert kept == [] and left[0]["name"] == "spot-1" and "every way it turns" in left[0]["why"], left
-
-
-def test_a_place_a_backdrop_row_is_shown_from_stands_in_the_record_where_its_holder_holds_it():
-    """The stairwell's palm seen through its window is the square's (prepare's groups.shown_from: `shown`): the record
-    stands the holder at its own plan's middle, a place it holds beside where it holds it, each once.
-    Break: score/stages/scene_record/writer.py: `if name in stood_already or name == place:` -> `if name == place:`"""
-    from score.stages.scene_record import writer
+    # the lit shed: its row kinds alone light the tower only; its concept's light lights the core in its blue at half
+    # strength, four monitors on two items as faint emitters, and the two whole-room panels on their walls
+    from score.review import plans
+    from score.stages.scene_record import concept_light
+    assert concept_light.KEPT_LIGHT == plans.KEPT_LIGHT
+    lit = {**WRITTEN, "items": [["TOWER", 6.0, 1.0, 1.0, 1.0, None, "item"],
+                                ["SWITCH", 0.5, 3.0, 0.1, 0.1, None, "item"],
+                                ["CORE", 3.0, 2.0, 1.0, 1.0, None, "item"],
+                                ["ENGINE", 1.0, 1.0, 2.0, 1.0, None, "item"],
+                                ["SKY", 0.0, 0.0, 1.0, 1.0, None, "item"],
+                                ["SCREENS", 1.0, 4.0, 3.0, 0.5, None, "item"],
+                                ["SCREENS 2", 5.0, 4.0, 2.0, 0.5, None, "item"],
+                                ["PANEL", 0.5, 0.5, 7.0, 5.0, None, "item"],
+                                ["WEST PANEL", 0.5, 0.5, 7.0, 5.0, None, "item"]],
+           "rows": {"TOWER": ["floodlight_tower"], "SWITCH": ["light_switch"], "CORE": ["core"], "ENGINE": ["engine"],
+                    "SKY": ["sky"], "SCREENS": ["screens"], "SCREENS 2": ["screens"], "PANEL": ["wall_panel"],
+                    "WEST PANEL": ["west_panel"]},
+           "shapes": {"TOWER": {"shape": "rect", "tall": 10.0, "base": 0.0},
+                      "CORE": {"shape": "rect", "tall": 3.0, "base": 0.0}}}
+    lit_rows = [{"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:yard",
+                 "size": [1.0, 1.0, 10.0]},
+                {"id": "light_switch", "name": "light switch", "noun": "switch", "anchor": "wall"},
+                {"id": "core", "name": "energy core", "noun": "core", "anchor": "floor", "size": [1.0, 1.0, 3.0]},
+                {"id": "engine", "name": "engine", "noun": "engine", "anchor": "floor", "size": [2.0, 1.0, 1.0]},
+                {"id": "sky", "name": "starfield", "noun": "sky", "anchor": "sky"},
+                {"id": "screens", "name": "wall monitors", "noun": "monitor", "anchor": "floor", "count": 4},
+                {"id": "wall_panel", "name": "wall panel", "noun": "panel", "anchor": "wall", "size": [8.0, 6.0, 3.0],
+                 "count": 3},
+                {"id": "west_panel", "name": "wall panel", "noun": "panel", "anchor": "wall", "size": [8.0, 6.0, 3.0]}]
+    panel_glow = {"glows": True, "glowing": "its lamps", "colour": "#ffeedd", "brightness": 1.0}
+    concept = {"rows": {"core": {"glows": True, "glowing": "its column", "colour": "#44aaff", "brightness": 0.5},
+                        "screens": {"glows": True, "glowing": "screens", "colour": "#44aaff", "brightness": 0.5},
+                        "engine": {"glows": False, "glowing": "", "colour": "", "brightness": 0},
+                        "sky": {"glows": True, "glowing": "stars", "colour": "#ffffff", "brightness": 0.4},
+                        "wall_panel": panel_glow, "west_panel": panel_glow},
+               "scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
+    walls = {"relations": [{"item": "PANEL", "row": "wall_panel", "how": "wall", "side": 1, "spot": [8.0, 3.0],
+                            "wall": {"from": [8.0, 0.0], "to": [8.0, 6.0], "thick": 0.2}, "why": "its free wall"},
+                           {"item": "WEST PANEL", "row": "west_panel", "how": "wall", "side": 1, "spot": [0.0, 3.0],
+                            "wall": {"from": [0.0, 6.0], "to": [0.0, 0.0], "thick": 0.2}, "why": "its free wall"}]}
     with tempfile.TemporaryDirectory() as folder:
-        output, inputs = written(folder, WRITTEN)
-        plan_record = json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text())
-        handin = {"rows": [{"id": "palm_tree", "route": "skyline", "shown": {"place": "site", "row": "palm_tree"}},
-                           {"id": "far_shed", "route": "skyline", "shown": {"place": "yard", "row": "shed"}}]}
-        found = writer.places_of("shed", plan_record, WRITTEN, inputs["plans"], handin)
-        by_name = {entry["name"]: entry for entry in found}
-        assert [entry["name"] for entry in found] == ["yard", "site"], found  # the yard already stood by its door
-        assert by_name["site"]["at"] == [10.0, 0.0, -5.0] and "palm_tree" in by_name["site"]["from"], by_name["site"]
+        folder = pathlib.Path(folder)
+        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": lit_rows}))
+        (folder / "light.json").write_text(json.dumps(concept))
+        given = {"inventory": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
+                 "lamp library": REPO / "data/library/lamps.json"}
+        [tower] = writer.lights(lit, given, walls)  # the switch, the core and the panels by their row kinds: none
+        found = writer.lights(lit, {**given, "concept light": folder / "light.json"}, walls)
+        [full] = writer.item_lamps(lit["items"][2], {**lit_rows[2], "row_kind": "machine"}, lit_rows, lit,
+                                   writer.library_lamps(), given["lamp library"])
+        [bulb] = writer.item_lamps(lit["items"][5], {**lit_rows[5], "id": "bulbs", "name": "bulbs", "noun": "bulb"},
+                                   lit_rows, lit, writer.library_lamps(), given["lamp library"],
+                                   {**concept["rows"]["screens"], "glowing": "bulbs"})
+    assert tower["at"][1] == 9.5 and "floodlight_tower" in tower["from"] and tower["range"] == 14.25, tower
+    by_row = {}
+    for light in found:
+        by_row.setdefault(light["row"], []).append(light)
+    assert sorted(by_row) == ["core", "floodlight_tower", "screens", "wall_panel", "west_panel"], sorted(by_row)
+    assert by_row["floodlight_tower"] == [tower], by_row["floodlight_tower"]
+    [core] = by_row["core"]
+    assert core["colour"] == "#44aaff" and "its column" in core["from"] and "core" in core["from"], core
+    assert core["energy"] == round(full["energy"] / 2, 4) and core["at"] == full["at"], (core, full)
+    # four counted screens on two items (3 m from x 1, 2 m from x 5): two lamps along each, at 1.75, 3.25, 5.5 and
+    # 6.5 m (x -2.25, -0.75, 1.5, 2.5 on the shed's 8 m), each a faint emitter at 0.1 of the lamp (lamps.json
+    # `glowing`), never one lamp an item as a room light
+    screens = by_row["screens"]
+    assert [screen["at"][0] for screen in screens] == [-2.25, -0.75, 1.5, 2.5], screens
+    assert all("faint emitter" in screen["from"] and abs(screen["energy"] - bulb["energy"] * 0.1) <= 1e-4
+               for screen in screens), (screens, bulb)
+    # the west panel's one lamp at plan (0.2, 3) 1.5 m up; the east panel's three at plan (7.8, 1, 3 and 5)
+    (spot,), floor = writer.in_frame(lit, [[0.2, 3.0]], 1.5)
+    [west] = by_row["west_panel"]
+    assert west["at"] == [spot[0], floor, spot[1]], west
+    spots, floor = writer.in_frame(lit, [[7.8, 1.0], [7.8, 3.0], [7.8, 5.0]], 1.5)
+    assert [found_at["at"] for found_at in by_row["wall_panel"]] == [[spot[0], floor, spot[1]] for spot in spots], \
+        by_row["wall_panel"]
+    assert gates.lamp_faults({"lights": found}, lit) == [], gates.lamp_faults({"lights": found}, lit)
+    moved = [{**light, "at": [light["at"][0] + 1.0, *light["at"][1:]]} if light is west else light for light in found]
+    assert gates.lamp_faults({"lights": moved}, lit) == ["the light of plan item 'WEST PANEL' stands off its wall"]
+    # a door whose concept shows its keypad glowing is a faint emitter, its light a lamp still
+    door = {"id": "sliding_door", "name": "sliding door", "noun": "door"}
+    assert writer.glow_share(door, {"glowing": "keypad"}, given["lamp library"]) == (0.1, "emitter")
+    assert writer.glow_share(door, {"glowing": "light panel"}, given["lamp library"]) == (1.0, "source")
 
 
 def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_pieces():
@@ -639,64 +777,6 @@ def test_a_far_row_stands_far_off_where_its_concept_box_is_seen_as_a_run_of_its_
                 "rows": {**plan["rows"], "CITY 1": ["city"]}}  # its plan laid it here too: laid far off alone
     assert {entry["row"] for entry in writer.design_objects(laid_too, {"rows": [*rows, city], "objects": {}})} == {
         "crate", "drum", "bench"}
-
-
-def test_every_object_of_the_design_stands_at_its_plan_item_waiting_on_its_model():
-    """Fault (2026-10-25): the record laid no object of a designed place, so the assembly placed none of its models.
-    Each prop row's plan item gets its object `<row>_<n>` over its middle at its shape's base, waiting on its take's
-    model (`<first row>_1`); a run the plan draws once as a polygon counting three lays three pieces along it, each
-    its long side along the path; a row with no size waits named; the plan's own floor is named on its deck. The
-    bench item (1, 1) 2 x 0.6 m is at (-2, -1.7) on the shed centred on its 8 x 6 m; the lamp's at its 2.7 m base.
-    Break: score/stages/scene_record/writer.py: `            base = float(shape.get("base") or 0.0)` ->
-        `            base = 0.0`
-    Break: score/stages/scene_record/writer.py: `return [along(path, (number + 0.5) / pieces) for number in
-        range(pieces)]`
-        -> `return [along(path, 0.5) for number in range(pieces)]`
-    2026-11-04: the lab's 10 pipes on 6 plan items laid 6. A row counting 5 on two items lays 3 and 2.
-    Break: score/stages/scene_record/writer.py pieces_of: `for turn in range(max(short, 0)):` -> `for turn in
-        range(0):` (two pipes laid for five)
-    Break: score/stages/scene_record/writer.py design_objects: `pieces_of(counted(row, design), laid)` ->
-        `pieces_of(row, laid)` (the five laid again where the plan dropped three)"""
-    from score.stages.scene_record import writer
-    design = {**WRITTEN, "items": [*WRITTEN["items"], ["RAIL", 1.0, 4.0, 3.0, 1.0, None, "item"]],
-              "rows": {**WRITTEN["rows"], "RAIL": ["rail"]},
-              "shapes": {**WRITTEN["shapes"], "RAIL": {"shape": "polygon", "points": [[0, 0], [1, 0], [1, 1], [0, 1]],
-                                                       "count": 3, "base": 0.5}}}
-    handin = {"rows": [*HANDIN["rows"], {"id": "rail", "route": "prop", "size": [1.0, 0.1, 1.0]}],
-              "objects": {**HANDIN["objects"], "rail": {"rows": ["rail"]}}}
-    with tempfile.TemporaryDirectory() as folder:
-        output, inputs = written(folder, design)
-        (pathlib.Path(folder) / "hand-in.json").write_text(json.dumps(handin))
-        record = writer.record_of(json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text()), design,
-                                  inputs)
-    found = {entry["name"]: entry for entry in record["objects"]}
-    assert sorted(found) == ["bench_1", "ceiling_lamp_1", "rail_1", "rail_2", "rail_3"], sorted(found)
-    bench = found["bench_1"]
-    assert bench["at"] == [-2.0, 0.0, -1.7] and bench["bake"] == "bench_1" and bench["row"] == "bench", bench
-    assert bench["rotation"] == [0.0, 0.0, 0.0, 1.0] and "surface line's bake" in bench["waiting"], bench
-    lamp = found["ceiling_lamp_1"]
-    assert lamp["bake"] == "bench_1" and lamp["at"] == [0.0, 2.7, 0.0], lamp  # the bench's take, at its base
-    rails = [found[f"rail_{number}"] for number in (1, 2, 3)]
-    assert all(rail["at"][1] == 0.5 for rail in rails) and len({tuple(rail["at"]) for rail in rails}) == 3, rails
-    assert rails[0]["at"] == [-1.6667, 0.5, 1.0] and rails[0]["rotation"] == [0.0, 0.0, 0.0, 1.0], rails[0]
-    deck = next(entry for entry in record["structure"] if entry.get("row"))
-    assert deck["name"].startswith("deck") and deck["row"] == "shed_floor", deck
-    unsized = {**handin, "rows": [{**row, "size": None} if row["id"] == "rail" else row for row in handin["rows"]]}
-    [rail] = [entry for entry in writer.design_objects(design, unsized) if entry["name"] == "rail_1"]
-    assert "row rail has no size" in rail["waiting"], rail
-    pipes = {**design, "items": [*design["items"], ["PIPE 1", 5.0, 1.0, 1.0, 0.2, None, "item"],
-                                 ["PIPE 2", 5.0, 3.0, 1.0, 0.2, None, "item"]],
-             "rows": {**design["rows"], "PIPE 1": ["pipe"], "PIPE 2": ["pipe"]}}
-    piped = {"rows": [*handin["rows"], {"id": "pipe", "route": "prop", "size": [1.0, 0.1, 0.1], "count": 5}],
-             "objects": {**handin["objects"], "pipe": {"rows": ["pipe"]}}}
-    laid = writer.design_objects(pipes, piped)
-    assert [entry["from"].split(",")[0] for entry in laid if entry["row"] == "pipe"] == \
-        ["plan item 'PIPE 1'"] * 3 + ["plan item 'PIPE 2'"] * 2, laid
-    # settle@engineroom, 2026-11-09: a plan that took pieces off where its floor holds no more says how many it lays
-    dropped = {**pipes, "dropped": [{"item": "pipe", "why": "3 more of it than the place's free floor holds",
-                                     "laid": 2}]}
-    assert [entry["from"].split(",")[0] for entry in writer.design_objects(dropped, piped)
-            if entry["row"] == "pipe"] == ["plan item 'PIPE 1'", "plan item 'PIPE 2'"]
 
 
 class Turned:
@@ -848,6 +928,162 @@ def test_each_object_stands_where_its_plan_and_relations_lay_it(design, rows, re
     for row in {laid[name]["row"] for name in expected}:
         named = sorted(name for name, entry in laid.items() if entry["row"] == row)
         assert named == sorted(name for name in expected if laid[name]["row"] == row), (row, named)
+
+
+class EyeIn:
+    """An eye whose (x, z) lies (`inside` True) or does not lie in the box |x| < `half`, `low` < z < `high`."""
+
+    def __init__(self, half, low, high, inside=True):
+        self.half, self.low, self.high, self.inside = half, low, high, inside
+
+    def holds(self, eye):
+        return (abs(eye[0]) < self.half and self.low < eye[2] < self.high) == self.inside
+
+
+class Within:
+    """An eye whose (x, z) lies less than `metres` from `point`."""
+
+    def __init__(self, point, metres):
+        self.point, self.metres = point, metres
+
+    def holds(self, eye):
+        return math.hypot(eye[0] - self.point[0], eye[2] - self.point[1]) < self.metres
+
+
+class Matches:
+    """A said text the pattern finds."""
+
+    def __init__(self, pattern):
+        self.pattern = pattern
+
+    def holds(self, said):
+        return isinstance(said, str) and re.search(self.pattern, said) is not None
+
+
+# The places the views are worked on, each 10 m square round the origin unless said (frame: its middle at the origin).
+GROUND_YARD = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [], "doorways": [],
+               "standing": [{"at": [4.0, 2.0], "level": 0.0, "looks_at": None},
+                            {"at": [4.0, 2.0], "level": 1.0, "looks_at": None}]}
+HATCHED = {"floor": [[0.0, 0.0], [8.0, 6.0]], "floor_height": 0.0, "items": [{"name": "HATCH", "box": [3.0, 2.0, 5.0, 4.0]}],
+           "doorways": [], "standing": [{"at": [4.0, 3.0], "level": 3.0, "looks_at": "HATCH"},
+                                        {"at": [1.0, 1.0], "level": 0.0, "looks_at": None}]}
+CRATED = {"w": 10.0, "d": 10.0, "items": [["CRATE 1", 4.0, 1.5, 2.0, 2.0, None, "item"]], "rows": {"CRATE 1": ["crate"]},
+          "people": [[5.0, 3.6], [8.0, 8.0]]}
+CRATES = {"rows": [{"id": "crate", "anchor": "floor", "size": [2.0, 2.0, 1.0], "count": 1}]}
+CRATE_RECORD = {"floor": [[-5.0, -5.0], [5.0, 5.0]], "floor_height": 0.0, "items": [],
+                "doorways": [{"name": "door-1", "middle": [0.0, 0.0, -4.5], "inward": [0.0, 0.0, 1.0], "wide": 1.0,
+                              "to": "yard"}],
+                "standing": [{"at": [0.0, -1.4], "level": 0.0, "looks_at": None},
+                             {"at": [3.0, 3.0], "level": 0.0, "looks_at": None}]}
+WARDROBES = {"rows": [{"id": "wardrobe", "anchor": "floor", "size": [0.6, 2.0, 2.0], "count": 1},
+                      {"id": "bench", "anchor": "floor", "size": [1.0, 0.4, 0.45], "count": 1}]}
+WARDROBED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 3.9, 4.0, 0.6, 2.0, None, "item"],
+                                             ["BENCH 1", 1.2, 1.9, 0.6, 0.4, None, "item"]],
+             "rows": {"WARDROBE 1": ["wardrobe"], "BENCH 1": ["bench"]},
+             "shapes": {"WARDROBE 1": {"tall": 2.0}, "BENCH 1": {"tall": 0.45}},
+             "walls": [{"from": [0.0, 0.0], "to": [10.0, 0.0]}]}
+BOXED = {"w": 10.0, "d": 10.0, "items": [["WARDROBE 1", 4.3, 4.3, 1.4, 0.3, None, "item"],
+                                         ["WARDROBE 2", 4.3, 4.3, 0.3, 1.4, None, "item"],
+                                         ["WARDROBE 3", 5.4, 4.3, 0.3, 1.4, None, "item"],
+                                         ["WARDROBE 4", 4.3, 5.4, 1.4, 0.3, None, "item"]],
+         "rows": {f"WARDROBE {number}": ["wardrobe"] for number in range(1, 5)},
+         "shapes": {f"WARDROBE {number}": {"tall": 2.0} for number in range(1, 5)}}
+# Each case: the plan row's record, the design and inventory its clear and sight are worked from (None: neither),
+# where its made ground is looked for (the terrain row read or not, the place) and whether one is made there, whether
+# the eyes are cleared of things (`clear`) and looks of walls and things (`sight`), and the views kept and left out in
+# order with what each must hold (`look` is the aim less the eye on the floor, `heights` the eye's and the aim's): a
+# value equal, an EyeIn or Within eye, Matches said text, ABSENT, or a tuple of these all.
+VIEWED = [
+    ("an open place's eye a person's height over its made ground", GROUND_YARD, None, None, (True, "yard"), True, (),
+     {"spot-1": {"eye": [4.0, 3.6, 2.0]}, "spot-2": {"eye": [4.0, 2.6, 2.0]}}, {}),
+    ("a place the terrain made no ground for stands on its levels", GROUND_YARD, None, None, (True, "shed"), False, (),
+     {"spot-1": {"eye": [4.0, 1.6, 2.0]}, "spot-2": {"eye": [4.0, 2.6, 2.0]}}, {}),
+    ("no terrain row read stands on its levels", GROUND_YARD, None, None, (False, "yard"), False, (),
+     {"spot-1": {"eye": [4.0, 1.6, 2.0]}, "spot-2": {"eye": [4.0, 2.6, 2.0]}}, {}),
+    ("looking straight down, up along the floor's long axis", HATCHED, None, None, (False, "shed"), False, (),
+     {"spot-1": {"up": [1.0, 0.0, 0.0]}, "spot-2": {"up": ABSENT}}, {}),
+    ("looking straight down on a deep floor", {**HATCHED, "floor": [[0.0, 0.0], [6.0, 8.0]],
+                                               "standing": HATCHED["standing"][:1]},
+     None, None, (False, "shed"), False, (), {"spot-1": {"up": [0.0, 0.0, 1.0]}}, {}),
+    ("an eye in a thing moves out with its look kept", CRATE_RECORD, CRATED, CRATES, (False, "shed"), False, ("clear",),
+     {"from-door-1": {"eye": (EyeIn(1.2, -3.7, -1.3, inside=False), Within([0.0, -3.5], 1.5)), "look": [0.0, 8.0],
+                      "heights": [1.6, 1.0]},
+      "spot-1": {"eye": EyeIn(0.05, -1.3, math.inf), "look": [0.0, 1.4], "heights": [1.6, 1.0]},
+      "spot-2": {"eye": [3.0, 1.6, 3.0], "aim": [0.0, 1.0, 0.0]}}, {}),
+    ("eyes not cleared stand at their spots", CRATE_RECORD, CRATED, CRATES, (False, "shed"), False, (),
+     {"from-door-1": {}, "spot-1": {"eye": [0.0, 1.6, -1.4]}, "spot-2": {"eye": [3.0, 1.6, 3.0]}}, {}),
+    ("a look into a thing close by turns, a low bench and a spot off the plan block none",
+     {**CRATE_RECORD, "doorways": [], "standing": [{"at": [-1.25, 0.0], "level": 0.0, "looks_at": None},
+                                                   {"at": [-4.0, -3.2], "level": 0.0, "looks_at": None},
+                                                   {"at": [0.0, -20.0], "level": 0.0, "looks_at": None}]},
+     WARDROBED, WARDROBES, (False, "shed"), False, ("sight",),
+     {"spot-1": {"eye": [-1.25, 1.6, 0.0], "from": Matches(r", turned [+-]\d+ degrees off a wall or thing 0\.1\d m ahead$")},
+      "spot-2": {"aim": [0.0, 1.0, 0.0], "from": "plan standing spot 2, looking to the middle"},
+      "spot-3": {"aim": [0.0, 1.0, 0.0], "from": "plan standing spot 3, looking to the middle"}}, {}),
+    ("a spot boxed in on every side is left out", {**CRATE_RECORD, "floor": [[-5.0, -5.0], [5.0, 4.0]], "doorways": [],
+                                                    "standing": [{"at": [0.0, 0.0], "level": 0.0, "looks_at": None}]},
+     BOXED, WARDROBES, (False, "shed"), False, ("sight",), {}, {"spot-1": {"why": Matches("every way it turns")}}),
+]
+
+
+@pytest.mark.parametrize("record, design, inventory, terrain, made_ground, uses, kept, left",
+                         [case[1:] for case in VIEWED], ids=[case[0] for case in VIEWED])
+def test_each_view_eye_stands_and_looks_where_a_person_would(tmp_path, record, design, inventory, terrain,
+                                                             made_ground, uses, kept, left):
+    """Each view of a place (the cases in VIEWED, worked out by hand) stands its eye a person's height over what its
+    spot stands on and looks where a person would see the room: a standing spot at the floor of an open place stands
+    on the terrain row's made ground under it (a ground rising 0.5 m a metre east puts the eye at (4, 2) 2 + 1.6 m
+    up), a spot on a 1 m deck stays on its deck, and a place the terrain made no ground for stands on its level
+    (wreck's spot-3 and spot-6 eyes stood 2.6 and 4.3 m under its ground, their views black, 2026-10-30).
+    Break: score/stages/scene_record/writer.py: `return spot["level"] if under is None else under` ->
+        `return spot["level"]`
+    Wreck's spot-5, 2026-10-30: a doorway's eye 1 m in lands in a 2 m crate, and a person spot stands against it: each
+    eye moves to the nearest floor where a 0.5 m person stands in nothing, its aim moved by the same offset; a spot
+    clear of the crate stays where it is, and its own person spot never counts against it.
+    Break: score/stages/scene_record/writer.py: `if not standing.stands_in(spot, size, walls_things, grid, others):`
+        -> `if True:`; and `eye, aim = eye + [offset[0], 0.0, offset[1]], aim + offset` -> `eye = eye + [offset[0],
+        0.0, offset[1]]`
+    Flat's spot-2, 2026-10-31: its eye 0.45 m off its wardrobe, aimed at the middle, saw only the wardrobe. A spot
+    0.15 m west of a 2 m tall wardrobe looking east at the middle turns to the nearest way clear for a metre (+-15
+    degrees will not do: the wardrobe is 2 m deep), its eye kept, and every look kept is clear; a spot boxed in by
+    wardrobes on every side is left out with why; a low bench in its look does not block it, nor does anything for
+    an eye off the plan (galley's and hangar's spots past their plans, 2026-10-31).
+    Break: score/stages/scene_record/writer.py: `if hit is None:` -> `if True:`; and `if (cell >= 0).all() and (cell
+        < grid.shape).all() and point[1] - base < tops[tuple(cell)]:` -> `if point[1] - base < tops[grid.cell_of(spot)]:`
+    Round 33's spot-1 at shiplock looked straight down at the item under it with the world's up (0, 1, 0), so its
+    picture had no sideways and every light measure was NaN (2026-10-30): a look straight down takes the floor's long
+    axis as its up, a level look none.
+    Break: score/stages/scene_record/writer.py: `return [upright(view, plan["floor"]) for view in found]` ->
+        `return found`"""
+    from pxr import Usd, UsdGeom
+    ground = Usd.Stage.CreateNew(str(tmp_path / "moon/places/yard.usdc"))
+    UsdGeom.Xform.Define(ground, "/yard")
+    slope = UsdGeom.Mesh.Define(ground, "/yard/Outside/near")
+    slope.CreatePointsAttr([(-10, -5, -10), (10, 5, -10), (10, 5, 10), (-10, -5, 10)])
+    slope.CreateFaceVertexCountsAttr([4])
+    slope.CreateFaceVertexIndicesAttr([0, 1, 2, 3])
+    ground.Save()
+    read, place = terrain
+    under = writer.ground_under({"terrain": str(tmp_path)} if read else {}, place)
+    assert (under is not None) == made_ground, (terrain, under)
+    clear = writer.clear_of(design, inventory) if "clear" in uses else None
+    sight = writer.sight_of(design, inventory) if "sight" in uses else None
+    found_kept, found_left = writer.views_inside(writer.views(record, 1.6, under, clear, sight), design, False)
+    assert [view["name"] for view in found_kept] == list(kept), found_kept
+    assert [view["name"] for view in found_left] == list(left), found_left
+    for view in found_kept if sight else []:
+        assert sight(np.array(view["eye"]), np.array(view["aim"]), 0.0) is None, view
+    for found, expected in ((found_kept, kept), (found_left, left)):
+        for view in found:
+            fields = {**view, "heights": [view["eye"][1], view["aim"][1]] if "aim" in view else ABSENT,
+                      "look": [round(view["aim"][0] - view["eye"][0], 3), round(view["aim"][2] - view["eye"][2], 3)]
+                      if "aim" in view else ABSENT}
+            for field, wants in expected[view["name"]].items():
+                for want in wants if isinstance(wants, tuple) else (wants,):
+                    value = fields.get(field, ABSENT)
+                    held = want.holds(value) if isinstance(want, (EyeIn, Within, Matches)) else \
+                        value is want if want is ABSENT else value == want
+                    assert held, (view["name"], field, value, want)
 
 
 def test_an_opening_row_names_its_own_cut_and_a_thing_on_a_low_deck_stands_on_it():
@@ -1170,233 +1406,3 @@ def test_each_object_carries_what_holds_it_from_the_place_s_relations(tmp_path):
         None, "the relations were derived from another plan than the kept one (score/review/holders keep)")
     from score.review import holders
     assert writer.design_shell.KEPT_RELATIONS == holders.KEPT  # the row reads its relations where holders.keep keeps them
-
-
-def test_an_arched_rib_is_laid_as_the_shell_s_band_at_each_of_its_plan_items():
-    """Batch 1's retry: the tube's ribs, their box the whole picture, framed no close-up. The shell lays an arched
-    structure row (design_shell.arched) as an `arch` at each plan item tied to it, at the row's size, named its row,
-    painted as a wall; a block of no band, or a row of no structure, is not arched. The first rib's item (0, 1) 8 x
-    0.2 m lies east-west across the shed: its 3.2 m span centred at plan x 4, its feet at -1.6 and 1.6, z -1.9.
-    Break: score/stages/scene_record/writer.py: `way = np.array([1.0, 0.0]) if wide >= deep else np.array([0.0, 1.0])`
-        -> `way = np.array([0.0, 1.0])`"""
-    from pxr import Usd
-    from score.stages.earth_seed import design_shell
-    from score.stages.scene_record import writer
-    sys.path.insert(0, str(REPO / "tools/usd"))
-    import scene
-    rib = {"id": "structural_ribs", "name": "arched structural ribs", "noun": "ribs", "part": "structure",
-           "route": "plan", "size": [3.2, 0.2, 3.2], "count": 2}
-    assert design_shell.arched(rib) and not design_shell.arched({**rib, "size": [3.2, 2.0, 3.2]})
-    assert not design_shell.arched({**rib, "part": "object"})
-    design = {**WRITTEN, "items": [*WRITTEN["items"], ["RIBS 1", 0.0, 1.0, 8.0, 0.2, None, "item"],
-                                   ["RIBS 2", 0.0, 4.0, 8.0, 0.2, None, "item"]],
-              "rows": {**WRITTEN["rows"], "RIBS 1": ["structural_ribs"], "RIBS 2": ["structural_ribs"]}}
-    with tempfile.TemporaryDirectory() as folder:
-        output, inputs = written(folder, design)
-        (pathlib.Path(folder) / "hand-in.json").write_text(json.dumps({**HANDIN, "rows": [*HANDIN["rows"], rib]}))
-        record = writer.record_of(json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text()), design,
-                                  inputs)
-    ribs = [entry for entry in record["structure"] if entry["builder"] == "arch"]
-    assert [entry["name"] for entry in ribs] == ["structural_ribs_1", "structural_ribs_2"], ribs
-    assert all(entry["row"] == "structural_ribs" and entry["plain"] == "shell" for entry in ribs), ribs
-    assert ribs[0]["feet"] == [[-1.6, -1.9], [1.6, -1.9]] and ribs[0]["low"] == 0.0, ribs[0]  # the item's middle
-    assert "structural_ribs" not in {entry["row"] for entry in record["objects"]}  # no model take waits for it
-    stage = Usd.Stage.CreateInMemory()
-    scene.write_structure(stage, "tube", ribs)
-    built = scene.built_meshes(ribs[0])[0]["points"]
-    assert np.allclose(built.min(0), [-1.6, 0.0, -2.0]) and np.allclose(built.max(0), [1.6, 3.2, -1.8]), built
-    mesh = stage.GetPrimAtPath("/tube/Structure/structural_ribs_1")
-    assert mesh.GetAttribute("score:row").Get() == "structural_ribs", mesh
-
-
-def test_a_floodlight_tower_read_as_a_tower_gets_a_light_at_its_head():
-    """A yard with a 1 by 1 by 10 m floodlight tower (a stem by its metres) read as a tower (the reading's noun) and a
-    light switch: the tower's plan
-    item gets one library lamp near its top over its middle, the switch none (score/stages/row_kinds.py held_by).
-    Break: score/stages/scene_record/writer.py: `high = base + tall * share` -> `high = base + share`"""
-    from score.stages.scene_record import writer
-    design = {**WRITTEN, "items": [["TOWER", 3.0, 2.0, 1.0, 1.0, None, "item"], ["SWITCH", 1.0, 1.0, 0.1, 0.1, None,
-                                                                                    "item"]],
-              "rows": {"TOWER": ["floodlight_tower"], "SWITCH": ["light_switch"]},
-              "shapes": {"TOWER": {"shape": "rect", "tall": 10.0, "base": 0.0}}}
-    rows = [{"id": "floodlight_tower", "name": "floodlight tower", "noun": "tower", "anchor": "on:yard",
-             "size": [1.0, 1.0, 10.0]},
-            {"id": "light_switch", "name": "light switch", "noun": "switch", "anchor": "wall"}]
-    with tempfile.TemporaryDirectory() as folder:
-        (pathlib.Path(folder) / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
-        [lamp] = writer.lights(design, {"inventory": pathlib.Path(folder) / "inventory.json",
-                                        "row kinds": REPO / "data/checks/row-kinds.json",
-                                        "lamp library": REPO / "data/library/lamps.json"})
-    assert lamp["at"][1] == 9.5 and "floodlight_tower" in lamp["from"] and lamp["range"] == 14.25, lamp
-
-
-def test_a_row_its_concept_shows_glowing_gets_a_light_in_its_colour():
-    """An engine room's core (a machine: its row kind does not glow) its concept shows glowing blue at half the
-    brightest light gets the library's lamp over its plan item in that blue at half the lamp's strength; the engine
-    its concept shows dark and the starry sky (the physics') get none (reading.concept_light, kept as
-    {home}/design/light/<place>.json).
-    Break: score/stages/scene_record/writer.py:
-        `"energy": round(energy * light["strength"] * (float(glow["brightness"]) if glow else 1.0), 4),`
-        -> `"energy": round(energy * light["strength"], 4),`
-    Break: score/stages/scene_record/writer.py:
-        `for row in inventory["rows"] if row["id"] in shown and row.get("anchor") != "sky"}`
-        -> `for row in inventory["rows"] if row["id"] in shown}`
-    Break: score/stages/scene_record/concept_light.py: `PROPS_HOME / "design" / "light"` -> `PROPS_HOME / "light"`
-        (the row reads its concept light where plans.keep keeps none)
-    Break: score/stages/scene_record/writer.py: `counts[number % len(counts)] += 1` -> `pass` (four counted screens
-        on two items lay two lamps)
-    Break: score/stages/scene_record/writer.py: `return (float(emitter["share"]), "emitter") if said & set(emitter[
-        "words"]) else (1.0, "source")` -> `return 1.0, "source"` (a screen throws a lamp's light)
-    Break: score/stages/scene_record/writer.py: `set(emitter["words"]) | CONTROL_FACES` -> `set(emitter["words"])`
-        (a door's keypad throws a lamp's light: shiplock, 2026-11-10)"""
-    from score.review import plans
-    from score.stages.scene_record import concept_light, writer
-    assert concept_light.KEPT_LIGHT == plans.KEPT_LIGHT
-    design = {**WRITTEN, "items": [["CORE", 3.0, 2.0, 1.0, 1.0, None, "item"], ["ENGINE", 1.0, 1.0, 2.0, 1.0, None,
-                                                                                  "item"],
-                                   ["SKY", 0.0, 0.0, 1.0, 1.0, None, "item"],
-                                   ["SCREENS", 1.0, 4.0, 3.0, 0.5, None, "item"],
-                                   ["SCREENS 2", 5.0, 4.0, 2.0, 0.5, None, "item"]],
-              "rows": {"CORE": ["core"], "ENGINE": ["engine"], "SKY": ["sky"], "SCREENS": ["screens"],
-                       "SCREENS 2": ["screens"]},
-              "shapes": {"CORE": {"shape": "rect", "tall": 3.0, "base": 0.0}}}
-    rows = [{"id": "core", "name": "energy core", "noun": "core", "anchor": "floor", "size": [1.0, 1.0, 3.0]},
-            {"id": "engine", "name": "engine", "noun": "engine", "anchor": "floor", "size": [2.0, 1.0, 1.0]},
-            {"id": "sky", "name": "starfield", "noun": "sky", "anchor": "sky"},
-            {"id": "screens", "name": "wall monitors", "noun": "monitor", "anchor": "floor", "count": 4}]
-    dark = {"glows": False, "glowing": "", "colour": "", "brightness": 0}
-    light = {"rows": {"core": {"glows": True, "glowing": "its column", "colour": "#44aaff", "brightness": 0.5},
-                      "screens": {"glows": True, "glowing": "screens", "colour": "#44aaff", "brightness": 0.5},
-                      "engine": dark,
-                      "sky": {"glows": True, "glowing": "stars", "colour": "#ffffff", "brightness": 0.4}},
-             "scene": {"daylight": False, "unseen": False, "unseen_colour": ""}}
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
-        (folder / "light.json").write_text(json.dumps(light))
-        inputs = {"inventory": folder / "inventory.json", "row kinds": REPO / "data/checks/row-kinds.json",
-                  "lamp library": REPO / "data/library/lamps.json"}
-        assert writer.lights(design, inputs) == []  # its row kinds alone light nothing
-        lamp, *screens = writer.lights(design, {**inputs, "concept light": folder / "light.json"})
-        [full] = writer.item_lamps(design["items"][0], {**rows[0], "row_kind": "machine"}, rows, design,
-                                   writer.library_lamps(), inputs["lamp library"])
-        [bulb] = writer.item_lamps(design["items"][3], {**rows[3], "id": "bulbs", "name": "bulbs", "noun": "bulb"},
-                                   rows, design, writer.library_lamps(), inputs["lamp library"],
-                                   {**light["rows"]["screens"], "glowing": "bulbs"})
-    assert lamp["colour"] == "#44aaff" and "its column" in lamp["from"] and "core" in lamp["from"], lamp
-    assert lamp["energy"] == round(full["energy"] / 2, 4) and lamp["at"] == full["at"]
-    # four counted screens on two items (3 m from x 1, 2 m from x 5): two lamps along each, at 1.75, 3.25, 5.5 and
-    # 6.5 m (x -2.25, -0.75, 1.5, 2.5 on the shed's 8 m), each a faint emitter at 0.1 of the lamp (lamps.json
-    # `glowing`), never one lamp an item as a room light
-    assert [screen["at"][0] for screen in screens] == [-2.25, -0.75, 1.5, 2.5], screens
-    assert all(screen["row"] == "screens" and "faint emitter" in screen["from"] and
-               abs(screen["energy"] - bulb["energy"] * 0.1) <= 1e-4 for screen in screens), (screens, bulb)
-    # a door whose concept shows its keypad glowing is a faint emitter, its light a lamp still
-    door = {"id": "sliding_door", "name": "sliding door", "noun": "door"}
-    assert writer.glow_share(door, {"glowing": "keypad"}, inputs["lamp library"]) == (0.1, "emitter")
-    assert writer.glow_share(door, {"glowing": "light panel"}, inputs["lamp library"]) == (1.0, "source")
-
-
-def test_a_glowing_panel_drawn_as_the_whole_room_has_its_lamp_on_its_wall():
-    """Engineroom (#36): a glowing wall panel the plan draws as the whole room (7 x 5 m of the 8 x 6 m shed), held on
-    the east wall at its middle (plan 8, 3), has its lamp on that wall's face (x 7.9) 0.1 m out into the room, at
-    plan (7.8, 3), as high as the wall mount says on the shed's 3 m walls (1.5 m), never over the room's middle; the
-    plan-matched gate takes it there, off its item's box, and fails it moved off its wall.
-    Break: score/stages/scene_record/writer.py: `walled = relation is not None and relation.get("how") == "wall" and
-        holders.outlines_room(item, design)` -> `walled = False`
-    Break: score/stages/scene_record/gates.py: `if light.get("against"):` -> `if False:`
-    Break: score/stages/scene_record/writer.py: `if pieces == 1 else length * (piece + 0.5) / pieces` -> `if True
-        else 0.0` (three panels' lamps on one spot)"""
-    from score.stages.scene_record import gates, writer
-    design = {**WRITTEN, "items": [["PANEL", 0.5, 0.5, 7.0, 5.0, None, "item"]], "rows": {"PANEL": ["wall_panel"]},
-              "shapes": {}}
-    rows = [{"id": "wall_panel", "name": "wall panel", "noun": "panel", "anchor": "wall", "size": [8.0, 6.0, 3.0]}]
-    light = {"rows": {"wall_panel": {"glows": True, "glowing": "its lamps", "colour": "#ffeedd", "brightness": 1.0}}}
-    relations = {"relations": [{"item": "PANEL", "row": "wall_panel", "how": "wall", "side": 1, "spot": [8.0, 3.0],
-                                "wall": {"from": [8.0, 0.0], "to": [8.0, 6.0], "thick": 0.2}, "why": "its free wall"}]}
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": rows}))
-        (folder / "light.json").write_text(json.dumps(light))
-        [lamp] = writer.lights(design, {"inventory": folder / "inventory.json", "concept light": folder / "light.json",
-                                        "row kinds": REPO / "data/checks/row-kinds.json",
-                                        "lamp library": REPO / "data/library/lamps.json"}, relations)
-    (spot,), floor = writer.in_frame(design, [[7.8, 3.0]], 1.5)
-    assert lamp["at"] == [spot[0], floor, spot[1]], lamp
-    assert gates.lamp_faults({"lights": [lamp]}, design) == []
-    moved = {**lamp, "at": [lamp["at"][0] - 1.0, *lamp["at"][1:]]}
-    assert gates.lamp_faults({"lights": [moved]}, design) == ["the light of plan item 'PANEL' stands off its wall"]
-    # read as three panels: three lamps spread along the face, at the middles of its thirds (plan y 1, 3 and 5)
-    with tempfile.TemporaryDirectory() as folder:
-        folder = pathlib.Path(folder)
-        (folder / "inventory.json").write_text(json.dumps({"scene": "shed", "rows": [{**rows[0], "count": 3}]}))
-        (folder / "light.json").write_text(json.dumps(light))
-        three = writer.lights(design, {"inventory": folder / "inventory.json", "concept light": folder / "light.json",
-                                       "row kinds": REPO / "data/checks/row-kinds.json",
-                                       "lamp library": REPO / "data/library/lamps.json"}, relations)
-    spots, _ = writer.in_frame(design, [[7.8, 1.0], [7.8, 3.0], [7.8, 5.0]], 1.5)
-    assert [[found["at"][0], found["at"][2]] for found in three] == [list(spot) for spot in spots], three
-    assert gates.lamp_faults({"lights": three}, design) == []
-
-
-def test_the_shell_and_stairs_take_the_scene_librarys_surfaces():
-    """Each shell part and stair takes the variant the scene's surface library gives its kind (a stair the floor's
-    when the library names no stair), and a part it gives none, or every part while no library is made, carries no
-    surface and says why; the scene builder names that on the mesh and binds nothing.
-    Break: score/stages/scene_record/writer.py: `    return dict(entry, surface=surface)` -> `    return dict(entry,
-        surface="deck_plate")`
-    Break: score/stages/earth_seed/design_shell.py: `return f"{place}: the scene's surface library is not made (run
-        surface-library first): its {kind} has none"`
-        -> `return f"{place}: no surface"`
-    Break: score/stages/earth_seed/design_shell.py: `return next((name for name in found if set(name.split("_")) &
-        set(words)), found[0])` -> `return found[0]` (docking_airlock's floor painted with its ochre edging)"""
-    from pxr import Usd
-    from score.stages.scene_record import writer
-    sys.path.insert(0, str(REPO / "tools/usd"))
-    import scene
-    with tempfile.TemporaryDirectory() as folder:
-        made_library = pathlib.Path(folder) / "library"
-        made_library.mkdir()
-        (made_library / "materials.json").write_text(json.dumps({"kinds": {"wall": ["painted_panel"],
-                                                                          "floor": ["deck_plate"]}}))
-        (pathlib.Path(folder) / "with").mkdir()
-        output, inputs = written(pathlib.Path(folder) / "with", WRITTEN)
-        painted = {entry["name"]: entry for entry in writer.record_in(output)[1]["structure"]}
-        record = writer.record_of(json.loads((pathlib.Path(inputs["plan"]) / "plan.json").read_text()), WRITTEN,
-                                  {**inputs, writer.LIBRARY_ROW: made_library})
-        surfaces = {entry["name"]: entry for entry in record["structure"]}
-    assert {surfaces["wall_1"]["surface"], surfaces["deck_1"]["surface"], surfaces["stair_1"]["surface"]} == \
-        {"painted_panel", "deck_plate"} and surfaces["stair_1"]["surface"] == "deck_plate", surfaces
-    roof = surfaces["roof_1"]
-    from score.stages.earth_seed import design_shell
-    edged = {"kinds": {"floor": ["hazard_frame_paint", "deck_floor_plate", "floor_vent_grate"],
-                       "wall": ["hull_panel", "hull_recess"]}}
-    assert design_shell.surface_for("deck", edged) == "deck_floor_plate"  # the floor's own, never its edging
-    assert design_shell.surface_for("wall", edged) == "hull_panel"  # none named after it: its first
-    assert design_shell.surface_for("roof", edged) is None
-    assert roof["surface"] is None and "names no surface for the kinds a roof takes" in roof["surface_missing"], roof
-    assert all(entry["surface"] is None and "not made" in entry["surface_missing"] for entry in painted.values()), \
-        painted  # no library row read: every part named missing, none painted another way
-    stage = Usd.Stage.CreateInMemory()
-    scene.write_structure(stage, "shed", [roof])
-    mesh = stage.GetPrimAtPath("/shed/Structure/roof_1")
-    assert "roof takes" in mesh.GetAttribute("score:surface:missing").Get(), mesh
-    assert not mesh.HasRelationship("material:binding"), mesh
-
-
-def test_a_spot_looking_straight_down_is_given_the_floors_long_axis_as_its_up():
-    """Round 33's spot-1 at shiplock looked straight down at the item under it with the world's up (0, 1, 0), so its
-    picture had no sideways and every light measure was NaN (2026-10-30).
-
-    Break: score/stages/scene_record/writer.py: `return [upright(view, plan["floor"]) for view in found]` ->
-    `return found`"""
-    from score.stages.scene_record import writer
-    plan = {"floor": [[0.0, 0.0], [8.0, 6.0]], "floor_height": 0.0,
-            "items": [{"name": "HATCH", "box": [3.0, 2.0, 5.0, 4.0]}],
-            "standing": [{"at": [4.0, 3.0], "level": 3.0, "looks_at": "HATCH"},
-                         {"at": [1.0, 1.0], "level": 0.0, "looks_at": None}]}
-    down, level = writer.views(plan, 1.6)
-    assert down["up"] == [1.0, 0.0, 0.0], down
-    assert "up" not in level, level
-    deep = writer.views(dict(plan, floor=[[0.0, 0.0], [6.0, 8.0]], standing=plan["standing"][:1]), 1.6)[0]
-    assert deep["up"] == [0.0, 0.0, 1.0], deep
