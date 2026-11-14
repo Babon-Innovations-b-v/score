@@ -5,7 +5,8 @@ the table by plane stress, and each gate fails its break.
 
 On one toy person and its garment, made here: a 1 cm square of two triangles with one corner given twice (welded to
 four points, the face that lost a corner dropped), its fitted shell four rig points beside its corners with offsets
-0.01, 0.01, 0.06 and 0.2 m (OFFSET_MOST 0.05: the two corners by the last two loose), its cloth the cotton row (E 30.54
+0.01, 0.01, 0.06 and 0.2 m (OFFSET_MOST 0.05: the two corners by the last two loose; a point beside the last that
+no face draws, as a primitive sharing another's points holds, loose and not free), its cloth the cotton row (E 30.54
 N/m, nu 0.3058: lambda 10.3026 N/m, worked by hand), a loose edge pulled 20% past its built and skin length while one
 the skin itself draws long, or one at its built length where the skin draws it short, is not stretched; a two-joint
 skeleton (Hips at 1 m, Shin 0.5 m under it) whose sim poses are its bind (it stays at its bind), then both turned 90
@@ -18,6 +19,7 @@ is not run here (its kernels compile for a minute); the real run's numbers are o
 
 Breaks that turn the one test red (each applied once and seen red, reverted, 2026-11-13):
 - loose_of's `> limit` made `>= 0.0` (the loose corners).
+- free_points' `& drawn` dropped (the loose point no face of the part draws taken as free).
 - welded's `index[faces]` made `faces` (the welded faces).
 - person_worlds' `np.swapaxes(turns[:, segment[parent]], 1, 2) @` dropped (a segment's world turn taken as its turn
   against its parent: the shin turns past the Hips).
@@ -124,10 +126,21 @@ def test_loose_cloth_rides_its_sim_body_and_is_judged_by_measure(tmp_path):
     assert len(points) == 4 and index[1] == index[4]
     assert len(faces) == 2 and np.allclose(points[faces[1]], glb_points[[4, 3, 2]])
 
-    # its loose points are the shell gate's loose cloth: near the 6 cm and 20 cm offsets, not the 1 cm ones
-    free = people_cloth.loose_of(points, rig, bodies.OFFSET_MOST)
+    # its free points are the shell gate's loose cloth its faces draw: near the 6 cm and 20 cm offsets, not the 1 cm
+    # ones; a loose point another primitive sharing its points draws, and this part's faces do not, is not free
+    loose = people_cloth.loose_of(glb_points, rig, bodies.OFFSET_MOST)
+    free = people_cloth.free_points(points, faces, index, loose)
     assert {tuple(point) for point in points[free]} == {(SIDE, 0.0, 0.0), (SIDE, SIDE, 0.0)}
     assert free.sum() == 2
+    shared = np.vstack([glb_points, [[2 * SIDE, 2 * SIDE, 0.0]]])  # by the 20 cm offset: loose, drawn by no face here
+    shared_points, shared_faces, shared_index = people_cloth.welded(shared, glb_faces)
+    shared_loose = people_cloth.loose_of(shared, rig, bodies.OFFSET_MOST)
+    assert shared_loose[-1]
+    shared_free = people_cloth.free_points(shared_points, shared_faces, shared_index, shared_loose)
+    assert shared_free.sum() == 2 and not shared_free[shared_index[-1]]
+    only_undrawn = np.zeros(len(shared), dtype=bool)
+    only_undrawn[-1] = True
+    assert not people_cloth.free_points(shared_points, shared_faces, shared_index, only_undrawn).any()
 
     # its cloth values from the cotton row by plane stress, the bending over the welded cloth's mean edge
     row = json.loads((people_cloth.REPO / "data/physics/cloth.json").read_text())["recipes"]["cloth"]
