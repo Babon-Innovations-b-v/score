@@ -824,10 +824,101 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     machine = dict(run.nodes["first"], created=10_000.0, deleted=10_900.0, price=0.01, unit_minutes=1, share=0.25)
     assert submit.ledger.machine_row(machine)["euros"] == pytest.approx(15 * 0.01 * 0.25)
 
+    # which work goes on the cluster at all: SCORE_CLOUD=k8s, narrowed by SCORE_CLOUD_KINDS to its kinds (#76), a
+    # runner naming no kind known by its script's name, one that cannot be told kept on machines; every other kind
+    # rents machines from the same backend (Scaleway's, also under SCORE_K8S_PROVIDER=scaleway/tenant)
+    kinds = "pixal,blender,library,settle,characters"
+    routes = [  # SCORE_CLOUD, SCORE_K8S_PROVIDER, SCORE_CLOUD_KINDS, the runner's script, the job's kind: on the cluster
+        ("k8s", None, None, "pytest", None, True), ("k8s", None, None, "pytest", "judge", True),
+        ("k8s", "scaleway/tenant", None, "pytest", None, True), ("scaleway", None, None, "pytest", None, False),
+        ("scaleway", None, kinds, "pytest", "pixal", False), ("k8s", None, kinds, "pytest", "pixal", True),
+        ("k8s", None, kinds, "pytest", "settle", True), ("k8s", None, kinds, "pytest", "judge", False),
+        ("k8s", None, kinds, "/repo/tools/cloud/library_bake.py", None, True),
+        ("k8s", None, kinds, "/repo/tools/cloud/judge.py", None, False), ("k8s", None, kinds, "-c", None, False)]
+    for cloud, k8s_provider, narrowed, script, kind, expected in routes:
+        row = (cloud, k8s_provider, narrowed, script, kind)
+        for name, value in (("SCORE_CLOUD", cloud), ("SCORE_K8S_PROVIDER", k8s_provider),
+                            ("SCORE_CLOUD_KINDS", narrowed)):
+            monkeypatch.setenv(name, value) if value else monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(submit.sys, "argv", [script])
+        assert submit.provider.on_cluster(kind) is expected, row
+        assert submit.provider.load().NAME == "scaleway", row
+
+    # a run launched with cluster kinds and resumed without them (2026-11-07, Launch 33: 10 L4s rented for its
+    # cluster kinds): its pool's collector rents nothing and says why; with the settings back it rents again
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
+    import pool
+    registry = tmp_path / "runs"
+    registry.mkdir()
+    launch = {"pid": 11, "state": "resumed", "resumed": {"pid": 22},
+              "settings": {"SCORE_CLOUD": "k8s", "SCORE_CLOUD_KINDS": "pixal,blender"}}
+    (registry / "20261107T100000-11.json").write_text(json.dumps(launch))
+    (registry / "20261107T110000-22.json").write_text(json.dumps({"pid": 22, "state": "running", "settings": {}}))
+    (registry / "active.json").write_text("[]")
+    monkeypatch.setattr(pool, "RUNS", registry)
+    rented, said = [], []
+    for name in ("tidy", "trim", "idle_down", "beat", "hold"):
+        monkeypatch.setattr(pool, name, lambda *args: None)
+    monkeypatch.setattr(pool, "shortfall", lambda plan, alive: [("gpu-24gb", 0, "card-0")])
+    monkeypatch.setattr(pool, "fill", lambda run_id, plan, short, account: rented.append(short) or 1)
+    monkeypatch.setattr(pool.batch, "say", said.append)
+    collecting = pool.Collecting()
+    collecting.account = "account"
+    monkeypatch.delenv("SCORE_CLOUD_KINDS", raising=False)
+    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
+    pool.collect_round("run", {"run_pid": 22}, collecting)
+    pool.collect_round("run", {"run_pid": 22}, collecting)
+    assert rented == [] and len(said) == 1 and "pixal,blender" in said[0] and "SCORE_CLOUD is scaleway" in said[0]
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    pool.collect_round("run", {"run_pid": 22}, collecting)  # its launch's settings back
+    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
+    pool.collect_round("run", {"run_pid": 33}, collecting)  # another run, launched with no cluster
+    assert len(rented) == 2 and collecting.refused is None
+
     # warm nodes (owner, 2026-11-06): once every job is on the cluster, an idle node a job ran on is held WARM_MINUTES
-    # by a pause pod the autoscaler may not evict, asking no card; once an idle spell; billed to its hold's end
+    # by a pause pod the autoscaler may not evict, asking no card; once an idle spell; billed to its hold's end. The
+    # cluster is a tenant's, its module loaded as submit loads it (SCORE_K8S_PROVIDER=scaleway/tenant)
     clock = [50_000.0]
     monkeypatch.setattr(submit.time, "time", lambda: clock[0])
+    monkeypatch.setenv("SCORE_CLOUD", "k8s")
+    monkeypatch.setenv("SCORE_K8S_PROVIDER", "scaleway/tenant")
+    monkeypatch.delenv("SCORE_K8S_NAMESPACE", raising=False)
+    monkeypatch.setattr(manifests, "NAMESPACE", manifests.NAMESPACE)  # the module's NAMESPACE, undone below
+    tenant = submit.cluster_module()
+    assert tenant.NAME == "tenant"
+    # a tenant box that cannot read the cluster's project with scw (the conductor, 2026-11-06): its pools as
+    # SCORE_K8S_POOLS gives them, its nodes through kubectl, never scw. Break: in tenant.nodes, read
+    # `scw("k8s", "node", "list", ...)` again; or in tenant.class_pools, drop the `given is not None` branch
+    monkeypatch.setattr(tenant, "scw", lambda *words: pytest.fail(f"scw asked: {words}"))
+    monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.01, 1))
+    monkeypatch.setenv(tenant.POOLS, json.dumps([
+        {"name": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G", "zone": "fr-par-2", "max": 10},
+        {"name": "score-l40s", "class": "gpu-48gb", "type": "L40S-1-48G", "zone": "fr-par-2"}]))  # a judge's card
+    assert tenant.class_pools() == [{"name": "score-l4", "id": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
+                                     "zone": "fr-par-2", "max": 10, "euros_a_minute": 0.01, "unit_minutes": 1},
+                                    {"name": "score-l40s", "id": "score-l40s", "class": "gpu-48gb",
+                                     "type": "L40S-1-48G", "zone": "fr-par-2", "max": 0, "euros_a_minute": 0.01,
+                                     "unit_minutes": 1}]  # no max given: none
+    # the provider's record of its nodes: a labelled node (its machine and zone for a node the cluster lists without
+    # zone labels), a node not tainted for score (not score's), and a node just joined, its cloud labels not set yet,
+    # priced by its pool (named in its name), never "? in ?". Break: in tenant.nodes, drop the pool_labels fill
+    taint = {"key": "tenant", "value": "score", "effect": "NoSchedule"}
+    joined = "scw-babon-score-l4-0a1b"
+    listed = {"items": [
+        {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "cpu-32c-128gb", tenant.POOL_LABEL: "score-pop2",
+                                 tenant.INSTANCE_LABEL: "pop2-32c-128g", tenant.ZONE_LABEL: "pl-waw-2"}},
+         "spec": {"taints": [taint]}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}},
+        {"metadata": {"name": "babons", "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {}, "status": {}},
+        {"metadata": {"name": joined, "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {"taints": [taint]}, "status": {}}]}
+    monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
+    assert tenant.nodes() == [
+        {"name": "kosmos-node", "pool": "score-pop2", "type": "POP2-32C-128G", "zone": "pl-waw-2", "status": "ready",
+         "created": 1791554400.0},
+        {"name": joined, "pool": "score-l4", "type": "L4-1-24G", "zone": "fr-par-2", "status": "not_ready",
+         "created": 1793959200.0}]  # an untainted node is not score's
 
     class NodesKubectl(LiveKubectl):
         def __init__(self):
@@ -845,35 +936,34 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
             self.ran.append(arguments)
             return ""
 
-    class NodedCluster(PricedCluster):
-        TOLERATIONS = [{"key": "tenant", "operator": "Equal", "value": "score", "effect": "NoSchedule"}]
-
-        def nodes(self):
-            return [{"name": "kosmos-node", "type": "POP2-32C-128G", "zone": "pl-waw-2", "created": 100.0}]
     kubectl = NodesKubectl()
     kubectl.nodes = [{"metadata": {"name": name, "creationTimestamp": "2026-11-06T10:00:00Z",
                                    "labels": {"score.dev/class": "gpu-24gb", "kubernetes.io/hostname": f"host-{name}"}},
                       "status": {"conditions": []}} for name in ("l4-a", "l4-b")]
-    # beside them: a node without zone labels (the provider's record gives them), the conductor's node (its class key
-    # no capability class: no class node, never a crash) and a node seen before its labels came (motor-labval,
-    # 2026-11-08: "no price for ? in ?"), its type and zone taken once they come
+    # beside them: a node without zone labels (the provider's record gives them), the node just joined (its pool's
+    # machine and zone), the conductor's node (its class key no capability class: no class node, never a crash) and a
+    # node seen before its labels came (motor-labval, 2026-11-08: "no price for ? in ?"), its type and zone taken once
+    # they come
     early = {"metadata": {"name": "early-node", "creationTimestamp": "2026-11-08T19:16:00Z",
                           "labels": {"score.dev/class": "gpu-24gb"}}, "status": {"conditions": []}}
     kubectl.nodes += [
         {"metadata": {"name": "kosmos-node", "creationTimestamp": "2026-10-09T14:50:00Z",
                       "labels": {"score.dev/class": "cpu-32c-128gb"}},
          "status": {"conditions": [{"type": "Ready", "status": "True", "lastTransitionTime": "2026-10-09T14:50:13Z"}]}},
+        {"metadata": {"name": joined, "creationTimestamp": "2026-11-06T10:00:00Z",
+                      "labels": {"score.dev/class": "gpu-24gb"}}, "status": {"conditions": []}},
         {"metadata": {"name": "conductor-node", "creationTimestamp": "2026-11-07T10:00:00Z",
                       "labels": {"score.dev/class": "conductor"}}, "status": {"conditions": []}},
         early]
-    run = submit.Run("r-warm", {"one": spec, "two": spec}, kubectl, NodedCluster())
+    run = submit.Run("r-warm", {"one": spec, "two": spec}, kubectl, tenant)
     run.jobs["one"].update(node="l4-a", ran=49_000.0, state="done", submitted=48_000.0)
     job_pod = lambda node, phase: {"metadata": {"labels": {"score.dev/job": "two"}}, "spec": {"nodeName": node},
                                    "status": {"phase": phase}}
     kubectl.all_pods = [job_pod("l4-a", "Succeeded"), job_pod("l4-b", "Running")]
     run.watch_nodes()
     seen = run.nodes["kosmos-node"]
-    assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 100.0)
+    assert (seen["type"], seen["zone"], seen["created"]) == ("POP2-32C-128G", "pl-waw-2", 1791554400.0)
+    assert (run.nodes[joined]["type"], run.nodes[joined]["zone"]) == ("L4-1-24G", "fr-par-2")
     assert "conductor-node" not in run.nodes
     early["metadata"]["labels"].update({submit.INSTANCE_LABEL: "l4-1-24g", submit.ZONE_LABEL: "fr-par-2"})
     submit.hold_idle(run)
@@ -885,7 +975,7 @@ def test_a_runs_nodes_are_billed_from_its_start_and_only_its_own(monkeypatch, tm
     assert pod["metadata"]["annotations"] == {"cluster-autoscaler.kubernetes.io/safe-to-evict": "false"}
     assert pod["spec"]["nodeSelector"] == {"kubernetes.io/hostname": "host-l4-a"}
     assert "nvidia.com/gpu" not in pod["spec"]["containers"][0]["resources"]["requests"]  # the next job's card free
-    assert NodedCluster.TOLERATIONS[0] in pod["spec"]["tolerations"]
+    assert tenant.TOLERATIONS[0] in pod["spec"]["tolerations"]
     assert hold["spec"]["activeDeadlineSeconds"] == submit.WARM_MINUTES * 60  # it ends by itself
     assert hold["metadata"]["labels"]["score.dev/run"] == "r-warm" and len(hold["metadata"]["name"]) <= 63
     clock[0] += 60
@@ -1005,85 +1095,3 @@ def a_watched_run(tmp_path, monkeypatch, failing_look):
     assert signal.getsignal(signal.SIGTERM) is before  # the handler before is put back
     assert all(looks) and not mark.exists()  # marked at every look, the mark gone after the error
     return booked, raised.value, kubectl.deleted, looks
-
-
-def test_score_cloud_k8s_keeps_the_providers_backend(monkeypatch, tmp_path):
-    monkeypatch.setenv("SCORE_CLOUD", "k8s")
-    monkeypatch.delenv("SCORE_K8S_PROVIDER", raising=False)
-    assert submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
-    monkeypatch.setenv("SCORE_K8S_PROVIDER", "scaleway/tenant")  # Scaleway's backend, a tenant cluster
-    assert submit.provider.load().NAME == "scaleway" and submit.provider.cluster_name() == "tenant"
-    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
-    assert not submit.provider.on_cluster() and submit.provider.load().NAME == "scaleway"
-    # SCORE_CLOUD_KINDS narrows the cluster to its kinds (#76); every other kind rents machines from the same backend
-    monkeypatch.setenv("SCORE_CLOUD_KINDS", "pixal,blender,library,settle,characters")
-    assert not submit.provider.on_cluster("pixal")  # SCORE_CLOUD is not k8s
-    monkeypatch.setenv("SCORE_CLOUD", "k8s")
-    assert submit.provider.on_cluster("pixal") and submit.provider.on_cluster("settle")
-    assert not submit.provider.on_cluster("judge") and submit.provider.load().NAME == "scaleway"
-    monkeypatch.setattr(submit.sys, "argv", ["/repo/tools/cloud/library_bake.py", "job.json"])
-    assert submit.provider.on_cluster()  # a runner naming no kind: its script's
-    monkeypatch.setattr(submit.sys, "argv", ["/repo/tools/cloud/judge.py"])
-    assert not submit.provider.on_cluster()
-    monkeypatch.setattr(submit.sys, "argv", ["-c"])
-    assert not submit.provider.on_cluster()  # a kind that cannot be told stays on machines
-    monkeypatch.delenv("SCORE_CLOUD_KINDS")
-    assert submit.provider.on_cluster("judge")  # unset: every kind
-    # a run launched with cluster kinds and resumed without them (2026-11-07, Launch 33: 10 L4s rented for its
-    # cluster kinds): its pool's collector rents nothing and says why; with the settings back it rents again
-    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
-    import pool
-    launch = {"pid": 11, "state": "resumed", "resumed": {"pid": 22},
-              "settings": {"SCORE_CLOUD": "k8s", "SCORE_CLOUD_KINDS": "pixal,blender"}}
-    (tmp_path / "20261107T100000-11.json").write_text(json.dumps(launch))
-    (tmp_path / "20261107T110000-22.json").write_text(json.dumps({"pid": 22, "state": "running", "settings": {}}))
-    (tmp_path / "active.json").write_text("[]")
-    monkeypatch.setattr(pool, "RUNS", tmp_path)
-    rented, said = [], []
-    for name in ("tidy", "trim", "idle_down", "beat", "hold"):
-        monkeypatch.setattr(pool, name, lambda *args: None)
-    monkeypatch.setattr(pool, "shortfall", lambda plan, alive: [("gpu-24gb", 0, "card-0")])
-    monkeypatch.setattr(pool, "fill", lambda run_id, plan, short, account: rented.append(short) or 1)
-    monkeypatch.setattr(pool.batch, "say", said.append)
-    collecting = pool.Collecting()
-    collecting.account = "account"
-    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
-    pool.collect_round("run", {"run_pid": 22}, collecting)
-    pool.collect_round("run", {"run_pid": 22}, collecting)
-    assert rented == [] and len(said) == 1 and "pixal,blender" in said[0] and "SCORE_CLOUD is scaleway" in said[0]
-    monkeypatch.setenv("SCORE_CLOUD", "k8s")
-    pool.collect_round("run", {"run_pid": 22}, collecting)  # its launch's settings back
-    monkeypatch.setenv("SCORE_CLOUD", "scaleway")
-    pool.collect_round("run", {"run_pid": 33}, collecting)  # another run, launched with no cluster
-    assert len(rented) == 2 and collecting.refused is None
-    # a tenant box that cannot read the cluster's project with scw (the conductor, 2026-11-06): its pools as
-    # SCORE_K8S_POOLS gives them, its nodes through kubectl, never scw. Break: in tenant.nodes, read
-    # `scw("k8s", "node", "list", ...)` again; or in tenant.class_pools, drop the `given is not None` branch
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("tenant_under_test", pathlib.Path(__file__).parent / "clusters/tenant.py")
-    tenant = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(tenant)
-    monkeypatch.setattr(tenant, "scw", lambda *words: pytest.fail(f"scw asked: {words}"))
-    monkeypatch.setattr(tenant, "price", lambda machine_type, zone: (0.01, 1))
-    monkeypatch.setenv(tenant.POOLS, json.dumps([{"name": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
-                                                  "zone": "fr-par-2", "max": 10}]))
-    assert tenant.class_pools() == [{"name": "score-l4", "id": "score-l4", "class": "gpu-24gb", "type": "L4-1-24G",
-                                     "zone": "fr-par-2", "max": 10, "euros_a_minute": 0.01, "unit_minutes": 1}]
-    taint = {"key": "tenant", "value": "score", "effect": "NoSchedule"}
-    listed = {"items": [
-        {"metadata": {"name": "n1", "creationTimestamp": "2026-11-06T10:00:00Z",
-                      "labels": {tenant.CLASS_LABEL: "gpu-24gb", tenant.POOL_LABEL: "score-l4",
-                                 tenant.INSTANCE_LABEL: "l4-1-24g", tenant.ZONE_LABEL: "fr-par-2"}},
-         "spec": {"taints": [taint]}, "status": {"conditions": [{"type": "Ready", "status": "True"}]}},
-        {"metadata": {"name": "babons", "creationTimestamp": "2026-11-06T10:00:00Z",
-                      "labels": {tenant.CLASS_LABEL: "gpu-24gb"}}, "spec": {}, "status": {}}]}
-    monkeypatch.setattr(tenant, "kubectl", lambda *words: json.dumps(listed))
-    assert tenant.nodes() == [{"name": "n1", "pool": "score-l4", "type": "L4-1-24G", "zone": "fr-par-2",
-                               "status": "ready", "created": 1793959200.0}]  # an untainted node is not score's
-    # a node just joined, its cloud labels not set yet, is priced by its pool (named in its name), never "? in ?".
-    # Break: in tenant.nodes, drop the pool_labels fill
-    listed["items"] = [{"metadata": {"name": "scw-babon-score-l4-0a1b", "creationTimestamp": "2026-11-06T10:00:00Z",
-                                     "labels": {tenant.CLASS_LABEL: "gpu-24gb"}},
-                        "spec": {"taints": [taint]}, "status": {}}]
-    assert tenant.nodes() == [{"name": "scw-babon-score-l4-0a1b", "pool": "score-l4", "type": "L4-1-24G",
-                               "zone": "fr-par-2", "status": "not_ready", "created": 1793959200.0}]
