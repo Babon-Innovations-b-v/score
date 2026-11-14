@@ -2,86 +2,78 @@
 (4 h and EUR 60), builds only approved rows and specs, orders nothing the stock read says is out, writes a machine's
 started line before its order so the month counts it until it is closed, runs every job once (a failed, overdue,
 unsent or broken-machine job is a gap with its reason; a job lost while this PC slept is not a gap), rents no machine
-in the place of a billed one that failed, and leaves no machine running however its runner or node ends.
+in the place of a billed one that failed, and leaves no machine running however its runner or node ends. The runners'
+shared steps (batch.priced and spread.tended/tend, as every runner calls them): each runner says its estimate before
+it rents, the euros it says are its machines at the dearest offer it may take for the minutes it says, it refuses a
+batch past the owner's limits (4 h, EUR 60) and never on the month's total (owner, 2026-10-20: no month's ceiling);
+and a machine a runner tends itself is armed to delete itself, hears the heartbeat and is deleted whatever happens, a
+failed set-up included (#21: never held to mend).
 
-No machine is rented: the backend, ssh and the clock are stand-ins, and the dying-runner checks run real processes.
-Expected numbers are worked out by hand in the tests. The break that turns each red (applied once, seen red,
-reverted):
+One test, test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine, judges a table of rows: a call (a judging
+function on its inputs, or one world driven through its real entry point: a fleet, a claim, a rent, a tended machine,
+a dying runner) and the outcome it must give. No machine is rented: the backend, ssh and the clock are stand-ins, and
+the dying-runner rows run real processes. The estimates are each runner's on a fixed list, as recorded from the code
+before the shared estimate (a separate implementation), and their euros are checked against count x minutes x price
+worked out here; the other expected numbers are worked out by hand beside their rows. The break that turns each row
+red (applied once, seen red, reverted):
 
-- test_a_short_fleet_rents_more_as_stock_comes_up: in `keep_the_fleet`, `if short > 0 and not fleet.no_more_work() and`
-  -> `if False and` (a short fleet never asks again).
-- test_a_fleet_waits_out_an_open_pool_but_never_a_closed_one: in `keep_the_fleet`, `if alive or not pool_open() or
-  pool_closed():` -> `if alive or not pool_open():`.
-- test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadline: in `claim_rounds`, `min(stock_wait_
-  minutes(rounds) * 60, max(0.0, run.deadline - time.time()))` -> `stock_wait_minutes(rounds) * 60`.
-- test_a_failed_job_is_a_gap_and_never_sent_again: in `collect`, `fleet.gaps(failed, ...)` -> `fleet.again([{"name":
-  name} for name in failed])`.
-- test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_gap: in `stop_overdue`, `stopped.add(name)` -> `pass`.
-- test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place: in `keep_the_fleet`, `short = cards -
-  fleet.lost_cards - sum(` -> `short = cards - sum(`.
-- test_a_fleets_leftover_jobs_at_its_deadline_are_gaps_with_a_reason: in `Fleet.gaps`, `self.why.setdefault(name,
-  why)` -> `pass`.
-- test_jobs_lost_while_this_pc_slept_are_not_gaps_and_the_batch_stops: in `Fleet.woke`, `QUIET_MINUTES * 60` ->
-  `QUIET_MINUTES * 6000`.
-- test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on: in `claim_from`, `if not isinstance(error,
-  OutOfStock):` -> `if False:`.
-- test_a_rent_writes_its_started_line_before_the_order_is_sent: in backends/scaleway.py `create`, drop the
-  `ledger.rent_started(...)` call before the order.
-- test_a_batch_whose_runner_dies_deletes_its_machines: in score/graph's `watch_runner`, `os.killpg(runner_pid,
-  signal.SIGTERM)` -> `pass` (the batch rents on).
-- test_a_node_of_a_runner_that_leads_no_group_outlives_it_so_its_batch_deletes_every_machine: the fault's two halves
-  together (each alone is covered by the other): in score/graph's `watch_runner`, the node sends itself SIGTERM when
-  its runner is gone, and in `say`, `except BrokenPipeError:` -> `except ZeroDivisionError:`.
-- test_a_node_killed_alone_while_its_run_lives_has_its_batch_delete_every_machine: in `stop_on_signals`, `if
-  os.environ.get("SCORE_RUN_ID"):` -> `if False:`.
-- test_a_dead_runners_group_is_sent_one_stop_however_many_nodes_see_it: in score/graph's `watch_runner`, drop `and
-  stopped.claim_stop(mark)`.
-
-The runners' shared steps (batch.priced and spread.tended/tend, as every runner calls them): each
-runner says its estimate before it rents, the euros it says are its machines at the dearest offer it may take for
-the minutes it says, it refuses a batch past the owner's limits (4 h, EUR 60) and never on the month's total (owner,
-2026-10-20: no month's ceiling); and a machine a runner tends itself is armed to delete itself, hears the heartbeat
-and is deleted whatever happens, a failed set-up included (#21: never held to mend).
-
-The estimates are each runner's on a fixed list, as recorded from the code before the shared estimate (a separate
-implementation), and their euros are checked against count x minutes x price worked out here. No machine is rented.
-The break that turns each red (applied once, seen red, reverted):
-
-- test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine (a table of judged rows: the limits, the bill, the
-  cards taken, the month's open machines, the classes, the fleet's size, the rate, leftovers and a job's deadline, the
-  models a list names, the inventory rows and character specs a batch builds, a run's rent fees, its cluster groups,
-  the orders it sends (none without stock, none outside a cleared run) and the pool cards it replaces; and each runner
-  priced inside, past the limits and on a dear month): in `rent`, `if offer.stock_word in NO_STOCK:` -> `if False:`,
-  or drop `compute.require_cleared(f"a {machine_type} in {zone}")`; in `Fleet.replaces`, `return self.setup_deaths ==
-  1` -> `return True`; in `read_list`, `if len(set(names)) !=
-  len(names):` -> `if False:`; in `from_the_inventory`, `if strays:` -> `if False:`; in `from_the_characters`, `if
-  not spec.get("approved"):` -> `if False:`; in ledger.py `machines_record`, drop `names |= {row["name"] for row in
-  attempts if row.get("name")}`; in `cluster_line`, `" || ".join(` -> `" && ".join(`; in ledger.py `refusal`, `estimated_minutes >
-  BATCH_HOURS * 60` -> `estimated_minutes > BATCH_HOURS * 600`, or `if euros > cap:` -> `if False:`; in `month_total`,
-  the `+ sum(open_euros(line, now) ...)` term -> `+ 0`; in `open_rents`, `("disk-and-address", RENT_REFUSED)` ->
-  `("disk-and-address",)`; in batch.py `affordable`, `found = [offer for offer in found if offer.per_card <
-  dearest]` -> `break`; in `check_classes`, the `provider.cards(name)` loop -> the old `set(classes) -
-  set(cloud.CLASSES)` refusal (this PC's backend lists none); in `cards_needed`, `working = minutes - SETUP_MINUTES -
-  per_model * per_card` -> `working = minutes - SETUP_MINUTES`; in `aimed_minutes`, `max(` -> `min(`; in
-  `card_minutes_per_model`, `reverse=True` -> `reverse=False`; in `is_leftover`, `and not (pid and
+- short-fleet-asks-again: in `keep_the_fleet`, `if short > 0 and not fleet.no_more_work() and` -> `if False and` (a
+  short fleet never asks again).
+- closed-pool-never-stretches-it: in `keep_the_fleet`, `if alive or not pool_open() or pool_closed():` -> `if alive or
+  not pool_open():`.
+- stock-wait-never-past-the-deadline: in `claim_rounds`, `min(stock_wait_minutes(rounds) * 60, max(0.0, run.deadline -
+  time.time()))` -> `stock_wait_minutes(rounds) * 60`.
+- stock-wait-marked-waiting: in `parked_within`, drop both `preflight.mark_waiting()` calls.
+- failed-job-is-a-gap-never-sent-again: in `collect`, `fleet.gaps(failed, ...)` -> `fleet.again([{"name": name} for
+  name in failed])`.
+- overdue-job-stopped-once: in `stop_overdue`, `stopped.add(name)` -> `pass`.
+- failed-billed-card-not-replaced: in `keep_the_fleet`, `short = cards - fleet.lost_cards - sum(` -> `short = cards -
+  sum(`.
+- leftovers-at-the-deadline-are-gaps: in `Fleet.gaps`, `self.why.setdefault(name, why)` -> `pass`.
+- jobs-lost-to-sleep-are-no-gaps: in `Fleet.woke`, `QUIET_MINUTES * 60` -> `QUIET_MINUTES * 6000`.
+- billed-boot-failed-is-a-gap: in `claim_from`, `if not isinstance(error, OutOfStock):` -> `if
+  False:`.
+- started-line-before-the-order: in backends/scaleway.py `create`, drop the `ledger.rent_started(...)` call before the
+  order.
+- dead-runner-batch-deletes: in score/graph's `watch_runner`, `os.killpg(runner_pid, signal.SIGTERM)` -> `pass` (the
+  batch rents on).
+- node-of-a-groupless-runner-outlives-it: the fault's two halves together (each alone is covered by the other): in
+  score/graph's `watch_runner`, the node sends itself SIGTERM when its runner is gone, and in `say`, `except
+  BrokenPipeError:` -> `except ZeroDivisionError:`.
+- node-killed-alone: in `stop_on_signals`, `if os.environ.get("SCORE_RUN_ID"):` -> `if False:`.
+- dead-runners-group-stopped-once: in score/graph's `watch_runner`, drop `and stopped.claim_stop(mark)`.
+- the limits, the bill, the cards taken, the month's open machines, the classes, the fleet's size, the rate, leftovers
+  and a job's deadline, the models a list names, the inventory rows and character specs a batch builds, a run's rent
+  fees, its cluster groups, the orders it sends (none without stock, none outside a cleared run), the pool cards it
+  replaces, and each runner priced inside, past the limits and on a dear month: in `rent`, `if offer.stock_word in
+  NO_STOCK:` -> `if False:`, or drop `compute.require_cleared(f"a {machine_type} in {zone}")`; in `Fleet.replaces`,
+  `return self.setup_deaths == 1` -> `return True`; in `read_list`, `if len(set(names)) != len(names):` -> `if
+  False:`; in `from_the_inventory`, `if strays:` -> `if False:`; in `from_the_characters`, `if not
+  spec.get("approved"):` -> `if False:`; in ledger.py `machines_record`, drop `names |= {row["name"] for row in
+  attempts if row.get("name")}`; in `cluster_line`, `" || ".join(` -> `" && ".join(`; in ledger.py `refusal`,
+  `estimated_minutes > BATCH_HOURS * 60` -> `estimated_minutes > BATCH_HOURS * 600`, or `if euros > cap:` -> `if
+  False:`; in `month_total`, the `+ sum(open_euros(line, now) ...)` term -> `+ 0`; in `open_rents`,
+  `("disk-and-address", RENT_REFUSED)` -> `("disk-and-address",)`; in batch.py `affordable`, `found = [offer for
+  offer in found if offer.per_card < dearest]` -> `break`; in `check_classes`, the `provider.cards(name)` loop -> the
+  old `set(classes) - set(cloud.CLASSES)` refusal (this PC's backend lists none); in `cards_needed`, `working = minutes
+  - SETUP_MINUTES - per_model * per_card` -> `working = minutes - SETUP_MINUTES`; in `aimed_minutes`, `max(` ->
+  `min(`; in `card_minutes_per_model`, `reverse=True` -> `reverse=False`; in `is_leftover`, `and not (pid and
   process_alive(int(pid)))` -> `and False`; in `job_deadline_seconds`, `["high"]` -> `["median"]`; in `priced`,
   `ledger.cost(minutes, dearest) * count` -> `ledger.cost(minutes, dearest)`, or `dearest = max(` -> `dearest =
   min(`, or `refused = ledger.refusal(minutes, dearest * count)` -> `refused = ledger.refusal(minutes, dearest *
   count) or (spent > 1000 and "the month")`.
-- test_a_scene_machine_is_armed_and_deleted_also_when_a_step_fails: in spread.py `tended`, move
-  `batch.delete_machine(machine)` from the `finally` to after the `yield` (deleted only when the block ends well).
-- test_a_held_character_machine_is_armed_with_the_grace_and_deleted: in spread.py `tended`, `run.deadline +
-  batch.WATCHDOG_GRACE_MINUTES * 60` -> `run.deadline`.
-- test_a_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend: in characters.py `held`, the set-up
-  failure's `raise SystemExit(...)` -> `pass`.
-- test_a_clips_only_character_run_asks_this_pcs_card_with_the_encoder_on_the_processor: in characters.py
-  `card_need`, `steps <= STEP_NEED.keys()` -> `True` (an unmeasured step asks a measured need), `max` -> `min` (a
-  run asks less than its largest step), or `or HELD_STEPS` -> `or []` (a held machine asks the kind's 17 GB); or `encoder = ""` in `make_one` (Kimodo's
-  encoder goes onto this PC's 16 GB card); or `if machine.get("here")` -> `if True` (a rented card's run is changed).
-- test_a_served_blender_machine_runs_the_queue_on_its_card_and_is_deleted: in blender_cloud.py `serve`, `card =
-  machine.get("class", "").startswith("gpu")` -> `card = False`.
-- test_a_spread_machine_is_armed_and_deleted: in spread.py `tend`, drop `batch.delete_machine(machine)` from its
-  `finally`.
+- scene-machine-step-fails: in spread.py `tended`, move `batch.delete_machine(machine)` from the `finally` to after
+  the `yield` (deleted only when the block ends well).
+- held-character-machine: in spread.py `tended`, `run.deadline + batch.WATCHDOG_GRACE_MINUTES * 60` -> `run.deadline`.
+- character-set-up-failed-not-held: in characters.py `held`, the set-up failure's `raise SystemExit(...)` -> `pass`.
+- the card_need rows and encoder-on-this-pcs-processor-only: in characters.py `card_need`, `steps <=
+  STEP_NEED.keys()` -> `True` (an unmeasured step asks a measured need), `max` -> `min` (a run asks less than its
+  largest step), or `or HELD_STEPS` -> `or []` (a held machine asks the kind's 17 GB); or `encoder = ""` in
+  `make_one` (Kimodo's encoder goes onto this PC's 16 GB card); or `if machine.get("here")` -> `if True` (a rented
+  card's run is changed).
+- served-blender-machine: in blender_cloud.py `serve`, `card = machine.get("class", "").startswith("gpu")` -> `card =
+  False`.
+- spread-machine: in spread.py `tend`, drop `batch.delete_machine(machine)` from its `finally`.
 """
 import json
 import os
@@ -116,8 +108,10 @@ import judge  # noqa: E402
 import local  # noqa: E402
 import library_bake  # noqa: E402
 import meshparts  # noqa: E402
+import park  # noqa: E402
 import parts  # noqa: E402
 import pictures  # noqa: E402
+import preflight  # noqa: E402
 import scene  # noqa: E402
 import segment  # noqa: E402
 import similar  # noqa: E402
@@ -128,6 +122,7 @@ L4 = 0.013125
 NOW = 1_760_000_000.0  # a fixed now for the open-machine checks (2025-10-09 UTC)
 MONTH = "2025-10"
 REAL_SLEEP = time.sleep
+
 
 
 @pytest.fixture(autouse=True)
@@ -170,124 +165,12 @@ class FleetStub:
         return False
 
 
-def test_a_short_fleet_rents_more_as_stock_comes_up(monkeypatch):
-    fleet, rounds = FleetStub(time.time() + 60), []
-    found = [l4()]
-
-    def rent_fleet(fleet, cards):
-        rounds.append(cards)
-        if len(rounds) < 3:
-            return 0  # out of stock on the first rounds
-        fleet.machines.append({"cards": cards, "deleted": time.time()})
-        fleet.work = False
-        return cards
-    monkeypatch.setattr(batch, "rent_fleet", rent_fleet)
-    monkeypatch.setattr(batch.cloud, "offers", lambda classes: list(found))
-    monkeypatch.setattr(batch, "STOCK_RETRY_MINUTES", 0)
-    monkeypatch.setattr(batch.time, "sleep", lambda seconds: None)
-    batch.keep_the_fleet(fleet, found, 2)
-    assert rounds == [2, 2, 2] and fleet.offers == found
-
-
-def test_a_fleet_waits_out_an_open_pool_but_never_a_closed_one(monkeypatch):
-    """Fault of 2026-10-26: a Pixal3D fleet with no card paused its deadline on its run's pool for as long as the pool
-    had ever been opened; a closed pool holds no card for it again, so the fleet runs out its own time."""
-    rounds, closed = [], [False]
-
-    def rent_fleet(fleet, cards):
-        rounds.append(cards)
-        if len(rounds) >= 6:  # a fleet left waiting is stopped here
-            fleet.stop.set()
-        return 0
-    monkeypatch.setattr(batch, "rent_fleet", rent_fleet)
-    monkeypatch.setattr(batch, "pool_open", lambda: True)
-    monkeypatch.setattr(batch, "pool_closed", lambda: closed[0])
-    monkeypatch.setattr(batch, "ask_every", lambda rounds: 0 if not closed[0] else 3600)
-    monkeypatch.setattr(batch, "fresh_offers", lambda run, found: [])
-    monkeypatch.setattr(batch.time, "sleep", lambda seconds: REAL_SLEEP(0.02))
-    batch.keep_the_fleet(FleetStub(time.time() + 0.05), [], 1)
-    assert len(rounds) == 6  # six rounds of 0.02 s past its 0.05 s: its deadline held while the pool was open
-    closed[0] = True
-    fleet = FleetStub(time.time() + 0.1)
-    deadline = fleet.deadline
-    batch.keep_the_fleet(fleet, [], 1)
-    assert fleet.deadline == deadline and time.time() >= deadline  # its own time, never stretched
-
-
-def test_the_wait_for_stock_doubles_up_to_half_an_hour_and_never_past_the_deadline(monkeypatch):
-    assert [batch.stock_wait_minutes(rounds) for rounds in range(6)] == [3, 6, 12, 24, 30, 30]
-    waits, rounds = [], []
-    run = types.SimpleNamespace(deadline=time.time() + 20 * 60)
-    monkeypatch.setattr(batch, "park_taken", lambda *arguments: None)
-    monkeypatch.setattr(batch, "claim_round", lambda *arguments: rounds.append(1) or (
-        None if len(rounds) < 5 else {"machine": 1}))
-    monkeypatch.setattr(batch, "parked_within", lambda run, offers, number, kind, disk_gb, seconds: waits.append(
-        seconds))
-    monkeypatch.setattr(batch, "fresh_offers", lambda run, offers: offers)
-    assert batch.claim_rounds(run, "account", [], 1, "pixal", 60, None) == {"machine": 1}
-    assert [round(wait / 60) for wait in waits[:3]] == [3, 6, 12]
-    assert 19 * 60 < waits[3] <= 20 * 60 and len(waits) == 4  # the fourth (24 min) cut to the 20 min left
-    # the wait for stock is marked as one, so the runaway watch leaves it out (2026-11-05, people-clips-made); break:
-    # in `parked_within`, drop both `preflight.mark_waiting()` calls
-    monkeypatch.undo()
-    import park
-    import preflight
-    marks = []
-    monkeypatch.setattr(preflight, "mark_waiting", lambda: marks.append("waiting"))
-    monkeypatch.setattr(preflight, "unmark_waiting", lambda: marks.append("done"))
-    monkeypatch.setattr(park, "PARKED_POLL_SECONDS", 0.01)
-    monkeypatch.setattr(batch, "park_taken", lambda *arguments: None)
-    assert batch.parked_within(run, [], 1, "pixal", 60, 0.05) is None
-    assert marks[0] == "waiting" and marks[-1] == "done" and marks.count("waiting") >= 2, marks
-
 
 def one_shot_fleet(names, tmp_path):
     models = [types.SimpleNamespace(name=name, picture="/pics/p.png", seed=1) for name in names]
     folder = tmp_path / f"fleet-{len(list(tmp_path.iterdir()))}"
     folder.mkdir()
     return batch.Fleet(models, folder, None, 0, "test", finish=False), models
-
-
-def test_a_failed_job_is_a_gap_and_never_sent_again(tmp_path):
-    """A batch runs every job once (CONTEXT.md, owner 2026-10-20): a failed or out-of-memory job was sent back."""
-    fleet, models = one_shot_fleet(["crate", "barrel"], tmp_path)
-    batch.queue(fleet, models)
-    sent = [fleet.next_job()["name"], fleet.next_job()["name"]]
-    status = {"jobs": {"crate": {"state": "failed"}, "barrel": {"state": "running", "began": 0}}}
-    assert batch.collect(fleet, fleet.folder, "host", status, set()) == {"crate"}
-    assert sent == ["crate", "barrel"] and fleet.failed == ["crate"] and fleet.next_job() is None
-
-
-def test_a_job_past_its_deadline_is_stopped_once_and_becomes_a_gap(monkeypatch, tmp_path):
-    status = {"jobs": {"slow": {"state": "running", "began": 0.0}, "quick": {"state": "running", "began": 900.0},
-                       "made": {"state": "done", "began": 0.0}}}
-    assert batch.overdue(status, set(), 500, 1000.0) == ["slow"]  # 1000 s on, 100 s on, done
-    assert batch.overdue(status, {"slow"}, 500, 1000.0) == []
-    (fleet, _), commands, stopped = one_shot_fleet(["slow"], tmp_path), [], set()
-    fleet.job_deadline = 500
-    monkeypatch.setattr(batch, "remote", lambda folder, host, command, **keywords: commands.append(command))
-    monkeypatch.setattr(batch.time, "time", lambda: 1000.0)
-    batch.stop_overdue(fleet, fleet.folder, "host", status, stopped)
-    batch.stop_overdue(fleet, fleet.folder, "host", status, stopped)
-    assert commands == ["pkill -f -- '[/]root/batch/out/slow\\.glb'"] and stopped == {"slow"}
-    assert fleet.why["slow"] == "passed its 500 s deadline; stopped"
-    pattern = batch.own_pattern("/root/batch/out/slow.glb")
-    assert re.search(pattern, "python scripts/pixal3d_generate.py in.png /root/batch/out/slow.glb --seed 1")
-    assert not re.search(pattern, f"bash -c pkill -f -- {pattern}")  # never the shell that runs pkill
-
-
-def test_a_fleet_whose_billed_machines_failed_rents_none_in_their_place(monkeypatch, tmp_path):
-    """A batch runs once: a billed machine that did not start or broke was replaced by a new rental, unpriced."""
-    fleet, models = one_shot_fleet(["crate", "barrel"], tmp_path)
-    fleet.deadline = time.time() + 60
-    batch.queue(fleet, models)
-    fleet.lose({"cards": 1})
-    rented = []
-    monkeypatch.setattr(batch, "rent_fleet", lambda fleet, cards: rented.append(cards) or 0)
-    monkeypatch.setattr(batch.time, "sleep", lambda seconds: None)
-    batch.keep_the_fleet(fleet, [], 1)
-    assert rented == [] and sorted(fleet.failed) == ["barrel", "crate"] and fleet.next_job() is None
-
 
 def tended(names, looks, poll_seconds, deadline_in, tmp_path, monkeypatch, per_card=3):
     """batch.tend on one fake machine over a fake clock that each poll's sleep moves on by `poll_seconds`: its status
@@ -318,67 +201,141 @@ def tended(names, looks, poll_seconds, deadline_in, tmp_path, monkeypatch, per_c
     return fleet
 
 
-def test_a_fleets_leftover_jobs_at_its_deadline_are_gaps_with_a_reason(tmp_path, monkeypatch):
-    """Audit (2026-10-22): the jobs still running or never sent at a batch's deadline were left out of its gaps."""
-    fleet = tended(["crate", "barrel", "lamp"], [{"crate": "done", "barrel": "running"}], 60, 30, tmp_path,
-                   monkeypatch, per_card=1)
-    assert fleet.done == ["crate"] and fleet.failed == ["barrel"]
-    assert fleet.unsent_gaps("not sent before the batch's deadline") == ["lamp"]
+
+# --- the worlds the rows drive: each returns what it saw, its row holds what it must be ---
+
+def short_fleet(patch):
+    """keep_the_fleet over a fleet whose first two rounds find no stock: the cards asked each round, and whether the
+    fleet kept the offers it found."""
+    fleet, rounds, found = FleetStub(time.time() + 60), [], [l4()]
+
+    def rent_fleet(fleet, cards):
+        rounds.append(cards)
+        if len(rounds) < 3:
+            return 0  # out of stock on the first rounds
+        fleet.machines.append({"cards": cards, "deleted": time.time()})
+        fleet.work = False
+        return cards
+    patch.setattr(batch, "rent_fleet", rent_fleet)
+    patch.setattr(batch.cloud, "offers", lambda classes: list(found))
+    batch.keep_the_fleet(fleet, found, 2)
+    return {"rounds": rounds, "offers kept": fleet.offers == found}
+
+
+def pool_wait(patch, closed, seconds):
+    """keep_the_fleet with no card on its run's pool (`closed` or open) and `seconds` to its deadline, stopped at its
+    sixth round: the rounds it asked, whether its deadline stayed as set and whether it ran out."""
+    rounds = []
+
+    def rent_fleet(fleet, cards):
+        rounds.append(cards)
+        if len(rounds) >= 6:  # a fleet left waiting is stopped here
+            fleet.stop.set()
+        return 0
+    patch.setattr(batch, "rent_fleet", rent_fleet)
+    patch.setattr(batch, "pool_closed", lambda: closed)
+    patch.setattr(batch, "ask_every", lambda rounds: 3600 if closed else 0)
+    fleet = FleetStub(time.time() + seconds)
+    deadline = fleet.deadline
+    batch.keep_the_fleet(fleet, [], 1)
+    return {"rounds": len(rounds), "deadline kept": fleet.deadline == deadline, "ran out": time.time() >= deadline}
+
+
+def stock_waits(patch):
+    """claim_rounds with 20 min to its deadline, its fifth round claiming: what it claimed and the waits it took."""
+    waits, rounds = [], []
+    run = types.SimpleNamespace(deadline=time.time() + 20 * 60)
+    patch.setattr(batch, "claim_round", lambda *arguments: rounds.append(1) or (
+        None if len(rounds) < 5 else {"machine": 1}))
+    patch.setattr(batch, "parked_within", lambda run, offers, number, kind, disk_gb, seconds: waits.append(seconds))
+    claimed = batch.claim_rounds(run, "account", [], 1, "pixal", 60, None)
+    return {"claimed": claimed, "first waits": [round(wait / 60) for wait in waits[:3]], "waits": len(waits),
+            "fourth cut to the 20 min left": 19 * 60 < waits[3] <= 20 * 60}
+
+
+def waiting_marks(patch):
+    """parked_within for 0.05 s with nothing parked: what it took and the waiting marks it set, in order."""
+    marks = []
+    patch.setattr(preflight, "mark_waiting", lambda: marks.append("waiting"))
+    patch.setattr(preflight, "unmark_waiting", lambda: marks.append("done"))
+    run = types.SimpleNamespace(deadline=time.time() + 20 * 60)
+    return {"taken": batch.parked_within(run, [], 1, "pixal", 60, 0.05), "first": marks[0], "last": marks[-1],
+            "marked on every look": marks.count("waiting") >= 2}
+
+
+def collected(here):
+    """Two jobs sent, one failed and one running: what was sent, what collect gave back, the gaps, and what is next."""
+    fleet, models = one_shot_fleet(["crate", "barrel"], here)
+    batch.queue(fleet, models)
+    sent = [fleet.next_job()["name"], fleet.next_job()["name"]]
+    status = {"jobs": {"crate": {"state": "failed"}, "barrel": {"state": "running", "began": 0}}}
+    back = batch.collect(fleet, fleet.folder, "host", status, set())
+    return {"sent": sent, "collected": back, "failed": fleet.failed, "next": fleet.next_job()}
+
+
+# at 1000 s: a job running 1000 s, one running 100 s, and one done
+RUNNING_JOBS = {"jobs": {"slow": {"state": "running", "began": 0.0}, "quick": {"state": "running", "began": 900.0},
+                         "made": {"state": "done", "began": 0.0}}}
+PATTERN = batch.own_pattern("/root/batch/out/slow.glb")
+
+
+def stopped_twice(here, patch):
+    """stop_overdue called twice at 1000 s on RUNNING_JOBS with a 500 s job deadline: the commands sent, the jobs
+    stopped and the gap's reason."""
+    fleet, commands, stopped = one_shot_fleet(["slow"], here)[0], [], set()
+    fleet.job_deadline = 500
+    patch.setattr(batch, "remote", lambda folder, host, command, **keywords: commands.append(command))
+    patch.setattr(batch.time, "time", lambda: 1000.0)
+    batch.stop_overdue(fleet, fleet.folder, "host", RUNNING_JOBS, stopped)
+    batch.stop_overdue(fleet, fleet.folder, "host", RUNNING_JOBS, stopped)
+    return {"commands": commands, "stopped": stopped, "why": fleet.why["slow"]}
+
+
+def lost_fleet(here, patch):
+    """keep_the_fleet over two jobs whose one billed card failed: what it rented, the gaps, and what is next."""
+    fleet, models = one_shot_fleet(["crate", "barrel"], here)
+    fleet.deadline = time.time() + 60
+    batch.queue(fleet, models)
+    fleet.lose({"cards": 1})
+    rented = []
+    patch.setattr(batch, "rent_fleet", lambda fleet, cards: rented.append(cards) or 0)
+    batch.keep_the_fleet(fleet, [], 1)
+    return {"rented": rented, "failed": sorted(fleet.failed), "next": fleet.next_job()}
+
+
+def tended_fleet(fleet, unsent=None):
+    """What a tended fleet ended with: made, gaps, lost to sleep, its stops; then the jobs never sent (taken as gaps
+    with the reason `unsent`), and its ledger entry's gaps."""
+    failed = list(fleet.failed)
+    never_sent = fleet.unsent_gaps(unsent) if unsent else None
     entry = batch.ledger_entry(fleet, list(fleet.models), 0.0)
-    assert entry["gap_reasons"] == {"barrel": "still running at the batch's deadline",
-                                    "lamp": "not sent before the batch's deadline"}
-    broken = tended(["crate", "barrel"], [{"crate": "running", "barrel": "running"}, None], 1, 600, tmp_path,
-                    monkeypatch)
-    assert broken.failed == ["barrel", "crate"] and broken.why["crate"].startswith("its machine m-1 broke")
+    return {"done": fleet.done, "failed": failed, "asleep": fleet.asleep, "slept": fleet.slept.is_set(),
+            "stopped": fleet.stop.is_set(), "why": fleet.why, "unsent": never_sent, "gaps": entry["gaps"],
+            "gap_reasons": entry["gap_reasons"], "lost_to_sleep": entry["lost_to_sleep"]}
 
 
-def test_jobs_lost_while_this_pc_slept_are_not_gaps_and_the_batch_stops(tmp_path, monkeypatch):
-    """Audit (2026-10-22): the PC slept, the machines deleted themselves, and on waking their jobs were recorded as
-    gaps, never asked again. They are lost to sleep now, for a rerun; the model already back is not among them."""
-    looks = [{"crate": "done", "barrel": "running", "lamp": "running"}]
-    fleet = tended(["crate", "barrel", "lamp"], looks, (batch.QUIET_MINUTES + 5) * 60, 4 * 3600, tmp_path, monkeypatch)
-    assert fleet.done == ["crate"] and fleet.failed == [] and fleet.asleep == ["barrel", "lamp"]
-    assert fleet.slept.is_set() and fleet.stop.is_set()
-    entry = batch.ledger_entry(fleet, list(fleet.models), 0.0)
-    assert entry["lost_to_sleep"] == ["barrel", "lamp"] and entry["gaps"] == []
-    awake = tended(["crate", "barrel"], [{"crate": "done", "barrel": "running"}, None], 60, 4 * 3600, tmp_path,
-                   monkeypatch)
-    assert awake.asleep == [] and awake.failed == ["barrel"] and not awake.slept.is_set()
-
-
-def test_a_billed_boot_that_fails_is_a_gap_and_out_of_stock_moves_on(monkeypatch, tmp_path):
-    """claim_from moved to the next offer after a machine it rented (and was billed for) did not answer; only an
-    out-of-stock refusal, where no card ran, may move on."""
-    offers = [l4("zone-a"), l4("zone-b")]
-    rented, failures = [], []
+def claimed(here, patch, failures):
+    """claim over two L4 offers whose boots fail with `failures` in turn: what it claimed and the zones it rented."""
+    rented = []
 
     def rent(run, account, offer, number, disk_gb):
         rented.append(offer.zone)
-        folder = tmp_path / f"m{len(list(tmp_path.iterdir()))}"
+        folder = here / f"m{len(list(here.iterdir()))}"
         folder.mkdir()
         return {"zone": offer.zone, "type": offer.type, "class": offer.machine_class, "cards": 1, "folder": folder,
                 "deleted": None}
 
     def boot(machine):
         raise failures.pop(0)
-    monkeypatch.setattr(batch, "rent", rent)
-    monkeypatch.setattr(batch, "boot", boot)
-    monkeypatch.setattr(batch, "delete_machine", lambda machine: None)
-    monkeypatch.setattr(batch.ledger, "machine_row", lambda machine: {})
-    monkeypatch.setattr(batch, "park_taken", lambda *arguments: None)
+    patch.setattr(batch, "rent", rent)
+    patch.setattr(batch, "boot", boot)
     run = types.SimpleNamespace(machines=[], attempts=[], deadline=0)
-    failures.append(TimeoutError("did not answer"))
-    assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a"]
-    rented.clear()
-    failures.extend([batch.OutOfStock("out of stock"), TimeoutError("did not answer")])
-    assert batch.claim(run, None, offers, 1, "parts") is None and rented == ["zone-a", "zone-b"]
+    return batch.claim(run, None, [l4("zone-a"), l4("zone-b")], 1, "parts"), rented
 
 
-
-
-def test_a_rent_writes_its_started_line_before_the_order_is_sent(monkeypatch, tmp_path):
-    """Fault (2026-10-17, C1): a machine of a run that died first was on the bill and nowhere in the ledger. The
-    started line names the run and its ticket before the order goes."""
+def refused_order(here, patch):
+    """rent of an L4 the provider refuses (out of quota), its machine number 3: the orders sent, the ledger as each
+    went, and the ledger after."""
     seen = []
 
     def fake_scw(command, **options):
@@ -386,31 +343,25 @@ def test_a_rent_writes_its_started_line_before_the_order_is_sent(monkeypatch, tm
         the refused order made anyway finds none."""
         if command[:4] != ["scw", "instance", "server", "create"]:
             return types.SimpleNamespace(returncode=0, stdout="[]", stderr="")
-        seen.append((command, ledger.entries()))
+        seen.append((command[:4], ledger.entries()))
         return types.SimpleNamespace(returncode=1, stdout="", stderr="out of quota")
-    monkeypatch.setattr(ledger, "LEDGER", tmp_path / "ledger.jsonl")
-    monkeypatch.setenv(compute.TICKET, "run-7 surfaces-paint")
-    monkeypatch.setattr(batch.cloud, "subprocess", types.SimpleNamespace(run=fake_scw))
-    monkeypatch.setattr(batch, "month_spent", lambda account: 0.0)
-    monkeypatch.setattr(batch.compute, "require_cleared", lambda what: None)
-    keys = tmp_path / "keys"
+    patch.setattr(batch.cloud, "subprocess", types.SimpleNamespace(run=fake_scw))
+    keys = here / "keys"
     keys.mkdir()
-    monkeypatch.setattr(batch, "KEY", keys / "ssh_key")
-    monkeypatch.setattr(batch, "SELF_DELETE_KEY", keys / "self_delete.json")
+    patch.setattr(batch, "KEY", keys / "ssh_key")
+    patch.setattr(batch, "SELF_DELETE_KEY", keys / "self_delete.json")
     batch.KEY.write_text("private")
     batch.SELF_DELETE_KEY.write_text('{"secret_key": "works"}')
-    monkeypatch.setattr(batch.cloud, "self_delete_refusal", lambda secret, zone: None)  # the provider takes it
-    fleet = types.SimpleNamespace(folder=tmp_path / "pixal-run-7", deadline=time.time() + 60, attempts=[])
-    assert batch.rent(fleet, None, l4(), 3) is None
+    fleet = types.SimpleNamespace(folder=here / "pixal-run-7", deadline=time.time() + 60, attempts=[])
+    rented = batch.rent(fleet, None, l4(), 3)
     after = ledger.entries()
-    [(command, [line])] = seen  # one order, and one line in the ledger as it went
-    assert command[:4] == ["scw", "instance", "server", "create"]
-    assert line["kind"] == ledger.RENT_STARTED and line["state"] == "started" and line["euros"] == 0.0
-    assert line["deadline"] == round(fleet.deadline + batch.WATCHDOG_GRACE_MINUTES * 60)
-    assert line["run"] == "pixal-run-7" and line["name"] == "pixal-run-7-3"
-    assert line["ticket"] == "run-7 surfaces-paint" and line["type"] == "L4" and line["zone"] == "zone-a"
-    assert [entry["kind"] for entry in after] == [ledger.RENT_STARTED, ledger.RENT_REFUSED]
-    assert after[1]["name"] == "pixal-run-7-3" and "out of quota" in after[1]["reason"]
+    command, held = seen[0] if seen else (None, [])
+    line = held[0] if len(held) == 1 else {}
+    return {"rented": rented, "orders": len(seen), "order": command, "held as it went": len(held),
+            "line": {key: line.get(key) for key in ("kind", "state", "euros", "run", "name", "ticket", "type", "zone")},
+            "deadline with grace": line.get("deadline") == round(fleet.deadline + batch.WATCHDOG_GRACE_MINUTES * 60),
+            "after": [(entry["kind"], entry.get("name")) for entry in after],
+            "reason": after[-1].get("reason", "") if after else ""}
 
 
 def wait_for(path, seconds=30):
@@ -473,28 +424,6 @@ if os.fork() == 0:
 time.sleep(120)
 """
 
-
-def test_a_batch_whose_runner_dies_deletes_its_machines(tmp_path):
-    """Fault (2026-10-17): a `score run` killed outright left its batches renting with no one to stop them."""
-    runner = subprocess.Popen([sys.executable, "-c", RUNNER, str(REPO), "lead", WORKING_BATCH, str(HERE),
-                               str(tmp_path / "deletes.txt"), str(tmp_path), "1", "120"], env=a_home(tmp_path))
-    wait_for(tmp_path / "ready")
-    runner.send_signal(signal.SIGKILL)  # no stop handler runs: only the node's watch can end the batch
-    runner.wait()
-    assert deleted(tmp_path / "deletes.txt", 1) == ["machine-0"]
-
-
-def test_a_node_of_a_runner_that_leads_no_group_outlives_it_so_its_batch_deletes_every_machine(tmp_path):
-    """Review of C7 (2026-10-17): the node of a runner leading no group ended with it; the batch writing to it hit a
-    broken pipe and deleted one machine of three."""
-    runner = subprocess.Popen([sys.executable, "-c", RUNNER, str(REPO), "follow", WORKING_BATCH, str(HERE),
-                               str(tmp_path / "deletes.txt"), str(tmp_path), "3", "2"], env=a_home(tmp_path))
-    wait_for(tmp_path / "ready")
-    runner.send_signal(signal.SIGKILL)
-    runner.wait()
-    assert deleted(tmp_path / "deletes.txt", 3) == ["machine-0", "machine-1", "machine-2"]
-
-
 # A run (SCORE_RUN_ID set) whose one node runs the batch, its output piped to the node; the node's pid in node.pid.
 RUN_WITH_A_NODE = """
 import os, pathlib, subprocess, sys, time
@@ -505,23 +434,6 @@ if os.fork() == 0:
     os._exit(0)
 time.sleep(120)
 """
-
-
-def test_a_node_killed_alone_while_its_run_lives_has_its_batch_delete_every_machine(tmp_path):
-    """Audit (2026-10-22): a node killed alone (out of memory) while its run lived got no stop, so its batch rented on
-    until its deadline or the machines' self-delete."""
-    run = subprocess.Popen([sys.executable, "-c", RUN_WITH_A_NODE, WORKING_BATCH, str(HERE),
-                            str(tmp_path / "deletes.txt"), str(tmp_path), "3", "90"],
-                           env=a_home(tmp_path, "killed-node-test"), start_new_session=True)
-    try:
-        wait_for(tmp_path / "ready")
-        os.kill(int((tmp_path / "node.pid").read_text()), signal.SIGKILL)  # the run lives on
-        assert deleted(tmp_path / "deletes.txt", 3) == ["machine-0", "machine-1", "machine-2"]
-        assert run.poll() is None, "the run itself ended"
-    finally:
-        os.killpg(run.pid, signal.SIGKILL)
-        run.wait(timeout=10)
-
 
 # A runner leading its process group, with four node processes (watch_runner, each its own poll) that take SIGTERM
 # without ending, and a process that writes a line for every SIGTERM it gets; "ready" once all are in.
@@ -549,20 +461,172 @@ time.sleep(120)
 """
 
 
-def test_a_dead_runners_group_is_sent_one_stop_however_many_nodes_see_it(tmp_path):
-    """Review of C7 (2026-10-17): every node's watch could send the group its own SIGTERM, and a batch already
-    deleting stops deleting at its second signal."""
-    runner = subprocess.Popen([sys.executable, "-c", COUNTED_RUNNER, str(REPO), str(tmp_path)])
-    wait_for(tmp_path / "ready")
+
+def runner_killed(here, lead, count, seconds):
+    """A RUNNER (`lead` or "follow") whose batch holds `count` machines for `seconds`, killed outright: the machines
+    its batch deleted."""
+    runner = subprocess.Popen([sys.executable, "-c", RUNNER, str(REPO), lead, WORKING_BATCH, str(HERE),
+                               str(here / "deletes.txt"), str(here), str(count), str(seconds)], env=a_home(here))
+    wait_for(here / "ready")
+    runner.send_signal(signal.SIGKILL)  # no stop handler runs: only the node's watch can end the batch
+    runner.wait()
+    return deleted(here / "deletes.txt", count)
+
+
+def node_killed(here):
+    """A run whose one node runs a batch of three machines, the node killed alone: the machines deleted, and whether
+    the run lives on."""
+    run = subprocess.Popen([sys.executable, "-c", RUN_WITH_A_NODE, WORKING_BATCH, str(HERE),
+                            str(here / "deletes.txt"), str(here), "3", "90"],
+                           env=a_home(here, "killed-node-test"), start_new_session=True)
+    try:
+        wait_for(here / "ready")
+        os.kill(int((here / "node.pid").read_text()), signal.SIGKILL)  # the run lives on
+        return {"deleted": deleted(here / "deletes.txt", 3), "run lives": run.poll() is None}
+    finally:
+        os.killpg(run.pid, signal.SIGKILL)
+        run.wait(timeout=10)
+
+
+def stops_sent(here):
+    """The SIGTERMs a dead COUNTED_RUNNER's group got from its four nodes' watches, one "x" each."""
+    runner = subprocess.Popen([sys.executable, "-c", COUNTED_RUNNER, str(REPO), str(here)])
+    wait_for(here / "ready")
     runner.send_signal(signal.SIGKILL)
     runner.wait()
     REAL_SLEEP(2)  # every watch has seen its runner gone by now
-    signals = (tmp_path / "signals.txt").read_text() if (tmp_path / "signals.txt").exists() else ""
+    signals = (here / "signals.txt").read_text() if (here / "signals.txt").exists() else ""
     try:
         os.killpg(runner.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
-    assert signals == "x", f"the group was sent {len(signals)} stops"
+    return signals
+
+
+class Tended:
+    """batch's machine steps stubbed: what was armed, beaten and deleted, in order."""
+
+    def __init__(self, monkeypatch):
+        self.done = []
+        monkeypatch.setattr(batch, "arm_self_delete", lambda folder, host, deadline: self.done.append(
+            ("armed", host, deadline)))
+        monkeypatch.setattr(spread, "off_zone_mirror", lambda folder, host: self.done.append(("off zone mirror", host)))
+        monkeypatch.setattr(pictures, "keep_beating", lambda folder, host, stop: self.done.append(
+            ("beating", host)) or stop.wait(5))
+        monkeypatch.setattr(batch, "delete_machine", lambda machine: self.done.append(("deleted", machine["host"])))
+        monkeypatch.setattr(batch, "say", lambda line: None)
+
+    def armed_beaten_deleted(self, deadline):
+        grace = deadline + batch.WATCHDOG_GRACE_MINUTES * 60
+        return (self.done[0] == ("armed", "10.0.0.1", grace) and ("beating", "10.0.0.1") in self.done
+                and self.done[-1] == ("deleted", "10.0.0.1") and self.done.count(("deleted", "10.0.0.1")) == 1)
+
+
+def machine_and_run(tmp_path):
+    folder = tmp_path / "machine"
+    folder.mkdir()
+    run = pictures.Run(folder, time.time() + 3600)
+    run.started = time.time()
+    return {"folder": folder, "host": "10.0.0.1", "created": 0.0, "class": "gpu-24gb", "type": "small",
+            "zone": "zone-a"}, run
+
+
+
+def tended_machine(here, patch, work):
+    """`work`(here, patch, run, machine) on one machine with batch's machine steps recorded: what it saw, the error it
+    ended with (None), and whether the machine was armed with the grace, beaten and deleted once, at the end."""
+    machine, run = machine_and_run(here)
+    tended = Tended(patch)
+    try:
+        seen, error = work(here, patch, run, machine) or {}, None
+    except (Exception, SystemExit) as failed:  # what the machine's runner ended with, judged by the row
+        seen, error = {}, f"{type(failed).__name__}: {failed}"
+    return {**seen, "error": error, "armed, beaten, deleted": tended.armed_beaten_deleted(run.deadline),
+            "steps": tended.done}
+
+
+def fails(*arguments):
+    raise RuntimeError("failed")
+
+
+def set_up_fails(machine):
+    raise subprocess.CalledProcessError(1, "characters_setup.sh")
+
+
+def held_to_mend(run, host):
+    raise AssertionError("a failed set-up was held to mend")
+
+
+def held_host(here, patch, run, machine):
+    characters.held(run, machine, [])
+    return {"host": (run.folder / "host").read_text()}
+
+
+def served(here, patch, run, machine):
+    """blender_cloud.serve of a queue of one job, then closed: its steps and what it wrote."""
+    queue = here / "queue"
+    queue.mkdir()
+    (queue / "1.json").write_text(json.dumps({"script": "tools/blender/inside/x.py", "minutes": 1}))
+    (queue / "close").write_text("")
+    ran = []
+    patch.setattr(blender_cloud, "set_up", lambda log_folder, host, jobs: ran.append(("set up", jobs)))
+    patch.setattr(blender_cloud, "run_job", lambda log_folder, host, number, job, card: ran.append(
+        (number, card)) or (1.5, 1))
+    patch.setattr(batch, "remote", lambda *arguments, **keywords: ran.append("remote"))
+    patch.setattr(batch, "copy", lambda *arguments: ran.append("copy"))
+    blender_cloud.serve(run, machine, queue, 1)
+    return {"ran": ran, "done": (queue / "1.done").read_text(), "ready": (queue / "ready").read_text(),
+            "unit_seconds": machine["unit_seconds"]}
+
+
+def spread_shares(here, patch, run, machine):
+    worked = []
+    spread.tend(run, machine, "parts", spread.Shares([1, 2]), lambda machine: None,
+                lambda machine, share, card: worked.append(share))
+    return {"worked": sorted(worked)}
+
+
+def steps_of(here, name, steps):
+    """A character folder `name` whose spec asks `steps`."""
+    (here / name / "in").mkdir(parents=True, exist_ok=True)
+    (here / name / "in" / "spec.json").write_text(json.dumps({"steps": steps}))
+    return here / name
+
+
+def encoder_sent(here, patch):
+    """make_one of a scene-clips character on this PC's card, then on a rented one: whether each run's command holds
+    the encoder on the processor."""
+    sent = []
+    patch.setattr(batch, "remote", lambda folder, host, command, **_: sent.append(command))
+    folder = steps_of(here, "scene", ["scene clips", "rig"])
+    run = types.SimpleNamespace(deadline=time.time() + 60)
+    for this_pc in (True, False):
+        characters.make_one(run, {"folder": here, "host": "h", "here": this_pc}, folder, 0)
+    return [characters.ENCODER in command for command in sent[1::2]]
+
+
+class Like(str):
+    """An expected text: one the pattern finds."""
+
+    def __eq__(self, other):
+        return isinstance(other, str) and re.search(self, other) is not None
+
+    __hash__ = str.__hash__
+
+
+class Observed(dict):
+    """The expected outcome of a world: a dict holding these keys with these values (an Observed value in turn)."""
+
+    def holds(self, outcome, said):
+        return isinstance(outcome, dict) and all(
+            key in outcome and (value.holds(outcome[key], said) if isinstance(value, Observed) else value == outcome[key])
+            for key, value in self.items())
+
+
+POOL_WAIT = ((batch, "pool_open", lambda: True), (batch, "fresh_offers", lambda run, found: []),
+             (batch.time, "sleep", lambda seconds: REAL_SLEEP(0.02)))
+CLAIMING = ((batch, "delete_machine", lambda machine: None), (batch.ledger, "machine_row", lambda machine: {}),
+            (batch, "park_taken", lambda *arguments: None))
 
 
 # --- the runners' shared steps: each says and keeps inside its estimate, and deletes every machine it tends ---
@@ -650,7 +714,7 @@ class Estimate:
 
 def holds(expected, outcome, said):
     """Whether a call's `outcome` (and the lines it `said`) is the `expected` one: a matcher's, or equal."""
-    if isinstance(expected, (Refused, Estimate, Including)):
+    if isinstance(expected, (Refused, Estimate, Including, Observed)):
         return expected.holds(outcome, said)
     return not isinstance(outcome, Stopped) and outcome == expected
 
@@ -672,7 +736,7 @@ def priced(runner, pricing):
     spent, scale, past = PRICINGS[pricing]
     stubs = ((batch, "offers", lambda classes: offers(scale)), (batch, "month_spent", lambda account: spent))
     expected = Refused("refused", "€60") if past else Estimate(recorded, spent)
-    return case(f"{runner}-{pricing}", lambda here: estimate(), expected, stubs)
+    return case(f"{runner}-{pricing}", lambda here, patch: estimate(), expected, stubs)
 
 
 # 20 H100s for 180 min is EUR 172, 20 L4s EUR 47: the H100 is left out
@@ -789,103 +853,221 @@ def side_by_side(line):
 
 HIGH = json.loads((REPO / "data" / "costs" / "per-unit.json").read_text())["stages"]["pixal"]["time"]["unit_seconds"]
 CASES = [
-    case("90-min-inside", lambda here: ledger.refusal(90, L4), None),
-    case("241-min-past-4h", lambda here: ledger.refusal(241, L4), Refused("4 h", raised=False)),
-    case("eur63-past-eur60", lambda here: ledger.refusal(210, 0.3), Refused("€60", raised=False)),
-    case("minutes-allowed-l4", lambda here: ledger.minutes_allowed(L4), 240),
-    case("minutes-allowed-dear", lambda here: round(ledger.minutes_allowed(0.3)), 200),
-    case("override-eur3-past", lambda here: ledger.refusal(30, 0.1), Refused("override labval", raised=False), OVERRIDE,
+    case("90-min-inside", lambda here, patch: ledger.refusal(90, L4), None),
+    case("241-min-past-4h", lambda here, patch: ledger.refusal(241, L4), Refused("4 h", raised=False)),
+    case("eur63-past-eur60", lambda here, patch: ledger.refusal(210, 0.3), Refused("€60", raised=False)),
+    case("minutes-allowed-l4", lambda here, patch: ledger.minutes_allowed(L4), 240),
+    case("minutes-allowed-dear", lambda here, patch: round(ledger.minutes_allowed(0.3)), 200),
+    case("override-eur3-past", lambda here, patch: ledger.refusal(30, 0.1), Refused("override labval", raised=False), OVERRIDE,
          OVERRIDE_TICKET),
-    case("override-eur2-inside", lambda here: ledger.refusal(20, 0.1), None, OVERRIDE, OVERRIDE_TICKET),
-    case("override-watchdog-minutes", lambda here: round(ledger.minutes_allowed(0.1), 1), 22.5, OVERRIDE, OVERRIDE_TICKET),
-    case("billed-by-started-minute", lambda here: ledger.cost(1.2, L4), 2 * L4),
-    case("dearest-left-out", lambda here: [offer.machine_class for offer in batch.affordable(FOUND, minutes=180, cards=20)],
+    case("override-eur2-inside", lambda here, patch: ledger.refusal(20, 0.1), None, OVERRIDE, OVERRIDE_TICKET),
+    case("override-watchdog-minutes", lambda here, patch: round(ledger.minutes_allowed(0.1), 1), 22.5, OVERRIDE, OVERRIDE_TICKET),
+    case("billed-by-started-minute", lambda here, patch: ledger.cost(1.2, L4), 2 * L4),
+    case("dearest-left-out", lambda here, patch: [offer.machine_class for offer in batch.affordable(FOUND, minutes=180, cards=20)],
          ["gpu-24gb"]),
-    case("all-affordable", lambda here: batch.affordable(FOUND, minutes=30, cards=2), FOUND),
-    case("month-of-batches", lambda here: ledger.month_total("2026-09", MONTHS), 1.5),
-    case("month-running", lambda here: round(ledger.month_total(MONTH, RUNNING, now=NOW), 2), 1.2),
-    case("open-running", lambda here: ledger.open_rents(RUNNING, NOW), RUNNING),
-    case("month-died-to-deadline", lambda here: round(ledger.month_total(MONTH, DIED, now=NOW), 2), 4.8),
-    case("open-all-closed", lambda here: ledger.open_rents(STARTED + CLOSING, NOW), []),
-    case("refusal-closes-its-own", lambda here: ledger.open_rents(STARTED + CLOSING[2:], NOW), [STARTED[0], STARTED[2]]),
-    case("month-closed", lambda here: round(ledger.month_total(MONTH, STARTED + CLOSING, now=NOW), 2), 1.6),
-    case("this-pcs-card-classes", lambda here: batch.check_classes(batch.capacity.classes_for("pixal")), None, THIS_PC),
-    case("misnamed-class", lambda here: batch.check_classes(["gpu-24gb", "gpu24"]), Refused("not a capability class"),
+    case("all-affordable", lambda here, patch: batch.affordable(FOUND, minutes=30, cards=2), FOUND),
+    case("month-of-batches", lambda here, patch: ledger.month_total("2026-09", MONTHS), 1.5),
+    case("month-running", lambda here, patch: round(ledger.month_total(MONTH, RUNNING, now=NOW), 2), 1.2),
+    case("open-running", lambda here, patch: ledger.open_rents(RUNNING, NOW), RUNNING),
+    case("month-died-to-deadline", lambda here, patch: round(ledger.month_total(MONTH, DIED, now=NOW), 2), 4.8),
+    case("open-all-closed", lambda here, patch: ledger.open_rents(STARTED + CLOSING, NOW), []),
+    case("refusal-closes-its-own", lambda here, patch: ledger.open_rents(STARTED + CLOSING[2:], NOW), [STARTED[0], STARTED[2]]),
+    case("month-closed", lambda here, patch: round(ledger.month_total(MONTH, STARTED + CLOSING, now=NOW), 2), 1.6),
+    case("this-pcs-card-classes", lambda here, patch: batch.check_classes(batch.capacity.classes_for("pixal")), None, THIS_PC),
+    case("misnamed-class", lambda here, patch: batch.check_classes(["gpu-24gb", "gpu24"]), Refused("not a capability class"),
          THIS_PC),
     # 229 models at 3.95 card minutes each, 3 at once, in an hour: 5 min set-up and an 11.85 min last run leave 43.15
     # min of work for 904.55 card minutes, 21 cards; 5 + 229 * 3.95 / 21 + 11.85 = 59.9 min
-    case("fleet-of-21", lambda here: batch.cards_needed(229, 3, 60, 3.95), 21),
-    case("fleet-ends-in-its-hour", lambda here: round(batch.expected_minutes(229, 21, 3, 3.95)), 60),
-    case("fleet-of-1", lambda here: batch.cards_needed(5, 3, 60, 3.95), 1),
-    case("aim-too-short", lambda here: batch.cards_needed(10, 6, 20, 3.95), Refused("too short")),  # 5 + 23.7: over 20
+    case("fleet-of-21", lambda here, patch: batch.cards_needed(229, 3, 60, 3.95), 21),
+    case("fleet-ends-in-its-hour", lambda here, patch: round(batch.expected_minutes(229, 21, 3, 3.95)), 60),
+    case("fleet-of-1", lambda here, patch: batch.cards_needed(5, 3, 60, 3.95), 1),
+    case("aim-too-short", lambda here, patch: batch.cards_needed(10, 6, 20, 3.95), Refused("too short")),  # 5 + 23.7: over 20
     # one card, 3 models at 18.7 card minutes, 3 at once: 5 + 56.1 + 56.1 = 117.2 min, aimed for, not refused
-    case("capped-aims-for-what-it-can", lambda here: round(batch.aimed_minutes(3, 1, 3, 18.7, 60), 1), 117.2),
-    case("uncapped-keeps-its-aim", lambda here: batch.aimed_minutes(5, 20, 3, 3.95, 60), 60),
-    case("minutes-of-the-last-started", lambda here: batch.card_minutes_per_model(), 5, ENTRIES),
-    case("leftover-unlabelled", lambda here: batch.is_leftover([], 1e9), True),
-    case("leftover-past-deadline", lambda here: batch.is_leftover([f"deadline={1e9 - 1:.0f}"], 1e9), True),
-    case("not-leftover-process-alive", lambda here: batch.is_leftover(
+    case("capped-aims-for-what-it-can", lambda here, patch: round(batch.aimed_minutes(3, 1, 3, 18.7, 60), 1), 117.2),
+    case("uncapped-keeps-its-aim", lambda here, patch: batch.aimed_minutes(5, 20, 3, 3.95, 60), 60),
+    case("minutes-of-the-last-started", lambda here, patch: batch.card_minutes_per_model(), 5, ENTRIES),
+    case("leftover-unlabelled", lambda here, patch: batch.is_leftover([], 1e9), True),
+    case("leftover-past-deadline", lambda here, patch: batch.is_leftover([f"deadline={1e9 - 1:.0f}"], 1e9), True),
+    case("not-leftover-process-alive", lambda here, patch: batch.is_leftover(
         [f"deadline={LATER:.0f}", f"host={HOST}", f"pid={os.getpid()}"], 1e9), False),
-    case("leftover-process-gone", lambda here: batch.is_leftover(
+    case("leftover-process-gone", lambda here, patch: batch.is_leftover(
         [f"deadline={LATER:.0f}", f"host={HOST}", "pid=999999999"], 1e9), True),
-    case("not-leftover-other-host", lambda here: batch.is_leftover(
+    case("not-leftover-other-host", lambda here, patch: batch.is_leftover(
         [f"deadline={LATER:.0f}", "host=elsewhere", "pid=999999999"], 1e9), False),
-    case("job-deadline-from-high", lambda here: batch.job_deadline_seconds(), batch.DEADLINE_FACTOR * HIGH["high"]),
-    case("list-names-once-with-options", lambda here: listed(a_list(
+    case("job-deadline-from-high", lambda here, patch: batch.job_deadline_seconds(), batch.DEADLINE_FACTOR * HIGH["high"]),
+    case("list-names-once-with-options", lambda here, patch: listed(a_list(
         here, "# approved 2026-09-29\ncrate {picture} --faces 12000 --feet\n\nbarrel {picture}  # tall\n")),
         (["crate", "barrel"], 12000, [True, False])),
-    case("list-names-a-model-twice", lambda here: a_list(here, "crate {picture}\ncrate {picture}\n"), Refused("twice")),
-    case("no-inventory", lambda here: batch.from_the_inventory(a_list(here, LOCKERS), [written(here, "hub.json")]),
+    case("list-names-a-model-twice", lambda here, patch: a_list(here, "crate {picture}\ncrate {picture}\n"), Refused("twice")),
+    case("no-inventory", lambda here, patch: batch.from_the_inventory(a_list(here, LOCKERS), [written(here, "hub.json")]),
          Refused("no inventory")),
-    case("inventory-not-approved", lambda here: batch.from_the_inventory(
+    case("inventory-not-approved", lambda here, patch: batch.from_the_inventory(
         a_list(here, LOCKERS), [written(here, "hub.json", INVENTORY)]), Refused("not approved")),
     # approved, a place named by no place.json entry too: Pixal3D is worded by nothing
-    *(case(f"inventory-approved-{place}", lambda here, place=place: batch.from_the_inventory(
+    *(case(f"inventory-approved-{place}", lambda here, patch, place=place: batch.from_the_inventory(
         a_list(here, LOCKERS), [written(here, "hub.json", {**APPROVED, "place": place})]),
         Including({"r1", "locker", "r2", "desk"})) for place in ("habitat", "no_such_place")),
-    case("list-model-on-no-row", lambda here: batch.from_the_inventory(
+    case("list-model-on-no-row", lambda here, patch: batch.from_the_inventory(
         a_list(here, "no_such_row {picture}\n"), [written(here, "hub.json", APPROVED)]), Refused("on no row")),
-    case("designed-inventory", lambda here: batch.from_the_inventory(
+    case("designed-inventory", lambda here, patch: batch.from_the_inventory(
         a_list(here, "habitat-locker {picture}\n"), [written(here, "hub.json", DESIGNED)]), Including({"r1"})),
     # a hand-in under another place's name: page A's rules
-    case("designed-under-another-name", lambda here: batch.from_the_inventory(
+    case("designed-under-another-name", lambda here, patch: batch.from_the_inventory(
         a_list(here, "habitat-locker {picture}\n"), [written(here, "hub.json", {**DESIGNED, "scene": "lab"})]),
         Refused("not sound", "not approved", either=True)),
-    case("character-not-approved", lambda here: batch.from_the_characters([a_character(here)]), Refused("not approved")),
-    case("character-no-picture", lambda here: batch.from_the_characters([a_character(
+    case("character-not-approved", lambda here, patch: batch.from_the_characters([a_character(here)]), Refused("not approved")),
+    case("character-no-picture", lambda here, patch: batch.from_the_characters([a_character(
         here, approved="owner", picture=None)]), Refused("no picture")),
-    case("character-approved", lambda here: built(batch.from_the_characters([a_character(
+    case("character-approved", lambda here, patch: built(batch.from_the_characters([a_character(
         here, approved="owner, 2026-10-09")]), here), [("fish_tang", "tang.png")]),
-    case("characters-share-a-name", lambda here: batch.from_the_characters(
+    case("characters-share-a-name", lambda here, patch: batch.from_the_characters(
         [a_character(here, approved="owner, 2026-10-09")] * 2), Refused("share a name")),
     # batch-1-1's two lines, not batch-1-2 nor batch-2-1; none in the run's own euros
-    case("rent-fees-failed-rents-included", lambda here: fees_of(
+    case("rent-fees-failed-rents-included", lambda here, patch: fees_of(
         [batch.refused_row(l4(), "out of stock", "batch-1-1"), batch.refused_row(l4(), "refused")]), (0.01, 0.0)),
-    case("cluster-groups-of-three", lambda here: [[take.name for take in group] for group in batch.groups_of(TAKES, 3)],
+    case("cluster-groups-of-three", lambda here, patch: [[take.name for take in group] for group in batch.groups_of(TAKES, 3)],
          [["crate-0", "crate-1", "crate-2"], ["crate-3"]]),
     # the takes side by side, and the job fails only when no take made its model
-    case("cluster-takes-side-by-side", lambda here: side_by_side(batch.cluster_line(batch.groups_of(TAKES, 3)[0])),
+    case("cluster-takes-side-by-side", lambda here, patch: side_by_side(batch.cluster_line(batch.groups_of(TAKES, 3)[0])),
          (3, 3, "test -f /work/out/crate-0.glb || test -f /work/out/crate-1.glb || test -f /work/out/crate-2.glb")),
-    case("cluster-job-files", lambda here: (lambda job: ([entry["path"] for entry in job["inputs"]], job["outputs"]))(
+    case("cluster-job-files", lambda here, patch: (lambda job: ([entry["path"] for entry in job["inputs"]], job["outputs"]))(
         batch.cluster_job(batch.groups_of(TAKES, 3)[0], pathlib.Path("/w/group0/out"))),
         ([f"/work/in/crate-{number}.png" for number in range(3)], [{"path": "/work/out", "local": "/w/group0/out"}])),
     # a group of three asks three times the minutes of a group of one
-    case("cluster-job-minutes-per-take", lambda here: [batch.cluster_job(group, pathlib.Path("/w/out"))["minutes"]
+    case("cluster-job-minutes-per-take", lambda here, patch: [batch.cluster_job(group, pathlib.Path("/w/out"))["minutes"]
                                                        for group in batch.groups_of(TAKES, 3)],
          [3 * batch.cluster_job(TAKES[3:], pathlib.Path("/w/out"))["minutes"],
           batch.cluster_job(TAKES[3:], pathlib.Path("/w/out"))["minutes"]]),
     # pixal@people, 2026-10-22: the fleet ordered at the provider's shortage every round for over an hour, each order
     # a machine that never started and billed its disk and address (EUR 2.19 in all)
-    case("nothing-ordered-without-stock", lambda here: no_stock_rents(a_fleet(here)), ([None] * len(batch.NO_STOCK), []),
+    case("nothing-ordered-without-stock", lambda here, patch: no_stock_rents(a_fleet(here)), ([None] * len(batch.NO_STOCK), []),
          ((batch.cloud, "create", never_ordered), (compute, "require_cleared", lambda what: None))),
     # Fault (design of 2026-10-11): rent ordered a machine for any caller, without the runner's gate or the owner's yes
-    case("nothing-rented-outside-a-cleared-run", lambda here: batch.rent(a_fleet(here), None, l4(), 0),
+    case("nothing-rented-outside-a-cleared-run", lambda here, patch: batch.rent(a_fleet(here), None, l4(), 0),
          Refused("nothing rents outside a cleared run", by=compute.Refused),
          ((batch.cloud, "create", never_ordered), (batch, "month_spent", lambda account: 0.0))),
-    case("pool-card-replaced-once-in-set-up", lambda here: (lambda fleet: [
+    case("pool-card-replaced-once-in-set-up", lambda here, patch: (lambda fleet: [
         fleet.replaces(machine) for machine in POOL_FAILURES])(one_shot_fleet(["crate"], here)[0]),
          [False, True, True, False], ((batch, "answers", lambda machine: machine["answers"]),)),
     *(priced(runner, pricing) for runner in ESTIMATES for pricing in PRICINGS),
+    # --- a fleet rents only while it has work and a deadline, and never in a failed billed machine's place ---
+    case("short-fleet-asks-again", lambda here, patch: short_fleet(patch), Observed(rounds=[2, 2, 2], **{
+        "offers kept": True}), ((batch, "STOCK_RETRY_MINUTES", 0), (batch.time, "sleep", lambda seconds: None))),
+    # Fault of 2026-10-26: a Pixal3D fleet with no card paused its deadline on its run's pool for as long as the pool
+    # had ever been opened; a closed pool holds no card for it again, so the fleet runs out its own time.
+    # six rounds of 0.02 s past its 0.05 s: its deadline held while the pool was open
+    case("open-pool-holds-the-deadline", lambda here, patch: pool_wait(patch, False, 0.05), Observed(rounds=6),
+         POOL_WAIT),
+    case("closed-pool-never-stretches-it", lambda here, patch: pool_wait(patch, True, 0.1), Observed(**{
+        "deadline kept": True, "ran out": True}), POOL_WAIT),
+    case("stock-wait-doubles-to-half-an-hour", lambda here, patch: [batch.stock_wait_minutes(rounds)
+                                                                     for rounds in range(6)], [3, 6, 12, 24, 30, 30]),
+    case("stock-wait-never-past-the-deadline", lambda here, patch: stock_waits(patch), Observed(**{
+        "claimed": {"machine": 1}, "first waits": [3, 6, 12], "fourth cut to the 20 min left": True, "waits": 4}),
+         ((batch, "park_taken", lambda *arguments: None), (batch, "fresh_offers", lambda run, offers: offers))),
+    # the wait for stock is marked as one, so the runaway watch leaves it out (2026-11-05, people-clips-made)
+    case("stock-wait-marked-waiting", lambda here, patch: waiting_marks(patch), Observed(**{
+        "taken": None, "first": "waiting", "last": "done", "marked on every look": True}),
+         ((park, "PARKED_POLL_SECONDS", 0.01), (batch, "park_taken", lambda *arguments: None))),
+    # A batch runs every job once (CONTEXT.md, owner 2026-10-20): a failed or out-of-memory job was sent back.
+    case("failed-job-is-a-gap-never-sent-again", lambda here, patch: collected(here), Observed(
+        sent=["crate", "barrel"], collected={"crate"}, failed=["crate"], next=None)),
+    case("overdue-job", lambda here, patch: batch.overdue(RUNNING_JOBS, set(), 500, 1000.0), ["slow"]),
+    case("overdue-job-already-stopped", lambda here, patch: batch.overdue(RUNNING_JOBS, {"slow"}, 500, 1000.0), []),
+    case("overdue-job-stopped-once", lambda here, patch: stopped_twice(here, patch), Observed(
+        commands=["pkill -f -- '[/]root/batch/out/slow\\.glb'"], stopped={"slow"},
+        why="passed its 500 s deadline; stopped")),
+    case("stop-finds-its-job", lambda here, patch: bool(re.search(
+        PATTERN, "python scripts/pixal3d_generate.py in.png /root/batch/out/slow.glb --seed 1")), True),
+    case("stop-never-the-shell-that-runs-pkill", lambda here, patch: bool(re.search(
+        PATTERN, f"bash -c pkill -f -- {PATTERN}")), False),
+    # A batch runs once: a billed machine that did not start or broke was replaced by a new rental, unpriced.
+    case("failed-billed-card-not-replaced", lambda here, patch: lost_fleet(here, patch), Observed(
+        rented=[], failed=["barrel", "crate"], next=None), ((batch.time, "sleep", lambda seconds: None),)),
+    # Audit (2026-10-22): the jobs still running or never sent at a batch's deadline were left out of its gaps.
+    case("leftovers-at-the-deadline-are-gaps", lambda here, patch: tended_fleet(tended(
+        ["crate", "barrel", "lamp"], [{"crate": "done", "barrel": "running"}], 60, 30, here, patch, per_card=1),
+        "not sent before the batch's deadline"), Observed(done=["crate"], failed=["barrel"], unsent=["lamp"],
+                                                          gap_reasons={"barrel": "still running at the batch's deadline",
+                                                                       "lamp": "not sent before the batch's deadline"})),
+    case("broken-machine-jobs-are-gaps", lambda here, patch: tended_fleet(tended(
+        ["crate", "barrel"], [{"crate": "running", "barrel": "running"}, None], 1, 600, here, patch)), Observed(
+        failed=["barrel", "crate"], why=Observed(crate=Like("^its machine m-1 broke")))),
+    # Audit (2026-10-22): the PC slept, the machines deleted themselves, and on waking their jobs were recorded as
+    # gaps, never asked again. They are lost to sleep now, for a rerun; the model already back is not among them.
+    case("jobs-lost-to-sleep-are-no-gaps", lambda here, patch: tended_fleet(tended(
+        ["crate", "barrel", "lamp"], [{"crate": "done", "barrel": "running", "lamp": "running"}],
+        (batch.QUIET_MINUTES + 5) * 60, 4 * 3600, here, patch)), Observed(
+        done=["crate"], failed=[], asleep=["barrel", "lamp"], slept=True, stopped=True,
+        lost_to_sleep=["barrel", "lamp"], gaps=[])),
+    case("awake-broken-machine-is-a-gap", lambda here, patch: tended_fleet(tended(
+        ["crate", "barrel"], [{"crate": "done", "barrel": "running"}, None], 60, 4 * 3600, here, patch)), Observed(
+        asleep=[], failed=["barrel"], slept=False)),
+    # claim moved to the next offer after a machine it rented (and was billed for) did not answer; only an
+    # out-of-stock refusal, where no card ran, may move on.
+    case("billed-boot-failed-is-a-gap", lambda here, patch: claimed(here, patch, [TimeoutError("did not answer")]),
+         (None, ["zone-a"]), CLAIMING),
+    case("out-of-stock-moves-on", lambda here, patch: claimed(here, patch, [
+        batch.OutOfStock("out of stock"), TimeoutError("did not answer")]), (None, ["zone-a", "zone-b"]), CLAIMING),
+    # Fault (2026-10-17, C1): a machine of a run that died first was on the bill and nowhere in the ledger. The
+    # started line names the run and its ticket before the order goes.
+    case("started-line-before-the-order", lambda here, patch: refused_order(here, patch), Observed(**{
+        "rented": None, "orders": 1, "order": ["scw", "instance", "server", "create"], "held as it went": 1,
+        "line": {"kind": ledger.RENT_STARTED, "state": "started", "euros": 0.0, "run": "pixal-run-7",
+                 "name": "pixal-run-7-3", "ticket": "run-7 surfaces-paint", "type": "L4", "zone": "zone-a"},
+        "deadline with grace": True, "reason": Like("out of quota"),
+        "after": [(ledger.RENT_STARTED, "pixal-run-7-3"), (ledger.RENT_REFUSED, "pixal-run-7-3")]}),
+         ((batch, "month_spent", lambda account: 0.0), (batch.compute, "require_cleared", lambda what: None),
+          (batch.cloud, "self_delete_refusal", lambda secret, zone: None)), {compute.TICKET: "run-7 surfaces-paint"}),
+    # --- no machine is left however a runner or its node ends (real processes) ---
+    # Fault (2026-10-17): a `score run` killed outright left its batches renting with no one to stop them.
+    case("dead-runner-batch-deletes", lambda here, patch: runner_killed(here, "lead", 1, 120), ["machine-0"]),
+    # Review of C7 (2026-10-17): the node of a runner leading no group ended with it; the batch writing to it hit a
+    # broken pipe and deleted one machine of three.
+    case("node-of-a-groupless-runner-outlives-it", lambda here, patch: runner_killed(here, "follow", 3, 2),
+         ["machine-0", "machine-1", "machine-2"]),
+    # Audit (2026-10-22): a node killed alone (out of memory) while its run lived got no stop, so its batch rented on
+    # until its deadline or the machines' self-delete.
+    case("node-killed-alone", lambda here, patch: node_killed(here), Observed(
+        deleted=["machine-0", "machine-1", "machine-2"], **{"run lives": True})),
+    # Review of C7 (2026-10-17): every node's watch could send the group its own SIGTERM, and a batch already
+    # deleting stops deleting at its second signal.
+    case("dead-runners-group-stopped-once", lambda here, patch: stops_sent(here), "x"),
+    # --- a machine a runner tends itself is armed with the grace, beaten and deleted once, whatever happens ---
+    case("scene-machine-step-fails", lambda here, patch: tended_machine(
+        here, patch, lambda here, patch, run, machine: scene.work_on(run, machine, {"room": "lab"})), Observed(**{
+            "error": "RuntimeError: failed", "armed, beaten, deleted": True}),
+         ((scene, "set_up", lambda folder, host, plan: None), (scene, "run_steps", fails),
+          (scene, "local_room", lambda room: pathlib.Path("room")), (batch, "copy", lambda *arguments: None))),
+    case("held-character-machine", lambda here, patch: tended_machine(here, patch, held_host), Observed(**{
+        "error": None, "host": "10.0.0.1", "armed, beaten, deleted": True}),
+         ((characters, "set_up", lambda machine: None), (characters, "hold", lambda run, host: None))),
+    # #21: a set-up that fails ends the run with its people as gaps; the machine is never held to mend.
+    case("character-set-up-failed-not-held", lambda here, patch: tended_machine(
+        here, patch, lambda here, patch, run, machine: characters.held(run, machine, [pathlib.Path("/tmp/made/nev")])),
+         Observed(**{"error": Like("^SystemExit: .*nev are gaps"), "armed, beaten, deleted": True}),
+         ((characters, "set_up", set_up_fails), (characters, "hold", held_to_mend))),
+    # its folders sent, then job 1 on the card
+    case("served-blender-machine", lambda here, patch: tended_machine(here, patch, served), Observed(**{
+        "error": None, "ran": [("set up", []), "remote", "copy", (1, True)], "done": "1.5", "ready": "gpu-24gb",
+        "unit_seconds": [1.5], "armed, beaten, deleted": True})),
+    case("spread-machine", lambda here, patch: tended_machine(here, patch, spread_shares), Observed(**{
+        "error": None, "worked": [1, 2], "armed, beaten, deleted": True})),
+    # --- a character run asks the card its steps need ---
+    case("clips-only-run-asks-the-clip-need", lambda here, patch: characters.card_need(
+        [steps_of(here, "clips", ["clips", "rig"]), steps_of(here, "scene", ["scene clips", "rig"])]),
+         characters.CLIP_NEED),
+    case("run-asks-its-largest-step", lambda here, patch: characters.card_need(
+        [steps_of(here, "clips", ["clips", "rig"]), steps_of(here, "b", ["build"])]), {"card_gb": 4, "memory_gb": 17}),
+    case("build-run-asks-the-build-need", lambda here, patch: characters.card_need([steps_of(here, "b", ["build"])]),
+         characters.STEP_NEED["build"]),
+    # held for identity's SAM 3D Body
+    case("held-run-asks-4gb", lambda here, patch: characters.card_need([steps_of(here, "hold", [])])["card_gb"], 4),
+    case("unmeasured-step-asks-the-kinds", lambda here, patch: characters.card_need(
+        [steps_of(here, "b", ["build"]), steps_of(here, "new", ["build", "unmeasured"])]), None),
+    case("encoder-on-this-pcs-processor-only", lambda here, patch: encoder_sent(here, patch), [True, False],
+         ((batch, "copy", lambda *_, **__: None), (characters, "exit_code", lambda *_: 0),
+          (characters, "bring_back", lambda *_: None))),
 ]
 
 
@@ -895,7 +1077,11 @@ def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, 
     override's room), the started-minute bill, the cards it may take, the month's open machines, the classes it checks,
     the fleet it sizes, the rate it estimates by, the machines left over and a job's deadline; and each runner says
     its estimate (its machines at the dearest offer it may take, for the minutes it says) and returns the minutes the
-    limits allow, refuses a batch past EUR 60, and never refuses on the month's total."""
+    limits allow, refuses a batch past EUR 60, and never refuses on the month's total; and every world a batch runs
+    gives what it must: its fleet rents only while it has work and a deadline and never in a failed billed card's
+    place, every job runs once (a failed, overdue, unsent or broken-machine job a gap with its reason, one lost to
+    sleep none), a rent's started line goes before its order, and no machine is left however its runner, its node or
+    its tending step ends."""
     said = []
     monkeypatch.setattr(batch, "say", said.append)
     monkeypatch.delenv(compute.TICKET, raising=False)  # no measured pre-flight, no override but a row's
@@ -905,130 +1091,7 @@ def test_a_batch_pays_once_inside_its_limits_and_leaves_no_machine(monkeypatch, 
     for name, value in env.items():
         monkeypatch.setenv(name, value)
     try:
-        outcome = call(tmp_path)
+        outcome = call(tmp_path, monkeypatch)
     except (SystemExit, compute.Refused) as stop:
         outcome = Stopped(stop)
     assert holds(expected, outcome, said), (outcome, said)
-
-
-class Tended:
-    """batch's machine steps stubbed: what was armed, beaten and deleted, in order."""
-
-    def __init__(self, monkeypatch):
-        self.done = []
-        monkeypatch.setattr(batch, "arm_self_delete", lambda folder, host, deadline: self.done.append(
-            ("armed", host, deadline)))
-        monkeypatch.setattr(spread, "off_zone_mirror", lambda folder, host: self.done.append(("off zone mirror", host)))
-        monkeypatch.setattr(pictures, "keep_beating", lambda folder, host, stop: self.done.append(
-            ("beating", host)) or stop.wait(5))
-        monkeypatch.setattr(batch, "delete_machine", lambda machine: self.done.append(("deleted", machine["host"])))
-        monkeypatch.setattr(batch, "say", lambda line: None)
-
-    def armed_beaten_deleted(self, deadline):
-        grace = deadline + batch.WATCHDOG_GRACE_MINUTES * 60
-        return (self.done[0] == ("armed", "10.0.0.1", grace) and ("beating", "10.0.0.1") in self.done
-                and self.done[-1] == ("deleted", "10.0.0.1") and self.done.count(("deleted", "10.0.0.1")) == 1)
-
-
-def machine_and_run(tmp_path):
-    folder = tmp_path / "machine"
-    folder.mkdir()
-    run = pictures.Run(folder, time.time() + 3600)
-    run.started = time.time()
-    return {"folder": folder, "host": "10.0.0.1", "created": 0.0, "class": "gpu-24gb", "type": "small",
-            "zone": "zone-a"}, run
-
-
-def test_a_scene_machine_is_armed_and_deleted_also_when_a_step_fails(tmp_path, monkeypatch):
-    machine, run = machine_and_run(tmp_path)
-    monkeypatch.setattr(scene, "set_up", lambda folder, host, plan: None)
-    monkeypatch.setattr(scene, "run_steps", lambda folder, host, plan: (_ for _ in ()).throw(RuntimeError("failed")))
-    monkeypatch.setattr(scene, "local_room", lambda room: tmp_path / "room")
-    monkeypatch.setattr(batch, "copy", lambda *arguments: None)
-    tended = Tended(monkeypatch)
-    try:
-        scene.work_on(run, machine, {"room": "lab"})
-        raise AssertionError("the failed step was swallowed")
-    except RuntimeError as failed:
-        assert str(failed) == "failed"
-    assert tended.armed_beaten_deleted(run.deadline), tended.done
-
-
-def test_a_held_character_machine_is_armed_with_the_grace_and_deleted(tmp_path, monkeypatch):
-    machine, run = machine_and_run(tmp_path)
-    monkeypatch.setattr(characters, "set_up", lambda machine: None)
-    monkeypatch.setattr(characters, "hold", lambda run, host: None)
-    tended = Tended(monkeypatch)
-    characters.held(run, machine, [])
-    assert tended.armed_beaten_deleted(run.deadline), tended.done
-    assert (run.folder / "host").read_text() == "10.0.0.1"
-
-
-def test_a_character_machine_whose_set_up_failed_is_deleted_not_held_to_mend(tmp_path, monkeypatch):
-    """#21: a set-up that fails ends the run with its people as gaps; the machine is never held to mend."""
-    machine, run = machine_and_run(tmp_path)
-    held = []
-
-    def failed_set_up(machine):
-        raise subprocess.CalledProcessError(1, "characters_setup.sh")
-    monkeypatch.setattr(characters, "set_up", failed_set_up)
-    monkeypatch.setattr(characters, "hold", lambda run, host: held.append(host))
-    tended = Tended(monkeypatch)
-    try:
-        characters.held(run, machine, [pathlib.Path("/tmp/made/nev")])
-        raise AssertionError("a failed set-up was held to mend")
-    except SystemExit as stopped:
-        assert "nev are gaps" in str(stopped)
-    assert held == [] and tended.armed_beaten_deleted(run.deadline), tended.done
-
-
-def test_a_clips_only_character_run_asks_this_pcs_card_with_the_encoder_on_the_processor(tmp_path, monkeypatch):
-    def make(name, steps):
-        (tmp_path / name / "in").mkdir(parents=True)
-        (tmp_path / name / "in" / "spec.json").write_text(json.dumps({"steps": steps}))
-        return tmp_path / name
-    clips, scene, body = make("clips", ["clips", "rig"]), make("scene", ["scene clips", "rig"]), make("b", ["build"])
-    assert characters.card_need([clips, scene]) == characters.CLIP_NEED
-    assert characters.card_need([clips, body]) == {"card_gb": 4, "memory_gb": 17}  # the largest step's
-    assert characters.card_need([body]) == characters.STEP_NEED["build"]
-    assert characters.card_need([make("hold", [])])["card_gb"] == 4  # held for identity's SAM 3D Body
-    assert characters.card_need([body, make("new", ["build", "unmeasured"])]) is None  # the kind's
-    sent = []
-    monkeypatch.setattr(batch, "remote", lambda folder, host, command, **_: sent.append(command))
-    monkeypatch.setattr(batch, "copy", lambda *_, **__: None)
-    monkeypatch.setattr(characters, "exit_code", lambda *_: 0)
-    monkeypatch.setattr(characters, "bring_back", lambda *_: None)
-    run = types.SimpleNamespace(deadline=time.time() + 60)
-    for here in (True, False):
-        characters.make_one(run, {"folder": tmp_path, "host": "h", "here": here}, scene, 0)
-    assert [characters.ENCODER in command for command in sent[1::2]] == [True, False]
-
-
-def test_a_served_blender_machine_runs_the_queue_on_its_card_and_is_deleted(tmp_path, monkeypatch):
-    machine, run = machine_and_run(tmp_path)
-    queue = tmp_path / "queue"
-    queue.mkdir()
-    (queue / "1.json").write_text(json.dumps({"script": "tools/blender/inside/x.py", "minutes": 1}))
-    (queue / "close").write_text("")
-    ran = []
-    monkeypatch.setattr(blender_cloud, "set_up", lambda log_folder, host, jobs: ran.append(("set up", jobs)))
-    monkeypatch.setattr(blender_cloud, "run_job", lambda log_folder, host, number, job, card: ran.append(
-        (number, card)) or (1.5, 1))
-    monkeypatch.setattr(batch, "remote", lambda *arguments, **keywords: ran.append("remote"))
-    monkeypatch.setattr(batch, "copy", lambda *arguments: ran.append("copy"))
-    tended = Tended(monkeypatch)
-    blender_cloud.serve(run, machine, queue, 1)
-    assert tended.armed_beaten_deleted(run.deadline), tended.done
-    assert ran == [("set up", []), "remote", "copy", (1, True)]  # its folders sent, then job 1 on the card
-    assert (queue / "1.done").read_text() == "1.5" and (queue / "ready").read_text() == "gpu-24gb"
-    assert machine["unit_seconds"] == [1.5]
-
-
-def test_a_spread_machine_is_armed_and_deleted(tmp_path, monkeypatch):
-    machine, run = machine_and_run(tmp_path)
-    worked = []
-    tended = Tended(monkeypatch)
-    spread.tend(run, machine, "parts", spread.Shares([1, 2]), lambda machine: None,
-                lambda machine, share, card: worked.append(share))
-    assert tended.armed_beaten_deleted(run.deadline), tended.done
-    assert sorted(worked) == [1, 2]
