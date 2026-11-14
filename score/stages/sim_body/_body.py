@@ -20,6 +20,9 @@ BODY = "people-body"  # a look's built body row: its rig.npz is the person's own
 FEET = (("LeftFoot", "LeftToeBase", "LeftToeEnd"), ("RightFoot", "RightToeBase", "RightToeEnd"))
 STANCE_SPEED = 0.2  # m/s
 STANCE_HIGH = 0.03  # m
+# The most of its thigh and shin a leg's hip-to-ankle span is asked to reach by a foot's pin (`within_reach`): Kimodo's
+# two-bone IK stops a leg at 0.999 of them (MotionCorrection's InverseKinematics.cpp TwoBoneIk).
+REACH_MOST = 0.998
 SOLE = 0.01  # m: a foot's sole is its skin within this of its lowest point
 # A toe's bend toward flat tried in this many shares, the least that lifts its foot's skin to the floor taken (#70,
 # 2026-11-06: Kimodo's toe pin turns the foot alone, so a foot pitched onto its toes put its toes under the floor, the
@@ -200,24 +203,88 @@ def treads_stood(rig, local, ground, asked=()):
     floor), so between them its sole sank and floated (the stairwell's person_woman, 2026-11-14: her left sole 4.2 cm
     into her second tread as it came down flat, frame 35, 1.4 cm under at her keyframe), and before the first keyframe
     and after the last (`asked`, its keyframes' frames) her Hips stood her over it, which `ends_stood` puts right
-    first. The ground under each point of a foot's skin is the highest surface under it below its ankle (`foot_over`).
-    A foot any point of which is in its ground stands on it, lifted till none is; one whose sole moves slower than
-    STANCE_SPEED within STANCE_HIGH over its ground stands too, lowered onto it. Each is moved by Kimodo's own
-    end-effector pin (`played.pinned`: the leg's IK, the foot turned as before, eased in and out), never the Hips."""
+    first. Where a foot stands (`tread_pins`) further down than its leg reaches, the Hips come down first
+    (`within_reach`). Each standing foot is then moved by Kimodo's own end-effector pin (`played.pinned`: the leg's
+    IK, the foot turned as before, eased in and out)."""
     names = [str(name) for name in rig["names"]]
     ground = np.asarray(ground, dtype=float)
     moved = ends_stood(rig, local, ground, asked)
-    _, speeds, _ = soles(rig, moved)
-    for index, foot in enumerate(FEET):
-        over = foot_over(rig, moved, ground, foot)
+    moved = within_reach(rig, moved, tread_pins(rig, moved, ground))
+    for foot, (frames, rise) in zip(FEET, tread_pins(rig, moved, ground)):
+        if frames is not None and frames.any():
+            moved = played.pinned(moved, names, rig["parents"], rig["bind"], foot[0], frames, rise)
+    return moved
+
+
+def tread_pins(rig, local, ground):
+    """Each foot's (FEET's) frames it stands on the ground under it (`foot_over`) and its rise onto it there (m): a
+    foot any point of which is in its ground, lifted till none is; one whose sole moves slower than STANCE_SPEED within
+    STANCE_HIGH over its ground, lowered onto it; and on a frame no foot does either, the foot nearest its ground
+    within STANCE_HIGH, lowered onto it (a walk has no flight: `carrying`). (None, None) for a foot the rig has no
+    skin or pin for."""
+    _, speeds, _ = soles(rig, local)
+    overs = [foot_over(rig, local, ground, foot) for foot in FEET]
+    stands = [None if over is None else stands_of(*over, speeds[:, index]) for index, over in enumerate(overs)]
+    found = []
+    for index, over in enumerate(overs):
         if over is None:
+            found.append((None, None))
             continue
         depth, gap = over
-        sunk = depth > 0.0
-        resting = ~sunk & np.isfinite(gap) & (speeds[:, index] < STANCE_SPEED) & (gap < STANCE_HIGH)
-        if sunk.any() or resting.any():
-            moved = played.pinned(moved, names, rig["parents"], rig["bind"], foot[0], sunk | resting,
-                                  np.where(sunk, depth, np.where(resting, -gap, 0.0)))
+        sunk, resting = stands[index]
+        resting = resting | carrying(overs, stands, index)
+        found.append((sunk | resting, np.where(sunk, depth, np.where(resting, -gap, 0.0))))
+    return found
+
+
+def stands_of(depth, gap, speed):
+    """A foot's frames (`foot_over`'s depth and gap, its sole's speed) where it is sunk into its ground, and where it
+    rests over it: slower than STANCE_SPEED within STANCE_HIGH."""
+    sunk = depth > 0.0
+    return sunk, ~sunk & np.isfinite(gap) & (speed < STANCE_SPEED) & (gap < STANCE_HIGH)
+
+
+def carrying(overs, stands, index):
+    """The frames on which foot `index` carries a climber though it neither sinks nor rests (`stands_of`): a walk has
+    no flight, so on a frame no foot stands the foot nearest its ground within STANCE_HIGH does (the stairwell's
+    person_woman, 2026-11-14: frames 76 and 93, her landing foot still faster than STANCE_SPEED, her other in the
+    air). A rig with one foot says nothing of a flight: none carries."""
+    if sum(over is not None for over in overs) < 2:
+        return np.zeros(len(overs[index][1]), dtype=bool)
+    gaps = np.array([over[1] for over in overs if over is not None])
+    standing = np.any([sunk | resting for sunk, resting in (one for one in stands if one is not None)], axis=0)
+    mine = sum(over is not None for over in overs[:index])  # its place among the feet that have skin
+    return ~standing & (np.argmin(gaps, axis=0) == mine) & (gaps[mine] < STANCE_HIGH)
+
+
+def within_reach(rig, local, pins):
+    """`local` with its Hips lowered on the frames a foot is pinned (`pins`, each FEET foot's frames and rise,
+    `tread_pins`') further down than its leg reaches, REACH_MOST of its thigh and shin from its hip, by as little as
+    covers each and as smoothly as `stood` moves the Hips (STOOD_HZ): Kimodo's two-bone IK stops a straight leg short,
+    so the stairwell's person_woman's carrying foot stayed 4 to 7 mm over her tread with her other foot in the air
+    (2026-11-14, frames 4 and 72 to 74: asked 11 to 22 mm down, her leg straight after 7 to 14), and her pelvis'
+    residual was her weight. A rig without a foot's leg joints, or a clip whose pins all reach, is left as it is."""
+    names = [str(name) for name in rig["names"]]
+    world = played.chained(np.asarray(local, dtype=float), rig["parents"])
+    short = np.zeros(len(local))
+    for (frames, rise), leg in zip(pins, LEGS):
+        if frames is None or not all(name in names for name in leg):
+            continue
+        hip, knee, ankle = (world[:, names.index(name), :3, 3] for name in leg)
+        reach = REACH_MOST * (np.linalg.norm(knee - hip, axis=1) + np.linalg.norm(ankle - knee, axis=1))
+        wanted = ankle - hip
+        wanted[:, 1] += rise
+        down = np.sqrt(np.maximum(reach ** 2 - wanted[:, 0] ** 2 - wanted[:, 2] ** 2, 0.0))
+        short = np.maximum(short, np.where(frames, np.maximum(-wanted[:, 1] - down, 0.0), 0.0))
+    if not short.any():
+        return np.asarray(local, dtype=float)
+    from scipy.optimize import lsq_linear
+    bend = np.diff(np.eye(len(short)), 2, axis=0)
+    smooth = (2.0 * np.sin(np.pi * STOOD_HZ / RATE)) ** -4
+    move = lsq_linear(np.r_[np.eye(len(short)), np.sqrt(smooth) * bend], np.zeros(len(short) + len(bend)),
+                      bounds=(-np.inf, -short)).x
+    moved = np.array(local, dtype=float)
+    moved[:, played.TRAVELLING_JOINT, 1, 3] += np.minimum(move, -short)
     return moved
 
 

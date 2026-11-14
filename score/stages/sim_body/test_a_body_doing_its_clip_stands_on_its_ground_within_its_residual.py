@@ -61,6 +61,14 @@ into its one test, every break below seen red on it again):
   `gap < STANCE_HIGH` made `gap < 1.0` (the foot 4 cm over pulled down); `speeds[:, index] < STANCE_SPEED` dropped (the
   swinging foot pulled down); surface_under's `>= UPWARD` made `>= 0.0` (the steep face read as ground); its
   `heights <= ceilings` dropped (the shelf over the ankle read as its ground).
+- a climber's foot on its tread on every frame, 2026-11-14 (her carrying foot 4 to 7 mm over her tread with the other
+  in the air, frames 4 and 72 to 74, her straight leg out of Kimodo's IK's reach; no foot standing on frames 76 and
+  93): within_reach's `REACH_MOST *` dropped (the Hips lowered 1 cm, short of the 0.2% the IK stops at); its bounds'
+  `-short` made `0.0` (nothing lowered); its `np.where(frames, ...)` dropped (an unpinned frame's rise reached for);
+  treads_stood's `within_reach(...)` dropped (the Hips never lowered), or the pins read before it (the foot asked 2 cm
+  down after the Hips came 1 cm); tread_pins' `| carrying(...)` dropped (a carrying foot never pinned); carrying's
+  `~standing &` dropped (a foot carries beside one standing); its `gaps[mine] < STANCE_HIGH` dropped (a foot 5 cm up
+  carries); its one-foot return dropped (a lone foot 2 cm up carries).
 - a climber's feet on the ground before Kimodo's first keyframe and after its last, 2026-11-14 (her sole 17 cm over the
   stairwell's landing at frame 0, out of the pin's reach): ends_stood's `free` made all False (the ends left 8 cm
   over); its span's weight `1e9` made `1.0` (the Hips jumping 5 cm into the keyframes' span); its
@@ -578,6 +586,47 @@ def test_a_body_doing_its_clip_stands_on_its_ground_within_its_residual(tmp_path
     assert np.abs(ended[:, 2:] - long_still[:, 2:]).max() == 0.0  # only the Hips moved
     assert sim_body._body.ends_stood(foot, long_swinging, square(-0.08), [10, 20]) == pytest.approx(long_swinging)
     assert sim_body._body.ends_stood(foot, long_still, square(-0.08), []) == pytest.approx(long_still)
+    # a walk has no flight (carrying, 2026-11-14: her landing foot too fast to rest with the other in the air, frames
+    # 76 and 93): on a frame no foot stands the foot nearest its ground within STANCE_HIGH carries; one foot standing,
+    # both over STANCE_HIGH, or a rig of one foot, none
+    gaps = np.array([[0.006, 0.006, 0.001, 0.05], [0.02, 0.004, 0.0, 0.06]])
+    overs = [(-gap, gap) for gap in gaps]
+    stands = [(np.zeros(4, dtype=bool), np.array([False, False, True, False])), (np.zeros(4, dtype=bool),) * 2]
+    assert [sim_body._body.carrying(overs, stands, one).tolist() for one in (0, 1)] == [
+        [True, False, False, False], [False, True, False, False]]
+    assert sim_body._body.carrying([None, overs[1]], [None, stands[1]], 1).tolist() == [False] * 4
+    # a foot pinned further down than its straight leg reaches brings the Hips down first (within_reach, 2026-11-14:
+    # Kimodo's IK stopped her straight leg short, her carrying foot 4 to 7 mm over her tread): the legged rig's left
+    # leg straight (0.85 m), its foot asked 1 cm down on frame 10 of 30 (short by 0.01 m and the 0.2% REACH_MOST
+    # keeps), the Hips lowered there at least that, smoothly, only the Hips moved; a rise its leg reaches, a frame not
+    # pinned, and a rig without legs, nothing moves
+    legs = legged_rig()
+    straight = np.repeat(legs["clip_seated"][:1], 30, axis=0)
+    straight[:, 3, :3, 3], straight[:, 6, :3, 3] = [0.0, -0.4, 0.0], [0.0, -0.4, 0.0]
+    frames_at = np.arange(30) == 10
+    asked_down = [(frames_at, np.where(frames_at, -0.01, 0.0)), (np.zeros(30, dtype=bool), np.full(30, -0.5))]
+    lowered = sim_body._body.within_reach(legs, straight, asked_down)
+    hips_move = lowered[:, 1, 1, 3] - straight[:, 1, 1, 3]
+    short = 0.01 + 0.85 * (1.0 - sim_body._body.REACH_MOST)
+    assert -hips_move[10] == pytest.approx(short, abs=1e-6)  # the least that reaches
+    assert np.all(hips_move <= 1e-9) and abs(hips_move[0]) < 0.25 * short and abs(hips_move[29]) < 1e-4
+    assert np.abs(np.diff(hips_move)).max() < short / 2  # eased into it, never a jump
+    assert np.abs(np.delete(lowered - straight, 1, axis=1)).max() == 0.0  # only the Hips moved
+    lifted = [(frames_at, np.where(frames_at, 0.01, 0.0)), (None, None)]
+    assert sim_body._body.within_reach(legs, straight, lifted) == pytest.approx(straight)
+    assert sim_body._body.within_reach(foot, long_still, [(np.ones(30, dtype=bool), np.full(30, -0.5)),
+                                                          (None, None)]) == pytest.approx(long_still)
+    # treads_stood brings the Hips down first and pins each foot from where they then stand, a carrying foot too: the
+    # toe rig's swinging foot 2 cm over its tread, the Hips stood in lowered 1 cm and every frame carrying, pinned 1 cm
+    def lowered_hips(rig, local, pins):
+        moved = np.array(local)
+        moved[:, 1, 1, 3] -= 0.01
+        return moved
+    monkeypatch.setattr(sim_body._body, "within_reach", lowered_hips)
+    monkeypatch.setattr(sim_body._body, "carrying", lambda overs, stands, index: np.ones(len(overs[index][1]), bool))
+    pins.clear()
+    sim_body._body.treads_stood(foot, swinging, square(-0.02))
+    assert [pin[0] for pin in pins] == ["LeftFoot"] and pins[0][2] == pytest.approx([-0.01] * 6)
     assert sim_body.surface_under(square(0.02, 0.1), [[0.5, 0.0, 0.0], [0.0, 0.0, 0.0]], [0.08, 0.01]).tolist() == [
         -np.inf, -np.inf]  # beyond the tread, or the tread over its ceiling: no ground under it
     for world, clip, what, axis, (low, high) in PLAYED:
