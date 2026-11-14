@@ -6,7 +6,9 @@ meshes, muscle paths). Never import any of it from the score venv: Newton pins i
 clip's movement followed exactly, residuals measured and never applied, every frame at once on the card where there
 is one (`batched`), the ground its drawn triangles) are the parent overlay's. A person takes 6.5 to 9 minutes on this PC's CPU for 136 to 150 frames (the
 person's file written twice (sized once since 2026-11-06), the fit, RRA, and one bounded least squares a frame; measured 2026-10-28 on the two test
-walkers, two side by side while this PC was busy); people run one after another in one process.
+walkers, two side by side while this PC was busy); people run one after another in one process. Since 2026-11-14 a
+person takes 76 to 82 s on this PC (greenhouse's astronauts, the card on: `records.steadied` sets every centre on its
+ground at once; each centre alone took 65 to 184 s of it).
 
 - **`sim_body.py` is the run only** (#70: "1400 line script, yuck"): it orders the steps, each a module beside it
   with its interface (`__init__.py`), its one test file and its overlay. Python puts the script's folder first on

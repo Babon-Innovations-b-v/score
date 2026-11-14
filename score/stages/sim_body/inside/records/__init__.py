@@ -162,6 +162,7 @@ def steadied(raw, rate, ground):
     shares the load between a foot's points afresh each frame: their centre moved 3 to 6 cm a frame standing,
     2026-11-05, #70)."""
     found = [{} for _ in raw]
+    pushes = []  # (frame, part, force, centre, its touching skin's ground heights) of every push, in order
     for part in sorted({part for touches in raw for part in touches}):
         for start, end in runs([part in touches for touches in raw]):
             span = [raw[frame][part] for frame in range(start, end)]
@@ -169,12 +170,18 @@ def steadied(raw, rate, ground):
             sizes = smoothed(np.array([size for _, _, size, _ in span]), rate)
             moments = smoothed(np.array([size * centre for _, centre, size, _ in span]), rate)
             pressed = np.concatenate([under[:, 1] for _, _, _, under in span])
-            for offset in np.flatnonzero(sizes > 0):
-                centre = moments[offset] / sizes[offset]
-                set_on = centre[1] - np.nan_to_num(heights_over(centre[None], ground, top=centre[1])[0])
-                if pressed.min() - PRESSED <= set_on <= pressed.max() + PRESSED:  # on what it presses: never a
-                    centre[1] = set_on  # back's centre dropped onto the seat under it
-                found[start + offset][part] = [*np.round(forces[offset], 3).tolist(), *np.round(centre, 4).tolist()]
+            pushes += [(start + offset, part, forces[offset], moments[offset] / sizes[offset], pressed)
+                       for offset in np.flatnonzero(sizes > 0)]
+    # every centre's ground at once (its own `top`): one point at a time, `_crossings`' loop over the ground's
+    # triangles took half a person's run (2026-11-14: 181 of 237 s on greenhouse's astronaut_1); each point's ground
+    # is its own, so the heights are the one-at-a-time ones bit for bit
+    centres = np.array([centre for _, _, _, centre, _ in pushes]).reshape(-1, 3)
+    heights = np.nan_to_num(heights_over(centres, ground, top=centres[:, 1])) if len(centres) else np.zeros(0)
+    for (frame, part, force, centre, pressed), height in zip(pushes, heights, strict=True):
+        set_on = centre[1] - height
+        if pressed.min() - PRESSED <= set_on <= pressed.max() + PRESSED:  # on what it presses: never a back's
+            centre[1] = set_on  # centre dropped onto the seat under it
+        found[frame][part] = [*np.round(force, 3).tolist(), *np.round(centre, 4).tolist()]
     return found
 
 
