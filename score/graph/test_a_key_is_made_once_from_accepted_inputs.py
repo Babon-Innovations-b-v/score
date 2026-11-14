@@ -422,9 +422,25 @@ def fetched_side_by_side(pod, offload, folder, bucket_root):
 # --- keys: made once, judged again on new evidence, made again only where a change reaches ----------------------------
 
 def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatch):
-    """Nothing changed makes nothing; a brief changed remakes its clean alone (the station's line stays fresh, the
-    accepted output stays until the new one passes); a brief that cleans to the same text makes nothing after it.
+    """New evidence judges an output again without making it again, and the runner accepts it; nothing changed makes
+    nothing; a brief changed remakes its clean alone (the station's line stays fresh, the accepted output stays until
+    the new one passes); a brief that cleans to the same text makes nothing after it. Seeds differ by environment,
+    stage and place and hold for the same ones. An accepted record naming a stage the table lacks is stale, not a
+    crash (fault 2026-10-12: status crashed).
+    The runner accepts by itself only what passed and got no worse (owner, 2026-10-11, 'why are you asking this?':
+    every output waited for his typed accept): the hall's longer brief passes its limit of 10 but is worse than the
+    accepted 5, so it is not accepted and what reads it is blocked; inside a bought batch (owner, 2026-10-27) that
+    passing worse output is accepted, its drop written down for review after the batch, never a wait; a brief of 2
+    words is better: accepted; the owner's reject of it moves the accept back, never taken again by the runner, and
+    leaves what read it stale.
     A key made in a pod is the same record (a_pod_makes_what_the_runner_makes).
+    Break: score/graph/__init__.py: '(self.store.evidence_hash(check.name, output) or "missing") if check.evidence
+    else "none"' -> '"none"'
+    Break: score/graph/__init__.py: 'text_hash(f"{world_seed}/{stage}/{place}")' -> 'text_hash(f"{world_seed}/{stage}")'
+    Break: score/graph/__init__.py: '                   if before in self.stages}' -> '                   }'
+    Break: score/graph/__init__.py: 'against = self.rejudged_accepted(stage, place) if judged' -> 'against = {} if
+    judged'
+    Break: score/graph/__init__.py: 'against, self.bought)' -> 'against)'
     Break: score/graph/__init__.py: '"files": self.file_keys(stage, place),' -> '"files": {},'
     Break: score/graph/pod.py: '    proven(bucket or offload.bucket_now(), manifest, node)\n' -> '' (the pod's
     manifest stored without its blobs proven).
@@ -449,11 +465,25 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     rehearsal 2026-11-07).
     Break: score/graph/pod.py: 'if os.environ.get(compute.TICKET):' -> 'if True:' (a free node sent to a pod with
     no clearance of its own, tube rehearsal 2026-11-07)."""
+    assert graph.node_seed(7, "clean", "hangar") == graph.node_seed(7, "clean", "hangar")
+    assert len({graph.node_seed(7, "clean", "hangar"), graph.node_seed(7, "clean", "station"),
+                graph.node_seed(7, "count", "hangar"), graph.node_seed(8, "clean", "hangar")}) == 4
     world, store = a_world({"hangar": "a ship in a hall", "station": "a hub"}), a_store()
     runner = a_runner(world, store, LOGGED)
     runner.run(PLACES)
     outputs = {place: give_evidence(store, runner, place, 10) for place in PLACES}
-    runner.run(PLACES)
+    MADE.clear()
+    found = runner.run(PLACES)
+    assert found == {f"{stage}@{place}": status for place in PLACES for stage, status in (
+        ("clean", "judged again, output kept: pass, accepted automatically"),
+        ("count", "made: pass, accepted automatically"))}, found
+    assert MADE == ["count", "count"]
+    for place in PLACES:
+        assert store.accepts(f"clean@{place}")[-1]["by"] == "runner"
+        assert store.accepted(f"clean@{place}") == outputs[place]
+    lone = a_runner(world, store, (dataclasses.replace(COUNT, after={}),))  # count's records name clean
+    assert lone.stale("count@hangar") == ["clean (a stage this table does not hold)"]
+    assert lone.status(["hangar"])["count@hangar"].endswith("clean (a stage this table does not hold) moved")
     MADE.clear()
     assert set(a_runner(world, store, LOGGED).run(PLACES).values()) == {"fresh"} and MADE == []
     brief(world, "hangar", "a ship in a dark hall")
@@ -469,6 +499,34 @@ def test_a_key_is_made_once_and_a_change_remakes_only_what_it_reaches(monkeypatc
     found = a_runner(world, store, LOGGED).run(PLACES)
     assert found["clean@station"] == "made: pass" and found["count@station"] == "fresh" and MADE == ["clean"]
     assert len(store.records("clean@station")) == 2  # both finish records kept
+    worse = give_evidence(store, a_runner(world, store, LOGGED), "hangar", 10)
+    found = a_runner(world, store, LOGGED).run(PLACES)
+    assert found["clean@hangar"] == "judged again, output kept: pass", found
+    assert found["count@hangar"] == (f"blocked: clean@hangar's output {worse[:12]} is not accepted "
+                                     f"(accepted: {outputs['hangar'][:12]})"), found
+    assert store.accepted("clean@hangar") == outputs["hangar"]
+    runner = a_runner(world, store, LOGGED)
+    runner.bought = True
+    found = runner.run(PLACES)
+    assert found["clean@hangar"] == "fresh, accepted automatically" and store.accepted("clean@hangar") == worse, found
+    given = store.accepts("clean@hangar")[-1]
+    assert given["worse_reason"] == review.IN_BATCH and given["worse"], given
+    assert given["status"].startswith("to review after the batch, worse: "), given
+    brief(world, "hangar", "a ship")
+    runner = a_runner(world, store, LOGGED)
+    runner.run(PLACES)
+    better = give_evidence(store, runner, "hangar", 10)
+    found = a_runner(world, store, LOGGED).run(PLACES)
+    assert found["clean@hangar"].endswith("accepted automatically") and store.accepted("clean@hangar") == better
+    assert found["count@hangar"] == "made: pass, accepted automatically", found
+    review.reject(store, "clean@hangar", better, "owner", "the hall is gone")
+    assert store.accepted("clean@hangar") == worse  # back to the accept before it, the bought batch's
+    runner = a_runner(world, store, LOGGED)
+    assert runner.stale("count@hangar") == ["clean@hangar"] and runner.stale("count@station") == []
+    assert runner.status(PLACES)["count@hangar"].endswith("its accepted output is stale: clean@hangar moved")
+    found = runner.run(PLACES)
+    # made once again after his reject (again_parts); the same bytes come back, still rejected, so count stays blocked
+    assert found["clean@hangar"] == "made: pass" and found["count@hangar"].startswith("blocked: clean@hangar's output")
     one_tree_one_code_archive()  # before the pod check patches code_archive
     a_pod_makes_what_the_runner_makes(monkeypatch)
 
@@ -520,57 +578,6 @@ def test_the_shared_loop_s_wiring_keys_no_row_that_reads_one_of_its_steps():
                   if name.startswith(("score/review/", "score/stages/people", "score/conductor/", "score/store/"))}
         assert not wiring, (row.name, sorted(wiring))
 
-def test_new_evidence_judges_an_output_again_without_remaking_it():
-    """Break: score/graph/__init__.py: '(self.store.evidence_hash(check.name, output) or "missing") if check.evidence else "none"' -> '"none"'"""
-    world, store = a_world({"hangar": "a ship in a hall"}), a_store()
-    MADE.clear()
-    a_runner(world, store, LOGGED).run(["hangar"])
-    output = give_evidence(store, a_runner(world, store, LOGGED), "hangar", 10)
-    found = a_runner(world, store, LOGGED).run(["hangar"])
-    assert found == {"clean@hangar": "judged again, output kept: pass, accepted automatically",
-                     "count@hangar": "made: pass, accepted automatically"}, found
-    assert MADE == ["clean", "count"]
-    assert store.accepts("clean@hangar")[-1]["by"] == "runner" and store.accepted("clean@hangar") == output
-
-
-def test_seeds_differ_by_environment_stage_and_place_and_hold_for_the_same_ones():
-    """Break: score/graph/__init__.py: 'text_hash(f"{world_seed}/{stage}/{place}")' -> 'text_hash(f"{world_seed}/{stage}")'"""
-    assert graph.node_seed(7, "clean", "hangar") == graph.node_seed(7, "clean", "hangar")
-    assert len({graph.node_seed(7, "clean", "hangar"), graph.node_seed(7, "clean", "station"),
-                graph.node_seed(7, "count", "hangar"), graph.node_seed(8, "clean", "hangar")}) == 4
-
-
-def test_the_runner_accepts_by_itself_only_what_passed_and_got_no_worse():
-    """Fault (owner, 2026-10-11, 'why are you asking this?'): every output waited for his typed accept. A brief of 6
-    words passes a limit of 10 but is worse than the accepted 5: not accepted, what reads it blocked; one of 2 words
-    is better: accepted; the owner's reject of it moves the accept back, never taken again by the runner, and leaves
-    what read it stale.
-    Break: score/graph/__init__.py: 'against = self.rejudged_accepted(stage, place) if judged' -> 'against = {} if judged'"""
-    world, store, outputs = ready_world()
-    brief(world, "hangar", "a ship in a long dark hall")
-    runner = a_runner(world, store)
-    runner.run(PLACES)
-    worse = give_evidence(store, runner, "hangar", 10)
-    found = a_runner(world, store).run(PLACES)
-    assert found["clean@hangar"] == "judged again, output kept: pass", found
-    assert found["count@hangar"] == (f"blocked: clean@hangar's output {worse[:12]} is not accepted "
-                                     f"(accepted: {outputs['hangar'][:12]})"), found
-    brief(world, "hangar", "a ship")
-    runner = a_runner(world, store)
-    runner.run(PLACES)
-    better = give_evidence(store, runner, "hangar", 10)
-    found = a_runner(world, store).run(PLACES)
-    assert found["clean@hangar"].endswith("accepted automatically") and store.accepted("clean@hangar") == better
-    assert found["count@hangar"] == "made: pass, accepted automatically", found
-    review.reject(store, "clean@hangar", better, "owner", "the hall is gone")
-    assert store.accepted("clean@hangar") == outputs["hangar"]
-    runner = a_runner(world, store)
-    assert runner.stale("count@hangar") == ["clean@hangar"] and runner.stale("count@station") == []
-    assert runner.status(PLACES)["count@hangar"].endswith("its accepted output is stale: clean@hangar moved")
-    found = runner.run(PLACES)
-    # made once again after his reject (again_parts); the same bytes come back, still rejected, so count stays blocked
-    assert found["clean@hangar"] == "made: pass" and found["count@hangar"].startswith("blocked: clean@hangar's output")
-
 
 def make_takes(inputs, out, seed, params):
     (out / "takes.txt").write_text(json.dumps(params.get("retake")))
@@ -617,35 +624,6 @@ def test_a_reject_naming_takes_gives_a_row_that_retakes_a_key_that_remakes_them(
     assert again["again"]["after"] == first and again["key"] != first, again  # he rejected `first`'s output
     assert runner.run(["hangar"])["takes@hangar"] == "made: pass"  # made again: its bytes the rejected ones, kept out
     assert a_runner(world, store, (plain,)).key(plain, "hangar")["key"] == again["key"]  # never a third make
-
-
-def test_a_bought_batch_accepts_a_passing_worse_output_and_writes_the_drop_down_for_review():
-    """Owner, 2026-10-27: inside a bought batch a result that passes every check is accepted though a measure is worse,
-    the drop written down for him to review after the batch, never a wait. The brief of 6 words that waits outside a
-    batch (above) is accepted in one, its accept quoting his rule with the worse measure in its status.
-    Break: score/graph/__init__.py: 'against, self.bought)' -> 'against)'"""
-    world, store, outputs = ready_world()
-    brief(world, "hangar", "a ship in a long dark hall")
-    a_runner(world, store).run(PLACES)
-    worse = give_evidence(store, a_runner(world, store), "hangar", 10)
-    assert a_runner(world, store).run(PLACES)["clean@hangar"] == "judged again, output kept: pass"
-    assert store.accepted("clean@hangar") == outputs["hangar"]
-    runner = a_runner(world, store)
-    runner.bought = True
-    found = runner.run(PLACES)
-    assert found["clean@hangar"] == "fresh, accepted automatically" and store.accepted("clean@hangar") == worse, found
-    given = store.accepts("clean@hangar")[-1]
-    assert given["worse_reason"] == review.IN_BATCH and given["worse"], given
-    assert given["status"].startswith("to review after the batch, worse: "), given
-
-
-def test_a_record_naming_a_stage_the_table_lacks_is_stale_not_a_crash():
-    """Fault (2026-10-12): an accepted record named a stage another runner wrote into the store; status crashed.
-    Break: score/graph/__init__.py: '                   if before in self.stages}' -> '                   }'"""
-    world, store, _ = ready_world()
-    lone = a_runner(world, store, (dataclasses.replace(COUNT, after={}),))  # count's records name clean
-    assert lone.stale("count@hangar") == ["clean (a stage this table does not hold)"]
-    assert lone.status(["hangar"])["count@hangar"].endswith("clean (a stage this table does not hold) moved")
 
 
 # --- a failed output is made once more when that is free (owner, 2026-10-28: "the goal was getting to the film") -----
