@@ -644,12 +644,9 @@ def a_basket_place(root, place, found, picture=False):
     records.put_place(root, partial, place, found)
 
 
-@pytest.fixture
-def basket(world, settings, tmp_path):
-    """A made basket: alpha's pieces (measured, what changes, a picture it is made from), the environment's people
-    body (never measured), and the ship's declared item with a question."""
-    settings.SCORE_HOME = tmp_path / "home"
-    root = settings.SCORE_HOME / "proposals"
+def a_basket(root):
+    """A made basket under `root`: alpha's pieces (measured, what changes, a picture it is made from), the
+    environment's people body (never measured), and the ship's declared item with a question."""
     root.mkdir(parents=True)
     records.put_declared(root, "ship-room-concepts", SHIP)
     buys = [{"node": "closeup@alpha", "why": "code changed", "again": True, "price": MEASURED},
@@ -668,75 +665,6 @@ def basket(world, settings, tmp_path):
              "text": "Bram, the mechanic, in work clothes."}]},
         "concept-views": {"reads": [], "files": []}}})
     return root
-
-
-def test_a_basket_item_says_what_changes_and_a_guess_is_never_a_price(basket):
-    """Counted from CHANGES: 2 added, 1 taken out, 1 refinished; the measured price 2.00 to 3.00; the guess said as no
-    price (owner rule, a wording check, 2018-10-18). Break: templates/pages/basket_item.html words the guess as "cost
-    about EUR 2.70"."""
-    page = signed_in().get("/basket/").content.decode()
-    assert "2 objects added · 1 object taken out · 1 object refinished" in page and "at most 3.00" in page
-    environment = signed_in("visitor").get("/basket/item/environment-people-body/").content.decode()
-    assert "EUR 2.70, which is not a price" in environment and "Only the owner buys" in environment
-    assert signed_in("other").get("/basket/item/nothing-here/").status_code == 404
-
-
-def test_only_the_owner_buys_as_he_saw_it_and_his_answer_is_kept_where_agents_read_it(basket):
-    """A choice on another version is not kept. Break: pages/basket.py `choose` skips its version check."""
-    item = records.item(basket, "alpha-pieces")
-    form = {"item": "alpha-pieces", "version": item["version"], "choice": "buy"}
-    assert signed_in("visitor").post("/basket/choose/", form).status_code == 403 and not BasketChoice.objects.exists()
-    owner = signed_in()
-    owner.post("/basket/choose/", {**form, "version": "0" * 16})
-    assert not BasketChoice.objects.exists()
-    owner.post("/basket/choose/", form)
-    assert BasketChoice.objects.get(item="alpha-pieces").choice == "buy"
-    owner.post("/basket/answer/", {"item": "ship-room-concepts", "number": "1", "take": "recommended"})
-    assert records.answers(basket)["ship-room-concepts"]["1"]["answer"] == "One deck, as in your cutaway picture."
-    owner.post("/basket/answer/", {"item": "ship-room-concepts", "number": "1", "take": "own",
-                                   "answer": "Two decks where they fit."})
-    assert records.answers(basket)["ship-room-concepts"]["1"]["answer"] == "Two decks where they fit."
-    assert signed_in("visitor").post("/basket/answer/", {"item": "ship-room-concepts", "number": "1",
-                                                         "take": "recommended"}).status_code == 403
-
-
-def test_hosted_an_answer_and_a_checkout_are_queued_for_the_stores_machine(basket, settings):
-    """The answer is kept only once the store's machine applies the owner's; the checkout carries the items he saw.
-    Break: sync/applying.py `apply_answer` skips its `from_owner` check."""
-    from score.dashboard.pages import basket as page
-    settings.SCORE_MODE = settings.HOSTED
-    (basket.parent / "export" / "current").mkdir(parents=True)
-    (basket.parent / "export" / "current" / "proposals").symlink_to(basket)
-    owner = signed_in()
-    owner.post("/basket/answer/", {"item": "ship-room-concepts", "number": "1", "take": "recommended"})
-    queued = SyncRequest.objects.get(kind="answer")
-    assert records.answers(basket) == {}
-    item = records.item(basket, "alpha-pieces")
-    owner.post("/basket/choose/", {"item": "alpha-pieces", "version": item["version"], "choice": "buy"})
-    owner.post("/basket/checkout/", {"key": "a" * 32, "confirm": "yes"})
-    assert SyncRequest.objects.get(kind="checkout").payload == {
-        "key": "a" * 32, "items": [{"id": "alpha-pieces", "version": item["version"]}]}
-    assert "waits for the store's machine" in page.last_checkout()
-    settings.SCORE_MODE = settings.LOCAL
-    BasketAnswer.objects.all().delete()
-    assert applying.apply({"kind": "answer", "user": "mallory", "payload": queued.payload}, None).state == "refused"
-    assert records.answers(basket) == {}
-    done = applying.apply({"kind": "answer", "user": "joey", "payload": queued.payload}, None)
-    assert done.state == "done" and records.answers(basket)["ship-room-concepts"]["1"]["by"] == "joey"
-
-
-def test_the_viewer_outlines_what_a_basket_item_changes_on_each_side(basket, world):
-    """After: the 2 added, the lamp and the floor; before: the removed lamp, the lamp, the floor. Break:
-    pages/basket.py's marks put `removed` on the after side."""
-    copy = world.source.web_copies / "alpha"
-    copy.mkdir(parents=True, exist_ok=True)
-    (copy / "alpha.json").write_text(json.dumps({"made_at": "2026-10-19T08:00:00Z", "objects": []}))
-    after = view_data(signed_in().get("/view/alpha?item=alpha-pieces&embed=1").content.decode())
-    assert after["base"] == "/basket-file/alpha/web3d/"
-    assert sorted(mark["kind"] for mark in after["marks"]) == ["added", "added", "lamp", "refinished"]
-    before = view_data(signed_in("other").get("/view/alpha?item=alpha-pieces&side=before").content.decode())
-    assert before["base"] == "/web/alpha/" and sorted(mark["kind"] for mark in before["marks"]) == [
-        "lamp", "refinished", "removed"]
 
 
 # === the run monitor ==================================================================================================
@@ -975,6 +903,38 @@ HEALTH = {"size": "POP2-HM-2C-16G", "state": "idle", "units": {"score-sync.timer
           "backup": {"at": "2026-10-18T11:30:00+00:00", "ok": True}, "bill": {"euros": 12.34, "month": "2026-10"},
           "disk": {"used_gb": 40, "total_gb": 100}, "free_only": True}
 THEN = datetime.datetime.fromisoformat(MADE) + datetime.timedelta(hours=1)
+OFF_PIN = {"checkout": "a" * 40, "pin": "b" * 40, "matches": False}
+ON_PC = {"machine": {"name": "dupe"}, "health": {"machine": None, "state": None, "runs_active": 1, "backup": None}}
+CARDS = [  # (row, machine.json's content, what its card says)
+    ("his PC running a run", ON_PC, {"on_pc": True, "state": "running 1 run"}),
+    ("his PC idle", {**ON_PC, "health": {**ON_PC["health"], "runs_active": 0}}, {"on_pc": True, "state": "idle"}),
+    ("a cloud machine", {"machine": {"name": "conductor", "size": "POP2"}, "health": {"state": "idle"}},
+     {"on_pc": False}),
+    ("its checkout on the pin", {"health": {"code": {**OFF_PIN, "matches": True}}}, {"code_off": False})]
+PINS = [  # (the conductor's machine record, the hosted pin's commit, the Buy's refusal); this checkout is on aaaaaaaa
+    ({"name": "conductor"}, "b" * 40,
+     "the cloud machine is on aaaaaaaa, the cockpit on bbbbbbbb; it is being updated: buy again in a few minutes"),
+    ({"name": "conductor"}, "a" * 40, None), ({"name": "conductor"}, None, None), (None, "b" * 40, None)]
+LATCH_STEPS = [  # (what changes, then whether the sync follows the latch, and FREE_ONLY in its environment)
+    ("latch written", True, "1"), ("latch taken off", False, None), ("set by whoever started it", False, "1")]
+REFUSED = [  # (kind, by, payload, in an agent's shell, on a conductor, words in its refusal): nothing is applied
+    ("store-machine", "joey", {"machine": "conductor"}, False, True, ""),  # only his confirm moves the record
+    ("stop-everything", "mallory", {}, False, True, ""), ("stop-batch", "mallory", {}, False, True, ""),
+    ("stop-everything", "joey", {}, True, True, "agent's shell"),
+    ("allow-paid", "joey", {}, True, True, "agent's shell"),
+    ("stop-everything", "joey", {}, False, False, machine.NOT_ON_CONDUCTOR)]
+ASKS = [  # (who asks, /api/machine/<path>, body, status): no sync token, no one but the owner, never without his second
+    # ask, never for a machine no export came from
+    ("the sync token alone", "confirm", {"machine": "conductor", "sure": True}, 401),
+    ("mallory", "confirm", {"machine": "conductor", "sure": True}, 403),
+    ("joey", "confirm", {"machine": "conductor"}, 400),
+    ("joey", "confirm", {"machine": "elsewhere", "sure": True}, 409),
+    ("joey", "stop", {}, 400), ("joey", "stop-batch", {}, 400),
+    ("mallory", "stop", {"sure": True}, 403), ("mallory", "stop-batch", {"sure": True}, 403)]
+STOPS = [  # (his ask, its body, the request kind it queues, the one call score.conductor.kill gets for it)
+    ("stop", {"sure": True, "words": "now"}, "stop-everything", ("stop_all", "joey", "now")),
+    ("stop-batch", {"sure": True}, "stop-batch", ("stop_batch", "joey", "")),
+    ("allow-paid", {"sure": True}, "allow-paid", ("allow_paid", "joey", ""))]
 
 
 class Kill:
@@ -996,8 +956,18 @@ class Kill:
         return {"latched": False}
 
 
-@pytest.fixture
-def conductor(monkeypatch):
+class Pinned:
+    """The hosted side's /pin, answering `commit`."""
+
+    def __init__(self, commit):
+        self.commit = commit
+
+    def call(self, method, path):
+        assert (method, path) == ("GET", "/pin")
+        return {"commit": self.commit}
+
+
+def stood_in_conductor(monkeypatch):
     """score.conductor with health, logs and kill stood in; its Kill."""
     kill = Kill()
     parts = {"health": types.SimpleNamespace(read=lambda: dict(HEALTH)),
@@ -1010,55 +980,14 @@ def conductor(monkeypatch):
     return kill
 
 
-@pytest.fixture
-def no_record(settings):
-    """No store's machine recorded and no export swapped in on the hosted side, before and after."""
-    one_store.path().unlink(missing_ok=True)
-    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
-    yield
-    one_store.path().unlink(missing_ok=True)
-    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
-
-
 def off_a_conductor(monkeypatch):
-    """No score.conductor here, also when an earlier test imported its parts."""
+    """No score.conductor here, also when an earlier part imported its parts."""
     for name in ("score.conductor", "score.conductor.health", "score.conductor.logs", "score.conductor.kill"):
         monkeypatch.setitem(sys.modules, name, None)
 
 
 def named_machine(world, name):
     (world.source.props_home / machine.MACHINE_FILE).write_text(json.dumps({"name": name, "size": "POP2-HM-2C-16G"}))
-
-
-def test_the_export_carries_the_machine_its_health_and_its_tails_cut_to_the_cap(world, tmp_path, conductor):
-    """The newest tail lines kept within TAIL_BYTES; none over the export's cap, said; off a conductor said so. Break:
-    state/machine.py `cut` drops the newest lines (`pop()`), not the oldest."""
-    named_machine(world, "conductor")
-    manifest = building.build(world.source, tmp_path / "one", MADE, 50, SPEND, world.root)
-    found = json.loads((tmp_path / "one/machine.json").read_text())
-    assert manifest["machine"] == "conductor" and manifest["written"][:2] == ["state.json", "machine.json"]
-    assert found["health"]["bill"]["euros"] == 12.34 and found["tails"]["faults"] == ["one fault"]
-    assert sum(len(line) + 1 for lines in found["tails"].values() for line in lines) <= machine.TAIL_BYTES
-    assert found["tails"]["run.log"][-1].startswith(f"line {machine.TAIL_LINES - 1} ")
-    assert ExportedSource(tmp_path / "one").machine() == found
-    small = building.build(world.source, tmp_path / "small", MADE, 0.05, SPEND, world.root)
-    assert json.loads((tmp_path / "small/machine.json").read_text())["tails"] == {}
-    assert {"what": "the store's machine's log tails", "why": "over the export's cap"} in small["left_out"]
-
-
-def test_off_a_conductor_the_export_says_so_and_the_card_shows_no_state(world, tmp_path, monkeypatch):
-    """Break: state/machine.py `state_of` reads no state as idle."""
-    off_a_conductor(monkeypatch)
-    building.build(world.source, tmp_path / "one", MADE, 50, SPEND, world.root)
-    found = json.loads((tmp_path / "one/machine.json").read_text())
-    assert found["health"] == {"missing": machine.NOT_ON_CONDUCTOR} and found["tails"] == {}
-    assert found["machine"]["name"]
-    card = machine.card(found, MADE)
-    assert card["missing"] == machine.NOT_ON_CONDUCTOR and card["state"] is None and card["export_late"]
-    on_pc = {"machine": {"name": "dupe"}, "health": {"machine": None, "state": None, "runs_active": 1, "backup": None}}
-    assert machine.card(on_pc)["on_pc"] and machine.card(on_pc)["state"] == "running 1 run"
-    assert machine.card({**on_pc, "health": {**on_pc["health"], "runs_active": 0}})["state"] == "idle"
-    assert not machine.card({"machine": {"name": "conductor", "size": "POP2"}, "health": {"state": "idle"}})["on_pc"]
 
 
 def committed_by(remote, name):
@@ -1068,133 +997,6 @@ def committed_by(remote, name):
     remote.lacking({sha: len(data)})
     remote.put_chunk(sha, 0, len(data), data)
     return remote.commit(f"export-{name}", {"manifest.json": sha})
-
-
-def test_a_second_machine_is_shown_but_applies_nothing_until_the_owner_confirms_it(world, settings, no_record):
-    """No request kind, no sync token, no one but the owner, not without the second ask nor for a machine no export came
-    from moves the record. Break: api/routes.py `machine_confirm` skips `asked_twice`."""
-    settings.SCORE_SYNC_TOKEN, settings.SCORE_MODE = TOKEN, settings.HOSTED
-    web = hosted_client()
-    pc, other = remote_of(web, "pc"), remote_of(web, "conductor")
-    committed_by(pc, "pc")
-    committed_by(other, "conductor")
-    assert one_store.record()["name"] == "pc" and one_store.second(THEN) == "conductor"
-    item = SyncRequest.objects.create(kind="change", user="joey", payload={"stage": "closeup", "words": "redder"})
-    assert other.claim(item.pk) is False and "not the store's machine (pc)" in other.not_the_store
-    item.refresh_from_db()
-    assert item.state == "waiting"
-    assert applying.apply({"kind": "store-machine", "user": "joey", "payload": {"machine": "conductor"}},
-                          world.source).state == "refused"
-    assert web.post("/api/machine/confirm", json={"machine": "conductor", "sure": True},
-                    headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 401
-    assert api("mallory").post("/api/machine/confirm", json={"machine": "conductor", "sure": True}).status_code == 403
-    owner = api()
-    assert owner.post("/api/machine/confirm", json={"machine": "conductor"}).status_code == 400
-    assert owner.post("/api/machine/confirm", json={"machine": "elsewhere", "sure": True}).status_code == 409
-    assert one_store.record()["name"] == "pc"
-    answer = owner.post("/api/machine/confirm", json={"machine": "conductor", "sure": True})
-    assert answer.status_code == 200 and one_store.record()["by"] == "joey" and one_store.second(THEN) is None
-    assert pc.claim(item.pk) is False and other.claim(item.pk) is True and other.not_the_store is None
-    one_store.kept({"name": "pc", "others": {"naive": "2026-10-18T13:00:00", "broken": "not a time"}})
-    assert one_store.second(THEN) == "naive"  # a time of no zone or none breaks no page
-
-
-def test_stop_everything_stop_batch_and_allow_paid_are_the_owners_asked_twice_and_applied_once(world, settings,
-                                                                                             conductor, no_record):
-    """Hosted nothing is done but queue; the store's machine applies each once through score.conductor.kill. Break:
-    sync/client.py `answered` applies a request it could not claim."""
-    from score.dashboard.pages import machine as page
-    settings.SCORE_SYNC_TOKEN, settings.SCORE_MODE = TOKEN, settings.HOSTED
-    owner = api()
-    for path in ("stop", "stop-batch"):
-        assert owner.post(f"/api/machine/{path}", json={}).status_code == 400  # the second ask not answered
-        assert api(f"mallory-{path}").post(f"/api/machine/{path}", json={"sure": True}).status_code == 403
-    assert owner.post("/api/machine/stop", json={"sure": True, "words": "now"}).json()["said"].startswith("queued")
-    assert owner.post("/api/machine/stop-batch", json={"sure": True}).json()["said"].startswith("queued")
-    assert owner.post("/api/machine/allow-paid", json={"sure": True}).json()["said"].startswith("queued")
-    assert conductor.calls == []
-    settings.SCORE_MODE = settings.LOCAL
-    remote = remote_of(hosted_client(), "conductor")
-    for kind, call in (("stop-everything", ("stop_all", "joey", "now")), ("stop-batch", ("stop_batch", "joey", "")),
-                       ("allow-paid", ("allow_paid", "joey", ""))):
-        stop = SyncRequest.objects.get(kind=kind)
-        item = {"id": stop.pk, "kind": stop.kind, "user": stop.user, "payload": stop.payload}
-        assert client.answered(remote, item, world.source).state == "done" and conductor.calls[-1] == call
-        assert client.answered(remote, item, world.source) is None  # claimed once: never applied again
-    assert len(conductor.calls) == 3
-    assert page.report_counts(SyncRequest.objects.get(kind="stop-batch").detail) == [("parked", 1), ("runs", 1)]
-    for kind in ("stop-everything", "stop-batch"):
-        assert applying.apply({"kind": kind, "user": "mallory", "payload": {}}, world.source).state == "refused"
-    assert len(conductor.calls) == 3
-
-
-def test_the_kill_switch_refuses_in_an_agents_process_and_off_a_conductor(world, monkeypatch, conductor):
-    """Break: pages/actions.py `owner_figure_off_why` drops its `agent_started` refusal."""
-    monkeypatch.setattr(actions, "agent_started", lambda: True)
-    for kind in ("stop-everything", "allow-paid"):
-        applied = applying.apply({"kind": kind, "user": "joey", "payload": {}}, world.source)
-        assert applied.state == "refused" and "agent's shell" in applied.detail
-    assert conductor.calls == []
-    monkeypatch.setattr(actions, "agent_started", lambda: False)
-    off_a_conductor(monkeypatch)
-    applied = applying.apply({"kind": "stop-everything", "user": "joey", "payload": {}}, world.source)
-    assert applied.state == "refused" and machine.NOT_ON_CONDUCTOR in applied.detail
-
-
-def test_the_card_offers_allow_paid_only_while_latched_and_says_when_the_machine_is_off_the_pin(world, conductor,
-                                                                                                 monkeypatch):
-    """Break: state/machine.py `card` gives `code_off` False always."""
-    named_machine(world, "conductor")
-    home = signed_in().get("/").content.decode()
-    assert "conductor" in home and "Stop everything" in home and "Allow paid work again" in home  # the latch is set
-    page = signed_in().get("/machine/").content.decode()
-    assert "one fault" in page and "score-sync.timer" in page
-    off = {"checkout": "a" * 40, "pin": "b" * 40, "matches": False}
-    monkeypatch.setitem(sys.modules, "score.conductor.health", types.SimpleNamespace(
-        read=lambda: {**HEALTH, "free_only": False, "code": off}))
-    home = signed_in().get("/").content.decode()
-    assert "the cloud machine is on aaaaaaaa, the cockpit on bbbbbbbb; it is being updated" in home
-    assert "Allow paid work again" not in home
-    assert machine.card({"health": {"code": {**off, "matches": True}}})["code_off"] is False
-
-
-def test_a_buy_is_refused_on_a_conductor_whose_checkout_is_off_the_pin(monkeypatch):
-    """2026-10-25: a retry ran Batch 1's old code unnoticed. Break: sync/client.py `pin_refusal` returns None whatever
-    the commits."""
-    import score.conductor as real
-    monkeypatch.setattr(real, "machine", lambda path=None: {"name": "conductor"})
-    monkeypatch.setattr(client, "head", lambda repo: "a" * 40)
-
-    class Pinned:
-        def __init__(self, commit):
-            self.commit = commit
-
-        def call(self, method, path):
-            assert (method, path) == ("GET", "/pin")
-            return {"commit": self.commit}
-    assert client.pin_refusal(Pinned("b" * 40), "/repo") == (
-        "the cloud machine is on aaaaaaaa, the cockpit on bbbbbbbb; it is being updated: buy again in a few minutes")
-    assert client.pin_refusal(Pinned("a" * 40), "/repo") is None
-    assert client.pin_refusal(Pinned(None), "/repo") is None
-    monkeypatch.setattr(real, "machine", lambda path=None: None)
-    assert client.pin_refusal(Pinned("b" * 40), "/repo") is None
-
-
-def test_the_sync_and_the_listener_follow_the_kill_switch_latch(monkeypatch):
-    """Set by the latch file, taken off with it; set by whoever started it, never taken off here. Break: sync/client.py
-    `free_only_followed` pops FREE_ONLY whenever the latch file is gone."""
-    from score import conductor
-    monkeypatch.delenv(conductor.FREE_ONLY, raising=False)
-    monkeypatch.setitem(client.LATCHED, "set", False)
-    conductor.FREE_ONLY_LATCH.parent.mkdir(parents=True, exist_ok=True)
-    conductor.FREE_ONLY_LATCH.write_text(f"{conductor.FREE_ONLY}=1\n")
-    try:
-        assert client.free_only_followed() and os.environ[conductor.FREE_ONLY] == "1"
-    finally:
-        conductor.FREE_ONLY_LATCH.unlink()
-    assert not client.free_only_followed() and conductor.FREE_ONLY not in os.environ
-    monkeypatch.setenv(conductor.FREE_ONLY, "1")
-    assert not client.free_only_followed() and os.environ[conductor.FREE_ONLY] == "1"
 
 
 # === the concept review ===============================================================================================
@@ -1210,9 +1012,9 @@ def made_draws(store, place):
     return [draw for draw in drawing.draws(store, place) if draw["at"] != "2026-10-20T07:00:00+00:00"]
 
 
-@pytest.fixture
-def stand_in(drafting, monkeypatch):
-    """The draw's own process run in-process with a stand-in model; [what each draw was asked]."""
+def stood_in(monkeypatch, current):
+    """The draw's own process run in-process with a stand-in model, on the world `current()` names (a test may move
+    to a fresh copy); [what each draw was asked]."""
     from score.dashboard.pages import concepts
     from score.review import concepts as drawing
     from score.review import environment_concept, web
@@ -1224,16 +1026,16 @@ def stand_in(drafting, monkeypatch):
     monkeypatch.setattr(drawing, "draw_euros", lambda *given: PRICE)
     monkeypatch.setattr(drawing, "redraw_euros", lambda *given: REDRAW_PRICE)
     monkeypatch.setattr(concepts, "in_background", concepts.applied_here)
-    offsite = drafting.source.store.cache.parent / "bucket"
-    monkeypatch.setattr(drawing, "offsite_store", lambda: runtime_store.FolderStore(offsite))
+    monkeypatch.setattr(drawing, "offsite_store",
+                        lambda: runtime_store.FolderStore(current().source.store.cache.parent / "bucket"))
     monkeypatch.setattr(drawing, "handed_over", lambda store, place: "library: stand-in")
     monkeypatch.setattr(web, "reading_started", lambda store, place, by: "reading: stand-in")
 
     def run(argv, env, **kwargs):
         monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
-        model = lambda wording, pictures: asked.append(wording) or a_png((30 * len(asked), 90, 140))  # noqa: E731
+        model = lambda wording, pictures: asked.append(wording) or a_png((30 * len(asked) % 256, 90, 140))  # noqa: E731
         prompt = lambda question, pictures: asked.append(question) or "The corrected prompt."  # noqa: E731
-        record = drawing.draw(drafting.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1],
+        record = drawing.draw(current().source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1],
                               caller=model, reviser=prompt)
         return subprocess.CompletedProcess(argv, 0, json.dumps(record) + "\n", "")
     drawn_here = web.concept_draw
@@ -1241,225 +1043,24 @@ def stand_in(drafting, monkeypatch):
     return asked
 
 
+def answered_in_process(monkeypatch, drafting):
+    """The Discuss's own process run in-process on `drafting` with a stand-in prompt model that answers "Paint the door
+    red." at a measured EUR 0.0271."""
+    from score.review import discuss, web
+    monkeypatch.setattr(discuss, "price", lambda *given: DISCUSS_PRICE)
+
+    def run(argv, env, **kwargs):
+        monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
+        model = lambda question, pictures: ("Paint the door red.", 0.0271)  # noqa: E731
+        entry = discuss.discuss(drafting.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1],
+                                asker=model)
+        return subprocess.CompletedProcess(argv, 0, json.dumps(entry) + "\n", "")
+    discussed_here = web.concept_discuss
+    monkeypatch.setattr(web, "concept_discuss", lambda *args, **named: discussed_here(*args, run=run, **named))
+
+
 def drawn(owner, place, **body):
     return owner.post(f"/concept/{place}/draw/", json.dumps(body), content_type="application/json")
-
-
-def test_a_draw_is_the_owners_yes_at_the_price_shown_then_locked_and_unlocked(drafting, stand_in):
-    """His click writes a spend yes at exactly 0.15; a redraw sends his marks to the prompt model, whose prompt becomes
-    the place's wording; Lock takes the Review button off the card and refuses another draw; Unlock frees it. Break:
-    pages/concepts.py `concept_draw` sends no marks."""
-    from score.review import concepts as drawing
-    owner = signed_in()
-    assert drawn(owner, "beta", note="dusty", euros=PRICE).status_code == 200
-    state = owner.get("/concept/beta/state/").json()
-    assert state["pending"] is False and state["refused"] is None and state["newest"]
-    yes = drafting.source.store.spend_yes("override", made_draws(drafting.source.store, "beta")[0]["yes"])
-    assert yes["by"] == "joey" and yes["euros"] == PRICE and "beta" in yes["purpose"]
-    marks = [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "note": "a window"}]
-    drawn(owner, "beta", marks=marks, base=state["newest"], euros=REDRAW_PRICE)
-    assert "Box 1 (top left): a window." in stand_in[-2]  # the prompt model corrects the prompt by it
-    assert stand_in[-1].startswith("The corrected prompt.")
-    assert drawing.own_wording(drafting.source.store, "beta") == "The corrected prompt."
-    newest_draw = owner.get("/concept/beta/state/").json()["newest"]
-    assert owner.post("/concept/beta/pick/", json.dumps({"sha": newest_draw}), content_type="application/json").json()
-    assert 'ptile-review" href="/concept/beta/"' not in owner.get("/places/").content.decode()
-    assert drawn(owner, "beta", euros=PRICE).status_code == 409  # locked
-    owner.post("/concept/beta/pick/", json.dumps({"sha": None}), content_type="application/json")
-    assert 'href="/concept/beta/"' in owner.get("/places/").content.decode()
-    assert owner.get("/concept/nowhere/").status_code == 404
-
-
-def test_with_no_mark_and_no_note_a_draw_is_fresh_from_the_places_wording(drafting, stand_in):
-    """Break: pages/concepts.py `concept_draw` takes the newest draw as the base when none is posted."""
-    owner = signed_in()
-    drawn(owner, "beta", euros=PRICE)
-    drawn(owner, "beta", marks=[], note="", base=None, euros=PRICE)
-    first, fresh = made_draws(drafting.source.store, "beta")
-    assert fresh["base"] is None and fresh["marks"] == [] and fresh["sha"] != first["sha"]
-    assert stand_in[-1] == stand_in[0] and "Box" not in stand_in[-1]
-    assert fresh["yes"] != first["yes"] and fresh["euros"] == PRICE
-    assert drafting.source.store.cache.parent.joinpath("bucket", f"concept-draws/{fresh['sha']}.png").is_file()
-
-
-def test_his_edited_wording_is_sent_and_kept_until_back_to_generated_hosted_too(drafting, stand_in, settings):
-    """Break: pages/concepts.py `concept_draw` drops the posted `wording`."""
-    from score.review import concepts as drawing
-    owner = signed_in()
-    generated = escape(drawing.generated(drafting.source.store, "beta"))
-    edited = "One concept painting of beta at dusk, its doors open."
-    drawn(owner, "beta", marks=[], note="", base=None, euros=PRICE, wording=edited)
-    assert stand_in[-1] == edited and drawing.own_wording(drafting.source.store, "beta") == edited
-    assert f">{edited}</textarea>" in owner.get("/concept/beta/").content.decode()
-    assert signed_in("mallory").post("/concept/beta/generated/").status_code == 403
-    assert owner.post("/concept/beta/generated/").json()["said"] == "back to the generated wording"
-    assert f">{generated}</textarea>" in owner.get("/concept/beta/").content.decode()
-    settings.SCORE_MODE = settings.HOSTED
-    try:
-        drawn(owner, "beta", euros=PRICE, wording="beta, my words")
-        assert ">beta, my words</textarea>" in owner.get("/concept/beta/").content.decode()  # before the export
-        owner.post("/concept/beta/generated/")
-        assert ">beta, my words</textarea>" not in owner.get("/concept/beta/").content.decode()
-    finally:
-        settings.SCORE_MODE = settings.LOCAL
-
-
-def test_a_draw_at_another_price_or_by_anyone_else_is_refused(drafting, stand_in, monkeypatch):
-    """Also an approved design's concept cannot be unlocked. Break: score/review/web.py `concept_draw` drops its price
-    comparison."""
-    from score.dashboard.pages import concepts
-    owner = signed_in()
-    drawn(owner, "beta", euros=0.05)
-    assert "measured price" in owner.get("/concept/beta/state/").json()["refused"]
-    assert made_draws(drafting.source.store, "beta") == []
-    other = signed_in("mallory")
-    assert drawn(other, "beta", euros=PRICE).status_code == 403
-    unlock = json.dumps({"sha": None})
-    assert other.post("/concept/beta/pick/", unlock, content_type="application/json").status_code == 403
-    monkeypatch.setattr(concepts, "approved", lambda source, place: True)
-    answer = owner.post("/concept/beta/pick/", json.dumps({"sha": None}), content_type="application/json")
-    assert answer.status_code == 409 and "approved" in answer.json()["detail"]
-
-
-def test_draw_and_lock_wait_while_the_layer_above_is_not_ready_and_the_store_refuses_the_same(drafting, stand_in,
-                                                                                              monkeypatch):
-    """Break: score/review/concepts.py `pick` skips `step_refusal`."""
-    from score.review import concepts as drawing
-    owner = signed_in()
-    drawn(owner, "beta", euros=PRICE)
-    monkeypatch.setattr(drawing, "step_refusal", lambda store, place, step: "waits for yard's plan to be made")
-    page = owner.get("/concept/beta/").content.decode()
-    pick = page[page.index('id="concept-pick"'):].split(">", 1)[0]
-    assert " disabled" in pick and "waits for yard&#x27;s plan to be made" in pick
-    sha = made_draws(drafting.source.store, "beta")[-1]["sha"]
-    answer = owner.post("/concept/beta/pick/", json.dumps({"sha": sha}), content_type="application/json")
-    assert answer.status_code == 409 and "plan to be made" in answer.json()["detail"]
-    assert drawing.picked(drafting.source.store, "beta") is None
-
-
-def test_a_hosted_draw_reaches_the_listener_once_and_its_picture_is_served(drafting, stand_in, settings):
-    """One held call, claimed once; the picture sent back before the next export. Break: sync/client.py `answered` sends
-    no picture back."""
-    from score.dashboard.pages import concepts
-    owner = signed_in()
-    settings.SCORE_MODE = settings.HOSTED
-    try:
-        drawn(owner, "beta", euros=PRICE)
-        assert owner.get("/concept/beta/state/").json()["pending"] is True
-    finally:
-        settings.SCORE_MODE = settings.LOCAL
-    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
-        web = hosted_client()
-        remote = remote_of(web)
-        assert web.post(f"/api/sync/requests/{SyncRequest.objects.get().pk}/claim",
-                        headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
-        SyncRequest.objects.update(state="waiting")  # a second caller is refused only after the first claimed
-        assert listen.round_once(remote, drafting.source) == [(SyncRequest.objects.get().pk, "done")]
-        assert remote.waiting(listen.LISTENED, 0) == [] and not remote.claim(SyncRequest.objects.get().pk)
-    record = json.loads(SyncRequest.objects.get().detail)
-    assert sorted(path.name for path in (settings.SCORE_HOME / "request-files").iterdir()) == [
-        f"{record['sha']}-1280.jpg", f"{record['sha']}-360.jpg"]
-    shown = concepts.answered_draws("beta")
-    assert [draw.picture.sha for draw in shown] == [record["sha"]] and shown[0].picture.thumb_url
-
-
-def test_the_listener_says_an_unreachable_hosted_side_and_asks_again(drafting):
-    """Break: sync/listen.py `listen` pauses SHORTEST_ROUND after an unreachable side."""
-    class Down:
-        def waiting(self, kinds, wait, skip=()):
-            raise urllib.error.URLError("refused")
-    said, paused = [], []
-    listen.listen(Down(), drafting.source, rounds=2, log=said.append, pause=paused.append)
-    assert len(said) == 2 and "did not answer" in said[0] and paused == [listen.RETRY_SECONDS] * 2
-
-    class Old:  # a hosted side that answers at once, not holding the call
-        not_the_store = None
-
-        def waiting(self, kinds, wait, skip=()):
-            return []
-    paused.clear()
-    listen.listen(Old(), drafting.source, rounds=3, log=said.append, pause=paused.append)
-    assert paused == [listen.SHORTEST_ROUND] * 3
-
-
-def test_draw_all_is_one_yes_for_n_first_draws_at_n_times_the_price(drafting, stand_in, monkeypatch):
-    """2 undrawn at 0.15: EUR 0.30; each draw its own yes saying so; then gone. Break: pages/concepts.py `draw_all`
-    prices N draws as one."""
-    from score.dashboard.pages import concepts
-    from score.review import concepts as drawing
-    owner = signed_in()
-    shown = concepts.draw_all(concepts.light_world(drafting.source))
-    assert shown["places"] == ["alpha", "beta"] and "Draw all 2, EUR 0.30" in owner.get("/places/").content.decode()
-    assert owner.post("/concepts/draw-all/", json.dumps({"places": shown["places"], "euros": 0.30}),
-                      content_type="application/json").status_code == 200
-    for place in ("alpha", "beta"):
-        found = made_draws(drafting.source.store, place)
-        assert len(found) == 1 and found[0]["base"] is None and found[0]["euros"] == PRICE
-        yes = drafting.source.store.spend_yes("override", found[0]["yes"])
-        assert "Draw all, 2 first draws for EUR 0.30" in yes["purpose"]
-    assert concepts.draw_all(concepts.light_world(drafting.source)) is None
-    waits = drawing.waits
-    monkeypatch.setattr(drawing, "waits", lambda store, place: "waits for yard's concept to be locked"
-                        if place == "alpha" else waits(store, place))
-    assert concepts.draw_all(concepts.light_world(drafting.source)) is None  # alpha waits, beta drawn
-
-
-def test_draw_all_is_refused_when_the_total_or_the_places_moved_or_for_anyone_else(drafting, stand_in):
-    """And on the store's machine once drawn since the click. Break: pages/concepts.py `concept_draw_all` drops its
-    places comparison."""
-    from score.dashboard.pages import concepts
-    from score.review import web
-    owner = signed_in()
-    places = concepts.draw_all(concepts.light_world(drafting.source))["places"]
-    for body in ({"places": places, "euros": 0.15}, {"places": ["alpha"], "euros": 0.30}):
-        assert owner.post("/concepts/draw-all/", json.dumps(body), content_type="application/json").status_code == 409
-    assert signed_in("mallory").post("/concepts/draw-all/", json.dumps({"places": places, "euros": 0.30}),
-                                     content_type="application/json").status_code == 403
-    assert SyncRequest.objects.count() == 0
-    drawn(owner, "beta", euros=PRICE)
-    with pytest.raises(web.review.Refused, match="changed"):
-        web.concept_draw(drafting.source.store, "beta", {}, PRICE, by="joey", first=True)
-    assert len(made_draws(drafting.source.store, "beta")) == 1
-
-
-def test_draws_on_their_way_are_not_offered_twice_and_show_until_they_land(drafting, stand_in, settings):
-    """Hosted Draw all answered by the listener side by side; while queued, Draw all is a busy count and each card a
-    spinner; a refused one says why. Break: pages/concepts.py `draw_all` offers places with a draw on its way."""
-    from score.dashboard.pages import concepts
-    owner = signed_in()
-    places = concepts.draw_all(concepts.light_world(drafting.source))["places"]
-    settings.SCORE_MODE = settings.HOSTED
-    try:
-        owner.post("/concepts/draw-all/", json.dumps({"places": places, "euros": 0.30}),
-                   content_type="application/json")
-        assert concepts.draw_all(concepts.light_world(drafting.source)) is None
-    finally:
-        settings.SCORE_MODE = settings.LOCAL
-    html = owner.get("/places/").content.decode()
-    assert "Drawing 2..." in html and html.count('class="draw-busy"') == 2
-    SyncRequest.objects.filter(payload__place="beta").update(state="refused", detail="refused: the price moved")
-    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
-        answered = listen.round_once(remote_of(hosted_client()), drafting.source)
-    assert [state for _, state in answered] == ["done"]
-    assert len(made_draws(drafting.source.store, "alpha")) == 1
-    html = owner.get("/places/").content.decode()
-    assert "draw-busy" not in html and 'class="draw-refused" title="refused: the price moved"' in html
-
-
-def test_a_places_page_names_what_it_holds_directly_and_a_part_of_another_place_has_no_card(drafting, stand_in):
-    """Break: pages/concepts.py `asked_to_hold` adds the places two levels down."""
-    (drafting.data / "places/within.json").write_text(json.dumps({
-        "shells": {"yard": {"name": "Yard"}}, "within": {"alpha": {"within": "beta"}, "beta": {"within": "yard"}}}))
-    owner = signed_in()
-    page = owner.get("/concept/yard/").content.decode()
-    assert "data-v>Beta</b>" in page and "data-v>Alpha</b>" not in page
-    assert "data-v>Alpha</b>" in owner.get("/concept/beta/").content.decode()
-    trail = owner.get("/concept/alpha/").content.decode().split('class="trail"')[1].split("</nav>")[0]
-    assert trail.index('href="/concept/yard/"') < trail.index('href="/concept/beta/"') < trail.index("Alpha")
-    (drafting.data / "places/within.json").write_text(json.dumps({
-        "shells": {}, "within": {}, "parts": {"alpha": {"of": "beta", "as": "its far view"}}}))
-    html = owner.get("/").content.decode()
-    assert 'href="/concept/alpha/"' not in html and 'href="/place/alpha/"' not in html
 
 
 def test_a_locked_concepts_page_shows_its_reading_boxed_and_its_euros_reach_the_totals(drafting):
@@ -1497,57 +1098,6 @@ def test_a_locked_concepts_page_shows_its_reading_boxed_and_its_euros_reach_the_
     world.source.refresh()
     page = signed_in("joey3").get("/concept/alpha/").content.decode()
     assert "data-v>fuel drum</span>" not in page and "data-v>to read</span>" in page
-
-
-@pytest.fixture
-def answerer(drafting, stand_in, monkeypatch):
-    """The Discuss's own process run in-process with a stand-in prompt model; [what each Discuss was asked]."""
-    from score.review import discuss, web
-    asked = []
-    monkeypatch.setattr(discuss, "price", lambda *given: DISCUSS_PRICE)
-
-    def run(argv, env, **kwargs):
-        monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
-        model = lambda question, pictures: asked.append(question) or ("Paint the door red.", 0.0271)  # noqa: E731
-        entry = discuss.discuss(drafting.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1],
-                                asker=model)
-        return subprocess.CompletedProcess(argv, 0, json.dumps(entry) + "\n", "")
-    discussed_here = web.concept_discuss
-    monkeypatch.setattr(web, "concept_discuss", lambda *args, **named: discussed_here(*args, run=run, **named))
-    return asked
-
-
-def test_a_discuss_is_answered_kept_and_sent_with_the_next_draw_and_its_cost_summed(drafting, stand_in, answerer,
-                                                                                    settings):
-    """At another price refused; the measured 0.0271 summed; hosted, the listener answers it. Break:
-    score/review/concepts.py `redrawn` leaves the open discussion out of the prompt rewrite."""
-    from score.dashboard.pages import concepts
-    owner = signed_in()
-    drawn(owner, "beta", euros=PRICE)
-    base = owner.get("/concept/beta/state/").json()["newest"]
-    asked = json.dumps({"base": base, "question": "is the door too small?", "euros": DISCUSS_PRICE})
-    assert owner.post("/concept/beta/discuss/", asked, content_type="application/json").status_code == 200
-    state = owner.get(f"/concept/beta/state/?draw={base}").json()
-    assert state["thread"][0]["answer"] == "Paint the door red." and not state["thread"][0]["closed"]
-    owner.post("/concept/beta/discuss/", json.dumps({"base": base, "question": "?", "euros": 0.03}),
-               content_type="application/json")
-    assert "not today" in owner.get("/concept/beta/state/").json()["discuss_refused"]
-    drawn(owner, "beta", base=base, euros=REDRAW_PRICE)
-    assert "Creator: is the door too small?\nYou: Paint the door red." in stand_in[-2]
-    assert owner.get(f"/concept/beta/state/?draw={base}").json()["thread"][0]["closed"] is True
-    assert drafting.source.world_state().discuss_spend == 0.0271
-    base = owner.get("/concept/beta/state/").json()["newest"]
-    settings.SCORE_MODE = settings.HOSTED
-    try:
-        owner.post("/concept/beta/discuss/", json.dumps({"base": base, "question": "why?", "euros": DISCUSS_PRICE}),
-                   content_type="application/json")
-        assert owner.get("/concept/beta/state/").json()["discussing"] is True
-    finally:
-        settings.SCORE_MODE = settings.LOCAL
-    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
-        item = SyncRequest.objects.filter(kind=concepts.DISCUSS).order_by("-pk").first()
-        assert listen.round_once(remote_of(hosted_client()), drafting.source) == [(item.pk, "done")]
-    assert concepts.thread_of(drafting.source.world_state(), "beta", base)[0]["question"] == "why?"
 
 
 # === the plan review and the environment's plan =======================================================================
@@ -1695,35 +1245,6 @@ def test_a_merged_scene_has_no_card_and_a_draw_on_a_moved_room_is_out_of_date_ho
     assert shown.removed == ["beta"] and 'href="/concept/beta/"' not in html and "beta" not in shown.concept_undrawn
 
 
-def test_the_environments_plan_keeps_his_scene_times_and_its_sky_follows_from_the_setting(world, monkeypatch):
-    """Owner 2026-10-21 (no fixed sky: a wording check): his time kept as edited, the overhead worked out from the
-    setting; a daylight concept's night time moved to sun up and said; anyone else refused. Break:
-    score/review/environment_plan.py keeps a daylight site's night time (`if True:`)."""
-    from score.review import environment_plan, reading
-    name = world.source.world_state().world
-    owner = signed_in()
-    html = owner.get(f"/environments/{name}/plan/").content.decode()
-    assert 'data-place="base"' in html and "55.0000° N, 0.0000° E" in html  # where the setting puts it
-    plan = {"maps": [{"on": "moon", "sites": [{"place": "base", "time": "2099-06-01T12:00:00Z"}]}]}
-    refused = signed_in("joey2").post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),
-                                      content_type="application/json")
-    assert refused.status_code == 403
-    assert owner.post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),
-                      content_type="application/json").status_code == 200
-    assert environment_plan.current(world.store, name)["how"] == "edited"
-    base = environment_plan.site_of(world.store, "base", name)
-    assert base["time"] == "2099-06-01T12:00:00Z" and base["overhead"]["bodies"]
-    world.source.refresh()
-    page = owner.get(f"/environments/{name}/plan/").content.decode()
-    assert ">Sky<" not in page and "Overhead, from the physics: Sun" in page
-    monkeypatch.setattr(reading, "concept_light", lambda store, place: {"rows": {}, "scene": {
-        "daylight": True, "unseen": False, "unseen_colour": ""}} if place == "base" else None)
-    night = {"maps": [{"on": "moon", "sites": [{"place": "base", "time": "2099-06-16T12:00:00Z"}]}]}
-    owner.post(f"/environments/{name}/plan/keep/", json.dumps({"plan": night}), content_type="application/json")
-    base = environment_plan.site_of(world.store, "base", name)
-    assert base["written_time"] == "2099-06-16T12:00:00Z" and base["time"] != base["written_time"]
-
-
 # === the environment concept ==========================================================================================
 
 ASK_PRICE = 0.05
@@ -1733,15 +1254,17 @@ SUN = {"name": "Sun", "kelvin": 5800, "lux": 100000, "latitude": 52.0, "tilt_deg
 HOUSE = {"bodies": [], "plots": [{"name": "Meadow", "gravity": 9.81}], "lights": [SUN],
          "backdrops": [{"name": "Sky", "lux": 10000}],
          "sites": [{"place": "house", "on": "meadow", "x": 0, "y": "0", "height_m": 0}]}
+SUN_MOMENTS = ("2024-03-20T12:00:00Z", "2024-05-02T07:30:00Z", "2024-12-21T15:00:00Z")
+HOUSE_CARDS = [("Sun", "light", []), ("Sky", "backdrop", []), ("Meadow", "ground", ["House"])]  # at every moment
 
 
 def posted(owner, path, body):
     return owner.post(f"{ENVIRONMENT}{path}/", json.dumps(body), content_type="application/json")
 
 
-@pytest.fixture
-def asker(world, monkeypatch):
-    """The ask's own process run in-process with a stand-in model, the bucket a folder; [each question asked]."""
+def environment_asked(monkeypatch, shaped):
+    """The environment concept's ask run in-process on `shaped` with a stand-in model, the bucket a folder; [each
+    question asked]."""
     from score.dashboard.pages import concepts
     from score.review import concepts as drawing
     from score.review import environment_concept, web
@@ -1751,132 +1274,20 @@ def asker(world, monkeypatch):
     monkeypatch.setattr(environment_concept, "ask_euros", lambda *given: ASK_PRICE)
     monkeypatch.setattr(concepts, "in_background", concepts.applied_here)
     monkeypatch.setattr(drawing, "offsite_store",
-                        lambda: runtime_store.FolderStore(world.source.store.cache.parent / "bucket"))
+                        lambda: runtime_store.FolderStore(shaped.source.store.cache.parent / "bucket"))
     monkeypatch.setattr(environment_concept, "running_under_agent", lambda: False)
-    monkeypatch.setattr(environment_concept, "PROPS_HOME", world.source.store.cache.parent / "home")
-    monkeypatch.setattr(drawing, "PROPS_HOME", world.source.store.cache.parent / "home")
+    monkeypatch.setattr(environment_concept, "PROPS_HOME", shaped.source.store.cache.parent / "home")
+    monkeypatch.setattr(drawing, "PROPS_HOME", shaped.source.store.cache.parent / "home")
 
     def run(argv, env, **kwargs):
         monkeypatch.setenv("SCORE_SPEND_TICKET", env["SCORE_SPEND_TICKET"])
         model = lambda question, pictures: asked.append(question) or '{"style": "Bright frontier"}'  # noqa: E731
-        record = environment_concept.ask(world.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1],
+        record = environment_concept.ask(shaped.source.store, argv[-3], json.loads(open(argv[-2]).read()), argv[-1],
                                          reviser=model)
         return subprocess.CompletedProcess(argv, 0, json.dumps(record) + "\n", "")
     asked_here = web.environment_ask
     monkeypatch.setattr(web, "environment_ask", lambda *args, **named: asked_here(*args, run=run, **named))
     return asked
-
-
-def test_environment_1s_concept_is_todays_data_locked_each_body_said_from_the_physics(world):
-    """The Moon orbits Earth every 27.3 days, gravity 1.62; Mars a year of 687 days, a day of 24.6 h, 3.7 (the reference
-    table). The page's questions are the store's. Break: pages/setting_picture.py `every` words a period in hours."""
-    from score.dashboard.pages import environment
-    from score.review import environment_concept
-    html = signed_in().get(ENVIRONMENT).content.decode()
-    assert ">locked</b>" in html and "Unlock" in html
-    assert "data-f=" not in html  # owner 2026-10-21: fields only unlocked
-    assert "orbits Earth every 27 days, one face to Earth; gravity 1.6 m/s²" in html
-    assert "orbits Sun every 687 days, a day of 25 h; gravity 3.7 m/s²" in html
-    assert [(name, question) for name, _, question in environment.QUESTIONS] == list(environment_concept.QUESTIONS)
-    assert [environment.steps_around(name)["number"] for name, _, _ in environment.QUESTIONS] == [1, 2, 3, 4, 5]
-    assert signed_in("ann").get("/environments/world9/").status_code == 404
-
-
-def test_a_house_setting_is_its_plot_from_above_with_its_suns_path_where_overhead_puts_it():
-    """The page's sum agrees with score/review/overhead.py at three moments. Break: pages/setting_picture.py `far_way`
-    drops the light's tilt (season 0)."""
-    from score.dashboard.pages import setting_picture
-    from score.review import overhead, setting
-    house = setting.checked(HOUSE)
-    found = setting_picture.view_of(house, {"house": "2024-03-20T12:00:00Z"}, {"house": "House"})
-    assert len(found["pictures"]) == 1 and 'class="sp-body"' not in found["pictures"][0]["svg"]  # no body
-    assert [(card["name"], card["kind"]) for card in found["cards"]] == [
-        ("Sun", "light"), ("Sky", "backdrop"), ("Meadow", "ground")]
-    assert found["cards"][2]["sites"] == ["House"]
-    light = house["lights"][0]
-    for when in ("2024-03-20T12:00:00Z", "2024-05-02T07:30:00Z", "2024-12-21T15:00:00Z"):
-        seen_now = overhead.far_light(light, when)
-        since = overhead.day_of(when) - overhead.day_of(light["equinox"])
-        assert setting_picture.far_way(light, since) == pytest.approx((seen_now["azimuth"], seen_now["altitude"]),
-                                                                      abs=0.01)
-
-
-def test_unlock_asks_to_be_sure_and_puts_every_draw_out_of_date(world, asker):
-    """Break: pages/environment.py `save` unlocks without `sure`."""
-    from score.review import concepts as drawing
-    from score.review import environment_concept
-    owner = signed_in()
-    assert posted(owner, "save", {"locked": False}).status_code == 409
-    assert not environment_concept.unlocked(world.source.store)
-    assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 200
-    assert environment_concept.unlocked(world.source.store)
-    assert drawing.waits(world.source.store, "alpha") == "waits for the environment concept to be locked"
-    html = owner.get(ENVIRONMENT).content.decode()
-    assert "Send, EUR 0.05" in html and "Question 1 of 5" in html
-
-
-def test_save_send_take_and_lock_reach_the_store_at_the_price_shown_and_only_for_the_owner(world, asker):
-    """Break: score/review/web.py `environment_ask` drops its price comparison."""
-    from score.review import environment_concept
-    owner = signed_in()
-    posted(owner, "save", {"sure": True, "locked": False})
-    concept = environment_concept.newest(world.source.store, "world1")["concept"]
-    assert posted(owner, "save", {"concept": {**concept, "style": "Cold steel"}, "locked": False}).status_code == 200
-    assert environment_concept.newest(world.source.store, "world1")["concept"]["style"] == "Cold steel"
-    posted(owner, "ask", {"topic": "style", "answer": "brighter", "euros": 0.04})
-    cheap = SyncRequest.objects.get(kind="environment-ask")
-    assert cheap.state == "refused" and "measured price" in cheap.detail and asker == []
-    cheap.delete()
-    answer = posted(owner, "ask", {"topic": "style", "answer": "brighter", "euros": ASK_PRICE})
-    assert answer.status_code == 200 and "brighter" in asker[0] and "Cold steel" in asker[0]
-    item = SyncRequest.objects.get(kind="environment-ask")
-    assert item.state == "done" and json.loads(item.detail)["proposed"] == {"style": "Bright frontier"}
-    assert posted(owner, "take", {"ask": item.pk}).status_code == 200
-    assert environment_concept.newest(world.source.store, "world1")["concept"]["style"] == "Bright frontier"
-    assert posted(owner, "save", {"concept": concept, "locked": True}).status_code == 200
-    assert environment_concept.in_force(world.source.store)["style"] == concept["style"]
-    assert posted(owner, "ask", {"topic": "style", "answer": "x", "euros": ASK_PRICE}).status_code == 409  # locked
-    assert posted(signed_in("mallory"), "save", {"sure": True, "locked": False}).status_code == 403
-    assert posted(signed_in("eve"), "ask", {"topic": "style", "answer": "x", "euros": ASK_PRICE}).status_code == 403
-
-
-def test_a_new_reference_goes_to_the_bucket_never_the_repository_and_its_bytes_are_dropped_once_read(world, asker):
-    """Break: pages/environment.py `requests_of` keeps an answered picture's bytes."""
-    from score.review import concepts as drawing
-    from score.store import runtime_store
-    owner = signed_in()
-    posted(owner, "save", {"sure": True, "locked": False})
-    data = base64.b64encode(a_png()).decode()
-    answer = posted(owner, "reference", {"name": "dock.png", "data": data, "shows": "the dock's look", "place": "beta"})
-    assert answer.status_code == 200, answer.content
-    bucket = runtime_store.FolderStore(world.source.store.cache.parent / "bucket")
-    assert "dock.png" in json.loads(bucket.read_bytes("references/index.json"))
-    world.source.refresh()
-    assert 'data-picture="{home}/references/dock.png"' in owner.get(ENVIRONMENT).content.decode()
-    assert SyncRequest.objects.get(kind="environment-reference").payload["data"] == ""
-    assert drawing.references_of(world.source.store, "beta") == []  # unlocked: the draws read nothing new yet
-
-
-def test_a_hosted_save_shows_at_once_and_the_listener_applies_it(world, asker, settings, monkeypatch):
-    """And an export made before the environment concept takes no click. Break: pages/environment.py `shown` ignores his
-    saves since the export."""
-    from score.dashboard.pages import environment
-    from score.review import environment_concept
-    owner = signed_in()
-    settings.SCORE_MODE = settings.HOSTED
-    try:
-        assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 200
-        assert ">unlocked</b>" in owner.get(ENVIRONMENT).content.decode()
-        assert posted(owner, "ask", {"topic": "style", "answer": "x", "euros": ASK_PRICE}).status_code == 409
-    finally:
-        settings.SCORE_MODE = settings.LOCAL
-    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
-        assert listen.round_once(remote_of(hosted_client()), world.source) == [(SyncRequest.objects.get().pk, "done")]
-    assert environment_concept.unlocked(world.source.store)
-    SyncRequest.objects.all().delete()
-    monkeypatch.setattr(environment, "shown", lambda world_state: {})
-    assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 409
-    assert SyncRequest.objects.count() == 0
 
 
 # === the library ======================================================================================================
@@ -2483,7 +1894,59 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
     last try; `started` counts a launch stopped before its first heartbeat; state/batch_run.py `gathered` keeps an
     earlier try's line of a row this try makes again; `money_of` gives `left` as the whole budget;
     checkout/watched.py `batch_money` counts spent from 0, not the batch's start; state/batch_run.py `batch_total`
-    drops `need`; pages/run_monitor.py `prepared` drops its made-after-the-try comparison."""
+    drops `need`; pages/run_monitor.py `prepared` drops its made-after-the-try comparison.
+    And the store's machine, on a fresh copy of the world (PINS, LATCH_STEPS, CARDS, REFUSED, ASKS, STOPS): a Buy is
+    refused while a conductor's checkout is off the pin; the sync follows the kill switch latch it set, never one
+    whoever started it set; the export carries the machine, its health and its newest tail lines cut to the cap, and
+    off a conductor says so with no state on the card; the card offers Allow paid only while latched and says when the
+    machine is off the pin; a second machine is shown but claims nothing until the owner confirms it twice; stop
+    everything, stop batch and allow paid are the owner's, asked twice, queued hosted and applied once; refused in an
+    agent's shell and off a conductor.
+    Breaks (each applied once and seen red): sync/client.py `pin_refusal` returns None whatever the commits;
+    sync/client.py `free_only_followed` pops FREE_ONLY whenever the latch file is gone; state/machine.py `cut` drops
+    the newest lines (`pop()`), not the oldest; state/machine.py `state_of` reads no state as idle; state/machine.py
+    `card` gives `code_off` False always; api/routes.py `machine_confirm` skips `asked_twice`; sync/client.py
+    `answered` applies a request it could not claim; pages/actions.py `owner_figure_off_why` drops its `agent_started`
+    refusal.
+    And the concept review, on a fresh drafting copy (alpha drawn the day before, beta not, nothing locked) and the
+    queue emptied: a draw at another price, a Draw all whose total or places moved and anything by anyone else is
+    refused; Draw all is one yes for N first draws at N times the price; his click is a spend yes at the price shown; a
+    draw with no mark and no note is fresh from the place's wording; a Discuss is answered, refused at another price,
+    sent with the next redraw and its cost summed; his marks go to the prompt model, whose prompt becomes the wording;
+    his edited wording is kept until back to generated, hosted too; a pick waits on the layer above; Lock refuses a
+    draw and Unlock frees it, never for an approved design; a place's page names what it holds directly; the listener
+    says an unreachable side and asks again. Then a second fresh copy drawn hosted: draws on their way are not offered
+    twice and show until they land, a refused one says why; a draw reaches the listener once and its picture is served.
+    Breaks (each applied once and seen red): pages/concepts.py `concept_draw` sends no marks; `concept_draw` takes the
+    newest draw as the base when none is posted; `concept_draw` drops the posted `wording`; score/review/web.py
+    `concept_draw` drops its price comparison; score/review/concepts.py `pick` skips `step_refusal`; sync/client.py
+    `answered` sends no picture back; sync/listen.py `listen` pauses SHORTEST_ROUND after an unreachable side;
+    pages/concepts.py `draw_all` prices N draws as one; `concept_draw_all` drops its places comparison; `draw_all`
+    offers places with a draw on its way; `asked_to_hold` adds the places two levels down; score/review/concepts.py
+    `redrawn` leaves the open discussion out of the prompt rewrite.
+    And the environment, on a fresh world copy: environment 1's concept is today's data, locked, each body said from
+    the physics (the Moon orbits Earth every 27.3 days, gravity 1.62; Mars a year of 687 days, a day of 24.6 h, 3.7),
+    the page's questions the store's; a house setting is its plot from above with its sun's path where overhead.py
+    puts it at three moments (SUN_MOMENTS); the environment's plan keeps his scene times, its sky worked out from the
+    setting (owner 2026-10-21: no fixed sky), a daylight concept's night time moved to sun up and said, anyone else
+    refused; unlock asks to be sure and puts every draw out of date; a new reference goes to the bucket, never the
+    repository, its bytes dropped once read; save, send, take and lock reach the store at the price shown and only
+    for the owner; a hosted save shows at once and the listener applies it, and an export made before the environment
+    concept takes no click.
+    Breaks (each applied once and seen red): pages/setting_picture.py `every` words a period in hours;
+    pages/setting_picture.py `far_way` drops the light's tilt (season 0); score/review/environment_plan.py keeps a
+    daylight site's night time (`if True:`); pages/environment.py `save` unlocks without `sure`; score/review/web.py
+    `environment_ask` drops its price comparison; pages/environment.py `requests_of` keeps an answered picture's
+    bytes; pages/environment.py `shown` ignores his saves since the export.
+    And the basket, on a fresh world copy: an item counts what changes (2 added, 1 taken out, 1 refinished) at its
+    measured price, a guess is said as no price (owner rule, a wording check, 2026-10-18); the viewer outlines the
+    added, the lamp and the floor after and the removed, the lamp and the floor before; only the owner chooses, and a
+    choice on another version is not kept; hosted, his answer is kept only once the store's machine applies the
+    owner's and his checkout carries the items he saw; his answers, his own or the recommended one, kept where agents
+    read them, a visitor's refused.
+    Breaks (each applied once and seen red): templates/pages/basket_item.html words the guess as "cost about EUR
+    2.70"; pages/basket.py `choose` skips its version check; sync/applying.py `apply_answer` skips its `from_owner`
+    check; pages/basket.py's marks put `removed` on the after side."""
     from score.dashboard.pages import cockpit, present, views
     from score.dashboard.pages.models import BasketItem, ChangeRequest
     from score.dashboard.state import gaps as gap_rows
@@ -3272,3 +2735,480 @@ def test_cockpit_is_the_owners_true_view(world, built_once, settings, tmp_path, 
                     answered[source] = sources[source]() if source in sources else signed_in(
                         "joey" if who == "owner" else who).get(page).content.decode()
             assert {(source, *probe): probed(answered[source], *probe) for source, *probe in want} == want, moment
+
+    # the store's machine, on a fresh copy of the world: the Buy's pin and the kill switch latch with score.conductor's
+    # own code; then a stood-in conductor exported and carded, a second machine confirmed and the stops applied; then
+    # no conductor at all
+    settings.SCORE_MODE = settings.LOCAL
+    for model in (Checkout, Launch, Plan, SyncRequest):
+        model.objects.all().delete()
+    machine_world = copy_of(built_once[True], tmp_path_factory.mktemp("machine"), monkeypatch)
+    one_store.path().unlink(missing_ok=True)
+    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
+    import score.conductor as real_conductor
+    with pytest.MonkeyPatch.context() as pinned:
+        pinned.setattr(client, "head", lambda repo: "a" * 40)
+        for record, commit, want in PINS:
+            pinned.setattr(real_conductor, "machine", lambda path=None, record=record: record)
+            assert client.pin_refusal(Pinned(commit), "/repo") == want, (record, commit)
+    with pytest.MonkeyPatch.context() as latched:
+        latch_file, free_only = real_conductor.FREE_ONLY_LATCH, real_conductor.FREE_ONLY
+        latched.delenv(free_only, raising=False)
+        latched.setitem(client.LATCHED, "set", False)
+        latch_file.parent.mkdir(parents=True, exist_ok=True)
+        latch = {"latch written": lambda: latch_file.write_text(f"{free_only}=1\n"),
+                 "latch taken off": latch_file.unlink,
+                 "set by whoever started it": lambda: latched.setenv(free_only, "1")}
+        try:
+            for step, followed, environment in LATCH_STEPS:
+                latch[step]()
+                assert (client.free_only_followed(), os.environ.get(free_only)) == (followed, environment), step
+        finally:
+            latch_file.unlink(missing_ok=True)
+    for row, found, want in CARDS:
+        card = machine.card(found)
+        assert all(card[field] is said if isinstance(said, bool) else card[field] == said
+                   for field, said in want.items()), (row, card)
+    kill = stood_in_conductor(monkeypatch)
+    named_machine(machine_world, "conductor")
+    exports = tmp_path_factory.mktemp("machine-export")
+    manifest = building.build(machine_world.source, exports / "one", MADE, 50, SPEND, machine_world.root)
+    found = json.loads((exports / "one/machine.json").read_text())
+    assert manifest["machine"] == "conductor" and manifest["written"][:2] == ["state.json", "machine.json"]
+    assert found["health"]["bill"]["euros"] == 12.34 and found["tails"]["faults"] == ["one fault"]
+    assert sum(len(line) + 1 for lines in found["tails"].values() for line in lines) <= machine.TAIL_BYTES
+    assert found["tails"]["run.log"][-1].startswith(f"line {machine.TAIL_LINES - 1} ")  # the newest lines kept
+    assert ExportedSource(exports / "one").machine() == found
+    small = building.build(machine_world.source, exports / "small", MADE, 0.05, SPEND, machine_world.root)
+    assert json.loads((exports / "small/machine.json").read_text())["tails"] == {}
+    assert {"what": "the store's machine's log tails", "why": "over the export's cap"} in small["left_out"]
+    home = signed_in().get("/").content.decode()
+    assert "conductor" in home and "Stop everything" in home and "Allow paid work again" in home  # the latch is set
+    shown = signed_in().get("/machine/").content.decode()
+    assert "one fault" in shown and "score-sync.timer" in shown
+    with pytest.MonkeyPatch.context() as off_pin:
+        off_pin.setitem(sys.modules, "score.conductor.health", types.SimpleNamespace(
+            read=lambda: {**HEALTH, "free_only": False, "code": OFF_PIN}))
+        home = signed_in().get("/").content.decode()
+    assert "the cloud machine is on aaaaaaaa, the cockpit on bbbbbbbb; it is being updated" in home
+    assert "Allow paid work again" not in home
+    settings.SCORE_SYNC_TOKEN, settings.SCORE_MODE = TOKEN, settings.HOSTED
+    web = hosted_client()
+    pc, store_side = remote_of(web, "pc"), remote_of(web, "conductor")
+    committed_by(pc, "pc")
+    committed_by(store_side, "conductor")
+    assert one_store.record()["name"] == "pc" and one_store.second(THEN) == "conductor"
+    change = SyncRequest.objects.create(kind="change", user="joey", payload={"stage": "closeup", "words": "redder"})
+    assert store_side.claim(change.pk) is False and "not the store's machine (pc)" in store_side.not_the_store
+    change.refresh_from_db()
+    assert change.state == "waiting"
+    settings.SCORE_MODE = settings.LOCAL  # the store's machine applies them
+    for kind, by, payload, agent, on_conductor, words in REFUSED:
+        with pytest.MonkeyPatch.context() as where:
+            where.setattr(actions, "agent_started", lambda agent=agent: agent)
+            if not on_conductor:
+                off_a_conductor(where)
+            applied = applying.apply({"kind": kind, "user": by, "payload": payload}, machine_world.source)
+        assert applied.state == "refused" and words in applied.detail, (kind, by, applied.detail)
+    assert kill.calls == [] and one_store.record()["name"] == "pc"
+    settings.SCORE_MODE = settings.HOSTED
+    askers = {"the sync token alone": web, "joey": api(), "mallory": api("mallory")}
+    for who, path, body, status in ASKS:
+        headers = {"Authorization": f"Bearer {TOKEN}"} if who == "the sync token alone" else {}
+        assert askers[who].post(f"/api/machine/{path}", json=body, headers=headers).status_code == status, (who, path)
+    assert one_store.record()["name"] == "pc" and list(SyncRequest.objects.values_list("pk", flat=True)) == [change.pk]
+    owner = askers["joey"]
+    answer = owner.post("/api/machine/confirm", json={"machine": "conductor", "sure": True})
+    assert answer.status_code == 200 and one_store.record()["by"] == "joey" and one_store.second(THEN) is None
+    assert pc.claim(change.pk) is False and store_side.claim(change.pk) is True and store_side.not_the_store is None
+    for path, body, _, _ in STOPS:
+        assert owner.post(f"/api/machine/{path}", json=body).json()["said"].startswith("queued"), path
+    assert kill.calls == []  # hosted, nothing is done but queue
+    settings.SCORE_MODE = settings.LOCAL
+    remote = remote_of(hosted_client(), "conductor")
+    for _, _, kind, call in STOPS:
+        stop = SyncRequest.objects.get(kind=kind)
+        item = {"id": stop.pk, "kind": stop.kind, "user": stop.user, "payload": stop.payload}
+        assert client.answered(remote, item, machine_world.source).state == "done" and kill.calls[-1] == call, kind
+        assert client.answered(remote, item, machine_world.source) is None, kind  # claimed once: never applied again
+    assert len(kill.calls) == 3
+    from score.dashboard.pages import machine as machine_page
+    assert machine_page.report_counts(SyncRequest.objects.get(kind="stop-batch").detail) == [("parked", 1),
+                                                                                              ("runs", 1)]
+    one_store.kept({"name": "pc", "others": {"naive": "2026-10-18T13:00:00", "broken": "not a time"}})
+    assert one_store.second(THEN) == "naive"  # a time of no zone or none breaks no page
+    off_a_conductor(monkeypatch)
+    building.build(machine_world.source, exports / "off", MADE, 50, SPEND, machine_world.root)
+    found = json.loads((exports / "off/machine.json").read_text())
+    assert found["health"] == {"missing": machine.NOT_ON_CONDUCTOR} and found["tails"] == {}
+    assert found["machine"]["name"]
+    card = machine.card(found, MADE)
+    assert card["missing"] == machine.NOT_ON_CONDUCTOR and card["state"] is None and card["export_late"]
+    one_store.path().unlink(missing_ok=True)
+    shutil.rmtree(settings.SCORE_HOME / "export", ignore_errors=True)
+
+    # the concept review, on a fresh drafting copy (alpha drawn the day before, beta not, nothing locked) with the queue
+    # emptied: refused, drawn all, drawn, discussed, redrawn by his marks and his wording, held, locked; then a second
+    # fresh copy drawn hosted and answered by the listener
+    from score.dashboard.pages import concepts as concept_pages
+    from score.review import concepts as drawing
+    from score.review import web as review_web
+    for model in (Checkout, Launch, Plan, SyncRequest):
+        model.objects.all().delete()
+    drafts = [copy_of(built_once[False], tmp_path_factory.mktemp("drafting"), monkeypatch)]
+    asked = stood_in(monkeypatch, lambda: drafts[-1])
+    drafting = drafts[-1]
+    answered_in_process(monkeypatch, drafting)
+    store, owner, mallory = drafting.source.store, signed_in(), signed_in("mallory")
+
+    def sent(poster, page, body):
+        return poster.post(page, json.dumps(body), content_type="application/json")
+
+    def offered():
+        return concept_pages.draw_all(concept_pages.light_world(drafting.source))
+
+    def beta_newest():
+        return owner.get("/concept/beta/state/").json()["newest"]
+
+    places = offered()["places"]
+    assert places == ["alpha", "beta"] and "Draw all 2, EUR 0.30" in owner.get("/places/").content.decode()
+    refused = [(owner, "/concepts/draw-all/", {"places": places, "euros": 0.15}, 409),  # the total moved
+               (owner, "/concepts/draw-all/", {"places": ["alpha"], "euros": 0.30}, 409),  # the places moved
+               (mallory, "/concepts/draw-all/", {"places": places, "euros": 0.30}, 403),
+               (mallory, "/concept/beta/draw/", {"euros": PRICE}, 403),
+               (mallory, "/concept/beta/pick/", {"sha": None}, 403)]
+    assert [(page, sent(poster, page, body).status_code) for poster, page, body, _ in refused] == [
+        (page, code) for _, page, _, code in refused]
+    assert SyncRequest.objects.count() == 0
+    drawn(owner, "beta", euros=0.05)
+    assert "measured price" in owner.get("/concept/beta/state/").json()["refused"]
+    assert made_draws(store, "beta") == []
+    with monkeypatch.context() as patched:
+        patched.setattr(concept_pages, "approved", lambda source, place: True)
+        answer = sent(owner, "/concept/beta/pick/", {"sha": None})
+    assert answer.status_code == 409 and "approved" in answer.json()["detail"]  # an approved design stays locked
+
+    assert sent(owner, "/concepts/draw-all/", {"places": places, "euros": 0.30}).status_code == 200
+    for place in places:
+        found = made_draws(store, place)
+        assert len(found) == 1 and found[0]["base"] is None and found[0]["euros"] == PRICE, place
+        assert "Draw all, 2 first draws for EUR 0.30" in store.spend_yes("override", found[0]["yes"])["purpose"], place
+    assert offered() is None
+    waits = drawing.waits
+    with monkeypatch.context() as patched:
+        patched.setattr(drawing, "waits", lambda held, place: "waits for yard's concept to be locked"
+                        if place == "alpha" else waits(held, place))
+        assert offered() is None  # alpha waits, beta drawn
+    with pytest.raises(review_web.review.Refused, match="changed"):  # on the store's machine, drawn since the click
+        review_web.concept_draw(store, "beta", {}, PRICE, by="joey", first=True)
+    assert len(made_draws(store, "beta")) == 1
+
+    assert drawn(owner, "beta", euros=PRICE).status_code == 200
+    state = owner.get("/concept/beta/state/").json()
+    assert state["pending"] is False and state["refused"] is None and state["newest"]
+    drawn(owner, "beta", marks=[], note="", base=None, euros=PRICE)
+    beta_draws = made_draws(store, "beta")
+    first, fresh = beta_draws[-2:]
+    assert len(beta_draws) == 3
+    yes = store.spend_yes("override", first["yes"])
+    assert yes["by"] == "joey" and yes["euros"] == PRICE and "beta" in yes["purpose"]
+    assert fresh["base"] is None and fresh["marks"] == [] and fresh["sha"] != first["sha"]
+    assert asked[-1] == asked[-2] and "Box" not in asked[-1]
+    assert fresh["yes"] != first["yes"] and fresh["euros"] == PRICE
+    assert (store.cache.parent / "bucket" / f"concept-draws/{fresh['sha']}.png").is_file()
+
+    base = beta_newest()
+
+    def discussed(question, euros):
+        return sent(owner, "/concept/beta/discuss/", {"base": base, "question": question, "euros": euros})
+
+    assert discussed("is the door too small?", DISCUSS_PRICE).status_code == 200
+    thread = owner.get(f"/concept/beta/state/?draw={base}").json()["thread"]
+    assert thread[0]["answer"] == "Paint the door red." and not thread[0]["closed"]
+    discussed("?", 0.03)
+    assert "not today" in owner.get("/concept/beta/state/").json()["discuss_refused"]
+    drawn(owner, "beta", base=base, euros=REDRAW_PRICE)
+    assert "Creator: is the door too small?\nYou: Paint the door red." in asked[-2]
+    assert owner.get(f"/concept/beta/state/?draw={base}").json()["thread"][0]["closed"] is True
+    assert drafting.source.world_state().discuss_spend == 0.0271
+
+    marks = [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "note": "a window"}]
+    drawn(owner, "beta", marks=marks, base=beta_newest(), euros=REDRAW_PRICE)
+    assert "Box 1 (top left): a window." in asked[-2]  # the prompt model corrects the prompt by it
+    assert asked[-1].startswith("The corrected prompt.")
+    assert drawing.own_wording(store, "beta") == "The corrected prompt."
+    generated = escape(drawing.generated(store, "beta"))
+    edited = "One concept painting of beta at dusk, its doors open."
+    drawn(owner, "beta", marks=[], note="", base=None, euros=PRICE, wording=edited)
+    assert asked[-1] == edited and drawing.own_wording(store, "beta") == edited
+    assert f">{edited}</textarea>" in owner.get("/concept/beta/").content.decode()
+    assert mallory.post("/concept/beta/generated/").status_code == 403
+    assert owner.post("/concept/beta/generated/").json()["said"] == "back to the generated wording"
+    assert f">{generated}</textarea>" in owner.get("/concept/beta/").content.decode()
+
+    with monkeypatch.context() as patched:
+        patched.setattr(drawing, "step_refusal", lambda held, place, step: "waits for yard's plan to be made")
+        page = owner.get("/concept/beta/").content.decode()
+        pick = page[page.index('id="concept-pick"'):].split(">", 1)[0]
+        assert " disabled" in pick and "waits for yard&#x27;s plan to be made" in pick
+        answer = sent(owner, "/concept/beta/pick/", {"sha": made_draws(store, "beta")[-1]["sha"]})
+        assert answer.status_code == 409 and "plan to be made" in answer.json()["detail"]
+    assert drawing.picked(store, "beta") is None
+    assert sent(owner, "/concept/beta/pick/", {"sha": beta_newest()}).json()
+    assert 'ptile-review" href="/concept/beta/"' not in owner.get("/places/").content.decode()
+    assert drawn(owner, "beta", euros=PRICE).status_code == 409  # locked
+    sent(owner, "/concept/beta/pick/", {"sha": None})
+    assert 'href="/concept/beta/"' in owner.get("/places/").content.decode()
+    assert owner.get("/concept/nowhere/").status_code == 404
+
+    base = beta_newest()
+    settings.SCORE_MODE = settings.HOSTED
+    discussed("why?", DISCUSS_PRICE)
+    assert owner.get("/concept/beta/state/").json()["discussing"] is True
+    settings.SCORE_MODE = settings.LOCAL
+    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
+        item = SyncRequest.objects.filter(kind=concept_pages.DISCUSS).order_by("-pk").first()
+        assert listen.round_once(remote_of(hosted_client()), drafting.source) == [(item.pk, "done")]
+    assert concept_pages.thread_of(drafting.source.world_state(), "beta", base)[0]["question"] == "why?"
+    settings.SCORE_MODE = settings.HOSTED
+    drawn(owner, "beta", euros=PRICE, wording="beta, my words")
+    assert ">beta, my words</textarea>" in owner.get("/concept/beta/").content.decode()  # before the export
+    owner.post("/concept/beta/generated/")
+    assert ">beta, my words</textarea>" not in owner.get("/concept/beta/").content.decode()
+    settings.SCORE_MODE = settings.LOCAL
+
+    (drafting.data / "places/within.json").write_text(json.dumps({
+        "shells": {"yard": {"name": "Yard"}}, "within": {"alpha": {"within": "beta"}, "beta": {"within": "yard"}}}))
+    page = owner.get("/concept/yard/").content.decode()
+    assert "data-v>Beta</b>" in page and "data-v>Alpha</b>" not in page
+    assert "data-v>Alpha</b>" in owner.get("/concept/beta/").content.decode()
+    trail = owner.get("/concept/alpha/").content.decode().split('class="trail"')[1].split("</nav>")[0]
+    assert trail.index('href="/concept/yard/"') < trail.index('href="/concept/beta/"') < trail.index("Alpha")
+    (drafting.data / "places/within.json").write_text(json.dumps({
+        "shells": {}, "within": {}, "parts": {"alpha": {"of": "beta", "as": "its far view"}}}))
+    html = owner.get("/").content.decode()
+    assert 'href="/concept/alpha/"' not in html and 'href="/place/alpha/"' not in html  # a part of another place
+
+    class Down:  # a hosted side that cannot be reached
+        def waiting(self, kinds, wait, skip=()):
+            raise urllib.error.URLError("refused")
+
+    class Old:  # a hosted side that answers at once, not holding the call
+        not_the_store = None
+
+        def waiting(self, kinds, wait, skip=()):
+            return []
+    for side, rounds, pauses, says in ((Down(), 2, [listen.RETRY_SECONDS] * 2, "did not answer"),
+                                       (Old(), 3, [listen.SHORTEST_ROUND] * 3, None)):
+        said, paused = [], []
+        listen.listen(side, drafting.source, rounds=rounds, log=said.append, pause=paused.append)
+        assert paused == pauses and (says is None or len(said) == rounds and says in said[0]), type(side).__name__
+
+    for model in (SyncRequest,):
+        model.objects.all().delete()
+    shutil.rmtree(settings.SCORE_HOME / "request-files", ignore_errors=True)
+    drafts.append(copy_of(built_once[False], tmp_path_factory.mktemp("drafting-hosted"), monkeypatch))
+    drafting = drafts[-1]
+    store = drafting.source.store
+    settings.SCORE_MODE = settings.HOSTED
+    sent(owner, "/concepts/draw-all/", {"places": offered()["places"], "euros": 0.30})
+    assert offered() is None  # on their way: not offered twice
+    settings.SCORE_MODE = settings.LOCAL
+    html = owner.get("/places/").content.decode()
+    assert "Drawing 2..." in html and html.count('class="draw-busy"') == 2
+    SyncRequest.objects.filter(payload__place="beta").update(state="refused", detail="refused: the price moved")
+    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
+        answered = listen.round_once(remote_of(hosted_client()), drafting.source)
+    assert [state for _, state in answered] == ["done"] and len(made_draws(store, "alpha")) == 1
+    html = owner.get("/places/").content.decode()
+    assert "draw-busy" not in html and 'class="draw-refused" title="refused: the price moved"' in html
+    settings.SCORE_MODE = settings.HOSTED
+    drawn(owner, "beta", euros=PRICE)
+    assert owner.get("/concept/beta/state/").json()["pending"] is True
+    settings.SCORE_MODE = settings.LOCAL
+    item = SyncRequest.objects.filter(kind=concept_pages.DRAW).order_by("-pk").first()
+    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
+        web = hosted_client()
+        remote = remote_of(web)
+        assert web.post(f"/api/sync/requests/{item.pk}/claim",
+                        headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
+        SyncRequest.objects.filter(pk=item.pk).update(state="waiting")  # a second caller is refused only once claimed
+        assert listen.round_once(remote, drafting.source) == [(item.pk, "done")]
+        assert remote.waiting(listen.LISTENED, 0) == [] and not remote.claim(item.pk)  # held once, claimed once
+    record = json.loads(SyncRequest.objects.get(pk=item.pk).detail)
+    landed = {json.loads(done.detail)["sha"] for done in SyncRequest.objects.filter(kind=concept_pages.DRAW,
+                                                                                     state="done")}
+    assert record["sha"] in landed and len(landed) == 2
+    assert sorted(path.name for path in (settings.SCORE_HOME / "request-files").iterdir()) == sorted(
+        f"{sha}-{size}.jpg" for sha in landed for size in (1280, 360))
+    shown = concept_pages.answered_draws("beta")
+    assert [draw.picture.sha for draw in shown] == [record["sha"]] and shown[0].picture.thumb_url
+
+    # the environment, on a fresh world copy (its concept locked) with the queue emptied, walked once: the locked
+    # concept page says each body from the physics and asks the store's questions; the plan page puts the base where
+    # the setting does, keeps his scene time and works the sky out of the setting; unlocked only when he is sure; a
+    # reference sent to the bucket; saved, asked at the price shown, taken and locked; anyone else refused (ACCESS);
+    # then saved hosted, shown at once and applied by the listener. The setting's picture is judged on its own rows.
+    from score.dashboard.pages import environment as environment_pages
+    from score.dashboard.pages import setting_picture
+    from score.review import environment_concept, environment_plan, overhead, reading, setting
+    house = setting.checked(HOUSE)
+    light = house["lights"][0]
+    for when in SUN_MOMENTS:
+        found = setting_picture.view_of(house, {"house": when}, {"house": "House"})
+        assert len(found["pictures"]) == 1 and 'class="sp-body"' not in found["pictures"][0]["svg"], when  # no body
+        assert [(card["name"], card["kind"], card["sites"]) for card in found["cards"]] == HOUSE_CARDS, when
+        seen_now = overhead.far_light(light, when)
+        since = overhead.day_of(when) - overhead.day_of(light["equinox"])
+        assert setting_picture.far_way(light, since) == pytest.approx((seen_now["azimuth"], seen_now["altitude"]),
+                                                                      abs=0.01), when
+
+    SyncRequest.objects.all().delete()
+    shaped = copy_of(built_once[True], tmp_path_factory.mktemp("environment"), monkeypatch)
+    concept_asked = environment_asked(monkeypatch, shaped)
+    store, owner = shaped.source.store, signed_in()
+    name = shaped.source.world_state().world
+    html = owner.get(ENVIRONMENT).content.decode()
+    assert ">locked</b>" in html and "Unlock" in html
+    assert "data-f=" not in html  # owner 2026-10-21: fields only unlocked
+    assert "orbits Earth every 27 days, one face to Earth; gravity 1.6 m/s²" in html  # the reference table's Moon
+    assert "orbits Sun every 687 days, a day of 25 h; gravity 3.7 m/s²" in html  # and Mars
+    assert [(question_name, question) for question_name, _, question in environment_pages.QUESTIONS] == list(
+        environment_concept.QUESTIONS)
+    assert [environment_pages.steps_around(question_name)["number"]
+            for question_name, _, _ in environment_pages.QUESTIONS] == [1, 2, 3, 4, 5]
+
+    html = owner.get(f"/environments/{name}/plan/").content.decode()
+    assert 'data-place="base"' in html and "55.0000° N, 0.0000° E" in html  # where the setting puts it
+    plan = {"maps": [{"on": "moon", "sites": [{"place": "base", "time": "2099-06-01T12:00:00Z"}]}]}
+    assert owner.post(f"/environments/{name}/plan/keep/", json.dumps({"plan": plan}),
+                      content_type="application/json").status_code == 200
+    assert environment_plan.current(store, name)["how"] == "edited"
+    base = environment_plan.site_of(store, "base", name)
+    assert base["time"] == "2099-06-01T12:00:00Z" and base["overhead"]["bodies"]
+    shaped.source.refresh()
+    html = owner.get(f"/environments/{name}/plan/").content.decode()
+    assert ">Sky<" not in html and "Overhead, from the physics: Sun" in html  # no fixed sky
+    with monkeypatch.context() as patched:  # a daylight concept's night time moves to sun up and says so
+        patched.setattr(reading, "concept_light", lambda held, place: {"rows": {}, "scene": {
+            "daylight": True, "unseen": False, "unseen_colour": ""}} if place == "base" else None)
+        night = {"maps": [{"on": "moon", "sites": [{"place": "base", "time": "2099-06-16T12:00:00Z"}]}]}
+        owner.post(f"/environments/{name}/plan/keep/", json.dumps({"plan": night}), content_type="application/json")
+        base = environment_plan.site_of(store, "base", name)
+    assert base["written_time"] == "2099-06-16T12:00:00Z" and base["time"] != base["written_time"]
+
+    assert posted(owner, "save", {"locked": False}).status_code == 409  # not sure
+    assert not environment_concept.unlocked(store)
+    assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 200
+    assert environment_concept.unlocked(store)
+    assert drawing.waits(store, "alpha") == "waits for the environment concept to be locked"
+    answer = posted(owner, "reference", {"name": "dock.png", "data": base64.b64encode(a_png()).decode(),
+                                         "shows": "the dock's look", "place": "beta"})
+    assert answer.status_code == 200, answer.content
+    bucket = runtime_store.FolderStore(store.cache.parent / "bucket")
+    assert "dock.png" in json.loads(bucket.read_bytes("references/index.json"))  # the bucket, never the repository
+    shaped.source.refresh()
+    html = owner.get(ENVIRONMENT).content.decode()
+    assert "Send, EUR 0.05" in html and "Question 1 of 5" in html
+    assert 'data-picture="{home}/references/dock.png"' in html
+    assert SyncRequest.objects.get(kind="environment-reference").payload["data"] == ""  # its bytes dropped once read
+    assert drawing.references_of(store, "beta") == []  # unlocked: the draws read nothing new yet
+
+    concept = environment_concept.newest(store, "world1")["concept"]
+    assert posted(owner, "save", {"concept": {**concept, "style": "Cold steel"}, "locked": False}).status_code == 200
+    assert environment_concept.newest(store, "world1")["concept"]["style"] == "Cold steel"
+    posted(owner, "ask", {"topic": "style", "answer": "brighter", "euros": 0.04})
+    cheap = SyncRequest.objects.get(kind="environment-ask")
+    assert cheap.state == "refused" and "measured price" in cheap.detail and concept_asked == []
+    cheap.delete()
+    answer = posted(owner, "ask", {"topic": "style", "answer": "brighter", "euros": ASK_PRICE})
+    assert answer.status_code == 200 and "brighter" in concept_asked[0] and "Cold steel" in concept_asked[0]
+    item = SyncRequest.objects.get(kind="environment-ask")
+    assert item.state == "done" and json.loads(item.detail)["proposed"] == {"style": "Bright frontier"}
+    assert posted(owner, "take", {"ask": item.pk}).status_code == 200
+    assert environment_concept.newest(store, "world1")["concept"]["style"] == "Bright frontier"
+    assert posted(owner, "save", {"concept": concept, "locked": True}).status_code == 200
+    assert environment_concept.in_force(store)["style"] == concept["style"]
+    access = (  # (who, path, body or None for a GET, code), on the locked concept
+        ("owner", f"{ENVIRONMENT}ask/", {"topic": "style", "answer": "x", "euros": ASK_PRICE}, 409),  # locked
+        ("eve", f"{ENVIRONMENT}ask/", {"topic": "style", "answer": "x", "euros": ASK_PRICE}, 403),
+        ("mallory", f"{ENVIRONMENT}save/", {"sure": True, "locked": False}, 403),
+        ("joey2", f"/environments/{name}/plan/keep/", {"plan": plan}, 403),
+        ("ann", "/environments/world9/", None, 404))
+    for who, path, body, code in access:
+        asker = owner if who == "owner" else signed_in(who)
+        said = asker.get(path) if body is None else asker.post(path, json.dumps(body),
+                                                                content_type="application/json")
+        assert said.status_code == code, (who, path)
+    assert environment_concept.in_force(store)["style"] == concept["style"]
+
+    SyncRequest.objects.all().delete()
+    settings.SCORE_MODE = settings.HOSTED
+    assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 200
+    assert ">unlocked</b>" in owner.get(ENVIRONMENT).content.decode()  # shown at once, before the export
+    assert posted(owner, "ask", {"topic": "style", "answer": "x", "euros": ASK_PRICE}).status_code == 409
+    settings.SCORE_MODE = settings.LOCAL
+    with override_settings(SCORE_SYNC_TOKEN=TOKEN):
+        assert listen.round_once(remote_of(hosted_client()), shaped.source) == [(SyncRequest.objects.get().pk, "done")]
+    assert environment_concept.unlocked(store)
+    SyncRequest.objects.all().delete()
+    with monkeypatch.context() as patched:  # an export made before the environment concept takes no click
+        patched.setattr(environment_pages, "shown", lambda world_state: {})
+        assert posted(owner, "save", {"sure": True, "locked": False}).status_code == 409
+    assert SyncRequest.objects.count() == 0
+
+    # the basket, on a fresh world copy with a made basket in a fresh home and the queue emptied: each item says what
+    # changes and a guess is never a price; the viewer outlines each side's changes; only the owner chooses, on the
+    # version he saw; hosted, his answer and his checkout are queued and the store's machine applies only the owner's;
+    # then his answers kept where agents read them, his own words or the recommended one
+    from score.dashboard.pages import basket as basket_page
+    for model in (BasketAnswer, BasketChoice, Checkout, Launch, Plan, SyncRequest):
+        model.objects.all().delete()
+    basket_world = copy_of(built_once[True], tmp_path_factory.mktemp("basket"), monkeypatch)
+    settings.SCORE_HOME = tmp_path_factory.mktemp("basket-home") / "home"
+    basket = a_basket(settings.SCORE_HOME / "proposals")
+    owner, visitor = signed_in(), signed_in("visitor")
+    page = owner.get("/basket/").content.decode()  # counted from CHANGES; the measured price 2.00 to 3.00
+    assert "2 objects added · 1 object taken out · 1 object refinished" in page and "at most 3.00" in page
+    guessed = visitor.get("/basket/item/environment-people-body/").content.decode()
+    assert "EUR 2.70, which is not a price" in guessed and "Only the owner buys" in guessed
+    assert signed_in("other").get("/basket/item/nothing-here/").status_code == 404
+    copy = basket_world.source.web_copies / "alpha"
+    copy.mkdir(parents=True, exist_ok=True)
+    (copy / "alpha.json").write_text(json.dumps({"made_at": "2026-10-19T08:00:00Z", "objects": []}))
+    for who, query, base, marks in (  # (who, the viewer's query, its base, the kinds it outlines on that side)
+            ("joey", "item=alpha-pieces&embed=1", "/basket-file/alpha/web3d/", ["added", "added", "lamp",
+                                                                                "refinished"]),
+            ("other", "item=alpha-pieces&side=before", "/web/alpha/", ["lamp", "refinished", "removed"])):
+        shown = view_data(signed_in(who).get(f"/view/alpha?{query}").content.decode())
+        assert (shown["base"], sorted(mark["kind"] for mark in shown["marks"])) == (base, marks), query
+    item = records.item(basket, "alpha-pieces")
+    form = {"item": "alpha-pieces", "version": item["version"], "choice": "buy"}
+    assert visitor.post("/basket/choose/", form).status_code == 403 and not BasketChoice.objects.exists()
+    owner.post("/basket/choose/", {**form, "version": "0" * 16})  # a choice on another version is not kept
+    assert not BasketChoice.objects.exists()
+    owner.post("/basket/choose/", form)
+    assert BasketChoice.objects.get(item="alpha-pieces").choice == "buy"
+    settings.SCORE_MODE = settings.HOSTED
+    (settings.SCORE_HOME / "export" / "current").mkdir(parents=True)
+    (settings.SCORE_HOME / "export" / "current" / "proposals").symlink_to(basket)
+    recommended = {"item": "ship-room-concepts", "number": "1", "take": "recommended"}
+    owner.post("/basket/answer/", recommended)
+    queued = SyncRequest.objects.get(kind="answer")
+    assert records.answers(basket) == {}  # kept only once the store's machine applies it
+    owner.post("/basket/choose/", form)
+    owner.post("/basket/checkout/", {"key": "a" * 32, "confirm": "yes"})
+    assert SyncRequest.objects.get(kind="checkout").payload == {
+        "key": "a" * 32, "items": [{"id": "alpha-pieces", "version": item["version"]}]}
+    assert "waits for the store's machine" in basket_page.last_checkout()
+    settings.SCORE_MODE = settings.LOCAL
+    BasketAnswer.objects.all().delete()
+    assert applying.apply({"kind": "answer", "user": "mallory", "payload": queued.payload}, None).state == "refused"
+    assert records.answers(basket) == {}  # only the owner's answer is applied
+    done = applying.apply({"kind": "answer", "user": "joey", "payload": queued.payload}, None)
+    assert done.state == "done" and records.answers(basket)["ship-room-concepts"]["1"]["by"] == "joey"
+    owner.post("/basket/answer/", {**recommended, "take": "own", "answer": "Two decks where they fit."})
+    assert records.answers(basket)["ship-room-concepts"]["1"]["answer"] == "Two decks where they fit."
+    owner.post("/basket/answer/", recommended)
+    assert records.answers(basket)["ship-room-concepts"]["1"]["answer"] == "One deck, as in your cutaway picture."
+    assert visitor.post("/basket/answer/", recommended).status_code == 403
