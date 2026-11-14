@@ -95,7 +95,7 @@ MAY_SKIP = {
 FUNCTION_DEBT_DATE = "2026-11-01"
 FUNCTION_DEBT = {
     "score/dashboard/checkout/test_a_batch_buys_only_what_the_owner_approved.py": 37,
-    "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 19,
+    "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 18,
     "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 3,
     "score/stages/scene_record/test_a_scene_record_is_written_from_its_design.py": 3,
     "score/stages/sim_body/inside/bone_groups/test_each_segment_rides_and_groups_bodies_of_its_side_joint_to_joint.py": 2,
