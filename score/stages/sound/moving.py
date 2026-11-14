@@ -38,7 +38,10 @@ def travel_seconds(motion):
 
 
 def moves_of(motion, when):
-    """The moves of a slide or a swing that go `when` (open, shut or either): [(start, end)] in its round's seconds."""
+    """The moves of a slide or a swing that go `when` (open, shut or either): [(start, end)] in its round's seconds; a
+    climb's one move, its lift-off from its round's start over its length, goes `either` way only."""
+    if "climb" in motion:
+        return [(0.0, float(motion["length"]))] if when == "either" else []
     moves = (motion.get("slide") or motion.get("swing") or {}).get("moves", [])
     travel = travel_seconds(motion)
     return [(float(at), float(at) + travel) for at, way in moves if when in (way, "either")]

@@ -359,6 +359,14 @@ EVENTS = [
                "lock_1": [("hatch_open", "/toy/Objects/lock_1", 4.0, None),
                           ("airlock_hatch_seal_clunk", "/toy/Objects/lock_1", 15.0, None)],
                "bay_1": [("garage_door_run", "/toy/Objects/bay_1", 0.0, 34.0426)]}},
+    # sound@square, 2026-11-14: the house table named no rocket, so a launching rocket's climb was silent and failed
+    # events; by the house table it roars as it lifts off, once, from its round's start
+    {"id": "by the house table a rocket roars as it lifts off", "rows": [{"id": "pad", "name": "launching rocket",
+                                                                         "noun": "rocket"}], "table": None,
+     "motions": [],
+     "moves": [{"name": "pad_1", "prim": "/toy/Objects/pad_1", "row": "pad", "kind": "rocket", "on": "air",
+                "start": 0.0, "length": 20.0, "loop": False, "climb": {"lift": 0.0, "push": 12.5, "pull": 9.8}}],
+     "heard": {"pad_1": [("rocket_launch", "/toy/Objects/pad_1", 0.0, None)]}},
 ]
 # moving.py's rounds are the assembly's (tools/usd/sound.rounds_of): one, a short loop's, a long loop's
 ROUNDS = [{"start": 1.0}, {"start": 0.0, "length": 14.0, "loop": True}, {"start": 0.0, "length": 86.0, "loop": True}]
@@ -678,6 +686,9 @@ def test_a_place_is_heard_as_its_design_says(toy):
         -> `if any(not has_file(name) and not briefed(name) for name in names):`
     Break: data/sound/voices.json: `"people": "crew_talk"` -> `"people": "no_such_brief"`
     Break: data/sound/moving.json: a `words` entry's `"name": "garage_door_run"` -> `"name": "no_such_brief"`
+    Break: score/stages/sound/moving.py: `return [(0.0, float(motion["length"]))] if when == "either" else []` ->
+        `return []` (a launching rocket silent)
+    Break: data/sound/moving.json: the rocket's climb `"name": "rocket_launch"` -> `"name": "no_such_brief"`
     Break: score/stages/sound/takes.py: `for name in sorted({job["file"] for job in jobs}):` -> `for name in []:`
     Break: score/stages/sound/takes.py: `lost_before = [job for job in wanted if asked_here(job)]` -> `lost_before =
         []`

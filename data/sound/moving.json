@@ -1,5 +1,5 @@
 {
- "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, lift) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Each part names a library brief (`name`): every old pick is retired (owner, 2026-10-21), so each brief named here is made fresh in the batch by the sound row (a MOSS take, made once and shared by every place that plays it), and a take that does not come back is a batch gap on the moving things that play it; a part that names none plays nothing, and a moving thing none of whose parts names a sound fails `events`. `words` (by kind, where named) are a row's own words choosing its sounds before its kind's: the first entry whose words the row's name holds and that names the move (a hatch's bolts, never an Earth door's).",
+ "is": "what the things that move sound like, where no record plays a sound with them: the library's sounds for a moving thing by what moves and how, keyed by its row's kind (data/checks/row-kinds.json, score/stages/row_kinds.py: door, crane, fan, vehicle, gantry, robot, rocket) and its move (slide, swing, path, spin, climb, turn), never by a place or a prim's name. A moving thing's kind is its inventory row's (the row its record names, else the row its prim is an object of), else the kind whose motion its record's `kind` is. Each sound by its name in data/sound/sounds.json, played at the moving prim: `part` start (as a move starts), end (as it reaches its end), travel (a loop over the move), drive (a loop over a path's whole drive) or always (a loop over the whole span: a spin); `when` open, shut or either names the moves a start, end or travel sound goes with (a slide's or swing's moves; a climb's one lift-off, from its round's start, goes `either`). A move's travel lasts its distance over its speed (a slide's `by` over its metres a second, a swing's angle over its degrees a second). The sound stage (score/stages/sound/moving.py) plays them in every round of the moving thing's or motion's loop. Each part names a library brief (`name`): every old pick is retired (owner, 2026-10-21), so each brief named here is made fresh in the batch by the sound row (a MOSS take, made once and shared by every place that plays it), and a take that does not come back is a batch gap on the moving things that play it; a part that names none plays nothing, and a moving thing none of whose parts names a sound fails `events`. `words` (by kind, where named) are a row's own words choosing its sounds before its kind's: the first entry whose words the row's name holds and that names the move (a hatch's bolts, never an Earth door's).",
  "kinds": {
   "door": {
    "swing": {
@@ -112,6 +112,18 @@
      }
     ],
     "from": "a robot arm slewing: its servo motors while it turns"
+   }
+  },
+  "rocket": {
+   "climb": {
+    "sounds": [
+     {
+      "name": "rocket_launch",
+      "part": "start",
+      "when": "either"
+     }
+    ],
+    "from": "a rocket lifting off: its engines' deep roar and crackle (rocket_launch) from the moment it leaves its pad, building and fading as it climbs"
    }
   }
  },
