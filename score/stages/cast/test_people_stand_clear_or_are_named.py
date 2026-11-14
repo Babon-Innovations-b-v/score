@@ -14,6 +14,17 @@ Breaks that turn it red (each applied once and seen red, then reverted):
 - `feet.grounded`: `or next(low)` dropped  -> the deck edge test (the member by the low block stays over it).
 - `feet.feet_into`: `- {on}` dropped  -> the deck edge test (the slope's own ground in its feet's way).
 - `feet.feet_kept`: `spread.grounded = grounded` dropped  -> the deck edge test (the member stays over the block).
+- `feet.grounded`: `or next(steep)` dropped  -> the deck edge test (the person on the 31 degree slope stands).
+- `feet.tilt_under`: `np.hypot(rise[:, 0], rise[:, 1])` read as `rise[:, 0]` (the fall along x only)  -> the deck
+  edge test (the slope rising along z reads level).
+- `walks.walk_clear`: `abs(spot[1] - at[1]) <= measure.FOOT_STEP and` dropped, or read off its leg's start
+  (`feet[0][1]`, starts kept at any level)  -> the deck edge test (the walker on the 1 m kerb walks the floor beside
+  it).
+- `walks.walk_clear`: `and not kept.overlaps(spot)` dropped  -> the deck edge test (the walker walks through the
+  worker).
+- `walks.stand_every`: the walker's `walk_clear` dropped  -> the deck edge test (it walks off the floor's end).
+- `walks.walks_kept`: `spread.stand_every = stand_every` dropped  -> the deck edge test (the walker stays facing
+  -z).
 - `measure.level_under`: `np.abs(row) <= FOOT_STEP` read as `<= 1.0`  -> the deck edge test.
 - `measure.level_under`: `- plane @ np.linalg.pinv(plane)` dropped (the gaps judged off the feet, not off a plane)
   -> the deck edge test (the person on the slope is left out).
@@ -79,7 +90,7 @@ from pxr import Usd, UsdGeom
 
 from score import checks, stages
 from score.stages import cast, gaps
-from score.stages.cast import driven, feet, layer, measure, spread
+from score.stages.cast import driven, feet, layer, measure, spread, walks
 from score.stages.scene_record import writer
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -280,14 +291,19 @@ def test_a_person_is_stood_on_the_ground_under_it_clear_of_every_solid_or_left_o
 def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_level(tmp_path):
     """Camp's astronaut_1 and astronaut_2_1 (round 33, 2026-10-30) stood within 0.15 m of a 5.8 cm deck's edge, their
     middles on one level and a foot over the other, and sank into it in sim-body. Nudged, each stands BODY_RADIUS
-    clear of the edge; one in the deck's middle stays, and so does one on an even slope (wreck's made ground). Airlock's
-    astronaut (2026-11-13) stood with a vacuum cleaner's low part under its toe, under its body's knee and between
-    level_under's rays: one by a low block there is nudged off it, its feet's room clear of it (feet.feet_into)."""
+    clear of the edge; one in the deck's middle stays. Airlock's astronaut (2026-11-13) stood with a vacuum cleaner's
+    low part under its toe, under its body's knee and between level_under's rays: one by a low block there is nudged
+    off it, its feet's room clear of it (feet.feet_into). Wreck's astronauts stood flat-footed on its 31 degree made
+    ground and sank 0.14 to 0.18 m (2026-11-13): an even slope is even (level_under) but too steep to stand on
+    (feet.TILT_MOST), a gentle one is not. Camp's walker walked its clip into the kitchen counter: a walker is turned
+    and moved till its whole leg stands clear (walks.walk_clear), off the floor's end, the deck's edge and the worker, and on its own level (a kerb's)."""
     stage = Usd.Stage.CreateNew(str(tmp_path / "base.usda"))
     UsdGeom.Xform.Define(stage, "/camp")
     mesh(stage, "/camp/Ground/floor", [(-5, 0, -5), (5, 0, -5), (5, 0, 5), (-5, 0, 5)], [(0, 1, 2, 3)])
     mesh(stage, "/camp/Shell/deck", [(0, 0.058, -5), (5, 0.058, -5), (5, 0.058, 5), (0, 0.058, 5)], [(0, 1, 2, 3)])
     mesh(stage, "/camp/Ground/slope", [(-5, 0, 6), (5, 0, 6), (5, 2.4, 10), (-5, 2.4, 10)], [(0, 1, 2, 3)])
+    mesh(stage, "/camp/Shell/kerb", [(-4, 0.2, 2), (-3, 0.2, 2), (-3, 0.2, 3), (-4, 0.2, 3)], [(0, 1, 2, 3)])
+    mesh(stage, "/camp/Ground/gentle", [(-5, 0, -6), (5, 0, -6), (5, 0.12, -10), (-5, 0.12, -10)], [(0, 1, 2, 3)])
     mesh(stage, "/camp/Objects/vacuum", [(x, y, z) for x in (-1.82, -1.78) for y in (0.0, 0.04) for z in (-0.02, 0.02)],
          [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)])
     stage.Save()
@@ -307,6 +323,24 @@ def test_a_person_by_a_decks_edge_is_stood_where_the_ground_under_both_feet_is_l
     edge, middle = (person["at"] for person in placed)
     assert abs(edge[0]) >= measure.BODY_RADIUS and edge[1] == (0.058 if edge[0] > 0 else 0.0), edge
     assert middle == [2.0, 0.058, 1.0]
+    steep, gentle = [0.0, 1.44, 8.4], [0.0, 0.06, -8.0]
+    assert np.round(feet.tilt_under([steep, gentle], found), 1).tolist() == [31.0, 1.7]
+    with feet.feet_kept():
+        assert spread.grounded([steep, gentle], found) == [None, gentle]
+    walker = {"name": "walker", "doing": "walking", "at": [-4.0, 0.0, -3.0], "turn": 0.0, "pace": 1.333, "path": None}
+    worker = {"name": "worker", "doing": "standing", "at": [-2.3, 0.0, 0.0], "turn": 0.0}
+    with walks.walks_kept():
+        alone = spread.stand_every([walker], {"walker"}, [], 0, found)[0][0]
+        beside = spread.stand_every([walker, worker], {"walker"}, [], 0, found)[0][-1]
+        across = spread.stand_every([dict(walker, at=[-4.0, 0.03, -7.0])], {"walker"}, [], 0, found)[0][0]
+        kerbed = spread.stand_every([dict(walker, at=[-3.5, 0.2, 2.5])], {"walker"}, [], 0, found)[0][0]
+    assert spread.stand_every is walks.PLAIN
+    assert (alone["at"], alone["turn"]) == ([-4.0, 0.0, -3.0], -150.0), alone  # facing -z it leaves the floor at once
+    assert beside["turn"] != -150.0 and min(np.hypot(spot[0] + 2.3, spot[2]) for spot in walks.route(beside)) >= 0.5
+    assert (kerbed["at"], kerbed["turn"]) == ([-3.5, 0.2, 2.5], 0.0), kerbed  # no walk on its kerb: never the floor's
+    assert across["turn"] == -90.0, across  # up the gentle slope's fall line its feet would leave their start's level
+    assert all(spot[1] == 0.0 and spot[0] <= -measure.BODY_RADIUS and abs(spot[2]) <= 5 - measure.BODY_RADIUS
+               for spot in walks.route(beside)), beside
 
 
 def test_standing_bodies_nearer_than_two_widths_on_one_level_overlap():
