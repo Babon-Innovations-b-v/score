@@ -5,10 +5,9 @@ corners a glTF file splits at its seams, or xatlas unwraps a heap of loose faces
 The rebuild was checked against a folder pixal3d.cpp staged itself (kit2-rover-4, 2026-10-01): identical to the pixel.
 The case here pins the rule on one picture whose answer is worked out by hand in the comments: a subject whose square
 reaches past the picture's left and bottom edges, a faint fringe beside it, the same picture at twice the size, and
-its unlit copy; the staged square itself, as a glTF file stores it (two triangles, the corners on their shared
-diagonal written twice), is then welded.
+its unlit copy.
 
-Breaks that turn test_crop_as_pixal3d_does red (each applied once and seen red, 2026-10-26; again 2026-11-13 merged, and 2026-11-14 with the weld folded in):
+Breaks that turn test_crop_as_pixal3d_does red (each applied once and seen red, 2026-10-26; again 2026-11-13 merged):
 - crop_box's `span * CROP_MARGIN` made `span`.
 - crop_box's `alpha > SOLID_ALPHA` made `alpha > 0`.
 - staged_views' `staged.paste(matte, (-left, -top))` made `staged.paste(matte, (left, top))`.
@@ -16,7 +15,7 @@ Breaks that turn test_crop_as_pixal3d_does red (each applied once and seen red, 
 - unlit_views' `square_crop(paint, *staged_offset(whole, staged), ...)` made `square_crop(paint, 0, 0, ...)`.
 - square_crop's piece pasted at the canvas's corner (`canvas[0:piece.shape[0], 0:piece.shape[1]] = piece`).
 - unlit_views' camera copy writes `"{}"` in place of the staged folder's transforms.json.
-- welded returns `points, faces` unmerged.
+Break that turns test_welding_merges_corners_split_at_a_seam red: welded returns `points, faces` unmerged.
 """
 import json
 import pathlib
@@ -75,9 +74,10 @@ def test_crop_as_pixal3d_does(tmp_path):
     paint[:BELOW, -LEFT:] = 255 - noise[TOP:, :LEFT + CROP]
     assert (image[..., :3] == paint).all(), "the unlit square is not black past the picture's edge"
 
-    # the staged square as a glTF file splits it at its diagonal seam: six corners, two of them written twice
-    corners = np.array([[0, 0, 0], [CROP, 0, 0], [0, CROP, 0], [CROP, 0, 0], [CROP, CROP, 0], [0, CROP, 0]],
-                       dtype=float)
-    merged, renumbered = clean_finish.welded(corners, np.array([[0, 1, 2], [3, 4, 5]]))
+
+def test_welding_merges_corners_split_at_a_seam():
+    points = np.array([[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0]], dtype=float)
+    faces = np.array([[0, 1, 2], [3, 4, 5]])
+    merged, renumbered = clean_finish.welded(points, faces)
     assert len(merged) == 4, len(merged)
-    assert renumbered[0, 1] == renumbered[1, 0] and renumbered[0, 2] == renumbered[1, 2], renumbered
+    assert renumbered[0, 1] == renumbered[1, 0] and renumbered[0, 2] == renumbered[1, 2]
