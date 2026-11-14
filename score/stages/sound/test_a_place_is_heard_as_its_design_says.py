@@ -25,6 +25,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import warnings
 
 import pytest
 
@@ -827,19 +828,23 @@ def test_a_place_is_heard_as_its_design_says(toy):
                                                brief["seconds"] <= kept(made_at)), brief
     # every sound the garage plays is made here (no old pick is left, 2026-10-21); its batch brings nothing back: the
     # record leaves every use out, names each a gap, and `sources` has nothing to judge (the take step answers nothing)
-    if sound.library_files.settings().get("SCORE_LIB_ROOT"):  # the picked sounds' bytes are the library's
-        with tempfile.TemporaryDirectory() as folder, kept_designs({"garage": [{"id": "tracked_rover",
-                                                                                "noun": "rover"}]}):
-            inputs = inputs_for("garage", folder)
-            made_here = sound.to_make(list(dict.fromkeys(use["sound"] for use in sound.uses_of("garage", inputs))),
-                                      inputs)
-            assert "rover_idle" in made_here, made_here
+    library = sound.library_files.settings().get("SCORE_LIB_ROOT")  # the picked sounds' bytes are the library's
+    with tempfile.TemporaryDirectory() as folder, kept_designs({"garage": [{"id": "tracked_rover", "noun": "rover"}]}):
+        inputs = inputs_for("garage", folder)
+        made_here = sound.to_make(list(dict.fromkeys(use["sound"] for use in sound.uses_of("garage", inputs))), inputs)
+        assert "rover_idle" in made_here, made_here
+        if library:
             with swapped(sound.moss_takes, made=lambda jobs, work: {}):
                 out = pathlib.Path(folder) / "out"
                 out.mkdir()
                 sound.make(inputs, out, 0, {})
             assert sound.layer_faults(out) == [], sound.layer_faults(out)
             record = gates.record_of(out)
-            assert "rover_idle: no MOSS take came back" in {entry["name"] for entry in batch_gaps.read([out])}
+            names = {entry["name"] for entry in batch_gaps.read([out])}
+            assert "rover_idle: no MOSS take came back" in names, names
             assert not record["uses"], record["uses"]
             assert gates.judge_sources(out, inputs, None).answer == checks.UNKNOWN
+    if not library:  # every other check above ran; only the garage's make was left out, and the run says so (a
+        # pytest.skip here would mark the whole one test as not run: the sandbox always empties SCORE_LIB_ROOT)
+        warnings.warn("no library configured here (SCORE_LIB_ROOT empty): the garage's make, its gap and its record "
+                      "were not checked; every other check ran")
