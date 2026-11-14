@@ -38,11 +38,11 @@ park.py and spread.py are the pool's own call sites):
   `"similar"` entry.
 - test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_with_its_time_left: in `claim`,
   `paused(run, left)` -> `pass`.
-- test_a_pool_is_sized_from_the_runs_planned_card_work: in `size_for`, `while sum(sizes.values()) > MOST_CARDS:` ->
+- test_a_pool_books_every_card_once_and_deletes_every_card (its size from planned card work): in `size_for`, `while sum(sizes.values()) > MOST_CARDS:` ->
   `while False:`.
-- test_a_pool_shrinks_one_machine_at_a_time_keeping_a_processor_beside_its_cards_while_it_can: in `shrinking`,
+- test_a_pool_books_every_card_once_and_deletes_every_card (its shrinking one machine at a time): in `shrinking`,
   `fewer = max(sorted(current)` -> `fewer = min(sorted(current)`.
-- test_a_pools_holding_cost_is_every_card_warm_every_hour_at_its_dearest_offer: in `holding_euros`, `max(prices) * 60
+- test_a_pool_books_every_card_once_and_deletes_every_card (its holding cost): in `holding_euros`, `max(prices) * 60
   * hours` -> `max(prices) * hours`.
 - test_a_bigger_disk_is_one_card_beside_the_pool_for_its_claim_alone: in `live_asks`, `if process_alive(ask["pid"])`
   -> `if True` (an ask outlives its asker).
@@ -60,7 +60,7 @@ park.py and spread.py are the pool's own call sites):
   `[row for row in rows if not row[2]]` -> `rows`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its collector's first stop): in `stop_on_signals`, `signal.signal(each,
   signal.SIG_IGN)` -> `pass`.
-- test_a_zombie_holds_nothing: in `process_alive`, `!= "Z"` -> `!= "?"`.
+- test_a_pool_books_every_card_once_and_deletes_every_card (a zombie holds nothing): in `process_alive`, `!= "Z"` -> `!= "?"`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (its L40S standing in for a sold-out L4): in `rents`, `rented =
   stand_in(plan, machine_class, alive, chosen, found) or machine_class` -> `rented = machine_class`.
 - test_a_pool_books_every_card_once_and_deletes_every_card (no second L40S past its clearance): the money checked nowhere (each alone is covered by the
@@ -83,14 +83,15 @@ park.py and spread.py are the pool's own call sites):
   capacity.PROCESSOR_KINDS and any(` -> `if any(`.
 - test_a_call_asked_on_smaller_processors_takes_the_pools_bigger_one_and_adds_none: in `takes`, `| no_smaller(classes)`
   -> ``.
-- test_the_pool_holds_a_few_processor_machines_of_the_biggest_class_offered: in `processor_class`, `iter(stocked +
+- test_a_pool_books_every_card_once_and_deletes_every_card (its processor class): in `processor_class`, `iter(stocked +
   offered)` -> `iter(offered)`.
 - test_a_render_stages_high_minutes_hold_on_a_processor_machine_under_the_pool: in preflight.py `processor_margin`,
   `return max([1] + [capacity.processor_times(name) for name in held])` -> `return 1`.
 - test_a_render_takes_the_pools_processor_machine_before_its_card_and_a_card_when_none_is_free: in park.py
-  `processor_first`, `return bool(record.get("pool")) and` -> `return False and`.- test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raises_it: in `sized`, `cards if
+  `processor_first`, `return bool(record.get("pool")) and` -> `return False and`.
+- test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raises_it: in `sized`, `cards if
   provider.cards(name) else processors` -> `cards`.
-- test_a_machine_is_rented_its_classes_measured_start_up_before_its_first_job: in `lead_minutes`, drop `+
+- test_a_pool_books_every_card_once_and_deletes_every_card (its start-up lead): in `lead_minutes`, drop `+
   LEAD_MARGIN_MINUTES`.
 - test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends: in `trim`, `if not paid_ahead(record, now)}`
   -> `if True}`.
@@ -333,32 +334,10 @@ def test_a_claim_waiting_on_the_pool_past_its_runs_deadline_still_gets_the_card_
     pool.release(run_id)
 
 
-def test_a_pool_is_sized_from_the_runs_planned_card_work():
-    sizes = pool.size_for([("pixal", 400, 2.0, 3.0), ("library", 200, 2.0, 1.0), ("judge", 30, 1.0, 1.0)])
-    assert sum(sizes.values()) == pool.MOST_CARDS and sizes["gpu-48gb"] >= 1 and sizes["gpu-24gb"] >= 1
-    assert pool.size_for([("pixal", 2, 2.0, 3.0)]) == {"gpu-24gb": 1}
 
 
-def test_a_pool_shrinks_one_machine_at_a_time_keeping_a_processor_beside_its_cards_while_it_can():
-    dear = [provider.Offer(CARD_PRICE * 3, 0, "cpu-type", "zone-c", CARD_PRICE * 3, PROCESSOR, 0, "available")]
-    patch(cloud, "offers", lambda classes: [offer for offer in OFFERS + dear if offer.machine_class in classes])
-    choices = pool.shrinking({"gpu-24gb": 3, PROCESSOR: 2}, 1)
-    assert [sizes for sizes, _ in choices] == [{"gpu-24gb": 3, PROCESSOR: 2}, {"gpu-24gb": 2, PROCESSOR: 2},
-                                               {"gpu-24gb": 2, PROCESSOR: 1}, {"gpu-24gb": 1, PROCESSOR: 1},
-                                               {"gpu-24gb": 1}]
-    assert [euros for _, euros in choices] == sorted((euros for _, euros in choices), reverse=True)
-    assert choices[-1][1] == pool.holding_euros({"gpu-24gb": 1}, 1)
 
 
-def test_a_pools_holding_cost_is_every_card_warm_every_hour_at_its_dearest_offer():
-    Cloud(0).install()
-    assert pool.holding_euros({"gpu-24gb": 4}, 4) == round(4 * CARD_PRICE * 60 * 4, 4)
-    try:
-        pool.holding_euros({"gpu-80gb": 1}, 1)
-    except RuntimeError as error:
-        assert "sells no gpu-80gb" in str(error)
-    else:
-        raise AssertionError("a class with no offer was priced")
 
 
 def asker_gone(run_id):
@@ -441,18 +420,6 @@ def test_a_pool_holds_what_its_jobs_can_run_at_once():
     pool.release(run_id)
 
 
-def test_a_zombie_holds_nothing():
-    """A taker killed and not yet reaped holds its card no longer (review of 2026-10-24)."""
-    child = os.fork()
-    if child == 0:
-        os._exit(0)
-    stat = pathlib.Path(f"/proc/{child}/stat")
-    deadline = time.time() + 5
-    while time.time() < deadline and stat.read_text().rpartition(")")[2].split()[0] != "Z":
-        time.sleep(0.01)
-    assert not pool.process_alive(child)  # ended, not yet reaped
-    os.waitpid(child, 0)
-    assert pool.process_alive(os.getpid())
 
 
 BIG = [provider.Offer(CARD_PRICE * 2, 1, "big-type", "zone-a", CARD_PRICE * 2, "gpu-48gb", 0, "available")]
@@ -546,17 +513,6 @@ def test_a_call_asked_on_smaller_processors_takes_the_pools_bigger_one_and_adds_
     pool.release(run_id)
 
 
-def test_the_pool_holds_a_few_processor_machines_of_the_biggest_class_offered():
-    found = [provider.Offer(1, 2, "t", "z", 1, "cpu-48c-96gb", 0, "shortage"),
-             provider.Offer(1, 0, "t", "z", 1, "cpu-32c-64gb", 0, "available")]
-    assert pool.processor_class(found) == "cpu-32c-64gb"  # the biggest in stock (no 64-core offer: no quota)
-    assert pool.processor_class(found[:1]) == "cpu-48c-96gb"  # none in stock: the biggest offered, waited for
-    assert pool.with_processors({"gpu-24gb": 4}, 5, found) == {"gpu-24gb": 4, "cpu-32c-64gb": 5}
-    assert pool.with_processors({"gpu-24gb": 4}, 50, found)["cpu-32c-64gb"] == min(
-        pool.MOST_PROCESSORS, pool.capacity.max_machines("cpu-32c-64gb"))  # held to the cap and the class quota
-    assert pool.with_processors({"gpu-24gb": 4}, 1, found) == {"gpu-24gb": 4, "cpu-32c-64gb": 1}
-    assert pool.with_processors({"gpu-24gb": 4}, 0, found) == {"gpu-24gb": 4}
-    assert pool.with_processors({"gpu-24gb": 4}, 2, []) == {"gpu-24gb": 4}
 
 
 def ledger_line(stage, kind, number):
@@ -636,18 +592,6 @@ def test_a_pool_opens_with_no_processor_machine_and_rents_one_once_the_run_raise
     pool.release(run_id)
 
 
-def test_a_machine_is_rented_its_classes_measured_start_up_before_its_first_job():
-    """The lead (owner, 2026-10-25: "cant u just do the start up earlier then when u need them again"): the median of
-    its class's pool machines' minutes from order to answering, and the margin; the margin alone unmeasured."""
-    def cold(machine_class, minutes):
-        return {"kind": pool.KIND, "machines": [{"class": machine_class, "started": True,
-                                                 "start_wait_minutes": minutes}]}
-    entries = [cold("gpu-24gb", 4.0), cold("gpu-24gb", 6.0), cold("gpu-24gb", 30.0), cold(PROCESSOR, 2.0),
-               {"kind": pool.HOLD, "machines": [], "euros": 1.0}]
-    assert pool.lead_minutes("gpu-24gb", entries) == 6.0 + pool.LEAD_MARGIN_MINUTES
-    assert pool.leads(["gpu-24gb", PROCESSOR], entries) == {False: 6.0 + pool.LEAD_MARGIN_MINUTES,
-                                                            True: 2.0 + pool.LEAD_MARGIN_MINUTES}
-    assert pool.leads(["gpu-48gb"], entries) == {False: pool.LEAD_MARGIN_MINUTES, True: pool.LEAD_MARGIN_MINUTES}
 
 
 def test_an_idle_machine_billed_by_the_hour_stays_till_its_paid_hour_ends():
@@ -684,6 +628,32 @@ BOOKED_WITHIN = 2 * CARD_PRICE + 1e-6
 CLEANED = ("/root/make/*", "/root/pics/out", "/root/props/work/scene", "/root/similar", "/root/UniRig", "/root/smoke")
 
 
+def ended_unreaped():
+    """A child process that has ended and is not yet reaped: a zombie (the caller reaps it)."""
+    child = os.fork()
+    if child == 0:
+        os._exit(0)
+    stat = pathlib.Path(f"/proc/{child}/stat")
+    deadline = time.time() + 5
+    while time.time() < deadline and stat.read_text().rpartition(")")[2].split()[0] != "Z":
+        time.sleep(0.01)
+    return child
+
+
+def started_after(machine_class, minutes):
+    """A pool ledger row of one machine of `machine_class` answering `minutes` after its order."""
+    return {"kind": pool.KIND, "machines": [{"class": machine_class, "started": True, "start_wait_minutes": minutes}]}
+
+
+def refused(call):
+    """What `call` refused with (a RuntimeError's message), or "" when it answered."""
+    try:
+        call()
+    except RuntimeError as error:
+        return str(error)
+    return ""
+
+
 def test_a_pool_books_every_card_once_and_deletes_every_card():
     """One run's pool of two cards, rented 30 min ago: claims of every kind take them and give them back cleaned, the
     pool books their minutes once (their idle spells, their rents and their takers' rows adding nothing), and the
@@ -711,8 +681,65 @@ def test_a_pool_books_every_card_once_and_deletes_every_card():
     whole clearance and an idle card makes room for it (review of 2026-10-24: asked cards were rented with no money
     check), and a card too dear for the clearance is refused; released, the pool stays closed (Batch 1 of 2026-10-24:
     the pool closed at its cleared 4 h with ~550 rows queued).
+
+    Before the cards, the pool's own judgements, one row each: its size from the run's planned card work (capped at
+    MOST_CARDS); its shrinking one machine at a time, keeping a processor beside its cards while it can, each step
+    cheaper; its holding cost, every card warm every hour at its dearest offer, and no price for a class not sold; its
+    processor class, the biggest in stock or else the biggest offered, held to the cap and the class quota; a class's
+    start-up lead, the median of its measured start-ups plus the margin (the margin alone unmeasured; owner,
+    2026-10-25: "cant u just do the start up earlier then when u need them again"); and a taker killed and not yet
+    reaped holds its card no longer (review of 2026-10-24).
     """
     import characters
+    Cloud(0).install()
+    dear = [provider.Offer(CARD_PRICE * 3, 0, "cpu-type", "zone-c", CARD_PRICE * 3, PROCESSOR, 0, "available")]
+    offered(OFFERS + dear)
+    planned = pool.size_for([("pixal", 400, 2.0, 3.0), ("library", 200, 2.0, 1.0), ("judge", 30, 1.0, 1.0)])
+    shrunk = pool.shrinking({"gpu-24gb": 3, PROCESSOR: 2}, 1)
+    found = [provider.Offer(1, 2, "t", "z", 1, "cpu-48c-96gb", 0, "shortage"),
+             provider.Offer(1, 0, "t", "z", 1, "cpu-32c-64gb", 0, "available")]
+    starts = [started_after("gpu-24gb", 4.0), started_after("gpu-24gb", 6.0), started_after("gpu-24gb", 30.0),
+              started_after(PROCESSOR, 2.0), {"kind": pool.HOLD, "machines": [], "euros": 1.0}]
+    zombie = ended_unreaped()
+    try:
+        judged = [  # (row, what the pool judged, what it should judge)
+            ("much planned card work: capped, both card classes",
+             (sum(planned.values()), planned["gpu-48gb"] >= 1, planned["gpu-24gb"] >= 1), (pool.MOST_CARDS, True, True)),
+            ("little planned card work: one L4", pool.size_for([("pixal", 2, 2.0, 3.0)]), {"gpu-24gb": 1}),
+            ("shrinking: one machine a step, a processor beside the cards while it can", [sizes for sizes, _ in shrunk],
+             [{"gpu-24gb": 3, PROCESSOR: 2}, {"gpu-24gb": 2, PROCESSOR: 2}, {"gpu-24gb": 2, PROCESSOR: 1},
+              {"gpu-24gb": 1, PROCESSOR: 1}, {"gpu-24gb": 1}]),
+            ("shrinking: each step cheaper", [euros for _, euros in shrunk],
+             sorted((euros for _, euros in shrunk), reverse=True)),
+            ("shrinking: the last step is the card alone's holding cost", shrunk[-1][1],
+             pool.holding_euros({"gpu-24gb": 1}, 1)),
+            ("holding cost: every card warm every hour", pool.holding_euros({"gpu-24gb": 4}, 4),
+             round(4 * CARD_PRICE * 60 * 4, 4)),
+            ("holding cost: a class not sold is refused",
+             "sells no gpu-80gb" in refused(lambda: pool.holding_euros({"gpu-80gb": 1}, 1)), True),
+            ("processor class: the biggest in stock", pool.processor_class(found), "cpu-32c-64gb"),
+            ("processor class: none in stock, the biggest offered", pool.processor_class(found[:1]), "cpu-48c-96gb"),
+            ("processors added", pool.with_processors({"gpu-24gb": 4}, 5, found),
+             {"gpu-24gb": 4, "cpu-32c-64gb": 5}),
+            ("processors held to the cap and the class quota",
+             pool.with_processors({"gpu-24gb": 4}, 50, found)["cpu-32c-64gb"],
+             min(pool.MOST_PROCESSORS, pool.capacity.max_machines("cpu-32c-64gb"))),
+            ("one processor", pool.with_processors({"gpu-24gb": 4}, 1, found), {"gpu-24gb": 4, "cpu-32c-64gb": 1}),
+            ("no processor asked", pool.with_processors({"gpu-24gb": 4}, 0, found), {"gpu-24gb": 4}),
+            ("no processor offered", pool.with_processors({"gpu-24gb": 4}, 2, []), {"gpu-24gb": 4}),
+            ("lead: the median start-up plus the margin", pool.lead_minutes("gpu-24gb", starts),
+             6.0 + pool.LEAD_MARGIN_MINUTES),
+            ("leads: card and processor apart", pool.leads(["gpu-24gb", PROCESSOR], starts),
+             {False: 6.0 + pool.LEAD_MARGIN_MINUTES, True: 2.0 + pool.LEAD_MARGIN_MINUTES}),
+            ("leads: unmeasured, the margin alone", pool.leads(["gpu-48gb"], starts),
+             {False: pool.LEAD_MARGIN_MINUTES, True: pool.LEAD_MARGIN_MINUTES}),
+            ("a zombie holds nothing", pool.process_alive(zombie), False),
+            ("a live process holds", pool.process_alive(os.getpid()), True),
+        ]
+    finally:
+        os.waitpid(zombie, 0)
+    for row, judgement, expected in judged:
+        assert judgement == expected, (row, judgement, expected)
     calls, run_id = fresh(stock=1, sizes={"gpu-24gb": 3})
     patch(pool, "POLL_SECONDS", 0.05)
     patch(batch, "stock_wait_minutes", lambda rounds: 0.001)
