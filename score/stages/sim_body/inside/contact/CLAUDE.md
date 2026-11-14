@@ -7,7 +7,11 @@ pyramid under `SLIDE_MOST`, else sliding against the slip, each acting at the gr
 of pressure, `muscles.touches`), each point's push directions `closeness` long (1 on or into the ground, 0 at `GAP`),
 so a point's push fades in as it comes within `GAP` and the solve never hands a point crossing it its whole share at
 once (2026-11-05: a foot's centre of pressure moved 3 to 6 cm a frame standing, base pickup); `surface` (each collider's points in 26 directions) is
-the evaluation's measure only. MyoFullBody's colliders are not the contact (2026-11-01): a seated astronaut's stood 16
+the evaluation's measure only. A back (a steep triangle, `ground.leaning`) pushes a skin point over a knee above
+the body's lowest point (`body_floor`: a riser the toe meets stays no contact) within GAP of it
+along its normal, in front of it or in it, towards the body's middle, from the point's foot on it, in `pushes`,
+`pushes_all` and `touching_all` alike (`leaned`; a point whose ground is that very triangle is pushed once): 2026-11-14,
+cockpit's pilot's chest on his seat's back carried nothing, and his residual moment stood 0.95 N m over its 0.76. MyoFullBody's colliders are not the contact (2026-11-01): a seated astronaut's stood 16
 to 27 mm inside his skin, which sat 10 mm into his floor, so the floor carried 0 N of his 121 N weight.
 
 - #70: SOMA is the truth: nothing here moves the body. Ground contact is where the fit to SOMA puts the feet; the old

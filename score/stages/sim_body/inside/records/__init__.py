@@ -29,6 +29,7 @@ QUIET = 0.02  # a frame whose movement needs its weight up within 2% of it is qu
 # a frame and its centre at most 5 mm a frame while the same parts touch.
 QUIET_OFF = 5.0  # % of the weight
 OFF_GROUND = 1.0  # mm
+PRESSED = 1e-6  # m: a centre's ground this near its touching skin's ground points' heights is what it presses
 OUTSIDE = 10.0  # mm
 QUIET_JUMP = 2.0  # % of the weight a frame
 QUIET_SHIFT = 5.0  # mm a frame
@@ -156,7 +157,8 @@ def steadied(raw, rate, ground):
     """Each frame's touching parts' pushes and centres of pressure ([{part: [force xyz N, centre xyz m]}], the
     person's frame) from the solve's (`raw`, `touched`'s a frame), low-passed as the path is (`solvers.smoothed`)
     over each span of frames the part touches: its force, its push along its normals and that push's moment about
-    the origin, the centre their quotient, set on its ground. A part has a push only on a frame it touches (the solve
+    the origin, the centre their quotient, set on its ground where that lies among its touching skin's ground points'
+    heights (a back's centre stays on the back). A part has a push only on a frame it touches (the solve
     shares the load between a foot's points afresh each frame: their centre moved 3 to 6 cm a frame standing,
     2026-11-05, #70)."""
     found = [{} for _ in raw]
@@ -166,9 +168,12 @@ def steadied(raw, rate, ground):
             forces = smoothed(np.array([force for force, _, _, _ in span]), rate)
             sizes = smoothed(np.array([size for _, _, size, _ in span]), rate)
             moments = smoothed(np.array([size * centre for _, centre, size, _ in span]), rate)
+            pressed = np.concatenate([under[:, 1] for _, _, _, under in span])
             for offset in np.flatnonzero(sizes > 0):
                 centre = moments[offset] / sizes[offset]
-                centre[1] -= np.nan_to_num(heights_over(centre[None], ground, top=centre[1])[0])  # on what it presses
+                set_on = centre[1] - np.nan_to_num(heights_over(centre[None], ground, top=centre[1])[0])
+                if pressed.min() - PRESSED <= set_on <= pressed.max() + PRESSED:  # on what it presses: never a
+                    centre[1] = set_on  # back's centre dropped onto the seat under it
                 found[start + offset][part] = [*np.round(forces[offset], 3).tolist(), *np.round(centre, 4).tolist()]
     return found
 

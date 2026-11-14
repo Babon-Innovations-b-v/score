@@ -1,7 +1,8 @@
 """ground: a point stands on the highest drawn triangle under it at most REACH_UP (the cast's KNEE) over it, a body's
 points over its lowest point, with HEADROOM free over it or within a knee of the body's lowest point, never one over
-it with another between, at the height worked out by hand, and every triangle's
-normal points up (pure numpy: the score venv runs it).
+it with another between, at the height worked out by hand; a point within GAP of a back (a steep triangle) leans on
+it along its normal towards the body's middle; and every triangle's normal points up (pure numpy: the score venv
+runs it).
 
 Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-31, 2026-11-07 and 2026-11-13:
 - standing's `free = (above - heights >= HEADROOM) & ...` made `>= 0`: a point 1.1 m over a floor, over a counter
@@ -35,6 +36,14 @@ Breaks (each applied once, seen red, reverted), 2026-10-28, 2026-10-30, 2026-10-
   HEADROOM): a point with no body over it (no top) finds no room under anything, the floor under the counter top and
   under the deck read nan.
 - REACH_UP made 0.4: it no longer agrees with the cast's KNEE.
+- (2026-11-14) _near_steep's `up[:, 1] < STEEP` made `< 1.1`: the point 1 mm over the floor leans on it as on a
+  back; leaning's side `< 0.0` made `< -9.0` (every back pushing out of its upward side): the point with the body's
+  middle behind the back reads 3 mm in front of it, not in it; its `(one + two <= 1)` dropped: the point beside the
+  triangular back, inside its box, leans on it; its `np.abs(distance) <= within` made `<= 1.0`: the point 6 mm in
+  front leans on it; its foot made the point itself: the push acts off the back's face; its `raised`
+  `points[:, 1] > floor` made `> -inf`: the point as low as its body's floor (a toe at a riser) leans on the back;
+  _near_steep's `steep[counts > BIG_CELLS]` loop dropped: the points by the long slanted wall lean on nothing; its
+  cells' `held` made `<= within`: the points near the wall in cells whose middles stand further off it lean on nothing.
 - normals' `found *= np.sign(found[:, 1:2]) + (found[:, 1:2] == 0)` dropped: a triangle wound the other way points
   down.
 
@@ -95,7 +104,8 @@ def a_body_under_a_roof_stands_on_its_floor():
     """A floor at 0 and a single-sided roof at 1.84 m: a 1.76 m body standing on the floor (points from its feet to its
     head) reads 0 m over its ground, its head not grounded on the roof 0.08 m over it; the same body on a deck at
     2.958 m stands on the deck, and one on the floor under the deck on the floor. A seated body sits on its seat
-    (`seated_reach_problems`); a foot under a desk stands on its floor (`under_a_desk_problems`)."""
+    (`seated_reach_problems`); a foot under a desk stands on its floor (`under_a_desk_problems`); a point leans on a
+    back (`leaning_problems`)."""
     body = np.array([[0.5, height, 0.5] for height in np.linspace(0.0, 1.76, 12)])
     roofed = np.array(square(0.0) + square(1.84, -1.0, 1.0))
     decked = np.array(square(0.0) + square(2.958, -1.0, 1.0))
@@ -103,7 +113,7 @@ def a_body_under_a_roof_stands_on_its_floor():
              for name, points, under in (("under the roof", body, roofed), ("on the deck", body + [0, 2.958, 0], decked),
                                          ("under the deck", body, decked))}
     return [f"{name}: {over} over its ground, not 0" for name, over in found.items() if abs(over) > 1e-9] + \
-        seated_reach_problems() + under_a_desk_problems()
+        seated_reach_problems() + under_a_desk_problems() + leaning_problems()
 
 
 def seated_reach_problems():
@@ -178,6 +188,48 @@ def reach_up_is_the_casts_knee():
     """REACH_UP is the cast's KNEE, so the cast and the sim body stand a person on the same surface."""
     from score.stages.cast import measure
     return [] if ground.REACH_UP == measure.KNEE else [f"REACH_UP {ground.REACH_UP}, the cast's KNEE {measure.KNEE}"]
+
+
+def leaning_problems():
+    """A seat's back, a triangle 0.5 m wide and 0.6 m tall, its face through the origin leant 15 degrees back from
+    upright, and a floor under it, the body's middle 0.3 m in front: a point 3 mm in front of the face leans on it
+    3 mm off, pushed towards the middle along the face's normal from its foot on the face; one 2 mm into it 2 mm in
+    (-0.002); one 6 mm in front, one beside the back (its foot past its slanted edge, inside its box) and one 1 mm
+    over the floor (no back) lean on nothing, and so does the first where its body's floor (a knee over its lowest
+    point) is as high as it, as a toe at a riser; with the middle behind the back the first is 3 mm into it
+    (cockpit's pilot on his seat's back, 2026-11-14). Two points 3 mm in front of a 4 m wall slanted across the room
+    (its box over BIG_CELLS among points spanning the room) lean on it 3 mm off."""
+    tilt = np.radians(15.0)
+    up, across = np.array([0.0, np.cos(tilt), -np.sin(tilt)]), np.array([1.0, 0.0, 0.0])
+    normal = np.cross(across, up)  # towards +z, the front
+    back = np.array([[across * x + up * y for x, y in ((-0.25, 0.0), (0.25, 0.0), (-0.25, 0.6))]])
+    room = np.concatenate([back, np.array(square(-0.4))])
+    on_face = up * 0.2
+    points = np.array([on_face + normal * 0.003, on_face - normal * 0.002, on_face + normal * 0.006,
+                       across * 0.2 + up * 0.5 + normal * 0.001, [0.0, -0.399, 0.5]])
+    middle = np.array([0.0, 0.3, 0.3])
+    distance, triangle, turned, foot = ground.leaning(points, room, middle, 0.005, -1.0)
+    behind = ground.leaning(points[:1], room, np.array([0.0, 0.3, -0.3]), 0.005, -0.1)[0][0]
+    riser = ground.leaning(points[:1], room, middle, 0.005, points[0, 1])[0][0]  # a knee over its lowest: a toe
+    problems = []
+    for name, found, wanted in (("in front", distance[0], 0.003), ("into it", distance[1], -0.002),
+                                ("behind the back's middle", behind, -0.003)):
+        if not abs(found - wanted) < 1e-9:
+            problems.append(f"the point {name}: {found} off the back, not {wanted}")
+    if not (np.allclose(turned[0], normal) and np.allclose(foot[0], on_face) and triangle[0] == 0):
+        problems.append(f"the point in front pushed along {turned[0]} from {foot[0]}, not {normal} from {on_face}")
+    wall = np.array([[[-2.0, -1.0, 2.0], [2.0, -1.0, -2.0], [2.0, 3.0, -2.0]]])  # 4 m slanted across the room
+    facing = np.array([1.0, 0.0, 1.0]) / np.sqrt(2.0)
+    near_wall = np.array([[1.0, 1.5, -1.0], [0.5, 0.5, -0.5]]) + 0.003 * facing
+    room_wide = np.array([[-1.5, -0.5, -1.5], [1.5, 2.5, 1.5]])  # the body's other points, spanning the room
+    slanted = ground.leaning(np.concatenate([near_wall, room_wide]), wall, np.array([1.0, 1.0, 1.0]), 0.005,
+                             -1.0)[0][:2]
+    if not np.allclose(slanted, 0.003):
+        problems.append(f"the points 3 mm off the long slanted wall: {slanted} off it, not 0.003")
+    problems += [f"the point {name} leans {found} off a back, not on none" for name, found in
+                 zip(("6 mm in front", "beside the back", "over the floor", "as low as its body's floor"),
+                     [*distance[2:], riser]) if not np.isnan(found)]
+    return problems
 
 
 def every_normal_points_up():

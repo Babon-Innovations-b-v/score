@@ -11,5 +11,8 @@ table top or a shelf, it is a block, not a floor; or within a knee of the body's
 2026-11-13; never a crossing over the point with another between them, `beneath`: a foot under a desk is under its
 top, not in it; nor a crossing of a closed piece the point is outside of, `outside` (`pieces`: triangles joined at
 their corners; an even count of its crossings over the point), 2026-11-14: quarters' person_desk's toes on the floor
-under its desk's apron read 0.28 m into it), `heights_over` and `normals` (each triangle's upward normal). The ground is the scene's drawn triangles themselves: never a heightfield and never MuJoCo's collision
+under its desk's apron read 0.28 m into it), `heights_over`, `leaning` (each point's back: the nearest triangle steeper than `STEEP` whose plane it lies within a
+given distance of, in front or in it, its foot inside the triangle, its normal turned towards the body's middle, for
+a point over its body's floor (a knee over its lowest point: a riser the toe meets is no back); a
+seat's back, which the upright line never measures as near, 2026-11-14) and `normals` (each triangle's upward normal). The ground is the scene's drawn triangles themselves: never a heightfield and never MuJoCo's collision
 (the parent overlay). Its test runs in the score venv.

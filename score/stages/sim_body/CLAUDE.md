@@ -173,7 +173,11 @@ its steps the modules beside it (`inside/CLAUDE.md`).
   bones each segment rides, `inside/contact` `Skin`; MyoFullBody's colliders are not the contact since 2026-11-01:
   they stood 16 to 27 mm inside a seated astronaut's skin, so his floor carried 0 N of his 121 N), within the
   inside's `GAP` of the triangle under it or into it (a foot its job's targets show standing measured from its own
-  sole, at most 5 cm up: `contact` `Skin.credited`, #98), whichever drawn surface that is (a seat, a bed, a ledge as a floor), one moving slower
+  sole, at most 5 cm up: `contact` `Skin.credited`, #98), whichever drawn surface that is (a seat, a bed, a ledge as a floor), or
+  within `GAP` of a back along its normal, in front of it or in it, a knee over the body's lowest point (a triangle steeper
+  than 60 degrees, `ground.leaning`, pushed towards the body's middle; a riser the toe meets stays no contact: 2026-11-14, cockpit's pilot leant his chest 0 to 3.5 mm into his seat's back, never
+  pushed, and his centre 8 mm behind the three skin points on his cushion left 0.95 N m over its 0.76; his feet, 0.4 to
+  0.6 m in front, can give no moment that way at friction 0.5, so the solve rightly pushed them nothing), one moving slower
   than `SLIDE_MOST` (1.2 m/s) inside a friction 0.5 pyramid (Karatsidis et al., arXiv:1801.01668), a faster one
   sliding (Coulomb: the normal and 0.5 of it against its slip), along that triangle's normal; no force anywhere else.
   A point's force fades in as it comes within `GAP` (`contact.closeness`: its force directions 1 long on or into the

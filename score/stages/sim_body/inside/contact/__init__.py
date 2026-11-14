@@ -1,12 +1,13 @@
 """The body on the scene's ground: the colliders' surface points (`surface`), the person's drawn skin riding the
 body's bones (`Skin`: SOMA's mesh, linear blend over the segments each bone carries), its lowest point's height over
 the ground, the whole skin's and each part's (`lowests`) and the skin points the ground pushes with their push directions and where (`pushes`: within GAP of
-the drawn triangle under them or into it, a friction pyramid under SLIDE_MOST, else sliding). Nothing here moves the
+the drawn triangle under them or into it, or of a back along its normal, a friction pyramid under SLIDE_MOST, else
+sliding). Nothing here moves the
 body: it stands where the fit to SOMA puts it (#70)."""
 import mujoco
 import numpy as np
 
-from ground import body_floor, body_reach, body_top, heights_over, standing
+from ground import body_floor, body_reach, body_top, heights_over, leaning, standing
 from model import TO_OWN, own_pose
 
 # The ground pushes only a skin point touching it: within GAP of its drawn triangle or into it, the same 5 mm the
@@ -166,6 +167,25 @@ def on_ground_all(model, states, ground, skin):
     return points, segments, shares, bodies, carried, own, every_height, every_triangle
 
 
+def backs_all(own, ground):
+    """Every state's skin points' backs (`ground.leaning`'s distance, triangle, normal and foot, states x points),
+    within GAP, each state's own body's middle (its skin's median) the side a back pushes to and its `body_floor` the
+    height a point leans over (`own`: on_ground_all's skin, states x points x 3)."""
+    count, many = own.shape[:2]
+    middles = np.repeat(np.median(own, axis=1), many, axis=0)
+    floors = np.repeat([body_floor(mine) for mine in own], many)
+    return [values.reshape(count, many, *values.shape[1:])
+            for values in leaning(own.reshape(-1, 3), ground, middles, GAP, floors)]
+
+
+def leaned(leans, state, triangles):
+    """The points of `state` a back pushes (`leaning`'s `leans`, every state's): those within GAP of one that is not
+    the triangle their ground is (`triangles`, the state's, `standing`'s: a point on a steep slope it stands on is
+    pushed once)."""
+    distance, triangle = leans[0][state], leans[1][state]
+    return np.flatnonzero(np.isfinite(distance) & (triangle != triangles))
+
+
 def pushes_all(model, states, ground, up, skin, chains):
     """`pushes` of every state at once (`states`: `batched.Card.evaluate`'s dict of each state's xpos, xmat, cdof,
     subtree_com and qvel), the skin carried, its ground under it (every state's points in one `standing`, each with
@@ -177,6 +197,7 @@ def pushes_all(model, states, ground, up, skin, chains):
         return [[] for _ in range(count)], np.zeros((count, 0))
     points, segments, shares, bodies, carried, own, every_height, every_triangle = on_ground_all(model, states, ground,
                                                                                                 skin)
+    leans = backs_all(own, ground)
     cdof = states["cdof"].reshape(count, model.nv, 6)
     com = states["subtree_com"].reshape(count, -1, 3)
     credit = skin.credit_of(count)
@@ -184,18 +205,23 @@ def pushes_all(model, states, ground, up, skin, chains):
     for state in range(count):
         mine, heights, triangles = own[state], every_height[state], every_triangle[state]
         over = mine[:, 1] - np.nan_to_num(heights, nan=np.inf) - credit[state]
-        touching = np.flatnonzero(over <= GAP)
-        pairs = np.flatnonzero(np.isin(points, touching))
+        touching, backed = np.flatnonzero(over <= GAP), leaned(leans, state, triangles)
+        every = np.union1d(touching, backed)
+        pairs = np.flatnonzero(np.isin(points, every))
         at = carried[state, pairs] @ TO_OWN  # MuJoCo's frame (TO_OWN.T applied to each point)
         offset = at - com[state, chains.roots[bodies[pairs]]]
         motion = np.cross(cdof[state, None, :, :3], offset[:, None, :]) + cdof[state, None, :, 3:]  # pairs x nv x 3
         motion *= chains.moves[bodies[pairs]][:, :, None]
-        local = np.searchsorted(touching, points[pairs])  # each pair's touching point
-        jacobians = np.zeros((len(touching), 3, model.nv))
+        local = np.searchsorted(every, points[pairs])  # each pair's touching point
+        jacobians = np.zeros((len(every), 3, model.nv))
         np.add.at(jacobians, local, shares[pairs, None, None] * np.swapaxes(motion, 1, 2))
+        on = np.searchsorted(every, touching)
         found.append([pushed(skin, point, jacobians[number], up[triangles[point]], states["qvel"][state], over[point],
                              [mine[point, 0], heights[point], mine[point, 2]])
-                      for number, point in enumerate(touching)])
+                      for number, point in zip(on, touching)]
+                     + [pushed(skin, point, jacobians[number], leans[2][state, point], states["qvel"][state],
+                               leans[0][state, point], leans[3][state, point])
+                        for number, point in zip(np.searchsorted(every, backed), backed)])
     return found, own[:, :, 1] - every_height
 
 
@@ -210,6 +236,7 @@ def touching_all(model, states, ground, up, skin):
     if not len(skin.points):  # no skin: nothing to push
         return [(np.zeros((0, 3)), np.zeros(0), np.zeros((0, 4, 3)), np.zeros(0, int)) for _ in range(count)]
     points, _, shares, bodies, carried, own, every_height, every_triangle = on_ground_all(model, states, ground, skin)
+    leans = backs_all(own, ground)
     summed = np.bincount(points, shares, len(skin.points))
     cvel = states["cvel"].reshape(count, -1, 6)
     com = states["subtree_com"].reshape(count, -1, 3)
@@ -218,16 +245,20 @@ def touching_all(model, states, ground, up, skin):
     found = []
     for state in range(count):
         over = own[state, :, 1] - np.nan_to_num(every_height[state], nan=np.inf) - credit[state]
-        touching = np.flatnonzero(over <= GAP)
-        pairs = np.flatnonzero(np.isin(points, touching))
+        touching, backed = np.flatnonzero(over <= GAP), leaned(leans, state, every_triangle[state])
+        every = np.concatenate([touching, backed])  # a point a back and its ground push is pushed by both
+        pairs = np.flatnonzero(np.isin(points, every))
         at = carried[state, pairs] @ TO_OWN  # MuJoCo's frame
         speed = cvel[state, bodies[pairs]]
         speed = speed[:, 3:] + np.cross(speed[:, :3], at - com[state, roots[pairs]])
-        local = np.searchsorted(touching, points[pairs])
-        moving = np.zeros((len(touching), 3))
+        unique = np.unique(every)
+        local = np.searchsorted(unique, points[pairs])
+        moving = np.zeros((len(unique), 3))
         np.add.at(moving, local, shares[pairs, None] * speed)
-        edges, counts = pyramids(up[every_triangle[state, touching]], moving, over[touching])
-        found.append((own[state, touching] @ TO_OWN, summed[touching], edges, counts))
+        moving = moving[np.searchsorted(unique, every)]
+        ups = np.concatenate([up[every_triangle[state, touching]], leans[2][state, backed]])
+        edges, counts = pyramids(ups, moving, np.concatenate([over[touching], leans[0][state, backed]]))
+        found.append((own[state, every] @ TO_OWN, summed[every], edges, counts))
     return found
 
 
@@ -283,7 +314,11 @@ def pushes(model, data, ground, up, skin, frame=0):
     (the normal and FRICTION of it against its slip); booked on the body its heaviest segment rides, acting at the
     ground straight under the point (its height there, `standing`: a seat's top under a seated body's skin). Each
     point's directions are as long as it is near (`closeness`), so a point's push fades to nothing at GAP; a point of a
-    foot seen standing is measured from its credit on `frame` (`Skin.credited`)."""
+    foot seen standing is measured from its credit on `frame` (`Skin.credited`). A point within GAP of a back (a steep
+    triangle, `ground.leaning`: a seat's back, a wall), in front of it or in it, over a knee above the body's lowest
+    point (`body_floor`: a riser the toe meets is no back), is pushed along its normal towards
+    the body's middle (the median of its skin) as a floor pushes, from the foot of the point on it, once more where
+    its ground is not that triangle: a seated pilot leans on his seat's back."""
     found = []
     carried = skin.by_segment(model, data)
     own = np.einsum("vs,vsi->vi", skin.weights, carried)
@@ -294,6 +329,10 @@ def pushes(model, data, ground, up, skin, frame=0):
     for point in np.flatnonzero(over <= GAP):
         found.append(pushed(skin, point, skin.jacobian(model, data, carried, point), up[triangles[point]], data.qvel,
                             over[point], [own[point, 0], heights[point], own[point, 2]]))
+    leans = [values[None] for values in leaning(own, ground, np.median(own, axis=0), GAP, body_floor(own))]
+    for point in leaned(leans, 0, triangles):
+        found.append(pushed(skin, point, skin.jacobian(model, data, carried, point), leans[2][0, point], data.qvel,
+                            leans[0][0, point], leans[3][0, point]))
     return found
 
 
