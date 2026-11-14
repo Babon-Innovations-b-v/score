@@ -125,7 +125,6 @@ FUNCTION_DEBT = {
     "score/stages/sim_body/inside/tuning/_adjoint/test_implicit_columns_equal_re_solved_differences.py": 27,
     "score/stages/sim_body/inside/tuning/_paired/test_a_step_counts_only_past_its_noise_floor_on_a_fixed_case_set.py": 6,
     "score/stages/sim_body/inside/tuning/test_one_optimisation_moves_every_unknown_together_within_its_bounds.py": 17,
-    "score/stages/sound/test_a_place_is_heard_as_its_design_says.py": 13,
     "score/stages/surfaces/test_every_part_takes_a_library_surface_and_is_held_to_it.py": 116,
     "score/stages/test_each_row_keys_waits_and_moves_only_by_its_design_and_gaps.py": 69,
     "score/store/restore/test_the_restore_spends_nothing_and_accepts_nothing_old_by_hand.py": 21,
