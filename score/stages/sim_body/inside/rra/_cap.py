@@ -134,6 +134,15 @@ def smoothed_off(physics, path, found, rate):
     return np.array(smooth)
 
 
+def landed(physics, shifted, land, rate):
+    """`shifted` (the fitted path moved by RRA's shared move) with its feet kept (`land`), only what the legs' solve
+    changed of it low-passed (`smoothed_off` about `shifted`), the feet kept again. RRA's move is low-passed by
+    construction (`filter_matrix`) and its shares by `held_share`; low-passed again off the fitted path, its turn at a
+    clip's ends went with it (2026-11-14, camp's walker: frame 0's residual 0 N on RRA's whole move, 52 N on the path
+    the physics took; 12 N at most once only the legs' change was low-passed)."""
+    return land(smoothed_off(physics, shifted, land(shifted), rate))
+
+
 def skin_excess(found, fitted, labels):
     """Each frame's largest rise, over the regions (`labels`, one a bone vertex), in the share of a region's bone
     vertices outside SOMA's skin from the fitted path (`fitted`) to `found` (both frames x vertices, outside or not)."""
@@ -151,13 +160,13 @@ def within_frames(physics, path, moves, land, fitted, riders, most, rate, skins)
     over SKIN_SLACK of the region; #70, 2026-11-05: the trunk turned by RRA carries the arms and head with it, and the
     pickup's hands stood 37.7% outside the skin against the fit's 1.6%): each frame's share of the move (`moves`,
     frames x adjusted) lowered by how far it is over its cap (`_frame_excess`), halved where it puts bones out, the
-    shares held smooth (`held_share`), its feet kept (`land`), the difference from the fitted path low-passed and the
-    feet kept again (`smoothed_off`: the per-frame leg solve otherwise shakes the shins), until no frame is over; the
+    shares held smooth (`held_share`), its feet kept and what that changed low-passed, the feet kept again (`landed`:
+    the per-frame leg solve otherwise shakes the shins), until no frame is over; the
     path and the shares."""
     adjusted, share = adjusted_leads(physics), np.ones(len(path))
     kept_in = skins.outside(path)
     for _ in range(FRAME_ROUNDS):
-        found = land(smoothed_off(physics, path, land(moved(physics, path, share[:, None] * moves, adjusted)), rate))
+        found = landed(physics, moved(physics, path, share[:, None] * moves, adjusted), land, rate)
         over = _frame_excess(physics.model, path, found, fitted, riders, most)
         drawn = posed_path(physics.model, found, *riders[:3]) @ np.linalg.inv(fitted)
         out = skin_excess(skins.outside(found, drawn), kept_in, skins.labels) > SKIN_SLACK

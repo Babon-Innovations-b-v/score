@@ -11,8 +11,8 @@ import mujoco
 import numpy as np
 
 from model import body_index
-from rra._cap import (SKIN_SLACK, cap_rows, held_share, off_clip, skin_excess, smoothed_off, turned_off,  # noqa: F401
-                      within_follows, within_frames)
+from rra._cap import (SKIN_SLACK, cap_rows, held_share, landed, off_clip, skin_excess, smoothed_off,  # noqa: F401
+                      turned_off, within_follows, within_frames)
 from rra._footed import Footing  # noqa: F401
 from rra._linear import adjusted_leads, frame_states, linearised, moved, residuals, sensitivities, trunk_moments  # noqa: F401
 from batched import within_balls_card

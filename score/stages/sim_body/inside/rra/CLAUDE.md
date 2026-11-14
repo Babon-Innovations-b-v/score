@@ -54,6 +54,10 @@ squares it replaced, 40 fixed steps with ranges by clipping, went 2026-10-29: on
   compares like with like. Against the unmoved skin camp's walker kept 1.5% of a move within the owner's 2 cm and 5
   degrees and 86 of its 150 frames stayed over the residual's limits; against the moved skin it kept at least 0.915 of
   it and 44 stayed over.
+- `landed` low-passes only what the legs' solve changed of the shared move, not the move off the fitted path
+  (2026-11-14): RRA's move is low-passed by construction and its shares by `held_share`, and low-passed a second time
+  the turn it made at a clip's ends went (camp's walker: frame 0 at 0 N on RRA's whole move, 52 N on the physics'
+  path; with `landed` its force at most 12 N on every frame, 15 N the limit, its jerk 1.53 against the clip's 2.13).
 - `cap_rows` moves, lands and poses the path moved by `total` and each column's nudge of it as one stacked path
   (`moved` takes copies x frames, each frame's couplings' map once; the run's `land` takes whole copies of the clip,
   each against the fitted path), so on the card every nudge's legs are one solve, not one a column; `sensitivities`
