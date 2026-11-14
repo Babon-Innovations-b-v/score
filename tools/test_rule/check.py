@@ -102,7 +102,7 @@ FUNCTION_DEBT = {
     "score/dashboard/tests/test_cockpit_is_the_owners_true_view.py": 41,
     "score/graph/test_a_key_is_made_once_from_accepted_inputs.py": 41,
     "score/review/test_the_owners_word_stands.py": 103,
-    "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 31,
+    "score/stages/assembly/test_a_place_stands_from_its_accepted_outputs.py": 8,
     "score/stages/cast/test_people_stand_clear_or_are_named.py": 16,
     "score/stages/demo_film/test_a_film_shows_its_locked_script_within_its_forecast.py": 8,
     "score/stages/library/test_everything_handed_to_library.py": 7,
