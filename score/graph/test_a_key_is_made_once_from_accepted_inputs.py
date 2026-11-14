@@ -722,68 +722,6 @@ def test_a_node_works_out_its_key_in_a_still_of_its_own_the_drive_s_key_and_make
     assert did.startswith("blocked: clean@hangar") and store.record("count@hangar", given["key"]) is None, did
 
 
-def test_a_failed_free_output_is_made_once_more_with_a_fresh_seed_noted_and_never_again():
-    """The first seed fails, the remake's fresh seed passes and is accepted; its record and the remake log name the
-    failed check with its measures, and a later run makes nothing more.
-    Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'
-    Break: score/graph/__init__.py: run_node's body under one 'with self.still():', its key's own pass dropped: the
-    re-key reads the first key, kept in the pass, and the remake stores nothing new."""
-    world, store = a_world({"hangar": "a ship"}), a_store()
-    runner = a_runner(world, store, (PICK,))
-    found = runner.run(["hangar"])
-    assert found == {"pick@hangar": "made: fail; automatic free remake, attempt 2, after first-seed: "
-                                    "made: pass, accepted automatically"}, found
-    record = store.record("pick@hangar", runner.key(PICK, "hangar")["key"])
-    assert record["output"] == store.accepted("pick@hangar")
-    assert record["remake"]["why"] == "automatic free remake, attempt 2, after first-seed", record
-    first, second = noted(runner, "notes")
-    assert (first["attempt"], first["then"], second["attempt"], second["then"]) == (1, "remake", 2, "done")
-    assert first["failed"]["first-seed"]["measures"] == {"seed": graph.node_seed(7, "pick", "hangar")}, first
-    assert a_runner(world, store, (PICK,)).run(["hangar"]) == {"pick@hangar": "fresh"}
-    assert len(noted(runner, "notes")) == 2 and noted(runner, "owner-list") == []
-
-
-def test_a_second_failure_or_a_paid_remake_goes_to_the_owner_priced(monkeypatch):
-    """Both attempts failing stop the line once, on the owner's list at its price with both in its fault report, and
-    no later run remakes it; a paid row off this PC goes there at once, on this PC's card it is remade.
-    Break: score/graph/__init__.py: '        then = "remake" if free and not second else "owner"' -> '        then = "remake" if free else "owner"'"""
-    runner = a_driven_runner({"hangar": "a ship!"})
-    runner.drive(["hangar"], say=quiet)
-    report = report_of(runner, "clean@hangar").read_text()
-    assert "attempt 1 (key " in report and "both attempts failed: on the owner's list, priced EUR 0.00" in report
-    runner.drive(["hangar"], say=quiet)
-    listed = noted(runner, "owner-list")
-    assert [(entry["attempt"], entry["why"], entry["euros"]) for entry in listed] == [(2, "both attempts failed", 0.0)]
-    assert len(noted(runner, "notes")) == 2 and list(listed[0]["failed"]) == ["shout"], listed
-    paid = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("shout", judge_shout),),
-                       files={"brief": "{data}/{place}/brief.txt"}, paid=True, euros=0.4)
-    for here, said in ((None, "made: fail; a paid remake: on the owner's list, priced"),
-                       ("local", "made: fail; automatic free remake, attempt 2, after shout: made: fail; the second")):
-        monkeypatch.setattr(graph, "on_this_pc", lambda: here == "local")
-        runner = a_runner(a_world({"hangar": "a ship!"}), a_store(), (paid,))
-        monkeypatch.setattr(runner, "cleared", lambda node, euros, forecast=None: contextlib.nullcontext())
-        assert runner.run(["hangar"])["clean@hangar"].startswith(said)
-        assert noted(runner, "owner-list")[0]["euros"] == 0.4
-
-
-def test_a_failed_row_of_cached_model_asks_is_noted_for_a_source_fix_and_not_remade(monkeypatch):
-    """Owner, 2026-10-28: "it should only actually retry if the prompt changed". The finish route's list asks
-    through the cached Claude and Google routes, the stage table's own files do not count; a failed row of such
-    asks is noted for a fix of its source, never remade, never on the owner's list.
-    Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and not stage.seeded else'"""
-    from score.stages import physics
-    from score.stages.surfaces import route_list
-    _code.search_folders.cache_clear()  # its folders on the path, as a run's table import puts them before any key
-    assert graph.asks_cached(dataclasses.replace(PICK, make=route_list.make_list))
-    assert not graph.asks_cached(dataclasses.replace(PICK, make=physics.make_trial))  # reached only via the table
-    monkeypatch.setattr(graph, "CACHED_ASKS", {pathlib.Path(__file__).resolve()})  # the toy make asks "a cache"
-    world, store = a_world({"hangar": "a ship"}), a_store()
-    runner = a_runner(world, store, (PICK,))
-    assert runner.run(["hangar"]) == {"pick@hangar": f"made: fail; {graph.SAME_ANSWER}"}
-    assert [(note["then"], list(note["failed"])) for note in noted(runner, "notes")] == [("fix", ["first-seed"])]
-    assert noted(runner, "owner-list") == [] and len(store.records("pick@hangar")) == 1
-
-
 def judge_parts(output, inputs, evidence):
     return checks.Verdict("parts", checks.FAIL, "a model made upstream lacks its parts", findings=("crate: no lid",))
 
@@ -795,35 +733,103 @@ def judge_gaps(output, inputs, evidence):
                           tuple(f"{name}: no model: {name}: none" for name in objects))
 
 
-def test_a_failed_check_of_inputs_is_noted_for_a_fix_upstream_naming_its_objects_and_not_remade():
-    """Likeness@airlock, 2026-10-29: a row whose make never uses its seed (it measures what other rows made) was
-    remade with a fresh seed, failed the same way and went to the owner's list. Such a row is noted once for a fix
-    upstream, its failing objects named, never remade, never on the owner's list; the table marks its check rows and
-    sim-body (no random start, 2026-10-30).
+SHOUT = graph.Stage("clean", "place", make_clean, TEXT, (checks.Check("shout", judge_shout),),
+                    files={"brief": "{data}/{place}/brief.txt"})
+PAID_SHOUT = dataclasses.replace(SHOUT, paid=True, euros=0.4)
+UNSEEDED_PARTS = graph.Stage("pick", "place", make_seeded, TEXT, (checks.Check("parts", judge_parts),), seeded=False)
+GAPPED_ROW = graph.Stage("gapped", "place", make_seeded, TEXT, (checks.Check(graph.GAPPED, judge_gaps),),
+                         files={"brief": "{data}/{place}/brief.txt"}, seeded=False)
+FIRST_SEED = {"first-seed": {"seed": graph.node_seed(7, "pick", "hangar")}}  # the node's own seed, by hand
+REMADE = "automatic free remake, attempt 2, after "
+GAPS = "its accepted gaps name 2 objects, at most 1 passes on to the film"
+
+# A failed output's fate, one row a world: (id, stage, the hangar's brief, its make asks a cache, this PC's card,
+# what the run did, the notes [(attempt, then, {failed check: measures})], the owner's list [(attempt, why, euros)],
+# the records under the node, the standing record's remake why). Worked out by hand from the toy rows: PICK fails
+# only on its own first seed; SHOUT fails on "!" whatever its seed; parts fails always; gaps count the brief's words.
+FATES = [
+    ("free-remake-passes", PICK, "a ship", False, None,
+     f"made: fail; {REMADE}first-seed: made: pass, accepted automatically",
+     [(1, "remake", FIRST_SEED), (2, "done", {})], [], 2, f"{REMADE}first-seed"),
+    ("free-remake-fails-again", SHOUT, "a ship!", False, None,
+     f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
+     [(1, "remake", {"shout": {}}), (2, "owner", {"shout": {}})], [(2, "both attempts failed", 0.0)], 2,
+     f"{REMADE}shout"),
+    ("paid-off-this-pc", PAID_SHOUT, "a ship!", False, None,
+     "made: fail; a paid remake: on the owner's list, priced",
+     [(1, "owner", {"shout": {}})], [(1, "its remake is paid", 0.4)], 1, None),
+    ("paid-on-this-pcs-card", PAID_SHOUT, "a ship!", False, "local",
+     f"made: fail; {REMADE}shout: made: fail; the second failure: on the owner's list, priced",
+     [(1, "remake", {"shout": {}}), (2, "owner", {"shout": {}})], [(2, "both attempts failed", 0.4)], 2,
+     f"{REMADE}shout"),
+    ("cached-asks", PICK, "a ship", True, None, f"made: fail; {graph.SAME_ANSWER}",
+     [(1, "fix", FIRST_SEED)], [], 1, None),
+    ("check-of-inputs", UNSEEDED_PARTS, "a ship", False, None,
+     f"made: fail; {graph.SAME_INPUTS}: crate: no lid", [(1, "fix", {"parts": {}})], [], 1, None),
+    ("one-gap-object", GAPPED_ROW, "hatch hatch", False, None, "made: fail, accepted automatically", [], [], 1, None),
+    ("two-gap-objects", GAPPED_ROW, "hatch ship", False, None, f"made: fail; {GAPS}: on the owner's list, priced",
+     [(1, "owner", {graph.GAPPED: {"gaps": 2}})], [(1, GAPS, 0.0)], 1, None),
+]
+
+
+def test_a_failed_output_is_made_once_more_only_when_free_and_otherwise_noted_for_a_fix_or_the_owner(monkeypatch):
+    """Owner, 2026-10-28: "the goal was getting to the film". A free node's failed output is made once more with a
+    fresh seed: a pass is accepted, its record and the remake log naming the failed check with its measures; a second
+    failure, or a paid remake off this PC, goes on the owner's list at its price with every attempt in its fault
+    report (on this PC's card a paid row is remade). A failed row of cached model asks ("it should only actually
+    retry if the prompt changed"; the finish route's list asks through the cached Claude and Google routes, the stage
+    table's own files do not count) or a check of inputs (likeness@airlock 2026-10-29: a row whose make never uses its
+    seed, remade, failed the same way and went to the owner's list) is noted once for a source fix, its failing
+    objects named, never remade, never listed; the table marks its check rows and sim-body (no random start,
+    2026-10-30). A row failing only on accepted gaps naming one object is accepted; two go on the owner's list with
+    the count (shiplock's complete, nine gap objects accepted automatically 2026-11-12). A later drive of any of
+    them remakes, notes and lists nothing more.
+    Break: score/graph/__init__.py: '        if note and note["then"] == "remake":' -> '        if False:'
+    Break: score/graph/__init__.py: '    def run_node(self, stage, place, given=None):\n' -> the same line, then
+    '        with self.still():\n            return self.run_node_whole(stage, place, given)\n\n    def
+    run_node_whole(self, stage, place, given=None):\n' (run_node's body under one still pass: the re-key reads the
+    first key, kept in the pass, and the remake stores nothing new).
+    Break: score/graph/__init__.py: 'else "remake" if free and not second else "owner"' -> 'else "remake" if free else
+    "owner"'
+    Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and not stage.seeded else'
     Break: score/graph/__init__.py: '        then = "fix" if not second and (not stage.seeded or asks_cached(stage)) else' -> '        then = "fix" if not second and asks_cached(stage) else'
     Break: score/stages/__init__.py: '"light", "motion", "sim-body")' -> '"light", "motion")'
-    A row failing only on accepted gaps that name two objects is not accepted and goes to the owner's list with the
-    count (shiplock's complete, nine gap objects, accepted automatically 2026-11-12); one object is still accepted.
     Break: score/graph/__init__.py: 'then = "owner" if too_many_gaps(failed) else then' -> 'then = then'"""
     from score import stages
+    from score.stages import physics
+    from score.stages.surfaces import route_list
+    _code.search_folders.cache_clear()  # its folders on the path, as a run's table import puts them before any key
+    for make, cached in ((route_list.make_list, True), (physics.make_trial, False)):  # trial: only via the table
+        assert graph.asks_cached(dataclasses.replace(PICK, make=make)) is cached, make
     assert {row.name for row in stages.STAGES if not row.seeded} == set(stages.UNSEEDED)
     assert not next(row for row in stages.STAGES if row.name == "sim-body").seeded  # its remakes were byte-identical
-    check = graph.Stage("pick", "place", make_seeded, TEXT, (checks.Check("parts", judge_parts),), seeded=False)
-    world, store = a_world({"hangar": "a ship"}), a_store()
-    runner = a_runner(world, store, (check,))
-    said = f"{graph.SAME_INPUTS}: crate: no lid"
-    assert runner.run(["hangar"]) == {"pick@hangar": f"made: fail; {said}"}
-    assert [(note["then"], note["why"]) for note in noted(runner, "notes")] == [("fix", said)]
-    assert noted(runner, "owner-list") == [] and len(store.records("pick@hangar")) == 1
-    gapped = graph.Stage("gapped", "place", make_seeded, TEXT, (checks.Check(graph.GAPPED, judge_gaps),),
-                         files={"brief": "{data}/{place}/brief.txt"}, seeded=False)
-    world, store = a_world({"hangar": "hatch hatch", "airlock": "hatch ship"}), a_store()
-    runner = a_runner(world, store, (gapped,))
-    gaps = "its accepted gaps name 2 objects, at most 1 passes on to the film"
-    assert runner.run(["hangar", "airlock"]) == {"gapped@hangar": "made: fail, accepted automatically",
-                                                 "gapped@airlock": f"made: fail; {gaps}: on the owner's list, priced"}
-    assert store.accepted("gapped@airlock") is None
-    assert [(note["node"], note["why"]) for note in noted(runner, "owner-list")] == [("gapped@airlock", gaps)]
+    asks = graph.CACHED_ASKS
+    for name, stage, text, cached, here, did, notes, owner, records, remade in FATES:
+        monkeypatch.setattr(graph, "CACHED_ASKS", {pathlib.Path(__file__).resolve()} if cached else asks)
+        monkeypatch.setattr(graph, "on_this_pc", lambda: here == "local")
+        world, store = a_world({"hangar": text}), a_store()
+        runner = a_runner(world, store, (stage,))
+        monkeypatch.setattr(runner, "cleared", lambda node, euros, forecast=None: contextlib.nullcontext())
+        node = f"{stage.name}@hangar"
+        assert runner.run(["hangar"]) == {node: did}, name
+        written = noted(runner, "notes")
+        assert [(entry["attempt"], entry["then"], {check: verdict["measures"] for check, verdict in
+                 entry["failed"].items()}) for entry in written] == notes, (name, written)
+        listed = noted(runner, "owner-list")
+        assert [(entry["node"], entry["attempt"], entry["why"], entry["euros"]) for entry in listed] == \
+            [(node, *entry) for entry in owner], (name, listed)
+        record = store.record(node, runner.key(stage, "hangar")["key"])
+        assert len(store.records(node)) == records and record.get("remake", {}).get("why") == remade, (name, record)
+        stands = did.endswith("accepted automatically")
+        assert store.accepted(node) == (record["output"] if stands else None), name
+        runner.drive(["hangar"], say=quiet)
+        assert noted(runner, "notes") == written and noted(runner, "owner-list") == listed, name
+        if written and not stands:  # a noted node that does not stand: every attempt in its fault report
+            text = report_of(runner, node).read_text()
+            assert all(f"attempt {entry['attempt']} (key " in text for entry in written if entry["failed"]), name
+            assert all(f"{entry['why']}: on the owner's list, priced EUR {entry['euros']:.2f}" in text
+                       for entry in listed) and all(entry["why"] in text for entry in written[-1:]
+                                                     if entry["then"] == "fix"), (name, text)
 
 
 def test_a_failed_gate_blocks_what_follows_and_a_waiver_passes_it_for_its_key_only():
