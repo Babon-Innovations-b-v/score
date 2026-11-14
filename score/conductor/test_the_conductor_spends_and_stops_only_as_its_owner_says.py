@@ -65,7 +65,11 @@ False:' (a take a run is writing is linked), or in relink_pixal 'if laid_by_a_ro
 drop 'or code_built(path, pixal)' (a code build's take linked: 2026-11-05, every pixal row refused on input.png); in
 asked_by 'return code == entry["code"] and entry["system"]' -> 'return False and entry["system"]' (the crate's views,
 still asked for, are swept), or drop its 'and \\\n            all(input_stands(' (the lamp's views, made from its
-old model, stay). The free
+old model, stay). The conductor's score_lib checkout (2026-10-28: boot.sh cloned it once and nothing pulled it, so its
+pushes could fail non-fast-forward): in score/conductor/library_checkout.py '    if found["changes"] or
+found["local_commits"]:' -> '    if False:' (a pull over local commits or changes goes on), or '    fetched = git(root,
+"fetch", "-q", "origin")' -> '    fetched = git(root, "status")' (behind reads 0 against a stale origin ref), or in
+push_check '    if tried.returncode == 0:' -> '    if True:' (a refused push reads accepted). The free
 end-to-end check is red when a step fails, e.g. the memory guard letting the second node start while the first, short
 of its stage's peak, still runs.
 """
@@ -175,6 +179,12 @@ RECORDS = [(None, None, "score"), ({"image": "x", "jobs": 12, "namespace": "scor
 SHOWN = {"score-sync.timer": ("active", ""), "score-sync.service": ("inactive", "success"),
          "score-listen.service": ("failed", "exit-code"), "score-resume.service": ("inactive", "success"),
          "score-backup.timer": ("inactive", ""), "score-backup.service": ("inactive", "")}
+
+# the conductor's score_lib checkout, one push behind origin, holding (a local commit, a local change, nothing) -> its
+# pull's refusal ("" when it fast-forwards): a fast-forward only pull never moves over local work
+LIBRARY_PULLS = [("a local commit", "local.json", True, "0 local changes and 1 local commits"),
+                 ("a local change", "index.json", False, "1 local changes and 0 local commits"),
+                 ("nothing of its own", None, False, "")]
 
 
 def properties(unit):
@@ -913,6 +923,37 @@ def test_the_conductor_spends_and_stops_only_as_its_owner_says(home, monkeypatch
             assert list(conductor.HOME.glob("free-only-cleared-*.json"))
     # Owner, 2026-10-25: the next Buy after a stopped batch needs no Allow paid work again
     assert not conductor.free_only()
+
+    # the conductor's score_lib checkout counts after a fetch and pulls only as a fast-forward
+    from score.conductor import library_checkout
+    checkout = a_library_checkout(tmp_path)
+    found = library_checkout.status(checkout)
+    assert (found["upstream"], found["ahead"], found["behind"], found["fetch"]) == ("origin/main", 0, 1, ""), found
+    assert "update by push" in found["last_push"] and found["changes"] == [], found
+    assert found["remote"] == str(tmp_path / "origin.git") and "rejected" in found["push"], found  # behind origin
+    frozen.git(checkout, "remote", "set-url", "origin", f"https://u:secret@{tmp_path}/origin.git")
+    assert library_checkout.remote(checkout) == f"https://{tmp_path}/origin.git"  # its token never shown
+    frozen.git(checkout, "remote", "set-url", "origin", str(tmp_path / "origin.git"))
+    start = frozen.git(checkout, "rev-parse", "HEAD")
+    for row, name, committed, refusal in LIBRARY_PULLS:
+        if name:
+            (checkout / name).write_text('{"changed": 1}')
+        if committed:
+            frozen.git(checkout, "add", name)
+            frozen.git(checkout, "commit", "-q", "-m", row)
+        held, files = frozen.git(checkout, "rev-parse", "HEAD"), sorted(path.name for path in checkout.iterdir())
+        found, refused = library_checkout.pull(checkout)
+        assert refused.startswith(refusal) if refusal else refused == "", (row, refused, found)
+        if refusal:  # nothing moved: its commit and its change are where they were
+            assert frozen.git(checkout, "rev-parse", "HEAD") == held, row
+            assert sorted(path.name for path in checkout.iterdir()) == files, row
+            assert (checkout / name).read_text() == '{"changed": 1}', row
+            assert [line.endswith(row) for line in found["local_commits"]] == ([True] if committed else []), row
+            frozen.git(checkout, "reset", "-q", "--hard", start)
+        else:  # behind by origin's one push, now moved onto it, and a dry push is accepted
+            assert found["behind"] == 1 and (checkout / "entry.json").is_file(), (row, found)
+            assert library_checkout.status(checkout)["behind"] == 0, row
+            assert library_checkout.status(checkout)["push"] == "", row
     out, err = dry.communicate(timeout=90)
     lines = out.strip().splitlines()
     assert len(lines) == 1 and lines[0].startswith("conductor dry: 7 of 7 steps passed; detail "), out + err[-2000:]
@@ -1120,39 +1161,6 @@ def a_library_checkout(tmp_path):
     frozen.git(other, "commit", "-q", "-m", "pushed from elsewhere")
     frozen.git(other, "push", "-q", "origin", "HEAD:main")
     return checkout
-
-
-def test_score_lib_pull_only_fast_forwards_and_status_counts_after_a_fetch(tmp_path):
-    """2026-10-28: boot.sh clones score_lib once and nothing pulls it, so its pushes may fail non-fast-forward.
-    Break: score/conductor/library_checkout.py: '    if found["changes"] or found["local_commits"]:' -> '    if False:'
-    (a pull over local commits or changes goes on), or '    fetched = git(root, "fetch", "-q", "origin")' ->
-    '    fetched = git(root, "status")' (behind reads 0 against a stale origin ref), or in push_check
-    '    if tried.returncode == 0:' -> '    if True:' (a refused push reads accepted)"""
-    from score.conductor import library_checkout
-    checkout = a_library_checkout(tmp_path)
-    found = library_checkout.status(checkout)
-    assert (found["upstream"], found["ahead"], found["behind"], found["fetch"]) == ("origin/main", 0, 1, ""), found
-    assert "update by push" in found["last_push"] and found["changes"] == [], found
-    assert found["remote"] == str(tmp_path / "origin.git") and "rejected" in found["push"], found  # behind origin
-    frozen.git(checkout, "remote", "set-url", "origin", f"https://u:secret@{tmp_path}/origin.git")
-    assert library_checkout.remote(checkout) == f"https://{tmp_path}/origin.git"
-    frozen.git(checkout, "remote", "set-url", "origin", str(tmp_path / "origin.git"))
-    (checkout / "local.json").write_text("{}")
-    frozen.git(checkout, "add", "local.json")
-    frozen.git(checkout, "commit", "-q", "-m", "a local commit")
-    held = frozen.git(checkout, "rev-parse", "HEAD")
-    found, refusal = library_checkout.pull(checkout)
-    assert "1 local commits" in refusal and found["local_commits"][0].endswith("a local commit"), (refusal, found)
-    assert frozen.git(checkout, "rev-parse", "HEAD") == held
-    frozen.git(checkout, "reset", "-q", "--hard", "HEAD~1")
-    (checkout / "index.json").write_text('{"changed": 1}')
-    assert "1 local changes" in library_checkout.pull(checkout)[1]
-    assert (checkout / "index.json").read_text() == '{"changed": 1}'
-    frozen.git(checkout, "checkout", "-q", "--", "index.json")
-    found, refusal = library_checkout.pull(checkout)
-    assert refusal == "" and found["behind"] == 1 and (checkout / "entry.json").is_file(), (refusal, found)
-    assert library_checkout.status(checkout)["behind"] == 0
-    assert library_checkout.status(checkout)["push"] == ""  # up to date with origin: a dry push is accepted
 
 
 def take_views(source, folder):
