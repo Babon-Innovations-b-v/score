@@ -78,6 +78,15 @@ Run: PROPS_HOME=$(mktemp -d) .venv/bin/python -m pytest score/review/holders/tes
     Break: score/review/holders/__init__.py: `if on_run(row, holder_row):` -> `if False:`
     Break: score/review/holders/__init__.py: on_run's `all(longest >= RUN_SHARE * other` -> `all(longest >= other`
         (the drying rack a run)
+    Workshop (settle@workshop, 2026-11-14): its lamp, 'head size' 0.4 x 0.4 x 0.2 m on its 1 x 1 x 2.5 m robotic arm,
+    the plan's item drawn over the arm's whole footprint, is the arm's head: on its top, attached to it (the settle
+    and the resting check take it as laid; it stood on the arm's end tipped 57 degrees). The same lamp drawn at a
+    spot of its own, a roof drawn over its hub near its own size, one taller than its holder and one with no size
+    stand on the top as before.
+    Break: score/review/holders/__init__.py: `if part_of(item, items[nearest], row, holder_row):` -> `if False:`
+    Break: score/review/holders/__init__.py: part_of's `drawn >= PART_SHARE * under and` dropped (the lamp at a spot of
+        its own attached), `float(size[0]) * float(size[1]) < PART_SHARE * drawn and` dropped (the roof attached), or
+        `all(float(own) < float(other)` -> `any(float(own) < float(other)` (the tall thing attached)
     Lab (settle@lab, 2026-11-11): its 0.2 m valves laid within their 0.1 x 0.1 x 2.5 m standing pipes floated 1.5 m:
     a fitting wider than a standing run is thick is against its side, the one away from the wall nearest the run
     (they went against the wall side the concept showed, 0.1 m into the wall); one on a lying run, one no wider than
@@ -722,6 +731,22 @@ for name, size, how, rests in (("too-tall-valve-attached-on-its-run", [0.6, 0.2,
     CASES.append(case(name, holders.held, RUNS["VALVE 1"],
                       {"id": "pipe_valves", "noun": "valve", "anchor": "on:large_pipes", "size": size},
                       LARGE_PIPES, ["PIPE 1"], RUNS, 0.0, want={"how": how, "holder": "PIPE 1", "rests": rests}))
+ARM = {"id": "robotic_arm", "noun": "arm", "anchor": "on:central_console", "size": [1.0, 1.0, 2.5],
+       "box": [1224, 464, 1647, 821]}
+LAMP = {"id": "lamp", "noun": "lamp", "anchor": "on:robotic_arm", "size": [0.4, 0.4, 0.2],
+        "box": [1328, 490, 1479, 599]}
+ARM_ITEMS = {"ARM 1": ["ARM 1", 4.61, 4.343, 2.473, 2.413, "N", "item"],
+             "LAMP 1": ["LAMP 1", 4.61, 4.343, 2.473, 2.413, "N", "item"],
+             "OWN 1": ["OWN 1", 5.0, 5.0, 1.0, 1.0, "N", "item"]}
+HUB = {**ARM, "size": [3.0, 3.0, 2.5]}
+for name, item, row, holder, rests in (
+        ("too-tall-lamp-the-arm-s-head", "LAMP 1", LAMP, ARM, "attached"),
+        ("too-tall-lamp-at-a-spot-of-its-own", "OWN 1", LAMP, ARM, ABSENT),
+        ("too-tall-roof-near-its-hub-s-size", "LAMP 1", {**LAMP, "size": [2.0, 2.0, 0.2]}, HUB, ABSENT),
+        ("too-tall-thing-taller-than-its-holder", "LAMP 1", {**LAMP, "size": [0.4, 0.4, 3.0]}, ARM, ABSENT),
+        ("too-tall-sizeless-on-the-arm", "LAMP 1", {**LAMP, "size": None}, ARM, ABSENT)):
+    CASES.append(case(name, holders.held, ARM_ITEMS[item], row, holder, ["ARM 1"], ARM_ITEMS, 0.0, 9.0,
+                      want={"how": "top", "holder": "ARM 1", "rests": rests}))
 WALLED = plan_of([], {}, walls=[{"from": [0.0, 0.0], "to": [20.0, 0.0], "thick": 0.2},
                                 {"from": [0.0, 0.0], "to": [0.0, 12.0], "thick": 0.2}])
 CASES.append(case("too-tall-off-the-north-wall", holders.side_off_wall, ["PIPE 9", 5.0, 0.2, 0.2, 0.2, None, "item"],
